@@ -8,7 +8,7 @@ This page provides an overview of the file and folder structure of a Next.js pro
 
 ## Top-level files
 
-|                                                                                             |                                         |
+|  File                                                                                       | Description                             |
 | ------------------------------------------------------------------------------------------- | --------------------------------------- |
 | **Next.js**                                                                                 |                                         |
 | [`next.config.js`](/docs/app/api-reference/next-config-js)                                  | Configuration file for Next.js          |
@@ -28,7 +28,7 @@ This page provides an overview of the file and folder structure of a Next.js pro
 
 ## Top-level folders
 
-|                                                                         |                                    |
+| File                                                                    | Description                        |
 | ----------------------------------------------------------------------- | ---------------------------------- |
 | [`app`](/docs/app/building-your-application/routing)                    | App Router                         |
 | [`pages`](/docs/pages/building-your-application/routing)                | Pages Router                       |
@@ -39,7 +39,7 @@ This page provides an overview of the file and folder structure of a Next.js pro
 
 ### Routing Files
 
-|                                                                                 |                     |                              |
+| File                                                                            | Extensions          | Description                  |
 | ------------------------------------------------------------------------------- | ------------------- | ---------------------------- |
 | [`layout`](/docs/app/api-reference/file-conventions/layout)                     | `.js` `.jsx` `.tsx` | Layout                       |
 | [`page`](/docs/app/api-reference/file-conventions/page)                         | `.js` `.jsx` `.tsx` | Page                         |
@@ -53,14 +53,14 @@ This page provides an overview of the file and folder structure of a Next.js pro
 
 ### Nested Routes
 
-|                                                                              |                      |
+| File                                                                         | Description          |
 | ---------------------------------------------------------------------------- | -------------------- |
 | [`folder`](/docs/app/building-your-application/routing#route-segments)       | Route segment        |
 | [`folder/folder`](/docs/app/building-your-application/routing#nested-routes) | Nested route segment |
 
 ### Dynamic Routes
 
-|                                                                                                           |                             |
+| File                                                                                                      | Description                 |
 | --------------------------------------------------------------------------------------------------------- | --------------------------- |
 | [`[folder]`](/docs/app/building-your-application/routing/dynamic-routes#convention)                       | Dynamic route segment       |
 | [`[...folder]`](/docs/app/building-your-application/routing/dynamic-routes)                               | Catch-all segments          |
@@ -68,14 +68,14 @@ This page provides an overview of the file and folder structure of a Next.js pro
 
 ### Route Groups and Private Folders
 
-|                                                                                     |                                                  |
+| File                                                                                | Description                                      |
 | ----------------------------------------------------------------------------------- | ------------------------------------------------ |
 | [`(folder)`](/docs/app/building-your-application/routing/route-groups#convention)   | Group routes without affecting routing           |
 | [`_folder`](/docs/app/building-your-application/routing/colocation#private-folders) | Opt folder and all child segments out of routing |
 
 ### Parallel and Intercepted Routes
 
-|                                                                                                |                            |
+| File                                                                                           | Description                |
 | ---------------------------------------------------------------------------------------------- | -------------------------- |
 | [`@folder`](/docs/app/building-your-application/routing/parallel-routes#convention)            | Named slot                 |
 | [`(.)folder`](/docs/app/building-your-application/routing/intercepting-routes#convention)      | Intercept same level       |
@@ -87,7 +87,7 @@ This page provides an overview of the file and folder structure of a Next.js pro
 
 #### App Icons
 
-|                                                                                                                 |                                     |                          |
+| File                                                                                                            | Extensions                          | Description              |
 | --------------------------------------------------------------------------------------------------------------- | ----------------------------------- | ------------------------ |
 | [`favicon`](/docs/app/api-reference/file-conventions/metadata/app-icons#favicon)                                | `.ico`                              | Favicon file             |
 | [`icon`](/docs/app/api-reference/file-conventions/metadata/app-icons#icon)                                      | `.ico` `.jpg` `.jpeg` `.png` `.svg` | App Icon file            |
@@ -97,7 +97,7 @@ This page provides an overview of the file and folder structure of a Next.js pro
 
 #### Open Graph and Twitter Images
 
-|                                                                                                                             |                              |                            |
+| File                                                                                                                        | Extensions                   | Description                |
 | --------------------------------------------------------------------------------------------------------------------------- | ---------------------------- | -------------------------- |
 | [`opengraph-image`](/docs/app/api-reference/file-conventions/metadata/opengraph-image#opengraph-image)                      | `.jpg` `.jpeg` `.png` `.gif` | Open Graph image file      |
 | [`opengraph-image`](/docs/app/api-reference/file-conventions/metadata/opengraph-image#generate-images-using-code-js-ts-tsx) | `.js` `.ts` `.tsx`           | Generated Open Graph image |
@@ -106,7 +106,7 @@ This page provides an overview of the file and folder structure of a Next.js pro
 
 #### SEO
 
-|                                                                                             |             |                       |
+| File                                                                                        | Extensions  | Description           |
 | ------------------------------------------------------------------------------------------- | ----------- | --------------------- |
 | [`sitemap`](/docs/app/api-reference/file-conventions/metadata/sitemap#static-sitemapxml)    | `.xml`      | Sitemap file          |
 | [`sitemap`](/docs/app/api-reference/file-conventions/metadata/sitemap#generate-a-sitemap)   | `.js` `.ts` | Generated Sitemap     |
@@ -117,7 +117,7 @@ This page provides an overview of the file and folder structure of a Next.js pro
 
 ### Special Files
 
-|                                                                                                             |                     |                   |
+|  File                                                                                                       | Extensions          | Description       |
 | ----------------------------------------------------------------------------------------------------------- | ------------------- | ----------------- |
 | [`_app`](/docs/pages/building-your-application/routing/custom-app)                                          | `.js` `.jsx` `.tsx` | Custom App        |
 | [`_document`](/docs/pages/building-your-application/routing/custom-document)                                | `.js` `.jsx` `.tsx` | Custom Document   |
@@ -127,7 +127,7 @@ This page provides an overview of the file and folder structure of a Next.js pro
 
 ### Routes
 
-|                                                                                                |                     |             |
+| File                                                                                           | Extensions          | Description |
 | ---------------------------------------------------------------------------------------------- | ------------------- | ----------- |
 | **Folder convention**                                                                          |                     |             |
 | [`index`](/docs/pages/building-your-application/routing/pages-and-layouts#index-routes)        | `.js` `.jsx` `.tsx` | Home page   |
@@ -138,7 +138,7 @@ This page provides an overview of the file and folder structure of a Next.js pro
 
 ### Dynamic Routes
 
-|                                                                                                                   |                     |                             |
+| File                                                                                                              | Extensions          | Description                 |
 | ----------------------------------------------------------------------------------------------------------------- | ------------------- | --------------------------- |
 | **Folder convention**                                                                                             |                     |                             |
 | [`[folder]/index`](/docs/pages/building-your-application/routing/dynamic-routes)                                  | `.js` `.jsx` `.tsx` | Dynamic route segment       |
