@@ -440,6 +440,7 @@ export default class DevServer extends Server {
         const pagesPageFilePaths = new Map<string, string>()
 
         let envChange = false
+        let clientRouterFilterChange = false
         let tsconfigChange = false
         let conflictingPageChange = 0
 
@@ -636,7 +637,7 @@ export default class DevServer extends Server {
             JSON.stringify(previousClientRouterFilters) !==
               JSON.stringify(clientRouterFilters)
           ) {
-            envChange = true
+            clientRouterFilterChange = true
             previousClientRouterFilters = clientRouterFilters
           }
         }
@@ -651,7 +652,7 @@ export default class DevServer extends Server {
             .catch(() => {})
         }
 
-        if (envChange || tsconfigChange) {
+        if (clientRouterFilterChange || envChange || tsconfigChange) {
           if (envChange) {
             this.loadEnvConfig({
               dev: true,
