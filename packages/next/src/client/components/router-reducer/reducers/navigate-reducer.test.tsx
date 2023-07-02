@@ -3,6 +3,7 @@ import type { fetchServerResponse as fetchServerResponseType } from '../fetch-se
 import type { FlightData } from '../../../../server/app-render/types'
 
 const buildId = 'development'
+
 const flightData: FlightData = [
   [
     'children',
@@ -58,6 +59,9 @@ jest.mock('../fetch-server-response', () => {
     fetchServerResponse: (
       url: URL
     ): ReturnType<typeof fetchServerResponseType> => {
+      if (url.pathname === '/linking' && url.hash === '#hash') {
+        return Promise.resolve(['', undefined])
+      }
       if (url.pathname === '/linking/about') {
         return Promise.resolve([flightData, undefined])
       }
@@ -969,6 +973,169 @@ describe('navigateReducer', () => {
             'linking',
             {
               children: ['about', { children: ['', {}] }, undefined, 'refetch'],
+            },
+          ],
+        },
+        // TODO-APP: optimistic tree is wrong
+        undefined,
+        undefined,
+        true,
+      ],
+    }
+
+    expect(newState).toMatchObject(expectedState)
+  })
+
+  it('should apply navigation for scroll', async () => {
+    const initialTree = getInitialRouterStateTree()
+    const initialCanonicalUrl = '/linking'
+    const children = (
+      <html>
+        <head></head>
+        <body>Root layout</body>
+      </html>
+    )
+    const initialParallelRoutes: CacheNode['parallelRoutes'] = new Map([
+      [
+        'children',
+        new Map([
+          [
+            'linking',
+            {
+              status: CacheStates.READY,
+              parallelRoutes: new Map([
+                [
+                  'children',
+                  new Map([
+                    [
+                      '__PAGE__',
+                      {
+                        status: CacheStates.READY,
+                        data: null,
+                        subTreeData: <>Linking page</>,
+                        parallelRoutes: new Map(),
+                      },
+                    ],
+                  ]),
+                ],
+              ]),
+              data: null,
+              subTreeData: <>Linking layout level</>,
+            },
+          ],
+        ]),
+      ],
+    ])
+
+    const state = createInitialRouterState({
+      buildId,
+      initialTree,
+      initialHead: null,
+      initialCanonicalUrl,
+      children,
+      initialParallelRoutes,
+      isServer: false,
+      location: new URL('/linking', 'https://localhost') as any,
+    })
+
+    const state2 = createInitialRouterState({
+      buildId,
+      initialTree,
+      initialHead: null,
+      initialCanonicalUrl,
+      children,
+      initialParallelRoutes,
+      isServer: false,
+      location: new URL('/linking#hash', 'https://localhost') as any,
+    })
+
+    const action: NavigateAction = {
+      type: ACTION_NAVIGATE,
+      url: new URL('/linking#hash', 'https://localhost'),
+      isExternalUrl: false,
+      locationSearch: '',
+      navigateType: 'push',
+      shouldScroll: false, // should not scroll
+      forceOptimisticNavigation: false,
+      cache: {
+        status: CacheStates.LAZY_INITIALIZED,
+        data: null,
+        subTreeData: null,
+        parallelRoutes: new Map(),
+      },
+      mutable: {},
+    }
+
+    await runPromiseThrowChain(() => navigateReducer(state, action))
+
+    const newState = await runPromiseThrowChain(() =>
+      navigateReducer(state2, action)
+    )
+
+    const expectedState: ReturnType<typeof navigateReducer> = {
+      buildId,
+      prefetchCache: new Map(),
+      pushRef: {
+        mpaNavigation: true,
+        pendingPush: true,
+      },
+      focusAndScrollRef: {
+        apply: false,
+        hashFragment: null,
+        segmentPaths: [],
+      },
+      canonicalUrl: '',
+      nextUrl: '/linking',
+      cache: {
+        status: CacheStates.READY,
+        data: null,
+        subTreeData: (
+          <html>
+            <head></head>
+            <body>Root layout</body>
+          </html>
+        ),
+        parallelRoutes: new Map([
+          [
+            'children',
+            new Map([
+              [
+                'linking',
+                {
+                  status: CacheStates.READY,
+                  parallelRoutes: new Map([
+                    [
+                      'children',
+                      new Map([
+                        [
+                          '__PAGE__',
+                          {
+                            status: CacheStates.READY,
+                            // Real promise is not needed here.
+                            data: null,
+                            parallelRoutes: new Map(),
+                            subTreeData: <>Linking page</>,
+                          },
+                        ],
+                      ]),
+                    ],
+                  ]),
+                  // Real promise is not needed here.
+                  data: null,
+                  subTreeData: <>Linking layout level</>,
+                },
+              ],
+            ]),
+          ],
+        ]),
+      },
+      tree: [
+        '',
+        {
+          children: [
+            'linking',
+            {
+              children: ['__PAGE__', {}],
             },
           ],
         },
