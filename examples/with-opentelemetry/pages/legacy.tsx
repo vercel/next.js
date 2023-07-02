@@ -11,10 +11,5 @@ export async function getServerSideProps() {
 }
 
 export default function IndexPage({ stars }) {
-  return (
-    <>
-      <p>Next.js has {stars} ⭐️</p>
-      <Link href="/preact-stars">How about preact?</Link>
-    </>
-  )
+  return <p>Next.js has {stars} ⭐️</p>
 }
