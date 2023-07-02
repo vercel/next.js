@@ -192,6 +192,7 @@ type RenderWorker = Worker & {
   deleteCache: typeof import('./lib/render-server').deleteCache
   deleteAppClientCache: typeof import('./lib/render-server').deleteAppClientCache
   clearModuleContext: typeof import('./lib/render-server').clearModuleContext
+  onWatcherAggregate?: typeof import('./lib/render-server').onWatcherAggregate
 }
 
 export default class NextNodeServer extends BaseServer {
@@ -211,6 +212,9 @@ export default class NextNodeServer extends BaseServer {
     page: string
     re: RegExp
   }[]
+
+  onWatcherAggregate?: (knownFiles: any) => Promise<void>
+  bufferedAggregatedFileChanges?: any
 
   constructor(options: Options) {
     // Initialize super class
@@ -1430,7 +1434,8 @@ export default class NextNodeServer extends BaseServer {
           if (renderWorker) {
             const initUrl = getRequestMeta(req, '__NEXT_INIT_URL')!
             const { port, hostname } = await renderWorker.initialize(
-              this.renderWorkerOpts!
+              this.renderWorkerOpts!,
+              this.bufferedAggregatedFileChanges
             )
             const renderUrl = new URL(initUrl)
             renderUrl.hostname = hostname
@@ -2447,7 +2452,8 @@ export default class NextNodeServer extends BaseServer {
 
                 const { port, hostname } =
                   await this.renderWorkers.middleware.initialize(
-                    this.renderWorkerOpts!
+                    this.renderWorkerOpts!,
+                    this.bufferedAggregatedFileChanges
                   )
                 const renderUrl = new URL(initUrl)
                 renderUrl.hostname = hostname

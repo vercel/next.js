@@ -240,6 +240,10 @@ export default class DevServer extends Server {
     )
     this.pagesDir = pagesDir
     this.appDir = appDir
+
+    this.onWatcherAggregate = async (knownFiles: any) => {
+      this.bufferedAggregatedFileChanges = knownFiles
+    }
   }
 
   protected getRoutes() {
@@ -412,27 +416,23 @@ export default class DevServer extends Server {
       ]
       files.push(...tsconfigPaths)
 
-      const wp = (this.webpackWatcher = new Watchpack({
-        ignored: (pathname: string) => {
-          return (
-            !files.some((file) => file.startsWith(pathname)) &&
-            !directories.some(
-              (dir) => pathname.startsWith(dir) || dir.startsWith(pathname)
-            )
-          )
-        },
-      }))
-
-      wp.watch({ directories: [this.dir], startTime: 0 })
       const fileWatchTimes = new Map()
       let enabledTypeScript = this.usingTypeScript
       let previousClientRouterFilters: any
       let previousConflictingPagePaths: Set<string> = new Set()
 
-      wp.on('aggregated', async () => {
+      // Override the default bufferring logic.
+      this.onWatcherAggregate = async (
+        knownFiles: Record<
+          string,
+          {
+            accuracy?: number
+            timestamp?: number
+          }
+        >
+      ) => {
         let middlewareMatchers: MiddlewareMatcher[] | undefined
         const routedPages: string[] = []
-        const knownFiles = wp.getTimeInfoEntries()
         const appPaths: Record<string, string[]> = {}
         const pageNameSet = new Set<string>()
         const conflictingAppPagePaths = new Set<string>()
@@ -445,7 +445,9 @@ export default class DevServer extends Server {
 
         devPageFiles.clear()
 
-        for (const [fileName, meta] of knownFiles) {
+        for (const fileName in knownFiles) {
+          const meta = knownFiles[fileName]
+
           if (
             !files.includes(fileName) &&
             !directories.some((dir) => fileName.startsWith(dir))
@@ -836,7 +838,35 @@ export default class DevServer extends Server {
           // and the matchers need to re-scan it to update the router.
           await this.matchers.reload()
         }
-      })
+      }
+
+      if (this.isRouterWorker) {
+        const wp = (this.webpackWatcher = new Watchpack({
+          ignored: (pathname: string) => {
+            return (
+              !files.some((file) => file.startsWith(pathname)) &&
+              !directories.some(
+                (dir) => pathname.startsWith(dir) || dir.startsWith(pathname)
+              )
+            )
+          },
+        }))
+        wp.watch({ directories: [this.dir], startTime: 0 })
+        wp.on('aggregated', async () => {
+          const entries = wp.getTimeInfoEntries()
+          const knownFiles = Object.fromEntries(entries)
+
+          if (this.renderWorkers?.pages) {
+            this.renderWorkers.pages?.onWatcherAggregate?.(knownFiles)
+            this.renderWorkers.app?.onWatcherAggregate?.(knownFiles)
+          }
+          this.bufferedAggregatedFileChanges = knownFiles
+          await this.onWatcherAggregate?.(knownFiles)
+        })
+      } else {
+        await this.onWatcherAggregate(this.bufferedAggregatedFileChanges)
+        delete this.bufferedAggregatedFileChanges
+      }
     })
   }
 
@@ -913,7 +943,6 @@ export default class DevServer extends Server {
     await this.hotReloader?.start()
     await this.startWatcher()
     await this.runInstrumentationHookIfAvailable()
-    await this.matchers.reload()
     this.setDevReady!()
 
     if (this.nextConfig.experimental.nextScriptWorkers) {

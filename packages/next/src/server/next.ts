@@ -53,6 +53,7 @@ export class NextServer {
   private server?: Server
   private reqHandlerPromise?: Promise<NodeRequestHandler>
   private preparedAssetPrefix?: string
+  private pendingAggregateData?: any
 
   private standaloneMode?: boolean
 
@@ -110,6 +111,14 @@ export class NextServer {
     }
   }
 
+  onWatcherAggregate(data: any) {
+    if (!this.server) {
+      this.pendingAggregateData = data
+      return
+    }
+    this.server.onWatcherAggregate?.(data)
+  }
+
   async render(...args: Parameters<Server['render']>) {
     const server = await this.getServer()
     return server.render(...args)
@@ -148,6 +157,9 @@ export class NextServer {
     // We shouldn't prepare the server in production,
     // because this code won't be executed when deployed
     if (this.options.dev) {
+      if (this.pendingAggregateData) {
+        server.onWatcherAggregate?.(this.pendingAggregateData)
+      }
       await server.prepare()
     }
   }

@@ -1,4 +1,4 @@
-import type { RequestHandler } from '../next'
+import type { NextServer, RequestHandler } from '../next'
 
 import './cpu-profile'
 import v8 from 'v8'
@@ -23,6 +23,7 @@ let result:
       port: number
       hostname: string
     }
+let app: undefined | NextServer
 
 let sandboxContext: undefined | typeof import('../web/sandbox/context')
 let requireCacheHotReloader:
@@ -46,16 +47,19 @@ export function deleteCache(filePath: string) {
   requireCacheHotReloader?.deleteCache(filePath)
 }
 
-export async function initialize(opts: {
-  dir: string
-  port: number
-  dev: boolean
-  minimalMode?: boolean
-  hostname?: string
-  workerType: 'router' | 'render'
-  isNodeDebugging: boolean
-  keepAliveTimeout?: number
-}): Promise<NonNullable<typeof result>> {
+export async function initialize(
+  opts: {
+    dir: string
+    port: number
+    dev: boolean
+    minimalMode?: boolean
+    hostname?: string
+    workerType: 'router' | 'render'
+    isNodeDebugging: boolean
+    keepAliveTimeout?: number
+  },
+  bufferedAggregatedFileChanges?: any
+): Promise<NonNullable<typeof result>> {
   // if we already setup the server return as we only need to do
   // this on first worker boot
   if (result) {
@@ -124,7 +128,7 @@ export async function initialize(opts: {
           port,
           hostname,
         }
-        const app = next({
+        app = next({
           ...opts,
           _routerWorker: opts.workerType === 'router',
           _renderWorker: opts.workerType === 'render',
@@ -137,6 +141,7 @@ export async function initialize(opts: {
 
         requestHandler = app.getRequestHandler()
         upgradeHandler = app.getUpgradeHandler()
+        onWatcherAggregate(bufferedAggregatedFileChanges)
         await app.prepare()
         resolve(result)
       } catch (err) {
@@ -145,4 +150,9 @@ export async function initialize(opts: {
     })
     server.listen(await getFreePort(), '0.0.0.0')
   })
+}
+
+export function onWatcherAggregate(data: any) {
+  if (!app || !data) return
+  app.onWatcherAggregate(data)
 }
