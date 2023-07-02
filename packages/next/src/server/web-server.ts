@@ -36,8 +36,8 @@ interface WebServerOptions extends Options {
     extendRenderOpts: Partial<BaseServer['renderOpts']> &
       Pick<BaseServer['renderOpts'], 'buildId'>
     renderToHTML:
-      | typeof import('./render').renderToHTML
       | typeof import('./app-render/app-render').renderToHTMLOrFlight
+      | undefined
     incrementalCacheHandler?: any
     prerenderManifest: PrerenderManifest | undefined
   }
@@ -371,6 +371,11 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     renderOpts: RenderOpts
   ): Promise<RenderResult> {
     const { renderToHTML } = this.serverOptions.webServerConfig
+    if (!renderToHTML) {
+      throw new Error(
+        'Invariant: routeModule should be configured when rendering pages'
+      )
+    }
 
     return renderToHTML(
       req as any,

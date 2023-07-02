@@ -18,7 +18,7 @@ You will be asked for the name of your project, and then whether you want to
 create a TypeScript project:
 
 ```bash
-✔ Would you like to use TypeScript with this project? … No / Yes
+✔ Would you like to use TypeScript? … No / Yes
 ```
 
 Select **Yes** to install the necessary types/dependencies and create a new TS project.
