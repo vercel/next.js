@@ -17,13 +17,6 @@ export const WORKER_SELF_EXIT_CODE = 77
 const MAXIMUM_HEAP_SIZE_ALLOWED =
   (v8.getHeapStatistics().heap_size_limit / 1024 / 1024) * 0.9
 
-let result:
-  | undefined
-  | {
-      port: number
-      hostname: string
-    }
-
 let sandboxContext: undefined | typeof import('../web/sandbox/context')
 let requireCacheHotReloader:
   | undefined
@@ -55,12 +48,10 @@ export async function initialize(opts: {
   workerType: 'router' | 'render'
   isNodeDebugging: boolean
   keepAliveTimeout?: number
-}): Promise<NonNullable<typeof result>> {
-  // if we already setup the server return as we only need to do
-  // this on first worker boot
-  if (result) {
-    return result
-  }
+}): Promise<{
+  port: number
+  hostname: string
+}> {
   let requestHandler: RequestHandler
 
   const server = http.createServer((req, res) => {
@@ -120,10 +111,6 @@ export async function initialize(opts: {
         if (isIPv6(hostname)) {
           hostname = hostname === '::' ? '[::1]' : `[${hostname}]`
         }
-        result = {
-          port,
-          hostname,
-        }
         const app = next({
           ...opts,
           _routerWorker: opts.workerType === 'router',
@@ -138,7 +125,10 @@ export async function initialize(opts: {
         requestHandler = app.getRequestHandler()
         upgradeHandler = app.getUpgradeHandler()
         await app.prepare()
-        resolve(result)
+        resolve({
+          port,
+          hostname,
+        })
       } catch (err) {
         return reject(err)
       }
