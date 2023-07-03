@@ -197,6 +197,8 @@ async function prepareDocumentMapEntry(
     const headings = getHeadingsFromMarkdownTree(tree)
     const normalizedUrlPath = normalizePath(filePath)
 
+    console.log(filePath, normalizedUrlPath)
+
     return [
       normalizedUrlPath,
       { body: content, path: filePath, headings, ...data },
