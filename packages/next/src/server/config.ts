@@ -714,7 +714,7 @@ function assignDefaults(
       transform: 'react-bootstrap/{{member}}',
     },
     antd: {
-      transform: 'antd/es/{{member}}',
+      transform: 'antd/es/{{kebabCase member}}',
     },
     ahooks: {
       transform: 'ahooks/es/{{member}}',
