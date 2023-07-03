@@ -3,7 +3,7 @@ use std::iter::once;
 use anyhow::Result;
 use indexmap::IndexSet;
 use turbo_tasks::{
-    graph::{GraphTraversal, ReverseTopological},
+    graph::{AdjacencyMap, GraphTraversal},
     primitives::{BoolVc, U64Vc},
     TryJoinIterExt, ValueToString,
 };
@@ -83,7 +83,7 @@ impl AvailableAssetsVc {
 
 #[turbo_tasks::function]
 async fn chunkable_assets_set(root: AssetVc) -> Result<AssetsSetVc> {
-    let assets = ReverseTopological::new()
+    let assets = AdjacencyMap::new()
         .skip_duplicates()
         .visit(once(root), |&asset: &AssetVc| async move {
             Ok(asset
@@ -124,5 +124,7 @@ async fn chunkable_assets_set(root: AssetVc) -> Result<AssetsSetVc> {
         })
         .await
         .completed()?;
-    Ok(AssetsSetVc::cell(assets.into_inner().into_iter().collect()))
+    Ok(AssetsSetVc::cell(
+        assets.into_inner().into_reverse_topological().collect(),
+    ))
 }

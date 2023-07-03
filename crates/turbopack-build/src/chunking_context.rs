@@ -1,7 +1,7 @@
 use anyhow::Result;
 use indexmap::IndexSet;
 use turbo_tasks::{
-    graph::{GraphTraversal, ReverseTopological},
+    graph::{AdjacencyMap, GraphTraversal},
     primitives::{BoolVc, StringVc},
     TryJoinIterExt, Value,
 };
@@ -322,7 +322,7 @@ async fn get_parallel_chunks<I>(entries: I) -> Result<impl Iterator<Item = Chunk
 where
     I: IntoIterator<Item = ChunkVc>,
 {
-    Ok(ReverseTopological::new()
+    Ok(AdjacencyMap::new()
         .skip_duplicates()
         .visit(entries, |chunk: ChunkVc| async move {
             Ok(chunk
@@ -336,7 +336,7 @@ where
         .await
         .completed()?
         .into_inner()
-        .into_iter())
+        .into_reverse_topological())
 }
 
 async fn get_optimized_chunks<I>(chunks: I) -> Result<ChunksVc>
