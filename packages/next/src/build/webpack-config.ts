@@ -1437,6 +1437,11 @@ export default async function getBaseWebpackConfig(
     // Specific Next.js imports that should remain external
     // TODO-APP: Investigate if we can remove this.
     if (request.startsWith('next/dist/')) {
+      // Image loader needs to be transpiled
+      if (/^next\/dist\/shared\/lib\/image-loader/.test(request)) {
+        return
+      }
+
       if (
         /^next\/dist\/shared\/(?!lib\/router\/router)/.test(request) ||
         /^next\/dist\/compiled\/.*\.c?js$/.test(request)
