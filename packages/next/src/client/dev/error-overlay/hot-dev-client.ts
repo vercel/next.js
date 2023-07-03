@@ -276,8 +276,6 @@ function processMessage(obj: any) {
       return handleSuccess()
     }
     case 'serverComponentChanges': {
-      // Server component changes don't apply to `pages`.
-      // TODO-APP: Remove reload once the correct overlay is rendered on initial page load in app dir
       window.location.reload()
       return
     }
