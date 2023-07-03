@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 use tracing::{info_span, Span};
 use turbo_tasks::{
     debug::ValueDebugFormat,
-    graph::{GraphTraversal, GraphTraversalResult, ReverseTopological, Visit, VisitControlFlow},
+    graph::{AdjacencyMap, GraphTraversal, GraphTraversalResult, Visit, VisitControlFlow},
     primitives::{StringReadRef, StringVc},
     trace::TraceRawVcs,
     TryJoinIterExt, Value, ValueToString, ValueToStringVc,
@@ -586,11 +586,11 @@ where
         _phantom: PhantomData,
     };
 
-    let GraphTraversalResult::Completed(traversal_result) = ReverseTopological::new().visit(root_edges, visit).await else {
+    let GraphTraversalResult::Completed(traversal_result) = AdjacencyMap::new().visit(root_edges, visit).await else {
         return Ok(None);
     };
 
-    let graph_nodes: Vec<_> = traversal_result?.into_iter().collect();
+    let graph_nodes: Vec<_> = traversal_result?.into_reverse_topological().collect();
 
     let mut chunk_items = Vec::new();
     let mut chunks = Vec::new();

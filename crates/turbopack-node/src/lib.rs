@@ -11,7 +11,7 @@ pub use node_entry::{
     NodeEntry, NodeEntryVc, NodeRenderingEntriesVc, NodeRenderingEntry, NodeRenderingEntryVc,
 };
 use turbo_tasks::{
-    graph::{GraphTraversal, ReverseTopological},
+    graph::{AdjacencyMap, GraphTraversal},
     CompletionVc, CompletionsVc, TryJoinIterExt, ValueToString,
 };
 use turbo_tasks_env::{ProcessEnv, ProcessEnvVc};
@@ -171,7 +171,7 @@ async fn separate_assets(
             .await
     };
 
-    let graph = ReverseTopological::new()
+    let graph = AdjacencyMap::new()
         .skip_duplicates()
         .visit(once(Type::Internal(intermediate_asset)), get_asset_children)
         .await
@@ -181,7 +181,7 @@ async fn separate_assets(
     let mut internal_assets = IndexSet::new();
     let mut external_asset_entrypoints = IndexSet::new();
 
-    for item in graph {
+    for item in graph.into_reverse_topological() {
         match item {
             Type::Internal(asset) => {
                 internal_assets.insert(asset);
