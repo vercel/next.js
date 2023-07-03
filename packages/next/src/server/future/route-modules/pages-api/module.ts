@@ -121,7 +121,7 @@ export class PagesAPIRouteModule extends RouteModule<
       context.query,
       this.userland,
       {
-        previewProps: context.previewProps,
+        ...context.previewProps,
         revalidate: context.revalidate,
         trustHostHeader: context.trustHostHeader,
         allowedRevalidateHeaderKeys: context.allowedRevalidateHeaderKeys,

@@ -35,11 +35,9 @@ startHandler(({ request, response, query, params, path }) => {
     mergedQuery,
     allExports,
     {
-      previewProps: {
-        previewModeId: '',
-        previewModeEncryptionKey: '',
-        previewModeSigningKey: '',
-      },
+      previewModeId: '',
+      previewModeEncryptionKey: '',
+      previewModeSigningKey: '',
     },
     false,
     true,

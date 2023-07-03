@@ -197,8 +197,7 @@ type RevalidateFn = (config: {
   opts: { unstable_onlyGenerated?: boolean }
 }) => Promise<void>
 
-type ApiContext = {
-  previewProps: __ApiPreviewProps
+type ApiContext = __ApiPreviewProps & {
   trustHostHeader?: boolean
   allowedRevalidateHeaderKeys?: string[]
   hostname?: string
@@ -422,7 +421,7 @@ async function revalidate(
     )
   }
   const revalidateHeaders: HeadersInit = {
-    [PRERENDER_REVALIDATE_HEADER]: context.previewProps.previewModeId,
+    [PRERENDER_REVALIDATE_HEADER]: context.previewModeId,
     ...(opts.unstable_onlyGenerated
       ? {
           [PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER]: '1',
@@ -541,7 +540,7 @@ export async function apiResolver(
     apiReq.query = query
     // Parsing preview data
     setLazyProp({ req: apiReq }, 'previewData', () =>
-      tryGetPreviewData(req, res, apiContext.previewProps)
+      tryGetPreviewData(req, res, apiContext)
     )
     // Checking if preview mode is enabled
     setLazyProp({ req: apiReq }, 'preview', () =>
@@ -591,11 +590,7 @@ export async function apiResolver(
     apiRes.setDraftMode = (options = { enable: true }) =>
       setDraftMode(apiRes, Object.assign({}, apiContext, options))
     apiRes.setPreviewData = (data, options = {}) =>
-      setPreviewData(
-        apiRes,
-        data,
-        Object.assign({}, apiContext.previewProps, options)
-      )
+      setPreviewData(apiRes, data, Object.assign({}, apiContext, options))
     apiRes.clearPreviewData = (options = {}) =>
       clearPreviewData(apiRes, options)
     apiRes.revalidate = (
