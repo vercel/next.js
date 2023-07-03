@@ -975,6 +975,10 @@ export default class HotReloader {
       })
     }
 
+    this.multiCompiler.hooks.done.tap('NextjsHotReloader', () => {
+      // TODO-APP: investigate purging side effects
+      // inputFileSystem.purge!()
+    })
     watchCompilers(
       this.multiCompiler.compilers[0],
       this.multiCompiler.compilers[1],
