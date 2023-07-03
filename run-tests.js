@@ -41,7 +41,7 @@ const TIMINGS_API_HEADERS = {
 }
 
 const testFilters = {
-  unit: 'unit/',
+  unit: ['unit/', 'packages/next/', 'packages/font'],
   e2e: 'e2e/',
   production: 'production/',
   development: 'development/',
@@ -165,7 +165,11 @@ async function main() {
       }
       if (filterTestsBy) {
         // only include the specified type
-        return filterTestsBy === 'none' ? true : test.startsWith(filterTestsBy)
+        return filterTestsBy === 'none'
+          ? true
+          : Array.isArray(filterTestsBy)
+          ? filterTestsBy.some((filterPath) => test.startsWith(filterPath))
+          : test.startsWith(filterTestsBy)
       } else {
         // include all except the separately configured types
         return !configuredTestTypes.some((type) => test.startsWith(type))
