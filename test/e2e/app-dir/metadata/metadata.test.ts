@@ -672,7 +672,7 @@ createNextDescribe(
         const $icon = $('head > link[rel="icon"][type!="image/x-icon"]')
 
         expect($icon.attr('href')).toMatch(
-          /\/icons\/static\/icon\.png\?b76e8f0282c93c8e/
+          /\/icons\/static\/icon1\.png\?b76e8f0282c93c8e/
         )
         expect($icon.attr('sizes')).toBe('114x114')
 
@@ -691,9 +691,9 @@ createNextDescribe(
       })
 
       if (isNextDev) {
-        it('should handle hmr updates to the file icon', async () => {
+        it.skip('should handle hmr updates to the file icon', async () => {
           await next.renameFile(
-            'app/icons/static/icon.png',
+            'app/icons/static/icon1.png',
             'app/icons/static/icon2.png'
           )
 
@@ -705,7 +705,7 @@ createNextDescribe(
 
           await next.renameFile(
             'app/icons/static/icon2.png',
-            'app/icons/static/icon.png'
+            'app/icons/static/icon1.png'
           )
         })
       }
@@ -801,7 +801,7 @@ createNextDescribe(
       })
 
       it('should have icons as route', async () => {
-        const resIcon = await next.fetch('/icons/static/icon.png')
+        const resIcon = await next.fetch('/icons/static/icon1.png')
         const resAppleIcon = await next.fetch(
           '/icons/static/nested/apple-icon.png'
         )

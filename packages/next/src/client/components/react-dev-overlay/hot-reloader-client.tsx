@@ -136,6 +136,7 @@ function tryApplyUpdates(
   function handleApplyUpdates(err: any, updatedModules: any[] | null) {
     if (err || RuntimeErrorHandler.hadRuntimeError || !updatedModules) {
       if (err) {
+        console.error('hmr:err', err)
         console.warn(
           '[Fast Refresh] performing full reload\n\n' +
             "Fast Refresh will perform a full reload when you edit a file that's imported by modules outside of the React rendering tree.\n" +
