@@ -12,9 +12,9 @@ import { setFailed } from '@actions/core'
 import type { Node, Data } from 'unist'
 
 /**
- * This script validates internal links in /docs including internal, hash,
- * source and related links. It does not validate external links.
- * 1. Recursively traverses the docs and collects all .mdx files.
+ * This script validates internal links in /docs and /erros including internal,
+ * hash, source and related links. It does not validate external links.
+ * 1. Collects all .mdx files in /docs and /errors.
  * 2. For each file, it extracts the content, metadata, and heading slugs.
  * 3. It creates a document map to efficiently lookup documents by path.
  * 4. It then traverses each document modified in the PR and...
@@ -51,7 +51,7 @@ interface Comment {
 }
 
 const DOCS_PATH = '/docs/'
-const EXCLUDED_PATHS = ['/docs/messages/']
+const ERRORS_PATH = '/errors/'
 const EXCLUDED_HASHES = ['top']
 const COMMENT_TAG = '<!-- LINK_CHECKER_COMMENT -->'
 
@@ -63,28 +63,29 @@ const sha = pullRequest.head.sha
 
 const slugger = new GithubSlugger()
 
-// Recursively traverses DOCS_PATH and collects all .mdx files
-async function getAllMdxFiles(
-  dir: string,
+// Collect the paths of all .mdx files in the passed directories
+async function getAllMdxFilePaths(
+  directoriesToScan: string[],
   fileList: string[] = []
 ): Promise<string[]> {
-  const files = await fs.readdir(dir)
-
-  for (const file of files) {
-    const filePath = path.join(dir, file)
-    const stats = await fs.stat(filePath)
-
-    if (stats.isDirectory()) {
-      fileList = await getAllMdxFiles(filePath, fileList)
-    } else if (path.extname(file) === '.mdx') {
-      fileList.push(filePath)
+  for (const dir of directoriesToScan) {
+    const dirPath = path.join('.', dir)
+    const files = await fs.readdir(dirPath)
+    for (const file of files) {
+      const filePath = path.join(dirPath, file)
+      const stats = await fs.stat(filePath)
+      if (stats.isDirectory()) {
+        fileList = await getAllMdxFilePaths([filePath], fileList)
+      } else if (path.extname(file) === '.mdx') {
+        fileList.push(filePath)
+      }
     }
   }
 
   return fileList
 }
 
-async function getFilesChangedInPR(): Promise<string[]> {
+async function getPullRequestMdxFilePaths(): Promise<string[]> {
   try {
     const filesChanged = await octokit.rest.pulls.listFiles({
       owner,
@@ -95,7 +96,8 @@ async function getFilesChangedInPR(): Promise<string[]> {
     const mdxFilesChanged = filesChanged.data
       .filter(
         (file) =>
-          path.join('/', file.filename).startsWith(DOCS_PATH) &&
+          (path.join('/', file.filename).startsWith(DOCS_PATH) ||
+            path.join('/', file.filename).startsWith(ERRORS_PATH)) &&
           file.filename.endsWith('.mdx') &&
           (file.status === 'added' || file.status === 'modified')
       )
@@ -149,8 +151,26 @@ const markdownProcessor = unified()
   })
 
 function normalizePath(filePath: string): string {
+  if (filePath.startsWith('.' + ERRORS_PATH)) {
+    return (
+      filePath
+        // Remap repository file path to the next-site url path
+        // e.g. `./errors/example.mdx` -> `/docs/messages/example`
+        .replace('.' + ERRORS_PATH, DOCS_PATH + 'messages/')
+        .replace('.mdx', '')
+    )
+  }
+
   return (
+    // Remap repository file path to the next-site url path without `./docs/`
+    // e.g. `./docs/01-api/getting-started/index.mdx` -> `api/getting-started`
     path
+      // We remove `./docs/` to normalize paths between regular links
+      // e.g. `/docs/api/example` and related/source links e.g `api/example`
+      // TODO:
+      //  - Fix `next-site` to handle full paths for related/source links
+      //  - Update doc files to use full paths for related/source links
+      //  - Remove this workaround
       .relative('.' + DOCS_PATH, filePath)
       // Remove prefixed numbers used for ordering from the path
       .replace(/(\d\d-)/g, '')
@@ -162,8 +182,11 @@ function normalizePath(filePath: string): string {
 // use Map for faster lookup
 let documentMap: Map<string, Document>
 
-// Create a map of documents with their relative paths as keys and
+// Create a map of documents with their paths as keys and
 // document content and metadata as values
+// The key varies between doc pages and error pages
+// error pages: `/docs/messages/example`
+// doc pages: `api/example`
 async function prepareDocumentMapEntry(
   filePath: string
 ): Promise<[string, Document]> {
@@ -172,36 +195,47 @@ async function prepareDocumentMapEntry(
     const { content, data } = matter(mdxContent)
     const tree = markdownProcessor.parse(content)
     const headings = getHeadingsFromMarkdownTree(tree)
-    const normalizedPath = normalizePath(filePath)
+    const normalizedUrlPath = normalizePath(filePath)
 
     return [
-      normalizedPath,
+      normalizedUrlPath,
       { body: content, path: filePath, headings, ...data },
     ]
   } catch (error) {
     setFailed(`Error preparing document map for file ${filePath}: ${error}`)
-    return ['', {} as Document] // Return a default document
+    return ['', {} as Document]
   }
 }
 
 // Checks if the links point to existing documents
 function validateInternalLink(errors: Errors, href: string): void {
-  // split href into link and hash link
-  const [link, hash] = href.replace(DOCS_PATH, '').split('#')
-  const docExists = documentMap.get(link)
+  let link = href.replace(DOCS_PATH, '')
+  let foundPage
 
-  if (!docExists) {
+  if (link.startsWith('messages/')) {
+    // check if error page exists, key is the full url path
+    // e.g. `/docs/messages/example`
+    foundPage = documentMap.get(DOCS_PATH + link)
+  } else {
+    // check if doc page exists, key is the url path without `/docs/`
+    // e.g. `api/example`
+    foundPage = documentMap.get(link)
+  }
+
+  const hash = href.split('#')[1] || ''
+
+  if (!foundPage) {
     errors.brokenLinks.push(`${DOCS_PATH}${link}${hash ? '#' + hash : ''}`)
   } else if (hash && !EXCLUDED_HASHES.includes(hash)) {
     // Account for documents that pull their content from another document
-    const sourceDoc = docExists.source
-      ? documentMap.get(docExists.source)
+    const foundPageSource = foundPage.source
+      ? documentMap.get(foundPage.source)
       : undefined
 
     // Check if the hash link points to an existing section within the document
-    const hashExists = (sourceDoc || docExists).headings.includes(hash)
+    const hashFound = (foundPageSource || foundPage).headings.includes(hash)
 
-    if (!hashExists) {
+    if (!hashFound) {
       errors.brokenHashes.push(`${DOCS_PATH}${link}${hash ? '#' + hash : ''}`)
     }
   }
@@ -251,10 +285,7 @@ function traverseTreeAndValidateLinks(tree: any, doc: Document): Errors {
 
         if (!href) return
 
-        if (
-          href.startsWith(DOCS_PATH) &&
-          !EXCLUDED_PATHS.some((excludedPath) => href.startsWith(excludedPath))
-        ) {
+        if (href.startsWith(DOCS_PATH)) {
           validateInternalLink(errors, href)
         } else if (href.startsWith('#')) {
           validateHashLink(errors, href, doc)
@@ -376,8 +407,8 @@ async function updateCheckStatus(
 // Main function that triggers link validation across .mdx files
 async function validateAllInternalLinks(): Promise<void> {
   try {
-    const allMdxFilePaths = await getAllMdxFiles('.' + DOCS_PATH)
-    const prMdxFilePaths = await getFilesChangedInPR()
+    const allMdxFilePaths = await getAllMdxFilePaths([DOCS_PATH, ERRORS_PATH])
+    const prMdxFilePaths = await getPullRequestMdxFilePaths()
 
     documentMap = new Map(
       await Promise.all(allMdxFilePaths.map(prepareDocumentMapEntry))
