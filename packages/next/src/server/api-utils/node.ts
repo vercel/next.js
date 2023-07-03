@@ -191,17 +191,18 @@ export async function parseBody(
   }
 }
 
-type ApiContext = __ApiPreviewProps & {
+type RevalidateFn = (config: {
+  urlPath: string
+  revalidateHeaders: { [key: string]: string | string[] }
+  opts: { unstable_onlyGenerated?: boolean }
+}) => Promise<void>
+
+type ApiContext = {
+  previewProps: __ApiPreviewProps
   trustHostHeader?: boolean
   allowedRevalidateHeaderKeys?: string[]
   hostname?: string
-  revalidate?: (config: {
-    urlPath: string
-    revalidateHeaders: { [key: string]: string | string[] }
-    opts: { unstable_onlyGenerated?: boolean }
-  }) => Promise<any>
-
-  // (_req: IncomingMessage, _res: ServerResponse) => Promise<any>
+  revalidate?: RevalidateFn
 }
 
 function getMaxContentLength(responseLimit?: ResponseLimit) {
@@ -421,7 +422,7 @@ async function revalidate(
     )
   }
   const revalidateHeaders: HeadersInit = {
-    [PRERENDER_REVALIDATE_HEADER]: context.previewModeId,
+    [PRERENDER_REVALIDATE_HEADER]: context.previewProps.previewModeId,
     ...(opts.unstable_onlyGenerated
       ? {
           [PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER]: '1',
@@ -540,7 +541,7 @@ export async function apiResolver(
     apiReq.query = query
     // Parsing preview data
     setLazyProp({ req: apiReq }, 'previewData', () =>
-      tryGetPreviewData(req, res, apiContext)
+      tryGetPreviewData(req, res, apiContext.previewProps)
     )
     // Checking if preview mode is enabled
     setLazyProp({ req: apiReq }, 'preview', () =>
@@ -590,7 +591,11 @@ export async function apiResolver(
     apiRes.setDraftMode = (options = { enable: true }) =>
       setDraftMode(apiRes, Object.assign({}, apiContext, options))
     apiRes.setPreviewData = (data, options = {}) =>
-      setPreviewData(apiRes, data, Object.assign({}, apiContext, options))
+      setPreviewData(
+        apiRes,
+        data,
+        Object.assign({}, apiContext.previewProps, options)
+      )
     apiRes.clearPreviewData = (options = {}) =>
       clearPreviewData(apiRes, options)
     apiRes.revalidate = (
