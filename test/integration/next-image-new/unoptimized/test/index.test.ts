@@ -15,10 +15,9 @@ const appDir = join(__dirname, '../')
 let appPort
 let app
 
-function runTests() {
+function runTests({ url }: { appPort: number; url: string }) {
   it('should not optimize any image', async () => {
-    const browser = await webdriver(appPort, '/')
-
+    const browser = await webdriver(appPort, url)
     expect(
       await browser.elementById('internal-image').getAttribute('src')
     ).toBe('/test.png')
@@ -93,7 +92,7 @@ function runTests() {
 }
 
 describe('Unoptimized Image Tests', () => {
-  describe('dev mode', () => {
+  describe('dev mode - component', () => {
     beforeAll(async () => {
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
@@ -102,10 +101,9 @@ describe('Unoptimized Image Tests', () => {
       await killApp(app)
     })
 
-    runTests()
+    runTests({ appPort, url: '/' })
   })
-
-  describe('server mode', () => {
+  describe('server mode - component', () => {
     beforeAll(async () => {
       await nextBuild(appDir)
       appPort = await findPort()
@@ -115,6 +113,29 @@ describe('Unoptimized Image Tests', () => {
       await killApp(app)
     })
 
-    runTests()
+    runTests({ appPort, url: '/' })
+  })
+  describe('dev mode - getImgProps', () => {
+    beforeAll(async () => {
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+    })
+    afterAll(async () => {
+      await killApp(app)
+    })
+
+    runTests({ appPort, url: '/get-img-props' })
+  })
+  describe('server mode - getImgProps', () => {
+    beforeAll(async () => {
+      await nextBuild(appDir)
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
+    })
+    afterAll(async () => {
+      await killApp(app)
+    })
+
+    runTests({ appPort, url: '/get-img-props' })
   })
 })
