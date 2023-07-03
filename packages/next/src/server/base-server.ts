@@ -213,6 +213,16 @@ type ResponsePayload = {
   revalidateOptions?: any
 }
 
+export interface FindPageComponentsOptions {
+  pathname: string
+  query: ParsedUrlQuery
+  params: Params
+  isAppPath: boolean
+  sriEnabled?: boolean
+  appPaths?: string[] | null
+  shouldEnsure: boolean
+}
+
 export default abstract class Server<ServerOptions extends Options = Options> {
   protected readonly dir: string
   protected readonly quiet: boolean

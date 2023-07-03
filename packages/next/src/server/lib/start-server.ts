@@ -22,7 +22,6 @@ export interface StartServerOptions {
   useWorkers: boolean
   allowRetry?: boolean
   isTurbopack?: boolean
-  isExperimentalTurbo?: boolean
   keepAliveTimeout?: number
   onStdout?: (data: any) => void
   onStderr?: (data: any) => void
@@ -39,6 +38,7 @@ export async function startServer({
   useWorkers,
   allowRetry,
   keepAliveTimeout,
+  isTurbopack,
   onStdout,
   onStderr,
 }: StartServerOptions): Promise<TeardownServer> {
@@ -333,6 +333,7 @@ export async function startServer({
         httpServer: server,
         customServer: false,
         port: addr && typeof addr === 'object' ? addr.port : port,
+        isTurbopack,
       })
       // handle in process
       requestHandler = app.getRequestHandler()

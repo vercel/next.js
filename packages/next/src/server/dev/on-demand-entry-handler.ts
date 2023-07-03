@@ -36,6 +36,7 @@ import {
 import { RouteMatch } from '../future/route-matches/route-match'
 import { RouteKind } from '../future/route-kind'
 import { AppPageRouteMatch } from '../future/route-matches/app-page-route-match'
+import { EnsurePageOptions } from './next-dev-server'
 
 const debug = origDebug('next:on-demand-entry-handler')
 
@@ -690,12 +691,7 @@ export function onDemandEntryHandler({
       clientOnly,
       appPaths = null,
       match,
-    }: {
-      page: string
-      clientOnly: boolean
-      appPaths?: ReadonlyArray<string> | null
-      match?: RouteMatch
-    }): Promise<void> {
+    }: EnsurePageOptions): Promise<void> {
       const stalledTime = 60
       const stalledEnsureTimeout = setTimeout(() => {
         debug(

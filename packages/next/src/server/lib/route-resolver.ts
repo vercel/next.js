@@ -91,7 +91,7 @@ export async function makeResolver(
   const { getPathMatch } =
     require('../../shared/lib/router/utils/path-match') as typeof import('../../shared/lib/router/utils/path-match')
   const { default: DevServer } =
-    require('../dev/next-dev-server') as typeof import('../dev/next-dev-server')
+    require('../dev/next-dev-webpack-server') as typeof import('../dev/next-dev-webpack-server')
 
   const { NodeNextRequest, NodeNextResponse } =
     require('../base-http/node') as typeof import('../base-http/node')

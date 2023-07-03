@@ -160,7 +160,12 @@ export class NextServer {
   private async createServer(options: DevServerOptions): Promise<Server> {
     let ServerImplementation: typeof Server
     if (options.dev) {
-      ServerImplementation = require('./dev/next-dev-server').default
+      if (options.isTurbopack) {
+        ServerImplementation =
+          require('./dev/next-dev-turbopack-server').default
+      } else {
+        ServerImplementation = require('./dev/next-dev-webpack-server').default
+      }
     } else {
       ServerImplementation = await getServerImpl()
     }

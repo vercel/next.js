@@ -57,11 +57,11 @@ import ws from 'next/dist/compiled/ws'
 import { promises as fs } from 'fs'
 import { UnwrapPromise } from '../../lib/coalesced-function'
 import { getRegistry } from '../../lib/helpers/get-registry'
-import { RouteMatch } from '../future/route-matches/route-match'
 import { parseVersionInfo, VersionInfo } from './parse-version-info'
 import { isAPIRoute } from '../../lib/is-api-route'
 import { getRouteLoaderEntry } from '../../build/webpack/loaders/next-route-loader'
 import { isInternalComponent } from '../../lib/is-internal-component'
+import { EnsurePageOptions } from './next-dev-server'
 
 function diff(a: Set<any>, b: Set<any>) {
   return new Set([...a].filter((v) => !b.has(v)))
@@ -1408,12 +1408,7 @@ export default class HotReloader {
     clientOnly,
     appPaths,
     match,
-  }: {
-    page: string
-    clientOnly: boolean
-    appPaths?: string[] | null
-    match?: RouteMatch
-  }): Promise<void> {
+  }: EnsurePageOptions): Promise<void> {
     // Make sure we don't re-build or dispose prebuilt pages
     if (page !== '/_error' && BLOCKED_PAGES.indexOf(page) !== -1) {
       return
