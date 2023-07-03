@@ -47,7 +47,8 @@ criterion = { workspace = true, features = ["async_tokio"] }
 rstest = { workspace = true }
 sha2 = "0.10.2"
 tempfile = { workspace = true }
-turbo-tasks-memory = { path = "../turbo-tasks-memory" }
+turbo-tasks-memory = { workspace = true }
+turbo-tasks-testing = { workspace = true }
 
 [build-dependencies]
-turbo-tasks-build = { path = "../turbo-tasks-build" }
+turbo-tasks-build = { workspace = true }

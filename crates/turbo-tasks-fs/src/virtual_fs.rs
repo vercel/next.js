@@ -1,6 +1,7 @@
 use anyhow::{bail, Result};
 use turbo_tasks::{primitives::StringVc, CompletionVc, ValueToString, ValueToStringVc};
-use turbo_tasks_fs::{
+
+use super::{
     DirectoryContentVc, FileContentVc, FileMetaVc, FileSystem, FileSystemPathVc, FileSystemVc,
     LinkContentVc,
 };
@@ -8,11 +9,22 @@ use turbo_tasks_fs::{
 #[turbo_tasks::value]
 pub struct VirtualFileSystem;
 
-#[turbo_tasks::value_impl]
 impl VirtualFileSystemVc {
-    #[turbo_tasks::function]
+    /// Creates a new [`VirtualFileSystemVc`].
+    ///
+    /// NOTE: This function is not a `turbo_tasks::function` to avoid instances
+    /// being equivalent identity-wise. This ensures that a [`FileSystemPathVc`]
+    /// created from this [`VirtualFileSystemVc`] will never be equivalent,
+    /// nor be interoperable, with a [`FileSystemPathVc`] created from another
+    /// [`VirtualFileSystemVc`].
     pub fn new() -> Self {
         Self::cell(VirtualFileSystem)
+    }
+}
+
+impl Default for VirtualFileSystemVc {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
