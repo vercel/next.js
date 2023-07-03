@@ -209,7 +209,8 @@ async function prepareDocumentMapEntry(
 
 // Checks if the links point to existing documents
 function validateInternalLink(errors: Errors, href: string): void {
-  let link = href.replace(DOCS_PATH, '')
+  const [link, hash] = href.replace(DOCS_PATH, '').split('#')
+
   let foundPage
 
   if (link.startsWith('messages/')) {
@@ -221,8 +222,6 @@ function validateInternalLink(errors: Errors, href: string): void {
     // e.g. `api/example`
     foundPage = documentMap.get(link)
   }
-
-  const hash = href.split('#')[1] || ''
 
   if (!foundPage) {
     errors.brokenLinks.push(`${DOCS_PATH}${link}${hash ? '#' + hash : ''}`)
