@@ -31,7 +31,9 @@ createNextDescribe(
         if (Array.isArray(expected)) {
           expect(values).toEqual(expected)
         } else {
-          expect(values[0]).toBe(expected)
+          // If expected is undefined, then it should not exist.
+          // Otherwise, it should exist in the matched values.
+          expect(values.includes(expected)).toBe(expected !== undefined)
         }
       }
     }
@@ -476,7 +478,7 @@ createNextDescribe(
         // override metadataBase
         const urlInstance$ = await next.render$('/metadata-base/url-instance')
         expect(urlInstance$('meta[property="og:url"]').attr('content')).toBe(
-          'http://https//outerspace.com/huozhi.png'
+          'https://outerspace.com/huozhi.png'
         )
       })
     })

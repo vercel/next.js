@@ -119,6 +119,7 @@ const nextDev: CliCommand = async (argv) => {
     '--port': Number,
     '--hostname': String,
     '--turbo': Boolean,
+    '--experimental-turbo': Boolean,
 
     // To align current messages with native binary.
     // Will need to adjust subcommand later.
@@ -209,6 +210,7 @@ const nextDev: CliCommand = async (argv) => {
   // We do not set a default host value here to prevent breaking
   // some set-ups that rely on listening on other interfaces
   const host = args['--hostname']
+  const experimentalTurbo = args['--experimental-turbo']
 
   const devServerOptions: StartServerOptions = {
     dir,
@@ -218,6 +220,7 @@ const nextDev: CliCommand = async (argv) => {
     hostname: host,
     // This is required especially for app dir.
     useWorkers: true,
+    isExperimentalTurbo: experimentalTurbo,
   }
 
   if (args['--turbo']) {
@@ -276,6 +279,20 @@ const nextDev: CliCommand = async (argv) => {
       )
     }
 
+    if (process.platform === 'darwin') {
+      // rust needs stdout to be blocking, otherwise it will throw an error (on macOS at least) when writing a lot of data (logs) to it
+      // see https://github.com/napi-rs/napi-rs/issues/1630
+      // and https://github.com/nodejs/node/blob/main/doc/api/process.md#a-note-on-process-io
+      if (process.stdout._handle != null) {
+        // @ts-ignore
+        process.stdout._handle.setBlocking(true)
+      }
+      if (process.stderr._handle != null) {
+        // @ts-ignore
+        process.stderr._handle.setBlocking(true)
+      }
+    }
+
     let bindings: any = await loadBindings()
     let server = bindings.turbo.startDev({
       ...devServerOptions,
@@ -297,6 +314,11 @@ const nextDev: CliCommand = async (argv) => {
 
     return server
   } else {
+    if (experimentalTurbo) {
+      Log.error('Not supported yet')
+      process.exit(1)
+    }
+
     let cleanupFns: (() => Promise<void> | void)[] = []
     const runDevServer = async () => {
       const oldCleanupFns = cleanupFns

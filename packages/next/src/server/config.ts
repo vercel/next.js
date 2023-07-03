@@ -693,9 +693,6 @@ function assignDefaults(
     '@mui/icons-material': {
       transform: '@mui/icons-material/{{member}}',
     },
-    '@mui/material': {
-      transform: '@mui/material/{{member}}',
-    },
     'date-fns': {
       transform: 'date-fns/{{member}}',
     },
@@ -715,6 +712,15 @@ function assignDefaults(
     },
     'react-bootstrap': {
       transform: 'react-bootstrap/{{member}}',
+    },
+    antd: {
+      transform: 'antd/es/{{member}}',
+    },
+    ahooks: {
+      transform: 'ahooks/es/{{member}}',
+    },
+    '@ant-design/icons': {
+      transform: '@ant-design/icons/{{member}}',
     },
   }
 
