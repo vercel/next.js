@@ -6,7 +6,7 @@ title: Rewriting to Auto Export or Fallback Dynamic Route
 
 #### Why This Error Occurred
 
-One of your rewrites in your `next.config.js` point to a [dynamic route](/docs/routing/dynamic-routes) that is automatically statically optimized or is a [fallback SSG page](/docs/basic-features/data-fetching#the-fallback-key-required).
+One of your rewrites in your `next.config.js` point to a [dynamic route](/docs/pages/building-your-application/routing/dynamic-routes) that is automatically statically optimized or is a [fallback SSG page](/docs/basic-features/data-fetching#the-fallback-key-required).
 
 Rewriting to these pages are not yet supported since rewrites are not available client-side and the dynamic route params are unable to be parsed. Support for this may be added in a future release.
 
@@ -18,5 +18,5 @@ For static dynamic routes, you will currently need to either rewrite to non-dyna
 
 ### Useful Links
 
-- [Dynamic Routes Documentation](/docs/routing/dynamic-routes)
+- [Dynamic Routes Documentation](/docs/pages/building-your-application/routing/dynamic-routes)
 - [Fallback Documentation](/docs/basic-features/data-fetching#the-fallback-key-required)

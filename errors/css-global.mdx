@@ -6,13 +6,13 @@ title: 'Global CSS Must Be in Your Custom `<App>`'
 
 #### Why This Error Occurred
 
-An attempt to import Global CSS from a file other than [`pages/_app.js`](/docs/advanced-features/custom-app) was made.
+An attempt to import Global CSS from a file other than [`pages/_app.js`](/docs/pages/building-your-application/routing/custom-app) was made.
 
-Global CSS cannot be used in files other than your [Custom `<App>`](/docs/advanced-features/custom-app) due to its side-effects and ordering problems.
+Global CSS cannot be used in files other than your [Custom `<App>`](/docs/pages/building-your-application/routing/custom-app) due to its side-effects and ordering problems.
 
 #### Possible Ways to Fix It
 
-To avoid conflicts, relocate all first-party Global CSS imports to your [`pages/_app.js` file](/docs/advanced-features/custom-app).
+To avoid conflicts, relocate all first-party Global CSS imports to your [`pages/_app.js` file](/docs/pages/building-your-application/routing/custom-app).
 
 Or, [update your component to use local CSS (Component-Level CSS) via CSS Modules](/docs/basic-features/built-in-css-support#adding-component-level-css). This is the preferred approach.
 
@@ -30,7 +30,7 @@ body {
 }
 ```
 
-Create a [`pages/_app.js` file](/docs/advanced-features/custom-app) if not already present. Then [`import`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import) the [`styles.css` file](/docs/basic-features/built-in-css-support#adding-a-global-stylesheet).
+Create a [`pages/_app.js` file](/docs/pages/building-your-application/routing/custom-app) if not already present. Then [`import`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import) the [`styles.css` file](/docs/basic-features/built-in-css-support#adding-a-global-stylesheet).
 
 ```jsx filename="pages/_app.js"
 import '../styles.css'

@@ -6,13 +6,13 @@ title: Images cannot be imported into your custom document.
 
 #### Why This Error Occurred
 
-An attempt to import an image file into [`pages/_document.js`](/docs/advanced-features/custom-document) was made.
+An attempt to import an image file into [`pages/_document.js`](/docs/pages/building-your-application/routing/custom-document) was made.
 
 Custom documents aren't compiled for the browser and images statically imported like this will not be displayed.
 
 #### Possible Ways to Fix It
 
-If your image needs to be displayed on every page you can relocate it to your [`pages/_app.js`](/docs/advanced-features/custom-app) file.
+If your image needs to be displayed on every page you can relocate it to your [`pages/_app.js`](/docs/pages/building-your-application/routing/custom-app) file.
 
 #### Example
 
@@ -44,7 +44,7 @@ module.exports = {
 
 ### Useful Links
 
-- [Custom `Document`](/docs/advanced-features/custom-document)
-- [Custom `App`](/docs/advanced-features/custom-app)
-- [Static File Serving](/docs/basic-features/static-file-serving)
+- [Custom `Document`](/docs/pages/building-your-application/routing/custom-document)
+- [Custom `App`](/docs/pages/building-your-application/routing/custom-app)
+- [Static File Serving](/docs/pages/building-your-application/optimizing/static-assets)
 - [Disable Static Image Imports](/docs/api-reference/next/image#disable-static-imports)
