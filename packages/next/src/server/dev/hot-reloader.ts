@@ -201,7 +201,7 @@ export default class HotReloader {
     staleness: 'unknown',
     installed: '0.0.0',
   }
-  private reloadOnDone: boolean = false
+  private reloadAfterInvalidation: boolean = false
   public multiCompiler?: webpack.MultiCompiler
   public activeConfigs?: Array<
     UnwrapPromise<ReturnType<typeof getBaseWebpackConfig>>
@@ -1210,8 +1210,8 @@ export default class HotReloader {
     )
 
     this.multiCompiler.hooks.done.tap('NextjsHotReloaderForServer', () => {
-      const reloadOnDone = this.reloadOnDone
-      this.reloadOnDone = false
+      const reloadAfterInvalidation = this.reloadAfterInvalidation
+      this.reloadAfterInvalidation = false
 
       const serverOnlyChanges = difference<string>(
         changedServerPages,
@@ -1248,7 +1248,7 @@ export default class HotReloader {
       if (
         changedServerComponentPages.size ||
         changedCSSImportPages.size ||
-        reloadOnDone
+        reloadAfterInvalidation
       ) {
         this.refreshServerComponents()
       }
@@ -1349,9 +1349,12 @@ export default class HotReloader {
   }
 
   public invalidate(
-    { reloadOnDone }: { reloadOnDone: boolean } = { reloadOnDone: false }
+    { reloadAfterInvalidation }: { reloadAfterInvalidation: boolean } = {
+      reloadAfterInvalidation: false,
+    }
   ) {
-    this.reloadOnDone = reloadOnDone
+    // Cache the `reloadAfterInvalidation` flag, and use it to reload the page when compilation is done
+    this.reloadAfterInvalidation = reloadAfterInvalidation
     const outputPath = this.multiCompiler?.outputPath
     return outputPath && getInvalidator(outputPath)?.invalidate()
   }

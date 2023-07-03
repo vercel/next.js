@@ -745,7 +745,7 @@ export default class DevServer extends Server {
             }
           })
           this.hotReloader?.invalidate({
-            reloadOnDone: envChange,
+            reloadAfterInvalidation: envChange,
           })
         }
 
