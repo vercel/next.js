@@ -1467,7 +1467,12 @@ export default async function getBaseWebpackConfig(
           }
         )}`
       }
-      return
+
+      const isRelative = request.startsWith('.')
+      const fullRequest = isRelative ? path.join(context, request) : request
+      const resolveNextExternal = isLocalCallback(fullRequest)
+
+      return resolveNextExternal
     }
 
     // TODO-APP: Let's avoid this resolve call as much as possible, and eventually get rid of it.
