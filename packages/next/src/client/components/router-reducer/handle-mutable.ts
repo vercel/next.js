@@ -10,7 +10,7 @@ export function handleMutable(
   mutable: Mutable
 ): ReducerState {
   // shouldScroll is true by default, can override to false.
-  const shouldScroll = mutable.shouldScroll
+  const shouldScroll = mutable.shouldScroll ?? true
 
   return {
     buildId: state.buildId,
