@@ -211,7 +211,7 @@ jobs:
       ]
 
     if: always()
-    runs-on: [self-hosted, linux, x64]
+    runs-on: ubuntu-latest
     name: thank you, next
     steps:
       - run: exit 1
