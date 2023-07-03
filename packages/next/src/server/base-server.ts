@@ -61,6 +61,7 @@ import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import * as Log from '../build/output/log'
 import escapePathDelimiters from '../shared/lib/router/utils/escape-path-delimiters'
+import { detectLocaleCookie } from '../shared/lib/i18n/detect-locale-cookie'
 import { getUtils } from './server-utils'
 import isError, { getProperError } from '../lib/is-error'
 import {
@@ -698,6 +699,13 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       const defaultLocale =
         domainLocale?.defaultLocale || this.nextConfig.i18n?.defaultLocale
       parsedUrl.query.__nextDefaultLocale = defaultLocale
+
+      const locales = this.nextConfig.i18n?.locales || []
+      const cookieLocale = detectLocaleCookie(req, locales)
+
+      if (!Boolean(domainLocale)) {
+        this.i18nProvider && (this.i18nProvider.cookieLocale = cookieLocale);
+      }
 
       const url = parseUrlUtil(req.url.replace(/^\/+/, '/'))
       const pathnameInfo = getNextPathnameInfo(url.pathname, {
