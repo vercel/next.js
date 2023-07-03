@@ -20,7 +20,7 @@ use turbopack_binding::{
             changed::any_content_changed,
             chunk::ChunkingContext,
             context::{AssetContext, AssetContextVc},
-            environment::{EnvironmentIntention::Middleware, ServerAddrVc, ServerInfo},
+            environment::{ServerAddrVc, ServerInfo},
             ident::AssetIdentVc,
             issue::IssueVc,
             reference_type::{EcmaScriptModulesReferenceSubType, InnerAssetsVc, ReferenceType},
@@ -240,8 +240,7 @@ fn edge_transition_map(
     next_config: NextConfigVc,
     execution_context: ExecutionContextVc,
 ) -> TransitionsByNameVc {
-    let edge_compile_time_info =
-        get_edge_compile_time_info(project_path, server_addr, Value::new(Middleware));
+    let edge_compile_time_info = get_edge_compile_time_info(project_path, server_addr);
 
     let edge_chunking_context = DevChunkingContextVc::builder(
         project_path,

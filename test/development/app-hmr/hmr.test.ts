@@ -1,15 +1,16 @@
 import { createNextDescribe } from 'e2e-utils'
 import { check } from 'next-test-utils'
 
+const envFile = '.env.development.local'
+
 createNextDescribe(
   `app-dir-hmr`,
   {
     files: __dirname,
   },
-  ({ next }) => {
+  ({ next, isTurbopack }) => {
     describe('filesystem changes', () => {
       it('should not break when renaming a folder', async () => {
-        console.log(next.url)
         const browser = await next.browser('/folder')
         const text = await browser.elementByCss('h1').text()
         expect(text).toBe('Hello')
@@ -32,6 +33,44 @@ createNextDescribe(
           // Rename it back
           await next.renameFolder('app/folder-renamed', 'app/folder')
         }
+      })
+
+      if (!isTurbopack) {
+        it('should update server components pages when env files is changed (nodejs)', async () => {
+          const envContent = await next.readFile(envFile)
+          const browser = await next.browser('/env/node')
+          expect(await browser.elementByCss('p').text()).toBe('mac')
+          await next.patchFile(envFile, 'MY_DEVICE="ipad"')
+
+          try {
+            await check(async () => {
+              expect(await browser.elementByCss('p').text()).toBe('ipad')
+              return 'success'
+            }, /success/)
+          } finally {
+            await next.patchFile(envFile, envContent)
+          }
+        })
+
+        it('should update server components pages when env files is changed (edge)', async () => {
+          const envContent = await next.readFile(envFile)
+          const browser = await next.browser('/env/edge')
+          expect(await browser.elementByCss('p').text()).toBe('mac')
+          await next.patchFile(envFile, 'MY_DEVICE="ipad"')
+
+          try {
+            await check(async () => {
+              expect(await browser.elementByCss('p').text()).toBe('ipad')
+              return 'success'
+            }, /success/)
+          } finally {
+            await next.patchFile(envFile, envContent)
+          }
+        })
+      }
+
+      it('should have no unexpected action error for hmr', async () => {
+        expect(next.cliOutput).not.toContain('Unexpected action')
       })
     })
   }
