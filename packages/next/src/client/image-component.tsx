@@ -30,6 +30,7 @@ import { warnOnce } from '../shared/lib/utils/warn-once'
 // @ts-ignore - This is replaced by webpack alias
 import defaultLoader from 'next/dist/shared/lib/image-loader'
 
+// This is replaced by webpack define plugin
 const configEnv = process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete
 
 if (typeof window === 'undefined') {
