@@ -150,29 +150,30 @@ const markdownProcessor = unified()
     }
   })
 
+// Github APIs returns `errors/*` and `docs/*` paths
 function normalizePath(filePath: string): string {
-  if (filePath.startsWith('.' + ERRORS_PATH)) {
+  if (filePath.startsWith(ERRORS_PATH.substring(1))) {
     return (
       filePath
         // Remap repository file path to the next-site url path
-        // e.g. `./errors/example.mdx` -> `/docs/messages/example`
-        .replace('.' + ERRORS_PATH, DOCS_PATH + 'messages/')
+        // e.g. `errors/example.mdx` -> `/docs/messages/example`
+        .replace(ERRORS_PATH.substring(1), DOCS_PATH + 'messages/')
         .replace('.mdx', '')
     )
   }
 
   return (
-    // Remap repository file path to the next-site url path without `./docs/`
-    // e.g. `./docs/01-api/getting-started/index.mdx` -> `api/getting-started`
-    path
-      // We remove `./docs/` to normalize paths between regular links
+    // Remap repository file path to the next-site url path without `/docs/`
+    // e.g. `docs/01-api/getting-started/index.mdx` -> `api/getting-started`
+    filePath
+      // We remove `/docs/` to normalize paths between regular links
       // e.g. `/docs/api/example` and related/source links e.g `api/example`
       // TODO:
       //  - Fix `next-site` to handle full paths for related/source links
       //  - Update doc files to use full paths for related/source links
       //  - Remove this workaround
-      .relative('.' + DOCS_PATH, filePath)
-      // Remove prefixed numbers used for ordering from the path
+      .replace(DOCS_PATH, '')
+      // Remove prefix numbers used for ordering
       .replace(/(\d\d-)/g, '')
       .replace('.mdx', '')
       .replace('/index', '')
@@ -210,16 +211,17 @@ async function prepareDocumentMapEntry(
 }
 
 // Checks if the links point to existing documents
+
 function validateInternalLink(errors: Errors, href: string): void {
+  // /docs/api/example#heading -> ["api/example", "heading""]
   const [link, hash] = href.replace(DOCS_PATH, '').split('#')
 
   let foundPage
 
   if (link.startsWith('messages/')) {
     // check if error page exists, key is the full url path
-    // e.g. `/docs/messages/example`
-    console.log('link', link)
-    foundPage = documentMap.get(DOCS_PATH + link)
+    // e.g. `docs/messages/example`
+    foundPage = documentMap.get(DOCS_PATH.substring(1) + link)
   } else {
     // check if doc page exists, key is the url path without `/docs/`
     // e.g. `api/example`
