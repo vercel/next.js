@@ -92,6 +92,19 @@ async function loadManifest<T>(manifestPath: string, attempts = 3): Promise<T> {
   }
 }
 
+async function loadJSManifest<T>(
+  manifestPath: string,
+  name: string,
+  entryname: string
+): Promise<T | undefined> {
+  await loadManifest(manifestPath)
+  try {
+    return JSON.parse((globalThis as any)[name][entryname]) as T
+  } catch (err) {
+    return undefined
+  }
+}
+
 async function loadComponentsImpl({
   distDir,
   pathname,
@@ -123,12 +136,19 @@ async function loadComponentsImpl({
   ] = await Promise.all([
     loadManifest<BuildManifest>(join(distDir, BUILD_MANIFEST)),
     loadManifest<ReactLoadableManifest>(join(distDir, REACT_LOADABLE_MANIFEST)),
-    hasServerComponents
-      ? loadManifest<ClientReferenceManifest>(
-          join(distDir, 'server', CLIENT_REFERENCE_MANIFEST + '.json')
+    isAppPath
+      ? loadJSManifest<ClientReferenceManifest>(
+          join(
+            distDir,
+            'server',
+            'app',
+            pathname + '_' + CLIENT_REFERENCE_MANIFEST + '.js'
+          ),
+          '__RSC_MANIFEST',
+          pathname
         )
       : undefined,
-    hasServerComponents
+    isAppPath
       ? loadManifest(
           join(distDir, 'server', SERVER_REFERENCE_MANIFEST + '.json')
         ).catch(() => null)
