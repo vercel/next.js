@@ -84,6 +84,9 @@ async function render(request: NextRequest, event: NextFetchEvent) {
     write: (chunk: Uint8Array) => writer.write(chunk),
     end: () => writer.close(),
     destroy: (reason?: Error) => writer.abort(reason),
+    get closed() {
+      return writer.closed
+    },
   })
 
   return response
