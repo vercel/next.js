@@ -1,6 +1,7 @@
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import {
   APP_BUILD_MANIFEST,
+  CLIENT_REFERENCE_MANIFEST,
   CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
   SYSTEM_ENTRYPOINTS,
 } from '../../../shared/lib/constants'
@@ -76,8 +77,12 @@ export class AppBuildManifestPlugin {
       }
 
       const filesForPage = getEntrypointFiles(entrypoint)
+      const manifestsForPage =
+        'server/app' + pagePath + '_' + CLIENT_REFERENCE_MANIFEST + '.js'
 
-      manifest.pages[pagePath] = [...new Set([...mainFiles, ...filesForPage])]
+      manifest.pages[pagePath] = [
+        ...new Set([...mainFiles, manifestsForPage, ...filesForPage]),
+      ]
     }
 
     const json = JSON.stringify(manifest, null, 2)

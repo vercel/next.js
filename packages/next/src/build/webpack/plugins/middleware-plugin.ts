@@ -16,7 +16,6 @@ import {
   CLIENT_REFERENCE_MANIFEST,
   MIDDLEWARE_MANIFEST,
   MIDDLEWARE_REACT_LOADABLE_MANIFEST,
-  NEXT_CLIENT_SSR_ENTRY_SUFFIX,
   SUBRESOURCE_INTEGRITY_MANIFEST,
   NEXT_FONT_MANIFEST,
   SERVER_REFERENCE_MANIFEST,
@@ -95,7 +94,6 @@ function getEntryFiles(
   if (meta.edgeSSR) {
     if (meta.edgeSSR.isServerComponent) {
       files.push(`server/${SERVER_REFERENCE_MANIFEST}.js`)
-      files.push(`server/${CLIENT_REFERENCE_MANIFEST}.js`)
       if (opts.sriEnabled) {
         files.push(`server/${SUBRESOURCE_INTEGRITY_MANIFEST}.js`)
       }
@@ -103,13 +101,12 @@ function getEntryFiles(
         ...entryFiles
           .filter(
             (file) =>
-              file.startsWith('pages/') && !file.endsWith('.hot-update.js')
+              file.startsWith('app/') && !file.endsWith('.hot-update.js')
           )
           .map(
             (file) =>
               'server/' +
-              // TODO-APP: seems this should be removed.
-              file.replace('.js', NEXT_CLIENT_SSR_ENTRY_SUFFIX + '.js')
+              file.replace('.js', '_' + CLIENT_REFERENCE_MANIFEST + '.js')
           )
       )
     }
@@ -131,6 +128,7 @@ function getEntryFiles(
       .filter((file) => !file.endsWith('.hot-update.js'))
       .map((file) => 'server/' + file)
   )
+
   return files
 }
 
