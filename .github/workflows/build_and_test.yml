@@ -215,4 +215,4 @@ jobs:
     name: thank you, next
     steps:
       - run: exit 1
-        if: ${{ always() && contains(needs.*.result, 'failure') }}
+        if: ${{ always() && !contains(needs.*.result, 'success') }}
