@@ -498,14 +498,10 @@ export default class DevServer extends Server {
           })
 
           if (isMiddlewareFile(rootFile)) {
-            const staticInfo = await getStaticInfoIncludingLayouts({
-              pageFilePath: fileName,
-              config: this.nextConfig,
-              appDir: this.appDir,
-              page: rootFile,
-              isDev: true,
-              isInsideAppDir: isAppPath,
-              pageExtensions: this.nextConfig.pageExtensions,
+            const staticInfo = await this.getStaticInfo({
+              fileName,
+              rootFile,
+              isAppPath,
             })
             if (this.nextConfig.output === 'export') {
               Log.error(
@@ -1839,6 +1835,30 @@ export default class DevServer extends Server {
 
     // Return the very first error we found.
     return errors[0]
+  }
+
+  async getStaticInfo({
+    fileName,
+    rootFile,
+    isAppPath,
+  }: {
+    fileName: string
+    rootFile: string
+    isAppPath: boolean
+  }) {
+    if (this.isRenderWorker) {
+      return this.invokeIpcMethod('getStaticInfo', [fileName])
+    } else {
+      return getStaticInfoIncludingLayouts({
+        pageFilePath: fileName,
+        config: this.nextConfig,
+        appDir: this.appDir,
+        page: rootFile,
+        isDev: true,
+        isInsideAppDir: isAppPath,
+        pageExtensions: this.nextConfig.pageExtensions,
+      })
+    }
   }
 
   protected isServableUrl(untrustedFileUrl: string): boolean {
