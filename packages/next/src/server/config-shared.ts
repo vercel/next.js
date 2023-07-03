@@ -661,8 +661,8 @@ export const defaultConfig: NextConfig = {
     buildActivityPosition: 'bottom-right',
   },
   onDemandEntries: {
-    maxInactiveAge: 15 * 1000,
-    pagesBufferLength: 2,
+    maxInactiveAge: 60 * 1000,
+    pagesBufferLength: 5,
   },
   amp: {
     canonicalBase: '',

@@ -1793,7 +1793,21 @@ export default class DevServer extends Server {
     return await loadDefaultErrorComponents(this.distDir)
   }
 
-  protected setImmutableAssetCacheControl(res: BaseNextResponse): void {
+  protected setImmutableAssetCacheControl(
+    res: BaseNextResponse,
+    pathSegments: string[]
+  ): void {
+    // `next/font` generates checksum in the filepath even in dev,
+    // we can safely cache fonts to avoid FOUC of fonts during development.
+    if (
+      pathSegments[0] === 'media' &&
+      pathSegments[1] &&
+      /\.(woff|woff2|eot|ttf|otf)$/.test(pathSegments[1])
+    ) {
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
+      return
+    }
+
     res.setHeader('Cache-Control', 'no-store, must-revalidate')
   }
 

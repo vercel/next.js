@@ -12,6 +12,7 @@ bench = false
 anyhow = { workspace = true }
 async-recursion = "1.0.2"
 async-trait = { workspace = true }
+const_format = "0.2.30"
 once_cell = { workspace = true }
 qstring = { workspace = true }
 regex = { workspace = true }
