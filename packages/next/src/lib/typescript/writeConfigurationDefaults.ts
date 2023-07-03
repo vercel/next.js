@@ -58,6 +58,7 @@ function getDesiredCompilerOptions(
     moduleResolution: {
       // In TypeScript 5.0, `NodeJs` has renamed to `Node10`
       parsedValue:
+        ts.ModuleResolutionKind.Bundler ??
         ts.ModuleResolutionKind.NodeNext ??
         (ts.ModuleResolutionKind as any).Node10 ??
         ts.ModuleResolutionKind.NodeJs,
@@ -72,7 +73,11 @@ function getDesiredCompilerOptions(
         ts.ModuleResolutionKind.NodeNext,
         ts.ModuleResolutionKind.Bundler,
       ].filter((val) => typeof val !== 'undefined'),
-      value: 'node',
+      value:
+        ts.ModuleResolutionKind.Bundler ??
+        ts.ModuleResolutionKind.NodeNext ??
+        (ts.ModuleResolutionKind as any).Node10 ??
+        ts.ModuleResolutionKind.NodeJs,
       reason: 'to match webpack resolution',
     },
     resolveJsonModule: { value: true, reason: 'to match webpack resolution' },
