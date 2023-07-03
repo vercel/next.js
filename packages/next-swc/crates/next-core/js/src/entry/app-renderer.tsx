@@ -19,6 +19,9 @@ import entry from 'APP_ENTRY'
 import BOOTSTRAP from 'APP_BOOTSTRAP'
 import { createServerResponse } from '../internal/http'
 import { createManifests, installRequireAndChunkLoad } from './app/manifest'
+import { join } from 'node:path'
+import { nodeFs } from 'next/dist/server/lib/node-fs-methods'
+import { IncrementalCache } from 'next/dist/server/lib/incremental-cache'
 
 installRequireAndChunkLoad()
 
@@ -57,6 +60,8 @@ async function runOperation(renderData: RenderData) {
     ),
   } as any
 
+  const url = new URL(renderData.originalUrl, 'next://')
+
   const res = createServerResponse(req, renderData.path)
 
   const query = parse(renderData.rawQuery)
@@ -90,6 +95,32 @@ async function runOperation(renderData: RenderData) {
       },
       pages: ['page.js'],
     },
+    incrementalCache: new IncrementalCache({
+      fs: nodeFs,
+      dev: true,
+      requestHeaders: { ...req.headers },
+      requestProtocol: url.protocol.replace(/:$/, '') as 'http' | 'https',
+      appDir: true,
+      allowedRevalidateHeaderKeys: [],
+      minimalMode: false,
+      serverDistDir: join(process.cwd(), '.next/server'),
+      fetchCache: true,
+      fetchCacheKeyPrefix: '',
+      maxMemoryCacheSize: 50 * 1024 * 1024,
+      flushToDisk: false,
+      getPrerenderManifest: () => ({
+        version: 4,
+        routes: {},
+        dynamicRoutes: {},
+        preview: {
+          previewModeEncryptionKey: '',
+          previewModeId: '',
+          previewModeSigningKey: '',
+        },
+        notFoundRoutes: [],
+      }),
+      CurCacheHandler: undefined,
+    }),
     clientReferenceManifest,
     runtime: 'nodejs',
     serverComponents: true,
