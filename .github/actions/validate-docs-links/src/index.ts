@@ -12,7 +12,7 @@ import { setFailed } from '@actions/core'
 import type { Node, Data } from 'unist'
 
 /**
- * This script validates internal links in /docs and /erros including internal,
+ * This script validates internal links in /docs and /errors including internal,
  * hash, source and related links. It does not validate external links.
  * 1. Collects all .mdx files in /docs and /errors.
  * 2. For each file, it extracts the content, metadata, and heading slugs.
@@ -216,6 +216,7 @@ function validateInternalLink(errors: Errors, href: string): void {
   if (link.startsWith('messages/')) {
     // check if error page exists, key is the full url path
     // e.g. `/docs/messages/example`
+    console.log('link', link)
     foundPage = documentMap.get(DOCS_PATH + link)
   } else {
     // check if doc page exists, key is the url path without `/docs/`
@@ -449,6 +450,8 @@ async function validateAllInternalLinks(): Promise<void> {
     documentMap = new Map(
       await Promise.all(allMdxFilePaths.map(prepareDocumentMapEntry))
     )
+
+    console.log(JSON.stringify([...documentMap.keys()], null, 2))
 
     const docProcessingPromises = prMdxFilePaths.map(async (filePath) => {
       const doc = documentMap.get(normalizePath(filePath))
