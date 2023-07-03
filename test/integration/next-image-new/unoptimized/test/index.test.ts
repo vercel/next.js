@@ -15,7 +15,7 @@ const appDir = join(__dirname, '../')
 let appPort
 let app
 
-function runTests({ url }: { appPort: number; url: string }) {
+function runTests(url: string) {
   it('should not optimize any image', async () => {
     const browser = await webdriver(appPort, url)
     expect(
@@ -101,7 +101,7 @@ describe('Unoptimized Image Tests', () => {
       await killApp(app)
     })
 
-    runTests({ appPort, url: '/' })
+    runTests('/')
   })
   describe('server mode - component', () => {
     beforeAll(async () => {
@@ -113,7 +113,7 @@ describe('Unoptimized Image Tests', () => {
       await killApp(app)
     })
 
-    runTests({ appPort, url: '/' })
+    runTests('/')
   })
   describe('dev mode - getImgProps', () => {
     beforeAll(async () => {
@@ -124,7 +124,7 @@ describe('Unoptimized Image Tests', () => {
       await killApp(app)
     })
 
-    runTests({ appPort, url: '/get-img-props' })
+    runTests('/get-img-props')
   })
   describe('server mode - getImgProps', () => {
     beforeAll(async () => {
@@ -136,6 +136,6 @@ describe('Unoptimized Image Tests', () => {
       await killApp(app)
     })
 
-    runTests({ appPort, url: '/get-img-props' })
+    runTests('/get-img-props')
   })
 })
