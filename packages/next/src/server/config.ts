@@ -713,6 +713,15 @@ function assignDefaults(
     'react-bootstrap': {
       transform: 'react-bootstrap/{{member}}',
     },
+    antd: {
+      transform: 'antd/es/{{member}}',
+    },
+    ahooks: {
+      transform: 'ahooks/es/{{member}}',
+    },
+    '@ant-design/icons': {
+      transform: '@ant-design/icons/{{member}}',
+    },
   }
 
   return result
