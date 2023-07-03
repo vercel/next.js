@@ -15,6 +15,7 @@ type RouteLoaderOptionsPagesAPIInput = {
   page: string
   preferredRegion: string | string[] | undefined
   absolutePagePath: string
+  middlewareConfig: MiddlewareConfig
 }
 
 type RouteLoaderOptionsPagesInput = {
@@ -47,6 +48,11 @@ type RouteLoaderPagesAPIOptions = {
    * The absolute path to the userland page file.
    */
   absolutePagePath: string
+
+  /**
+   * The middleware config for this route.
+   */
+  middlewareConfigBase64: string
 }
 
 type RouteLoaderPagesOptions = {
@@ -117,6 +123,7 @@ export function getRouteLoaderEntry(options: RouteLoaderOptionsInput): string {
         page: options.page,
         preferredRegion: options.preferredRegion,
         absolutePagePath: options.absolutePagePath,
+        middlewareConfigBase64: encodeToBase64(options.middlewareConfig),
       }
 
       return `next-route-loader?${stringify(query)}!`
@@ -128,20 +135,16 @@ export function getRouteLoaderEntry(options: RouteLoaderOptionsInput): string {
 }
 
 const loadPages = (
-  opts: RouteLoaderPagesOptions,
-  buildInfo: ModuleBuildInfo
-) => {
-  const {
+  {
     page,
     absolutePagePath,
     absoluteDocumentPath,
     absoluteAppPath,
     preferredRegion,
     middlewareConfigBase64,
-  } = opts
-
-  // Ensure we only run this loader for as a module.
-
+  }: RouteLoaderPagesOptions,
+  buildInfo: ModuleBuildInfo
+) => {
   const middlewareConfig: MiddlewareConfig = decodeFromBase64(
     middlewareConfigBase64
   )
@@ -217,8 +220,26 @@ const loadPages = (
   `
 }
 
-const loadPagesAPI = (opts: RouteLoaderPagesAPIOptions) => {
-  const { page, absolutePagePath } = opts
+const loadPagesAPI = (
+  {
+    page,
+    absolutePagePath,
+    preferredRegion,
+    middlewareConfigBase64,
+  }: RouteLoaderPagesAPIOptions,
+  buildInfo: ModuleBuildInfo
+) => {
+  const middlewareConfig: MiddlewareConfig = decodeFromBase64(
+    middlewareConfigBase64
+  )
+
+  // Attach build info to the module.
+  buildInfo.route = {
+    page,
+    absolutePagePath,
+    preferredRegion,
+    middlewareConfig,
+  }
 
   const options: Omit<PagesAPIRouteModuleOptions, 'userland' | 'components'> = {
     definition: {
@@ -262,18 +283,19 @@ const loadPagesAPI = (opts: RouteLoaderPagesAPIOptions) => {
  */
 const loader: webpack.LoaderDefinitionFunction<RouteLoaderOptions> =
   function () {
+    if (!this._module) {
+      throw new Error('Invariant: expected this to reference a module')
+    }
+
+    const buildInfo = getModuleBuildInfo(this._module)
     const opts = this.getOptions()
 
     switch (opts.kind) {
       case RouteKind.PAGES: {
-        if (!this._module) {
-          throw new Error('Invariant: expected this to reference a module')
-        }
-
-        return loadPages(opts, getModuleBuildInfo(this._module))
+        return loadPages(opts, buildInfo)
       }
       case RouteKind.PAGES_API: {
-        return loadPagesAPI(opts)
+        return loadPagesAPI(opts, buildInfo)
       }
       default: {
         throw new Error('Invariant: Unexpected route kind')

@@ -911,6 +911,7 @@ export default class HotReloader {
                     page,
                     absolutePagePath: relativeRequest,
                     preferredRegion: staticInfo.preferredRegion,
+                    middlewareConfig: staticInfo.middleware || {},
                   })
                 } else if (
                   !isMiddlewareFile(page) &&

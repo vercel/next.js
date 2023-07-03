@@ -56,6 +56,7 @@ import { getRouteLoaderEntry } from './webpack/loaders/next-route-loader'
 import { isInternalComponent } from '../lib/is-internal-component'
 import { isStaticMetadataRouteFile } from '../lib/metadata/is-metadata-route'
 import { RouteKind } from '../server/future/route-kind'
+import { encodeToBase64 } from './webpack/loaders/utils'
 
 export async function getStaticInfoIncludingLayouts({
   isInsideAppDir,
@@ -586,9 +587,7 @@ export async function createEntrypoints(
               assetPrefix: config.assetPrefix,
               nextConfigOutput: config.output,
               preferredRegion: staticInfo.preferredRegion,
-              middlewareConfig: Buffer.from(
-                JSON.stringify(staticInfo.middleware || {})
-              ).toString('base64'),
+              middlewareConfig: encodeToBase64(staticInfo.middleware || {}),
             })
           } else if (isInstrumentationHookFile(page) && pagesType === 'root') {
             server[serverBundlePath.replace('src/', '')] = {
@@ -603,6 +602,7 @@ export async function createEntrypoints(
                 page,
                 absolutePagePath,
                 preferredRegion: staticInfo.preferredRegion,
+                middlewareConfig: staticInfo.middleware || {},
               }),
             ]
           } else if (
