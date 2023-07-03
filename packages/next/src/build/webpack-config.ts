@@ -1469,7 +1469,9 @@ export default async function getBaseWebpackConfig(
       }
 
       const isRelative = request.startsWith('.')
-      const fullRequest = isRelative ? path.join(context, request) : request
+      const fullRequest = isRelative
+        ? path.join(context, request).replace(/\\/g, '/')
+        : request
       const resolveNextExternal = isLocalCallback(fullRequest)
 
       return resolveNextExternal
