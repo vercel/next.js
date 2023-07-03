@@ -216,7 +216,7 @@ function instantiateModule(id, source) {
         throw error;
     }
     module1.loaded = true;
-    if (module1.namespaceObject) {
+    if (module1.namespaceObject && module1.exports !== module1.namespaceObject) {
         interopEsm(module1.exports, module1.namespaceObject);
     }
     return module1;

@@ -197,7 +197,7 @@ function instantiateModule(id: ModuleId, source: SourceInfo): Module {
   }
 
   module.loaded = true;
-  if (module.namespaceObject) {
+  if (module.namespaceObject && module.exports !== module.namespaceObject) {
     // in case of a circular dependency: cjs1 -> esm2 -> cjs1
     interopEsm(module.exports, module.namespaceObject);
   }
