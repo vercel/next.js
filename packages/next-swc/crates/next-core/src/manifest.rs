@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use indexmap::IndexMap;
 use mime::{APPLICATION_JAVASCRIPT_UTF_8, APPLICATION_JSON};
 use serde::Serialize;
@@ -14,8 +14,9 @@ use turbopack_binding::{
             introspect::{Introspectable, IntrospectableVc},
         },
         dev_server::source::{
-            ContentSource, ContentSourceContentVc, ContentSourceData, ContentSourceResultVc,
-            ContentSourceVc,
+            route_tree::{BaseSegment, RouteTreeVc, RouteTreesVc, RouteType},
+            ContentSource, ContentSourceContentVc, ContentSourceData, ContentSourceVc,
+            GetContentSourceContent, GetContentSourceContentVc,
         },
         node::render::{
             node_api_source::NodeApiContentSourceVc, rendered_source::NodeRenderContentSourceVc,
@@ -151,16 +152,46 @@ struct BuildManifest<'a> {
     routes: IndexMap<&'a String, Vec<String>>,
 }
 
+const DEV_MANIFEST_PATHNAME: &str = "_next/static/development/_devPagesManifest.json";
+const BUILD_MANIFEST_PATHNAME: &str = "_next/static/development/_buildManifest.js";
+const DEV_MIDDLEWARE_MANIFEST_PATHNAME: &str =
+    "_next/static/development/_devMiddlewareManifest.json";
+
 #[turbo_tasks::value_impl]
 impl ContentSource for DevManifestContentSource {
+    #[turbo_tasks::function]
+    fn get_routes(self_vc: DevManifestContentSourceVc) -> RouteTreeVc {
+        RouteTreesVc::cell(vec![
+            RouteTreeVc::new_route(
+                BaseSegment::from_static_pathname(DEV_MANIFEST_PATHNAME).collect(),
+                RouteType::Exact,
+                self_vc.into(),
+            ),
+            RouteTreeVc::new_route(
+                BaseSegment::from_static_pathname(BUILD_MANIFEST_PATHNAME).collect(),
+                RouteType::Exact,
+                self_vc.into(),
+            ),
+            RouteTreeVc::new_route(
+                BaseSegment::from_static_pathname(DEV_MIDDLEWARE_MANIFEST_PATHNAME).collect(),
+                RouteType::Exact,
+                self_vc.into(),
+            ),
+        ])
+        .merge()
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl GetContentSourceContent for DevManifestContentSource {
     #[turbo_tasks::function]
     async fn get(
         self_vc: DevManifestContentSourceVc,
         path: &str,
         _data: turbo_tasks::Value<ContentSourceData>,
-    ) -> Result<ContentSourceResultVc> {
+    ) -> Result<ContentSourceContentVc> {
         let manifest_file = match path {
-            "_next/static/development/_devPagesManifest.json" => {
+            DEV_MANIFEST_PATHNAME => {
                 let pages = &*self_vc.find_routes().await?;
 
                 File::from(serde_json::to_string(&serde_json::json!({
@@ -168,12 +199,12 @@ impl ContentSource for DevManifestContentSource {
                 }))?)
                 .with_content_type(APPLICATION_JSON)
             }
-            "_next/static/development/_buildManifest.js" => {
+            BUILD_MANIFEST_PATHNAME => {
                 let build_manifest = &*self_vc.create_build_manifest().await?;
 
                 File::from(build_manifest.as_str()).with_content_type(APPLICATION_JAVASCRIPT_UTF_8)
             }
-            "_next/static/development/_devMiddlewareManifest.json" => {
+            DEV_MIDDLEWARE_MANIFEST_PATHNAME => {
                 // If there is actual middleware, this request will have been handled by the
                 // node router in next-core/js/src/entry/router.ts and
                 // next/src/server/lib/route-resolver.ts.
@@ -181,12 +212,11 @@ impl ContentSource for DevManifestContentSource {
                 // respond with an empty `MiddlewareMatcher[]`.
                 File::from("[]").with_content_type(APPLICATION_JSON)
             }
-            _ => return Ok(ContentSourceResultVc::not_found()),
+            _ => bail!("unknown path: {}", path),
         };
 
-        Ok(ContentSourceResultVc::exact(
-            ContentSourceContentVc::static_content(AssetContentVc::from(manifest_file).into())
-                .into(),
+        Ok(ContentSourceContentVc::static_content(
+            AssetContentVc::from(manifest_file).into(),
         ))
     }
 }
