@@ -2759,7 +2759,7 @@ export default class NextNodeServer extends BaseServer {
 
     const manifest = loadManifest(join(this.distDir, PRERENDER_MANIFEST))
 
-    return (this._cachedPreviewManifest = JSON.parse(manifest))
+    return (this._cachedPreviewManifest = manifest)
   }
 
   protected getRoutesManifest() {
