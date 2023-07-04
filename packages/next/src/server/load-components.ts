@@ -24,7 +24,7 @@ import { BuildManifest } from './get-page-files'
 import { interopDefault } from '../lib/interop-default'
 import { getTracer } from './lib/trace/tracer'
 import { LoadComponentsSpan } from './lib/trace/constants'
-
+import { loadManifest } from './load-manifest'
 export type ManifestItem = {
   id: number | string
   files: string[]
@@ -80,10 +80,13 @@ async function loadDefaultErrorComponentsImpl(
 /**
  * Load manifest file with retries, defaults to 3 attempts.
  */
-async function loadManifest<T>(manifestPath: string, attempts = 3): Promise<T> {
+async function loadManifestWithRetries<T>(
+  manifestPath: string,
+  attempts = 3
+): Promise<T> {
   while (true) {
     try {
-      return require(manifestPath)
+      return loadManifest(manifestPath)
     } catch (err) {
       attempts--
       if (attempts <= 0) throw err
@@ -121,15 +124,17 @@ async function loadComponentsImpl({
     clientReferenceManifest,
     serverActionsManifest,
   ] = await Promise.all([
-    loadManifest<BuildManifest>(join(distDir, BUILD_MANIFEST)),
-    loadManifest<ReactLoadableManifest>(join(distDir, REACT_LOADABLE_MANIFEST)),
+    loadManifestWithRetries<BuildManifest>(join(distDir, BUILD_MANIFEST)),
+    loadManifestWithRetries<ReactLoadableManifest>(
+      join(distDir, REACT_LOADABLE_MANIFEST)
+    ),
     hasServerComponents
-      ? loadManifest<ClientReferenceManifest>(
+      ? loadManifestWithRetries<ClientReferenceManifest>(
           join(distDir, 'server', CLIENT_REFERENCE_MANIFEST + '.json')
         )
       : undefined,
     hasServerComponents
-      ? loadManifest(
+      ? loadManifestWithRetries(
           join(distDir, 'server', SERVER_REFERENCE_MANIFEST + '.json')
         ).catch(() => null)
       : null,
