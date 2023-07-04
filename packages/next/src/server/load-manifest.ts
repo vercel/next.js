@@ -17,3 +17,7 @@ export function loadManifest(path: string, shouldCache: boolean = true) {
 
   return manifest
 }
+
+export function clearManifestCache(path: string): boolean {
+  return cache.delete(path)
+}
