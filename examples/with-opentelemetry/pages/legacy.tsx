@@ -1,4 +1,3 @@
-import Link from 'next/link'
 import { fetchGithubStars } from '../shared/fetch-github-stars'
 
 export async function getServerSideProps() {
