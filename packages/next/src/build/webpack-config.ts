@@ -2707,7 +2707,7 @@ export default async function getBaseWebpackConfig(
 
     if (logDefault || infra) {
       webpack5Config.infrastructureLogging = {
-        level: 'verbose',
+        level: logDefault ? 'warn' : 'verbose',
         debug: /FileSystemInfo/,
       }
     }
