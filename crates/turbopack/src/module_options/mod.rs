@@ -235,7 +235,7 @@ impl ModuleOptionsVc {
                     options: ecmascript_options,
                 })],
             ),
-            ModuleRule::new(
+            ModuleRule::new_all(
                 ModuleRuleCondition::ResourcePathEndsWith(".mjs".to_string()),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript {
                     transforms: app_transforms,
@@ -245,7 +245,7 @@ impl ModuleOptionsVc {
                     },
                 })],
             ),
-            ModuleRule::new(
+            ModuleRule::new_all(
                 ModuleRuleCondition::ResourcePathEndsWith(".cjs".to_string()),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript {
                     transforms: app_transforms,
@@ -272,7 +272,7 @@ impl ModuleOptionsVc {
                     })
                 }],
             ),
-            ModuleRule::new(
+            ModuleRule::new_all(
                 ModuleRuleCondition::any(vec![
                     ModuleRuleCondition::ResourcePathEndsWith(".mts".to_string()),
                     ModuleRuleCondition::ResourcePathEndsWith(".mtsx".to_string()),
@@ -295,7 +295,7 @@ impl ModuleOptionsVc {
                     })
                 }],
             ),
-            ModuleRule::new(
+            ModuleRule::new_all(
                 ModuleRuleCondition::any(vec![
                     ModuleRuleCondition::ResourcePathEndsWith(".cts".to_string()),
                     ModuleRuleCondition::ResourcePathEndsWith(".ctsx".to_string()),
