@@ -1920,6 +1920,7 @@ export default async function getBaseWebpackConfig(
         'next-font-loader',
         'next-invalid-import-error-loader',
         'next-metadata-route-loader',
+        'next-barrel-loader',
       ].reduce((alias, loader) => {
         // using multiple aliases to replace `resolveLoader.modules`
         alias[loader] = path.join(__dirname, 'webpack', 'loaders', loader)
@@ -1990,6 +1991,10 @@ export default async function getBaseWebpackConfig(
                   ],
                 },
                 resolve: {
+                  mainFields: isEdgeServer
+                    ? mainFieldsPerCompiler[COMPILER_NAMES.edgeServer]
+                    : // Prefer module fields over main fields for isomorphic packages on server layer
+                      ['module', 'main'],
                   conditionNames: reactServerCondition,
                   alias: {
                     // If missing the alias override here, the default alias will be used which aliases

@@ -29,6 +29,33 @@ DEALINGS IN THE SOFTWARE.
 import { isWasm, transform } from '../../swc'
 import { getLoaderSWCOptions } from '../../swc/options'
 import path, { isAbsolute } from 'path'
+import { init, parse } from 'es-module-lexer'
+
+function getImportNames(importStatement: string) {
+  const importNames: string[] = []
+
+  const singleLine = importStatement.trim().replace(/\n/g, '')
+  const fromIndex = singleLine.indexOf('from')
+  if (fromIndex >= 0) {
+    const importPart = singleLine.substring(6, fromIndex)
+    const cleanedImportPart = importPart.replace(/[{}]/g, '')
+    const importStatementParts = cleanedImportPart
+      .split(',')
+      .map((el) => el.trim())
+      .filter(Boolean)
+
+    for (const importName of importStatementParts) {
+      if (importName.includes(' as ')) {
+        importNames.push(importName.split(' as ')[1].trim())
+      } else {
+        importNames.push(importName)
+      }
+    }
+    return importNames
+  }
+
+  return importNames
+}
 
 async function loaderTransform(
   this: any,
@@ -38,6 +65,45 @@ async function loaderTransform(
 ) {
   // Make the loader async
   const filename = this.resourcePath
+
+  const { resourceResolveData, request, rawRequest } = this._module
+
+  let optimizeBarrelExports = false
+  let barrelExports: string[] = []
+  if (resourceResolveData && 0) {
+    const descriptionFileData = resourceResolveData.descriptionFileData
+    if (descriptionFileData.sideEffects === false) {
+      if (
+        this.resource &&
+        request &&
+        request.includes('__side_effect_free_issuer__')
+      ) {
+        const issuer = request.match(/__side_effect_free_issuer__=(.*)$/)?.[1]
+        await init
+
+        const connections =
+          this._compilation.moduleGraph.getIncomingConnections(this._module)
+
+        for (const connection of connections) {
+          const issuerModule = connection.originModule
+          const source = issuerModule._source.source().toString() as string
+          const [imports] = parse(source, issuer)
+
+          const importNames = []
+          for (const imp of imports) {
+            if (imp.n === rawRequest) {
+              importNames.push(...getImportNames(source.slice(imp.ss, imp.se)))
+            }
+          }
+
+          optimizeBarrelExports = true
+          barrelExports = importNames
+          this.addDependency(issuer)
+          break
+        }
+      }
+    }
+  }
 
   let loaderOptions = this.getOptions() || {}
 
@@ -89,6 +155,12 @@ async function loaderTransform(
     // so that it can properly map the module back to its internal cached
     // modules.
     sourceFileName: filename,
+  }
+
+  if (optimizeBarrelExports) {
+    programmaticOptions.optimizeBarrel = {
+      keep: barrelExports,
+    }
   }
 
   if (!programmaticOptions.inputSourceMap) {

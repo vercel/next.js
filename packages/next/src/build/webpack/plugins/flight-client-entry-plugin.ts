@@ -166,6 +166,35 @@ export class FlightClientEntryPlugin {
   }
 
   apply(compiler: webpack.Compiler) {
+    compiler.hooks.normalModuleFactory.tap(
+      PLUGIN_NAME,
+      (normalModuleFactory) => {
+        normalModuleFactory.hooks.afterResolve.tap(PLUGIN_NAME, (result) => {
+          const { createData, contextInfo } = result
+
+          const descriptionFileData =
+            createData.resourceResolveData?.descriptionFileData
+          if (
+            descriptionFileData &&
+            descriptionFileData.sideEffects === false &&
+            createData.resource
+          ) {
+            if (/[\\/]@swc[\\/]helpers[\\/]/.test(createData.resource)) {
+              return
+            }
+            // Only optimize it for user -> package imports.
+            if (/[\\/]node_modules[\\/]/.test(contextInfo.issuer)) {
+              return
+            }
+            createData.request =
+              createData.request +
+              '?__side_effect_free_issuer__=' +
+              contextInfo.issuer
+          }
+        })
+      }
+    )
+
     compiler.hooks.compilation.tap(
       PLUGIN_NAME,
       (compilation, { normalModuleFactory }) => {

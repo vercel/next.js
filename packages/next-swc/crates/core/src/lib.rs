@@ -58,6 +58,7 @@ pub mod react_remove_properties;
 pub mod react_server_components;
 pub mod remove_console;
 pub mod server_actions;
+pub mod barrel_optimizer;
 pub mod shake_exports;
 mod top_level_binding_collector;
 
@@ -123,6 +124,9 @@ pub struct TransformOptions {
     #[serde(default)]
     pub modularize_imports:
         Option<turbopack_binding::swc::custom_transform::modularize_imports::Config>,
+
+    #[serde(default)]
+    pub optimize_barrel: Option<barrel_optimizer::Config>,
 
     #[serde(default)]
     pub font_loaders: Option<next_transform_font::Config>,
@@ -245,6 +249,10 @@ where
         },
         match &opts.shake_exports {
             Some(config) => Either::Left(shake_exports::shake_exports(config.clone())),
+            None => Either::Right(noop()),
+        },
+        match &opts.optimize_barrel {
+            Some(config) => Either::Left(barrel_optimizer::barrel_optimizer(config.clone())),
             None => Either::Right(noop()),
         },
         opts.emotion
