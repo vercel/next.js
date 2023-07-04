@@ -17,7 +17,7 @@ use turbopack_binding::{
             chunk::{EvaluatableAssetVc, EvaluatableAssetsVc},
             compile_time_info::CompileTimeInfoVc,
             context::{AssetContext, AssetContextVc},
-            environment::{EnvironmentIntention, ServerAddrVc},
+            environment::ServerAddrVc,
             issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc},
             reference_type::{
                 EcmaScriptModulesReferenceSubType, EntryReferenceSubType, InnerAssetsVc,
@@ -198,7 +198,7 @@ fn next_ssr_client_module_transition(
             next_config,
             execution_context,
         ),
-        ssr_environment: get_server_compile_time_info(ty, mode, process_env, server_addr),
+        ssr_environment: get_server_compile_time_info(mode, process_env, server_addr),
     }
     .cell()
     .into()
@@ -216,7 +216,7 @@ fn next_server_component_transition(
 ) -> TransitionVc {
     let ty = Value::new(ServerContextType::AppRSC { app_dir });
     let mode = NextMode::Development;
-    let rsc_compile_time_info = get_server_compile_time_info(ty, mode, process_env, server_addr);
+    let rsc_compile_time_info = get_server_compile_time_info(mode, process_env, server_addr);
     let rsc_resolve_options_context =
         get_server_resolve_options_context(project_path, ty, mode, next_config, execution_context);
     let rsc_module_options_context =
@@ -243,11 +243,7 @@ fn next_edge_server_component_transition(
 ) -> TransitionVc {
     let ty = Value::new(ServerContextType::AppRSC { app_dir });
     let mode = NextMode::Development;
-    let rsc_compile_time_info = get_edge_compile_time_info(
-        project_path,
-        server_addr,
-        Value::new(EnvironmentIntention::ServerRendering),
-    );
+    let rsc_compile_time_info = get_edge_compile_time_info(project_path, server_addr);
     let rsc_resolve_options_context =
         get_edge_resolve_options_context(project_path, ty, next_config, execution_context);
     let rsc_module_options_context =
@@ -275,11 +271,7 @@ fn next_edge_route_transition(
 ) -> TransitionVc {
     let server_ty = Value::new(ServerContextType::AppRoute { app_dir });
 
-    let edge_compile_time_info = get_edge_compile_time_info(
-        project_path,
-        server_addr,
-        Value::new(EnvironmentIntention::Api),
-    );
+    let edge_compile_time_info = get_edge_compile_time_info(project_path, server_addr);
 
     let edge_chunking_context = DevChunkingContextVc::builder(
         project_path,
@@ -319,11 +311,7 @@ fn next_edge_page_transition(
 ) -> TransitionVc {
     let server_ty = Value::new(ServerContextType::AppRoute { app_dir });
 
-    let edge_compile_time_info = get_edge_compile_time_info(
-        project_path,
-        server_addr,
-        Value::new(EnvironmentIntention::ServerRendering),
-    );
+    let edge_compile_time_info = get_edge_compile_time_info(project_path, server_addr);
 
     let edge_chunking_context = DevChunkingContextVc::builder(
         project_path,
@@ -460,7 +448,7 @@ fn app_context(
     let ssr_ty = Value::new(ServerContextType::AppSSR { app_dir });
     ModuleAssetContextVc::new(
         TransitionsByNameVc::cell(transitions),
-        get_server_compile_time_info(ssr_ty, mode, env, server_addr),
+        get_server_compile_time_info(mode, env, server_addr),
         get_server_module_options_context(
             project_path,
             execution_context,
