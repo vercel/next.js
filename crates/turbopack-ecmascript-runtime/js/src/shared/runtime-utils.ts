@@ -16,6 +16,8 @@ interface Exports {
 }
 type EsmNamespaceObject = Record<string, any>;
 
+const REEXPORTED_OBJECTS = Symbol("reexported objects");
+
 interface BaseModule {
   exports: Exports;
   error: Error | undefined;
@@ -24,6 +26,7 @@ interface BaseModule {
   children: ModuleId[];
   parents: ModuleId[];
   namespaceObject?: EsmNamespaceObject;
+  [REEXPORTED_OBJECTS]?: any[];
 }
 
 interface Module extends BaseModule {}
@@ -81,12 +84,39 @@ function esmExport(module: Module, getters: Record<string, () => any>) {
 }
 
 /**
- * Adds the props to the exports object
+ * Dynamically exports properties from an object
  */
-function cjsExport(exports: Exports, props: Record<string, any>) {
-  for (const key in props) {
-    defineProp(exports, key, { get: () => props[key], enumerable: true });
+function dynamicExport(module: Module, object: Record<string, any>) {
+  let reexportedObjects = module[REEXPORTED_OBJECTS];
+  if (!reexportedObjects) {
+    reexportedObjects = module[REEXPORTED_OBJECTS] = [];
+    module.namespaceObject = new Proxy(module.exports, {
+      get(target, prop) {
+        if (
+          hasOwnProperty.call(target, prop) ||
+          prop === "default" ||
+          prop === "__esModule"
+        ) {
+          return Reflect.get(target, prop);
+        }
+        for (const obj of reexportedObjects!) {
+          const value = Reflect.get(obj, prop);
+          if (value !== undefined) return value;
+        }
+        return undefined;
+      },
+      ownKeys(target) {
+        const keys = Reflect.ownKeys(target);
+        for (const obj of reexportedObjects!) {
+          for (const key of Reflect.ownKeys(obj)) {
+            if (key !== "default" && !keys.includes(key)) keys.push(key);
+          }
+        }
+        return keys;
+      },
+    });
   }
+  reexportedObjects.push(object);
 }
 
 function exportValue(module: Module, value: any) {

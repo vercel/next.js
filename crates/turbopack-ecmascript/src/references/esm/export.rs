@@ -41,13 +41,13 @@ pub enum EsmExport {
 #[turbo_tasks::value]
 struct ExpandResults {
     star_exports: Vec<String>,
-    has_cjs_exports: bool,
+    has_dynamic_exports: bool,
 }
 
 #[turbo_tasks::function]
 async fn expand_star_exports(root_asset: EcmascriptChunkPlaceableVc) -> Result<ExpandResultsVc> {
     let mut set = HashSet::new();
-    let mut has_cjs_exports = false;
+    let mut has_dynamic_exports = false;
     let mut checked_assets = HashSet::new();
     checked_assets.insert(root_asset);
     let mut queue = vec![(root_asset, root_asset.get_exports())];
@@ -100,7 +100,7 @@ async fn expand_star_exports(root_asset: EcmascriptChunkPlaceableVc) -> Result<E
             .as_issue()
             .emit(),
             EcmascriptExports::CommonJs => {
-                has_cjs_exports = true;
+                has_dynamic_exports = true;
                 AnalyzeIssue {
                     code: None,
                     category: StringVc::cell("analyze".to_string()),
@@ -120,11 +120,14 @@ async fn expand_star_exports(root_asset: EcmascriptChunkPlaceableVc) -> Result<E
                 .as_issue()
                 .emit()
             }
+            EcmascriptExports::DynamicNamespace => {
+                has_dynamic_exports = true;
+            }
         }
     }
     Ok(ExpandResultsVc::cell(ExpandResults {
         star_exports: set.into_iter().collect(),
-        has_cjs_exports,
+        has_dynamic_exports,
     }))
 }
 
@@ -151,7 +154,7 @@ impl CodeGenerateable for EsmExports {
             .map(|(k, v)| (Cow::<str>::Borrowed(k), Cow::Borrowed(v)))
             .collect();
         let mut props = Vec::new();
-        let mut cjs_exports = Vec::<Box<Expr>>::new();
+        let mut dynamic_exports = Vec::<Box<Expr>>::new();
 
         for esm_ref in this.star_exports.iter() {
             if let ReferencedAsset::Some(asset) = &*esm_ref.get_referenced_asset().await? {
@@ -166,11 +169,11 @@ impl CodeGenerateable for EsmExports {
                     }
                 }
 
-                if export_info.has_cjs_exports {
+                if export_info.has_dynamic_exports {
                     let ident = ReferencedAsset::get_ident_from_placeable(asset).await?;
 
-                    cjs_exports.push(quote_expr!(
-                        "__turbopack_cjs__($arg)",
+                    dynamic_exports.push(quote_expr!(
+                        "__turbopack_dynamic__($arg)",
                         arg: Expr = Ident::new(ident.into(), DUMMY_SP).into()
                     ));
                 }
@@ -230,10 +233,10 @@ impl CodeGenerateable for EsmExports {
             span: DUMMY_SP,
             props,
         });
-        let cjs_stmt = if !cjs_exports.is_empty() {
+        let dynamic_stmt = if !dynamic_exports.is_empty() {
             Some(Stmt::Expr(ExprStmt {
                 span: DUMMY_SP,
-                expr: Expr::from_exprs(cjs_exports),
+                expr: Expr::from_exprs(dynamic_exports),
             }))
         } else {
             None
@@ -251,8 +254,8 @@ impl CodeGenerateable for EsmExports {
                     body.insert(0, stmt);
                 }
             }
-            if let Some(cjs_stmt) = cjs_stmt.clone() {
-                insert_hoisted_stmt(program, cjs_stmt);
+            if let Some(dynamic_stmt) = dynamic_stmt.clone() {
+                insert_hoisted_stmt(program, dynamic_stmt);
             }
         }));
 

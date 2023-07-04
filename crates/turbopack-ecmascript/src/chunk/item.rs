@@ -83,7 +83,7 @@ impl EcmascriptChunkItemContentVc {
             "n: __turbopack_export_namespace__",
             "c: __turbopack_cache__",
             "l: __turbopack_load__",
-            "j: __turbopack_cjs__",
+            "j: __turbopack_dynamic__",
             "g: global",
             // HACK
             "__dirname",
