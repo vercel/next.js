@@ -185,11 +185,15 @@ describe('accumulateMetadata', () => {
               // skip title
               description: 'description',
             },
-            twitter: {
-              card: 'summary_large_image',
-            },
           },
-          null,
+          // has static metadata files
+          {
+            icon: undefined,
+            apple: undefined,
+            twitter: ['/og/twitter.png'],
+            openGraph: undefined,
+            manifest: undefined,
+          },
         ],
       ]
       const metadata = await accumulateMetadata(metadataItems)
@@ -202,7 +206,6 @@ describe('accumulateMetadata', () => {
           description: 'description',
         },
         twitter: {
-          card: 'summary_large_image',
           title: {
             absolute: '',
             template: null,
