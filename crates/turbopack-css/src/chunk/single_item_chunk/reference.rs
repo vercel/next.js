@@ -1,10 +1,7 @@
 use anyhow::Result;
 use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
 use turbopack_core::{
-    chunk::{
-        ChunkItem, ChunkableAssetReference, ChunkableAssetReferenceVc, ChunkingContextVc,
-        ChunkingType, ChunkingTypeOptionVc,
-    },
+    chunk::{ChunkItem, ChunkingContextVc},
     reference::{AssetReference, AssetReferenceVc},
     resolve::{ResolveResult, ResolveResultVc},
 };
@@ -45,13 +42,5 @@ impl ValueToString for SingleItemCssChunkReference {
             "css single item chunk {}",
             self.item.asset_ident().to_string().await?
         )))
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ChunkableAssetReference for SingleItemCssChunkReference {
-    #[turbo_tasks::function]
-    fn chunking_type(&self) -> Result<ChunkingTypeOptionVc> {
-        Ok(ChunkingTypeOptionVc::cell(Some(ChunkingType::Separate)))
     }
 }

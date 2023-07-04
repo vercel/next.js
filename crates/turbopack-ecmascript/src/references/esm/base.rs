@@ -180,7 +180,6 @@ impl ChunkableAssetReference for EsmAssetReference {
         Ok(ChunkingTypeOptionVc::cell(
             if let Some(chunking_type) = self.annotations.chunking_type() {
                 match chunking_type {
-                    "separate" => Some(ChunkingType::Separate),
                     "parallel" => Some(ChunkingType::Parallel),
                     "isolatedParallel" => Some(ChunkingType::IsolatedParallel),
                     "none" => None,
@@ -222,8 +221,8 @@ impl CodeGenerateable for EsmAssetReference {
             return Ok(CodeGeneration { visitors }.into());
         }
 
-        // separate chunks can't be imported as the modules are not available
-        if !matches!(*chunking_type, None | Some(ChunkingType::Separate)) {
+        // only chunked references can be imported
+        if chunking_type.is_some() {
             let referenced_asset = self_vc.get_referenced_asset().await?;
             if let Some(ident) = referenced_asset.get_ident().await? {
                 match &*referenced_asset {

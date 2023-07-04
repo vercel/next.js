@@ -55,11 +55,6 @@ fn isolated_parallel_reference_ty() -> StringVc {
 }
 
 #[turbo_tasks::function]
-fn separate_reference_ty() -> StringVc {
-    StringVc::cell("separate reference".to_string())
-}
-
-#[turbo_tasks::function]
 fn async_reference_ty() -> StringVc {
     StringVc::cell("async reference".to_string())
 }
@@ -121,9 +116,8 @@ pub async fn children_from_asset_references(
                 Some(ChunkingType::Placed) => key = placed_reference_ty(),
                 Some(ChunkingType::Parallel) => key = parallel_reference_ty(),
                 Some(ChunkingType::IsolatedParallel) => key = isolated_parallel_reference_ty(),
-                Some(ChunkingType::Separate) => key = separate_reference_ty(),
                 Some(ChunkingType::PlacedOrParallel) => key = placed_or_parallel_reference_ty(),
-                Some(ChunkingType::SeparateAsync) => key = async_reference_ty(),
+                Some(ChunkingType::Async) => key = async_reference_ty(),
             }
         }
 

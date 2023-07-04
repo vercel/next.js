@@ -16,8 +16,8 @@ use turbo_tasks_fs::FileSystemPathOptionVc;
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
     chunk::{
-        availability_info::AvailabilityInfo, Chunk, ChunkGroupReferenceVc, ChunkItem, ChunkVc,
-        ChunkingContextVc, ChunksVc, ModuleIdsVc,
+        availability_info::AvailabilityInfo, Chunk, ChunkItem, ChunkVc, ChunkingContextVc,
+        ChunksVc, ModuleIdsVc,
     },
     ident::{AssetIdent, AssetIdentVc},
     introspect::{
@@ -391,9 +391,6 @@ impl Asset for EcmascriptChunk {
         let mut references = Vec::new();
         for r in content.external_asset_references.iter() {
             references.push(*r);
-        }
-        for entry in content.async_chunk_group_entries.iter() {
-            references.push(ChunkGroupReferenceVc::new(this.context.into(), *entry).into());
         }
 
         Ok(AssetReferencesVc::cell(references))
