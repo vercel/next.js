@@ -12,9 +12,7 @@ use turbopack_binding::{
                 CompileTimeDefines, CompileTimeDefinesVc, CompileTimeInfo, CompileTimeInfoVc,
                 FreeVarReferencesVc,
             },
-            environment::{
-                BrowserEnvironment, EnvironmentIntention, EnvironmentVc, ExecutionEnvironment,
-            },
+            environment::{BrowserEnvironment, EnvironmentVc, ExecutionEnvironment},
             free_var_references,
             reference_type::{EntryReferenceSubType, ReferenceType},
             resolve::{origin::PlainResolveOriginVc, parse::RequestVc},
@@ -62,8 +60,8 @@ async fn web_free_vars() -> Result<FreeVarReferencesVc> {
 
 #[turbo_tasks::function]
 pub fn get_compile_time_info(browserslist_query: &str) -> CompileTimeInfoVc {
-    CompileTimeInfo::builder(EnvironmentVc::new(
-        Value::new(ExecutionEnvironment::Browser(
+    CompileTimeInfo::builder(EnvironmentVc::new(Value::new(
+        ExecutionEnvironment::Browser(
             BrowserEnvironment {
                 dom: true,
                 web_worker: false,
@@ -71,9 +69,8 @@ pub fn get_compile_time_info(browserslist_query: &str) -> CompileTimeInfoVc {
                 browserslist_query: browserslist_query.to_owned(),
             }
             .into(),
-        )),
-        Value::new(EnvironmentIntention::Client),
-    ))
+        ),
+    )))
     .defines(web_defines())
     .free_var_references(web_free_vars())
     .cell()

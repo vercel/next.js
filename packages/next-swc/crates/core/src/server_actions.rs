@@ -22,6 +22,7 @@ use turbopack_binding::swc::core::{
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct Config {
     pub is_server: bool,
+    pub enabled: bool
 }
 
 pub fn server_actions<C: Comments>(
@@ -101,6 +102,7 @@ impl<C: Comments> ServerActions<C> {
                     &mut body.stmts,
                     remove_directive,
                     &mut is_action_fn,
+                    self.config.enabled,
                 );
 
                 if is_action_fn && !self.config.is_server {
@@ -721,6 +723,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             stmts,
             &mut self.in_action_file,
             &mut self.has_action,
+            self.config.enabled,
         );
 
         let old_annotations = self.annotations.take();
@@ -1231,6 +1234,7 @@ fn remove_server_directive_index_in_module(
     stmts: &mut Vec<ModuleItem>,
     in_action_file: &mut bool,
     has_action: &mut bool,
+    enabled: bool,
 ) {
     let mut is_directive = true;
 
@@ -1244,6 +1248,16 @@ fn remove_server_directive_index_in_module(
                     if is_directive {
                         *in_action_file = true;
                         *has_action = true;
+                        if !enabled {
+                            HANDLER.with(|handler| {
+                                handler
+                                    .struct_span_err(
+                                        *span,
+                                        "To use Server Actions, please enable the feature flag in your Next.js config. Read more: https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions#convention",
+                                    )
+                                    .emit()
+                            });
+                        }
                         return false;
                     } else {
                         HANDLER.with(|handler| {
@@ -1320,6 +1334,7 @@ fn remove_server_directive_index_in_fn(
     stmts: &mut Vec<Stmt>,
     remove_directive: bool,
     is_action_fn: &mut bool,
+    enabled: bool,
 ) {
     let mut is_directive = true;
 
@@ -1332,6 +1347,16 @@ fn remove_server_directive_index_in_fn(
             if value == "use server" {
                 if is_directive {
                     *is_action_fn = true;
+                    if !enabled {
+                        HANDLER.with(|handler| {
+                            handler
+                                .struct_span_err(
+                                    *span,
+                                    "To use Server Actions, please enable the feature flag in your Next.js config. Read more: https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions#convention",
+                                )
+                                .emit()
+                        });
+                    }
                     if remove_directive {
                         return false;
                     }

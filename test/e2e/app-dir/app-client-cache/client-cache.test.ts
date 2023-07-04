@@ -147,8 +147,8 @@ createNextDescribe(
 
           expect(newNumber).not.toBe(randomNumber)
         })
-        // TODO-APP: investigate flaky test
-        it.skip('should prefetch again after 5 mins if the link is visible again', async () => {
+
+        it('should prefetch again after 5 mins if the link is visible again', async () => {
           const { getRequests, clearRequests } = await createRequestsListener(
             browser
           )
