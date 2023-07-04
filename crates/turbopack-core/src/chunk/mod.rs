@@ -166,14 +166,9 @@ pub enum ChunkingType {
     /// Referenced asset will not inherit the available modules, but form a
     /// new availability root.
     IsolatedParallel,
-    /// Asset is placed in a separate chunk group that is referenced from the
-    /// referencing chunk group, but not loaded.
-    /// Note: Separate chunks need to be loaded by something external to current
-    /// reference.
-    Separate,
     /// An async loader is placed into the referencing chunk and loads the
     /// separate chunk group in which the asset is placed.
-    SeparateAsync,
+    Async,
 }
 
 #[turbo_tasks::value(transparent)]
@@ -239,7 +234,6 @@ impl ValueToString for ChunkGroupReference {
 pub struct ChunkContentResult<I> {
     pub chunk_items: Vec<I>,
     pub chunks: Vec<ChunkVc>,
-    pub async_chunk_group_entries: Vec<ChunkVc>,
     pub external_asset_references: Vec<AssetReferenceVc>,
     pub availability_info: AvailabilityInfo,
 }
@@ -289,9 +283,6 @@ enum ChunkContentGraphNode<I> {
     AvailableAsset(AssetVc),
     // Chunks that are loaded in parallel to the current chunk
     Chunk(ChunkVc),
-    // Chunk groups that are referenced from the current chunk, but
-    // not loaded in parallel
-    AsyncChunkGroup { entry: ChunkVc },
     ExternalAssetReference(AssetReferenceVc),
 }
 
@@ -414,16 +405,7 @@ where
                     ChunkContentGraphNode::Chunk(chunk),
                 ));
             }
-            ChunkingType::Separate => {
-                graph_nodes.push((
-                    Some((asset, chunking_type)),
-                    ChunkContentGraphNode::AsyncChunkGroup {
-                        entry: chunkable_asset
-                            .as_chunk(context.chunking_context, context.availability_info),
-                    },
-                ));
-            }
-            ChunkingType::SeparateAsync => {
+            ChunkingType::Async => {
                 if let Some(manifest_loader_item) = I::from_async_asset(
                     context.chunking_context,
                     chunkable_asset,
@@ -594,7 +576,6 @@ where
 
     let mut chunk_items = Vec::new();
     let mut chunks = Vec::new();
-    let mut async_chunk_group_entries = Vec::new();
     let mut external_asset_references = Vec::new();
 
     for graph_node in graph_nodes {
@@ -606,9 +587,6 @@ where
             ChunkContentGraphNode::Chunk(chunk) => {
                 chunks.push(chunk);
             }
-            ChunkContentGraphNode::AsyncChunkGroup { entry } => {
-                async_chunk_group_entries.push(entry);
-            }
             ChunkContentGraphNode::ExternalAssetReference(reference) => {
                 external_asset_references.push(reference);
             }
@@ -618,7 +596,6 @@ where
     Ok(Some(ChunkContentResult {
         chunk_items,
         chunks,
-        async_chunk_group_entries,
         external_asset_references,
         availability_info: availability_info.into_value(),
     }))

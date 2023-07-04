@@ -86,7 +86,7 @@ impl ValueToString for EsmAsyncAssetReference {
 impl ChunkableAssetReference for EsmAsyncAssetReference {
     #[turbo_tasks::function]
     fn chunking_type(&self) -> ChunkingTypeOptionVc {
-        ChunkingTypeOptionVc::cell(Some(ChunkingType::SeparateAsync))
+        ChunkingTypeOptionVc::cell(Some(ChunkingType::Async))
     }
 }
 
