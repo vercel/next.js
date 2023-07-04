@@ -231,11 +231,7 @@ function Router({
   )
 
   const navigate: RouterNavigate = useCallback(
-    (
-      href: string,
-      navigateType: 'push' | 'replace',
-      forceOptimisticNavigation: boolean
-    ) => {
+    (href, navigateType, forceOptimisticNavigation, shouldScroll) => {
       const url = new URL(addBasePath(href), location.href)
 
       return dispatch({
@@ -244,6 +240,7 @@ function Router({
         isExternalUrl: isExternalURL(url),
         locationSearch: location.search,
         forceOptimisticNavigation,
+        shouldScroll: shouldScroll ?? true,
         navigateType,
         cache: createEmptyCacheNode(),
         mutable: {},
@@ -296,12 +293,22 @@ function Router({
       },
       replace: (href, options = {}) => {
         startTransition(() => {
-          navigate(href, 'replace', Boolean(options.forceOptimisticNavigation))
+          navigate(
+            href,
+            'replace',
+            Boolean(options.forceOptimisticNavigation),
+            options.scroll ?? true
+          )
         })
       },
       push: (href, options = {}) => {
         startTransition(() => {
-          navigate(href, 'push', Boolean(options.forceOptimisticNavigation))
+          navigate(
+            href,
+            'push',
+            Boolean(options.forceOptimisticNavigation),
+            options.scroll ?? true
+          )
         })
       },
       refresh: () => {
