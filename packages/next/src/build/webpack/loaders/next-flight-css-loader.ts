@@ -7,19 +7,6 @@
 import crypto from 'crypto'
 import type webpack from 'webpack'
 
-export const pitch: webpack.PitchLoaderDefinitionFunction<NextServerCSSLoaderOptions> =
-  function () {
-    if (process.env.NODE_ENV !== 'production') {
-      // @ts-expect-error TODO: Should we use readFile instead?
-      const content = this.fs.readFileSync(this.resourcePath)
-      this.data.__checksum = crypto
-        .createHash('sha256')
-        .update(typeof content === 'string' ? Buffer.from(content) : content)
-        .digest()
-        .toString('hex')
-    }
-  }
-
 type NextServerCSSLoaderOptions = {
   cssModules: boolean
 }
@@ -45,10 +32,7 @@ const NextServerCSSLoader: webpack.LoaderDefinitionFunction<NextServerCSSLoaderO
       }
       const checksum = crypto
         .createHash('sha256')
-        .update(
-          this.data.__checksum +
-            (typeof content === 'string' ? Buffer.from(content) : content)
-        )
+        .update(typeof content === 'string' ? Buffer.from(content) : content)
         .digest()
         .toString('hex')
         .substring(0, 12)
