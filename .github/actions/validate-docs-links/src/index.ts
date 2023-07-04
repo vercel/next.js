@@ -341,33 +341,33 @@ async function createComment(
   comment: string,
   allErrors: Errors[]
 ): Promise<string> {
+  const errorTableData = allErrors.flatMap((errors) => {
+    const {
+      doc,
+      brokenLinks,
+      brokenHashes,
+      brokenSourceLinks,
+      brokenRelatedLinks,
+    } = errors
+
+    const allBrokenLinks = [
+      ...brokenLinks,
+      ...brokenHashes,
+      ...brokenSourceLinks,
+      ...brokenRelatedLinks,
+    ]
+
+    return allBrokenLinks.map((link) => ({
+      path: doc.path,
+      link,
+    }))
+  })
+
+  console.log('This PR introduces broken links to the docs:')
+  console.table(errorTableData, ['path', 'link'])
+
   const isFork = pullRequest.head.repo.fork
-
   if (isFork) {
-    const errorTableData = allErrors.flatMap((errors) => {
-      const {
-        doc,
-        brokenLinks,
-        brokenHashes,
-        brokenSourceLinks,
-        brokenRelatedLinks,
-      } = errors
-
-      const allBrokenLinks = [
-        ...brokenLinks,
-        ...brokenHashes,
-        ...brokenSourceLinks,
-        ...brokenRelatedLinks,
-      ]
-
-      return allBrokenLinks.map((link) => ({
-        path: doc.path,
-        link,
-      }))
-    })
-
-    console.log('This PR introduces broken links to the docs:')
-    console.table(errorTableData, ['path', 'link'])
     setFailed(
       'The action could not create a Github comment because it is initiated from a forked repo. View the action logs for a list of broken links.'
     )
