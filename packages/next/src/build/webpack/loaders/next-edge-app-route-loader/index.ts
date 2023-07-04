@@ -15,7 +15,7 @@ export type EdgeAppRouteLoaderQuery = {
 }
 
 const EdgeAppRouteLoader: webpack.LoaderDefinitionFunction<EdgeAppRouteLoaderQuery> =
-  async function (this) {
+  function (this) {
     const {
       page,
       absolutePagePath,

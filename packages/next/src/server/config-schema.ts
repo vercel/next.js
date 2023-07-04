@@ -743,6 +743,9 @@ const configSchema = {
     publicRuntimeConfig: {
       type: 'object',
     },
+    reactProductionProfiling: {
+      type: 'boolean',
+    },
     reactStrictMode: {
       type: 'boolean',
     },

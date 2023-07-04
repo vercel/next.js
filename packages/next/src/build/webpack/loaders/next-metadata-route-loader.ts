@@ -110,7 +110,7 @@ export async function GET(_, ctx) {
     id = imageMetadata.find((item) => {
       if (process.env.NODE_ENV !== 'production') {
         if (item?.id == null) {
-          throw new Error('id is required for every item returned from generateImageMetadata')
+          throw new Error('id property is required for every item returned from generateImageMetadata')
         }
       }
       return item.id.toString() === targetId

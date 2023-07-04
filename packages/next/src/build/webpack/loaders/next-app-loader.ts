@@ -21,7 +21,6 @@ import { AppPathnameNormalizer } from '../../../server/future/normalizers/built/
 import { RouteKind } from '../../../server/future/route-kind'
 import { AppRouteRouteModuleOptions } from '../../../server/future/route-modules/app-route/module'
 import { AppBundlePathNormalizer } from '../../../server/future/normalizers/built/app/app-bundle-path-normalizer'
-import { FileType, fileExists } from '../../../lib/file-exists'
 import { MiddlewareConfig } from '../../analysis/get-page-static-info'
 import { getFilenameAndExtension } from './next-metadata-route-loader'
 
@@ -60,7 +59,8 @@ type PathResolver = (
   pathname: string
 ) => Promise<string | undefined> | string | undefined
 export type MetadataResolver = (
-  pathname: string,
+  dir: string,
+  filename: string,
   extensions: readonly string[]
 ) => Promise<string | undefined>
 
@@ -306,6 +306,7 @@ async function createTreeCodeFromPath(
           )}), ${JSON.stringify(resolvedPagePath)}],
           ${createMetadataExportsCode(metadata)}
         }]`
+
         continue
       }
 
@@ -491,11 +492,15 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
         }
 
         const isParallelRoute = rest[0].startsWith('@')
-        if (isParallelRoute && rest.length === 2 && rest[1] === 'page') {
-          matched[rest[0]] = [PAGE_SEGMENT]
-          continue
-        }
         if (isParallelRoute) {
+          if (rest.length === 2 && rest[1] === 'page') {
+            // matched will be an empty object in case the parallel route is at a path with no existing page
+            // in which case, we need to mark it as a regular page segment
+            matched[rest[0]] = Object.keys(matched).length
+              ? [PAGE_SEGMENT]
+              : PAGE_SEGMENT
+            continue
+          }
           // we insert a special marker in order to also process layout/etc files at the slot level
           matched[rest[0]] = [PARALLEL_CHILDREN_SEGMENT, ...rest.slice(1)]
           continue
@@ -515,8 +520,37 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     return createAbsolutePath(appDir, pathToResolve)
   }
 
+  // Cached checker to see if a file exists in a given directory.
+  // This can be more efficient than checking them with `fs.stat` one by one
+  // because all the thousands of files are likely in a few possible directories.
+  // Note that it should only be cached for this compilation, not globally.
+  const filesInDir = new Map<string, Set<string>>()
+  const fileExistsInDirectory = async (dirname: string, fileName: string) => {
+    const existingFiles = filesInDir.get(dirname)
+    if (existingFiles) {
+      return existingFiles.has(fileName)
+    }
+    try {
+      const files = await fs.readdir(dirname, { withFileTypes: true })
+      const fileNames = new Set<string>()
+      for (const file of files) {
+        if (file.isFile()) {
+          fileNames.add(file.name)
+        }
+      }
+      filesInDir.set(dirname, fileNames)
+      return fileNames.has(fileName)
+    } catch (err) {
+      return false
+    }
+  }
+
   const resolver: PathResolver = async (pathname) => {
     const absolutePath = createAbsolutePath(appDir, pathname)
+
+    const filenameIndex = absolutePath.lastIndexOf(path.sep)
+    const dirname = absolutePath.slice(0, filenameIndex)
+    const filename = absolutePath.slice(filenameIndex + 1)
 
     let result: string | undefined
 
@@ -524,7 +558,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
       const absolutePathWithExtension = `${absolutePath}${ext}`
       if (
         !result &&
-        (await fileExists(absolutePathWithExtension, FileType.File))
+        (await fileExistsInDirectory(dirname, `${filename}${ext}`))
       ) {
         result = absolutePathWithExtension
       }
@@ -536,18 +570,20 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     return result
   }
 
-  const metadataResolver: MetadataResolver = async (pathname, exts) => {
-    const absolutePath = createAbsolutePath(appDir, pathname)
+  const metadataResolver: MetadataResolver = async (
+    dirname,
+    filename,
+    exts
+  ) => {
+    const absoluteDir = createAbsolutePath(appDir, dirname)
 
     let result: string | undefined
 
     for (const ext of exts) {
       // Compared to `resolver` above the exts do not have the `.` included already, so it's added here.
-      const absolutePathWithExtension = `${absolutePath}.${ext}`
-      if (
-        !result &&
-        (await fileExists(absolutePathWithExtension, FileType.File))
-      ) {
+      const filenameWithExt = `${filename}.${ext}`
+      const absolutePathWithExtension = `${absoluteDir}${path.sep}${filenameWithExt}`
+      if (!result && (await fileExistsInDirectory(dirname, filenameWithExt))) {
         result = absolutePathWithExtension
       }
       // Call `addMissingDependency` for all files even if they didn't match,
@@ -615,7 +651,8 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
         throw new Error(message)
       }
 
-      // Get the new result with the created root layout.
+      // Clear fs cache, get the new result with the created root layout.
+      filesInDir.clear()
       treeCodeResult = await createTreeCodeFromPath(pagePath, {
         resolveDir,
         resolver,
