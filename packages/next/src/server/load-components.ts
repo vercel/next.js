@@ -128,6 +128,9 @@ async function loadComponentsImpl({
     requirePage(pathname, distDir, isAppPath)
   )
 
+  // Make sure to avoid loading the manifest for Route Handlers
+  const hasClientManifest = isAppPath && pathname.endsWith('/page')
+
   const [
     buildManifest,
     reactLoadableManifest,
@@ -136,7 +139,7 @@ async function loadComponentsImpl({
   ] = await Promise.all([
     loadManifest<BuildManifest>(join(distDir, BUILD_MANIFEST)),
     loadManifest<ReactLoadableManifest>(join(distDir, REACT_LOADABLE_MANIFEST)),
-    isAppPath
+    hasClientManifest
       ? loadJSManifest<ClientReferenceManifest>(
           join(
             distDir,
