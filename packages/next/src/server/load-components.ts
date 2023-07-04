@@ -108,12 +108,10 @@ async function loadJSManifest<T>(
 async function loadComponentsImpl({
   distDir,
   pathname,
-  hasServerComponents,
   isAppPath,
 }: {
   distDir: string
   pathname: string
-  hasServerComponents: boolean
   isAppPath: boolean
 }): Promise<LoadComponentsReturnType> {
   let DocumentMod = {}
@@ -129,7 +127,8 @@ async function loadComponentsImpl({
   )
 
   // Make sure to avoid loading the manifest for Route Handlers
-  const hasClientManifest = isAppPath && pathname.endsWith('/page')
+  const hasClientManifest =
+    isAppPath && (pathname.endsWith('/page') || pathname === '/not-found')
 
   const [
     buildManifest,

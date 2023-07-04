@@ -25,12 +25,18 @@ createNextDescribe(
   },
   ({ next, isNextDev, isNextStart, isTurbopack }) => {
     if (isNextDev && !isTurbopack) {
-      it('should have correct client references keys in manifest', async () => {
+      it.only('should have correct client references keys in manifest', async () => {
         await next.render('/')
         await check(async () => {
           // Check that the client-side manifest is correct before any requests
           const clientReferenceManifest = JSON.parse(
-            await next.readFile('.next/server/client-reference-manifest.json')
+            JSON.parse(
+              (
+                await next.readFile(
+                  '.next/server/app/page_client-reference-manifest.js'
+                )
+              ).match(/]=(.+)$/)[1]
+            )
           )
           const clientModulesNames = Object.keys(
             clientReferenceManifest.clientModules
