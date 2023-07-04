@@ -34,7 +34,7 @@ use self::{
 };
 use crate::{
     embed::{CssEmbed, CssEmbeddable, CssEmbeddableVc},
-    parse::ParseResultSourceMapVc,
+    parse::ParseCssResultSourceMapVc,
     util::stringify_js,
     ImportAssetReferenceVc,
 };
@@ -151,6 +151,7 @@ impl CssChunkContentVc {
             let entry_placeable = CssChunkPlaceableVc::cast_from(entry);
             let entry_item = entry_placeable.as_chunk_item(this.context);
 
+            // TODO(WEB-1261)
             for external_import in expand_imports(&mut body, entry_item).await? {
                 external_imports.insert(external_import.await?.to_owned());
             }
@@ -475,7 +476,7 @@ pub enum CssImport {
 pub struct CssChunkItemContent {
     pub inner_code: Rope,
     pub imports: Vec<CssImport>,
-    pub source_map: Option<ParseResultSourceMapVc>,
+    pub source_map: Option<ParseCssResultSourceMapVc>,
 }
 
 #[turbo_tasks::value_trait]

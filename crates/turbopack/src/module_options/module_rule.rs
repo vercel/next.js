@@ -3,24 +3,56 @@ use serde::{Deserialize, Serialize};
 use turbo_tasks::trace::TraceRawVcs;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    asset::AssetVc, plugin::CustomModuleTypeVc, reference_type::ReferenceType,
-    source_transform::SourceTransformsVc,
+    asset::AssetVc, reference_type::ReferenceType, source_transform::SourceTransformsVc,
 };
-use turbopack_css::CssInputTransformsVc;
+use turbopack_css::{CssInputTransformsVc, CssModuleAssetType};
 use turbopack_ecmascript::{EcmascriptInputTransformsVc, EcmascriptOptions};
 use turbopack_mdx::MdxTransformOptionsVc;
 
-use super::ModuleRuleCondition;
+use super::{CustomModuleTypeVc, ModuleRuleCondition};
 
 #[derive(Debug, Clone, Serialize, Deserialize, TraceRawVcs, PartialEq, Eq)]
 pub struct ModuleRule {
     condition: ModuleRuleCondition,
     effects: Vec<ModuleRuleEffect>,
+    match_mode: MatchMode,
+}
+
+#[derive(Default, Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
+enum MatchMode {
+    // Match all but internal references.
+    #[default]
+    Default,
+    // Only match internal references.
+    Internal,
+}
+
+impl MatchMode {
+    fn matches(&self, reference_type: &ReferenceType) -> bool {
+        matches!(
+            (self, reference_type.is_internal()),
+            (MatchMode::Default, false) | (MatchMode::Internal, true)
+        )
+    }
 }
 
 impl ModuleRule {
+    /// Creates a new module rule. Will not match internal references.
     pub fn new(condition: ModuleRuleCondition, effects: Vec<ModuleRuleEffect>) -> Self {
-        ModuleRule { condition, effects }
+        ModuleRule {
+            condition,
+            effects,
+            match_mode: Default::default(),
+        }
+    }
+
+    /// Creates a new module rule. Will only matches internal references.
+    pub fn new_internal(condition: ModuleRuleCondition, effects: Vec<ModuleRuleEffect>) -> Self {
+        ModuleRule {
+            condition,
+            effects,
+            match_mode: MatchMode::Internal,
+        }
     }
 
     pub fn effects(&self) -> impl Iterator<Item = &ModuleRuleEffect> {
@@ -33,7 +65,8 @@ impl ModuleRule {
         path: &FileSystemPath,
         reference_type: &ReferenceType,
     ) -> Result<bool> {
-        self.condition.matches(source, path, reference_type).await
+        Ok(self.match_mode.matches(reference_type)
+            && self.condition.matches(source, path, reference_type).await?)
     }
 }
 
@@ -74,8 +107,12 @@ pub enum ModuleType {
         transforms: EcmascriptInputTransformsVc,
         options: MdxTransformOptionsVc,
     },
-    Css(CssInputTransformsVc),
-    CssModule(CssInputTransformsVc),
+    CssGlobal,
+    CssModule,
+    Css {
+        ty: CssModuleAssetType,
+        transforms: CssInputTransformsVc,
+    },
     Static,
     Custom(CustomModuleTypeVc),
 }

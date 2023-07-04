@@ -30,7 +30,9 @@ use crate::{
         CssChunkPlaceable, CssChunkPlaceableVc, CssChunkVc, CssImport,
     },
     code_gen::{CodeGenerateable, CodeGenerateableVc},
-    parse::{parse, ParseResult, ParseResultSourceMap, ParseResultVc},
+    parse::{
+        parse_css, ParseCss, ParseCssResult, ParseCssResultSourceMap, ParseCssResultVc, ParseCssVc,
+    },
     path_visitor::ApplyVisitors,
     references::{
         analyze_css_stylesheet, compose::CssModuleComposeReferenceVc,
@@ -48,51 +50,42 @@ fn modifier() -> StringVc {
 #[turbo_tasks::value]
 #[derive(Clone)]
 pub struct CssModuleAsset {
-    pub source: AssetVc,
-    pub context: AssetContextVc,
-    pub transforms: CssInputTransformsVc,
-    pub ty: CssModuleAssetType,
+    source: AssetVc,
+    context: AssetContextVc,
+    transforms: CssInputTransformsVc,
+    ty: CssModuleAssetType,
 }
 
 #[turbo_tasks::value_impl]
 impl CssModuleAssetVc {
-    /// Creates a new CSS asset. The CSS is treated as global CSS.
+    /// Creates a new CSS asset.
     #[turbo_tasks::function]
-    pub fn new(source: AssetVc, context: AssetContextVc, transforms: CssInputTransformsVc) -> Self {
-        Self::cell(CssModuleAsset {
-            source,
-            context,
-            transforms,
-            ty: CssModuleAssetType::Global,
-        })
-    }
-
-    /// Creates a new CSS asset. The CSS is treated as CSS module.
-    #[turbo_tasks::function]
-    pub fn new_module(
+    pub fn new(
         source: AssetVc,
         context: AssetContextVc,
         transforms: CssInputTransformsVc,
+        ty: CssModuleAssetType,
     ) -> Self {
         Self::cell(CssModuleAsset {
             source,
             context,
             transforms,
-            ty: CssModuleAssetType::Module,
+            ty,
         })
-    }
-
-    /// Returns the parsed css.
-    #[turbo_tasks::function]
-    pub(crate) async fn parse(self) -> Result<ParseResultVc> {
-        let this = self.await?;
-        Ok(parse(this.source, Value::new(this.ty), this.transforms))
     }
 
     /// Retrns the asset ident of the source without the "css" modifier
     #[turbo_tasks::function]
     pub async fn source_ident(self) -> Result<AssetIdentVc> {
         Ok(self.await?.source.ident())
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ParseCss for CssModuleAsset {
+    #[turbo_tasks::function]
+    fn parse_css(&self) -> ParseCssResultVc {
+        parse_css(self.source, self.ty, self.transforms)
     }
 }
 
@@ -115,7 +108,7 @@ impl Asset for CssModuleAsset {
         Ok(analyze_css_stylesheet(
             this.source,
             self_vc.as_resolve_origin(),
-            Value::new(this.ty),
+            this.ty,
             this.transforms,
         ))
     }
@@ -137,7 +130,7 @@ impl ChunkableAsset for CssModuleAsset {
 impl CssChunkPlaceable for CssModuleAsset {
     #[turbo_tasks::function]
     fn as_chunk_item(self_vc: CssModuleAssetVc, context: ChunkingContextVc) -> CssChunkItemVc {
-        ModuleChunkItemVc::cell(ModuleChunkItem {
+        CssModuleChunkItemVc::cell(CssModuleChunkItem {
             module: self_vc,
             context,
         })
@@ -159,13 +152,13 @@ impl ResolveOrigin for CssModuleAsset {
 }
 
 #[turbo_tasks::value]
-struct ModuleChunkItem {
+struct CssModuleChunkItem {
     module: CssModuleAssetVc,
     context: ChunkingContextVc,
 }
 
 #[turbo_tasks::value_impl]
-impl ChunkItem for ModuleChunkItem {
+impl ChunkItem for CssModuleChunkItem {
     #[turbo_tasks::function]
     fn asset_ident(&self) -> AssetIdentVc {
         self.module.ident()
@@ -178,7 +171,7 @@ impl ChunkItem for ModuleChunkItem {
 }
 
 #[turbo_tasks::value_impl]
-impl CssChunkItem for ModuleChunkItem {
+impl CssChunkItem for CssModuleChunkItem {
     #[turbo_tasks::function]
     async fn content(&self) -> Result<CssChunkItemContentVc> {
         let references = &*self.module.references().await?;
@@ -236,9 +229,9 @@ impl CssChunkItem for ModuleChunkItem {
             }
         }
 
-        let parsed = self.module.parse().await?;
+        let parsed = self.module.parse_css().await?;
 
-        if let ParseResult::Ok {
+        if let ParseCssResult::Ok {
             stylesheet,
             source_map,
             ..
@@ -280,7 +273,7 @@ impl CssChunkItem for ModuleChunkItem {
 
             code_gen.emit(&stylesheet)?;
 
-            let srcmap = ParseResultSourceMap::new(source_map.clone(), srcmap).cell();
+            let srcmap = ParseCssResultSourceMap::new(source_map.clone(), srcmap).cell();
 
             Ok(CssChunkItemContent {
                 inner_code: code_string.into(),
