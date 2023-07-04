@@ -350,21 +350,13 @@ export class FlightClientEntryPlugin {
       )
 
       if (actionEntryImports.size > 0) {
-        if (!this.useServerActions) {
-          compilation.errors.push(
-            new Error(
-              'Server Actions require `experimental.serverActions` option to be enabled in your Next.js config: https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions'
-            )
-          )
-        } else {
-          if (!actionMapsPerEntry[name]) {
-            actionMapsPerEntry[name] = new Map()
-          }
-          actionMapsPerEntry[name] = new Map([
-            ...actionMapsPerEntry[name],
-            ...actionEntryImports,
-          ])
+        if (!actionMapsPerEntry[name]) {
+          actionMapsPerEntry[name] = new Map()
         }
+        actionMapsPerEntry[name] = new Map([
+          ...actionMapsPerEntry[name],
+          ...actionEntryImports,
+        ])
       }
     })
 
@@ -388,31 +380,28 @@ export class FlightClientEntryPlugin {
       )
     }
 
-    compilation.hooks.finishModules.tapPromise(PLUGIN_NAME, () => {
-      const addedClientActionEntryList: Promise<any>[] = []
-      const actionMapsPerClientEntry: Record<string, Map<string, string[]>> = {}
+    if (this.useServerActions) {
+      compilation.hooks.finishModules.tapPromise(PLUGIN_NAME, () => {
+        const addedClientActionEntryList: Promise<any>[] = []
+        const actionMapsPerClientEntry: Record<
+          string,
+          Map<string, string[]>
+        > = {}
 
-      // We need to create extra action entries that are created from the
-      // client layer.
-      // Start from each entry's created SSR dependency from our previous step.
-      for (const [name, ssrEntryDepdendencies] of Object.entries(
-        createdSSRDependenciesForEntry
-      )) {
-        // Collect from all entries, e.g. layout.js, page.js, loading.js, ...
-        // add agregate them.
-        const actionEntryImports = this.collectClientActionsFromDependencies({
-          compilation,
-          dependencies: ssrEntryDepdendencies,
-        })
+        // We need to create extra action entries that are created from the
+        // client layer.
+        // Start from each entry's created SSR dependency from our previous step.
+        for (const [name, ssrEntryDepdendencies] of Object.entries(
+          createdSSRDependenciesForEntry
+        )) {
+          // Collect from all entries, e.g. layout.js, page.js, loading.js, ...
+          // add agregate them.
+          const actionEntryImports = this.collectClientActionsFromDependencies({
+            compilation,
+            dependencies: ssrEntryDepdendencies,
+          })
 
-        if (actionEntryImports.size > 0) {
-          if (!this.useServerActions) {
-            compilation.errors.push(
-              new Error(
-                'Server Actions require `experimental.serverActions` option to be enabled in your Next.js config: https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions'
-              )
-            )
-          } else {
+          if (actionEntryImports.size > 0) {
             if (!actionMapsPerClientEntry[name]) {
               actionMapsPerClientEntry[name] = new Map()
             }
@@ -422,47 +411,47 @@ export class FlightClientEntryPlugin {
             ])
           }
         }
-      }
 
-      for (const [name, actionEntryImports] of Object.entries(
-        actionMapsPerClientEntry
-      )) {
-        // If an action method is already created in the server layer, we don't
-        // need to create it again in the action layer.
-        // This is to avoid duplicate action instances and make sure the module
-        // state is shared.
-        let remainingClientImportedActions = false
-        const remainingActionEntryImports = new Map<string, string[]>()
-        for (const [dep, actionNames] of actionEntryImports) {
-          const remainingActionNames = []
-          for (const actionName of actionNames) {
-            const id = name + '@' + dep + '@' + actionName
-            if (!createdActions.has(id)) {
-              remainingActionNames.push(actionName)
+        for (const [name, actionEntryImports] of Object.entries(
+          actionMapsPerClientEntry
+        )) {
+          // If an action method is already created in the server layer, we don't
+          // need to create it again in the action layer.
+          // This is to avoid duplicate action instances and make sure the module
+          // state is shared.
+          let remainingClientImportedActions = false
+          const remainingActionEntryImports = new Map<string, string[]>()
+          for (const [dep, actionNames] of actionEntryImports) {
+            const remainingActionNames = []
+            for (const actionName of actionNames) {
+              const id = name + '@' + dep + '@' + actionName
+              if (!createdActions.has(id)) {
+                remainingActionNames.push(actionName)
+              }
+            }
+            if (remainingActionNames.length > 0) {
+              remainingActionEntryImports.set(dep, remainingActionNames)
+              remainingClientImportedActions = true
             }
           }
-          if (remainingActionNames.length > 0) {
-            remainingActionEntryImports.set(dep, remainingActionNames)
-            remainingClientImportedActions = true
+
+          if (remainingClientImportedActions) {
+            addedClientActionEntryList.push(
+              this.injectActionEntry({
+                compiler,
+                compilation,
+                actions: remainingActionEntryImports,
+                entryName: name,
+                bundlePath: name,
+                fromClient: true,
+              })
+            )
           }
         }
 
-        if (remainingClientImportedActions) {
-          addedClientActionEntryList.push(
-            this.injectActionEntry({
-              compiler,
-              compilation,
-              actions: remainingActionEntryImports,
-              entryName: name,
-              bundlePath: name,
-              fromClient: true,
-            })
-          )
-        }
-      }
-
-      return Promise.all(addedClientActionEntryList)
-    })
+        return Promise.all(addedClientActionEntryList)
+      })
+    }
 
     // Invalidate in development to trigger recompilation
     const invalidator = getInvalidator(compiler.outputPath)
