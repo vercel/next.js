@@ -27,6 +27,7 @@ impl EcmascriptChunkPlaceablesVc {
 #[turbo_tasks::value(shared)]
 pub enum EcmascriptExports {
     EsmExports(EsmExportsVc),
+    DynamicNamespace,
     CommonJs,
     Value,
     None,
