@@ -225,7 +225,7 @@ impl ModuleOptionsVc {
                 ModuleRuleCondition::ResourcePathEndsWith(".json".to_string()),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Json)],
             ),
-            ModuleRule::new(
+            ModuleRule::new_all(
                 ModuleRuleCondition::any(vec![
                     ModuleRuleCondition::ResourcePathEndsWith(".js".to_string()),
                     ModuleRuleCondition::ResourcePathEndsWith(".jsx".to_string()),
@@ -255,7 +255,7 @@ impl ModuleOptionsVc {
                     },
                 })],
             ),
-            ModuleRule::new(
+            ModuleRule::new_all(
                 ModuleRuleCondition::any(vec![
                     ModuleRuleCondition::ResourcePathEndsWith(".ts".to_string()),
                     ModuleRuleCondition::ResourcePathEndsWith(".tsx".to_string()),

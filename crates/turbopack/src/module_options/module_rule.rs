@@ -18,20 +18,21 @@ pub struct ModuleRule {
     match_mode: MatchMode,
 }
 
-#[derive(Default, Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
 enum MatchMode {
     // Match all but internal references.
-    #[default]
-    Default,
+    NonInternal,
     // Only match internal references.
     Internal,
+    // Match both internal and non-internal references.
+    All,
 }
 
 impl MatchMode {
     fn matches(&self, reference_type: &ReferenceType) -> bool {
         matches!(
             (self, reference_type.is_internal()),
-            (MatchMode::Default, false) | (MatchMode::Internal, true)
+            (MatchMode::All, _) | (MatchMode::NonInternal, false) | (MatchMode::Internal, true)
         )
     }
 }
@@ -42,7 +43,7 @@ impl ModuleRule {
         ModuleRule {
             condition,
             effects,
-            match_mode: Default::default(),
+            match_mode: MatchMode::NonInternal,
         }
     }
 
@@ -52,6 +53,15 @@ impl ModuleRule {
             condition,
             effects,
             match_mode: MatchMode::Internal,
+        }
+    }
+
+    /// Creates a new module rule. Will only matches internal references.
+    pub fn new_all(condition: ModuleRuleCondition, effects: Vec<ModuleRuleEffect>) -> Self {
+        ModuleRule {
+            condition,
+            effects,
+            match_mode: MatchMode::All,
         }
     }
 
