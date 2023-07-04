@@ -1478,7 +1478,6 @@ export default async function build(
                             pageRuntime,
                             edgeInfo,
                             pageType,
-                            hasServerComponents: !!appDir,
                             incrementalCacheHandlerPath:
                               config.experimental.incrementalCacheHandlerPath,
                             isrFlushToDisk: config.experimental.isrFlushToDisk,

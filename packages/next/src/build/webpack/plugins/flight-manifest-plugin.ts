@@ -333,10 +333,13 @@ export class ClientReferenceManifestPlugin {
       // A page's entry name can have extensions. For example, these are both valid:
       // - app/foo/page
       // - app/foo/page.page
+      // - app/not-found
       // Let's normalize the entry name to remove the extra extension
-      const groupName = /\/page(\.[^/]+)?$/.test(entryName)
-        ? entryName.replace(/\/page(\.[^/]+)?$/, '/page')
-        : entryName.slice(0, entryName.lastIndexOf('/'))
+      const groupName =
+        /\/page(\.[^/]+)?$/.test(entryName) || entryName === 'app/not-found'
+          ? entryName.replace(/\/page(\.[^/]+)?$/, '/page')
+          : entryName.slice(0, entryName.lastIndexOf('/'))
+
       if (!manifestsPerGroup.has(groupName)) {
         manifestsPerGroup.set(groupName, [])
       }
@@ -345,7 +348,7 @@ export class ClientReferenceManifestPlugin {
 
     // Generate per-page manifests.
     for (const [groupName] of manifestsPerGroup) {
-      if (groupName.endsWith('/page')) {
+      if (groupName.endsWith('/page') || groupName === 'app/not-found') {
         const mergedManifest: ClientReferenceManifest = {
           ssrModuleMapping: {},
           edgeSSRModuleMapping: {},

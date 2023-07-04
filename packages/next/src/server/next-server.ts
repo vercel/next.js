@@ -257,13 +257,11 @@ export default class NextNodeServer extends BaseServer {
       loadComponents({
         distDir: this.distDir,
         pathname: '/_document',
-        hasServerComponents: false,
         isAppPath: false,
       }).catch(() => {})
       loadComponents({
         distDir: this.distDir,
         pathname: '/_app',
-        hasServerComponents: false,
         isAppPath: false,
       }).catch(() => {})
     }
@@ -1126,7 +1124,6 @@ export default class NextNodeServer extends BaseServer {
         const components = await loadComponents({
           distDir: this.distDir,
           pathname: pagePath,
-          hasServerComponents: !!this.renderOpts.serverComponents,
           isAppPath,
         })
 
