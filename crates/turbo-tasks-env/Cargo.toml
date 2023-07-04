@@ -10,7 +10,7 @@ bench = false
 
 [dependencies]
 anyhow = { workspace = true }
-dotenvy = "0.15.5"
+dotenvs = "0.1.0"
 indexmap = { workspace = true, features = ["serde"] }
 serde = { workspace = true }
 turbo-tasks = { workspace = true }
