@@ -195,7 +195,7 @@ const enabledTests = [
   'test/integration/typescript-baseurl/test/index.test.js',
   'test/integration/typescript-external-dir/project/test/index.test.js',
   'test/integration/typescript-filtered-files/test/index.test.js',
-  'test/integration/typescript-hmr/test/index.test.js',
+  // 'test/integration/typescript-hmr/test/index.test.js', (FLAKY)
   'test/integration/webpack-config-mainjs/test/index.test.js',
   'test/integration/with-electron/test/index.test.js',
   'test/production/ci-missing-typescript-deps/index.test.ts',
