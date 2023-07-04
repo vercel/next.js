@@ -2022,6 +2022,16 @@ export default async function getBaseWebpackConfig(
               } as any,
             ]
           : []),
+        ...(hasAppDir
+          ? [
+              {
+                resourceQuery: new RegExp(
+                  WEBPACK_RESOURCE_QUERIES.metadataRoute
+                ),
+                layer: WEBPACK_LAYERS.metadataImage,
+              },
+            ]
+          : []),
         ...(hasAppDir && isEdgeServer
           ? [
               // The Edge bundle includes the server in its entrypoint, so it has to
@@ -2181,7 +2191,11 @@ export default async function getBaseWebpackConfig(
                 issuer: { not: regexLikeCss },
                 dependency: { not: ['url'] },
                 resourceQuery: {
-                  not: [new RegExp(WEBPACK_RESOURCE_QUERIES.metadata)],
+                  not: [
+                    new RegExp(WEBPACK_RESOURCE_QUERIES.metadata),
+                    new RegExp(WEBPACK_RESOURCE_QUERIES.metadataRoute),
+                    new RegExp(WEBPACK_RESOURCE_QUERIES.metadataImageMeta),
+                  ],
                 },
                 options: {
                   isDev: dev,
