@@ -106,21 +106,13 @@ async function createAppRouteCode({
   // the route to ensure that the route is generated.
   const filename = path.parse(resolvedPagePath).name
   if (isMetadataRoute(name) && filename !== 'route') {
-    const { ext, name: fileBaseName } =
-      getFilenameAndExtension(resolvedPagePath)
+    const { ext } = getFilenameAndExtension(resolvedPagePath)
     const isDynamic = pageExtensions.includes(ext)
-    const isImageRoute = !['robots', 'manifest', 'sitemap'].includes(
-      fileBaseName
-    )
 
     resolvedPagePath = `next-metadata-route-loader?${stringify({
       page,
-      isDynamic,
-    })}!${resolvedPagePath + '?' + WEBPACK_RESOURCE_QUERIES.metadata}${
-      isImageRoute && isDynamic
-        ? '&' + WEBPACK_RESOURCE_QUERIES.metadataImageGeneration
-        : ''
-    }`
+      isDynamic: isDynamic ? '1' : '0',
+    })}!${resolvedPagePath}${`?${WEBPACK_RESOURCE_QUERIES.metadataRoute}`}`
   }
 
   // References the route handler file to load found in `./routes/${kind}.ts`.

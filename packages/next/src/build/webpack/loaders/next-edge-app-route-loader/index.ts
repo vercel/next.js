@@ -50,9 +50,7 @@ const EdgeAppRouteLoader: webpack.LoaderDefinitionFunction<EdgeAppRouteLoaderQue
     const modulePath = `${appDirLoader}${stringifiedPagePath.substring(
       1,
       stringifiedPagePath.length - 1
-    )}?${WEBPACK_RESOURCE_QUERIES.edgeSSREntry}&${
-      WEBPACK_RESOURCE_QUERIES.metadata
-    }`
+    )}?${WEBPACK_RESOURCE_QUERIES.edgeSSREntry}`
 
     return `
     import { EdgeRouteModuleWrapper } from 'next/dist/esm/server/web/edge-route-module-wrapper'

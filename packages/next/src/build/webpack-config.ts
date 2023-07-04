@@ -1990,7 +1990,7 @@ export default async function getBaseWebpackConfig(
           ? [
               {
                 resourceQuery: new RegExp(
-                  WEBPACK_RESOURCE_QUERIES.metadataImageGeneration
+                  WEBPACK_RESOURCE_QUERIES.metadataRoute
                 ),
                 layer: WEBPACK_LAYERS.metadataImage,
               },
@@ -2152,7 +2152,11 @@ export default async function getBaseWebpackConfig(
                 issuer: { not: regexLikeCss },
                 dependency: { not: ['url'] },
                 resourceQuery: {
-                  not: [new RegExp(WEBPACK_RESOURCE_QUERIES.metadata)],
+                  not: [
+                    new RegExp(WEBPACK_RESOURCE_QUERIES.metadata),
+                    new RegExp(WEBPACK_RESOURCE_QUERIES.metadataRoute),
+                    new RegExp(WEBPACK_RESOURCE_QUERIES.metadataImageMeta),
+                  ],
                 },
                 options: {
                   isDev: dev,
