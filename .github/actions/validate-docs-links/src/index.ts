@@ -40,11 +40,13 @@ interface Document {
 
 interface Errors {
   doc: Document
-  brokenLinks: string[]
-  brokenHashes: string[]
-  brokenSourceLinks: string[]
-  brokenRelatedLinks: string[]
+  link: string[]
+  hash: string[]
+  source: string[]
+  related: string[]
 }
+
+type ErrorType = Exclude<keyof Errors, 'doc'>
 
 interface Comment {
   id: number
@@ -83,37 +85,6 @@ async function getAllMdxFilePaths(
   }
 
   return fileList
-}
-
-async function getPullRequestMdxFilePaths(): Promise<string[]> {
-  try {
-    const filesChanged = await octokit.rest.pulls.listFiles({
-      owner,
-      repo,
-      pull_number: pullRequest.number,
-    })
-
-    const mdxFilesChanged = filesChanged.data
-      .filter(
-        (file) =>
-          (path.join('/', file.filename).startsWith(DOCS_PATH) ||
-            path.join('/', file.filename).startsWith(ERRORS_PATH)) &&
-          file.filename.endsWith('.mdx') &&
-          (file.status === 'added' || file.status === 'modified')
-      )
-      .map((file) => file.filename)
-
-    if (mdxFilesChanged.length === 0) {
-      console.log(
-        "PR doesn't include any changes to .mdx files within /docs or /errors."
-      )
-    }
-
-    return mdxFilesChanged
-  } catch (error) {
-    setFailed(`Error fetching files changed in PR: ${error}`)
-    return []
-  }
 }
 
 // Returns the slugs of all headings in a tree
@@ -156,8 +127,8 @@ function normalizePath(filePath: string): string {
     return (
       filePath
         // Remap repository file path to the next-site url path
-        // e.g. `errors/example.mdx` -> `/docs/messages/example`
-        .replace(ERRORS_PATH.substring(1), DOCS_PATH + 'messages/')
+        // e.g. `errors/example.mdx` -> `docs/messages/example`
+        .replace(ERRORS_PATH.substring(1), DOCS_PATH.substring(1) + 'messages/')
         .replace('.mdx', '')
     )
   }
@@ -226,7 +197,7 @@ function validateInternalLink(errors: Errors, href: string): void {
   }
 
   if (!foundPage) {
-    errors.brokenLinks.push(href)
+    errors.link.push(href)
   } else if (hash && !EXCLUDED_HASHES.includes(hash)) {
     // Account for documents that pull their content from another document
     const foundPageSource = foundPage.source
@@ -237,7 +208,7 @@ function validateInternalLink(errors: Errors, href: string): void {
     const hashFound = (foundPageSource || foundPage).headings.includes(hash)
 
     if (!hashFound) {
-      errors.brokenHashes.push(href)
+      errors.hash.push(href)
     }
   }
 }
@@ -247,14 +218,14 @@ function validateHashLink(errors: Errors, href: string, doc: Document): void {
   const hashLink = href.replace('#', '')
 
   if (!EXCLUDED_HASHES.includes(hashLink) && !doc.headings.includes(hashLink)) {
-    errors.brokenHashes.push(href)
+    errors.hash.push(href)
   }
 }
 
 // Checks if the source link points to an existing document
 function validateSourceLinks(doc: Document, errors: Errors): void {
   if (doc.source && !documentMap.get(doc.source)) {
-    errors.brokenSourceLinks.push(doc.source)
+    errors.source.push(doc.source)
   }
 }
 
@@ -263,7 +234,7 @@ function validateRelatedLinks(doc: Document, errors: Errors): void {
   if (doc.related && doc.related.links) {
     doc.related.links.forEach((link) => {
       if (!documentMap.get(link)) {
-        errors.brokenRelatedLinks.push(link)
+        errors.related.push(link)
       }
     })
   }
@@ -273,10 +244,10 @@ function validateRelatedLinks(doc: Document, errors: Errors): void {
 function traverseTreeAndValidateLinks(tree: any, doc: Document): Errors {
   const errors: Errors = {
     doc,
-    brokenLinks: [],
-    brokenHashes: [],
-    brokenSourceLinks: [],
-    brokenRelatedLinks: [],
+    link: [],
+    hash: [],
+    source: [],
+    related: [],
   }
 
   try {
@@ -337,35 +308,7 @@ async function updateComment(
   }
 }
 
-async function createComment(
-  comment: string,
-  allErrors: Errors[]
-): Promise<string> {
-  const errorTableData = allErrors.flatMap((errors) => {
-    const {
-      doc,
-      brokenLinks,
-      brokenHashes,
-      brokenSourceLinks,
-      brokenRelatedLinks,
-    } = errors
-
-    const allBrokenLinks = [
-      ...brokenLinks,
-      ...brokenHashes,
-      ...brokenSourceLinks,
-      ...brokenRelatedLinks,
-    ]
-
-    return allBrokenLinks.map((link) => ({
-      path: doc.path,
-      link,
-    }))
-  })
-
-  console.log('This PR introduces broken links to the docs:')
-  console.table(errorTableData, ['path', 'link'])
-
+async function createComment(comment: string): Promise<string> {
   const isFork = pullRequest.head.repo.fork
   if (isFork) {
     setFailed(
@@ -390,8 +333,12 @@ async function createComment(
   }
 }
 
-const formatTableRow = (link: string, docPath: string) => {
-  return `| ${link} | [/${docPath}](https://github.com/vercel/next.js/blob/${sha}/${docPath}) | \n`
+const formatTableRow = (
+  link: string,
+  errorType: ErrorType,
+  docPath: string
+) => {
+  return `| ${link} | ${errorType} | [/${docPath}](https://github.com/vercel/next.js/blob/${sha}/${docPath}) | \n`
 }
 
 async function updateCheckStatus(
@@ -446,18 +393,12 @@ async function updateCheckStatus(
 async function validateAllInternalLinks(): Promise<void> {
   try {
     const allMdxFilePaths = await getAllMdxFilePaths([DOCS_PATH, ERRORS_PATH])
-    const prMdxFilePaths = await getPullRequestMdxFilePaths()
 
     documentMap = new Map(
       await Promise.all(allMdxFilePaths.map(prepareDocumentMapEntry))
     )
 
-    console.log(
-      'Validating links in the following files:',
-      JSON.stringify(prMdxFilePaths, null, 2)
-    )
-
-    const docProcessingPromises = prMdxFilePaths.map(async (filePath) => {
+    const docProcessingPromises = allMdxFilePaths.map(async (filePath) => {
       const doc = documentMap.get(normalizePath(filePath))
       if (doc) {
         const tree = (await markdownProcessor.process(doc.body)).contents
@@ -465,60 +406,41 @@ async function validateAllInternalLinks(): Promise<void> {
       } else {
         return {
           doc: {} as Document,
-          brokenLinks: [],
-          brokenHashes: [],
-          brokenSourceLinks: [],
-          brokenRelatedLinks: [],
+          link: [],
+          hash: [],
+          source: [],
+          related: [],
         } as Errors
       }
     })
 
     const allErrors = await Promise.all(docProcessingPromises)
 
-    let errorComment =
-      'Hi there :wave:\n\nIt looks like this PR introduces broken links to the docs, please take a moment to fix them before merging:\n\n| :heavy_multiplication_x: Broken link | :page_facing_up: File | \n| ----------- | ----------- | \n'
-
     let errorsExist = false
 
+    let errorRows: string[] = []
+
+    const errorTypes: ErrorType[] = ['link', 'hash', 'source', 'related']
     allErrors.forEach((errors) => {
       const {
         doc: { path: docPath },
-        brokenLinks,
-        brokenHashes,
-        brokenSourceLinks,
-        brokenRelatedLinks,
       } = errors
 
-      if (brokenLinks.length > 0) {
-        errorsExist = true
-        brokenLinks.forEach((link) => {
-          errorComment += formatTableRow(link, docPath)
-        })
-      }
-
-      if (brokenHashes.length > 0) {
-        errorsExist = true
-        brokenHashes.forEach((hash) => {
-          errorComment += formatTableRow(hash, docPath)
-        })
-      }
-
-      if (brokenSourceLinks.length > 0) {
-        errorsExist = true
-        brokenSourceLinks.forEach((link) => {
-          errorComment += formatTableRow(link, docPath)
-        })
-      }
-
-      if (brokenRelatedLinks.length > 0) {
-        errorsExist = true
-        brokenRelatedLinks.forEach((link) => {
-          errorComment += formatTableRow(link, docPath)
-        })
-      }
+      errorTypes.forEach((errorType) => {
+        if (errors[errorType].length > 0) {
+          errorsExist = true
+          errors[errorType].forEach((link) => {
+            errorRows.push(formatTableRow(link, errorType, docPath))
+          })
+        }
+      })
     })
 
-    errorComment += '\nThank you :pray:'
+    const errorComment = [
+      'Hi there :wave:\n\nIt looks like this PR introduces broken links to the docs, please take a moment to fix them before merging:\n\n| Broken link | Type | File | \n| ----------- | ----------- | ----------- | \n',
+      ...errorRows,
+      '\nThank you :pray:',
+    ].join('')
 
     const botComment = await findBotComment()
 
@@ -529,13 +451,26 @@ async function validateAllInternalLinks(): Promise<void> {
       if (botComment) {
         commentUrl = await updateComment(comment, botComment)
       } else {
-        commentUrl = await createComment(comment, allErrors)
+        commentUrl = await createComment(comment)
       }
-    } else {
+
+      const errorTableData = allErrors.flatMap((errors) => {
+        const { doc } = errors
+
+        return errorTypes.flatMap((errorType) =>
+          errors[errorType].map((link) => ({
+            docPath: doc.path,
+            errorType,
+            link,
+          }))
+        )
+      })
+
+      console.log('This PR introduces broken links to the docs:')
+      console.table(errorTableData, ['link', 'type', 'docPath'])
+    } else if (botComment) {
       const comment = `${COMMENT_TAG}\nAll broken links are now fixed, thank you!`
-      if (botComment) {
-        commentUrl = await updateComment(comment, botComment)
-      }
+      commentUrl = await updateComment(comment, botComment)
     }
 
     try {
