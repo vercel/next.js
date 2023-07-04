@@ -3,6 +3,8 @@ title: MDX
 description: Learn how to configure MDX to write JSX in your markdown files.
 ---
 
+{/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
+
 [Markdown](https://daringfireball.net/projects/markdown/syntax) is a lightweight markup language used to format text. It allows you to write using plain text syntax and convert it to structurally valid HTML. It's commonly used for writing content on websites and blogs.
 
 You write...
@@ -19,7 +21,7 @@ Output:
 
 [MDX](https://mdxjs.com/) is a superset of markdown that lets you write [JSX](https://react.dev/learn/writing-markup-with-jsx) directly in your markdown files. It is a powerful way to add dynamic interactivity and embed React components within your content.
 
-Next.js can support both local MDX content inside your application, as well as remote MDX files fetched dynamically on the server. The Next.js plugin handles tranforming Markdown and React components into HTML, including support for usage in Server Components (default in `app`).
+Next.js can support both local MDX content inside your application, as well as remote MDX files fetched dynamically on the server. The Next.js plugin handles transforming Markdown and React components into HTML, including support for usage in Server Components (default in `app`).
 
 ## `@next/mdx`
 
@@ -186,7 +188,7 @@ If your Markdown or MDX files do _not_ live inside your application, you can fet
 
 There are two popular community packages for fetching MDX content: [`next-mdx-remote`](https://github.com/hashicorp/next-mdx-remote#react-server-components-rsc--nextjs-app-directory-support) and [`contentlayer`](https://www.contentlayer.dev/). For example, the following example uses `next-mdx-remote`:
 
-> **Note:** Please proceed with caution. MDX compiles to JavaScript and is executed on the server. You should only fetch MDX content from a trusted source, otherwise this can lead to remote code execution (RCE).
+> **Good to know**: Please proceed with caution. MDX compiles to JavaScript and is executed on the server. You should only fetch MDX content from a trusted source, otherwise this can lead to remote code execution (RCE).
 
 ```tsx filename="app/page.tsx" switcher
 import { MDXRemote } from 'next-mdx-remote/rsc'
@@ -220,7 +222,7 @@ To share a layout around MDX content, you can use the [built-in layouts support]
 
 To add a layout to your MDX page, create a new component and import it into the MDX page. Then you can wrap the MDX page with your layout component:
 
-```jsx filename="pages/index.jsx"
+```jsx filename="pages/index.js"
 import { MyLayoutComponent } from 'my-components';
 import HelloWorld from './hello.mdx';
 
@@ -314,13 +316,17 @@ const withMDX = require('@next/mdx')({
 Then setup the provider in your page
 
 ```jsx filename="pages/index.js"
-
 import { MDXProvider } from '@mdx-js/react'
 import Image from 'next/image'
 import { Heading, InlineCode, Pre, Table, Text } from 'my-components'
 
 const ResponsiveImage = (props) => (
-  <Image alt={props.alt} sizes="100vw" style={ width: '100%', height: 'auto' }  {...props} />
+  <Image
+    alt={props.alt}
+    sizes="100vw"
+    style={{ width: '100%', height: 'auto' }}
+    {...props}
+  />
 )
 
 const components = {
@@ -349,7 +355,7 @@ React does not natively understand Markdown. The markdown plaintext needs to fir
 
 `remark` is an ecosystem of tools around markdown. `rehype` is the same, but for HTML. For example, the following code snippet transforms markdown into HTML:
 
-```jsx
+```js
 import { unified } from 'unified'
 import remarkParse from 'remark-parse'
 import remarkRehype from 'remark-rehype'
@@ -366,7 +372,7 @@ async function main() {
     .use(rehypeStringify) // Convert AST into serialized HTML
     .process('Hello, Next.js!')
 
-  console.log(String(file)) // <p>>Hello, Next.js!</p>
+  console.log(String(file)) // <p>Hello, Next.js!</p>
 }
 ```
 

@@ -117,14 +117,14 @@ export async function adapter(
     }
   }
 
-  // Strip internal query parameters off the request.
-  stripInternalSearchParams(requestUrl.searchParams, true)
+  const normalizeUrl = process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE
+    ? new URL(params.request.url)
+    : requestUrl
 
   const request = new NextRequestHint({
     page: params.page,
-    input: process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE
-      ? params.request.url
-      : String(requestUrl),
+    // Strip internal query parameters off the request.
+    input: stripInternalSearchParams(normalizeUrl, true).toString(),
     init: {
       body: params.request.body,
       geo: params.request.geo,
@@ -132,6 +132,7 @@ export async function adapter(
       ip: params.request.ip,
       method: params.request.method,
       nextConfig: params.request.nextConfig,
+      signal: params.request.signal,
     },
   })
 

@@ -4,9 +4,23 @@ nav_title: webpack
 description: Learn how to customize the webpack config used by Next.js
 ---
 
-> **Note**: changes to webpack config are not covered by semver so proceed at your own risk
+{/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
+
+> **Good to know**: changes to webpack config are not covered by semver so proceed at your own risk
 
 Before continuing to add custom webpack configuration to your application make sure Next.js doesn't already support your use-case:
+
+<AppOnly>
+
+- [CSS imports](/docs/app/building-your-application/styling)
+- [CSS modules](/docs/app/building-your-application/styling/css-modules)
+- [Sass/SCSS imports](/docs/app/building-your-application/styling/sass)
+- [Sass/SCSS modules](/docs/app/building-your-application/styling/sass)
+- [preact](https://github.com/vercel/next.js/tree/canary/examples/using-preact)
+
+</AppOnly>
+
+<PagesOnly>
 
 - [CSS imports](/docs/pages/building-your-application/styling)
 - [CSS modules](/docs/pages/building-your-application/styling/css-modules)
@@ -14,6 +28,8 @@ Before continuing to add custom webpack configuration to your application make s
 - [Sass/SCSS modules](/docs/pages/building-your-application/styling/sass)
 - [preact](https://github.com/vercel/next.js/tree/canary/examples/using-preact)
 - [Customizing babel configuration](/docs/pages/building-your-application/configuring/babel)
+
+</PagesOnly>
 
 Some commonly asked for features are available as plugins:
 

@@ -85,6 +85,48 @@ createNextDescribe(
         await checkLink('top', 0)
         await checkLink('non-existent', 0)
       })
+
+      it('should not scroll to hash when scroll={false} is set', async () => {
+        const browser = await next.browser('/hash-changes')
+        const curScroll = await browser.eval(
+          'document.documentElement.scrollTop'
+        )
+        await browser.elementByCss('#scroll-to-name-item-400-no-scroll').click()
+        expect(curScroll).toBe(
+          await browser.eval('document.documentElement.scrollTop')
+        )
+      })
+    })
+
+    describe('hash-with-scroll-offset', () => {
+      it('should scroll to the specified hash', async () => {
+        const browser = await next.browser('/hash-with-scroll-offset')
+
+        const checkLink = async (
+          val: number | string,
+          expectedScroll: number
+        ) => {
+          await browser.elementByCss(`#link-to-${val.toString()}`).click()
+          await check(
+            async () => {
+              const val = await browser.eval('window.pageYOffset')
+              return val.toString()
+            },
+            expectedScroll.toString(),
+            true,
+            // Try maximum of 15 seconds
+            15
+          )
+        }
+
+        await checkLink(6, 94)
+        await checkLink(50, 710)
+        await checkLink(160, 2250)
+        await checkLink(300, 4210)
+        await checkLink(500, 7010) // this one is hash only (`href="#hash-500"`)
+        await checkLink('top', 0)
+        await checkLink('non-existent', 0)
+      })
     })
 
     describe('hash-link-back-to-same-page', () => {
@@ -416,6 +458,38 @@ createNextDescribe(
         }
 
         expect(stored).toEqual(expected)
+      })
+    })
+
+    describe('navigation between pages and app', () => {
+      it('should not contain _rsc query while navigating from app to pages', async () => {
+        // Initiate with app
+        const browser = await next.browser('/assertion/page')
+        await browser
+          .elementByCss('#link-to-pages')
+          .click()
+          .waitForElementByCss('#link-to-app')
+        expect(await browser.url()).toBe(next.url + '/some')
+        await browser
+          .elementByCss('#link-to-app')
+          .click()
+          .waitForElementByCss('#link-to-pages')
+        expect(await browser.url()).toBe(next.url + '/assertion/page')
+      })
+
+      it('should not contain _rsc query while navigating from pages to app', async () => {
+        // Initiate with pages
+        const browser = await next.browser('/some')
+        await browser
+          .elementByCss('#link-to-app')
+          .click()
+          .waitForElementByCss('#link-to-pages')
+        expect(await browser.url()).toBe(next.url + '/assertion/page')
+        await browser
+          .elementByCss('#link-to-pages')
+          .click()
+          .waitForElementByCss('#link-to-app')
+        expect(await browser.url()).toBe(next.url + '/some')
       })
     })
 

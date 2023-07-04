@@ -3,6 +3,8 @@ title: images
 description: Custom configuration for the next/image loader
 ---
 
+{/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
+
 If you want to use a cloud provider to optimize images instead of using the Next.js built-in Image Optimization API, you can configure `next.config.js` with the following:
 
 ```js filename="next.config.js"
@@ -22,7 +24,17 @@ export default function myImageLoader({ src, width, quality }) {
 }
 ```
 
+<AppOnly>
+
+Alternatively, you can use the [`loader` prop](/docs/app/api-reference/components/image#loader) to pass the function to each instance of `next/image`.
+
+</AppOnly>
+
+<PagesOnly>
+
 Alternatively, you can use the [`loader` prop](/docs/pages/api-reference/components/image#loader) to pass the function to each instance of `next/image`.
+
+</PagesOnly>
 
 ## Example Loader Configuration
 
@@ -78,7 +90,7 @@ export default function contentfulLoader({ src, quality, width }) {
 }
 ```
 
-## Fastly
+### Fastly
 
 ```js
 // Docs: https://developer.fastly.com/reference/io/
@@ -91,7 +103,7 @@ export default function fastlyLoader({ src, width, quality }) {
 }
 ```
 
-## Gumlet
+### Gumlet
 
 ```js
 // Docs: https://docs.gumlet.com/reference/image-transform-size

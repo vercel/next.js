@@ -12,6 +12,7 @@ bench = false
 anyhow = { workspace = true }
 async-recursion = "1.0.2"
 async-trait = { workspace = true }
+const_format = "0.2.30"
 once_cell = { workspace = true }
 qstring = { workspace = true }
 regex = { workspace = true }
@@ -65,8 +66,6 @@ turbopack-binding = { workspace = true, features = ["__turbo_tasks_build"] }
 next-font-local = []
 native-tls = ["turbopack-binding/__turbo_tasks_fetch_native-tls"]
 rustls-tls = ["turbopack-binding/__turbo_tasks_fetch_rustls-tls"]
-# Internal only. Enabled when building for the Next.js integration test suite.
-__internal_nextjs_integration_test = []
 # enable "HMR" for embedded assets
 dynamic_embed_contents = [
   "turbopack-binding/__turbo_tasks_fs_dynamic_embed_contents",

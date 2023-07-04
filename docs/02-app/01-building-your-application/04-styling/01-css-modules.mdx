@@ -3,12 +3,12 @@ title: CSS Modules
 description: Style your Next.js Application with CSS Modules.
 ---
 
+{/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
+
 <PagesOnly>
 
 <details open>
-  <summary>
-    Examples
-  </summary>
+  <summary>Examples</summary>
 
 - [Basic CSS Example](https://github.com/vercel/next.js/tree/canary/examples/basic-css)
 
@@ -106,7 +106,7 @@ These `.css` files represent hot execution paths in your application, ensuring t
 <AppOnly>
 Global styles can be imported into any layout, page, or component inside the `app` directory.
 
-> **Good to know:** This is different from the `pages` directory, where you can only import global styles inside the `_app.js` file.
+> **Good to know**: This is different from the `pages` directory, where you can only import global styles inside the `_app.js` file.
 
 For example, consider a stylesheet named `app/global.css`:
 
@@ -185,7 +185,22 @@ Due to the global nature of stylesheets, and to avoid conflicts, you may **only 
 
 In development, expressing stylesheets this way allows your styles to be hot reloaded as you edit them—meaning you can keep application state.
 
-In production, all CSS files will be automatically concatenated into a single minified `.css` file.
+In production, all CSS files will be automatically concatenated into a single minified `.css` file. The order that the CSS is concatenated will match the order the CSS is imported into the `_app.js` file. Pay special attention to imported JS modules that include their own CSS; the JS module's CSS will be concatenated following the same ordering rules as imported CSS files. For example:
+
+```jsx
+import '../styles.css'
+// The CSS in ErrorBoundary depends on the global CSS in styles.css,
+// so we import it after styles.css.
+import ErrorBoundary from '../components/ErrorBoundary'
+
+export default function MyApp({ Component, pageProps }) {
+  return (
+    <ErrorBoundary>
+      <Component {...pageProps} />
+    </ErrorBoundary>
+  )
+}
+```
 
 </PagesOnly>
 
@@ -223,7 +238,7 @@ export default function RootLayout({ children }) {
 }
 ```
 
-> **Note:** External stylesheets must be directly imported from an npm package or downloaded and colocated with your codebase. You cannot use `<link rel="stylesheet" />`.
+> **Good to know**: External stylesheets must be directly imported from an npm package or downloaded and colocated with your codebase. You cannot use `<link rel="stylesheet" />`.
 
 </AppOnly>
 
@@ -249,7 +264,7 @@ export default function MyApp({ Component, pageProps }) {
 
 For importing CSS required by a third-party component, you can do so in your component. For example:
 
-```tsx filename="components/example-dialog.js"
+```jsx filename="components/example-dialog.js"
 import { useState } from 'react'
 import { Dialog } from '@reach/dialog'
 import VisuallyHidden from '@reach/visually-hidden'

@@ -32,13 +32,13 @@ Whenever possible, we recommend fetching data in [Server Components](/docs/getti
 - Reduce client-server [waterfalls](#parallel-and-sequential-data-fetching).
 - Depending on your region, data fetching can also happen closer to your data source, reducing latency and improving performance.
 
-> **Good to know:** It's still possible to fetch data client-side. We recommend using a third-party library such as [SWR](https://swr.vercel.app/) or [React Query](https://tanstack.com/query/v4/) with Client Components. In the future, it'll also be possible to fetch data in Client Components using React's [`use()` hook](/docs/app/building-your-application/data-fetching/fetching#use-in-client-components).
+> **Good to know**: It's still possible to fetch data client-side. We recommend using a third-party library such as [SWR](https://swr.vercel.app/) or [React Query](https://tanstack.com/query/v4/) with Client Components. In the future, it'll also be possible to fetch data in Client Components using React's [`use()` hook](/docs/app/building-your-application/data-fetching/fetching#use-in-client-components).
 
 ## Fetching Data at the Component Level
 
 In the App Router, you can fetch data inside [layouts](/docs/app/building-your-application/routing/pages-and-layouts#layouts), [pages](/docs/app/building-your-application/routing/pages-and-layouts#pages), and components. Data fetching is also compatible with [Streaming and Suspense](#streaming-and-suspense).
 
-> **Good to know:** For layouts, it's not possible to pass data between a parent layout and its `children` components. We recommend **fetching data directly inside the layout that needs it**, even if you're requesting the same data multiple times in a route. Behind the scenes, React and Next.js will [cache and dedupe](#automatic-fetch-request-deduping) requests to avoid the same data being fetched more than once.
+> **Good to know**: For layouts, it's not possible to pass data between a parent layout and its `children` components. We recommend **fetching data directly inside the layout that needs it**, even if you're requesting the same data multiple times in a route. Behind the scenes, React and Next.js will [cache and dedupe](#automatic-fetch-request-deduping) requests to avoid the same data being fetched more than once.
 
 ## Parallel and Sequential Data Fetching
 
@@ -74,7 +74,7 @@ If you need to fetch the same data (e.g. current user) in multiple components in
   - This optimization also applies during [static generation](/docs/app/building-your-application/rendering#static-rendering).
 - On the client, the cache lasts the duration of a session (which could include multiple client-side re-renders) before a full page reload.
 
-> **Good to know:**
+> **Good to know**:
 >
 > - `POST` requests are not automatically deduplicated. [Learn more about caching](/docs/app/building-your-application/data-fetching/caching).
 > - If you're unable to use `fetch`, React provides a [`cache` function](/docs/app/building-your-application/data-fetching/caching#react-cache) to allow you to manually cache data for the duration of the request.
@@ -123,7 +123,7 @@ Next.js extends the [options object](https://developer.mozilla.org/en-US/docs/We
 
 During server rendering, when Next.js comes across a fetch, it will check the cache to see if the data is already available. If it is, it will return the cached data. If not, it will fetch and store data for future requests.
 
-> **Good to know:** If you're unable to use `fetch`, React provides a [`cache` function](/docs/app/building-your-application/data-fetching/caching#react-cache) to allow you to manually cache data for the duration of the request.
+> **Good to know**: If you're unable to use `fetch`, React provides a [`cache` function](/docs/app/building-your-application/data-fetching/caching#react-cache) to allow you to manually cache data for the duration of the request.
 
 [Learn more about caching in Next.js](/docs/app/building-your-application/data-fetching/caching).
 

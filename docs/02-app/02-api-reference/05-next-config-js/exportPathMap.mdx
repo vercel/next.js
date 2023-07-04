@@ -4,12 +4,13 @@ nav_title: exportPathMap
 description: Customize the pages that will be exported as HTML files when using `next export`.
 ---
 
+{/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
+
 > This feature is exclusive to `next export` and currently **deprecated** in favor of `getStaticPaths` with `pages` or `generateStaticParams` with `app`.
 
 <details>
-  <summary>
-    Examples
-  </summary>
+  <summary>Examples</summary>
+  
 - [Static Export](https://github.com/vercel/next.js/tree/canary/examples/with-static-export)
 
 </details>
@@ -41,7 +42,7 @@ module.exports = {
 }
 ```
 
-> **Note**: the `query` field in `exportPathMap` cannot be used with [automatically statically optimized pages](/docs/pages/building-your-application/rendering/automatic-static-optimization) or [`getStaticProps` pages](/docs/pages/building-your-application/data-fetching/get-static-props) as they are rendered to HTML files at build-time and additional query information cannot be provided during `next export`.
+> **Good to know**: the `query` field in `exportPathMap` cannot be used with [automatically statically optimized pages](/docs/pages/building-your-application/rendering/automatic-static-optimization) or [`getStaticProps` pages](/docs/pages/building-your-application/data-fetching/get-static-props) as they are rendered to HTML files at build-time and additional query information cannot be provided during `next export`.
 
 The pages will then be exported as HTML files, for example, `/about` will become `/about.html`.
 
@@ -74,7 +75,17 @@ module.exports = {
 
 ## Customizing the output directory
 
+<AppOnly>
+
+[`next export`](/docs/app/building-your-application/deploying/static-exports) will use `out` as the default output directory, you can customize this using the `-o` argument, like so:
+
+</AppOnly>
+
+<PagesOnly>
+
 [`next export`](/docs/pages/building-your-application/deploying/static-exports) will use `out` as the default output directory, you can customize this using the `-o` argument, like so:
+
+</PagesOnly>
 
 ```bash filename="Terminal"
 next export -o outdir

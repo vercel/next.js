@@ -1,7 +1,13 @@
 import type webpack from 'webpack'
+import type { SizeLimit } from '../../../../../types'
+import type { PagesRouteModuleOptions } from '../../../../server/future/route-modules/pages/module'
+import type { MiddlewareConfig } from '../../../analysis/get-page-static-info'
+
 import { getModuleBuildInfo } from '../get-module-build-info'
 import { WEBPACK_RESOURCE_QUERIES } from '../../../../lib/constants'
 import { stringifyRequest } from '../../stringify-request'
+import { RouteKind } from '../../../../server/future/route-kind'
+import { normalizePagePath } from '../../../../shared/lib/page-path/normalize-page-path'
 
 export type EdgeSSRLoaderQuery = {
   absolute500Path: string
@@ -19,6 +25,8 @@ export type EdgeSSRLoaderQuery = {
   sriEnabled: boolean
   incrementalCacheHandlerPath?: string
   preferredRegion: string | string[] | undefined
+  middlewareConfig: string
+  serverActionsBodySizeLimit?: SizeLimit
 }
 
 /*
@@ -33,8 +41,23 @@ function swapDistFolderWithEsmDistFolder(path: string) {
   return path.replace('next/dist/pages', 'next/dist/esm/pages')
 }
 
+function getRouteModuleOptions(page: string) {
+  const options: Omit<PagesRouteModuleOptions, 'userland' | 'components'> = {
+    definition: {
+      kind: RouteKind.PAGES,
+      page: normalizePagePath(page),
+      pathname: page,
+      // The following aren't used in production.
+      bundlePath: '',
+      filename: '',
+    },
+  }
+
+  return options
+}
+
 const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
-  async function edgeSSRLoader(this) {
+  function edgeSSRLoader(this) {
     const {
       dev,
       page,
@@ -51,7 +74,13 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
       sriEnabled,
       incrementalCacheHandlerPath,
       preferredRegion,
+      middlewareConfig: middlewareConfigBase64,
+      serverActionsBodySizeLimit,
     } = this.getOptions()
+
+    const middlewareConfig: MiddlewareConfig = JSON.parse(
+      Buffer.from(middlewareConfigBase64, 'base64').toString()
+    )
 
     const stringifiedConfig = Buffer.from(
       stringifiedConfigBase64 || '',
@@ -74,6 +103,7 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
       page,
       absolutePagePath,
       preferredRegion,
+      middlewareConfig,
     }
 
     const stringifiedPagePath = stringifyRequest(this, absolutePagePath)
@@ -108,32 +138,72 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
     ${
       isAppDir
         ? `
-      import { renderToHTMLOrFlight as appRenderToHTML } from 'next/dist/esm/server/app-render/app-render'
+      import { renderToHTMLOrFlight as renderToHTML } from 'next/dist/esm/server/app-render/app-render'
       import * as pageMod from ${JSON.stringify(pageModPath)}
       const Document = null
-      const pagesRenderToHTML = null
       const appMod = null
       const errorMod = null
       const error500Mod = null
     `
         : `
       import Document from ${stringifiedDocumentPath}
-      import { renderToHTML as pagesRenderToHTML } from 'next/dist/esm/server/render'
-      import * as pageMod from ${stringifiedPagePath}
       import * as appMod from ${stringifiedAppPath}
-      import * as errorMod from ${stringifiedErrorPath}
+      import * as userlandPage from ${stringifiedPagePath}
+      import * as userlandErrorPage from ${stringifiedErrorPath}
       ${
         stringified500Path
-          ? `import * as error500Mod from ${stringified500Path}`
-          : `const error500Mod = null`
+          ? `import * as userland500Page from ${stringified500Path}`
+          : ''
       }
-      const appRenderToHTML = null
-    `
+      const renderToHTML = undefined
+      import RouteModule from "next/dist/esm/server/future/route-modules/pages/module"
+
+      const pageMod = {
+        ...userlandPage,
+        routeModule: new RouteModule({
+          ...${JSON.stringify(getRouteModuleOptions(page))},
+          components: {
+            App: appMod.default,
+            Document,
+          },
+          userland: userlandPage,
+        }),
+      }
+
+      const errorMod = {
+        ...userlandErrorPage,
+        routeModule: new RouteModule({
+          ...${JSON.stringify(getRouteModuleOptions('/_error'))},
+          components: {
+            App: appMod.default,
+            Document,
+          },
+          userland: userlandErrorPage,
+        }),
+      }
+
+      const error500Mod = ${
+        stringified500Path
+          ? `{
+        ...userland500Page,
+        routeModule: new RouteModule({
+          ...${JSON.stringify(getRouteModuleOptions('/500'))},
+          components: {
+            App: appMod.default,
+            Document,
+          },
+          userland: userland500Page,
+        }),
+      }`
+          : 'null'
+      }`
     }
 
     ${
       incrementalCacheHandlerPath
-        ? `import incrementalCacheHandler from "${incrementalCacheHandlerPath}"`
+        ? `import incrementalCacheHandler from ${JSON.stringify(
+            incrementalCacheHandlerPath
+          )}`
         : 'const incrementalCacheHandler = null'
     }
 
@@ -143,7 +213,6 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
     const prerenderManifest = maybeJSONParse(self.__PRERENDER_MANIFEST)
     const reactLoadableManifest = maybeJSONParse(self.__REACT_LOADABLE_MANIFEST)
     const rscManifest = maybeJSONParse(self.__RSC_MANIFEST)
-    const rscCssManifest = maybeJSONParse(self.__RSC_CSS_MANIFEST)
     const rscServerManifest = maybeJSONParse(self.__RSC_SERVER_MANIFEST)
     const subresourceIntegrityManifest = ${
       sriEnabled
@@ -164,12 +233,15 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
       buildManifest,
       isAppPath: ${!!isAppDir},
       prerenderManifest,
-      appRenderToHTML,
-      pagesRenderToHTML,
+      renderToHTML,
       reactLoadableManifest,
       clientReferenceManifest: ${isServerComponent} ? rscManifest : null,
-      serverCSSManifest: ${isServerComponent} ? rscCssManifest : null,
       serverActionsManifest: ${isServerComponent} ? rscServerManifest : null,
+      serverActionsBodySizeLimit: ${isServerComponent} ? ${
+      typeof serverActionsBodySizeLimit === 'undefined'
+        ? 'undefined'
+        : JSON.stringify(serverActionsBodySizeLimit)
+    } : undefined,
       subresourceIntegrityManifest,
       config: ${stringifiedConfig},
       buildId: ${JSON.stringify(buildId)},

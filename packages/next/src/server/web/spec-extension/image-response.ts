@@ -1,4 +1,5 @@
 export class ImageResponse {
+  public static displayName = 'NextImageResponse'
   constructor(
     ...args: ConstructorParameters<
       typeof import('next/dist/compiled/@vercel/og').ImageResponse

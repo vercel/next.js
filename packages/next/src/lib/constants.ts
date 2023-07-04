@@ -100,4 +100,5 @@ export const WEBPACK_LAYERS = {
 export const WEBPACK_RESOURCE_QUERIES = {
   edgeSSREntry: '__next_edge_ssr_entry__',
   metadata: '__next_metadata__',
+  metadataImageMeta: '__next_metadata_image_meta__',
 }

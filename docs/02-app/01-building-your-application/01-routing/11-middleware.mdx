@@ -3,6 +3,8 @@ title: Middleware
 description: Learn how to use Middleware to run code before a request is completed.
 ---
 
+{/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
+
 Middleware allows you to run code before a request is completed. Then, based on the incoming request, you can modify the response by rewriting, redirecting, modifying the request or response headers, or responding directly.
 
 Middleware runs before cached content and routes are matched. See [Matching Paths](#matching-paths) for more details.
@@ -81,7 +83,7 @@ export const config = {
 }
 ```
 
-> **Note**: The `matcher` values need to be constants so they can be statically analyzed at build-time. Dynamic values such as variables will be ignored.
+> **Good to know**: The `matcher` values need to be constants so they can be statically analyzed at build-time. Dynamic values such as variables will be ignored.
 
 Configured matchers:
 
@@ -92,7 +94,7 @@ Configured matchers:
 
 Read more details on [path-to-regexp](https://github.com/pillarjs/path-to-regexp#path-to-regexp-1) documentation.
 
-> **Note**: For backward compatibility, Next.js always considers `/public` as `/public/index`. Therefore, a matcher of `/public/:path` will match.
+> **Good to know**: For backward compatibility, Next.js always considers `/public` as `/public/index`. Therefore, a matcher of `/public/:path` will match.
 
 ### Conditional Statements
 
@@ -121,10 +123,23 @@ The `NextResponse` API allows you to:
 - Set response cookies
 - Set response headers
 
+<AppOnly>
+
+To produce a response from Middleware, you can:
+
+1. `rewrite` to a route ([Page](/docs/app/building-your-application/routing/pages-and-layouts) or [Route Handler](/docs/app/building-your-application/routing/router-handlers)) that produces a response
+2. return a `NextResponse` directly. See [Producing a Response](#producing-a-response)
+
+</AppOnly>
+
+<PagesOnly>
+
 To produce a response from Middleware, you can:
 
 1. `rewrite` to a route ([Page](/docs/pages/building-your-application/routing/pages-and-layouts) or [Edge API Route](/docs/pages/building-your-application/routing/api-routes)) that produces a response
 2. return a `NextResponse` directly. See [Producing a Response](#producing-a-response)
+
+</PagesOnly>
 
 ## Using Cookies
 
@@ -140,8 +155,8 @@ import type { NextRequest } from 'next/server'
 export function middleware(request: NextRequest) {
   // Assume a "Cookie:nextjs=fast" header to be present on the incoming request
   // Getting cookies from the request using the `RequestCookies` API
-  let cookie = request.cookies.get('nextjs')?.value
-  console.log(cookie) // => 'fast'
+  let cookie = request.cookies.get('nextjs')
+  console.log(cookie) // => { name: 'nextjs', value: 'fast', Path: '/' }
   const allCookies = request.cookies.getAll()
   console.log(allCookies) // => [{ name: 'nextjs', value: 'fast' }]
 
@@ -214,7 +229,7 @@ export function middleware(request) {
 }
 ```
 
-> **Note**: Avoid setting large headers as it might cause [431 Request Header Fields Too Large](https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/431) error depending on your backend web server configuration.
+> **Good to know**: Avoid setting large headers as it might cause [431 Request Header Fields Too Large](https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/431) error depending on your backend web server configuration.
 
 ## Producing a Response
 

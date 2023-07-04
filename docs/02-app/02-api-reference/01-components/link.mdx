@@ -3,15 +3,13 @@ title: <Link>
 description: Enable fast client-side navigation with the built-in `next/link` component.
 ---
 
-<details>
-  <summary>
-    Examples
-  </summary>
-- [Hello
-      World](https://github.com/vercel/next.js/tree/canary/examples/hello-world)
+{/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
 
-- [Active className on
-  Link](https://github.com/vercel/next.js/tree/canary/examples/active-class-name)
+<details>
+  <summary>Examples</summary>
+
+- [Hello World](https://github.com/vercel/next.js/tree/canary/examples/hello-world)
+- [Active className on Link](https://github.com/vercel/next.js/tree/canary/examples/active-class-name)
 
 </details>
 
@@ -171,7 +169,7 @@ export default function Page() {
 
 An `<a>` element is no longer required as a child of `<Link>`. Add the `legacyBehavior` prop to use the legacy behavior or remove the `<a>` to upgrade. A [codemod is available](/docs/app/building-your-application/upgrading/codemods#new-link) to automatically upgrade your code.
 
-> **Note**: when `legacyBehavior` is not set to `true`, all [`anchor`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/a) tag properties can be passed to `next/link` as well such as, `className`, `onClick`, etc.
+> **Good to know**: when `legacyBehavior` is not set to `true`, all [`anchor`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/a) tag properties can be passed to `next/link` as well such as, `className`, `onClick`, etc.
 
 ### `passHref`
 
@@ -247,7 +245,17 @@ function Page({ posts }) {
 
 ### If the child is a custom component that wraps an `<a>` tag
 
+<AppOnly>
+
+If the child of `Link` is a custom component that wraps an `<a>` tag, you must add `passHref` to `Link`. This is necessary if you’re using libraries like [styled-components](https://styled-components.com/). Without this, the `<a>` tag will not have the `href` attribute, which hurts your site's accessibility and might affect SEO. If you're using [ESLint](/docs/app/building-your-application/configuring/eslint#eslint-plugin), there is a built-in rule `next/link-passhref` to ensure correct usage of `passHref`.
+
+</AppOnly>
+
+<PagesOnly>
+
 If the child of `Link` is a custom component that wraps an `<a>` tag, you must add `passHref` to `Link`. This is necessary if you’re using libraries like [styled-components](https://styled-components.com/). Without this, the `<a>` tag will not have the `href` attribute, which hurts your site's accessibility and might affect SEO. If you're using [ESLint](/docs/pages/building-your-application/configuring/eslint#eslint-plugin), there is a built-in rule `next/link-passhref` to ensure correct usage of `passHref`.
+
+</PagesOnly>
 
 ```jsx
 import Link from 'next/link'
@@ -404,6 +412,15 @@ export default function Page() {
 
 <PagesOnly>
 
-> **Note**: If you're using [Dynamic Routes](/docs/app/building-your-application/routing/dynamic-routes), you'll need to adapt your `as` and `href` props. For example, if you have a Dynamic Route like `/dashboard/[user]` that you want to present differently via middleware, you would write: `<Link href={{ pathname: '/dashboard/authed/[user]', query: { user: username } }} as="/dashboard/[user]">Profile</Link>`.
+> **Good to know**: If you're using [Dynamic Routes](/docs/app/building-your-application/routing/dynamic-routes), you'll need to adapt your `as` and `href` props. For example, if you have a Dynamic Route like `/dashboard/[user]` that you want to present differently via middleware, you would write: `<Link href={{ pathname: '/dashboard/authed/[user]', query: { user: username } }} as="/dashboard/[user]">Profile</Link>`.
 
 </PagesOnly>
+
+## Version History
+
+| Version   | Changes                                                                                                                                                                                         |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `v13.0.0` | No longer requires a child `<a>` tag. A [codemod](/docs/app/building-your-application/upgrading/codemods#remove-a-tags-from-link-components) is provided to automatically update your codebase. |
+| `v10.0.0` | `href` props pointing to a dynamic route are automatically resolved and no longer require an `as` prop.                                                                                         |
+| `v8.0.0`  | Improved prefetching performance.                                                                                                                                                               |
+| `v1.0.0`  | `next/link` introduced.                                                                                                                                                                         |

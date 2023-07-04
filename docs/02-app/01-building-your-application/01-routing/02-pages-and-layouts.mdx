@@ -49,7 +49,7 @@ export default function Page() {
 }
 ```
 
-> **Good to know:**
+> **Good to know**:
 >
 > - A page is always the [leaf](/docs/app/building-your-application/routing#terminology) of the [route subtree](/docs/app/building-your-application/routing#terminology).
 > - `.js`, `.jsx`, or `.tsx` file extensions can be used for Pages.
@@ -103,7 +103,7 @@ export default function DashboardLayout({
 }
 ```
 
-> **Good to know:**
+> **Good to know**:
 >
 > - The top-most layout is called the [Root Layout](#root-layout-required). This **required** layout is shared across all pages in an application. Root layouts must contain `html` and `body` tags.
 > - Any route segment can optionally define its own [Layout](#nesting-layouts). These layouts will be shared across all pages in that segment.
@@ -144,7 +144,7 @@ export default function RootLayout({ children }) {
 }
 ```
 
-> **Good to know:**
+> **Good to know**:
 >
 > - The `app` directory **must** include a root layout.
 > - The root layout must define `<html>` and `<body>` tags since Next.js does not automatically create them.
@@ -181,6 +181,10 @@ export default function DashboardLayout({ children }) {
   return <section>{children}</section>
 }
 ```
+
+> **Good to know**:
+>
+> - Only the root layout can contain `<html>` and `<body>` tags.
 
 If you were to combine the two layouts above, the root layout (`app/layout.js`) would wrap the dashboard layout (`app/dashboard/layout.js`), which would wrap route segments inside `app/dashboard/*`.
 
@@ -267,6 +271,6 @@ export default function Page() {
 }
 ```
 
-> **Good to know:** You should **not** manually add `<head>` tags such as `<title>` and `<meta>` to root layouts. Instead, you should use the [Metadata API](/docs/app/api-reference/functions/generate-metadata) which automatically handles advanced requirements such as streaming and de-duplicating `<head>` elements.
+> **Good to know**: You should **not** manually add `<head>` tags such as `<title>` and `<meta>` to root layouts. Instead, you should use the [Metadata API](/docs/app/api-reference/functions/generate-metadata) which automatically handles advanced requirements such as streaming and de-duplicating `<head>` elements.
 
 [Learn more about available metadata options in the API reference.](/docs/app/api-reference/functions/generate-metadata)

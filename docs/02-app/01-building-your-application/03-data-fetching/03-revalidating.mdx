@@ -15,7 +15,7 @@ There are two types of revalidation in Next.js:
 
 To revalidate cached data at a specific interval, you can use the `next.revalidate` option in `fetch()` to set the `cache` lifetime of a resource (in seconds).
 
-```jsx
+```js
 fetch('https://...', { next: { revalidate: 60 } })
 ```
 
@@ -41,7 +41,7 @@ In addition to `fetch`, you can also revalidate data using [`cache`](/docs/app/b
 
 When a request is made to a route segment that hasn’t been generated, Next.js will dynamically render the route on the first request. Future requests will serve the static route segments from the cache.
 
-> **Note**: Check if your upstream data provider has caching enabled by default. You might need to disable (e.g. `useCdn: false`), otherwise a revalidation won't be able to pull fresh data to update the ISR cache. Caching can occur at a CDN (for an endpoint being requested) when it returns the `Cache-Control` header. ISR on Vercel [persists the cache globally and handles rollbacks](https://vercel.com/docs/concepts/incremental-static-regeneration/overview).
+> **Good to know**: Check if your upstream data provider has caching enabled by default. You might need to disable (e.g. `useCdn: false`), otherwise a revalidation won't be able to pull fresh data to update the ISR cache. Caching can occur at a CDN (for an endpoint being requested) when it returns the `Cache-Control` header. ISR on Vercel [persists the cache globally and handles rollbacks](https://vercel.com/docs/concepts/incremental-static-regeneration/overview).
 
 ## On-demand Revalidation
 
@@ -76,7 +76,7 @@ export default async function Page() {
 
 This cached data can then be revalidated on-demand by calling `revalidateTag` in a [Route Handler](/docs/app/building-your-application/routing/router-handlers).
 
-```tsx filename="app/api/revalidate/route.ts" switcher
+```ts filename="app/api/revalidate/route.ts" switcher
 import { NextRequest, NextResponse } from 'next/server'
 import { revalidateTag } from 'next/cache'
 
@@ -87,7 +87,7 @@ export async function GET(request: NextRequest) {
 }
 ```
 
-```jsx filename="app/api/revalidate/route.js" switcher
+```js filename="app/api/revalidate/route.js" switcher
 import { NextResponse } from 'next/server'
 import { revalidateTag } from 'next/cache'
 

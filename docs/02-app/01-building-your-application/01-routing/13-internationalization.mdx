@@ -18,7 +18,7 @@ It’s recommended to use the user’s language preferences in the browser to se
 
 For example, using the following libraries, you can look at an incoming `Request` to determine which locale to select, based on the `Headers`, locales you plan to support, and the default locale.
 
-```jsx filename="middleware.js"
+```js filename="middleware.js"
 import { match } from '@formatjs/intl-localematcher'
 import Negotiator from 'negotiator'
 
@@ -32,7 +32,7 @@ match(languages, locales, defaultLocale) // -> 'en-US'
 
 Routing can be internationalized by either the sub-path (`/fr/products`) or domain (`my-site.fr/products`). With this information, you can now redirect the user based on the locale inside [Middleware](/docs/app/building-your-application/routing/middleware).
 
-```jsx filename="middleware.js"
+```js filename="middleware.js"
 import { NextResponse } from 'next/server'
 
 let locales = ['en-US', 'nl-NL', 'nl']
@@ -87,7 +87,7 @@ Changing displayed content based on the user’s preferred locale, or localizati
 
 Let’s assume we want to support both English and Dutch content inside our application. We might maintain two different “dictionaries”, which are objects that give us a mapping from some key to a localized string. For example:
 
-```jsx filename="dictionaries/en.json"
+```json filename="dictionaries/en.json"
 {
   "products": {
     "cart": "Add to Cart"
@@ -95,7 +95,7 @@ Let’s assume we want to support both English and Dutch content inside our appl
 }
 ```
 
-```jsx filename="dictionaries/nl.json"
+```json filename="dictionaries/nl.json"
 {
   "products": {
     "cart": "Toevoegen aan Winkelwagen"

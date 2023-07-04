@@ -4,6 +4,9 @@ import type {
   FlightData,
   FlightRouterState,
 } from '../../../../server/app-render/types'
+
+const buildId = 'development'
+
 jest.mock('../fetch-server-response', () => {
   const flightData: FlightData = [
     [
@@ -139,6 +142,7 @@ describe('serverPatchReducer', () => {
     ])
 
     const state = createInitialRouterState({
+      buildId,
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
@@ -179,6 +183,7 @@ describe('serverPatchReducer', () => {
     )
 
     const expectedState: ReturnType<typeof serverPatchReducer> = {
+      buildId,
       prefetchCache: new Map(),
       pushRef: {
         mpaNavigation: false,
@@ -322,6 +327,7 @@ describe('serverPatchReducer', () => {
     ])
 
     const state = createInitialRouterState({
+      buildId,
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
@@ -332,6 +338,7 @@ describe('serverPatchReducer', () => {
     })
 
     const state2 = createInitialRouterState({
+      buildId,
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
@@ -375,6 +382,7 @@ describe('serverPatchReducer', () => {
     )
 
     const expectedState: ReturnType<typeof serverPatchReducer> = {
+      buildId,
       prefetchCache: new Map(),
       pushRef: {
         mpaNavigation: false,
@@ -494,6 +502,7 @@ describe('serverPatchReducer', () => {
       isExternalUrl: false,
       locationSearch: '',
       navigateType: 'push',
+      shouldScroll: true,
       forceOptimisticNavigation: false,
       cache: {
         status: CacheStates.LAZY_INITIALIZED,
@@ -505,6 +514,7 @@ describe('serverPatchReducer', () => {
     }
 
     const state = createInitialRouterState({
+      buildId,
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
@@ -550,6 +560,7 @@ describe('serverPatchReducer', () => {
     )
 
     const expectedState: ReturnType<typeof serverPatchReducer> = {
+      buildId,
       prefetchCache: new Map(),
       pushRef: {
         mpaNavigation: false,

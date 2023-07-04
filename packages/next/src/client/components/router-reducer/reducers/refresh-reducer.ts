@@ -21,8 +21,10 @@ export function refreshReducer(
   const { cache, mutable, origin } = action
   const href = state.canonicalUrl
 
+  let currentTree = state.tree
+
   const isForCurrentTree =
-    JSON.stringify(mutable.previousTree) === JSON.stringify(state.tree)
+    JSON.stringify(mutable.previousTree) === JSON.stringify(currentTree)
 
   if (isForCurrentTree) {
     return handleMutable(state, mutable)
@@ -34,8 +36,9 @@ export function refreshReducer(
     cache.data = createRecordFromThenable(
       fetchServerResponse(
         new URL(href, origin),
-        [state.tree[0], state.tree[1], state.tree[2], 'refetch'],
-        state.nextUrl
+        [currentTree[0], currentTree[1], currentTree[2], 'refetch'],
+        state.nextUrl,
+        state.buildId
       )
     )
   }
@@ -53,8 +56,6 @@ export function refreshReducer(
 
   // Remove cache.data as it has been resolved at this point.
   cache.data = null
-
-  let currentTree = state.tree
 
   for (const flightDataPath of flightData) {
     // FlightDataPath with more than two items means unexpected Flight data was returned

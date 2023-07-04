@@ -6,7 +6,7 @@ import { getModuleBuildInfo } from '../get-module-build-info'
 
 const noopHeadPath = require.resolve('next/dist/client/components/noop-head')
 
-export default async function transformSource(
+export default function transformSource(
   this: any,
   source: string,
   sourceMap: any
@@ -20,8 +20,6 @@ export default async function transformSource(
     this._compiler.name === 'edge-server'
       ? 'next/dist/esm/build/webpack/loaders/next-flight-loader/module-proxy'
       : 'next/dist/build/webpack/loaders/next-flight-loader/module-proxy'
-
-  const callback = this.async()
 
   // Assign the RSC meta information to buildInfo.
   // Exclude next internal files which are not marked as client files
@@ -55,11 +53,12 @@ export default async function transformSource(
 
     if (assumedSourceType === 'module') {
       if (clientRefs.includes('*')) {
-        return callback(
+        this.callback(
           new Error(
             `It's currently unsupported to use "export *" in a client boundary. Please use named exports instead.`
           )
         )
+        return
       }
 
       let esmSource = `\
@@ -88,19 +87,20 @@ export { e${cnt++} as ${ref} };`
         }
       }
 
-      return callback(null, esmSource, sourceMap)
+      this.callback(null, esmSource, sourceMap)
+      return
     }
   }
 
   if (buildInfo.rsc?.type !== RSC_MODULE_TYPES.client) {
     if (noopHeadPath === this.resourcePath) {
       warnOnce(
-        `Warning: You're using \`next/head\` inside the \`app\` directory, please migrate to the Metadata API. See https://nextjs.org/docs/app/api-reference/file-conventions/metadata for more details.`
+        `Warning: You're using \`next/head\` inside the \`app\` directory, please migrate to the Metadata API. See https://nextjs.org/docs/app/building-your-application/upgrading/app-router-migration#step-3-migrating-nexthead for more details.`
       )
     }
   }
 
-  return callback(
+  this.callback(
     null,
     source.replace(RSC_MOD_REF_PROXY_ALIAS, moduleProxy),
     sourceMap

@@ -42,7 +42,7 @@ There are optional props you can pass to `<Link>`. See the [API reference](/docs
 
 When linking to [dynamic segments](/docs/app/building-your-application/routing/dynamic-routes), you can use [template literals and interpolation](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Template_literals) to generate a list of links. For example, to generate a list of blog posts:
 
-```jsx filename="app/blog/PostList.jsx"
+```jsx filename="app/blog/PostList.js"
 import Link from 'next/link'
 
 export default function PostList({ posts }) {
@@ -62,7 +62,7 @@ export default function PostList({ posts }) {
 
 You can use [`usePathname()`](/docs/app/api-reference/functions/use-pathname) to determine if a link is active. For example, to add a class to the active link, you can check if the current `pathname` matches the `href` of the link:
 
-```jsx filename="app/ui/Navigation.jsx"
+```jsx filename="app/ui/Navigation.js"
 'use client'
 
 import { usePathname } from 'next/navigation'
@@ -95,21 +95,13 @@ export function Navigation({ navLinks }) {
 
 The default behavior of `<Link>` is to [scroll to the top of the route segment that has changed](#focus-and-scroll-management). When there is an `id` defined in `href`, it will scroll to the specific `id`, similarly to a normal `<a>` tag.
 
-To prevent scrolling to the top of the route segment, set `scroll={false}` and add a hashed `id` to `href`:
-
-```jsx
-<Link href="/#hashid" scroll={false}>
-  Scroll to specific id.
-</Link>
-```
-
 ## `useRouter()` Hook
 
 The `useRouter` hook allows you to programmatically change routes inside [Client Components](/docs/getting-started/react-essentials).
 
 To use `useRouter`, import it from `next/navigation`, and call the hook inside your Client Component:
 
-```jsx filename="app/page.jsx"
+```jsx filename="app/page.js"
 'use client'
 
 import { useRouter } from 'next/navigation'
@@ -140,7 +132,7 @@ The `useRouter` provides methods such as `push()`, `refresh()`, and more. See th
 
 ### Client-side Caching of Rendered Server Components
 
-> **Good to know:** This client-side cache is different from the server-side [Next.js HTTP cache](/docs/app/building-your-application/data-fetching#caching-data).
+> **Good to know**: This client-side cache is different from the server-side [Next.js HTTP cache](/docs/app/building-your-application/data-fetching#caching-data).
 
 The new router has an **in-memory client-side cache** that stores the **rendered result** of Server Components (payload). The cache is split by route segments which allows invalidation at any level and ensures consistency across concurrent renders.
 
@@ -163,7 +155,7 @@ By default, routes are prefetched as they become visible in the viewport when us
 - If the route is static, all the Server Component payloads for the route segments will be prefetched.
 - If the route is dynamic, the payload from the first shared layout down until the first `loading.js` file is prefetched. This reduces the cost of prefetching the whole route dynamically and allows [instant loading states](/docs/app/building-your-application/routing/loading-ui-and-streaming#instant-loading-states) for dynamic routes.
 
-> **Good to know:**
+> **Good to know**:
 >
 > - Prefetching is only enabled in production.
 > - Prefetching can be disabled by passing `prefetch={false}` to `<Link>`.

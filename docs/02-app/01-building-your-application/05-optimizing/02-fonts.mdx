@@ -9,6 +9,8 @@ related:
     - app/api-reference/components/font
 ---
 
+{/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
+
 [**`next/font`**](/docs/app/api-reference/components/font) will automatically optimize your fonts (including custom fonts) and remove external network requests for improved privacy and performance.
 
 > **🎥 Watch:** Learn more about how to use `next/font` → [YouTube (6 minutes)](https://www.youtube.com/watch?v=L8_98i_bMMA).
@@ -233,7 +235,7 @@ const inter = Inter({ subsets: ['latin'] })
 
 </PagesOnly>
 
-View the [Font API Reference](#google-fonts) for more information.
+View the [Font API Reference](/docs/app/api-reference/components/font) for more information.
 
 ### Using Multiple Fonts
 
@@ -241,7 +243,7 @@ You can import and use multiple fonts in your application. There are two approac
 
 The first approach is to create a utility function that exports a font, imports it, and applies its `className` where needed. This ensures the font is preloaded only when it's rendered:
 
-```tsx filename="app/fonts.ts" switcher
+```ts filename="app/fonts.ts" switcher
 import { Inter, Roboto_Mono } from 'next/font/google'
 
 export const inter = Inter({
@@ -255,7 +257,7 @@ export const roboto_mono = Roboto_Mono({
 })
 ```
 
-```jsx filename="app/fonts.js" switcher
+```js filename="app/fonts.js" switcher
 import { Inter, Roboto_Mono } from 'next/font/google'
 
 export const inter = Inter({
@@ -502,7 +504,7 @@ const roboto = localFont({
 })
 ```
 
-View the [Font API Reference](#local-fonts) for more information.
+View the [Font API Reference](/docs/app/api-reference/components/font) for more information.
 
 ## With Tailwind CSS
 
@@ -568,7 +570,7 @@ export default function RootLayout({ children }) {
 
 <PagesOnly>
 
-```js filename="pages/_app.js"
+```jsx filename="pages/_app.js"
 import { Inter } from 'next/font/google'
 
 const inter = Inter({
@@ -595,6 +597,7 @@ module.exports = {
   content: [
     './pages/**/*.{js,ts,jsx,tsx}',
     './components/**/*.{js,ts,jsx,tsx}',
+    './app/**/*.{js,ts,jsx,tsx}',
   ],
   theme: {
     extend: {

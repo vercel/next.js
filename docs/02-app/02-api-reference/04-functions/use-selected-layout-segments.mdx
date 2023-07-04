@@ -43,7 +43,7 @@ export default function ExampleClientComponent() {
 }
 ```
 
-> **Good to know:**
+> **Good to know**:
 >
 > - Since `useSelectedLayoutSegments` is a [Client Component](/docs/getting-started/react-essentials#client-components) hook, and Layouts are [Server Components](/docs/getting-started/react-essentials#server-components) by default, `useSelectedLayoutSegments` is usually called via a Client Component that is imported into a Layout.
 > - The returned segments include [Route Groups](/docs/app/building-your-application/routing/route-groups), which you might not want to be included in your UI. You can use the `filter()` array method to remove items that start with a bracket.
@@ -69,3 +69,9 @@ For example, given the Layouts and URLs below, the returned segments would be:
 | `app/layout.js`           | `/dashboard/settings` | `['dashboard', 'settings']` |
 | `app/dashboard/layout.js` | `/dashboard`          | `[]`                        |
 | `app/dashboard/layout.js` | `/dashboard/settings` | `['settings']`              |
+
+## Version History
+
+| Version   | Changes                                 |
+| --------- | --------------------------------------- |
+| `v13.0.0` | `useSelectedLayoutSegments` introduced. |

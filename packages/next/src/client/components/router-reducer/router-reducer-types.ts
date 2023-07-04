@@ -23,7 +23,8 @@ export type RouterChangeByServerResponse = (
 export type RouterNavigate = (
   href: string,
   navigateType: 'push' | 'replace',
-  forceOptimisticNavigation: boolean
+  forceOptimisticNavigation: boolean,
+  shouldScroll: boolean
 ) => void
 
 export interface Mutable {
@@ -36,6 +37,7 @@ export interface Mutable {
   cache?: CacheNode
   prefetchCache?: AppRouterState['prefetchCache']
   hashFragment?: string
+  shouldScroll?: boolean
 }
 
 export interface ServerActionMutable {
@@ -125,6 +127,7 @@ export interface NavigateAction {
   locationSearch: Location['search']
   navigateType: 'push' | 'replace'
   forceOptimisticNavigation: boolean
+  shouldScroll: boolean
   cache: CacheNode
   mutable: Mutable
 }
@@ -219,6 +222,11 @@ export type PrefetchCacheEntry = {
  * Handles keeping the state of app-router.
  */
 export type AppRouterState = {
+  /**
+   * The buildId is used to do a mpaNavigation when the server returns a different buildId.
+   * It is used to avoid issues where an older version of the app is loaded in the browser while the server has a new version.
+   */
+  buildId: string
   /**
    * The router state, this is written into the history state in app-router using replaceState/pushState.
    * - Has to be serializable as it is written into the history state.

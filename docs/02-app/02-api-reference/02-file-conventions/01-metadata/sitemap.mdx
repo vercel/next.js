@@ -7,7 +7,7 @@ Add or generate a `sitemap.xml` file that matches the [Sitemaps XML format](http
 
 ## Static `sitemap.xml`
 
-```jsx filename="app/sitemap.xml"
+```xml filename="app/sitemap.xml"
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://acme.com</loc>
@@ -70,7 +70,7 @@ export default function sitemap() {
 
 Output:
 
-```jsx filename="acme.com/sitemap.xml"
+```xml filename="acme.com/sitemap.xml"
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://acme.com</loc>
@@ -99,3 +99,9 @@ type Sitemap = Array<{
 > **Good to know**
 >
 > - In the future, we will support multiple sitemaps and sitemap indexes.
+
+## Version History
+
+| Version   | Changes               |
+| --------- | --------------------- |
+| `v13.3.0` | `sitemap` introduced. |
