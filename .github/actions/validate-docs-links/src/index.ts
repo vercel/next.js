@@ -105,7 +105,7 @@ async function getPullRequestMdxFilePaths(): Promise<string[]> {
 
     if (mdxFilesChanged.length === 0) {
       console.log(
-        "PR doesn't include any changes to .mdx files within DOCS_PATH."
+        "PR doesn't include any changes to .mdx files within /docs or /errors."
       )
     }
 
@@ -166,13 +166,13 @@ function normalizePath(filePath: string): string {
     // Remap repository file path to the next-site url path without `/docs/`
     // e.g. `docs/01-api/getting-started/index.mdx` -> `api/getting-started`
     filePath
-      // We remove `/docs/` to normalize paths between regular links
+      // We remove `docs/` to normalize paths between regular links
       // e.g. `/docs/api/example` and related/source links e.g `api/example`
       // TODO:
       //  - Fix `next-site` to handle full paths for related/source links
       //  - Update doc files to use full paths for related/source links
       //  - Remove this workaround
-      .replace(DOCS_PATH, '')
+      .replace(DOCS_PATH.substring(1), '')
       // Remove prefix numbers used for ordering
       .replace(/(\d\d-)/g, '')
       .replace('.mdx', '')
@@ -198,8 +198,6 @@ async function prepareDocumentMapEntry(
     const headings = getHeadingsFromMarkdownTree(tree)
     const normalizedUrlPath = normalizePath(filePath)
 
-    console.log(filePath, normalizedUrlPath)
-
     return [
       normalizedUrlPath,
       { body: content, path: filePath, headings, ...data },
@@ -211,7 +209,6 @@ async function prepareDocumentMapEntry(
 }
 
 // Checks if the links point to existing documents
-
 function validateInternalLink(errors: Errors, href: string): void {
   // /docs/api/example#heading -> ["api/example", "heading""]
   const [link, hash] = href.replace(DOCS_PATH, '').split('#')
@@ -229,7 +226,7 @@ function validateInternalLink(errors: Errors, href: string): void {
   }
 
   if (!foundPage) {
-    errors.brokenLinks.push(`${DOCS_PATH}${link}${hash ? '#' + hash : ''}`)
+    errors.brokenLinks.push(href)
   } else if (hash && !EXCLUDED_HASHES.includes(hash)) {
     // Account for documents that pull their content from another document
     const foundPageSource = foundPage.source
@@ -240,7 +237,7 @@ function validateInternalLink(errors: Errors, href: string): void {
     const hashFound = (foundPageSource || foundPage).headings.includes(hash)
 
     if (!hashFound) {
-      errors.brokenHashes.push(`${DOCS_PATH}${link}${hash ? '#' + hash : ''}`)
+      errors.brokenHashes.push(href)
     }
   }
 }
@@ -455,7 +452,10 @@ async function validateAllInternalLinks(): Promise<void> {
       await Promise.all(allMdxFilePaths.map(prepareDocumentMapEntry))
     )
 
-    console.log(JSON.stringify([...documentMap.keys()], null, 2))
+    console.log(
+      'Validating links in the following files:',
+      JSON.stringify(prMdxFilePaths, null, 2)
+    )
 
     const docProcessingPromises = prMdxFilePaths.map(async (filePath) => {
       const doc = documentMap.get(normalizePath(filePath))
