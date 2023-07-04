@@ -15,9 +15,7 @@ use turbopack_binding::{
                 FreeVarReference, FreeVarReferencesVc,
             },
             context::AssetContextVc,
-            environment::{
-                BrowserEnvironment, EnvironmentIntention, EnvironmentVc, ExecutionEnvironment,
-            },
+            environment::{BrowserEnvironment, EnvironmentVc, ExecutionEnvironment},
             free_var_references,
             resolve::{parse::RequestVc, pattern::Pattern},
         },
@@ -107,8 +105,8 @@ async fn next_client_free_vars(mode: NextMode) -> Result<FreeVarReferencesVc> {
 
 #[turbo_tasks::function]
 pub fn get_client_compile_time_info(mode: NextMode, browserslist_query: &str) -> CompileTimeInfoVc {
-    CompileTimeInfo::builder(EnvironmentVc::new(
-        Value::new(ExecutionEnvironment::Browser(
+    CompileTimeInfo::builder(EnvironmentVc::new(Value::new(
+        ExecutionEnvironment::Browser(
             BrowserEnvironment {
                 dom: true,
                 web_worker: false,
@@ -116,9 +114,8 @@ pub fn get_client_compile_time_info(mode: NextMode, browserslist_query: &str) ->
                 browserslist_query: browserslist_query.to_owned(),
             }
             .into(),
-        )),
-        Value::new(EnvironmentIntention::Client),
-    ))
+        ),
+    )))
     .defines(next_client_defines(mode))
     .free_var_references(next_client_free_vars(mode))
     .cell()

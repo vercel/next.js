@@ -17,7 +17,7 @@ if (process.env.NODE_ENV !== "production") {
 var React = require("next/dist/compiled/react-experimental");
 var ReactDOM = require('react-dom');
 
-var ReactVersion = '18.3.0-experimental-1cea38448-20230530';
+var ReactVersion = '18.3.0-experimental-1fdacbefd-20230630';
 
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
@@ -85,11 +85,11 @@ function beginWriting(destination) {
   writtenBytes = 0;
 }
 function writeChunk(destination, chunk) {
-  if (chunk.length === 0) {
+  if (chunk.byteLength === 0) {
     return;
   }
 
-  if (chunk.length > VIEW_SIZE) {
+  if (chunk.byteLength > VIEW_SIZE) {
     {
       if (precomputedChunkSet.has(chunk)) {
         error('A large precomputed chunk was passed to writeChunk without being copied.' + ' Large chunks get enqueued directly and are not copied. This is incompatible with precomputed chunks because you cannot enqueue the same precomputed chunk twice.' + ' Use "cloneChunk" to make a copy of this large precomputed chunk before writing it. This is a bug in React.');
@@ -112,7 +112,7 @@ function writeChunk(destination, chunk) {
   var bytesToWrite = chunk;
   var allowableBytes = currentView.length - writtenBytes;
 
-  if (allowableBytes < bytesToWrite.length) {
+  if (allowableBytes < bytesToWrite.byteLength) {
     // this chunk would overflow the current view. We enqueue a full view
     // and start a new view with the remaining chunk
     if (allowableBytes === 0) {
@@ -132,7 +132,7 @@ function writeChunk(destination, chunk) {
   }
 
   currentView.set(bytesToWrite, writtenBytes);
-  writtenBytes += bytesToWrite.length;
+  writtenBytes += bytesToWrite.byteLength;
 }
 function writeChunkAndReturn(destination, chunk) {
   writeChunk(destination, chunk); // in web streams there is no backpressure so we can alwas write more
@@ -164,7 +164,7 @@ function stringToPrecomputedChunk(content) {
   return precomputedChunk;
 }
 function clonePrecomputedChunk(precomputedChunk) {
-  return precomputedChunk.length > VIEW_SIZE ? precomputedChunk.slice() : precomputedChunk;
+  return precomputedChunk.byteLength > VIEW_SIZE ? precomputedChunk.slice() : precomputedChunk;
 }
 function closeWithError(destination, error) {
   // $FlowFixMe[method-unbinding]
@@ -1957,6 +1957,7 @@ var startScriptSrc = stringToPrecomputedChunk('<script src="');
 var startModuleSrc = stringToPrecomputedChunk('<script type="module" src="');
 var scriptNonce = stringToPrecomputedChunk('" nonce="');
 var scriptIntegirty = stringToPrecomputedChunk('" integrity="');
+var scriptCrossOrigin = stringToPrecomputedChunk('" crossorigin="');
 var endAsyncScript = stringToPrecomputedChunk('" async=""></script>');
 /**
  * This escaping function is designed to work with bootstrapScriptContent only.
@@ -1986,7 +1987,7 @@ var scriptReplacer = function (match, prefix, s, suffix) {
 // is set, the server will send instructions via data attributes (instead of inline scripts)
 
 
-function createResponseState(identifierPrefix, nonce, bootstrapScriptContent, bootstrapScripts, bootstrapModules, externalRuntimeConfig) {
+function createResponseState(resources, identifierPrefix, nonce, bootstrapScriptContent, bootstrapScripts, bootstrapModules, externalRuntimeConfig) {
   var idPrefix = identifierPrefix === undefined ? '' : identifierPrefix;
   var inlineScriptWithNonce = nonce === undefined ? startInlineScript : stringToPrecomputedChunk('<script nonce="' + escapeTextForBrowser(nonce) + '">');
   var bootstrapChunks = [];
@@ -2033,6 +2034,8 @@ function createResponseState(identifierPrefix, nonce, bootstrapScriptContent, bo
       var scriptConfig = bootstrapScripts[i];
       var src = typeof scriptConfig === 'string' ? scriptConfig : scriptConfig.src;
       var integrity = typeof scriptConfig === 'string' ? undefined : scriptConfig.integrity;
+      var crossOrigin = typeof scriptConfig === 'string' || scriptConfig.crossOrigin == null ? undefined : scriptConfig.crossOrigin === 'use-credentials' ? 'use-credentials' : '';
+      preloadBootstrapScript(resources, src, nonce, integrity, crossOrigin);
       bootstrapChunks.push(startScriptSrc, stringToChunk(escapeTextForBrowser(src)));
 
       if (nonce) {
@@ -2041,6 +2044,10 @@ function createResponseState(identifierPrefix, nonce, bootstrapScriptContent, bo
 
       if (integrity) {
         bootstrapChunks.push(scriptIntegirty, stringToChunk(escapeTextForBrowser(integrity)));
+      }
+
+      if (typeof crossOrigin === 'string') {
+        bootstrapChunks.push(scriptCrossOrigin, stringToChunk(escapeTextForBrowser(crossOrigin)));
       }
 
       bootstrapChunks.push(endAsyncScript);
@@ -2055,6 +2062,9 @@ function createResponseState(identifierPrefix, nonce, bootstrapScriptContent, bo
 
       var _integrity = typeof _scriptConfig === 'string' ? undefined : _scriptConfig.integrity;
 
+      var _crossOrigin = typeof _scriptConfig === 'string' || _scriptConfig.crossOrigin == null ? undefined : _scriptConfig.crossOrigin === 'use-credentials' ? 'use-credentials' : '';
+
+      preloadBootstrapModule(resources, _src, nonce, _integrity, _crossOrigin);
       bootstrapChunks.push(startModuleSrc, stringToChunk(escapeTextForBrowser(_src)));
 
       if (nonce) {
@@ -2063,6 +2073,10 @@ function createResponseState(identifierPrefix, nonce, bootstrapScriptContent, bo
 
       if (_integrity) {
         bootstrapChunks.push(scriptIntegirty, stringToChunk(escapeTextForBrowser(_integrity)));
+      }
+
+      if (typeof _crossOrigin === 'string') {
+        bootstrapChunks.push(scriptCrossOrigin, stringToChunk(escapeTextForBrowser(_crossOrigin)));
       }
 
       bootstrapChunks.push(endAsyncScript);
@@ -3447,31 +3461,13 @@ function pushLink(target, props, responseState, resources, textEmbedded, inserti
           }
         }
 
-        var resource = resources.preloadsMap.get(key);
-
-        if (!resource) {
-          resource = {
-            type: 'preload',
-            chunks: [],
-            state: NoState,
-            props: preloadAsStylePropsFromProps(href, props)
-          };
-          resources.preloadsMap.set(key, resource);
-
-          {
-            markAsImplicitResourceDEV(resource, props, resource.props);
-          }
-        }
-
-        pushLinkImpl(resource.chunks, resource.props);
-        resources.usedStylesheets.add(resource);
         return pushLinkImpl(target, props);
       } else {
         // This stylesheet refers to a Resource and we create a new one if necessary
-        var _resource = resources.stylesMap.get(key);
+        var resource = resources.stylesMap.get(key);
 
         {
-          var devResource = getAsResourceDEV(_resource);
+          var devResource = getAsResourceDEV(resource);
 
           if (devResource) {
             switch (devResource.__provenance) {
@@ -3502,7 +3498,7 @@ function pushLink(target, props, responseState, resources, textEmbedded, inserti
           }
         }
 
-        if (!_resource) {
+        if (!resource) {
           var resourceProps = stylesheetPropsFromRawProps(props);
           var preloadResource = resources.preloadsMap.get(key);
           var state = NoState;
@@ -3518,16 +3514,16 @@ function pushLink(target, props, responseState, resources, textEmbedded, inserti
             }
           }
 
-          _resource = {
+          resource = {
             type: 'stylesheet',
             chunks: [],
             state: state,
             props: resourceProps
           };
-          resources.stylesMap.set(key, _resource);
+          resources.stylesMap.set(key, resource);
 
           {
-            markAsRenderedResourceDEV(_resource, props);
+            markAsRenderedResourceDEV(resource, props);
           }
 
           var precedenceSet = resources.precedences.get(precedence);
@@ -3555,11 +3551,11 @@ function pushLink(target, props, responseState, resources, textEmbedded, inserti
             resources.stylePrecedences.set(precedence, emptyStyleResource);
           }
 
-          precedenceSet.add(_resource);
+          precedenceSet.add(resource);
         }
 
         if (resources.boundaryResources) {
-          resources.boundaryResources.add(_resource);
+          resources.boundaryResources.add(resource);
         }
 
         if (textEmbedded) {
@@ -3937,114 +3933,78 @@ function pushStartHtml(target, props, responseState, insertionMode) {
 
 function pushScript(target, props, resources, textEmbedded, insertionMode, noscriptTagInScope) {
   {
-    if (insertionMode === SVG_MODE || noscriptTagInScope || props.itemProp != null || typeof props.src !== 'string' || !props.src) {
-      // This script will not be a resource nor can it be preloaded, we bailout early
-      // and emit it in place.
+    var asyncProp = props.async;
+
+    if (typeof props.src !== 'string' || !props.src || !(asyncProp && typeof asyncProp !== 'function' && typeof asyncProp !== 'symbol') || props.onLoad || props.onError || insertionMode === SVG_MODE || noscriptTagInScope || props.itemProp != null) {
+      // This script will not be a resource, we bailout early and emit it in place.
       return pushScriptImpl(target, props);
     }
 
     var src = props.src;
-    var key = getResourceKey('script', src);
+    var key = getResourceKey('script', src); // We can make this <script> into a ScriptResource
 
-    if (props.async !== true || props.onLoad || props.onError) {
-      // we don't want to preload nomodule scripts
-      if (props.noModule !== true) {
-        // We can't resourcify scripts with load listeners. To avoid ambiguity with
-        // other Resourcified async scripts on the server we omit them from the server
-        // stream and expect them to be inserted during hydration on the client.
-        // We can still preload them however so the client can start fetching the script
-        // as soon as possible
-        var resource = resources.preloadsMap.get(key);
+    var resource = resources.scriptsMap.get(key);
 
-        if (!resource) {
-          resource = {
-            type: 'preload',
-            chunks: [],
-            state: NoState,
-            props: preloadAsScriptPropsFromProps(props.src, props)
-          };
-          resources.preloadsMap.set(key, resource);
+    {
+      var devResource = getAsResourceDEV(resource);
 
-          {
-            markAsImplicitResourceDEV(resource, props, resource.props);
-          }
+      if (devResource) {
+        switch (devResource.__provenance) {
+          case 'rendered':
+            {
+              var differenceDescription = describeDifferencesForScripts( // Diff the props from the JSX element, not the derived resource props
+              props, devResource.__originalProps);
 
-          resources.usedScripts.add(resource);
-          pushLinkImpl(resource.chunks, resource.props);
+              if (differenceDescription) {
+                error('React encountered a <script async={true} src="%s" .../> that has props that conflict' + ' with another hoistable script with the same `src`. When rendering hoistable scripts (async scripts without any loading handlers)' + ' the props from the first encountered instance will be used and props from later instances will be ignored.' + ' Update the props on both <script async={true} .../> instance so they agree.%s', src, differenceDescription);
+              }
+
+              break;
+            }
+
+          case 'preinit':
+            {
+              var _differenceDescription2 = describeDifferencesForScriptOverPreinit( // Diff the props from the JSX element, not the derived resource props
+              props, devResource.__propsEquivalent);
+
+              if (_differenceDescription2) {
+                error('React encountered a <script async={true} src="%s" .../> with props that conflict' + ' with the options provided to `ReactDOM.preinit("%s", { as: "script", ... })`. React will use the first props or preinitialization' + ' options encountered when rendering a hoistable script with a particular `src` and will ignore any newer props or' + ' options. The first instance of this script resource was created using the `ReactDOM.preinit()` function.' + ' Please note, `ReactDOM.preinit()` is modeled off of module import assertions capabilities and does not support' + ' arbitrary props. If you need to have props not included with the preinit options you will need to rely on rendering' + ' <script> tags only.%s', src, src, _differenceDescription2);
+              }
+
+              break;
+            }
         }
       }
+    }
 
-      if (props.async !== true) {
-        // This is not an async script, we can preloaded it but it still needs to
-        // be emitted in place since it needs to hydrate on the client
-        pushScriptImpl(target, props);
-        return null;
-      }
-    } else {
-      // We can make this <script> into a ScriptResource
-      var _resource2 = resources.scriptsMap.get(key);
+    if (!resource) {
+      resource = {
+        type: 'script',
+        chunks: [],
+        state: NoState,
+        props: null
+      };
+      resources.scriptsMap.set(key, resource);
 
       {
-        var devResource = getAsResourceDEV(_resource2);
-
-        if (devResource) {
-          switch (devResource.__provenance) {
-            case 'rendered':
-              {
-                var differenceDescription = describeDifferencesForScripts( // Diff the props from the JSX element, not the derived resource props
-                props, devResource.__originalProps);
-
-                if (differenceDescription) {
-                  error('React encountered a <script async={true} src="%s" .../> that has props that conflict' + ' with another hoistable script with the same `src`. When rendering hoistable scripts (async scripts without any loading handlers)' + ' the props from the first encountered instance will be used and props from later instances will be ignored.' + ' Update the props on both <script async={true} .../> instance so they agree.%s', src, differenceDescription);
-                }
-
-                break;
-              }
-
-            case 'preinit':
-              {
-                var _differenceDescription2 = describeDifferencesForScriptOverPreinit( // Diff the props from the JSX element, not the derived resource props
-                props, devResource.__propsEquivalent);
-
-                if (_differenceDescription2) {
-                  error('React encountered a <script async={true} src="%s" .../> with props that conflict' + ' with the options provided to `ReactDOM.preinit("%s", { as: "script", ... })`. React will use the first props or preinitialization' + ' options encountered when rendering a hoistable script with a particular `src` and will ignore any newer props or' + ' options. The first instance of this script resource was created using the `ReactDOM.preinit()` function.' + ' Please note, `ReactDOM.preinit()` is modeled off of module import assertions capabilities and does not support' + ' arbitrary props. If you need to have props not included with the preinit options you will need to rely on rendering' + ' <script> tags only.%s', src, src, _differenceDescription2);
-                }
-
-                break;
-              }
-          }
-        }
-      }
-
-      if (!_resource2) {
-        _resource2 = {
-          type: 'script',
-          chunks: [],
-          state: NoState,
-          props: null
-        };
-        resources.scriptsMap.set(key, _resource2);
-
-        {
-          markAsRenderedResourceDEV(_resource2, props);
-        } // Add to the script flushing queue
+        markAsRenderedResourceDEV(resource, props);
+      } // Add to the script flushing queue
 
 
-        resources.scripts.add(_resource2);
-        var scriptProps = props;
-        var preloadResource = resources.preloadsMap.get(key);
+      resources.scripts.add(resource);
+      var scriptProps = props;
+      var preloadResource = resources.preloadsMap.get(key);
 
-        if (preloadResource) {
-          // If we already had a preload we don't want that resource to flush directly.
-          // We let the newly created resource govern flushing.
-          preloadResource.state |= Blocked;
-          scriptProps = assign({}, props);
-          adoptPreloadPropsForScriptProps(scriptProps, preloadResource.props);
-        } // encode the tag as Chunks
+      if (preloadResource) {
+        // If we already had a preload we don't want that resource to flush directly.
+        // We let the newly created resource govern flushing.
+        preloadResource.state |= Blocked;
+        scriptProps = assign({}, props);
+        adoptPreloadPropsForScriptProps(scriptProps, preloadResource.props);
+      } // encode the tag as Chunks
 
 
-        pushScriptImpl(_resource2.chunks, scriptProps);
-      }
+      pushScriptImpl(resource.chunks, scriptProps);
     }
 
     if (textEmbedded) {
@@ -5285,22 +5245,8 @@ function writePreamble(destination, resources, responseState, willFlushAllSegmen
   resources.fontPreloads.clear(); // Flush unblocked stylesheets by precedence
 
   resources.precedences.forEach(flushAllStylesInPreamble, destination);
-  resources.usedStylesheets.forEach(function (resource) {
-    var key = getResourceKey(resource.props.as, resource.props.href);
-
-    if (resources.stylesMap.has(key)) ; else {
-      var _chunks = resource.chunks;
-
-      for (i = 0; i < _chunks.length; i++) {
-        writeChunk(destination, _chunks[i]);
-      }
-    }
-  });
-  resources.usedStylesheets.clear();
   resources.scripts.forEach(flushResourceInPreamble, destination);
   resources.scripts.clear();
-  resources.usedScripts.forEach(flushResourceInPreamble, destination);
-  resources.usedScripts.clear();
   resources.explicitStylesheetPreloads.forEach(flushResourceInPreamble, destination);
   resources.explicitStylesheetPreloads.clear();
   resources.explicitScriptPreloads.forEach(flushResourceInPreamble, destination);
@@ -5358,22 +5304,8 @@ function writeHoistables(destination, resources, responseState) {
   // but we want to kick off preloading as soon as possible
 
   resources.precedences.forEach(preloadLateStyles, destination);
-  resources.usedStylesheets.forEach(function (resource) {
-    var key = getResourceKey(resource.props.as, resource.props.href);
-
-    if (resources.stylesMap.has(key)) ; else {
-      var chunks = resource.chunks;
-
-      for (i = 0; i < chunks.length; i++) {
-        writeChunk(destination, chunks[i]);
-      }
-    }
-  });
-  resources.usedStylesheets.clear();
   resources.scripts.forEach(flushResourceLate, destination);
   resources.scripts.clear();
-  resources.usedScripts.forEach(flushResourceLate, destination);
-  resources.usedScripts.clear();
   resources.explicitStylesheetPreloads.forEach(flushResourceLate, destination);
   resources.explicitStylesheetPreloads.clear();
   resources.explicitScriptPreloads.forEach(flushResourceLate, destination);
@@ -5799,9 +5731,7 @@ function createResources() {
     // usedImagePreloads: new Set(),
     precedences: new Map(),
     stylePrecedences: new Map(),
-    usedStylesheets: new Set(),
     scripts: new Set(),
-    usedScripts: new Set(),
     explicitStylesheetPreloads: new Set(),
     // explicitImagePreloads: new Set(),
     explicitScriptPreloads: new Set(),
@@ -5935,18 +5865,50 @@ function preload(href, options) {
   var resources = getResources(request);
 
   {
+    var encountered = '';
+
     if (typeof href !== 'string' || !href) {
-      error('ReactDOM.preload(): Expected the `href` argument (first) to be a non-empty string but encountered %s instead.', getValueDescriptorExpectingObjectForWarning(href));
-    } else if (options == null || typeof options !== 'object') {
-      error('ReactDOM.preload(): Expected the `options` argument (second) to be an object with an `as` property describing the type of resource to be preloaded but encountered %s instead.', getValueDescriptorExpectingEnumForWarning(options));
-    } else if (typeof options.as !== 'string') {
-      error('ReactDOM.preload(): Expected the `as` property in the `options` argument (second) to contain a string value describing the type of resource to be preloaded but encountered %s instead. Values that are valid in for the `as` attribute of a `<link rel="preload" as="..." />` tag are valid here.', getValueDescriptorExpectingEnumForWarning(options.as));
+      encountered += " The `href` argument encountered was " + getValueDescriptorExpectingObjectForWarning(href) + ".";
+    }
+
+    if (options == null || typeof options !== 'object') {
+      encountered += " The `options` argument encountered was " + getValueDescriptorExpectingObjectForWarning(options) + ".";
+    } else if (typeof options.as !== 'string' || !options.as) {
+      encountered += " The `as` option encountered was " + getValueDescriptorExpectingObjectForWarning(options.as) + ".";
+    }
+
+    if (encountered) {
+      error('ReactDOM.preload(): Expected two arguments, a non-empty `href` string and an `options` object with an `as` property valid for a `<link rel="preload" as="..." />` tag.%s', encountered);
     }
   }
 
-  if (typeof href === 'string' && href && typeof options === 'object' && options !== null && typeof options.as === 'string') {
+  if (typeof href === 'string' && href && typeof options === 'object' && options !== null && typeof options.as === 'string' && options.as) {
     var as = options.as;
-    var key = getResourceKey(as, href);
+    var key;
+
+    if (as === 'image') {
+      // For image preloads the key contains either the imageSrcSet + imageSizes or the href but not
+      // both. This is to prevent identical calls with the same srcSet and sizes to be duplicated
+      // by varying the href. this is an edge case but it is the most correct behavior.
+      var imageSrcSet = options.imageSrcSet,
+          imageSizes = options.imageSizes;
+      var uniquePart = '';
+
+      if (typeof imageSrcSet === 'string' && imageSrcSet !== '') {
+        uniquePart += '[' + imageSrcSet + ']';
+
+        if (typeof imageSizes === 'string') {
+          uniquePart += '[' + imageSizes + ']';
+        }
+      } else {
+        uniquePart += '[][]' + href;
+      }
+
+      key = getResourceKey(as, uniquePart);
+    } else {
+      key = getResourceKey(as, href);
+    }
+
     var resource = resources.preloadsMap.get(key);
 
     {
@@ -6161,10 +6123,10 @@ function preinit(href, options) {
 
           var _key = getResourceKey(as, src);
 
-          var _resource3 = resources.scriptsMap.get(_key);
+          var _resource = resources.scriptsMap.get(_key);
 
           {
-            var _devResource = getAsResourceDEV(_resource3);
+            var _devResource = getAsResourceDEV(_resource);
 
             if (_devResource) {
               var _propsEquivalent = scriptPropsFromPreinitOptions(src, options);
@@ -6197,23 +6159,23 @@ function preinit(href, options) {
             }
           }
 
-          if (!_resource3) {
-            _resource3 = {
+          if (!_resource) {
+            _resource = {
               type: 'script',
               chunks: [],
               state: NoState,
               props: null
             };
-            resources.scriptsMap.set(_key, _resource3);
+            resources.scriptsMap.set(_key, _resource);
 
             var _resourceProps = scriptPropsFromPreinitOptions(src, options);
 
             {
-              markAsImperativeResourceDEV(_resource3, 'preinit', href, options, _resourceProps);
+              markAsImperativeResourceDEV(_resource, 'preinit', href, options, _resourceProps);
             }
 
-            resources.scripts.add(_resource3);
-            pushScriptImpl(_resource3.chunks, _resourceProps);
+            resources.scripts.add(_resource);
+            pushScriptImpl(_resource.chunks, _resourceProps);
             flushResources(request);
           }
 
@@ -6221,6 +6183,76 @@ function preinit(href, options) {
         }
     }
   }
+} // This function is only safe to call at Request start time since it assumes
+// that each script has not already been preloaded. If we find a need to preload
+// scripts at any other point in time we will need to check whether the preload
+// already exists and not assume it
+
+
+function preloadBootstrapScript(resources, src, nonce, integrity, crossOrigin) {
+  var key = getResourceKey('script', src);
+
+  {
+    if (resources.preloadsMap.has(key)) {
+      // This is coded as a React error because it should be impossible for a userspace preload to preempt this call
+      // If a userspace preload can preempt it then this assumption is broken and we need to reconsider this strategy
+      // rather than instruct the user to not preload their bootstrap scripts themselves
+      error('Internal React Error: React expected bootstrap script with src "%s" to not have been preloaded already. please file an issue', src);
+    }
+  }
+
+  var props = {
+    rel: 'preload',
+    href: src,
+    as: 'script',
+    nonce: nonce,
+    integrity: integrity,
+    crossOrigin: crossOrigin
+  };
+  var resource = {
+    type: 'preload',
+    chunks: [],
+    state: NoState,
+    props: props
+  };
+  resources.preloadsMap.set(key, resource);
+  resources.explicitScriptPreloads.add(resource);
+  pushLinkImpl(resource.chunks, props);
+} // This function is only safe to call at Request start time since it assumes
+// that each module has not already been preloaded. If we find a need to preload
+// scripts at any other point in time we will need to check whether the preload
+// already exists and not assume it
+
+
+function preloadBootstrapModule(resources, src, nonce, integrity, crossOrigin) {
+  var key = getResourceKey('script', src);
+
+  {
+    if (resources.preloadsMap.has(key)) {
+      // This is coded as a React error because it should be impossible for a userspace preload to preempt this call
+      // If a userspace preload can preempt it then this assumption is broken and we need to reconsider this strategy
+      // rather than instruct the user to not preload their bootstrap scripts themselves
+      error('Internal React Error: React expected bootstrap module with src "%s" to not have been preloaded already. please file an issue', src);
+    }
+  }
+
+  var props = {
+    rel: 'modulepreload',
+    href: src,
+    nonce: nonce,
+    integrity: integrity,
+    crossOrigin: crossOrigin
+  };
+  var resource = {
+    type: 'preload',
+    chunks: [],
+    state: NoState,
+    props: props
+  };
+  resources.preloadsMap.set(key, resource);
+  resources.explicitScriptPreloads.add(resource);
+  pushLinkImpl(resource.chunks, props);
+  return;
 }
 
 function internalPreinitScript(resources, src, chunks) {
@@ -6245,10 +6277,18 @@ function preloadPropsFromPreloadOptions(href, as, options) {
   return {
     rel: 'preload',
     as: as,
-    href: href,
+    // There is a bug in Safari where imageSrcSet is not respected on preload links
+    // so we omit the href here if we have imageSrcSet b/c safari will load the wrong image.
+    // This harms older browers that do not support imageSrcSet by making their preloads not work
+    // but this population is shrinking fast and is already small so we accept this tradeoff.
+    href: as === 'image' && options.imageSrcSet ? undefined : href,
     crossOrigin: as === 'font' ? '' : options.crossOrigin,
     integrity: options.integrity,
-    type: options.type
+    type: options.type,
+    nonce: options.nonce,
+    fetchPriority: options.fetchPriority,
+    imageSrcSet: options.imageSrcSet,
+    imageSizes: options.imageSizes
   };
 }
 
@@ -6266,26 +6306,14 @@ function preloadAsStylePropsFromProps(href, props) {
   };
 }
 
-function preloadAsScriptPropsFromProps(href, props) {
-  return {
-    rel: 'preload',
-    as: 'script',
-    href: href,
-    crossOrigin: props.crossOrigin,
-    fetchPriority: props.fetchPriority,
-    integrity: props.integrity,
-    nonce: props.nonce,
-    referrerPolicy: props.referrerPolicy
-  };
-}
-
 function stylesheetPropsFromPreinitOptions(href, precedence, options) {
   return {
     rel: 'stylesheet',
     href: href,
     'data-precedence': precedence,
     crossOrigin: options.crossOrigin,
-    integrity: options.integrity
+    integrity: options.integrity,
+    fetchPriority: options.fetchPriority
   };
 }
 
@@ -6307,7 +6335,8 @@ function scriptPropsFromPreinitOptions(src, options) {
     async: true,
     crossOrigin: options.crossOrigin,
     integrity: options.integrity,
-    nonce: options.nonce
+    nonce: options.nonce,
+    fetchPriority: options.fetchPriority
   };
 }
 
@@ -6353,20 +6382,6 @@ function markAsImperativeResourceDEV(resource, provenance, originalHref, origina
     devResource.__originalHref = originalHref;
     devResource.__originalOptions = originalOptions;
     devResource.__propsEquivalent = propsEquivalent;
-  }
-}
-
-function markAsImplicitResourceDEV(resource, underlyingProps, impliedProps) {
-  {
-    var devResource = resource;
-
-    if (typeof devResource.__provenance === 'string') {
-      error('Resource already marked for DEV type. This is a bug in React.');
-    }
-
-    devResource.__provenance = 'implicit';
-    devResource.__underlyingProps = underlyingProps;
-    devResource.__impliedProps = impliedProps;
   }
 }
 
@@ -8352,13 +8367,6 @@ function throwOnUseEffectEventCall() {
 function useEffectEvent(callback) {
   // $FlowIgnore[incompatible-return]
   return throwOnUseEffectEventCall;
-} // TODO Decide on how to implement this hook for server rendering.
-// If a mutation occurs during render, consider triggering a Suspense boundary
-// and falling back to client rendering.
-
-function useMutableSource(source, getSnapshot, subscribe) {
-  resolveCurrentlyRenderingComponent();
-  return getSnapshot(source._source);
 }
 
 function useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot) {
@@ -8479,7 +8487,6 @@ var HooksDispatcher = {
   useTransition: useTransition,
   useId: useId,
   // Subscriptions are not setup in a server environment.
-  useMutableSource: useMutableSource,
   useSyncExternalStore: useSyncExternalStore
 };
 
@@ -8587,11 +8594,10 @@ function defaultErrorHandler(error) {
 
 function noop() {}
 
-function createRequest(children, responseState, rootFormatContext, progressiveChunkSize, onError, onAllReady, onShellReady, onShellError, onFatalError) {
+function createRequest(children, resources, responseState, rootFormatContext, progressiveChunkSize, onError, onAllReady, onShellReady, onShellError, onFatalError) {
   prepareHostDispatcher();
   var pingedTasks = [];
   var abortSet = new Set();
-  var resources = createResources();
   var request = {
     destination: null,
     flushScheduled: false,
@@ -10205,7 +10211,12 @@ function flushCompletedQueues(request, destination) {
         // We haven't flushed the root yet so we don't need to check any other branches further down
         return;
       }
-    } else if (enableFloat) {
+    } else if (request.pendingRootTasks > 0) {
+      // We have not yet flushed the root segment so we early return
+      return;
+    }
+
+    if (enableFloat) {
       writeHoistables(destination, request.resources, request.responseState);
     } // We emit client rendering instructions for already emitted boundaries first.
     // This is so that we can signal to the client to start client rendering them as
@@ -10418,7 +10429,8 @@ function renderToReadableStream(children, options) {
       reject(error);
     }
 
-    var request = createRequest(children, createResponseState(options ? options.identifierPrefix : undefined, options ? options.nonce : undefined, options ? options.bootstrapScriptContent : undefined, options ? options.bootstrapScripts : undefined, options ? options.bootstrapModules : undefined, options ? options.unstable_externalRuntimeSrc : undefined), createRootFormatContext(options ? options.namespaceURI : undefined), options ? options.progressiveChunkSize : undefined, options ? options.onError : undefined, onAllReady, onShellReady, onShellError, onFatalError);
+    var resources = createResources();
+    var request = createRequest(children, resources, createResponseState(resources, options ? options.identifierPrefix : undefined, options ? options.nonce : undefined, options ? options.bootstrapScriptContent : undefined, options ? options.bootstrapScripts : undefined, options ? options.bootstrapModules : undefined, options ? options.unstable_externalRuntimeSrc : undefined), createRootFormatContext(options ? options.namespaceURI : undefined), options ? options.progressiveChunkSize : undefined, options ? options.onError : undefined, onAllReady, onShellReady, onShellError, onFatalError);
 
     if (options && options.signal) {
       var signal = options.signal;
