@@ -14,7 +14,7 @@ if (process.env.NODE_ENV !== "production") {
   (function() {
 'use strict';
 
-var ReactVersion = '18.3.0-canary-1cea38448-20230530';
+var ReactVersion = '18.3.0-canary-1fdacbefd-20230630';
 
 var Internals = {
   usingClientEntryPoint: false,
@@ -95,6 +95,13 @@ function createPortal() {
 }
 function flushSync() {
   throw new Error('flushSync was called on the server. This is likely caused by a' + ' function being called during render or in module scope that was' + ' intended to be called from an effect or event handler. Update your' + ' to not call flushSync no the server.');
+} // on the server we just call the callback because there is
+// not update mechanism. Really this should not be called on the
+// server but since the semantics are generally clear enough we
+// can provide this trivial implementation.
+
+function batchedUpdates(fn, a) {
+  return fn(a);
 }
 
 exports.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED = Internals;
@@ -105,6 +112,7 @@ exports.preconnect = preconnect;
 exports.prefetchDNS = prefetchDNS;
 exports.preinit = preinit;
 exports.preload = preload;
+exports.unstable_batchedUpdates = batchedUpdates;
 exports.version = ReactVersion;
   })();
 }
