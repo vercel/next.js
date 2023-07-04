@@ -122,7 +122,7 @@ pub async fn get_page_chunks(
     )
     .into();
 
-    let node_compile_time_info = get_server_compile_time_info(node_ty, mode, env, node_addr);
+    let node_compile_time_info = get_server_compile_time_info(mode, env, node_addr);
     let node_resolve_options_context = get_server_resolve_options_context(
         project_root,
         node_ty,

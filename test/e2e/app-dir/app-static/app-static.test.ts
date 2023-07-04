@@ -1011,8 +1011,7 @@ createNextDescribe(
       }, 'success')
     })
 
-    // TODO-APP: investigate flaky test
-    it.skip('should cache correctly for fetchCache = force-cache', async () => {
+    it('should cache correctly for fetchCache = force-cache', async () => {
       const res = await next.fetch('/force-cache')
       expect(res.status).toBe(200)
 
