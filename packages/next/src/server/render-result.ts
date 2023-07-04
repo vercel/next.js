@@ -16,7 +16,7 @@ export interface PipeTarget {
   end: () => unknown
   flush?: () => unknown
   destroy: (err?: Error) => unknown
-  closed: boolean
+  get closed(): boolean
 }
 
 export default class RenderResult {
