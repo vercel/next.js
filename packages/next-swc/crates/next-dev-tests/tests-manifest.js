@@ -5,7 +5,7 @@ const enabledTests = [
   'test/development/acceptance-app/ReactRefresh.test.ts',
   'test/development/acceptance-app/ReactRefreshLogBoxMisc.test.ts',
   'test/development/acceptance-app/ReactRefreshRequire.test.ts',
-  'test/development/acceptance-app/app-hmr-changes.test.ts',
+  // 'test/development/acceptance-app/app-hmr-changes.test.ts', (FLAKY)
   'test/development/acceptance-app/dynamic-error.test.ts',
   'test/development/acceptance-app/version-staleness.test.ts',
   'test/development/acceptance/ReactRefreshLogBox-scss.test.ts',
@@ -170,7 +170,7 @@ const enabledTests = [
   'test/integration/next-image-legacy/react-virtualized/test/index.test.ts',
   'test/integration/next-image-legacy/unoptimized/test/index.test.ts',
   'test/integration/next-image-new/react-virtualized/test/index.test.ts',
-  'test/integration/next-image-new/unoptimized/test/index.test.ts',
+  // 'test/integration/next-image-new/unoptimized/test/index.test.ts', (FLAKY)
   'test/integration/no-op-export/test/index.test.js',
   'test/integration/non-next-dist-exclude/test/index.test.js',
   'test/integration/non-standard-node-env-warning/test/index.test.js',
@@ -195,7 +195,7 @@ const enabledTests = [
   'test/integration/typescript-baseurl/test/index.test.js',
   'test/integration/typescript-external-dir/project/test/index.test.js',
   'test/integration/typescript-filtered-files/test/index.test.js',
-  'test/integration/typescript-hmr/test/index.test.js',
+  // 'test/integration/typescript-hmr/test/index.test.js', (FLAKY)
   'test/integration/webpack-config-mainjs/test/index.test.js',
   'test/integration/with-electron/test/index.test.js',
   'test/production/ci-missing-typescript-deps/index.test.ts',

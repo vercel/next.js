@@ -213,16 +213,6 @@ function stringToChunk(content) {
   return content;
 }
 var precomputedChunkSet = new Set() ;
-function typedArrayToBinaryChunk(content) {
-  // Convert any non-Uint8Array array to Uint8Array. We could avoid this for Uint8Arrays.
-  return new Uint8Array(content.buffer, content.byteOffset, content.byteLength);
-}
-function byteLengthOfChunk(chunk) {
-  return typeof chunk === 'string' ? Buffer.byteLength(chunk, 'utf8') : chunk.byteLength;
-}
-function byteLengthOfBinaryChunk(chunk) {
-  return chunk.byteLength;
-}
 function closeWithError(destination, error) {
   // $FlowFixMe[incompatible-call]: This is an Error object or the destination accepts other types.
   destination.destroy(error);
@@ -787,6 +777,7 @@ var HooksDispatcher = {
   useImperativeHandle: unsupportedHook,
   useEffect: unsupportedHook,
   useId: useId,
+  useMutableSource: unsupportedHook,
   useSyncExternalStore: unsupportedHook,
   useCacheRefresh: function () {
     return unsupportedRefresh;
@@ -1259,7 +1250,7 @@ function createRequest(model, bundlerConfig, onError, context, identifierPrefix)
     pingedTasks: pingedTasks,
     completedImportChunks: [],
     completedHintChunks: [],
-    completedRegularChunks: [],
+    completedJSONChunks: [],
     completedErrorChunks: [],
     writtenSymbols: new Map(),
     writtenClientReferences: new Map(),
@@ -1694,15 +1685,6 @@ function serializeClientReference(request, parent, key, clientReference) {
   }
 }
 
-function outlineModel(request, value) {
-  request.pendingChunks++;
-  var outlinedId = request.nextChunkId++; // We assume that this object doesn't suspend, but a child might.
-
-  var processedChunk = processModelChunk(request, outlinedId, value);
-  request.completedRegularChunks.push(processedChunk);
-  return outlinedId;
-}
-
 function serializeServerReference(request, parent, key, serverReference) {
   var writtenServerReferences = request.writtenServerReferences;
   var existingId = writtenServerReferences.get(serverReference);
@@ -1716,38 +1698,13 @@ function serializeServerReference(request, parent, key, serverReference) {
     id: getServerReferenceId(request.bundlerConfig, serverReference),
     bound: bound ? Promise.resolve(bound) : null
   };
-  var metadataId = outlineModel(request, serverReferenceMetadata);
+  request.pendingChunks++;
+  var metadataId = request.nextChunkId++; // We assume that this object doesn't suspend.
+
+  var processedChunk = processModelChunk(request, metadataId, serverReferenceMetadata);
+  request.completedJSONChunks.push(processedChunk);
   writtenServerReferences.set(serverReference, metadataId);
   return serializeServerReferenceID(metadataId);
-}
-
-function serializeLargeTextString(request, text) {
-  request.pendingChunks += 2;
-  var textId = request.nextChunkId++;
-  var textChunk = stringToChunk(text);
-  var headerChunk = processTextHeader(request, textId, byteLengthOfChunk(textChunk));
-  request.completedRegularChunks.push(headerChunk, textChunk);
-  return serializeByValueID(textId);
-}
-
-function serializeMap(request, map) {
-  var id = outlineModel(request, Array.from(map));
-  return '$Q' + id.toString(16);
-}
-
-function serializeSet(request, set) {
-  var id = outlineModel(request, Array.from(set));
-  return '$W' + id.toString(16);
-}
-
-function serializeTypedArray(request, tag, typedArray) {
-  request.pendingChunks += 2;
-  var bufferId = request.nextChunkId++; // TODO: Convert to little endian if that's not the server default.
-
-  var binaryChunk = typedArrayToBinaryChunk(typedArray);
-  var headerChunk = processBufferHeader(request, tag, bufferId, byteLengthOfBinaryChunk(binaryChunk));
-  request.completedRegularChunks.push(headerChunk, binaryChunk);
-  return serializeByValueID(bufferId);
 }
 
 function escapeStringValue(value) {
@@ -1900,80 +1857,6 @@ function resolveModelToJSON(request, parent, key, value) {
       return undefined;
     }
 
-    if (value instanceof Map) {
-      return serializeMap(request, value);
-    }
-
-    if (value instanceof Set) {
-      return serializeSet(request, value);
-    }
-
-    {
-      if (value instanceof ArrayBuffer) {
-        return serializeTypedArray(request, 'A', new Uint8Array(value));
-      }
-
-      if (value instanceof Int8Array) {
-        // char
-        return serializeTypedArray(request, 'C', value);
-      }
-
-      if (value instanceof Uint8Array) {
-        // unsigned char
-        return serializeTypedArray(request, 'c', value);
-      }
-
-      if (value instanceof Uint8ClampedArray) {
-        // unsigned clamped char
-        return serializeTypedArray(request, 'U', value);
-      }
-
-      if (value instanceof Int16Array) {
-        // sort
-        return serializeTypedArray(request, 'S', value);
-      }
-
-      if (value instanceof Uint16Array) {
-        // unsigned short
-        return serializeTypedArray(request, 's', value);
-      }
-
-      if (value instanceof Int32Array) {
-        // long
-        return serializeTypedArray(request, 'L', value);
-      }
-
-      if (value instanceof Uint32Array) {
-        // unsigned long
-        return serializeTypedArray(request, 'l', value);
-      }
-
-      if (value instanceof Float32Array) {
-        // float
-        return serializeTypedArray(request, 'F', value);
-      }
-
-      if (value instanceof Float64Array) {
-        // double
-        return serializeTypedArray(request, 'D', value);
-      }
-
-      if (value instanceof BigInt64Array) {
-        // number
-        return serializeTypedArray(request, 'N', value);
-      }
-
-      if (value instanceof BigUint64Array) {
-        // unsigned number
-        // We use "m" instead of "n" since JSON can start with "null"
-        return serializeTypedArray(request, 'm', value);
-      }
-
-      if (value instanceof DataView) {
-        return serializeTypedArray(request, 'V', value);
-      }
-    }
-
     if (!isArray(value)) {
       var iteratorFn = getIteratorFn(value);
 
@@ -2013,13 +1896,6 @@ function resolveModelToJSON(request, parent, key, value) {
       if (_originalValue instanceof Date) {
         return serializeDateFromDateJSON(value);
       }
-    }
-
-    if (value.length >= 1024) {
-      // For large strings, we encode them outside the JSON payload so that we
-      // don't have to double encode and double parse the strings. This can also
-      // be more compact in case the string has a lot of escaped characters.
-      return serializeLargeTextString(request, value);
     }
 
     return escapeStringValue(value);
@@ -2160,7 +2036,7 @@ function emitSymbolChunk(request, id, name) {
 function emitProviderChunk(request, id, contextName) {
   var contextReference = serializeProviderReference(contextName);
   var processedChunk = processReferenceChunk(request, id, contextReference);
-  request.completedRegularChunks.push(processedChunk);
+  request.completedJSONChunks.push(processedChunk);
 }
 
 function retryTask(request, task) {
@@ -2200,7 +2076,7 @@ function retryTask(request, task) {
     }
 
     var processedChunk = processModelChunk(request, task.id, value);
-    request.completedRegularChunks.push(processedChunk);
+    request.completedJSONChunks.push(processedChunk);
     request.abortableTasks.delete(task);
     task.status = COMPLETED;
   } catch (thrownValue) {
@@ -2311,12 +2187,12 @@ function flushCompletedChunks(request, destination) {
 
     hintChunks.splice(0, i); // Next comes model data.
 
-    var regularChunks = request.completedRegularChunks;
+    var jsonChunks = request.completedJSONChunks;
     i = 0;
 
-    for (; i < regularChunks.length; i++) {
+    for (; i < jsonChunks.length; i++) {
       request.pendingChunks--;
-      var _chunk2 = regularChunks[i];
+      var _chunk2 = jsonChunks[i];
 
       var _keepWriting2 = writeChunkAndReturn(destination, _chunk2);
 
@@ -2327,7 +2203,7 @@ function flushCompletedChunks(request, destination) {
       }
     }
 
-    regularChunks.splice(0, i); // Finally, errors are sent. The idea is that it's ok to delay
+    jsonChunks.splice(0, i); // Finally, errors are sent. The idea is that it's ok to delay
     // any error messages and prioritize display of other parts of
     // the page.
 
@@ -2515,16 +2391,6 @@ function processHintChunk(request, id, code, model) {
   return stringToChunk(row);
 }
 
-function processTextHeader(request, id, binaryLength) {
-  var row = id.toString(16) + ':T' + binaryLength.toString(16) + ',';
-  return stringToChunk(row);
-}
-
-function processBufferHeader(request, tag, id, binaryLength) {
-  var row = id.toString(16) + ':' + tag + binaryLength.toString(16) + ',';
-  return stringToChunk(row);
-}
-
 // eslint-disable-next-line no-unused-vars
 function resolveServerReference(bundlerConfig, id) {
   var idx = id.lastIndexOf('#');
@@ -2548,17 +2414,6 @@ function preloadModule(metadata) {
   } else {
     // $FlowFixMe[unsupported-syntax]
     var modulePromise = import(metadata.specifier);
-
-    if (metadata.async) {
-      // If the module is async, it must have been a CJS module.
-      // CJS modules are accessed through the default export in
-      // Node.js so we have to get the default export to get the
-      // full module exports.
-      modulePromise = modulePromise.then(function (value) {
-        return value.default;
-      });
-    }
-
     modulePromise.then(function (value) {
       var fulfilledThenable = modulePromise;
       fulfilledThenable.status = 'fulfilled';
@@ -2884,21 +2739,6 @@ function createModelReject(chunk) {
   };
 }
 
-function getOutlinedModel(response, id) {
-  var chunk = getChunk(response, id);
-
-  if (chunk.status === RESOLVED_MODEL) {
-    initializeModelChunk(chunk);
-  }
-
-  if (chunk.status !== INITIALIZED) {
-    // We know that this is emitted earlier so otherwise it's an error.
-    throw chunk.reason;
-  }
-
-  return chunk.value;
-}
-
 function parseModelString(response, parentObject, key, value) {
   if (value[0] === '$') {
     switch (value[1]) {
@@ -2925,30 +2765,22 @@ function parseModelString(response, parentObject, key, value) {
       case 'F':
         {
           // Server Reference
-          var _id = parseInt(value.slice(2), 16); // TODO: Just encode this in the reference inline instead of as a model.
+          var _id = parseInt(value.slice(2), 16);
+
+          var _chunk = getChunk(response, _id);
+
+          if (_chunk.status === RESOLVED_MODEL) {
+            initializeModelChunk(_chunk);
+          }
+
+          if (_chunk.status !== INITIALIZED) {
+            // We know that this is emitted earlier so otherwise it's an error.
+            throw _chunk.reason;
+          } // TODO: Just encode this in the reference inline instead of as a model.
 
 
-          var metaData = getOutlinedModel(response, _id);
+          var metaData = _chunk.value;
           return loadServerReference$1(response, metaData.id, metaData.bound, initializingChunk, parentObject, key);
-        }
-
-      case 'Q':
-        {
-          // Map
-          var _id2 = parseInt(value.slice(2), 16);
-
-          var data = getOutlinedModel(response, _id2);
-          return new Map(data);
-        }
-
-      case 'W':
-        {
-          // Set
-          var _id3 = parseInt(value.slice(2), 16);
-
-          var _data = getOutlinedModel(response, _id3);
-
-          return new Set(_data);
         }
 
       case 'K':
@@ -2956,9 +2788,7 @@ function parseModelString(response, parentObject, key, value) {
           // FormData
           var stringId = value.slice(2);
           var formPrefix = response._prefix + stringId + '_';
-
-          var _data2 = new FormData();
-
+          var data = new FormData();
           var backingFormData = response._formData; // We assume that the reference to FormData always comes after each
           // entry that it references so we can assume they all exist in the
           // backing store already.
@@ -2966,10 +2796,10 @@ function parseModelString(response, parentObject, key, value) {
 
           backingFormData.forEach(function (entry, entryKey) {
             if (entryKey.startsWith(formPrefix)) {
-              _data2.append(entryKey.slice(formPrefix.length), entry);
+              data.append(entryKey.slice(formPrefix.length), entry);
             }
           });
-          return _data2;
+          return data;
         }
 
       case 'I':
@@ -3016,31 +2846,31 @@ function parseModelString(response, parentObject, key, value) {
       default:
         {
           // We assume that anything else is a reference ID.
-          var _id4 = parseInt(value.slice(1), 16);
+          var _id2 = parseInt(value.slice(1), 16);
 
-          var _chunk = getChunk(response, _id4);
+          var _chunk2 = getChunk(response, _id2);
 
-          switch (_chunk.status) {
+          switch (_chunk2.status) {
             case RESOLVED_MODEL:
-              initializeModelChunk(_chunk);
+              initializeModelChunk(_chunk2);
               break;
           } // The status might have changed after initialization.
 
 
-          switch (_chunk.status) {
+          switch (_chunk2.status) {
             case INITIALIZED:
-              return _chunk.value;
+              return _chunk2.value;
 
             case PENDING:
             case BLOCKED:
               var parentChunk = initializingChunk;
 
-              _chunk.then(createModelResolver(parentChunk, parentObject, key), createModelReject(parentChunk));
+              _chunk2.then(createModelResolver(parentChunk, parentObject, key), createModelReject(parentChunk));
 
               return null;
 
             default:
-              throw _chunk.reason;
+              throw _chunk2.reason;
           }
         }
     }
@@ -3264,8 +3094,7 @@ function decodeReplyFromBusboy(busboyStream, webpackMap) {
     close(response);
   });
   busboyStream.on('error', function (err) {
-    reportGlobalError(response, // $FlowFixMe[incompatible-call] types Error and mixed are incompatible
-    err);
+    reportGlobalError(response, err);
   });
   return getRoot(response);
 }
