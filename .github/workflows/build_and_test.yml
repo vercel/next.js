@@ -200,7 +200,14 @@ jobs:
     secrets: inherit
 
   report-test-results:
-    needs: ['test-dev', 'test-prod', 'test-integration', 'test-turbopack-dev']
+    needs:
+      [
+        'test-dev',
+        'test-prod',
+        'test-integration',
+        'test-turbopack-dev',
+        'test-turbopack-integration',
+      ]
     uses: ./.github/workflows/build_reusable.yml
     with:
       skipForDocsOnly: 'yes'
@@ -223,6 +230,7 @@ jobs:
         'rust-check',
         'test-next-swc-wasm',
         'test-turbopack-dev',
+        'test-turbopack-integration',
       ]
 
     if: always()
