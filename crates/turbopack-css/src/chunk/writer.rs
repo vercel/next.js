@@ -10,6 +10,7 @@ use turbopack_core::{chunk::ChunkItem, code_builder::CodeBuilder};
 use super::{CssChunkItemVc, CssImport};
 use crate::chunk::CssChunkItem;
 
+// TODO(WEB-1261)
 pub async fn expand_imports(
     code: &mut CodeBuilder,
     chunk_item: CssChunkItemVc,

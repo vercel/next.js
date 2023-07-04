@@ -15,7 +15,7 @@ use swc_core::{
     },
     ecma::atoms::JsWord,
 };
-use turbo_tasks::{Value, ValueToString};
+use turbo_tasks::ValueToString;
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent, AssetVc},
@@ -33,7 +33,7 @@ use crate::{
 static BASENAME_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[^.]*").unwrap());
 
 #[turbo_tasks::value(shared, serialization = "none", eq = "manual")]
-pub enum ParseResult {
+pub enum ParseCssResult {
     Ok {
         #[turbo_tasks(trace_ignore)]
         stylesheet: Stylesheet,
@@ -48,7 +48,7 @@ pub enum ParseResult {
     NotFound,
 }
 
-impl PartialEq for ParseResult {
+impl PartialEq for ParseCssResult {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::Ok { .. }, Self::Ok { .. }) => false,
@@ -58,7 +58,7 @@ impl PartialEq for ParseResult {
 }
 
 #[turbo_tasks::value(shared, serialization = "none", eq = "manual")]
-pub struct ParseResultSourceMap {
+pub struct ParseCssResultSourceMap {
     #[turbo_tasks(debug_ignore, trace_ignore)]
     source_map: Arc<SourceMap>,
 
@@ -68,15 +68,15 @@ pub struct ParseResultSourceMap {
     mappings: Vec<(BytePos, LineCol)>,
 }
 
-impl PartialEq for ParseResultSourceMap {
+impl PartialEq for ParseCssResultSourceMap {
     fn eq(&self, other: &Self) -> bool {
         Arc::ptr_eq(&self.source_map, &other.source_map) && self.mappings == other.mappings
     }
 }
 
-impl ParseResultSourceMap {
+impl ParseCssResultSourceMap {
     pub fn new(source_map: Arc<SourceMap>, mappings: Vec<(BytePos, LineCol)>) -> Self {
-        ParseResultSourceMap {
+        ParseCssResultSourceMap {
             source_map,
             mappings,
         }
@@ -84,7 +84,7 @@ impl ParseResultSourceMap {
 }
 
 #[turbo_tasks::value_impl]
-impl GenerateSourceMap for ParseResultSourceMap {
+impl GenerateSourceMap for ParseCssResultSourceMap {
     #[turbo_tasks::function]
     fn generate_source_map(&self) -> OptionSourceMapVc {
         let map = self.source_map.build_source_map_with_config(
@@ -117,21 +117,20 @@ impl SourceMapGenConfig for InlineSourcesContentConfig {
 }
 
 #[turbo_tasks::function]
-pub async fn parse(
+pub async fn parse_css(
     source: AssetVc,
-    ty: Value<CssModuleAssetType>,
+    ty: CssModuleAssetType,
     transforms: CssInputTransformsVc,
-) -> Result<ParseResultVc> {
+) -> Result<ParseCssResultVc> {
     let content = source.content();
     let fs_path = &*source.ident().path().await?;
     let ident_str = &*source.ident().to_string().await?;
-    let ty = ty.into_value();
     Ok(match &*content.await? {
-        AssetContent::Redirect { .. } => ParseResult::Unparseable.cell(),
+        AssetContent::Redirect { .. } => ParseCssResult::Unparseable.cell(),
         AssetContent::File(file) => match &*file.await? {
-            FileContent::NotFound => ParseResult::NotFound.cell(),
+            FileContent::NotFound => ParseCssResult::NotFound.cell(),
             FileContent::Content(file) => match file.content().to_str() {
-                Err(_err) => ParseResult::Unparseable.cell(),
+                Err(_err) => ParseCssResult::Unparseable.cell(),
                 Ok(string) => {
                     let transforms = &*transforms.await?;
                     parse_content(
@@ -156,7 +155,7 @@ async fn parse_content(
     source: AssetVc,
     ty: CssModuleAssetType,
     transforms: &[CssInputTransform],
-) -> Result<ParseResultVc> {
+) -> Result<ParseCssResultVc> {
     let source_map: Arc<SourceMap> = Default::default();
     let handler = Handler::with_emitter(
         true,
@@ -183,7 +182,7 @@ async fn parse_content(
         Err(e) => {
             // TODO report in in a stream
             e.to_diagnostics(&handler).emit();
-            return Ok(ParseResult::Unparseable.into());
+            return Ok(ParseCssResult::Unparseable.into());
         }
     };
 
@@ -194,7 +193,7 @@ async fn parse_content(
     }
 
     if has_errors {
-        return Ok(ParseResult::Unparseable.into());
+        return Ok(ParseCssResult::Unparseable.into());
     }
 
     let context = TransformContext {
@@ -205,7 +204,7 @@ async fn parse_content(
     }
 
     let (imports, exports) = match ty {
-        CssModuleAssetType::Global => Default::default(),
+        CssModuleAssetType::Default => Default::default(),
         CssModuleAssetType::Module => {
             let imports = swc_core::css::modules::imports::analyze_imports(&parsed_stylesheet);
             let basename = BASENAME_RE
@@ -232,7 +231,7 @@ async fn parse_content(
         }
     };
 
-    Ok(ParseResult::Ok {
+    Ok(ParseCssResult::Ok {
         stylesheet: parsed_stylesheet,
         source_map,
         imports,
@@ -249,4 +248,11 @@ impl TransformConfig for ModuleTransformConfig {
     fn new_name_for(&self, local: &JsWord) -> JsWord {
         format!("{}{}", *local, self.suffix).into()
     }
+}
+
+/// Trait to be implemented by assets which can be parsed as CSS.
+#[turbo_tasks::value_trait]
+pub trait ParseCss {
+    /// Returns the parsed css.
+    fn parse_css(&self) -> ParseCssResultVc;
 }

@@ -157,6 +157,12 @@ pub struct ModuleOptionsContext {
     pub enable_typescript_transform: Option<TypescriptTransformOptionsVc>,
     pub decorators: Option<DecoratorsOptionsVc>,
     pub enable_mdx: bool,
+    /// This skips `GlobalCss` and `ModuleCss` module assets from being
+    /// generated in the module graph, generating only `Css` module assets.
+    ///
+    /// This is useful for node-file-trace, which tries to emit all assets in
+    /// the module graph, but neither asset types can be emitted directly.
+    pub enable_raw_css: bool,
     // [Note]: currently mdx, and mdx_rs have different configuration entrypoint from next.config.js,
     // however we might want to unify them in the future.
     pub enable_mdx_rs: Option<MdxTransformModuleOptionsVc>,

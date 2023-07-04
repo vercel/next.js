@@ -13,7 +13,7 @@ use std::{
 };
 
 use anyhow::Result;
-use css::{CssModuleAssetVc, ModuleCssModuleAssetVc};
+use css::{CssModuleAssetVc, GlobalCssAssetVc, ModuleCssAssetVc};
 use ecmascript::{
     typescript::resolve::TypescriptTypesAssetReferenceVc, EcmascriptModuleAssetType,
     EcmascriptModuleAssetVc,
@@ -34,7 +34,6 @@ use turbopack_core::{
     context::{AssetContext, AssetContextVc},
     ident::AssetIdentVc,
     issue::{Issue, IssueVc},
-    plugin::CustomModuleType,
     reference::all_referenced_assets,
     reference_type::{EcmaScriptModulesReferenceSubType, InnerAssetsVc, ReferenceType},
     resolve::{
@@ -62,6 +61,7 @@ use turbopack_mdx::MdxModuleAssetVc;
 use turbopack_static::StaticModuleAssetVc;
 
 use self::{
+    module_options::CustomModuleType,
     resolve_options_context::ResolveOptionsContextVc,
     transition::{TransitionVc, TransitionsByNameVc},
 };
@@ -164,21 +164,19 @@ async fn apply_module_type(
 
             builder.build()
         }
-
         ModuleType::Json => JsonModuleAssetVc::new(source).into(),
         ModuleType::Raw => source,
-        ModuleType::Css(transforms) => {
-            CssModuleAssetVc::new(source, context.into(), *transforms).into()
-        }
-        ModuleType::CssModule(transforms) => {
-            ModuleCssModuleAssetVc::new(source, context.into(), *transforms).into()
+        ModuleType::CssGlobal => GlobalCssAssetVc::new(source, context.into()).into(),
+        ModuleType::CssModule => ModuleCssAssetVc::new(source, context.into()).into(),
+        ModuleType::Css { ty, transforms } => {
+            CssModuleAssetVc::new(source, context.into(), *transforms, *ty).into()
         }
         ModuleType::Static => StaticModuleAssetVc::new(source, context.into()).into(),
         ModuleType::Mdx {
             transforms,
             options,
         } => MdxModuleAssetVc::new(source, context.into(), *transforms, *options).into(),
-        ModuleType::Custom(custom) => custom.create_module(source, context.into(), part),
+        ModuleType::Custom(custom) => custom.create_module(source, context, part),
     })
 }
 

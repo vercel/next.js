@@ -1,19 +1,21 @@
+pub(crate) mod custom_module_type;
 pub mod module_options_context;
 pub mod module_rule;
 pub mod rule_condition;
 
 use anyhow::{Context, Result};
+pub use custom_module_type::{CustomModuleType, CustomModuleTypeVc};
 pub use module_options_context::*;
 pub use module_rule::*;
 pub use rule_condition::*;
 use turbo_tasks::primitives::OptionStringVc;
 use turbo_tasks_fs::{glob::GlobVc, FileSystemPathVc};
 use turbopack_core::{
-    reference_type::{ReferenceType, UrlReferenceSubType},
+    reference_type::{CssReferenceSubType, ReferenceType, UrlReferenceSubType},
     resolve::options::{ImportMap, ImportMapVc, ImportMapping, ImportMappingVc},
     source_transform::SourceTransformsVc,
 };
-use turbopack_css::{CssInputTransform, CssInputTransformsVc};
+use turbopack_css::{CssInputTransform, CssInputTransformsVc, CssModuleAssetType};
 use turbopack_ecmascript::{
     EcmascriptInputTransform, EcmascriptInputTransformsVc, EcmascriptOptions, SpecifiedModuleType,
 };
@@ -68,6 +70,7 @@ impl ModuleOptionsVc {
             ref decorators,
             enable_mdx,
             enable_mdx_rs,
+            enable_raw_css,
             ref enable_postcss_transform,
             ref enable_webpack_loaders,
             preset_env_versions,
@@ -223,47 +226,6 @@ impl ModuleOptionsVc {
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Json)],
             ),
             ModuleRule::new(
-                ModuleRuleCondition::ResourcePathEndsWith(".css".to_string()),
-                [
-                    if let Some(options) = enable_postcss_transform {
-                        let execution_context = execution_context
-                            .context("execution_context is required for the postcss_transform")?
-                            .with_layer("postcss");
-
-                        let import_map = if let Some(postcss_package) = options.postcss_package {
-                            package_import_map_from_import_mapping("postcss", postcss_package)
-                        } else {
-                            package_import_map_from_context("postcss", path)
-                        };
-                        Some(ModuleRuleEffect::SourceTransforms(
-                            SourceTransformsVc::cell(vec![PostCssTransformVc::new(
-                                node_evaluate_asset_context(
-                                    execution_context,
-                                    Some(import_map),
-                                    None,
-                                ),
-                                execution_context,
-                            )
-                            .into()]),
-                        ))
-                    } else {
-                        None
-                    },
-                    Some(ModuleRuleEffect::ModuleType(ModuleType::Css(
-                        css_transforms,
-                    ))),
-                ]
-                .into_iter()
-                .flatten()
-                .collect(),
-            ),
-            ModuleRule::new(
-                ModuleRuleCondition::ResourcePathEndsWith(".module.css".to_string()),
-                vec![ModuleRuleEffect::ModuleType(ModuleType::CssModule(
-                    css_transforms,
-                ))],
-            ),
-            ModuleRule::new(
                 ModuleRuleCondition::any(vec![
                     ModuleRuleCondition::ResourcePathEndsWith(".js".to_string()),
                     ModuleRuleCondition::ResourcePathEndsWith(".jsx".to_string()),
@@ -394,6 +356,128 @@ impl ModuleOptionsVc {
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Static)],
             ),
         ];
+
+        if enable_raw_css {
+            rules.extend([
+                ModuleRule::new(
+                    ModuleRuleCondition::all(vec![ModuleRuleCondition::ResourcePathEndsWith(
+                        ".css".to_string(),
+                    )]),
+                    vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
+                        ty: CssModuleAssetType::Default,
+                        transforms: css_transforms,
+                    })],
+                ),
+                ModuleRule::new(
+                    ModuleRuleCondition::all(vec![ModuleRuleCondition::ResourcePathEndsWith(
+                        ".module.css".to_string(),
+                    )]),
+                    vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
+                        ty: CssModuleAssetType::Module,
+                        transforms: css_transforms,
+                    })],
+                ),
+            ]);
+        } else {
+            rules.extend([
+                ModuleRule::new(
+                    ModuleRuleCondition::all(vec![
+                        ModuleRuleCondition::ResourcePathEndsWith(".css".to_string()),
+                        // Only create a global CSS asset if not `@import`ed from CSS already.
+                        ModuleRuleCondition::not(ModuleRuleCondition::ReferenceType(
+                            ReferenceType::Css(CssReferenceSubType::AtImport),
+                        )),
+                    ]),
+                    [
+                        if let Some(options) = enable_postcss_transform {
+                            let execution_context = execution_context
+                                .context("execution_context is required for the postcss_transform")?
+                                .with_layer("postcss");
+
+                            let import_map = if let Some(postcss_package) = options.postcss_package
+                            {
+                                package_import_map_from_import_mapping("postcss", postcss_package)
+                            } else {
+                                package_import_map_from_context("postcss", path)
+                            };
+                            Some(ModuleRuleEffect::SourceTransforms(
+                                SourceTransformsVc::cell(vec![PostCssTransformVc::new(
+                                    node_evaluate_asset_context(
+                                        execution_context,
+                                        Some(import_map),
+                                        None,
+                                    ),
+                                    execution_context,
+                                )
+                                .into()]),
+                            ))
+                        } else {
+                            None
+                        },
+                        Some(ModuleRuleEffect::ModuleType(ModuleType::CssGlobal)),
+                    ]
+                    .into_iter()
+                    .flatten()
+                    .collect(),
+                ),
+                ModuleRule::new(
+                    ModuleRuleCondition::all(vec![
+                        ModuleRuleCondition::ResourcePathEndsWith(".module.css".to_string()),
+                        // Only create a module CSS asset if not `@import`ed from CSS already.
+                        // NOTE: `composes` references should not be treated as `@import`s and
+                        // should also create a module CSS asset.
+                        ModuleRuleCondition::not(ModuleRuleCondition::ReferenceType(
+                            ReferenceType::Css(CssReferenceSubType::AtImport),
+                        )),
+                    ]),
+                    vec![ModuleRuleEffect::ModuleType(ModuleType::CssModule)],
+                ),
+                ModuleRule::new(
+                    ModuleRuleCondition::all(vec![
+                        ModuleRuleCondition::ResourcePathEndsWith(".css".to_string()),
+                        // Create a normal CSS asset if `@import`ed from CSS already.
+                        ModuleRuleCondition::ReferenceType(ReferenceType::Css(
+                            CssReferenceSubType::AtImport,
+                        )),
+                    ]),
+                    vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
+                        ty: CssModuleAssetType::Default,
+                        transforms: css_transforms,
+                    })],
+                ),
+                ModuleRule::new(
+                    ModuleRuleCondition::all(vec![
+                        ModuleRuleCondition::ResourcePathEndsWith(".module.css".to_string()),
+                        // Create a normal CSS asset if `@import`ed from CSS already.
+                        ModuleRuleCondition::ReferenceType(ReferenceType::Css(
+                            CssReferenceSubType::AtImport,
+                        )),
+                    ]),
+                    vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
+                        ty: CssModuleAssetType::Module,
+                        transforms: css_transforms,
+                    })],
+                ),
+                ModuleRule::new_internal(
+                    ModuleRuleCondition::all(vec![ModuleRuleCondition::ResourcePathEndsWith(
+                        ".css".to_string(),
+                    )]),
+                    vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
+                        ty: CssModuleAssetType::Default,
+                        transforms: css_transforms,
+                    })],
+                ),
+                ModuleRule::new_internal(
+                    ModuleRuleCondition::all(vec![ModuleRuleCondition::ResourcePathEndsWith(
+                        ".module.css".to_string(),
+                    )]),
+                    vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
+                        ty: CssModuleAssetType::Module,
+                        transforms: css_transforms,
+                    })],
+                ),
+            ]);
+        }
 
         if enable_mdx || enable_mdx_rs.is_some() {
             let (jsx_runtime, jsx_import_source) = if let Some(enable_jsx) = enable_jsx {

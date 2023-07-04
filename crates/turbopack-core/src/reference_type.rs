@@ -45,6 +45,12 @@ pub enum EcmaScriptModulesReferenceSubType {
 pub enum CssReferenceSubType {
     AtImport,
     Compose,
+    /// Reference from any asset to a CSS-parseable asset.
+    ///
+    /// This marks the boundary between non-CSS and CSS assets. The Next.js App
+    /// Router implementation uses this to inject client references in-between
+    /// Global/Module CSS assets and the underlying CSS assets.
+    Internal,
     Custom(u8),
     Undefined,
 }
@@ -150,5 +156,15 @@ impl ReferenceType {
             }
             ReferenceType::Undefined => true,
         }
+    }
+
+    /// Returns true if this reference type is internal. This will be used in
+    /// combination with [`ModuleRuleCondition::Internal`] to determine if a
+    /// rule should be applied to an internal asset/reference.
+    pub fn is_internal(&self) -> bool {
+        matches!(
+            self,
+            ReferenceType::Internal(_) | ReferenceType::Css(CssReferenceSubType::Internal)
+        )
     }
 }

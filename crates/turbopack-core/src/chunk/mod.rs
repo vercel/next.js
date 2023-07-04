@@ -5,6 +5,7 @@ pub(crate) mod containment_tree;
 pub(crate) mod data;
 pub(crate) mod evaluate;
 pub mod optimize;
+pub(crate) mod passthrough_asset;
 
 use std::{
     collections::HashSet,
@@ -32,6 +33,7 @@ pub use self::{
     chunking_context::{ChunkingContext, ChunkingContextVc},
     data::{ChunkData, ChunkDataOption, ChunkDataOptionVc, ChunkDataVc, ChunksData, ChunksDataVc},
     evaluate::{EvaluatableAsset, EvaluatableAssetVc, EvaluatableAssets, EvaluatableAssetsVc},
+    passthrough_asset::{PassthroughAsset, PassthroughAssetVc},
 };
 use crate::{
     asset::{Asset, AssetVc, AssetsVc},
@@ -277,6 +279,9 @@ where
 
 #[derive(Eq, PartialEq, Clone, Hash)]
 enum ChunkContentGraphNode<I> {
+    // An asset not placed in the current chunk, but whose references we will
+    // follow to find more graph nodes.
+    PassthroughAsset { asset: AssetVc },
     // Chunk items that are placed into the current chunk
     ChunkItem { item: I, ident: StringReadRef },
     // Asset that is already available and doesn't need to be included
@@ -331,6 +336,11 @@ where
                 ));
                 continue;
             }
+        }
+
+        if PassthroughAssetVc::resolve_from(asset).await?.is_some() {
+            graph_nodes.push((None, ChunkContentGraphNode::PassthroughAsset { asset }));
+            continue;
         }
 
         let chunkable_asset = match ChunkableAssetVc::resolve_from(asset).await? {
@@ -486,24 +496,20 @@ where
     }
 
     fn edges(&mut self, node: &ChunkContentGraphNode<I>) -> Self::EdgesFuture {
-        let chunk_item = if let ChunkContentGraphNode::ChunkItem {
-            item: chunk_item, ..
-        } = node
-        {
-            Some(chunk_item.clone())
-        } else {
-            None
-        };
+        let node = node.clone();
 
         let context = self.context;
 
         async move {
-            let Some(chunk_item) = chunk_item else {
-                return Ok(vec![].into_iter().flatten());
+            let references = match node {
+                ChunkContentGraphNode::PassthroughAsset { asset } => asset.references(),
+                ChunkContentGraphNode::ChunkItem { item, .. } => item.references(),
+                _ => {
+                    return Ok(vec![].into_iter().flatten());
+                }
             };
 
-            Ok(chunk_item
-                .references()
+            Ok(references
                 .await?
                 .into_iter()
                 .map(|reference| reference_to_graph_nodes::<I>(context, *reference))
@@ -580,7 +586,8 @@ where
 
     for graph_node in graph_nodes {
         match graph_node {
-            ChunkContentGraphNode::AvailableAsset(_asset) => {}
+            ChunkContentGraphNode::AvailableAsset(_)
+            | ChunkContentGraphNode::PassthroughAsset { .. } => {}
             ChunkContentGraphNode::ChunkItem { item, .. } => {
                 chunk_items.push(item);
             }
