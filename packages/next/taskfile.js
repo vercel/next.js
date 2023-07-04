@@ -2661,6 +2661,7 @@ export async function minimal_next_server(task) {
   })
 
   const webpack = require('webpack')
+  const TerserPlugin = require('terser-webpack-plugin')
 
   /** @type {webpack.Configuration} */
   const config = {
@@ -2676,6 +2677,20 @@ export async function minimal_next_server(task) {
     optimization: {
       // moduleIds: 'named',
       // minimize: false,
+      minimize: true,
+      minimizer: [
+        new TerserPlugin({
+          extractComments: false,
+          terserOptions: {
+            format: {
+              comments: false,
+            },
+            compress: {
+              passes: 2,
+            },
+          },
+        }),
+      ],
     },
     plugins: [
       new webpack.DefinePlugin({
