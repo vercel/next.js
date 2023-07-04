@@ -302,6 +302,7 @@ async function createTreeCodeFromPath(
           )}), ${JSON.stringify(resolvedPagePath)}],
           ${createMetadataExportsCode(metadata)}
         }]`
+
         continue
       }
 
@@ -487,11 +488,15 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
         }
 
         const isParallelRoute = rest[0].startsWith('@')
-        if (isParallelRoute && rest.length === 2 && rest[1] === 'page') {
-          matched[rest[0]] = [PAGE_SEGMENT]
-          continue
-        }
         if (isParallelRoute) {
+          if (rest.length === 2 && rest[1] === 'page') {
+            // matched will be an empty object in case the parallel route is at a path with no existing page
+            // in which case, we need to mark it as a regular page segment
+            matched[rest[0]] = Object.keys(matched).length
+              ? [PAGE_SEGMENT]
+              : PAGE_SEGMENT
+            continue
+          }
           // we insert a special marker in order to also process layout/etc files at the slot level
           matched[rest[0]] = [PARALLEL_CHILDREN_SEGMENT, ...rest.slice(1)]
           continue
