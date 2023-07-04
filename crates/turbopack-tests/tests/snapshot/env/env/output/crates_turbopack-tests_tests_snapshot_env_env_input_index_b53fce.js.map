@@ -1,6 +1,6 @@
 {
   "version": 3,
   "sections": [
-    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["/turbopack/[project]/crates/turbopack-tests/tests/snapshot/env/env/input/index.js"],"sourcesContent":["console.log(process.env.FOOBAR);\n"],"names":[],"mappings":"AAAA,QAAQ,GAAG,CAAC,QAAQ,GAAG,CAAC,MAAM"}},
-    {"offset": {"line": 5, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["/turbopack/[project]/crates/turbopack-tests/tests/snapshot/env/env/input/index.js"],"sourcesContent":["console.log(process.env.FOOBAR);\nconsole.log(process.env.BARFOO);\nconsole.log(process.env.ALLFOOBAR);\n"],"names":[],"mappings":"AAAA,QAAQ,GAAG,CAAC,QAAQ,GAAG,CAAC,MAAM;AAC9B,QAAQ,GAAG,CAAC,QAAQ,GAAG,CAAC,MAAM;AAC9B,QAAQ,GAAG,CAAC,QAAQ,GAAG,CAAC,SAAS"}},
+    {"offset": {"line": 7, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
 }

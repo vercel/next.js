@@ -7,6 +7,8 @@ const env = process.env = {
 };
 env["FOO"] = foo;
 env["FOOBAR"] = foobar;
+env["BARFOO"] = barfoo;
+env["ALLFOOBAR"] = foobarfoobar;
 
 }.call(this) }),
 }]);
