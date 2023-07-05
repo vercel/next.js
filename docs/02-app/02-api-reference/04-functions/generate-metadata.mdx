@@ -30,7 +30,7 @@ export async function generateMetadata({ params }) {
 
 ```jsx filename="layout.js / page.js" switcher
 // either Static metadata
-export const metadata = {
+export const metadata: Metadata = {
   title: '...',
 }
 
@@ -63,7 +63,7 @@ export default function Page() {}
 ```
 
 ```jsx filename="layout.js / page.js" switcher
-export const metadata = {
+export const metadata: Metadata = {
   title: '...',
   description: '...',
 }
@@ -153,7 +153,7 @@ The `title` attribute is used to set the title of the document. It can be define
 #### String
 
 ```jsx filename="layout.js / page.js"
-export const metadata = {
+export const metadata: Metadata = {
   title: 'Next.js',
 }
 ```
@@ -193,7 +193,7 @@ export const metadata: Metadata = {
 `title.default` can be used to provide a **fallback title** to child route segments that don't define a `title`.
 
 ```tsx filename="app/layout.tsx"
-export const metadata = {
+export const metadata: Metadata = {
   title: {
     default: 'Acme',
   },
@@ -201,7 +201,7 @@ export const metadata = {
 ```
 
 ```tsx filename="app/about/page.tsx"
-export const metadata = {}
+export const metadata: Metadata = {}
 
 // Output: <title>Acme</title>
 ```
@@ -277,7 +277,7 @@ export const metadata: Metadata = {
 ```
 
 ```jsx filename="app/layout.js" switcher
-export const metadata = {
+export const metadata: Metadata = {
   title: {
     template: '%s | Acme',
   },
@@ -297,7 +297,7 @@ export const metadata: Metadata = {
 ```
 
 ```jsx filename="app/about/page.js" switcher
-export const metadata = {
+export const metadata: Metadata = {
   title: {
     absolute: 'About',
   },
@@ -323,7 +323,7 @@ export const metadata = {
 ### `description`
 
 ```jsx filename="layout.js / page.js"
-export const metadata = {
+export const metadata: Metadata = {
   description: 'The React Framework for the Web',
 }
 ```
@@ -335,7 +335,7 @@ export const metadata = {
 ### Basic Fields
 
 ```jsx filename="layout.js / page.js"
-export const metadata = {
+export const metadata: Metadata = {
   generator: 'Next.js',
   applicationName: 'Next.js',
   referrer: 'origin-when-cross-origin',
@@ -375,7 +375,7 @@ export const metadata = {
 - If not configured, `metadataBase` is **automatically populated** with a [default value](#default-value).
 
 ```jsx filename="layout.js / page.js"
-export const metadata = {
+export const metadata: Metadata = {
   metadataBase: new URL('https://acme.com'),
   alternates: {
     canonical: '/',
@@ -431,7 +431,7 @@ export const metadata: Metadata = {
 ```
 
 ```jsx filename="app/layout.js" switcher
-export const metadata = {
+export const metadata: Metadata = {
   metadataBase: new URL('https://acme.com'),
 }
 ```
@@ -451,7 +451,7 @@ Any `metadata` fields that inherit the above `metadataBase` and set their own va
 ### `openGraph`
 
 ```jsx filename="layout.js / page.js"
-export const metadata = {
+export const metadata: Metadata = {
   openGraph: {
     title: 'Next.js',
     description: 'The React Framework for the Web',
@@ -493,7 +493,7 @@ export const metadata = {
 ```
 
 ```jsx filename="layout.js / page.js"
-export const metadata = {
+export const metadata: Metadata = {
   openGraph: {
     title: 'Next.js',
     description: 'The React Framework for the Web',
@@ -520,7 +520,7 @@ export const metadata = {
 ### `robots`
 
 ```tsx
-export const metadata = {
+export const metadata: Metadata = {
   robots: {
     index: false,
     follow: true,
@@ -550,7 +550,7 @@ export const metadata = {
 > **Good to know**: We recommend using the [file-based Metadata API](/docs/app/api-reference/file-conventions/metadata/app-icons#image-files-ico-jpg-png) for icons where possible. Rather than having to sync the config export with actual files, the file-based API will automatically generate the correct metadata for you.
 
 ```jsx filename="layout.js / page.js"
-export const metadata = {
+export const metadata: Metadata = {
   icons: {
     icon: '/icon.png',
     shortcut: '/shortcut-icon.png',
@@ -574,7 +574,7 @@ export const metadata = {
 ```
 
 ```jsx filename="layout.js / page.js"
-export const metadata = {
+export const metadata: Metadata = {
   icons: {
     icon: [{ url: '/icon.png' }, new URL('/icon.png', 'https://example.com')],
     shortcut: ['/shortcut-icon.png'],
@@ -618,7 +618,7 @@ Learn more about [theme-color](https://developer.mozilla.org/en-US/docs/Web/HTML
 **Simple theme color**
 
 ```jsx filename="layout.js / page.js"
-export const metadata = {
+export const metadata: Metadata = {
   themeColor: 'black',
 }
 ```
@@ -630,7 +630,7 @@ export const metadata = {
 **With media attribute**
 
 ```jsx filename="layout.js / page.js"
-export const metadata = {
+export const metadata: Metadata = {
   themeColor: [
     { media: '(prefers-color-scheme: light)', color: 'cyan' },
     { media: '(prefers-color-scheme: dark)', color: 'black' },
@@ -648,7 +648,7 @@ export const metadata = {
 A web application manifest, as defined in the [Web Application Manifest specification](https://developer.mozilla.org/en-US/docs/Web/Manifest).
 
 ```jsx filename="layout.js / page.js"
-export const metadata = {
+export const metadata: Metadata = {
   manifest: 'https://nextjs.org/manifest.json',
 }
 ```
@@ -662,7 +662,7 @@ export const metadata = {
 Learn more about the [Twitter Card markup reference](https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/markup).
 
 ```jsx filename="layout.js / page.js"
-export const metadata = {
+export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'Next.js',
@@ -686,7 +686,7 @@ export const metadata = {
 ```
 
 ```jsx filename="layout.js / page.js"
-export const metadata = {
+export const metadata: Metadata = {
   twitter: {
     card: 'app',
     title: 'Next.js',
@@ -738,7 +738,7 @@ export const metadata = {
 > **Good to know**: The `viewport` meta tag is automatically set with the following default values. Usually, manual configuration is unnecessary as the default is sufficient. However, the information is provided for completeness.
 
 ```jsx filename="layout.js / page.js"
-export const metadata = {
+export const metadata: Metadata = {
   viewport: {
     width: 'device-width',
     initialScale: 1,
@@ -757,7 +757,7 @@ export const metadata = {
 ### `verification`
 
 ```jsx filename="layout.js / page.js"
-export const metadata = {
+export const metadata: Metadata = {
   verification: {
     google: 'google',
     yandex: 'yandex',
@@ -780,7 +780,7 @@ export const metadata = {
 ### `appleWebApp`
 
 ```jsx filename="layout.js / page.js"
-export const metadata = {
+export const metadata: Metadata = {
   itunes: {
     appId: 'myAppStoreID',
     appArgument: 'myAppArgument',
@@ -824,7 +824,7 @@ export const metadata = {
 ### `alternates`
 
 ```jsx filename="layout.js / page.js"
-export const metadata = {
+export const metadata: Metadata = {
   alternates: {
     canonical: 'https://nextjs.org',
     languages: {
@@ -860,7 +860,7 @@ export const metadata = {
 ### `appLinks`
 
 ```jsx filename="layout.js / page.js"
-export const metadata = {
+export const metadata: Metadata = {
   appLinks: {
     ios: {
       url: 'https://nextjs.org/ios',
@@ -892,7 +892,7 @@ export const metadata = {
 Describes a collection of records, documents, or other materials of historical interest ([source](https://www.w3.org/TR/2011/WD-html5-20110113/links.html#rel-archives)).
 
 ```jsx filename="layout.js / page.js"
-export const metadata = {
+export const metadata: Metadata = {
   archives: ['https://nextjs.org/13'],
 }
 ```
@@ -904,7 +904,7 @@ export const metadata = {
 ### `assets`
 
 ```jsx filename="layout.js / page.js"
-export const metadata = {
+export const metadata: Metadata = {
   assets: ['https://nextjs.org/assets'],
 }
 ```
@@ -916,7 +916,7 @@ export const metadata = {
 ### `bookmarks`
 
 ```jsx filename="layout.js / page.js"
-export const metadata = {
+export const metadata: Metadata = {
   bookmarks: ['https://nextjs.org/13'],
 }
 ```
@@ -928,7 +928,7 @@ export const metadata = {
 ### `category`
 
 ```jsx filename="layout.js / page.js"
-export const metadata = {
+export const metadata: Metadata = {
   category: 'technology',
 }
 ```
@@ -942,7 +942,7 @@ export const metadata = {
 All metadata options should be covered using the built-in support. However, there may be custom metadata tags specific to your site, or brand new metadata tags just released. You can use the `other` option to render any custom metadata tag.
 
 ```jsx filename="layout.js / page.js"
-export const metadata = {
+export const metadata: Metadata = {
   other: {
     custom: 'meta',
   },
@@ -1125,7 +1125,7 @@ For JavaScript projects, you can use JSDoc to add type safety.
 
 ```js
 /** @type {import("next").Metadata} */
-export const metadata = {
+export const metadata: Metadata = {
   title: 'Next.js',
 }
 ```
