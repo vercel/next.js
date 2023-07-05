@@ -192,6 +192,8 @@ export const metadata = {
 `title.default` can be used to provide a **fallback title** to child route segments that don't define a `title`.
 
 ```tsx filename="app/layout.tsx"
+import { Metadata } from 'next'
+
 export const metadata: Metadata = {
   title: {
     default: 'Acme',
