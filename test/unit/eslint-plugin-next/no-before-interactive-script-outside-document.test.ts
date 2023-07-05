@@ -197,6 +197,75 @@ ruleTester.run('no-before-interactive-script-outside-document', rule, {
       }`,
       filename: 'app/layout.tsx',
     },
+    {
+      code: `
+      import Script from "next/script";
+
+      export default function Index() {
+        return (
+          <html lang="en">
+            <body className={inter.className}>{children}</body>
+            <Script
+              src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=scriptBeforeInteractive"
+              strategy='beforeInteractive'
+            />
+          </html>
+        );
+      }`,
+      filename: '/Users/user_name/projects/project-name/app/layout.tsx',
+    },
+    {
+      code: `
+      import Script from "next/script";
+
+      export default function test() {
+        return (
+          <html lang="en">
+            <body className={inter.className}>{children}</body>
+            <Script
+              src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=scriptBeforeInteractive"
+              strategy='beforeInteractive'
+            />
+          </html>
+        );
+      }`,
+      filename: 'C:\\Users\\username\\projects\\project-name\\app\\layout.tsx',
+    },
+    {
+      code: `
+      import Script from "next/script";
+
+      export default function Index() {
+        return (
+          <html lang="en">
+            <body className={inter.className}>{children}</body>
+            <Script
+              src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=scriptBeforeInteractive"
+              strategy='beforeInteractive'
+            />
+          </html>
+        );
+      }`,
+      filename: '/Users/user_name/projects/project-name/src/app/layout.tsx',
+    },
+    {
+      code: `
+      import Script from "next/script";
+
+      export default function test() {
+        return (
+          <html lang="en">
+            <body className={inter.className}>{children}</body>
+            <Script
+              src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=scriptBeforeInteractive"
+              strategy='beforeInteractive'
+            />
+          </html>
+        );
+      }`,
+      filename:
+        'C:\\Users\\username\\projects\\project-name\\src\\app\\layout.tsx',
+    },
   ].map((obj, idx) => ({
     ...obj,
     code: `// valid-${idx}
@@ -242,6 +311,100 @@ ruleTester.run('no-before-interactive-script-outside-document', rule, {
         );
       }`,
       filename: 'components/outside-known-dirs.js',
+      errors: [
+        {
+          message:
+            "`next/script`'s `beforeInteractive` strategy should not be used outside of `pages/_document.js`. See: https://nextjs.org/docs/messages/no-before-interactive-script-outside-document",
+        },
+      ],
+    },
+    {
+      code: `
+      import Script from "next/script";
+
+      export default function Index() {
+        return (
+          <html lang="en">
+            <body className={inter.className}>{children}</body>
+            <Script
+              src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=scriptBeforeInteractive"
+              strategy='beforeInteractive'
+            />
+          </html>
+        );
+      }`,
+      filename: '/Users/user_name/projects/project-name/pages/layout.tsx',
+      errors: [
+        {
+          message:
+            "`next/script`'s `beforeInteractive` strategy should not be used outside of `pages/_document.js`. See: https://nextjs.org/docs/messages/no-before-interactive-script-outside-document",
+        },
+      ],
+    },
+    {
+      code: `
+      import Script from "next/script";
+
+      export default function Index() {
+        return (
+          <html lang="en">
+            <body className={inter.className}>{children}</body>
+            <Script
+              src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=scriptBeforeInteractive"
+              strategy='beforeInteractive'
+            />
+          </html>
+        );
+      }`,
+      filename: '/Users/user_name/projects/project-name/src/pages/layout.tsx',
+      errors: [
+        {
+          message:
+            "`next/script`'s `beforeInteractive` strategy should not be used outside of `pages/_document.js`. See: https://nextjs.org/docs/messages/no-before-interactive-script-outside-document",
+        },
+      ],
+    },
+    {
+      code: `
+      import Script from "next/script";
+
+      export default function test() {
+        return (
+          <html lang="en">
+            <body className={inter.className}>{children}</body>
+            <Script
+              src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=scriptBeforeInteractive"
+              strategy='beforeInteractive'
+            />
+          </html>
+        );
+      }`,
+      filename:
+        'C:\\Users\\username\\projects\\project-name\\pages\\layout.tsx',
+      errors: [
+        {
+          message:
+            "`next/script`'s `beforeInteractive` strategy should not be used outside of `pages/_document.js`. See: https://nextjs.org/docs/messages/no-before-interactive-script-outside-document",
+        },
+      ],
+    },
+    {
+      code: `
+      import Script from "next/script";
+
+      export default function test() {
+        return (
+          <html lang="en">
+            <body className={inter.className}>{children}</body>
+            <Script
+              src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=scriptBeforeInteractive"
+              strategy='beforeInteractive'
+            />
+          </html>
+        );
+      }`,
+      filename:
+        'C:\\Users\\username\\projects\\project-name\\src\\pages\\layout.tsx',
       errors: [
         {
           message:
