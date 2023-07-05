@@ -81,15 +81,7 @@ describe('Next Build', () => {
     )
   })
 
-  // Consolidate two tests below when the `appDir` is released.
   test('base directories are linted by default during builds', async () => {
-    dirBaseDirectoriesConfigFile.write(`
-        module.exports = {
-          experimental: {
-            appDir: false,
-          }
-        }
-      `)
     const { stdout, stderr } = await nextBuild(dirBaseDirectories, [], {
       stdout: true,
       stderr: true,
@@ -110,36 +102,7 @@ describe('Next Build', () => {
       'Warning: `rel="preconnect"` is missing from Google Font'
     )
 
-    // Files in pages, components, lib, and src directories are linted
-    expect(output).toContain('pages/_document.js')
-    expect(output).toContain('components/bar.js')
-    expect(output).toContain('lib/foo.js')
-    expect(output).toContain('src/index.js')
-    expect(output).not.toContain('app/layout.js')
-  })
-
-  test('base directories with appDir flag are linted by default during builds', async () => {
-    const { stdout, stderr } = await nextBuild(dirBaseDirectories, [], {
-      stdout: true,
-      stderr: true,
-    })
-
-    const output = stdout + stderr
-
-    expect(output).toContain('Failed to compile')
-    expect(output).toContain(
-      'Error: `next/head` should not be imported in `pages/_document.js`. Use `<Head />` from `next/document` instead'
-    )
-    expect(output).toContain(
-      'Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images.'
-    )
-    expect(output).toContain('Warning: Do not include stylesheets manually')
-    expect(output).toContain('Warning: Synchronous scripts should not be used')
-    expect(output).toContain(
-      'Warning: `rel="preconnect"` is missing from Google Font'
-    )
-
-    // Files in pages, app, components, lib, and src directories are linted
+    // Files in app, pages, components, lib, and src directories are linted
     expect(output).toContain('pages/_document.js')
     expect(output).toContain('components/bar.js')
     expect(output).toContain('lib/foo.js')
