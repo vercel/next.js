@@ -10,7 +10,7 @@ import type {
 import type { ErrorComponent } from './error-boundary'
 import type { FocusAndScrollRef } from './router-reducer/router-reducer-types'
 
-import React, { useContext, use } from 'react'
+import React, { useContext, use, startTransition, Suspense } from 'react'
 import ReactDOM from 'react-dom'
 import {
   CacheStates,
@@ -335,14 +335,14 @@ function InnerLayoutRouter({
     if (!childNode) {
       // Add the segment's subTreeData to the cache.
       // This writes to the cache when there is no item in the cache yet. It never *overwrites* existing cache items which is why it's safe in concurrent mode.
-      childNodes.set(cacheKey, {
+      childNode = {
         status: CacheStates.READY,
         data: null,
         subTreeData: childProp.current,
         parallelRoutes: new Map(),
-      })
-      // In the above case childNode was set on childNodes, so we have to get it from the cacheNodes again.
-      childNode = childNodes.get(cacheKey)
+      }
+
+      childNodes.set(cacheKey, childNode)
     } else {
       if (childNode.status === CacheStates.LAZY_INITIALIZED) {
         // @ts-expect-error we're changing it's type!
@@ -361,10 +361,7 @@ function InnerLayoutRouter({
     // TODO-APP: remove ''
     const refetchTree = walkAddRefetch(['', ...segmentPath], fullTree)
 
-    /**
-     * Flight data fetch kicked off during render and put into the cache.
-     */
-    childNodes.set(cacheKey, {
+    childNode = {
       status: CacheStates.DATA_FETCH,
       data: fetchServerResponse(
         new URL(url, location.origin),
@@ -381,9 +378,12 @@ function InnerLayoutRouter({
         childNode && childNode.status === CacheStates.LAZY_INITIALIZED
           ? childNode.parallelRoutes
           : new Map(),
-    })
-    // In the above case childNode was set on childNodes, so we have to get it from the cacheNodes again.
-    childNode = childNodes.get(cacheKey)
+    }
+
+    /**
+     * Flight data fetch kicked off during render and put into the cache.
+     */
+    childNodes.set(cacheKey, childNode)
   }
 
   // This case should never happen so it throws an error. It indicates there's a bug in the Next.js.
@@ -404,19 +404,12 @@ function InnerLayoutRouter({
     // When the data has not resolved yet `use` will suspend here.
     const [flightData, overrideCanonicalUrl] = use(childNode.data)
 
-    // Handle case when navigating to page in `pages` from `app`
-    if (typeof flightData === 'string') {
-      window.location.href = url
-      return null
-    }
-
     // segmentPath from the server does not match the layout's segmentPath
     childNode.data = null
 
     // setTimeout is used to start a new transition during render, this is an intentional hack around React.
     setTimeout(() => {
-      // @ts-ignore startTransition exists
-      React.startTransition(() => {
+      startTransition(() => {
         changeByServerResponse(fullTree, flightData, overrideCanonicalUrl)
       })
     })
@@ -464,7 +457,7 @@ function LoadingBoundary({
 }): JSX.Element {
   if (hasLoading) {
     return (
-      <React.Suspense
+      <Suspense
         fallback={
           <>
             {loadingStyles}
@@ -473,7 +466,7 @@ function LoadingBoundary({
         }
       >
         {children}
-      </React.Suspense>
+      </Suspense>
     )
   }
 
@@ -527,8 +520,8 @@ export default function OuterLayoutRouter({
   // If the parallel router cache node does not exist yet, create it.
   // This writes to the cache when there is no item in the cache yet. It never *overwrites* existing cache items which is why it's safe in concurrent mode.
   if (!childNodesForParallelRouter) {
-    childNodes.set(parallelRouterKey, new Map())
-    childNodesForParallelRouter = childNodes.get(parallelRouterKey)!
+    childNodesForParallelRouter = new Map()
+    childNodes.set(parallelRouterKey, childNodesForParallelRouter)
   }
 
   // Get the active segment in the tree
@@ -602,10 +595,8 @@ export default function OuterLayoutRouter({
               </ScrollAndFocusHandler>
             }
           >
-            <>
-              {templateStyles}
-              {template}
-            </>
+            {templateStyles}
+            {template}
           </TemplateContext.Provider>
         )
       })}

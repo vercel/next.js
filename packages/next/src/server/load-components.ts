@@ -10,6 +10,8 @@ import type {
   GetServerSideProps,
   GetStaticProps,
 } from 'next/types'
+import type { RouteModule } from './future/route-modules/route-module'
+
 import {
   BUILD_MANIFEST,
   REACT_LOADABLE_MANIFEST,
@@ -44,16 +46,23 @@ export type LoadComponentsReturnType = {
   getStaticPaths?: GetStaticPaths
   getServerSideProps?: GetServerSideProps
   ComponentMod: any
+  routeModule?: RouteModule
   isAppPath?: boolean
   pathname: string
 }
 
-async function loadDefaultErrorComponentsImpl(distDir: string) {
+async function loadDefaultErrorComponentsImpl(
+  distDir: string
+): Promise<LoadComponentsReturnType> {
   const Document = interopDefault(require('next/dist/pages/_document'))
   const AppMod = require('next/dist/pages/_app')
   const App = interopDefault(AppMod)
-  const ComponentMod = require('next/dist/pages/_error')
-  const Component = interopDefault(ComponentMod)
+
+  // Load the compiled route module for this builtin error.
+  // TODO: (wyattjoh) replace this with just exporting the route module when the transition is complete
+  const ComponentMod =
+    require('./future/route-modules/pages/builtin/_error') as typeof import('./future/route-modules/pages/builtin/_error')
+  const Component = ComponentMod.routeModule.userland.default
 
   return {
     App,
@@ -64,6 +73,7 @@ async function loadDefaultErrorComponentsImpl(distDir: string) {
     reactLoadableManifest: {},
     ComponentMod,
     pathname: '/_error',
+    routeModule: ComponentMod.routeModule,
   }
 }
 
@@ -146,6 +156,7 @@ async function loadComponentsImpl({
     serverActionsManifest,
     isAppPath,
     pathname,
+    routeModule: ComponentMod.routeModule,
   }
 }
 

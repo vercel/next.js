@@ -305,19 +305,56 @@ async function updateComment(
   }
 }
 
-async function createComment(comment: string): Promise<string> {
-  try {
-    const { data } = await octokit.rest.issues.createComment({
-      owner,
-      repo,
-      issue_number: pullRequest.number,
-      body: comment,
+async function createComment(
+  comment: string,
+  allErrors: Errors[]
+): Promise<string> {
+  const isFork = pullRequest.head.repo.fork
+
+  if (isFork) {
+    const errorTableData = allErrors.flatMap((errors) => {
+      const {
+        doc,
+        brokenLinks,
+        brokenHashes,
+        brokenSourceLinks,
+        brokenRelatedLinks,
+      } = errors
+
+      const allBrokenLinks = [
+        ...brokenLinks,
+        ...brokenHashes,
+        ...brokenSourceLinks,
+        ...brokenRelatedLinks,
+      ]
+
+      return allBrokenLinks.map((link) => ({
+        path: doc.path,
+        link,
+      }))
     })
 
-    return data.html_url
-  } catch (error) {
-    setFailed('Error creating comment: ' + error)
+    console.log('This PR introduces broken links to the docs:')
+    console.table(errorTableData, ['path', 'link'])
+    setFailed(
+      'The action could not create a Github comment because it is initiated from a forked repo. View the action logs for a list of broken links.'
+    )
+
     return ''
+  } else {
+    try {
+      const { data } = await octokit.rest.issues.createComment({
+        owner,
+        repo,
+        issue_number: pullRequest.number,
+        body: comment,
+      })
+
+      return data.html_url
+    } catch (error) {
+      setFailed('Error creating comment: ' + error)
+      return ''
+    }
   }
 }
 
@@ -325,24 +362,52 @@ const formatTableRow = (link: string, docPath: string) => {
   return `| ${link} | [/${docPath}](https://github.com/vercel/next.js/blob/${sha}/${docPath}) | \n`
 }
 
-async function createCommitStatus(
+async function updateCheckStatus(
   errorsExist: boolean,
   commentUrl?: string
 ): Promise<void> {
-  const state = errorsExist ? 'failure' : 'success'
-  const description = errorsExist
-    ? 'This PR introduces broken links to the docs. Click details for a list.'
-    : 'All broken links are now fixed, thank you!'
+  const isFork = pullRequest.head.repo.fork
+  const checkName = 'Docs Link Validation'
 
-  await octokit.rest.repos.createCommitStatus({
+  let summary, text
+
+  if (errorsExist) {
+    summary =
+      'This PR introduces broken links to the docs. Click details for a list.'
+    text = `[See the comment for details](${commentUrl})`
+  } else {
+    summary = 'No broken links found'
+  }
+
+  const checkParams = {
     owner,
     repo,
-    sha,
-    state,
-    description,
-    context: 'Link Validation',
-    target_url: commentUrl,
-  })
+    name: checkName,
+    head_sha: sha,
+    status: 'completed',
+    conclusion: errorsExist ? 'failure' : 'success',
+    output: {
+      title: checkName,
+      summary: summary,
+      text: text,
+    },
+  }
+
+  if (isFork) {
+    if (errorsExist) {
+      setFailed(
+        'This PR introduces broken links to the docs. The action could not create a Github check because it is initiated from a forked repo.'
+      )
+    } else {
+      console.log('Link validation was successful.')
+    }
+  } else {
+    try {
+      await octokit.rest.checks.create(checkParams)
+    } catch (error) {
+      setFailed('Failed to create check: ' + error)
+    }
+  }
 }
 
 // Main function that triggers link validation across .mdx files
@@ -376,6 +441,8 @@ async function validateAllInternalLinks(): Promise<void> {
     let errorComment =
       'Hi there :wave:\n\nIt looks like this PR introduces broken links to the docs, please take a moment to fix them before merging:\n\n| :heavy_multiplication_x: Broken link | :page_facing_up: File | \n| ----------- | ----------- | \n'
 
+    let errorsExist = false
+
     allErrors.forEach((errors) => {
       const {
         doc: { path: docPath },
@@ -386,24 +453,28 @@ async function validateAllInternalLinks(): Promise<void> {
       } = errors
 
       if (brokenLinks.length > 0) {
+        errorsExist = true
         brokenLinks.forEach((link) => {
           errorComment += formatTableRow(link, docPath)
         })
       }
 
       if (brokenHashes.length > 0) {
+        errorsExist = true
         brokenHashes.forEach((hash) => {
           errorComment += formatTableRow(hash, docPath)
         })
       }
 
       if (brokenSourceLinks.length > 0) {
+        errorsExist = true
         brokenSourceLinks.forEach((link) => {
           errorComment += formatTableRow(link, docPath)
         })
       }
 
       if (brokenRelatedLinks.length > 0) {
+        errorsExist = true
         brokenRelatedLinks.forEach((link) => {
           errorComment += formatTableRow(link, docPath)
         })
@@ -411,14 +482,6 @@ async function validateAllInternalLinks(): Promise<void> {
     })
 
     errorComment += '\nThank you :pray:'
-
-    const errorsExist = allErrors.some(
-      (errors) =>
-        errors.brokenLinks.length > 0 ||
-        errors.brokenHashes.length > 0 ||
-        errors.brokenSourceLinks.length > 0 ||
-        errors.brokenRelatedLinks.length > 0
-    )
 
     const botComment = await findBotComment()
 
@@ -429,7 +492,7 @@ async function validateAllInternalLinks(): Promise<void> {
       if (botComment) {
         commentUrl = await updateComment(comment, botComment)
       } else {
-        commentUrl = await createComment(comment)
+        commentUrl = await createComment(comment, allErrors)
       }
     } else {
       const comment = `${COMMENT_TAG}\nAll broken links are now fixed, thank you!`
@@ -439,9 +502,9 @@ async function validateAllInternalLinks(): Promise<void> {
     }
 
     try {
-      await createCommitStatus(errorsExist, commentUrl)
+      await updateCheckStatus(errorsExist, commentUrl)
     } catch (error) {
-      setFailed('Failed to create commit status: ' + error)
+      setFailed('Failed to create Github check: ' + error)
     }
   } catch (error) {
     setFailed('Error validating internal links: ' + error)

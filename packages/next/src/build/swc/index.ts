@@ -296,6 +296,9 @@ async function loadWasm(importPath = '', isCustomTurbopack: boolean) {
           startTrace: () => {
             Log.error('Wasm binding does not support trace yet')
           },
+          experimentalTurbo: () => {
+            Log.error('Wasm binding does not support this interface')
+          },
           entrypoints: {
             stream: (
               turboTasks: any,
@@ -555,6 +558,12 @@ function loadNative(isCustomTurbopack = false) {
           )
           return ret
         },
+        experimentalTurbo: () => {
+          initHeapProfiler()
+
+          const ret = bindings.experimentalTurbo()
+          return ret
+        },
         createTurboTasks: (memoryLimit?: number): unknown =>
           bindings.createTurboTasks(memoryLimit),
         entrypoints: {
@@ -562,13 +571,15 @@ function loadNative(isCustomTurbopack = false) {
             turboTasks: any,
             rootDir: string,
             applicationDir: string,
-            pageExtensions: string[]
+            pageExtensions: string[],
+            fn: (entrypoints: any) => void
           ) => {
             return bindings.streamEntrypoints(
               turboTasks,
               rootDir,
               applicationDir,
-              pageExtensions
+              pageExtensions,
+              fn
             )
           },
           get: (

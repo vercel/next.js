@@ -4,13 +4,17 @@ import type {
   OpenGraph,
   ResolvedOpenGraph,
 } from '../types/opengraph-types'
-import type { FieldResolverWithMetadataBase } from '../types/resolvers'
+import type {
+  FieldResolverWithMetadataBase,
+  MetadataAccumulationOptions,
+} from '../types/resolvers'
 import type { ResolvedTwitterMetadata, Twitter } from '../types/twitter-types'
 import { resolveAsArrayOrUndefined } from '../generate/utils'
 import {
   getSocialImageFallbackMetadataBase,
   isStringOrURL,
   resolveUrl,
+  resolveAbsoluteUrlWithPathname,
 } from './resolve-url'
 
 const OgTypeFields = {
@@ -43,19 +47,29 @@ export function resolveImages(
 ):
   | NonNullable<ResolvedMetadata['twitter']>['images']
   | NonNullable<ResolvedMetadata['openGraph']>['images'] {
-  return resolveAsArrayOrUndefined(images)?.map((item) => {
-    if (isStringOrURL(item)) {
-      return {
-        url: resolveUrl(item, metadataBase)!,
-      }
-    } else {
-      return {
-        ...item,
-        // Update image descriptor url
-        url: resolveUrl(item.url, metadataBase)!,
-      }
-    }
-  })
+  const resolvedImages = resolveAsArrayOrUndefined(images)
+  if (!resolvedImages) return resolvedImages
+
+  const nonNullableImages = []
+  for (const item of resolvedImages) {
+    const isItemUrl = isStringOrURL(item)
+    const inputUrl = isItemUrl ? item : item.url
+    if (!inputUrl) continue
+
+    nonNullableImages.push(
+      isItemUrl
+        ? {
+            url: resolveUrl(item, metadataBase),
+          }
+        : {
+            ...item,
+            // Update image descriptor url
+            url: resolveUrl(item.url, metadataBase),
+          }
+    )
+  }
+
+  return nonNullableImages
 }
 
 function getFieldsByOgType(ogType: OpenGraphType | undefined) {
@@ -78,13 +92,16 @@ function getFieldsByOgType(ogType: OpenGraphType | undefined) {
   }
 }
 
-export const resolveOpenGraph: FieldResolverWithMetadataBase<'openGraph'> = (
+export const resolveOpenGraph: FieldResolverWithMetadataBase<
+  'openGraph',
+  MetadataAccumulationOptions
+> = (
   openGraph: Metadata['openGraph'],
-  metadataBase: ResolvedMetadata['metadataBase']
+  metadataBase: ResolvedMetadata['metadataBase'],
+  { pathname }
 ) => {
   if (!openGraph) return null
 
-  const url = resolveUrl(openGraph.url, metadataBase)
   const resolved = { ...openGraph } as ResolvedOpenGraph
 
   function assignProps(og: OpenGraph) {
@@ -108,7 +125,9 @@ export const resolveOpenGraph: FieldResolverWithMetadataBase<'openGraph'> = (
 
   assignProps(openGraph)
 
-  resolved.url = url
+  resolved.url = openGraph.url
+    ? resolveAbsoluteUrlWithPathname(openGraph.url, metadataBase, pathname)
+    : null
 
   return resolved
 }

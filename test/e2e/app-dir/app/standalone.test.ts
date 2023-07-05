@@ -70,7 +70,7 @@ if (!(globalThis as any).isNextStart) {
             /Listening on/,
             {
               ...process.env,
-              PORT: appPort,
+              PORT: appPort.toString(),
             },
             undefined,
             {

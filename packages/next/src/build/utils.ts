@@ -65,6 +65,7 @@ import { patchFetch } from '../server/lib/patch-fetch'
 import { nodeFs } from '../server/lib/node-fs-methods'
 import * as ciEnvironment from '../telemetry/ci-info'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
+import { denormalizeAppPagePath } from '../shared/lib/page-path/denormalize-app-path'
 
 export type ROUTER_TYPE = 'pages' | 'app'
 
@@ -793,11 +794,10 @@ export async function getJsPageSizeInKb(
     throw new Error('expected "app" manifest data with an "app" pageType')
   }
 
-  // Denormalization is not needed for "app" dir, as we normalize the keys of appBuildManifest instead
-  let pagePath = page
-  if (routerType === 'pages') {
-    pagePath = denormalizePagePath(page)
-  }
+  const pagePath =
+    routerType === 'pages'
+      ? denormalizePagePath(page)
+      : denormalizeAppPagePath(page)
 
   const fnFilterJs = (entry: string) => entry.endsWith('.js')
 
@@ -1440,7 +1440,7 @@ export async function isPageStatic({
 
         // This is present on the new route modules.
         const userland: AppRouteUserlandModule | undefined =
-          componentsResult.ComponentMod.routeModule?.userland
+          componentsResult.routeModule?.userland
 
         const staticGenerationAsyncStorage: StaticGenerationAsyncStorage =
           componentsResult.ComponentMod.staticGenerationAsyncStorage
@@ -1928,21 +1928,20 @@ export async function copyTracedFiles(
     serverOutputPath,
     `${
       moduleType
-        ? `\
-import http from 'http'
+        ? `import http from 'http'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import { createServerHandler } from 'next/dist/server/lib/render-server-standalone.js'
-
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
+import { createServerHandler } from 'next/dist/server/lib/render-server-standalone.js'
 `
-        : `\
+        : `
 const http = require('http')
 const path = require('path')
 const { createServerHandler } = require('next/dist/server/lib/render-server-standalone')`
     }
 
 const dir = path.join(__dirname)
+
 process.env.NODE_ENV = 'production'
 process.chdir(__dirname)
 
@@ -1962,7 +1961,6 @@ const nextConfig = ${JSON.stringify({
     })}
 
 process.env.__NEXT_PRIVATE_STANDALONE_CONFIG = JSON.stringify(nextConfig)
-
 
 createServerHandler({
   port: currentPort,
