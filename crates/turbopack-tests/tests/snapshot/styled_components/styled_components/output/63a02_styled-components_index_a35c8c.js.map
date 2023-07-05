@@ -1,6 +1,0 @@
-{
-  "version": 3,
-  "sections": [
-    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["/turbopack/[project]/crates/turbopack-tests/tests/node_modules/styled-components/index.js"],"sourcesContent":["\"purposefully empty stub\";\n\"styled-components/index.js\"\n"],"names":[],"mappings":"AAAA;AACA"}},
-    {"offset": {"line": 6, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
-}

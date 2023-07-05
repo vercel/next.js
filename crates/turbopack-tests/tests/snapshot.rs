@@ -1,14 +1,15 @@
 #![cfg(test)]
 
+mod util;
+
 use std::{
     collections::{HashMap, HashSet, VecDeque},
-    env, fs,
+    fs,
     path::{Path, PathBuf},
 };
 
 use anyhow::{anyhow, Context, Result};
 use dunce::canonicalize;
-use once_cell::sync::Lazy;
 use serde::Deserialize;
 use turbo_tasks::{debug::ValueDebug, NothingVc, TryJoinIterExt, TurboTasks, Value, ValueToString};
 use turbo_tasks_env::DotenvProcessEnvVc;
@@ -53,6 +54,8 @@ use turbopack_ecmascript_runtime::RuntimeType;
 use turbopack_env::ProcessEnvAssetVc;
 use turbopack_test_utils::snapshot::{diff, expected, matches_expected, snapshot_issues};
 
+use crate::util::REPO_ROOT;
+
 fn register() {
     turbo_tasks::register();
     turbo_tasks_env::register();
@@ -65,19 +68,6 @@ fn register() {
     turbopack_ecmascript_runtime::register();
     include!(concat!(env!("OUT_DIR"), "/register_test_snapshot.rs"));
 }
-
-static WORKSPACE_ROOT: Lazy<String> = Lazy::new(|| {
-    let package_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    canonicalize(package_root)
-        .unwrap()
-        .parent()
-        .unwrap()
-        .parent()
-        .unwrap()
-        .to_str()
-        .unwrap()
-        .to_string()
-});
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -138,7 +128,7 @@ fn default_runtime_type() -> RuntimeType {
     RuntimeType::Dummy
 }
 
-#[testing::fixture("tests/snapshot/*/*/")]
+#[testing::fixture("tests/snapshot/*/*/", exclude("node_modules"))]
 fn test(resource: PathBuf) {
     let resource = canonicalize(resource).unwrap();
     // Separating this into a different function fixes my IDE's types for some
@@ -169,13 +159,9 @@ async fn run(resource: PathBuf) -> Result<()> {
             .try_join()
             .await?;
 
-        snapshot_issues(
-            plain_issues.into_iter(),
-            out.join("issues"),
-            &WORKSPACE_ROOT,
-        )
-        .await
-        .context("Unable to handle issues")?;
+        snapshot_issues(plain_issues.into_iter(), out.join("issues"), &REPO_ROOT)
+            .await
+            .context("Unable to handle issues")?;
         Ok(NothingVc::new().into())
     });
     tt.wait_task_completion(task, true).await?;
@@ -198,11 +184,11 @@ async fn run_test(resource: &str) -> Result<FileSystemPathVc> {
         Err(_) => SnapshotOptions::default(),
         Ok(options_str) => parse_json_with_source_context(&options_str).unwrap(),
     };
-    let root_fs = DiskFileSystemVc::new("workspace".to_string(), WORKSPACE_ROOT.clone());
-    let project_fs = DiskFileSystemVc::new("project".to_string(), WORKSPACE_ROOT.clone());
+    let root_fs = DiskFileSystemVc::new("workspace".to_string(), REPO_ROOT.clone());
+    let project_fs = DiskFileSystemVc::new("project".to_string(), REPO_ROOT.clone());
     let project_root = project_fs.root();
 
-    let relative_path = test_path.strip_prefix(&*WORKSPACE_ROOT)?;
+    let relative_path = test_path.strip_prefix(&*REPO_ROOT)?;
     let relative_path = sys_to_unix(relative_path.to_str().unwrap());
     let path = root_fs.root().join(&relative_path);
     let project_path = project_root.join(&relative_path);

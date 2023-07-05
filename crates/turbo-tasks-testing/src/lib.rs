@@ -71,7 +71,7 @@ impl TurboTasksCallApi for VcStorage {
                         },
                     })
                     .and_then(|r| r)
-                    .map_err(|err| SharedError::new(err));
+                    .map_err(SharedError::new);
 
                 let mut tasks = this.tasks.lock().unwrap();
                 if let Task::Spawned(event) = replace(&mut tasks[i], Task::Finished(result)) {
@@ -149,7 +149,7 @@ impl TurboTasksApi for VcStorage {
         match task {
             Task::Spawned(event) => Ok(Err(event.listen())),
             Task::Finished(result) => match result {
-                Ok(vc) => Ok(Ok(vc.clone())),
+                Ok(vc) => Ok(Ok(*vc)),
                 Err(err) => Err(anyhow!(err.clone())),
             },
         }

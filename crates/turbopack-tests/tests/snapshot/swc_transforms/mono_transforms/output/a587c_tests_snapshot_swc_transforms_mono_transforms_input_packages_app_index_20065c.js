@@ -1,0 +1,6 @@
+(globalThis.TURBOPACK = globalThis.TURBOPACK || []).push([
+    "output/a587c_tests_snapshot_swc_transforms_mono_transforms_input_packages_app_index_20065c.js",
+    {},
+    {"otherChunks":[{"path":"output/c9662_react_jsx-dev-runtime_257399.js","included":["[project]/crates/turbopack-tests/tests/snapshot/node_modules/react/jsx-dev-runtime.js (ecmascript)"]},{"path":"output/8562f_snapshot_swc_transforms_mono_transforms_input_packages_component_index_b0e6f8.js","included":["[project]/crates/turbopack-tests/tests/snapshot/swc_transforms/mono_transforms/input/packages/component/index.js (ecmascript)"]},{"path":"output/a587c_tests_snapshot_swc_transforms_mono_transforms_input_packages_app_index_b53fce.js","included":["[project]/crates/turbopack-tests/tests/snapshot/swc_transforms/mono_transforms/input/packages/app/index.js (ecmascript)"]},{"path":"output/7b7bf_third_party_component_index_8e9ad8.js","included":["[project]/crates/turbopack-tests/tests/snapshot/swc_transforms/mono_transforms/input/node_modules/third_party_component/index.js (ecmascript)"]}],"runtimeModuleIds":["[project]/crates/turbopack-tests/tests/snapshot/swc_transforms/mono_transforms/input/packages/app/index.js (ecmascript)"]}
+]);
+// Dummy runtime

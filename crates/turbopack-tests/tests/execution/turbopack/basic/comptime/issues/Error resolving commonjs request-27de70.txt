@@ -1,0 +1,28 @@
+PlainIssue {
+    severity: Error,
+    context: "[project]/crates/turbopack-tests/tests/execution/turbopack/basic/comptime/input/index.js",
+    category: "resolve",
+    title: "Error resolving commonjs request",
+    description: "unable to resolve module \"fail\"",
+    detail: "It was not possible to find the requested file.\nParsed request as written in source code: module \"fail\"\nPath where resolving has started: [project]/crates/turbopack-tests/tests/execution/turbopack/basic/comptime/input/index.js\nType of request: commonjs request\nImport map: No import map entry\n",
+    documentation_link: "",
+    source: Some(
+        PlainIssueSource {
+            asset: PlainAsset {
+                ident: "[project]/crates/turbopack-tests/tests/execution/turbopack/basic/comptime/input/index.js (ecmascript)",
+            },
+            start: SourcePos {
+                line: 84,
+                column: 5,
+            },
+            end: SourcePos {
+                line: 84,
+                column: 20,
+            },
+        },
+    ),
+    sub_issues: [],
+    processing_path: Some(
+        [],
+    ),
+}

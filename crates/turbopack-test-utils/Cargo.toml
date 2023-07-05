@@ -12,6 +12,7 @@ bench = false
 [dependencies]
 anyhow = "1.0.47"
 once_cell = { workspace = true }
+serde = { workspace = true }
 similar = "2.2.0"
 turbo-tasks = { path = "../turbo-tasks" }
 turbo-tasks-fs = { path = "../turbo-tasks-fs" }

@@ -1,6 +1,6 @@
 {
   "version": 3,
   "sections": [
-    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["/turbopack/[project]/crates/turbopack-tests/tests/snapshot/swc_transforms/mono_transforms/input/packages/component/index.js"],"sourcesContent":["export default function MyApp() {\n  return <div>App</div>;\n}\n"],"names":[],"mappings":";;;;;;AAAe,SAAS;IACtB,OAAO,8KAAC;kBAAI;;;;;;AACd"}},
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["/turbopack/[project]/crates/turbopack-tests/tests/snapshot/swc_transforms/mono_transforms/input/packages/component/index.js"],"sourcesContent":["export default function MyApp() {\n  return <div>App</div>;\n}\n"],"names":[],"mappings":";;;;;;AAAe,SAAS;IACtB,OAAO,0LAAC;kBAAI;;;;;;AACd"}},
     {"offset": {"line": 19, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
 }
