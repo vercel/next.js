@@ -98,6 +98,10 @@ describe('should set-up next', () => {
     if (server) await killApp(server)
   })
 
+  it('should not fail caching', async () => {
+    expect(next.cliOutput).not.toContain('ERR_INVALID_URL')
+  })
+
   it('should send cache tags in minimal mode for ISR', async () => {
     for (const [path, tags] of [
       ['/isr/first', 'isr-page,/isr/[slug]/page'],
