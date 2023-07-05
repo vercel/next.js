@@ -211,7 +211,14 @@ const nextDev: CliCommand = async (argv) => {
   // We do not set a default host value here to prevent breaking
   // some set-ups that rely on listening on other interfaces
   const host = args['--hostname']
-  const experimentalTurbo = args['--experimental-turbo']
+
+  if (args['--turbo']) {
+    process.env.TURBOPACK = '1'
+  } else if (args['--experimental-turbo']) {
+    process.env.__EXPERIMENTAL_TURBO = '1'
+  }
+
+  const experimentalTurbo = !!process.env.__EXPERIMENTAL_TURBO
 
   const devServerOptions: StartServerOptions = {
     dir,
@@ -222,10 +229,6 @@ const nextDev: CliCommand = async (argv) => {
     // This is required especially for app dir.
     useWorkers: true,
     isExperimentalTurbo: experimentalTurbo,
-  }
-
-  if (args['--turbo']) {
-    process.env.TURBOPACK = '1'
   }
 
   if (process.env.TURBOPACK) {

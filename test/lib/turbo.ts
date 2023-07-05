@@ -9,9 +9,15 @@ let loggedTurbopack = false
  * it makes hard to conform with existing lint rules. Instead, starting off from manual fixture setup and
  * update test cases accordingly as turbopack changes enable more test cases.
  */
-export function shouldRunTurboDevTest(): boolean {
+export function shouldRunTurboDevTest(): {
+  turbo: boolean
+  experimental: boolean
+} {
   if (!!process.env.TEST_WASM) {
-    return false
+    return {
+      turbo: false,
+      experimental: false,
+    }
   }
 
   const shouldRunTurboDev = !!process.env.TURBOPACK
@@ -21,6 +27,17 @@ export function shouldRunTurboDevTest(): boolean {
     )
     loggedTurbopack = true
   }
+  const shouldRunExperimental = !!process.env.__EXPERIMENTAL_TURBO
 
-  return shouldRunTurboDev
+  if (shouldRunExperimental && !loggedTurbopack) {
+    require('console').log(
+      `Running tests with experimental turbopack because environment variable is set`
+    )
+    loggedTurbopack = true
+  }
+
+  return {
+    turbo: shouldRunTurboDev,
+    experimental: shouldRunExperimental,
+  }
 }

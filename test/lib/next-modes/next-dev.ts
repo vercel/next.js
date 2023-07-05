@@ -24,10 +24,16 @@ export class NextDevInstance extends NextInstance {
 
     const useTurbo = !process.env.TEST_WASM && (this as any).turbo
 
+    const turboArgs = useTurbo
+      ? '--turbo'
+      : (this as any).turboExperimental
+      ? '--experimental-turbo'
+      : undefined
+
     let startArgs = [
       'yarn',
       'next',
-      useTurbo ? '--turbo' : undefined,
+      turboArgs,
       useDirArg && this.testDir,
     ].filter(Boolean) as string[]
 

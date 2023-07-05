@@ -8,7 +8,9 @@ describe('emotion SWC option', () => {
   let next: NextInstance
 
   beforeAll(async () => {
-    const useTurbo = !!process.env.TEST_WASM ? false : shouldRunTurboDevTest()
+    const useTurbo = !!process.env.TEST_WASM
+      ? false
+      : shouldRunTurboDevTest().turbo
     next = await createNext({
       files: {
         'jsconfig.json': new FileRef(

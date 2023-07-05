@@ -33,6 +33,7 @@ export interface NextInstanceOpts {
   env?: Record<string, string>
   dirSuffix?: string
   turbo?: boolean
+  turboExperimental?: boolean
   forcedPort?: string
 }
 

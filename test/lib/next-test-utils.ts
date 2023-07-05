@@ -433,12 +433,15 @@ export function launchApp(
   opts?: NextDevOptions
 ) {
   const options = opts ?? {}
-  const useTurbo = shouldRunTurboDevTest()
+  const { turbo: useTurbo, experimental } = shouldRunTurboDevTest()
+  const turboArgs = useTurbo
+    ? '--turbo'
+    : experimental
+    ? '--experimental-turbo'
+    : undefined
 
   return runNextCommandDev(
-    [useTurbo ? '--turbo' : undefined, dir, '-p', port as string].filter(
-      Boolean
-    ),
+    [turboArgs, dir, '-p', port as string].filter(Boolean),
     undefined,
     {
       ...options,
@@ -763,7 +766,7 @@ export async function hasRedbox(browser: BrowserInterface, expected = true) {
 export async function getRedboxHeader(browser: BrowserInterface) {
   return retry(
     () => {
-      if (shouldRunTurboDevTest()) {
+      if (shouldRunTurboDevTest().turbo) {
         return evaluate(browser, () => {
           const portal = [].slice
             .call(document.querySelectorAll('nextjs-portal'))
@@ -1021,7 +1024,8 @@ export function getSnapshotTestDescribe(variant: TestVariants) {
     )
   }
 
-  const shouldRunTurboDev = shouldRunTurboDevTest()
+  const { turbo, experimental } = shouldRunTurboDevTest()
+  const shouldRunTurboDev = turbo || experimental
   const shouldSkip =
     (runningEnv === 'turbo' && !shouldRunTurboDev) ||
     (runningEnv === 'default' && shouldRunTurboDev)

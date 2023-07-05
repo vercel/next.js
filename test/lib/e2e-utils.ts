@@ -14,7 +14,8 @@ export type { NextInstance }
 // if either test runs for the --turbo or have a custom timeout, set reduced timeout instead.
 // this is due to current --turbo test have a lot of tests fails with timeouts, ends up the whole
 // test job exceeds the 6 hours limit.
-let testTimeout = shouldRunTurboDevTest() ? (240 * 1000) / 4 : 240 * 1000
+const { turbo, experimental } = shouldRunTurboDevTest()
+let testTimeout = turbo || experimental ? (240 * 1000) / 4 : 240 * 1000
 if (process.env.NEXT_E2E_TEST_TIMEOUT) {
   try {
     testTimeout = parseInt(process.env.NEXT_E2E_TEST_TIMEOUT, 10)
@@ -147,7 +148,15 @@ export async function createNext(
     return await trace('createNext').traceAsyncFn(async (rootSpan) => {
       const useTurbo = !!process.env.TEST_WASM
         ? false
-        : opts?.turbo ?? shouldRunTurboDevTest()
+        : opts?.turbo ?? shouldRunTurboDevTest().turbo
+
+      const useTurboExperimental = !!process.env.TEST_WASM
+        ? false
+        : shouldRunTurboDevTest().experimental
+
+      if (useTurbo && useTurboExperimental) {
+        throw new Error('Cannot enable both turbo and turboExperimental')
+      }
 
       if (testMode === 'dev') {
         // next dev
@@ -155,6 +164,7 @@ export async function createNext(
           nextInstance = new NextDevInstance({
             ...opts,
             turbo: useTurbo,
+            turboExperimental: experimental,
           })
         })
       } else if (testMode === 'deploy') {
@@ -252,7 +262,7 @@ export function nextTestSetup(
       return Boolean(
         (global as any).isNextDev &&
           !process.env.TEST_WASM &&
-          (options.turbo ?? shouldRunTurboDevTest())
+          (options.turbo ?? shouldRunTurboDevTest().turbo)
       )
     },
 
