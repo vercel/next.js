@@ -25,9 +25,8 @@ export const streamToBufferedResult = async (
     },
     end() {},
     destroy() {},
-    closed: false,
   }
-  await renderResult.pipe(writable)
+  await renderResult.pipe(writable as any)
   return renderChunks.join('')
 }
 
