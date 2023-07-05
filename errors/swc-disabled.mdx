@@ -1,0 +1,29 @@
+---
+title: SWC disabled
+---
+
+#### Why This Message Occurred
+
+Next.js now uses Rust-based compiler [SWC](https://swc.rs/) to compile JavaScript/TypeScript. This new compiler is up to 17x faster than Babel when compiling individual files and up to 5x faster Fast Refresh.
+
+Next.js provides full backwards compatibility with applications that have [custom Babel configuration](/docs/pages/building-your-application/configuring/babel). All transformations that Next.js handles by default like styled-jsx and tree-shaking of `getStaticProps` / `getStaticPaths` / `getServerSideProps` have been ported to Rust.
+
+When an application has custom Babel configuration Next.js will automatically opt-out of using SWC for compiling JavaScript/Typescript and will fall back to using Babel in the same way that it was used in Next.js 11.
+
+Many of the integrations with external libraries that currently require custom Babel transformations will be ported to Rust-based SWC transforms in the near future. These include but are not limited to:
+
+- Emotion
+
+In order to prioritize transforms that will help you adopt SWC please provide your `.babelrc` on [the feedback thread](https://github.com/vercel/next.js/discussions/30174).
+
+## Possible Ways to Fix It
+
+If you want to use SWC despite the presence of a `.babelrc` file you can force it in your `next.config.js` file.
+
+```js filename="next.config.js"
+module.exports = {
+  experimental: {
+    forceSwcTransforms: true,
+  },
+}
+```

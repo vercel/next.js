@@ -16,6 +16,7 @@ export interface PipeTarget {
   end: () => unknown
   flush?: () => unknown
   destroy: (err?: Error) => unknown
+  get closed(): boolean
 }
 
 export default class RenderResult {
@@ -111,31 +112,25 @@ export default class RenderResult {
         : () => {}
     const reader = this.response.getReader()
 
-    let shouldFatalError = false
     try {
-      let result = await reader.read()
-      if (!result.done) {
-        // As we're going to write to the response, we should destroy the
-        // response if an error occurs.
-        shouldFatalError = true
-      }
+      while (true) {
+        const result = await reader.read()
 
-      while (!result.done) {
+        if (res.closed || result.done) {
+          break
+        }
+
         // Write the data to the response.
         res.write(result.value)
 
         // Flush it to the client (if it supports flushing).
         flush()
-
-        // Read the next chunk.
-        result = await reader.read()
       }
 
       // We're done writing to the response, so we can end it.
       res.end()
     } catch (err) {
-      // If we've written to the response, we should destroy it.
-      if (shouldFatalError) {
+      if (!res.closed) {
         res.destroy(err as any)
       }
 

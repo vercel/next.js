@@ -55,6 +55,7 @@ const enabledTests = [
   'test/e2e/app-dir/searchparams-static-bailout/searchparams-static-bailout.test.ts',
   'test/e2e/app-dir/test-template/{{ toFileName name }}/{{ toFileName name }}.test.ts',
   'test/e2e/app-dir/use-selected-layout-segment-s/use-selected-layout-segment-s.test.ts',
+  'test/e2e/app-dir/crypto-globally-available/crypto-globally-available.test.ts',
   'test/e2e/browserslist-extends/index.test.ts',
   'test/e2e/config-promise-export/async-function.test.ts',
   'test/e2e/config-promise-export/promise.test.ts',
