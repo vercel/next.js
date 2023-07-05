@@ -22,7 +22,7 @@ use turbopack_binding::swc::core::{
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct Config {
     pub is_server: bool,
-    pub enabled: bool
+    pub enabled: bool,
 }
 
 pub fn server_actions<C: Comments>(
@@ -110,8 +110,7 @@ impl<C: Comments> ServerActions<C> {
                         handler
                             .struct_span_err(
                                 body.span,
-                                "\"use server\" functions are not allowed in client components. \
-                                 You can import them from a \"use server\" file instead.",
+                                "It is not allowed to define inline \"use server\" annotated Server Actions in Client Components.\nTo use Server Actions in a Client Component, you can either export them from a separate file with \"use server\" at the top, or pass them down through props from a Server Component.\n\nRead more: https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions#with-client-components\n",
                             )
                             .emit()
                     });
