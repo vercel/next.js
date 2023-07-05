@@ -4,34 +4,7 @@ import * as path from 'path'
 const url =
   'https://nextjs.org/docs/messages/no-before-interactive-script-outside-document'
 
-const startsWithUsingCorrectSeparators = (str: string, start: string) =>
-  [path.sep, path.posix.sep].some((sep) =>
-    str.startsWith(start.replace(/\//g, sep))
-  )
-
-/**
- * Removes the root directory path from the pathname.
- * @example
- * RootDir: '/Users/username/project'
- * Input: removeProjectRootPath('/Users/username/project/src/index.js')
- * Output: 'src/index.js'
- */
-const removeProjectRootPath = (pathname: string) => {
-  const currentRulePath = path.resolve(__dirname)
-
-  // Finds the index of the first character that differs between the two paths.
-  let endOfRootDirIdx = 0
-  while (
-    endOfRootDirIdx < currentRulePath.length &&
-    endOfRootDirIdx < pathname.length &&
-    currentRulePath[endOfRootDirIdx] === pathname[endOfRootDirIdx]
-  ) {
-    endOfRootDirIdx++
-  }
-
-  // Returns the pathname without the root directory path.
-  return pathname.substring(endOfRootDirIdx)
-}
+const convertToCorrectSeparator = (str) => str.replace(/[\\/]/g, path.sep)
 
 export = defineRule({
   meta: {
@@ -54,16 +27,12 @@ export = defineRule({
         scriptImportName = node.local.name
       },
       JSXOpeningElement(node) {
-        let pathname = context.getFilename()
+        const pathname = convertToCorrectSeparator(context.getFilename())
 
-        pathname = removeProjectRootPath(pathname)
-
-        if (startsWithUsingCorrectSeparators(pathname, 'src/')) {
-          pathname = pathname.slice(4)
-        }
+        const isInAppDir = pathname.includes(`app${path.sep}`)
 
         // This rule shouldn't fire in `app/`
-        if (startsWithUsingCorrectSeparators(pathname, 'app/')) {
+        if (isInAppDir) {
           return
         }
 
