@@ -9,6 +9,7 @@ export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [view, setView] = useState('sign-in')
+  const [error, setError] = useState<string | null>(null)
   const router = useRouter()
   const supabase = createClientComponentClient()
 
@@ -26,12 +27,20 @@ export default function Login() {
 
   const handleSignIn = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    await supabase.auth.signInWithPassword({
+
+    setError(null)
+
+    const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
     })
-    router.push('/')
-    router.refresh()
+
+    if (error) {
+      setError(error.message)
+    } else {
+      router.push('/')
+      router.refresh()
+    }
   }
 
   return (
@@ -87,6 +96,11 @@ export default function Login() {
             value={password}
             placeholder="••••••••"
           />
+          {error && (
+            <p className="bg-neutral-800 py-6 text-center rounded mb-6 text-neutral-200">
+              {error}
+            </p>
+          )}
           {view === 'sign-in' && (
             <>
               <button className="bg-green-700 rounded px-4 py-2 text-white mb-6">
