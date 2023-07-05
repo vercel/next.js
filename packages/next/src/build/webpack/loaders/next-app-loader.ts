@@ -666,13 +666,16 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     }
   }
 
+  const pathname = new AppPathnameNormalizer().normalize(page)
+  const bundlePath = new AppBundlePathNormalizer().normalize(page)
+
   const options: Omit<AppPageRouteModuleOptions, 'userland'> = {
     definition: {
       kind: RouteKind.APP_PAGE,
-      page: page,
-      pathname: page,
+      page,
+      pathname,
+      bundlePath,
       // The following aren't used in production.
-      bundlePath: '',
       filename: '',
       appPaths: [],
     },
