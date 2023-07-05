@@ -139,7 +139,7 @@ const Home: NextPage<HomeProps> = (props) => (
           >
             <template type="amp-mustache">
               <amp-img
-                src={`{{imageUrl}}`}
+                src="{imageUrl}"
                 width="64"
                 height="64"
                 alt="demo image"

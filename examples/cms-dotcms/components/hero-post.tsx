@@ -21,7 +21,7 @@ export default function HeroPost({
           title={title}
           slug={slug}
           objectFit="cover"
-          layout={'intrinsic'}
+          layout="intrinsic"
           src={coverImage.idPath}
           alt={`Cover Image for ${title}`}
           className={cn('shadow-small', {

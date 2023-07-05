@@ -21,7 +21,7 @@ export default function PostPreview({
           slug={slug}
           src={coverImage.idPath}
           objectFit="cover"
-          layout={'intrinsic'}
+          layout="intrinsic"
         />
       </div>
       <h3 className="mb-3 text-3xl leading-snug">
