@@ -369,13 +369,29 @@ export class ClientReferenceManifestPlugin {
         }
 
         const json = JSON.stringify(mergedManifest)
-        const assetName =
-          'server/' + groupName + '_' + CLIENT_REFERENCE_MANIFEST
-        assets[assetName + '.js'] = new sources.RawSource(
+
+        assets[
+          'server/' + groupName + '_' + CLIENT_REFERENCE_MANIFEST + '.js'
+        ] = new sources.RawSource(
           `globalThis.__RSC_MANIFEST=(globalThis.__RSC_MANIFEST||{});globalThis.__RSC_MANIFEST[${JSON.stringify(
             groupName.slice('app'.length)
           )}]=${JSON.stringify(json)}`
         ) as unknown as webpack.sources.RawSource
+
+        if (groupName === 'app/not-found') {
+          // Create a separate special manifest for the root not-found page.
+          assets[
+            'server/' +
+              'app/_not-found' +
+              '_' +
+              CLIENT_REFERENCE_MANIFEST +
+              '.js'
+          ] = new sources.RawSource(
+            `globalThis.__RSC_MANIFEST=(globalThis.__RSC_MANIFEST||{});globalThis.__RSC_MANIFEST[${JSON.stringify(
+              '/_not-found'
+            )}]=${JSON.stringify(json)}`
+          ) as unknown as webpack.sources.RawSource
+        }
       }
     }
 
