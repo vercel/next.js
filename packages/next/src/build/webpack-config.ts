@@ -1403,9 +1403,16 @@ export default async function getBaseWebpackConfig(
       }
 
       const isNextExternal =
-        /next[/\\]dist[/\\](esm[\\/])?(shared|server)[/\\](?!lib[/\\](router[/\\]router|dynamic|app-dynamic|image-external|lazy-dynamic|head[^-]))/.test(
+        /next[/\\]dist[/\\](esm[/\\])?(shared|server)[/\\](?!lib[/\\](router[/\\]router|dynamic|app-dynamic|image-external|lazy-dynamic|head[^-]))/.test(
           localRes
-        )
+        ) ||
+        // No need to bundle so many things during dev
+        (process.env.NODE_ENV === 'development' &&
+          /next[/\\]dist[/\\](esm[/\\])?client[/\\]components[/\\]react-dev-overlay[/\\]/.test(
+            localRes
+          ))
+
+      const isNextExternalEsm = /next[/\\]dist[/\\]esm[\\/]/.test(localRes)
 
       if (isNextExternal) {
         // Generate Next.js external import
@@ -1421,7 +1428,7 @@ export default async function getBaseWebpackConfig(
             // Windows path normalization
             .replace(/\\/g, '/')
         )
-        return `commonjs ${externalRequest}`
+        return `${isNextExternalEsm ? 'module' : 'commonjs'} ${externalRequest}`
       }
     }
 
@@ -1443,17 +1450,21 @@ export default async function getBaseWebpackConfig(
       }
 
       if (
-        /^next\/dist\/shared\/(?!lib\/router\/router)/.test(request) ||
-        /^next\/dist\/compiled\/.*\.c?js$/.test(request)
-      ) {
-        return `commonjs ${request}`
-      }
-
-      if (
         /^next\/dist\/esm\/shared\/(?!lib\/router\/router)/.test(request) ||
+        /^next\/dist\/esm\/client\/components\/react-dev-overlay\//.test(
+          request
+        ) ||
         /^next\/dist\/compiled\/.*\.mjs$/.test(request)
       ) {
         return `module ${request}`
+      }
+
+      if (
+        /^next\/dist\/shared\/(?!lib\/router\/router)/.test(request) ||
+        /^next\/dist\/client\/components\/react-dev-overlay\//.test(request) ||
+        /^next\/dist\/compiled\//.test(request)
+      ) {
+        return `commonjs ${request}`
       }
 
       // Other Next.js internals need to be transpiled.
@@ -1577,7 +1588,7 @@ export default async function getBaseWebpackConfig(
         // This option takes priority over the transpilePackages option.
 
         if (optOutBundlingPackageRegex.test(res)) {
-          return `${externalType} ${request}`
+          return `${externalType} ${res}`
         }
 
         return
@@ -1587,7 +1598,7 @@ export default async function getBaseWebpackConfig(
 
       // Anything else that is standard JavaScript within `node_modules`
       // can be externalized.
-      return `${externalType} ${request}`
+      return `${externalType} ${res}`
     }
 
     if (shouldBeBundled) return
