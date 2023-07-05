@@ -25,7 +25,7 @@ createNextDescribe(
   },
   ({ next, isNextDev, isNextStart, isTurbopack }) => {
     if (isNextDev && !isTurbopack) {
-      it.only('should have correct client references keys in manifest', async () => {
+      it('should have correct client references keys in manifest', async () => {
         await next.render('/')
         await check(async () => {
           // Check that the client-side manifest is correct before any requests
