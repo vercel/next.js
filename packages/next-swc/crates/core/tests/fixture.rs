@@ -325,7 +325,10 @@ fn server_actions_server_fixture(input: PathBuf) {
                 resolver(Mark::new(), Mark::new(), false),
                 server_actions(
                     &FileName::Real("/app/item.js".into()),
-                    server_actions::Config { is_server: true },
+                    server_actions::Config {
+                        is_server: true,
+                        enabled: true
+                    },
                     _tr.comments.as_ref().clone(),
                 )
             )
@@ -346,7 +349,10 @@ fn server_actions_client_fixture(input: PathBuf) {
                 resolver(Mark::new(), Mark::new(), false),
                 server_actions(
                     &FileName::Real("/app/item.js".into()),
-                    server_actions::Config { is_server: false },
+                    server_actions::Config {
+                        is_server: false,
+                        enabled: true
+                    },
                     _tr.comments.as_ref().clone(),
                 )
             )
