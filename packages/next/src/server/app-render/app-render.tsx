@@ -1244,6 +1244,10 @@ export async function renderToHTMLOrFlight(
       rscChunks: [],
     }
 
+    if (!clientReferenceManifest) {
+      console.log(req.url)
+    }
+
     const validateRootLayout = dev
       ? {
           validateRootLayout: {

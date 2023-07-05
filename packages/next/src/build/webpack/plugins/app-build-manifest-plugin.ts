@@ -77,9 +77,12 @@ export class AppBuildManifestPlugin {
       }
 
       const filesForPage = getEntrypointFiles(entrypoint)
-      const manifestsForPage = pagePath.endsWith('/page')
-        ? ['server/app' + pagePath + '_' + CLIENT_REFERENCE_MANIFEST + '.js']
-        : []
+      const manifestsForPage =
+        pagePath.endsWith('/page') ||
+        pagePath === '/not-found' ||
+        pagePath === '/_not-found'
+          ? ['server/app' + pagePath + '_' + CLIENT_REFERENCE_MANIFEST + '.js']
+          : []
 
       manifest.pages[pagePath] = [
         ...new Set([...mainFiles, ...manifestsForPage, ...filesForPage]),
