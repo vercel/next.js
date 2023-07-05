@@ -12,6 +12,7 @@ export type LoadedEnvFiles = Array<{
 
 export let initialEnv: Env | undefined = undefined
 let combinedEnv: Env | undefined = undefined
+let parsedEnv: Env | undefined = undefined
 let cachedLoadedEnvFiles: LoadedEnvFiles = []
 let previousLoadedEnvFiles: LoadedEnvFiles = []
 
@@ -36,7 +37,7 @@ function replaceProcessEnv(sourceEnv: Env) {
   })
 }
 
-export function processEnv(
+function processEnv(
   loadedEnvFiles: LoadedEnvFiles,
   dir?: string,
   log: Log = console,
@@ -50,7 +51,7 @@ export function processEnv(
     !forceReload &&
     (process.env.__NEXT_PROCESSED_ENV || loadedEnvFiles.length === 0)
   ) {
-    return process.env as Env
+    return [process.env as Env]
   }
   // flag that we processed the environment values already.
   process.env.__NEXT_PROCESSED_ENV = 'true'
@@ -90,7 +91,7 @@ export function processEnv(
       )
     }
   }
-  return Object.assign(process.env, parsed)
+  return [Object.assign(process.env, parsed), parsed]
 }
 
 export function resetEnv() {
@@ -106,6 +107,7 @@ export function loadEnvConfig(
   forceReload = false
 ): {
   combinedEnv: Env
+  parsedEnv: Env | undefined
   loadedEnvFiles: LoadedEnvFiles
 } {
   if (!initialEnv) {
@@ -113,7 +115,7 @@ export function loadEnvConfig(
   }
   // only reload env when forceReload is specified
   if (combinedEnv && !forceReload) {
-    return { combinedEnv, loadedEnvFiles: cachedLoadedEnvFiles }
+    return { combinedEnv, parsedEnv, loadedEnvFiles: cachedLoadedEnvFiles }
   }
   replaceProcessEnv(initialEnv)
   previousLoadedEnvFiles = cachedLoadedEnvFiles
@@ -154,6 +156,11 @@ export function loadEnvConfig(
       }
     }
   }
-  combinedEnv = processEnv(cachedLoadedEnvFiles, dir, log, forceReload)
-  return { combinedEnv, loadedEnvFiles: cachedLoadedEnvFiles }
+  ;[combinedEnv, parsedEnv] = processEnv(
+    cachedLoadedEnvFiles,
+    dir,
+    log,
+    forceReload
+  )
+  return { combinedEnv, parsedEnv, loadedEnvFiles: cachedLoadedEnvFiles }
 }
