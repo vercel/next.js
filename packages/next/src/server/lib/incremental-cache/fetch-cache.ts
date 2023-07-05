@@ -116,7 +116,7 @@ export default class FetchCache implements CacheHandler {
       )
 
       if (res.status === 429) {
-        const retryAfter = res.headers.get('retry-after') || '60'
+        const retryAfter = res.headers.get('retry-after') || '60000'
         rateLimitedUntil = Date.now() + parseInt(retryAfter)
       }
 
@@ -174,7 +174,7 @@ export default class FetchCache implements CacheHandler {
         )
 
         if (res.status === 429) {
-          const retryAfter = res.headers.get('retry-after') || '60'
+          const retryAfter = res.headers.get('retry-after') || '60000'
           rateLimitedUntil = Date.now() + parseInt(retryAfter)
         }
 
@@ -317,7 +317,7 @@ export default class FetchCache implements CacheHandler {
         )
 
         if (res.status === 429) {
-          const retryAfter = res.headers.get('retry-after') || '60'
+          const retryAfter = res.headers.get('retry-after') || '60000'
           rateLimitedUntil = Date.now() + parseInt(retryAfter)
         }
 
