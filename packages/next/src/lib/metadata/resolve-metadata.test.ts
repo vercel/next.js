@@ -80,7 +80,7 @@ describe('accumulateMetadata', () => {
     })
   })
 
-  describe('openGraph', () => {
+  describe('openGraph and twitter', () => {
     it('should convert string or URL images field to array, not only for basic og type', async () => {
       const items: [Metadata[], Metadata][] = [
         [
@@ -173,6 +173,44 @@ describe('accumulateMetadata', () => {
           },
           description: 'description',
           images: [{ url: new URL('https://test.com') }],
+        },
+      })
+    })
+
+    it('should fill only the existing props from openGraph to twitter', async () => {
+      const metadataItems: MetadataItems = [
+        [
+          {
+            openGraph: {
+              // skip title
+              description: 'description',
+            },
+          },
+          // has static metadata files
+          {
+            icon: undefined,
+            apple: undefined,
+            twitter: ['/og/twitter.png'],
+            openGraph: undefined,
+            manifest: undefined,
+          },
+        ],
+      ]
+      const metadata = await accumulateMetadata(metadataItems)
+      expect(metadata).toMatchObject({
+        openGraph: {
+          title: {
+            absolute: '',
+            template: null,
+          },
+          description: 'description',
+        },
+        twitter: {
+          title: {
+            absolute: '',
+            template: null,
+          },
+          description: 'description',
         },
       })
     })
