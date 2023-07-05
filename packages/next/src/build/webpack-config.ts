@@ -1451,9 +1451,6 @@ export default async function getBaseWebpackConfig(
 
       if (
         /^next\/dist\/esm\/shared\/(?!lib\/router\/router)/.test(request) ||
-        /^next\/dist\/esm\/client\/components\/react-dev-overlay\//.test(
-          request
-        ) ||
         /^next\/dist\/compiled\/.*\.mjs$/.test(request)
       ) {
         return `module ${request}`
@@ -1461,7 +1458,6 @@ export default async function getBaseWebpackConfig(
 
       if (
         /^next\/dist\/shared\/(?!lib\/router\/router)/.test(request) ||
-        /^next\/dist\/client\/components\/react-dev-overlay\//.test(request) ||
         /^next\/dist\/compiled\//.test(request)
       ) {
         return `commonjs ${request}`
