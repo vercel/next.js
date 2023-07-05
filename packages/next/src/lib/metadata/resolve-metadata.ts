@@ -376,7 +376,7 @@ function postProcessMetadata(metadata: ResolvedMetadata): ResolvedMetadata {
         ResolvedMetadata['openGraph']
       >[Key]
     }> = {}
-    const hasTwTitle = twitter?.title.absolute
+    const hasTwTitle = twitter?.title?.absolute
     const hasTwDescription = twitter?.description
     const hasTwImages = twitter?.images
     if (!hasTwTitle) autoFillProps.title = openGraph.title
