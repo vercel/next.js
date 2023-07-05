@@ -2,15 +2,13 @@
 title: '`getServerSideProps` Export Error'
 ---
 
-## `gssp-export`
-
-#### Why This Error Occurred
+## Why This Error Occurred
 
 You attempted to statically export your application via `output: 'export'` or `next export`, however, one or more of your pages uses `getServerSideProps`.
 
 It is not possible to use `getServerSideProps` without a server, so you'll need to use `next start` when self hosting or deploy to a provider like [Vercel](https://vercel.com).
 
-#### Possible Ways to Fix It
+## Possible Ways to Fix It
 
 1. If you'd like to keep your application static, you can use `getStaticProps` instead of `getServerSideProps`.
 
@@ -45,7 +43,7 @@ It is not possible to use `getServerSideProps` without a server, so you'll need 
 > **Note**: Removing export does not mean your entire application is no longer static.
 > Pages that use `getStaticProps` or [no lifecycle](/docs/pages/building-your-application/rendering/automatic-static-optimization) **will still be static**!
 
-### Useful Links
+## Useful Links
 
 - [Automatic Static Optimization](/docs/pages/building-your-application/rendering/automatic-static-optimization)
 - [`getStaticProps` documentation](/docs/pages/building-your-application/data-fetching/get-static-props)

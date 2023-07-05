@@ -2,9 +2,7 @@
 title: Removed req.ua from Middleware API
 ---
 
-## `middleware-user-agent.md`
-
-#### Why This Error Occurred
+## Why This Error Occurred
 
 Your middleware is interacting with `req.ua` and this feature needs to opt-in.
 
@@ -19,7 +17,7 @@ export function middleware(request: NextRequest) {
 }
 ```
 
-#### Possible Ways to Fix It
+## Possible Ways to Fix It
 
 To parse the user agent, import `userAgent` function from `next/server` and give it your request:
 

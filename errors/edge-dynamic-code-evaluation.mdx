@@ -2,9 +2,7 @@
 title: Dynamic code evaluation is not available in Middlewares or Edge API Routes
 ---
 
-## `edge-dynamic-code-evaluation`
-
-#### Why This Error Occurred
+## Why This Error Occurred
 
 `eval()`, `new Function()` or compiling WASM binaries dynamically is not allowed in Middlewares or Edge API Routes.
 Specifically, the following APIs are not supported:
@@ -14,7 +12,7 @@ Specifically, the following APIs are not supported:
 - `WebAssembly.compile`
 - `WebAssembly.instantiate` with [a buffer parameter](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/instantiate#primary_overload_%E2%80%94_taking_wasm_binary_code)
 
-#### Possible Ways to Fix It
+## Possible Ways to Fix It
 
 You can bundle your WASM binaries using `import`:
 

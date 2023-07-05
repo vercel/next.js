@@ -2,13 +2,11 @@
 title: Invalid Page / API Route Config
 ---
 
-## `invalid-page-config`
-
-#### Why This Error Occurred
+## Why This Error Occurred
 
 In one of your pages or API Routes, you used `export const config` with an invalid value.
 
-#### Possible Ways to Fix It
+## Possible Ways to Fix It
 
 - The page's `config` must be an object initialized directly when being exported and not modified dynamically.
 - The `config` object must only contain static constant literals without expressions.
@@ -116,7 +114,7 @@ export const config = {}
 </tbody>
 </table>
 
-### Useful Links
+## Useful Links
 
 - [Enabling AMP Support](/docs/pages/building-your-application/configuring/amp)
 - [API Routes Request Helpers](/docs/pages/building-your-application/routing/api-routes)

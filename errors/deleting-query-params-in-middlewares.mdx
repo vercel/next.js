@@ -2,9 +2,7 @@
 title: Deleting Query Parameters In Middlewares
 ---
 
-## `deleting-query-params-in-middlewares`
-
-#### Why This Error Occurred
+## Why This Error Occurred
 
 In previous versions of Next.js, we were merging query parameters with the incoming request for rewrites happening in middlewares, to match the behavior of static rewrites declared in the config. This forced Next.js users to use empty query parameters values to delete keys.
 
@@ -21,7 +19,7 @@ export default function middleware(request: NextRequest) {
 }
 ```
 
-#### Possible Ways to Fix It
+## Possible Ways to Fix It
 
 If you are relying on the old behavior, please add the query parameters manually to the rewritten URL. Using `request.nextUrl` would do that automatically for you.
 

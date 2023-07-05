@@ -2,17 +2,15 @@
 title: No HTML link for pages
 ---
 
-## `no-html-link-for-pages`
-
 > Prevent usage of `<a>` elements to navigate to internal Next.js pages.
 
-### Why This Error Occurred
+## Why This Error Occurred
 
 An `<a>` element was used to navigate to a page route without using the `next/link` component, causing unnecessary full-page refreshes.
 
 The `Link` component is required to enable client-side route transitions between pages and provide a single-page app experience.
 
-### Possible Ways to Fix It
+## Possible Ways to Fix It
 
 Make sure to import the `Link` component and wrap anchor elements that route to different page routes.
 
@@ -62,6 +60,6 @@ In some cases, you may also need to configure this rule directly by providing a 
 }
 ```
 
-### Useful Links
+## Useful Links
 
 - [next/link API Reference](/docs/pages/api-reference/components/link)

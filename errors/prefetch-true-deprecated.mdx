@@ -2,9 +2,7 @@
 title: '`prefetch={true}` is deprecated'
 ---
 
-## `prefetch-true-deprecated`
-
-#### Why This Error Occurred
+## Why This Error Occurred
 
 In [Nextjs 9](/blog/next-9#prefetching-in-viewport-links), the behavior of the `<Link prefetch>` attribute was changed from opt in to opt out. This means that the `<Linkg prefetch={true}>` is **no longer required**.
 
@@ -16,7 +14,7 @@ Next.js uses an Intersection Observer to prefetch the assets necessary in the ba
 
 These requests have low-priority and yield to `fetch()` or XHR requests. Next.js will avoid automatically prefetching if the user has data-saver enabled.
 
-#### Possible Ways to Fix It
+## Possible Ways to Fix It
 
 `<Link prefetch={true}>` is now the default behavior and setting it is no longer required. You can safely remove the `prefetch` attribute.
 

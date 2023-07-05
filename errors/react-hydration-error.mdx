@@ -2,15 +2,13 @@
 title: Text content does not match server-rendered HTML
 ---
 
-## `react-hydration-error`
-
-#### Why This Error Occurred
+## Why This Error Occurred
 
 While rendering your application, there was a difference between the React tree that was pre-rendered (SSR/SSG) and the React tree that rendered during the first render in the Browser. The first render is called Hydration which is a [feature of React](https://react.dev/reference/react-dom/hydrate).
 
 This can cause the React tree to be out of sync with the DOM and result in unexpected content/attributes being present.
 
-#### Possible Ways to Fix It
+## Possible Ways to Fix It
 
 In general, this issue is caused by using a specific library or application code that is relying on something that could differ between pre-rendering and the browser. An example of this is using `window` in a component's rendering.
 
@@ -101,7 +99,7 @@ Common causes on iOS:
 />
 ```
 
-### Useful Links
+## Useful Links
 
 - [React Hydration Documentation](https://react.dev/reference/react-dom/client/hydrateRoot)
 - [Josh Comeau's article on React Hydration](https://www.joshwcomeau.com/react/the-perils-of-rehydration/)

@@ -2,15 +2,13 @@
 title: No Head Import in Document
 ---
 
-## `no-head-import-in-document`
-
 > Prevent usage of `next/head` in `pages/_document.js`.
 
-### Why This Error Occurred
+## Why This Error Occurred
 
 `next/head` was imported in `pages/_document.js`. This can cause unexpected issues in your application.
 
-### Possible Ways to Fix It
+## Possible Ways to Fix It
 
 Only import and use `next/document` within `pages/_document.js` to override the default `Document` component. If you are importing `next/head` to use the `Head` component, import it from `next/document` instead in order to modify `<head>` code across all pages:
 
@@ -34,6 +32,6 @@ class MyDocument extends Document {
 export default MyDocument
 ```
 
-### Useful Links
+## Useful Links
 
 - [Custom Document](/docs/pages/building-your-application/routing/custom-document)

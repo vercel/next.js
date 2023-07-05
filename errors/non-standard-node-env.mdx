@@ -2,9 +2,7 @@
 title: 'Non-Standard `NODE_ENV`'
 ---
 
-## `non-standard-node-env`
-
-#### Why This Error Occurred
+## Why This Error Occurred
 
 Your environment has a non-standard `NODE_ENV` value configured.
 
@@ -22,12 +20,12 @@ The greater React ecosystem treats `NODE_ENV` as a convention, only permitting t
 
 Setting a non-standard `NODE_ENV` value may cause dependencies to behave unexpectedly, or worse, **break dead code elimination**.
 
-#### Possible Ways to Fix It
+## Possible Ways to Fix It
 
 To fix this error, identify the source of the erroneous `NODE_ENV` value and get rid of it: Next.js automatically sets the correct value for you.
 
 If you need the concept of different environments in your application, e.g. `staging`, you should use a different environment variable name like `APP_ENV`.
 
-### Useful Links
+## Useful Links
 
 - [Environment Variables](https://en.wikipedia.org/wiki/Environment_variable)

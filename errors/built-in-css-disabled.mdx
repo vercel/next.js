@@ -2,21 +2,19 @@
 title: Built-in CSS Support Disabled
 ---
 
-## `built-in-css-disabled`
-
-#### Why This Error Occurred
+## Why This Error Occurred
 
 Custom CSS configuration was added in `next.config.js` which disables the built-in CSS/SCSS support to prevent conflicting configuration.
 
 A legacy plugin such as `@zeit/next-css` being added in `next.config.js` can cause this message.
 
-#### Possible Ways to Fix It
+## Possible Ways to Fix It
 
 If you would like to leverage the built-in CSS/SCSS support you can remove any custom CSS configuration or any plugins like `@zeit/next-css` or `@zeit/next-sass` in your `next.config.js`.
 
 If you would prefer not to leverage the built-in support you can ignore this message.
 
-### Useful Links
+## Useful Links
 
 - [Built-in CSS Support docs](/docs/pages/building-your-application/styling)
 - [Custom webpack config docs](/docs/pages/api-reference/next-config-js/webpack)

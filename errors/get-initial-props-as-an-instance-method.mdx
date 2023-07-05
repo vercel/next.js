@@ -2,13 +2,11 @@
 title: '`getInitialProps` was defined as an instance method'
 ---
 
-## `get-initial-props-as-an-instance-method`
-
-#### Why This Error Occurred
+## Why This Error Occurred
 
 `getInitialProps` must be a static method in order to be called by next.js.
 
-#### Possible Ways to Fix It
+## Possible Ways to Fix It
 
 Use the static keyword.
 
@@ -38,6 +36,6 @@ YourEntryComponent.getInitialProps = () => {
 export default YourEntryComponent
 ```
 
-### Useful Links
+## Useful Links
 
 - [Fetching data and component lifecycle](/docs/pages/api-reference/functions/get-initial-props)

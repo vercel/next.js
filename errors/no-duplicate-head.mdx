@@ -2,15 +2,13 @@
 title: No Duplicate Head
 ---
 
-## `no-duplicate-head`
-
 > Prevent duplicate usage of `<Head>` in `pages/_document.js`.
 
-### Why This Error Occurred
+## Why This Error Occurred
 
 More than a single instance of the `<Head />` component was used in a single custom document. This can cause unexpected behavior in your application.
 
-### Possible Ways to Fix It
+## Possible Ways to Fix It
 
 Only use a single `<Head />` component in your custom document in `pages/_document.js`.
 
@@ -38,6 +36,6 @@ class MyDocument extends Document {
 export default MyDocument
 ```
 
-### Useful Links
+## Useful Links
 
 - [Custom Document](/docs/pages/building-your-application/routing/custom-document)

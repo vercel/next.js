@@ -2,15 +2,13 @@
 title: '`next/dynamic` has deprecated loading multiple modules at once'
 ---
 
-## `next-dynamic-modules`
-
-#### Why This Error Occurred
+## Why This Error Occurred
 
 The ability to load multiple modules at once has been deprecated in `next/dynamic` to be closer to React's implementation (`React.lazy` and `Suspense`).
 
 Updating code that relies on this behavior is relatively straightforward! We've provided an example of a before/after to help you migrate your application:
 
-#### Possible Ways To Fix It
+## Possible Ways to Fix It
 
 Migrate to using separate dynamic calls for each module.
 

@@ -2,9 +2,7 @@
 title: '`next/image` changed in version 13'
 ---
 
-## `next-image-upgrade-to-13`
-
-#### Why This Error Occurred
+## Why This Error Occurred
 
 Starting in Next.js 13, the `next/image` component has undergone some major changes.
 
@@ -21,7 +19,7 @@ Compared to the legacy component, the new `next/image` component has the followi
 - Removes `loader` config in favor of [`loader`](/docs/app/api-reference/components/image#loader) prop
 - Changed `alt` prop from optional to required
 
-#### Possible Ways to Fix It
+## Possible Ways to Fix It
 
 Run the [next-image-to-legacy-image](/docs/pages/building-your-application/upgrading/codemods#next-image-to-legacy-image) codemod to automatically change `next/image` imports to `next/legacy/image`, for example:
 
@@ -37,7 +35,7 @@ npx @next/codemod next-image-experimental .
 
 Please note this second codemod is experimental and only covers static usage (such as `<Image src={img} layout="responsive" />`) but not dynamic usage (such as `<Image {...props} />`).
 
-### Useful Links
+## Useful Links
 
 - [Next.js 13 Blog Post](/blog/next-13)
 - [`next/image` Documentation](/docs/pages/api-reference/components/image)

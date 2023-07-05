@@ -2,9 +2,7 @@
 title: 'Invalid relative `href` and external `as` values'
 ---
 
-## `invalid-relative-url-external-as`
-
-#### Why This Error Occurred
+## Why This Error Occurred
 
 Somewhere you are utilizing the `next/link` component, `Router#push`, or `Router#replace` with a relative route in your `href` that has an external `as` value. The `as` value must be relative also or only `href` should be used with an external URL.
 
@@ -42,10 +40,10 @@ export default function Page(props) {
 }
 ```
 
-#### Possible Ways to Fix It
+## Possible Ways to Fix It
 
 Look for any usage of the `next/link` component, `Router#push`, or `Router#replace` and make sure that the provided `href` and `as` values are compatible
 
-### Useful Links
+## Useful Links
 
 - [Routing section in Documentation](/docs/pages/building-your-application/routing)

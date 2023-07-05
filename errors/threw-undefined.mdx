@@ -2,9 +2,7 @@
 title: 'Threw `undefined` / `null`'
 ---
 
-## `threw-undefined`
-
-#### Why This Error Occurred
+## Why This Error Occurred
 
 Somewhere in your code you `throw` an `undefined` or `null` value. Since this isn't a valid error there isn't a stack trace. We show this error instead to let you know what to look for.
 
@@ -20,6 +18,6 @@ function Page() {
 }
 ```
 
-#### Possible Ways to Fix It
+## Possible Ways to Fix It
 
 Look in your pages and find where an error could be throwing `undefined` or `null` values and ensure `new Error()` is used instead.

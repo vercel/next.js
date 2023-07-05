@@ -2,9 +2,7 @@
 title: Missing Env Value
 ---
 
-## `missing-env-value`
-
-#### Why This Error Occurred
+## Why This Error Occurred
 
 In one of your pages you attempted to access an environment value that is not provided in the environment.
 
@@ -12,11 +10,11 @@ When accessing environment variables on the client they must be prefixed with `N
 
 When accessing environment variables on the server in `getStaticProps`, `getServerSideProps`, or an API route the value must be provided in the environment at runtime.
 
-#### Possible Ways to Fix It
+## Possible Ways to Fix It
 
 Either remove the code accessing the env value, populate it in your `.env` file, or manually populate it in your environment before running `next dev` or `next build`.
 
-### Useful Links
+## Useful Links
 
 - [dotenv](https://npmjs.com/package/dotenv)
 - [dotenv-expand](https://npmjs.com/package/dotenv-expand)

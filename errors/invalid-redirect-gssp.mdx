@@ -2,13 +2,11 @@
 title: 'Invalid Redirect `getStaticProps` / `getServerSideProps`'
 ---
 
-## `invalid-redirect-gssp`
-
-#### Why This Error Occurred
+## Why This Error Occurred
 
 The `redirect` value returned from your `getStaticProps` or `getServerSideProps` function had invalid values.
 
-#### Possible Ways to Fix It
+## Possible Ways to Fix It
 
 Make sure you return the proper values for the `redirect` value.
 
@@ -31,6 +29,6 @@ export const getStaticProps = ({ params }) => {
 export default function Page(props) {}
 ```
 
-### Useful Links
+## Useful Links
 
 - [Data Fetching Documentation](/docs/pages/building-your-application/data-fetching/get-static-props)

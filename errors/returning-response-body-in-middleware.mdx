@@ -2,15 +2,13 @@
 title: Returning response body in Middleware
 ---
 
-## `returning-response-body-in-middleware`
-
 > Note: In Next.js v13.0.0 you can now respond to Middleware directly by returning a `NextResponse`. For more information, see [Producing a Response](/docs/pages/building-your-application/routing/middleware#producing-a-response).
 
-#### Why This Error Occurred
+## Why This Error Occurred
 
 [Middleware](/docs/pages/building-your-application/routing/middleware) can no longer produce a response body as of `v12.2+`.
 
-#### Possible Ways to Fix It
+## Possible Ways to Fix It
 
 Migrate to using `rewrite`/`redirect` to Pages/API Routes handling a response.
 

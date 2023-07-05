@@ -2,13 +2,11 @@
 title: Conflicting SSG Paths
 ---
 
-## `conflicting-ssg-paths`
-
-#### Why This Error Occurred
+## Why This Error Occurred
 
 You returned **conflicting paths** in your `getStaticPaths` function for one of your pages. All page paths must be unique and duplicates are not allowed.
 
-#### Possible Ways to Fix It
+## Possible Ways to Fix It
 
 Remove any conflicting paths shown in the error message and only return them from one `getStaticPaths`.
 
@@ -66,6 +64,6 @@ export default function CatchAll() {
 }
 ```
 
-### Useful Links
+## Useful Links
 
 - [`getStaticPaths` Documentation](/docs/pages/building-your-application/data-fetching/get-static-paths)

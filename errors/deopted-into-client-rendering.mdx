@@ -2,9 +2,7 @@
 title: Entire page deopted into client-side rendering
 ---
 
-## `deopted-into-client-rendering`
-
-#### Why This Error Occurred
+## Why This Error Occurred
 
 During static rendering, the entire page was deopted into client-side rendering by `useSearchParams` as there was no [Suspense boundary](/docs/app/api-reference/functions/use-search-params#static-rendering) that caught it.
 
@@ -12,7 +10,7 @@ If a route is statically rendered, calling `useSearchParams()` will cause the tr
 
 This allows a part of the page to be statically rendered while the dynamic part that uses `searchParams` can be client-side rendered.
 
-#### Possible Ways to Fix It
+## Possible Ways to Fix It
 
 You can reduce the portion of the route that is client-side rendered by wrapping the component that uses useSearchParams in a Suspense boundary.
 
@@ -61,6 +59,6 @@ export default function Page() {
 }
 ```
 
-### Useful Links
+## Useful Links
 
 - [`useSearchParams` static rendering documentation](/docs/app/api-reference/functions/use-search-params#static-rendering)

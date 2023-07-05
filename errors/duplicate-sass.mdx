@@ -2,9 +2,7 @@
 title: Duplicate Sass Dependencies
 ---
 
-## `duplicate-sass`
-
-#### Why This Error Occurred
+## Why This Error Occurred
 
 Your project has a direct dependency on both `sass` and `node-sass`, two
 different package that both compile Sass files!
@@ -12,7 +10,7 @@ different package that both compile Sass files!
 Next.js will only use one of these, so it is suggested you remove one or the
 other.
 
-#### Possible Ways to Fix It
+## Possible Ways to Fix It
 
 The `sass` package is a modern implementation of Sass in JavaScript that
 supports all the new features and does not require any native dependencies.
@@ -32,6 +30,6 @@ npm uninstall node-sass
 yarn remove node-sass
 ```
 
-### Useful Links
+## Useful Links
 
 - [`sass` package documentation](https://github.com/sass/dart-sass)

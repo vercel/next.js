@@ -2,9 +2,7 @@
 title: No Stylesheets In Head Component
 ---
 
-## `stylesheets-in-head-component`
-
-### Why This Error Occurred
+## Why This Error Occurred
 
 A `<link rel="stylesheet">` tag was added using the `next/head` component.
 
@@ -14,7 +12,7 @@ We don't recommend this pattern because it will potentially break when used with
 
 - loaded in any particular order. The order that the app's Suspense boundaries resolve will determine the loading order of your stylesheets.
 
-### Possible Ways to Fix It
+## Possible Ways to Fix It
 
 #### Document
 
@@ -40,6 +38,6 @@ export default function Document() {
 
 Note that the functional syntax for `Document` above is preferred over the `class` syntax, so that it will be compatible with React Server Components down the line.
 
-### Useful Links
+## Useful Links
 
 - [Custom Document](/docs/pages/building-your-application/routing/custom-document)

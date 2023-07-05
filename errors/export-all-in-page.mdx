@@ -2,9 +2,7 @@
 title: Re-exporting all exports from a page is disallowed
 ---
 
-## `export-all-in-page`
-
-#### Why This Error Occurred
+## Why This Error Occurred
 
 The following export can potentially break Next.js' compilation of pages:
 
@@ -37,7 +35,7 @@ Would cause the following error:
 Module not found: Can't resolve 'fs' in './pages/example-b.js'
 ```
 
-#### Possible Ways to Fix It
+## Possible Ways to Fix It
 
 Update your page to re-export the default component only:
 

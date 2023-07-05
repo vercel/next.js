@@ -2,9 +2,7 @@
 title: Sharp Missing In Production
 ---
 
-## `sharp-missing-in-production`
-
-#### Why This Error Occurred
+## Why This Error Occurred
 
 The `next/image` component's default loader uses [`squoosh`](https://www.npmjs.com/package/@squoosh/lib) because it is quick to install and suitable for a development environment.
 
@@ -16,7 +14,7 @@ You are seeing this error because Image Optimization in production mode (`next s
 
 You are seeing this error because Image Optimization in standalone mode (`output: "standalone"`) was detected.
 
-#### Possible Ways to Fix It
+## Possible Ways to Fix It
 
 - Install `sharp` by running one of the following commands in your project directory:
 
@@ -38,7 +36,7 @@ Then, build your project with `next build`. Finally, restart the server with eit
 
 > Note: This is not necessary for Vercel deployments, since `sharp` is installed automatically for you.
 
-### Useful Links
+## Useful Links
 
 - [Image Optimization Documentation](/docs/pages/building-your-application/optimizing/images)
 - [`next/image` Documentation](/docs/pages/api-reference/components/image)

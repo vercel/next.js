@@ -2,13 +2,11 @@
 title: API Routes Response Size Limited to 4MB
 ---
 
-## `api-routes-response-size-limit`
-
-#### Why This Error Occurred
+## Why This Error Occurred
 
 API Routes are meant to respond quickly and are not intended to support responding with large amounts of data. The maximum size of responses is 4MB.
 
-#### Possible Ways to Fix It
+## Possible Ways to Fix It
 
 If you are not using Next.js in a serverless environment, and understand the performance implications of not using a CDN or dedicated media host, you can set this limit to `false` inside your API Route.
 

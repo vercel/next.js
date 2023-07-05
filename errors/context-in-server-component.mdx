@@ -2,13 +2,11 @@
 title: createContext in a Server Component
 ---
 
-## `context-in-server-component`
-
-#### Why This Error Occurred
+## Why This Error Occurred
 
 You are using `createContext` in a Server Component but it only works in Client Components.
 
-#### Possible Ways to Fix It
+## Possible Ways to Fix It
 
 Mark the component using `createContext` as a Client Component by adding `'use client'` at the top of the file.
 
@@ -29,6 +27,6 @@ import { createContext } from 'react'
 const Context = createContext()
 ```
 
-### Useful Links
+## Useful Links
 
 [Server and Client Components](/docs/getting-started/react-essentials#context)

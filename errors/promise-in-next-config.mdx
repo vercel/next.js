@@ -2,9 +2,7 @@
 title: Promise In Next Config
 ---
 
-## `promise-in-next-config`
-
-#### Why This Error Occurred
+## Why This Error Occurred
 
 The webpack function in `next.config.js` returned a promise which is not supported in Next.js. For example, below is not supported:
 
@@ -16,7 +14,7 @@ module.exports = {
 }
 ```
 
-#### Possible Ways to Fix It
+## Possible Ways to Fix It
 
 In Next.js versions above `12.0.10`, `module.exports = async () =>` is supported.
 

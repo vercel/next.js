@@ -2,15 +2,13 @@
 title: 'No `styled-jsx` in `_document`'
 ---
 
-## `no-styled-jsx-in-document`
-
 > Prevent usage of `styled-jsx` in `pages/_document.js`.
 
-### Why This Error Occurred
+## Why This Error Occurred
 
 Custom CSS like `styled-jsx` is not allowed in a [Custom Document](/docs/pages/building-your-application/routing/custom-document).
 
-### Possible Ways to Fix It
+## Possible Ways to Fix It
 
 If you need shared CSS for all of your pages, take a look at the [Custom `App`](/docs/pages/building-your-application/routing/custom-app) file or define a custom layout.
 
@@ -39,7 +37,7 @@ export default function MyApp({ Component, pageProps }) {
 
 These styles (`styles.css`) will apply to all pages and components in your application.
 
-### Useful links
+## Useful Links
 
 - [Custom Document Caveats](/docs/pages/building-your-application/routing/custom-document#caveats)
 - [Layouts](/docs/pages/building-your-application/routing/pages-and-layouts#layout-pattern)

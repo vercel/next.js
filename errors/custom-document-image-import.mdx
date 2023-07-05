@@ -2,15 +2,13 @@
 title: Images cannot be imported into your custom document.
 ---
 
-## `custom-document-image-import`
-
-#### Why This Error Occurred
+## Why This Error Occurred
 
 An attempt to import an image file into [`pages/_document.js`](/docs/pages/building-your-application/routing/custom-document) was made.
 
 Custom documents aren't compiled for the browser and images statically imported like this will not be displayed.
 
-#### Possible Ways to Fix It
+## Possible Ways to Fix It
 
 If your image needs to be displayed on every page you can relocate it to your [`pages/_app.js`](/docs/pages/building-your-application/routing/custom-app) file.
 
@@ -42,7 +40,7 @@ module.exports = {
 }
 ```
 
-### Useful Links
+## Useful Links
 
 - [Custom `Document`](/docs/pages/building-your-application/routing/custom-document)
 - [Custom `App`](/docs/pages/building-your-application/routing/custom-app)

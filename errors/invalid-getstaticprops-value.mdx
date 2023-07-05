@@ -2,13 +2,11 @@
 title: 'Invalid `getStaticProps` Return Value'
 ---
 
-## `invalid-getstaticprops-value`
-
-#### Why This Error Occurred
+## Why This Error Occurred
 
 In one of the page's `getStaticProps` the return value had the incorrect shape.
 
-#### Possible Ways to Fix It
+## Possible Ways to Fix It
 
 Make sure to return the following shape from `getStaticProps`:
 
@@ -24,6 +22,6 @@ export async function getStaticProps(ctx: {
 }
 ```
 
-### Useful Links
+## Useful Links
 
 - [`getStaticProps` Documentation](/docs/pages/api-reference/functions/get-static-props)
