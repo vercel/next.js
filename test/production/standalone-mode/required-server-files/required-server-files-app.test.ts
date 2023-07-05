@@ -39,9 +39,6 @@ describe('should set-up next', () => {
         eslint: {
           ignoreDuringBuilds: true,
         },
-        experimental: {
-          appDir: true,
-        },
         output: 'standalone',
       },
     })

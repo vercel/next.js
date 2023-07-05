@@ -218,13 +218,6 @@ describe('Next Lint', () => {
   })
 
   test('base directories with appDir flag are linted by default', async () => {
-    dirBaseDirectoriesConfigFile.write(`
-        module.exports = {
-          experimental: {
-            appDir: true,
-          }
-        }
-      `)
     const { stdout, stderr } = await nextLint(dirBaseDirectories, [], {
       stdout: true,
       stderr: true,

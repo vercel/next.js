@@ -119,13 +119,6 @@ describe('Next Build', () => {
   })
 
   test('base directories with appDir flag are linted by default during builds', async () => {
-    dirBaseDirectoriesConfigFile.write(`
-        module.exports = {
-          experimental: {
-            appDir: true,
-          }
-        }
-      `)
     const { stdout, stderr } = await nextBuild(dirBaseDirectories, [], {
       stdout: true,
       stderr: true,
