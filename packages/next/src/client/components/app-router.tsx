@@ -34,6 +34,7 @@ import {
   ACTION_SERVER_ACTION,
   ACTION_SERVER_PATCH,
   PrefetchKind,
+  ReducerActions,
   RouterChangeByServerResponse,
   RouterNavigate,
   ServerActionDispatcher,
@@ -146,6 +147,76 @@ const createEmptyCacheNode = () => ({
   parallelRoutes: new Map(),
 })
 
+function useServerActionDispatcher(
+  changeByServerResponse: RouterChangeByServerResponse,
+  dispatch: React.Dispatch<ReducerActions>,
+  navigate: RouterNavigate
+) {
+  const serverActionDispatcher: ServerActionDispatcher = useCallback(
+    (actionPayload) => {
+      startTransition(() => {
+        dispatch({
+          ...actionPayload,
+          type: ACTION_SERVER_ACTION,
+          mutable: {},
+          navigate,
+          changeByServerResponse,
+        })
+      })
+    },
+    [changeByServerResponse, dispatch, navigate]
+  )
+  globalServerActionDispatcher = serverActionDispatcher
+}
+
+/**
+ * Server response that only patches the cache and tree.
+ */
+function useChangeByServerResponse(
+  dispatch: React.Dispatch<ReducerActions>
+): RouterChangeByServerResponse {
+  return useCallback(
+    (
+      previousTree: FlightRouterState,
+      flightData: FlightData,
+      overrideCanonicalUrl: URL | undefined
+    ) => {
+      startTransition(() => {
+        dispatch({
+          type: ACTION_SERVER_PATCH,
+          flightData,
+          previousTree,
+          overrideCanonicalUrl,
+          cache: createEmptyCacheNode(),
+          mutable: {},
+        })
+      })
+    },
+    [dispatch]
+  )
+}
+
+function useNavigate(dispatch: React.Dispatch<ReducerActions>): RouterNavigate {
+  return useCallback(
+    (href, navigateType, forceOptimisticNavigation, shouldScroll) => {
+      const url = new URL(addBasePath(href), location.href)
+
+      return dispatch({
+        type: ACTION_NAVIGATE,
+        url,
+        isExternalUrl: isExternalURL(url),
+        locationSearch: location.search,
+        forceOptimisticNavigation,
+        shouldScroll: shouldScroll ?? true,
+        navigateType,
+        cache: createEmptyCacheNode(),
+        mutable: {},
+      })
+    },
+    [dispatch]
+  )
+}
+
 /**
  * The global router that wraps the application components.
  */
@@ -207,64 +278,9 @@ function Router({
     }
   }, [canonicalUrl])
 
-  /**
-   * Server response that only patches the cache and tree.
-   */
-  const changeByServerResponse: RouterChangeByServerResponse = useCallback(
-    (
-      previousTree: FlightRouterState,
-      flightData: FlightData,
-      overrideCanonicalUrl: URL | undefined
-    ) => {
-      startTransition(() => {
-        dispatch({
-          type: ACTION_SERVER_PATCH,
-          flightData,
-          previousTree,
-          overrideCanonicalUrl,
-          cache: createEmptyCacheNode(),
-          mutable: {},
-        })
-      })
-    },
-    [dispatch]
-  )
-
-  const navigate: RouterNavigate = useCallback(
-    (href, navigateType, forceOptimisticNavigation, shouldScroll) => {
-      const url = new URL(addBasePath(href), location.href)
-
-      return dispatch({
-        type: ACTION_NAVIGATE,
-        url,
-        isExternalUrl: isExternalURL(url),
-        locationSearch: location.search,
-        forceOptimisticNavigation,
-        shouldScroll: shouldScroll ?? true,
-        navigateType,
-        cache: createEmptyCacheNode(),
-        mutable: {},
-      })
-    },
-    [dispatch]
-  )
-
-  const serverActionDispatcher: ServerActionDispatcher = useCallback(
-    (actionPayload) => {
-      startTransition(() => {
-        dispatch({
-          ...actionPayload,
-          type: ACTION_SERVER_ACTION,
-          mutable: {},
-          navigate,
-          changeByServerResponse,
-        })
-      })
-    },
-    [changeByServerResponse, dispatch, navigate]
-  )
-
-  globalServerActionDispatcher = serverActionDispatcher
+  const changeByServerResponse = useChangeByServerResponse(dispatch)
+  const navigate = useNavigate(dispatch)
+  useServerActionDispatcher(changeByServerResponse, dispatch, navigate)
 
   /**
    * The app router that is exposed through `useRouter`. It's only concerned with dispatching actions to the reducer, does not hold state.

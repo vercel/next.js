@@ -5,52 +5,56 @@
  */
 
 import crypto from 'crypto'
+import type webpack from 'webpack'
 
-export function pitch(this: any) {
-  if (process.env.NODE_ENV !== 'production') {
-    const content = this.fs.readFileSync(this.resourcePath)
-    this.data.__checksum = crypto
-      .createHash('sha1')
-      .update(typeof content === 'string' ? Buffer.from(content) : content)
-      .digest()
-      .toString('hex')
-  }
+type NextServerCSSLoaderOptions = {
+  cssModules: boolean
 }
 
-const NextServerCSSLoader = function (this: any, content: string) {
-  this.cacheable && this.cacheable()
+const NextServerCSSLoader: webpack.LoaderDefinitionFunction<NextServerCSSLoaderOptions> =
+  function (content) {
+    this.cacheable && this.cacheable()
+    const options = this.getOptions()
+    let isCSSModule = options.cssModules
 
-  // Only add the checksum during development.
-  if (process.env.NODE_ENV !== 'production') {
-    const isCSSModule = this.resourcePath.match(/\.module\.(css|sass|scss)$/)
-    const checksum = crypto
-      .createHash('sha1')
-      .update(
-        this.data.__checksum +
-          (typeof content === 'string' ? Buffer.from(content) : content)
-      )
-      .digest()
-      .toString('hex')
-      .substring(0, 12)
+    // Only add the checksum during development.
+    if (process.env.NODE_ENV !== 'production') {
+      // This check is only for backwards compatibility.
+      // TODO: Remove this in the next major version (next 14)
+      if (isCSSModule === undefined) {
+        this.emitWarning(
+          new Error(
+            "No 'cssModules' option was found for the next-flight-css-loader plugin."
+          )
+        )
+        isCSSModule =
+          this.resourcePath.match(/\.module\.(css|sass|scss)$/) !== null
+      }
+      const checksum = crypto
+        .createHash('sha1')
+        .update(typeof content === 'string' ? Buffer.from(content) : content)
+        .digest()
+        .toString('hex')
+        .substring(0, 12)
 
-    if (isCSSModule) {
-      return `\
+      if (isCSSModule) {
+        return `\
 ${content}
 module.exports.__checksum = ${JSON.stringify(checksum)}
 `
-    }
+      }
 
-    // Server CSS imports are always available for HMR, so we attach
-    // `module.hot.accept()` to the generated module.
-    const hmrCode = 'if (module.hot) { module.hot.accept() }'
+      // Server CSS imports are always available for HMR, so we attach
+      // `module.hot.accept()` to the generated module.
+      const hmrCode = 'if (module.hot) { module.hot.accept() }'
 
-    return `\
+      return `\
 export default ${JSON.stringify(checksum)}
 ${hmrCode}
 `
-  }
+    }
 
-  return content
-}
+    return content
+  }
 
 export default NextServerCSSLoader
