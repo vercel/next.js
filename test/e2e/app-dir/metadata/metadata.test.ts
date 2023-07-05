@@ -217,10 +217,10 @@ createNextDescribe(
         })
 
         await matchMultiDom('link', 'rel', 'href', {
-          manifest: 'https://www.google.com/manifest',
+          manifest: '/api/manifest',
           author: 'https://tree.com',
           preconnect: '/preconnect-url',
-          preload: '/preload-url',
+          preload: '/api/preload',
           'dns-prefetch': '/dns-prefetch-url',
         })
 
@@ -251,10 +251,10 @@ createNextDescribe(
         })
 
         await matchMultiDom('link', 'rel', 'href', {
-          manifest: 'https://www.google.com/manifest',
+          manifest: '/api/manifest',
           author: 'https://tree.com',
           preconnect: '/preconnect-url',
-          preload: '/preload-url',
+          preload: '/api/preload',
           'dns-prefetch': '/dns-prefetch-url',
         })
 
