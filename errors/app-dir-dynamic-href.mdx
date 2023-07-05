@@ -1,0 +1,38 @@
+---
+title: 'Dynamic `href` is not supported in the App Router'
+---
+
+## Why This Error Occurred
+
+You have tried to use a dynamic `href` with `next/link` in the `app` directory. This is not supported as the new client-side router no longer uses a mapping of dynamic routes -> url, instead it always leverages the url.
+
+## Possible Ways to Fix It
+
+**Before**
+
+```jsx filename="app/page.js"
+<Link
+  href={{
+    pathname: '/route/[slug]',
+    query: { slug: '1' },
+  }}
+>
+  link
+</Link>
+```
+
+Or
+
+```jsx filename="app/page.js"
+<Link href="/route/[slug]?slug=1">link</Link>
+```
+
+**After**
+
+```jsx filename="app/page.js"
+<Link href="/route/1">link</Link>
+```
+
+## Useful Links
+
+[`next/link` documentation](/docs/pages/api-reference/components/link#href-required)
