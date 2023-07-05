@@ -10,10 +10,7 @@ use turbopack_binding::{
                 CompileTimeDefines, CompileTimeDefinesVc, CompileTimeInfo, CompileTimeInfoVc,
                 FreeVarReferencesVc,
             },
-            environment::{
-                EnvironmentIntention, EnvironmentVc, ExecutionEnvironment, NodeJsEnvironmentVc,
-                ServerAddrVc,
-            },
+            environment::{EnvironmentVc, ExecutionEnvironment, NodeJsEnvironmentVc, ServerAddrVc},
             free_var_references,
         },
         ecmascript::TransformPluginVc,
@@ -245,25 +242,13 @@ async fn next_server_free_vars(mode: NextMode) -> Result<FreeVarReferencesVc> {
 
 #[turbo_tasks::function]
 pub fn get_server_compile_time_info(
-    ty: Value<ServerContextType>,
     mode: NextMode,
     process_env: ProcessEnvVc,
     server_addr: ServerAddrVc,
 ) -> CompileTimeInfoVc {
-    CompileTimeInfo::builder(EnvironmentVc::new(
-        Value::new(ExecutionEnvironment::NodeJsLambda(
-            NodeJsEnvironmentVc::current(process_env, server_addr),
-        )),
-        match ty.into_value() {
-            ServerContextType::Pages { .. } | ServerContextType::PagesData { .. } => {
-                Value::new(EnvironmentIntention::ServerRendering)
-            }
-            ServerContextType::AppSSR { .. } => Value::new(EnvironmentIntention::Prerendering),
-            ServerContextType::AppRSC { .. } => Value::new(EnvironmentIntention::ServerRendering),
-            ServerContextType::AppRoute { .. } => Value::new(EnvironmentIntention::Api),
-            ServerContextType::Middleware => Value::new(EnvironmentIntention::Middleware),
-        },
-    ))
+    CompileTimeInfo::builder(EnvironmentVc::new(Value::new(
+        ExecutionEnvironment::NodeJsLambda(NodeJsEnvironmentVc::current(process_env, server_addr)),
+    )))
     .defines(next_server_defines(mode))
     .free_var_references(next_server_free_vars(mode))
     .cell()

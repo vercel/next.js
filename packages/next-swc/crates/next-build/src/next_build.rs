@@ -12,7 +12,7 @@ use next_core::{
 };
 use serde::Serialize;
 use turbo_tasks::{
-    graph::{GraphTraversal, ReverseTopological},
+    graph::{AdjacencyMap, GraphTraversal},
     CollectiblesSource, CompletionVc, RawVc, TransientInstance, TransientValue, TryJoinIterExt,
     ValueToString,
 };
@@ -519,13 +519,13 @@ async fn handle_issues<T: Into<RawVc> + CollectiblesSource + Copy>(
 #[turbo_tasks::function]
 async fn all_assets_from_entry(entry: AssetVc) -> Result<AssetsVc> {
     Ok(AssetsVc::cell(
-        ReverseTopological::new()
+        AdjacencyMap::new()
             .skip_duplicates()
             .visit([entry], get_referenced_assets)
             .await
             .completed()?
             .into_inner()
-            .into_iter()
+            .into_reverse_topological()
             .collect(),
     ))
 }
@@ -535,13 +535,13 @@ async fn all_assets_from_entry(entry: AssetVc) -> Result<AssetsVc> {
 #[turbo_tasks::function]
 async fn all_assets_from_entries(entries: AssetsVc) -> Result<AssetsVc> {
     Ok(AssetsVc::cell(
-        ReverseTopological::new()
+        AdjacencyMap::new()
             .skip_duplicates()
             .visit(entries.await?.iter().copied(), get_referenced_assets)
             .await
             .completed()?
             .into_inner()
-            .into_iter()
+            .into_reverse_topological()
             .collect(),
     ))
 }
