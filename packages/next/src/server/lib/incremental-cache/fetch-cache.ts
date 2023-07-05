@@ -99,7 +99,7 @@ export default class FetchCache implements CacheHandler {
 
     if (Date.now() < rateLimitedUntil) {
       if (this.debug) {
-        console.log('rate limited')
+        console.log('rate limited ', rateLimitedUntil)
       }
       return
     }
