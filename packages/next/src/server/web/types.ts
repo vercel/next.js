@@ -27,6 +27,7 @@ export interface RequestData {
   }
   url: string
   body?: ReadableStream<Uint8Array>
+  signal: AbortSignal
 }
 
 export type NodejsRequestData = Omit<RequestData, 'body'> & {

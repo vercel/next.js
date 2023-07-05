@@ -14,6 +14,7 @@ import {
 import { SERVER_RUNTIME } from '../../../../lib/constants'
 import { PrerenderManifest } from '../../..'
 import { normalizeAppPath } from '../../../../shared/lib/router/utils/app-paths'
+import { SizeLimit } from '../../../../../types'
 
 export function getRender({
   dev,
@@ -31,6 +32,7 @@ export function getRender({
   clientReferenceManifest,
   subresourceIntegrityManifest,
   serverActionsManifest,
+  serverActionsBodySizeLimit,
   config,
   buildId,
   nextFontManifest,
@@ -43,7 +45,7 @@ export function getRender({
   pageMod: any
   errorMod: any
   error500Mod: any
-  renderToHTML: any
+  renderToHTML?: any
   Document: DocumentType
   buildManifest: BuildManifest
   prerenderManifest: PrerenderManifest
@@ -51,6 +53,7 @@ export function getRender({
   subresourceIntegrityManifest?: Record<string, string>
   clientReferenceManifest?: ClientReferenceManifest
   serverActionsManifest: any
+  serverActionsBodySizeLimit?: SizeLimit
   appServerMod: any
   config: NextConfigComplete
   buildId: string
@@ -85,6 +88,7 @@ export function getRender({
         disableOptimizedLoading: true,
         clientReferenceManifest,
         serverActionsManifest,
+        serverActionsBodySizeLimit,
       },
       renderToHTML,
       incrementalCacheHandler,
@@ -100,6 +104,7 @@ export function getRender({
             ComponentMod: pageMod,
             isAppPath: !!pageMod.__next_app__,
             pathname,
+            routeModule: pageMod.routeModule,
           }
         }
 
@@ -114,6 +119,7 @@ export function getRender({
             getStaticPaths: error500Mod.getStaticPaths,
             ComponentMod: error500Mod,
             pathname,
+            routeModule: error500Mod.routeModule,
           }
         }
 
@@ -127,6 +133,7 @@ export function getRender({
             getStaticPaths: errorMod.getStaticPaths,
             ComponentMod: errorMod,
             pathname,
+            routeModule: errorMod.routeModule,
           }
         }
 

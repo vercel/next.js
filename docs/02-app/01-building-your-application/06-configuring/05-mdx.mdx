@@ -3,6 +3,8 @@ title: MDX
 description: Learn how to configure MDX to write JSX in your markdown files.
 ---
 
+{/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
+
 [Markdown](https://daringfireball.net/projects/markdown/syntax) is a lightweight markup language used to format text. It allows you to write using plain text syntax and convert it to structurally valid HTML. It's commonly used for writing content on websites and blogs.
 
 You write...
@@ -314,13 +316,17 @@ const withMDX = require('@next/mdx')({
 Then setup the provider in your page
 
 ```jsx filename="pages/index.js"
-
 import { MDXProvider } from '@mdx-js/react'
 import Image from 'next/image'
 import { Heading, InlineCode, Pre, Table, Text } from 'my-components'
 
 const ResponsiveImage = (props) => (
-  <Image alt={props.alt} sizes="100vw" style={ width: '100%', height: 'auto' }  {...props} />
+  <Image
+    alt={props.alt}
+    sizes="100vw"
+    style={{ width: '100%', height: 'auto' }}
+    {...props}
+  />
 )
 
 const components = {
@@ -366,7 +372,7 @@ async function main() {
     .use(rehypeStringify) // Convert AST into serialized HTML
     .process('Hello, Next.js!')
 
-  console.log(String(file)) // <p>>Hello, Next.js!</p>
+  console.log(String(file)) // <p>Hello, Next.js!</p>
 }
 ```
 

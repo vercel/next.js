@@ -3,6 +3,8 @@ title: Environment Variables
 description: Learn to add and access environment variables in your Next.js application.
 ---
 
+{/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
+
 <details>
   <summary>Examples</summary>
 
@@ -26,6 +28,7 @@ DB_PASS=mypassword
 ```
 
 <PagesOnly>
+
 This loads `process.env.DB_HOST`, `process.env.DB_USER`, and `process.env.DB_PASS` into the Node.js environment automatically allowing you to use them in [Next.js data fetching methods](/docs/pages/building-your-application/data-fetching) and [API routes](/docs/pages/building-your-application/routing/api-routes).
 
 For example, using [`getStaticProps`](/docs/pages/building-your-application/data-fetching/get-static-props):
@@ -44,6 +47,7 @@ export async function getStaticProps() {
 </PagesOnly>
 
 <AppOnly>
+
 This loads `process.env.DB_HOST`, `process.env.DB_USER`, and `process.env.DB_PASS` into the Node.js environment automatically allowing you to use them in Route Handlers.
 
 {/* TODO: App Router Example */}
@@ -163,4 +167,5 @@ For example, if `NODE_ENV` is `development` and you define a variable in both `.
 
 ## Good to know
 
-- If you are using a [`/src` directory](/docs/app/building-your-application/configuring/src-directory), `env.*` files should remain in the root of your project.
+- If you are using a [`/src` directory](/docs/app/building-your-application/configuring/src-directory), `.env.*` files should remain in the root of your project.
+- If the environment variable `NODE_ENV` is unassigned, Next.js automatically assigns `development` when running the `next dev` command, or `production` for all other commands.
