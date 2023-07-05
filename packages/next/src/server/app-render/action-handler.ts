@@ -242,6 +242,7 @@ export async function handleAction({
   req,
   res,
   ComponentMod,
+  actionAsyncStorage,
   pathname,
   serverActionsManifest,
   generateFlight,
@@ -252,6 +253,7 @@ export async function handleAction({
   req: IncomingMessage
   res: ServerResponse
   ComponentMod: any
+  actionAsyncStorage: ActionAsyncStorage
   pathname: string
   serverActionsManifest: any
   generateFlight: (options: {
@@ -293,10 +295,6 @@ export async function handleAction({
         },
       }
     )
-
-    const { actionAsyncStorage } = ComponentMod as {
-      actionAsyncStorage: ActionAsyncStorage
-    }
 
     let actionResult: RenderResult | undefined
 
