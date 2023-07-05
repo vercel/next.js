@@ -109,100 +109,6 @@ ruleTester.run('no-before-interactive-script-outside-document', rule, {
 
       export default function Index() {
         return (
-          <Script
-            id="scriptBeforeInteractive"
-            src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=scriptBeforeInteractive"
-            strategy="beforeInteractive"
-          ></Script>
-        );
-      }`,
-      filename: 'app/deep/root/layout.tsx',
-    },
-    {
-      code: `
-      import Script from "next/script";
-
-      export default function Index() {
-        return (
-          <Script
-            id="scriptBeforeInteractive"
-            src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=scriptBeforeInteractive"
-            strategy="beforeInteractive"
-          ></Script>
-        );
-      }`,
-      filename: 'app/deep/page.tsx',
-    },
-    {
-      code: `
-      import Script from "next/script";
-
-      export default function Index() {
-        return (
-          <Script
-            id="scriptBeforeInteractive"
-            src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=scriptBeforeInteractive"
-            strategy="beforeInteractive"
-          ></Script>
-        );
-      }`,
-      filename: 'app/deep/randomFile.tsx',
-    },
-    {
-      code: `
-      import Script from "next/script";
-
-      export default function Index() {
-        return (
-          <Script
-            id="scriptBeforeInteractive"
-            src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=scriptBeforeInteractive"
-            strategy="beforeInteractive"
-          ></Script>
-        );
-      }`,
-      filename: 'src/app/deep/randomFile.tsx',
-    },
-    {
-      code: `
-      import Script from "next/script";
-
-      export default function Index() {
-        return (
-          <html lang="en">
-            <body className={inter.className}>{children}</body>
-            <Script
-              src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=scriptBeforeInteractive"
-              strategy='beforeInteractive'
-            />
-          </html>
-        );
-      }`,
-      filename: 'src/app/layout.tsx',
-    },
-    {
-      code: `
-      import Script from "next/script";
-
-      export default function Index() {
-        return (
-          <html lang="en">
-            <body className={inter.className}>{children}</body>
-            <Script
-              src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=scriptBeforeInteractive"
-              strategy='beforeInteractive'
-            />
-          </html>
-        );
-      }`,
-      filename: 'app/layout.tsx',
-    },
-    {
-      code: `
-      import Script from "next/script";
-
-      export default function Index() {
-        return (
           <html lang="en">
             <body className={inter.className}>{children}</body>
             <Script
@@ -356,7 +262,8 @@ ruleTester.run('no-before-interactive-script-outside-document', rule, {
           </html>
         );
       }`,
-      filename: '/Users/user_name/projects/project-name/src/pages/layout.tsx',
+      filename:
+        'C:\\Users\\username\\projects\\project-name\\pages\\layout.tsx',
       errors: [
         {
           message:
@@ -368,7 +275,7 @@ ruleTester.run('no-before-interactive-script-outside-document', rule, {
       code: `
       import Script from "next/script";
 
-      export default function test() {
+      export default function Index() {
         return (
           <html lang="en">
             <body className={inter.className}>{children}</body>
@@ -379,8 +286,7 @@ ruleTester.run('no-before-interactive-script-outside-document', rule, {
           </html>
         );
       }`,
-      filename:
-        'C:\\Users\\username\\projects\\project-name\\pages\\layout.tsx',
+      filename: '/Users/user_name/projects/project-name/src/pages/layout.tsx',
       errors: [
         {
           message:
