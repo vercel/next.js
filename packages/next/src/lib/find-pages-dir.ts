@@ -1,6 +1,5 @@
 import fs from 'fs'
 import path from 'path'
-import * as Log from '../build/output/log'
 
 export const existsSync = (f: string): boolean => {
   try {
