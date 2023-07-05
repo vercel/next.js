@@ -78,7 +78,6 @@ type ImageConfig = ImageConfigComplete & {
   allSizes: number[]
   output?: 'standalone' | 'export'
 }
-const configEnv = process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete
 
 export type ImageLoader = (p: ImageLoaderProps) => string
 
@@ -256,7 +255,7 @@ export function getImgProps(
   }: ImageProps,
   _state: {
     defaultLoader: ImageLoaderWithConfig
-    imgConf?: ImageConfig
+    imgConf: ImageConfigComplete
     showAltText?: boolean
     blurComplete?: boolean
   }
@@ -271,7 +270,7 @@ export function getImgProps(
 } {
   const { imgConf, showAltText, blurComplete, defaultLoader } = _state
   let config: ImageConfig
-  let c = imgConf || configEnv || imageConfigDefault
+  let c = imgConf || imageConfigDefault
   if ('allSizes' in c) {
     config = c as ImageConfig
   } else {

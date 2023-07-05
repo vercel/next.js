@@ -428,13 +428,16 @@ function processMessage(
               router.fastRefresh()
               dispatcher.onRefresh()
             })
-          } else {
+          } else if (pageRes.status === 404) {
             // We are still on the page,
             // dispatch an error so it's caught by the NotFound handler
             dispatcher.onNotFound()
           }
         })
       }
+      return
+    }
+    case 'devPagesManifestUpdate': {
       return
     }
     default: {
