@@ -23,6 +23,7 @@ import { getNpxCommand } from '../lib/helpers/get-npx-command'
 import Watchpack from 'watchpack'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { getPossibleInstrumentationHookFilenames } from '../build/worker'
+import { resetEnv } from '@next/env'
 
 let dir: string
 let isTurboSession = false
@@ -293,6 +294,9 @@ const nextDev: CliCommand = async (argv) => {
       }
     }
 
+    // Turbopack need to be in control over reading the .env files and watching them.
+    // So we need to start with a initial env to know which env vars are coming from the user.
+    resetEnv()
     let bindings: any = await loadBindings()
     let server = bindings.turbo.startDev({
       ...devServerOptions,
