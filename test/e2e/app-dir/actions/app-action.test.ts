@@ -100,7 +100,7 @@ createNextDescribe(
 
     it('should support setting cookies in route handlers with the correct overrides', async () => {
       const res = await next.fetch('/handler')
-      const setCookieHeader = res.headers.get('set-cookie') as any as string[]
+      const setCookieHeader = res.headers.get('set-cookie')
       expect(setCookieHeader).toContain('bar=bar2; Path=/')
       expect(setCookieHeader).toContain('baz=baz2; Path=/')
       expect(setCookieHeader).toContain('foo=foo1; Path=/')

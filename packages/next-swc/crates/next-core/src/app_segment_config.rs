@@ -21,7 +21,7 @@ use turbopack_binding::turbopack::{
         source_asset::SourceAssetVc,
     },
     ecmascript::{
-        analyzer::{graph::EvalContext, JsValue},
+        analyzer::{graph::EvalContext, ConstantNumber, ConstantValue, JsValue},
         parse::ParseResult,
         EcmascriptModuleAssetVc,
     },
@@ -52,12 +52,22 @@ pub enum NextSegmentFetchCache {
     ForceNoStore,
 }
 
+#[derive(Default, PartialEq, Eq, Clone, Copy, Debug, TraceRawVcs, Serialize, Deserialize)]
+pub enum NextRevalidate {
+    #[default]
+    Never,
+    ForceCache,
+    Frequency {
+        seconds: u32,
+    },
+}
+
 #[turbo_tasks::value]
 #[derive(Debug, Default)]
 pub struct NextSegmentConfig {
     pub dynamic: Option<NextSegmentDynamic>,
     pub dynamic_params: Option<bool>,
-    pub revalidate: Option<bool>,
+    pub revalidate: Option<NextRevalidate>,
     pub fetch_cache: Option<NextSegmentFetchCache>,
     pub runtime: Option<NextRuntime>,
     pub preferred_region: Option<String>,
@@ -271,71 +281,86 @@ fn parse_config_value(
         "dynamic" => {
             let value = eval_context.eval(init);
             let Some(val) = value.as_str() else {
-                return invalid_config("`dynamic` needs to be a static string", &value);
+                invalid_config("`dynamic` needs to be a static string", &value);
+                return;
             };
 
             config.dynamic = match serde_json::from_value(Value::String(val.to_string())) {
                 Ok(dynamic) => Some(dynamic),
                 Err(err) => {
-                    return invalid_config(
-                        &format!("`dynamic` has an invalid value: {}", err),
-                        &value,
-                    )
+                    invalid_config(&format!("`dynamic` has an invalid value: {}", err), &value);
+                    return;
                 }
             };
         }
         "dynamicParams" => {
             let value = eval_context.eval(init);
             let Some(val) = value.as_bool() else {
-                return invalid_config("`dynamicParams` needs to be a static boolean", &value);
+                invalid_config("`dynamicParams` needs to be a static boolean", &value);
+                return
             };
 
             config.dynamic_params = Some(val);
         }
         "revalidate" => {
             let value = eval_context.eval(init);
-            let Some(val) = value.as_bool() else {
-                return invalid_config("`revalidate` needs to be a static boolean", &value);
-            };
-
-            config.revalidate = Some(val);
+            match value {
+                JsValue::Constant(ConstantValue::Num(ConstantNumber(val))) if val >= 0.0 => {
+                    config.revalidate = Some(NextRevalidate::Frequency {
+                        seconds: val as u32,
+                    });
+                }
+                JsValue::Constant(ConstantValue::False) => {
+                    config.revalidate = Some(NextRevalidate::Never);
+                }
+                JsValue::Constant(ConstantValue::Str(str)) if str.as_str() == "force-cache" => {
+                    config.revalidate = Some(NextRevalidate::ForceCache);
+                }
+                _ => invalid_config(
+                    "`revalidate` needs to be static false, static 'force-cache' or a static \
+                     positive integer",
+                    &value,
+                ),
+            }
         }
         "fetchCache" => {
             let value = eval_context.eval(init);
             let Some(val) = value.as_str() else {
-                return invalid_config("`fetchCache` needs to be a static string", &value);
+                invalid_config("`fetchCache` needs to be a static string", &value);
+                return;
             };
 
             config.fetch_cache = match serde_json::from_value(Value::String(val.to_string())) {
                 Ok(fetch_cache) => Some(fetch_cache),
                 Err(err) => {
-                    return invalid_config(
+                    invalid_config(
                         &format!("`fetchCache` has an invalid value: {}", err),
                         &value,
-                    )
+                    );
+                    return;
                 }
             };
         }
         "runtime" => {
             let value = eval_context.eval(init);
             let Some(val) = value.as_str() else {
-                return invalid_config("`runtime` needs to be a static string", &value);
+                invalid_config("`runtime` needs to be a static string", &value);
+                return;
             };
 
             config.runtime = match serde_json::from_value(Value::String(val.to_string())) {
                 Ok(runtime) => Some(runtime),
                 Err(err) => {
-                    return invalid_config(
-                        &format!("`runtime` has an invalid value: {}", err),
-                        &value,
-                    )
+                    invalid_config(&format!("`runtime` has an invalid value: {}", err), &value);
+                    return;
                 }
             };
         }
         "preferredRegion" => {
             let value = eval_context.eval(init);
             let Some(val) = value.as_str() else {
-                return invalid_config("`preferredRegion` needs to be a static string", &value);
+                invalid_config("`preferredRegion` needs to be a static string", &value);
+                return;
             };
 
             config.preferred_region = Some(val.to_string());
