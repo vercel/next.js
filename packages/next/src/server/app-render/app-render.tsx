@@ -11,9 +11,14 @@ import type {
   Segment,
 } from './types'
 
+import type { StaticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage'
+import type { StaticGenerationBailout } from '../../client/components/static-generation-bailout'
+import type { RequestAsyncStorage } from '../../client/components/request-async-storage'
+
 import React from 'react'
 import { NotFound as DefaultNotFound } from '../../client/components/error'
 import { createServerComponentRenderer } from './create-server-components-renderer'
+
 import { ParsedUrlQuery } from 'querystring'
 import { NextParsedUrlQuery } from '../request-meta'
 import RenderResult, { type RenderResultMetadata } from '../render-result'
@@ -132,25 +137,12 @@ function findDynamicParamFromRouterState(
   return null
 }
 
-type RenderOptsExtra = {
-  /**
-   * The tree created in next-app-loader that holds component segments and modules
-   */
-  loaderTree: LoaderTree
-
-  /**
-   * The exports from the entry base module.
-   */
-  entryBase: typeof import('./entry-base')
-}
-
-export async function renderToHTMLOrFlightImpl(
+export async function renderToHTMLOrFlight(
   req: IncomingMessage,
   res: ServerResponse,
   pagePath: string,
   query: NextParsedUrlQuery,
-  renderOpts: RenderOpts,
-  extra: RenderOptsExtra
+  renderOpts: RenderOpts
 ): Promise<RenderResult> {
   const isFlight = req.headers[RSC.toLowerCase()] !== undefined
   const pathname = validateURL(req.url)
@@ -166,26 +158,6 @@ export async function renderToHTMLOrFlightImpl(
     nextConfigOutput,
     serverActionsBodySizeLimit,
   } = renderOpts
-
-  const {
-    loaderTree,
-    entryBase: {
-      serverHooks: { DynamicServerError },
-      AppRouter,
-      LayoutRouter,
-      staticGenerationAsyncStorage,
-      actionAsyncStorage,
-      requestAsyncStorage,
-      staticGenerationBailout,
-      RenderFromTemplateContext,
-      createSearchParamsBailoutProxy,
-      StaticGenerationSearchParamsBailoutProvider,
-      renderToReadableStream,
-      preloadFont,
-      preloadStyle,
-      preconnect,
-    },
-  } = extra
 
   const appUsingSizeAdjust = nextFontManifest?.appUsingSizeAdjust
 
@@ -233,6 +205,13 @@ export async function renderToHTMLOrFlightImpl(
    */
   const generateStaticHTML = supportsDynamicHTML !== true
 
+  const staticGenerationAsyncStorage: StaticGenerationAsyncStorage =
+    ComponentMod.staticGenerationAsyncStorage
+  const requestAsyncStorage: RequestAsyncStorage =
+    ComponentMod.requestAsyncStorage
+  const staticGenerationBailout: StaticGenerationBailout =
+    ComponentMod.staticGenerationBailout
+
   // we wrap the render in an AsyncLocalStorage context
   const wrappedRender = async () => {
     const staticGenerationStore = staticGenerationAsyncStorage.getStore()
@@ -268,6 +247,11 @@ export async function renderToHTMLOrFlightImpl(
       : undefined
 
     /**
+     * The tree created in next-app-loader that holds component segments and modules
+     */
+    const loaderTree: LoaderTree = ComponentMod.tree
+
+    /**
      * The metadata items array created in next-app-loader with all relevant information
      * that we need to resolve the final metadata.
      */
@@ -276,6 +260,15 @@ export async function renderToHTMLOrFlightImpl(
       process.env.NEXT_RUNTIME === 'edge'
         ? crypto.randomUUID()
         : require('next/dist/compiled/nanoid').nanoid()
+
+    const LayoutRouter =
+      ComponentMod.LayoutRouter as typeof import('../../client/components/layout-router').default
+    const RenderFromTemplateContext =
+      ComponentMod.RenderFromTemplateContext as typeof import('../../client/components/render-from-template-context').default
+    const createSearchParamsBailoutProxy =
+      ComponentMod.createSearchParamsBailoutProxy as typeof import('../../client/components/searchparams-bailout-proxy').createSearchParamsBailoutProxy
+    const StaticGenerationSearchParamsBailoutProvider =
+      ComponentMod.StaticGenerationSearchParamsBailoutProvider as typeof import('../../client/components/static-generation-searchparams-bailout-provider').default
 
     const isStaticGeneration = staticGenerationStore.isStaticGeneration
     // During static generation we need to call the static generation bailout when reading searchParams
@@ -473,16 +466,16 @@ export async function renderToHTMLOrFlightImpl(
             const href = `${assetPrefix}/_next/${fontFilename}${getAssetQueryString(
               false
             )}`
-            preloadFont(href, type)
+            ComponentMod.preloadFont(href, type)
           }
         } else {
           try {
             let url = new URL(assetPrefix)
-            preconnect(url.origin, 'anonymous')
+            ComponentMod.preconnect(url.origin, 'anonymous')
           } catch (error) {
             // assetPrefix must not be a fully qualified domain name. We assume
             // we should preconnect to same origin instead
-            preconnect('/', 'anonymous')
+            ComponentMod.preconnect('/', 'anonymous')
           }
         }
       }
@@ -508,7 +501,7 @@ export async function renderToHTMLOrFlightImpl(
             const precedence =
               process.env.NODE_ENV === 'development' ? 'next_' + href : 'next'
 
-            preloadStyle(fullHref)
+            ComponentMod.preloadStyle(fullHref)
 
             return (
               <link
@@ -692,6 +685,9 @@ export async function renderToHTMLOrFlightImpl(
           staticGenerationStore.isStaticGeneration &&
           defaultRevalidate === 0
         ) {
+          const { DynamicServerError } =
+            ComponentMod.serverHooks as typeof import('../../client/components/hooks-server-context')
+
           const dynamicUsageDescription = `revalidate: 0 configured ${segment}`
           staticGenerationStore.dynamicUsageDescription =
             dynamicUsageDescription
@@ -1201,7 +1197,7 @@ export async function renderToHTMLOrFlightImpl(
 
       // For app dir, use the bundled version of Fizz renderer (renderToReadableStream)
       // which contains the subset React.
-      const readable = renderToReadableStream(
+      const readable = ComponentMod.renderToReadableStream(
         options
           ? [options.actionResult, buildIdFlightDataPair]
           : buildIdFlightDataPair,
@@ -1220,6 +1216,10 @@ export async function renderToHTMLOrFlightImpl(
     }
 
     // Below this line is handling for rendering to HTML.
+
+    // AppRouter is provided by next-app-loader
+    const AppRouter =
+      ComponentMod.AppRouter as typeof import('../../client/components/app-router').default
 
     const GlobalError =
       /** GlobalError can be either the default error boundary or the overwritten app/global-error.js **/
@@ -1347,10 +1347,7 @@ export async function renderToHTMLOrFlightImpl(
           </>
         )
       },
-      {
-        renderToReadableStream,
-        __next_app__: ComponentMod.__next_app__,
-      },
+      ComponentMod,
       serverComponentsRenderOpts,
       serverComponentsErrorHandler,
       nonce
@@ -1603,7 +1600,6 @@ export async function renderToHTMLOrFlightImpl(
       req,
       res,
       ComponentMod,
-      actionAsyncStorage,
       pathname: renderOpts.pathname,
       serverActionsManifest,
       generateFlight,
@@ -1678,18 +1674,4 @@ export async function renderToHTMLOrFlightImpl(
         () => wrappedRender()
       )
   )
-}
-
-export async function renderToHTMLOrFlight(
-  req: IncomingMessage,
-  res: ServerResponse,
-  pagePath: string,
-  query: NextParsedUrlQuery,
-  renderOpts: RenderOpts
-) {
-  return renderToHTMLOrFlightImpl(req, res, pagePath, query, renderOpts, {
-    loaderTree: renderOpts.ComponentMod.tree,
-    // The entry base exports are all exported from the component module.
-    entryBase: renderOpts.ComponentMod,
-  })
 }

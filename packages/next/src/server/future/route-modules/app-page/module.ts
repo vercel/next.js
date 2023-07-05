@@ -5,19 +5,12 @@ import type { RenderOpts } from '../../../app-render/types'
 import type { NextParsedUrlQuery } from '../../../request-meta'
 import type { LoaderTree } from '../../../lib/app-dir-module'
 
-import { renderToHTMLOrFlightImpl } from '../../../app-render/app-render'
+import { renderToHTMLOrFlight } from '../../../app-render/app-render'
 import {
   RouteModule,
   type RouteModuleOptions,
   type RouteModuleHandleContext,
 } from '../route-module'
-
-// These are imported weirdly like this because of the way that the bundling
-// works. We need to import the built files from the dist directory, but we
-// can't do that directly because we need types from the source files. So we
-// import the types from the source files and then import the built files.
-const entryBase =
-  require('next/dist/server/app-render/entry-base') as typeof import('../../../app-render/entry-base')
 
 type AppPageUserlandModule = {
   /**
@@ -27,7 +20,7 @@ type AppPageUserlandModule = {
 }
 
 interface AppPageRouteHandlerContext extends RouteModuleHandleContext {
-  pathname: string
+  page: string
   query: NextParsedUrlQuery
   renderOpts: RenderOpts
 }
@@ -50,16 +43,12 @@ export class AppPageRouteModule extends RouteModule<
     res: ServerResponse,
     context: AppPageRouteHandlerContext
   ): Promise<RenderResult> {
-    return renderToHTMLOrFlightImpl(
+    return renderToHTMLOrFlight(
       req,
       res,
-      context.pathname,
+      context.page,
       context.query,
-      context.renderOpts,
-      {
-        loaderTree: this.userland.loaderTree,
-        entryBase,
-      }
+      context.renderOpts
     )
   }
 }
