@@ -1,17 +1,23 @@
 ---
-title: API routes in Static export
+title: Understanding "API Routes in Static Export" Warning in Next.js
+description: This document explains the "API Routes in Static Export" warning in Next.js and offers steps to resolve it.
 ---
 
-#### Why This Warning Occurred
+## Why This Warning Occurred
 
-An `exportPathMap` path was matched to an API route. Statically exporting a Next.js application via `next export` disables API routes.
+The "API Routes in Static Export" warning is typically raised when an `exportPathMap` path is matched to an API route while trying to statically export a Next.js application via the `next export` command. This command disables API routes as it is designed for a static-only setup.
 
-This command is meant for a static-only setup, and is not necessary to make your application static. Pages in your application without server-side data dependencies will be automatically statically exported by `next build`, including pages powered by `getStaticProps`
+Running `next export` is not necessary to make your application static. Pages in your application that do not have server-side data dependencies will be automatically statically optimized when you run `next build`. This includes pages powered by `getStaticProps`.
 
 ## Possible Ways to Fix It
 
-Use `next build` with platforms that don't require `next export` like https://vercel.com or remove any paths using API routes from your `exportPathMap` in `next.config.js`.
+To resolve this issue, you have two main options:
+
+1. Use the `next build` command instead of `next export` if you're deploying your application on platforms that don't require `next export`. For example, [Vercel](https://vercel.com) is a popular hosting platform for Next.js applications that supports this feature.
+2. If you still need to use `next export`, make sure to remove any paths that use API routes from your `exportPathMap` in your `next.config.js` file.
+3. Consider [incrementally adopting the App Router](/docs/app/building-your-application/upgrading/app-router-migration), which supportes [Route Handlers](/docs/app/building-your-application/routing/router-handlers). These "API Routes" can be used to create endpoints that can be statically exported in your application.
 
 ## Useful Links
 
-- [Static HTML export](/docs/pages/building-your-application/deploying/static-exports)
+- [Static HTML export](/docs/advanced-features/static-html-export) - Learn more about how you can create a static HTML export of your Next.js application.
+- [Route Handlers](/docs/app/building-your-application/routing/router-handlers) - Learn more about how you can use Route Handlers to create endpoints that can be statically exported in your application.
