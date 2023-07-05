@@ -1,4 +1,4 @@
-import { NextTypesPlugin } from './next-types-plugin'
+import { NextTypesPlugin } from '.'
 
 describe('next-types-plugin', () => {
   it('should generate correct base import path', () => {

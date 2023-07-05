@@ -1,4 +1,4 @@
-import type { Rewrite, Redirect } from '../../../lib/load-custom-routes'
+import type { Rewrite, Redirect } from '../../../../lib/load-custom-routes'
 import type { Token } from 'next/dist/compiled/path-to-regexp'
 
 import fs from 'fs/promises'
@@ -6,14 +6,15 @@ import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import { parse } from 'next/dist/compiled/path-to-regexp'
 import path from 'path'
 
-import { WEBPACK_LAYERS } from '../../../lib/constants'
-import { denormalizePagePath } from '../../../shared/lib/page-path/denormalize-page-path'
-import { ensureLeadingSlash } from '../../../shared/lib/page-path/ensure-leading-slash'
-import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
-import { HTTP_METHODS } from '../../../server/web/http'
-import { isDynamicRoute } from '../../../shared/lib/router/utils'
-import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
-import { getPageFromPath } from '../../entries'
+import { WEBPACK_LAYERS } from '../../../../lib/constants'
+import { denormalizePagePath } from '../../../../shared/lib/page-path/denormalize-page-path'
+import { ensureLeadingSlash } from '../../../../shared/lib/page-path/ensure-leading-slash'
+import { normalizePathSep } from '../../../../shared/lib/page-path/normalize-path-sep'
+import { HTTP_METHODS } from '../../../../server/web/http'
+import { isDynamicRoute } from '../../../../shared/lib/router/utils'
+import { normalizeAppPath } from '../../../../shared/lib/router/utils/app-paths'
+import { getPageFromPath } from '../../../entries'
+import { devPageFiles } from './shared'
 
 const PLUGIN_NAME = 'NextTypesPlugin'
 
@@ -187,8 +188,6 @@ async function collectNamedSlots(layoutPath: string) {
   }
   return slots
 }
-
-export const devPageFiles = new Set<string>()
 
 // By exposing the static route types separately as string literals,
 // editors can provide autocompletion for them. However it's currently not
