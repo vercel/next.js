@@ -171,7 +171,7 @@ describe('should set-up next', () => {
     })
     expect(res.status).toBe(200)
     expect(res.headers.get('cache-control')).toBe(
-      's-maxage=1, stale-while-revalidate'
+      's-maxage=1, stale-while-revalidate=31536000'
     )
 
     await waitFor(2000)
@@ -182,7 +182,7 @@ describe('should set-up next', () => {
     })
     expect(res2.status).toBe(404)
     expect(res2.headers.get('cache-control')).toBe(
-      's-maxage=1, stale-while-revalidate'
+      's-maxage=1, stale-while-revalidate=31536000'
     )
   })
 
@@ -194,7 +194,7 @@ describe('should set-up next', () => {
     })
     expect(res.status).toBe(200)
     expect(res.headers.get('cache-control')).toBe(
-      's-maxage=1, stale-while-revalidate'
+      's-maxage=1, stale-while-revalidate=31536000'
     )
 
     await next.patchFile('standalone/data.txt', 'hide')
@@ -206,7 +206,7 @@ describe('should set-up next', () => {
 
     expect(res2.status).toBe(404)
     expect(res2.headers.get('cache-control')).toBe(
-      's-maxage=1, stale-while-revalidate'
+      's-maxage=1, stale-while-revalidate=31536000'
     )
   })
 

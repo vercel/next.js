@@ -22,9 +22,9 @@ export function setRevalidateHeaders(
 
     res.setHeader(
       'Cache-Control',
-      `s-maxage=${options.revalidate}, stale-while-revalidate`
+      `s-maxage=${options.revalidate}, stale-while-revalidate=31536000`
     )
   } else if (options.revalidate === false) {
-    res.setHeader('Cache-Control', `s-maxage=31536000, stale-while-revalidate`)
+    res.setHeader('Cache-Control', `s-maxage=31536000, stale-while-revalidate=31536000`)
   }
 }
