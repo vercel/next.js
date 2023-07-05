@@ -9,6 +9,30 @@ const startsWithUsingCorrectSeparators = (str: string, start: string) =>
     str.startsWith(start.replace(/\//g, sep))
   )
 
+/**
+ * Removes the root directory path from the pathname.
+ * @example
+ * RootDir: '/Users/username/project'
+ * Input: removeProjectRootPath('/Users/username/project/src/index.js')
+ * Output: 'src/index.js'
+ */
+const removeProjectRootPath = (pathname: string) => {
+  const currentRulePath = path.resolve(__dirname)
+
+  // Finds the index of the first character that differs between the two paths.
+  let endOfRootDirIdx = 0
+  while (
+    endOfRootDirIdx < currentRulePath.length &&
+    endOfRootDirIdx < pathname.length &&
+    currentRulePath[endOfRootDirIdx] === pathname[endOfRootDirIdx]
+  ) {
+    endOfRootDirIdx++
+  }
+
+  // Returns the pathname without the root directory path.
+  return pathname.substring(endOfRootDirIdx)
+}
+
 export = defineRule({
   meta: {
     docs: {
@@ -25,33 +49,21 @@ export = defineRule({
 
     return {
       'ImportDeclaration[source.value="next/script"] > ImportDefaultSpecifier'(
-        node
+        node: any
       ) {
         scriptImportName = node.local.name
       },
       JSXOpeningElement(node) {
-        const pathOfThisFile = path.resolve(__dirname)
         let pathname = context.getFilename()
 
-        let index = 0
-        while (
-          index < pathOfThisFile.length &&
-          index < pathname.length &&
-          pathOfThisFile[index] === pathname[index]
-        ) {
-          index++
-        }
+        pathname = removeProjectRootPath(pathname)
 
-        const rootDir = pathname.substring(0, index)
-
-        pathname = pathname.replace(rootDir, '')
-
-        if (startsWithUsingCorrectSeparators(pathname, 'src')) {
+        if (startsWithUsingCorrectSeparators(pathname, 'src/')) {
           pathname = pathname.slice(4)
         }
 
         // This rule shouldn't fire in `app/`
-        if (startsWithUsingCorrectSeparators(pathname, 'app')) {
+        if (startsWithUsingCorrectSeparators(pathname, 'app/')) {
           return
         }
 
