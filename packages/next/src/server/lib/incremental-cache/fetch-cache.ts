@@ -19,6 +19,14 @@ export default class FetchCache implements CacheHandler {
   private debug: boolean
   private revalidatedTags: string[]
 
+  static isAvailable(ctx: {
+    _requestHeaders: CacheHandlerContext['_requestHeaders']
+  }) {
+    return !!(
+      ctx._requestHeaders['x-vercel-sc-host'] || process.env.SUSPENSE_CACHE_URL
+    )
+  }
+
   constructor(ctx: CacheHandlerContext) {
     this.debug = !!process.env.NEXT_PRIVATE_DEBUG_CACHE
     this.headers = {}
