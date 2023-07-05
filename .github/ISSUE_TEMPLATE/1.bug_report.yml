@@ -27,7 +27,7 @@ body:
       label: Which area(s) of Next.js are affected? (leave empty if unsure)
       multiple: true
       options:
-        - 'App directory (appDir: true)'
+        - 'App Router'
         - 'CLI (create-next-app)'
         - 'Data fetching (gS(S)P, getInitialProps)'
         - 'Dynamic imports (next/dynamic)'
