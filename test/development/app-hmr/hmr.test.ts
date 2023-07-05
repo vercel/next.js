@@ -8,7 +8,7 @@ createNextDescribe(
   {
     files: __dirname,
   },
-  ({ next, isTurbopack }) => {
+  ({ next }) => {
     describe('filesystem changes', () => {
       it('should not break when renaming a folder', async () => {
         const browser = await next.browser('/folder')
@@ -35,39 +35,37 @@ createNextDescribe(
         }
       })
 
-      if (!isTurbopack) {
-        it('should update server components pages when env files is changed (nodejs)', async () => {
-          const envContent = await next.readFile(envFile)
-          const browser = await next.browser('/env/node')
-          expect(await browser.elementByCss('p').text()).toBe('mac')
-          await next.patchFile(envFile, 'MY_DEVICE="ipad"')
+      it('should update server components pages when env files is changed (nodejs)', async () => {
+        const envContent = await next.readFile(envFile)
+        const browser = await next.browser('/env/node')
+        expect(await browser.elementByCss('p').text()).toBe('mac')
+        await next.patchFile(envFile, 'MY_DEVICE="ipad"')
 
-          try {
-            await check(async () => {
-              expect(await browser.elementByCss('p').text()).toBe('ipad')
-              return 'success'
-            }, /success/)
-          } finally {
-            await next.patchFile(envFile, envContent)
-          }
-        })
+        try {
+          await check(async () => {
+            expect(await browser.elementByCss('p').text()).toBe('ipad')
+            return 'success'
+          }, /success/)
+        } finally {
+          await next.patchFile(envFile, envContent)
+        }
+      })
 
-        it('should update server components pages when env files is changed (edge)', async () => {
-          const envContent = await next.readFile(envFile)
-          const browser = await next.browser('/env/edge')
-          expect(await browser.elementByCss('p').text()).toBe('mac')
-          await next.patchFile(envFile, 'MY_DEVICE="ipad"')
+      it('should update server components pages when env files is changed (edge)', async () => {
+        const envContent = await next.readFile(envFile)
+        const browser = await next.browser('/env/edge')
+        expect(await browser.elementByCss('p').text()).toBe('mac')
+        await next.patchFile(envFile, 'MY_DEVICE="ipad"')
 
-          try {
-            await check(async () => {
-              expect(await browser.elementByCss('p').text()).toBe('ipad')
-              return 'success'
-            }, /success/)
-          } finally {
-            await next.patchFile(envFile, envContent)
-          }
-        })
-      }
+        try {
+          await check(async () => {
+            expect(await browser.elementByCss('p').text()).toBe('ipad')
+            return 'success'
+          }, /success/)
+        } finally {
+          await next.patchFile(envFile, envContent)
+        }
+      })
 
       it('should have no unexpected action error for hmr', async () => {
         expect(next.cliOutput).not.toContain('Unexpected action')
