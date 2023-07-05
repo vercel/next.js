@@ -22,11 +22,6 @@ files that require bundler-specific integrations.
 The dependency should also provide instructions about what CSS needs to be
 imported by you, in your application.
 
----
+If this is **first-party code**, try [including monorepo packages in the compilation pipeline](/docs/architecture/nextjs-compiler#module-transpilation).
 
-If this is **first party code**, try
-[including monorepo packages in the compilation pipeline](/docs/architecture/nextjs-compiler#module-transpilation).
-
----
-
-This limitation does not exist when using the `app` directory: [beta.nextjs.org/docs](https://beta.nextjs.org/docs).
+> **Good to know**: This limitation does not exist when using the [`app` directory](/docs/app/building-your-application).
