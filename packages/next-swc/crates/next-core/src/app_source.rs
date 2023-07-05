@@ -17,7 +17,7 @@ use turbopack_binding::{
             chunk::{EvaluatableAssetVc, EvaluatableAssetsVc},
             compile_time_info::CompileTimeInfoVc,
             context::{AssetContext, AssetContextVc},
-            environment::{EnvironmentIntention, ServerAddrVc},
+            environment::ServerAddrVc,
             issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc},
             reference_type::{
                 EcmaScriptModulesReferenceSubType, EntryReferenceSubType, InnerAssetsVc,
@@ -32,7 +32,7 @@ use turbopack_binding::{
             source::{
                 asset_graph::AssetGraphContentSourceVc,
                 combined::CombinedContentSource,
-                specificity::{Specificity, SpecificityElementType, SpecificityVc},
+                route_tree::{BaseSegment, RouteType},
                 ContentSourceData, ContentSourceVc, NoContentSourceVc,
             },
         },
@@ -99,31 +99,34 @@ use crate::{
     util::{render_data, NextRuntime},
 };
 
-#[turbo_tasks::function]
-fn pathname_to_specificity(pathname: &str) -> SpecificityVc {
-    let mut current = Specificity::new();
-    let mut position = 0;
-    for segment in pathname.split('/') {
-        if segment.starts_with('(') && segment.ends_with(')') || segment.starts_with('@') {
+fn pathname_to_segments(pathname: &str) -> Result<(Vec<BaseSegment>, RouteType)> {
+    let mut segments = Vec::new();
+    let mut split = pathname.split('/');
+    while let Some(segment) = split.next() {
+        if segment.is_empty()
+            || (segment.starts_with('(') && segment.ends_with(')') || segment.starts_with('@'))
+        {
             // ignore
         } else if segment.starts_with("[[...") && segment.ends_with("]]")
             || segment.starts_with("[...") && segment.ends_with(']')
         {
-            // optional catch all segment
-            current.add(position - 1, SpecificityElementType::CatchAll);
-            position += 1;
-        } else if segment.starts_with("[[") || segment.ends_with("]]") {
-            // optional segment
-            position += 1;
+            // (optional) catch all segment
+            if split.remainder().is_some() {
+                bail!(
+                    "Invalid route {}, catch all segment must be the last segment",
+                    pathname
+                )
+            }
+            return Ok((segments, RouteType::CatchAll));
         } else if segment.starts_with('[') || segment.ends_with(']') {
-            current.add(position - 1, SpecificityElementType::DynamicSegment);
-            position += 1;
+            // dynamic segment
+            segments.push(BaseSegment::Dynamic);
         } else {
             // normal segment
-            position += 1;
+            segments.push(BaseSegment::Static(segment.to_string()));
         }
     }
-    SpecificityVc::cell(current)
+    Ok((segments, RouteType::Exact))
 }
 
 #[turbo_tasks::function]
@@ -195,7 +198,7 @@ fn next_ssr_client_module_transition(
             next_config,
             execution_context,
         ),
-        ssr_environment: get_server_compile_time_info(ty, mode, process_env, server_addr),
+        ssr_environment: get_server_compile_time_info(mode, process_env, server_addr),
     }
     .cell()
     .into()
@@ -213,7 +216,7 @@ fn next_server_component_transition(
 ) -> TransitionVc {
     let ty = Value::new(ServerContextType::AppRSC { app_dir });
     let mode = NextMode::Development;
-    let rsc_compile_time_info = get_server_compile_time_info(ty, mode, process_env, server_addr);
+    let rsc_compile_time_info = get_server_compile_time_info(mode, process_env, server_addr);
     let rsc_resolve_options_context =
         get_server_resolve_options_context(project_path, ty, mode, next_config, execution_context);
     let rsc_module_options_context =
@@ -240,11 +243,7 @@ fn next_edge_server_component_transition(
 ) -> TransitionVc {
     let ty = Value::new(ServerContextType::AppRSC { app_dir });
     let mode = NextMode::Development;
-    let rsc_compile_time_info = get_edge_compile_time_info(
-        project_path,
-        server_addr,
-        Value::new(EnvironmentIntention::ServerRendering),
-    );
+    let rsc_compile_time_info = get_edge_compile_time_info(project_path, server_addr);
     let rsc_resolve_options_context =
         get_edge_resolve_options_context(project_path, ty, next_config, execution_context);
     let rsc_module_options_context =
@@ -272,11 +271,7 @@ fn next_edge_route_transition(
 ) -> TransitionVc {
     let server_ty = Value::new(ServerContextType::AppRoute { app_dir });
 
-    let edge_compile_time_info = get_edge_compile_time_info(
-        project_path,
-        server_addr,
-        Value::new(EnvironmentIntention::Api),
-    );
+    let edge_compile_time_info = get_edge_compile_time_info(project_path, server_addr);
 
     let edge_chunking_context = DevChunkingContextVc::builder(
         project_path,
@@ -316,11 +311,7 @@ fn next_edge_page_transition(
 ) -> TransitionVc {
     let server_ty = Value::new(ServerContextType::AppRoute { app_dir });
 
-    let edge_compile_time_info = get_edge_compile_time_info(
-        project_path,
-        server_addr,
-        Value::new(EnvironmentIntention::ServerRendering),
-    );
+    let edge_compile_time_info = get_edge_compile_time_info(project_path, server_addr);
 
     let edge_chunking_context = DevChunkingContextVc::builder(
         project_path,
@@ -457,7 +448,7 @@ fn app_context(
     let ssr_ty = Value::new(ServerContextType::AppSSR { app_dir });
     ModuleAssetContextVc::new(
         TransitionsByNameVc::cell(transitions),
-        get_server_compile_time_info(ssr_ty, mode, env, server_addr),
+        get_server_compile_time_info(mode, env, server_addr),
         get_server_module_options_context(
             project_path,
             execution_context,
@@ -666,10 +657,13 @@ async fn create_app_page_source_for_route(
 
     let params_matcher = NextParamsMatcherVc::new(pathname_vc);
 
+    let (base_segments, route_type) = pathname_to_segments(pathname)?;
+
     let source = create_node_rendered_source(
         project_path,
         env,
-        pathname_to_specificity(pathname),
+        base_segments,
+        route_type,
         server_root,
         params_matcher.into(),
         pathname_vc,
@@ -713,7 +707,8 @@ async fn create_app_not_found_page_source(
     let source = create_node_rendered_source(
         project_path,
         env,
-        SpecificityVc::not_found(),
+        Vec::new(),
+        RouteType::NotFound,
         server_root,
         NextFallbackMatcherVc::new().into(),
         pathname_vc,
@@ -755,10 +750,13 @@ async fn create_app_route_source_for_route(
 
     let params_matcher = NextParamsMatcherVc::new(pathname_vc);
 
+    let (base_segments, route_type) = pathname_to_segments(pathname)?;
+
     let source = create_node_api_source(
         project_path,
         env,
-        pathname_to_specificity(pathname),
+        base_segments,
+        route_type,
         server_root,
         params_matcher.into(),
         pathname_vc,
