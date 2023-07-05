@@ -1,6 +1,0 @@
-(globalThis.TURBOPACK = globalThis.TURBOPACK || []).push([
-    "output/crates_turbopack-tests_tests_snapshot_emotion_emotion_input_index_b080c4.js",
-    {},
-    {"otherChunks":[{"path":"output/63a02_@emotion_react_jsx-dev-runtime_73b602.js","included":["[project]/crates/turbopack-tests/tests/node_modules/@emotion/react/jsx-dev-runtime.js (ecmascript)"]},{"path":"output/63a02_@emotion_react_index_a1c0c3.js","included":["[project]/crates/turbopack-tests/tests/node_modules/@emotion/react/index.js (ecmascript)"]},{"path":"output/63a02_@emotion_styled_index_fd4de2.js","included":["[project]/crates/turbopack-tests/tests/node_modules/@emotion/styled/index.js (ecmascript)"]},{"path":"output/crates_turbopack-tests_tests_snapshot_emotion_emotion_input_index_b53fce.js","included":["[project]/crates/turbopack-tests/tests/snapshot/emotion/emotion/input/index.js (ecmascript)"]}],"runtimeModuleIds":["[project]/crates/turbopack-tests/tests/snapshot/emotion/emotion/input/index.js (ecmascript)"]}
-]);
-// Dummy runtime

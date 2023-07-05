@@ -15,12 +15,14 @@ turbopack = { workspace = true }
 [dev-dependencies]
 anyhow = { workspace = true }
 dunce = { workspace = true }
+futures = { workspace = true }
 once_cell = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 testing = { workspace = true }
 tokio = { workspace = true }
 turbo-tasks = { workspace = true }
+turbo-tasks-bytes = { workspace = true }
 turbo-tasks-env = { workspace = true }
 turbo-tasks-fs = { workspace = true }
 turbo-tasks-memory = { workspace = true }
@@ -32,6 +34,7 @@ turbopack-ecmascript-plugins = { workspace = true, features = [
 ] }
 turbopack-ecmascript-runtime = { workspace = true }
 turbopack-env = { workspace = true }
+turbopack-node = { workspace = true }
 turbopack-test-utils = { workspace = true }
 
 [build-dependencies]

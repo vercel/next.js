@@ -46,6 +46,11 @@ impl EvaluatableAssetsVc {
     }
 
     #[turbo_tasks::function]
+    pub fn many(assets: Vec<EvaluatableAssetVc>) -> EvaluatableAssetsVc {
+        EvaluatableAssets(assets).cell()
+    }
+
+    #[turbo_tasks::function]
     pub async fn with_entry(self, entry: EvaluatableAssetVc) -> Result<EvaluatableAssetsVc> {
         let mut entries = self.await?.clone_value();
         entries.push(entry);
