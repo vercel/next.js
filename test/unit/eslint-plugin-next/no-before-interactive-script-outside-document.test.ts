@@ -116,7 +116,7 @@ ruleTester.run('no-before-interactive-script-outside-document', rule, {
           ></Script>
         );
       }`,
-      filename: '/app/deep/root/layout.tsx',
+      filename: 'app/deep/root/layout.tsx',
     },
     {
       code: `
@@ -131,7 +131,7 @@ ruleTester.run('no-before-interactive-script-outside-document', rule, {
           ></Script>
         );
       }`,
-      filename: '/app/deep/page.tsx',
+      filename: 'app/deep/page.tsx',
     },
     {
       code: `
@@ -146,7 +146,7 @@ ruleTester.run('no-before-interactive-script-outside-document', rule, {
           ></Script>
         );
       }`,
-      filename: '/app/deep/randomFile.tsx',
+      filename: 'app/deep/randomFile.tsx',
     },
     {
       code: `
@@ -161,7 +161,7 @@ ruleTester.run('no-before-interactive-script-outside-document', rule, {
           ></Script>
         );
       }`,
-      filename: '/src/app/deep/randomFile.tsx',
+      filename: 'src/app/deep/randomFile.tsx',
     },
     {
       code: `
@@ -178,7 +178,7 @@ ruleTester.run('no-before-interactive-script-outside-document', rule, {
           </html>
         );
       }`,
-      filename: '/src/app/layout.tsx',
+      filename: 'src/app/layout.tsx',
     },
     {
       code: `
@@ -195,7 +195,7 @@ ruleTester.run('no-before-interactive-script-outside-document', rule, {
           </html>
         );
       }`,
-      filename: '/app/layout.tsx',
+      filename: 'app/layout.tsx',
     },
   ].map((obj, idx) => ({
     ...obj,
