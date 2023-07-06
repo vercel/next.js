@@ -45,6 +45,8 @@ export interface StaticGenerationStore {
     status: number
     cacheStatus: 'hit' | 'miss'
   }>
+
+  isDraftMode?: boolean
 }
 
 export type StaticGenerationAsyncStorage =

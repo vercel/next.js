@@ -107,8 +107,8 @@ function hasPrefetch(link?: HTMLLinkElement): boolean {
 const canPrefetch: boolean = hasPrefetch()
 
 const getAssetQueryString = () => {
-  return process.env.__NEXT_DEPLOYMENT_ID
-    ? `?dpl=${process.env.__NEXT_DEPLOYMENT_ID}`
+  return process.env.NEXT_DEPLOYMENT_ID
+    ? `?dpl=${process.env.NEXT_DEPLOYMENT_ID}`
     : ''
 }
 

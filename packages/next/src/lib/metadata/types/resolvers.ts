@@ -16,3 +16,7 @@ export type FieldResolverWithMetadataBase<
       metadataBase: ResolvedMetadata['metadataBase'],
       options: Options
     ) => ResolvedMetadata[Key]
+
+export type MetadataAccumulationOptions = {
+  pathname: string
+}

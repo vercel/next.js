@@ -77,7 +77,7 @@ type ResolvedTwitterSummary = {
   creator: string | null
   creatorId: string | null
   description: string | null
-  title: AbsoluteTemplateString
+  title?: AbsoluteTemplateString
   images?: Array<ResolvedTwitterImage>
 }
 type ResolvedTwitterPlayer = ResolvedTwitterSummary & {

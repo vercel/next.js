@@ -38,10 +38,40 @@
       "outputs": ["dist/**"]
     },
     "typescript": {},
-    "rust-check": {},
-    "test-cargo-unit": {},
-    "test-cargo-integration": {},
-    "test-cargo-bench": {},
+    "//#typescript": {},
+    "rust-check": {
+      "inputs": [
+        ".cargo/**",
+        "packages/next-swc/crates/**",
+        "**/Cargo.toml",
+        "**/Cargo.lock"
+      ]
+    },
+    "test-cargo-unit": {
+      "inputs": [
+        ".cargo/**",
+        "packages/next-swc/crates/**",
+        "**/Cargo.toml",
+        "**/Cargo.lock"
+      ]
+    },
+    "test-cargo-integration": {
+      "inputs": [
+        ".cargo/**",
+        "packages/next-swc/crates/**",
+        "packages/next/**",
+        "**/Cargo.toml",
+        "**/Cargo.lock"
+      ]
+    },
+    "test-cargo-bench": {
+      "inputs": [
+        ".cargo/**",
+        "packages/next-swc/crates/**",
+        "**/Cargo.toml",
+        "**/Cargo.lock"
+      ]
+    },
     "//#get-test-timings": {
       "inputs": ["run-tests.js"],
       "outputs": ["test-timings.json"]

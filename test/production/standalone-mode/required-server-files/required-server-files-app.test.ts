@@ -39,9 +39,6 @@ describe('should set-up next', () => {
         eslint: {
           ignoreDuringBuilds: true,
         },
-        experimental: {
-          appDir: true,
-        },
         output: 'standalone',
       },
     })
@@ -98,6 +95,10 @@ describe('should set-up next', () => {
     if (server) await killApp(server)
   })
 
+  it('should not fail caching', async () => {
+    expect(next.cliOutput).not.toContain('ERR_INVALID_URL')
+  })
+
   it('should send cache tags in minimal mode for ISR', async () => {
     for (const [path, tags] of [
       ['/isr/first', 'isr-page,/isr/[slug]/page'],
@@ -126,13 +127,5 @@ describe('should set-up next', () => {
       expect(res.status).toBe(200)
       expect(res.headers.get('x-next-cache-tags')).toBeFalsy()
     }
-  })
-
-  it('should handle correctly not-found.js', async () => {
-    const res = await fetchViaHTTP(appPort, '/not-found/does-not-exist')
-    expect(res.status).toBe(404)
-    const html = await res.text()
-    expect(html).toContain('not-found-page-404')
-    expect(html).not.toContain('not-found-page-200')
   })
 })
