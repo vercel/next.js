@@ -16,7 +16,7 @@ use turbopack_binding::{
             asset::{AssetVc, AssetsVc},
             chunk::{ChunkingContextVc, EvaluatableAssetVc, EvaluatableAssetsVc},
             context::{AssetContext, AssetContextVc},
-            environment::{EnvironmentIntention, ServerAddrVc},
+            environment::ServerAddrVc,
             reference_type::{EntryReferenceSubType, InnerAssetsVc, ReferenceType},
             source_asset::SourceAssetVc,
         },
@@ -152,11 +152,7 @@ pub async fn create_page_source(
     .cell()
     .into();
 
-    let edge_compile_time_info = get_edge_compile_time_info(
-        project_root,
-        server_addr,
-        Value::new(EnvironmentIntention::Api),
-    );
+    let edge_compile_time_info = get_edge_compile_time_info(project_root, server_addr);
 
     let edge_chunking_context = DevChunkingContextVc::builder(
         project_root,
@@ -186,7 +182,7 @@ pub async fn create_page_source(
     .cell()
     .into();
 
-    let server_compile_time_info = get_server_compile_time_info(server_ty, mode, env, server_addr);
+    let server_compile_time_info = get_server_compile_time_info(mode, env, server_addr);
     let server_resolve_options_context = get_server_resolve_options_context(
         project_root,
         server_ty,
