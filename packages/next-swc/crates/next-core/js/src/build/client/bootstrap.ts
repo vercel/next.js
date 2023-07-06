@@ -1,5 +1,5 @@
 /**
- * This is the runtime entry point for Next.js client-side bundles.
+ * This is the runtime entry point for Next.js Page Router client-side bundles.
  */
 
 import './shims'
