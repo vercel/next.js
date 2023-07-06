@@ -13,13 +13,12 @@ export function recursiveReadDirSync(
   /** Used to replace the initial path, only the relative path is left, it's faster than path.relative. */
   rootDir = dir
 ): string[] {
-  const result = fs.readdirSync(dir)
+  const result = fs.readdirSync(dir, { withFileTypes: true })
 
-  result.forEach((part: string) => {
-    const absolutePath = join(dir, part)
-    const pathStat = fs.statSync(absolutePath)
+  result.forEach((part) => {
+    const absolutePath = join(dir, part.name)
 
-    if (pathStat.isDirectory()) {
+    if (part.isDirectory()) {
       recursiveReadDirSync(absolutePath, arr, rootDir)
       return
     }
