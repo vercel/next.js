@@ -8,7 +8,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{bail, Context, Result};
 use dunce::canonicalize;
 use serde::Deserialize;
 use turbo_tasks::{debug::ValueDebug, NothingVc, TryJoinIterExt, TurboTasks, Value, ValueToString};
@@ -31,7 +31,7 @@ use turbopack::{
 };
 use turbopack_build::BuildChunkingContextVc;
 use turbopack_core::{
-    asset::{Asset, AssetVc},
+    asset::{Asset, AssetVc, AssetsVc},
     chunk::{
         ChunkableAsset, ChunkableAssetVc, ChunkingContext, ChunkingContextVc, EvaluatableAssetVc,
         EvaluatableAssetsVc,
@@ -194,7 +194,6 @@ async fn run_test(resource: &str) -> Result<FileSystemPathVc> {
     let project_path = project_root.join(&relative_path);
 
     let entry_asset = project_path.join(&options.entry);
-    let entry_paths = vec![entry_asset];
 
     let env = EnvironmentVc::new(Value::new(match options.environment {
         Environment::Browser => {
@@ -291,6 +290,7 @@ async fn run_test(resource: &str) -> Result<FileSystemPathVc> {
 
     let chunk_root_path = path.join("output");
     let static_root_path = path.join("static");
+
     let chunking_context: ChunkingContextVc = match options.runtime {
         Runtime::Dev => DevChunkingContextVc::builder(
             project_root,
@@ -319,43 +319,54 @@ async fn run_test(resource: &str) -> Result<FileSystemPathVc> {
         .copied()
         .collect();
 
-    let modules = entry_paths.into_iter().map(SourceAssetVc::new).map(|p| {
-        context.process(
-            p.into(),
-            Value::new(ReferenceType::Entry(EntryReferenceSubType::Undefined)),
-        )
-    });
+    let entry_module = context.process(
+        SourceAssetVc::new(entry_asset).into(),
+        Value::new(ReferenceType::Entry(EntryReferenceSubType::Undefined)),
+    );
 
-    let chunk_groups = modules
-        .map(|module| async move {
-            if let Some(ecmascript) = EcmascriptModuleAssetVc::resolve_from(module).await? {
-                // TODO: Load runtime entries from snapshots
-                Ok(chunking_context.evaluated_chunk_group(
+    let chunks =
+        if let Some(ecmascript) = EcmascriptModuleAssetVc::resolve_from(entry_module).await? {
+            // TODO: Load runtime entries from snapshots
+            match options.runtime {
+                Runtime::Dev => chunking_context.evaluated_chunk_group(
                     ecmascript.as_root_chunk(chunking_context),
                     runtime_entries
                         .unwrap_or_else(EvaluatableAssetsVc::empty)
                         .with_entry(ecmascript.into()),
-                ))
-            } else if let Some(chunkable) = ChunkableAssetVc::resolve_from(module).await? {
-                Ok(chunking_context.chunk_group(chunkable.as_root_chunk(chunking_context)))
-            } else {
-                // TODO convert into a serve-able asset
-                Err(anyhow!(
-                    "Entry module is not chunkable, so it can't be used to bootstrap the \
-                     application"
-                ))
+                ),
+                Runtime::Build => {
+                    AssetsVc::cell(vec![BuildChunkingContextVc::resolve_from(chunking_context)
+                        .await?
+                        .unwrap()
+                        .generate_entry_chunk(
+                            // `expected` expects a completely flat output directory.
+                            chunk_root_path
+                                .join(
+                                    entry_module
+                                        .ident()
+                                        .path()
+                                        .file_stem()
+                                        .await?
+                                        .as_deref()
+                                        .unwrap(),
+                                )
+                                .with_extension("entry.js"),
+                            ecmascript.into(),
+                            runtime_entries
+                                .unwrap_or_else(EvaluatableAssetsVc::empty)
+                                .with_entry(ecmascript.into()),
+                        )])
+                }
             }
-        })
-        .try_join()
-        .await?;
+        } else if let Some(chunkable) = ChunkableAssetVc::resolve_from(entry_module).await? {
+            chunking_context.chunk_group(chunkable.as_root_chunk(chunking_context))
+        } else {
+            // TODO convert into a serve-able asset
+            bail!("Entry module is not chunkable, so it can't be used to bootstrap the application")
+        };
 
     let mut seen = HashSet::new();
-    let mut queue = VecDeque::with_capacity(32);
-    for chunks in chunk_groups {
-        for chunk in &*chunks.await? {
-            queue.push_back(*chunk);
-        }
-    }
+    let mut queue: VecDeque<_> = chunks.await?.iter().copied().collect();
 
     let output_path = path.await?;
     while let Some(asset) = queue.pop_front() {
