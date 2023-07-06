@@ -5,7 +5,8 @@ import { useTestHarness } from '@turbo/pack-test-harness'
 export default function Test() {
   useTestHarness(() => {
     it('should have the correct link tags', () => {
-      let links = Array.from(document.querySelectorAll('link'))
+      const links = Array.from(document.querySelectorAll('link'))
+        .filter((l) => l.rel !== 'preload')
       expect(
         links.map((l) => ({
           href: l.getAttribute('href'),
