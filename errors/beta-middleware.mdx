@@ -1,17 +1,18 @@
 ---
-title: Beta Middleware Used
+title: Addressing "Beta Middleware Used" Error in Next.js
+description: This document clarifies the "Beta Middleware Used" error in Next.js and provides a potential solution to fix it.
 ---
 
 ## Why This Error Occurred
 
-[Middleware](/docs/pages/building-your-application/routing/middleware) was beta in versions prior to `v12.2` and not yet covered by [semver](https://semver.org/).
+The "Beta Middleware Used" error occurs if you are using [Middleware](/docs/pages/building-your-application/routing/middleware) in a version of Next.js prior to `v12.2`. The Middleware feature was still in beta in those versions and not yet covered by [semver](https://semver.org/) or Semantic Versioning rules.
 
 ## Possible Ways to Fix It
 
-You can continue to use Middleware in versions prior to `v12.2`. However, you will need to make changes to upgrade to newer versions.
+Despite this error, you can continue using Middleware in versions prior to `v12.2`. Be aware that **upgrading to newer versions of Next.js will require changes to your application to accommodate updates in Middleware handling**.
 
-If you're using Next.js on Vercel, your existing deploys using Middleware will continue to work, and you can continue to deploy your site using Middleware. When you upgrade your site to `v12.2` or later, you will need to follow the [upgrade guide](/docs/messages/middleware-upgrade-guide).
+If you're using Next.js on Vercel, your existing deployments using Middleware will remain functional, and you can keep deploying your site with Middleware. However, when you decide to upgrade your site to Next.js `v12.2` or later, you'll need to follow the provided [upgrade guide](/docs/messages/middleware-upgrade-guide) to ensure compatibility.
 
 ## Useful Links
 
-- [Middleware Upgrade Guide](/docs/messages/middleware-upgrade-guide)
+- [Middleware Upgrade Guide](/docs/messages/middleware-upgrade-guide) - Learn more about the necessary steps to upgrade your application to a version of Next.js that includes the official version of Middleware.

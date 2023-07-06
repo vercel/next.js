@@ -69,11 +69,6 @@ impl Bundler for TurboNext {
             return Err(anyhow!("pnpm build failed. See above."));
         }
 
-        fs::write(
-            install_dir.join("next.config.js"),
-            include_bytes!("next.config.js"),
-        )?;
-
         Ok(())
     }
 
