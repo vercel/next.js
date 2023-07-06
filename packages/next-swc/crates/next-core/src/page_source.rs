@@ -16,7 +16,7 @@ use turbopack_binding::{
             asset::{AssetVc, AssetsVc},
             chunk::{ChunkingContextVc, EvaluatableAssetVc, EvaluatableAssetsVc},
             context::{AssetContext, AssetContextVc},
-            environment::{EnvironmentIntention, ServerAddrVc},
+            environment::ServerAddrVc,
             reference_type::{EntryReferenceSubType, InnerAssetsVc, ReferenceType},
             source_asset::SourceAssetVc,
         },
@@ -26,7 +26,7 @@ use turbopack_binding::{
             source::{
                 asset_graph::AssetGraphContentSourceVc,
                 combined::{CombinedContentSource, CombinedContentSourceVc},
-                specificity::SpecificityVc,
+                route_tree::{BaseSegment, RouteType},
                 ContentSourceData, ContentSourceVc,
             },
         },
@@ -74,8 +74,8 @@ use crate::{
     },
     page_loader::create_page_loader,
     pages_structure::{
-        OptionPagesStructureVc, PagesDirectoryStructure, PagesDirectoryStructureVc, PagesStructure,
-        PagesStructureItem, PagesStructureVc,
+        PagesDirectoryStructure, PagesDirectoryStructureVc, PagesStructure, PagesStructureItem,
+        PagesStructureVc,
     },
     util::{parse_config_from_source, pathname_for_path, render_data, NextRuntime, PathType},
 };
@@ -84,7 +84,7 @@ use crate::{
 /// Next.js pages folder.
 #[turbo_tasks::function]
 pub async fn create_page_source(
-    pages_structure: OptionPagesStructureVc,
+    pages_structure: PagesStructureVc,
     project_root: FileSystemPathVc,
     execution_context: ExecutionContextVc,
     node_root: FileSystemPathVc,
@@ -94,13 +94,10 @@ pub async fn create_page_source(
     next_config: NextConfigVc,
     server_addr: ServerAddrVc,
 ) -> Result<ContentSourceVc> {
-    let (pages_dir, pages_structure) = if let Some(pages_structure) = *pages_structure.await? {
-        (
-            pages_structure.project_path().resolve().await?,
-            Some(pages_structure),
-        )
+    let pages_dir = if let Some(pages) = pages_structure.await?.pages {
+        pages.project_path().resolve().await?
     } else {
-        (project_root.join("pages"), None)
+        project_root.join("pages")
     };
 
     let mode = NextMode::Development;
@@ -152,11 +149,7 @@ pub async fn create_page_source(
     .cell()
     .into();
 
-    let edge_compile_time_info = get_edge_compile_time_info(
-        project_root,
-        server_addr,
-        Value::new(EnvironmentIntention::Api),
-    );
+    let edge_compile_time_info = get_edge_compile_time_info(project_root, server_addr);
 
     let edge_chunking_context = DevChunkingContextVc::builder(
         project_root,
@@ -186,7 +179,7 @@ pub async fn create_page_source(
     .cell()
     .into();
 
-    let server_compile_time_info = get_server_compile_time_info(server_ty, mode, env, server_addr);
+    let server_compile_time_info = get_server_compile_time_info(mode, env, server_addr);
     let server_resolve_options_context = get_server_resolve_options_context(
         project_root,
         server_ty,
@@ -291,29 +284,28 @@ pub async fn create_page_source(
             fallback_page,
             client_root,
             node_root.join("force_not_found"),
-            SpecificityVc::exact(),
+            BaseSegment::from_static_pathname("_next/404").collect(),
+            RouteType::Exact,
             NextExactMatcherVc::new(StringVc::cell("_next/404".to_string())).into(),
             render_data,
         )
         .issue_context(pages_dir, "Next.js pages directory not found"),
     );
 
-    if let Some(pages_structure) = pages_structure {
-        sources.push(create_page_source_for_root_directory(
-            pages_structure,
-            project_root,
-            env,
-            server_context,
-            server_data_context,
-            client_context,
-            pages_dir,
-            server_runtime_entries,
-            fallback_page,
-            client_root,
-            node_root,
-            render_data,
-        ));
-    }
+    sources.push(create_page_source_for_root_directory(
+        pages_structure,
+        project_root,
+        env,
+        server_context,
+        server_data_context,
+        client_context,
+        pages_dir,
+        server_runtime_entries,
+        fallback_page,
+        client_root,
+        node_root,
+        render_data,
+    ));
 
     sources.push(
         AssetGraphContentSourceVc::new_eager(client_root, fallback_page.as_asset())
@@ -333,7 +325,8 @@ pub async fn create_page_source(
             fallback_page,
             client_root,
             node_root.join("fallback_not_found"),
-            SpecificityVc::not_found(),
+            Vec::new(),
+            RouteType::NotFound,
             NextFallbackMatcherVc::new().into(),
             render_data,
         )
@@ -353,7 +346,6 @@ async fn create_page_source_for_file(
     server_data_context: AssetContextVc,
     client_context: AssetContextVc,
     pages_dir: FileSystemPathVc,
-    specificity: SpecificityVc,
     page_asset: AssetVc,
     runtime_entries: AssetsVc,
     fallback_page: DevHtmlAssetVc,
@@ -402,11 +394,14 @@ async fn create_page_source_for_file(
     let pathname = pathname_for_path(client_root, client_path, PathType::Page);
     let route_matcher = NextParamsMatcherVc::new(pathname);
 
+    let (base_segments, route_type) = pathname_to_segments(&pathname.await?, "")?;
+
     Ok(if is_api_path {
         create_node_api_source(
             project_path,
             env,
-            specificity,
+            base_segments,
+            route_type,
             client_root,
             route_matcher.into(),
             pathname,
@@ -429,6 +424,10 @@ async fn create_page_source_for_file(
         let data_pathname = pathname_for_path(client_root, client_path, PathType::Data);
         let data_route_matcher =
             NextPrefixSuffixParamsMatcherVc::new(data_pathname, "_next/data/development/", ".json");
+        let (data_base_segments, data_route_type) = pathname_to_segments(
+            &format!("_next/data/development/{}", data_pathname.await?),
+            ".json",
+        )?;
 
         let ssr_entry = SsrEntry {
             runtime_entries,
@@ -460,7 +459,8 @@ async fn create_page_source_for_file(
             create_node_rendered_source(
                 project_path,
                 env,
-                specificity,
+                base_segments.clone(),
+                route_type.clone(),
                 client_root,
                 route_matcher.into(),
                 pathname,
@@ -472,7 +472,8 @@ async fn create_page_source_for_file(
             create_node_rendered_source(
                 project_path,
                 env,
-                specificity,
+                data_base_segments,
+                data_route_type,
                 client_root,
                 data_route_matcher.into(),
                 pathname,
@@ -520,7 +521,8 @@ async fn create_not_found_page_source(
     fallback_page: DevHtmlAssetVc,
     client_root: FileSystemPathVc,
     node_path: FileSystemPathVc,
-    specificity: SpecificityVc,
+    base_segments: Vec<BaseSegment>,
+    route_type: RouteType,
     route_matcher: RouteMatcherVc,
     render_data: JsonValueVc,
 ) -> Result<ContentSourceVc> {
@@ -588,7 +590,8 @@ async fn create_not_found_page_source(
         create_node_rendered_source(
             project_path,
             env,
-            specificity,
+            base_segments,
+            route_type,
             client_root,
             route_matcher,
             pathname,
@@ -629,21 +632,23 @@ async fn create_page_source_for_root_directory(
     } = *pages_structure.await?;
     let mut sources = vec![];
 
-    sources.push(create_page_source_for_directory(
-        *pages,
-        project_root,
-        env,
-        server_context,
-        server_data_context,
-        client_context,
-        pages_dir,
-        runtime_entries,
-        fallback_page,
-        client_root,
-        false,
-        node_root,
-        render_data,
-    ));
+    if let Some(pages) = pages {
+        sources.push(create_page_source_for_directory(
+            *pages,
+            project_root,
+            env,
+            server_context,
+            server_data_context,
+            client_context,
+            pages_dir,
+            runtime_entries,
+            fallback_page,
+            client_root,
+            false,
+            node_root,
+            render_data,
+        ));
+    }
 
     if let Some(api) = api {
         sources.push(create_page_source_for_directory(
@@ -695,8 +700,8 @@ async fn create_page_source_for_directory(
     for item in items.iter() {
         let PagesStructureItem {
             project_path,
-            specificity,
             next_router_path,
+            original_path: _,
         } = *item.await?;
         let source = create_page_source_for_file(
             project_root,
@@ -705,7 +710,6 @@ async fn create_page_source_for_directory(
             server_data_context,
             client_context,
             pages_dir,
-            specificity,
             SourceAssetVc::new(project_path).into(),
             runtime_entries,
             fallback_page,
@@ -746,6 +750,37 @@ async fn create_page_source_for_directory(
     }
 
     Ok(CombinedContentSource { sources }.cell().into())
+}
+
+fn pathname_to_segments(pathname: &str, extension: &str) -> Result<(Vec<BaseSegment>, RouteType)> {
+    let mut segments = Vec::new();
+    let mut split = pathname.split('/');
+    while let Some(segment) = split.next() {
+        if segment.is_empty() {
+            // ignore
+        } else if segment.starts_with("[[...") && segment.ends_with("]]")
+            || segment.starts_with("[...") && segment.ends_with(']')
+        {
+            // (optional) catch all segment
+            if split.remainder().is_some() {
+                bail!(
+                    "Invalid route {}, catch all segment must be the last segment",
+                    pathname
+                )
+            }
+            return Ok((segments, RouteType::CatchAll));
+        } else if segment.starts_with('[') || segment.ends_with(']') {
+            // dynamic segment
+            segments.push(BaseSegment::Dynamic);
+        } else {
+            // normal segment
+            segments.push(BaseSegment::Static(segment.to_string()));
+        }
+    }
+    if let Some(BaseSegment::Static(s)) = segments.last_mut() {
+        s.push_str(extension);
+    }
+    Ok((segments, RouteType::Exact))
 }
 
 /// The node.js renderer for SSR of pages.

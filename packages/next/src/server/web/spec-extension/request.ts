@@ -16,7 +16,7 @@ export class NextRequest extends Request {
     nextUrl: NextURL
   }
 
-  constructor(input: URL | RequestInfo, init: RequestInit) {
+  constructor(input: URL | RequestInfo, init: RequestInit = {}) {
     const url =
       typeof input !== 'string' && 'url' in input ? input.url : String(input)
     validateURL(url)

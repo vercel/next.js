@@ -85,6 +85,17 @@ createNextDescribe(
         await checkLink('top', 0)
         await checkLink('non-existent', 0)
       })
+
+      it('should not scroll to hash when scroll={false} is set', async () => {
+        const browser = await next.browser('/hash-changes')
+        const curScroll = await browser.eval(
+          'document.documentElement.scrollTop'
+        )
+        await browser.elementByCss('#scroll-to-name-item-400-no-scroll').click()
+        expect(curScroll).toBe(
+          await browser.eval('document.documentElement.scrollTop')
+        )
+      })
     })
 
     describe('hash-with-scroll-offset', () => {
