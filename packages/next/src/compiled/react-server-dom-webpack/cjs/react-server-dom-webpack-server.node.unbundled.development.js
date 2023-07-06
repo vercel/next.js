@@ -213,6 +213,9 @@ function stringToChunk(content) {
   return content;
 }
 var precomputedChunkSet = new Set() ;
+function byteLengthOfChunk(chunk) {
+  return typeof chunk === 'string' ? Buffer.byteLength(chunk, 'utf8') : chunk.byteLength;
+}
 function closeWithError(destination, error) {
   // $FlowFixMe[incompatible-call]: This is an Error object or the destination accepts other types.
   destination.destroy(error);
@@ -777,7 +780,6 @@ var HooksDispatcher = {
   useImperativeHandle: unsupportedHook,
   useEffect: unsupportedHook,
   useId: useId,
-  useMutableSource: unsupportedHook,
   useSyncExternalStore: unsupportedHook,
   useCacheRefresh: function () {
     return unsupportedRefresh;
@@ -1250,7 +1252,7 @@ function createRequest(model, bundlerConfig, onError, context, identifierPrefix)
     pingedTasks: pingedTasks,
     completedImportChunks: [],
     completedHintChunks: [],
-    completedJSONChunks: [],
+    completedRegularChunks: [],
     completedErrorChunks: [],
     writtenSymbols: new Map(),
     writtenClientReferences: new Map(),
@@ -1685,6 +1687,15 @@ function serializeClientReference(request, parent, key, clientReference) {
   }
 }
 
+function outlineModel(request, value) {
+  request.pendingChunks++;
+  var outlinedId = request.nextChunkId++; // We assume that this object doesn't suspend, but a child might.
+
+  var processedChunk = processModelChunk(request, outlinedId, value);
+  request.completedRegularChunks.push(processedChunk);
+  return outlinedId;
+}
+
 function serializeServerReference(request, parent, key, serverReference) {
   var writtenServerReferences = request.writtenServerReferences;
   var existingId = writtenServerReferences.get(serverReference);
@@ -1698,13 +1709,28 @@ function serializeServerReference(request, parent, key, serverReference) {
     id: getServerReferenceId(request.bundlerConfig, serverReference),
     bound: bound ? Promise.resolve(bound) : null
   };
-  request.pendingChunks++;
-  var metadataId = request.nextChunkId++; // We assume that this object doesn't suspend.
-
-  var processedChunk = processModelChunk(request, metadataId, serverReferenceMetadata);
-  request.completedJSONChunks.push(processedChunk);
+  var metadataId = outlineModel(request, serverReferenceMetadata);
   writtenServerReferences.set(serverReference, metadataId);
   return serializeServerReferenceID(metadataId);
+}
+
+function serializeLargeTextString(request, text) {
+  request.pendingChunks += 2;
+  var textId = request.nextChunkId++;
+  var textChunk = stringToChunk(text);
+  var headerChunk = processTextHeader(request, textId, byteLengthOfChunk(textChunk));
+  request.completedRegularChunks.push(headerChunk, textChunk);
+  return serializeByValueID(textId);
+}
+
+function serializeMap(request, map) {
+  var id = outlineModel(request, Array.from(map));
+  return '$Q' + id.toString(16);
+}
+
+function serializeSet(request, set) {
+  var id = outlineModel(request, Array.from(set));
+  return '$W' + id.toString(16);
 }
 
 function escapeStringValue(value) {
@@ -1857,6 +1883,14 @@ function resolveModelToJSON(request, parent, key, value) {
       return undefined;
     }
 
+    if (value instanceof Map) {
+      return serializeMap(request, value);
+    }
+
+    if (value instanceof Set) {
+      return serializeSet(request, value);
+    }
+
     if (!isArray(value)) {
       var iteratorFn = getIteratorFn(value);
 
@@ -1896,6 +1930,13 @@ function resolveModelToJSON(request, parent, key, value) {
       if (_originalValue instanceof Date) {
         return serializeDateFromDateJSON(value);
       }
+    }
+
+    if (value.length >= 1024) {
+      // For large strings, we encode them outside the JSON payload so that we
+      // don't have to double encode and double parse the strings. This can also
+      // be more compact in case the string has a lot of escaped characters.
+      return serializeLargeTextString(request, value);
     }
 
     return escapeStringValue(value);
@@ -2036,7 +2077,7 @@ function emitSymbolChunk(request, id, name) {
 function emitProviderChunk(request, id, contextName) {
   var contextReference = serializeProviderReference(contextName);
   var processedChunk = processReferenceChunk(request, id, contextReference);
-  request.completedJSONChunks.push(processedChunk);
+  request.completedRegularChunks.push(processedChunk);
 }
 
 function retryTask(request, task) {
@@ -2076,7 +2117,7 @@ function retryTask(request, task) {
     }
 
     var processedChunk = processModelChunk(request, task.id, value);
-    request.completedJSONChunks.push(processedChunk);
+    request.completedRegularChunks.push(processedChunk);
     request.abortableTasks.delete(task);
     task.status = COMPLETED;
   } catch (thrownValue) {
@@ -2187,12 +2228,12 @@ function flushCompletedChunks(request, destination) {
 
     hintChunks.splice(0, i); // Next comes model data.
 
-    var jsonChunks = request.completedJSONChunks;
+    var regularChunks = request.completedRegularChunks;
     i = 0;
 
-    for (; i < jsonChunks.length; i++) {
+    for (; i < regularChunks.length; i++) {
       request.pendingChunks--;
-      var _chunk2 = jsonChunks[i];
+      var _chunk2 = regularChunks[i];
 
       var _keepWriting2 = writeChunkAndReturn(destination, _chunk2);
 
@@ -2203,7 +2244,7 @@ function flushCompletedChunks(request, destination) {
       }
     }
 
-    jsonChunks.splice(0, i); // Finally, errors are sent. The idea is that it's ok to delay
+    regularChunks.splice(0, i); // Finally, errors are sent. The idea is that it's ok to delay
     // any error messages and prioritize display of other parts of
     // the page.
 
@@ -2391,6 +2432,11 @@ function processHintChunk(request, id, code, model) {
   return stringToChunk(row);
 }
 
+function processTextHeader(request, id, binaryLength) {
+  var row = id.toString(16) + ':T' + binaryLength.toString(16) + ',';
+  return stringToChunk(row);
+}
+
 // eslint-disable-next-line no-unused-vars
 function resolveServerReference(bundlerConfig, id) {
   var idx = id.lastIndexOf('#');
@@ -2414,6 +2460,17 @@ function preloadModule(metadata) {
   } else {
     // $FlowFixMe[unsupported-syntax]
     var modulePromise = import(metadata.specifier);
+
+    if (metadata.async) {
+      // If the module is async, it must have been a CJS module.
+      // CJS modules are accessed through the default export in
+      // Node.js so we have to get the default export to get the
+      // full module exports.
+      modulePromise = modulePromise.then(function (value) {
+        return value.default;
+      });
+    }
+
     modulePromise.then(function (value) {
       var fulfilledThenable = modulePromise;
       fulfilledThenable.status = 'fulfilled';
@@ -2739,6 +2796,21 @@ function createModelReject(chunk) {
   };
 }
 
+function getOutlinedModel(response, id) {
+  var chunk = getChunk(response, id);
+
+  if (chunk.status === RESOLVED_MODEL) {
+    initializeModelChunk(chunk);
+  }
+
+  if (chunk.status !== INITIALIZED) {
+    // We know that this is emitted earlier so otherwise it's an error.
+    throw chunk.reason;
+  }
+
+  return chunk.value;
+}
+
 function parseModelString(response, parentObject, key, value) {
   if (value[0] === '$') {
     switch (value[1]) {
@@ -2765,22 +2837,30 @@ function parseModelString(response, parentObject, key, value) {
       case 'F':
         {
           // Server Reference
-          var _id = parseInt(value.slice(2), 16);
-
-          var _chunk = getChunk(response, _id);
-
-          if (_chunk.status === RESOLVED_MODEL) {
-            initializeModelChunk(_chunk);
-          }
-
-          if (_chunk.status !== INITIALIZED) {
-            // We know that this is emitted earlier so otherwise it's an error.
-            throw _chunk.reason;
-          } // TODO: Just encode this in the reference inline instead of as a model.
+          var _id = parseInt(value.slice(2), 16); // TODO: Just encode this in the reference inline instead of as a model.
 
 
-          var metaData = _chunk.value;
+          var metaData = getOutlinedModel(response, _id);
           return loadServerReference$1(response, metaData.id, metaData.bound, initializingChunk, parentObject, key);
+        }
+
+      case 'Q':
+        {
+          // Map
+          var _id2 = parseInt(value.slice(2), 16);
+
+          var data = getOutlinedModel(response, _id2);
+          return new Map(data);
+        }
+
+      case 'W':
+        {
+          // Set
+          var _id3 = parseInt(value.slice(2), 16);
+
+          var _data = getOutlinedModel(response, _id3);
+
+          return new Set(_data);
         }
 
       case 'K':
@@ -2788,7 +2868,9 @@ function parseModelString(response, parentObject, key, value) {
           // FormData
           var stringId = value.slice(2);
           var formPrefix = response._prefix + stringId + '_';
-          var data = new FormData();
+
+          var _data2 = new FormData();
+
           var backingFormData = response._formData; // We assume that the reference to FormData always comes after each
           // entry that it references so we can assume they all exist in the
           // backing store already.
@@ -2796,10 +2878,10 @@ function parseModelString(response, parentObject, key, value) {
 
           backingFormData.forEach(function (entry, entryKey) {
             if (entryKey.startsWith(formPrefix)) {
-              data.append(entryKey.slice(formPrefix.length), entry);
+              _data2.append(entryKey.slice(formPrefix.length), entry);
             }
           });
-          return data;
+          return _data2;
         }
 
       case 'I':
@@ -2846,31 +2928,31 @@ function parseModelString(response, parentObject, key, value) {
       default:
         {
           // We assume that anything else is a reference ID.
-          var _id2 = parseInt(value.slice(1), 16);
+          var _id4 = parseInt(value.slice(1), 16);
 
-          var _chunk2 = getChunk(response, _id2);
+          var _chunk = getChunk(response, _id4);
 
-          switch (_chunk2.status) {
+          switch (_chunk.status) {
             case RESOLVED_MODEL:
-              initializeModelChunk(_chunk2);
+              initializeModelChunk(_chunk);
               break;
           } // The status might have changed after initialization.
 
 
-          switch (_chunk2.status) {
+          switch (_chunk.status) {
             case INITIALIZED:
-              return _chunk2.value;
+              return _chunk.value;
 
             case PENDING:
             case BLOCKED:
               var parentChunk = initializingChunk;
 
-              _chunk2.then(createModelResolver(parentChunk, parentObject, key), createModelReject(parentChunk));
+              _chunk.then(createModelResolver(parentChunk, parentObject, key), createModelReject(parentChunk));
 
               return null;
 
             default:
-              throw _chunk2.reason;
+              throw _chunk.reason;
           }
         }
     }
@@ -3094,7 +3176,8 @@ function decodeReplyFromBusboy(busboyStream, webpackMap) {
     close(response);
   });
   busboyStream.on('error', function (err) {
-    reportGlobalError(response, err);
+    reportGlobalError(response, // $FlowFixMe[incompatible-call] types Error and mixed are incompatible
+    err);
   });
   return getRoot(response);
 }
