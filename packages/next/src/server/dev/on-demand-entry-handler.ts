@@ -308,10 +308,19 @@ function disposeInactiveEntries(
 ) {
   Object.keys(entries).forEach((entryKey) => {
     const entryData = entries[entryKey]
-    const { lastActiveTime, status, dispose } = entryData
+    const { lastActiveTime, status, dispose, bundlePath } = entryData
 
     // TODO-APP: implement disposing of CHILD_ENTRY
     if (entryData.type === EntryTypes.CHILD_ENTRY) {
+      return
+    }
+
+    // For the root middleware and the instrumentation hook files,
+    // we don't dispose them periodically as it's needed for every request.
+    if (
+      isMiddlewareFilename(bundlePath) ||
+      isInstrumentationHookFilename(bundlePath)
+    ) {
       return
     }
 

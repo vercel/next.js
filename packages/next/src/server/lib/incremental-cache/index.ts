@@ -114,7 +114,11 @@ export class IncrementalCache {
         }
         CurCacheHandler = FileSystemCache
       }
-      if (minimalMode && fetchCache) {
+      if (
+        FetchCache.isAvailable({ _requestHeaders: requestHeaders }) &&
+        minimalMode &&
+        fetchCache
+      ) {
         if (debug) {
           console.log('using fetch cache handler')
         }

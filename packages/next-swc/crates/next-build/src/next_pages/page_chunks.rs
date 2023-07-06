@@ -122,7 +122,7 @@ pub async fn get_page_chunks(
     )
     .into();
 
-    let node_compile_time_info = get_server_compile_time_info(node_ty, mode, env, node_addr);
+    let node_compile_time_info = get_server_compile_time_info(mode, env, node_addr);
     let node_resolve_options_context = get_server_resolve_options_context(
         project_root,
         node_ty,
@@ -274,7 +274,6 @@ async fn get_page_chunks_for_directory(
         let PagesStructureItem {
             project_path,
             next_router_path,
-            specificity: _,
         } = *item.await?;
         chunks.push(get_page_chunk_for_file(
             node_build_context,

@@ -1,8 +1,7 @@
 use anyhow::Result;
 use turbo_tasks::{primitives::StringsVc, CompletionVc};
-use turbopack_binding::{
-    turbo::tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPathVc},
-    turbopack::dev_server::source::specificity::SpecificityVc,
+use turbopack_binding::turbo::tasks_fs::{
+    DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPathVc,
 };
 
 use crate::{embed_js::next_js_file_path, next_config::NextConfigVc};
@@ -12,7 +11,6 @@ use crate::{embed_js::next_js_file_path, next_config::NextConfigVc};
 pub struct PagesStructureItem {
     pub project_path: FileSystemPathVc,
     pub next_router_path: FileSystemPathVc,
-    pub specificity: SpecificityVc,
 }
 
 #[turbo_tasks::value_impl]
@@ -21,12 +19,10 @@ impl PagesStructureItemVc {
     async fn new(
         project_path: FileSystemPathVc,
         next_router_path: FileSystemPathVc,
-        specificity: SpecificityVc,
     ) -> Result<Self> {
         Ok(PagesStructureItem {
             project_path,
             next_router_path,
-            specificity,
         }
         .cell())
     }
@@ -179,7 +175,6 @@ async fn get_pages_structure_for_root_directory(
     let mut document_item = None;
     let mut error_item = None;
     let mut api_directory = None;
-    let specificity = SpecificityVc::exact();
     let dir_content = project_path.read_dir().await?;
     if let DirectoryContent::Entries(entries) = &*dir_content {
         for (name, entry) in entries.iter() {
@@ -193,34 +188,26 @@ async fn get_pages_structure_for_root_directory(
                             let _ = app_item.insert(PagesStructureItemVc::new(
                                 *file_project_path,
                                 next_router_path.join("_app"),
-                                specificity,
                             ));
                         }
                         "_document" => {
                             let _ = document_item.insert(PagesStructureItemVc::new(
                                 *file_project_path,
                                 next_router_path.join("_document"),
-                                specificity,
                             ));
                         }
                         "_error" => {
                             let _ = error_item.insert(PagesStructureItemVc::new(
                                 *file_project_path,
                                 next_router_path.join("_error"),
-                                specificity,
                             ));
                         }
                         basename => {
-                            let specificity = entry_specificity(specificity, name, 0);
                             let next_router_path =
                                 next_router_path_for_basename(next_router_path, basename);
                             items.push((
                                 basename,
-                                PagesStructureItemVc::new(
-                                    *file_project_path,
-                                    next_router_path,
-                                    specificity,
-                                ),
+                                PagesStructureItemVc::new(*file_project_path, next_router_path),
                             ));
                         }
                     }
@@ -230,19 +217,16 @@ async fn get_pages_structure_for_root_directory(
                         let _ = api_directory.insert(get_pages_structure_for_directory(
                             *dir_project_path,
                             next_router_path.join(name),
-                            specificity,
                             1,
                             page_extensions,
                         ));
                     }
                     _ => {
-                        let specificity = entry_specificity(SpecificityVc::exact(), name, 0);
                         children.push((
                             name,
                             get_pages_structure_for_directory(
                                 *dir_project_path,
                                 next_router_path.join(name),
-                                specificity,
                                 1,
                                 page_extensions,
                             ),
@@ -264,7 +248,6 @@ async fn get_pages_structure_for_root_directory(
         PagesStructureItemVc::new(
             next_js_file_path("entry/pages/_app.tsx"),
             next_router_path.join("_app"),
-            specificity,
         )
     };
 
@@ -274,7 +257,6 @@ async fn get_pages_structure_for_root_directory(
         PagesStructureItemVc::new(
             next_js_file_path("entry/pages/_document.tsx"),
             next_router_path.join("_document"),
-            specificity,
         )
     };
 
@@ -284,7 +266,6 @@ async fn get_pages_structure_for_root_directory(
         PagesStructureItemVc::new(
             next_js_file_path("entry/pages/_error.tsx"),
             next_router_path.join("_error"),
-            specificity,
         )
     };
 
@@ -311,7 +292,6 @@ async fn get_pages_structure_for_root_directory(
 async fn get_pages_structure_for_directory(
     project_path: FileSystemPathVc,
     next_router_path: FileSystemPathVc,
-    specificity: SpecificityVc,
     position: u32,
     page_extensions: StringsVc,
 ) -> Result<PagesDirectoryStructureVc> {
@@ -322,7 +302,6 @@ async fn get_pages_structure_for_directory(
     let dir_content = project_path.read_dir().await?;
     if let DirectoryContent::Entries(entries) = &*dir_content {
         for (name, entry) in entries.iter() {
-            let specificity = entry_specificity(specificity, name, position);
             match entry {
                 DirectoryEntry::File(file_project_path) => {
                     let Some(basename) = page_basename(name, page_extensions_raw) else {
@@ -334,11 +313,7 @@ async fn get_pages_structure_for_directory(
                     };
                     items.push((
                         basename,
-                        PagesStructureItemVc::new(
-                            *file_project_path,
-                            next_router_path,
-                            specificity,
-                        ),
+                        PagesStructureItemVc::new(*file_project_path, next_router_path),
                     ));
                 }
                 DirectoryEntry::Directory(dir_project_path) => {
@@ -347,7 +322,6 @@ async fn get_pages_structure_for_directory(
                         get_pages_structure_for_directory(
                             *dir_project_path,
                             next_router_path.join(name),
-                            specificity,
                             position + 1,
                             page_extensions,
                         ),
@@ -371,16 +345,6 @@ async fn get_pages_structure_for_directory(
         children: children.into_iter().map(|(_, v)| v).collect(),
     }
     .cell())
-}
-
-fn entry_specificity(specificity: SpecificityVc, name: &str, position: u32) -> SpecificityVc {
-    if name.starts_with("[[") || name.starts_with("[...") {
-        specificity.with_catch_all(position)
-    } else if name.starts_with('[') {
-        specificity.with_dynamic_segment(position)
-    } else {
-        specificity
-    }
 }
 
 fn page_basename<'a>(name: &'a str, page_extensions: &'a [String]) -> Option<&'a str> {
