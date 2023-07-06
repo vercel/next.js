@@ -141,6 +141,11 @@ import { createClientRouterFilter } from '../lib/create-client-router-filter'
 import { createValidFileMatcher } from '../server/lib/find-page-file'
 import { startTypeChecking } from './type-check'
 import { generateInterceptionRoutesRewrites } from '../lib/generate-interception-routes-rewrites'
+import {
+  baseOverrides,
+  experimentalOverrides,
+  vanillaOverrides,
+} from '../server/require-hook'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -1967,8 +1972,16 @@ export default async function build(
               require.resolve(
                 'next/dist/compiled/minimal-next-server/next-server.js'
               ),
+              ...Object.values(vanillaOverrides).map((override) =>
+                require.resolve(override)
+              ),
+              ...Object.values(baseOverrides).map((override) =>
+                require.resolve(override)
+              ),
+              ...Object.values(experimentalOverrides).map((override) =>
+                require.resolve(override)
+              ),
             ].filter(nonNullable)
-
             // ensure we trace any dependencies needed for custom
             // incremental cache handler
             if (incrementalCacheHandlerPath) {
