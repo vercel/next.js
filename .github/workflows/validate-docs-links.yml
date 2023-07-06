@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - 'docs/**.mdx'
+      - 'errors/*.mdx'
 
 jobs:
   link-check:

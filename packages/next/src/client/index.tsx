@@ -326,6 +326,10 @@ function renderApp(App: AppComponent, appProps: AppProps) {
 function AppContainer({
   children,
 }: React.PropsWithChildren<{}>): React.ReactElement {
+  // Create a memoized value for next/navigation router context.
+  const adaptedForAppRouter = React.useMemo(() => {
+    return adaptForAppRouterInstance(router)
+  }, [])
   return (
     <Container
       fn={(error) =>
@@ -336,7 +340,7 @@ function AppContainer({
         )
       }
     >
-      <AppRouterContext.Provider value={adaptForAppRouterInstance(router)}>
+      <AppRouterContext.Provider value={adaptedForAppRouter}>
         <SearchParamsContext.Provider value={adaptForSearchParams(router)}>
           <PathnameContextProviderAdapter
             router={router}
