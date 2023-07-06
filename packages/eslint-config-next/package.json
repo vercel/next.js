@@ -18,7 +18,7 @@
     "eslint-plugin-import": "^2.26.0",
     "eslint-plugin-jsx-a11y": "^6.5.1",
     "eslint-plugin-react": "^7.31.7",
-    "eslint-plugin-react-hooks": "^4.5.0"
+    "eslint-plugin-react-hooks": "5.0.0-canary-7118f5dd7-20230705"
   },
   "peerDependencies": {
     "eslint": "^7.23.0 || ^8.0.0",
