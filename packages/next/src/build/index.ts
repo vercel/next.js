@@ -1961,6 +1961,12 @@ export default async function build(
                     'next/dist/server/lib/render-server-standalone'
                   )
                 : null,
+              require.resolve(
+                'next/dist/compiled/minimal-next-server/next-server-cached.js'
+              ),
+              require.resolve(
+                'next/dist/compiled/minimal-next-server/next-server.js'
+              ),
             ].filter(nonNullable)
 
             // ensure we trace any dependencies needed for custom

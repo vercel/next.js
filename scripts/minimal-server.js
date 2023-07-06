@@ -21,11 +21,12 @@ if (process.env.LOG_REQUIRE) {
 
 if (process.env.LOG_COMPILE) {
   const originalCompile = require('module').prototype._compile
-
+  const currentDir = process.cwd()
   require('module').prototype._compile = function (content, filename) {
-    console.time(`Module '${filename}' compiled`)
+    const strippedFilename = filename.replace(currentDir, '')
+    console.time(`Module '${strippedFilename}' compiled`)
     const result = originalCompile.apply(this, arguments)
-    console.timeEnd(`Module '${filename}' compiled`)
+    console.timeEnd(`Module '${strippedFilename}' compiled`)
     return result
   }
 }
@@ -100,6 +101,7 @@ require('http')
         if (process.env.LOG_READFILE) {
           console.log(`readFileCount: ${readFileCount + readFileSyncCount}`)
         }
+        require('process').exit(0)
       })
   })
   .listen(3000, () => {

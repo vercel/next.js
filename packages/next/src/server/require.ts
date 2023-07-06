@@ -122,9 +122,10 @@ export function requirePage(
     })
   }
 
-  // this code could be bundled so we need to use `eval` to avoid using the bundler's require
-  // eslint-disable-next-line no-eval
-  return eval('require')(pagePath)
+  return process.env.NEXT_MINIMAL
+    ? // @ts-ignore
+      __non_webpack_require__(pagePath)
+    : require(pagePath)
 }
 
 export function requireFontManifest(distDir: string) {

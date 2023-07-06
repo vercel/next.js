@@ -83,7 +83,12 @@ externals['node-html-parser'] = 'next/dist/compiled/node-html-parser'
 export async function ncc_node_html_parser(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('node-html-parser')))
-    .ncc({ packageName: 'node-html-parser', externals, target: 'es5' })
+    .ncc({
+      packageName: 'node-html-parser',
+      externals,
+      target: 'es5',
+      v8cache: true,
+    })
     .target('src/compiled/node-html-parser')
 }
 
@@ -2622,7 +2627,6 @@ export async function minimal_next_server(task) {
   const cachedOutputName = `${outputName}.cache`
 
   const minimalExternals = [
-    'next/dist/compiled/@next/react-dev-overlay/dist/middleware',
     'react',
     'react/package.json',
     'react/jsx-runtime',
@@ -2640,6 +2644,7 @@ export async function minimal_next_server(task) {
     'styled-jsx',
     'styled-jsx/style',
     '@opentelemetry/api',
+    'next/dist/compiled/@next/react-dev-overlay/dist/middleware',
     'next/dist/compiled/@ampproject/toolbox-optimizer',
     'next/dist/compiled/edge-runtime',
     'next/dist/compiled/@edge-runtime/ponyfill',
@@ -2662,7 +2667,8 @@ export async function minimal_next_server(task) {
 
   const webpack = require('webpack')
   const TerserPlugin = require('terser-webpack-plugin')
-
+  // const BundleAnalyzerPlugin =
+  //   require('webpack-bundle-analyzer').BundleAnalyzerPlugin
   /** @type {webpack.Configuration} */
   const config = {
     entry: join(__dirname, 'dist/server/next-server.js'),
@@ -2675,7 +2681,7 @@ export async function minimal_next_server(task) {
     },
     // left in for debugging
     optimization: {
-      // moduleIds: 'named',
+      moduleIds: 'named',
       // minimize: false,
       minimize: true,
       minimizer: [
@@ -2698,6 +2704,7 @@ export async function minimal_next_server(task) {
         'process.env.NEXT_MINIMAL': JSON.stringify('true'),
         'process.env.NEXT_RUNTIME': JSON.stringify('nodejs'),
       }),
+      // new BundleAnalyzerPlugin({}),
     ],
     externals: [minimalExternals],
   }

@@ -17,10 +17,10 @@ export function addHookAliases(aliases: [string, string][] = []) {
   }
 }
 
-// We need to use `eval` here to avoid webpack from rewriting the `require.resolve` calls
-// as this code could be bundled
-// eslint-disable-next-line no-eval
-const resolve = eval('require').resolve
+const resolve = process.env.NEXT_MINIMAL
+  ? // @ts-ignore
+    __non_webpack_require__.resolve
+  : require.resolve
 
 // Add default aliases
 addHookAliases([
