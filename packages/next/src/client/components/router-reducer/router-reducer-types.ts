@@ -23,7 +23,8 @@ export type RouterChangeByServerResponse = (
 export type RouterNavigate = (
   href: string,
   navigateType: 'push' | 'replace',
-  forceOptimisticNavigation: boolean
+  forceOptimisticNavigation: boolean,
+  shouldScroll: boolean
 ) => void
 
 export interface Mutable {
@@ -36,6 +37,7 @@ export interface Mutable {
   cache?: CacheNode
   prefetchCache?: AppRouterState['prefetchCache']
   hashFragment?: string
+  shouldScroll?: boolean
 }
 
 export interface ServerActionMutable {
@@ -125,6 +127,7 @@ export interface NavigateAction {
   locationSearch: Location['search']
   navigateType: 'push' | 'replace'
   forceOptimisticNavigation: boolean
+  shouldScroll: boolean
   cache: CacheNode
   mutable: Mutable
 }

@@ -72,7 +72,9 @@ export const createServerHandler = async ({
   didInitialize = true
 
   const getProxyServer = (pathname: string) => {
-    const targetUrl = `http://${hostname}:${routerPort}${pathname}`
+    const targetUrl = `http://${
+      hostname === 'localhost' ? '127.0.0.1' : hostname
+    }:${routerPort}${pathname}`
     const proxyServer = httpProxy.createProxy({
       target: targetUrl,
       changeOrigin: false,
