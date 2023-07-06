@@ -6,6 +6,8 @@ import { getDerivedTags } from './utils'
 
 let memoryCache: LRUCache<string, CacheHandlerValue> | undefined
 
+let rateLimitedUntil = 0
+
 interface NextFetchCacheParams {
   internal?: boolean
   fetchType?: string
@@ -18,6 +20,14 @@ export default class FetchCache implements CacheHandler {
   private cacheEndpoint?: string
   private debug: boolean
   private revalidatedTags: string[]
+
+  static isAvailable(ctx: {
+    _requestHeaders: CacheHandlerContext['_requestHeaders']
+  }) {
+    return !!(
+      ctx._requestHeaders['x-vercel-sc-host'] || process.env.SUSPENSE_CACHE_URL
+    )
+  }
 
   constructor(ctx: CacheHandlerContext) {
     this.debug = !!process.env.NEXT_PRIVATE_DEBUG_CACHE
@@ -94,6 +104,14 @@ export default class FetchCache implements CacheHandler {
     if (this.debug) {
       console.log('revalidateTag', tag)
     }
+
+    if (Date.now() < rateLimitedUntil) {
+      if (this.debug) {
+        console.log('rate limited ', rateLimitedUntil)
+      }
+      return
+    }
+
     try {
       const res = await fetch(
         `${this.cacheEndpoint}/v1/suspense-cache/revalidate?tags=${tag}`,
@@ -104,6 +122,11 @@ export default class FetchCache implements CacheHandler {
           next: { internal: true },
         }
       )
+
+      if (res.status === 429) {
+        const retryAfter = res.headers.get('retry-after') || '60000'
+        rateLimitedUntil = Date.now() + parseInt(retryAfter)
+      }
 
       if (!res.ok) {
         throw new Error(`Request failed with status ${res.status}.`)
@@ -120,6 +143,13 @@ export default class FetchCache implements CacheHandler {
     fetchIdx?: number
   ) {
     if (!fetchCache) return null
+
+    if (Date.now() < rateLimitedUntil) {
+      if (this.debug) {
+        console.log('rate limited')
+      }
+      return null
+    }
 
     let data = memoryCache?.get(key)
 
@@ -150,6 +180,11 @@ export default class FetchCache implements CacheHandler {
             next: fetchParams as NextFetchRequestConfig,
           }
         )
+
+        if (res.status === 429) {
+          const retryAfter = res.headers.get('retry-after') || '60000'
+          rateLimitedUntil = Date.now() + parseInt(retryAfter)
+        }
 
         if (res.status === 404) {
           if (this.debug) {
@@ -233,6 +268,13 @@ export default class FetchCache implements CacheHandler {
   ) {
     if (!fetchCache) return
 
+    if (Date.now() < rateLimitedUntil) {
+      if (this.debug) {
+        console.log('rate limited')
+      }
+      return
+    }
+
     memoryCache?.set(key, {
       value: data,
       lastModified: Date.now(),
@@ -281,6 +323,11 @@ export default class FetchCache implements CacheHandler {
             next: fetchParams as NextFetchRequestConfig,
           }
         )
+
+        if (res.status === 429) {
+          const retryAfter = res.headers.get('retry-after') || '60000'
+          rateLimitedUntil = Date.now() + parseInt(retryAfter)
+        }
 
         if (!res.ok) {
           this.debug && console.log(await res.text())
