@@ -4,7 +4,8 @@ import * as path from 'path'
 const url =
   'https://nextjs.org/docs/messages/no-before-interactive-script-outside-document'
 
-const convertToCorrectSeparator = (str: string) => str.replace(/[\\/]/g, path.sep)
+const convertToCorrectSeparator = (str: string) =>
+  str.replace(/[\\/]/g, path.sep)
 
 export = defineRule({
   meta: {
@@ -29,7 +30,7 @@ export = defineRule({
       JSXOpeningElement(node) {
         const pathname = convertToCorrectSeparator(context.getFilename())
 
-        const isInAppDir = pathname.includes(`app${path.sep}`)
+        const isInAppDir = pathname.includes(`${path.sep}app${path.sep}`)
 
         // This rule shouldn't fire in `app/`
         if (isInAppDir) {
