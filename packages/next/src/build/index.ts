@@ -1911,7 +1911,7 @@ export default async function build(
             ) {
               const cacheHash = (
                 require('crypto') as typeof import('crypto')
-              ).createHash('sha256')
+              ).createHash('sha1')
 
               cacheHash.update(require('next/package').version)
               cacheHash.update(hasSsrAmpPages + '')
