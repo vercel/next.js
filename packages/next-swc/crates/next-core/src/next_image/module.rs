@@ -5,7 +5,7 @@ use turbopack_binding::{
     turbopack::{
         core::{
             asset::AssetVc,
-            context::{AssetContext, AssetContextVc},
+            context::AssetContext,
             reference_type::{InnerAssetsVc, ReferenceType},
             resolve::ModulePartVc,
         },
@@ -46,9 +46,9 @@ impl StructuredImageModuleType {
     pub(crate) fn create_module(
         source: AssetVc,
         blur_placeholder_mode: BlurPlaceholderMode,
-        context: AssetContextVc,
+        context: ModuleAssetContextVc,
     ) -> AssetVc {
-        let static_asset = StaticModuleAssetVc::new(source, context);
+        let static_asset = StaticModuleAssetVc::new(source, context.into());
         context.process(
             StructuredImageSourceAsset {
                 image: source,
