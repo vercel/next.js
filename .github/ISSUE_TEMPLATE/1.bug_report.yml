@@ -27,7 +27,7 @@ body:
       label: Which area(s) of Next.js are affected? (leave empty if unsure)
       multiple: true
       options:
-        - 'App directory (appDir: true)'
+        - 'App Router'
         - 'CLI (create-next-app)'
         - 'Data fetching (gS(S)P, getInitialProps)'
         - 'Dynamic imports (next/dynamic)'
@@ -37,7 +37,7 @@ body:
         - 'Internationalization (i18n)'
         - 'Jest (next/jest)'
         - 'MDX (@next/mdx)'
-        - 'Metadata (metadata, generateMetadata, next/head, head.js)'
+        - 'Metadata (metadata, generateMetadata, next/head)'
         - 'Middleware / Edge (API routes, runtime)'
         - 'Operating System (Windows, MacOS, Linux)'
         - 'Package manager (npm, pnpm, Yarn)'
