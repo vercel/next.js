@@ -51,6 +51,7 @@ use serde_json::Value;
 use tokio::{
     fs,
     io::{AsyncBufReadExt, AsyncReadExt, BufReader},
+    sync::{RwLock, RwLockReadGuard},
 };
 use tracing::{instrument, Level};
 use turbo_tasks::{
@@ -156,6 +157,11 @@ pub struct DiskFileSystem {
     invalidator_map: Arc<InvalidatorMap>,
     #[turbo_tasks(debug_ignore, trace_ignore)]
     dir_invalidator_map: Arc<InvalidatorMap>,
+    /// Lock that makes invalidation atomic. It will keep a write lock during
+    /// watcher invalidation and a read lock during other operations.
+    #[turbo_tasks(debug_ignore, trace_ignore)]
+    #[serde(skip)]
+    invalidation_lock: Arc<RwLock<()>>,
     #[turbo_tasks(debug_ignore, trace_ignore)]
     #[serde(skip)]
     watcher: Arc<DiskWatcher>,
@@ -188,6 +194,12 @@ impl DiskFileSystem {
         #[cfg(not(any(target_os = "macos", target_os = "windows")))]
         self.watcher.ensure_watching(path, self.root_path())?;
         Ok(())
+    }
+
+    async fn lock_path(&self, full_path: &Path) -> PathLockGuard<'_> {
+        let lock1 = self.invalidation_lock.read().await;
+        let lock2 = self.mutex_map.lock(full_path.to_path_buf()).await;
+        PathLockGuard(lock1, lock2)
     }
 
     pub fn invalidate(&self) {
@@ -233,6 +245,7 @@ impl DiskFileSystem {
         let report_invalidation_reason =
             report_invalidation_reason.then(|| (self.name.clone(), root_path.clone()));
 
+        let invalidation_lock = self.invalidation_lock.clone();
         // Create a channel to receive the events.
         let (tx, rx) = channel();
         // Create a watcher object, delivering debounced events.
@@ -410,6 +423,7 @@ impl DiskFileSystem {
                         let _ = disk_watcher.restore_if_watching(&path, &root_path);
                     }
                 }
+                let _lock = invalidation_lock.blocking_write();
                 {
                     let mut invalidator_map = invalidator_map.lock().unwrap();
                     invalidate_path(
@@ -460,6 +474,11 @@ impl DiskFileSystem {
     }
 }
 
+struct PathLockGuard<'a>(
+    RwLockReadGuard<'a, ()>,
+    mutex_map::MutexMapGuard<'a, PathBuf>,
+);
+
 fn format_absolute_fs_path(path: &Path, name: &str, root_path: &PathBuf) -> Option<String> {
     let path = if let Ok(rel_path) = path.strip_prefix(root_path) {
         let path = if MAIN_SEPARATOR != '/' {
@@ -491,6 +510,7 @@ impl DiskFileSystemVc {
             name,
             root,
             mutex_map: Default::default(),
+            invalidation_lock: Default::default(),
             invalidator_map: Arc::new(InvalidatorMap::new()),
             dir_invalidator_map: Arc::new(InvalidatorMap::new()),
             watcher: Default::default(),
@@ -513,7 +533,7 @@ impl FileSystem for DiskFileSystem {
         let full_path = self.to_sys_path(fs_path).await?;
         self.register_invalidator(&full_path)?;
 
-        let _lock = self.mutex_map.lock(full_path.clone()).await;
+        let _lock = self.lock_path(&full_path).await;
         let content = match retry_future(|| File::from_path(full_path.clone())).await {
             Ok(file) => FileContent::new(file),
             Err(e) if e.kind() == ErrorKind::NotFound => FileContent::NotFound,
@@ -539,7 +559,7 @@ impl FileSystem for DiskFileSystem {
                     || e.kind() == ErrorKind::NotADirectory
                     || e.kind() == ErrorKind::InvalidFilename =>
             {
-                return Ok(DirectoryContentVc::not_found())
+                return Ok(DirectoryContentVc::not_found());
             }
             Err(e) => {
                 bail!(anyhow!(e).context(format!("reading dir {}", full_path.display())))
@@ -583,7 +603,7 @@ impl FileSystem for DiskFileSystem {
         let full_path = self.to_sys_path(fs_path).await?;
         self.register_invalidator(&full_path)?;
 
-        let _lock = self.mutex_map.lock(full_path.clone()).await;
+        let _lock = self.lock_path(&full_path).await;
         let link_path = match retry_future(|| fs::read_link(&full_path)).await {
             Ok(res) => res,
             Err(_) => return Ok(LinkContent::NotFound.cell()),
@@ -679,7 +699,7 @@ impl FileSystem for DiskFileSystem {
         // Track the file, so that we will rewrite it if it ever changes.
         fs_path.track().await?;
 
-        let _lock = self.mutex_map.lock(full_path.clone()).await;
+        let _lock = self.lock_path(&full_path).await;
 
         // We perform an untracked comparison here, so that this write is not dependent
         // on a read's FileContentVc (and the memory it holds). Our untracked read can
@@ -768,7 +788,7 @@ impl FileSystem for DiskFileSystem {
                     })?;
             }
         }
-        let _lock = self.mutex_map.lock(full_path.clone()).await;
+        let _lock = self.lock_path(&full_path).await;
         match &*target_link {
             LinkContent::Link { target, link_type } => {
                 let link_type = *link_type;
@@ -820,7 +840,7 @@ impl FileSystem for DiskFileSystem {
         let full_path = self.to_sys_path(fs_path).await?;
         self.register_invalidator(&full_path)?;
 
-        let _lock = self.mutex_map.lock(full_path.clone()).await;
+        let _lock = self.lock_path(&full_path).await;
         let meta = retry_future(|| fs::metadata(full_path.clone()))
             .await
             .with_context(|| format!("reading metadata for {}", full_path.display()))?;
