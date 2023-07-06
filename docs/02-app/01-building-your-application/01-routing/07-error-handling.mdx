@@ -217,10 +217,10 @@ If an error is thrown inside a Server Component, Next.js will forward an `Error`
 
 #### Securing Sensitive Error Information
 
-During production, the `Error` instance forwarded to the client only includes a generic `message` and `digest` property.
+During production, the `Error` object forwarded to the client only includes a generic `message` and `digest` property.
 
 This is a security precaution to avoid leaking potentially sensitive details included in the error to the client.
 
 The `message` property contains a generic message about the error and the `digest` property contains an automatically generated hash of the error that can be used to match the corresponding error in server-side logs.
 
-During development, the `Error` instance will be serialized and forwarded from the Server Component to the `error.js` Client Component.
+During development, the `Error` object forwarded to the client will be serialized and include the properties of the original error for easier debugging.
