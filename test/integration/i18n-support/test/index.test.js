@@ -242,6 +242,28 @@ describe('i18n Support', () => {
         })
       }
 
+      it('should have correct locale domain hrefs', async () => {
+        const res = await fetchViaHTTP(
+          curCtx.appPort,
+          '/do-BE/frank/',
+          undefined,
+          {
+            redirect: 'manual',
+          }
+        )
+        expect(res.status).toBe(200)
+
+        const html = await res.text()
+        const $ = cheerio.load(html)
+
+        expect($('#to-fallback-hello')[0].attribs.href).toBe(
+          'http://example.do/do-BE/gsp/fallback/hello/'
+        )
+        expect($('#to-no-fallback-first')[0].attribs.href).toBe(
+          'http://example.do/do-BE/gsp/no-fallback/first/'
+        )
+      })
+
       it('should redirect correctly', async () => {
         for (const locale of nonDomainLocales) {
           const res = await fetchViaHTTP(curCtx.appPort, '/', undefined, {
