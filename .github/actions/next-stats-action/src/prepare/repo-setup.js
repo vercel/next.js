@@ -18,12 +18,12 @@ module.exports = (actionInfo) => {
       const tag = stdout.trim()
 
       if (!tag || !tag.startsWith('v')) {
-        throw new Error(`Failed to get tag info "${stdout}"`)
+        throw new Error(`Failed to get tag info: "${stdout}"`)
       }
       const [major, minor, patch] = tag.split('-canary')[0].split('.')
       if (!major || !minor || !patch) {
         throw new Error(
-          `Failed to split tag into major/minor/patch "${stdout}"`
+          `Failed to split tag into major/minor/patch: "${stdout}"`
         )
       }
       // last stable tag will always be 1 patch less than canary
