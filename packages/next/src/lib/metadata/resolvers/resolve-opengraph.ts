@@ -115,7 +115,7 @@ export const resolveOpenGraph: FieldResolverExtraArgs<
     }
 
     const imageMetadataBase = getSocialImageFallbackMetadataBase(metadataBase)
-    resolved.images = resolveImages(og.images, imageMetadataBase)
+    target.images = resolveImages(og.images, imageMetadataBase)
   }
 
   const resolved = {
