@@ -72,12 +72,12 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
       let mainRef = statsConfig.mainBranch
 
       if (actionInfo.isRelease) {
-        logger('Release detected, using last stable tag')
+        logger(`Release detected, using last stable tag: ${actionInfo.prRef}`)
         const lastStableTag = await getLastStable(diffRepoDir, actionInfo.prRef)
         mainRef = lastStableTag
         mainNextSwcVersion = lastStableTag
         if (!lastStableTag) throw new Error('failed to get last stable tag')
-        console.log('using latestStable', lastStableTag)
+        logger(`using latestStable: "${lastStableTag}"`)
 
         /* eslint-disable-next-line */
         actionInfo.lastStableTag = lastStableTag
