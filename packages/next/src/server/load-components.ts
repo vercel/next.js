@@ -147,10 +147,13 @@ async function loadComponentsImpl({
             distDir,
             'server',
             'app',
-            pathname + '_' + CLIENT_REFERENCE_MANIFEST + '.js'
+            pathname.replace(/%5F/g, '_') +
+              '_' +
+              CLIENT_REFERENCE_MANIFEST +
+              '.js'
           ),
           '__RSC_MANIFEST',
-          pathname
+          pathname.replace(/%5F/g, '_')
         )
       : undefined,
     isAppPath

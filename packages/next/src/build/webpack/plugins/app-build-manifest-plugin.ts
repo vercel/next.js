@@ -81,7 +81,13 @@ export class AppBuildManifestPlugin {
         pagePath.endsWith('/page') ||
         pagePath === '/not-found' ||
         pagePath === '/_not-found'
-          ? ['server/app' + pagePath + '_' + CLIENT_REFERENCE_MANIFEST + '.js']
+          ? [
+              'server/app' +
+                pagePath.replace(/%5F/g, '_') +
+                '_' +
+                CLIENT_REFERENCE_MANIFEST +
+                '.js',
+            ]
           : []
 
       manifest.pages[pagePath] = [
