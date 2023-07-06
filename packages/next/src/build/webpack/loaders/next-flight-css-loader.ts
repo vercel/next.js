@@ -31,7 +31,7 @@ const NextServerCSSLoader: webpack.LoaderDefinitionFunction<NextServerCSSLoaderO
           this.resourcePath.match(/\.module\.(css|sass|scss)$/) !== null
       }
       const checksum = crypto
-        .createHash('sha256')
+        .createHash('sha1')
         .update(typeof content === 'string' ? Buffer.from(content) : content)
         .digest()
         .toString('hex')
