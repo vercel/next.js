@@ -333,17 +333,39 @@ export class ClientReferenceManifestPlugin {
       // A page's entry name can have extensions. For example, these are both valid:
       // - app/foo/page
       // - app/foo/page.page
-      // - app/not-found
       // Let's normalize the entry name to remove the extra extension
-      const groupName =
-        /\/page(\.[^/]+)?$/.test(entryName) || entryName === 'app/not-found'
-          ? entryName.replace(/\/page(\.[^/]+)?$/, '/page')
-          : entryName.slice(0, entryName.lastIndexOf('/'))
+      const groupName = /\/page(\.[^/]+)?$/.test(entryName)
+        ? entryName.replace(/\/page(\.[^/]+)?$/, '/page')
+        : entryName.slice(0, entryName.lastIndexOf('/'))
 
       if (!manifestsPerGroup.has(groupName)) {
         manifestsPerGroup.set(groupName, [])
       }
       manifestsPerGroup.get(groupName)!.push(manifest)
+
+      if (entryName.includes('/@')) {
+        // Remove parallel route labels:
+        // - app/foo/@bar/page -> app/foo
+        // - app/foo/@bar/layout -> app/foo/layout -> app/foo
+        const entryNameWithoutNamedSegments = entryName.replace(/\/@[^/]+/g, '')
+        const groupNameWithoutNamedSegments =
+          entryNameWithoutNamedSegments.slice(
+            0,
+            entryNameWithoutNamedSegments.lastIndexOf('/')
+          )
+        if (!manifestsPerGroup.has(groupNameWithoutNamedSegments)) {
+          manifestsPerGroup.set(groupNameWithoutNamedSegments, [])
+        }
+        manifestsPerGroup.get(groupNameWithoutNamedSegments)!.push(manifest)
+      }
+
+      // Special case for the root not-found page.
+      if (/^app\/not-found(\.[^.]+)?$/.test(entryName)) {
+        if (!manifestsPerGroup.has('app/not-found')) {
+          manifestsPerGroup.set('app/not-found', [])
+        }
+        manifestsPerGroup.get('app/not-found')!.push(manifest)
+      }
     })
 
     // Generate per-page manifests.
@@ -359,6 +381,7 @@ export class ClientReferenceManifestPlugin {
         const segments = groupName.split('/')
         let group = ''
         for (const segment of segments) {
+          if (segment.startsWith('@')) continue
           for (const manifest of manifestsPerGroup.get(group) || []) {
             mergeManifest(mergedManifest, manifest)
           }
@@ -370,15 +393,15 @@ export class ClientReferenceManifestPlugin {
 
         const json = JSON.stringify(mergedManifest)
 
-        assets[
-          'server/' + groupName + '_' + CLIENT_REFERENCE_MANIFEST + '.js'
-        ] = new sources.RawSource(
-          `globalThis.__RSC_MANIFEST=(globalThis.__RSC_MANIFEST||{});globalThis.__RSC_MANIFEST[${JSON.stringify(
-            groupName.slice('app'.length)
-          )}]=${JSON.stringify(json)}`
-        ) as unknown as webpack.sources.RawSource
+        const pagePath = groupName.replace(/%5F/g, '_')
+        assets['server/' + pagePath + '_' + CLIENT_REFERENCE_MANIFEST + '.js'] =
+          new sources.RawSource(
+            `globalThis.__RSC_MANIFEST=(globalThis.__RSC_MANIFEST||{});globalThis.__RSC_MANIFEST[${JSON.stringify(
+              pagePath.slice('app'.length)
+            )}]=${JSON.stringify(json)}`
+          ) as unknown as webpack.sources.RawSource
 
-        if (groupName === 'app/not-found') {
+        if (pagePath === 'app/not-found') {
           // Create a separate special manifest for the root not-found page.
           assets[
             'server/' +
