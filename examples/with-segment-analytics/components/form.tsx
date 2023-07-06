@@ -1,19 +1,20 @@
+'use client'
 import { useState } from 'react'
+import { analytics } from '@/components/analytics'
 
-const Contact = () => {
+export default function Form() {
   const [message, setMessage] = useState('')
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    global.analytics.track('Form Submitted', {
+    analytics.track('Form Submitted', {
       message,
     })
     setMessage('')
   }
 
   return (
-    <div>
-      <h1>This is the Contact page</h1>
+    <>
       <form onSubmit={handleSubmit}>
         <label>
           <span>Message:</span>
@@ -41,7 +42,6 @@ const Contact = () => {
           display: block;
         }
       `}</style>
-    </div>
+    </>
   )
 }
-export default Contact
