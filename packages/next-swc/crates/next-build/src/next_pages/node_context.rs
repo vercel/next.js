@@ -97,6 +97,10 @@ impl PagesBuildNodeContextVc {
         };
 
         let pathname = pathname.await?;
+        let pathname = match pathname.as_str() {
+            "/" => "/index",
+            pathname => pathname,
+        };
 
         let chunking_context = self.node_chunking_context();
         Ok(chunking_context.generate_entry_chunk(
