@@ -87,7 +87,6 @@ export async function ncc_node_html_parser(task, opts) {
       packageName: 'node-html-parser',
       externals,
       target: 'es5',
-      v8cache: true,
     })
     .target('src/compiled/node-html-parser')
 }
