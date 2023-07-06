@@ -11,7 +11,13 @@ use crate::{embed_js::next_js_file_path, next_config::NextConfigVc};
 #[turbo_tasks::value]
 pub struct PagesStructureItem {
     pub project_path: FileSystemPathVc,
+    /// Pathname of this item in the Next.js router.
     pub next_router_path: FileSystemPathVc,
+    /// Unique path corresponding to this item. This differs from
+    /// `next_router_path` in that it will include the trailing /index for index
+    /// routes, which allows for differentiating with potential /index
+    /// directories.
+    pub original_path: FileSystemPathVc,
 }
 
 #[turbo_tasks::value_impl]
@@ -20,10 +26,12 @@ impl PagesStructureItemVc {
     async fn new(
         project_path: FileSystemPathVc,
         next_router_path: FileSystemPathVc,
+        original_path: FileSystemPathVc,
     ) -> Result<Self> {
         Ok(PagesStructureItem {
             project_path,
             next_router_path,
+            original_path,
         }
         .cell())
     }
@@ -173,29 +181,40 @@ async fn get_pages_structure_for_root_directory(
                         };
                         match basename {
                             "_app" => {
+                                let item_next_router_path = next_router_path.join("_app");
                                 let _ = app_item.insert(PagesStructureItemVc::new(
                                     *file_project_path,
-                                    next_router_path.join("_app"),
+                                    item_next_router_path,
+                                    item_next_router_path,
                                 ));
                             }
                             "_document" => {
+                                let item_next_router_path = next_router_path.join("_document");
                                 let _ = document_item.insert(PagesStructureItemVc::new(
                                     *file_project_path,
-                                    next_router_path.join("_document"),
+                                    item_next_router_path,
+                                    item_next_router_path,
                                 ));
                             }
                             "_error" => {
+                                let item_next_router_path = next_router_path.join("_error");
                                 let _ = error_item.insert(PagesStructureItemVc::new(
                                     *file_project_path,
-                                    next_router_path.join("_error"),
+                                    item_next_router_path,
+                                    item_next_router_path,
                                 ));
                             }
                             basename => {
-                                let next_router_path =
+                                let item_next_router_path =
                                     next_router_path_for_basename(next_router_path, basename);
+                                let item_original_path = next_router_path.join(basename);
                                 items.push((
                                     basename,
-                                    PagesStructureItemVc::new(*file_project_path, next_router_path),
+                                    PagesStructureItemVc::new(
+                                        *file_project_path,
+                                        item_next_router_path,
+                                        item_original_path,
+                                    ),
                                 ));
                             }
                         }
@@ -246,27 +265,33 @@ async fn get_pages_structure_for_root_directory(
     let app_item = if let Some(app_item) = app_item {
         app_item
     } else {
+        let app_router_path = next_router_path.join("_app");
         PagesStructureItemVc::new(
             next_js_file_path("entry/pages/_app.tsx"),
-            next_router_path.join("_app"),
+            app_router_path,
+            app_router_path,
         )
     };
 
     let document_item = if let Some(document_item) = document_item {
         document_item
     } else {
+        let document_router_path = next_router_path.join("_document");
         PagesStructureItemVc::new(
             next_js_file_path("entry/pages/_document.tsx"),
-            next_router_path.join("_document"),
+            document_router_path,
+            document_router_path,
         )
     };
 
     let error_item = if let Some(error_item) = error_item {
         error_item
     } else {
+        let error_router_path = next_router_path.join("_error");
         PagesStructureItemVc::new(
             next_js_file_path("entry/pages/_error.tsx"),
-            next_router_path.join("_error"),
+            error_router_path,
+            error_router_path,
         )
     };
 
@@ -302,13 +327,18 @@ async fn get_pages_structure_for_directory(
                     let Some(basename) = page_basename(name, page_extensions_raw) else {
                         continue;
                     };
-                    let next_router_path = match basename {
+                    let item_next_router_path = match basename {
                         "index" => next_router_path,
                         _ => next_router_path.join(basename),
                     };
+                    let item_original_name = next_router_path.join(basename);
                     items.push((
                         basename,
-                        PagesStructureItemVc::new(*file_project_path, next_router_path),
+                        PagesStructureItemVc::new(
+                            *file_project_path,
+                            item_next_router_path,
+                            item_original_name,
+                        ),
                     ));
                 }
                 DirectoryEntry::Directory(dir_project_path) => {

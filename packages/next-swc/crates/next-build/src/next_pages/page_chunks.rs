@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{bail, Result};
 use next_core::{
     env::env_for_js,
     mode::NextMode,
@@ -21,6 +21,7 @@ use next_core::{
     turbopack::core::asset::AssetsVc,
     PathType,
 };
+use turbo_tasks::ValueToString;
 use turbopack_binding::{
     turbo::{
         tasks::{primitives::StringVc, Value},
@@ -206,6 +207,7 @@ async fn get_page_chunks_for_root_directory(
         SourceAssetVc::new(app.project_path).into(),
         next_router_root,
         app.next_router_path,
+        app.original_path,
     ));
 
     // This only makes sense on the server.
@@ -216,6 +218,7 @@ async fn get_page_chunks_for_root_directory(
         SourceAssetVc::new(document.project_path).into(),
         next_router_root,
         document.next_router_path,
+        document.original_path,
     ));
 
     // This only makes sense on both the client and the server, but they should map
@@ -227,6 +230,7 @@ async fn get_page_chunks_for_root_directory(
         SourceAssetVc::new(error.project_path).into(),
         next_router_root,
         error.next_router_path,
+        error.original_path,
     ));
 
     if let Some(api) = api {
@@ -278,6 +282,7 @@ async fn get_page_chunks_for_directory(
         let PagesStructureItem {
             project_path,
             next_router_path,
+            original_path,
         } = *item.await?;
         chunks.push(get_page_chunk_for_file(
             node_build_context,
@@ -285,6 +290,7 @@ async fn get_page_chunks_for_directory(
             SourceAssetVc::new(project_path).into(),
             next_router_root,
             next_router_path,
+            original_path,
         ));
     }
 
@@ -324,23 +330,42 @@ async fn get_page_chunk_for_file(
     page_asset: AssetVc,
     next_router_root: FileSystemPathVc,
     next_router_path: FileSystemPathVc,
+    original_path: FileSystemPathVc,
 ) -> Result<PageChunkVc> {
     let reference_type = Value::new(ReferenceType::Entry(EntryReferenceSubType::Page));
 
     let pathname = pathname_for_path(next_router_root, next_router_path, PathType::Page);
+    let original_path = get_original_path(next_router_root, original_path);
 
     Ok(PageChunk {
         pathname,
-        node_chunk: node_build_context.node_chunk(page_asset, pathname, reference_type.clone()),
+        node_chunk: node_build_context.node_chunk(
+            page_asset,
+            original_path,
+            reference_type.clone(),
+        ),
         client_chunks: client_build_context.client_chunk(page_asset, pathname, reference_type),
     }
     .cell())
 }
 
+/// Returns the original path of a file within the Next.js router root.
 #[turbo_tasks::function]
-async fn pathname_from_path(next_router_path: FileSystemPathVc) -> Result<StringVc> {
-    let pathname = next_router_path.await?;
-    Ok(StringVc::cell(pathname.path.clone()))
+pub async fn get_original_path(
+    next_router_root: FileSystemPathVc,
+    original_path: FileSystemPathVc,
+) -> Result<StringVc> {
+    let original_path_value = &*original_path.await?;
+    let path = if let Some(path) = next_router_root.await?.get_path_to(original_path_value) {
+        path
+    } else {
+        bail!(
+            "original_path ({}) is not in next_router_root ({})",
+            original_path.to_string().await?,
+            next_router_root.to_string().await?
+        )
+    };
+    Ok(StringVc::cell(path.to_string()))
 }
 
 #[turbo_tasks::function]

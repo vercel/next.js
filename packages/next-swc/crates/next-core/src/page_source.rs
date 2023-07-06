@@ -701,6 +701,7 @@ async fn create_page_source_for_directory(
         let PagesStructureItem {
             project_path,
             next_router_path,
+            original_path: _,
         } = *item.await?;
         let source = create_page_source_for_file(
             project_root,
