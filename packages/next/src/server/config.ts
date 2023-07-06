@@ -747,7 +747,10 @@ export default async function loadConfig(
     : Log
 
   await loadEnvConfig(dir, phase === PHASE_DEVELOPMENT_SERVER, curLog)
-  loadWebpackHook()
+
+  if (!process.env.__NEXT_PRIVATE_RENDER_WORKER) {
+    loadWebpackHook()
+  }
 
   let configFileName = 'next.config.js'
 
