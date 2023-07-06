@@ -85,9 +85,13 @@ async function create(data) {
 
 ## Deleting cookies
 
-To "delete" a cookie, you must set a new cookie with the same name and an empty value. You can also set the `maxAge` to `0` to expire the cookie immediately.
+> **Good to know**: You can only delete cookies in a [Server Action](/docs/app/building-your-application/data-fetching/server-actions) or [Route Handler](/docs/app/building-your-application/routing/router-handlers).
 
-> **Good to know**: `.set()` is only available in a [Server Action](/docs/app/building-your-application/data-fetching/server-actions) or [Route Handler](/docs/app/building-your-application/routing/router-handlers).
+There are several options for deleting a cookie.
+
+### `cookies().delete(name)`
+
+You can explicitly delete a cookie with a given name.
 
 ```js filename="app/actions.js"
 'use server'
@@ -95,16 +99,50 @@ To "delete" a cookie, you must set a new cookie with the same name and an empty 
 import { cookies } from 'next/headers'
 
 async function create(data) {
-  cookies().set({
-    name: 'name',
-    value: '',
-    expires: new Date('2016-10-05'),
-    path: '/', // For all paths
-  })
+  cookies().delete('name');
 }
 ```
 
-You can only set cookies that belong to the same domain from which `.set()` is called. Additionally, the code must be executed on the same protocol (HTTP or HTTPS) as the cookie you want to update.
+### `cookies().set(name, '')`
+
+```js filename="app/actions.js"
+'use server'
+
+import { cookies } from 'next/headers'
+
+async function create(data) {
+  cookies().set('name', '')
+}
+```
+
+### `cookies().set(name, value, { maxAge: 0 })`
+
+Setting `maxAge` to 0 will immediately expire a cookie.
+
+```js filename="app/actions.js"
+'use server'
+
+import { cookies } from 'next/headers'
+
+async function create(data) {
+  cookies().set('name', 'value', { maxAge: 0 })
+}
+```
+
+### `cookies().set(name, value, { expires: timestamp })`
+
+Setting `expires` to any value in the past will immediately expire a cookie.
+
+```js filename="app/actions.js"
+'use server'
+
+import { cookies } from 'next/headers'
+
+async function create(data) {
+  const oneDay = 24 * 60 * 60 * 1000
+  cookies().set('name', 'value', { expires: Date.now() - oneDay })
+}
+```
 
 ## Version History
 
