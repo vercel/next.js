@@ -1719,7 +1719,8 @@ export default class DevServer extends Server {
     match?: RouteMatch
   }) {
     if (this.isRenderWorker) {
-      await this.invokeIpcMethod('ensurePage', [opts])
+      // There's no need to ensurePage again in the render worker, as the router
+      // worker should have the entry built already.
       return
     }
     return this.hotReloader?.ensurePage(opts)
