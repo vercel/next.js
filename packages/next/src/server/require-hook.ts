@@ -19,11 +19,6 @@ const resolve = process.env.NEXT_MINIMAL
 const toResolveMap = (map: Record<string, string>): [string, string][] =>
   Object.entries(map).map(([key, value]) => [key, resolve(value)])
 
-export const vanillaOverrides = {
-  'styled-jsx': 'styled-jsx/package.json',
-  'styled-jsx/style': 'styled-jsx/style',
-}
-
 export const baseOverrides = {
   react: 'next/dist/compiled/react',
   'react/package.json': 'next/dist/compiled/react/package.json',
