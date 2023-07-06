@@ -192,7 +192,7 @@ export const metadata = {
 `title.default` can be used to provide a **fallback title** to child route segments that don't define a `title`.
 
 ```tsx filename="app/layout.tsx"
-import { Metadata } from 'next'
+import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
   title: {
@@ -202,7 +202,7 @@ export const metadata: Metadata = {
 ```
 
 ```tsx filename="app/about/page.tsx"
-import { Metadata } from 'next'
+import type { Metadata } from 'next'
 
 export const metadata: Metadata = {}
 
@@ -225,7 +225,7 @@ export const metadata: Metadata = {
 ```
 
 ```jsx filename="app/layout.js" switcher
-import { Metadata } from 'next'
+import type { Metadata } from 'next'
 
 export const metadata = {
   title: {
@@ -522,7 +522,7 @@ export const metadata = {
 ### `robots`
 
 ```tsx
-import { Metadata } from 'next'
+import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
   robots: {
