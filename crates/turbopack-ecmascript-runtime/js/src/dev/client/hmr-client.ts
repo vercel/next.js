@@ -509,7 +509,7 @@ function handleSocketMessage(msg: ServerMessage) {
   // This is used by the Next.js integration test suite to notify it when HMR
   // updates have been completed.
   // TODO: Only run this in test environments (gate by `process.env.__NEXT_TEST_MODE`)
-  if (globalThis.__NEXT_HMR_CB) {
+  if (aggregatedMsg.type !== "issues" && globalThis.__NEXT_HMR_CB) {
     globalThis.__NEXT_HMR_CB();
     globalThis.__NEXT_HMR_CB = null;
   }
