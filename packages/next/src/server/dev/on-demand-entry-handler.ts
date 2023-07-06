@@ -512,6 +512,9 @@ export function onDemandEntryHandler({
     invalidators.set(multiCompiler.outputPath, curInvalidator)
   }
 
+  // Make sure that we won't have multiple invalidations ongoing concurrently.
+  const curInvalidatingEntryKeys = new Map<string, Promise<void>>()
+
   const startBuilding = (compilation: webpack.Compilation) => {
     const compilationName = compilation.name as any as CompilerNameValues
     curInvalidator.startBuilding(compilationName)
@@ -791,7 +794,7 @@ export function onDemandEntryHandler({
         const isServerComponent =
           isInsideAppDir && staticInfo.rsc !== RSC_MODULE_TYPES.client
 
-        await runDependingOnPageType({
+        runDependingOnPageType({
           page: pagePathData.page,
           pageRuntime: staticInfo.runtime,
           pageType: pageBundleType,
@@ -855,7 +858,11 @@ export function onDemandEntryHandler({
           const invalidatePromise = Promise.all(
             entriesThatShouldBeInvalidated.map(
               ([compilerKey, { entryKey }]) => {
-                return new Promise<void>((resolve, reject) => {
+                if (curInvalidatingEntryKeys.has(entryKey)) {
+                  return curInvalidatingEntryKeys.get(entryKey)
+                }
+
+                const promise = new Promise<void>((resolve, reject) => {
                   doneCallbacks.once(entryKey, (err: Error) => {
                     if (err) {
                       return reject(err)
@@ -875,7 +882,12 @@ export function onDemandEntryHandler({
                       resolve()
                     }
                   })
+                }).finally(() => {
+                  curInvalidatingEntryKeys.delete(entryKey)
                 })
+
+                curInvalidatingEntryKeys.set(entryKey, promise)
+                return promise
               }
             )
           )
