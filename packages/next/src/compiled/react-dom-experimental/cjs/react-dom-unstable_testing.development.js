@@ -2832,7 +2832,14 @@ function describeNativeComponentFrame(fn, construct) {
       // in simple components too
 
 
-      fn();
+      var maybePromise = fn(); // If the function component returns a promise, it's likely an async
+      // component, which we don't yet support. Attach a noop catch handler to
+      // silence the error.
+      // TODO: Implement component stacks for async client components?
+
+      if (maybePromise && typeof maybePromise.catch === 'function') {
+        maybePromise.catch(function () {});
+      }
     }
   } catch (sample) {
     // This is inlined manually because closure doesn't do it for us.
@@ -8564,6 +8571,7 @@ function trackUsedThenable(thenableState, thenable, index) {
     case 'rejected':
       {
         var rejectedError = thenable.reason;
+        checkIfUseWrappedInAsyncCatch(rejectedError);
         throw rejectedError;
       }
 
@@ -8612,22 +8620,23 @@ function trackUsedThenable(thenableState, thenable, index) {
               rejectedThenable.status = 'rejected';
               rejectedThenable.reason = error;
             }
-          });
-        } // Check one more time in case the thenable resolved synchronously.
+          }); // Check one more time in case the thenable resolved synchronously.
 
+          switch (thenable.status) {
+            case 'fulfilled':
+              {
+                var fulfilledThenable = thenable;
+                return fulfilledThenable.value;
+              }
 
-        switch (thenable.status) {
-          case 'fulfilled':
-            {
-              var fulfilledThenable = thenable;
-              return fulfilledThenable.value;
-            }
-
-          case 'rejected':
-            {
-              var rejectedThenable = thenable;
-              throw rejectedThenable.reason;
-            }
+            case 'rejected':
+              {
+                var rejectedThenable = thenable;
+                var _rejectedError = rejectedThenable.reason;
+                checkIfUseWrappedInAsyncCatch(_rejectedError);
+                throw _rejectedError;
+              }
+          }
         } // Suspend.
         //
         // Throwing here is an implementation detail that allows us to unwind the
@@ -8689,6 +8698,18 @@ function checkIfUseWrappedInTryCatch() {
   }
 
   return false;
+}
+function checkIfUseWrappedInAsyncCatch(rejectedReason) {
+  // This check runs in prod, too, because it prevents a more confusing
+  // downstream error, where SuspenseException is caught by a promise and
+  // thrown asynchronously.
+  // TODO: Another way to prevent SuspenseException from leaking into an async
+  // execution context is to check the dispatcher every time `use` is called,
+  // or some equivalent. That might be preferable for other reasons, too, since
+  // it matches how we prevent similar mistakes for other hooks.
+  if (rejectedReason === SuspenseException) {
+    throw new Error('Hooks are not supported inside an async component. This ' + "error is often caused by accidentally adding `'use client'` " + 'to a module that was originally written for the server.');
+  }
 }
 
 var thenableState$1 = null;
@@ -10683,10 +10704,12 @@ var ReactCurrentDispatcher$1 = ReactSharedInternals.ReactCurrentDispatcher,
 var didWarnAboutMismatchedHooksForComponent;
 var didWarnUncachedGetSnapshot;
 var didWarnAboutUseWrappedInTryCatch;
+var didWarnAboutAsyncClientComponent;
 
 {
   didWarnAboutMismatchedHooksForComponent = new Set();
   didWarnAboutUseWrappedInTryCatch = new Set();
+  didWarnAboutAsyncClientComponent = new Set();
 } // The effect "instance" is a shared object that remains the same for the entire
 // lifetime of an effect. In Rust terms, a RefCell. We use it to store the
 // "destroy" function that is returned from an effect, because that is stateful.
@@ -10809,6 +10832,48 @@ function warnOnHookMismatchInDev(currentHookName) {
         }
 
         error('React has detected a change in the order of Hooks called by %s. ' + 'This will lead to bugs and errors if not fixed. ' + 'For more information, read the Rules of Hooks: https://reactjs.org/link/rules-of-hooks\n\n' + '   Previous render            Next render\n' + '   ------------------------------------------------------\n' + '%s' + '   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n', componentName, table);
+      }
+    }
+  }
+}
+
+function warnIfAsyncClientComponent(Component, componentDoesIncludeHooks) {
+  {
+    // This dev-only check only works for detecting native async functions,
+    // not transpiled ones. There's also a prod check that we use to prevent
+    // async client components from crashing the app; the prod one works even
+    // for transpiled async functions. Neither mechanism is completely
+    // bulletproof but together they cover the most common cases.
+    var isAsyncFunction = // $FlowIgnore[method-unbinding]
+    Object.prototype.toString.call(Component) === '[object AsyncFunction]';
+
+    if (isAsyncFunction) {
+      // Encountered an async Client Component. This is not yet supported,
+      // except in certain constrained cases, like during a route navigation.
+      var componentName = getComponentNameFromFiber(currentlyRenderingFiber$1);
+
+      if (!didWarnAboutAsyncClientComponent.has(componentName)) {
+        didWarnAboutAsyncClientComponent.add(componentName); // Check if this is a sync update. We use the "root" render lanes here
+        // because the "subtree" render lanes may include additional entangled
+        // lanes related to revealing previously hidden content.
+
+        var root = getWorkInProgressRoot();
+        var rootRenderLanes = getWorkInProgressRootRenderLanes();
+
+        if (root !== null && includesBlockingLane(root, rootRenderLanes)) {
+          error('async/await is not yet supported in Client Components, only ' + 'Server Components. This error is often caused by accidentally ' + "adding `'use client'` to a module that was originally written " + 'for the server.');
+        } else {
+          // This is a concurrent (Transition, Retry, etc) render. We don't
+          // warn in these cases.
+          //
+          // However, Async Components are forbidden to include hooks, even
+          // during a transition, so let's check for that here.
+          //
+          // TODO: Add a corresponding warning to Server Components runtime.
+          if (componentDoesIncludeHooks) {
+            error('Hooks are not supported inside an async component. This ' + "error is often caused by accidentally adding `'use client'` " + 'to a module that was originally written for the server.');
+          }
+        }
       }
     }
   }
@@ -10945,20 +11010,21 @@ function renderWithHooks(current, workInProgress, Component, props, secondArg, n
     }
   }
 
-  finishRenderingHooks(current, workInProgress);
+  finishRenderingHooks(current, workInProgress, Component);
   return children;
 }
 
-function finishRenderingHooks(current, workInProgress) {
-  // We can assume the previous dispatcher is always this one, since we set it
-  // at the beginning of the render phase and there's no re-entrance.
-  ReactCurrentDispatcher$1.current = ContextOnlyDispatcher;
-
+function finishRenderingHooks(current, workInProgress, Component) {
   {
     workInProgress._debugHookTypes = hookTypesDev;
-  } // This check uses currentHook so that it works the same in DEV and prod bundles.
-  // hookTypesDev could catch more cases (e.g. context) but only in DEV bundles.
+    var componentDoesIncludeHooks = workInProgressHook !== null || thenableIndexCounter !== 0;
+    warnIfAsyncClientComponent(Component, componentDoesIncludeHooks);
+  } // We can assume the previous dispatcher is always this one, since we set it
+  // at the beginning of the render phase and there's no re-entrance.
 
+
+  ReactCurrentDispatcher$1.current = ContextOnlyDispatcher; // This check uses currentHook so that it works the same in DEV and prod bundles.
+  // hookTypesDev could catch more cases (e.g. context) but only in DEV bundles.
 
   var didRenderTooFewHooks = currentHook !== null && currentHook.next !== null;
   renderLanes$1 = NoLanes;
@@ -10998,7 +11064,10 @@ function finishRenderingHooks(current, workInProgress) {
     if (checkIfUseWrappedInTryCatch()) {
       var componentName = getComponentNameFromFiber(workInProgress) || 'Unknown';
 
-      if (!didWarnAboutUseWrappedInTryCatch.has(componentName)) {
+      if (!didWarnAboutUseWrappedInTryCatch.has(componentName) && // This warning also fires if you suspend with `use` inside an
+      // async component. Since we warn for that above, we'll silence this
+      // second warning by checking here.
+      !didWarnAboutAsyncClientComponent.has(componentName)) {
         didWarnAboutUseWrappedInTryCatch.add(componentName);
 
         error('`use` was called from inside a try/catch block. This is not allowed ' + 'and can lead to unexpected behavior. To handle errors triggered ' + 'by `use`, wrap your component in a error boundary.');
@@ -11022,7 +11091,7 @@ function replaySuspendedComponentWithHooks(current, workInProgress, Component, p
   }
 
   var children = renderWithHooksAgain(workInProgress, Component, props, secondArg);
-  finishRenderingHooks(current, workInProgress);
+  finishRenderingHooks(current, workInProgress, Component);
   return children;
 }
 
@@ -28255,7 +28324,7 @@ identifierPrefix, onRecoverableError, transitionCallbacks) {
   return root;
 }
 
-var ReactVersion = '18.3.0-experimental-1fdacbefd-20230630';
+var ReactVersion = '18.3.0-experimental-7118f5dd7-20230705';
 
 function createPortal$1(children, containerInfo, // TODO: figure out the API for cross-renderer implementation.
 implementation) {

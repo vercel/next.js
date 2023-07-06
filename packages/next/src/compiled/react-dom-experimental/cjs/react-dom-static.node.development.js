@@ -20,7 +20,7 @@ var util = require('util');
 var async_hooks = require('async_hooks');
 var ReactDOM = require('react-dom');
 
-var ReactVersion = '18.3.0-experimental-1fdacbefd-20230630';
+var ReactVersion = '18.3.0-experimental-7118f5dd7-20230705';
 
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
@@ -6818,7 +6818,14 @@ function describeNativeComponentFrame(fn, construct) {
       // in simple components too
 
 
-      fn();
+      var maybePromise = fn(); // If the function component returns a promise, it's likely an async
+      // component, which we don't yet support. Attach a noop catch handler to
+      // silence the error.
+      // TODO: Implement component stacks for async client components?
+
+      if (maybePromise && typeof maybePromise.catch === 'function') {
+        maybePromise.catch(function () {});
+      }
     }
   } catch (sample) {
     // This is inlined manually because closure doesn't do it for us.
