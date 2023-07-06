@@ -23,6 +23,8 @@
   "debug.javascript.unmapMissingSources": true,
 
   "files.exclude": {
+    "**/node_modules": false,
+    "node_modules": true,
     "*[!test]**/node_modules": true
   },
 
@@ -80,29 +82,5 @@
       "language": "markdown",
       "scheme": "file"
     }
-  ],
-  "workbench.colorCustomizations": {
-    "activityBar.activeBackground": "#3399ff",
-    "activityBar.background": "#3399ff",
-    "activityBar.foreground": "#15202b",
-    "activityBar.inactiveForeground": "#15202b99",
-    "activityBarBadge.background": "#bf0060",
-    "activityBarBadge.foreground": "#e7e7e7",
-    "commandCenter.border": "#e7e7e799",
-    "editorGroup.border": "#3399ff",
-    "panel.border": "#3399ff",
-    "sash.hoverBorder": "#3399ff",
-    "sideBar.border": "#3399ff",
-    "statusBar.background": "#007fff",
-    "statusBar.foreground": "#e7e7e7",
-    "statusBarItem.hoverBackground": "#3399ff",
-    "statusBarItem.remoteBackground": "#007fff",
-    "statusBarItem.remoteForeground": "#e7e7e7",
-    "tab.activeBorder": "#3399ff",
-    "titleBar.activeBackground": "#007fff",
-    "titleBar.activeForeground": "#e7e7e7",
-    "titleBar.inactiveBackground": "#007fff99",
-    "titleBar.inactiveForeground": "#e7e7e799"
-  },
-  "peacock.color": "#007fff"
+  ]
 }
