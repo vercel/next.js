@@ -115,6 +115,7 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
 
     let page_chunks = get_page_chunks(
         pages_structure,
+        next_router_root,
         project_root,
         execution_context,
         node_root,
@@ -411,9 +412,10 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
                     continue;
                 }
 
-                let dependencies = pages_manifest
+                let dependencies = build_manifest
                     .pages
                     .get(page)
+                    .unwrap()
                     .iter()
                     .map(|dep| dep.as_str())
                     .filter(|dep| !app_dependencies.contains(*dep))
