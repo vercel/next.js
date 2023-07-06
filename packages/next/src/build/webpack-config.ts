@@ -152,7 +152,9 @@ const nodePathList = (process.env.NODE_PATH || '')
 
 const watchOptions = Object.freeze({
   aggregateTimeout: 5,
-  ignored: ['**/.git/**', '**/.next/**'],
+  ignored:
+    // Matches **/node_modules/**, **/.git/** and **/.next/**
+    /^((?:[^/]*(?:\/|$))*)(\.(git|next)|node_modules)(\/((?:[^/]*(?:\/|$))*)(?:$|\/))?/,
 })
 
 function isModuleCSS(module: { type: string }) {
