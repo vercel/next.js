@@ -38,6 +38,7 @@ describe('Instrumentation Hook', () => {
   //     skipDeployment: true,
   //   },
   //   ({ next }) => {
+  // eslint-disable-next-line jest/no-commented-out-tests
   //     it('with-esm-import should run the instrumentation hook', async () => {
   //       await next.render('/')
   //       await check(
