@@ -1,5 +1,6 @@
 import Counter from './counter'
 import Form from './form'
+import ClientForm from './client-form'
 
 import dec, { inc } from './actions'
 import { log } from './actions-2'
@@ -17,6 +18,7 @@ export default function Page() {
         }}
       />
       <Form />
+      <ClientForm />
       <form>
         <button id="log" formAction={log}>
           log
