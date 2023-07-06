@@ -64,6 +64,15 @@ function trackFetchMetric(
   })
 }
 
+function filterResHeaders(headers: Headers) {
+  // https://github.com/nodejs/undici/issues/1462
+  // undici decompresses the response body automatically but the headers remain the original
+  // so we need to remove the content-encoding header to prevent browsers from trying to
+  // decompress the body again, which can result in an error
+  headers.delete('content-encoding')
+  return headers
+}
+
 // we patch fetch to collect cache information used for
 // determining if a page is static or not
 export function patchFetch({
@@ -392,13 +401,16 @@ export function patchFetch({
               }
 
               const response = new Response(bodyBuffer, {
-                headers: new Headers(res.headers),
+                headers: filterResHeaders(new Headers(res.headers)),
                 status: res.status,
               })
               Object.defineProperty(response, 'url', { value: res.url })
               return response
             }
-            return res
+            return new Response(res.body, {
+              headers: filterResHeaders(new Headers(res.headers)),
+              status: res.status,
+            })
           })
         }
 
@@ -471,7 +483,7 @@ export function patchFetch({
               })
 
               const response = new Response(decodedBody, {
-                headers: resData.headers,
+                headers: filterResHeaders(new Headers(resData.headers)),
                 status: resData.status,
               })
               Object.defineProperty(response, 'url', {
