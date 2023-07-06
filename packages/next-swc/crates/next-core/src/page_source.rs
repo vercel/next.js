@@ -126,7 +126,6 @@ pub async fn create_page_source(
         project_root,
         client_root,
         client_compile_time_info.environment(),
-        client_ty,
     );
 
     let client_runtime_entries = get_client_runtime_entries(
@@ -155,10 +154,7 @@ pub async fn create_page_source(
         project_root,
         node_root.join("edge"),
         node_root.join("edge/chunks"),
-        get_client_assets_path(
-            client_root,
-            Value::new(ClientContextType::Pages { pages_dir }),
-        ),
+        get_client_assets_path(client_root),
         edge_compile_time_info.environment(),
     )
     .reference_chunk_source_maps(should_debug("page_source"))
@@ -360,10 +356,7 @@ async fn create_page_source_for_file(
         project_path,
         node_path,
         node_path.join("chunks"),
-        get_client_assets_path(
-            client_root,
-            Value::new(ClientContextType::Pages { pages_dir }),
-        ),
+        get_client_assets_path(client_root),
         server_context.compile_time_info().environment(),
     )
     .reference_chunk_source_maps(should_debug("page_source"))
@@ -375,10 +368,7 @@ async fn create_page_source_for_file(
         project_path,
         data_node_path,
         data_node_path.join("chunks"),
-        get_client_assets_path(
-            client_root,
-            Value::new(ClientContextType::Pages { pages_dir }),
-        ),
+        get_client_assets_path(client_root),
         server_context.compile_time_info().environment(),
     )
     .reference_chunk_source_maps(should_debug("page_source"))
@@ -388,7 +378,6 @@ async fn create_page_source_for_file(
         project_path,
         client_root,
         client_context.compile_time_info().environment(),
-        Value::new(ClientContextType::Pages { pages_dir }),
     );
 
     let pathname = pathname_for_path(client_root, client_path, PathType::Page);
@@ -530,10 +519,7 @@ async fn create_not_found_page_source(
         project_path,
         node_path,
         node_path.join("chunks"),
-        get_client_assets_path(
-            client_root,
-            Value::new(ClientContextType::Pages { pages_dir }),
-        ),
+        get_client_assets_path(client_root),
         server_context.compile_time_info().environment(),
     )
     .reference_chunk_source_maps(should_debug("page_source"))
@@ -543,7 +529,6 @@ async fn create_not_found_page_source(
         project_path,
         client_root,
         client_context.compile_time_info().environment(),
-        Value::new(ClientContextType::Pages { pages_dir }),
     );
 
     let (page_asset, pathname) =
