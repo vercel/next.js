@@ -335,9 +335,9 @@ function processMessage(
       )
 
       const isHotUpdate =
-        obj.action !== 'sync' ||
-        ((!window.__NEXT_DATA__ || window.__NEXT_DATA__.page !== '/_error') &&
-          isUpdateAvailable())
+        obj.action !== 'sync' &&
+        (!window.__NEXT_DATA__ || window.__NEXT_DATA__.page !== '/_error') &&
+        isUpdateAvailable()
 
       // Attempt to apply hot updates or reload.
       if (isHotUpdate) {
@@ -428,13 +428,16 @@ function processMessage(
               router.fastRefresh()
               dispatcher.onRefresh()
             })
-          } else {
+          } else if (pageRes.status === 404) {
             // We are still on the page,
             // dispatch an error so it's caught by the NotFound handler
             dispatcher.onNotFound()
           }
         })
       }
+      return
+    }
+    case 'devPagesManifestUpdate': {
       return
     }
     default: {

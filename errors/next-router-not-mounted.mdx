@@ -1,0 +1,21 @@
+---
+title: '`NextRouter` was not mounted'
+---
+
+## Why This Error Occurred
+
+A component used `useRouter` outside a Next.js application, or was rendered outside a Next.js application. This can happen when doing unit testing on components that use the `useRouter` hook as they are not configured with Next.js' contexts.
+
+This can also happen when you try to use the `useRouter` hook from `next/router` inside the `app` directory, as the App Router's `useRouter` from `next/navigation` has different behavior to the `useRouter` hook in `pages`.
+
+## Possible Ways to Fix It
+
+If used in a test, mock out the router by mocking the `next/router`'s `useRouter()` hook.
+
+If used in the `app` directory, migrate to the new hooks imported from `next/navigation`.
+
+## Useful Links
+
+- [next-router-mock](https://www.npmjs.com/package/next-router-mock)
+- [App Router Migration](/docs/pages/building-your-application/upgrading/app-router-migration#step-5-migrating-routing-hooks)
+- [useRouter](/docs/app/api-reference/functions/use-router)

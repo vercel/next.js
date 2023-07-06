@@ -713,6 +713,15 @@ function assignDefaults(
     'react-bootstrap': {
       transform: 'react-bootstrap/{{member}}',
     },
+    antd: {
+      transform: 'antd/lib/{{kebabCase member}}',
+    },
+    ahooks: {
+      transform: 'ahooks/es/{{member}}',
+    },
+    '@ant-design/icons': {
+      transform: '@ant-design/icons/lib/icons/{{member}}',
+    },
   }
 
   return result
@@ -738,7 +747,10 @@ export default async function loadConfig(
     : Log
 
   await loadEnvConfig(dir, phase === PHASE_DEVELOPMENT_SERVER, curLog)
-  loadWebpackHook()
+
+  if (!process.env.__NEXT_PRIVATE_RENDER_WORKER) {
+    loadWebpackHook()
+  }
 
   let configFileName = 'next.config.js'
 
