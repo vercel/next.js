@@ -335,9 +335,9 @@ function processMessage(
       )
 
       const isHotUpdate =
-        obj.action !== 'sync' ||
-        ((!window.__NEXT_DATA__ || window.__NEXT_DATA__.page !== '/_error') &&
-          isUpdateAvailable())
+        obj.action !== 'sync' &&
+        (!window.__NEXT_DATA__ || window.__NEXT_DATA__.page !== '/_error') &&
+        isUpdateAvailable()
 
       // Attempt to apply hot updates or reload.
       if (isHotUpdate) {

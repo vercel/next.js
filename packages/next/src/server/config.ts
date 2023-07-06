@@ -714,13 +714,13 @@ function assignDefaults(
       transform: 'react-bootstrap/{{member}}',
     },
     antd: {
-      transform: 'antd/es/{{kebabCase member}}',
+      transform: 'antd/lib/{{kebabCase member}}',
     },
     ahooks: {
       transform: 'ahooks/es/{{member}}',
     },
     '@ant-design/icons': {
-      transform: '@ant-design/icons/{{member}}',
+      transform: '@ant-design/icons/lib/icons/{{member}}',
     },
   }
 
