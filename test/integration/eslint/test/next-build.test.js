@@ -98,7 +98,7 @@ describe('Next Build', () => {
     )
     expect(output).toContain('Warning: Do not include stylesheets manually')
     expect(output).toContain('Warning: Synchronous scripts should not be used')
-    expect(output).not.toContain(
+    expect(output).toContain(
       'Warning: `rel="preconnect"` is missing from Google Font'
     )
 
