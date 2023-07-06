@@ -129,12 +129,8 @@ pub async fn create_web_entry_source(
         mode,
         next_config,
     );
-    let chunking_context = get_client_chunking_context(
-        project_root,
-        client_root,
-        compile_time_info.environment(),
-        ty,
-    );
+    let chunking_context =
+        get_client_chunking_context(project_root, client_root, compile_time_info.environment());
     let entries = get_web_runtime_entries(project_root, ty, mode, next_config, execution_context);
 
     let runtime_entries = entries.resolve_entries(context);
