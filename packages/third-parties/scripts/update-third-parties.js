@@ -87,7 +87,6 @@ function generateComponent(thirdParty) {
     const configFile = (await fs.readdir(dirPath)).find(
       (file) => file === CONFIG_FILE_NAME
     )
-    console.log('configFile ', configFile)
 
     if (!configFile) continue
 
