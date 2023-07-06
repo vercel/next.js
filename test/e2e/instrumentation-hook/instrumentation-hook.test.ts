@@ -21,6 +21,7 @@ const describeCase = (
   )
 }
 describe('Instrumentation Hook', () => {
+  // TODO: investigate the failure with esm import
   // createNextDescribe(
   //   'with-esm-import',
   //   {
