@@ -15,12 +15,14 @@ The `redirect` function accepts two arguments:
 redirect(path, type)
 ```
 
-| Parameter | Type                    | Default     | Description                                                 |
-| --------- | ----------------------- | ----------- | ----------------------------------------------------------- |
-| `path`    | `string`                | -           | The URL to redirect to. Can be a relative or absolute path. |
-| `type`    | `'replace'` or `'push'` | `'replace'` | The type of redirect to perform.                            |
+| Parameter | Type                                                          | Description                                                 |
+| --------- | ------------------------------------------------------------- | ----------------------------------------------------------- |
+| `path`    | `string`                                                      | The URL to redirect to. Can be a relative or absolute path. |
+| `type`    | `'replace'` (default) or `'push'` (default in Server Actions) | The type of redirect to perform.                            |
 
-By default, `redirect` will replace the current URL in the browser history stack. If you want to add a new entry to the history stack (e.g. when using it in a server action to allow the user to return to the previous page), use `push` instead.
+By default, `redirect` will use `push` (adding a new entry to the browser history stack) in [Server Actions](/docs/app/building-your-application/data-fetching/server-actions)) and `replace` (replacing the current URL in the browser history stack) everywhere else. You can override this behavior by specifying the `type` parameter.
+
+The `type` parameter has no effect when used in Server Components.
 
 ## Returns
 
