@@ -1,13 +1,16 @@
 ---
 title: Error Handling
 description: Handle runtime errors by automatically wrapping route segments and their nested children in a React Error Boundary.
+related:
+  links:
+    - app/api-reference/file-conventions/error
 ---
 
-The `error.js` file convention allows you to gracefully handle runtime errors in [nested routes](/docs/app/building-your-application/routing#nested-routes).
+The `error.js` file convention allows you to gracefully handle unexpected runtime errors in [nested routes](/docs/app/building-your-application/routing#nested-routes).
 
 - Automatically wrap a route segment and its nested children in a [React Error Boundary](https://react.dev/reference/react/Component#catching-rendering-errors-with-an-error-boundary).
 - Create error UI tailored to specific segments using the file-system hierarchy to adjust granularity.
-- Isolate errors to affected segments while keeping the rest of the app functional.
+- Isolate errors to affected segments while keeping the rest of the application functional.
 - Add functionality to attempt to recover from an error without a full page reload.
 
 Create error UI by adding an `error.js` file inside a route segment and exporting a React component:
@@ -154,7 +157,7 @@ The nested component hierarchy has implications for the behavior of `error.js` f
 
 ### Handling Errors in Layouts
 
-`error.js` boundaries do **not** catch errors thrown in `layout.js` or `template.js` components of the same segment. This [intentional hierarchy](#nested-routes) keeps important UI that is shared between sibling routes (such as navigation) visible and functional when an error occurs.
+`error.js` boundaries do **not** catch errors thrown in `layout.js` or `template.js` components of the **same segment**. This [intentional hierarchy](#nested-routes) keeps important UI that is shared between sibling routes (such as navigation) visible and functional when an error occurs.
 
 To handle errors within a specific layout or template, place an `error.js` file in the layouts parent segment.
 
@@ -210,6 +213,14 @@ export default function GlobalError({ error, reset }) {
 
 ### Handling Server Errors
 
-If an error is thrown during [data fetching](/docs/app/building-your-application/data-fetching/fetching) or inside a Server Component, Next.js will forward the resulting `Error` object to the nearest `error.js` file as the `error` prop.
+If an error is thrown inside a Server Component, Next.js will forward an `Error` object (stripped of sensitive error information in production) to the nearest `error.js` file as the `error` prop.
 
-When running `next dev`, the `error` will be serialized and forwarded from the Server Component to the client `error.js`. To ensure security when running `next start` in production, a generic error message is forwarded to `error` along with a `.digest` which contains a hash of the error message. This hash can be used to correspond to server logs.
+#### Securing Sensitive Error Information
+
+During production, the `Error` instance forwarded to the client only includes a generic `message` and `digest` property.
+
+This is a security precaution to avoid leaking potentially sensitive details included in the error to the client.
+
+The `message` property contains a generic message about the error and the `digest` property contains an automatically generated hash of the error that can be used to match the corresponding error in server-side logs.
+
+During development, the `Error` instance will be serialized and forwarded from the Server Component to the `error.js` Client Component.
