@@ -4,7 +4,7 @@ import * as path from 'path'
 const url =
   'https://nextjs.org/docs/messages/no-before-interactive-script-outside-document'
 
-const convertToCorrectSeparator = (str) => str.replace(/[\\/]/g, path.sep)
+const convertToCorrectSeparator = (str: string) => str.replace(/[\\/]/g, path.sep)
 
 export = defineRule({
   meta: {
