@@ -1944,6 +1944,13 @@ export default async function getBaseWebpackConfig(
                 layer: WEBPACK_LAYERS.shared,
                 test: asyncStoragesRegex,
               },
+              // Convert metadata routes to separate layer
+              {
+                resourceQuery: new RegExp(
+                  WEBPACK_RESOURCE_QUERIES.metadataRoute
+                ),
+                layer: WEBPACK_LAYERS.metadataRoute,
+              },
               {
                 // All app dir layers need to use this configured resolution logic
                 issuerLayer: {
@@ -1979,7 +1986,11 @@ export default async function getBaseWebpackConfig(
           ? [
               {
                 issuerLayer: {
-                  or: [WEBPACK_LAYERS.server, WEBPACK_LAYERS.action],
+                  or: [
+                    WEBPACK_LAYERS.server,
+                    WEBPACK_LAYERS.action,
+                    WEBPACK_LAYERS.metadataRoute,
+                  ],
                 },
                 test: {
                   // Resolve it if it is a source code file, and it has NOT been
@@ -1993,18 +2004,16 @@ export default async function getBaseWebpackConfig(
                 },
                 resolve: {
                   conditionNames: reactServerCondition,
-                  alias: {
-                    // If missing the alias override here, the default alias will be used which aliases
-                    // react to the direct file path, not the package name. In that case the condition
-                    // will be ignored completely.
-                    ...createRSCAliases(bundledReactChannel, {
-                      reactSharedSubset: true,
-                      reactDomServerRenderingStub: true,
-                      reactServerCondition: true,
-                      // No server components profiling
-                      reactProductionProfiling,
-                    }),
-                  },
+                  // If missing the alias override here, the default alias will be used which aliases
+                  // react to the direct file path, not the package name. In that case the condition
+                  // will be ignored completely.
+                  alias: createRSCAliases(bundledReactChannel, {
+                    reactSharedSubset: true,
+                    reactDomServerRenderingStub: true,
+                    reactServerCondition: true,
+                    // No server components profiling
+                    reactProductionProfiling,
+                  }),
                 },
                 use: {
                   loader: 'next-flight-loader',
@@ -2022,16 +2031,6 @@ export default async function getBaseWebpackConfig(
                   fullySpecified: false,
                 },
               } as any,
-            ]
-          : []),
-        ...(hasAppDir
-          ? [
-              {
-                resourceQuery: new RegExp(
-                  WEBPACK_RESOURCE_QUERIES.metadataRoute
-                ),
-                layer: WEBPACK_LAYERS.metadataImage,
-              },
             ]
           : []),
         ...(hasAppDir && isEdgeServer
@@ -2056,7 +2055,11 @@ export default async function getBaseWebpackConfig(
                   {
                     exclude: [asyncStoragesRegex],
                     issuerLayer: {
-                      or: [WEBPACK_LAYERS.server, WEBPACK_LAYERS.action],
+                      or: [
+                        WEBPACK_LAYERS.server,
+                        WEBPACK_LAYERS.action,
+                        WEBPACK_RESOURCE_QUERIES.metadataImageMeta,
+                      ],
                     },
                     test: {
                       // Resolve it if it is a source code file, and it has NOT been
@@ -2071,28 +2074,24 @@ export default async function getBaseWebpackConfig(
                     resolve: {
                       // It needs `conditionNames` here to require the proper asset,
                       // when react is acting as dependency of compiled/react-dom.
-                      alias: {
-                        ...createRSCAliases(bundledReactChannel, {
-                          reactSharedSubset: true,
-                          reactDomServerRenderingStub: true,
-                          reactServerCondition: true,
-                          reactProductionProfiling,
-                        }),
-                      },
+                      alias: createRSCAliases(bundledReactChannel, {
+                        reactSharedSubset: true,
+                        reactDomServerRenderingStub: true,
+                        reactServerCondition: true,
+                        reactProductionProfiling,
+                      }),
                     },
                   },
                   {
                     test: codeCondition.test,
                     issuerLayer: WEBPACK_LAYERS.client,
                     resolve: {
-                      alias: {
-                        ...createRSCAliases(bundledReactChannel, {
-                          reactSharedSubset: false,
-                          reactDomServerRenderingStub: true,
-                          reactServerCondition: false,
-                          reactProductionProfiling,
-                        }),
-                      },
+                      alias: createRSCAliases(bundledReactChannel, {
+                        reactSharedSubset: false,
+                        reactDomServerRenderingStub: true,
+                        reactServerCondition: false,
+                        reactProductionProfiling,
+                      }),
                     },
                   },
                 ],
@@ -2101,15 +2100,13 @@ export default async function getBaseWebpackConfig(
                 test: codeCondition.test,
                 issuerLayer: WEBPACK_LAYERS.appClient,
                 resolve: {
-                  alias: {
-                    ...createRSCAliases(bundledReactChannel, {
-                      // Only alias server rendering stub in client SSR layer.
-                      reactSharedSubset: false,
-                      reactDomServerRenderingStub: false,
-                      reactServerCondition: false,
-                      reactProductionProfiling,
-                    }),
-                  },
+                  alias: createRSCAliases(bundledReactChannel, {
+                    // Only alias server rendering stub in client SSR layer.
+                    reactSharedSubset: false,
+                    reactDomServerRenderingStub: false,
+                    reactServerCondition: false,
+                    reactProductionProfiling,
+                  }),
                 },
               },
             ]
@@ -2135,7 +2132,11 @@ export default async function getBaseWebpackConfig(
                   {
                     test: codeCondition.test,
                     issuerLayer: {
-                      or: [WEBPACK_LAYERS.server, WEBPACK_LAYERS.action],
+                      or: [
+                        WEBPACK_LAYERS.server,
+                        WEBPACK_LAYERS.action,
+                        WEBPACK_LAYERS.metadataRoute,
+                      ],
                     },
                     exclude: [asyncStoragesRegex],
                     use: swcLoaderForServerLayer,
@@ -2315,7 +2316,11 @@ export default async function getBaseWebpackConfig(
           test: /(node_modules|next[/\\]dist[/\\]compiled)[/\\]client-only[/\\]error.js/,
           loader: 'next-invalid-import-error-loader',
           issuerLayer: {
-            or: [WEBPACK_LAYERS.server, WEBPACK_LAYERS.action],
+            or: [
+              WEBPACK_LAYERS.server,
+              WEBPACK_LAYERS.action,
+              WEBPACK_LAYERS.metadataRoute,
+            ],
           },
           options: {
             message:

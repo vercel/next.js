@@ -95,7 +95,7 @@ export const WEBPACK_LAYERS = {
   middleware: 'middleware',
   edgeAsset: 'edge-asset',
   appClient: 'app-client',
-  metadataImage: 'app-metadata-image',
+  metadataRoute: 'app-metadata-route',
 }
 
 export const WEBPACK_RESOURCE_QUERIES = {
