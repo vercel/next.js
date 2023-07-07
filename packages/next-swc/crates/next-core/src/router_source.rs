@@ -19,7 +19,7 @@ use turbopack_binding::turbopack::{
 use crate::{
     app_structure::OptionAppDirVc,
     next_config::NextConfigVc,
-    pages_structure::OptionPagesStructureVc,
+    pages_structure::PagesStructureVc,
     router::{route, RouterRequest, RouterResult},
 };
 
@@ -31,7 +31,7 @@ pub struct NextRouterContentSource {
     next_config: NextConfigVc,
     server_addr: ServerAddrVc,
     app_dir: OptionAppDirVc,
-    pages_structure: OptionPagesStructureVc,
+    pages_structure: PagesStructureVc,
 }
 
 #[turbo_tasks::value_impl]
@@ -43,7 +43,7 @@ impl NextRouterContentSourceVc {
         next_config: NextConfigVc,
         server_addr: ServerAddrVc,
         app_dir: OptionAppDirVc,
-        pages_structure: OptionPagesStructureVc,
+        pages_structure: PagesStructureVc,
     ) -> NextRouterContentSourceVc {
         NextRouterContentSource {
             inner,
@@ -60,7 +60,7 @@ impl NextRouterContentSourceVc {
 #[turbo_tasks::function]
 fn routes_changed(
     app_dir: OptionAppDirVc,
-    pages_structure: OptionPagesStructureVc,
+    pages_structure: PagesStructureVc,
     next_config: NextConfigVc,
 ) -> CompletionVc {
     CompletionsVc::all(vec![
@@ -77,7 +77,7 @@ impl ContentSource for NextRouterContentSource {
         // The next-dev server can currently run against projects as simple as
         // `index.js`. If this isn't a Next.js project, don't try to use the Next.js
         // router.
-        if this.app_dir.await?.is_none() && this.pages_structure.await?.is_none() {
+        if this.app_dir.await?.is_none() && this.pages_structure.await?.pages.is_none() {
             return Ok(this.inner.get_routes());
         }
 

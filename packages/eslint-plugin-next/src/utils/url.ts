@@ -1,28 +1,6 @@
 import * as path from 'path'
 import * as fs from 'fs'
 
-// Cache for fs.lstatSync lookup.
-// Prevent multiple blocking IO requests that have already been calculated.
-const fsLstatSyncCache = {}
-const fsLstatSync = (source) => {
-  fsLstatSyncCache[source] = fsLstatSyncCache[source] || fs.lstatSync(source)
-  return fsLstatSyncCache[source]
-}
-
-/**
- * Checks if the source is a directory.
- */
-function isDirectory(source: string) {
-  return fsLstatSync(source).isDirectory()
-}
-
-/**
- * Checks if the source is a directory.
- */
-function isSymlink(source: string) {
-  return fsLstatSync(source).isSymbolicLink()
-}
-
 // Cache for fs.readdirSync lookup.
 // Prevent multiple blocking IO requests that have already been calculated.
 const fsReadDirSyncCache = {}
@@ -31,21 +9,24 @@ const fsReadDirSyncCache = {}
  * Recursively parse directory for page URLs.
  */
 function parseUrlForPages(urlprefix: string, directory: string) {
-  fsReadDirSyncCache[directory] =
-    fsReadDirSyncCache[directory] || fs.readdirSync(directory)
+  fsReadDirSyncCache[directory] ??= fs.readdirSync(directory, {
+    withFileTypes: true,
+  })
   const res = []
-  fsReadDirSyncCache[directory].forEach((fname) => {
+  fsReadDirSyncCache[directory].forEach((dirent) => {
     // TODO: this should account for all page extensions
     // not just js(x) and ts(x)
-    if (/(\.(j|t)sx?)$/.test(fname)) {
-      if (/^index(\.(j|t)sx?)$/.test(fname)) {
-        res.push(`${urlprefix}${fname.replace(/^index(\.(j|t)sx?)$/, '')}`)
+    if (/(\.(j|t)sx?)$/.test(dirent.name)) {
+      if (/^index(\.(j|t)sx?)$/.test(dirent.name)) {
+        res.push(
+          `${urlprefix}${dirent.name.replace(/^index(\.(j|t)sx?)$/, '')}`
+        )
       }
-      res.push(`${urlprefix}${fname.replace(/(\.(j|t)sx?)$/, '')}`)
+      res.push(`${urlprefix}${dirent.name.replace(/(\.(j|t)sx?)$/, '')}`)
     } else {
-      const dirPath = path.join(directory, fname)
-      if (isDirectory(dirPath) && !isSymlink(dirPath)) {
-        res.push(...parseUrlForPages(urlprefix + fname + '/', dirPath))
+      const dirPath = path.join(directory, dirent.name)
+      if (dirent.isDirectory() && !dirent.isSymbolicLink()) {
+        res.push(...parseUrlForPages(urlprefix + dirent.name + '/', dirPath))
       }
     }
   })
@@ -84,8 +65,7 @@ export function getUrlFromPagesDirectories(
     // De-duplicate similar pages across multiple directories.
     new Set(
       directories
-        .map((directory) => parseUrlForPages(urlPrefix, directory))
-        .flat()
+        .flatMap((directory) => parseUrlForPages(urlPrefix, directory))
         .map(
           // Since the URLs are normalized we add `^` and `$` to the RegExp to make sure they match exactly.
           (url) => `^${normalizeURL(url)}$`

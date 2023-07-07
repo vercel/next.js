@@ -55,7 +55,6 @@ pub async fn get_fallback_page(
         project_path,
         dev_server_root,
         client_compile_time_info.environment(),
-        ty,
     );
     let entries =
         get_client_runtime_entries(project_path, env, ty, mode, next_config, execution_context);
