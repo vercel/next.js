@@ -11,7 +11,6 @@ import {
   getLocalModuleImportError,
 } from './messages'
 import { getPostCssPlugins } from './plugins'
-import { nonNullable } from '../../../../../lib/non-nullable'
 import { WEBPACK_LAYERS } from '../../../../../lib/constants'
 
 // RegExps for all Style Sheet variants
@@ -282,7 +281,7 @@ export const css = curry(async function css(
             lazyPostCSSInitializer
           ),
         }),
-      ].filter(nonNullable),
+      ].filter((item): item is NonNullable<any> => item != null),
     }),
     // Opt-in support for Sass (using .scss or .sass extensions).
     // Sass Modules should never have side effects. This setting will
@@ -324,7 +323,7 @@ export const css = curry(async function css(
             sassPreprocessors
           ),
         }),
-      ].filter(nonNullable),
+      ].filter((item): item is NonNullable<any> => item != null),
     }),
     // Throw an error for CSS Modules used outside their supported scope
     loader({
@@ -368,7 +367,7 @@ export const css = curry(async function css(
             test: [regexCssGlobal, regexSassGlobal],
             use: require.resolve('next/dist/compiled/ignore-loader'),
           }),
-        ].filter(nonNullable),
+        ].filter((item): item is NonNullable<any> => item != null),
       })
     )
   } else {
@@ -469,7 +468,7 @@ export const css = curry(async function css(
               sassPreprocessors
             ),
           }),
-        ].filter(nonNullable),
+        ].filter((item): item is NonNullable<any> => item != null),
       })
     )
 

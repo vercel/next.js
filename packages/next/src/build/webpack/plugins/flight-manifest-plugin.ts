@@ -14,7 +14,6 @@ import {
 import { relative } from 'path'
 import { getProxiedPluginState } from '../../build-context'
 
-import { nonNullable } from '../../../lib/non-nullable'
 import { WEBPACK_LAYERS } from '../../../lib/constants'
 
 interface Options {
@@ -124,30 +123,22 @@ export class ClientReferenceManifestPlugin {
     }
 
     compilation.chunkGroups.forEach((chunkGroup) => {
-      function getAppPathRequiredChunks() {
-        return chunkGroup.chunks
-          .map((requiredChunk: webpack.Chunk) => {
-            if (SYSTEM_ENTRYPOINTS.has(requiredChunk.name || '')) {
-              return null
-            }
+      const requiredChunks: string[] = []
+      chunkGroup.chunks.forEach((requiredChunk: webpack.Chunk) => {
+        if (SYSTEM_ENTRYPOINTS.has(requiredChunk.name || '')) {
+          return
+        }
 
-            // Get the actual chunk file names from the chunk file list.
-            // It's possible that the chunk is generated via `import()`, in
-            // that case the chunk file name will be '[name].[contenthash]'
-            // instead of '[name]-[chunkhash]'.
-            return [...requiredChunk.files].map((file) => {
-              // It's possible that a chunk also emits CSS files, that will
-              // be handled separatedly.
-              if (!file.endsWith('.js')) return null
-              if (file.endsWith('.hot-update.js')) return null
-
-              return requiredChunk.id + ':' + file
-            })
-          })
-          .flat()
-          .filter(nonNullable)
-      }
-      const requiredChunks = getAppPathRequiredChunks()
+        // Get the actual chunk file names from the chunk file list.
+        // It's possible that the chunk is generated via `import()`, in
+        // that case the chunk file name will be '[name].[contenthash]'
+        // instead of '[name]-[chunkhash]'.
+        for (const file of requiredChunk.files.values()) {
+          if (file.endsWith('.js') && file.endsWith('.hot-update.js')) {
+            requiredChunks.push(file)
+          }
+        }
+      })
 
       let chunkEntryName: string | null = null
       if (chunkGroup.name && /^app[\\/]/.test(chunkGroup.name)) {

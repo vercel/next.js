@@ -1,7 +1,6 @@
 import { type webpack } from 'next/dist/compiled/webpack/webpack'
 import chalk from 'next/dist/compiled/chalk'
 import formatWebpackMessages from '../../client/dev/error-overlay/format-webpack-messages'
-import { nonNullable } from '../../lib/non-nullable'
 import {
   COMPILER_NAMES,
   CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
@@ -240,14 +239,14 @@ export async function webpackBuildImpl(
           serverResult?.warnings,
           edgeServerResult?.warnings
         )
-        .filter(nonNullable),
+        .filter(Boolean),
       errors: ([] as any[])
         .concat(
           clientResult?.errors,
           serverResult?.errors,
           edgeServerResult?.errors
         )
-        .filter(nonNullable),
+        .filter(Boolean),
       stats: [
         clientResult?.stats,
         serverResult?.stats,

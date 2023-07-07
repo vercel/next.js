@@ -2,7 +2,6 @@ import type { RenderOpts } from './render'
 import type { HTMLElement } from 'next/dist/compiled/node-html-parser'
 
 import { OPTIMIZED_FONT_PROVIDERS } from '../shared/lib/constants'
-import { nonNullable } from '../lib/non-nullable'
 
 type postProcessOptions = {
   optimizeFonts: any
@@ -250,12 +249,10 @@ async function postProcessHTML(
           return html.replace(/&amp;amp=1/g, '&amp=1')
         }
       : null,
-  ].filter(nonNullable)
+  ].filter((item): item is NonNullable<PostProcessorFunction> => item != null)
 
   for (const postProcessor of postProcessors) {
-    if (postProcessor) {
-      content = await postProcessor(content)
-    }
+    content = await postProcessor(content)
   }
   return content
 }

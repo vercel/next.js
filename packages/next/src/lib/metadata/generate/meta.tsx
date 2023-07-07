@@ -1,5 +1,4 @@
 import React from 'react'
-import { nonNullable } from '../../non-nullable'
 
 export function Meta({
   name,
@@ -30,8 +29,8 @@ export function MetaFilter<T extends {} | {}[]>(
   const acc: NonNullable<T>[] = []
   for (const item of items) {
     if (Array.isArray(item)) {
-      acc.push(...item.filter(nonNullable))
-    } else if (nonNullable(item)) {
+      acc.push(...item.filter(Boolean))
+    } else if (item != null) {
       acc.push(item)
     }
   }
@@ -40,7 +39,7 @@ export function MetaFilter<T extends {} | {}[]>(
 
 type ExtendMetaContent = Record<
   string,
-  undefined | string | URL | number | boolean | null | undefined
+  undefined | string | URL | number | boolean | null
 >
 type MultiMetaContent =
   | (ExtendMetaContent | string | URL | number)[]

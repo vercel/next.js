@@ -1,5 +1,4 @@
 import { join } from 'path'
-import { nonNullable } from './non-nullable'
 import { promises } from 'fs'
 
 export async function flatReaddir(dir: string, includes: RegExp[]) {
@@ -25,5 +24,5 @@ export async function flatReaddir(dir: string, includes: RegExp[]) {
     })
   )
 
-  return result.filter(nonNullable)
+  return result.filter((item): item is NonNullable<string> => item != null)
 }

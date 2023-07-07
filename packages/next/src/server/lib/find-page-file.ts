@@ -1,6 +1,5 @@
 import { fileExists } from '../../lib/file-exists'
 import { getPagePaths } from '../../shared/lib/page-path/get-page-paths'
-import { nonNullable } from '../../lib/non-nullable'
 import { join, sep, normalize } from 'path'
 import { promises as fsPromises } from 'fs'
 import { warn } from '../../build/output/log'
@@ -34,7 +33,7 @@ export async function findPageFile(
   isAppDir: boolean
 ): Promise<string | null> {
   const pagePaths = getPagePaths(normalizedPagePath, pageExtensions, isAppDir)
-  const [existingPath, ...others] = (
+  const [existingPath, otherPath] = (
     await Promise.all(
       pagePaths.map(async (path) => {
         const filePath = join(pagesDir, path)
@@ -46,7 +45,7 @@ export async function findPageFile(
         return null
       })
     )
-  ).filter(nonNullable)
+  ).filter(Boolean)
 
   if (!existingPath) {
     return null
@@ -56,12 +55,12 @@ export async function findPageFile(
     return null
   }
 
-  if (others.length > 0) {
+  if (otherPath != null) {
     warn(
       `Duplicate page detected. ${chalk.cyan(
         join('pages', existingPath)
       )} and ${chalk.cyan(
-        join('pages', others[0])
+        join('pages', otherPath)
       )} both resolve to ${chalk.cyan(normalizedPagePath)}.`
     )
   }

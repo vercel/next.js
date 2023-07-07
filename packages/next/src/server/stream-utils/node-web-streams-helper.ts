@@ -1,7 +1,6 @@
 import type { FlightRouterState } from '../app-render/types'
 import type RenderResult from '../render-result'
 
-import { nonNullable } from '../../lib/non-nullable'
 import { getTracer } from '../lib/trace/tracer'
 import { AppRenderSpan } from '../lib/trace/constants'
 import { decodeText, encodeText } from './encode-decode'
@@ -345,12 +344,11 @@ export function createRootLayoutValidatorStream(
       controller.enqueue(chunk)
     },
     flush(controller) {
-      const missingTags = [
-        foundHtml ? null : 'html',
-        foundBody ? null : 'body',
-      ].filter(nonNullable)
+      if (foundHtml || foundBody) {
+        const missingTags = []
+        if (foundHtml) missingTags.push('html')
+        if (foundBody) missingTags.push('body')
 
-      if (missingTags.length > 0) {
         controller.enqueue(
           encodeText(
             `<script>self.__next_root_layout_missing_tags_error=${JSON.stringify(
