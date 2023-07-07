@@ -423,7 +423,7 @@ export function runDependingOnPageType<T>(params: {
   page: string
   pageRuntime: ServerRuntime
   pageType?: 'app' | 'pages' | 'root'
-}) {
+}): void {
   if (params.pageType === 'root' && isInstrumentationHookFile(params.page)) {
     params.onServer()
     params.onEdgeServer()
