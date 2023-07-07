@@ -31,7 +31,7 @@ export async function MetadataTree({
   searchParams: { [key: string]: any }
   getDynamicParamFromSegment: GetDynamicParamFromSegment
 }) {
-  const options = {
+  const metadataContext = {
     pathname,
   }
   const resolvedMetadata = await resolveMetadata({
@@ -41,7 +41,7 @@ export async function MetadataTree({
     searchParams,
     getDynamicParamFromSegment,
   })
-  const metadata = await accumulateMetadata(resolvedMetadata, options)
+  const metadata = await accumulateMetadata(resolvedMetadata, metadataContext)
 
   const elements = MetaFilter([
     BasicMetadata({ metadata }),
