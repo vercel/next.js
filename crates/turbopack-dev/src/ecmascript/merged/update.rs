@@ -172,8 +172,7 @@ pub(super) async fn update_ecmascript_merged_chunk(
     let mut merged_update = EcmascriptMergedUpdate::default();
 
     for (content, content_ref, output_root, path) in &to_contents {
-        let Some(chunk_path) = output_root
-            .get_path_to(path) else {
+        let Some(chunk_path) = output_root.get_path_to(path) else {
             continue;
         };
 

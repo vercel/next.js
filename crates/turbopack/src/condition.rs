@@ -36,6 +36,8 @@ impl ContextCondition {
     pub async fn matches(&self, context: &FileSystemPath) -> Result<bool> {
         match self {
             ContextCondition::All(conditions) => {
+                // False positive.
+                #[allow(clippy::manual_try_fold)]
                 stream::iter(conditions)
                     .fold(Ok(true), |acc, c| async move {
                         Ok(acc? && c.matches(context).await?)
@@ -43,6 +45,8 @@ impl ContextCondition {
                     .await
             }
             ContextCondition::Any(conditions) => {
+                // False positive.
+                #[allow(clippy::manual_try_fold)]
                 stream::iter(conditions)
                     .fold(Ok(true), |acc, c| async move {
                         Ok(acc? || c.matches(context).await?)

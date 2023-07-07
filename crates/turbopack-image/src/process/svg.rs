@@ -34,7 +34,7 @@ static HEIGHT_REGEX: Lazy<Regex> =
 static VIEW_BOX_REGEX: Lazy<Regex> =
     Lazy::new(|| Regex::new(r#"\sviewBox=['"](.+?)['"]"#).unwrap());
 static VIEW_BOX_CONTENT_REGEX: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r#"^\s*((?:\w|\.|-)+)\s+((?:\w|\.|-)+)\s+((?:\w|\.|-)+)\s+((?:\w|\.|-)+)\s*$"#)
+    Regex::new(r"^\s*((?:\w|\.|-)+)\s+((?:\w|\.|-)+)\s+((?:\w|\.|-)+)\s+((?:\w|\.|-)+)\s*$")
         .unwrap()
 });
 

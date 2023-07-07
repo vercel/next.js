@@ -626,7 +626,7 @@ pub fn as_parent_path_with(
     ast_path
         .iter()
         .map(|n| n.kind())
-        .chain([additional].into_iter())
+        .chain([additional])
         .collect()
 }
 

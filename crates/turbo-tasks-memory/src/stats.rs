@@ -199,7 +199,7 @@ impl Stats {
     pub fn merge(&mut self, mut select: impl FnMut(&StatsTaskType, &ExportedTaskStats) -> bool) {
         let merged: HashMap<_, _> = self
             .tasks
-            .drain_filter(|ty, stats| select(ty, stats))
+            .extract_if(|ty, stats| select(ty, stats))
             .collect();
 
         for stats in self.tasks.values_mut() {

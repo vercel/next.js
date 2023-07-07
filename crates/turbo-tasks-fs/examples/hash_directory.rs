@@ -1,5 +1,4 @@
 #![feature(trivial_bounds)]
-#![feature(once_cell)]
 #![feature(min_specialization)]
 
 use std::{

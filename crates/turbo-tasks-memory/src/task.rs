@@ -917,7 +917,11 @@ impl Task {
         let TaskMetaStateWriteGuard::Full(mut state) = self.state_mut() else {
             return;
         };
-        let TaskStateType::InProgress { ref mut count_as_finished, .. } = state.state_type else {
+        let TaskStateType::InProgress {
+            ref mut count_as_finished,
+            ..
+        } = state.state_type
+        else {
             return;
         };
         if *count_as_finished {

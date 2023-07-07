@@ -67,7 +67,7 @@ impl RuntimeEntriesVc {
 
         for reference in &self.await? {
             let resolved_entries = reference.resolve_entry(context).await?;
-            runtime_entries.extend(resolved_entries.into_iter());
+            runtime_entries.extend(&resolved_entries);
         }
 
         Ok(EvaluatableAssetsVc::cell(runtime_entries))

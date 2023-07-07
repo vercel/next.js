@@ -128,7 +128,8 @@ impl GetContentSourceContent for NodeApiContentSource {
             raw_query: Some(raw_query),
             body: Some(body),
             ..
-        } = &*data else {
+        } = &*data
+        else {
             return Err(anyhow!("Missing request data"));
         };
         let entry = self.entry.entry(data.clone()).await?;

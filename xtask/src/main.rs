@@ -138,7 +138,7 @@ fn main() {
             let status = process::Command::new("cargo")
                 .arg("upgrade")
                 .arg("--workspace")
-                .args(only_swc_set.into_iter())
+                .args(only_swc_set)
                 .current_dir(&workspace_dir)
                 .stdout(process::Stdio::inherit())
                 .stderr(process::Stdio::inherit())

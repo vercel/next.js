@@ -1,3 +1,5 @@
+#![allow(clippy::redundant_closure_call)]
+
 use std::{
     borrow::Cow,
     cmp::Ordering,

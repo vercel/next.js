@@ -188,8 +188,9 @@ impl PostCssTransformedAssetVc {
         let FindContextFileResult::Found(config_path, _) = *find_config_result.await? else {
             return Ok(ProcessPostCssResult {
                 content: this.source.content(),
-                assets: Vec::new()
-            }.cell())
+                assets: Vec::new(),
+            }
+            .cell());
         };
 
         let ExecutionContext {
@@ -204,8 +205,9 @@ impl PostCssTransformedAssetVc {
         let FileContent::Content(content) = &*file.await? else {
             return Ok(ProcessPostCssResult {
                 content: AssetContent::File(FileContent::NotFound.cell()).cell(),
-                assets: Vec::new()
-            }.cell());
+                assets: Vec::new(),
+            }
+            .cell());
         };
         let content = content.content().to_str()?;
         let context = this.evaluate_context;
@@ -238,8 +240,9 @@ impl PostCssTransformedAssetVc {
             // An error happened, which has already been converted into an issue.
             return Ok(ProcessPostCssResult {
                 content: AssetContent::File(FileContent::NotFound.cell()).cell(),
-                assets: Vec::new()
-            }.cell());
+                assets: Vec::new(),
+            }
+            .cell());
         };
         let processed_css: PostCssProcessingResult = parse_json_with_source_context(val.to_str()?)
             .context("Unable to deserializate response from PostCSS transform operation")?;

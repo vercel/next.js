@@ -291,7 +291,7 @@ pub async fn get_meta_data(
     blur_placeholder: Option<BlurPlaceholderOptionsVc>,
 ) -> Result<ImageMetaDataVc> {
     let FileContent::Content(content) = &*content.await? else {
-      bail!("Input image not found");
+        bail!("Input image not found");
     };
     let bytes = content.content().to_bytes()?;
     let path = ident.path().await?;
@@ -367,7 +367,8 @@ pub async fn optimize(
         return Ok(FileContent::NotFound.cell());
     };
     let bytes = content.content().to_bytes()?;
-    let Some((image, mut format)) = load_image(ident, &bytes, ident.path().await?.extension()) else {
+    let Some((image, mut format)) = load_image(ident, &bytes, ident.path().await?.extension())
+    else {
         return Ok(FileContent::NotFound.cell());
     };
     let (width, height) = image.dimensions();

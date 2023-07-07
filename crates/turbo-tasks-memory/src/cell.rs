@@ -284,9 +284,11 @@ impl Cell {
                 dependent_tasks, ..
             } => {
                 let dependent_tasks = take(dependent_tasks);
-                let Cell::Value { content, .. } = replace(self, Cell::TrackedValueless {
-                    dependent_tasks,
-                }) else { unreachable!() };
+                let Cell::Value { content, .. } =
+                    replace(self, Cell::TrackedValueless { dependent_tasks })
+                else {
+                    unreachable!()
+                };
                 Some(content)
             }
         }
