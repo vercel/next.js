@@ -366,14 +366,24 @@ pub async fn render_data(
     struct Data {
         next_config_output: Option<OutputType>,
         server_info: Option<ServerInfo>,
+        allowed_revalidate_header_keys: Option<Vec<String>>,
+        fetch_cache_key_prefix: Option<String>,
+        isr_memory_cache_size: Option<f64>,
+        isr_flush_to_disk: Option<bool>,
     }
 
     let config = next_config.await?;
     let server_info = ServerInfo::try_from(&*server_addr.await?);
 
+    let experimental = &config.experimental;
+
     let value = serde_json::to_value(Data {
         next_config_output: config.output.clone(),
         server_info: server_info.ok(),
+        allowed_revalidate_header_keys: experimental.allowed_revalidate_header_keys.clone(),
+        fetch_cache_key_prefix: experimental.fetch_cache_key_prefix.clone(),
+        isr_memory_cache_size: experimental.isr_memory_cache_size.clone(),
+        isr_flush_to_disk: experimental.isr_flush_to_disk.clone(),
     })?;
     Ok(JsonValue(value).cell())
 }
