@@ -1400,7 +1400,7 @@ export default async function getBaseWebpackConfig(
       // so that the DefinePlugin can inject process.env values.
 
       // Treat next internals as non-external for server layer
-      if (layer && WEBPACK_LAYERS.GROUP.server.includes(layer)) {
+      if (layer === WEBPACK_LAYERS.server || layer === WEBPACK_LAYERS.action) {
         return
       }
 
@@ -1574,7 +1574,7 @@ export default async function getBaseWebpackConfig(
       (isEsm && isAppLayer)
 
     if (/node_modules[/\\].*\.[mc]?js$/.test(res)) {
-      if (layer && WEBPACK_LAYERS.GROUP.server.includes(layer)) {
+      if (layer === WEBPACK_LAYERS.server || layer === WEBPACK_LAYERS.action) {
         // All packages should be bundled for the server layer if they're not opted out.
         // This option takes priority over the transpilePackages option.
 
