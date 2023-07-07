@@ -50,7 +50,6 @@ impl NextClientChunksTransitionVc {
             project_path,
             server_root,
             client_compile_time_info.environment(),
-            ty,
         );
 
         let client_module_options_context = get_client_module_options_context(
