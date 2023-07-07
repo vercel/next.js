@@ -1986,11 +1986,7 @@ export default async function getBaseWebpackConfig(
           ? [
               {
                 issuerLayer: {
-                  or: [
-                    WEBPACK_LAYERS.server,
-                    WEBPACK_LAYERS.action,
-                    WEBPACK_LAYERS.metadataRoute,
-                  ],
+                  or: WEBPACK_LAYERS.GROUP.server,
                 },
                 test: {
                   // Resolve it if it is a source code file, and it has NOT been
