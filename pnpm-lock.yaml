@@ -616,6 +616,7 @@ importers:
       image-size: 1.0.0
       is-docker: 2.0.0
       is-wsl: 2.2.0
+      jest-docblock: 29.4.3
       jest-worker: 27.0.0-next.5
       json5: 2.2.3
       jsonwebtoken: 9.0.0
@@ -834,6 +835,7 @@ importers:
       image-size: 1.0.0
       is-docker: 2.0.0
       is-wsl: 2.2.0
+      jest-docblock: 29.4.3
       jest-worker: 27.0.0-next.5
       json5: 2.2.3
       jsonwebtoken: 9.0.0
@@ -15487,6 +15489,13 @@ packages:
   /jest-docblock/27.0.6:
     resolution: {integrity: sha512-Fid6dPcjwepTFraz0YxIMCi7dejjJ/KL9FBjPYhBp4Sv1Y9PdhImlKZqYU555BlN4TQKaTc+F2Av1z+anVyGkA==}
     engines: {node: ^10.13.0 || ^12.13.0 || ^14.15.0 || >=15.0.0}
+    dependencies:
+      detect-newline: 3.1.0
+    dev: true
+
+  /jest-docblock/29.4.3:
+    resolution: {integrity: sha512-fzdTftThczeSD9nZ3fzA/4KkHtnmllawWrXO69vtI+L9WjEIuXWs4AmyME7lN5hU7dB0sHhuPfcKofRsUb/2Fg==}
+    engines: {node: ^14.15.0 || ^16.10.0 || >=18.0.0}
     dependencies:
       detect-newline: 3.1.0
     dev: true
