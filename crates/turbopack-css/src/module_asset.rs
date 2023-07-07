@@ -304,7 +304,9 @@ impl EcmascriptChunkItem for ModuleChunkItem {
                             continue;
                         };
 
-                        let Some(css_module) = ModuleCssAssetVc::resolve_from(resolved_module).await? else {
+                        let Some(css_module) =
+                            ModuleCssAssetVc::resolve_from(resolved_module).await?
+                        else {
                             CssModuleComposesIssue {
                                 severity: IssueSeverity::Error.cell(),
                                 source: self.module.ident(),

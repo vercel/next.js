@@ -173,7 +173,7 @@ where
 
 pub fn without_task_id_mapping<T>(func: impl FnOnce() -> T) -> T {
     TASK_ID_MAPPING.with(|cell| {
-        let old = std::mem::replace(&mut *cell.borrow_mut(), None);
+        let old = cell.borrow_mut().take();
         let _swap_guard = TemporarySwapGuard(cell, ManuallyDrop::new(old));
         func()
     })

@@ -50,13 +50,16 @@ impl ChunkDataVc {
         let path = path.to_string();
 
         let Some(output_chunk) = OutputChunkVc::resolve_from(chunk).await? else {
-            return Ok(ChunkDataOptionVc::cell(Some(ChunkData {
-                path,
-                included: Vec::new(),
-                excluded: Vec::new(),
-                module_chunks: Vec::new(),
-                references: AssetReferencesVc::empty(),
-            }.cell())));
+            return Ok(ChunkDataOptionVc::cell(Some(
+                ChunkData {
+                    path,
+                    included: Vec::new(),
+                    excluded: Vec::new(),
+                    module_chunks: Vec::new(),
+                    references: AssetReferencesVc::empty(),
+                }
+                .cell(),
+            )));
         };
 
         let runtime_info = output_chunk.runtime_info().await?;

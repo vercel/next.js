@@ -39,7 +39,8 @@ impl Asset for SourceMapAsset {
 
     #[turbo_tasks::function]
     async fn content(&self) -> Result<AssetContentVc> {
-        let Some(generate_source_map) = GenerateSourceMapVc::resolve_from(&self.asset).await? else {
+        let Some(generate_source_map) = GenerateSourceMapVc::resolve_from(&self.asset).await?
+        else {
             bail!("asset does not support generating source maps")
         };
         let sm = if let Some(sm) = &*generate_source_map.generate_source_map().await? {

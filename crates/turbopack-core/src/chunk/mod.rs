@@ -306,12 +306,20 @@ async fn reference_to_graph_nodes<I>(
 where
     I: FromChunkableAsset + Eq + std::hash::Hash + Clone,
 {
-    let Some(chunkable_asset_reference) = ChunkableAssetReferenceVc::resolve_from(reference).await? else {
-        return Ok(vec![(None, ChunkContentGraphNode::ExternalAssetReference(reference))]);
+    let Some(chunkable_asset_reference) =
+        ChunkableAssetReferenceVc::resolve_from(reference).await?
+    else {
+        return Ok(vec![(
+            None,
+            ChunkContentGraphNode::ExternalAssetReference(reference),
+        )]);
     };
 
     let Some(chunking_type) = *chunkable_asset_reference.chunking_type().await? else {
-        return Ok(vec![(None, ChunkContentGraphNode::ExternalAssetReference(reference))]);
+        return Ok(vec![(
+            None,
+            ChunkContentGraphNode::ExternalAssetReference(reference),
+        )]);
     };
 
     let result = reference.resolve_reference().await?;
@@ -574,7 +582,9 @@ where
         _phantom: PhantomData,
     };
 
-    let GraphTraversalResult::Completed(traversal_result) = AdjacencyMap::new().visit(root_edges, visit).await else {
+    let GraphTraversalResult::Completed(traversal_result) =
+        AdjacencyMap::new().visit(root_edges, visit).await
+    else {
         return Ok(None);
     };
 

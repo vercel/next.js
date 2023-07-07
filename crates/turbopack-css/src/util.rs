@@ -8,11 +8,11 @@ pub fn stringify_js(str: &str) -> String {
             //
             // Note that the form feed character is not representable as \f in Rust strings, so
             // the unicode representation \u{0c} is used.
-            '\\' => escaped.push_str(r#"\\"#),
-            '\n' => escaped.push_str(r#"\n"#),
-            '\r' => escaped.push_str(r#"\r"#),
+            '\\' => escaped.push_str(r"\\"),
+            '\n' => escaped.push_str(r"\n"),
+            '\r' => escaped.push_str(r"\r"),
             '"' => escaped.push_str(r#"\""#),
-            '\u{0c}' => escaped.push_str(r#"\f"#),
+            '\u{0c}' => escaped.push_str(r"\f"),
             _ => escaped.push(char),
         }
     }
@@ -36,9 +36,9 @@ mod tests {
 
     #[test]
     fn escapes_backslash() {
-        assert_eq!(stringify_js(r#"\"#), r#""\\""#);
-        assert_eq!(stringify_js(r#"\\"#), r#""\\\\""#);
-        assert_eq!(stringify_js(r#"\n"#), r#""\\n""#);
+        assert_eq!(stringify_js(r"\"), r#""\\""#);
+        assert_eq!(stringify_js(r"\\"), r#""\\\\""#);
+        assert_eq!(stringify_js(r"\n"), r#""\\n""#);
     }
 
     #[test]

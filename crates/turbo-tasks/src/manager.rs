@@ -667,9 +667,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
                 } else {
                     drop(start_listener);
                 }
-                if timeout.is_zero()
-                    || matches!(tokio::time::timeout(timeout, listener).await, Err(_))
-                {
+                if timeout.is_zero() || tokio::time::timeout(timeout, listener).await.is_err() {
                     // Timeout
                     return None;
                 }

@@ -3,7 +3,6 @@
 #![feature(min_specialization)]
 #![feature(map_try_insert)]
 #![feature(option_get_or_insert_default)]
-#![feature(once_cell)]
 #![feature(hash_set_entry)]
 #![recursion_limit = "256"]
 

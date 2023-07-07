@@ -315,7 +315,7 @@ async fn merge_to_limit(
         } else {
             remaining -= chunks.len();
             let mut part = merge_by_size(chunks).await?;
-            merged.extend(part.pop().into_iter());
+            merged.extend(part.pop());
             fully_merged.append(&mut part);
         }
     }
@@ -332,7 +332,7 @@ async fn merge_to_limit(
             // higher-level lifetime error otherwise
             let some = some.to_vec();
             let mut part = merge_by_size(some).await?;
-            merged.extend(part.pop().into_iter());
+            merged.extend(part.pop());
             fully_merged.append(&mut part);
         }
     }

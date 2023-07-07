@@ -362,7 +362,9 @@ pub async fn require_context_require(
     let Some(s) = args[0].as_str() else {
         return Ok(JsValue::unknown(
             JsValue::call(
-                Box::new(JsValue::WellKnownFunction(WellKnownFunctionKind::RequireContextRequire(val))),
+                Box::new(JsValue::WellKnownFunction(
+                    WellKnownFunctionKind::RequireContextRequire(val),
+                )),
                 args,
             ),
             "require.context(...).require() only accepts a single, constant string argument",
@@ -371,13 +373,16 @@ pub async fn require_context_require(
 
     let map = val.await?;
     let Some(m) = map.get(s) else {
-       return Ok(JsValue::unknown(
-           JsValue::call(
-               Box::new(JsValue::WellKnownFunction(WellKnownFunctionKind::RequireContextRequire(val))),
-               args,
-           ),
-           "require.context(...).require() can only be called with an argument that's in the context",
-       ));
+        return Ok(JsValue::unknown(
+            JsValue::call(
+                Box::new(JsValue::WellKnownFunction(
+                    WellKnownFunctionKind::RequireContextRequire(val),
+                )),
+                args,
+            ),
+            "require.context(...).require() can only be called with an argument that's in the \
+             context",
+        ));
     };
 
     Ok(JsValue::Module(ModuleValue {
@@ -445,7 +450,8 @@ pub async fn require_context_require_resolve(
                 )),
                 args,
             ),
-            "require.context(...).resolve() can only be called with an argument that's in the context",
+            "require.context(...).resolve() can only be called with an argument that's in the \
+             context",
         ));
     };
 

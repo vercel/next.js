@@ -1,4 +1,5 @@
 #![feature(min_specialization)]
+#![allow(clippy::items_after_test_module)]
 
 mod helpers;
 #[cfg(feature = "bench_against_node_nft")]

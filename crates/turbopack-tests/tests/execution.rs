@@ -265,9 +265,10 @@ async fn run_test(resource: &str) -> Result<RunTestResultVc> {
     let SingleValue::Single(bytes) = res
         .try_into_single()
         .await
-        .context("test node result did not emit anything")? else {
-            panic!("Evaluation stream must yield SingleValue.");
-        };
+        .context("test node result did not emit anything")?
+    else {
+        panic!("Evaluation stream must yield SingleValue.");
+    };
 
     Ok(RunTestResult {
         js_result: JsResultVc::cell(parse_json_with_source_context(bytes.to_str()?)?),
@@ -296,13 +297,9 @@ async fn snapshot_issues(run_result: RunTestResultVc) -> Result<NothingVc> {
         .try_join()
         .await?;
 
-    turbopack_test_utils::snapshot::snapshot_issues(
-        plain_issues.into_iter(),
-        path.join("issues"),
-        &REPO_ROOT,
-    )
-    .await
-    .context("Unable to handle issues")?;
+    turbopack_test_utils::snapshot::snapshot_issues(plain_issues, path.join("issues"), &REPO_ROOT)
+        .await
+        .context("Unable to handle issues")?;
 
     Ok(NothingVc::new())
 }

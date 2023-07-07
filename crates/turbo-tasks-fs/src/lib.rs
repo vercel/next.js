@@ -1,5 +1,5 @@
 #![feature(trivial_bounds)]
-#![feature(hash_drain_filter)]
+#![feature(hash_extract_if)]
 #![feature(min_specialization)]
 #![feature(iter_advance_by)]
 #![feature(io_error_more)]
@@ -137,7 +137,11 @@ impl DiskWatcher {
                     ));
                 }
                 let Some(parent_path) = path.parent() else {
-                    return Err(err).context(format!("Unable to watch {} (tried up to {})", dir_path.display(), path.display()));
+                    return Err(err).context(format!(
+                        "Unable to watch {} (tried up to {})",
+                        dir_path.display(),
+                        path.display()
+                    ));
                 };
                 path = parent_path;
             }
@@ -408,7 +412,7 @@ impl DiskFileSystem {
                     for path in paths {
                         let path_key = path_to_key(&path);
                         for (_, invalidators) in
-                            invalidator_map.drain_filter(|key, _| key.starts_with(&path_key))
+                            invalidator_map.extract_if(|key, _| key.starts_with(&path_key))
                         {
                             invalidators
                                 .into_iter()
@@ -667,7 +671,7 @@ impl FileSystem for DiskFileSystem {
         Ok(LinkContent::Link {
             target,
             link_type: {
-                let mut link_type = LinkType::UNSET;
+                let mut link_type = Default::default();
                 if link_path.is_absolute() {
                     link_type |= LinkType::ABSOLUTE;
                 }
@@ -1501,8 +1505,9 @@ impl FileContent {
 
         let old_meta = extract_disk_access(retry_future(|| old_file.metadata()).await, &path)?;
         let Some(old_meta) = old_meta else {
-            // If we failed to get meta, then the old file has been deleted between the handle open.
-            // In which case, we just pretend the file never existed.
+            // If we failed to get meta, then the old file has been deleted between the
+            // handle open. In which case, we just pretend the file never
+            // existed.
             return Ok(FileComparison::Create);
         };
         // If the meta is different, we need to rewrite the file to update it.
@@ -1540,9 +1545,8 @@ impl FileContent {
 }
 
 bitflags! {
-  #[derive(Serialize, Deserialize, TraceRawVcs)]
+  #[derive(Default, Serialize, Deserialize, TraceRawVcs)]
   pub struct LinkType: u8 {
-      const UNSET = 0;
       const DIRECTORY = 0b00000001;
       const ABSOLUTE = 0b00000010;
   }

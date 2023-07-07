@@ -85,12 +85,14 @@ impl TaskMetaState {
 
 // These need to be impl types since there is no way to reference the zero-sized
 // function item type
-type TaskMetaStateAsFull = impl Fn(&TaskMetaState) -> Option<&TaskState>;
-type TaskMetaStateAsPartial = impl Fn(&TaskMetaState) -> Option<&PartialTaskState>;
-type TaskMetaStateAsUnloaded = impl Fn(&TaskMetaState) -> Option<&UnloadedTaskState>;
-type TaskMetaStateAsFullMut = impl Fn(&mut TaskMetaState) -> Option<&mut TaskState>;
-type TaskMetaStateAsPartialMut = impl Fn(&mut TaskMetaState) -> Option<&mut PartialTaskState>;
-type TaskMetaStateAsUnloadedMut = impl Fn(&mut TaskMetaState) -> Option<&mut UnloadedTaskState>;
+pub(super) type TaskMetaStateAsFull = impl Fn(&TaskMetaState) -> Option<&TaskState>;
+pub(super) type TaskMetaStateAsPartial = impl Fn(&TaskMetaState) -> Option<&PartialTaskState>;
+pub(super) type TaskMetaStateAsUnloaded = impl Fn(&TaskMetaState) -> Option<&UnloadedTaskState>;
+pub(super) type TaskMetaStateAsFullMut = impl Fn(&mut TaskMetaState) -> Option<&mut TaskState>;
+pub(super) type TaskMetaStateAsPartialMut =
+    impl Fn(&mut TaskMetaState) -> Option<&mut PartialTaskState>;
+pub(super) type TaskMetaStateAsUnloadedMut =
+    impl Fn(&mut TaskMetaState) -> Option<&mut UnloadedTaskState>;
 
 pub(super) enum TaskMetaStateReadGuard<'a> {
     Full(ReadGuard<'a, TaskMetaState, TaskState, TaskMetaStateAsFull>),

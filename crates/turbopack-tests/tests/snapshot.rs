@@ -159,7 +159,7 @@ async fn run(resource: PathBuf) -> Result<()> {
             .try_join()
             .await?;
 
-        snapshot_issues(plain_issues.into_iter(), out.join("issues"), &REPO_ROOT)
+        snapshot_issues(plain_issues, out.join("issues"), &REPO_ROOT)
             .await
             .context("Unable to handle issues")?;
         Ok(NothingVc::new().into())

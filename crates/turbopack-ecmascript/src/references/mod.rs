@@ -379,7 +379,8 @@ pub(crate) async fn analyze_ecmascript_module(
         comments,
         source_map,
         ..
-    } = &*parsed else {
+    } = &*parsed
+    else {
         return analysis.build().await;
     };
 
@@ -422,7 +423,7 @@ pub(crate) async fn analyze_ecmascript_module(
             CommentKind::Line => {
                 lazy_static! {
                     static ref SOURCE_MAP_FILE_REFERENCE: Regex =
-                        Regex::new(r#"# sourceMappingURL=(.*?\.map)$"#).unwrap();
+                        Regex::new(r"# sourceMappingURL=(.*?\.map)$").unwrap();
                 }
                 if let Some(m) = SOURCE_MAP_FILE_REFERENCE.captures(&comment.text) {
                     let path = &m[1];

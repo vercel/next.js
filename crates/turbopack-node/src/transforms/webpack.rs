@@ -141,8 +141,9 @@ impl WebpackLoadersProcessedAssetVc {
         let FileContent::Content(content) = &*file.await? else {
             return Ok(ProcessWebpackLoadersResult {
                 content: AssetContent::File(FileContent::NotFound.cell()).cell(),
-                assets: Vec::new()
-            }.cell());
+                assets: Vec::new(),
+            }
+            .cell());
         };
         let content = content.content().to_str()?;
         let context = transform.evaluate_context;
@@ -173,8 +174,9 @@ impl WebpackLoadersProcessedAssetVc {
             // An error happened, which has already been converted into an issue.
             return Ok(ProcessWebpackLoadersResult {
                 content: AssetContent::File(FileContent::NotFound.cell()).cell(),
-                assets: Vec::new()
-            }.cell());
+                assets: Vec::new(),
+            }
+            .cell());
         };
         let processed: WebpackLoadersProcessingResult = parse_json_with_source_context(
             val.to_str()?,
