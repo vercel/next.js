@@ -1400,7 +1400,7 @@ export default async function getBaseWebpackConfig(
       // so that the DefinePlugin can inject process.env values.
 
       // Treat next internals as non-external for server layer
-      if (layer === WEBPACK_LAYERS.server || layer === WEBPACK_LAYERS.action) {
+      if (layer && WEBPACK_LAYERS.GROUP.server.includes(layer)) {
         return
       }
 
@@ -1574,7 +1574,7 @@ export default async function getBaseWebpackConfig(
       (isEsm && isAppLayer)
 
     if (/node_modules[/\\].*\.[mc]?js$/.test(res)) {
-      if (layer === WEBPACK_LAYERS.server || layer === WEBPACK_LAYERS.action) {
+      if (layer && WEBPACK_LAYERS.GROUP.server.includes(layer)) {
         // All packages should be bundled for the server layer if they're not opted out.
         // This option takes priority over the transpilePackages option.
 
@@ -2055,11 +2055,7 @@ export default async function getBaseWebpackConfig(
                   {
                     exclude: [asyncStoragesRegex],
                     issuerLayer: {
-                      or: [
-                        WEBPACK_LAYERS.server,
-                        WEBPACK_LAYERS.action,
-                        WEBPACK_RESOURCE_QUERIES.metadataImageMeta,
-                      ],
+                      or: WEBPACK_LAYERS.GROUP.server,
                     },
                     test: {
                       // Resolve it if it is a source code file, and it has NOT been
@@ -2132,11 +2128,7 @@ export default async function getBaseWebpackConfig(
                   {
                     test: codeCondition.test,
                     issuerLayer: {
-                      or: [
-                        WEBPACK_LAYERS.server,
-                        WEBPACK_LAYERS.action,
-                        WEBPACK_LAYERS.metadataRoute,
-                      ],
+                      or: WEBPACK_LAYERS.GROUP.server,
                     },
                     exclude: [asyncStoragesRegex],
                     use: swcLoaderForServerLayer,
@@ -2316,11 +2308,7 @@ export default async function getBaseWebpackConfig(
           test: /(node_modules|next[/\\]dist[/\\]compiled)[/\\]client-only[/\\]error.js/,
           loader: 'next-invalid-import-error-loader',
           issuerLayer: {
-            or: [
-              WEBPACK_LAYERS.server,
-              WEBPACK_LAYERS.action,
-              WEBPACK_LAYERS.metadataRoute,
-            ],
+            or: WEBPACK_LAYERS.GROUP.server,
           },
           options: {
             message:
