@@ -18,11 +18,16 @@ module.exports = (actionInfo) => {
       const tag = stdout.trim()
 
       if (!tag || !tag.startsWith('v')) {
-        throw new Error(`Failed to get tag info ${stdout}`)
+        throw new Error(`Failed to get tag info: "${stdout}"`)
       }
-      const tagParts = tag.split('-canary')[0].split('.')
+      const [major, minor, patch] = tag.split('-canary')[0].split('.')
+      if (!major || !minor || !patch) {
+        throw new Error(
+          `Failed to split tag into major/minor/patch: "${stdout}"`
+        )
+      }
       // last stable tag will always be 1 patch less than canary
-      return `${tagParts[0]}.${tagParts[1]}.${Number(tagParts[2]) - 1}`
+      return `${major}.${minor}.${Number(patch) - 1}`
     },
     async getCommitId(repoDir = '') {
       const { stdout } = await exec(`cd ${repoDir} && git rev-parse HEAD`)
