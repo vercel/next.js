@@ -382,8 +382,8 @@ pub async fn render_data(
         server_info: server_info.ok(),
         allowed_revalidate_header_keys: experimental.allowed_revalidate_header_keys.clone(),
         fetch_cache_key_prefix: experimental.fetch_cache_key_prefix.clone(),
-        isr_memory_cache_size: experimental.isr_memory_cache_size.clone(),
-        isr_flush_to_disk: experimental.isr_flush_to_disk.clone(),
+        isr_memory_cache_size: experimental.isr_memory_cache_size,
+        isr_flush_to_disk: experimental.isr_flush_to_disk,
     })?;
     Ok(JsonValue(value).cell())
 }
