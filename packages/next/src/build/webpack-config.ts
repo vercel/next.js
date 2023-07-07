@@ -83,6 +83,9 @@ const NEXT_PROJECT_ROOT_DIST_CLIENT = path.join(
   'client'
 )
 
+const isWebpackServerLayer = (layer: string | null) =>
+  Boolean(layer && WEBPACK_LAYERS.GROUP.server.includes(layer))
+
 if (parseInt(React.version) < 18) {
   throw new Error('Next.js requires react >= 18.2.0 to be installed.')
 }
@@ -1400,7 +1403,7 @@ export default async function getBaseWebpackConfig(
       // so that the DefinePlugin can inject process.env values.
 
       // Treat next internals as non-external for server layer
-      if (layer === WEBPACK_LAYERS.server || layer === WEBPACK_LAYERS.action) {
+      if (isWebpackServerLayer(layer)) {
         return
       }
 
@@ -1430,7 +1433,7 @@ export default async function getBaseWebpackConfig(
     // Don't bundle @vercel/og nodejs bundle for nodejs runtime.
     // TODO-APP: bundle route.js with different layer that externals common node_module deps.
     if (
-      layer === WEBPACK_LAYERS.server &&
+      isWebpackServerLayer(layer) &&
       request === 'next/dist/compiled/@vercel/og/index.node.js'
     ) {
       return `module ${request}`
@@ -1574,7 +1577,7 @@ export default async function getBaseWebpackConfig(
       (isEsm && isAppLayer)
 
     if (/node_modules[/\\].*\.[mc]?js$/.test(res)) {
-      if (layer === WEBPACK_LAYERS.server || layer === WEBPACK_LAYERS.action) {
+      if (isWebpackServerLayer(layer)) {
         // All packages should be bundled for the server layer if they're not opted out.
         // This option takes priority over the transpilePackages option.
 
@@ -1986,7 +1989,7 @@ export default async function getBaseWebpackConfig(
           ? [
               {
                 issuerLayer: {
-                  or: WEBPACK_LAYERS.GROUP.server,
+                  or: [isWebpackServerLayer],
                 },
                 test: {
                   // Resolve it if it is a source code file, and it has NOT been
@@ -2051,7 +2054,7 @@ export default async function getBaseWebpackConfig(
                   {
                     exclude: [asyncStoragesRegex],
                     issuerLayer: {
-                      or: WEBPACK_LAYERS.GROUP.server,
+                      or: [isWebpackServerLayer],
                     },
                     test: {
                       // Resolve it if it is a source code file, and it has NOT been
@@ -2124,7 +2127,7 @@ export default async function getBaseWebpackConfig(
                   {
                     test: codeCondition.test,
                     issuerLayer: {
-                      or: WEBPACK_LAYERS.GROUP.server,
+                      or: [isWebpackServerLayer],
                     },
                     exclude: [asyncStoragesRegex],
                     use: swcLoaderForServerLayer,
@@ -2304,7 +2307,7 @@ export default async function getBaseWebpackConfig(
           test: /(node_modules|next[/\\]dist[/\\]compiled)[/\\]client-only[/\\]error.js/,
           loader: 'next-invalid-import-error-loader',
           issuerLayer: {
-            or: WEBPACK_LAYERS.GROUP.server,
+            or: [isWebpackServerLayer],
           },
           options: {
             message:
