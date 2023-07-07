@@ -26,6 +26,8 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 */
 
+// TODO(alexkirsz) Remove once the diagnostic is fixed.
+#![allow(rustc::untranslatable_diagnostic_trivial)]
 #![recursion_limit = "2048"]
 #![deny(clippy::all)]
 #![feature(box_patterns)]
@@ -311,7 +313,7 @@ impl TransformOptions {
 
         if should_enable_commonjs {
             self.swc.config.module = Some(
-                serde_json::from_str(r##"{ "type": "commonjs", "ignoreDynamic": true }"##).unwrap(),
+                serde_json::from_str(r#"{ "type": "commonjs", "ignoreDynamic": true }"#).unwrap(),
             );
         }
 

@@ -73,7 +73,9 @@ impl PagesBuildClientContextVc {
         let client_asset_page =
             create_page_loader_entry_asset(this.client_asset_context, client_asset_page, pathname);
 
-        let Some(client_module_asset) = EcmascriptModuleAssetVc::resolve_from(client_asset_page).await? else {
+        let Some(client_module_asset) =
+            EcmascriptModuleAssetVc::resolve_from(client_asset_page).await?
+        else {
             bail!("Expected an EcmaScript module asset");
         };
 
