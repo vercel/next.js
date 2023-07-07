@@ -29,7 +29,12 @@ function mapReactRequest(request: string) {
     /^(react|react-dom|react-server-dom-webpack)\/?/.test(request)
   ) {
     const [packageName] = request.split('/')
-    const packagePath = request.slice(packageName.length) // eg: /server
+    let packagePath = request.slice(packageName.length) // eg: /server
+
+    if (request === 'react-dom') {
+      packagePath = '/server-rendering-stub'
+    }
+
     const aliasedPackage =
       process.env.__NEXT_PRIVATE_PREBUNDLED_REACT === 'experimental'
         ? `${packageName}-experimental`
