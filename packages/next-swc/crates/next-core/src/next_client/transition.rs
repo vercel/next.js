@@ -3,10 +3,10 @@ use indexmap::indexmap;
 use turbo_tasks::Value;
 use turbopack_binding::turbopack::{
     core::{
-        asset::AssetVc,
         chunk::{ChunkingContext, ChunkingContextVc},
         compile_time_info::CompileTimeInfoVc,
         context::AssetContext,
+        module::ModuleVc,
         reference_type::{InnerAssetsVc, ReferenceType},
     },
     ecmascript::chunk::EcmascriptChunkPlaceableVc,
@@ -66,16 +66,16 @@ impl Transition for NextClientTransition {
     #[turbo_tasks::function]
     async fn process_module(
         &self,
-        asset: AssetVc,
+        asset: ModuleVc,
         context: ModuleAssetContextVc,
-    ) -> Result<AssetVc> {
+    ) -> Result<ModuleVc> {
         let asset = if !self.is_app {
             let internal_asset = next_asset("entry/next-hydrate.tsx");
 
             context.process(
                 internal_asset,
                 Value::new(ReferenceType::Internal(InnerAssetsVc::cell(indexmap! {
-                    "PAGE".to_string() => asset
+                    "PAGE".to_string() => asset.into()
                 }))),
             )
         } else {

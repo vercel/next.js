@@ -16,13 +16,13 @@ use turbopack_binding::{
     },
     turbopack::{
         core::{
-            asset::{AssetOptionVc, AssetVc},
             changed::any_content_changed,
             chunk::ChunkingContext,
             context::{AssetContext, AssetContextVc},
             environment::{ServerAddrVc, ServerInfo},
             ident::AssetIdentVc,
             issue::IssueVc,
+            module::{ModuleVc, OptionModuleVc},
             reference_type::{EcmaScriptModulesReferenceSubType, InnerAssetsVc, ReferenceType},
             resolve::{find_context_file, FindContextFileResult},
             source_asset::SourceAssetVc,
@@ -142,16 +142,20 @@ async fn get_config(
     context: AssetContextVc,
     project_path: FileSystemPathVc,
     configs: StringsVc,
-) -> Result<AssetOptionVc> {
+) -> Result<OptionModuleVc> {
     let find_config_result = find_context_file(project_path, configs);
     let config_asset = match &*find_config_result.await? {
-        FindContextFileResult::Found(config_path, _) => Some(context.process(
-            SourceAssetVc::new(*config_path).as_asset(),
-            Value::new(ReferenceType::Internal(InnerAssetsVc::empty())),
-        )),
+        FindContextFileResult::Found(config_path, _) => {
+            Some(context.with_transition("next-edge").process(
+                SourceAssetVc::new(*config_path).into(),
+                Value::new(ReferenceType::EcmaScriptModules(
+                    EcmaScriptModulesReferenceSubType::Undefined,
+                )),
+            ))
+        }
         FindContextFileResult::NotFound(_) => None,
     };
-    Ok(AssetOptionVc::cell(config_asset))
+    Ok(OptionModuleVc::cell(config_asset))
 }
 
 #[turbo_tasks::function]
@@ -161,7 +165,7 @@ async fn next_config_changed(
 ) -> Result<CompletionVc> {
     let next_config = get_config(context, project_path, next_configs()).await?;
     Ok(if let Some(c) = *next_config {
-        any_content_changed(c)
+        any_content_changed(c.into())
     } else {
         CompletionVc::immutable()
     })
@@ -180,15 +184,9 @@ async fn config_assets(
     // is no middleware file, then we need to generate a default empty manifest
     // and we cannot process it with the next-edge transition because it
     // requires a real file for some reason.
-    let (manifest, config) = match &*middleware_config {
-        Some(c) => {
-            let manifest = context.with_transition("next-edge").process(
-                *c,
-                Value::new(ReferenceType::EcmaScriptModules(
-                    EcmaScriptModulesReferenceSubType::Undefined,
-                )),
-            );
-            let config = parse_config_from_source(*c);
+    let (manifest, config) = match *middleware_config {
+        Some(manifest) => {
+            let config = parse_config_from_source(manifest);
             (manifest, config)
         }
         None => {
@@ -219,13 +217,13 @@ async fn config_assets(
     );
 
     Ok(InnerAssetsVc::cell(indexmap! {
-        "MIDDLEWARE_CHUNK_GROUP".to_string() => manifest,
-        "MIDDLEWARE_CONFIG".to_string() => config_asset,
+        "MIDDLEWARE_CHUNK_GROUP".to_string() => manifest.into(),
+        "MIDDLEWARE_CONFIG".to_string() => config_asset.into(),
     }))
 }
 
 #[turbo_tasks::function]
-fn route_executor(context: AssetContextVc, configs: InnerAssetsVc) -> AssetVc {
+fn route_executor(context: AssetContextVc, configs: InnerAssetsVc) -> ModuleVc {
     context.process(
         next_asset("entry/router.ts"),
         Value::new(ReferenceType::Internal(configs)),
@@ -363,7 +361,7 @@ async fn route_internal(
     };
     let server_addr = server_addr.await?;
     let result = evaluate(
-        router_asset,
+        router_asset.into(),
         project_path,
         env,
         AssetIdentVc::from_path(project_path),
@@ -434,7 +432,7 @@ async fn route_internal(
             RouterResult::Error(shared_anyhow!(
                 trace_stack(
                     error,
-                    router_asset,
+                    router_asset.into(),
                     chunking_context.output_root(),
                     project_path
                 )

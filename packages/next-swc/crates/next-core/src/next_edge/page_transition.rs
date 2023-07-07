@@ -9,6 +9,7 @@ use turbopack_binding::{
             chunk::{ChunkableAssetVc, ChunkingContextVc},
             compile_time_info::CompileTimeInfoVc,
             context::AssetContext,
+            module::ModuleVc,
             reference_type::{EcmaScriptModulesReferenceSubType, InnerAssetsVc, ReferenceType},
             source_asset::SourceAssetVc,
         },
@@ -68,19 +69,19 @@ impl Transition for NextEdgePageTransition {
     #[turbo_tasks::function]
     async fn process_module(
         &self,
-        asset: AssetVc,
+        asset: ModuleVc,
         context: ModuleAssetContextVc,
-    ) -> Result<AssetVc> {
+    ) -> Result<ModuleVc> {
         let asset = context.process(
             self.bootstrap_asset,
             Value::new(ReferenceType::Internal(InnerAssetsVc::cell(indexmap! {
-                "APP_ENTRY".to_string() => asset,
+                "APP_ENTRY".to_string() => asset.into(),
                 "APP_BOOTSTRAP".to_string() => context.with_transition("next-client").process(
                     SourceAssetVc::new(next_js_file_path("entry/app/hydrate.tsx")).into(),
                     Value::new(ReferenceType::EcmaScriptModules(
                         EcmaScriptModulesReferenceSubType::Undefined,
                     )),
-                ),
+                ).into(),
             }))),
         );
 

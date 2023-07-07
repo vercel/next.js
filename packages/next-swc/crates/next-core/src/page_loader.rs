@@ -14,6 +14,7 @@ use turbopack_binding::{
             },
             context::{AssetContext, AssetContextVc},
             ident::AssetIdentVc,
+            module::ModuleVc,
             reference::{AssetReferencesVc, SingleAssetReferenceVc},
             reference_type::{EntryReferenceSubType, InnerAssetsVc, ReferenceType},
             virtual_asset::VirtualAssetVc,
@@ -59,7 +60,7 @@ pub async fn create_page_loader_entry_asset(
     client_context: AssetContextVc,
     entry_asset: AssetVc,
     pathname: StringVc,
-) -> Result<AssetVc> {
+) -> Result<ModuleVc> {
     let mut result = RopeBuilder::default();
     writeln!(
         result,
@@ -81,12 +82,13 @@ pub async fn create_page_loader_entry_asset(
 
     Ok(client_context.process(
         virtual_asset,
-        Value::new(ReferenceType::Internal(
-            InnerAssetsVc::cell(indexmap! {
-                "PAGE".to_string() => client_context.process(entry_asset, Value::new(ReferenceType::Entry(EntryReferenceSubType::Page)))
-            })
-        )))
-    )
+        Value::new(ReferenceType::Internal(InnerAssetsVc::cell(indexmap! {
+            "PAGE".to_string() => client_context.process(
+                entry_asset,
+                Value::new(ReferenceType::Entry(EntryReferenceSubType::Page))
+            ).into(),
+        }))),
+    ))
 }
 
 #[turbo_tasks::value_impl]
