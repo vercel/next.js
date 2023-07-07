@@ -3,8 +3,140 @@ title: Server and Client Components
 description: What Server and Client Components are, and how to use them in your React applications.
 ---
 
-React is a JavaScript library that lets you build user interfaces using individual components. Traditionally, these components were only rendered on the client, but in version 18, React introduced components that could be rendered on the server - changing the way we think about building frontend applications.
+React is a JavaScript library that lets you build user interfaces using [components](https://react.dev/learn/your-first-component#components-ui-building-blocks). Traditionally, React components were [rendered](/learn/foundations/how-nextjs-works/rendering) on the client. But in version 18, React introduced components that could be rendered on the server.
 
-To differentiate between these two types of components, a new naming convention was introduced: **Server Components** and **Client Components**. On this page, we'll cover what Server and Client Components are, and how to use them in your React applications.
+To distinguish between components that run on the server or the client, a new naming convention was introduced: **Server Components** and **Client Components**.
 
-> If you'd like to learn more about how components work under the hood and how they integrate with Next.js, check out the [Rendering Deep Dive](/docs/getting-started/react-essentials/rendering-deep-dive) page.
+In this guide, we'll cover how Server and Client Components work - the easy and the hard parts. Then dive into the details of how to use them in your web applications. We'll start with the fundamentals, assuming no prior knowledge of rendering strategies, and then we'll build up to more advanced topics.
+
+## Web Fundamentals
+
+To use Server and Client Components, it's helpful to have an understanding of three foundational web concepts:
+
+- The **Environments** your application code can be rendered in: the server and the client.
+- The **Request-Response Lifecycle** that's initiated when a user visits or interacts with your application.
+- The **Network Boundary** that separates server and client code (module graphs).
+
+### Environments: Client and Server
+
+<Image
+  alt="Client and Server Environments"
+  srcLight="/docs/light/client-and-server-environments.png"
+  srcDark="/docs/dark/client-and-server-environments.png"
+  width="1600"
+  height="672"
+/>
+
+- The **client** refers to the browser on a user's device that sends a request to a server for your application code. It then turns the response from the server into a user-friendly interface.
+- The **server** refers to the computer in a data center that stores your application code, receives requests from a client, and sends back an appropriate response.
+
+Historically, developers had to use different languages (e.g. JavaScript, PHP), frameworks (e.g. Express.js, Lavarel), and APIs when writing code for the server and the client. With React and Node.js, developers can use the **same language (JavaScript)**, and the **same framework** (e.g. Next.js or your framework of choice). This flexibility is great as it allows developers to seamlessly weave server and client code in the same context, but it also introduces new challenges.
+
+A major challenge is that each environment has its own set of roles, capabilities, and constraints. The code you write for the server and the client cannot be the same, and there are certain operations (e.g. fetching data) that are better suited for one environment over the other.
+
+Understanding the differences between environments is key to effectively using Server and Client Components. We'll cover the differences and use cases in more detail in the []() section, for now, let's continue building on our foundation.
+
+### The Request-Response Lifecycle
+
+Over the years, the web has gone through several architectural models that have shifted how much code is executed on the server vs. the client. We call these **Rendering Strategies**, and you may have used some of them, for example: Server-side Rendering (SSR), Static Site Generation (SSG), Client-side Rendering (CSR), etc.
+
+> We'll not be covering existing rendering strategies in detail as they can make it harder to understand Server and Client Components. However, if you're interested in learning about how they work in the Pages Router, checkout the [Next.js Foundations](/learn/foundations/how-nextjs-works/rendering) tutorial.
+
+Each of these strategies has its benefits and drawbacks, but, broadly speaking, all strategies follow the same **Request-Response Lifecycle**:
+
+<Image
+  alt="Request-Response Lifecycle"
+  srcLight="/docs/light/request-response-lifecycle.png"
+  srcDark="/docs/dark/request-response-lifecycle.png"
+  width=""
+  height=""
+/>
+
+1. **User Action:** It all starts with a user action. The user interacts with a web application, which could be clicking a link, submitting a form, or typing a URL directly into the browser's address bar.
+2. **HTTP Request:** The client sends a [HTTP](https://developer.mozilla.org/en-US/docs/Web/HTTP) request to the server. This request contains necessary information about what resource is being requested, what method should be used (like GET for receiving data, POST for sending data), and additional data if necessary, like form data or tokens.
+3. **Server Processing:** The server processes the request and responds with the appropriate resources. This may involve several steps like routing, querying a database, performing some logic, rendering the HTML of a page, and more.
+4. **HTTP Response:** After processing the request, the server sends a HTTP response back to the client. This response contains a status code (which tells the client whether the request was successful or not) and the **requested data**. This data can be an HTML document, but it can also be an image, a JSON file, or some other type of resource. In the case of Server Components, we call this **"flight data"** - more on that [later]().
+5. **Client Processing:** The client receives the response from the server, and parses the HTML, CSS, and JavaScript to render the user interface. If there are additional resources to be loaded, like images, the browser will send additional requests for these resources, each of which goes through the same lifecycle.
+6. **User Interaction:** Once the user interface is rendered, the user can interact with the user interface, and the whole process starts again.
+
+Understanding the lifecycle is important because it helps us [understand the flow of code](#unidirectional-flow) and where Server and Client Components fit in. In the next section, we'll cover the **Network Boundary** and how it relates to components.
+
+### The Network Boundary
+
+The **Network Boundary** is a conceptual line that separates server and client code.
+
+<Image
+  alt="Network Boundary"
+  srcLight="/docs/light/network-boundary.png"
+  srcDark="/docs/dark/network-boundary.png"
+  width=""
+  height=""
+/>
+
+Unlike the [Pages Router]() and other rendering strategies where the Network Boundary is fixed and the developer has no control over it, Server and Client Components allow developers to move the Network Boundary to wherever it makes the most sense for their application. You can also have multiple boundaries in the same application.
+
+In the context of React, it also helps to think of the boundary in terms of **module graphs**. A module graph is a visual representation of how files in your application depend on each other. For example, if you have a file called `Page.jsx` that imports a file called `Button.jsx`, the module graph would look something like this:
+
+<Image
+  alt="Module Graph"
+  srcLight="/docs/light/module-graph.png"
+  srcDark="/docs/dark/module-graph.png"
+  width=""
+  height=""
+/>
+
+React splits the module graph into two parts: the **client module graph** and the **server module graph**. The client module graph contains all components that are executed on the client, and the server module graph contains all the components that are executed on the server. The Network Boundary separates these two graphs.
+
+<Image
+  alt="Module Graph"
+  srcLight="/docs/light/server-client-module-graph.png"
+  srcDark="/docs/dark/server-client-module-graph.png"
+  width=""
+  height=""
+/>
+
+> With React, you define the Network Boundary with a convention called "use client". This convention is used to tell React if your component should be rendered on the client. There's also "use server", which tells React to do some computational work on the server. We'll cover these conventions in more detail in the []() section.
+
+### Summary
+
+To recap, we covered three foundational web concepts that will help us understand and use Server and Client Components:
+
+- **Environments:** The server and the client are two different environments that have different capabilities and constraints, therefore the code you write for each environment differs.
+- **Request-Response Lifecycle:** A series of steps that happen when a user interacts with a web applications. Understanding the lifecycle helps us understand where Server and Client Components fit in.
+- **Network Boundary:** The Network Boundary is a conceptual line that separates server and client code. With Server and Client Components, developers can place the Network Boundary wherever it makes the most sense for their application.
+
+#### Unidirectional Flow
+
+Now that we've covered the web foundations, there's one philosophy that's important to understand when working with Server and Client Components: **Unidirectional Flow**.
+
+You may be familiar with the concept of [one-way data flow]() in React. This is the idea that data flows in one direction: from parent components to child components. This makes it easier to reason about your application and prevents data from being mutated in unexpected ways.
+
+<Image
+  alt="One way data flow"
+  srcLight="/docs/light/one-way-data-flow.png"
+  srcDark="/docs/dark/one-way-data-flow.png"
+  width=""
+  height=""
+/>
+
+Similarly, when working with Server and Client Components, it's helpful to think of the flow of the code in your application as **unidirectional**.
+
+With this model, your application code flows in one direction: from the server to the client. If you need to access the server from the client, you send a **new** request to the server rather than re-use the same request.
+
+<Image
+  alt="Unidirectional Flow"
+  srcLight="/docs/light/unidirectional-flow.png"
+  srcDark="/docs/dark/unidirectional-flow.png"
+  width=""
+  height=""
+/>
+
+In practice, it's a philosophy that encourages developers to think about what they want to render and execute (e.g. route, fetch data) they want to do on the server first, before sending the information to the client and performing any client-side operations.
+
+This concept will become clearer when we look into how components are rendered, and how you can [interleave client and server components]() in the same component tree.
+
+> **Hybrid Applications and Server-first Development**
+>
+> In Next.js, you may see this concept referred to as "server-first" development. It doesn't mean we prefer the server over the client. Rather, that your code will flow from the server to the client, and you decide where to place the Network Boundary. This is different from traditional client-first development where most of the code is executed on the client.
+>
+> A similar concept, "hybrid applications" may also be used. This means that you can render components and perform operations on the server and client. But the flow of code is still unidirectional.
