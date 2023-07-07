@@ -383,6 +383,10 @@ pub struct ExperimentalConfig {
     pub app_dir: Option<bool>,
     pub server_components_external_packages: Option<Vec<String>>,
     pub turbo: Option<ExperimentalTurboConfig>,
+    pub allowed_revalidate_header_keys: Option<Vec<String>>,
+    pub fetch_cache_key_prefix: Option<String>,
+    pub isr_memory_cache_size: Option<f64>,
+    pub isr_flush_to_disk: Option<bool>,
     mdx_rs: Option<bool>,
 
     // unsupported
@@ -404,8 +408,6 @@ pub struct ExperimentalConfig {
     fully_specified: Option<bool>,
     gzip_size: Option<bool>,
     incremental_cache_handler_path: Option<String>,
-    isr_flush_to_disk: Option<bool>,
-    isr_memory_cache_size: Option<f64>,
     large_page_data_bytes: Option<f64>,
     legacy_browsers: Option<bool>,
     manual_client_base_path: Option<bool>,
