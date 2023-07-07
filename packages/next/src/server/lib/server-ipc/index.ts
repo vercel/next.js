@@ -88,8 +88,9 @@ export const createWorker = async (
   nextConfig: NextConfigComplete
 ) => {
   const { initialEnv } = require('@next/env') as typeof import('@next/env')
-  const { Worker } = require('next/dist/compiled/jest-worker')
   const useServerActions = !!nextConfig.experimental.serverActions
+  const { Worker } =
+    require('next/dist/compiled/jest-worker') as typeof import('next/dist/compiled/jest-worker')
 
   const worker = new Worker(require.resolve('../render-server'), {
     numWorkers: 1,
@@ -129,11 +130,14 @@ export const createWorker = async (
       'deleteCache',
       'deleteAppClientCache',
       'clearModuleContext',
+      'propagateAppField',
     ],
   }) as any as InstanceType<typeof Worker> & {
     initialize: typeof import('../render-server').initialize
     deleteCache: typeof import('../render-server').deleteCache
     deleteAppClientCache: typeof import('../render-server').deleteAppClientCache
+    clearModuleContext: typeof import('../render-server').clearModuleContext
+    propagateAppField: typeof import('../render-server').propagateAppField
   }
 
   worker.getStderr().pipe(process.stderr)

@@ -13,6 +13,8 @@ let result:
       hostname: string
     }
 
+let app: ReturnType<typeof next> | undefined
+
 let sandboxContext: undefined | typeof import('../web/sandbox/context')
 let requireCacheHotReloader:
   | undefined
@@ -33,6 +35,26 @@ export function deleteAppClientCache() {
 
 export function deleteCache(filePath: string) {
   requireCacheHotReloader?.deleteCache(filePath)
+}
+
+export async function propagateAppField(field: string, value: any) {
+  if (!app) return console.log('cant propagate no app')
+  let appField = (app as any).server
+
+  if (field.includes('.')) {
+    const parts = field.split('.')
+
+    for (let i = 0; i < parts.length - 1; i++) {
+      appField = appField[parts[i]]
+    }
+    field = parts[parts.length - 1]
+  }
+
+  if (typeof appField[field] === 'function') {
+    appField[field].apply(app, Array.isArray(value) ? value : [])
+  } else {
+    appField[field] = value
+  }
 }
 
 export async function initialize(opts: {
@@ -67,7 +89,7 @@ export async function initialize(opts: {
     opts
   )
 
-  const app = next({
+  app = next({
     ...opts,
     _routerWorker: opts.workerType === 'router',
     _renderWorker: opts.workerType === 'render',

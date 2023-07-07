@@ -1,12 +1,12 @@
-import type { RoutesManifest } from '../../../build'
+import type { PrerenderManifest, RoutesManifest } from '../../../build'
 import type { NextConfigComplete } from '../../config-shared'
 import type { MiddlewareManifest } from '../../../build/webpack/plugins/middleware-plugin'
 
 import path from 'path'
 import fs from 'fs/promises'
+import * as Log from '../../../build/output/log'
 import setupDebug from 'next/dist/compiled/debug'
 import LRUCache from 'next/dist/compiled/lru-cache'
-import { findPagesDir } from '../../../lib/find-pages-dir'
 import loadCustomRoutes from '../../../lib/load-custom-routes'
 import { modifyRouteRegex } from '../../../lib/redirect-status'
 import { UnwrapPromise } from '../../../lib/coalesced-function'
@@ -16,17 +16,17 @@ import { escapeStringRegexp } from '../../../shared/lib/escape-regexp'
 import { getPathMatch } from '../../../shared/lib/router/utils/path-match'
 import { getRouteRegex } from '../../../shared/lib/router/utils/route-regex'
 import { getRouteMatcher } from '../../../shared/lib/router/utils/route-matcher'
-import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 import { normalizeLocalePath } from '../../../shared/lib/i18n/normalize-locale-path'
-import { absolutePathToPage } from '../../../shared/lib/page-path/absolute-path-to-page'
 import { denormalizePagePath } from '../../../shared/lib/page-path/denormalize-page-path'
 import { getMiddlewareRouteMatcher } from '../../../shared/lib/router/utils/middleware-route-matcher'
+import { FileType, fileExists } from '../../../lib/file-exists'
 
 import {
   APP_PATH_ROUTES_MANIFEST,
   BUILD_ID_FILE,
   MIDDLEWARE_MANIFEST,
   PAGES_MANIFEST,
+  PRERENDER_MANIFEST,
   ROUTES_MANIFEST,
 } from '../../../shared/lib/constants'
 
@@ -97,8 +97,9 @@ export async function setupFsCheck(opts: {
     headers: [],
   }
   let buildId = 'development'
+  let prerenderManifest: PrerenderManifest
 
-  if (process.env.NODE_ENV === 'production') {
+  if (!opts.dev) {
     const buildIdPath = path.join(opts.dir, opts.config.distDir, BUILD_ID_FILE)
     buildId = await fs.readFile(buildIdPath, 'utf8')
 
@@ -119,6 +120,9 @@ export async function setupFsCheck(opts: {
       )) {
         legacyStaticFolderItems.add(file)
       }
+      Log.warn(
+        `The static directory has been deprecated in favor of the public directory. https://nextjs.org/docs/messages/static-dir-deprecated`
+      )
     } catch (err: any) {
       if (err.code !== 'ENOENT') {
         throw err
@@ -137,6 +141,7 @@ export async function setupFsCheck(opts: {
     }
 
     const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
+    const prerenderManifestPath = path.join(distDir, PRERENDER_MANIFEST)
     const middlewareManifestPath = path.join(
       distDir,
       'server',
@@ -148,6 +153,10 @@ export async function setupFsCheck(opts: {
     const routesManifest = JSON.parse(
       await fs.readFile(routesManifestPath, 'utf8')
     ) as RoutesManifest
+
+    prerenderManifest = JSON.parse(
+      await fs.readFile(prerenderManifestPath, 'utf8')
+    ) as PrerenderManifest
 
     const middlewareManifest = JSON.parse(
       await fs.readFile(middlewareManifestPath, 'utf8').catch(() => '{}')
@@ -227,55 +236,25 @@ export async function setupFsCheck(opts: {
       // @ts-expect-error additional fields in manifest type
       headers: routesManifest.headers,
     }
-  }
-
-  if (process.env.NODE_ENV !== 'production') {
+  } else {
+    // dev handling
     customRoutes = await loadCustomRoutes(opts.config)
 
-    async function devWatcherCallback(
-      files: Parameters<
-        Parameters<NonNullable<(typeof opts)['addDevWatcherCallback']>>[0]
-      >[0]
-    ) {
-      debug('dev watcher callback', files)
-      getItemsLru.reset()
-      pageFiles.clear()
-      appFiles.clear()
-      dynamicRoutes = []
-
-      let { pagesDir, appDir } = findPagesDir(
-        opts.dir,
-        !!opts.config.experimental.appDir
-      )
-      appDir = appDir && normalizePathSep(appDir)
-      pagesDir = pagesDir && normalizePathSep(pagesDir)
-
-      for (let [fileName] of files) {
-        fileName = normalizePathSep(fileName)
-
-        const isAppFile = Boolean(appDir && fileName.startsWith(appDir))
-        const isPageFile = Boolean(pagesDir && fileName.startsWith(pagesDir))
-
-        if (!(isAppFile || isPageFile)) {
-          continue
-        }
-
-        let pageName = absolutePathToPage(fileName, {
-          dir: isAppFile && appDir ? appDir : pagesDir || '',
-          extensions: opts.config.pageExtensions,
-          keepIndex: isAppFile,
-          pagesType: isAppFile ? 'app' : 'pages',
-        })
-
-        if (isAppFile) {
-          appFiles.add(pageName)
-        } else {
-          pageFiles.add(pageName)
-        }
-      }
+    prerenderManifest = {
+      version: 4,
+      routes: {},
+      dynamicRoutes: {},
+      notFoundRoutes: [],
+      preview: {
+        previewModeId: require('crypto').randomBytes(16).toString('hex'),
+        previewModeSigningKey: require('crypto')
+          .randomBytes(32)
+          .toString('hex'),
+        previewModeEncryptionKey: require('crypto')
+          .randomBytes(32)
+          .toString('hex'),
+      },
     }
-    opts.addDevWatcherCallback?.(devWatcherCallback)
-    debug('setup dev watcher callback')
   }
 
   const restrictedRedirectPaths = ['/_next'].map((p) =>
@@ -337,9 +316,12 @@ export async function setupFsCheck(opts: {
     return { locale, pathname }
   }
 
+  debug('nextDataRoutes', nextDataRoutes)
   debug('dynamicRoutes', dynamicRoutes)
   debug('pageFiles', pageFiles)
   debug('appFiles', appFiles)
+
+  let ensureFn: (item: FsOutput) => Promise<void> | undefined
 
   return {
     headers,
@@ -348,6 +330,17 @@ export async function setupFsCheck(opts: {
 
     buildId,
     handleLocale,
+
+    appFiles,
+    pageFiles,
+    dynamicRoutes,
+    nextDataRoutes,
+
+    prerenderManifest,
+
+    ensureCallback(fn: typeof ensureFn) {
+      ensureFn = fn
+    },
 
     async getItem(itemPath: string): Promise<FsOutput | null> {
       const originalItemPath = itemPath
@@ -460,8 +453,9 @@ export async function setupFsCheck(opts: {
         if (!items.has(curItemPath)) {
           curItemPath = curDecodedItemPath
         }
+        const matchedItem = items.has(curItemPath)
 
-        if (items.has(curItemPath)) {
+        if (matchedItem || opts.dev) {
           let fsPath
 
           switch (type) {
@@ -485,22 +479,49 @@ export async function setupFsCheck(opts: {
             }
           }
 
+          // dynamically check fs in development so we don't
+          // have to wait on the watcher
+          if (
+            !matchedItem &&
+            opts.dev &&
+            (!(
+              [
+                'nextStaticFolder',
+                'publicFolder',
+                'legacyStaticFolder',
+              ] as (typeof type)[]
+            ).includes(type) ||
+              (fsPath && !(await fileExists(fsPath, FileType.File))))
+          ) {
+            continue
+          }
+
           const itemResult = {
             type,
             fsPath,
             locale,
             itemPath: curItemPath,
           }
-          getItemsLru.set(originalItemPath, itemResult)
+
+          if (ensureFn) {
+            await ensureFn(itemResult)?.catch(() => {})
+          }
+
+          if (!opts.dev) {
+            getItemsLru.set(originalItemPath, itemResult)
+          }
           return itemResult
         }
       }
-      getItemsLru.set(originalItemPath, null)
+
+      if (!opts.dev) {
+        getItemsLru.set(originalItemPath, null)
+      }
       return null
     },
     getDynamicRoutes() {
       // this should include data routes
-      return dynamicRoutes
+      return this.dynamicRoutes
     },
     getMiddlewareMatchers() {
       return middlewareMatcher

@@ -91,8 +91,6 @@ import { getTracer } from './lib/trace/tracer'
 import { NextNodeServerSpan } from './lib/trace/constants'
 import { nodeFs } from './lib/node-fs-methods'
 import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
-import { addPathPrefix } from '../shared/lib/router/utils/add-path-prefix'
-import { pathHasPrefix } from '../shared/lib/router/utils/path-has-prefix'
 import { invokeRequest } from './lib/server-ipc/invoke-request'
 import { filterReqHeaders } from './lib/server-ipc/utils'
 import { createRequestResponseMocks } from './lib/mock-request'
@@ -221,24 +219,26 @@ export default class NextNodeServer extends BaseServer {
       }).catch(() => {})
     }
 
-    const routesManifest = this.getRoutesManifest() as {
-      dynamicRoutes: {
-        page: string
-        regex: string
-        namedRegex?: string
-        routeKeys?: { [key: string]: string }
-      }[]
-    }
-    this.dynamicRoutes = routesManifest.dynamicRoutes.map((r) => {
-      const regex = getRouteRegex(r.page)
-      const match = getRouteMatcher(regex)
-
-      return {
-        match,
-        page: r.page,
-        regex: regex.re,
+    if (!options.dev) {
+      const routesManifest = this.getRoutesManifest() as {
+        dynamicRoutes: {
+          page: string
+          regex: string
+          namedRegex?: string
+          routeKeys?: { [key: string]: string }
+        }[]
       }
-    }) as any
+      this.dynamicRoutes = routesManifest.dynamicRoutes.map((r) => {
+        const regex = getRouteRegex(r.page)
+        const match = getRouteMatcher(regex)
+
+        return {
+          match,
+          page: r.page,
+          regex: regex.re,
+        }
+      }) as any
+    }
 
     // ensure options are set when loadConfig isn't called
     setHttpClientAndAgentOptions(this.nextConfig)
@@ -373,10 +373,6 @@ export default class NextNodeServer extends BaseServer {
 
   protected getHasAppDir(dev: boolean): boolean {
     return Boolean(findDir(dev ? this.dir : this.serverDistDir, 'app'))
-  }
-
-  protected setImmutableAssetCacheControl(res: BaseNextResponse): void {
-    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
   }
 
   protected sendRenderResult(
@@ -993,7 +989,7 @@ export default class NextNodeServer extends BaseServer {
       return {
         finished: true,
       }
-    } catch (err) {
+    } catch (err: unknown) {
       if (err instanceof NoFallbackError && bubbleNoFallback) {
         if (this.isRenderWorker) {
           res.setHeader('x-no-fallback', '1')
@@ -1007,6 +1003,14 @@ export default class NextNodeServer extends BaseServer {
           finished: false,
         }
       }
+
+      try {
+        await this.renderError(err as Error, req, res, pathname, query)
+        return {
+          finished: true,
+        }
+      } catch (_) {}
+
       throw err
     }
   }

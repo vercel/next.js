@@ -2,21 +2,26 @@
 import { initializeServerWorker } from './setup-server-worker'
 
 import url from 'url'
+import path from 'path'
 import loadConfig from '../config'
-import { proxyRequest } from './router-utils/proxy-request'
 import { serveStatic } from '../serve-static'
 import setupDebug from 'next/dist/compiled/debug'
 import { splitCookiesString } from '../web/utils'
+import { Telemetry } from '../../telemetry/storage'
 import { DecodeError } from '../../shared/lib/utils'
 import { filterReqHeaders } from './server-ipc/utils'
 import { IncomingMessage, ServerResponse } from 'http'
+import { findPagesDir } from '../../lib/find-pages-dir'
 import { setupFsCheck } from './router-utils/filesystem'
+import { proxyRequest } from './router-utils/proxy-request'
 import { invokeRequest } from './server-ipc/invoke-request'
 import { createRequestResponseMocks } from './mock-request'
 import { createIpcServer, createWorker } from './server-ipc'
+import { UnwrapPromise } from '../../lib/coalesced-function'
 import setupCompression from 'next/dist/compiled/compression'
 import { getResolveRoutes } from './router-utils/resolve-routes'
 import { NextUrlWithParsedQuery, getRequestMeta } from '../request-meta'
+import { pathHasPrefix } from '../../shared/lib/router/utils/path-has-prefix'
 import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
 import { denormalizePagePath } from '../../shared/lib/page-path/denormalize-page-path'
 
@@ -35,11 +40,14 @@ let initializeResult:
 
 const debug = setupDebug('next:router-server:main')
 
-export type RenderWorker = Worker & {
+export type RenderWorker = InstanceType<
+  typeof import('next/dist/compiled/jest-worker').Worker
+> & {
   initialize: typeof import('./render-server').initialize
   deleteCache: typeof import('./render-server').deleteCache
   deleteAppClientCache: typeof import('./render-server').deleteAppClientCache
   clearModuleContext: typeof import('./render-server').clearModuleContext
+  propagateAppField: typeof import('./render-server').propagateAppField
 }
 
 export async function initialize(opts: {
@@ -51,6 +59,7 @@ export async function initialize(opts: {
   workerType: 'router' | 'render'
   isNodeDebugging: boolean
   keepAliveTimeout?: number
+  customServer?: boolean
 }): Promise<NonNullable<typeof initializeResult>> {
   if (initializeResult) {
     return initializeResult
@@ -65,6 +74,40 @@ export async function initialize(opts: {
     opts.dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER,
     opts.dir
   )
+
+  const fsChecker = await setupFsCheck({
+    dev: opts.dev,
+    dir: opts.dir,
+    config,
+    minimalMode: opts.minimalMode,
+  })
+
+  let devInstance:
+    | UnwrapPromise<
+        ReturnType<typeof import('./router-utils/setup-dev').setupDev>
+      >
+    | undefined
+
+  if (opts.dev) {
+    const telemetry = new Telemetry({
+      distDir: path.join(opts.dir, config.distDir),
+    })
+    const { pagesDir, appDir } = findPagesDir(
+      opts.dir,
+      !!config.experimental.appDir
+    )
+
+    const { setupDev } = await require('./router-utils/setup-dev')
+    devInstance = await setupDev({
+      appDir,
+      pagesDir,
+      telemetry,
+      fsChecker,
+      dir: opts.dir,
+      nextConfig: config,
+      isCustomServer: opts.customServer,
+    })
+  }
 
   const renderWorkerOpts: Parameters<RenderWorker['initialize']>[0] = {
     port: opts.port,
@@ -81,6 +124,30 @@ export async function initialize(opts: {
   } = {}
 
   const { ipcPort, ipcValidationKey } = await createIpcServer({
+    ensurePage(
+      match: Parameters<
+        InstanceType<typeof import('../dev/hot-reloader').default>['ensurePage']
+      >[0]
+    ) {
+      // TODO: remove after ensure is pulled out of server
+      return devInstance?.hotReloader.ensurePage(match)
+    },
+    async logErrorWithOriginalStack(...args: any[]) {
+      // @ts-ignore
+      return await devInstance?.logErrorWithOriginalStack(...args)
+    },
+    async getFallbackErrorComponents() {
+      await devInstance?.hotReloader?.buildFallbackError()
+      // Build the error page to ensure the fallback is built too.
+      // TODO: See if this can be moved into hotReloader or removed.
+      await devInstance?.hotReloader.ensurePage({
+        page: '/_error',
+        clientOnly: false,
+      })
+    },
+    getCompilationError(page: string) {
+      return devInstance?.hotReloader.getCompilationErrors(page)
+    },
     async revalidate({
       urlPath,
       revalidateHeaders,
@@ -127,18 +194,56 @@ export async function initialize(opts: {
     'pages'
   )
 
+  if (devInstance) {
+    Object.assign(devInstance.renderWorkers, renderWorkers)
+    ;(global as any)._nextDeleteCache = (filePath: string) => {
+      try {
+        renderWorkers.pages?.deleteCache(filePath)
+        renderWorkers.app?.deleteCache(filePath)
+      } catch (err) {
+        console.error(err)
+      }
+    }
+    ;(global as any)._nextDeleteAppClientCache = () => {
+      try {
+        renderWorkers.pages?.deleteAppClientCache()
+        renderWorkers.app?.deleteAppClientCache()
+      } catch (err) {
+        console.error(err)
+      }
+    }
+    ;(global as any)._nextClearModuleContext = (targetPath: string) => {
+      try {
+        renderWorkers.pages?.clearModuleContext(targetPath)
+        renderWorkers.app?.clearModuleContext(targetPath)
+      } catch (err) {
+        console.error(err)
+      }
+    }
+  }
+
+  const cleanup = () => {
+    debug('router-server process cleanup')
+    for (const curWorker of [
+      ...((renderWorkers.app as any)?._workerPool?._workers || []),
+      ...((renderWorkers.pages as any)?._workerPool?._workers || []),
+    ] as {
+      _child?: import('child_process').ChildProcess
+    }[]) {
+      curWorker._child?.kill('SIGKILL')
+    }
+  }
+  process.on('exit', cleanup)
+  process.on('SIGINT', cleanup)
+  process.on('SIGTERM', cleanup)
+  process.on('uncaughtException', cleanup)
+  process.on('unhandledRejection', cleanup)
+
   let compress: ReturnType<typeof setupCompression> | undefined
 
   if (config.compress) {
     compress = setupCompression()
   }
-
-  const fsChecker = await setupFsCheck({
-    dev: opts.dev,
-    dir: opts.dir,
-    config,
-    minimalMode: opts.minimalMode,
-  })
 
   const resolveRoutes = getResolveRoutes(
     fsChecker,
@@ -159,6 +264,26 @@ export async function initialize(opts: {
     req,
     res
   ) => {
+    req.on('error', (_err) => {
+      // TODO: log socket errors?
+    })
+    res.on('error', (_err) => {
+      // TODO: log socket errors?
+    })
+
+    if (devInstance) {
+      const origUrl = req.url || '/'
+
+      if (config.basePath && pathHasPrefix(origUrl, config.basePath)) {
+        req.url = removePathPrefix(origUrl, config.basePath)
+      }
+      const result = await devInstance.requestHandler(req, res)
+
+      if (result.finished) {
+        return
+      }
+      req.url = origUrl
+    }
     const matchedDynamicRoutes = new Set<string>()
 
     async function invokeRender(
@@ -197,9 +322,16 @@ export async function initialize(opts: {
         invokePath = denormalizePagePath(invokePath)
       }
 
-      const workerResult = await renderWorkers[type]?.initialize(
-        renderWorkerOpts
-      )
+      const curWorker = renderWorkers[type]
+      const workerResult = await curWorker?.initialize(renderWorkerOpts)
+
+      if (devInstance) {
+        await curWorker?.propagateAppField(
+          'appPathRoutes',
+          devInstance.appPathRoutes
+        )
+        await curWorker?.propagateAppField('middleware', devInstance.middleware)
+      }
 
       if (!workerResult) {
         throw new Error(`Failed to initialize render worker ${type}`)
@@ -338,11 +470,17 @@ export async function initialize(opts: {
 
       if (matchedOutput?.fsPath) {
         if (
-          !opts.dev &&
           !res.getHeader('cache-control') &&
           matchedOutput.type === 'nextStaticFolder'
         ) {
-          res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
+          if (opts.dev) {
+            res.setHeader('Cache-Control', 'no-store, must-revalidate')
+          } else {
+            res.setHeader(
+              'Cache-Control',
+              'public, max-age=31536000, immutable'
+            )
+          }
         }
         if (!(req.method === 'GET' || req.method === 'HEAD')) {
           res.setHeader('Allow', ['GET', 'HEAD'])
@@ -482,6 +620,23 @@ export async function initialize(opts: {
     head
   ) => {
     try {
+      req.on('error', (_err) => {
+        // TODO: log socket errors?
+      })
+      socket.on('error', (_err) => {
+        // TODO: log socket errors?
+      })
+
+      if (opts.dev && devInstance) {
+        if (
+          req.url?.startsWith(
+            `${config.basePath || config.assetPrefix || ''}/_next/webpack-hmr`
+          )
+        ) {
+          return devInstance.hotReloader.onHMR(req, socket, head)
+        }
+      }
+
       const { matchedOutput, parsedUrl } = await resolveRoutes(
         req,
         new Set(),

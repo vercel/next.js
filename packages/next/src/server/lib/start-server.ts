@@ -4,14 +4,17 @@ import type { ChildProcess } from 'child_process'
 
 import http from 'http'
 import { isIPv6 } from 'net'
-import * as Log from '../../build/output/log'
-import { normalizeRepeatedSlashes } from '../../shared/lib/utils'
 import { initialEnv } from '@next/env'
+import * as Log from '../../build/output/log'
+import setupDebug from 'next/dist/compiled/debug'
+import { normalizeRepeatedSlashes } from '../../shared/lib/utils'
 import {
   genRouterWorkerExecArgv,
   getDebugPort,
   getNodeOptionsWithoutInspect,
 } from './utils'
+
+const debug = setupDebug('next:start-server')
 
 export interface StartServerOptions {
   dir: string
@@ -23,6 +26,7 @@ export interface StartServerOptions {
   useWorkers: boolean
   allowRetry?: boolean
   isTurbopack?: boolean
+  customServer?: boolean
   isExperimentalTurbo?: boolean
   minimalMode?: boolean
   keepAliveTimeout?: number
@@ -224,6 +228,23 @@ export async function startServer({
       }) as any as InstanceType<typeof Worker> & {
         initialize: typeof import('./render-server').initialize
       }
+
+      const cleanup = () => {
+        debug('start-server process cleanup')
+
+        for (const curWorker of ((routerWorker as any)._workerPool?._workers ||
+          []) as {
+          _child?: ChildProcess
+        }[]) {
+          curWorker._child?.kill('SIGKILL')
+        }
+      }
+      process.on('exit', cleanup)
+      process.on('SIGINT', cleanup)
+      process.on('SIGTERM', cleanup)
+      process.on('uncaughtException', cleanup)
+      process.on('unhandledRejection', cleanup)
+
       let didInitialize = false
 
       for (const _worker of ((routerWorker as any)._workerPool?._workers ||
@@ -320,11 +341,25 @@ export async function startServer({
         proxyServer.on('proxyRes', (proxyRes) => {
           res.on('close', () => proxyRes.destroy())
         })
-
+        req.on('error', (_err) => {
+          // TODO: log socket errors?
+        })
+        res.on('error', (_err) => {
+          // TODO: log socket errors?
+        })
         proxyServer.web(req, res)
       }
       upgradeHandler = async (req, socket, head) => {
+        req.on('error', (_err) => {
+          // TODO: log socket errors?
+        })
+        socket.on('error', (_err) => {
+          // TODO: log socket errors?
+        })
         const proxyServer = getProxyServer(req.url || '/')
+        proxyServer.on('proxyReqWs', (proxyReq) => {
+          socket.on('close', () => proxyReq.destroy())
+        })
         proxyServer.ws(req, socket, head)
       }
       handlersReady()

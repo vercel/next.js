@@ -316,6 +316,7 @@ function createServer(options: NextServerOptions): NextServer {
                     isDev: !!options.dev,
                     hostname: options.hostname || 'localhost',
                     useWorkers: true,
+                    customServer: options.customServer,
                   })
                 } else {
                   return server.prepare()

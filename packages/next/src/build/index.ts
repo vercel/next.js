@@ -142,6 +142,7 @@ import { createValidFileMatcher } from '../server/lib/find-page-file'
 import { startTypeChecking } from './type-check'
 import { generateInterceptionRoutesRewrites } from '../lib/generate-interception-routes-rewrites'
 import { baseOverrides, experimentalOverrides } from '../server/require-hook'
+import { buildDataRoute } from '../shared/lib/router/utils/sorted-routes'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -2173,49 +2174,7 @@ export default async function build(
           ...serverPropsPages,
           ...ssgPages,
         ]).map((page) => {
-          const pagePath = normalizePagePath(page)
-          const dataRoute = path.posix.join(
-            '/_next/data',
-            buildId,
-            `${pagePath}.json`
-          )
-
-          let dataRouteRegex: string
-          let namedDataRouteRegex: string | undefined
-          let routeKeys: { [named: string]: string } | undefined
-
-          if (isDynamicRoute(page)) {
-            const routeRegex = getNamedRouteRegex(
-              dataRoute.replace(/\.json$/, ''),
-              true
-            )
-
-            dataRouteRegex = normalizeRouteRegex(
-              routeRegex.re.source.replace(/\(\?:\\\/\)\?\$$/, `\\.json$`)
-            )
-            namedDataRouteRegex = routeRegex.namedRegex!.replace(
-              /\(\?:\/\)\?\$$/,
-              `\\.json$`
-            )
-            routeKeys = routeRegex.routeKeys
-          } else {
-            dataRouteRegex = normalizeRouteRegex(
-              new RegExp(
-                `^${path.posix.join(
-                  '/_next/data',
-                  escapeStringRegexp(buildId),
-                  `${pagePath}.json`
-                )}$`
-              ).source
-            )
-          }
-
-          return {
-            page,
-            routeKeys,
-            dataRouteRegex,
-            namedDataRouteRegex,
-          }
+          return buildDataRoute(page, buildId)
         })
 
         await fs.writeFile(

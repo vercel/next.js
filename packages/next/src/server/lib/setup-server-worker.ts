@@ -4,10 +4,20 @@ import http, { IncomingMessage, ServerResponse } from 'http'
 
 // This is required before other imports to ensure the require hook is setup.
 import '../require-hook'
+import '../node-polyfill-fetch'
 
 import { warn } from '../../build/output/log'
 import { getFreePort } from '../lib/worker-utils'
 import { Duplex } from 'stream'
+
+process.on('unhandledRejection', (err) => {
+  console.error(err)
+})
+
+process.on('uncaughtException', (err) => {
+  console.error(err)
+})
+
 export const WORKER_SELF_EXIT_CODE = 77
 
 const MAXIMUM_HEAP_SIZE_ALLOWED =
@@ -62,7 +72,7 @@ export async function initializeServerWorker(
       process.exit(1)
     })
 
-    if (!opts.dev) {
+    if (upgradeHandler) {
       server.on('upgrade', (req, socket, upgrade) => {
         upgradeHandler(req, socket, upgrade)
       })
