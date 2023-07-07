@@ -102,13 +102,7 @@ fn run_async_test<'a, T>(future: impl Future<Output = T> + Send + 'a) -> T {
         .enable_all()
         .build()
         .unwrap();
-    let result = catch_unwind(AssertUnwindSafe(|| {
-        runtime.block_on(async move {
-            #[cfg(feature = "tokio_console")]
-            console_subscriber::init();
-            future.await
-        })
-    }));
+    let result = catch_unwind(AssertUnwindSafe(|| runtime.block_on(future)));
     println!("Stutting down runtime...");
     runtime.shutdown_timeout(Duration::from_secs(5));
     println!("Stut down runtime");
@@ -528,7 +522,7 @@ async fn run_browser(addr: SocketAddr, project_dir: &Path) -> Result<JsResult> {
             }
             event = &mut bindings_next => {
                 if let Some(event) = event {
-                    if let Some(run_result) = handle_binding(&page, &*event, project_dir, is_debugging).await? {
+                    if let Some(run_result) = handle_binding(&page, &event, project_dir, is_debugging).await? {
                         return Ok(JsResult {
                             uncaught_exceptions,
                             run_result,
@@ -626,10 +620,7 @@ async fn handle_binding(
             // Ensure `change_file.path` can't escape the project directory.
             let path = path
                 .components()
-                .filter(|c| match c {
-                    std::path::Component::Normal(_) => true,
-                    _ => false,
-                })
+                .filter(|c| matches!(c, std::path::Component::Normal(_)))
                 .collect::<std::path::PathBuf>();
 
             let path: PathBuf = project_dir.join(path);
