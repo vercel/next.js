@@ -43,8 +43,8 @@
       "inputs": [
         "../../.cargo/**",
         "../../packages/next-swc/crates/**",
-        "**/Cargo.toml",
-        "**/Cargo.lock"
+        "../../**/Cargo.toml",
+        "../../**/Cargo.lock"
       ]
     },
     "test-cargo-unit": {
