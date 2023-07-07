@@ -1945,9 +1945,9 @@ export default async function getBaseWebpackConfig(
                 test: asyncStoragesRegex,
               },
               {
-                // Ensure that the app page module is shared between server and
-                // client layers, this enables React to work correctly for RSC.
-                layer: WEBPACK_LAYERS.shared,
+                // Ensure that the app page module is in the client layers, this
+                // enables React to work correctly for RSC.
+                layer: WEBPACK_LAYERS.client,
                 test: /next[\\/]dist[\\/](esm[\\/])?server[\\/]future[\\/]route-modules[\\/]app-page[\\/]module/,
               },
               {
