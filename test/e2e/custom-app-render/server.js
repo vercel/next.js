@@ -3,7 +3,7 @@ const { parse } = require('url')
 const next = require('next')
 
 async function main() {
-  const dev = global.isNextDev || false
+  const dev = process.env.NEXT_TEST_MODE === 'dev'
   process.env.NODE_ENV = dev ? 'development' : 'production'
 
   const port = parseInt(process.env.PORT, 10) || 3000
