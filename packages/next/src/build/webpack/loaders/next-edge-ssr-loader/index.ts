@@ -155,7 +155,11 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
           ? `import * as userland500Page from ${stringified500Path}`
           : ''
       }
-      const renderToHTML = undefined
+
+      // TODO: re-enable this once we've refactored to use implicit matches
+      // const renderToHTML = undefined
+
+      import { renderToHTML } from 'next/dist/esm/server/render'
       import RouteModule from "next/dist/esm/server/future/route-modules/pages/module"
 
       const pageMod = {
