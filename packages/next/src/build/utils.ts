@@ -15,7 +15,6 @@ import type {
   MiddlewareManifest,
 } from './webpack/plugins/middleware-plugin'
 import type { StaticGenerationAsyncStorage } from '../client/components/static-generation-async-storage'
-import type { RouteModule } from '../server/future/route-modules/route-module'
 
 import '../server/require-hook'
 import '../server/node-polyfill-fetch'
