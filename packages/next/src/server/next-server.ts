@@ -106,7 +106,6 @@ import { removePathPrefix } from '../shared/lib/router/utils/remove-path-prefix'
 import { addPathPrefix } from '../shared/lib/router/utils/add-path-prefix'
 import { pathHasPrefix } from '../shared/lib/router/utils/path-has-prefix'
 import { invokeRequest } from './lib/server-ipc/invoke-request'
-import { filterReqHeaders } from './lib/server-ipc/utils'
 import { createRequestResponseMocks } from './lib/mock-request'
 import chalk from 'next/dist/compiled/chalk'
 import { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
@@ -1509,10 +1508,15 @@ export default class NextNodeServer extends BaseServer {
               }
             }
 
-            for (const [key, value] of Object.entries(
-              filterReqHeaders({ ...invokeRes.headers })
-            )) {
-              if (value !== undefined) {
+            for (const [key, value] of Object.entries({
+              ...invokeRes.headers,
+            })) {
+              if (
+                !['transfer-encoding', 'keep-alive', 'connection'].includes(
+                  key
+                ) &&
+                value !== undefined
+              ) {
                 if (key === 'set-cookie') {
                   const curValue = res.getHeader(key)
                   const newValue: string[] = [] as string[]
