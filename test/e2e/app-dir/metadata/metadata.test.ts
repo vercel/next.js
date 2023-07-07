@@ -577,13 +577,13 @@ createNextDescribe(
 
         const match = createMultiHtmlMatcher($)
         await match('meta', 'property', 'content', {
-          'og:title': 'no-og-img',
+          'og:title': 'no-og-image',
           'og:image': undefined,
         })
 
         await match('meta', 'name', 'content', {
           'twitter:image': undefined,
-          'twitter:title': 'no-tw-img',
+          'twitter:title': 'no-tw-image',
         })
 
         // icon should be overridden
