@@ -69,23 +69,6 @@ impl Asset for WithChunksAsset {
 #[turbo_tasks::value_impl]
 impl ChunkableAsset for WithChunksAsset {
     #[turbo_tasks::function]
-    fn as_chunk(
-        self_vc: WithChunksAssetVc,
-        context: ChunkingContextVc,
-        availability_info: Value<AvailabilityInfo>,
-    ) -> ChunkVc {
-        EcmascriptChunkVc::new(
-            context,
-            self_vc.as_ecmascript_chunk_placeable(),
-            availability_info,
-        )
-        .into()
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl EcmascriptChunkPlaceable for WithChunksAsset {
-    #[turbo_tasks::function]
     async fn as_chunk_item(
         self_vc: WithChunksAssetVc,
         context: EcmascriptChunkingContextVc,
@@ -96,12 +79,6 @@ impl EcmascriptChunkPlaceable for WithChunksAsset {
         }
         .cell()
         .into())
-    }
-
-    #[turbo_tasks::function]
-    fn get_exports(&self) -> EcmascriptExportsVc {
-        // TODO This should be EsmExports
-        EcmascriptExports::Value.cell()
     }
 }
 
@@ -191,6 +168,12 @@ impl EcmascriptChunkItem for WithChunksChunkItem {
         }
         .cell())
     }
+
+    #[turbo_tasks::function]
+    fn get_exports(&self) -> EcmascriptExportsVc {
+        // TODO This should be EsmExports
+        EcmascriptExports::Value.cell()
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -209,5 +192,10 @@ impl ChunkItem for WithChunksChunkItem {
         }
 
         Ok(AssetReferencesVc::cell(references))
+    }
+
+    #[turbo_tasks::function]
+    fn chunk_type(&self) -> ChunkTypeVc {
+        EcmascriptChunkTypeVc::new().into()
     }
 }

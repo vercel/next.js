@@ -49,18 +49,6 @@ impl Asset for InChunkingContextAsset {
 #[turbo_tasks::value_impl]
 impl ChunkableAsset for InChunkingContextAsset {
     #[turbo_tasks::function]
-    fn as_chunk(
-        &self,
-        _context: ChunkingContextVc,
-        availability_info: Value<AvailabilityInfo>,
-    ) -> ChunkVc {
-        EcmascriptChunkVc::new(self.chunking_context, self.asset, availability_info).into()
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl EcmascriptChunkPlaceable for InChunkingContextAsset {
-    #[turbo_tasks::function]
     async fn as_chunk_item(
         &self,
         _context: EcmascriptChunkingContextVc,
@@ -69,10 +57,5 @@ impl EcmascriptChunkPlaceable for InChunkingContextAsset {
             bail!("chunking context is not an EcmascriptChunkingContext")
         };
         Ok(self.asset.as_chunk_item(chunking_context))
-    }
-
-    #[turbo_tasks::function]
-    fn get_exports(&self) -> EcmascriptExportsVc {
-        self.asset.get_exports()
     }
 }

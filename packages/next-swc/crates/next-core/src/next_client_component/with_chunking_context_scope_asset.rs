@@ -24,7 +24,7 @@ fn modifier() -> StringVc {
 
 #[turbo_tasks::value(shared)]
 pub struct WithChunkingContextScopeAsset {
-    pub asset: EcmascriptChunkPlaceableVc,
+    pub asset: ChunkableAssetVc,
     pub layer: String,
 }
 
@@ -49,39 +49,10 @@ impl Asset for WithChunkingContextScopeAsset {
 #[turbo_tasks::value_impl]
 impl ChunkableAsset for WithChunkingContextScopeAsset {
     #[turbo_tasks::function]
-    fn as_chunk(
-        &self,
-        context: ChunkingContextVc,
-        availability_info: Value<AvailabilityInfo>,
-    ) -> ChunkVc {
-        EcmascriptChunkVc::new(
-            context.with_layer(&self.layer),
-            self.asset,
-            availability_info,
-        )
-        .into()
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl EcmascriptChunkPlaceable for WithChunkingContextScopeAsset {
-    #[turbo_tasks::function]
     async fn as_chunk_item(
         &self,
         context: EcmascriptChunkingContextVc,
     ) -> Result<EcmascriptChunkItemVc> {
-        Ok(self.asset.as_chunk_item(
-            EcmascriptChunkingContextVc::resolve_from(context.with_layer(&self.layer))
-                .await?
-                .context(
-                    "ChunkingContextVc::with_layer should not return a different kind of chunking \
-                     context",
-                )?,
-        ))
-    }
-
-    #[turbo_tasks::function]
-    fn get_exports(&self) -> EcmascriptExportsVc {
-        self.asset.get_exports()
+        Ok(self.asset.as_chunk_item(context.with_layer(&self.layer)))
     }
 }

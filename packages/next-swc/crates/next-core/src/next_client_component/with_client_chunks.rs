@@ -68,50 +68,22 @@ impl Asset for WithClientChunksAsset {
 #[turbo_tasks::value_impl]
 impl ChunkableAsset for WithClientChunksAsset {
     #[turbo_tasks::function]
-    fn as_chunk(
-        self_vc: WithClientChunksAssetVc,
-        context: ChunkingContextVc,
-        availability_info: Value<AvailabilityInfo>,
-    ) -> ChunkVc {
-        EcmascriptChunkVc::new(
-            context.with_layer("rsc"),
-            self_vc.as_ecmascript_chunk_placeable(),
-            availability_info,
-        )
-        .into()
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl EcmascriptChunkPlaceable for WithClientChunksAsset {
-    #[turbo_tasks::function]
     async fn as_chunk_item(
         self_vc: WithClientChunksAssetVc,
         context: EcmascriptChunkingContextVc,
     ) -> Result<EcmascriptChunkItemVc> {
         Ok(WithClientChunksChunkItem {
-            context: EcmascriptChunkingContextVc::resolve_from(context.with_layer("rsc"))
-                .await?
-                .context(
-                    "ChunkingContextVc::with_layer should not return a different kind of chunking \
-                     context",
-                )?,
+            context: context.with_layer("rsc"),
             inner: self_vc,
         }
         .cell()
         .into())
     }
-
-    #[turbo_tasks::function]
-    fn get_exports(&self) -> EcmascriptExportsVc {
-        // TODO This should be EsmExports
-        EcmascriptExports::Value.cell()
-    }
 }
 
 #[turbo_tasks::value]
 struct WithClientChunksChunkItem {
-    context: EcmascriptChunkingContextVc,
+    context: ChunkingContextVc,
     inner: WithClientChunksAssetVc,
 }
 
@@ -198,6 +170,12 @@ impl EcmascriptChunkItem for WithClientChunksChunkItem {
         }
         .cell())
     }
+
+    #[turbo_tasks::function]
+    fn get_exports(&self) -> EcmascriptExportsVc {
+        // TODO This should be EsmExports
+        EcmascriptExports::Value.cell()
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -229,6 +207,11 @@ impl ChunkItem for WithClientChunksChunkItem {
             references.extend(chunk_data.references().await?.iter().copied());
         }
         Ok(AssetReferencesVc::cell(references))
+    }
+
+    #[turbo_tasks::function]
+    fn chunk_type(&self) -> ChunkTypeVc {
+        EcmascriptChunkTypeVc::new().into()
     }
 }
 
