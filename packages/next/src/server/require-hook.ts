@@ -39,7 +39,9 @@ function mapReactRequest(request: string) {
       process.env.__NEXT_PRIVATE_PREBUNDLED_REACT === 'experimental'
         ? `${packageName}-experimental`
         : packageName
-    const mapped = `next/dist/compiled/${aliasedPackage}${packagePath}`
+    const mapped = require.resolve(
+      `next/dist/compiled/${aliasedPackage}${packagePath}`
+    )
 
     // Cache the resolved request for future lookups
     hookPropertyMap.set(request, mapped)
