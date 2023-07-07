@@ -6,7 +6,7 @@ use turbopack_binding::{
     },
     turbopack::{
         core::{
-            chunk::ChunkableAssetVc,
+            chunk::{ChunkableAssetVc, ChunkingContextVc},
             compile_time_defines,
             compile_time_info::{
                 CompileTimeDefines, CompileTimeDefinesVc, CompileTimeInfo, CompileTimeInfoVc,
@@ -18,7 +18,7 @@ use turbopack_binding::{
             resolve::{origin::PlainResolveOriginVc, parse::RequestVc},
             source_asset::SourceAssetVc,
         },
-        dev::react_refresh::assert_can_resolve_react_refresh,
+        dev::{react_refresh::assert_can_resolve_react_refresh, DevChunkingContextVc},
         dev_server::{
             html::DevHtmlAssetVc,
             source::{asset_graph::AssetGraphContentSourceVc, ContentSourceVc},
@@ -108,6 +108,28 @@ async fn get_web_runtime_entries(
     Ok(RuntimeEntriesVc::cell(runtime_entries))
 }
 
+// This is different from `get_client_chunking_context` as we need the assets
+// to be available under a different root, otherwise we can run into conflicts.
+// We don't want to have `get_client_chunking_context` depend on the
+// `ClientContextType` as it's only relevant in this case, and would otherwise
+// create new dev chunking contexts for no reason.
+#[turbo_tasks::function]
+fn get_web_client_chunking_context(
+    project_path: FileSystemPathVc,
+    client_root: FileSystemPathVc,
+    environment: EnvironmentVc,
+) -> ChunkingContextVc {
+    DevChunkingContextVc::builder(
+        project_path,
+        client_root,
+        client_root.join("/_static/chunks"),
+        client_root.join("/_media"),
+        environment,
+    )
+    .hot_module_replacement()
+    .build()
+}
+
 #[turbo_tasks::function]
 pub async fn create_web_entry_source(
     project_root: FileSystemPathVc,
@@ -130,7 +152,7 @@ pub async fn create_web_entry_source(
         next_config,
     );
     let chunking_context =
-        get_client_chunking_context(project_root, client_root, compile_time_info.environment());
+        get_web_client_chunking_context(project_root, client_root, compile_time_info.environment());
     let entries = get_web_runtime_entries(project_root, ty, mode, next_config, execution_context);
 
     let runtime_entries = entries.resolve_entries(context);
