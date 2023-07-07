@@ -13,6 +13,7 @@ use turbopack_binding::{
                 ChunkingTypeOptionVc, ChunksDataVc,
             },
             ident::AssetIdentVc,
+            module::{Module, ModuleVc},
             proxied_asset::ProxiedAssetVc,
             reference::{
                 AssetReference, AssetReferenceVc, AssetReferencesVc, SingleAssetReferenceVc,
@@ -64,6 +65,9 @@ impl Asset for WithClientChunksAsset {
         .into()])
     }
 }
+
+#[turbo_tasks::value_impl]
+impl Module for WithClientChunksAsset {}
 
 #[turbo_tasks::value_impl]
 impl ChunkableAsset for WithClientChunksAsset {

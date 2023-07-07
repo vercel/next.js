@@ -16,6 +16,7 @@ use turbopack_binding::{
                 ChunkingContextVc, ChunksDataVc,
             },
             ident::AssetIdentVc,
+            module::{Module, ModuleVc},
             reference::AssetReferencesVc,
         },
         ecmascript::{
@@ -65,6 +66,9 @@ impl Asset for WithChunksAsset {
         .into()]))
     }
 }
+
+#[turbo_tasks::value_impl]
+impl Module for WithChunksAsset {}
 
 #[turbo_tasks::value_impl]
 impl ChunkableAsset for WithChunksAsset {

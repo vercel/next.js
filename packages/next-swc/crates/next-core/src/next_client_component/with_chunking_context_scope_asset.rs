@@ -8,6 +8,7 @@ use turbopack_binding::turbopack::{
             ChunkingContext, ChunkingContextVc,
         },
         ident::AssetIdentVc,
+        module::{Module, ModuleVc},
         reference::AssetReferencesVc,
     },
     ecmascript::chunk::EcmascriptChunkingContextVc,
@@ -45,6 +46,9 @@ impl Asset for WithChunkingContextScopeAsset {
         self.asset.references()
     }
 }
+
+#[turbo_tasks::value_impl]
+impl Module for WithChunkingContextScopeAsset {}
 
 #[turbo_tasks::value_impl]
 impl ChunkableAsset for WithChunkingContextScopeAsset {
