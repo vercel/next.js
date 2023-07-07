@@ -1,5 +1,0 @@
-{
-  "browser": {
-    "./node.js": "./browser.js"
-  }
-}
