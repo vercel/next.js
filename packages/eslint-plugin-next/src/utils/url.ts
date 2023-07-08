@@ -1,5 +1,6 @@
 import * as path from 'path'
 import * as fs from 'fs'
+import { normalizeAppPath } from '../../../next/src/shared/lib/router/utils/app-paths'
 
 // Cache for fs.lstatSync lookup.
 // Prevent multiple blocking IO requests that have already been calculated.
@@ -75,7 +76,7 @@ function parseUrlForAppDir(urlprefix: string, directory: string) {
       }
     }
   })
-  return res
+  return res.map((route) => normalizeAppPath(route))
 }
 
 /**
