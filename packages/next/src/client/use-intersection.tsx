@@ -23,8 +23,6 @@ type Observer = {
   elements: Map<Element, ObserveCallback>
 }
 
-const hasIntersectionObserver = typeof IntersectionObserver === 'function'
-
 const observers = new Map<Identifier, Observer>()
 const idList: Identifier[] = []
 
@@ -98,8 +96,6 @@ export function useIntersection<T extends Element>({
   rootMargin,
   disabled,
 }: UseIntersection): [(element: T | null) => void, boolean, () => void] {
-  const isDisabled: boolean = disabled || !hasIntersectionObserver
-
   const [visible, setVisible] = useState(false)
   const unobserveRef = useRef<() => void>()
 
@@ -109,8 +105,8 @@ export function useIntersection<T extends Element>({
         unobserveRef.current()
         unobserveRef.current = undefined
       }
-      if (hasIntersectionObserver) {
-        if (isDisabled || visible) return
+      if (typeof IntersectionObserver === 'function') {
+        if (disabled || visible) return
 
         if (element && element.tagName) {
           unobserveRef.current = observe(
@@ -126,7 +122,7 @@ export function useIntersection<T extends Element>({
         }
       }
     },
-    [isDisabled, rootMargin, rootRef, visible]
+    [disabled, rootMargin, rootRef, visible]
   )
 
   useEffect(() => {
