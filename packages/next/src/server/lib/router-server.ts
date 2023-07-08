@@ -47,7 +47,7 @@ export type RenderWorker = InstanceType<
   deleteCache: typeof import('./render-server').deleteCache
   deleteAppClientCache: typeof import('./render-server').deleteAppClientCache
   clearModuleContext: typeof import('./render-server').clearModuleContext
-  propagateAppField: typeof import('./render-server').propagateAppField
+  propagateServerField: typeof import('./render-server').propagateServerField
 }
 
 export async function initialize(opts: {
@@ -117,6 +117,7 @@ export async function initialize(opts: {
     minimalMode: opts.minimalMode,
     dev: !!opts.dev,
     isNodeDebugging: !!opts.isNodeDebugging,
+    serverFields: devInstance?.serverFields || {}
   }
   const renderWorkers: {
     app?: RenderWorker
@@ -193,6 +194,10 @@ export async function initialize(opts: {
     opts.isNodeDebugging,
     'pages'
   )
+  
+  // pre-initialize workers
+  await renderWorkers.app?.initialize(renderWorkerOpts)
+  await renderWorkers.pages?.initialize(renderWorkerOpts)
 
   if (devInstance) {
     Object.assign(devInstance.renderWorkers, renderWorkers)
@@ -250,7 +255,8 @@ export async function initialize(opts: {
     config,
     opts,
     renderWorkers,
-    renderWorkerOpts
+    renderWorkerOpts,
+    devInstance?.ensureMiddleware
   )
 
   function writeResponseChunk(res: ServerResponse, chunk: Buffer) {
@@ -271,19 +277,6 @@ export async function initialize(opts: {
       // TODO: log socket errors?
     })
 
-    if (devInstance) {
-      const origUrl = req.url || '/'
-
-      if (config.basePath && pathHasPrefix(origUrl, config.basePath)) {
-        req.url = removePathPrefix(origUrl, config.basePath)
-      }
-      const result = await devInstance.requestHandler(req, res)
-
-      if (result.finished) {
-        return
-      }
-      req.url = origUrl
-    }
     const matchedDynamicRoutes = new Set<string>()
 
     async function invokeRender(
@@ -308,7 +301,7 @@ export async function initialize(opts: {
 
       if (
         req.headers['x-nextjs-data'] &&
-        fsChecker.getMiddlewareMatchers().length &&
+        fsChecker.getMiddlewareMatchers()?.length &&
         removePathPrefix(invokePath, config.basePath) === '/404'
       ) {
         res.setHeader('x-nextjs-matched-path', parsedUrl.pathname || '')
@@ -324,14 +317,6 @@ export async function initialize(opts: {
 
       const curWorker = renderWorkers[type]
       const workerResult = await curWorker?.initialize(renderWorkerOpts)
-
-      if (devInstance) {
-        await curWorker?.propagateAppField(
-          'appPathRoutes',
-          devInstance.appPathRoutes
-        )
-        await curWorker?.propagateAppField('middleware', devInstance.middleware)
-      }
 
       if (!workerResult) {
         throw new Error(`Failed to initialize render worker ${type}`)
@@ -409,6 +394,23 @@ export async function initialize(opts: {
       if (handleIndex > 5) {
         throw new Error(`Attempted to handle request too many times ${req.url}`)
       }
+      
+      // handle hot-reloader first
+      if (devInstance) {
+        const origUrl = req.url || '/'
+
+        if (config.basePath && pathHasPrefix(origUrl, config.basePath)) {
+          req.url = removePathPrefix(origUrl, config.basePath)
+        }
+        const parsedUrl = url.parse(req.url || '/')
+
+        const hotReloaderResult = await devInstance.hotReloader.run(req, res, parsedUrl)
+
+        if (hotReloaderResult.finished) {
+          return hotReloaderResult
+        }
+        req.url = origUrl
+      }
 
       const {
         finished,
@@ -419,10 +421,32 @@ export async function initialize(opts: {
         matchedOutput,
       } = await resolveRoutes(req, matchedDynamicRoutes, false)
 
+      if (devInstance && matchedOutput?.type === 'devVirtualFsItem') {
+        const origUrl = req.url || '/'
+
+        if (config.basePath && pathHasPrefix(origUrl, config.basePath)) {
+          req.url = removePathPrefix(origUrl, config.basePath)
+        }
+
+        if (resHeaders) {
+          for (const key of Object.keys(resHeaders)) {
+            res.setHeader(key, resHeaders[key])
+          }
+        }
+        const result = await devInstance.requestHandler(req, res)
+
+        if (result.finished) {
+          return
+        }
+        // TODO: throw invariant if we resolved to this but it wasn't handled?
+        req.url = origUrl
+      }
+
       debug('requestHandler!', req.url, {
         matchedOutput,
         statusCode,
         resHeaders,
+        bodyStream: !!bodyStream,
         parsedUrl: {
           pathname: parsedUrl.pathname,
           query: parsedUrl.query,

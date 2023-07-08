@@ -63,6 +63,7 @@ import LRUCache from 'next/dist/compiled/lru-cache'
 import { NextUrlWithParsedQuery } from '../request-meta'
 import { deserializeErr, errorToJSON } from '../render'
 import { invokeRequest } from '../lib/server-ipc/invoke-request'
+import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: FunctionComponent
@@ -609,6 +610,13 @@ export default class DevServer extends Server {
   }
 
   protected getMiddleware() {
+    // We need to populate the match
+    // field as it isn't serializable
+    if (this.middleware?.match === null) {
+      this.middleware.match = getMiddlewareRouteMatcher(
+        this.middleware.matchers || []
+      )
+    }
     return this.middleware
   }
 

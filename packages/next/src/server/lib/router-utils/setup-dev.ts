@@ -130,14 +130,23 @@ async function startWatcher(opts: SetupOpts) {
 
   let resolved = false
   let prevSortedRoutes: string[] = []
-  let appPathRoutes: Record<string, string | string[]> = {}
-  let middleware:
-    | {
-        page: string
-        match: MiddlewareRouteMatch
-        matchers?: MiddlewareMatcher[]
-      }
-    | undefined
+
+  const serverFields: {
+    actualMiddlewareFile?: string | undefined
+    appPathRoutes?: Record<string, string | string[]>
+    middleware?:
+      | {
+          page: string
+          match: MiddlewareRouteMatch
+          matchers?: MiddlewareMatcher[]
+        }
+      | undefined
+  } = {}
+
+  async function propagateToWorkers(field: string, args: any) {
+    await renderWorkers.app?.propagateServerField(field, args)
+    await renderWorkers.pages?.propagateServerField(field, args)
+  }
 
   await new Promise<void>(async (resolve, reject) => {
     if (pagesDir) {
@@ -287,8 +296,11 @@ async function startWatcher(opts: SetupOpts) {
             )
             continue
           }
-          // TODO: propagate this to next-dev-server
-          // this.actualMiddlewareFile = rootFile
+          serverFields.actualMiddlewareFile = rootFile
+          await propagateToWorkers(
+            'actualMiddlewareFile',
+            serverFields.actualMiddlewareFile
+          )
           middlewareMatchers = staticInfo.middleware?.matchers || [
             { regexp: '.*', originalSource: '/:path*' },
           ]
@@ -298,8 +310,11 @@ async function startWatcher(opts: SetupOpts) {
           isInstrumentationHookFile(rootFile) &&
           nextConfig.experimental.instrumentationHook
         ) {
-          // TODO: propagate this to next-dev-server
-          // this.actualInstrumentationHookFile = rootFile
+          let actualInstrumentationHookFile = rootFile
+          await propagateToWorkers(
+            'actualInstrumentationHookFile',
+            actualInstrumentationHookFile
+          )
           continue
         }
 
@@ -396,10 +411,7 @@ async function startWatcher(opts: SetupOpts) {
           hotReloader.setHmrServerError(new Error(errorMessage))
         } else if (numConflicting === 0) {
           hotReloader.clearHmrServerError()
-          await renderWorkers.app?.propagateAppField(
-            'matchers.reload',
-            undefined
-          )
+          await propagateToWorkers('matchers.reload', undefined)
         }
       }
 
@@ -540,21 +552,21 @@ async function startWatcher(opts: SetupOpts) {
       }
 
       // Make sure to sort parallel routes to make the result deterministic.
-      appPathRoutes = Object.fromEntries(
+      serverFields.appPathRoutes = Object.fromEntries(
         Object.entries(appPaths).map(([k, v]) => [k, v.sort()])
       )
-      await renderWorkers.app?.propagateAppField('appPathRoutes', appPathRoutes)
+      await propagateToWorkers('appPathRoutes', serverFields.appPathRoutes)
 
       // TODO: pass this to fsChecker/next-dev-server?
-      middleware = middlewareMatchers
+      serverFields.middleware = middlewareMatchers
         ? {
-            match: getMiddlewareRouteMatcher(middlewareMatchers),
+            match: null as any,
             page: '/',
             matchers: middlewareMatchers,
           }
         : undefined
 
-      await renderWorkers.app?.propagateAppField('middleware', middleware)
+      await propagateToWorkers('middleware', serverFields.middleware)
 
       try {
         // we serve a separate manifest with all pages for the client in
@@ -618,24 +630,25 @@ async function startWatcher(opts: SetupOpts) {
       } finally {
         // Reload the matchers. The filesystem would have been written to,
         // and the matchers need to re-scan it to update the router.
-        await renderWorkers.app?.propagateAppField('matchers.reload', undefined)
+        await propagateToWorkers('middleware.reload', undefined)
       }
     })
   })
 
+  opts.fsChecker.middlewareMatcher = serverFields.middleware?.matchers
+    ? getMiddlewareRouteMatcher(serverFields.middleware?.matchers)
+    : undefined
+
+  const clientPagesManifestPath = `/_next/${CLIENT_STATIC_FILES_PATH}/development/${DEV_CLIENT_PAGES_MANIFEST}`
+  opts.fsChecker.devVirtualFsItems.add(clientPagesManifestPath)
+
+  const devMiddlewareManifestPath = `/_next/${CLIENT_STATIC_FILES_PATH}/development/${DEV_MIDDLEWARE_MANIFEST}`
+  opts.fsChecker.devVirtualFsItems.add(devMiddlewareManifestPath)
+
   async function requestHandler(req: IncomingMessage, res: ServerResponse) {
     const parsedUrl = url.parse(req.url || '/')
 
-    const hotReloaderResult = await hotReloader.run(req, res, parsedUrl)
-
-    if (hotReloaderResult.finished) {
-      return hotReloaderResult
-    }
-
-    if (
-      parsedUrl.pathname ===
-      `/_next/${CLIENT_STATIC_FILES_PATH}/development/${DEV_CLIENT_PAGES_MANIFEST}`
-    ) {
+    if (parsedUrl.pathname === clientPagesManifestPath) {
       res.statusCode = 200
       res.setHeader('Content-Type', 'application/json; charset=utf-8')
       res.end(
@@ -648,13 +661,10 @@ async function startWatcher(opts: SetupOpts) {
       return { finished: true }
     }
 
-    if (
-      parsedUrl.pathname ===
-      `/_next/${CLIENT_STATIC_FILES_PATH}/development/${DEV_MIDDLEWARE_MANIFEST}`
-    ) {
+    if (parsedUrl.pathname === devMiddlewareManifestPath) {
       res.statusCode = 200
       res.setHeader('Content-Type', 'application/json; charset=utf-8')
-      res.end(JSON.stringify(middleware?.matchers || []))
+      res.end(JSON.stringify(serverFields.middleware?.matchers || []))
       return { finished: true }
     }
     return { finished: false }
@@ -765,13 +775,20 @@ async function startWatcher(opts: SetupOpts) {
   }
 
   return {
-    middleware,
-    appPathRoutes,
+    serverFields,
 
     hotReloader,
     renderWorkers,
     requestHandler,
     logErrorWithOriginalStack,
+
+    async ensureMiddleware() {
+      if (!serverFields.actualMiddlewareFile) return
+      return hotReloader.ensurePage({
+        page: serverFields.actualMiddlewareFile,
+        clientOnly: false,
+      })
+    },
   }
 }
 

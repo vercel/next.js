@@ -6,6 +6,7 @@ import type { NextConfigComplete } from '../../config-shared'
 import url from 'url'
 import { Redirect } from '../../../../types'
 import { RenderWorker } from '../router-server'
+import setupDebug from 'next/dist/compiled/debug'
 import { getCloneableBody } from '../../body-streams'
 import { filterReqHeaders } from '../server-ipc/utils'
 import { Header } from '../../../lib/load-custom-routes'
@@ -35,6 +36,8 @@ import {
   prepareDestination,
 } from '../../../shared/lib/router/utils/prepare-destination'
 
+const debug = setupDebug('next:router-server:resolve-routes')
+
 export function getResolveRoutes(
   fsChecker: UnwrapPromise<
     ReturnType<typeof import('./filesystem').setupFsCheck>
@@ -45,7 +48,8 @@ export function getResolveRoutes(
     app?: RenderWorker
     pages?: RenderWorker
   },
-  renderWorkerOpts: Parameters<RenderWorker['initialize']>[0]
+  renderWorkerOpts: Parameters<RenderWorker['initialize']>[0],
+  ensureMiddleware?: () => Promise<void>
 ) {
   const routes: ({
     match: ReturnType<typeof getPathMatch>
@@ -194,7 +198,7 @@ export function getResolveRoutes(
       let curPathname = parsedUrl.pathname
 
       if (config.basePath) {
-        if (!curPathname?.startsWith(config.basePath)) {
+        if (!pathHasPrefix(curPathname || '', config.basePath)) {
           return
         }
         curPathname = curPathname?.substring(config.basePath.length) || '/'
@@ -273,7 +277,7 @@ export function getResolveRoutes(
 
       if (params) {
         if (route.name === 'middleware_next_data') {
-          if (fsChecker.getMiddlewareMatchers().length) {
+          if (fsChecker.getMiddlewareMatchers()?.length) {
             const nextDataPrefix = addPathPrefix(
               `/_next/data/${fsChecker.buildId}/`,
               config.basePath
@@ -319,9 +323,10 @@ export function getResolveRoutes(
 
         if (!opts.minimalMode && route.name === 'middleware') {
           const match = fsChecker.getMiddlewareMatchers()
-
           // @ts-expect-error BaseNextRequest stuff
-          if (match(parsedUrl.pathname, req, parsedUrl.query)) {
+          if (match?.(parsedUrl.pathname, req, parsedUrl.query)) {
+            await ensureMiddleware?.()
+
             const workerResult = await (
               renderWorkers.app || renderWorkers.pages
             )?.initialize(renderWorkerOpts)
@@ -329,8 +334,18 @@ export function getResolveRoutes(
             if (!workerResult) {
               throw new Error(`Failed to initialize render worker "middleware"`)
             }
+            const stringifiedQuery = stringifyQuery(
+              req as any,
+              getRequestMeta(req, '__NEXT_INIT_QUERY') || {}
+            )
 
-            const renderUrl = `http://${workerResult.hostname}:${workerResult.port}${req.url}`
+            const curUrl = config.skipMiddlewareUrlNormalize
+              ? getRequestMeta(params.request, '__NEXT_INIT_URL') || ''
+              : `${parsedUrl.pathname}${stringifiedQuery ? '?' : ''}${
+                  stringifiedQuery || ''
+                }`
+
+            const renderUrl = `http://${workerResult.hostname}:${workerResult.port}${curUrl}`
 
             const invokeHeaders: typeof req.headers = {
               ...req.headers,
@@ -338,6 +353,9 @@ export function getResolveRoutes(
               'x-invoke-query': '',
               'x-middleware-invoke': '1',
             }
+
+            debug('invoking middleware', renderUrl, invokeHeaders)
+
             const middlewareRes = await invokeRequest(
               renderUrl,
               {
@@ -345,6 +363,12 @@ export function getResolveRoutes(
                 method: req.method,
               },
               getRequestMeta(req, '__NEXT_CLONABLE_BODY')?.cloneBodyStream()
+            )
+
+            debug(
+              'middleware res',
+              middlewareRes.statusCode,
+              middlewareRes.headers
             )
 
             if (middlewareRes.headers['x-middleware-override-headers']) {
@@ -399,12 +423,16 @@ export function getResolveRoutes(
                   'x-middleware-rewrite',
                   'x-middleware-redirect',
                   'x-middleware-refresh',
+                  'x-middleware-invoke',
+                  'x-invoke-path',
+                  'x-invoke-query',
                 ].includes(key)
               ) {
                 continue
               }
               if (value) {
                 resHeaders[key] = value
+                req.headers[key] = value
               }
             }
 

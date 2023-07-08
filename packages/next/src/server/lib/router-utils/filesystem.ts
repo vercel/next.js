@@ -10,16 +10,18 @@ import LRUCache from 'next/dist/compiled/lru-cache'
 import loadCustomRoutes from '../../../lib/load-custom-routes'
 import { modifyRouteRegex } from '../../../lib/redirect-status'
 import { UnwrapPromise } from '../../../lib/coalesced-function'
+import { FileType, fileExists } from '../../../lib/file-exists'
 import { recursiveReadDir } from '../../../lib/recursive-readdir'
 import { isDynamicRoute } from '../../../shared/lib/router/utils'
 import { escapeStringRegexp } from '../../../shared/lib/escape-regexp'
 import { getPathMatch } from '../../../shared/lib/router/utils/path-match'
 import { getRouteRegex } from '../../../shared/lib/router/utils/route-regex'
 import { getRouteMatcher } from '../../../shared/lib/router/utils/route-matcher'
+import { pathHasPrefix } from '../../../shared/lib/router/utils/path-has-prefix'
 import { normalizeLocalePath } from '../../../shared/lib/i18n/normalize-locale-path'
+import { removePathPrefix } from '../../../shared/lib/router/utils/remove-path-prefix'
 import { denormalizePagePath } from '../../../shared/lib/page-path/denormalize-page-path'
-import { getMiddlewareRouteMatcher } from '../../../shared/lib/router/utils/middleware-route-matcher'
-import { FileType, fileExists } from '../../../lib/file-exists'
+import { MiddlewareRouteMatch, getMiddlewareRouteMatcher } from '../../../shared/lib/router/utils/middleware-route-matcher'
 
 import {
   APP_PATH_ROUTES_MANIFEST,
@@ -38,6 +40,7 @@ export type FsOutput = {
     | 'publicFolder'
     | 'nextStaticFolder'
     | 'legacyStaticFolder'
+    | 'devVirtualFsItem'
 
   itemPath: string
   fsPath?: string
@@ -80,8 +83,9 @@ export async function setupFsCheck(opts: {
     match: ReturnType<typeof getPathMatch>
   })[] = []
 
-  let middlewareMatcher: ReturnType<typeof getMiddlewareRouteMatcher> = () =>
-    false
+  let middlewareMatcher:
+    | ReturnType<typeof getMiddlewareRouteMatcher>
+    | undefined = () => false
 
   const distDir = path.join(opts.dir, opts.config.distDir)
   const publicFolderPath = path.join(opts.dir, 'public')
@@ -336,7 +340,10 @@ export async function setupFsCheck(opts: {
     dynamicRoutes,
     nextDataRoutes,
 
+    devVirtualFsItems: new Set<string>(),
+
     prerenderManifest,
+    middlewareMatcher: middlewareMatcher as MiddlewareRouteMatch | undefined,
 
     ensureCallback(fn: typeof ensureFn) {
       ensureFn = fn
@@ -358,10 +365,10 @@ export async function setupFsCheck(opts: {
 
       const { basePath } = opts.config
 
-      if (basePath && !itemPath.startsWith(basePath)) {
+      if (basePath && !pathHasPrefix(itemPath, basePath)) {
         return null
       }
-      itemPath = itemPath.substring(basePath.length) || '/'
+      itemPath = removePathPrefix(itemPath, basePath) || '/'
 
       if (itemPath !== '/' && itemPath.endsWith('/')) {
         itemPath = itemPath.substring(0, itemPath.length - 1)
@@ -379,7 +386,9 @@ export async function setupFsCheck(opts: {
           type: 'nextImage',
         }
       }
+
       const itemsToCheck: Array<[Set<string>, FsOutput['type']]> = [
+        [this.devVirtualFsItems, 'devVirtualFsItem'],
         [nextStaticFolderItems, 'nextStaticFolder'],
         [legacyStaticFolderItems, 'legacyStaticFolder'],
         [publicFolderItems, 'publicFolder'],
@@ -481,19 +490,32 @@ export async function setupFsCheck(opts: {
 
           // dynamically check fs in development so we don't
           // have to wait on the watcher
-          if (
-            !matchedItem &&
-            opts.dev &&
-            (!(
+          if (!matchedItem && opts.dev) {
+            const isStaticAsset = (
               [
                 'nextStaticFolder',
                 'publicFolder',
                 'legacyStaticFolder',
               ] as (typeof type)[]
-            ).includes(type) ||
-              (fsPath && !(await fileExists(fsPath, FileType.File))))
-          ) {
-            continue
+            ).includes(type)
+
+            if (isStaticAsset) {
+              if (fsPath && !(await fileExists(fsPath, FileType.File))) {
+                continue
+              }
+            } else if (type === 'pageFile' || type === 'appFile') {
+              if (
+                ensureFn &&
+                (await ensureFn({
+                  type,
+                  itemPath: curItemPath,
+                })?.catch(() => 'ENSURE_FAILED')) === 'ENSURE_FAILED'
+              ) {
+                continue
+              }
+            } else {
+              continue
+            }
           }
 
           const itemResult = {
@@ -501,10 +523,6 @@ export async function setupFsCheck(opts: {
             fsPath,
             locale,
             itemPath: curItemPath,
-          }
-
-          if (ensureFn) {
-            await ensureFn(itemResult)?.catch(() => {})
           }
 
           if (!opts.dev) {
@@ -524,7 +542,7 @@ export async function setupFsCheck(opts: {
       return this.dynamicRoutes
     },
     getMiddlewareMatchers() {
-      return middlewareMatcher
+      return this.middlewareMatcher
     },
   }
 }

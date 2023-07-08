@@ -1,4 +1,4 @@
-import path from 'path'
+import path from '../../../lib/isomorphic/path'
 import { normalizePagePath } from '../../page-path/normalize-page-path'
 import { isDynamicRoute } from './is-dynamic'
 import { getNamedRouteRegex } from './route-regex'

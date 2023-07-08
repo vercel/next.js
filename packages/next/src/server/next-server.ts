@@ -989,7 +989,7 @@ export default class NextNodeServer extends BaseServer {
       return {
         finished: true,
       }
-    } catch (err: unknown) {
+    } catch (err: any) {
       if (err instanceof NoFallbackError && bubbleNoFallback) {
         if (this.isRenderWorker) {
           res.setHeader('x-no-fallback', '1')
@@ -1005,7 +1005,8 @@ export default class NextNodeServer extends BaseServer {
       }
 
       try {
-        await this.renderError(err as Error, req, res, pathname, query)
+        this.logError(err)
+        await this.renderError(err, req, res, pathname, query)
         return {
           finished: true,
         }

@@ -130,14 +130,14 @@ export const createWorker = async (
       'deleteCache',
       'deleteAppClientCache',
       'clearModuleContext',
-      'propagateAppField',
+      'propagateServerField',
     ],
   }) as any as InstanceType<typeof Worker> & {
     initialize: typeof import('../render-server').initialize
     deleteCache: typeof import('../render-server').deleteCache
     deleteAppClientCache: typeof import('../render-server').deleteAppClientCache
     clearModuleContext: typeof import('../render-server').clearModuleContext
-    propagateAppField: typeof import('../render-server').propagateAppField
+    propagateServerField: typeof import('../render-server').propagateServerField
   }
 
   worker.getStderr().pipe(process.stderr)

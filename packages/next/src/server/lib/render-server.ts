@@ -1,4 +1,5 @@
 import type { RequestHandler } from '../next'
+import type { UnwrapPromise } from '../../lib/coalesced-function'
 
 // this must come first as it includes require hooks
 import { initializeServerWorker } from './setup-server-worker'
@@ -37,23 +38,29 @@ export function deleteCache(filePath: string) {
   requireCacheHotReloader?.deleteCache(filePath)
 }
 
-export async function propagateAppField(field: string, value: any) {
-  if (!app) return console.log('cant propagate no app')
+export async function propagateServerField(field: string, value: any) {
+  if (!app) {
+    throw new Error('Invariant cant propagate server field, no app initialized')
+  }
   let appField = (app as any).server
 
   if (field.includes('.')) {
     const parts = field.split('.')
 
     for (let i = 0; i < parts.length - 1; i++) {
-      appField = appField[parts[i]]
+      if (appField) {
+        appField = appField[parts[i]]
+      }
     }
     field = parts[parts.length - 1]
   }
 
-  if (typeof appField[field] === 'function') {
-    appField[field].apply(app, Array.isArray(value) ? value : [])
-  } else {
-    appField[field] = value
+  if (appField) {
+    if (typeof appField[field] === 'function') {
+      appField[field].apply(app, Array.isArray(value) ? value : [])
+    } else {
+      appField[field] = value
+    }
   }
 }
 
@@ -66,6 +73,9 @@ export async function initialize(opts: {
   workerType: 'router' | 'render'
   isNodeDebugging: boolean
   keepAliveTimeout?: number
+  serverFields?: UnwrapPromise<
+    ReturnType<typeof import('./router-utils/setup-dev').setupDev>
+  >['serverFields']
 }): Promise<NonNullable<typeof result>> {
   // if we already setup the server return as we only need to do
   // this on first worker boot
@@ -107,6 +117,10 @@ export async function initialize(opts: {
   result = {
     port,
     hostname: hostname === '0.0.0.0' ? '127.0.0.1' : hostname,
+  }
+  
+  if (opts.serverFields && (app as any).server) {
+    Object.assign((app as any).server, opts.serverFields)
   }
   return result
 }
