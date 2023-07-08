@@ -89,7 +89,7 @@ Route handlers are evaluated dynamically when:
 
 - Using the `Request` object with the `GET` method.
 - Using any of the other HTTP methods.
-- Using [Dynamic Functions](/#dynamic-functions) like `cookies` and `headers`.
+- Using [Dynamic Functions](#dynamic-functions) like `cookies` and `headers`.
 - The [Segment Config Options](#segment-config-options) manually specifies dynamic mode.
 
 For example:
@@ -256,7 +256,7 @@ export async function GET(request: Request) {
 
   return new Response('Hello, Next.js!', {
     status: 200,
-    headers: { 'Set-Cookie': `token=${token}` },
+    headers: { 'Set-Cookie': `token=${token.value}` },
   })
 }
 ```

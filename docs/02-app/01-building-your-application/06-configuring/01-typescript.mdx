@@ -3,11 +3,14 @@ title: TypeScript
 description: Next.js provides a TypeScript-first development experience for building your React application.
 ---
 
+{/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
+
 Next.js provides a TypeScript-first development experience for building your React application.
 
 It comes with built-in TypeScript support for automatically installing the necessary packages and configuring the proper settings.
 
 <AppOnly>
+
 As well as a [TypeScript Plugin](#typescript-plugin) for your editor.
 
 > **🎥 Watch:** Learn about the built-in TypeScript plugin → [YouTube (3 minutes)](https://www.youtube.com/watch?v=pqMqn9fKEf8)
@@ -115,15 +118,15 @@ import Link from 'next/link'
 To accept `href` in a custom component wrapping `next/link`, use a generic:
 
 ```tsx
-import type { Route } from 'next';
-import Link from 'next/link';
+import type { Route } from 'next'
+import Link from 'next/link'
 
-function Card<T extends string>({ href }: { href: Route<T> | URL })
+function Card<T extends string>({ href }: { href: Route<T> | URL }) {
   return (
     <Link href={href}>
       <div>My Card</div>
     </Link>
-  );
+  )
 }
 ```
 
@@ -242,7 +245,17 @@ export default function MyApp({ Component, pageProps }: AppProps) {
 
 Next.js automatically supports the `tsconfig.json` `"paths"` and `"baseUrl"` options.
 
+<AppOnly>
+
+You can learn more about this feature on the [Module Path aliases documentation](/docs/app/building-your-application/configuring/absolute-imports-and-module-aliases).
+
+</AppOnly>
+
+<PagesOnly>
+
 You can learn more about this feature on the [Module Path aliases documentation](/docs/pages/building-your-application/configuring/absolute-imports-and-module-aliases).
+
+</PagesOnly>
 
 ## Type checking next.config.js
 

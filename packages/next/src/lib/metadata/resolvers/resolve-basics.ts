@@ -6,29 +6,25 @@ import type { Metadata, ResolvedMetadata } from '../types/metadata-interface'
 import type { ResolvedVerification } from '../types/metadata-types'
 import type {
   FieldResolver,
-  FieldResolverWithMetadataBase,
+  FieldResolverExtraArgs,
+  MetadataContext,
 } from '../types/resolvers'
 import type { Viewport } from '../types/extra-types'
-import path from '../../../shared/lib/isomorphic/path'
 import { resolveAsArrayOrUndefined } from '../generate/utils'
-import { resolveUrl } from './resolve-url'
+import { resolveAbsoluteUrlWithPathname } from './resolve-url'
 import { ViewPortKeys } from '../constants'
 
-// Resolve with `metadataBase` if it's present, otherwise resolve with `pathname`.
-// Resolve with `pathname` if `url` is a relative path.
 function resolveAlternateUrl(
   url: string | URL,
   metadataBase: URL | null,
   pathname: string
 ) {
-  if (typeof url === 'string' && url.startsWith('./')) {
-    url = path.resolve(pathname, url)
-  } else if (url instanceof URL) {
+  // If alter native url is an URL instance,
+  // we treat it as a URL base and resolve with current pathname
+  if (url instanceof URL) {
     url = new URL(pathname, url)
   }
-
-  const result = metadataBase ? resolveUrl(url, metadataBase) : url
-  return result.toString()
+  return resolveAbsoluteUrlWithPathname(url, metadataBase, pathname)
 }
 
 export const resolveThemeColor: FieldResolver<'themeColor'> = (themeColor) => {
@@ -118,9 +114,9 @@ function resolveCanonicalUrl(
   }
 }
 
-export const resolveAlternates: FieldResolverWithMetadataBase<
+export const resolveAlternates: FieldResolverExtraArgs<
   'alternates',
-  { pathname: string }
+  [ResolvedMetadata['metadataBase'], MetadataContext]
 > = (alternates, metadataBase, { pathname }) => {
   if (!alternates) return null
 
@@ -254,4 +250,17 @@ export const resolveAppLinks: FieldResolver<'appLinks'> = (appLinks) => {
     appLinks[key] = resolveAsArrayOrUndefined(appLinks[key])
   }
   return appLinks as ResolvedMetadata['appLinks']
+}
+
+export const resolveItunes: FieldResolverExtraArgs<
+  'itunes',
+  [ResolvedMetadata['metadataBase'], MetadataContext]
+> = (itunes, metadataBase, { pathname }) => {
+  if (!itunes) return null
+  return {
+    appId: itunes.appId,
+    appArgument: itunes.appArgument
+      ? resolveAlternateUrl(itunes.appArgument, metadataBase, pathname)
+      : undefined,
+  }
 }

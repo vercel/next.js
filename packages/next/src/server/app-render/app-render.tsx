@@ -56,7 +56,10 @@ import { interopDefault } from './interop-default'
 import { preloadComponent } from './preload-component'
 import { FlightRenderResult } from './flight-render-result'
 import { createErrorHandler } from './create-error-handler'
-import { getShortDynamicParamType } from './get-short-dynamic-param-type'
+import {
+  getShortDynamicParamType,
+  dynamicParamTypes,
+} from './get-short-dynamic-param-type'
 import { getSegmentParam } from './get-segment-param'
 import { getCssInlinedLinkTags } from './get-css-inlined-link-tags'
 import { getPreloadableFonts } from './get-preloadable-fonts'
@@ -156,7 +159,7 @@ export async function renderToHTMLOrFlight(
     nextFontManifest,
     supportsDynamicHTML,
     nextConfigOutput,
-    serverActionsSizeLimit,
+    serverActionsBodySizeLimit,
   } = renderOpts
 
   const appUsingSizeAdjust = nextFontManifest?.appUsingSizeAdjust
@@ -324,7 +327,7 @@ export async function renderToHTMLOrFlight(
       if (!value) {
         // Handle case where optional catchall does not have a value, e.g. `/dashboard/[...slug]` when requesting `/dashboard`
         if (segmentParam.type === 'optional-catchall') {
-          const type = getShortDynamicParamType(segmentParam.type)
+          const type = dynamicParamTypes[segmentParam.type]
           return {
             param: key,
             value: null,
@@ -451,7 +454,6 @@ export async function renderToHTMLOrFlight(
 
       const preloadedFontFiles = layoutOrPagePath
         ? getPreloadableFonts(
-            clientReferenceManifest,
             nextFontManifest,
             layoutOrPagePath,
             injectedFontPreloadTagsWithCurrentLayout
@@ -1104,7 +1106,6 @@ export async function renderToHTMLOrFlight(
             true
           )
           getPreloadableFonts(
-            clientReferenceManifest,
             nextFontManifest,
             layoutPath,
             injectedFontPreloadTagsWithCurrentLayout
@@ -1607,7 +1608,7 @@ export async function renderToHTMLOrFlight(
       generateFlight,
       staticGenerationStore,
       requestStore,
-      serverActionsSizeLimit,
+      serverActionsBodySizeLimit,
     })
 
     if (actionRequestResult === 'not-found') {

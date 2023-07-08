@@ -286,7 +286,17 @@ export interface ExperimentalConfig {
   /**
    * Allows adjusting body parser size limit for server actions.
    */
-  serverActionsSizeLimit?: SizeLimit
+  serverActionsBodySizeLimit?: SizeLimit
+
+  /**
+   * enables the minification of server code.
+   */
+  serverMinification?: boolean
+
+  /**
+   * Enables source maps generation for the server production bundle.
+   */
+  serverSourceMaps?: boolean
 }
 
 export type ExportPathMap = {
@@ -498,6 +508,12 @@ export interface NextConfig extends Record<string, any> {
   optimizeFonts?: boolean
 
   /**
+   * Enable react profiling in production
+   *
+   */
+  reactProductionProfiling?: boolean
+
+  /**
    * The Next.js runtime is Strict Mode-compliant.
    *
    * @see [React Strict Mode](https://nextjs.org/docs/api-reference/next.config.js/react-strict-mode)
@@ -645,8 +661,8 @@ export const defaultConfig: NextConfig = {
     buildActivityPosition: 'bottom-right',
   },
   onDemandEntries: {
-    maxInactiveAge: 15 * 1000,
-    pagesBufferLength: 2,
+    maxInactiveAge: 60 * 1000,
+    pagesBufferLength: 5,
   },
   amp: {
     canonicalBase: '',
@@ -660,6 +676,7 @@ export const defaultConfig: NextConfig = {
   excludeDefaultMomentLocales: true,
   serverRuntimeConfig: {},
   publicRuntimeConfig: {},
+  reactProductionProfiling: false,
   reactStrictMode: false,
   httpAgentOptions: {
     keepAlive: true,
@@ -670,6 +687,8 @@ export const defaultConfig: NextConfig = {
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
   experimental: {
+    serverMinification: false,
+    serverSourceMaps: false,
     caseSensitiveRoutes: false,
     useDeploymentId: false,
     deploymentId: undefined,

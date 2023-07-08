@@ -70,6 +70,7 @@ import {
   TURBO_TRACE_DEFAULT_MEMORY_LIMIT,
   TRACE_OUTPUT_VERSION,
   SERVER_REFERENCE_MANIFEST,
+  FUNCTIONS_CONFIG_MANIFEST,
 } from '../shared/lib/constants'
 import { getSortedRoutes, isDynamicRoute } from '../shared/lib/router/utils'
 import { __ApiPreviewProps } from '../server/api-utils'
@@ -1241,6 +1242,8 @@ export default async function build(
 
       const analysisBegin = process.hrtime()
       const staticCheckSpan = nextBuildSpan.traceChild('static-check')
+
+      const functionsConfigManifest = {} as Record<string, Record<string, any>>
       const {
         customAppGetInitialProps,
         namedExports,
@@ -1430,6 +1433,10 @@ export default async function build(
                       pageType,
                     })
                   : undefined
+
+                if (staticInfo?.extraConfig) {
+                  functionsConfigManifest[page] = staticInfo.extraConfig
+                }
 
                 const pageRuntime = middlewareManifest.functions[
                   originalAppPath || page
@@ -1741,6 +1748,13 @@ export default async function build(
         )
       }
 
+      if (Object.keys(functionsConfigManifest).length > 0) {
+        await promises.writeFile(
+          path.join(distDir, SERVER_DIRECTORY, FUNCTIONS_CONFIG_MANIFEST),
+          JSON.stringify(functionsConfigManifest, null, 2)
+        )
+      }
+
       const nextServerTraceOutput = path.join(
         distDir,
         'next-server.js.nft.json'
@@ -1901,7 +1915,7 @@ export default async function build(
             ) {
               const cacheHash = (
                 require('crypto') as typeof import('crypto')
-              ).createHash('sha256')
+              ).createHash('sha1')
 
               cacheHash.update(require('next/package').version)
               cacheHash.update(hasSsrAmpPages + '')

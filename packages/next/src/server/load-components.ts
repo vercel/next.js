@@ -10,6 +10,8 @@ import type {
   GetServerSideProps,
   GetStaticProps,
 } from 'next/types'
+import type { RouteModule } from './future/route-modules/route-module'
+
 import {
   BUILD_MANIFEST,
   REACT_LOADABLE_MANIFEST,
@@ -44,6 +46,7 @@ export type LoadComponentsReturnType = {
   getStaticPaths?: GetStaticPaths
   getServerSideProps?: GetServerSideProps
   ComponentMod: any
+  routeModule?: RouteModule
   isAppPath?: boolean
   pathname: string
 }
@@ -70,6 +73,7 @@ async function loadDefaultErrorComponentsImpl(
     reactLoadableManifest: {},
     ComponentMod,
     pathname: '/_error',
+    routeModule: ComponentMod.routeModule,
   }
 }
 
@@ -152,6 +156,7 @@ async function loadComponentsImpl({
     serverActionsManifest,
     isAppPath,
     pathname,
+    routeModule: ComponentMod.routeModule,
   }
 }
 

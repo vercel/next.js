@@ -28,7 +28,7 @@ import {
 } from '../shared/lib/router/utils/route-matcher'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
 import type { RouteMatch } from './future/route-matches/route-match'
-import type { RenderOpts } from './render'
+import { renderToHTML, type RenderOpts } from './render'
 
 import fs from 'fs'
 import { join, relative, resolve, sep, isAbsolute } from 'path'
@@ -110,6 +110,7 @@ import { filterReqHeaders } from './lib/server-ipc/utils'
 import { createRequestResponseMocks } from './lib/mock-request'
 import chalk from 'next/dist/compiled/chalk'
 import { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
+import { signalFromNodeRequest } from './web/spec-extension/adapters/next-request'
 
 export * from './base-server'
 
@@ -326,13 +327,10 @@ export default class NextNodeServer extends BaseServer {
           console.error(err)
         }
       }
-      ;(global as any)._nextClearModuleContext = (
-        targetPath: any,
-        content: any
-      ) => {
+      ;(global as any)._nextClearModuleContext = (targetPath: string) => {
         try {
-          this.renderWorkers?.pages?.clearModuleContext(targetPath, content)
-          this.renderWorkers?.app?.clearModuleContext(targetPath, content)
+          this.renderWorkers?.pages?.clearModuleContext(targetPath)
+          this.renderWorkers?.app?.clearModuleContext(targetPath)
         } catch (err) {
           console.error(err)
         }
@@ -627,7 +625,10 @@ export default class NextNodeServer extends BaseServer {
       : []
   }
 
-  protected setImmutableAssetCacheControl(res: BaseNextResponse): void {
+  protected setImmutableAssetCacheControl(
+    res: BaseNextResponse,
+    _pathSegments: string[]
+  ): void {
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
   }
 
@@ -656,7 +657,7 @@ export default class NextNodeServer extends BaseServer {
             params.path[0] === 'pages' ||
             params.path[1] === 'pages'
           ) {
-            this.setImmutableAssetCacheControl(res)
+            this.setImmutableAssetCacheControl(res, params.path)
           }
           const p = join(
             this.distDir,
@@ -984,7 +985,16 @@ export default class NextNodeServer extends BaseServer {
       )
     }
 
-    throw new Error('Invariant: render should have used routeModule')
+    // TODO: re-enable this once we've refactored to use implicit matches
+    // throw new Error('Invariant: render should have used routeModule')
+
+    return renderToHTML(
+      req.originalRequest,
+      res.originalResponse,
+      pathname,
+      query,
+      renderOpts
+    )
   }
 
   private streamResponseChunk(res: ServerResponse, chunk: any) {
@@ -2345,6 +2355,9 @@ export default class NextNodeServer extends BaseServer {
         url: url,
         page: page,
         body: getRequestMeta(params.request, '__NEXT_CLONABLE_BODY'),
+        signal: signalFromNodeRequest(
+          (params.request as NodeNextRequest).originalRequest
+        ),
       },
       useCache: true,
       onWarning: params.onWarning,
@@ -2854,6 +2867,9 @@ export default class NextNodeServer extends BaseServer {
           ...(params.params && { params: params.params }),
         },
         body: getRequestMeta(params.req, '__NEXT_CLONABLE_BODY'),
+        signal: signalFromNodeRequest(
+          (params.req as NodeNextRequest).originalRequest
+        ),
       },
       useCache: true,
       onWarning: params.onWarning,

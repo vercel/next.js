@@ -9,6 +9,8 @@ related:
     - app/api-reference/components/image
 ---
 
+{/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
+
 <details>
   <summary>Examples</summary>
 
@@ -24,6 +26,8 @@ The Next.js Image component extends the HTML `<img>` element with features for a
 - **Visual Stability:** Prevent [layout shift](/learn/seo/web-performance/cls) automatically when images are loading.
 - **Faster Page Loads:** Images are only loaded when they enter the viewport using native browser lazy loading, with optional blur-up placeholders.
 - **Asset Flexibility:** On-demand image resizing, even for images stored on remote servers
+
+> **🎥 Watch:** Learn more about how to use `next/image` → [YouTube (9 minutes)](https://youtu.be/IU_qq_c_lKA).
 
 ## Usage
 

@@ -59,7 +59,28 @@ describe('accumulateMetadata', () => {
     })
   })
 
-  describe('openGraph', () => {
+  describe('itunes', () => {
+    it('should resolve relative url starting with ./ with pathname for itunes.appArgument', async () => {
+      const metadataItems: MetadataItems = [
+        [
+          {
+            metadataBase: new URL('http://test.com/base'),
+            itunes: { appId: 'id', appArgument: './native/app' },
+          },
+          null,
+        ],
+      ]
+      const metadata = await accumulateMetadata(metadataItems)
+      expect(metadata).toMatchObject({
+        metadataBase: new URL('http://test.com/base'),
+        itunes: {
+          appArgument: new URL('http://test.com/base/test/native/app'),
+        },
+      })
+    })
+  })
+
+  describe('openGraph and twitter', () => {
     it('should convert string or URL images field to array, not only for basic og type', async () => {
       const items: [Metadata[], Metadata][] = [
         [
@@ -152,6 +173,65 @@ describe('accumulateMetadata', () => {
           },
           description: 'description',
           images: [{ url: new URL('https://test.com') }],
+        },
+      })
+    })
+
+    it('should fill only the existing props from openGraph to twitter', async () => {
+      const metadataItems: MetadataItems = [
+        [
+          {
+            openGraph: {
+              // skip title
+              description: 'description',
+            },
+          },
+          // has static metadata files
+          {
+            icon: undefined,
+            apple: undefined,
+            twitter: ['/og/twitter.png'],
+            openGraph: undefined,
+            manifest: undefined,
+          },
+        ],
+      ]
+      const metadata = await accumulateMetadata(metadataItems)
+      expect(metadata).toMatchObject({
+        openGraph: {
+          title: {
+            absolute: '',
+            template: null,
+          },
+          description: 'description',
+        },
+        twitter: {
+          title: {
+            absolute: '',
+            template: null,
+          },
+          description: 'description',
+        },
+      })
+    })
+
+    it('should resolve relative url starting with ./ with pathname for openGraph.url', async () => {
+      const metadataItems: MetadataItems = [
+        [
+          {
+            metadataBase: new URL('http://test.com/base'),
+            openGraph: {
+              url: './abc',
+            },
+          },
+          null,
+        ],
+      ]
+      const metadata = await accumulateMetadata(metadataItems)
+      expect(metadata).toMatchObject({
+        metadataBase: new URL('http://test.com/base'),
+        openGraph: {
+          url: new URL('http://test.com/base/test/abc'),
         },
       })
     })

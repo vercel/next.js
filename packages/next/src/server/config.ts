@@ -416,9 +416,9 @@ function assignDefaults(
     result.output = 'standalone'
   }
 
-  if (typeof result.experimental?.serverActionsSizeLimit !== 'undefined') {
+  if (typeof result.experimental?.serverActionsBodySizeLimit !== 'undefined') {
     const value = parseInt(
-      result.experimental.serverActionsSizeLimit.toString()
+      result.experimental.serverActionsBodySizeLimit.toString()
     )
     if (isNaN(value) || value < 1) {
       throw new Error(
@@ -693,9 +693,6 @@ function assignDefaults(
     '@mui/icons-material': {
       transform: '@mui/icons-material/{{member}}',
     },
-    '@mui/material': {
-      transform: '@mui/material/{{member}}',
-    },
     'date-fns': {
       transform: 'date-fns/{{member}}',
     },
@@ -715,6 +712,15 @@ function assignDefaults(
     },
     'react-bootstrap': {
       transform: 'react-bootstrap/{{member}}',
+    },
+    antd: {
+      transform: 'antd/lib/{{kebabCase member}}',
+    },
+    ahooks: {
+      transform: 'ahooks/es/{{member}}',
+    },
+    '@ant-design/icons': {
+      transform: '@ant-design/icons/lib/icons/{{member}}',
     },
   }
 
@@ -741,7 +747,10 @@ export default async function loadConfig(
     : Log
 
   await loadEnvConfig(dir, phase === PHASE_DEVELOPMENT_SERVER, curLog)
-  loadWebpackHook()
+
+  if (!process.env.__NEXT_PRIVATE_RENDER_WORKER) {
+    loadWebpackHook()
+  }
 
   let configFileName = 'next.config.js'
 
