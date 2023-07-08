@@ -101,8 +101,7 @@ function runTests(mode) {
     }
   })
 
-  // TODO: need to add <link preload> to app dir
-  it.skip('should preload priority images', async () => {
+  it.only('should preload priority images', async () => {
     let browser
     try {
       browser = await webdriver(appPort, '/priority')
@@ -125,7 +124,15 @@ function runTests(mode) {
         const fetchpriority = await link.getAttribute('fetchpriority')
         const imagesrcset = await link.getAttribute('imagesrcset')
         const imagesizes = await link.getAttribute('imagesizes')
-        entries.push({ fetchpriority, imagesrcset, imagesizes })
+        const crossorigin = await link.getAttribute('crossorigin')
+        const referrerPolicy = await link.getAttribute('referrerPolicy')
+        entries.push({
+          fetchpriority,
+          imagesrcset,
+          imagesizes,
+          crossorigin,
+          referrerPolicy,
+        })
       }
 
       expect(
@@ -139,6 +146,8 @@ function runTests(mode) {
         imagesizes: '',
         imagesrcset:
           '/_next/image?url=%2Ftest.jpg&w=640&q=75 1x, /_next/image?url=%2Ftest.jpg&w=828&q=75 2x',
+        crossorigin: 'anonymous',
+        referrerPolicy: '',
       })
 
       expect(
@@ -152,6 +161,23 @@ function runTests(mode) {
         imagesizes: '100vw',
         imagesrcset:
           '/_next/image?url=%2Fwide.png&w=640&q=75 640w, /_next/image?url=%2Fwide.png&w=750&q=75 750w, /_next/image?url=%2Fwide.png&w=828&q=75 828w, /_next/image?url=%2Fwide.png&w=1080&q=75 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75 3840w',
+        crossorigin: '',
+        referrerPolicy: '',
+      })
+
+      expect(
+        entries.find(
+          (item) =>
+            item.imagesrcset ===
+            '/_next/image?url=%2Ftest.png&w=640&q=75 1x, /_next/image?url=%2Ftest.png&w=828&q=75 2x'
+        )
+      ).toEqual({
+        fetchpriority: 'high',
+        imagesizes: '',
+        imagesrcset:
+          '/_next/image?url=%2Ftest.png&w=640&q=75 1x, /_next/image?url=%2Ftest.png&w=828&q=75 2x',
+        crossorigin: '',
+        referrerPolicy: 'no-referrer',
       })
 
       // When priority={true}, we should _not_ set loading="lazy"
@@ -197,20 +223,6 @@ function runTests(mode) {
         /was detected as the Largest Contentful Paint/gm
       )
       expect(warnings).not.toMatch(/React does not recognize the (.+) prop/gm)
-
-      // should preload with crossorigin
-      expect(
-        await browser.elementsByCss(
-          'link[rel=preload][as=image][crossorigin=anonymous][imagesrcset*="test.jpg"]'
-        )
-      ).toHaveLength(1)
-
-      // should preload with referrerpolicy
-      expect(
-        await browser.elementsByCss(
-          'link[rel=preload][as=image][referrerpolicy="no-referrer"][imagesrcset*="test.png"]'
-        )
-      ).toHaveLength(1)
     } finally {
       if (browser) {
         await browser.close()
