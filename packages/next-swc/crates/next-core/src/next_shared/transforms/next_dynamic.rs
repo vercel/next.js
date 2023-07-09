@@ -31,7 +31,7 @@ pub async fn get_next_dynamic_transform_rule(
     pages_dir: Option<FileSystemPathVc>,
 ) -> Result<ModuleRule> {
     let dynamic_transform =
-        EcmascriptInputTransform::Plugin(TransformPluginVc::cell(box NextJsDynamic {
+        EcmascriptInputTransform::Plugin(TransformPluginVc::cell(Box::new(NextJsDynamic {
             is_development,
             is_server,
             is_server_components,
@@ -39,7 +39,7 @@ pub async fn get_next_dynamic_transform_rule(
                 None => None,
                 Some(path) => Some(path.await?.path.clone().into()),
             },
-        }));
+        })));
     Ok(ModuleRule::new(
         module_rule_match_js_no_url(),
         vec![ModuleRuleEffect::AddEcmascriptTransforms(
