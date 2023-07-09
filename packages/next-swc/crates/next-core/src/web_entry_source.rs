@@ -33,8 +33,7 @@ use crate::{
     mode::NextMode,
     next_client::{
         context::{
-            get_client_asset_context, get_client_chunking_context,
-            get_client_resolve_options_context, ClientContextType,
+            get_client_asset_context, get_client_resolve_options_context, ClientContextType,
         },
         RuntimeEntriesVc, RuntimeEntry,
     },

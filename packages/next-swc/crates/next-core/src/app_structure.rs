@@ -507,7 +507,10 @@ async fn add_app_page(
                     app_dir,
                     message: StringVc::cell(format!("Conflicting route at {}", e.key())),
                     severity: IssueSeverity::Error.cell(),
-                }.cell().as_issue().emit();
+                }
+                .cell()
+                .as_issue()
+                .emit();
                 return Ok(());
             };
             *value = merge_loader_trees(app_dir, *value, loader_tree)
