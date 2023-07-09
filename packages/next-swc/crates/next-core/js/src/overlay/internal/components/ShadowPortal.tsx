@@ -21,7 +21,11 @@ export function ShadowPortal({ children, globalOverlay }: ShadowPortalProps) {
     ownerDocument.body.appendChild(portalNode.current)
     forceUpdate({})
     return () => {
-      if (portalNode.current && portalNode.current.ownerDocument) {
+      if (
+        portalNode.current &&
+        portalNode.current.ownerDocument &&
+        portalNode.current.parentNode
+      ) {
         portalNode.current.ownerDocument.body.removeChild(portalNode.current)
       }
     }
