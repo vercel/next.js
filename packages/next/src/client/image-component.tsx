@@ -44,7 +44,7 @@ type ImgElementWithDataProp = HTMLImageElement & {
   'data-loaded-src': string | undefined
 }
 
-type ImageElementProps = Omit<ImageProps, 'src' | 'alt' | 'loader'> &
+type ImageElementProps =
   ImgProps & {
     unoptimized: boolean
     placeholder: PlaceholderValue
