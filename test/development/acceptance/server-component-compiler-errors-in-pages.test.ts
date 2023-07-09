@@ -5,7 +5,6 @@ import { sandbox } from 'development-sandbox'
 import { outdent } from 'outdent'
 
 const initialFiles = new Map([
-  ['next.config.js', 'module.exports = { experimental: { appDir: true } }'],
   ['app/_.js', ''], // app dir need to exists, otherwise the SWC RSC checks will not run
   [
     'pages/index.js',

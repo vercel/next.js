@@ -11,12 +11,14 @@ export const createServerHandler = async ({
   dir,
   dev = false,
   minimalMode,
+  keepAliveTimeout,
 }: {
   port: number
   hostname: string
   dir: string
   dev?: boolean
   minimalMode: boolean
+  keepAliveTimeout?: number
 }) => {
   const routerWorker = new Worker(require.resolve('./render-server'), {
     numWorkers: 1,
@@ -65,11 +67,14 @@ export const createServerHandler = async ({
     minimalMode,
     workerType: 'router',
     isNodeDebugging: false,
+    keepAliveTimeout,
   })
   didInitialize = true
 
   const getProxyServer = (pathname: string) => {
-    const targetUrl = `http://${hostname}:${routerPort}${pathname}`
+    const targetUrl = `http://${
+      hostname === 'localhost' ? '127.0.0.1' : hostname
+    }:${routerPort}${pathname}`
     const proxyServer = httpProxy.createProxy({
       target: targetUrl,
       changeOrigin: false,

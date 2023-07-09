@@ -1,3 +1,6 @@
+// TODO(alexkirsz) Remove once the diagnostic is fixed.
+#![allow(rustc::untranslatable_diagnostic_trivial)]
+
 use std::path::{Path, PathBuf};
 
 use pathdiff::diff_paths;
@@ -176,7 +179,9 @@ impl Fold for NextDynamicPatcher {
                     expr.args[0].expr = expr.args[0].expr.clone().fold_with(self);
                     self.is_next_dynamic_first_arg = false;
 
-                    let Some((dynamically_imported_specifier, dynamically_imported_specifier_span)) = self.dynamically_imported_specifier.take() else {
+                    let Some((dynamically_imported_specifier, dynamically_imported_specifier_span)) =
+                        self.dynamically_imported_specifier.take()
+                    else {
                         return expr;
                     };
 

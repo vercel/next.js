@@ -6,8 +6,8 @@ import type { Metadata, ResolvedMetadata } from '../types/metadata-interface'
 import type { ResolvedVerification } from '../types/metadata-types'
 import type {
   FieldResolver,
-  FieldResolverWithMetadataBase,
-  MetadataAccumulationOptions,
+  FieldResolverExtraArgs,
+  MetadataContext,
 } from '../types/resolvers'
 import type { Viewport } from '../types/extra-types'
 import { resolveAsArrayOrUndefined } from '../generate/utils'
@@ -114,9 +114,9 @@ function resolveCanonicalUrl(
   }
 }
 
-export const resolveAlternates: FieldResolverWithMetadataBase<
+export const resolveAlternates: FieldResolverExtraArgs<
   'alternates',
-  MetadataAccumulationOptions
+  [ResolvedMetadata['metadataBase'], MetadataContext]
 > = (alternates, metadataBase, { pathname }) => {
   if (!alternates) return null
 
@@ -252,9 +252,9 @@ export const resolveAppLinks: FieldResolver<'appLinks'> = (appLinks) => {
   return appLinks as ResolvedMetadata['appLinks']
 }
 
-export const resolveItunes: FieldResolverWithMetadataBase<
+export const resolveItunes: FieldResolverExtraArgs<
   'itunes',
-  MetadataAccumulationOptions
+  [ResolvedMetadata['metadataBase'], MetadataContext]
 > = (itunes, metadataBase, { pathname }) => {
   if (!itunes) return null
   return {
