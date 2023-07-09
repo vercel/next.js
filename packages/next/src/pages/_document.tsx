@@ -1087,6 +1087,7 @@ export class NextScript extends React.Component<OriginProps> {
           {disableRuntimeJS ? null : (
             <script
               id="__NEXT_DATA__"
+              rel="nofollow"
               type="application/json"
               nonce={this.props.nonce}
               crossOrigin={this.props.crossOrigin || crossOrigin}
@@ -1139,6 +1140,7 @@ export class NextScript extends React.Component<OriginProps> {
         {disableRuntimeJS ? null : (
           <script
             id="__NEXT_DATA__"
+            rel="nofollow"
             type="application/json"
             nonce={this.props.nonce}
             crossOrigin={this.props.crossOrigin || crossOrigin}
