@@ -2,7 +2,6 @@ import type webpack from 'webpack'
 import fs from 'fs'
 import path from 'path'
 import { imageExtMimeTypeMap } from '../../../lib/mime-type'
-import { WEBPACK_RESOURCE_QUERIES } from '../../../lib/constants'
 
 const cacheHeader = {
   none: 'no-cache, no-store',
@@ -12,10 +11,10 @@ const cacheHeader = {
 
 type MetadataRouteLoaderOptions = {
   page: string
-  pageExtensions: string[]
+  isDynamic: '1' | '0'
 }
 
-function getFilenameAndExtension(resourcePath: string) {
+export function getFilenameAndExtension(resourcePath: string) {
   const filename = path.basename(resourcePath)
   const [name, ext] = filename.split('.')
   return { name, ext }
@@ -49,11 +48,7 @@ import { NextResponse } from 'next/server'
 
 const contentType = ${JSON.stringify(getContentType(resourcePath))}
 const buffer = Buffer.from(${JSON.stringify(
-    (
-      await fs.promises.readFile(
-        resourcePath.replace('?' + WEBPACK_RESOURCE_QUERIES.metadata, '')
-      )
-    ).toString('base64')
+    (await fs.promises.readFile(resourcePath)).toString('base64')
   )}, 'base64'
   )
 
@@ -205,13 +200,11 @@ ${staticGenerationCode}
 const nextMetadataRouterLoader: webpack.LoaderDefinitionFunction<MetadataRouteLoaderOptions> =
   async function () {
     const { resourcePath } = this
-    const { pageExtensions, page } = this.getOptions()
-
-    const { name: fileBaseName, ext } = getFilenameAndExtension(resourcePath)
-    const isDynamic = pageExtensions.includes(ext)
+    const { page, isDynamic } = this.getOptions()
+    const { name: fileBaseName } = getFilenameAndExtension(resourcePath)
 
     let code = ''
-    if (isDynamic) {
+    if (isDynamic === '1') {
       if (fileBaseName === 'robots' || fileBaseName === 'manifest') {
         code = getDynamicTextRouteCode(resourcePath)
       } else if (fileBaseName === 'sitemap') {

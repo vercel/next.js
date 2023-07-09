@@ -69,7 +69,7 @@ describe('CSS Modules: Import Global CSS', () => {
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
 
     expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
-      `"a .styles_foo__Io_Us{all:initial}"`
+      `"a .styles_foo__G5630{all:initial}"`
     )
   })
 })
@@ -119,7 +119,7 @@ describe('CSS Modules: Import Exports', () => {
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
 
     expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
-      `".styles_blk__CqbFg{color:#000}"`
+      `".styles_blk__480DC{color:#000}"`
     )
   })
 })

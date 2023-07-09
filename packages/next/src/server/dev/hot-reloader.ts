@@ -785,7 +785,7 @@ export default class HotReloader {
               this.hasAppRouterEntrypoints = true
             }
 
-            await runDependingOnPageType({
+            runDependingOnPageType({
               page,
               pageRuntime: staticInfo.runtime,
               pageType,
@@ -1038,7 +1038,7 @@ export default class HotReloader {
                       // every time for both server and client so we calculate
                       // the hash without the source map for the page module
                       const hash = require('crypto')
-                        .createHash('sha256')
+                        .createHash('sha1')
                         .update(mod.originalSource().buffer())
                         .digest()
                         .toString('hex')
