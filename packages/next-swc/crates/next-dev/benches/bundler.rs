@@ -1,5 +1,4 @@
 use std::{
-    fs,
     io::{self, Write},
     path::{Path, PathBuf},
     process::{Child, Command, Stdio},
@@ -68,11 +67,6 @@ impl Bundler for TurboNext {
             io::stderr().write_all(&build.stderr)?;
             return Err(anyhow!("pnpm build failed. See above."));
         }
-
-        fs::write(
-            install_dir.join("next.config.js"),
-            include_bytes!("next.config.js"),
-        )?;
 
         Ok(())
     }

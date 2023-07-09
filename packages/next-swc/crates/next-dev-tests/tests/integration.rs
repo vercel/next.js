@@ -102,13 +102,7 @@ fn run_async_test<'a, T>(future: impl Future<Output = T> + Send + 'a) -> T {
         .enable_all()
         .build()
         .unwrap();
-    let result = catch_unwind(AssertUnwindSafe(|| {
-        runtime.block_on(async move {
-            #[cfg(feature = "tokio_console")]
-            console_subscriber::init();
-            future.await
-        })
-    }));
+    let result = catch_unwind(AssertUnwindSafe(|| runtime.block_on(future)));
     println!("Stutting down runtime...");
     runtime.shutdown_timeout(Duration::from_secs(5));
     println!("Stut down runtime");
@@ -121,7 +115,7 @@ fn run_async_test<'a, T>(future: impl Future<Output = T> + Send + 'a) -> T {
 #[testing::fixture("tests/integration/*/*/*/input")]
 fn test(resource: PathBuf) {
     let resource = resource.parent().unwrap().to_path_buf();
-    if resource.ends_with("__skipped__") || resource.ends_with("__flakey__") {
+    if resource.ends_with("__flakey__") {
         // "Skip" directories named `__skipped__`, which include test directories to
         // skip. These tests are not considered truly skipped by `cargo test`, but they
         // are not run.
@@ -168,29 +162,6 @@ fn test(resource: PathBuf) {
             messages.join("\n\n--\n")
         )
     };
-}
-
-#[testing::fixture("tests/integration/*/*/__skipped__/*/input")]
-#[should_panic]
-fn test_skipped_fails(resource: PathBuf) {
-    let resource = resource.parent().unwrap().to_path_buf();
-    let JsResult {
-        // Ignore uncaught exceptions for skipped tests.
-        uncaught_exceptions: _,
-        run_result,
-    } = run_async_test(run_test(resource));
-
-    // Assert that this skipped test itself has at least one browser test which
-    // fails.
-    assert!(
-        // Skipped tests sometimes have errors (e.g. unsupported syntax) that prevent tests from
-        // running at all. Allow them to have empty results.
-        run_result.test_results.is_empty()
-            || run_result
-                .test_results
-                .into_iter()
-                .any(|r| !r.errors.is_empty()),
-    );
 }
 
 fn copy_recursive(from: &Path, to: &Path) -> std::io::Result<()> {
@@ -528,7 +499,7 @@ async fn run_browser(addr: SocketAddr, project_dir: &Path) -> Result<JsResult> {
             }
             event = &mut bindings_next => {
                 if let Some(event) = event {
-                    if let Some(run_result) = handle_binding(&page, &*event, project_dir, is_debugging).await? {
+                    if let Some(run_result) = handle_binding(&page, &event, project_dir, is_debugging).await? {
                         return Ok(JsResult {
                             uncaught_exceptions,
                             run_result,
@@ -626,10 +597,7 @@ async fn handle_binding(
             // Ensure `change_file.path` can't escape the project directory.
             let path = path
                 .components()
-                .filter(|c| match c {
-                    std::path::Component::Normal(_) => true,
-                    _ => false,
-                })
+                .filter(|c| matches!(c, std::path::Component::Normal(_)))
                 .collect::<std::path::PathBuf>();
 
             let path: PathBuf = project_dir.join(path);
