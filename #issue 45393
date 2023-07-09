@@ -1,0 +1,3 @@
+@import '~flexboxgrid/css/flexboxgrid.css';
+
+unable to resolve module "~flexboxgrid" with subpath "/css/flexboxgrid.css"
