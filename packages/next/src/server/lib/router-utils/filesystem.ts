@@ -21,7 +21,10 @@ import { pathHasPrefix } from '../../../shared/lib/router/utils/path-has-prefix'
 import { normalizeLocalePath } from '../../../shared/lib/i18n/normalize-locale-path'
 import { removePathPrefix } from '../../../shared/lib/router/utils/remove-path-prefix'
 import { denormalizePagePath } from '../../../shared/lib/page-path/denormalize-page-path'
-import { MiddlewareRouteMatch, getMiddlewareRouteMatcher } from '../../../shared/lib/router/utils/middleware-route-matcher'
+import {
+  MiddlewareRouteMatch,
+  getMiddlewareRouteMatcher,
+} from '../../../shared/lib/router/utils/middleware-route-matcher'
 
 import {
   APP_PATH_ROUTES_MANIFEST,
@@ -48,6 +51,34 @@ export type FsOutput = {
 }
 
 const debug = setupDebug('next:router-server:filesystem')
+
+export const buildCustomRoute = <T>(
+  type: 'redirect' | 'header' | 'rewrite' | 'before_files_rewrite',
+  item: T & { source: string },
+  basePath?: string,
+  caseSensitive?: boolean
+): T & { match: ReturnType<typeof getPathMatch>; check?: boolean } => {
+  const restrictedRedirectPaths = ['/_next'].map((p) =>
+    basePath ? `${basePath}${p}` : p
+  )
+  const match = getPathMatch(item.source, {
+    strict: true,
+    removeUnnamedParams: true,
+    regexModifier: !(item as any).internal
+      ? (regex: string) =>
+          modifyRouteRegex(
+            regex,
+            type === 'redirect' ? restrictedRedirectPaths : undefined
+          )
+      : undefined,
+    sensitive: caseSensitive,
+  })
+  return {
+    ...item,
+    ...(type === 'rewrite' ? { check: true } : {}),
+    match,
+  }
+}
 
 export async function setupFsCheck(opts: {
   dir: string
@@ -261,37 +292,21 @@ export async function setupFsCheck(opts: {
     }
   }
 
-  const restrictedRedirectPaths = ['/_next'].map((p) =>
-    opts.config.basePath ? `${opts.config.basePath}${p}` : p
-  )
-
-  const buildCustomRoute = <T>(
-    type: 'redirect' | 'header' | 'rewrite' | 'before_files_rewrite',
-    item: T & { source: string }
-  ): T & { match: ReturnType<typeof getPathMatch>; check?: boolean } => {
-    const match = getPathMatch(item.source, {
-      strict: true,
-      removeUnnamedParams: true,
-      regexModifier: !(item as any).internal
-        ? (regex: string) =>
-            modifyRouteRegex(
-              regex,
-              type === 'redirect' ? restrictedRedirectPaths : undefined
-            )
-        : undefined,
-      sensitive: opts.config.experimental.caseSensitiveRoutes,
-    })
-    return {
-      ...item,
-      ...(type === 'rewrite' ? { check: true } : {}),
-      match,
-    }
-  }
   const headers = customRoutes.headers.map((item) =>
-    buildCustomRoute('header', item)
+    buildCustomRoute(
+      'header',
+      item,
+      opts.config.basePath,
+      opts.config.experimental.caseSensitiveRoutes
+    )
   )
   const redirects = customRoutes.redirects.map((item) =>
-    buildCustomRoute('redirect', item)
+    buildCustomRoute(
+      'redirect',
+      item,
+      opts.config.basePath,
+      opts.config.experimental.caseSensitiveRoutes
+    )
   )
   const rewrites = {
     // TODO: add interception routes generateInterceptionRoutesRewrites()
@@ -299,10 +314,20 @@ export async function setupFsCheck(opts: {
       buildCustomRoute('before_files_rewrite', item)
     ),
     afterFiles: customRoutes.rewrites.afterFiles.map((item) =>
-      buildCustomRoute('rewrite', item)
+      buildCustomRoute(
+        'rewrite',
+        item,
+        opts.config.basePath,
+        opts.config.experimental.caseSensitiveRoutes
+      )
     ),
     fallback: customRoutes.rewrites.fallback.map((item) =>
-      buildCustomRoute('rewrite', item)
+      buildCustomRoute(
+        'rewrite',
+        item,
+        opts.config.basePath,
+        opts.config.experimental.caseSensitiveRoutes
+      )
     ),
   }
 
@@ -431,7 +456,7 @@ export async function setupFsCheck(opts: {
         const nextDataPrefix = `/_next/data/${buildId}/`
 
         if (
-          (type === 'appFile' || type === 'pageFile') &&
+          type === 'pageFile' &&
           curItemPath.startsWith(nextDataPrefix) &&
           curItemPath.endsWith('.json')
         ) {

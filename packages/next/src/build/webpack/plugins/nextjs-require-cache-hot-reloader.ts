@@ -22,7 +22,7 @@ const RUNTIME_NAMES = ['webpack-runtime', 'webpack-api-runtime']
 
 export function deleteAppClientCache() {
   if ((global as any)._nextDeleteAppClientCache) {
-    ;(global as any)._nextDeleteAppClientCache()
+    return (global as any)._nextDeleteAppClientCache()
   }
   // ensure we reset the cache for rsc components
   // loaded via react-server-dom-webpack
@@ -42,7 +42,7 @@ export function deleteAppClientCache() {
 
 export function deleteCache(filePath: string) {
   if ((global as any)._nextDeleteCache) {
-    ;(global as any)._nextDeleteCache(filePath)
+    return (global as any)._nextDeleteCache(filePath)
   }
 
   // try to clear it from the fs cache
@@ -96,35 +96,40 @@ export class NextJsRequireCacheHotReloader implements WebpackPluginInstance {
       clearModuleContext(targetPath)
     })
 
-    compiler.hooks.afterEmit.tap(PLUGIN_NAME, (compilation) => {
-      RUNTIME_NAMES.forEach((name) => {
-        const runtimeChunkPath = path.join(
-          compilation.outputOptions.path!,
-          `${name}.js`
-        )
-        deleteCache(runtimeChunkPath)
-      })
-      let hasAppPath = false
+    compiler.hooks.afterEmit.tapAsync(
+      PLUGIN_NAME,
+      async (compilation, callback) => {
+        try {
+          for (const name of RUNTIME_NAMES) {
+            const runtimeChunkPath = path.join(
+              compilation.outputOptions.path!,
+              `${name}.js`
+            )
+            await deleteCache(runtimeChunkPath)
+          }
+          let hasAppPath = false
 
-      // we need to make sure to clear all server entries from cache
-      // since they can have a stale webpack-runtime cache
-      // which needs to always be in-sync
-      const entries = [...compilation.entries.keys()].filter((entry) => {
-        const isAppPath = entry.toString().startsWith('app/')
-        hasAppPath = hasAppPath || isAppPath
-        return entry.toString().startsWith('pages/') || isAppPath
-      })
+          // we need to make sure to clear all server entries from cache
+          // since they can have a stale webpack-runtime cache
+          // which needs to always be in-sync
+          const entries = [...compilation.entries.keys()].filter((entry) => {
+            const isAppPath = entry.toString().startsWith('app/')
+            hasAppPath = hasAppPath || isAppPath
+            return entry.toString().startsWith('pages/') || isAppPath
+          })
 
-      if (hasAppPath) {
+          for (const page of entries) {
+            const outputPath = path.join(
+              compilation.outputOptions.path!,
+              page + '.js'
+            )
+            await deleteCache(outputPath)
+          }
+          callback()
+        } catch (err: any) {
+          callback(err)
+        }
       }
-
-      entries.forEach((page) => {
-        const outputPath = path.join(
-          compilation.outputOptions.path!,
-          page + '.js'
-        )
-        deleteCache(outputPath)
-      })
-    })
+    )
   }
 }

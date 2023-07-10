@@ -27,15 +27,15 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 export function clearModuleContext(target: string) {
-  sandboxContext?.clearModuleContext(target)
+  return sandboxContext?.clearModuleContext(target)
 }
 
 export function deleteAppClientCache() {
-  requireCacheHotReloader?.deleteAppClientCache()
+  return requireCacheHotReloader?.deleteAppClientCache()
 }
 
 export function deleteCache(filePath: string) {
-  requireCacheHotReloader?.deleteCache(filePath)
+  return requireCacheHotReloader?.deleteCache(filePath)
 }
 
 export async function propagateServerField(field: string, value: any) {
@@ -118,7 +118,7 @@ export async function initialize(opts: {
     port,
     hostname: hostname === '0.0.0.0' ? '127.0.0.1' : hostname,
   }
-  
+
   if (opts.serverFields && (app as any).server) {
     Object.assign((app as any).server, opts.serverFields)
   }

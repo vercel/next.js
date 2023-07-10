@@ -117,7 +117,7 @@ export async function initialize(opts: {
     minimalMode: opts.minimalMode,
     dev: !!opts.dev,
     isNodeDebugging: !!opts.isNodeDebugging,
-    serverFields: devInstance?.serverFields || {}
+    serverFields: devInstance?.serverFields || {},
   }
   const renderWorkers: {
     app?: RenderWorker
@@ -194,33 +194,39 @@ export async function initialize(opts: {
     opts.isNodeDebugging,
     'pages'
   )
-  
+
   // pre-initialize workers
   await renderWorkers.app?.initialize(renderWorkerOpts)
   await renderWorkers.pages?.initialize(renderWorkerOpts)
 
   if (devInstance) {
     Object.assign(devInstance.renderWorkers, renderWorkers)
-    ;(global as any)._nextDeleteCache = (filePath: string) => {
+    ;(global as any)._nextDeleteCache = async (filePath: string) => {
       try {
-        renderWorkers.pages?.deleteCache(filePath)
-        renderWorkers.app?.deleteCache(filePath)
+        await Promise.all([
+          renderWorkers.pages?.deleteCache(filePath),
+          renderWorkers.app?.deleteCache(filePath),
+        ])
       } catch (err) {
         console.error(err)
       }
     }
-    ;(global as any)._nextDeleteAppClientCache = () => {
+    ;(global as any)._nextDeleteAppClientCache = async () => {
       try {
-        renderWorkers.pages?.deleteAppClientCache()
-        renderWorkers.app?.deleteAppClientCache()
+        await Promise.all([
+          renderWorkers.pages?.deleteAppClientCache(),
+          renderWorkers.app?.deleteAppClientCache(),
+        ])
       } catch (err) {
         console.error(err)
       }
     }
-    ;(global as any)._nextClearModuleContext = (targetPath: string) => {
+    ;(global as any)._nextClearModuleContext = async (targetPath: string) => {
       try {
-        renderWorkers.pages?.clearModuleContext(targetPath)
-        renderWorkers.app?.clearModuleContext(targetPath)
+        await Promise.all([
+          renderWorkers.pages?.clearModuleContext(targetPath),
+          renderWorkers.app?.clearModuleContext(targetPath),
+        ])
       } catch (err) {
         console.error(err)
       }
@@ -394,7 +400,7 @@ export async function initialize(opts: {
       if (handleIndex > 5) {
         throw new Error(`Attempted to handle request too many times ${req.url}`)
       }
-      
+
       // handle hot-reloader first
       if (devInstance) {
         const origUrl = req.url || '/'
@@ -404,7 +410,11 @@ export async function initialize(opts: {
         }
         const parsedUrl = url.parse(req.url || '/')
 
-        const hotReloaderResult = await devInstance.hotReloader.run(req, res, parsedUrl)
+        const hotReloaderResult = await devInstance.hotReloader.run(
+          req,
+          res,
+          parsedUrl
+        )
 
         if (hotReloaderResult.finished) {
           return hotReloaderResult
@@ -592,7 +602,10 @@ export async function initialize(opts: {
         'Cache-Control',
         'no-cache, no-store, max-age=0, must-revalidate'
       )
-      const appNotFound = await fsChecker.getItem('/_not-found')
+
+      const appNotFound = opts.dev
+        ? devInstance?.serverFields.hasAppNotFound
+        : await fsChecker.getItem('/_not-found')
 
       if (appNotFound) {
         return await invokeRender(

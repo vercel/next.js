@@ -53,6 +53,8 @@ import {
   getSourceById,
   parseStack,
 } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
+import { generateInterceptionRoutesRewrites } from '../../../lib/generate-interception-routes-rewrites'
+import { buildCustomRoute } from './filesystem'
 
 type SetupOpts = {
   dir: string
@@ -124,6 +126,7 @@ async function startWatcher(opts: SetupOpts) {
       await hotReloader.ensurePage({
         clientOnly: false,
         page: item.itemPath,
+        isApp: item.type === 'appFile',
       })
     }
   })
@@ -141,6 +144,10 @@ async function startWatcher(opts: SetupOpts) {
           matchers?: MiddlewareMatcher[]
         }
       | undefined
+    hasAppNotFound?: boolean
+    interceptionRoutes?: ReturnType<
+      typeof import('./filesystem').buildCustomRoute
+    >[]
   } = {}
 
   async function propagateToWorkers(field: string, args: any) {
@@ -226,6 +233,7 @@ async function startWatcher(opts: SetupOpts) {
       let envChange = false
       let tsconfigChange = false
       let conflictingPageChange = 0
+      let hasRootAppNotFound = false
 
       const { appFiles, pageFiles } = opts.fsChecker
 
@@ -341,10 +349,13 @@ async function startWatcher(opts: SetupOpts) {
         }
 
         if (isAppPath) {
-          if (
-            !validFileMatcher.isAppRouterPage(fileName) &&
-            !validFileMatcher.isRootNotFound(fileName)
-          ) {
+          const isRootNotFound = validFileMatcher.isRootNotFound(fileName)
+
+          if (isRootNotFound) {
+            hasRootAppNotFound = true
+            continue
+          }
+          if (!isRootNotFound && !validFileMatcher.isAppRouterPage(fileName)) {
             continue
           }
           // Ignore files/directories starting with `_` in the app directory
@@ -367,10 +378,10 @@ async function startWatcher(opts: SetupOpts) {
           // /index is preserved for root folder
           pageName = pageName.replace(/\/index$/, '') || '/'
           pageFiles.add(pageName)
+          // always add to nextDataRoutes for now but in future only add
+          // entries that actually use getStaticProps/getServerSideProps
+          opts.fsChecker.nextDataRoutes.add(pageName)
         }
-        // always add to nextDataRoutes for now but in future only add
-        // entries that actually use getStaticProps/getServerSideProps
-        opts.fsChecker.nextDataRoutes.add(pageName)
         ;(isAppPath ? appPageFilePaths : pagesPageFilePaths).set(
           pageName,
           fileName
@@ -565,6 +576,19 @@ async function startWatcher(opts: SetupOpts) {
             matchers: middlewareMatchers,
           }
         : undefined
+
+      serverFields.hasAppNotFound = hasRootAppNotFound
+
+      serverFields.interceptionRoutes = generateInterceptionRoutesRewrites(
+        Object.keys(appPaths)
+      )?.map((item) =>
+        buildCustomRoute(
+          'before_files_rewrite',
+          item,
+          opts.nextConfig.basePath,
+          opts.nextConfig.experimental.caseSensitiveRoutes
+        )
+      )
 
       await propagateToWorkers('middleware', serverFields.middleware)
 

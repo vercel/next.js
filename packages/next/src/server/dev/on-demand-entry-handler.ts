@@ -689,11 +689,13 @@ export function onDemandEntryHandler({
     clientOnly,
     appPaths = null,
     match,
+    isApp,
   }: {
     page: string
     clientOnly: boolean
     appPaths?: ReadonlyArray<string> | null
     match?: RouteMatch
+    isApp?: boolean
   }): Promise<void> {
     const stalledTime = 60
     const stalledEnsureTimeout = setTimeout(() => {
@@ -721,6 +723,12 @@ export function onDemandEntryHandler({
 
       const isInsideAppDir =
         !!appDir && pagePathData.absolutePagePath.startsWith(appDir)
+
+      if (typeof isApp === 'boolean' && !(isApp === isInsideAppDir)) {
+        throw new Error(
+          'Ensure bailed, found path does not match ensure type (pages/app)'
+        )
+      }
 
       const pageBundleType = getPageBundleType(pagePathData.bundlePath)
       const addEntry = (
@@ -894,11 +902,13 @@ export function onDemandEntryHandler({
       clientOnly,
       appPaths = null,
       match,
+      isApp,
     }: {
       page: string
       clientOnly: boolean
       appPaths?: ReadonlyArray<string> | null
-      match?: RouteMatch
+      match?: RouteMatch,
+      isApp?: boolean
     }) {
       if (curEnsurePage.has(page)) {
         return curEnsurePage.get(page)
@@ -908,6 +918,7 @@ export function onDemandEntryHandler({
         clientOnly,
         appPaths,
         match,
+        isApp
       }).finally(() => {
         curEnsurePage.delete(page)
       })
