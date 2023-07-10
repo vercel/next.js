@@ -17,6 +17,7 @@ use turbopack_binding::turbopack::{
         issue::{
             Issue, IssueSeverity, IssueSeverityVc, IssueSourceVc, IssueVc, OptionIssueSourceVc,
         },
+        module::ModuleVc,
         reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
         source_asset::SourceAssetVc,
     },
@@ -211,7 +212,7 @@ impl Issue for NextSegmentConfigParsingIssue {
 
 #[turbo_tasks::function]
 pub async fn parse_segment_config_from_source(
-    module_asset: AssetVc,
+    module_asset: ModuleVc,
 ) -> Result<NextSegmentConfigVc> {
     let Some(ecmascript_asset) = EcmascriptModuleAssetVc::resolve_from(module_asset).await? else {
         return Ok(NextSegmentConfigVc::default());
@@ -256,7 +257,7 @@ fn issue_source(source: AssetVc, span: Span) -> IssueSourceVc {
 }
 
 fn parse_config_value(
-    module_asset: AssetVc,
+    module: ModuleVc,
     config: &mut NextSegmentConfig,
     ident: &Ident,
     init: &Expr,
@@ -266,9 +267,9 @@ fn parse_config_value(
     let invalid_config = |detail: &str, value: &JsValue| {
         let (explainer, hints) = value.explain(2, 0);
         NextSegmentConfigParsingIssue {
-            ident: module_asset.ident(),
+            ident: module.ident(),
             detail: StringVc::cell(format!("{detail} Got {explainer}.{hints}")),
-            source: issue_source(module_asset, span),
+            source: issue_source(module.into(), span),
         }
         .cell()
         .as_issue()

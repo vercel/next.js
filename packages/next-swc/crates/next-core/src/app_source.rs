@@ -872,12 +872,16 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
 
                 state.inner_assets.insert(
                     format!("COMPONENT_{i}"),
-                    state.context.with_transition(state.rsc_transition).process(
-                        SourceAssetVc::new(component).into(),
-                        Value::new(ReferenceType::EcmaScriptModules(
-                            EcmaScriptModulesReferenceSubType::Undefined,
-                        )),
-                    ),
+                    state
+                        .context
+                        .with_transition(state.rsc_transition)
+                        .process(
+                            SourceAssetVc::new(component).into(),
+                            Value::new(ReferenceType::EcmaScriptModules(
+                                EcmaScriptModulesReferenceSubType::Undefined,
+                            )),
+                        )
+                        .into(),
                 );
             }
             Ok(())
@@ -978,7 +982,8 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
                             SourceAssetVc::new(*path).into(),
                             BlurPlaceholderMode::None,
                             state.context,
-                        ),
+                        )
+                        .into(),
                     );
                     writeln!(state.loader_tree_code, "{s}(async (props) => [{{")?;
                     writeln!(state.loader_tree_code, "{s}  url: {identifier}.src,")?;
@@ -1000,11 +1005,16 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
                             .push(format!("import {identifier} from \"{inner_module_id}\";"));
                         state.inner_assets.insert(
                             inner_module_id,
-                            state.context.process(
-                                TextContentSourceAssetVc::new(SourceAssetVc::new(*alt_path).into())
+                            state
+                                .context
+                                .process(
+                                    TextContentSourceAssetVc::new(
+                                        SourceAssetVc::new(*alt_path).into(),
+                                    )
                                     .into(),
-                                Value::new(ReferenceType::Internal(InnerAssetsVc::empty())),
-                            ),
+                                    Value::new(ReferenceType::Internal(InnerAssetsVc::empty())),
+                                )
+                                .into(),
                         );
                         writeln!(state.loader_tree_code, "{s}  alt: {identifier},")?;
                     }
@@ -1125,13 +1135,13 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
                     "APP_ENTRY".to_string() => context.with_transition(rsc_transition).process(
                         asset.into(),
                         Value::new(ReferenceType::Internal(InnerAssetsVc::cell(inner_assets))),
-                    ),
+                    ).into(),
                     "APP_BOOTSTRAP".to_string() => context.with_transition("next-client").process(
                         SourceAssetVc::new(next_js_file_path("entry/app/hydrate.tsx")).into(),
                         Value::new(ReferenceType::EcmaScriptModules(
                             EcmaScriptModulesReferenceSubType::Undefined,
                         )),
-                    ),
+                    ).into(),
                 }))),
             ),
             Some(NextRuntime::Edge) =>
@@ -1141,7 +1151,7 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
                         "INNER_EDGE_CHUNK_GROUP".to_string() => context.with_transition("next-edge-page").process(
                             asset.into(),
                             Value::new(ReferenceType::Internal(InnerAssetsVc::cell(inner_assets))),
-                        ),
+                        ).into(),
                     }))),
                 )
         };
@@ -1225,7 +1235,7 @@ impl AppRouteVc {
                 let bootstrap_asset = next_asset("entry/app/route.ts");
 
                 route_bootstrap(
-                    entry_asset,
+                    entry_asset.into(),
                     this.context.into(),
                     this.project_path,
                     bootstrap_asset,
@@ -1243,7 +1253,7 @@ impl AppRouteVc {
                 let module = this.context.process(
                     internal_asset,
                     Value::new(ReferenceType::Internal(InnerAssetsVc::cell(indexmap! {
-                        "ROUTE_CHUNK_GROUP".to_string() => entry
+                        "ROUTE_CHUNK_GROUP".to_string() => entry.into()
                     }))),
                 );
 
