@@ -79,7 +79,6 @@ interface ExportPageInput {
   disableOptimizedLoading: any
   parentSpanId: any
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
-  serverComponents?: boolean
   debugOutput?: boolean
   isrMemoryCacheSize?: NextConfigComplete['experimental']['isrMemoryCacheSize']
   fetchCache?: boolean
@@ -137,7 +136,6 @@ export default async function exportPage({
   optimizeCss,
   disableOptimizedLoading,
   httpAgentOptions,
-  serverComponents,
   debugOutput,
   isrMemoryCacheSize,
   fetchCache,
@@ -313,7 +311,6 @@ export default async function exportPage({
         components = await loadComponents({
           distDir,
           pathname: page,
-          hasServerComponents: !!serverComponents,
           isAppPath: isAppDir,
         })
         curRenderOpts = {
