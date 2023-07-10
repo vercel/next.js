@@ -560,7 +560,12 @@ impl NextConfigVc {
     #[turbo_tasks::function]
     pub async fn webpack_rules(self) -> Result<OptionWebpackRulesVc> {
         let this = self.await?;
-        let Some(turbo_rules) = this.experimental.turbo.as_ref().and_then(|t| t.rules.as_ref()) else {
+        let Some(turbo_rules) = this
+            .experimental
+            .turbo
+            .as_ref()
+            .and_then(|t| t.rules.as_ref())
+        else {
             return Ok(OptionWebpackRulesVc::cell(None));
         };
         if turbo_rules.is_empty() {
@@ -603,7 +608,12 @@ impl NextConfigVc {
     #[turbo_tasks::function]
     pub async fn resolve_alias_options(self) -> Result<ResolveAliasMapVc> {
         let this = self.await?;
-        let Some(resolve_alias) = this.experimental.turbo.as_ref().and_then(|t| t.resolve_alias.as_ref()) else {
+        let Some(resolve_alias) = this
+            .experimental
+            .turbo
+            .as_ref()
+            .and_then(|t| t.resolve_alias.as_ref())
+        else {
             return Ok(ResolveAliasMapVc::cell(ResolveAliasMap::default()));
         };
         let alias_map: ResolveAliasMap = resolve_alias.try_into()?;
@@ -674,14 +684,14 @@ pub async fn load_next_config_internal(
             config_asset.into(),
             Value::new(ReferenceType::Internal(InnerAssetsVc::empty())),
         );
-        any_content_changed(config_asset)
+        any_content_changed(config_asset.into())
     });
     let load_next_config_asset = context.process(
         next_asset("entry/config/next.js"),
         Value::new(ReferenceType::Entry(EntryReferenceSubType::Undefined)),
     );
     let config_value = evaluate(
-        load_next_config_asset,
+        load_next_config_asset.into(),
         project_path,
         env,
         config_asset.map_or_else(|| AssetIdentVc::from_path(project_path), |c| c.ident()),
@@ -694,7 +704,11 @@ pub async fn load_next_config_internal(
     )
     .await?;
 
-    let turbopack_binding::turbo::tasks_bytes::stream::SingleValue::Single(val) = config_value.try_into_single().await.context("Evaluation of Next.js config failed")? else {
+    let turbopack_binding::turbo::tasks_bytes::stream::SingleValue::Single(val) = config_value
+        .try_into_single()
+        .await
+        .context("Evaluation of Next.js config failed")?
+    else {
         return Ok(NextConfig::default().cell());
     };
     let next_config: NextConfig = parse_json_with_source_context(val.to_str()?)?;

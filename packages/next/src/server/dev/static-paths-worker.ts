@@ -11,7 +11,7 @@ import {
   GenerateParams,
 } from '../../build/utils'
 import { loadComponents } from '../load-components'
-import { setHttpClientAndAgentOptions } from '../config'
+import { setHttpClientAndAgentOptions } from '../setup-http-agent-env'
 import { IncrementalCache } from '../lib/incremental-cache'
 import * as serverHooks from '../../client/components/hooks-server-context'
 import { staticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage'
@@ -64,7 +64,6 @@ export async function loadStaticPaths({
   const components = await loadComponents({
     distDir,
     pathname: originalAppPath || pathname,
-    hasServerComponents: false,
     isAppPath: !!isAppPath,
   })
 

@@ -17,6 +17,7 @@ use turbopack_binding::turbopack::{
         issue::{
             Issue, IssueSeverity, IssueSeverityVc, IssueSourceVc, IssueVc, OptionIssueSourceVc,
         },
+        module::ModuleVc,
         reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
         source_asset::SourceAssetVc,
     },
@@ -211,7 +212,7 @@ impl Issue for NextSegmentConfigParsingIssue {
 
 #[turbo_tasks::function]
 pub async fn parse_segment_config_from_source(
-    module_asset: AssetVc,
+    module_asset: ModuleVc,
 ) -> Result<NextSegmentConfigVc> {
     let Some(ecmascript_asset) = EcmascriptModuleAssetVc::resolve_from(module_asset).await? else {
         return Ok(NextSegmentConfigVc::default());
@@ -221,7 +222,8 @@ pub async fn parse_segment_config_from_source(
         program: Program::Module(module),
         eval_context,
         ..
-    } = &*ecmascript_asset.parse().await? else {
+    } = &*ecmascript_asset.parse().await?
+    else {
         return Ok(NextSegmentConfigVc::default());
     };
 
@@ -231,16 +233,13 @@ pub async fn parse_segment_config_from_source(
         let Some(decl) = item
             .as_module_decl()
             .and_then(|mod_decl| mod_decl.as_export_decl())
-            .and_then(|export_decl| export_decl.decl.as_var()) else {
+            .and_then(|export_decl| export_decl.decl.as_var())
+        else {
             continue;
         };
 
         for decl in &decl.decls {
-            let Some(ident) = decl
-                .name
-                .as_ident()
-                .map(|ident| ident.deref())
-            else {
+            let Some(ident) = decl.name.as_ident().map(|ident| ident.deref()) else {
                 continue;
             };
 
@@ -258,7 +257,7 @@ fn issue_source(source: AssetVc, span: Span) -> IssueSourceVc {
 }
 
 fn parse_config_value(
-    module_asset: AssetVc,
+    module: ModuleVc,
     config: &mut NextSegmentConfig,
     ident: &Ident,
     init: &Expr,
@@ -268,9 +267,9 @@ fn parse_config_value(
     let invalid_config = |detail: &str, value: &JsValue| {
         let (explainer, hints) = value.explain(2, 0);
         NextSegmentConfigParsingIssue {
-            ident: module_asset.ident(),
+            ident: module.ident(),
             detail: StringVc::cell(format!("{detail} Got {explainer}.{hints}")),
-            source: issue_source(module_asset, span),
+            source: issue_source(module.into(), span),
         }
         .cell()
         .as_issue()
@@ -297,7 +296,7 @@ fn parse_config_value(
             let value = eval_context.eval(init);
             let Some(val) = value.as_bool() else {
                 invalid_config("`dynamicParams` needs to be a static boolean", &value);
-                return
+                return;
             };
 
             config.dynamic_params = Some(val);

@@ -3,7 +3,7 @@ use turbo_tasks::Value;
 use turbopack_binding::{
     turbo::tasks_fs::FileSystemPathVc,
     turbopack::{
-        core::{asset::AssetVc, chunk::ChunkingContextVc, compile_time_info::CompileTimeInfoVc},
+        core::{chunk::ChunkingContextVc, compile_time_info::CompileTimeInfoVc, module::ModuleVc},
         node::execution_context::ExecutionContextVc,
         turbopack::{
             ecmascript::chunk::EcmascriptChunkPlaceableVc,
@@ -106,9 +106,9 @@ impl Transition for NextClientChunksTransition {
     #[turbo_tasks::function]
     async fn process_module(
         &self,
-        asset: AssetVc,
+        asset: ModuleVc,
         _context: ModuleAssetContextVc,
-    ) -> Result<AssetVc> {
+    ) -> Result<ModuleVc> {
         Ok(
             if let Some(placeable) = EcmascriptChunkPlaceableVc::resolve_from(asset).await? {
                 WithChunksAsset {

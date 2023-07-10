@@ -52,7 +52,7 @@ import {
   LoadComponentsReturnType,
 } from '../server/load-components'
 import { trace } from '../trace'
-import { setHttpClientAndAgentOptions } from '../server/config'
+import { setHttpClientAndAgentOptions } from '../server/setup-http-agent-env'
 import { recursiveDelete } from '../lib/recursive-delete'
 import { Sema } from 'next/dist/compiled/async-sema'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
@@ -1340,7 +1340,6 @@ export async function isPageStatic({
   pageRuntime,
   edgeInfo,
   pageType,
-  hasServerComponents,
   originalAppPath,
   isrFlushToDisk,
   maxMemoryCacheSize,
@@ -1357,7 +1356,6 @@ export async function isPageStatic({
   edgeInfo?: any
   pageType?: 'pages' | 'app'
   pageRuntime?: ServerRuntime
-  hasServerComponents?: boolean
   originalAppPath?: string
   isrFlushToDisk?: boolean
   maxMemoryCacheSize?: number
@@ -1426,7 +1424,6 @@ export async function isPageStatic({
         componentsResult = await loadComponents({
           distDir,
           pathname: originalAppPath || page,
-          hasServerComponents: !!hasServerComponents,
           isAppPath: pageType === 'app',
         })
       }
@@ -1670,7 +1667,6 @@ export async function hasCustomGetInitialProps(
   const components = await loadComponents({
     distDir,
     pathname: page,
-    hasServerComponents: false,
     isAppPath: false,
   })
   let mod = components.ComponentMod
@@ -1693,7 +1689,6 @@ export async function getDefinedNamedExports(
   const components = await loadComponents({
     distDir,
     pathname: page,
-    hasServerComponents: false,
     isAppPath: false,
   })
 

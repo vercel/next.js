@@ -1,5 +1,5 @@
 use anyhow::{bail, Result};
-use indexmap::indexmap;
+use indexmap::{indexmap, IndexMap};
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
     primitives::{JsonValueVc, StringVc, StringsVc},
@@ -265,10 +265,8 @@ pub async fn create_page_source(
     let render_data = render_data(next_config, server_addr);
     let page_extensions = next_config.page_extensions();
 
-    let mut sources = vec![];
-
-    // Match _next/404 first to ensure rewrites work properly.
-    sources.push(
+    let sources = vec![
+        // Match _next/404 first to ensure rewrites work properly.
         create_not_found_page_source(
             project_root,
             env,
@@ -286,30 +284,23 @@ pub async fn create_page_source(
             render_data,
         )
         .issue_context(pages_dir, "Next.js pages directory not found"),
-    );
-
-    sources.push(create_page_source_for_root_directory(
-        pages_structure,
-        project_root,
-        env,
-        server_context,
-        server_data_context,
-        client_context,
-        pages_dir,
-        server_runtime_entries,
-        fallback_page,
-        client_root,
-        node_root,
-        render_data,
-    ));
-
-    sources.push(
+        create_page_source_for_root_directory(
+            pages_structure,
+            project_root,
+            env,
+            server_context,
+            server_data_context,
+            client_context,
+            pages_dir,
+            server_runtime_entries,
+            fallback_page,
+            client_root,
+            node_root,
+            render_data,
+        ),
         AssetGraphContentSourceVc::new_eager(client_root, fallback_page.as_asset())
             .as_content_source()
             .issue_context(pages_dir, "Next.js pages directory fallback"),
-    );
-
-    sources.push(
         create_not_found_page_source(
             project_root,
             env,
@@ -327,7 +318,7 @@ pub async fn create_page_source(
             render_data,
         )
         .issue_context(pages_dir, "Next.js pages directory not found fallback"),
-    );
+    ];
 
     let source = CombinedContentSource { sources }.cell().into();
     Ok(source)
@@ -341,7 +332,7 @@ async fn create_page_source_for_file(
     server_context: AssetContextVc,
     server_data_context: AssetContextVc,
     client_context: AssetContextVc,
-    pages_dir: FileSystemPathVc,
+    _pages_dir: FileSystemPathVc,
     page_asset: AssetVc,
     runtime_entries: AssetsVc,
     fallback_page: DevHtmlAssetVc,
@@ -545,10 +536,12 @@ async fn create_not_found_page_source(
             )
         };
 
-    let entry_asset = server_context.process(
-        page_asset,
-        Value::new(ReferenceType::Entry(EntryReferenceSubType::Page)),
-    );
+    let entry_asset = server_context
+        .process(
+            page_asset,
+            Value::new(ReferenceType::Entry(EntryReferenceSubType::Page)),
+        )
+        .into();
 
     let ssr_entry = SsrEntry {
         runtime_entries,
@@ -811,12 +804,12 @@ impl SsrEntryVc {
         } else {
             this.ty
         };
-        let (internal_asset, inner_assets) = match ty {
+        let (internal_asset, inner_assets): (_, IndexMap<_, AssetVc>) = match ty {
             SsrType::AutoApi => unreachable!(),
             SsrType::Api => (
                 next_asset("entry/server-api.tsx"),
                 indexmap! {
-                    "INNER".to_string() => entry_asset_page,
+                    "INNER".to_string() => entry_asset_page.into(),
                 },
             ),
             SsrType::EdgeApi => {
@@ -828,14 +821,14 @@ impl SsrEntryVc {
                 (
                     next_asset("entry/server-edge-api.tsx"),
                     indexmap! {
-                        "INNER_EDGE_CHUNK_GROUP".to_string() => entry_asset_edge_chunk_group,
+                        "INNER_EDGE_CHUNK_GROUP".to_string() => entry_asset_edge_chunk_group.into(),
                     },
                 )
             }
             SsrType::Data => (
                 next_asset("entry/server-data.tsx"),
                 indexmap! {
-                    "INNER".to_string() => entry_asset_page,
+                    "INNER".to_string() => entry_asset_page.into(),
                 },
             ),
             SsrType::Html => {
@@ -847,8 +840,8 @@ impl SsrEntryVc {
                 (
                     next_asset("entry/server-renderer.tsx"),
                     indexmap! {
-                        "INNER".to_string() => entry_asset_page,
-                        "INNER_CLIENT_CHUNK_GROUP".to_string() => entry_asset_client_chunk_group,
+                        "INNER".to_string() => entry_asset_page.into(),
+                        "INNER_CLIENT_CHUNK_GROUP".to_string() => entry_asset_client_chunk_group.into(),
                     },
                 )
             }

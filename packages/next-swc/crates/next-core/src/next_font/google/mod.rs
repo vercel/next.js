@@ -109,8 +109,9 @@ impl ImportMappingReplacement for NextFontGoogleReplacer {
         let Request::Module {
             module: _,
             path: _,
-            query: query_vc
-        } = request else {
+            query: query_vc,
+        } = request
+        else {
             return Ok(ImportMapResult::NoEntry.into());
         };
 
@@ -205,7 +206,8 @@ impl ImportMappingReplacement for NextFontGoogleCssModuleReplacer {
             module: _,
             path: _,
             query: query_vc,
-        } = request else {
+        } = request
+        else {
             return Ok(ImportMapResult::NoEntry.into());
         };
 
@@ -378,8 +380,8 @@ async fn font_options_from_query_map(
     }
 
     let Some((json, _)) = query_map.iter().next() else {
-            bail!("Expected one entry");
-        };
+        bail!("Expected one entry");
+    };
 
     options_from_request(&parse_json_with_source_context(json)?, &*font_data.await?)
         .map(|o| NextFontGoogleOptionsVc::new(Value::new(o)))
@@ -456,7 +458,7 @@ async fn get_mock_stylesheet(
 
     let root = mock_fs.root();
     let val = evaluate(
-        mocked_response_asset,
+        mocked_response_asset.into(),
         root,
         env,
         AssetIdentVc::from_path(loader_path),

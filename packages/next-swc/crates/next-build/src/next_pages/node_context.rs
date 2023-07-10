@@ -53,9 +53,16 @@ impl PagesBuildNodeContextVc {
             .node_asset_context
             .resolve_asset(
                 origin,
-                RequestVc::module(package.clone(), Value::new(path.clone().into()), QueryMapVc::none()),
-                this.node_asset_context.resolve_options(origin, Value::new(ReferenceType::Entry(EntryReferenceSubType::Page))),
-                Value::new(ReferenceType::Entry(EntryReferenceSubType::Page))
+                RequestVc::module(
+                    package.clone(),
+                    Value::new(path.clone().into()),
+                    QueryMapVc::none(),
+                ),
+                this.node_asset_context.resolve_options(
+                    origin,
+                    Value::new(ReferenceType::Entry(EntryReferenceSubType::Page)),
+                ),
+                Value::new(ReferenceType::Entry(EntryReferenceSubType::Page)),
             )
             .primary_assets()
             .await?
@@ -94,7 +101,9 @@ impl PagesBuildNodeContextVc {
             .node_asset_context
             .process(source_asset, reference_type);
 
-        let Some(node_module_asset) = EcmascriptChunkPlaceableVc::resolve_from(node_asset_page).await? else {
+        let Some(node_module_asset) =
+            EcmascriptChunkPlaceableVc::resolve_from(node_asset_page).await?
+        else {
             bail!("Expected an EcmaScript module asset");
         };
 
