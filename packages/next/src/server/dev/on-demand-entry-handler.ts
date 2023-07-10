@@ -907,7 +907,7 @@ export function onDemandEntryHandler({
       page: string
       clientOnly: boolean
       appPaths?: ReadonlyArray<string> | null
-      match?: RouteMatch,
+      match?: RouteMatch
       isApp?: boolean
     }) {
       if (curEnsurePage.has(page)) {
@@ -918,7 +918,7 @@ export function onDemandEntryHandler({
         clientOnly,
         appPaths,
         match,
-        isApp
+        isApp,
       }).finally(() => {
         curEnsurePage.delete(page)
       })

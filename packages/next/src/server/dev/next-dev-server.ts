@@ -10,7 +10,6 @@ import type { BaseNextRequest, BaseNextResponse } from '../base-http'
 import type { MiddlewareRoutingItem } from '../base-server'
 import type { FunctionComponent } from 'react'
 import type { RouteMatch } from '../future/route-matches/route-match'
-import type { default as THotReloader } from './hot-reloader'
 
 import { Worker } from 'next/dist/compiled/jest-worker'
 import { join as pathJoin } from 'path'
@@ -251,6 +250,7 @@ export default class DevServer extends Server {
     // So that the user doesn't have to define a custom server reading the exportPathMap
     if (this.nextConfig.exportPathMap) {
       Log.info('Defining routes from exportPathMap')
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const exportPathMap = await this.nextConfig.exportPathMap(
         {},
         {

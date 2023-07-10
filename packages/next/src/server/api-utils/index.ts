@@ -1,7 +1,7 @@
 import type { IncomingMessage } from 'http'
 import type { BaseNextRequest } from '../base-http'
 import type { CookieSerializeOptions } from 'next/dist/compiled/cookie'
-import type { NextApiRequest, NextApiResponse } from '../../shared/lib/utils'
+import type { NextApiResponse } from '../../shared/lib/utils'
 
 import { HeadersAdapter } from '../web/spec-extension/adapters/headers'
 import {

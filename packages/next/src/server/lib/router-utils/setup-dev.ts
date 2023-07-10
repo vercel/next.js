@@ -210,7 +210,7 @@ async function startWatcher(opts: SetupOpts) {
         return (
           !files.some((file) => file.startsWith(pathname)) &&
           !directories.some(
-            (dir) => pathname.startsWith(dir) || dir.startsWith(pathname)
+            (d) => pathname.startsWith(d) || d.startsWith(pathname)
           )
         )
       },
