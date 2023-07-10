@@ -22,7 +22,7 @@ use turbopack_binding::{
             environment::{ServerAddrVc, ServerInfo},
             ident::AssetIdentVc,
             issue::IssueVc,
-            module::{ModuleVc, OptionModuleVc},
+            module::ModuleVc,
             reference_type::{EcmaScriptModulesReferenceSubType, InnerAssetsVc, ReferenceType},
             resolve::{find_context_file, FindContextFileResult},
             source_asset::SourceAssetVc,
