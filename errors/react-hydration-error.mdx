@@ -20,7 +20,7 @@ Hydration errors can occur from:
 4. [Browser extensions](https://github.com/facebook/react/issues/24430) modifying the HTML
 5. Incorrectly configured [CSS-in-JS libraries](https://nextjs.org/docs/app/building-your-application/styling/css-in-js)
    1. Ensure your code is following [our official examples](https://github.com/vercel/next.js/tree/canary/examples)
-6. Incorrectly configuring Edge or CDN, for example, Cloudflare [Auto Minify](https://developers.cloudflare.com/speed/optimization/content/auto-minify/)
+6. Incorrectly configured Edge/CDN that attempts to modify the html response, such as Cloudflare [Auto Minify](https://developers.cloudflare.com/speed/optimization/content/auto-minify/)
 
 ## Possible Ways to Fix It
 
