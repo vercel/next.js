@@ -214,6 +214,8 @@ export async function runTests({
         } else {
           expect(await getFiles()).toEqual(expectedWhenTrailingSlashFalse)
         }
+        const html404 = await fs.readFile(join(exportDir, '404.html'), 'utf8')
+        expect(html404).toContain('<h1>My custom not found page</h1>')
       }
     }
   } finally {
