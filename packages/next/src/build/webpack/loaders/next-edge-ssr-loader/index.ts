@@ -216,7 +216,9 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
     const buildManifest = self.__BUILD_MANIFEST
     const prerenderManifest = maybeJSONParse(self.__PRERENDER_MANIFEST)
     const reactLoadableManifest = maybeJSONParse(self.__REACT_LOADABLE_MANIFEST)
-    const rscManifest = maybeJSONParse(self.__RSC_MANIFEST)
+    const rscManifest = maybeJSONParse(self.__RSC_MANIFEST?.[${JSON.stringify(
+      page
+    )}])
     const rscServerManifest = maybeJSONParse(self.__RSC_SERVER_MANIFEST)
     const subresourceIntegrityManifest = ${
       sriEnabled

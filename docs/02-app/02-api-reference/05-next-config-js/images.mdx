@@ -47,6 +47,7 @@ Alternatively, you can use the [`loader` prop](/docs/pages/api-reference/compone
 - [ImageEngine](#imageengine)
 - [Imgix](#imgix)
 - [Thumbor](#thumbor)
+- [Supabase](#supabase)
 
 ### Akamai
 
@@ -149,5 +150,18 @@ export default function imgixLoader({ src, width, quality }) {
 export default function thumborLoader({ src, width, quality }) {
   const params = [`${width}x0`, `filters:quality(${quality || 75})`]
   return `https://example.com${params.join('/')}${src}`
+}
+```
+
+### Supabase
+
+```js
+// Docs: https://supabase.com/docs/guides/storage/image-transformations#nextjs-loader
+const projectId = '' // your supabase project id
+
+export default function supabaseLoader({ src, width, quality }) {
+  return `https://${projectId}.supabase.co/storage/v1/render/image/public/${src}?width=${width}&quality=${
+    quality || 75
+  }`
 }
 ```
