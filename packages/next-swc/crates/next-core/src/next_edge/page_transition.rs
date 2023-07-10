@@ -9,9 +9,9 @@ use turbopack_binding::{
             chunk::{ChunkableModuleVc, ChunkingContextVc},
             compile_time_info::CompileTimeInfoVc,
             context::AssetContext,
+            file_source::FileSourceVc,
             module::ModuleVc,
             reference_type::{EcmaScriptModulesReferenceSubType, InnerAssetsVc, ReferenceType},
-            source_asset::FileSourceVc,
         },
         ecmascript::chunk_group_files_asset::ChunkGroupFilesAsset,
         turbopack::{

@@ -13,13 +13,13 @@ use turbopack_binding::turbopack::{
     core::{
         asset::{Asset, AssetVc},
         context::{AssetContext, AssetContextVc},
+        file_source::FileSourceVc,
         ident::AssetIdentVc,
         issue::{
             Issue, IssueSeverity, IssueSeverityVc, IssueSourceVc, IssueVc, OptionIssueSourceVc,
         },
         module::ModuleVc,
         reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
-        source_asset::FileSourceVc,
     },
     ecmascript::{
         analyzer::{graph::EvalContext, ConstantNumber, ConstantValue, JsValue},

@@ -91,15 +91,13 @@ impl PagesBuildNodeContextVc {
     #[turbo_tasks::function]
     pub async fn node_chunk(
         self,
-        source_asset: AssetVc,
+        file_source: AssetVc,
         original_path: StringVc,
         reference_type: Value<ReferenceType>,
     ) -> Result<AssetVc> {
         let this = self.await?;
 
-        let node_asset_page = this
-            .node_asset_context
-            .process(source_asset, reference_type);
+        let node_asset_page = this.node_asset_context.process(file_source, reference_type);
 
         let Some(node_module_asset) =
             EcmascriptChunkPlaceableVc::resolve_from(node_asset_page).await?

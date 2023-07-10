@@ -17,8 +17,8 @@ use turbopack_binding::{
             chunk::{ChunkingContextVc, EvaluatableAssetVc, EvaluatableAssetsVc},
             context::{AssetContext, AssetContextVc},
             environment::ServerAddrVc,
+            file_source::FileSourceVc,
             reference_type::{EntryReferenceSubType, InnerAssetsVc, ReferenceType},
-            source_asset::FileSourceVc,
         },
         dev::DevChunkingContextVc,
         dev_server::{

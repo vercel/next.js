@@ -4,8 +4,8 @@ use turbopack_binding::{
     turbopack::{
         core::{
             asset::AssetVc,
+            file_source::FileSourceVc,
             resolve::{find_context_file, node::node_cjs_resolve_options, FindContextFileResult},
-            source_asset::FileSourceVc,
         },
         dev::react_refresh::assert_can_resolve_react_refresh,
         ecmascript::typescript::resolve::{read_from_tsconfigs, read_tsconfigs, tsconfig},

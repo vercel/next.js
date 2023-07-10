@@ -18,12 +18,12 @@ use turbopack_binding::{
             compile_time_info::CompileTimeInfoVc,
             context::AssetContext,
             environment::ServerAddrVc,
+            file_source::FileSourceVc,
             issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc},
             reference_type::{
                 EcmaScriptModulesReferenceSubType, EntryReferenceSubType, InnerAssetsVc,
                 ReferenceType,
             },
-            source_asset::FileSourceVc,
             virtual_asset::VirtualAssetVc,
         },
         dev::DevChunkingContextVc,
@@ -1223,9 +1223,9 @@ impl AppRouteVc {
         .reference_chunk_source_maps(should_debug("app_source"))
         .build();
 
-        let entry_source_asset = FileSourceVc::new(this.entry_path);
+        let entry_file_source = FileSourceVc::new(this.entry_path);
         let entry_asset = this.context.process(
-            entry_source_asset.into(),
+            entry_file_source.into(),
             Value::new(ReferenceType::Entry(EntryReferenceSubType::AppRoute)),
         );
 
@@ -1246,7 +1246,7 @@ impl AppRouteVc {
                 let internal_asset = next_asset("entry/app/edge-route.ts");
 
                 let entry = this.context.with_transition("next-edge-route").process(
-                    entry_source_asset.into(),
+                    entry_file_source.into(),
                     Value::new(ReferenceType::Entry(EntryReferenceSubType::AppRoute)),
                 );
 

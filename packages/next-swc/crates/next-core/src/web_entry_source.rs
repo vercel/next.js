@@ -13,10 +13,10 @@ use turbopack_binding::{
                 FreeVarReferencesVc,
             },
             environment::{BrowserEnvironment, EnvironmentVc, ExecutionEnvironment},
+            file_source::FileSourceVc,
             free_var_references,
             reference_type::{EntryReferenceSubType, ReferenceType},
             resolve::{origin::PlainResolveOriginVc, parse::RequestVc},
-            source_asset::FileSourceVc,
         },
         dev::{react_refresh::assert_can_resolve_react_refresh, DevChunkingContextVc},
         dev_server::{

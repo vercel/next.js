@@ -16,6 +16,7 @@ use turbopack_binding::{
             changed::any_content_changed,
             chunk::ChunkingContext,
             context::AssetContext,
+            file_source::FileSourceVc,
             ident::AssetIdentVc,
             issue::{Issue, IssueContextExt, IssueSeverity, IssueSeverityVc, IssueVc},
             reference_type::{EntryReferenceSubType, InnerAssetsVc, ReferenceType},
@@ -24,7 +25,6 @@ use turbopack_binding::{
                 options::{ImportMap, ImportMapping},
                 FindContextFileResult, ResolveAliasMap, ResolveAliasMapVc,
             },
-            source_asset::FileSourceVc,
         },
         ecmascript_plugin::transform::{
             emotion::EmotionTransformConfig, relay::RelayConfig,
