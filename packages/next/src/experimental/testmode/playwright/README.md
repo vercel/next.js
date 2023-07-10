@@ -94,3 +94,26 @@ test('/product/shoe', async ({ page, msw }) => {
   await expect(page.locator('body')).toHaveText(/Boot/)
 })
 ```
+
+### Or use your favorite Fetch mocking library
+
+The "fetch loopback" mode can be configured in the `playwright.config.ts` or
+via `test.use()` with a test module. This option loops `fetch()` calls via
+the `fetch()` of the current test's worker.
+
+```javascript
+import { test, expect } from 'next/experimental/testmode/playwright'
+import { myFetchMocker } from 'my-fetch-mocker'
+
+test.use({ nextOptions: { fetchLoopback: true } })
+
+test('/product/shoe', async ({ page, next }) => {
+  myFetchMocker.mock('http://my-db/product/shoe', {
+    title: 'A shoe',
+  })
+
+  await page.goto('/product/shoe')
+
+  await expect(page.locator('body')).toHaveText(/Shoe/)
+})
+```

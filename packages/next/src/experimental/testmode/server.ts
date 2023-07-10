@@ -5,6 +5,7 @@ import type {
   ProxyFetchResponse,
   ProxyResponse,
 } from './proxy'
+import { ClientRequestInterceptor } from '@mswjs/interceptors/ClientRequest'
 
 interface TestReqInfo {
   url: string
@@ -64,9 +65,43 @@ function buildResponse(proxyResponse: ProxyFetchResponse): Response {
   })
 }
 
+async function handleFetch(
+  originalFetch: Fetch,
+  request: Request
+): Promise<Response> {
+  const testInfo = testStorage.getStore()
+  if (!testInfo) {
+    throw new Error('No test info')
+  }
+
+  const { testData, proxyPort } = testInfo
+  const proxyRequest = await buildProxyRequest(testData, request)
+
+  const resp = await originalFetch(`http://localhost:${proxyPort}`, {
+    method: 'POST',
+    body: JSON.stringify(proxyRequest),
+  })
+  if (!resp.ok) {
+    throw new Error(`Proxy request failed: ${resp.status}`)
+  }
+
+  const proxyResponse = (await resp.json()) as ProxyResponse
+  const { api } = proxyResponse
+  switch (api) {
+    case 'continue':
+      return originalFetch(request)
+    case 'abort':
+    case 'unhandled':
+      throw new Error('Proxy request aborted')
+    default:
+      break
+  }
+  return buildResponse(proxyResponse)
+}
+
 function interceptFetch() {
   const originalFetch = global.fetch
-  global.fetch = async function testFetch(
+  global.fetch = function testFetch(
     input: FetchInputArg,
     init?: FetchInitArg
   ): Promise<Response> {
@@ -75,36 +110,7 @@ function interceptFetch() {
     if (init?.next?.internal) {
       return originalFetch(input, init)
     }
-
-    const testInfo = testStorage.getStore()
-    if (!testInfo) {
-      throw new Error('No test info')
-    }
-
-    const { testData, proxyPort } = testInfo
-    const originalRequest = new Request(input, init)
-    const proxyRequest = await buildProxyRequest(testData, originalRequest)
-
-    const resp = await originalFetch(`http://localhost:${proxyPort}`, {
-      method: 'POST',
-      body: JSON.stringify(proxyRequest),
-    })
-    if (!resp.ok) {
-      throw new Error(`Proxy request failed: ${resp.status}`)
-    }
-
-    const proxyResponse = (await resp.json()) as ProxyResponse
-    const { api } = proxyResponse
-    switch (api) {
-      case 'continue':
-        return originalFetch(originalRequest)
-      case 'abort':
-      case 'unhandled':
-        throw new Error('Proxy request aborted')
-      default:
-        break
-    }
-    return buildResponse(proxyResponse)
+    return handleFetch(originalFetch, new Request(input, init))
   }
 }
 
@@ -112,8 +118,16 @@ export function interceptTestApis(): () => void {
   const originalFetch = global.fetch
   interceptFetch()
 
+  const clientRequestInterceptor = new ClientRequestInterceptor()
+  clientRequestInterceptor.on('request', async ({ request }) => {
+    const response = await handleFetch(originalFetch, request)
+    request.respondWith(response)
+  })
+  clientRequestInterceptor.apply()
+
   // Cleanup.
   return () => {
+    clientRequestInterceptor.dispose()
     global.fetch = originalFetch
   }
 }

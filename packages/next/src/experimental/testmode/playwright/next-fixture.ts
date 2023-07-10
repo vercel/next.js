@@ -1,5 +1,7 @@
 import type { Page, TestInfo } from '@playwright/test'
 import type { NextWorkerFixture, FetchHandler } from './next-worker-fixture'
+import type { NextOptions } from './next-options'
+import type { FetchHandlerResult } from '../proxy'
 import { handleRoute } from './page-route'
 
 export interface NextFixture {
@@ -11,12 +13,13 @@ class NextFixtureImpl implements NextFixture {
 
   constructor(
     public testId: string,
+    private options: NextOptions,
     private worker: NextWorkerFixture,
     private page: Page
   ) {
-    this.page.route('**', (route) =>
-      handleRoute(route, page, this.fetchHandler)
-    )
+    const handleFetch = this.handleFetch.bind(this)
+    worker.onFetch(testId, handleFetch)
+    this.page.route('**', (route) => handleRoute(route, page, handleFetch))
   }
 
   teardown(): void {
@@ -25,7 +28,20 @@ class NextFixtureImpl implements NextFixture {
 
   onFetch(handler: FetchHandler): void {
     this.fetchHandler = handler
-    this.worker.onFetch(this.testId, handler)
+  }
+
+  private async handleFetch(request: Request): Promise<FetchHandlerResult> {
+    const handler = this.fetchHandler
+    if (handler) {
+      const result = handler(request)
+      if (result) {
+        return result
+      }
+    }
+    if (this.options.fetchLoopback) {
+      return fetch(request)
+    }
+    return undefined
   }
 }
 
@@ -33,17 +49,24 @@ export async function applyNextFixture(
   use: (fixture: NextFixture) => Promise<void>,
   {
     testInfo,
+    nextOptions,
     nextWorker,
     page,
     extraHTTPHeaders,
   }: {
     testInfo: TestInfo
+    nextOptions: NextOptions
     nextWorker: NextWorkerFixture
     page: Page
     extraHTTPHeaders: Record<string, string> | undefined
   }
 ): Promise<void> {
-  const fixture = new NextFixtureImpl(testInfo.testId, nextWorker, page)
+  const fixture = new NextFixtureImpl(
+    testInfo.testId,
+    nextOptions,
+    nextWorker,
+    page
+  )
   page.setExtraHTTPHeaders({
     ...extraHTTPHeaders,
     'Next-Test-Proxy-Port': String(nextWorker.proxyPort),
