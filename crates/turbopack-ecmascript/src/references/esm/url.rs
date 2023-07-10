@@ -6,7 +6,7 @@ use swc_core::{
 use turbo_tasks::{primitives::StringVc, Value, ValueToString, ValueToStringVc};
 use turbopack_core::{
     chunk::{
-        ChunkableAssetReference, ChunkableAssetReferenceVc, ChunkingType, ChunkingTypeOptionVc,
+        ChunkableModuleReference, ChunkableModuleReferenceVc, ChunkingType, ChunkingTypeOptionVc,
     },
     environment::{Rendering, RenderingVc},
     issue::{code_gen::CodeGenerationIssue, IssueSeverity, IssueSourceVc},
@@ -102,7 +102,7 @@ impl ValueToString for UrlAssetReference {
 }
 
 #[turbo_tasks::value_impl]
-impl ChunkableAssetReference for UrlAssetReference {
+impl ChunkableModuleReference for UrlAssetReference {
     #[turbo_tasks::function]
     fn chunking_type(&self) -> ChunkingTypeOptionVc {
         ChunkingTypeOptionVc::cell(Some(ChunkingType::PlacedOrParallel))

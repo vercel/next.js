@@ -24,13 +24,14 @@ use turbopack::{
     ModuleAssetContextVc,
 };
 use turbopack_core::{
-    asset::{Asset, AssetVc},
+    asset::Asset,
     chunk::{EvaluatableAssetVc, EvaluatableAssetsVc},
     compile_time_defines,
     compile_time_info::CompileTimeInfo,
     context::{AssetContext, AssetContextVc},
     environment::{EnvironmentVc, ExecutionEnvironment, NodeJsEnvironment},
     issue::IssueVc,
+    module::ModuleVc,
     reference_type::{EntryReferenceSubType, ReferenceType},
     source_asset::SourceAssetVc,
 };
@@ -246,15 +247,15 @@ async fn run_test(resource: &str) -> Result<RunTestResultVc> {
     let test_asset = process_path_to_asset(test_path, context);
 
     let res = evaluate(
-        jest_entry_asset,
+        jest_entry_asset.into(),
         chunk_root_path,
         CommandLineProcessEnvVc::new().into(),
         test_asset.ident(),
         context,
         chunking_context,
         Some(EvaluatableAssetsVc::many(vec![
-            EvaluatableAssetVc::from_asset(jest_runtime_asset, context),
-            EvaluatableAssetVc::from_asset(test_asset, context),
+            EvaluatableAssetVc::from_asset(jest_runtime_asset.into(), context),
+            EvaluatableAssetVc::from_asset(test_asset.into(), context),
         ])),
         vec![],
         CompletionVc::immutable(),
@@ -305,7 +306,7 @@ async fn snapshot_issues(run_result: RunTestResultVc) -> Result<NothingVc> {
 }
 
 #[turbo_tasks::function]
-fn process_path_to_asset(path: FileSystemPathVc, context: AssetContextVc) -> AssetVc {
+fn process_path_to_asset(path: FileSystemPathVc, context: AssetContextVc) -> ModuleVc {
     context.process(
         SourceAssetVc::new(path).into(),
         Value::new(ReferenceType::Entry(EntryReferenceSubType::Undefined)),

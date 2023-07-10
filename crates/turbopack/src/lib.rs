@@ -33,6 +33,8 @@ use turbopack_core::{
     context::{AssetContext, AssetContextVc},
     ident::AssetIdentVc,
     issue::{Issue, IssueVc},
+    module::ModuleVc,
+    raw_module::RawModuleVc,
     reference::all_referenced_assets,
     reference_type::{EcmaScriptModulesReferenceSubType, InnerAssetsVc, ReferenceType},
     resolve::{
@@ -102,7 +104,7 @@ async fn apply_module_type(
     module_type: ModuleTypeVc,
     part: Option<ModulePartVc>,
     inner_assets: Option<InnerAssetsVc>,
-) -> Result<AssetVc> {
+) -> Result<ModuleVc> {
     let module_type = &*module_type.await?;
     Ok(match module_type {
         ModuleType::Ecmascript {
@@ -164,7 +166,7 @@ async fn apply_module_type(
             builder.build()
         }
         ModuleType::Json => JsonModuleAssetVc::new(source).into(),
-        ModuleType::Raw => source,
+        ModuleType::Raw => RawModuleVc::new(source).into(),
         ModuleType::CssGlobal => GlobalCssAssetVc::new(source, context.into()).into(),
         ModuleType::CssModule => ModuleCssAssetVc::new(source, context.into()).into(),
         ModuleType::Css { ty, transforms } => {
@@ -261,7 +263,7 @@ impl ModuleAssetContextVc {
         self_vc: ModuleAssetContextVc,
         source: AssetVc,
         reference_type: Value<ReferenceType>,
-    ) -> AssetVc {
+    ) -> ModuleVc {
         process_default(self_vc, source, reference_type, Vec::new())
     }
 }
@@ -272,7 +274,7 @@ async fn process_default(
     source: AssetVc,
     reference_type: Value<ReferenceType>,
     processed_rules: Vec<usize>,
-) -> Result<AssetVc> {
+) -> Result<ModuleVc> {
     let ident = source.ident().resolve().await?;
     let options = ModuleOptionsVc::new(ident.path().parent(), context.module_options_context());
 
@@ -447,7 +449,10 @@ impl AssetContext for ModuleAssetContext {
         Ok(result
             .await?
             .map(
-                |a| self_vc.process(a, reference_type.clone()).resolve(),
+                |a| {
+                    let reference_type = reference_type.clone();
+                    async move { Ok(self_vc.process(a, reference_type).resolve().await?.into()) }
+                },
                 |i| async move { Ok(i) },
             )
             .await?
@@ -458,7 +463,7 @@ impl AssetContext for ModuleAssetContext {
         self_vc: ModuleAssetContextVc,
         asset: AssetVc,
         reference_type: Value<ReferenceType>,
-    ) -> Result<AssetVc> {
+    ) -> Result<ModuleVc> {
         let this = self_vc.await?;
         if let Some(transition) = this.transition {
             Ok(transition.process(asset, self_vc, reference_type))

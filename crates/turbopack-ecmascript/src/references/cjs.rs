@@ -5,7 +5,7 @@ use swc_core::{
 };
 use turbo_tasks::{primitives::StringVc, Value, ValueToString, ValueToStringVc};
 use turbopack_core::{
-    chunk::{ChunkableAssetReference, ChunkableAssetReferenceVc},
+    chunk::{ChunkableModuleReference, ChunkableModuleReferenceVc},
     issue::{IssueSourceVc, OptionIssueSourceVc},
     reference::{AssetReference, AssetReferenceVc},
     resolve::{origin::ResolveOriginVc, parse::RequestVc, ResolveResultVc},
@@ -72,7 +72,7 @@ impl ValueToString for CjsAssetReference {
 }
 
 #[turbo_tasks::value_impl]
-impl ChunkableAssetReference for CjsAssetReference {}
+impl ChunkableModuleReference for CjsAssetReference {}
 
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
@@ -129,7 +129,7 @@ impl ValueToString for CjsRequireAssetReference {
 }
 
 #[turbo_tasks::value_impl]
-impl ChunkableAssetReference for CjsRequireAssetReference {}
+impl ChunkableModuleReference for CjsRequireAssetReference {}
 
 #[turbo_tasks::value_impl]
 impl CodeGenerateable for CjsRequireAssetReference {
@@ -253,7 +253,7 @@ impl ValueToString for CjsRequireResolveAssetReference {
 }
 
 #[turbo_tasks::value_impl]
-impl ChunkableAssetReference for CjsRequireResolveAssetReference {}
+impl ChunkableModuleReference for CjsRequireResolveAssetReference {}
 
 #[turbo_tasks::value_impl]
 impl CodeGenerateable for CjsRequireResolveAssetReference {

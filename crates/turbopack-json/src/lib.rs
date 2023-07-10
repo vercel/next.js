@@ -15,10 +15,11 @@ use turbo_tasks_fs::{FileContent, FileJsonContent};
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
     chunk::{
-        availability_info::AvailabilityInfo, ChunkItem, ChunkItemVc, ChunkVc, ChunkableAsset,
-        ChunkableAssetVc, ChunkingContextVc,
+        availability_info::AvailabilityInfo, ChunkItem, ChunkItemVc, ChunkVc, ChunkableModule,
+        ChunkableModuleVc, ChunkingContextVc,
     },
     ident::AssetIdentVc,
+    module::{Module, ModuleVc},
     reference::AssetReferencesVc,
 };
 use turbopack_ecmascript::chunk::{
@@ -59,7 +60,10 @@ impl Asset for JsonModuleAsset {
 }
 
 #[turbo_tasks::value_impl]
-impl ChunkableAsset for JsonModuleAsset {
+impl Module for JsonModuleAsset {}
+
+#[turbo_tasks::value_impl]
+impl ChunkableModule for JsonModuleAsset {
     #[turbo_tasks::function]
     fn as_chunk(
         self_vc: JsonModuleAssetVc,

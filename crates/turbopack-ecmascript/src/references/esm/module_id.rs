@@ -2,7 +2,7 @@ use anyhow::Result;
 use swc_core::{ecma::ast::Expr, quote};
 use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
 use turbopack_core::{
-    chunk::{ChunkableAssetReference, ChunkableAssetReferenceVc, ChunkingTypeOptionVc, ModuleId},
+    chunk::{ChunkableModuleReference, ChunkableModuleReferenceVc, ChunkingTypeOptionVc, ModuleId},
     reference::{AssetReference, AssetReferenceVc},
     resolve::ResolveResultVc,
 };
@@ -50,7 +50,7 @@ impl ValueToString for EsmModuleIdAssetReference {
 }
 
 #[turbo_tasks::value_impl]
-impl ChunkableAssetReference for EsmModuleIdAssetReference {
+impl ChunkableModuleReference for EsmModuleIdAssetReference {
     #[turbo_tasks::function]
     fn chunking_type(&self) -> ChunkingTypeOptionVc {
         self.inner.chunking_type()

@@ -5,6 +5,7 @@ use turbopack_core::{
     chunk::{PassthroughAsset, PassthroughAssetVc},
     context::{AssetContext, AssetContextVc},
     ident::AssetIdentVc,
+    module::{Module, ModuleVc},
     reference::AssetReferencesVc,
     reference_type::{CssReferenceSubType, ReferenceType},
 };
@@ -30,7 +31,7 @@ impl GlobalCssAssetVc {
 #[turbo_tasks::value_impl]
 impl GlobalCssAssetVc {
     #[turbo_tasks::function]
-    async fn inner(self) -> Result<AssetVc> {
+    async fn inner(self) -> Result<ModuleVc> {
         let this = self.await?;
         // The underlying CSS is processed through an internal CSS reference.
         // This can then be picked up by other rules to treat CSS assets in
@@ -62,6 +63,9 @@ impl Asset for GlobalCssAsset {
         ])
     }
 }
+
+#[turbo_tasks::value_impl]
+impl Module for GlobalCssAsset {}
 
 #[turbo_tasks::function]
 fn modifier() -> StringVc {

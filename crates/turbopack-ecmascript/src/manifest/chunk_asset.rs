@@ -3,10 +3,11 @@ use turbo_tasks::{primitives::StringVc, Value};
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc, AssetsVc},
     chunk::{
-        availability_info::AvailabilityInfo, ChunkVc, ChunkableAsset, ChunkableAssetVc,
+        availability_info::AvailabilityInfo, ChunkVc, ChunkableModule, ChunkableModuleVc,
         ChunkingContext, ChunkingContextVc,
     },
     ident::AssetIdentVc,
+    module::{Module, ModuleVc},
     reference::{AssetReferencesVc, SingleAssetReferenceVc},
 };
 
@@ -33,7 +34,7 @@ fn modifier() -> StringVc {
 /// import appears in.
 #[turbo_tasks::value(shared)]
 pub struct ManifestChunkAsset {
-    pub asset: ChunkableAssetVc,
+    pub asset: ChunkableModuleVc,
     pub chunking_context: EcmascriptChunkingContextVc,
     pub availability_info: AvailabilityInfo,
 }
@@ -42,7 +43,7 @@ pub struct ManifestChunkAsset {
 impl ManifestChunkAssetVc {
     #[turbo_tasks::function]
     pub fn new(
-        asset: ChunkableAssetVc,
+        asset: ChunkableModuleVc,
         chunking_context: EcmascriptChunkingContextVc,
         availability_info: Value<AvailabilityInfo>,
     ) -> Self {
@@ -114,7 +115,10 @@ impl Asset for ManifestChunkAsset {
 }
 
 #[turbo_tasks::value_impl]
-impl ChunkableAsset for ManifestChunkAsset {
+impl Module for ManifestChunkAsset {}
+
+#[turbo_tasks::value_impl]
+impl ChunkableModule for ManifestChunkAsset {
     #[turbo_tasks::function]
     fn as_chunk(
         self_vc: ManifestChunkAssetVc,

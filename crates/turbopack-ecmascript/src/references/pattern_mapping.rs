@@ -8,8 +8,8 @@ use turbo_tasks::{debug::ValueDebug, primitives::StringVc, Value, ValueToString}
 use turbopack_core::{
     asset::Asset,
     chunk::{
-        availability_info::AvailabilityInfo, ChunkableAssetVc, ChunkingContextVc,
-        FromChunkableAsset, ModuleId,
+        availability_info::AvailabilityInfo, ChunkableModuleVc, ChunkingContextVc,
+        FromChunkableModule, ModuleId,
     },
     issue::{code_gen::CodeGenerationIssue, IssueSeverity},
     resolve::{
@@ -167,7 +167,7 @@ impl PatternMappingVc {
             }
         };
 
-        if let Some(chunkable) = ChunkableAssetVc::resolve_from(asset).await? {
+        if let Some(chunkable) = ChunkableModuleVc::resolve_from(asset).await? {
             if let ResolveType::EsmAsync(availability_info) = *resolve_type {
                 let available = if let Some(available_assets) = availability_info.available_assets()
                 {

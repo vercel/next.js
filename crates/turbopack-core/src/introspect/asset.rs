@@ -6,7 +6,7 @@ use turbo_tasks_fs::FileContent;
 use super::{Introspectable, IntrospectableChildrenVc, IntrospectableVc};
 use crate::{
     asset::{Asset, AssetContent, AssetContentVc, AssetVc},
-    chunk::{ChunkableAssetReference, ChunkableAssetReferenceVc, ChunkingType},
+    chunk::{ChunkableModuleReference, ChunkableModuleReferenceVc, ChunkingType},
     reference::{AssetReference, AssetReferencesVc},
     resolve::PrimaryResolveResult,
 };
@@ -110,7 +110,7 @@ pub async fn children_from_asset_references(
     let references = references.await?;
     for reference in &*references {
         let mut key = key;
-        if let Some(chunkable) = ChunkableAssetReferenceVc::resolve_from(reference).await? {
+        if let Some(chunkable) = ChunkableModuleReferenceVc::resolve_from(reference).await? {
             match &*chunkable.chunking_type().await? {
                 None => {}
                 Some(ChunkingType::Placed) => key = placed_reference_ty(),

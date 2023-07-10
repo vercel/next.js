@@ -8,7 +8,7 @@ use turbopack_core::{
     asset::AssetVc,
     chunk::{
         availability_info::AvailabilityInfo, available_assets::AvailableAssetsVc, ChunkItem,
-        ChunkItemVc, ChunkableAssetVc, ChunkingContext, ChunkingContextVc, FromChunkableAsset,
+        ChunkItemVc, ChunkableModuleVc, ChunkingContext, ChunkingContextVc, FromChunkableModule,
         ModuleIdVc,
     },
     code_builder::{CodeBuilder, CodeVc},
@@ -197,7 +197,7 @@ impl EcmascriptChunkItemVc {
 }
 
 #[async_trait::async_trait]
-impl FromChunkableAsset for EcmascriptChunkItemVc {
+impl FromChunkableModule for EcmascriptChunkItemVc {
     async fn from_asset(context: ChunkingContextVc, asset: AssetVc) -> Result<Option<Self>> {
         let Some(placeable) = EcmascriptChunkPlaceableVc::resolve_from(asset).await? else {
             return Ok(None);
@@ -212,7 +212,7 @@ impl FromChunkableAsset for EcmascriptChunkItemVc {
 
     async fn from_async_asset(
         context: ChunkingContextVc,
-        asset: ChunkableAssetVc,
+        asset: ChunkableModuleVc,
         availability_info: Value<AvailabilityInfo>,
     ) -> Result<Option<Self>> {
         let Some(context) = EcmascriptChunkingContextVc::resolve_from(context).await? else {

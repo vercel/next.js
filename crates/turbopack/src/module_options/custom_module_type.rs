@@ -1,4 +1,4 @@
-use turbopack_core::{asset::AssetVc, resolve::ModulePartVc};
+use turbopack_core::{asset::AssetVc, module::ModuleVc, resolve::ModulePartVc};
 
 use crate::ModuleAssetContextVc;
 
@@ -9,5 +9,5 @@ pub trait CustomModuleType {
         source: AssetVc,
         context: ModuleAssetContextVc,
         part: Option<ModulePartVc>,
-    ) -> AssetVc;
+    ) -> ModuleVc;
 }

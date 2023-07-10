@@ -12,8 +12,8 @@ use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc, AssetsVc},
     chunk::{
         availability_info::AvailabilityInfo, chunk_content, chunk_content_split, Chunk,
-        ChunkContentResult, ChunkItem, ChunkItemVc, ChunkVc, ChunkableAssetVc, ChunkingContext,
-        ChunkingContextVc, ChunksVc, FromChunkableAsset, ModuleId, ModuleIdVc, ModuleIdsVc,
+        ChunkContentResult, ChunkItem, ChunkItemVc, ChunkVc, ChunkableModuleVc, ChunkingContext,
+        ChunkingContextVc, ChunksVc, FromChunkableModule, ModuleId, ModuleIdVc, ModuleIdsVc,
         OutputChunk, OutputChunkRuntimeInfo, OutputChunkRuntimeInfoVc, OutputChunkVc,
     },
     code_builder::{CodeBuilder, CodeVc},
@@ -489,7 +489,7 @@ pub trait CssChunkItem: ChunkItem {
 }
 
 #[async_trait::async_trait]
-impl FromChunkableAsset for CssChunkItemVc {
+impl FromChunkableModule for CssChunkItemVc {
     async fn from_asset(context: ChunkingContextVc, asset: AssetVc) -> Result<Option<Self>> {
         if let Some(placeable) = CssChunkPlaceableVc::resolve_from(asset).await? {
             return Ok(Some(placeable.as_chunk_item(context)));
@@ -499,7 +499,7 @@ impl FromChunkableAsset for CssChunkItemVc {
 
     async fn from_async_asset(
         _context: ChunkingContextVc,
-        _asset: ChunkableAssetVc,
+        _asset: ChunkableModuleVc,
         _availability_info: Value<AvailabilityInfo>,
     ) -> Result<Option<Self>> {
         Ok(None)

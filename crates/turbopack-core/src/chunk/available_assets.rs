@@ -9,7 +9,7 @@ use turbo_tasks::{
 };
 use turbo_tasks_hash::Xxh3Hash64Hasher;
 
-use super::{ChunkableAssetReference, ChunkableAssetReferenceVc, ChunkingType};
+use super::{ChunkableModuleReference, ChunkableModuleReferenceVc, ChunkingType};
 use crate::{
     asset::{Asset, AssetVc, AssetsSetVc},
     reference::AssetReference,
@@ -93,7 +93,7 @@ async fn chunkable_assets_set(root: AssetVc) -> Result<AssetsSetVc> {
                 .copied()
                 .map(|reference| async move {
                     if let Some(chunkable) =
-                        ChunkableAssetReferenceVc::resolve_from(reference).await?
+                        ChunkableModuleReferenceVc::resolve_from(reference).await?
                     {
                         if matches!(
                             &*chunkable.chunking_type().await?,

@@ -25,7 +25,8 @@ use turbo_tasks_fs::{
 use turbopack_core::{
     asset::{Asset, AssetVc},
     chunk::{
-        ChunkableAsset, ChunkingContext, ChunkingContextVc, EvaluatableAssetVc, EvaluatableAssetsVc,
+        ChunkableModule, ChunkingContext, ChunkingContextVc, EvaluatableAssetVc,
+        EvaluatableAssetsVc,
     },
     context::{AssetContext, AssetContextVc},
     ident::AssetIdentVc,
@@ -134,7 +135,7 @@ pub async fn get_evaluate_pool(
         .into(),
         Value::new(ReferenceType::Internal(InnerAssetsVc::cell(indexmap! {
             "INNER".to_string() => module_asset,
-            "RUNTIME".to_string() => runtime_asset
+            "RUNTIME".to_string() => runtime_asset.into()
         }))),
     );
 

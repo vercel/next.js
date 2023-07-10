@@ -9,7 +9,7 @@ use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
     asset::{Asset, AssetVc, AssetsVc},
     chunk::{
-        Chunk, ChunkVc, ChunkableAsset, ChunkingContext, ChunkingContextVc, ChunksVc,
+        Chunk, ChunkVc, ChunkableModule, ChunkingContext, ChunkingContextVc, ChunksVc,
         EvaluatableAssetsVc,
     },
     environment::EnvironmentVc,

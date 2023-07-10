@@ -1,8 +1,9 @@
 use anyhow::Result;
 use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
 use turbopack_core::{
-    asset::{Asset, AssetVc},
-    chunk::{ChunkableAssetReference, ChunkableAssetReferenceVc},
+    asset::Asset,
+    chunk::{ChunkableModuleReference, ChunkableModuleReferenceVc},
+    module::ModuleVc,
     reference::{AssetReference, AssetReferenceVc},
     resolve::{ResolveResult, ResolveResultVc},
 };
@@ -11,15 +12,15 @@ use turbopack_core::{
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct InternalCssAssetReference {
-    asset: AssetVc,
+    module: ModuleVc,
 }
 
 #[turbo_tasks::value_impl]
 impl InternalCssAssetReferenceVc {
     /// Creates a new [`InternalCssAssetReferenceVc`].
     #[turbo_tasks::function]
-    pub fn new(asset: AssetVc) -> Self {
-        Self::cell(InternalCssAssetReference { asset })
+    pub fn new(module: ModuleVc) -> Self {
+        Self::cell(InternalCssAssetReference { module })
     }
 }
 
@@ -27,7 +28,7 @@ impl InternalCssAssetReferenceVc {
 impl AssetReference for InternalCssAssetReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> ResolveResultVc {
-        ResolveResult::asset(self.asset).cell()
+        ResolveResult::asset(self.module.into()).cell()
     }
 }
 
@@ -37,10 +38,10 @@ impl ValueToString for InternalCssAssetReference {
     async fn to_string(&self) -> Result<StringVc> {
         Ok(StringVc::cell(format!(
             "internal css {}",
-            self.asset.ident().to_string().await?
+            self.module.ident().to_string().await?
         )))
     }
 }
 
 #[turbo_tasks::value_impl]
-impl ChunkableAssetReference for InternalCssAssetReference {}
+impl ChunkableModuleReference for InternalCssAssetReference {}
