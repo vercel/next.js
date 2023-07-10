@@ -70,6 +70,7 @@ export function getRender({
     nextFontManifest,
     Document,
     App: appMod?.default as AppType,
+    clientReferenceManifest,
   }
 
   const server = new WebServer({
@@ -86,7 +87,6 @@ export function getRender({
         runtime: SERVER_RUNTIME.experimentalEdge,
         supportsDynamicHTML: true,
         disableOptimizedLoading: true,
-        clientReferenceManifest,
         serverActionsManifest,
         serverActionsBodySizeLimit,
       },
