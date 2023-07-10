@@ -61,7 +61,11 @@
     "headers.d.ts",
     "navigation-types",
     "web-vitals.js",
-    "web-vitals.d.ts"
+    "web-vitals.d.ts",
+    "experimental/testmode/playwright.js",
+    "experimental/testmode/playwright.d.ts",
+    "experimental/testmode/playwright/msw.js",
+    "experimental/testmode/playwright/msw.d.ts"
   ],
   "bin": {
     "next": "./dist/bin/next"
@@ -143,6 +147,7 @@
     "@next/react-refresh-utils": "13.4.15",
     "@next/swc": "13.4.15",
     "@opentelemetry/api": "1.4.1",
+    "@playwright/test": "^1.35.1",
     "@segment/ajv-human-errors": "2.1.2",
     "@taskr/clear": "1.1.0",
     "@taskr/esnext": "1.1.0",
@@ -245,6 +250,7 @@
     "lru-cache": "5.1.1",
     "micromatch": "4.0.4",
     "mini-css-extract-plugin": "2.4.3",
+    "msw": "^1.2.2",
     "nanoid": "3.1.32",
     "native-url": "0.3.4",
     "neo-async": "2.6.1",
@@ -283,6 +289,7 @@
     "stacktrace-parser": "0.1.10",
     "stream-browserify": "3.0.0",
     "stream-http": "3.1.1",
+    "strict-event-emitter": "0.5.0",
     "string-hash": "1.1.3",
     "string_decoder": "1.3.0",
     "strip-ansi": "6.0.0",
