@@ -4,10 +4,11 @@ use turbopack_binding::turbopack::{
     core::{
         asset::{Asset, AssetContentVc, AssetVc},
         chunk::{
-            availability_info::AvailabilityInfo, ChunkVc, ChunkableAsset, ChunkableAssetVc,
+            availability_info::AvailabilityInfo, ChunkVc, ChunkableModule, ChunkableModuleVc,
             ChunkingContextVc,
         },
         ident::AssetIdentVc,
+        module::{Module, ModuleVc},
         reference::AssetReferencesVc,
     },
     ecmascript::chunk::EcmascriptChunkingContextVc,
@@ -47,7 +48,10 @@ impl Asset for InChunkingContextAsset {
 }
 
 #[turbo_tasks::value_impl]
-impl ChunkableAsset for InChunkingContextAsset {
+impl Module for InChunkingContextAsset {}
+
+#[turbo_tasks::value_impl]
+impl ChunkableModule for InChunkingContextAsset {
     #[turbo_tasks::function]
     fn as_chunk(
         &self,
