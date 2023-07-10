@@ -378,9 +378,13 @@ export function getResolveRoutes(
               req as any,
               getRequestMeta(req, '__NEXT_INIT_QUERY') || {}
             )
+            const parsedInitUrl = new URL(
+              getRequestMeta(req, '__NEXT_INIT_URL') || '/',
+              'http://n'
+            )
 
             const curUrl = config.skipMiddlewareUrlNormalize
-              ? getRequestMeta(params.request, '__NEXT_INIT_URL') || ''
+              ? `${parsedInitUrl.pathname}${parsedInitUrl.search}`
               : `${parsedUrl.pathname}${stringifiedQuery ? '?' : ''}${
                   stringifiedQuery || ''
                 }`

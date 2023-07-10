@@ -277,6 +277,7 @@ function createServer(options: NextServerOptions): NextServer {
       require('./lib/start-server') as typeof import('./lib/start-server')
 
     let didWebSocketSetup = false
+    let serverPort: number = 0
 
     function setupWebSocketHandler(
       customServer?: import('http').Server,
@@ -307,7 +308,6 @@ function createServer(options: NextServerOptions): NextServer {
       }
     }
 
-    let serverPort: number = 0
     return new Proxy(
       {},
       {
