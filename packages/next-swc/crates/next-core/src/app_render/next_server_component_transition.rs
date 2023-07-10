@@ -2,7 +2,7 @@ use anyhow::{bail, Result};
 use turbopack_binding::{
     turbo::tasks_fs::FileSystemPathVc,
     turbopack::{
-        core::{asset::AssetVc, compile_time_info::CompileTimeInfoVc},
+        core::{compile_time_info::CompileTimeInfoVc, module::ModuleVc},
         ecmascript::chunk::EcmascriptChunkPlaceableVc,
         turbopack::{
             module_options::ModuleOptionsContextVc,
@@ -55,10 +55,10 @@ impl Transition for NextServerComponentTransition {
     #[turbo_tasks::function]
     async fn process_module(
         &self,
-        asset: AssetVc,
+        module: ModuleVc,
         _context: ModuleAssetContextVc,
-    ) -> Result<AssetVc> {
-        let Some(asset) = EcmascriptChunkPlaceableVc::resolve_from(asset).await? else {
+    ) -> Result<ModuleVc> {
+        let Some(asset) = EcmascriptChunkPlaceableVc::resolve_from(module).await? else {
             bail!("Not an ecmascript module");
         };
 
