@@ -687,9 +687,11 @@ function assignDefaults(
     ramda: {
       transform: 'ramda/es/{{member}}',
     },
-    'react-bootstrap': {
-      transform: 'react-bootstrap/{{member}}',
-    },
+    // This will cause an error when import any hooks.
+    // Related issue: https://github.com/vercel/next.js/issues/52518
+    // 'react-bootstrap': {
+    //   transform: 'react-bootstrap/{{member}}',
+    // },
     antd: {
       transform: 'antd/lib/{{kebabCase member}}',
     },
