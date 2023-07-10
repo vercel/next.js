@@ -75,8 +75,9 @@ impl ImportMappingReplacement for NextFontLocalReplacer {
         let Request::Module {
             module: _,
             path: _,
-            query: query_vc
-        } = &*request.await? else {
+            query: query_vc,
+        } = &*request.await?
+        else {
             return Ok(ImportMapResult::NoEntry.into());
         };
 
@@ -165,7 +166,8 @@ impl ImportMappingReplacement for NextFontLocalCssModuleReplacer {
             module: _,
             path: _,
             query: query_vc,
-        } = request else {
+        } = request
+        else {
             return Ok(ImportMapResult::NoEntry.into());
         };
 
@@ -240,8 +242,8 @@ async fn font_options_from_query_map(query: QueryMapVc) -> Result<NextFontLocalO
     }
 
     let Some((json, _)) = query_map.iter().next() else {
-            bail!("Expected one entry");
-        };
+        bail!("Expected one entry");
+    };
 
     options_from_request(&parse_json_with_source_context(json)?)
         .map(|o| NextFontLocalOptionsVc::new(Value::new(o)))

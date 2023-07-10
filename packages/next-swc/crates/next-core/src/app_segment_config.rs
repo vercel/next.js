@@ -221,7 +221,8 @@ pub async fn parse_segment_config_from_source(
         program: Program::Module(module),
         eval_context,
         ..
-    } = &*ecmascript_asset.parse().await? else {
+    } = &*ecmascript_asset.parse().await?
+    else {
         return Ok(NextSegmentConfigVc::default());
     };
 
@@ -231,16 +232,13 @@ pub async fn parse_segment_config_from_source(
         let Some(decl) = item
             .as_module_decl()
             .and_then(|mod_decl| mod_decl.as_export_decl())
-            .and_then(|export_decl| export_decl.decl.as_var()) else {
+            .and_then(|export_decl| export_decl.decl.as_var())
+        else {
             continue;
         };
 
         for decl in &decl.decls {
-            let Some(ident) = decl
-                .name
-                .as_ident()
-                .map(|ident| ident.deref())
-            else {
+            let Some(ident) = decl.name.as_ident().map(|ident| ident.deref()) else {
                 continue;
             };
 
@@ -297,7 +295,7 @@ fn parse_config_value(
             let value = eval_context.eval(init);
             let Some(val) = value.as_bool() else {
                 invalid_config("`dynamicParams` needs to be a static boolean", &value);
-                return
+                return;
             };
 
             config.dynamic_params = Some(val);

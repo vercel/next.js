@@ -1,6 +1,5 @@
 import fs from 'fs'
 import path from 'path'
-import * as Log from '../build/output/log'
 
 export const existsSync = (f: string): boolean => {
   try {
@@ -39,16 +38,6 @@ export function findPagesDir(
   }
 
   if (!isAppDirEnabled) {
-    if (appDir != null && pagesDir == null) {
-      throw new Error(
-        '> The `app` directory is experimental. To enable, add `appDir: true` to your `next.config.js` configuration under `experimental`. See https://nextjs.org/docs/messages/experimental-app-dir-config'
-      )
-    }
-    if (appDir != null && pagesDir != null) {
-      Log.warn(
-        'The `app` directory is experimental. To enable, add `appDir: true` to your `next.config.js` configuration under `experimental`. See https://nextjs.org/docs/messages/experimental-app-dir-config'
-      )
-    }
     if (pagesDir == null) {
       throw new Error(
         "> Couldn't find a `pages` directory. Please create one under the project root"

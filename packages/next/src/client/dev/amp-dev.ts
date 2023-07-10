@@ -85,8 +85,12 @@ addMessageListener((event) => {
   try {
     const message = JSON.parse(event.data)
 
-    // action `serverError` is not for amp-dev
-    if (message.action === 'serverError') return
+    // actions which are not related to amp-dev
+    if (
+      message.action === 'serverError' ||
+      message.action === 'devPagesManifestUpdate'
+    )
+      return
     if (message.action === 'sync' || message.action === 'built') {
       if (!message.hash) {
         return

@@ -12,6 +12,7 @@ import type { MiddlewareRoutingItem } from '../base-server'
 import type { MiddlewareMatcher } from '../../build/analysis/get-page-static-info'
 import type { FunctionComponent } from 'react'
 import type { RouteMatch } from '../future/route-matches/route-match'
+import type { default as THotReloader } from './hot-reloader'
 
 import fs from 'fs'
 import { Worker } from 'next/dist/compiled/jest-worker'
@@ -49,7 +50,6 @@ import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-pref
 import { eventCliSession } from '../../telemetry/events'
 import { Telemetry } from '../../telemetry/storage'
 import { setGlobal } from '../../trace'
-import HotReloader from './hot-reloader'
 import { createValidFileMatcher, findPageFile } from '../lib/find-page-file'
 import { getNodeOptionsWithoutInspect } from '../lib/utils'
 import {
@@ -79,10 +79,9 @@ import {
   isMiddlewareFile,
   NestedMiddlewareError,
 } from '../../build/utils'
-import { getDefineEnv } from '../../build/webpack-config'
 import loadJsConfig from '../../build/load-jsconfig'
 import { formatServerError } from '../../lib/format-server-error'
-import { devPageFiles } from '../../build/webpack/plugins/next-types-plugin'
+import { devPageFiles } from '../../build/webpack/plugins/next-types-plugin/shared'
 import {
   DevRouteMatcherManager,
   RouteEnsurer,
@@ -126,7 +125,7 @@ export default class DevServer extends Server {
   private devReady: Promise<void>
   private setDevReady?: Function
   private webpackWatcher?: any | null
-  private hotReloader?: HotReloader
+  private hotReloader?: THotReloader
   private isCustomServer: boolean
   protected sortedRoutes?: string[]
   private addedUpgradeListener = false
@@ -440,6 +439,7 @@ export default class DevServer extends Server {
         const pagesPageFilePaths = new Map<string, string>()
 
         let envChange = false
+        let clientRouterFilterChange = false
         let tsconfigChange = false
         let conflictingPageChange = 0
 
@@ -636,7 +636,7 @@ export default class DevServer extends Server {
             JSON.stringify(previousClientRouterFilters) !==
               JSON.stringify(clientRouterFilters)
           ) {
-            envChange = true
+            clientRouterFilterChange = true
             previousClientRouterFilters = clientRouterFilters
           }
         }
@@ -651,7 +651,7 @@ export default class DevServer extends Server {
             .catch(() => {})
         }
 
-        if (envChange || tsconfigChange) {
+        if (clientRouterFilterChange || envChange || tsconfigChange) {
           if (envChange) {
             this.loadEnvConfig({
               dev: true,
@@ -713,7 +713,7 @@ export default class DevServer extends Server {
               })
             }
 
-            if (envChange) {
+            if (envChange || clientRouterFilterChange) {
               config.plugins?.forEach((plugin: any) => {
                 // we look for the DefinePlugin definitions so we can
                 // update them on the active compilers
@@ -722,6 +722,8 @@ export default class DevServer extends Server {
                   typeof plugin.definitions === 'object' &&
                   plugin.definitions.__NEXT_DEFINE_ENV
                 ) {
+                  const { getDefineEnv } =
+                    require('../../build/webpack-config') as typeof import('../../build/webpack-config')
                   const newDefine = getDefineEnv({
                     dev: true,
                     config: this.nextConfig,
@@ -743,7 +745,9 @@ export default class DevServer extends Server {
               })
             }
           })
-          this.hotReloader?.invalidate()
+          this.hotReloader?.invalidate({
+            reloadAfterInvalidation: envChange,
+          })
         }
 
         if (nestedMiddleware.length > 0) {
@@ -897,6 +901,9 @@ export default class DevServer extends Server {
 
     // router worker does not start webpack compilers
     if (!this.isRenderWorker) {
+      const { default: HotReloader } =
+        require('./hot-reloader') as typeof import('./hot-reloader')
+
       this.hotReloader = new HotReloader(this.dir, {
         pagesDir: this.pagesDir,
         distDir: this.distDir,
@@ -908,6 +915,7 @@ export default class DevServer extends Server {
         telemetry,
       })
     }
+
     await super.prepareImpl()
     await this.addExportPathMapRoutes()
     await this.hotReloader?.start()

@@ -28,7 +28,7 @@ import {
 } from '../shared/lib/router/utils/route-matcher'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
 import type { RouteMatch } from './future/route-matches/route-match'
-import type { RenderOpts } from './render'
+import { renderToHTML, type RenderOpts } from './render'
 
 import fs from 'fs'
 import { join, relative, resolve, sep, isAbsolute } from 'path'
@@ -985,7 +985,16 @@ export default class NextNodeServer extends BaseServer {
       )
     }
 
-    throw new Error('Invariant: render should have used routeModule')
+    // TODO: re-enable this once we've refactored to use implicit matches
+    // throw new Error('Invariant: render should have used routeModule')
+
+    return renderToHTML(
+      req.originalRequest,
+      res.originalResponse,
+      pathname,
+      query,
+      renderOpts
+    )
   }
 
   private streamResponseChunk(res: ServerResponse, chunk: any) {
