@@ -6,7 +6,7 @@ use turbo_tasks_hash::{encode_hex, Xxh3Hash64Hasher};
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc, AssetsVc},
     chunk::{
-        ChunkableAsset, ChunkableAssetVc, ChunkingContext, ChunkingContextVc, EvaluatableAssetsVc,
+        ChunkableModule, ChunkableModuleVc, ChunkingContext, ChunkingContextVc, EvaluatableAssetsVc,
     },
     ident::AssetIdentVc,
     reference::{AssetReferencesVc, SingleAssetReferenceVc},
@@ -23,7 +23,7 @@ pub struct DevHtmlAsset {
     // TODO(WEB-945) This should become a `Vec<DevHtmlEntry>` once we have a
     // `turbo_tasks::input` attribute macro/`Input` derive macro.
     entries: Vec<(
-        ChunkableAssetVc,
+        ChunkableModuleVc,
         ChunkingContextVc,
         Option<EvaluatableAssetsVc>,
     )>,
@@ -69,7 +69,7 @@ impl DevHtmlAssetVc {
     pub fn new(
         path: FileSystemPathVc,
         entries: Vec<(
-            ChunkableAssetVc,
+            ChunkableModuleVc,
             ChunkingContextVc,
             Option<EvaluatableAssetsVc>,
         )>,
@@ -86,7 +86,7 @@ impl DevHtmlAssetVc {
     pub fn new_with_body(
         path: FileSystemPathVc,
         entries: Vec<(
-            ChunkableAssetVc,
+            ChunkableModuleVc,
             ChunkingContextVc,
             Option<EvaluatableAssetsVc>,
         )>,

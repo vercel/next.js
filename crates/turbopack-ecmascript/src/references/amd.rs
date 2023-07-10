@@ -15,7 +15,7 @@ use turbo_tasks::{
     ValueToString, ValueToStringVc,
 };
 use turbopack_core::{
-    chunk::{ChunkableAssetReference, ChunkableAssetReferenceVc},
+    chunk::{ChunkableModuleReference, ChunkableModuleReferenceVc},
     issue::{IssueSourceVc, OptionIssueSourceVc},
     reference::{AssetReference, AssetReferenceVc},
     resolve::{origin::ResolveOriginVc, parse::RequestVc, ResolveResultVc},
@@ -85,7 +85,7 @@ impl ValueToString for AmdDefineAssetReference {
 }
 
 #[turbo_tasks::value_impl]
-impl ChunkableAssetReference for AmdDefineAssetReference {}
+impl ChunkableModuleReference for AmdDefineAssetReference {}
 
 #[derive(
     ValueDebugFormat, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, Copy, Clone,

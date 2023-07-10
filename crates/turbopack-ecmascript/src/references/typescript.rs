@@ -81,12 +81,17 @@ impl AssetReference for TsReferencePathAssetReference {
                 .try_join(&self.path)
                 .await?
             {
-                ResolveResult::asset(self.origin.context().process(
-                    SourceAssetVc::new(*path).into(),
-                    Value::new(ReferenceType::TypeScript(
-                        TypeScriptReferenceSubType::Undefined,
-                    )),
-                ))
+                ResolveResult::asset(
+                    self.origin
+                        .context()
+                        .process(
+                            SourceAssetVc::new(*path).into(),
+                            Value::new(ReferenceType::TypeScript(
+                                TypeScriptReferenceSubType::Undefined,
+                            )),
+                        )
+                        .into(),
+                )
                 .into()
             } else {
                 ResolveResult::unresolveable().into()

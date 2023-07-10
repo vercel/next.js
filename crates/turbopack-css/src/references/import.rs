@@ -11,7 +11,7 @@ use swc_core::{
 };
 use turbo_tasks::{primitives::StringVc, Value, ValueToString, ValueToStringVc};
 use turbopack_core::{
-    chunk::{ChunkableAssetReference, ChunkableAssetReferenceVc, ChunkingContextVc},
+    chunk::{ChunkableModuleReference, ChunkableModuleReferenceVc, ChunkingContextVc},
     issue::{IssueSourceVc, OptionIssueSourceVc},
     reference::{AssetReference, AssetReferenceVc},
     reference_type::CssReferenceSubType,
@@ -267,4 +267,4 @@ impl CodeGenerateable for ImportAssetReference {
 }
 
 #[turbo_tasks::value_impl]
-impl ChunkableAssetReference for ImportAssetReference {}
+impl ChunkableModuleReference for ImportAssetReference {}

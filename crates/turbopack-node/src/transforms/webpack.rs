@@ -8,6 +8,7 @@ use turbopack_core::{
     asset::{Asset, AssetContent, AssetContentVc, AssetVc},
     context::{AssetContext, AssetContextVc},
     ident::AssetIdentVc,
+    module::ModuleVc,
     reference_type::{InnerAssetsVc, ReferenceType},
     source_asset::SourceAssetVc,
     source_transform::{SourceTransform, SourceTransformVc},
@@ -115,7 +116,7 @@ struct ProcessWebpackLoadersResult {
 }
 
 #[turbo_tasks::function]
-fn webpack_loaders_executor(context: AssetContextVc) -> AssetVc {
+fn webpack_loaders_executor(context: AssetContextVc) -> ModuleVc {
     context.process(
         SourceAssetVc::new(embed_file_path("transforms/webpack-loaders.ts")).into(),
         Value::new(ReferenceType::Internal(InnerAssetsVc::empty())),
@@ -153,7 +154,7 @@ impl WebpackLoadersProcessedAssetVc {
         let resource_path = resource_fs_path.path.as_str();
         let loaders = transform.loaders.await?;
         let config_value = evaluate(
-            webpack_loaders_executor,
+            webpack_loaders_executor.into(),
             project_path,
             env,
             this.source.ident(),

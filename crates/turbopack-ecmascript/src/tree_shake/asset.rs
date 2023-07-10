@@ -3,10 +3,11 @@ use turbo_tasks::{primitives::StringVc, Value};
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
     chunk::{
-        availability_info::AvailabilityInfo, ChunkVc, ChunkableAsset, ChunkableAssetVc,
+        availability_info::AvailabilityInfo, ChunkVc, ChunkableModule, ChunkableModuleVc,
         ChunkingContextVc,
     },
     ident::AssetIdentVc,
+    module::{Module, ModuleVc},
     reference::{AssetReferencesVc, SingleAssetReferenceVc},
     resolve::ModulePartVc,
 };
@@ -50,7 +51,7 @@ impl Asset for EcmascriptModulePartAsset {
     #[turbo_tasks::function]
     fn content(&self) -> AssetContentVc {
         // This is not reachable because EcmascriptModulePartAsset implements
-        // ChunkableAsset and ChunkableAsset::as_chunk is called instead.
+        // ChunkableModule and ChunkableModule::as_chunk is called instead.
         todo!("EcmascriptModulePartAsset::content is not implemented")
     }
 
@@ -129,7 +130,10 @@ impl EcmascriptChunkPlaceable for EcmascriptModulePartAsset {
 }
 
 #[turbo_tasks::value_impl]
-impl ChunkableAsset for EcmascriptModulePartAsset {
+impl Module for EcmascriptModulePartAsset {}
+
+#[turbo_tasks::value_impl]
+impl ChunkableModule for EcmascriptModulePartAsset {
     #[turbo_tasks::function]
     async fn as_chunk(
         self_vc: EcmascriptModulePartAssetVc,

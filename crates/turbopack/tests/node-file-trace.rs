@@ -434,7 +434,7 @@ fn node_file_trace<B: Backend + 'static>(
                     .cell(),
                 );
                 let module = context.process(source.into(), Value::new(ReferenceType::Undefined));
-                let rebased = RebasedAssetVc::new(module, input_dir, output_dir);
+                let rebased = RebasedAssetVc::new(module.into(), input_dir, output_dir);
 
                 #[cfg(not(feature = "bench_against_node_nft"))]
                 let output_path = rebased.ident().path();

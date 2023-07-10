@@ -33,7 +33,7 @@ use turbopack_build::BuildChunkingContextVc;
 use turbopack_core::{
     asset::{Asset, AssetVc, AssetsVc},
     chunk::{
-        ChunkableAsset, ChunkableAssetVc, ChunkingContext, ChunkingContextVc, EvaluatableAssetVc,
+        ChunkableModule, ChunkableModuleVc, ChunkingContext, ChunkingContextVc, EvaluatableAssetVc,
         EvaluatableAssetsVc,
     },
     compile_time_defines,
@@ -358,7 +358,7 @@ async fn run_test(resource: &str) -> Result<FileSystemPathVc> {
                         )])
                 }
             }
-        } else if let Some(chunkable) = ChunkableAssetVc::resolve_from(entry_module).await? {
+        } else if let Some(chunkable) = ChunkableModuleVc::resolve_from(entry_module).await? {
             chunking_context.chunk_group(chunkable.as_root_chunk(chunking_context))
         } else {
             // TODO convert into a serve-able asset

@@ -3,7 +3,8 @@ use std::collections::HashMap;
 use anyhow::Result;
 use turbo_tasks::Value;
 use turbopack_core::{
-    asset::AssetVc, compile_time_info::CompileTimeInfoVc, reference_type::ReferenceType,
+    asset::AssetVc, compile_time_info::CompileTimeInfoVc, module::ModuleVc,
+    reference_type::ReferenceType,
 };
 
 use crate::{
@@ -39,8 +40,8 @@ pub trait Transition {
         context
     }
     /// Apply modifications/wrapping to the final asset
-    fn process_module(&self, asset: AssetVc, _context: ModuleAssetContextVc) -> AssetVc {
-        asset
+    fn process_module(&self, module: ModuleVc, _context: ModuleAssetContextVc) -> ModuleVc {
+        module
     }
     /// Apply modifications to the context
     async fn process_context(
@@ -67,7 +68,7 @@ pub trait Transition {
         asset: AssetVc,
         context: ModuleAssetContextVc,
         reference_type: Value<ReferenceType>,
-    ) -> AssetVc {
+    ) -> ModuleVc {
         let asset = self_vc.process_source(asset);
         let context = self_vc.process_context(context);
         let m = context.process_default(asset, reference_type);

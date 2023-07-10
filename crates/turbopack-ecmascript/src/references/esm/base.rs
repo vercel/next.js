@@ -9,7 +9,7 @@ use turbo_tasks::{primitives::StringVc, Value, ValueToString, ValueToStringVc};
 use turbopack_core::{
     asset::Asset,
     chunk::{
-        ChunkableAssetReference, ChunkableAssetReferenceVc, ChunkingContext, ChunkingType,
+        ChunkableModuleReference, ChunkableModuleReferenceVc, ChunkingContext, ChunkingType,
         ChunkingTypeOptionVc, ModuleId,
     },
     issue::{IssueSeverity, OptionIssueSourceVc},
@@ -174,7 +174,7 @@ impl ValueToString for EsmAssetReference {
 }
 
 #[turbo_tasks::value_impl]
-impl ChunkableAssetReference for EsmAssetReference {
+impl ChunkableModuleReference for EsmAssetReference {
     #[turbo_tasks::function]
     fn chunking_type(&self) -> Result<ChunkingTypeOptionVc> {
         Ok(ChunkingTypeOptionVc::cell(

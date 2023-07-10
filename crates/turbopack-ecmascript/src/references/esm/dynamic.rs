@@ -6,7 +6,7 @@ use swc_core::{
 use turbo_tasks::{primitives::StringVc, Value, ValueToString, ValueToStringVc};
 use turbopack_core::{
     chunk::{
-        availability_info::AvailabilityInfo, ChunkableAssetReference, ChunkableAssetReferenceVc,
+        availability_info::AvailabilityInfo, ChunkableModuleReference, ChunkableModuleReferenceVc,
         ChunkingType, ChunkingTypeOptionVc,
     },
     issue::{IssueSourceVc, OptionIssueSourceVc},
@@ -83,7 +83,7 @@ impl ValueToString for EsmAsyncAssetReference {
 }
 
 #[turbo_tasks::value_impl]
-impl ChunkableAssetReference for EsmAsyncAssetReference {
+impl ChunkableModuleReference for EsmAsyncAssetReference {
     #[turbo_tasks::function]
     fn chunking_type(&self) -> ChunkingTypeOptionVc {
         ChunkingTypeOptionVc::cell(Some(ChunkingType::Async))

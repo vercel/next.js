@@ -214,10 +214,14 @@ async fn add_glob_results(
     for entry in result.results.values() {
         if let DirectoryEntry::File(path) = entry {
             let source = SourceAssetVc::new(*path).into();
-            list.push(context.process(
-                source,
-                Value::new(turbopack_core::reference_type::ReferenceType::Undefined),
-            ));
+            list.push(
+                context
+                    .process(
+                        source,
+                        Value::new(turbopack_core::reference_type::ReferenceType::Undefined),
+                    )
+                    .into(),
+            );
         }
     }
     for result in result.inner.values() {
@@ -256,10 +260,14 @@ async fn input_to_modules<'a>(
     for input in input.iter() {
         if exact {
             let source = SourceAssetVc::new(root.join(input)).into();
-            list.push(context.process(
-                source,
-                Value::new(turbopack_core::reference_type::ReferenceType::Undefined),
-            ));
+            list.push(
+                context
+                    .process(
+                        source,
+                        Value::new(turbopack_core::reference_type::ReferenceType::Undefined),
+                    )
+                    .into(),
+            );
         } else {
             let glob = GlobVc::new(input);
             add_glob_results(context, root.read_glob(glob, false), &mut list).await?;

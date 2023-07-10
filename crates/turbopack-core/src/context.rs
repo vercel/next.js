@@ -5,6 +5,7 @@ use turbo_tasks_fs::FileSystemPathVc;
 use crate::{
     asset::AssetVc,
     compile_time_info::CompileTimeInfoVc,
+    module::ModuleVc,
     reference_type::ReferenceType,
     resolve::{options::ResolveOptionsVc, parse::RequestVc, ResolveResultVc},
 };
@@ -27,7 +28,7 @@ pub trait AssetContext {
         resolve_options: ResolveOptionsVc,
         reference_type: Value<ReferenceType>,
     ) -> ResolveResultVc;
-    fn process(&self, asset: AssetVc, reference_type: Value<ReferenceType>) -> AssetVc;
+    fn process(&self, asset: AssetVc, reference_type: Value<ReferenceType>) -> ModuleVc;
     fn process_resolve_result(
         &self,
         result: ResolveResultVc,

@@ -1,7 +1,7 @@
 use anyhow::Result;
 use turbo_tasks::{primitives::StringVc, Value, ValueToString, ValueToStringVc};
 use turbopack_core::{
-    chunk::{ChunkableAssetReference, ChunkableAssetReferenceVc},
+    chunk::{ChunkableModuleReference, ChunkableModuleReferenceVc},
     issue::OptionIssueSourceVc,
     reference::{AssetReference, AssetReferenceVc},
     reference_type::CssReferenceSubType,
@@ -55,4 +55,4 @@ impl ValueToString for CssModuleComposeReference {
 }
 
 #[turbo_tasks::value_impl]
-impl ChunkableAssetReference for CssModuleComposeReference {}
+impl ChunkableModuleReference for CssModuleComposeReference {}
