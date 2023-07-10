@@ -5,6 +5,7 @@ use turbopack_binding::turbopack::{
     core::{
         asset::AssetVc,
         context::AssetContext,
+        module::ModuleVc,
         reference_type::{EntryReferenceSubType, InnerAssetsVc, ReferenceType},
     },
     turbopack::{
@@ -28,7 +29,7 @@ impl Transition for NextServerToClientTransition {
         asset: AssetVc,
         context: ModuleAssetContextVc,
         _reference_type: Value<ReferenceType>,
-    ) -> Result<AssetVc> {
+    ) -> Result<ModuleVc> {
         let internal_asset = next_asset(if self_vc.await?.ssr {
             "entry/app/server-to-client-ssr.tsx"
         } else {
@@ -50,8 +51,8 @@ impl Transition for NextServerToClientTransition {
         Ok(context.process(
             internal_asset,
             Value::new(ReferenceType::Internal(InnerAssetsVc::cell(indexmap! {
-                "CLIENT_MODULE".to_string() => client_module,
-                "CLIENT_CHUNKS".to_string() => client_chunks,
+                "CLIENT_MODULE".to_string() => client_module.into(),
+                "CLIENT_CHUNKS".to_string() => client_chunks.into(),
             }))),
         ))
     }

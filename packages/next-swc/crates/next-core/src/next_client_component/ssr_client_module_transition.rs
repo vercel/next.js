@@ -1,6 +1,6 @@
 use anyhow::Result;
 use turbopack_binding::turbopack::{
-    core::{asset::AssetVc, compile_time_info::CompileTimeInfoVc},
+    core::{compile_time_info::CompileTimeInfoVc, module::ModuleVc},
     turbopack::{
         ecmascript::chunk::EcmascriptChunkPlaceableVc,
         module_options::ModuleOptionsContextVc,
@@ -48,9 +48,9 @@ impl Transition for NextSSRClientModuleTransition {
     #[turbo_tasks::function]
     async fn process_module(
         &self,
-        asset: AssetVc,
+        asset: ModuleVc,
         _context: ModuleAssetContextVc,
-    ) -> Result<AssetVc> {
+    ) -> Result<ModuleVc> {
         Ok(
             if let Some(placeable) = EcmascriptChunkPlaceableVc::resolve_from(asset).await? {
                 WithChunkingContextScopeAsset {
