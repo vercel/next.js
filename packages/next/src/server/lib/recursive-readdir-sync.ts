@@ -1,5 +1,5 @@
 import fs from 'fs'
-import { join } from 'path'
+import { sep } from 'path'
 
 /**
  * Recursively read directory
@@ -10,19 +10,19 @@ export function recursiveReadDirSync(
   dir: string,
   /** This doesn't have to be provided, it's used for the recursion */
   arr: string[] = [],
-  /** Used to replace the initial path, only the relative path is left, it's faster than path.relative. */
-  rootDir = dir
+  /** Used to remove the initial path suffix and leave only the relative, faster than path.relative. */
+  rootDirLength = dir.length
 ): string[] {
   // Use opendirSync for better memory usage
   const result = fs.opendirSync(dir)
 
   let part: fs.Dirent | null
   while ((part = result.readSync())) {
-    const absolutePath = join(dir, part.name)
+    const absolutePath = dir + sep + part.name
     if (part.isDirectory()) {
-      recursiveReadDirSync(absolutePath, arr, rootDir)
+      recursiveReadDirSync(absolutePath, arr, rootDirLength)
     } else {
-      arr.push(absolutePath.slice(rootDir.length))
+      arr.push(absolutePath.slice(rootDirLength))
     }
   }
 
