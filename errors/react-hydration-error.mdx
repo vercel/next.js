@@ -4,102 +4,82 @@ title: Text content does not match server-rendered HTML
 
 ## Why This Error Occurred
 
-While rendering your application, there was a difference between the React tree that was pre-rendered (SSR/SSG) and the React tree that rendered during the first render in the Browser. The first render is called Hydration which is a [feature of React](https://react.dev/reference/react-dom/hydrate).
+While rendering your application, there was a difference between the React tree that was pre-rendered from the server and the React tree that was rendered during the first render in the browser (hydration).
 
-This can cause the React tree to be out of sync with the DOM and result in unexpected content/attributes being present.
+[Hydration](https://react.dev/reference/react-dom/client/hydrateRoot) is when React converts the pre-rendered HTML from the server into a fully interactive application by attaching event handlers.
+
+### Common Causes
+
+Hydration errors can occur from:
+
+1. Incorrect nesting of HTML tags
+   1. `<p>` nested in another `<p>` tag
+   2. `<div` nested in a `<p>` tag
+2. Using checks like `typeof window !== 'undefined'` in your rendering logic
+3. Using browser-only APIs like `window` or `localStorage` in your rendering logic
+4. [Browser extensions](https://github.com/facebook/react/issues/24430) modifying the HTML
+5. Incorrectly configured [CSS-in-JS libraries](https://nextjs.org/docs/app/building-your-application/styling/css-in-js)
+   1. Ensure your code is following [our official examples](https://github.com/vercel/next.js/tree/canary/examples)
 
 ## Possible Ways to Fix It
 
-In general, this issue is caused by using a specific library or application code that is relying on something that could differ between pre-rendering and the browser. An example of this is using `window` in a component's rendering.
+The following strategies can help address this error:
 
-An example:
+### Solution 1: Using `useEffect` to run on the client only
 
-```jsx filename="example.js"
-function MyComponent() {
-  // This condition depends on `window`. During the first render of the browser the `color` variable will be different
-  const color = typeof window !== 'undefined' ? 'red' : 'blue'
-  // As color is passed as a prop there is a mismatch between what was rendered server-side vs what was rendered in the first render
-  return <h1 className={`title ${color}`}>Hello World!</h1>
+Ensure that the component renders the same content server-side as it does during the initial client-side render to prevent a hydration mismatch. You can intentionally render different content on the client with the `useEffect` hook.
+
+```jsx
+import { useState, useEffect } from 'react'
+
+export default function App() {
+  const [isClient, setIsClient] = useState(false)
+
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
+
+  return <h1>{isClient ? 'This is never prerendered' : 'Prerendered'}</h1>
 }
 ```
 
-How to fix it:
+During React hydration, `useEffect` is called. This means browser APIs like `window` are available to use without hydration mismatches.
 
-```jsx filename="example.js"
-// In order to prevent the first render from being different you can use `useEffect` which is only executed in the browser and is executed during hydration
-import { useEffect, useState } from 'react'
-function MyComponent() {
-  // The default value is 'blue', it will be used during pre-rendering and the first render in the browser (hydration)
-  const [color, setColor] = useState('blue')
-  // During hydration `useEffect` is called. `window` is available in `useEffect`. In this case because we know we're in the browser checking for window is not needed. If you need to read something from window that is fine.
-  // By calling `setColor` in `useEffect` a render is triggered after hydrating, this causes the "browser specific" value to be available. In this case 'red'.
-  useEffect(() => setColor('red'), [])
-  // As color is a state passed as a prop there is no mismatch between what was rendered server-side vs what was rendered in the first render. After useEffect runs the color is set to 'red'
-  return <h1 className={`title ${color}`}>Hello World!</h1>
-}
-```
+### Solution 2: Disabling SSR on specific components
 
-Another example:
+Next.js allows you to [disable prerendering](https://nextjs.org/docs/app/building-your-application/optimizing/lazy-loading#skipping-ssr) on specific components, which can prevent hydration mismatches.
 
-Invalid HTML may cause hydration mismatch such as div inside p.
+```jsx
+import dynamic from 'next/dynamic'
 
-```jsx filename="example.js"
-export const IncorrectComponent = () => {
-  return (
-    <p>
-      <div>
-        This is not correct and should never be done because the p tag has been
-        abused
-      </div>
-      <Image src="/vercel.svg" alt="" width="30" height="30" />
-    </p>
-  )
-}
-```
+const NoSSR = dynamic(() => import('../components/no-ssr'), { ssr: false })
 
-How to fix it:
-
-```jsx filename="example.js"
-export const CorrectComponent = () => {
+export default function Page() {
   return (
     <div>
-      <div>
-        This is correct and should work because a div is really good for this
-        task.
-      </div>
-      <Image src="/vercel.svg" alt="" width="30" height="30" />
+      <NoSSR />
     </div>
   )
 }
 ```
 
-Common causes with css-in-js libraries:
+### Solution 3: Using `suppressHydrationWarning`
 
-- When using Styled Components / Emotion
-  - When css-in-js libraries are not set up for pre-rendering (SSR/SSG) it will often lead to a hydration mismatch. In general this means the application has to follow the Next.js example for the library. For example if `pages/_document` is missing and the Babel plugin is not added.
-    - Possible fix for Styled Components:
-      - If you want to leverage Styled Components with SWC in Next.js 12.1+ you need to [add it to your Next.js config under compiler options](/docs/architecture/nextjs-compiler#styled-components): https://github.com/vercel/next.js/tree/canary/examples/with-styled-components
-      - If you want to use Styled Components with Babel, you need `pages/_document` and the Babel plugin: https://github.com/vercel/next.js/tree/canary/examples/with-styled-components-babel
-    - Possible fix for Emotion: https://github.com/vercel/next.js/tree/canary/examples/with-emotion
-- When using other css-in-js libraries
-  - Similar to Styled Components / Emotion css-in-js libraries generally need configuration specified in their examples in the [examples directory](https://github.com/vercel/next.js/tree/canary/examples)
+Sometimes content will inevitably differ between the server and client, such as a timestamp. You can silence the hydration mismatch warning by adding `suppressHydrationWarning={true}` to the element.
 
-Local Overrides:
+```jsx
+<time datetime="2016-10-25" suppressHydrationWarning />
+```
 
-It's possible you may have [Local Overrides enabled in Chrome devtools](https://developer.chrome.com/blog/new-in-devtools-65/#overrides). With this enabled, the HTML served will be different from what the SSR emitted. It also won't show up in view-source, so you may be left wondering what is going on.
+## Common iOS issues
 
-Common causes on iOS:
+iOS attempts to detect phone numbers, email addresses, and other data in text content and convert them into links, leading to hydration mismatches.
 
-- iOS attempts to detect phone numbers, email addressees and other data in text content and convert them into links, which can [lead to hydration mismatches](https://github.com/vercel/next.js/issues/38290). This can be disabled with the following `meta` tag:
+This can be disabled with the following `meta` tag:
 
-```html filename="HTML output"
+```jsx
 <meta
   name="format-detection"
   content="telephone=no, date=no, email=no, address=no"
 />
 ```
-
-## Useful Links
-
-- [React Hydration Documentation](https://react.dev/reference/react-dom/client/hydrateRoot)
-- [Josh Comeau's article on React Hydration](https://www.joshwcomeau.com/react/the-perils-of-rehydration/)
