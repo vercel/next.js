@@ -6,7 +6,7 @@ use turbopack_binding::{
     turbopack::{
         core::{
             asset::AssetVc,
-            chunk::{ChunkableAssetVc, ChunkingContextVc},
+            chunk::{ChunkableModuleVc, ChunkingContextVc},
             compile_time_info::CompileTimeInfoVc,
             context::AssetContext,
             module::ModuleVc,
@@ -85,7 +85,7 @@ impl Transition for NextEdgePageTransition {
             }))),
         );
 
-        let Some(module) = ChunkableAssetVc::resolve_from(module).await? else {
+        let Some(module) = ChunkableModuleVc::resolve_from(module).await? else {
             bail!("Internal module is not chunkable");
         };
 

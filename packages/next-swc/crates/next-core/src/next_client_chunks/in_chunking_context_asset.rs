@@ -4,7 +4,7 @@ use turbopack_binding::turbopack::{
     core::{
         asset::{Asset, AssetContentVc, AssetVc},
         chunk::{
-            availability_info::AvailabilityInfo, ChunkVc, ChunkableAsset, ChunkableAssetVc,
+            availability_info::AvailabilityInfo, ChunkVc, ChunkableModule, ChunkableModuleVc,
             ChunkingContextVc,
         },
         ident::AssetIdentVc,
@@ -51,7 +51,7 @@ impl Asset for InChunkingContextAsset {
 impl Module for InChunkingContextAsset {}
 
 #[turbo_tasks::value_impl]
-impl ChunkableAsset for InChunkingContextAsset {
+impl ChunkableModule for InChunkingContextAsset {
     #[turbo_tasks::function]
     fn as_chunk(
         &self,

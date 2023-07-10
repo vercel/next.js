@@ -11,7 +11,7 @@ use turbopack_binding::{
     turbopack::{
         core::{
             asset::AssetVc,
-            chunk::{ChunkableAsset, ChunkingContext, ChunkingContextVc},
+            chunk::{ChunkableModule, ChunkingContext, ChunkingContextVc},
             context::{AssetContext, AssetContextVc},
             reference_type::ReferenceType,
         },
