@@ -566,6 +566,28 @@ export async function POST(request) {
 }
 ```
 
+### Request Body FormData
+
+You can read the `FormData` using the the `request.formData()` function:
+
+```ts filename="app/items/route.ts" switcher
+import { NextResponse } from 'next/server'
+
+export async function POST(request: Request) {
+  const formData = await request.formData()
+  return NextResponse.json({ formData })
+}
+```
+
+```js filename="app/items/route.js" switcher
+import { NextResponse } from 'next/server'
+
+export async function POST(request) {
+  const formData = await request.formData()
+  return NextResponse.json({ formData })
+}
+```
+
 ### CORS
 
 You can set CORS headers on a `Response` using the standard Web API methods:

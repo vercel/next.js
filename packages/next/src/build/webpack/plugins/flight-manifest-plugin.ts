@@ -71,6 +71,43 @@ export type ClientReferenceManifest = {
   }
 }
 
+function getAppPathRequiredChunks(chunkGroup: webpack.ChunkGroup) {
+  return chunkGroup.chunks
+    .map((requiredChunk: webpack.Chunk) => {
+      if (SYSTEM_ENTRYPOINTS.has(requiredChunk.name || '')) {
+        return null
+      }
+
+      // Get the actual chunk file names from the chunk file list.
+      // It's possible that the chunk is generated via `import()`, in
+      // that case the chunk file name will be '[name].[contenthash]'
+      // instead of '[name]-[chunkhash]'.
+      return [...requiredChunk.files].map((file) => {
+        // It's possible that a chunk also emits CSS files, that will
+        // be handled separatedly.
+        if (!file.endsWith('.js')) return null
+        if (file.endsWith('.hot-update.js')) return null
+
+        return requiredChunk.id + ':' + file
+      })
+    })
+    .flat()
+    .filter(nonNullable)
+}
+
+function mergeManifest(
+  manifest: ClientReferenceManifest,
+  manifestToMerge: ClientReferenceManifest
+) {
+  Object.assign(manifest.clientModules, manifestToMerge.clientModules)
+  Object.assign(manifest.ssrModuleMapping, manifestToMerge.ssrModuleMapping)
+  Object.assign(
+    manifest.edgeSSRModuleMapping,
+    manifestToMerge.edgeSSRModuleMapping
+  )
+  Object.assign(manifest.entryCSSFiles, manifestToMerge.entryCSSFiles)
+}
+
 const PLUGIN_NAME = 'ClientReferenceManifestPlugin'
 
 export class ClientReferenceManifestPlugin {
@@ -116,43 +153,21 @@ export class ClientReferenceManifestPlugin {
     compilation: webpack.Compilation,
     context: string
   ) {
-    const manifest: ClientReferenceManifest = {
-      ssrModuleMapping: {},
-      edgeSSRModuleMapping: {},
-      clientModules: {},
-      entryCSSFiles: {},
-    }
+    const manifestsPerGroup = new Map<string, ClientReferenceManifest[]>()
 
     compilation.chunkGroups.forEach((chunkGroup) => {
-      function getAppPathRequiredChunks() {
-        return chunkGroup.chunks
-          .map((requiredChunk: webpack.Chunk) => {
-            if (SYSTEM_ENTRYPOINTS.has(requiredChunk.name || '')) {
-              return null
-            }
-
-            // Get the actual chunk file names from the chunk file list.
-            // It's possible that the chunk is generated via `import()`, in
-            // that case the chunk file name will be '[name].[contenthash]'
-            // instead of '[name]-[chunkhash]'.
-            return [...requiredChunk.files].map((file) => {
-              // It's possible that a chunk also emits CSS files, that will
-              // be handled separatedly.
-              if (!file.endsWith('.js')) return null
-              if (file.endsWith('.hot-update.js')) return null
-
-              return requiredChunk.id + ':' + file
-            })
-          })
-          .flat()
-          .filter(nonNullable)
+      // By default it's the shared chunkGroup (main-app) for every page.
+      let entryName = ''
+      const manifest: ClientReferenceManifest = {
+        ssrModuleMapping: {},
+        edgeSSRModuleMapping: {},
+        clientModules: {},
+        entryCSSFiles: {},
       }
-      const requiredChunks = getAppPathRequiredChunks()
 
-      let chunkEntryName: string | null = null
       if (chunkGroup.name && /^app[\\/]/.test(chunkGroup.name)) {
         // Absolute path without the extension
-        chunkEntryName = (this.appDirBase + chunkGroup.name).replace(
+        const chunkEntryName = (this.appDirBase + chunkGroup.name).replace(
           /[\\/]/g,
           path.sep
         )
@@ -161,8 +176,11 @@ export class ClientReferenceManifestPlugin {
           .filter(
             (f) => !f.startsWith('static/css/pages/') && f.endsWith('.css')
           )
+
+        entryName = chunkGroup.name
       }
 
+      const requiredChunks = getAppPathRequiredChunks(chunkGroup)
       const recordModule = (id: ModuleId, mod: webpack.NormalModule) => {
         // Skip all modules from the pages folder.
         if (mod.layer !== WEBPACK_LAYERS.appClient) {
@@ -311,22 +329,95 @@ export class ClientReferenceManifestPlugin {
           }
         }
       })
+
+      // A page's entry name can have extensions. For example, these are both valid:
+      // - app/foo/page
+      // - app/foo/page.page
+      // Let's normalize the entry name to remove the extra extension
+      const groupName = /\/page(\.[^/]+)?$/.test(entryName)
+        ? entryName.replace(/\/page(\.[^/]+)?$/, '/page')
+        : entryName.slice(0, entryName.lastIndexOf('/'))
+
+      if (!manifestsPerGroup.has(groupName)) {
+        manifestsPerGroup.set(groupName, [])
+      }
+      manifestsPerGroup.get(groupName)!.push(manifest)
+
+      if (entryName.includes('/@')) {
+        // Remove parallel route labels:
+        // - app/foo/@bar/page -> app/foo
+        // - app/foo/@bar/layout -> app/foo/layout -> app/foo
+        const entryNameWithoutNamedSegments = entryName.replace(/\/@[^/]+/g, '')
+        const groupNameWithoutNamedSegments =
+          entryNameWithoutNamedSegments.slice(
+            0,
+            entryNameWithoutNamedSegments.lastIndexOf('/')
+          )
+        if (!manifestsPerGroup.has(groupNameWithoutNamedSegments)) {
+          manifestsPerGroup.set(groupNameWithoutNamedSegments, [])
+        }
+        manifestsPerGroup.get(groupNameWithoutNamedSegments)!.push(manifest)
+      }
+
+      // Special case for the root not-found page.
+      if (/^app\/not-found(\.[^.]+)?$/.test(entryName)) {
+        if (!manifestsPerGroup.has('app/not-found')) {
+          manifestsPerGroup.set('app/not-found', [])
+        }
+        manifestsPerGroup.get('app/not-found')!.push(manifest)
+      }
     })
 
-    const file = 'server/' + CLIENT_REFERENCE_MANIFEST
-    const json = JSON.stringify(manifest, null, this.dev ? 2 : undefined)
+    // Generate per-page manifests.
+    for (const [groupName] of manifestsPerGroup) {
+      if (groupName.endsWith('/page') || groupName === 'app/not-found') {
+        const mergedManifest: ClientReferenceManifest = {
+          ssrModuleMapping: {},
+          edgeSSRModuleMapping: {},
+          clientModules: {},
+          entryCSSFiles: {},
+        }
+
+        const segments = groupName.split('/')
+        let group = ''
+        for (const segment of segments) {
+          if (segment.startsWith('@')) continue
+          for (const manifest of manifestsPerGroup.get(group) || []) {
+            mergeManifest(mergedManifest, manifest)
+          }
+          group += (group ? '/' : '') + segment
+        }
+        for (const manifest of manifestsPerGroup.get(groupName) || []) {
+          mergeManifest(mergedManifest, manifest)
+        }
+
+        const json = JSON.stringify(mergedManifest)
+
+        const pagePath = groupName.replace(/%5F/g, '_')
+        assets['server/' + pagePath + '_' + CLIENT_REFERENCE_MANIFEST + '.js'] =
+          new sources.RawSource(
+            `globalThis.__RSC_MANIFEST=(globalThis.__RSC_MANIFEST||{});globalThis.__RSC_MANIFEST[${JSON.stringify(
+              pagePath.slice('app'.length)
+            )}]=${JSON.stringify(json)}`
+          ) as unknown as webpack.sources.RawSource
+
+        if (pagePath === 'app/not-found') {
+          // Create a separate special manifest for the root not-found page.
+          assets[
+            'server/' +
+              'app/_not-found' +
+              '_' +
+              CLIENT_REFERENCE_MANIFEST +
+              '.js'
+          ] = new sources.RawSource(
+            `globalThis.__RSC_MANIFEST=(globalThis.__RSC_MANIFEST||{});globalThis.__RSC_MANIFEST[${JSON.stringify(
+              '/_not-found'
+            )}]=${JSON.stringify(json)}`
+          ) as unknown as webpack.sources.RawSource
+        }
+      }
+    }
 
     pluginState.ASYNC_CLIENT_MODULES = []
-
-    assets[file + '.js'] = new sources.RawSource(
-      `self.__RSC_MANIFEST=${JSON.stringify(json)}`
-      // Work around webpack 4 type of RawSource being used
-      // TODO: use webpack 5 type by default
-    ) as unknown as webpack.sources.RawSource
-    assets[file + '.json'] = new sources.RawSource(
-      json
-      // Work around webpack 4 type of RawSource being used
-      // TODO: use webpack 5 type by default
-    ) as unknown as webpack.sources.RawSource
   }
 }
