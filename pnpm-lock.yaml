@@ -436,7 +436,7 @@ importers:
 
   packages/eslint-config-next:
     specifiers:
-      '@next/eslint-plugin-next': 13.4.9-canary.2
+      '@next/eslint-plugin-next': 13.4.10-canary.0
       '@rushstack/eslint-patch': ^1.1.3
       '@typescript-eslint/parser': ^5.42.0
       eslint: ^7.23.0 || ^8.0.0
@@ -445,7 +445,7 @@ importers:
       eslint-plugin-import: ^2.26.0
       eslint-plugin-jsx-a11y: ^6.5.1
       eslint-plugin-react: ^7.31.7
-      eslint-plugin-react-hooks: ^4.5.0
+      eslint-plugin-react-hooks: 5.0.0-canary-7118f5dd7-20230705
       typescript: '>=3.3.1'
     dependencies:
       '@next/eslint-plugin-next': link:../eslint-plugin-next
@@ -457,7 +457,7 @@ importers:
       eslint-plugin-import: 2.26.0_rro5vshdcwktyq3ib6gggwkshq
       eslint-plugin-jsx-a11y: 6.5.1_eslint@8.31.0
       eslint-plugin-react: 7.31.8_eslint@8.31.0
-      eslint-plugin-react-hooks: 4.5.0_eslint@8.31.0
+      eslint-plugin-react-hooks: 5.0.0-canary-7118f5dd7-20230705_eslint@8.31.0
       typescript: 4.8.2
 
   packages/eslint-plugin-next:
@@ -513,12 +513,12 @@ importers:
       '@jest/types': 29.5.0
       '@napi-rs/cli': 2.14.7
       '@napi-rs/triples': 1.1.0
-      '@next/env': 13.4.9-canary.2
-      '@next/polyfill-module': 13.4.9-canary.2
-      '@next/polyfill-nomodule': 13.4.9-canary.2
-      '@next/react-dev-overlay': 13.4.9-canary.2
-      '@next/react-refresh-utils': 13.4.9-canary.2
-      '@next/swc': 13.4.9-canary.2
+      '@next/env': 13.4.10-canary.0
+      '@next/polyfill-module': 13.4.10-canary.0
+      '@next/polyfill-nomodule': 13.4.10-canary.0
+      '@next/react-dev-overlay': 13.4.10-canary.0
+      '@next/react-refresh-utils': 13.4.10-canary.0
+      '@next/swc': 13.4.10-canary.0
       '@opentelemetry/api': 1.4.1
       '@segment/ajv-human-errors': 2.1.2
       '@swc/helpers': 0.5.1
@@ -992,8 +992,8 @@ importers:
       '@types/react': 18.2.7
       '@types/react-dom': 18.2.4
       '@vercel/ncc': ^0.36.0
-      '@vercel/turbopack-ecmascript-runtime': https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230704.5
-      '@vercel/turbopack-node': https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-node/js?turbopack-230704.5
+      '@vercel/turbopack-ecmascript-runtime': https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230707.3
+      '@vercel/turbopack-node': https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-node/js?turbopack-230707.3
       anser: ^2.1.1
       css.escape: ^1.5.1
       find-up: ^6.3.0
@@ -1005,8 +1005,8 @@ importers:
       stacktrace-parser: ^0.1.10
       strip-ansi: ^7.0.1
     dependencies:
-      '@vercel/turbopack-ecmascript-runtime': '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230704.5_react-refresh@0.12.0'
-      '@vercel/turbopack-node': '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-node/js?turbopack-230704.5'
+      '@vercel/turbopack-ecmascript-runtime': '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230707.3_react-refresh@0.12.0'
+      '@vercel/turbopack-node': '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-node/js?turbopack-230707.3'
       anser: 2.1.1
       css.escape: 1.5.1
       next: link:../../../../next
@@ -6136,7 +6136,7 @@ packages:
     dependencies:
       '@mdx-js/mdx': 2.2.1
       source-map: 0.7.3
-      webpack: 5.86.0
+      webpack: 5.86.0_@swc+core@1.3.55
     transitivePeerDependencies:
       - supports-color
 
@@ -6810,7 +6810,6 @@ packages:
     cpu: [arm64]
     os: [darwin]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core-darwin-x64/1.3.55:
@@ -6819,7 +6818,6 @@ packages:
     cpu: [x64]
     os: [darwin]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core-linux-arm-gnueabihf/1.3.55:
@@ -6828,7 +6826,6 @@ packages:
     cpu: [arm]
     os: [linux]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core-linux-arm64-gnu/1.3.55:
@@ -6837,7 +6834,6 @@ packages:
     cpu: [arm64]
     os: [linux]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core-linux-arm64-musl/1.3.55:
@@ -6846,7 +6842,6 @@ packages:
     cpu: [arm64]
     os: [linux]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core-linux-x64-gnu/1.3.55:
@@ -6855,7 +6850,6 @@ packages:
     cpu: [x64]
     os: [linux]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core-linux-x64-musl/1.3.55:
@@ -6864,7 +6858,6 @@ packages:
     cpu: [x64]
     os: [linux]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core-win32-arm64-msvc/1.3.55:
@@ -6873,7 +6866,6 @@ packages:
     cpu: [arm64]
     os: [win32]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core-win32-ia32-msvc/1.3.55:
@@ -6882,7 +6874,6 @@ packages:
     cpu: [ia32]
     os: [win32]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core-win32-x64-msvc/1.3.55:
@@ -6891,7 +6882,6 @@ packages:
     cpu: [x64]
     os: [win32]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core/1.3.55_@swc+helpers@0.5.1:
@@ -6916,7 +6906,6 @@ packages:
       '@swc/core-win32-arm64-msvc': 1.3.55
       '@swc/core-win32-ia32-msvc': 1.3.55
       '@swc/core-win32-x64-msvc': 1.3.55
-    dev: true
 
   /@swc/helpers/0.4.14:
     resolution: {integrity: sha512-4C7nX/dvpzB7za4Ql9K81xK3HPxCpHMgwTZVyf+9JQ6VUbn9jjZVN7/Nkdz/Ugzs2CSjqnL/UPXroiVBVHUWUw==}
@@ -12097,8 +12086,8 @@ packages:
       eslint: 7.24.0
     dev: true
 
-  /eslint-plugin-react-hooks/4.5.0_eslint@8.31.0:
-    resolution: {integrity: sha512-8k1gRt7D7h03kd+SAAlzXkQwWK22BnK6GKZG+FJA6BAGy22CFvl8kCIXKpVux0cCxMWDQUPqSok0LKaZ0aOcCw==}
+  /eslint-plugin-react-hooks/5.0.0-canary-7118f5dd7-20230705_eslint@8.31.0:
+    resolution: {integrity: sha512-AZYbMo/NW9chdL7vk6HQzQhT+PvTAEVqWk9ziruUoW2kAOcN5qNyelv70e0F1VNQAbvutOC9oc+xfWycI9FxDw==}
     engines: {node: '>=10'}
     peerDependencies:
       eslint: ^3.0.0 || ^4.0.0 || ^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0-0
@@ -21143,11 +21132,6 @@ packages:
   /punycode/2.1.1:
     resolution: {integrity: sha512-XRsRjdf+j5ml+y/6GKHPZbrF/8p2Yga0JPtdqTIY2Xe5ohJPD9saDJJLPvp9+NSBprVvevdXZybnj2cv8OEd0A==}
     engines: {node: '>=6'}
-    dev: true
-
-  /punycode/2.3.0:
-    resolution: {integrity: sha512-rRV+zQD8tVFys26lAGR9WUuS4iUAngJScM+ZRSKtvl5tKeZ2t5bvdNFdNHBW9FWR4guGHlgmsZ1G7BSm2wTbuA==}
-    engines: {node: '>=6'}
 
   /pupa/2.1.1:
     resolution: {integrity: sha512-l1jNAspIBSFqbT+y+5FosojNpVpF94nlI+wDUpqP9enwOTfHx9f0gh5nB96vl+6yTpsJsypeNrwfzPrKuHB41A==}
@@ -23819,7 +23803,6 @@ packages:
       serialize-javascript: 6.0.1
       terser: 5.17.7
       webpack: 5.86.0_@swc+core@1.3.55
-    dev: true
 
   /terser/5.10.0:
     resolution: {integrity: sha512-AMmF99DMfEDiRJfxfY5jj5wNH/bYO09cniSqhfoyxc8sFoYIgkJy86G04UoZU5VjlpnplVu0K6Tx6E9b5+DlHA==}
@@ -24061,7 +24044,7 @@ packages:
     engines: {node: '>=0.8'}
     dependencies:
       psl: 1.8.0
-      punycode: 2.3.0
+      punycode: 2.1.1
     dev: true
 
   /tough-cookie/4.0.0:
@@ -24069,7 +24052,7 @@ packages:
     engines: {node: '>=6'}
     dependencies:
       psl: 1.8.0
-      punycode: 2.3.0
+      punycode: 2.1.1
       universalify: 0.1.2
     dev: true
 
@@ -24080,14 +24063,14 @@ packages:
   /tr46/1.0.1:
     resolution: {integrity: sha512-dTpowEjclQ7Kgx5SdBkqRzVhERQXov8/l9Ft9dVM9fmg0W0KQSVaXX9T4i6twCPNtYiZM53lpSSUAwJbFPOHxA==}
     dependencies:
-      punycode: 2.3.0
+      punycode: 2.1.1
     dev: false
 
   /tr46/2.1.0:
     resolution: {integrity: sha512-15Ih7phfcdP5YxqiB+iDtLoaTz4Nd35+IiAv0kQ5FNKHzXgdWqPoTIqEDDJmXceQt4JZk6lVPT8lnDlPpGDppw==}
     engines: {node: '>=8'}
     dependencies:
-      punycode: 2.3.0
+      punycode: 2.1.1
     dev: true
 
   /traverse/0.6.6:
@@ -24756,13 +24739,13 @@ packages:
   /uri-js/4.2.2:
     resolution: {integrity: sha512-KY9Frmirql91X2Qgjry0Wd4Y+YTdrdZheS8TFwvkbLWf/G5KNJDCh6pKL5OZctEW4+0Baa5idK2ZQuELRwPznQ==}
     dependencies:
-      punycode: 2.3.0
+      punycode: 2.1.1
     dev: true
 
   /uri-js/4.4.1:
     resolution: {integrity: sha512-7rKUyy33Q1yc98pQ1DAmLtwX109F7TIfWlW1Ydo8Wl1ii1SeHieeh0HHfPeL2fMXK6z0s8ecKs9frCuLJvndBg==}
     dependencies:
-      punycode: 2.3.0
+      punycode: 2.1.1
 
   /urix/0.1.0:
     resolution: {integrity: sha512-Am1ousAhSLBeB9cG/7k7r2R0zj50uDRlZHPGbazid5s9rlF1F/QKYObEKSIunSjIOkJZqwRRLpvewjEkM7pSqg==}
@@ -25177,7 +25160,6 @@ packages:
       - '@swc/core'
       - esbuild
       - uglify-js
-    dev: true
 
   /websocket-driver/0.7.3:
     resolution: {integrity: sha512-bpxWlvbbB459Mlipc5GBzzZwhoZgGEZLuqPaR0INBGnPAY1vdBX6hPnoFXiw+3yWxDuHyQjO2oXTMyS8A5haFg==}
@@ -25586,9 +25568,9 @@ packages:
   /zwitch/2.0.4:
     resolution: {integrity: sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A==}
 
-  '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230704.5_react-refresh@0.12.0':
-    resolution: {tarball: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230704.5}
-    id: '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230704.5'
+  '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230707.3_react-refresh@0.12.0':
+    resolution: {tarball: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230707.3}
+    id: '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230707.3'
     name: '@vercel/turbopack-ecmascript-runtime'
     version: 0.0.0
     dependencies:
@@ -25599,8 +25581,8 @@ packages:
       - webpack
     dev: false
 
-  '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-node/js?turbopack-230704.5':
-    resolution: {tarball: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-node/js?turbopack-230704.5}
+  '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-node/js?turbopack-230707.3':
+    resolution: {tarball: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-node/js?turbopack-230707.3}
     name: '@vercel/turbopack-node'
     version: 0.0.0
     dependencies:

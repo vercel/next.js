@@ -237,20 +237,16 @@ async function createTreeCodeFromPath(
     }
 
     // We need to resolve all parallel routes in this level.
-    const files = await fs.readdir(absoluteSegmentPath)
+    const files = await fs.opendir(absoluteSegmentPath)
 
     const parallelSegments: string[] = ['children']
 
-    await Promise.all(
-      files.map(async (file) => {
-        const filePath = path.join(absoluteSegmentPath, file)
-        const stat = await fs.stat(filePath)
-
-        if (stat.isDirectory() && file.startsWith('@')) {
-          parallelSegments.push(file)
-        }
-      })
-    )
+    for await (const dirent of files) {
+      // Make sure name starts with "@" and is a directory.
+      if (dirent.isDirectory() && dirent.name.charCodeAt(0) === 64) {
+        parallelSegments.push(dirent.name)
+      }
+    }
 
     return parallelSegments
   }

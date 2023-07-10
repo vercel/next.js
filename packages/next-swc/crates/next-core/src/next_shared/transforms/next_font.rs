@@ -21,7 +21,9 @@ pub fn get_next_font_transform_rule() -> ModuleRule {
     ];
 
     let transformer =
-        EcmascriptInputTransform::Plugin(TransformPluginVc::cell(box NextJsFont { font_loaders }));
+        EcmascriptInputTransform::Plugin(TransformPluginVc::cell(Box::new(NextJsFont {
+            font_loaders,
+        })));
     ModuleRule::new(
         // TODO: Only match in pages (not pages/api), app/, etc.
         module_rule_match_js_no_url(),

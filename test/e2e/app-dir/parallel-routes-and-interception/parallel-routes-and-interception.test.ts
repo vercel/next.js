@@ -354,6 +354,21 @@ createNextDescribe(
             return newTimestamp !== timestamp ? 'failure' : 'success'
           }, 'success')
         })
+
+        it('should support nested parallel routes', async () => {
+          const browser = await next.browser('parallel-nested/home/nested')
+          const timestamp = await browser.elementByCss('#timestamp').text()
+
+          await new Promise((resolve) => {
+            setTimeout(resolve, 3000)
+          })
+
+          await check(async () => {
+            // an invalid response triggers a fast refresh, so if the timestamp doesn't update, this behaved correctly
+            const newTimestamp = await browser.elementByCss('#timestamp').text()
+            return newTimestamp !== timestamp ? 'failure' : 'success'
+          }, 'success')
+        })
       }
     })
 
