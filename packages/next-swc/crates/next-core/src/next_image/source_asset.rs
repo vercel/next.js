@@ -10,6 +10,7 @@ use turbopack_binding::{
         core::{
             asset::{Asset, AssetContent, AssetContentVc, AssetVc},
             ident::AssetIdentVc,
+            source::{Source, SourceVc},
         },
         ecmascript::utils::StringifyJs,
         image::process::{get_meta_data, BlurPlaceholderOptions, BlurPlaceholderOptionsVc},
@@ -35,9 +36,12 @@ fn blur_options() -> BlurPlaceholderOptionsVc {
 /// an object with meta information like width, height and a blur placeholder.
 #[turbo_tasks::value(shared)]
 pub struct StructuredImageFileSource {
-    pub image: AssetVc,
+    pub image: SourceVc,
     pub blur_placeholder_mode: BlurPlaceholderMode,
 }
+
+#[turbo_tasks::value_impl]
+impl Source for StructuredImageFileSource {}
 
 #[turbo_tasks::value_impl]
 impl Asset for StructuredImageFileSource {

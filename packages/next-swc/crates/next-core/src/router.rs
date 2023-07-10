@@ -146,7 +146,7 @@ async fn next_config_changed(
     Ok(match *find_config_result.await? {
         FindContextFileResult::Found(config_path, _) => {
             let module = context.process(
-                FileSourceVc::new(config_path).as_asset(),
+                FileSourceVc::new(config_path).into(),
                 Value::new(ReferenceType::Internal(InnerAssetsVc::empty())),
             );
             any_content_changed(module.into())
@@ -190,7 +190,7 @@ async fn config_assets(
                     project_path.join("middleware.js"),
                     File::from("export default [];").into(),
                 )
-                .as_asset(),
+                .into(),
                 Value::new(ReferenceType::Internal(InnerAssetsVc::empty())),
             );
             let config = NextSourceConfigVc::default();
@@ -207,7 +207,7 @@ async fn config_assets(
             ))
             .into(),
         )
-        .as_asset(),
+        .into(),
         Value::new(ReferenceType::Internal(InnerAssetsVc::empty())),
     );
 

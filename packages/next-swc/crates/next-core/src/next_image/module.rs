@@ -4,11 +4,11 @@ use turbopack_binding::{
     turbo::tasks::Value,
     turbopack::{
         core::{
-            asset::AssetVc,
             context::AssetContext,
             module::ModuleVc,
             reference_type::{InnerAssetsVc, ReferenceType},
             resolve::ModulePartVc,
+            source::SourceVc,
         },
         r#static::StaticModuleAssetVc,
         turbopack::{
@@ -45,7 +45,7 @@ pub struct StructuredImageModuleType {
 
 impl StructuredImageModuleType {
     pub(crate) fn create_module(
-        source: AssetVc,
+        source: SourceVc,
         blur_placeholder_mode: BlurPlaceholderMode,
         context: ModuleAssetContextVc,
     ) -> ModuleVc {
@@ -79,7 +79,7 @@ impl CustomModuleType for StructuredImageModuleType {
     #[turbo_tasks::function]
     fn create_module(
         &self,
-        source: AssetVc,
+        source: SourceVc,
         context: ModuleAssetContextVc,
         _part: Option<ModulePartVc>,
     ) -> ModuleVc {

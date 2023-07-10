@@ -35,6 +35,7 @@ use turbopack_binding::{
             environment::ServerAddrVc,
             file_source::FileSourceVc,
             reference_type::{EntryReferenceSubType, ReferenceType},
+            source::SourceVc,
         },
         env::ProcessEnvAssetVc,
         node::execution_context::ExecutionContextVc,
@@ -327,7 +328,7 @@ pub struct PageChunk {
 async fn get_page_chunk_for_file(
     node_build_context: PagesBuildNodeContextVc,
     client_build_context: PagesBuildClientContextVc,
-    page_asset: AssetVc,
+    page_asset: SourceVc,
     next_router_root: FileSystemPathVc,
     next_router_path: FileSystemPathVc,
     original_path: FileSystemPathVc,
@@ -339,12 +340,8 @@ async fn get_page_chunk_for_file(
 
     Ok(PageChunk {
         pathname,
-        node_chunk: node_build_context.node_chunk(
-            page_asset,
-            original_path,
-            reference_type.clone(),
-        ),
-        client_chunks: client_build_context.client_chunk(page_asset, pathname, reference_type),
+        node_chunk: node_build_context.node_chunk(page_asset, original_path, reference_type),
+        client_chunks: client_build_context.client_chunk(page_asset, pathname),
     }
     .cell())
 }

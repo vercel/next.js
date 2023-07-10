@@ -17,6 +17,7 @@ use turbopack_binding::{
             module::ModuleVc,
             reference::{AssetReferencesVc, SingleAssetReferenceVc},
             reference_type::{EntryReferenceSubType, InnerAssetsVc, ReferenceType},
+            source::SourceVc,
             virtual_source::VirtualSourceVc,
         },
         dev_server::source::{asset_graph::AssetGraphContentSourceVc, ContentSourceVc},
@@ -31,7 +32,7 @@ pub async fn create_page_loader(
     server_root: FileSystemPathVc,
     client_context: AssetContextVc,
     client_chunking_context: ChunkingContextVc,
-    entry_asset: AssetVc,
+    entry_asset: SourceVc,
     pathname: StringVc,
 ) -> Result<ContentSourceVc> {
     let asset = PageLoaderAsset {
@@ -51,14 +52,14 @@ pub struct PageLoaderAsset {
     pub server_root: FileSystemPathVc,
     pub client_context: AssetContextVc,
     pub client_chunking_context: ChunkingContextVc,
-    pub entry_asset: AssetVc,
+    pub entry_asset: SourceVc,
     pub pathname: StringVc,
 }
 
 #[turbo_tasks::function]
 pub async fn create_page_loader_entry_asset(
     client_context: AssetContextVc,
-    entry_asset: AssetVc,
+    entry_asset: SourceVc,
     pathname: StringVc,
 ) -> Result<ModuleVc> {
     let mut result = RopeBuilder::default();

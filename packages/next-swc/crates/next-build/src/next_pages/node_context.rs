@@ -10,6 +10,7 @@ use turbopack_binding::{
             context::{AssetContext, AssetContextVc},
             reference_type::{EntryReferenceSubType, ReferenceType},
             resolve::{parse::RequestVc, pattern::QueryMapVc},
+            source::SourceVc,
         },
         ecmascript::chunk::EcmascriptChunkPlaceableVc,
     },
@@ -91,13 +92,13 @@ impl PagesBuildNodeContextVc {
     #[turbo_tasks::function]
     pub async fn node_chunk(
         self,
-        file_source: AssetVc,
+        source: SourceVc,
         original_path: StringVc,
         reference_type: Value<ReferenceType>,
     ) -> Result<AssetVc> {
         let this = self.await?;
 
-        let node_asset_page = this.node_asset_context.process(file_source, reference_type);
+        let node_asset_page = this.node_asset_context.process(source, reference_type);
 
         let Some(node_module_asset) =
             EcmascriptChunkPlaceableVc::resolve_from(node_asset_page).await?
