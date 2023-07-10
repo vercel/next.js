@@ -1,5 +1,4 @@
 use std::{
-    fs,
     io::{self, Write},
     path::{Path, PathBuf},
     process::{Child, Command, Stdio},

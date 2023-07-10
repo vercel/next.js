@@ -82,6 +82,6 @@ impl CustomModuleType for StructuredImageModuleType {
         context: ModuleAssetContextVc,
         _part: Option<ModulePartVc>,
     ) -> AssetVc {
-        StructuredImageModuleType::create_module(source, self.blur_placeholder_mode, context.into())
+        StructuredImageModuleType::create_module(source, self.blur_placeholder_mode, context)
     }
 }
