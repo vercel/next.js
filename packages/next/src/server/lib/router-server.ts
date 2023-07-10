@@ -370,7 +370,10 @@ export async function initialize(opts: {
           if (key === 'set-cookie') {
             const curValue = res.getHeader(key) as string
             const newValue: string[] = [] as string[]
-            for (const cookie of splitCookiesString(curValue || '')) {
+
+            for (const cookie of Array.isArray(curValue)
+              ? curValue
+              : splitCookiesString(curValue || '')) {
               newValue.push(cookie)
             }
             for (const val of (Array.isArray(value)

@@ -39,6 +39,7 @@ import {
   MiddlewareRouteMatch,
   getMiddlewareRouteMatcher,
 } from '../../../shared/lib/router/utils/middleware-route-matcher'
+import { NextBuildContext } from '../../../build/build-context'
 
 import {
   isMiddlewareFile,
@@ -136,6 +137,7 @@ async function startWatcher(opts: SetupOpts) {
 
   const serverFields: {
     actualMiddlewareFile?: string | undefined
+    actualInstrumentationHookFile?: string | undefined
     appPathRoutes?: Record<string, string | string[]>
     middleware?:
       | {
@@ -278,7 +280,15 @@ async function startWatcher(opts: SetupOpts) {
 
         const isAppPath = Boolean(
           appDir &&
-            normalizePathSep(fileName).startsWith(normalizePathSep(appDir))
+            normalizePathSep(fileName).startsWith(
+              normalizePathSep(appDir) + '/'
+            )
+        )
+        const isPagePath = Boolean(
+          pagesDir &&
+            normalizePathSep(fileName).startsWith(
+              normalizePathSep(pagesDir) + '/'
+            )
         )
 
         const rootFile = absolutePathToPage(fileName, {
@@ -318,16 +328,21 @@ async function startWatcher(opts: SetupOpts) {
           isInstrumentationHookFile(rootFile) &&
           nextConfig.experimental.instrumentationHook
         ) {
-          let actualInstrumentationHookFile = rootFile
+          NextBuildContext.hasInstrumentationHook = true
+          serverFields.actualInstrumentationHookFile = rootFile
           await propagateToWorkers(
             'actualInstrumentationHookFile',
-            actualInstrumentationHookFile
+            serverFields.actualInstrumentationHookFile
           )
           continue
         }
 
         if (fileName.endsWith('.ts') || fileName.endsWith('.tsx')) {
           enabledTypeScript = true
+        }
+
+        if (!(isAppPath || isPagePath)) {
+          continue
         }
 
         let pageName = absolutePathToPage(fileName, {
@@ -577,9 +592,10 @@ async function startWatcher(opts: SetupOpts) {
           }
         : undefined
 
+      await propagateToWorkers('middleware', serverFields.middleware)
       serverFields.hasAppNotFound = hasRootAppNotFound
 
-      serverFields.interceptionRoutes = generateInterceptionRoutesRewrites(
+      opts.fsChecker.interceptionRoutes = generateInterceptionRoutesRewrites(
         Object.keys(appPaths)
       )?.map((item) =>
         buildCustomRoute(
@@ -589,8 +605,6 @@ async function startWatcher(opts: SetupOpts) {
           opts.nextConfig.experimental.caseSensitiveRoutes
         )
       )
-
-      await propagateToWorkers('middleware', serverFields.middleware)
 
       try {
         // we serve a separate manifest with all pages for the client in

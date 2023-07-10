@@ -13,17 +13,13 @@ import url from 'url'
 import { default as Server } from './next-server'
 import * as log from '../build/output/log'
 import loadConfig from './config'
-import { join, resolve } from 'path'
+import { resolve } from 'path'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
-import {
-  PHASE_DEVELOPMENT_SERVER,
-  SERVER_DIRECTORY,
-} from '../shared/lib/constants'
+import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import { PHASE_PRODUCTION_SERVER } from '../shared/lib/constants'
 import { getTracer } from './lib/trace/tracer'
 import { NextServerSpan } from './lib/trace/constants'
 import { formatUrl } from '../shared/lib/router/utils/format-url'
-import { findDir } from '../lib/find-pages-dir'
 import { proxyRequest } from './lib/router-utils/proxy-request'
 import { getFreePort } from './lib/worker-utils'
 
@@ -140,11 +136,14 @@ export class NextServer {
     return server.render404(...args)
   }
 
-  async prepare() {
+  async prepare(serverFields?: any) {
     if (this.standaloneMode) return
 
     const server = await this.getServer()
 
+    if (serverFields) {
+      Object.assign(server, serverFields)
+    }
     // We shouldn't prepare the server in production,
     // because this code won't be executed when deployed
     if (this.options.dev) {
@@ -285,42 +284,21 @@ function createServer(options: NextServerOptions): NextServer {
           switch (propKey) {
             case 'prepare':
               return async () => {
-                // Instead of running Next Server's `prepare`, we'll run the loadConfig first to determine
-                // if we should run the standalone server or not.
-                const config = await server[SYMBOL_LOAD_CONFIG]()
+                shouldUseStandaloneMode = true
+                server[SYMBOL_SET_STANDALONE_MODE]()
+                serverPort = await getFreePort()
 
-                // Check if the application has app dir or not. This depends on the mode (dev or prod).
-                // For dev, `app` should be existing in the sources and for prod it should be existing
-                // in the dist folder.
-                const distDir =
-                  process.env.NEXT_RUNTIME === 'edge'
-                    ? config.distDir
-                    : join(dir, config.distDir)
-                const serverDistDir = join(distDir, SERVER_DIRECTORY)
-                const hasAppDir = !!findDir(
-                  options.dev ? dir : serverDistDir,
-                  'app'
-                )
-
-                if (hasAppDir) {
-                  shouldUseStandaloneMode = true
-                  server[SYMBOL_SET_STANDALONE_MODE]()
-                  serverPort = await getFreePort()
-
-                  return startServer({
-                    dir,
-                    logReady: false,
-                    port: serverPort,
-                    allowRetry: false,
-                    minimalMode: false,
-                    isDev: !!options.dev,
-                    hostname: options.hostname || 'localhost',
-                    useWorkers: true,
-                    customServer: options.customServer,
-                  })
-                } else {
-                  return server.prepare()
-                }
+                return startServer({
+                  dir,
+                  logReady: false,
+                  port: serverPort,
+                  allowRetry: false,
+                  minimalMode: false,
+                  isDev: !!options.dev,
+                  hostname: options.hostname || 'localhost',
+                  useWorkers: true,
+                  customServer: options.customServer,
+                })
               }
             case 'getRequestHandler': {
               return () => {
@@ -382,7 +360,6 @@ function createServer(options: NextServerOptions): NextServer {
       }
     ) as any
   }
-
   return new NextServer(options)
 }
 

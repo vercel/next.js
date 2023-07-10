@@ -69,6 +69,9 @@ export function getResolveRoutes(
 
     ...(opts.minimalMode ? [] : fsChecker.rewrites.beforeFiles),
 
+    // check middleware (using matchers)
+    { match: () => ({} as any), name: 'before_files_end' },
+
     // we check exact matches on fs before continuing to
     // after files rewrites
     { match: () => ({} as any), name: 'check_fs' },
@@ -140,29 +143,19 @@ export function getResolveRoutes(
 
     let domainLocale: ReturnType<typeof detectDomainLocale> | undefined
     let defaultLocale: string | undefined
+    let initialLocaleResult:
+      | ReturnType<typeof normalizeLocalePath>
+      | undefined = undefined
 
     if (config.i18n) {
       const hadBasePath = pathHasPrefix(
         parsedUrl.pathname || '',
         config.basePath
       )
-      const localeResult = normalizeLocalePath(
+      initialLocaleResult = normalizeLocalePath(
         removePathPrefix(parsedUrl.pathname || '/', config.basePath),
         config.i18n.locales
       )
-
-      if (
-        localeResult.pathname.startsWith('/api') &&
-        localeResult.detectedLocale
-      ) {
-        parsedUrl.pathname = '/404'
-
-        return {
-          finished: true,
-          parsedUrl,
-          resHeaders,
-        }
-      }
 
       domainLocale = detectDomainLocale(
         config.i18n.domains,
@@ -172,23 +165,40 @@ export function getResolveRoutes(
 
       parsedUrl.query.__nextDefaultLocale = defaultLocale
       parsedUrl.query.__nextLocale =
-        localeResult.detectedLocale || defaultLocale
+        initialLocaleResult.detectedLocale || defaultLocale
 
       // ensure locale is present for resolving routes
       if (
-        !localeResult.detectedLocale &&
-        !localeResult.pathname.startsWith('/_next/')
+        !initialLocaleResult.detectedLocale &&
+        !initialLocaleResult.pathname.startsWith('/_next/')
       ) {
         parsedUrl.pathname = addPathPrefix(
-          localeResult.pathname === '/'
+          initialLocaleResult.pathname === '/'
             ? `/${defaultLocale}`
-            : addPathPrefix(localeResult.pathname || '', `/${defaultLocale}`),
+            : addPathPrefix(
+                initialLocaleResult.pathname || '',
+                `/${defaultLocale}`
+              ),
           hadBasePath ? config.basePath : ''
         )
       }
     }
 
+    const checkLocaleApi = (pathname: string) => {
+      if (
+        config.i18n &&
+        pathname === urlNoQuery &&
+        initialLocaleResult?.detectedLocale &&
+        pathHasPrefix(initialLocaleResult.pathname, '/api')
+      ) {
+        return true
+      }
+    }
+
     async function checkTrue() {
+      if (checkLocaleApi(parsedUrl.pathname || '')) {
+        return
+      }
       const output = await fsChecker.getItem(parsedUrl.pathname || '')
 
       if (output) {
@@ -222,6 +232,14 @@ export function getResolveRoutes(
             addPathPrefix(route.page, config.basePath || '')
           )
 
+          // i18n locales aren't matched for app dir
+          if (
+            pageOutput?.type === 'appFile' &&
+            initialLocaleResult?.detectedLocale
+          ) {
+            continue
+          }
+
           if (pageOutput && curPathname?.startsWith('/_next/data')) {
             parsedUrl.query.__nextDataReq = '1'
           }
@@ -230,7 +248,9 @@ export function getResolveRoutes(
       }
     }
 
-    for (const route of routes) {
+    async function handleRoute(
+      route: (typeof routes)[0]
+    ): Promise<UnwrapPromise<ReturnType<typeof resolveRoutes>> | void> {
       let curPathname = parsedUrl.pathname || '/'
 
       if (config.i18n && route.internal) {
@@ -276,6 +296,16 @@ export function getResolveRoutes(
       }
 
       if (params) {
+        if (fsChecker.interceptionRoutes && route.name === 'before_files_end') {
+          for (const interceptionRoute of fsChecker.interceptionRoutes) {
+            const result = await handleRoute(interceptionRoute)
+
+            if (result) {
+              return result
+            }
+          }
+        }
+
         if (route.name === 'middleware_next_data') {
           if (fsChecker.getMiddlewareMatchers()?.length) {
             const nextDataPrefix = addPathPrefix(
@@ -304,9 +334,19 @@ export function getResolveRoutes(
         }
 
         if (route.name === 'check_fs') {
+          if (checkLocaleApi(parsedUrl.pathname || '')) {
+            return
+          }
           const output = await fsChecker.getItem(parsedUrl.pathname || '')
 
-          if (output) {
+          if (
+            output &&
+            !(
+              config.i18n &&
+              initialLocaleResult?.detectedLocale &&
+              pathHasPrefix(parsedUrl.pathname || '', '/api')
+            )
+          ) {
             matchedOutput = output
 
             if (output.locale) {
@@ -596,6 +636,13 @@ export function getResolveRoutes(
             }
           }
         }
+      }
+    }
+
+    for (const route of routes) {
+      const result = await handleRoute(route)
+      if (result) {
+        return result
       }
     }
 

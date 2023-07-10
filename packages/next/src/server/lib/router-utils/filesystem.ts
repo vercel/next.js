@@ -365,6 +365,10 @@ export async function setupFsCheck(opts: {
     dynamicRoutes,
     nextDataRoutes,
 
+    interceptionRoutes: undefined as
+      | undefined
+      | ReturnType<typeof buildCustomRoute>[],
+
     devVirtualFsItems: new Set<string>(),
 
     prerenderManifest,
@@ -376,7 +380,8 @@ export async function setupFsCheck(opts: {
 
     async getItem(itemPath: string): Promise<FsOutput | null> {
       const originalItemPath = itemPath
-      const lruResult = getItemsLru.get(originalItemPath)
+      const itemKey = originalItemPath
+      const lruResult = getItemsLru.get(itemKey)
 
       if (lruResult) {
         return lruResult
@@ -543,6 +548,11 @@ export async function setupFsCheck(opts: {
             }
           }
 
+          // i18n locales aren't matched for app dir
+          if (type === 'appFile' && locale && locale !== i18n?.defaultLocale) {
+            continue
+          }
+
           const itemResult = {
             type,
             fsPath,
@@ -551,14 +561,14 @@ export async function setupFsCheck(opts: {
           }
 
           if (!opts.dev) {
-            getItemsLru.set(originalItemPath, itemResult)
+            getItemsLru.set(itemKey, itemResult)
           }
           return itemResult
         }
       }
 
       if (!opts.dev) {
-        getItemsLru.set(originalItemPath, null)
+        getItemsLru.set(itemKey, null)
       }
       return null
     },

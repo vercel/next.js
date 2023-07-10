@@ -112,15 +112,11 @@ export async function initialize(opts: {
 
   requestHandler = app.getRequestHandler()
   upgradeHandler = app.getUpgradeHandler()
-  await app.prepare()
+  await app.prepare(opts.serverFields)
 
   result = {
     port,
     hostname: hostname === '0.0.0.0' ? '127.0.0.1' : hostname,
-  }
-
-  if (opts.serverFields && (app as any).server) {
-    Object.assign((app as any).server, opts.serverFields)
   }
   return result
 }

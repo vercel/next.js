@@ -35,8 +35,13 @@ function generateClientManifest(
     'NextJsBuildManifest-generateClientManifest'
   )
 
-  const normalizeRewrite = (item: { source: string; destination: string }) => {
+  const normalizeRewrite = (item: {
+    source: string
+    destination: string
+    has?: any
+  }) => {
     return {
+      has: item.has,
       source: item.source,
       destination: item.destination,
     }

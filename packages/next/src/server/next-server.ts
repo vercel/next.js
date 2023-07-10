@@ -911,79 +911,80 @@ export default class NextNodeServer extends BaseServer {
     parsedUrl: NextUrlWithParsedQuery
   ) {
     let { pathname, query } = parsedUrl
+
     if (!pathname) {
       throw new Error('pathname is undefined')
     }
     const bubbleNoFallback = Boolean(query._nextBubbleNoFallback)
 
-    // next.js core assumes page path without trailing slash
-    pathname = removeTrailingSlash(pathname)
+    try {
+      // next.js core assumes page path without trailing slash
+      pathname = removeTrailingSlash(pathname)
 
-    const options: MatchOptions = {
-      i18n: this.i18nProvider?.fromQuery(pathname, query),
-    }
-    const match = await this.matchers.match(pathname, options)
+      const options: MatchOptions = {
+        i18n: this.i18nProvider?.fromQuery(pathname, query),
+      }
+      const match = await this.matchers.match(pathname, options)
 
-    // Try to handle the given route with the configured handlers.
-    if (match) {
-      // Add the match to the request so we don't have to re-run the matcher
-      // for the same request.
-      addRequestMeta(req, '_nextMatch', match)
+      // Try to handle the given route with the configured handlers.
+      if (match) {
+        // Add the match to the request so we don't have to re-run the matcher
+        // for the same request.
+        addRequestMeta(req, '_nextMatch', match)
 
-      // TODO-APP: move this to a route handler
-      const edgeFunctionsPages = this.getEdgeFunctionsPages()
-      for (const edgeFunctionsPage of edgeFunctionsPages) {
-        if (edgeFunctionsPage === match.definition.page) {
+        // TODO-APP: move this to a route handler
+        const edgeFunctionsPages = this.getEdgeFunctionsPages()
+        for (const edgeFunctionsPage of edgeFunctionsPages) {
+          if (edgeFunctionsPage === match.definition.page) {
+            if (this.nextConfig.output === 'export') {
+              await this.render404(req, res, parsedUrl)
+              return { finished: true }
+            }
+            delete query._nextBubbleNoFallback
+            delete query[NEXT_RSC_UNION_QUERY]
+
+            const handledAsEdgeFunction = await this.runEdgeFunction({
+              req,
+              res,
+              query,
+              params: match.params,
+              page: match.definition.page,
+              match,
+              appPaths: null,
+            })
+
+            if (handledAsEdgeFunction) {
+              return { finished: true }
+            }
+          }
+        }
+        let handled = false
+
+        // If the route was detected as being a Pages API route, then handle
+        // it.
+        // TODO: move this behavior into a route handler.
+        if (match.definition.kind === RouteKind.PAGES_API) {
           if (this.nextConfig.output === 'export') {
             await this.render404(req, res, parsedUrl)
             return { finished: true }
           }
           delete query._nextBubbleNoFallback
-          delete query[NEXT_RSC_UNION_QUERY]
 
-          const handledAsEdgeFunction = await this.runEdgeFunction({
+          handled = await this.handleApiRequest(
             req,
             res,
             query,
-            params: match.params,
-            page: match.definition.page,
-            match,
-            appPaths: null,
-          })
-
-          if (handledAsEdgeFunction) {
-            return { finished: true }
-          }
+            // TODO: see if we can add a runtime check for this
+            match as PagesAPIRouteMatch
+          )
+          if (handled) return { finished: true }
         }
+        // else if (match.definition.kind === RouteKind.METADATA_ROUTE) {
+        //   handled = await this.handlers.handle(match, req, res)
+        //   if (handled) return { finished: true }
+        // }
       }
-      let handled = false
 
-      // If the route was detected as being a Pages API route, then handle
-      // it.
-      // TODO: move this behavior into a route handler.
-      if (match.definition.kind === RouteKind.PAGES_API) {
-        if (this.nextConfig.output === 'export') {
-          await this.render404(req, res, parsedUrl)
-          return { finished: true }
-        }
-        delete query._nextBubbleNoFallback
-
-        handled = await this.handleApiRequest(
-          req,
-          res,
-          query,
-          // TODO: see if we can add a runtime check for this
-          match as PagesAPIRouteMatch
-        )
-        if (handled) return { finished: true }
-      }
-      // else if (match.definition.kind === RouteKind.METADATA_ROUTE) {
-      //   handled = await this.handlers.handle(match, req, res)
-      //   if (handled) return { finished: true }
-      // }
-    }
-
-    try {
       await this.render(req, res, pathname, query, parsedUrl, true)
 
       return {
@@ -1006,6 +1007,7 @@ export default class NextNodeServer extends BaseServer {
 
       try {
         this.logError(err)
+        res.statusCode = 500
         await this.renderError(err, req, res, pathname, query)
         return {
           finished: true,
