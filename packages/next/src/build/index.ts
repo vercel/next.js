@@ -52,7 +52,6 @@ import {
   PAGES_MANIFEST,
   PHASE_PRODUCTION_BUILD,
   PRERENDER_MANIFEST,
-  CLIENT_REFERENCE_MANIFEST,
   REACT_LOADABLE_MANIFEST,
   ROUTES_MANIFEST,
   SERVER_DIRECTORY,
@@ -905,14 +904,6 @@ export default async function build(
                   APP_BUILD_MANIFEST,
                   path.join(
                     SERVER_DIRECTORY,
-                    CLIENT_REFERENCE_MANIFEST + '.js'
-                  ),
-                  path.join(
-                    SERVER_DIRECTORY,
-                    CLIENT_REFERENCE_MANIFEST + '.json'
-                  ),
-                  path.join(
-                    SERVER_DIRECTORY,
                     SERVER_REFERENCE_MANIFEST + '.js'
                   ),
                   path.join(
@@ -1487,7 +1478,6 @@ export default async function build(
                             pageRuntime,
                             edgeInfo,
                             pageType,
-                            hasServerComponents: !!appDir,
                             incrementalCacheHandlerPath:
                               config.experimental.incrementalCacheHandlerPath,
                             isrFlushToDisk: config.experimental.isrFlushToDisk,

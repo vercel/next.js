@@ -30,7 +30,13 @@ createNextDescribe(
         await check(async () => {
           // Check that the client-side manifest is correct before any requests
           const clientReferenceManifest = JSON.parse(
-            await next.readFile('.next/server/client-reference-manifest.json')
+            JSON.parse(
+              (
+                await next.readFile(
+                  '.next/server/app/page_client-reference-manifest.js'
+                )
+              ).match(/]=(.+)$/)[1]
+            )
           )
           const clientModulesNames = Object.keys(
             clientReferenceManifest.clientModules
@@ -546,7 +552,6 @@ createNextDescribe(
         const files = [
           'middleware-build-manifest.js',
           'middleware-manifest.json',
-          'client-reference-manifest.json',
         ]
 
         let promises = files.map(async (file) => {
@@ -558,6 +563,16 @@ createNextDescribe(
           expect(await next.hasFile(file)).toBe(true)
         })
         await Promise.all(promises)
+      })
+
+      it('should generate client reference manifest for edge SSR pages', async () => {
+        const buildManifest = JSON.parse(
+          await next.readFile('.next/app-build-manifest.json')
+        )
+
+        expect(buildManifest.pages['/edge/dynamic/page']).toInclude(
+          'server/app/edge/dynamic/page_client-reference-manifest.js'
+        )
       })
     }
   }
