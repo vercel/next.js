@@ -146,7 +146,7 @@ function runTests(mode) {
         imagesizes: '',
         imagesrcset:
           '/_next/image?url=%2Ftest.webp&w=640&q=75 1x, /_next/image?url=%2Ftest.webp&w=828&q=75 2x',
-        crossorigin: 'anonymous',
+        crossorigin: 'use-credentials',
         referrerPolicy: '',
       })
 
@@ -162,7 +162,7 @@ function runTests(mode) {
         imagesrcset:
           '/_next/image?url=%2Fwide.png&w=640&q=75 640w, /_next/image?url=%2Fwide.png&w=750&q=75 750w, /_next/image?url=%2Fwide.png&w=828&q=75 828w, /_next/image?url=%2Fwide.png&w=1080&q=75 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75 3840w',
         crossorigin: '',
-        referrerPolicy: '',
+        referrerpolicy: '',
       })
 
       expect(
@@ -177,7 +177,7 @@ function runTests(mode) {
         imagesrcset:
           '/_next/image?url=%2Ftest.png&w=640&q=75 1x, /_next/image?url=%2Ftest.png&w=828&q=75 2x',
         crossorigin: '',
-        referrerPolicy: 'no-referrer',
+        referrerpolicy: 'no-referrer',
       })
 
       // When priority={true}, we should _not_ set loading="lazy"

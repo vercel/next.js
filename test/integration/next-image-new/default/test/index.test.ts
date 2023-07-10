@@ -147,7 +147,7 @@ function runTests(mode) {
         imagesizes: '',
         imagesrcset:
           '/_next/image?url=%2Ftest.webp&w=640&q=75 1x, /_next/image?url=%2Ftest.webp&w=828&q=75 2x',
-        crossorigin: 'anonymous',
+        crossorigin: 'use-credentials',
         referrerPolicy: '',
       })
 
