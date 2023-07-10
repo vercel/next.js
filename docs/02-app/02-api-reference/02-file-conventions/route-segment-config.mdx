@@ -13,7 +13,7 @@ The Route Segment options allows you configure the behavior of a [Page](/docs/ap
 | [`fetchCache`](#fetchcache)           | `'auto' \| 'default-cache' \| 'only-cache' \| 'force-cache' \| 'force-no-store' \| 'default-no-store' \| 'only-no-store'` | `'auto'`            |
 | [`runtime`](#runtime)                 | `'nodejs' \| 'edge'`                                                                                                      | `'nodejs'`          |
 | [`preferredRegion`](#preferredregion) | `'auto' \| 'global' \| 'home' \| string \| string[]`                                                                      | `'auto'`            |
-| [`maxDuration`](#maxduration)         | `number`                                                                                                                  | `Vercel plan limit` |
+| [`maxDuration`](#maxduration)         | `number`                                                                                                                  | `Response time limit` |
 
 ```tsx filename="layout.tsx / page.tsx / route.ts" switcher
 export const dynamic = 'auto'
