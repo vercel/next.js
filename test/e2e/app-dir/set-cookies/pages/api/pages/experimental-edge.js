@@ -1,6 +1,6 @@
-export const config = { runtime: 'experimental-edge' }
-
 import cookies from '../../../cookies'
+
+export const runtime = 'edge'
 
 export default async function handler() {
   const headers = new Headers()

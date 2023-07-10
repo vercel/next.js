@@ -1,3 +1,7 @@
+import MODERN_BROWSERSLIST_TARGET from './modern-browserslist-target'
+
+export { MODERN_BROWSERSLIST_TARGET }
+
 export type ValueOf<T> = Required<T>[keyof T]
 
 export const COMPILER_NAMES = {
@@ -21,11 +25,13 @@ export const PHASE_PRODUCTION_BUILD = 'phase-production-build'
 export const PHASE_PRODUCTION_SERVER = 'phase-production-server'
 export const PHASE_DEVELOPMENT_SERVER = 'phase-development-server'
 export const PHASE_TEST = 'phase-test'
+export const PHASE_INFO = 'phase-info'
 export const PAGES_MANIFEST = 'pages-manifest.json'
 export const APP_PATHS_MANIFEST = 'app-paths-manifest.json'
 export const APP_PATH_ROUTES_MANIFEST = 'app-path-routes-manifest.json'
 export const BUILD_MANIFEST = 'build-manifest.json'
 export const APP_BUILD_MANIFEST = 'app-build-manifest.json'
+export const FUNCTIONS_CONFIG_MANIFEST = 'functions-config-manifest.json'
 export const SUBRESOURCE_INTEGRITY_MANIFEST = 'subresource-integrity-manifest'
 export const NEXT_FONT_MANIFEST = 'next-font-manifest'
 export const EXPORT_MARKER = 'export-marker.json'
@@ -47,26 +53,11 @@ export const CLIENT_PUBLIC_FILES_PATH = 'public'
 export const CLIENT_STATIC_FILES_PATH = 'static'
 export const CLIENT_STATIC_FILES_RUNTIME = 'runtime'
 export const STRING_LITERAL_DROP_BUNDLE = '__NEXT_DROP_CLIENT_FILE__'
-/**
- * These are the browser versions that support all of the following:
- * static import: https://caniuse.com/es6-module
- * dynamic import: https://caniuse.com/es6-module-dynamic-import
- * import.meta: https://caniuse.com/mdn-javascript_operators_import_meta
- */
-export const MODERN_BROWSERSLIST_TARGET = [
-  'chrome 64',
-  'edge 79',
-  'firefox 67',
-  'opera 51',
-  'safari 12',
-]
 export const NEXT_BUILTIN_DOCUMENT = '__NEXT_BUILTIN_DOCUMENT__'
 export const NEXT_CLIENT_SSR_ENTRY_SUFFIX = '.__sc_client__'
 
-// server/client-reference-manifest
+// server/[entry]/page_client-reference-manifest.js
 export const CLIENT_REFERENCE_MANIFEST = 'client-reference-manifest'
-// server/flight-server-css-manifest
-export const FLIGHT_SERVER_CSS_MANIFEST = 'flight-server-css-manifest'
 // server/server-reference-manifest
 export const SERVER_REFERENCE_MANIFEST = 'server-reference-manifest'
 // server/middleware-build-manifest.js
@@ -132,7 +123,6 @@ export const EDGE_UNSUPPORTED_NODE_APIS = [
   'clearImmediate',
   'setImmediate',
   'BroadcastChannel',
-  'Buffer',
   'ByteLengthQueuingStrategy',
   'CompressionStream',
   'CountQueuingStrategy',
@@ -144,8 +134,6 @@ export const EDGE_UNSUPPORTED_NODE_APIS = [
   'ReadableByteStreamController',
   'ReadableStreamBYOBRequest',
   'ReadableStreamDefaultController',
-  'TextDecoderStream',
-  'TextEncoderStream',
   'TransformStreamDefaultController',
   'WritableStreamDefaultController',
 ]

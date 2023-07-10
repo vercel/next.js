@@ -23,9 +23,10 @@ import type {
   GetStaticProps,
   PreviewData,
   ServerRuntime,
+  SizeLimit,
 } from 'next/types'
 import type { UnwrapPromise } from '../lib/coalesced-function'
-import type { ReactReadableStream } from './node-web-streams-helper'
+import type { ReactReadableStream } from './stream-utils/node-web-streams-helper'
 import type { ClientReferenceManifest } from '../build/webpack/plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
 
@@ -75,10 +76,9 @@ import {
   streamFromArray,
   streamToString,
   chainStreams,
-  createBufferedTransformStream,
   renderToInitialStream,
   continueFromInitialStream,
-} from './node-web-streams-helper'
+} from './stream-utils/node-web-streams-helper'
 import { ImageConfigContext } from '../shared/lib/image-config-context'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { stripInternalQueries } from './internal-utils'
@@ -246,11 +246,10 @@ export type RenderOptsPartial = {
   optimizeCss: any
   nextConfigOutput?: 'standalone' | 'export'
   nextScriptWorkers: any
-  devOnlyCacheBusterQueryString?: string
+  assetQueryString?: string
   resolvedUrl?: string
   resolvedAsPath?: string
   clientReferenceManifest?: ClientReferenceManifest
-  serverCSSManifest?: any
   nextFontManifest?: NextFontManifest
   distDir?: string
   locale?: string
@@ -262,15 +261,23 @@ export type RenderOptsPartial = {
   isBot?: boolean
   runtime?: ServerRuntime
   serverComponents?: boolean
+  serverActionsBodySizeLimit?: SizeLimit
   customServer?: boolean
-  crossOrigin?: string
+  crossOrigin?: 'anonymous' | 'use-credentials' | '' | undefined
   images: ImageConfigComplete
   largePageDataBytes?: number
   isOnDemandRevalidate?: boolean
   strictNextHead: boolean
+  isDraftMode?: boolean
+  deploymentId?: string
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
+
+export type RenderOptsExtra = {
+  App: AppType
+  Document: DocumentType
+}
 
 const invalidKeysMsg = (
   methodName: 'getServerSideProps' | 'getStaticProps',
@@ -399,21 +406,29 @@ function serializeError(
   }
 }
 
-export async function renderToHTML(
+export async function renderToHTMLImpl(
   req: IncomingMessage,
   res: ServerResponse,
   pathname: string,
   query: NextParsedUrlQuery,
-  renderOpts: RenderOpts
+  renderOpts: Omit<RenderOpts, keyof RenderOptsExtra>,
+  extra: RenderOptsExtra
 ): Promise<RenderResult> {
   const renderResultMeta: RenderResultMetadata = {}
 
   // In dev we invalidate the cache by appending a timestamp to the resource URL.
   // This is a workaround to fix https://github.com/vercel/next.js/issues/5860
   // TODO: remove this workaround when https://bugs.webkit.org/show_bug.cgi?id=187726 is fixed.
-  renderResultMeta.devOnlyCacheBusterQueryString = renderOpts.dev
-    ? renderOpts.devOnlyCacheBusterQueryString || `?ts=${Date.now()}`
+  renderResultMeta.assetQueryString = renderOpts.dev
+    ? renderOpts.assetQueryString || `?ts=${Date.now()}`
     : ''
+
+  // if deploymentId is provided we append it to all asset requests
+  if (renderOpts.deploymentId) {
+    renderResultMeta.assetQueryString += `${
+      renderResultMeta.assetQueryString ? '&' : '?'
+    }dpl=${renderOpts.deploymentId}`
+  }
 
   // don't modify original query object
   query = Object.assign({}, query)
@@ -435,13 +450,12 @@ export async function renderToHTML(
     basePath,
     images,
     runtime: globalRuntime,
-    App,
   } = renderOpts
+  const { App } = extra
 
-  const devOnlyCacheBusterQueryString =
-    renderResultMeta.devOnlyCacheBusterQueryString
+  const assetQueryString = renderResultMeta.assetQueryString
 
-  let Document = renderOpts.Document
+  let Document = extra.Document
 
   // Component will be wrapped by ServerComponentWrapper for RSC
   let Component: React.ComponentType<{}> | ((props: any) => JSX.Element) =
@@ -807,7 +821,7 @@ export async function renderToHTML(
               ? { params: query as ParsedUrlQuery }
               : undefined),
             ...(isPreview
-              ? { preview: true, previewData: previewData }
+              ? { draftMode: true, preview: true, previewData: previewData }
               : undefined),
             locales: renderOpts.locales,
             locale: renderOpts.locale,
@@ -1023,7 +1037,7 @@ export async function renderToHTML(
               ? { params: params as ParsedUrlQuery }
               : undefined),
             ...(previewData !== false
-              ? { preview: true, previewData: previewData }
+              ? { draftMode: true, preview: true, previewData: previewData }
               : undefined),
             locales: renderOpts.locales,
             locale: renderOpts.locale,
@@ -1169,8 +1183,6 @@ export async function renderToHTML(
     return inAmpMode ? children : <div id="__next">{children}</div>
   }
 
-  // Always disable streaming for pages rendering
-  const generateStaticHTML = true
   const renderDocument = async () => {
     // For `Document`, there are two cases that we don't support:
     // 1. Using `Document.getInitialProps` in the Edge runtime.
@@ -1308,7 +1320,7 @@ export async function renderToHTML(
         return continueFromInitialStream(initialStream, {
           suffix,
           dataStream: serverComponentsInlinedTransformStream?.readable,
-          generateStaticHTML,
+          generateStaticHTML: true,
           getServerInsertedHTML,
           serverInsertedHTMLToHead: false,
         })
@@ -1457,7 +1469,7 @@ export async function renderToHTML(
         ? pageConfig.unstable_runtimeJS
         : undefined,
     unstable_JsPreload: pageConfig.unstable_JsPreload,
-    devOnlyCacheBusterQueryString,
+    assetQueryString,
     scriptLoader,
     locale,
     disableOptimizedLoading,
@@ -1531,18 +1543,17 @@ export async function renderToHTML(
   const postOptimize = (html: string) =>
     postProcessHTML(pathname, html, renderOpts, { inAmpMode, hybridAmp })
 
-  if (generateStaticHTML) {
-    const html = await streamToString(chainStreams(streams))
-    const optimizedHtml = await postOptimize(html)
-    return new RenderResult(optimizedHtml, renderResultMeta)
-  }
-
-  return new RenderResult(
-    chainStreams(streams).pipeThrough(
-      createBufferedTransformStream(postOptimize)
-    ),
-    renderResultMeta
-  )
+  const html = await streamToString(chainStreams(streams))
+  const optimizedHtml = await postOptimize(html)
+  return new RenderResult(optimizedHtml, renderResultMeta)
 }
 
-export type RenderToHTMLResult = typeof renderToHTML
+export async function renderToHTML(
+  req: IncomingMessage,
+  res: ServerResponse,
+  pathname: string,
+  query: NextParsedUrlQuery,
+  renderOpts: RenderOpts
+): Promise<RenderResult> {
+  return renderToHTMLImpl(req, res, pathname, query, renderOpts, renderOpts)
+}

@@ -1,15 +1,9 @@
-import { RenderOpts } from './types'
+import type { RenderOpts } from './types'
+import type { FlightResponseRef } from './flight-response-ref'
+
+import React, { use } from 'react'
 import { createErrorHandler } from './create-error-handler'
 import { useFlightResponse } from './use-flight-response'
-import { FlightResponseRef } from './flight-response-ref'
-
-let React: typeof import('next/dist/compiled/react')
-
-if (process.env.NEXT_PREBUNDLED_REACT === 'experimental') {
-  React = require('next/dist/compiled/react-experimental')
-} else {
-  React = require('next/dist/compiled/react')
-}
 
 /**
  * Create a component that renders the Flight stream.
@@ -19,7 +13,10 @@ export function createServerComponentRenderer<Props>(
   ComponentToRender: (props: Props) => any,
   ComponentMod: {
     renderToReadableStream: any
-    __next_app_webpack_require__?: any
+    __next_app__?: {
+      require: any
+      loadChunk: any
+    }
   },
   {
     transformStream,
@@ -37,14 +34,14 @@ export function createServerComponentRenderer<Props>(
   serverComponentsErrorHandler: ReturnType<typeof createErrorHandler>,
   nonce?: string
 ): (props: Props) => JSX.Element {
-  // We need to expose the `__webpack_require__` API globally for
+  // We need to expose the bundled `require` API globally for
   // react-server-dom-webpack. This is a hack until we find a better way.
-  if (ComponentMod.__next_app_webpack_require__) {
+  if (ComponentMod.__next_app__) {
     // @ts-ignore
-    globalThis.__next_require__ = ComponentMod.__next_app_webpack_require__
+    globalThis.__next_require__ = ComponentMod.__next_app__.require
 
     // @ts-ignore
-    globalThis.__next_chunk_load__ = () => Promise.resolve()
+    globalThis.__next_chunk_load__ = ComponentMod.__next_app__.loadChunk
   }
 
   let RSCStream: ReadableStream<Uint8Array>
@@ -75,6 +72,6 @@ export function createServerComponentRenderer<Props>(
       flightResponseRef,
       nonce
     )
-    return React.use(response)
+    return use(response)
   }
 }

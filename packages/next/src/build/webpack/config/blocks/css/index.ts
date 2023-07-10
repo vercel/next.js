@@ -158,7 +158,17 @@ export const css = curry(async function css(
         // Source maps are required so that `resolve-url-loader` can locate
         // files original to their source directory.
         sourceMap: true,
-        sassOptions,
+        sassOptions: {
+          // The "fibers" option is not needed for Node.js 16+, but it's causing
+          // problems for Node.js <= 14 users as you'll have to manually install
+          // the `fibers` package:
+          // https://github.com/webpack-contrib/sass-loader#:~:text=We%20automatically%20inject%20the%20fibers%20package
+          // https://github.com/vercel/next.js/issues/45052
+          // Since it's optional and not required, we'll disable it by default
+          // to avoid the confusion.
+          fibers: false,
+          ...sassOptions,
+        },
         additionalData: sassPrependData || sassAdditionalData,
       },
     },
@@ -248,7 +258,14 @@ export const css = curry(async function css(
               test: regexCssModules,
               issuerLayer: APP_LAYER_RULE,
               use: [
-                require.resolve('../../../loaders/next-flight-css-loader'),
+                {
+                  loader: require.resolve(
+                    '../../../loaders/next-flight-css-loader'
+                  ),
+                  options: {
+                    cssModules: true,
+                  },
+                },
                 ...getCssModuleLoader(
                   { ...ctx, isAppDir: true },
                   lazyPostCSSInitializer
@@ -281,7 +298,14 @@ export const css = curry(async function css(
               test: regexSassModules,
               issuerLayer: APP_LAYER_RULE,
               use: [
-                require.resolve('../../../loaders/next-flight-css-loader'),
+                {
+                  loader: require.resolve(
+                    '../../../loaders/next-flight-css-loader'
+                  ),
+                  options: {
+                    cssModules: true,
+                  },
+                },
                 ...getCssModuleLoader(
                   { ...ctx, isAppDir: true },
                   lazyPostCSSInitializer,
@@ -328,7 +352,14 @@ export const css = curry(async function css(
                 sideEffects: true,
                 test: [regexCssGlobal, regexSassGlobal],
                 issuerLayer: APP_LAYER_RULE,
-                use: require.resolve('../../../loaders/next-flight-css-loader'),
+                use: {
+                  loader: require.resolve(
+                    '../../../loaders/next-flight-css-loader'
+                  ),
+                  options: {
+                    cssModules: false,
+                  },
+                },
               })
             : null,
           markRemovable({
@@ -379,7 +410,14 @@ export const css = curry(async function css(
                   test: regexCssGlobal,
                   issuerLayer: APP_LAYER_RULE,
                   use: [
-                    require.resolve('../../../loaders/next-flight-css-loader'),
+                    {
+                      loader: require.resolve(
+                        '../../../loaders/next-flight-css-loader'
+                      ),
+                      options: {
+                        cssModules: false,
+                      },
+                    },
                     ...getGlobalCssLoader(
                       { ...ctx, isAppDir: true },
                       lazyPostCSSInitializer
@@ -391,7 +429,14 @@ export const css = curry(async function css(
                   test: regexSassGlobal,
                   issuerLayer: APP_LAYER_RULE,
                   use: [
-                    require.resolve('../../../loaders/next-flight-css-loader'),
+                    {
+                      loader: require.resolve(
+                        '../../../loaders/next-flight-css-loader'
+                      ),
+                      options: {
+                        cssModules: false,
+                      },
+                    },
                     ...getGlobalCssLoader(
                       { ...ctx, isAppDir: true },
                       lazyPostCSSInitializer,

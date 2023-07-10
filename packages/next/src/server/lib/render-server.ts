@@ -1,14 +1,17 @@
+import type { RequestHandler } from '../next'
+
+import './cpu-profile'
 import v8 from 'v8'
 import http from 'http'
-import next from '../next'
 import { isIPv6 } from 'net'
+
+// This is required before other imports to ensure the require hook is setup.
+import '../require-hook'
+
+import next from '../next'
 import { warn } from '../../build/output/log'
-import type { RequestHandler } from '../next'
-import {
-  deleteCache as _deleteCache,
-  deleteAppClientCache as _deleteAppClientCache,
-} from '../../build/webpack/plugins/nextjs-require-cache-hot-reloader'
-import { clearModuleContext as _clearModuleContext } from '../web/sandbox/context'
+import { getFreePort } from '../lib/worker-utils'
+
 export const WORKER_SELF_EXIT_CODE = 77
 
 const MAXIMUM_HEAP_SIZE_ALLOWED =
@@ -21,24 +24,36 @@ let result:
       hostname: string
     }
 
-export function clearModuleContext(target: string, content: string) {
-  _clearModuleContext(target, content)
+let sandboxContext: undefined | typeof import('../web/sandbox/context')
+let requireCacheHotReloader:
+  | undefined
+  | typeof import('../../build/webpack/plugins/nextjs-require-cache-hot-reloader')
+
+if (process.env.NODE_ENV !== 'production') {
+  sandboxContext = require('../web/sandbox/context')
+  requireCacheHotReloader = require('../../build/webpack/plugins/nextjs-require-cache-hot-reloader')
+}
+
+export function clearModuleContext(target: string) {
+  sandboxContext?.clearModuleContext(target)
 }
 
 export function deleteAppClientCache() {
-  _deleteAppClientCache()
+  requireCacheHotReloader?.deleteAppClientCache()
 }
 
 export function deleteCache(filePath: string) {
-  _deleteCache(filePath)
+  requireCacheHotReloader?.deleteCache(filePath)
 }
 
 export async function initialize(opts: {
   dir: string
   port: number
   dev: boolean
+  minimalMode?: boolean
   hostname?: string
   workerType: 'router' | 'render'
+  isNodeDebugging: boolean
   keepAliveTimeout?: number
 }): Promise<NonNullable<typeof result>> {
   // if we already setup the server return as we only need to do
@@ -49,25 +64,31 @@ export async function initialize(opts: {
   let requestHandler: RequestHandler
 
   const server = http.createServer((req, res) => {
-    return requestHandler(req, res).finally(() => {
-      if (
-        process.memoryUsage().heapUsed / 1024 / 1024 >
-        MAXIMUM_HEAP_SIZE_ALLOWED
-      ) {
-        warn(
-          'The server is running out of memory, restarting to free up memory.'
-        )
-        server.close()
-        process.exit(WORKER_SELF_EXIT_CODE)
-      }
-    })
+    return requestHandler(req, res)
+      .catch((err) => {
+        res.statusCode = 500
+        res.end('Internal Server Error')
+        console.error(err)
+      })
+      .finally(() => {
+        if (
+          process.memoryUsage().heapUsed / 1024 / 1024 >
+          MAXIMUM_HEAP_SIZE_ALLOWED
+        ) {
+          warn(
+            'The server is running out of memory, restarting to free up memory.'
+          )
+          server.close()
+          process.exit(WORKER_SELF_EXIT_CODE)
+        }
+      })
   })
 
   if (opts.keepAliveTimeout) {
     server.keepAliveTimeout = opts.keepAliveTimeout
   }
 
-  return new Promise((resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
     server.on('error', (err: NodeJS.ErrnoException) => {
       console.error(`Invariant: failed to start render worker`, err)
       process.exit(1)
@@ -111,6 +132,7 @@ export async function initialize(opts: {
           customServer: false,
           httpServer: server,
           port: opts.port,
+          isNodeDebugging: opts.isNodeDebugging,
         })
 
         requestHandler = app.getRequestHandler()
@@ -121,6 +143,6 @@ export async function initialize(opts: {
         return reject(err)
       }
     })
-    server.listen(0, opts.hostname)
+    server.listen(await getFreePort(), '0.0.0.0')
   })
 }

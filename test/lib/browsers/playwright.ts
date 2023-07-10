@@ -15,6 +15,7 @@ import path from 'path'
 let page: Page
 let browser: Browser
 let context: BrowserContext
+let contextHasJSEnabled: boolean = true
 let pageLogs: Array<{ source: string; message: string }> = []
 let websocketFrames: Array<{ payload: string | Buffer }> = []
 
@@ -25,6 +26,11 @@ export async function quit() {
   await browser?.close()
   context = undefined
   browser = undefined
+}
+
+interface ElementHandleExt extends ElementHandle {
+  getComputedCss(prop: string): Promise<string>
+  text(): Promise<string>
 }
 
 export class Playwright extends BrowserInterface {
@@ -47,8 +53,7 @@ export class Playwright extends BrowserInterface {
     this.eventCallbacks[event]?.delete(cb)
   }
 
-  async setup(browserName: string, locale?: string) {
-    if (browser) return
+  async setup(browserName: string, locale: string, javaScriptEnabled: boolean) {
     const headless = !!process.env.HEADLESS
     let device
 
@@ -62,8 +67,23 @@ export class Playwright extends BrowserInterface {
       }
     }
 
+    if (browser) {
+      if (contextHasJSEnabled !== javaScriptEnabled) {
+        // If we have switched from having JS enable/disabled we need to recreate the context.
+        await context?.close()
+        context = await browser.newContext({
+          locale,
+          javaScriptEnabled,
+          ...device,
+        })
+        contextHasJSEnabled = javaScriptEnabled
+      }
+      return
+    }
+
     browser = await this.launchBrowser(browserName, { headless })
-    context = await browser.newContext({ locale, ...device })
+    context = await browser.newContext({ locale, javaScriptEnabled, ...device })
+    contextHasJSEnabled = javaScriptEnabled
   }
 
   async launchBrowser(browserName: string, launchOptions: Record<string, any>) {
@@ -80,7 +100,7 @@ export class Playwright extends BrowserInterface {
   }
 
   async get(url: string): Promise<void> {
-    return page.goto(url) as any
+    await page.goto(url)
   }
 
   async loadPage(
@@ -177,18 +197,18 @@ export class Playwright extends BrowserInterface {
   }
 
   back(): BrowserInterface {
-    return this.chain(() => {
-      return page.goBack()
+    return this.chain(async () => {
+      await page.goBack()
     })
   }
   forward(): BrowserInterface {
-    return this.chain(() => {
-      return page.goForward()
+    return this.chain(async () => {
+      await page.goForward()
     })
   }
   refresh(): BrowserInterface {
-    return this.chain(() => {
-      return page.reload()
+    return this.chain(async () => {
+      await page.reload()
     })
   }
   setDimensions({
@@ -219,29 +239,22 @@ export class Playwright extends BrowserInterface {
     return this.chain(() => page.bringToFront())
   }
 
-  private wrapElement(el: ElementHandle, selector: string) {
-    ;(el as any).selector = selector
-    ;(el as any).text = () => el.innerText()
-    ;(el as any).getComputedCss = (prop) =>
-      page.evaluate(
+  private wrapElement(el: ElementHandle, selector: string): ElementHandleExt {
+    function getComputedCss(prop: string) {
+      return page.evaluate(
         function (args) {
-          return (
-            getComputedStyle(document.querySelector(args.selector))[
-              args.prop
-            ] || null
-          )
+          const style = getComputedStyle(document.querySelector(args.selector))
+          return style[args.prop] || null
         },
         { selector, prop }
       )
-    ;(el as any).getCssValue = (el as any).getComputedCss
-    ;(el as any).getValue = () =>
-      page.evaluate(
-        function (args) {
-          return (document.querySelector(args.selector) as any).value
-        },
-        { selector }
-      )
-    return el
+    }
+
+    return Object.assign(el, {
+      selector,
+      getComputedCss,
+      text: () => el.innerText(),
+    })
   }
 
   elementByCss(selector: string) {
@@ -253,38 +266,31 @@ export class Playwright extends BrowserInterface {
   }
 
   getValue() {
-    return this.chain((el) =>
-      page.evaluate(
-        function (args) {
-          return document.querySelector(args.selector).value
-        },
-        { selector: el.selector }
-      )
-    ) as any
+    return this.chain((el: ElementHandleExt) => el.inputValue())
   }
 
   text() {
-    return this.chain((el) => el.text()) as any
+    return this.chain((el: ElementHandleExt) => el.innerText())
   }
 
   type(text) {
-    return this.chain((el) => el.type(text))
+    return this.chain((el: ElementHandleExt) => el.type(text))
   }
 
   moveTo() {
-    return this.chain((el) => {
-      return page.hover(el.selector).then(() => el)
+    return this.chain((el: ElementHandleExt) => {
+      return el.hover().then(() => el)
     })
   }
 
   async getComputedCss(prop: string) {
-    return this.chain((el) => {
-      return el.getCssValue(prop)
+    return this.chain((el: ElementHandleExt) => {
+      return el.getComputedCss(prop)
     }) as any
   }
 
   async getAttribute<T = any>(attr) {
-    return this.chain((el) => el.getAttribute(attr)) as T
+    return this.chain((el: ElementHandleExt) => el.getAttribute(attr)) as T
   }
 
   hasElementByCssSelector(selector: string) {
@@ -292,25 +298,25 @@ export class Playwright extends BrowserInterface {
   }
 
   keydown(key: string): BrowserInterface {
-    return this.chain((el) => {
+    return this.chain((el: ElementHandleExt) => {
       return page.keyboard.down(key).then(() => el)
     })
   }
 
   keyup(key: string): BrowserInterface {
-    return this.chain((el) => {
+    return this.chain((el: ElementHandleExt) => {
       return page.keyboard.up(key).then(() => el)
     })
   }
 
   click() {
-    return this.chain((el) => {
+    return this.chain((el: ElementHandleExt) => {
       return el.click().then(() => el)
     })
   }
 
   touchStart() {
-    return this.chain((el: ElementHandle) => {
+    return this.chain((el: ElementHandleExt) => {
       return el.dispatchEvent('touchstart').then(() => el)
     })
   }
@@ -350,10 +356,10 @@ export class Playwright extends BrowserInterface {
     })
   }
 
-  eval<T = any>(snippet): Promise<T> {
+  eval<T = any>(fn: any, ...args: any[]): Promise<T> {
     return this.chainWithReturnValue(() =>
       page
-        .evaluate(snippet)
+        .evaluate(fn, ...args)
         .catch((err) => {
           console.error('eval error:', err)
           return null
@@ -365,15 +371,15 @@ export class Playwright extends BrowserInterface {
     )
   }
 
-  async evalAsync<T = any>(snippet) {
-    if (typeof snippet === 'function') {
-      snippet = snippet.toString()
+  async evalAsync<T = any>(fn: any, ...args: any[]) {
+    if (typeof fn === 'function') {
+      fn = fn.toString()
     }
 
-    if (snippet.includes(`var callback = arguments[arguments.length - 1]`)) {
-      snippet = `(function() {
+    if (fn.includes(`var callback = arguments[arguments.length - 1]`)) {
+      fn = `(function() {
         return new Promise((resolve, reject) => {
-          const origFunc = ${snippet}
+          const origFunc = ${fn}
           try {
             origFunc(resolve)
           } catch (err) {
@@ -383,7 +389,7 @@ export class Playwright extends BrowserInterface {
       })()`
     }
 
-    return page.evaluate<T>(snippet).catch(() => null)
+    return page.evaluate<T>(fn).catch(() => null)
   }
 
   async log() {
@@ -396,5 +402,11 @@ export class Playwright extends BrowserInterface {
 
   async url() {
     return this.chain(() => page.evaluate('window.location.href')) as any
+  }
+
+  async waitForIdleNetwork(): Promise<void> {
+    return this.chain(() => {
+      return page.waitForLoadState('networkidle')
+    })
   }
 }

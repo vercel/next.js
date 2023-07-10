@@ -1,12 +1,10 @@
-import { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
-import {
-  readableStreamTee,
-  encodeText,
-  decodeText,
-} from '../node-web-streams-helper'
+import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
+import type { FlightResponseRef } from './flight-response-ref'
+import { readableStreamTee } from '../stream-utils/node-web-streams-helper'
+import { encodeText, decodeText } from '../stream-utils/encode-decode'
 import { htmlEscapeJsonString } from '../htmlescape'
-import { isEdgeRuntime } from './app-render'
-import { FlightResponseRef } from './flight-response-ref'
+
+const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
 /**
  * Render Flight stream.
@@ -25,7 +23,7 @@ export function useFlightResponse(
   }
   const {
     createFromReadableStream,
-  } = require('next/dist/compiled/react-server-dom-webpack/client.edge')
+  } = require(`react-server-dom-webpack/client.edge`)
 
   const [renderStream, forwardStream] = readableStreamTee(req)
   const res = createFromReadableStream(renderStream, {

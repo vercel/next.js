@@ -1,6 +1,6 @@
 {
   "name": "@next/bundle-analyzer",
-  "version": "13.3.1-canary.4",
+  "version": "13.4.10-canary.2",
   "main": "index.js",
   "types": "index.d.ts",
   "license": "MIT",
@@ -10,8 +10,5 @@
   },
   "dependencies": {
     "webpack-bundle-analyzer": "4.7.0"
-  },
-  "scripts": {
-    "test-pack": "cd ../../ && pnpm test-pack next-bundle-analyzer"
   }
 }

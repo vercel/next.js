@@ -1,16 +1,29 @@
+use std::{collections::HashMap, path::Path};
+
 use anyhow::{bail, Context, Result};
+use futures::FutureExt;
 use indexmap::IndexMap;
 use indoc::formatdoc;
-use turbo_binding::{
+use turbopack_binding::{
     turbo::{
         tasks::{
             primitives::{OptionStringVc, StringVc, U32Vc},
-            Value,
+            CompletionVc, Value,
         },
-        tasks_fs::{json::parse_json_with_source_context, FileContent, FileSystemPathVc},
+        tasks_bytes::stream::SingleValue,
+        tasks_env::{CommandLineProcessEnvVc, ProcessEnv},
+        tasks_fetch::fetch,
+        tasks_fs::{
+            json::parse_json_with_source_context, DiskFileSystemVc, File, FileContent, FileSystem,
+            FileSystemPathVc,
+        },
     },
     turbopack::{
         core::{
+            context::AssetContext,
+            ident::AssetIdentVc,
+            issue::IssueSeverity,
+            reference_type::{InnerAssetsVc, ReferenceType},
             resolve::{
                 options::{
                     ImportMapResult, ImportMapResultVc, ImportMapping, ImportMappingReplacement,
@@ -22,7 +35,12 @@ use turbo_binding::{
             },
             virtual_asset::VirtualAssetVc,
         },
-        node::execution_context::ExecutionContextVc,
+        node::{
+            debug::should_debug,
+            evaluate::evaluate,
+            execution_context::{ExecutionContext, ExecutionContextVc},
+        },
+        turbopack::evaluate_context::node_evaluate_asset_context,
     },
 };
 
@@ -48,6 +66,12 @@ pub mod stylesheet;
 pub mod util;
 
 pub const GOOGLE_FONTS_STYLESHEET_URL: &str = "https://fonts.googleapis.com/css2";
+// Always sending this user agent ensures consistent results from Google Fonts.
+// Google Fonts will vary responses based on user agent, e.g. only returning
+// references to certain font types for certain browsers.
+pub const USER_AGENT_FOR_GOOGLE_FONTS: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) \
+                                               AppleWebKit/537.36 (KHTML, like Gecko) \
+                                               Chrome/104.0.0.0 Safari/537.36";
 
 #[turbo_tasks::value(transparent)]
 struct FontData(IndexMap<String, FontDataEntry>);
@@ -85,8 +109,9 @@ impl ImportMappingReplacement for NextFontGoogleReplacer {
         let Request::Module {
             module: _,
             path: _,
-            query: query_vc
-        } = request else {
+            query: query_vc,
+        } = request
+        else {
             return Ok(ImportMapResult::NoEntry.into());
         };
 
@@ -181,7 +206,8 @@ impl ImportMappingReplacement for NextFontGoogleCssModuleReplacer {
             module: _,
             path: _,
             query: query_vc,
-        } = request else {
+        } = request
+        else {
             return Ok(ImportMapResult::NoEntry.into());
         };
 
@@ -202,43 +228,15 @@ impl ImportMappingReplacement for NextFontGoogleCssModuleReplacer {
         // When running Next.js integration tests, use the mock data available in
         // process.env.NEXT_FONT_GOOGLE_MOCKED_RESPONSES instead of making real
         // requests to Google Fonts.
-        #[cfg(feature = "__internal_nextjs_integration_test")]
-        let stylesheet_str = get_mock_stylesheet(&stylesheet_url.await?, self.execution_context)
-            .await?
-            .map(StringVc::cell);
-
-        #[cfg(not(feature = "__internal_nextjs_integration_test"))]
-        let stylesheet_str = {
-            use turbo_binding::{turbo::tasks_fetch::fetch, turbopack::core::issue::IssueSeverity};
-
-            let stylesheet_res = fetch(
-                stylesheet_url,
-                OptionStringVc::cell(Some(
-                    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, \
-                     like Gecko) Chrome/104.0.0.0 Safari/537.36"
-                        .to_owned(),
-                )),
+        let env = CommandLineProcessEnvVc::new().as_process_env();
+        let mocked_responses_path = &*env.read("NEXT_FONT_GOOGLE_MOCKED_RESPONSES").await?;
+        let stylesheet_str = mocked_responses_path
+            .as_ref()
+            .map_or_else(
+                || fetch_real_stylesheet(stylesheet_url, css_virtual_path).boxed(),
+                |p| get_mock_stylesheet(stylesheet_url, p, self.execution_context).boxed(),
             )
             .await?;
-
-            match &*stylesheet_res {
-                Ok(r) => Some(r.await?.body.to_string()),
-                Err(err) => {
-                    // Inform the user of the failure to retreive the stylesheet, but don't
-                    // propagate this error. We don't want e.g. offline connections to prevent page
-                    // renders during development. During production builds, however, this error
-                    // should propagate.
-                    //
-                    // TODO(WEB-283): Use fallback in dev in this case
-                    // TODO(WEB-293): Fail production builds (not dev) in this case
-                    err.to_issue(IssueSeverity::Warning.into(), css_virtual_path)
-                        .as_issue()
-                        .emit();
-
-                    None
-                }
-            }
-        };
 
         let stylesheet = match stylesheet_str {
             Some(s) => Some(
@@ -304,7 +302,7 @@ async fn get_stylesheet_url_from_options(
     let mut css_url: Option<String> = None;
     #[cfg(debug_assertions)]
     {
-        use turbo_binding::turbo::tasks_env::{CommandLineProcessEnvVc, ProcessEnv};
+        use turbopack_binding::turbo::tasks_env::{CommandLineProcessEnvVc, ProcessEnv};
 
         let env = CommandLineProcessEnvVc::new();
         if let Some(url) = &*env.read("TURBOPACK_TEST_ONLY_MOCK_SERVER").await? {
@@ -382,44 +380,48 @@ async fn font_options_from_query_map(
     }
 
     let Some((json, _)) = query_map.iter().next() else {
-            bail!("Expected one entry");
-        };
+        bail!("Expected one entry");
+    };
 
     options_from_request(&parse_json_with_source_context(json)?, &*font_data.await?)
         .map(|o| NextFontGoogleOptionsVc::new(Value::new(o)))
 }
 
-#[cfg(feature = "__internal_nextjs_integration_test")]
+async fn fetch_real_stylesheet(
+    stylesheet_url: StringVc,
+    css_virtual_path: FileSystemPathVc,
+) -> Result<Option<StringVc>> {
+    let stylesheet = fetch(
+        stylesheet_url,
+        OptionStringVc::cell(Some(USER_AGENT_FOR_GOOGLE_FONTS.to_owned())),
+    )
+    .await?;
+
+    Ok(match &*stylesheet {
+        Ok(r) => Some(r.await?.body.to_string()),
+        Err(err) => {
+            // Inform the user of the failure to retreive the stylesheet, but don't
+            // propagate this error. We don't want e.g. offline connections to prevent page
+            // renders during development. During production builds, however, this error
+            // should propagate.
+            //
+            // TODO(WEB-283): Use fallback in dev in this case
+            // TODO(WEB-293): Fail production builds (not dev) in this case
+            err.to_issue(IssueSeverity::Warning.into(), css_virtual_path)
+                .as_issue()
+                .emit();
+
+            None
+        }
+    })
+}
+
 async fn get_mock_stylesheet(
-    url: &str,
+    stylesheet_url: StringVc,
+    mocked_responses_path: &str,
     execution_context: ExecutionContextVc,
-) -> Result<Option<String>> {
-    use std::{collections::HashMap, path::Path};
-
-    use turbo_binding::{
-        turbo::{
-            tasks::CompletionVc,
-            tasks_bytes::stream::SingleValue,
-            tasks_env::{CommandLineProcessEnvVc, ProcessEnv},
-            tasks_fs::{DiskFileSystemVc, File, FileSystem},
-        },
-        turbopack::{
-            core::{context::AssetContext, ident::AssetIdentVc},
-            ecmascript::{
-                EcmascriptInputTransformsVc, EcmascriptModuleAssetType, EcmascriptModuleAssetVc,
-            },
-            node::{evaluate::evaluate, execution_context::ExecutionContext},
-            turbopack::evaluate_context::node_evaluate_asset_context,
-        },
-    };
-
-    let env = CommandLineProcessEnvVc::new().as_process_env();
-    let mocked_response_js = &*env.read("NEXT_FONT_GOOGLE_MOCKED_RESPONSES").await?;
-    let mocked_response_js = mocked_response_js
-        .as_ref()
-        .context("Expected env NEXT_FONT_GOOGLE_MOCKED_RESPONSES")?;
-
-    let response_path = Path::new(&mocked_response_js);
+) -> Result<Option<StringVc>> {
+    let response_path = Path::new(&mocked_responses_path);
     let mock_fs = DiskFileSystemVc::new(
         "mock".to_string(),
         response_path
@@ -433,12 +435,12 @@ async fn get_mock_stylesheet(
 
     let ExecutionContext {
         env,
-        project_path,
+        project_path: _,
         chunking_context,
     } = *execution_context.await?;
-    let context = node_evaluate_asset_context(project_path, None, None);
+    let context = node_evaluate_asset_context(execution_context, None, None);
     let loader_path = mock_fs.root().join("loader.js");
-    let mocked_response_asset = EcmascriptModuleAssetVc::new(
+    let mocked_response_asset = context.process(
         VirtualAssetVc::new(
             loader_path,
             File::from(format!(
@@ -451,17 +453,12 @@ async fn get_mock_stylesheet(
             .into(),
         )
         .into(),
-        context,
-        Value::new(EcmascriptModuleAssetType::Ecmascript),
-        EcmascriptInputTransformsVc::cell(vec![]),
-        Default::default(),
-        context.compile_time_info(),
-    )
-    .into();
+        Value::new(ReferenceType::Internal(InnerAssetsVc::empty())),
+    );
 
     let root = mock_fs.root();
     let val = evaluate(
-        mocked_response_asset,
+        mocked_response_asset.into(),
         root,
         env,
         AssetIdentVc::from_path(loader_path),
@@ -470,7 +467,7 @@ async fn get_mock_stylesheet(
         None,
         vec![],
         CompletionVc::immutable(),
-        /* debug */ false,
+        should_debug("next_font::google"),
     )
     .await?;
 
@@ -478,7 +475,11 @@ async fn get_mock_stylesheet(
         SingleValue::Single(val) => {
             let val: HashMap<String, Option<String>> =
                 parse_json_with_source_context(val.to_str()?)?;
-            Ok(val.get(url).context("url not found")?.clone())
+            Ok(val
+                .get(&*stylesheet_url.await?)
+                .context("url not found")?
+                .clone()
+                .map(StringVc::cell))
         }
         _ => {
             panic!("Unexpected error evaluating JS")

@@ -1,8 +1,8 @@
-use turbo_binding::{
+use turbo_tasks::primitives::StringVc;
+use turbopack_binding::{
     turbo::tasks_fs::FileSystemPathVc,
     turbopack::core::issue::{Issue, IssueSeverityVc, IssueVc},
 };
-use turbo_tasks::primitives::StringVc;
 
 #[turbo_tasks::value(shared)]
 pub(crate) struct NextFontIssue {

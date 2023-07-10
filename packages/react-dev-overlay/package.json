@@ -1,6 +1,6 @@
 {
   "name": "@next/react-dev-overlay",
-  "version": "13.3.1-canary.4",
+  "version": "13.4.10-canary.2",
   "description": "A development-only overlay for developing React applications.",
   "repository": {
     "url": "vercel/next.js",
@@ -12,11 +12,10 @@
   "author": "Joe Haddad <timer@vercel.com>",
   "license": "MIT",
   "scripts": {
-    "build": "rimraf dist && tsc -d -p tsconfig.json",
+    "build": "node ../../scripts/rm.mjs dist && tsc -d -p tsconfig.json",
     "prepublishOnly": "cd ../../ && turbo run build",
     "dev": "tsc -d -w -p tsconfig.json",
-    "typescript": "tsec --noEmit -p tsconfig.json",
-    "test-pack": "cd ../../ && pnpm test-pack react-dev-overlay"
+    "typescript": "tsec --noEmit -p tsconfig.json"
   },
   "dependencies": {
     "@babel/code-frame": "7.12.11",

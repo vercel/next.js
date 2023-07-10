@@ -14,94 +14,101 @@ async function createNextInstall({
   packageJson = {},
   dirSuffix = '',
   onlyPackages = false,
+  keepRepoDir = false,
 }) {
   return await parentSpan
     .traceChild('createNextInstall')
     .traceAsyncFn(async (rootSpan) => {
       const tmpDir = await fs.realpath(process.env.NEXT_TEST_DIR || os.tmpdir())
       const origRepoDir = path.join(__dirname, '../../')
-      const tmpRepoDir = path.join(
-        tmpDir,
-        `next-repo-${randomBytes(32).toString('hex')}${dirSuffix}`
-      )
-
       const installDir = path.join(
         tmpDir,
         `next-install-${randomBytes(32).toString('hex')}${dirSuffix}`
       )
-
+      let tmpRepoDir
       require('console').log('Creating next instance in:')
       require('console').log(installDir)
 
-      await rootSpan.traceChild('ensure swc binary').traceAsyncFn(async () => {
-        // ensure swc binary is present in the native folder if
-        // not already built
-        for (const folder of await fs.readdir(
-          path.join(origRepoDir, 'node_modules/@next')
-        )) {
-          if (folder.startsWith('swc-')) {
-            const swcPkgPath = path.join(
-              origRepoDir,
-              'node_modules/@next',
-              folder
-            )
-            const outputPath = path.join(
-              origRepoDir,
-              'packages/next-swc/native'
-            )
-            await fs.copy(swcPkgPath, outputPath, {
-              filter: (item) => {
-                return (
-                  item === swcPkgPath ||
-                  (item.endsWith('.node') &&
-                    !fs.pathExistsSync(
-                      path.join(outputPath, path.basename(item))
-                    ))
-                )
-              },
-            })
-          }
-        }
-      })
+      let pkgPaths = process.env.NEXT_TEST_PKG_PATHS
 
-      for (const item of ['package.json', 'packages']) {
+      if (pkgPaths) {
+        pkgPaths = new Map(JSON.parse(pkgPaths))
+        require('console').log('using provided pkg paths')
+      } else {
+        tmpRepoDir = path.join(
+          tmpDir,
+          `next-repo-${randomBytes(32).toString('hex')}${dirSuffix}`
+        )
+        require('console').log('Creating temp repo dir', tmpRepoDir)
+
         await rootSpan
-          .traceChild(`copy ${item} to temp dir`)
+          .traceChild('ensure swc binary')
           .traceAsyncFn(async () => {
-            await fs.copy(
-              path.join(origRepoDir, item),
-              path.join(tmpRepoDir, item),
-              {
-                filter: (item) => {
-                  return (
-                    !item.includes('node_modules') &&
-                    !item.includes('pnpm-lock.yaml') &&
-                    !item.includes('.DS_Store') &&
-                    // Exclude Rust compilation files
-                    !/next[\\/]build[\\/]swc[\\/]target/.test(item) &&
-                    !/next-swc[\\/]target/.test(item)
-                  )
-                },
+            // ensure swc binary is present in the native folder if
+            // not already built
+            for (const folder of await fs.readdir(
+              path.join(origRepoDir, 'node_modules/@next')
+            )) {
+              if (folder.startsWith('swc-')) {
+                const swcPkgPath = path.join(
+                  origRepoDir,
+                  'node_modules/@next',
+                  folder
+                )
+                const outputPath = path.join(
+                  origRepoDir,
+                  'packages/next-swc/native'
+                )
+                await fs.copy(swcPkgPath, outputPath, {
+                  filter: (item) => {
+                    return (
+                      item === swcPkgPath ||
+                      (item.endsWith('.node') &&
+                        !fs.pathExistsSync(
+                          path.join(outputPath, path.basename(item))
+                        ))
+                    )
+                  },
+                })
               }
-            )
+            }
           })
-      }
 
+        for (const item of ['package.json', 'packages']) {
+          await rootSpan
+            .traceChild(`copy ${item} to temp dir`)
+            .traceAsyncFn(async () => {
+              await fs.copy(
+                path.join(origRepoDir, item),
+                path.join(tmpRepoDir, item),
+                {
+                  filter: (item) => {
+                    return (
+                      !item.includes('node_modules') &&
+                      !item.includes('pnpm-lock.yaml') &&
+                      !item.includes('.DS_Store') &&
+                      // Exclude Rust compilation files
+                      !/next[\\/]build[\\/]swc[\\/]target/.test(item) &&
+                      !/next-swc[\\/]target/.test(item)
+                    )
+                  },
+                }
+              )
+            })
+        }
+
+        pkgPaths = await rootSpan.traceChild('linkPackages').traceAsyncFn(() =>
+          linkPackages({
+            repoDir: tmpRepoDir,
+          })
+        )
+      }
       let combinedDependencies = dependencies
 
+      if (onlyPackages) {
+        return pkgPaths
+      }
       if (!(packageJson && packageJson.nextParamateSkipLocalDeps)) {
-        const pkgPaths = await rootSpan
-          .traceChild('linkPackages')
-          .traceAsyncFn(() =>
-            linkPackages({
-              repoDir: tmpRepoDir,
-            })
-          )
-
-        if (onlyPackages) {
-          return pkgPaths
-        }
-
         combinedDependencies = {
           next: pkgPaths.get('next'),
           ...Object.keys(dependencies).reduce((prev, pkg) => {
@@ -161,7 +168,16 @@ async function createNextInstall({
           })
       }
 
-      await fs.remove(tmpRepoDir)
+      if (!keepRepoDir && tmpRepoDir) {
+        await fs.remove(tmpRepoDir)
+      }
+      if (keepRepoDir) {
+        return {
+          installDir,
+          pkgPaths,
+          tmpRepoDir,
+        }
+      }
       return installDir
     })
 }

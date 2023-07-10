@@ -15,6 +15,7 @@ if (process.env.NODE_ENV !== "production") {
 'use strict';
 
 var React = require('react');
+var ReactDOM = require('react-dom');
 
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
@@ -66,11 +67,11 @@ function beginWriting(destination) {
   writtenBytes = 0;
 }
 function writeChunk(destination, chunk) {
-  if (chunk.length === 0) {
+  if (chunk.byteLength === 0) {
     return;
   }
 
-  if (chunk.length > VIEW_SIZE) {
+  if (chunk.byteLength > VIEW_SIZE) {
     {
       if (precomputedChunkSet.has(chunk)) {
         error('A large precomputed chunk was passed to writeChunk without being copied.' + ' Large chunks get enqueued directly and are not copied. This is incompatible with precomputed chunks because you cannot enqueue the same precomputed chunk twice.' + ' Use "cloneChunk" to make a copy of this large precomputed chunk before writing it. This is a bug in React.');
@@ -93,7 +94,7 @@ function writeChunk(destination, chunk) {
   var bytesToWrite = chunk;
   var allowableBytes = currentView.length - writtenBytes;
 
-  if (allowableBytes < bytesToWrite.length) {
+  if (allowableBytes < bytesToWrite.byteLength) {
     // this chunk would overflow the current view. We enqueue a full view
     // and start a new view with the remaining chunk
     if (allowableBytes === 0) {
@@ -113,7 +114,7 @@ function writeChunk(destination, chunk) {
   }
 
   currentView.set(bytesToWrite, writtenBytes);
-  writtenBytes += bytesToWrite.length;
+  writtenBytes += bytesToWrite.byteLength;
 }
 function writeChunkAndReturn(destination, chunk) {
   writeChunk(destination, chunk); // in web streams there is no backpressure so we can alwas write more
@@ -135,14 +136,8 @@ function stringToChunk(content) {
   return textEncoder.encode(content);
 }
 var precomputedChunkSet = new Set() ;
-function stringToPrecomputedChunk(content) {
-  var precomputedChunk = textEncoder.encode(content);
-
-  {
-    precomputedChunkSet.add(precomputedChunk);
-  }
-
-  return precomputedChunk;
+function byteLengthOfChunk(chunk) {
+  return chunk.byteLength;
 }
 function closeWithError(destination, error) {
   // $FlowFixMe[method-unbinding]
@@ -160,48 +155,6 @@ function closeWithError(destination, error) {
   }
 }
 
-// This file is an intermediate layer to translate between Flight
-var stringify = JSON.stringify;
-
-function serializeRowHeader(tag, id) {
-  return id.toString(16) + ':' + tag;
-}
-
-function processErrorChunkProd(request, id, digest) {
-  {
-    // These errors should never make it into a build so we don't need to encode them in codes.json
-    // eslint-disable-next-line react-internal/prod-error-codes
-    throw new Error('processErrorChunkProd should never be called while in development mode. Use processErrorChunkDev instead. This is a bug in React.');
-  }
-}
-function processErrorChunkDev(request, id, digest, message, stack) {
-
-  var errorInfo = {
-    digest: digest,
-    message: message,
-    stack: stack
-  };
-  var row = serializeRowHeader('E', id) + stringify(errorInfo) + '\n';
-  return stringToChunk(row);
-}
-function processModelChunk(request, id, model) {
-  // $FlowFixMe[incompatible-type] stringify can return null
-  var json = stringify(model, request.toJSON);
-  var row = id.toString(16) + ':' + json + '\n';
-  return stringToChunk(row);
-}
-function processReferenceChunk(request, id, reference) {
-  var json = stringify(reference);
-  var row = id.toString(16) + ':' + json + '\n';
-  return stringToChunk(row);
-}
-function processImportChunk(request, id, clientReferenceMetadata) {
-  // $FlowFixMe[incompatible-type] stringify can return null
-  var json = stringify(clientReferenceMetadata);
-  var row = serializeRowHeader('I', id) + json + '\n';
-  return stringToChunk(row);
-}
-
 // eslint-disable-next-line no-unused-vars
 var CLIENT_REFERENCE_TAG = Symbol.for('react.client.reference');
 var SERVER_REFERENCE_TAG = Symbol.for('react.server.reference');
@@ -215,24 +168,154 @@ function isServerReference(reference) {
   return reference.$$typeof === SERVER_REFERENCE_TAG;
 }
 function resolveClientReferenceMetadata(config, clientReference) {
-  var resolvedModuleData = config[clientReference.$$id];
+  var modulePath = clientReference.$$id;
+  var name = '';
+  var resolvedModuleData = config[modulePath];
 
-  if (clientReference.$$async) {
-    return {
-      id: resolvedModuleData.id,
-      chunks: resolvedModuleData.chunks,
-      name: resolvedModuleData.name,
-      async: true
-    };
+  if (resolvedModuleData) {
+    // The potentially aliased name.
+    name = resolvedModuleData.name;
   } else {
-    return resolvedModuleData;
+    // We didn't find this specific export name but we might have the * export
+    // which contains this name as well.
+    // TODO: It's unfortunate that we now have to parse this string. We should
+    // probably go back to encoding path and name separately on the client reference.
+    var idx = modulePath.lastIndexOf('#');
+
+    if (idx !== -1) {
+      name = modulePath.slice(idx + 1);
+      resolvedModuleData = config[modulePath.slice(0, idx)];
+    }
+
+    if (!resolvedModuleData) {
+      throw new Error('Could not find the module "' + modulePath + '" in the React Client Manifest. ' + 'This is probably a bug in the React Server Components bundler.');
+    }
   }
+
+  return {
+    id: resolvedModuleData.id,
+    chunks: resolvedModuleData.chunks,
+    name: name,
+    async: !!clientReference.$$async
+  };
 }
 function getServerReferenceId(config, serverReference) {
   return serverReference.$$id;
 }
 function getServerReferenceBoundArguments(config, serverReference) {
   return serverReference.$$bound;
+}
+
+var ReactDOMSharedInternals = ReactDOM.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
+
+var ReactDOMFlightServerDispatcher = {
+  prefetchDNS: prefetchDNS,
+  preconnect: preconnect,
+  preload: preload,
+  preinit: preinit
+};
+
+function prefetchDNS(href, options) {
+  {
+    if (typeof href === 'string') {
+      var request = resolveRequest();
+
+      if (request) {
+        var hints = getHints(request);
+        var key = 'D' + href;
+
+        if (hints.has(key)) {
+          // duplicate hint
+          return;
+        }
+
+        hints.add(key);
+
+        if (options) {
+          emitHint(request, 'D', [href, options]);
+        } else {
+          emitHint(request, 'D', href);
+        }
+      }
+    }
+  }
+}
+
+function preconnect(href, options) {
+  {
+    if (typeof href === 'string') {
+      var request = resolveRequest();
+
+      if (request) {
+        var hints = getHints(request);
+        var crossOrigin = options == null || typeof options.crossOrigin !== 'string' ? null : options.crossOrigin === 'use-credentials' ? 'use-credentials' : '';
+        var key = "C" + (crossOrigin === null ? 'null' : crossOrigin) + "|" + href;
+
+        if (hints.has(key)) {
+          // duplicate hint
+          return;
+        }
+
+        hints.add(key);
+
+        if (options) {
+          emitHint(request, 'C', [href, options]);
+        } else {
+          emitHint(request, 'C', href);
+        }
+      }
+    }
+  }
+}
+
+function preload(href, options) {
+  {
+    if (typeof href === 'string') {
+      var request = resolveRequest();
+
+      if (request) {
+        var hints = getHints(request);
+        var key = 'L' + href;
+
+        if (hints.has(key)) {
+          // duplicate hint
+          return;
+        }
+
+        hints.add(key);
+        emitHint(request, 'L', [href, options]);
+      }
+    }
+  }
+}
+
+function preinit(href, options) {
+  {
+    if (typeof href === 'string') {
+      var request = resolveRequest();
+
+      if (request) {
+        var hints = getHints(request);
+        var key = 'I' + href;
+
+        if (hints.has(key)) {
+          // duplicate hint
+          return;
+        }
+
+        hints.add(key);
+        emitHint(request, 'I', [href, options]);
+      }
+    }
+  }
+}
+
+var ReactDOMCurrentDispatcher = ReactDOMSharedInternals.Dispatcher;
+function prepareHostDispatcher() {
+  ReactDOMCurrentDispatcher.current = ReactDOMFlightServerDispatcher;
+} // Used to distinguish these contexts from ones used in other renderers.
+function createHints() {
+  return new Set();
 }
 
 // ATTENTION
@@ -265,238 +348,6 @@ function getIteratorFn(maybeIterable) {
 
   return null;
 }
-
-// A simple string attribute.
-// Attributes that aren't in the filter are presumed to have this type.
-var STRING = 1; // A string attribute that accepts booleans in React. In HTML, these are called
-// "enumerated" attributes with "true" and "false" as possible values.
-// When true, it should be set to a "true" string.
-// When false, it should be set to a "false" string.
-
-var BOOLEANISH_STRING = 2; // A real boolean attribute.
-// When true, it should be present (set either to an empty string or its name).
-// When false, it should be omitted.
-
-var BOOLEAN = 3; // An attribute that can be used as a flag as well as with a value.
-// When true, it should be present (set either to an empty string or its name).
-// When false, it should be omitted.
-// For any other value, should be present with that value.
-
-var OVERLOADED_BOOLEAN = 4; // An attribute that must be numeric or parse as a numeric.
-// When falsy, it should be removed.
-
-var NUMERIC = 5; // An attribute that must be positive numeric or parse as a positive numeric.
-
-function PropertyInfoRecord(type, attributeName, attributeNamespace, sanitizeURL, removeEmptyString) {
-  this.acceptsBooleans = type === BOOLEANISH_STRING || type === BOOLEAN || type === OVERLOADED_BOOLEAN;
-  this.attributeName = attributeName;
-  this.attributeNamespace = attributeNamespace;
-  this.type = type;
-  this.sanitizeURL = sanitizeURL;
-  this.removeEmptyString = removeEmptyString;
-} // When adding attributes to this list, be sure to also add them to
-// In React, we let users pass `true` and `false` even though technically
-// these aren't boolean attributes (they are coerced to strings).
-
-['contentEditable', 'draggable', 'spellCheck', 'value'].forEach(function (name) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  new PropertyInfoRecord(BOOLEANISH_STRING, name.toLowerCase(), // attributeName
-  null, // attributeNamespace
-  false, // sanitizeURL
-  false);
-}); // These are "enumerated" SVG attributes that accept "true" and "false".
-
-['allowFullScreen', 'async', // Note: there is a special case that prevents it from being written to the DOM
-// on the client side because the browsers are inconsistent. Instead we call focus().
-'autoFocus', 'autoPlay', 'controls', 'default', 'defer', 'disabled', 'disablePictureInPicture', 'disableRemotePlayback', 'formNoValidate', 'hidden', 'loop', 'noModule', 'noValidate', 'open', 'playsInline', 'readOnly', 'required', 'reversed', 'scoped', 'seamless', // Microdata
-'itemScope'].forEach(function (name) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  new PropertyInfoRecord(BOOLEAN, name.toLowerCase(), // attributeName
-  null, // attributeNamespace
-  false, // sanitizeURL
-  false);
-}); // These are HTML attributes that are "overloaded booleans": they behave like
-
-['rowSpan', 'start'].forEach(function (name) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  new PropertyInfoRecord(NUMERIC, name.toLowerCase(), // attributeName
-  null, // attributeNamespace
-  false, // sanitizeURL
-  false);
-});
-var CAMELIZE = /[\-\:]([a-z])/g;
-
-var capitalize = function (token) {
-  return token[1].toUpperCase();
-}; // This is a list of all SVG attributes that need special casing, namespacing,
-// or boolean value assignment. Regular attributes that just accept strings
-// and have the same names are omitted, just like in the HTML attribute filter.
-// Some of these attributes can be hard to find. This list was created by
-// scraping the MDN documentation.
-
-
-['accent-height', 'alignment-baseline', 'arabic-form', 'baseline-shift', 'cap-height', 'clip-path', 'clip-rule', 'color-interpolation', 'color-interpolation-filters', 'color-profile', 'color-rendering', 'dominant-baseline', 'enable-background', 'fill-opacity', 'fill-rule', 'flood-color', 'flood-opacity', 'font-family', 'font-size', 'font-size-adjust', 'font-stretch', 'font-style', 'font-variant', 'font-weight', 'glyph-name', 'glyph-orientation-horizontal', 'glyph-orientation-vertical', 'horiz-adv-x', 'horiz-origin-x', 'image-rendering', 'letter-spacing', 'lighting-color', 'marker-end', 'marker-mid', 'marker-start', 'overline-position', 'overline-thickness', 'paint-order', 'panose-1', 'pointer-events', 'rendering-intent', 'shape-rendering', 'stop-color', 'stop-opacity', 'strikethrough-position', 'strikethrough-thickness', 'stroke-dasharray', 'stroke-dashoffset', 'stroke-linecap', 'stroke-linejoin', 'stroke-miterlimit', 'stroke-opacity', 'stroke-width', 'text-anchor', 'text-decoration', 'text-rendering', 'transform-origin', 'underline-position', 'underline-thickness', 'unicode-bidi', 'unicode-range', 'units-per-em', 'v-alphabetic', 'v-hanging', 'v-ideographic', 'v-mathematical', 'vector-effect', 'vert-adv-y', 'vert-origin-x', 'vert-origin-y', 'word-spacing', 'writing-mode', 'xmlns:xlink', 'x-height' // NOTE: if you add a camelCased prop to this list,
-// you'll need to set attributeName to name.toLowerCase()
-// instead in the assignment below.
-].forEach(function (attributeName) {
-  attributeName.replace(CAMELIZE, capitalize); // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-}); // String SVG attributes with the xlink namespace.
-
-['xlink:actuate', 'xlink:arcrole', 'xlink:role', 'xlink:show', 'xlink:title', 'xlink:type' // NOTE: if you add a camelCased prop to this list,
-// you'll need to set attributeName to name.toLowerCase()
-// instead in the assignment below.
-].forEach(function (attributeName) {
-  attributeName.replace(CAMELIZE, capitalize); // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-}); // String SVG attributes with the xml namespace.
-
-['xml:base', 'xml:lang', 'xml:space' // NOTE: if you add a camelCased prop to this list,
-// you'll need to set attributeName to name.toLowerCase()
-// instead in the assignment below.
-].forEach(function (attributeName) {
-  attributeName.replace(CAMELIZE, capitalize); // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-}); // These attribute exists both in HTML and SVG.
-// The attribute name is case-sensitive in SVG so we can't just use
-// the React name like we do for attributes that exist only in HTML.
-
-['tabIndex', 'crossOrigin'].forEach(function (attributeName) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  new PropertyInfoRecord(STRING, attributeName.toLowerCase(), // attributeName
-  null, // attributeNamespace
-  false, // sanitizeURL
-  false);
-}); // These attributes accept URLs. These must not allow javascript: URLS.
-['src', 'href', 'action'].forEach(function (attributeName) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  new PropertyInfoRecord(STRING, attributeName.toLowerCase(), // attributeName
-  null, // attributeNamespace
-  true, // sanitizeURL
-  true);
-});
-
-var isArrayImpl = Array.isArray; // eslint-disable-next-line no-redeclare
-
-function isArray(a) {
-  return isArrayImpl(a);
-}
-
-// The build script is at scripts/rollup/generate-inline-fizz-runtime.js.
-// Run `yarn generate-inline-fizz-runtime` to generate.
-var clientRenderBoundary = '$RX=function(b,c,d,e){var a=document.getElementById(b);a&&(b=a.previousSibling,b.data="$!",a=a.dataset,c&&(a.dgst=c),d&&(a.msg=d),e&&(a.stck=e),b._reactRetry&&b._reactRetry())};';
-var completeBoundary = '$RC=function(b,c,e){c=document.getElementById(c);c.parentNode.removeChild(c);var a=document.getElementById(b);if(a){b=a.previousSibling;if(e)b.data="$!",a.setAttribute("data-dgst",e);else{e=b.parentNode;a=b.nextSibling;var f=0;do{if(a&&8===a.nodeType){var d=a.data;if("/$"===d)if(0===f)break;else f--;else"$"!==d&&"$?"!==d&&"$!"!==d||f++}d=a.nextSibling;e.removeChild(a);a=d}while(a);for(;c.firstChild;)e.insertBefore(c.firstChild,a);b.data="$"}b._reactRetry&&b._reactRetry()}};';
-var completeBoundaryWithStyles = '$RM=new Map;\n$RR=function(r,t,w){for(var u=$RC,n=$RM,p=new Map,q=document,g,b,h=q.querySelectorAll("link[data-precedence],style[data-precedence]"),v=[],k=0;b=h[k++];)"not all"===b.getAttribute("media")?v.push(b):("LINK"===b.tagName&&n.set(b.getAttribute("href"),b),p.set(b.dataset.precedence,g=b));b=0;h=[];var l,a;for(k=!0;;){if(k){var f=w[b++];if(!f){k=!1;b=0;continue}var c=!1,m=0;var d=f[m++];if(a=n.get(d)){var e=a._p;c=!0}else{a=q.createElement("link");a.href=d;a.rel="stylesheet";for(a.dataset.precedence=\nl=f[m++];e=f[m++];)a.setAttribute(e,f[m++]);e=a._p=new Promise(function(x,y){a.onload=x;a.onerror=y});n.set(d,a)}d=a.getAttribute("media");!e||"l"===e.s||d&&!matchMedia(d).matches||h.push(e);if(c)continue}else{a=v[b++];if(!a)break;l=a.getAttribute("data-precedence");a.removeAttribute("media")}c=p.get(l)||g;c===g&&(g=a);p.set(l,a);c?c.parentNode.insertBefore(a,c.nextSibling):(c=q.head,c.insertBefore(a,c.firstChild))}Promise.all(h).then(u.bind(null,r,t,""),u.bind(null,r,t,"Resource failed to load"))};';
-var completeSegment = '$RS=function(a,b){a=document.getElementById(a);b=document.getElementById(b);for(a.parentNode.removeChild(a);a.firstChild;)b.parentNode.insertBefore(a.firstChild,b);b.parentNode.removeChild(b)};';
-
-stringToPrecomputedChunk('"></template>');
-stringToPrecomputedChunk('<script>');
-stringToPrecomputedChunk('</script>');
-stringToPrecomputedChunk('<script src="');
-stringToPrecomputedChunk('<script type="module" src="');
-stringToPrecomputedChunk('" integrity="');
-stringToPrecomputedChunk('" async=""></script>');
-
-stringToPrecomputedChunk('<!-- -->');
-
-stringToPrecomputedChunk(' style="');
-stringToPrecomputedChunk(':');
-stringToPrecomputedChunk(';');
-
-stringToPrecomputedChunk(' ');
-stringToPrecomputedChunk('="');
-stringToPrecomputedChunk('"');
-stringToPrecomputedChunk('=""');
-
-stringToPrecomputedChunk('>');
-stringToPrecomputedChunk('/>');
-
-stringToPrecomputedChunk(' selected=""');
-
-stringToPrecomputedChunk('\n');
-
-stringToPrecomputedChunk('<!DOCTYPE html>');
-stringToPrecomputedChunk('</');
-stringToPrecomputedChunk('>');
-// A placeholder is a node inside a hidden partial tree that can be filled in later, but before
-// display. It's never visible to users. We use the template tag because it can be used in every
-// type of parent. <script> tags also work in every other tag except <colgroup>.
-
-stringToPrecomputedChunk('<template id="');
-stringToPrecomputedChunk('"></template>');
-
-stringToPrecomputedChunk('<!--$-->');
-stringToPrecomputedChunk('<!--$?--><template id="');
-stringToPrecomputedChunk('"></template>');
-stringToPrecomputedChunk('<!--$!-->');
-stringToPrecomputedChunk('<!--/$-->');
-stringToPrecomputedChunk('<template');
-stringToPrecomputedChunk('"');
-stringToPrecomputedChunk(' data-dgst="');
-stringToPrecomputedChunk(' data-msg="');
-stringToPrecomputedChunk(' data-stck="');
-stringToPrecomputedChunk('></template>');
-stringToPrecomputedChunk('<div hidden id="');
-stringToPrecomputedChunk('">');
-stringToPrecomputedChunk('</div>');
-stringToPrecomputedChunk('<svg aria-hidden="true" style="display:none" id="');
-stringToPrecomputedChunk('">');
-stringToPrecomputedChunk('</svg>');
-stringToPrecomputedChunk('<math aria-hidden="true" style="display:none" id="');
-stringToPrecomputedChunk('">');
-stringToPrecomputedChunk('</math>');
-stringToPrecomputedChunk('<table hidden id="');
-stringToPrecomputedChunk('">');
-stringToPrecomputedChunk('</table>');
-stringToPrecomputedChunk('<table hidden><tbody id="');
-stringToPrecomputedChunk('">');
-stringToPrecomputedChunk('</tbody></table>');
-stringToPrecomputedChunk('<table hidden><tr id="');
-stringToPrecomputedChunk('">');
-stringToPrecomputedChunk('</tr></table>');
-stringToPrecomputedChunk('<table hidden><colgroup id="');
-stringToPrecomputedChunk('">');
-stringToPrecomputedChunk('</colgroup></table>');
-stringToPrecomputedChunk(completeSegment + ';$RS("');
-stringToPrecomputedChunk('$RS("');
-stringToPrecomputedChunk('","');
-stringToPrecomputedChunk('")</script>');
-stringToPrecomputedChunk('<template data-rsi="" data-sid="');
-stringToPrecomputedChunk('" data-pid="');
-stringToPrecomputedChunk(completeBoundary + '$RC("');
-stringToPrecomputedChunk('$RC("');
-stringToPrecomputedChunk(completeBoundary + completeBoundaryWithStyles + '$RR("');
-stringToPrecomputedChunk(completeBoundaryWithStyles + '$RR("');
-stringToPrecomputedChunk('$RR("');
-stringToPrecomputedChunk('","');
-stringToPrecomputedChunk('",');
-stringToPrecomputedChunk('"');
-stringToPrecomputedChunk(')</script>');
-stringToPrecomputedChunk('<template data-rci="" data-bid="');
-stringToPrecomputedChunk('<template data-rri="" data-bid="');
-stringToPrecomputedChunk('" data-sid="');
-stringToPrecomputedChunk('" data-sty="');
-stringToPrecomputedChunk(clientRenderBoundary + ';$RX("');
-stringToPrecomputedChunk('$RX("');
-stringToPrecomputedChunk('"');
-stringToPrecomputedChunk(',');
-stringToPrecomputedChunk(')</script>');
-stringToPrecomputedChunk('<template data-rxi="" data-bid="');
-stringToPrecomputedChunk('" data-dgst="');
-stringToPrecomputedChunk('" data-msg="');
-stringToPrecomputedChunk('" data-stck="');
-
-stringToPrecomputedChunk('<style media="not all" data-precedence="');
-stringToPrecomputedChunk('" data-href="');
-stringToPrecomputedChunk('">');
-stringToPrecomputedChunk('</style>'); // Tracks whether the boundary currently flushing is flushign style tags or has any
-
-stringToPrecomputedChunk('<style data-precedence="');
-stringToPrecomputedChunk('" data-href="');
-stringToPrecomputedChunk(' ');
-stringToPrecomputedChunk('">');
-stringToPrecomputedChunk('</style>');
-stringToPrecomputedChunk('[');
-stringToPrecomputedChunk(',[');
-stringToPrecomputedChunk(',');
-stringToPrecomputedChunk(']'); // This function writes a 2D array of strings to be embedded in javascript.
 
 var rendererSigil;
 
@@ -804,14 +655,14 @@ function getSuspendedThenable() {
   return thenable;
 }
 
-var currentRequest = null;
+var currentRequest$1 = null;
 var thenableIndexCounter = 0;
 var thenableState = null;
 function prepareToUseHooksForRequest(request) {
-  currentRequest = request;
+  currentRequest$1 = request;
 }
 function resetHooksForRequest() {
-  currentRequest = null;
+  currentRequest$1 = null;
 }
 function prepareToUseHooksForComponent(prevThenableState) {
   thenableIndexCounter = 0;
@@ -833,7 +684,7 @@ function readContext(context) {
       }
     }
 
-    if (currentRequest === null) {
+    if (currentRequest$1 === null) {
       error('Context can only be read while React is rendering. ' + 'In classes, you can read it in the render method or getDerivedStateFromProps. ' + 'In function components, you can read it directly in the function body, but not ' + 'inside Hooks like useReducer() or useMemo().');
     }
   }
@@ -861,7 +712,6 @@ var HooksDispatcher = {
   useImperativeHandle: unsupportedHook,
   useEffect: unsupportedHook,
   useId: useId,
-  useMutableSource: unsupportedHook,
   useSyncExternalStore: unsupportedHook,
   useCacheRefresh: function () {
     return unsupportedRefresh;
@@ -875,7 +725,7 @@ var HooksDispatcher = {
 
     return data;
   },
-  use: use 
+  use: use
 };
 
 function unsupportedHook() {
@@ -887,13 +737,13 @@ function unsupportedRefresh() {
 }
 
 function useId() {
-  if (currentRequest === null) {
+  if (currentRequest$1 === null) {
     throw new Error('useId can only be used while React is rendering');
   }
 
-  var id = currentRequest.identifierCount++; // use 'S' for Flight components to distinguish from 'R' and 'r' in Fizz/Client
+  var id = currentRequest$1.identifierCount++; // use 'S' for Flight components to distinguish from 'R' and 'r' in Fizz/Client
 
-  return ':' + currentRequest.identifierPrefix + 'S' + id.toString(32) + ':';
+  return ':' + currentRequest$1.identifierPrefix + 'S' + id.toString(32) + ':';
 }
 
 function use(usable) {
@@ -932,10 +782,11 @@ function createSignal() {
 }
 
 function resolveCache() {
-  if (currentCache) return currentCache;
-  // active and so to support cache() and fetch() outside of render, we yield
-  // an empty Map.
+  var request = resolveRequest();
 
+  if (request) {
+    return getCache(request);
+  }
 
   return new Map();
 }
@@ -965,13 +816,11 @@ var DefaultCacheDispatcher = {
     return entry;
   }
 };
-var currentCache = null;
-function setCurrentCache(cache) {
-  currentCache = cache;
-  return currentCache;
-}
-function getCurrentCache() {
-  return currentCache;
+
+var isArrayImpl = Array.isArray; // eslint-disable-next-line no-redeclare
+
+function isArray(a) {
+  return isArrayImpl(a);
 }
 
 // in case they error.
@@ -1052,7 +901,7 @@ function describeValueForErrorMessage(value) {
   switch (typeof value) {
     case 'string':
       {
-        return JSON.stringify(value.length <= 10 ? value : value.substr(0, 10) + '...');
+        return JSON.stringify(value.length <= 10 ? value : value.slice(0, 10) + '...');
       }
 
     case 'object':
@@ -1142,7 +991,6 @@ function describeObjectForErrorMessage(objectOrArray, expandedName) {
         if (typeof value === 'string') {
           substr = value;
         } else if (typeof value === 'object' && value !== null) {
-          // $FlowFixMe[incompatible-call] found when upgrading Flow
           substr = '{' + describeObjectForErrorMessage(value) + '}';
         } else {
           substr = '{' + describeValueForErrorMessage(value) + '}';
@@ -1175,7 +1023,6 @@ function describeObjectForErrorMessage(objectOrArray, expandedName) {
         var _substr = void 0;
 
         if (typeof _value === 'object' && _value !== null) {
-          // $FlowFixMe[incompatible-call] found when upgrading Flow
           _substr = describeObjectForErrorMessage(_value);
         } else {
           _substr = describeValueForErrorMessage(_value);
@@ -1214,7 +1061,6 @@ function describeObjectForErrorMessage(objectOrArray, expandedName) {
         var _substr2 = void 0;
 
         if (name === expandedName && typeof _value2 === 'object' && _value2 !== null) {
-          // $FlowFixMe[incompatible-call] found when upgrading Flow
           _substr2 = describeObjectForErrorMessage(_value2);
         } else {
           _substr2 = describeValueForErrorMessage(_value2);
@@ -1255,7 +1101,6 @@ function describeObjectForErrorMessage(objectOrArray, expandedName) {
         var _substr3 = void 0;
 
         if (typeof _value3 === 'object' && _value3 !== null) {
-          // $FlowFixMe[incompatible-call] found when upgrading Flow
           _substr3 = describeObjectForErrorMessage(_value3);
         } else {
           _substr3 = describeValueForErrorMessage(_value3);
@@ -1298,6 +1143,7 @@ function getOrCreateServerContext(globalName) {
   return ContextRegistry[globalName];
 }
 
+var stringify = JSON.stringify; // Serializable values
 // Thenable<ReactClientValue>
 
 var PENDING$1 = 0;
@@ -1319,21 +1165,26 @@ function createRequest(model, bundlerConfig, onError, context, identifierPrefix)
     throw new Error('Currently React only supports one RSC renderer at a time.');
   }
 
+  prepareHostDispatcher();
   ReactCurrentCache.current = DefaultCacheDispatcher;
   var abortSet = new Set();
   var pingedTasks = [];
+  var hints = createHints();
   var request = {
     status: OPEN,
+    flushScheduled: false,
     fatalError: null,
     destination: null,
     bundlerConfig: bundlerConfig,
     cache: new Map(),
     nextChunkId: 0,
     pendingChunks: 0,
+    hints: hints,
     abortableTasks: abortSet,
     pingedTasks: pingedTasks,
     completedImportChunks: [],
-    completedJSONChunks: [],
+    completedHintChunks: [],
+    completedRegularChunks: [],
     completedErrorChunks: [],
     writtenSymbols: new Map(),
     writtenClientReferences: new Map(),
@@ -1352,6 +1203,12 @@ function createRequest(model, bundlerConfig, onError, context, identifierPrefix)
   var rootTask = createTask(request, model, rootContext, abortSet);
   pingedTasks.push(rootTask);
   return request;
+}
+var currentRequest = null;
+function resolveRequest() {
+  if (currentRequest) return currentRequest;
+
+  return null;
 }
 
 function createRootContext(reqContext) {
@@ -1438,6 +1295,17 @@ function serializeThenable(request, thenable) {
     }
   });
   return newTask.id;
+}
+
+function emitHint(request, code, model) {
+  emitHintChunk(request, code, model);
+  enqueueFlush(request);
+}
+function getHints(request) {
+  return request.hints;
+}
+function getCache(request) {
+  return request.cache;
 }
 
 function readThenable(thenable) {
@@ -1615,6 +1483,7 @@ function pingTask(request, task) {
   pingedTasks.push(task);
 
   if (pingedTasks.length === 1) {
+    request.flushScheduled = request.destination !== null;
     scheduleWork(function () {
       return performWork(request);
     });
@@ -1661,8 +1530,32 @@ function serializeProviderReference(name) {
   return '$P' + name;
 }
 
+function serializeNumber(number) {
+  if (Number.isFinite(number)) {
+    if (number === 0 && 1 / number === -Infinity) {
+      return '$-0';
+    } else {
+      return number;
+    }
+  } else {
+    if (number === Infinity) {
+      return '$Infinity';
+    } else if (number === -Infinity) {
+      return '$-Infinity';
+    } else {
+      return '$NaN';
+    }
+  }
+}
+
 function serializeUndefined() {
   return '$undefined';
+}
+
+function serializeDateFromDateJSON(dateJSON) {
+  // JSON.stringify automatically calls Date.prototype.toJSON which calls toISOString.
+  // We need only tack on a $D prefix.
+  return '$D' + dateJSON;
 }
 
 function serializeBigInt(n) {
@@ -1721,6 +1614,15 @@ function serializeClientReference(request, parent, key, clientReference) {
   }
 }
 
+function outlineModel(request, value) {
+  request.pendingChunks++;
+  var outlinedId = request.nextChunkId++; // We assume that this object doesn't suspend, but a child might.
+
+  var processedChunk = processModelChunk(request, outlinedId, value);
+  request.completedRegularChunks.push(processedChunk);
+  return outlinedId;
+}
+
 function serializeServerReference(request, parent, key, serverReference) {
   var writtenServerReferences = request.writtenServerReferences;
   var existingId = writtenServerReferences.get(serverReference);
@@ -1734,13 +1636,28 @@ function serializeServerReference(request, parent, key, serverReference) {
     id: getServerReferenceId(request.bundlerConfig, serverReference),
     bound: bound ? Promise.resolve(bound) : null
   };
-  request.pendingChunks++;
-  var metadataId = request.nextChunkId++; // We assume that this object doesn't suspend.
-
-  var processedChunk = processModelChunk(request, metadataId, serverReferenceMetadata);
-  request.completedJSONChunks.push(processedChunk);
+  var metadataId = outlineModel(request, serverReferenceMetadata);
   writtenServerReferences.set(serverReference, metadataId);
   return serializeServerReferenceID(metadataId);
+}
+
+function serializeLargeTextString(request, text) {
+  request.pendingChunks += 2;
+  var textId = request.nextChunkId++;
+  var textChunk = stringToChunk(text);
+  var headerChunk = processTextHeader(request, textId, byteLengthOfChunk(textChunk));
+  request.completedRegularChunks.push(headerChunk, textChunk);
+  return serializeByValueID(textId);
+}
+
+function serializeMap(request, map) {
+  var id = outlineModel(request, Array.from(map));
+  return '$Q' + id.toString(16);
+}
+
+function serializeSet(request, set) {
+  var id = outlineModel(request, Array.from(set));
+  return '$W' + id.toString(16);
 }
 
 function escapeStringValue(value) {
@@ -1755,12 +1672,14 @@ function escapeStringValue(value) {
 
 var insideContextProps = null;
 var isInsideContextValue = false;
+
 function resolveModelToJSON(request, parent, key, value) {
+  // Make sure that `parent[key]` wasn't JSONified before `value` was passed to us
   {
     // $FlowFixMe[incompatible-use]
     var originalValue = parent[key];
 
-    if (typeof originalValue === 'object' && originalValue !== value) {
+    if (typeof originalValue === 'object' && originalValue !== value && !(originalValue instanceof Date)) {
       if (objectName(originalValue) !== 'Object') {
         var jsxParentType = jsxChildrenParents.get(parent);
 
@@ -1891,6 +1810,14 @@ function resolveModelToJSON(request, parent, key, value) {
       return undefined;
     }
 
+    if (value instanceof Map) {
+      return serializeMap(request, value);
+    }
+
+    if (value instanceof Set) {
+      return serializeSet(request, value);
+    }
+
     if (!isArray(value)) {
       var iteratorFn = getIteratorFn(value);
 
@@ -1921,11 +1848,33 @@ function resolveModelToJSON(request, parent, key, value) {
   }
 
   if (typeof value === 'string') {
+    // TODO: Maybe too clever. If we support URL there's no similar trick.
+    if (value[value.length - 1] === 'Z') {
+      // Possibly a Date, whose toJSON automatically calls toISOString
+      // $FlowFixMe[incompatible-use]
+      var _originalValue = parent[key];
+
+      if (_originalValue instanceof Date) {
+        return serializeDateFromDateJSON(value);
+      }
+    }
+
+    if (value.length >= 1024) {
+      // For large strings, we encode them outside the JSON payload so that we
+      // don't have to double encode and double parse the strings. This can also
+      // be more compact in case the string has a lot of escaped characters.
+      return serializeLargeTextString(request, value);
+    }
+
     return escapeStringValue(value);
   }
 
-  if (typeof value === 'boolean' || typeof value === 'number') {
+  if (typeof value === 'boolean') {
     return value;
+  }
+
+  if (typeof value === 'number') {
+    return serializeNumber(value);
   }
 
   if (typeof value === 'undefined') {
@@ -2041,6 +1990,11 @@ function emitImportChunk(request, id, clientReferenceMetadata) {
   request.completedImportChunks.push(processedChunk);
 }
 
+function emitHintChunk(request, code, model) {
+  var processedChunk = processHintChunk(request, request.nextChunkId++, code, model);
+  request.completedHintChunks.push(processedChunk);
+}
+
 function emitSymbolChunk(request, id, name) {
   var symbolReference = serializeSymbolReference(name);
   var processedChunk = processReferenceChunk(request, id, symbolReference);
@@ -2050,7 +2004,7 @@ function emitSymbolChunk(request, id, name) {
 function emitProviderChunk(request, id, contextName) {
   var contextReference = serializeProviderReference(contextName);
   var processedChunk = processReferenceChunk(request, id, contextReference);
-  request.completedJSONChunks.push(processedChunk);
+  request.completedRegularChunks.push(processedChunk);
 }
 
 function retryTask(request, task) {
@@ -2090,7 +2044,7 @@ function retryTask(request, task) {
     }
 
     var processedChunk = processModelChunk(request, task.id, value);
-    request.completedJSONChunks.push(processedChunk);
+    request.completedRegularChunks.push(processedChunk);
     request.abortableTasks.delete(task);
     task.status = COMPLETED;
   } catch (thrownValue) {
@@ -2125,9 +2079,9 @@ function retryTask(request, task) {
 
 function performWork(request) {
   var prevDispatcher = ReactCurrentDispatcher.current;
-  var prevCache = getCurrentCache();
   ReactCurrentDispatcher.current = HooksDispatcher;
-  setCurrentCache(request.cache);
+  var prevRequest = currentRequest;
+  currentRequest = request;
   prepareToUseHooksForRequest(request);
 
   try {
@@ -2147,8 +2101,8 @@ function performWork(request) {
     fatalError(request, error);
   } finally {
     ReactCurrentDispatcher.current = prevDispatcher;
-    setCurrentCache(prevCache);
     resetHooksForRequest();
+    currentRequest = prevRequest;
   }
 }
 
@@ -2182,14 +2136,13 @@ function flushCompletedChunks(request, destination) {
       }
     }
 
-    importsChunks.splice(0, i); // Next comes model data.
+    importsChunks.splice(0, i); // Next comes hints.
 
-    var jsonChunks = request.completedJSONChunks;
+    var hintChunks = request.completedHintChunks;
     i = 0;
 
-    for (; i < jsonChunks.length; i++) {
-      request.pendingChunks--;
-      var _chunk = jsonChunks[i];
+    for (; i < hintChunks.length; i++) {
+      var _chunk = hintChunks[i];
 
       var _keepWriting = writeChunkAndReturn(destination, _chunk);
 
@@ -2200,16 +2153,14 @@ function flushCompletedChunks(request, destination) {
       }
     }
 
-    jsonChunks.splice(0, i); // Finally, errors are sent. The idea is that it's ok to delay
-    // any error messages and prioritize display of other parts of
-    // the page.
+    hintChunks.splice(0, i); // Next comes model data.
 
-    var errorChunks = request.completedErrorChunks;
+    var regularChunks = request.completedRegularChunks;
     i = 0;
 
-    for (; i < errorChunks.length; i++) {
+    for (; i < regularChunks.length; i++) {
       request.pendingChunks--;
-      var _chunk2 = errorChunks[i];
+      var _chunk2 = regularChunks[i];
 
       var _keepWriting2 = writeChunkAndReturn(destination, _chunk2);
 
@@ -2220,8 +2171,29 @@ function flushCompletedChunks(request, destination) {
       }
     }
 
+    regularChunks.splice(0, i); // Finally, errors are sent. The idea is that it's ok to delay
+    // any error messages and prioritize display of other parts of
+    // the page.
+
+    var errorChunks = request.completedErrorChunks;
+    i = 0;
+
+    for (; i < errorChunks.length; i++) {
+      request.pendingChunks--;
+      var _chunk3 = errorChunks[i];
+
+      var _keepWriting3 = writeChunkAndReturn(destination, _chunk3);
+
+      if (!_keepWriting3) {
+        request.destination = null;
+        i++;
+        break;
+      }
+    }
+
     errorChunks.splice(0, i);
   } finally {
+    request.flushScheduled = false;
     completeWriting(destination);
   }
 
@@ -2232,12 +2204,28 @@ function flushCompletedChunks(request, destination) {
 }
 
 function startWork(request) {
+  request.flushScheduled = request.destination !== null;
+
   {
     scheduleWork(function () {
       return performWork(request);
     });
   }
 }
+
+function enqueueFlush(request) {
+  if (request.flushScheduled === false && // If there are pinged tasks we are going to flush anyway after work completes
+  request.pingedTasks.length === 0 && // If there is no destination there is nothing we can flush to. A flush will
+  // happen when we start flowing again
+  request.destination !== null) {
+    var destination = request.destination;
+    request.flushScheduled = true;
+    scheduleWork(function () {
+      return flushCompletedChunks(request, destination);
+    });
+  }
+}
+
 function startFlowing(request, destination) {
   if (request.status === CLOSING) {
     request.status = CLOSED;
@@ -2320,17 +2308,123 @@ function importServerContexts(contexts) {
   return rootContextSnapshot;
 }
 
+function serializeRowHeader(tag, id) {
+  return id.toString(16) + ':' + tag;
+}
+
+function processErrorChunkProd(request, id, digest) {
+  {
+    // These errors should never make it into a build so we don't need to encode them in codes.json
+    // eslint-disable-next-line react-internal/prod-error-codes
+    throw new Error('processErrorChunkProd should never be called while in development mode. Use processErrorChunkDev instead. This is a bug in React.');
+  }
+}
+
+function processErrorChunkDev(request, id, digest, message, stack) {
+
+  var errorInfo = {
+    digest: digest,
+    message: message,
+    stack: stack
+  };
+  var row = serializeRowHeader('E', id) + stringify(errorInfo) + '\n';
+  return stringToChunk(row);
+}
+
+function processModelChunk(request, id, model) {
+  // $FlowFixMe[incompatible-type] stringify can return null
+  var json = stringify(model, request.toJSON);
+  var row = id.toString(16) + ':' + json + '\n';
+  return stringToChunk(row);
+}
+
+function processReferenceChunk(request, id, reference) {
+  var json = stringify(reference);
+  var row = id.toString(16) + ':' + json + '\n';
+  return stringToChunk(row);
+}
+
+function processImportChunk(request, id, clientReferenceMetadata) {
+  // $FlowFixMe[incompatible-type] stringify can return null
+  var json = stringify(clientReferenceMetadata);
+  var row = serializeRowHeader('I', id) + json + '\n';
+  return stringToChunk(row);
+}
+
+function processHintChunk(request, id, code, model) {
+  var json = stringify(model);
+  var row = serializeRowHeader('H' + code, id) + json + '\n';
+  return stringToChunk(row);
+}
+
+function processTextHeader(request, id, binaryLength) {
+  var row = id.toString(16) + ':T' + binaryLength.toString(16) + ',';
+  return stringToChunk(row);
+}
+
 // eslint-disable-next-line no-unused-vars
 function resolveServerReference(bundlerConfig, id) {
-  // This needs to return async: true if it's an async module.
-  return bundlerConfig[id];
+  var name = '';
+  var resolvedModuleData = bundlerConfig[id];
+
+  if (resolvedModuleData) {
+    // The potentially aliased name.
+    name = resolvedModuleData.name;
+  } else {
+    // We didn't find this specific export name but we might have the * export
+    // which contains this name as well.
+    // TODO: It's unfortunate that we now have to parse this string. We should
+    // probably go back to encoding path and name separately on the client reference.
+    var idx = id.lastIndexOf('#');
+
+    if (idx !== -1) {
+      name = id.slice(idx + 1);
+      resolvedModuleData = bundlerConfig[id.slice(0, idx)];
+    }
+
+    if (!resolvedModuleData) {
+      throw new Error('Could not find the module "' + id + '" in the React Server Manifest. ' + 'This is probably a bug in the React Server Components bundler.');
+    }
+  } // TODO: This needs to return async: true if it's an async module.
+
+
+  return {
+    id: resolvedModuleData.id,
+    chunks: resolvedModuleData.chunks,
+    name: name,
+    async: false
+  };
 } // The chunk cache contains all the chunks we've preloaded so far.
 // If they're still pending they're a thenable. This map also exists
 // in Webpack but unfortunately it's not exposed so we have to
 // replicate it in user space. null means that it has already loaded.
 
 var chunkCache = new Map();
-var asyncModuleCache = new Map();
+
+function requireAsyncModule(id) {
+  // We've already loaded all the chunks. We can require the module.
+  var promise = globalThis.__next_require__(id);
+
+  if (typeof promise.then !== 'function') {
+    // This wasn't a promise after all.
+    return null;
+  } else if (promise.status === 'fulfilled') {
+    // This module was already resolved earlier.
+    return null;
+  } else {
+    // Instrument the Promise to stash the result.
+    promise.then(function (value) {
+      var fulfilledThenable = promise;
+      fulfilledThenable.status = 'fulfilled';
+      fulfilledThenable.value = value;
+    }, function (reason) {
+      var rejectedThenable = promise;
+      rejectedThenable.status = 'rejected';
+      rejectedThenable.reason = reason;
+    });
+    return promise;
+  }
+}
 
 function ignoreReject() {// We rely on rejected promises to be handled by another listener.
 } // Start preloading the modules since we might need them soon.
@@ -2359,29 +2453,12 @@ function preloadModule(metadata) {
   }
 
   if (metadata.async) {
-    var existingPromise = asyncModuleCache.get(metadata.id);
-
-    if (existingPromise) {
-      if (existingPromise.status === 'fulfilled') {
-        return null;
-      }
-
-      return existingPromise;
+    if (promises.length === 0) {
+      return requireAsyncModule(metadata.id);
     } else {
-      var modulePromise = Promise.all(promises).then(function () {
-        return globalThis.__next_require__(metadata.id);
+      return Promise.all(promises).then(function () {
+        return requireAsyncModule(metadata.id);
       });
-      modulePromise.then(function (value) {
-        var fulfilledThenable = modulePromise;
-        fulfilledThenable.status = 'fulfilled';
-        fulfilledThenable.value = value;
-      }, function (reason) {
-        var rejectedThenable = modulePromise;
-        rejectedThenable.status = 'rejected';
-        rejectedThenable.reason = reason;
-      });
-      asyncModuleCache.set(metadata.id, modulePromise);
-      return modulePromise;
     }
   } else if (promises.length > 0) {
     return Promise.all(promises);
@@ -2392,20 +2469,15 @@ function preloadModule(metadata) {
 // Increase priority if necessary.
 
 function requireModule(metadata) {
-  var moduleExports;
+  var moduleExports = globalThis.__next_require__(metadata.id);
 
   if (metadata.async) {
-    // We assume that preloadModule has been called before, which
-    // should have added something to the module cache.
-    var promise = asyncModuleCache.get(metadata.id);
-
-    if (promise.status === 'fulfilled') {
-      moduleExports = promise.value;
+    if (typeof moduleExports.then !== 'function') ; else if (moduleExports.status === 'fulfilled') {
+      // This Promise should've been instrumented by preloadModule.
+      moduleExports = moduleExports.value;
     } else {
-      throw promise.reason;
+      throw moduleExports.reason;
     }
-  } else {
-    moduleExports = globalThis.__next_require__(metadata.id);
   }
 
   if (metadata.name === '*') {
@@ -2499,27 +2571,6 @@ function wakeChunk(listeners, value) {
   }
 }
 
-function wakeChunkIfInitialized(chunk, resolveListeners, rejectListeners) {
-  switch (chunk.status) {
-    case INITIALIZED:
-      wakeChunk(resolveListeners, chunk.value);
-      break;
-
-    case PENDING:
-    case BLOCKED:
-      chunk.value = resolveListeners;
-      chunk.reason = rejectListeners;
-      break;
-
-    case ERRORED:
-      if (rejectListeners) {
-        wakeChunk(rejectListeners, chunk.reason);
-      }
-
-      break;
-  }
-}
-
 function triggerErrorOnChunk(chunk, error) {
   if (chunk.status !== PENDING && chunk.status !== BLOCKED) {
     // We already resolved. We didn't expect to see this.
@@ -2541,33 +2592,11 @@ function createResolvedModelChunk(response, value) {
   return new Chunk(RESOLVED_MODEL, value, null, response);
 }
 
-function resolveModelChunk(chunk, value) {
-  if (chunk.status !== PENDING) {
-    // We already resolved. We didn't expect to see this.
-    return;
-  }
-
-  var resolveListeners = chunk.value;
-  var rejectListeners = chunk.reason;
-  var resolvedChunk = chunk;
-  resolvedChunk.status = RESOLVED_MODEL;
-  resolvedChunk.value = value;
-
-  if (resolveListeners !== null) {
-    // This is unfortunate that we're reading this eagerly if
-    // we already have listeners attached since they might no
-    // longer be rendered or might not be the highest pri.
-    initializeModelChunk(resolvedChunk); // The status might have changed after initialization.
-
-    wakeChunkIfInitialized(chunk, resolveListeners, rejectListeners);
-  }
-}
-
-function bindArgs(fn, args) {
+function bindArgs$1(fn, args) {
   return fn.bind.apply(fn, [null].concat(args));
 }
 
-function loadServerReference(response, id, bound, parentChunk, parentObject, key) {
+function loadServerReference$1(response, id, bound, parentChunk, parentObject, key) {
   var serverReference = resolveServerReference(response._bundlerConfig, id); // We expect most servers to not really need this because you'd just have all
   // the relevant modules already loaded but it allows for lazy loading of code
   // if needed.
@@ -2578,7 +2607,7 @@ function loadServerReference(response, id, bound, parentChunk, parentObject, key
   if (bound) {
     promise = Promise.all([bound, preloadPromise]).then(function (_ref) {
       var args = _ref[0];
-      return bindArgs(requireModule(serverReference), args);
+      return bindArgs$1(requireModule(serverReference), args);
     });
   } else {
     if (preloadPromise) {
@@ -2649,7 +2678,19 @@ function getChunk(response, id) {
   var chunk = chunks.get(id);
 
   if (!chunk) {
-    chunk = createPendingChunk(response);
+    var prefix = response._prefix;
+    var key = prefix + id; // Check if we have this field in the backing store already.
+
+    var backingEntry = response._formData.get(key);
+
+    if (backingEntry != null) {
+      // We assume that this is a string entry for now.
+      chunk = createResolvedModelChunk(response, backingEntry);
+    } else {
+      // We're still waiting on this entry to stream in.
+      chunk = createPendingChunk(response);
+    }
+
     chunks.set(id, chunk);
   }
 
@@ -2696,19 +2737,34 @@ function createModelReject(chunk) {
   };
 }
 
+function getOutlinedModel(response, id) {
+  var chunk = getChunk(response, id);
+
+  if (chunk.status === RESOLVED_MODEL) {
+    initializeModelChunk(chunk);
+  }
+
+  if (chunk.status !== INITIALIZED) {
+    // We know that this is emitted earlier so otherwise it's an error.
+    throw chunk.reason;
+  }
+
+  return chunk.value;
+}
+
 function parseModelString(response, parentObject, key, value) {
   if (value[0] === '$') {
     switch (value[1]) {
       case '$':
         {
           // This was an escaped string value.
-          return value.substring(1);
+          return value.slice(1);
         }
 
       case '@':
         {
           // Promise
-          var id = parseInt(value.substring(2), 16);
+          var id = parseInt(value.slice(2), 16);
           var chunk = getChunk(response, id);
           return chunk;
         }
@@ -2716,28 +2772,79 @@ function parseModelString(response, parentObject, key, value) {
       case 'S':
         {
           // Symbol
-          return Symbol.for(value.substring(2));
+          return Symbol.for(value.slice(2));
         }
 
       case 'F':
         {
           // Server Reference
-          var _id = parseInt(value.substring(2), 16);
+          var _id = parseInt(value.slice(2), 16); // TODO: Just encode this in the reference inline instead of as a model.
 
-          var _chunk = getChunk(response, _id);
 
-          if (_chunk.status === RESOLVED_MODEL) {
-            initializeModelChunk(_chunk);
+          var metaData = getOutlinedModel(response, _id);
+          return loadServerReference$1(response, metaData.id, metaData.bound, initializingChunk, parentObject, key);
+        }
+
+      case 'Q':
+        {
+          // Map
+          var _id2 = parseInt(value.slice(2), 16);
+
+          var data = getOutlinedModel(response, _id2);
+          return new Map(data);
+        }
+
+      case 'W':
+        {
+          // Set
+          var _id3 = parseInt(value.slice(2), 16);
+
+          var _data = getOutlinedModel(response, _id3);
+
+          return new Set(_data);
+        }
+
+      case 'K':
+        {
+          // FormData
+          var stringId = value.slice(2);
+          var formPrefix = response._prefix + stringId + '_';
+
+          var _data2 = new FormData();
+
+          var backingFormData = response._formData; // We assume that the reference to FormData always comes after each
+          // entry that it references so we can assume they all exist in the
+          // backing store already.
+          // $FlowFixMe[prop-missing] FormData has forEach on it.
+
+          backingFormData.forEach(function (entry, entryKey) {
+            if (entryKey.startsWith(formPrefix)) {
+              _data2.append(entryKey.slice(formPrefix.length), entry);
+            }
+          });
+          return _data2;
+        }
+
+      case 'I':
+        {
+          // $Infinity
+          return Infinity;
+        }
+
+      case '-':
+        {
+          // $-0 or $-Infinity
+          if (value === '$-0') {
+            return -0;
+          } else {
+            return -Infinity;
           }
+        }
 
-          if (_chunk.status !== INITIALIZED) {
-            // We know that this is emitted earlier so otherwise it's an error.
-            throw _chunk.reason;
-          } // TODO: Just encode this in the reference inline instead of as a model.
-
-
-          var metaData = _chunk.value;
-          return loadServerReference(response, metaData.id, metaData.bound, initializingChunk, parentObject, key);
+      case 'N':
+        {
+          // $NaN
+          return NaN;
         }
 
       case 'u':
@@ -2747,40 +2854,46 @@ function parseModelString(response, parentObject, key, value) {
           return undefined;
         }
 
+      case 'D':
+        {
+          // Date
+          return new Date(Date.parse(value.slice(2)));
+        }
+
       case 'n':
         {
           // BigInt
-          return BigInt(value.substring(2));
+          return BigInt(value.slice(2));
         }
 
       default:
         {
           // We assume that anything else is a reference ID.
-          var _id2 = parseInt(value.substring(1), 16);
+          var _id4 = parseInt(value.slice(1), 16);
 
-          var _chunk2 = getChunk(response, _id2);
+          var _chunk = getChunk(response, _id4);
 
-          switch (_chunk2.status) {
+          switch (_chunk.status) {
             case RESOLVED_MODEL:
-              initializeModelChunk(_chunk2);
+              initializeModelChunk(_chunk);
               break;
           } // The status might have changed after initialization.
 
 
-          switch (_chunk2.status) {
+          switch (_chunk.status) {
             case INITIALIZED:
-              return _chunk2.value;
+              return _chunk.value;
 
             case PENDING:
             case BLOCKED:
               var parentChunk = initializingChunk;
 
-              _chunk2.then(createModelResolver(parentChunk, parentObject, key), createModelReject(parentChunk));
+              _chunk.then(createModelResolver(parentChunk, parentObject, key), createModelReject(parentChunk));
 
               return null;
 
             default:
-              throw _chunk2.reason;
+              throw _chunk.reason;
           }
         }
     }
@@ -2789,10 +2902,13 @@ function parseModelString(response, parentObject, key, value) {
   return value;
 }
 
-function createResponse(bundlerConfig) {
+function createResponse(bundlerConfig, formFieldPrefix) {
+  var backingFormData = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : new FormData();
   var chunks = new Map();
   var response = {
     _bundlerConfig: bundlerConfig,
+    _prefix: formFieldPrefix,
+    _formData: backingFormData,
     _chunks: chunks,
     _fromJSON: function (key, value) {
       if (typeof value === 'string') {
@@ -2805,25 +2921,89 @@ function createResponse(bundlerConfig) {
   };
   return response;
 }
-function resolveField(response, id, model) {
-  var chunks = response._chunks;
-  var chunk = chunks.get(id);
-
-  if (!chunk) {
-    chunks.set(id, createResolvedModelChunk(response, model));
-  } else {
-    resolveModelChunk(chunk, model);
-  }
-}
-function resolveFile(response, id, file) {
-  throw new Error('Not implemented.');
-}
 function close(response) {
   // In case there are any remaining unresolved chunks, they won't
   // be resolved now. So we need to issue an error to those.
   // Ideally we should be able to early bail out if we kept a
   // ref count of pending chunks.
   reportGlobalError(response, new Error('Connection closed.'));
+}
+
+function bindArgs(fn, args) {
+  return fn.bind.apply(fn, [null].concat(args));
+}
+
+function loadServerReference(bundlerConfig, id, bound) {
+  var serverReference = resolveServerReference(bundlerConfig, id); // We expect most servers to not really need this because you'd just have all
+  // the relevant modules already loaded but it allows for lazy loading of code
+  // if needed.
+
+  var preloadPromise = preloadModule(serverReference);
+
+  if (bound) {
+    return Promise.all([bound, preloadPromise]).then(function (_ref) {
+      var args = _ref[0];
+      return bindArgs(requireModule(serverReference), args);
+    });
+  } else if (preloadPromise) {
+    return Promise.resolve(preloadPromise).then(function () {
+      return requireModule(serverReference);
+    });
+  } else {
+    // Synchronously available
+    return Promise.resolve(requireModule(serverReference));
+  }
+}
+
+function decodeAction(body, serverManifest) {
+  // We're going to create a new formData object that holds all the fields except
+  // the implementation details of the action data.
+  var formData = new FormData();
+  var action = null; // $FlowFixMe[prop-missing]
+
+  body.forEach(function (value, key) {
+    if (!key.startsWith('$ACTION_')) {
+      formData.append(key, value);
+      return;
+    } // Later actions may override earlier actions if a button is used to override the default
+    // form action.
+
+
+    if (key.startsWith('$ACTION_REF_')) {
+      var formFieldPrefix = '$ACTION_' + key.slice(12) + ':'; // The data for this reference is encoded in multiple fields under this prefix.
+
+      var actionResponse = createResponse(serverManifest, formFieldPrefix, body);
+      close(actionResponse);
+      var refPromise = getRoot(actionResponse); // Force it to initialize
+      // $FlowFixMe
+
+      refPromise.then(function () {});
+
+      if (refPromise.status !== 'fulfilled') {
+        // $FlowFixMe
+        throw refPromise.reason;
+      }
+
+      var metaData = refPromise.value;
+      action = loadServerReference(serverManifest, metaData.id, metaData.bound);
+      return;
+    }
+
+    if (key.startsWith('$ACTION_ID_')) {
+      var id = key.slice(11);
+      action = loadServerReference(serverManifest, id, null);
+      return;
+    }
+  });
+
+  if (action === null) {
+    return null;
+  } // Return the action with the remaining FormData bound to the first argument.
+
+
+  return action.then(function (fn) {
+    return fn.bind(null, formData);
+  });
 }
 
 function renderToReadableStream(model, webpackMap, options) {
@@ -2861,27 +3041,18 @@ function renderToReadableStream(model, webpackMap, options) {
 }
 
 function decodeReply(body, webpackMap) {
-  var response = createResponse(webpackMap);
-
   if (typeof body === 'string') {
-    resolveField(response, 0, body);
-  } else {
-    // $FlowFixMe[prop-missing] Flow doesn't know that forEach exists.
-    body.forEach(function (value, key) {
-      var id = +key;
-
-      if (typeof value === 'string') {
-        resolveField(response, id, value);
-      } else {
-        resolveFile();
-      }
-    });
+    var form = new FormData();
+    form.append('0', body);
+    body = form;
   }
 
+  var response = createResponse(webpackMap, '', body);
   close(response);
   return getRoot(response);
 }
 
+exports.decodeAction = decodeAction;
 exports.decodeReply = decodeReply;
 exports.renderToReadableStream = renderToReadableStream;
   })();

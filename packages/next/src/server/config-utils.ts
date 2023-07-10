@@ -11,7 +11,7 @@ export function loadWebpackHook() {
 
   // hook the Node.js require so that webpack requires are
   // routed to the bundled and now initialized webpack version
-  require('../build/webpack/require-hook').loadRequireHook(
+  require('../server/require-hook').addHookAliases(
     [
       ['webpack', 'next/dist/compiled/webpack/webpack-lib'],
       ['webpack/package', 'next/dist/compiled/webpack/package'],

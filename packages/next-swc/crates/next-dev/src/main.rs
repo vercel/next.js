@@ -6,7 +6,8 @@ use anyhow::Result;
 use clap::Parser;
 
 #[global_allocator]
-static ALLOC: turbo_binding::turbo::malloc::TurboMalloc = turbo_binding::turbo::malloc::TurboMalloc;
+static ALLOC: turbopack_binding::turbo::malloc::TurboMalloc =
+    turbopack_binding::turbo::malloc::TurboMalloc;
 
 #[cfg(not(feature = "cli"))]
 fn main() -> Result<()> {
@@ -15,7 +16,7 @@ fn main() -> Result<()> {
 
 #[cfg(feature = "cli")]
 fn main() {
-    use turbo_binding::turbo::malloc::TurboMalloc;
+    use turbopack_binding::turbo::malloc::TurboMalloc;
 
     tokio::runtime::Builder::new_multi_thread()
         .enable_all()

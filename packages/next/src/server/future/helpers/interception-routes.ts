@@ -1,7 +1,12 @@
 import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
 
 // order matters here, the first match will be used
-export const INTERCEPTION_ROUTE_MARKERS = ['(..)(..)', '(..)', '(...)'] as const
+export const INTERCEPTION_ROUTE_MARKERS = [
+  '(..)(..)',
+  '(.)',
+  '(..)',
+  '(...)',
+] as const
 
 export function isInterceptionRouteAppPath(path: string): boolean {
   // TODO-APP: add more serious validation
@@ -16,7 +21,7 @@ export function isInterceptionRouteAppPath(path: string): boolean {
 
 export function extractInterceptionRouteInformation(path: string) {
   let interceptingRoute: string | undefined,
-    marker: typeof INTERCEPTION_ROUTE_MARKERS[number] | undefined,
+    marker: (typeof INTERCEPTION_ROUTE_MARKERS)[number] | undefined,
     interceptedRoute: string | undefined
 
   for (const segment of path.split('/')) {
@@ -33,31 +38,52 @@ export function extractInterceptionRouteInformation(path: string) {
     )
   }
 
-  interceptingRoute = interceptingRoute.slice(0, -1) // remove the trailing slash
   interceptingRoute = normalizeAppPath(interceptingRoute) // normalize the path, e.g. /(blog)/feed -> /feed
 
-  if (marker === '(..)') {
-    // (..) indicates that we should remove the last segment of the intercepting
-    // route to prepend the intercepted route.
-    interceptedRoute =
-      interceptingRoute.split('/').slice(0, -1).join('/') +
-      '/' +
-      interceptedRoute
+  switch (marker) {
+    case '(.)':
+      // (.) indicates that we should match with sibling routes, so we just need to append the intercepted route to the intercepting route
+      if (interceptingRoute === '/') {
+        interceptedRoute = `/${interceptedRoute}`
+      } else {
+        interceptedRoute = interceptingRoute + '/' + interceptedRoute
+      }
+      break
+    case '(..)':
+      // (..) indicates that we should match at one level up, so we need to remove the last segment of the intercepting route
+      if (interceptingRoute === '/') {
+        throw new Error(
+          `Invalid interception route: ${path}. Cannot use (..) marker at the root level, use (.) instead.`
+        )
+      }
+      interceptedRoute = interceptingRoute
+        .split('/')
+        .slice(0, -1)
+        .concat(interceptedRoute)
+        .join('/')
+      break
+    case '(...)':
+      // (...) will match the route segment in the root directory, so we need to use the root directory to prepend the intercepted route
+      interceptedRoute = '/' + interceptedRoute
+      break
+    case '(..)(..)':
+      // (..)(..) indicates that we should match at two levels up, so we need to remove the last two segments of the intercepting route
+
+      const splitInterceptingRoute = interceptingRoute.split('/')
+      if (splitInterceptingRoute.length <= 2) {
+        throw new Error(
+          `Invalid interception route: ${path}. Cannot use (..)(..) marker at the root level or one level up.`
+        )
+      }
+
+      interceptedRoute = splitInterceptingRoute
+        .slice(0, -2)
+        .concat(interceptedRoute)
+        .join('/')
+      break
+    default:
+      throw new Error('Invariant: unexpected marker')
   }
 
-  if (marker === '(...)') {
-    // (...) will match the route segment in the root directory, so we need to
-    // use the root directory to prepend the intercepted route.
-    interceptedRoute = '/' + interceptedRoute
-  }
-
-  if (marker === '(..)(..)') {
-    // (..)(..) indicates that we should remove the last two segments of the
-    // intercepting route to prepend the intercepted route.
-    interceptedRoute =
-      interceptingRoute.split('/').slice(0, -2).join('/') +
-      '/' +
-      interceptedRoute
-  }
   return { interceptingRoute, interceptedRoute }
 }

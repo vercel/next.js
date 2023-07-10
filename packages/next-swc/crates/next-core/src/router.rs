@@ -3,31 +3,34 @@ use futures::StreamExt;
 use indexmap::indexmap;
 use serde::Deserialize;
 use serde_json::json;
-use turbo_binding::{
+use turbo_tasks::{
+    primitives::{JsonValueVc, StringsVc},
+    util::SharedError,
+    CompletionVc, CompletionsVc, Value,
+};
+use turbo_tasks_fs::json::parse_json_with_source_context;
+use turbopack_binding::{
     turbo::{
         tasks_bytes::{Bytes, Stream},
         tasks_fs::{to_sys_path, File, FileSystemPathVc},
     },
     turbopack::{
         core::{
-            asset::AssetVc,
             changed::any_content_changed,
             chunk::ChunkingContext,
             context::{AssetContext, AssetContextVc},
-            environment::{EnvironmentIntention::Middleware, ServerAddrVc},
+            environment::{ServerAddrVc, ServerInfo},
             ident::AssetIdentVc,
             issue::IssueVc,
-            reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
+            module::ModuleVc,
+            reference_type::{EcmaScriptModulesReferenceSubType, InnerAssetsVc, ReferenceType},
             resolve::{find_context_file, FindContextFileResult},
             source_asset::SourceAssetVc,
             virtual_asset::VirtualAssetVc,
         },
         dev::DevChunkingContextVc,
-        ecmascript::{
-            EcmascriptInputTransform, EcmascriptInputTransformsVc, EcmascriptModuleAssetType,
-            EcmascriptModuleAssetVc, InnerAssetsVc, OptionEcmascriptModuleAssetVc,
-        },
         node::{
+            debug::should_debug,
             evaluate::evaluate,
             execution_context::{ExecutionContext, ExecutionContextVc},
             source_map::{trace_stack, StructuredError},
@@ -37,19 +40,14 @@ use turbo_binding::{
         },
     },
 };
-use turbo_tasks::{
-    primitives::{JsonValueVc, StringsVc},
-    util::SharedError,
-    CompletionVc, CompletionsVc, Value,
-};
-use turbo_tasks_fs::json::parse_json_with_source_context;
 
 use crate::{
-    embed_js::{next_asset, next_js_file},
+    embed_js::next_asset,
+    mode::NextMode,
     next_config::NextConfigVc,
     next_edge::{
         context::{get_edge_compile_time_info, get_edge_resolve_options_context},
-        transition::NextEdgeTransition,
+        route_transition::NextEdgeRouteTransition,
     },
     next_import_map::get_next_build_import_map,
     next_server::context::{get_server_module_options_context, ServerContextType},
@@ -88,6 +86,7 @@ pub struct RouterRequest {
     pub pathname: String,
     pub raw_query: String,
     pub raw_headers: Vec<(String, String)>,
+    pub body: Vec<Bytes>,
 }
 
 #[turbo_tasks::value(shared)]
@@ -129,8 +128,8 @@ pub struct MiddlewareResponse {
     pub body: Stream<Result<Bytes, SharedError>>,
 }
 
-#[derive(Debug)]
 #[turbo_tasks::value]
+#[derive(Debug)]
 pub enum RouterResult {
     Rewrite(RewriteResponse),
     Middleware(MiddlewareResponse),
@@ -139,45 +138,20 @@ pub enum RouterResult {
 }
 
 #[turbo_tasks::function]
-async fn get_config(
-    context: AssetContextVc,
-    project_path: FileSystemPathVc,
-    configs: StringsVc,
-) -> Result<OptionEcmascriptModuleAssetVc> {
-    let find_config_result = find_context_file(project_path, configs);
-    let config_asset = match &*find_config_result.await? {
-        FindContextFileResult::Found(config_path, _) => Some(as_es_module_asset(
-            SourceAssetVc::new(*config_path).as_asset(),
-            context,
-        )),
-        FindContextFileResult::NotFound(_) => None,
-    };
-    Ok(OptionEcmascriptModuleAssetVc::cell(config_asset))
-}
-
-fn as_es_module_asset(asset: AssetVc, context: AssetContextVc) -> EcmascriptModuleAssetVc {
-    EcmascriptModuleAssetVc::new(
-        asset,
-        context,
-        Value::new(EcmascriptModuleAssetType::Typescript),
-        EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::TypeScript {
-            use_define_for_class_fields: false,
-        }]),
-        Default::default(),
-        context.compile_time_info(),
-    )
-}
-
-#[turbo_tasks::function]
 async fn next_config_changed(
     context: AssetContextVc,
     project_path: FileSystemPathVc,
 ) -> Result<CompletionVc> {
-    let next_config = get_config(context, project_path, next_configs()).await?;
-    Ok(if let Some(c) = *next_config {
-        any_content_changed(c.into())
-    } else {
-        CompletionVc::immutable()
+    let find_config_result = find_context_file(project_path, next_configs());
+    Ok(match *find_config_result.await? {
+        FindContextFileResult::Found(config_path, _) => {
+            let module = context.process(
+                SourceAssetVc::new(config_path).as_asset(),
+                Value::new(ReferenceType::Internal(InnerAssetsVc::empty())),
+            );
+            any_content_changed(module.into())
+        }
+        FindContextFileResult::NotFound(_) => CompletionVc::immutable(),
     })
 }
 
@@ -187,40 +161,44 @@ async fn config_assets(
     project_path: FileSystemPathVc,
     page_extensions: StringsVc,
 ) -> Result<InnerAssetsVc> {
-    let middleware_config =
-        get_config(context, project_path, middleware_files(page_extensions)).await?;
+    let find_config_result = find_context_file(project_path, middleware_files(page_extensions));
 
     // The router.ts file expects a manifest of chunks for the middleware. If there
     // is no middleware file, then we need to generate a default empty manifest
     // and we cannot process it with the next-edge transition because it
     // requires a real file for some reason.
-    let (manifest, config) = match &*middleware_config {
-        Some(c) => {
-            let manifest = context.with_transition("next-edge").process(
-                c.as_asset(),
+    let (manifest, config) = match *find_config_result.await? {
+        FindContextFileResult::Found(config_path, _) => {
+            let config = context.process(
+                SourceAssetVc::new(config_path).into(),
                 Value::new(ReferenceType::EcmaScriptModules(
                     EcmaScriptModulesReferenceSubType::Undefined,
                 )),
             );
-            let config = parse_config_from_source(c.as_asset());
+            let config = parse_config_from_source(config);
+            let manifest = context.with_transition("next-edge").process(
+                SourceAssetVc::new(config_path).into(),
+                Value::new(ReferenceType::EcmaScriptModules(
+                    EcmaScriptModulesReferenceSubType::Undefined,
+                )),
+            );
             (manifest, config)
         }
-        None => {
-            let manifest = as_es_module_asset(
+        FindContextFileResult::NotFound(_) => {
+            let manifest = context.process(
                 VirtualAssetVc::new(
                     project_path.join("middleware.js"),
                     File::from("export default [];").into(),
                 )
                 .as_asset(),
-                context,
-            )
-            .as_asset();
+                Value::new(ReferenceType::Internal(InnerAssetsVc::empty())),
+            );
             let config = NextSourceConfigVc::default();
             (manifest, config)
         }
     };
 
-    let config_asset = as_es_module_asset(
+    let config_asset = context.process(
         VirtualAssetVc::new(
             project_path.join("middleware_config.js"),
             File::from(format!(
@@ -230,30 +208,21 @@ async fn config_assets(
             .into(),
         )
         .as_asset(),
-        context,
-    )
-    .as_asset();
+        Value::new(ReferenceType::Internal(InnerAssetsVc::empty())),
+    );
 
     Ok(InnerAssetsVc::cell(indexmap! {
-        "MIDDLEWARE_CHUNK_GROUP".to_string() => manifest,
-        "MIDDLEWARE_CONFIG".to_string() => config_asset,
+        "MIDDLEWARE_CHUNK_GROUP".to_string() => manifest.into(),
+        "MIDDLEWARE_CONFIG".to_string() => config_asset.into(),
     }))
 }
 
 #[turbo_tasks::function]
-fn route_executor(context: AssetContextVc, configs: InnerAssetsVc) -> AssetVc {
-    EcmascriptModuleAssetVc::new_with_inner_assets(
+fn route_executor(context: AssetContextVc, configs: InnerAssetsVc) -> ModuleVc {
+    context.process(
         next_asset("entry/router.ts"),
-        context,
-        Value::new(EcmascriptModuleAssetType::Typescript),
-        EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::TypeScript {
-            use_define_for_class_fields: false,
-        }]),
-        Default::default(),
-        context.compile_time_info(),
-        configs,
+        Value::new(ReferenceType::Internal(configs)),
     )
-    .into()
 }
 
 #[turbo_tasks::function]
@@ -264,8 +233,7 @@ fn edge_transition_map(
     next_config: NextConfigVc,
     execution_context: ExecutionContextVc,
 ) -> TransitionsByNameVc {
-    let edge_compile_time_info =
-        get_edge_compile_time_info(project_path, server_addr, Value::new(Middleware));
+    let edge_compile_time_info = get_edge_compile_time_info(project_path, server_addr);
 
     let edge_chunking_context = DevChunkingContextVc::builder(
         project_path,
@@ -274,7 +242,7 @@ fn edge_transition_map(
         output_path.join("edge/assets"),
         edge_compile_time_info.environment(),
     )
-    .reference_chunk_source_maps(false)
+    .reference_chunk_source_maps(should_debug("router"))
     .build();
 
     let edge_resolve_options_context = get_edge_resolve_options_context(
@@ -288,17 +256,18 @@ fn edge_transition_map(
         project_path,
         execution_context,
         Value::new(ServerContextType::Middleware),
+        NextMode::Development,
         next_config,
     );
 
-    let next_edge_transition = NextEdgeTransition {
+    let next_edge_transition = NextEdgeRouteTransition {
         edge_compile_time_info,
         edge_chunking_context,
         edge_module_options_context: Some(server_module_options_context),
         edge_resolve_options_context,
         output_path: output_path.root(),
         base_path: project_path,
-        bootstrap_file: next_js_file("entry/edge-bootstrap.ts"),
+        bootstrap_asset: next_asset("entry/edge-bootstrap.ts"),
         entry_name: "middleware".to_string(),
     }
     .cell()
@@ -364,7 +333,7 @@ async fn route_internal(
     } = *execution_context.await?;
 
     let context = node_evaluate_asset_context(
-        project_path,
+        execution_context,
         Some(get_next_build_import_map()),
         Some(edge_transition_map(
             server_addr,
@@ -387,7 +356,7 @@ async fn route_internal(
     };
     let server_addr = server_addr.await?;
     let result = evaluate(
-        router_asset,
+        router_asset.into(),
         project_path,
         env,
         AssetIdentVc::from_path(project_path),
@@ -397,13 +366,10 @@ async fn route_internal(
         vec![
             JsonValueVc::cell(request),
             JsonValueVc::cell(dir.to_string_lossy().into()),
-            JsonValueVc::cell(json!({
-                "hostname": server_addr.hostname(),
-                "port": server_addr.port(),
-            })),
+            JsonValueVc::cell(serde_json::to_value(ServerInfo::try_from(&*server_addr)?)?),
         ],
         CompletionsVc::all(vec![next_config_changed, routes_changed]),
-        /* debug */ false,
+        should_debug("router"),
     )
     .await?;
 
@@ -461,7 +427,7 @@ async fn route_internal(
             RouterResult::Error(shared_anyhow!(
                 trace_stack(
                     error,
-                    router_asset,
+                    router_asset.into(),
                     chunking_context.output_root(),
                     project_path
                 )

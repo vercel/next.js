@@ -1,5 +1,9 @@
 import { NextResponse } from 'next/server'
 
+// It should be able to import `headers` inside middleware
+import { headers } from 'next/headers'
+console.log(!!headers)
+
 /**
  * @param {import('next/server').NextRequest} request
  */

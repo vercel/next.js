@@ -8,7 +8,7 @@ This example shows in `pages/index.tsx` how to add a title and a couple of meta 
 
 Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/head-elements)
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/head-elements&project-name=head-elements&repository-name=head-elements)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/head-elements&project-name=head-elements&repository-name=head-elements)
 
 ## How to use
 

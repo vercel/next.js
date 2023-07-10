@@ -30,7 +30,7 @@ export function useWebsocket(assetPrefix: string) {
 
 export function useSendMessage(webSocketRef: ReturnType<typeof useWebsocket>) {
   const sendMessage = useCallback(
-    (data) => {
+    (data: string) => {
       const socket = webSocketRef.current
       if (!socket || socket.readyState !== socket.OPEN) {
         return
@@ -50,7 +50,6 @@ export function useWebsocketPing(
 
   useEffect(() => {
     // Taken from on-demand-entries-client.js
-    // TODO-APP: check 404 case
     const interval = setInterval(() => {
       sendMessage(
         JSON.stringify({

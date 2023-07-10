@@ -10,7 +10,7 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 
 Using the Deploy Button below, you'll deploy the Next.js project.
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https%3A%2F%2Fgithub.com%2FdotCMS%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fcms-dotcms&project-name=nextjs-dotcms-blog&repository-name=nextjs-dotcms-blog&demo-title=Next.js+Blog&demo-description=Static+blog+with+multiple+authors+using+Preview+Mode&demo-url=https%3A%2F%2Fnext-blog-dotcms.vercel.app%2F)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FdotCMS%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fcms-dotcms&project-name=nextjs-dotcms-blog&repository-name=nextjs-dotcms-blog&demo-title=Next.js+Blog&demo-description=Static+blog+with+multiple+authors+using+Preview+Mode&demo-url=https%3A%2F%2Fnext-blog-dotcms.vercel.app%2F)
 
 ### Related examples
 
@@ -53,4 +53,4 @@ yarn create next-app --example cms-dotcms cms-dotcms-app
 pnpm create next-app --example cms-dotcms cms-dotcms-app
 ```
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fcms-dotcms&project-name=nextjs-dotcms-blog&repository-name=nextjs-dotcms-blog&demo-title=Next.js+Blog&demo-description=Static+blog+with+multiple+authors+using+Preview+Mode&demo-url=https%3A%2F%2Fnext-blog-dotcms.vercel.app%2F)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fcms-dotcms&project-name=nextjs-dotcms-blog&repository-name=nextjs-dotcms-blog&demo-title=Next.js+Blog&demo-description=Static+blog+with+multiple+authors+using+Preview+Mode&demo-url=https%3A%2F%2Fnext-blog-dotcms.vercel.app%2F)

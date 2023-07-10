@@ -6,10 +6,6 @@ export default function Page() {
       <Link href="/suspensey-css/slow" id="slow">
         Go to /slow
       </Link>
-      <br />
-      <Link href="/suspensey-css/timeout" id="timeout">
-        Go to /timeout
-      </Link>
     </div>
   )
 }

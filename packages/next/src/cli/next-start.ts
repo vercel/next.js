@@ -6,6 +6,9 @@ import { getPort, printAndExit } from '../server/lib/utils'
 import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
 import { CliCommand } from '../lib/commands'
+import { resolve } from 'path'
+import { PHASE_PRODUCTION_SERVER } from '../shared/lib/constants'
+import loadConfig from '../server/config'
 
 const nextStart: CliCommand = async (argv) => {
   const validArgs: arg.Spec = {
@@ -42,16 +45,16 @@ const nextStart: CliCommand = async (argv) => {
       If no directory is provided, the current directory will be used.
 
       Options
-        --port, -p      A port number on which to start the application
-        --hostname, -H  Hostname on which to start the application (default: 0.0.0.0)
+        --port, -p          A port number on which to start the application
+        --hostname, -H      Hostname on which to start the application (default: 0.0.0.0)
         --keepAliveTimeout  Max milliseconds to wait before closing inactive connections
-        --help, -h      Displays this message
+        --help, -h          Displays this message
     `)
     process.exit(0)
   }
 
   const dir = getProjectDir(args._[0])
-  const host = args['--hostname'] || '0.0.0.0'
+  const host = args['--hostname']
   const port = getPort(args)
 
   const keepAliveTimeoutArg: number | undefined = args['--keepAliveTimeout']
@@ -71,13 +74,21 @@ const nextStart: CliCommand = async (argv) => {
     ? Math.ceil(keepAliveTimeoutArg)
     : undefined
 
+  const config = await loadConfig(
+    PHASE_PRODUCTION_SERVER,
+    resolve(dir || '.'),
+    undefined,
+    undefined,
+    true
+  )
+
   await startServer({
     dir,
     isDev: false,
     hostname: host,
     port,
     keepAliveTimeout,
-    useWorkers: false,
+    useWorkers: !!config.experimental.appDir,
   })
 }
 

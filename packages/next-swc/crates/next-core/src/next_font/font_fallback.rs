@@ -1,13 +1,14 @@
 use anyhow::Result;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
-use turbo_binding::turbo::tasks::{
+use turbopack_binding::turbo::tasks::{
     primitives::{StringVc, StringsVc},
     trace::TraceRawVcs,
 };
 
 pub(crate) struct DefaultFallbackFont {
     pub name: String,
+    pub capsize_key: String,
     pub az_avg_width: f64,
     pub units_per_em: u32,
 }
@@ -16,6 +17,7 @@ pub(crate) struct DefaultFallbackFont {
 pub(crate) static DEFAULT_SANS_SERIF_FONT: Lazy<DefaultFallbackFont> =
     Lazy::new(|| DefaultFallbackFont {
         name: "Arial".to_owned(),
+        capsize_key: "arial".to_owned(),
         az_avg_width: 934.5116279069767,
         units_per_em: 2048,
     });
@@ -23,6 +25,7 @@ pub(crate) static DEFAULT_SANS_SERIF_FONT: Lazy<DefaultFallbackFont> =
 pub(crate) static DEFAULT_SERIF_FONT: Lazy<DefaultFallbackFont> =
     Lazy::new(|| DefaultFallbackFont {
         name: "Times New Roman".to_owned(),
+        capsize_key: "timesNewRoman".to_owned(),
         az_avg_width: 854.3953488372093,
         units_per_em: 2048,
     });

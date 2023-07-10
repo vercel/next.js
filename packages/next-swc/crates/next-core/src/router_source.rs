@@ -1,23 +1,25 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
+use futures::{Stream, TryStreamExt};
 use indexmap::IndexSet;
-use turbo_binding::turbopack::{
+use turbo_tasks::{primitives::StringVc, CompletionVc, CompletionsVc, Value};
+use turbopack_binding::turbopack::{
     core::{
         environment::ServerAddrVc,
         introspect::{Introspectable, IntrospectableChildrenVc, IntrospectableVc},
     },
     dev_server::source::{
-        Body, ContentSource, ContentSourceContent, ContentSourceData, ContentSourceDataVary,
-        ContentSourceResultVc, ContentSourceVc, HeaderListVc, NeededData, ProxyResult,
-        RewriteBuilder,
+        route_tree::{RouteTreeVc, RouteType},
+        Body, ContentSource, ContentSourceContent, ContentSourceContentVc, ContentSourceData,
+        ContentSourceDataVary, ContentSourceDataVaryVc, ContentSourceVc, GetContentSourceContent,
+        GetContentSourceContentVc, HeaderListVc, ProxyResult, RewriteBuilder,
     },
     node::execution_context::ExecutionContextVc,
 };
-use turbo_tasks::{primitives::StringVc, CompletionVc, CompletionsVc, Value};
 
 use crate::{
     app_structure::OptionAppDirVc,
     next_config::NextConfigVc,
-    pages_structure::OptionPagesStructureVc,
+    pages_structure::PagesStructureVc,
     router::{route, RouterRequest, RouterResult},
 };
 
@@ -29,7 +31,7 @@ pub struct NextRouterContentSource {
     next_config: NextConfigVc,
     server_addr: ServerAddrVc,
     app_dir: OptionAppDirVc,
-    pages_structure: OptionPagesStructureVc,
+    pages_structure: PagesStructureVc,
 }
 
 #[turbo_tasks::value_impl]
@@ -41,7 +43,7 @@ impl NextRouterContentSourceVc {
         next_config: NextConfigVc,
         server_addr: ServerAddrVc,
         app_dir: OptionAppDirVc,
-        pages_structure: OptionPagesStructureVc,
+        pages_structure: PagesStructureVc,
     ) -> NextRouterContentSourceVc {
         NextRouterContentSource {
             inner,
@@ -56,26 +58,9 @@ impl NextRouterContentSourceVc {
 }
 
 #[turbo_tasks::function]
-fn need_data(source: ContentSourceVc, path: &str) -> ContentSourceResultVc {
-    ContentSourceResultVc::need_data(
-        NeededData {
-            source,
-            path: path.to_string(),
-            vary: ContentSourceDataVary {
-                method: true,
-                raw_headers: true,
-                raw_query: true,
-                ..Default::default()
-            },
-        }
-        .into(),
-    )
-}
-
-#[turbo_tasks::function]
 fn routes_changed(
     app_dir: OptionAppDirVc,
-    pages_structure: OptionPagesStructureVc,
+    pages_structure: PagesStructureVc,
     next_config: NextConfigVc,
 ) -> CompletionVc {
     CompletionsVc::all(vec![
@@ -87,36 +72,73 @@ fn routes_changed(
 #[turbo_tasks::value_impl]
 impl ContentSource for NextRouterContentSource {
     #[turbo_tasks::function]
+    async fn get_routes(self_vc: NextRouterContentSourceVc) -> Result<RouteTreeVc> {
+        let this = self_vc.await?;
+        // The next-dev server can currently run against projects as simple as
+        // `index.js`. If this isn't a Next.js project, don't try to use the Next.js
+        // router.
+        if this.app_dir.await?.is_none() && this.pages_structure.await?.pages.is_none() {
+            return Ok(this.inner.get_routes());
+        }
+
+        // Prefetch get_routes from inner
+        let _ = this.inner.get_routes();
+
+        Ok(RouteTreeVc::new_route(
+            Vec::new(),
+            RouteType::CatchAll,
+            self_vc.into(),
+        ))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl GetContentSourceContent for NextRouterContentSource {
+    #[turbo_tasks::function]
+    fn vary(&self) -> ContentSourceDataVaryVc {
+        ContentSourceDataVary {
+            method: true,
+            raw_headers: true,
+            raw_query: true,
+            body: true,
+            ..Default::default()
+        }
+        .cell()
+    }
+
+    #[turbo_tasks::function]
     async fn get(
         self_vc: NextRouterContentSourceVc,
         path: &str,
         data: Value<ContentSourceData>,
-    ) -> Result<ContentSourceResultVc> {
+    ) -> Result<ContentSourceContentVc> {
         let this = self_vc.await?;
-
-        // The next-dev server can currently run against projects as simple as
-        // `index.js`. If this isn't a Next.js project, don't try to use the Next.js
-        // router.
-        if this.app_dir.await?.is_none() && this.pages_structure.await?.is_none() {
-            return Ok(this
-                .inner
-                .get(path, Value::new(ContentSourceData::default())));
-        }
 
         let ContentSourceData {
             method: Some(method),
             raw_headers: Some(raw_headers),
             raw_query: Some(raw_query),
+            body: Some(body),
             ..
-        } = &*data else {
-            return Ok(need_data(self_vc.into(), path))
+        } = &*data
+        else {
+            bail!("missing data for router");
         };
+
+        // TODO: change router so we can stream the request body to it
+        let mut body_stream = body.await?.read();
+
+        let mut body = Vec::with_capacity(body_stream.size_hint().0);
+        while let Some(data) = body_stream.try_next().await? {
+            body.push(data);
+        }
 
         let request = RouterRequest {
             pathname: format!("/{path}"),
             method: method.clone(),
             raw_headers: raw_headers.clone(),
             raw_query: raw_query.clone(),
+            body,
         }
         .cell();
 
@@ -139,30 +161,28 @@ impl ContentSource for NextRouterContentSource {
                     formated_query(raw_query)
                 )))
             }
-            RouterResult::None => this
-                .inner
-                .get(path, Value::new(ContentSourceData::default())),
+            RouterResult::None => {
+                let rewrite =
+                    RewriteBuilder::new_source_with_path_and_query(this.inner, format!("/{path}"));
+                ContentSourceContent::Rewrite(rewrite.build()).cell()
+            }
             RouterResult::Rewrite(data) => {
-                let mut rewrite = RewriteBuilder::new(data.url.clone()).content_source(this.inner);
+                let mut rewrite =
+                    RewriteBuilder::new_source_with_path_and_query(this.inner, data.url.clone());
                 if !data.headers.is_empty() {
                     rewrite = rewrite.response_headers(HeaderListVc::new(data.headers.clone()));
                 }
-                ContentSourceResultVc::exact(
-                    ContentSourceContent::Rewrite(rewrite.build()).cell().into(),
-                )
+                ContentSourceContent::Rewrite(rewrite.build()).cell()
             }
-            RouterResult::Middleware(data) => ContentSourceResultVc::exact(
-                ContentSourceContent::HttpProxy(
-                    ProxyResult {
-                        status: data.status_code,
-                        headers: data.headers.clone(),
-                        body: Body::from_stream(data.body.read()),
-                    }
-                    .cell(),
-                )
-                .cell()
-                .into(),
-            ),
+            RouterResult::Middleware(data) => ContentSourceContent::HttpProxy(
+                ProxyResult {
+                    status: data.status_code,
+                    headers: data.headers.clone(),
+                    body: Body::from_stream(data.body.read()),
+                }
+                .cell(),
+            )
+            .cell(),
         })
     }
 }

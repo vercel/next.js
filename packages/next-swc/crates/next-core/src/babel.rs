@@ -1,21 +1,22 @@
 use anyhow::Result;
-use turbo_binding::{
+use turbo_tasks::{
+    primitives::{BoolVc, StringVc},
+    Value,
+};
+use turbopack_binding::{
     turbo::tasks_fs::{FileSystemEntryType, FileSystemPathVc},
     turbopack::{
         core::{
             issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc},
             resolve::{parse::RequestVc, pattern::Pattern, resolve},
         },
-        node::transforms::webpack::{WebpackLoaderConfigItem, WebpackLoaderConfigItemsVc},
+        node::transforms::webpack::{WebpackLoaderItem, WebpackLoaderItemsVc},
         turbopack::{
-            module_options::WebpackLoadersOptionsVc, resolve_options,
+            module_options::{LoaderRuleItem, OptionWebpackRulesVc, WebpackRulesVc},
+            resolve_options,
             resolve_options_context::ResolveOptionsContext,
         },
     },
-};
-use turbo_tasks::{
-    primitives::{BoolVc, StringVc},
-    Value,
 };
 
 const BABEL_CONFIG_FILES: &[&str] = &[
@@ -36,8 +37,8 @@ const BABEL_CONFIG_FILES: &[&str] = &[
 #[turbo_tasks::function]
 pub async fn maybe_add_babel_loader(
     project_root: FileSystemPathVc,
-    webpack_options: WebpackLoadersOptionsVc,
-) -> Result<WebpackLoadersOptionsVc> {
+    webpack_rules: Option<WebpackRulesVc>,
+) -> Result<OptionWebpackRulesVc> {
     let has_babel_config = {
         let mut has_babel_config = false;
         for filename in BABEL_CONFIG_FILES {
@@ -51,30 +52,22 @@ pub async fn maybe_add_babel_loader(
     };
 
     if has_babel_config {
-        let mut options = (*webpack_options.await?).clone();
+        let mut rules = if let Some(webpack_rules) = webpack_rules {
+            webpack_rules.await?.clone_value()
+        } else {
+            Default::default()
+        };
         let mut has_emitted_babel_resolve_issue = false;
-        for ext in [".js", ".jsx", ".ts", ".tsx", ".cjs", ".mjs"] {
-            let configs = options.extension_to_loaders.get(ext);
-            let has_babel_loader = match configs {
-                None => false,
-                Some(configs) => {
-                    let mut has_babel_loader = false;
-                    for config in &*configs.await? {
-                        let name = match config {
-                            WebpackLoaderConfigItem::LoaderName(name) => name,
-                            WebpackLoaderConfigItem::LoaderNameWithOptions {
-                                loader: name,
-                                options: _,
-                            } => name,
-                        };
-
-                        if name == "babel-loader" {
-                            has_babel_loader = true;
-                            break;
-                        }
-                    }
-                    has_babel_loader
-                }
+        let mut has_changed = false;
+        for pattern in ["*.js", "*.jsx", "*.ts", "*.tsx", "*.cjs", "*.mjs"] {
+            let rule = rules.get_mut(pattern);
+            let has_babel_loader = if let Some(rule) = rule.as_ref() {
+                rule.loaders
+                    .await?
+                    .iter()
+                    .any(|c| c.loader == "babel-loader")
+            } else {
+                false
             };
 
             if !has_babel_loader {
@@ -100,24 +93,34 @@ pub async fn maybe_add_babel_loader(
                     has_emitted_babel_resolve_issue = true;
                 }
 
-                let loader = WebpackLoaderConfigItem::LoaderName("babel-loader".to_owned());
-                options.extension_to_loaders.insert(
-                    ext.to_owned(),
-                    if options.extension_to_loaders.contains_key(ext) {
-                        let mut new_configs = (*(options.extension_to_loaders[ext].await?)).clone();
-                        new_configs.push(loader);
-                        WebpackLoaderConfigItemsVc::cell(new_configs)
-                    } else {
-                        WebpackLoaderConfigItemsVc::cell(vec![loader])
-                    },
-                );
+                let loader = WebpackLoaderItem {
+                    loader: "babel-loader".to_string(),
+                    options: Default::default(),
+                };
+                if let Some(rule) = rule {
+                    let mut loaders = rule.loaders.await?.clone_value();
+                    loaders.push(loader);
+                    rule.loaders = WebpackLoaderItemsVc::cell(loaders);
+                } else {
+                    rules.insert(
+                        pattern.to_string(),
+                        LoaderRuleItem {
+                            loaders: WebpackLoaderItemsVc::cell(vec![loader]),
+                            rename_as: Some("*".to_string()),
+                        },
+                    );
+                }
+                has_changed = true;
             }
         }
 
-        Ok(options.cell())
-    } else {
-        Ok(webpack_options)
+        if has_changed {
+            return Ok(OptionWebpackRulesVc::cell(Some(WebpackRulesVc::cell(
+                rules,
+            ))));
+        }
     }
+    Ok(OptionWebpackRulesVc::cell(webpack_rules))
 }
 
 #[turbo_tasks::function]

@@ -1,5 +1,5 @@
 use anyhow::{bail, Result};
-use turbo_binding::turbopack::{
+use turbopack_binding::turbopack::{
     core::{
         issue::{IssueSeverity, OptionIssueSourceVc},
         resolve::{origin::ResolveOriginVc, parse::RequestVc},
@@ -31,7 +31,7 @@ pub async fn resolve_runtime_request(
             bail!("turbopack runtime asset is not placeable")
         }
     } else {
-        // The @vercel/turbopack-dev-runtime module is not installed.
+        // The @vercel/turbopack-dev module is not installed.
         bail!("could not resolve the `{}` module", runtime_request_path)
     }
 }

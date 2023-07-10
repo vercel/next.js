@@ -38,7 +38,11 @@ import {
   CacheStates,
 } from '../../../../shared/lib/app-router-context'
 import { createInitialRouterState } from '../create-initial-router-state'
-import { PrefetchAction, ACTION_PREFETCH } from '../router-reducer-types'
+import {
+  PrefetchAction,
+  ACTION_PREFETCH,
+  PrefetchKind,
+} from '../router-reducer-types'
 import { prefetchReducer } from './prefetch-reducer'
 import { fetchServerResponse } from '../fetch-server-response'
 import { createRecordFromThenable } from '../create-record-from-thenable'
@@ -114,6 +118,7 @@ describe('prefetchReducer', () => {
     ])
 
     const state = createInitialRouterState({
+      buildId: 'development',
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
@@ -128,11 +133,12 @@ describe('prefetchReducer', () => {
       url,
       initialTree,
       null,
-      true
+      PrefetchKind.AUTO
     )
     const action: PrefetchAction = {
       type: ACTION_PREFETCH,
       url,
+      kind: PrefetchKind.AUTO,
     }
 
     const newState = await runPromiseThrowChain(() =>
@@ -144,11 +150,15 @@ describe('prefetchReducer', () => {
     await prom
 
     const expectedState: ReturnType<typeof prefetchReducer> = {
+      buildId: 'development',
       prefetchCache: new Map([
         [
           '/linking/about',
           {
             data: record,
+            kind: PrefetchKind.AUTO,
+            lastUsedTime: null,
+            prefetchTime: expect.any(Number),
             treeAtTimeOfPrefetch: [
               '',
               {
@@ -173,6 +183,7 @@ describe('prefetchReducer', () => {
       focusAndScrollRef: {
         apply: false,
         hashFragment: null,
+        segmentPaths: [],
       },
       canonicalUrl: '/linking',
       cache: {
@@ -248,6 +259,7 @@ describe('prefetchReducer', () => {
     ])
 
     const state = createInitialRouterState({
+      buildId: 'development',
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
@@ -258,6 +270,7 @@ describe('prefetchReducer', () => {
     })
 
     const state2 = createInitialRouterState({
+      buildId: 'development',
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
@@ -272,11 +285,13 @@ describe('prefetchReducer', () => {
       url,
       initialTree,
       null,
-      true
+      state.buildId,
+      PrefetchKind.AUTO
     )
     const action: PrefetchAction = {
       type: ACTION_PREFETCH,
       url,
+      kind: PrefetchKind.AUTO,
     }
 
     await runPromiseThrowChain(() => prefetchReducer(state, action))
@@ -290,11 +305,15 @@ describe('prefetchReducer', () => {
     await prom
 
     const expectedState: ReturnType<typeof prefetchReducer> = {
+      buildId: 'development',
       prefetchCache: new Map([
         [
           '/linking/about',
           {
             data: record,
+            prefetchTime: expect.any(Number),
+            kind: PrefetchKind.AUTO,
+            lastUsedTime: null,
             treeAtTimeOfPrefetch: [
               '',
               {
@@ -319,6 +338,7 @@ describe('prefetchReducer', () => {
       focusAndScrollRef: {
         apply: false,
         hashFragment: null,
+        segmentPaths: [],
       },
       canonicalUrl: '/linking',
       cache: {

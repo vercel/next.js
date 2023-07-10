@@ -1,12 +1,14 @@
 use anyhow::{Context, Result};
-use turbo_binding::turbopack::{
+use turbo_tasks::{primitives::StringVc, Value};
+use turbopack_binding::turbopack::{
     core::{
         asset::{Asset, AssetContentVc, AssetVc},
         chunk::{
-            availability_info::AvailabilityInfo, ChunkVc, ChunkableAsset, ChunkableAssetVc,
+            availability_info::AvailabilityInfo, ChunkVc, ChunkableModule, ChunkableModuleVc,
             ChunkingContext, ChunkingContextVc,
         },
         ident::AssetIdentVc,
+        module::{Module, ModuleVc},
         reference::AssetReferencesVc,
     },
     ecmascript::chunk::EcmascriptChunkingContextVc,
@@ -15,7 +17,6 @@ use turbo_binding::turbopack::{
         EcmascriptChunkVc, EcmascriptExportsVc,
     },
 };
-use turbo_tasks::{primitives::StringVc, Value};
 
 #[turbo_tasks::function]
 fn modifier() -> StringVc {
@@ -47,7 +48,10 @@ impl Asset for WithChunkingContextScopeAsset {
 }
 
 #[turbo_tasks::value_impl]
-impl ChunkableAsset for WithChunkingContextScopeAsset {
+impl Module for WithChunkingContextScopeAsset {}
+
+#[turbo_tasks::value_impl]
+impl ChunkableModule for WithChunkingContextScopeAsset {
     #[turbo_tasks::function]
     fn as_chunk(
         &self,

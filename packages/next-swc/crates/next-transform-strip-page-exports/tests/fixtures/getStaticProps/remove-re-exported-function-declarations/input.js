@@ -1,9 +1,9 @@
 function getStaticPaths() {
-  return [];
+  return []
 }
 
-export { getStaticPaths };
+export { getStaticPaths }
 
 export default function Test() {
-  return <div />;
+  return <div />
 }

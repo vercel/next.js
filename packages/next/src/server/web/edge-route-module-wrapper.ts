@@ -3,9 +3,9 @@ import type { RouteDefinition } from '../future/route-definitions/route-definiti
 import type { RouteModule } from '../future/route-modules/route-module'
 import type { NextRequest } from './spec-extension/request'
 
-import { adapter, enhanceGlobals, type AdapterOptions } from './adapter'
-
-enhanceGlobals()
+import './globals'
+import { adapter, type AdapterOptions } from './adapter'
+import { IncrementalCache } from '../lib/incremental-cache'
 
 import { removeTrailingSlash } from '../../shared/lib/router/utils/remove-trailing-slash'
 import { RouteMatcher } from '../future/route-matchers/route-matcher'
@@ -54,6 +54,7 @@ export class EdgeRouteModuleWrapper {
       return adapter({
         ...opts,
         ...options,
+        IncrementalCache,
         // Bind the handler method to the wrapper so it still has context.
         handler: wrapper.handler.bind(wrapper),
       })
@@ -61,10 +62,6 @@ export class EdgeRouteModuleWrapper {
   }
 
   private async handler(request: NextRequest): Promise<Response> {
-    // Setup the handler if it hasn't been setup yet. It is the responsibility
-    // of the module to ensure that this is only called once.
-    this.routeModule.setup()
-
     // Get the pathname for the matcher. Pathnames should not have trailing
     // slashes for matching.
     const pathname = removeTrailingSlash(new URL(request.url).pathname)
@@ -81,6 +78,17 @@ export class EdgeRouteModuleWrapper {
     // match (if any).
     const context: RouteHandlerManagerContext = {
       params: match.params,
+      prerenderManifest: {
+        version: 4,
+        routes: {},
+        dynamicRoutes: {},
+        preview: {
+          previewModeEncryptionKey: '',
+          previewModeId: '',
+          previewModeSigningKey: '',
+        },
+        notFoundRoutes: [],
+      },
       staticGenerationContext: {
         supportsDynamicHTML: true,
       },

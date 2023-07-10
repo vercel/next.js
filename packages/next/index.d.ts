@@ -2,6 +2,7 @@
 /// <reference path="./dist/styled-jsx/types/global.d.ts" />
 /// <reference path="./amp.d.ts" />
 /// <reference path="./app.d.ts" />
+/// <reference path="./cache.d.ts" />
 /// <reference path="./config.d.ts" />
 /// <reference path="./document.d.ts" />
 /// <reference path="./dynamic.d.ts" />

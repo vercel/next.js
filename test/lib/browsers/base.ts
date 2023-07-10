@@ -6,22 +6,29 @@ export type Event = 'request'
  * methods we aim to support across tests
  *
  * They will always await last executed command.
- * The interface is mutable - it doesn't have to be in sequece.
+ * The interface is mutable - it doesn't have to be in sequence.
  *
  * You can manually await this interface to wait for completion of the last scheduled command.
  */
-export class BrowserInterface implements PromiseLike<any> {
-  private promise: any
-  then: PromiseLike<any>['then']
-  private catch: any
+export abstract class BrowserInterface implements PromiseLike<any> {
+  private promise?: Promise<any>
+  then: Promise<any>['then']
+  catch: Promise<any>['catch']
+  finally: Promise<any>['finally'];
 
-  protected chain(nextCall: any): BrowserInterface {
+  // necessary for the type of the function below
+  readonly [Symbol.toStringTag]: string = 'BrowserInterface'
+
+  protected chain<T>(
+    nextCall: (current: any) => T | PromiseLike<T>
+  ): BrowserInterface & Promise<T> {
     if (!this.promise) {
       this.promise = Promise.resolve(this)
     }
     this.promise = this.promise.then(nextCall)
     this.then = (...args) => this.promise.then(...args)
     this.catch = (...args) => this.promise.catch(...args)
+    this.finally = (...args) => this.promise.finally(...args)
     return this
   }
 
@@ -43,7 +50,11 @@ export class BrowserInterface implements PromiseLike<any> {
     })
   }
 
-  async setup(browserName: string, locale?: string): Promise<void> {}
+  async setup(
+    browserName: string,
+    locale: string,
+    javaScriptEnabled: boolean
+  ): Promise<void> {}
   async close(): Promise<void> {}
   async quit(): Promise<void> {}
 
@@ -122,10 +133,13 @@ export class BrowserInterface implements PromiseLike<any> {
   async getAttribute<T = any>(name: string): Promise<T> {
     return
   }
-  async eval<T = any>(snippet: string | Function): Promise<T> {
+  async eval<T = any>(snippet: string | Function, ...args: any[]): Promise<T> {
     return
   }
-  async evalAsync<T = any>(snippet: string | Function): Promise<T> {
+  async evalAsync<T = any>(
+    snippet: string | Function,
+    ...args: any[]
+  ): Promise<T> {
     return
   }
   async text(): Promise<string> {
@@ -148,4 +162,6 @@ export class BrowserInterface implements PromiseLike<any> {
   async url(): Promise<string> {
     return ''
   }
+
+  async waitForIdleNetwork(): Promise<void> {}
 }

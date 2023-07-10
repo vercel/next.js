@@ -63,22 +63,24 @@ export async function sendRenderResult({
     res.setHeader('X-Powered-By', 'Next.js')
   }
 
-  const payload = result.isDynamic() ? null : await result.toUnchunkedString()
+  if (options != null) {
+    setRevalidateHeaders(res, options)
+  }
 
-  if (payload) {
+  const payload = result.isDynamic ? null : await result.toUnchunkedString()
+
+  if (payload !== null) {
     const etag = generateEtags ? generateETag(payload) : undefined
     if (sendEtagResponse(req, res, etag)) {
       return
     }
   }
 
-  const resultContentType = result.contentType()
-
   if (!res.getHeader('Content-Type')) {
     res.setHeader(
       'Content-Type',
-      resultContentType
-        ? resultContentType
+      result.contentType
+        ? result.contentType
         : type === 'rsc'
         ? RSC_CONTENT_TYPE_HEADER
         : type === 'json'
@@ -91,13 +93,9 @@ export async function sendRenderResult({
     res.setHeader('Content-Length', Buffer.byteLength(payload))
   }
 
-  if (options != null) {
-    setRevalidateHeaders(res, options)
-  }
-
   if (req.method === 'HEAD') {
     res.end(null)
-  } else if (payload) {
+  } else if (payload !== null) {
     res.end(payload)
   } else {
     await result.pipe(res)

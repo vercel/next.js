@@ -3,6 +3,8 @@ import type { FlightRouterState } from '../../../server/app-render/types'
 import { CacheNode, CacheStates } from '../../../shared/lib/app-router-context'
 import { createInitialRouterState } from './create-initial-router-state'
 
+const buildId = 'development'
+
 const getInitialRouterStateTree = (): FlightRouterState => [
   '',
   {
@@ -31,6 +33,7 @@ describe('createInitialRouterState', () => {
     const initialParallelRoutes: CacheNode['parallelRoutes'] = new Map()
 
     const state = createInitialRouterState({
+      buildId,
       initialTree,
       initialCanonicalUrl,
       children,
@@ -41,6 +44,7 @@ describe('createInitialRouterState', () => {
     })
 
     const state2 = createInitialRouterState({
+      buildId,
       initialTree,
       initialCanonicalUrl,
       children,
@@ -89,11 +93,12 @@ describe('createInitialRouterState', () => {
     }
 
     const expected: ReturnType<typeof createInitialRouterState> = {
+      buildId,
       tree: initialTree,
       canonicalUrl: initialCanonicalUrl,
       prefetchCache: new Map(),
       pushRef: { pendingPush: false, mpaNavigation: false },
-      focusAndScrollRef: { apply: false, hashFragment: null },
+      focusAndScrollRef: { apply: false, hashFragment: null, segmentPaths: [] },
       cache: expectedCache,
       nextUrl: '/linking',
     }

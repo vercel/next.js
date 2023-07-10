@@ -1,2 +1,2 @@
 function funfun() {}
-(function funfunfun() {});
+;(function funfunfun() {})

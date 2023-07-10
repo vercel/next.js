@@ -1,2 +1,2 @@
 export var __N_SSG = true;
-export { default } from "a";
+export { default } from 'a';

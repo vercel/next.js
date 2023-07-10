@@ -23,6 +23,15 @@ const Page = () => {
         crossOrigin="anonymous"
       ></Image>
       <Image
+        priority
+        id="basic-image-referrerpolicy"
+        alt="basic-image-referrerpolicy"
+        src="/test.png"
+        width="400"
+        height="400"
+        referrerPolicy="no-referrer"
+      ></Image>
+      <Image
         loading="eager"
         id="load-eager"
         alt="load-eager"

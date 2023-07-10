@@ -1,7 +1,14 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import React, { useEffect, useMemo, useCallback } from 'react'
+import React, {
+  use,
+  useEffect,
+  useMemo,
+  useCallback,
+  startTransition,
+  useInsertionEffect,
+} from 'react'
 import {
   AppRouterContext,
   LayoutRouterContext,
@@ -24,14 +31,18 @@ import {
   ACTION_PREFETCH,
   ACTION_REFRESH,
   ACTION_RESTORE,
+  ACTION_SERVER_ACTION,
   ACTION_SERVER_PATCH,
+  PrefetchKind,
+  ReducerActions,
+  RouterChangeByServerResponse,
+  RouterNavigate,
+  ServerActionDispatcher,
 } from './router-reducer/router-reducer-types'
 import { createHrefFromUrl } from './router-reducer/create-href-from-url'
 import {
   SearchParamsContext,
-  // ParamsContext,
   PathnameContext,
-  // LayoutSegmentsContext,
 } from '../../shared/lib/hooks-client-context'
 import { useReducerWithReduxDevtools } from './use-reducer-with-devtools'
 import { ErrorBoundary } from './error-boundary'
@@ -45,6 +56,8 @@ import { AppRouterAnnouncer } from './app-router-announcer'
 import { RedirectBoundary } from './redirect-boundary'
 import { NotFoundBoundary } from './not-found-boundary'
 import { findHeadInCache } from './router-reducer/reducers/find-head-in-cache'
+import { createInfinitePromise } from './infinite-promise'
+import { NEXT_RSC_UNION_QUERY } from './app-router-headers'
 
 const isServer = typeof window === 'undefined'
 
@@ -53,9 +66,28 @@ let initialParallelRoutes: CacheNode['parallelRoutes'] = isServer
   ? null!
   : new Map()
 
+let globalServerActionDispatcher = null as ServerActionDispatcher | null
+
+export function getServerActionDispatcher() {
+  return globalServerActionDispatcher
+}
+
 export function urlToUrlWithoutFlightMarker(url: string): URL {
   const urlWithoutFlightParameters = new URL(url, location.origin)
-  // TODO-APP: handle .rsc for static export case
+  urlWithoutFlightParameters.searchParams.delete(NEXT_RSC_UNION_QUERY)
+  if (process.env.NODE_ENV === 'production') {
+    if (process.env.__NEXT_CONFIG_OUTPUT === 'export') {
+      if (urlWithoutFlightParameters.pathname.endsWith('/index.txt')) {
+        // Slice off `/index.txt` from the end of the pathname
+        urlWithoutFlightParameters.pathname =
+          urlWithoutFlightParameters.pathname.slice(0, -`/index.txt`.length)
+      } else {
+        // Slice off `.txt` from the end of the pathname
+        urlWithoutFlightParameters.pathname =
+          urlWithoutFlightParameters.pathname.slice(0, -`.txt`.length)
+      }
+    }
+  }
   return urlWithoutFlightParameters
 }
 
@@ -71,6 +103,7 @@ type AppRouterProps = Omit<
   Omit<InitialRouterStateParameters, 'isServer' | 'location'>,
   'initialParallelRoutes'
 > & {
+  buildId: string
   initialHead: ReactNode
   assetPrefix: string
   // Top level boundaries props
@@ -83,10 +116,112 @@ function isExternalURL(url: URL) {
   return url.origin !== window.location.origin
 }
 
+function HistoryUpdater({ tree, pushRef, canonicalUrl, sync }: any) {
+  useInsertionEffect(() => {
+    // Identifier is shortened intentionally.
+    // __NA is used to identify if the history entry can be handled by the app-router.
+    // __N is used to identify if the history entry can be handled by the old router.
+    const historyState = {
+      __NA: true,
+      tree,
+    }
+    if (
+      pushRef.pendingPush &&
+      createHrefFromUrl(new URL(window.location.href)) !== canonicalUrl
+    ) {
+      // This intentionally mutates React state, pushRef is overwritten to ensure additional push/replace calls do not trigger an additional history entry.
+      pushRef.pendingPush = false
+      window.history.pushState(historyState, '', canonicalUrl)
+    } else {
+      window.history.replaceState(historyState, '', canonicalUrl)
+    }
+    sync()
+  }, [tree, pushRef, canonicalUrl, sync])
+  return null
+}
+
+const createEmptyCacheNode = () => ({
+  status: CacheStates.LAZY_INITIALIZED,
+  data: null,
+  subTreeData: null,
+  parallelRoutes: new Map(),
+})
+
+function useServerActionDispatcher(
+  changeByServerResponse: RouterChangeByServerResponse,
+  dispatch: React.Dispatch<ReducerActions>,
+  navigate: RouterNavigate
+) {
+  const serverActionDispatcher: ServerActionDispatcher = useCallback(
+    (actionPayload) => {
+      startTransition(() => {
+        dispatch({
+          ...actionPayload,
+          type: ACTION_SERVER_ACTION,
+          mutable: {},
+          navigate,
+          changeByServerResponse,
+        })
+      })
+    },
+    [changeByServerResponse, dispatch, navigate]
+  )
+  globalServerActionDispatcher = serverActionDispatcher
+}
+
+/**
+ * Server response that only patches the cache and tree.
+ */
+function useChangeByServerResponse(
+  dispatch: React.Dispatch<ReducerActions>
+): RouterChangeByServerResponse {
+  return useCallback(
+    (
+      previousTree: FlightRouterState,
+      flightData: FlightData,
+      overrideCanonicalUrl: URL | undefined
+    ) => {
+      startTransition(() => {
+        dispatch({
+          type: ACTION_SERVER_PATCH,
+          flightData,
+          previousTree,
+          overrideCanonicalUrl,
+          cache: createEmptyCacheNode(),
+          mutable: {},
+        })
+      })
+    },
+    [dispatch]
+  )
+}
+
+function useNavigate(dispatch: React.Dispatch<ReducerActions>): RouterNavigate {
+  return useCallback(
+    (href, navigateType, forceOptimisticNavigation, shouldScroll) => {
+      const url = new URL(addBasePath(href), location.href)
+
+      return dispatch({
+        type: ACTION_NAVIGATE,
+        url,
+        isExternalUrl: isExternalURL(url),
+        locationSearch: location.search,
+        forceOptimisticNavigation,
+        shouldScroll: shouldScroll ?? true,
+        navigateType,
+        cache: createEmptyCacheNode(),
+        mutable: {},
+      })
+    },
+    [dispatch]
+  )
+}
+
 /**
  * The global router that wraps the application components.
  */
 function Router({
+  buildId,
   initialHead,
   initialTree,
   initialCanonicalUrl,
@@ -99,6 +234,7 @@ function Router({
   const initialState = useMemo(
     () =>
       createInitialRouterState({
+        buildId,
         children,
         initialCanonicalUrl,
         initialTree,
@@ -107,7 +243,7 @@ function Router({
         location: !isServer ? window.location : null,
         initialHead,
       }),
-    [children, initialCanonicalUrl, initialTree, initialHead]
+    [buildId, children, initialCanonicalUrl, initialTree, initialHead]
   )
   const [
     {
@@ -142,105 +278,60 @@ function Router({
     }
   }, [canonicalUrl])
 
-  /**
-   * Server response that only patches the cache and tree.
-   */
-  const changeByServerResponse = useCallback(
-    (
-      previousTree: FlightRouterState,
-      flightData: FlightData,
-      overrideCanonicalUrl: URL | undefined
-    ) => {
-      dispatch({
-        type: ACTION_SERVER_PATCH,
-        flightData,
-        previousTree,
-        overrideCanonicalUrl,
-        cache: {
-          status: CacheStates.LAZY_INITIALIZED,
-          data: null,
-          subTreeData: null,
-          parallelRoutes: new Map(),
-        },
-        mutable: {},
-      })
-    },
-    [dispatch]
-  )
+  const changeByServerResponse = useChangeByServerResponse(dispatch)
+  const navigate = useNavigate(dispatch)
+  useServerActionDispatcher(changeByServerResponse, dispatch, navigate)
 
   /**
    * The app router that is exposed through `useRouter`. It's only concerned with dispatching actions to the reducer, does not hold state.
    */
   const appRouter = useMemo<AppRouterInstance>(() => {
-    const navigate = (
-      href: string,
-      navigateType: 'push' | 'replace',
-      forceOptimisticNavigation: boolean
-    ) => {
-      const url = new URL(addBasePath(href), location.origin)
-
-      return dispatch({
-        type: ACTION_NAVIGATE,
-        url,
-        isExternalUrl: isExternalURL(url),
-        locationSearch: location.search,
-        forceOptimisticNavigation,
-        navigateType,
-        cache: {
-          status: CacheStates.LAZY_INITIALIZED,
-          data: null,
-          subTreeData: null,
-          parallelRoutes: new Map(),
-        },
-        mutable: {},
-      })
-    }
-
     const routerInstance: AppRouterInstance = {
       back: () => window.history.back(),
       forward: () => window.history.forward(),
-      prefetch: async (href) => {
+      prefetch: (href, options) => {
         // If prefetch has already been triggered, don't trigger it again.
         if (isBot(window.navigator.userAgent)) {
           return
         }
-        const url = new URL(addBasePath(href), location.origin)
+        const url = new URL(addBasePath(href), location.href)
         // External urls can't be prefetched in the same way.
         if (isExternalURL(url)) {
           return
         }
-
-        // @ts-ignore startTransition exists
-        React.startTransition(() => {
+        startTransition(() => {
           dispatch({
             type: ACTION_PREFETCH,
             url,
+            kind: options?.kind ?? PrefetchKind.FULL,
           })
         })
       },
       replace: (href, options = {}) => {
-        // @ts-ignore startTransition exists
-        React.startTransition(() => {
-          navigate(href, 'replace', Boolean(options.forceOptimisticNavigation))
+        startTransition(() => {
+          navigate(
+            href,
+            'replace',
+            Boolean(options.forceOptimisticNavigation),
+            options.scroll ?? true
+          )
         })
       },
       push: (href, options = {}) => {
-        // @ts-ignore startTransition exists
-        React.startTransition(() => {
-          navigate(href, 'push', Boolean(options.forceOptimisticNavigation))
+        startTransition(() => {
+          navigate(
+            href,
+            'push',
+            Boolean(options.forceOptimisticNavigation),
+            options.scroll ?? true
+          )
         })
       },
       refresh: () => {
-        // @ts-ignore startTransition exists
-        React.startTransition(() => {
+        startTransition(() => {
           dispatch({
             type: ACTION_REFRESH,
-            cache: {
-              status: CacheStates.LAZY_INITIALIZED,
-              data: null,
-              subTreeData: null,
-              parallelRoutes: new Map(),
-            },
+            cache: createEmptyCacheNode(),
             mutable: {},
             origin: window.location.origin,
           })
@@ -253,16 +344,10 @@ function Router({
             'fastRefresh can only be used in development mode. Please use refresh instead.'
           )
         } else {
-          // @ts-ignore startTransition exists
-          React.startTransition(() => {
+          startTransition(() => {
             dispatch({
               type: ACTION_FAST_REFRESH,
-              cache: {
-                status: CacheStates.LAZY_INITIALIZED,
-                data: null,
-                subTreeData: null,
-                parallelRoutes: new Map(),
-              },
+              cache: createEmptyCacheNode(),
               mutable: {},
               origin: window.location.origin,
             })
@@ -272,44 +357,52 @@ function Router({
     }
 
     return routerInstance
-  }, [dispatch])
+  }, [dispatch, navigate])
 
   useEffect(() => {
-    // When mpaNavigation flag is set do a hard navigation to the new url.
-    if (pushRef.mpaNavigation) {
-      const location = window.location
-      if (pushRef.pendingPush) {
-        location.assign(canonicalUrl)
-      } else {
-        location.replace(canonicalUrl)
+    // Exists for debugging purposes. Don't use in application code.
+    if (window.next) {
+      window.next.router = appRouter
+    }
+  }, [appRouter])
+
+  if (process.env.NODE_ENV !== 'production') {
+    // This hook is in a conditional but that is ok because `process.env.NODE_ENV` never changes
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    useEffect(() => {
+      // Add `window.nd` for debugging purposes.
+      // This is not meant for use in applications as concurrent rendering will affect the cache/tree/router.
+      // @ts-ignore this is for debugging
+      window.nd = {
+        router: appRouter,
+        cache,
+        prefetchCache,
+        tree,
       }
-      return
-    }
+    }, [appRouter, cache, prefetchCache, tree])
+  }
 
-    // Identifier is shortened intentionally.
-    // __NA is used to identify if the history entry can be handled by the app-router.
-    // __N is used to identify if the history entry can be handled by the old router.
-    const historyState = { __NA: true, tree }
-    if (
-      pushRef.pendingPush &&
-      createHrefFromUrl(new URL(window.location.href)) !== canonicalUrl
-    ) {
-      // This intentionally mutates React state, pushRef is overwritten to ensure additional push/replace calls do not trigger an additional history entry.
-      pushRef.pendingPush = false
-
-      window.history.pushState(historyState, '', canonicalUrl)
+  // When mpaNavigation flag is set do a hard navigation to the new url.
+  // Infinitely suspend because we don't actually want to rerender any child
+  // components with the new URL and any entangled state updates shouldn't
+  // commit either (eg: useTransition isPending should stay true until the page
+  // unloads).
+  //
+  // This is a side effect in render. Don't try this at home, kids. It's
+  // probably safe because we know this is a singleton component and it's never
+  // in <Offscreen>. At least I hope so. (It will run twice in dev strict mode,
+  // but that's... fine?)
+  if (pushRef.mpaNavigation) {
+    const location = window.location
+    if (pushRef.pendingPush) {
+      location.assign(canonicalUrl)
     } else {
-      window.history.replaceState(historyState, '', canonicalUrl)
+      location.replace(canonicalUrl)
     }
-
-    sync()
-  }, [tree, pushRef, canonicalUrl, sync])
-
-  // Add `window.nd` for debugging purposes.
-  // This is not meant for use in applications as concurrent rendering will affect the cache/tree/router.
-  if (typeof window !== 'undefined') {
-    // @ts-ignore this is for debugging
-    window.nd = { router: appRouter, cache, prefetchCache, tree }
+    // TODO-APP: Should we listen to navigateerror here to catch failed
+    // navigations somehow? And should we call window.stop() if a SPA navigation
+    // should interrupt an MPA one?
+    use(createInfinitePromise())
   }
 
   /**
@@ -333,7 +426,7 @@ function Router({
       // @ts-ignore useTransition exists
       // TODO-APP: Ideally the back button should not use startTransition as it should apply the updates synchronously
       // Without startTransition works if the cache is there for this path
-      React.startTransition(() => {
+      startTransition(() => {
         dispatch({
           type: ACTION_RESTORE,
           url: new URL(window.location.href),
@@ -356,51 +449,61 @@ function Router({
     return findHeadInCache(cache, tree[1])
   }, [cache, tree])
 
+  const notFoundProps = { notFound, notFoundStyles, asNotFound }
+
   const content = (
-    <NotFoundBoundary
-      notFound={notFound}
-      notFoundStyles={notFoundStyles}
-      asNotFound={asNotFound}
-    >
-      <RedirectBoundary>
-        {head}
-        {cache.subTreeData}
-        <AppRouterAnnouncer tree={tree} />
-      </RedirectBoundary>
-    </NotFoundBoundary>
+    <RedirectBoundary>
+      {head}
+      {cache.subTreeData}
+      <AppRouterAnnouncer tree={tree} />
+    </RedirectBoundary>
   )
 
   return (
-    <PathnameContext.Provider value={pathname}>
-      <SearchParamsContext.Provider value={searchParams}>
-        <GlobalLayoutRouterContext.Provider
-          value={{
-            changeByServerResponse,
-            tree,
-            focusAndScrollRef,
-            nextUrl,
-          }}
-        >
-          <AppRouterContext.Provider value={appRouter}>
-            <LayoutRouterContext.Provider
-              value={{
-                childNodes: cache.parallelRoutes,
-                tree: tree,
-                // Root node always has `url`
-                // Provided in AppTreeContext to ensure it can be overwritten in layout-router
-                url: canonicalUrl,
-              }}
-            >
-              {HotReloader ? (
-                <HotReloader assetPrefix={assetPrefix}>{content}</HotReloader>
-              ) : (
-                content
-              )}
-            </LayoutRouterContext.Provider>
-          </AppRouterContext.Provider>
-        </GlobalLayoutRouterContext.Provider>
-      </SearchParamsContext.Provider>
-    </PathnameContext.Provider>
+    <>
+      <HistoryUpdater
+        tree={tree}
+        pushRef={pushRef}
+        canonicalUrl={canonicalUrl}
+        sync={sync}
+      />
+      <PathnameContext.Provider value={pathname}>
+        <SearchParamsContext.Provider value={searchParams}>
+          <GlobalLayoutRouterContext.Provider
+            value={{
+              buildId,
+              changeByServerResponse,
+              tree,
+              focusAndScrollRef,
+              nextUrl,
+            }}
+          >
+            <AppRouterContext.Provider value={appRouter}>
+              <LayoutRouterContext.Provider
+                value={{
+                  childNodes: cache.parallelRoutes,
+                  tree: tree,
+                  // Root node always has `url`
+                  // Provided in AppTreeContext to ensure it can be overwritten in layout-router
+                  url: canonicalUrl,
+                }}
+              >
+                {HotReloader ? (
+                  // HotReloader implements a separate NotFoundBoundary to maintain the HMR ping interval
+                  <HotReloader assetPrefix={assetPrefix} {...notFoundProps}>
+                    {content}
+                  </HotReloader>
+                ) : (
+                  <NotFoundBoundary {...notFoundProps}>
+                    {content}
+                  </NotFoundBoundary>
+                )}
+              </LayoutRouterContext.Provider>
+            </AppRouterContext.Provider>
+          </GlobalLayoutRouterContext.Provider>
+        </SearchParamsContext.Provider>
+      </PathnameContext.Provider>
+    </>
   )
 }
 

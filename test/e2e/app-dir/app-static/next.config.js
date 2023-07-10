@@ -1,6 +1,6 @@
+/**@type import('next').NextConfig */
 module.exports = {
   experimental: {
-    appDir: true,
     incrementalCacheHandlerPath: process.env.CUSTOM_CACHE_HANDLER
       ? require.resolve('./cache-handler.js')
       : undefined,

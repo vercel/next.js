@@ -1,4 +1,4 @@
-import { cookies } from "next/headers";
+import { cookies } from 'next/headers'
 
 export default function RootLayout({ children }: { children: any }) {
   return (
@@ -8,5 +8,5 @@ export default function RootLayout({ children }: { children: any }) {
         {children}
       </body>
     </html>
-  );
+  )
 }

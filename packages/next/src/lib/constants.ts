@@ -2,6 +2,10 @@ import type { ServerRuntime } from '../../types'
 
 export const NEXT_QUERY_PARAM_PREFIX = 'nxtP'
 
+export const PRERENDER_REVALIDATE_HEADER = 'x-prerender-revalidate'
+export const PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER =
+  'x-prerender-revalidate-if-generated'
+
 // in seconds
 export const CACHE_ONE_YEAR = 31536000
 
@@ -20,7 +24,10 @@ export const DOT_NEXT_ALIAS = 'private-dot-next'
 export const ROOT_DIR_ALIAS = 'private-next-root-dir'
 export const APP_DIR_ALIAS = 'private-next-app-dir'
 export const RSC_MOD_REF_PROXY_ALIAS = 'private-next-rsc-mod-ref-proxy'
+export const RSC_ACTION_VALIDATE_ALIAS = 'private-next-rsc-action-validate'
 export const RSC_ACTION_PROXY_ALIAS = 'private-next-rsc-action-proxy'
+export const RSC_ACTION_CLIENT_WRAPPER_ALIAS =
+  'private-next-rsc-action-client-wrapper'
 
 export const PUBLIC_DIR_MIDDLEWARE_CONFLICT = `You can not have a '_next' folder inside of your public folder. This conflicts with the internal '/_next' route. https://nextjs.org/docs/messages/public-next-folder-conflict`
 
@@ -79,7 +86,7 @@ export const SERVER_RUNTIME: Record<string, ServerRuntime> = {
   nodejs: 'nodejs',
 }
 
-export const WEBPACK_LAYERS = {
+const WEBPACK_LAYERS_NAMES = {
   shared: 'sc_shared',
   server: 'sc_server',
   client: 'sc_client',
@@ -88,4 +95,23 @@ export const WEBPACK_LAYERS = {
   middleware: 'middleware',
   edgeAsset: 'edge-asset',
   appClient: 'app-client',
+  metadataRoute: 'app-metadata-route',
+}
+
+export const WEBPACK_LAYERS = {
+  ...WEBPACK_LAYERS_NAMES,
+  GROUP: {
+    server: [
+      WEBPACK_LAYERS_NAMES.server,
+      WEBPACK_LAYERS_NAMES.action,
+      WEBPACK_LAYERS_NAMES.metadataRoute,
+    ],
+  },
+}
+
+export const WEBPACK_RESOURCE_QUERIES = {
+  edgeSSREntry: '__next_edge_ssr_entry__',
+  metadata: '__next_metadata__',
+  metadataRoute: '__next_metadata_route__',
+  metadataImageMeta: '__next_metadata_image_meta__',
 }

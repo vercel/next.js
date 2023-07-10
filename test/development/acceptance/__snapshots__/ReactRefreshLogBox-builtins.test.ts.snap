@@ -4,22 +4,20 @@ exports[`ReactRefreshLogBox default Module not found (empty import trace) 1`] = 
 "./pages/index.js:1:0
 Module not found: Can't resolve 'b'
 > 1 | import Comp from 'b'
-  2 |       export default function Oops() {
-  3 |         return (
-  4 |           <div>
+  2 | 
+  3 | export default function Oops() {
+  4 |   return (
 
 https://nextjs.org/docs/messages/module-not-found"
 `;
 
 exports[`ReactRefreshLogBox default Module not found (missing global CSS) 1`] = `
-"./pages/_app.js:2:8
+"./pages/_app.js:1:0
 Module not found: Can't resolve './non-existent.css'
-  1 | 
-> 2 |         import './non-existent.css'
-    |        ^
-  3 | 
-  4 |         export default function App({ Component, pageProps }) {
-  5 |           return <Component {...pageProps} />
+> 1 | import './non-existent.css'
+  2 | 
+  3 | export default function App({ Component, pageProps }) {
+  4 |   return <Component {...pageProps} />
 
 https://nextjs.org/docs/messages/module-not-found"
 `;
@@ -28,9 +26,9 @@ exports[`ReactRefreshLogBox default Module not found 1`] = `
 "./index.js:1:0
 Module not found: Can't resolve 'b'
 > 1 | import Comp from 'b'
-  2 |       export default function Oops() {
-  3 |         return (
-  4 |           <div>
+  2 | 
+  3 | export default function Oops() {
+  4 |   return (
 
 https://nextjs.org/docs/messages/module-not-found
 
@@ -39,7 +37,7 @@ Import trace for requested module:
 `;
 
 exports[`ReactRefreshLogBox default Node.js builtins 1`] = `
-"./node_modules/my-package/index.js:2:0
+"./node_modules/my-package/index.js:1:0
 Module not found: Can't resolve 'dns'
 
 https://nextjs.org/docs/messages/module-not-found

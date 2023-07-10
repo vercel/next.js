@@ -1,4 +1,4 @@
-import * as React from "react";
+import * as React from 'react'
 
 export function useOnClickOutside(
   el: Node | null,
@@ -6,24 +6,24 @@ export function useOnClickOutside(
 ) {
   React.useEffect(() => {
     if (el == null || handler == null) {
-      return;
+      return
     }
 
     const listener = (e: MouseEvent | TouchEvent) => {
       // Do nothing if clicking ref's element or descendent elements
       if (!el || el.contains(e.target as Element)) {
-        return;
+        return
       }
 
-      handler(e);
-    };
+      handler(e)
+    }
 
-    const root = el.getRootNode();
-    root.addEventListener("mousedown", listener as EventListener);
-    root.addEventListener("touchstart", listener as EventListener);
+    const root = el.getRootNode()
+    root.addEventListener('mousedown', listener as EventListener)
+    root.addEventListener('touchstart', listener as EventListener)
     return function () {
-      root.removeEventListener("mousedown", listener as EventListener);
-      root.removeEventListener("touchstart", listener as EventListener);
-    };
-  }, [handler, el]);
+      root.removeEventListener('mousedown', listener as EventListener)
+      root.removeEventListener('touchstart', listener as EventListener)
+    }
+  }, [handler, el])
 }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useUser } from '@auth0/nextjs-auth0'
+import { useUser } from '@auth0/nextjs-auth0/client'
 import Layout from '../../components/layout'
 
 const ApiProfile = () => {

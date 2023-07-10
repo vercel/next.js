@@ -6,7 +6,3 @@ export default function Layout({ children }) {
     </html>
   )
 }
-
-export const metadata = {
-  title: 'Next.js App',
-}

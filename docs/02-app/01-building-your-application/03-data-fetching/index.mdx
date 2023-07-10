@@ -1,0 +1,163 @@
+---
+title: Data Fetching
+description: Learn the fundamentals of data fetching with React and Next.js.
+---
+
+The Next.js App Router introduces a new, simplified data fetching system built on React and the Web platform. This page will go through the fundamental concepts and patterns to help you manage your data's lifecycle.
+
+Here's a quick overview of the recommendations on this page:
+
+1. [Fetch data on the server](#fetching-data-on-the-server) using Server Components.
+2. [Fetch data in parallel](#parallel-and-sequential-data-fetching) to minimize waterfalls and reduce loading times.
+3. For Layouts and Pages, [fetch data where it's used](#automatic-fetch-request-deduping). Next.js will automatically dedupe requests in a tree.
+4. Use [Loading UI, Streaming and Suspense](#streaming-and-suspense) to progressively render a page and show a result to the user while the rest of the content loads.
+
+## The `fetch()` API
+
+The new data fetching system is built on top of the native [`fetch()` Web API](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) and makes use of `async` and `await` in Server Components.
+
+- React extends `fetch` to provide [automatic request deduping](#automatic-fetch-request-deduping).
+- Next.js extends the `fetch` options object to allow each request to set its own [caching and revalidating](/docs/app/building-your-application/data-fetching/caching) rules.
+
+[Learn how to use `fetch` in Next.js](/docs/app/building-your-application/data-fetching/fetching).
+
+## Fetching Data on the Server
+
+Whenever possible, we recommend fetching data in [Server Components](/docs/getting-started/react-essentials#server-components). Server Components **always fetch data on the server**. This allows you to:
+
+- Have direct access to backend data resources (e.g. databases).
+- Keep your application more secure by preventing sensitive information, such as access tokens and API keys, from being exposed to the client.
+- Fetch data and render in the same environment. This reduces both the back-and-forth communication between client and server, as well as the work on the main thread on the client.
+- Perform multiple data fetches with single round-trip instead of multiple individual requests on the client.
+- Reduce client-server [waterfalls](#parallel-and-sequential-data-fetching).
+- Depending on your region, data fetching can also happen closer to your data source, reducing latency and improving performance.
+
+> **Good to know**: It's still possible to fetch data client-side. We recommend using a third-party library such as [SWR](https://swr.vercel.app/) or [React Query](https://tanstack.com/query/v4/) with Client Components. In the future, it'll also be possible to fetch data in Client Components using React's [`use()` hook](/docs/app/building-your-application/data-fetching/fetching#use-in-client-components).
+
+## Fetching Data at the Component Level
+
+In the App Router, you can fetch data inside [layouts](/docs/app/building-your-application/routing/pages-and-layouts#layouts), [pages](/docs/app/building-your-application/routing/pages-and-layouts#pages), and components. Data fetching is also compatible with [Streaming and Suspense](#streaming-and-suspense).
+
+> **Good to know**: For layouts, it's not possible to pass data between a parent layout and its `children` components. We recommend **fetching data directly inside the layout that needs it**, even if you're requesting the same data multiple times in a route. Behind the scenes, React and Next.js will [cache and dedupe](#automatic-fetch-request-deduping) requests to avoid the same data being fetched more than once.
+
+## Parallel and Sequential Data Fetching
+
+When fetching data inside components, you need to be aware of two data fetching patterns: Parallel and Sequential.
+
+<Image
+  alt="Sequential and Parallel Data Fetching"
+  srcLight="/docs/light/sequential-parallel-data-fetching.png"
+  srcDark="/docs/dark/sequential-parallel-data-fetching.png"
+  width="1600"
+  height="525"
+/>
+
+- With **parallel data fetching**, requests in a route are eagerly initiated and will load data at the same time. This reduces client-server waterfalls and the total time it takes to load data.
+- With **sequential data fetching**, requests in a route are dependent on each other and create waterfalls. There may be cases where you want this pattern because one fetch depends on the result of the other, or you want a condition to be satisfied before the next fetch to save resources. However, this behavior can also be unintentional and lead to longer loading times.
+
+[Learn how to implement parallel and sequential data fetching](/docs/app/building-your-application/data-fetching/fetching#data-fetching-patterns).
+
+## Automatic `fetch()` Request Deduping
+
+If you need to fetch the same data (e.g. current user) in multiple components in a tree, Next.js will automatically cache `fetch` requests (`GET`) that have the same input in a temporary cache. This optimization prevents the same data from being fetched more than once during a rendering pass.
+
+<Image
+  alt="Fetch Request Deduplication"
+  srcLight="/docs/light/deduplicated-fetch-requests.png"
+  srcDark="/docs/dark/deduplicated-fetch-requests.png"
+  width="1600"
+  height="857"
+/>
+
+- On the server, the cache lasts the lifetime of a server request until the rendering process completes.
+  - This optimization applies to `fetch` requests made in Layouts, Pages, Server Components, `generateMetadata` and `generateStaticParams`.
+  - This optimization also applies during [static generation](/docs/app/building-your-application/rendering#static-rendering).
+- On the client, the cache lasts the duration of a session (which could include multiple client-side re-renders) before a full page reload.
+
+> **Good to know**:
+>
+> - `fetch` requests are automatically deduplicated [under the following conditions](/docs/app/building-your-application/data-fetching/caching).
+> - If you're unable to use `fetch`, React provides a [`cache` function](/docs/app/building-your-application/data-fetching/caching#react-cache) to allow you to manually cache data for the duration of the request.
+
+## Static and Dynamic Data Fetching
+
+There are two types of data: **Static** and **Dynamic**.
+
+- **Static Data** is data that doesn't change often. For example, a blog post.
+- **Dynamic Data** is data that changes often or can be specific to users. For example, a shopping cart list.
+
+<Image
+  alt="Dynamic and Static Data Fetching"
+  srcLight="/docs/light/dynamic-and-static-data-fetching.png"
+  srcDark="/docs/dark/dynamic-and-static-data-fetching.png"
+  width="1600"
+  height="685"
+/>
+
+By default, Next.js automatically does static fetches. This means that the data will be fetched at build time, cached, and reused on each request. As a developer, you have control over how the static data is [cached](#caching-data) and [revalidated](#revalidating-data).
+
+There are two benefits to using static data:
+
+1. It reduces the load on your database by minimizing the number of requests made.
+2. The data is automatically cached for improved loading performance.
+
+However, if your data is personalized to the user or you want to always fetch the latest data, you can mark requests as _dynamic_ and fetch data on each request without caching.
+
+[Learn how to do Static and Dynamic data fetching](/docs/app/building-your-application/data-fetching/fetching#static-data-fetching).
+
+## Caching Data
+
+Caching is the process of storing data in a location (e.g. [Content Delivery Network](https://vercel.com/docs/concepts/edge-network/overview)) so it doesn't need to be re-fetched from the original source on each request.
+
+<Image
+  alt="Static Site Generation"
+  srcLight="/docs/light/static-site-generation.png"
+  srcDark="/docs/dark/static-site-generation.png"
+  width="1600"
+  height="701"
+/>
+
+The **Next.js Cache** is a persistent [HTTP cache](https://developer.mozilla.org/en-US/docs/Web/HTTP/Caching) that can be globally distributed. This means the cache can scale automatically and be shared across multiple regions depending on your platform (e.g. [Vercel](https://vercel.com/docs/concepts/next.js/overview)).
+
+Next.js extends the [options object](https://developer.mozilla.org/en-US/docs/Web/API/fetch#:~:text=preflight%20requests.-,cache,-A%20string%20indicating) of the `fetch()` function to allow each request on the server to set its own persistent caching behavior. Together with [component-level data fetching](#fetching-data-at-the-component-level), this allows you to configure caching within your application code directly where the data is being used.
+
+During server rendering, when Next.js comes across a fetch, it will check the cache to see if the data is already available. If it is, it will return the cached data. If not, it will fetch and store data for future requests.
+
+> **Good to know**: If you're unable to use `fetch`, React provides a [`cache` function](/docs/app/building-your-application/data-fetching/caching#react-cache) to allow you to manually cache data for the duration of the request.
+
+[Learn more about caching in Next.js](/docs/app/building-your-application/data-fetching/caching).
+
+### Revalidating Data
+
+Revalidation is the process of purging the cache and re-fetching the latest data. This is useful when your data changes and you want to ensure your application shows the latest version without having to rebuild your entire application.
+
+Next.js provides two types of revalidation:
+
+- [**Background**](/docs/app/building-your-application/data-fetching/revalidating#background-revalidation): Revalidates the data at a specific time interval.
+- [**On-demand**](/docs/app/building-your-application/data-fetching/revalidating#on-demand-revalidation): Revalidates the data whenever there is an update.
+
+[Learn how to revalidate data](/docs/app/building-your-application/data-fetching/revalidating).
+
+### Streaming and Suspense
+
+Streaming and [Suspense](https://react.dev/reference/react/Suspense) are new React features that allow you to progressively render and incrementally stream rendered units of the UI to the client.
+
+With Server Components and [nested layouts](/docs/app/building-your-application/routing/pages-and-layouts), you're able to instantly render parts of the page that do not specifically require data, and show a [loading state](/docs/app/building-your-application/routing/loading-ui-and-streaming) for parts of the page that are fetching data. This means the user does not have to wait for the entire page to load before they can start interacting with it.
+
+<Image
+  alt="Server Rendering with Streaming"
+  srcLight="/docs/light/server-rendering-with-streaming.png"
+  srcDark="/docs/dark/server-rendering-with-streaming.png"
+  width="1600"
+  height="785"
+/>
+
+To learn more about Streaming and Suspense, see the [Loading UI](/docs/app/building-your-application/routing/loading-ui-and-streaming) and [Streaming and Suspense](/docs/app/building-your-application/routing/loading-ui-and-streaming#streaming-with-suspense) pages.
+
+## Old Methods
+
+Previous Next.js data fetching methods such as [`getServerSideProps`](/docs/pages/building-your-application/data-fetching/get-server-side-props), [`getStaticProps`](/docs/pages/building-your-application/data-fetching/get-static-props), and [`getInitialProps`](/docs/pages/api-reference/functions/get-initial-props) are **not** supported in the new App Router. However, you can still use them in the [Pages Router](/docs/pages/building-your-application/data-fetching).
+
+## Next Steps
+
+Now that you understand the fundamentals of data fetching in Next.js, you can learn more about managing data in your application:

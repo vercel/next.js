@@ -29,71 +29,71 @@
   x NEXT_RSC_ERR_REACT_API: Component
    ,-[input.js:7:1]
  7 | import {
- 8 | 	Component,
-   :  ^^^^^^^^^
- 9 | 	createFactory,
+ 8 |   Component,
+   :   ^^^^^^^^^
+ 9 |   createFactory,
    `----
 
   x NEXT_RSC_ERR_REACT_API: createFactory
     ,-[input.js:8:1]
-  8 | 	Component,
-  9 | 	createFactory,
-    :  ^^^^^^^^^^^^^
- 10 | 	PureComponent,
+  8 |   Component,
+  9 |   createFactory,
+    :   ^^^^^^^^^^^^^
+ 10 |   PureComponent,
     `----
 
   x NEXT_RSC_ERR_REACT_API: PureComponent
     ,-[input.js:9:1]
-  9 | 	createFactory,
- 10 | 	PureComponent,
-    :  ^^^^^^^^^^^^^
+  9 |   createFactory,
+ 10 |   PureComponent,
+    :   ^^^^^^^^^^^^^
  11 |   useDeferredValue,
     `----
 
   x NEXT_RSC_ERR_REACT_API: useDeferredValue
     ,-[input.js:10:1]
- 10 | 	PureComponent,
+ 10 |   PureComponent,
  11 |   useDeferredValue,
     :   ^^^^^^^^^^^^^^^^
- 12 | 	useInsertionEffect,
+ 12 |   useInsertionEffect,
     `----
 
   x NEXT_RSC_ERR_REACT_API: useInsertionEffect
     ,-[input.js:11:1]
  11 |   useDeferredValue,
- 12 | 	useInsertionEffect,
-    :  ^^^^^^^^^^^^^^^^^^
- 13 | 	useLayoutEffect,
+ 12 |   useInsertionEffect,
+    :   ^^^^^^^^^^^^^^^^^^
+ 13 |   useLayoutEffect,
     `----
 
   x NEXT_RSC_ERR_REACT_API: useLayoutEffect
     ,-[input.js:12:1]
- 12 | 	useInsertionEffect,
- 13 | 	useLayoutEffect,
-    :  ^^^^^^^^^^^^^^^
- 14 | 	useReducer,
+ 12 |   useInsertionEffect,
+ 13 |   useLayoutEffect,
+    :   ^^^^^^^^^^^^^^^
+ 14 |   useReducer,
     `----
 
   x NEXT_RSC_ERR_REACT_API: useReducer
     ,-[input.js:13:1]
- 13 | 	useLayoutEffect,
- 14 | 	useReducer,
-    :  ^^^^^^^^^^
- 15 | 	useRef,
+ 13 |   useLayoutEffect,
+ 14 |   useReducer,
+    :   ^^^^^^^^^^
+ 15 |   useRef,
     `----
 
   x NEXT_RSC_ERR_REACT_API: useRef
     ,-[input.js:14:1]
- 14 | 	useReducer,
- 15 | 	useRef,
-    :  ^^^^^^
- 16 | 	useSyncExternalStore
+ 14 |   useReducer,
+ 15 |   useRef,
+    :   ^^^^^^
+ 16 |   useSyncExternalStore,
     `----
 
   x NEXT_RSC_ERR_REACT_API: useSyncExternalStore
     ,-[input.js:15:1]
- 15 | 	useRef,
- 16 | 	useSyncExternalStore
-    :  ^^^^^^^^^^^^^^^^^^^^
- 17 | } from "react"
+ 15 |   useRef,
+ 16 |   useSyncExternalStore,
+    :   ^^^^^^^^^^^^^^^^^^^^
+ 17 | } from 'react'
     `----

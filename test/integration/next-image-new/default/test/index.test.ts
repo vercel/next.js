@@ -17,7 +17,8 @@ import {
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
-import { existsSync } from 'fs'
+import fs from 'fs/promises'
+import { pathExists } from 'fs-extra'
 
 const appDir = join(__dirname, '../')
 
@@ -204,6 +205,13 @@ function runTests(mode) {
           )
         ).length
       ).toBeGreaterThanOrEqual(1)
+
+      // should preload with referrerpolicy
+      expect(
+        await browser.elementsByCss(
+          'link[rel=preload][as=image][referrerpolicy="no-referrer"][imagesrcset*="test.png"]'
+        )
+      ).toHaveLength(1)
     } finally {
       if (browser) {
         await browser.close()
@@ -767,6 +775,42 @@ function runTests(mode) {
     }
   })
 
+  it('should render picture via getImgProps', async () => {
+    const browser = await webdriver(appPort, '/picture')
+    // Wait for image to load:
+    await check(async () => {
+      const naturalWidth = await browser.eval(
+        `document.querySelector('img').naturalWidth`
+      )
+
+      if (naturalWidth === 0) {
+        throw new Error('Image did not load')
+      }
+
+      return 'ready'
+    }, 'ready')
+    const img = await browser.elementByCss('img')
+    expect(img).toBeDefined()
+    expect(await img.getAttribute('alt')).toBe('Hero')
+    expect(await img.getAttribute('width')).toBe('400')
+    expect(await img.getAttribute('height')).toBe('400')
+    expect(await img.getAttribute('fetchPriority')).toBe('high')
+    expect(await img.getAttribute('sizes')).toBeNull()
+    expect(await img.getAttribute('src')).toBe(
+      '/_next/image?url=%2Ftest_light.png&w=828&q=75'
+    )
+    expect(await img.getAttribute('srcset')).toBe(null)
+    expect(await img.getAttribute('style')).toBe('color:transparent')
+    const source1 = await browser.elementByCss('source:first-of-type')
+    expect(await source1.getAttribute('srcset')).toBe(
+      '/_next/image?url=%2Ftest.png&w=640&q=75 1x, /_next/image?url=%2Ftest.png&w=828&q=75 2x'
+    )
+    const source2 = await browser.elementByCss('source:last-of-type')
+    expect(await source2.getAttribute('srcset')).toBe(
+      '/_next/image?url=%2Ftest_light.png&w=640&q=75 1x, /_next/image?url=%2Ftest_light.png&w=828&q=75 2x'
+    )
+  })
+
   if (mode === 'dev') {
     it('should show missing src error', async () => {
       const browser = await webdriver(appPort, '/missing-src')
@@ -821,6 +865,15 @@ function runTests(mode) {
       expect(await hasRedbox(browser, true)).toBe(true)
       expect(await getRedboxHeader(browser)).toContain(
         `Image with src "/test.jpg" has invalid "width" property. Expected a numeric value in pixels but received "100%".`
+      )
+    })
+
+    it('should show error when invalid Infinity width prop', async () => {
+      const browser = await webdriver(appPort, '/invalid-Infinity-width')
+
+      expect(await hasRedbox(browser, true)).toBe(true)
+      expect(await getRedboxHeader(browser)).toContain(
+        `Image with src "/test.jpg" has invalid "width" property. Expected a numeric value in pixels but received "Infinity".`
       )
     })
 
@@ -1035,7 +1088,7 @@ function runTests(mode) {
     //server-only tests
     it('should not create an image folder in server/chunks', async () => {
       expect(
-        existsSync(join(appDir, '.next/server/chunks/static/media'))
+        await pathExists(join(appDir, '.next/server/chunks/static/media'))
       ).toBeFalsy()
     })
     it('should render as unoptimized with missing src prop', async () => {
@@ -1283,6 +1336,13 @@ function runTests(mode) {
       const computedWidth = await getComputed(browser, id, 'width')
       const computedHeight = await getComputed(browser, id, 'height')
       expect(getRatio(computedHeight, computedWidth)).toBeCloseTo(0.75, 1)
+    })
+
+    it('should create images folder in static/media for edge runtime', async () => {
+      const files = await fs.readdir(join(appDir, '.next/static/media'))
+      expect(files).toEqual(
+        expect.arrayContaining([expect.stringMatching(/small\.\w+\.jpg/)])
+      )
     })
   }
 

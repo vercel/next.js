@@ -1,4 +1,5 @@
 import type {
+  MiddlewareConfig,
   MiddlewareMatcher,
   RSCModuleType,
 } from '../../analysis/get-page-static-info'
@@ -13,7 +14,6 @@ export function getModuleBuildInfo(webpackModule: webpack.Module) {
     nextEdgeMiddleware?: EdgeMiddlewareMeta
     nextEdgeApiFunction?: EdgeMiddlewareMeta
     nextEdgeSSR?: EdgeSSRMeta
-    nextUsedEnvVars?: Set<string>
     nextWasmMiddlewareBinding?: AssetBinding
     nextAssetMiddlewareBinding?: AssetBinding
     usingIndirectEval?: boolean | Set<string>
@@ -29,12 +29,15 @@ export interface RSCMeta {
   actions?: string[]
   clientRefs?: string[]
   clientEntryType?: 'cjs' | 'auto'
+  isClientRef?: boolean
   requests?: string[] // client requests in flight client entry
 }
 
 export interface RouteMeta {
   page: string
   absolutePagePath: string
+  preferredRegion: string | string[] | undefined
+  middlewareConfig: MiddlewareConfig
 }
 
 export interface EdgeMiddlewareMeta {

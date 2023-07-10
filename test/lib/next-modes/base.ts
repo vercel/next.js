@@ -11,6 +11,7 @@ import webdriver from '../next-webdriver'
 import { renderViaHTTP, fetchViaHTTP } from 'next-test-utils'
 import cheerio from 'cheerio'
 import { BrowserInterface } from '../browsers/base'
+import escapeStringRegexp from 'escape-string-regexp'
 
 type Event = 'stdout' | 'stderr' | 'error' | 'destroy'
 export type InstallCommand =
@@ -32,6 +33,7 @@ export interface NextInstanceOpts {
   env?: Record<string, string>
   dirSuffix?: string
   turbo?: boolean
+  forcedPort?: string
 }
 
 /**
@@ -142,6 +144,7 @@ export class NextInstance {
           react: reactVersion,
           'react-dom': reactVersion,
           '@types/react': reactVersion,
+          '@types/react-dom': reactVersion,
           typescript: 'latest',
           '@types/node': 'latest',
           ...this.dependencies,
@@ -280,6 +283,30 @@ export class NextInstance {
       })
   }
 
+  // normalize snapshots or stack traces being tested
+  // to a consistent test dir value since it's random
+  public normalizeTestDirContent(content) {
+    content = content.replace(
+      new RegExp(escapeStringRegexp(this.testDir), 'g'),
+      'TEST_DIR'
+    )
+    if (process.env.NEXT_SWC_DEV_BIN) {
+      content = content.replace(/,----/, ',-[1:1]')
+      content = content.replace(/\[\.\/.*?:/, '[')
+    }
+    return content
+  }
+
+  // the dev binary for next-swc is missing file references
+  // so this normalizes to allow snapshots to match
+  public normalizeSnapshot(content) {
+    if (process.env.NEXT_SWC_DEV_BIN) {
+      content = content.replace(/TEST_DIR.*?:/g, '')
+      content = content.replace(/\[\.\/.*?:/, '[')
+    }
+    return content
+  }
+
   public async clean() {
     if (this.childProcess) {
       throw new Error(`stop() must be called before cleaning`)
@@ -384,6 +411,9 @@ export class NextInstance {
   }
 
   // TODO: block these in deploy mode
+  public async hasFile(filename: string) {
+    return fs.pathExists(path.join(this.testDir, filename))
+  }
   public async readFile(filename: string) {
     return fs.readFile(path.join(this.testDir, filename), 'utf8')
   }

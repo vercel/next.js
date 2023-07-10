@@ -2,13 +2,12 @@ import { CacheNode, CacheStates } from '../../../shared/lib/app-router-context'
 import { FlightDataPath } from '../../../server/app-render/types'
 import { fillLazyItemsTillLeafWithHead } from './fill-lazy-items-till-leaf-with-head'
 import { fillCacheWithNewSubTreeData } from './fill-cache-with-new-subtree-data'
-import { ReadonlyReducerState } from './router-reducer-types'
 
 export function applyFlightData(
-  state: ReadonlyReducerState,
+  existingCache: CacheNode,
   cache: CacheNode,
   flightDataPath: FlightDataPath,
-  wasPrefetched?: boolean
+  wasPrefetched: boolean = false
 ): boolean {
   // The one before last item is the router state tree patch
   const [treePatch, subTreeData, head] = flightDataPath.slice(-3)
@@ -23,7 +22,7 @@ export function applyFlightData(
     cache.subTreeData = subTreeData
     fillLazyItemsTillLeafWithHead(
       cache,
-      state.cache,
+      existingCache,
       treePatch,
       head,
       wasPrefetched
@@ -31,10 +30,15 @@ export function applyFlightData(
   } else {
     // Copy subTreeData for the root node of the cache.
     cache.status = CacheStates.READY
-    cache.subTreeData = state.cache.subTreeData
-    cache.parallelRoutes = new Map(state.cache.parallelRoutes)
+    cache.subTreeData = existingCache.subTreeData
+    cache.parallelRoutes = new Map(existingCache.parallelRoutes)
     // Create a copy of the existing cache with the subTreeData applied.
-    fillCacheWithNewSubTreeData(cache, state.cache, flightDataPath)
+    fillCacheWithNewSubTreeData(
+      cache,
+      existingCache,
+      flightDataPath,
+      wasPrefetched
+    )
   }
 
   return true

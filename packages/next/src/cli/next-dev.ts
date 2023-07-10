@@ -8,16 +8,22 @@ import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
 import { CONFIG_FILES, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import path from 'path'
-import type { NextConfig, NextConfigComplete } from '../server/config-shared'
+import {
+  defaultConfig,
+  NextConfig,
+  NextConfigComplete,
+} from '../server/config-shared'
 import { traceGlobals } from '../trace/shared'
 import { Telemetry } from '../telemetry/storage'
 import loadConfig from '../server/config'
 import { findPagesDir } from '../lib/find-pages-dir'
-import { fileExists } from '../lib/file-exists'
+import { findRootDir } from '../lib/find-root'
+import { fileExists, FileType } from '../lib/file-exists'
 import { getNpxCommand } from '../lib/helpers/get-npx-command'
-import Watchpack from 'next/dist/compiled/watchpack'
+import Watchpack from 'watchpack'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { getPossibleInstrumentationHookFilenames } from '../build/worker'
+import { resetEnv } from '@next/env'
 
 let dir: string
 let isTurboSession = false
@@ -114,6 +120,7 @@ const nextDev: CliCommand = async (argv) => {
     '--port': Number,
     '--hostname': String,
     '--turbo': Boolean,
+    '--experimental-turbo': Boolean,
 
     // To align current messages with native binary.
     // Will need to adjust subcommand later.
@@ -156,7 +163,7 @@ const nextDev: CliCommand = async (argv) => {
   dir = getProjectDir(process.env.NEXT_PRIVATE_DEV_DIR || args._[0])
 
   // Check if pages dir exists and warn if not
-  if (!(await fileExists(dir, 'directory'))) {
+  if (!(await fileExists(dir, FileType.Directory))) {
     printAndExit(`> No such directory exists as the project root: ${dir}`)
   }
 
@@ -204,6 +211,7 @@ const nextDev: CliCommand = async (argv) => {
   // We do not set a default host value here to prevent breaking
   // some set-ups that rely on listening on other interfaces
   const host = args['--hostname']
+  const experimentalTurbo = args['--experimental-turbo']
 
   const devServerOptions: StartServerOptions = {
     dir,
@@ -211,15 +219,21 @@ const nextDev: CliCommand = async (argv) => {
     allowRetry,
     isDev: true,
     hostname: host,
-    useWorkers: !process.env.__NEXT_DISABLE_MEMORY_WATCHER,
+    // This is required especially for app dir.
+    useWorkers: true,
+    isExperimentalTurbo: experimentalTurbo,
   }
 
   if (args['--turbo']) {
+    process.env.TURBOPACK = '1'
+  }
+
+  if (process.env.TURBOPACK) {
     isTurboSession = true
 
     const { validateTurboNextConfig } =
       require('../lib/turbopack-warning') as typeof import('../lib/turbopack-warning')
-    const { loadBindings, __isCustomTurbopackBinary } =
+    const { loadBindings, __isCustomTurbopackBinary, teardownHeapProfiler } =
       require('../build/swc') as typeof import('../build/swc')
     const { eventCliSession } =
       require('../telemetry/events/version') as typeof import('../telemetry/events/version')
@@ -232,12 +246,15 @@ const nextDev: CliCommand = async (argv) => {
     const rawNextConfig = await validateTurboNextConfig({
       isCustomTurbopack,
       ...devServerOptions,
+      isDev: true,
     })
 
     const distDir = path.join(dir, rawNextConfig.distDir || '.next')
     const { pagesDir, appDir } = findPagesDir(
       dir,
-      !!rawNextConfig.experimental?.appDir
+      typeof rawNextConfig?.experimental?.appDir === 'undefined'
+        ? !!defaultConfig.experimental?.appDir
+        : !!rawNextConfig.experimental?.appDir
     )
     const telemetry = new Telemetry({
       distDir,
@@ -263,21 +280,28 @@ const nextDev: CliCommand = async (argv) => {
       )
     }
 
-    const turboJson = findUp.sync('turbo.json', { cwd: dir })
-    // eslint-disable-next-line no-shadow
-    const packagePath = findUp.sync('package.json', { cwd: dir })
+    if (process.platform === 'darwin') {
+      // rust needs stdout to be blocking, otherwise it will throw an error (on macOS at least) when writing a lot of data (logs) to it
+      // see https://github.com/napi-rs/napi-rs/issues/1630
+      // and https://github.com/nodejs/node/blob/main/doc/api/process.md#a-note-on-process-io
+      if (process.stdout._handle != null) {
+        // @ts-ignore
+        process.stdout._handle.setBlocking(true)
+      }
+      if (process.stderr._handle != null) {
+        // @ts-ignore
+        process.stderr._handle.setBlocking(true)
+      }
+    }
 
+    // Turbopack need to be in control over reading the .env files and watching them.
+    // So we need to start with a initial env to know which env vars are coming from the user.
+    resetEnv()
     let bindings: any = await loadBindings()
     let server = bindings.turbo.startDev({
       ...devServerOptions,
       showAll: args['--show-all'] ?? false,
-      root:
-        args['--root'] ??
-        (turboJson
-          ? path.dirname(turboJson)
-          : packagePath
-          ? path.dirname(packagePath)
-          : undefined),
+      root: args['--root'] ?? findRootDir(dir),
     })
     // Start preflight after server is listening and ignore errors:
     preflight().catch(() => {})
@@ -285,8 +309,20 @@ const nextDev: CliCommand = async (argv) => {
     if (!isCustomTurbopack) {
       await telemetry.flush()
     }
+
+    // There are some cases like test fixtures teardown that normal flush won't hit.
+    // Force flush those on those case, but don't wait for it.
+    ;['SIGTERM', 'SIGINT', 'beforeExit', 'exit'].forEach((event) =>
+      process.on(event, () => teardownHeapProfiler())
+    )
+
     return server
   } else {
+    if (experimentalTurbo) {
+      Log.error('Not supported yet')
+      process.exit(1)
+    }
+
     let cleanupFns: (() => Promise<void> | void)[] = []
     const runDevServer = async () => {
       const oldCleanupFns = cleanupFns
@@ -310,16 +346,11 @@ const nextDev: CliCommand = async (argv) => {
 
         const setupFork = async (newDir?: string) => {
           // if we're using workers we can auto restart on config changes
-          if (!devServerOptions.useWorkers && devServerTeardown) {
+          if (process.env.__NEXT_DISABLE_MEMORY_WATCHER && devServerTeardown) {
             Log.info(
               `Detected change, manual restart required due to '__NEXT_DISABLE_MEMORY_WATCHER' usage`
             )
             return
-          }
-
-          const startDir = dir
-          if (newDir) {
-            dir = newDir
           }
 
           if (devServerTeardown) {
@@ -327,6 +358,7 @@ const nextDev: CliCommand = async (argv) => {
             devServerTeardown = undefined
           }
 
+          const startDir = dir
           if (newDir) {
             dir = newDir
             process.env = Object.keys(process.env).reduce((newEnv, key) => {
@@ -370,14 +402,32 @@ const nextDev: CliCommand = async (argv) => {
             process[fd].write(chunk)
           }
 
-          devServerOptions.onStdout = (chunk) => {
-            filterForkErrors(chunk, 'stdout')
+          let resolveCleanup!: (cleanup: () => Promise<void>) => void
+          let cleanupPromise = new Promise<() => Promise<void>>((resolve) => {
+            resolveCleanup = resolve
+          })
+          const cleanupWrapper = async () => {
+            const promise = cleanupPromise
+            cleanupPromise = Promise.resolve(async () => {})
+            const cleanup = await promise
+            await cleanup()
           }
-          devServerOptions.onStderr = (chunk) => {
-            filterForkErrors(chunk, 'stderr')
+          cleanupFns.push(cleanupWrapper)
+          devServerTeardown = cleanupWrapper
+
+          try {
+            devServerOptions.onStdout = (chunk) => {
+              filterForkErrors(chunk, 'stdout')
+            }
+            devServerOptions.onStderr = (chunk) => {
+              filterForkErrors(chunk, 'stderr')
+            }
+            shouldFilter = false
+            resolveCleanup(await startServer(devServerOptions))
+          } finally {
+            // fallback to noop, if not provided
+            resolveCleanup(async () => {})
           }
-          shouldFilter = false
-          devServerTeardown = await startServer(devServerOptions)
 
           if (!config) {
             config = await loadConfig(
@@ -389,7 +439,6 @@ const nextDev: CliCommand = async (argv) => {
             )
           }
         }
-        cleanupFns.push(() => devServerTeardown?.())
 
         await setupFork()
         await preflight()
@@ -423,7 +472,7 @@ const nextDev: CliCommand = async (argv) => {
             const instrumentationFileHash = (
               require('crypto') as typeof import('crypto')
             )
-              .createHash('sha256')
+              .createHash('sha1')
               .update(await fs.promises.readFile(instrumentationFile, 'utf8'))
               .digest('hex')
 
@@ -460,7 +509,9 @@ const nextDev: CliCommand = async (argv) => {
           }
 
           previousInstrumentationFiles.clear()
-          knownFiles.forEach((_, key) => previousInstrumentationFiles.add(key))
+          knownFiles.forEach((_: any, key: any) =>
+            previousInstrumentationFiles.add(key)
+          )
         })
 
         const projectFolderWatcher = new Watchpack({

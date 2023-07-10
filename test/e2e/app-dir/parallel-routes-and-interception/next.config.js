@@ -2,7 +2,20 @@
  * @type {import('next').NextConfig}
  */
 const nextConfig = {
-  experimental: { appDir: true },
+  async rewrites() {
+    return {
+      beforeFiles: [
+        {
+          source: '/foo',
+          destination: '/en/foo',
+        },
+        {
+          source: '/photos',
+          destination: '/en/photos',
+        },
+      ],
+    }
+  },
 }
 
 module.exports = nextConfig

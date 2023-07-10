@@ -35,7 +35,8 @@ function fastRefreshReducerImpl(
       fetchServerResponse(
         new URL(href, origin),
         [state.tree[0], state.tree[1], state.tree[2], 'refetch'],
-        state.nextUrl
+        state.nextUrl,
+        state.buildId
       )
     )
   }
@@ -54,50 +55,54 @@ function fastRefreshReducerImpl(
   // Remove cache.data as it has been resolved at this point.
   cache.data = null
 
-  // TODO-APP: Currently the Flight data can only have one item but in the future it can have multiple paths.
-  const flightDataPath = flightData[0]
+  let currentTree = state.tree
+  let currentCache = state.cache
 
-  // FlightDataPath with more than two items means unexpected Flight data was returned
-  if (flightDataPath.length !== 3) {
-    // TODO-APP: handle this case better
-    console.log('REFRESH FAILED')
-    return state
+  for (const flightDataPath of flightData) {
+    // FlightDataPath with more than two items means unexpected Flight data was returned
+    if (flightDataPath.length !== 3) {
+      // TODO-APP: handle this case better
+      console.log('REFRESH FAILED')
+      return state
+    }
+
+    // Given the path can only have two items the items are only the router state and subTreeData for the root.
+    const [treePatch] = flightDataPath
+    const newTree = applyRouterStatePatchToTree(
+      // TODO-APP: remove ''
+      [''],
+      currentTree,
+      treePatch
+    )
+
+    if (newTree === null) {
+      throw new Error('SEGMENT MISMATCH')
+    }
+
+    if (isNavigatingToNewRootLayout(currentTree, newTree)) {
+      return handleExternalUrl(state, mutable, href, state.pushRef.pendingPush)
+    }
+
+    const canonicalUrlOverrideHref = canonicalUrlOverride
+      ? createHrefFromUrl(canonicalUrlOverride)
+      : undefined
+
+    if (canonicalUrlOverride) {
+      mutable.canonicalUrl = canonicalUrlOverrideHref
+    }
+    const applied = applyFlightData(currentCache, cache, flightDataPath)
+
+    if (applied) {
+      mutable.cache = cache
+      currentCache = cache
+    }
+
+    mutable.previousTree = currentTree
+    mutable.patchedTree = newTree
+    mutable.canonicalUrl = href
+
+    currentTree = newTree
   }
-
-  // Given the path can only have two items the items are only the router state and subTreeData for the root.
-  const [treePatch] = flightDataPath
-  const newTree = applyRouterStatePatchToTree(
-    // TODO-APP: remove ''
-    [''],
-    state.tree,
-    treePatch
-  )
-
-  if (newTree === null) {
-    throw new Error('SEGMENT MISMATCH')
-  }
-
-  if (isNavigatingToNewRootLayout(state.tree, newTree)) {
-    return handleExternalUrl(state, mutable, href, state.pushRef.pendingPush)
-  }
-
-  const canonicalUrlOverrideHref = canonicalUrlOverride
-    ? createHrefFromUrl(canonicalUrlOverride)
-    : undefined
-
-  if (canonicalUrlOverride) {
-    mutable.canonicalUrl = canonicalUrlOverrideHref
-  }
-  const applied = applyFlightData(state, cache, flightDataPath)
-
-  if (applied) {
-    mutable.cache = cache
-  }
-
-  mutable.previousTree = state.tree
-  mutable.patchedTree = newTree
-  mutable.canonicalUrl = href
-
   return handleMutable(state, mutable)
 }
 

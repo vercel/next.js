@@ -1,6 +1,6 @@
 {
   "name": "@next/eslint-plugin-next",
-  "version": "13.3.1-canary.4",
+  "version": "13.4.10-canary.2",
   "description": "ESLint plugin for NextJS.",
   "main": "dist/index.js",
   "license": "MIT",
@@ -20,7 +20,6 @@
   },
   "scripts": {
     "build": "swc -d dist src",
-    "prepublishOnly": "cd ../../ && turbo run build",
-    "test-pack": "cd ../../ && pnpm test-pack eslint-plugin-next"
+    "prepublishOnly": "cd ../../ && turbo run build"
   }
 }

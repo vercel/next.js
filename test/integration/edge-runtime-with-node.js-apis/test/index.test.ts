@@ -40,8 +40,6 @@ const unsupportedClasses = [
   'ReadableByteStreamController',
   'ReadableStreamBYOBRequest',
   'ReadableStreamDefaultController',
-  'TextDecoderStream',
-  'TextEncoderStream',
   'TransformStreamDefaultController',
   'WritableStreamDefaultController',
 ]
@@ -71,7 +69,7 @@ describe.each([
       output = ''
       appPort = await findPort()
       app = await launchApp(appDir, appPort, {
-        env: { __NEXT_TEST_WITH_DEVTOOL: 1 },
+        env: { __NEXT_TEST_WITH_DEVTOOL: '1' },
         onStdout(msg) {
           output += msg
         },
@@ -132,7 +130,7 @@ Learn more: https://nextjs.org/docs/api-reference/edge-runtime`)
       expect(buildResult.stderr).toContain(`A Node.js API is used (${api}`)
     })
 
-    it.each(['Buffer', ...undefinedProperties].map((api) => ({ api })))(
+    it.each([...undefinedProperties].map((api) => ({ api })))(
       'does not warn on using $api',
       ({ api }) => {
         expect(buildResult.stderr).toContain(`A Node.js API is used (${api}`)

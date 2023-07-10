@@ -2,7 +2,7 @@ use std::{fmt::Display, str::FromStr};
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
-use turbo_binding::turbo::tasks::{primitives::StringVc, trace::TraceRawVcs, Value};
+use turbopack_binding::turbo::tasks::{primitives::StringVc, trace::TraceRawVcs, Value};
 
 use super::request::{
     AdjustFontFallback, NextFontLocalRequest, NextFontLocalRequestArguments, SrcDescriptor,
@@ -173,7 +173,7 @@ pub(super) fn options_from_request(request: &NextFontLocalRequest) -> Result<Nex
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
-    use turbo_binding::turbo::tasks_fs::json::parse_json_with_source_context;
+    use turbopack_binding::turbo::tasks_fs::json::parse_json_with_source_context;
 
     use super::{options_from_request, NextFontLocalOptions};
     use crate::next_font::local::{

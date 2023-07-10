@@ -1,6 +1,6 @@
-import { useEffect } from 'react'
 import dynamic from 'next/dynamic'
 import '../components/nested-loaded'
+import { useTestHarness } from '@turbo/pack-test-harness'
 
 const Dynamic = dynamic(() => import('../components/dynamic'), {
   ssr: false,
@@ -12,9 +12,7 @@ if (typeof document !== 'undefined') {
 }
 
 export default function Home() {
-  useEffect(() => {
-    import('@turbo/pack-test-harness').then(runClientSideTests)
-  }, [])
+  useTestHarness(runClientSideTests)
 
   return <Dynamic />
 }

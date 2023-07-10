@@ -20,7 +20,7 @@ Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_mediu
 
 **You will need an Ably API key to run this demo, [see below for details](#ably-setup)**
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-ably&project-name=with-ably&repository-name=with-ably)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-ably&project-name=with-ably&repository-name=with-ably)
 
 ## How to use
 

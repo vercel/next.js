@@ -1,11 +1,11 @@
 /* eslint-env jest */
-import { sandbox } from './helpers'
-import { createNextDescribe, FileRef } from 'e2e-utils'
+import { sandbox } from 'development-sandbox'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import path from 'path'
+import { outdent } from 'outdent'
 
-createNextDescribe(
-  'Error Overlay invalid imports',
-  {
+describe('Error Overlay invalid imports', () => {
+  const { next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     dependencies: {
       react: 'latest',
@@ -14,25 +14,25 @@ createNextDescribe(
       'client-only': 'latest',
     },
     skipStart: true,
-  },
-  ({ next }) => {
-    it('should show error when using styled-jsx in server component', async () => {
-      const { session, cleanup } = await sandbox(
-        next,
-        new Map([
-          [
-            'app/comp1.js',
-            `
-          import { Comp2 } from './comp2'
+  })
 
-          export function Comp1() {
-            return <Comp2 />
-          }
+  it('should show error when using styled-jsx in server component', async () => {
+    const { session, cleanup } = await sandbox(
+      next,
+      new Map([
+        [
+          'app/comp1.js',
+          outdent`
+            import { Comp2 } from './comp2'
+
+            export function Comp1() {
+              return <Comp2 />
+            }
           `,
-          ],
-          [
-            'app/comp2.js',
-            `
+        ],
+        [
+          'app/comp2.js',
+          outdent`
             export function Comp2() {
               return (
                 <div>
@@ -44,29 +44,29 @@ createNextDescribe(
                 </div>
               )
             }
-             
           `,
-          ],
-          [
-            'app/page.js',
-            `'use client'
-          import { Comp1 } from './comp1'
-          
-          export default function Page() {
-            return <Comp1 />
-          }
+        ],
+        [
+          'app/page.js',
+          outdent`
+            'use client'
+            import { Comp1 } from './comp1'
+
+            export default function Page() {
+              return <Comp1 />
+            }
           `,
-          ],
-        ])
-      )
+        ],
+      ])
+    )
 
-      const pageFile = 'app/page.js'
-      const content = await next.readFile(pageFile)
-      const withoutUseClient = content.replace("'use client'", '')
-      await session.patch(pageFile, withoutUseClient)
+    const pageFile = 'app/page.js'
+    const content = await next.readFile(pageFile)
+    const withoutUseClient = content.replace("'use client'", '')
+    await session.patch(pageFile, withoutUseClient)
 
-      expect(await session.hasRedbox(true)).toBe(true)
-      expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
         "./app/comp2.js
         'client-only' cannot be imported from a Server Component module. It should only be used from a Client Component.
 
@@ -78,70 +78,70 @@ createNextDescribe(
         ./app/page.js"
       `)
 
-      await cleanup()
-    })
+    await cleanup()
+  })
 
-    it('should show error when external package imports client-only in server component', async () => {
-      const { session, cleanup } = await sandbox(
-        next,
-        new Map([
-          [
-            'node_modules/client-only-package/index.js',
-            `
+  it('should show error when external package imports client-only in server component', async () => {
+    const { session, cleanup } = await sandbox(
+      next,
+      new Map([
+        [
+          'node_modules/client-only-package/index.js',
+          outdent`
             require("client-only")
           `,
-          ],
-          [
-            'node_modules/client-only-package/package.json',
-            `
+        ],
+        [
+          'node_modules/client-only-package/package.json',
+          outdent`
             {
               "name": "client-only-package",
               "main": "index.js"
             }
           `,
-          ],
-          [
-            'app/comp1.js',
-            `
-          import { Comp2 } from './comp2'
+        ],
+        [
+          'app/comp1.js',
+          outdent`
+            import { Comp2 } from './comp2'
 
-          export function Comp1() {
-            return <Comp2 />
-          }
+            export function Comp1() {
+              return <Comp2 />
+            }
           `,
-          ],
-          [
-            'app/comp2.js',
-            `
+        ],
+        [
+          'app/comp2.js',
+          outdent`
             import "client-only-package"
             export function Comp2() {
               return (
                 <div>Hello world</div>
               )
             }
-             
           `,
-          ],
-          [
-            'app/page.js',
-            `'use client'
-          import { Comp1 } from './comp1'
-          
-          export default function Page() {
-            return <Comp1 />
-          }
+        ],
+        [
+          'app/page.js',
+          outdent`
+            'use client'
+            import { Comp1 } from './comp1'
+
+            export default function Page() {
+              return <Comp1 />
+            }
           `,
-          ],
-        ])
-      )
+        ],
+      ])
+    )
 
-      const pageFile = 'app/page.js'
-      const content = await next.readFile(pageFile)
-      const withoutUseClient = content.replace("'use client'", '')
-      await session.patch(pageFile, withoutUseClient)
+    const pageFile = 'app/page.js'
+    const content = await next.readFile(pageFile)
+    const withoutUseClient = content.replace("'use client'", '')
+    await session.patch(pageFile, withoutUseClient)
 
-      expect(await session.hasRedbox(true)).toBe(true)
-      expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
         "./app/comp2.js
         'client-only' cannot be imported from a Server Component module. It should only be used from a Client Component.
 
@@ -153,68 +153,68 @@ createNextDescribe(
         ./app/page.js"
       `)
 
-      await cleanup()
-    })
+    await cleanup()
+  })
 
-    it('should show error when external package imports server-only in client component', async () => {
-      const { session, cleanup } = await sandbox(
-        next,
-        new Map([
-          [
-            'node_modules/server-only-package/index.js',
-            `
+  it('should show error when external package imports server-only in client component', async () => {
+    const { session, cleanup } = await sandbox(
+      next,
+      new Map([
+        [
+          'node_modules/server-only-package/index.js',
+          outdent`
             require("server-only")
           `,
-          ],
-          [
-            'node_modules/server-only-package/package.json',
-            `
+        ],
+        [
+          'node_modules/server-only-package/package.json',
+          outdent`
             {
               "name": "server-only-package",
               "main": "index.js"
             }
           `,
-          ],
-          [
-            'app/comp1.js',
-            `
-          import { Comp2 } from './comp2'
+        ],
+        [
+          'app/comp1.js',
+          outdent`
+            import { Comp2 } from './comp2'
 
-          export function Comp1() {
-            return <Comp2 />
-          }
+            export function Comp1() {
+              return <Comp2 />
+            }
           `,
-          ],
-          [
-            'app/comp2.js',
-            `
+        ],
+        [
+          'app/comp2.js',
+          outdent`
             import 'server-only-package'
             export function Comp2() {
               return (
                 <div>Hello world</div>
               )
             }
-             
           `,
-          ],
-          [
-            'app/page.js',
-            `import { Comp1 } from './comp1'
-          
-          export default function Page() {
-            return <Comp1 />
-          }
+        ],
+        [
+          'app/page.js',
+          outdent`
+            import { Comp1 } from './comp1'
+
+            export default function Page() {
+              return <Comp1 />
+            }
           `,
-          ],
-        ])
-      )
+        ],
+      ])
+    )
 
-      const file = 'app/page.js'
-      const content = await next.readFile(file)
-      await session.patch(file, "'use client'\n" + content)
+    const file = 'app/page.js'
+    const content = await next.readFile(file)
+    await session.patch(file, "'use client'\n" + content)
 
-      expect(await session.hasRedbox(true)).toBe(true)
-      expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
         "./app/comp2.js
         'server-only' cannot be imported from a Client Component module. It should only be used from a Server Component.
 
@@ -226,7 +226,6 @@ createNextDescribe(
         ./app/page.js"
       `)
 
-      await cleanup()
-    })
-  }
-)
+    await cleanup()
+  })
+})
