@@ -2070,11 +2070,10 @@ export default async function build(
                   },
                   turboTasksForTrace
                 )
-              const [vanillaFiles, minimalFiles]: string[][] =
-                await Promise.all([
-                  makeTrace(vanillaServerEntries),
-                  makeTrace(minimalServerEntries),
-                ])
+
+              // turbotrace does not handle concurrent tracing
+              const vanillaFiles = await makeTrace(vanillaServerEntries)
+              const minimalFiles = await makeTrace(minimalServerEntries)
 
               for (const [set, files] of [
                 [tracedFiles, vanillaFiles],
