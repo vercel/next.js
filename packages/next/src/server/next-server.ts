@@ -1006,7 +1006,11 @@ export default class NextNodeServer extends BaseServer {
       }
 
       try {
-        this.logError(err)
+        if (this.renderOpts.dev) {
+          await (this as any).logErrorWithOriginalStack(err)
+        } else {
+          this.logError(err)
+        }
         res.statusCode = 500
         await this.renderError(err, req, res, pathname, query)
         return {

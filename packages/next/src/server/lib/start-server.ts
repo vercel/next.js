@@ -352,9 +352,11 @@ export async function startServer({
       upgradeHandler = async (req, socket, head) => {
         req.on('error', (_err) => {
           // TODO: log socket errors?
+          // console.log(_err)
         })
         socket.on('error', (_err) => {
           // TODO: log socket errors?
+          // console.log(_err)
         })
         const proxyServer = getProxyServer(req.url || '/')
         proxyServer.on('proxyReqWs', (proxyReq) => {

@@ -276,6 +276,37 @@ function createServer(options: NextServerOptions): NextServer {
     const { startServer } =
       require('./lib/start-server') as typeof import('./lib/start-server')
 
+    let didWebSocketSetup = false
+
+    function setupWebSocketHandler(
+      customServer?: import('http').Server,
+      _req?: IncomingMessage
+    ) {
+      if (!didWebSocketSetup) {
+        didWebSocketSetup = true
+        customServer = customServer || (_req?.socket as any)?.server
+
+        if (!customServer) {
+          // this is very unlikely to happen but show an error in case
+          // it does somehow
+          console.error(
+            `Invalid IncomingMessage received, make sure http.createServer is being used to handle requests.`
+          )
+        } else {
+          customServer.on('upgrade', async (req, socket, head) => {
+            if (shouldUseStandaloneMode) {
+              await proxyRequest(
+                req,
+                socket as any,
+                url.parse(`http://127.0.0.1:${serverPort}${req.url}`, true),
+                head
+              )
+            }
+          })
+        }
+      }
+    }
+
     let serverPort: number = 0
     return new Proxy(
       {},
@@ -305,6 +336,7 @@ function createServer(options: NextServerOptions): NextServer {
                 let handler: RequestHandler
                 return async (req: IncomingMessage, res: ServerResponse) => {
                   if (shouldUseStandaloneMode) {
+                    setupWebSocketHandler(options.httpServer, req)
                     await proxyRequest(
                       req,
                       res,

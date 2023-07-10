@@ -662,17 +662,15 @@ export async function initialize(opts: {
     try {
       req.on('error', (_err) => {
         // TODO: log socket errors?
+        // console.error(_err);
       })
       socket.on('error', (_err) => {
         // TODO: log socket errors?
+        // console.error(_err);
       })
 
       if (opts.dev && devInstance) {
-        if (
-          req.url?.startsWith(
-            `${config.basePath || config.assetPrefix || ''}/_next/webpack-hmr`
-          )
-        ) {
+        if (req.url?.includes(`/_next/webpack-hmr`)) {
           return devInstance.hotReloader.onHMR(req, socket, head)
         }
       }
