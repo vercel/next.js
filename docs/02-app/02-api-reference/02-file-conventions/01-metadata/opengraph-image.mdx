@@ -339,7 +339,7 @@ export default function Image() {}
 This example uses the `params` object and external data to generate the image.
 
 > **Good to know**:
-> By default, this generated image will be [statically optimized](/docs/app/building-your-application/rendering/static-and-dynamic-rendering#static-rendering-default). You can configure the individual `fetch` [`options`](/docs/app/api-reference/functions/fetch) or route segments [options](docs/app/api-reference/file-conventions/route-segment-config#revalidate) to change this behavior.
+> By default, this generated image will be [statically optimized](/docs/app/building-your-application/rendering/static-and-dynamic-rendering#static-rendering-default). You can configure the individual `fetch` [`options`](/docs/app/api-reference/functions/fetch) or route segments [options](/docs/app/api-reference/file-conventions/route-segment-config#revalidate) to change this behavior.
 
 ```tsx filename="app/posts/[slug]/opengraph-image.tsx" switcher
 import { ImageResponse } from 'next/server'

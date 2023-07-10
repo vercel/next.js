@@ -210,9 +210,7 @@ fn pick_font_for_fallback_generation(
 /// If it's not a variable font we can just return the distance.
 /// If it's a variable font we need to compare its weight range to 400.
 fn get_distance_from_normal_weight(weight: &Option<FontWeight>) -> Result<f64> {
-    let Some(weight) = weight else {
-        return Ok(0.0)
-    };
+    let Some(weight) = weight else { return Ok(0.0) };
 
     Ok(match weight {
         FontWeight::Fixed(val) => parse_weight_string(val)? - NORMAL_WEIGHT,

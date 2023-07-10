@@ -5,12 +5,16 @@ use turbopack_binding::{
     turbopack::{
         core::{
             asset::AssetVc,
-            context::{AssetContext, AssetContextVc},
-            plugin::{CustomModuleType, CustomModuleTypeVc},
+            context::AssetContext,
+            module::ModuleVc,
             reference_type::{InnerAssetsVc, ReferenceType},
             resolve::ModulePartVc,
         },
         r#static::StaticModuleAssetVc,
+        turbopack::{
+            module_options::{CustomModuleType, CustomModuleTypeVc},
+            ModuleAssetContextVc,
+        },
     },
 };
 
@@ -43,9 +47,9 @@ impl StructuredImageModuleType {
     pub(crate) fn create_module(
         source: AssetVc,
         blur_placeholder_mode: BlurPlaceholderMode,
-        context: AssetContextVc,
-    ) -> AssetVc {
-        let static_asset = StaticModuleAssetVc::new(source, context);
+        context: ModuleAssetContextVc,
+    ) -> ModuleVc {
+        let static_asset = StaticModuleAssetVc::new(source, context.into());
         context.process(
             StructuredImageSourceAsset {
                 image: source,
@@ -76,9 +80,9 @@ impl CustomModuleType for StructuredImageModuleType {
     fn create_module(
         &self,
         source: AssetVc,
-        context: AssetContextVc,
+        context: ModuleAssetContextVc,
         _part: Option<ModulePartVc>,
-    ) -> AssetVc {
+    ) -> ModuleVc {
         StructuredImageModuleType::create_module(source, self.blur_placeholder_mode, context)
     }
 }

@@ -554,6 +554,7 @@ let _makeResolver: any = () => {}
 if (
   // ensure this isn't bundled for edge runtime
   process.env.NEXT_RUNTIME !== 'edge' &&
+  !process.env.NEXT_MINIMAL &&
   // only load if we are inside of the turbopack handler
   process.argv.some((arg) => arg.endsWith('router.js'))
 ) {

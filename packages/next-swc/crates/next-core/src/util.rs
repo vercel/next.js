@@ -10,10 +10,11 @@ use turbopack_binding::{
     turbo::tasks_fs::{json::parse_json_rope_with_source_context, FileContent, FileSystemPathVc},
     turbopack::{
         core::{
-            asset::{Asset, AssetVc},
+            asset::Asset,
             environment::{ServerAddrVc, ServerInfo},
             ident::AssetIdentVc,
             issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc, OptionIssueSourceVc},
+            module::ModuleVc,
             reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
             resolve::{
                 self, handle_resolve_error, node::node_cjs_resolve_options, parse::RequestVc,
@@ -165,15 +166,15 @@ impl Issue for NextSourceConfigParsingIssue {
 }
 
 #[turbo_tasks::function]
-pub async fn parse_config_from_source(module_asset: AssetVc) -> Result<NextSourceConfigVc> {
-    if let Some(ecmascript_asset) = EcmascriptModuleAssetVc::resolve_from(module_asset).await? {
+pub async fn parse_config_from_source(module: ModuleVc) -> Result<NextSourceConfigVc> {
+    if let Some(ecmascript_asset) = EcmascriptModuleAssetVc::resolve_from(module).await? {
         if let ParseResult::Ok {
-            program: Program::Module(module),
+            program: Program::Module(module_ast),
             eval_context,
             ..
         } = &*ecmascript_asset.parse().await?
         {
-            for item in &module.body {
+            for item in &module_ast.body {
                 if let Some(decl) = item
                     .as_module_decl()
                     .and_then(|mod_decl| mod_decl.as_export_decl())
@@ -188,10 +189,10 @@ pub async fn parse_config_from_source(module_asset: AssetVc) -> Result<NextSourc
                         {
                             if let Some(init) = decl.init.as_ref() {
                                 let value = eval_context.eval(init);
-                                return Ok(parse_config_from_js_value(module_asset, &value).cell());
+                                return Ok(parse_config_from_js_value(module, &value).cell());
                             } else {
                                 NextSourceConfigParsingIssue {
-                                    ident: module_asset.ident(),
+                                    ident: module.ident(),
                                     detail: StringVc::cell(
                                         "The exported config object must contain an variable \
                                          initializer."
@@ -211,7 +212,7 @@ pub async fn parse_config_from_source(module_asset: AssetVc) -> Result<NextSourc
     Ok(NextSourceConfigVc::default())
 }
 
-fn parse_config_from_js_value(module_asset: AssetVc, value: &JsValue) -> NextSourceConfig {
+fn parse_config_from_js_value(module_asset: ModuleVc, value: &JsValue) -> NextSourceConfig {
     let mut config = NextSourceConfig::default();
     let invalid_config = |detail: &str, value: &JsValue| {
         let (explainer, hints) = value.explain(2, 0);
@@ -366,14 +367,24 @@ pub async fn render_data(
     struct Data {
         next_config_output: Option<OutputType>,
         server_info: Option<ServerInfo>,
+        allowed_revalidate_header_keys: Option<Vec<String>>,
+        fetch_cache_key_prefix: Option<String>,
+        isr_memory_cache_size: Option<f64>,
+        isr_flush_to_disk: Option<bool>,
     }
 
     let config = next_config.await?;
     let server_info = ServerInfo::try_from(&*server_addr.await?);
 
+    let experimental = &config.experimental;
+
     let value = serde_json::to_value(Data {
         next_config_output: config.output.clone(),
         server_info: server_info.ok(),
+        allowed_revalidate_header_keys: experimental.allowed_revalidate_header_keys.clone(),
+        fetch_cache_key_prefix: experimental.fetch_cache_key_prefix.clone(),
+        isr_memory_cache_size: experimental.isr_memory_cache_size,
+        isr_flush_to_disk: experimental.isr_flush_to_disk,
     })?;
     Ok(JsonValue(value).cell())
 }

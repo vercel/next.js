@@ -80,7 +80,7 @@ describe('accumulateMetadata', () => {
     })
   })
 
-  describe('openGraph', () => {
+  describe('openGraph and twitter', () => {
     it('should convert string or URL images field to array, not only for basic og type', async () => {
       const items: [Metadata[], Metadata][] = [
         [
@@ -177,6 +177,44 @@ describe('accumulateMetadata', () => {
       })
     })
 
+    it('should fill only the existing props from openGraph to twitter', async () => {
+      const metadataItems: MetadataItems = [
+        [
+          {
+            openGraph: {
+              // skip title
+              description: 'description',
+            },
+          },
+          // has static metadata files
+          {
+            icon: undefined,
+            apple: undefined,
+            twitter: ['/og/twitter.png'],
+            openGraph: undefined,
+            manifest: undefined,
+          },
+        ],
+      ]
+      const metadata = await accumulateMetadata(metadataItems)
+      expect(metadata).toMatchObject({
+        openGraph: {
+          title: {
+            absolute: '',
+            template: null,
+          },
+          description: 'description',
+        },
+        twitter: {
+          title: {
+            absolute: '',
+            template: null,
+          },
+          description: 'description',
+        },
+      })
+    })
+
     it('should resolve relative url starting with ./ with pathname for openGraph.url', async () => {
       const metadataItems: MetadataItems = [
         [
@@ -194,6 +232,68 @@ describe('accumulateMetadata', () => {
         metadataBase: new URL('http://test.com/base'),
         openGraph: {
           url: new URL('http://test.com/base/test/abc'),
+        },
+      })
+    })
+
+    it('should override openGraph or twitter images when current layer specifies social images properties', async () => {
+      const metadataItems1: MetadataItems = [
+        [
+          {
+            openGraph: {
+              images: 'https://test.com/og.png',
+            },
+            twitter: {
+              images: 'https://test.com/twitter.png',
+            },
+          },
+          // has static metadata files
+          {
+            icon: undefined,
+            apple: undefined,
+            twitter: ['/filebased/twitter.png'],
+            openGraph: ['/filebased/og.png'],
+            manifest: undefined,
+          },
+        ],
+      ]
+      const metadata1 = await accumulateMetadata(metadataItems1)
+      expect(metadata1).toMatchObject({
+        openGraph: {
+          images: [{ url: new URL('https://test.com/og.png') }],
+        },
+        twitter: {
+          images: [{ url: new URL('https://test.com/twitter.png ') }],
+        },
+      })
+
+      const metadataItems2: MetadataItems = [
+        [
+          function gM2() {
+            return {
+              openGraph: {
+                images: undefined,
+              },
+              // twitter is not specified, supposed to merged with openGraph but images should not be picked up
+            }
+          },
+          // has static metadata files
+          {
+            icon: undefined,
+            apple: undefined,
+            twitter: undefined,
+            openGraph: ['/filebased/og.png'],
+            manifest: undefined,
+          },
+        ],
+      ]
+      const metadata2 = await accumulateMetadata(metadataItems2)
+      expect(metadata2).toMatchObject({
+        openGraph: {
+          images: undefined,
+        },
+        twitter: {
+          images: undefined,
         },
       })
     })
