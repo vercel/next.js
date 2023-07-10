@@ -27,7 +27,7 @@ export const nextConfig = new File(join(appDir, 'next.config.js'))
 const slugPage = new File(join(appDir, 'app/another/[slug]/page.js'))
 const apiJson = new File(join(appDir, 'app/api/json/route.js'))
 
-export const expectedFiles = [
+export const expectedWhenTrailingSlashTrue = [
   '404.html',
   '404/index.html',
   '_next/static/media/test.3f1a293b.png',
@@ -44,6 +44,27 @@ export const expectedFiles = [
   'favicon.ico',
   'image-import/index.html',
   'image-import/index.txt',
+  'index.html',
+  'index.txt',
+  'robots.txt',
+]
+
+const expectedWhenTrailingSlashFalse = [
+  '404.html',
+  '_next/static/media/test.3f1a293b.png',
+  '_next/static/test-build-id/_buildManifest.js',
+  '_next/static/test-build-id/_ssgManifest.js',
+  'another/first.html',
+  'another/first.txt',
+  'another.html',
+  'another.txt',
+  'another/second.html',
+  'another/second.txt',
+  'api/json',
+  'api/txt',
+  'favicon.ico',
+  'image-import.html',
+  'image-import.txt',
   'index.html',
   'index.txt',
   'robots.txt',
@@ -156,7 +177,6 @@ export async function runTests({
       await check(() => browser.elementByCss('h1').text(), 'Home')
       expect(await browser.elementByCss(a(3)).text()).toBe('another first page')
       await browser.elementByCss(a(3)).click()
-
       await check(() => browser.elementByCss('h1').text(), 'first')
       expect(await browser.elementByCss(a(1)).text()).toBe('Visit another page')
       await browser.elementByCss(a(1)).click()
@@ -188,8 +208,12 @@ export async function runTests({
       expect(res2.status).toBe(200)
       expect(await res2.text()).toEqual('this is plain text')
 
-      if (!isDev && trailingSlash) {
-        expect(await getFiles()).toEqual(expectedFiles)
+      if (!isDev) {
+        if (trailingSlash) {
+          expect(await getFiles()).toEqual(expectedWhenTrailingSlashTrue)
+        } else {
+          expect(await getFiles()).toEqual(expectedWhenTrailingSlashFalse)
+        }
       }
     }
   } finally {
