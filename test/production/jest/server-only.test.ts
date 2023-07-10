@@ -1,6 +1,5 @@
 import { createNext } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
-import { renderViaHTTP } from 'next-test-utils'
 
 describe('next/jest', () => {
   let next: NextInstance
