@@ -100,7 +100,10 @@ async function loadJSManifest<T>(
   name: string,
   entryname: string
 ): Promise<T | undefined> {
-  await loadManifest(manifestPath)
+  process.env.NEXT_MINIMAL
+    ? // @ts-ignore
+      __non_webpack_require__(manifestPath)
+    : require(manifestPath)
   try {
     return JSON.parse((globalThis as any)[name][entryname]) as T
   } catch (err) {
