@@ -144,7 +144,7 @@ Although the `getUser()` function is called twice in the example above, only one
 
 ### `POST` requests and `cache()`
 
-`POST` requests are automatically deduplicated when using `fetch` – unless they are inside of `POST` Route Handler or come after reading `headers()`/`cookies()`. For example, if you are using GraphQL and `POST` requests in the above cases, you can use `cache` to deduplicate requests. The `cache` arguments must be flat and only include primitives. Deep objects won't match for deduplication.
+`POST` requests aren't automatically deduplicated when using `fetch` – unless they are inside of `POST` Route Handler or come after reading `headers()`/`cookies()`. For example, if you are using GraphQL and `POST` requests in the above cases, you can use `cache` to deduplicate requests. The `cache` arguments must be flat and only include primitives. Deep objects won't match for deduplication.
 
 ```ts filename="utils/getUser.ts" switcher
 import { cache } from 'react'
