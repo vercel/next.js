@@ -88,7 +88,7 @@ impl Transition for NextClientTransition {
         let runtime_entries = self.runtime_entries.resolve_entries(context.into());
 
         let asset = ChunkGroupFilesAsset {
-            asset: asset.into(),
+            module: asset.into(),
             // This ensures that the chunk group files asset will strip out the _next prefix from
             // all chunk paths, which is what the Next.js renderer code expects.
             client_root: self.client_chunking_context.output_root().join("_next"),

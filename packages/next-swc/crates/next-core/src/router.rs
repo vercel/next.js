@@ -138,36 +138,20 @@ pub enum RouterResult {
 }
 
 #[turbo_tasks::function]
-async fn get_config(
-    context: AssetContextVc,
-    project_path: FileSystemPathVc,
-    configs: StringsVc,
-) -> Result<OptionModuleVc> {
-    let find_config_result = find_context_file(project_path, configs);
-    let config_asset = match &*find_config_result.await? {
-        FindContextFileResult::Found(config_path, _) => {
-            Some(context.with_transition("next-edge").process(
-                SourceAssetVc::new(*config_path).into(),
-                Value::new(ReferenceType::EcmaScriptModules(
-                    EcmaScriptModulesReferenceSubType::Undefined,
-                )),
-            ))
-        }
-        FindContextFileResult::NotFound(_) => None,
-    };
-    Ok(OptionModuleVc::cell(config_asset))
-}
-
-#[turbo_tasks::function]
 async fn next_config_changed(
     context: AssetContextVc,
     project_path: FileSystemPathVc,
 ) -> Result<CompletionVc> {
-    let next_config = get_config(context, project_path, next_configs()).await?;
-    Ok(if let Some(c) = *next_config {
-        any_content_changed(c.into())
-    } else {
-        CompletionVc::immutable()
+    let find_config_result = find_context_file(project_path, next_configs());
+    Ok(match *find_config_result.await? {
+        FindContextFileResult::Found(config_path, _) => {
+            let module = context.process(
+                SourceAssetVc::new(config_path).as_asset(),
+                Value::new(ReferenceType::Internal(InnerAssetsVc::empty())),
+            );
+            any_content_changed(module.into())
+        }
+        FindContextFileResult::NotFound(_) => CompletionVc::immutable(),
     })
 }
 
@@ -177,19 +161,30 @@ async fn config_assets(
     project_path: FileSystemPathVc,
     page_extensions: StringsVc,
 ) -> Result<InnerAssetsVc> {
-    let middleware_config =
-        get_config(context, project_path, middleware_files(page_extensions)).await?;
+    let find_config_result = find_context_file(project_path, middleware_files(page_extensions));
 
     // The router.ts file expects a manifest of chunks for the middleware. If there
     // is no middleware file, then we need to generate a default empty manifest
     // and we cannot process it with the next-edge transition because it
     // requires a real file for some reason.
-    let (manifest, config) = match *middleware_config {
-        Some(manifest) => {
-            let config = parse_config_from_source(manifest);
+    let (manifest, config) = match *find_config_result.await? {
+        FindContextFileResult::Found(config_path, _) => {
+            let config = context.process(
+                SourceAssetVc::new(config_path).into(),
+                Value::new(ReferenceType::EcmaScriptModules(
+                    EcmaScriptModulesReferenceSubType::Undefined,
+                )),
+            );
+            let config = parse_config_from_source(config);
+            let manifest = context.with_transition("next-edge").process(
+                SourceAssetVc::new(config_path).into(),
+                Value::new(ReferenceType::EcmaScriptModules(
+                    EcmaScriptModulesReferenceSubType::Undefined,
+                )),
+            );
             (manifest, config)
         }
-        None => {
+        FindContextFileResult::NotFound(_) => {
             let manifest = context.process(
                 VirtualAssetVc::new(
                     project_path.join("middleware.js"),

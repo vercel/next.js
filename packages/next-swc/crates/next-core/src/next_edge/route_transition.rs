@@ -74,7 +74,7 @@ impl Transition for NextEdgeRouteTransition {
         );
 
         let asset = ChunkGroupFilesAsset {
-            asset: new_asset.into(),
+            module: new_asset.into(),
             client_root: self.output_path,
             chunking_context: self.edge_chunking_context,
             runtime_entries: None,

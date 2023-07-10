@@ -72,7 +72,7 @@ impl Transition for NextEdgePageTransition {
         asset: ModuleVc,
         context: ModuleAssetContextVc,
     ) -> Result<ModuleVc> {
-        let asset = context.process(
+        let module = context.process(
             self.bootstrap_asset,
             Value::new(ReferenceType::Internal(InnerAssetsVc::cell(indexmap! {
                 "APP_ENTRY".to_string() => asset.into(),
@@ -85,12 +85,12 @@ impl Transition for NextEdgePageTransition {
             }))),
         );
 
-        let Some(asset) = ChunkableAssetVc::resolve_from(asset).await? else {
-            bail!("Internal module is not evaluatable");
+        let Some(module) = ChunkableAssetVc::resolve_from(module).await? else {
+            bail!("Internal module is not chunkable");
         };
 
         let asset = ChunkGroupFilesAsset {
-            asset,
+            module,
             client_root: self.output_path,
             chunking_context: self.edge_chunking_context,
             runtime_entries: None,
