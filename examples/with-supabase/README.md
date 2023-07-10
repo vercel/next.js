@@ -19,16 +19,16 @@
 
 ## Features
 
-- [Next.js 13 ready](https://nextjs.org) App Router
-    - Client component examples
-    - React server component (RSCs) examples
+- [Next.js App router ready](https://nextjs.org) App Router
+    - Client Components examples
+    - React Server Components (RSCs) examples
     - Route Handlers examples
     - Server Actions examples
 - [supabase-js](https://supabase.com/docs/reference/javascript). Supabase's 
 isomorphic JavaScript library.
 - [Supabase Auth](https://supabase.com/auth) using cookies, making the user's session available throughout the entire Next.js app, for both client and server.
 - Styling with [Tailwind CSS](https://tailwindcss.com)
-- Optiopnal deployment with [Supabase Vercel Integration  and Vercel deploy](#deploy-your-own)
+- Optional deployment with [Supabase Vercel Integration  and Vercel deploy](#deploy-your-own)
     - Enviroment variables automatically assigned to Vercel project
 
 ## Demo
@@ -65,13 +65,7 @@ If you wish to just develop locally and not deploy to Vercel, [follow the steps 
     cd name-of-new-app
     ```
 
-4. Install the dependecies 
-
-    ```bash
-    npm install
-    ```
-
-5. Rename `.env.local.example` to `.env.local` and update the following:
+4. Rename `.env.local.example` to `.env.local` and update the following:
 
     ```
     NEXT_PUBLIC_SUPABASE_URL=[INSERT SUPABASE PROJECT URL]
@@ -80,7 +74,7 @@ If you wish to just develop locally and not deploy to Vercel, [follow the steps 
 
     Both `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` can be found in [your Supabase project's API settings](https://app.supabase.com/project/_/settings/api)
 
-6. You can now run the Next.js local development server:
+5. You can now run the Next.js local development server:
 
     ```bash
     npm run dev
