@@ -6,11 +6,9 @@ description: Configure the Next.js cache used for storing and revalidating data.
 In Next.js, the [default cache handler](/docs/app/building-your-application/data-fetching/caching) uses the filesystem cache. This requires no configuration, however, you can customize the cache handler by using the `incrementalCacheHandlerPath` field in `next.config.js`.
 
 ```js filename="next.config.js"
-const path = require('path')
-
 module.exports = {
   experimental: {
-    incrementalCacheHandlerPath: path.resolve('./cache-handler.js'),
+    incrementalCacheHandlerPath: require.resolve('./cache-handler.js'),
   },
 }
 ```
