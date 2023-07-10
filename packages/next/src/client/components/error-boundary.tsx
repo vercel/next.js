@@ -2,6 +2,7 @@
 
 import React from 'react'
 import { usePathname } from './navigation'
+import type { GlobalErrorProps } from './global-error'
 
 const styles = {
   error: {
@@ -99,10 +100,16 @@ export class ErrorBoundaryHandler extends React.Component<
   }
 }
 
-export default function GlobalError({ error }: { error: any }) {
+// export type GlobalErrorProps = { error: any }
+
+// export function AppGlobalError({ errorComponent: GlobalErrorComponent, error }: { errorComponent: React.ComponentType<GlobalErrorProps>, error: any }) {
+//   return <GlobalErrorComponent error={error} />
+// }
+
+export function GlobalError({ error }: GlobalErrorProps) {
   const digest: string | undefined = error?.digest
   return (
-    <html>
+    <html id="__next_error__">
       <head></head>
       <body>
         <div style={styles.error}>

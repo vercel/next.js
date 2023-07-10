@@ -5,7 +5,8 @@ export default function GlobalError({ error }) {
     <html>
       <head></head>
       <body>
-        <div id="error">{`Error message: ${error?.message}`}</div>
+        <h1>Global Error</h1>
+        <div id="error">{`Global error: ${error?.message}`}</div>
       </body>
     </html>
   )
