@@ -126,7 +126,6 @@ pub async fn create_page_source(
         project_root,
         client_root,
         client_compile_time_info.environment(),
-        client_ty,
     );
 
     let client_runtime_entries = get_client_runtime_entries(
@@ -155,10 +154,7 @@ pub async fn create_page_source(
         project_root,
         node_root.join("edge"),
         node_root.join("edge/chunks"),
-        get_client_assets_path(
-            client_root,
-            Value::new(ClientContextType::Pages { pages_dir }),
-        ),
+        get_client_assets_path(client_root),
         edge_compile_time_info.environment(),
     )
     .reference_chunk_source_maps(should_debug("page_source"))
@@ -269,10 +265,8 @@ pub async fn create_page_source(
     let render_data = render_data(next_config, server_addr);
     let page_extensions = next_config.page_extensions();
 
-    let mut sources = vec![];
-
-    // Match _next/404 first to ensure rewrites work properly.
-    sources.push(
+    let sources = vec![
+        // Match _next/404 first to ensure rewrites work properly.
         create_not_found_page_source(
             project_root,
             env,
@@ -290,30 +284,23 @@ pub async fn create_page_source(
             render_data,
         )
         .issue_context(pages_dir, "Next.js pages directory not found"),
-    );
-
-    sources.push(create_page_source_for_root_directory(
-        pages_structure,
-        project_root,
-        env,
-        server_context,
-        server_data_context,
-        client_context,
-        pages_dir,
-        server_runtime_entries,
-        fallback_page,
-        client_root,
-        node_root,
-        render_data,
-    ));
-
-    sources.push(
+        create_page_source_for_root_directory(
+            pages_structure,
+            project_root,
+            env,
+            server_context,
+            server_data_context,
+            client_context,
+            pages_dir,
+            server_runtime_entries,
+            fallback_page,
+            client_root,
+            node_root,
+            render_data,
+        ),
         AssetGraphContentSourceVc::new_eager(client_root, fallback_page.as_asset())
             .as_content_source()
             .issue_context(pages_dir, "Next.js pages directory fallback"),
-    );
-
-    sources.push(
         create_not_found_page_source(
             project_root,
             env,
@@ -331,7 +318,7 @@ pub async fn create_page_source(
             render_data,
         )
         .issue_context(pages_dir, "Next.js pages directory not found fallback"),
-    );
+    ];
 
     let source = CombinedContentSource { sources }.cell().into();
     Ok(source)
@@ -345,7 +332,7 @@ async fn create_page_source_for_file(
     server_context: AssetContextVc,
     server_data_context: AssetContextVc,
     client_context: AssetContextVc,
-    pages_dir: FileSystemPathVc,
+    _pages_dir: FileSystemPathVc,
     page_asset: AssetVc,
     runtime_entries: AssetsVc,
     fallback_page: DevHtmlAssetVc,
@@ -360,10 +347,7 @@ async fn create_page_source_for_file(
         project_path,
         node_path,
         node_path.join("chunks"),
-        get_client_assets_path(
-            client_root,
-            Value::new(ClientContextType::Pages { pages_dir }),
-        ),
+        get_client_assets_path(client_root),
         server_context.compile_time_info().environment(),
     )
     .reference_chunk_source_maps(should_debug("page_source"))
@@ -375,10 +359,7 @@ async fn create_page_source_for_file(
         project_path,
         data_node_path,
         data_node_path.join("chunks"),
-        get_client_assets_path(
-            client_root,
-            Value::new(ClientContextType::Pages { pages_dir }),
-        ),
+        get_client_assets_path(client_root),
         server_context.compile_time_info().environment(),
     )
     .reference_chunk_source_maps(should_debug("page_source"))
@@ -388,7 +369,6 @@ async fn create_page_source_for_file(
         project_path,
         client_root,
         client_context.compile_time_info().environment(),
-        Value::new(ClientContextType::Pages { pages_dir }),
     );
 
     let pathname = pathname_for_path(client_root, client_path, PathType::Page);
@@ -530,10 +510,7 @@ async fn create_not_found_page_source(
         project_path,
         node_path,
         node_path.join("chunks"),
-        get_client_assets_path(
-            client_root,
-            Value::new(ClientContextType::Pages { pages_dir }),
-        ),
+        get_client_assets_path(client_root),
         server_context.compile_time_info().environment(),
     )
     .reference_chunk_source_maps(should_debug("page_source"))
@@ -543,7 +520,6 @@ async fn create_not_found_page_source(
         project_path,
         client_root,
         client_context.compile_time_info().environment(),
-        Value::new(ClientContextType::Pages { pages_dir }),
     );
 
     let (page_asset, pathname) =

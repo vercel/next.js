@@ -11,7 +11,7 @@ import { loadEnvConfig } from '@next/env'
 import chalk from 'next/dist/compiled/chalk'
 import crypto from 'crypto'
 import { isMatch, makeRe } from 'next/dist/compiled/micromatch'
-import { promises } from 'fs'
+import { promises as fs, existsSync as fsExistsSync } from 'fs'
 import os from 'os'
 import { Worker } from '../lib/worker'
 import { defaultConfig } from '../server/config-shared'
@@ -52,7 +52,6 @@ import {
   PAGES_MANIFEST,
   PHASE_PRODUCTION_BUILD,
   PRERENDER_MANIFEST,
-  CLIENT_REFERENCE_MANIFEST,
   REACT_LOADABLE_MANIFEST,
   ROUTES_MANIFEST,
   SERVER_DIRECTORY,
@@ -188,7 +187,7 @@ async function generateClientSsgManifest(
     ssgPages
   )};self.__SSG_MANIFEST_CB&&self.__SSG_MANIFEST_CB()`
 
-  await promises.writeFile(
+  await fs.writeFile(
     path.join(distDir, CLIENT_STATIC_FILES_PATH, buildId, '_ssgManifest.js'),
     clientSsgManifestContent
   )
@@ -259,10 +258,7 @@ export default async function build(
       let buildId: string = ''
 
       if (isGenerate) {
-        buildId = await promises.readFile(
-          path.join(distDir, 'BUILD_ID'),
-          'utf8'
-        )
+        buildId = await fs.readFile(path.join(distDir, 'BUILD_ID'), 'utf8')
       } else {
         buildId = await nextBuildSpan
           .traceChild('generate-buildid')
@@ -810,7 +806,7 @@ export default async function build(
         .traceChild('create-dist-dir')
         .traceAsyncFn(async () => {
           try {
-            await promises.mkdir(distDir, { recursive: true })
+            await fs.mkdir(distDir, { recursive: true })
             return true
           } catch (err) {
             if (isError(err) && err.code === 'EPERM') {
@@ -832,7 +828,7 @@ export default async function build(
 
       // Ensure commonjs handling is used for files in the distDir (generally .next)
       // Files outside of the distDir can be "type": "module"
-      await promises.writeFile(
+      await fs.writeFile(
         path.join(distDir, 'package.json'),
         '{"type": "commonjs"}'
       )
@@ -841,7 +837,7 @@ export default async function build(
       await nextBuildSpan
         .traceChild('write-routes-manifest')
         .traceAsyncFn(() =>
-          promises.writeFile(
+          fs.writeFile(
             routesManifestPath,
             JSON.stringify(routesManifest),
             'utf8'
@@ -906,14 +902,6 @@ export default async function build(
                   APP_BUILD_MANIFEST,
                   path.join(
                     SERVER_DIRECTORY,
-                    CLIENT_REFERENCE_MANIFEST + '.js'
-                  ),
-                  path.join(
-                    SERVER_DIRECTORY,
-                    CLIENT_REFERENCE_MANIFEST + '.json'
-                  ),
-                  path.join(
-                    SERVER_DIRECTORY,
                     SERVER_REFERENCE_MANIFEST + '.js'
                   ),
                   path.join(
@@ -927,7 +915,6 @@ export default async function build(
               ? path.join(SERVER_DIRECTORY, FONT_MANIFEST)
               : null,
             BUILD_ID_FILE,
-            appDir ? path.join(SERVER_DIRECTORY, APP_PATHS_MANIFEST) : null,
             path.join(SERVER_DIRECTORY, NEXT_FONT_MANIFEST + '.js'),
             path.join(SERVER_DIRECTORY, NEXT_FONT_MANIFEST + '.json'),
             ...(hasInstrumentationHook
@@ -1062,7 +1049,7 @@ export default async function build(
               })
               await binding.turbo.startTrace(action, turboTasksForTrace)
               if (turbotraceOutputPath && turbotraceFiles) {
-                const existedNftFile = await promises
+                const existedNftFile = await fs
                   .readFile(turbotraceOutputPath, 'utf8')
                   .then((existedContent) => JSON.parse(existedContent))
                   .catch(() => ({
@@ -1072,7 +1059,7 @@ export default async function build(
                 existedNftFile.files.push(...turbotraceFiles)
                 const filesSet = new Set(existedNftFile.files)
                 existedNftFile.files = [...filesSet]
-                await promises.writeFile(
+                await fs.writeFile(
                   turbotraceOutputPath,
                   JSON.stringify(existedNftFile),
                   'utf8'
@@ -1115,14 +1102,14 @@ export default async function build(
       const appDefaultConfigs = new Map<string, AppConfig>()
       const pageInfos = new Map<string, PageInfo>()
       const pagesManifest = JSON.parse(
-        await promises.readFile(manifestPath, 'utf8')
+        await fs.readFile(manifestPath, 'utf8')
       ) as PagesManifest
       const buildManifest = JSON.parse(
-        await promises.readFile(buildManifestPath, 'utf8')
+        await fs.readFile(buildManifestPath, 'utf8')
       ) as BuildManifest
       const appBuildManifest = appDir
         ? (JSON.parse(
-            await promises.readFile(appBuildManifestPath, 'utf8')
+            await fs.readFile(appBuildManifestPath, 'utf8')
           ) as AppBuildManifest)
         : undefined
 
@@ -1137,7 +1124,7 @@ export default async function build(
 
       if (appDir) {
         appPathsManifest = JSON.parse(
-          await promises.readFile(
+          await fs.readFile(
             path.join(distDir, SERVER_DIRECTORY, APP_PATHS_MANIFEST),
             'utf8'
           )
@@ -1146,7 +1133,7 @@ export default async function build(
         Object.keys(appPathsManifest).forEach((entry) => {
           appPathRoutes[entry] = normalizeAppPath(entry)
         })
-        await promises.writeFile(
+        await fs.writeFile(
           path.join(distDir, APP_PATH_ROUTES_MANIFEST),
           JSON.stringify(appPathRoutes, null, 2)
         )
@@ -1488,7 +1475,6 @@ export default async function build(
                             pageRuntime,
                             edgeInfo,
                             pageType,
-                            hasServerComponents: !!appDir,
                             incrementalCacheHandlerPath:
                               config.experimental.incrementalCacheHandlerPath,
                             isrFlushToDisk: config.experimental.isrFlushToDisk,
@@ -1750,7 +1736,7 @@ export default async function build(
       }
 
       if (Object.keys(functionsConfigManifest).length > 0) {
-        await promises.writeFile(
+        await fs.writeFile(
           path.join(distDir, SERVER_DIRECTORY, FUNCTIONS_CONFIG_MANIFEST),
           JSON.stringify(functionsConfigManifest, null, 2)
         )
@@ -1844,7 +1830,7 @@ export default async function build(
               )
               const pageDir = path.dirname(traceFile)
               const traceContent = JSON.parse(
-                await promises.readFile(traceFile, 'utf8')
+                await fs.readFile(traceFile, 'utf8')
               )
               const includes: string[] = []
 
@@ -1877,7 +1863,7 @@ export default async function build(
                 })
               }
 
-              await promises.writeFile(
+              await fs.writeFile(
                 traceFile,
                 JSON.stringify({
                   version: traceContent.version,
@@ -1924,21 +1910,18 @@ export default async function build(
 
               await Promise.all(
                 lockFiles.map(async (lockFile) => {
-                  cacheHash.update(await promises.readFile(lockFile))
+                  cacheHash.update(await fs.readFile(lockFile))
                 })
               )
               cacheKey = cacheHash.digest('hex')
 
               try {
                 const existingTrace = JSON.parse(
-                  await promises.readFile(cachedTracePath, 'utf8')
+                  await fs.readFile(cachedTracePath, 'utf8')
                 )
 
                 if (existingTrace.cacheKey === cacheKey) {
-                  await promises.copyFile(
-                    cachedTracePath,
-                    nextServerTraceOutput
-                  )
+                  await fs.copyFile(cachedTracePath, nextServerTraceOutput)
                   return
                 }
               } catch (_) {}
@@ -2082,7 +2065,7 @@ export default async function build(
                 addToTracedFiles(root, file)
               })
             }
-            await promises.writeFile(
+            await fs.writeFile(
               nextServerTraceOutput,
               JSON.stringify({
                 version: 1,
@@ -2093,8 +2076,8 @@ export default async function build(
                 files: string[]
               })
             )
-            await promises.unlink(cachedTracePath).catch(() => {})
-            await promises
+            await fs.unlink(cachedTracePath).catch(() => {})
+            await fs
               .copyFile(nextServerTraceOutput, cachedTracePath)
               .catch(() => {})
           })
@@ -2152,7 +2135,7 @@ export default async function build(
           }
         })
 
-        await promises.writeFile(
+        await fs.writeFile(
           routesManifestPath,
           JSON.stringify(routesManifest),
           'utf8'
@@ -2228,14 +2211,14 @@ export default async function build(
         })
       )
 
-      await promises.writeFile(
+      await fs.writeFile(
         path.join(distDir, SERVER_FILES_MANIFEST),
         JSON.stringify(requiredServerFiles),
         'utf8'
       )
 
       const middlewareManifest: MiddlewareManifest = JSON.parse(
-        await promises.readFile(
+        await fs.readFile(
           path.join(distDir, SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
           'utf8'
         )
@@ -2462,7 +2445,7 @@ export default async function build(
           // remove server bundles that were exported
           for (const page of staticPages) {
             const serverBundle = getPagePath(page, distDir, undefined, false)
-            await promises.unlink(serverBundle)
+            await fs.unlink(serverBundle)
           }
 
           for (const [originalAppPath, routes] of appStaticPaths) {
@@ -2645,8 +2628,8 @@ export default async function build(
                 // output with the locale prefixed so don't attempt moving
                 // without the prefix
                 if ((!i18n || additionalSsgFile) && !isNotFound) {
-                  await promises.mkdir(path.dirname(dest), { recursive: true })
-                  await promises.rename(orig, dest)
+                  await fs.mkdir(path.dirname(dest), { recursive: true })
+                  await fs.rename(orig, dest)
                 } else if (i18n && !isSsg) {
                   // this will be updated with the locale prefixed variant
                   // since all files are output with the locale prefix
@@ -2691,10 +2674,10 @@ export default async function build(
                     if (!isSsg) {
                       pagesManifest[curPath] = updatedRelativeDest
                     }
-                    await promises.mkdir(path.dirname(updatedDest), {
+                    await fs.mkdir(path.dirname(updatedDest), {
                       recursive: true,
                     })
-                    await promises.rename(updatedOrig, updatedDest)
+                    await fs.rename(updatedOrig, updatedDest)
                   }
                 }
               })
@@ -2715,7 +2698,7 @@ export default async function build(
                   .replace(/\\/g, '/')
 
                 if (await fileExists(orig)) {
-                  await promises.copyFile(
+                  await fs.copyFile(
                     orig,
                     path.join(distDir, 'server', updatedRelativeDest)
                   )
@@ -2883,8 +2866,8 @@ export default async function build(
 
           // remove temporary export folder
           await recursiveDelete(exportOptions.outdir)
-          await promises.rmdir(exportOptions.outdir)
-          await promises.writeFile(
+          await fs.rmdir(exportOptions.outdir)
+          await fs.writeFile(
             manifestPath,
             JSON.stringify(pagesManifest, null, 2),
             'utf8'
@@ -2976,12 +2959,12 @@ export default async function build(
         NextBuildContext.allowedRevalidateHeaderKeys =
           config.experimental.allowedRevalidateHeaderKeys
 
-        await promises.writeFile(
+        await fs.writeFile(
           path.join(distDir, PRERENDER_MANIFEST),
           JSON.stringify(prerenderManifest),
           'utf8'
         )
-        await promises.writeFile(
+        await fs.writeFile(
           path.join(distDir, PRERENDER_MANIFEST).replace(/\.json$/, '.js'),
           `self.__PRERENDER_MANIFEST=${JSON.stringify(
             JSON.stringify(prerenderManifest)
@@ -3001,12 +2984,12 @@ export default async function build(
           preview: previewProps,
           notFoundRoutes: [],
         }
-        await promises.writeFile(
+        await fs.writeFile(
           path.join(distDir, PRERENDER_MANIFEST),
           JSON.stringify(prerenderManifest),
           'utf8'
         )
-        await promises.writeFile(
+        await fs.writeFile(
           path.join(distDir, PRERENDER_MANIFEST).replace(/\.json$/, '.js'),
           `self.__PRERENDER_MANIFEST=${JSON.stringify(
             JSON.stringify(prerenderManifest)
@@ -3028,7 +3011,7 @@ export default async function build(
         pathname: makeRe(p.pathname ?? '**').source,
       }))
 
-      await promises.writeFile(
+      await fs.writeFile(
         path.join(distDir, IMAGES_MANIFEST),
         JSON.stringify({
           version: 1,
@@ -3036,7 +3019,7 @@ export default async function build(
         }),
         'utf8'
       )
-      await promises.writeFile(
+      await fs.writeFile(
         path.join(distDir, EXPORT_MARKER),
         JSON.stringify({
           version: 1,
@@ -3046,7 +3029,7 @@ export default async function build(
         }),
         'utf8'
       )
-      await promises.unlink(path.join(distDir, EXPORT_DETAIL)).catch((err) => {
+      await fs.unlink(path.join(distDir, EXPORT_DETAIL)).catch((err) => {
         if (err.code === 'ENOENT') {
           return Promise.resolve()
         }
@@ -3070,10 +3053,10 @@ export default async function build(
             'standalone',
             path.relative(outputFileTracingRoot, filePath)
           )
-          await promises.mkdir(path.dirname(outputPath), {
+          await fs.mkdir(path.dirname(outputPath), {
             recursive: true,
           })
-          await promises.copyFile(filePath, outputPath)
+          await fs.copyFile(filePath, outputPath)
         }
         await recursiveCopy(
           path.join(distDir, SERVER_DIRECTORY, 'pages'),
@@ -3087,17 +3070,20 @@ export default async function build(
           { overwrite: true }
         )
         if (appDir) {
-          await recursiveCopy(
-            path.join(distDir, SERVER_DIRECTORY, 'app'),
-            path.join(
-              distDir,
-              'standalone',
-              path.relative(outputFileTracingRoot, distDir),
-              SERVER_DIRECTORY,
-              'app'
-            ),
-            { overwrite: true }
-          )
+          const originalServerApp = path.join(distDir, SERVER_DIRECTORY, 'app')
+          if (fsExistsSync(originalServerApp)) {
+            await recursiveCopy(
+              originalServerApp,
+              path.join(
+                distDir,
+                'standalone',
+                path.relative(outputFileTracingRoot, distDir),
+                SERVER_DIRECTORY,
+                'app'
+              ),
+              { overwrite: true }
+            )
+          }
         }
       }
 

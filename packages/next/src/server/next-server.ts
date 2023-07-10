@@ -28,7 +28,7 @@ import {
 } from '../shared/lib/router/utils/route-matcher'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
 import type { RouteMatch } from './future/route-matches/route-match'
-import type { RenderOpts } from './render'
+import { renderToHTML, type RenderOpts } from './render'
 
 import fs from 'fs'
 import { join, relative, resolve, sep, isAbsolute } from 'path'
@@ -42,7 +42,6 @@ import {
   CLIENT_STATIC_FILES_RUNTIME,
   PRERENDER_MANIFEST,
   ROUTES_MANIFEST,
-  CLIENT_REFERENCE_MANIFEST,
   CLIENT_PUBLIC_FILES_PATH,
   APP_PATHS_MANIFEST,
   SERVER_DIRECTORY,
@@ -259,13 +258,11 @@ export default class NextNodeServer extends BaseServer {
       loadComponents({
         distDir: this.distDir,
         pathname: '/_document',
-        hasServerComponents: false,
         isAppPath: false,
       }).catch(() => {})
       loadComponents({
         distDir: this.distDir,
         pathname: '/_app',
-        hasServerComponents: false,
         isAppPath: false,
       }).catch(() => {})
     }
@@ -968,9 +965,8 @@ export default class NextNodeServer extends BaseServer {
     renderOpts: RenderOpts
   ): Promise<RenderResult> {
     // Due to the way we pass data by mutating `renderOpts`, we can't extend the
-    // object here but only updating its `clientReferenceManifest` field.
+    // object here but only updating its `nextFontManifest` field.
     // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
-    renderOpts.clientReferenceManifest = this.clientReferenceManifest
     renderOpts.nextFontManifest = this.nextFontManifest
 
     if (this.hasAppDir && renderOpts.isAppPath) {
@@ -985,7 +981,16 @@ export default class NextNodeServer extends BaseServer {
       )
     }
 
-    throw new Error('Invariant: render should have used routeModule')
+    // TODO: re-enable this once we've refactored to use implicit matches
+    // throw new Error('Invariant: render should have used routeModule')
+
+    return renderToHTML(
+      req.originalRequest,
+      res.originalResponse,
+      pathname,
+      query,
+      renderOpts
+    )
   }
 
   private streamResponseChunk(res: ServerResponse, chunk: any) {
@@ -1119,7 +1124,6 @@ export default class NextNodeServer extends BaseServer {
         const components = await loadComponents({
           distDir: this.distDir,
           pathname: pagePath,
-          hasServerComponents: !!this.renderOpts.serverComponents,
           isAppPath,
         })
 
@@ -1161,18 +1165,6 @@ export default class NextNodeServer extends BaseServer {
 
   protected getFontManifest(): FontManifest {
     return requireFontManifest(this.distDir)
-  }
-
-  protected getServerComponentManifest() {
-    if (!this.hasAppDir) return undefined
-
-    try {
-      return loadManifest(
-        join(this.distDir, 'server', CLIENT_REFERENCE_MANIFEST + '.json')
-      )
-    } catch (e) {
-      return undefined
-    }
   }
 
   protected getNextFontManifest() {
