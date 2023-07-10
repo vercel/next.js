@@ -1,11 +1,12 @@
 import { FormEvent, useEffect, useState } from 'react'
-import { useMutation, useQuery } from '../convex/_generated/react'
+import { useMutation, useQuery } from 'convex/react'
+import { api } from '../convex/_generated/api'
 
 export default function App() {
-  const messages = useQuery('listMessages') || []
+  const messages = useQuery(api.messages.list) || []
 
   const [newMessageText, setNewMessageText] = useState('')
-  const sendMessage = useMutation('sendMessage')
+  const sendMessage = useMutation(api.messages.send)
 
   const [name, setName] = useState('user')
 
