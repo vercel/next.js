@@ -17,7 +17,7 @@ use turbopack_binding::{
             module::ModuleVc,
             reference::{AssetReferencesVc, SingleAssetReferenceVc},
             reference_type::{EntryReferenceSubType, InnerAssetsVc, ReferenceType},
-            virtual_asset::VirtualAssetVc,
+            virtual_source::VirtualSourceVc,
         },
         dev_server::source::{asset_graph::AssetGraphContentSourceVc, ContentSourceVc},
         ecmascript::{chunk::EcmascriptChunkData, utils::StringifyJs},
@@ -78,10 +78,10 @@ pub async fn create_page_loader_entry_asset(
 
     let file = File::from(result.build());
 
-    let virtual_asset = VirtualAssetVc::new(page_loader_path, file.into()).into();
+    let virtual_source = VirtualSourceVc::new(page_loader_path, file.into()).into();
 
     Ok(client_context.process(
-        virtual_asset,
+        virtual_source,
         Value::new(ReferenceType::Internal(InnerAssetsVc::cell(indexmap! {
             "PAGE".to_string() => client_context.process(
                 entry_asset,

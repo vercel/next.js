@@ -26,7 +26,7 @@ use turbopack_binding::{
             module::ModuleVc,
             reference_type::{EcmaScriptModulesReferenceSubType, InnerAssetsVc, ReferenceType},
             resolve::{find_context_file, FindContextFileResult},
-            virtual_asset::VirtualAssetVc,
+            virtual_source::VirtualSourceVc,
         },
         dev::DevChunkingContextVc,
         node::{
@@ -186,7 +186,7 @@ async fn config_assets(
         }
         FindContextFileResult::NotFound(_) => {
             let manifest = context.process(
-                VirtualAssetVc::new(
+                VirtualSourceVc::new(
                     project_path.join("middleware.js"),
                     File::from("export default [];").into(),
                 )
@@ -199,7 +199,7 @@ async fn config_assets(
     };
 
     let config_asset = context.process(
-        VirtualAssetVc::new(
+        VirtualSourceVc::new(
             project_path.join("middleware_config.js"),
             File::from(format!(
                 "export default {};",

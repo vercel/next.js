@@ -24,7 +24,7 @@ use turbopack_binding::{
                 EcmaScriptModulesReferenceSubType, EntryReferenceSubType, InnerAssetsVc,
                 ReferenceType,
             },
-            virtual_asset::VirtualAssetVc,
+            virtual_source::VirtualSourceVc,
         },
         dev::DevChunkingContextVc,
         dev_server::{
@@ -1115,7 +1115,7 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
         )?;
 
         let file = File::from(result.build());
-        let asset = VirtualAssetVc::new(next_js_file_path("entry/app-entry.tsx"), file.into());
+        let asset = VirtualSourceVc::new(next_js_file_path("entry/app-entry.tsx"), file.into());
 
         let chunking_context = DevChunkingContextVc::builder(
             project_path,
