@@ -177,9 +177,7 @@ export const metadata: Metadata = {
 ```
 
 ```jsx filename="app/layout.js" switcher
-import { Metadata } from 'next'
-
-export const metadata: Metadata = {
+export const metadata = {
   title: {
     default: '...',
     template: '...',
@@ -193,7 +191,9 @@ export const metadata: Metadata = {
 `title.default` can be used to provide a **fallback title** to child route segments that don't define a `title`.
 
 ```tsx filename="app/layout.tsx"
-export const metadata = {
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = {
   title: {
     default: 'Acme',
   },
@@ -201,7 +201,9 @@ export const metadata = {
 ```
 
 ```tsx filename="app/about/page.tsx"
-export const metadata = {}
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = {}
 
 // Output: <title>Acme</title>
 ```
@@ -222,9 +224,7 @@ export const metadata: Metadata = {
 ```
 
 ```jsx filename="app/layout.js" switcher
-import { Metadata } from 'next'
-
-export const metadata: Metadata = {
+export const metadata = {
   title: {
     template: '%s | Acme',
     default: 'Acme', // a default is required when creating a template
@@ -243,9 +243,7 @@ export const metadata: Metadata = {
 ```
 
 ```jsx filename="app/about/page.js" switcher
-import { Metadata } from 'next'
-
-export const metadata: Metadata = {
+export const metadata = {
   title: 'About',
 }
 
@@ -520,7 +518,9 @@ export const metadata = {
 ### `robots`
 
 ```tsx
-export const metadata = {
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = {
   robots: {
     index: false,
     follow: true,

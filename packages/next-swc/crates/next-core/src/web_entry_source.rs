@@ -6,7 +6,7 @@ use turbopack_binding::{
     },
     turbopack::{
         core::{
-            chunk::{ChunkableAssetVc, ChunkingContextVc},
+            chunk::{ChunkableModuleVc, ChunkingContextVc},
             compile_time_defines,
             compile_time_info::{
                 CompileTimeDefines, CompileTimeDefinesVc, CompileTimeInfo, CompileTimeInfoVc,
@@ -181,7 +181,7 @@ pub async fn create_web_entry_source(
                     chunking_context,
                     Some(runtime_entries.with_entry(ecmascript.into())),
                 ))
-            } else if let Some(chunkable) = ChunkableAssetVc::resolve_from(module).await? {
+            } else if let Some(chunkable) = ChunkableModuleVc::resolve_from(module).await? {
                 // TODO this is missing runtime code, so it's probably broken and we should also
                 // add an ecmascript chunk with the runtime code
                 Ok((chunkable, chunking_context, None))
