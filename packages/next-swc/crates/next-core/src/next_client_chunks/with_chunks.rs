@@ -132,7 +132,9 @@ impl WithChunksChunkItemVc {
     async fn chunks_data(self) -> Result<ChunksDataVc> {
         let this = self.await?;
         let inner = this.inner.await?;
-        let Some(inner_chunking_context) = EcmascriptChunkingContextVc::resolve_from(inner.chunking_context).await? else {
+        let Some(inner_chunking_context) =
+            EcmascriptChunkingContextVc::resolve_from(inner.chunking_context).await?
+        else {
             bail!("the chunking context is not an EcmascriptChunkingContextVc");
         };
         Ok(ChunkDataVc::from_assets(
@@ -153,7 +155,9 @@ impl EcmascriptChunkItem for WithChunksChunkItem {
     async fn content(self_vc: WithChunksChunkItemVc) -> Result<EcmascriptChunkItemContentVc> {
         let this = self_vc.await?;
         let inner = this.inner.await?;
-        let Some(inner_chunking_context) = EcmascriptChunkingContextVc::resolve_from(inner.chunking_context).await? else {
+        let Some(inner_chunking_context) =
+            EcmascriptChunkingContextVc::resolve_from(inner.chunking_context).await?
+        else {
             bail!("the chunking context is not an EcmascriptChunkingContextVc");
         };
 

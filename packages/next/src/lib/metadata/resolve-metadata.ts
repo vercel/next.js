@@ -51,54 +51,61 @@ type TitleTemplates = {
 }
 
 function mergeStaticMetadata(
-  metadata: ResolvedMetadata,
+  source: Metadata | null,
+  target: ResolvedMetadata,
   staticFilesMetadata: StaticMetadata,
   metadataContext: MetadataContext,
   titleTemplates: TitleTemplates
 ) {
   if (!staticFilesMetadata) return
   const { icon, apple, openGraph, twitter, manifest } = staticFilesMetadata
-  if (icon || apple) {
-    metadata.icons = {
+  // file based metadata is specified and current level metadata icons is not specified
+  if (
+    (icon && !source?.icons && !source?.icons?.hasOwnProperty('icon')) ||
+    (apple && !source?.icons?.hasOwnProperty('apple'))
+  ) {
+    target.icons = {
       icon: icon || [],
       apple: apple || [],
     }
   }
-  if (twitter) {
+  // file based metadata is specified and current level metadata twitter.images is not specified
+  if (twitter && !source?.twitter?.hasOwnProperty('images')) {
     const resolvedTwitter = resolveTwitter(
-      { ...metadata.twitter, images: twitter } as Twitter,
-      metadata.metadataBase,
+      { ...target.twitter, images: twitter } as Twitter,
+      target.metadataBase,
       titleTemplates.twitter
     )
-    metadata.twitter = resolvedTwitter
+    target.twitter = resolvedTwitter
   }
 
-  if (openGraph) {
+  // file based metadata is specified and current level metadata openGraph.images is not specified
+  if (openGraph && !source?.openGraph?.hasOwnProperty('images')) {
     const resolvedOpenGraph = resolveOpenGraph(
-      { ...metadata.openGraph, images: openGraph } as OpenGraph,
-      metadata.metadataBase,
+      { ...target.openGraph, images: openGraph } as OpenGraph,
+      target.metadataBase,
       metadataContext,
       titleTemplates.openGraph
     )
-    metadata.openGraph = resolvedOpenGraph
+    target.openGraph = resolvedOpenGraph
   }
   if (manifest) {
-    metadata.manifest = manifest
+    target.manifest = manifest
   }
 
-  return metadata
+  return target
 }
 
 // Merge the source metadata into the resolved target metadata.
 function merge({
-  target,
   source,
+  target,
   staticFilesMetadata,
   titleTemplates,
   metadataContext,
 }: {
-  target: ResolvedMetadata
   source: Metadata | null
+  target: ResolvedMetadata
   staticFilesMetadata: StaticMetadata
   titleTemplates: TitleTemplates
   metadataContext: MetadataContext
@@ -211,6 +218,7 @@ function merge({
     }
   }
   mergeStaticMetadata(
+    source,
     target,
     staticFilesMetadata,
     metadataContext,
@@ -388,7 +396,9 @@ function postProcessMetadata(
     }> = {}
     const hasTwTitle = twitter?.title.absolute
     const hasTwDescription = twitter?.description
-    const hasTwImages = twitter?.images
+    const hasTwImages = Boolean(
+      twitter?.hasOwnProperty('images') && twitter.images
+    )
     if (!hasTwTitle) autoFillProps.title = openGraph.title
     if (!hasTwDescription) autoFillProps.description = openGraph.description
     if (!hasTwImages) autoFillProps.images = openGraph.images

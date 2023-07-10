@@ -65,7 +65,9 @@ impl EcmascriptChunkPlaceable for InChunkingContextAsset {
         &self,
         _context: EcmascriptChunkingContextVc,
     ) -> Result<EcmascriptChunkItemVc> {
-        let Some(chunking_context) = EcmascriptChunkingContextVc::resolve_from(&self.chunking_context).await? else {
+        let Some(chunking_context) =
+            EcmascriptChunkingContextVc::resolve_from(&self.chunking_context).await?
+        else {
             bail!("chunking context is not an EcmascriptChunkingContext")
         };
         Ok(self.asset.as_chunk_item(chunking_context))

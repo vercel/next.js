@@ -120,7 +120,8 @@ impl GetContentSourceContent for NextRouterContentSource {
             raw_query: Some(raw_query),
             body: Some(body),
             ..
-        } = &*data else {
+        } = &*data
+        else {
             bail!("missing data for router");
         };
 
