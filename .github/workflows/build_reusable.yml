@@ -72,6 +72,9 @@ env:
   TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
   NEXT_TEST_JOB: 1
 
+  # TODO: remove after finished debugging
+  NEXT_TEST_CONTINUE_ON_ERROR: 1
+
 jobs:
   build:
     timeout-minutes: 25
