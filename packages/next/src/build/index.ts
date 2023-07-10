@@ -2105,7 +2105,7 @@ export default async function build(
                 [minimalTracedFiles, minimalFiles],
               ] as [Set<string>, NodeFileTraceResult][]) {
                 for (const file of traceResult.fileList) {
-                  addToTracedFiles(traceContext, file, set)
+                  addToTracedFiles(root, file, set)
                 }
               }
             }
