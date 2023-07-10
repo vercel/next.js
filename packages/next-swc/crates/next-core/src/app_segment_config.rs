@@ -19,7 +19,7 @@ use turbopack_binding::turbopack::{
         },
         module::ModuleVc,
         reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
-        source_asset::SourceAssetVc,
+        source_asset::FileSourceVc,
     },
     ecmascript::{
         analyzer::{graph::EvalContext, ConstantNumber, ConstantValue, JsValue},
@@ -392,7 +392,7 @@ pub async fn parse_segment_config_from_loader_tree(
     {
         config.apply_parent_config(
             &*parse_segment_config_from_source(context.process(
-                SourceAssetVc::new(component).into(),
+                FileSourceVc::new(component).into(),
                 turbo_tasks::Value::new(ReferenceType::EcmaScriptModules(
                     EcmaScriptModulesReferenceSubType::Undefined,
                 )),

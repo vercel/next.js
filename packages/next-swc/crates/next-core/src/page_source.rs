@@ -18,7 +18,7 @@ use turbopack_binding::{
             context::{AssetContext, AssetContextVc},
             environment::ServerAddrVc,
             reference_type::{EntryReferenceSubType, InnerAssetsVc, ReferenceType},
-            source_asset::SourceAssetVc,
+            source_asset::FileSourceVc,
         },
         dev::DevChunkingContextVc,
         dev_server::{
@@ -482,7 +482,7 @@ async fn get_not_found_page(
         let not_found_path = pages_dir.join(&format!("404.{ext}"));
         let content = not_found_path.read();
         if let FileContent::Content(_) = &*content.await? {
-            return Ok(Some(SourceAssetVc::new(not_found_path).into()));
+            return Ok(Some(FileSourceVc::new(not_found_path).into()));
         }
     }
     Ok(None)
@@ -688,7 +688,7 @@ async fn create_page_source_for_directory(
             server_data_context,
             client_context,
             pages_dir,
-            SourceAssetVc::new(project_path).into(),
+            FileSourceVc::new(project_path).into(),
             runtime_entries,
             fallback_page,
             client_root,

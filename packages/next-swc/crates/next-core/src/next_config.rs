@@ -24,7 +24,7 @@ use turbopack_binding::{
                 options::{ImportMap, ImportMapping},
                 FindContextFileResult, ResolveAliasMap, ResolveAliasMapVc,
             },
-            source_asset::SourceAssetVc,
+            source_asset::FileSourceVc,
         },
         ecmascript_plugin::transform::{
             emotion::EmotionTransformConfig, relay::RelayConfig,
@@ -675,7 +675,7 @@ pub async fn load_next_config_internal(
     import_map.insert_wildcard_alias("styled-jsx/", ImportMapping::External(None).into());
 
     let context = node_evaluate_asset_context(execution_context, Some(import_map.cell()), None);
-    let config_asset = config_file.map(SourceAssetVc::new);
+    let config_asset = config_file.map(FileSourceVc::new);
 
     let config_changed = config_asset.map_or_else(CompletionVc::immutable, |config_asset| {
         // This invalidates the execution when anything referenced by the config file

@@ -34,7 +34,7 @@ use turbopack_binding::{
             context::AssetContextVc,
             environment::ServerAddrVc,
             reference_type::{EntryReferenceSubType, ReferenceType},
-            source_asset::SourceAssetVc,
+            source_asset::FileSourceVc,
         },
         env::ProcessEnvAssetVc,
         node::execution_context::ExecutionContextVc,
@@ -204,7 +204,7 @@ async fn get_page_chunks_for_root_directory(
     chunks.push(get_page_chunk_for_file(
         node_build_context,
         client_build_context,
-        SourceAssetVc::new(app.project_path).into(),
+        FileSourceVc::new(app.project_path).into(),
         next_router_root,
         app.next_router_path,
         app.original_path,
@@ -215,7 +215,7 @@ async fn get_page_chunks_for_root_directory(
     chunks.push(get_page_chunk_for_file(
         node_build_context,
         client_build_context,
-        SourceAssetVc::new(document.project_path).into(),
+        FileSourceVc::new(document.project_path).into(),
         next_router_root,
         document.next_router_path,
         document.original_path,
@@ -227,7 +227,7 @@ async fn get_page_chunks_for_root_directory(
     chunks.push(get_page_chunk_for_file(
         node_build_context,
         client_build_context,
-        SourceAssetVc::new(error.project_path).into(),
+        FileSourceVc::new(error.project_path).into(),
         next_router_root,
         error.next_router_path,
         error.original_path,
@@ -287,7 +287,7 @@ async fn get_page_chunks_for_directory(
         chunks.push(get_page_chunk_for_file(
             node_build_context,
             client_build_context,
-            SourceAssetVc::new(project_path).into(),
+            FileSourceVc::new(project_path).into(),
             next_router_root,
             next_router_path,
             original_path,

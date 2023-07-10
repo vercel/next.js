@@ -18,7 +18,7 @@ use turbopack_binding::{
     },
 };
 
-use super::source_asset::StructuredImageSourceAsset;
+use super::source_asset::StructuredImageFileSource;
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(Clone, Copy, Debug, PartialOrd, Ord, Hash)]
@@ -51,7 +51,7 @@ impl StructuredImageModuleType {
     ) -> ModuleVc {
         let static_asset = StaticModuleAssetVc::new(source, context.into());
         context.process(
-            StructuredImageSourceAsset {
+            StructuredImageFileSource {
                 image: source,
                 blur_placeholder_mode,
             }

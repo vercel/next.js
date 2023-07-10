@@ -23,7 +23,7 @@ use turbopack_binding::{
                 EcmaScriptModulesReferenceSubType, EntryReferenceSubType, InnerAssetsVc,
                 ReferenceType,
             },
-            source_asset::SourceAssetVc,
+            source_asset::FileSourceVc,
             virtual_asset::VirtualAssetVc,
         },
         dev::DevChunkingContextVc,
@@ -38,7 +38,7 @@ use turbopack_binding::{
         },
         ecmascript::{
             magic_identifier,
-            text::TextContentSourceAssetVc,
+            text::TextContentFileSourceVc,
             utils::{FormatIter, StringifyJs},
         },
         env::ProcessEnvAssetVc,
@@ -614,7 +614,7 @@ async fn create_global_metadata_source(
             MetadataItem::Static { path } => {
                 let asset = FixedStaticAssetVc::new(
                     server_root.join(server_path),
-                    SourceAssetVc::new(path).into(),
+                    FileSourceVc::new(path).into(),
                 );
                 sources.push(AssetGraphContentSourceVc::new_eager(server_root, asset.into()).into())
             }
@@ -876,7 +876,7 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
                         .context
                         .with_transition(state.rsc_transition)
                         .process(
-                            SourceAssetVc::new(component).into(),
+                            FileSourceVc::new(component).into(),
                             Value::new(ReferenceType::EcmaScriptModules(
                                 EcmaScriptModulesReferenceSubType::Undefined,
                             )),
@@ -928,7 +928,7 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
                     state.inner_assets.insert(
                         inner_module_id,
                         StaticModuleAssetVc::new(
-                            SourceAssetVc::new(path).into(),
+                            FileSourceVc::new(path).into(),
                             state.context.into(),
                         )
                         .into(),
@@ -979,7 +979,7 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
                     state.inner_assets.insert(
                         inner_module_id,
                         StructuredImageModuleType::create_module(
-                            SourceAssetVc::new(*path).into(),
+                            FileSourceVc::new(*path).into(),
                             BlurPlaceholderMode::None,
                             state.context,
                         )
@@ -1008,8 +1008,8 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
                             state
                                 .context
                                 .process(
-                                    TextContentSourceAssetVc::new(
-                                        SourceAssetVc::new(*alt_path).into(),
+                                    TextContentFileSourceVc::new(
+                                        FileSourceVc::new(*alt_path).into(),
                                     )
                                     .into(),
                                     Value::new(ReferenceType::Internal(InnerAssetsVc::empty())),
@@ -1130,14 +1130,14 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
 
         let renderer_module = match runtime {
             Some(NextRuntime::NodeJs) | None => context.process(
-                SourceAssetVc::new(next_js_file_path("entry/app-renderer.tsx")).into(),
+                FileSourceVc::new(next_js_file_path("entry/app-renderer.tsx")).into(),
                 Value::new(ReferenceType::Internal(InnerAssetsVc::cell(indexmap! {
                     "APP_ENTRY".to_string() => context.with_transition(rsc_transition).process(
                         asset.into(),
                         Value::new(ReferenceType::Internal(InnerAssetsVc::cell(inner_assets))),
                     ).into(),
                     "APP_BOOTSTRAP".to_string() => context.with_transition("next-client").process(
-                        SourceAssetVc::new(next_js_file_path("entry/app/hydrate.tsx")).into(),
+                        FileSourceVc::new(next_js_file_path("entry/app/hydrate.tsx")).into(),
                         Value::new(ReferenceType::EcmaScriptModules(
                             EcmaScriptModulesReferenceSubType::Undefined,
                         )),
@@ -1146,7 +1146,7 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
             ),
             Some(NextRuntime::Edge) =>
                 context.process(
-                    SourceAssetVc::new(next_js_file_path("entry/app-edge-renderer.tsx")).into(),
+                    FileSourceVc::new(next_js_file_path("entry/app-edge-renderer.tsx")).into(),
                     Value::new(ReferenceType::Internal(InnerAssetsVc::cell(indexmap! {
                         "INNER_EDGE_CHUNK_GROUP".to_string() => context.with_transition("next-edge-page").process(
                             asset.into(),
@@ -1223,7 +1223,7 @@ impl AppRouteVc {
         .reference_chunk_source_maps(should_debug("app_source"))
         .build();
 
-        let entry_source_asset = SourceAssetVc::new(this.entry_path);
+        let entry_source_asset = FileSourceVc::new(this.entry_path);
         let entry_asset = this.context.process(
             entry_source_asset.into(),
             Value::new(ReferenceType::Entry(EntryReferenceSubType::AppRoute)),

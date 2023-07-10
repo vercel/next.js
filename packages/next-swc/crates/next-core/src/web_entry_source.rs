@@ -16,7 +16,7 @@ use turbopack_binding::{
             free_var_references,
             reference_type::{EntryReferenceSubType, ReferenceType},
             resolve::{origin::PlainResolveOriginVc, parse::RequestVc},
-            source_asset::SourceAssetVc,
+            source_asset::FileSourceVc,
         },
         dev::{react_refresh::assert_can_resolve_react_refresh, DevChunkingContextVc},
         dev_server::{
@@ -100,7 +100,7 @@ async fn get_web_runtime_entries(
     };
 
     runtime_entries.push(
-        RuntimeEntry::Source(SourceAssetVc::new(next_js_file_path("dev/bootstrap.ts")).into())
+        RuntimeEntry::Source(FileSourceVc::new(next_js_file_path("dev/bootstrap.ts")).into())
             .cell(),
     );
 

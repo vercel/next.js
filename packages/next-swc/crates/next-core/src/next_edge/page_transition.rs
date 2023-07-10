@@ -11,7 +11,7 @@ use turbopack_binding::{
             context::AssetContext,
             module::ModuleVc,
             reference_type::{EcmaScriptModulesReferenceSubType, InnerAssetsVc, ReferenceType},
-            source_asset::SourceAssetVc,
+            source_asset::FileSourceVc,
         },
         ecmascript::chunk_group_files_asset::ChunkGroupFilesAsset,
         turbopack::{
@@ -77,7 +77,7 @@ impl Transition for NextEdgePageTransition {
             Value::new(ReferenceType::Internal(InnerAssetsVc::cell(indexmap! {
                 "APP_ENTRY".to_string() => asset.into(),
                 "APP_BOOTSTRAP".to_string() => context.with_transition("next-client").process(
-                    SourceAssetVc::new(next_js_file_path("entry/app/hydrate.tsx")).into(),
+                    FileSourceVc::new(next_js_file_path("entry/app/hydrate.tsx")).into(),
                     Value::new(ReferenceType::EcmaScriptModules(
                         EcmaScriptModulesReferenceSubType::Undefined,
                     )),

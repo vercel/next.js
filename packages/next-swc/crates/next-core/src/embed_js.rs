@@ -1,6 +1,6 @@
 use turbopack_binding::{
     turbo::tasks_fs::{FileContentVc, FileSystem, FileSystemPathVc, FileSystemVc},
-    turbopack::core::{asset::AssetVc, source_asset::SourceAssetVc},
+    turbopack::core::{asset::AssetVc, source_asset::FileSourceVc},
 };
 
 pub const VIRTUAL_PACKAGE_NAME: &str = "@vercel/turbopack-next";
@@ -23,5 +23,5 @@ pub(crate) fn next_js_file_path(path: &str) -> FileSystemPathVc {
 
 #[turbo_tasks::function]
 pub(crate) fn next_asset(path: &str) -> AssetVc {
-    SourceAssetVc::new(next_js_file_path(path)).into()
+    FileSourceVc::new(next_js_file_path(path)).into()
 }
