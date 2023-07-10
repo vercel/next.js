@@ -11,7 +11,7 @@ use turbopack_binding::{
     turbopack::{
         core::{
             asset::AssetVc,
-            chunk::{ChunkableAsset, ChunkingContext, ChunkingContextVc},
+            chunk::{ChunkableModule, ChunkingContext, ChunkingContextVc},
             context::{AssetContext, AssetContextVc},
             reference_type::ReferenceType,
         },
@@ -70,10 +70,15 @@ impl PagesBuildClientContextVc {
         let this = self.await?;
 
         let client_asset_page = this.client_asset_context.process(asset, reference_type);
-        let client_asset_page =
-            create_page_loader_entry_asset(this.client_asset_context, client_asset_page, pathname);
+        let client_asset_page = create_page_loader_entry_asset(
+            this.client_asset_context,
+            client_asset_page.into(),
+            pathname,
+        );
 
-        let Some(client_module_asset) = EcmascriptModuleAssetVc::resolve_from(client_asset_page).await? else {
+        let Some(client_module_asset) =
+            EcmascriptModuleAssetVc::resolve_from(client_asset_page).await?
+        else {
             bail!("Expected an EcmaScript module asset");
         };
 

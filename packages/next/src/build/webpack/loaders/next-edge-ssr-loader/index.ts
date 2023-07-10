@@ -155,7 +155,11 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
           ? `import * as userland500Page from ${stringified500Path}`
           : ''
       }
-      const renderToHTML = undefined
+
+      // TODO: re-enable this once we've refactored to use implicit matches
+      // const renderToHTML = undefined
+
+      import { renderToHTML } from 'next/dist/esm/server/render'
       import RouteModule from "next/dist/esm/server/future/route-modules/pages/module"
 
       const pageMod = {
@@ -212,7 +216,9 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
     const buildManifest = self.__BUILD_MANIFEST
     const prerenderManifest = maybeJSONParse(self.__PRERENDER_MANIFEST)
     const reactLoadableManifest = maybeJSONParse(self.__REACT_LOADABLE_MANIFEST)
-    const rscManifest = maybeJSONParse(self.__RSC_MANIFEST)
+    const rscManifest = maybeJSONParse(self.__RSC_MANIFEST?.[${JSON.stringify(
+      page
+    )}])
     const rscServerManifest = maybeJSONParse(self.__RSC_SERVER_MANIFEST)
     const subresourceIntegrityManifest = ${
       sriEnabled

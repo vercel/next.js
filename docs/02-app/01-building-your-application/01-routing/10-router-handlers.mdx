@@ -89,7 +89,7 @@ Route handlers are evaluated dynamically when:
 
 - Using the `Request` object with the `GET` method.
 - Using any of the other HTTP methods.
-- Using [Dynamic Functions](/#dynamic-functions) like `cookies` and `headers`.
+- Using [Dynamic Functions](#dynamic-functions) like `cookies` and `headers`.
 - The [Segment Config Options](#segment-config-options) manually specifies dynamic mode.
 
 For example:
@@ -541,6 +541,28 @@ import { NextResponse } from 'next/server'
 export async function POST(request) {
   const res = await request.json()
   return NextResponse.json({ res })
+}
+```
+
+### Request Body FormData
+
+You can read the `FormData` using the the `request.formData()` function:
+
+```ts filename="app/items/route.ts" switcher
+import { NextResponse } from 'next/server'
+
+export async function POST(request: Request) {
+  const formData = await request.formData()
+  return NextResponse.json({ formData })
+}
+```
+
+```js filename="app/items/route.js" switcher
+import { NextResponse } from 'next/server'
+
+export async function POST(request) {
+  const formData = await request.formData()
+  return NextResponse.json({ formData })
 }
 ```
 

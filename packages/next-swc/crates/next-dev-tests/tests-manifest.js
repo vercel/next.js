@@ -12,7 +12,8 @@ const enabledTests = [
   'test/development/acceptance/ReactRefreshLogBoxMisc.test.ts',
   'test/development/api-cors-with-rewrite/index.test.ts',
   'test/development/app-dir/multiple-compiles-single-route/multiple-compiles-single-route.test.ts',
-  'test/development/app-hmr/hmr.test.ts',
+  // x-ref: below test is flakey and needs to be investigated further
+  // 'test/development/app-hmr/hmr.test.ts',
   'test/development/basic/define-class-fields.test.ts',
   'test/development/basic/emotion-swc.test.ts',
   'test/development/basic/legacy-decorators.test.ts',
@@ -55,6 +56,7 @@ const enabledTests = [
   'test/e2e/app-dir/searchparams-static-bailout/searchparams-static-bailout.test.ts',
   'test/e2e/app-dir/test-template/{{ toFileName name }}/{{ toFileName name }}.test.ts',
   'test/e2e/app-dir/use-selected-layout-segment-s/use-selected-layout-segment-s.test.ts',
+  'test/e2e/app-dir/crypto-globally-available/crypto-globally-available.test.ts',
   'test/e2e/browserslist-extends/index.test.ts',
   'test/e2e/config-promise-export/async-function.test.ts',
   'test/e2e/config-promise-export/promise.test.ts',

@@ -92,15 +92,26 @@ async function loadManifest<T>(manifestPath: string, attempts = 3): Promise<T> {
   }
 }
 
+async function loadJSManifest<T>(
+  manifestPath: string,
+  name: string,
+  entryname: string
+): Promise<T | undefined> {
+  await loadManifest(manifestPath)
+  try {
+    return JSON.parse((globalThis as any)[name][entryname]) as T
+  } catch (err) {
+    return undefined
+  }
+}
+
 async function loadComponentsImpl({
   distDir,
   pathname,
-  hasServerComponents,
   isAppPath,
 }: {
   distDir: string
   pathname: string
-  hasServerComponents: boolean
   isAppPath: boolean
 }): Promise<LoadComponentsReturnType> {
   let DocumentMod = {}
@@ -115,6 +126,13 @@ async function loadComponentsImpl({
     requirePage(pathname, distDir, isAppPath)
   )
 
+  // Make sure to avoid loading the manifest for Route Handlers
+  const hasClientManifest =
+    isAppPath &&
+    (pathname.endsWith('/page') ||
+      pathname === '/not-found' ||
+      pathname === '/_not-found')
+
   const [
     buildManifest,
     reactLoadableManifest,
@@ -123,12 +141,22 @@ async function loadComponentsImpl({
   ] = await Promise.all([
     loadManifest<BuildManifest>(join(distDir, BUILD_MANIFEST)),
     loadManifest<ReactLoadableManifest>(join(distDir, REACT_LOADABLE_MANIFEST)),
-    hasServerComponents
-      ? loadManifest<ClientReferenceManifest>(
-          join(distDir, 'server', CLIENT_REFERENCE_MANIFEST + '.json')
+    hasClientManifest
+      ? loadJSManifest<ClientReferenceManifest>(
+          join(
+            distDir,
+            'server',
+            'app',
+            pathname.replace(/%5F/g, '_') +
+              '_' +
+              CLIENT_REFERENCE_MANIFEST +
+              '.js'
+          ),
+          '__RSC_MANIFEST',
+          pathname.replace(/%5F/g, '_')
         )
       : undefined,
-    hasServerComponents
+    isAppPath
       ? loadManifest(
           join(distDir, 'server', SERVER_REFERENCE_MANIFEST + '.json')
         ).catch(() => null)

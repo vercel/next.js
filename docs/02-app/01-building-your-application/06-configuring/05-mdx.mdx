@@ -37,7 +37,7 @@ Install the `@next/mdx` package:
 npm install @next/mdx @mdx-js/loader @mdx-js/react @types/mdx
 ```
 
-Create `mdx-components.tsx` in the root of your application (the parent folder of `app`):
+Create `mdx-components.tsx` in the root of your application (the parent folder of `app/` or `src/`):
 
 ```tsx filename="mdx-components.tsx" switcher
 import type { MDXComponents } from 'mdx/types'
@@ -226,7 +226,7 @@ To add a layout to your MDX page, create a new component and import it into the 
 import { MyLayoutComponent } from 'my-components';
 import HelloWorld from './hello.mdx';
 
-export const meta = {
+export const metadata = {
   author: 'Rich Haines',
 };
 

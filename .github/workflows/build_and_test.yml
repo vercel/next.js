@@ -238,4 +238,4 @@ jobs:
     name: thank you, next
     steps:
       - run: exit 1
-        if: ${{ always() && !contains(needs.*.result, 'success') }}
+        if: ${{ always() && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'skipped') || contains(needs.*.result, 'cancelled')) }}

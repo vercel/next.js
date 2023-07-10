@@ -8,7 +8,7 @@ import type { GetDynamicParamFromSegment } from '../../server/app-render/app-ren
 import type { Twitter } from './types/twitter-types'
 import type { OpenGraph } from './types/opengraph-types'
 import type { ComponentsType } from '../../build/webpack/loaders/next-app-loader'
-import type { MetadataAccumulationOptions } from './types/resolvers'
+import type { MetadataContext } from './types/resolvers'
 import { createDefaultMetadata } from './default-metadata'
 import { resolveOpenGraph, resolveTwitter } from './resolvers/resolve-opengraph'
 import { resolveTitle } from './resolvers/resolve-title'
@@ -44,59 +44,71 @@ export type MetadataItems = [
   StaticMetadata
 ][]
 
+type TitleTemplates = {
+  title: string | null
+  twitter: string | null
+  openGraph: string | null
+}
+
 function mergeStaticMetadata(
-  metadata: ResolvedMetadata,
+  source: Metadata | null,
+  target: ResolvedMetadata,
   staticFilesMetadata: StaticMetadata,
-  { pathname }: MetadataAccumulationOptions
+  metadataContext: MetadataContext,
+  titleTemplates: TitleTemplates
 ) {
   if (!staticFilesMetadata) return
   const { icon, apple, openGraph, twitter, manifest } = staticFilesMetadata
-  if (icon || apple) {
-    metadata.icons = {
+  // file based metadata is specified and current level metadata icons is not specified
+  if (
+    (icon && !source?.icons && !source?.icons?.hasOwnProperty('icon')) ||
+    (apple && !source?.icons?.hasOwnProperty('apple'))
+  ) {
+    target.icons = {
       icon: icon || [],
       apple: apple || [],
     }
   }
-  if (twitter) {
+  // file based metadata is specified and current level metadata twitter.images is not specified
+  if (twitter && !source?.twitter?.hasOwnProperty('images')) {
     const resolvedTwitter = resolveTwitter(
-      { ...metadata.twitter, images: twitter } as Twitter,
-      metadata.metadataBase
+      { ...target.twitter, images: twitter } as Twitter,
+      target.metadataBase,
+      titleTemplates.twitter
     )
-    metadata.twitter = resolvedTwitter
+    target.twitter = resolvedTwitter
   }
 
-  if (openGraph) {
+  // file based metadata is specified and current level metadata openGraph.images is not specified
+  if (openGraph && !source?.openGraph?.hasOwnProperty('images')) {
     const resolvedOpenGraph = resolveOpenGraph(
-      { ...metadata.openGraph, images: openGraph } as OpenGraph,
-      metadata.metadataBase,
-      { pathname }
+      { ...target.openGraph, images: openGraph } as OpenGraph,
+      target.metadataBase,
+      metadataContext,
+      titleTemplates.openGraph
     )
-    metadata.openGraph = resolvedOpenGraph
+    target.openGraph = resolvedOpenGraph
   }
   if (manifest) {
-    metadata.manifest = manifest
+    target.manifest = manifest
   }
 
-  return metadata
+  return target
 }
 
 // Merge the source metadata into the resolved target metadata.
 function merge({
-  target,
   source,
+  target,
   staticFilesMetadata,
   titleTemplates,
-  options,
+  metadataContext,
 }: {
-  target: ResolvedMetadata
   source: Metadata | null
+  target: ResolvedMetadata
   staticFilesMetadata: StaticMetadata
-  titleTemplates: {
-    title: string | null
-    twitter: string | null
-    openGraph: string | null
-  }
-  options: MetadataAccumulationOptions
+  titleTemplates: TitleTemplates
+  metadataContext: MetadataContext
 }) {
   // If there's override metadata, prefer it otherwise fallback to the default metadata.
   const metadataBase =
@@ -115,7 +127,7 @@ function merge({
         target.alternates = resolveAlternates(
           source.alternates,
           metadataBase,
-          options
+          metadataContext
         )
         break
       }
@@ -123,24 +135,17 @@ function merge({
         target.openGraph = resolveOpenGraph(
           source.openGraph,
           metadataBase,
-          options
+          metadataContext,
+          titleTemplates.openGraph
         )
-        if (target.openGraph) {
-          target.openGraph.title = resolveTitle(
-            target.openGraph.title,
-            titleTemplates.openGraph
-          )
-        }
         break
       }
       case 'twitter': {
-        target.twitter = resolveTwitter(source.twitter, metadataBase)
-        if (target.twitter) {
-          target.twitter.title = resolveTitle(
-            target.twitter.title,
-            titleTemplates.twitter
-          )
-        }
+        target.twitter = resolveTwitter(
+          source.twitter,
+          metadataBase,
+          titleTemplates.twitter
+        )
         break
       }
       case 'verification':
@@ -180,7 +185,11 @@ function merge({
         break
       }
       case 'itunes': {
-        target[key] = resolveItunes(source.itunes, metadataBase, options)
+        target[key] = resolveItunes(
+          source.itunes,
+          metadataBase,
+          metadataContext
+        )
         break
       }
       // directly assign fields that fallback to null
@@ -208,7 +217,13 @@ function merge({
         break
     }
   }
-  mergeStaticMetadata(target, staticFilesMetadata, options)
+  mergeStaticMetadata(
+    source,
+    target,
+    staticFilesMetadata,
+    metadataContext,
+    titleTemplates
+  )
 }
 
 async function getDefinedMetadata(
@@ -368,7 +383,10 @@ export async function resolveMetadata({
 }
 
 const commonOgKeys = ['title', 'description', 'images'] as const
-function postProcessMetadata(metadata: ResolvedMetadata): ResolvedMetadata {
+function postProcessMetadata(
+  metadata: ResolvedMetadata,
+  titleTemplates: TitleTemplates
+): ResolvedMetadata {
   const { openGraph, twitter } = metadata
   if (openGraph) {
     let autoFillProps: Partial<{
@@ -378,7 +396,9 @@ function postProcessMetadata(metadata: ResolvedMetadata): ResolvedMetadata {
     }> = {}
     const hasTwTitle = twitter?.title.absolute
     const hasTwDescription = twitter?.description
-    const hasTwImages = twitter?.images
+    const hasTwImages = Boolean(
+      twitter?.hasOwnProperty('images') && twitter.images
+    )
     if (!hasTwTitle) autoFillProps.title = openGraph.title
     if (!hasTwDescription) autoFillProps.description = openGraph.description
     if (!hasTwImages) autoFillProps.images = openGraph.images
@@ -386,7 +406,8 @@ function postProcessMetadata(metadata: ResolvedMetadata): ResolvedMetadata {
     if (Object.keys(autoFillProps).length > 0) {
       const partialTwitter = resolveTwitter(
         autoFillProps,
-        metadata.metadataBase
+        metadata.metadataBase,
+        titleTemplates.twitter
       )
       if (metadata.twitter) {
         metadata.twitter = Object.assign({}, metadata.twitter, {
@@ -406,17 +427,13 @@ function postProcessMetadata(metadata: ResolvedMetadata): ResolvedMetadata {
 
 export async function accumulateMetadata(
   metadataItems: MetadataItems,
-  options: MetadataAccumulationOptions
+  metadataContext: MetadataContext
 ): Promise<ResolvedMetadata> {
   const resolvedMetadata = createDefaultMetadata()
   const resolvers: ((value: ResolvedMetadata) => void)[] = []
   const generateMetadataResults: (Metadata | Promise<Metadata>)[] = []
 
-  let titleTemplates: {
-    title: string | null
-    twitter: string | null
-    openGraph: string | null
-  } = {
+  let titleTemplates: TitleTemplates = {
     title: null,
     twitter: null,
     openGraph: null,
@@ -472,7 +489,7 @@ export async function accumulateMetadata(
     }
 
     merge({
-      options,
+      metadataContext,
       target: resolvedMetadata,
       source: metadata,
       staticFilesMetadata,
@@ -484,11 +501,11 @@ export async function accumulateMetadata(
     if (i < metadataItems.length - 2) {
       titleTemplates = {
         title: resolvedMetadata.title?.template || null,
-        openGraph: resolvedMetadata.openGraph?.title?.template || null,
-        twitter: resolvedMetadata.twitter?.title?.template || null,
+        openGraph: resolvedMetadata.openGraph?.title.template || null,
+        twitter: resolvedMetadata.twitter?.title.template || null,
       }
     }
   }
 
-  return postProcessMetadata(resolvedMetadata)
+  return postProcessMetadata(resolvedMetadata, titleTemplates)
 }
