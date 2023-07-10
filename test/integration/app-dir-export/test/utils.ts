@@ -54,10 +54,10 @@ const expectedWhenTrailingSlashFalse = [
   '_next/static/media/test.3f1a293b.png',
   '_next/static/test-build-id/_buildManifest.js',
   '_next/static/test-build-id/_ssgManifest.js',
-  'another/first.html',
-  'another/first.txt',
   'another.html',
   'another.txt',
+  'another/first.html',
+  'another/first.txt',
   'another/second.html',
   'another/second.txt',
   'api/json',
@@ -95,19 +95,19 @@ export async function runTests({
   dynamicApiRoute?: string
   expectedErrMsg?: string
 }) {
-  if (trailingSlash) {
+  if (trailingSlash !== undefined) {
     nextConfig.replace(
       'trailingSlash: true,',
       `trailingSlash: ${trailingSlash},`
     )
   }
-  if (dynamicPage) {
+  if (dynamicPage !== undefined) {
     slugPage.replace(
       `const dynamic = 'force-static'`,
       `const dynamic = ${dynamicPage}`
     )
   }
-  if (dynamicApiRoute) {
+  if (dynamicApiRoute !== undefined) {
     apiJson.replace(
       `const dynamic = 'force-static'`,
       `const dynamic = ${dynamicApiRoute}`
