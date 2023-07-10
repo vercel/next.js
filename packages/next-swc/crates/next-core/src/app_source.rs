@@ -13,7 +13,7 @@ use turbopack_binding::{
     },
     turbopack::{
         core::{
-            asset::{AssetVc, },
+            asset::AssetVc,
             chunk::{EvaluatableAssetVc, EvaluatableAssetsVc},
             compile_time_info::CompileTimeInfoVc,
             context::AssetContext,
