@@ -140,13 +140,13 @@ function runTests(mode) {
         entries.find(
           (item) =>
             item.imagesrcset ===
-            '/_next/image?url=%2Ftest.jpg&w=640&q=75 1x, /_next/image?url=%2Ftest.jpg&w=828&q=75 2x'
+            '/_next/image?url=%2Ftest.webp&w=640&q=75 1x, /_next/image?url=%2Ftest.webp&w=828&q=75 2x'
         )
       ).toEqual({
         fetchpriority: 'high',
         imagesizes: '',
         imagesrcset:
-          '/_next/image?url=%2Ftest.jpg&w=640&q=75 1x, /_next/image?url=%2Ftest.jpg&w=828&q=75 2x',
+          '/_next/image?url=%2Ftest.webp&w=640&q=75 1x, /_next/image?url=%2Ftest.webp&w=828&q=75 2x',
         crossorigin: 'anonymous',
         referrerPolicy: '',
       })

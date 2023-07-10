@@ -17,7 +17,7 @@ const Page = () => {
         priority
         id="basic-image-crossorigin"
         alt="basic-image-crossorigin"
-        src="/test.jpg"
+        src="/test.webp"
         width="400"
         height="400"
         crossOrigin="anonymous"
