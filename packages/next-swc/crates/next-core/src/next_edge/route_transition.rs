@@ -3,7 +3,10 @@ use indexmap::indexmap;
 use turbopack_binding::{
     turbo::tasks_fs::FileSystemPathVc,
     turbopack::{
-        core::{asset::AssetVc, chunk::ChunkingContextVc, compile_time_info::CompileTimeInfoVc},
+        core::{
+            asset::AssetVc, chunk::ChunkingContextVc, compile_time_info::CompileTimeInfoVc,
+            module::ModuleVc,
+        },
         ecmascript::chunk_group_files_asset::ChunkGroupFilesAsset,
         turbopack::{
             module_options::ModuleOptionsContextVc,
@@ -57,11 +60,11 @@ impl Transition for NextEdgeRouteTransition {
     #[turbo_tasks::function]
     async fn process_module(
         &self,
-        asset: AssetVc,
+        asset: ModuleVc,
         context: ModuleAssetContextVc,
-    ) -> Result<AssetVc> {
+    ) -> Result<ModuleVc> {
         let new_asset = route_bootstrap(
-            asset,
+            asset.into(),
             context.into(),
             self.base_path,
             self.bootstrap_asset,
@@ -71,7 +74,7 @@ impl Transition for NextEdgeRouteTransition {
         );
 
         let asset = ChunkGroupFilesAsset {
-            asset: new_asset.into(),
+            module: new_asset.into(),
             client_root: self.output_path,
             chunking_context: self.edge_chunking_context,
             runtime_entries: None,
