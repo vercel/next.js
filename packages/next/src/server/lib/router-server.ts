@@ -124,13 +124,13 @@ export async function initialize(opts: {
   } = {}
 
   const { ipcPort, ipcValidationKey } = await createIpcServer({
-    ensurePage(
+    async ensurePage(
       match: Parameters<
         InstanceType<typeof import('../dev/hot-reloader').default>['ensurePage']
       >[0]
     ) {
       // TODO: remove after ensure is pulled out of server
-      return devInstance?.hotReloader.ensurePage(match)
+      return await devInstance?.hotReloader.ensurePage(match)
     },
     async logErrorWithOriginalStack(...args: any[]) {
       // @ts-ignore
@@ -145,8 +145,12 @@ export async function initialize(opts: {
         clientOnly: false,
       })
     },
-    getCompilationError(page: string) {
-      return devInstance?.hotReloader.getCompilationErrors(page)
+    async getCompilationError(page: string) {
+      const errors = await devInstance?.hotReloader?.getCompilationErrors(page)
+      if (!errors) return
+
+      // Return the very first error we found.
+      return errors[0]
     },
     async revalidate({
       urlPath,

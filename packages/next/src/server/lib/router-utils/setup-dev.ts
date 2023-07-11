@@ -94,12 +94,6 @@ async function startWatcher(opts: SetupOpts) {
   const { useFileSystemPublicRoutes } = nextConfig
   const usingTypeScript = await verifyTypeScript(opts)
 
-  if (opts.nextConfig.experimental.nextScriptWorkers) {
-    await verifyPartytownSetup(
-      opts.dir,
-      path.join(opts.dir, opts.nextConfig.distDir, CLIENT_STATIC_FILES_PATH)
-    )
-  }
   const distDir = path.join(opts.dir, opts.nextConfig.distDir)
 
   const validFileMatcher = createValidFileMatcher(
@@ -123,6 +117,13 @@ async function startWatcher(opts: SetupOpts) {
   } = {}
 
   await hotReloader.start()
+
+  if (opts.nextConfig.experimental.nextScriptWorkers) {
+    await verifyPartytownSetup(
+      opts.dir,
+      path.join(distDir, CLIENT_STATIC_FILES_PATH)
+    )
+  }
 
   opts.fsChecker.ensureCallback(async function ensure(item) {
     if (item.type === 'appFile' || item.type === 'pageFile') {
@@ -569,7 +570,9 @@ async function startWatcher(opts: SetupOpts) {
             })
           }
         })
-        hotReloader.invalidate()
+        hotReloader.invalidate({
+          reloadAfterInvalidation: envChange,
+        })
       }
 
       if (nestedMiddleware.length > 0) {
