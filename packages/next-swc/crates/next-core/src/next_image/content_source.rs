@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, Result};
 use turbo_tasks::{
     primitives::{OptionStringVc, StringVc},
     Value,

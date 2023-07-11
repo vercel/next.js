@@ -96,6 +96,7 @@ pub async fn get_fallback_page(
 
     Ok(DevHtmlAssetVc::new(
         dev_server_root.join("fallback.html"),
+        client_base_path,
         vec![(
             module.into(),
             chunking_context.into(),

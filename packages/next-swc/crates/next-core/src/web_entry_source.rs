@@ -232,7 +232,8 @@ pub async fn create_web_entry_source(
         .try_join()
         .await?;
 
-    let entry_asset = DevHtmlAssetVc::new(client_root.join("index.html"), entries).into();
+    let entry_asset =
+        DevHtmlAssetVc::new(client_root.join("index.html"), Default::default(), entries).into();
 
     let graph = if eager_compile {
         AssetGraphContentSourceVc::new_eager(client_root, Default::default(), entry_asset)
