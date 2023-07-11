@@ -1,6 +1,6 @@
 use anyhow::{bail, Result};
 use next_core::{
-    create_page_loader_entry_module,
+    create_page_loader_entry_module, get_asset_path_from_pathname,
     mode::NextMode,
     next_client::{
         get_client_module_options_context, get_client_resolve_options_context,
@@ -354,9 +354,10 @@ pub async fn compute_page_entries_chunks(
     for page_entry in page_entries.entries.iter() {
         let page_entry = page_entry.await?;
         let pathname = page_entry.pathname.await?;
+        let asset_path: String = get_asset_path_from_pathname(&pathname, ".js");
 
         let ssr_entry_chunk = ssr_chunking_context.entry_chunk(
-            node_root.join(&format!("server/pages/{pathname}.js", pathname = pathname)),
+            node_root.join(&format!("server/pages/{asset_path}")),
             page_entry.ssr_module,
             page_entries.ssr_runtime_entries,
         );
