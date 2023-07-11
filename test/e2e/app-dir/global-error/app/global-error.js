@@ -6,7 +6,8 @@ export default function GlobalError({ error }) {
       <head></head>
       <body>
         <h1>Global Error</h1>
-        <div id="error">{`Global error: ${error?.message}`}</div>
+        <p id="error">{`Global error: ${error?.message}`}</p>
+        {error?.digest && <p id="digest">{error?.digest}</p>}
       </body>
     </html>
   )
