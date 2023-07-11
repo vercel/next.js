@@ -131,7 +131,7 @@ impl Asset for PageLoaderAsset {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<AssetIdentVc> {
         Ok(AssetIdentVc::from_path(self.server_root.join(&format!(
-            "static/chunks/pages{}",
+            "_next/static/chunks/pages{}",
             get_asset_path_from_pathname(&self.pathname.await?, ".js")
         ))))
     }

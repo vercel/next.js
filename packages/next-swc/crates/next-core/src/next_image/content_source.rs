@@ -99,7 +99,7 @@ impl GetContentSourceContent for NextImageContentSource {
         // TODO: re-encode into next-gen formats.
 
         if let Some(path) = url.strip_prefix('/') {
-            let sources = this.asset_source.get_routes().get(&path).await?;
+            let sources = this.asset_source.get_routes().get(path).await?;
             let sources = sources
                 .iter()
                 .map(|s| {
