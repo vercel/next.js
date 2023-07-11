@@ -1,11 +1,13 @@
 ---
 title: Router Cache
-description: How the Router Cache works in Next.js
+description: Learn how the Router Cache works in Next.js.
 ---
 
-The Next.js App Router uses an in-memory client-side cache that stores the rendered result of Server Components, split by invidiual route segments. This **Router Cache** is used to improve navigation performance by only [partially rendering]() the content that changes (instead of the whole route) and prefetching content that the user is likely going to navigate to. For the user, this results in [soft navigation]() (no hard page reloads) and faster page transitions; it also reduces unnecessary requests to the server.
+The Next.js App Router uses an in-memory client-side cache that stores the rendered result of Server Components, split by invidiual route segments. This **Router Cache** is used to improve navigation performance by only [partially rendering]() the content that changes (instead of the whole route) and prefetching content that the user is likely going to navigate to. It stores both visited segments and prefetched segments.
 
-> **Good to know:**
+For the user, this results in [soft navigation]() (no hard page reloads) and faster page transitions; it also reduces unnecessary requests to the server.
+
+> **What is the rendered result?**
 >
 > You may see the terms like **RSC Payload**, **Rendered Result**, and **Flight Data** used interchangeably. They all refer to the same thing: the rendered result of Server Components, which is sent to the client. To learn more, see the [Server Components]() documentation.
 
@@ -63,6 +65,12 @@ The `revalidatePath` and `revalidateTag` methods invalidates the [data cache](),
 > The difference is that `revalidatePath` and `revalidateTag` **clears** cached data, whereas `router.refresh` **reuses** cached data.
 
 For more, see the [`revalidatePath`]() and [`revalidateTag`]() API references.
+
+### `cookies`
+
+Using `cookies.set` or `cookies.delete` in Server Action invalidates the Router Cache to prevent routes that use cookies from becoming stale (e.g. authentication).
+
+See the [`cookies`]() API reference.
 
 ## Interactions with other caches
 
