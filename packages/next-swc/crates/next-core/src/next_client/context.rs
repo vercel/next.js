@@ -58,6 +58,7 @@ use crate::{
             emotion::get_emotion_transform_plugin, get_relay_transform_plugin,
             styled_components::get_styled_components_transform_plugin,
             styled_jsx::get_styled_jsx_transform_plugin,
+            swc_ecma_transform_plugins::get_swc_ecma_transform_plugin,
         },
     },
     sass::maybe_add_sass_loader,
@@ -206,6 +207,7 @@ pub async fn get_client_module_options_context(
     });
 
     let source_transforms = vec![
+        *get_swc_ecma_transform_plugin(project_path, next_config).await?,
         *get_relay_transform_plugin(next_config).await?,
         *get_emotion_transform_plugin(next_config).await?,
         *get_styled_components_transform_plugin(next_config).await?,
