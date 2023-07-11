@@ -10,6 +10,7 @@ use turbopack_binding::{
         core::{
             asset::{Asset, AssetContent, AssetContentVc, AssetVc},
             ident::AssetIdentVc,
+            source::{Source, SourceVc},
         },
         ecmascript::utils::StringifyJs,
         image::process::{get_meta_data, BlurPlaceholderOptions, BlurPlaceholderOptionsVc},
@@ -34,13 +35,16 @@ fn blur_options() -> BlurPlaceholderOptionsVc {
 /// An source asset that transforms an image into javascript code which exports
 /// an object with meta information like width, height and a blur placeholder.
 #[turbo_tasks::value(shared)]
-pub struct StructuredImageSourceAsset {
-    pub image: AssetVc,
+pub struct StructuredImageFileSource {
+    pub image: SourceVc,
     pub blur_placeholder_mode: BlurPlaceholderMode,
 }
 
 #[turbo_tasks::value_impl]
-impl Asset for StructuredImageSourceAsset {
+impl Source for StructuredImageFileSource {}
+
+#[turbo_tasks::value_impl]
+impl Asset for StructuredImageFileSource {
     #[turbo_tasks::function]
     fn ident(&self) -> AssetIdentVc {
         self.image

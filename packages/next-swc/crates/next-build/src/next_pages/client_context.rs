@@ -4,16 +4,12 @@ use next_core::{
     turbopack::core::{asset::AssetsVc, chunk::EvaluatableAssetsVc},
 };
 use turbopack_binding::{
-    turbo::{
-        tasks::{primitives::StringVc, Value},
-        tasks_fs::FileSystemPathVc,
-    },
+    turbo::{tasks::primitives::StringVc, tasks_fs::FileSystemPathVc},
     turbopack::{
         core::{
-            asset::AssetVc,
             chunk::{ChunkableModule, ChunkingContext, ChunkingContextVc},
             context::{AssetContext, AssetContextVc},
-            reference_type::ReferenceType,
+            source::SourceVc,
         },
         dev::DevChunkingContextVc,
         ecmascript::EcmascriptModuleAssetVc,
@@ -61,20 +57,11 @@ impl PagesBuildClientContextVc {
     }
 
     #[turbo_tasks::function]
-    pub async fn client_chunk(
-        self,
-        asset: AssetVc,
-        pathname: StringVc,
-        reference_type: Value<ReferenceType>,
-    ) -> Result<AssetsVc> {
+    pub async fn client_chunk(self, source: SourceVc, pathname: StringVc) -> Result<AssetsVc> {
         let this = self.await?;
 
-        let client_asset_page = this.client_asset_context.process(asset, reference_type);
-        let client_asset_page = create_page_loader_entry_asset(
-            this.client_asset_context,
-            client_asset_page.into(),
-            pathname,
-        );
+        let client_asset_page =
+            create_page_loader_entry_asset(this.client_asset_context, source, pathname);
 
         let Some(client_module_asset) =
             EcmascriptModuleAssetVc::resolve_from(client_asset_page).await?
