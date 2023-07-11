@@ -1548,11 +1548,14 @@ export async function renderToHTMLOrFlight(
               pagePath
             )
           }
+          let isBuiltInError = false
           if (isNotFoundError(err)) {
             res.statusCode = 404
+            isBuiltInError = true
           }
           if (isRedirectError(err)) {
             res.statusCode = 307
+            isBuiltInError = true
             if (err.mutableCookies) {
               const headers = new Headers()
 
@@ -1565,24 +1568,45 @@ export async function renderToHTMLOrFlight(
             res.setHeader('Location', getURLFromRedirectError(err))
           }
 
-          const ErrorServerComponent = createServerComponentRenderer(
-            async () => {
-              // only pass plain object to client
-              return (
-                <GlobalError
-                  error={{ message: err?.message, digest: err?.digest }}
+          const defaultErrorComponent = (
+            <html id="__next_error__">
+              <head>
+                {/* @ts-expect-error allow to use async server component */}
+                <MetadataTree
+                  key={requestId}
+                  tree={emptyLoaderTree}
+                  pathname={pathname}
+                  searchParams={providedSearchParams}
+                  getDynamicParamFromSegment={getDynamicParamFromSegment}
                 />
-              )
-            },
-            ComponentMod,
-            serverErrorComponentsRenderOpts,
-            serverComponentsErrorHandler,
-            nonce
+                {appUsingSizeAdjust ? <meta name="next-size-adjust" /> : null}
+              </head>
+              <body></body>
+            </html>
           )
+
+          const serverErrorElement = isBuiltInError
+            ? defaultErrorComponent
+            : React.createElement(
+                createServerComponentRenderer(
+                  async () => {
+                    // only pass plain object to client
+                    return (
+                      <GlobalError
+                        error={{ message: err?.message, digest: err?.digest }}
+                      />
+                    )
+                  },
+                  ComponentMod,
+                  serverErrorComponentsRenderOpts,
+                  serverComponentsErrorHandler,
+                  nonce
+                )
+              )
 
           const renderStream = await renderToInitialStream({
             ReactDOMServer: require('react-dom/server.edge'),
-            element: <ErrorServerComponent />,
+            element: serverErrorElement,
             streamOptions: {
               nonce,
               // Include hydration scripts in the HTML
@@ -1602,7 +1626,10 @@ export async function renderToHTMLOrFlight(
           })
 
           return await continueFromInitialStream(renderStream, {
-            dataStream: serverErrorComponentsInlinedTransformStream.readable,
+            dataStream: (isBuiltInError
+              ? serverComponentsInlinedTransformStream
+              : serverErrorComponentsInlinedTransformStream
+            ).readable,
             generateStaticHTML: staticGenerationStore.isStaticGeneration,
             getServerInsertedHTML,
             serverInsertedHTMLToHead: true,
