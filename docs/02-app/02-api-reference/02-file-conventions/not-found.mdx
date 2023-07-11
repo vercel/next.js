@@ -43,7 +43,9 @@ export default function NotFound() {
 
 `not-found.js` components do not accept any props.
 
-That being said, you can still turn the `not-found.js` component into an async server component to fetch dynamic data:
+## Data Fetching
+
+By default, `not-found` is a Server Component. You can mark it as `async` to fetch and display data:
 
 
 ```tsx filename="app/blog/not-found.tsx" switcher
