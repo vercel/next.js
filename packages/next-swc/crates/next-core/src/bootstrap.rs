@@ -246,18 +246,18 @@ mod tests {
     #[test]
     fn test_replace_percent_40() {
         assert_eq!(
-            normalize_app_page_to_pathname("/replace%40with_underscore"),
-            "/replace%40with_underscore"
+            normalize_app_page_to_pathname("/replace%40with@at"),
+            "/replace%40with@at"
         );
         assert_eq!(
-            normalize_app_page_to_pathname("/%40replace%40with_underscore"),
-            "/_replace%40with_underscore"
+            normalize_app_page_to_pathname("/%40replace%40with@at"),
+            "/@replace%40with@at"
         );
         assert_eq!(
             normalize_app_page_to_pathname(
-                "/replace%40with_underscore/%40replace%40with_underscore"
+                "/replace%40with@at/%40replace%40with@at"
             ),
-            "/replace%40with_underscore/_replace%40with_underscore"
+            "/replace%40with@at/@replace%40with@at"
         );
     }
 
