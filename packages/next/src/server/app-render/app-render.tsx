@@ -466,9 +466,7 @@ export async function renderToHTMLOrFlight(
             const fontFilename = preloadedFontFiles[i]
             const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(fontFilename)![1]
             const type = `font/${ext}`
-            const href = `${assetPrefix}/_next/${fontFilename}${getAssetQueryString(
-              false
-            )}`
+            const href = `${assetPrefix}/_next/${fontFilename}`
             ComponentMod.preloadFont(href, type)
           }
         } else {
