@@ -1,5 +1,4 @@
 import type { RequestHandler } from '../next'
-import type { UnwrapPromise } from '../../lib/coalesced-function'
 
 // this must come first as it includes require hooks
 import { initializeServerWorker } from './setup-server-worker'
@@ -76,9 +75,7 @@ export async function initialize(opts: {
   workerType: 'router' | 'render'
   isNodeDebugging: boolean
   keepAliveTimeout?: number
-  serverFields?: UnwrapPromise<
-    ReturnType<typeof import('./router-utils/setup-dev').setupDev>
-  >['serverFields']
+  serverFields?: any
 }): Promise<NonNullable<typeof result>> {
   // if we already setup the server return as we only need to do
   // this on first worker boot

@@ -388,8 +388,6 @@ async function startWatcher(opts: SetupOpts) {
             continue
           }
         } else {
-          // /index is preserved for root folder
-          pageName = pageName.replace(/\/index$/, '') || '/'
           pageFiles.add(pageName)
           // always add to nextDataRoutes for now but in future only add
           // entries that actually use getStaticProps/getServerSideProps

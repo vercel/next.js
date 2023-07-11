@@ -712,7 +712,15 @@ export default async function loadConfig(
   silent?: boolean
 ): Promise<NextConfigComplete> {
   if (!process.env.__NEXT_PRIVATE_RENDER_WORKER) {
-    loadWebpackHook()
+    try {
+      loadWebpackHook()
+    } catch (err) {
+      // this can fail in standalone mode as the files
+      // aren't traced/included
+      if (!process.env.__NEXT_PRIVATE_STANDALONE_CONFIG) {
+        throw err
+      }
+    }
   }
 
   if (process.env.__NEXT_PRIVATE_STANDALONE_CONFIG) {

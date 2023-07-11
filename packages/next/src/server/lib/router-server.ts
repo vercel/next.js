@@ -23,7 +23,6 @@ import { getResolveRoutes } from './router-utils/resolve-routes'
 import { NextUrlWithParsedQuery, getRequestMeta } from '../request-meta'
 import { pathHasPrefix } from '../../shared/lib/router/utils/path-has-prefix'
 import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
-import { denormalizePagePath } from '../../shared/lib/page-path/denormalize-page-path'
 
 import {
   PHASE_PRODUCTION_SERVER,
@@ -315,10 +314,6 @@ export async function initialize(opts: {
         res.setHeader('content-type', 'application/json')
         res.end('{}')
         return null
-      }
-
-      if (type === 'pages') {
-        invokePath = denormalizePagePath(invokePath)
       }
 
       const curWorker = renderWorkers[type]

@@ -3,7 +3,11 @@ import type { NodeRequestHandler } from './next-server'
 import type { UrlWithParsedQuery } from 'url'
 import type { NextConfigComplete } from './config-shared'
 import type { IncomingMessage, ServerResponse } from 'http'
-import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
+import {
+  addRequestMeta,
+  type NextParsedUrlQuery,
+  type NextUrlWithParsedQuery,
+} from './request-meta'
 
 import './require-hook'
 import './node-polyfill-fetch'
@@ -337,16 +341,13 @@ function createServer(options: NextServerOptions): NextServer {
                 return async (req: IncomingMessage, res: ServerResponse) => {
                   if (shouldUseStandaloneMode) {
                     setupWebSocketHandler(options.httpServer, req)
-                    await proxyRequest(
-                      req,
-                      res,
-                      url.parse(
-                        `http://127.0.0.1:${serverPort}${req.url}`,
-                        true
-                      ),
-                      undefined,
-                      req
+                    const parsedUrl = url.parse(
+                      `http://127.0.0.1:${serverPort}${req.url}`,
+                      true
                     )
+                    addRequestMeta(req, '__NEXT_INIT_QUERY', parsedUrl.query)
+
+                    await proxyRequest(req, res, parsedUrl, undefined, req)
                     return
                   }
                   handler = handler || server.getRequestHandler()

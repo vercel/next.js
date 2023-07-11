@@ -139,22 +139,10 @@ function getMiddlewareMatcher(
   return matcher
 }
 
-type RenderWorker = Worker & {
-  initialize: typeof import('./lib/render-server').initialize
-  deleteCache: typeof import('./lib/render-server').deleteCache
-  deleteAppClientCache: typeof import('./lib/render-server').deleteAppClientCache
-  clearModuleContext: typeof import('./lib/render-server').clearModuleContext
-}
-
 export default class NextNodeServer extends BaseServer {
   private imageResponseCache?: ResponseCache
   private compression?: ExpressMiddleware
   protected renderWorkersPromises?: Promise<void>
-  protected renderWorkers?: {
-    middleware?: RenderWorker
-    pages?: RenderWorker
-    app?: RenderWorker
-  }
   protected renderWorkerOpts?: Parameters<
     typeof import('./lib/render-server').initialize
   >[0]

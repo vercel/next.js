@@ -329,6 +329,8 @@ export function getResolveRoutes(
                 parsedUrl.pathname || '',
                 config.basePath
               )
+              parsedUrl.pathname =
+                parsedUrl.pathname === '/index' ? '/' : parsedUrl.pathname
             }
           }
         }
@@ -560,11 +562,9 @@ export function getResolveRoutes(
 
           parsedDestination.search = stringifyQuery(req as any, query)
 
-          let updatedDestination = url.format(parsedDestination)
-
-          if (updatedDestination.startsWith('/')) {
-            updatedDestination = normalizeRepeatedSlashes(updatedDestination)
-          }
+          parsedDestination.pathname = normalizeRepeatedSlashes(
+            parsedDestination.pathname
+          )
 
           return {
             finished: true,

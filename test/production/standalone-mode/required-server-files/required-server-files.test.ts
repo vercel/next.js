@@ -956,7 +956,10 @@ describe('should set-up next', () => {
     expect(await res.text()).toBe('Internal Server Error')
 
     await check(
-      () => (errors[0].includes('gip hit an oops') ? 'success' : errors[0]),
+      () =>
+        errors.join('\n').includes('gip hit an oops')
+          ? 'success'
+          : errors.join('\n'),
       'success'
     )
   })
@@ -967,7 +970,10 @@ describe('should set-up next', () => {
     expect(res.status).toBe(500)
     expect(await res.text()).toBe('Internal Server Error')
     await check(
-      () => (errors[0].includes('gssp hit an oops') ? 'success' : errors[0]),
+      () =>
+        errors.join('\n').includes('gssp hit an oops')
+          ? 'success'
+          : errors.join('\n'),
       'success'
     )
   })
@@ -978,7 +984,10 @@ describe('should set-up next', () => {
     expect(res.status).toBe(500)
     expect(await res.text()).toBe('Internal Server Error')
     await check(
-      () => (errors[0].includes('gsp hit an oops') ? 'success' : errors[0]),
+      () =>
+        errors.join('\n').includes('gsp hit an oops')
+          ? 'success'
+          : errors.join('\n'),
       'success'
     )
   })
@@ -990,9 +999,9 @@ describe('should set-up next', () => {
     expect(await res.text()).toBe('Internal Server Error')
     await check(
       () =>
-        errors[0].includes('some error from /api/error')
+        errors.join('\n').includes('some error from /api/error')
           ? 'success'
-          : errors[0],
+          : errors.join('\n'),
       'success'
     )
   })
