@@ -253,7 +253,7 @@ pub async fn parse_segment_config_from_source(
 }
 
 fn issue_source(source: AssetVc, span: Span) -> IssueSourceVc {
-    IssueSourceVc::from_byte_offset(source.into(), span.lo.to_usize(), span.hi.to_usize())
+    IssueSourceVc::from_byte_offset(source, span.lo.to_usize(), span.hi.to_usize())
 }
 
 fn parse_config_value(
