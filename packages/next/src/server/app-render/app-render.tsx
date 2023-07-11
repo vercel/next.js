@@ -56,7 +56,10 @@ import { interopDefault } from './interop-default'
 import { preloadComponent } from './preload-component'
 import { FlightRenderResult } from './flight-render-result'
 import { createErrorHandler } from './create-error-handler'
-import { getShortDynamicParamType } from './get-short-dynamic-param-type'
+import {
+  getShortDynamicParamType,
+  dynamicParamTypes,
+} from './get-short-dynamic-param-type'
 import { getSegmentParam } from './get-segment-param'
 import { getCssInlinedLinkTags } from './get-css-inlined-link-tags'
 import { getPreloadableFonts } from './get-preloadable-fonts'
@@ -324,7 +327,7 @@ export async function renderToHTMLOrFlight(
       if (!value) {
         // Handle case where optional catchall does not have a value, e.g. `/dashboard/[...slug]` when requesting `/dashboard`
         if (segmentParam.type === 'optional-catchall') {
-          const type = getShortDynamicParamType(segmentParam.type)
+          const type = dynamicParamTypes[segmentParam.type]
           return {
             param: key,
             value: null,
@@ -463,9 +466,7 @@ export async function renderToHTMLOrFlight(
             const fontFilename = preloadedFontFiles[i]
             const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(fontFilename)![1]
             const type = `font/${ext}`
-            const href = `${assetPrefix}/_next/${fontFilename}${getAssetQueryString(
-              false
-            )}`
+            const href = `${assetPrefix}/_next/${fontFilename}`
             ComponentMod.preloadFont(href, type)
           }
         } else {
@@ -1242,6 +1243,10 @@ export async function renderToHTMLOrFlight(
       clientReferenceManifest,
       serverContexts,
       rscChunks: [],
+    }
+
+    if (!clientReferenceManifest) {
+      console.log(req.url)
     }
 
     const validateRootLayout = dev
