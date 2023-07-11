@@ -31,7 +31,9 @@ createNextDescribe(
         if (Array.isArray(expected)) {
           expect(values).toEqual(expected)
         } else {
-          expect(values[0]).toBe(expected)
+          // If expected is undefined, then it should not exist.
+          // Otherwise, it should exist in the matched values.
+          expect(values.includes(expected)).toBe(expected !== undefined)
         }
       }
     }
@@ -87,7 +89,7 @@ createNextDescribe(
         tag: string,
         queryKey: string,
         domAttributeField: string,
-        expected: Record<string, string | string[]>
+        expected: Record<string, string | string[] | undefined>
       ) => {
         const res = {}
         for (const key of Object.keys(expected)) {
@@ -215,10 +217,10 @@ createNextDescribe(
         })
 
         await matchMultiDom('link', 'rel', 'href', {
-          manifest: 'https://www.google.com/manifest',
+          manifest: '/api/manifest',
           author: 'https://tree.com',
           preconnect: '/preconnect-url',
-          preload: '/preload-url',
+          preload: '/api/preload',
           'dns-prefetch': '/dns-prefetch-url',
         })
 
@@ -249,10 +251,10 @@ createNextDescribe(
         })
 
         await matchMultiDom('link', 'rel', 'href', {
-          manifest: 'https://www.google.com/manifest',
+          manifest: '/api/manifest',
           author: 'https://tree.com',
           preconnect: '/preconnect-url',
-          preload: '/preload-url',
+          preload: '/api/preload',
           'dns-prefetch': '/dns-prefetch-url',
         })
 
@@ -567,8 +569,27 @@ createNextDescribe(
         })
 
         // favicon shouldn't be overridden
-        const $icon = $('link[rel="icon"]')
-        expect($icon.attr('href')).toBe('/favicon.ico')
+        expect($('link[rel="icon"]').attr('href')).toBe('/favicon.ico')
+      })
+
+      it('should override file based images when opengraph-image and twitter-image specify images property', async () => {
+        const $ = await next.render$('/opengraph/static/override')
+
+        const match = createMultiHtmlMatcher($)
+        await match('meta', 'property', 'content', {
+          'og:title': 'no-og-image',
+          'og:image': undefined,
+        })
+
+        await match('meta', 'name', 'content', {
+          'twitter:image': undefined,
+          'twitter:title': 'no-tw-image',
+        })
+
+        // icon should be overridden
+        expect($('link[rel="icon"]').attr('href')).toBe(
+          'https://custom-icon-1.png'
+        )
       })
     })
 

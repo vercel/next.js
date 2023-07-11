@@ -83,7 +83,11 @@ externals['node-html-parser'] = 'next/dist/compiled/node-html-parser'
 export async function ncc_node_html_parser(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('node-html-parser')))
-    .ncc({ packageName: 'node-html-parser', externals, target: 'es5' })
+    .ncc({
+      packageName: 'node-html-parser',
+      externals,
+      target: 'es5',
+    })
     .target('src/compiled/node-html-parser')
 }
 
@@ -2359,6 +2363,7 @@ export async function compile(task, opts) {
     'ncc_next__react_dev_overlay',
     'ncc_next_font',
     'capsize_metrics',
+    'minimal_next_server',
   ])
 }
 
@@ -2614,4 +2619,158 @@ export async function server_wasm(task, opts) {
 
 export async function release(task) {
   await task.clear('dist').start('build')
+}
+
+export async function minimal_next_server(task) {
+  const outputName = 'next-server.js'
+  const cachedOutputName = `${outputName}.cache`
+
+  const minimalExternals = [
+    'react',
+    'react/package.json',
+    'react/jsx-runtime',
+    'react/jsx-dev-runtime',
+    'react-dom',
+    'react-dom/package.json',
+    'react-dom/client',
+    'react-dom/server',
+    'react-dom/server.browser',
+    'react-dom/server.edge',
+    'react-server-dom-webpack/client',
+    'react-server-dom-webpack/client.edge',
+    'react-server-dom-webpack/server.edge',
+    'react-server-dom-webpack/server.node',
+    'styled-jsx',
+    'styled-jsx/style',
+    '@opentelemetry/api',
+    'next/dist/compiled/@next/react-dev-overlay/dist/middleware',
+    'next/dist/compiled/@ampproject/toolbox-optimizer',
+    'next/dist/compiled/edge-runtime',
+    'next/dist/compiled/@edge-runtime/ponyfill',
+    'next/dist/compiled/undici',
+    'next/dist/compiled/raw-body',
+    'next/dist/server/capsize-font-metrics.json',
+    'critters',
+    'next/dist/compiled/node-html-parser',
+    'next/dist/compiled/compression',
+    'next/dist/compiled/jsonwebtoken',
+  ].reduce((acc, pkg) => {
+    acc[pkg] = pkg
+    return acc
+  }, {})
+
+  Object.assign(minimalExternals, {
+    '/(.*)config$/': 'next/dist/server/config',
+    './web/sandbox': 'next/dist/server/web/sandbox',
+  })
+
+  const webpack = require('webpack')
+  const TerserPlugin = require('terser-webpack-plugin')
+  // const BundleAnalyzerPlugin =
+  //   require('webpack-bundle-analyzer').BundleAnalyzerPlugin
+  /** @type {webpack.Configuration} */
+  const config = {
+    entry: join(__dirname, 'dist/server/next-server.js'),
+    target: 'node',
+    mode: 'production',
+    output: {
+      path: join(__dirname, 'dist/compiled/minimal-next-server'),
+      filename: outputName,
+      libraryTarget: 'commonjs2',
+    },
+    // left in for debugging
+    optimization: {
+      moduleIds: 'named',
+      // minimize: false,
+      minimize: true,
+      minimizer: [
+        new TerserPlugin({
+          extractComments: false,
+          terserOptions: {
+            format: {
+              comments: false,
+            },
+            compress: {
+              passes: 2,
+            },
+          },
+        }),
+      ],
+    },
+    plugins: [
+      new webpack.DefinePlugin({
+        'process.env.NODE_ENV': JSON.stringify('production'),
+        'process.env.NEXT_MINIMAL': JSON.stringify('true'),
+        'process.env.NEXT_RUNTIME': JSON.stringify('nodejs'),
+      }),
+      // new BundleAnalyzerPlugin({}),
+    ],
+    externals: [minimalExternals],
+  }
+
+  await new Promise((resolve, reject) => {
+    webpack(config, (err, stats) => {
+      if (err) return reject(err)
+      if (stats.hasErrors()) {
+        return reject(new Error(stats.toString('errors-only')))
+      }
+      resolve()
+    })
+  })
+
+  const wrappedTemplate = `
+const filename = ${JSON.stringify(outputName)}
+const { readFileSync } = require('fs'),
+  { Script } = require('vm'),
+  { wrap } = require('module'),
+  { join } = require('path');
+const basename = join(__dirname, filename)
+
+const source = readFileSync(basename, 'utf-8')
+
+const cachedData =
+  !process.pkg &&
+  require('process').platform !== 'win32' &&
+  readFileSync(join(__dirname, '${cachedOutputName}'))
+  
+const scriptOpts = { filename: basename, columnOffset: 0 }
+
+const script = new Script(
+  wrap(source),
+  cachedData ? Object.assign({ cachedData }, scriptOpts) : scriptOpts
+)
+
+script.runInThisContext()(exports, require, module, __filename, __dirname)
+`
+
+  await fs.writeFile(
+    join(__dirname, `dist/compiled/minimal-next-server/next-server-cached.js`),
+    wrappedTemplate
+  )
+
+  const Module = require('module')
+  const vm = require('vm')
+  const filename = resolve(
+    __dirname,
+    'dist/compiled/minimal-next-server',
+    outputName
+  )
+
+  const content = require('fs').readFileSync(filename, 'utf8')
+
+  const wrapper = Module.wrap(content)
+  var script = new vm.Script(wrapper, {
+    filename: filename,
+    lineOffset: 0,
+    displayErrors: true,
+  })
+
+  script.runInThisContext()(exports, require, module, __filename, __dirname)
+
+  const buffer = script.createCachedData()
+
+  await fs.writeFile(
+    join(__dirname, `dist/compiled/minimal-next-server/${cachedOutputName}`),
+    buffer
+  )
 }

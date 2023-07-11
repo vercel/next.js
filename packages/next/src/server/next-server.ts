@@ -28,7 +28,7 @@ import {
 } from '../shared/lib/router/utils/route-matcher'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
 import type { RouteMatch } from './future/route-matches/route-match'
-import type { RenderOpts } from './render'
+import { renderToHTML, type RenderOpts } from './render'
 
 import fs from 'fs'
 import { join, relative, resolve, sep, isAbsolute } from 'path'
@@ -42,7 +42,6 @@ import {
   CLIENT_STATIC_FILES_RUNTIME,
   PRERENDER_MANIFEST,
   ROUTES_MANIFEST,
-  CLIENT_REFERENCE_MANIFEST,
   CLIENT_PUBLIC_FILES_PATH,
   APP_PATHS_MANIFEST,
   SERVER_DIRECTORY,
@@ -92,7 +91,7 @@ import ResponseCache from './response-cache'
 import { IncrementalCache } from './lib/incremental-cache'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 
-import { setHttpClientAndAgentOptions } from './config'
+import { setHttpClientAndAgentOptions } from './setup-http-agent-env'
 import { RouteKind } from './future/route-kind'
 
 import { PagesAPIRouteMatch } from './future/route-matches/pages-api-route-match'
@@ -111,6 +110,7 @@ import { createRequestResponseMocks } from './lib/mock-request'
 import chalk from 'next/dist/compiled/chalk'
 import { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
 import { signalFromNodeRequest } from './web/spec-extension/adapters/next-request'
+import { loadManifest } from './load-manifest'
 
 export * from './base-server'
 
@@ -258,18 +258,16 @@ export default class NextNodeServer extends BaseServer {
       loadComponents({
         distDir: this.distDir,
         pathname: '/_document',
-        hasServerComponents: false,
         isAppPath: false,
       }).catch(() => {})
       loadComponents({
         distDir: this.distDir,
         pathname: '/_app',
-        hasServerComponents: false,
         isAppPath: false,
       }).catch(() => {})
     }
 
-    if (this.isRouterWorker) {
+    if (this.isRouterWorker && !process.env.NEXT_MINIMAL) {
       this.renderWorkers = {}
       this.renderWorkerOpts = {
         port: this.port || 0,
@@ -435,14 +433,13 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected getPagesManifest(): PagesManifest | undefined {
-    return require(join(this.serverDistDir, PAGES_MANIFEST))
+    return loadManifest(join(this.serverDistDir, PAGES_MANIFEST))
   }
 
   protected getAppPathsManifest(): PagesManifest | undefined {
     if (!this.hasAppDir) return undefined
 
-    const appPathsManifestPath = join(this.serverDistDir, APP_PATHS_MANIFEST)
-    return require(appPathsManifestPath)
+    return loadManifest(join(this.serverDistDir, APP_PATHS_MANIFEST))
   }
 
   protected async hasPage(pathname: string): Promise<boolean> {
@@ -625,7 +622,10 @@ export default class NextNodeServer extends BaseServer {
       : []
   }
 
-  protected setImmutableAssetCacheControl(res: BaseNextResponse): void {
+  protected setImmutableAssetCacheControl(
+    res: BaseNextResponse,
+    _pathSegments: string[]
+  ): void {
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
   }
 
@@ -654,7 +654,7 @@ export default class NextNodeServer extends BaseServer {
             params.path[0] === 'pages' ||
             params.path[1] === 'pages'
           ) {
-            this.setImmutableAssetCacheControl(res)
+            this.setImmutableAssetCacheControl(res, params.path)
           }
           const p = join(
             this.distDir,
@@ -965,9 +965,8 @@ export default class NextNodeServer extends BaseServer {
     renderOpts: RenderOpts
   ): Promise<RenderResult> {
     // Due to the way we pass data by mutating `renderOpts`, we can't extend the
-    // object here but only updating its `clientReferenceManifest` field.
+    // object here but only updating its `nextFontManifest` field.
     // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
-    renderOpts.clientReferenceManifest = this.clientReferenceManifest
     renderOpts.nextFontManifest = this.nextFontManifest
 
     if (this.hasAppDir && renderOpts.isAppPath) {
@@ -982,7 +981,16 @@ export default class NextNodeServer extends BaseServer {
       )
     }
 
-    throw new Error('Invariant: render should have used routeModule')
+    // TODO: re-enable this once we've refactored to use implicit matches
+    // throw new Error('Invariant: render should have used routeModule')
+
+    return renderToHTML(
+      req.originalRequest,
+      res.originalResponse,
+      pathname,
+      query,
+      renderOpts
+    )
   }
 
   private streamResponseChunk(res: ServerResponse, chunk: any) {
@@ -1116,7 +1124,6 @@ export default class NextNodeServer extends BaseServer {
         const components = await loadComponents({
           distDir: this.distDir,
           pathname: pagePath,
-          hasServerComponents: !!this.renderOpts.serverComponents,
           isAppPath,
         })
 
@@ -1160,17 +1167,10 @@ export default class NextNodeServer extends BaseServer {
     return requireFontManifest(this.distDir)
   }
 
-  protected getServerComponentManifest() {
-    if (!this.hasAppDir) return undefined
-    return require(join(
-      this.distDir,
-      'server',
-      CLIENT_REFERENCE_MANIFEST + '.json'
-    ))
-  }
-
   protected getNextFontManifest() {
-    return require(join(this.distDir, 'server', `${NEXT_FONT_MANIFEST}.json`))
+    return loadManifest(
+      join(this.distDir, 'server', NEXT_FONT_MANIFEST + '.json')
+    )
   }
 
   protected async getFallback(page: string): Promise<string> {
@@ -2748,13 +2748,15 @@ export default class NextNodeServer extends BaseServer {
       }
       return this._cachedPreviewManifest
     }
-    const manifest = require(join(this.distDir, PRERENDER_MANIFEST))
+
+    const manifest = loadManifest(join(this.distDir, PRERENDER_MANIFEST))
+
     return (this._cachedPreviewManifest = manifest)
   }
 
   protected getRoutesManifest() {
     return getTracer().trace(NextNodeServerSpan.getRoutesManifest, () =>
-      require(join(this.distDir, ROUTES_MANIFEST))
+      loadManifest(join(this.distDir, ROUTES_MANIFEST))
     )
   }
 

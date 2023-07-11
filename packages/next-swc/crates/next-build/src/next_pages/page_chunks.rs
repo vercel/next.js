@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{bail, Result};
 use next_core::{
     env::env_for_js,
     mode::NextMode,
@@ -14,13 +14,14 @@ use next_core::{
         get_server_resolve_options_context, ServerContextType,
     },
     pages_structure::{
-        OptionPagesStructureVc, PagesDirectoryStructure, PagesDirectoryStructureVc, PagesStructure,
-        PagesStructureItem, PagesStructureVc,
+        PagesDirectoryStructure, PagesDirectoryStructureVc, PagesStructure, PagesStructureItem,
+        PagesStructureVc,
     },
     pathname_for_path,
     turbopack::core::asset::AssetsVc,
     PathType,
 };
+use turbo_tasks::ValueToString;
 use turbopack_binding::{
     turbo::{
         tasks::{primitives::StringVc, Value},
@@ -32,8 +33,9 @@ use turbopack_binding::{
             asset::AssetVc,
             context::AssetContextVc,
             environment::ServerAddrVc,
+            file_source::FileSourceVc,
             reference_type::{EntryReferenceSubType, ReferenceType},
-            source_asset::SourceAssetVc,
+            source::SourceVc,
         },
         env::ProcessEnvAssetVc,
         node::execution_context::ExecutionContextVc,
@@ -57,7 +59,8 @@ impl PageChunksVc {
 /// Returns a list of page chunks.
 #[turbo_tasks::function]
 pub async fn get_page_chunks(
-    pages_structure: OptionPagesStructureVc,
+    pages_structure: PagesStructureVc,
+    next_router_root: FileSystemPathVc,
     project_root: FileSystemPathVc,
     execution_context: ExecutionContextVc,
     node_root: FileSystemPathVc,
@@ -67,10 +70,11 @@ pub async fn get_page_chunks(
     next_config: NextConfigVc,
     node_addr: ServerAddrVc,
 ) -> Result<PageChunksVc> {
-    let Some(pages_structure) = *pages_structure.await? else {
-        return Ok(PageChunksVc::empty());
+    let pages_dir = if let Some(pages) = pages_structure.await?.pages {
+        pages.project_path().resolve().await?
+    } else {
+        project_root.join("pages")
     };
-    let pages_dir = pages_structure.project_path().resolve().await?;
 
     let mode = NextMode::Build;
 
@@ -122,7 +126,7 @@ pub async fn get_page_chunks(
     )
     .into();
 
-    let node_compile_time_info = get_server_compile_time_info(node_ty, mode, env, node_addr);
+    let node_compile_time_info = get_server_compile_time_info(mode, env, node_addr);
     let node_resolve_options_context = get_server_resolve_options_context(
         project_root,
         node_ty,
@@ -175,6 +179,7 @@ pub async fn get_page_chunks(
         node_build_context,
         client_build_context,
         pages_structure,
+        next_router_root,
     ))
 }
 
@@ -183,6 +188,7 @@ async fn get_page_chunks_for_root_directory(
     node_build_context: PagesBuildNodeContextVc,
     client_build_context: PagesBuildClientContextVc,
     pages_structure: PagesStructureVc,
+    next_router_root: FileSystemPathVc,
 ) -> Result<PageChunksVc> {
     let PagesStructure {
         app,
@@ -193,17 +199,16 @@ async fn get_page_chunks_for_root_directory(
     } = *pages_structure.await?;
     let mut chunks = vec![];
 
-    let next_router_root = pages.next_router_path();
-
     // This only makes sense on both the client and the server, but they should map
     // to different assets (server can be an external module).
     let app = app.await?;
     chunks.push(get_page_chunk_for_file(
         node_build_context,
         client_build_context,
-        SourceAssetVc::new(app.project_path).into(),
+        FileSourceVc::new(app.project_path).into(),
         next_router_root,
         app.next_router_path,
+        app.original_path,
     ));
 
     // This only makes sense on the server.
@@ -211,9 +216,10 @@ async fn get_page_chunks_for_root_directory(
     chunks.push(get_page_chunk_for_file(
         node_build_context,
         client_build_context,
-        SourceAssetVc::new(document.project_path).into(),
+        FileSourceVc::new(document.project_path).into(),
         next_router_root,
         document.next_router_path,
+        document.original_path,
     ));
 
     // This only makes sense on both the client and the server, but they should map
@@ -222,9 +228,10 @@ async fn get_page_chunks_for_root_directory(
     chunks.push(get_page_chunk_for_file(
         node_build_context,
         client_build_context,
-        SourceAssetVc::new(error.project_path).into(),
+        FileSourceVc::new(error.project_path).into(),
         next_router_root,
         error.next_router_path,
+        error.original_path,
     ));
 
     if let Some(api) = api {
@@ -241,17 +248,19 @@ async fn get_page_chunks_for_root_directory(
         );
     }
 
-    chunks.extend(
-        get_page_chunks_for_directory(
-            node_build_context,
-            client_build_context,
-            pages,
-            next_router_root,
-        )
-        .await?
-        .iter()
-        .copied(),
-    );
+    if let Some(pages) = pages {
+        chunks.extend(
+            get_page_chunks_for_directory(
+                node_build_context,
+                client_build_context,
+                pages,
+                next_router_root,
+            )
+            .await?
+            .iter()
+            .copied(),
+        );
+    }
 
     Ok(PageChunksVc::cell(chunks))
 }
@@ -274,14 +283,15 @@ async fn get_page_chunks_for_directory(
         let PagesStructureItem {
             project_path,
             next_router_path,
-            specificity: _,
+            original_path,
         } = *item.await?;
         chunks.push(get_page_chunk_for_file(
             node_build_context,
             client_build_context,
-            SourceAssetVc::new(project_path).into(),
+            FileSourceVc::new(project_path).into(),
             next_router_root,
             next_router_path,
+            original_path,
         ));
     }
 
@@ -318,26 +328,41 @@ pub struct PageChunk {
 async fn get_page_chunk_for_file(
     node_build_context: PagesBuildNodeContextVc,
     client_build_context: PagesBuildClientContextVc,
-    page_asset: AssetVc,
+    page_asset: SourceVc,
     next_router_root: FileSystemPathVc,
     next_router_path: FileSystemPathVc,
+    original_path: FileSystemPathVc,
 ) -> Result<PageChunkVc> {
     let reference_type = Value::new(ReferenceType::Entry(EntryReferenceSubType::Page));
 
     let pathname = pathname_for_path(next_router_root, next_router_path, PathType::Page);
+    let original_path = get_original_path(next_router_root, original_path);
 
     Ok(PageChunk {
         pathname,
-        node_chunk: node_build_context.node_chunk(page_asset, reference_type.clone()),
-        client_chunks: client_build_context.client_chunk(page_asset, pathname, reference_type),
+        node_chunk: node_build_context.node_chunk(page_asset, original_path, reference_type),
+        client_chunks: client_build_context.client_chunk(page_asset, pathname),
     }
     .cell())
 }
 
+/// Returns the original path of a file within the Next.js router root.
 #[turbo_tasks::function]
-async fn pathname_from_path(next_router_path: FileSystemPathVc) -> Result<StringVc> {
-    let pathname = next_router_path.await?;
-    Ok(StringVc::cell(pathname.path.clone()))
+pub async fn get_original_path(
+    next_router_root: FileSystemPathVc,
+    original_path: FileSystemPathVc,
+) -> Result<StringVc> {
+    let original_path_value = &*original_path.await?;
+    let path = if let Some(path) = next_router_root.await?.get_path_to(original_path_value) {
+        path
+    } else {
+        bail!(
+            "original_path ({}) is not in next_router_root ({})",
+            original_path.to_string().await?,
+            next_router_root.to_string().await?
+        )
+    };
+    Ok(StringVc::cell(path.to_string()))
 }
 
 #[turbo_tasks::function]

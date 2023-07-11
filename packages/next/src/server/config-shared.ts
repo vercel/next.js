@@ -661,8 +661,8 @@ export const defaultConfig: NextConfig = {
     buildActivityPosition: 'bottom-right',
   },
   onDemandEntries: {
-    maxInactiveAge: 15 * 1000,
-    pagesBufferLength: 2,
+    maxInactiveAge: 60 * 1000,
+    pagesBufferLength: 5,
   },
   amp: {
     canonicalBase: '',
@@ -755,9 +755,15 @@ export async function normalizeConfig(phase: string, config: any) {
 export function validateConfig(userConfig: NextConfig): {
   errors?: Array<any> | null
 } {
-  const configValidator = require('next/dist/next-config-validate.js')
-  configValidator(userConfig)
-  return {
-    errors: configValidator.errors,
+  if (process.env.NEXT_MINIMAL) {
+    return {
+      errors: [],
+    }
+  } else {
+    const configValidator = require('next/dist/next-config-validate.js')
+    configValidator(userConfig)
+    return {
+      errors: configValidator.errors,
+    }
   }
 }

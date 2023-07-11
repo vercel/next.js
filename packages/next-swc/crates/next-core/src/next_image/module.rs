@@ -4,17 +4,21 @@ use turbopack_binding::{
     turbo::tasks::Value,
     turbopack::{
         core::{
-            asset::AssetVc,
-            context::{AssetContext, AssetContextVc},
-            plugin::{CustomModuleType, CustomModuleTypeVc},
+            context::AssetContext,
+            module::ModuleVc,
             reference_type::{InnerAssetsVc, ReferenceType},
             resolve::ModulePartVc,
+            source::SourceVc,
         },
         r#static::StaticModuleAssetVc,
+        turbopack::{
+            module_options::{CustomModuleType, CustomModuleTypeVc},
+            ModuleAssetContextVc,
+        },
     },
 };
 
-use super::source_asset::StructuredImageSourceAsset;
+use super::source_asset::StructuredImageFileSource;
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(Clone, Copy, Debug, PartialOrd, Ord, Hash)]
@@ -41,13 +45,13 @@ pub struct StructuredImageModuleType {
 
 impl StructuredImageModuleType {
     pub(crate) fn create_module(
-        source: AssetVc,
+        source: SourceVc,
         blur_placeholder_mode: BlurPlaceholderMode,
-        context: AssetContextVc,
-    ) -> AssetVc {
-        let static_asset = StaticModuleAssetVc::new(source, context);
+        context: ModuleAssetContextVc,
+    ) -> ModuleVc {
+        let static_asset = StaticModuleAssetVc::new(source, context.into());
         context.process(
-            StructuredImageSourceAsset {
+            StructuredImageFileSource {
                 image: source,
                 blur_placeholder_mode,
             }
@@ -75,10 +79,10 @@ impl CustomModuleType for StructuredImageModuleType {
     #[turbo_tasks::function]
     fn create_module(
         &self,
-        source: AssetVc,
-        context: AssetContextVc,
+        source: SourceVc,
+        context: ModuleAssetContextVc,
         _part: Option<ModulePartVc>,
-    ) -> AssetVc {
+    ) -> ModuleVc {
         StructuredImageModuleType::create_module(source, self.blur_placeholder_mode, context)
     }
 }

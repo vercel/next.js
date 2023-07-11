@@ -12,7 +12,7 @@ use next_core::{
 };
 use serde::Serialize;
 use turbo_tasks::{
-    graph::{GraphTraversal, ReverseTopological},
+    graph::{AdjacencyMap, GraphTraversal},
     CollectiblesSource, CompletionVc, RawVc, TransientInstance, TransientValue, TryJoinIterExt,
     ValueToString,
 };
@@ -115,6 +115,7 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
 
     let page_chunks = get_page_chunks(
         pages_structure,
+        next_router_root,
         project_root,
         execution_context,
         node_root,
@@ -411,9 +412,10 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
                     continue;
                 }
 
-                let dependencies = pages_manifest
+                let dependencies = build_manifest
                     .pages
                     .get(page)
+                    .unwrap()
                     .iter()
                     .map(|dep| dep.as_str())
                     .filter(|dep| !app_dependencies.contains(*dep))
@@ -519,13 +521,13 @@ async fn handle_issues<T: Into<RawVc> + CollectiblesSource + Copy>(
 #[turbo_tasks::function]
 async fn all_assets_from_entry(entry: AssetVc) -> Result<AssetsVc> {
     Ok(AssetsVc::cell(
-        ReverseTopological::new()
+        AdjacencyMap::new()
             .skip_duplicates()
             .visit([entry], get_referenced_assets)
             .await
             .completed()?
             .into_inner()
-            .into_iter()
+            .into_reverse_topological()
             .collect(),
     ))
 }
@@ -535,13 +537,13 @@ async fn all_assets_from_entry(entry: AssetVc) -> Result<AssetsVc> {
 #[turbo_tasks::function]
 async fn all_assets_from_entries(entries: AssetsVc) -> Result<AssetsVc> {
     Ok(AssetsVc::cell(
-        ReverseTopological::new()
+        AdjacencyMap::new()
             .skip_duplicates()
             .visit(entries.await?.iter().copied(), get_referenced_assets)
             .await
             .completed()?
             .into_inner()
-            .into_iter()
+            .into_reverse_topological()
             .collect(),
     ))
 }
