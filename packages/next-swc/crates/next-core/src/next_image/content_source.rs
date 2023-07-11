@@ -1,5 +1,10 @@
-use anyhow::{bail, Result};
-use turbo_tasks::{primitives::StringVc, Value};
+use std::borrow::Cow;
+
+use anyhow::{bail, Context, Result};
+use turbo_tasks::{
+    primitives::{OptionStringVc, StringVc},
+    Value,
+};
 use turbo_tasks_fs::FileSystem;
 use turbopack_binding::turbopack::{
     core::{
@@ -28,13 +33,22 @@ use turbopack_binding::turbopack::{
 #[turbo_tasks::value(shared)]
 pub struct NextImageContentSource {
     asset_source: ContentSourceVc,
+    /// The base path under which images are served in `asset_source`.
+    base_path: OptionStringVc,
 }
 
 #[turbo_tasks::value_impl]
 impl NextImageContentSourceVc {
     #[turbo_tasks::function]
-    pub fn new(asset_source: ContentSourceVc) -> NextImageContentSourceVc {
-        NextImageContentSource { asset_source }.cell()
+    pub fn new(
+        asset_source: ContentSourceVc,
+        base_path: OptionStringVc,
+    ) -> NextImageContentSourceVc {
+        NextImageContentSource {
+            asset_source,
+            base_path,
+        }
+        .cell()
     }
 }
 
@@ -99,7 +113,12 @@ impl GetContentSourceContent for NextImageContentSource {
         // TODO: re-encode into next-gen formats.
 
         if let Some(path) = url.strip_prefix('/') {
-            let sources = this.asset_source.get_routes().get(path).await?;
+            let path = if let Some(base_path) = &*this.base_path.await? {
+                Cow::Owned(format!("{base_path}{path}"))
+            } else {
+                Cow::Borrowed(path)
+            };
+            let sources = this.asset_source.get_routes().get(&path).await?;
             let sources = sources
                 .iter()
                 .map(|s| {
