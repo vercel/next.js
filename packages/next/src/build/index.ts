@@ -1757,9 +1757,17 @@ export default async function build(
       }
 
       if (Object.keys(functionsConfigManifest).length > 0) {
+        const manifest: {
+          version: number
+          functions: Record<string, Record<string, string | number>>
+        } = {
+          version: 1,
+          functions: functionsConfigManifest,
+        }
+
         await fs.writeFile(
           path.join(distDir, SERVER_DIRECTORY, FUNCTIONS_CONFIG_MANIFEST),
-          JSON.stringify(functionsConfigManifest, null, 2)
+          JSON.stringify(manifest, null, 2)
         )
       }
 

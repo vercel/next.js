@@ -12,10 +12,11 @@ use turbopack_binding::{
             asset::{Asset, AssetContentVc, AssetVc, AssetsVc},
             chunk::{
                 availability_info::AvailabilityInfo, ChunkDataVc, ChunkGroupReferenceVc, ChunkItem,
-                ChunkItemVc, ChunkVc, ChunkableAsset, ChunkableAssetVc, ChunkingContext,
+                ChunkItemVc, ChunkVc, ChunkableModule, ChunkableModuleVc, ChunkingContext,
                 ChunkingContextVc, ChunksDataVc,
             },
             ident::AssetIdentVc,
+            module::{Module, ModuleVc},
             reference::AssetReferencesVc,
         },
         ecmascript::{
@@ -67,7 +68,10 @@ impl Asset for WithChunksAsset {
 }
 
 #[turbo_tasks::value_impl]
-impl ChunkableAsset for WithChunksAsset {
+impl Module for WithChunksAsset {}
+
+#[turbo_tasks::value_impl]
+impl ChunkableModule for WithChunksAsset {
     #[turbo_tasks::function]
     fn as_chunk(
         self_vc: WithChunksAssetVc,
