@@ -142,6 +142,7 @@ import { createValidFileMatcher } from '../server/lib/find-page-file'
 import { startTypeChecking } from './type-check'
 import { generateInterceptionRoutesRewrites } from '../lib/generate-interception-routes-rewrites'
 import { baseOverrides, experimentalOverrides } from '../server/require-hook'
+import { traceModule } from './utils/trace-module/trace-module'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -1667,6 +1668,25 @@ export default async function build(
                       serverAppPagesCount++
                     }
                   }
+                }
+
+                if (
+                  !isEdgeRuntime(pageRuntime) &&
+                  !isStatic &&
+                  !isSsg &&
+                  !isReservedPage(page) &&
+                  pageInfos.get(page) === undefined
+                ) {
+                  const pagePathNormal = path.join(
+                    path.dirname(pagePath),
+                    path.parse(pagePath).name
+                  )
+                  await traceModule(
+                    path.resolve(
+                      path.join(distDir, 'server', pageType, pagePathNormal)
+                    ),
+                    distDir
+                  )
                 }
 
                 pageInfos.set(page, {
