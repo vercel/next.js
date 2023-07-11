@@ -161,10 +161,13 @@ fn normalize_app_page_to_pathname(page: &str) -> String {
 
         pathname.push('/');
 
-        // Replace '%5F' with '_' in the segment only if it's present at the beginning
-        // using the `replace` method.
+        // Replace '%5F' or '%40' with '_' or '@' in the segment only if it's present at
+        // the beginning using the `replace` method.
         if let Some(rest) = segment.strip_prefix("%5F") {
             pathname.push('_');
+            pathname.push_str(rest);
+        } else if let Some(rest) = segment.strip_prefix("%40") {
+            pathname.push('@');
             pathname.push_str(rest);
         } else {
             pathname.push_str(segment);
@@ -237,6 +240,24 @@ mod tests {
                 "/replace%5Fwith_underscore/%5Freplace%5Fwith_underscore"
             ),
             "/replace%5Fwith_underscore/_replace%5Fwith_underscore"
+        );
+    }
+
+    #[test]
+    fn test_replace_percent_40() {
+        assert_eq!(
+            normalize_app_page_to_pathname("/replace%40with_underscore"),
+            "/replace%40with_underscore"
+        );
+        assert_eq!(
+            normalize_app_page_to_pathname("/%40replace%40with_underscore"),
+            "/_replace%40with_underscore"
+        );
+        assert_eq!(
+            normalize_app_page_to_pathname(
+                "/replace%40with_underscore/%40replace%40with_underscore"
+            ),
+            "/replace%40with_underscore/_replace%40with_underscore"
         );
     }
 

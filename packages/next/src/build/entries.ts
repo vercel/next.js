@@ -206,6 +206,7 @@ export function createPagesMapping({
       let pageKey = getPageFromPath(pagePath, pageExtensions)
       if (isAppRoute) {
         pageKey = pageKey.replace(/%5F/g, '_')
+        pageKey = pageKey.replace(/%40/g, '@')
         pageKey = pageKey.replace(/^\/not-found$/g, '/_not-found')
       }
 

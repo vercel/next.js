@@ -1,7 +1,7 @@
 import { createNextDescribe } from 'e2e-utils'
 
 createNextDescribe(
-  '_allow-underscored-root-directory',
+  '_allow-underscored-or-at-root-directory',
   {
     files: __dirname,
   },
@@ -18,6 +18,16 @@ createNextDescribe(
 
     it('should serve app path with %5F', async () => {
       const res = await next.fetch('/_routable-folder')
+      await expect(res.text()).resolves.toBe('Hello, world!')
+    })
+
+    it('should not serve app path with an at (@)', async () => {
+      const res = await next.fetch('/@parallel-route')
+      expect(res.status).toBe(404)
+    })
+
+    it('should serve app path with %40', async () => {
+      const res = await next.fetch('/@routable-folder')
       await expect(res.text()).resolves.toBe('Hello, world!')
     })
   }

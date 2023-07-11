@@ -2,6 +2,7 @@ import { normalizeAppPath } from '../../../../../shared/lib/router/utils/app-pat
 import { Normalizers } from '../../normalizers'
 import { wrapNormalizerFn } from '../../wrap-normalizer-fn'
 import { UnderscoreNormalizer } from '../../underscore-normalizer'
+import { AtNormalizer } from '../../at-normalizer'
 import { Normalizer } from '../../normalizer'
 
 export class AppPathnameNormalizer extends Normalizers {
@@ -12,6 +13,8 @@ export class AppPathnameNormalizer extends Normalizers {
       wrapNormalizerFn(normalizeAppPath),
       // The page should have the `%5F` characters replaced with `_` characters.
       new UnderscoreNormalizer(),
+      // The page should have the `%40` characters replaced with `@` characters.
+      new AtNormalizer(),
     ])
   }
 

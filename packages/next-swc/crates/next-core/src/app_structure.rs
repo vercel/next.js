@@ -386,7 +386,7 @@ async fn get_directory_tree(
                 // appDir ignores paths starting with an underscore
                 if !basename.starts_with('_') {
                     let result = get_directory_tree(dir, page_extensions);
-                    subdirectories.insert(get_underscore_normalized_path(basename), result);
+                    subdirectories.insert(get_underscore_and_at_normalized_path(basename), result);
                 }
             }
             // TODO(WEB-952) handle symlinks in app dir
@@ -706,9 +706,10 @@ async fn directory_tree_to_entrypoints_internal(
 }
 
 /// ref: https://github.com/vercel/next.js/blob/c390c1662bc79e12cf7c037dcb382ef5ead6e492/packages/next/src/build/entries.ts#L119
-/// if path contains %5F, replace it with _.
-fn get_underscore_normalized_path(path: &str) -> String {
-    path.replace("%5F", "_")
+/// if path contains %5F or %40, replace it with _ or @ respectively.
+fn get_underscore_and_at_normalized_path(path: &str) -> String {
+    let replaced_underscore = path.replace("%5F", "_");
+    replaced_underscore.replace("%40", "@")
 }
 
 /// Returns the global metadata for an app directory.
