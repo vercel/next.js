@@ -45,10 +45,10 @@ use turbopack_core::{
     compile_time_info::CompileTimeInfo,
     context::{AssetContext, AssetContextVc},
     environment::{EnvironmentVc, ExecutionEnvironment, NodeJsEnvironment},
+    file_source::FileSourceVc,
     issue::{IssueContextExt, IssueReporter, IssueSeverity, IssueVc},
     reference::all_assets,
     resolve::options::{ImportMapping, ResolvedMap},
-    source_asset::SourceAssetVc,
 };
 
 use crate::nft_json::NftJsonAssetVc;
@@ -213,7 +213,7 @@ async fn add_glob_results(
     let result = result.await?;
     for entry in result.results.values() {
         if let DirectoryEntry::File(path) = entry {
-            let source = SourceAssetVc::new(*path).into();
+            let source = FileSourceVc::new(*path).into();
             list.push(
                 context
                     .process(
@@ -259,7 +259,7 @@ async fn input_to_modules<'a>(
     let mut list = Vec::new();
     for input in input.iter() {
         if exact {
-            let source = SourceAssetVc::new(root.join(input)).into();
+            let source = FileSourceVc::new(root.join(input)).into();
             list.push(
                 context
                     .process(

@@ -18,7 +18,8 @@ use swc_core::{
 use turbo_tasks::ValueToString;
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
-    asset::{Asset, AssetContent, AssetVc},
+    asset::{Asset, AssetContent},
+    source::SourceVc,
     source_map::{GenerateSourceMap, GenerateSourceMapVc, OptionSourceMapVc},
     SOURCE_MAP_ROOT_NAME,
 };
@@ -118,7 +119,7 @@ impl SourceMapGenConfig for InlineSourcesContentConfig {
 
 #[turbo_tasks::function]
 pub async fn parse_css(
-    source: AssetVc,
+    source: SourceVc,
     ty: CssModuleAssetType,
     transforms: CssInputTransformsVc,
 ) -> Result<ParseCssResultVc> {
@@ -152,7 +153,7 @@ async fn parse_content(
     string: String,
     fs_path: &FileSystemPath,
     ident_str: &str,
-    source: AssetVc,
+    source: SourceVc,
     ty: CssModuleAssetType,
     transforms: &[CssInputTransform],
 ) -> Result<ParseCssResultVc> {

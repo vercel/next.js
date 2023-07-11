@@ -3,6 +3,7 @@ use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
     ident::AssetIdentVc,
+    source::SourceVc,
 };
 
 /// A static asset that is served at a fixed output path. It won't use
@@ -10,13 +11,13 @@ use turbopack_core::{
 #[turbo_tasks::value]
 pub struct FixedStaticAsset {
     output_path: FileSystemPathVc,
-    source: AssetVc,
+    source: SourceVc,
 }
 
 #[turbo_tasks::value_impl]
 impl FixedStaticAssetVc {
     #[turbo_tasks::function]
-    pub fn new(output_path: FileSystemPathVc, source: AssetVc) -> Self {
+    pub fn new(output_path: FileSystemPathVc, source: SourceVc) -> Self {
         FixedStaticAsset {
             output_path,
             source,

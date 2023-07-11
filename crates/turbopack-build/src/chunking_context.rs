@@ -346,7 +346,7 @@ where
         .copied()
         .map(|chunk| chunk.as_chunk())
         .chain(css_chunks.iter().copied().map(|chunk| chunk.as_chunk()))
-        .chain(other_chunks.into_iter())
+        .chain(other_chunks)
         .collect();
 
     Ok(ChunksVc::cell(chunks))

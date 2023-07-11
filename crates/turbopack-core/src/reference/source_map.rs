@@ -4,8 +4,8 @@ use turbo_tasks_fs::{FileSystemEntryType, FileSystemPathVc};
 
 use super::{AssetReference, AssetReferenceVc};
 use crate::{
+    file_source::FileSourceVc,
     resolve::{ResolveResult, ResolveResultVc},
-    source_asset::SourceAssetVc,
 };
 
 #[turbo_tasks::value]
@@ -29,7 +29,7 @@ impl AssetReference for SourceMapReference {
         let file_type = self.file.get_type().await;
         if let Ok(file_type_result) = file_type.as_ref() {
             if let FileSystemEntryType::File = &**file_type_result {
-                return ResolveResult::asset(SourceAssetVc::new(self.file).into()).into();
+                return ResolveResult::asset(FileSourceVc::new(self.file).into()).into();
             }
         }
         ResolveResult::unresolveable().into()

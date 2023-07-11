@@ -8,8 +8,8 @@ use swc_core::{
 };
 use turbo_tasks::Value;
 use turbopack_core::{
-    asset::AssetVc,
     reference::{AssetReferenceVc, AssetReferencesVc},
+    source::SourceVc,
 };
 use turbopack_swc_utils::emitter::IssueEmitter;
 
@@ -21,7 +21,7 @@ use crate::{
 
 #[turbo_tasks::function]
 pub async fn module_references(
-    source: AssetVc,
+    source: SourceVc,
     runtime: WebpackRuntimeVc,
     transforms: EcmascriptInputTransformsVc,
 ) -> Result<AssetReferencesVc> {

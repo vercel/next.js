@@ -8,6 +8,7 @@ use turbopack_core::{
     module::{Module, ModuleVc},
     reference::AssetReferencesVc,
     reference_type::{CssReferenceSubType, ReferenceType},
+    source::SourceVc,
 };
 
 use crate::references::internal::InternalCssAssetReferenceVc;
@@ -15,7 +16,7 @@ use crate::references::internal::InternalCssAssetReferenceVc;
 #[turbo_tasks::value]
 #[derive(Clone)]
 pub struct GlobalCssAsset {
-    source: AssetVc,
+    source: SourceVc,
     context: AssetContextVc,
 }
 
@@ -23,7 +24,7 @@ pub struct GlobalCssAsset {
 impl GlobalCssAssetVc {
     /// Creates a new CSS asset. The CSS is treated as global CSS.
     #[turbo_tasks::function]
-    pub fn new(source: AssetVc, context: AssetContextVc) -> Self {
+    pub fn new(source: SourceVc, context: AssetContextVc) -> Self {
         Self::cell(GlobalCssAsset { source, context })
     }
 }

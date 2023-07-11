@@ -13,6 +13,7 @@ pub mod compile_time_info;
 pub mod context;
 pub mod environment;
 pub mod error;
+pub mod file_source;
 pub mod ident;
 pub mod introspect;
 pub mod issue;
@@ -24,14 +25,14 @@ pub mod reference;
 pub mod reference_type;
 pub mod resolve;
 pub mod server_fs;
-pub mod source_asset;
+pub mod source;
 pub mod source_map;
 pub mod source_pos;
 pub mod source_transform;
 pub mod target;
 mod utils;
 pub mod version;
-pub mod virtual_asset;
+pub mod virtual_source;
 
 pub mod virtual_fs {
     pub use turbo_tasks_fs::VirtualFileSystemVc;

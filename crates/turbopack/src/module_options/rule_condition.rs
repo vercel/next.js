@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use turbo_tasks::{primitives::Regex, trace::TraceRawVcs};
 use turbo_tasks_fs::{glob::GlobReadRef, FileSystemPath, FileSystemPathReadRef};
 use turbopack_core::{
-    asset::AssetVc, reference_type::ReferenceType, virtual_asset::VirtualAssetVc,
+    reference_type::ReferenceType, source::SourceVc, virtual_source::VirtualSourceVc,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize, TraceRawVcs, PartialEq, Eq)]
@@ -13,7 +13,7 @@ pub enum ModuleRuleCondition {
     Any(Vec<ModuleRuleCondition>),
     Not(Box<ModuleRuleCondition>),
     ReferenceType(ReferenceType),
-    ResourceIsVirtualAsset,
+    ResourceIsVirtualSource,
     ResourcePathEquals(FileSystemPathReadRef),
     ResourcePathHasNoExtension,
     ResourcePathEndsWith(String),
@@ -53,7 +53,7 @@ impl ModuleRuleCondition {
     #[async_recursion]
     pub async fn matches(
         &self,
-        source: AssetVc,
+        source: SourceVc,
         path: &FileSystemPath,
         reference_type: &ReferenceType,
     ) -> Result<bool> {
@@ -99,8 +99,8 @@ impl ModuleRuleCondition {
             ModuleRuleCondition::ReferenceType(condition_ty) => {
                 condition_ty.includes(reference_type)
             }
-            ModuleRuleCondition::ResourceIsVirtualAsset => {
-                VirtualAssetVc::resolve_from(source).await?.is_some()
+            ModuleRuleCondition::ResourceIsVirtualSource => {
+                VirtualSourceVc::resolve_from(source).await?.is_some()
             }
             ModuleRuleCondition::ResourcePathGlob { glob, base } => {
                 if let Some(path) = base.get_relative_path_to(path) {

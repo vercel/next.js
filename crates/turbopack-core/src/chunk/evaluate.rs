@@ -7,6 +7,7 @@ use crate::{
     context::{AssetContext, AssetContextVc},
     module::{Module, ModuleVc},
     reference_type::{EntryReferenceSubType, ReferenceType},
+    source::SourceVc,
 };
 
 /// Marker trait for the chunking context to accept evaluated entries.
@@ -19,9 +20,12 @@ pub trait EvaluatableAsset: Asset + Module + ChunkableModule {}
 #[turbo_tasks::value_impl]
 impl EvaluatableAssetVc {
     #[turbo_tasks::function]
-    pub async fn from_asset(asset: AssetVc, context: AssetContextVc) -> Result<EvaluatableAssetVc> {
+    pub async fn from_source(
+        source: SourceVc,
+        context: AssetContextVc,
+    ) -> Result<EvaluatableAssetVc> {
         let asset = context.process(
-            asset,
+            source,
             Value::new(ReferenceType::Entry(EntryReferenceSubType::Runtime)),
         );
         let Some(entry) = EvaluatableAssetVc::resolve_from(asset).await? else {

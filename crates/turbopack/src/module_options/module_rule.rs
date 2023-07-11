@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use turbo_tasks::trace::TraceRawVcs;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    asset::AssetVc, reference_type::ReferenceType, source_transform::SourceTransformsVc,
+    reference_type::ReferenceType, source::SourceVc, source_transform::SourceTransformsVc,
 };
 use turbopack_css::{CssInputTransformsVc, CssModuleAssetType};
 use turbopack_ecmascript::{EcmascriptInputTransformsVc, EcmascriptOptions};
@@ -71,7 +71,7 @@ impl ModuleRule {
 
     pub async fn matches(
         &self,
-        source: AssetVc,
+        source: SourceVc,
         path: &FileSystemPath,
         reference_type: &ReferenceType,
     ) -> Result<bool> {

@@ -13,7 +13,7 @@ use swc_core::{
 };
 use turbo_tasks::Value;
 use turbo_tasks_fs::FileSystemPathVc;
-use turbopack_core::asset::{Asset, AssetVc};
+use turbopack_core::{asset::Asset, source::SourceVc};
 
 use crate::{
     analyzer::{graph::EvalContext, JsValue},
@@ -182,11 +182,11 @@ fn get_require_prefix(stmts: &Vec<Stmt>) -> Option<Lit> {
 
 #[turbo_tasks::function]
 pub async fn webpack_runtime(
-    asset: AssetVc,
+    source: SourceVc,
     transforms: EcmascriptInputTransformsVc,
 ) -> Result<WebpackRuntimeVc> {
     let parsed = parse(
-        asset,
+        source,
         Value::new(EcmascriptModuleAssetType::Ecmascript),
         transforms,
     )
@@ -216,7 +216,7 @@ pub async fn webpack_runtime(
 
                         return Ok(WebpackRuntime::Webpack5 {
                             chunk_request_expr: value,
-                            context_path: asset.ident().path().parent().resolve().await?,
+                            context_path: source.ident().path().parent().resolve().await?,
                         }
                         .into());
                     }

@@ -23,6 +23,7 @@ use turbopack_core::{
         origin::{ResolveOrigin, ResolveOriginVc},
         PrimaryResolveResult,
     },
+    source::SourceVc,
 };
 
 use crate::{
@@ -51,7 +52,7 @@ fn modifier() -> StringVc {
 #[turbo_tasks::value]
 #[derive(Clone)]
 pub struct CssModuleAsset {
-    source: AssetVc,
+    source: SourceVc,
     context: AssetContextVc,
     transforms: CssInputTransformsVc,
     ty: CssModuleAssetType,
@@ -62,7 +63,7 @@ impl CssModuleAssetVc {
     /// Creates a new CSS asset.
     #[turbo_tasks::function]
     pub fn new(
-        source: AssetVc,
+        source: SourceVc,
         context: AssetContextVc,
         transforms: CssInputTransformsVc,
         ty: CssModuleAssetType,

@@ -27,9 +27,10 @@ use turbo_tasks::{
 use turbo_tasks_fs::{FileContent, FileSystemPath, FileSystemPathVc};
 use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack_core::{
-    asset::{Asset, AssetContent, AssetVc},
+    asset::{Asset, AssetContent},
     error::PrettyPrintError,
     issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc},
+    source::SourceVc,
     source_map::{GenerateSourceMap, GenerateSourceMapVc, OptionSourceMapVc},
     SOURCE_MAP_ROOT_NAME,
 };
@@ -139,7 +140,7 @@ impl SourceMapGenConfig for InlineSourcesContentConfig {
 
 #[turbo_tasks::function]
 pub async fn parse(
-    source: AssetVc,
+    source: SourceVc,
     ty: Value<EcmascriptModuleAssetType>,
     transforms: EcmascriptInputTransformsVc,
 ) -> Result<ParseResultVc> {
@@ -153,7 +154,7 @@ pub async fn parse(
 }
 
 async fn parse_internal(
-    source: AssetVc,
+    source: SourceVc,
     ty: Value<EcmascriptModuleAssetType>,
     transforms: EcmascriptInputTransformsVc,
 ) -> Result<ParseResultVc> {
@@ -225,7 +226,7 @@ async fn parse_content(
     fs_path: &FileSystemPath,
     ident: &str,
     file_path_hash: u128,
-    source: AssetVc,
+    source: SourceVc,
     ty: EcmascriptModuleAssetType,
     transforms: &[EcmascriptInputTransform],
 ) -> Result<ParseResultVc> {
@@ -380,7 +381,7 @@ async fn hash_ident(ident: StringVc) -> Result<U64Vc> {
 
 #[turbo_tasks::value]
 struct ReadSourceIssue {
-    source: AssetVc,
+    source: SourceVc,
     error: String,
 }
 

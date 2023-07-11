@@ -27,7 +27,7 @@ use turbopack_core::{
     compile_time_info::CompileTimeInfoVc,
     context::AssetContext,
     environment::{EnvironmentVc, ExecutionEnvironment, NodeJsEnvironment},
-    source_asset::SourceAssetVc,
+    file_source::FileSourceVc,
     PROJECT_FILESYSTEM_NAME,
 };
 
@@ -50,7 +50,7 @@ async fn main() -> Result<()> {
             let output = fs.root().join("out");
             let entry = fs.root().join("demo/index.js");
 
-            let source = SourceAssetVc::new(entry);
+            let source = FileSourceVc::new(entry);
             let context = turbopack::ModuleAssetContextVc::new(
                 TransitionsByNameVc::cell(HashMap::new()),
                 CompileTimeInfoVc::new(EnvironmentVc::new(Value::new(

@@ -4,8 +4,8 @@ use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
     code_builder::{CodeBuilder, CodeVc},
     context::{AssetContext, AssetContextVc},
+    file_source::FileSourceVc,
     reference_type::ReferenceType,
-    source_asset::SourceAssetVc,
 };
 
 use crate::EcmascriptModuleAssetVc;
@@ -26,7 +26,7 @@ impl StaticEcmascriptCodeVc {
     #[turbo_tasks::function]
     pub async fn new(asset_context: AssetContextVc, asset_path: FileSystemPathVc) -> Result<Self> {
         let asset = asset_context.process(
-            SourceAssetVc::new(asset_path).into(),
+            FileSourceVc::new(asset_path).into(),
             Value::new(ReferenceType::Undefined),
         );
         let Some(asset) = EcmascriptModuleAssetVc::resolve_from(&asset).await? else {

@@ -10,8 +10,9 @@ use turbo_tasks_fs::{
     FileContent, FileContentVc, FileJsonContent, FileJsonContentVc, FileSystemPathVc,
 };
 use turbopack_core::{
-    asset::{Asset, AssetOptionVc, AssetVc},
+    asset::Asset,
     context::AssetContext,
+    file_source::FileSourceVc,
     ident::AssetIdentVc,
     issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc, OptionIssueSourceVc},
     reference::{AssetReference, AssetReferenceVc},
@@ -28,7 +29,7 @@ use turbopack_core::{
         pattern::{Pattern, QueryMapVc},
         resolve, AliasPattern, ResolveResultVc,
     },
-    source_asset::SourceAssetVc,
+    source::{option_asset_to_source, OptionSourceVc, SourceVc},
 };
 
 #[turbo_tasks::value(shared)]
@@ -47,9 +48,9 @@ async fn json_only(resolve_options: ResolveOptionsVc) -> Result<ResolveOptionsVc
 
 pub async fn read_tsconfigs(
     mut data: FileContentVc,
-    mut tsconfig: AssetVc,
+    mut tsconfig: SourceVc,
     resolve_options: ResolveOptionsVc,
-) -> Result<Vec<(FileJsonContentVc, AssetVc)>> {
+) -> Result<Vec<(FileJsonContentVc, SourceVc)>> {
     let mut configs = Vec::new();
     let resolve_options = json_only(resolve_options);
     loop {
@@ -86,9 +87,9 @@ pub async fn read_tsconfigs(
                 configs.push((parsed_data, tsconfig));
                 if let Some(extends) = json["extends"].as_str() {
                     let resolved = resolve_extends(tsconfig, extends, resolve_options).await?;
-                    if let Some(asset) = &*resolved.await? {
-                        data = asset.content().file_content();
-                        tsconfig = *asset;
+                    if let Some(source) = *resolved.await? {
+                        data = source.content().file_content();
+                        tsconfig = source;
                         continue;
                     } else {
                         TsConfigIssue {
@@ -113,10 +114,10 @@ pub async fn read_tsconfigs(
 /// Resolves tsconfig files according to TS's implementation:
 /// https://github.com/microsoft/TypeScript/blob/611a912d/src/compiler/commandLineParser.ts#L3294-L3326
 async fn resolve_extends(
-    tsconfig: AssetVc,
+    tsconfig: SourceVc,
     extends: &str,
     resolve_options: ResolveOptionsVc,
-) -> Result<AssetOptionVc> {
+) -> Result<OptionSourceVc> {
     let context = tsconfig.ident().path().parent();
     let request = RequestVc::parse_string(extends.to_string());
 
@@ -145,16 +146,16 @@ async fn resolve_extends(
         // An empty extends is treated as "./tsconfig"
         Request::Empty => {
             let request = RequestVc::parse_string("./tsconfig".to_string());
-            Ok(resolve(context, request, resolve_options).first_asset())
+            Ok(option_asset_to_source(resolve(context, request, resolve_options).first_asset()))
         }
 
         // All other types are treated as module imports, and potentially joined with
         // "tsconfig.json". This includes "relative" imports like '.' and '..'.
         _ => {
-            let mut result = resolve(context, request, resolve_options).first_asset();
+            let mut result = option_asset_to_source(resolve(context, request, resolve_options).first_asset());
             if result.await?.is_none() {
                 let request = RequestVc::parse_string(format!("{extends}/tsconfig"));
-                result = resolve(context, request, resolve_options).first_asset();
+                result = option_asset_to_source(resolve(context, request, resolve_options).first_asset());
             }
             Ok(result)
         }
@@ -166,22 +167,23 @@ async fn resolve_extends_rooted_or_relative(
     request: RequestVc,
     resolve_options: ResolveOptionsVc,
     path: &str,
-) -> Result<AssetOptionVc> {
-    let mut result = resolve(context, request, resolve_options).first_asset();
+) -> Result<OptionSourceVc> {
+    let mut result =
+        option_asset_to_source(resolve(context, request, resolve_options).first_asset());
 
     // If the file doesn't end with ".json" and we can't find the file, then we have
     // to try again with it.
     // https://github.com/microsoft/TypeScript/blob/611a912d/src/compiler/commandLineParser.ts#L3305
     if !path.ends_with(".json") && result.await?.is_none() {
         let request = RequestVc::parse_string(format!("{path}.json"));
-        result = resolve(context, request, resolve_options).first_asset();
+        result = option_asset_to_source(resolve(context, request, resolve_options).first_asset());
     }
     Ok(result)
 }
 
 pub async fn read_from_tsconfigs<T>(
-    configs: &[(FileJsonContentVc, AssetVc)],
-    accessor: impl Fn(&JsonValue, AssetVc) -> Option<T>,
+    configs: &[(FileJsonContentVc, SourceVc)],
+    accessor: impl Fn(&JsonValue, SourceVc) -> Option<T>,
 ) -> Result<Option<T>> {
     for (config, source) in configs.iter() {
         if let FileJsonContent::Content(json) = &*config.await? {
@@ -214,7 +216,7 @@ pub async fn tsconfig_resolve_options(
 ) -> Result<TsConfigResolveOptionsVc> {
     let configs = read_tsconfigs(
         tsconfig.read(),
-        SourceAssetVc::new(tsconfig).into(),
+        FileSourceVc::new(tsconfig).into(),
         node_cjs_resolve_options(tsconfig.root()),
     )
     .await?;

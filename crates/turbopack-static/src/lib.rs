@@ -25,6 +25,7 @@ use turbopack_core::{
     ident::AssetIdentVc,
     module::{Module, ModuleVc},
     reference::{AssetReferencesVc, SingleAssetReferenceVc},
+    source::SourceVc,
 };
 use turbopack_css::embed::{CssEmbed, CssEmbedVc, CssEmbeddable, CssEmbeddableVc};
 use turbopack_ecmascript::{
@@ -44,14 +45,14 @@ fn modifier() -> StringVc {
 #[turbo_tasks::value]
 #[derive(Clone)]
 pub struct StaticModuleAsset {
-    pub source: AssetVc,
+    pub source: SourceVc,
     pub context: AssetContextVc,
 }
 
 #[turbo_tasks::value_impl]
 impl StaticModuleAssetVc {
     #[turbo_tasks::function]
-    pub fn new(source: AssetVc, context: AssetContextVc) -> Self {
+    pub fn new(source: SourceVc, context: AssetContextVc) -> Self {
         Self::cell(StaticModuleAsset { source, context })
     }
 
@@ -135,7 +136,7 @@ impl CssEmbeddable for StaticModuleAsset {
 #[turbo_tasks::value]
 struct StaticAsset {
     context: ChunkingContextVc,
-    source: AssetVc,
+    source: SourceVc,
 }
 
 #[turbo_tasks::value_impl]

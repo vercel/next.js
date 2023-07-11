@@ -1,28 +1,29 @@
 use anyhow::Result;
 use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
 use turbopack_core::{
-    asset::{Asset, AssetVc},
+    asset::Asset,
     reference::{AssetReference, AssetReferenceVc},
     resolve::{pattern::PatternVc, resolve_raw, ResolveResultVc},
+    source::SourceVc,
 };
 
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
-pub struct SourceAssetReference {
-    pub source: AssetVc,
+pub struct FileSourceReference {
+    pub source: SourceVc,
     pub path: PatternVc,
 }
 
 #[turbo_tasks::value_impl]
-impl SourceAssetReferenceVc {
+impl FileSourceReferenceVc {
     #[turbo_tasks::function]
-    pub fn new(source: AssetVc, path: PatternVc) -> Self {
-        Self::cell(SourceAssetReference { source, path })
+    pub fn new(source: SourceVc, path: PatternVc) -> Self {
+        Self::cell(FileSourceReference { source, path })
     }
 }
 
 #[turbo_tasks::value_impl]
-impl AssetReference for SourceAssetReference {
+impl AssetReference for FileSourceReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<ResolveResultVc> {
         let context = self.source.ident().path().parent();
@@ -32,7 +33,7 @@ impl AssetReference for SourceAssetReference {
 }
 
 #[turbo_tasks::value_impl]
-impl ValueToString for SourceAssetReference {
+impl ValueToString for FileSourceReference {
     #[turbo_tasks::function]
     async fn to_string(&self) -> Result<StringVc> {
         Ok(StringVc::cell(format!(

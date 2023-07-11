@@ -34,6 +34,7 @@ use turbopack_core::{
         parse::RequestVc,
         ResolveResult, ResolveResultVc,
     },
+    source::SourceVc,
 };
 
 use crate::{
@@ -223,7 +224,7 @@ pub struct RequireContextAssetReference {
 impl RequireContextAssetReferenceVc {
     #[turbo_tasks::function]
     pub fn new(
-        source: AssetVc,
+        source: SourceVc,
         origin: ResolveOriginVc,
         dir: String,
         include_subdirs: bool,
@@ -334,7 +335,7 @@ impl ChunkableModuleReference for ResolvedAssetReference {}
 
 #[turbo_tasks::value]
 pub struct RequireContextAsset {
-    source: AssetVc,
+    source: SourceVc,
 
     origin: ResolveOriginVc,
     map: RequireContextMapVc,

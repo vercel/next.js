@@ -12,7 +12,6 @@ use swc_core::{
 };
 use turbo_tasks::Value;
 use turbopack_core::{
-    asset::AssetVc,
     issue::{IssueSeverity, IssueSourceVc, OptionIssueSourceVc},
     reference::{AssetReferenceVc, AssetReferencesVc},
     reference_type::{CssReferenceSubType, ReferenceType},
@@ -22,6 +21,7 @@ use turbopack_core::{
         parse::RequestVc,
         ResolveResultVc,
     },
+    source::SourceVc,
 };
 use turbopack_swc_utils::emitter::IssueEmitter;
 
@@ -41,7 +41,7 @@ pub(crate) mod url;
 
 #[turbo_tasks::function]
 pub async fn analyze_css_stylesheet(
-    source: AssetVc,
+    source: SourceVc,
     origin: ResolveOriginVc,
     ty: CssModuleAssetType,
     transforms: CssInputTransformsVc,
@@ -78,7 +78,7 @@ pub async fn analyze_css_stylesheet(
 }
 
 struct AssetReferencesVisitor<'a> {
-    source: AssetVc,
+    source: SourceVc,
     origin: ResolveOriginVc,
     references: &'a mut Vec<AssetReferenceVc>,
     is_import: bool,
@@ -86,7 +86,7 @@ struct AssetReferencesVisitor<'a> {
 
 impl<'a> AssetReferencesVisitor<'a> {
     fn new(
-        source: AssetVc,
+        source: SourceVc,
         origin: ResolveOriginVc,
         references: &'a mut Vec<AssetReferenceVc>,
     ) -> Self {
@@ -135,7 +135,7 @@ impl<'a> VisitAstPath for AssetReferencesVisitor<'a> {
                 AstPathVc::cell(as_parent_path(ast_path)),
                 ImportAttributes::new_from_prelude(i).into(),
                 IssueSourceVc::from_byte_offset(
-                    self.source,
+                    self.source.into(),
                     issue_span.lo.to_usize(),
                     issue_span.hi.to_usize(),
                 ),
@@ -165,7 +165,7 @@ impl<'a> VisitAstPath for AssetReferencesVisitor<'a> {
                     RequestVc::parse(Value::new(src.to_string().into())),
                     AstPathVc::cell(as_parent_path(ast_path)),
                     IssueSourceVc::from_byte_offset(
-                        self.source,
+                        self.source.into(),
                         issue_span.lo.to_usize(),
                         issue_span.hi.to_usize(),
                     ),

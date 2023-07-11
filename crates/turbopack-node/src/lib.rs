@@ -24,7 +24,7 @@ use turbopack_core::{
     },
     reference::primary_referenced_assets,
     source_map::GenerateSourceMapVc,
-    virtual_asset::VirtualAssetVc,
+    virtual_source::VirtualSourceVc,
 };
 
 use self::{
@@ -205,7 +205,7 @@ async fn separate_assets(
 /// ESM, for example.
 fn emit_package_json(dir: FileSystemPathVc) -> CompletionVc {
     emit(
-        VirtualAssetVc::new(
+        VirtualSourceVc::new(
             dir.join("package.json"),
             FileContent::Content(File::from("{\"type\": \"commonjs\"}")).into(),
         )

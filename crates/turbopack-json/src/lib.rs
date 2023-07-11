@@ -21,6 +21,7 @@ use turbopack_core::{
     ident::AssetIdentVc,
     module::{Module, ModuleVc},
     reference::AssetReferencesVc,
+    source::SourceVc,
 };
 use turbopack_ecmascript::chunk::{
     EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemContentVc,
@@ -35,13 +36,13 @@ fn modifier() -> StringVc {
 
 #[turbo_tasks::value]
 pub struct JsonModuleAsset {
-    source: AssetVc,
+    source: SourceVc,
 }
 
 #[turbo_tasks::value_impl]
 impl JsonModuleAssetVc {
     #[turbo_tasks::function]
-    pub fn new(source: AssetVc) -> Self {
+    pub fn new(source: SourceVc) -> Self {
         Self::cell(JsonModuleAsset { source })
     }
 }
