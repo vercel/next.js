@@ -210,13 +210,13 @@ export async function setupFsCheck(opts: {
     )
 
     for (const key of Object.keys(pagesManifest)) {
-      pageFiles.add(key)
-
       // ensure the non-locale version is in the set
       if (opts.config.i18n) {
         pageFiles.add(
           normalizeLocalePath(key, opts.config.i18n.locales).pathname
         )
+      } else {
+        pageFiles.add(key)
       }
     }
     for (const key of Object.keys(appRoutesManifest)) {

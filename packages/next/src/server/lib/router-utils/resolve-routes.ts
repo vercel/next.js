@@ -142,6 +142,17 @@ export function getResolveRoutes(
       addRequestMeta(req, '__NEXT_CLONABLE_BODY', getCloneableBody(req))
     }
 
+    const maybeAddTrailingSlash = (pathname: string) => {
+      if (
+        config.trailingSlash &&
+        !config.skipMiddlewareUrlNormalize &&
+        !pathname.endsWith('/')
+      ) {
+        return `${pathname}/`
+      }
+      return pathname
+    }
+
     let domainLocale: ReturnType<typeof detectDomainLocale> | undefined
     let defaultLocale: string | undefined
     let initialLocaleResult:
@@ -149,6 +160,7 @@ export function getResolveRoutes(
       | undefined = undefined
 
     if (config.i18n) {
+      const hadTrailingSlash = parsedUrl.pathname?.endsWith('/')
       const hadBasePath = pathHasPrefix(
         parsedUrl.pathname || '',
         config.basePath
@@ -182,6 +194,10 @@ export function getResolveRoutes(
               ),
           hadBasePath ? config.basePath : ''
         )
+
+        if (hadTrailingSlash) {
+          parsedUrl.pathname = maybeAddTrailingSlash(parsedUrl.pathname)
+        }
       }
     }
 
@@ -264,6 +280,8 @@ export function getResolveRoutes(
       let curPathname = parsedUrl.pathname || '/'
 
       if (config.i18n && route.internal) {
+        const hadTrailingSlash = curPathname.endsWith('/')
+
         if (config.basePath) {
           curPathname = removePathPrefix(curPathname, config.basePath)
         }
@@ -273,8 +291,9 @@ export function getResolveRoutes(
           curPathname,
           config.i18n.locales
         )
+        const isDefaultLocale = localeResult.detectedLocale === defaultLocale
 
-        if (localeResult.detectedLocale === defaultLocale) {
+        if (isDefaultLocale) {
           curPathname =
             localeResult.pathname === '/' && hadBasePath
               ? config.basePath
@@ -287,6 +306,10 @@ export function getResolveRoutes(
             curPathname === '/'
               ? config.basePath
               : addPathPrefix(curPathname, config.basePath)
+        }
+
+        if ((isDefaultLocale || hadBasePath) && hadTrailingSlash) {
+          curPathname = maybeAddTrailingSlash(curPathname)
         }
       }
       let params = route.match(curPathname)
@@ -341,6 +364,8 @@ export function getResolveRoutes(
               )
               parsedUrl.pathname =
                 parsedUrl.pathname === '/index' ? '/' : parsedUrl.pathname
+
+              parsedUrl.pathname = maybeAddTrailingSlash(parsedUrl.pathname)
             }
           }
         }

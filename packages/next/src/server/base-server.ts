@@ -2391,6 +2391,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         // ensure a prior dynamic route/page doesn't take priority
         const invokeOutput = ctx.req.headers['x-invoke-output']
         if (
+          !this.minimalMode &&
           this.isRenderWorker &&
           typeof invokeOutput === 'string' &&
           isDynamicRoute(invokeOutput || '') &&
