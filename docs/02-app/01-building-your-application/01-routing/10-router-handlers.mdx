@@ -553,7 +553,9 @@ import { NextResponse } from 'next/server'
 
 export async function POST(request: Request) {
   const formData = await request.formData()
-  return NextResponse.json({ formData })
+  const name = formData.get('name')
+  const email = formData.get('email')
+  return NextResponse.json({ name, email })
 }
 ```
 
@@ -562,9 +564,13 @@ import { NextResponse } from 'next/server'
 
 export async function POST(request) {
   const formData = await request.formData()
-  return NextResponse.json({ formData })
+  const name = formData.get('name')
+  const email = formData.get('email')
+  return NextResponse.json({ name, email })
 }
 ```
+
+Since `formData` data are all strings, you may want to use [`zod-form-data`](https://www.npmjs.com/zod-form-data) to validate the request and retrieve data in the format you prefer (e.g. `number`).
 
 ### CORS
 
