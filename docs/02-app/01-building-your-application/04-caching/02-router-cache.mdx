@@ -1,0 +1,73 @@
+---
+title: Router Cache
+description: How the Router Cache works in Next.js
+---
+
+The Next.js App Router uses an in-memory client-side cache that stores the rendered result of Server Components, split by invidiual route segments. This **Router Cache** is used to improve navigation performance by only [partially rendering]() the content that changes (instead of the whole route) and prefetching content that the user is likely going to navigate to. For the user, this results in [soft navigation]() (no hard page reloads) and faster page transitions; it also reduces unnecessary requests to the server.
+
+> **Good to know:**
+>
+> You may see the terms like **RSC Payload**, **Rendered Result**, and **Flight Data** used interchangeably. They all refer to the same thing: the rendered result of Server Components, which is sent to the client. To learn more, see the [Server Components]() documentation.
+
+## How it works
+
+When the user first visits a route, Next.js will cache the rendered result of the route segments (layouts and page). If the route contains `<Link>` components (or uses `router.prefetch`), Next.js will automatically start prefetching and caching the content of those linked routes.
+
+As users navigate between routes, Next.js will check if the route segments are already cached. If so, it will skip sending a new request to the server for rendering, and use the payload of cached segments instead. This works when navigating to new routes, as well as backwards and forwards browser navigation.
+
+## Duration and Invalidation
+
+The cache is stored in the browser's temporary memory. There are two factors that determine how long the router cache lasts:
+
+- **Session**: The cache persists across soft navigation. However, it's cleared on page refresh or [hard navigation]().
+- **Automatic invalidation period**: The cache of an individual segment is automatically invalidated after a time period. The duration depends on whether the route is [static]() or [dynamic]():
+  - **Dynamic routes**: 30 seconds
+  - **Static routes**: 5 minutes
+
+While a page refresh or hard navigation will clear **all** cached segments, the automatic invalidation period only affects the individual segment from the time it was last accessed or created.
+
+## APIs
+
+The following APIs affect the Router Cache:
+
+### `<Link>`
+
+By default, the `<Link>` component automatically prefetches linked routes. This adds the rendered result to the cache.
+
+To disable prefetching, you can set the `prefetch` prop to `false`.
+
+Learn more about the [`<Link>` component]().
+
+### `router.prefetch`
+
+The `prefetch` option of the `useRouter` hook can be used to manually prefetch a route. This adds the rendered result to the cache.
+
+See the [`useRouter` hook]() API reference.
+
+### `router.refresh`
+
+The `refresh` method of the `useRouter` hook can be used to manually refresh a route. This completely clears the router cache, makes a new request to the server, refetches data (which may be cached - see [Interactions]()), and re-renders Server Components from the root layout down to the page.
+
+The rendered result will be merged with client components without losing the client-side React state or browser state (e.g. scroll position).
+
+See the [`useRouter` hook]() API reference.
+
+### `revalidatePath` and `revalidateTag`
+
+The `revalidatePath` and `revalidateTag` methods invalidates the [data cache](), which in turn invalidates the router cache below the path provided.
+
+> **Difference between `router.refresh` and `revalidatePath` / `revalidateTag`:**
+>
+> Similarly to `router.refresh`, using these methods clears the router cache, makes a new request to the server, fetches data, and re-renders Server Components from the root layout down to page.
+>
+> The difference is that `revalidatePath` and `revalidateTag` **clears** cached data, whereas `router.refresh` **reuses** cached data.
+
+For more, see the [`revalidatePath`]() and [`revalidateTag`]() API references.
+
+## Interactions with other caches
+
+Since data fetching and rendering are intrinsically connected, the router cache and data cache affect each other. Here are some points to keep in mind when configuring either caches:
+
+<!-- the user expectation is the once you revalidate data, the router cache is updated to reflect the changes.
+revalidatePath and revalidateTag should bust the router cache
+- https://github.com/vercel/next.js/issues/52075 -->
