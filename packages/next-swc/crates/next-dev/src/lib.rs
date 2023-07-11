@@ -35,7 +35,7 @@ use once_cell::sync::Lazy;
 use owo_colors::OwoColorize;
 use tracing_subscriber::{prelude::*, EnvFilter, Registry};
 use turbo_tasks::{
-    primitives::{OptionStringVc, StringVc},
+    primitives::StringVc,
     util::{FormatBytes, FormatDuration},
     StatsType, TransientInstance, TurboTasks, TurboTasksBackendApi, UpdateInfo, Value,
 };
@@ -361,11 +361,9 @@ async fn source(
         next_config,
     );
     let client_compile_time_info = get_client_compile_time_info(mode, &browserslist_query);
-    let client_base_path = OptionStringVc::cell(Some("_next/".to_string()));
     let client_chunking_context = get_client_chunking_context(
         project_path,
         dev_server_root,
-        client_base_path,
         client_compile_time_info.environment(),
         mode,
     );
@@ -376,7 +374,6 @@ async fn source(
         execution_context,
         output_root.join("pages"),
         dev_server_root,
-        client_base_path,
         env,
         client_chunking_context,
         client_compile_time_info,
@@ -390,7 +387,6 @@ async fn source(
         execution_context,
         output_root.join("app"),
         dev_server_root,
-        client_base_path,
         env,
         client_chunking_context,
         client_compile_time_info,
@@ -425,7 +421,7 @@ async fn source(
     let main_source = main_source.into();
     let source_maps = SourceMapContentSourceVc::new(main_source).into();
     let source_map_trace = NextSourceMapTraceContentSourceVc::new(main_source).into();
-    let img_source = NextImageContentSourceVc::new(main_source, client_base_path).into();
+    let img_source = NextImageContentSourceVc::new(main_source).into();
     let router_source = NextRouterContentSourceVc::new(
         main_source,
         execution_context,

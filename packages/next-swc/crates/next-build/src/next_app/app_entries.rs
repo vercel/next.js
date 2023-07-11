@@ -280,8 +280,7 @@ pub async fn compute_app_entries_chunks(
     client_chunking_context: EcmascriptChunkingContextVc,
     ssr_chunking_context: EcmascriptChunkingContextVc,
     node_root: FileSystemPathVc,
-    client_root: &FileSystemPath,
-    app_build_manifest_dir_path: &FileSystemPath,
+    client_relative_path: &FileSystemPath,
     app_paths_manifest_dir_path: &FileSystemPath,
     app_build_manifest: &mut AppBuildManifest,
     build_manifest: &mut BuildManifest,
@@ -299,7 +298,7 @@ pub async fn compute_app_entries_chunks(
 
         let chunk_path = chunk.ident().path().await?;
         if chunk_path.extension() == Some("js") {
-            if let Some(chunk_path) = client_root.get_path_to(&chunk_path) {
+            if let Some(chunk_path) = client_relative_path.get_path_to(&chunk_path) {
                 app_shared_client_chunks_paths.push(chunk_path.to_string());
                 build_manifest.root_main_files.push(chunk_path.to_string());
             }
@@ -343,7 +342,7 @@ pub async fn compute_app_entries_chunks(
         let mut app_entry_client_chunks_paths: Vec<_> = app_entry_client_chunks_paths
             .iter()
             .map(|path| {
-                app_build_manifest_dir_path
+                client_relative_path
                     .get_path_to(path)
                     .expect("asset path should be inside client root")
                     .to_string()
@@ -401,7 +400,9 @@ pub async fn compute_app_entries_chunks(
                         entry_css_files.extend(
                             client_chunks_paths
                                 .iter()
-                                .filter_map(|chunk_path| client_root.get_path_to(chunk_path))
+                                .filter_map(|chunk_path| {
+                                    client_relative_path.get_path_to(chunk_path)
+                                })
                                 .map(ToString::to_string),
                         );
                     }
@@ -412,7 +413,7 @@ pub async fn compute_app_entries_chunks(
                                 .iter()
                                 .filter_map(|chunk_path| {
                                     if chunk_path.extension() == Some("css") {
-                                        client_root.get_path_to(chunk_path)
+                                        client_relative_path.get_path_to(chunk_path)
                                     } else {
                                         None
                                     }
@@ -456,7 +457,7 @@ pub async fn compute_app_entries_chunks(
                         .await?;
                     let client_chunks_paths: Vec<String> = client_chunks_paths
                         .iter()
-                        .filter_map(|chunk_path| client_root.get_path_to(chunk_path))
+                        .filter_map(|chunk_path| client_relative_path.get_path_to(chunk_path))
                         .map(ToString::to_string)
                         .collect::<Vec<_>>();
 

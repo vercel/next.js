@@ -2,7 +2,7 @@ use anyhow::{bail, Result};
 use indexmap::{indexmap, IndexMap};
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    primitives::{JsonValueVc, OptionStringVc, StringVc, StringsVc},
+    primitives::{JsonValueVc, StringVc, StringsVc},
     trace::TraceRawVcs,
     Value,
 };
@@ -91,7 +91,6 @@ pub async fn create_page_source(
     execution_context: ExecutionContextVc,
     node_root: FileSystemPathVc,
     client_root: FileSystemPathVc,
-    client_base_path: OptionStringVc,
     env: ProcessEnvVc,
     client_chunking_context: EcmascriptChunkingContextVc,
     client_compile_time_info: CompileTimeInfoVc,
@@ -260,7 +259,6 @@ pub async fn create_page_source(
         project_root,
         execution_context,
         client_root,
-        client_base_path,
         env,
         client_compile_time_info,
         next_config,
@@ -282,7 +280,6 @@ pub async fn create_page_source(
             fallback_runtime_entries,
             fallback_page,
             client_root,
-            client_base_path,
             node_root.join("force_not_found"),
             BaseSegment::from_static_pathname("_next/404").collect(),
             RouteType::Exact,
@@ -301,17 +298,12 @@ pub async fn create_page_source(
             server_runtime_entries,
             fallback_page,
             client_root,
-            client_base_path,
             node_root,
             render_data,
         ),
-        AssetGraphContentSourceVc::new_eager(
-            client_root,
-            client_base_path,
-            fallback_page.as_asset(),
-        )
-        .as_content_source()
-        .issue_context(pages_dir, "Next.js pages directory fallback"),
+        AssetGraphContentSourceVc::new_eager(client_root, fallback_page.as_asset())
+            .as_content_source()
+            .issue_context(pages_dir, "Next.js pages directory fallback"),
         create_not_found_page_source(
             project_root,
             env,
@@ -323,7 +315,6 @@ pub async fn create_page_source(
             fallback_runtime_entries,
             fallback_page,
             client_root,
-            client_base_path,
             node_root.join("fallback_not_found"),
             Vec::new(),
             RouteType::NotFound,
@@ -350,7 +341,6 @@ async fn create_page_source_for_file(
     runtime_entries: SourcesVc,
     fallback_page: DevHtmlAssetVc,
     client_root: FileSystemPathVc,
-    client_base_path: OptionStringVc,
     client_path: FileSystemPathVc,
     is_api_path: bool,
     node_path: FileSystemPathVc,
@@ -386,7 +376,6 @@ async fn create_page_source_for_file(
     let client_chunking_context = get_client_chunking_context(
         project_path,
         client_root,
-        client_base_path,
         client_context.compile_time_info().environment(),
         mode,
     );
@@ -462,7 +451,6 @@ async fn create_page_source_for_file(
                 base_segments.clone(),
                 route_type.clone(),
                 client_root,
-                client_base_path,
                 route_matcher.into(),
                 pathname,
                 ssr_entry,
@@ -476,7 +464,6 @@ async fn create_page_source_for_file(
                 data_base_segments,
                 data_route_type,
                 client_root,
-                client_base_path,
                 data_route_matcher.into(),
                 pathname,
                 ssr_data_entry,
@@ -486,7 +473,6 @@ async fn create_page_source_for_file(
             ),
             create_page_loader(
                 client_root,
-                client_base_path,
                 client_context,
                 client_chunking_context.into(),
                 page_asset,
@@ -524,7 +510,6 @@ async fn create_not_found_page_source(
     runtime_entries: SourcesVc,
     fallback_page: DevHtmlAssetVc,
     client_root: FileSystemPathVc,
-    client_base_path: OptionStringVc,
     node_path: FileSystemPathVc,
     base_segments: Vec<BaseSegment>,
     route_type: RouteType,
@@ -571,7 +556,6 @@ async fn create_not_found_page_source(
 
     let page_loader = create_page_loader(
         client_root,
-        client_base_path,
         client_context,
         client_chunking_context,
         page_asset,
@@ -585,7 +569,6 @@ async fn create_not_found_page_source(
             base_segments,
             route_type,
             client_root,
-            client_base_path,
             route_matcher,
             pathname,
             ssr_entry,
@@ -613,7 +596,6 @@ async fn create_page_source_for_root_directory(
     runtime_entries: SourcesVc,
     fallback_page: DevHtmlAssetVc,
     client_root: FileSystemPathVc,
-    client_base_path: OptionStringVc,
     node_root: FileSystemPathVc,
     render_data: JsonValueVc,
 ) -> Result<ContentSourceVc> {
@@ -638,7 +620,6 @@ async fn create_page_source_for_root_directory(
             runtime_entries,
             fallback_page,
             client_root,
-            client_base_path,
             false,
             node_root,
             render_data,
@@ -657,7 +638,6 @@ async fn create_page_source_for_root_directory(
             runtime_entries,
             fallback_page,
             client_root,
-            client_base_path,
             true,
             node_root,
             render_data,
@@ -682,7 +662,6 @@ async fn create_page_source_for_directory(
     runtime_entries: SourcesVc,
     fallback_page: DevHtmlAssetVc,
     client_root: FileSystemPathVc,
-    client_base_path: OptionStringVc,
     is_api_path: bool,
     node_root: FileSystemPathVc,
     render_data: JsonValueVc,
@@ -711,7 +690,6 @@ async fn create_page_source_for_directory(
             runtime_entries,
             fallback_page,
             client_root,
-            client_base_path,
             next_router_path,
             is_api_path,
             node_root,
@@ -741,7 +719,6 @@ async fn create_page_source_for_directory(
             runtime_entries,
             fallback_page,
             client_root,
-            client_base_path,
             is_api_path,
             node_root,
             render_data,

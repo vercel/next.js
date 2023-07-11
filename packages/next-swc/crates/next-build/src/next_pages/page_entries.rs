@@ -346,7 +346,7 @@ pub async fn compute_page_entries_chunks(
     ssr_chunking_context: BuildChunkingContextVc,
     node_root: FileSystemPathVc,
     pages_manifest_dir_path: &FileSystemPath,
-    build_manifest_dir_path: &FileSystemPath,
+    client_relative_path: &FileSystemPath,
     pages_manifest: &mut PagesManifest,
     build_manifest: &mut BuildManifest,
     all_chunks: &mut Vec<AssetVc>,
@@ -389,7 +389,7 @@ pub async fn compute_page_entries_chunks(
         for chunk in client_chunks.await?.iter().copied() {
             all_chunks.push(chunk);
             let chunk_path = chunk.ident().path().await?;
-            if let Some(asset_path) = build_manifest_dir_path.get_path_to(&chunk_path) {
+            if let Some(asset_path) = client_relative_path.get_path_to(&chunk_path) {
                 build_manifest_pages_entry.push(asset_path.to_string());
             }
         }

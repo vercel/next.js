@@ -19,13 +19,13 @@ use next_core::{
 use serde::Serialize;
 use turbo_tasks::{
     graph::{AdjacencyMap, GraphTraversal},
-    primitives::OptionStringVc,
     CollectiblesSource, CompletionVc, CompletionsVc, RawVc, TransientInstance, TransientValue,
     TryJoinIterExt,
 };
 use turbopack_binding::{
     turbo::tasks_fs::{
-        DiskFileSystemVc, FileContent, FileSystem, FileSystemPath, FileSystemPathVc, FileSystemVc,
+        rebase, DiskFileSystemVc, FileContent, FileSystem, FileSystemPath, FileSystemPathVc,
+        FileSystemVc,
     },
     turbopack::{
         build::BuildChunkingContextVc,
@@ -110,7 +110,6 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
         .replace(MAIN_SEPARATOR, "/");
     let project_root = workspace_fs.root().join(&project_relative);
 
-    let client_root_ref = client_root.await?;
     let node_root_ref = node_root.await?;
 
     let node_execution_chunking_context = DevChunkingContextVc::builder(
@@ -243,12 +242,9 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
 
     // CHUNKING
 
-    let client_base_path = OptionStringVc::cell(Some("_next/".to_string()));
-
     let client_chunking_context = get_client_chunking_context(
         project_root,
         client_root,
-        client_base_path,
         client_compile_time_info.environment(),
         mode,
     );
@@ -274,7 +270,12 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
 
     let mut build_manifest: BuildManifest = Default::default();
     let build_manifest_path = client_root.join("build-manifest.json");
-    let build_manifest_dir_path = build_manifest_path.parent().await?;
+
+    // This ensures that the _next prefix is properly stripped from all client paths
+    // in manifests. It will be added back on the client through the chunk_base_path
+    // mechanism.
+    let client_relative_path = client_root.join("_next");
+    let client_relative_path_ref = client_relative_path.await?;
 
     // PAGE CHUNKING
 
@@ -288,7 +289,7 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
         ssr_chunking_context,
         node_root,
         &pages_manifest_dir_path,
-        &build_manifest_dir_path,
+        &client_relative_path_ref,
         &mut pages_manifest,
         &mut build_manifest,
         &mut all_chunks,
@@ -299,7 +300,6 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
 
     let mut app_build_manifest = AppBuildManifest::default();
     let app_build_manifest_path = client_root.join("app-build-manifest.json");
-    let app_build_manifest_dir_path = app_build_manifest_path.parent().await?;
 
     let mut app_paths_manifest = AppPathsManifest::default();
     let app_paths_manifest_path = node_root.join("server/app-paths-manifest.json");
@@ -326,8 +326,7 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
         client_chunking_context,
         ssr_chunking_context.into(),
         node_root,
-        &client_root_ref,
-        &app_build_manifest_dir_path,
+        &client_relative_path_ref,
         &app_paths_manifest_dir_path,
         &mut app_build_manifest,
         &mut build_manifest,
@@ -441,7 +440,15 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
         node_root.join("react-loadable-manifest.json"),
     )?);
 
-    completions.push(emit_all_assets(all_chunks, &node_root_ref, &client_root_ref).await?);
+    completions.push(
+        emit_all_assets(
+            all_chunks,
+            &node_root_ref,
+            client_relative_path,
+            client_root,
+        )
+        .await?,
+    );
 
     Ok(CompletionsVc::all(completions))
 }
@@ -496,7 +503,8 @@ async fn handle_issues<T: Into<RawVc> + CollectiblesSource + Copy>(
 async fn emit_all_assets(
     chunks: Vec<AssetVc>,
     node_root: &FileSystemPath,
-    client_root: &FileSystemPath,
+    client_relative_path: FileSystemPathVc,
+    client_output_path: FileSystemPathVc,
 ) -> Result<CompletionVc> {
     let all_assets = all_assets_from_entries(AssetsVc::cell(chunks)).await?;
     Ok(CompletionsVc::all(
@@ -504,10 +512,17 @@ async fn emit_all_assets(
             .iter()
             .copied()
             .map(|asset| async move {
-                if asset.ident().path().await?.is_inside(node_root)
-                    || asset.ident().path().await?.is_inside(client_root)
-                {
+                if asset.ident().path().await?.is_inside(node_root) {
                     return Ok(emit(asset));
+                } else if asset
+                    .ident()
+                    .path()
+                    .await?
+                    .is_inside(&*client_relative_path.await?)
+                {
+                    // Client assets are emitted to the client output path, which is prefixed with
+                    // _next. We need to rebase them to remove that prefix.
+                    return Ok(emit_rebase(asset, client_relative_path, client_output_path));
                 }
 
                 Ok(CompletionVc::immutable())
@@ -520,6 +535,13 @@ async fn emit_all_assets(
 #[turbo_tasks::function]
 fn emit(asset: AssetVc) -> CompletionVc {
     asset.content().write(asset.ident().path())
+}
+
+#[turbo_tasks::function]
+fn emit_rebase(asset: AssetVc, from: FileSystemPathVc, to: FileSystemPathVc) -> CompletionVc {
+    asset
+        .content()
+        .write(rebase(asset.ident().path(), from, to))
 }
 
 /// Walks the asset graph from multiple assets and collect all referenced

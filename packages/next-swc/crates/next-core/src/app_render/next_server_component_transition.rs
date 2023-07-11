@@ -66,7 +66,7 @@ impl Transition for NextServerComponentTransition {
             asset: WithClientChunksAsset {
                 asset,
                 // next.js code already adds _next prefix
-                server_root: self.server_root,
+                server_root: self.server_root.join("_next"),
             }
             .cell()
             .into(),

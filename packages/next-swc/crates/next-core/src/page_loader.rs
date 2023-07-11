@@ -2,10 +2,7 @@ use std::io::Write;
 
 use anyhow::{bail, Result};
 use indexmap::indexmap;
-use turbo_tasks::{
-    primitives::{OptionStringVc, StringVc},
-    TryJoinIterExt, Value,
-};
+use turbo_tasks::{primitives::StringVc, TryJoinIterExt, Value};
 use turbopack_binding::{
     turbo::tasks_fs::{rope::RopeBuilder, File, FileContent, FileSystemPathVc},
     turbopack::{
@@ -33,7 +30,6 @@ use crate::{embed_js::next_js_file_path, util::get_asset_path_from_pathname};
 #[turbo_tasks::function]
 pub async fn create_page_loader(
     server_root: FileSystemPathVc,
-    client_base_path: OptionStringVc,
     client_context: AssetContextVc,
     client_chunking_context: ChunkingContextVc,
     entry_asset: SourceVc,
@@ -48,7 +44,7 @@ pub async fn create_page_loader(
     }
     .cell();
 
-    Ok(AssetGraphContentSourceVc::new_lazy(server_root, client_base_path, asset.into()).into())
+    Ok(AssetGraphContentSourceVc::new_lazy(server_root, asset.into()).into())
 }
 
 #[turbo_tasks::value(shared)]

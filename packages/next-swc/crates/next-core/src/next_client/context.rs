@@ -280,26 +280,30 @@ pub async fn get_client_module_options_context(
 pub fn get_client_chunking_context(
     project_path: FileSystemPathVc,
     client_root: FileSystemPathVc,
-    client_base_path: OptionStringVc,
     environment: EnvironmentVc,
-    _mode: NextMode,
+    mode: NextMode,
 ) -> EcmascriptChunkingContextVc {
-    DevChunkingContextVc::builder(
+    let builder = DevChunkingContextVc::builder(
         project_path,
         client_root,
-        client_root.join("static/chunks"),
+        client_root.join("_next/static/chunks"),
         get_client_assets_path(client_root),
         environment,
-    )
-    .hot_module_replacement()
-    .chunk_base_path(client_base_path)
-    .build()
-    .into()
+    );
+
+    let builder = match mode {
+        NextMode::Development => builder.hot_module_replacement(),
+        NextMode::Build => {
+            builder.chunk_base_path(OptionStringVc::cell(Some("_next/".to_string())))
+        }
+    };
+
+    builder.build().into()
 }
 
 #[turbo_tasks::function]
 pub fn get_client_assets_path(client_root: FileSystemPathVc) -> FileSystemPathVc {
-    client_root.join("static/media")
+    client_root.join("_next/static/media")
 }
 
 #[turbo_tasks::function]

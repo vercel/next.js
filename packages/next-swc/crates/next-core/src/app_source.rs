@@ -3,7 +3,7 @@ use std::{collections::HashMap, io::Write as _, iter::once};
 use anyhow::{bail, Result};
 use indexmap::indexmap;
 use indoc::indoc;
-use turbo_tasks::primitives::{JsonValueVc, OptionStringVc};
+use turbo_tasks::primitives::JsonValueVc;
 use turbopack_binding::{
     turbo::{
         tasks::{primitives::StringVc, Value},
@@ -498,7 +498,6 @@ pub async fn create_app_source(
     execution_context: ExecutionContextVc,
     output_path: FileSystemPathVc,
     server_root: FileSystemPathVc,
-    client_base_path: OptionStringVc,
     env: ProcessEnvVc,
     client_chunking_context: EcmascriptChunkingContextVc,
     client_compile_time_info: CompileTimeInfoVc,
@@ -552,7 +551,6 @@ pub async fn create_app_source(
         project_path,
         execution_context,
         server_root,
-        client_base_path,
         env,
         client_compile_time_info,
         next_config,
@@ -572,7 +570,6 @@ pub async fn create_app_source(
                 app_dir,
                 env,
                 server_root,
-                client_base_path,
                 server_runtime_entries,
                 fallback_page,
                 output_path,
@@ -610,7 +607,6 @@ pub async fn create_app_source(
                 app_dir,
                 env,
                 server_root,
-                client_base_path,
                 server_runtime_entries,
                 fallback_page,
                 output_path,
@@ -646,14 +642,7 @@ async fn create_global_metadata_source(
                     server_root.join(server_path),
                     FileSourceVc::new(path).into(),
                 );
-                sources.push(
-                    AssetGraphContentSourceVc::new_eager(
-                        server_root,
-                        Default::default(),
-                        asset.into(),
-                    )
-                    .into(),
-                )
+                sources.push(AssetGraphContentSourceVc::new_eager(server_root, asset.into()).into())
             }
             MetadataItem::Dynamic { path } => {
                 unsupported_metadata.push(path);
@@ -683,7 +672,6 @@ async fn create_app_page_source_for_route(
     app_dir: FileSystemPathVc,
     env: ProcessEnvVc,
     server_root: FileSystemPathVc,
-    client_base_path: OptionStringVc,
     runtime_entries: SourcesVc,
     fallback_page: DevHtmlAssetVc,
     intermediate_output_path_root: FileSystemPathVc,
@@ -701,7 +689,6 @@ async fn create_app_page_source_for_route(
         base_segments,
         route_type,
         server_root,
-        client_base_path,
         params_matcher.into(),
         pathname_vc,
         AppRenderer {
@@ -710,7 +697,6 @@ async fn create_app_page_source_for_route(
             context_ssr,
             context,
             server_root,
-            client_base_path,
             project_path,
             intermediate_output_path: intermediate_output_path_root,
             loader_tree,
@@ -735,7 +721,6 @@ async fn create_app_not_found_page_source(
     app_dir: FileSystemPathVc,
     env: ProcessEnvVc,
     server_root: FileSystemPathVc,
-    client_base_path: OptionStringVc,
     runtime_entries: SourcesVc,
     fallback_page: DevHtmlAssetVc,
     intermediate_output_path_root: FileSystemPathVc,
@@ -749,7 +734,6 @@ async fn create_app_not_found_page_source(
         Vec::new(),
         RouteType::NotFound,
         server_root,
-        client_base_path,
         NextFallbackMatcherVc::new().into(),
         pathname_vc,
         AppRenderer {
@@ -758,7 +742,6 @@ async fn create_app_not_found_page_source(
             context_ssr,
             context,
             server_root,
-            client_base_path,
             project_path,
             intermediate_output_path: intermediate_output_path_root,
             loader_tree,
@@ -829,7 +812,6 @@ struct AppRenderer {
     context: ModuleAssetContextVc,
     project_path: FileSystemPathVc,
     server_root: FileSystemPathVc,
-    client_base_path: OptionStringVc,
     intermediate_output_path: FileSystemPathVc,
     loader_tree: LoaderTreeVc,
 }
@@ -845,7 +827,6 @@ impl AppRendererVc {
             context,
             project_path,
             server_root,
-            client_base_path,
             intermediate_output_path,
             loader_tree,
         } = *self.await?;
@@ -919,7 +900,6 @@ impl AppRendererVc {
         )
         .layer("ssr")
         .reference_chunk_source_maps(should_debug("app_source"))
-        .chunk_base_path(client_base_path)
         .build();
 
         let renderer_module = match runtime {

@@ -232,13 +232,12 @@ pub async fn create_web_entry_source(
         .try_join()
         .await?;
 
-    let entry_asset =
-        DevHtmlAssetVc::new(client_root.join("index.html"), Default::default(), entries).into();
+    let entry_asset = DevHtmlAssetVc::new(client_root.join("index.html"), entries).into();
 
     let graph = if eager_compile {
-        AssetGraphContentSourceVc::new_eager(client_root, Default::default(), entry_asset)
+        AssetGraphContentSourceVc::new_eager(client_root, entry_asset)
     } else {
-        AssetGraphContentSourceVc::new_lazy(client_root, Default::default(), entry_asset)
+        AssetGraphContentSourceVc::new_lazy(client_root, entry_asset)
     }
     .into();
     Ok(graph)
