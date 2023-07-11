@@ -215,8 +215,6 @@ async function startWatcher(opts: SetupOpts) {
         )
       },
     })
-
-    wp.watch({ directories: [dir], startTime: 0 })
     const fileWatchTimes = new Map()
     let enabledTypeScript = usingTypeScript
     let previousClientRouterFilters: any
@@ -478,6 +476,9 @@ async function startWatcher(opts: SetupOpts) {
       if (envChange || tsconfigChange) {
         if (envChange) {
           loadEnvConfig(dir, true, Log, true)
+          await propagateToWorkers('loadEnvConfig', [
+            { dev: true, forceReload: true, silent: true },
+          ])
         }
         let tsconfigResult:
           | UnwrapPromise<ReturnType<typeof loadJsConfig>>
@@ -671,6 +672,8 @@ async function startWatcher(opts: SetupOpts) {
         await propagateToWorkers('middleware.reload', undefined)
       }
     })
+
+    wp.watch({ directories: [dir], startTime: 0 })
   })
 
   opts.fsChecker.middlewareMatcher = serverFields.middleware?.matchers
@@ -835,6 +838,8 @@ export async function setupDev(opts: SetupOpts) {
     .relative(opts.dir, opts.pagesDir || opts.appDir || '')
     .startsWith('src')
 
+  const result = await startWatcher(opts)
+
   opts.telemetry.record(
     eventCliSession(
       path.join(opts.dir, opts.nextConfig.distDir),
@@ -851,5 +856,5 @@ export async function setupDev(opts: SetupOpts) {
       }
     )
   )
-  return await startWatcher(opts)
+  return result
 }

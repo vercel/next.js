@@ -915,7 +915,8 @@ export default class NextNodeServer extends BaseServer {
     if (!pathname) {
       throw new Error('pathname is undefined')
     }
-    const bubbleNoFallback = Boolean(query._nextBubbleNoFallback)
+    query._nextBubbleNoFallback = '1'
+    const bubbleNoFallback = true
 
     try {
       // next.js core assumes page path without trailing slash

@@ -47,6 +47,7 @@ export type FsOutput = {
 
   itemPath: string
   fsPath?: string
+  itemsRoot?: string
   locale?: string
 }
 
@@ -140,7 +141,8 @@ export async function setupFsCheck(opts: {
 
     try {
       for (const file of await recursiveReadDir(publicFolderPath, () => true)) {
-        publicFolderItems.add(file)
+        // ensure filename is encoded
+        publicFolderItems.add(encodeURI(file))
       }
     } catch (err: any) {
       if (err.code !== 'ENOENT') {
@@ -153,7 +155,8 @@ export async function setupFsCheck(opts: {
         legacyStaticFolderPath,
         () => true
       )) {
-        legacyStaticFolderItems.add(file)
+        // ensure filename is encoded
+        legacyStaticFolderItems.add(encodeURI(file))
       }
       Log.warn(
         `The static directory has been deprecated in favor of the public directory. https://nextjs.org/docs/messages/static-dir-deprecated`
@@ -169,7 +172,10 @@ export async function setupFsCheck(opts: {
         nextStaticFolderPath,
         () => true
       )) {
-        nextStaticFolderItems.add(path.posix.join('/_next/static', file))
+        // ensure filename is encoded
+        nextStaticFolderItems.add(
+          path.posix.join('/_next/static', encodeURI(file))
+        )
       }
     } catch (err) {
       if (opts.config.output !== 'standalone') throw err
@@ -452,12 +458,23 @@ export async function setupFsCheck(opts: {
         }
 
         if (type === 'legacyStaticFolder') {
+          if (!pathHasPrefix(curItemPath, '/static')) {
+            continue
+          }
           curItemPath = curItemPath.substring('/static'.length)
 
           try {
             curDecodedItemPath = decodeURIComponent(curItemPath)
           } catch (_) {}
         }
+
+        if (
+          type === 'nextStaticFolder' &&
+          !pathHasPrefix(curItemPath, '/_next/static')
+        ) {
+          continue
+        }
+
         const nextDataPrefix = `/_next/data/${buildId}/`
 
         if (
@@ -489,33 +506,36 @@ export async function setupFsCheck(opts: {
         }
 
         // check decoded variant as well
-        if (!items.has(curItemPath)) {
+        if (!items.has(curItemPath) && !opts.dev) {
           curItemPath = curDecodedItemPath
         }
         const matchedItem = items.has(curItemPath)
 
         if (matchedItem || opts.dev) {
-          let fsPath
+          let fsPath: string | undefined
+          let itemsRoot: string | undefined
 
           switch (type) {
             case 'nextStaticFolder': {
-              fsPath = path.join(
-                nextStaticFolderPath,
-                curItemPath.substring('/_next/static'.length)
-              )
+              itemsRoot = nextStaticFolderPath
+              curItemPath = curItemPath.substring('/_next/static'.length)
               break
             }
             case 'legacyStaticFolder': {
-              fsPath = path.join(legacyStaticFolderPath, curItemPath)
+              itemsRoot = legacyStaticFolderPath
               break
             }
             case 'publicFolder': {
-              fsPath = path.join(publicFolderPath, curItemPath)
+              itemsRoot = publicFolderPath
               break
             }
             default: {
               break
             }
+          }
+
+          if (itemsRoot && curItemPath) {
+            fsPath = path.posix.join(itemsRoot, curItemPath)
           }
 
           // dynamically check fs in development so we don't
@@ -529,9 +549,22 @@ export async function setupFsCheck(opts: {
               ] as (typeof type)[]
             ).includes(type)
 
-            if (isStaticAsset) {
-              if (fsPath && !(await fileExists(fsPath, FileType.File))) {
-                continue
+            if (isStaticAsset && itemsRoot) {
+              let found = fsPath && (await fileExists(fsPath, FileType.File))
+
+              if (!found) {
+                try {
+                  // In dev, we ensure encoded paths match
+                  // decoded paths on the filesystem so check
+                  // that variation as well
+                  const tempItemPath = decodeURIComponent(curItemPath)
+                  fsPath = path.posix.join(itemsRoot, tempItemPath)
+                  found = await fileExists(fsPath, FileType.File)
+                } catch (_) {}
+
+                if (!found) {
+                  continue
+                }
               }
             } else if (type === 'pageFile' || type === 'appFile') {
               if (
@@ -557,6 +590,7 @@ export async function setupFsCheck(opts: {
             type,
             fsPath,
             locale,
+            itemsRoot,
             itemPath: curItemPath,
           }
 

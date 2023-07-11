@@ -505,7 +505,7 @@ export async function initialize(opts: {
         )
       }
 
-      if (matchedOutput?.fsPath) {
+      if (matchedOutput?.fsPath && matchedOutput.itemPath) {
         if (
           !res.getHeader('cache-control') &&
           matchedOutput.type === 'nextStaticFolder'
@@ -531,13 +531,10 @@ export async function initialize(opts: {
         }
 
         try {
-          return await serveStatic(req, res, matchedOutput.fsPath)
+          return await serveStatic(req, res, matchedOutput.itemPath, {
+            root: matchedOutput.itemsRoot,
+          })
         } catch (err: any) {
-          // normalize additional 400 case
-          if (!err.statusCode && err.expose === false) {
-            err.statusCode = 400
-          }
-
           /**
            * Hardcoded every possible error status code that could be thrown by "serveStatic" method
            * This is done by searching "this.error" inside "send" module's source code:
@@ -573,10 +570,16 @@ export async function initialize(opts: {
             416,
           ])
 
-          if (
-            typeof err.statusCode === 'number' &&
-            POSSIBLE_ERROR_CODE_FROM_SERVE_STATIC.has(err.statusCode)
-          ) {
+          let validErrorStatus = POSSIBLE_ERROR_CODE_FROM_SERVE_STATIC.has(
+            err.statusCode
+          )
+
+          // normalize non-allowed status codes
+          if (!validErrorStatus) {
+            ;(err as any).statusCode = 400
+          }
+
+          if (typeof err.statusCode === 'number') {
             const invokePath = `/${err.statusCode}`
             const invokeStatus = `${err.statusCode}`
             return await invokeRender(

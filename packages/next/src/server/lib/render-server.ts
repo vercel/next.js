@@ -57,7 +57,10 @@ export async function propagateServerField(field: string, value: any) {
 
   if (appField) {
     if (typeof appField[field] === 'function') {
-      appField[field].apply(app, Array.isArray(value) ? value : [])
+      appField[field].apply(
+        (app as any).server,
+        Array.isArray(value) ? value : []
+      )
     } else {
       appField[field] = value
     }

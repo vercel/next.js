@@ -7,7 +7,6 @@ import '../require-hook'
 import '../node-polyfill-fetch'
 
 import { warn } from '../../build/output/log'
-import { getFreePort } from '../lib/worker-utils'
 import { Duplex } from 'stream'
 
 process.on('unhandledRejection', (err) => {
@@ -101,6 +100,6 @@ export async function initializeServerWorker(
         return reject(err)
       }
     })
-    server.listen(await getFreePort(), hostname)
+    server.listen(0, hostname)
   })
 }
