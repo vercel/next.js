@@ -2897,6 +2897,10 @@ export default async function getBaseWebpackConfig(
       }
     }
 
+    if (dev) {
+      webpackConfig.module.unsafeCache = true
+    }
+
     webpackConfig.module.rules = [
       ...(topRules as any),
       {
