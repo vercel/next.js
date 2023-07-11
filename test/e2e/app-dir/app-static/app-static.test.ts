@@ -164,7 +164,7 @@ createNextDescribe(
         )
 
         // The page may take a moment to compile, so try it a few times.
-        check(async () => {
+        await check(async () => {
           return next.render('/invalid/first')
         }, /A required parameter \(slug\) was not provided as a string received object/)
 
