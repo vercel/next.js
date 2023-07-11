@@ -7,12 +7,13 @@ use swc_core::common::{
 };
 use turbo_tasks::primitives::StringVc;
 use turbopack_core::{
-    asset::{Asset, AssetVc},
+    asset::Asset,
     issue::{analyze::AnalyzeIssue, IssueSeverity, IssueSourceVc},
+    source::SourceVc,
 };
 
 pub struct IssueEmitter {
-    pub source: AssetVc,
+    pub source: SourceVc,
     pub source_map: Arc<SourceMap>,
     pub title: Option<String>,
 }
@@ -42,7 +43,7 @@ impl Emitter for IssueEmitter {
 
         let source = db.span.primary_span().map(|span| {
             IssueSourceVc::from_byte_offset(
-                self.source,
+                self.source.into(),
                 self.source_map.lookup_byte_offset(span.lo()).pos.to_usize(),
                 self.source_map.lookup_byte_offset(span.lo()).pos.to_usize(),
             )

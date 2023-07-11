@@ -41,6 +41,7 @@ use turbopack_core::{
         options::ResolveOptionsVc, origin::PlainResolveOriginVc, parse::RequestVc, resolve,
         ModulePartVc, ResolveResultVc,
     },
+    source::{asset_to_source, SourceVc},
 };
 
 use crate::transition::Transition;
@@ -99,7 +100,7 @@ impl Issue for ModuleIssue {
 
 #[turbo_tasks::function]
 async fn apply_module_type(
-    source: AssetVc,
+    source: SourceVc,
     context: ModuleAssetContextVc,
     module_type: ModuleTypeVc,
     part: Option<ModulePartVc>,
@@ -261,7 +262,7 @@ impl ModuleAssetContextVc {
     #[turbo_tasks::function]
     fn process_default(
         self_vc: ModuleAssetContextVc,
-        source: AssetVc,
+        source: SourceVc,
         reference_type: Value<ReferenceType>,
     ) -> ModuleVc {
         process_default(self_vc, source, reference_type, Vec::new())
@@ -271,7 +272,7 @@ impl ModuleAssetContextVc {
 #[turbo_tasks::function]
 async fn process_default(
     context: ModuleAssetContextVc,
-    source: AssetVc,
+    source: SourceVc,
     reference_type: Value<ReferenceType>,
     processed_rules: Vec<usize>,
 ) -> Result<ModuleVc> {
@@ -451,7 +452,13 @@ impl AssetContext for ModuleAssetContext {
             .map(
                 |a| {
                     let reference_type = reference_type.clone();
-                    async move { Ok(self_vc.process(a, reference_type).resolve().await?.into()) }
+                    async move {
+                        Ok(self_vc
+                            .process(asset_to_source(a), reference_type)
+                            .resolve()
+                            .await?
+                            .into())
+                    }
                 },
                 |i| async move { Ok(i) },
             )
@@ -461,7 +468,7 @@ impl AssetContext for ModuleAssetContext {
     #[turbo_tasks::function]
     async fn process(
         self_vc: ModuleAssetContextVc,
-        asset: AssetVc,
+        asset: SourceVc,
         reference_type: Value<ReferenceType>,
     ) -> Result<ModuleVc> {
         let this = self_vc.await?;

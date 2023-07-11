@@ -15,6 +15,7 @@ use turbopack_core::{
         origin::ResolveOriginVc, parse::RequestVc, pattern::QueryMapVc, ResolveResult,
         ResolveResultVc,
     },
+    source::SourceVc,
 };
 
 use self::resolve::{read_from_tsconfigs, read_tsconfigs, type_resolve};
@@ -23,14 +24,14 @@ use crate::resolve::apply_cjs_specific_options;
 
 #[turbo_tasks::value]
 pub struct TsConfigModuleAsset {
-    pub source: AssetVc,
+    pub source: SourceVc,
     pub origin: ResolveOriginVc,
 }
 
 #[turbo_tasks::value_impl]
 impl TsConfigModuleAssetVc {
     #[turbo_tasks::function]
-    pub fn new(origin: ResolveOriginVc, source: AssetVc) -> Self {
+    pub fn new(origin: ResolveOriginVc, source: SourceVc) -> Self {
         Self::cell(TsConfigModuleAsset { origin, source })
     }
 }
@@ -69,7 +70,9 @@ impl Asset for TsConfigModuleAsset {
                     .map(|s| (source, s.to_string()))
             })
             .await?;
-            let (_, compiler) = compiler.unwrap_or_else(|| (self.source, "typescript".to_string()));
+            let compiler = compiler
+                .map(|(_, c)| c)
+                .unwrap_or_else(|| "typescript".to_string());
             references.push(
                 CompilerReferenceVc::new(
                     self.origin,
@@ -202,13 +205,13 @@ impl ValueToString for CompilerReference {
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct TsExtendsReference {
-    pub config: AssetVc,
+    pub config: SourceVc,
 }
 
 #[turbo_tasks::value_impl]
 impl TsExtendsReferenceVc {
     #[turbo_tasks::function]
-    pub fn new(config: AssetVc) -> Self {
+    pub fn new(config: SourceVc) -> Self {
         Self::cell(TsExtendsReference { config })
     }
 }
@@ -217,7 +220,7 @@ impl TsExtendsReferenceVc {
 impl AssetReference for TsExtendsReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> ResolveResultVc {
-        ResolveResult::asset(self.config).into()
+        ResolveResult::asset(self.config.into()).into()
     }
 }
 

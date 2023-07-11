@@ -9,7 +9,7 @@ PlainIssue {
     source: Some(
         PlainIssueSource {
             asset: PlainAsset {
-                ident: "[project]/crates/turbopack-tests/tests/execution/turbopack/basic/comptime/input/index.js (ecmascript)",
+                ident: "[project]/crates/turbopack-tests/tests/execution/turbopack/basic/comptime/input/index.js",
             },
             start: SourcePos {
                 line: 3,

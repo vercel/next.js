@@ -426,7 +426,7 @@ impl CapturedIssues {
 #[turbo_tasks::value]
 #[derive(Clone)]
 pub struct IssueSource {
-    pub asset: AssetVc,
+    pub source: AssetVc,
     pub start: SourcePos,
     pub end: SourcePos,
 }
@@ -434,7 +434,7 @@ pub struct IssueSource {
 #[turbo_tasks::value_impl]
 impl IssueSourceVc {
     #[turbo_tasks::function]
-    pub async fn from_byte_offset(asset: AssetVc, start: usize, end: usize) -> Result<Self> {
+    pub async fn from_byte_offset(source: AssetVc, start: usize, end: usize) -> Result<Self> {
         fn find_line_and_column(lines: &[FileLine], offset: usize) -> SourcePos {
             match lines.binary_search_by(|line| line.bytes_offset.cmp(&offset)) {
                 Ok(i) => SourcePos { line: i, column: 0 },
@@ -454,13 +454,13 @@ impl IssueSourceVc {
             }
         }
         Ok(Self::cell(
-            if let FileLinesContent::Lines(lines) = &*asset.content().lines().await? {
+            if let FileLinesContent::Lines(lines) = &*source.content().lines().await? {
                 let start = find_line_and_column(lines.as_ref(), start);
                 let end = find_line_and_column(lines.as_ref(), end);
-                IssueSource { asset, start, end }
+                IssueSource { source, start, end }
             } else {
                 IssueSource {
-                    asset,
+                    source,
                     start: SourcePos::default(),
                     end: SourcePos::max(),
                 }
@@ -620,7 +620,7 @@ impl IssueSourceVc {
     pub async fn into_plain(self) -> Result<PlainIssueSourceVc> {
         let this = self.await?;
         Ok(PlainIssueSource {
-            asset: PlainAssetVc::from_asset(this.asset).await?,
+            asset: PlainAssetVc::from_asset(this.source).await?,
             start: this.start,
             end: this.end,
         }

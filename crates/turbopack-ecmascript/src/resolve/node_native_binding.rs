@@ -10,17 +10,17 @@ use turbo_tasks_fs::{
 };
 use turbopack_core::{
     asset::{Asset, AssetContent, AssetVc},
+    file_source::FileSourceVc,
     reference::{AssetReference, AssetReferenceVc},
     resolve::{
         pattern::{Pattern, PatternVc},
         resolve_raw, AffectingResolvingAssetReferenceVc, PrimaryResolveResult, ResolveResult,
         ResolveResultVc,
     },
-    source_asset::SourceAssetVc,
     target::{CompileTargetVc, Platform},
 };
 
-use crate::references::raw::SourceAssetReferenceVc;
+use crate::references::raw::FileSourceReferenceVc;
 
 #[derive(Serialize, Deserialize, Debug)]
 struct NodePreGypConfigJson {
@@ -146,10 +146,10 @@ pub async fn resolve_node_pre_gyp_files(
                     {
                         if let DirectoryEntry::File(dylib) | DirectoryEntry::Symlink(dylib) = entry
                         {
-                            assets.insert(SourceAssetVc::new(*dylib).into());
+                            assets.insert(FileSourceVc::new(*dylib).into());
                         }
                     }
-                    assets.insert(SourceAssetVc::new(resolved_file_vc).into());
+                    assets.insert(FileSourceVc::new(resolved_file_vc).into());
                 }
                 for entry in config_asset
                     .ident()
@@ -165,14 +165,14 @@ pub async fn resolve_node_pre_gyp_files(
                 {
                     match entry {
                         DirectoryEntry::File(dylib) => {
-                            assets.insert(SourceAssetVc::new(*dylib).into());
+                            assets.insert(FileSourceVc::new(*dylib).into());
                         }
                         DirectoryEntry::Symlink(dylib) => {
                             let realpath_with_links = dylib.realpath_with_links().await?;
                             for symlink in realpath_with_links.symlinks.iter() {
-                                assets.insert(SourceAssetVc::new(*symlink).into());
+                                assets.insert(FileSourceVc::new(*symlink).into());
                             }
-                            assets.insert(SourceAssetVc::new(*dylib).into());
+                            assets.insert(FileSourceVc::new(*dylib).into());
                         }
                         _ => {}
                     }
@@ -364,14 +364,14 @@ pub async fn resolve_node_bindings_files(
     let bindings_try: Vec<AssetVc> = BINDINGS_TRY
         .iter()
         .map(|try_dir| {
-            SourceAssetVc::new(root_context.join(&format!("{}/{}", try_dir, &file_name))).into()
+            FileSourceVc::new(root_context.join(&format!("{}/{}", try_dir, &file_name))).into()
         })
         .collect();
 
     Ok(ResolveResult::assets_with_references(
         bindings_try,
-        vec![SourceAssetReferenceVc::new(
-            SourceAssetVc::new(root_context).into(),
+        vec![FileSourceReferenceVc::new(
+            FileSourceVc::new(root_context).into(),
             Pattern::Concatenation(vec![Pattern::Dynamic, Pattern::Constant(file_name)]).into(),
         )
         .into()],

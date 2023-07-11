@@ -50,7 +50,7 @@ use turbo_tasks::{
 };
 use turbo_tasks_fs::{FileJsonContent, FileSystemPathVc};
 use turbopack_core::{
-    asset::{Asset, AssetVc},
+    asset::Asset,
     compile_time_info::{CompileTimeInfoVc, FreeVarReference},
     error::PrettyPrintError,
     issue::{IssueSourceVc, OptionIssueSourceVc},
@@ -64,6 +64,7 @@ use turbopack_core::{
         pattern::Pattern,
         resolve, FindContextFileResult, ModulePartVc, PrimaryResolveResult,
     },
+    source::{asset_to_source, SourceVc},
 };
 use turbopack_swc_utils::emitter::IssueEmitter;
 use unreachable::UnreachableVc;
@@ -79,7 +80,7 @@ use self::{
         EsmModuleItemVc, ImportMetaBindingVc, ImportMetaRefVc, UrlAssetReferenceVc,
     },
     node::{DirAssetReferenceVc, PackageJsonReferenceVc},
-    raw::SourceAssetReferenceVc,
+    raw::FileSourceReferenceVc,
     typescript::{
         TsConfigReferenceVc, TsReferencePathAssetReferenceVc, TsReferenceTypeAssetReferenceVc,
     },
@@ -283,7 +284,7 @@ async fn specified_module_type(package_json: FileSystemPathVc) -> Result<Specifi
 
 struct AnalysisState<'a> {
     handler: &'a Handler,
-    source: AssetVc,
+    source: SourceVc,
     origin: ResolveOriginVc,
     compile_time_info: CompileTimeInfoVc,
     var_graph: &'a VarGraph,
@@ -319,7 +320,7 @@ where
 
 #[turbo_tasks::function]
 pub(crate) async fn analyze_ecmascript_module(
-    source: AssetVc,
+    source: SourceVc,
     origin: ResolveOriginVc,
     ty: Value<EcmascriptModuleAssetType>,
     transforms: EcmascriptInputTransformsVc,
@@ -949,7 +950,11 @@ pub(crate) async fn analyze_ecmascript_module(
                     RequestVc::parse(Value::new(pat)),
                     compile_time_info.environment().rendering(),
                     AstPathVc::cell(ast_path),
-                    IssueSourceVc::from_byte_offset(source, span.lo.to_usize(), span.hi.to_usize()),
+                    IssueSourceVc::from_byte_offset(
+                        source.into(),
+                        span.lo.to_usize(),
+                        span.hi.to_usize(),
+                    ),
                     in_try,
                 ));
             }
@@ -1196,7 +1201,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                         ),
                     )
                 }
-                analysis.add_reference(SourceAssetReferenceVc::new(source, pat.into()));
+                analysis.add_reference(FileSourceReferenceVc::new(source, pat.into()));
                 return Ok(());
             }
             let (args, hints) = explain_args(&args);
@@ -1236,7 +1241,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                     ),
                 )
             }
-            analysis.add_reference(SourceAssetReferenceVc::new(source, pat.into()));
+            analysis.add_reference(FileSourceReferenceVc::new(source, pat.into()));
             return Ok(());
         }
 
@@ -1295,7 +1300,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                         ),
                     );
                 }
-                analysis.add_reference(SourceAssetReferenceVc::new(source, pat.into()));
+                analysis.add_reference(FileSourceReferenceVc::new(source, pat.into()));
                 return Ok(());
             }
             let (args, hints) = explain_args(&args);
@@ -1743,12 +1748,12 @@ async fn handle_free_var_reference(
     Ok(true)
 }
 
-fn issue_source(source: AssetVc, span: Span) -> IssueSourceVc {
-    IssueSourceVc::from_byte_offset(source, span.lo.to_usize(), span.hi.to_usize())
+fn issue_source(source: SourceVc, span: Span) -> IssueSourceVc {
+    IssueSourceVc::from_byte_offset(source.into(), span.lo.to_usize(), span.hi.to_usize())
 }
 
 fn analyze_amd_define(
-    source: AssetVc,
+    source: SourceVc,
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
     origin: ResolveOriginVc,
     handler: &Handler,
@@ -1853,7 +1858,7 @@ fn analyze_amd_define(
 }
 
 fn analyze_amd_define_with_deps(
-    source: AssetVc,
+    source: SourceVc,
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
     origin: ResolveOriginVc,
     handler: &Handler,
@@ -2562,7 +2567,7 @@ async fn resolve_as_webpack_runtime(
     );
 
     if let Some(source) = *resolved.first_asset().await? {
-        Ok(webpack_runtime(source, transforms))
+        Ok(webpack_runtime(asset_to_source(source), transforms))
     } else {
         Ok(WebpackRuntime::None.into())
     }

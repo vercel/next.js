@@ -22,13 +22,13 @@ use turbopack_core::{
     compile_time_info::{CompileTimeDefinesVc, CompileTimeInfo, CompileTimeInfoVc},
     context::AssetContextVc,
     environment::{BrowserEnvironment, EnvironmentVc, ExecutionEnvironment},
+    file_source::FileSourceVc,
     reference_type::{EntryReferenceSubType, ReferenceType},
     resolve::{
         options::{ImportMap, ImportMapVc, ImportMapping},
         origin::PlainResolveOriginVc,
         parse::RequestVc,
     },
-    source_asset::SourceAssetVc,
 };
 use turbopack_dev::{react_refresh::assert_can_resolve_react_refresh, DevChunkingContextVc};
 use turbopack_dev_server::{
@@ -239,7 +239,7 @@ pub async fn get_client_runtime_entries(
     };
 
     runtime_entries.push(
-        RuntimeEntry::Source(SourceAssetVc::new(embed_file_path("entry/bootstrap.ts")).into())
+        RuntimeEntry::Source(FileSourceVc::new(embed_file_path("entry/bootstrap.ts")).into())
             .cell(),
     );
 

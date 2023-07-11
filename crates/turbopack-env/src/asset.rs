@@ -6,6 +6,7 @@ use turbo_tasks_fs::{rope::RopeBuilder, File, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
     ident::AssetIdentVc,
+    source::{Source, SourceVc},
 };
 use turbopack_ecmascript::utils::StringifyJs;
 
@@ -27,6 +28,9 @@ impl ProcessEnvAssetVc {
         ProcessEnvAsset { root, env }.cell()
     }
 }
+
+#[turbo_tasks::value_impl]
+impl Source for ProcessEnvAsset {}
 
 #[turbo_tasks::value_impl]
 impl Asset for ProcessEnvAsset {

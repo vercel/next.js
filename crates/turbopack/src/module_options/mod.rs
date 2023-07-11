@@ -535,7 +535,7 @@ impl ModuleOptionsVc {
                                 glob: GlobVc::new(glob).await?,
                             }
                         },
-                        ModuleRuleCondition::not(ModuleRuleCondition::ResourceIsVirtualAsset),
+                        ModuleRuleCondition::not(ModuleRuleCondition::ResourceIsVirtualSource),
                     ]),
                     vec![
                         // By default, loaders are expected to return ecmascript code.

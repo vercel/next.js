@@ -3,6 +3,7 @@ use swc_core::ecma::ast::Lit;
 use turbo_tasks::{primitives::StringVc, Value, ValueToString, ValueToStringVc};
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
+    file_source::FileSourceVc,
     ident::AssetIdentVc,
     reference::{AssetReference, AssetReferenceVc, AssetReferencesVc},
     reference_type::{CommonJsReferenceSubType, ReferenceType},
@@ -11,7 +12,7 @@ use turbopack_core::{
         parse::RequestVc,
         resolve, ResolveResult, ResolveResultVc,
     },
-    source_asset::SourceAssetVc,
+    source::{asset_to_source, SourceVc},
 };
 
 use self::{
@@ -31,7 +32,7 @@ fn modifier() -> StringVc {
 
 #[turbo_tasks::value]
 pub struct WebpackModuleAsset {
-    pub source: AssetVc,
+    pub source: SourceVc,
     pub runtime: WebpackRuntimeVc,
     pub transforms: EcmascriptInputTransformsVc,
 }
@@ -40,7 +41,7 @@ pub struct WebpackModuleAsset {
 impl WebpackModuleAssetVc {
     #[turbo_tasks::function]
     pub fn new(
-        source: AssetVc,
+        source: SourceVc,
         runtime: WebpackRuntimeVc,
         transforms: EcmascriptInputTransformsVc,
     ) -> Self {
@@ -95,7 +96,7 @@ impl AssetReference for WebpackChunkAssetReference {
                     _ => todo!(),
                 };
                 let filename = format!("./chunks/{}.js", chunk_id);
-                let source = SourceAssetVc::new(context_path.join(&filename)).into();
+                let source = FileSourceVc::new(context_path.join(&filename)).into();
 
                 ResolveResult::asset(
                     WebpackModuleAssetVc::new(source, self.runtime, self.transforms).into(),
@@ -122,7 +123,7 @@ impl ValueToString for WebpackChunkAssetReference {
 
 #[turbo_tasks::value(shared)]
 pub struct WebpackEntryAssetReference {
-    pub source: AssetVc,
+    pub source: SourceVc,
     pub runtime: WebpackRuntimeVc,
     pub transforms: EcmascriptInputTransformsVc,
 }
@@ -173,7 +174,12 @@ impl AssetReference for WebpackRuntimeAssetReference {
             .await?
             .map(
                 |source| async move {
-                    Ok(WebpackModuleAssetVc::new(source, self.runtime, self.transforms).into())
+                    Ok(WebpackModuleAssetVc::new(
+                        asset_to_source(source),
+                        self.runtime,
+                        self.transforms,
+                    )
+                    .into())
                 },
                 |r| async move { Ok(r) },
             )

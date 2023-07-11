@@ -5,25 +5,29 @@ use crate::{
     asset::{Asset, AssetContent, AssetContentVc, AssetVc},
     ident::AssetIdentVc,
     reference::AssetReferencesVc,
+    source::{Source, SourceVc},
 };
 
 /// The raw [Asset]. It represents raw content from a path without any
 /// references to other [Asset]s.
 #[turbo_tasks::value]
-pub struct SourceAsset {
+pub struct FileSource {
     pub path: FileSystemPathVc,
 }
 
 #[turbo_tasks::value_impl]
-impl SourceAssetVc {
+impl FileSourceVc {
     #[turbo_tasks::function]
     pub fn new(path: FileSystemPathVc) -> Self {
-        Self::cell(SourceAsset { path })
+        Self::cell(FileSource { path })
     }
 }
 
 #[turbo_tasks::value_impl]
-impl Asset for SourceAsset {
+impl Source for FileSource {}
+
+#[turbo_tasks::value_impl]
+impl Asset for FileSource {
     #[turbo_tasks::function]
     fn ident(&self) -> AssetIdentVc {
         AssetIdentVc::from_path(self.path)

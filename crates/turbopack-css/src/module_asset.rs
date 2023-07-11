@@ -25,6 +25,7 @@ use turbopack_core::{
         origin::{ResolveOrigin, ResolveOriginVc},
         parse::RequestVc,
     },
+    source::SourceVc,
 };
 use turbopack_ecmascript::{
     chunk::{
@@ -49,14 +50,14 @@ fn modifier() -> StringVc {
 #[turbo_tasks::value]
 #[derive(Clone)]
 pub struct ModuleCssAsset {
-    pub source: AssetVc,
+    pub source: SourceVc,
     pub context: AssetContextVc,
 }
 
 #[turbo_tasks::value_impl]
 impl ModuleCssAssetVc {
     #[turbo_tasks::function]
-    pub async fn new(source: AssetVc, context: AssetContextVc) -> Result<Self> {
+    pub async fn new(source: SourceVc, context: AssetContextVc) -> Result<Self> {
         Ok(Self::cell(ModuleCssAsset { source, context }))
     }
 }

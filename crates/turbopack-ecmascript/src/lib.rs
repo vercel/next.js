@@ -71,6 +71,7 @@ use turbopack_core::{
         parse::RequestVc,
         ModulePartVc,
     },
+    source::SourceVc,
 };
 
 pub use self::references::AnalyzeEcmascriptModuleResultVc;
@@ -140,7 +141,7 @@ struct MemoizedSuccessfulAnalysis {
 }
 
 pub struct EcmascriptModuleAssetBuilder {
-    source: AssetVc,
+    source: SourceVc,
     context: AssetContextVc,
     ty: EcmascriptModuleAssetType,
     transforms: EcmascriptInputTransformsVc,
@@ -197,7 +198,7 @@ impl EcmascriptModuleAssetBuilder {
 
 #[turbo_tasks::value]
 pub struct EcmascriptModuleAsset {
-    pub source: AssetVc,
+    pub source: SourceVc,
     pub context: AssetContextVc,
     pub ty: EcmascriptModuleAssetType,
     pub transforms: EcmascriptInputTransformsVc,
@@ -215,7 +216,7 @@ pub struct OptionEcmascriptModuleAsset(Option<EcmascriptModuleAssetVc>);
 
 impl EcmascriptModuleAssetVc {
     pub fn builder(
-        source: AssetVc,
+        source: SourceVc,
         context: AssetContextVc,
         transforms: EcmascriptInputTransformsVc,
         options: EcmascriptOptions,
@@ -238,7 +239,7 @@ impl EcmascriptModuleAssetVc {
 impl EcmascriptModuleAssetVc {
     #[turbo_tasks::function]
     pub fn new(
-        source: AssetVc,
+        source: SourceVc,
         context: AssetContextVc,
         ty: Value<EcmascriptModuleAssetType>,
         transforms: EcmascriptInputTransformsVc,
@@ -259,7 +260,7 @@ impl EcmascriptModuleAssetVc {
 
     #[turbo_tasks::function]
     pub fn new_with_inner_assets(
-        source: AssetVc,
+        source: SourceVc,
         context: AssetContextVc,
         ty: Value<EcmascriptModuleAssetType>,
         transforms: EcmascriptInputTransformsVc,

@@ -4,6 +4,7 @@ use turbo_tasks_fs::FileContent;
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
     ident::AssetIdentVc,
+    source::{Source, SourceVc},
 };
 
 use crate::utils::StringifyJs;
@@ -16,20 +17,23 @@ fn modifier() -> StringVc {
 /// A source asset that exports the string content of an asset as the default
 /// export of a JS module.
 #[turbo_tasks::value]
-pub struct TextContentSourceAsset {
-    pub source: AssetVc,
+pub struct TextContentFileSource {
+    pub source: SourceVc,
 }
 
 #[turbo_tasks::value_impl]
-impl TextContentSourceAssetVc {
+impl TextContentFileSourceVc {
     #[turbo_tasks::function]
-    pub fn new(source: AssetVc) -> Self {
-        TextContentSourceAsset { source }.cell()
+    pub fn new(source: SourceVc) -> Self {
+        TextContentFileSource { source }.cell()
     }
 }
 
 #[turbo_tasks::value_impl]
-impl Asset for TextContentSourceAsset {
+impl Source for TextContentFileSource {}
+
+#[turbo_tasks::value_impl]
+impl Asset for TextContentFileSource {
     #[turbo_tasks::function]
     fn ident(&self) -> AssetIdentVc {
         self.source

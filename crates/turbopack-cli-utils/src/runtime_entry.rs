@@ -2,11 +2,12 @@ use anyhow::{bail, Result};
 use turbo_tasks::ValueToString;
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
-    asset::{Asset, AssetVc},
+    asset::Asset,
     chunk::{EvaluatableAssetVc, EvaluatableAssetsVc},
     context::AssetContextVc,
     issue::{IssueSeverity, OptionIssueSourceVc},
     resolve::{origin::PlainResolveOriginVc, parse::RequestVc},
+    source::SourceVc,
 };
 use turbopack_ecmascript::resolve::cjs_resolve;
 
@@ -14,7 +15,7 @@ use turbopack_ecmascript::resolve::cjs_resolve;
 pub enum RuntimeEntry {
     Request(RequestVc, FileSystemPathVc),
     Evaluatable(EvaluatableAssetVc),
-    Source(AssetVc),
+    Source(SourceVc),
 }
 
 #[turbo_tasks::value_impl]
@@ -24,7 +25,7 @@ impl RuntimeEntryVc {
         let (request, path) = match *self.await? {
             RuntimeEntry::Evaluatable(e) => return Ok(EvaluatableAssetsVc::one(e)),
             RuntimeEntry::Source(source) => {
-                return Ok(EvaluatableAssetsVc::one(EvaluatableAssetVc::from_asset(
+                return Ok(EvaluatableAssetsVc::one(EvaluatableAssetVc::from_source(
                     source, context,
                 )));
             }
