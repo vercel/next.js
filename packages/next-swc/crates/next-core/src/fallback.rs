@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use anyhow::{bail, Result};
-use turbo_tasks::Value;
+use turbo_tasks::{primitives::OptionStringVc, Value};
 use turbopack_binding::{
     turbo::{tasks_env::ProcessEnvVc, tasks_fs::FileSystemPathVc},
     turbopack::{
@@ -35,6 +35,7 @@ pub async fn get_fallback_page(
     project_path: FileSystemPathVc,
     execution_context: ExecutionContextVc,
     dev_server_root: FileSystemPathVc,
+    client_base_path: OptionStringVc,
     env: ProcessEnvVc,
     client_compile_time_info: CompileTimeInfoVc,
     next_config: NextConfigVc,
@@ -54,7 +55,9 @@ pub async fn get_fallback_page(
     let chunking_context = get_client_chunking_context(
         project_path,
         dev_server_root,
+        client_base_path,
         client_compile_time_info.environment(),
+        mode,
     );
     let entries =
         get_client_runtime_entries(project_path, env, ty, mode, next_config, execution_context);
@@ -95,7 +98,7 @@ pub async fn get_fallback_page(
         dev_server_root.join("fallback.html"),
         vec![(
             module.into(),
-            chunking_context,
+            chunking_context.into(),
             Some(runtime_entries.with_entry(module.into())),
         )],
     ))

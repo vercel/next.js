@@ -74,6 +74,7 @@ async-compression = { version = "0.3.13", default-features = false, features = [
   "gzip",
   "tokio",
 ] }
+async-recursion = "1.0.2"
 async-trait = "0.1.64"
 atty = "0.2.14"
 chrono = "0.4.23"

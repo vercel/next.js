@@ -2,7 +2,10 @@ use std::io::Write;
 
 use anyhow::{bail, Result};
 use indexmap::indexmap;
-use turbo_tasks::{primitives::StringVc, TryJoinIterExt, Value};
+use turbo_tasks::{
+    primitives::{OptionStringVc, StringVc},
+    TryJoinIterExt, Value,
+};
 use turbopack_binding::{
     turbo::tasks_fs::{rope::RopeBuilder, File, FileContent, FileSystemPathVc},
     turbopack::{
@@ -30,6 +33,7 @@ use crate::{embed_js::next_js_file_path, util::get_asset_path_from_pathname};
 #[turbo_tasks::function]
 pub async fn create_page_loader(
     server_root: FileSystemPathVc,
+    client_base_path: OptionStringVc,
     client_context: AssetContextVc,
     client_chunking_context: ChunkingContextVc,
     entry_asset: SourceVc,
@@ -44,7 +48,7 @@ pub async fn create_page_loader(
     }
     .cell();
 
-    Ok(AssetGraphContentSourceVc::new_lazy(server_root, asset.into()).into())
+    Ok(AssetGraphContentSourceVc::new_lazy(server_root, client_base_path, asset.into()).into())
 }
 
 #[turbo_tasks::value(shared)]
@@ -57,7 +61,7 @@ pub struct PageLoaderAsset {
 }
 
 #[turbo_tasks::function]
-pub async fn create_page_loader_entry_asset(
+pub async fn create_page_loader_entry_module(
     client_context: AssetContextVc,
     entry_asset: SourceVc,
     pathname: StringVc,
@@ -99,7 +103,7 @@ impl PageLoaderAssetVc {
         let this = &*self.await?;
 
         let page_loader_entry_asset =
-            create_page_loader_entry_asset(this.client_context, this.entry_asset, this.pathname);
+            create_page_loader_entry_module(this.client_context, this.entry_asset, this.pathname);
 
         let Some(module) = EvaluatableAssetVc::resolve_from(page_loader_entry_asset).await? else {
             bail!("internal module must be evaluatable");
@@ -131,7 +135,7 @@ impl Asset for PageLoaderAsset {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<AssetIdentVc> {
         Ok(AssetIdentVc::from_path(self.server_root.join(&format!(
-            "_next/static/chunks/pages{}",
+            "static/chunks/pages{}",
             get_asset_path_from_pathname(&self.pathname.await?, ".js")
         ))))
     }

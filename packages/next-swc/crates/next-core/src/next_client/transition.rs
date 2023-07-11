@@ -91,7 +91,7 @@ impl Transition for NextClientTransition {
             module: asset.into(),
             // This ensures that the chunk group files asset will strip out the _next prefix from
             // all chunk paths, which is what the Next.js renderer code expects.
-            client_root: self.client_chunking_context.output_root().join("_next"),
+            client_root: self.client_chunking_context.output_root(),
             chunking_context: self.client_chunking_context,
             runtime_entries: Some(runtime_entries),
         };
