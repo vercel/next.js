@@ -1,8 +1,6 @@
 import { existsSync } from 'fs'
 import { basename, extname, join, relative, isAbsolute, resolve } from 'path'
 import { pathToFileURL } from 'url'
-import { Agent as HttpAgent } from 'http'
-import { Agent as HttpsAgent } from 'https'
 import findUp from 'next/dist/compiled/find-up'
 import chalk from '../lib/chalk'
 import * as Log from '../build/output/log'
@@ -21,6 +19,7 @@ import { ImageConfig, imageConfigDefault } from '../shared/lib/image-config'
 import { loadEnvConfig, updateInitialEnv } from '@next/env'
 import { flushAndExit } from '../telemetry/flush-and-exit'
 import { findRootDir } from '../lib/find-root'
+import { setHttpClientAndAgentOptions } from './setup-http-agent-env'
 
 export { DomainLocale, NextConfig, normalizeConfig } from './config-shared'
 
@@ -42,28 +41,6 @@ const experimentalWarning = execOnce(
     console.warn()
   }
 )
-
-export function setHttpClientAndAgentOptions(config: {
-  httpAgentOptions?: NextConfig['httpAgentOptions']
-}) {
-  if ((globalThis as any).__NEXT_HTTP_AGENT) {
-    // We only need to assign once because we want
-    // to reuse the same agent for all requests.
-    return
-  }
-
-  if (!config) {
-    throw new Error('Expected config.httpAgentOptions to be an object')
-  }
-
-  ;(globalThis as any).__NEXT_HTTP_AGENT_OPTIONS = config.httpAgentOptions
-  ;(globalThis as any).__NEXT_HTTP_AGENT = new HttpAgent(
-    config.httpAgentOptions
-  )
-  ;(globalThis as any).__NEXT_HTTPS_AGENT = new HttpsAgent(
-    config.httpAgentOptions
-  )
-}
 
 export function warnOptionHasBeenMovedOutOfExperimental(
   config: NextConfig,
