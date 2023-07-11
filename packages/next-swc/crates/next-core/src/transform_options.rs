@@ -3,9 +3,9 @@ use turbopack_binding::{
     turbo::tasks_fs::{FileJsonContentVc, FileSystemPathVc},
     turbopack::{
         core::{
-            asset::AssetVc,
+            file_source::FileSourceVc,
             resolve::{find_context_file, node::node_cjs_resolve_options, FindContextFileResult},
-            source_asset::SourceAssetVc,
+            source::SourceVc,
         },
         dev::react_refresh::assert_can_resolve_react_refresh,
         ecmascript::typescript::resolve::{read_from_tsconfigs, read_tsconfigs, tsconfig},
@@ -23,13 +23,13 @@ use crate::mode::NextMode;
 
 async fn get_typescript_options(
     project_path: FileSystemPathVc,
-) -> Option<Vec<(FileJsonContentVc, AssetVc)>> {
+) -> Option<Vec<(FileJsonContentVc, SourceVc)>> {
     let tsconfig = find_context_file(project_path, tsconfig());
     match *tsconfig.await.ok()? {
         FindContextFileResult::Found(path, _) => Some(
             read_tsconfigs(
                 path.read(),
-                SourceAssetVc::new(path).into(),
+                FileSourceVc::new(path).into(),
                 node_cjs_resolve_options(path.root()),
             )
             .await

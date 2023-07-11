@@ -13,13 +13,13 @@ use turbopack_binding::turbopack::{
     core::{
         asset::{Asset, AssetVc},
         context::{AssetContext, AssetContextVc},
+        file_source::FileSourceVc,
         ident::AssetIdentVc,
         issue::{
             Issue, IssueSeverity, IssueSeverityVc, IssueSourceVc, IssueVc, OptionIssueSourceVc,
         },
         module::ModuleVc,
         reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
-        source_asset::SourceAssetVc,
     },
     ecmascript::{
         analyzer::{graph::EvalContext, ConstantNumber, ConstantValue, JsValue},
@@ -392,7 +392,7 @@ pub async fn parse_segment_config_from_loader_tree(
     {
         config.apply_parent_config(
             &*parse_segment_config_from_source(context.process(
-                SourceAssetVc::new(component).into(),
+                FileSourceVc::new(component).into(),
                 turbo_tasks::Value::new(ReferenceType::EcmaScriptModules(
                     EcmaScriptModulesReferenceSubType::Undefined,
                 )),
