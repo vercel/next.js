@@ -87,7 +87,7 @@ async function create(data) {
 
 > **Good to know**: You can only delete cookies in a [Server Action](/docs/app/building-your-application/data-fetching/server-actions) or [Route Handler](/docs/app/building-your-application/routing/router-handlers).
 
-There are several options for deleting a cookie. You can only delete cookies that belong to the same domain from which `.set()` is called. Additionally, the code must be executed on the same protocol (HTTP or HTTPS) as the cookie you want to delete.
+There are several options for deleting a cookie:
 
 ### `cookies().delete(name)`
 
@@ -104,6 +104,8 @@ async function create(data) {
 ```
 
 ### `cookies().set(name, '')`
+
+Alternatively, you can set a new cookie with the same name and an empty value.
 
 ```js filename="app/actions.js"
 'use server'
@@ -144,6 +146,7 @@ async function create(data) {
 }
 ```
 
+> **Good to know**: You can only delete cookies that belong to the same domain from which `.set()` is called. Additionally, the code must be executed on the same protocol (HTTP or HTTPS) as the cookie you want to delete.
 ## Version History
 
 | Version   | Changes               |
