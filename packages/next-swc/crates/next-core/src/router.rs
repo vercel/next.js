@@ -20,13 +20,13 @@ use turbopack_binding::{
             chunk::ChunkingContext,
             context::{AssetContext, AssetContextVc},
             environment::{ServerAddrVc, ServerInfo},
+            file_source::FileSourceVc,
             ident::AssetIdentVc,
             issue::IssueVc,
             module::ModuleVc,
             reference_type::{EcmaScriptModulesReferenceSubType, InnerAssetsVc, ReferenceType},
             resolve::{find_context_file, FindContextFileResult},
-            source_asset::SourceAssetVc,
-            virtual_asset::VirtualAssetVc,
+            virtual_source::VirtualSourceVc,
         },
         dev::DevChunkingContextVc,
         node::{
@@ -146,7 +146,7 @@ async fn next_config_changed(
     Ok(match *find_config_result.await? {
         FindContextFileResult::Found(config_path, _) => {
             let module = context.process(
-                SourceAssetVc::new(config_path).as_asset(),
+                FileSourceVc::new(config_path).into(),
                 Value::new(ReferenceType::Internal(InnerAssetsVc::empty())),
             );
             any_content_changed(module.into())
@@ -170,14 +170,14 @@ async fn config_assets(
     let (manifest, config) = match *find_config_result.await? {
         FindContextFileResult::Found(config_path, _) => {
             let config = context.process(
-                SourceAssetVc::new(config_path).into(),
+                FileSourceVc::new(config_path).into(),
                 Value::new(ReferenceType::EcmaScriptModules(
                     EcmaScriptModulesReferenceSubType::Undefined,
                 )),
             );
             let config = parse_config_from_source(config);
             let manifest = context.with_transition("next-edge").process(
-                SourceAssetVc::new(config_path).into(),
+                FileSourceVc::new(config_path).into(),
                 Value::new(ReferenceType::EcmaScriptModules(
                     EcmaScriptModulesReferenceSubType::Undefined,
                 )),
@@ -186,11 +186,11 @@ async fn config_assets(
         }
         FindContextFileResult::NotFound(_) => {
             let manifest = context.process(
-                VirtualAssetVc::new(
+                VirtualSourceVc::new(
                     project_path.join("middleware.js"),
                     File::from("export default [];").into(),
                 )
-                .as_asset(),
+                .into(),
                 Value::new(ReferenceType::Internal(InnerAssetsVc::empty())),
             );
             let config = NextSourceConfigVc::default();
@@ -199,7 +199,7 @@ async fn config_assets(
     };
 
     let config_asset = context.process(
-        VirtualAssetVc::new(
+        VirtualSourceVc::new(
             project_path.join("middleware_config.js"),
             File::from(format!(
                 "export default {};",
@@ -207,7 +207,7 @@ async fn config_assets(
             ))
             .into(),
         )
-        .as_asset(),
+        .into(),
         Value::new(ReferenceType::Internal(InnerAssetsVc::empty())),
     );
 
