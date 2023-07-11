@@ -100,12 +100,6 @@ export class ErrorBoundaryHandler extends React.Component<
   }
 }
 
-// export type GlobalErrorProps = { error: any }
-
-// export function AppGlobalError({ errorComponent: GlobalErrorComponent, error }: { errorComponent: React.ComponentType<GlobalErrorProps>, error: any }) {
-//   return <GlobalErrorComponent error={error} />
-// }
-
 export function GlobalError({ error }: GlobalErrorProps) {
   const digest: string | undefined = error?.digest
   return (
