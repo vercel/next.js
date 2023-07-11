@@ -2387,6 +2387,18 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
     try {
       for await (const match of this.matchers.matchAll(pathname, options)) {
+        // when a specific invoke-output is meant to be matched
+        // ensure a prior dynamic route/page doesn't take priority
+        const invokeOutput = ctx.req.headers['x-invoke-output']
+        if (
+          this.isRenderWorker &&
+          typeof invokeOutput === 'string' &&
+          isDynamicRoute(invokeOutput || '') &&
+          invokeOutput !== match.definition.pathname
+        ) {
+          continue
+        }
+
         const result = await this.renderPageComponent(
           {
             ...ctx,

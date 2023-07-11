@@ -633,9 +633,9 @@ describe('should set-up next', () => {
     expect(await res.text()).toBe('Internal Server Error')
     await check(
       () =>
-        errors[0].includes('some error from /api/error')
+        errors.join('\n').includes('some error from /api/error')
           ? 'success'
-          : errors[0],
+          : errors.join('\n'),
       'success'
     )
   })

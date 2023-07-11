@@ -3,6 +3,7 @@ import type { NextConfigComplete } from '../../config-shared'
 import fs from 'fs'
 import url from 'url'
 import path from 'path'
+import qs from 'querystring'
 import Watchpack from 'watchpack'
 import { loadEnvConfig } from '@next/env'
 import findUp from 'next/dist/compiled/find-up'
@@ -90,6 +91,7 @@ async function verifyTypeScript(opts: SetupOpts) {
 
 async function startWatcher(opts: SetupOpts) {
   const { nextConfig, appDir, pagesDir, dir } = opts
+  const { useFileSystemPublicRoutes } = nextConfig
   const usingTypeScript = await verifyTypeScript(opts)
 
   if (opts.nextConfig.experimental.nextScriptWorkers) {
@@ -382,16 +384,21 @@ async function startWatcher(opts: SetupOpts) {
             appPaths[pageName] = []
           }
           appPaths[pageName].push(originalPageName)
-          appFiles.add(pageName)
+
+          if (useFileSystemPublicRoutes) {
+            appFiles.add(pageName)
+          }
 
           if (routedPages.includes(pageName)) {
             continue
           }
         } else {
-          pageFiles.add(pageName)
-          // always add to nextDataRoutes for now but in future only add
-          // entries that actually use getStaticProps/getServerSideProps
-          opts.fsChecker.nextDataRoutes.add(pageName)
+          if (useFileSystemPublicRoutes) {
+            pageFiles.add(pageName)
+            // always add to nextDataRoutes for now but in future only add
+            // entries that actually use getStaticProps/getServerSideProps
+            opts.fsChecker.nextDataRoutes.add(pageName)
+          }
         }
         ;(isAppPath ? appPageFilePaths : pagesPageFilePaths).set(
           pageName,
@@ -594,16 +601,43 @@ async function startWatcher(opts: SetupOpts) {
       await propagateToWorkers('middleware', serverFields.middleware)
       serverFields.hasAppNotFound = hasRootAppNotFound
 
-      opts.fsChecker.interceptionRoutes = generateInterceptionRoutesRewrites(
-        Object.keys(appPaths)
-      )?.map((item) =>
-        buildCustomRoute(
-          'before_files_rewrite',
-          item,
-          opts.nextConfig.basePath,
-          opts.nextConfig.experimental.caseSensitiveRoutes
+      opts.fsChecker.interceptionRoutes =
+        generateInterceptionRoutesRewrites(Object.keys(appPaths))?.map((item) =>
+          buildCustomRoute(
+            'before_files_rewrite',
+            item,
+            opts.nextConfig.basePath,
+            opts.nextConfig.experimental.caseSensitiveRoutes
+          )
+        ) || []
+
+      const exportPathMap =
+        (await nextConfig.exportPathMap?.(
+          {},
+          {
+            dev: true,
+            dir: opts.dir,
+            outDir: null,
+            distDir: distDir,
+            buildId: 'development',
+          }
+        )) || {}
+
+      for (const [key, value] of Object.entries(exportPathMap)) {
+        opts.fsChecker.interceptionRoutes.push(
+          buildCustomRoute(
+            'before_files_rewrite',
+            {
+              source: key,
+              destination: `${value.page}${
+                value.query ? '?' : ''
+              }${qs.stringify(value.query)}`,
+            },
+            opts.nextConfig.basePath,
+            opts.nextConfig.experimental.caseSensitiveRoutes
+          )
         )
-      )
+      }
 
       try {
         // we serve a separate manifest with all pages for the client in

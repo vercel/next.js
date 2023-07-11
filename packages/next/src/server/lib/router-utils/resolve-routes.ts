@@ -105,6 +105,7 @@ export function getResolveRoutes(
     let resHeaders: Record<string, string | string[]> = {}
     let matchedOutput: FsOutput | null = null
     let parsedUrl = url.parse(req.url || '', true) as NextUrlWithParsedQuery
+    let didRewrite = false
 
     const urlParts = (req.url || '').split('?')
     const urlNoQuery = urlParts[0]
@@ -202,7 +203,13 @@ export function getResolveRoutes(
       const output = await fsChecker.getItem(parsedUrl.pathname || '')
 
       if (output) {
-        return output
+        if (
+          config.useFileSystemPublicRoutes ||
+          didRewrite ||
+          (output.type !== 'appFile' && output.type !== 'pageFile')
+        ) {
+          return output
+        }
       }
       const dynamicRoutes = fsChecker.getDynamicRoutes()
       let curPathname = parsedUrl.pathname
@@ -221,13 +228,12 @@ export function getResolveRoutes(
         // which signals we need to continue resolving.
         // TODO: optimize this to collect static paths
         // to use at the routing layer
-        if (matchedDynamicRoutes.has(route.regex)) {
+        if (matchedDynamicRoutes.has(route.page)) {
           continue
         }
         const params = route.match(localeResult.pathname)
 
         if (params) {
-          matchedDynamicRoutes.add(route.regex)
           const pageOutput = await fsChecker.getItem(
             addPathPrefix(route.page, config.basePath || '')
           )
@@ -243,7 +249,11 @@ export function getResolveRoutes(
           if (pageOutput && curPathname?.startsWith('/_next/data')) {
             parsedUrl.query.__nextDataReq = '1'
           }
-          return pageOutput
+          matchedDynamicRoutes.add(route.page)
+
+          if (config.useFileSystemPublicRoutes || didRewrite) {
+            return pageOutput
+          }
         }
       }
     }
@@ -349,16 +359,22 @@ export function getResolveRoutes(
               pathHasPrefix(parsedUrl.pathname || '', '/api')
             )
           ) {
-            matchedOutput = output
+            if (
+              config.useFileSystemPublicRoutes ||
+              didRewrite ||
+              (output.type !== 'appFile' && output.type !== 'pageFile')
+            ) {
+              matchedOutput = output
 
-            if (output.locale) {
-              parsedUrl.query.__nextLocale = output.locale
-            }
-            return {
-              parsedUrl,
-              resHeaders,
-              finished: true,
-              matchedOutput,
+              if (output.locale) {
+                parsedUrl.query.__nextLocale = output.locale
+              }
+              return {
+                parsedUrl,
+                resHeaders,
+                finished: true,
+                matchedOutput,
+              }
             }
           }
         }
@@ -397,6 +413,7 @@ export function getResolveRoutes(
               ...req.headers,
               'x-invoke-path': '',
               'x-invoke-query': '',
+              'x-invoke-output': '',
               'x-middleware-invoke': '1',
             }
 
@@ -623,6 +640,7 @@ export function getResolveRoutes(
               parsedUrl.query.__nextLocale = curLocaleResult.detectedLocale
             }
           }
+          didRewrite = true
           parsedUrl.pathname = parsedDestination.pathname
           Object.assign(parsedUrl.query, parsedDestination.query)
         }

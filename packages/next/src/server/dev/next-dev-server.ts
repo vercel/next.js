@@ -245,54 +245,6 @@ export default class DevServer extends Server {
     return 'development'
   }
 
-  async addExportPathMapRoutes() {
-    // Makes `next export` exportPathMap work in development mode.
-    // So that the user doesn't have to define a custom server reading the exportPathMap
-    if (this.nextConfig.exportPathMap) {
-      Log.info('Defining routes from exportPathMap')
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const exportPathMap = await this.nextConfig.exportPathMap(
-        {},
-        {
-          dev: true,
-          dir: this.dir,
-          outDir: null,
-          distDir: this.distDir,
-          buildId: this.buildId,
-        }
-      )
-
-      // In development we can't give a default path mapping
-      // for (const path in exportPathMap) {
-      // const { page, query = {} } = exportPathMap[path]
-
-      // this.router.addFsRoute({
-      //   match: getPathMatch(path),
-      //   type: 'route',
-      //   name: `${path} exportpathmap route`,
-      //   fn: async (req, res, _params, parsedUrl) => {
-      //     const { query: urlQuery } = parsedUrl
-
-      //     Object.keys(urlQuery)
-      //       .filter((key) => query[key] === undefined)
-      //       .forEach((key) =>
-      //         Log.warn(
-      //           `Url '${path}' defines a query parameter '${key}' that is missing in exportPathMap`
-      //         )
-      //       )
-
-      //     const mergedQuery = { ...urlQuery, ...query }
-
-      //     await this.render(req, res, page, mergedQuery, parsedUrl, true)
-      //     return {
-      //       finished: true,
-      //     }
-      //   },
-      // })
-      // }
-    }
-  }
-
   async stopWatcher(): Promise<void> {
     if (!this.webpackWatcher) {
       return
@@ -309,7 +261,6 @@ export default class DevServer extends Server {
     const telemetry = new Telemetry({ distDir: this.distDir })
 
     await super.prepareImpl()
-    await this.addExportPathMapRoutes()
     await this.runInstrumentationHookIfAvailable()
     await this.matchers.reload()
     this.setDevReady!()

@@ -289,7 +289,8 @@ export async function initialize(opts: {
       type: keyof typeof renderWorkers,
       handleIndex: number,
       invokePath: string,
-      invokeStatus?: string
+      invokeStatus?: string,
+      invokeOutput?: string
     ) {
       // invokeRender expects /api routes to not be locale prefixed
       // so normalize here before continuing
@@ -330,6 +331,7 @@ export async function initialize(opts: {
         ...req.headers,
         'x-middleware-invoke': '',
         'x-invoke-path': invokePath,
+        'x-invoke-output': invokeOutput,
         'x-invoke-query': encodeURIComponent(JSON.stringify(parsedUrl.query)),
         ...(invokeStatus
           ? {
@@ -594,7 +596,9 @@ export async function initialize(opts: {
           parsedUrl,
           matchedOutput.type === 'appFile' ? 'app' : 'pages',
           handleIndex,
-          parsedUrl.pathname || '/'
+          parsedUrl.pathname || '/',
+          undefined,
+          matchedOutput.itemPath
         )
       }
 
