@@ -2783,6 +2783,14 @@ export default async function getBaseWebpackConfig(
     isDevFallback ? '-fallback' : ''
   }`
 
+  if (dev) {
+    if (webpackConfig.module) {
+      webpackConfig.module.unsafeCache = true
+    } else {
+      webpackConfig.module = { unsafeCache: true }
+    }
+  }
+
   let originalDevtool = webpackConfig.devtool
   if (typeof config.webpack === 'function') {
     webpackConfig = config.webpack(webpackConfig, {
@@ -2895,10 +2903,6 @@ export default async function getBaseWebpackConfig(
           innerRules.push(rule)
         }
       }
-    }
-
-    if (dev) {
-      webpackConfig.module.unsafeCache = true
     }
 
     webpackConfig.module.rules = [
