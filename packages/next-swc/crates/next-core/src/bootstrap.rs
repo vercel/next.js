@@ -254,9 +254,7 @@ mod tests {
             "/@replace%40with@at"
         );
         assert_eq!(
-            normalize_app_page_to_pathname(
-                "/replace%40with@at/%40replace%40with@at"
-            ),
+            normalize_app_page_to_pathname("/replace%40with@at/%40replace%40with@at"),
             "/replace%40with@at/@replace%40with@at"
         );
     }
