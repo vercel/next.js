@@ -6,3 +6,5 @@ export default function Layout({ children }) {
     </html>
   )
 }
+
+export const revalidate = 0
