@@ -4,8 +4,8 @@ use turbopack_binding::{
     turbo::tasks_fs::FileSystemPathVc,
     turbopack::{
         core::{
-            asset::AssetVc, chunk::ChunkingContextVc, compile_time_info::CompileTimeInfoVc,
-            module::ModuleVc,
+            chunk::ChunkingContextVc, compile_time_info::CompileTimeInfoVc, module::ModuleVc,
+            source::SourceVc,
         },
         ecmascript::chunk_group_files_asset::ChunkGroupFilesAsset,
         turbopack::{
@@ -27,7 +27,7 @@ pub struct NextEdgeRouteTransition {
     pub edge_resolve_options_context: ResolveOptionsContextVc,
     pub output_path: FileSystemPathVc,
     pub base_path: FileSystemPathVc,
-    pub bootstrap_asset: AssetVc,
+    pub bootstrap_asset: SourceVc,
     pub entry_name: String,
 }
 

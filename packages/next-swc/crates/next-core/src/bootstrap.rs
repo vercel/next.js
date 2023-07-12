@@ -10,7 +10,8 @@ use turbopack_binding::turbopack::{
         issue::{IssueSeverity, OptionIssueSourceVc},
         reference_type::{EcmaScriptModulesReferenceSubType, InnerAssetsVc, ReferenceType},
         resolve::parse::RequestVc,
-        virtual_asset::VirtualAssetVc,
+        source::SourceVc,
+        virtual_source::VirtualSourceVc,
     },
     ecmascript::{resolve::esm_resolve, utils::StringifyJs, EcmascriptModuleAssetVc},
 };
@@ -20,7 +21,7 @@ pub async fn route_bootstrap(
     asset: AssetVc,
     context: AssetContextVc,
     base_path: FileSystemPathVc,
-    bootstrap_asset: AssetVc,
+    bootstrap_asset: SourceVc,
     config: BootstrapConfigVc,
 ) -> Result<EvaluatableAssetVc> {
     let resolve_origin = if let Some(m) = EcmascriptModuleAssetVc::resolve_from(asset).await? {
@@ -75,7 +76,7 @@ pub async fn bootstrap(
     asset: AssetVc,
     context: AssetContextVc,
     base_path: FileSystemPathVc,
-    bootstrap_asset: AssetVc,
+    bootstrap_asset: SourceVc,
     inner_assets: InnerAssetsVc,
     config: BootstrapConfigVc,
 ) -> Result<EvaluatableAssetVc> {
@@ -105,7 +106,7 @@ pub async fn bootstrap(
     config.insert("KIND".to_string(), "APP_ROUTE".to_string());
 
     let config_asset = context.process(
-        VirtualAssetVc::new(
+        VirtualSourceVc::new(
             asset.ident().path().join("bootstrap-config.ts"),
             File::from(
                 config
@@ -116,7 +117,7 @@ pub async fn bootstrap(
             )
             .into(),
         )
-        .as_asset(),
+        .into(),
         Value::new(ReferenceType::Internal(InnerAssetsVc::empty())),
     );
 
