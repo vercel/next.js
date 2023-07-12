@@ -97,7 +97,7 @@ export type NEXT_DATA = {
   dynamicIds?: (string | number)[]
   err?: Error & {
     statusCode?: number
-    source?: typeof COMPILER_NAMES.server | typeof COMPILER_NAMES.edgeServer
+    source?: typeof COMPILER_NAMES.rsc | typeof COMPILER_NAMES.edgeServer
   }
   gsp?: boolean
   gssp?: boolean

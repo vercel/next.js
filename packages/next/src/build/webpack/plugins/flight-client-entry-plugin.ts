@@ -48,7 +48,7 @@ export type ActionManifest = {
       workers: {
         [name: string]: string | number
       }
-      // Record which layer the action is in (sc_server or sc_action), in the specific entry.
+      // Record which layer the action is in (rsc or sc_action), in the specific entry.
       layer: {
         [name: string]: string
       }
@@ -188,7 +188,7 @@ export class FlightClientEntryPlugin {
       const recordModule = (modId: string, mod: any) => {
         const modResource = mod.resourceResolveData?.path || mod.resource
 
-        if (mod.layer !== WEBPACK_LAYERS.client) {
+        if (mod.layer !== WEBPACK_LAYERS.ssr) {
           return
         }
 
@@ -462,7 +462,7 @@ export class FlightClientEntryPlugin {
         ([shouldInvalidate]) => shouldInvalidate === true
       )
     ) {
-      invalidator.invalidate([COMPILER_NAMES.client])
+      invalidator.invalidate([COMPILER_NAMES.ssr])
     }
 
     // Client compiler is invalidated before awaiting the compilation of the SSR client component entries
@@ -690,7 +690,7 @@ export class FlightClientEntryPlugin {
     // Inject the entry to the client compiler.
     if (this.dev) {
       const entries = getEntries(compiler.outputPath)
-      const pageKey = getEntryKey(COMPILER_NAMES.client, 'app', bundlePath)
+      const pageKey = getEntryKey(COMPILER_NAMES.ssr, 'app', bundlePath)
 
       if (!entries[pageKey]) {
         entries[pageKey] = {
@@ -720,7 +720,7 @@ export class FlightClientEntryPlugin {
       pluginState.injectedClientEntries[bundlePath] = clientLoader
     }
 
-    // Inject the entry to the server compiler (__sc_client__).
+    // Inject the entry to the server compiler (__ssr__).
     const clientComponentEntryDep = webpack.EntryPlugin.createDependency(
       clientSSRLoader,
       {
@@ -743,7 +743,7 @@ export class FlightClientEntryPlugin {
           name: entryName,
           // Layer should be client for the SSR modules
           // This ensures the client components are bundled on client layer
-          layer: WEBPACK_LAYERS.client,
+          layer: WEBPACK_LAYERS.ssr,
         }
       ),
       clientComponentEntryDep,
@@ -786,7 +786,7 @@ export class FlightClientEntryPlugin {
         currentCompilerServerActions[id].workers[bundlePath] = ''
         currentCompilerServerActions[id].layer[bundlePath] = fromClient
           ? WEBPACK_LAYERS.action
-          : WEBPACK_LAYERS.server
+          : WEBPACK_LAYERS.rsc
       }
     }
 
@@ -802,7 +802,7 @@ export class FlightClientEntryPlugin {
       actionEntryDep,
       {
         name: entryName,
-        layer: fromClient ? WEBPACK_LAYERS.action : WEBPACK_LAYERS.server,
+        layer: fromClient ? WEBPACK_LAYERS.action : WEBPACK_LAYERS.rsc,
       }
     )
   }

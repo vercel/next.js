@@ -112,8 +112,8 @@ const edgeConditionNames = [
 
 // packageJson.<mainField>
 const mainFieldsPerCompiler: Record<CompilerNameValues, string[]> = {
-  [COMPILER_NAMES.server]: ['main', 'module'],
-  [COMPILER_NAMES.client]: ['browser', 'module', 'main'],
+  [COMPILER_NAMES.rsc]: ['main', 'module'],
+  [COMPILER_NAMES.ssr]: ['browser', 'module', 'main'],
   [COMPILER_NAMES.edgeServer]: [
     'edge-light',
     'worker',
@@ -782,9 +782,9 @@ export default async function getBaseWebpackConfig(
     allowedRevalidateHeaderKeys?: string[]
   }
 ): Promise<webpack.Configuration> {
-  const isClient = compilerType === COMPILER_NAMES.client
+  const isClient = compilerType === COMPILER_NAMES.ssr
   const isEdgeServer = compilerType === COMPILER_NAMES.edgeServer
-  const isNodeServer = compilerType === COMPILER_NAMES.server
+  const isNodeServer = compilerType === COMPILER_NAMES.rsc
 
   const hasRewrites =
     rewrites.beforeFiles.length > 0 ||
@@ -1320,9 +1320,9 @@ export default async function getBaseWebpackConfig(
     }
 
     const isAppLayer = [
-      WEBPACK_LAYERS.server,
-      WEBPACK_LAYERS.client,
-      WEBPACK_LAYERS.appClient,
+      WEBPACK_LAYERS.rsc,
+      WEBPACK_LAYERS.ssr,
+      WEBPACK_LAYERS.appPages,
       WEBPACK_LAYERS.action,
     ].includes(layer!)
 
@@ -1340,7 +1340,7 @@ export default async function getBaseWebpackConfig(
     }
 
     // Special internal modules that must be bundled for Server Components.
-    if (layer === WEBPACK_LAYERS.server) {
+    if (layer === WEBPACK_LAYERS.rsc) {
       // React needs to be bundled for Server Components so the special
       // `react-server` export condition can be used.
       if (reactPackagesRegex.test(request)) {
@@ -1361,8 +1361,8 @@ export default async function getBaseWebpackConfig(
         // override react-dom to server-rendering-stub for server
         if (
           request === 'react-dom' &&
-          (layer === WEBPACK_LAYERS.client ||
-            layer === WEBPACK_LAYERS.server ||
+          (layer === WEBPACK_LAYERS.ssr ||
+            layer === WEBPACK_LAYERS.rsc ||
             layer === WEBPACK_LAYERS.action)
         ) {
           request = `next/dist/compiled/react-dom${bundledReactChannel}/server-rendering-stub`
@@ -1468,7 +1468,7 @@ export default async function getBaseWebpackConfig(
     // Early return if the request needs to be bundled, such as in the client layer.
     // Treat react packages and next internals as external for SSR layer,
     // also map react to builtin ones with require-hook.
-    if (layer === WEBPACK_LAYERS.client) {
+    if (layer === WEBPACK_LAYERS.ssr) {
       if (reactPackagesRegex.test(request)) {
         return `commonjs next/dist/compiled/${request.replace(
           /^(react-server-dom-webpack|react-dom|react)/,
@@ -1952,21 +1952,21 @@ export default async function getBaseWebpackConfig(
                 resourceQuery: new RegExp(
                   WEBPACK_RESOURCE_QUERIES.metadataRoute
                 ),
-                layer: WEBPACK_LAYERS.metadataRoute,
+                layer: WEBPACK_LAYERS.appMetadataRoute,
               },
               {
                 // Ensure that the app page module is in the client layers, this
                 // enables React to work correctly for RSC.
-                layer: WEBPACK_LAYERS.client,
+                layer: WEBPACK_LAYERS.ssr,
                 test: /next[\\/]dist[\\/](esm[\\/])?server[\\/]future[\\/]route-modules[\\/]app-page[\\/]module/,
               },
               {
                 // All app dir layers need to use this configured resolution logic
                 issuerLayer: {
                   or: [
-                    WEBPACK_LAYERS.server,
-                    WEBPACK_LAYERS.client,
-                    WEBPACK_LAYERS.appClient,
+                    WEBPACK_LAYERS.rsc,
+                    WEBPACK_LAYERS.ssr,
+                    WEBPACK_LAYERS.appPages,
                     WEBPACK_LAYERS.action,
                     WEBPACK_LAYERS.shared,
                   ],
@@ -2047,7 +2047,7 @@ export default async function getBaseWebpackConfig(
                 resourceQuery: new RegExp(
                   WEBPACK_RESOURCE_QUERIES.edgeSSREntry
                 ),
-                layer: WEBPACK_LAYERS.server,
+                layer: WEBPACK_LAYERS.rsc,
               },
             ]
           : []),
@@ -2085,7 +2085,7 @@ export default async function getBaseWebpackConfig(
                   },
                   {
                     test: codeCondition.test,
-                    issuerLayer: WEBPACK_LAYERS.client,
+                    issuerLayer: WEBPACK_LAYERS.ssr,
                     resolve: {
                       alias: createRSCAliases(bundledReactChannel, {
                         reactSharedSubset: false,
@@ -2099,7 +2099,7 @@ export default async function getBaseWebpackConfig(
               },
               {
                 test: codeCondition.test,
-                issuerLayer: WEBPACK_LAYERS.appClient,
+                issuerLayer: WEBPACK_LAYERS.appPages,
                 resolve: {
                   alias: createRSCAliases(bundledReactChannel, {
                     // Only alias server rendering stub in client SSR layer.
@@ -2148,7 +2148,7 @@ export default async function getBaseWebpackConfig(
                   {
                     ...codeCondition,
                     issuerLayer: {
-                      or: [WEBPACK_LAYERS.client, WEBPACK_LAYERS.appClient],
+                      or: [WEBPACK_LAYERS.ssr, WEBPACK_LAYERS.appPages],
                     },
                     exclude: [asyncStoragesRegex, codeCondition.exclude],
                     use: [
@@ -2323,7 +2323,7 @@ export default async function getBaseWebpackConfig(
         {
           test: /(node_modules|next[/\\]dist[/\\]compiled)[/\\]server-only[/\\]index.js/,
           loader: 'next-invalid-import-error-loader',
-          issuerLayer: WEBPACK_LAYERS.client,
+          issuerLayer: WEBPACK_LAYERS.ssr,
           options: {
             message:
               "'server-only' cannot be imported from a Client Component module. It should only be used from a Server Component.",

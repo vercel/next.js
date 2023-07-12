@@ -88,23 +88,23 @@ export const SERVER_RUNTIME: Record<string, ServerRuntime> = {
 
 const WEBPACK_LAYERS_NAMES = {
   shared: 'sc_shared',
-  server: 'sc_server',
-  client: 'sc_client',
-  action: 'sc_action',
+  rsc: 'rsc',
+  ssr: 'ssr',
+  action: 'action',
   api: 'api',
   middleware: 'middleware',
   edgeAsset: 'edge-asset',
-  appClient: 'app-client',
-  metadataRoute: 'app-metadata-route',
+  appPages: 'app-pages',
+  appMetadataRoute: 'app-metadata-route',
 }
 
 export const WEBPACK_LAYERS = {
   ...WEBPACK_LAYERS_NAMES,
   GROUP: {
     server: [
-      WEBPACK_LAYERS_NAMES.server,
+      WEBPACK_LAYERS_NAMES.rsc,
       WEBPACK_LAYERS_NAMES.action,
-      WEBPACK_LAYERS_NAMES.metadataRoute,
+      WEBPACK_LAYERS_NAMES.appMetadataRoute,
     ],
   },
 }

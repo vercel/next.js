@@ -125,7 +125,7 @@ export async function webpackBuildImpl(
           ...commonWebpackOptions,
           middlewareMatchers: entrypoints.middlewareMatchers,
           runWebpackSpan,
-          compilerType: COMPILER_NAMES.client,
+          compilerType: COMPILER_NAMES.ssr,
           entrypoints: entrypoints.client,
           ...info,
         }),
@@ -133,7 +133,7 @@ export async function webpackBuildImpl(
           ...commonWebpackOptions,
           runWebpackSpan,
           middlewareMatchers: entrypoints.middlewareMatchers,
-          compilerType: COMPILER_NAMES.server,
+          compilerType: COMPILER_NAMES.rsc,
           entrypoints: entrypoints.server,
           ...info,
         }),
@@ -182,7 +182,7 @@ export async function webpackBuildImpl(
 
     let inputFileSystem: any
 
-    if (!compilerName || compilerName === 'server') {
+    if (!compilerName || compilerName == 'rsc') {
       ;[serverResult, inputFileSystem] = await runCompiler(serverConfig, {
         runWebpackSpan,
         inputFileSystem,
@@ -211,18 +211,18 @@ export async function webpackBuildImpl(
               ...clientEntry[CLIENT_STATIC_FILES_RUNTIME_MAIN_APP].import,
               value,
             ],
-            layer: WEBPACK_LAYERS.appClient,
+            layer: WEBPACK_LAYERS.appPages,
           }
         } else {
           clientEntry[key] = {
             dependOn: [CLIENT_STATIC_FILES_RUNTIME_MAIN_APP],
             import: value,
-            layer: WEBPACK_LAYERS.appClient,
+            layer: WEBPACK_LAYERS.appPages,
           }
         }
       }
 
-      if (!compilerName || compilerName === 'client') {
+      if (!compilerName || compilerName === 'ssr') {
         ;[clientResult, inputFileSystem] = await runCompiler(clientConfig, {
           runWebpackSpan,
           inputFileSystem,

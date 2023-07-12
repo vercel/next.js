@@ -11,8 +11,8 @@ export const base = curry(function base(
   config.name = ctx.isServer
     ? ctx.isEdgeRuntime
       ? COMPILER_NAMES.edgeServer
-      : COMPILER_NAMES.server
-    : COMPILER_NAMES.client
+      : COMPILER_NAMES.rsc
+    : COMPILER_NAMES.ssr
 
   config.target = !ctx.targetWeb
     ? 'node16.8' // Same version defined in packages/next/package.json#engines

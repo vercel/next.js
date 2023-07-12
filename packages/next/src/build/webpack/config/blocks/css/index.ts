@@ -26,11 +26,11 @@ const regexSassGlobal = /(?<!\.module)\.(scss|sass)$/
 const regexSassModules = /\.module\.(scss|sass)$/
 
 const APP_LAYER_RULE = {
-  or: [WEBPACK_LAYERS.server, WEBPACK_LAYERS.client, WEBPACK_LAYERS.appClient],
+  or: [WEBPACK_LAYERS.rsc, WEBPACK_LAYERS.ssr, WEBPACK_LAYERS.appPages],
 }
 
 const PAGES_LAYER_RULE = {
-  not: [WEBPACK_LAYERS.server, WEBPACK_LAYERS.client, WEBPACK_LAYERS.appClient],
+  not: [WEBPACK_LAYERS.rsc, WEBPACK_LAYERS.ssr, WEBPACK_LAYERS.appPages],
 }
 
 /**

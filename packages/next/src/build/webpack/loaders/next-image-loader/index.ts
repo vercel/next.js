@@ -66,7 +66,7 @@ function nextImageLoader(this: any, content: Buffer) {
         })
       )
 
-    if (compilerType === 'client') {
+    if (compilerType === 'ssr') {
       this.emitFile(interpolatedName, content, null)
     } else {
       this.emitFile(

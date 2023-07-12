@@ -5,8 +5,18 @@ export { MODERN_BROWSERSLIST_TARGET }
 export type ValueOf<T> = Required<T>[keyof T]
 
 export const COMPILER_NAMES = {
-  client: 'client',
-  server: 'server',
+  /**
+   * This is the compiler used for server-side rendering (SSR) and
+   * serverless functions.
+   */
+  ssr: 'ssr',
+  /**
+   * This is the compiler used for React Server Components (RSC).
+   */
+  rsc: 'rsc',
+  /**
+   * This is the compiler used for the Edge Server.
+   */
   edgeServer: 'edge-server',
 } as const
 
@@ -15,8 +25,8 @@ export type CompilerNameValues = ValueOf<typeof COMPILER_NAMES>
 export const COMPILER_INDEXES: {
   [compilerKey in CompilerNameValues]: number
 } = {
-  [COMPILER_NAMES.client]: 0,
-  [COMPILER_NAMES.server]: 1,
+  [COMPILER_NAMES.ssr]: 0,
+  [COMPILER_NAMES.rsc]: 1,
   [COMPILER_NAMES.edgeServer]: 2,
 } as const
 
@@ -54,7 +64,7 @@ export const CLIENT_STATIC_FILES_PATH = 'static'
 export const CLIENT_STATIC_FILES_RUNTIME = 'runtime'
 export const STRING_LITERAL_DROP_BUNDLE = '__NEXT_DROP_CLIENT_FILE__'
 export const NEXT_BUILTIN_DOCUMENT = '__NEXT_BUILTIN_DOCUMENT__'
-export const NEXT_CLIENT_SSR_ENTRY_SUFFIX = '.__sc_client__'
+export const NEXT_CLIENT_SSR_ENTRY_SUFFIX = '.__ssr__'
 
 // server/[entry]/page_client-reference-manifest.js
 export const CLIENT_REFERENCE_MANIFEST = 'client-reference-manifest'
@@ -70,7 +80,7 @@ export const MIDDLEWARE_REACT_LOADABLE_MANIFEST =
 export const CLIENT_STATIC_FILES_RUNTIME_MAIN = `main`
 export const CLIENT_STATIC_FILES_RUNTIME_MAIN_APP = `${CLIENT_STATIC_FILES_RUNTIME_MAIN}-app`
 // next internal client components chunk for layouts
-export const APP_CLIENT_INTERNALS = 'app-client-internals'
+export const APP_CLIENT_INTERNALS = 'app-pages-internals'
 // static/runtime/react-refresh.js
 export const CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH = `react-refresh`
 // static/runtime/amp.js

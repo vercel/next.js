@@ -427,8 +427,8 @@ export default class HotReloader {
                 )?.[1]
                 if (file) {
                   // `file` is filepath in `pages/` but it can be weird long webpack url in `app/`.
-                  // If it's a webpack loader URL, it will start with '(app-client)/./'
-                  if (file.startsWith('(app-client)/./')) {
+                  // If it's a webpack loader URL, it will start with '(app-pages)/./'
+                  if (file.startsWith('(app-pages)/./')) {
                     const fileUrl = new URL(file, 'file://')
                     const cwd = process.cwd()
                     const modules = fileUrl.searchParams
@@ -587,13 +587,13 @@ export default class HotReloader {
             // order is important here
             getBaseWebpackConfig(this.dir, {
               ...commonWebpackOptions,
-              compilerType: COMPILER_NAMES.client,
+              compilerType: COMPILER_NAMES.ssr,
               entrypoints: entrypoints.client,
               ...info,
             }),
             getBaseWebpackConfig(this.dir, {
               ...commonWebpackOptions,
-              compilerType: COMPILER_NAMES.server,
+              compilerType: COMPILER_NAMES.rsc,
               entrypoints: entrypoints.server,
               ...info,
             }),
@@ -619,7 +619,7 @@ export default class HotReloader {
     const fallbackConfig = await getBaseWebpackConfig(this.dir, {
       runWebpackSpan: this.hotReloaderSpan,
       dev: true,
-      compilerType: COMPILER_NAMES.client,
+      compilerType: COMPILER_NAMES.ssr,
       config: this.config,
       buildId: this.buildId,
       pagesDir: this.pagesDir,
@@ -699,8 +699,8 @@ export default class HotReloader {
         const entries = getEntries(outputPath)
         // @ts-ignore entry is always a function
         const entrypoints = await defaultEntry(...args)
-        const isClientCompilation = config.name === COMPILER_NAMES.client
-        const isNodeServerCompilation = config.name === COMPILER_NAMES.server
+        const isClientCompilation = config.name === COMPILER_NAMES.ssr
+        const isNodeServerCompilation = config.name === COMPILER_NAMES.rsc
         const isEdgeServerCompilation =
           config.name === COMPILER_NAMES.edgeServer
 
@@ -715,9 +715,8 @@ export default class HotReloader {
               )
             const [, key /* pageType */, , page] = result! // this match should always happen
 
-            if (key === COMPILER_NAMES.client && !isClientCompilation) return
-            if (key === COMPILER_NAMES.server && !isNodeServerCompilation)
-              return
+            if (key === COMPILER_NAMES.ssr && !isClientCompilation) return
+            if (key === COMPILER_NAMES.rsc && !isNodeServerCompilation) return
             if (key === COMPILER_NAMES.edgeServer && !isEdgeServerCompilation)
               return
 
@@ -846,7 +845,7 @@ export default class HotReloader {
                   entries[entryKey].status = BUILDING
                   entrypoints[bundlePath] = finalizeEntrypoint({
                     name: bundlePath,
-                    compilerType: COMPILER_NAMES.client,
+                    compilerType: COMPILER_NAMES.ssr,
                     value: entryData.request,
                     hasAppDir,
                   })
@@ -854,7 +853,7 @@ export default class HotReloader {
                   entries[entryKey].status = BUILDING
                   entrypoints[bundlePath] = finalizeEntrypoint({
                     name: bundlePath,
-                    compilerType: COMPILER_NAMES.client,
+                    compilerType: COMPILER_NAMES.ssr,
                     value: getClientEntry({
                       absolutePagePath: entryData.absolutePagePath,
                       page,
@@ -921,7 +920,7 @@ export default class HotReloader {
                 }
 
                 entrypoints[bundlePath] = finalizeEntrypoint({
-                  compilerType: COMPILER_NAMES.server,
+                  compilerType: COMPILER_NAMES.rsc,
                   name: bundlePath,
                   isServerComponent,
                   value,
@@ -1044,7 +1043,7 @@ export default class HotReloader {
                         .toString('hex')
 
                       if (
-                        mod.layer === WEBPACK_LAYERS.server &&
+                        mod.layer === WEBPACK_LAYERS.rsc &&
                         mod?.buildInfo?.rsc?.type !== 'client'
                       ) {
                         chunksHashServerLayer.add(hash)
@@ -1059,7 +1058,7 @@ export default class HotReloader {
                       )
 
                       if (
-                        mod.layer === WEBPACK_LAYERS.server &&
+                        mod.layer === WEBPACK_LAYERS.rsc &&
                         mod?.buildInfo?.rsc?.type !== 'client'
                       ) {
                         chunksHashServerLayer.add(hash)
@@ -1092,7 +1091,7 @@ export default class HotReloader {
                   pageHashMap.set(key, curHash)
 
                   if (serverComponentChangedItems) {
-                    const serverKey = WEBPACK_LAYERS.server + ':' + key
+                    const serverKey = WEBPACK_LAYERS.rsc + ':' + key
                     const prevServerHash = pageHashMap.get(serverKey)
                     const curServerHash = chunksHashServerLayer.toString()
                     if (prevServerHash && prevServerHash !== curServerHash) {
