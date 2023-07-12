@@ -57,7 +57,7 @@ pub struct PageLoaderAsset {
 }
 
 #[turbo_tasks::function]
-pub async fn create_page_loader_entry_asset(
+pub async fn create_page_loader_entry_module(
     client_context: AssetContextVc,
     entry_asset: SourceVc,
     pathname: StringVc,
@@ -99,7 +99,7 @@ impl PageLoaderAssetVc {
         let this = &*self.await?;
 
         let page_loader_entry_asset =
-            create_page_loader_entry_asset(this.client_context, this.entry_asset, this.pathname);
+            create_page_loader_entry_module(this.client_context, this.entry_asset, this.pathname);
 
         let Some(module) = EvaluatableAssetVc::resolve_from(page_loader_entry_asset).await? else {
             bail!("internal module must be evaluatable");
