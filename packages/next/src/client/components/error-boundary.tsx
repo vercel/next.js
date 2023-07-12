@@ -99,10 +99,10 @@ export class ErrorBoundaryHandler extends React.Component<
   }
 }
 
-export default function GlobalError({ error }: { error: any }) {
+export function GlobalError({ error }: { error: any }) {
   const digest: string | undefined = error?.digest
   return (
-    <html>
+    <html id="__next_error__">
       <head></head>
       <body>
         <div style={styles.error}>
