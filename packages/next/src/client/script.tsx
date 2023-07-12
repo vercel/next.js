@@ -209,11 +209,11 @@ function Script(props: ScriptProps): JSX.Element | null {
     useContext(HeadManagerContext)
 
   // If appDir we handle the stylesheet differently
-  let updatedProps = useMemo(() => {
+  let updatedProps: ScriptProps = useMemo(() => {
     const { stylesheets: styles, ...propsWithoutStylesheet } = props
     return {
       ...propsWithoutStylesheet,
-      stylesheets: appDir ? null : styles,
+      stylesheets: appDir ? undefined : styles,
     }
   }, [appDir, props])
 
