@@ -62,6 +62,7 @@ export function getRender({
 }) {
   const isAppPath = pagesType === 'app'
   const baseLoadComponentResult = {
+    dev,
     buildManifest,
     reactLoadableManifest,
     subresourceIntegrityManifest,
