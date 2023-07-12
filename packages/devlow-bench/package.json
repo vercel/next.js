@@ -1,6 +1,6 @@
 {
   "name": "@vercel/devlow-bench",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Benchmarking tool for the developer workflow",
   "type": "module",
   "main": "dist/index.js",
