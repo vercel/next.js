@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use anyhow::{anyhow, Result};
 use turbopack_binding::{
     turbo::{
@@ -6,17 +8,18 @@ use turbopack_binding::{
     },
     turbopack::{
         core::{
-            chunk::{ChunkableAssetVc, ChunkingContextVc},
+            chunk::{ChunkableModuleVc, ChunkingContextVc},
             compile_time_defines,
             compile_time_info::{
                 CompileTimeDefines, CompileTimeDefinesVc, CompileTimeInfo, CompileTimeInfoVc,
                 FreeVarReferencesVc,
             },
+            context::AssetContextVc,
             environment::{BrowserEnvironment, EnvironmentVc, ExecutionEnvironment},
+            file_source::FileSourceVc,
             free_var_references,
             reference_type::{EntryReferenceSubType, ReferenceType},
             resolve::{origin::PlainResolveOriginVc, parse::RequestVc},
-            source_asset::SourceAssetVc,
         },
         dev::{react_refresh::assert_can_resolve_react_refresh, DevChunkingContextVc},
         dev_server::{
@@ -24,7 +27,10 @@ use turbopack_binding::{
             source::{asset_graph::AssetGraphContentSourceVc, ContentSourceVc},
         },
         node::execution_context::ExecutionContextVc,
-        turbopack::ecmascript::EcmascriptModuleAssetVc,
+        turbopack::{
+            ecmascript::EcmascriptModuleAssetVc, transition::TransitionsByNameVc,
+            ModuleAssetContextVc,
+        },
     },
 };
 
@@ -32,11 +38,8 @@ use crate::{
     embed_js::next_js_file_path,
     mode::NextMode,
     next_client::{
-        context::{
-            get_client_asset_context, get_client_chunking_context,
-            get_client_resolve_options_context, ClientContextType,
-        },
-        RuntimeEntriesVc, RuntimeEntry,
+        context::{get_client_resolve_options_context, ClientContextType},
+        get_client_module_options_context, RuntimeEntriesVc, RuntimeEntry,
     },
     next_config::NextConfigVc,
 };
@@ -101,7 +104,7 @@ async fn get_web_runtime_entries(
     };
 
     runtime_entries.push(
-        RuntimeEntry::Source(SourceAssetVc::new(next_js_file_path("dev/bootstrap.ts")).into())
+        RuntimeEntry::Source(FileSourceVc::new(next_js_file_path("dev/bootstrap.ts")).into())
             .cell(),
     );
 
@@ -122,12 +125,44 @@ fn get_web_client_chunking_context(
     DevChunkingContextVc::builder(
         project_path,
         client_root,
-        client_root.join("/_static/chunks"),
-        client_root.join("/_media"),
+        client_root.join("_chunks"),
+        client_root.join("_media"),
         environment,
     )
     .hot_module_replacement()
     .build()
+    .into()
+}
+
+#[turbo_tasks::function]
+fn get_web_client_asset_context(
+    project_path: FileSystemPathVc,
+    execution_context: ExecutionContextVc,
+    compile_time_info: CompileTimeInfoVc,
+    ty: Value<ClientContextType>,
+    mode: NextMode,
+    next_config: NextConfigVc,
+) -> AssetContextVc {
+    let resolve_options_context =
+        get_client_resolve_options_context(project_path, ty, mode, next_config, execution_context);
+    let module_options_context = get_client_module_options_context(
+        project_path,
+        execution_context,
+        compile_time_info.environment(),
+        ty,
+        mode,
+        next_config,
+    );
+
+    let context: AssetContextVc = ModuleAssetContextVc::new(
+        TransitionsByNameVc::cell(HashMap::new()),
+        compile_time_info,
+        module_options_context,
+        resolve_options_context,
+    )
+    .into();
+
+    context
 }
 
 #[turbo_tasks::function]
@@ -143,7 +178,7 @@ pub async fn create_web_entry_source(
     let ty = Value::new(ClientContextType::Other);
     let mode = NextMode::Development;
     let compile_time_info = get_compile_time_info(browserslist_query);
-    let context = get_client_asset_context(
+    let context = get_web_client_asset_context(
         project_root,
         execution_context,
         compile_time_info,
@@ -182,7 +217,7 @@ pub async fn create_web_entry_source(
                     chunking_context,
                     Some(runtime_entries.with_entry(ecmascript.into())),
                 ))
-            } else if let Some(chunkable) = ChunkableAssetVc::resolve_from(module).await? {
+            } else if let Some(chunkable) = ChunkableModuleVc::resolve_from(module).await? {
                 // TODO this is missing runtime code, so it's probably broken and we should also
                 // add an ecmascript chunk with the runtime code
                 Ok((chunkable, chunking_context, None))

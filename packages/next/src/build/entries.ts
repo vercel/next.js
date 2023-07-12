@@ -418,34 +418,35 @@ export function getClientEntry(opts: {
     : pageLoader
 }
 
-export async function runDependingOnPageType<T>(params: {
+export function runDependingOnPageType<T>(params: {
   onClient: () => T
   onEdgeServer: () => T
   onServer: () => T
   page: string
   pageRuntime: ServerRuntime
   pageType?: 'app' | 'pages' | 'root'
-}): Promise<void> {
+}): void {
   if (params.pageType === 'root' && isInstrumentationHookFile(params.page)) {
-    await Promise.all([params.onServer(), params.onEdgeServer()])
+    params.onServer()
+    params.onEdgeServer()
     return
   }
 
   if (isMiddlewareFile(params.page)) {
-    await params.onEdgeServer()
+    params.onEdgeServer()
     return
   }
   if (isAPIRoute(params.page)) {
     if (isEdgeRuntime(params.pageRuntime)) {
-      await params.onEdgeServer()
+      params.onEdgeServer()
       return
     }
 
-    await params.onServer()
+    params.onServer()
     return
   }
   if (params.page === '/_document') {
-    await params.onServer()
+    params.onServer()
     return
   }
   if (
@@ -454,15 +455,18 @@ export async function runDependingOnPageType<T>(params: {
     params.page === '/404' ||
     params.page === '/500'
   ) {
-    await Promise.all([params.onClient(), params.onServer()])
+    params.onClient()
+    params.onServer()
     return
   }
   if (isEdgeRuntime(params.pageRuntime)) {
-    await Promise.all([params.onClient(), params.onEdgeServer()])
+    params.onClient()
+    params.onEdgeServer()
     return
   }
 
-  await Promise.all([params.onClient(), params.onServer()])
+  params.onClient()
+  params.onServer()
   return
 }
 
@@ -558,7 +562,7 @@ export async function createEntrypoints(
         ]
       }
 
-      await runDependingOnPageType({
+      runDependingOnPageType({
         page,
         pageRuntime: staticInfo.runtime,
         pageType: pagesType,

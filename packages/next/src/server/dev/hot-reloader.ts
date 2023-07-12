@@ -786,7 +786,7 @@ export default class HotReloader {
               this.hasAppRouterEntrypoints = true
             }
 
-            await runDependingOnPageType({
+            runDependingOnPageType({
               page,
               pageRuntime: staticInfo.runtime,
               pageType,

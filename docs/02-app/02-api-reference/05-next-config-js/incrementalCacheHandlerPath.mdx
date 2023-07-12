@@ -7,7 +7,9 @@ In Next.js, the [default cache handler](/docs/app/building-your-application/data
 
 ```js filename="next.config.js"
 module.exports = {
-  incrementalCacheHandlerPath: './cache-handler.js',
+  experimental: {
+    incrementalCacheHandlerPath: require.resolve('./cache-handler.js'),
+  },
 }
 ```
 

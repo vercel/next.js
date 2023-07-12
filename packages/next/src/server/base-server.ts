@@ -271,7 +271,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected router: Router
   protected appPathRoutes?: Record<string, string[]>
   protected customRoutes: CustomRoutes
-  protected clientReferenceManifest?: ClientReferenceManifest
   protected nextFontManifest?: NextFontManifest
   public readonly hostname?: string
   public readonly port?: number
@@ -295,7 +294,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   }): Promise<FindComponentsResult | null>
   protected abstract getFontManifest(): FontManifest | undefined
   protected abstract getPrerenderManifest(): PrerenderManifest
-  protected abstract getServerComponentManifest(): any
   protected abstract getNextFontManifest(): NextFontManifest | undefined
   protected abstract attachRequestMeta(
     req: BaseNextRequest,
@@ -418,9 +416,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     this.hasAppDir =
       !!this.nextConfig.experimental.appDir && this.getHasAppDir(dev)
     const serverComponents = this.hasAppDir
-    this.clientReferenceManifest = serverComponents
-      ? this.getServerComponentManifest()
-      : undefined
+
     this.nextFontManifest = this.getNextFontManifest()
 
     if (process.env.NEXT_RUNTIME !== 'edge') {
@@ -1388,9 +1384,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     }
 
     // Don't delete headers[RSC] yet, it still needs to be used in renderToHTML later
-    const isFlightRequest = Boolean(
-      this.clientReferenceManifest && req.headers[RSC.toLowerCase()]
-    )
+    const isFlightRequest = Boolean(req.headers[RSC.toLowerCase()])
 
     // For pages we need to ensure the correct Vary header is set too, to avoid
     // caching issues when navigating between pages and app
@@ -1780,9 +1774,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         components.routeModule
       ) {
         const module = components.routeModule as PagesRouteModule
+        renderOpts.clientReferenceManifest = components.clientReferenceManifest
 
         // Due to the way we pass data by mutating `renderOpts`, we can't extend
-        // the object here but only updating its `clientReferenceManifest`
+        // the object here but only updating its `nextFontManifest`
         // field.
         // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
         renderOpts.nextFontManifest = this.nextFontManifest
