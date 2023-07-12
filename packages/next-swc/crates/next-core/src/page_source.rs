@@ -13,12 +13,13 @@ use turbopack_binding::{
     },
     turbopack::{
         core::{
-            asset::{AssetVc, AssetsVc},
+            asset::AssetVc,
             chunk::{ChunkingContextVc, EvaluatableAssetVc, EvaluatableAssetsVc},
             context::{AssetContext, AssetContextVc},
             environment::ServerAddrVc,
+            file_source::FileSourceVc,
             reference_type::{EntryReferenceSubType, InnerAssetsVc, ReferenceType},
-            source_asset::SourceAssetVc,
+            source::{SourceVc, SourcesVc},
         },
         dev::DevChunkingContextVc,
         dev_server::{
@@ -248,10 +249,10 @@ pub async fn create_page_source(
     let env = CustomProcessEnvVc::new(env, next_config.env()).as_process_env();
 
     let server_runtime_entries =
-        AssetsVc::cell(vec![
+        SourcesVc::cell(vec![
             ProcessEnvAssetVc::new(project_root, injected_env).into()
         ]);
-    let fallback_runtime_entries = AssetsVc::cell(vec![]);
+    let fallback_runtime_entries = SourcesVc::cell(vec![]);
 
     let fallback_page = get_fallback_page(
         project_root,
@@ -333,8 +334,8 @@ async fn create_page_source_for_file(
     server_data_context: AssetContextVc,
     client_context: AssetContextVc,
     _pages_dir: FileSystemPathVc,
-    page_asset: AssetVc,
-    runtime_entries: AssetsVc,
+    page_asset: SourceVc,
+    runtime_entries: SourcesVc,
     fallback_page: DevHtmlAssetVc,
     client_root: FileSystemPathVc,
     client_path: FileSystemPathVc,
@@ -477,12 +478,12 @@ async fn create_page_source_for_file(
 async fn get_not_found_page(
     pages_dir: FileSystemPathVc,
     page_extensions: StringsVc,
-) -> Result<Option<AssetVc>> {
+) -> Result<Option<SourceVc>> {
     for ext in page_extensions.await?.iter() {
         let not_found_path = pages_dir.join(&format!("404.{ext}"));
         let content = not_found_path.read();
         if let FileContent::Content(_) = &*content.await? {
-            return Ok(Some(SourceAssetVc::new(not_found_path).into()));
+            return Ok(Some(FileSourceVc::new(not_found_path).into()));
         }
     }
     Ok(None)
@@ -497,7 +498,7 @@ async fn create_not_found_page_source(
     client_context: AssetContextVc,
     pages_dir: FileSystemPathVc,
     page_extensions: StringsVc,
-    runtime_entries: AssetsVc,
+    runtime_entries: SourcesVc,
     fallback_page: DevHtmlAssetVc,
     client_root: FileSystemPathVc,
     node_path: FileSystemPathVc,
@@ -536,17 +537,10 @@ async fn create_not_found_page_source(
             )
         };
 
-    let entry_asset = server_context
-        .process(
-            page_asset,
-            Value::new(ReferenceType::Entry(EntryReferenceSubType::Page)),
-        )
-        .into();
-
     let ssr_entry = SsrEntry {
         runtime_entries,
         context: server_context,
-        entry_asset,
+        entry_asset: page_asset,
         ty: SsrType::Html,
         chunking_context: server_chunking_context,
         node_path,
@@ -560,7 +554,7 @@ async fn create_not_found_page_source(
         client_root,
         client_context,
         client_chunking_context,
-        entry_asset,
+        page_asset,
         pathname,
     );
 
@@ -595,7 +589,7 @@ async fn create_page_source_for_root_directory(
     server_data_context: AssetContextVc,
     client_context: AssetContextVc,
     pages_dir: FileSystemPathVc,
-    runtime_entries: AssetsVc,
+    runtime_entries: SourcesVc,
     fallback_page: DevHtmlAssetVc,
     client_root: FileSystemPathVc,
     node_root: FileSystemPathVc,
@@ -661,7 +655,7 @@ async fn create_page_source_for_directory(
     server_data_context: AssetContextVc,
     client_context: AssetContextVc,
     pages_dir: FileSystemPathVc,
-    runtime_entries: AssetsVc,
+    runtime_entries: SourcesVc,
     fallback_page: DevHtmlAssetVc,
     client_root: FileSystemPathVc,
     is_api_path: bool,
@@ -688,7 +682,7 @@ async fn create_page_source_for_directory(
             server_data_context,
             client_context,
             pages_dir,
-            SourceAssetVc::new(project_path).into(),
+            FileSourceVc::new(project_path).into(),
             runtime_entries,
             fallback_page,
             client_root,
@@ -764,9 +758,9 @@ fn pathname_to_segments(pathname: &str, extension: &str) -> Result<(Vec<BaseSegm
 /// The node.js renderer for SSR of pages.
 #[turbo_tasks::value]
 pub struct SsrEntry {
-    runtime_entries: AssetsVc,
+    runtime_entries: SourcesVc,
     context: AssetContextVc,
-    entry_asset: AssetVc,
+    entry_asset: SourceVc,
     ty: SsrType,
     chunking_context: ChunkingContextVc,
     node_path: FileSystemPathVc,
@@ -859,7 +853,7 @@ impl SsrEntryVc {
                 this.runtime_entries
                     .await?
                     .iter()
-                    .map(|entry| EvaluatableAssetVc::from_asset(*entry, this.context))
+                    .map(|entry| EvaluatableAssetVc::from_source(*entry, this.context))
                     .collect(),
             ),
             module,
