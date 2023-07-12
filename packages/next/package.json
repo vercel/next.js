@@ -239,6 +239,7 @@
     "image-size": "1.0.0",
     "is-docker": "2.0.0",
     "is-wsl": "2.2.0",
+    "jest-docblock": "29.4.3",
     "jest-worker": "27.0.0-next.5",
     "json5": "2.2.3",
     "jsonwebtoken": "9.0.0",
