@@ -64,8 +64,10 @@ function commonJsRequireContext(
     unloadChunk(chunkPath) {
       deleteResolver(chunkPath);
 
+      const chunkUrl = getChunkRelativeUrl(chunkPath);
+
       if (chunkPath.endsWith(".css")) {
-        const links = document.querySelectorAll(`link[href="/${chunkPath}"]`);
+        const links = document.querySelectorAll(`link[href="${chunkUrl}"]`);
         for (const link of Array.from(links)) {
           link.remove();
         }
@@ -74,9 +76,7 @@ function commonJsRequireContext(
         // runtime once evaluated.
         // However, we still want to remove the script tag from the DOM to keep
         // the HTML somewhat consistent from the user's perspective.
-        const scripts = document.querySelectorAll(
-          `script[src="/${chunkPath}"]`
-        );
+        const scripts = document.querySelectorAll(`script[src="${chunkUrl}"]`);
         for (const script of Array.from(scripts)) {
           script.remove();
         }
@@ -97,8 +97,10 @@ function commonJsRequireContext(
           .map((p) => encodeURIComponent(p))
           .join("/");
 
+        const chunkUrl = `/${getChunkRelativeUrl(encodedChunkPath)}`;
+
         const previousLink = document.querySelector(
-          `link[rel=stylesheet][href^="/${encodedChunkPath}"]`
+          `link[rel=stylesheet][href^="${chunkUrl}"]`
         );
 
         if (previousLink == null) {
@@ -108,7 +110,7 @@ function commonJsRequireContext(
 
         const link = document.createElement("link");
         link.rel = "stylesheet";
-        link.href = `/${encodedChunkPath}`;
+        link.href = chunkUrl;
         link.onerror = () => {
           reject();
         };
@@ -194,10 +196,12 @@ function commonJsRequireContext(
       return resolver.promise;
     }
 
+    const chunkUrl = `/${getChunkRelativeUrl(chunkPath)}`;
+
     if (chunkPath.endsWith(".css")) {
       const link = document.createElement("link");
       link.rel = "stylesheet";
-      link.href = `/${chunkPath}`;
+      link.href = chunkUrl;
       link.onerror = () => {
         resolver.reject();
       };
@@ -209,7 +213,7 @@ function commonJsRequireContext(
       document.body.appendChild(link);
     } else if (chunkPath.endsWith(".js")) {
       const script = document.createElement("script");
-      script.src = `/${chunkPath}`;
+      script.src = chunkUrl;
       // We'll only mark the chunk as loaded once the script has been executed,
       // which happens in `registerChunk`. Hence the absence of `resolve()` in
       // this branch.
@@ -226,7 +230,7 @@ function commonJsRequireContext(
 })();
 
 function _eval({ code, url, map }: EcmascriptModuleEntry): ModuleFactory {
-  code += `\n\n//# sourceURL=${location.origin}${url}`;
+  code += `\n\n//# sourceURL=${location.origin}/${url}`;
   if (map) code += `\n//# sourceMappingURL=${map}`;
   return eval(code);
 }

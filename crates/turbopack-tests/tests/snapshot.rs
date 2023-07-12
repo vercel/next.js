@@ -302,7 +302,8 @@ async fn run_test(resource: &str) -> Result<FileSystemPathVc> {
             env,
         )
         .runtime_type(options.runtime_type)
-        .build(),
+        .build()
+        .into(),
         Runtime::Build => BuildChunkingContextVc::builder(
             project_root,
             path,
@@ -340,7 +341,7 @@ async fn run_test(resource: &str) -> Result<FileSystemPathVc> {
                     AssetsVc::cell(vec![BuildChunkingContextVc::resolve_from(chunking_context)
                         .await?
                         .unwrap()
-                        .generate_entry_chunk(
+                        .entry_chunk(
                             // `expected` expects a completely flat output directory.
                             chunk_root_path
                                 .join(

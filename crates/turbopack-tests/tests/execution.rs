@@ -258,7 +258,7 @@ async fn run_test(resource: &str) -> Result<RunTestResultVc> {
         CommandLineProcessEnvVc::new().into(),
         test_asset.ident(),
         context,
-        chunking_context,
+        chunking_context.into(),
         Some(EvaluatableAssetsVc::many(vec![
             EvaluatableAssetVc::from_source(jest_runtime_asset.into(), context),
             EvaluatableAssetVc::from_source(test_asset.into(), context),

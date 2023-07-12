@@ -6,7 +6,7 @@ use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
 use turbo_tasks_fs::{File, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc, AssetsVc},
-    chunk::{ChunkVc, ChunkingContext, EvaluatableAssetsVc},
+    chunk::{ChunkingContext, EvaluatableAssetsVc},
     code_builder::{CodeBuilder, CodeVc},
     ident::AssetIdentVc,
     reference::{AssetReferencesVc, SingleAssetReferenceVc},
@@ -28,7 +28,6 @@ use crate::BuildChunkingContextVc;
 pub(crate) struct EcmascriptBuildNodeEntryChunk {
     path: FileSystemPathVc,
     chunking_context: BuildChunkingContextVc,
-    entry_chunk: ChunkVc,
     other_chunks: AssetsVc,
     evaluatable_assets: EvaluatableAssetsVc,
     exported_module: EcmascriptChunkPlaceableVc,
@@ -41,7 +40,6 @@ impl EcmascriptBuildNodeEntryChunkVc {
     pub fn new(
         path: FileSystemPathVc,
         chunking_context: BuildChunkingContextVc,
-        entry_chunk: ChunkVc,
         other_chunks: AssetsVc,
         evaluatable_assets: EvaluatableAssetsVc,
         exported_module: EcmascriptChunkPlaceableVc,
@@ -49,7 +47,6 @@ impl EcmascriptBuildNodeEntryChunkVc {
         EcmascriptBuildNodeEntryChunk {
             path,
             chunking_context,
-            entry_chunk,
             other_chunks,
             evaluatable_assets,
             exported_module,

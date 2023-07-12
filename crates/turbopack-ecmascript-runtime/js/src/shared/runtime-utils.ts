@@ -90,7 +90,7 @@ function dynamicExport(module: Module, object: Record<string, any>) {
   let reexportedObjects = module[REEXPORTED_OBJECTS];
   if (!reexportedObjects) {
     reexportedObjects = module[REEXPORTED_OBJECTS] = [];
-    module.namespaceObject = new Proxy(module.exports, {
+    module.exports = module.namespaceObject = new Proxy(module.exports, {
       get(target, prop) {
         if (
           hasOwnProperty.call(target, prop) ||

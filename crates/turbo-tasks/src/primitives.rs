@@ -37,6 +37,20 @@ impl ValueToString for U64 {
 #[turbo_tasks::value(transparent)]
 pub struct OptionString(Option<std::string::String>);
 
+#[turbo_tasks::value_impl]
+impl OptionStringVc {
+    #[turbo_tasks::function]
+    pub fn none() -> Self {
+        Self::cell(None)
+    }
+}
+
+impl Default for OptionStringVc {
+    fn default() -> Self {
+        Self::none()
+    }
+}
+
 #[turbo_tasks::value(transparent)]
 pub struct Strings(Vec<std::string::String>);
 

@@ -217,6 +217,7 @@ pub fn get_client_chunking_context(
     )
     .hot_module_replacement()
     .build()
+    .into()
 }
 
 #[turbo_tasks::function]

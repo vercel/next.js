@@ -31,7 +31,7 @@ function dynamicExport(module, object) {
     let reexportedObjects = module[REEXPORTED_OBJECTS];
     if (!reexportedObjects) {
         reexportedObjects = module[REEXPORTED_OBJECTS] = [];
-        module.namespaceObject = new Proxy(module.exports, {
+        module.exports = module.namespaceObject = new Proxy(module.exports, {
             get (target, prop) {
                 if (hasOwnProperty.call(target, prop) || prop === "default" || prop === "__esModule") {
                     return Reflect.get(target, prop);

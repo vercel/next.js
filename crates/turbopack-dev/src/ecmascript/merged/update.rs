@@ -90,7 +90,7 @@ impl EcmascriptModuleEntry {
         EcmascriptModuleEntry {
             // Cloning a rope is cheap.
             code: code.source_code().clone(),
-            url: format!("/{}?{}", chunk_path, &id),
+            url: format!("{}?{}", chunk_path, &id),
             map: code
                 .has_source_map()
                 .then(|| format!("/__turbopack_sourcemap__/{}.map?{}", chunk_path, &id)),

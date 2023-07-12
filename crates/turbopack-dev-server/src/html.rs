@@ -124,7 +124,6 @@ impl DevHtmlAssetVc {
     async fn html_content(self) -> Result<DevHtmlAssetContentVc> {
         let this = self.await?;
         let context_path = this.path.parent().await?;
-
         let mut chunk_paths = vec![];
         for chunk in &*self.chunks().await? {
             let chunk_path = &*chunk.ident().path().await?;
@@ -173,7 +172,7 @@ struct DevHtmlAssetContent {
 }
 
 impl DevHtmlAssetContentVc {
-    pub fn new(chunk_paths: Vec<String>, body: Option<String>) -> Self {
+    fn new(chunk_paths: Vec<String>, body: Option<String>) -> Self {
         DevHtmlAssetContent { chunk_paths, body }.cell()
     }
 }
