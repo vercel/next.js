@@ -611,6 +611,10 @@ async function startWatcher(opts: SetupOpts) {
       await propagateToWorkers('middleware', serverFields.middleware)
       serverFields.hasAppNotFound = hasRootAppNotFound
 
+      opts.fsChecker.middlewareMatcher = serverFields.middleware?.matchers
+        ? getMiddlewareRouteMatcher(serverFields.middleware?.matchers)
+        : undefined
+
       opts.fsChecker.interceptionRoutes =
         generateInterceptionRoutesRewrites(Object.keys(appPaths))?.map((item) =>
           buildCustomRoute(
@@ -717,10 +721,6 @@ async function startWatcher(opts: SetupOpts) {
 
     wp.watch({ directories: [dir], startTime: 0 })
   })
-
-  opts.fsChecker.middlewareMatcher = serverFields.middleware?.matchers
-    ? getMiddlewareRouteMatcher(serverFields.middleware?.matchers)
-    : undefined
 
   const clientPagesManifestPath = `/_next/${CLIENT_STATIC_FILES_PATH}/development/${DEV_CLIENT_PAGES_MANIFEST}`
   opts.fsChecker.devVirtualFsItems.add(clientPagesManifestPath)

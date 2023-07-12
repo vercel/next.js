@@ -1134,9 +1134,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           res,
           parsedUrl
         )
-        if (result.finished) {
-          return
+        if (!result.finished) {
+          res.setHeader('x-middleware-next', '1')
+          res.body('')
+          res.send()
         }
+        return
       }
 
       res.statusCode = 200

@@ -410,10 +410,14 @@ export function getResolveRoutes(
 
         if (!opts.minimalMode && route.name === 'middleware') {
           const match = fsChecker.getMiddlewareMatchers()
-          // @ts-expect-error BaseNextRequest stuff
-          if (match?.(parsedUrl.pathname, req, parsedUrl.query)) {
-            await ensureMiddleware?.()
-
+          if (
+            // @ts-expect-error BaseNextRequest stuff
+            match?.(parsedUrl.pathname, req, parsedUrl.query) &&
+            (!ensureMiddleware ||
+              (await ensureMiddleware?.()
+                .then(() => true)
+                .catch(() => false)))
+          ) {
             const workerResult = await (
               renderWorkers.app || renderWorkers.pages
             )?.initialize(renderWorkerOpts)
