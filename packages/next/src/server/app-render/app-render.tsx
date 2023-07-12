@@ -75,6 +75,8 @@ import { handleAction } from './action-handler'
 import { NEXT_DYNAMIC_NO_SSR_CODE } from '../../shared/lib/lazy-dynamic/no-ssr-error'
 import { warn } from '../../build/output/log'
 import { appendMutableCookies } from '../web/spec-extension/adapters/request-cookies'
+import { ComponentsType } from '../../build/webpack/loaders/next-app-loader'
+import { ModuleReference } from '../../build/webpack/loaders/metadata/types'
 
 export const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -89,6 +91,35 @@ export type GetDynamicParamFromSegment = (
   treeSegment: Segment
   type: DynamicParamTypesShort
 } | null
+
+// Find the closest matched component in the loader tree for a given component type
+function findMatchedComponent(
+  loaderTree: LoaderTree,
+  componentType: Exclude<keyof ComponentsType, 'metadata'>,
+  result?: ModuleReference
+): ModuleReference | undefined {
+  const [, parallelRoutes, components] = loaderTree
+  const childKeys = Object.keys(parallelRoutes)
+  result = components[componentType] || result
+
+  // reached the end of the tree
+  if (childKeys.length === 0) {
+    return result
+  }
+
+  for (const key of childKeys) {
+    const childTree = parallelRoutes[key]
+    const matchedComponent = findMatchedComponent(
+      childTree,
+      componentType,
+      result
+    )
+    if (matchedComponent) {
+      return matchedComponent
+    }
+  }
+  return undefined
+}
 
 /* This method is important for intercepted routes to function:
  * when a route is intercepted, e.g. /blog/[slug], it will be rendered
@@ -1271,10 +1302,10 @@ export async function renderToHTMLOrFlight(
         }
       : {}
 
-    async function getNotFound(injectedCSS: Set<string>) {
-      const { 'not-found': notFound, layout } = loaderTree[2]
-      const isLayout = typeof layout !== 'undefined'
-      const rootLayoutAtThisLevel = isLayout
+    async function getNotFound(tree: LoaderTree, injectedCSS: Set<string>) {
+      const { layout } = tree[2]
+      const notFound = findMatchedComponent(tree, 'not-found')
+      const rootLayoutAtThisLevel = typeof layout !== 'undefined'
       const [NotFound, notFoundStyles] = notFound
         ? await createComponentAndStyles({
             filePath: notFound[1],
@@ -1328,7 +1359,10 @@ export async function renderToHTMLOrFlight(
           />
         )
 
-        const [NotFound, notFoundStyles] = await getNotFound(injectedCSS)
+        const [NotFound, notFoundStyles] = await getNotFound(
+          loaderTree,
+          injectedCSS
+        )
 
         return (
           <>
@@ -1586,7 +1620,11 @@ export async function renderToHTMLOrFlight(
 
           const { layout } = loaderTree[2]
           const injectedCSS = new Set<string>()
-          const [NotFound, notFoundStyles] = await getNotFound(injectedCSS)
+          const [NotFound, notFoundStyles] = await getNotFound(
+            loaderTree,
+            injectedCSS
+          )
+
           const rootLayoutModule = layout?.[0]
           const RootLayout = rootLayoutModule
             ? interopDefault(await rootLayoutModule())
