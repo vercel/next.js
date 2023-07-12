@@ -1271,6 +1271,22 @@ export async function renderToHTMLOrFlight(
         }
       : {}
 
+    async function getNotFound(injectedCSS: Set<string>) {
+      const { 'not-found': notFound, layout } = loaderTree[2]
+      const isLayout = typeof layout !== 'undefined'
+      const rootLayoutAtThisLevel = isLayout
+      const [NotFound, notFoundStyles] = notFound
+        ? await createComponentAndStyles({
+            filePath: notFound[1],
+            getComponent: notFound[0],
+            injectedCSS,
+          })
+        : rootLayoutAtThisLevel
+        ? [DefaultNotFound]
+        : []
+      return [NotFound, notFoundStyles]
+    }
+
     /**
      * A new React Component that renders the provided React Component
      * using Flight which can then be rendered to HTML.
@@ -1294,23 +1310,6 @@ export async function renderToHTMLOrFlight(
           asNotFound: props.asNotFound,
         })
 
-        const { 'not-found': notFound, layout } = loaderTree[2]
-        const isLayout = typeof layout !== 'undefined'
-        const rootLayoutModule = layout?.[0]
-        const RootLayout = rootLayoutModule
-          ? interopDefault(await rootLayoutModule())
-          : null
-        const rootLayoutAtThisLevel = isLayout
-        const [NotFound, notFoundStyles] = notFound
-          ? await createComponentAndStyles({
-              filePath: notFound[1],
-              getComponent: notFound[0],
-              injectedCSS,
-            })
-          : rootLayoutAtThisLevel
-          ? [DefaultNotFound]
-          : []
-
         const initialTree = createFlightRouterStateFromLoaderTree(
           loaderTree,
           getDynamicParamFromSegment,
@@ -1329,6 +1328,8 @@ export async function renderToHTMLOrFlight(
           />
         )
 
+        const [NotFound, notFoundStyles] = await getNotFound(injectedCSS)
+
         return (
           <>
             {styles}
@@ -1344,13 +1345,13 @@ export async function renderToHTMLOrFlight(
                 </>
               }
               globalErrorComponent={GlobalError}
+              notFoundStyles={notFoundStyles}
               notFound={
-                NotFound && RootLayout ? (
-                  <RootLayout params={{}}>
-                    {createMetadata(emptyLoaderTree)}
-                    {notFoundStyles}
+                NotFound ? (
+                  <>
+                    {createMetadata(loaderTree)}
                     <NotFound />
-                  </RootLayout>
+                  </>
                 ) : undefined
               }
               asNotFound={props.asNotFound}
@@ -1578,10 +1579,17 @@ export async function renderToHTMLOrFlight(
             </html>
           )
 
-          const useDefaultError =
-            res.statusCode < 400 ||
-            res.statusCode === 404 ||
-            res.statusCode === 307
+          const useDefaultError = res.statusCode < 400 || res.statusCode === 307
+          const use404Error = res.statusCode === 404
+
+          const { layout } = loaderTree[2]
+          const injectedCSS = new Set<string>()
+          const [NotFound, notFoundStyles] = await getNotFound(injectedCSS)
+          const rootLayoutModule = layout?.[0]
+          const RootLayout = rootLayoutModule
+            ? interopDefault(await rootLayoutModule())
+            : null
+
           const serverErrorElement = useDefaultError
             ? defaultErrorComponent
             : React.createElement(
@@ -1600,9 +1608,19 @@ export async function renderToHTMLOrFlight(
                             getDynamicParamFromSegment
                           }
                         />
-                        <GlobalError
-                          error={{ message: err?.message, digest: err?.digest }}
-                        />
+                        {use404Error ? (
+                          <RootLayout params={{}}>
+                            {notFoundStyles}
+                            <NotFound />
+                          </RootLayout>
+                        ) : (
+                          <GlobalError
+                            error={{
+                              message: err?.message,
+                              digest: err?.digest,
+                            }}
+                          />
+                        )}
                       </>
                     )
                   },
