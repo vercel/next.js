@@ -92,9 +92,10 @@ export function measureTime(
     relativeTo?: string | typeof PREVIOUS;
     scenario?: string;
     props?: Record<string, string | number | null>;
+    offset?: number;
   } = {}
 ) {
-  const end = Date.now();
+  const end = Date.now() - (options.offset || 0);
   reportMeasurement(name, end, "ms", { relativeTo: PREVIOUS, ...options });
 }
 

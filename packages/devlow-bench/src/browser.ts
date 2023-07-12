@@ -1,20 +1,22 @@
 import type {
   Browser,
   BrowserContext,
+  ConsoleMessage,
   Page,
   Request,
   Response,
 } from "playwright-chromium";
 import { chromium } from "playwright-chromium";
 import { measureTime, reportMeasurement } from "./index.js";
-import { resolve } from "path";
 
 interface BrowserSession {
   close(): Promise<void>;
-  hardNavigation(url: string, metricName?: string): Promise<Page>;
+  hardNavigation(metricName: string, url: string): Promise<Page>;
   softNavigationByClick(metricName: string, selector: string): Promise<void>;
   reload(metricName: string): Promise<void>;
 }
+
+const browserOutput = !!process.env.BROWSER_OUTPUT;
 
 async function withRequestMetrics(
   metricName: string,
@@ -47,8 +49,46 @@ async function withRequestMetrics(
       })()
     );
   };
+  let errorCount = 0;
+  let warningCount = 0;
+  let logCount = 0;
+  const consoleHandler = (message: ConsoleMessage) => {
+    const type = message.type();
+    if (type === "error") {
+      errorCount++;
+    } else if (type === "warning") {
+      warningCount++;
+    } else {
+      logCount++;
+    }
+    if (browserOutput) {
+      activePromises.push(
+        (async () => {
+          const args = [];
+          try {
+            const text = message.text();
+            for (const arg of message.args()) {
+              args.push(await arg.jsonValue());
+            }
+            console.log(`[${type}] ${text}`, ...args);
+          } catch {
+            // Ignore
+          }
+        })()
+      );
+    }
+  };
+  let uncaughtCount = 0;
+  const exceptionHandler = (error: Error) => {
+    uncaughtCount++;
+    if (browserOutput) {
+      console.error(`[UNCAUGHT]`, error);
+    }
+  };
   try {
     page.on("response", responseHandler);
+    page.on("console", consoleHandler);
+    page.on("pageerror", exceptionHandler);
     await fn();
     await Promise.all(activePromises);
     let totalDownload = 0;
@@ -71,34 +111,85 @@ async function withRequestMetrics(
       totalRequests += count;
     }
     reportMeasurement(`${metricName}/requests`, totalRequests, "requests");
+    reportMeasurement(`${metricName}/console/logs`, logCount, "messages");
+    reportMeasurement(
+      `${metricName}/console/warnings`,
+      warningCount,
+      "messages"
+    );
+    reportMeasurement(`${metricName}/console/errors`, errorCount, "messages");
+    reportMeasurement(
+      `${metricName}/console/uncaught`,
+      uncaughtCount,
+      "messages"
+    );
+    reportMeasurement(
+      `${metricName}/console`,
+      logCount + warningCount + errorCount + uncaughtCount,
+      "messages"
+    );
   } finally {
     page.off("response", responseHandler);
   }
 }
 
-function networkIdle(page: Page) {
-  return new Promise<void>((resolve) => {
+function networkIdle(
+  page: Page,
+  delay: number = 300,
+  rejectTimeout: number = 180000
+) {
+  return new Promise<void>((resolve, reject) => {
     const cleanup = () => {
       page.off("request", requestHandler);
       page.off("requestfailed", requestFinishedHandler);
       page.off("requestfinished", requestFinishedHandler);
+      clearTimeout(fullTimeout);
+      if (timeout) {
+        clearTimeout(timeout);
+      }
     };
     let activeRequests = 0;
     let timeout: NodeJS.Timeout | null = null;
-    const requestHandler = (request: Request) => {
+    const requests = new Set();
+    const fullTimeout = setTimeout(() => {
+      cleanup();
+      reject(
+        new Error(
+          `Timeout while waiting for network idle. These requests are still pending: ${Array.from(
+            requests
+          ).join(", ")}}`
+        )
+      );
+    }, rejectTimeout);
+    const requestFilter = async (request: Request) => {
+      return (await request.headers().accept) !== "text/event-stream";
+    };
+    const requestHandler = async (request: Request) => {
+      requests.add(request.url());
       activeRequests++;
       if (timeout) {
         clearTimeout(timeout);
         timeout = null;
       }
+      // Avoid tracking some requests, but we only know this after awaiting
+      // so we need to do this weird stunt to ensure that
+      if (!(await requestFilter(request))) {
+        await requestFinishedInternal(request);
+      }
     };
-    const requestFinishedHandler = (request: Request) => {
+    const requestFinishedHandler = async (request: Request) => {
+      if (await requestFilter(request)) {
+        requestFinishedInternal(request);
+      }
+    };
+    const requestFinishedInternal = async (request: Request) => {
+      requests.delete(request.url());
       activeRequests--;
       if (activeRequests === 0) {
         timeout = setTimeout(() => {
           cleanup();
           resolve();
-        }, 300);
+        }, delay);
       }
     };
     page.on("request", requestHandler);
@@ -129,6 +220,7 @@ class BrowserSessionImpl implements BrowserSession {
     const page = (this.page = this.page ?? (await this.context.newPage()));
     await withRequestMetrics(metricName, page, async () => {
       measureTime(`${metricName}/start`);
+      const idle = networkIdle(page, 3000);
       await page.goto(url, {
         waitUntil: "commit",
       });
@@ -143,8 +235,9 @@ class BrowserSessionImpl implements BrowserSession {
       measureTime(`${metricName}/load`, {
         relativeTo: `${metricName}/start`,
       });
-      await page.waitForLoadState("networkidle");
+      await idle;
       measureTime(`${metricName}`, {
+        offset: 3000,
         relativeTo: `${metricName}/start`,
       });
     });
@@ -163,7 +256,7 @@ class BrowserSessionImpl implements BrowserSession {
       const firstResponse = new Promise<void>((resolve) =>
         page.once("response", () => resolve())
       );
-      const idle = networkIdle(page);
+      const idle = networkIdle(page, 3000);
       await page.click(selector);
       await firstResponse;
       measureTime(`${metricName}/firstResponse`, {
@@ -171,6 +264,7 @@ class BrowserSessionImpl implements BrowserSession {
       });
       await idle;
       measureTime(`${metricName}`, {
+        offset: 3000,
         relativeTo: `${metricName}/start`,
       });
     });
@@ -183,6 +277,7 @@ class BrowserSessionImpl implements BrowserSession {
     }
     await withRequestMetrics(metricName, page, async () => {
       measureTime(`${metricName}/start`);
+      const idle = networkIdle(page, 3000);
       await page.reload({
         waitUntil: "commit",
       });
@@ -197,8 +292,9 @@ class BrowserSessionImpl implements BrowserSession {
       measureTime(`${metricName}/load`, {
         relativeTo: `${metricName}/start`,
       });
-      await page.waitForLoadState("networkidle");
+      await idle;
       measureTime(`${metricName}`, {
+        offset: 3000,
         relativeTo: `${metricName}/start`,
       });
     });
