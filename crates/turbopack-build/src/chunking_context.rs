@@ -114,7 +114,7 @@ impl BuildChunkingContextVc {
     /// * exports the result of evaluating the given module as a CommonJS
     ///   default export.
     #[turbo_tasks::function]
-    pub async fn generate_entry_chunk(
+    pub async fn entry_chunk(
         self_vc: BuildChunkingContextVc,
         path: FileSystemPathVc,
         module: EcmascriptChunkPlaceableVc,
@@ -129,7 +129,6 @@ impl BuildChunkingContextVc {
         let asset = EcmascriptBuildNodeEntryChunkVc::new(
             path,
             self_vc,
-            entry_chunk,
             AssetsVc::cell(other_chunks),
             evaluatable_assets,
             module,

@@ -67,6 +67,7 @@ impl EcmascriptDevEvaluateChunkVc {
     #[turbo_tasks::function]
     async fn code(self) -> Result<CodeVc> {
         let this = self.await?;
+        let chunking_context = this.chunking_context.await?;
         let environment = this.chunking_context.environment();
 
         let output_root = this.chunking_context.output_root().await?;
@@ -137,9 +138,12 @@ impl EcmascriptDevEvaluateChunkVc {
             StringifyJs(&params),
         )?;
 
-        match this.chunking_context.await?.runtime_type() {
+        match chunking_context.runtime_type() {
             RuntimeType::Default => {
-                let runtime_code = turbopack_ecmascript_runtime::get_dev_runtime_code(environment);
+                let runtime_code = turbopack_ecmascript_runtime::get_dev_runtime_code(
+                    environment,
+                    chunking_context.chunk_base_path(),
+                );
                 code.push_code(&*runtime_code.await?);
             }
             #[cfg(feature = "test")]

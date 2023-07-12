@@ -275,7 +275,8 @@ async fn source(
     )
     .build();
 
-    let execution_context = ExecutionContextVc::new(project_path, build_chunking_context, env);
+    let execution_context =
+        ExecutionContextVc::new(project_path, build_chunking_context.into(), env);
 
     let server_fs = ServerFileSystemVc::new().as_file_system();
     let server_root = server_fs.root();

@@ -12,9 +12,9 @@ use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc, AssetsVc},
     chunk::{
         availability_info::AvailabilityInfo, chunk_content, chunk_content_split, Chunk,
-        ChunkContentResult, ChunkItem, ChunkItemVc, ChunkVc, ChunkableModuleVc, ChunkingContext,
-        ChunkingContextVc, ChunksVc, FromChunkableModule, ModuleId, ModuleIdVc, ModuleIdsVc,
-        OutputChunk, OutputChunkRuntimeInfo, OutputChunkRuntimeInfoVc, OutputChunkVc,
+        ChunkContentResult, ChunkItem, ChunkItemVc, ChunkVc, ChunkableModule, ChunkableModuleVc,
+        ChunkingContext, ChunkingContextVc, ChunksVc, FromChunkableModule, ModuleId, ModuleIdVc,
+        ModuleIdsVc, OutputChunk, OutputChunkRuntimeInfo, OutputChunkRuntimeInfoVc, OutputChunkVc,
     },
     code_builder::{CodeBuilder, CodeVc},
     ident::{AssetIdent, AssetIdentVc},
@@ -22,6 +22,7 @@ use turbopack_core::{
         asset::{children_from_asset_references, content_to_details, IntrospectableAssetVc},
         Introspectable, IntrospectableChildrenVc, IntrospectableVc,
     },
+    module::{Module, ModuleVc},
     reference::{AssetReference, AssetReferenceVc, AssetReferencesVc},
     resolve::PrimaryResolveResult,
     source_map::{GenerateSourceMap, GenerateSourceMapVc, OptionSourceMapVc},
@@ -457,7 +458,7 @@ impl CssChunkContextVc {
 }
 
 #[turbo_tasks::value_trait]
-pub trait CssChunkPlaceable: Asset {
+pub trait CssChunkPlaceable: ChunkableModule + Module + Asset {
     fn as_chunk_item(&self, context: ChunkingContextVc) -> CssChunkItemVc;
 }
 
