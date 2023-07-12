@@ -3,7 +3,8 @@ use turbo_tasks::Value;
 use turbopack_binding::{
     turbo::tasks_fs::FileSystemPathVc,
     turbopack::{
-        core::{chunk::ChunkingContextVc, compile_time_info::CompileTimeInfoVc, module::ModuleVc},
+        core::{compile_time_info::CompileTimeInfoVc, module::ModuleVc},
+        ecmascript::chunk::EcmascriptChunkingContextVc,
         node::execution_context::ExecutionContextVc,
         turbopack::{
             ecmascript::chunk::EcmascriptChunkPlaceableVc,
@@ -15,12 +16,11 @@ use turbopack_binding::{
     },
 };
 
-use super::with_chunks::WithChunksAsset;
+use super::with_chunks::WithChunksAssetVc;
 use crate::{
     mode::NextMode,
     next_client::context::{
-        get_client_chunking_context, get_client_module_options_context,
-        get_client_resolve_options_context, ClientContextType,
+        get_client_module_options_context, get_client_resolve_options_context, ClientContextType,
     },
     next_config::NextConfigVc,
 };
@@ -30,8 +30,7 @@ pub struct NextClientChunksTransition {
     pub client_compile_time_info: CompileTimeInfoVc,
     pub client_module_options_context: ModuleOptionsContextVc,
     pub client_resolve_options_context: ResolveOptionsContextVc,
-    pub client_chunking_context: ChunkingContextVc,
-    pub server_root: FileSystemPathVc,
+    pub client_chunking_context: EcmascriptChunkingContextVc,
 }
 
 #[turbo_tasks::value_impl]
@@ -42,16 +41,10 @@ impl NextClientChunksTransitionVc {
         execution_context: ExecutionContextVc,
         ty: Value<ClientContextType>,
         mode: NextMode,
-        server_root: FileSystemPathVc,
+        client_chunking_context: EcmascriptChunkingContextVc,
         client_compile_time_info: CompileTimeInfoVc,
         next_config: NextConfigVc,
     ) -> NextClientChunksTransitionVc {
-        let client_chunking_context = get_client_chunking_context(
-            project_path,
-            server_root,
-            client_compile_time_info.environment(),
-        );
-
         let client_module_options_context = get_client_module_options_context(
             project_path,
             execution_context,
@@ -71,7 +64,6 @@ impl NextClientChunksTransitionVc {
                 execution_context,
             ),
             client_compile_time_info,
-            server_root,
         }
         .cell()
     }
@@ -111,12 +103,7 @@ impl Transition for NextClientChunksTransition {
     ) -> Result<ModuleVc> {
         Ok(
             if let Some(placeable) = EcmascriptChunkPlaceableVc::resolve_from(asset).await? {
-                WithChunksAsset {
-                    asset: placeable,
-                    chunking_context: self.client_chunking_context,
-                }
-                .cell()
-                .into()
+                WithChunksAssetVc::new(placeable, self.client_chunking_context).into()
             } else {
                 asset
             },

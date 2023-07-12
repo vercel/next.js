@@ -434,7 +434,7 @@ importers:
 
   packages/eslint-config-next:
     specifiers:
-      '@next/eslint-plugin-next': 13.4.10-canary.3
+      '@next/eslint-plugin-next': 13.4.10-canary.4
       '@rushstack/eslint-patch': ^1.1.3
       '@typescript-eslint/parser': ^5.42.0
       eslint: ^7.23.0 || ^8.0.0
@@ -511,12 +511,12 @@ importers:
       '@jest/types': 29.5.0
       '@napi-rs/cli': 2.14.7
       '@napi-rs/triples': 1.1.0
-      '@next/env': 13.4.10-canary.3
-      '@next/polyfill-module': 13.4.10-canary.3
-      '@next/polyfill-nomodule': 13.4.10-canary.3
-      '@next/react-dev-overlay': 13.4.10-canary.3
-      '@next/react-refresh-utils': 13.4.10-canary.3
-      '@next/swc': 13.4.10-canary.3
+      '@next/env': 13.4.10-canary.4
+      '@next/polyfill-module': 13.4.10-canary.4
+      '@next/polyfill-nomodule': 13.4.10-canary.4
+      '@next/react-dev-overlay': 13.4.10-canary.4
+      '@next/react-refresh-utils': 13.4.10-canary.4
+      '@next/swc': 13.4.10-canary.4
       '@opentelemetry/api': 1.4.1
       '@segment/ajv-human-errors': 2.1.2
       '@swc/helpers': 0.5.1
@@ -614,6 +614,7 @@ importers:
       image-size: 1.0.0
       is-docker: 2.0.0
       is-wsl: 2.2.0
+      jest-docblock: 29.4.3
       jest-worker: 27.0.0-next.5
       json5: 2.2.3
       jsonwebtoken: 9.0.0
@@ -832,6 +833,7 @@ importers:
       image-size: 1.0.0
       is-docker: 2.0.0
       is-wsl: 2.2.0
+      jest-docblock: 29.4.3
       jest-worker: 27.0.0-next.5
       json5: 2.2.3
       jsonwebtoken: 9.0.0
@@ -990,8 +992,8 @@ importers:
       '@types/react': 18.2.7
       '@types/react-dom': 18.2.4
       '@vercel/ncc': ^0.36.0
-      '@vercel/turbopack-ecmascript-runtime': https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230711.2
-      '@vercel/turbopack-node': https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-node/js?turbopack-230711.2
+      '@vercel/turbopack-ecmascript-runtime': https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230712.2
+      '@vercel/turbopack-node': https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-node/js?turbopack-230712.2
       anser: ^2.1.1
       css.escape: ^1.5.1
       find-up: ^6.3.0
@@ -1003,8 +1005,8 @@ importers:
       stacktrace-parser: ^0.1.10
       strip-ansi: ^7.0.1
     dependencies:
-      '@vercel/turbopack-ecmascript-runtime': '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230711.2_react-refresh@0.12.0'
-      '@vercel/turbopack-node': '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-node/js?turbopack-230711.2'
+      '@vercel/turbopack-ecmascript-runtime': '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230712.2_react-refresh@0.12.0'
+      '@vercel/turbopack-node': '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-node/js?turbopack-230712.2'
       anser: 2.1.1
       css.escape: 1.5.1
       next: link:../../../../next
@@ -15454,6 +15456,13 @@ packages:
       detect-newline: 3.1.0
     dev: true
 
+  /jest-docblock/29.4.3:
+    resolution: {integrity: sha512-fzdTftThczeSD9nZ3fzA/4KkHtnmllawWrXO69vtI+L9WjEIuXWs4AmyME7lN5hU7dB0sHhuPfcKofRsUb/2Fg==}
+    engines: {node: ^14.15.0 || ^16.10.0 || >=18.0.0}
+    dependencies:
+      detect-newline: 3.1.0
+    dev: true
+
   /jest-each/27.5.1:
     resolution: {integrity: sha512-1Ff6p+FbhT/bXQnEouYy00bkNSY7OUpfIcmdl8vZ31A1UUaurOLPA8a8BbJOF2RDUElwJhmeaV7LnagI+5UwNQ==}
     engines: {node: ^10.13.0 || ^12.13.0 || ^14.15.0 || >=15.0.0}
@@ -25502,9 +25511,9 @@ packages:
   /zwitch/2.0.4:
     resolution: {integrity: sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A==}
 
-  '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230711.2_react-refresh@0.12.0':
-    resolution: {tarball: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230711.2}
-    id: '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230711.2'
+  '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230712.2_react-refresh@0.12.0':
+    resolution: {tarball: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230712.2}
+    id: '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230712.2'
     name: '@vercel/turbopack-ecmascript-runtime'
     version: 0.0.0
     dependencies:
@@ -25515,8 +25524,8 @@ packages:
       - webpack
     dev: false
 
-  '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-node/js?turbopack-230711.2':
-    resolution: {tarball: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-node/js?turbopack-230711.2}
+  '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-node/js?turbopack-230712.2':
+    resolution: {tarball: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-node/js?turbopack-230712.2}
     name: '@vercel/turbopack-node'
     version: 0.0.0
     dependencies:

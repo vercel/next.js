@@ -69,36 +69,48 @@ const getMiniCssFilename = __webpack_require__.miniCssF
 // eslint-disable-next-line no-undef
 __webpack_require__.miniCssF = addChunkSuffix(getMiniCssFilename)
 
-// Ignore the module ID transform in client.
+// @ts-ignore
 // eslint-disable-next-line no-undef
-// @ts-expect-error TODO: fix type
-self.__next_require__ =
-  process.env.NODE_ENV !== 'production'
-    ? (id: string) => {
-        const mod = __webpack_require__(id)
-        if (typeof mod === 'object') {
-          // Return a proxy to flight client to make sure it's always getting
-          // the latest module, instead of being cached.
-          return new Proxy(mod, {
-            get(_target, prop) {
-              return __webpack_require__(id)[prop]
-            },
-          })
-        }
-
-        return mod
-      }
-    : __webpack_require__
-
-// eslint-disable-next-line no-undef
-;(self as any).__next_chunk_load__ = (chunk: string) => {
-  if (!chunk) return Promise.resolve()
-  const [chunkId, chunkFilePath] = chunk.split(':')
-  chunkFilenameMap[chunkId] = chunkFilePath
+if (process.turbopack) {
+  // eslint-disable-next-line no-undef
+  // @ts-expect-error TODO: fix type
+  self.__next_require__ = __turbopack_require__
 
   // @ts-ignore
   // eslint-disable-next-line no-undef
-  return __webpack_chunk_load__(chunkId)
+  ;(self as any).__next_chunk_load__ = __turbopack_load__
+} else {
+  // Ignore the module ID transform in client.
+  // eslint-disable-next-line no-undef
+  // @ts-expect-error TODO: fix type
+  self.__next_require__ =
+    process.env.NODE_ENV !== 'production'
+      ? (id: string) => {
+          const mod = __webpack_require__(id)
+          if (typeof mod === 'object') {
+            // Return a proxy to flight client to make sure it's always getting
+            // the latest module, instead of being cached.
+            return new Proxy(mod, {
+              get(_target, prop) {
+                return __webpack_require__(id)[prop]
+              },
+            })
+          }
+
+          return mod
+        }
+      : __webpack_require__
+
+  // eslint-disable-next-line no-undef
+  ;(self as any).__next_chunk_load__ = (chunk: string) => {
+    if (!chunk) return Promise.resolve()
+    const [chunkId, chunkFilePath] = chunk.split(':')
+    chunkFilenameMap[chunkId] = chunkFilePath
+
+    // @ts-ignore
+    // eslint-disable-next-line no-undef
+    return __webpack_chunk_load__(chunkId)
+  }
 }
 
 const appElement: HTMLElement | Document | null = document

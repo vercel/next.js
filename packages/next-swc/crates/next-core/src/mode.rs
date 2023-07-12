@@ -1,7 +1,22 @@
-use turbo_tasks::TaskInput;
+use serde::{Deserialize, Serialize};
+use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, TaskInput};
 
 /// The mode in which Next.js is running.
-#[derive(Debug, Copy, Clone, TaskInput)]
+#[derive(
+    Debug,
+    Copy,
+    Clone,
+    TaskInput,
+    Eq,
+    PartialEq,
+    Ord,
+    PartialOrd,
+    Hash,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    ValueDebugFormat,
+)]
 pub enum NextMode {
     /// `next dev`
     Development,
