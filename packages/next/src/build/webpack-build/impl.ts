@@ -182,7 +182,7 @@ export async function webpackBuildImpl(
 
     let inputFileSystem: any
 
-    if (!compilerName || compilerName == 'rsc') {
+    if (!compilerName || compilerName === 'rsc') {
       ;[serverResult, inputFileSystem] = await runCompiler(serverConfig, {
         runWebpackSpan,
         inputFileSystem,
