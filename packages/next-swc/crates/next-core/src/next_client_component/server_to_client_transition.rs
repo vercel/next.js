@@ -30,11 +30,7 @@ impl Transition for NextServerToClientTransition {
         context: ModuleAssetContextVc,
         _reference_type: Value<ReferenceType>,
     ) -> Result<ModuleVc> {
-        let internal_source = next_asset(if self_vc.await?.ssr {
-            "entry/app/server-to-client-ssr.tsx"
-        } else {
-            "entry/app/server-to-client.tsx"
-        });
+        let this = self_vc.await?;
         let context = self_vc.process_context(context);
         let client_chunks = context.with_transition("next-client-chunks").process(
             source,
@@ -42,18 +38,33 @@ impl Transition for NextServerToClientTransition {
                 EntryReferenceSubType::AppClientComponent,
             )),
         );
-        let client_module = context.with_transition("next-ssr-client-module").process(
-            source,
-            Value::new(ReferenceType::Entry(
-                EntryReferenceSubType::AppClientComponent,
-            )),
-        );
-        Ok(context.process(
-            internal_source,
-            Value::new(ReferenceType::Internal(InnerAssetsVc::cell(indexmap! {
-                "CLIENT_MODULE".to_string() => client_module.into(),
-                "CLIENT_CHUNKS".to_string() => client_chunks.into(),
-            }))),
-        ))
+
+        Ok(match this.ssr {
+            true => {
+                let internal_source = next_asset("entry/app/server-to-client-ssr.tsx");
+                let client_module = context.with_transition("next-ssr-client-module").process(
+                    source,
+                    Value::new(ReferenceType::Entry(
+                        EntryReferenceSubType::AppClientComponent,
+                    )),
+                );
+                context.process(
+                    internal_source,
+                    Value::new(ReferenceType::Internal(InnerAssetsVc::cell(indexmap! {
+                        "CLIENT_MODULE".to_string() => client_module.into(),
+                        "CLIENT_CHUNKS".to_string() => client_chunks.into(),
+                    }))),
+                )
+            }
+            false => {
+                let internal_source = next_asset("entry/app/server-to-client.tsx");
+                context.process(
+                    internal_source,
+                    Value::new(ReferenceType::Internal(InnerAssetsVc::cell(indexmap! {
+                        "CLIENT_CHUNKS".to_string() => client_chunks.into(),
+                    }))),
+                )
+            }
+        })
     }
 }
