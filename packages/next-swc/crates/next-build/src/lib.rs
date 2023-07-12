@@ -1,3 +1,5 @@
+#![feature(type_alias_impl_trait)]
+
 use turbopack_binding::turbo::{
     tasks::{run_once, TransientInstance, TurboTasks},
     tasks_memory::MemoryBackend,
@@ -5,6 +7,7 @@ use turbopack_binding::turbo::{
 
 pub mod build_options;
 pub mod manifests;
+pub(crate) mod next_app;
 pub(crate) mod next_build;
 pub(crate) mod next_pages;
 
