@@ -20,7 +20,7 @@ use turbopack_binding::{
 };
 
 use crate::{
-    next_config::NextConfigVc, next_import_map::get_next_edge_import_map,
+    mode::NextMode, next_config::NextConfigVc, next_import_map::get_next_edge_import_map,
     next_server::context::ServerContextType,
     next_shared::resolve::UnsupportedModulesResolvePluginVc, util::foreign_code_context_condition,
 };
@@ -76,11 +76,12 @@ pub fn get_edge_compile_time_info(
 pub async fn get_edge_resolve_options_context(
     project_path: FileSystemPathVc,
     ty: Value<ServerContextType>,
+    mode: NextMode,
     next_config: NextConfigVc,
     execution_context: ExecutionContextVc,
 ) -> Result<ResolveOptionsContextVc> {
     let next_edge_import_map =
-        get_next_edge_import_map(project_path, ty, next_config, execution_context);
+        get_next_edge_import_map(project_path, ty, mode, next_config, execution_context);
 
     let resolve_options_context = ResolveOptionsContext {
         enable_node_modules: Some(project_path.root().resolve().await?),
