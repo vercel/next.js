@@ -824,7 +824,11 @@ export async function getRedboxDescription(browser: BrowserInterface) {
             p.shadowRoot.querySelector('[data-nextjs-dialog-header]')
           )
         const root = portal.shadowRoot
-        return root.querySelector('#nextjs__container_errors_desc').innerText
+        const text = root.querySelector(
+          '#nextjs__container_errors_desc'
+        ).innerText
+        if (text === null) throw new Error('No redbox description found')
+        return text
       }),
     3000,
     500,

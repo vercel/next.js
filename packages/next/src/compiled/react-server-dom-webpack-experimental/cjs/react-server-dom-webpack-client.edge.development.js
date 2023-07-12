@@ -66,7 +66,31 @@ function resolveClientReference(bundlerConfig, metadata) {
 // replicate it in user space. null means that it has already loaded.
 
 var chunkCache = new Map();
-var asyncModuleCache = new Map();
+
+function requireAsyncModule(id) {
+  // We've already loaded all the chunks. We can require the module.
+  var promise = globalThis.__next_require__(id);
+
+  if (typeof promise.then !== 'function') {
+    // This wasn't a promise after all.
+    return null;
+  } else if (promise.status === 'fulfilled') {
+    // This module was already resolved earlier.
+    return null;
+  } else {
+    // Instrument the Promise to stash the result.
+    promise.then(function (value) {
+      var fulfilledThenable = promise;
+      fulfilledThenable.status = 'fulfilled';
+      fulfilledThenable.value = value;
+    }, function (reason) {
+      var rejectedThenable = promise;
+      rejectedThenable.status = 'rejected';
+      rejectedThenable.reason = reason;
+    });
+    return promise;
+  }
+}
 
 function ignoreReject() {// We rely on rejected promises to be handled by another listener.
 } // Start preloading the modules since we might need them soon.
@@ -95,29 +119,12 @@ function preloadModule(metadata) {
   }
 
   if (metadata.async) {
-    var existingPromise = asyncModuleCache.get(metadata.id);
-
-    if (existingPromise) {
-      if (existingPromise.status === 'fulfilled') {
-        return null;
-      }
-
-      return existingPromise;
+    if (promises.length === 0) {
+      return requireAsyncModule(metadata.id);
     } else {
-      var modulePromise = Promise.all(promises).then(function () {
-        return globalThis.__next_require__(metadata.id);
+      return Promise.all(promises).then(function () {
+        return requireAsyncModule(metadata.id);
       });
-      modulePromise.then(function (value) {
-        var fulfilledThenable = modulePromise;
-        fulfilledThenable.status = 'fulfilled';
-        fulfilledThenable.value = value;
-      }, function (reason) {
-        var rejectedThenable = modulePromise;
-        rejectedThenable.status = 'rejected';
-        rejectedThenable.reason = reason;
-      });
-      asyncModuleCache.set(metadata.id, modulePromise);
-      return modulePromise;
     }
   } else if (promises.length > 0) {
     return Promise.all(promises);
@@ -128,20 +135,15 @@ function preloadModule(metadata) {
 // Increase priority if necessary.
 
 function requireModule(metadata) {
-  var moduleExports;
+  var moduleExports = globalThis.__next_require__(metadata.id);
 
   if (metadata.async) {
-    // We assume that preloadModule has been called before, which
-    // should have added something to the module cache.
-    var promise = asyncModuleCache.get(metadata.id);
-
-    if (promise.status === 'fulfilled') {
-      moduleExports = promise.value;
+    if (typeof moduleExports.then !== 'function') ; else if (moduleExports.status === 'fulfilled') {
+      // This Promise should've been instrumented by preloadModule.
+      moduleExports = moduleExports.value;
     } else {
-      throw promise.reason;
+      throw moduleExports.reason;
     }
-  } else {
-    moduleExports = globalThis.__next_require__(metadata.id);
   }
 
   if (metadata.name === '*') {
@@ -648,6 +650,14 @@ function serializeBigInt(n) {
   return '$n' + n.toString(10);
 }
 
+function serializeMapID(id) {
+  return '$Q' + id.toString(16);
+}
+
+function serializeSetID(id) {
+  return '$W' + id.toString(16);
+}
+
 function escapeStringValue(value) {
   if (value[0] === '$') {
     // We need to escape $ prefixed strings since we use those to encode
@@ -733,6 +743,30 @@ function processReply(root, formFieldPrefix, resolve, reject) {
           data.append(prefix + originalKey, originalValue);
         });
         return serializeFormDataReference(refId);
+      }
+
+      if (value instanceof Map) {
+        var partJSON = JSON.stringify(Array.from(value), resolveToJSON);
+
+        if (formData === null) {
+          formData = new FormData();
+        }
+
+        var mapId = nextPartId++;
+        formData.append(formFieldPrefix + mapId, partJSON);
+        return serializeMapID(mapId);
+      }
+
+      if (value instanceof Set) {
+        var _partJSON = JSON.stringify(Array.from(value), resolveToJSON);
+
+        if (formData === null) {
+          formData = new FormData();
+        }
+
+        var setId = nextPartId++;
+        formData.append(formFieldPrefix + setId, _partJSON);
+        return serializeSetID(setId);
       }
 
       if (!isArray(value)) {
@@ -933,6 +967,25 @@ function encodeFormAction(identifierPrefix) {
     data: data
   };
 }
+function createServerReference$1(id, callServer) {
+  var proxy = function () {
+    // $FlowFixMe[method-unbinding]
+    var args = Array.prototype.slice.call(arguments);
+    return callServer(id, args);
+  }; // Expose encoder for use by SSR.
+
+
+  {
+    // Only expose this in builds that would actually use it. Not needed on the client.
+    proxy.$$FORM_ACTION = encodeFormAction;
+  }
+
+  knownServerReferences.set(proxy, {
+    id: id,
+    bound: null
+  });
+  return proxy;
+}
 
 var ContextRegistry = ReactSharedInternals.ContextRegistry;
 function getOrCreateServerContext(globalName) {
@@ -944,6 +997,11 @@ function getOrCreateServerContext(globalName) {
   return ContextRegistry[globalName];
 }
 
+var ROW_ID = 0;
+var ROW_TAG = 1;
+var ROW_LENGTH = 2;
+var ROW_CHUNK_BY_NEWLINE = 3;
+var ROW_CHUNK_BY_LENGTH = 4;
 var PENDING = 'pending';
 var BLOCKED = 'blocked';
 var RESOLVED_MODEL = 'resolved_model';
@@ -1107,6 +1165,16 @@ function createResolvedModelChunk(response, value) {
 function createResolvedModuleChunk(response, value) {
   // $FlowFixMe[invalid-constructor] Flow doesn't support functions as constructors
   return new Chunk(RESOLVED_MODULE, value, null, response);
+}
+
+function createInitializedTextChunk(response, value) {
+  // $FlowFixMe[invalid-constructor] Flow doesn't support functions as constructors
+  return new Chunk(INITIALIZED, value, null, response);
+}
+
+function createInitializedBufferChunk(response, value) {
+  // $FlowFixMe[invalid-constructor] Flow doesn't support functions as constructors
+  return new Chunk(INITIALIZED, value, null, response);
 }
 
 function resolveModelChunk(chunk, value) {
@@ -1336,12 +1404,37 @@ function createServerReferenceProxy(response, metaData) {
       return callServer(metaData.id, bound.concat(args));
     });
   }; // Expose encoder for use by SSR.
-  // TODO: Only expose this in SSR builds and not the browser client.
 
 
-  proxy.$$FORM_ACTION = encodeFormAction;
+  {
+    // Only expose this in builds that would actually use it. Not needed on the client.
+    proxy.$$FORM_ACTION = encodeFormAction;
+  }
+
   knownServerReferences.set(proxy, metaData);
   return proxy;
+}
+
+function getOutlinedModel(response, id) {
+  var chunk = getChunk(response, id);
+
+  switch (chunk.status) {
+    case RESOLVED_MODEL:
+      initializeModelChunk(chunk);
+      break;
+  } // The status might have changed after initialization.
+
+
+  switch (chunk.status) {
+    case INITIALIZED:
+      {
+        return chunk.value;
+      }
+    // We always encode it first in the stream so it won't be pending.
+
+    default:
+      throw chunk.reason;
+  }
 }
 
 function parseModelString(response, parentObject, key, value) {
@@ -1395,26 +1488,27 @@ function parseModelString(response, parentObject, key, value) {
           // Server Reference
           var _id2 = parseInt(value.slice(2), 16);
 
-          var _chunk2 = getChunk(response, _id2);
+          var metadata = getOutlinedModel(response, _id2);
+          return createServerReferenceProxy(response, metadata);
+        }
 
-          switch (_chunk2.status) {
-            case RESOLVED_MODEL:
-              initializeModelChunk(_chunk2);
-              break;
-          } // The status might have changed after initialization.
+      case 'Q':
+        {
+          // Map
+          var _id3 = parseInt(value.slice(2), 16);
 
+          var data = getOutlinedModel(response, _id3);
+          return new Map(data);
+        }
 
-          switch (_chunk2.status) {
-            case INITIALIZED:
-              {
-                var metadata = _chunk2.value;
-                return createServerReferenceProxy(response, metadata);
-              }
-            // We always encode it first in the stream so it won't be pending.
+      case 'W':
+        {
+          // Set
+          var _id4 = parseInt(value.slice(2), 16);
 
-            default:
-              throw _chunk2.reason;
-          }
+          var _data = getOutlinedModel(response, _id4);
+
+          return new Set(_data);
         }
 
       case 'I':
@@ -1461,35 +1555,35 @@ function parseModelString(response, parentObject, key, value) {
       default:
         {
           // We assume that anything else is a reference ID.
-          var _id3 = parseInt(value.slice(1), 16);
+          var _id5 = parseInt(value.slice(1), 16);
 
-          var _chunk3 = getChunk(response, _id3);
+          var _chunk2 = getChunk(response, _id5);
 
-          switch (_chunk3.status) {
+          switch (_chunk2.status) {
             case RESOLVED_MODEL:
-              initializeModelChunk(_chunk3);
+              initializeModelChunk(_chunk2);
               break;
 
             case RESOLVED_MODULE:
-              initializeModuleChunk(_chunk3);
+              initializeModuleChunk(_chunk2);
               break;
           } // The status might have changed after initialization.
 
 
-          switch (_chunk3.status) {
+          switch (_chunk2.status) {
             case INITIALIZED:
-              return _chunk3.value;
+              return _chunk2.value;
 
             case PENDING:
             case BLOCKED:
               var parentChunk = initializingChunk;
 
-              _chunk3.then(createModelResolver(parentChunk, parentObject, key), createModelReject(parentChunk));
+              _chunk2.then(createModelResolver(parentChunk, parentObject, key), createModelReject(parentChunk));
 
               return null;
 
             default:
-              throw _chunk3.reason;
+              throw _chunk2.reason;
           }
         }
     }
@@ -1520,15 +1614,14 @@ function createResponse(bundlerConfig, callServer) {
     _bundlerConfig: bundlerConfig,
     _callServer: callServer !== undefined ? callServer : missingCall,
     _chunks: chunks,
-    _partialRow: '',
-    _stringDecoder: null,
-    _fromJSON: null
-  };
-
-  {
-    response._stringDecoder = createStringDecoder();
-  } // Don't inline this call because it causes closure to outline the call above.
-
+    _stringDecoder: createStringDecoder(),
+    _fromJSON: null,
+    _rowState: 0,
+    _rowID: 0,
+    _rowTag: 0,
+    _rowLength: 0,
+    _buffer: []
+  }; // Don't inline this call because it causes closure to outline the call above.
 
   response._fromJSON = createFromJSONCallback(response);
   return response;
@@ -1543,6 +1636,19 @@ function resolveModel(response, id, model) {
   } else {
     resolveModelChunk(chunk, model);
   }
+}
+
+function resolveText(response, id, text) {
+  var chunks = response._chunks; // We assume that we always reference large strings after they've been
+  // emitted.
+
+  chunks.set(id, createInitializedTextChunk(response, text));
+}
+
+function resolveBuffer(response, id, buffer) {
+  var chunks = response._chunks; // We assume that we always reference buffers after they've been emitted.
+
+  chunks.set(id, createInitializedBufferChunk(response, buffer));
 }
 
 function resolveModule(response, id, model) {
@@ -1608,35 +1714,160 @@ function resolveHint(response, code, model) {
   dispatchHint(code, hintModel);
 }
 
-function processFullRow(response, row) {
-  if (row === '') {
-    return;
+function mergeBuffer(buffer, lastChunk) {
+  var l = buffer.length; // Count the bytes we'll need
+
+  var byteLength = lastChunk.length;
+
+  for (var i = 0; i < l; i++) {
+    byteLength += buffer[i].byteLength;
+  } // Allocate enough contiguous space
+
+
+  var result = new Uint8Array(byteLength);
+  var offset = 0; // Copy all the buffers into it.
+
+  for (var _i = 0; _i < l; _i++) {
+    var chunk = buffer[_i];
+    result.set(chunk, offset);
+    offset += chunk.byteLength;
   }
 
-  var colon = row.indexOf(':', 0);
-  var id = parseInt(row.slice(0, colon), 16);
-  var tag = row[colon + 1]; // When tags that are not text are added, check them here before
-  // parsing the row as text.
-  // switch (tag) {
-  // }
+  result.set(lastChunk, offset);
+  return result;
+}
+
+function resolveTypedArray(response, id, buffer, lastChunk, constructor, bytesPerElement) {
+  // If the view fits into one original buffer, we just reuse that buffer instead of
+  // copying it out to a separate copy. This means that it's not always possible to
+  // transfer these values to other threads without copying first since they may
+  // share array buffer. For this to work, it must also have bytes aligned to a
+  // multiple of a size of the type.
+  var chunk = buffer.length === 0 && lastChunk.byteOffset % bytesPerElement === 0 ? lastChunk : mergeBuffer(buffer, lastChunk); // TODO: The transfer protocol of RSC is little-endian. If the client isn't little-endian
+  // we should convert it instead. In practice big endian isn't really Web compatible so it's
+  // somewhat safe to assume that browsers aren't going to run it, but maybe there's some SSR
+  // server that's affected.
+
+  var view = new constructor(chunk.buffer, chunk.byteOffset, chunk.byteLength / bytesPerElement);
+  resolveBuffer(response, id, view);
+}
+
+function processFullRow(response, id, tag, buffer, chunk) {
+  {
+    switch (tag) {
+      case 65
+      /* "A" */
+      :
+        // We must always clone to extract it into a separate buffer instead of just a view.
+        resolveBuffer(response, id, mergeBuffer(buffer, chunk).buffer);
+        return;
+
+      case 67
+      /* "C" */
+      :
+        resolveTypedArray(response, id, buffer, chunk, Int8Array, 1);
+        return;
+
+      case 99
+      /* "c" */
+      :
+        resolveBuffer(response, id, buffer.length === 0 ? chunk : mergeBuffer(buffer, chunk));
+        return;
+
+      case 85
+      /* "U" */
+      :
+        resolveTypedArray(response, id, buffer, chunk, Uint8ClampedArray, 1);
+        return;
+
+      case 83
+      /* "S" */
+      :
+        resolveTypedArray(response, id, buffer, chunk, Int16Array, 2);
+        return;
+
+      case 115
+      /* "s" */
+      :
+        resolveTypedArray(response, id, buffer, chunk, Uint16Array, 2);
+        return;
+
+      case 76
+      /* "L" */
+      :
+        resolveTypedArray(response, id, buffer, chunk, Int32Array, 4);
+        return;
+
+      case 108
+      /* "l" */
+      :
+        resolveTypedArray(response, id, buffer, chunk, Uint32Array, 4);
+        return;
+
+      case 70
+      /* "F" */
+      :
+        resolveTypedArray(response, id, buffer, chunk, Float32Array, 4);
+        return;
+
+      case 68
+      /* "D" */
+      :
+        resolveTypedArray(response, id, buffer, chunk, Float64Array, 8);
+        return;
+
+      case 78
+      /* "N" */
+      :
+        resolveTypedArray(response, id, buffer, chunk, BigInt64Array, 8);
+        return;
+
+      case 109
+      /* "m" */
+      :
+        resolveTypedArray(response, id, buffer, chunk, BigUint64Array, 8);
+        return;
+
+      case 86
+      /* "V" */
+      :
+        resolveTypedArray(response, id, buffer, chunk, DataView, 1);
+        return;
+    }
+  }
+
+  var stringDecoder = response._stringDecoder;
+  var row = '';
+
+  for (var i = 0; i < buffer.length; i++) {
+    row += readPartialStringChunk(stringDecoder, buffer[i]);
+  }
+
+  row += readFinalStringChunk(stringDecoder, chunk);
 
   switch (tag) {
-    case 'I':
+    case 73
+    /* "I" */
+    :
       {
-        resolveModule(response, id, row.slice(colon + 2));
+        resolveModule(response, id, row);
         return;
       }
 
-    case 'H':
+    case 72
+    /* "H" */
+    :
       {
-        var code = row[colon + 2];
-        resolveHint(response, code, row.slice(colon + 3));
+        var code = row[0];
+        resolveHint(response, code, row.slice(1));
         return;
       }
 
-    case 'E':
+    case 69
+    /* "E" */
+    :
       {
-        var errorInfo = JSON.parse(row.slice(colon + 2));
+        var errorInfo = JSON.parse(row);
 
         {
           resolveErrorDev(response, id, errorInfo.digest, errorInfo.message, errorInfo.stack);
@@ -1645,28 +1876,179 @@ function processFullRow(response, row) {
         return;
       }
 
+    case 84
+    /* "T" */
+    :
+      {
+        resolveText(response, id, row);
+        return;
+      }
+
     default:
+      /* """ "{" "[" "t" "f" "n" "0" - "9" */
       {
         // We assume anything else is JSON.
-        resolveModel(response, id, row.slice(colon + 1));
+        resolveModel(response, id, row);
         return;
       }
   }
 }
+
 function processBinaryChunk(response, chunk) {
+  var i = 0;
+  var rowState = response._rowState;
+  var rowID = response._rowID;
+  var rowTag = response._rowTag;
+  var rowLength = response._rowLength;
+  var buffer = response._buffer;
+  var chunkLength = chunk.length;
 
-  var stringDecoder = response._stringDecoder;
-  var linebreak = chunk.indexOf(10); // newline
+  while (i < chunkLength) {
+    var lastIdx = -1;
 
-  while (linebreak > -1) {
-    var fullrow = response._partialRow + readFinalStringChunk(stringDecoder, chunk.subarray(0, linebreak));
-    processFullRow(response, fullrow);
-    response._partialRow = '';
-    chunk = chunk.subarray(linebreak + 1);
-    linebreak = chunk.indexOf(10); // newline
+    switch (rowState) {
+      case ROW_ID:
+        {
+          var byte = chunk[i++];
+
+          if (byte === 58
+          /* ":" */
+          ) {
+              // Finished the rowID, next we'll parse the tag.
+              rowState = ROW_TAG;
+            } else {
+            rowID = rowID << 4 | (byte > 96 ? byte - 87 : byte - 48);
+          }
+
+          continue;
+        }
+
+      case ROW_TAG:
+        {
+          var resolvedRowTag = chunk[i];
+
+          if (resolvedRowTag === 84
+          /* "T" */
+          || (resolvedRowTag === 65
+          /* "A" */
+          || resolvedRowTag === 67
+          /* "C" */
+          || resolvedRowTag === 99
+          /* "c" */
+          || resolvedRowTag === 85
+          /* "U" */
+          || resolvedRowTag === 83
+          /* "S" */
+          || resolvedRowTag === 115
+          /* "s" */
+          || resolvedRowTag === 76
+          /* "L" */
+          || resolvedRowTag === 108
+          /* "l" */
+          || resolvedRowTag === 70
+          /* "F" */
+          || resolvedRowTag === 68
+          /* "D" */
+          || resolvedRowTag === 78
+          /* "N" */
+          || resolvedRowTag === 109
+          /* "m" */
+          || resolvedRowTag === 86)
+          /* "V" */
+          ) {
+              rowTag = resolvedRowTag;
+              rowState = ROW_LENGTH;
+              i++;
+            } else if (resolvedRowTag > 64 && resolvedRowTag < 91
+          /* "A"-"Z" */
+          ) {
+              rowTag = resolvedRowTag;
+              rowState = ROW_CHUNK_BY_NEWLINE;
+              i++;
+            } else {
+            rowTag = 0;
+            rowState = ROW_CHUNK_BY_NEWLINE; // This was an unknown tag so it was probably part of the data.
+          }
+
+          continue;
+        }
+
+      case ROW_LENGTH:
+        {
+          var _byte = chunk[i++];
+
+          if (_byte === 44
+          /* "," */
+          ) {
+              // Finished the rowLength, next we'll buffer up to that length.
+              rowState = ROW_CHUNK_BY_LENGTH;
+            } else {
+            rowLength = rowLength << 4 | (_byte > 96 ? _byte - 87 : _byte - 48);
+          }
+
+          continue;
+        }
+
+      case ROW_CHUNK_BY_NEWLINE:
+        {
+          // We're looking for a newline
+          lastIdx = chunk.indexOf(10
+          /* "\n" */
+          , i);
+          break;
+        }
+
+      case ROW_CHUNK_BY_LENGTH:
+        {
+          // We're looking for the remaining byte length
+          lastIdx = i + rowLength;
+
+          if (lastIdx > chunk.length) {
+            lastIdx = -1;
+          }
+
+          break;
+        }
+    }
+
+    var offset = chunk.byteOffset + i;
+
+    if (lastIdx > -1) {
+      // We found the last chunk of the row
+      var length = lastIdx - i;
+      var lastChunk = new Uint8Array(chunk.buffer, offset, length);
+      processFullRow(response, rowID, rowTag, buffer, lastChunk); // Reset state machine for a new row
+
+      i = lastIdx;
+
+      if (rowState === ROW_CHUNK_BY_NEWLINE) {
+        // If we're trailing by a newline we need to skip it.
+        i++;
+      }
+
+      rowState = ROW_ID;
+      rowTag = 0;
+      rowID = 0;
+      rowLength = 0;
+      buffer.length = 0;
+    } else {
+      // The rest of this row is in a future chunk. We stash the rest of the
+      // current chunk until we can process the full row.
+      var _length = chunk.byteLength - i;
+
+      var remainingSlice = new Uint8Array(chunk.buffer, offset, _length);
+      buffer.push(remainingSlice); // Update how many bytes we're still waiting for. If we're looking for
+      // a newline, this doesn't hurt since we'll just ignore it.
+
+      rowLength -= remainingSlice.byteLength;
+      break;
+    }
   }
 
-  response._partialRow += readPartialStringChunk(stringDecoder, chunk);
+  response._rowState = rowState;
+  response._rowID = rowID;
+  response._rowTag = rowTag;
+  response._rowLength = rowLength;
 }
 
 function parseModel(response, json) {
@@ -1702,7 +2084,7 @@ function noServerCall() {
 }
 
 function createServerReference(id, callServer) {
-  return noServerCall;
+  return createServerReference$1(id, noServerCall);
 }
 
 function createResponseFromOptions(options) {

@@ -55,7 +55,7 @@ pub async fn get_fallback_page(
         project_path,
         dev_server_root,
         client_compile_time_info.environment(),
-        ty,
+        mode,
     );
     let entries =
         get_client_runtime_entries(project_path, env, ty, mode, next_config, execution_context);
@@ -96,7 +96,7 @@ pub async fn get_fallback_page(
         dev_server_root.join("fallback.html"),
         vec![(
             module.into(),
-            chunking_context,
+            chunking_context.into(),
             Some(runtime_entries.with_entry(module.into())),
         )],
     ))

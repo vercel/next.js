@@ -1,4 +1,5 @@
 import type NextServer from '../../next-server'
+import type { NextConfigComplete } from '../../config-shared'
 
 import { getNodeOptionsWithoutInspect } from '../utils'
 import { deserializeErr, errorToJSON } from '../../render'
@@ -84,10 +85,11 @@ export const createWorker = (
   ipcValidationKey: string,
   isNodeDebugging: boolean | 'brk' | undefined,
   type: 'pages' | 'app',
-  useServerActions?: boolean
+  nextConfig: NextConfigComplete
 ) => {
   const { initialEnv } = require('@next/env') as typeof import('@next/env')
   const { Worker } = require('next/dist/compiled/jest-worker')
+  const useServerActions = !!nextConfig.experimental.serverActions
 
   const worker = new Worker(require.resolve('../render-server'), {
     numWorkers: 1,
@@ -103,6 +105,7 @@ export const createWorker = (
           .replace(/--max-old-space-size=[\d]{1,}/, '')
           .trim(),
         __NEXT_PRIVATE_RENDER_WORKER: type,
+        __NEXT_PRIVATE_RENDER_WORKER_CONFIG: JSON.stringify(nextConfig),
         __NEXT_PRIVATE_ROUTER_IPC_PORT: ipcPort + '',
         __NEXT_PRIVATE_ROUTER_IPC_KEY: ipcValidationKey,
         __NEXT_PRIVATE_STANDALONE_CONFIG:

@@ -9,14 +9,16 @@ use turbopack_binding::{
         core::{
             asset::{Asset, AssetContentVc, AssetVc, AssetsVc},
             chunk::{
-                ChunkDataVc, ChunkableAsset, ChunkingContext, ChunkingContextVc, ChunksDataVc,
+                ChunkDataVc, ChunkableModule, ChunkingContext, ChunkingContextVc, ChunksDataVc,
                 EvaluatableAssetVc, EvaluatableAssetsVc,
             },
             context::{AssetContext, AssetContextVc},
             ident::AssetIdentVc,
+            module::ModuleVc,
             reference::{AssetReferencesVc, SingleAssetReferenceVc},
             reference_type::{EntryReferenceSubType, InnerAssetsVc, ReferenceType},
-            virtual_asset::VirtualAssetVc,
+            source::SourceVc,
+            virtual_source::VirtualSourceVc,
         },
         dev_server::source::{asset_graph::AssetGraphContentSourceVc, ContentSourceVc},
         ecmascript::{chunk::EcmascriptChunkData, utils::StringifyJs},
@@ -30,7 +32,7 @@ pub async fn create_page_loader(
     server_root: FileSystemPathVc,
     client_context: AssetContextVc,
     client_chunking_context: ChunkingContextVc,
-    entry_asset: AssetVc,
+    entry_asset: SourceVc,
     pathname: StringVc,
 ) -> Result<ContentSourceVc> {
     let asset = PageLoaderAsset {
@@ -50,16 +52,16 @@ pub struct PageLoaderAsset {
     pub server_root: FileSystemPathVc,
     pub client_context: AssetContextVc,
     pub client_chunking_context: ChunkingContextVc,
-    pub entry_asset: AssetVc,
+    pub entry_asset: SourceVc,
     pub pathname: StringVc,
 }
 
 #[turbo_tasks::function]
-pub async fn create_page_loader_entry_asset(
+pub async fn create_page_loader_entry_module(
     client_context: AssetContextVc,
-    entry_asset: AssetVc,
+    entry_asset: SourceVc,
     pathname: StringVc,
-) -> Result<AssetVc> {
+) -> Result<ModuleVc> {
     let mut result = RopeBuilder::default();
     writeln!(
         result,
@@ -77,16 +79,17 @@ pub async fn create_page_loader_entry_asset(
 
     let file = File::from(result.build());
 
-    let virtual_asset = VirtualAssetVc::new(page_loader_path, file.into()).into();
+    let virtual_source = VirtualSourceVc::new(page_loader_path, file.into()).into();
 
     Ok(client_context.process(
-        virtual_asset,
-        Value::new(ReferenceType::Internal(
-            InnerAssetsVc::cell(indexmap! {
-                "PAGE".to_string() => client_context.process(entry_asset, Value::new(ReferenceType::Entry(EntryReferenceSubType::Page)))
-            })
-        )))
-    )
+        virtual_source,
+        Value::new(ReferenceType::Internal(InnerAssetsVc::cell(indexmap! {
+            "PAGE".to_string() => client_context.process(
+                entry_asset,
+                Value::new(ReferenceType::Entry(EntryReferenceSubType::Page))
+            ).into(),
+        }))),
+    ))
 }
 
 #[turbo_tasks::value_impl]
@@ -96,7 +99,7 @@ impl PageLoaderAssetVc {
         let this = &*self.await?;
 
         let page_loader_entry_asset =
-            create_page_loader_entry_asset(this.client_context, this.entry_asset, this.pathname);
+            create_page_loader_entry_module(this.client_context, this.entry_asset, this.pathname);
 
         let Some(module) = EvaluatableAssetVc::resolve_from(page_loader_entry_asset).await? else {
             bail!("internal module must be evaluatable");

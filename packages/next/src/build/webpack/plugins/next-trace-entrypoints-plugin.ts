@@ -6,7 +6,10 @@ import {
   nodeFileTrace,
   NodeFileTraceReasons,
 } from 'next/dist/compiled/@vercel/nft'
-import { TRACE_OUTPUT_VERSION } from '../../../shared/lib/constants'
+import {
+  CLIENT_REFERENCE_MANIFEST,
+  TRACE_OUTPUT_VERSION,
+} from '../../../shared/lib/constants'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import {
   NODE_ESM_RESOLVE_OPTIONS,
@@ -284,6 +287,27 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
         })
         // don't include the entry itself in the trace
         entryFiles.delete(nodePath.join(outputPath, `../${entrypoint.name}.js`))
+
+        if (entrypoint.name.startsWith('app/')) {
+          // include the client reference manifest
+          const clientManifestsForPage =
+            entrypoint.name.endsWith('/page') ||
+            entrypoint.name === '/not-found' ||
+            entrypoint.name === '/_not-found'
+              ? nodePath.join(
+                  outputPath,
+                  '..',
+                  entrypoint.name.replace(/%5F/g, '_') +
+                    '_' +
+                    CLIENT_REFERENCE_MANIFEST +
+                    '.js'
+                )
+              : null
+
+          if (clientManifestsForPage !== null) {
+            entryFiles.add(clientManifestsForPage)
+          }
+        }
 
         const finalFiles: string[] = []
 
