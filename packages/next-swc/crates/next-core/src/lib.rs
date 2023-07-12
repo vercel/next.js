@@ -1,6 +1,7 @@
 #![feature(async_closure)]
 #![feature(min_specialization)]
 #![feature(box_syntax)]
+#![feature(str_split_remainder)]
 
 mod app_render;
 mod app_segment_config;

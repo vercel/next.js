@@ -201,6 +201,7 @@ export default class HotReloader {
     staleness: 'unknown',
     installed: '0.0.0',
   }
+  private reloadAfterInvalidation: boolean = false
   public multiCompiler?: webpack.MultiCompiler
   public activeConfigs?: Array<
     UnwrapPromise<ReturnType<typeof getBaseWebpackConfig>>
@@ -336,6 +337,14 @@ export default class HotReloader {
       this.setHmrServerError(null)
       this.send('reloadPage')
     }
+  }
+
+  public async refreshServerComponents(): Promise<void> {
+    this.send({
+      action: 'serverComponentChanges',
+      // TODO: granular reloading of changes
+      // entrypoints: serverComponentChanges,
+    })
   }
 
   public onHMR(req: IncomingMessage, _socket: Duplex, head: Buffer) {
@@ -949,6 +958,26 @@ export default class HotReloader {
       this.activeConfigs
     ) as unknown as webpack.MultiCompiler
 
+    // Copy over the filesystem so that it is shared between all compilers.
+    const inputFileSystem = this.multiCompiler.compilers[0].inputFileSystem
+    for (const compiler of this.multiCompiler.compilers) {
+      compiler.inputFileSystem = inputFileSystem
+      // This is set for the initial compile. After that Watching class in webpack adds it.
+      compiler.fsStartTime = Date.now()
+      // Ensure NodeEnvironmentPlugin doesn't purge the inputFileSystem. Purging is handled in `done` below.
+      compiler.hooks.beforeRun.intercept({
+        register(tapInfo: any) {
+          if (tapInfo.name === 'NodeEnvironmentPlugin') {
+            return null
+          }
+          return tapInfo
+        },
+      })
+    }
+
+    this.multiCompiler.hooks.done.tap('NextjsHotReloader', () => {
+      inputFileSystem.purge!()
+    })
     watchCompilers(
       this.multiCompiler.compilers[0],
       this.multiCompiler.compilers[1],
@@ -1009,7 +1038,7 @@ export default class HotReloader {
                       // every time for both server and client so we calculate
                       // the hash without the source map for the page module
                       const hash = require('crypto')
-                        .createHash('sha256')
+                        .createHash('sha1')
                         .update(mod.originalSource().buffer())
                         .digest()
                         .toString('hex')
@@ -1181,6 +1210,9 @@ export default class HotReloader {
     )
 
     this.multiCompiler.hooks.done.tap('NextjsHotReloaderForServer', () => {
+      const reloadAfterInvalidation = this.reloadAfterInvalidation
+      this.reloadAfterInvalidation = false
+
       const serverOnlyChanges = difference<string>(
         changedServerPages,
         changedClientPages
@@ -1213,12 +1245,12 @@ export default class HotReloader {
         })
       }
 
-      if (changedServerComponentPages.size || changedCSSImportPages.size) {
-        this.send({
-          action: 'serverComponentChanges',
-          // TODO: granular reloading of changes
-          // entrypoints: serverComponentChanges,
-        })
+      if (
+        changedServerComponentPages.size ||
+        changedCSSImportPages.size ||
+        reloadAfterInvalidation
+      ) {
+        this.refreshServerComponents()
       }
 
       changedClientPages.clear()
@@ -1316,7 +1348,13 @@ export default class HotReloader {
     ]
   }
 
-  public invalidate() {
+  public invalidate(
+    { reloadAfterInvalidation }: { reloadAfterInvalidation: boolean } = {
+      reloadAfterInvalidation: false,
+    }
+  ) {
+    // Cache the `reloadAfterInvalidation` flag, and use it to reload the page when compilation is done
+    this.reloadAfterInvalidation = reloadAfterInvalidation
     const outputPath = this.multiCompiler?.outputPath
     return outputPath && getInvalidator(outputPath)?.invalidate()
   }

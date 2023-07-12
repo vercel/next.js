@@ -82,6 +82,7 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
         .map((dep: any) => {
           return dep.name
         }) || []
+
     // re-export and spread as `exportedImageData` to avoid non-exported error
     return `\
     import {
