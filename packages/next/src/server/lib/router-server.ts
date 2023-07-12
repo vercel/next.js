@@ -293,8 +293,7 @@ export async function initialize(opts: {
       type: keyof typeof renderWorkers,
       handleIndex: number,
       invokePath: string,
-      invokeStatus?: string,
-      invokeOutput?: string
+      additionalInvokeHeaders: Record<string, string> = {}
     ) {
       // invokeRender expects /api routes to not be locale prefixed
       // so normalize here before continuing
@@ -335,13 +334,8 @@ export async function initialize(opts: {
         ...req.headers,
         'x-middleware-invoke': '',
         'x-invoke-path': invokePath,
-        'x-invoke-output': invokeOutput,
         'x-invoke-query': encodeURIComponent(JSON.stringify(parsedUrl.query)),
-        ...(invokeStatus
-          ? {
-              'x-invoke-status': invokeStatus,
-            }
-          : {}),
+        ...(additionalInvokeHeaders || {}),
       }
 
       debug('invokeRender', renderUrl, invokeHeaders)
@@ -508,6 +502,20 @@ export async function initialize(opts: {
 
       if (matchedOutput?.fsPath && matchedOutput.itemPath) {
         if (
+          opts.dev &&
+          (fsChecker.appFiles.has(matchedOutput.itemPath) ||
+            fsChecker.pageFiles.has(matchedOutput.itemPath))
+        ) {
+          await invokeRender(parsedUrl, 'pages', handleIndex, '/_error', {
+            'x-invoke-status': '500',
+            'x-invoke-error': JSON.stringify({
+              message: `A conflicting public file and page file was found for path ${matchedOutput.itemPath} https://nextjs.org/docs/messages/conflicting-public-file-page`,
+            }),
+          })
+          return
+        }
+
+        if (
           !res.getHeader('cache-control') &&
           matchedOutput.type === 'nextStaticFolder'
         ) {
@@ -527,7 +535,9 @@ export async function initialize(opts: {
             'pages',
             handleIndex,
             '/405',
-            '405'
+            {
+              'x-invoke-status': '405',
+            }
           )
         }
 
@@ -588,7 +598,9 @@ export async function initialize(opts: {
               'pages',
               handleIndex,
               invokePath,
-              invokeStatus
+              {
+                'x-invoke-status': invokeStatus,
+              }
             )
           }
           throw err
@@ -601,8 +613,9 @@ export async function initialize(opts: {
           matchedOutput.type === 'appFile' ? 'app' : 'pages',
           handleIndex,
           parsedUrl.pathname || '/',
-          undefined,
-          matchedOutput.itemPath
+          {
+            'x-invoke-output': matchedOutput.itemPath,
+          }
         )
       }
 
@@ -622,10 +635,14 @@ export async function initialize(opts: {
           'app',
           handleIndex,
           '/_not-found',
-          '404'
+          {
+            'x-invoke-status': '404',
+          }
         )
       }
-      await invokeRender(parsedUrl, 'pages', handleIndex, '/404', '404')
+      await invokeRender(parsedUrl, 'pages', handleIndex, '/404', {
+        'x-invoke-status': '404',
+      })
     }
 
     try {
@@ -650,7 +667,9 @@ export async function initialize(opts: {
           'pages',
           0,
           invokePath,
-          invokeStatus
+          {
+            'x-invoke-status': invokeStatus,
+          }
         )
       } catch (err2) {
         console.error(err2)

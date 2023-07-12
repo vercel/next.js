@@ -1045,7 +1045,16 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           }
 
           res.statusCode = Number(req.headers['x-invoke-status'])
-          return this.renderError(null, req, res, '/_error', parsedUrl.query)
+          let err = null
+
+          if (typeof req.headers['x-invoke-error'] === 'string') {
+            const invokeError = JSON.parse(
+              req.headers['x-invoke-error'] || '{}'
+            )
+            err = new Error(invokeError.message)
+          }
+
+          return this.renderError(err, req, res, '/_error', parsedUrl.query)
         }
 
         const parsedMatchedPath = new URL(matchedPath || '/', 'http://n')

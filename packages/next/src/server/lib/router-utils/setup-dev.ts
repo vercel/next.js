@@ -6,36 +6,42 @@ import path from 'path'
 import qs from 'querystring'
 import Watchpack from 'watchpack'
 import { loadEnvConfig } from '@next/env'
+import isError from '../../../lib/is-error'
 import findUp from 'next/dist/compiled/find-up'
+import { buildCustomRoute } from './filesystem'
 import * as Log from '../../../build/output/log'
 import HotReloader from '../../dev/hot-reloader'
+import { traceGlobals } from '../../../trace/shared'
 import { Telemetry } from '../../../telemetry/storage'
+import { IncomingMessage, ServerResponse } from 'http'
 import loadJsConfig from '../../../build/load-jsconfig'
 import { createValidFileMatcher } from '../find-page-file'
 import { eventCliSession } from '../../../telemetry/events'
 import { getDefineEnv } from '../../../build/webpack-config'
+import { logAppDirError } from '../../dev/log-app-dir-error'
 import { UnwrapPromise } from '../../../lib/coalesced-function'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
 import { getStaticInfoIncludingLayouts } from '../../../build/entries'
+import { verifyTypeScriptSetup } from '../../../lib/verifyTypeScriptSetup'
+import { verifyPartytownSetup } from '../../../lib/verify-partytown-setup'
+import { getRouteRegex } from '../../../shared/lib/router/utils/route-regex'
+import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
+import { buildDataRoute } from '../../../shared/lib/router/utils/sorted-routes'
+import { MiddlewareMatcher } from '../../../build/analysis/get-page-static-info'
+import { getRouteMatcher } from '../../../shared/lib/router/utils/route-matcher'
+import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
+import { createClientRouterFilter } from '../../../lib/create-client-router-filter'
+import { absolutePathToPage } from '../../../shared/lib/page-path/absolute-path-to-page'
+import { generateInterceptionRoutesRewrites } from '../../../lib/generate-interception-routes-rewrites'
+
 import {
   CLIENT_STATIC_FILES_PATH,
   COMPILER_NAMES,
   DEV_CLIENT_PAGES_MANIFEST,
   DEV_MIDDLEWARE_MANIFEST,
+  PHASE_DEVELOPMENT_SERVER,
 } from '../../../shared/lib/constants'
-import { verifyTypeScriptSetup } from '../../../lib/verifyTypeScriptSetup'
-import { verifyPartytownSetup } from '../../../lib/verify-partytown-setup'
-import { getRouteRegex } from '../../../shared/lib/router/utils/route-regex'
-import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
-import { MiddlewareMatcher } from '../../../build/analysis/get-page-static-info'
-import { getRouteMatcher } from '../../../shared/lib/router/utils/route-matcher'
-import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
-import { createClientRouterFilter } from '../../../lib/create-client-router-filter'
-import isError from '../../../lib/is-error'
-import { logAppDirError } from '../../dev/log-app-dir-error'
-import { absolutePathToPage } from '../../../shared/lib/page-path/absolute-path-to-page'
-import { IncomingMessage, ServerResponse } from 'http'
-import { buildDataRoute } from '../../../shared/lib/router/utils/sorted-routes'
+
 import {
   MiddlewareRouteMatch,
   getMiddlewareRouteMatcher,
@@ -55,8 +61,6 @@ import {
   getSourceById,
   parseStack,
 } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
-import { generateInterceptionRoutesRewrites } from '../../../lib/generate-interception-routes-rewrites'
-import { buildCustomRoute } from './filesystem'
 
 type SetupOpts = {
   dir: string
@@ -95,6 +99,9 @@ async function startWatcher(opts: SetupOpts) {
   const usingTypeScript = await verifyTypeScript(opts)
 
   const distDir = path.join(opts.dir, opts.nextConfig.distDir)
+
+  traceGlobals.set('distDir', distDir)
+  traceGlobals.set('phase', PHASE_DEVELOPMENT_SERVER)
 
   const validFileMatcher = createValidFileMatcher(
     nextConfig.pageExtensions,
