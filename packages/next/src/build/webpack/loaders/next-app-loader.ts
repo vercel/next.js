@@ -666,9 +666,15 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
   const result = `
     export ${treeCodeResult.treeCode}
     export ${treeCodeResult.pages}
-    export { default as GlobalError } from ${JSON.stringify(
-      treeCodeResult.globalError || 'next/dist/client/components/error-boundary'
-    )}
+
+    ${
+      treeCodeResult.globalError
+        ? `export { default as GlobalError } from ${JSON.stringify(
+            treeCodeResult.globalError
+          )}`
+        : `export { GlobalError } from 'next/dist/client/components/error-boundary'`
+    }
+
     export const originalPathname = ${JSON.stringify(page)}
     export const __next_app__ = {
       require: __webpack_require__,

@@ -4,6 +4,7 @@ use turbo_tasks_fs::FileSystem;
 use turbopack_binding::{
     turbo::{tasks_env::ProcessEnvVc, tasks_fs::FileSystemPathVc},
     turbopack::{
+        build::BuildChunkingContextVc,
         core::{
             compile_time_defines,
             compile_time_info::{
@@ -12,11 +13,13 @@ use turbopack_binding::{
             },
             environment::{EnvironmentVc, ExecutionEnvironment, NodeJsEnvironmentVc, ServerAddrVc},
             free_var_references,
+            resolve::{parse::RequestVc, pattern::Pattern},
         },
         ecmascript::TransformPluginVc,
         ecmascript_plugin::transform::directives::{
             client::ClientDirectiveTransformer, server::ServerDirectiveTransformer,
         },
+        env::ProcessEnvAssetVc,
         node::execution_context::ExecutionContextVc,
         turbopack::{
             condition::ContextCondition,
@@ -27,18 +30,22 @@ use turbopack_binding::{
                 WebpackLoadersOptions,
             },
             resolve_options_context::{ResolveOptionsContext, ResolveOptionsContextVc},
+            transition::TransitionVc,
         },
     },
 };
 
 use super::{
-    resolve::ExternalCjsModulesResolvePluginVc, transforms::get_next_server_transforms_rules,
+    resolve::ExternalCjsModulesResolvePluginVc,
+    transforms::{get_next_server_internal_transforms_rules, get_next_server_transforms_rules},
 };
 use crate::{
     babel::maybe_add_babel_loader,
     embed_js::next_js_fs,
+    env::env_for_js,
     mode::NextMode,
     next_build::{get_external_next_compiled_package_mapping, get_postcss_package_mapping},
+    next_client::{RuntimeEntriesVc, RuntimeEntry},
     next_config::NextConfigVc,
     next_import_map::{get_next_server_import_map, mdx_import_source_file},
     next_server::resolve::ExternalPredicate,
@@ -48,6 +55,7 @@ use crate::{
             emotion::get_emotion_transform_plugin, get_relay_transform_plugin,
             styled_components::get_styled_components_transform_plugin,
             styled_jsx::get_styled_jsx_transform_plugin,
+            swc_ecma_transform_plugins::get_swc_ecma_transform_plugin,
         },
     },
     sass::maybe_add_sass_loader,
@@ -61,11 +69,23 @@ use crate::{
 #[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(Debug, Copy, Clone, Hash, PartialOrd, Ord)]
 pub enum ServerContextType {
-    Pages { pages_dir: FileSystemPathVc },
-    PagesData { pages_dir: FileSystemPathVc },
-    AppSSR { app_dir: FileSystemPathVc },
-    AppRSC { app_dir: FileSystemPathVc },
-    AppRoute { app_dir: FileSystemPathVc },
+    Pages {
+        pages_dir: FileSystemPathVc,
+    },
+    PagesData {
+        pages_dir: FileSystemPathVc,
+    },
+    AppSSR {
+        app_dir: FileSystemPathVc,
+    },
+    AppRSC {
+        app_dir: FileSystemPathVc,
+        ecmascript_client_reference_transition_name: Option<StringVc>,
+        client_transition: Option<TransitionVc>,
+    },
+    AppRoute {
+        app_dir: FileSystemPathVc,
+    },
     Middleware,
 }
 
@@ -78,7 +98,7 @@ pub async fn get_server_resolve_options_context(
     execution_context: ExecutionContextVc,
 ) -> Result<ResolveOptionsContextVc> {
     let next_server_import_map =
-        get_next_server_import_map(project_path, ty, next_config, execution_context);
+        get_next_server_import_map(project_path, ty, mode, next_config, execution_context);
     let foreign_code_context_condition = foreign_code_context_condition(next_config).await?;
     let root_dir = project_path.root().resolve().await?;
     let unsupported_modules_resolve_plugin = UnsupportedModulesResolvePluginVc::new(project_path);
@@ -262,7 +282,9 @@ pub async fn get_server_module_options_context(
     mode: NextMode,
     next_config: NextConfigVc,
 ) -> Result<ModuleOptionsContextVc> {
-    let custom_rules = get_next_server_transforms_rules(next_config, ty.into_value()).await?;
+    let custom_rules = get_next_server_transforms_rules(next_config, ty.into_value(), mode).await?;
+    let internal_custom_rules = get_next_server_internal_transforms_rules(ty.into_value()).await?;
+
     let foreign_code_context_condition = foreign_code_context_condition(next_config).await?;
     let enable_postcss_transform = Some(PostCssTransformOptions {
         postcss_package: Some(get_postcss_package_mapping(project_path)),
@@ -286,9 +308,6 @@ pub async fn get_server_module_options_context(
     let styled_components_transform_plugin =
         *get_styled_components_transform_plugin(next_config).await?;
     let styled_jsx_transform_plugin = *get_styled_jsx_transform_plugin().await?;
-    let client_directive_transform_plugin = Some(TransformPluginVc::cell(Box::new(
-        ClientDirectiveTransformer::new(&StringVc::cell("server-to-client".to_string())),
-    )));
     let server_directive_transform_plugin = Some(TransformPluginVc::cell(Box::new(
         ServerDirectiveTransformer::new(
             // ServerDirective is not implemented yet and always reports an issue.
@@ -313,6 +332,7 @@ pub async fn get_server_module_options_context(
     let jsx_runtime_options = get_jsx_transform_options(project_path, mode, None);
 
     let source_transforms: Vec<TransformPluginVc> = vec![
+        *get_swc_ecma_transform_plugin(project_path, next_config).await?,
         *get_relay_transform_plugin(next_config).await?,
         *get_emotion_transform_plugin(next_config).await?,
     ]
@@ -356,6 +376,7 @@ pub async fn get_server_module_options_context(
             let internal_module_options_context = ModuleOptionsContext {
                 enable_typescript_transform: Some(TypescriptTransformOptions::default().cell()),
                 enable_jsx: Some(JsxTransformOptions::default().cell()),
+                custom_rules: internal_custom_rules,
                 ..module_options_context.clone()
             };
 
@@ -414,6 +435,7 @@ pub async fn get_server_module_options_context(
             };
             let internal_module_options_context = ModuleOptionsContext {
                 enable_typescript_transform: Some(TypescriptTransformOptions::default().cell()),
+                custom_rules: internal_custom_rules,
                 ..module_options_context.clone()
             };
 
@@ -439,15 +461,25 @@ pub async fn get_server_module_options_context(
                 ..module_options_context
             }
         }
-        ServerContextType::AppRSC { .. } => {
+        ServerContextType::AppRSC {
+            ecmascript_client_reference_transition_name,
+            ..
+        } => {
             let mut base_source_transforms: Vec<TransformPluginVc> = vec![
                 styled_components_transform_plugin,
-                client_directive_transform_plugin,
                 server_directive_transform_plugin,
             ]
             .into_iter()
             .flatten()
             .collect();
+
+            if let Some(ecmascript_client_reference_transition_name) =
+                ecmascript_client_reference_transition_name
+            {
+                base_source_transforms.push(TransformPluginVc::cell(Box::new(
+                    ClientDirectiveTransformer::new(ecmascript_client_reference_transition_name),
+                )));
+            }
 
             let base_ecma_transform_plugins = Some(CustomEcmascriptTransformPluginsVc::cell(
                 CustomEcmascriptTransformPlugins {
@@ -472,6 +504,7 @@ pub async fn get_server_module_options_context(
             };
             let internal_module_options_context = ModuleOptionsContext {
                 enable_typescript_transform: Some(TypescriptTransformOptions::default().cell()),
+                custom_rules: internal_custom_rules,
                 ..module_options_context.clone()
             };
             ModuleOptionsContext {
@@ -503,6 +536,7 @@ pub async fn get_server_module_options_context(
             };
             let internal_module_options_context = ModuleOptionsContext {
                 enable_typescript_transform: Some(TypescriptTransformOptions::default().cell()),
+                custom_rules: internal_custom_rules,
                 ..module_options_context.clone()
             };
             ModuleOptionsContext {
@@ -550,6 +584,7 @@ pub async fn get_server_module_options_context(
             };
             let internal_module_options_context = ModuleOptionsContext {
                 enable_typescript_transform: Some(TypescriptTransformOptions::default().cell()),
+                custom_rules: internal_custom_rules,
                 ..module_options_context.clone()
             };
             ModuleOptionsContext {
@@ -587,4 +622,59 @@ pub fn get_build_module_options_context() -> ModuleOptionsContextVc {
         ..Default::default()
     }
     .cell()
+}
+
+#[turbo_tasks::function]
+pub fn get_server_runtime_entries(
+    project_root: FileSystemPathVc,
+    env: ProcessEnvVc,
+    ty: Value<ServerContextType>,
+    mode: NextMode,
+    next_config: NextConfigVc,
+) -> RuntimeEntriesVc {
+    let mut runtime_entries = vec![RuntimeEntry::Source(
+        ProcessEnvAssetVc::new(project_root, env_for_js(env, false, next_config)).into(),
+    )
+    .cell()];
+
+    match mode {
+        NextMode::Development => {}
+        NextMode::Build => {
+            if let ServerContextType::AppRSC { .. } = ty.into_value() {
+                runtime_entries.push(
+                    RuntimeEntry::Request(
+                        RequestVc::parse(Value::new(Pattern::Constant(
+                            "./build/server/app-bootstrap.ts".to_string(),
+                        ))),
+                        next_js_fs().root().join("_"),
+                    )
+                    .cell(),
+                );
+            }
+        }
+    }
+
+    RuntimeEntriesVc::cell(runtime_entries)
+}
+
+#[turbo_tasks::function]
+pub fn get_server_chunking_context(
+    project_path: FileSystemPathVc,
+    node_root: FileSystemPathVc,
+    // TODO(alexkirsz) Is this even necessary? Are assets not always on the client chunking context
+    // anyway?
+    client_root: FileSystemPathVc,
+    environment: EnvironmentVc,
+) -> BuildChunkingContextVc {
+    // TODO(alexkirsz) This should return a trait that can be implemented by the
+    // different server chunking contexts. OR the build chunking context should
+    // support both production and development modes.
+    BuildChunkingContextVc::builder(
+        project_path,
+        node_root,
+        node_root.join("server/chunks"),
+        client_root.join("static/media"),
+        environment,
+    )
+    .build()
 }

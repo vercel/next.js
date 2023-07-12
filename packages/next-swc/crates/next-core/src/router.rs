@@ -233,6 +233,8 @@ fn edge_transition_map(
     next_config: NextConfigVc,
     execution_context: ExecutionContextVc,
 ) -> TransitionsByNameVc {
+    let mode = NextMode::Development;
+
     let edge_compile_time_info = get_edge_compile_time_info(project_path, server_addr);
 
     let edge_chunking_context = DevChunkingContextVc::builder(
@@ -243,11 +245,13 @@ fn edge_transition_map(
         edge_compile_time_info.environment(),
     )
     .reference_chunk_source_maps(should_debug("router"))
-    .build();
+    .build()
+    .into();
 
     let edge_resolve_options_context = get_edge_resolve_options_context(
         project_path,
         Value::new(ServerContextType::Middleware),
+        mode,
         next_config,
         execution_context,
     );
@@ -256,7 +260,7 @@ fn edge_transition_map(
         project_path,
         execution_context,
         Value::new(ServerContextType::Middleware),
-        NextMode::Development,
+        mode,
         next_config,
     );
 
