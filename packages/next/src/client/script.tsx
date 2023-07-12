@@ -210,7 +210,7 @@ function Script(props: ScriptProps): JSX.Element | null {
 
   // If appDir we handle the stylesheet differently
   let updatedProps = useMemo(() => {
-    const { stylesheets: styles, propsWithoutStylesheet } = props
+    const { stylesheets: styles, ...propsWithoutStylesheet } = props
     return {
       ...propsWithoutStylesheet,
       stylesheets: appDir ? null : styles,
