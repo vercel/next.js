@@ -290,14 +290,15 @@ export default class NextNodeServer extends BaseServer {
               ipcValidationKey,
               options.isNodeDebugging,
               'app',
-              this.nextConfig.experimental.serverActions
+              this.nextConfig
             )
           }
           this.renderWorkers.pages = await createWorker(
             ipcPort,
             ipcValidationKey,
             options.isNodeDebugging,
-            'pages'
+            'pages',
+            this.nextConfig
           )
           this.renderWorkers.middleware =
             this.renderWorkers.pages || this.renderWorkers.app
