@@ -54,9 +54,9 @@ async function webpackBuildWithWorker() {
   }
   // order matters here
   const ORDERED_COMPILER_NAMES = [
-    'server',
+    'rsc',
     'edge-server',
-    'client',
+    'ssr',
   ] as (keyof typeof COMPILER_INDEXES)[]
 
   for (const compilerName of ORDERED_COMPILER_NAMES) {
