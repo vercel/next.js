@@ -28,6 +28,7 @@ import type { PrerenderManifest } from '../build'
 import type { ClientReferenceManifest } from '../build/webpack/plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
 import type { PagesRouteModule } from './future/route-modules/pages/module'
+import type { AppPageRouteModule } from './future/route-modules/app-page/module'
 import type { NodeNextRequest, NodeNextResponse } from './base-http/node'
 import type { AppRouteRouteMatch } from './future/route-matches/app-route-route-match'
 import type { RouteDefinition } from './future/route-definitions/route-definition'
@@ -1779,6 +1780,25 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         // Due to the way we pass data by mutating `renderOpts`, we can't extend
         // the object here but only updating its `nextFontManifest`
         // field.
+        // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
+        renderOpts.nextFontManifest = this.nextFontManifest
+
+        // Call the built-in render method on the module.
+        result = await module.render(
+          (req as NodeNextRequest).originalRequest ?? (req as WebNextRequest),
+          (res as NodeNextResponse).originalResponse ??
+            (res as WebNextResponse),
+          { page: pathname, params: match.params, query, renderOpts }
+        )
+      } else if (
+        match &&
+        isRouteMatch(match, RouteKind.APP_PAGE) &&
+        components.routeModule
+      ) {
+        const module = components.routeModule as AppPageRouteModule
+
+        // Due to the way we pass data by mutating `renderOpts`, we can't extend the
+        // object here but only updating its `clientReferenceManifest` field.
         // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
         renderOpts.nextFontManifest = this.nextFontManifest
 

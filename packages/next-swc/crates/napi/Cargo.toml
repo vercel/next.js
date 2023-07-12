@@ -20,6 +20,7 @@ sentry_rustls = ["sentry", "sentry/rustls", "rustls-tls"]
 native-tls = ["next-dev/native-tls"]
 rustls-tls = ["next-dev/rustls-tls"]
 serializable = ["next-dev/serializable"]
+image-webp = ["next-core/image-webp"]
 
 # Enable dhat profiling allocator for heap profiling.
 __internal_dhat-heap = ["dhat"]
