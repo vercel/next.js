@@ -1348,10 +1348,12 @@ export async function renderToHTMLOrFlight(
               notFoundStyles={notFoundStyles}
               notFound={
                 NotFound ? (
-                  <>
-                    {createMetadata(loaderTree)}
-                    <NotFound />
-                  </>
+                  <html id="__next_error__">
+                    <body>
+                      {createMetadata(loaderTree)}
+                      <NotFound />
+                    </body>
+                  </html>
                 ) : undefined
               }
               asNotFound={props.asNotFound}
