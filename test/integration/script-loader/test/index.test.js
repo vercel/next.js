@@ -90,6 +90,11 @@ const runTests = (isDev = false) => {
         expect(endScripts.length).toBe(1)
       }
 
+      // lazyOnload script in page
+      await test(
+        'scriptLazyOnload',
+        'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css'
+      )
       // lazyOnload script in _document
       await test('documentLazyOnload')
     } finally {

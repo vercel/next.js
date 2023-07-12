@@ -25,6 +25,7 @@
     "prettier": "2.5.1"
   },
   "peerDependencies": {
+    "next": "^13.0.0",
     "react": "^18.2.0"
   }
 }

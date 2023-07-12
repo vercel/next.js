@@ -1,7 +1,7 @@
 'use client'
 
 import ReactDOM from 'react-dom'
-import React, { useEffect, useContext, useRef } from 'react'
+import React, { useEffect, useContext, useRef, useMemo } from 'react'
 import { ScriptHTMLAttributes } from 'react'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import { DOMAttributeNames } from './head-manager'
@@ -35,6 +35,23 @@ const ignoreProps = [
   'stylesheets',
 ]
 
+const insertStylesheets = (stylesheets: string[]) => {
+  // We use this function to load styles when appdir is not detected
+  // TODO: Use React float APIs to load styles once ready for pages dir
+  if (typeof window !== 'undefined') {
+    let head = document.head
+    stylesheets.forEach((stylesheet: string) => {
+      let link = document.createElement('link')
+
+      link.type = 'text/css'
+      link.rel = 'stylesheet'
+      link.href = stylesheet
+
+      head.appendChild(link)
+    })
+  }
+}
+
 const loadScript = (props: ScriptProps): void => {
   const {
     src,
@@ -45,6 +62,7 @@ const loadScript = (props: ScriptProps): void => {
     children = '',
     strategy = 'afterInteractive',
     onError,
+    stylesheets,
   } = props
 
   const cacheKey = id || src
@@ -129,6 +147,11 @@ const loadScript = (props: ScriptProps): void => {
 
   el.setAttribute('data-nscript', strategy)
 
+  // Load styles associated with this script
+  if (stylesheets) {
+    insertStylesheets(stylesheets)
+  }
+
   document.body.appendChild(el)
 }
 
@@ -177,12 +200,22 @@ function Script(props: ScriptProps): JSX.Element | null {
     onReady = null,
     strategy = 'afterInteractive',
     onError,
+    stylesheets,
     ...restProps
   } = props
 
   // Context is available only during SSR
   const { updateScripts, scripts, getIsSsr, appDir, nonce } =
     useContext(HeadManagerContext)
+
+  // If appDir we handle the stylesheet differently
+  let updatedProps = useMemo(() => {
+    const { stylesheets: styles, propsWithoutStylesheet } = props
+    return {
+      ...propsWithoutStylesheet,
+      stylesheets: appDir ? null : styles,
+    }
+  }, [appDir, props])
 
   /**
    * - First mount:
@@ -229,14 +262,14 @@ function Script(props: ScriptProps): JSX.Element | null {
   useEffect(() => {
     if (!hasLoadScriptEffectCalled.current) {
       if (strategy === 'afterInteractive') {
-        loadScript(props)
+        loadScript(updatedProps)
       } else if (strategy === 'lazyOnload') {
-        loadLazyScript(props)
+        loadLazyScript(updatedProps)
       }
 
       hasLoadScriptEffectCalled.current = true
     }
-  }, [props, strategy])
+  }, [updatedProps, strategy])
 
   if (strategy === 'beforeInteractive' || strategy === 'worker') {
     if (updateScripts) {
@@ -255,7 +288,7 @@ function Script(props: ScriptProps): JSX.Element | null {
       // Script has already loaded during SSR
       LoadCache.add(id || src)
     } else if (getIsSsr && !getIsSsr()) {
-      loadScript(props)
+      loadScript(updatedProps)
     }
   }
 
@@ -266,8 +299,8 @@ function Script(props: ScriptProps): JSX.Element | null {
 
     // Stylesheets passed as props to script are rendered with a <link rel="stylesheet" precedence />
     // along with the script tag. The precedence prop takes care of hoisting it to <head>
-    if (props.stylesheets) {
-      stylesToRender = props.stylesheets.map((styleSrc) => (
+    if (stylesheets) {
+      stylesToRender = stylesheets.map((styleSrc) => (
         <link
           key={styleSrc}
           href={styleSrc}
