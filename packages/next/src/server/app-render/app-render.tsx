@@ -1379,12 +1379,12 @@ export async function renderToHTMLOrFlight(
                 </>
               }
               globalErrorComponent={GlobalError}
-              notFoundStyles={notFoundStyles}
               notFound={
                 NotFound ? (
                   <html id="__next_error__">
                     <body>
                       {createMetadata(loaderTree)}
+                      {notFoundStyles}
                       <NotFound />
                     </body>
                   </html>
@@ -1649,10 +1649,12 @@ export async function renderToHTMLOrFlight(
                           }
                         />
                         {use404Error ? (
-                          <RootLayout params={{}}>
-                            {notFoundStyles}
-                            <NotFound />
-                          </RootLayout>
+                          <>
+                            <RootLayout params={{}}>
+                              {notFoundStyles}
+                              <NotFound />
+                            </RootLayout>
+                          </>
                         ) : (
                           <GlobalError
                             error={{
