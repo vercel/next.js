@@ -1257,10 +1257,6 @@ export async function renderToHTMLOrFlight(
       rscChunks: [],
     }
 
-    if (!clientReferenceManifest) {
-      console.log(req.url)
-    }
-
     const validateRootLayout = dev
       ? {
           validateRootLayout: {
@@ -1548,14 +1544,11 @@ export async function renderToHTMLOrFlight(
               pagePath
             )
           }
-          let isBuiltInError = false
           if (isNotFoundError(err)) {
             res.statusCode = 404
-            isBuiltInError = true
           }
           if (isRedirectError(err)) {
             res.statusCode = 307
-            isBuiltInError = true
             if (err.mutableCookies) {
               const headers = new Headers()
 
@@ -1585,16 +1578,29 @@ export async function renderToHTMLOrFlight(
             </html>
           )
 
-          const serverErrorElement = isBuiltInError
+          const isSuccess = res.statusCode < 400
+          const serverErrorElement = isSuccess
             ? defaultErrorComponent
             : React.createElement(
                 createServerComponentRenderer(
                   async () => {
                     // only pass plain object to client
                     return (
-                      <GlobalError
-                        error={{ message: err?.message, digest: err?.digest }}
-                      />
+                      <>
+                        {/* @ts-expect-error allow to use async server component */}
+                        <MetadataTree
+                          key={requestId}
+                          tree={emptyLoaderTree}
+                          pathname={pathname}
+                          searchParams={providedSearchParams}
+                          getDynamicParamFromSegment={
+                            getDynamicParamFromSegment
+                          }
+                        />
+                        <GlobalError
+                          error={{ message: err?.message, digest: err?.digest }}
+                        />
+                      </>
                     )
                   },
                   ComponentMod,
@@ -1626,7 +1632,7 @@ export async function renderToHTMLOrFlight(
           })
 
           return await continueFromInitialStream(renderStream, {
-            dataStream: (isBuiltInError
+            dataStream: (isSuccess
               ? serverComponentsInlinedTransformStream
               : serverErrorComponentsInlinedTransformStream
             ).readable,
