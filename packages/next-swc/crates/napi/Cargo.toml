@@ -13,7 +13,7 @@ default = ["rustls-tls"]
 # when build (i.e napi --build --features plugin), same for the wasm as well.
 # this is due to some of transitive dependencies have features cannot be enabled at the same time
 # (i.e wasmer/default vs wasmer/js-default) while cargo merges all the features at once.
-plugin = ["turbopack-binding/__swc_core_binding_napi_plugin", "turbopack-binding/__swc_core_binding_napi_plugin_filesystem_cache", "next-swc/plugin"]
+plugin = ["turbopack-binding/__swc_core_binding_napi_plugin", "turbopack-binding/__swc_core_binding_napi_plugin_filesystem_cache", "turbopack-binding/__swc_core_binding_napi_plugin_shared_runtime",  "next-swc/plugin", "next-core/plugin"]
 sentry_native_tls = ["sentry", "sentry/native-tls", "native-tls"]
 sentry_rustls = ["sentry", "sentry/rustls", "rustls-tls"]
 
