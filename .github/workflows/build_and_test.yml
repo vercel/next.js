@@ -186,7 +186,7 @@ jobs:
     with:
       nodeVersion: 16
       skipForDocsOnly: 'yes'
-      afterBuild: node run-tests.js --timings -g ${{ matrix.group }}/6 -c ${TEST_CONCURRENCY} --type unit'
+      afterBuild: node run-tests.js --timings -g ${{ matrix.group }}/6 -c ${TEST_CONCURRENCY} --test-pattern '.*\.test\.(js|jsx|ts|tsx)$ --type unit'
     secrets: inherit
 
   test-firefox-safari:
