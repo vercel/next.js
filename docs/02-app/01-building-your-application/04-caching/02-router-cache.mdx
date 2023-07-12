@@ -9,7 +9,8 @@ For the user, this results in [soft navigation]() (no page reloads) and faster p
 
 > **Client-side Cache and Prefetch Cache**
 >
-> You may see this cache being referred to as **Client-side Cache** or **Prefetch Cache**. While **Prefetch Cache** refers to the prefetched segments, **Client-side Cache** refers to the whole Router cache, which includes both visited and prefetched segments. This cache specifically applies to Next.js and Server Components, and is different to the browser's [bfcache](https://web.dev/bfcache/).
+> You may see this cache being referred to as **Client-side Cache** or **Prefetch Cache**. While **Prefetch Cache** refers to the prefetched segments, **Client-side Cache** refers to the whole Router cache, which includes both visited and prefetched segments.
+> This cache specifically applies to Next.js and Server Components, and is different to the browser's [bfcache](https://web.dev/bfcache/).
 
 ## How it works
 
@@ -60,13 +61,13 @@ See the [`useRouter` hook]() API reference.
 
 ### `revalidatePath` and `revalidateTag`
 
-The `revalidatePath` and `revalidateTag` methods invalidates the [data cache](), which in turn invalidates the router cache below the path provided.
+The `revalidatePath` and `revalidateTag` methods invalidates the [data cache]() below the path provided, which in turn invalidates the Router Cache.
 
 > **Difference between `router.refresh` and `revalidatePath` / `revalidateTag`:**
 >
 > Similarly to `router.refresh`, using these methods clears the router cache, makes a new request to the server, fetches data, and re-renders Server Components from the root layout down to page.
 >
-> The difference is that `revalidatePath` and `revalidateTag` **clears** cached data, whereas `router.refresh` **reuses** cached data.
+> The difference is that `revalidatePath` and `revalidateTag` **revalidates** cached data, whereas `router.refresh` **reuses** cached data.
 
 For more, see the [`revalidatePath`]() and [`revalidateTag`]() API references.
 
@@ -75,12 +76,3 @@ For more, see the [`revalidatePath`]() and [`revalidateTag`]() API references.
 Using `cookies.set` or `cookies.delete` in Server Action invalidates the Router Cache to prevent routes that use cookies from becoming stale (e.g. authentication).
 
 See the [`cookies`]() API reference.
-
-## Interactions with other caches
-
-Since data fetching and rendering are intrinsically connected, the router cache and data cache affect each other. Here are some points to keep in mind when configuring either caches:
-
-- user expectation is the once you revalidate data, the router cache is updated to reflect the changes.
-  revalidatePath and revalidateTag should bust the router cache
-
-- https://github.com/vercel/next.js/issues/52075
