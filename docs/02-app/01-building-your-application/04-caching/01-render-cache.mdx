@@ -1,0 +1,54 @@
+---
+title: Render Cache
+description: Learn how the Render Cache works in Next.js.
+---
+
+Next.js automatically caches the rendered result of Client Components and Server Components on the server at build time. This is an optimization that allows you to skip rendering of components on every request, and instead directly send the cached result to the client, resulting in faster page loads.
+
+> **Related terms**:
+>
+> You may see **Render Cache** being referred to as **ISR Cache**, this is the same concept.
+> The terms **Automatic Static Optimization**, **Static Generation**, or **Static Rendering** are also used interchangeably to refer to process rendering and caching components at build time.
+
+## How it works
+
+To understand how components are rendered and cached, it's helpful to look at how React handles rendering. On the server, React rendering is split into two stages:
+
+1.
+2.
+
+At build time:
+
+- Server Components are rendered into their payload.
+- Client Component props are serialized and embedded into the payload.
+- The payload is used to generate HTML.
+
+> **What is the Payload?**
+
+The **HTML**, and the **Payload**, are then cached (where?) before being sent to the client. Once on the client:
+
+- The HTML is used to show an initial preview.
+- React uses the HTML and JavaScript instructions to **hydrate** Client Components and make them interactive.
+- React uses the Payload to reconcile the rendered Server and Client Component trees.
+
+> **What is hydration?**
+>
+> Hydration is the process in which React parses the HTML, and uses the JavaScript instructions to attach event handlers to the DOM. This turns makes the HTML markup interactive.
+
+## Duration and Invalidation
+
+## APIs
+
+The following APIs affect the Render Cache:
+
+### `fetch.cache` and `cache: no-store`
+
+When fetching data, setting the `cache` option to `no-store` will re-render the components on every request, and the result will not be cached.
+
+### `cookies`
+
+### `headers`
+
+### `useSearchParams`
+
+### `searchParams`
