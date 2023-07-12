@@ -1,5 +1,5 @@
 // This should work
-require('webpack')
+console.log(require('webpack').sources.RawSource)
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
