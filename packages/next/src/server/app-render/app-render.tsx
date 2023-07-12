@@ -1578,8 +1578,11 @@ export async function renderToHTMLOrFlight(
             </html>
           )
 
-          const isSuccess = res.statusCode < 400
-          const serverErrorElement = isSuccess
+          const useDefaultError =
+            res.statusCode < 400 ||
+            res.statusCode === 404 ||
+            res.statusCode === 307
+          const serverErrorElement = useDefaultError
             ? defaultErrorComponent
             : React.createElement(
                 createServerComponentRenderer(
@@ -1632,7 +1635,7 @@ export async function renderToHTMLOrFlight(
           })
 
           return await continueFromInitialStream(renderStream, {
-            dataStream: (isSuccess
+            dataStream: (useDefaultError
               ? serverComponentsInlinedTransformStream
               : serverErrorComponentsInlinedTransformStream
             ).readable,
