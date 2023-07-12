@@ -32,23 +32,8 @@ const ignoreProps = [
   'children',
   'onError',
   'strategy',
+  'stylesheets',
 ]
-
-const insertStylesheets = (stylesheets: string[]) => {
-  // TODO: Use React float APIs to load styles once ready
-  if (typeof window !== 'undefined') {
-    let head = document.head
-    stylesheets.forEach((stylesheet: string) => {
-      let link = document.createElement('link')
-
-      link.type = 'text/css'
-      link.rel = 'stylesheet'
-      link.href = stylesheet
-
-      head.appendChild(link)
-    })
-  }
-}
 
 const loadScript = (props: ScriptProps): void => {
   const {
@@ -60,7 +45,6 @@ const loadScript = (props: ScriptProps): void => {
     children = '',
     strategy = 'afterInteractive',
     onError,
-    stylesheets,
   } = props
 
   const cacheKey = id || src
@@ -144,12 +128,6 @@ const loadScript = (props: ScriptProps): void => {
   }
 
   el.setAttribute('data-nscript', strategy)
-
-  // Load styles associated with this script
-  // Useful when loading 3Ps with styles
-  if (stylesheets) {
-    insertStylesheets(stylesheets)
-  }
 
   document.body.appendChild(el)
 }
@@ -283,6 +261,25 @@ function Script(props: ScriptProps): JSX.Element | null {
 
   // For the app directory, we need React Float to preload these scripts.
   if (appDir) {
+    let stylesToRender = null
+    let scriptsToRender = null
+
+    // Stylesheets passed as props to script are rendered with a <link rel="stylesheet" precedence />
+    // along with the script tag. The precedence prop takes care of hoisting it to <head>
+    if (props.stylesheets) {
+      stylesToRender = props.stylesheets.map((styleSrc) => (
+        <link
+          key={styleSrc}
+          href={styleSrc}
+          rel="stylesheet"
+          // @ts-ignore
+          precedence={
+            process.env.NODE_ENV === 'development' ? 'next_' + styleSrc : 'next'
+          }
+        ></link>
+      ))
+    }
+
     // Before interactive scripts need to be loaded by Next.js' runtime instead
     // of native <script> tags, because they no longer have `defer`.
     if (strategy === 'beforeInteractive') {
@@ -295,7 +292,7 @@ function Script(props: ScriptProps): JSX.Element | null {
           delete restProps.dangerouslySetInnerHTML
         }
 
-        return (
+        scriptsToRender = (
           <script
             nonce={nonce}
             dangerouslySetInnerHTML={{
@@ -306,25 +303,26 @@ function Script(props: ScriptProps): JSX.Element | null {
             }}
           />
         )
-      }
+      } else {
+        // @ts-ignore
+        ReactDOM.preload(
+          src,
+          restProps.integrity
+            ? { as: 'script', integrity: restProps.integrity }
+            : { as: 'script' }
+        )
 
-      // @ts-ignore
-      ReactDOM.preload(
-        src,
-        restProps.integrity
-          ? { as: 'script', integrity: restProps.integrity }
-          : { as: 'script' }
-      )
-      return (
-        <script
-          nonce={nonce}
-          dangerouslySetInnerHTML={{
-            __html: `(self.__next_s=self.__next_s||[]).push(${JSON.stringify([
-              src,
-            ])})`,
-          }}
-        />
-      )
+        scriptsToRender = (
+          <script
+            nonce={nonce}
+            dangerouslySetInnerHTML={{
+              __html: `(self.__next_s=self.__next_s||[]).push(${JSON.stringify([
+                src,
+              ])})`,
+            }}
+          />
+        )
+      }
     } else if (strategy === 'afterInteractive') {
       if (src) {
         // @ts-ignore
@@ -335,6 +333,15 @@ function Script(props: ScriptProps): JSX.Element | null {
             : { as: 'script' }
         )
       }
+    }
+
+    if (stylesToRender || scriptsToRender) {
+      return (
+        <>
+          {stylesToRender}
+          {scriptsToRender}
+        </>
+      )
     }
   }
 
