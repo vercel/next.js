@@ -1,9 +1,9 @@
 import type { NextConfigComplete } from '../config-shared'
-import type { AppRouteUserlandModule } from '../future/route-modules/app-route/module'
 
 import '../require-hook'
 import '../node-polyfill-fetch'
 import '../node-environment'
+
 import {
   buildAppStaticPaths,
   buildStaticPaths,
@@ -15,6 +15,7 @@ import { setHttpClientAndAgentOptions } from '../setup-http-agent-env'
 import { IncrementalCache } from '../lib/incremental-cache'
 import * as serverHooks from '../../client/components/hooks-server-context'
 import { staticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage'
+import { AppRouteRouteModule } from '../future/route-modules/app-route/module'
 
 type RuntimeConfig = any
 
@@ -75,21 +76,21 @@ export async function loadStaticPaths({
   }
 
   if (isAppPath) {
-    const userland: AppRouteUserlandModule | undefined =
-      components.routeModule?.userland
-    const generateParams: GenerateParams = userland
-      ? [
-          {
-            config: {
-              revalidate: userland.revalidate,
-              dynamic: userland.dynamic,
-              dynamicParams: userland.dynamicParams,
+    const { routeModule } = components
+    const generateParams: GenerateParams =
+      routeModule && AppRouteRouteModule.is(routeModule)
+        ? [
+            {
+              config: {
+                revalidate: routeModule.userland.revalidate,
+                dynamic: routeModule.userland.dynamic,
+                dynamicParams: routeModule.userland.dynamicParams,
+              },
+              generateStaticParams: routeModule.userland.generateStaticParams,
+              segmentPath: pathname,
             },
-            generateStaticParams: userland.generateStaticParams,
-            segmentPath: pathname,
-          },
-        ]
-      : await collectGenerateParams(components.ComponentMod.tree)
+          ]
+        : await collectGenerateParams(components.ComponentMod.tree)
 
     return await buildAppStaticPaths({
       page: pathname,
