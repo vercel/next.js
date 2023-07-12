@@ -1718,11 +1718,11 @@ export default class NextNodeServer extends BaseServer {
     parsedUrl: NextUrlWithParsedQuery,
     isUpgradeReq?: boolean
   ) {
-    const protocol = (
-      (req as NodeNextRequest).originalRequest?.socket as TLSSocket
-    )?.encrypted
-      ? 'https'
-      : 'http'
+    const protocol =
+      ((req as NodeNextRequest).originalRequest?.socket as TLSSocket)
+        ?.encrypted || req.headers['x-forwarded-proto']?.includes('https')
+        ? 'https'
+        : 'http'
 
     // When there are hostname and port we build an absolute URL
     const initUrl =

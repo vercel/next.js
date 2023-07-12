@@ -124,7 +124,11 @@ export function getResolveRoutes(
       }
     }
     // TODO: inherit this from higher up
-    const protocol = (req?.socket as TLSSocket)?.encrypted ? 'https' : 'http'
+    const protocol =
+      (req?.socket as TLSSocket)?.encrypted ||
+      req.headers['x-forwarded-proto'] === 'https'
+        ? 'https'
+        : 'http'
 
     // When there are hostname and port we build an absolute URL
     const initUrl = (config.experimental as any).trustHostHeader

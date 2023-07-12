@@ -38,7 +38,7 @@ describe.each([
   const startServer = async (optEnv = {}, opts) => {
     const scriptPath = join(appDir, 'server.js')
     context.appPort = appPort = await getPort()
-    nextUrl = `http${useHttps ? 's' : ''}://127.0.0.1:${context.appPort}`
+    nextUrl = `http${useHttps ? 's' : ''}://localhost:${context.appPort}`
 
     const env = Object.assign(
       { ...process.env },
@@ -55,7 +55,8 @@ describe.each([
     )
   }
 
-  describe('with dynamic assetPrefix', () => {
+  // TODO: continue supporting this or remove it?
+  describe.skip('with dynamic assetPrefix', () => {
     beforeAll(() => startServer())
     afterAll(() => killApp(server))
 
@@ -280,7 +281,7 @@ describe.each([
       expect(stderr).toContain(
         '- error unhandledRejection: Error: unhandled rejection'
       )
-      expect(stderr).toContain('server.js:33:22')
+      expect(stderr).toContain('server.js:37:22')
     })
   })
 

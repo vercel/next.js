@@ -25,7 +25,7 @@ import { getTracer } from './lib/trace/tracer'
 import { NextServerSpan } from './lib/trace/constants'
 import { formatUrl } from '../shared/lib/router/utils/format-url'
 import { proxyRequest } from './lib/router-utils/proxy-request'
-import { getFreePort } from './lib/worker-utils'
+import { TLSSocket } from 'tls'
 
 let ServerImpl: typeof Server
 
@@ -311,7 +311,6 @@ function createServer(options: NextServerOptions): NextServer {
         }
       }
     }
-
     return new Proxy(
       {},
       {
@@ -321,19 +320,19 @@ function createServer(options: NextServerOptions): NextServer {
               return async () => {
                 shouldUseStandaloneMode = true
                 server[SYMBOL_SET_STANDALONE_MODE]()
-                serverPort = await getFreePort()
 
-                return startServer({
+                const teardown = await startServer({
                   dir,
                   logReady: false,
-                  port: serverPort,
                   allowRetry: false,
-                  minimalMode: false,
                   isDev: !!options.dev,
+                  port: options.port || 0,
+                  minimalMode: options.minimalMode,
                   hostname: options.hostname || 'localhost',
                   useWorkers: true,
                   customServer: options.customServer,
                 })
+                serverPort = (teardown as any).port
               }
             case 'getRequestHandler': {
               return () => {
@@ -345,6 +344,9 @@ function createServer(options: NextServerOptions): NextServer {
                       `http://127.0.0.1:${serverPort}${req.url}`,
                       true
                     )
+                    if ((req?.socket as TLSSocket)?.encrypted) {
+                      req.headers['x-forwarded-proto'] = 'https'
+                    }
                     addRequestMeta(req, '__NEXT_INIT_QUERY', parsedUrl.query)
 
                     await proxyRequest(req, res, parsedUrl, undefined, req)
@@ -364,11 +366,29 @@ function createServer(options: NextServerOptions): NextServer {
                 parsedUrl?: NextUrlWithParsedQuery
               ) => {
                 if (shouldUseStandaloneMode) {
+                  setupWebSocketHandler(options.httpServer, req)
+
+                  if (!pathname.startsWith('/')) {
+                    console.error(`Cannot render page with path "${pathname}"`)
+                    pathname = `/${pathname}`
+                  }
+                  pathname = pathname === '/index' ? '/' : pathname
+
                   req.url = formatUrl({
                     ...parsedUrl,
                     pathname,
                     query,
                   })
+
+                  if ((req?.socket as TLSSocket)?.encrypted) {
+                    req.headers['x-forwarded-proto'] = 'https'
+                  }
+                  addRequestMeta(
+                    req,
+                    '__NEXT_INIT_QUERY',
+                    parsedUrl?.query || query || {}
+                  )
+
                   await proxyRequest(
                     req,
                     res,

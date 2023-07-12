@@ -52,6 +52,7 @@ export async function startServer({
 }: StartServerOptions): Promise<TeardownServer> {
   const sockets = new Set<ServerResponse | Duplex>()
   let worker: import('next/dist/compiled/jest-worker').Worker | undefined
+  let routerPort: number | undefined
   let handlersReady = () => {}
   let handlersError = () => {}
 
@@ -216,7 +217,7 @@ export async function startServer({
           env: {
             FORCE_COLOR: '1',
             ...((initialEnv || process.env) as typeof process.env),
-            PORT: port + '',
+            PORT: '',
             NODE_OPTIONS: getNodeOptionsWithoutInspect(),
             ...(process.env.NEXT_CPU_PROF
               ? { __NEXT_PRIVATE_CPU_PROFILE: `CPU.router` }
@@ -279,7 +280,7 @@ export async function startServer({
         }
       })
 
-      const { port: routerPort } = await routerWorker.initialize({
+      const initializeResult = await routerWorker.initialize({
         dir,
         port,
         hostname,
@@ -289,6 +290,7 @@ export async function startServer({
         isNodeDebugging: !!isNodeDebugging,
         keepAliveTimeout,
       })
+      routerPort = initializeResult.port
       didInitialize = true
 
       const getProxyServer = (pathname: string) => {
@@ -403,5 +405,6 @@ export async function startServer({
       await worker.end()
     }
   }
+  teardown.port = routerPort
   return teardown
 }
