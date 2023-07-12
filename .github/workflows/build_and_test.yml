@@ -174,6 +174,21 @@ jobs:
       afterBuild: node run-tests.js --timings -g ${{ matrix.group }}/6 -c ${TEST_CONCURRENCY} --test-pattern '^(integration)/.*\.test\.(js|jsx|ts|tsx)$'
     secrets: inherit
 
+  test-unit:
+    name: test unit
+    needs: ['build-native', 'build-next']
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1, 2, 3, 4, 5, 6]
+
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      nodeVersion: 16
+      skipForDocsOnly: 'yes'
+      afterBuild: node run-tests.js --timings -g ${{ matrix.group }}/6 -c ${TEST_CONCURRENCY} --type unit'
+    secrets: inherit
+
   test-firefox-safari:
     name: test firefox and safari
     needs: ['build-native', 'build-next']
