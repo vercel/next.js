@@ -1,5 +1,6 @@
 import type NextServer from '../../next-server'
 import type { NextConfigComplete } from '../../config-shared'
+import type { ChildProcess } from 'child_process'
 
 import { getNodeOptionsWithoutInspect } from '../utils'
 import { deserializeErr, errorToJSON } from '../../render'
@@ -80,12 +81,16 @@ export async function createIpcServer(
   }
 }
 
-export const createWorker = (
+export const createRenderWorker = (
   ipcPort: number,
   ipcValidationKey: string,
   isNodeDebugging: boolean | 'brk' | undefined,
   type: 'pages' | 'app',
-  nextConfig: NextConfigComplete
+  nextConfig: NextConfigComplete,
+  /**
+   * Called when the worker is created or restarted.
+   */
+  onStart: (worker: any) => void
 ) => {
   const { initialEnv } = require('@next/env') as typeof import('@next/env')
   const { Worker } = require('next/dist/compiled/jest-worker')
@@ -138,6 +143,15 @@ export const createWorker = (
 
   worker.getStderr().pipe(process.stderr)
   worker.getStdout().pipe(process.stdout)
+
+  onStart(worker)
+
+  const childWorker = (worker as any)._workerPool?._workers[0]
+    ._child as ChildProcess
+  childWorker.on('exit', () => {
+    // It should be restarted or triggering an error
+    onStart(worker)
+  })
 
   return worker
 }
