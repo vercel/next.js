@@ -5,17 +5,21 @@ description: Learn how the Router Cache works in Next.js.
 
 The Next.js App Router uses an in-memory client-side cache that stores the rendered result of Server Components, split by invidiual route segments. This **Router Cache** is used to improve navigation performance by only [partially rendering]() the content that changes (instead of the whole route) and prefetching content that the user is likely going to navigate to. It stores both visited segments and prefetched segments.
 
-For the user, this results in [soft navigation]() (no hard page reloads) and faster page transitions; it also reduces unnecessary requests to the server.
+For the user, this results in [soft navigation]() (no page reloads) and faster page transitions; it also reduces unnecessary requests to the server.
 
-> **What is the rendered result?**
+> **Client-side Cache and Prefetch Cache**
 >
-> You may see the terms like **RSC Payload**, **Rendered Result**, and **Flight Data** used interchangeably. They all refer to the same thing: the rendered result of Server Components, which is sent to the client. To learn more, see the [Server Components]() documentation.
+> You may see this cache being referred to as **Client-side Cache** or **Prefetch Cache**. While **Prefetch Cache** refers to the prefetched segments, **Client-side Cache** refers to the whole Router cache, which includes both visited and prefetched segments. This cache specifically applies to Next.js and Server Components, and is different to the browser's [bfcache](https://web.dev/bfcache/).
 
 ## How it works
 
 When the user first visits a route, Next.js will cache the rendered result of the route segments (layouts and page). If the route contains `<Link>` components (or uses `router.prefetch`), Next.js will automatically start prefetching and caching the content of those linked routes.
 
 As users navigate between routes, Next.js will check if the route segments are already cached. If so, it will skip sending a new request to the server for rendering, and use the payload of cached segments instead. This works when navigating to new routes, as well as backwards and forwards browser navigation.
+
+> **What is the rendered result?**
+>
+> You may see the terms like **RSC Payload**, **Rendered Result**, and **Flight Data** used interchangeably. They all refer to the same thing: the rendered result of Server Components, which is sent to the client. To learn more, see the [Server Components]() documentation.
 
 ## Duration and Invalidation
 
@@ -76,6 +80,7 @@ See the [`cookies`]() API reference.
 
 Since data fetching and rendering are intrinsically connected, the router cache and data cache affect each other. Here are some points to keep in mind when configuring either caches:
 
-<!-- the user expectation is the once you revalidate data, the router cache is updated to reflect the changes.
-revalidatePath and revalidateTag should bust the router cache
-- https://github.com/vercel/next.js/issues/52075 -->
+- user expectation is the once you revalidate data, the router cache is updated to reflect the changes.
+  revalidatePath and revalidateTag should bust the router cache
+
+- https://github.com/vercel/next.js/issues/52075

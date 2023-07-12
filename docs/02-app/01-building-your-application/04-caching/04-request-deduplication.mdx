@@ -5,11 +5,11 @@ description: Learn how Next.js deduplicates fetch requests, and how to use the R
 
 ## Request Deduplication
 
-<!-- - Change in React's API design
+- Change in React's API design
 - Allows us to think about components in isolation
 - Fetch liberally without worrying about performance
 - Rely on the system to handle optimization
-- Replacement for passing data as from layout to page -->
+- Replacement for passing data as from layout to page
 
 Request deduplication is an optimization that takes **multiple** requests for the same data and only makes a **single** request to the data source. This is done by storing the result of the first request in a temporary cache, and returning the cached result for subsequent requests.
 

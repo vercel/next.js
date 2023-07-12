@@ -4,11 +4,13 @@ nav_title: Caching
 description: An overview of caching mechanisms in Next.js.
 ---
 
-Next.js has a few caching mechanisms to improve your application's performance. This page provides an overview of the different mechanisms, how they affect each other, and how you can use them.
+Next.js has a few caching mechanisms to improve your application's performance. This section provides an in-depth look at the different mechanisms, how they affect each other, and how you can use them.
 
-Please note that some caching heurestics are automatic, while others can be manually configured. Caching is also split between rendering output, router cache, and data, client and server environments.
+Please note that some caching heurestics are automatic, while others can be manually configured. Caching is also split between rendering cache, router cache, and data cache, client and server environments.
 
 ## Overview
+
+{/* TO DO: Diagram showing how caching mechanisms come into play in the request lifecycle, going from  initial request, to server, to response, to router cache, to subsequent navigation with new request. */}
 
 | Mechanism             | What is cached?                                                        | Where is it cached? | Why is it cached?                               | Duration                                                                                                           | APIs                                                                         |
 | --------------------- | ---------------------------------------------------------------------- | ------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------- |
@@ -16,5 +18,3 @@ Please note that some caching heurestics are automatic, while others can be manu
 | Router Cache          | Rendered Server Component Payload                                      | Client (in-memory)  | Improve navigation performance.                 | Single Session (cleared by hard navigation or refresh), or 30s for dynamic routes, and 5 minutes for static routes | <Link>, router.prefetch, router.refresh, revalidatePath, revalidateTag       |
 | Data Cache            | Result of data requests                                                | Server (CDN)        | Store data across user requests and deployments | Persistent or revalidate lifetime                                                                                  | fetch.cache, fetch.revalidate, unstable_cache, revalidatePath, revalidateTag |
 | Request Deduplication | Result of data requests                                                | Server (in-memory)  | Reduce data store calls                         | Per render pass / request lifecycle                                                                                | unstable_cache                                                               |
-
-> **Good to know:**
