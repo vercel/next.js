@@ -40,11 +40,7 @@ export default function DashboardLayout({
 ```jsx filename="app/dashboard/layout.js" switcher
 import styles from './styles.module.css'
 
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode,
-}) {
+export default function DashboardLayout({ children }) {
   return <section className={styles.dashboard}>{children}</section>
 }
 ```

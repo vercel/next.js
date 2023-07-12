@@ -71,6 +71,14 @@ const knownDefaultWasmFallbackTriples = [
   'i686-pc-windows-msvc',
 ]
 
+// The last attempt's error code returned when cjs require to native bindings fails.
+// If node.js throws an error without error code, this should be `unknown` instead of undefined.
+// For the wasm-first targets (`knownDefaultWasmFallbackTriples`) this will be `unsupported_target`.
+let lastNativeBindingsLoadErrorCode:
+  | 'unknown'
+  | 'unsupported_target'
+  | string
+  | undefined = undefined
 let nativeBindings: any
 let wasmBindings: any
 let downloadWasmPromise: any
@@ -104,6 +112,7 @@ export async function loadBindings(): Promise<any> {
       )
 
     if (shouldLoadWasmFallbackFirst) {
+      lastNativeBindingsLoadErrorCode = 'unsupported_target'
       const fallbackBindings = await tryLoadWasmWithFallback(
         attempts,
         isCustomTurbopack
@@ -142,7 +151,10 @@ async function tryLoadWasmWithFallback(
   try {
     let bindings = await loadWasm('', isCustomTurbopack)
     // @ts-expect-error TODO: this event has a wrong type.
-    eventSwcLoadFailure({ wasm: 'enabled' })
+    eventSwcLoadFailure({
+      wasm: 'enabled',
+      nativeBindingsErrorCode: lastNativeBindingsLoadErrorCode,
+    })
     return bindings
   } catch (a) {
     attempts = attempts.concat(a)
@@ -166,7 +178,10 @@ async function tryLoadWasmWithFallback(
       isCustomTurbopack
     )
     // @ts-expect-error TODO: this event has a wrong type.
-    eventSwcLoadFailure({ wasm: 'fallback' })
+    eventSwcLoadFailure({
+      wasm: 'fallback',
+      nativeBindingsErrorCode: lastNativeBindingsLoadErrorCode,
+    })
 
     // still log native load attempts so user is
     // aware it failed and should be fixed
@@ -208,7 +223,10 @@ function logLoadFailure(attempts: any, triedWasm = false) {
   }
 
   // @ts-expect-error TODO: this event has a wrong type.
-  eventSwcLoadFailure({ wasm: triedWasm ? 'failed' : undefined })
+  eventSwcLoadFailure({
+    wasm: triedWasm ? 'failed' : undefined,
+    nativeBindingsErrorCode: lastNativeBindingsLoadErrorCode,
+  })
     .then(() => lockfilePatchPromise.cur || Promise.resolve())
     .finally(() => {
       Log.error(
@@ -386,6 +404,7 @@ function loadNative(isCustomTurbopack = false) {
             `Attempted to load ${pkg}, but an error occurred: ${e.message ?? e}`
           )
         }
+        lastNativeBindingsLoadErrorCode = e?.code ?? 'unknown'
       }
     }
   }
