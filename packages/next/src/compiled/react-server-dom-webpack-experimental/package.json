@@ -47,8 +47,8 @@
     "loose-envify": "^1.1.0"
   },
   "peerDependencies": {
-    "react": "0.0.0-experimental-1cea38448-20230530",
-    "react-dom": "0.0.0-experimental-1cea38448-20230530",
+    "react": "0.0.0-experimental-7118f5dd7-20230705",
+    "react-dom": "0.0.0-experimental-7118f5dd7-20230705",
     "webpack": "^5.59.0"
   }
 }

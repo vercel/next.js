@@ -1,5 +1,6 @@
 use anyhow::{bail, Result};
 use next_core::{next_client::RuntimeEntriesVc, turbopack::core::chunk::EvaluatableAssetsVc};
+use turbo_tasks::primitives::StringVc;
 use turbopack_binding::{
     turbo::{tasks::Value, tasks_fs::FileSystemPathVc},
     turbopack::{
@@ -9,8 +10,9 @@ use turbopack_binding::{
             context::{AssetContext, AssetContextVc},
             reference_type::{EntryReferenceSubType, ReferenceType},
             resolve::{parse::RequestVc, pattern::QueryMapVc},
+            source::SourceVc,
         },
-        ecmascript::EcmascriptModuleAssetVc,
+        ecmascript::chunk::EcmascriptChunkPlaceableVc,
     },
 };
 
@@ -52,9 +54,16 @@ impl PagesBuildNodeContextVc {
             .node_asset_context
             .resolve_asset(
                 origin,
-                RequestVc::module(package.clone(), Value::new(path.clone().into()), QueryMapVc::none()),
-                this.node_asset_context.resolve_options(origin, Value::new(ReferenceType::Entry(EntryReferenceSubType::Page))),
-                Value::new(ReferenceType::Entry(EntryReferenceSubType::Page))
+                RequestVc::module(
+                    package.clone(),
+                    Value::new(path.clone().into()),
+                    QueryMapVc::none(),
+                ),
+                this.node_asset_context.resolve_options(
+                    origin,
+                    Value::new(ReferenceType::Entry(EntryReferenceSubType::Page)),
+                ),
+                Value::new(ReferenceType::Entry(EntryReferenceSubType::Page)),
             )
             .primary_assets()
             .await?
@@ -83,18 +92,28 @@ impl PagesBuildNodeContextVc {
     #[turbo_tasks::function]
     pub async fn node_chunk(
         self,
-        asset: AssetVc,
+        source: SourceVc,
+        original_path: StringVc,
         reference_type: Value<ReferenceType>,
     ) -> Result<AssetVc> {
         let this = self.await?;
 
-        let node_asset_page = this.node_asset_context.process(asset, reference_type);
+        let node_asset_page = this.node_asset_context.process(source, reference_type);
 
-        let Some(node_module_asset) = EcmascriptModuleAssetVc::resolve_from(node_asset_page).await? else {
+        let Some(node_module_asset) =
+            EcmascriptChunkPlaceableVc::resolve_from(node_asset_page).await?
+        else {
             bail!("Expected an EcmaScript module asset");
         };
 
+        let original_path = original_path.await?;
+
         let chunking_context = self.node_chunking_context();
-        Ok(chunking_context.generate_exported_chunk(node_module_asset, this.node_runtime_entries))
+        Ok(chunking_context.generate_entry_chunk(
+            this.node_root
+                .join(&format!("server/pages/{original_path}.js")),
+            node_module_asset,
+            this.node_runtime_entries,
+        ))
     }
 }

@@ -58,6 +58,7 @@ use crate::{
             emotion::get_emotion_transform_plugin, get_relay_transform_plugin,
             styled_components::get_styled_components_transform_plugin,
             styled_jsx::get_styled_jsx_transform_plugin,
+            swc_ecma_transform_plugins::get_swc_ecma_transform_plugin,
         },
     },
     sass::maybe_add_sass_loader,
@@ -206,6 +207,7 @@ pub async fn get_client_module_options_context(
     });
 
     let source_transforms = vec![
+        *get_swc_ecma_transform_plugin(project_path, next_config).await?,
         *get_relay_transform_plugin(next_config).await?,
         *get_emotion_transform_plugin(next_config).await?,
         *get_styled_components_transform_plugin(next_config).await?,
@@ -312,20 +314,14 @@ pub fn get_client_asset_context(
 #[turbo_tasks::function]
 pub fn get_client_chunking_context(
     project_path: FileSystemPathVc,
-    server_root: FileSystemPathVc,
+    client_root: FileSystemPathVc,
     environment: EnvironmentVc,
-    ty: Value<ClientContextType>,
 ) -> ChunkingContextVc {
     DevChunkingContextVc::builder(
         project_path,
-        server_root,
-        match ty.into_value() {
-            ClientContextType::Pages { .. }
-            | ClientContextType::App { .. }
-            | ClientContextType::Fallback => server_root.join("/_next/static/chunks"),
-            ClientContextType::Other => server_root.join("/_chunks"),
-        },
-        get_client_assets_path(server_root, ty),
+        client_root,
+        client_root.join("/_next/static/chunks"),
+        get_client_assets_path(client_root),
         environment,
     )
     .hot_module_replacement()
@@ -333,16 +329,8 @@ pub fn get_client_chunking_context(
 }
 
 #[turbo_tasks::function]
-pub fn get_client_assets_path(
-    client_root: FileSystemPathVc,
-    ty: Value<ClientContextType>,
-) -> FileSystemPathVc {
-    match ty.into_value() {
-        ClientContextType::Pages { .. }
-        | ClientContextType::App { .. }
-        | ClientContextType::Fallback => client_root.join("/_next/static/media"),
-        ClientContextType::Other => client_root.join("/_assets"),
-    }
+pub fn get_client_assets_path(client_root: FileSystemPathVc) -> FileSystemPathVc {
+    client_root.join("/_next/static/media")
 }
 
 #[turbo_tasks::function]
