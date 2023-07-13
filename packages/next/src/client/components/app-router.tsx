@@ -80,9 +80,9 @@ export function urlToUrlWithoutFlightMarker(url: string): URL {
       process.env.__NEXT_CONFIG_OUTPUT === 'export' &&
       urlWithoutFlightParameters.pathname.endsWith('.txt')
     ) {
-      // Slice off `/index.txt` or `.txt` from the end of the pathname
       const { pathname } = urlWithoutFlightParameters
       const length = pathname.endsWith('/index.txt') ? 10 : 4
+      // Slice off `/index.txt` or `.txt` from the end of the pathname
       urlWithoutFlightParameters.pathname = pathname.slice(0, -length)
     }
   }
