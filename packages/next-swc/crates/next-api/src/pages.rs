@@ -255,6 +255,12 @@ impl PageDataEndpointVc {
     }
 
     #[turbo_tasks::function]
+    async fn source(self) -> Result<SourceVc> {
+        let this = self.await?;
+        Ok(FileSourceVc::new(this.path).into())
+    }
+
+    #[turbo_tasks::function]
     async fn ssr_data_chunk(self) -> Result<AssetVc> {
         let this = self.await?;
         let reference_type = Value::new(ReferenceType::Entry(EntryReferenceSubType::Page));
