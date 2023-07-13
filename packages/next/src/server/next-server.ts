@@ -202,11 +202,11 @@ export default class NextNodeServer extends BaseServer {
   private imageResponseCache?: ResponseCache
   private compression?: ExpressMiddleware
   protected renderWorkersPromises?: Promise<void>
-  protected renderWorkers: {
+  protected renderWorkers?: {
     middleware?: RenderWorker
     pages?: RenderWorker
     app?: RenderWorker
-  } = {}
+  }
   protected renderWorkerOpts?: Parameters<
     typeof import('./lib/render-server').initialize
   >[0]
@@ -282,39 +282,35 @@ export default class NextNodeServer extends BaseServer {
         dev: !!options.dev,
         isNodeDebugging: !!options.isNodeDebugging,
       }
-      const { createRenderWorker, createIpcServer } =
+      const { createWorker, createIpcServer } =
         require('./lib/server-ipc') as typeof import('./lib/server-ipc')
       this.renderWorkersPromises = new Promise<void>(async (resolveWorkers) => {
         try {
+          this.renderWorkers = {}
           const { ipcPort, ipcValidationKey } = await createIpcServer(this)
           if (this.hasAppDir) {
-            createRenderWorker(
+            const appWorker: RenderWorker = createWorker(
               ipcPort,
               ipcValidationKey,
               options.isNodeDebugging,
               'app',
-              this.nextConfig,
-              (appWorker: RenderWorker) => {
-                this.renderWorkers.app = appWorker
-                this.renderWorkers.app.initialization = appWorker.initialize(
-                  this.renderWorkerOpts!
-                )
-              }
+              this.nextConfig
+            )
+            this.renderWorkers.app = appWorker
+            this.renderWorkers.app.initialization = appWorker.initialize(
+              this.renderWorkerOpts!
             )
           }
-
-          createRenderWorker(
+          const pagesWorker: RenderWorker = createWorker(
             ipcPort,
             ipcValidationKey,
             options.isNodeDebugging,
             'pages',
-            this.nextConfig,
-            (pagesWorker: RenderWorker) => {
-              this.renderWorkers.pages = pagesWorker
-              this.renderWorkers.pages.initialization = pagesWorker.initialize(
-                this.renderWorkerOpts!
-              )
-            }
+            this.nextConfig
+          )
+          this.renderWorkers.pages = pagesWorker
+          this.renderWorkers.pages.initialization = pagesWorker.initialize(
+            this.renderWorkerOpts!
           )
 
           this.renderWorkers.middleware =
@@ -329,24 +325,24 @@ export default class NextNodeServer extends BaseServer {
       })
       ;(global as any)._nextDeleteCache = (filePath: string) => {
         try {
-          this.renderWorkers.pages?.deleteCache(filePath)
-          this.renderWorkers.app?.deleteCache(filePath)
+          this.renderWorkers?.pages?.deleteCache(filePath)
+          this.renderWorkers?.app?.deleteCache(filePath)
         } catch (err) {
           console.error(err)
         }
       }
       ;(global as any)._nextDeleteAppClientCache = () => {
         try {
-          this.renderWorkers.pages?.deleteAppClientCache()
-          this.renderWorkers.app?.deleteAppClientCache()
+          this.renderWorkers?.pages?.deleteAppClientCache()
+          this.renderWorkers?.app?.deleteAppClientCache()
         } catch (err) {
           console.error(err)
         }
       }
       ;(global as any)._nextClearModuleContext = (targetPath: string) => {
         try {
-          this.renderWorkers.pages?.clearModuleContext(targetPath)
-          this.renderWorkers.app?.clearModuleContext(targetPath)
+          this.renderWorkers?.pages?.clearModuleContext(targetPath)
+          this.renderWorkers?.app?.clearModuleContext(targetPath)
         } catch (err) {
           console.error(err)
         }
@@ -1440,7 +1436,7 @@ export default class NextNodeServer extends BaseServer {
             await this.renderWorkersPromises
             this.renderWorkersPromises = undefined
           }
-          const renderWorker = this.renderWorkers[renderKind]
+          const renderWorker = this.renderWorkers?.[renderKind]
 
           if (renderWorker) {
             const initUrl = getRequestMeta(req, '__NEXT_INIT_URL')!
@@ -2452,7 +2448,7 @@ export default class NextNodeServer extends BaseServer {
             try {
               await this.ensureMiddleware()
 
-              if (this.isRouterWorker && this.renderWorkers.middleware) {
+              if (this.isRouterWorker && this.renderWorkers?.middleware) {
                 if (this.renderWorkersPromises) {
                   await this.renderWorkersPromises
                   this.renderWorkersPromises = undefined
