@@ -188,14 +188,15 @@ export async function initialize(opts: {
       ipcValidationKey,
       opts.isNodeDebugging,
       'app',
-      config.experimental.serverActions
+      config
     )
   }
   renderWorkers.pages = await createWorker(
     ipcPort,
     ipcValidationKey,
     opts.isNodeDebugging,
-    'pages'
+    'pages',
+    config
   )
 
   // pre-initialize workers
