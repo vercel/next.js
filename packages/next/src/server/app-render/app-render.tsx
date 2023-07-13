@@ -1487,11 +1487,7 @@ export async function renderToHTMLOrFlight(
             flushedErrorMetaTagsUntilIndex++
           ) {
             const error = allCapturedErrors[flushedErrorMetaTagsUntilIndex]
-            if (isNotFoundError(error)) {
-              errorMetaTags.push(
-                <meta name="robots" content="noindex" key={error.digest} />
-              )
-            } else if (isRedirectError(error)) {
+            if (isRedirectError(error)) {
               const redirectUrl = getURLFromRedirectError(error)
               if (redirectUrl) {
                 errorMetaTags.push(
