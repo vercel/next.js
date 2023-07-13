@@ -4,6 +4,7 @@ use turbo_tasks_fs::{File, FileSystem};
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
     ident::AssetIdentVc,
+    output::{OutputAsset, OutputAssetVc},
     reference::all_assets,
 };
 
@@ -19,6 +20,9 @@ impl NftJsonAssetVc {
         Self::cell(NftJsonAsset { entry })
     }
 }
+
+#[turbo_tasks::value_impl]
+impl OutputAsset for NftJsonAsset {}
 
 #[turbo_tasks::value_impl]
 impl Asset for NftJsonAsset {

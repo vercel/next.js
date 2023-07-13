@@ -9,6 +9,7 @@ use turbopack_core::{
     code_builder::{CodeBuilder, CodeVc},
     ident::AssetIdentVc,
     introspect::{Introspectable, IntrospectableVc},
+    output::{OutputAsset, OutputAssetVc},
     reference::AssetReferencesVc,
     source_map::{GenerateSourceMap, GenerateSourceMapVc, OptionSourceMapVc},
 };
@@ -83,6 +84,9 @@ impl Chunk for SingleItemCssChunk {
 fn single_item_modifier() -> StringVc {
     StringVc::cell("single item css chunk".to_string())
 }
+
+#[turbo_tasks::value_impl]
+impl OutputAsset for SingleItemCssChunk {}
 
 #[turbo_tasks::value_impl]
 impl Asset for SingleItemCssChunk {

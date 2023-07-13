@@ -7,6 +7,7 @@ use crate::{
     asset::{Asset, AssetContentVc, AssetVc},
     ident::AssetIdentVc,
     introspect::{Introspectable, IntrospectableChildrenVc, IntrospectableVc},
+    output::{OutputAsset, OutputAssetVc},
     reference::{AssetReference, AssetReferenceVc},
     resolve::{ResolveResult, ResolveResultVc},
     source_map::{GenerateSourceMap, GenerateSourceMapVc, SourceMapVc},
@@ -25,6 +26,9 @@ impl SourceMapAssetVc {
         SourceMapAsset { asset }.cell()
     }
 }
+
+#[turbo_tasks::value_impl]
+impl OutputAsset for SourceMapAsset {}
 
 #[turbo_tasks::value_impl]
 impl Asset for SourceMapAsset {

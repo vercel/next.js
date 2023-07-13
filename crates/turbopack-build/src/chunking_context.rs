@@ -7,13 +7,14 @@ use turbo_tasks::{
 };
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
-    asset::{Asset, AssetVc, AssetsVc},
+    asset::{Asset, AssetVc},
     chunk::{
         Chunk, ChunkVc, ChunkableModule, ChunkingContext, ChunkingContextVc, ChunksVc,
         EvaluatableAssetsVc,
     },
     environment::EnvironmentVc,
     ident::AssetIdentVc,
+    output::{OutputAssetVc, OutputAssetsVc},
 };
 use turbopack_css::chunk::CssChunkVc;
 use turbopack_ecmascript::chunk::{
@@ -119,7 +120,7 @@ impl BuildChunkingContextVc {
         path: FileSystemPathVc,
         module: EcmascriptChunkPlaceableVc,
         evaluatable_assets: EvaluatableAssetsVc,
-    ) -> Result<AssetVc> {
+    ) -> Result<OutputAssetVc> {
         let entry_chunk = module.as_root_chunk(self_vc.into());
 
         let other_chunks = self_vc
@@ -129,7 +130,7 @@ impl BuildChunkingContextVc {
         let asset = EcmascriptBuildNodeEntryChunkVc::new(
             path,
             self_vc,
-            AssetsVc::cell(other_chunks),
+            OutputAssetsVc::cell(other_chunks),
             evaluatable_assets,
             module,
         )
@@ -139,12 +140,14 @@ impl BuildChunkingContextVc {
     }
 
     #[turbo_tasks::function]
-    async fn generate_chunk(self, chunk: ChunkVc) -> Result<AssetVc> {
+    async fn generate_chunk(self, chunk: ChunkVc) -> Result<OutputAssetVc> {
         Ok(
             if let Some(ecmascript_chunk) = EcmascriptChunkVc::resolve_from(chunk).await? {
                 EcmascriptBuildNodeChunkVc::new(self, ecmascript_chunk).into()
+            } else if let Some(output_asset) = OutputAssetVc::resolve_from(chunk).await? {
+                output_asset
             } else {
-                chunk.into()
+                bail!("Unable to generate output asset for chunk");
             },
         )
     }
@@ -155,7 +158,7 @@ impl BuildChunkingContextVc {
         self,
         entry_chunk: ChunkVc,
         evaluatable_assets: EvaluatableAssetsVc,
-    ) -> Result<Vec<AssetVc>> {
+    ) -> Result<Vec<OutputAssetVc>> {
         let evaluatable_assets_ref = evaluatable_assets.await?;
 
         let mut chunks: IndexSet<_> = evaluatable_assets_ref
@@ -270,18 +273,18 @@ impl ChunkingContext for BuildChunkingContext {
     async fn chunk_group(
         self_vc: BuildChunkingContextVc,
         entry_chunk: ChunkVc,
-    ) -> Result<AssetsVc> {
+    ) -> Result<OutputAssetsVc> {
         let parallel_chunks = get_parallel_chunks([entry_chunk]).await?;
 
         let optimized_chunks = get_optimized_chunks(parallel_chunks).await?;
 
-        let assets: Vec<AssetVc> = optimized_chunks
+        let assets: Vec<OutputAssetVc> = optimized_chunks
             .await?
             .iter()
             .map(|chunk| self_vc.generate_chunk(*chunk))
             .collect();
 
-        Ok(AssetsVc::cell(assets))
+        Ok(OutputAssetsVc::cell(assets))
     }
 
     #[turbo_tasks::function]
@@ -289,7 +292,7 @@ impl ChunkingContext for BuildChunkingContext {
         _self_vc: BuildChunkingContextVc,
         _entry_chunk: ChunkVc,
         _evaluatable_assets: EvaluatableAssetsVc,
-    ) -> Result<AssetsVc> {
+    ) -> Result<OutputAssetsVc> {
         // TODO(alexkirsz) This method should be part of a separate trait that is
         // only implemented for client/edge runtimes.
         bail!("the build chunking context does not support evaluated chunk groups")

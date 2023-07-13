@@ -9,6 +9,7 @@ use turbopack_core::{
     },
     ident::AssetIdentVc,
     introspect::{Introspectable, IntrospectableChildrenVc, IntrospectableVc},
+    output::{OutputAsset, OutputAssetVc},
     reference::AssetReferencesVc,
     source_map::{
         GenerateSourceMap, GenerateSourceMapVc, OptionSourceMapVc, SourceMapAssetReferenceVc,
@@ -76,6 +77,9 @@ impl EcmascriptDevChunkVc {
         ))
     }
 }
+
+#[turbo_tasks::value_impl]
+impl OutputAsset for EcmascriptDevChunk {}
 
 #[turbo_tasks::value_impl]
 impl Asset for EcmascriptDevChunk {

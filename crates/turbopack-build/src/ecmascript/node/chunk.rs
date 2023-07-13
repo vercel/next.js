@@ -6,6 +6,7 @@ use turbopack_core::{
     chunk::ChunkingContext,
     ident::AssetIdentVc,
     introspect::{Introspectable, IntrospectableChildrenVc, IntrospectableVc},
+    output::{OutputAsset, OutputAssetVc},
     reference::AssetReferencesVc,
     source_map::{
         GenerateSourceMap, GenerateSourceMapVc, OptionSourceMapVc, SourceMapAssetReferenceVc,
@@ -61,6 +62,9 @@ impl EcmascriptBuildNodeChunkVc {
         ))
     }
 }
+
+#[turbo_tasks::value_impl]
+impl OutputAsset for EcmascriptBuildNodeChunk {}
 
 #[turbo_tasks::value_impl]
 impl Asset for EcmascriptBuildNodeChunk {

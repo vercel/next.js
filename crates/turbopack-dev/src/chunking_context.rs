@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{bail, Result};
 use indexmap::IndexSet;
 use turbo_tasks::{
     graph::{AdjacencyMap, GraphTraversal},
@@ -7,13 +7,14 @@ use turbo_tasks::{
 };
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
-    asset::{Asset, AssetVc, AssetsVc},
+    asset::{Asset, AssetVc},
     chunk::{
         Chunk, ChunkVc, ChunkableModule, ChunkingContext, ChunkingContextVc, ChunksVc,
         EvaluatableAssetsVc,
     },
     environment::EnvironmentVc,
     ident::AssetIdentVc,
+    output::{OutputAssetVc, OutputAssetsVc},
 };
 use turbopack_css::chunk::{CssChunkVc, CssChunksVc};
 use turbopack_ecmascript::chunk::{
@@ -157,9 +158,9 @@ impl DevChunkingContextVc {
     fn generate_evaluate_chunk(
         self_vc: DevChunkingContextVc,
         entry_chunk: ChunkVc,
-        other_chunks: AssetsVc,
+        other_chunks: OutputAssetsVc,
         evaluatable_assets: EvaluatableAssetsVc,
-    ) -> AssetVc {
+    ) -> OutputAssetVc {
         EcmascriptDevEvaluateChunkVc::new(self_vc, entry_chunk, other_chunks, evaluatable_assets)
             .into()
     }
@@ -168,19 +169,21 @@ impl DevChunkingContextVc {
     fn generate_chunk_list_register_chunk(
         self_vc: DevChunkingContextVc,
         entry_chunk: ChunkVc,
-        other_chunks: AssetsVc,
+        other_chunks: OutputAssetsVc,
         source: Value<EcmascriptDevChunkListSource>,
-    ) -> AssetVc {
+    ) -> OutputAssetVc {
         EcmascriptDevChunkListVc::new(self_vc, entry_chunk, other_chunks, source).into()
     }
 
     #[turbo_tasks::function]
-    async fn generate_chunk(self, chunk: ChunkVc) -> Result<AssetVc> {
+    async fn generate_chunk(self, chunk: ChunkVc) -> Result<OutputAssetVc> {
         Ok(
             if let Some(ecmascript_chunk) = EcmascriptChunkVc::resolve_from(chunk).await? {
                 EcmascriptDevChunkVc::new(self, ecmascript_chunk).into()
+            } else if let Some(output_asset) = OutputAssetVc::resolve_from(chunk).await? {
+                output_asset
             } else {
-                chunk.into()
+                bail!("Unable to generate output asset for chunk");
             },
         )
     }
@@ -284,12 +287,15 @@ impl ChunkingContext for DevChunkingContext {
     }
 
     #[turbo_tasks::function]
-    async fn chunk_group(self_vc: DevChunkingContextVc, entry_chunk: ChunkVc) -> Result<AssetsVc> {
+    async fn chunk_group(
+        self_vc: DevChunkingContextVc,
+        entry_chunk: ChunkVc,
+    ) -> Result<OutputAssetsVc> {
         let parallel_chunks = get_parallel_chunks([entry_chunk]).await?;
 
         let optimized_chunks = get_optimized_chunks(parallel_chunks).await?;
 
-        let mut assets: Vec<AssetVc> = optimized_chunks
+        let mut assets: Vec<OutputAssetVc> = optimized_chunks
             .await?
             .iter()
             .map(|chunk| self_vc.generate_chunk(*chunk))
@@ -297,11 +303,11 @@ impl ChunkingContext for DevChunkingContext {
 
         assets.push(self_vc.generate_chunk_list_register_chunk(
             entry_chunk,
-            AssetsVc::cell(assets.clone()),
+            OutputAssetsVc::cell(assets.clone()),
             Value::new(EcmascriptDevChunkListSource::Dynamic),
         ));
 
-        Ok(AssetsVc::cell(assets))
+        Ok(OutputAssetsVc::cell(assets))
     }
 
     #[turbo_tasks::function]
@@ -309,7 +315,7 @@ impl ChunkingContext for DevChunkingContext {
         self_vc: DevChunkingContextVc,
         entry_chunk: ChunkVc,
         evaluatable_assets: EvaluatableAssetsVc,
-    ) -> Result<AssetsVc> {
+    ) -> Result<OutputAssetsVc> {
         let evaluatable_assets_ref = evaluatable_assets.await?;
 
         let mut entry_assets: IndexSet<_> = evaluatable_assets_ref
@@ -333,13 +339,13 @@ impl ChunkingContext for DevChunkingContext {
 
         let optimized_chunks = get_optimized_chunks(parallel_chunks).await?;
 
-        let mut assets: Vec<AssetVc> = optimized_chunks
+        let mut assets: Vec<OutputAssetVc> = optimized_chunks
             .await?
             .iter()
             .map(|chunk| self_vc.generate_chunk(*chunk))
             .collect();
 
-        let other_assets = AssetsVc::cell(assets.clone());
+        let other_assets = OutputAssetsVc::cell(assets.clone());
 
         assets.push(self_vc.generate_chunk_list_register_chunk(
             entry_chunk,
@@ -349,7 +355,7 @@ impl ChunkingContext for DevChunkingContext {
 
         assets.push(self_vc.generate_evaluate_chunk(entry_chunk, other_assets, evaluatable_assets));
 
-        Ok(AssetsVc::cell(assets))
+        Ok(OutputAssetsVc::cell(assets))
     }
 }
 

@@ -3,8 +3,9 @@ use turbo_tasks::{primitives::StringVc, TryJoinIterExt};
 use turbo_tasks_fs::FileSystemPathVc;
 
 use crate::{
-    asset::{Asset, AssetVc, AssetsVc},
+    asset::Asset,
     chunk::{ModuleIdReadRef, OutputChunk, OutputChunkRuntimeInfo, OutputChunkVc},
+    output::{OutputAssetVc, OutputAssetsVc},
     reference::{AssetReferencesVc, SingleAssetReferenceVc},
 };
 
@@ -37,7 +38,7 @@ impl ChunkDataVc {
     #[turbo_tasks::function]
     pub async fn from_asset(
         output_root: FileSystemPathVc,
-        chunk: AssetVc,
+        chunk: OutputAssetVc,
     ) -> Result<ChunkDataOptionVc> {
         let output_root = output_root.await?;
         let path = chunk.ident().path().await?;
@@ -127,7 +128,7 @@ impl ChunkDataVc {
     #[turbo_tasks::function]
     pub async fn from_assets(
         output_root: FileSystemPathVc,
-        chunks: AssetsVc,
+        chunks: OutputAssetsVc,
     ) -> Result<ChunksDataVc> {
         Ok(ChunksDataVc::cell(
             chunks

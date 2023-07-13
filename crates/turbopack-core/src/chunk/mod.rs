@@ -39,6 +39,7 @@ use crate::{
     asset::{Asset, AssetVc, AssetsVc},
     ident::AssetIdentVc,
     module::{Module, ModuleVc},
+    output::OutputAssetsVc,
     reference::{AssetReference, AssetReferenceVc, AssetReferencesVc},
     resolve::{PrimaryResolveResult, ResolveResult, ResolveResultVc},
 };
@@ -208,7 +209,7 @@ impl ChunkGroupReferenceVc {
     }
 
     #[turbo_tasks::function]
-    async fn chunks(self) -> Result<AssetsVc> {
+    async fn chunks(self) -> Result<OutputAssetsVc> {
         let this = self.await?;
         Ok(this.chunking_context.chunk_group(this.entry))
     }
@@ -218,7 +219,7 @@ impl ChunkGroupReferenceVc {
 impl AssetReference for ChunkGroupReference {
     #[turbo_tasks::function]
     async fn resolve_reference(self_vc: ChunkGroupReferenceVc) -> Result<ResolveResultVc> {
-        let set = self_vc.chunks().await?.clone_value();
+        let set = self_vc.chunks().await?.iter().map(|&c| c.into()).collect();
         Ok(ResolveResult::assets(set).into())
     }
 }

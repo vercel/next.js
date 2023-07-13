@@ -4,6 +4,7 @@ use turbo_tasks_fs::FileSystemPathVc;
 use crate::{
     asset::{Asset, AssetContentVc, AssetVc},
     ident::AssetIdentVc,
+    output::{OutputAsset, OutputAssetVc},
     reference::AssetReferencesVc,
     version::VersionedContentVc,
 };
@@ -26,6 +27,9 @@ impl ProxiedAssetVc {
         ProxiedAsset { asset, path }.cell()
     }
 }
+
+#[turbo_tasks::value_impl]
+impl OutputAsset for ProxiedAsset {}
 
 #[turbo_tasks::value_impl]
 impl Asset for ProxiedAsset {

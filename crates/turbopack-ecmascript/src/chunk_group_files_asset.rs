@@ -3,7 +3,7 @@ use indexmap::IndexSet;
 use turbo_tasks::{primitives::StringVc, TryJoinIterExt, Value, ValueToString};
 use turbo_tasks_fs::{File, FileSystemPathVc};
 use turbopack_core::{
-    asset::{Asset, AssetContentVc, AssetVc, AssetsVc},
+    asset::{Asset, AssetContentVc, AssetVc},
     chunk::{
         availability_info::AvailabilityInfo, ChunkItem, ChunkItemVc, ChunkVc, ChunkableModule,
         ChunkableModuleVc, ChunkingContext, ChunkingContextVc, EvaluatableAssetsVc,
@@ -14,6 +14,7 @@ use turbopack_core::{
         Introspectable, IntrospectableChildrenVc, IntrospectableVc,
     },
     module::{Module, ModuleVc},
+    output::OutputAssetsVc,
     reference::{AssetReferenceVc, AssetReferencesVc, SingleAssetReferenceVc},
 };
 
@@ -134,7 +135,7 @@ struct ChunkGroupFilesChunkItem {
 #[turbo_tasks::value_impl]
 impl ChunkGroupFilesChunkItemVc {
     #[turbo_tasks::function]
-    async fn chunks(self) -> Result<AssetsVc> {
+    async fn chunks(self) -> Result<OutputAssetsVc> {
         let this = self.await?;
         let module = this.inner.await?;
         let chunks =
@@ -212,7 +213,10 @@ impl ChunkItem for ChunkGroupFilesChunkItem {
                 .iter()
                 .copied()
                 .map(|chunk| {
-                    SingleAssetReferenceVc::new(chunk, chunk_group_chunk_reference_description())
+                    SingleAssetReferenceVc::new(
+                        chunk.into(),
+                        chunk_group_chunk_reference_description(),
+                    )
                 })
                 .map(Into::into)
                 .collect(),
