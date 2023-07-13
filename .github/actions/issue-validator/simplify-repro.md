@@ -17,6 +17,8 @@ An ideal minimal reproduction (_unless relevant_):
 
 Generally, the person looking into the reproduction should not require to have prior knowledge of your codebase to be able to help.
 
+If you cannot create a clean reproduction, another way you can help the maintainer's job is to pinpoint the `canary` version of `next` that introduced the issue. Check out our [releases](https://github.com/vercel/next.js/releases), and try to find the first `canary` release that introduced the issue. This will help us narrow down the scope of the issue, and possibly point to the PR/code change that introduced it. You can install a specific version of `next` by running `npm install next@<version>`.
+
 ### **What happens if I don't provide a sufficient minimal reproduction?**
 
 Issues with the `please simplify reproduction` label that receive no meaningful activity (e.g. new comments with a simplified reproduction link) are automatically closed and locked after 30 days.
