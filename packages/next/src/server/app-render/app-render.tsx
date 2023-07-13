@@ -1628,7 +1628,11 @@ export async function renderToHTMLOrFlight(
           )
 
           const use404Error = res.statusCode === 404
-          const useDefaultError = res.statusCode < 400 || res.statusCode === 307
+          // When it's in error state but status code is not 200, we should render global-error
+          const useGlobalError =
+            res.statusCode === 200 && process.env.NODE_ENV === 'production'
+          const useDefaultError =
+            (res.statusCode < 400 || res.statusCode === 307) && !useGlobalError
 
           const { layout } = loaderTree[2]
           const injectedCSS = new Set<string>()
