@@ -9,6 +9,7 @@ use turbopack_core::{
     chunk::ChunkingContext,
     code_builder::{CodeBuilder, CodeVc},
     ident::AssetIdentVc,
+    output::{OutputAsset, OutputAssetVc},
     reference::{AssetReference, AssetReferenceVc, AssetReferencesVc},
     resolve::{ResolveResult, ResolveResultVc},
     source_map::{
@@ -87,6 +88,9 @@ impl ValueToString for EcmascriptBuildNodeRuntimeChunk {
         ))
     }
 }
+
+#[turbo_tasks::value_impl]
+impl OutputAsset for EcmascriptBuildNodeRuntimeChunk {}
 
 #[turbo_tasks::value_impl]
 impl Asset for EcmascriptBuildNodeRuntimeChunk {

@@ -24,6 +24,7 @@ use turbopack_core::{
     context::AssetContextVc,
     ident::AssetIdentVc,
     module::{Module, ModuleVc},
+    output::{OutputAsset, OutputAssetVc},
     reference::{AssetReferencesVc, SingleAssetReferenceVc},
     source::SourceVc,
 };
@@ -138,6 +139,9 @@ struct StaticAsset {
     context: ChunkingContextVc,
     source: SourceVc,
 }
+
+#[turbo_tasks::value_impl]
+impl OutputAsset for StaticAsset {}
 
 #[turbo_tasks::value_impl]
 impl Asset for StaticAsset {

@@ -4,11 +4,12 @@ use turbo_tasks::{primitives::StringVc, TryJoinIterExt};
 use turbo_tasks_fs::{File, FileSystemPathVc};
 use turbo_tasks_hash::{encode_hex, Xxh3Hash64Hasher};
 use turbopack_core::{
-    asset::{Asset, AssetContentVc, AssetVc, AssetsVc},
+    asset::{Asset, AssetContentVc, AssetVc},
     chunk::{
         ChunkableModule, ChunkableModuleVc, ChunkingContext, ChunkingContextVc, EvaluatableAssetsVc,
     },
     ident::AssetIdentVc,
+    output::{OutputAsset, OutputAssetVc, OutputAssetsVc},
     reference::{AssetReferencesVc, SingleAssetReferenceVc},
     version::{Version, VersionVc, VersionedContent, VersionedContentVc},
 };
@@ -36,6 +37,9 @@ fn dev_html_chunk_reference_description() -> StringVc {
 }
 
 #[turbo_tasks::value_impl]
+impl OutputAsset for DevHtmlAsset {}
+
+#[turbo_tasks::value_impl]
 impl Asset for DevHtmlAsset {
     #[turbo_tasks::function]
     fn ident(&self) -> AssetIdentVc {
@@ -50,9 +54,10 @@ impl Asset for DevHtmlAsset {
     #[turbo_tasks::function]
     async fn references(self_vc: DevHtmlAssetVc) -> Result<AssetReferencesVc> {
         let mut references = Vec::new();
-        for chunk in &*self_vc.chunks().await? {
+        for &chunk in &*self_vc.chunks().await? {
             references.push(
-                SingleAssetReferenceVc::new(*chunk, dev_html_chunk_reference_description()).into(),
+                SingleAssetReferenceVc::new(chunk.into(), dev_html_chunk_reference_description())
+                    .into(),
             );
         }
         Ok(AssetReferencesVc::cell(references))
@@ -136,7 +141,7 @@ impl DevHtmlAssetVc {
     }
 
     #[turbo_tasks::function]
-    async fn chunks(self) -> Result<AssetsVc> {
+    async fn chunks(self) -> Result<OutputAssetsVc> {
         let this = self.await?;
 
         let all_assets = this
@@ -161,7 +166,7 @@ impl DevHtmlAssetVc {
             .copied()
             .collect();
 
-        Ok(AssetsVc::cell(all_assets))
+        Ok(OutputAssetsVc::cell(all_assets))
     }
 }
 

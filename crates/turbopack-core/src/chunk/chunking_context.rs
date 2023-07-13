@@ -6,9 +6,7 @@ use turbo_tasks_fs::FileSystemPathVc;
 
 use super::{ChunkVc, EvaluatableAssetsVc};
 use crate::{
-    asset::{AssetVc, AssetsVc},
-    environment::EnvironmentVc,
-    ident::AssetIdentVc,
+    asset::AssetVc, environment::EnvironmentVc, ident::AssetIdentVc, output::OutputAssetsVc,
 };
 
 /// A context for the chunking that influences the way chunks are created
@@ -49,11 +47,11 @@ pub trait ChunkingContext {
 
     fn with_layer(&self, layer: &str) -> ChunkingContextVc;
 
-    fn chunk_group(&self, entry: ChunkVc) -> AssetsVc;
+    fn chunk_group(&self, entry: ChunkVc) -> OutputAssetsVc;
 
     fn evaluated_chunk_group(
         &self,
         entry: ChunkVc,
         evaluatable_assets: EvaluatableAssetsVc,
-    ) -> AssetsVc;
+    ) -> OutputAssetsVc;
 }

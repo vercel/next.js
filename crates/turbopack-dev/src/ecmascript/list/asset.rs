@@ -2,9 +2,10 @@ use anyhow::Result;
 use serde::Serialize;
 use turbo_tasks::{primitives::StringVc, Value, ValueToString, ValueToStringVc};
 use turbopack_core::{
-    asset::{Asset, AssetContentVc, AssetVc, AssetsVc},
+    asset::{Asset, AssetContentVc, AssetVc},
     chunk::{ChunkVc, ChunkingContext},
     ident::AssetIdentVc,
+    output::{OutputAsset, OutputAssetVc, OutputAssetsVc},
     reference::{AssetReferencesVc, SingleAssetReferenceVc},
     version::{VersionedContent, VersionedContentVc},
 };
@@ -27,7 +28,7 @@ use crate::DevChunkingContextVc;
 pub(crate) struct EcmascriptDevChunkList {
     pub(super) chunking_context: DevChunkingContextVc,
     pub(super) entry_chunk: ChunkVc,
-    pub(super) chunks: AssetsVc,
+    pub(super) chunks: OutputAssetsVc,
     pub(super) source: EcmascriptDevChunkListSource,
 }
 
@@ -38,7 +39,7 @@ impl EcmascriptDevChunkListVc {
     pub fn new(
         chunking_context: DevChunkingContextVc,
         entry_chunk: ChunkVc,
-        chunks: AssetsVc,
+        chunks: OutputAssetsVc,
         source: Value<EcmascriptDevChunkListSource>,
     ) -> Self {
         EcmascriptDevChunkList {
@@ -75,6 +76,9 @@ fn chunk_list_chunk_reference_description() -> StringVc {
 }
 
 #[turbo_tasks::value_impl]
+impl OutputAsset for EcmascriptDevChunkList {}
+
+#[turbo_tasks::value_impl]
 impl Asset for EcmascriptDevChunkList {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<AssetIdentVc> {
@@ -98,9 +102,12 @@ impl Asset for EcmascriptDevChunkList {
             self.chunks
                 .await?
                 .iter()
-                .map(|chunk| {
-                    SingleAssetReferenceVc::new(*chunk, chunk_list_chunk_reference_description())
-                        .into()
+                .map(|&chunk| {
+                    SingleAssetReferenceVc::new(
+                        chunk.into(),
+                        chunk_list_chunk_reference_description(),
+                    )
+                    .into()
                 })
                 .collect(),
         ))

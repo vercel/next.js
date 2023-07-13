@@ -4,9 +4,10 @@ use anyhow::Result;
 use turbo_tasks::primitives::StringVc;
 use turbo_tasks_fs::{File, FileSystemPathVc};
 use turbopack_core::{
-    asset::{Asset, AssetContentVc, AssetVc, AssetsVc},
+    asset::{Asset, AssetContentVc, AssetVc},
     chunk::{ChunkVc, ChunkingContext, ChunkingContextVc, EvaluatableAssetsVc},
     ident::AssetIdentVc,
+    output::OutputAssetsVc,
     reference::{AssetReferencesVc, SingleAssetReferenceVc},
 };
 use turbopack_ecmascript::utils::StringifyJs;
@@ -25,7 +26,7 @@ fn node_js_bootstrap_chunk_reference_description() -> StringVc {
 }
 
 impl NodeJsBootstrapAsset {
-    fn chunks(&self) -> AssetsVc {
+    fn chunks(&self) -> OutputAssetsVc {
         self.chunking_context
             .evaluated_chunk_group(self.entry, self.evaluatable_assets)
     }
@@ -62,10 +63,10 @@ impl Asset for NodeJsBootstrapAsset {
     async fn references(&self) -> Result<AssetReferencesVc> {
         let chunks = self.chunks().await?;
         let mut references = Vec::new();
-        for chunk in chunks.iter() {
+        for &chunk in chunks.iter() {
             references.push(
                 SingleAssetReferenceVc::new(
-                    *chunk,
+                    chunk.into(),
                     node_js_bootstrap_chunk_reference_description(),
                 )
                 .into(),

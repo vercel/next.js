@@ -6,6 +6,7 @@ use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
     ident::AssetIdentVc,
+    output::{OutputAsset, OutputAssetVc},
     reference::{AssetReference, AssetReferenceVc, AssetReferencesVc},
     resolve::ResolveResultVc,
 };
@@ -29,6 +30,9 @@ impl RebasedAssetVc {
         })
     }
 }
+
+#[turbo_tasks::value_impl]
+impl OutputAsset for RebasedAsset {}
 
 #[turbo_tasks::value_impl]
 impl Asset for RebasedAsset {

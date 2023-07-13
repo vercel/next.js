@@ -5,6 +5,7 @@ use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
     chunk::Chunk,
     ident::AssetIdentVc,
+    output::{OutputAsset, OutputAssetVc},
     reference::{AssetReference, AssetReferenceVc},
     resolve::{ResolveResult, ResolveResultVc},
     source_map::{GenerateSourceMap, SourceMapVc},
@@ -25,6 +26,9 @@ impl CssChunkSourceMapAssetVc {
         CssChunkSourceMapAsset { chunk }.cell()
     }
 }
+
+#[turbo_tasks::value_impl]
+impl OutputAsset for CssChunkSourceMapAsset {}
 
 #[turbo_tasks::value_impl]
 impl Asset for CssChunkSourceMapAsset {

@@ -1,13 +1,14 @@
 use anyhow::Result;
 use turbo_tasks::{primitives::StringVc, Value};
 use turbopack_core::{
-    asset::{Asset, AssetContentVc, AssetVc, AssetsVc},
+    asset::{Asset, AssetContentVc, AssetVc},
     chunk::{
         availability_info::AvailabilityInfo, ChunkVc, ChunkableModule, ChunkableModuleVc,
         ChunkingContext, ChunkingContextVc,
     },
     ident::AssetIdentVc,
     module::{Module, ModuleVc},
+    output::OutputAssetsVc,
     reference::{AssetReferencesVc, SingleAssetReferenceVc},
 };
 
@@ -64,13 +65,13 @@ impl ManifestChunkAssetVc {
     }
 
     #[turbo_tasks::function]
-    pub(super) async fn chunks(self) -> Result<AssetsVc> {
+    pub(super) async fn chunks(self) -> Result<OutputAssetsVc> {
         let this = self.await?;
         Ok(this.chunking_context.chunk_group(self.entry_chunk()))
     }
 
     #[turbo_tasks::function]
-    pub async fn manifest_chunks(self) -> Result<AssetsVc> {
+    pub async fn manifest_chunks(self) -> Result<OutputAssetsVc> {
         let this = self.await?;
         Ok(this.chunking_context.chunk_group(self.as_chunk(
             this.chunking_context.into(),
@@ -106,8 +107,11 @@ impl Asset for ManifestChunkAsset {
                 .iter()
                 .copied()
                 .map(|chunk| {
-                    SingleAssetReferenceVc::new(chunk, manifest_chunk_reference_description())
-                        .into()
+                    SingleAssetReferenceVc::new(
+                        chunk.into(),
+                        manifest_chunk_reference_description(),
+                    )
+                    .into()
                 })
                 .collect(),
         ))

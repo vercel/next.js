@@ -82,9 +82,12 @@ impl ChunkItem for ManifestLoaderItem {
         let mut references: Vec<_> = chunks
             .await?
             .iter()
-            .map(|chunk| {
-                SingleAssetReferenceVc::new(*chunk, manifest_loader_chunk_reference_description())
-                    .into()
+            .map(|&chunk| {
+                SingleAssetReferenceVc::new(
+                    chunk.into(),
+                    manifest_loader_chunk_reference_description(),
+                )
+                .into()
             })
             .collect();
 

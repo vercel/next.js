@@ -23,6 +23,7 @@ use turbopack_core::{
         Introspectable, IntrospectableChildrenVc, IntrospectableVc,
     },
     module::{Module, ModuleVc},
+    output::{OutputAsset, OutputAssetVc},
     reference::{AssetReference, AssetReferenceVc, AssetReferencesVc},
     resolve::PrimaryResolveResult,
     source_map::{GenerateSourceMap, GenerateSourceMapVc, OptionSourceMapVc},
@@ -353,6 +354,9 @@ impl OutputChunk for CssChunk {
         .cell())
     }
 }
+
+#[turbo_tasks::value_impl]
+impl OutputAsset for CssChunk {}
 
 #[turbo_tasks::value_impl]
 impl Asset for CssChunk {
