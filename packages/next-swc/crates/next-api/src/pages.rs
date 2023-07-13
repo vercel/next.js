@@ -79,13 +79,8 @@ pub async fn get_pages_routes(
     if let Some(page) = pages {
         add_dir_to_routes(&mut routes, page, |pathname, original_name, path| {
             Route::Page {
-                html_endpoint: PageHtmlEndpointVc::new(
-                    project,
-                    pathname.clone(),
-                    original_name.clone(),
-                    path,
-                )
-                .into(),
+                html_endpoint: PageHtmlEndpointVc::new(project, pathname, original_name, path)
+                    .into(),
                 data_endpoint: PageDataEndpointVc::new(project, pathname, original_name, path)
                     .into(),
             }
@@ -300,7 +295,7 @@ impl Endpoint for PageDataEndpoint {
         let this = self_vc.await?;
         let ssr_data_chunk = self_vc.ssr_data_chunk();
         emit_all_assets(
-            OutputAssetsVc::cell(vec![ssr_data_chunk.into()]),
+            OutputAssetsVc::cell(vec![ssr_data_chunk]),
             this.project.node_root(),
             this.project.client_root().join("_next"),
             this.project.node_root(),

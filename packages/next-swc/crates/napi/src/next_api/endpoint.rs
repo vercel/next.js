@@ -29,7 +29,7 @@ pub async fn endpoint_write_to_disk(
     let turbo_tasks = endpoint.turbo_tasks().clone();
     let endpoint = **endpoint;
     let written = turbo_tasks
-        .run_once(async move { Ok(endpoint.write_to_disk().strongly_consistent().await?) })
+        .run_once(endpoint.write_to_disk().strongly_consistent())
         .await?;
     // TODO peek_issues and diagnostics
     Ok((&*written).into())

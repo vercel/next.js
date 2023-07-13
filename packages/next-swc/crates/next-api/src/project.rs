@@ -151,7 +151,7 @@ impl ProjectVc {
     }
 
     #[turbo_tasks::function]
-    async fn node_fs(self) -> Result<DiskFileSystemVc> {
+    async fn node_fs(self) -> Result<FileSystemVc> {
         let this = self.await?;
         let disk_fs = DiskFileSystemVc::new("node".to_string(), this.project_path.clone());
         disk_fs.await?.start_watching_with_invalidation_reason()?;

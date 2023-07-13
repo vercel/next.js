@@ -9,7 +9,7 @@ use next_api::{
 use turbo_tasks::TurboTasks;
 use turbopack_binding::turbo::tasks_memory::MemoryBackend;
 
-use super::utils::{serde_enum_to_string, subscribe, RootTask, VcArc};
+use super::utils::{serde_enum_to_string, subscribe, NapiDiagnostic, NapiIssue, RootTask, VcArc};
 use crate::register;
 
 #[napi(object)]
@@ -31,14 +31,14 @@ pub struct NapiProjectOptions {
     pub memory_limit: Option<f64>,
 }
 
-impl Into<ProjectOptions> for NapiProjectOptions {
-    fn into(self) -> ProjectOptions {
+impl From<NapiProjectOptions> for ProjectOptions {
+    fn from(val: NapiProjectOptions) -> Self {
         ProjectOptions {
-            root_path: self.root_path,
-            project_path: self.project_path,
-            watch: self.watch,
-            next_config: self.next_config,
-            memory_limit: self.memory_limit.map(|m| m as _),
+            root_path: val.root_path,
+            project_path: val.project_path,
+            watch: val.watch,
+            next_config: val.next_config,
+            memory_limit: val.memory_limit.map(|m| m as _),
         }
     }
 }
@@ -54,7 +54,7 @@ pub async fn project_new(options: NapiProjectOptions) -> napi::Result<External<V
     ));
     let options = options.into();
     let project = turbo_tasks
-        .run_once(async move { Ok(ProjectVc::new(options).resolve().await?) })
+        .run_once(ProjectVc::new(options).resolve())
         .await?;
     Ok(External::new_with_size_hint(
         VcArc::new(turbo_tasks, project),
@@ -93,14 +93,14 @@ impl NapiRoute {
             } => NapiRoute {
                 pathname,
                 r#type: "page",
-                html_endpoint: convert_endpoint(html_endpoint.clone()),
-                data_endpoint: convert_endpoint(data_endpoint.clone()),
+                html_endpoint: convert_endpoint(html_endpoint),
+                data_endpoint: convert_endpoint(data_endpoint),
                 ..Default::default()
             },
             Route::PageApi { endpoint } => NapiRoute {
                 pathname,
                 r#type: "page-api",
-                endpoint: convert_endpoint(endpoint.clone()),
+                endpoint: convert_endpoint(endpoint),
                 ..Default::default()
             },
             Route::AppPage {
@@ -109,14 +109,14 @@ impl NapiRoute {
             } => NapiRoute {
                 pathname,
                 r#type: "app-page",
-                html_endpoint: convert_endpoint(html_endpoint.clone()),
-                rsc_endpoint: convert_endpoint(rsc_endpoint.clone()),
+                html_endpoint: convert_endpoint(html_endpoint),
+                rsc_endpoint: convert_endpoint(rsc_endpoint),
                 ..Default::default()
             },
             Route::AppRoute { endpoint } => NapiRoute {
                 pathname,
                 r#type: "app-route",
-                endpoint: convert_endpoint(endpoint.clone()),
+                endpoint: convert_endpoint(endpoint),
                 ..Default::default()
             },
             Route::Conflict => NapiRoute {
@@ -141,7 +141,7 @@ impl NapiMiddleware {
         turbo_tasks: &Arc<TurboTasks<MemoryBackend>>,
     ) -> Result<Self> {
         Ok(NapiMiddleware {
-            endpoint: External::new(VcArc::new(turbo_tasks.clone(), value.endpoint.clone())),
+            endpoint: External::new(VcArc::new(turbo_tasks.clone(), value.endpoint)),
             runtime: serde_enum_to_string(&value.config.runtime)?,
             matcher: value.config.matcher.clone(),
         })
@@ -185,7 +185,7 @@ pub fn project_entrypoints_subscribe(
                 middleware: entrypoints
                     .middleware
                     .as_ref()
-                    .map(|m| NapiMiddleware::from_middleware(&m, &turbo_tasks))
+                    .map(|m| NapiMiddleware::from_middleware(m, &turbo_tasks))
                     .transpose()?,
                 issues: vec![],
                 diagnostics: vec![],

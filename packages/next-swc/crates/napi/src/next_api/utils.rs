@@ -1,6 +1,6 @@
 use std::{future::Future, ops::Deref, sync::Arc};
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{anyhow, Context, Result};
 use napi::{
     bindgen_prelude::{External, ToNapiValue},
     threadsafe_function::{ThreadSafeCallContext, ThreadsafeFunction, ThreadsafeFunctionCallMode},
@@ -49,7 +49,9 @@ pub fn serde_enum_to_string<T: Serialize>(value: &T) -> Result<String> {
 
 /// The root of our turbopack computation.
 pub struct RootTask {
+    #[allow(dead_code)]
     turbo_tasks: Arc<TurboTasks<MemoryBackend>>,
+    #[allow(dead_code)]
     task_id: Option<TaskId>,
 }
 
