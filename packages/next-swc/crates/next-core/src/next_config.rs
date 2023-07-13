@@ -16,6 +16,7 @@ use turbopack_binding::{
             changed::any_content_changed,
             chunk::ChunkingContext,
             context::AssetContext,
+            file_source::FileSourceVc,
             ident::AssetIdentVc,
             issue::{Issue, IssueContextExt, IssueSeverity, IssueSeverityVc, IssueVc},
             reference_type::{EntryReferenceSubType, InnerAssetsVc, ReferenceType},
@@ -24,7 +25,6 @@ use turbopack_binding::{
                 options::{ImportMap, ImportMapping},
                 FindContextFileResult, ResolveAliasMap, ResolveAliasMapVc,
             },
-            source_asset::SourceAssetVc,
         },
         ecmascript_plugin::transform::{
             emotion::EmotionTransformConfig, relay::RelayConfig,
@@ -45,6 +45,34 @@ use turbopack_binding::{
 
 use crate::{embed_js::next_asset, next_shared::transforms::ModularizeImportPackageConfig};
 
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct NextConfigAndCustomRoutesRaw {
+    config: NextConfig,
+    custom_routes: CustomRoutesRaw,
+}
+
+#[turbo_tasks::value]
+struct NextConfigAndCustomRoutes {
+    config: NextConfigVc,
+    custom_routes: CustomRoutesVc,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CustomRoutesRaw {
+    rewrites: Rewrites,
+
+    // unsupported
+    headers: Vec<Header>,
+    redirects: Vec<Redirect>,
+}
+
+#[turbo_tasks::value]
+struct CustomRoutes {
+    rewrites: RewritesVc,
+}
+
 #[turbo_tasks::value(serialization = "custom", eq = "manual")]
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -57,7 +85,6 @@ pub struct NextConfig {
     pub images: ImageConfig,
     pub page_extensions: Vec<String>,
     pub react_strict_mode: Option<bool>,
-    pub rewrites: Rewrites,
     pub transpile_packages: Option<Vec<String>>,
     pub modularize_imports: Option<IndexMap<String, ModularizeImportPackageConfig>>,
     sass_options: Option<serde_json::Value>,
@@ -84,7 +111,6 @@ pub struct NextConfig {
     // this is a function in js land
     generate_build_id: Option<serde_json::Value>,
     generate_etags: bool,
-    headers: Vec<Header>,
     http_agent_options: HttpAgentConfig,
     i18n: Option<I18NConfig>,
     on_demand_entries: OnDemandEntriesConfig,
@@ -93,7 +119,6 @@ pub struct NextConfig {
     powered_by_header: bool,
     production_browser_source_maps: bool,
     public_runtime_config: IndexMap<String, serde_json::Value>,
-    redirects: Vec<Redirect>,
     server_runtime_config: IndexMap<String, serde_json::Value>,
     static_page_generation_timeout: f64,
     swc_minify: bool,
@@ -383,7 +408,12 @@ pub struct ExperimentalConfig {
     pub app_dir: Option<bool>,
     pub server_components_external_packages: Option<Vec<String>>,
     pub turbo: Option<ExperimentalTurboConfig>,
+    pub allowed_revalidate_header_keys: Option<Vec<String>>,
+    pub fetch_cache_key_prefix: Option<String>,
+    pub isr_memory_cache_size: Option<f64>,
+    pub isr_flush_to_disk: Option<bool>,
     mdx_rs: Option<bool>,
+    pub swc_plugins: Option<Vec<(String, serde_json::Value)>>,
 
     // unsupported
     adjust_font_fallbacks: Option<bool>,
@@ -404,8 +434,6 @@ pub struct ExperimentalConfig {
     fully_specified: Option<bool>,
     gzip_size: Option<bool>,
     incremental_cache_handler_path: Option<String>,
-    isr_flush_to_disk: Option<bool>,
-    isr_memory_cache_size: Option<f64>,
     large_page_data_bytes: Option<f64>,
     legacy_browsers: Option<bool>,
     manual_client_base_path: Option<bool>,
@@ -428,7 +456,6 @@ pub struct ExperimentalConfig {
     swc_file_reading: Option<bool>,
     swc_minify: Option<bool>,
     swc_minify_debug_options: Option<serde_json::Value>,
-    swc_plugins: Option<serde_json::Value>,
     swc_trace_profiling: Option<bool>,
     transpile_packages: Option<Vec<String>>,
     turbotrace: Option<serde_json::Value>,
@@ -484,6 +511,13 @@ pub enum RemoveConsoleConfig {
 
 #[turbo_tasks::value_impl]
 impl NextConfigVc {
+    #[turbo_tasks::function]
+    pub fn from_string(s: String) -> Result<Self> {
+        let config: NextConfig = serde_json::from_str(&s)
+            .with_context(|| format!("failed to parse next.config.js: {}", s))?;
+        Ok(config.cell())
+    }
+
     #[turbo_tasks::function]
     pub async fn server_component_externals(self) -> Result<StringsVc> {
         Ok(StringsVc::cell(
@@ -544,11 +578,6 @@ impl NextConfigVc {
     }
 
     #[turbo_tasks::function]
-    pub async fn rewrites(self) -> Result<RewritesVc> {
-        Ok(self.await?.rewrites.clone().cell())
-    }
-
-    #[turbo_tasks::function]
     pub async fn transpile_packages(self) -> Result<StringsVc> {
         Ok(StringsVc::cell(
             self.await?.transpile_packages.clone().unwrap_or_default(),
@@ -558,7 +587,12 @@ impl NextConfigVc {
     #[turbo_tasks::function]
     pub async fn webpack_rules(self) -> Result<OptionWebpackRulesVc> {
         let this = self.await?;
-        let Some(turbo_rules) = this.experimental.turbo.as_ref().and_then(|t| t.rules.as_ref()) else {
+        let Some(turbo_rules) = this
+            .experimental
+            .turbo
+            .as_ref()
+            .and_then(|t| t.rules.as_ref())
+        else {
             return Ok(OptionWebpackRulesVc::cell(None));
         };
         if turbo_rules.is_empty() {
@@ -601,7 +635,12 @@ impl NextConfigVc {
     #[turbo_tasks::function]
     pub async fn resolve_alias_options(self) -> Result<ResolveAliasMapVc> {
         let this = self.await?;
-        let Some(resolve_alias) = this.experimental.turbo.as_ref().and_then(|t| t.resolve_alias.as_ref()) else {
+        let Some(resolve_alias) = this
+            .experimental
+            .turbo
+            .as_ref()
+            .and_then(|t| t.resolve_alias.as_ref())
+        else {
             return Ok(ResolveAliasMapVc::cell(ResolveAliasMap::default()));
         };
         let alias_map: ResolveAliasMap = resolve_alias.try_into()?;
@@ -634,22 +673,41 @@ fn next_configs() -> StringsVc {
 
 #[turbo_tasks::function]
 pub async fn load_next_config(execution_context: ExecutionContextVc) -> Result<NextConfigVc> {
+    Ok(load_config_and_custom_routes(execution_context)
+        .await?
+        .config)
+}
+
+#[turbo_tasks::function]
+pub async fn load_rewrites(execution_context: ExecutionContextVc) -> Result<RewritesVc> {
+    Ok(load_config_and_custom_routes(execution_context)
+        .await?
+        .custom_routes
+        .await?
+        .rewrites)
+}
+
+#[turbo_tasks::function]
+async fn load_config_and_custom_routes(
+    execution_context: ExecutionContextVc,
+) -> Result<NextConfigAndCustomRoutesVc> {
     let ExecutionContext { project_path, .. } = *execution_context.await?;
     let find_config_result = find_context_file(project_path, next_configs());
     let config_file = match &*find_config_result.await? {
         FindContextFileResult::Found(config_path, _) => Some(*config_path),
         FindContextFileResult::NotFound(_) => None,
     };
-    load_next_config_internal(execution_context, config_file)
+
+    load_next_config_and_custom_routes_internal(execution_context, config_file)
         .issue_context(config_file, "Loading Next.js config")
         .await
 }
 
 #[turbo_tasks::function]
-pub async fn load_next_config_internal(
+async fn load_next_config_and_custom_routes_internal(
     execution_context: ExecutionContextVc,
     config_file: Option<FileSystemPathVc>,
-) -> Result<NextConfigVc> {
+) -> Result<NextConfigAndCustomRoutesVc> {
     let ExecutionContext {
         project_path,
         chunking_context,
@@ -663,7 +721,7 @@ pub async fn load_next_config_internal(
     import_map.insert_wildcard_alias("styled-jsx/", ImportMapping::External(None).into());
 
     let context = node_evaluate_asset_context(execution_context, Some(import_map.cell()), None);
-    let config_asset = config_file.map(SourceAssetVc::new);
+    let config_asset = config_file.map(FileSourceVc::new);
 
     let config_changed = config_asset.map_or_else(CompletionVc::immutable, |config_asset| {
         // This invalidates the execution when anything referenced by the config file
@@ -672,14 +730,14 @@ pub async fn load_next_config_internal(
             config_asset.into(),
             Value::new(ReferenceType::Internal(InnerAssetsVc::empty())),
         );
-        any_content_changed(config_asset)
+        any_content_changed(config_asset.into())
     });
     let load_next_config_asset = context.process(
         next_asset("entry/config/next.js"),
         Value::new(ReferenceType::Entry(EntryReferenceSubType::Undefined)),
     );
     let config_value = evaluate(
-        load_next_config_asset,
+        load_next_config_asset.into(),
         project_path,
         env,
         config_asset.map_or_else(|| AssetIdentVc::from_path(project_path), |c| c.ident()),
@@ -692,12 +750,29 @@ pub async fn load_next_config_internal(
     )
     .await?;
 
-    let turbopack_binding::turbo::tasks_bytes::stream::SingleValue::Single(val) = config_value.try_into_single().await.context("Evaluation of Next.js config failed")? else {
-        return Ok(NextConfig::default().cell());
+    let turbopack_binding::turbo::tasks_bytes::stream::SingleValue::Single(val) = config_value
+        .try_into_single()
+        .await
+        .context("Evaluation of Next.js config failed")?
+    else {
+        return Ok(NextConfigAndCustomRoutes {
+            config: NextConfig::default().cell(),
+            custom_routes: CustomRoutes {
+                rewrites: Rewrites::default().cell(),
+            }
+            .cell(),
+        }
+        .cell());
     };
-    let next_config: NextConfig = parse_json_with_source_context(val.to_str()?)?;
+    let next_config_and_custom_routes: NextConfigAndCustomRoutesRaw =
+        parse_json_with_source_context(val.to_str()?)?;
 
-    if let Some(turbo) = next_config.experimental.turbo.as_ref() {
+    if let Some(turbo) = next_config_and_custom_routes
+        .config
+        .experimental
+        .turbo
+        .as_ref()
+    {
         if turbo.loaders.is_some() {
             OutdatedConfigIssue {
                 path: config_file.unwrap_or(project_path),
@@ -714,7 +789,14 @@ Example: loaders: { \".mdx\": [\"mdx-loader\"] } -> rules: { \"*.mdx\": [\"mdx-l
         }
     }
 
-    Ok(next_config.cell())
+    Ok(NextConfigAndCustomRoutes {
+        config: next_config_and_custom_routes.config.cell(),
+        custom_routes: CustomRoutes {
+            rewrites: next_config_and_custom_routes.custom_routes.rewrites.cell(),
+        }
+        .cell(),
+    }
+    .cell())
 }
 
 #[turbo_tasks::function]

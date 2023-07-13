@@ -165,10 +165,6 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     }
     return prerenderManifest
   }
-  protected getServerComponentManifest() {
-    return this.serverOptions.webServerConfig.extendRenderOpts
-      .clientReferenceManifest
-  }
 
   protected getNextFontManifest() {
     return this.serverOptions.webServerConfig.extendRenderOpts.nextFontManifest

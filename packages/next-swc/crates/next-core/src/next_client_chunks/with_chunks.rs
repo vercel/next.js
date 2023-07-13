@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use anyhow::{bail, Result};
+use anyhow::Result;
 use indoc::writedoc;
 use turbopack_binding::{
     turbo::{
@@ -9,13 +9,15 @@ use turbopack_binding::{
     },
     turbopack::{
         core::{
-            asset::{Asset, AssetContentVc, AssetVc, AssetsVc},
+            asset::{Asset, AssetContentVc, AssetVc},
             chunk::{
                 availability_info::AvailabilityInfo, ChunkDataVc, ChunkGroupReferenceVc, ChunkItem,
-                ChunkItemVc, ChunkVc, ChunkableAsset, ChunkableAssetVc, ChunkingContext,
+                ChunkItemVc, ChunkVc, ChunkableModule, ChunkableModuleVc, ChunkingContext,
                 ChunkingContextVc, ChunksDataVc,
             },
             ident::AssetIdentVc,
+            module::{Module, ModuleVc},
+            output::OutputAssetsVc,
             reference::AssetReferencesVc,
         },
         ecmascript::{
@@ -35,10 +37,42 @@ fn modifier() -> StringVc {
     StringVc::cell("chunks".to_string())
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value]
 pub struct WithChunksAsset {
-    pub asset: EcmascriptChunkPlaceableVc,
-    pub chunking_context: ChunkingContextVc,
+    asset: EcmascriptChunkPlaceableVc,
+    chunking_context: EcmascriptChunkingContextVc,
+}
+
+#[turbo_tasks::value_impl]
+impl WithChunksAssetVc {
+    /// Create a new [`WithChunksAsset`].
+    ///
+    /// # Arguments
+    ///
+    /// * `asset` - The asset to wrap.
+    /// * `chunking_context` - The chunking context of the asset.
+    #[turbo_tasks::function]
+    pub fn new(
+        asset: EcmascriptChunkPlaceableVc,
+        chunking_context: EcmascriptChunkingContextVc,
+    ) -> WithChunksAssetVc {
+        WithChunksAssetVc::cell(WithChunksAsset {
+            asset,
+            chunking_context,
+        })
+    }
+
+    #[turbo_tasks::function]
+    async fn entry_chunk(self) -> Result<ChunkVc> {
+        let this = self.await?;
+        Ok(this.asset.as_root_chunk(this.chunking_context.into()))
+    }
+
+    #[turbo_tasks::function]
+    async fn chunks(self) -> Result<OutputAssetsVc> {
+        let this = self.await?;
+        Ok(this.chunking_context.chunk_group(self.entry_chunk()))
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -59,7 +93,7 @@ impl Asset for WithChunksAsset {
         let entry_chunk = self_vc.entry_chunk();
 
         Ok(AssetReferencesVc::cell(vec![ChunkGroupReferenceVc::new(
-            this.chunking_context,
+            this.chunking_context.into(),
             entry_chunk,
         )
         .into()]))
@@ -67,7 +101,10 @@ impl Asset for WithChunksAsset {
 }
 
 #[turbo_tasks::value_impl]
-impl ChunkableAsset for WithChunksAsset {
+impl Module for WithChunksAsset {}
+
+#[turbo_tasks::value_impl]
+impl ChunkableModule for WithChunksAsset {
     #[turbo_tasks::function]
     fn as_chunk(
         self_vc: WithChunksAssetVc,
@@ -105,21 +142,6 @@ impl EcmascriptChunkPlaceable for WithChunksAsset {
     }
 }
 
-#[turbo_tasks::value_impl]
-impl WithChunksAssetVc {
-    #[turbo_tasks::function]
-    async fn entry_chunk(self) -> Result<ChunkVc> {
-        let this = self.await?;
-        Ok(this.asset.as_root_chunk(this.chunking_context))
-    }
-
-    #[turbo_tasks::function]
-    async fn chunks(self) -> Result<AssetsVc> {
-        let this = self.await?;
-        Ok(this.chunking_context.chunk_group(self.entry_chunk()))
-    }
-}
-
 #[turbo_tasks::value]
 struct WithChunksChunkItem {
     context: EcmascriptChunkingContextVc,
@@ -132,11 +154,8 @@ impl WithChunksChunkItemVc {
     async fn chunks_data(self) -> Result<ChunksDataVc> {
         let this = self.await?;
         let inner = this.inner.await?;
-        let Some(inner_chunking_context) = EcmascriptChunkingContextVc::resolve_from(inner.chunking_context).await? else {
-            bail!("the chunking context is not an EcmascriptChunkingContextVc");
-        };
         Ok(ChunkDataVc::from_assets(
-            inner_chunking_context.output_root(),
+            inner.chunking_context.output_root(),
             this.inner.chunks(),
         ))
     }
@@ -153,9 +172,6 @@ impl EcmascriptChunkItem for WithChunksChunkItem {
     async fn content(self_vc: WithChunksChunkItemVc) -> Result<EcmascriptChunkItemContentVc> {
         let this = self_vc.await?;
         let inner = this.inner.await?;
-        let Some(inner_chunking_context) = EcmascriptChunkingContextVc::resolve_from(inner.chunking_context).await? else {
-            bail!("the chunking context is not an EcmascriptChunkingContextVc");
-        };
 
         let chunks_data = self_vc.chunks_data().await?;
         let chunks_data = chunks_data.iter().try_join().await?;
@@ -166,7 +182,7 @@ impl EcmascriptChunkItem for WithChunksChunkItem {
 
         let module_id = &*inner
             .asset
-            .as_chunk_item(inner_chunking_context)
+            .as_chunk_item(inner.chunking_context)
             .id()
             .await?;
 

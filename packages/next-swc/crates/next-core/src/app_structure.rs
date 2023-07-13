@@ -12,7 +12,7 @@ use turbo_tasks::{
     debug::ValueDebugFormat,
     primitives::{StringVc, StringsVc},
     trace::TraceRawVcs,
-    CompletionVc, CompletionsVc,
+    CompletionVc, CompletionsVc, TaskInput, ValueToString,
 };
 use turbopack_binding::{
     turbo::tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPathVc},
@@ -297,11 +297,11 @@ fn match_metadata_file<'a>(
 
 #[turbo_tasks::function]
 async fn get_directory_tree(
-    app_dir: FileSystemPathVc,
+    dir: FileSystemPathVc,
     page_extensions: StringsVc,
 ) -> Result<DirectoryTreeVc> {
-    let DirectoryContent::Entries(entries) = &*app_dir.read_dir().await? else {
-        bail!("app_dir must be a directory")
+    let DirectoryContent::Entries(entries) = &*dir.read_dir().await? else {
+        bail!("{} must be a directory", dir.to_string().await?);
     };
     let page_extensions_value = page_extensions.await?;
 
@@ -451,7 +451,16 @@ async fn merge_loader_trees(
 }
 
 #[derive(
-    Copy, Clone, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, Debug,
+    Copy,
+    Clone,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    ValueDebugFormat,
+    Debug,
+    TaskInput,
 )]
 pub enum Entrypoint {
     AppPage { loader_tree: LoaderTreeVc },
@@ -467,10 +476,6 @@ fn is_parallel_route(name: &str) -> bool {
 
 fn match_parallel_route(name: &str) -> Option<&str> {
     name.strip_prefix('@')
-}
-
-fn is_optional_segment(name: &str) -> bool {
-    name.starts_with('(') && name.ends_with(')')
 }
 
 async fn add_parallel_route(
@@ -507,7 +512,10 @@ async fn add_app_page(
                     app_dir,
                     message: StringVc::cell(format!("Conflicting route at {}", e.key())),
                     severity: IssueSeverity::Error.cell(),
-                }.cell().as_issue().emit();
+                }
+                .cell()
+                .as_issue()
+                .emit();
                 return Ok(());
             };
             *value = merge_loader_trees(app_dir, *value, loader_tree)
@@ -657,14 +665,38 @@ async fn directory_tree_to_entrypoints_internal(
         add_app_route(app_dir, &mut result, path_prefix.to_string(), route).await?;
     }
 
+    if path_prefix == "/" {
+        // Next.js has this logic in "collect-app-paths", where the root not-found page
+        // is considered as its own entry point.
+        if let Some(_not_found) = components.not_found {
+            add_app_page(
+                app_dir,
+                &mut result,
+                "/_not-found".to_string(),
+                LoaderTree {
+                    segment: directory_name.to_string(),
+                    parallel_routes: indexmap! {
+                        // TODO(alexkirsz) Next.js has a __DEFAULT__ entry for
+                        // next/dist/client/components/parallel-route-default
+                        // here.
+                    },
+                    components: components.without_leafs().cell(),
+                }
+                .cell(),
+            )
+            .await?;
+        }
+    }
+
     for (subdir_name, &subdirectory) in subdirectories.iter() {
         let parallel_route_key = match_parallel_route(subdir_name);
-        let optional_segment = is_optional_segment(subdir_name);
         let map = directory_tree_to_entrypoints_internal(
             app_dir,
             subdir_name,
             subdirectory,
-            if parallel_route_key.is_some() || optional_segment {
+            // TODO(alexkirsz) We don't check optional segment here because Next.js seems to expect
+            // it, although this might just need to be computed as "original name".
+            if parallel_route_key.is_some() {
                 Cow::Borrowed(path_prefix)
             } else if path_prefix == "/" {
                 format!("/{subdir_name}").into()

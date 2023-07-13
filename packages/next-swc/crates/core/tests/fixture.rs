@@ -378,7 +378,7 @@ fn cjs_optimize_fixture(input: PathBuf) {
                 resolver(unresolved_mark, top_level_mark, false),
                 cjs_optimizer(
                     json(
-                        r###"
+                        r#"
                         {
                             "packages": {
                                 "next/server": {
@@ -388,7 +388,7 @@ fn cjs_optimize_fixture(input: PathBuf) {
                                 }
                             }
                         }
-                        "###
+                        "#
                     ),
                     unresolved_ctxt
                 )

@@ -5,12 +5,13 @@ use turbopack_binding::{
     turbo::tasks_fs::FileSystemPathVc,
     turbopack::{
         core::{
-            asset::AssetVc,
-            chunk::{ChunkableAssetVc, ChunkingContextVc},
+            chunk::{ChunkableModuleVc, ChunkingContextVc},
             compile_time_info::CompileTimeInfoVc,
             context::AssetContext,
+            file_source::FileSourceVc,
+            module::ModuleVc,
             reference_type::{EcmaScriptModulesReferenceSubType, InnerAssetsVc, ReferenceType},
-            source_asset::SourceAssetVc,
+            source::SourceVc,
         },
         ecmascript::chunk_group_files_asset::ChunkGroupFilesAsset,
         turbopack::{
@@ -36,7 +37,7 @@ pub struct NextEdgePageTransition {
     pub edge_module_options_context: Option<ModuleOptionsContextVc>,
     pub edge_resolve_options_context: ResolveOptionsContextVc,
     pub output_path: FileSystemPathVc,
-    pub bootstrap_asset: AssetVc,
+    pub bootstrap_asset: SourceVc,
 }
 
 #[turbo_tasks::value_impl]
@@ -68,28 +69,28 @@ impl Transition for NextEdgePageTransition {
     #[turbo_tasks::function]
     async fn process_module(
         &self,
-        asset: AssetVc,
+        asset: ModuleVc,
         context: ModuleAssetContextVc,
-    ) -> Result<AssetVc> {
-        let asset = context.process(
+    ) -> Result<ModuleVc> {
+        let module = context.process(
             self.bootstrap_asset,
             Value::new(ReferenceType::Internal(InnerAssetsVc::cell(indexmap! {
-                "APP_ENTRY".to_string() => asset,
+                "APP_ENTRY".to_string() => asset.into(),
                 "APP_BOOTSTRAP".to_string() => context.with_transition("next-client").process(
-                    SourceAssetVc::new(next_js_file_path("entry/app/hydrate.tsx")).into(),
+                    FileSourceVc::new(next_js_file_path("entry/app/hydrate.tsx")).into(),
                     Value::new(ReferenceType::EcmaScriptModules(
                         EcmaScriptModulesReferenceSubType::Undefined,
                     )),
-                ),
+                ).into(),
             }))),
         );
 
-        let Some(asset) = ChunkableAssetVc::resolve_from(asset).await? else {
-            bail!("Internal module is not evaluatable");
+        let Some(module) = ChunkableModuleVc::resolve_from(module).await? else {
+            bail!("Internal module is not chunkable");
         };
 
         let asset = ChunkGroupFilesAsset {
-            asset,
+            module,
             client_root: self.output_path,
             chunking_context: self.edge_chunking_context,
             runtime_entries: None,
