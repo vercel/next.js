@@ -1272,7 +1272,12 @@ export async function renderToHTMLOrFlight(
       /** GlobalError can be either the default error boundary or the overwritten app/global-error.js **/
       ComponentMod.GlobalError as typeof import('../../client/components/error-boundary').GlobalError
 
-    let serverComponentsInlinedTransformStream: TransformStream<
+    const serverComponentsInlinedTransformStream: TransformStream<
+      Uint8Array,
+      Uint8Array
+    > = new TransformStream()
+
+    const serverErrorComponentsInlinedTransformStream: TransformStream<
       Uint8Array,
       Uint8Array
     > = new TransformStream()
@@ -1292,7 +1297,7 @@ export async function renderToHTMLOrFlight(
     }
 
     const serverErrorComponentsRenderOpts = {
-      transformStream: serverComponentsInlinedTransformStream,
+      transformStream: serverErrorComponentsInlinedTransformStream,
       clientReferenceManifest,
       serverContexts,
       rscChunks: [],
@@ -1690,7 +1695,10 @@ export async function renderToHTMLOrFlight(
           })
 
           return await continueFromInitialStream(renderStream, {
-            dataStream: serverComponentsInlinedTransformStream.readable,
+            dataStream: (useDefaultError
+              ? serverComponentsInlinedTransformStream
+              : serverErrorComponentsInlinedTransformStream
+            ).readable,
             generateStaticHTML: staticGenerationStore.isStaticGeneration,
             getServerInsertedHTML,
             serverInsertedHTMLToHead: true,
