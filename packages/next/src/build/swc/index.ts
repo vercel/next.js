@@ -9,6 +9,9 @@ import { eventSwcLoadFailure } from '../../telemetry/events/swc-load-failure'
 import { patchIncorrectLockfile } from '../../lib/patch-incorrect-lockfile'
 import { downloadWasmSwc } from '../../lib/download-wasm-swc'
 import { spawn } from 'child_process'
+import { NextConfigComplete, TurboLoaderItem } from '../../server/config-shared'
+import loadCustomRoutes from '../../lib/load-custom-routes'
+import { isDeepStrictEqual } from 'util'
 
 const nextVersion = process.env.__NEXT_VERSION as string
 
@@ -88,7 +91,38 @@ let swcHeapProfilerFlushGuard: any
 let swcCrashReporterFlushGuard: any
 export const lockfilePatchPromise: { cur?: Promise<void> } = {}
 
-export async function loadBindings(): Promise<any> {
+export interface Binding {
+  isWasm: boolean
+  turbo: {
+    startDev: any
+    startTrace: any
+    nextBuild?: any
+    createTurboTasks?: any
+    entrypoints: {
+      stream: any
+      get: any
+    }
+    mdx: {
+      compile: any
+      compileSync: any
+    }
+    createProject: (options: ProjectOptions) => Promise<Project>
+  }
+  minify: any
+  minifySync: any
+  transform: any
+  transformSync: any
+  parse: any
+  parseSync: any
+  getTargetTriple(): string | undefined
+  initCustomTraceSubscriber?: any
+  teardownTraceSubscriber?: any
+  initHeapProfiler?: any
+  teardownHeapProfiler?: any
+  teardownCrashReporter?: any
+}
+
+export async function loadBindings(): Promise<Binding> {
   if (pendingBindings) {
     return pendingBindings
   }
@@ -236,6 +270,383 @@ function logLoadFailure(attempts: any, triedWasm = false) {
     })
 }
 
+interface ProjectOptions {
+  /**
+   * A root path from which all files must be nested under. Trying to access
+   * a file outside this root will fail. Think of this as a chroot.
+   */
+  rootPath: string
+
+  /**
+   * A path inside the root_path which contains the app/pages directories.
+   */
+  projectPath: string
+
+  /**
+   * The next.config.js contents.
+   */
+  nextConfig: NextConfigComplete
+
+  /**
+   * Whether to watch he filesystem for file changes.
+   */
+  watch: boolean
+
+  /**
+   * An upper bound of memory that turbopack will attempt to stay under.
+   */
+  memoryLimit?: number
+}
+
+interface EntrypointsOptions {
+  /** File extensions to scan inside our project */
+  pageExtensions: string[]
+}
+
+interface Issue {}
+
+interface Diagnostics {}
+
+type TurbopackResult<T = {}> = T & {
+  issues: Issue[]
+  diagnostics: Diagnostics[]
+}
+
+interface Middleware {
+  endpoint: Endpoint
+  runtime: 'nodejs' | 'edge'
+  matcher?: string[]
+}
+
+interface Entrypoints {
+  routes: Map<string, Route>
+  middleware?: Middleware
+}
+
+interface Project {
+  entrypointsSubscribe(): AsyncIterableIterator<TurbopackResult<Entrypoints>>
+}
+
+type Route =
+  | {
+      type: 'conflict'
+    }
+  | {
+      type: 'app-page'
+      htmlEndpoint: Endpoint
+      rscEndpoint: Endpoint
+    }
+  | {
+      type: 'app-route'
+      endpoint: Endpoint
+    }
+  | {
+      type: 'page'
+      htmlEndpoint: Endpoint
+      dataEndpoint: Endpoint
+    }
+  | {
+      type: 'page-api'
+      endpoint: Endpoint
+    }
+
+interface Endpoint {
+  /** Write files for the endpoint to disk. */
+  writeToDisk(): Promise<TurbopackResult<WrittenEndpoint>>
+  /**
+   * Listen to changes to the endpoint.
+   * After changed() has been awaited it will listen to changes.
+   * The async iterator will yield for each change.
+   */
+  changed(): Promise<AsyncIterableIterator<TurbopackResult>>
+}
+
+interface EndpointConfig {
+  dynamic?: 'auto' | 'force-dynamic' | 'error' | 'force-static'
+  dynamicParams?: boolean
+  revalidate?: 'never' | 'force-cache' | number
+  fetchCache?:
+    | 'auto'
+    | 'default-cache'
+    | 'only-cache'
+    | 'force-cache'
+    | 'default-no-store'
+    | 'only-no-store'
+    | 'force-no-store'
+  runtime?: 'nodejs' | 'edge'
+  preferredRegion?: string
+}
+
+interface WrittenEndpoint {
+  /** The entry path for the endpoint. */
+  entryPath: string
+  /** All paths that has been written for the endpoint. */
+  paths: string[]
+  config: EndpointConfig
+}
+
+function bindingToApi(binding: any, wasm: boolean) {
+  type NativeFunction<T> = (
+    callback: (err: Error, value: T) => void
+  ) => Promise<{ __napiType: 'RootTask' }>
+
+  /**
+   * Utility function to ensure all variants of an enum are handled.
+   */
+  function invariant(
+    never: never,
+    computeMessage: (arg: any) => string
+  ): never {
+    throw new Error(`Invariant: ${computeMessage(never)}`)
+  }
+
+  /**
+   * Calls a native function and streams the result.
+   * If useBuffer is true, all values will be preserved, potentially buffered
+   * if consumed slower than produced. Else, only the latest value will be
+   * preserved.
+   */
+  function subscribe<T>(
+    useBuffer: boolean,
+    nativeFunction: NativeFunction<T>
+  ): AsyncIterableIterator<T> {
+    type BufferItem =
+      | { err: Error; value: undefined }
+      | { err: undefined; value: T }
+    // A buffer of produced items. This will only contain values if the
+    // consumer is slower than the producer.
+    let buffer: BufferItem[] = []
+    // A deferred value waiting for the next produced item. This will only
+    // exist if the consumer is faster than the producer.
+    let waiting:
+      | {
+          resolve: (value: T) => void
+          reject: (error: Error) => void
+        }
+      | undefined
+
+    // The native function will call this every time it emits a new result. We
+    // either need to notify a waiting consumer, or buffer the new result until
+    // the consumer catches up.
+    const emitResult = (err: Error | undefined, value: T | undefined) => {
+      if (waiting) {
+        let { resolve, reject } = waiting
+        waiting = undefined
+        if (err) reject(err)
+        else resolve(value!)
+      } else {
+        const item = { err, value } as BufferItem
+        if (useBuffer) buffer.push(item)
+        else buffer[0] = item
+      }
+    }
+
+    return (async function* () {
+      const task = await nativeFunction(emitResult)
+      try {
+        while (true) {
+          if (buffer.length > 0) {
+            const item = buffer.shift()!
+            if (item.err) throw item.err
+            yield item.value
+          } else {
+            // eslint-disable-next-line no-loop-func
+            yield new Promise<T>((resolve, reject) => {
+              waiting = { resolve, reject }
+            })
+          }
+        }
+      } finally {
+        binding.rootTaskDispose(task)
+      }
+    })()
+  }
+
+  class ProjectImpl implements Project {
+    private _nativeProject: { __napiType: 'Project' }
+
+    constructor(nativeProject: { __napiType: 'Project' }) {
+      this._nativeProject = nativeProject
+    }
+
+    entrypointsSubscribe() {
+      type NapiEndpoint = { __napiType: 'Endpoint' }
+
+      type NapiEntrypoints = {
+        routes: NapiRoute[]
+        middleware?: NapiMiddleware
+        issues: Issue[]
+        diagnostics: Diagnostics[]
+      }
+
+      type NapiMiddleware = {
+        endpoint: NapiEndpoint
+        runtime: 'nodejs' | 'edge'
+        matcher?: string[]
+      }
+
+      type NapiRoute = {
+        pathname: string
+      } & (
+        | {
+            type: 'page'
+            htmlEndpoint: NapiEndpoint
+            dataEndpoint: NapiEndpoint
+          }
+        | {
+            type: 'page-api'
+            endpoint: NapiEndpoint
+          }
+        | {
+            type: 'app-page'
+            htmlEndpoint: NapiEndpoint
+            rscEndpoint: NapiEndpoint
+          }
+        | {
+            type: 'app-route'
+            endpoint: NapiEndpoint
+          }
+        | {
+            type: 'conflict'
+          }
+      )
+
+      const subscription = subscribe<NapiEntrypoints>(false, async (callback) =>
+        binding.projectEntrypointsSubscribe(await this._nativeProject, callback)
+      )
+      return (async function* () {
+        for await (const entrypoints of subscription) {
+          const routes = new Map()
+          for (const { pathname, ...nativeRoute } of entrypoints.routes) {
+            let route: Route
+            switch (nativeRoute.type) {
+              case 'page':
+                route = {
+                  type: 'page',
+                  htmlEndpoint: new EndpointImpl(nativeRoute.htmlEndpoint),
+                  dataEndpoint: new EndpointImpl(nativeRoute.dataEndpoint),
+                }
+                break
+              case 'page-api':
+                route = {
+                  type: 'page-api',
+                  endpoint: new EndpointImpl(nativeRoute.endpoint),
+                }
+                break
+              case 'app-page':
+                route = {
+                  type: 'app-page',
+                  htmlEndpoint: new EndpointImpl(nativeRoute.htmlEndpoint),
+                  rscEndpoint: new EndpointImpl(nativeRoute.rscEndpoint),
+                }
+                break
+              case 'app-route':
+                route = {
+                  type: 'app-route',
+                  endpoint: new EndpointImpl(nativeRoute.endpoint),
+                }
+                break
+              case 'conflict':
+                route = {
+                  type: 'conflict',
+                }
+                break
+              default:
+                invariant(
+                  nativeRoute,
+                  () => `Unknown route type: ${(nativeRoute as any).type}`
+                )
+                break
+            }
+            routes.set(pathname, route)
+          }
+          const napiMiddlewareToMiddleware = (middleware: NapiMiddleware) => ({
+            endpoint: new EndpointImpl(middleware.endpoint),
+            runtime: middleware.runtime,
+            matcher: middleware.matcher,
+          })
+          const middleware = entrypoints.middleware
+            ? napiMiddlewareToMiddleware(entrypoints.middleware)
+            : undefined
+          yield {
+            routes,
+            middleware,
+            issues: entrypoints.issues,
+            diagnostics: entrypoints.diagnostics,
+          }
+        }
+      })()
+    }
+  }
+
+  class EndpointImpl implements Endpoint {
+    private _nativeEndpoint: { __napiType: 'Endpoint' }
+
+    constructor(nativeEndpoint: { __napiType: 'Endpoint' }) {
+      this._nativeEndpoint = nativeEndpoint
+    }
+
+    async writeToDisk(): Promise<TurbopackResult<WrittenEndpoint>> {
+      return await binding.endpointWriteToDisk(this._nativeEndpoint)
+    }
+
+    async changed(): Promise<AsyncIterableIterator<TurbopackResult>> {
+      const iter = subscribe<TurbopackResult>(false, async (callback) =>
+        binding.endpointChangedSubscribe(await this._nativeEndpoint, callback)
+      )
+      await iter.next()
+      return iter
+    }
+  }
+
+  async function serializeNextConfig(
+    nextConfig: NextConfigComplete
+  ): Promise<string> {
+    let nextConfigSerializable = nextConfig as any
+
+    nextConfigSerializable.generateBuildId =
+      await nextConfig.generateBuildId?.()
+
+    // TODO: these functions takes arguments, have to be supported in a different way
+    nextConfigSerializable.exportPathMap = {}
+    nextConfigSerializable.webpack = nextConfig.webpack && {}
+
+    if (nextConfig.experimental?.turbo?.loaders) {
+      ensureLoadersHaveSerializableOptions(
+        nextConfig.experimental.turbo.loaders
+      )
+    }
+
+    return JSON.stringify(nextConfigSerializable)
+  }
+
+  function ensureLoadersHaveSerializableOptions(
+    turbopackLoaders: Record<string, TurboLoaderItem[]>
+  ) {
+    for (const [ext, loaderItems] of Object.entries(turbopackLoaders)) {
+      for (const loaderItem of loaderItems) {
+        if (
+          typeof loaderItem !== 'string' &&
+          !isDeepStrictEqual(loaderItem, JSON.parse(JSON.stringify(loaderItem)))
+        ) {
+          throw new Error(
+            `loader ${loaderItem.loader} for match "${ext}" does not have serializable options. Ensure that options passed are plain JavaScript objects and values.`
+          )
+        }
+      }
+    }
+  }
+
+  async function createProject(options: ProjectOptions) {
+    const optionsForRust = options as any
+    optionsForRust.nextConfig = await serializeNextConfig(options.nextConfig)
+
+    return new ProjectImpl(await binding.projectNew(optionsForRust))
+  }
+
+  return createProject
+}
+
 async function loadWasm(importPath = '', isCustomTurbopack: boolean) {
   if (wasmBindings) {
     return wasmBindings
@@ -313,9 +724,6 @@ async function loadWasm(importPath = '', isCustomTurbopack: boolean) {
           },
           startTrace: () => {
             Log.error('Wasm binding does not support trace yet')
-          },
-          experimentalTurbo: () => {
-            Log.error('Wasm binding does not support this interface')
           },
           entrypoints: {
             stream: (
@@ -577,12 +985,6 @@ function loadNative(isCustomTurbopack = false) {
           )
           return ret
         },
-        experimentalTurbo: () => {
-          initHeapProfiler()
-
-          const ret = bindings.experimentalTurbo()
-          return ret
-        },
         createTurboTasks: (memoryLimit?: number): unknown =>
           bindings.createTurboTasks(memoryLimit),
         entrypoints: {
@@ -615,6 +1017,7 @@ function loadNative(isCustomTurbopack = false) {
             )
           },
         },
+        createProject: bindingToApi(bindings, false),
       },
       mdx: {
         compile: (src: string, options: any) =>

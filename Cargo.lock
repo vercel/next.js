@@ -3368,6 +3368,23 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e4a24736216ec316047a1fc4252e27dabb04218aa4a3f37c6e7ddbf1f9782b54"
 
 [[package]]
+name = "next-api"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "futures",
+ "indexmap",
+ "next-core",
+ "once_cell",
+ "serde",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "turbo-tasks",
+ "turbopack-binding",
+]
+
+[[package]]
 name = "next-build"
 version = "0.1.0"
 dependencies = [
@@ -3519,6 +3536,7 @@ dependencies = [
  "napi",
  "napi-build",
  "napi-derive",
+ "next-api",
  "next-build",
  "next-core",
  "next-dev",
