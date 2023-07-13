@@ -146,14 +146,14 @@ importers:
       random-seed: 0.3.0
       react: 18.2.0
       react-17: npm:react@17.0.2
-      react-builtin: npm:react@18.3.0-canary-7118f5dd7-20230705
+      react-builtin: npm:react@18.3.0-canary-9377e1010-20230712
       react-dom: 18.2.0
       react-dom-17: npm:react-dom@17.0.2
-      react-dom-builtin: npm:react-dom@18.3.0-canary-7118f5dd7-20230705
-      react-dom-experimental-builtin: npm:react-dom@0.0.0-experimental-7118f5dd7-20230705
-      react-experimental-builtin: npm:react@0.0.0-experimental-7118f5dd7-20230705
-      react-server-dom-webpack: 18.3.0-canary-7118f5dd7-20230705
-      react-server-dom-webpack-experimental: npm:react-server-dom-webpack@0.0.0-experimental-7118f5dd7-20230705
+      react-dom-builtin: npm:react-dom@18.3.0-canary-9377e1010-20230712
+      react-dom-experimental-builtin: npm:react-dom@0.0.0-experimental-9377e1010-20230712
+      react-experimental-builtin: npm:react@0.0.0-experimental-9377e1010-20230712
+      react-server-dom-webpack: 18.3.0-canary-9377e1010-20230712
+      react-server-dom-webpack-experimental: npm:react-server-dom-webpack@0.0.0-experimental-9377e1010-20230712
       react-ssr-prepass: 1.0.8
       react-virtualized: 9.22.3
       relay-compiler: 13.0.2
@@ -163,8 +163,8 @@ importers:
       resolve-from: 5.0.0
       sass: 1.54.0
       satori: 0.9.1
-      scheduler-builtin: npm:scheduler@0.24.0-canary-7118f5dd7-20230705
-      scheduler-experimental-builtin: npm:scheduler@0.0.0-experimental-7118f5dd7-20230705
+      scheduler-builtin: npm:scheduler@0.24.0-canary-9377e1010-20230712
+      scheduler-experimental-builtin: npm:scheduler@0.0.0-experimental-9377e1010-20230712
       seedrandom: 3.0.5
       selenium-webdriver: 4.0.0-beta.4
       semver: 7.3.7
@@ -317,14 +317,14 @@ importers:
       random-seed: 0.3.0
       react: 18.2.0
       react-17: /react/17.0.2
-      react-builtin: /react/18.3.0-canary-7118f5dd7-20230705
+      react-builtin: /react/18.3.0-canary-9377e1010-20230712
       react-dom: 18.2.0_react@18.2.0
       react-dom-17: /react-dom/17.0.2_react@18.2.0
-      react-dom-builtin: /react-dom/18.3.0-canary-7118f5dd7-20230705_react@18.2.0
-      react-dom-experimental-builtin: /react-dom/0.0.0-experimental-7118f5dd7-20230705_react@18.2.0
-      react-experimental-builtin: /react/0.0.0-experimental-7118f5dd7-20230705
-      react-server-dom-webpack: 18.3.0-canary-7118f5dd7-20230705_jsjmrdaun5aag4tdl4rxwjt37i
-      react-server-dom-webpack-experimental: /react-server-dom-webpack/0.0.0-experimental-7118f5dd7-20230705_jsjmrdaun5aag4tdl4rxwjt37i
+      react-dom-builtin: /react-dom/18.3.0-canary-9377e1010-20230712_react@18.2.0
+      react-dom-experimental-builtin: /react-dom/0.0.0-experimental-9377e1010-20230712_react@18.2.0
+      react-experimental-builtin: /react/0.0.0-experimental-9377e1010-20230712
+      react-server-dom-webpack: 18.3.0-canary-9377e1010-20230712_jsjmrdaun5aag4tdl4rxwjt37i
+      react-server-dom-webpack-experimental: /react-server-dom-webpack/0.0.0-experimental-9377e1010-20230712_jsjmrdaun5aag4tdl4rxwjt37i
       react-ssr-prepass: 1.0.8_qncsgtzehe3fgiqp6tr7lwq6fm
       react-virtualized: 9.22.3_biqbaboplfbrettd7655fr4n2y
       relay-compiler: 13.0.2
@@ -334,8 +334,8 @@ importers:
       resolve-from: 5.0.0
       sass: 1.54.0
       satori: 0.9.1
-      scheduler-builtin: /scheduler/0.24.0-canary-7118f5dd7-20230705
-      scheduler-experimental-builtin: /scheduler/0.0.0-experimental-7118f5dd7-20230705
+      scheduler-builtin: /scheduler/0.24.0-canary-9377e1010-20230712
+      scheduler-experimental-builtin: /scheduler/0.0.0-experimental-9377e1010-20230712
       seedrandom: 3.0.5
       selenium-webdriver: 4.0.0-beta.4
       semver: 7.3.7
@@ -6136,7 +6136,7 @@ packages:
     dependencies:
       '@mdx-js/mdx': 2.2.1
       source-map: 0.7.3
-      webpack: 5.86.0_@swc+core@1.3.55
+      webpack: 5.86.0
     transitivePeerDependencies:
       - supports-color
 
@@ -6810,6 +6810,7 @@ packages:
     cpu: [arm64]
     os: [darwin]
     requiresBuild: true
+    dev: true
     optional: true
 
   /@swc/core-darwin-x64/1.3.55:
@@ -6818,6 +6819,7 @@ packages:
     cpu: [x64]
     os: [darwin]
     requiresBuild: true
+    dev: true
     optional: true
 
   /@swc/core-linux-arm-gnueabihf/1.3.55:
@@ -6826,6 +6828,7 @@ packages:
     cpu: [arm]
     os: [linux]
     requiresBuild: true
+    dev: true
     optional: true
 
   /@swc/core-linux-arm64-gnu/1.3.55:
@@ -6834,6 +6837,7 @@ packages:
     cpu: [arm64]
     os: [linux]
     requiresBuild: true
+    dev: true
     optional: true
 
   /@swc/core-linux-arm64-musl/1.3.55:
@@ -6842,6 +6846,7 @@ packages:
     cpu: [arm64]
     os: [linux]
     requiresBuild: true
+    dev: true
     optional: true
 
   /@swc/core-linux-x64-gnu/1.3.55:
@@ -6850,6 +6855,7 @@ packages:
     cpu: [x64]
     os: [linux]
     requiresBuild: true
+    dev: true
     optional: true
 
   /@swc/core-linux-x64-musl/1.3.55:
@@ -6858,6 +6864,7 @@ packages:
     cpu: [x64]
     os: [linux]
     requiresBuild: true
+    dev: true
     optional: true
 
   /@swc/core-win32-arm64-msvc/1.3.55:
@@ -6866,6 +6873,7 @@ packages:
     cpu: [arm64]
     os: [win32]
     requiresBuild: true
+    dev: true
     optional: true
 
   /@swc/core-win32-ia32-msvc/1.3.55:
@@ -6874,6 +6882,7 @@ packages:
     cpu: [ia32]
     os: [win32]
     requiresBuild: true
+    dev: true
     optional: true
 
   /@swc/core-win32-x64-msvc/1.3.55:
@@ -6882,6 +6891,7 @@ packages:
     cpu: [x64]
     os: [win32]
     requiresBuild: true
+    dev: true
     optional: true
 
   /@swc/core/1.3.55_@swc+helpers@0.5.1:
@@ -6906,6 +6916,7 @@ packages:
       '@swc/core-win32-arm64-msvc': 1.3.55
       '@swc/core-win32-ia32-msvc': 1.3.55
       '@swc/core-win32-x64-msvc': 1.3.55
+    dev: true
 
   /@swc/helpers/0.4.14:
     resolution: {integrity: sha512-4C7nX/dvpzB7za4Ql9K81xK3HPxCpHMgwTZVyf+9JQ6VUbn9jjZVN7/Nkdz/Ugzs2CSjqnL/UPXroiVBVHUWUw==}
@@ -21225,14 +21236,14 @@ packages:
       strip-json-comments: 2.0.1
     dev: true
 
-  /react-dom/0.0.0-experimental-7118f5dd7-20230705_react@18.2.0:
-    resolution: {integrity: sha512-xESx5l2HlVmqSdp363IYyJIueDgn734y+MQrbDYCFcDg2Uz+R6H3rFDK6Hwb97xCNs66QpVwjBIwhiHFQ74LMA==}
+  /react-dom/0.0.0-experimental-9377e1010-20230712_react@18.2.0:
+    resolution: {integrity: sha512-4XJsX6mgF/HBslBkAZTkLxdKEV5CdmJ7Fyx07LOhrXq8g7TaZ5cf8sE36Tf0a0Qy8H+XksWo5ki+RNP4GG3kZA==}
     peerDependencies:
-      react: 0.0.0-experimental-7118f5dd7-20230705
+      react: 0.0.0-experimental-9377e1010-20230712
     dependencies:
       loose-envify: 1.4.0
       react: 18.2.0
-      scheduler: 0.0.0-experimental-7118f5dd7-20230705
+      scheduler: 0.0.0-experimental-9377e1010-20230712
     dev: true
 
   /react-dom/17.0.2_react@17.0.2:
@@ -21266,14 +21277,14 @@ packages:
       react: 18.2.0
       scheduler: 0.23.0
 
-  /react-dom/18.3.0-canary-7118f5dd7-20230705_react@18.2.0:
-    resolution: {integrity: sha512-WpNXsdLGLeWqnVh77i5siP8XjTw0NiFkjAZv7jDti0k2xy++31c6RT15hd2K0iFWJP1CMkuaCTSN7ZlmpnGfBg==}
+  /react-dom/18.3.0-canary-9377e1010-20230712_react@18.2.0:
+    resolution: {integrity: sha512-FO5XiviYzw54sMTz2goNvM6lyZwyEZeSa4PaJmoWAQPM2HeN3H5U6W40Ryic/xt0xz6X1egyaTCDFikLP13E1w==}
     peerDependencies:
-      react: 18.3.0-canary-7118f5dd7-20230705
+      react: 18.3.0-canary-9377e1010-20230712
     dependencies:
       loose-envify: 1.4.0
       react: 18.2.0
-      scheduler: 0.24.0-canary-7118f5dd7-20230705
+      scheduler: 0.24.0-canary-9377e1010-20230712
     dev: true
 
   /react-is/16.13.1:
@@ -21294,12 +21305,12 @@ packages:
     resolution: {integrity: sha512-suLIhrU2IHKL5JEKR/fAwJv7bbeq4kJ+pJopf77jHwuR+HmJS/HbrPIGsTBUVfw7tXPOmYv7UJ7PCaN49e8x4A==}
     engines: {node: '>=0.10.0'}
 
-  /react-server-dom-webpack/0.0.0-experimental-7118f5dd7-20230705_jsjmrdaun5aag4tdl4rxwjt37i:
-    resolution: {integrity: sha512-GTyuj2bmKdoLXebE1a+RtLr3Ih2GiUSJA0idV89B1C4N/zim8o2B3MFj75MKyNqgBVS9cQaD/GwNhaB75yiqQg==}
+  /react-server-dom-webpack/0.0.0-experimental-9377e1010-20230712_jsjmrdaun5aag4tdl4rxwjt37i:
+    resolution: {integrity: sha512-4uJ6vAvy+GVNM/9TMhT6XtQDoESwHRN17lgrL6ljyw+JGs5XUFyKkI2+JjXnrRpdOAbAJnmhoMQ7iuLRzukD1Q==}
     engines: {node: '>=0.10.0'}
     peerDependencies:
-      react: 0.0.0-experimental-7118f5dd7-20230705
-      react-dom: 0.0.0-experimental-7118f5dd7-20230705
+      react: 0.0.0-experimental-9377e1010-20230712
+      react-dom: 0.0.0-experimental-9377e1010-20230712
       webpack: ^5.59.0
     dependencies:
       acorn-loose: 8.3.0
@@ -21310,12 +21321,12 @@ packages:
       webpack: 5.86.0_@swc+core@1.3.55
     dev: true
 
-  /react-server-dom-webpack/18.3.0-canary-7118f5dd7-20230705_jsjmrdaun5aag4tdl4rxwjt37i:
-    resolution: {integrity: sha512-Qz0WcY4oqapYonSDTIjOQREucc4OsU7MO4wkHXBKcvGbgB0kIFjpQup9RTfeYU/eswVAaN7+n9coQqN8YLGItg==}
+  /react-server-dom-webpack/18.3.0-canary-9377e1010-20230712_jsjmrdaun5aag4tdl4rxwjt37i:
+    resolution: {integrity: sha512-gWewRkEN4q0/gUPBmcZ1xM6qyBIC/ZGX6x/mJ38k85X7c7MeXPnyS3u5+PxKmynOgxkYW9kGLuYKkSOlenUZoQ==}
     engines: {node: '>=0.10.0'}
     peerDependencies:
-      react: 18.3.0-canary-7118f5dd7-20230705
-      react-dom: 18.3.0-canary-7118f5dd7-20230705
+      react: 18.3.0-canary-9377e1010-20230712
+      react-dom: 18.3.0-canary-9377e1010-20230712
       webpack: ^5.59.0
     dependencies:
       acorn-loose: 8.3.0
@@ -21374,8 +21385,8 @@ packages:
       react-lifecycles-compat: 3.0.4
     dev: true
 
-  /react/0.0.0-experimental-7118f5dd7-20230705:
-    resolution: {integrity: sha512-bClMxJhp52p9Rsvnrf/uxdbcCZJq8LszKghCM7wsl4+S5nxONwEnFFEySD05JqJuVsxcYjouKA6au/1kbDFG1A==}
+  /react/0.0.0-experimental-9377e1010-20230712:
+    resolution: {integrity: sha512-fFLeQYGYfe4Rm5my1Juk02ARjDyNBUzaS9b56ppYb7nb3Wx4PhhEq3eu+apsVo61BvHLjUcarPztFjdJAwMJAA==}
     engines: {node: '>=0.10.0'}
     dependencies:
       loose-envify: 1.4.0
@@ -21394,8 +21405,8 @@ packages:
     dependencies:
       loose-envify: 1.4.0
 
-  /react/18.3.0-canary-7118f5dd7-20230705:
-    resolution: {integrity: sha512-JmjeKd3OCthZzdNTvhMimIb7Tp+FwZDioOgBOxshhOv/AO256o4ZhlKWwqXMn72Orv4vgF3IGzUcK7Jxl1PVTw==}
+  /react/18.3.0-canary-9377e1010-20230712:
+    resolution: {integrity: sha512-Ra5iJ5aCtpSympvD83HO4SDQIt3E9v5PpZxB7sLlCHVeJ3INPUIj++7IcJ9o8dEQnNShq/D9TzcHt7w9z+0B2g==}
     engines: {node: '>=0.10.0'}
     dependencies:
       loose-envify: 1.4.0
@@ -22392,8 +22403,8 @@ packages:
       xmlchars: 2.2.0
     dev: true
 
-  /scheduler/0.0.0-experimental-7118f5dd7-20230705:
-    resolution: {integrity: sha512-8E/uXce5bvgh5I9O40VIhE2eHnFdmIVbyG9X8lA8kb8AwLxQu1/U0nQgJ9tid5XWNMJwBTz8/VyWuyylOpv/LQ==}
+  /scheduler/0.0.0-experimental-9377e1010-20230712:
+    resolution: {integrity: sha512-pkFpahSit9iIM42pNH4ltPV33F2Ga0ktHGl17fRbhxZlH8IJ8PUbpJV3Y6FOqmM92ovx1J3ZAyEAUpcgbXzYOA==}
     dependencies:
       loose-envify: 1.4.0
     dev: true
@@ -22409,8 +22420,8 @@ packages:
     dependencies:
       loose-envify: 1.4.0
 
-  /scheduler/0.24.0-canary-7118f5dd7-20230705:
-    resolution: {integrity: sha512-FO1xuWngK9PXXpKLELnSgow+6eILWN7KFzLJRm2TrME9Dz9R+gs1jqmQsM4JF68Xfr4Q+mXva2RbxwsDWjtF1w==}
+  /scheduler/0.24.0-canary-9377e1010-20230712:
+    resolution: {integrity: sha512-q41gMmhVpNqY8Dofvbih1yroUWavo7eIi53tFUza5f4uuacC6DPUW7n9jhOT1rnKgWN9byF+Tl/ls5oRVLHnrA==}
     dependencies:
       loose-envify: 1.4.0
     dev: true
@@ -23738,6 +23749,7 @@ packages:
       serialize-javascript: 6.0.1
       terser: 5.17.7
       webpack: 5.86.0_@swc+core@1.3.55
+    dev: true
 
   /terser/5.10.0:
     resolution: {integrity: sha512-AMmF99DMfEDiRJfxfY5jj5wNH/bYO09cniSqhfoyxc8sFoYIgkJy86G04UoZU5VjlpnplVu0K6Tx6E9b5+DlHA==}
@@ -25090,6 +25102,7 @@ packages:
       - '@swc/core'
       - esbuild
       - uglify-js
+    dev: true
 
   /websocket-driver/0.7.3:
     resolution: {integrity: sha512-bpxWlvbbB459Mlipc5GBzzZwhoZgGEZLuqPaR0INBGnPAY1vdBX6hPnoFXiw+3yWxDuHyQjO2oXTMyS8A5haFg==}
