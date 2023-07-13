@@ -35,6 +35,7 @@ use turbopack_binding::{
             chunk::ChunkingContext,
             environment::ServerAddrVc,
             issue::{IssueReporter, IssueReporterVc, IssueSeverity, IssueVc},
+            output::{OutputAssetVc, OutputAssetsVc},
             reference::AssetReference,
             virtual_fs::VirtualFileSystemVc,
         },
@@ -501,12 +502,12 @@ async fn handle_issues<T: Into<RawVc> + CollectiblesSource + Copy>(
 /// Emits all assets transitively reachable from the given chunks, that are
 /// inside the node root or the client root.
 async fn emit_all_assets(
-    chunks: Vec<AssetVc>,
+    chunks: Vec<OutputAssetVc>,
     node_root: &FileSystemPath,
     client_relative_path: FileSystemPathVc,
     client_output_path: FileSystemPathVc,
 ) -> Result<CompletionVc> {
-    let all_assets = all_assets_from_entries(AssetsVc::cell(chunks)).await?;
+    let all_assets = all_assets_from_entries(OutputAssetsVc::cell(chunks)).await?;
     Ok(CompletionsVc::all(
         all_assets
             .iter()
@@ -547,11 +548,14 @@ fn emit_rebase(asset: AssetVc, from: FileSystemPathVc, to: FileSystemPathVc) -> 
 /// Walks the asset graph from multiple assets and collect all referenced
 /// assets.
 #[turbo_tasks::function]
-async fn all_assets_from_entries(entries: AssetsVc) -> Result<AssetsVc> {
+async fn all_assets_from_entries(entries: OutputAssetsVc) -> Result<AssetsVc> {
     Ok(AssetsVc::cell(
         AdjacencyMap::new()
             .skip_duplicates()
-            .visit(entries.await?.iter().copied(), get_referenced_assets)
+            .visit(
+                entries.await?.iter().copied().map(Into::into),
+                get_referenced_assets,
+            )
             .await
             .completed()?
             .into_inner()
