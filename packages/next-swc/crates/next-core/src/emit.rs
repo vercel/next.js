@@ -5,7 +5,8 @@ use turbo_tasks::{
 };
 use turbo_tasks_fs::{rebase, FileSystemPathVc};
 use turbopack_binding::turbopack::core::{
-    asset::{Asset, AssetVc, AssetsVc},
+    asset::Asset,
+    output::{asset_to_output_asset, OutputAssetVc, OutputAssetsVc},
     reference::AssetReference,
 };
 
@@ -13,7 +14,7 @@ use turbopack_binding::turbopack::core::{
 /// inside the node root or the client root.
 #[turbo_tasks::function]
 pub async fn emit_all_assets(
-    assets: AssetsVc,
+    assets: OutputAssetsVc,
     node_root: FileSystemPathVc,
     client_relative_path: FileSystemPathVc,
     client_output_path: FileSystemPathVc,
@@ -45,12 +46,12 @@ pub async fn emit_all_assets(
 }
 
 #[turbo_tasks::function]
-fn emit(asset: AssetVc) -> CompletionVc {
+fn emit(asset: OutputAssetVc) -> CompletionVc {
     asset.content().write(asset.ident().path())
 }
 
 #[turbo_tasks::function]
-fn emit_rebase(asset: AssetVc, from: FileSystemPathVc, to: FileSystemPathVc) -> CompletionVc {
+fn emit_rebase(asset: OutputAssetVc, from: FileSystemPathVc, to: FileSystemPathVc) -> CompletionVc {
     asset
         .content()
         .write(rebase(asset.ident().path(), from, to))
@@ -59,8 +60,8 @@ fn emit_rebase(asset: AssetVc, from: FileSystemPathVc, to: FileSystemPathVc) -> 
 /// Walks the asset graph from multiple assets and collect all referenced
 /// assets.
 #[turbo_tasks::function]
-async fn all_assets_from_entries(entries: AssetsVc) -> Result<AssetsVc> {
-    Ok(AssetsVc::cell(
+async fn all_assets_from_entries(entries: OutputAssetsVc) -> Result<OutputAssetsVc> {
+    Ok(OutputAssetsVc::cell(
         AdjacencyMap::new()
             .skip_duplicates()
             .visit(entries.await?.iter().copied(), get_referenced_assets)
@@ -73,7 +74,9 @@ async fn all_assets_from_entries(entries: AssetsVc) -> Result<AssetsVc> {
 }
 
 /// Computes the list of all chunk children of a given chunk.
-async fn get_referenced_assets(asset: AssetVc) -> Result<impl Iterator<Item = AssetVc> + Send> {
+async fn get_referenced_assets(
+    asset: OutputAssetVc,
+) -> Result<impl Iterator<Item = OutputAssetVc> + Send> {
     Ok(asset
         .references()
         .await?
@@ -85,5 +88,6 @@ async fn get_referenced_assets(asset: AssetVc) -> Result<impl Iterator<Item = As
         .try_join()
         .await?
         .into_iter()
-        .flatten())
+        .flatten()
+        .map(asset_to_output_asset))
 }

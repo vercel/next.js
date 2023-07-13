@@ -12,11 +12,12 @@ use turbopack_binding::{
     turbo::tasks_fs::FileSystemPathVc,
     turbopack::{
         core::{
-            asset::{Asset, AssetVc, AssetsVc},
-            changed::{any_content_changed, any_content_changed_of_assets},
+            asset::Asset,
+            changed::{any_content_changed, any_content_changed_of_output_assets},
             chunk::{ChunkableModule, ChunkingContext},
             context::AssetContext,
             file_source::FileSourceVc,
+            output::{OutputAssetVc, OutputAssetsVc},
             reference_type::{EntryReferenceSubType, ReferenceType},
             source::SourceVc,
         },
@@ -127,7 +128,7 @@ impl PageHtmlEndpointVc {
     }
 
     #[turbo_tasks::function]
-    async fn client_chunks(self) -> Result<AssetsVc> {
+    async fn client_chunks(self) -> Result<OutputAssetsVc> {
         let this = self.await?;
 
         let client_module = create_page_loader_entry_module(
@@ -156,7 +157,7 @@ impl PageHtmlEndpointVc {
     }
 
     #[turbo_tasks::function]
-    async fn ssr_chunk(self) -> Result<AssetVc> {
+    async fn ssr_chunk(self) -> Result<OutputAssetVc> {
         let this = self.await?;
         let reference_type = Value::new(ReferenceType::Entry(EntryReferenceSubType::Page));
 
@@ -190,7 +191,7 @@ impl Endpoint for PageHtmlEndpoint {
         let this = self_vc.await?;
         let ssr_chunk = self_vc.ssr_chunk();
         let ssr_emit = emit_all_assets(
-            AssetsVc::cell(vec![ssr_chunk]),
+            OutputAssetsVc::cell(vec![ssr_chunk]),
             this.project.node_root(),
             this.project.client_root().join("_next"),
             this.project.node_root(),
@@ -222,8 +223,8 @@ impl Endpoint for PageHtmlEndpoint {
     fn changed(self_vc: PageHtmlEndpointVc) -> CompletionVc {
         let ssr_chunk = self_vc.ssr_chunk();
         CompletionsVc::all(vec![
-            any_content_changed(ssr_chunk),
-            any_content_changed_of_assets(self_vc.client_chunks()),
+            any_content_changed(ssr_chunk.into()),
+            any_content_changed_of_output_assets(self_vc.client_chunks()),
         ])
     }
 }
@@ -261,7 +262,7 @@ impl PageDataEndpointVc {
     }
 
     #[turbo_tasks::function]
-    async fn ssr_data_chunk(self) -> Result<AssetVc> {
+    async fn ssr_data_chunk(self) -> Result<OutputAssetVc> {
         let this = self.await?;
         let reference_type = Value::new(ReferenceType::Entry(EntryReferenceSubType::Page));
 
@@ -299,7 +300,7 @@ impl Endpoint for PageDataEndpoint {
         let this = self_vc.await?;
         let ssr_data_chunk = self_vc.ssr_data_chunk();
         emit_all_assets(
-            AssetsVc::cell(vec![ssr_data_chunk]),
+            OutputAssetsVc::cell(vec![ssr_data_chunk.into()]),
             this.project.node_root(),
             this.project.client_root().join("_next"),
             this.project.node_root(),
@@ -322,7 +323,7 @@ impl Endpoint for PageDataEndpoint {
     #[turbo_tasks::function]
     async fn changed(self_vc: PageDataEndpointVc) -> Result<CompletionVc> {
         let ssr_data_chunk = self_vc.ssr_data_chunk();
-        Ok(any_content_changed(ssr_data_chunk))
+        Ok(any_content_changed(ssr_data_chunk.into()))
     }
 }
 
