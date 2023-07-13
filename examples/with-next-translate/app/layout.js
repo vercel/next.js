@@ -6,25 +6,28 @@ export const metadata = {
 }
 
 export default function Layout(props) {
-  const { t } = useTranslation()
+  const { t, lang } = useTranslation()
 
   return (
-    <div className="container">
-      {props.children}
-      <footer>
-        <span>{t('common:powered')} </span>
-        <a href="https://vercel.com" target="_blank" rel="noopener noreferrer">
-          ▲ vercel
-        </a>
-        <span>&amp;</span>
-        <a
-          href="https://github.com/vinissimus/next-translate"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          next-translate
-        </a>
-      </footer>
-    </div>
+    <html lang={lang}>
+      <head />
+      <body className="container">
+        {props.children}
+        <footer>
+          <span>{t('common:powered')} </span>
+          <a href="https://vercel.com" target="_blank" rel="noopener noreferrer">
+            ▲ vercel
+          </a>
+          <span>&amp;</span>
+          <a
+            href="https://github.com/vinissimus/next-translate"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            next-translate
+          </a>
+        </footer>
+      </body>
+    </html>
   )
 }
