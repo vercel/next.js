@@ -91,7 +91,7 @@ import ResponseCache from './response-cache'
 import { IncrementalCache } from './lib/incremental-cache'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 
-import { setHttpClientAndAgentOptions } from './config'
+import { setHttpClientAndAgentOptions } from './setup-http-agent-env'
 import { RouteKind } from './future/route-kind'
 
 import { PagesAPIRouteMatch } from './future/route-matches/pages-api-route-match'
@@ -110,6 +110,7 @@ import { createRequestResponseMocks } from './lib/mock-request'
 import chalk from 'next/dist/compiled/chalk'
 import { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
 import { signalFromNodeRequest } from './web/spec-extension/adapters/next-request'
+import { loadManifest } from './load-manifest'
 
 export * from './base-server'
 
@@ -266,7 +267,7 @@ export default class NextNodeServer extends BaseServer {
       }).catch(() => {})
     }
 
-    if (this.isRouterWorker) {
+    if (this.isRouterWorker && !process.env.NEXT_MINIMAL) {
       this.renderWorkers = {}
       this.renderWorkerOpts = {
         port: this.port || 0,
@@ -289,14 +290,15 @@ export default class NextNodeServer extends BaseServer {
               ipcValidationKey,
               options.isNodeDebugging,
               'app',
-              this.nextConfig.experimental.serverActions
+              this.nextConfig
             )
           }
           this.renderWorkers.pages = await createWorker(
             ipcPort,
             ipcValidationKey,
             options.isNodeDebugging,
-            'pages'
+            'pages',
+            this.nextConfig
           )
           this.renderWorkers.middleware =
             this.renderWorkers.pages || this.renderWorkers.app
@@ -432,14 +434,13 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected getPagesManifest(): PagesManifest | undefined {
-    return require(join(this.serverDistDir, PAGES_MANIFEST))
+    return loadManifest(join(this.serverDistDir, PAGES_MANIFEST))
   }
 
   protected getAppPathsManifest(): PagesManifest | undefined {
     if (!this.hasAppDir) return undefined
 
-    const appPathsManifestPath = join(this.serverDistDir, APP_PATHS_MANIFEST)
-    return require(appPathsManifestPath)
+    return loadManifest(join(this.serverDistDir, APP_PATHS_MANIFEST))
   }
 
   protected async hasPage(pathname: string): Promise<boolean> {
@@ -1168,7 +1169,9 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected getNextFontManifest() {
-    return require(join(this.distDir, 'server', `${NEXT_FONT_MANIFEST}.json`))
+    return loadManifest(
+      join(this.distDir, 'server', NEXT_FONT_MANIFEST + '.json')
+    )
   }
 
   protected async getFallback(page: string): Promise<string> {
@@ -2746,13 +2749,15 @@ export default class NextNodeServer extends BaseServer {
       }
       return this._cachedPreviewManifest
     }
-    const manifest = require(join(this.distDir, PRERENDER_MANIFEST))
+
+    const manifest = loadManifest(join(this.distDir, PRERENDER_MANIFEST))
+
     return (this._cachedPreviewManifest = manifest)
   }
 
   protected getRoutesManifest() {
     return getTracer().trace(NextNodeServerSpan.getRoutesManifest, () =>
-      require(join(this.distDir, ROUTES_MANIFEST))
+      loadManifest(join(this.distDir, ROUTES_MANIFEST))
     )
   }
 

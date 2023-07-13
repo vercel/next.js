@@ -14,13 +14,13 @@ import type {
   EdgeFunctionDefinition,
   MiddlewareManifest,
 } from './webpack/plugins/middleware-plugin'
-import type { AppRouteUserlandModule } from '../server/future/route-modules/app-route/module'
 import type { StaticGenerationAsyncStorage } from '../client/components/static-generation-async-storage'
 
 import '../server/require-hook'
 import '../server/node-polyfill-fetch'
 import '../server/node-polyfill-crypto'
 import '../server/node-environment'
+
 import chalk from 'next/dist/compiled/chalk'
 import getGzipSize from 'next/dist/compiled/gzip-size'
 import textTable from 'next/dist/compiled/text-table'
@@ -52,7 +52,7 @@ import {
   LoadComponentsReturnType,
 } from '../server/load-components'
 import { trace } from '../trace'
-import { setHttpClientAndAgentOptions } from '../server/config'
+import { setHttpClientAndAgentOptions } from '../server/setup-http-agent-env'
 import { recursiveDelete } from '../lib/recursive-delete'
 import { Sema } from 'next/dist/compiled/async-sema'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
@@ -66,6 +66,7 @@ import { nodeFs } from '../server/lib/node-fs-methods'
 import * as ciEnvironment from '../telemetry/ci-info'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { denormalizeAppPagePath } from '../shared/lib/page-path/denormalize-app-path'
+import { AppRouteRouteModule } from '../server/future/route-modules/app-route/module'
 
 export type ROUTER_TYPE = 'pages' | 'app'
 
@@ -1435,10 +1436,6 @@ export async function isPageStatic({
         isClientComponent = isClientReference(componentsResult.ComponentMod)
         const tree = componentsResult.ComponentMod.tree
 
-        // This is present on the new route modules.
-        const userland: AppRouteUserlandModule | undefined =
-          componentsResult.routeModule?.userland
-
         const staticGenerationAsyncStorage: StaticGenerationAsyncStorage =
           componentsResult.ComponentMod.staticGenerationAsyncStorage
         if (!staticGenerationAsyncStorage) {
@@ -1454,19 +1451,23 @@ export async function isPageStatic({
           )
         }
 
-        const generateParams: GenerateParams = userland
-          ? [
-              {
-                config: {
-                  revalidate: userland.revalidate,
-                  dynamic: userland.dynamic,
-                  dynamicParams: userland.dynamicParams,
+        const { routeModule } = componentsResult
+
+        const generateParams: GenerateParams =
+          routeModule && AppRouteRouteModule.is(routeModule)
+            ? [
+                {
+                  config: {
+                    revalidate: routeModule.userland.revalidate,
+                    dynamic: routeModule.userland.dynamic,
+                    dynamicParams: routeModule.userland.dynamicParams,
+                  },
+                  generateStaticParams:
+                    routeModule.userland.generateStaticParams,
+                  segmentPath: page,
                 },
-                generateStaticParams: userland.generateStaticParams,
-                segmentPath: page,
-              },
-            ]
-          : await collectGenerateParams(tree)
+              ]
+            : await collectGenerateParams(tree)
 
         appConfig = generateParams.reduce(
           (builtConfig: AppConfig, curGenParams): AppConfig => {
