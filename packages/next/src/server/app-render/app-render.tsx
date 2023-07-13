@@ -17,7 +17,10 @@ import type { RequestAsyncStorage } from '../../client/components/request-async-
 
 import React from 'react'
 import { NotFound as DefaultNotFound } from '../../client/components/error'
-import { createServerComponentRenderer } from './create-server-components-renderer'
+import {
+  createServerComponentRenderer,
+  ErrorHtml,
+} from './create-server-components-renderer'
 
 import { ParsedUrlQuery } from 'querystring'
 import { NextParsedUrlQuery } from '../request-meta'
@@ -81,19 +84,6 @@ import { ModuleReference } from '../../build/webpack/loaders/metadata/types'
 export const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
 const emptyLoaderTree: LoaderTree = ['', {}, {}]
-
-const ErrorHtml = ({
-  head,
-  children,
-}: {
-  head?: React.ReactNode
-  children?: React.ReactNode
-}) => (
-  <html id="__next_error__">
-    <head>{head}</head>
-    <body>{children}</body>
-  </html>
-)
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -1619,7 +1609,6 @@ export async function renderToHTMLOrFlight(
 
           const use404Error = res.statusCode === 404
           const useDefaultError = res.statusCode < 400 || res.statusCode === 307
-          // When it's in error state but status code is not 200, we should render global-error
 
           const { layout } = loaderTree[2]
           const injectedCSS = new Set<string>()
@@ -1658,6 +1647,7 @@ export async function renderToHTMLOrFlight(
                             {use404Error ? (
                               <RootLayout params={{}}>
                                 {notFoundStyles}
+                                <meta name="robots" content="noindex" />
                                 <NotFound />
                               </RootLayout>
                             ) : undefined}
