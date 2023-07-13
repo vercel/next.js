@@ -24,6 +24,7 @@ use turbopack_binding::{
 
 use crate::{
     embed_js::{next_js_fs, VIRTUAL_PACKAGE_NAME},
+    mode::NextMode,
     next_client::context::ClientContextType,
     next_config::NextConfigVc,
     next_font::{
@@ -189,6 +190,7 @@ pub fn get_next_client_fallback_import_map(ty: Value<ClientContextType>) -> Impo
 pub async fn get_next_server_import_map(
     project_path: FileSystemPathVc,
     ty: Value<ServerContextType>,
+    mode: NextMode,
     next_config: NextConfigVc,
     execution_context: ExecutionContextVc,
 ) -> Result<ImportMapVc> {
@@ -212,7 +214,7 @@ pub async fn get_next_server_import_map(
 
     let ty = ty.into_value();
 
-    insert_next_server_special_aliases(&mut import_map, ty).await?;
+    insert_next_server_special_aliases(&mut import_map, ty, mode).await?;
     let external = ImportMapping::External(None).cell();
 
     match ty {
@@ -253,6 +255,7 @@ pub async fn get_next_server_import_map(
 pub async fn get_next_edge_import_map(
     project_path: FileSystemPathVc,
     ty: Value<ServerContextType>,
+    mode: NextMode,
     next_config: NextConfigVc,
     execution_context: ExecutionContextVc,
 ) -> Result<ImportMapVc> {
@@ -276,7 +279,7 @@ pub async fn get_next_edge_import_map(
 
     let ty = ty.into_value();
 
-    insert_next_server_special_aliases(&mut import_map, ty).await?;
+    insert_next_server_special_aliases(&mut import_map, ty, mode).await?;
 
     match ty {
         ServerContextType::Pages { .. } | ServerContextType::PagesData { .. } => {}
@@ -349,9 +352,10 @@ static NEXT_ALIASES: [(&str, &str); 23] = [
 pub async fn insert_next_server_special_aliases(
     import_map: &mut ImportMap,
     ty: ServerContextType,
+    mode: NextMode,
 ) -> Result<()> {
-    match ty {
-        ServerContextType::Pages { pages_dir } => {
+    match (mode, ty) {
+        (_, ServerContextType::Pages { pages_dir }) => {
             import_map.insert_exact_alias(
                 "@opentelemetry/api",
                 // TODO(WEB-625) this actually need to prefer the local version of
@@ -383,10 +387,15 @@ pub async fn insert_next_server_special_aliases(
                 ],
             );
         }
-        ServerContextType::PagesData { .. } => {}
-        ServerContextType::AppSSR { app_dir }
-        | ServerContextType::AppRSC { app_dir }
-        | ServerContextType::AppRoute { app_dir } => {
+        (_, ServerContextType::PagesData { .. }) => {}
+        // In development, we *always* use the bundled version of React, even in
+        // SSR, since we're bundling Next.js alongside it.
+        (
+            NextMode::Development,
+            ServerContextType::AppSSR { app_dir }
+            | ServerContextType::AppRSC { app_dir, .. }
+            | ServerContextType::AppRoute { app_dir },
+        ) => {
             import_map.insert_exact_alias(
                 "@opentelemetry/api",
                 // TODO(WEB-625) this actually need to prefer the local version of
@@ -417,7 +426,83 @@ pub async fn insert_next_server_special_aliases(
                 request_to_import_mapping(app_dir, "next/dist/compiled/react-server-dom-webpack/*"),
             );
         }
-        ServerContextType::Middleware => {}
+        // NOTE(alexkirsz) This logic maps loosely to
+        // `next.js/packages/next/src/build/webpack-config.ts`, where:
+        //
+        // ## RSC (Build)
+        //
+        // * always bundles
+        // * maps react -> react/shared-subset (through the "react-server" exports condition)
+        // * maps react-dom -> react-dom/server-rendering-stub
+        // * passes through (react|react-dom|react-server-dom-webpack)/(.*) to
+        //   next/dist/compiled/$1/$2
+        (
+            NextMode::Build,
+            ServerContextType::AppRSC { app_dir, .. } | ServerContextType::AppRoute { app_dir },
+        ) => {
+            import_map.insert_exact_alias(
+                "@opentelemetry/api",
+                // TODO(WEB-625) this actually need to prefer the local version of
+                // @opentelemetry/api
+                request_to_import_mapping(app_dir, "next/dist/compiled/@opentelemetry/api"),
+            );
+            import_map.insert_exact_alias(
+                "react",
+                request_to_import_mapping(app_dir, "next/dist/compiled/react/react.shared-subset"),
+            );
+            import_map.insert_exact_alias(
+                "react-dom",
+                request_to_import_mapping(
+                    app_dir,
+                    "next/dist/compiled/react-dom/server-rendering-stub",
+                ),
+            );
+            for (wildcard_alias, request) in [
+                ("react/", "next/dist/compiled/react/*"),
+                ("react-dom/", "next/dist/compiled/react-dom/*"),
+                (
+                    "react-server-dom-webpack/",
+                    "next/dist/compiled/react-server-dom-webpack/*",
+                ),
+            ] {
+                import_map.insert_wildcard_alias(
+                    wildcard_alias,
+                    request_to_import_mapping(app_dir, request),
+                );
+            }
+        }
+        // ## SSR (Build)
+        //
+        // * always uses externals, to ensure we're using the same React instance as the Next.js
+        //   runtime
+        // * maps react-dom -> react-dom/server-rendering-stub
+        // * passes through react and (react|react-dom|react-server-dom-webpack)/(.*) to
+        //   next/dist/compiled/react and next/dist/compiled/$1/$2 resp.
+        (NextMode::Build, ServerContextType::AppSSR { .. }) => {
+            import_map.insert_exact_alias(
+                "react",
+                external_request_to_import_mapping("next/dist/compiled/react"),
+            );
+            import_map.insert_exact_alias(
+                "react-dom",
+                external_request_to_import_mapping(
+                    "next/dist/compiled/react-dom/server-rendering-stub",
+                ),
+            );
+
+            for (wildcard_alias, request) in [
+                ("react/", "next/dist/compiled/react/*"),
+                ("react-dom/", "next/dist/compiled/react-dom/*"),
+                (
+                    "react-server-dom-webpack/",
+                    "next/dist/compiled/react-server-dom-webpack/*",
+                ),
+            ] {
+                let import_mapping = external_request_to_import_mapping(request);
+                import_map.insert_wildcard_alias(wildcard_alias, import_mapping);
+            }
+        }
+        (_, ServerContextType::Middleware) => {}
     }
 
     Ok(())

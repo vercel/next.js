@@ -16,6 +16,7 @@ use turbopack_binding::{
             changed::any_content_changed,
             chunk::ChunkingContext,
             context::AssetContext,
+            file_source::FileSourceVc,
             ident::AssetIdentVc,
             issue::{Issue, IssueContextExt, IssueSeverity, IssueSeverityVc, IssueVc},
             reference_type::{EntryReferenceSubType, InnerAssetsVc, ReferenceType},
@@ -24,7 +25,6 @@ use turbopack_binding::{
                 options::{ImportMap, ImportMapping},
                 FindContextFileResult, ResolveAliasMap, ResolveAliasMapVc,
             },
-            source_asset::SourceAssetVc,
         },
         ecmascript_plugin::transform::{
             emotion::EmotionTransformConfig, relay::RelayConfig,
@@ -388,6 +388,7 @@ pub struct ExperimentalConfig {
     pub isr_memory_cache_size: Option<f64>,
     pub isr_flush_to_disk: Option<bool>,
     mdx_rs: Option<bool>,
+    pub swc_plugins: Option<Vec<(String, serde_json::Value)>>,
 
     // unsupported
     adjust_font_fallbacks: Option<bool>,
@@ -430,7 +431,6 @@ pub struct ExperimentalConfig {
     swc_file_reading: Option<bool>,
     swc_minify: Option<bool>,
     swc_minify_debug_options: Option<serde_json::Value>,
-    swc_plugins: Option<serde_json::Value>,
     swc_trace_profiling: Option<bool>,
     transpile_packages: Option<Vec<String>>,
     turbotrace: Option<serde_json::Value>,
@@ -675,7 +675,7 @@ pub async fn load_next_config_internal(
     import_map.insert_wildcard_alias("styled-jsx/", ImportMapping::External(None).into());
 
     let context = node_evaluate_asset_context(execution_context, Some(import_map.cell()), None);
-    let config_asset = config_file.map(SourceAssetVc::new);
+    let config_asset = config_file.map(FileSourceVc::new);
 
     let config_changed = config_asset.map_or_else(CompletionVc::immutable, |config_asset| {
         // This invalidates the execution when anything referenced by the config file
@@ -684,14 +684,14 @@ pub async fn load_next_config_internal(
             config_asset.into(),
             Value::new(ReferenceType::Internal(InnerAssetsVc::empty())),
         );
-        any_content_changed(config_asset)
+        any_content_changed(config_asset.into())
     });
     let load_next_config_asset = context.process(
         next_asset("entry/config/next.js"),
         Value::new(ReferenceType::Entry(EntryReferenceSubType::Undefined)),
     );
     let config_value = evaluate(
-        load_next_config_asset,
+        load_next_config_asset.into(),
         project_path,
         env,
         config_asset.map_or_else(|| AssetIdentVc::from_path(project_path), |c| c.ident()),

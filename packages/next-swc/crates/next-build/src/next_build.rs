@@ -4,30 +4,43 @@ use std::{
     path::{PathBuf, MAIN_SEPARATOR},
 };
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use dunce::canonicalize;
 use next_core::{
-    self, next_config::load_next_config, pages_structure::find_pages_structure,
-    turbopack::ecmascript::utils::StringifyJs, url_node::get_sorted_routes,
+    self,
+    mode::NextMode,
+    next_client::{get_client_chunking_context, get_client_compile_time_info},
+    next_client_reference::{ClientReferenceType, ClientReferencesByEntryVc},
+    next_config::load_next_config,
+    next_dynamic::NextDynamicEntriesVc,
+    next_server::{get_server_chunking_context, get_server_compile_time_info},
+    url_node::get_sorted_routes,
 };
 use serde::Serialize;
 use turbo_tasks::{
     graph::{AdjacencyMap, GraphTraversal},
-    CollectiblesSource, CompletionVc, RawVc, TransientInstance, TransientValue, TryJoinIterExt,
-    ValueToString,
+    CollectiblesSource, CompletionVc, CompletionsVc, RawVc, TransientInstance, TransientValue,
+    TryJoinIterExt,
 };
 use turbopack_binding::{
-    turbo::tasks_fs::{DiskFileSystemVc, FileContent, FileSystem, FileSystemPathVc, FileSystemVc},
+    turbo::tasks_fs::{
+        rebase, DiskFileSystemVc, FileContent, FileSystem, FileSystemPath, FileSystemPathVc,
+        FileSystemVc,
+    },
     turbopack::{
+        build::BuildChunkingContextVc,
         cli_utils::issue::{ConsoleUiVc, LogOptions},
         core::{
             asset::{Asset, AssetVc, AssetsVc},
+            chunk::ChunkingContext,
             environment::ServerAddrVc,
             issue::{IssueReporter, IssueReporterVc, IssueSeverity, IssueVc},
+            output::{OutputAssetVc, OutputAssetsVc},
             reference::AssetReference,
             virtual_fs::VirtualFileSystemVc,
         },
         dev::DevChunkingContextVc,
+        ecmascript::utils::StringifyJs,
         env::dotenv::load_env,
         node::execution_context::ExecutionContextVc,
         turbopack::evaluate_context::node_build_environment,
@@ -37,11 +50,15 @@ use turbopack_binding::{
 use crate::{
     build_options::{BuildContext, BuildOptions},
     manifests::{
-        AppBuildManifest, AppPathsManifest, BuildManifest, ClientBuildManifest,
-        ClientCssReferenceManifest, ClientReferenceManifest, FontManifest, MiddlewaresManifest,
-        NextFontManifest, PagesManifest, ReactLoadableManifest, ServerReferenceManifest,
+        AppBuildManifest, AppPathsManifest, BuildManifest, ClientBuildManifest, FontManifest,
+        MiddlewaresManifest, NextFontManifest, PagesManifest, ReactLoadableManifest,
+        ServerReferenceManifest,
     },
-    next_pages::page_chunks::get_page_chunks,
+    next_app::{
+        app_client_reference::compute_app_client_references_chunks,
+        app_entries::{compute_app_entries_chunks, get_app_entries},
+    },
+    next_pages::page_entries::{compute_page_entries_chunks, get_page_entries},
 };
 
 #[turbo_tasks::function]
@@ -94,382 +111,347 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
         .replace(MAIN_SEPARATOR, "/");
     let project_root = workspace_fs.root().join(&project_relative);
 
-    let next_router_fs = VirtualFileSystemVc::new().as_file_system();
-    let next_router_root = next_router_fs.root();
+    let node_root_ref = node_root.await?;
 
-    let build_chunking_context = DevChunkingContextVc::builder(
+    let node_execution_chunking_context = DevChunkingContextVc::builder(
         project_root,
         node_root,
         node_root.join("chunks"),
         node_root.join("assets"),
         node_build_environment(),
     )
-    .build();
+    .build()
+    .into();
 
     let env = load_env(project_root);
-    // TODO(alexkirsz) Should this accept `node_root` at all?
-    let execution_context = ExecutionContextVc::new(project_root, build_chunking_context, env);
+
+    let execution_context =
+        ExecutionContextVc::new(project_root, node_execution_chunking_context, env);
     let next_config = load_next_config(execution_context.with_layer("next_config"));
 
-    let pages_structure = find_pages_structure(project_root, next_router_root, next_config);
+    let mode = NextMode::Build;
+    let client_compile_time_info = get_client_compile_time_info(mode, browserslist_query);
+    let server_compile_time_info = get_server_compile_time_info(mode, env, ServerAddrVc::empty());
 
-    let page_chunks = get_page_chunks(
-        pages_structure,
+    // TODO(alexkirsz) Pages should build their own routes, outside of a FS.
+    let next_router_fs = VirtualFileSystemVc::new().as_file_system();
+    let next_router_root = next_router_fs.root();
+    let page_entries = get_page_entries(
         next_router_root,
         project_root,
         execution_context,
-        node_root,
-        client_root,
         env,
-        browserslist_query,
+        client_compile_time_info,
+        server_compile_time_info,
         next_config,
-        ServerAddrVc::empty(),
     );
 
-    handle_issues(page_chunks, issue_reporter).await?;
+    let app_entries = get_app_entries(
+        project_root,
+        execution_context,
+        env,
+        client_compile_time_info,
+        server_compile_time_info,
+        next_config,
+    );
 
-    let filter_pages = std::env::var("NEXT_TURBO_FILTER_PAGES");
-    let filter_pages = filter_pages
-        .as_ref()
-        .ok()
-        .map(|filter| filter.split(',').collect::<HashSet<_>>());
-    let filter_pages = filter_pages.as_ref();
+    handle_issues(page_entries, issue_reporter).await?;
+    handle_issues(app_entries, issue_reporter).await?;
 
-    {
-        // Client manifest.
-        let mut build_manifest: BuildManifest = Default::default();
-        // Server manifest.
-        let mut pages_manifest: PagesManifest = Default::default();
+    let page_entries = page_entries.await?;
+    let app_entries = app_entries.await?;
 
-        let build_manifest_path = client_root.join("build-manifest.json");
-        let pages_manifest_path = node_root.join("server/pages-manifest.json");
+    let app_rsc_entries: Vec<_> = app_entries
+        .entries
+        .iter()
+        .copied()
+        .map(|entry| async move { Ok(entry.await?.rsc_entry) })
+        .try_join()
+        .await?;
 
-        let page_chunks_and_url = page_chunks
-            .await?
+    let app_client_references_by_entry = ClientReferencesByEntryVc::new(AssetsVc::cell(
+        app_rsc_entries
             .iter()
-            .map(|page_chunk| async move {
-                let page_chunk = page_chunk.await?;
-                let pathname = page_chunk.pathname.await?;
+            .copied()
+            .map(|entry| entry.into())
+            .collect(),
+    ))
+    .await?;
 
-                if let Some(filter_pages) = &filter_pages {
-                    if !filter_pages.contains(pathname.as_str()) {
-                        return Ok(None);
-                    }
-                }
+    let app_client_references: HashSet<_> = app_client_references_by_entry
+        .values()
+        .flatten()
+        .copied()
+        .collect();
 
-                // We can't use partitioning for client assets as client assets might be created
-                // by non-client assets referred from client assets.
-                // Although this should perhaps be enforced by Turbopack semantics.
-                let all_node_assets: Vec<_> = all_assets_from_entry(page_chunk.node_chunk)
-                    .await?
-                    .iter()
-                    .map(|asset| async move {
-                        Ok((
-                            asset.ident().path().await?.is_inside(&*node_root.await?),
-                            asset,
-                        ))
-                    })
-                    .try_join()
-                    .await?
-                    .into_iter()
-                    .filter_map(|(is_inside, asset)| if is_inside { Some(*asset) } else { None })
-                    .collect();
+    // The same client reference can occur from two different server components.
+    // Here, we're only interested in deduped client references.
+    let app_client_reference_tys: HashSet<_> = app_client_references
+        .iter()
+        .map(|client_reference| client_reference.ty())
+        .copied()
+        .collect();
 
-                let client_chunks = page_chunk.client_chunks;
-
-                // We can't use partitioning for client assets as client assets might be created
-                // by non-client assets referred from client assets.
-                // Although this should perhaps be enforced by Turbopack semantics.
-                let all_client_assets: Vec<_> = all_assets_from_entries(client_chunks)
-                    .await?
-                    .iter()
-                    .map(|asset| async move {
-                        Ok((
-                            asset.ident().path().await?.is_inside(&*client_root.await?),
-                            asset,
-                        ))
-                    })
-                    .try_join()
-                    .await?
-                    .into_iter()
-                    .filter_map(|(is_inside, asset)| if is_inside { Some(*asset) } else { None })
-                    .collect();
-
-                Ok(Some((
-                    pathname,
-                    page_chunk.node_chunk,
-                    all_node_assets,
-                    client_chunks,
-                    all_client_assets,
-                )))
-            })
-            .try_join()
-            .await?
-            .into_iter()
-            .flatten()
-            .collect::<Vec<_>>();
-
-        {
-            let build_manifest_dir_path = build_manifest_path.parent().await?;
-            let pages_manifest_dir_path = pages_manifest_path.parent().await?;
-
-            let mut deduplicated_node_assets = HashMap::new();
-            let mut deduplicated_client_assets = HashMap::new();
-
-            // TODO(alexkirsz) We want all assets to emit them to the output directory, but
-            // we only want runtime assets in the manifest. Furthermore, the pages
-            // manifest (server) only wants a single runtime asset, so we need to
-            // bundle node assets somewhat.
-            for (pathname, node_chunk, all_node_assets, client_chunks, all_client_assets) in
-                page_chunks_and_url
-            {
-                tracing::debug!("pathname: {}", pathname.to_string(),);
-                tracing::debug!(
-                    "node chunk: {}",
-                    node_chunk.ident().path().to_string().await?
-                );
-                tracing::debug!(
-                    "client_chunks:\n{}",
-                    client_chunks
-                        .await?
-                        .iter()
-                        .map(|chunk| async move {
-                            Ok(format!("  - {}", chunk.ident().path().to_string().await?))
-                        })
-                        .try_join()
-                        .await?
-                        .join("\n")
-                );
-
-                // TODO(alexkirsz) Deduplication should not happen at this level, but
-                // right now we have chunks with the same path being generated
-                // from different entrypoints, and writing them multiple times causes
-                // an infinite invalidation loop.
-                deduplicated_node_assets.extend(
-                    all_node_assets
-                        .into_iter()
-                        .map(|asset| async move { Ok((asset.ident().path().to_string().await?, asset)) })
-                        .try_join()
-                        .await?,
-                );
-                deduplicated_client_assets.extend(
-                    all_client_assets
-                        .into_iter()
-                        .map(|asset| async move { Ok((asset.ident().path().to_string().await?, asset)) })
-                        .try_join()
-                        .await?
-                );
-
-                let build_manifest_pages_entry = build_manifest
-                    .pages
-                    .entry(pathname.clone_value())
-                    .or_default();
-                for chunk in client_chunks.await?.iter() {
-                    let chunk_path = chunk.ident().path().await?;
-                    if let Some(asset_path) = build_manifest_dir_path.get_path_to(&chunk_path) {
-                        build_manifest_pages_entry.push(asset_path.to_string());
-                    }
-                }
-
-                let chunk_path = node_chunk.ident().path().await?;
-                if let Some(asset_path) = pages_manifest_dir_path.get_path_to(&chunk_path) {
-                    pages_manifest
-                        .pages
-                        .insert(pathname.clone_value(), asset_path.to_string());
-                }
-            }
-
-            tracing::debug!(
-                "all node assets: {}",
-                deduplicated_node_assets
-                    .values()
-                    .map(|asset| async move {
-                        Ok(format!("  - {}", asset.ident().path().to_string().await?))
-                    })
-                    .try_join()
-                    .await?
-                    .join("\n")
-            );
-            deduplicated_node_assets
-                .into_values()
-                .map(|asset| async move {
-                    emit(asset).await?;
-                    Ok(())
-                })
-                .try_join()
-                .await?;
-
-            tracing::debug!(
-                "all client assets: {}",
-                deduplicated_client_assets
-                    .values()
-                    .map(|asset| async move {
-                        Ok(format!("  - {}", asset.ident().path().to_string().await?))
-                    })
-                    .try_join()
-                    .await?
-                    .join("\n")
-            );
-            deduplicated_client_assets
-                .into_values()
-                .map(|asset| async move {
-                    emit(asset).await?;
-                    Ok(())
-                })
-                .try_join()
-                .await?;
-        }
-
-        write_placeholder_manifest(
-            &MiddlewaresManifest::default(),
-            node_root,
-            "server/middleware-manifest.json",
-        )
-        .await?;
-        write_placeholder_manifest(
-            &NextFontManifest::default(),
-            node_root,
-            "server/next-font-manifest.json",
-        )
-        .await?;
-        write_placeholder_manifest(
-            &FontManifest::default(),
-            node_root,
-            "server/font-manifest.json",
-        )
-        .await?;
-        write_placeholder_manifest(
-            &AppPathsManifest::default(),
-            node_root,
-            "server/app-paths-manifest.json",
-        )
-        .await?;
-        write_placeholder_manifest(
-            &ServerReferenceManifest::default(),
-            node_root,
-            "server/server-reference-manifest.json",
-        )
-        .await?;
-        write_placeholder_manifest(
-            &ClientReferenceManifest::default(),
-            node_root,
-            "server/client-reference-manifest.json",
-        )
-        .await?;
-        write_placeholder_manifest(
-            &ClientCssReferenceManifest::default(),
-            node_root,
-            "server/flight-server-css-manifest.json",
-        )
-        .await?;
-        write_placeholder_manifest(
-            &ReactLoadableManifest::default(),
-            node_root,
-            "react-loadable-manifest.json",
-        )
-        .await?;
-        write_placeholder_manifest(
-            &AppBuildManifest::default(),
-            node_root,
-            "app-build-manifest.json",
-        )
-        .await?;
-
-        if let Some(build_context) = &options.build_context {
-            let BuildContext { build_id, rewrites } = build_context;
-
-            tracing::debug!("writing _ssgManifest.js for build id: {}", build_id);
-
-            let ssg_manifest_path = format!("static/{build_id}/_ssgManifest.js");
-
-            let ssg_manifest_fs_path = node_root.join(&ssg_manifest_path);
-            ssg_manifest_fs_path
-                .write(
-                    FileContent::Content(
-                        "self.__SSG_MANIFEST=new \
-                         Set;self.__SSG_MANIFEST_CB&&self.__SSG_MANIFEST_CB()"
-                            .into(),
-                    )
-                    .cell(),
-                )
-                .await?;
-
-            build_manifest.low_priority_files.push(ssg_manifest_path);
-
-            let sorted_pages =
-                get_sorted_routes(&pages_manifest.pages.keys().cloned().collect::<Vec<_>>())?;
-
-            let app_dependencies: HashSet<&str> = pages_manifest
-                .pages
-                .get("/_app")
-                .iter()
-                .map(|s| s.as_str())
-                .collect();
-            let mut pages = HashMap::new();
-
-            for page in &sorted_pages {
-                if page == "_app" {
-                    continue;
-                }
-
-                let dependencies = build_manifest
-                    .pages
-                    .get(page)
-                    .unwrap()
-                    .iter()
-                    .map(|dep| dep.as_str())
-                    .filter(|dep| !app_dependencies.contains(*dep))
-                    .collect::<Vec<_>>();
-
-                if !dependencies.is_empty() {
-                    pages.insert(page.to_string(), dependencies);
-                }
-            }
-
-            let client_manifest = ClientBuildManifest {
-                rewrites,
-                sorted_pages: &sorted_pages,
-                pages,
+    let app_ssr_entries: Vec<_> = app_client_reference_tys
+        .iter()
+        .map(|client_reference_ty| async move {
+            let ClientReferenceType::EcmascriptClientReference(entry) = client_reference_ty else {
+                return Ok(None);
             };
 
-            let client_manifest_path = format!("static/{build_id}/_buildManifest.js");
+            Ok(Some(entry.await?.ssr_module))
+        })
+        .try_join()
+        .await?
+        .into_iter()
+        .flatten()
+        .collect();
 
-            let client_manifest_fs_path = node_root.join(&client_manifest_path);
-            client_manifest_fs_path
-                .write(
-                    FileContent::Content(
-                        format!(
-                            "self.__BUILD_MANIFEST={};self.__BUILD_MANIFEST_CB && \
-                             self.__BUILD_MANIFEST_CB()",
-                            StringifyJs(&client_manifest)
-                        )
+    let page_ssr_entries = page_entries
+        .entries
+        .iter()
+        .copied()
+        .map(|entry| async move { Ok(entry.await?.ssr_module) })
+        .try_join()
+        .await?;
+
+    let app_node_entries: Vec<_> = app_ssr_entries
+        .iter()
+        .copied()
+        .chain(app_rsc_entries.iter().copied())
+        .collect();
+
+    let all_node_entries: Vec<_> = page_ssr_entries
+        .iter()
+        .copied()
+        .chain(app_node_entries.iter().copied())
+        .collect();
+
+    // TODO(alexkirsz) Handle dynamic entries and dynamic chunks.
+    let _dynamic_entries = NextDynamicEntriesVc::from_entries(AssetsVc::cell(
+        all_node_entries
+            .iter()
+            .copied()
+            .map(|entry| entry.into())
+            .collect(),
+    ))
+    .await?;
+
+    // TODO(alexkirsz) At this point, we have access to the whole module graph via
+    // the entries. This is where we should compute unique module ids and optimized
+    // chunks.
+
+    // CHUNKING
+
+    let client_chunking_context = get_client_chunking_context(
+        project_root,
+        client_root,
+        client_compile_time_info.environment(),
+        mode,
+    );
+
+    let server_chunking_context = get_server_chunking_context(
+        project_root,
+        node_root,
+        client_root,
+        server_compile_time_info.environment(),
+    );
+    // TODO(alexkirsz) This should be the same chunking context. The layer should
+    // be applied on the AssetContext level instead.
+    let rsc_chunking_context = server_chunking_context.with_layer("rsc");
+    let ssr_chunking_context = server_chunking_context.with_layer("ssr");
+    let (Some(rsc_chunking_context), Some(ssr_chunking_context)) = (
+        BuildChunkingContextVc::resolve_from(rsc_chunking_context).await?,
+        BuildChunkingContextVc::resolve_from(ssr_chunking_context).await?,
+    ) else {
+        bail!("with_layer should not change the type of the chunking context");
+    };
+
+    let mut all_chunks = vec![];
+
+    let mut build_manifest: BuildManifest = Default::default();
+    let build_manifest_path = client_root.join("build-manifest.json");
+
+    // This ensures that the _next prefix is properly stripped from all client paths
+    // in manifests. It will be added back on the client through the chunk_base_path
+    // mechanism.
+    let client_relative_path = client_root.join("_next");
+    let client_relative_path_ref = client_relative_path.await?;
+
+    // PAGE CHUNKING
+
+    let mut pages_manifest: PagesManifest = Default::default();
+    let pages_manifest_path = node_root.join("server/pages-manifest.json");
+    let pages_manifest_dir_path = pages_manifest_path.parent().await?;
+
+    compute_page_entries_chunks(
+        &page_entries,
+        client_chunking_context,
+        ssr_chunking_context,
+        node_root,
+        &pages_manifest_dir_path,
+        &client_relative_path_ref,
+        &mut pages_manifest,
+        &mut build_manifest,
+        &mut all_chunks,
+    )
+    .await?;
+
+    // APP CHUNKING
+
+    let mut app_build_manifest = AppBuildManifest::default();
+    let app_build_manifest_path = client_root.join("app-build-manifest.json");
+
+    let mut app_paths_manifest = AppPathsManifest::default();
+    let app_paths_manifest_path = node_root.join("server/app-paths-manifest.json");
+    let app_paths_manifest_dir_path = app_paths_manifest_path.parent().await?;
+
+    // APP CLIENT REFERENCES CHUNKING
+
+    let app_client_references_chunks = compute_app_client_references_chunks(
+        &app_client_reference_tys,
+        client_chunking_context,
+        ssr_chunking_context,
+        &mut all_chunks,
+    )
+    .await?;
+
+    // APP RSC CHUNKING
+    // TODO(alexkirsz) Do some of that in parallel with the above.
+
+    compute_app_entries_chunks(
+        &app_entries,
+        &app_client_references_by_entry,
+        &app_client_references_chunks,
+        rsc_chunking_context,
+        client_chunking_context,
+        ssr_chunking_context.into(),
+        node_root,
+        &client_relative_path_ref,
+        &app_paths_manifest_dir_path,
+        &mut app_build_manifest,
+        &mut build_manifest,
+        &mut app_paths_manifest,
+        &mut all_chunks,
+    )
+    .await?;
+
+    let mut completions = vec![];
+
+    if let Some(build_context) = &options.build_context {
+        let BuildContext { build_id, rewrites } = build_context;
+
+        let ssg_manifest_path = format!("static/{build_id}/_ssgManifest.js");
+
+        let ssg_manifest_fs_path = node_root.join(&ssg_manifest_path);
+        completions.push(
+            ssg_manifest_fs_path.write(
+                FileContent::Content(
+                    "self.__SSG_MANIFEST=new Set;self.__SSG_MANIFEST_CB&&self.__SSG_MANIFEST_CB()"
                         .into(),
-                    )
-                    .cell(),
                 )
-                .await?;
+                .cell(),
+            ),
+        );
 
-            build_manifest.low_priority_files.push(client_manifest_path);
+        build_manifest.low_priority_files.push(ssg_manifest_path);
+
+        let sorted_pages =
+            get_sorted_routes(&pages_manifest.pages.keys().cloned().collect::<Vec<_>>())?;
+
+        let app_dependencies: HashSet<&str> = pages_manifest
+            .pages
+            .get("/_app")
+            .iter()
+            .map(|s| s.as_str())
+            .collect();
+        let mut pages = HashMap::new();
+
+        for page in &sorted_pages {
+            if page == "_app" {
+                continue;
+            }
+
+            let dependencies = pages_manifest
+                .pages
+                .get(page)
+                .iter()
+                .map(|dep| dep.as_str())
+                .filter(|dep| !app_dependencies.contains(*dep))
+                .collect::<Vec<_>>();
+
+            if !dependencies.is_empty() {
+                pages.insert(page.to_string(), dependencies);
+            }
         }
 
-        // TODO(alexkirsz) These manifests should be assets.
-        let build_manifest_contents = serde_json::to_string_pretty(&build_manifest)?;
-        let pages_manifest_contents = serde_json::to_string_pretty(&pages_manifest)?;
+        let client_manifest = ClientBuildManifest {
+            rewrites,
+            sorted_pages: &sorted_pages,
+            pages,
+        };
 
-        build_manifest_path
-            .write(FileContent::Content(build_manifest_contents.into()).cell())
-            .await?;
-        pages_manifest_path
-            .write(FileContent::Content(pages_manifest_contents.into()).cell())
-            .await?;
+        let client_manifest_path = format!("static/{build_id}/_buildManifest.js");
+
+        let client_manifest_fs_path = node_root.join(&client_manifest_path);
+        completions.push(
+            client_manifest_fs_path.write(
+                FileContent::Content(
+                    format!(
+                        "self.__BUILD_MANIFEST={};self.__BUILD_MANIFEST_CB && \
+                         self.__BUILD_MANIFEST_CB()",
+                        StringifyJs(&client_manifest)
+                    )
+                    .into(),
+                )
+                .cell(),
+            ),
+        );
+
+        build_manifest.low_priority_files.push(client_manifest_path);
     }
 
-    Ok(CompletionVc::immutable())
-}
+    completions.push(write_manifest(pages_manifest, pages_manifest_path)?);
+    completions.push(write_manifest(app_build_manifest, app_build_manifest_path)?);
+    completions.push(write_manifest(app_paths_manifest, app_paths_manifest_path)?);
+    completions.push(write_manifest(build_manifest, build_manifest_path)?);
 
-#[turbo_tasks::function]
-fn emit(asset: AssetVc) -> CompletionVc {
-    asset.content().write(asset.ident().path())
+    // Placeholder manifests.
+
+    // TODO(alexkirsz) Proper middleware manifest with all (edge?) routes in it,
+    // experimental-edge pages?
+    completions.push(write_manifest(
+        MiddlewaresManifest::default(),
+        node_root.join("server/middleware-manifest.json"),
+    )?);
+    completions.push(write_manifest(
+        NextFontManifest::default(),
+        node_root.join("server/next-font-manifest.json"),
+    )?);
+    completions.push(write_manifest(
+        FontManifest::default(),
+        node_root.join("server/font-manifest.json"),
+    )?);
+    completions.push(write_manifest(
+        ServerReferenceManifest::default(),
+        node_root.join("server/server-reference-manifest.json"),
+    )?);
+    completions.push(write_manifest(
+        ReactLoadableManifest::default(),
+        node_root.join("react-loadable-manifest.json"),
+    )?);
+
+    completions.push(
+        emit_all_assets(
+            all_chunks,
+            &node_root_ref,
+            client_relative_path,
+            client_root,
+        )
+        .await?,
+    );
+
+    Ok(CompletionsVc::all(completions))
 }
 
 #[turbo_tasks::function]
@@ -517,29 +499,63 @@ async fn handle_issues<T: Into<RawVc> + CollectiblesSource + Copy>(
     }
 }
 
-/// Walks the asset graph from a single asset and collect all referenced assets.
-#[turbo_tasks::function]
-async fn all_assets_from_entry(entry: AssetVc) -> Result<AssetsVc> {
-    Ok(AssetsVc::cell(
-        AdjacencyMap::new()
-            .skip_duplicates()
-            .visit([entry], get_referenced_assets)
-            .await
-            .completed()?
-            .into_inner()
-            .into_reverse_topological()
-            .collect(),
+/// Emits all assets transitively reachable from the given chunks, that are
+/// inside the node root or the client root.
+async fn emit_all_assets(
+    chunks: Vec<OutputAssetVc>,
+    node_root: &FileSystemPath,
+    client_relative_path: FileSystemPathVc,
+    client_output_path: FileSystemPathVc,
+) -> Result<CompletionVc> {
+    let all_assets = all_assets_from_entries(OutputAssetsVc::cell(chunks)).await?;
+    Ok(CompletionsVc::all(
+        all_assets
+            .iter()
+            .copied()
+            .map(|asset| async move {
+                if asset.ident().path().await?.is_inside(node_root) {
+                    return Ok(emit(asset));
+                } else if asset
+                    .ident()
+                    .path()
+                    .await?
+                    .is_inside(&*client_relative_path.await?)
+                {
+                    // Client assets are emitted to the client output path, which is prefixed with
+                    // _next. We need to rebase them to remove that prefix.
+                    return Ok(emit_rebase(asset, client_relative_path, client_output_path));
+                }
+
+                Ok(CompletionVc::immutable())
+            })
+            .try_join()
+            .await?,
     ))
+}
+
+#[turbo_tasks::function]
+fn emit(asset: AssetVc) -> CompletionVc {
+    asset.content().write(asset.ident().path())
+}
+
+#[turbo_tasks::function]
+fn emit_rebase(asset: AssetVc, from: FileSystemPathVc, to: FileSystemPathVc) -> CompletionVc {
+    asset
+        .content()
+        .write(rebase(asset.ident().path(), from, to))
 }
 
 /// Walks the asset graph from multiple assets and collect all referenced
 /// assets.
 #[turbo_tasks::function]
-async fn all_assets_from_entries(entries: AssetsVc) -> Result<AssetsVc> {
+async fn all_assets_from_entries(entries: OutputAssetsVc) -> Result<AssetsVc> {
     Ok(AssetsVc::cell(
         AdjacencyMap::new()
             .skip_duplicates()
-            .visit(entries.await?.iter().copied(), get_referenced_assets)
+            .visit(
+                entries.await?.iter().copied().map(Into::into),
+                get_referenced_assets,
+            )
             .await
             .completed()?
             .into_inner()
@@ -564,18 +580,12 @@ async fn get_referenced_assets(asset: AssetVc) -> Result<impl Iterator<Item = As
         .flatten())
 }
 
-async fn write_placeholder_manifest<T>(
-    manifest: &T,
-    node_root: FileSystemPathVc,
-    path: &str,
-) -> Result<()>
+/// Writes a manifest to disk. This consumes the manifest to ensure we don't
+/// write to it afterwards.
+fn write_manifest<T>(manifest: T, manifest_path: FileSystemPathVc) -> Result<CompletionVc>
 where
     T: Serialize,
 {
-    let json = serde_json::to_string_pretty(manifest)?;
-    let node_path = node_root.join(path);
-    node_path
-        .write(FileContent::Content(json.into()).cell())
-        .await?;
-    Ok(())
+    let manifest_contents = serde_json::to_string_pretty(&manifest)?;
+    Ok(manifest_path.write(FileContent::Content(manifest_contents.into()).cell()))
 }

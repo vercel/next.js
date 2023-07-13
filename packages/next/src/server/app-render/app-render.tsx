@@ -466,9 +466,7 @@ export async function renderToHTMLOrFlight(
             const fontFilename = preloadedFontFiles[i]
             const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(fontFilename)![1]
             const type = `font/${ext}`
-            const href = `${assetPrefix}/_next/${fontFilename}${getAssetQueryString(
-              false
-            )}`
+            const href = `${assetPrefix}/_next/${fontFilename}`
             ComponentMod.preloadFont(href, type)
           }
         } else {
@@ -1226,9 +1224,14 @@ export async function renderToHTMLOrFlight(
 
     const GlobalError =
       /** GlobalError can be either the default error boundary or the overwritten app/global-error.js **/
-      ComponentMod.GlobalError as typeof import('../../client/components/error-boundary').default
+      ComponentMod.GlobalError as typeof import('../../client/components/error-boundary').GlobalError
 
     let serverComponentsInlinedTransformStream: TransformStream<
+      Uint8Array,
+      Uint8Array
+    > = new TransformStream()
+
+    let serverErrorComponentsInlinedTransformStream: TransformStream<
       Uint8Array,
       Uint8Array
     > = new TransformStream()
@@ -1242,6 +1245,13 @@ export async function renderToHTMLOrFlight(
 
     const serverComponentsRenderOpts = {
       transformStream: serverComponentsInlinedTransformStream,
+      clientReferenceManifest,
+      serverContexts,
+      rscChunks: [],
+    }
+
+    const serverErrorComponentsRenderOpts = {
+      transformStream: serverErrorComponentsInlinedTransformStream,
       clientReferenceManifest,
       serverContexts,
       rscChunks: [],
@@ -1509,7 +1519,7 @@ export async function renderToHTMLOrFlight(
           })
 
           const result = await continueFromInitialStream(renderStream, {
-            dataStream: serverComponentsInlinedTransformStream?.readable,
+            dataStream: serverComponentsInlinedTransformStream.readable,
             generateStaticHTML:
               staticGenerationStore.isStaticGeneration || generateStaticHTML,
             getServerInsertedHTML,
@@ -1551,24 +1561,61 @@ export async function renderToHTMLOrFlight(
             res.setHeader('Location', getURLFromRedirectError(err))
           }
 
+          const defaultErrorComponent = (
+            <html id="__next_error__">
+              <head>
+                {/* @ts-expect-error allow to use async server component */}
+                <MetadataTree
+                  key={requestId}
+                  tree={emptyLoaderTree}
+                  pathname={pathname}
+                  searchParams={providedSearchParams}
+                  getDynamicParamFromSegment={getDynamicParamFromSegment}
+                />
+                {appUsingSizeAdjust ? <meta name="next-size-adjust" /> : null}
+              </head>
+              <body></body>
+            </html>
+          )
+
+          const useDefaultError =
+            res.statusCode < 400 ||
+            res.statusCode === 404 ||
+            res.statusCode === 307
+          const serverErrorElement = useDefaultError
+            ? defaultErrorComponent
+            : React.createElement(
+                createServerComponentRenderer(
+                  async () => {
+                    // only pass plain object to client
+                    return (
+                      <>
+                        {/* @ts-expect-error allow to use async server component */}
+                        <MetadataTree
+                          key={requestId}
+                          tree={emptyLoaderTree}
+                          pathname={pathname}
+                          searchParams={providedSearchParams}
+                          getDynamicParamFromSegment={
+                            getDynamicParamFromSegment
+                          }
+                        />
+                        <GlobalError
+                          error={{ message: err?.message, digest: err?.digest }}
+                        />
+                      </>
+                    )
+                  },
+                  ComponentMod,
+                  serverErrorComponentsRenderOpts,
+                  serverComponentsErrorHandler,
+                  nonce
+                )
+              )
+
           const renderStream = await renderToInitialStream({
             ReactDOMServer: require('react-dom/server.edge'),
-            element: (
-              <html id="__next_error__">
-                <head>
-                  {/* @ts-expect-error allow to use async server component */}
-                  <MetadataTree
-                    key={requestId}
-                    tree={emptyLoaderTree}
-                    pathname={pathname}
-                    searchParams={providedSearchParams}
-                    getDynamicParamFromSegment={getDynamicParamFromSegment}
-                  />
-                  {appUsingSizeAdjust ? <meta name="next-size-adjust" /> : null}
-                </head>
-                <body></body>
-              </html>
-            ),
+            element: serverErrorElement,
             streamOptions: {
               nonce,
               // Include hydration scripts in the HTML
@@ -1588,7 +1635,10 @@ export async function renderToHTMLOrFlight(
           })
 
           return await continueFromInitialStream(renderStream, {
-            dataStream: serverComponentsInlinedTransformStream?.readable,
+            dataStream: (useDefaultError
+              ? serverComponentsInlinedTransformStream
+              : serverErrorComponentsInlinedTransformStream
+            ).readable,
             generateStaticHTML: staticGenerationStore.isStaticGeneration,
             getServerInsertedHTML,
             serverInsertedHTMLToHead: true,

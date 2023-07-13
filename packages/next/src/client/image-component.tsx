@@ -46,15 +46,14 @@ type ImgElementWithDataProp = HTMLImageElement & {
   'data-loaded-src': string | undefined
 }
 
-type ImageElementProps = Omit<ImageProps, 'src' | 'alt' | 'loader'> &
-  ImgProps & {
-    unoptimized: boolean
-    placeholder: PlaceholderValue
-    onLoadRef: React.MutableRefObject<OnLoad | undefined>
-    onLoadingCompleteRef: React.MutableRefObject<OnLoadingComplete | undefined>
-    setBlurComplete: (b: boolean) => void
-    setShowAltText: (b: boolean) => void
-  }
+type ImageElementProps = ImgProps & {
+  unoptimized: boolean
+  placeholder: PlaceholderValue
+  onLoadRef: React.MutableRefObject<OnLoad | undefined>
+  onLoadingCompleteRef: React.MutableRefObject<OnLoadingComplete | undefined>
+  setBlurComplete: (b: boolean) => void
+  setShowAltText: (b: boolean) => void
+}
 
 // See https://stackoverflow.com/q/39777833/266535 for why we use this ref
 // handler instead of the img's onLoad attribute.

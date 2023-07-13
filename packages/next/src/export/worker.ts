@@ -30,7 +30,7 @@ import { requireFontManifest } from '../server/require'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { trace } from '../trace'
 import { isInAmpMode } from '../shared/lib/amp-mode'
-import { setHttpClientAndAgentOptions } from '../server/config'
+import { setHttpClientAndAgentOptions } from '../server/setup-http-agent-env'
 import RenderResult from '../server/render-result'
 import isError from '../lib/is-error'
 import { addRequestMeta } from '../server/request-meta'
@@ -79,7 +79,6 @@ interface ExportPageInput {
   disableOptimizedLoading: any
   parentSpanId: any
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
-  serverComponents?: boolean
   debugOutput?: boolean
   isrMemoryCacheSize?: NextConfigComplete['experimental']['isrMemoryCacheSize']
   fetchCache?: boolean
@@ -137,7 +136,6 @@ export default async function exportPage({
   optimizeCss,
   disableOptimizedLoading,
   httpAgentOptions,
-  serverComponents,
   debugOutput,
   isrMemoryCacheSize,
   fetchCache,
@@ -313,7 +311,6 @@ export default async function exportPage({
         components = await loadComponents({
           distDir,
           pathname: page,
-          hasServerComponents: !!serverComponents,
           isAppPath: isAppDir,
         })
         curRenderOpts = {
