@@ -7,7 +7,7 @@ import * as Log from '../output/log'
 import { getParserOptions } from './options'
 import { eventSwcLoadFailure } from '../../telemetry/events/swc-load-failure'
 import { patchIncorrectLockfile } from '../../lib/patch-incorrect-lockfile'
-import { downloadWasmSwc } from '../../lib/download-wasm-swc'
+import { downloadWasmSwc, downloadNativeNextSwc } from '../../lib/download-swc'
 import { spawn } from 'child_process'
 
 const nextVersion = process.env.__NEXT_VERSION as string
@@ -86,6 +86,8 @@ let pendingBindings: any
 let swcTraceFlushGuard: any
 let swcHeapProfilerFlushGuard: any
 let swcCrashReporterFlushGuard: any
+let downloadNativeBindingsPromise: Promise<void> | undefined = undefined
+
 export const lockfilePatchPromise: { cur?: Promise<void> } = {}
 
 export async function loadBindings(): Promise<any> {
@@ -122,9 +124,31 @@ export async function loadBindings(): Promise<any> {
       }
     }
 
+    // Trickle down loading `fallback` bindings:
+    //
+    // - First, try to load native bindings installed in node_modules.
+    // - If that fails with `ERR_MODULE_NOT_FOUND`, treat it as case of https://github.com/npm/cli/issues/4828
+    // that host system where generated package lock is not matching to the guest system running on, try to manually
+    // download corresponding target triple and load it. This won't be triggered if native bindings are failed to load
+    // with other reasons than `ERR_MODULE_NOT_FOUND`.
+    // - Lastly, falls back to wasm binding where possible.
     try {
       return resolve(loadNative(isCustomTurbopack))
     } catch (a) {
+      if (
+        Array.isArray(a) &&
+        a.every((m) => m.includes('it was not installed'))
+      ) {
+        let fallbackBindings = await tryLoadNativeWithFallback(
+          attempts,
+          isCustomTurbopack
+        )
+
+        if (fallbackBindings) {
+          return resolve(fallbackBindings)
+        }
+      }
+
       attempts = attempts.concat(a)
     }
 
@@ -142,6 +166,33 @@ export async function loadBindings(): Promise<any> {
     logLoadFailure(attempts, true)
   })
   return pendingBindings
+}
+
+async function tryLoadNativeWithFallback(
+  attempts: Array<string>,
+  isCustomTurbopack: boolean
+) {
+  const nativeBindingsDirectory = path.join(
+    path.dirname(require.resolve('next/package.json')),
+    'next-swc-fallback'
+  )
+
+  if (!downloadNativeBindingsPromise) {
+    downloadNativeBindingsPromise = downloadNativeNextSwc(
+      nextVersion,
+      nativeBindingsDirectory,
+      triples.map((triple: any) => triple.platformArchABI)
+    )
+  }
+  await downloadNativeBindingsPromise
+
+  try {
+    let bindings = loadNative(isCustomTurbopack, nativeBindingsDirectory)
+    return bindings
+  } catch (a: any) {
+    attempts.concat(a)
+  }
+  return undefined
 }
 
 async function tryLoadWasmWithFallback(
@@ -373,7 +424,7 @@ async function loadWasm(importPath = '', isCustomTurbopack: boolean) {
   throw attempts
 }
 
-function loadNative(isCustomTurbopack = false) {
+function loadNative(isCustomTurbopack = false, importPath?: string) {
   if (nativeBindings) {
     return nativeBindings
   }
@@ -391,10 +442,18 @@ function loadNative(isCustomTurbopack = false) {
 
   if (!bindings) {
     for (const triple of triples) {
-      let pkg = `@next/swc-${triple.platformArchABI}`
+      let pkg = importPath
+        ? path.join(
+            importPath,
+            `@next/swc-${triple.platformArchABI}`,
+            `next-swc.${triple.platformArchABI}.node`
+          )
+        : `@next/swc-${triple.platformArchABI}`
       try {
         bindings = require(pkg)
-        checkVersionMismatch(require(`${pkg}/package.json`))
+        if (!importPath) {
+          checkVersionMismatch(require(`${pkg}/package.json`))
+        }
         break
       } catch (e: any) {
         if (e?.code === 'MODULE_NOT_FOUND') {
