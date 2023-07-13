@@ -9,10 +9,8 @@ async function testDev(browser, errorRegex) {
 createNextDescribe(
   'app dir - global error - layout error',
   {
-    files: {
-      'app/layout.js': `throw new Error('Global error: layout error')`,
-      'app/page.js': `export default function page() { return <div id="page">Page</div> }`,
-    },
+    files: __dirname,
+    skipDeployment: true,
   },
   ({ next, isNextDev }) => {
     it('should render global error for error in server components', async () => {
