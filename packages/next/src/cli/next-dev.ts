@@ -231,13 +231,12 @@ const nextDev: CliCommand = async (argv) => {
   const experimentalTurbo = !!process.env.EXPERIMENTAL_TURBOPACK
 
   if (experimentalTurbo) {
-    const { loadBindings, __isCustomTurbopackBinary, teardownHeapProfiler } =
+    const { loadBindings } =
       require('../build/swc') as typeof import('../build/swc')
 
     resetEnv()
     let bindings = await loadBindings()
 
-    // TODO(alexkirsz) Do we still need the `rawConfig` above?
     const config = await loadConfig(
       PHASE_DEVELOPMENT_SERVER,
       dir,
@@ -266,6 +265,9 @@ const nextDev: CliCommand = async (argv) => {
               console.log(written)
               break
             }
+            default:
+              console.log(`skipping ${pathname} (${route.type})`)
+              break
           }
         }
       }
