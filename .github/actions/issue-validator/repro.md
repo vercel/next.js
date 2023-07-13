@@ -8,7 +8,7 @@ To make sure the issue is resolved as quickly as possible, please make sure that
 
 Please test your reproduction against the latest version of Next.js (`next@canary`) to make sure your issue has not already been fixed.
 
-If you cannot create a clean reproduction, another way you can help the maintainer's job is to pinpoint the `canary` version of `next` that introduced the issue. Check out our [releases](https://github.com/vercel/next.js/releases), and try to find the first `canary` release that introduced the issue. This will help us narrow down the scope of the issue, and possibly point to the PR/code change that introduced it. You can install a specific version of `next` by running `npm install next@<version>`.
+If you cannot create a clean reproduction, another way you can help the maintainers' job is to pinpoint the `canary` version of `next` that introduced the issue. Check out our [releases](https://github.com/vercel/next.js/releases), and try to find the first `canary` release that introduced the issue. This will help us narrow down the scope of the issue, and possibly point to the PR/code change that introduced it. You can install a specific version of `next` by running `npm install next@<version>`.
 
 ### **I added a link, why was it still marked?**
 
