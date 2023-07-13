@@ -73,20 +73,20 @@ export function getServerActionDispatcher() {
 }
 
 export function urlToUrlWithoutFlightMarker(url: string): URL {
-  const urlWithoutFlightParams = new URL(url, location.origin)
-  urlWithoutFlightParams.searchParams.delete(NEXT_RSC_UNION_QUERY)
+  const urlWithoutFlightParameters = new URL(url, location.origin)
+  urlWithoutFlightParameters.searchParams.delete(NEXT_RSC_UNION_QUERY)
   if (process.env.NODE_ENV === 'production') {
     if (
       process.env.__NEXT_CONFIG_OUTPUT === 'export' &&
-      urlWithoutFlightParams.pathname.endsWith('.txt')
+      urlWithoutFlightParameters.pathname.endsWith('.txt')
     ) {
       // Slice off `/index.txt` or `.txt` from the end of the pathname
-      const { pathname } = urlWithoutFlightParams
+      const { pathname } = urlWithoutFlightParameters
       const length = pathname.endsWith('/index.txt') ? 10 : 4
-      urlWithoutFlightParams.pathname = pathname.slice(0, -length)
+      urlWithoutFlightParameters.pathname = pathname.slice(0, -length)
     }
   }
-  return urlWithoutFlightParams
+  return urlWithoutFlightParameters
 }
 
 const HotReloader:
