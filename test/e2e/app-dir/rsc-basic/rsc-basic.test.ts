@@ -158,6 +158,11 @@ createNextDescribe(
       expect(html).toContain('foo.client')
     })
 
+    it('should create client reference successfully for all file conventions', async () => {
+      const html = await next.render('/conventions')
+      expect(html).toContain('it works')
+    })
+
     it('should be able to navigate between rsc routes', async () => {
       const browser = await next.browser('/root')
 
