@@ -26,7 +26,7 @@ use turbopack_binding::{
 
 use crate::{
     embed_js::next_js_file,
-    next_config::{NextConfigVc, RewritesReadRef},
+    next_config::{RewritesReadRef, RewritesVc},
     util::get_asset_path_from_pathname,
 };
 
@@ -35,7 +35,7 @@ use crate::{
 #[turbo_tasks::value(shared)]
 pub struct DevManifestContentSource {
     pub page_roots: Vec<ContentSourceVc>,
-    pub next_config: NextConfigVc,
+    pub rewrites: RewritesVc,
 }
 
 #[turbo_tasks::value_impl]
@@ -124,7 +124,7 @@ impl DevManifestContentSourceVc {
             .collect();
 
         let manifest = BuildManifest {
-            rewrites: this.next_config.rewrites().await?,
+            rewrites: this.rewrites.await?,
             sorted_pages,
             routes,
         };

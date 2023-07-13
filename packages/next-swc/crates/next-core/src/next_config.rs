@@ -45,6 +45,34 @@ use turbopack_binding::{
 
 use crate::{embed_js::next_asset, next_shared::transforms::ModularizeImportPackageConfig};
 
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct NextConfigAndCustomRoutesRaw {
+    config: NextConfig,
+    custom_routes: CustomRoutesRaw,
+}
+
+#[turbo_tasks::value]
+struct NextConfigAndCustomRoutes {
+    config: NextConfigVc,
+    custom_routes: CustomRoutesVc,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CustomRoutesRaw {
+    rewrites: Rewrites,
+
+    // unsupported
+    headers: Vec<Header>,
+    redirects: Vec<Redirect>,
+}
+
+#[turbo_tasks::value]
+struct CustomRoutes {
+    rewrites: RewritesVc,
+}
+
 #[turbo_tasks::value(serialization = "custom", eq = "manual")]
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -57,7 +85,6 @@ pub struct NextConfig {
     pub images: ImageConfig,
     pub page_extensions: Vec<String>,
     pub react_strict_mode: Option<bool>,
-    pub rewrites: Rewrites,
     pub transpile_packages: Option<Vec<String>>,
     pub modularize_imports: Option<IndexMap<String, ModularizeImportPackageConfig>>,
     sass_options: Option<serde_json::Value>,
@@ -84,7 +111,6 @@ pub struct NextConfig {
     // this is a function in js land
     generate_build_id: Option<serde_json::Value>,
     generate_etags: bool,
-    headers: Vec<Header>,
     http_agent_options: HttpAgentConfig,
     i18n: Option<I18NConfig>,
     on_demand_entries: OnDemandEntriesConfig,
@@ -93,7 +119,6 @@ pub struct NextConfig {
     powered_by_header: bool,
     production_browser_source_maps: bool,
     public_runtime_config: IndexMap<String, serde_json::Value>,
-    redirects: Vec<Redirect>,
     server_runtime_config: IndexMap<String, serde_json::Value>,
     static_page_generation_timeout: f64,
     swc_minify: bool,
@@ -487,6 +512,13 @@ pub enum RemoveConsoleConfig {
 #[turbo_tasks::value_impl]
 impl NextConfigVc {
     #[turbo_tasks::function]
+    pub fn from_string(s: String) -> Result<Self> {
+        let config: NextConfig = serde_json::from_str(&s)
+            .with_context(|| format!("failed to parse next.config.js: {}", s))?;
+        Ok(config.cell())
+    }
+
+    #[turbo_tasks::function]
     pub async fn server_component_externals(self) -> Result<StringsVc> {
         Ok(StringsVc::cell(
             self.await?
@@ -543,11 +575,6 @@ impl NextConfigVc {
     #[turbo_tasks::function]
     pub async fn page_extensions(self) -> Result<StringsVc> {
         Ok(StringsVc::cell(self.await?.page_extensions.clone()))
-    }
-
-    #[turbo_tasks::function]
-    pub async fn rewrites(self) -> Result<RewritesVc> {
-        Ok(self.await?.rewrites.clone().cell())
     }
 
     #[turbo_tasks::function]
@@ -646,22 +673,41 @@ fn next_configs() -> StringsVc {
 
 #[turbo_tasks::function]
 pub async fn load_next_config(execution_context: ExecutionContextVc) -> Result<NextConfigVc> {
+    Ok(load_config_and_custom_routes(execution_context)
+        .await?
+        .config)
+}
+
+#[turbo_tasks::function]
+pub async fn load_rewrites(execution_context: ExecutionContextVc) -> Result<RewritesVc> {
+    Ok(load_config_and_custom_routes(execution_context)
+        .await?
+        .custom_routes
+        .await?
+        .rewrites)
+}
+
+#[turbo_tasks::function]
+async fn load_config_and_custom_routes(
+    execution_context: ExecutionContextVc,
+) -> Result<NextConfigAndCustomRoutesVc> {
     let ExecutionContext { project_path, .. } = *execution_context.await?;
     let find_config_result = find_context_file(project_path, next_configs());
     let config_file = match &*find_config_result.await? {
         FindContextFileResult::Found(config_path, _) => Some(*config_path),
         FindContextFileResult::NotFound(_) => None,
     };
-    load_next_config_internal(execution_context, config_file)
+
+    load_next_config_and_custom_routes_internal(execution_context, config_file)
         .issue_context(config_file, "Loading Next.js config")
         .await
 }
 
 #[turbo_tasks::function]
-pub async fn load_next_config_internal(
+async fn load_next_config_and_custom_routes_internal(
     execution_context: ExecutionContextVc,
     config_file: Option<FileSystemPathVc>,
-) -> Result<NextConfigVc> {
+) -> Result<NextConfigAndCustomRoutesVc> {
     let ExecutionContext {
         project_path,
         chunking_context,
@@ -709,11 +755,24 @@ pub async fn load_next_config_internal(
         .await
         .context("Evaluation of Next.js config failed")?
     else {
-        return Ok(NextConfig::default().cell());
+        return Ok(NextConfigAndCustomRoutes {
+            config: NextConfig::default().cell(),
+            custom_routes: CustomRoutes {
+                rewrites: Rewrites::default().cell(),
+            }
+            .cell(),
+        }
+        .cell());
     };
-    let next_config: NextConfig = parse_json_with_source_context(val.to_str()?)?;
+    let next_config_and_custom_routes: NextConfigAndCustomRoutesRaw =
+        parse_json_with_source_context(val.to_str()?)?;
 
-    if let Some(turbo) = next_config.experimental.turbo.as_ref() {
+    if let Some(turbo) = next_config_and_custom_routes
+        .config
+        .experimental
+        .turbo
+        .as_ref()
+    {
         if turbo.loaders.is_some() {
             OutdatedConfigIssue {
                 path: config_file.unwrap_or(project_path),
@@ -730,7 +789,14 @@ Example: loaders: { \".mdx\": [\"mdx-loader\"] } -> rules: { \"*.mdx\": [\"mdx-l
         }
     }
 
-    Ok(next_config.cell())
+    Ok(NextConfigAndCustomRoutes {
+        config: next_config_and_custom_routes.config.cell(),
+        custom_routes: CustomRoutes {
+            rewrites: next_config_and_custom_routes.custom_routes.rewrites.cell(),
+        }
+        .cell(),
+    }
+    .cell())
 }
 
 #[turbo_tasks::function]

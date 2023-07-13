@@ -49,6 +49,7 @@ use turbopack_binding::swc::core::{
 pub mod app_structure;
 pub mod mdx;
 pub mod minify;
+pub mod next_api;
 pub mod parse;
 pub mod transform;
 pub mod turbopack;
@@ -116,6 +117,7 @@ static REGISTER_ONCE: Once = Once::new();
 
 fn register() {
     REGISTER_ONCE.call_once(|| {
+        ::next_api::register();
         next_core::register();
         include!(concat!(env!("OUT_DIR"), "/register.rs"));
     });
