@@ -72,7 +72,10 @@ import {
   createFlightRouterStateFromLoaderTree,
 } from './create-flight-router-state-from-loader-tree'
 import { handleAction } from './action-handler'
-import { NEXT_DYNAMIC_NO_SSR_CODE } from '../../shared/lib/lazy-dynamic/no-ssr-error'
+import {
+  NEXT_DYNAMIC_NO_SSR_CODE,
+  isNextDynamicNoSSRError,
+} from '../../shared/lib/lazy-dynamic/no-ssr-error'
 import { warn } from '../../build/output/log'
 import { appendMutableCookies } from '../web/spec-extension/adapters/request-cookies'
 import { ComponentsType } from '../../build/webpack/loaders/next-app-loader'
@@ -1630,7 +1633,10 @@ export async function renderToHTMLOrFlight(
           const use404Error = res.statusCode === 404
           // When it's in error state but status code is not 200, we should render global-error
           const useGlobalError =
-            res.statusCode === 200 && process.env.NODE_ENV === 'production'
+            res.statusCode === 200 &&
+            // skip the built-in error
+            !isNextDynamicNoSSRError(err) &&
+            process.env.NODE_ENV === 'production'
           const useDefaultError =
             (res.statusCode < 400 || res.statusCode === 307) && !useGlobalError
 
