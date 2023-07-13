@@ -188,7 +188,7 @@ const POSSIBLE_ERROR_CODE_FROM_SERVE_STATIC = new Set([
 ])
 
 type RenderWorker = Worker & {
-  initialization: Promise<{
+  initialization?: Promise<{
     port: number
     hostname: string
   }>
@@ -297,9 +297,6 @@ export default class NextNodeServer extends BaseServer {
               this.nextConfig
             )
             this.renderWorkers.app = appWorker
-            this.renderWorkers.app.initialization = appWorker.initialize(
-              this.renderWorkerOpts!
-            )
           }
           const pagesWorker: RenderWorker = createWorker(
             ipcPort,
@@ -309,9 +306,6 @@ export default class NextNodeServer extends BaseServer {
             this.nextConfig
           )
           this.renderWorkers.pages = pagesWorker
-          this.renderWorkers.pages.initialization = pagesWorker.initialize(
-            this.renderWorkerOpts!
-          )
 
           this.renderWorkers.middleware =
             this.renderWorkers.pages || this.renderWorkers.app
@@ -1440,7 +1434,8 @@ export default class NextNodeServer extends BaseServer {
 
           if (renderWorker) {
             const initUrl = getRequestMeta(req, '__NEXT_INIT_URL')!
-            const { port, hostname } = await renderWorker.initialization
+            const { port, hostname } = await (renderWorker.initialization ||=
+              renderWorker.initialize(this.renderWorkerOpts!))
             const renderUrl = new URL(initUrl)
             renderUrl.hostname = hostname
             renderUrl.port = port + ''
@@ -2454,8 +2449,11 @@ export default class NextNodeServer extends BaseServer {
                   this.renderWorkersPromises = undefined
                 }
 
-                const { port, hostname } = await this.renderWorkers.middleware
-                  .initialization
+                const { port, hostname } =
+                  await (this.renderWorkers.middleware.initialization ||=
+                    this.renderWorkers.middleware.initialize(
+                      this.renderWorkerOpts!
+                    ))
                 const renderUrl = new URL(initUrl)
                 renderUrl.hostname = hostname
                 renderUrl.port = port + ''
