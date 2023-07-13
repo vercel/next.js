@@ -96,6 +96,7 @@ export type GetDynamicParamFromSegment = (
 function findMatchedComponent(
   loaderTree: LoaderTree,
   componentType: Exclude<keyof ComponentsType, 'metadata'>,
+  depth: number,
   result?: ModuleReference
 ): ModuleReference | undefined {
   const [, parallelRoutes, components] = loaderTree
@@ -103,7 +104,7 @@ function findMatchedComponent(
   result = components[componentType] || result
 
   // reached the end of the tree
-  if (childKeys.length === 0) {
+  if (depth <= 0 || childKeys.length === 0) {
     return result
   }
 
@@ -112,6 +113,7 @@ function findMatchedComponent(
     const matchedComponent = findMatchedComponent(
       childTree,
       componentType,
+      depth - 1,
       result
     )
     if (matchedComponent) {
@@ -1302,9 +1304,18 @@ export async function renderToHTMLOrFlight(
         }
       : {}
 
-    async function getNotFound(tree: LoaderTree, injectedCSS: Set<string>) {
+    async function getNotFound(
+      tree: LoaderTree,
+      injectedCSS: Set<string>,
+      pathname: string
+    ) {
       const { layout } = tree[2]
-      const notFound = findMatchedComponent(tree, 'not-found')
+      // `depth` represents how many layers we need to search into the tree.
+      // For instance:
+      // pathname '/abc' will be 0 depth, means stop at the root level
+      // pathname '/abc/def' will be 1 depth, means stop at the first level
+      const depth = pathname.split('/').length - 2
+      const notFound = findMatchedComponent(tree, 'not-found', depth)
       const rootLayoutAtThisLevel = typeof layout !== 'undefined'
       const [NotFound, notFoundStyles] = notFound
         ? await createComponentAndStyles({
@@ -1361,7 +1372,8 @@ export async function renderToHTMLOrFlight(
 
         const [NotFound, notFoundStyles] = await getNotFound(
           loaderTree,
-          injectedCSS
+          injectedCSS,
+          pathname
         )
 
         return (
@@ -1615,14 +1627,16 @@ export async function renderToHTMLOrFlight(
             </html>
           )
 
-          const useDefaultError = res.statusCode < 400 || res.statusCode === 307
           const use404Error = res.statusCode === 404
+          const useDefaultError =
+            res.statusCode < 400 || res.statusCode === 307 || use404Error
 
           const { layout } = loaderTree[2]
           const injectedCSS = new Set<string>()
           const [NotFound, notFoundStyles] = await getNotFound(
             loaderTree,
-            injectedCSS
+            injectedCSS,
+            pathname
           )
 
           const rootLayoutModule = layout?.[0]
@@ -1650,8 +1664,8 @@ export async function renderToHTMLOrFlight(
                         />
                         {use404Error ? (
                           <>
+                            {notFoundStyles}
                             <RootLayout params={{}}>
-                              {notFoundStyles}
                               <NotFound />
                             </RootLayout>
                           </>
