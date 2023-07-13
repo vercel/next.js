@@ -174,6 +174,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     res: BaseNextResponse,
     parsedUrl: NextUrlWithParsedQuery
   ): Promise<{ finished: boolean }> {
+    const middleware = this.getMiddleware()
     const params = getPathMatch('/_next/data/:path*')(parsedUrl.pathname)
 
     // Make sure to 404 for /_next/data/ itself and
@@ -202,7 +203,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     pathname = getRouteFromAssetPath(pathname, '.json')
 
     // ensure trailing slash is normalized per config
-    if (this.getMiddleware()) {
+    if (middleware) {
       if (this.nextConfig.trailingSlash && !pathname.endsWith('/')) {
         pathname += '/'
       }
@@ -236,7 +237,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
       parsedUrl.query.__nextDefaultLocale =
         domainLocale?.defaultLocale || this.nextConfig.i18n.defaultLocale
 
-      if (!detectedLocale && !this.getMiddleware()) {
+      if (!detectedLocale && !middleware) {
         parsedUrl.query.__nextLocale = parsedUrl.query.__nextDefaultLocale
         await this.render404(req, res, parsedUrl)
         return { finished: true }

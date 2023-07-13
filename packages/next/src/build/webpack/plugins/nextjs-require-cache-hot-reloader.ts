@@ -107,14 +107,12 @@ export class NextJsRequireCacheHotReloader implements WebpackPluginInstance {
             )
             await deleteCache(runtimeChunkPath)
           }
-          let hasAppPath = false
 
           // we need to make sure to clear all server entries from cache
           // since they can have a stale webpack-runtime cache
           // which needs to always be in-sync
           const entries = [...compilation.entries.keys()].filter((entry) => {
             const isAppPath = entry.toString().startsWith('app/')
-            hasAppPath = hasAppPath || isAppPath
             return entry.toString().startsWith('pages/') || isAppPath
           })
 
