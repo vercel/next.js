@@ -6,6 +6,7 @@ use turbo_tasks::{
 
 use crate::{
     asset::{Asset, AssetVc},
+    output::OutputAssetsVc,
     reference::all_referenced_assets,
 };
 
@@ -31,6 +32,20 @@ pub async fn any_content_changed(root: AssetVc) -> Result<CompletionVc> {
         .collect();
 
     Ok(CompletionsVc::cell(completions).completed())
+}
+
+/// Returns a completion that changes when any content of any asset in the given
+/// output asset graphs changes.
+#[turbo_tasks::function]
+pub async fn any_content_changed_of_output_assets(roots: OutputAssetsVc) -> Result<CompletionVc> {
+    Ok(CompletionsVc::cell(
+        roots
+            .await?
+            .iter()
+            .map(|&a| any_content_changed(a.into()))
+            .collect(),
+    )
+    .completed())
 }
 
 /// Returns a completion that changes when the content of the given asset
