@@ -27,11 +27,12 @@ use turbopack_binding::{
     turbopack::{
         build::BuildChunkingContextVc,
         core::{
-            asset::{Asset, AssetVc},
+            asset::Asset,
             chunk::{ChunkableModule, ChunkingContext, EvaluatableAssetsVc},
             compile_time_info::CompileTimeInfoVc,
             context::{AssetContext, AssetContextVc},
             file_source::FileSourceVc,
+            output::OutputAssetVc,
             reference_type::{EntryReferenceSubType, ReferenceType},
             source::SourceVc,
         },
@@ -349,7 +350,7 @@ pub async fn compute_page_entries_chunks(
     client_relative_path: &FileSystemPath,
     pages_manifest: &mut PagesManifest,
     build_manifest: &mut BuildManifest,
-    all_chunks: &mut Vec<AssetVc>,
+    all_chunks: &mut Vec<OutputAssetVc>,
 ) -> Result<()> {
     for page_entry in page_entries.entries.iter() {
         let page_entry = page_entry.await?;

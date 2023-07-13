@@ -9,7 +9,7 @@ use turbopack_binding::{
     },
     turbopack::{
         core::{
-            asset::{Asset, AssetContentVc, AssetVc, AssetsVc},
+            asset::{Asset, AssetContentVc, AssetVc},
             chunk::{
                 availability_info::AvailabilityInfo, ChunkDataVc, ChunkGroupReferenceVc, ChunkItem,
                 ChunkItemVc, ChunkVc, ChunkableModule, ChunkableModuleVc, ChunkingContext,
@@ -17,6 +17,7 @@ use turbopack_binding::{
             },
             ident::AssetIdentVc,
             module::{Module, ModuleVc},
+            output::OutputAssetsVc,
             reference::AssetReferencesVc,
         },
         ecmascript::{
@@ -68,7 +69,7 @@ impl WithChunksAssetVc {
     }
 
     #[turbo_tasks::function]
-    async fn chunks(self) -> Result<AssetsVc> {
+    async fn chunks(self) -> Result<OutputAssetsVc> {
         let this = self.await?;
         Ok(this.chunking_context.chunk_group(self.entry_chunk()))
     }
