@@ -143,7 +143,7 @@ jobs:
               rustup target add aarch64-unknown-linux-gnu &&
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi &&
               export CC_aarch64_unknown_linux_gnu=/usr/aarch64-unknown-linux-gnu/bin/aarch64-unknown-linux-gnu-gcc &&
-              turbo run build-native-release --remote-cache-timeout 90 --summarize -- --target aarch64-unknown-linux-gnu &&
+              turbo run build-native-release --remote-cache-timeout 90 --summarize -- --target aarch64-unknown-linux-gnu --features plugin,rustls-tls,tracing/release_max_level_info &&
               llvm-strip -x packages/next-swc/native/next-swc.*.node
           - host: ubuntu-latest
             target: 'aarch64-unknown-linux-musl'

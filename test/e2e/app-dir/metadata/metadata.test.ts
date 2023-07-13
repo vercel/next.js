@@ -646,6 +646,7 @@ createNextDescribe(
 
         const iconSvg = $('link[rel="icon"][type="image/svg+xml"]')
         expect(iconSvg.attr('href')).toBe('/icon.svg?90699bff34adba1f')
+        expect(iconSvg.attr('sizes')).toBe('any')
 
         $ = await next.render$('/basic')
         const icon = $('link[rel="icon"]')
