@@ -2008,12 +2008,12 @@ export default async function build(
 
             const minimalServerEntries = [
               ...sharedEntriesSet,
-              require.resolve(
-                'next/dist/compiled/minimal-next-server/next-server-cached.js'
-              ),
-              require.resolve(
-                'next/dist/compiled/minimal-next-server/next-server.js'
-              ),
+              // require.resolve(
+              //   'next/dist/compiled/minimal-next-server/next-server-cached.js'
+              // ),
+              // require.resolve(
+              //   'next/dist/compiled/minimal-next-server/next-server.js'
+              // ),
             ].filter(Boolean)
 
             const additionalIgnores = new Set<string>()

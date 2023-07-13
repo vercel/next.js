@@ -48,6 +48,7 @@ function runQueue() {
 }
 
 export function traceModule(modulePath: string, distDir: string) {
+  return Promise.resolve()
   return new Promise((resolve) => {
     queue.push({ modulePath, distDir, resolve })
     runQueue()

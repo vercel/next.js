@@ -295,6 +295,7 @@
     "tar": "6.1.15",
     "taskr": "1.1.0",
     "terser": "5.14.1",
+    "terser-webpack-plugin": "5.3.9",
     "text-table": "0.2.0",
     "timers-browserify": "2.0.12",
     "tty-browserify": "0.0.1",

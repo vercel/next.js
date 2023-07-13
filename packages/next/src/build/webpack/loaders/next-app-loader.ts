@@ -680,7 +680,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
   // Prefer to modify next/src/server/app-render/entry-base.ts since this is shared with Turbopack.
   // Any changes to this code should be reflected in Turbopack's app_source.rs and/or app-renderer.tsx as well.
   const result = `
-    import RouteModule from 'next/dist/server/future/route-modules/app-page/module'
+    import RouteModule from 'next/dist/compiled/minimal-next-server/app-page-render.runtime.js'
 
     export ${treeCodeResult.treeCode}
     export ${treeCodeResult.pages}
