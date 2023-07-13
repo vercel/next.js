@@ -1,4 +1,7 @@
+use std::io::Write;
+
 use anyhow::{bail, Result};
+use indexmap::indexmap;
 use next_core::{
     create_page_loader_entry_module, get_asset_path_from_pathname,
     mode::NextMode,
@@ -14,7 +17,7 @@ use next_core::{
     },
     pages_structure::{
         find_pages_structure, PagesDirectoryStructure, PagesDirectoryStructureVc, PagesStructure,
-        PagesStructureItem, PagesStructureVc,
+        PagesStructureItem, PagesStructureItemVc, PagesStructureVc,
     },
     pathname_for_path, PathType,
 };
@@ -22,7 +25,7 @@ use turbopack_binding::{
     turbo::{
         tasks::{primitives::StringVc, Value},
         tasks_env::ProcessEnvVc,
-        tasks_fs::{FileSystemPath, FileSystemPathVc},
+        tasks_fs::{rope::RopeBuilder, File, FileSystemPath, FileSystemPathVc},
     },
     turbopack::{
         build::BuildChunkingContextVc,
@@ -32,8 +35,9 @@ use turbopack_binding::{
             compile_time_info::CompileTimeInfoVc,
             context::{AssetContext, AssetContextVc},
             file_source::FileSourceVc,
-            reference_type::{EntryReferenceSubType, ReferenceType},
+            reference_type::{EntryReferenceSubType, InnerAssetsVc, ReferenceType},
             source::SourceVc,
+            virtual_source::VirtualSourceVc,
         },
         ecmascript::{
             chunk::{EcmascriptChunkPlaceableVc, EcmascriptChunkingContextVc},
@@ -190,34 +194,31 @@ async fn get_page_entries_for_root_directory(
 
     // This only makes sense on both the client and the server, but they should map
     // to different assets (server can be an external module).
-    let app = app.await?;
     entries.push(get_page_entry_for_file(
         ssr_module_context,
         client_module_context,
-        FileSourceVc::new(app.project_path).into(),
         next_router_root,
-        app.next_router_path,
+        app,
+        PathType::Page,
     ));
 
     // This only makes sense on the server.
-    let document = document.await?;
     entries.push(get_page_entry_for_file(
         ssr_module_context,
         client_module_context,
-        FileSourceVc::new(document.project_path).into(),
         next_router_root,
-        document.next_router_path,
+        document,
+        PathType::Page,
     ));
 
     // This only makes sense on both the client and the server, but they should map
     // to different assets (server can be an external module).
-    let error = error.await?;
     entries.push(get_page_entry_for_file(
         ssr_module_context,
         client_module_context,
-        FileSourceVc::new(error.project_path).into(),
         next_router_root,
-        error.next_router_path,
+        error,
+        PathType::Page,
     ));
 
     if let Some(api) = api {
@@ -227,6 +228,7 @@ async fn get_page_entries_for_root_directory(
             api,
             next_router_root,
             &mut entries,
+            PathType::PagesAPI,
         )
         .await?;
     }
@@ -238,6 +240,7 @@ async fn get_page_entries_for_root_directory(
             pages,
             next_router_root,
             &mut entries,
+            PathType::Page,
         )
         .await?;
     }
@@ -252,6 +255,7 @@ async fn get_page_entries_for_directory(
     pages_structure: PagesDirectoryStructureVc,
     next_router_root: FileSystemPathVc,
     entries: &mut Vec<PageEntryVc>,
+    path_type: PathType,
 ) -> Result<()> {
     let PagesDirectoryStructure {
         ref items,
@@ -261,16 +265,16 @@ async fn get_page_entries_for_directory(
 
     for item in items.iter() {
         let PagesStructureItem {
-            project_path,
-            next_router_path,
+            project_path: _,
+            next_router_path: _,
             original_path: _,
         } = *item.await?;
         entries.push(get_page_entry_for_file(
             ssr_module_context,
             client_module_context,
-            FileSourceVc::new(project_path).into(),
             next_router_root,
-            next_router_path,
+            *item,
+            path_type,
         ));
     }
 
@@ -281,6 +285,7 @@ async fn get_page_entries_for_directory(
             *child,
             next_router_root,
             entries,
+            path_type,
         )
         .await?;
     }
@@ -303,15 +308,125 @@ pub struct PageEntry {
 async fn get_page_entry_for_file(
     ssr_module_context: AssetContextVc,
     client_module_context: AssetContextVc,
-    source: SourceVc,
     next_router_root: FileSystemPathVc,
-    next_router_path: FileSystemPathVc,
+    app: PagesStructureItemVc,
+    path_type: PathType,
 ) -> Result<PageEntryVc> {
-    let reference_type = Value::new(ReferenceType::Entry(EntryReferenceSubType::Page));
+    let app = app.await?;
+    let source: SourceVc = FileSourceVc::new(app.project_path).into();
+    let next_router_path = app.next_router_path;
+    let reference_type = match path_type {
+        PathType::Page => Value::new(ReferenceType::Entry(EntryReferenceSubType::Page)),
+        PathType::PagesAPI => Value::new(ReferenceType::Entry(EntryReferenceSubType::PagesApi)),
+        _ => bail!("Invalid path type"),
+    };
 
-    let pathname = pathname_for_path(next_router_root, next_router_path, PathType::Page);
+    let pathname = pathname_for_path(next_router_root, next_router_path, path_type);
+
+    let definition_page = format!("/{}", app.original_path.await?);
+    let definition_pathname = pathname.await?;
 
     let ssr_module = ssr_module_context.process(source, reference_type.clone());
+
+    // Sourced from https://github.com/vercel/next.js/blob/2848ce51d1552633119c89ab49ff7fe2e4e91c91/packages/next/src/build/webpack/loaders/next-route-loader/index.ts
+    let result = match path_type {
+        PathType::Page => {
+            let mut result = RopeBuilder::from(
+                indoc::formatdoc! {"
+                    import RouteModule from 'next/dist/server/future/route-modules/pages-api/module'
+                    import {{ hoist }} from 'next/dist/build/webpack/loaders/next-route-loader/helpers'
+
+                    import Document from '@vercel/turbopack-next/pages/_document'
+                    import App from '@vercel/turbopack-next/pages/_app'
+
+                    import * as userland from 'INNER'
+
+                    export default hoist(userland, 'default')
+
+                    export const getStaticProps = hoist(userland, 'getStaticProps')
+                    export const getStaticPaths = hoist(userland, 'getStaticPaths')
+                    export const getServerSideProps = hoist(userland, 'getServerSideProps')
+                    export const config = hoist(userland, 'config')
+                    export const reportWebVitals = hoist(userland, 'reportWebVitals')
+
+                    export const unstable_getStaticProps = hoist(userland, 'unstable_getStaticProps')
+                    export const unstable_getStaticPaths = hoist(userland, 'unstable_getStaticPaths')
+                    export const unstable_getStaticParams = hoist(userland, 'unstable_getStaticParams')
+                    export const unstable_getServerProps = hoist(userland, 'unstable_getServerProps')
+                    export const unstable_getServerSideProps = hoist(userland, 'unstable_getServerSideProps')
+                    
+                    export const routeModule = new RouteModule({{
+                        definition: {{
+                            kind: 'PAGES',
+                            page: '{definition_page}',
+                            pathname: '{definition_pathname}',
+                            bundlePath: '',
+                            filename: '',
+                        }},
+                        userland,
+                    }})
+                "}
+                .as_bytes()
+                .to_vec(),
+            );
+
+            // When we're building the instrumentation page (only when the
+            // instrumentation file conflicts with a page also labeled
+            // /instrumentation) hoist the `register` method.
+            if definition_page.to_string() == "/instrumentation"
+                || definition_page.to_string() == "/src/instrumentation"
+            {
+                writeln!(
+                    result,
+                    r#"export const register = hoist(userland, "register")\n"#
+                )?;
+            }
+
+            result
+        }
+        PathType::PagesAPI => RopeBuilder::from(
+            indoc::formatdoc! {"
+                import RouteModule from 'next/dist/server/future/route-modules/pages-api/module'
+                import {{ hoist }} from 'next/dist/build/webpack/loaders/next-route-loader/helpers'
+
+                import * as userland from 'INNER'
+
+                export default hoist(userland, 'default')
+                export const config = hoist(userland, 'config')
+                
+                export const routeModule = new RouteModule({{
+                    definition: {{
+                        kind: 'PAGES_API',
+                        page: '{definition_page}',
+                        pathname: '{definition_pathname}',
+                        bundlePath: '',
+                        filename: '',
+                    }},
+                    userland,
+                }})
+        "}
+            .as_bytes()
+            .to_vec(),
+        ),
+        _ => bail!("Invalid path type"),
+    };
+
+    let file = File::from(result.build());
+
+    let asset: VirtualSourceVc = VirtualSourceVc::new(
+        source.ident().path().join(match path_type {
+            PathType::Page => "pages-entry.tsx",
+            PathType::PagesAPI => "pages-api-entry.tsx",
+            _ => bail!("Invalid path type"),
+        }),
+        file.into(),
+    );
+    let ssr_module = ssr_module_context.process(
+        asset.into(),
+        Value::new(ReferenceType::Internal(InnerAssetsVc::cell(indexmap! {
+            "INNER".to_string() => ssr_module.into(),
+        }))),
+    );
 
     let client_module = create_page_loader_entry_module(client_module_context, source, pathname);
 
