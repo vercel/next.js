@@ -1,6 +1,6 @@
 ---
 title: Router Cache
-description: Learn how the Router Cache works in Next.js.
+description: Learn how Next.js optimizes the navigation experience by caching route segments on the client.
 ---
 
 The Next.js App Router uses an in-memory client-side cache that stores the rendered result of Server Components, split by invidiual route segments. This **Router Cache** is used to improve navigation performance by only [partially rendering]() the content that changes (instead of the whole route) and prefetching content that the user is likely going to navigate to. It stores both visited segments and prefetched segments.
