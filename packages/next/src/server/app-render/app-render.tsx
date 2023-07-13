@@ -72,10 +72,7 @@ import {
   createFlightRouterStateFromLoaderTree,
 } from './create-flight-router-state-from-loader-tree'
 import { handleAction } from './action-handler'
-import {
-  NEXT_DYNAMIC_NO_SSR_CODE,
-  isNextDynamicNoSSRError,
-} from '../../shared/lib/lazy-dynamic/no-ssr-error'
+import { NEXT_DYNAMIC_NO_SSR_CODE } from '../../shared/lib/lazy-dynamic/no-ssr-error'
 import { warn } from '../../build/output/log'
 import { appendMutableCookies } from '../web/spec-extension/adapters/request-cookies'
 import { ComponentsType } from '../../build/webpack/loaders/next-app-loader'
@@ -1270,7 +1267,7 @@ export async function renderToHTMLOrFlight(
     let serverErrorComponentsInlinedTransformStream: TransformStream<
       Uint8Array,
       Uint8Array
-    > = new TransformStream()
+    > = serverComponentsInlinedTransformStream // new TransformStream()
 
     // Get the nonce from the incoming request if it has one.
     const csp = req.headers['content-security-policy']
@@ -1631,14 +1628,8 @@ export async function renderToHTMLOrFlight(
           )
 
           const use404Error = res.statusCode === 404
+          const useDefaultError = res.statusCode < 400 || res.statusCode === 307
           // When it's in error state but status code is not 200, we should render global-error
-          const useGlobalError =
-            res.statusCode === 200 &&
-            // skip the built-in error
-            !isNextDynamicNoSSRError(err) &&
-            process.env.NODE_ENV === 'production'
-          const useDefaultError =
-            (res.statusCode < 400 || res.statusCode === 307) && !useGlobalError
 
           const { layout } = loaderTree[2]
           const injectedCSS = new Set<string>()
@@ -1653,48 +1644,45 @@ export async function renderToHTMLOrFlight(
             ? interopDefault(await rootLayoutModule())
             : null
 
-          const serverErrorElement = useDefaultError
-            ? defaultErrorComponent
-            : React.createElement(
-                createServerComponentRenderer(
-                  async () => {
-                    // only pass plain object to client
-                    return (
-                      <>
-                        {/* @ts-expect-error allow to use async server component */}
-                        <MetadataTree
-                          key={requestId}
-                          tree={emptyLoaderTree}
-                          pathname={pathname}
-                          searchParams={providedSearchParams}
-                          getDynamicParamFromSegment={
-                            getDynamicParamFromSegment
-                          }
-                        />
-                        {use404Error ? (
-                          <>
+          const serverErrorElement = useDefaultError ? (
+            defaultErrorComponent
+          ) : (
+            <html id="__next_error__">
+              <head>
+                {/* @ts-expect-error allow to use async server component */}
+                <MetadataTree
+                  key={requestId}
+                  tree={emptyLoaderTree}
+                  pathname={pathname}
+                  searchParams={providedSearchParams}
+                  getDynamicParamFromSegment={getDynamicParamFromSegment}
+                />
+              </head>
+              <body>
+                {React.createElement(
+                  createServerComponentRenderer(
+                    async () => {
+                      // only pass plain object to client
+                      return (
+                        <>
+                          {use404Error ? (
                             <RootLayout params={{}}>
                               {notFoundStyles}
                               <NotFound />
                             </RootLayout>
-                          </>
-                        ) : (
-                          <GlobalError
-                            error={{
-                              message: err?.message,
-                              digest: err?.digest,
-                            }}
-                          />
-                        )}
-                      </>
-                    )
-                  },
-                  ComponentMod,
-                  serverErrorComponentsRenderOpts,
-                  serverComponentsErrorHandler,
-                  nonce
-                )
-              )
+                          ) : undefined}
+                        </>
+                      )
+                    },
+                    ComponentMod,
+                    serverErrorComponentsRenderOpts,
+                    serverComponentsErrorHandler,
+                    nonce
+                  )
+                )}
+              </body>
+            </html>
+          )
 
           const renderStream = await renderToInitialStream({
             ReactDOMServer: require('react-dom/server.edge'),
