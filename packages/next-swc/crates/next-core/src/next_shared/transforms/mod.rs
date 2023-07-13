@@ -6,6 +6,7 @@ pub(crate) mod next_strip_page_exports;
 pub(crate) mod relay;
 pub(crate) mod styled_components;
 pub(crate) mod styled_jsx;
+pub(crate) mod swc_ecma_transform_plugins;
 
 pub use modularize_imports::{get_next_modularize_imports_rule, ModularizeImportPackageConfig};
 pub use next_dynamic::get_next_dynamic_transform_rule;

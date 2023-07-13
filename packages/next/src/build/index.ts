@@ -562,10 +562,13 @@ export default async function build(
               return isMatch(page, filterPage)
             })
           })
-        }
 
-        // TODO(alexkirsz) Filter out app pages entirely as they are not supported yet.
-        pageKeys.app = undefined
+          pageKeys.app = pageKeys.app?.filter((page) => {
+            return filterPages.some((filterPage) => {
+              return isMatch(page, filterPage)
+            })
+          })
+        }
       }
 
       const numConflictingAppPaths = conflictingAppPagePaths.length

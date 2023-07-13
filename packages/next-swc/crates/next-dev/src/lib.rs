@@ -20,10 +20,16 @@ use devserver_options::DevServerOptions;
 use dunce::canonicalize;
 use indexmap::IndexMap;
 use next_core::{
-    app_structure::find_app_dir_if_enabled, create_app_source, create_page_source,
-    create_web_entry_source, manifest::DevManifestContentSource, next_config::load_next_config,
-    next_image::NextImageContentSourceVc, pages_structure::find_pages_structure,
-    router_source::NextRouterContentSourceVc, source_map::NextSourceMapTraceContentSourceVc,
+    app_structure::find_app_dir_if_enabled,
+    create_app_source, create_page_source, create_web_entry_source,
+    manifest::DevManifestContentSource,
+    mode::NextMode,
+    next_client::{get_client_chunking_context, get_client_compile_time_info},
+    next_config::load_next_config,
+    next_image::NextImageContentSourceVc,
+    pages_structure::find_pages_structure,
+    router_source::NextRouterContentSourceVc,
+    source_map::NextSourceMapTraceContentSourceVc,
 };
 use once_cell::sync::Lazy;
 use owo_colors::OwoColorize;
@@ -325,8 +331,10 @@ async fn source(
     )
     .build();
 
-    let execution_context = ExecutionContextVc::new(project_path, build_chunking_context, env);
+    let execution_context =
+        ExecutionContextVc::new(project_path, build_chunking_context.into(), env);
 
+    let mode = NextMode::Development;
     let next_config = load_next_config(execution_context.with_layer("next_config"));
 
     let output_root = output_fs.root().join(".next/server");
@@ -352,6 +360,13 @@ async fn source(
         &browserslist_query,
         next_config,
     );
+    let client_compile_time_info = get_client_compile_time_info(mode, &browserslist_query);
+    let client_chunking_context = get_client_chunking_context(
+        project_path,
+        dev_server_root,
+        client_compile_time_info.environment(),
+        mode,
+    );
     let pages_structure = find_pages_structure(project_path, dev_server_root, next_config);
     let page_source = create_page_source(
         pages_structure,
@@ -360,7 +375,8 @@ async fn source(
         output_root.join("pages"),
         dev_server_root,
         env,
-        &browserslist_query,
+        client_chunking_context,
+        client_compile_time_info,
         next_config,
         server_addr,
     );
@@ -372,7 +388,8 @@ async fn source(
         output_root.join("app"),
         dev_server_root,
         env,
-        &browserslist_query,
+        client_chunking_context,
+        client_compile_time_info,
         next_config,
         server_addr,
     );
