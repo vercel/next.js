@@ -1,0 +1,96 @@
+---
+title: Render Cache
+description: Learn how the Render Cache works in Next.js.
+---
+
+Next.js automatically caches the rendered result of React Components on the server at build time. This is an optimization that allows you to skip rendering components on the server on every request, and instead directly send the cached result to the client, resulting in faster page loads.
+
+> **Related terms**:
+>
+> - You may see **Render Cache** being referred to as **ISR Cache**, this is the same concept.
+> - The terms **Automatic Static Optimization**, **Static Site Generation**, or **Static Rendering** might be also be used interchangeably to refer to the process of rendering and caching parts of your application code at build time.
+
+## How it works
+
+To understand how Render Cache works, it's helpful to look at how React handles rendering, and how Next.js caches the output of React rendering. Here's a high-level overview of the process:
+
+{/* Diagram */}
+
+1. First, React renders Server Components on the server, and serializes Client Component props.
+2. Next.js then caches the result of the rendering work on the server (this is the Render Cache).
+3. When a user makes a request, Next.js caches the rendering work on the client, separated by route segments (this is the [Router Cache]()).
+4. On the client, React [hydrates]() the components, and reconciles the Server and Client Component trees.
+
+> **Differences between Render Cache vs. Router Cache**:
+>
+> Router Cache is a separate in-memory client cache that stores the rendered result of components in the browser, split by in individual route segments. This cache is used to improve the navigation experience, by reducing the amount of
+
+## 1. React Rendering on the Server
+
+On the server, React Rendering is split into three stages:
+
+1. React renders Server Components into a special format, called the [**React Payload**]() or **RSC Payload**. Client Component props are also serialized and embedded into this payload.
+2. React then uses the payload to render HTML.
+3. The Payload is embedded into the HTML, ready to be sent to the client.
+
+> To learn more about React's rendering process, the React Payload, and how it relates to Server and Client Components. Please see the [React Rendering]() documentation.
+
+### 2. Next.js Caching on the Server (Render Cache)
+
+React Rendering can happen at build time (when deploying your application) or request time (when a user visits your application).
+
+In Next.js, React rendering and the resulting HTML and Payload are cached at build time. It's important to note that the rendered output isn't a single, large output, but instead is split into individual chunks, one for each route segment.
+
+### 3.
+
+### 3. React Hydration on the Client
+
+Then, on the client, the HTML is used to show an initial preview, while the payload is used to [hydrate]() the HTML.
+
+Note: Although a real RSC implementation does encode the JSX in the HTML payload, there are a few important differences. A production-ready RSC setup sends JSX chunks as they're being produced instead of a single large blob at the end. When React loads, hydration can start immediately—React starts traversing the tree using the JSX chunks that are already available instead of waiting for all of them to arrive. RSC also lets you mark some components as Client components, which means they still get SSR'd into HTML, but their code is included in the bundle. For Client components, only JSON of their props gets serialized. In the future, React may add extra mechanisms to deduplicate content between HTML and the embedded payload.
+
+## Subsequent Navigation
+
+you may remember gssp / gsp sent a JSON payload of the initial props of a page. in app router, props passed from server components to client components are serialized and embedded into the rsc payload.
+
+At build time:
+
+- Server Components are rendered into their payload.
+- Client Component props are serialized and embedded into the payload.
+- The payload is used to generate HTML.
+
+### Generating HTML
+
+### Hydrating React
+
+## Next.js Render Cache
+
+> **What is the Payload?**
+
+The **HTML**, and the **Payload**, are then cached (where?) before being sent to the client. Once on the client:
+
+- The HTML is used to show an initial preview.
+- React uses the HTML and JavaScript instructions to **hydrate** Client Components and make them interactive.
+- React uses the Payload to reconcile the rendered Server and Client Component trees.
+
+> **What is hydration?**
+>
+> Hydration is the process in which React parses the HTML, and uses the JavaScript instructions to attach event handlers to the DOM. This turns makes the HTML markup interactive.
+
+## Duration and Invalidation
+
+## APIs
+
+The following APIs affect the Render Cache:
+
+### `fetch.cache` and `cache: no-store`
+
+When fetching data, setting the `cache` option to `no-store` will re-render the components on every request, and the result will not be cached.
+
+### `cookies`
+
+### `headers`
+
+### `useSearchParams`
+
+### `searchParams`
