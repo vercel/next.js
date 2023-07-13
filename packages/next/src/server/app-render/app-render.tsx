@@ -1663,8 +1663,8 @@ export async function renderToHTMLOrFlight(
                         />
                         {use404Error ? (
                           <>
-                            {notFoundStyles}
                             <RootLayout params={{}}>
+                              {notFoundStyles}
                               <NotFound />
                             </RootLayout>
                           </>
