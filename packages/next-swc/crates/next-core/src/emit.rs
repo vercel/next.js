@@ -6,7 +6,7 @@ use turbo_tasks::{
 use turbo_tasks_fs::{rebase, FileSystemPathVc};
 use turbopack_binding::turbopack::core::{
     asset::Asset,
-    output::{asset_to_output_asset, OutputAssetVc, OutputAssetsVc},
+    output::{OutputAssetVc, OutputAssetsVc},
     reference::AssetReference,
 };
 
@@ -89,5 +89,9 @@ async fn get_referenced_assets(
         .await?
         .into_iter()
         .flatten()
-        .map(asset_to_output_asset))
+        .map(|asset| async move { Ok(OutputAssetVc::resolve_from(asset).await?) })
+        .try_join()
+        .await?
+        .into_iter()
+        .flatten())
 }

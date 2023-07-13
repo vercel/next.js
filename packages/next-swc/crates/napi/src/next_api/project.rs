@@ -7,7 +7,9 @@ use next_api::{
     route::{EndpointVc, Route},
 };
 use turbo_tasks::TurboTasks;
-use turbopack_binding::turbo::tasks_memory::MemoryBackend;
+use turbopack_binding::{
+    turbo::tasks_memory::MemoryBackend, turbopack::core::error::PrettyPrintError,
+};
 
 use super::utils::{serde_enum_to_string, subscribe, NapiDiagnostic, NapiIssue, RootTask, VcArc};
 use crate::register;
@@ -54,8 +56,9 @@ pub async fn project_new(options: NapiProjectOptions) -> napi::Result<External<V
     ));
     let options = options.into();
     let project = turbo_tasks
-        .run_once(ProjectVc::new(options).resolve())
-        .await?;
+        .run_once(async move { ProjectVc::new(options).resolve().await })
+        .await
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
     Ok(External::new_with_size_hint(
         VcArc::new(turbo_tasks, project),
         100,

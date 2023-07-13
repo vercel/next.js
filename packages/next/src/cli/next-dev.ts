@@ -260,13 +260,13 @@ const nextDev: CliCommand = async (argv) => {
         for (const [pathname, route] of entrypoints.routes) {
           switch (route.type) {
             case 'page': {
-              console.log(`writing ${pathname} to disk`)
+              Log.info(`writing ${pathname} to disk`)
               const written = await route.htmlEndpoint.writeToDisk()
-              console.log(written)
+              Log.info(written)
               break
             }
             default:
-              console.log(`skipping ${pathname} (${route.type})`)
+              Log.info(`skipping ${pathname} (${route.type})`)
               break
           }
         }

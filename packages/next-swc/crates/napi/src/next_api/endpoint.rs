@@ -1,5 +1,6 @@
 use napi::{bindgen_prelude::External, JsFunction};
 use next_api::route::{Endpoint, EndpointVc, WrittenEndpoint};
+use turbopack_binding::turbopack::core::error::PrettyPrintError;
 
 use super::utils::{subscribe, NapiDiagnostic, NapiIssue, RootTask, VcArc};
 
@@ -29,8 +30,9 @@ pub async fn endpoint_write_to_disk(
     let turbo_tasks = endpoint.turbo_tasks().clone();
     let endpoint = **endpoint;
     let written = turbo_tasks
-        .run_once(endpoint.write_to_disk().strongly_consistent())
-        .await?;
+        .run_once(async move { endpoint.write_to_disk().strongly_consistent().await })
+        .await
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
     // TODO peek_issues and diagnostics
     Ok((&*written).into())
 }
