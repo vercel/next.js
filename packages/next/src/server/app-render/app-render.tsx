@@ -1477,17 +1477,21 @@ export async function renderToHTMLOrFlight(
 
         let polyfillsFlushed = false
         let flushedErrorMetaTagsUntilIndex = 0
-        const getServerInsertedHTML = () => {
+        const getServerInsertedHTML = (capturedErrors: Error[]) => {
           // Loop through all the errors that have been captured but not yet
           // flushed.
           const errorMetaTags = []
           for (
             ;
-            flushedErrorMetaTagsUntilIndex < allCapturedErrors.length;
+            flushedErrorMetaTagsUntilIndex < capturedErrors.length;
             flushedErrorMetaTagsUntilIndex++
           ) {
-            const error = allCapturedErrors[flushedErrorMetaTagsUntilIndex]
-            if (isRedirectError(error)) {
+            const error = capturedErrors[flushedErrorMetaTagsUntilIndex]
+            if (isNotFoundError(error)) {
+              errorMetaTags.push(
+                <meta name="robots" content="noindex" key={error.digest} />
+              )
+            } else if (isRedirectError(error)) {
               const redirectUrl = getURLFromRedirectError(error)
               if (redirectUrl) {
                 errorMetaTags.push(
@@ -1564,7 +1568,8 @@ export async function renderToHTMLOrFlight(
             dataStream: serverComponentsInlinedTransformStream.readable,
             generateStaticHTML:
               staticGenerationStore.isStaticGeneration || generateStaticHTML,
-            getServerInsertedHTML,
+            getServerInsertedHTML: () =>
+              getServerInsertedHTML(allCapturedErrors),
             serverInsertedHTMLToHead: true,
             ...validateRootLayout,
           })
@@ -1686,7 +1691,7 @@ export async function renderToHTMLOrFlight(
               : serverErrorComponentsInlinedTransformStream
             ).readable,
             generateStaticHTML: staticGenerationStore.isStaticGeneration,
-            getServerInsertedHTML,
+            getServerInsertedHTML: () => getServerInsertedHTML([]),
             serverInsertedHTMLToHead: true,
             ...validateRootLayout,
           })
