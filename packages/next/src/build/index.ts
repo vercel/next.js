@@ -939,7 +939,7 @@ export default async function build(
           ignore: [] as string[],
         }))
 
-      let binding = (await loadBindings()) as any
+      let binding = await loadBindings()
 
       async function turbopackBuild() {
         const turboNextBuildStart = process.hrtime()

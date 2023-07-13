@@ -5,7 +5,7 @@ use turbopack_binding::turbo::tasks_fs::{
     DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPathVc,
 };
 
-use crate::{embed_js::next_js_file_path, next_config::NextConfigVc};
+use crate::embed_js::next_js_file_path;
 
 /// A final route in the pages directory.
 #[turbo_tasks::value]
@@ -125,7 +125,7 @@ impl PagesDirectoryStructureVc {
 pub async fn find_pages_structure(
     project_root: FileSystemPathVc,
     next_router_root: FileSystemPathVc,
-    next_config: NextConfigVc,
+    page_extensions: StringsVc,
 ) -> Result<PagesStructureVc> {
     let pages_root = project_root.join("pages");
     let pages_root: FileSystemPathOptionVc = FileSystemPathOptionVc::cell(
@@ -149,7 +149,7 @@ pub async fn find_pages_structure(
     Ok(get_pages_structure_for_root_directory(
         pages_root,
         next_router_root,
-        next_config.page_extensions(),
+        page_extensions,
     ))
 }
 

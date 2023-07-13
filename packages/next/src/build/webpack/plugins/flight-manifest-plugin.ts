@@ -16,6 +16,7 @@ import { getProxiedPluginState } from '../../build-context'
 
 import { nonNullable } from '../../../lib/non-nullable'
 import { WEBPACK_LAYERS } from '../../../lib/constants'
+import { normalizePagePath } from '../../../shared/lib/page-path/normalize-page-path'
 
 interface Options {
   dev: boolean
@@ -394,12 +395,18 @@ export class ClientReferenceManifestPlugin {
         const json = JSON.stringify(mergedManifest)
 
         const pagePath = groupName.replace(/%5F/g, '_')
-        assets['server/' + pagePath + '_' + CLIENT_REFERENCE_MANIFEST + '.js'] =
-          new sources.RawSource(
-            `globalThis.__RSC_MANIFEST=(globalThis.__RSC_MANIFEST||{});globalThis.__RSC_MANIFEST[${JSON.stringify(
-              pagePath.slice('app'.length)
-            )}]=${JSON.stringify(json)}`
-          ) as unknown as webpack.sources.RawSource
+        const pageBundlePath = normalizePagePath(pagePath.slice('app'.length))
+        assets[
+          'server/app' +
+            pageBundlePath +
+            '_' +
+            CLIENT_REFERENCE_MANIFEST +
+            '.js'
+        ] = new sources.RawSource(
+          `globalThis.__RSC_MANIFEST=(globalThis.__RSC_MANIFEST||{});globalThis.__RSC_MANIFEST[${JSON.stringify(
+            pagePath.slice('app'.length)
+          )}]=${JSON.stringify(json)}`
+        ) as unknown as webpack.sources.RawSource
 
         if (pagePath === 'app/not-found') {
           // Create a separate special manifest for the root not-found page.

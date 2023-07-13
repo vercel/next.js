@@ -11,6 +11,7 @@ pub mod app_structure;
 mod babel;
 mod bootstrap;
 mod embed_js;
+mod emit;
 pub mod env;
 mod fallback;
 pub mod loader_tree;
@@ -41,10 +42,11 @@ mod runtime;
 mod sass;
 mod transform_options;
 pub mod url_node;
-mod util;
+pub mod util;
 mod web_entry_source;
 
 pub use app_source::create_app_source;
+pub use emit::emit_all_assets;
 pub use next_app::unsupported_dynamic_metadata_issue::{
     UnsupportedDynamicMetadataIssue, UnsupportedDynamicMetadataIssueVc,
 };

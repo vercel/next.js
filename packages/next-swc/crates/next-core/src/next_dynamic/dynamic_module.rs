@@ -1,10 +1,11 @@
 use anyhow::{bail, Result};
 use turbo_tasks::primitives::StringVc;
 use turbopack_binding::turbopack::core::{
-    asset::{Asset, AssetContentVc, AssetVc, AssetsVc},
+    asset::{Asset, AssetContentVc, AssetVc},
     chunk::{ChunkableModule, ChunkableModuleVc, ChunkingContext, ChunkingContextVc},
     ident::AssetIdentVc,
     module::{Module, ModuleVc},
+    output::OutputAssetsVc,
     reference::AssetReferencesVc,
 };
 
@@ -31,7 +32,7 @@ impl NextDynamicEntryModuleVc {
     pub async fn client_chunks(
         self,
         client_chunking_context: ChunkingContextVc,
-    ) -> Result<AssetsVc> {
+    ) -> Result<OutputAssetsVc> {
         let this = self.await?;
 
         let Some(client_entry_module) =
