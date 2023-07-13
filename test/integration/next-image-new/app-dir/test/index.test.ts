@@ -101,7 +101,7 @@ function runTests(mode) {
     }
   })
 
-  it.only('should preload priority images', async () => {
+  it('should preload priority images', async () => {
     let browser
     try {
       browser = await webdriver(appPort, '/priority')
