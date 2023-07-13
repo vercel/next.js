@@ -174,8 +174,8 @@ const loadPages = (
       import { hoist } from "next/dist/build/webpack/loaders/next-route-loader/helpers"
 
       // Import the app and document modules.
-      import * as moduleDocument from ${JSON.stringify(absoluteDocumentPath)}
-      import * as moduleApp from ${JSON.stringify(absoluteAppPath)}
+      import Document from ${JSON.stringify(absoluteDocumentPath)}
+      import App from ${JSON.stringify(absoluteAppPath)}
 
       // Import the userland code.
       import * as userland from ${JSON.stringify(absolutePagePath)}
@@ -207,16 +207,14 @@ const loadPages = (
 
       // Create and export the route module that will be consumed.
       const options = ${JSON.stringify(options)}
-      const routeModule = new RouteModule({
+      export const routeModule = new RouteModule({
         ...options,
         components: {
-          App: moduleApp.default,
-          Document: moduleDocument.default,
+          App,
+          Document,
         },
         userland,
       })
-      
-      export { routeModule }
   `
 }
 
@@ -268,12 +266,10 @@ const loadPagesAPI = (
 
       // Create and export the route module that will be consumed.
       const options = ${JSON.stringify(options)}
-      const routeModule = new RouteModule({
+      export const routeModule = new RouteModule({
         ...options,
         userland,
       })
-      
-      export { routeModule }
   `
 }
 
