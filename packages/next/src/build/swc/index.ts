@@ -10,7 +10,6 @@ import { patchIncorrectLockfile } from '../../lib/patch-incorrect-lockfile'
 import { downloadWasmSwc } from '../../lib/download-wasm-swc'
 import { spawn } from 'child_process'
 import { NextConfigComplete, TurboLoaderItem } from '../../server/config-shared'
-import loadCustomRoutes from '../../lib/load-custom-routes'
 import { isDeepStrictEqual } from 'util'
 
 const nextVersion = process.env.__NEXT_VERSION as string
@@ -298,11 +297,6 @@ interface ProjectOptions {
   memoryLimit?: number
 }
 
-interface EntrypointsOptions {
-  /** File extensions to scan inside our project */
-  pageExtensions: string[]
-}
-
 interface Issue {}
 
 interface Diagnostics {}
@@ -385,7 +379,8 @@ interface WrittenEndpoint {
   config: EndpointConfig
 }
 
-function bindingToApi(binding: any, wasm: boolean) {
+// TODO(sokra) Support wasm option.
+function bindingToApi(binding: any, _wasm: boolean) {
   type NativeFunction<T> = (
     callback: (err: Error, value: T) => void
   ) => Promise<{ __napiType: 'RootTask' }>
