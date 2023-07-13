@@ -55,9 +55,10 @@
       const o = {
         VERIFY_CANARY: 'please verify canary',
         ADD_REPRODUCTION: 'please add a complete reproduction',
+        SIMPLIFY_REPRODUCTION: 'please simplify reproduction',
         NEEDS_TRIAGE: 'type: needs triage',
       }
-      const n = [o.VERIFY_CANARY, o.ADD_REPRODUCTION]
+      const n = [o.VERIFY_CANARY, o.ADD_REPRODUCTION, o.SIMPLIFY_REPRODUCTION]
       function assertNotNullable(e) {
         if (e === undefined || e === null)
           throw new Error('Unexpected nullable value')
@@ -6075,7 +6076,7 @@
         }
         return D(e)
       }
-      const A = 'destroy' in d.Readable.prototype
+      const O = 'destroy' in d.Readable.prototype
       function isRequest(e) {
         return typeof e === 'object' && typeof e[y] === 'object'
       }
@@ -6200,7 +6201,7 @@
         if (!/^https?:$/.test(p.protocol)) {
           throw new TypeError('Only HTTP(S) protocols are supported')
         }
-        if (e.signal && e.body instanceof d.Readable && !A) {
+        if (e.signal && e.body instanceof d.Readable && !O) {
           throw new Error(
             'Cancellation of streamed requests with AbortSignal is not supported in node < 8'
           )
@@ -6249,11 +6250,11 @@
       AbortError.prototype = Object.create(Error.prototype)
       AbortError.prototype.constructor = AbortError
       AbortError.prototype.name = 'AbortError'
-      const O = r.URL || s.URL
+      const A = r.URL || s.URL
       const N = d.PassThrough
       const k = function isDomainOrSubdomain(e, p) {
-        const a = new O(p).hostname
-        const d = new O(e).hostname
+        const a = new A(p).hostname
+        const d = new A(e).hostname
         return a === d || (a[a.length - d.length - 1] === '.' && a.endsWith(d))
       }
       function fetch(e, p) {
@@ -6326,7 +6327,7 @@
               const d = p.get('Location')
               let t = null
               try {
-                t = d === null ? null : new O(d, s.url).toString()
+                t = d === null ? null : new A(d, s.url).toString()
               } catch (e) {
                 if (s.redirect !== 'manual') {
                   r(
