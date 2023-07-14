@@ -370,7 +370,7 @@ export const deserializeErr = (serializedErr: any) => {
 
 export function errorToJSON(err: Error) {
   let source: typeof COMPILER_NAMES.server | typeof COMPILER_NAMES.edgeServer =
-    'rsc'
+    'server'
 
   if (process.env.NEXT_RUNTIME !== 'edge') {
     source =
