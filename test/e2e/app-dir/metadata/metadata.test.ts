@@ -425,7 +425,10 @@ createNextDescribe(
         await matchHtml('meta', 'name', 'content', {
           viewport: 'width=device-width, initial-scale=1',
           robots: 'noindex',
+          // not found metadata
+          description: 'Root not found description',
         })
+        expect(await $('title').text()).toBe('Root not found')
       })
 
       it('should support notFound in generateMetadata', async () => {
@@ -457,6 +460,16 @@ createNextDescribe(
         expect(await browser.elementByCss('h2').text()).toBe(
           'root not found page'
         )
+
+        const matchMultiDom = createMultiDomMatcher(browser)
+        await matchMultiDom('meta', 'name', 'content', {
+          viewport: 'width=device-width, initial-scale=1',
+          keywords: 'parent',
+          robots: 'noindex',
+          // not found metadata
+          description: 'Local not found description',
+        })
+        expect(await getTitle(browser)).toBe('Local not found')
       })
 
       it('should support redirect in generateMetadata', async () => {

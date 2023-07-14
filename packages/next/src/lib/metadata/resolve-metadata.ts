@@ -324,7 +324,7 @@ export async function collectMetadata({
   metadataItems: MetadataItems
   props: any
   route: string
-  errorType?: 'not-found' | 'error'
+  errorType?: 'not-found'
 }) {
   let mod
   let modType
@@ -363,9 +363,9 @@ export async function resolveMetadata({
   treePrefix?: string[]
   getDynamicParamFromSegment: GetDynamicParamFromSegment
   searchParams: { [key: string]: any }
-  errorType: 'not-found' | 'error' | undefined
+  errorType: 'not-found' | undefined
 }): Promise<MetadataItems> {
-  const [segment, parallelRoutes, { page, 'not-found': notFound }] = tree
+  const [segment, parallelRoutes, { page }] = tree
   const currentTreePrefix = [...treePrefix, segment]
   const isPage = typeof page !== 'undefined'
 

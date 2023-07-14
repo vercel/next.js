@@ -3,6 +3,6 @@ export default function notFound() {
 }
 
 export const metadata = {
-  title: 'Not found',
-  description: 'Not found description',
+  title: 'Root not found',
+  description: 'Root not found description',
 }

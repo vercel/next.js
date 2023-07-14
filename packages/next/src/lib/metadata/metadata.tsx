@@ -18,6 +18,8 @@ import {
 import { IconsMetadata } from './generate/icons'
 import { accumulateMetadata, resolveMetadata } from './resolve-metadata'
 import { MetaFilter } from './generate/meta'
+import { ResolvedMetadata } from './types/metadata-interface'
+import { createDefaultMetadata } from './default-metadata'
 
 // Generate the actual React elements from the resolved metadata.
 export async function MetadataTree({
@@ -33,7 +35,7 @@ export async function MetadataTree({
   searchParams: { [key: string]: any }
   getDynamicParamFromSegment: GetDynamicParamFromSegment
   appUsingSizeAdjust: boolean
-  errorType?: 'not-found' | 'error'
+  errorType?: 'not-found'
 }) {
   const metadataContext = {
     pathname,
@@ -47,7 +49,19 @@ export async function MetadataTree({
     getDynamicParamFromSegment,
     errorType,
   })
-  const metadata = await accumulateMetadata(resolvedMetadata, metadataContext)
+  let metadata: ResolvedMetadata | undefined = undefined
+  try {
+    metadata = await accumulateMetadata(resolvedMetadata, metadataContext)
+  } catch (err) {
+    // If there's error thrown from metadata resolving for error convention,
+    // hide the error and use default metadata instead.
+    // Otherwise if it's resolving metadata for normal page, throw the error.
+    if (errorType) {
+      metadata = createDefaultMetadata()
+    } else {
+      throw err
+    }
+  }
 
   const elements = MetaFilter([
     BasicMetadata({ metadata }),
