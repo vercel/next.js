@@ -36,8 +36,24 @@ const ignoreProps = [
 ]
 
 const insertStylesheets = (stylesheets: string[]) => {
+  // Case 1: Styles for afterInteractive/lazyOnload with appDir injected via handleClientScriptLoad
+  //
+  // Using ReactDOM.preinit to feature detect appDir and inject styles
+  // Stylesheets might have already been loaded if initialized with Script component
+  // Re-inject styles here to handle scripts loaded via handleClientScriptLoad
+  // ReactDOM.preinit handles dedup and ensures the styles are loaded only once
+  if (ReactDOM.preinit) {
+    stylesheets.forEach((stylesheet: string) => {
+      ReactDOM.preinit(stylesheet, { as: 'style' })
+    })
+
+    return
+  }
+
+  // Case 2: Styles for afterInteractive/lazyOnload with pages injected via handleClientScriptLoad
+  //
   // We use this function to load styles when appdir is not detected
-  // TODO: Use React float APIs to load styles once ready for pages dir
+  // TODO: Use React float APIs to load styles once available for pages dir
   if (typeof window !== 'undefined') {
     let head = document.head
     stylesheets.forEach((stylesheet: string) => {
@@ -208,15 +224,6 @@ function Script(props: ScriptProps): JSX.Element | null {
   const { updateScripts, scripts, getIsSsr, appDir, nonce } =
     useContext(HeadManagerContext)
 
-  // If appDir we handle the stylesheet differently
-  let updatedProps: ScriptProps = useMemo(() => {
-    const { stylesheets: styles, ...propsWithoutStylesheet } = props
-    return {
-      ...propsWithoutStylesheet,
-      stylesheets: appDir ? undefined : styles,
-    }
-  }, [appDir, props])
-
   /**
    * - First mount:
    *   1. The useEffect for onReady executes
@@ -262,14 +269,14 @@ function Script(props: ScriptProps): JSX.Element | null {
   useEffect(() => {
     if (!hasLoadScriptEffectCalled.current) {
       if (strategy === 'afterInteractive') {
-        loadScript(updatedProps)
+        loadScript(props)
       } else if (strategy === 'lazyOnload') {
-        loadLazyScript(updatedProps)
+        loadLazyScript(props)
       }
 
       hasLoadScriptEffectCalled.current = true
     }
-  }, [updatedProps, strategy])
+  }, [props, strategy])
 
   if (strategy === 'beforeInteractive' || strategy === 'worker') {
     if (updateScripts) {
@@ -288,29 +295,25 @@ function Script(props: ScriptProps): JSX.Element | null {
       // Script has already loaded during SSR
       LoadCache.add(id || src)
     } else if (getIsSsr && !getIsSsr()) {
-      loadScript(updatedProps)
+      loadScript(props)
     }
   }
 
   // For the app directory, we need React Float to preload these scripts.
   if (appDir) {
-    let stylesToRender = null
-    let scriptsToRender = null
-
-    // Stylesheets passed as props to script are rendered with a <link rel="stylesheet" precedence />
-    // along with the script tag. The precedence prop takes care of hoisting it to <head>
+    // Injecting stylesheets here handles beforeInteractive and worker scripts correctly
+    // For other strategies injecting here ensures correct stylesheet order
+    // ReactDOM.preinit handles loading the styles in the correct order,
+    // also ensures the stylesheet is loaded only once and in a consistent manner
+    //
+    // Case 1: Styles for beforeInteractive/worker with appDir - handled here
+    // Case 2: Styles for beforeInteractive/worker with pages dir - Not handled yet
+    // Case 3: Styles for afterInteractive/lazyOnload with appDir - handled here
+    // Case 4: Styles for afterInteractive/lazyOnload with pages dir - handled in insertStylesheets function
     if (stylesheets) {
-      stylesToRender = stylesheets.map((styleSrc) => (
-        <link
-          key={styleSrc}
-          href={styleSrc}
-          rel="stylesheet"
-          // @ts-ignore
-          precedence={
-            process.env.NODE_ENV === 'development' ? 'next_' + styleSrc : 'next'
-          }
-        ></link>
-      ))
+      stylesheets.forEach((styleSrc) => {
+        ReactDOM.preinit(styleSrc, { as: 'style' })
+      })
     }
 
     // Before interactive scripts need to be loaded by Next.js' runtime instead
@@ -325,7 +328,7 @@ function Script(props: ScriptProps): JSX.Element | null {
           delete restProps.dangerouslySetInnerHTML
         }
 
-        scriptsToRender = (
+        return (
           <script
             nonce={nonce}
             dangerouslySetInnerHTML={{
@@ -345,7 +348,7 @@ function Script(props: ScriptProps): JSX.Element | null {
             : { as: 'script' }
         )
 
-        scriptsToRender = (
+        return (
           <script
             nonce={nonce}
             dangerouslySetInnerHTML={{
@@ -366,15 +369,6 @@ function Script(props: ScriptProps): JSX.Element | null {
             : { as: 'script' }
         )
       }
-    }
-
-    if (stylesToRender || scriptsToRender) {
-      return (
-        <>
-          {stylesToRender}
-          {scriptsToRender}
-        </>
-      )
     }
   }
 
