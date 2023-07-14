@@ -1277,10 +1277,17 @@ export default async function getBaseWebpackConfig(
       .map((p) => p.replace(/\//g, '[/\\\\]'))
       .join('|')})[/\\\\]`
   )
+  /**
+   * Similar to `optOutBundlingPackageRegex`, but for quickly filter out requests
+   * that haven't been resolved yet.
+   * For example, if `optOutBundlingPackages` is `["foo", "bar"]`, then
+   * `require('baz')` can be directly filtered out using this regex without
+   * having to resolve to `node_modules/baz/...`.
+   */
   const optOutBundlingPackageFastPathRegex = new RegExp(
-    `[/\\\\](${optOutBundlingPackages
+    `(${optOutBundlingPackages
       .map((p) => p.replace(/\//g, '[/\\\\]'))
-      .join('|')})[/\\\\]`
+      .join('|')})`
   )
 
   let resolvedTranspilePackageDirsRegex: RegExp
