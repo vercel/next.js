@@ -23,7 +23,7 @@ if (
 ) {
   __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(new Error());
 }
-          var ReactVersion = '18.3.0-experimental-7118f5dd7-20230705';
+          var ReactVersion = '18.3.0-experimental-9377e1010-20230712';
 
 // ATTENTION
 // When adding new symbols to this file,
@@ -3055,7 +3055,6 @@ exports.Profiler = REACT_PROFILER_TYPE;
 exports.PureComponent = PureComponent;
 exports.StrictMode = REACT_STRICT_MODE_TYPE;
 exports.Suspense = REACT_SUSPENSE_TYPE;
-exports.SuspenseList = REACT_SUSPENSE_LIST_TYPE;
 exports.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED = ReactSharedInternals;
 exports.cache = cache;
 exports.cloneElement = cloneElement;
@@ -3074,6 +3073,7 @@ exports.startTransition = startTransition;
 exports.unstable_Cache = REACT_CACHE_TYPE;
 exports.unstable_DebugTracingMode = REACT_DEBUG_TRACING_MODE_TYPE;
 exports.unstable_Offscreen = REACT_OFFSCREEN_TYPE;
+exports.unstable_SuspenseList = REACT_SUSPENSE_LIST_TYPE;
 exports.unstable_act = act;
 exports.unstable_getCacheForType = getCacheForType;
 exports.unstable_getCacheSignal = getCacheSignal;

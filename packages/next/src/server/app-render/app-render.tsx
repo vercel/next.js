@@ -17,7 +17,10 @@ import type { RequestAsyncStorage } from '../../client/components/request-async-
 
 import React from 'react'
 import { NotFound as DefaultNotFound } from '../../client/components/error'
-import { createServerComponentRenderer } from './create-server-components-renderer'
+import {
+  createServerComponentRenderer,
+  ErrorHtml,
+} from './create-server-components-renderer'
 
 import { ParsedUrlQuery } from 'querystring'
 import { NextParsedUrlQuery } from '../request-meta'
@@ -75,6 +78,8 @@ import { handleAction } from './action-handler'
 import { NEXT_DYNAMIC_NO_SSR_CODE } from '../../shared/lib/lazy-dynamic/no-ssr-error'
 import { warn } from '../../build/output/log'
 import { appendMutableCookies } from '../web/spec-extension/adapters/request-cookies'
+import { ComponentsType } from '../../build/webpack/loaders/next-app-loader'
+import { ModuleReference } from '../../build/webpack/loaders/metadata/types'
 
 export const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -89,6 +94,37 @@ export type GetDynamicParamFromSegment = (
   treeSegment: Segment
   type: DynamicParamTypesShort
 } | null
+
+// Find the closest matched component in the loader tree for a given component type
+function findMatchedComponent(
+  loaderTree: LoaderTree,
+  componentType: Exclude<keyof ComponentsType, 'metadata'>,
+  depth: number,
+  result?: ModuleReference
+): ModuleReference | undefined {
+  const [, parallelRoutes, components] = loaderTree
+  const childKeys = Object.keys(parallelRoutes)
+  result = components[componentType] || result
+
+  // reached the end of the tree
+  if (depth <= 0 || childKeys.length === 0) {
+    return result
+  }
+
+  for (const key of childKeys) {
+    const childTree = parallelRoutes[key]
+    const matchedComponent = findMatchedComponent(
+      childTree,
+      componentType,
+      depth - 1,
+      result
+    )
+    if (matchedComponent) {
+      return matchedComponent
+    }
+  }
+  return undefined
+}
 
 /* This method is important for intercepted routes to function:
  * when a route is intercepted, e.g. /blog/[slug], it will be rendered
@@ -162,7 +198,7 @@ export async function renderToHTMLOrFlight(
     serverActionsBodySizeLimit,
   } = renderOpts
 
-  const appUsingSizeAdjust = nextFontManifest?.appUsingSizeAdjust
+  const appUsingSizeAdjust = !!nextFontManifest?.appUsingSizeAdjust
 
   const clientReferenceManifest = renderOpts.clientReferenceManifest!
 
@@ -1183,8 +1219,8 @@ export async function renderToHTMLOrFlight(
                     pathname={pathname}
                     searchParams={providedSearchParams}
                     getDynamicParamFromSegment={getDynamicParamFromSegment}
+                    appUsingSizeAdjust={appUsingSizeAdjust}
                   />
-                  {appUsingSizeAdjust ? <meta name="next-size-adjust" /> : null}
                 </>
               ),
               injectedCSS: new Set(),
@@ -1226,12 +1262,12 @@ export async function renderToHTMLOrFlight(
       /** GlobalError can be either the default error boundary or the overwritten app/global-error.js **/
       ComponentMod.GlobalError as typeof import('../../client/components/error-boundary').GlobalError
 
-    let serverComponentsInlinedTransformStream: TransformStream<
+    const serverComponentsInlinedTransformStream: TransformStream<
       Uint8Array,
       Uint8Array
     > = new TransformStream()
 
-    let serverErrorComponentsInlinedTransformStream: TransformStream<
+    const serverErrorComponentsInlinedTransformStream: TransformStream<
       Uint8Array,
       Uint8Array
     > = new TransformStream()
@@ -1271,6 +1307,31 @@ export async function renderToHTMLOrFlight(
         }
       : {}
 
+    async function getNotFound(
+      tree: LoaderTree,
+      injectedCSS: Set<string>,
+      requestPathname: string
+    ) {
+      const { layout } = tree[2]
+      // `depth` represents how many layers we need to search into the tree.
+      // For instance:
+      // pathname '/abc' will be 0 depth, means stop at the root level
+      // pathname '/abc/def' will be 1 depth, means stop at the first level
+      const depth = requestPathname.split('/').length - 2
+      const notFound = findMatchedComponent(tree, 'not-found', depth)
+      const rootLayoutAtThisLevel = typeof layout !== 'undefined'
+      const [NotFound, notFoundStyles] = notFound
+        ? await createComponentAndStyles({
+            filePath: notFound[1],
+            getComponent: notFound[0],
+            injectedCSS,
+          })
+        : rootLayoutAtThisLevel
+        ? [DefaultNotFound]
+        : []
+      return [NotFound, notFoundStyles]
+    }
+
     /**
      * A new React Component that renders the provided React Component
      * using Flight which can then be rendered to HTML.
@@ -1294,23 +1355,6 @@ export async function renderToHTMLOrFlight(
           asNotFound: props.asNotFound,
         })
 
-        const { 'not-found': notFound, layout } = loaderTree[2]
-        const isLayout = typeof layout !== 'undefined'
-        const rootLayoutModule = layout?.[0]
-        const RootLayout = rootLayoutModule
-          ? interopDefault(await rootLayoutModule())
-          : null
-        const rootLayoutAtThisLevel = isLayout
-        const [NotFound, notFoundStyles] = notFound
-          ? await createComponentAndStyles({
-              filePath: notFound[1],
-              getComponent: notFound[0],
-              injectedCSS,
-            })
-          : rootLayoutAtThisLevel
-          ? [DefaultNotFound]
-          : []
-
         const initialTree = createFlightRouterStateFromLoaderTree(
           loaderTree,
           getDynamicParamFromSegment,
@@ -1326,7 +1370,14 @@ export async function renderToHTMLOrFlight(
             pathname={pathname}
             searchParams={providedSearchParams}
             getDynamicParamFromSegment={getDynamicParamFromSegment}
+            appUsingSizeAdjust={appUsingSizeAdjust}
           />
+        )
+
+        const [NotFound, notFoundStyles] = await getNotFound(
+          loaderTree,
+          injectedCSS,
+          pathname
         )
 
         return (
@@ -1337,20 +1388,15 @@ export async function renderToHTMLOrFlight(
               assetPrefix={assetPrefix}
               initialCanonicalUrl={pathname}
               initialTree={initialTree}
-              initialHead={
-                <>
-                  {createMetadata(loaderTree)}
-                  {appUsingSizeAdjust ? <meta name="next-size-adjust" /> : null}
-                </>
-              }
+              initialHead={<>{createMetadata(loaderTree)}</>}
               globalErrorComponent={GlobalError}
               notFound={
-                NotFound && RootLayout ? (
-                  <RootLayout params={{}}>
-                    {createMetadata(emptyLoaderTree)}
+                NotFound ? (
+                  <ErrorHtml>
+                    {createMetadata(loaderTree)}
                     {notFoundStyles}
                     <NotFound />
-                  </RootLayout>
+                  </ErrorHtml>
                 ) : undefined
               }
               asNotFound={props.asNotFound}
@@ -1431,16 +1477,16 @@ export async function renderToHTMLOrFlight(
 
         let polyfillsFlushed = false
         let flushedErrorMetaTagsUntilIndex = 0
-        const getServerInsertedHTML = () => {
+        const getServerInsertedHTML = (serverCapturedErrors: Error[]) => {
           // Loop through all the errors that have been captured but not yet
           // flushed.
           const errorMetaTags = []
           for (
             ;
-            flushedErrorMetaTagsUntilIndex < allCapturedErrors.length;
+            flushedErrorMetaTagsUntilIndex < serverCapturedErrors.length;
             flushedErrorMetaTagsUntilIndex++
           ) {
-            const error = allCapturedErrors[flushedErrorMetaTagsUntilIndex]
+            const error = serverCapturedErrors[flushedErrorMetaTagsUntilIndex]
             if (isNotFoundError(error)) {
               errorMetaTags.push(
                 <meta name="robots" content="noindex" key={error.digest} />
@@ -1522,7 +1568,8 @@ export async function renderToHTMLOrFlight(
             dataStream: serverComponentsInlinedTransformStream.readable,
             generateStaticHTML:
               staticGenerationStore.isStaticGeneration || generateStaticHTML,
-            getServerInsertedHTML,
+            getServerInsertedHTML: () =>
+              getServerInsertedHTML(allCapturedErrors),
             serverInsertedHTMLToHead: true,
             ...validateRootLayout,
           })
@@ -1561,57 +1608,61 @@ export async function renderToHTMLOrFlight(
             res.setHeader('Location', getURLFromRedirectError(err))
           }
 
-          const defaultErrorComponent = (
-            <html id="__next_error__">
-              <head>
-                {/* @ts-expect-error allow to use async server component */}
+          const use404Error = res.statusCode === 404
+          const useDefaultError = res.statusCode < 400 || res.statusCode === 307
+
+          const { layout } = loaderTree[2]
+          const injectedCSS = new Set<string>()
+          const [NotFound, notFoundStyles] = await getNotFound(
+            loaderTree,
+            injectedCSS,
+            pathname
+          )
+
+          const rootLayoutModule = layout?.[0]
+          const RootLayout = rootLayoutModule
+            ? interopDefault(await rootLayoutModule())
+            : null
+
+          const serverErrorElement = (
+            <ErrorHtml
+              head={
+                // @ts-expect-error allow to use async server component
                 <MetadataTree
                   key={requestId}
                   tree={emptyLoaderTree}
                   pathname={pathname}
                   searchParams={providedSearchParams}
                   getDynamicParamFromSegment={getDynamicParamFromSegment}
+                  appUsingSizeAdjust={appUsingSizeAdjust}
                 />
-                {appUsingSizeAdjust ? <meta name="next-size-adjust" /> : null}
-              </head>
-              <body></body>
-            </html>
-          )
-
-          const useDefaultError =
-            res.statusCode < 400 ||
-            res.statusCode === 404 ||
-            res.statusCode === 307
-          const serverErrorElement = useDefaultError
-            ? defaultErrorComponent
-            : React.createElement(
-                createServerComponentRenderer(
-                  async () => {
-                    // only pass plain object to client
-                    return (
-                      <>
-                        {/* @ts-expect-error allow to use async server component */}
-                        <MetadataTree
-                          key={requestId}
-                          tree={emptyLoaderTree}
-                          pathname={pathname}
-                          searchParams={providedSearchParams}
-                          getDynamicParamFromSegment={
-                            getDynamicParamFromSegment
-                          }
-                        />
-                        <GlobalError
-                          error={{ message: err?.message, digest: err?.digest }}
-                        />
-                      </>
+              }
+            >
+              {useDefaultError
+                ? null
+                : React.createElement(
+                    createServerComponentRenderer(
+                      async () => {
+                        return (
+                          <>
+                            {use404Error ? (
+                              <RootLayout params={{}}>
+                                {notFoundStyles}
+                                <meta name="robots" content="noindex" />
+                                <NotFound />
+                              </RootLayout>
+                            ) : undefined}
+                          </>
+                        )
+                      },
+                      ComponentMod,
+                      serverErrorComponentsRenderOpts,
+                      serverComponentsErrorHandler,
+                      nonce
                     )
-                  },
-                  ComponentMod,
-                  serverErrorComponentsRenderOpts,
-                  serverComponentsErrorHandler,
-                  nonce
-                )
-              )
+                  )}
+            </ErrorHtml>
+          )
 
           const renderStream = await renderToInitialStream({
             ReactDOMServer: require('react-dom/server.edge'),
@@ -1640,7 +1691,7 @@ export async function renderToHTMLOrFlight(
               : serverErrorComponentsInlinedTransformStream
             ).readable,
             generateStaticHTML: staticGenerationStore.isStaticGeneration,
-            getServerInsertedHTML,
+            getServerInsertedHTML: () => getServerInsertedHTML([]),
             serverInsertedHTMLToHead: true,
             ...validateRootLayout,
           })

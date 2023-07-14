@@ -7,8 +7,8 @@ use turbo_tasks::TryJoinIterExt;
 use turbopack_binding::turbopack::{
     build::BuildChunkingContextVc,
     core::{
-        asset::{AssetVc, AssetsVc},
         chunk::{ChunkableModule, ChunkingContext},
+        output::{OutputAssetVc, OutputAssetsVc},
     },
     ecmascript::chunk::EcmascriptChunkingContextVc,
 };
@@ -22,7 +22,7 @@ pub async fn compute_app_client_references_chunks(
     app_client_reference_types: &HashSet<ClientReferenceType>,
     client_chunking_context: EcmascriptChunkingContextVc,
     ssr_chunking_context: BuildChunkingContextVc,
-    all_chunks: &mut Vec<AssetVc>,
+    all_chunks: &mut Vec<OutputAssetVc>,
 ) -> Result<IndexMap<ClientReferenceType, ClientReferenceChunks>> {
     let app_client_references_chunks: IndexMap<_, _> = app_client_reference_types
         .iter()
@@ -50,7 +50,7 @@ pub async fn compute_app_client_references_chunks(
                             .as_root_chunk(client_chunking_context.into());
                         ClientReferenceChunks {
                             client_chunks: client_chunking_context.chunk_group(client_entry_chunk),
-                            ssr_chunks: AssetsVc::empty(),
+                            ssr_chunks: OutputAssetsVc::empty(),
                         }
                     }
                 },
@@ -82,7 +82,7 @@ pub async fn compute_app_client_references_chunks(
 /// Contains the chunks corresponding to a client reference.
 pub struct ClientReferenceChunks {
     /// Chunks to be loaded on the client.
-    pub client_chunks: AssetsVc,
+    pub client_chunks: OutputAssetsVc,
     /// Chunks to be loaded on the server for SSR.
-    pub ssr_chunks: AssetsVc,
+    pub ssr_chunks: OutputAssetsVc,
 }
