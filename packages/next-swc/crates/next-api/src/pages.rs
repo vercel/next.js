@@ -68,7 +68,7 @@ pub async fn get_pages_routes(
     if let Some(api) = api {
         add_dir_to_routes(&mut routes, api, |pathname, original_name, path| {
             Route::PageApi {
-                endpoint: Vc::upcast(ApiEndpoint::new(project, pathname, original_name, path)),
+                endpoint: Vc::upcast(PageApiEndpoint::new(project, pathname, original_name, path)),
             }
         })
         .await?;
@@ -332,7 +332,7 @@ impl Endpoint for PageDataEndpoint {
 }
 
 #[turbo_tasks::value]
-struct ApiEndpoint {
+struct PageApiEndpoint {
     project: Vc<Project>,
     pathname: Vc<String>,
     original_name: Vc<String>,
@@ -340,7 +340,7 @@ struct ApiEndpoint {
 }
 
 #[turbo_tasks::value_impl]
-impl ApiEndpoint {
+impl PageApiEndpoint {
     #[turbo_tasks::function]
     fn new(
         project: Vc<Project>,
@@ -348,7 +348,7 @@ impl ApiEndpoint {
         original_name: Vc<String>,
         path: Vc<FileSystemPath>,
     ) -> Vc<Self> {
-        ApiEndpoint {
+        PageApiEndpoint {
             project,
             pathname,
             original_name,
@@ -356,17 +356,72 @@ impl ApiEndpoint {
         }
         .cell()
     }
-}
 
-#[turbo_tasks::value_impl]
-impl Endpoint for ApiEndpoint {
     #[turbo_tasks::function]
-    fn write_to_disk(&self) -> Vc<WrittenEndpoint> {
-        todo!()
+    fn source(&self) -> Vc<Box<dyn Source>> {
+        Vc::upcast(FileSource::new(self.path))
     }
 
     #[turbo_tasks::function]
-    fn changed(&self) -> Vc<Completion> {
-        todo!()
+    async fn api_chunk(self: Vc<Self>) -> Result<Vc<Box<dyn OutputAsset>>> {
+        let this = self.await?;
+        let reference_type = Value::new(ReferenceType::Entry(EntryReferenceSubType::PagesApi));
+
+        let api_module = this
+            .project
+            .pages_ssr_module_context()
+            .process(self.source(), reference_type.clone());
+
+        let Some(api_module) =
+            Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(api_module).await?
+        else {
+            bail!("expected an ECMAScript module asset");
+        };
+
+        let asset_path = get_asset_path_from_pathname(&this.pathname.await?, ".js");
+
+        let api_entry_chunk_path_string = format!("server/pages/{asset_path}");
+        let api_entry_chunk_path = this.project.node_root().join(api_entry_chunk_path_string);
+        let api_entry_chunk = this.project.ssr_chunking_context().entry_chunk(
+            api_entry_chunk_path,
+            Vc::upcast(api_module),
+            this.project.pages_ssr_runtime_entries(),
+        );
+
+        Ok(api_entry_chunk)
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl Endpoint for PageApiEndpoint {
+    #[turbo_tasks::function]
+    async fn write_to_disk(self: Vc<Self>) -> Result<Vc<WrittenEndpoint>> {
+        let this = self.await?;
+        let api_chunk = self.api_chunk();
+        emit_all_assets(
+            Vc::cell(vec![api_chunk]),
+            this.project.node_root(),
+            this.project.client_root().join("_next".to_string()),
+            this.project.node_root(),
+        )
+        .await?;
+
+        Ok(WrittenEndpoint {
+            server_entry_path: this
+                .project
+                .node_root()
+                .await?
+                .get_path_to(&*api_chunk.ident().path().await?)
+                .context("API chunk entry path must be inside the node root")?
+                .to_string(),
+            server_paths: vec![],
+        }
+        .cell())
+    }
+
+    #[turbo_tasks::function]
+    fn changed(self: Vc<Self>) -> Vc<Completion> {
+        let api_chunk = self.api_chunk();
+        any_content_changed(Vc::upcast(api_chunk))
     }
 }

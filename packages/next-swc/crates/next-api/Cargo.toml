@@ -22,6 +22,7 @@ indexmap = { workspace = true }
 next-core = { workspace = true }
 once_cell = { workspace = true }
 serde = { workspace = true }
+serde_json = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 turbopack-binding = { workspace = true, features = [
   "__turbo_tasks_memory",
