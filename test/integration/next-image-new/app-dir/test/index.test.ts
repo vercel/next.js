@@ -125,13 +125,13 @@ function runTests(mode) {
         const imagesrcset = await link.getAttribute('imagesrcset')
         const imagesizes = await link.getAttribute('imagesizes')
         const crossorigin = await link.getAttribute('crossorigin')
-        const referrerPolicy = await link.getAttribute('referrerPolicy')
+        const referrerpolicy = await link.getAttribute('referrerPolicy')
         entries.push({
           fetchpriority,
           imagesrcset,
           imagesizes,
           crossorigin,
-          referrerPolicy,
+          referrerpolicy,
         })
       }
 
@@ -147,7 +147,7 @@ function runTests(mode) {
         imagesrcset:
           '/_next/image?url=%2Ftest.webp&w=640&q=75 1x, /_next/image?url=%2Ftest.webp&w=828&q=75 2x',
         crossorigin: 'use-credentials',
-        referrerPolicy: '',
+        referrerpolicy: '',
       })
 
       expect(
