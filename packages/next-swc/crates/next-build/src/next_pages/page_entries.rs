@@ -68,7 +68,11 @@ pub async fn get_page_entries(
     server_compile_time_info: CompileTimeInfoVc,
     next_config: NextConfigVc,
 ) -> Result<PageEntriesVc> {
-    let pages_structure = find_pages_structure(project_root, next_router_root, next_config);
+    let pages_structure = find_pages_structure(
+        project_root,
+        next_router_root,
+        next_config.page_extensions(),
+    );
 
     let pages_dir = if let Some(pages) = pages_structure.await?.pages {
         pages.project_path().resolve().await?
