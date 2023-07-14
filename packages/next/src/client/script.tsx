@@ -347,7 +347,6 @@ function Script(props: ScriptProps): JSX.Element | null {
             ? { as: 'script', integrity: restProps.integrity }
             : { as: 'script' }
         )
-
         return (
           <script
             nonce={nonce}
