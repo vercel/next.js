@@ -1214,7 +1214,6 @@ export async function renderToHTMLOrFlight(
                   <MetadataTree
                     key={requestId}
                     tree={loaderTree}
-                    statusCode={res.statusCode}
                     pathname={pathname}
                     searchParams={providedSearchParams}
                     getDynamicParamFromSegment={getDynamicParamFromSegment}
@@ -1594,7 +1593,9 @@ export async function renderToHTMLOrFlight(
           if (isNotFoundError(err)) {
             res.statusCode = 404
           }
+          let hasRedirectError = false
           if (isRedirectError(err)) {
+            hasRedirectError = true
             res.statusCode = 307
             if (err.mutableCookies) {
               const headers = new Headers()
@@ -1609,7 +1610,7 @@ export async function renderToHTMLOrFlight(
           }
 
           const use404Error = res.statusCode === 404
-          const useDefaultError = res.statusCode < 400 || res.statusCode === 307
+          const useDefaultError = res.statusCode < 400 || hasRedirectError
 
           const { layout } = loaderTree[2]
           const injectedCSS = new Set<string>()
@@ -1630,7 +1631,13 @@ export async function renderToHTMLOrFlight(
               key={requestId}
               tree={loaderTree}
               pathname={pathname}
-              errorType={use404Error ? 'not-found' : undefined}
+              errorType={
+                use404Error
+                  ? 'not-found'
+                  : hasRedirectError
+                  ? 'redirect'
+                  : undefined
+              }
               searchParams={providedSearchParams}
               getDynamicParamFromSegment={getDynamicParamFromSegment}
               appUsingSizeAdjust={appUsingSizeAdjust}

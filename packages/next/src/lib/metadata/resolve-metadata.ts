@@ -318,19 +318,19 @@ export async function collectMetadata({
   metadataItems: array,
   props,
   route,
-  errorType,
+  errorConvention,
 }: {
   tree: LoaderTree
   metadataItems: MetadataItems
   props: any
   route: string
-  errorType?: 'not-found'
+  errorConvention?: 'not-found'
 }) {
   let mod
   let modType
-  if (errorType) {
-    mod = await getErrorOrLayoutModule(tree, errorType)
-    modType = errorType
+  if (errorConvention) {
+    mod = await getErrorOrLayoutModule(tree, errorConvention)
+    modType = errorConvention
   } else {
     ;[mod, modType] = await getLayoutOrPageModule(tree)
   }
@@ -354,7 +354,7 @@ export async function resolveMetadata({
   treePrefix = [],
   getDynamicParamFromSegment,
   searchParams,
-  errorType,
+  errorConvention,
 }: {
   tree: LoaderTree
   parentParams: { [key: string]: any }
@@ -363,7 +363,7 @@ export async function resolveMetadata({
   treePrefix?: string[]
   getDynamicParamFromSegment: GetDynamicParamFromSegment
   searchParams: { [key: string]: any }
-  errorType: 'not-found' | undefined
+  errorConvention: 'not-found' | undefined
 }): Promise<MetadataItems> {
   const [segment, parallelRoutes, { page }] = tree
   const currentTreePrefix = [...treePrefix, segment]
@@ -392,7 +392,7 @@ export async function resolveMetadata({
   await collectMetadata({
     tree,
     metadataItems,
-    errorType,
+    errorConvention,
     props: layerProps,
     route: currentTreePrefix
       // __PAGE__ shouldn't be shown in a route
@@ -409,7 +409,7 @@ export async function resolveMetadata({
       treePrefix: currentTreePrefix,
       searchParams,
       getDynamicParamFromSegment,
-      errorType,
+      errorConvention,
     })
   }
 

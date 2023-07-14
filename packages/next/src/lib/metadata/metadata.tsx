@@ -35,7 +35,7 @@ export async function MetadataTree({
   searchParams: { [key: string]: any }
   getDynamicParamFromSegment: GetDynamicParamFromSegment
   appUsingSizeAdjust: boolean
-  errorType?: 'not-found'
+  errorType?: 'not-found' | 'redirect'
 }) {
   const metadataContext = {
     pathname,
@@ -47,20 +47,16 @@ export async function MetadataTree({
     metadataItems: [],
     searchParams,
     getDynamicParamFromSegment,
-    errorType,
+    errorConvention: errorType === 'redirect' ? undefined : errorType,
   })
   let metadata: ResolvedMetadata | undefined = undefined
-  try {
+
+  const defaultMetadata = createDefaultMetadata()
+  // Skip for redirect case as for the temporary redirect case we don't need the metadata on client
+  if (errorType === 'redirect') {
+    metadata = defaultMetadata
+  } else {
     metadata = await accumulateMetadata(resolvedMetadata, metadataContext)
-  } catch (err) {
-    // If there's error thrown from metadata resolving for error convention,
-    // hide the error and use default metadata instead.
-    // Otherwise if it's resolving metadata for normal page, throw the error.
-    if (errorType) {
-      metadata = createDefaultMetadata()
-    } else {
-      throw err
-    }
   }
 
   const elements = MetaFilter([
