@@ -17,26 +17,15 @@ createNextDescribe(
       expect(firstRun).toBe(secondRun)
     })
 
-    it('should cache POST methods with force-cache', async () => {
+    it('should cache POST methods', async () => {
       const firstRun = await next
-        .render$('/POST?forceCache=true')
+        .render$('/POST')
         .then(($) => $('#result').text())
       const secondRun = await next
-        .render$('/POST?forceCache=true')
+        .render$('/POST')
         .then(($) => $('#result').text())
 
       expect(firstRun).toBe(secondRun)
-    })
-
-    it('should not cache POST methods without authorization header', async () => {
-      const firstRun = await next
-        .render$('/POST')
-        .then(($) => $('#result').text())
-      const secondRun = await next
-        .render$('/POST')
-        .then(($) => $('#result').text())
-
-      expect(firstRun).not.toBe(secondRun)
     })
 
     it('should not cache POST methods with authorization header', async () => {

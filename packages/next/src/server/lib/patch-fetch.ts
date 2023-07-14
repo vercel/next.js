@@ -207,7 +207,7 @@ export function patchFetch({
         const hasUnCacheableHeader =
           initHeaders.get('authorization') || initHeaders.get('cookie')
 
-        const isUnCacheableMethod = !['get', 'head'].includes(
+        const isUnCacheableMethod = !['get', 'head', 'post'].includes(
           getRequestMeta('method')?.toLowerCase() || 'get'
         )
 
