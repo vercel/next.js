@@ -1477,16 +1477,16 @@ export async function renderToHTMLOrFlight(
 
         let polyfillsFlushed = false
         let flushedErrorMetaTagsUntilIndex = 0
-        const getServerInsertedHTML = (capturedErrors: Error[]) => {
+        const getServerInsertedHTML = (serverCapturedErrors: Error[]) => {
           // Loop through all the errors that have been captured but not yet
           // flushed.
           const errorMetaTags = []
           for (
             ;
-            flushedErrorMetaTagsUntilIndex < capturedErrors.length;
+            flushedErrorMetaTagsUntilIndex < serverCapturedErrors.length;
             flushedErrorMetaTagsUntilIndex++
           ) {
-            const error = capturedErrors[flushedErrorMetaTagsUntilIndex]
+            const error = serverCapturedErrors[flushedErrorMetaTagsUntilIndex]
             if (isNotFoundError(error)) {
               errorMetaTags.push(
                 <meta name="robots" content="noindex" key={error.digest} />
