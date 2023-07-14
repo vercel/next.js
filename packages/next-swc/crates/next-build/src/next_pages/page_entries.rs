@@ -342,7 +342,7 @@ async fn get_page_entry_for_file(
             writedoc!(
                 result,
                 r#"
-                    import RouteModule from "next/dist/server/future/route-modules/pages-api/module"
+                    import RouteModule from "next/dist/server/future/route-modules/pages/module"
                     import {{ hoist }} from "next/dist/build/webpack/loaders/next-route-loader/helpers"
 
                     import Document from "@vercel/turbopack-next/pages/_document"
