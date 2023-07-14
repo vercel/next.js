@@ -709,7 +709,7 @@ export function finalizeEntrypoint({
   const isApi = name.startsWith('pages/api/')
 
   switch (compilerType) {
-    case COMPILER_NAMES.rsc: {
+    case COMPILER_NAMES.server: {
       return {
         publicPath: isApi ? '' : undefined,
         runtime: isApi ? 'webpack-api-runtime' : 'webpack-runtime',
@@ -733,7 +733,7 @@ export function finalizeEntrypoint({
         ...entry,
       }
     }
-    case COMPILER_NAMES.ssr: {
+    case COMPILER_NAMES.client: {
       const isAppLayer =
         hasAppDir &&
         (name === CLIENT_STATIC_FILES_RUNTIME_MAIN_APP ||

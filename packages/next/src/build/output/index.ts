@@ -264,7 +264,7 @@ export function watchCompilers(
     })
   }
 
-  tapCompiler(COMPILER_NAMES.ssr, client, (status) => {
+  tapCompiler(COMPILER_NAMES.client, client, (status) => {
     if (
       !status.loading &&
       !buildStore.getState().server.loading &&
@@ -280,7 +280,7 @@ export function watchCompilers(
       })
     }
   })
-  tapCompiler(COMPILER_NAMES.rsc, server, (status) => {
+  tapCompiler(COMPILER_NAMES.server, server, (status) => {
     if (
       !status.loading &&
       !buildStore.getState().client.loading &&

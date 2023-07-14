@@ -112,8 +112,8 @@ const edgeConditionNames = [
 
 // packageJson.<mainField>
 const mainFieldsPerCompiler: Record<CompilerNameValues, string[]> = {
-  [COMPILER_NAMES.rsc]: ['main', 'module'],
-  [COMPILER_NAMES.ssr]: ['browser', 'module', 'main'],
+  [COMPILER_NAMES.server]: ['main', 'module'],
+  [COMPILER_NAMES.client]: ['browser', 'module', 'main'],
   [COMPILER_NAMES.edgeServer]: [
     'edge-light',
     'worker',
@@ -782,9 +782,9 @@ export default async function getBaseWebpackConfig(
     allowedRevalidateHeaderKeys?: string[]
   }
 ): Promise<webpack.Configuration> {
-  const isClient = compilerType === COMPILER_NAMES.ssr
+  const isClient = compilerType === COMPILER_NAMES.client
   const isEdgeServer = compilerType === COMPILER_NAMES.edgeServer
-  const isNodeServer = compilerType === COMPILER_NAMES.rsc
+  const isNodeServer = compilerType === COMPILER_NAMES.server
 
   const hasRewrites =
     rewrites.beforeFiles.length > 0 ||

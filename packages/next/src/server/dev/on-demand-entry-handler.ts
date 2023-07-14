@@ -558,12 +558,12 @@ export function onDemandEntryHandler({
     const root = !!appDir
     const entryNames = [
       ...getPagePathsFromEntrypoints(
-        COMPILER_NAMES.ssr,
+        COMPILER_NAMES.client,
         clientStats.compilation.entrypoints,
         root
       ),
       ...getPagePathsFromEntrypoints(
-        COMPILER_NAMES.rsc,
+        COMPILER_NAMES.server,
         serverStats.compilation.entrypoints,
         root
       ),
@@ -607,8 +607,8 @@ export function onDemandEntryHandler({
 
     for (const page of pages) {
       for (const compilerType of [
-        COMPILER_NAMES.ssr,
-        COMPILER_NAMES.rsc,
+        COMPILER_NAMES.client,
+        COMPILER_NAMES.server,
         COMPILER_NAMES.edgeServer,
       ]) {
         const entryKey = getEntryKey(compilerType, 'app', `/${page}`)
@@ -647,8 +647,8 @@ export function onDemandEntryHandler({
     let toSend: { invalid: true } | { success: true } = { invalid: true }
 
     for (const compilerType of [
-      COMPILER_NAMES.ssr,
-      COMPILER_NAMES.rsc,
+      COMPILER_NAMES.client,
+      COMPILER_NAMES.server,
       COMPILER_NAMES.edgeServer,
     ]) {
       const entryKey = getEntryKey(compilerType, 'pages', page)
@@ -657,7 +657,7 @@ export function onDemandEntryHandler({
       // If there's no entry, it may have been invalidated and needs to be re-built.
       if (!entryInfo) {
         // if (page !== lastEntry) client pings, but there's no entry for page
-        if (compilerType === COMPILER_NAMES.ssr) {
+        if (compilerType === COMPILER_NAMES.client) {
           return { invalid: true }
         }
         continue
@@ -799,10 +799,10 @@ export function onDemandEntryHandler({
           if (isServerComponent || isInsideAppDir) {
             return
           }
-          added.set(COMPILER_NAMES.ssr, addEntry(COMPILER_NAMES.ssr))
+          added.set(COMPILER_NAMES.client, addEntry(COMPILER_NAMES.client))
         },
         onServer: () => {
-          added.set(COMPILER_NAMES.rsc, addEntry(COMPILER_NAMES.rsc))
+          added.set(COMPILER_NAMES.server, addEntry(COMPILER_NAMES.server))
           const edgeServerEntry = getEntryKey(
             COMPILER_NAMES.edgeServer,
             pageBundleType,
@@ -822,7 +822,7 @@ export function onDemandEntryHandler({
             addEntry(COMPILER_NAMES.edgeServer)
           )
           const serverEntry = getEntryKey(
-            COMPILER_NAMES.rsc,
+            COMPILER_NAMES.server,
             pageBundleType,
             pagePathData.page
           )

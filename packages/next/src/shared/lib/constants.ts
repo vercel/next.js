@@ -5,18 +5,8 @@ export { MODERN_BROWSERSLIST_TARGET }
 export type ValueOf<T> = Required<T>[keyof T]
 
 export const COMPILER_NAMES = {
-  /**
-   * This is the compiler used for server-side rendering (SSR) and
-   * serverless functions.
-   */
-  ssr: 'ssr',
-  /**
-   * This is the compiler used for React Server Components (RSC).
-   */
-  rsc: 'rsc',
-  /**
-   * This is the compiler used for the Edge Server.
-   */
+  client: 'client',
+  server: 'server',
   edgeServer: 'edge-server',
 } as const
 
@@ -25,8 +15,8 @@ export type CompilerNameValues = ValueOf<typeof COMPILER_NAMES>
 export const COMPILER_INDEXES: {
   [compilerKey in CompilerNameValues]: number
 } = {
-  [COMPILER_NAMES.ssr]: 0,
-  [COMPILER_NAMES.rsc]: 1,
+  [COMPILER_NAMES.client]: 0,
+  [COMPILER_NAMES.server]: 1,
   [COMPILER_NAMES.edgeServer]: 2,
 } as const
 

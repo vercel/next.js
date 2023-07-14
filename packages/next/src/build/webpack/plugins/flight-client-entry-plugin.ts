@@ -462,7 +462,7 @@ export class FlightClientEntryPlugin {
         ([shouldInvalidate]) => shouldInvalidate === true
       )
     ) {
-      invalidator.invalidate([COMPILER_NAMES.ssr])
+      invalidator.invalidate([COMPILER_NAMES.client])
     }
 
     // Client compiler is invalidated before awaiting the compilation of the SSR client component entries
@@ -690,7 +690,7 @@ export class FlightClientEntryPlugin {
     // Inject the entry to the client compiler.
     if (this.dev) {
       const entries = getEntries(compiler.outputPath)
-      const pageKey = getEntryKey(COMPILER_NAMES.ssr, 'app', bundlePath)
+      const pageKey = getEntryKey(COMPILER_NAMES.client, 'app', bundlePath)
 
       if (!entries[pageKey]) {
         entries[pageKey] = {

@@ -369,7 +369,7 @@ export const deserializeErr = (serializedErr: any) => {
 }
 
 export function errorToJSON(err: Error) {
-  let source: typeof COMPILER_NAMES.rsc | typeof COMPILER_NAMES.edgeServer =
+  let source: typeof COMPILER_NAMES.server | typeof COMPILER_NAMES.edgeServer =
     'rsc'
 
   if (process.env.NEXT_RUNTIME !== 'edge') {
@@ -393,7 +393,7 @@ function serializeError(
   err: Error
 ): Error & {
   statusCode?: number
-  source?: typeof COMPILER_NAMES.rsc | typeof COMPILER_NAMES.edgeServer
+  source?: typeof COMPILER_NAMES.server | typeof COMPILER_NAMES.edgeServer
 } {
   if (dev) {
     return errorToJSON(err)

@@ -88,7 +88,13 @@ export const SERVER_RUNTIME: Record<string, ServerRuntime> = {
 
 const WEBPACK_LAYERS_NAMES = {
   shared: 'sc_shared',
+  /**
+   * React Server Components layer (rsc).
+   */
   rsc: 'rsc',
+  /**
+   * Server Side Rendering layer (ssr).
+   */
   ssr: 'ssr',
   action: 'action',
   api: 'api',

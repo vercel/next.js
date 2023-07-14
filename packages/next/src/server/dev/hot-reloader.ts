@@ -587,13 +587,13 @@ export default class HotReloader {
             // order is important here
             getBaseWebpackConfig(this.dir, {
               ...commonWebpackOptions,
-              compilerType: COMPILER_NAMES.ssr,
+              compilerType: COMPILER_NAMES.client,
               entrypoints: entrypoints.client,
               ...info,
             }),
             getBaseWebpackConfig(this.dir, {
               ...commonWebpackOptions,
-              compilerType: COMPILER_NAMES.rsc,
+              compilerType: COMPILER_NAMES.server,
               entrypoints: entrypoints.server,
               ...info,
             }),
@@ -619,7 +619,7 @@ export default class HotReloader {
     const fallbackConfig = await getBaseWebpackConfig(this.dir, {
       runWebpackSpan: this.hotReloaderSpan,
       dev: true,
-      compilerType: COMPILER_NAMES.ssr,
+      compilerType: COMPILER_NAMES.client,
       config: this.config,
       buildId: this.buildId,
       pagesDir: this.pagesDir,
@@ -699,8 +699,8 @@ export default class HotReloader {
         const entries = getEntries(outputPath)
         // @ts-ignore entry is always a function
         const entrypoints = await defaultEntry(...args)
-        const isClientCompilation = config.name === COMPILER_NAMES.ssr
-        const isNodeServerCompilation = config.name === COMPILER_NAMES.rsc
+        const isClientCompilation = config.name === COMPILER_NAMES.client
+        const isNodeServerCompilation = config.name === COMPILER_NAMES.server
         const isEdgeServerCompilation =
           config.name === COMPILER_NAMES.edgeServer
 
@@ -714,8 +714,9 @@ export default class HotReloader {
             )
             const [, key /* pageType */, , page] = result! // this match should always happen
 
-            if (key === COMPILER_NAMES.ssr && !isClientCompilation) return
-            if (key === COMPILER_NAMES.rsc && !isNodeServerCompilation) return
+            if (key === COMPILER_NAMES.client && !isClientCompilation) return
+            if (key === COMPILER_NAMES.server && !isNodeServerCompilation)
+              return
             if (key === COMPILER_NAMES.edgeServer && !isEdgeServerCompilation)
               return
 
@@ -844,7 +845,7 @@ export default class HotReloader {
                   entries[entryKey].status = BUILDING
                   entrypoints[bundlePath] = finalizeEntrypoint({
                     name: bundlePath,
-                    compilerType: COMPILER_NAMES.ssr,
+                    compilerType: COMPILER_NAMES.client,
                     value: entryData.request,
                     hasAppDir,
                   })
@@ -852,7 +853,7 @@ export default class HotReloader {
                   entries[entryKey].status = BUILDING
                   entrypoints[bundlePath] = finalizeEntrypoint({
                     name: bundlePath,
-                    compilerType: COMPILER_NAMES.ssr,
+                    compilerType: COMPILER_NAMES.client,
                     value: getClientEntry({
                       absolutePagePath: entryData.absolutePagePath,
                       page,
@@ -919,7 +920,7 @@ export default class HotReloader {
                 }
 
                 entrypoints[bundlePath] = finalizeEntrypoint({
-                  compilerType: COMPILER_NAMES.rsc,
+                  compilerType: COMPILER_NAMES.server,
                   name: bundlePath,
                   isServerComponent,
                   value,
