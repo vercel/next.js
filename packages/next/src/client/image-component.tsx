@@ -322,8 +322,11 @@ function ImagePreload({
 
   if (isAppRouter) {
     // See https://github.com/facebook/react/pull/26940
-    // @ts-expect-error TODO: upgrade to `@types/react-dom@18.3.x`
-    preload(imgAttributes.src, opts)
+    preload(
+      imgAttributes.src,
+      // @ts-expect-error TODO: upgrade to `@types/react-dom@18.3.x`
+      opts
+    )
     return null
   }
 
