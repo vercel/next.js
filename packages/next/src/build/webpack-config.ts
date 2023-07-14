@@ -1432,9 +1432,9 @@ export default async function getBaseWebpackConfig(
       }
     }
 
-    // Don't bundle @vercel/og nodejs bundle for nodejs runtime.
-    // TODO-APP: bundle route.js with different layer that externals common node_module deps.
     if (isWebpackServerLayer(layer)) {
+      // Don't bundle @vercel/og nodejs bundle for nodejs runtime.
+      // TODO-APP: bundle route.js with different layer that externals common node_module deps.
       if (request === 'next/dist/compiled/@vercel/og/index.node.js') {
         return `module ${request}`
       }
