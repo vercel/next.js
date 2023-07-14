@@ -1625,19 +1625,22 @@ export async function renderToHTMLOrFlight(
             ? interopDefault(await rootLayoutModule())
             : null
 
+          console.log('res.statusCode', res.statusCode)
           const serverErrorElement = (
             <ErrorHtml
               head={
-                // @ts-expect-error allow to use async server component
-                <MetadataTree
-                  key={requestId}
-                  tree={emptyLoaderTree}
-                  pathname={pathname}
-                  statusCode={res.statusCode}
-                  searchParams={providedSearchParams}
-                  getDynamicParamFromSegment={getDynamicParamFromSegment}
-                  appUsingSizeAdjust={appUsingSizeAdjust}
-                />
+                useDefaultError ? (
+                  // @ts-expect-error allow to use async server component
+                  <MetadataTree
+                    key={requestId}
+                    tree={loaderTree}
+                    pathname={pathname}
+                    statusCode={res.statusCode}
+                    searchParams={providedSearchParams}
+                    getDynamicParamFromSegment={getDynamicParamFromSegment}
+                    appUsingSizeAdjust={appUsingSizeAdjust}
+                  />
+                ) : null
               }
             >
               {useDefaultError
@@ -1647,6 +1650,24 @@ export async function renderToHTMLOrFlight(
                       async () => {
                         return (
                           <>
+                            {/* @ts-expect-error allow to use async server component */}
+                            <MetadataTree
+                              key={requestId}
+                              tree={loaderTree}
+                              pathname={pathname}
+                              errorType={
+                                use404Error
+                                  ? 'not-found'
+                                  : res.statusCode === 307
+                                  ? undefined
+                                  : 'error'
+                              }
+                              searchParams={providedSearchParams}
+                              getDynamicParamFromSegment={
+                                getDynamicParamFromSegment
+                              }
+                              appUsingSizeAdjust={appUsingSizeAdjust}
+                            />
                             {use404Error ? (
                               <RootLayout params={{}}>
                                 {notFoundStyles}

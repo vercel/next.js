@@ -389,23 +389,6 @@ export async function resolveMetadata({
     ...(isPage && { searchParams }),
   }
 
-  // const isLeaf =
-  //   !parallelRoutes.children ||
-  //   Object.keys(parallelRoutes.children[1]).length === 0
-  // if (isLeaf && notFound && errorType) {
-  //   await collectMetadata({
-  //     tree,
-  //     errorType,
-  //     metadataItems,
-  //     props: layerProps,
-  //     route: currentTreePrefix
-  //       // __PAGE__ shouldn't be shown in a route
-  //       .filter((s) => s !== PAGE_SEGMENT_KEY)
-  //       .join('/'),
-  //   })
-  //   return metadataItems
-  // }
-
   await collectMetadata({
     tree,
     metadataItems,
