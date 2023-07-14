@@ -59,7 +59,8 @@ function hasIconsProperty(
     // Detect if icons.icon will be presented, icons array and icons string will all be merged into icons.icon
     return !!(
       typeof icons === 'string' ||
-      (icons instanceof URL && Array.isArray(icons)) ||
+      icons instanceof URL ||
+      Array.isArray(icons) ||
       (prop in icons && icons[prop])
     )
   } else {
