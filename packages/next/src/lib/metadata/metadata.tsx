@@ -25,11 +25,13 @@ export async function MetadataTree({
   pathname,
   searchParams,
   getDynamicParamFromSegment,
+  appUsingSizeAdjust,
 }: {
   tree: LoaderTree
   pathname: string
   searchParams: { [key: string]: any }
   getDynamicParamFromSegment: GetDynamicParamFromSegment
+  appUsingSizeAdjust: boolean
 }) {
   const metadataContext = {
     pathname,
@@ -55,6 +57,8 @@ export async function MetadataTree({
     AppLinksMeta({ appLinks: metadata.appLinks }),
     IconsMetadata({ icons: metadata.icons }),
   ])
+
+  if (appUsingSizeAdjust) elements.push(<meta name="next-size-adjust" />)
 
   return (
     <>
