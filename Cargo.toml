@@ -5,6 +5,7 @@ members = [
   "packages/next-swc/crates/core",
   "packages/next-swc/crates/napi",
   "packages/next-swc/crates/wasm",
+  "packages/next-swc/crates/next-api",
   "packages/next-swc/crates/next-build",
   "packages/next-swc/crates/next-core",
   "packages/next-swc/crates/next-dev",
@@ -26,6 +27,7 @@ lto = true
 
 [workspace.dependencies]
 # Workspace crates
+next-api = { path = "packages/next-swc/crates/next-api", default-features = false }
 next-build = { path = "packages/next-swc/crates/next-build", default-features = false }
 next-core = { path = "packages/next-swc/crates/next-core", default-features = false }
 next-dev = { path = "packages/next-swc/crates/next-dev", default-features = false, features = [
@@ -42,11 +44,11 @@ swc_core = { version = "0.79.13" }
 testing = { version = "0.33.20" }
 
 # Turbo crates
-turbopack-binding = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230713.2" }
+turbopack-binding = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230713.3" }
 # [TODO]: need to refactor embed_directory! macro usages, as well as resolving turbo_tasks::function, macros..
-turbo-tasks = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230713.2" }
+turbo-tasks = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230713.3" }
 # [TODO]: need to refactor embed_directory! macro usage in next-core
-turbo-tasks-fs = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230713.2" }
+turbo-tasks-fs = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230713.3" }
 
 # General Deps
 

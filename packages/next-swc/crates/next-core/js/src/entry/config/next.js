@@ -16,10 +16,6 @@ const loadNextConfig = async (silent) => {
 
   const customRoutes = await loadCustomRoutes(nextConfig)
 
-  nextConfig.headers = customRoutes.headers
-  nextConfig.rewrites = customRoutes.rewrites
-  nextConfig.redirects = customRoutes.redirects
-
   // TODO: these functions takes arguments, have to be supported in a different way
   nextConfig.exportPathMap = nextConfig.exportPathMap && {}
   nextConfig.webpack = nextConfig.webpack && {}
@@ -30,7 +26,10 @@ const loadNextConfig = async (silent) => {
     )
   }
 
-  return nextConfig
+  return {
+    customRoutes: customRoutes,
+    config: nextConfig,
+  }
 }
 
 export { loadNextConfig as default }

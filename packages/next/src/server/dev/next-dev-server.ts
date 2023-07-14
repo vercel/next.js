@@ -641,7 +641,11 @@ export default class DevServer extends Server {
           }
         }
 
-        if (!this.usingTypeScript && enabledTypeScript) {
+        if (
+          !this.usingTypeScript &&
+          enabledTypeScript &&
+          !this.isRenderWorker
+        ) {
           // we tolerate the error here as this is best effort
           // and the manual install command will be shown
           await this.verifyTypeScript()
@@ -882,7 +886,10 @@ export default class DevServer extends Server {
     setGlobal('distDir', this.distDir)
     setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
 
-    await this.verifyTypeScript()
+    if (!this.isRenderWorker) {
+      await this.verifyTypeScript()
+    }
+
     this.customRoutes = await loadCustomRoutes(this.nextConfig)
 
     // reload router

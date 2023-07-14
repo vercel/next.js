@@ -25,7 +25,7 @@ use next_core::{
     manifest::DevManifestContentSource,
     mode::NextMode,
     next_client::{get_client_chunking_context, get_client_compile_time_info},
-    next_config::load_next_config,
+    next_config::{load_next_config, load_rewrites},
     next_image::NextImageContentSourceVc,
     pages_structure::find_pages_structure,
     router_source::NextRouterContentSourceVc,
@@ -335,7 +335,9 @@ async fn source(
         ExecutionContextVc::new(project_path, build_chunking_context.into(), env);
 
     let mode = NextMode::Development;
-    let next_config = load_next_config(execution_context.with_layer("next_config"));
+    let next_config_execution_context = execution_context.with_layer("next_config");
+    let next_config = load_next_config(next_config_execution_context);
+    let rewrites = load_rewrites(next_config_execution_context);
 
     let output_root = output_fs.root().join(".next/server");
 
@@ -367,7 +369,8 @@ async fn source(
         client_compile_time_info.environment(),
         mode,
     );
-    let pages_structure = find_pages_structure(project_path, dev_server_root, next_config);
+    let pages_structure =
+        find_pages_structure(project_path, dev_server_root, next_config.page_extensions());
     let page_source = create_page_source(
         pages_structure,
         project_path,
@@ -402,7 +405,7 @@ async fn source(
         StaticAssetsContentSourceVc::new(String::new(), project_path.join("public")).into();
     let manifest_source = DevManifestContentSource {
         page_roots: vec![page_source],
-        next_config,
+        rewrites,
     }
     .cell()
     .into();
