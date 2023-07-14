@@ -17,7 +17,10 @@ import type { RequestAsyncStorage } from '../../client/components/request-async-
 
 import React from 'react'
 import { NotFound as DefaultNotFound } from '../../client/components/error'
-import { createServerComponentRenderer } from './create-server-components-renderer'
+import {
+  createServerComponentRenderer,
+  ErrorHtml,
+} from './create-server-components-renderer'
 
 import { ParsedUrlQuery } from 'querystring'
 import { NextParsedUrlQuery } from '../request-meta'
@@ -195,7 +198,7 @@ export async function renderToHTMLOrFlight(
     serverActionsBodySizeLimit,
   } = renderOpts
 
-  const appUsingSizeAdjust = nextFontManifest?.appUsingSizeAdjust
+  const appUsingSizeAdjust = !!nextFontManifest?.appUsingSizeAdjust
 
   const clientReferenceManifest = renderOpts.clientReferenceManifest!
 
@@ -1216,8 +1219,8 @@ export async function renderToHTMLOrFlight(
                     pathname={pathname}
                     searchParams={providedSearchParams}
                     getDynamicParamFromSegment={getDynamicParamFromSegment}
+                    appUsingSizeAdjust={appUsingSizeAdjust}
                   />
-                  {appUsingSizeAdjust ? <meta name="next-size-adjust" /> : null}
                 </>
               ),
               injectedCSS: new Set(),
@@ -1259,12 +1262,12 @@ export async function renderToHTMLOrFlight(
       /** GlobalError can be either the default error boundary or the overwritten app/global-error.js **/
       ComponentMod.GlobalError as typeof import('../../client/components/error-boundary').GlobalError
 
-    let serverComponentsInlinedTransformStream: TransformStream<
+    const serverComponentsInlinedTransformStream: TransformStream<
       Uint8Array,
       Uint8Array
     > = new TransformStream()
 
-    let serverErrorComponentsInlinedTransformStream: TransformStream<
+    const serverErrorComponentsInlinedTransformStream: TransformStream<
       Uint8Array,
       Uint8Array
     > = new TransformStream()
@@ -1367,6 +1370,7 @@ export async function renderToHTMLOrFlight(
             pathname={pathname}
             searchParams={providedSearchParams}
             getDynamicParamFromSegment={getDynamicParamFromSegment}
+            appUsingSizeAdjust={appUsingSizeAdjust}
           />
         )
 
@@ -1384,22 +1388,15 @@ export async function renderToHTMLOrFlight(
               assetPrefix={assetPrefix}
               initialCanonicalUrl={pathname}
               initialTree={initialTree}
-              initialHead={
-                <>
-                  {createMetadata(loaderTree)}
-                  {appUsingSizeAdjust ? <meta name="next-size-adjust" /> : null}
-                </>
-              }
+              initialHead={<>{createMetadata(loaderTree)}</>}
               globalErrorComponent={GlobalError}
               notFound={
                 NotFound ? (
-                  <html id="__next_error__">
-                    <body>
-                      {createMetadata(loaderTree)}
-                      {notFoundStyles}
-                      <NotFound />
-                    </body>
-                  </html>
+                  <ErrorHtml>
+                    {createMetadata(loaderTree)}
+                    {notFoundStyles}
+                    <NotFound />
+                  </ErrorHtml>
                 ) : undefined
               }
               asNotFound={props.asNotFound}
@@ -1480,16 +1477,16 @@ export async function renderToHTMLOrFlight(
 
         let polyfillsFlushed = false
         let flushedErrorMetaTagsUntilIndex = 0
-        const getServerInsertedHTML = () => {
+        const getServerInsertedHTML = (serverCapturedErrors: Error[]) => {
           // Loop through all the errors that have been captured but not yet
           // flushed.
           const errorMetaTags = []
           for (
             ;
-            flushedErrorMetaTagsUntilIndex < allCapturedErrors.length;
+            flushedErrorMetaTagsUntilIndex < serverCapturedErrors.length;
             flushedErrorMetaTagsUntilIndex++
           ) {
-            const error = allCapturedErrors[flushedErrorMetaTagsUntilIndex]
+            const error = serverCapturedErrors[flushedErrorMetaTagsUntilIndex]
             if (isNotFoundError(error)) {
               errorMetaTags.push(
                 <meta name="robots" content="noindex" key={error.digest} />
@@ -1571,7 +1568,8 @@ export async function renderToHTMLOrFlight(
             dataStream: serverComponentsInlinedTransformStream.readable,
             generateStaticHTML:
               staticGenerationStore.isStaticGeneration || generateStaticHTML,
-            getServerInsertedHTML,
+            getServerInsertedHTML: () =>
+              getServerInsertedHTML(allCapturedErrors),
             serverInsertedHTMLToHead: true,
             ...validateRootLayout,
           })
@@ -1610,23 +1608,6 @@ export async function renderToHTMLOrFlight(
             res.setHeader('Location', getURLFromRedirectError(err))
           }
 
-          const defaultErrorComponent = (
-            <html id="__next_error__">
-              <head>
-                {/* @ts-expect-error allow to use async server component */}
-                <MetadataTree
-                  key={requestId}
-                  tree={emptyLoaderTree}
-                  pathname={pathname}
-                  searchParams={providedSearchParams}
-                  getDynamicParamFromSegment={getDynamicParamFromSegment}
-                />
-                {appUsingSizeAdjust ? <meta name="next-size-adjust" /> : null}
-              </head>
-              <body></body>
-            </html>
-          )
-
           const use404Error = res.statusCode === 404
           const useDefaultError = res.statusCode < 400 || res.statusCode === 307
 
@@ -1643,48 +1624,45 @@ export async function renderToHTMLOrFlight(
             ? interopDefault(await rootLayoutModule())
             : null
 
-          const serverErrorElement = useDefaultError
-            ? defaultErrorComponent
-            : React.createElement(
-                createServerComponentRenderer(
-                  async () => {
-                    // only pass plain object to client
-                    return (
-                      <>
-                        {/* @ts-expect-error allow to use async server component */}
-                        <MetadataTree
-                          key={requestId}
-                          tree={emptyLoaderTree}
-                          pathname={pathname}
-                          searchParams={providedSearchParams}
-                          getDynamicParamFromSegment={
-                            getDynamicParamFromSegment
-                          }
-                        />
-                        {use404Error ? (
+          const serverErrorElement = (
+            <ErrorHtml
+              head={
+                // @ts-expect-error allow to use async server component
+                <MetadataTree
+                  key={requestId}
+                  tree={emptyLoaderTree}
+                  pathname={pathname}
+                  searchParams={providedSearchParams}
+                  getDynamicParamFromSegment={getDynamicParamFromSegment}
+                  appUsingSizeAdjust={appUsingSizeAdjust}
+                />
+              }
+            >
+              {useDefaultError
+                ? null
+                : React.createElement(
+                    createServerComponentRenderer(
+                      async () => {
+                        return (
                           <>
-                            <RootLayout params={{}}>
-                              {notFoundStyles}
-                              <NotFound />
-                            </RootLayout>
+                            {use404Error ? (
+                              <RootLayout params={{}}>
+                                {notFoundStyles}
+                                <meta name="robots" content="noindex" />
+                                <NotFound />
+                              </RootLayout>
+                            ) : undefined}
                           </>
-                        ) : (
-                          <GlobalError
-                            error={{
-                              message: err?.message,
-                              digest: err?.digest,
-                            }}
-                          />
-                        )}
-                      </>
+                        )
+                      },
+                      ComponentMod,
+                      serverErrorComponentsRenderOpts,
+                      serverComponentsErrorHandler,
+                      nonce
                     )
-                  },
-                  ComponentMod,
-                  serverErrorComponentsRenderOpts,
-                  serverComponentsErrorHandler,
-                  nonce
-                )
-              )
+                  )}
+            </ErrorHtml>
+          )
 
           const renderStream = await renderToInitialStream({
             ReactDOMServer: require('react-dom/server.edge'),
@@ -1713,7 +1691,7 @@ export async function renderToHTMLOrFlight(
               : serverErrorComponentsInlinedTransformStream
             ).readable,
             generateStaticHTML: staticGenerationStore.isStaticGeneration,
-            getServerInsertedHTML,
+            getServerInsertedHTML: () => getServerInsertedHTML([]),
             serverInsertedHTMLToHead: true,
             ...validateRootLayout,
           })
