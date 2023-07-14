@@ -29,13 +29,15 @@ use turbopack_binding::{
     turbopack::{
         build::BuildChunkingContextVc,
         core::{
-            asset::{Asset, AssetVc, AssetsVc},
+            asset::{Asset, AssetVc},
             chunk::{
                 availability_info::AvailabilityInfo, ChunkingContext, EvaluatableAssetsVc,
                 ModuleId as TurbopackModuleId,
             },
             compile_time_info::CompileTimeInfoVc,
             file_source::FileSourceVc,
+            output::{OutputAssetVc, OutputAssetsVc},
+            raw_output::RawOutputVc,
             virtual_source::VirtualSourceVc,
         },
         ecmascript::{
@@ -285,7 +287,7 @@ pub async fn compute_app_entries_chunks(
     app_build_manifest: &mut AppBuildManifest,
     build_manifest: &mut BuildManifest,
     app_paths_manifest: &mut AppPathsManifest,
-    all_chunks: &mut Vec<AssetVc>,
+    all_chunks: &mut Vec<OutputAssetVc>,
 ) -> Result<()> {
     let node_root_ref = node_root.await?;
 
@@ -519,7 +521,7 @@ pub async fn compute_app_entries_chunks(
             })
             .into(),
         );
-        all_chunks.push(client_reference_manifest_source.into());
+        all_chunks.push(RawOutputVc::new(client_reference_manifest_source.into()).into());
     }
 
     Ok(())
@@ -553,9 +555,9 @@ pub async fn get_app_shared_client_chunk(
 pub async fn get_app_client_shared_chunks(
     app_client_runtime_entries: EvaluatableAssetsVc,
     client_chunking_context: EcmascriptChunkingContextVc,
-) -> Result<AssetsVc> {
+) -> Result<OutputAssetsVc> {
     if app_client_runtime_entries.await?.is_empty() {
-        return Ok(AssetsVc::empty());
+        return Ok(OutputAssetsVc::empty());
     }
 
     let app_client_shared_chunk =
