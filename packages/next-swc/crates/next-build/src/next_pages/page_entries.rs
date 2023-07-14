@@ -2,6 +2,7 @@ use std::io::Write;
 
 use anyhow::{bail, Result};
 use indexmap::indexmap;
+use indoc::writedoc;
 use next_core::{
     create_page_loader_entry_module, get_asset_path_from_pathname,
     mode::NextMode,
@@ -333,86 +334,93 @@ async fn get_page_entry_for_file(
 
     let ssr_module = ssr_module_context.process(source, reference_type.clone());
 
-    // Sourced from https://github.com/vercel/next.js/blob/2848ce51d1552633119c89ab49ff7fe2e4e91c91/packages/next/src/build/webpack/loaders/next-route-loader/index.ts
-    let result = match path_type {
+    let mut result = RopeBuilder::default();
+
+    match path_type {
         PathType::Page => {
-            let mut result = RopeBuilder::from(
-                indoc::formatdoc! {"
-                    import RouteModule from 'next/dist/server/future/route-modules/pages-api/module'
-                    import {{ hoist }} from 'next/dist/build/webpack/loaders/next-route-loader/helpers'
+            // Sourced from https://github.com/vercel/next.js/blob/2848ce51d1552633119c89ab49ff7fe2e4e91c91/packages/next/src/build/webpack/loaders/next-route-loader/index.ts
+            writedoc!(
+                result,
+                r#"
+                    import RouteModule from "next/dist/server/future/route-modules/pages-api/module"
+                    import {{ hoist }} from "next/dist/build/webpack/loaders/next-route-loader/helpers"
 
-                    import Document from '@vercel/turbopack-next/pages/_document'
-                    import App from '@vercel/turbopack-next/pages/_app'
+                    import Document from "@vercel/turbopack-next/pages/_document"
+                    import App from "@vercel/turbopack-next/pages/_app"
 
-                    import * as userland from 'INNER'
+                    import * as userland from "INNER"
 
-                    export default hoist(userland, 'default')
+                    export default hoist(userland, "default")
 
-                    export const getStaticProps = hoist(userland, 'getStaticProps')
-                    export const getStaticPaths = hoist(userland, 'getStaticPaths')
-                    export const getServerSideProps = hoist(userland, 'getServerSideProps')
-                    export const config = hoist(userland, 'config')
-                    export const reportWebVitals = hoist(userland, 'reportWebVitals')
+                    export const getStaticProps = hoist(userland, "getStaticProps")
+                    export const getStaticPaths = hoist(userland, "getStaticPaths")
+                    export const getServerSideProps = hoist(userland, "getServerSideProps")
+                    export const config = hoist(userland, "config")
+                    export const reportWebVitals = hoist(userland, "reportWebVitals")
 
-                    export const unstable_getStaticProps = hoist(userland, 'unstable_getStaticProps')
-                    export const unstable_getStaticPaths = hoist(userland, 'unstable_getStaticPaths')
-                    export const unstable_getStaticParams = hoist(userland, 'unstable_getStaticParams')
-                    export const unstable_getServerProps = hoist(userland, 'unstable_getServerProps')
-                    export const unstable_getServerSideProps = hoist(userland, 'unstable_getServerSideProps')
+                    export const unstable_getStaticProps = hoist(userland, "unstable_getStaticProps")
+                    export const unstable_getStaticPaths = hoist(userland, "unstable_getStaticPaths")
+                    export const unstable_getStaticParams = hoist(userland, "unstable_getStaticParams")
+                    export const unstable_getServerProps = hoist(userland, "unstable_getServerProps")
+                    export const unstable_getServerSideProps = hoist(userland, "unstable_getServerSideProps")
                     
                     export const routeModule = new RouteModule({{
                         definition: {{
-                            kind: 'PAGES',
-                            page: '{definition_page}',
-                            pathname: '{definition_pathname}',
-                            bundlePath: '',
-                            filename: '',
+                            kind: "PAGES",
+                            page: "{definition_page}",
+                            pathname: "{definition_pathname}",
+                            // The following aren't used in production, but are
+                            // required for the RouteModule constructor.
+                            bundlePath: "",
+                            filename: "",
+                        }},
+                        components: {{
+                            App,
+                            Document,
                         }},
                         userland,
                     }})
-                "}
-                .as_bytes()
-                .to_vec(),
-            );
+                "#
+            )?;
 
             // When we're building the instrumentation page (only when the
             // instrumentation file conflicts with a page also labeled
             // /instrumentation) hoist the `register` method.
-            if definition_page.to_string() == "/instrumentation"
-                || definition_page.to_string() == "/src/instrumentation"
-            {
+            if definition_page == "/instrumentation" || definition_page == "/src/instrumentation" {
                 writeln!(
                     result,
-                    r#"export const register = hoist(userland, "register")\n"#
+                    r#"export const register = hoist(userland, "register")"#
                 )?;
             }
-
-            result
         }
-        PathType::PagesAPI => RopeBuilder::from(
-            indoc::formatdoc! {"
-                import RouteModule from 'next/dist/server/future/route-modules/pages-api/module'
-                import {{ hoist }} from 'next/dist/build/webpack/loaders/next-route-loader/helpers'
+        PathType::PagesAPI => {
+            // Sourced from https://github.com/vercel/next.js/blob/2848ce51d1552633119c89ab49ff7fe2e4e91c91/packages/next/src/build/webpack/loaders/next-route-loader/index.ts
+            writedoc!(
+                result,
+                r#"
+                    import RouteModule from "next/dist/server/future/route-modules/pages-api/module"
+                    import {{ hoist }} from "next/dist/build/webpack/loaders/next-route-loader/helpers"
 
-                import * as userland from 'INNER'
+                    import * as userland from "INNER"
 
-                export default hoist(userland, 'default')
-                export const config = hoist(userland, 'config')
-                
-                export const routeModule = new RouteModule({{
-                    definition: {{
-                        kind: 'PAGES_API',
-                        page: '{definition_page}',
-                        pathname: '{definition_pathname}',
-                        bundlePath: '',
-                        filename: '',
-                    }},
-                    userland,
-                }})
-        "}
-            .as_bytes()
-            .to_vec(),
-        ),
+                    export default hoist(userland, "default")
+                    export const config = hoist(userland, "config")
+                    
+                    export const routeModule = new RouteModule({{
+                        definition: {{
+                            kind: "PAGES_API",
+                            page: "{definition_page}",
+                            pathname: "{definition_pathname}",
+                            // The following aren't used in production, but are
+                            // required for the RouteModule constructor.
+                            bundlePath: "",
+                            filename: "",
+                        }},
+                        userland,
+                    }})
+                "#
+            )?;
+        }
         _ => bail!("Invalid path type"),
     };
 
