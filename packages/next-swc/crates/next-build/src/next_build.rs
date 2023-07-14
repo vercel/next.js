@@ -33,7 +33,7 @@ use turbopack_binding::{
         build::BuildChunkingContext,
         cli_utils::issue::{ConsoleUi, LogOptions},
         core::{
-            asset::{Asset, Assets},
+            asset::Asset,
             chunk::ChunkingContext,
             environment::ServerAddr,
             issue::{IssueContextExt, IssueReporter, IssueSeverity},
@@ -522,13 +522,13 @@ async fn emit_all_assets(
 }
 
 #[turbo_tasks::function]
-fn emit(asset: Vc<Box<dyn Asset>>) -> Vc<Completion> {
+fn emit(asset: Vc<Box<dyn OutputAsset>>) -> Vc<Completion> {
     asset.content().write(asset.ident().path())
 }
 
 #[turbo_tasks::function]
 fn emit_rebase(
-    asset: Vc<Box<dyn Asset>>,
+    asset: Vc<Box<dyn OutputAsset>>,
     from: Vc<FileSystemPath>,
     to: Vc<FileSystemPath>,
 ) -> Vc<Completion> {
@@ -540,7 +540,7 @@ fn emit_rebase(
 /// Walks the asset graph from multiple assets and collect all referenced
 /// assets.
 #[turbo_tasks::function]
-async fn all_assets_from_entries(entries: Vc<OutputAssets>) -> Result<Vc<Assets>> {
+async fn all_assets_from_entries(entries: Vc<OutputAssets>) -> Result<Vc<OutputAssets>> {
     Ok(Vc::cell(
         AdjacencyMap::new()
             .skip_duplicates()
@@ -558,20 +558,29 @@ async fn all_assets_from_entries(entries: Vc<OutputAssets>) -> Result<Vc<Assets>
 
 /// Computes the list of all chunk children of a given chunk.
 async fn get_referenced_assets(
-    asset: Vc<Box<dyn Asset>>,
-) -> Result<impl Iterator<Item = Vc<Box<dyn Asset>>> + Send> {
-    Ok(asset
-        .references()
-        .await?
-        .iter()
-        .map(|reference| async move {
-            let primary_assets = reference.resolve_reference().primary_assets().await?;
-            Ok(primary_assets.clone_value())
-        })
-        .try_join()
-        .await?
-        .into_iter()
-        .flatten())
+    asset: Vc<Box<dyn OutputAsset>>,
+) -> Result<impl Iterator<Item = Vc<Box<dyn OutputAsset>>> + Send> {
+    Ok(
+        asset
+            .references()
+            .await?
+            .iter()
+            .map(|reference| async move {
+                let primary_assets = reference.resolve_reference().primary_assets().await?;
+                Ok(primary_assets.clone_value())
+            })
+            .try_join()
+            .await?
+            .into_iter()
+            .flatten()
+            .map(|asset| async move {
+                Ok(Vc::try_resolve_downcast::<Box<dyn OutputAsset>>(asset).await?)
+            })
+            .try_join()
+            .await?
+            .into_iter()
+            .flatten(),
+    )
 }
 
 /// Writes a manifest to disk. This consumes the manifest to ensure we don't

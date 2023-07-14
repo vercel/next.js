@@ -8,7 +8,6 @@ use turbopack_binding::{
     turbo::{tasks_env::EnvMap, tasks_fs::FileSystemPath},
     turbopack::{
         core::{
-            asset::Asset,
             changed::any_content_changed,
             chunk::ChunkingContext,
             context::AssetContext,
@@ -21,6 +20,7 @@ use turbopack_binding::{
                 options::{ImportMap, ImportMapping},
                 FindContextFileResult, ResolveAliasMap,
             },
+            source::Source,
         },
         ecmascript_plugin::transform::{
             emotion::EmotionTransformConfig, relay::RelayConfig,
@@ -729,7 +729,7 @@ async fn load_next_config_and_custom_routes_internal(
         Value::new(ReferenceType::Entry(EntryReferenceSubType::Undefined)),
     );
     let config_value = evaluate(
-        Vc::upcast(load_next_config_asset),
+        load_next_config_asset,
         project_path,
         env,
         config_asset.map_or_else(|| AssetIdent::from_path(project_path), |c| c.ident()),

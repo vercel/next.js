@@ -21,7 +21,6 @@ use turbopack_binding::{
     turbo::tasks_fs::{FileSystem, FileSystemPath, VirtualFileSystem},
     turbopack::{
         core::{
-            asset::Asset,
             changed::{any_content_changed, any_content_changed_of_output_assets},
             chunk::{ChunkableModule, ChunkingContext, EvaluatableAssets},
             context::AssetContext,

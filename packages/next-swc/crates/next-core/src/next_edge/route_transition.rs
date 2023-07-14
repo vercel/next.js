@@ -63,7 +63,7 @@ impl Transition for NextEdgeRouteTransition {
         context: Vc<ModuleAssetContext>,
     ) -> Result<Vc<Box<dyn Module>>> {
         let new_asset = route_bootstrap(
-            Vc::upcast(asset),
+            asset,
             Vc::upcast(context),
             self.base_path,
             self.bootstrap_asset,

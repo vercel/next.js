@@ -34,7 +34,7 @@ use turbopack_binding::{
     },
     turbopack::{
         core::{
-            asset::{Asset, AssetContent},
+            asset::AssetContent,
             changed::any_content_changed_of_output_assets,
             chunk::EvaluatableAssets,
             file_source::FileSource,
