@@ -182,22 +182,6 @@ function errorIfEnvConflicted(config: NextConfigComplete, key: string) {
   }
 }
 
-function isResourceInPackages(
-  resource: string,
-  packageNames?: string[],
-  packageDirMapping?: Map<string, string>
-) {
-  return packageNames?.some((p: string) =>
-    packageDirMapping && packageDirMapping.has(p)
-      ? resource.startsWith(packageDirMapping.get(p)! + path.sep)
-      : resource.includes(
-          path.sep +
-            path.join('node_modules', p.replace(/\//g, path.sep)) +
-            path.sep
-        )
-  )
-}
-
 export function getDefineEnv({
   dev,
   config,
@@ -1241,6 +1225,12 @@ export default async function getBaseWebpackConfig(
   const topLevelFrameworkPaths: string[] = []
   const visitedFrameworkPackages = new Set<string>()
 
+  const transpiledPackagesRegex = new RegExp(
+    `[/\\\\]node_modules[/\\\\](${config.transpilePackages
+      .map((p) => p.replace(/\//g, '[/\\\\]'))
+      .join('|')})[/\\\\]`
+  )
+
   // Adds package-paths of dependencies recursively
   const addPackagePath = (packageName: string, relativeToPath: string) => {
     try {
@@ -1287,8 +1277,13 @@ export default async function getBaseWebpackConfig(
       .map((p) => p.replace(/\//g, '[/\\\\]'))
       .join('|')})[/\\\\]`
   )
+  const optOutBundlingPackageFastPathRegex = new RegExp(
+    `[/\\\\](${optOutBundlingPackages
+      .map((p) => p.replace(/\//g, '[/\\\\]'))
+      .join('|')})[/\\\\]`
+  )
 
-  let resolvedExternalPackageDirs: Map<string, string>
+  let resolvedTranspilePackageDirsRegex: RegExp
 
   async function handleExternals(
     context: string,
@@ -1432,11 +1427,14 @@ export default async function getBaseWebpackConfig(
 
     // Don't bundle @vercel/og nodejs bundle for nodejs runtime.
     // TODO-APP: bundle route.js with different layer that externals common node_module deps.
-    if (
-      isWebpackServerLayer(layer) &&
-      request === 'next/dist/compiled/@vercel/og/index.node.js'
-    ) {
-      return `module ${request}`
+    if (isWebpackServerLayer(layer)) {
+      if (request === 'next/dist/compiled/@vercel/og/index.node.js') {
+        return `module ${request}`
+      }
+
+      if (!optOutBundlingPackageFastPathRegex.test(request)) {
+        return
+      }
     }
 
     // Specific Next.js imports that should remain external
@@ -1482,8 +1480,8 @@ export default async function getBaseWebpackConfig(
       const fullRequest = isRelative
         ? path.join(context, request).replace(/\\/g, '/')
         : request
-      const resolveNextExternal = isLocalCallback(fullRequest)
 
+      const resolveNextExternal = isLocalCallback(fullRequest)
       return resolveNextExternal
     }
 
@@ -1545,8 +1543,10 @@ export default async function getBaseWebpackConfig(
 
     // If a package should be transpiled by Next.js, we skip making it external.
     // It doesn't matter what the extension is, as we'll transpile it anyway.
-    if (config.transpilePackages && !resolvedExternalPackageDirs) {
-      resolvedExternalPackageDirs = new Map()
+    if (config.transpilePackages && !resolvedTranspilePackageDirsRegex) {
+      resolvedTranspilePackageDirsRegex = /^$/
+      const dirs = []
+
       // We need to resolve all the external package dirs initially.
       for (const pkg of config.transpilePackages) {
         const pkgRes = await resolveExternal(
@@ -1560,21 +1560,22 @@ export default async function getBaseWebpackConfig(
           isLocal ? isLocalCallback : undefined
         )
         if (pkgRes.res) {
-          resolvedExternalPackageDirs.set(pkg, path.dirname(pkgRes.res))
+          dirs.push(path.dirname(pkgRes.res))
         }
       }
+
+      resolvedTranspilePackageDirsRegex = new RegExp(
+        `[/\\\\](${dirs
+          .map((p) => p.replace(/\//g, '[/\\\\]'))
+          .join('|')})[/\\\\]`
+      )
     }
 
     // If a package is included in `transpilePackages`, we don't want to make it external.
     // And also, if that resource is an ES module, we bundle it too because we can't
     // rely on the require hook to alias `react` to our precompiled version.
     const shouldBeBundled =
-      isResourceInPackages(
-        res,
-        config.transpilePackages,
-        resolvedExternalPackageDirs
-      ) ||
-      (isEsm && isAppLayer)
+      resolvedTranspilePackageDirsRegex.test(res) || isWebpackServerLayer(layer)
 
     if (/node_modules[/\\].*\.[mc]?js$/.test(res)) {
       if (isWebpackServerLayer(layer)) {
@@ -1614,10 +1615,7 @@ export default async function getBaseWebpackConfig(
         return false
       }
 
-      const shouldBeBundled = isResourceInPackages(
-        excludePath,
-        config.transpilePackages
-      )
+      const shouldBeBundled = transpiledPackagesRegex.test(excludePath)
       if (shouldBeBundled) return false
 
       return excludePath.includes('node_modules')
