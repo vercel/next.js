@@ -155,6 +155,7 @@ export class ClientReferenceManifestPlugin {
     context: string
   ) {
     const manifestsPerGroup = new Map<string, ClientReferenceManifest[]>()
+    const manifestEntryFiles: string[] = []
 
     compilation.chunkGroups.forEach((chunkGroup) => {
       // By default it's the shared chunkGroup (main-app) for every page.
@@ -334,94 +335,74 @@ export class ClientReferenceManifestPlugin {
       // A page's entry name can have extensions. For example, these are both valid:
       // - app/foo/page
       // - app/foo/page.page
-      // Let's normalize the entry name to remove the extra extension
-      const groupName = /\/page(\.[^/]+)?$/.test(entryName)
-        ? entryName.replace(/\/page(\.[^/]+)?$/, '/page')
-        : entryName.slice(0, entryName.lastIndexOf('/'))
+      if (/\/page(\.[^/]+)?$/.test(entryName)) {
+        manifestEntryFiles.push(entryName.replace(/\/page(\.[^/]+)?$/, '/page'))
+      }
+
+      // Special case for the root not-found page.
+      if (/^app\/not-found(\.[^.]+)?$/.test(entryName)) {
+        manifestEntryFiles.push('app/not-found')
+      }
+
+      // Group the entry by their route path, so the page has all manifest items
+      // it needs:
+      // - app/foo/loading -> app/foo
+      // - app/foo/page -> app/foo
+      // - app/(group)/@named/foo/page -> app/foo
+      const groupName = entryName
+        .slice(0, entryName.lastIndexOf('/'))
+        .replace(/\/@[^/]+/g, '')
+        .replace(/\/\([^/]+\)/g, '')
 
       if (!manifestsPerGroup.has(groupName)) {
         manifestsPerGroup.set(groupName, [])
       }
       manifestsPerGroup.get(groupName)!.push(manifest)
-
-      if (entryName.includes('/@')) {
-        // Remove parallel route labels:
-        // - app/foo/@bar/page -> app/foo
-        // - app/foo/@bar/layout -> app/foo/layout -> app/foo
-        const entryNameWithoutNamedSegments = entryName.replace(/\/@[^/]+/g, '')
-        const groupNameWithoutNamedSegments =
-          entryNameWithoutNamedSegments.slice(
-            0,
-            entryNameWithoutNamedSegments.lastIndexOf('/')
-          )
-        if (!manifestsPerGroup.has(groupNameWithoutNamedSegments)) {
-          manifestsPerGroup.set(groupNameWithoutNamedSegments, [])
-        }
-        manifestsPerGroup.get(groupNameWithoutNamedSegments)!.push(manifest)
-      }
-
-      // Special case for the root not-found page.
-      if (/^app\/not-found(\.[^.]+)?$/.test(entryName)) {
-        if (!manifestsPerGroup.has('app/not-found')) {
-          manifestsPerGroup.set('app/not-found', [])
-        }
-        manifestsPerGroup.get('app/not-found')!.push(manifest)
-      }
     })
 
-    // Generate per-page manifests.
-    for (const [groupName] of manifestsPerGroup) {
-      if (groupName.endsWith('/page') || groupName === 'app/not-found') {
-        const mergedManifest: ClientReferenceManifest = {
-          ssrModuleMapping: {},
-          edgeSSRModuleMapping: {},
-          clientModules: {},
-          entryCSSFiles: {},
-        }
+    // console.log(manifestEntryFiles, manifestsPerGroup)
 
-        const segments = groupName.split('/')
-        let group = ''
-        for (const segment of segments) {
-          if (segment.startsWith('@')) continue
-          for (const manifest of manifestsPerGroup.get(group) || []) {
-            mergeManifest(mergedManifest, manifest)
-          }
-          group += (group ? '/' : '') + segment
-        }
-        for (const manifest of manifestsPerGroup.get(groupName) || []) {
+    // Generate per-page manifests.
+    for (const pageName of manifestEntryFiles) {
+      const mergedManifest: ClientReferenceManifest = {
+        ssrModuleMapping: {},
+        edgeSSRModuleMapping: {},
+        clientModules: {},
+        entryCSSFiles: {},
+      }
+
+      const segments = pageName.split('/')
+      let group = ''
+      for (const segment of segments) {
+        if (segment.startsWith('@')) continue
+        if (segment.startsWith('(') && segment.endsWith(')')) continue
+
+        for (const manifest of manifestsPerGroup.get(group) || []) {
           mergeManifest(mergedManifest, manifest)
         }
+        group += (group ? '/' : '') + segment
+      }
 
-        const json = JSON.stringify(mergedManifest)
+      const json = JSON.stringify(mergedManifest)
 
-        const pagePath = groupName.replace(/%5F/g, '_')
-        const pageBundlePath = normalizePagePath(pagePath.slice('app'.length))
-        assets[
-          'server/app' +
-            pageBundlePath +
-            '_' +
-            CLIENT_REFERENCE_MANIFEST +
-            '.js'
-        ] = new sources.RawSource(
-          `globalThis.__RSC_MANIFEST=(globalThis.__RSC_MANIFEST||{});globalThis.__RSC_MANIFEST[${JSON.stringify(
-            pagePath.slice('app'.length)
-          )}]=${JSON.stringify(json)}`
-        ) as unknown as webpack.sources.RawSource
+      const pagePath = pageName.replace(/%5F/g, '_')
+      const pageBundlePath = normalizePagePath(pagePath.slice('app'.length))
+      assets[
+        'server/app' + pageBundlePath + '_' + CLIENT_REFERENCE_MANIFEST + '.js'
+      ] = new sources.RawSource(
+        `globalThis.__RSC_MANIFEST=(globalThis.__RSC_MANIFEST||{});globalThis.__RSC_MANIFEST[${JSON.stringify(
+          pagePath.slice('app'.length)
+        )}]=${JSON.stringify(json)}`
+      ) as unknown as webpack.sources.RawSource
 
-        if (pagePath === 'app/not-found') {
-          // Create a separate special manifest for the root not-found page.
-          assets[
-            'server/' +
-              'app/_not-found' +
-              '_' +
-              CLIENT_REFERENCE_MANIFEST +
-              '.js'
-          ] = new sources.RawSource(
+      if (pagePath === 'app/not-found') {
+        // Create a separate special manifest for the root not-found page.
+        assets['server/app/_not-found_' + CLIENT_REFERENCE_MANIFEST + '.js'] =
+          new sources.RawSource(
             `globalThis.__RSC_MANIFEST=(globalThis.__RSC_MANIFEST||{});globalThis.__RSC_MANIFEST[${JSON.stringify(
               '/_not-found'
             )}]=${JSON.stringify(json)}`
           ) as unknown as webpack.sources.RawSource
-        }
       }
     }
 
