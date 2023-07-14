@@ -709,9 +709,10 @@ export default class HotReloader {
             const entryData = entries[entryKey]
             const { bundlePath, dispose } = entryData
 
-            const result = /^(ssr|rsc|edge-server)@(app|pages|root)@(.*)/g.exec(
-              entryKey
-            )
+            const result =
+              /^(client|server|edge-server)@(app|pages|root)@(.*)/g.exec(
+                entryKey
+              )
             const [, key /* pageType */, , page] = result! // this match should always happen
 
             if (key === COMPILER_NAMES.client && !isClientCompilation) return
