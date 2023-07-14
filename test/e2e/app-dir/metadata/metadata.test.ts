@@ -631,6 +631,18 @@ createNextDescribe(
         })
       })
 
+      it('should merge icons from layout if no static icons files are specified', async () => {
+        const browser = await next.browser('/icons/descriptor/from-layout')
+        const matchDom = createDomMatcher(browser)
+
+        await matchDom('link', 'href="favicon-light.png"', {
+          media: '(prefers-color-scheme: light)',
+        })
+        await matchDom('link', 'href="favicon-dark.png"', {
+          media: '(prefers-color-scheme: dark)',
+        })
+      })
+
       it('should not hoist meta[itemProp] to head', async () => {
         const $ = await next.render$('/')
         expect($('head meta[itemProp]').length).toBe(0)
@@ -646,6 +658,7 @@ createNextDescribe(
 
         const iconSvg = $('link[rel="icon"][type="image/svg+xml"]')
         expect(iconSvg.attr('href')).toBe('/icon.svg?90699bff34adba1f')
+        expect(iconSvg.attr('sizes')).toBe('any')
 
         $ = await next.render$('/basic')
         const icon = $('link[rel="icon"]')

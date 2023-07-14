@@ -85,7 +85,7 @@ type JSONValue =
   | JSONValue[]
   | { [k: string]: JSONValue }
 
-type TurboLoaderItem =
+export type TurboLoaderItem =
   | string
   | {
       loader: string
@@ -93,7 +93,7 @@ type TurboLoaderItem =
       options: Record<string, JSONValue>
     }
 
-interface ExperimentalTurboOptions {
+export interface ExperimentalTurboOptions {
   /**
    * (`next --turbo` only) A mapping of aliased imports to modules to load in their place.
    *

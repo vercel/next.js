@@ -108,7 +108,6 @@ type AppRouterProps = Omit<
   assetPrefix: string
   // Top level boundaries props
   notFound: React.ReactNode | undefined
-  notFoundStyles?: React.ReactNode | undefined
   asNotFound?: boolean
 }
 
@@ -228,7 +227,6 @@ function Router({
   children,
   assetPrefix,
   notFound,
-  notFoundStyles,
   asNotFound,
 }: AppRouterProps) {
   const initialState = useMemo(
@@ -449,7 +447,7 @@ function Router({
     return findHeadInCache(cache, tree[1])
   }, [cache, tree])
 
-  const notFoundProps = { notFound, notFoundStyles, asNotFound }
+  const notFoundProps = { notFound, asNotFound }
 
   const content = (
     <RedirectBoundary>

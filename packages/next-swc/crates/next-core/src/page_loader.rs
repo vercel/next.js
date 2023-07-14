@@ -7,7 +7,7 @@ use turbopack_binding::{
     turbo::tasks_fs::{rope::RopeBuilder, File, FileContent, FileSystemPathVc},
     turbopack::{
         core::{
-            asset::{Asset, AssetContentVc, AssetVc, AssetsVc},
+            asset::{Asset, AssetContentVc, AssetVc},
             chunk::{
                 ChunkDataVc, ChunkableModule, ChunkingContext, ChunkingContextVc, ChunksDataVc,
                 EvaluatableAssetVc, EvaluatableAssetsVc,
@@ -15,6 +15,7 @@ use turbopack_binding::{
             context::{AssetContext, AssetContextVc},
             ident::AssetIdentVc,
             module::ModuleVc,
+            output::OutputAssetsVc,
             reference::{AssetReferencesVc, SingleAssetReferenceVc},
             reference_type::{EntryReferenceSubType, InnerAssetsVc, ReferenceType},
             source::SourceVc,
@@ -95,7 +96,7 @@ pub async fn create_page_loader_entry_module(
 #[turbo_tasks::value_impl]
 impl PageLoaderAssetVc {
     #[turbo_tasks::function]
-    async fn get_page_chunks(self) -> Result<AssetsVc> {
+    async fn get_page_chunks(self) -> Result<OutputAssetsVc> {
         let this = &*self.await?;
 
         let page_loader_entry_asset =
@@ -161,10 +162,13 @@ impl Asset for PageLoaderAsset {
         let chunks = self_vc.get_page_chunks().await?;
 
         let mut references = Vec::with_capacity(chunks.len());
-        for chunk in chunks.iter() {
+        for &chunk in chunks.iter() {
             references.push(
-                SingleAssetReferenceVc::new(*chunk, page_loader_chunk_reference_description())
-                    .into(),
+                SingleAssetReferenceVc::new(
+                    chunk.into(),
+                    page_loader_chunk_reference_description(),
+                )
+                .into(),
             );
         }
 
