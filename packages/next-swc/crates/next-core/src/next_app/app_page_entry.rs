@@ -86,19 +86,40 @@ pub async fn get_app_page_entry(
     writedoc!(
         result,
         r#"
+            import RouteModule from "next/dist/server/future/route-modules/app-page/module"
+
             export const tree = {loader_tree_code}
             export const pages = {pages}
-            export {{ default as GlobalError }} from 'next/dist/client/components/error-boundary'
+            export {{ default as GlobalError }} from "next/dist/client/components/error-boundary"
             export const originalPathname = {pathname}
             export const __next_app__ = {{
                 require: __turbopack_require__,
                 loadChunk: __turbopack_load__,
             }};
 
-            export * from 'next/dist/server/app-render/entry-base'
+            export * from "next/dist/server/app-render/entry-base"
+
+            // Create and export the route module that will be consumed.
+            export const routeModule = new RouteModule({{
+              definition: {{
+                kind: "APP_PAGE",
+                page: {page},
+                pathname: {definition_pathname},
+                // The following aren't used in production, but are
+                // required for the RouteModule constructor.
+                bundlePath: "",
+                filename: "",
+                appPaths: []
+              }},
+              userland: {{
+                loaderTree: tree,
+              }}
+            }})
         "#,
+        page = StringifyJs(&original_name),
         pages = StringifyJs(&pages),
         pathname = StringifyJs(&original_name),
+        definition_pathname = StringifyJs(pathname),
     )?;
 
     let file = File::from(result.build());
