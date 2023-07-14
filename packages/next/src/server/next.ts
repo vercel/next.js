@@ -51,6 +51,7 @@ const SYMBOL_LOAD_CONFIG = Symbol('next.load_config')
 export class NextServer {
   private serverPromise?: Promise<Server>
   private server?: Server
+  private reqHandler?: NodeRequestHandler
   private reqHandlerPromise?: Promise<NodeRequestHandler>
   private preparedAssetPrefix?: string
 
@@ -217,14 +218,18 @@ export class NextServer {
   }
 
   private async getServerRequestHandler() {
+    if (this.reqHandler) return this.reqHandler
+
     // Memoize request handler creation
     if (!this.reqHandlerPromise) {
-      this.reqHandlerPromise = this.getServer().then((server) =>
-        getTracer().wrap(
+      this.reqHandlerPromise = this.getServer().then((server) => {
+        this.reqHandler = getTracer().wrap(
           NextServerSpan.getServerRequestHandler,
           server.getRequestHandler().bind(server)
         )
-      )
+        delete this.reqHandlerPromise
+        return this.reqHandler
+      })
     }
     return this.reqHandlerPromise
   }

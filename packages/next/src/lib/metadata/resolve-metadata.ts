@@ -50,6 +50,25 @@ type TitleTemplates = {
   openGraph: string | null
 }
 
+function hasIconsProperty(
+  icons: Metadata['icons'],
+  prop: 'icon' | 'apple'
+): boolean {
+  if (!icons) return false
+  if (prop === 'icon') {
+    // Detect if icons.icon will be presented, icons array and icons string will all be merged into icons.icon
+    return !!(
+      typeof icons === 'string' ||
+      icons instanceof URL ||
+      Array.isArray(icons) ||
+      (prop in icons && icons[prop])
+    )
+  } else {
+    // Detect if icons.apple will be presented, only icons.apple will be merged into icons.apple
+    return !!(typeof icons === 'object' && prop in icons && icons[prop])
+  }
+}
+
 function mergeStaticMetadata(
   source: Metadata | null,
   target: ResolvedMetadata,
@@ -61,8 +80,8 @@ function mergeStaticMetadata(
   const { icon, apple, openGraph, twitter, manifest } = staticFilesMetadata
   // file based metadata is specified and current level metadata icons is not specified
   if (
-    (icon && !source?.icons && !source?.icons?.hasOwnProperty('icon')) ||
-    (apple && !source?.icons?.hasOwnProperty('apple'))
+    (icon && !hasIconsProperty(source?.icons, 'icon')) ||
+    (apple && !hasIconsProperty(source?.icons, 'apple'))
   ) {
     target.icons = {
       icon: icon || [],

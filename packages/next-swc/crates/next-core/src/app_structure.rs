@@ -12,7 +12,7 @@ use turbo_tasks::{
     debug::ValueDebugFormat,
     primitives::{StringVc, StringsVc},
     trace::TraceRawVcs,
-    CompletionVc, CompletionsVc,
+    CompletionVc, CompletionsVc, TaskInput, ValueToString,
 };
 use turbopack_binding::{
     turbo::tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPathVc},
@@ -297,11 +297,11 @@ fn match_metadata_file<'a>(
 
 #[turbo_tasks::function]
 async fn get_directory_tree(
-    app_dir: FileSystemPathVc,
+    dir: FileSystemPathVc,
     page_extensions: StringsVc,
 ) -> Result<DirectoryTreeVc> {
-    let DirectoryContent::Entries(entries) = &*app_dir.read_dir().await? else {
-        bail!("app_dir must be a directory")
+    let DirectoryContent::Entries(entries) = &*dir.read_dir().await? else {
+        bail!("{} must be a directory", dir.to_string().await?);
     };
     let page_extensions_value = page_extensions.await?;
 
@@ -451,7 +451,16 @@ async fn merge_loader_trees(
 }
 
 #[derive(
-    Copy, Clone, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, Debug,
+    Copy,
+    Clone,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    ValueDebugFormat,
+    Debug,
+    TaskInput,
 )]
 pub enum Entrypoint {
     AppPage { loader_tree: LoaderTreeVc },
