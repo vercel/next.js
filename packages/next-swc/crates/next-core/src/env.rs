@@ -1,47 +1,47 @@
 use anyhow::Result;
 use indexmap::indexmap;
+use turbo_tasks::Vc;
 use turbopack_binding::{
-    turbo::tasks_env::{
-        CustomProcessEnvVc, EnvMapVc, FilterProcessEnvVc, ProcessEnv, ProcessEnvVc,
-    },
-    turbopack::env::EmbeddableProcessEnvVc,
+    turbo::tasks_env::{CustomProcessEnv, EnvMap, FilterProcessEnv, ProcessEnv},
+    turbopack::env::EmbeddableProcessEnv,
 };
 
-use crate::next_config::NextConfigVc;
+use crate::next_config::NextConfig;
 
-/// Creates a ProcessEnvVc safe to use in JS, by stringifying and encoding as
-/// regular JS strings. Setting `client` to true will additionally filter the
-/// env to just the keys that are acceptable for the client to access.
+/// Creates a Vc<Box<dyn ProcessEnv>> safe to use in JS, by stringifying and
+/// encoding as regular JS strings. Setting `client` to true will additionally
+/// filter the env to just the keys that are acceptable for the client to
+/// access.
 ///
 /// For now, it also injects overridden values as if they were real JS code, eg
 /// an Object and not a String.
 #[turbo_tasks::function]
 pub async fn env_for_js(
-    env: ProcessEnvVc,
+    env: Vc<Box<dyn ProcessEnv>>,
     client: bool,
-    next_config: NextConfigVc,
-) -> Result<ProcessEnvVc> {
+    next_config: Vc<NextConfig>,
+) -> Result<Vc<Box<dyn ProcessEnv>>> {
     let test_mode = env.read("__NEXT_TEST_MODE").await?;
     let test_mode = test_mode.as_deref().unwrap_or("");
 
     let env = if client {
-        FilterProcessEnvVc::new(
+        Vc::upcast(FilterProcessEnv::new(
             env,
             vec![
                 "NEXT_PUBLIC_".to_string(),
                 "NODE_ENV".to_string(),
                 "PORT".to_string(),
             ],
-        )
-        .into()
+        ))
     } else {
         // Server doesn't need to have env vars injected since it will have them in the
         // real process.env.
-        EnvMapVc::cell(Default::default()).into()
+        Vc::upcast(Vc::cell(Default::default()))
     };
 
-    let env =
-        EmbeddableProcessEnvVc::new(CustomProcessEnvVc::new(env, next_config.env()).into()).into();
+    let env = Vc::upcast(EmbeddableProcessEnv::new(Vc::upcast(
+        CustomProcessEnv::new(env, next_config.env()),
+    )));
 
     let image_config = next_config.image_config().await?;
     let mut map = indexmap! {
@@ -65,5 +65,5 @@ pub async fn env_for_js(
         map.insert("__NEXT_TEST_MODE".to_string(), "true".to_string());
     }
 
-    Ok(CustomProcessEnvVc::new(env, EnvMapVc::cell(map)).into())
+    Ok(Vc::upcast(CustomProcessEnv::new(env, Vc::cell(map))))
 }

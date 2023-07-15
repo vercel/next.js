@@ -1,8 +1,8 @@
 use anyhow::Result;
-use turbo_tasks::{primitives::StringsVc, CompletionVc};
-use turbo_tasks_fs::FileSystemPathOptionVc;
+use turbo_tasks::{Completion, Vc};
+use turbo_tasks_fs::FileSystemPathOption;
 use turbopack_binding::turbo::tasks_fs::{
-    DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPathVc,
+    DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath,
 };
 
 use crate::embed_js::next_js_file_path;
@@ -10,24 +10,24 @@ use crate::embed_js::next_js_file_path;
 /// A final route in the pages directory.
 #[turbo_tasks::value]
 pub struct PagesStructureItem {
-    pub project_path: FileSystemPathVc,
+    pub project_path: Vc<FileSystemPath>,
     /// Pathname of this item in the Next.js router.
-    pub next_router_path: FileSystemPathVc,
+    pub next_router_path: Vc<FileSystemPath>,
     /// Unique path corresponding to this item. This differs from
     /// `next_router_path` in that it will include the trailing /index for index
     /// routes, which allows for differentiating with potential /index
     /// directories.
-    pub original_path: FileSystemPathVc,
+    pub original_path: Vc<FileSystemPath>,
 }
 
 #[turbo_tasks::value_impl]
-impl PagesStructureItemVc {
+impl PagesStructureItem {
     #[turbo_tasks::function]
     async fn new(
-        project_path: FileSystemPathVc,
-        next_router_path: FileSystemPathVc,
-        original_path: FileSystemPathVc,
-    ) -> Result<Self> {
+        project_path: Vc<FileSystemPath>,
+        next_router_path: Vc<FileSystemPath>,
+        original_path: Vc<FileSystemPath>,
+    ) -> Result<Vc<Self>> {
         Ok(PagesStructureItem {
             project_path,
             next_router_path,
@@ -39,10 +39,10 @@ impl PagesStructureItemVc {
     /// Returns a completion that changes when any route in the whole tree
     /// changes.
     #[turbo_tasks::function]
-    pub async fn routes_changed(self) -> Result<CompletionVc> {
+    pub async fn routes_changed(self: Vc<Self>) -> Result<Vc<Completion>> {
         let this = self.await?;
         this.next_router_path.await?;
-        Ok(CompletionVc::new())
+        Ok(Completion::new())
     }
 }
 
@@ -50,19 +50,19 @@ impl PagesStructureItemVc {
 /// folders.
 #[turbo_tasks::value]
 pub struct PagesStructure {
-    pub app: PagesStructureItemVc,
-    pub document: PagesStructureItemVc,
-    pub error: PagesStructureItemVc,
-    pub api: Option<PagesDirectoryStructureVc>,
-    pub pages: Option<PagesDirectoryStructureVc>,
+    pub app: Vc<PagesStructureItem>,
+    pub document: Vc<PagesStructureItem>,
+    pub error: Vc<PagesStructureItem>,
+    pub api: Option<Vc<PagesDirectoryStructure>>,
+    pub pages: Option<Vc<PagesDirectoryStructure>>,
 }
 
 #[turbo_tasks::value_impl]
-impl PagesStructureVc {
+impl PagesStructure {
     /// Returns a completion that changes when any route in the whole tree
     /// changes.
     #[turbo_tasks::function]
-    pub async fn routes_changed(self) -> Result<CompletionVc> {
+    pub async fn routes_changed(self: Vc<Self>) -> Result<Vc<Completion>> {
         let PagesStructure {
             ref app,
             ref document,
@@ -79,56 +79,56 @@ impl PagesStructureVc {
         if let Some(pages) = pages {
             pages.routes_changed().await?;
         }
-        Ok(CompletionVc::new())
+        Ok(Completion::new())
     }
 }
 
 #[turbo_tasks::value]
 pub struct PagesDirectoryStructure {
-    pub project_path: FileSystemPathVc,
-    pub next_router_path: FileSystemPathVc,
-    pub items: Vec<PagesStructureItemVc>,
-    pub children: Vec<PagesDirectoryStructureVc>,
+    pub project_path: Vc<FileSystemPath>,
+    pub next_router_path: Vc<FileSystemPath>,
+    pub items: Vec<Vc<PagesStructureItem>>,
+    pub children: Vec<Vc<PagesDirectoryStructure>>,
 }
 
 #[turbo_tasks::value_impl]
-impl PagesDirectoryStructureVc {
+impl PagesDirectoryStructure {
     /// Returns the router path of this directory.
     #[turbo_tasks::function]
-    pub async fn next_router_path(self) -> Result<FileSystemPathVc> {
+    pub async fn next_router_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
         Ok(self.await?.next_router_path)
     }
 
     /// Returns the path to the directory of this structure in the project file
     /// system.
     #[turbo_tasks::function]
-    pub async fn project_path(self) -> Result<FileSystemPathVc> {
+    pub async fn project_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
         Ok(self.await?.project_path)
     }
 
     /// Returns a completion that changes when any route in the whole tree
     /// changes.
     #[turbo_tasks::function]
-    pub async fn routes_changed(self) -> Result<CompletionVc> {
+    pub async fn routes_changed(self: Vc<Self>) -> Result<Vc<Completion>> {
         for item in self.await?.items.iter() {
             item.routes_changed().await?;
         }
         for child in self.await?.children.iter() {
             child.routes_changed().await?;
         }
-        Ok(CompletionVc::new())
+        Ok(Completion::new())
     }
 }
 
 /// Finds and returns the [PagesStructure] of the pages directory if existing.
 #[turbo_tasks::function]
 pub async fn find_pages_structure(
-    project_root: FileSystemPathVc,
-    next_router_root: FileSystemPathVc,
-    page_extensions: StringsVc,
-) -> Result<PagesStructureVc> {
+    project_root: Vc<FileSystemPath>,
+    next_router_root: Vc<FileSystemPath>,
+    page_extensions: Vc<Vec<String>>,
+) -> Result<Vc<PagesStructure>> {
     let pages_root = project_root.join("pages");
-    let pages_root: FileSystemPathOptionVc = FileSystemPathOptionVc::cell(
+    let pages_root: Vc<FileSystemPathOption> = Vc::cell(
         if *pages_root.get_type().await? == FileSystemEntryType::Directory {
             Some(pages_root)
         } else {
@@ -156,10 +156,10 @@ pub async fn find_pages_structure(
 /// Handles the root pages directory.
 #[turbo_tasks::function]
 async fn get_pages_structure_for_root_directory(
-    project_path: FileSystemPathOptionVc,
-    next_router_path: FileSystemPathVc,
-    page_extensions: StringsVc,
-) -> Result<PagesStructureVc> {
+    project_path: Vc<FileSystemPathOption>,
+    next_router_path: Vc<FileSystemPath>,
+    page_extensions: Vc<Vec<String>>,
+) -> Result<Vc<PagesStructure>> {
     let page_extensions_raw = &*page_extensions.await?;
 
     let mut app_item = None;
@@ -182,7 +182,7 @@ async fn get_pages_structure_for_root_directory(
                         match basename {
                             "_app" => {
                                 let item_next_router_path = next_router_path.join("_app");
-                                let _ = app_item.insert(PagesStructureItemVc::new(
+                                let _ = app_item.insert(PagesStructureItem::new(
                                     *file_project_path,
                                     item_next_router_path,
                                     item_next_router_path,
@@ -190,7 +190,7 @@ async fn get_pages_structure_for_root_directory(
                             }
                             "_document" => {
                                 let item_next_router_path = next_router_path.join("_document");
-                                let _ = document_item.insert(PagesStructureItemVc::new(
+                                let _ = document_item.insert(PagesStructureItem::new(
                                     *file_project_path,
                                     item_next_router_path,
                                     item_next_router_path,
@@ -198,7 +198,7 @@ async fn get_pages_structure_for_root_directory(
                             }
                             "_error" => {
                                 let item_next_router_path = next_router_path.join("_error");
-                                let _ = error_item.insert(PagesStructureItemVc::new(
+                                let _ = error_item.insert(PagesStructureItem::new(
                                     *file_project_path,
                                     item_next_router_path,
                                     item_next_router_path,
@@ -210,7 +210,7 @@ async fn get_pages_structure_for_root_directory(
                                 let item_original_path = next_router_path.join(basename);
                                 items.push((
                                     basename,
-                                    PagesStructureItemVc::new(
+                                    PagesStructureItem::new(
                                         *file_project_path,
                                         item_next_router_path,
                                         item_original_path,
@@ -266,7 +266,7 @@ async fn get_pages_structure_for_root_directory(
         app_item
     } else {
         let app_router_path = next_router_path.join("_app");
-        PagesStructureItemVc::new(
+        PagesStructureItem::new(
             next_js_file_path("entry/pages/_app.tsx"),
             app_router_path,
             app_router_path,
@@ -277,7 +277,7 @@ async fn get_pages_structure_for_root_directory(
         document_item
     } else {
         let document_router_path = next_router_path.join("_document");
-        PagesStructureItemVc::new(
+        PagesStructureItem::new(
             next_js_file_path("entry/pages/_document.tsx"),
             document_router_path,
             document_router_path,
@@ -288,7 +288,7 @@ async fn get_pages_structure_for_root_directory(
         error_item
     } else {
         let error_router_path = next_router_path.join("_error");
-        PagesStructureItemVc::new(
+        PagesStructureItem::new(
             next_js_file_path("entry/pages/_error.tsx"),
             error_router_path,
             error_router_path,
@@ -310,11 +310,11 @@ async fn get_pages_structure_for_root_directory(
 /// [create_page_source_for_file] method for files.
 #[turbo_tasks::function]
 async fn get_pages_structure_for_directory(
-    project_path: FileSystemPathVc,
-    next_router_path: FileSystemPathVc,
+    project_path: Vc<FileSystemPath>,
+    next_router_path: Vc<FileSystemPath>,
     position: u32,
-    page_extensions: StringsVc,
-) -> Result<PagesDirectoryStructureVc> {
+    page_extensions: Vc<Vec<String>>,
+) -> Result<Vc<PagesDirectoryStructure>> {
     let page_extensions_raw = &*page_extensions.await?;
 
     let mut children = vec![];
@@ -334,7 +334,7 @@ async fn get_pages_structure_for_directory(
                     let item_original_name = next_router_path.join(basename);
                     items.push((
                         basename,
-                        PagesStructureItemVc::new(
+                        PagesStructureItem::new(
                             *file_project_path,
                             item_next_router_path,
                             item_original_name,
@@ -382,9 +382,9 @@ fn page_basename<'a>(name: &'a str, page_extensions: &'a [String]) -> Option<&'a
 }
 
 fn next_router_path_for_basename(
-    next_router_path: FileSystemPathVc,
+    next_router_path: Vc<FileSystemPath>,
     basename: &str,
-) -> FileSystemPathVc {
+) -> Vc<FileSystemPath> {
     if basename == "index" {
         next_router_path
     } else {

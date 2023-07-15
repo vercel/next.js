@@ -11,46 +11,46 @@ use next_core::{
         get_client_runtime_entries, ClientContextType,
     },
     next_client_reference::{
-        ClientReference, ClientReferenceType, NextEcmascriptClientReferenceTransitionVc,
+        ClientReference, ClientReferenceType, NextEcmascriptClientReferenceTransition,
     },
-    next_config::NextConfigVc,
-    next_dynamic::NextDynamicTransitionVc,
+    next_config::NextConfig,
+    next_dynamic::NextDynamicTransition,
     next_server::{
         get_server_module_options_context, get_server_resolve_options_context,
         get_server_runtime_entries, ServerContextType,
     },
 };
-use turbo_tasks::{primitives::StringVc, TryJoinIterExt, Value, ValueToString};
+use turbo_tasks::{TryJoinIterExt, Value, ValueToString, Vc};
 use turbopack_binding::{
     turbo::{
-        tasks_env::{CustomProcessEnvVc, ProcessEnvVc},
-        tasks_fs::{File, FileSystemPath, FileSystemPathVc},
+        tasks_env::{CustomProcessEnv, ProcessEnv},
+        tasks_fs::{File, FileSystemPath},
     },
     turbopack::{
-        build::BuildChunkingContextVc,
+        build::BuildChunkingContext,
         core::{
-            asset::{Asset, AssetVc},
+            asset::Asset,
             chunk::{
-                availability_info::AvailabilityInfo, ChunkingContext, EvaluatableAssetsVc,
+                availability_info::AvailabilityInfo, ChunkingContext, EvaluatableAssets,
                 ModuleId as TurbopackModuleId,
             },
-            compile_time_info::CompileTimeInfoVc,
-            file_source::FileSourceVc,
-            output::{OutputAssetVc, OutputAssetsVc},
-            raw_output::RawOutputVc,
-            virtual_source::VirtualSourceVc,
+            compile_time_info::CompileTimeInfo,
+            file_source::FileSource,
+            output::{OutputAsset, OutputAssets},
+            raw_output::RawOutput,
+            virtual_source::VirtualSource,
         },
         ecmascript::{
             chunk::{
-                EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc, EcmascriptChunkPlaceablesVc,
-                EcmascriptChunkVc, EcmascriptChunkingContextVc,
+                EcmascriptChunk, EcmascriptChunkPlaceable, EcmascriptChunkPlaceables,
+                EcmascriptChunkingContext,
             },
             utils::StringifyJs,
         },
-        node::execution_context::ExecutionContextVc,
+        node::execution_context::ExecutionContext,
         turbopack::{
-            transition::{ContextTransitionVc, TransitionsByNameVc},
-            ModuleAssetContextVc,
+            transition::{ContextTransition, TransitionsByName},
+            ModuleAssetContext,
         },
     },
 };
@@ -73,38 +73,38 @@ pub struct AppEntry {
     /// the pathname to refer to this entry.
     pub original_name: String,
     /// The RSC module asset for the route or page.
-    pub rsc_entry: EcmascriptChunkPlaceableVc,
+    pub rsc_entry: Vc<Box<dyn EcmascriptChunkPlaceable>>,
 }
 
 #[turbo_tasks::value]
 pub struct AppEntries {
     /// All app entries.
-    pub entries: Vec<AppEntryVc>,
+    pub entries: Vec<Vc<AppEntry>>,
     /// The RSC runtime entries that should be evaluated before any app entry
     /// module when server rendering.
-    pub rsc_runtime_entries: EvaluatableAssetsVc,
+    pub rsc_runtime_entries: Vc<EvaluatableAssets>,
     /// The client runtime entries that should be evaluated before any app entry
     /// module when client rendering.
-    pub client_runtime_entries: EvaluatableAssetsVc,
+    pub client_runtime_entries: Vc<EvaluatableAssets>,
 }
 
 /// Computes all app entries found under the given project root.
 #[turbo_tasks::function]
 pub async fn get_app_entries(
-    project_root: FileSystemPathVc,
-    execution_context: ExecutionContextVc,
-    env: ProcessEnvVc,
-    client_compile_time_info: CompileTimeInfoVc,
-    server_compile_time_info: CompileTimeInfoVc,
-    next_config: NextConfigVc,
-) -> Result<AppEntriesVc> {
+    project_root: Vc<FileSystemPath>,
+    execution_context: Vc<ExecutionContext>,
+    env: Vc<Box<dyn ProcessEnv>>,
+    client_compile_time_info: Vc<CompileTimeInfo>,
+    server_compile_time_info: Vc<CompileTimeInfo>,
+    next_config: Vc<NextConfig>,
+) -> Result<Vc<AppEntries>> {
     let app_dir = find_app_dir_if_enabled(project_root, next_config);
 
     let Some(&app_dir) = app_dir.await?.as_ref() else {
-        return Ok(AppEntriesVc::cell(AppEntries {
+        return Ok(AppEntries::cell(AppEntries {
             entries: vec![],
-            rsc_runtime_entries: EvaluatableAssetsVc::empty(),
-            client_runtime_entries: EvaluatableAssetsVc::empty(),
+            rsc_runtime_entries: EvaluatableAssets::empty(),
+            client_runtime_entries: EvaluatableAssets::empty(),
         }));
     };
 
@@ -124,7 +124,7 @@ pub async fn get_app_entries(
     // app_source?
     let runtime_entries = get_server_runtime_entries(project_root, env, rsc_ty, mode, next_config);
 
-    let env = CustomProcessEnvVc::new(env, next_config.env()).as_process_env();
+    let env = Vc::upcast(CustomProcessEnv::new(env, next_config.env()));
 
     let ssr_ty: Value<ServerContextType> = Value::new(ServerContextType::AppSSR { app_dir });
 
@@ -147,7 +147,7 @@ pub async fn get_app_entries(
         execution_context,
     );
 
-    let client_transition = ContextTransitionVc::new(
+    let client_transition = ContextTransition::new(
         client_compile_time_info,
         client_module_options_context,
         client_resolve_options_context,
@@ -169,7 +169,7 @@ pub async fn get_app_entries(
         next_config,
     );
 
-    let ssr_transition = ContextTransitionVc::new(
+    let ssr_transition = ContextTransition::new(
         server_compile_time_info,
         ssr_module_options_context,
         ssr_resolve_options_context,
@@ -179,19 +179,22 @@ pub async fn get_app_entries(
 
     transitions.insert(
         ECMASCRIPT_CLIENT_TRANSITION_NAME.to_string(),
-        NextEcmascriptClientReferenceTransitionVc::new(client_transition, ssr_transition).into(),
+        Vc::upcast(NextEcmascriptClientReferenceTransition::new(
+            client_transition,
+            ssr_transition,
+        )),
     );
 
     let client_ty = Value::new(ClientContextType::App { app_dir });
     transitions.insert(
         "next-dynamic".to_string(),
-        NextDynamicTransitionVc::new(client_transition).into(),
+        Vc::upcast(NextDynamicTransition::new(client_transition)),
     );
 
     let rsc_ty = Value::new(ServerContextType::AppRSC {
         app_dir,
         client_transition: Some(client_transition.into()),
-        ecmascript_client_reference_transition_name: Some(StringVc::cell(
+        ecmascript_client_reference_transition_name: Some(Vc::cell(
             ECMASCRIPT_CLIENT_TRANSITION_NAME.to_string(),
         )),
     });
@@ -211,8 +214,8 @@ pub async fn get_app_entries(
         execution_context,
     );
 
-    let rsc_context = ModuleAssetContextVc::new(
-        TransitionsByNameVc::cell(transitions),
+    let rsc_context = ModuleAssetContext::new(
+        Vc::cell(transitions),
         server_compile_time_info,
         rsc_module_options_context,
         rsc_resolve_options_context,
@@ -230,7 +233,7 @@ pub async fn get_app_entries(
                 Entrypoint::AppRoute { path } => {
                     get_app_route_entry(
                         rsc_context,
-                        FileSourceVc::new(*path).into(),
+                        Vc::upcast(FileSource::new(*path)),
                         pathname,
                         project_root,
                     )
@@ -248,8 +251,8 @@ pub async fn get_app_entries(
         entries.push(get_app_route_favicon_entry(rsc_context, favicon, project_root).await?);
     }
 
-    let client_context = ModuleAssetContextVc::new(
-        TransitionsByNameVc::cell(Default::default()),
+    let client_context = ModuleAssetContext::new(
+        Vc::cell(Default::default()),
         client_compile_time_info,
         client_module_options_context,
         client_resolve_options_context,
@@ -264,7 +267,7 @@ pub async fn get_app_entries(
         execution_context,
     );
 
-    Ok(AppEntriesVc::cell(AppEntries {
+    Ok(AppEntries::cell(AppEntries {
         entries,
         rsc_runtime_entries: runtime_entries.resolve_entries(rsc_context.into()),
         client_runtime_entries: client_runtime_entries.resolve_entries(client_context.into()),
@@ -276,18 +279,18 @@ pub async fn get_app_entries(
 /// manifests.
 pub async fn compute_app_entries_chunks(
     app_entries: &AppEntries,
-    app_client_references_by_entry: &IndexMap<AssetVc, Vec<ClientReference>>,
+    app_client_references_by_entry: &IndexMap<Vc<Box<dyn Asset>>, Vec<ClientReference>>,
     app_client_references_chunks: &IndexMap<ClientReferenceType, ClientReferenceChunks>,
-    rsc_chunking_context: BuildChunkingContextVc,
-    client_chunking_context: EcmascriptChunkingContextVc,
-    ssr_chunking_context: EcmascriptChunkingContextVc,
-    node_root: FileSystemPathVc,
+    rsc_chunking_context: Vc<BuildChunkingContext>,
+    client_chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
+    ssr_chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
+    node_root: Vc<FileSystemPath>,
     client_relative_path: &FileSystemPath,
     app_paths_manifest_dir_path: &FileSystemPath,
     app_build_manifest: &mut AppBuildManifest,
     build_manifest: &mut BuildManifest,
     app_paths_manifest: &mut AppPathsManifest,
-    all_chunks: &mut Vec<OutputAssetVc>,
+    all_chunks: &mut Vec<Vc<Box<dyn OutputAsset>>>,
 ) -> Result<()> {
     let node_root_ref = node_root.await?;
 
@@ -311,7 +314,7 @@ pub async fn compute_app_entries_chunks(
         let app_entry = app_entry.await?;
 
         let app_entry_client_references = app_client_references_by_entry
-            .get(&app_entry.rsc_entry.as_asset())
+            .get(&Vc::upcast(app_entry.rsc_entry))
             .expect("app entry should have a corresponding client references list");
 
         let rsc_chunk = rsc_chunking_context.entry_chunk(
@@ -506,7 +509,7 @@ pub async fn compute_app_entries_chunks(
         }
 
         let client_reference_manifest_json = serde_json::to_string(&entry_manifest).unwrap();
-        let client_reference_manifest_source = VirtualSourceVc::new(
+        let client_reference_manifest_source = VirtualSource::new(
             node_root.join(&format!(
                 "server/app/{original_name}_client-reference-manifest.js",
                 original_name = app_entry.original_name
@@ -521,7 +524,9 @@ pub async fn compute_app_entries_chunks(
             })
             .into(),
         );
-        all_chunks.push(RawOutputVc::new(client_reference_manifest_source.into()).into());
+        all_chunks.push(Vc::upcast(RawOutput::new(
+            client_reference_manifest_source.into(),
+        )));
     }
 
     Ok(())
@@ -529,23 +534,25 @@ pub async fn compute_app_entries_chunks(
 
 #[turbo_tasks::function]
 pub async fn get_app_shared_client_chunk(
-    app_client_runtime_entries: EvaluatableAssetsVc,
-    client_chunking_context: EcmascriptChunkingContextVc,
-) -> Result<EcmascriptChunkVc> {
+    app_client_runtime_entries: Vc<EvaluatableAssets>,
+    client_chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
+) -> Result<Vc<EcmascriptChunk>> {
     let client_runtime_entries: Vec<_> = app_client_runtime_entries
         .await?
         .iter()
-        .map(|entry| async move { Ok(EcmascriptChunkPlaceableVc::resolve_from(*entry).await?) })
+        .map(|entry| async move {
+            Ok(Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(*entry).await?)
+        })
         .try_join()
         .await?
         .into_iter()
         .flatten()
         .collect();
 
-    Ok(EcmascriptChunkVc::new_normalized(
+    Ok(EcmascriptChunk::new_normalized(
         client_chunking_context,
         // TODO(alexkirsz) Should this accept Evaluatable instead?
-        EcmascriptChunkPlaceablesVc::cell(client_runtime_entries),
+        Vc::cell(client_runtime_entries),
         None,
         Value::new(AvailabilityInfo::Untracked),
     ))
@@ -553,11 +560,11 @@ pub async fn get_app_shared_client_chunk(
 
 #[turbo_tasks::function]
 pub async fn get_app_client_shared_chunks(
-    app_client_runtime_entries: EvaluatableAssetsVc,
-    client_chunking_context: EcmascriptChunkingContextVc,
-) -> Result<OutputAssetsVc> {
+    app_client_runtime_entries: Vc<EvaluatableAssets>,
+    client_chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
+) -> Result<Vc<OutputAssets>> {
     if app_client_runtime_entries.await?.is_empty() {
-        return Ok(OutputAssetsVc::empty());
+        return Ok(OutputAssets::empty());
     }
 
     let app_client_shared_chunk =

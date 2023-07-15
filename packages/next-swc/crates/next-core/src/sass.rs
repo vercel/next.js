@@ -1,15 +1,16 @@
 use anyhow::{bail, Result};
-use turbo_tasks::primitives::JsonValueVc;
+use serde_json::Value as JsonValue;
+use turbo_tasks::Vc;
 use turbopack_binding::turbopack::{
-    node::transforms::webpack::{WebpackLoaderItem, WebpackLoaderItemsVc},
-    turbopack::module_options::{LoaderRuleItem, OptionWebpackRulesVc, WebpackRulesVc},
+    node::transforms::webpack::{WebpackLoaderItem, WebpackLoaderItems},
+    turbopack::module_options::{LoaderRuleItem, OptionWebpackRules, WebpackRules},
 };
 
 #[turbo_tasks::function]
 pub async fn maybe_add_sass_loader(
-    sass_options: JsonValueVc,
-    webpack_rules: Option<WebpackRulesVc>,
-) -> Result<OptionWebpackRulesVc> {
+    sass_options: Vc<JsonValue>,
+    webpack_rules: Option<Vc<WebpackRules>>,
+) -> Result<Vc<OptionWebpackRules>> {
     let sass_options = sass_options.await?;
     let Some(sass_options) = sass_options.as_object() else {
         bail!("sass_options must be an object");
@@ -51,19 +52,17 @@ pub async fn maybe_add_sass_loader(
             }
             let mut loaders = rule.loaders.await?.clone_value();
             loaders.push(loader);
-            rule.loaders = WebpackLoaderItemsVc::cell(loaders);
+            rule.loaders = Vc::cell(loaders);
         } else {
             rules.insert(
                 pattern.to_string(),
                 LoaderRuleItem {
-                    loaders: WebpackLoaderItemsVc::cell(vec![loader]),
+                    loaders: Vc::cell(vec![loader]),
                     rename_as: Some(format!("*{rename}")),
                 },
             );
         }
     }
 
-    Ok(OptionWebpackRulesVc::cell(Some(WebpackRulesVc::cell(
-        rules,
-    ))))
+    Ok(Vc::cell(Some(Vc::cell(rules))))
 }

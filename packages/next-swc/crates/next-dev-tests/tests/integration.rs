@@ -42,21 +42,21 @@ use tokio::{
     task::JoinSet,
 };
 use tungstenite::{error::ProtocolError::ResetWithoutClosingHandshake, Error::Protocol};
+use turbo_tasks::{ReadRef, Vc};
 use turbopack_binding::{
     turbo::{
         tasks::{
-            debug::{ValueDebug, ValueDebugStringReadRef},
-            primitives::{BoolVc, StringVc},
-            NothingVc, RawVc, ReadRef, State, TransientInstance, TransientValue, TurboTasks,
+            debug::{ValueDebug, ValueDebugString},
+            Nothing, RawVc, ReadRef, State, TransientInstance, TransientValue, TurboTasks,
         },
-        tasks_fs::{DiskFileSystemVc, FileSystem, FileSystemPathVc},
+        tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath},
         tasks_memory::MemoryBackend,
         tasks_testing::retry::{retry, retry_async},
     },
     turbopack::{
         core::issue::{
-            CapturedIssues, Issue, IssueReporter, IssueReporterVc, IssueSeverityVc, IssueVc,
-            IssuesVc, OptionIssueSourceVc, PlainIssueReadRef,
+            CapturedIssues, Issue, IssueReporter, IssueSeverity, Issues, OptionIssueSource,
+            PlainIssue,
         },
         test_utils::snapshot::snapshot_issues,
     },
@@ -259,7 +259,7 @@ async fn run_test(resource: PathBuf) -> JsResult {
         .log_level(turbopack_binding::turbopack::core::issue::IssueSeverity::Warning)
         .log_detail(true)
         .issue_reporter(Box::new(move || {
-            TestIssueReporterVc::new(issue_tx.clone()).into()
+            Vc::upcast(TestIssueReporter::new(issue_tx.clone()))
         }))
         .show_all(true)
         .build()
@@ -297,11 +297,10 @@ async fn run_test(resource: PathBuf) -> JsResult {
         env::remove_var("TURBOPACK_TEST_ONLY_MOCK_SERVER");
 
         let task = tt.spawn_once_task(async move {
-            let issues_fs = DiskFileSystemVc::new(
+            let issues_fs = Vc::upcast(DiskFileSystem::new(
                 "issues".to_string(),
                 resource.join("issues").to_string_lossy().to_string(),
-            )
-            .as_file_system();
+            ));
 
             let mut issues = vec![];
             while let Ok(issue) = issue_rx.try_recv() {
@@ -315,7 +314,7 @@ async fn run_test(resource: PathBuf) -> JsResult {
             )
             .await?;
 
-            Ok(NothingVc::new().into())
+            Ok(Nothing::new().into())
         });
         tt.wait_task_completion(task, true).await.unwrap();
     }
@@ -642,15 +641,17 @@ struct ChangeFileCommand {
 #[turbo_tasks::value(shared)]
 struct TestIssueReporter {
     #[turbo_tasks(trace_ignore, debug_ignore)]
-    pub issue_tx: State<UnboundedSender<(PlainIssueReadRef, ValueDebugStringReadRef)>>,
+    pub issue_tx: State<UnboundedSender<(ReadRef<PlainIssue>, ReadRef<ValueDebugString>)>>,
 }
 
 #[turbo_tasks::value_impl]
-impl TestIssueReporterVc {
+impl TestIssueReporter {
     #[turbo_tasks::function]
     fn new(
-        issue_tx: TransientInstance<UnboundedSender<(PlainIssueReadRef, ValueDebugStringReadRef)>>,
-    ) -> Self {
+        issue_tx: TransientInstance<
+            UnboundedSender<(ReadRef<PlainIssue>, ReadRef<ValueDebugString>)>,
+        >,
+    ) -> Vc<Self> {
         TestIssueReporter {
             issue_tx: State::new((*issue_tx).clone()),
         }
@@ -665,7 +666,7 @@ impl IssueReporter for TestIssueReporter {
         &self,
         captured_issues: TransientInstance<ReadRef<CapturedIssues>>,
         _source: TransientValue<RawVc>,
-    ) -> Result<BoolVc> {
+    ) -> Result<Vc<bool>> {
         let log_options = LogOptions {
             current_dir: PathBuf::new(),
             project_dir: PathBuf::new(),
@@ -675,11 +676,11 @@ impl IssueReporter for TestIssueReporter {
         };
         let issue_tx = self.issue_tx.get_untracked().clone();
         for (issue, path) in captured_issues.iter_with_shortest_path() {
-            let plain = NormalizedIssue(issue).cell().as_issue().into_plain(path);
+            let plain = Vc::upcast(NormalizedIssue(issue).cell()).into_plain(path);
             issue_tx.send((plain.await?, plain.dbg().await?))?;
             println!("{}", format_issue(&*plain.await?, None, &log_options));
         }
-        Ok(BoolVc::cell(false))
+        Ok(Vc::cell(false))
     }
 }
 
@@ -698,37 +699,37 @@ impl Replacer for StackTraceReplacer {
 }
 
 #[turbo_tasks::value(transparent)]
-struct NormalizedIssue(IssueVc);
+struct NormalizedIssue(Vc<Box<dyn Issue>>);
 
 #[turbo_tasks::value_impl]
 impl Issue for NormalizedIssue {
     #[turbo_tasks::function]
-    fn severity(&self) -> IssueSeverityVc {
+    fn severity(&self) -> Vc<IssueSeverity> {
         self.0.severity()
     }
 
     #[turbo_tasks::function]
-    fn context(&self) -> FileSystemPathVc {
+    fn context(&self) -> Vc<FileSystemPath> {
         self.0.context()
     }
 
     #[turbo_tasks::function]
-    fn category(&self) -> StringVc {
+    fn category(&self) -> Vc<String> {
         self.0.category()
     }
 
     #[turbo_tasks::function]
-    fn title(&self) -> StringVc {
+    fn title(&self) -> Vc<String> {
         self.0.title()
     }
 
     #[turbo_tasks::function]
-    async fn description(&self) -> Result<StringVc> {
+    async fn description(&self) -> Result<Vc<String>> {
         let str = self.0.description().await?;
         let regex1 = Regex::new(r"\n  +at (.+) \((.+)\)(?: \[.+\])?").unwrap();
         let regex2 = Regex::new(r"\n  +at ()(.+) \[.+\]").unwrap();
         let regex3 = Regex::new(r"\n  +\[at .+\]").unwrap();
-        Ok(StringVc::cell(
+        Ok(Vc::cell(
             regex3
                 .replace_all(
                     &regex2.replace_all(
@@ -742,22 +743,22 @@ impl Issue for NormalizedIssue {
     }
 
     #[turbo_tasks::function]
-    fn detail(&self) -> StringVc {
+    fn detail(&self) -> Vc<String> {
         self.0.detail()
     }
 
     #[turbo_tasks::function]
-    fn documentation_link(&self) -> StringVc {
+    fn documentation_link(&self) -> Vc<String> {
         self.0.documentation_link()
     }
 
     #[turbo_tasks::function]
-    fn source(&self) -> OptionIssueSourceVc {
+    fn source(&self) -> Vc<OptionIssueSource> {
         self.0.source()
     }
 
     #[turbo_tasks::function]
-    fn sub_issues(&self) -> IssuesVc {
+    fn sub_issues(&self) -> Vc<Issues> {
         self.0.sub_issues()
     }
 }

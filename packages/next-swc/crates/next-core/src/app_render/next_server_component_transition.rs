@@ -1,14 +1,13 @@
 use anyhow::{bail, Result};
+use turbo_tasks::Vc;
 use turbopack_binding::{
-    turbo::tasks_fs::FileSystemPathVc,
+    turbo::tasks_fs::FileSystemPath,
     turbopack::{
-        core::{compile_time_info::CompileTimeInfoVc, module::ModuleVc},
-        ecmascript::chunk::EcmascriptChunkPlaceableVc,
+        core::{compile_time_info::CompileTimeInfo, module::Module},
+        ecmascript::chunk::EcmascriptChunkPlaceable,
         turbopack::{
-            module_options::ModuleOptionsContextVc,
-            resolve_options_context::ResolveOptionsContextVc,
-            transition::{Transition, TransitionVc},
-            ModuleAssetContextVc,
+            module_options::ModuleOptionsContext, resolve_options_context::ResolveOptionsContext,
+            transition::Transition, ModuleAssetContext,
         },
     },
 };
@@ -20,10 +19,10 @@ use crate::next_client_component::{
 
 #[turbo_tasks::value(shared)]
 pub struct NextServerComponentTransition {
-    pub rsc_compile_time_info: CompileTimeInfoVc,
-    pub rsc_module_options_context: ModuleOptionsContextVc,
-    pub rsc_resolve_options_context: ResolveOptionsContextVc,
-    pub server_root: FileSystemPathVc,
+    pub rsc_compile_time_info: Vc<CompileTimeInfo>,
+    pub rsc_module_options_context: Vc<ModuleOptionsContext>,
+    pub rsc_resolve_options_context: Vc<ResolveOptionsContext>,
+    pub server_root: Vc<FileSystemPath>,
 }
 
 #[turbo_tasks::value_impl]
@@ -31,34 +30,34 @@ impl Transition for NextServerComponentTransition {
     #[turbo_tasks::function]
     fn process_compile_time_info(
         &self,
-        _compile_time_info: CompileTimeInfoVc,
-    ) -> CompileTimeInfoVc {
+        _compile_time_info: Vc<CompileTimeInfo>,
+    ) -> Vc<CompileTimeInfo> {
         self.rsc_compile_time_info
     }
 
     #[turbo_tasks::function]
     fn process_module_options_context(
         &self,
-        _context: ModuleOptionsContextVc,
-    ) -> ModuleOptionsContextVc {
+        _context: Vc<ModuleOptionsContext>,
+    ) -> Vc<ModuleOptionsContext> {
         self.rsc_module_options_context
     }
 
     #[turbo_tasks::function]
     fn process_resolve_options_context(
         &self,
-        _context: ResolveOptionsContextVc,
-    ) -> ResolveOptionsContextVc {
+        _context: Vc<ResolveOptionsContext>,
+    ) -> Vc<ResolveOptionsContext> {
         self.rsc_resolve_options_context
     }
 
     #[turbo_tasks::function]
     async fn process_module(
         &self,
-        module: ModuleVc,
-        _context: ModuleAssetContextVc,
-    ) -> Result<ModuleVc> {
-        let Some(asset) = EcmascriptChunkPlaceableVc::resolve_from(module).await? else {
+        module: Vc<Box<dyn Module>>,
+        _context: Vc<ModuleAssetContext>,
+    ) -> Result<Vc<Box<dyn Module>>> {
+        let Some(asset) = Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(module).await? else {
             bail!("Not an ecmascript module");
         };
 

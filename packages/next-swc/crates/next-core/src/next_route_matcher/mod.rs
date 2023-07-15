@@ -1,8 +1,6 @@
 use anyhow::{bail, Result};
-use turbopack_binding::{
-    turbo::tasks::primitives::{BoolVc, StringVc},
-    turbopack::node::route_matcher::{ParamsVc, RouteMatcher, RouteMatcherVc},
-};
+use turbo_tasks::Vc;
+use turbopack_binding::turbopack::node::route_matcher::{Params, RouteMatcher};
 
 use self::{
     all::AllMatch,
@@ -17,13 +15,13 @@ mod prefix_suffix;
 /// A route matcher that matches a path against an exact route.
 #[turbo_tasks::value]
 pub(crate) struct NextExactMatcher {
-    path: StringVc,
+    path: Vc<String>,
 }
 
 #[turbo_tasks::value_impl]
-impl NextExactMatcherVc {
+impl NextExactMatcher {
     #[turbo_tasks::function]
-    pub async fn new(path: StringVc) -> Result<Self> {
+    pub async fn new(path: Vc<String>) -> Result<Vc<Self>> {
         Ok(Self::cell(NextExactMatcher { path }))
     }
 }
@@ -31,13 +29,13 @@ impl NextExactMatcherVc {
 #[turbo_tasks::value_impl]
 impl RouteMatcher for NextExactMatcher {
     #[turbo_tasks::function]
-    async fn matches(&self, path: &str) -> Result<BoolVc> {
-        Ok(BoolVc::cell(path == *self.path.await?))
+    async fn matches(&self, path: String) -> Result<Vc<bool>> {
+        Ok(Vc::cell(path == *self.path.await?))
     }
 
     #[turbo_tasks::function]
-    async fn params(&self, path: &str) -> Result<ParamsVc> {
-        Ok(ParamsVc::cell(if path == *self.path.await? {
+    async fn params(&self, path: String) -> Result<Vc<Params>> {
+        Ok(Vc::cell(if path == *self.path.await? {
             Some(Default::default())
         } else {
             None
@@ -53,9 +51,9 @@ pub(crate) struct NextParamsMatcher {
 }
 
 #[turbo_tasks::value_impl]
-impl NextParamsMatcherVc {
+impl NextParamsMatcher {
     #[turbo_tasks::function]
-    pub async fn new(path: StringVc) -> Result<Self> {
+    pub async fn new(path: Vc<String>) -> Result<Vc<Self>> {
         Ok(Self::cell(NextParamsMatcher {
             matcher: build_path_regex(path.await?.as_str())?,
         }))
@@ -65,12 +63,12 @@ impl NextParamsMatcherVc {
 #[turbo_tasks::value_impl]
 impl RouteMatcher for NextParamsMatcher {
     #[turbo_tasks::function]
-    fn matches(&self, path: &str) -> BoolVc {
+    fn matches(&self, path: String) -> Vc<bool> {
         self.matcher.matches(path)
     }
 
     #[turbo_tasks::function]
-    fn params(&self, path: &str) -> ParamsVc {
+    fn params(&self, path: String) -> Vc<Params> {
         self.matcher.params(path)
     }
 }
@@ -84,11 +82,11 @@ pub(crate) struct NextPrefixSuffixParamsMatcher {
 }
 
 #[turbo_tasks::value_impl]
-impl NextPrefixSuffixParamsMatcherVc {
+impl NextPrefixSuffixParamsMatcher {
     /// Converts a filename within the server root into a regular expression
     /// with named capture groups for every dynamic segment.
     #[turbo_tasks::function]
-    pub async fn new(path: StringVc, prefix: &str, suffix: &str) -> Result<Self> {
+    pub async fn new(path: Vc<String>, prefix: String, suffix: String) -> Result<Vc<Self>> {
         Ok(Self::cell(NextPrefixSuffixParamsMatcher {
             matcher: PrefixSuffixMatcher::new(
                 prefix.to_string(),
@@ -102,12 +100,12 @@ impl NextPrefixSuffixParamsMatcherVc {
 #[turbo_tasks::value_impl]
 impl RouteMatcher for NextPrefixSuffixParamsMatcher {
     #[turbo_tasks::function]
-    fn matches(&self, path: &str) -> BoolVc {
+    fn matches(&self, path: String) -> Vc<bool> {
         self.matcher.matches(path)
     }
 
     #[turbo_tasks::function]
-    fn params(&self, path: &str) -> ParamsVc {
+    fn params(&self, path: String) -> Vc<Params> {
         self.matcher.params(path)
     }
 }
@@ -120,9 +118,9 @@ pub(crate) struct NextFallbackMatcher {
 }
 
 #[turbo_tasks::value_impl]
-impl NextFallbackMatcherVc {
+impl NextFallbackMatcher {
     #[turbo_tasks::function]
-    pub fn new() -> Self {
+    pub fn new() -> Vc<Self> {
         Self::cell(NextFallbackMatcher { matcher: AllMatch })
     }
 }
@@ -130,12 +128,12 @@ impl NextFallbackMatcherVc {
 #[turbo_tasks::value_impl]
 impl RouteMatcher for NextFallbackMatcher {
     #[turbo_tasks::function]
-    fn matches(&self, path: &str) -> BoolVc {
+    fn matches(&self, path: String) -> Vc<bool> {
         self.matcher.matches(path)
     }
 
     #[turbo_tasks::function]
-    fn params(&self, path: &str) -> ParamsVc {
+    fn params(&self, path: String) -> Vc<Params> {
         self.matcher.params(path)
     }
 }

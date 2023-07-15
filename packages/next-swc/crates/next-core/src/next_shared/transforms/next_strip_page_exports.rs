@@ -8,12 +8,13 @@ use swc_core::{
         visit::FoldWith,
     },
 };
+use turbo_tasks::Vc;
 use turbopack_binding::{
-    turbo::tasks_fs::FileSystemPathVc,
+    turbo::tasks_fs::FileSystemPath,
     turbopack::{
         ecmascript::{
-            CustomTransformer, EcmascriptInputTransform, EcmascriptInputTransformsVc,
-            TransformContext, TransformPluginVc,
+            CustomTransformer, EcmascriptInputTransform, EcmascriptInputTransforms,
+            TransformContext, TransformPlugin,
         },
         turbopack::module_options::{ModuleRule, ModuleRuleCondition, ModuleRuleEffect},
     },
@@ -23,13 +24,14 @@ use super::module_rule_match_js_no_url;
 
 /// Returns a rule which applies the Next.js page export stripping transform.
 pub async fn get_next_pages_transforms_rule(
-    pages_dir: FileSystemPathVc,
+    pages_dir: Vc<FileSystemPath>,
     export_filter: ExportFilter,
 ) -> Result<ModuleRule> {
     // Apply the Next SSG transform to all pages.
-    let strip_transform = EcmascriptInputTransform::Plugin(TransformPluginVc::cell(Box::new(
-        NextJsStripPageExports { export_filter },
-    )));
+    let strip_transform =
+        EcmascriptInputTransform::Plugin(TransformPlugin::cell(Box::new(NextJsStripPageExports {
+            export_filter,
+        })));
     Ok(ModuleRule::new(
         ModuleRuleCondition::all(vec![
             ModuleRuleCondition::all(vec![
@@ -47,9 +49,9 @@ pub async fn get_next_pages_transforms_rule(
             ]),
             module_rule_match_js_no_url(),
         ]),
-        vec![ModuleRuleEffect::AddEcmascriptTransforms(
-            EcmascriptInputTransformsVc::cell(vec![strip_transform]),
-        )],
+        vec![ModuleRuleEffect::AddEcmascriptTransforms(Vc::cell(vec![
+            strip_transform,
+        ]))],
     ))
 }
 

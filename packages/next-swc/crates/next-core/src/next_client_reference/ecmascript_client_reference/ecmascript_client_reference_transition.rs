@@ -1,34 +1,34 @@
 use anyhow::{bail, Result};
-use turbo_tasks::Value;
+use turbo_tasks::{Value, Vc};
 use turbopack_binding::turbopack::{
     core::{
         asset::Asset,
-        module::ModuleVc,
+        module::Module,
         reference_type::{EntryReferenceSubType, ReferenceType},
-        source::SourceVc,
+        source::Source,
     },
-    ecmascript::chunk::EcmascriptChunkPlaceableVc,
+    ecmascript::chunk::EcmascriptChunkPlaceable,
     turbopack::{
-        transition::{ContextTransitionVc, Transition, TransitionVc},
-        ModuleAssetContextVc,
+        transition::{ContextTransition, Transition},
+        ModuleAssetContext,
     },
 };
 
-use super::ecmascript_client_reference_proxy_module::EcmascriptClientReferenceProxyModuleVc;
+use super::ecmascript_client_reference_proxy_module::EcmascriptClientReferenceProxyModule;
 
 #[turbo_tasks::value(shared)]
 pub struct NextEcmascriptClientReferenceTransition {
-    client_transition: ContextTransitionVc,
-    ssr_transition: ContextTransitionVc,
+    client_transition: Vc<ContextTransition>,
+    ssr_transition: Vc<ContextTransition>,
 }
 
 #[turbo_tasks::value_impl]
-impl NextEcmascriptClientReferenceTransitionVc {
+impl NextEcmascriptClientReferenceTransition {
     #[turbo_tasks::function]
     pub fn new(
-        client_transition: ContextTransitionVc,
-        ssr_transition: ContextTransitionVc,
-    ) -> Self {
+        client_transition: Vc<ContextTransition>,
+        ssr_transition: Vc<ContextTransition>,
+    ) -> Vc<Self> {
         NextEcmascriptClientReferenceTransition {
             client_transition,
             ssr_transition,
@@ -42,10 +42,10 @@ impl Transition for NextEcmascriptClientReferenceTransition {
     #[turbo_tasks::function]
     async fn process(
         &self,
-        source: SourceVc,
-        context: ModuleAssetContextVc,
+        source: Vc<Box<dyn Source>>,
+        context: Vc<ModuleAssetContext>,
         _reference_type: Value<ReferenceType>,
-    ) -> Result<ModuleVc> {
+    ) -> Result<Vc<Box<dyn Module>>> {
         let client_module = self.client_transition.process(
             source,
             context,
@@ -62,31 +62,30 @@ impl Transition for NextEcmascriptClientReferenceTransition {
             )),
         );
 
-        let Some(client_module) = EcmascriptChunkPlaceableVc::resolve_from(&client_module).await?
+        let Some(client_module) = Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(client_module).await?
         else {
             bail!("client asset is not ecmascript chunk placeable");
         };
 
-        let Some(ssr_module) = EcmascriptChunkPlaceableVc::resolve_from(&ssr_module).await? else {
+        let Some(ssr_module) = Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(ssr_module).await? else {
             bail!("SSR asset is not ecmascript chunk placeable");
         };
 
         // TODO(alexkirsz) This is necessary to remove the transition currently set on
         // the context.
         let context = context.await?;
-        let server_context = ModuleAssetContextVc::new(
+        let server_context = ModuleAssetContext::new(
             context.transitions,
             context.compile_time_info,
             context.module_options_context,
             context.resolve_options_context,
         );
 
-        Ok(EcmascriptClientReferenceProxyModuleVc::new(
+        Ok(Vc::upcast(EcmascriptClientReferenceProxyModule::new(
             source.ident(),
             server_context.into(),
             client_module,
             ssr_module,
-        )
-        .into())
+        )))
     }
 }

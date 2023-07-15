@@ -1,17 +1,18 @@
 use anyhow::Result;
+use turbo_tasks::Vc;
 use turbopack_binding::turbopack::{
-    ecmascript::{OptionTransformPluginVc, TransformPluginVc},
+    ecmascript::{OptionTransformPlugin, TransformPlugin},
     ecmascript_plugin::transform::styled_components::{
         StyledComponentsTransformConfig, StyledComponentsTransformer,
     },
 };
 
-use crate::next_config::{NextConfigVc, StyledComponentsTransformOptionsOrBoolean};
+use crate::next_config::{NextConfig, StyledComponentsTransformOptionsOrBoolean};
 
 #[turbo_tasks::function]
 pub async fn get_styled_components_transform_plugin(
-    next_config: NextConfigVc,
-) -> Result<OptionTransformPluginVc> {
+    next_config: Vc<NextConfig>,
+) -> Result<Vc<OptionTransformPlugin>> {
     let transform_plugin = next_config
         .await?
         .compiler
@@ -34,12 +35,8 @@ pub async fn get_styled_components_transform_plugin(
                     };
 
                     transformer.map_or_else(
-                        || OptionTransformPluginVc::cell(None),
-                        |v| {
-                            OptionTransformPluginVc::cell(Some(TransformPluginVc::cell(Box::new(
-                                v,
-                            ))))
-                        },
+                        || Vc::cell(None),
+                        |v| Vc::cell(Some(TransformPlugin::cell(Box::new(v)))),
                     )
                 })
                 .unwrap_or_default()

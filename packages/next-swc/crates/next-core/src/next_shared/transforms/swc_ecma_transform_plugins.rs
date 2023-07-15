@@ -1,14 +1,15 @@
 use anyhow::Result;
-use turbo_tasks_fs::FileSystemPathVc;
-use turbopack_binding::turbopack::ecmascript::OptionTransformPluginVc;
+use turbo_tasks::Vc;
+use turbo_tasks_fs::FileSystemPath;
+use turbopack_binding::turbopack::ecmascript::OptionTransformPlugin;
 
-use crate::next_config::NextConfigVc;
+use crate::next_config::NextConfig;
 
 #[turbo_tasks::function]
 pub async fn get_swc_ecma_transform_plugin(
-    project_path: FileSystemPathVc,
-    next_config: NextConfigVc,
-) -> Result<OptionTransformPluginVc> {
+    project_path: Vc<FileSystemPath>,
+    next_config: Vc<NextConfig>,
+) -> Result<Vc<OptionTransformPlugin>> {
     let config = next_config.await?;
     match config.experimental.swc_plugins.as_ref() {
         Some(plugin_configs) if !plugin_configs.is_empty() => {
@@ -20,34 +21,34 @@ pub async fn get_swc_ecma_transform_plugin(
             #[cfg(not(feature = "plugin"))]
             {
                 let _ = project_path;
-                return Ok(OptionTransformPluginVc::cell(None));
+                return Ok(Vc::cell(None));
             }
         }
-        _ => Ok(OptionTransformPluginVc::cell(None)),
+        _ => Ok(Vc::cell(None)),
     }
 }
 
 #[cfg(feature = "plugin")]
 pub async fn get_swc_ecma_transform_plugin_impl(
-    project_path: FileSystemPathVc,
+    project_path: Vc<FileSystemPath>,
     plugin_configs: &[(String, serde_json::Value)],
-) -> Result<OptionTransformPluginVc> {
+) -> Result<Vc<OptionTransformPlugin>> {
     use anyhow::{bail, Context};
-    use turbo_tasks::Value;
+    use turbo_tasks::{Value, Vc};
     use turbo_tasks_fs::FileContent;
     use turbopack_binding::turbopack::{
         core::{
             asset::Asset,
-            issue::{IssueSeverity, OptionIssueSourceVc},
+            issue::{IssueSeverity, OptionIssueSource},
             reference_type::ReferenceType,
             resolve::{
-                handle_resolve_error, parse::RequestVc, pattern::Pattern, resolve,
+                handle_resolve_error, parse::Request, pattern::Pattern, resolve,
                 PrimaryResolveResult,
             },
         },
-        ecmascript::{OptionTransformPluginVc, TransformPluginVc},
+        ecmascript::{OptionTransformPlugin, TransformPlugin},
         ecmascript_plugin::transform::swc_ecma_transform_plugins::{
-            SwcEcmaTransformPluginsTransformer, SwcPluginModule, SwcPluginModuleVc,
+            SwcEcmaTransformPluginsTransformer, SwcPluginModule,
         },
         turbopack::{resolve_options, resolve_options_context::ResolveOptionsContext},
     };
@@ -59,7 +60,7 @@ pub async fn get_swc_ecma_transform_plugin_impl(
         // one for implicit package name resolves to node_modules,
         // and one for explicit path to a .wasm binary.
         // Current resolve will fail with latter.
-        let request = RequestVc::parse(Value::new(Pattern::Constant(name.to_string())));
+        let request = Request::parse(Value::new(Pattern::Constant(name.to_string())));
         let resolve_options = resolve_options(
             project_path,
             ResolveOptionsContext {
@@ -76,7 +77,7 @@ pub async fn get_swc_ecma_transform_plugin_impl(
             project_path,
             request,
             resolve_options,
-            OptionIssueSourceVc::none(),
+            OptionIssueSource::none(),
             IssueSeverity::Error.cell(),
         )
         .await?;
@@ -98,7 +99,7 @@ pub async fn get_swc_ecma_transform_plugin_impl(
         };
 
         plugins.push((
-            SwcPluginModuleVc::cell(SwcPluginModule::new(
+            SwcPluginModule::cell(SwcPluginModule::new(
                 name,
                 file.content().to_bytes()?.to_vec(),
             )),
@@ -106,7 +107,7 @@ pub async fn get_swc_ecma_transform_plugin_impl(
         ));
     }
 
-    return Ok(OptionTransformPluginVc::cell(Some(
-        TransformPluginVc::cell(Box::new(SwcEcmaTransformPluginsTransformer::new(plugins))),
-    )));
+    return Ok(Vc::cell(Some(TransformPlugin::cell(Box::new(
+        SwcEcmaTransformPluginsTransformer::new(plugins),
+    )))));
 }

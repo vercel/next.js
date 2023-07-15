@@ -1,5 +1,6 @@
 use napi::{bindgen_prelude::External, JsFunction};
-use next_api::route::{Endpoint, EndpointVc, WrittenEndpoint};
+use next_api::route::{Endpoint, WrittenEndpoint};
+use turbo_tasks::Vc;
 use turbopack_binding::turbopack::core::error::PrettyPrintError;
 
 use super::utils::{subscribe, NapiDiagnostic, NapiIssue, RootTask, VcArc};
@@ -25,7 +26,9 @@ impl From<&WrittenEndpoint> for NapiWrittenEndpoint {
 
 #[napi]
 pub async fn endpoint_write_to_disk(
-    #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: External<VcArc<EndpointVc>>,
+    #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: External<
+        VcArc<Vc<Box<dyn Endpoint>>>,
+    >,
 ) -> napi::Result<NapiWrittenEndpoint> {
     let turbo_tasks = endpoint.turbo_tasks().clone();
     let endpoint = **endpoint;
@@ -39,7 +42,9 @@ pub async fn endpoint_write_to_disk(
 
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
 pub fn endpoint_changed_subscribe(
-    #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: External<VcArc<EndpointVc>>,
+    #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: External<
+        VcArc<Vc<Box<dyn Endpoint>>>,
+    >,
     func: JsFunction,
 ) -> napi::Result<External<RootTask>> {
     let turbo_tasks = endpoint.turbo_tasks().clone();

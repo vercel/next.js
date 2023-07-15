@@ -1,16 +1,17 @@
 use anyhow::Result;
+use turbo_tasks::Vc;
 use turbopack_binding::turbopack::{
-    ecmascript::{OptionTransformPluginVc, TransformPluginVc},
+    ecmascript::{OptionTransformPlugin, TransformPlugin},
     ecmascript_plugin::transform::relay::RelayTransformer,
 };
 
-use crate::next_config::NextConfigVc;
+use crate::next_config::NextConfig;
 
 /// Returns a transform plugin for the relay graphql transform.
 #[turbo_tasks::function]
 pub async fn get_relay_transform_plugin(
-    next_config: NextConfigVc,
-) -> Result<OptionTransformPluginVc> {
+    next_config: Vc<NextConfig>,
+) -> Result<Vc<OptionTransformPlugin>> {
     let transform_plugin = next_config
         .await?
         .compiler
@@ -20,7 +21,7 @@ pub async fn get_relay_transform_plugin(
                 .relay
                 .as_ref()
                 .map(|config| {
-                    OptionTransformPluginVc::cell(Some(TransformPluginVc::cell(Box::new(
+                    Vc::cell(Some(TransformPlugin::cell(Box::new(
                         RelayTransformer::new(config),
                     ))))
                 })

@@ -26,30 +26,29 @@ use next_core::{
     mode::NextMode,
     next_client::{get_client_chunking_context, get_client_compile_time_info},
     next_config::{load_next_config, load_rewrites},
-    next_image::NextImageContentSourceVc,
+    next_image::NextImageContentSource,
     pages_structure::find_pages_structure,
-    router_source::NextRouterContentSourceVc,
-    source_map::NextSourceMapTraceContentSourceVc,
+    router_source::NextRouterContentSource,
+    source_map::NextSourceMapTraceContentSource,
 };
 use once_cell::sync::Lazy;
 use owo_colors::OwoColorize;
 use tracing_subscriber::{prelude::*, EnvFilter, Registry};
 use turbo_tasks::{
-    primitives::StringVc,
     util::{FormatBytes, FormatDuration},
-    StatsType, TransientInstance, TurboTasks, TurboTasksBackendApi, UpdateInfo, Value,
+    StatsType, TransientInstance, TurboTasks, TurboTasksBackendApi, UpdateInfo, Value, Vc,
 };
 use turbopack_binding::{
     turbo::{
         malloc::TurboMalloc,
-        tasks_env::{CustomProcessEnvVc, EnvMapVc, ProcessEnvVc},
-        tasks_fs::{DiskFileSystemVc, FileSystem, FileSystemVc},
+        tasks_env::{CustomProcessEnv, EnvMap, ProcessEnv},
+        tasks_fs::{DiskFileSystem, FileSystem},
         tasks_memory::MemoryBackend,
     },
     turbopack::{
         cli_utils::{
             exit::ExitGuard,
-            issue::{ConsoleUiVc, LogOptions},
+            issue::{ConsoleUi, LogOptions},
             raw_trace::RawTraceLayer,
             trace_writer::TraceWriter,
             tracing_presets::{
@@ -57,24 +56,24 @@ use turbopack_binding::{
             },
         },
         core::{
-            environment::{ServerAddr, ServerAddrVc},
-            issue::{IssueReporterVc, IssueSeverity},
-            resolve::{parse::RequestVc, pattern::QueryMapVc},
-            server_fs::ServerFileSystemVc,
+            environment::ServerAddr,
+            issue::{IssueReporter, IssueSeverity},
+            resolve::{parse::Request, pattern::QueryMap},
+            server_fs::ServerFileSystem,
             PROJECT_FILESYSTEM_NAME,
         },
-        dev::DevChunkingContextVc,
+        dev::DevChunkingContext,
         dev_server::{
             introspect::IntrospectionSource,
             source::{
-                combined::CombinedContentSourceVc, router::PrefixedRouterContentSource,
-                source_maps::SourceMapContentSourceVc, static_assets::StaticAssetsContentSourceVc,
-                ContentSourceVc,
+                combined::CombinedContentSource, router::PrefixedRouterContentSource,
+                source_maps::SourceMapContentSource, static_assets::StaticAssetsContentSource,
+                ContentSource,
             },
             DevServer, DevServerBuilder,
         },
         env::dotenv::load_env,
-        node::execution_context::ExecutionContextVc,
+        node::execution_context::ExecutionContext,
         turbopack::evaluate_context::node_build_environment,
     },
 };
@@ -244,7 +243,7 @@ impl NextDevServerBuilder {
         let tasks = turbo_tasks.clone();
         let issue_provider = self.issue_reporter.unwrap_or_else(|| {
             // Initialize a ConsoleUi reporter if no custom reporter was provided
-            Box::new(move || ConsoleUiVc::new(log_options.clone().into()).into())
+            Box::new(move || Vc::upcast(ConsoleUi::new(log_options.clone().into())))
         });
 
         let source = move || {
@@ -265,22 +264,24 @@ impl NextDevServerBuilder {
 }
 
 #[turbo_tasks::function]
-async fn project_fs(project_dir: &str) -> Result<FileSystemVc> {
-    let disk_fs =
-        DiskFileSystemVc::new(PROJECT_FILESYSTEM_NAME.to_string(), project_dir.to_string());
+async fn project_fs(project_dir: String) -> Result<Vc<Box<dyn FileSystem>>> {
+    let disk_fs = DiskFileSystem::new(PROJECT_FILESYSTEM_NAME.to_string(), project_dir.to_string());
     disk_fs.await?.start_watching_with_invalidation_reason()?;
     Ok(disk_fs.into())
 }
 
 #[turbo_tasks::function]
-async fn output_fs(project_dir: &str) -> Result<FileSystemVc> {
-    let disk_fs = DiskFileSystemVc::new("output".to_string(), project_dir.to_string());
+async fn output_fs(project_dir: String) -> Result<Vc<Box<dyn FileSystem>>> {
+    let disk_fs = DiskFileSystem::new("output".to_string(), project_dir.to_string());
     disk_fs.await?.start_watching()?;
     Ok(disk_fs.into())
 }
 
 #[turbo_tasks::function]
-async fn server_env(env: ProcessEnvVc, server_addr: ServerAddrVc) -> Result<ProcessEnvVc> {
+async fn server_env(
+    env: Vc<Box<dyn ProcessEnv>>,
+    server_addr: Vc<ServerAddr>,
+) -> Result<Vc<Box<dyn ProcessEnv>>> {
     let mut map = IndexMap::new();
     let addr = server_addr.await?;
     if let Some(port) = addr.port() {
@@ -289,7 +290,7 @@ async fn server_env(env: ProcessEnvVc, server_addr: ServerAddrVc) -> Result<Proc
     if map.is_empty() {
         return Ok(env);
     }
-    Ok(CustomProcessEnvVc::new(env, EnvMapVc::cell(map)).into())
+    Ok(Vc::upcast(CustomProcessEnv::new(env, Vc::cell(map))))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -302,7 +303,7 @@ async fn source(
     turbo_tasks: TransientInstance<TurboTasks<MemoryBackend>>,
     browserslist_query: String,
     server_addr: TransientInstance<SocketAddr>,
-) -> Result<ContentSourceVc> {
+) -> Result<Vc<Box<dyn ContentSource>>> {
     let output_fs = output_fs(&project_dir);
     let fs = project_fs(&root_dir);
     let project_relative = project_dir.strip_prefix(&root_dir).unwrap_or_else(|| {
@@ -322,7 +323,7 @@ async fn source(
     let env = server_env(env, server_addr);
     let build_output_root = output_fs.root().join(".next/build");
 
-    let build_chunking_context = DevChunkingContextVc::builder(
+    let build_chunking_context = DevChunkingContext::builder(
         project_path,
         build_output_root,
         build_output_root.join("chunks"),
@@ -331,8 +332,7 @@ async fn source(
     )
     .build();
 
-    let execution_context =
-        ExecutionContextVc::new(project_path, build_chunking_context.into(), env);
+    let execution_context = ExecutionContext::new(project_path, build_chunking_context.into(), env);
 
     let mode = NextMode::Development;
     let next_config_execution_context = execution_context.with_layer("next_config");
@@ -341,14 +341,14 @@ async fn source(
 
     let output_root = output_fs.root().join(".next/server");
 
-    let dev_server_fs = ServerFileSystemVc::new().as_file_system();
+    let dev_server_fs = Vc::upcast(ServerFileSystem::new());
     let dev_server_root = dev_server_fs.root();
     let entry_requests = entry_requests
         .iter()
         .map(|r| match r {
-            EntryRequest::Relative(p) => RequestVc::relative(Value::new(p.clone().into()), false),
+            EntryRequest::Relative(p) => Request::relative(Value::new(p.clone().into()), false),
             EntryRequest::Module(m, p) => {
-                RequestVc::module(m.clone(), Value::new(p.clone().into()), QueryMapVc::none())
+                Request::module(m.clone(), Value::new(p.clone().into()), QueryMap::none())
             }
         })
         .collect();
@@ -401,15 +401,17 @@ async fn source(
     }
     .cell()
     .into();
-    let static_source =
-        StaticAssetsContentSourceVc::new(String::new(), project_path.join("public")).into();
+    let static_source = Vc::upcast(StaticAssetsContentSource::new(
+        String::new(),
+        project_path.join("public"),
+    ));
     let manifest_source = DevManifestContentSource {
         page_roots: vec![page_source],
         rewrites,
     }
     .cell()
     .into();
-    let main_source = CombinedContentSourceVc::new(vec![
+    let main_source = CombinedContentSource::new(vec![
         manifest_source,
         static_source,
         app_source,
@@ -422,20 +424,19 @@ async fn source(
     .cell()
     .into();
     let main_source = main_source.into();
-    let source_maps = SourceMapContentSourceVc::new(main_source).into();
-    let source_map_trace = NextSourceMapTraceContentSourceVc::new(main_source).into();
-    let img_source = NextImageContentSourceVc::new(main_source).into();
-    let router_source = NextRouterContentSourceVc::new(
+    let source_maps = Vc::upcast(SourceMapContentSource::new(main_source));
+    let source_map_trace = Vc::upcast(NextSourceMapTraceContentSource::new(main_source));
+    let img_source = Vc::upcast(NextImageContentSource::new(main_source));
+    let router_source = Vc::upcast(NextRouterContentSource::new(
         main_source,
         execution_context,
         next_config,
         server_addr,
         app_dir,
         pages_structure,
-    )
-    .into();
+    ));
     let source = PrefixedRouterContentSource {
-        prefix: StringVc::empty(),
+        prefix: String::empty(),
         routes: vec![
             ("__turbopack__".to_string(), introspect),
             ("__turbo_tasks__".to_string(), viz),
@@ -718,14 +719,14 @@ fn profile_timeout<T>(
 }
 
 pub trait IssueReporterProvider: Send + Sync + 'static {
-    fn get_issue_reporter(&self) -> IssueReporterVc;
+    fn get_issue_reporter(&self) -> Vc<Box<dyn IssueReporter>>;
 }
 
 impl<T> IssueReporterProvider for T
 where
-    T: Fn() -> IssueReporterVc + Send + Sync + Clone + 'static,
+    T: Fn() -> Vc<Box<dyn IssueReporter>> + Send + Sync + Clone + 'static,
 {
-    fn get_issue_reporter(&self) -> IssueReporterVc {
+    fn get_issue_reporter(&self) -> Vc<Box<dyn IssueReporter>> {
         self()
     }
 }

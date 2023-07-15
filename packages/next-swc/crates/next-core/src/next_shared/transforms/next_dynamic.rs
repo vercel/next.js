@@ -10,12 +10,13 @@ use swc_core::{
         visit::FoldWith,
     },
 };
+use turbo_tasks::Vc;
 use turbopack_binding::{
-    turbo::tasks_fs::FileSystemPathVc,
+    turbo::tasks_fs::FileSystemPath,
     turbopack::{
         ecmascript::{
-            CustomTransformer, EcmascriptInputTransform, EcmascriptInputTransformsVc,
-            TransformContext, TransformPluginVc,
+            CustomTransformer, EcmascriptInputTransform, EcmascriptInputTransforms,
+            TransformContext, TransformPlugin,
         },
         turbopack::module_options::{ModuleRule, ModuleRuleEffect},
     },
@@ -28,11 +29,11 @@ use crate::mode::NextMode;
 pub async fn get_next_dynamic_transform_rule(
     is_server: bool,
     is_server_components: bool,
-    pages_dir: Option<FileSystemPathVc>,
+    pages_dir: Option<Vc<FileSystemPath>>,
     mode: NextMode,
 ) -> Result<ModuleRule> {
     let dynamic_transform =
-        EcmascriptInputTransform::Plugin(TransformPluginVc::cell(Box::new(NextJsDynamic {
+        EcmascriptInputTransform::Plugin(TransformPlugin::cell(Box::new(NextJsDynamic {
             is_server,
             is_server_components,
             pages_dir: match pages_dir {
@@ -43,9 +44,9 @@ pub async fn get_next_dynamic_transform_rule(
         })));
     Ok(ModuleRule::new(
         module_rule_match_js_no_url(),
-        vec![ModuleRuleEffect::AddEcmascriptTransforms(
-            EcmascriptInputTransformsVc::cell(vec![dynamic_transform]),
-        )],
+        vec![ModuleRuleEffect::AddEcmascriptTransforms(Vc::cell(vec![
+            dynamic_transform,
+        ]))],
     ))
 }
 

@@ -11,13 +11,13 @@ use swc_core::{
         visit::FoldWith,
     },
 };
-use turbo_tasks::trace::TraceRawVcs;
+use turbo_tasks::{trace::TraceRawVcs, Vc};
 use turbopack_binding::{
     swc::custom_transform::modularize_imports::{modularize_imports, PackageConfig},
     turbopack::{
         ecmascript::{
-            CustomTransformer, EcmascriptInputTransform, EcmascriptInputTransformsVc,
-            TransformContext, TransformPluginVc,
+            CustomTransformer, EcmascriptInputTransform, EcmascriptInputTransforms,
+            TransformContext, TransformPlugin,
         },
         turbopack::module_options::{ModuleRule, ModuleRuleEffect},
     },
@@ -39,14 +39,14 @@ pub struct ModularizeImportPackageConfig {
 pub fn get_next_modularize_imports_rule(
     modularize_imports_config: &IndexMap<String, ModularizeImportPackageConfig>,
 ) -> ModuleRule {
-    let transformer = EcmascriptInputTransform::Plugin(TransformPluginVc::cell(Box::new(
+    let transformer = EcmascriptInputTransform::Plugin(TransformPlugin::cell(Box::new(
         ModularizeImportsTransformer::new(modularize_imports_config),
     )));
     ModuleRule::new(
         module_rule_match_js_no_url(),
-        vec![ModuleRuleEffect::AddEcmascriptTransforms(
-            EcmascriptInputTransformsVc::cell(vec![transformer]),
-        )],
+        vec![ModuleRuleEffect::AddEcmascriptTransforms(Vc::cell(vec![
+            transformer,
+        ]))],
     )
 }
 

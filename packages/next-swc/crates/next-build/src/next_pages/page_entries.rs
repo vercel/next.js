@@ -6,44 +6,40 @@ use next_core::{
         get_client_module_options_context, get_client_resolve_options_context,
         get_client_runtime_entries, ClientContextType,
     },
-    next_config::NextConfigVc,
-    next_dynamic::NextDynamicTransitionVc,
+    next_config::NextConfig,
+    next_dynamic::NextDynamicTransition,
     next_server::{
         get_server_module_options_context, get_server_resolve_options_context,
         get_server_runtime_entries, ServerContextType,
     },
     pages_structure::{
-        find_pages_structure, PagesDirectoryStructure, PagesDirectoryStructureVc, PagesStructure,
-        PagesStructureItem, PagesStructureVc,
+        find_pages_structure, PagesDirectoryStructure, PagesStructure, PagesStructureItem,
     },
     pathname_for_path, PathType,
 };
+use turbo_tasks::Vc;
 use turbopack_binding::{
-    turbo::{
-        tasks::{primitives::StringVc, Value},
-        tasks_env::ProcessEnvVc,
-        tasks_fs::{FileSystemPath, FileSystemPathVc},
-    },
+    turbo::{tasks::Value, tasks_env::ProcessEnv, tasks_fs::FileSystemPath},
     turbopack::{
-        build::BuildChunkingContextVc,
+        build::BuildChunkingContext,
         core::{
             asset::Asset,
-            chunk::{ChunkableModule, ChunkingContext, EvaluatableAssetsVc},
-            compile_time_info::CompileTimeInfoVc,
-            context::{AssetContext, AssetContextVc},
-            file_source::FileSourceVc,
-            output::OutputAssetVc,
+            chunk::{ChunkableModule, ChunkingContext, EvaluatableAssets},
+            compile_time_info::CompileTimeInfo,
+            context::AssetContext,
+            file_source::FileSource,
+            output::OutputAsset,
             reference_type::{EntryReferenceSubType, ReferenceType},
-            source::SourceVc,
+            source::Source,
         },
         ecmascript::{
-            chunk::{EcmascriptChunkPlaceableVc, EcmascriptChunkingContextVc},
-            EcmascriptModuleAssetVc,
+            chunk::{EcmascriptChunkPlaceable, EcmascriptChunkingContext},
+            EcmascriptModuleAsset,
         },
-        node::execution_context::ExecutionContextVc,
+        node::execution_context::ExecutionContext,
         turbopack::{
-            transition::{ContextTransitionVc, TransitionsByNameVc},
-            ModuleAssetContextVc,
+            transition::{ContextTransition, TransitionsByName},
+            ModuleAssetContext,
         },
     },
 };
@@ -52,22 +48,22 @@ use crate::manifests::{BuildManifest, PagesManifest};
 
 #[turbo_tasks::value]
 pub struct PageEntries {
-    pub entries: Vec<PageEntryVc>,
-    pub ssr_runtime_entries: EvaluatableAssetsVc,
-    pub client_runtime_entries: EvaluatableAssetsVc,
+    pub entries: Vec<Vc<PageEntry>>,
+    pub ssr_runtime_entries: Vc<EvaluatableAssets>,
+    pub client_runtime_entries: Vc<EvaluatableAssets>,
 }
 
 /// Computes all the page entries within the given project root.
 #[turbo_tasks::function]
 pub async fn get_page_entries(
-    next_router_root: FileSystemPathVc,
-    project_root: FileSystemPathVc,
-    execution_context: ExecutionContextVc,
-    env: ProcessEnvVc,
-    client_compile_time_info: CompileTimeInfoVc,
-    server_compile_time_info: CompileTimeInfoVc,
-    next_config: NextConfigVc,
-) -> Result<PageEntriesVc> {
+    next_router_root: Vc<FileSystemPath>,
+    project_root: Vc<FileSystemPath>,
+    execution_context: Vc<ExecutionContext>,
+    env: Vc<Box<dyn ProcessEnv>>,
+    client_compile_time_info: Vc<CompileTimeInfo>,
+    server_compile_time_info: Vc<CompileTimeInfo>,
+    next_config: Vc<NextConfig>,
+) -> Result<Vc<PageEntries>> {
     let pages_structure = find_pages_structure(
         project_root,
         next_router_root,
@@ -102,28 +98,27 @@ pub async fn get_page_entries(
         execution_context,
     );
 
-    let client_transition = ContextTransitionVc::new(
+    let client_transition = ContextTransition::new(
         client_compile_time_info,
         client_module_options_context,
         client_resolve_options_context,
     );
 
-    let transitions = TransitionsByNameVc::cell(
+    let transitions = Vc::cell(
         [(
             "next-dynamic".to_string(),
-            NextDynamicTransitionVc::new(client_transition).into(),
+            Vc::upcast(NextDynamicTransition::new(client_transition)),
         )]
         .into_iter()
         .collect(),
     );
 
-    let client_module_context: AssetContextVc = ModuleAssetContextVc::new(
+    let client_module_context: Vc<Box<dyn AssetContext>> = Vc::upcast(ModuleAssetContext::new(
         transitions,
         client_compile_time_info,
         client_module_options_context,
         client_resolve_options_context,
-    )
-    .into();
+    ));
 
     let client_runtime_entries = get_client_runtime_entries(
         project_root,
@@ -150,13 +145,12 @@ pub async fn get_page_entries(
         next_config,
     );
 
-    let ssr_module_context = ModuleAssetContextVc::new(
+    let ssr_module_context = Vc::upcast(ModuleAssetContext::new(
         transitions,
         server_compile_time_info,
         ssr_module_options_context,
         ssr_resolve_options_context,
-    )
-    .into();
+    ));
 
     let ssr_runtime_entries =
         get_server_runtime_entries(project_root, env, ssr_ty, mode, next_config);
@@ -179,11 +173,11 @@ pub async fn get_page_entries(
 }
 
 async fn get_page_entries_for_root_directory(
-    ssr_module_context: AssetContextVc,
-    client_module_context: AssetContextVc,
-    pages_structure: PagesStructureVc,
-    next_router_root: FileSystemPathVc,
-) -> Result<Vec<PageEntryVc>> {
+    ssr_module_context: Vc<Box<dyn AssetContext>>,
+    client_module_context: Vc<Box<dyn AssetContext>>,
+    pages_structure: Vc<PagesStructure>,
+    next_router_root: Vc<FileSystemPath>,
+) -> Result<Vec<Vc<PageEntry>>> {
     let PagesStructure {
         app,
         document,
@@ -199,7 +193,7 @@ async fn get_page_entries_for_root_directory(
     entries.push(get_page_entry_for_file(
         ssr_module_context,
         client_module_context,
-        FileSourceVc::new(app.project_path).into(),
+        Vc::upcast(FileSource::new(app.project_path)),
         next_router_root,
         app.next_router_path,
     ));
@@ -209,7 +203,7 @@ async fn get_page_entries_for_root_directory(
     entries.push(get_page_entry_for_file(
         ssr_module_context,
         client_module_context,
-        FileSourceVc::new(document.project_path).into(),
+        Vc::upcast(FileSource::new(document.project_path)),
         next_router_root,
         document.next_router_path,
     ));
@@ -220,7 +214,7 @@ async fn get_page_entries_for_root_directory(
     entries.push(get_page_entry_for_file(
         ssr_module_context,
         client_module_context,
-        FileSourceVc::new(error.project_path).into(),
+        Vc::upcast(FileSource::new(error.project_path)),
         next_router_root,
         error.next_router_path,
     ));
@@ -252,11 +246,11 @@ async fn get_page_entries_for_root_directory(
 
 #[async_recursion::async_recursion]
 async fn get_page_entries_for_directory(
-    ssr_module_context: AssetContextVc,
-    client_module_context: AssetContextVc,
-    pages_structure: PagesDirectoryStructureVc,
-    next_router_root: FileSystemPathVc,
-    entries: &mut Vec<PageEntryVc>,
+    ssr_module_context: Vc<Box<dyn AssetContext>>,
+    client_module_context: Vc<Box<dyn AssetContext>>,
+    pages_structure: Vc<PagesDirectoryStructure>,
+    next_router_root: Vc<FileSystemPath>,
+    entries: &mut Vec<Vc<PageEntry>>,
 ) -> Result<()> {
     let PagesDirectoryStructure {
         ref items,
@@ -273,7 +267,7 @@ async fn get_page_entries_for_directory(
         entries.push(get_page_entry_for_file(
             ssr_module_context,
             client_module_context,
-            FileSourceVc::new(project_path).into(),
+            Vc::upcast(FileSource::new(project_path)),
             next_router_root,
             next_router_path,
         ));
@@ -297,21 +291,21 @@ async fn get_page_entries_for_directory(
 #[turbo_tasks::value]
 pub struct PageEntry {
     /// The pathname of the page.
-    pub pathname: StringVc,
+    pub pathname: Vc<String>,
     /// The Node.js SSR entry module asset.
-    pub ssr_module: EcmascriptChunkPlaceableVc,
+    pub ssr_module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
     /// The client entry module asset.
-    pub client_module: EcmascriptModuleAssetVc,
+    pub client_module: Vc<EcmascriptModuleAsset>,
 }
 
 #[turbo_tasks::function]
 async fn get_page_entry_for_file(
-    ssr_module_context: AssetContextVc,
-    client_module_context: AssetContextVc,
-    source: SourceVc,
-    next_router_root: FileSystemPathVc,
-    next_router_path: FileSystemPathVc,
-) -> Result<PageEntryVc> {
+    ssr_module_context: Vc<Box<dyn AssetContext>>,
+    client_module_context: Vc<Box<dyn AssetContext>>,
+    source: Vc<Box<dyn Source>>,
+    next_router_root: Vc<FileSystemPath>,
+    next_router_path: Vc<FileSystemPath>,
+) -> Result<Vc<PageEntry>> {
     let reference_type = Value::new(ReferenceType::Entry(EntryReferenceSubType::Page));
 
     let pathname = pathname_for_path(next_router_root, next_router_path, PathType::Page);
@@ -320,11 +314,11 @@ async fn get_page_entry_for_file(
 
     let client_module = create_page_loader_entry_module(client_module_context, source, pathname);
 
-    let Some(client_module) = EcmascriptModuleAssetVc::resolve_from(client_module).await? else {
+    let Some(client_module) = Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(client_module).await? else {
         bail!("expected an ECMAScript module asset");
     };
 
-    let Some(ssr_module) = EcmascriptChunkPlaceableVc::resolve_from(ssr_module).await? else {
+    let Some(ssr_module) = Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(ssr_module).await? else {
         bail!("expected an ECMAScript chunk placeable asset");
     };
 
@@ -338,23 +332,23 @@ async fn get_page_entry_for_file(
 
 /// Computes the pathname for a given path.
 #[turbo_tasks::function]
-async fn pathname_from_path(next_router_path: FileSystemPathVc) -> Result<StringVc> {
+async fn pathname_from_path(next_router_path: Vc<FileSystemPath>) -> Result<Vc<String>> {
     let pathname = next_router_path.await?;
-    Ok(StringVc::cell(pathname.path.clone()))
+    Ok(Vc::cell(pathname.path.clone()))
 }
 
 /// Computes the chunks of page entries, adds their paths to the corresponding
 /// manifests, and pushes the assets to the `all_chunks` vec.
 pub async fn compute_page_entries_chunks(
     page_entries: &PageEntries,
-    client_chunking_context: EcmascriptChunkingContextVc,
-    ssr_chunking_context: BuildChunkingContextVc,
-    node_root: FileSystemPathVc,
+    client_chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
+    ssr_chunking_context: Vc<BuildChunkingContext>,
+    node_root: Vc<FileSystemPath>,
     pages_manifest_dir_path: &FileSystemPath,
     client_relative_path: &FileSystemPath,
     pages_manifest: &mut PagesManifest,
     build_manifest: &mut BuildManifest,
-    all_chunks: &mut Vec<OutputAssetVc>,
+    all_chunks: &mut Vec<Vc<Box<dyn OutputAsset>>>,
 ) -> Result<()> {
     for page_entry in page_entries.entries.iter() {
         let page_entry = page_entry.await?;
