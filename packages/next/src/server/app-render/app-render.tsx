@@ -42,7 +42,7 @@ import {
   NEXT_ROUTER_STATE_TREE,
   RSC,
 } from '../../client/components/app-router-headers'
-import { MetadataTree } from '../../lib/metadata/metadata'
+import { MetadataTree, isMetadataError } from '../../lib/metadata/metadata'
 import { RequestAsyncStorageWrapper } from '../async-storage/request-async-storage-wrapper'
 import { StaticGenerationAsyncStorageWrapper } from '../async-storage/static-generation-async-storage-wrapper'
 import { isClientReference } from '../../lib/client-reference'
@@ -924,7 +924,7 @@ export async function renderToHTMLOrFlight(
           children: (
             <>
               {process.env.NODE_ENV === 'development' && (
-                <meta name="next-error" content="not-found" />
+                <meta name="next-error" content="not-found-as-not-found" />
               )}
               <meta name="robots" content="noindex" />
               {notFoundStyles}
@@ -1268,6 +1268,11 @@ export async function renderToHTMLOrFlight(
       Uint8Array
     > = new TransformStream()
 
+    const serverErrorComponentsInlinedTransformStream: TransformStream<
+      Uint8Array,
+      Uint8Array
+    > = new TransformStream()
+
     // Get the nonce from the incoming request if it has one.
     const csp = req.headers['content-security-policy']
     let nonce: string | undefined
@@ -1277,6 +1282,13 @@ export async function renderToHTMLOrFlight(
 
     const serverComponentsRenderOpts = {
       transformStream: serverComponentsInlinedTransformStream,
+      clientReferenceManifest,
+      serverContexts,
+      rscChunks: [],
+    }
+
+    const serverErrorComponentsRenderOpts = {
+      transformStream: serverErrorComponentsInlinedTransformStream,
       clientReferenceManifest,
       serverContexts,
       rscChunks: [],
@@ -1321,6 +1333,15 @@ export async function renderToHTMLOrFlight(
       return [NotFound, notFoundStyles]
     }
 
+    async function getRootLayout(tree: LoaderTree, injectedCSS: Set<string>) {
+      const { layout } = loaderTree[2]
+      const rootLayoutModule = layout?.[0]
+      const RootLayout = rootLayoutModule
+        ? interopDefault(await rootLayoutModule())
+        : null
+      return RootLayout
+    }
+
     /**
      * A new React Component that renders the provided React Component
      * using Flight which can then be rendered to HTML.
@@ -1362,12 +1383,6 @@ export async function renderToHTMLOrFlight(
             getDynamicParamFromSegment={getDynamicParamFromSegment}
             appUsingSizeAdjust={appUsingSizeAdjust}
           />
-        )
-
-        const [NotFound, notFoundStyles] = await getNotFound(
-          loaderTree,
-          injectedCSS,
-          pathname
         )
 
         return (
@@ -1467,10 +1482,29 @@ export async function renderToHTMLOrFlight(
             flushedErrorMetaTagsUntilIndex++
           ) {
             const error = serverCapturedErrors[flushedErrorMetaTagsUntilIndex]
+            let hasNotFound = false
+            if (isMetadataError(error)) {
+              // @ts-ignore
+              const digest = error.digest.replace('NEXT_METADATA_ERROR;', '')
+              const parsedError = new Error(digest)
+              // @ts-ignore
+              parsedError.digest = digest
+              if (isNotFoundError(parsedError)) {
+                hasNotFound = true
+              }
+              console.log('hasNotFound', isNotFoundError(parsedError))
+            }
+
             if (isNotFoundError(error)) {
               errorMetaTags.push(
                 <meta name="robots" content="noindex" key={error.digest} />,
-                <meta name="next-error" content="not-found" key="next-error" />
+                hasNotFound && process.env.NODE_ENV === 'development' ? (
+                  <meta
+                    name="next-error"
+                    content="not-found"
+                    key="sih-next-error"
+                  />
+                ) : null
               )
             } else if (isRedirectError(error)) {
               const redirectUrl = getURLFromRedirectError(error)
@@ -1572,9 +1606,31 @@ export async function renderToHTMLOrFlight(
               pagePath
             )
           }
+
+          let is404 = false
+          let isErrorFromMetadata = false
+          // let shouldInheritStreamData = true
+          if (isMetadataError(err)) {
+            const digest = err.digest.replace('NEXT_METADATA_ERROR;', '')
+            err.message = digest
+            err.digest = digest
+            isErrorFromMetadata = true
+          }
+
+          const injectedCSS = new Set<string>()
+          const RootLayout = await getRootLayout(loaderTree, injectedCSS)
+          const [NotFound, notFoundStyles] = await getNotFound(
+            loaderTree,
+            injectedCSS,
+            pathname
+          )
+
           if (isNotFoundError(err)) {
+            is404 = true
             res.statusCode = 404
           }
+          // if (isErrorFromMetadata) shouldInheritStreamData = false
+
           let hasRedirectError = false
           if (isRedirectError(err)) {
             hasRedirectError = true
@@ -1591,37 +1647,76 @@ export async function renderToHTMLOrFlight(
             res.setHeader('Location', getURLFromRedirectError(err))
           }
 
-          const use404Error = res.statusCode === 404
-          const metadata = (
-            <>
-              {/* @ts-expect-error allow to use async server component */}
-              <MetadataTree
-                key={requestId}
-                tree={loaderTree}
-                pathname={pathname}
-                errorType={
-                  use404Error
-                    ? 'not-found'
-                    : hasRedirectError
-                    ? 'redirect'
-                    : undefined
-                }
-                searchParams={providedSearchParams}
-                getDynamicParamFromSegment={getDynamicParamFromSegment}
-                appUsingSizeAdjust={appUsingSizeAdjust}
-              />
-              {res.statusCode >= 400 && (
-                <meta name="robots" content="noindex" />
-              )}
-              {process.env.NODE_ENV === 'development' && use404Error && (
-                <meta name="next-error" content="not-found" />
-              )}
-            </>
+          const shouldRenderNewNotFound = is404
+          const shouldInheritStreamData =
+            !shouldRenderNewNotFound && !isErrorFromMetadata
+
+          console.log(
+            'shouldInheritStreamData',
+            shouldInheritStreamData,
+            'is404',
+            is404,
+            'isErrorFromMetadata',
+            isErrorFromMetadata,
+            'NotFound',
+            NotFound
+          )
+
+          const inheritedServerComponentsRenderOpts = shouldInheritStreamData
+            ? serverComponentsRenderOpts
+            : serverErrorComponentsRenderOpts
+
+          const ErrorPage = createServerComponentRenderer(
+            async () => {
+              const head = (
+                <>
+                  {/* @ts-expect-error allow to use async server component */}
+                  <MetadataTree
+                    key={requestId}
+                    tree={loaderTree}
+                    pathname={pathname}
+                    errorType={
+                      is404
+                        ? 'not-found'
+                        : hasRedirectError
+                        ? 'redirect'
+                        : undefined
+                    }
+                    searchParams={providedSearchParams}
+                    getDynamicParamFromSegment={getDynamicParamFromSegment}
+                    appUsingSizeAdjust={appUsingSizeAdjust}
+                  />
+                  {res.statusCode >= 400 && (
+                    <meta name="robots" content="noindex" />
+                  )}
+                  {process.env.NODE_ENV === 'development' && is404 && (
+                    <meta name="next-error" content="not-found" />
+                  )}
+                </>
+              )
+              return !shouldInheritStreamData ? (
+                <RootLayout params={{}}>
+                  {head}
+                  {is404 ? (
+                    <>
+                      {notFoundStyles}
+                      {NotFound && <NotFound />}
+                    </>
+                  ) : null}
+                </RootLayout>
+              ) : (
+                <ErrorHtml head={head} />
+              )
+            },
+            ComponentMod,
+            inheritedServerComponentsRenderOpts,
+            serverComponentsErrorHandler,
+            nonce
           )
 
           const renderStream = await renderToInitialStream({
             ReactDOMServer: require('react-dom/server.edge'),
-            element: <ErrorHtml head={metadata} />,
+            element: <ErrorPage />,
             streamOptions: {
               nonce,
               // Include hydration scripts in the HTML
@@ -1641,7 +1736,8 @@ export async function renderToHTMLOrFlight(
           })
 
           return await continueFromInitialStream(renderStream, {
-            dataStream: serverComponentsInlinedTransformStream.readable,
+            dataStream:
+              inheritedServerComponentsRenderOpts.transformStream.readable,
             generateStaticHTML: staticGenerationStore.isStaticGeneration,
             getServerInsertedHTML: () => getServerInsertedHTML([]),
             serverInsertedHTMLToHead: true,

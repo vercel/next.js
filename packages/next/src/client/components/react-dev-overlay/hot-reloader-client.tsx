@@ -245,6 +245,7 @@ function processMessage(
     }
   }
 
+  console.log('client:hot-reload', obj.action)
   switch (obj.action) {
     case 'building': {
       console.log('[Fast Refresh] rebuilding')

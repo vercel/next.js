@@ -4,6 +4,7 @@ import { formatServerError } from '../../lib/format-server-error'
 import { isNotFoundError } from '../../client/components/not-found'
 import { isRedirectError } from '../../client/components/redirect'
 import { NEXT_DYNAMIC_NO_SSR_CODE } from '../../shared/lib/lazy-dynamic/no-ssr-error'
+import { isMetadataError } from '../../lib/metadata/metadata'
 
 /**
  * Create error handler for renderers.
@@ -32,11 +33,12 @@ export function createErrorHandler({
     if (allCapturedErrors) allCapturedErrors.push(err)
 
     if (
-      err &&
-      (err.digest === DYNAMIC_ERROR_CODE ||
-        isNotFoundError(err) ||
-        err.digest === NEXT_DYNAMIC_NO_SSR_CODE ||
-        isRedirectError(err))
+      (err &&
+        (err.digest === DYNAMIC_ERROR_CODE ||
+          isNotFoundError(err) ||
+          err.digest === NEXT_DYNAMIC_NO_SSR_CODE ||
+          isRedirectError(err))) ||
+      isMetadataError(err)
     ) {
       return err.digest
     }
