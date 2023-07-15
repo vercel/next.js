@@ -83,8 +83,6 @@ import { ModuleReference } from '../../build/webpack/loaders/metadata/types'
 
 export const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
-const emptyLoaderTree: LoaderTree = ['', {}, {}]
-
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
   segment: string
@@ -1361,12 +1359,13 @@ export async function renderToHTMLOrFlight(
           query
         )
 
-        const createMetadata = (tree: LoaderTree) => (
+        const createMetadata = (tree: LoaderTree, errorType?: 'not-found') => (
           // Adding key={requestId} to make metadata remount for each render
           // @ts-expect-error allow to use async server component
           <MetadataTree
             key={requestId}
             tree={tree}
+            errorType={errorType}
             pathname={pathname}
             searchParams={providedSearchParams}
             getDynamicParamFromSegment={getDynamicParamFromSegment}
@@ -1388,12 +1387,12 @@ export async function renderToHTMLOrFlight(
               assetPrefix={assetPrefix}
               initialCanonicalUrl={pathname}
               initialTree={initialTree}
-              initialHead={<>{createMetadata(loaderTree)}</>}
+              initialHead={<>{createMetadata(loaderTree, undefined)}</>}
               globalErrorComponent={GlobalError}
               notFound={
                 NotFound ? (
                   <ErrorHtml>
-                    {createMetadata(loaderTree)}
+                    {createMetadata(loaderTree, 'not-found')}
                     {notFoundStyles}
                     <NotFound />
                   </ErrorHtml>
@@ -1594,7 +1593,9 @@ export async function renderToHTMLOrFlight(
           if (isNotFoundError(err)) {
             res.statusCode = 404
           }
+          let hasRedirectError = false
           if (isRedirectError(err)) {
+            hasRedirectError = true
             res.statusCode = 307
             if (err.mutableCookies) {
               const headers = new Headers()
@@ -1609,7 +1610,7 @@ export async function renderToHTMLOrFlight(
           }
 
           const use404Error = res.statusCode === 404
-          const useDefaultError = res.statusCode < 400 || res.statusCode === 307
+          const useDefaultError = res.statusCode < 400 || hasRedirectError
 
           const { layout } = loaderTree[2]
           const injectedCSS = new Set<string>()
@@ -1624,19 +1625,28 @@ export async function renderToHTMLOrFlight(
             ? interopDefault(await rootLayoutModule())
             : null
 
+          const metadata = (
+            // @ts-expect-error allow to use async server component
+            <MetadataTree
+              key={requestId}
+              tree={loaderTree}
+              pathname={pathname}
+              errorType={
+                use404Error
+                  ? 'not-found'
+                  : hasRedirectError
+                  ? 'redirect'
+                  : undefined
+              }
+              searchParams={providedSearchParams}
+              getDynamicParamFromSegment={getDynamicParamFromSegment}
+              appUsingSizeAdjust={appUsingSizeAdjust}
+            />
+          )
           const serverErrorElement = (
             <ErrorHtml
-              head={
-                // @ts-expect-error allow to use async server component
-                <MetadataTree
-                  key={requestId}
-                  tree={emptyLoaderTree}
-                  pathname={pathname}
-                  searchParams={providedSearchParams}
-                  getDynamicParamFromSegment={getDynamicParamFromSegment}
-                  appUsingSizeAdjust={appUsingSizeAdjust}
-                />
-              }
+              // For default error we render metadata directly into the head
+              head={useDefaultError ? metadata : null}
             >
               {useDefaultError
                 ? null
@@ -1645,6 +1655,8 @@ export async function renderToHTMLOrFlight(
                       async () => {
                         return (
                           <>
+                            {/* For server components error metadata needs to be inside inline flight data, so they can be hydrated */}
+                            {metadata}
                             {use404Error ? (
                               <RootLayout params={{}}>
                                 {notFoundStyles}
