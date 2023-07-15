@@ -923,6 +923,9 @@ export async function renderToHTMLOrFlight(
         notFoundComponent = {
           children: (
             <>
+              {process.env.NODE_ENV === 'development' && (
+                <meta name="next-error" content="not-found" />
+              )}
               <meta name="robots" content="noindex" />
               {notFoundStyles}
               <NotFound />
@@ -1265,11 +1268,6 @@ export async function renderToHTMLOrFlight(
       Uint8Array
     > = new TransformStream()
 
-    const serverErrorComponentsInlinedTransformStream: TransformStream<
-      Uint8Array,
-      Uint8Array
-    > = new TransformStream()
-
     // Get the nonce from the incoming request if it has one.
     const csp = req.headers['content-security-policy']
     let nonce: string | undefined
@@ -1279,13 +1277,6 @@ export async function renderToHTMLOrFlight(
 
     const serverComponentsRenderOpts = {
       transformStream: serverComponentsInlinedTransformStream,
-      clientReferenceManifest,
-      serverContexts,
-      rscChunks: [],
-    }
-
-    const serverErrorComponentsRenderOpts = {
-      transformStream: serverErrorComponentsInlinedTransformStream,
       clientReferenceManifest,
       serverContexts,
       rscChunks: [],
@@ -1389,16 +1380,6 @@ export async function renderToHTMLOrFlight(
               initialTree={initialTree}
               initialHead={<>{createMetadata(loaderTree, undefined)}</>}
               globalErrorComponent={GlobalError}
-              notFound={
-                NotFound ? (
-                  <ErrorHtml>
-                    {createMetadata(loaderTree, 'not-found')}
-                    {notFoundStyles}
-                    <NotFound />
-                  </ErrorHtml>
-                ) : undefined
-              }
-              asNotFound={props.asNotFound}
             >
               <ComponentTree />
             </AppRouter>
@@ -1488,7 +1469,8 @@ export async function renderToHTMLOrFlight(
             const error = serverCapturedErrors[flushedErrorMetaTagsUntilIndex]
             if (isNotFoundError(error)) {
               errorMetaTags.push(
-                <meta name="robots" content="noindex" key={error.digest} />
+                <meta name="robots" content="noindex" key={error.digest} />,
+                <meta name="next-error" content="not-found" key="next-error" />
               )
             } else if (isRedirectError(error)) {
               const redirectUrl = getURLFromRedirectError(error)
@@ -1610,75 +1592,36 @@ export async function renderToHTMLOrFlight(
           }
 
           const use404Error = res.statusCode === 404
-          const useDefaultError = res.statusCode < 400 || hasRedirectError
-
-          const { layout } = loaderTree[2]
-          const injectedCSS = new Set<string>()
-          const [NotFound, notFoundStyles] = await getNotFound(
-            loaderTree,
-            injectedCSS,
-            pathname
-          )
-
-          const rootLayoutModule = layout?.[0]
-          const RootLayout = rootLayoutModule
-            ? interopDefault(await rootLayoutModule())
-            : null
-
           const metadata = (
-            // @ts-expect-error allow to use async server component
-            <MetadataTree
-              key={requestId}
-              tree={loaderTree}
-              pathname={pathname}
-              errorType={
-                use404Error
-                  ? 'not-found'
-                  : hasRedirectError
-                  ? 'redirect'
-                  : undefined
-              }
-              searchParams={providedSearchParams}
-              getDynamicParamFromSegment={getDynamicParamFromSegment}
-              appUsingSizeAdjust={appUsingSizeAdjust}
-            />
-          )
-          const serverErrorElement = (
-            <ErrorHtml
-              // For default error we render metadata directly into the head
-              head={useDefaultError ? metadata : null}
-            >
-              {useDefaultError
-                ? null
-                : React.createElement(
-                    createServerComponentRenderer(
-                      async () => {
-                        return (
-                          <>
-                            {/* For server components error metadata needs to be inside inline flight data, so they can be hydrated */}
-                            {metadata}
-                            {use404Error ? (
-                              <RootLayout params={{}}>
-                                {notFoundStyles}
-                                <meta name="robots" content="noindex" />
-                                <NotFound />
-                              </RootLayout>
-                            ) : undefined}
-                          </>
-                        )
-                      },
-                      ComponentMod,
-                      serverErrorComponentsRenderOpts,
-                      serverComponentsErrorHandler,
-                      nonce
-                    )
-                  )}
-            </ErrorHtml>
+            <>
+              {/* @ts-expect-error allow to use async server component */}
+              <MetadataTree
+                key={requestId}
+                tree={loaderTree}
+                pathname={pathname}
+                errorType={
+                  use404Error
+                    ? 'not-found'
+                    : hasRedirectError
+                    ? 'redirect'
+                    : undefined
+                }
+                searchParams={providedSearchParams}
+                getDynamicParamFromSegment={getDynamicParamFromSegment}
+                appUsingSizeAdjust={appUsingSizeAdjust}
+              />
+              {res.statusCode >= 400 && (
+                <meta name="robots" content="noindex" />
+              )}
+              {process.env.NODE_ENV === 'development' && use404Error && (
+                <meta name="next-error" content="not-found" />
+              )}
+            </>
           )
 
           const renderStream = await renderToInitialStream({
             ReactDOMServer: require('react-dom/server.edge'),
-            element: serverErrorElement,
+            element: <ErrorHtml head={metadata} />,
             streamOptions: {
               nonce,
               // Include hydration scripts in the HTML
@@ -1698,10 +1641,7 @@ export async function renderToHTMLOrFlight(
           })
 
           return await continueFromInitialStream(renderStream, {
-            dataStream: (useDefaultError
-              ? serverComponentsInlinedTransformStream
-              : serverErrorComponentsInlinedTransformStream
-            ).readable,
+            dataStream: serverComponentsInlinedTransformStream.readable,
             generateStaticHTML: staticGenerationStore.isStaticGeneration,
             getServerInsertedHTML: () => getServerInsertedHTML([]),
             serverInsertedHTMLToHead: true,

@@ -1,10 +1,13 @@
 export default function Layout({ children }) {
   return (
     <html>
-      <head>
-        <title>Hello World</title>
-      </head>
-      <body>{children}</body>
+      <head />
+      <body>
+        <header>
+          <nav id="layout-nav">Navbar</nav>
+        </header>
+        {children}
+      </body>
     </html>
   )
 }
