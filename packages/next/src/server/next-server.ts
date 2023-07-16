@@ -1901,10 +1901,12 @@ export default class NextNodeServer extends BaseServer {
         : '/_not-found'
 
       if (this.renderOpts.dev) {
-        await (this as any).ensurePage({
-          page: notFoundPathname,
-          clientOnly: false,
-        })
+        await (this as any)
+          .ensurePage({
+            page: notFoundPathname,
+            clientOnly: false,
+          })
+          .catch(() => {})
       }
 
       if (this.getEdgeFunctionsPages().includes(notFoundPathname)) {
