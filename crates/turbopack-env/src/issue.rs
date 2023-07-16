@@ -1,34 +1,33 @@
-use anyhow::Result;
-use turbo_tasks::primitives::StringVc;
-use turbo_tasks_fs::FileSystemPathVc;
-use turbopack_core::issue::{Issue, IssueVc};
+use turbo_tasks::Vc;
+use turbo_tasks_fs::FileSystemPath;
+use turbopack_core::issue::Issue;
 
 /// An issue that occurred while resolving the parsing or evaluating the .env.
 #[turbo_tasks::value(shared)]
 pub struct ProcessEnvIssue {
-    pub path: FileSystemPathVc,
-    pub description: StringVc,
+    pub path: Vc<FileSystemPath>,
+    pub description: Vc<String>,
 }
 
 #[turbo_tasks::value_impl]
 impl Issue for ProcessEnvIssue {
     #[turbo_tasks::function]
-    fn title(&self) -> StringVc {
-        StringVc::cell("Error loading dotenv file".to_string())
+    fn title(&self) -> Vc<String> {
+        Vc::cell("Error loading dotenv file".to_string())
     }
 
     #[turbo_tasks::function]
-    fn category(&self) -> StringVc {
-        StringVc::cell("parse".to_string())
+    fn category(&self) -> Vc<String> {
+        Vc::cell("parse".to_string())
     }
 
     #[turbo_tasks::function]
-    fn context(&self) -> FileSystemPathVc {
+    fn context(&self) -> Vc<FileSystemPath> {
         self.path
     }
 
     #[turbo_tasks::function]
-    fn description(&self) -> StringVc {
+    fn description(&self) -> Vc<String> {
         self.description
     }
 }

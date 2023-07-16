@@ -1,5 +1,7 @@
 use std::{
-    cmp::{self, max},
+    cmp::{
+        max, {self},
+    },
     collections::{hash_map::Entry, HashMap, HashSet, VecDeque},
     fmt::Display,
     mem::take,

@@ -1,254 +1,397 @@
-use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
-use proc_macro_error::abort;
-use quote::quote;
+use proc_macro2::Ident;
 use syn::{
-    punctuated::Punctuated, spanned::Spanned, FnArg, Pat, PatIdent, PatType, Receiver, ReturnType,
-    Signature, Token, Type, TypePath, TypeReference,
+    parse_quote, punctuated::Punctuated, spanned::Spanned, Block, Expr, ExprPath, FnArg, Pat,
+    PatIdent, PatType, Path, Receiver, ReturnType, Signature, Token, Type,
 };
 
-use crate::util::*;
-
-/// The underlying type of the `self` identifier.
-pub enum SelfType<'a> {
-    Value(&'a Ident),
-    Ref,
-    ValueTrait,
+#[derive(Debug)]
+pub struct TurboFn {
+    // signature: Signature,
+    // block: Block,
+    ident: Ident,
+    output: Type,
+    inputs: Vec<Input>,
 }
 
-pub fn gen_native_function_code(
-    name_code: TokenStream2,
-    original_function: TokenStream2,
-    function_ident: &Ident,
-    function_id_ident: &Ident,
-    async_function: bool,
-    inputs: &Punctuated<FnArg, Token![,]>,
-    output_type: &Type,
-    self_ref_type: Option<(&Ident, SelfType<'_>)>,
-) -> (TokenStream2, Vec<TokenStream2>) {
-    let mut input_extraction = Vec::new();
-    let mut input_convert = Vec::new();
-    let mut input_clone = Vec::new();
-    let mut input_final = Vec::new();
-    let mut input_arguments = Vec::new();
-    let mut input_raw_vc_arguments = Vec::new();
+#[derive(Debug)]
+pub struct Input {
+    pub ident: Ident,
+    pub ty: Type,
+}
 
-    let mut index: i32 = 1;
+impl TurboFn {
+    pub fn new(
+        original_signature: &Signature,
+        definition_context: DefinitionContext,
+    ) -> Option<TurboFn> {
+        if !original_signature.generics.params.is_empty() {
+            original_signature
+                .generics
+                .span()
+                .unwrap()
+                .error(format!(
+                    "{} do not support generic parameters",
+                    definition_context.function_type(),
+                ))
+                .emit();
+            return None;
+        }
 
-    for input in inputs {
-        match input {
-            FnArg::Receiver(Receiver { mutability, .. }) => {
-                if mutability.is_some() {
-                    input
-                        .span()
-                        .unwrap()
-                        .error(
-                            "mutable self is not supported in turbo_task traits (nodes are \
-                             immutable)",
-                        )
-                        .emit();
-                }
+        if original_signature.generics.where_clause.is_some() {
+            original_signature
+                .generics
+                .where_clause
+                .span()
+                .unwrap()
+                .error(format!(
+                    "{} do not support where clauses",
+                    definition_context.function_type(),
+                ))
+                .emit();
+            return None;
+        }
 
-                let (self_ref_ident, self_type) = match self_ref_type.as_ref() {
-                    Some(self_ref_type) => self_ref_type,
-                    None => {
-                        abort!(input.span(), "unexpected receiver argument");
+        let mut raw_inputs = original_signature.inputs.iter();
+        let mut inputs = Vec::with_capacity(raw_inputs.len());
+
+        if let Some(possibly_receiver) = raw_inputs.next() {
+            match possibly_receiver {
+                FnArg::Receiver(
+                    receiver @ Receiver {
+                        attrs,
+                        self_token,
+                        reference,
+                        mutability,
+                    },
+                ) => {
+                    if !attrs.is_empty() {
+                        receiver
+                            .span()
+                            .unwrap()
+                            .error(format!(
+                                "{} do not support attributes on arguments",
+                                definition_context.function_type(),
+                            ))
+                            .emit();
+                        return None;
                     }
-                };
-                input_extraction.push(quote! {
-                    let Some(__self) = __iter.next() else {
-                        anyhow::bail!("{}() self argument missing", #name_code);
+
+                    // tt::functions in tt::value_impl can either take self as a typed `self:
+                    // Vc<Self>`, or as immutable references `&self`. We must validate against any
+                    // other forms of self.
+
+                    let definition_context = match &definition_context {
+                        DefinitionContext::NakedFn { .. } => return None,
+                        _ => &definition_context,
                     };
-                });
-                input_convert.push(quote! {
-                    let __self: #self_ref_ident = turbo_tasks::FromTaskInput::try_from(__self)?;
-                });
-                input_clone.push(quote! {
-                    let __self = std::clone::Clone::clone(&__self);
-                });
-                match self_type {
-                    SelfType::Value(self_ident) => {
-                        // We can't use `IntoFuture` directly here because we want to retain
-                        // transparent wrapper types. Otherwise calling trait methods on transparent
-                        // types would fail.
-                        input_final.push(quote! {
-                            let __self = __self.node.into_read::<#self_ident>().await?;
-                        });
-                        input_arguments.push(quote! {
-                            &*__self
-                        });
+
+                    if !attrs.is_empty() {
+                        receiver
+                            .span()
+                            .unwrap()
+                            .error(format!(
+                                "{} do not support attributes on self",
+                                definition_context.function_type(),
+                            ))
+                            .emit();
+                        return None;
                     }
-                    SelfType::Ref => {
-                        input_arguments.push(quote! {
-                            __self
-                        });
+
+                    if mutability.is_some() {
+                        receiver
+                            .span()
+                            .unwrap()
+                            .error(format!(
+                                "{} cannot take self by mutable reference, use &self or self: \
+                                 Vc<Self> instead",
+                                definition_context.function_type(),
+                            ))
+                            .emit();
+                        return None;
                     }
-                    SelfType::ValueTrait => {
-                        input_arguments.push(quote! {
-                            &__self
-                        });
-                    }
-                }
-                input_raw_vc_arguments.push(quote! {
-                    self.into()
-                });
-            }
-            FnArg::Typed(PatType { pat, ty, .. }) => {
-                input_extraction.push(quote! {
-                    let Some(#pat) = __iter.next() else {
-                        anyhow::bail!(concat!("{}() argument ", stringify!(#index), " (", stringify!(#pat), ") missing"), #name_code);
-                    };
-                });
-                input_final.push(quote! {});
-                if let Type::Reference(TypeReference {
-                    and_token,
-                    lifetime: _,
-                    mutability,
-                    elem,
-                }) = &**ty
-                {
-                    let ty = if let Type::Path(TypePath { qself: None, path }) = &**elem {
-                        if path.is_ident("str") {
-                            quote! { String }
-                        } else {
-                            quote! { #elem }
+
+                    match &reference {
+                        None => {
+                            receiver
+                                .span()
+                                .unwrap()
+                                .error(format!(
+                                    "{} cannot take self by value, use &self or self: Vc<Self> \
+                                     instead",
+                                    definition_context.function_type(),
+                                ))
+                                .emit();
+                            return None;
                         }
+                        Some((_, Some(lifetime))) => {
+                            lifetime
+                                .span()
+                                .unwrap()
+                                .error(format!(
+                                    "{} cannot take self by reference with a custom lifetime, use \
+                                     &self or self: Vc<Self> instead",
+                                    definition_context.function_type(),
+                                ))
+                                .emit();
+                            return None;
+                        }
+                        _ => {}
+                    }
+
+                    inputs.push(Input {
+                        ident: Ident::new("self", self_token.span()),
+                        ty: parse_quote! { turbo_tasks::Vc<Self> },
+                    });
+                }
+                FnArg::Typed(typed) => {
+                    if !typed.attrs.is_empty() {
+                        typed
+                            .span()
+                            .unwrap()
+                            .error(format!(
+                                "{} does not support attributes on arguments",
+                                definition_context.function_type(),
+                            ))
+                            .emit();
+                        return None;
+                    }
+
+                    let ident = if let Pat::Ident(ident) = &*typed.pat {
+                        if ident.ident == "self" {
+                            if let DefinitionContext::NakedFn { .. } = definition_context {
+                                // The function is not associated. The compiler will emit an error
+                                // on its own.
+                                return None;
+                            };
+
+                            // We don't validate that the user provided a valid
+                            // `turbo_tasks::Vc<Self>` here.
+                            // We'll rely on the compiler to emit an error
+                            // if the user provided an invalid receiver type
+                            // when
+                            // calling `into_concrete`.
+                        } else {
+                            match definition_context {
+                                DefinitionContext::NakedFn { .. }
+                                | DefinitionContext::ValueInherentImpl { .. } => {}
+                                DefinitionContext::ValueTraitImpl { .. }
+                                | DefinitionContext::ValueTrait { .. } => {
+                                    typed
+                                        .span()
+                                        .unwrap()
+                                        .error(format!(
+                                            "{} must accept &self or self: Vc<Self> as the first \
+                                             argument",
+                                            definition_context.function_type(),
+                                        ))
+                                        .emit();
+                                    return None;
+                                }
+                            }
+                        }
+
+                        ident.ident.clone()
                     } else {
-                        quote! { #elem }
+                        // We can't support destructuring patterns (or other kinds of patterns).
+                        Ident::new("arg1", typed.pat.span())
                     };
-                    input_convert.push(quote! {
-                        let #pat: #ty = turbo_tasks::FromTaskInput::try_from(#pat)?;
-                    });
-                    input_clone.push(quote! {
-                        let #pat = std::clone::Clone::clone(&#pat);
-                    });
-                    input_arguments.push(quote! {
-                        #and_token #mutability #pat
-                    });
-                } else {
-                    input_convert.push(quote! {
-                        let #pat: #ty = turbo_tasks::FromTaskInput::try_from(#pat)?;
-                    });
-                    input_clone.push(quote! {
-                        let #pat = std::clone::Clone::clone(&#pat);
-                    });
-                    input_arguments.push(quote! {
-                        #pat
+
+                    inputs.push(Input {
+                        ident,
+                        ty: (*typed.ty).clone(),
                     });
                 }
-                let custom_self_type = if let Pat::Ident(PatIdent { ident, .. }) = &**pat {
-                    ident == "self_vc"
-                } else {
-                    false
-                };
-                if custom_self_type {
-                    input_raw_vc_arguments.push(quote! {
-                        self.into()
-                    });
-                } else {
-                    input_raw_vc_arguments.push(quote! {
-                        #pat.into()
+            }
+        }
+
+        for (i, input) in raw_inputs.enumerate() {
+            match input {
+                FnArg::Receiver(_) => {
+                    // The compiler will emit an error on its own.
+                    return None;
+                }
+                FnArg::Typed(typed) => {
+                    let ident = if let Pat::Ident(ident) = &*typed.pat {
+                        ident.ident.clone()
+                    } else {
+                        Ident::new(&format!("arg{}", i + 2), typed.pat.span())
+                    };
+
+                    inputs.push(Input {
+                        ident,
+                        ty: (*typed.ty).clone(),
                     });
                 }
-                index += 1;
+            }
+        }
+
+        let output = return_type_to_type(&original_signature.output);
+
+        Some(TurboFn {
+            ident: original_signature.ident.clone(),
+            output,
+            inputs,
+        })
+    }
+
+    /// The signature of the exposed function. This is the original signature
+    /// converted to a standard turbo_tasks function signature.
+    pub fn signature(&self) -> Signature {
+        let exposed_inputs: Punctuated<_, Token![,]> = self
+            .inputs
+            .iter()
+            .map(|input| {
+                FnArg::Typed(PatType {
+                    attrs: Default::default(),
+                    ty: Box::new(input.ty.clone()),
+                    pat: Box::new(Pat::Ident(PatIdent {
+                        attrs: Default::default(),
+                        by_ref: None,
+                        mutability: None,
+                        ident: input.ident.clone(),
+                        subpat: None,
+                    })),
+                    colon_token: Default::default(),
+                })
+            })
+            .collect();
+
+        let ident = &self.ident;
+        let output = &self.output;
+
+        parse_quote! {
+            fn #ident(#exposed_inputs) -> <#output as turbo_tasks::task::TaskOutput>::Return
+        }
+    }
+
+    pub fn trait_signature(&self) -> Signature {
+        let signature = self.signature();
+
+        parse_quote! {
+            #signature where Self: Sized
+        }
+    }
+
+    fn converted_inputs(&self) -> Punctuated<Expr, Token![,]> {
+        self.inputs
+            .iter()
+            .map(|Input { ty, ident }| -> Expr {
+                parse_quote! {
+                    <#ty as turbo_tasks::task::TaskInput>::into_concrete(#ident)
+                }
+            })
+            .collect()
+    }
+
+    /// The block of the exposed function for a dynamic dispatch call to the
+    /// given trait.
+    pub fn dynamic_block(&self, trait_type_id_ident: &Ident) -> Block {
+        let ident = &self.ident;
+        let output = &self.output;
+        let converted_inputs = self.converted_inputs();
+        parse_quote! {
+            {
+                <#output as turbo_tasks::task::TaskOutput>::try_from_raw_vc(
+                    turbo_tasks::trait_call(
+                        *#trait_type_id_ident,
+                        std::borrow::Cow::Borrowed(stringify!(#ident)),
+                        vec![#converted_inputs],
+                    )
+                )
             }
         }
     }
-    let original_call_code = if async_function {
-        quote! { #original_function(#(#input_arguments),*).await }
-    } else {
-        quote! { #original_function(#(#input_arguments),*) }
-    };
-    let (raw_output_type, is_result) = unwrap_result_type(output_type);
-    let original_call_code = match (is_result, is_empty_type(raw_output_type)) {
-        (true, true) => quote! {
-            (#original_call_code).map(|_| turbo_tasks::NothingVc::new().into())
-        },
-        (true, false) => quote! { #original_call_code.map(|v| v.into()) },
-        (false, true) => quote! {
-            {
-                #original_call_code;
-                Ok(turbo_tasks::NothingVc::new().into())
-            }
-        },
-        (false, false) => quote! { Ok(#original_call_code.into()) },
-    };
-    (
-        quote! {
-            #[doc(hidden)]
-            pub(crate) static #function_ident: turbo_tasks::macro_helpers::Lazy<turbo_tasks::NativeFunction> =
-                turbo_tasks::macro_helpers::Lazy::new(|| {
-                    turbo_tasks::NativeFunction::new(#name_code.to_owned(), Box::new(|inputs| {
-                        let mut __iter = inputs.iter();
-                        #(#input_extraction)*
-                        if __iter.next().is_some() {
-                            return Err(anyhow::anyhow!("{}() called with too many arguments", #name_code));
-                        }
-                        #(#input_convert)*
-                        Ok(Box::new(move || {
-                            #(#input_clone)*
-                            Box::pin(turbo_tasks::macro_helpers::tracing::Instrument::instrument(async move {
-                                #(#input_final)*
-                                let turbo_tasks_result = #original_call_code;
-                                turbo_tasks::macro_helpers::notify_scheduled_tasks();
-                                turbo_tasks_result
-                            }, turbo_tasks::macro_helpers::tracing::trace_span!(#name_code)))
-                        }))
-                    }))
-                });
 
-            #[doc(hidden)]
-            pub(crate) static #function_id_ident: turbo_tasks::macro_helpers::Lazy<turbo_tasks::FunctionId> =
-                turbo_tasks::macro_helpers::Lazy::new(|| {
-                    turbo_tasks::registry::get_function_id(&#function_ident)
-                });
-        },
-        input_raw_vc_arguments,
-    )
+    /// The block of the exposed function for a static dispatch call to the
+    /// given native function.
+    pub fn static_block(&self, native_function_id_ident: &Ident) -> Block {
+        let output = &self.output;
+        let converted_inputs = self.converted_inputs();
+        parse_quote! {
+            {
+                <#output as turbo_tasks::task::TaskOutput>::try_from_raw_vc(
+                    turbo_tasks::dynamic_call(
+                        *#native_function_id_ident,
+                        vec![#converted_inputs],
+                    )
+                )
+            }
+        }
+    }
 }
 
-pub fn split_signature(sig: &Signature) -> (Signature, Signature, Type, TokenStream2) {
-    let output_type = get_return_type(&sig.output);
-    let (raw_output_type, _) = unwrap_result_type(&output_type);
-    if is_empty_type(raw_output_type) {
-        // Can't emit a diagnostic on OutputType alone as it can be omitted from the
-        // text for `()`. Use the whole signature span.
-        abort!(
-            sig.span(),
-            "Cannot return `()` from a turbo_tasks function. Return a NothingVc instead.",
-        )
+fn return_type_to_type(return_type: &ReturnType) -> Type {
+    match return_type {
+        ReturnType::Default => parse_quote! { () },
+        ReturnType::Type(_, ref return_type) => (**return_type).clone(),
+    }
+}
+
+/// The context in which the function is being defined.
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub enum DefinitionContext {
+    // The function is defined as a naked #[turbo_tasks::function].
+    NakedFn,
+    // The function is defined as a #[turbo_tasks::value_impl] inherent implementation method.
+    ValueInherentImpl,
+    // The function is defined as a #[turbo_tasks::value_impl] trait implementation method.
+    ValueTraitImpl,
+    // The function is defined as a #[turbo_tasks::value_trait] default method.
+    ValueTrait,
+}
+
+impl DefinitionContext {
+    pub fn function_type(&self) -> &'static str {
+        match self {
+            DefinitionContext::NakedFn => "#[turbo_tasks::function] naked functions",
+            DefinitionContext::ValueInherentImpl => "#[turbo_tasks::value_impl] inherent methods",
+            DefinitionContext::ValueTraitImpl => "#[turbo_tasks::value_impl] trait methods",
+            DefinitionContext::ValueTrait => "#[turbo_tasks::value_trait] methods",
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct NativeFn {
+    function_path_string: String,
+    function_path: ExprPath,
+}
+
+impl NativeFn {
+    pub fn new(function_path_string: &str, function_path: &ExprPath) -> NativeFn {
+        NativeFn {
+            function_path_string: function_path_string.to_owned(),
+            function_path: function_path.clone(),
+        }
     }
 
-    let inline_ident = get_internal_function_ident(&sig.ident);
-    let mut inline_sig = sig.clone();
-    inline_sig.ident = inline_ident;
-
-    let mut external_sig = sig.clone();
-    external_sig.asyncness = None;
-
-    external_sig.output = ReturnType::Type(
-        Token![->](raw_output_type.span()),
-        Box::new(raw_output_type.clone()),
-    );
-
-    let convert_result_code = quote! { std::convert::From::<turbo_tasks::RawVc>::from(result) };
-    let custom_self_type = if let Some(FnArg::Typed(PatType {
-        pat: box Pat::Ident(PatIdent { ident, .. }),
-        ..
-    })) = sig.inputs.first()
-    {
-        ident == "self_vc"
-    } else {
-        false
-    };
-    if custom_self_type {
-        let external_self = external_sig.inputs.first_mut().unwrap();
-        *external_self = FnArg::Receiver(Receiver {
-            attrs: Vec::new(),
-            reference: Some((Token![&](Span::call_site()), None)),
-            mutability: None,
-            self_token: Token![self](Span::call_site()),
-        });
+    pub fn ty(&self) -> Type {
+        parse_quote! { turbo_tasks::macro_helpers::Lazy<turbo_tasks::NativeFunction> }
     }
 
-    (external_sig, inline_sig, output_type, convert_result_code)
+    pub fn definition(&self) -> Expr {
+        let Self {
+            function_path_string,
+            function_path,
+        } = self;
+
+        parse_quote! {
+            turbo_tasks::macro_helpers::Lazy::new(|| {
+                #[allow(deprecated)]
+                turbo_tasks::NativeFunction::new(#function_path_string.to_owned(), #function_path)
+            })
+        }
+    }
+
+    pub fn id_ty(&self) -> Type {
+        parse_quote! { turbo_tasks::macro_helpers::Lazy<turbo_tasks::FunctionId> }
+    }
+
+    pub fn id_definition(&self, native_function_id_path: &Path) -> Expr {
+        parse_quote! {
+            turbo_tasks::macro_helpers::Lazy::new(|| {
+                turbo_tasks::registry::get_function_id(&*#native_function_id_path)
+            })
+        }
+    }
 }

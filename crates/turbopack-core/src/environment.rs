@@ -8,13 +8,10 @@ use std::{
 use anyhow::{anyhow, bail, Context, Result};
 use serde::{Deserialize, Serialize};
 use swc_core::ecma::preset_env::{Version, Versions};
-use turbo_tasks::{
-    primitives::{BoolVc, OptionStringVc, StringVc, StringsVc},
-    Value,
-};
-use turbo_tasks_env::{ProcessEnv, ProcessEnvVc};
+use turbo_tasks::{Value, Vc};
+use turbo_tasks_env::ProcessEnv;
 
-use crate::target::CompileTargetVc;
+use crate::target::CompileTarget;
 
 static DEFAULT_NODEJS_VERSION: &str = "16.0.0";
 
@@ -66,9 +63,9 @@ impl ServerAddr {
 }
 
 #[turbo_tasks::value_impl]
-impl ServerAddrVc {
+impl ServerAddr {
     #[turbo_tasks::function]
-    pub fn empty() -> Self {
+    pub fn empty() -> Vc<Self> {
         ServerAddr(None).cell()
     }
 }
@@ -135,7 +132,7 @@ pub enum Rendering {
     #[default]
     None,
     Client,
-    Server(ServerAddrVc),
+    Server(Vc<ServerAddr>),
 }
 
 impl Rendering {
@@ -162,9 +159,9 @@ pub struct Environment {
 }
 
 #[turbo_tasks::value_impl]
-impl EnvironmentVc {
+impl Environment {
     #[turbo_tasks::function]
-    pub fn new(execution: Value<ExecutionEnvironment>) -> Self {
+    pub fn new(execution: Value<ExecutionEnvironment>) -> Vc<Self> {
         Self::cell(Environment {
             execution: execution.into_value(),
         })
@@ -174,36 +171,36 @@ impl EnvironmentVc {
 #[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(PartialOrd, Ord, Debug, Hash, Clone, Copy)]
 pub enum ExecutionEnvironment {
-    NodeJsBuildTime(NodeJsEnvironmentVc),
-    NodeJsLambda(NodeJsEnvironmentVc),
-    EdgeWorker(EdgeWorkerEnvironmentVc),
-    Browser(BrowserEnvironmentVc),
+    NodeJsBuildTime(Vc<NodeJsEnvironment>),
+    NodeJsLambda(Vc<NodeJsEnvironment>),
+    EdgeWorker(Vc<EdgeWorkerEnvironment>),
+    Browser(Vc<BrowserEnvironment>),
     // TODO allow custom trait here
     Custom(u8),
 }
 
 #[turbo_tasks::value_impl]
-impl EnvironmentVc {
+impl Environment {
     #[turbo_tasks::function]
-    pub async fn compile_target(self) -> Result<CompileTargetVc> {
+    pub async fn compile_target(self: Vc<Self>) -> Result<Vc<CompileTarget>> {
         let this = self.await?;
         Ok(match this.execution {
             ExecutionEnvironment::NodeJsBuildTime(node_env, ..)
             | ExecutionEnvironment::NodeJsLambda(node_env) => node_env.await?.compile_target,
-            ExecutionEnvironment::Browser(_) => CompileTargetVc::unknown(),
-            ExecutionEnvironment::EdgeWorker(_) => CompileTargetVc::unknown(),
+            ExecutionEnvironment::Browser(_) => CompileTarget::unknown(),
+            ExecutionEnvironment::EdgeWorker(_) => CompileTarget::unknown(),
             ExecutionEnvironment::Custom(_) => todo!(),
         })
     }
 
     #[turbo_tasks::function]
-    pub async fn runtime_versions(self) -> Result<RuntimeVersionsVc> {
+    pub async fn runtime_versions(self: Vc<Self>) -> Result<Vc<RuntimeVersions>> {
         let this = self.await?;
         Ok(match this.execution {
             ExecutionEnvironment::NodeJsBuildTime(node_env, ..)
             | ExecutionEnvironment::NodeJsLambda(node_env) => node_env.runtime_versions(),
             ExecutionEnvironment::Browser(browser_env) => {
-                RuntimeVersionsVc::cell(Versions::parse_versions(browserslist::resolve(
+                Vc::cell(Versions::parse_versions(browserslist::resolve(
                     browser_env.await?.browserslist_query.split(','),
                     &browserslist::Opts::new(),
                 )?)?)
@@ -214,75 +211,75 @@ impl EnvironmentVc {
     }
 
     #[turbo_tasks::function]
-    pub async fn node_externals(self) -> Result<BoolVc> {
+    pub async fn node_externals(self: Vc<Self>) -> Result<Vc<bool>> {
         let this = self.await?;
         Ok(match this.execution {
             ExecutionEnvironment::NodeJsBuildTime(..) | ExecutionEnvironment::NodeJsLambda(_) => {
-                BoolVc::cell(true)
+                Vc::cell(true)
             }
-            ExecutionEnvironment::Browser(_) => BoolVc::cell(false),
-            ExecutionEnvironment::EdgeWorker(_) => BoolVc::cell(false),
+            ExecutionEnvironment::Browser(_) => Vc::cell(false),
+            ExecutionEnvironment::EdgeWorker(_) => Vc::cell(false),
             ExecutionEnvironment::Custom(_) => todo!(),
         })
     }
 
     #[turbo_tasks::function]
-    pub async fn resolve_extensions(self) -> Result<StringsVc> {
+    pub async fn resolve_extensions(self: Vc<Self>) -> Result<Vc<Vec<String>>> {
         let env = self.await?;
         Ok(match env.execution {
             ExecutionEnvironment::NodeJsBuildTime(..) | ExecutionEnvironment::NodeJsLambda(_) => {
-                StringsVc::cell(vec![
+                Vc::cell(vec![
                     ".js".to_string(),
                     ".node".to_string(),
                     ".json".to_string(),
                 ])
             }
             ExecutionEnvironment::EdgeWorker(_) | ExecutionEnvironment::Browser(_) => {
-                StringsVc::empty()
+                Vc::<Vec<String>>::empty()
             }
             ExecutionEnvironment::Custom(_) => todo!(),
         })
     }
 
     #[turbo_tasks::function]
-    pub async fn resolve_node_modules(self) -> Result<BoolVc> {
+    pub async fn resolve_node_modules(self: Vc<Self>) -> Result<Vc<bool>> {
         let env = self.await?;
         Ok(match env.execution {
             ExecutionEnvironment::NodeJsBuildTime(..) | ExecutionEnvironment::NodeJsLambda(_) => {
-                BoolVc::cell(true)
+                Vc::cell(true)
             }
             ExecutionEnvironment::EdgeWorker(_) | ExecutionEnvironment::Browser(_) => {
-                BoolVc::cell(false)
+                Vc::cell(false)
             }
             ExecutionEnvironment::Custom(_) => todo!(),
         })
     }
 
     #[turbo_tasks::function]
-    pub async fn resolve_conditions(self) -> Result<StringsVc> {
+    pub async fn resolve_conditions(self: Vc<Self>) -> Result<Vc<Vec<String>>> {
         let env = self.await?;
         Ok(match env.execution {
             ExecutionEnvironment::NodeJsBuildTime(..) | ExecutionEnvironment::NodeJsLambda(_) => {
-                StringsVc::cell(vec!["node".to_string()])
+                Vc::cell(vec!["node".to_string()])
             }
-            ExecutionEnvironment::Browser(_) => StringsVc::empty(),
-            ExecutionEnvironment::EdgeWorker(_) => StringsVc::cell(vec!["edge-worker".to_string()]),
+            ExecutionEnvironment::Browser(_) => Vc::<Vec<String>>::empty(),
+            ExecutionEnvironment::EdgeWorker(_) => Vc::cell(vec!["edge-worker".to_string()]),
             ExecutionEnvironment::Custom(_) => todo!(),
         })
     }
 
     #[turbo_tasks::function]
-    pub async fn cwd(self) -> Result<OptionStringVc> {
+    pub async fn cwd(self: Vc<Self>) -> Result<Vc<Option<String>>> {
         let env = self.await?;
         Ok(match env.execution {
             ExecutionEnvironment::NodeJsBuildTime(env)
             | ExecutionEnvironment::NodeJsLambda(env) => env.await?.cwd,
-            _ => OptionStringVc::cell(None),
+            _ => Vc::cell(None),
         })
     }
 
     #[turbo_tasks::function]
-    pub async fn rendering(self) -> Result<RenderingVc> {
+    pub async fn rendering(self: Vc<Self>) -> Result<Vc<Rendering>> {
         let env = self.await?;
         Ok(match env.execution {
             ExecutionEnvironment::NodeJsBuildTime(env)
@@ -298,7 +295,7 @@ impl EnvironmentVc {
     }
 
     #[turbo_tasks::function]
-    pub async fn chunk_loading(self) -> Result<ChunkLoadingVc> {
+    pub async fn chunk_loading(self: Vc<Self>) -> Result<Vc<ChunkLoading>> {
         let env = self.await?;
         Ok(match env.execution {
             ExecutionEnvironment::NodeJsBuildTime(_) | ExecutionEnvironment::NodeJsLambda(_) => {
@@ -317,35 +314,35 @@ pub enum NodeEnvironmentType {
 
 #[turbo_tasks::value(shared)]
 pub struct NodeJsEnvironment {
-    pub compile_target: CompileTargetVc,
-    pub node_version: NodeJsVersionVc,
+    pub compile_target: Vc<CompileTarget>,
+    pub node_version: Vc<NodeJsVersion>,
     // user specified process.cwd
-    pub cwd: OptionStringVc,
-    pub server_addr: ServerAddrVc,
+    pub cwd: Vc<Option<String>>,
+    pub server_addr: Vc<ServerAddr>,
 }
 
 impl Default for NodeJsEnvironment {
     fn default() -> Self {
         NodeJsEnvironment {
-            compile_target: CompileTargetVc::current(),
-            node_version: NodeJsVersionVc::default(),
-            cwd: OptionStringVc::cell(None),
-            server_addr: ServerAddrVc::empty(),
+            compile_target: CompileTarget::current(),
+            node_version: NodeJsVersion::default().cell(),
+            cwd: Vc::cell(None),
+            server_addr: ServerAddr::empty(),
         }
     }
 }
 
 #[turbo_tasks::value_impl]
-impl NodeJsEnvironmentVc {
+impl NodeJsEnvironment {
     #[turbo_tasks::function]
-    pub async fn runtime_versions(self) -> Result<RuntimeVersionsVc> {
+    pub async fn runtime_versions(self: Vc<Self>) -> Result<Vc<RuntimeVersions>> {
         let str = match *self.await?.node_version.await? {
             NodeJsVersion::Current(process_env) => get_current_nodejs_version(process_env),
             NodeJsVersion::Static(version) => version,
         }
         .await?;
 
-        Ok(RuntimeVersionsVc::cell(Versions {
+        Ok(Vc::cell(Versions {
             node: Some(
                 Version::from_str(&str).map_err(|_| anyhow!("Node.js version parse error"))?,
             ),
@@ -354,11 +351,11 @@ impl NodeJsEnvironmentVc {
     }
 
     #[turbo_tasks::function]
-    pub fn current(process_env: ProcessEnvVc, server_addr: ServerAddrVc) -> Self {
+    pub fn current(process_env: Vc<Box<dyn ProcessEnv>>, server_addr: Vc<ServerAddr>) -> Vc<Self> {
         Self::cell(NodeJsEnvironment {
-            compile_target: CompileTargetVc::current(),
-            node_version: NodeJsVersionVc::cell(NodeJsVersion::Current(process_env)),
-            cwd: OptionStringVc::cell(None),
+            compile_target: CompileTarget::current(),
+            node_version: NodeJsVersion::cell(NodeJsVersion::Current(process_env)),
+            cwd: Vc::cell(None),
             server_addr,
         })
     }
@@ -366,13 +363,13 @@ impl NodeJsEnvironmentVc {
 
 #[turbo_tasks::value(shared)]
 pub enum NodeJsVersion {
-    Current(ProcessEnvVc),
-    Static(StringVc),
+    Current(Vc<Box<dyn ProcessEnv>>),
+    Static(Vc<String>),
 }
 
-impl Default for NodeJsVersionVc {
+impl Default for NodeJsVersion {
     fn default() -> Self {
-        NodeJsVersion::Static(StringVc::cell(DEFAULT_NODEJS_VERSION.to_owned())).cell()
+        NodeJsVersion::Static(Vc::cell(DEFAULT_NODEJS_VERSION.to_owned()))
     }
 }
 
@@ -386,15 +383,15 @@ pub struct BrowserEnvironment {
 
 #[turbo_tasks::value(shared)]
 pub struct EdgeWorkerEnvironment {
-    pub server_addr: ServerAddrVc,
+    pub server_addr: Vc<ServerAddr>,
 }
 
 #[turbo_tasks::value(transparent)]
 pub struct RuntimeVersions(#[turbo_tasks(trace_ignore)] pub Versions);
 
 #[turbo_tasks::function]
-pub async fn get_current_nodejs_version(env: ProcessEnvVc) -> Result<StringVc> {
-    let path_read = env.read("PATH").await?;
+pub async fn get_current_nodejs_version(env: Vc<Box<dyn ProcessEnv>>) -> Result<Vc<String>> {
+    let path_read = env.read("PATH".to_string()).await?;
     let path = path_read.as_ref().context("env must have PATH")?;
     let mut cmd = Command::new("node");
     cmd.arg("--version");
@@ -403,7 +400,7 @@ pub async fn get_current_nodejs_version(env: ProcessEnvVc) -> Result<StringVc> {
     cmd.stdin(Stdio::piped());
     cmd.stdout(Stdio::piped());
 
-    Ok(StringVc::cell(
+    Ok(Vc::cell(
         String::from_utf8(cmd.output()?.stdout)?
             .strip_prefix('v')
             .context("Version must begin with v")?

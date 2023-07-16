@@ -1,25 +1,99 @@
-use std::{fmt::Debug, future::Future, marker::PhantomData, sync::Arc};
+use std::{fmt::Debug, future::Future, marker::PhantomData};
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
-use crate::{manager::find_cell_by_type, RawVc, SharedReference, ValueTraitVc};
+use crate::{
+    manager::find_cell_by_type,
+    vc::{cast::VcCast, VcValueTraitCast},
+    RawVc, ReadRawVcFuture, SharedReference, Vc, VcValueTrait,
+};
 
 /// Similar to a [`ReadRef<T>`], but contains a value trait object instead. The
 /// only way to interact with a `TraitRef<T>` is by passing it around or turning
 /// it back into a value trait vc by calling [`ReadRef::cell`].
 ///
 /// Internally it stores a reference counted reference to a value on the heap.
-#[derive(Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
 pub struct TraitRef<T>
 where
     T: ?Sized,
 {
     shared_reference: SharedReference,
-    _t: PhantomData<Arc<T>>,
+    _t: PhantomData<T>,
 }
 
-impl<T> TraitRef<T> {
+impl<T> Debug for TraitRef<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TraitRef")
+            .field("shared_reference", &self.shared_reference)
+            .finish()
+    }
+}
+
+impl<T> Clone for TraitRef<T> {
+    fn clone(&self) -> Self {
+        Self {
+            shared_reference: self.shared_reference.clone(),
+            _t: PhantomData,
+        }
+    }
+}
+
+impl<T> PartialEq for TraitRef<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.shared_reference == other.shared_reference
+    }
+}
+
+impl<T> Eq for TraitRef<T> {}
+
+impl<T> PartialOrd for TraitRef<T> {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.shared_reference.partial_cmp(&other.shared_reference)
+    }
+}
+
+impl<T> Ord for TraitRef<T> {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.shared_reference.cmp(&other.shared_reference)
+    }
+}
+
+impl<T> std::hash::Hash for TraitRef<T> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.shared_reference.hash(state)
+    }
+}
+
+impl<T> Serialize for TraitRef<T> {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        self.shared_reference.serialize(serializer)
+    }
+}
+
+impl<'de, T> Deserialize<'de> for TraitRef<T> {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        Ok(Self {
+            shared_reference: SharedReference::deserialize(deserializer)?,
+            _t: PhantomData,
+        })
+    }
+}
+
+// Otherwise, TraitRef<Box<dyn Trait>> would not be Sync.
+// SAFETY: TraitRef doesn't actually contain a T.
+unsafe impl<T> Sync for TraitRef<T> where T: ?Sized {}
+
+// Otherwise, TraitRef<Box<dyn Trait>> would not be Send.
+// SAFETY: TraitRef doesn't actually contain a T.
+unsafe impl<T> Send for TraitRef<T> where T: ?Sized {}
+
+impl<T> Unpin for TraitRef<T> where T: ?Sized {}
+
+impl<T> TraitRef<T>
+where
+    T: ?Sized,
+{
     pub(crate) fn new(shared_reference: SharedReference) -> Self {
         Self {
             shared_reference,
@@ -30,11 +104,11 @@ impl<T> TraitRef<T> {
 
 impl<T> TraitRef<T>
 where
-    T: From<RawVc>,
+    T: VcValueTrait + ?Sized,
 {
     /// Returns a new cell that points to a value that implements the value
     /// trait `T`.
-    pub fn cell(trait_ref: TraitRef<T>) -> T {
+    pub fn cell(trait_ref: TraitRef<T>) -> Vc<T> {
         // See Safety clause above.
         let SharedReference(ty, _) = trait_ref.shared_reference;
         let ty = ty.unwrap();
@@ -52,8 +126,21 @@ where
 /// refs. This behavior is rarely needed, so in most cases, `.await`ing a trait
 /// vc is a mistake.
 pub trait IntoTraitRef {
-    type TraitVc: ValueTraitVc;
-    type Future: Future<Output = Result<TraitRef<Self::TraitVc>>>;
+    type ValueTrait: VcValueTrait + ?Sized;
+    type Future: Future<Output = Result<<VcValueTraitCast<Self::ValueTrait> as VcCast>::Output>>;
 
     fn into_trait_ref(self) -> Self::Future;
+}
+
+impl<T> IntoTraitRef for Vc<T>
+where
+    T: VcValueTrait + ?Sized,
+{
+    type ValueTrait = T;
+
+    type Future = ReadRawVcFuture<T, VcValueTraitCast<T>>;
+
+    fn into_trait_ref(self) -> Self::Future {
+        self.node.into_trait_read::<T>()
+    }
 }

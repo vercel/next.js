@@ -1,14 +1,14 @@
 use anyhow::{bail, Result};
-use turbo_tasks::Value;
-use turbo_tasks_fs::FileSystemPathVc;
+use turbo_tasks::{Value, Vc};
+use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    code_builder::{CodeBuilder, CodeVc},
-    context::{AssetContext, AssetContextVc},
-    file_source::FileSourceVc,
+    code_builder::{Code, CodeBuilder},
+    context::AssetContext,
+    file_source::FileSource,
     reference_type::ReferenceType,
 };
 
-use crate::EcmascriptModuleAssetVc;
+use crate::EcmascriptModuleAsset;
 
 /// Static ECMAScript file code, to be used as part of some code.
 ///
@@ -16,20 +16,24 @@ use crate::EcmascriptModuleAssetVc;
 /// the final runtime code, while keeping source map information.
 #[turbo_tasks::value]
 pub struct StaticEcmascriptCode {
-    asset_context: AssetContextVc,
-    asset: EcmascriptModuleAssetVc,
+    asset_context: Vc<Box<dyn AssetContext>>,
+    asset: Vc<EcmascriptModuleAsset>,
 }
 
 #[turbo_tasks::value_impl]
-impl StaticEcmascriptCodeVc {
-    /// Creates a new [`StaticEcmascriptCodeVc`].
+impl StaticEcmascriptCode {
+    /// Creates a new [`Vc<StaticEcmascriptCode>`].
     #[turbo_tasks::function]
-    pub async fn new(asset_context: AssetContextVc, asset_path: FileSystemPathVc) -> Result<Self> {
+    pub async fn new(
+        asset_context: Vc<Box<dyn AssetContext>>,
+        asset_path: Vc<FileSystemPath>,
+    ) -> Result<Vc<Self>> {
         let asset = asset_context.process(
-            FileSourceVc::new(asset_path).into(),
+            Vc::upcast(FileSource::new(asset_path)),
             Value::new(ReferenceType::Undefined),
         );
-        let Some(asset) = EcmascriptModuleAssetVc::resolve_from(&asset).await? else {
+        let Some(asset) = Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(asset).await?
+        else {
             bail!("asset is not an Ecmascript module")
         };
         Ok(Self::cell(StaticEcmascriptCode {
@@ -41,14 +45,14 @@ impl StaticEcmascriptCodeVc {
     /// Computes the contents of the asset and pushes it to
     /// the code builder, including the source map if available.
     #[turbo_tasks::function]
-    pub async fn code(self) -> Result<CodeVc> {
+    pub async fn code(self: Vc<Self>) -> Result<Vc<Code>> {
         let this = self.await?;
         let runtime_base_content = this.asset.module_content_without_analysis().await?;
         let mut code = CodeBuilder::default();
         code.push_source(
             &runtime_base_content.inner_code,
-            runtime_base_content.source_map.map(|map| map.into()),
+            runtime_base_content.source_map.map(Vc::upcast),
         );
-        Ok(CodeVc::cell(code.build()))
+        Ok(Code::cell(code.build()))
     }
 }

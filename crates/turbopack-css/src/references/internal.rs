@@ -1,25 +1,22 @@
 use anyhow::Result;
-use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
+use turbo_tasks::{ValueToString, Vc};
 use turbopack_core::{
-    asset::Asset,
-    chunk::{ChunkableModuleReference, ChunkableModuleReferenceVc},
-    module::ModuleVc,
-    reference::{AssetReference, AssetReferenceVc},
-    resolve::{ResolveResult, ResolveResultVc},
+    asset::Asset, chunk::ChunkableModuleReference, module::Module, reference::AssetReference,
+    resolve::ResolveResult,
 };
 
 /// A reference to an internal CSS asset.
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct InternalCssAssetReference {
-    module: ModuleVc,
+    module: Vc<Box<dyn Module>>,
 }
 
 #[turbo_tasks::value_impl]
-impl InternalCssAssetReferenceVc {
-    /// Creates a new [`InternalCssAssetReferenceVc`].
+impl InternalCssAssetReference {
+    /// Creates a new [`Vc<InternalCssAssetReference>`].
     #[turbo_tasks::function]
-    pub fn new(module: ModuleVc) -> Self {
+    pub fn new(module: Vc<Box<dyn Module>>) -> Vc<Self> {
         Self::cell(InternalCssAssetReference { module })
     }
 }
@@ -27,16 +24,16 @@ impl InternalCssAssetReferenceVc {
 #[turbo_tasks::value_impl]
 impl AssetReference for InternalCssAssetReference {
     #[turbo_tasks::function]
-    fn resolve_reference(&self) -> ResolveResultVc {
-        ResolveResult::asset(self.module.into()).cell()
+    fn resolve_reference(&self) -> Vc<ResolveResult> {
+        ResolveResult::asset(Vc::upcast(self.module)).cell()
     }
 }
 
 #[turbo_tasks::value_impl]
 impl ValueToString for InternalCssAssetReference {
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<StringVc> {
-        Ok(StringVc::cell(format!(
+    async fn to_string(&self) -> Result<Vc<String>> {
+        Ok(Vc::cell(format!(
             "internal css {}",
             self.module.ident().to_string().await?
         )))

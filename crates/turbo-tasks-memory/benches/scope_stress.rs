@@ -1,6 +1,6 @@
 use anyhow::Result;
 use criterion::{BenchmarkId, Criterion};
-use turbo_tasks::{CompletionVc, NothingVc, TryJoinIterExt, TurboTasks};
+use turbo_tasks::{unit, Completion, TryJoinIterExt, TurboTasks, Vc};
 use turbo_tasks_memory::MemoryBackend;
 
 use super::register;
@@ -47,7 +47,7 @@ pub fn scope_stress(c: &mut Criterion) {
                                 async move {
                                     let task = tt.spawn_once_task(async move {
                                         rectangle(a, b).strongly_consistent().await?;
-                                        Ok(NothingVc::new().into())
+                                        Ok(unit().node)
                                     });
                                     tt.wait_task_completion(task, false).await
                                 }
@@ -67,12 +67,12 @@ pub fn scope_stress(c: &mut Criterion) {
 /// This fills a rectagle from (0, 0) to (a, b) by
 /// first filling (0, 0) to (a - 1, b) and then (0, 0) to (a, b - 1) recursively
 #[turbo_tasks::function]
-async fn rectangle(a: u32, b: u32) -> Result<CompletionVc> {
+async fn rectangle(a: u32, b: u32) -> Result<Vc<Completion>> {
     if a > 0 {
         rectangle(a - 1, b).await?;
     }
     if b > 0 {
         rectangle(a, b - 1).await?;
     }
-    Ok(CompletionVc::new())
+    Ok(Completion::new())
 }

@@ -2,6 +2,8 @@
 #![feature(box_patterns)]
 #![feature(iter_intersperse)]
 #![feature(int_roundings)]
+#![feature(arbitrary_self_types)]
+#![feature(async_fn_in_trait)]
 
 mod asset;
 pub mod chunk;
@@ -15,16 +17,15 @@ pub(crate) mod references;
 pub(crate) mod transform;
 pub(crate) mod util;
 
-use anyhow::Result;
-pub use asset::CssModuleAssetVc;
-pub use global_asset::GlobalCssAssetVc;
-pub use module_asset::ModuleCssAssetVc;
-pub use parse::{ParseCss, ParseCssResult, ParseCssResultVc, ParseCssVc};
+pub use asset::CssModuleAsset;
+pub use global_asset::GlobalCssAsset;
+pub use module_asset::ModuleCssAsset;
+pub use parse::{ParseCss, ParseCssResult};
 use serde::{Deserialize, Serialize};
-pub use transform::{CssInputTransform, CssInputTransformsVc};
+pub use transform::{CssInputTransform, CssInputTransforms};
 use turbo_tasks::{trace::TraceRawVcs, TaskInput};
 
-use crate::references::import::ImportAssetReferenceVc;
+use crate::references::import::ImportAssetReference;
 
 #[derive(
     PartialOrd,

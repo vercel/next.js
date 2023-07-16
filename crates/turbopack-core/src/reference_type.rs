@@ -1,20 +1,21 @@
 use std::fmt::Display;
 
 use indexmap::IndexMap;
+use turbo_tasks::Vc;
 
-use crate::{asset::AssetVc, resolve::ModulePartVc};
+use crate::{asset::Asset, resolve::ModulePart};
 
 /// Named references to inner assets. Modules can used them to allow to
 /// per-module aliases of some requests to already created module assets.
 /// Name is usually in UPPER_CASE to make it clear that this is an inner asset.
 #[turbo_tasks::value(transparent)]
-pub struct InnerAssets(IndexMap<String, AssetVc>);
+pub struct InnerAssets(IndexMap<String, Vc<Box<dyn Asset>>>);
 
 #[turbo_tasks::value_impl]
-impl InnerAssetsVc {
+impl InnerAssets {
     #[turbo_tasks::function]
-    pub fn empty() -> Self {
-        InnerAssetsVc::cell(IndexMap::new())
+    pub fn empty() -> Vc<Self> {
+        Vc::cell(IndexMap::new())
     }
 }
 
@@ -34,7 +35,7 @@ pub enum CommonJsReferenceSubType {
 #[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(Debug, Default, Clone, PartialOrd, Ord, Hash)]
 pub enum EcmaScriptModulesReferenceSubType {
-    ImportPart(ModulePartVc),
+    ImportPart(Vc<ModulePart>),
     Custom(u8),
     #[default]
     Undefined,
@@ -94,7 +95,7 @@ pub enum ReferenceType {
     Url(UrlReferenceSubType),
     TypeScript(TypeScriptReferenceSubType),
     Entry(EntryReferenceSubType),
-    Internal(InnerAssetsVc),
+    Internal(Vc<InnerAssets>),
     Custom(u8),
     Undefined,
 }

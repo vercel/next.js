@@ -7,7 +7,9 @@ use swc_core::{
     common::{chain, comments::Comments, util::take::Take, Mark, SourceMap},
     ecma::{
         ast::{Module, ModuleItem, Program, Script},
-        preset_env::{self, Targets},
+        preset_env::{
+            Targets, {self},
+        },
         transforms::{
             base::{feature::FeatureFlag, helpers::inject_helpers, Assumptions},
             react::react,
@@ -15,28 +17,28 @@ use swc_core::{
         visit::{FoldWith, VisitMutWith},
     },
 };
-use turbo_tasks::primitives::{OptionStringVc, StringVc};
-use turbo_tasks_fs::FileSystemPathVc;
+use turbo_tasks::{ValueDefault, Vc};
+use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    environment::EnvironmentVc,
-    issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc},
+    environment::Environment,
+    issue::{Issue, IssueSeverity},
 };
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(Debug, Clone, PartialOrd, Ord, Hash)]
 pub enum EcmascriptInputTransform {
     CommonJs,
-    Plugin(TransformPluginVc),
-    PresetEnv(EnvironmentVc),
+    Plugin(Vc<TransformPlugin>),
+    PresetEnv(Vc<Environment>),
     React {
         #[serde(default)]
         development: bool,
         #[serde(default)]
         refresh: bool,
         // swc.jsc.transform.react.importSource
-        import_source: OptionStringVc,
+        import_source: Vc<Option<String>>,
         // swc.jsc.transform.react.runtime,
-        runtime: OptionStringVc,
+        runtime: Vc<Option<String>>,
     },
     // These options are subset of swc_core::ecma::transforms::typescript::Config, but
     // it doesn't derive `Copy` so repeating values in here
@@ -76,11 +78,13 @@ pub trait CustomTransformer: Debug {
 pub struct TransformPlugin(#[turbo_tasks(trace_ignore)] Box<dyn CustomTransformer + Send + Sync>);
 
 #[turbo_tasks::value(transparent)]
-pub struct OptionTransformPlugin(Option<TransformPluginVc>);
+pub struct OptionTransformPlugin(Option<Vc<TransformPlugin>>);
 
-impl Default for OptionTransformPluginVc {
-    fn default() -> Self {
-        OptionTransformPluginVc::cell(None)
+#[turbo_tasks::value_impl]
+impl ValueDefault for OptionTransformPlugin {
+    #[turbo_tasks::function]
+    fn value_default() -> Vc<Self> {
+        Vc::cell(None)
     }
 }
 
@@ -96,17 +100,17 @@ impl CustomTransformer for TransformPlugin {
 pub struct EcmascriptInputTransforms(Vec<EcmascriptInputTransform>);
 
 #[turbo_tasks::value_impl]
-impl EcmascriptInputTransformsVc {
+impl EcmascriptInputTransforms {
     #[turbo_tasks::function]
-    pub fn empty() -> Self {
-        EcmascriptInputTransformsVc::cell(Vec::new())
+    pub fn empty() -> Vc<Self> {
+        Vc::cell(Vec::new())
     }
 
     #[turbo_tasks::function]
-    pub async fn extend(self, other: EcmascriptInputTransformsVc) -> Result<Self> {
+    pub async fn extend(self: Vc<Self>, other: Vc<EcmascriptInputTransforms>) -> Result<Vc<Self>> {
         let mut transforms = self.await?.clone_value();
         transforms.extend(other.await?.clone_value());
-        Ok(EcmascriptInputTransformsVc::cell(transforms))
+        Ok(Vc::cell(transforms))
     }
 }
 
@@ -118,7 +122,7 @@ pub struct TransformContext<'a> {
     pub file_path_str: &'a str,
     pub file_name_str: &'a str,
     pub file_name_hash: u128,
-    pub file_path: FileSystemPathVc,
+    pub file_path: Vc<FileSystemPath>,
 }
 
 impl EcmascriptInputTransform {
@@ -284,33 +288,33 @@ pub fn remove_shebang(program: &mut Program) {
 
 #[turbo_tasks::value(shared)]
 pub struct UnsupportedServerActionIssue {
-    pub context: FileSystemPathVc,
+    pub context: Vc<FileSystemPath>,
 }
 
 #[turbo_tasks::value_impl]
 impl Issue for UnsupportedServerActionIssue {
     #[turbo_tasks::function]
-    fn severity(&self) -> IssueSeverityVc {
+    fn severity(&self) -> Vc<IssueSeverity> {
         IssueSeverity::Error.into()
     }
 
     #[turbo_tasks::function]
-    fn category(&self) -> StringVc {
-        StringVc::cell("unsupported".to_string())
+    fn category(&self) -> Vc<String> {
+        Vc::cell("unsupported".to_string())
     }
 
     #[turbo_tasks::function]
-    fn title(&self) -> StringVc {
-        StringVc::cell("Server actions (\"use server\") are not yet supported in Turbopack".into())
+    fn title(&self) -> Vc<String> {
+        Vc::cell("Server actions (\"use server\") are not yet supported in Turbopack".into())
     }
 
     #[turbo_tasks::function]
-    fn context(&self) -> FileSystemPathVc {
+    fn context(&self) -> Vc<FileSystemPath> {
         self.context
     }
 
     #[turbo_tasks::function]
-    async fn description(&self) -> Result<StringVc> {
-        Ok(StringVc::cell("".to_string()))
+    async fn description(&self) -> Result<Vc<String>> {
+        Ok(Vc::cell("".to_string()))
     }
 }

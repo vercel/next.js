@@ -6,7 +6,7 @@
 mod derive;
 mod func;
 mod function_macro;
-mod util;
+mod primitive_macro;
 mod value_impl_macro;
 mod value_macro;
 mod value_trait_macro;
@@ -41,16 +41,16 @@ pub fn derive_task_input(input: TokenStream) -> TokenStream {
     derive::derive_task_input(input)
 }
 
-/// Creates a ValueVc struct for a `struct` or `enum` that represent
+/// Creates a Vc<Value> struct for a `struct` or `enum` that represent
 /// that type placed into a cell in a Task.
 ///
-/// That ValueVc object can be `.await?`ed to get a readonly reference
+/// That Vc<Value> object can be `.await?`ed to get a readonly reference
 /// to the original value.
 ///
 /// `into` argument (`#[turbo_tasks::value(into: xxx)]`)
 ///
-/// When provided the ValueVc implement `From<Value>` to allow to convert
-/// a Value to a ValueVc by placing it into a cell in a Task.
+/// When provided the Vc<Value> implement `From<Value>` to allow to convert
+/// a Value to a Vc<Value> by placing it into a cell in a Task.
 ///
 /// `into: new`: Always overrides the value in the cell. Invalidating all
 /// dependent tasks.
@@ -85,4 +85,11 @@ pub fn function(args: TokenStream, input: TokenStream) -> TokenStream {
 #[proc_macro_attribute]
 pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
     value_impl_macro::value_impl(args, input)
+}
+
+#[allow_internal_unstable(min_specialization, into_future, trivial_bounds)]
+#[proc_macro_error]
+#[proc_macro]
+pub fn primitive(input: TokenStream) -> TokenStream {
+    primitive_macro::primitive(input)
 }

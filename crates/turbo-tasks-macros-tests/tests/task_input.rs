@@ -2,8 +2,7 @@
 //! However, we keep one test here as an integration test between the derive
 //! macro and the `#[turbo_tasks::function]` macro.
 
-use anyhow::Result;
-use turbo_tasks::{CompletionVc, TaskInput};
+use turbo_tasks::{Completion, TaskInput, Vc};
 use turbo_tasks_testing::{register, run};
 
 register!();
@@ -12,9 +11,9 @@ register!();
 struct OneUnnamedField(u32);
 
 #[turbo_tasks::function]
-async fn one_unnamed_field(input: OneUnnamedField) -> CompletionVc {
+async fn one_unnamed_field(input: OneUnnamedField) -> Vc<Completion> {
     assert_eq!(input.0, 42);
-    CompletionVc::immutable()
+    Completion::immutable()
 }
 
 #[tokio::test]

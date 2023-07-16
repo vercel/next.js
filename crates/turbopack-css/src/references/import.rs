@@ -9,23 +9,19 @@ use swc_core::{
         },
     },
 };
-use turbo_tasks::{primitives::StringVc, Value, ValueToString, ValueToStringVc};
+use turbo_tasks::{Value, ValueToString, Vc};
 use turbopack_core::{
-    chunk::{ChunkableModuleReference, ChunkableModuleReferenceVc, ChunkingContextVc},
-    issue::{IssueSourceVc, OptionIssueSourceVc},
-    reference::{AssetReference, AssetReferenceVc},
+    chunk::{ChunkableModuleReference, ChunkingContext},
+    issue::{IssueSource, OptionIssueSource},
+    reference::AssetReference,
     reference_type::CssReferenceSubType,
-    resolve::{
-        origin::ResolveOriginVc,
-        parse::{Request, RequestVc},
-        ResolveResultVc,
-    },
+    resolve::{origin::ResolveOrigin, parse::Request, ResolveResult},
 };
 
 use crate::{
     chunk::CssImport,
-    code_gen::{CodeGenerateable, CodeGenerateableVc, CodeGeneration, CodeGenerationVc},
-    references::{css_resolve, AstPathVc},
+    code_gen::{CodeGenerateable, CodeGeneration},
+    references::{css_resolve, AstPath},
 };
 
 #[turbo_tasks::value(into = "new")]
@@ -187,23 +183,23 @@ impl ImportAttributes {
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct ImportAssetReference {
-    pub origin: ResolveOriginVc,
-    pub request: RequestVc,
-    pub path: AstPathVc,
-    pub attributes: ImportAttributesVc,
-    pub issue_source: IssueSourceVc,
+    pub origin: Vc<Box<dyn ResolveOrigin>>,
+    pub request: Vc<Request>,
+    pub path: Vc<AstPath>,
+    pub attributes: Vc<ImportAttributes>,
+    pub issue_source: Vc<IssueSource>,
 }
 
 #[turbo_tasks::value_impl]
-impl ImportAssetReferenceVc {
+impl ImportAssetReference {
     #[turbo_tasks::function]
     pub fn new(
-        origin: ResolveOriginVc,
-        request: RequestVc,
-        path: AstPathVc,
-        attributes: ImportAttributesVc,
-        issue_source: IssueSourceVc,
-    ) -> Self {
+        origin: Vc<Box<dyn ResolveOrigin>>,
+        request: Vc<Request>,
+        path: Vc<AstPath>,
+        attributes: Vc<ImportAttributes>,
+        issue_source: Vc<IssueSource>,
+    ) -> Vc<Self> {
         Self::cell(ImportAssetReference {
             origin,
             request,
@@ -217,12 +213,12 @@ impl ImportAssetReferenceVc {
 #[turbo_tasks::value_impl]
 impl AssetReference for ImportAssetReference {
     #[turbo_tasks::function]
-    fn resolve_reference(&self) -> ResolveResultVc {
+    fn resolve_reference(&self) -> Vc<ResolveResult> {
         css_resolve(
             self.origin,
             self.request,
             Value::new(CssReferenceSubType::AtImport),
-            OptionIssueSourceVc::some(self.issue_source),
+            OptionIssueSource::some(self.issue_source),
         )
     }
 }
@@ -230,8 +226,8 @@ impl AssetReference for ImportAssetReference {
 #[turbo_tasks::value_impl]
 impl ValueToString for ImportAssetReference {
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<StringVc> {
-        Ok(StringVc::cell(format!(
+    async fn to_string(&self) -> Result<Vc<String>> {
+        Ok(Vc::cell(format!(
             "import(url) {}",
             self.request.to_string().await?,
         )))
@@ -242,17 +238,17 @@ impl ValueToString for ImportAssetReference {
 impl CodeGenerateable for ImportAssetReference {
     #[turbo_tasks::function]
     async fn code_generation(
-        self_vc: ImportAssetReferenceVc,
-        _context: ChunkingContextVc,
-    ) -> Result<CodeGenerationVc> {
-        let this = &*self_vc.await?;
+        self: Vc<Self>,
+        _context: Vc<Box<dyn ChunkingContext>>,
+    ) -> Result<Vc<CodeGeneration>> {
+        let this = &*self.await?;
         let mut imports = vec![];
         if let Request::Uri {
             protocol,
             remainder,
         } = &*this.request.await?
         {
-            imports.push(CssImport::External(StringVc::cell(format!(
+            imports.push(CssImport::External(Vc::cell(format!(
                 "{}{}",
                 protocol, remainder
             ))))

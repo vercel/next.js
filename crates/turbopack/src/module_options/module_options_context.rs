@@ -1,10 +1,10 @@
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::trace::TraceRawVcs;
-use turbopack_core::{environment::EnvironmentVc, resolve::options::ImportMappingVc};
-use turbopack_ecmascript::TransformPluginVc;
+use turbo_tasks::{trace::TraceRawVcs, ValueDefault, Vc};
+use turbopack_core::{environment::Environment, resolve::options::ImportMapping};
+use turbopack_ecmascript::TransformPlugin;
 use turbopack_node::{
-    execution_context::ExecutionContextVc, transforms::webpack::WebpackLoaderItemsVc,
+    execution_context::ExecutionContext, transforms::webpack::WebpackLoaderItems,
 };
 
 use super::ModuleRule;
@@ -12,13 +12,13 @@ use crate::condition::ContextCondition;
 
 #[derive(Default, Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize)]
 pub struct PostCssTransformOptions {
-    pub postcss_package: Option<ImportMappingVc>,
+    pub postcss_package: Option<Vc<ImportMapping>>,
     pub placeholder_for_future_extensions: (),
 }
 
 #[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize)]
 pub struct LoaderRuleItem {
-    pub loaders: WebpackLoaderItemsVc,
+    pub loaders: Vc<WebpackLoaderItems>,
     pub rename_as: Option<String>,
 }
 
@@ -28,18 +28,18 @@ pub struct WebpackRules(IndexMap<String, LoaderRuleItem>);
 
 #[derive(Default)]
 #[turbo_tasks::value(transparent)]
-pub struct OptionWebpackRules(Option<WebpackRulesVc>);
+pub struct OptionWebpackRules(Option<Vc<WebpackRules>>);
 
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Debug)]
 pub struct WebpackLoadersOptions {
-    pub rules: WebpackRulesVc,
-    pub loader_runner_package: Option<ImportMappingVc>,
+    pub rules: Vc<WebpackRules>,
+    pub loader_runner_package: Option<Vc<ImportMapping>>,
 }
 
 #[derive(Default)]
 #[turbo_tasks::value(transparent)]
-pub struct OptionWebpackLoadersOptions(Option<WebpackLoadersOptionsVc>);
+pub struct OptionWebpackLoadersOptions(Option<Vc<WebpackLoadersOptions>>);
 
 /// The kind of decorators transform to use.
 /// [TODO]: might need bikeshed for the name (Ecma)
@@ -71,16 +71,10 @@ pub struct DecoratorsOptions {
 }
 
 #[turbo_tasks::value_impl]
-impl DecoratorsOptionsVc {
+impl ValueDefault for DecoratorsOptions {
     #[turbo_tasks::function]
-    pub fn default() -> Self {
-        Self::cell(Default::default())
-    }
-}
-
-impl Default for DecoratorsOptionsVc {
-    fn default() -> Self {
-        Self::default()
+    fn value_default() -> Vc<Self> {
+        Self::default().cell()
     }
 }
 
@@ -93,16 +87,10 @@ pub struct TypescriptTransformOptions {
 }
 
 #[turbo_tasks::value_impl]
-impl TypescriptTransformOptionsVc {
+impl ValueDefault for TypescriptTransformOptions {
     #[turbo_tasks::function]
-    pub fn default() -> Self {
-        Self::cell(Default::default())
-    }
-}
-
-impl Default for TypescriptTransformOptionsVc {
-    fn default() -> Self {
-        Self::default()
+    fn value_default() -> Vc<Self> {
+        Self::default().cell()
     }
 }
 
@@ -122,10 +110,10 @@ pub struct JsxTransformOptions {
 pub struct CustomEcmascriptTransformPlugins {
     /// List of plugins to be applied before the main transform.
     /// Transform will be applied in the order of the list.
-    pub source_transforms: Vec<TransformPluginVc>,
+    pub source_transforms: Vec<Vc<TransformPlugin>>,
     /// List of plugins to be applied after the main transform.
     /// Transform will be applied in the order of the list.
-    pub output_transforms: Vec<TransformPluginVc>,
+    pub output_transforms: Vec<Vc<TransformPlugin>>,
 }
 
 #[turbo_tasks::value(shared)]
@@ -139,9 +127,9 @@ pub struct MdxTransformModuleOptions {
 }
 
 #[turbo_tasks::value_impl]
-impl MdxTransformModuleOptionsVc {
+impl MdxTransformModuleOptions {
     #[turbo_tasks::function]
-    pub fn default() -> Self {
+    pub fn default() -> Vc<Self> {
         Self::cell(Default::default())
     }
 }
@@ -150,12 +138,12 @@ impl MdxTransformModuleOptionsVc {
 #[derive(Default, Clone)]
 #[serde(default)]
 pub struct ModuleOptionsContext {
-    pub enable_jsx: Option<JsxTransformOptionsVc>,
+    pub enable_jsx: Option<Vc<JsxTransformOptions>>,
     pub enable_postcss_transform: Option<PostCssTransformOptions>,
-    pub enable_webpack_loaders: Option<WebpackLoadersOptionsVc>,
+    pub enable_webpack_loaders: Option<Vc<WebpackLoadersOptions>>,
     pub enable_types: bool,
-    pub enable_typescript_transform: Option<TypescriptTransformOptionsVc>,
-    pub decorators: Option<DecoratorsOptionsVc>,
+    pub enable_typescript_transform: Option<Vc<TypescriptTransformOptions>>,
+    pub decorators: Option<Vc<DecoratorsOptions>>,
     pub enable_mdx: bool,
     /// This skips `GlobalCss` and `ModuleCss` module assets from being
     /// generated in the module graph, generating only `Css` module assets.
@@ -165,29 +153,23 @@ pub struct ModuleOptionsContext {
     pub enable_raw_css: bool,
     // [Note]: currently mdx, and mdx_rs have different configuration entrypoint from next.config.js,
     // however we might want to unify them in the future.
-    pub enable_mdx_rs: Option<MdxTransformModuleOptionsVc>,
-    pub preset_env_versions: Option<EnvironmentVc>,
-    pub custom_ecma_transform_plugins: Option<CustomEcmascriptTransformPluginsVc>,
+    pub enable_mdx_rs: Option<Vc<MdxTransformModuleOptions>>,
+    pub preset_env_versions: Option<Vc<Environment>>,
+    pub custom_ecma_transform_plugins: Option<Vc<CustomEcmascriptTransformPlugins>>,
     /// Custom rules to be applied after all default rules.
     pub custom_rules: Vec<ModuleRule>,
-    pub execution_context: Option<ExecutionContextVc>,
+    pub execution_context: Option<Vc<ExecutionContext>>,
     /// A list of rules to use a different module option context for certain
     /// context paths. The first matching is used.
-    pub rules: Vec<(ContextCondition, ModuleOptionsContextVc)>,
+    pub rules: Vec<(ContextCondition, Vc<ModuleOptionsContext>)>,
     pub placeholder_for_future_extensions: (),
     pub enable_tree_shaking: bool,
 }
 
 #[turbo_tasks::value_impl]
-impl ModuleOptionsContextVc {
+impl ValueDefault for ModuleOptionsContext {
     #[turbo_tasks::function]
-    pub fn default() -> Self {
+    fn value_default() -> Vc<Self> {
         Self::cell(Default::default())
-    }
-}
-
-impl Default for ModuleOptionsContextVc {
-    fn default() -> Self {
-        Self::default()
     }
 }

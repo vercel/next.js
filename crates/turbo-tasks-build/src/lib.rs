@@ -1,6 +1,8 @@
 use std::{
     collections::{HashMap, HashSet},
-    env::{self, current_dir},
+    env::{
+        current_dir, {self},
+    },
     fmt::{Display, Write},
     fs::read_dir,
     path::{PathBuf, MAIN_SEPARATOR as PATH_SEP},
@@ -9,13 +11,14 @@ use std::{
 use anyhow::{Context, Result};
 use glob::glob;
 use syn::{
-    Attribute, Ident, Item, ItemEnum, ItemFn, ItemImpl, ItemMod, ItemStruct, ItemTrait, Path,
-    PathArguments, PathSegment, TraitItem, TraitItemMethod, Type, TypePath,
+    parse_quote, Attribute, Ident, Item, ItemEnum, ItemFn, ItemImpl, ItemMacro, ItemMod,
+    ItemStruct, ItemTrait, TraitItem, TraitItemMethod,
 };
 use turbo_tasks_macros_shared::{
-    get_function_ident, get_impl_function_ident, get_ref_ident, get_register_trait_methods_ident,
-    get_register_value_type_ident, get_trait_default_impl_function_ident,
-    get_trait_impl_function_ident, get_trait_type_ident, ValueTraitArguments,
+    get_impl_function_ident, get_native_function_ident, get_path_ident,
+    get_register_trait_methods_ident, get_register_value_type_ident,
+    get_trait_default_impl_function_ident, get_trait_impl_function_ident, get_trait_type_ident,
+    get_type_ident, PrimitiveInput, ValueTraitArguments,
 };
 
 pub fn generate_register() {
@@ -201,6 +204,7 @@ impl<'a> RegisterContext<'a> {
             Item::Mod(mod_item) => self.process_mod(mod_item),
             Item::Struct(struct_item) => self.process_struct(struct_item),
             Item::Trait(trait_item) => self.process_trait(trait_item),
+            Item::Macro(macro_item) => self.process_macro(macro_item),
             _ => Ok(()),
         }
     }
@@ -215,7 +219,7 @@ impl<'a> RegisterContext<'a> {
     fn process_fn(&mut self, fn_item: ItemFn) -> Result<()> {
         if has_attribute(&fn_item.attrs, "function") {
             let ident = &fn_item.sig.ident;
-            let type_ident = get_function_ident(ident);
+            let type_ident = get_native_function_ident(ident);
 
             self.register(type_ident, self.get_global_name(&[ident]))?;
         }
@@ -224,51 +228,36 @@ impl<'a> RegisterContext<'a> {
 
     fn process_impl(&mut self, impl_item: ItemImpl) -> Result<()> {
         if has_attribute(&impl_item.attrs, "value_impl") {
-            if let Type::Path(TypePath {
-                qself: None,
-                path: Path { segments, .. },
-            }) = &*impl_item.self_ty
-            {
-                if segments.len() == 1 {
-                    if let Some(PathSegment {
-                        arguments: PathArguments::None,
-                        ident: struct_ident,
-                    }) = segments.first()
-                    {
-                        let trait_ident =
-                            impl_item.trait_.as_ref().and_then(|(_, trait_path, _)| {
-                                trait_path.segments.last().map(|s| &s.ident)
-                            });
-                        if let Some(trait_ident) = trait_ident {
-                            self.add_value_trait(struct_ident, trait_ident);
-                        }
+            let struct_ident = get_type_ident(&impl_item.self_ty).unwrap();
 
-                        for item in impl_item.items {
-                            if let syn::ImplItem::Method(method_item) = item {
-                                // TODO: if method_item.attrs.iter().any(|a|
-                                // is_attribute(a,
-                                // "function")) {
-                                let method_ident = &method_item.sig.ident;
-                                let function_type_ident = if let Some(trait_ident) = trait_ident {
-                                    get_trait_impl_function_ident(
-                                        struct_ident,
-                                        trait_ident,
-                                        method_ident,
-                                    )
-                                } else {
-                                    get_impl_function_ident(struct_ident, method_ident)
-                                };
+            let trait_ident = impl_item
+                .trait_
+                .as_ref()
+                .map(|(_, trait_path, _)| get_path_ident(trait_path));
 
-                                let global_name = if let Some(trait_ident) = trait_ident {
-                                    self.get_global_name(&[struct_ident, trait_ident, method_ident])
-                                } else {
-                                    self.get_global_name(&[struct_ident, method_ident])
-                                };
+            if let Some(trait_ident) = &trait_ident {
+                self.add_value_trait(&struct_ident, trait_ident);
+            }
 
-                                self.register(function_type_ident, global_name)?;
-                            }
-                        }
-                    }
+            for item in impl_item.items {
+                if let syn::ImplItem::Method(method_item) = item {
+                    // TODO: if method_item.attrs.iter().any(|a|
+                    // is_attribute(a,
+                    // "function")) {
+                    let method_ident = &method_item.sig.ident;
+                    let function_type_ident = if let Some(trait_ident) = &trait_ident {
+                        get_trait_impl_function_ident(&struct_ident, trait_ident, method_ident)
+                    } else {
+                        get_impl_function_ident(&struct_ident, method_ident)
+                    };
+
+                    let global_name = if let Some(trait_ident) = &trait_ident {
+                        self.get_global_name(&[&struct_ident, trait_ident, method_ident])
+                    } else {
+                        self.get_global_name(&[&struct_ident, method_ident])
+                    };
+
+                    self.register(function_type_ident, global_name)?;
                 }
             }
         }
@@ -332,10 +321,34 @@ impl<'a> RegisterContext<'a> {
 
             let trait_args: ValueTraitArguments = parse_attr_args(attr)?.unwrap_or_default();
             if trait_args.debug {
-                let ref_ident = get_ref_ident(trait_ident);
-                self.register_debug_impl(&ref_ident, DebugType::Trait)?;
+                self.register_debug_impl(
+                    &get_type_ident(&parse_quote! {
+                        Box<dyn #trait_ident>
+                    })
+                    .unwrap(),
+                )?;
             }
         }
+        Ok(())
+    }
+
+    fn process_macro(&mut self, macro_item: ItemMacro) -> Result<()> {
+        if macro_item
+            .mac
+            .path
+            .is_ident("__turbo_tasks_internal_primitive")
+        {
+            let input = macro_item.mac.tokens;
+            let input = syn::parse2::<PrimitiveInput>(input).unwrap();
+
+            let ty = input.ty;
+            let Some(ident) = get_type_ident(&ty) else {
+                return Ok(());
+            };
+
+            self.add_value(&ident);
+        }
+
         Ok(())
     }
 }
@@ -365,8 +378,14 @@ impl<'a> RegisterContext<'a> {
         );
 
         // register default debug impl generated by proc macro
-        self.register_debug_impl(ident, DebugType::Value).unwrap();
-        self.add_value_trait(ident, &Ident::new("ValueDebug", ident.span()));
+        self.register_debug_impl(ident).unwrap();
+        self.add_value_trait(
+            ident,
+            &get_type_ident(&parse_quote! {
+                turbo_tasks::debug::ValueDebug
+            })
+            .unwrap(),
+        );
     }
 
     fn add_value_trait(&mut self, ident: &Ident, trait_ident: &Ident) {
@@ -398,37 +417,24 @@ impl<'a> RegisterContext<'a> {
     }
 
     /// Declares the default derive of the `ValueDebug` trait.
-    fn register_debug_impl(&mut self, ident: &Ident, dbg_ty: DebugType) -> std::fmt::Result {
+    fn register_debug_impl(&mut self, ident: &Ident) -> std::fmt::Result {
         for fn_name in ["dbg", "dbg_depth"] {
             let fn_ident = Ident::new(fn_name, ident.span());
+            let trait_ident = get_type_ident(&parse_quote! {
+                turbo_tasks::debug::ValueDebug
+            })
+            .unwrap();
 
-            let (impl_fn_ident, global_name) = match dbg_ty {
-                DebugType::Value => {
-                    let trait_ident = Ident::new("ValueDebug", ident.span());
-                    (
-                        get_trait_impl_function_ident(ident, &trait_ident, &fn_ident),
-                        self.get_global_name(&[ident, &trait_ident, &fn_ident]),
-                    )
-                }
-                DebugType::Trait => (
-                    get_impl_function_ident(ident, &fn_ident),
-                    self.get_global_name(&[ident, &fn_ident]),
-                ),
-            };
+            let (impl_fn_ident, global_name) = (
+                get_trait_impl_function_ident(ident, &trait_ident, &fn_ident),
+                self.get_global_name(&[ident, &trait_ident, &fn_ident]),
+            );
 
             self.register(impl_fn_ident, global_name)?;
         }
 
         Ok(())
     }
-}
-
-// FIXME: traits currently don't implement the trait directly because
-// `turbo_tasks::value_impl` would try to wrap the TraitVc in another Vc
-// (TraitVcVc).
-enum DebugType {
-    Value,
-    Trait,
 }
 
 fn has_attribute(attrs: &[Attribute], name: &str) -> bool {

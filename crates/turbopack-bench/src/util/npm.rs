@@ -1,6 +1,10 @@
 use std::{
-    fs::{self, File},
-    io::{self, Write},
+    fs::{
+        File, {self},
+    },
+    io::{
+        Write, {self},
+    },
     path::Path,
 };
 

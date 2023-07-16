@@ -1,31 +1,31 @@
 use anyhow::Result;
 use swc_core::{ecma::ast::Expr, quote};
-use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
+use turbo_tasks::{ValueToString, Vc};
 use turbopack_core::{
-    chunk::{ChunkableModuleReference, ChunkableModuleReferenceVc, ChunkingTypeOptionVc, ModuleId},
-    reference::{AssetReference, AssetReferenceVc},
-    resolve::ResolveResultVc,
+    chunk::{ChunkableModuleReference, ChunkingTypeOption, ModuleId},
+    reference::AssetReference,
+    resolve::ResolveResult,
 };
 
-use super::{base::ReferencedAsset, EsmAssetReferenceVc};
+use super::{base::ReferencedAsset, EsmAssetReference};
 use crate::{
-    chunk::{EcmascriptChunkPlaceable, EcmascriptChunkingContextVc},
-    code_gen::{CodeGenerateable, CodeGenerateableVc, CodeGeneration, CodeGenerationVc},
+    chunk::{item::EcmascriptChunkItemExt, EcmascriptChunkPlaceable, EcmascriptChunkingContext},
+    code_gen::{CodeGenerateable, CodeGeneration},
     create_visitor,
-    references::AstPathVc,
+    references::AstPath,
 };
 
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct EsmModuleIdAssetReference {
-    inner: EsmAssetReferenceVc,
-    ast_path: AstPathVc,
+    inner: Vc<EsmAssetReference>,
+    ast_path: Vc<AstPath>,
 }
 
 #[turbo_tasks::value_impl]
-impl EsmModuleIdAssetReferenceVc {
+impl EsmModuleIdAssetReference {
     #[turbo_tasks::function]
-    pub fn new(inner: EsmAssetReferenceVc, ast_path: AstPathVc) -> Self {
+    pub fn new(inner: Vc<EsmAssetReference>, ast_path: Vc<AstPath>) -> Vc<Self> {
         Self::cell(EsmModuleIdAssetReference { inner, ast_path })
     }
 }
@@ -33,7 +33,7 @@ impl EsmModuleIdAssetReferenceVc {
 #[turbo_tasks::value_impl]
 impl AssetReference for EsmModuleIdAssetReference {
     #[turbo_tasks::function]
-    fn resolve_reference(&self) -> ResolveResultVc {
+    fn resolve_reference(&self) -> Vc<ResolveResult> {
         self.inner.resolve_reference()
     }
 }
@@ -41,8 +41,8 @@ impl AssetReference for EsmModuleIdAssetReference {
 #[turbo_tasks::value_impl]
 impl ValueToString for EsmModuleIdAssetReference {
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<StringVc> {
-        Ok(StringVc::cell(format!(
+    async fn to_string(&self) -> Result<Vc<String>> {
+        Ok(Vc::cell(format!(
             "module id of {}",
             self.inner.to_string().await?,
         )))
@@ -52,7 +52,7 @@ impl ValueToString for EsmModuleIdAssetReference {
 #[turbo_tasks::value_impl]
 impl ChunkableModuleReference for EsmModuleIdAssetReference {
     #[turbo_tasks::function]
-    fn chunking_type(&self) -> ChunkingTypeOptionVc {
+    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
         self.inner.chunking_type()
     }
 }
@@ -62,8 +62,8 @@ impl CodeGenerateable for EsmModuleIdAssetReference {
     #[turbo_tasks::function]
     async fn code_generation(
         &self,
-        context: EcmascriptChunkingContextVc,
-    ) -> Result<CodeGenerationVc> {
+        context: Vc<Box<dyn EcmascriptChunkingContext>>,
+    ) -> Result<Vc<CodeGeneration>> {
         let mut visitors = Vec::new();
 
         if let ReferencedAsset::Some(asset) = &*self.inner.get_referenced_asset().await? {

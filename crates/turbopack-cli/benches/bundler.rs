@@ -9,7 +9,9 @@ use regex::Regex;
 use turbopack_bench::{
     bundlers::{Bundler, RenderType},
     util::{
-        npm::{self, NpmPackage},
+        npm::{
+            NpmPackage, {self},
+        },
         wait_for_match,
     },
 };

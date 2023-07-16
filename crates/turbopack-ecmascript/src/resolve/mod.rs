@@ -1,10 +1,10 @@
 pub mod node_native_binding;
 
 use anyhow::Result;
-use turbo_tasks::Value;
+use turbo_tasks::{Value, Vc};
 use turbopack_core::{
     context::AssetContext,
-    issue::{IssueSeverity, IssueSeverityVc, IssueSourceVc, OptionIssueSourceVc},
+    issue::{IssueSeverity, IssueSource, OptionIssueSource},
     reference_type::{
         CommonJsReferenceSubType, EcmaScriptModulesReferenceSubType, ReferenceType,
         UrlReferenceSubType,
@@ -13,14 +13,13 @@ use turbopack_core::{
         handle_resolve_error,
         options::{
             ConditionValue, ResolutionConditions, ResolveInPackage, ResolveIntoPackage,
-            ResolveOptions, ResolveOptionsVc,
+            ResolveOptions,
         },
-        origin::{ResolveOrigin, ResolveOriginVc},
-        parse::RequestVc,
-        resolve, ResolveResultVc,
+        origin::{ResolveOrigin, ResolveOriginExt},
+        parse::Request,
+        resolve, ResolveResult,
     },
 };
-
 /// Retrieves the [ResolutionConditions] of both the "into" package (allowing a
 /// package to control how it can be imported) and the "in" package (controlling
 /// how this package imports others) resolution options, so that they can be
@@ -41,7 +40,7 @@ fn get_condition_maps(options: &mut ResolveOptions) -> Vec<&mut ResolutionCondit
 }
 
 #[turbo_tasks::function]
-pub async fn apply_esm_specific_options(options: ResolveOptionsVc) -> Result<ResolveOptionsVc> {
+pub async fn apply_esm_specific_options(options: Vc<ResolveOptions>) -> Result<Vc<ResolveOptions>> {
     let mut options: ResolveOptions = options.await?.clone_value();
     for conditions in get_condition_maps(&mut options) {
         conditions.insert("import".to_string(), ConditionValue::Set);
@@ -51,7 +50,7 @@ pub async fn apply_esm_specific_options(options: ResolveOptionsVc) -> Result<Res
 }
 
 #[turbo_tasks::function]
-pub async fn apply_cjs_specific_options(options: ResolveOptionsVc) -> Result<ResolveOptionsVc> {
+pub async fn apply_cjs_specific_options(options: Vc<ResolveOptions>) -> Result<Vc<ResolveOptions>> {
     let mut options: ResolveOptions = options.await?.clone_value();
     for conditions in get_condition_maps(&mut options) {
         conditions.insert("import".to_string(), ConditionValue::Unset);
@@ -62,12 +61,12 @@ pub async fn apply_cjs_specific_options(options: ResolveOptionsVc) -> Result<Res
 
 #[turbo_tasks::function]
 pub async fn esm_resolve(
-    origin: ResolveOriginVc,
-    request: RequestVc,
+    origin: Vc<Box<dyn ResolveOrigin>>,
+    request: Vc<Request>,
     ty: Value<EcmaScriptModulesReferenceSubType>,
-    issue_source: OptionIssueSourceVc,
-    issue_severity: IssueSeverityVc,
-) -> Result<ResolveResultVc> {
+    issue_source: Vc<OptionIssueSource>,
+    issue_severity: Vc<IssueSeverity>,
+) -> Result<Vc<ResolveResult>> {
     let ty = Value::new(ReferenceType::EcmaScriptModules(ty.into_value()));
     let options = apply_esm_specific_options(origin.resolve_options(ty.clone()));
     specific_resolve(origin, request, options, ty, issue_source, issue_severity).await
@@ -75,11 +74,11 @@ pub async fn esm_resolve(
 
 #[turbo_tasks::function]
 pub async fn cjs_resolve(
-    origin: ResolveOriginVc,
-    request: RequestVc,
-    issue_source: OptionIssueSourceVc,
-    issue_severity: IssueSeverityVc,
-) -> Result<ResolveResultVc> {
+    origin: Vc<Box<dyn ResolveOrigin>>,
+    request: Vc<Request>,
+    issue_source: Vc<OptionIssueSource>,
+    issue_severity: Vc<IssueSeverity>,
+) -> Result<Vc<ResolveResult>> {
     // TODO pass CommonJsReferenceSubType
     let ty = Value::new(ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined));
     let options = apply_cjs_specific_options(origin.resolve_options(ty.clone()));
@@ -88,12 +87,12 @@ pub async fn cjs_resolve(
 
 #[turbo_tasks::function]
 pub async fn url_resolve(
-    origin: ResolveOriginVc,
-    request: RequestVc,
+    origin: Vc<Box<dyn ResolveOrigin>>,
+    request: Vc<Request>,
     ty: Value<UrlReferenceSubType>,
-    issue_source: IssueSourceVc,
-    issue_severity: IssueSeverityVc,
-) -> Result<ResolveResultVc> {
+    issue_source: Vc<IssueSource>,
+    issue_severity: Vc<IssueSeverity>,
+) -> Result<Vc<ResolveResult>> {
     let ty = Value::new(ReferenceType::Url(ty.into_value()));
     let resolve_options = origin.resolve_options(ty.clone());
     let rel_request = request.as_relative();
@@ -111,7 +110,7 @@ pub async fn url_resolve(
         origin.origin_path(),
         request,
         resolve_options,
-        OptionIssueSourceVc::some(issue_source),
+        OptionIssueSource::some(issue_source),
         issue_severity,
     )
     .await?;
@@ -119,13 +118,13 @@ pub async fn url_resolve(
 }
 
 async fn specific_resolve(
-    origin: ResolveOriginVc,
-    request: RequestVc,
-    options: ResolveOptionsVc,
+    origin: Vc<Box<dyn ResolveOrigin>>,
+    request: Vc<Request>,
+    options: Vc<ResolveOptions>,
     reference_type: Value<ReferenceType>,
-    issue_source: OptionIssueSourceVc,
-    issue_severity: IssueSeverityVc,
-) -> Result<ResolveResultVc> {
+    issue_source: Vc<OptionIssueSource>,
+    issue_severity: Vc<IssueSeverity>,
+) -> Result<Vc<ResolveResult>> {
     let result = origin.resolve_asset(request, options, reference_type.clone());
 
     handle_resolve_error(
@@ -140,7 +139,7 @@ async fn specific_resolve(
     .await
 }
 
-pub fn try_to_severity(in_try: bool) -> IssueSeverityVc {
+pub fn try_to_severity(in_try: bool) -> Vc<IssueSeverity> {
     if in_try {
         IssueSeverity::Warning.cell()
     } else {

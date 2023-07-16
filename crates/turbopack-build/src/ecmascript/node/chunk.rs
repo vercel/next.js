@@ -1,34 +1,32 @@
 use anyhow::Result;
 use indexmap::IndexSet;
-use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
+use turbo_tasks::{ValueToString, Vc};
 use turbopack_core::{
-    asset::{Asset, AssetContentVc, AssetVc},
+    asset::{Asset, AssetContent},
     chunk::ChunkingContext,
-    ident::AssetIdentVc,
-    introspect::{Introspectable, IntrospectableChildrenVc, IntrospectableVc},
-    output::{OutputAsset, OutputAssetVc},
-    reference::AssetReferencesVc,
-    source_map::{
-        GenerateSourceMap, GenerateSourceMapVc, OptionSourceMapVc, SourceMapAssetReferenceVc,
-    },
+    ident::AssetIdent,
+    introspect::{Introspectable, IntrospectableChildren},
+    output::OutputAsset,
+    reference::AssetReferences,
+    source_map::{GenerateSourceMap, OptionSourceMap, SourceMapAssetReference},
 };
-use turbopack_ecmascript::chunk::EcmascriptChunkVc;
+use turbopack_ecmascript::chunk::EcmascriptChunk;
 
-use super::content::EcmascriptBuildNodeChunkContentVc;
-use crate::BuildChunkingContextVc;
+use super::content::EcmascriptBuildNodeChunkContent;
+use crate::BuildChunkingContext;
 
 /// Production Ecmascript chunk targeting Node.js.
 #[turbo_tasks::value(shared)]
 pub(crate) struct EcmascriptBuildNodeChunk {
-    chunking_context: BuildChunkingContextVc,
-    chunk: EcmascriptChunkVc,
+    chunking_context: Vc<BuildChunkingContext>,
+    chunk: Vc<EcmascriptChunk>,
 }
 
 #[turbo_tasks::value_impl]
-impl EcmascriptBuildNodeChunkVc {
-    /// Creates a new [`EcmascriptBuildNodeChunkVc`].
+impl EcmascriptBuildNodeChunk {
+    /// Creates a new [`Vc<EcmascriptBuildNodeChunk>`].
     #[turbo_tasks::function]
-    pub fn new(chunking_context: BuildChunkingContextVc, chunk: EcmascriptChunkVc) -> Self {
+    pub fn new(chunking_context: Vc<BuildChunkingContext>, chunk: Vc<EcmascriptChunk>) -> Vc<Self> {
         EcmascriptBuildNodeChunk {
             chunking_context,
             chunk,
@@ -40,22 +38,22 @@ impl EcmascriptBuildNodeChunkVc {
 #[turbo_tasks::value_impl]
 impl ValueToString for EcmascriptBuildNodeChunk {
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<StringVc> {
-        Ok(StringVc::cell("Ecmascript Build Node Chunk".to_string()))
+    async fn to_string(&self) -> Result<Vc<String>> {
+        Ok(Vc::cell("Ecmascript Build Node Chunk".to_string()))
     }
 }
 
 #[turbo_tasks::function]
-fn modifier() -> StringVc {
-    StringVc::cell("ecmascript build node chunk".to_string())
+fn modifier() -> Vc<String> {
+    Vc::cell("ecmascript build node chunk".to_string())
 }
 
 #[turbo_tasks::value_impl]
-impl EcmascriptBuildNodeChunkVc {
+impl EcmascriptBuildNodeChunk {
     #[turbo_tasks::function]
-    async fn own_content(self) -> Result<EcmascriptBuildNodeChunkContentVc> {
+    async fn own_content(self: Vc<Self>) -> Result<Vc<EcmascriptBuildNodeChunkContent>> {
         let this = self.await?;
-        Ok(EcmascriptBuildNodeChunkContentVc::new(
+        Ok(EcmascriptBuildNodeChunkContent::new(
             this.chunking_context,
             self,
             this.chunk.chunk_content(),
@@ -69,14 +67,14 @@ impl OutputAsset for EcmascriptBuildNodeChunk {}
 #[turbo_tasks::value_impl]
 impl Asset for EcmascriptBuildNodeChunk {
     #[turbo_tasks::function]
-    fn ident(&self) -> AssetIdentVc {
+    fn ident(&self) -> Vc<AssetIdent> {
         let ident = self.chunk.ident().with_modifier(modifier());
-        AssetIdentVc::from_path(self.chunking_context.chunk_path(ident, ".js"))
+        AssetIdent::from_path(self.chunking_context.chunk_path(ident, ".js".to_string()))
     }
 
     #[turbo_tasks::function]
-    async fn references(self_vc: EcmascriptBuildNodeChunkVc) -> Result<AssetReferencesVc> {
-        let this = self_vc.await?;
+    async fn references(self: Vc<Self>) -> Result<Vc<AssetReferences>> {
+        let this = self.await?;
         let chunk_references = this.chunk.references().await?;
         let mut references = Vec::with_capacity(chunk_references.len() + 1);
 
@@ -86,62 +84,63 @@ impl Asset for EcmascriptBuildNodeChunk {
 
         if *this
             .chunking_context
-            .reference_chunk_source_maps(self_vc.into())
+            .reference_chunk_source_maps(Vc::upcast(self))
             .await?
         {
-            references.push(SourceMapAssetReferenceVc::new(self_vc.into()).into());
+            references.push(Vc::upcast(SourceMapAssetReference::new(Vc::upcast(self))));
         }
 
-        Ok(AssetReferencesVc::cell(references))
+        Ok(Vc::cell(references))
     }
 
     #[turbo_tasks::function]
-    fn content(self_vc: EcmascriptBuildNodeChunkVc) -> AssetContentVc {
-        self_vc.own_content().content()
+    fn content(self: Vc<Self>) -> Vc<AssetContent> {
+        self.own_content().content()
     }
 }
 
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for EcmascriptBuildNodeChunk {
     #[turbo_tasks::function]
-    fn generate_source_map(self_vc: EcmascriptBuildNodeChunkVc) -> OptionSourceMapVc {
-        self_vc.own_content().generate_source_map()
+    fn generate_source_map(self: Vc<Self>) -> Vc<OptionSourceMap> {
+        self.own_content().generate_source_map()
     }
 }
 
 #[turbo_tasks::function]
-fn introspectable_type() -> StringVc {
-    StringVc::cell("ecmascript build node chunk".to_string())
+fn introspectable_type() -> Vc<String> {
+    Vc::cell("ecmascript build node chunk".to_string())
 }
 
 #[turbo_tasks::function]
-fn introspectable_details() -> StringVc {
-    StringVc::cell("generates a production EcmaScript chunk targeting Node.js".to_string())
+fn introspectable_details() -> Vc<String> {
+    Vc::cell("generates a production EcmaScript chunk targeting Node.js".to_string())
 }
 
 #[turbo_tasks::value_impl]
 impl Introspectable for EcmascriptBuildNodeChunk {
     #[turbo_tasks::function]
-    fn ty(&self) -> StringVc {
+    fn ty(&self) -> Vc<String> {
         introspectable_type()
     }
 
     #[turbo_tasks::function]
-    fn title(self_vc: EcmascriptBuildNodeChunkVc) -> StringVc {
-        self_vc.ident().to_string()
+    fn title(self: Vc<Self>) -> Vc<String> {
+        self.ident().to_string()
     }
 
     #[turbo_tasks::function]
-    fn details(&self) -> StringVc {
+    fn details(&self) -> Vc<String> {
         introspectable_details()
     }
 
     #[turbo_tasks::function]
-    async fn children(&self) -> Result<IntrospectableChildrenVc> {
+    async fn children(&self) -> Result<Vc<IntrospectableChildren>> {
         let mut children = IndexSet::new();
-        if let Some(chunk) = IntrospectableVc::resolve_from(self.chunk).await? {
-            children.insert((StringVc::cell("chunk".to_string()), chunk));
-        }
-        Ok(IntrospectableChildrenVc::cell(children))
+        let introspectable_chunk = Vc::upcast::<Box<dyn Introspectable>>(self.chunk)
+            .resolve()
+            .await?;
+        children.insert((Vc::cell("chunk".to_string()), introspectable_chunk));
+        Ok(Vc::cell(children))
     }
 }

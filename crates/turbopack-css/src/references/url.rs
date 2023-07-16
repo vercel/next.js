@@ -3,53 +3,49 @@ use swc_core::{
     common::DUMMY_SP,
     css::ast::{Str, UrlValue},
 };
-use turbo_tasks::{primitives::StringVc, Value, ValueToString, ValueToStringVc};
+use turbo_tasks::{Value, ValueToString, Vc};
 use turbopack_core::{
-    asset::{Asset, AssetVc},
-    chunk::{ChunkingContext, ChunkingContextVc},
-    ident::AssetIdentVc,
-    issue::{IssueSeverity, IssueSourceVc},
-    reference::{AssetReference, AssetReferenceVc},
+    asset::Asset,
+    chunk::ChunkingContext,
+    ident::AssetIdent,
+    issue::{IssueSeverity, IssueSource},
+    reference::AssetReference,
     reference_type::UrlReferenceSubType,
-    resolve::{
-        origin::{ResolveOrigin, ResolveOriginVc},
-        parse::RequestVc,
-        PrimaryResolveResult, ResolveResultVc,
-    },
+    resolve::{origin::ResolveOrigin, parse::Request, PrimaryResolveResult, ResolveResult},
 };
 use turbopack_ecmascript::resolve::url_resolve;
 
 use crate::{
-    code_gen::{CodeGenerateable, CodeGenerateableVc, CodeGeneration, CodeGenerationVc},
+    code_gen::{CodeGenerateable, CodeGeneration},
     create_visitor,
-    embed::{CssEmbed, CssEmbeddable, CssEmbeddableVc},
-    references::AstPathVc,
+    embed::{CssEmbed, CssEmbeddable},
+    references::AstPath,
 };
 
 #[turbo_tasks::value(into = "new")]
 pub enum ReferencedAsset {
-    Some(AssetVc),
+    Some(Vc<Box<dyn Asset>>),
     None,
 }
 
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct UrlAssetReference {
-    pub origin: ResolveOriginVc,
-    pub request: RequestVc,
-    pub path: AstPathVc,
-    pub issue_source: IssueSourceVc,
+    pub origin: Vc<Box<dyn ResolveOrigin>>,
+    pub request: Vc<Request>,
+    pub path: Vc<AstPath>,
+    pub issue_source: Vc<IssueSource>,
 }
 
 #[turbo_tasks::value_impl]
-impl UrlAssetReferenceVc {
+impl UrlAssetReference {
     #[turbo_tasks::function]
     pub fn new(
-        origin: ResolveOriginVc,
-        request: RequestVc,
-        path: AstPathVc,
-        issue_source: IssueSourceVc,
-    ) -> Self {
+        origin: Vc<Box<dyn ResolveOrigin>>,
+        request: Vc<Request>,
+        path: Vc<AstPath>,
+        issue_source: Vc<IssueSource>,
+    ) -> Vc<Self> {
         Self::cell(UrlAssetReference {
             origin,
             request,
@@ -59,10 +55,15 @@ impl UrlAssetReferenceVc {
     }
 
     #[turbo_tasks::function]
-    async fn get_referenced_asset(self, context: ChunkingContextVc) -> Result<ReferencedAssetVc> {
+    async fn get_referenced_asset(
+        self: Vc<Self>,
+        context: Vc<Box<dyn ChunkingContext>>,
+    ) -> Result<Vc<ReferencedAsset>> {
         for result in self.resolve_reference().await?.primary.iter() {
             if let PrimaryResolveResult::Asset(asset) = result {
-                if let Some(embeddable) = CssEmbeddableVc::resolve_from(asset).await? {
+                if let Some(embeddable) =
+                    Vc::try_resolve_sidecast::<Box<dyn CssEmbeddable>>(*asset).await?
+                {
                     return Ok(ReferencedAsset::Some(
                         embeddable.as_css_embed(context).embeddable_asset(),
                     )
@@ -70,14 +71,14 @@ impl UrlAssetReferenceVc {
                 }
             }
         }
-        Ok(ReferencedAssetVc::cell(ReferencedAsset::None))
+        Ok(ReferencedAsset::cell(ReferencedAsset::None))
     }
 }
 
 #[turbo_tasks::value_impl]
 impl AssetReference for UrlAssetReference {
     #[turbo_tasks::function]
-    fn resolve_reference(&self) -> ResolveResultVc {
+    fn resolve_reference(&self) -> Vc<ResolveResult> {
         url_resolve(
             self.origin,
             self.request,
@@ -91,11 +92,10 @@ impl AssetReference for UrlAssetReference {
 #[turbo_tasks::value_impl]
 impl ValueToString for UrlAssetReference {
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<StringVc> {
-        Ok(StringVc::cell(format!(
-            "url {}",
-            self.request.to_string().await?,
-        )))
+    async fn to_string(&self) -> Result<Vc<String>> {
+        Ok(Vc::cell(
+            format!("url {}", self.request.to_string().await?,),
+        ))
     }
 }
 
@@ -103,19 +103,21 @@ impl ValueToString for UrlAssetReference {
 impl CodeGenerateable for UrlAssetReference {
     #[turbo_tasks::function]
     async fn code_generation(
-        self_vc: UrlAssetReferenceVc,
-        context: ChunkingContextVc,
-    ) -> Result<CodeGenerationVc> {
-        let this = self_vc.await?;
+        self: Vc<Self>,
+        context: Vc<Box<dyn ChunkingContext>>,
+    ) -> Result<Vc<CodeGeneration>> {
+        let this = self.await?;
         // TODO(WEB-662) This is not the correct way to get the current chunk path. It
         // currently works as all chunks are in the same directory.
-        let chunk_path =
-            context.chunk_path(AssetIdentVc::from_path(this.origin.origin_path()), ".css");
+        let chunk_path = context.chunk_path(
+            AssetIdent::from_path(this.origin.origin_path()),
+            ".css".to_string(),
+        );
         let context_path = chunk_path.parent().await?;
 
         let mut visitors = Vec::new();
 
-        if let ReferencedAsset::Some(asset) = &*self_vc.get_referenced_asset(context).await? {
+        if let ReferencedAsset::Some(asset) = &*self.get_referenced_asset(context).await? {
             // TODO(WEB-662) This is not the correct way to get the path of the asset.
             // `asset` is on module-level, but we need the output-level asset instead.
             let path = asset.ident().path().await?;

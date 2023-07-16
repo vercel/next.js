@@ -52,8 +52,8 @@ fn register_thing<
 }
 
 fn get_thing_id<
-    K: From<usize> + Deref<Target = usize> + Sync + Send + Copy,
-    V: Clone + Hash + Ord + Eq + Debug + Sync + Send,
+    K: From<usize> + Deref<Target = usize> + Sync + Send + Copy + Debug,
+    V: Clone + Hash + Ord + Eq + Debug + Sync + Send + Debug,
 >(
     value: V,
     map_by_value: &DashMap<V, K>,

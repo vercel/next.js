@@ -1,5 +1,7 @@
 use std::{
-    io::{self, BufRead, BufReader, Read, Write},
+    io::{
+        BufRead, BufReader, Read, Write, {self},
+    },
     panic::UnwindSafe,
     process::Command,
     time::{Duration, Instant},

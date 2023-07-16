@@ -1,53 +1,21 @@
 use proc_macro::TokenStream;
-use proc_macro2::{Ident, Literal, Span, TokenStream as TokenStream2};
-use quote::quote;
+use proc_macro2::{Ident, TokenStream as TokenStream2};
+use quote::{quote, ToTokens};
 use syn::{
-    parse_macro_input, spanned::Spanned, Attribute, FnArg, ImplItem, ImplItemMethod, ItemImpl,
-    Path, Receiver, ReturnType, Signature, Token, Type, TypePath,
+    parse::{Parse, ParseStream},
+    parse_macro_input, parse_quote,
+    punctuated::Punctuated,
+    spanned::Spanned,
+    Attribute, Error, ExprPath, ImplItem, ImplItemMethod, ItemImpl, Lit, LitStr, Meta,
+    MetaNameValue, Path, Result, Token, Type,
 };
 use turbo_tasks_macros_shared::{
-    get_impl_function_ident, get_ref_ident, get_register_trait_methods_ident,
-    get_trait_impl_function_ident,
+    get_inherent_impl_function_id_ident, get_inherent_impl_function_ident, get_path_ident,
+    get_register_trait_methods_ident, get_trait_impl_function_id_ident,
+    get_trait_impl_function_ident, get_type_ident,
 };
 
-use crate::{
-    func::{gen_native_function_code, split_signature, SelfType},
-    util::*,
-};
-
-fn get_internal_trait_impl_function_ident(trait_ident: &Ident, ident: &Ident) -> Ident {
-    Ident::new(
-        &format!("__trait_call_{trait_ident}_{ident}"),
-        trait_ident.span(),
-    )
-}
-
-fn get_impl_function_id_ident(struct_ident: &Ident, ident: &Ident) -> Ident {
-    Ident::new(
-        &format!(
-            "{}_IMPL_{}_FUNCTION_ID",
-            struct_ident.to_string().to_uppercase(),
-            ident.to_string().to_uppercase()
-        ),
-        ident.span(),
-    )
-}
-
-fn get_trait_impl_function_id_ident(
-    struct_ident: &Ident,
-    trait_ident: &Ident,
-    ident: &Ident,
-) -> Ident {
-    Ident::new(
-        &format!(
-            "{}_IMPL_TRAIT_{}_{}_FUNCTION_ID",
-            struct_ident.to_string().to_uppercase(),
-            trait_ident.to_string().to_uppercase(),
-            ident.to_string().to_uppercase()
-        ),
-        ident.span(),
-    )
-}
+use crate::func::{DefinitionContext, NativeFn, TurboFn};
 
 fn is_attribute(attr: &Attribute, name: &str) -> bool {
     let path = &attr.path;
@@ -64,9 +32,64 @@ fn is_attribute(attr: &Attribute, name: &str) -> bool {
     }
 }
 
-pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
-    fn generate_for_vc_impl(vc_ident: &Ident, items: &[ImplItem]) -> TokenStream2 {
-        let mut functions = Vec::new();
+fn strip_function_attribute<'a>(item: &'a ImplItem, attrs: &'a [Attribute]) -> Vec<&'a Attribute> {
+    let (function_attrs, attrs): (Vec<_>, Vec<_>) = attrs
+        .iter()
+        // TODO(alexkirsz) Replace this with function
+        .partition(|attr| is_attribute(attr, "function"));
+    if function_attrs.is_empty() {
+        item.span()
+            .unwrap()
+            .error("#[turbo_tasks::function] attribute missing")
+            .emit();
+    }
+    attrs
+}
+
+struct ValueImplArguments {
+    ident: Option<LitStr>,
+}
+
+impl Parse for ValueImplArguments {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let mut result = ValueImplArguments { ident: None };
+        let punctuated: Punctuated<Meta, Token![,]> = input.parse_terminated(Meta::parse)?;
+        for meta in punctuated {
+            match (
+                meta.path()
+                    .get_ident()
+                    .map(ToString::to_string)
+                    .as_deref()
+                    .unwrap_or_default(),
+                meta,
+            ) {
+                (
+                    "ident",
+                    Meta::NameValue(MetaNameValue {
+                        lit: Lit::Str(lit), ..
+                    }),
+                ) => {
+                    result.ident = Some(lit);
+                }
+                (_, meta) => {
+                    return Err(Error::new_spanned(
+                        &meta,
+                        format!("unexpected {:?}, expected \"ident\"", meta),
+                    ))
+                }
+            }
+        }
+
+        Ok(result)
+    }
+}
+
+pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
+    let ValueImplArguments { ident } = parse_macro_input!(args as ValueImplArguments);
+
+    fn inherent_value_impl(ty: &Type, ty_ident: &Ident, items: &[ImplItem]) -> TokenStream2 {
+        let mut all_definitions = Vec::new();
+        let mut exposed_impl_items = Vec::new();
 
         for item in items.iter() {
             if let ImplItem::Method(ImplItemMethod {
@@ -77,225 +100,232 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
                 block,
             }) = item
             {
-                let function_attr = attrs.iter().find(|attr| is_attribute(attr, "function"));
-                let attrs = if function_attr.is_none() {
-                    item.span()
-                        .unwrap()
-                        .error("#[turbo_tasks::function] attribute missing")
-                        .emit();
-                    attrs.clone()
-                } else {
-                    attrs
-                        .iter()
-                        .filter(|attr| !is_attribute(attr, "function"))
-                        .cloned()
-                        .collect()
+                let attrs = strip_function_attribute(item, attrs);
+
+                let ident = &sig.ident;
+
+                // TODO(alexkirsz) These should go into their own utilities.
+                let inline_function_ident: Ident =
+                    Ident::new(&format!("{}_inline", ident), ident.span());
+                let inline_function_path: ExprPath = parse_quote! { <#ty>::#inline_function_ident };
+                let mut inline_signature = sig.clone();
+                inline_signature.ident = inline_function_ident;
+
+                let Some(turbo_fn) = TurboFn::new(sig, DefinitionContext::ValueInherentImpl) else {
+                    return quote! {
+                        // An error occurred while parsing the function signature.
+                    };
                 };
-                let Signature { ident, .. } = sig;
 
-                let (external_sig, inline_sig, output_type, convert_result_code) =
-                    split_signature(sig);
-
-                let inline_ident = &inline_sig.ident;
-                let function_ident = get_impl_function_ident(vc_ident, ident);
-                let function_id_ident = get_impl_function_id_ident(vc_ident, ident);
-
-                let (native_function_code, input_raw_vc_arguments) = gen_native_function_code(
-                    // use const string
-                    quote! { concat!(stringify!(#vc_ident), "::", stringify!(#ident)) },
-                    quote! { #vc_ident::#inline_ident },
-                    &function_ident,
-                    &function_id_ident,
-                    sig.asyncness.is_some(),
-                    &sig.inputs,
-                    &output_type,
-                    Some((vc_ident, SelfType::Ref)),
+                let native_fn = NativeFn::new(
+                    &format!("{ty}::{ident}", ty = ty.to_token_stream()),
+                    &inline_function_path,
                 );
 
-                functions.push(quote! {
-                    impl #vc_ident {
-                        #(#attrs)*
-                        #vis #external_sig {
-                            let result = turbo_tasks::dynamic_call(*#function_id_ident, vec![#(#input_raw_vc_arguments),*]);
-                            #convert_result_code
-                        }
+                let native_function_ident = get_inherent_impl_function_ident(ty_ident, ident);
+                let native_function_ty = native_fn.ty();
+                let native_function_def = native_fn.definition();
+                let native_function_id_ident = get_inherent_impl_function_id_ident(ty_ident, ident);
+                let native_function_id_ty = native_fn.id_ty();
+                let native_function_id_def = native_fn.id_definition(&parse_quote! {
+                    #native_function_ident
+                });
+
+                let turbo_signature = turbo_fn.signature();
+                let turbo_block = turbo_fn.static_block(&native_function_id_ident);
+                exposed_impl_items.push(quote! {
+                    #(#attrs)*
+                    #vis #turbo_signature #turbo_block
+                });
+
+                all_definitions.push(quote! {
+                    #[doc(hidden)]
+                    impl #ty {
+                        // By declaring the native function's body within an `impl` block, we ensure that `Self` refers
+                        // to `#ty`. This is necessary because the function's body is originally declared within an
+                        // `impl` block already.
+                        #[allow(declare_interior_mutable_const)]
+                        #[doc(hidden)]
+                        const #native_function_ident: #native_function_ty = #native_function_def;
+                        #[allow(declare_interior_mutable_const)]
+                        #[doc(hidden)]
+                        const #native_function_id_ident: #native_function_id_ty = #native_function_id_def;
 
                         #(#attrs)*
                         #[doc(hidden)]
-                        #vis #inline_sig #block
+                        #[deprecated(note = "This function is only exposed for use in macros. Do not call it directly.")]
+                        pub(self) #inline_signature #block
                     }
 
-                    #native_function_code
+                    #[doc(hidden)]
+                    pub(crate) static #native_function_ident: #native_function_ty = #ty::#native_function_ident;
+                    #[doc(hidden)]
+                    pub(crate) static #native_function_id_ident: #native_function_id_ty = #ty::#native_function_id_ident;
                 })
             }
         }
 
         quote! {
-            #(#functions)*
+            impl #ty {
+                #(#exposed_impl_items)*
+            }
+
+            #(#all_definitions)*
         }
     }
 
-    fn generate_for_trait_impl(
+    fn trait_value_impl(
+        ty: &Type,
+        ty_ident: &Ident,
         trait_path: &Path,
-        struct_ident: &Ident,
         items: &[ImplItem],
     ) -> TokenStream2 {
-        let trait_ident = &trait_path.segments.last().unwrap().ident;
-        let register = get_register_trait_methods_ident(trait_ident, struct_ident);
-        let ref_ident = get_ref_ident(struct_ident);
-        let trait_ref_path = get_ref_path(trait_path);
-        let as_trait_method = get_as_super_ident(trait_ident);
+        let trait_ident = get_path_ident(trait_path);
+
+        let register = get_register_trait_methods_ident(&trait_ident, ty_ident);
 
         let mut trait_registers = Vec::new();
-        let mut impl_functions = Vec::new();
-        let mut trait_functions = Vec::new();
+        let mut trait_functions = Vec::with_capacity(items.len());
+        let mut all_definitions = Vec::with_capacity(items.len());
+
         for item in items.iter() {
             if let ImplItem::Method(ImplItemMethod {
                 sig, attrs, block, ..
             }) = item
             {
-                let function_attr = attrs.iter().find(|attr| is_attribute(attr, "function"));
-                let attrs = if function_attr.is_none() {
-                    item.span()
-                        .unwrap()
-                        .error("#[turbo_tasks::function] attribute missing")
-                        .emit();
-                    attrs.clone()
-                } else {
-                    attrs
-                        .iter()
-                        .filter(|attr| !is_attribute(attr, "function"))
-                        .cloned()
-                        .collect()
+                let ident = &sig.ident;
+
+                let Some(turbo_fn) = TurboFn::new(sig, DefinitionContext::ValueTraitImpl) else {
+                    return quote! {
+                        // An error occurred while parsing the function signature.
+                    };
                 };
-                let Signature {
-                    ident,
-                    inputs,
-                    output,
-                    asyncness,
-                    ..
-                } = sig;
-                let output_type = get_return_type(output);
-                let function_ident =
-                    get_trait_impl_function_ident(struct_ident, trait_ident, ident);
-                let function_id_ident =
-                    get_trait_impl_function_id_ident(struct_ident, trait_ident, ident);
-                let internal_function_ident =
-                    get_internal_trait_impl_function_ident(trait_ident, ident);
-                trait_registers.push(quote! {
-                    value.register_trait_method(<#trait_ref_path as turbo_tasks::ValueTraitVc>::get_trait_type_id(), stringify!(#ident).into(), *#function_id_ident);
-                });
-                let name = Literal::string(&(struct_ident.to_string() + "::" + &ident.to_string()));
-                let (native_function_code, mut input_raw_vc_arguments) = gen_native_function_code(
-                    quote! { #name },
-                    quote! { #struct_ident::#internal_function_ident },
-                    &function_ident,
-                    &function_id_ident,
-                    asyncness.is_some(),
-                    inputs,
-                    &output_type,
-                    Some((&ref_ident, SelfType::Value(struct_ident))),
+
+                let attrs = strip_function_attribute(item, attrs);
+
+                // TODO(alexkirsz) These should go into their own utilities.
+                let inline_function_ident: Ident =
+                    Ident::new(&format!("{}_inline", ident), ident.span());
+                let inline_extension_trait_ident = Ident::new(
+                    &format!("{}_{}_{}_inline", ty_ident, trait_ident, ident),
+                    ident.span(),
                 );
-                let mut new_sig = sig.clone();
-                new_sig.ident = internal_function_ident;
-                let mut external_sig = sig.clone();
-                external_sig.asyncness = None;
-                let external_self = external_sig.inputs.first_mut().unwrap();
-                let custom_self_type = matches!(sig.inputs.first().unwrap(), FnArg::Typed(..));
-                if custom_self_type {
-                    *external_self = FnArg::Receiver(Receiver {
-                        attrs: Vec::new(),
-                        reference: Some((Token![&](Span::call_site()), None)),
-                        mutability: None,
-                        self_token: Token![self](Span::call_site()),
-                    });
-                    input_raw_vc_arguments[0] = quote! { self.into() };
-                }
-                impl_functions.push(quote! {
-                    impl #struct_ident {
-                        #(#attrs)*
-                        #[allow(non_snake_case)]
-                        #[doc(hidden)]
-                        #new_sig #block
-                    }
+                let inline_function_path: ExprPath =
+                    parse_quote! { <#ty as #inline_extension_trait_ident>::#inline_function_ident };
+                let mut inline_signature = sig.clone();
+                inline_signature.ident = inline_function_ident;
 
-                    #native_function_code
+                let native_fn = NativeFn::new(
+                    &format!(
+                        "<{ty} as {trait_path}>::{ident}",
+                        ty = ty.to_token_stream(),
+                        trait_path = trait_path.to_token_stream()
+                    ),
+                    &inline_function_path,
+                );
+
+                let native_function_ident =
+                    get_trait_impl_function_ident(ty_ident, &trait_ident, ident);
+
+                let native_function_ty = native_fn.ty();
+                let native_function_def = native_fn.definition();
+                let native_function_id_ident =
+                    get_trait_impl_function_id_ident(ty_ident, &trait_ident, ident);
+                let native_function_id_ty = native_fn.id_ty();
+                let native_function_id_def = native_fn.id_definition(&parse_quote! {
+                    #native_function_ident
                 });
 
-                let (raw_output_type, _) = unwrap_result_type(&output_type);
-                let convert_result_code = if is_empty_type(raw_output_type) {
-                    external_sig.output = ReturnType::Default;
-                    quote! {}
-                } else {
-                    external_sig.output = ReturnType::Type(
-                        Token![->](raw_output_type.span()),
-                        Box::new(raw_output_type.clone()),
-                    );
-                    quote! { std::convert::From::<turbo_tasks::RawVc>::from(result) }
-                };
+                let turbo_signature = turbo_fn.signature();
+                let turbo_block = turbo_fn.static_block(&native_function_id_ident);
 
-                trait_functions.push(quote!{
+                trait_functions.push(quote! {
                     #(#attrs)*
-                    #external_sig {
-                        let result = turbo_tasks::dynamic_call(*#function_id_ident, vec![#(#input_raw_vc_arguments),*]);
-                        #convert_result_code
+                    #turbo_signature #turbo_block
+                });
+
+                all_definitions.push(quote! {
+                    #[doc(hidden)]
+                    #[allow(non_camel_case_types)]
+                    // #[turbo_tasks::async_trait]
+                    trait #inline_extension_trait_ident {
+                        #[allow(declare_interior_mutable_const)]
+                        #[doc(hidden)]
+                        const #native_function_ident: #native_function_ty;
+                        #[allow(declare_interior_mutable_const)]
+                        #[doc(hidden)]
+                        const #native_function_id_ident: #native_function_id_ty;
+
+                        #(#attrs)*
+                        #[doc(hidden)]
+                        #inline_signature;
                     }
+
+                    #[doc(hidden)]
+                    // #[turbo_tasks::async_trait]
+                    impl #inline_extension_trait_ident for #ty {
+                        #[allow(declare_interior_mutable_const)]
+                        #[doc(hidden)]
+                        const #native_function_ident: #native_function_ty = #native_function_def;
+                        #[allow(declare_interior_mutable_const)]
+                        #[doc(hidden)]
+                        const #native_function_id_ident: #native_function_id_ty = #native_function_id_def;
+
+                        #(#attrs)*
+                        #[doc(hidden)]
+                        #[deprecated(note = "This function is only exposed for use in macros. Do not call it directly.")]
+                        #inline_signature #block
+                    }
+
+                    #[doc(hidden)]
+                    pub(crate) static #native_function_ident: #native_function_ty = <#ty as #inline_extension_trait_ident>::#native_function_ident;
+                    #[doc(hidden)]
+                    pub(crate) static #native_function_id_ident: #native_function_id_ty = <#ty as #inline_extension_trait_ident>::#native_function_id_ident;
+                });
+
+                trait_registers.push(quote! {
+                    value.register_trait_method(<Box<dyn #trait_path> as turbo_tasks::VcValueTrait>::get_trait_type_id(), stringify!(#ident).into(), *#native_function_id_ident);
                 });
             }
         }
+
         quote! {
             #[doc(hidden)]
             #[allow(non_snake_case)]
             pub(crate) fn #register(value: &mut turbo_tasks::ValueType) {
-                value.register_trait(<#trait_ref_path as turbo_tasks::ValueTraitVc>::get_trait_type_id());
+                value.register_trait(<Box<dyn #trait_path> as turbo_tasks::VcValueTrait>::get_trait_type_id());
                 #(#trait_registers)*
             }
 
-            #(#impl_functions)*
+            // NOTE(alexkirsz) We can't have a general `turbo_tasks::Upcast<Box<dyn Trait>> for T where T: Trait` because
+            // rustc complains: error[E0210]: type parameter `T` must be covered by another type when it appears before
+            // the first local type (`dyn Trait`).
+            unsafe impl turbo_tasks::Upcast<Box<dyn #trait_path>> for #ty {}
 
-            impl #ref_ident {
-                pub fn #as_trait_method(self) -> #trait_ref_path {
-                    self.into()
-                }
-            }
-
-            impl From<#ref_ident> for #trait_ref_path {
-                fn from(node_ref: #ref_ident) -> Self {
-                    node_ref.node.into()
-                }
-            }
-
-            impl #trait_path for #ref_ident {
+            impl #trait_path for #ty {
                 #(#trait_functions)*
             }
+
+            #(#all_definitions)*
         }
     }
 
     let item = parse_macro_input!(input as ItemImpl);
 
-    if let Type::Path(TypePath { qself: None, path }) = &*item.self_ty {
-        if let Some(ident) = path.get_ident() {
-            match &item.trait_ {
-                None => {
-                    let code = generate_for_vc_impl(ident, &item.items);
-                    return quote! {
-                        #code
-                    }
-                    .into();
-                }
-                Some((_, trait_path, _)) => {
-                    let code = generate_for_trait_impl(trait_path, ident, &item.items);
-                    return quote! {
-                        #code
-                    }
-                    .into();
-                }
-            }
+    let Some(ty_ident) = ident
+        .map(|ident| Ident::new(&ident.value(), ident.span()))
+        .or_else(|| get_type_ident(&item.self_ty))
+    else {
+        return quote! {
+            // An error occurred while parsing the type.
+        }
+        .into();
+    };
+
+    match &item.trait_ {
+        None => inherent_value_impl(&item.self_ty, &ty_ident, &item.items).into(),
+        Some((_, trait_path, _)) => {
+            trait_value_impl(&item.self_ty, &ty_ident, trait_path, &item.items).into()
         }
     }
-    item.span().unwrap().error("unsupported syntax").emit();
-    quote! {
-        #item
-    }
-    .into()
 }

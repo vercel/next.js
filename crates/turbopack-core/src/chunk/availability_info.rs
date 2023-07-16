@@ -1,21 +1,23 @@
-use super::available_assets::AvailableAssetsVc;
-use crate::asset::AssetVc;
+use turbo_tasks::Vc;
+
+use super::available_assets::AvailableAssets;
+use crate::asset::Asset;
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(PartialOrd, Ord, Hash, Clone, Copy, Debug)]
 pub enum AvailabilityInfo {
     Untracked,
     Root {
-        current_availability_root: AssetVc,
+        current_availability_root: Vc<Box<dyn Asset>>,
     },
     Inner {
-        available_assets: AvailableAssetsVc,
-        current_availability_root: AssetVc,
+        available_assets: Vc<AvailableAssets>,
+        current_availability_root: Vc<Box<dyn Asset>>,
     },
 }
 
 impl AvailabilityInfo {
-    pub fn current_availability_root(&self) -> Option<AssetVc> {
+    pub fn current_availability_root(&self) -> Option<Vc<Box<dyn Asset>>> {
         match self {
             Self::Untracked => None,
             Self::Root {
@@ -28,7 +30,7 @@ impl AvailabilityInfo {
         }
     }
 
-    pub fn available_assets(&self) -> Option<AvailableAssetsVc> {
+    pub fn available_assets(&self) -> Option<Vc<AvailableAssets>> {
         match self {
             Self::Untracked => None,
             Self::Root { .. } => None,

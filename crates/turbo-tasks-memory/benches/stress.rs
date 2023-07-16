@@ -1,6 +1,6 @@
 use anyhow::Result;
 use criterion::{BenchmarkId, Criterion};
-use turbo_tasks::{NothingVc, TryJoinIterExt, TurboTasks};
+use turbo_tasks::{unit, TryJoinIterExt, TurboTasks, Vc};
 use turbo_tasks_memory::MemoryBackend;
 
 use super::register;
@@ -41,7 +41,7 @@ pub fn fibonacci(c: &mut Criterion) {
                         // size >= 1 => + fib(0) = 1
                         // size >= 2 => + fib(1) = 2
                         (0..size).map(|i| fib(i, i)).try_join().await?;
-                        Ok(NothingVc::new().into())
+                        Ok(unit().node)
                     });
                     tt.wait_task_completion(task, false).await.unwrap();
                     tt
@@ -65,7 +65,7 @@ struct FibResult(u64);
 /// This function also has a `key` parameter to allow forcing it to separate
 /// cache entries by using different keys.
 #[turbo_tasks::function]
-async fn fib(i: u32, key: u32) -> Result<FibResultVc> {
+async fn fib(i: u32, key: u32) -> Result<Vc<FibResult>> {
     Ok(match i {
         0 => FibResult(1).cell(),
         1 => fib(0, key),

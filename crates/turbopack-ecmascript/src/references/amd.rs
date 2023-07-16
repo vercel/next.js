@@ -11,46 +11,42 @@ use swc_core::{
     quote, quote_expr,
 };
 use turbo_tasks::{
-    debug::ValueDebugFormat, primitives::StringVc, trace::TraceRawVcs, TryJoinIterExt, Value,
-    ValueToString, ValueToStringVc,
+    debug::ValueDebugFormat, trace::TraceRawVcs, ReadRef, TryJoinIterExt, Value, ValueToString, Vc,
 };
 use turbopack_core::{
-    chunk::{ChunkableModuleReference, ChunkableModuleReferenceVc},
-    issue::{IssueSourceVc, OptionIssueSourceVc},
-    reference::{AssetReference, AssetReferenceVc},
-    resolve::{origin::ResolveOriginVc, parse::RequestVc, ResolveResultVc},
+    chunk::ChunkableModuleReference,
+    issue::{IssueSource, OptionIssueSource},
+    reference::AssetReference,
+    resolve::{origin::ResolveOrigin, parse::Request, ResolveResult},
 };
 
-use super::pattern_mapping::{PatternMappingVc, ResolveType::Cjs};
+use super::pattern_mapping::{PatternMapping, ResolveType::Cjs};
 use crate::{
-    chunk::EcmascriptChunkingContextVc,
-    code_gen::{CodeGenerateable, CodeGenerateableVc, CodeGeneration, CodeGenerationVc},
+    chunk::EcmascriptChunkingContext,
+    code_gen::{CodeGenerateable, CodeGeneration},
     create_visitor,
-    references::{
-        pattern_mapping::{PatternMapping, PatternMappingReadRef},
-        AstPathVc,
-    },
+    references::AstPath,
     resolve::{cjs_resolve, try_to_severity},
 };
 
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct AmdDefineAssetReference {
-    origin: ResolveOriginVc,
-    request: RequestVc,
-    issue_source: IssueSourceVc,
+    origin: Vc<Box<dyn ResolveOrigin>>,
+    request: Vc<Request>,
+    issue_source: Vc<IssueSource>,
     in_try: bool,
 }
 
 #[turbo_tasks::value_impl]
-impl AmdDefineAssetReferenceVc {
+impl AmdDefineAssetReference {
     #[turbo_tasks::function]
     pub fn new(
-        origin: ResolveOriginVc,
-        request: RequestVc,
-        issue_source: IssueSourceVc,
+        origin: Vc<Box<dyn ResolveOrigin>>,
+        request: Vc<Request>,
+        issue_source: Vc<IssueSource>,
         in_try: bool,
-    ) -> Self {
+    ) -> Vc<Self> {
         Self::cell(AmdDefineAssetReference {
             origin,
             request,
@@ -63,11 +59,11 @@ impl AmdDefineAssetReferenceVc {
 #[turbo_tasks::value_impl]
 impl AssetReference for AmdDefineAssetReference {
     #[turbo_tasks::function]
-    fn resolve_reference(&self) -> ResolveResultVc {
+    fn resolve_reference(&self) -> Vc<ResolveResult> {
         cjs_resolve(
             self.origin,
             self.request,
-            OptionIssueSourceVc::some(self.issue_source),
+            OptionIssueSource::some(self.issue_source),
             try_to_severity(self.in_try),
         )
     }
@@ -76,8 +72,8 @@ impl AssetReference for AmdDefineAssetReference {
 #[turbo_tasks::value_impl]
 impl ValueToString for AmdDefineAssetReference {
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<StringVc> {
-        Ok(StringVc::cell(format!(
+    async fn to_string(&self) -> Result<Vc<String>> {
+        Ok(Vc::cell(format!(
             "AMD define dependency {}",
             self.request.to_string().await?,
         )))
@@ -91,7 +87,7 @@ impl ChunkableModuleReference for AmdDefineAssetReference {}
     ValueDebugFormat, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, Copy, Clone,
 )]
 pub enum AmdDefineDependencyElement {
-    Request(RequestVc),
+    Request(Vc<Request>),
     Exports,
     Module,
     Require,
@@ -110,22 +106,22 @@ pub enum AmdDefineFactoryType {
 #[derive(Debug)]
 pub struct AmdDefineWithDependenciesCodeGen {
     dependencies_requests: Vec<AmdDefineDependencyElement>,
-    origin: ResolveOriginVc,
-    path: AstPathVc,
+    origin: Vc<Box<dyn ResolveOrigin>>,
+    path: Vc<AstPath>,
     factory_type: AmdDefineFactoryType,
-    issue_source: IssueSourceVc,
+    issue_source: Vc<IssueSource>,
     in_try: bool,
 }
 
-impl AmdDefineWithDependenciesCodeGenVc {
+impl AmdDefineWithDependenciesCodeGen {
     pub fn new(
         dependencies_requests: Vec<AmdDefineDependencyElement>,
-        origin: ResolveOriginVc,
-        path: AstPathVc,
+        origin: Vc<Box<dyn ResolveOrigin>>,
+        path: Vc<AstPath>,
         factory_type: AmdDefineFactoryType,
-        issue_source: IssueSourceVc,
+        issue_source: Vc<IssueSource>,
         in_try: bool,
-    ) -> Self {
+    ) -> Vc<Self> {
         Self::cell(AmdDefineWithDependenciesCodeGen {
             dependencies_requests,
             origin,
@@ -142,8 +138,8 @@ impl CodeGenerateable for AmdDefineWithDependenciesCodeGen {
     #[turbo_tasks::function]
     async fn code_generation(
         &self,
-        context: EcmascriptChunkingContextVc,
-    ) -> Result<CodeGenerationVc> {
+        context: Vc<Box<dyn EcmascriptChunkingContext>>,
+    ) -> Result<Vc<CodeGeneration>> {
         let mut visitors = Vec::new();
 
         let resolved_elements = self
@@ -153,14 +149,14 @@ impl CodeGenerateable for AmdDefineWithDependenciesCodeGen {
                 Ok(match element {
                     AmdDefineDependencyElement::Request(request) => {
                         ResolvedElement::PatternMapping(
-                            PatternMappingVc::resolve_request(
+                            PatternMapping::resolve_request(
                                 *request,
                                 self.origin,
-                                context.into(),
+                                Vc::upcast(context),
                                 cjs_resolve(
                                     self.origin,
                                     *request,
-                                    OptionIssueSourceVc::some(self.issue_source),
+                                    OptionIssueSource::some(self.issue_source),
                                     try_to_severity(self.in_try),
                                 ),
                                 Value::new(Cjs),
@@ -197,7 +193,7 @@ impl CodeGenerateable for AmdDefineWithDependenciesCodeGen {
 }
 
 enum ResolvedElement {
-    PatternMapping(PatternMappingReadRef, Option<String>),
+    PatternMapping(ReadRef<PatternMapping>, Option<String>),
     Expr(Expr),
 }
 

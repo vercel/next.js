@@ -5,21 +5,19 @@ use indexmap::IndexMap;
 use lazy_static::lazy_static;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{
-    primitives::StringVc, trace::TraceRawVcs, Value, ValueToString, ValueToStringVc,
-};
+use turbo_tasks::{trace::TraceRawVcs, Value, ValueToString, Vc};
 use turbo_tasks_fs::{
-    DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPathVc, LinkContent, LinkType,
+    DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath, LinkContent, LinkType,
 };
 
 #[turbo_tasks::value(transparent)]
 pub struct QueryMap(#[turbo_tasks(trace_ignore)] Option<IndexMap<String, String>>);
 
 #[turbo_tasks::value_impl]
-impl QueryMapVc {
+impl QueryMap {
     #[turbo_tasks::function]
-    pub fn none() -> Self {
-        Self::cell(None)
+    pub fn none() -> Vc<Self> {
+        Vc::cell(None)
     }
 }
 
@@ -525,16 +523,16 @@ impl Pattern {
     }
 }
 
-impl PatternVc {
-    pub fn new(pattern: Pattern) -> Self {
-        PatternVc::new_internal(Value::new(pattern))
+impl Pattern {
+    pub fn new(pattern: Pattern) -> Vc<Self> {
+        Pattern::new_internal(Value::new(pattern))
     }
 }
 
 #[turbo_tasks::value_impl]
-impl PatternVc {
+impl Pattern {
     #[turbo_tasks::function]
-    fn new_internal(pattern: Value<Pattern>) -> Self {
+    fn new_internal(pattern: Value<Pattern>) -> Vc<Self> {
         Self::cell(pattern.into_value())
     }
 }
@@ -630,15 +628,15 @@ impl Display for Pattern {
 #[turbo_tasks::value_impl]
 impl ValueToString for Pattern {
     #[turbo_tasks::function]
-    fn to_string(&self) -> StringVc {
-        StringVc::cell(self.to_string())
+    fn to_string(&self) -> Vc<String> {
+        Vc::cell(self.to_string())
     }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord, TraceRawVcs, Serialize, Deserialize)]
 pub enum PatternMatch {
-    File(String, FileSystemPathVc),
-    Directory(String, FileSystemPathVc),
+    File(String, Vc<FileSystemPath>),
+    Directory(String, Vc<FileSystemPath>),
 }
 
 // TODO this isn't super efficient
@@ -655,11 +653,11 @@ pub struct PatternMatches(Vec<PatternMatch>);
 /// symlinks when they are interested in that.
 #[turbo_tasks::function]
 pub async fn read_matches(
-    context: FileSystemPathVc,
+    context: Vc<FileSystemPath>,
     prefix: String,
     force_in_context: bool,
-    pattern: PatternVc,
-) -> Result<PatternMatchesVc> {
+    pattern: Vc<Pattern>,
+) -> Result<Vc<PatternMatches>> {
     let mut prefix = prefix;
     let pat = pattern.await?;
     let mut results = Vec::new();
@@ -677,15 +675,15 @@ pub async fn read_matches(
                 if until_end {
                     if handled.insert(str) {
                         if let Some(fs_path) = &*if force_in_context {
-                            context.try_join_inside(str).await?
+                            context.try_join_inside(str.to_string()).await?
                         } else {
-                            context.try_join(str).await?
+                            context.try_join(str.to_string()).await?
                         } {
                             let fs_path = fs_path.resolve().await?;
                             // This explicit deref of `context` is necessary
                             #[allow(clippy::explicit_auto_deref)]
                             let should_match =
-                                !force_in_context || fs_path.await?.is_inside(&*context.await?);
+                                !force_in_context || fs_path.await?.is_inside_ref(&*context.await?);
 
                             if should_match {
                                 let len = prefix.len();
@@ -722,9 +720,9 @@ pub async fn read_matches(
                     let subpath = &str[..=str.rfind('/').unwrap()];
                     if handled.insert(subpath) {
                         if let Some(fs_path) = &*if force_in_context {
-                            context.try_join_inside(subpath).await?
+                            context.try_join_inside(subpath.to_string()).await?
                         } else {
-                            context.try_join(subpath).await?
+                            context.try_join(subpath.to_string()).await?
                         } {
                             let fs_path = fs_path.resolve().await?;
                             let len = prefix.len();
@@ -863,7 +861,7 @@ pub async fn read_matches(
             results.extend(nested.await?.iter().cloned());
         }
         results.sort();
-        Ok(PatternMatchesVc::cell(results))
+        Ok(Vc::cell(results))
     }
 }
 

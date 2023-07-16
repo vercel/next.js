@@ -1,22 +1,23 @@
 use anyhow::Result;
 use swc_core::quote;
+use turbo_tasks::Vc;
 
-use super::AstPathVc;
+use super::AstPath;
 use crate::{
-    chunk::EcmascriptChunkingContextVc,
-    code_gen::{CodeGenerateable, CodeGenerateableVc, CodeGeneration, CodeGenerationVc},
+    chunk::EcmascriptChunkingContext,
+    code_gen::{CodeGenerateable, CodeGeneration},
     create_visitor,
 };
 
 #[turbo_tasks::value]
 pub struct Unreachable {
-    path: AstPathVc,
+    path: Vc<AstPath>,
 }
 
 #[turbo_tasks::value_impl]
-impl UnreachableVc {
+impl Unreachable {
     #[turbo_tasks::function]
-    pub fn new(path: AstPathVc) -> Self {
+    pub fn new(path: Vc<AstPath>) -> Vc<Self> {
         Self::cell(Unreachable { path })
     }
 }
@@ -26,8 +27,8 @@ impl CodeGenerateable for Unreachable {
     #[turbo_tasks::function]
     async fn code_generation(
         &self,
-        _context: EcmascriptChunkingContextVc,
-    ) -> Result<CodeGenerationVc> {
+        _context: Vc<Box<dyn EcmascriptChunkingContext>>,
+    ) -> Result<Vc<CodeGeneration>> {
         let path = self.path.await?;
         let visitors = [
             // Unreachable might be used on Stmt or Expr

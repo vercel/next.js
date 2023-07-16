@@ -1,28 +1,28 @@
 use anyhow::Result;
-use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
+use turbo_tasks::{ValueToString, Vc};
 use turbo_tasks_fs::File;
 use turbopack_core::{
-    asset::{Asset, AssetContentVc, AssetVc},
+    asset::{Asset, AssetContent},
     chunk::Chunk,
-    ident::AssetIdentVc,
-    output::{OutputAsset, OutputAssetVc},
-    reference::{AssetReference, AssetReferenceVc},
-    resolve::{ResolveResult, ResolveResultVc},
-    source_map::{GenerateSourceMap, SourceMapVc},
+    ident::AssetIdent,
+    output::OutputAsset,
+    reference::AssetReference,
+    resolve::ResolveResult,
+    source_map::{GenerateSourceMap, SourceMap},
 };
 
-use super::CssChunkVc;
+use super::CssChunk;
 
 /// Represents the source map of an css chunk.
 #[turbo_tasks::value]
 pub struct CssChunkSourceMapAsset {
-    chunk: CssChunkVc,
+    chunk: Vc<CssChunk>,
 }
 
 #[turbo_tasks::value_impl]
-impl CssChunkSourceMapAssetVc {
+impl CssChunkSourceMapAsset {
     #[turbo_tasks::function]
-    pub fn new(chunk: CssChunkVc) -> Self {
+    pub fn new(chunk: Vc<CssChunk>) -> Vc<Self> {
         CssChunkSourceMapAsset { chunk }.cell()
     }
 }
@@ -33,19 +33,21 @@ impl OutputAsset for CssChunkSourceMapAsset {}
 #[turbo_tasks::value_impl]
 impl Asset for CssChunkSourceMapAsset {
     #[turbo_tasks::function]
-    async fn ident(&self) -> Result<AssetIdentVc> {
-        Ok(AssetIdentVc::from_path(self.chunk.path().append(".map")))
+    async fn ident(&self) -> Result<Vc<AssetIdent>> {
+        Ok(AssetIdent::from_path(
+            self.chunk.path().append(".map".to_string()),
+        ))
     }
 
     #[turbo_tasks::function]
-    async fn content(&self) -> Result<AssetContentVc> {
+    async fn content(&self) -> Result<Vc<AssetContent>> {
         let sm = if let Some(sm) = *self.chunk.generate_source_map().await? {
             sm
         } else {
-            SourceMapVc::empty()
+            SourceMap::empty()
         };
         let sm = sm.to_rope().await?;
-        Ok(File::from(sm).into())
+        Ok(AssetContent::file(File::from(sm).into()))
     }
 }
 
@@ -53,13 +55,13 @@ impl Asset for CssChunkSourceMapAsset {
 /// server/build system of the presence of the source map
 #[turbo_tasks::value]
 pub struct CssChunkSourceMapAssetReference {
-    chunk: CssChunkVc,
+    chunk: Vc<CssChunk>,
 }
 
 #[turbo_tasks::value_impl]
-impl CssChunkSourceMapAssetReferenceVc {
+impl CssChunkSourceMapAssetReference {
     #[turbo_tasks::function]
-    pub fn new(chunk: CssChunkVc) -> Self {
+    pub fn new(chunk: Vc<CssChunk>) -> Vc<Self> {
         CssChunkSourceMapAssetReference { chunk }.cell()
     }
 }
@@ -67,8 +69,10 @@ impl CssChunkSourceMapAssetReferenceVc {
 #[turbo_tasks::value_impl]
 impl AssetReference for CssChunkSourceMapAssetReference {
     #[turbo_tasks::function]
-    async fn resolve_reference(&self) -> Result<ResolveResultVc> {
-        let source_maps = vec![CssChunkSourceMapAsset { chunk: self.chunk }.cell().into()];
+    async fn resolve_reference(&self) -> Result<Vc<ResolveResult>> {
+        let source_maps = vec![Vc::upcast(
+            CssChunkSourceMapAsset { chunk: self.chunk }.cell(),
+        )];
         Ok(ResolveResult::assets_with_references(source_maps, vec![]).cell())
     }
 }
@@ -76,8 +80,8 @@ impl AssetReference for CssChunkSourceMapAssetReference {
 #[turbo_tasks::value_impl]
 impl ValueToString for CssChunkSourceMapAssetReference {
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<StringVc> {
-        Ok(StringVc::cell(format!(
+    async fn to_string(&self) -> Result<Vc<String>> {
+        Ok(Vc::cell(format!(
             "source maps for {}",
             self.chunk.path().to_string().await?
         )))

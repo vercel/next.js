@@ -15,18 +15,18 @@ use swc_core::{
     },
     ecma::atoms::JsWord,
 };
-use turbo_tasks::ValueToString;
+use turbo_tasks::{ValueToString, Vc};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    source::SourceVc,
-    source_map::{GenerateSourceMap, GenerateSourceMapVc, OptionSourceMapVc},
+    source::Source,
+    source_map::{GenerateSourceMap, OptionSourceMap},
     SOURCE_MAP_ROOT_NAME,
 };
 use turbopack_swc_utils::emitter::IssueEmitter;
 
 use crate::{
-    transform::{CssInputTransform, CssInputTransformsVc, TransformContext},
+    transform::{CssInputTransform, CssInputTransforms, TransformContext},
     CssModuleAssetType,
 };
 
@@ -87,13 +87,13 @@ impl ParseCssResultSourceMap {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for ParseCssResultSourceMap {
     #[turbo_tasks::function]
-    fn generate_source_map(&self) -> OptionSourceMapVc {
+    fn generate_source_map(&self) -> Vc<OptionSourceMap> {
         let map = self.source_map.build_source_map_with_config(
             &self.mappings,
             None,
             InlineSourcesContentConfig {},
         );
-        OptionSourceMapVc::cell(Some(
+        Vc::cell(Some(
             turbopack_core::source_map::SourceMap::new_regular(map).cell(),
         ))
     }
@@ -119,10 +119,10 @@ impl SourceMapGenConfig for InlineSourcesContentConfig {
 
 #[turbo_tasks::function]
 pub async fn parse_css(
-    source: SourceVc,
+    source: Vc<Box<dyn Source>>,
     ty: CssModuleAssetType,
-    transforms: CssInputTransformsVc,
-) -> Result<ParseCssResultVc> {
+    transforms: Vc<CssInputTransforms>,
+) -> Result<Vc<ParseCssResult>> {
     let content = source.content();
     let fs_path = &*source.ident().path().await?;
     let ident_str = &*source.ident().to_string().await?;
@@ -153,10 +153,10 @@ async fn parse_content(
     string: String,
     fs_path: &FileSystemPath,
     ident_str: &str,
-    source: SourceVc,
+    source: Vc<Box<dyn Source>>,
     ty: CssModuleAssetType,
     transforms: &[CssInputTransform],
-) -> Result<ParseCssResultVc> {
+) -> Result<Vc<ParseCssResult>> {
     let source_map: Arc<SourceMap> = Default::default();
     let handler = Handler::with_emitter(
         true,
@@ -255,5 +255,5 @@ impl TransformConfig for ModuleTransformConfig {
 #[turbo_tasks::value_trait]
 pub trait ParseCss {
     /// Returns the parsed css.
-    fn parse_css(&self) -> ParseCssResultVc;
+    fn parse_css(self: Vc<Self>) -> Vc<ParseCssResult>;
 }

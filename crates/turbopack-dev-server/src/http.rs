@@ -11,29 +11,29 @@ use hyper::{
 use mime::Mime;
 use mime_guess::mime;
 use tokio_util::io::{ReaderStream, StreamReader};
-use turbo_tasks::{util::SharedError, CollectiblesSource, TransientInstance};
+use turbo_tasks::{util::SharedError, CollectiblesSource, ReadRef, TransientInstance, Vc};
 use turbo_tasks_bytes::Bytes;
-use turbo_tasks_fs::{FileContent, FileContentReadRef};
-use turbopack_core::{asset::AssetContent, issue::IssueReporterVc, version::VersionedContent};
+use turbo_tasks_fs::FileContent;
+use turbopack_core::{asset::AssetContent, issue::IssueReporter, version::VersionedContent};
 
 use crate::{
     handle_issues,
     source::{
         request::SourceRequest,
         resolve::{resolve_source_request, ResolveSourceRequestResult},
-        Body, ContentSourceSideEffectVc, ContentSourceVc, HeaderListReadRef, ProxyResultReadRef,
+        Body, ContentSource, ContentSourceSideEffect, HeaderList, ProxyResult,
     },
 };
 
 #[turbo_tasks::value(serialization = "none")]
 enum GetFromSourceResult {
     Static {
-        content: FileContentReadRef,
+        content: ReadRef<FileContent>,
         status_code: u16,
-        headers: HeaderListReadRef,
-        header_overwrites: HeaderListReadRef,
+        headers: ReadRef<HeaderList>,
+        header_overwrites: ReadRef<HeaderList>,
     },
-    HttpProxy(ProxyResultReadRef),
+    HttpProxy(ReadRef<ProxyResult>),
     NotFound,
 }
 
@@ -41,9 +41,9 @@ enum GetFromSourceResult {
 /// corresponding content as a
 #[turbo_tasks::function]
 async fn get_from_source(
-    source: ContentSourceVc,
+    source: Vc<Box<dyn ContentSource>>,
     request: TransientInstance<SourceRequest>,
-) -> Result<GetFromSourceResultVc> {
+) -> Result<Vc<GetFromSourceResult>> {
     Ok(match &*resolve_source_request(source, request).await? {
         ResolveSourceRequestResult::Static(static_content_vc, header_overwrites) => {
             let static_content = static_content_vc.await?;
@@ -69,15 +69,18 @@ async fn get_from_source(
 /// Processes an HTTP request within a given content source and returns the
 /// response.
 pub async fn process_request_with_content_source(
-    source: ContentSourceVc,
+    source: Vc<Box<dyn ContentSource>>,
     request: Request<hyper::Body>,
-    issue_reporter: IssueReporterVc,
-) -> Result<(Response<hyper::Body>, AutoSet<ContentSourceSideEffectVc>)> {
+    issue_reporter: Vc<Box<dyn IssueReporter>>,
+) -> Result<(
+    Response<hyper::Body>,
+    AutoSet<Vc<Box<dyn ContentSourceSideEffect>>>,
+)> {
     let original_path = request.uri().path().to_string();
     let request = http_request_to_source_request(request).await?;
     let result = get_from_source(source, TransientInstance::new(request));
     handle_issues(result, &original_path, "get_from_source", issue_reporter).await?;
-    let side_effects: AutoSet<ContentSourceSideEffectVc> =
+    let side_effects: AutoSet<Vc<Box<dyn ContentSourceSideEffect>>> =
         result.peek_collectibles().strongly_consistent().await?;
     match &*result.strongly_consistent().await? {
         GetFromSourceResult::Static {

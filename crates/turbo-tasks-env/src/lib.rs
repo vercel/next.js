@@ -1,4 +1,5 @@
-#![feature(min_specialization)]
+#![feature(arbitrary_self_types)]
+#![feature(async_fn_in_trait)]
 
 mod command_line;
 mod custom;
@@ -9,20 +10,20 @@ use std::{env, sync::Mutex};
 
 use anyhow::Result;
 use indexmap::IndexMap;
-use turbo_tasks::primitives::OptionStringVc;
+use turbo_tasks::Vc;
 
 pub use self::{
-    command_line::CommandLineProcessEnvVc, custom::CustomProcessEnvVc, dotenv::DotenvProcessEnvVc,
-    filter::FilterProcessEnvVc,
+    command_line::CommandLineProcessEnv, custom::CustomProcessEnv, dotenv::DotenvProcessEnv,
+    filter::FilterProcessEnv,
 };
 
 #[turbo_tasks::value(transparent)]
 pub struct EnvMap(#[turbo_tasks(trace_ignore)] IndexMap<String, String>);
 
 #[turbo_tasks::value_impl]
-impl EnvMapVc {
+impl EnvMap {
     #[turbo_tasks::function]
-    pub fn empty() -> Self {
+    pub fn empty() -> Vc<Self> {
         EnvMap(IndexMap::new()).cell()
     }
 }
@@ -30,13 +31,13 @@ impl EnvMapVc {
 #[turbo_tasks::value_impl]
 impl ProcessEnv for EnvMap {
     #[turbo_tasks::function]
-    async fn read_all(self_vc: EnvMapVc) -> Result<EnvMapVc> {
-        Ok(self_vc)
+    async fn read_all(self: Vc<Self>) -> Result<Vc<EnvMap>> {
+        Ok(self)
     }
 
     #[turbo_tasks::function]
-    async fn read(self_vc: EnvMapVc, name: &str) -> OptionStringVc {
-        case_insensitive_read(self_vc, name)
+    async fn read(self: Vc<Self>, name: String) -> Vc<Option<String>> {
+        case_insensitive_read(self, name)
     }
 }
 
@@ -48,17 +49,17 @@ pub trait ProcessEnv {
     // Instead we should use only `read_prefix` to read all env vars with a specific
     // prefix.
     /// Reads all env variables into a Map
-    fn read_all(&self) -> EnvMapVc;
+    fn read_all(self: Vc<Self>) -> Vc<EnvMap>;
 
     /// Reads a single env variable. Ignores casing.
-    fn read(&self, name: &str) -> OptionStringVc {
+    fn read(self: Vc<Self>, name: String) -> Vc<Option<String>> {
         case_insensitive_read(self.read_all(), name)
     }
 }
 
 #[turbo_tasks::function]
-pub async fn case_insensitive_read(map: EnvMapVc, name: &str) -> Result<OptionStringVc> {
-    Ok(OptionStringVc::cell(
+pub async fn case_insensitive_read(map: Vc<EnvMap>, name: String) -> Result<Vc<Option<String>>> {
+    Ok(Vc::cell(
         to_uppercase_map(map)
             .await?
             .get(&name.to_uppercase())
@@ -67,13 +68,13 @@ pub async fn case_insensitive_read(map: EnvMapVc, name: &str) -> Result<OptionSt
 }
 
 #[turbo_tasks::function]
-async fn to_uppercase_map(map: EnvMapVc) -> Result<EnvMapVc> {
+async fn to_uppercase_map(map: Vc<EnvMap>) -> Result<Vc<EnvMap>> {
     let map = &*map.await?;
     let mut new = IndexMap::with_capacity(map.len());
     for (k, v) in map {
         new.insert(k.to_uppercase(), v.clone());
     }
-    Ok(EnvMapVc::cell(new))
+    Ok(Vc::cell(new))
 }
 
 pub static GLOBAL_ENV_LOCK: Mutex<()> = Mutex::new(());

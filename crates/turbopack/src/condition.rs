@@ -2,8 +2,8 @@ use anyhow::Result;
 use async_recursion::async_recursion;
 use futures::{stream, StreamExt};
 use serde::{Deserialize, Serialize};
-use turbo_tasks::trace::TraceRawVcs;
-use turbo_tasks_fs::{FileSystemPath, FileSystemPathVc};
+use turbo_tasks::{trace::TraceRawVcs, Vc};
+use turbo_tasks_fs::FileSystemPath;
 
 #[derive(Debug, Clone, Serialize, Deserialize, TraceRawVcs, PartialEq, Eq)]
 pub enum ContextCondition {
@@ -11,7 +11,7 @@ pub enum ContextCondition {
     Any(Vec<ContextCondition>),
     Not(Box<ContextCondition>),
     InDirectory(String),
-    InPath(FileSystemPathVc),
+    InPath(Vc<FileSystemPath>),
 }
 
 impl ContextCondition {
@@ -54,7 +54,7 @@ impl ContextCondition {
                     .await
             }
             ContextCondition::Not(condition) => condition.matches(context).await.map(|b| !b),
-            ContextCondition::InPath(path) => Ok(context.is_inside(&*path.await?)),
+            ContextCondition::InPath(path) => Ok(context.is_inside_ref(&*path.await?)),
             ContextCondition::InDirectory(dir) => Ok(context.path.starts_with(&format!("{dir}/"))
                 || context.path.contains(&format!("/{dir}/"))
                 || context.path.ends_with(&format!("/{dir}"))

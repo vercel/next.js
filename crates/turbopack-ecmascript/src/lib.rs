@@ -3,6 +3,8 @@
 #![feature(iter_intersperse)]
 #![feature(int_roundings)]
 #![feature(slice_group_by)]
+#![feature(async_fn_in_trait)]
+#![feature(arbitrary_self_types)]
 #![recursion_limit = "256"]
 #![allow(clippy::too_many_arguments)]
 
@@ -28,16 +30,14 @@ pub mod webpack;
 
 use anyhow::Result;
 use chunk::{
-    EcmascriptChunkItem, EcmascriptChunkItemVc, EcmascriptChunkPlaceablesVc, EcmascriptChunkVc,
-    EcmascriptChunkingContextVc,
+    EcmascriptChunk, EcmascriptChunkItem, EcmascriptChunkPlaceables, EcmascriptChunkingContext,
 };
-use code_gen::CodeGenerateableVc;
+use code_gen::CodeGenerateable;
+pub use parse::ParseResultSourceMap;
 use parse::{parse, ParseResult};
-pub use parse::{ParseResultSourceMap, ParseResultSourceMapVc};
 use path_visitor::ApplyVisitors;
-use references::AnalyzeEcmascriptModuleResult;
-pub use references::TURBOPACK_HELPER;
-pub use static_code::{StaticEcmascriptCode, StaticEcmascriptCodeVc};
+pub use references::{AnalyzeEcmascriptModuleResult, TURBOPACK_HELPER};
+pub use static_code::StaticEcmascriptCode;
 use swc_core::{
     common::GLOBALS,
     ecma::{
@@ -46,50 +46,34 @@ use swc_core::{
     },
 };
 pub use transform::{
-    CustomTransformer, EcmascriptInputTransform, EcmascriptInputTransformsVc,
-    OptionTransformPlugin, OptionTransformPluginVc, TransformContext, TransformPlugin,
-    TransformPluginVc, UnsupportedServerActionIssue,
+    CustomTransformer, EcmascriptInputTransform, EcmascriptInputTransforms, OptionTransformPlugin,
+    TransformContext, TransformPlugin, UnsupportedServerActionIssue,
 };
-use turbo_tasks::{
-    primitives::StringVc, trace::TraceRawVcs, RawVc, ReadRef, TryJoinIterExt, Value, ValueToString,
-};
-use turbo_tasks_fs::{rope::Rope, FileSystemPathVc};
+use turbo_tasks::{trace::TraceRawVcs, RawVc, ReadRef, TryJoinIterExt, Value, ValueToString, Vc};
+use turbo_tasks_fs::{rope::Rope, FileSystemPath};
 use turbopack_core::{
-    asset::{Asset, AssetContentVc, AssetOptionVc, AssetVc},
+    asset::{Asset, AssetContent, AssetOption},
     chunk::{
-        availability_info::AvailabilityInfo, ChunkItem, ChunkItemVc, ChunkVc, ChunkableModule,
-        ChunkableModuleVc, ChunkingContextVc, EvaluatableAsset, EvaluatableAssetVc,
+        availability_info::AvailabilityInfo, Chunk, ChunkItem, ChunkableModule, ChunkingContext,
+        EvaluatableAsset,
     },
-    compile_time_info::CompileTimeInfoVc,
-    context::AssetContextVc,
-    ident::AssetIdentVc,
-    module::{Module, ModuleVc},
-    reference::{AssetReferencesReadRef, AssetReferencesVc},
-    reference_type::InnerAssetsVc,
-    resolve::{
-        origin::{ResolveOrigin, ResolveOriginVc},
-        parse::RequestVc,
-        ModulePartVc,
-    },
-    source::SourceVc,
+    compile_time_info::CompileTimeInfo,
+    context::AssetContext,
+    ident::AssetIdent,
+    module::Module,
+    reference::AssetReferences,
+    reference_type::InnerAssets,
+    resolve::{origin::ResolveOrigin, parse::Request, ModulePart},
+    source::Source,
 };
 
-pub use self::references::AnalyzeEcmascriptModuleResultVc;
 use self::{
-    chunk::{
-        placeable::EcmascriptExportsReadRef, EcmascriptChunkItemContentVc, EcmascriptExportsVc,
-    },
-    code_gen::{
-        CodeGen, CodeGenerateableWithAvailabilityInfo, CodeGenerateableWithAvailabilityInfoVc,
-        VisitorFactory,
-    },
-    parse::ParseResultVc,
-    tree_shake::asset::EcmascriptModulePartAssetVc,
+    chunk::{EcmascriptChunkItemContent, EcmascriptExports},
+    code_gen::{CodeGen, CodeGenerateableWithAvailabilityInfo, VisitorFactory},
+    tree_shake::asset::EcmascriptModulePartAsset,
 };
 use crate::{
-    chunk::{EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc},
-    code_gen::CodeGenerateable,
-    references::analyze_ecmascript_module,
+    chunk::EcmascriptChunkPlaceable, references::analyze_ecmascript_module,
     transform::remove_shebang,
 };
 
@@ -128,31 +112,31 @@ pub enum EcmascriptModuleAssetType {
 }
 
 #[turbo_tasks::function]
-fn modifier() -> StringVc {
-    StringVc::cell("ecmascript".to_string())
+fn modifier() -> Vc<String> {
+    Vc::cell("ecmascript".to_string())
 }
 
 #[derive(PartialEq, Eq, Clone, TraceRawVcs)]
 struct MemoizedSuccessfulAnalysis {
     operation: RawVc,
-    references: AssetReferencesReadRef,
-    exports: EcmascriptExportsReadRef,
+    references: ReadRef<AssetReferences>,
+    exports: ReadRef<EcmascriptExports>,
     has_top_level_await: bool,
 }
 
 pub struct EcmascriptModuleAssetBuilder {
-    source: SourceVc,
-    context: AssetContextVc,
+    source: Vc<Box<dyn Source>>,
+    context: Vc<Box<dyn AssetContext>>,
     ty: EcmascriptModuleAssetType,
-    transforms: EcmascriptInputTransformsVc,
+    transforms: Vc<EcmascriptInputTransforms>,
     options: EcmascriptOptions,
-    compile_time_info: CompileTimeInfoVc,
-    inner_assets: Option<InnerAssetsVc>,
-    part: Option<ModulePartVc>,
+    compile_time_info: Vc<CompileTimeInfo>,
+    inner_assets: Option<Vc<InnerAssets>>,
+    part: Option<Vc<ModulePart>>,
 }
 
 impl EcmascriptModuleAssetBuilder {
-    pub fn with_inner_assets(mut self, inner_assets: InnerAssetsVc) -> Self {
+    pub fn with_inner_assets(mut self, inner_assets: Vc<InnerAssets>) -> Self {
         self.inner_assets = Some(inner_assets);
         self
     }
@@ -162,14 +146,14 @@ impl EcmascriptModuleAssetBuilder {
         self
     }
 
-    pub fn with_part(mut self, part: ModulePartVc) -> Self {
+    pub fn with_part(mut self, part: Vc<ModulePart>) -> Self {
         self.part = Some(part);
         self
     }
 
-    pub fn build(self) -> ModuleVc {
+    pub fn build(self) -> Vc<Box<dyn Module>> {
         let base = if let Some(inner_assets) = self.inner_assets {
-            EcmascriptModuleAssetVc::new_with_inner_assets(
+            EcmascriptModuleAsset::new_with_inner_assets(
                 self.source,
                 self.context,
                 Value::new(self.ty),
@@ -179,7 +163,7 @@ impl EcmascriptModuleAssetBuilder {
                 inner_assets,
             )
         } else {
-            EcmascriptModuleAssetVc::new(
+            EcmascriptModuleAsset::new(
                 self.source,
                 self.context,
                 Value::new(self.ty),
@@ -189,22 +173,22 @@ impl EcmascriptModuleAssetBuilder {
             )
         };
         if let Some(part) = self.part {
-            EcmascriptModulePartAssetVc::new(base, part).into()
+            Vc::upcast(EcmascriptModulePartAsset::new(base, part))
         } else {
-            base.into()
+            Vc::upcast(base)
         }
     }
 }
 
 #[turbo_tasks::value]
 pub struct EcmascriptModuleAsset {
-    pub source: SourceVc,
-    pub context: AssetContextVc,
+    pub source: Vc<Box<dyn Source>>,
+    pub context: Vc<Box<dyn AssetContext>>,
     pub ty: EcmascriptModuleAssetType,
-    pub transforms: EcmascriptInputTransformsVc,
+    pub transforms: Vc<EcmascriptInputTransforms>,
     pub options: EcmascriptOptions,
-    pub compile_time_info: CompileTimeInfoVc,
-    pub inner_assets: Option<InnerAssetsVc>,
+    pub compile_time_info: Vc<CompileTimeInfo>,
+    pub inner_assets: Option<Vc<InnerAssets>>,
     #[turbo_tasks(debug_ignore)]
     #[serde(skip)]
     last_successful_analysis: turbo_tasks::State<Option<MemoizedSuccessfulAnalysis>>,
@@ -212,15 +196,15 @@ pub struct EcmascriptModuleAsset {
 
 /// An optional [EcmascriptModuleAsset]
 #[turbo_tasks::value(transparent)]
-pub struct OptionEcmascriptModuleAsset(Option<EcmascriptModuleAssetVc>);
+pub struct OptionEcmascriptModuleAsset(Option<Vc<EcmascriptModuleAsset>>);
 
-impl EcmascriptModuleAssetVc {
+impl EcmascriptModuleAsset {
     pub fn builder(
-        source: SourceVc,
-        context: AssetContextVc,
-        transforms: EcmascriptInputTransformsVc,
+        source: Vc<Box<dyn Source>>,
+        context: Vc<Box<dyn AssetContext>>,
+        transforms: Vc<EcmascriptInputTransforms>,
         options: EcmascriptOptions,
-        compile_time_info: CompileTimeInfoVc,
+        compile_time_info: Vc<CompileTimeInfo>,
     ) -> EcmascriptModuleAssetBuilder {
         EcmascriptModuleAssetBuilder {
             source,
@@ -236,16 +220,16 @@ impl EcmascriptModuleAssetVc {
 }
 
 #[turbo_tasks::value_impl]
-impl EcmascriptModuleAssetVc {
+impl EcmascriptModuleAsset {
     #[turbo_tasks::function]
     pub fn new(
-        source: SourceVc,
-        context: AssetContextVc,
+        source: Vc<Box<dyn Source>>,
+        context: Vc<Box<dyn AssetContext>>,
         ty: Value<EcmascriptModuleAssetType>,
-        transforms: EcmascriptInputTransformsVc,
+        transforms: Vc<EcmascriptInputTransforms>,
         options: Value<EcmascriptOptions>,
-        compile_time_info: CompileTimeInfoVc,
-    ) -> Self {
+        compile_time_info: Vc<CompileTimeInfo>,
+    ) -> Vc<Self> {
         Self::cell(EcmascriptModuleAsset {
             source,
             context,
@@ -260,14 +244,14 @@ impl EcmascriptModuleAssetVc {
 
     #[turbo_tasks::function]
     pub fn new_with_inner_assets(
-        source: SourceVc,
-        context: AssetContextVc,
+        source: Vc<Box<dyn Source>>,
+        context: Vc<Box<dyn AssetContext>>,
         ty: Value<EcmascriptModuleAssetType>,
-        transforms: EcmascriptInputTransformsVc,
+        transforms: Vc<EcmascriptInputTransforms>,
         options: Value<EcmascriptOptions>,
-        compile_time_info: CompileTimeInfoVc,
-        inner_assets: InnerAssetsVc,
-    ) -> Self {
+        compile_time_info: Vc<CompileTimeInfo>,
+        inner_assets: Vc<InnerAssets>,
+    ) -> Vc<Self> {
         Self::cell(EcmascriptModuleAsset {
             source,
             context,
@@ -282,19 +266,23 @@ impl EcmascriptModuleAssetVc {
 
     #[turbo_tasks::function]
     pub fn as_root_chunk_with_entries(
-        self_vc: EcmascriptModuleAssetVc,
-        context: EcmascriptChunkingContextVc,
-        other_entries: EcmascriptChunkPlaceablesVc,
-    ) -> ChunkVc {
-        EcmascriptChunkVc::new_root_with_entries(context, self_vc.into(), other_entries).into()
+        self: Vc<Self>,
+        context: Vc<Box<dyn EcmascriptChunkingContext>>,
+        other_entries: Vc<EcmascriptChunkPlaceables>,
+    ) -> Vc<Box<dyn Chunk>> {
+        Vc::upcast(EcmascriptChunk::new_root_with_entries(
+            context,
+            Vc::upcast(self),
+            other_entries,
+        ))
     }
 
     #[turbo_tasks::function]
-    pub async fn analyze(self) -> Result<AnalyzeEcmascriptModuleResultVc> {
+    pub async fn analyze(self: Vc<Self>) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {
         let this = self.await?;
         Ok(analyze_ecmascript_module(
             this.source,
-            self.as_resolve_origin(),
+            Vc::upcast(self),
             Value::new(this.ty),
             this.transforms,
             Value::new(this.options),
@@ -304,14 +292,14 @@ impl EcmascriptModuleAssetVc {
     }
 
     #[turbo_tasks::function]
-    pub async fn failsafe_analyze(self) -> Result<AnalyzeEcmascriptModuleResultVc> {
+    pub async fn failsafe_analyze(self: Vc<Self>) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {
         let this = self.await?;
         let result = self.analyze();
         let result_value = result.await?;
         if result_value.successful {
             this.last_successful_analysis
                 .set(Some(MemoizedSuccessfulAnalysis {
-                    operation: result.into(),
+                    operation: result.node,
                     // We need to store the ReadRefs since we want to keep a snapshot.
                     references: result_value.references.await?,
                     exports: result_value.exports.await?,
@@ -341,7 +329,7 @@ impl EcmascriptModuleAssetVc {
     }
 
     #[turbo_tasks::function]
-    pub async fn parse(self) -> Result<ParseResultVc> {
+    pub async fn parse(self: Vc<Self>) -> Result<Vc<ParseResult>> {
         let this = self.await?;
         Ok(parse(this.source, Value::new(this.ty), this.transforms))
     }
@@ -349,12 +337,14 @@ impl EcmascriptModuleAssetVc {
     /// Generates module contents without an analysis pass. This is useful for
     /// transforming code that is not a module, e.g. runtime code.
     #[turbo_tasks::function]
-    pub async fn module_content_without_analysis(self) -> Result<EcmascriptModuleContentVc> {
+    pub async fn module_content_without_analysis(
+        self: Vc<Self>,
+    ) -> Result<Vc<EcmascriptModuleContent>> {
         let this = self.await?;
 
         let parsed = parse(this.source, Value::new(this.ty), this.transforms);
 
-        Ok(EcmascriptModuleContentVc::new_without_analysis(
+        Ok(EcmascriptModuleContent::new_without_analysis(
             parsed,
             self.ident(),
         ))
@@ -362,10 +352,10 @@ impl EcmascriptModuleAssetVc {
 
     #[turbo_tasks::function]
     pub async fn module_content(
-        self,
-        chunking_context: EcmascriptChunkingContextVc,
+        self: Vc<Self>,
+        chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
         availability_info: Value<AvailabilityInfo>,
-    ) -> Result<EcmascriptModuleContentVc> {
+    ) -> Result<Vc<EcmascriptModuleContent>> {
         let this = self.await?;
         if *self.analyze().needs_availability_info().await? {
             availability_info
@@ -375,7 +365,7 @@ impl EcmascriptModuleAssetVc {
 
         let parsed = parse(this.source, Value::new(this.ty), this.transforms);
 
-        Ok(EcmascriptModuleContentVc::new(
+        Ok(EcmascriptModuleContent::new(
             parsed,
             self.ident(),
             chunking_context,
@@ -388,27 +378,27 @@ impl EcmascriptModuleAssetVc {
 #[turbo_tasks::value_impl]
 impl Asset for EcmascriptModuleAsset {
     #[turbo_tasks::function]
-    async fn ident(&self) -> Result<AssetIdentVc> {
+    async fn ident(&self) -> Result<Vc<AssetIdent>> {
         if let Some(inner_assets) = self.inner_assets {
             let mut ident = self.source.ident().await?.clone_value();
             for (name, asset) in inner_assets.await?.iter() {
-                ident.add_asset(StringVc::cell(name.clone()), asset.ident());
+                ident.add_asset(Vc::cell(name.clone()), asset.ident());
             }
             ident.add_modifier(modifier());
-            Ok(AssetIdentVc::new(Value::new(ident)))
+            Ok(AssetIdent::new(Value::new(ident)))
         } else {
             Ok(self.source.ident().with_modifier(modifier()))
         }
     }
 
     #[turbo_tasks::function]
-    fn content(&self) -> AssetContentVc {
+    fn content(&self) -> Vc<AssetContent> {
         self.source.content()
     }
 
     #[turbo_tasks::function]
-    async fn references(self_vc: EcmascriptModuleAssetVc) -> Result<AssetReferencesVc> {
-        Ok(self_vc.failsafe_analyze().await?.references)
+    async fn references(self: Vc<Self>) -> Result<Vc<AssetReferences>> {
+        Ok(self.failsafe_analyze().await?.references)
     }
 }
 
@@ -419,16 +409,15 @@ impl Module for EcmascriptModuleAsset {}
 impl ChunkableModule for EcmascriptModuleAsset {
     #[turbo_tasks::function]
     fn as_chunk(
-        self_vc: EcmascriptModuleAssetVc,
-        context: ChunkingContextVc,
+        self: Vc<Self>,
+        context: Vc<Box<dyn ChunkingContext>>,
         availability_info: Value<AvailabilityInfo>,
-    ) -> ChunkVc {
-        EcmascriptChunkVc::new(
+    ) -> Vc<Box<dyn Chunk>> {
+        Vc::upcast(EcmascriptChunk::new(
             context,
-            self_vc.as_ecmascript_chunk_placeable(),
+            Vc::upcast(self),
             availability_info,
-        )
-        .into()
+        ))
     }
 }
 
@@ -436,19 +425,18 @@ impl ChunkableModule for EcmascriptModuleAsset {
 impl EcmascriptChunkPlaceable for EcmascriptModuleAsset {
     #[turbo_tasks::function]
     fn as_chunk_item(
-        self_vc: EcmascriptModuleAssetVc,
-        context: EcmascriptChunkingContextVc,
-    ) -> EcmascriptChunkItemVc {
-        ModuleChunkItemVc::cell(ModuleChunkItem {
-            module: self_vc,
+        self: Vc<Self>,
+        context: Vc<Box<dyn EcmascriptChunkingContext>>,
+    ) -> Vc<Box<dyn EcmascriptChunkItem>> {
+        Vc::upcast(ModuleChunkItem::cell(ModuleChunkItem {
+            module: self,
             context,
-        })
-        .into()
+        }))
     }
 
     #[turbo_tasks::function]
-    async fn get_exports(self_vc: EcmascriptModuleAssetVc) -> Result<EcmascriptExportsVc> {
-        Ok(self_vc.failsafe_analyze().await?.exports)
+    async fn get_exports(self: Vc<Self>) -> Result<Vc<EcmascriptExports>> {
+        Ok(self.failsafe_analyze().await?.exports)
     }
 }
 
@@ -458,46 +446,44 @@ impl EvaluatableAsset for EcmascriptModuleAsset {}
 #[turbo_tasks::value_impl]
 impl ResolveOrigin for EcmascriptModuleAsset {
     #[turbo_tasks::function]
-    fn origin_path(&self) -> FileSystemPathVc {
+    fn origin_path(&self) -> Vc<FileSystemPath> {
         self.source.ident().path()
     }
 
     #[turbo_tasks::function]
-    fn context(&self) -> AssetContextVc {
+    fn context(&self) -> Vc<Box<dyn AssetContext>> {
         self.context
     }
 
     #[turbo_tasks::function]
-    async fn get_inner_asset(&self, request: RequestVc) -> Result<AssetOptionVc> {
-        Ok(AssetOptionVc::cell(
-            if let Some(inner_assets) = &self.inner_assets {
-                if let Some(request) = request.await?.request() {
-                    inner_assets.await?.get(&request).copied()
-                } else {
-                    None
-                }
+    async fn get_inner_asset(&self, request: Vc<Request>) -> Result<Vc<AssetOption>> {
+        Ok(Vc::cell(if let Some(inner_assets) = &self.inner_assets {
+            if let Some(request) = request.await?.request() {
+                inner_assets.await?.get(&request).copied()
             } else {
                 None
-            },
-        ))
+            }
+        } else {
+            None
+        }))
     }
 }
 
 #[turbo_tasks::value]
 struct ModuleChunkItem {
-    module: EcmascriptModuleAssetVc,
-    context: EcmascriptChunkingContextVc,
+    module: Vc<EcmascriptModuleAsset>,
+    context: Vc<Box<dyn EcmascriptChunkingContext>>,
 }
 
 #[turbo_tasks::value_impl]
 impl ChunkItem for ModuleChunkItem {
     #[turbo_tasks::function]
-    fn asset_ident(&self) -> AssetIdentVc {
+    fn asset_ident(&self) -> Vc<AssetIdent> {
         self.module.ident()
     }
 
     #[turbo_tasks::function]
-    fn references(&self) -> AssetReferencesVc {
+    fn references(&self) -> Vc<AssetReferences> {
         self.module.references()
     }
 }
@@ -505,23 +491,23 @@ impl ChunkItem for ModuleChunkItem {
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for ModuleChunkItem {
     #[turbo_tasks::function]
-    fn chunking_context(&self) -> EcmascriptChunkingContextVc {
+    fn chunking_context(&self) -> Vc<Box<dyn EcmascriptChunkingContext>> {
         self.context
     }
 
     #[turbo_tasks::function]
-    fn content(self_vc: ModuleChunkItemVc) -> EcmascriptChunkItemContentVc {
-        self_vc.content_with_availability_info(Value::new(AvailabilityInfo::Untracked))
+    fn content(self: Vc<Self>) -> Vc<EcmascriptChunkItemContent> {
+        self.content_with_availability_info(Value::new(AvailabilityInfo::Untracked))
     }
 
     #[turbo_tasks::function]
     async fn content_with_availability_info(
-        self_vc: ModuleChunkItemVc,
+        self: Vc<Self>,
         availability_info: Value<AvailabilityInfo>,
-    ) -> Result<EcmascriptChunkItemContentVc> {
-        let this = self_vc.await?;
+    ) -> Result<Vc<EcmascriptChunkItemContent>> {
+        let this = self.await?;
         let content = this.module.module_content(this.context, availability_info);
-        Ok(EcmascriptChunkItemContentVc::new(content, this.context))
+        Ok(EcmascriptChunkItemContent::new(content, this.context))
     }
 }
 
@@ -529,21 +515,21 @@ impl EcmascriptChunkItem for ModuleChunkItem {
 #[turbo_tasks::value]
 pub struct EcmascriptModuleContent {
     pub inner_code: Rope,
-    pub source_map: Option<ParseResultSourceMapVc>,
+    pub source_map: Option<Vc<ParseResultSourceMap>>,
     pub is_esm: bool,
 }
 
 #[turbo_tasks::value_impl]
-impl EcmascriptModuleContentVc {
-    /// Creates a new [`EcmascriptModuleContentVc`].
+impl EcmascriptModuleContent {
+    /// Creates a new [`Vc<EcmascriptModuleContent>`].
     #[turbo_tasks::function]
     pub async fn new(
-        parsed: ParseResultVc,
-        ident: AssetIdentVc,
-        context: EcmascriptChunkingContextVc,
-        analyzed: AnalyzeEcmascriptModuleResultVc,
+        parsed: Vc<ParseResult>,
+        ident: Vc<AssetIdent>,
+        context: Vc<Box<dyn EcmascriptChunkingContext>>,
+        analyzed: Vc<AnalyzeEcmascriptModuleResult>,
         availability_info: Value<AvailabilityInfo>,
-    ) -> Result<Self> {
+    ) -> Result<Vc<Self>> {
         let AnalyzeEcmascriptModuleResult {
             references,
             code_generation,
@@ -553,9 +539,13 @@ impl EcmascriptModuleContentVc {
         let mut code_gens = Vec::new();
         for r in references.await?.iter() {
             let r = r.resolve().await?;
-            if let Some(code_gen) = CodeGenerateableWithAvailabilityInfoVc::resolve_from(r).await? {
+            if let Some(code_gen) =
+                Vc::try_resolve_sidecast::<Box<dyn CodeGenerateableWithAvailabilityInfo>>(r).await?
+            {
                 code_gens.push(code_gen.code_generation(context, availability_info));
-            } else if let Some(code_gen) = CodeGenerateableVc::resolve_from(r).await? {
+            } else if let Some(code_gen) =
+                Vc::try_resolve_sidecast::<Box<dyn CodeGenerateable>>(r).await?
+            {
                 code_gens.push(code_gen.code_generation(context));
             }
         }
@@ -588,22 +578,25 @@ impl EcmascriptModuleContentVc {
         gen_content_with_visitors(parsed, ident, visitors, root_visitors).await
     }
 
-    /// Creates a new [`EcmascriptModuleContentVc`] without an analysis pass.
+    /// Creates a new [`Vc<EcmascriptModuleContent>`] without an analysis pass.
     #[turbo_tasks::function]
-    pub async fn new_without_analysis(parsed: ParseResultVc, ident: AssetIdentVc) -> Result<Self> {
+    pub async fn new_without_analysis(
+        parsed: Vc<ParseResult>,
+        ident: Vc<AssetIdent>,
+    ) -> Result<Vc<Self>> {
         gen_content_with_visitors(parsed, ident, Vec::new(), Vec::new()).await
     }
 }
 
 async fn gen_content_with_visitors(
-    parsed: ParseResultVc,
-    ident: AssetIdentVc,
+    parsed: Vc<ParseResult>,
+    ident: Vc<AssetIdent>,
     visitors: Vec<(
         &Vec<swc_core::ecma::visit::AstParentKind>,
         &dyn VisitorFactory,
     )>,
     root_visitors: Vec<&dyn VisitorFactory>,
-) -> Result<EcmascriptModuleContentVc> {
+) -> Result<Vc<EcmascriptModuleContent>> {
     let parsed = parsed.await?;
 
     if let ParseResult::Ok {

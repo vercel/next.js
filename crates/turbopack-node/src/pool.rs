@@ -26,10 +26,11 @@ use tokio::{
     sync::{OwnedSemaphorePermit, Semaphore},
     time::{sleep, timeout},
 };
-use turbo_tasks_fs::{json::parse_json_with_source_context, FileSystemPathVc};
+use turbo_tasks::Vc;
+use turbo_tasks_fs::{json::parse_json_with_source_context, FileSystemPath};
 use turbopack_ecmascript::magic_identifier::unmangle_identifiers;
 
-use crate::{source_map::apply_source_mapping, AssetsForSourceMappingVc};
+use crate::{source_map::apply_source_mapping, AssetsForSourceMapping};
 
 #[derive(Clone, Copy)]
 pub enum FormattingMode {
@@ -72,9 +73,9 @@ enum NodeJsPoolProcess {
 struct SpawnedNodeJsPoolProcess {
     child: Child,
     listener: TcpListener,
-    assets_for_source_mapping: AssetsForSourceMappingVc,
-    assets_root: FileSystemPathVc,
-    project_dir: FileSystemPathVc,
+    assets_for_source_mapping: Vc<AssetsForSourceMapping>,
+    assets_root: Vc<FileSystemPath>,
+    project_dir: Vc<FileSystemPath>,
     shared_stdout: SharedOutputSet,
     shared_stderr: SharedOutputSet,
     debug: bool,
@@ -83,9 +84,9 @@ struct SpawnedNodeJsPoolProcess {
 struct RunningNodeJsPoolProcess {
     child: Option<Child>,
     connection: TcpStream,
-    assets_for_source_mapping: AssetsForSourceMappingVc,
-    assets_root: FileSystemPathVc,
-    project_dir: FileSystemPathVc,
+    assets_for_source_mapping: Vc<AssetsForSourceMapping>,
+    assets_root: Vc<FileSystemPath>,
+    project_dir: Vc<FileSystemPath>,
     stdout_handler: OutputStreamHandler<ChildStdout, Stdout>,
     stderr_handler: OutputStreamHandler<ChildStderr, Stderr>,
     debug: bool,
@@ -141,9 +142,9 @@ static MARKER_STR: &str = "TURBOPACK_OUTPUT_";
 struct OutputStreamHandler<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> {
     stream: BufReader<R>,
     shared: SharedOutputSet,
-    assets_for_source_mapping: AssetsForSourceMappingVc,
-    root: FileSystemPathVc,
-    project_dir: FileSystemPathVc,
+    assets_for_source_mapping: Vc<AssetsForSourceMapping>,
+    root: Vc<FileSystemPath>,
+    project_dir: Vc<FileSystemPath>,
     final_stream: W,
 }
 
@@ -179,9 +180,9 @@ impl<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> OutputStreamHandler<R, W> {
 
         async fn write_source_mapped_final<W: AsyncWrite + Unpin>(
             bytes: &[u8],
-            assets_for_source_mapping: AssetsForSourceMappingVc,
-            root: FileSystemPathVc,
-            project_dir: FileSystemPathVc,
+            assets_for_source_mapping: Vc<AssetsForSourceMapping>,
+            root: Vc<FileSystemPath>,
+            project_dir: Vc<FileSystemPath>,
             final_stream: &mut W,
         ) -> Result<()> {
             if let Ok(text) = std::str::from_utf8(bytes) {
@@ -326,9 +327,9 @@ impl NodeJsPoolProcess {
         cwd: &Path,
         env: &HashMap<String, String>,
         entrypoint: &Path,
-        assets_for_source_mapping: AssetsForSourceMappingVc,
-        assets_root: FileSystemPathVc,
-        project_dir: FileSystemPathVc,
+        assets_for_source_mapping: Vc<AssetsForSourceMapping>,
+        assets_root: Vc<FileSystemPath>,
+        project_dir: Vc<FileSystemPath>,
         shared_stdout: SharedOutputSet,
         shared_stderr: SharedOutputSet,
         debug: bool,
@@ -549,9 +550,9 @@ pub struct NodeJsPool {
     cwd: PathBuf,
     entrypoint: PathBuf,
     env: HashMap<String, String>,
-    pub assets_for_source_mapping: AssetsForSourceMappingVc,
-    pub assets_root: FileSystemPathVc,
-    pub project_dir: FileSystemPathVc,
+    pub assets_for_source_mapping: Vc<AssetsForSourceMapping>,
+    pub assets_root: Vc<FileSystemPath>,
+    pub project_dir: Vc<FileSystemPath>,
     #[turbo_tasks(trace_ignore, debug_ignore)]
     processes: Arc<Mutex<Vec<NodeJsPoolProcess>>>,
     #[turbo_tasks(trace_ignore, debug_ignore)]
@@ -570,9 +571,9 @@ impl NodeJsPool {
         cwd: PathBuf,
         entrypoint: PathBuf,
         env: HashMap<String, String>,
-        assets_for_source_mapping: AssetsForSourceMappingVc,
-        assets_root: FileSystemPathVc,
-        project_dir: FileSystemPathVc,
+        assets_for_source_mapping: Vc<AssetsForSourceMapping>,
+        assets_root: Vc<FileSystemPath>,
+        project_dir: Vc<FileSystemPath>,
         concurrency: usize,
         debug: bool,
     ) -> Self {

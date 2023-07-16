@@ -1,19 +1,19 @@
 use anyhow::Result;
-use turbo_tasks::primitives::OptionStringVc;
-use turbo_tasks_env::{EnvMapVc, ProcessEnv, ProcessEnvVc};
+use turbo_tasks::Vc;
+use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbopack_ecmascript::utils::StringifyJs;
 
 /// Encodes values as JS strings so that they can be safely injected into a JS
 /// output.
 #[turbo_tasks::value]
 pub struct EmbeddableProcessEnv {
-    prior: ProcessEnvVc,
+    prior: Vc<Box<dyn ProcessEnv>>,
 }
 
 #[turbo_tasks::value_impl]
-impl EmbeddableProcessEnvVc {
+impl EmbeddableProcessEnv {
     #[turbo_tasks::function]
-    pub fn new(prior: ProcessEnvVc) -> Self {
+    pub fn new(prior: Vc<Box<dyn ProcessEnv>>) -> Vc<Self> {
         EmbeddableProcessEnv { prior }.cell()
     }
 }
@@ -21,7 +21,7 @@ impl EmbeddableProcessEnvVc {
 #[turbo_tasks::value_impl]
 impl ProcessEnv for EmbeddableProcessEnv {
     #[turbo_tasks::function]
-    async fn read_all(&self) -> Result<EnvMapVc> {
+    async fn read_all(&self) -> Result<Vc<EnvMap>> {
         let prior = self.prior.read_all().await?;
 
         let encoded = prior
@@ -29,13 +29,13 @@ impl ProcessEnv for EmbeddableProcessEnv {
             .map(|(k, v)| (k.clone(), StringifyJs(v).to_string()))
             .collect();
 
-        Ok(EnvMapVc::cell(encoded))
+        Ok(Vc::cell(encoded))
     }
 
     #[turbo_tasks::function]
-    async fn read(&self, name: &str) -> Result<OptionStringVc> {
+    async fn read(&self, name: String) -> Result<Vc<Option<String>>> {
         let prior = self.prior.read(name).await?;
         let encoded = prior.as_deref().map(|s| StringifyJs(s).to_string());
-        Ok(OptionStringVc::cell(encoded))
+        Ok(Vc::cell(encoded))
     }
 }

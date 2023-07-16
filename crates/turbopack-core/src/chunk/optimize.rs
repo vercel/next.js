@@ -4,16 +4,16 @@
 //! their size and eliminating duplicates between them.
 
 use anyhow::Result;
-use turbo_tasks::TryJoinIterExt;
-use turbo_tasks_fs::{FileSystemPathOptionVc, FileSystemPathVc};
+use turbo_tasks::{TryJoinIterExt, Vc};
+use turbo_tasks_fs::{FileSystemPath, FileSystemPathOption};
 
 use crate::chunk::containment_tree::{ContainmentTree, ContainmentTreeKey};
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
-struct FileSystemPathKey(FileSystemPathVc);
+struct FileSystemPathKey(Vc<FileSystemPath>);
 
 impl FileSystemPathKey {
-    async fn new(path: FileSystemPathVc) -> Result<Self> {
+    async fn new(path: Vc<FileSystemPath>) -> Result<Self> {
         Ok(Self(path.resolve().await?))
     }
 }
@@ -32,7 +32,7 @@ pub async fn optimize_by_common_parent<T, Acc, GetCommonParent, Optimize>(
 ) -> Result<Acc>
 where
     T: Clone,
-    GetCommonParent: Fn(T) -> FileSystemPathOptionVc + Clone,
+    GetCommonParent: Fn(T) -> Vc<FileSystemPathOption> + Clone,
     Optimize: Fn(Option<Vec<T>>, Vec<Acc>) -> Acc,
 {
     let tree = ContainmentTree::build(

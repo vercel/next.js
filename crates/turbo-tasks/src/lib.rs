@@ -31,6 +31,9 @@
 #![feature(error_generic_member_access)]
 #![feature(provide_any)]
 #![feature(new_uninit)]
+#![feature(arbitrary_self_types)]
+#![feature(async_fn_in_trait)]
+#![feature(type_alias_impl_trait)]
 #![feature(never_type)]
 
 pub mod backend;
@@ -51,7 +54,6 @@ mod magic_any;
 mod manager;
 mod native_function;
 mod no_move_vec;
-mod nothing;
 mod once_map;
 pub mod persisted_graph;
 pub mod primitives;
@@ -60,18 +62,20 @@ mod read_ref;
 pub mod registry;
 pub mod small_duration;
 mod state;
-mod task_input;
+pub mod task;
 mod timed_future;
 pub mod trace;
 mod trait_ref;
+mod unit;
 pub mod util;
 mod value;
 mod value_type;
+mod vc;
 
 pub use anyhow::{Error, Result};
 pub use collectibles::CollectiblesSource;
-pub use completion::{Completion, CompletionVc, CompletionsVc};
-pub use display::{ValueToString, ValueToStringVc};
+pub use completion::{Completion, Completions};
+pub use display::ValueToString;
 pub use id::{
     with_task_id_mapping, without_task_id_mapping, FunctionId, IdMapping, TaskId, TraitTypeId,
     ValueTypeId,
@@ -86,21 +90,22 @@ pub use manager::{
     StatsType, TaskIdProvider, TurboTasks, TurboTasksApi, TurboTasksBackendApi, TurboTasksCallApi,
     Unused, UpdateInfo,
 };
-pub use native_function::{NativeFunction, NativeFunctionVc};
-pub use nothing::{Nothing, NothingVc};
-pub use raw_vc::{
-    CellId, CollectiblesFuture, RawVc, ReadRawVcFuture, ResolveTypeError, TraitCast,
-    TransparentValueCast, ValueCast,
-};
+pub use native_function::NativeFunction;
+pub use raw_vc::{CellId, CollectiblesFuture, RawVc, ReadRawVcFuture, ResolveTypeError};
 pub use read_ref::ReadRef;
 pub use state::State;
-pub use task_input::{FromTaskInput, SharedReference, SharedValue, TaskInput};
+pub use task::{
+    concrete_task_input::{ConcreteTaskInput, SharedReference, SharedValue},
+    task_input::TaskInput,
+};
 pub use trait_ref::{IntoTraitRef, TraitRef};
 pub use turbo_tasks_macros::{function, value, value_impl, value_trait, TaskInput};
+pub use unit::unit;
 pub use value::{TransientInstance, TransientValue, Value};
-pub use value_type::{
-    FromSubTrait, IntoSuperTrait, TraitMethod, TraitType, Typed, TypedForInput, ValueTraitVc,
-    ValueType, ValueVc,
+pub use value_type::{TraitMethod, TraitType, ValueType};
+pub use vc::{
+    Dynamic, TypedForInput, Upcast, ValueDefault, Vc, VcCellNewMode, VcCellSharedMode,
+    VcDefaultRead, VcRead, VcTransparentRead, VcValueTrait, VcValueType,
 };
 
 pub mod test_helpers {

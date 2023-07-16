@@ -1,27 +1,27 @@
 //! TODO(WEB-741) Remove this file once Sass is supported.
 
 use anyhow::Result;
-use turbo_tasks::primitives::StringVc;
-use turbo_tasks_fs::{glob::GlobVc, FileSystemPathVc};
+use turbo_tasks::Vc;
+use turbo_tasks_fs::{glob::Glob, FileSystemPath};
 use turbopack_core::{
-    issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc},
+    issue::{Issue, IssueExt, IssueSeverity},
     resolve::{
-        parse::RequestVc,
-        plugin::{ResolvePlugin, ResolvePluginConditionVc, ResolvePluginVc},
-        ResolveResultOptionVc,
+        parse::Request,
+        plugin::{ResolvePlugin, ResolvePluginCondition},
+        ResolveResultOption,
     },
 };
 
 /// Resolve plugins that warns when importing a sass file.
 #[turbo_tasks::value]
 pub(crate) struct UnsupportedSassResolvePlugin {
-    root: FileSystemPathVc,
+    root: Vc<FileSystemPath>,
 }
 
 #[turbo_tasks::value_impl]
-impl UnsupportedSassResolvePluginVc {
+impl UnsupportedSassResolvePlugin {
     #[turbo_tasks::function]
-    pub fn new(root: FileSystemPathVc) -> Self {
+    pub fn new(root: Vc<FileSystemPath>) -> Vc<Self> {
         UnsupportedSassResolvePlugin { root }.cell()
     }
 }
@@ -29,62 +29,61 @@ impl UnsupportedSassResolvePluginVc {
 #[turbo_tasks::value_impl]
 impl ResolvePlugin for UnsupportedSassResolvePlugin {
     #[turbo_tasks::function]
-    fn after_resolve_condition(&self) -> ResolvePluginConditionVc {
-        ResolvePluginConditionVc::new(self.root.root(), GlobVc::new("**/*.{sass,scss}"))
+    fn after_resolve_condition(&self) -> Vc<ResolvePluginCondition> {
+        ResolvePluginCondition::new(self.root.root(), Glob::new("**/*.{sass,scss}".to_string()))
     }
 
     #[turbo_tasks::function]
     async fn after_resolve(
         &self,
-        fs_path: FileSystemPathVc,
-        context: FileSystemPathVc,
-        request: RequestVc,
-    ) -> Result<ResolveResultOptionVc> {
+        fs_path: Vc<FileSystemPath>,
+        context: Vc<FileSystemPath>,
+        request: Vc<Request>,
+    ) -> Result<Vc<ResolveResultOption>> {
         let extension = fs_path.extension().await?;
         if ["sass", "scss"].iter().any(|ext| ext == &*extension) {
             UnsupportedSassModuleIssue { context, request }
                 .cell()
-                .as_issue()
                 .emit();
         }
 
-        Ok(ResolveResultOptionVc::none())
+        Ok(ResolveResultOption::none())
     }
 }
 
 #[turbo_tasks::value(shared)]
 struct UnsupportedSassModuleIssue {
-    context: FileSystemPathVc,
-    request: RequestVc,
+    context: Vc<FileSystemPath>,
+    request: Vc<Request>,
 }
 
 #[turbo_tasks::value_impl]
 impl Issue for UnsupportedSassModuleIssue {
     #[turbo_tasks::function]
-    fn severity(&self) -> IssueSeverityVc {
+    fn severity(&self) -> Vc<IssueSeverity> {
         IssueSeverity::Warning.into()
     }
 
     #[turbo_tasks::function]
-    fn category(&self) -> StringVc {
-        StringVc::cell("resolve".to_string())
+    fn category(&self) -> Vc<String> {
+        Vc::cell("resolve".to_string())
     }
 
     #[turbo_tasks::function]
-    async fn title(&self) -> Result<StringVc> {
-        Ok(StringVc::cell(format!(
+    async fn title(&self) -> Result<Vc<String>> {
+        Ok(Vc::cell(format!(
             "Unsupported Sass request: {}",
             self.request.await?.request().as_deref().unwrap_or("N/A")
         )))
     }
 
     #[turbo_tasks::function]
-    fn context(&self) -> FileSystemPathVc {
+    fn context(&self) -> Vc<FileSystemPath> {
         self.context
     }
 
     #[turbo_tasks::function]
-    fn description(&self) -> StringVc {
-        StringVc::cell("Turbopack does not yet support importing Sass modules.".to_string())
+    fn description(&self) -> Vc<String> {
+        Vc::cell("Turbopack does not yet support importing Sass modules.".to_string())
     }
 }

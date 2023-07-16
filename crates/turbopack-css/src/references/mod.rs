@@ -10,28 +10,28 @@ use swc_core::{
         visit::{AstNodePath, AstParentKind, VisitAstPath, VisitWithPath},
     },
 };
-use turbo_tasks::Value;
+use turbo_tasks::{Value, Vc};
 use turbopack_core::{
-    issue::{IssueSeverity, IssueSourceVc, OptionIssueSourceVc},
-    reference::{AssetReferenceVc, AssetReferencesVc},
+    issue::{IssueSeverity, IssueSource, OptionIssueSource},
+    reference::{AssetReference, AssetReferences},
     reference_type::{CssReferenceSubType, ReferenceType},
     resolve::{
         handle_resolve_error,
-        origin::{ResolveOrigin, ResolveOriginVc},
-        parse::RequestVc,
-        ResolveResultVc,
+        origin::{ResolveOrigin, ResolveOriginExt},
+        parse::Request,
+        ResolveResult,
     },
-    source::SourceVc,
+    source::Source,
 };
 use turbopack_swc_utils::emitter::IssueEmitter;
 
 use crate::{
     parse::{parse_css, ParseCssResult},
     references::{
-        import::{ImportAssetReferenceVc, ImportAttributes},
-        url::UrlAssetReferenceVc,
+        import::{ImportAssetReference, ImportAttributes},
+        url::UrlAssetReference,
     },
-    CssInputTransformsVc, CssModuleAssetType,
+    CssInputTransforms, CssModuleAssetType,
 };
 
 pub(crate) mod compose;
@@ -41,11 +41,11 @@ pub(crate) mod url;
 
 #[turbo_tasks::function]
 pub async fn analyze_css_stylesheet(
-    source: SourceVc,
-    origin: ResolveOriginVc,
+    source: Vc<Box<dyn Source>>,
+    origin: Vc<Box<dyn ResolveOrigin>>,
     ty: CssModuleAssetType,
-    transforms: CssInputTransformsVc,
-) -> Result<AssetReferencesVc> {
+    transforms: Vc<CssInputTransforms>,
+) -> Result<Vc<AssetReferences>> {
     let mut references = Vec::new();
 
     let parsed = parse_css(source, ty, transforms).await?;
@@ -74,21 +74,21 @@ pub async fn analyze_css_stylesheet(
             })
         });
     }
-    Ok(AssetReferencesVc::cell(references))
+    Ok(Vc::cell(references))
 }
 
 struct AssetReferencesVisitor<'a> {
-    source: SourceVc,
-    origin: ResolveOriginVc,
-    references: &'a mut Vec<AssetReferenceVc>,
+    source: Vc<Box<dyn Source>>,
+    origin: Vc<Box<dyn ResolveOrigin>>,
+    references: &'a mut Vec<Vc<Box<dyn AssetReference>>>,
     is_import: bool,
 }
 
 impl<'a> AssetReferencesVisitor<'a> {
     fn new(
-        source: SourceVc,
-        origin: ResolveOriginVc,
-        references: &'a mut Vec<AssetReferenceVc>,
+        source: Vc<Box<dyn Source>>,
+        origin: Vc<Box<dyn ResolveOrigin>>,
+        references: &'a mut Vec<Vc<Box<dyn AssetReference>>>,
     ) -> Self {
         Self {
             source,
@@ -128,20 +128,17 @@ impl<'a> VisitAstPath for AssetReferencesVisitor<'a> {
 
         let issue_span = i.href.span();
 
-        self.references.push(
-            ImportAssetReferenceVc::new(
-                self.origin,
-                RequestVc::parse(Value::new(src.to_string().into())),
-                AstPathVc::cell(as_parent_path(ast_path)),
-                ImportAttributes::new_from_prelude(i).into(),
-                IssueSourceVc::from_byte_offset(
-                    self.source.into(),
-                    issue_span.lo.to_usize(),
-                    issue_span.hi.to_usize(),
-                ),
-            )
-            .into(),
-        );
+        self.references.push(Vc::upcast(ImportAssetReference::new(
+            self.origin,
+            Request::parse(Value::new(src.to_string().into())),
+            Vc::cell(as_parent_path(ast_path)),
+            ImportAttributes::new_from_prelude(i).into(),
+            IssueSource::from_byte_offset(
+                Vc::upcast(self.source),
+                issue_span.lo.to_usize(),
+                issue_span.hi.to_usize(),
+            ),
+        )));
 
         self.is_import = true;
         i.visit_children_with_path(self, ast_path);
@@ -159,19 +156,16 @@ impl<'a> VisitAstPath for AssetReferencesVisitor<'a> {
         // ignore server-relative urls like `url(/foo)`
         if !matches!(src.bytes().next(), Some(b'#') | Some(b'/')) {
             let issue_span = u.span;
-            self.references.push(
-                UrlAssetReferenceVc::new(
-                    self.origin,
-                    RequestVc::parse(Value::new(src.to_string().into())),
-                    AstPathVc::cell(as_parent_path(ast_path)),
-                    IssueSourceVc::from_byte_offset(
-                        self.source.into(),
-                        issue_span.lo.to_usize(),
-                        issue_span.hi.to_usize(),
-                    ),
-                )
-                .into(),
-            );
+            self.references.push(Vc::upcast(UrlAssetReference::new(
+                self.origin,
+                Request::parse(Value::new(src.to_string().into())),
+                Vc::cell(as_parent_path(ast_path)),
+                IssueSource::from_byte_offset(
+                    Vc::upcast(self.source),
+                    issue_span.lo.to_usize(),
+                    issue_span.hi.to_usize(),
+                ),
+            )));
         }
 
         u.visit_children_with_path(self, ast_path);
@@ -180,11 +174,11 @@ impl<'a> VisitAstPath for AssetReferencesVisitor<'a> {
 
 #[turbo_tasks::function]
 pub async fn css_resolve(
-    origin: ResolveOriginVc,
-    request: RequestVc,
+    origin: Vc<Box<dyn ResolveOrigin>>,
+    request: Vc<Request>,
     ty: Value<CssReferenceSubType>,
-    issue_source: OptionIssueSourceVc,
-) -> Result<ResolveResultVc> {
+    issue_source: Vc<OptionIssueSource>,
+) -> Result<Vc<ResolveResult>> {
     let ty = Value::new(ReferenceType::Css(ty.into_value()));
     let options = origin.resolve_options(ty.clone());
     let result = origin.resolve_asset(request, options, ty.clone());

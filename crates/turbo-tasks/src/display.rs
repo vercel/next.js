@@ -1,7 +1,8 @@
-use crate as turbo_tasks;
-use crate::primitives::StringVc;
+use turbo_tasks::Vc;
+
+use crate::{self as turbo_tasks};
 
 #[turbo_tasks::value_trait]
 pub trait ValueToString {
-    fn to_string(&self) -> StringVc;
+    fn to_string(self: Vc<Self>) -> Vc<String>;
 }

@@ -1,12 +1,13 @@
 use std::io::Write;
 
 use anyhow::Result;
-use turbo_tasks_env::{ProcessEnv, ProcessEnvVc};
-use turbo_tasks_fs::{rope::RopeBuilder, File, FileSystemPathVc};
+use turbo_tasks::Vc;
+use turbo_tasks_env::ProcessEnv;
+use turbo_tasks_fs::{rope::RopeBuilder, File, FileSystemPath};
 use turbopack_core::{
-    asset::{Asset, AssetContentVc, AssetVc},
-    ident::AssetIdentVc,
-    source::{Source, SourceVc},
+    asset::{Asset, AssetContent},
+    ident::AssetIdent,
+    source::Source,
 };
 use turbopack_ecmascript::utils::StringifyJs;
 
@@ -15,16 +16,16 @@ use turbopack_ecmascript::utils::StringifyJs;
 #[turbo_tasks::value]
 pub struct ProcessEnvAsset {
     /// The root path which we can construct our env asset path.
-    root: FileSystemPathVc,
+    root: Vc<FileSystemPath>,
 
     /// A HashMap filled with the env key/values.
-    env: ProcessEnvVc,
+    env: Vc<Box<dyn ProcessEnv>>,
 }
 
 #[turbo_tasks::value_impl]
-impl ProcessEnvAssetVc {
+impl ProcessEnvAsset {
     #[turbo_tasks::function]
-    pub fn new(root: FileSystemPathVc, env: ProcessEnvVc) -> Self {
+    pub fn new(root: Vc<FileSystemPath>, env: Vc<Box<dyn ProcessEnv>>) -> Vc<Self> {
         ProcessEnvAsset { root, env }.cell()
     }
 }
@@ -35,12 +36,12 @@ impl Source for ProcessEnvAsset {}
 #[turbo_tasks::value_impl]
 impl Asset for ProcessEnvAsset {
     #[turbo_tasks::function]
-    fn ident(&self) -> AssetIdentVc {
-        AssetIdentVc::from_path(self.root.join(".env.js"))
+    fn ident(&self) -> Vc<AssetIdent> {
+        AssetIdent::from_path(self.root.join(".env.js".to_string()))
     }
 
     #[turbo_tasks::function]
-    async fn content(&self) -> Result<AssetContentVc> {
+    async fn content(&self) -> Result<Vc<AssetContent>> {
         let env = self.env.read_all().await?;
 
         // TODO: In SSR, we use the native process.env, which can only contain string
@@ -58,6 +59,6 @@ impl Asset for ProcessEnvAsset {
             writeln!(code, "env[{}] = {};", StringifyJs(name), val)?;
         }
 
-        Ok(File::from(code.build()).into())
+        Ok(AssetContent::file(File::from(code.build()).into()))
     }
 }

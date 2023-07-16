@@ -13,19 +13,16 @@ use swc_core::{
     },
     quote, quote_expr,
 };
-use turbo_tasks::{primitives::StringVc, trace::TraceRawVcs, ValueToString};
+use turbo_tasks::{trace::TraceRawVcs, ValueToString, Vc};
 use turbopack_core::{
     asset::Asset,
-    issue::{analyze::AnalyzeIssue, IssueSeverity},
+    issue::{analyze::AnalyzeIssue, IssueExt, IssueSeverity},
 };
 
-use super::{base::ReferencedAsset, EsmAssetReferenceVc};
+use super::{base::ReferencedAsset, EsmAssetReference};
 use crate::{
-    chunk::{
-        EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc, EcmascriptChunkingContextVc,
-        EcmascriptExports,
-    },
-    code_gen::{CodeGenerateable, CodeGenerateableVc, CodeGeneration, CodeGenerationVc},
+    chunk::{EcmascriptChunkPlaceable, EcmascriptChunkingContext, EcmascriptExports},
+    code_gen::{CodeGenerateable, CodeGeneration},
     create_visitor,
     references::esm::base::insert_hoisted_stmt,
 };
@@ -33,8 +30,8 @@ use crate::{
 #[derive(Clone, Hash, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
 pub enum EsmExport {
     LocalBinding(String),
-    ImportedBinding(EsmAssetReferenceVc, String),
-    ImportedNamespace(EsmAssetReferenceVc),
+    ImportedBinding(Vc<EsmAssetReference>, String),
+    ImportedNamespace(Vc<EsmAssetReference>),
     Error,
 }
 
@@ -45,7 +42,9 @@ struct ExpandResults {
 }
 
 #[turbo_tasks::function]
-async fn expand_star_exports(root_asset: EcmascriptChunkPlaceableVc) -> Result<ExpandResultsVc> {
+async fn expand_star_exports(
+    root_asset: Vc<Box<dyn EcmascriptChunkPlaceable>>,
+) -> Result<Vc<ExpandResults>> {
     let mut set = HashSet::new();
     let mut has_dynamic_exports = false;
     let mut checked_assets = HashSet::new();
@@ -66,8 +65,8 @@ async fn expand_star_exports(root_asset: EcmascriptChunkPlaceableVc) -> Result<E
             }
             EcmascriptExports::None => AnalyzeIssue {
                 code: None,
-                category: StringVc::cell("analyze".to_string()),
-                message: StringVc::cell(format!(
+                category: Vc::cell("analyze".to_string()),
+                message: Vc::cell(format!(
                     "export * used with module {} which has no exports\nTypescript only: Did you \
                      want to export only types with `export type * from \"...\"`?\nNote: Using \
                      `export type` is more efficient than `export *` as it won't emit any runtime \
@@ -77,15 +76,14 @@ async fn expand_star_exports(root_asset: EcmascriptChunkPlaceableVc) -> Result<E
                 source_ident: asset.ident(),
                 severity: IssueSeverity::Warning.into(),
                 source: None,
-                title: StringVc::cell("unexpected export *".to_string()),
+                title: Vc::cell("unexpected export *".to_string()),
             }
             .cell()
-            .as_issue()
             .emit(),
             EcmascriptExports::Value => AnalyzeIssue {
                 code: None,
-                category: StringVc::cell("analyze".to_string()),
-                message: StringVc::cell(format!(
+                category: Vc::cell("analyze".to_string()),
+                message: Vc::cell(format!(
                     "export * used with module {} which only has a default export (default export \
                      is not exported with export *)\nDid you want to use `export {{ default }} \
                      from \"...\";` instead?",
@@ -94,17 +92,16 @@ async fn expand_star_exports(root_asset: EcmascriptChunkPlaceableVc) -> Result<E
                 source_ident: asset.ident(),
                 severity: IssueSeverity::Warning.into(),
                 source: None,
-                title: StringVc::cell("unexpected export *".to_string()),
+                title: Vc::cell("unexpected export *".to_string()),
             }
             .cell()
-            .as_issue()
             .emit(),
             EcmascriptExports::CommonJs => {
                 has_dynamic_exports = true;
                 AnalyzeIssue {
                     code: None,
-                    category: StringVc::cell("analyze".to_string()),
-                    message: StringVc::cell(format!(
+                    category: Vc::cell("analyze".to_string()),
+                    message: Vc::cell(format!(
                         "export * used with module {} which is a CommonJS module with exports \
                          only available at runtime\nList all export names manually (`export {{ a, \
                          b, c }} from \"...\") or rewrite the module to ESM, to avoid the \
@@ -114,10 +111,9 @@ async fn expand_star_exports(root_asset: EcmascriptChunkPlaceableVc) -> Result<E
                     source_ident: asset.ident(),
                     severity: IssueSeverity::Warning.into(),
                     source: None,
-                    title: StringVc::cell("unexpected export *".to_string()),
+                    title: Vc::cell("unexpected export *".to_string()),
                 }
                 .cell()
-                .as_issue()
                 .emit()
             }
             EcmascriptExports::DynamicNamespace => {
@@ -125,7 +121,7 @@ async fn expand_star_exports(root_asset: EcmascriptChunkPlaceableVc) -> Result<E
             }
         }
     }
-    Ok(ExpandResultsVc::cell(ExpandResults {
+    Ok(ExpandResults::cell(ExpandResults {
         star_exports: set.into_iter().collect(),
         has_dynamic_exports,
     }))
@@ -135,17 +131,17 @@ async fn expand_star_exports(root_asset: EcmascriptChunkPlaceableVc) -> Result<E
 #[derive(Hash, Debug)]
 pub struct EsmExports {
     pub exports: BTreeMap<String, EsmExport>,
-    pub star_exports: Vec<EsmAssetReferenceVc>,
+    pub star_exports: Vec<Vc<EsmAssetReference>>,
 }
 
 #[turbo_tasks::value_impl]
 impl CodeGenerateable for EsmExports {
     #[turbo_tasks::function]
     async fn code_generation(
-        self_vc: EsmExportsVc,
-        _context: EcmascriptChunkingContextVc,
-    ) -> Result<CodeGenerationVc> {
-        let this = self_vc.await?;
+        self: Vc<Self>,
+        _context: Vc<Box<dyn EcmascriptChunkingContext>>,
+    ) -> Result<Vc<CodeGeneration>> {
+        let this = self.await?;
         let mut visitors = Vec::new();
 
         let mut all_exports: BTreeMap<Cow<str>, Cow<EsmExport>> = this

@@ -1,10 +1,11 @@
 use anyhow::Result;
-use turbo_tasks_fs::FileSystemPathVc;
+use turbo_tasks::{ValueDefault, Vc};
+use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    environment::EnvironmentVc,
+    environment::Environment,
     resolve::{
-        options::{ImportMapVc, ResolvedMapVc},
-        plugin::ResolvePluginVc,
+        options::{ImportMap, ResolvedMap},
+        plugin::ResolvePlugin,
     },
 };
 
@@ -14,7 +15,7 @@ use crate::condition::ContextCondition;
 #[derive(Default, Clone)]
 pub struct ResolveOptionsContext {
     #[serde(default)]
-    pub emulate_environment: Option<EnvironmentVc>,
+    pub emulate_environment: Option<Vc<Environment>>,
     #[serde(default)]
     pub enable_types: bool,
     #[serde(default)]
@@ -26,7 +27,7 @@ pub struct ResolveOptionsContext {
     #[serde(default)]
     /// Enable resolving of the node_modules folder when within the provided
     /// directory
-    pub enable_node_modules: Option<FileSystemPathVc>,
+    pub enable_node_modules: Option<Vc<FileSystemPath>>,
     #[serde(default)]
     /// Mark well-known Node.js modules as external imports and load them using
     /// native `require`. e.g. url, querystring, os
@@ -45,48 +46,46 @@ pub struct ResolveOptionsContext {
     /// If set, this import map will be applied to `ResolveOption::import_map`.
     /// It is always applied last, so any mapping defined within will take
     /// precedence over any other (e.g. tsconfig.json `compilerOptions.paths`).
-    pub import_map: Option<ImportMapVc>,
+    pub import_map: Option<Vc<ImportMap>>,
     #[serde(default)]
     /// An import map to fall back to when a request could not be resolved.
     ///
     /// If set, this import map will be applied to
     /// `ResolveOption::fallback_import_map`. It is always applied last, so
     /// any mapping defined within will take precedence over any other.
-    pub fallback_import_map: Option<ImportMapVc>,
+    pub fallback_import_map: Option<Vc<ImportMap>>,
     #[serde(default)]
     /// An additional resolved map to use after modules have been resolved.
-    pub resolved_map: Option<ResolvedMapVc>,
+    pub resolved_map: Option<Vc<ResolvedMap>>,
     #[serde(default)]
     /// A list of rules to use a different resolve option context for certain
     /// context paths. The first matching is used.
-    pub rules: Vec<(ContextCondition, ResolveOptionsContextVc)>,
+    pub rules: Vec<(ContextCondition, Vc<ResolveOptionsContext>)>,
     #[serde(default)]
     /// A list of plugins which get applied before (in the future) and after
     /// resolving.
-    pub plugins: Vec<ResolvePluginVc>,
+    pub plugins: Vec<Vc<Box<dyn ResolvePlugin>>>,
     #[serde(default)]
     pub placeholder_for_future_extensions: (),
 }
 
 #[turbo_tasks::value_impl]
-impl ResolveOptionsContextVc {
+impl ResolveOptionsContext {
     #[turbo_tasks::function]
-    pub fn default() -> Self {
-        Self::cell(Default::default())
-    }
-
-    #[turbo_tasks::function]
-    pub async fn with_types_enabled(self) -> Result<Self> {
+    pub async fn with_types_enabled(self: Vc<Self>) -> Result<Vc<Self>> {
         let mut clone = self.await?.clone_value();
         clone.enable_types = true;
         clone.enable_typescript = true;
         Ok(Self::cell(clone))
     }
 
-    /// Returns a new [ResolveOptionsContextVc] with its import map extended to
-    /// include the given import map.
+    /// Returns a new [Vc<ResolveOptionsContext>] with its import map extended
+    /// to include the given import map.
     #[turbo_tasks::function]
-    pub async fn with_extended_import_map(self, import_map: ImportMapVc) -> Result<Self> {
+    pub async fn with_extended_import_map(
+        self: Vc<Self>,
+        import_map: Vc<ImportMap>,
+    ) -> Result<Vc<Self>> {
         let mut resolve_options_context = self.await?.clone_value();
         resolve_options_context.import_map = Some(
             resolve_options_context
@@ -97,13 +96,13 @@ impl ResolveOptionsContextVc {
         Ok(resolve_options_context.into())
     }
 
-    /// Returns a new [ResolveOptionsContextVc] with its fallback import map
+    /// Returns a new [Vc<ResolveOptionsContext>] with its fallback import map
     /// extended to include the given import map.
     #[turbo_tasks::function]
     pub async fn with_extended_fallback_import_map(
-        self,
-        fallback_import_map: ImportMapVc,
-    ) -> Result<Self> {
+        self: Vc<Self>,
+        fallback_import_map: Vc<ImportMap>,
+    ) -> Result<Vc<Self>> {
         let mut resolve_options_context = self.await?.clone_value();
         resolve_options_context.fallback_import_map = Some(
             resolve_options_context
@@ -117,8 +116,10 @@ impl ResolveOptionsContextVc {
     }
 }
 
-impl Default for ResolveOptionsContextVc {
-    fn default() -> Self {
-        Self::default()
+#[turbo_tasks::value_impl]
+impl ValueDefault for ResolveOptionsContext {
+    #[turbo_tasks::function]
+    fn value_default() -> Vc<Self> {
+        Self::cell(Default::default())
     }
 }

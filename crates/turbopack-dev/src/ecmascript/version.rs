@@ -1,29 +1,26 @@
 use anyhow::{bail, Result};
 use indexmap::IndexMap;
-use turbo_tasks::primitives::StringVc;
-use turbo_tasks_fs::FileSystemPathVc;
+use turbo_tasks::{ReadRef, Vc};
+use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::{encode_hex, Xxh3Hash64Hasher};
-use turbopack_core::{
-    chunk::ModuleIdReadRef,
-    version::{Version, VersionVc},
-};
+use turbopack_core::{chunk::ModuleId, version::Version};
 
-use super::content_entry::EcmascriptDevChunkContentEntriesVc;
+use super::content_entry::EcmascriptDevChunkContentEntries;
 
 #[turbo_tasks::value(serialization = "none")]
 pub(super) struct EcmascriptDevChunkVersion {
     pub(super) chunk_path: String,
-    pub(super) entries_hashes: IndexMap<ModuleIdReadRef, u64>,
+    pub(super) entries_hashes: IndexMap<ReadRef<ModuleId>, u64>,
 }
 
 #[turbo_tasks::value_impl]
-impl EcmascriptDevChunkVersionVc {
+impl EcmascriptDevChunkVersion {
     #[turbo_tasks::function]
     pub async fn new(
-        output_root: FileSystemPathVc,
-        chunk_path: FileSystemPathVc,
-        entries: EcmascriptDevChunkContentEntriesVc,
-    ) -> Result<Self> {
+        output_root: Vc<FileSystemPath>,
+        chunk_path: Vc<FileSystemPath>,
+        entries: Vc<EcmascriptDevChunkContentEntries>,
+    ) -> Result<Vc<Self>> {
         let output_root = output_root.await?;
         let chunk_path = chunk_path.await?;
         let chunk_path = if let Some(path) = output_root.get_path_to(&chunk_path) {
@@ -51,7 +48,7 @@ impl EcmascriptDevChunkVersionVc {
 #[turbo_tasks::value_impl]
 impl Version for EcmascriptDevChunkVersion {
     #[turbo_tasks::function]
-    fn id(&self) -> StringVc {
+    fn id(&self) -> Vc<String> {
         let mut hasher = Xxh3Hash64Hasher::new();
         let sorted_hashes = {
             let mut hashes: Vec<_> = self.entries_hashes.values().copied().collect();
@@ -63,6 +60,6 @@ impl Version for EcmascriptDevChunkVersion {
         }
         let hash = hasher.finish();
         let hex_hash = encode_hex(hash);
-        StringVc::cell(hex_hash)
+        Vc::cell(hex_hash)
     }
 }

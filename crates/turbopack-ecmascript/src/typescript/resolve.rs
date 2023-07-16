@@ -2,55 +2,49 @@ use std::{collections::HashMap, fmt::Write};
 
 use anyhow::Result;
 use serde_json::Value as JsonValue;
-use turbo_tasks::{
-    primitives::{StringVc, StringsVc},
-    Value, ValueToString, ValueToStringVc,
-};
-use turbo_tasks_fs::{
-    FileContent, FileContentVc, FileJsonContent, FileJsonContentVc, FileSystemPathVc,
-};
+use turbo_tasks::{Value, ValueDefault, ValueToString, Vc};
+use turbo_tasks_fs::{FileContent, FileJsonContent, FileSystemPath};
 use turbopack_core::{
     asset::Asset,
     context::AssetContext,
-    file_source::FileSourceVc,
-    ident::AssetIdentVc,
-    issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc, OptionIssueSourceVc},
-    reference::{AssetReference, AssetReferenceVc},
+    file_source::FileSource,
+    ident::AssetIdent,
+    issue::{Issue, IssueExt, IssueSeverity, OptionIssueSource},
+    reference::AssetReference,
     reference_type::{ReferenceType, TypeScriptReferenceSubType},
     resolve::{
         handle_resolve_error,
         node::node_cjs_resolve_options,
         options::{
-            ConditionValue, ImportMap, ImportMapVc, ImportMapping, ResolveInPackage,
-            ResolveIntoPackage, ResolveModules, ResolveOptionsVc,
+            ConditionValue, ImportMap, ImportMapping, ResolveInPackage, ResolveIntoPackage,
+            ResolveModules, ResolveOptions,
         },
-        origin::{ResolveOrigin, ResolveOriginVc},
-        parse::{Request, RequestVc},
-        pattern::{Pattern, QueryMapVc},
-        resolve, AliasPattern, ResolveResultVc,
+        origin::{ResolveOrigin, ResolveOriginExt},
+        parse::Request,
+        pattern::{Pattern, QueryMap},
+        resolve, AliasPattern, ResolveResult,
     },
-    source::{option_asset_to_source, OptionSourceVc, SourceVc},
+    source::{option_asset_to_source, OptionSource, Source},
 };
-
 #[turbo_tasks::value(shared)]
 pub struct TsConfigIssue {
-    pub severity: IssueSeverityVc,
-    pub source_ident: AssetIdentVc,
-    pub message: StringVc,
+    pub severity: Vc<IssueSeverity>,
+    pub source_ident: Vc<AssetIdent>,
+    pub message: Vc<String>,
 }
 
 #[turbo_tasks::function]
-async fn json_only(resolve_options: ResolveOptionsVc) -> Result<ResolveOptionsVc> {
+async fn json_only(resolve_options: Vc<ResolveOptions>) -> Result<Vc<ResolveOptions>> {
     let mut opts = resolve_options.await?.clone_value();
     opts.extensions = vec![".json".to_string()];
     Ok(opts.cell())
 }
 
 pub async fn read_tsconfigs(
-    mut data: FileContentVc,
-    mut tsconfig: SourceVc,
-    resolve_options: ResolveOptionsVc,
-) -> Result<Vec<(FileJsonContentVc, SourceVc)>> {
+    mut data: Vc<FileContent>,
+    mut tsconfig: Vc<Box<dyn Source>>,
+    resolve_options: Vc<ResolveOptions>,
+) -> Result<Vec<(Vc<FileJsonContent>, Vc<Box<dyn Source>>)>> {
     let mut configs = Vec::new();
     let resolve_options = json_only(resolve_options);
     loop {
@@ -67,20 +61,18 @@ pub async fn read_tsconfigs(
                 TsConfigIssue {
                     severity: IssueSeverity::Error.into(),
                     source_ident: tsconfig.ident(),
-                    message: StringVc::cell(message),
+                    message: Vc::cell(message),
                 }
                 .cell()
-                .as_issue()
                 .emit();
             }
             FileJsonContent::NotFound => {
                 TsConfigIssue {
                     severity: IssueSeverity::Error.into(),
                     source_ident: tsconfig.ident(),
-                    message: StringVc::cell("tsconfig not found".into()),
+                    message: Vc::cell("tsconfig not found".into()),
                 }
                 .cell()
-                .as_issue()
                 .emit();
             }
             FileJsonContent::Content(json) => {
@@ -95,12 +87,9 @@ pub async fn read_tsconfigs(
                         TsConfigIssue {
                             severity: IssueSeverity::Error.into(),
                             source_ident: tsconfig.ident(),
-                            message: StringVc::cell(
-                                "extends doesn't resolve correctly".to_string(),
-                            ),
+                            message: Vc::cell("extends doesn't resolve correctly".to_string()),
                         }
                         .cell()
-                        .as_issue()
                         .emit();
                     }
                 }
@@ -114,12 +103,12 @@ pub async fn read_tsconfigs(
 /// Resolves tsconfig files according to TS's implementation:
 /// https://github.com/microsoft/TypeScript/blob/611a912d/src/compiler/commandLineParser.ts#L3294-L3326
 async fn resolve_extends(
-    tsconfig: SourceVc,
+    tsconfig: Vc<Box<dyn Source>>,
     extends: &str,
-    resolve_options: ResolveOptionsVc,
-) -> Result<OptionSourceVc> {
+    resolve_options: Vc<ResolveOptions>,
+) -> Result<Vc<OptionSource>> {
     let context = tsconfig.ident().path().parent();
-    let request = RequestVc::parse_string(extends.to_string());
+    let request = Request::parse_string(extends.to_string());
 
     // TS's resolution is weird, and has special behavior for different import
     // types. There might be multiple alternatives like
@@ -145,7 +134,7 @@ async fn resolve_extends(
 
         // An empty extends is treated as "./tsconfig"
         Request::Empty => {
-            let request = RequestVc::parse_string("./tsconfig".to_string());
+            let request = Request::parse_string("./tsconfig".to_string());
             Ok(option_asset_to_source(resolve(context, request, resolve_options).first_asset()))
         }
 
@@ -154,7 +143,7 @@ async fn resolve_extends(
         _ => {
             let mut result = option_asset_to_source(resolve(context, request, resolve_options).first_asset());
             if result.await?.is_none() {
-                let request = RequestVc::parse_string(format!("{extends}/tsconfig"));
+                let request = Request::parse_string(format!("{extends}/tsconfig"));
                 result = option_asset_to_source(resolve(context, request, resolve_options).first_asset());
             }
             Ok(result)
@@ -163,11 +152,11 @@ async fn resolve_extends(
 }
 
 async fn resolve_extends_rooted_or_relative(
-    context: FileSystemPathVc,
-    request: RequestVc,
-    resolve_options: ResolveOptionsVc,
+    context: Vc<FileSystemPath>,
+    request: Vc<Request>,
+    resolve_options: Vc<ResolveOptions>,
     path: &str,
-) -> Result<OptionSourceVc> {
+) -> Result<Vc<OptionSource>> {
     let mut result =
         option_asset_to_source(resolve(context, request, resolve_options).first_asset());
 
@@ -175,15 +164,17 @@ async fn resolve_extends_rooted_or_relative(
     // to try again with it.
     // https://github.com/microsoft/TypeScript/blob/611a912d/src/compiler/commandLineParser.ts#L3305
     if !path.ends_with(".json") && result.await?.is_none() {
-        let request = RequestVc::parse_string(format!("{path}.json"));
+        let request = Request::parse_string(format!("{path}.json"));
         result = option_asset_to_source(resolve(context, request, resolve_options).first_asset());
     }
     Ok(result)
 }
 
+type Config = (Vc<FileJsonContent>, Vc<Box<dyn Source>>);
+
 pub async fn read_from_tsconfigs<T>(
-    configs: &[(FileJsonContentVc, SourceVc)],
-    accessor: impl Fn(&JsonValue, SourceVc) -> Option<T>,
+    configs: &[Config],
+    accessor: impl Fn(&JsonValue, Vc<Box<dyn Source>>) -> Option<T>,
 ) -> Result<Option<T>> {
     for (config, source) in configs.iter() {
         if let FileJsonContent::Content(json) = &*config.await? {
@@ -199,24 +190,26 @@ pub async fn read_from_tsconfigs<T>(
 #[turbo_tasks::value]
 #[derive(Default)]
 pub struct TsConfigResolveOptions {
-    base_url: Option<FileSystemPathVc>,
-    import_map: Option<ImportMapVc>,
+    base_url: Option<Vc<FileSystemPath>>,
+    import_map: Option<Vc<ImportMap>>,
 }
 
-impl Default for TsConfigResolveOptionsVc {
-    fn default() -> Self {
-        Self::cell(Default::default())
+#[turbo_tasks::value_impl]
+impl ValueDefault for TsConfigResolveOptions {
+    #[turbo_tasks::function]
+    fn value_default() -> Vc<Self> {
+        Self::default().cell()
     }
 }
 
 /// Returns the resolve options
 #[turbo_tasks::function]
 pub async fn tsconfig_resolve_options(
-    tsconfig: FileSystemPathVc,
-) -> Result<TsConfigResolveOptionsVc> {
+    tsconfig: Vc<FileSystemPath>,
+) -> Result<Vc<TsConfigResolveOptions>> {
     let configs = read_tsconfigs(
         tsconfig.read(),
-        FileSourceVc::new(tsconfig).into(),
+        Vc::upcast(FileSource::new(tsconfig)),
         node_cjs_resolve_options(tsconfig.root()),
     )
     .await?;
@@ -226,9 +219,13 @@ pub async fn tsconfig_resolve_options(
     }
 
     let base_url = if let Some(base_url) = read_from_tsconfigs(&configs, |json, source| {
-        json["compilerOptions"]["baseUrl"]
-            .as_str()
-            .map(|base_url| source.ident().path().parent().try_join(base_url))
+        json["compilerOptions"]["baseUrl"].as_str().map(|base_url| {
+            source
+                .ident()
+                .path()
+                .parent()
+                .try_join(base_url.to_string())
+        })
     })
     .await?
     {
@@ -243,7 +240,7 @@ pub async fn tsconfig_resolve_options(
             if let JsonValue::Object(paths) = &json["compilerOptions"]["paths"] {
                 let mut context = source.ident().path().parent();
                 if let Some(base_url) = json["compilerOptions"]["baseUrl"].as_str() {
-                    if let Some(new_context) = *context.try_join(base_url).await? {
+                    if let Some(new_context) = *context.try_join(base_url.to_string()).await? {
                         context = new_context;
                     }
                 };
@@ -261,7 +258,7 @@ pub async fn tsconfig_resolve_options(
                         TsConfigIssue {
                             severity: IssueSeverity::Warning.cell(),
                             source_ident: source.ident(),
-                            message: StringVc::cell(format!(
+                            message: Vc::cell(format!(
                                 "compilerOptions.paths[{key}] doesn't contains an array as \
                                  expected\n{key}: {value:#}",
                                 key = serde_json::to_string(key)?,
@@ -269,7 +266,6 @@ pub async fn tsconfig_resolve_options(
                             )),
                         }
                         .cell()
-                        .as_issue()
                         .emit()
                     }
                 }
@@ -295,8 +291,8 @@ pub async fn tsconfig_resolve_options(
 }
 
 #[turbo_tasks::function]
-pub fn tsconfig() -> StringsVc {
-    StringsVc::cell(vec![
+pub fn tsconfig() -> Vc<Vec<String>> {
+    Vc::cell(vec![
         "tsconfig.json".to_string(),
         "jsconfig.json".to_string(),
     ])
@@ -304,9 +300,9 @@ pub fn tsconfig() -> StringsVc {
 
 #[turbo_tasks::function]
 pub async fn apply_tsconfig_resolve_options(
-    resolve_options: ResolveOptionsVc,
-    tsconfig_resolve_options: TsConfigResolveOptionsVc,
-) -> Result<ResolveOptionsVc> {
+    resolve_options: Vc<ResolveOptions>,
+    tsconfig_resolve_options: Vc<TsConfigResolveOptions>,
+) -> Result<Vc<ResolveOptions>> {
     let tsconfig_resolve_options = tsconfig_resolve_options.await?;
     let mut resolve_options = resolve_options.await?.clone_value();
     if let Some(base_url) = tsconfig_resolve_options.base_url {
@@ -328,7 +324,10 @@ pub async fn apply_tsconfig_resolve_options(
 }
 
 #[turbo_tasks::function]
-pub async fn type_resolve(origin: ResolveOriginVc, request: RequestVc) -> Result<ResolveResultVc> {
+pub async fn type_resolve(
+    origin: Vc<Box<dyn ResolveOrigin>>,
+    request: Vc<Request>,
+) -> Result<Vc<ResolveResult>> {
     let ty = Value::new(ReferenceType::TypeScript(
         TypeScriptReferenceSubType::Undefined,
     ));
@@ -346,10 +345,10 @@ pub async fn type_resolve(origin: ResolveOriginVc, request: RequestVc) -> Result
         } else {
             m.clone()
         };
-        Some(RequestVc::module(
+        Some(Request::module(
             format!("@types/{m}"),
             Value::new(p.clone()),
-            QueryMapVc::none(),
+            QueryMap::none(),
         ))
     } else {
         None
@@ -371,7 +370,7 @@ pub async fn type_resolve(origin: ResolveOriginVc, request: RequestVc) -> Result
         origin.origin_path(),
         request,
         options,
-        OptionIssueSourceVc::none(),
+        OptionIssueSource::none(),
         IssueSeverity::Error.cell(),
     )
     .await
@@ -379,14 +378,14 @@ pub async fn type_resolve(origin: ResolveOriginVc, request: RequestVc) -> Result
 
 #[turbo_tasks::value]
 pub struct TypescriptTypesAssetReference {
-    pub origin: ResolveOriginVc,
-    pub request: RequestVc,
+    pub origin: Vc<Box<dyn ResolveOrigin>>,
+    pub request: Vc<Request>,
 }
 
 #[turbo_tasks::value_impl]
 impl AssetReference for TypescriptTypesAssetReference {
     #[turbo_tasks::function]
-    fn resolve_reference(&self) -> ResolveResultVc {
+    fn resolve_reference(&self) -> Vc<ResolveResult> {
         type_resolve(self.origin, self.request)
     }
 }
@@ -394,24 +393,24 @@ impl AssetReference for TypescriptTypesAssetReference {
 #[turbo_tasks::value_impl]
 impl ValueToString for TypescriptTypesAssetReference {
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<StringVc> {
-        Ok(StringVc::cell(format!(
+    async fn to_string(&self) -> Result<Vc<String>> {
+        Ok(Vc::cell(format!(
             "typescript types {}",
             self.request.to_string().await?,
         )))
     }
 }
 
-impl TypescriptTypesAssetReferenceVc {
-    pub fn new(origin: ResolveOriginVc, request: RequestVc) -> Self {
+impl TypescriptTypesAssetReference {
+    pub fn new(origin: Vc<Box<dyn ResolveOrigin>>, request: Vc<Request>) -> Vc<Self> {
         Self::cell(TypescriptTypesAssetReference { origin, request })
     }
 }
 
 #[turbo_tasks::function]
 async fn apply_typescript_types_options(
-    resolve_options: ResolveOptionsVc,
-) -> Result<ResolveOptionsVc> {
+    resolve_options: Vc<ResolveOptions>,
+) -> Result<Vc<ResolveOptions>> {
     let mut resolve_options = resolve_options.await?.clone_value();
     resolve_options.extensions = vec![".tsx".to_string(), ".ts".to_string(), ".d.ts".to_string()];
     resolve_options.into_package = resolve_options
@@ -450,29 +449,29 @@ async fn apply_typescript_types_options(
 #[turbo_tasks::value_impl]
 impl Issue for TsConfigIssue {
     #[turbo_tasks::function]
-    fn severity(&self) -> IssueSeverityVc {
+    fn severity(&self) -> Vc<IssueSeverity> {
         self.severity
     }
 
     #[turbo_tasks::function]
-    async fn title(&self) -> Result<StringVc> {
-        Ok(StringVc::cell(
+    async fn title(&self) -> Result<Vc<String>> {
+        Ok(Vc::cell(
             "An issue occurred while parsing a tsconfig.json file.".to_string(),
         ))
     }
 
     #[turbo_tasks::function]
-    fn category(&self) -> StringVc {
-        StringVc::cell("typescript".to_string())
+    fn category(&self) -> Vc<String> {
+        Vc::cell("typescript".to_string())
     }
 
     #[turbo_tasks::function]
-    fn context(&self) -> FileSystemPathVc {
+    fn context(&self) -> Vc<FileSystemPath> {
         self.source_ident.path()
     }
 
     #[turbo_tasks::function]
-    fn description(&self) -> StringVc {
+    fn description(&self) -> Vc<String> {
         self.message
     }
 }

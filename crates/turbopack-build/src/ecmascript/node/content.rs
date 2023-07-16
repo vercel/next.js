@@ -2,33 +2,36 @@ use std::io::Write;
 
 use anyhow::Result;
 use indoc::writedoc;
-use turbo_tasks::{TryJoinIterExt, Value};
+use turbo_tasks::{TryJoinIterExt, Value, Vc};
 use turbo_tasks_fs::File;
 use turbopack_core::{
-    asset::{Asset, AssetContentVc},
-    code_builder::{CodeBuilder, CodeVc},
-    source_map::{GenerateSourceMap, GenerateSourceMapVc, OptionSourceMapVc},
+    asset::{Asset, AssetContent},
+    code_builder::{Code, CodeBuilder},
+    source_map::{GenerateSourceMap, OptionSourceMap},
 };
-use turbopack_ecmascript::{chunk::EcmascriptChunkContentVc, utils::StringifyJs};
+use turbopack_ecmascript::{
+    chunk::{EcmascriptChunkContent, EcmascriptChunkItemExt},
+    utils::StringifyJs,
+};
 
-use super::chunk::EcmascriptBuildNodeChunkVc;
-use crate::BuildChunkingContextVc;
+use super::chunk::EcmascriptBuildNodeChunk;
+use crate::BuildChunkingContext;
 
 #[turbo_tasks::value]
 pub(super) struct EcmascriptBuildNodeChunkContent {
-    pub(super) content: EcmascriptChunkContentVc,
-    pub(super) chunking_context: BuildChunkingContextVc,
-    pub(super) chunk: EcmascriptBuildNodeChunkVc,
+    pub(super) content: Vc<EcmascriptChunkContent>,
+    pub(super) chunking_context: Vc<BuildChunkingContext>,
+    pub(super) chunk: Vc<EcmascriptBuildNodeChunk>,
 }
 
 #[turbo_tasks::value_impl]
-impl EcmascriptBuildNodeChunkContentVc {
+impl EcmascriptBuildNodeChunkContent {
     #[turbo_tasks::function]
     pub(crate) async fn new(
-        chunking_context: BuildChunkingContextVc,
-        chunk: EcmascriptBuildNodeChunkVc,
-        content: EcmascriptChunkContentVc,
-    ) -> Result<Self> {
+        chunking_context: Vc<BuildChunkingContext>,
+        chunk: Vc<EcmascriptBuildNodeChunk>,
+        content: Vc<EcmascriptChunkContent>,
+    ) -> Result<Vc<Self>> {
         Ok(EcmascriptBuildNodeChunkContent {
             content,
             chunking_context,
@@ -39,9 +42,9 @@ impl EcmascriptBuildNodeChunkContentVc {
 }
 
 #[turbo_tasks::value_impl]
-impl EcmascriptBuildNodeChunkContentVc {
+impl EcmascriptBuildNodeChunkContent {
     #[turbo_tasks::function]
-    async fn code(self) -> Result<CodeVc> {
+    async fn code(self: Vc<Self>) -> Result<Vc<Code>> {
         let this = self.await?;
         let chunk_path = this.chunk.ident().path().await?;
 
@@ -86,16 +89,18 @@ impl EcmascriptBuildNodeChunkContentVc {
     }
 
     #[turbo_tasks::function]
-    pub async fn content(self_vc: EcmascriptBuildNodeChunkContentVc) -> Result<AssetContentVc> {
-        let code = self_vc.code().await?;
-        Ok(File::from(code.source_code().clone()).into())
+    pub async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
+        let code = self.code().await?;
+        Ok(AssetContent::file(
+            File::from(code.source_code().clone()).into(),
+        ))
     }
 }
 
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for EcmascriptBuildNodeChunkContent {
     #[turbo_tasks::function]
-    fn generate_source_map(self_vc: EcmascriptBuildNodeChunkContentVc) -> OptionSourceMapVc {
-        self_vc.code().generate_source_map()
+    fn generate_source_map(self: Vc<Self>) -> Vc<OptionSourceMap> {
+        self.code().generate_source_map()
     }
 }

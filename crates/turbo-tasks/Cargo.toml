@@ -17,6 +17,7 @@ hanging_detection = []
 
 [dependencies]
 anyhow = { workspace = true }
+async-trait = { workspace = true }
 auto-hash-map = { workspace = true }
 concurrent-queue = { workspace = true }
 dashmap = { workspace = true }

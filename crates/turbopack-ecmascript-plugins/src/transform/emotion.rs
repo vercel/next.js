@@ -14,7 +14,7 @@ use swc_core::{
         visit::FoldWith,
     },
 };
-use turbo_tasks::trace::TraceRawVcs;
+use turbo_tasks::{trace::TraceRawVcs, ValueDefault, Vc};
 use turbopack_ecmascript::{CustomTransformer, TransformContext};
 
 #[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize)]
@@ -26,7 +26,7 @@ pub enum EmotionLabelKind {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct OptionEmotionTransformConfig(Option<EmotionTransformConfigVc>);
+pub struct OptionEmotionTransformConfig(Option<Vc<EmotionTransformConfig>>);
 
 //[TODO]: need to support importmap, there are type mismatch between
 //next.config.js to swc's emotion options
@@ -40,16 +40,16 @@ pub struct EmotionTransformConfig {
 }
 
 #[turbo_tasks::value_impl]
-impl EmotionTransformConfigVc {
+impl EmotionTransformConfig {
     #[turbo_tasks::function]
-    pub fn default() -> Self {
+    pub fn default_private() -> Vc<Self> {
         Self::cell(Default::default())
     }
 }
 
-impl Default for EmotionTransformConfigVc {
-    fn default() -> Self {
-        Self::default()
+impl ValueDefault for EmotionTransformConfig {
+    fn value_default() -> Vc<Self> {
+        EmotionTransformConfig::default_private()
     }
 }
 

@@ -1,12 +1,8 @@
 use anyhow::{bail, Result};
-use turbo_tasks::TryJoinIterExt;
-use turbopack_core::version::{
-    VersionedContentMerger, VersionedContentMergerVc, VersionedContentVc, VersionedContentsVc,
-};
+use turbo_tasks::{TryJoinIterExt, Vc};
+use turbopack_core::version::{VersionedContent, VersionedContentMerger, VersionedContents};
 
-use super::{
-    super::content::EcmascriptDevChunkContentVc, content::EcmascriptDevMergedChunkContent,
-};
+use super::{super::content::EcmascriptDevChunkContent, content::EcmascriptDevMergedChunkContent};
 
 /// Merges multiple [`EcmascriptChunkContent`] into a single
 /// [`EcmascriptDevMergedChunkContent`]. This is useful for generating a single
@@ -15,10 +11,10 @@ use super::{
 pub(crate) struct EcmascriptDevChunkContentMerger;
 
 #[turbo_tasks::value_impl]
-impl EcmascriptDevChunkContentMergerVc {
+impl EcmascriptDevChunkContentMerger {
     /// Creates a new [`EcmascriptDevChunkContentMerger`].
     #[turbo_tasks::function]
-    pub fn new() -> Self {
+    pub fn new() -> Vc<Self> {
         Self::cell(EcmascriptDevChunkContentMerger)
     }
 }
@@ -26,20 +22,27 @@ impl EcmascriptDevChunkContentMergerVc {
 #[turbo_tasks::value_impl]
 impl VersionedContentMerger for EcmascriptDevChunkContentMerger {
     #[turbo_tasks::function]
-    async fn merge(&self, contents: VersionedContentsVc) -> Result<VersionedContentVc> {
+    async fn merge(
+        &self,
+        contents: Vc<VersionedContents>,
+    ) -> Result<Vc<Box<dyn VersionedContent>>> {
         let contents = contents
             .await?
             .iter()
             .map(|content| async move {
-                if let Some(content) = EcmascriptDevChunkContentVc::resolve_from(content).await? {
+                if let Some(content) =
+                    Vc::try_resolve_downcast_type::<EcmascriptDevChunkContent>(*content).await?
+                {
                     Ok(content)
                 } else {
-                    bail!("expected EcmascriptDevChunkContentVc")
+                    bail!("expected Vc<EcmascriptDevChunkContent>")
                 }
             })
             .try_join()
             .await?;
 
-        Ok(EcmascriptDevMergedChunkContent { contents }.cell().into())
+        Ok(Vc::upcast(
+            EcmascriptDevMergedChunkContent { contents }.cell(),
+        ))
     }
 }

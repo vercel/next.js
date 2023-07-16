@@ -2,15 +2,12 @@ use anyhow::{bail, Result};
 use indexmap::IndexSet;
 use rustc_hash::FxHashMap;
 use swc_core::ecma::ast::{Id, Module, Program};
-use turbo_tasks_fs::FileSystemPathVc;
-use turbopack_core::resolve::{origin::ResolveOrigin, ModulePart, ModulePartVc};
+use turbo_tasks::Vc;
+use turbo_tasks_fs::FileSystemPath;
+use turbopack_core::resolve::{origin::ResolveOrigin, ModulePart};
 
 use self::graph::{DepGraph, ItemData, ItemId, ItemIdGroupKind, Mode, SplitModuleResult};
-use crate::{
-    analyzer::graph::EvalContext,
-    parse::{ParseResult, ParseResultVc},
-    EcmascriptModuleAssetVc,
-};
+use crate::{analyzer::graph::EvalContext, parse::ParseResult, EcmascriptModuleAsset};
 
 pub mod asset;
 pub mod chunk_item;
@@ -246,8 +243,8 @@ pub(crate) enum Key {
     Export(String),
 }
 
-/// Converts [ModulePartVc] to the index.
-async fn get_part_id(result: &SplitResult, part: ModulePartVc) -> Result<u32> {
+/// Converts [Vc<ModulePart>] to the index.
+async fn get_part_id(result: &SplitResult, part: Vc<ModulePart>) -> Result<u32> {
     let part = part.await?;
 
     let key = match &*part {
@@ -279,7 +276,7 @@ pub(crate) enum SplitResult {
         entrypoints: FxHashMap<Key, u32>,
 
         #[turbo_tasks(debug_ignore, trace_ignore)]
-        modules: Vec<ParseResultVc>,
+        modules: Vec<Vc<ParseResult>>,
 
         #[turbo_tasks(debug_ignore, trace_ignore)]
         deps: FxHashMap<u32, Vec<u32>>,
@@ -298,12 +295,15 @@ impl PartialEq for SplitResult {
 }
 
 #[turbo_tasks::function]
-pub(super) fn split_module(asset: EcmascriptModuleAssetVc) -> SplitResultVc {
+pub(super) fn split_module(asset: Vc<EcmascriptModuleAsset>) -> Vc<SplitResult> {
     split(asset.origin_path(), asset.parse())
 }
 
 #[turbo_tasks::function]
-pub(super) async fn split(path: FileSystemPathVc, parsed: ParseResultVc) -> Result<SplitResultVc> {
+pub(super) async fn split(
+    path: Vc<FileSystemPath>,
+    parsed: Vc<ParseResult>,
+) -> Result<Vc<SplitResult>> {
     let filename = path.await?.file_name().to_string();
     let parse_result = parsed.await?;
 
@@ -332,7 +332,7 @@ pub(super) async fn split(path: FileSystemPathVc, parsed: ParseResultVc) -> Resu
                     let program = Program::Module(module);
                     let eval_context = EvalContext::new(&program, eval_context.unresolved_mark);
 
-                    ParseResultVc::cell(ParseResult::Ok {
+                    ParseResult::cell(ParseResult::Ok {
                         program,
                         globals: globals.clone(),
                         comments: comments.clone(),
@@ -356,9 +356,9 @@ pub(super) async fn split(path: FileSystemPathVc, parsed: ParseResultVc) -> Resu
 
 #[turbo_tasks::function]
 pub(super) async fn part_of_module(
-    split_data: SplitResultVc,
-    part: ModulePartVc,
-) -> Result<ParseResultVc> {
+    split_data: Vc<SplitResult>,
+    part: Vc<ModulePart>,
+) -> Result<Vc<ParseResult>> {
     let split_data = split_data.await?;
 
     match &*split_data {

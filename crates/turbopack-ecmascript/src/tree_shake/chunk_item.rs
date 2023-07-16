@@ -1,43 +1,41 @@
 use anyhow::Result;
-use turbo_tasks::Value;
+use turbo_tasks::{Value, Vc};
 use turbopack_core::{
     asset::Asset,
-    chunk::{availability_info::AvailabilityInfo, ChunkItem, ChunkItemVc},
-    ident::AssetIdentVc,
-    reference::AssetReferencesVc,
+    chunk::{availability_info::AvailabilityInfo, ChunkItem},
+    ident::AssetIdent,
+    reference::AssetReferences,
 };
 
-use super::{asset::EcmascriptModulePartAssetVc, part_of_module, split_module};
+use super::{asset::EcmascriptModulePartAsset, part_of_module, split_module};
 use crate::{
-    chunk::{
-        EcmascriptChunkItem, EcmascriptChunkItemContentVc, EcmascriptChunkItemVc,
-        EcmascriptChunkingContextVc,
-    },
-    EcmascriptModuleContentVc,
+    chunk::{EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkingContext},
+    EcmascriptModuleContent,
 };
 
-/// This is an implementation of [ChunkItem] for [EcmascriptModulePartAssetVc].
+/// This is an implementation of [ChunkItem] for
+/// [Vc<EcmascriptModulePartAsset>].
 ///
 /// This is a pointer to a part of an ES module.
 #[turbo_tasks::value(shared)]
 pub struct EcmascriptModulePartChunkItem {
-    pub(super) module: EcmascriptModulePartAssetVc,
-    pub(super) context: EcmascriptChunkingContextVc,
+    pub(super) module: Vc<EcmascriptModulePartAsset>,
+    pub(super) context: Vc<Box<dyn EcmascriptChunkingContext>>,
 }
 
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for EcmascriptModulePartChunkItem {
     #[turbo_tasks::function]
-    fn content(self_vc: EcmascriptModulePartChunkItemVc) -> EcmascriptChunkItemContentVc {
-        self_vc.content_with_availability_info(Value::new(AvailabilityInfo::Untracked))
+    fn content(self: Vc<Self>) -> Vc<EcmascriptChunkItemContent> {
+        self.content_with_availability_info(Value::new(AvailabilityInfo::Untracked))
     }
 
     #[turbo_tasks::function]
     async fn content_with_availability_info(
-        self_vc: EcmascriptModulePartChunkItemVc,
+        self: Vc<Self>,
         availability_info: Value<AvailabilityInfo>,
-    ) -> Result<EcmascriptChunkItemContentVc> {
-        let this = self_vc.await?;
+    ) -> Result<Vc<EcmascriptChunkItemContent>> {
+        let this = self.await?;
         let availability_info = if *this.module.analyze().needs_availability_info().await? {
             availability_info
         } else {
@@ -48,7 +46,7 @@ impl EcmascriptChunkItem for EcmascriptModulePartChunkItem {
         let split_data = split_module(module.full_module);
         let parsed = part_of_module(split_data, module.part);
 
-        let content = EcmascriptModuleContentVc::new(
+        let content = EcmascriptModuleContent::new(
             parsed,
             module.full_module.ident(),
             this.context,
@@ -56,11 +54,11 @@ impl EcmascriptChunkItem for EcmascriptModulePartChunkItem {
             availability_info,
         );
 
-        Ok(EcmascriptChunkItemContentVc::new(content, this.context))
+        Ok(EcmascriptChunkItemContent::new(content, this.context))
     }
 
     #[turbo_tasks::function]
-    fn chunking_context(&self) -> EcmascriptChunkingContextVc {
+    fn chunking_context(&self) -> Vc<Box<dyn EcmascriptChunkingContext>> {
         self.context
     }
 }
@@ -68,12 +66,12 @@ impl EcmascriptChunkItem for EcmascriptModulePartChunkItem {
 #[turbo_tasks::value_impl]
 impl ChunkItem for EcmascriptModulePartChunkItem {
     #[turbo_tasks::function]
-    async fn references(&self) -> AssetReferencesVc {
+    async fn references(&self) -> Vc<AssetReferences> {
         self.module.references()
     }
 
     #[turbo_tasks::function]
-    async fn asset_ident(&self) -> Result<AssetIdentVc> {
+    async fn asset_ident(&self) -> Result<Vc<AssetIdent>> {
         Ok(self.module.ident())
     }
 }

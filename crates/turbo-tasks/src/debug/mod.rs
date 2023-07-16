@@ -1,6 +1,7 @@
 use std::fmt::{Debug, Display};
 
 use auto_hash_map::{AutoMap, AutoSet};
+use turbo_tasks::Vc;
 pub use turbo_tasks_macros::ValueDebugFormat;
 
 use crate::{self as turbo_tasks};
@@ -13,9 +14,8 @@ use internal::PassthroughDebug;
 
 /// The return type of `ValueDebug::dbg`.
 ///
-/// We don't use `StringVc` directly because we don't want the `Debug`/`Display`
-/// representations to be escaped.
-#[derive(Clone)]
+/// We don't use `Vc<String>` directly because we don't want the
+/// `Debug`/`Display` representations to be escaped.
 #[turbo_tasks::value]
 pub struct ValueDebugString(String);
 
@@ -38,10 +38,10 @@ impl ValueDebugString {
     }
 }
 
-impl ValueDebugStringVc {
-    /// Create a new `ValueDebugStringVc` from a string.
-    pub fn new(s: String) -> Self {
-        ValueDebugStringVc::cell(ValueDebugString(s))
+impl ValueDebugString {
+    /// Create a new `ValueDebugString` from a string.
+    pub fn new(s: String) -> Vc<Self> {
+        ValueDebugString::cell(ValueDebugString(s))
     }
 }
 
@@ -55,10 +55,10 @@ impl ValueDebugStringVc {
 /// ```
 #[turbo_tasks::value_trait(no_debug)]
 pub trait ValueDebug {
-    fn dbg(&self) -> ValueDebugStringVc;
+    fn dbg(self: Vc<Self>) -> Vc<ValueDebugString>;
 
     /// Like `dbg`, but with a depth limit.
-    fn dbg_depth(&self, depth: usize) -> ValueDebugStringVc;
+    fn dbg_depth(self: Vc<Self>, depth: usize) -> Vc<ValueDebugString>;
 }
 
 /// Use [autoref specialization] to implement `ValueDebug` for `T: Debug`.
@@ -308,10 +308,10 @@ impl<'a> ValueDebugFormatString<'a> {
         })
     }
 
-    /// Convert the `ValueDebugFormatString` into a `ValueDebugStringVc`.
+    /// Convert the `ValueDebugFormatString` into a `Vc<ValueDebugString>`.
     ///
     /// This can fail when resolving `Vc` types.
-    pub async fn try_to_value_debug_string(self) -> anyhow::Result<ValueDebugStringVc> {
-        Ok(ValueDebugStringVc::new(self.try_to_string().await?))
+    pub async fn try_to_value_debug_string(self) -> anyhow::Result<Vc<ValueDebugString>> {
+        Ok(ValueDebugString::new(self.try_to_string().await?))
     }
 }

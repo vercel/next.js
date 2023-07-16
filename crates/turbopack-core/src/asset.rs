@@ -1,32 +1,31 @@
 use anyhow::Result;
 use indexmap::IndexSet;
-use turbo_tasks::CompletionVc;
+use turbo_tasks::{Completion, Vc};
 use turbo_tasks_fs::{
-    File, FileContent, FileContentVc, FileJsonContent, FileJsonContentVc, FileLinesContent,
-    FileLinesContentVc, FileSystemPathVc, LinkContent, LinkType,
+    FileContent, FileJsonContent, FileLinesContent, FileSystemPath, LinkContent, LinkType,
 };
 
 use crate::{
-    ident::AssetIdentVc,
-    reference::AssetReferencesVc,
-    version::{VersionedAssetContentVc, VersionedContentVc},
+    ident::AssetIdent,
+    reference::AssetReferences,
+    version::{VersionedAssetContent, VersionedContent},
 };
 
 /// A list of [Asset]s
 #[turbo_tasks::value(transparent)]
 #[derive(Hash)]
-pub struct Assets(Vec<AssetVc>);
+pub struct Assets(Vec<Vc<Box<dyn Asset>>>);
 
 /// A set of [Asset]s
 #[turbo_tasks::value(transparent)]
-pub struct AssetsSet(IndexSet<AssetVc>);
+pub struct AssetsSet(IndexSet<Vc<Box<dyn Asset>>>);
 
 #[turbo_tasks::value_impl]
-impl AssetsVc {
+impl Assets {
     /// Creates an empty list of [Asset]s
     #[turbo_tasks::function]
-    pub fn empty() -> Self {
-        AssetsVc::cell(Vec::new())
+    pub fn empty() -> Vc<Self> {
+        Vc::cell(Vec::new())
     }
 }
 
@@ -35,58 +34,45 @@ impl AssetsVc {
 pub trait Asset {
     /// The identifier of the [Asset]. It's expected to be unique and capture
     /// all properties of the [Asset].
-    fn ident(&self) -> AssetIdentVc;
+    fn ident(self: Vc<Self>) -> Vc<AssetIdent>;
 
     /// The content of the [Asset].
-    fn content(&self) -> AssetContentVc;
+    fn content(self: Vc<Self>) -> Vc<AssetContent>;
 
     /// Other things (most likely [Asset]s) referenced from this [Asset].
-    fn references(&self) -> AssetReferencesVc {
-        AssetReferencesVc::empty()
+    fn references(self: Vc<Self>) -> Vc<AssetReferences> {
+        AssetReferences::empty()
     }
 
     /// The content of the [Asset] alongside its version.
-    async fn versioned_content(&self) -> Result<VersionedContentVc> {
-        Ok(VersionedAssetContentVc::new(self.content()).into())
+    async fn versioned_content(self: Vc<Self>) -> Result<Vc<Box<dyn VersionedContent>>> {
+        Ok(Vc::upcast(VersionedAssetContent::new(self.content())))
     }
 }
 
 /// An optional [Asset]
 #[turbo_tasks::value(shared, transparent)]
-pub struct AssetOption(Option<AssetVc>);
+pub struct AssetOption(Option<Vc<Box<dyn Asset>>>);
 
 #[turbo_tasks::value(shared)]
 #[derive(Clone)]
 pub enum AssetContent {
-    File(FileContentVc),
+    File(Vc<FileContent>),
     // for the relative link, the target is raw value read from the link
     // for the absolute link, the target is stripped of the root path while reading
     // See [LinkContent::Link] for more details.
     Redirect { target: String, link_type: LinkType },
 }
 
-impl From<FileContentVc> for AssetContentVc {
-    fn from(content: FileContentVc) -> Self {
-        AssetContent::File(content).cell()
-    }
-}
-
-impl From<FileContent> for AssetContentVc {
-    fn from(content: FileContent) -> Self {
-        AssetContent::File(content.cell()).cell()
-    }
-}
-
-impl From<File> for AssetContentVc {
-    fn from(file: File) -> Self {
-        AssetContent::File(file.into()).cell()
-    }
-}
-
 #[turbo_tasks::value_impl]
-impl AssetContentVc {
+impl AssetContent {
     #[turbo_tasks::function]
-    pub async fn parse_json(self) -> Result<FileJsonContentVc> {
+    pub fn file(file: Vc<FileContent>) -> Vc<Self> {
+        AssetContent::File(file).cell()
+    }
+
+    #[turbo_tasks::function]
+    pub async fn parse_json(self: Vc<Self>) -> Result<Vc<FileJsonContent>> {
         let this = self.await?;
         match &*this {
             AssetContent::File(content) => Ok(content.parse_json()),
@@ -97,7 +83,7 @@ impl AssetContentVc {
     }
 
     #[turbo_tasks::function]
-    pub async fn file_content(self) -> Result<FileContentVc> {
+    pub async fn file_content(self: Vc<Self>) -> Result<Vc<FileContent>> {
         let this = self.await?;
         match &*this {
             AssetContent::File(content) => Ok(*content),
@@ -106,7 +92,7 @@ impl AssetContentVc {
     }
 
     #[turbo_tasks::function]
-    pub async fn lines(self) -> Result<FileLinesContentVc> {
+    pub async fn lines(self: Vc<Self>) -> Result<Vc<FileLinesContent>> {
         let this = self.await?;
         match &*this {
             AssetContent::File(content) => Ok(content.lines()),
@@ -115,7 +101,7 @@ impl AssetContentVc {
     }
 
     #[turbo_tasks::function]
-    pub async fn parse_json_with_comments(self) -> Result<FileJsonContentVc> {
+    pub async fn parse_json_with_comments(self: Vc<Self>) -> Result<Vc<FileJsonContent>> {
         let this = self.await?;
         match &*this {
             AssetContent::File(content) => Ok(content.parse_json_with_comments()),
@@ -126,7 +112,7 @@ impl AssetContentVc {
     }
 
     #[turbo_tasks::function]
-    pub async fn write(self, path: FileSystemPathVc) -> Result<CompletionVc> {
+    pub async fn write(self: Vc<Self>, path: Vc<FileSystemPath>) -> Result<Vc<Completion>> {
         let this = self.await?;
         Ok(match &*this {
             AssetContent::File(file) => path.write(*file),

@@ -1,36 +1,36 @@
-use turbo_tasks::primitives::StringVc;
-use turbo_tasks_fs::FileSystemPathVc;
-use turbopack_core::issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc};
+use turbo_tasks::Vc;
+use turbo_tasks_fs::FileSystemPath;
+use turbopack_core::issue::{Issue, IssueSeverity};
 
 use crate::SpecifiedModuleType;
 
 #[turbo_tasks::value(shared)]
 pub struct SpecifiedModuleTypeIssue {
-    pub path: FileSystemPathVc,
+    pub path: Vc<FileSystemPath>,
     pub specified_type: SpecifiedModuleType,
 }
 
 #[turbo_tasks::value_impl]
 impl Issue for SpecifiedModuleTypeIssue {
     #[turbo_tasks::function]
-    fn context(&self) -> FileSystemPathVc {
+    fn context(&self) -> Vc<FileSystemPath> {
         self.path
     }
 
     #[turbo_tasks::function]
-    fn title(&self) -> StringVc {
+    fn title(&self) -> Vc<String> {
         match self.specified_type {
-            SpecifiedModuleType::CommonJs => StringVc::cell(
+            SpecifiedModuleType::CommonJs => Vc::cell(
                 "Specified module format (CommonJs) is not matching the module format of the \
                  source code (EcmaScript Modules)"
                     .to_string(),
             ),
-            SpecifiedModuleType::EcmaScript => StringVc::cell(
+            SpecifiedModuleType::EcmaScript => Vc::cell(
                 "Specified module format (EcmaScript Modules) is not matching the module format \
                  of the source code (CommonJs)"
                     .to_string(),
             ),
-            SpecifiedModuleType::Automatic => StringVc::cell(
+            SpecifiedModuleType::Automatic => Vc::cell(
                 "Specified module format is not matching the module format of the source code"
                     .to_string(),
             ),
@@ -38,9 +38,9 @@ impl Issue for SpecifiedModuleTypeIssue {
     }
 
     #[turbo_tasks::function]
-    fn description(&self) -> StringVc {
+    fn description(&self) -> Vc<String> {
         match self.specified_type {
-            SpecifiedModuleType::CommonJs => StringVc::cell(
+            SpecifiedModuleType::CommonJs => Vc::cell(
                 "The CommonJs module format was specified in the package.json that is affecting \
                  this source file or by using an special extension, but Ecmascript import/export \
                  syntax is used in the source code.\nThe module was automatically converted to an \
@@ -52,7 +52,7 @@ impl Issue for SpecifiedModuleTypeIssue {
                  correct syntax."
                     .to_string(),
             ),
-            SpecifiedModuleType::EcmaScript => StringVc::cell(
+            SpecifiedModuleType::EcmaScript => Vc::cell(
                 "The EcmaScript module format was specified in the package.json that is affecting \
                  this source file or by using an special extension, but it looks like that \
                  CommonJs syntax is used in the source code.\nExports made by CommonJs syntax \
@@ -61,7 +61,7 @@ impl Issue for SpecifiedModuleTypeIssue {
                  EcmaScript import/export syntax in the source file."
                     .to_string(),
             ),
-            SpecifiedModuleType::Automatic => StringVc::cell(
+            SpecifiedModuleType::Automatic => Vc::cell(
                 "The module format specified in the package.json file is not matching the module \
                  format of the source code."
                     .to_string(),
@@ -70,7 +70,7 @@ impl Issue for SpecifiedModuleTypeIssue {
     }
 
     #[turbo_tasks::function]
-    fn severity(&self) -> IssueSeverityVc {
+    fn severity(&self) -> Vc<IssueSeverity> {
         match self.specified_type {
             SpecifiedModuleType::CommonJs => IssueSeverity::Error.cell(),
             SpecifiedModuleType::EcmaScript => IssueSeverity::Warning.cell(),
@@ -79,7 +79,7 @@ impl Issue for SpecifiedModuleTypeIssue {
     }
 
     #[turbo_tasks::function]
-    fn category(&self) -> StringVc {
-        StringVc::cell("module type".to_string())
+    fn category(&self) -> Vc<String> {
+        Vc::cell("module type".to_string())
     }
 }

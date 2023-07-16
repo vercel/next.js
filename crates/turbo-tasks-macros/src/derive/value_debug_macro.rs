@@ -16,12 +16,12 @@ pub fn derive_value_debug(input: TokenStream) -> TokenStream {
         #[turbo_tasks::value_impl]
         impl turbo_tasks::debug::ValueDebug for #ident {
             #[turbo_tasks::function]
-            async fn dbg(&self) -> anyhow::Result<turbo_tasks::debug::ValueDebugStringVc> {
+            async fn dbg(&self) -> anyhow::Result<turbo_tasks::Vc<turbo_tasks::debug::ValueDebugString>> {
                 self.#value_debug_format_ident(usize::MAX).await
             }
 
             #[turbo_tasks::function]
-            async fn dbg_depth(&self, depth: usize) -> anyhow::Result<turbo_tasks::debug::ValueDebugStringVc> {
+            async fn dbg_depth(&self, depth: usize) -> anyhow::Result<turbo_tasks::Vc<turbo_tasks::debug::ValueDebugString>> {
                 self.#value_debug_format_ident(depth).await
             }
         }

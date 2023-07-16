@@ -9,12 +9,13 @@ use swc_core::{
     },
     quote,
 };
+use turbo_tasks::Vc;
 
 use crate::{
-    chunk::EcmascriptChunkingContextVc,
-    code_gen::{CodeGenerateable, CodeGenerateableVc, CodeGeneration, CodeGenerationVc},
+    chunk::EcmascriptChunkingContext,
+    code_gen::{CodeGenerateable, CodeGeneration},
     create_visitor, magic_identifier,
-    references::AstPathVc,
+    references::AstPath,
 };
 
 /// Makes code changes to remove export/import declarations and places the
@@ -23,13 +24,13 @@ use crate::{
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct EsmModuleItem {
-    pub path: AstPathVc,
+    pub path: Vc<AstPath>,
 }
 
 #[turbo_tasks::value_impl]
-impl EsmModuleItemVc {
+impl EsmModuleItem {
     #[turbo_tasks::function]
-    pub fn new(path: AstPathVc) -> Self {
+    pub fn new(path: Vc<AstPath>) -> Vc<Self> {
         Self::cell(EsmModuleItem { path })
     }
 }
@@ -39,8 +40,8 @@ impl CodeGenerateable for EsmModuleItem {
     #[turbo_tasks::function]
     async fn code_generation(
         &self,
-        _context: EcmascriptChunkingContextVc,
-    ) -> Result<CodeGenerationVc> {
+        _context: Vc<Box<dyn EcmascriptChunkingContext>>,
+    ) -> Result<Vc<CodeGeneration>> {
         let mut visitors = Vec::new();
 
         let path = &self.path.await?;
