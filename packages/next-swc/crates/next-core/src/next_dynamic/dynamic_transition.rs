@@ -1,27 +1,27 @@
 use anyhow::Result;
-use turbo_tasks::Value;
+use turbo_tasks::{Value, Vc};
 use turbopack_binding::turbopack::{
-    core::{module::ModuleVc, reference_type::ReferenceType, source::SourceVc},
+    core::{module::Module, reference_type::ReferenceType, source::Source},
     turbopack::{
-        transition::{ContextTransitionVc, Transition, TransitionVc},
-        ModuleAssetContextVc,
+        transition::{ContextTransition, Transition},
+        ModuleAssetContext,
     },
 };
 
-use super::NextDynamicEntryModuleVc;
+use super::NextDynamicEntryModule;
 
 /// This transition is used to create the marker asset for a next/dynamic
 /// import. This will get picked up during module processing and will be used to
 /// create the dynamic entry, and the dynamic manifest entry.
 #[turbo_tasks::value]
 pub struct NextDynamicTransition {
-    client_transition: ContextTransitionVc,
+    client_transition: Vc<ContextTransition>,
 }
 
 #[turbo_tasks::value_impl]
-impl NextDynamicTransitionVc {
+impl NextDynamicTransition {
     #[turbo_tasks::function]
-    pub fn new(client_transition: ContextTransitionVc) -> Self {
+    pub fn new(client_transition: Vc<ContextTransition>) -> Vc<Self> {
         NextDynamicTransition { client_transition }.cell()
     }
 }
@@ -31,14 +31,14 @@ impl Transition for NextDynamicTransition {
     #[turbo_tasks::function]
     async fn process(
         &self,
-        source: SourceVc,
-        context: ModuleAssetContextVc,
+        source: Vc<Box<dyn Source>>,
+        context: Vc<ModuleAssetContext>,
         _reference_type: Value<ReferenceType>,
-    ) -> Result<ModuleVc> {
+    ) -> Result<Vc<Box<dyn Module>>> {
         let client_module =
             self.client_transition
                 .process(source, context, Value::new(ReferenceType::Undefined));
 
-        Ok(NextDynamicEntryModuleVc::new(client_module).into())
+        Ok(Vc::upcast(NextDynamicEntryModule::new(client_module)))
     }
 }

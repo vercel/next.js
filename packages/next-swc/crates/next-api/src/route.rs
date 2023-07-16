@@ -1,31 +1,30 @@
-use anyhow::Result;
 use indexmap::IndexMap;
-use turbo_tasks::CompletionVc;
+use turbo_tasks::{Completion, Vc};
 
 #[turbo_tasks::value(shared)]
 #[derive(Copy, Clone, Debug)]
 pub enum Route {
     Page {
-        html_endpoint: EndpointVc,
-        data_endpoint: EndpointVc,
+        html_endpoint: Vc<Box<dyn Endpoint>>,
+        data_endpoint: Vc<Box<dyn Endpoint>>,
     },
     PageApi {
-        endpoint: EndpointVc,
+        endpoint: Vc<Box<dyn Endpoint>>,
     },
     AppPage {
-        html_endpoint: EndpointVc,
-        rsc_endpoint: EndpointVc,
+        html_endpoint: Vc<Box<dyn Endpoint>>,
+        rsc_endpoint: Vc<Box<dyn Endpoint>>,
     },
     AppRoute {
-        endpoint: EndpointVc,
+        endpoint: Vc<Box<dyn Endpoint>>,
     },
     Conflict,
 }
 
 #[turbo_tasks::value_trait]
 pub trait Endpoint {
-    fn write_to_disk(&self) -> WrittenEndpointVc;
-    fn changed(&self) -> CompletionVc;
+    fn write_to_disk(self: Vc<Self>) -> Vc<WrittenEndpoint>;
+    fn changed(self: Vc<Self>) -> Vc<Completion>;
 }
 
 #[turbo_tasks::value(shared)]

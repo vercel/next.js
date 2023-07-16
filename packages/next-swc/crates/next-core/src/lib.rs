@@ -3,6 +3,8 @@
 #![feature(async_closure)]
 #![feature(str_split_remainder)]
 #![feature(impl_trait_in_assoc_type)]
+#![feature(arbitrary_self_types)]
+#![feature(async_fn_in_trait)]
 
 mod app_render;
 mod app_segment_config;
@@ -47,9 +49,7 @@ mod web_entry_source;
 
 pub use app_source::create_app_source;
 pub use emit::emit_all_assets;
-pub use next_app::unsupported_dynamic_metadata_issue::{
-    UnsupportedDynamicMetadataIssue, UnsupportedDynamicMetadataIssueVc,
-};
+pub use next_app::unsupported_dynamic_metadata_issue::UnsupportedDynamicMetadataIssue;
 pub use page_loader::create_page_loader_entry_module;
 pub use page_source::create_page_source;
 pub use turbopack_binding::{turbopack::node::source_map, *};

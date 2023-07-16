@@ -7,29 +7,29 @@ use turbo_tasks::{
     debug::ValueDebugFormat,
     graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow},
     trace::TraceRawVcs,
-    TryJoinIterExt,
+    TryJoinIterExt, Vc,
 };
 use turbopack_binding::turbopack::core::{
-    asset::{Asset, AssetVc, AssetsVc},
+    asset::{Asset, Assets},
     reference::AssetReference,
 };
 
 use super::{
-    css_client_reference::css_client_reference_module::CssClientReferenceModuleVc,
-    ecmascript_client_reference::ecmascript_client_reference_module::EcmascriptClientReferenceModuleVc,
+    css_client_reference::css_client_reference_module::CssClientReferenceModule,
+    ecmascript_client_reference::ecmascript_client_reference_module::EcmascriptClientReferenceModule,
 };
-use crate::next_server_component::server_component_module::NextServerComponentModuleVc;
+use crate::next_server_component::server_component_module::NextServerComponentModule;
 
 #[derive(
     Copy, Clone, Eq, PartialEq, Hash, Serialize, Deserialize, Debug, ValueDebugFormat, TraceRawVcs,
 )]
 pub struct ClientReference {
-    server_component: Option<NextServerComponentModuleVc>,
+    server_component: Option<Vc<NextServerComponentModule>>,
     ty: ClientReferenceType,
 }
 
 impl ClientReference {
-    pub fn server_component(&self) -> Option<&NextServerComponentModuleVc> {
+    pub fn server_component(&self) -> Option<&Vc<NextServerComponentModule>> {
         self.server_component.as_ref()
     }
 
@@ -42,17 +42,17 @@ impl ClientReference {
     Copy, Clone, Eq, PartialEq, Hash, Serialize, Deserialize, Debug, ValueDebugFormat, TraceRawVcs,
 )]
 pub enum ClientReferenceType {
-    EcmascriptClientReference(EcmascriptClientReferenceModuleVc),
-    CssClientReference(CssClientReferenceModuleVc),
+    EcmascriptClientReference(Vc<EcmascriptClientReferenceModule>),
+    CssClientReference(Vc<CssClientReferenceModule>),
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct ClientReferencesByEntry(IndexMap<AssetVc, Vec<ClientReference>>);
+pub struct ClientReferencesByEntry(IndexMap<Vc<Box<dyn Asset>>, Vec<ClientReference>>);
 
 #[turbo_tasks::value_impl]
-impl ClientReferencesByEntryVc {
+impl ClientReferencesByEntry {
     #[turbo_tasks::function]
-    pub async fn new(entries: AssetsVc) -> Result<ClientReferencesByEntryVc> {
+    pub async fn new(entries: Vc<Assets>) -> Result<Vc<ClientReferencesByEntry>> {
         let entries = entries.await?;
 
         let graph = AdjacencyMap::new()
@@ -95,7 +95,7 @@ impl ClientReferencesByEntryVc {
             })
             .collect();
 
-        Ok(ClientReferencesByEntryVc::cell(client_references))
+        Ok(Vc::cell(client_references))
     }
 }
 
@@ -103,14 +103,14 @@ struct VisitClientReference;
 
 #[derive(Clone, Eq, PartialEq, Hash)]
 struct VisitClientReferenceNode {
-    server_component: Option<NextServerComponentModuleVc>,
+    server_component: Option<Vc<NextServerComponentModule>>,
     ty: VisitClientReferenceNodeType,
 }
 
 #[derive(Clone, Eq, PartialEq, Hash)]
 enum VisitClientReferenceNodeType {
     ClientReference(ClientReference),
-    Internal(AssetVc),
+    Internal(Vc<Box<dyn Asset>>),
 }
 
 impl Visit<VisitClientReferenceNode> for VisitClientReference {
@@ -149,7 +149,8 @@ impl Visit<VisitClientReferenceNode> for VisitClientReference {
 
                     let referenced_assets = referenced_assets.map(|asset| async move {
                         if let Some(client_reference_asset) =
-                            EcmascriptClientReferenceModuleVc::resolve_from(asset).await?
+                            Vc::try_resolve_downcast_type::<EcmascriptClientReferenceModule>(asset)
+                                .await?
                         {
                             return Ok(VisitClientReferenceNode {
                                 server_component: node.server_component,
@@ -165,7 +166,7 @@ impl Visit<VisitClientReferenceNode> for VisitClientReference {
                         }
 
                         if let Some(css_client_reference_asset) =
-                            CssClientReferenceModuleVc::resolve_from(asset).await?
+                            Vc::try_resolve_downcast_type::<CssClientReferenceModule>(asset).await?
                         {
                             return Ok(VisitClientReferenceNode {
                                 server_component: node.server_component,
@@ -181,7 +182,8 @@ impl Visit<VisitClientReferenceNode> for VisitClientReference {
                         }
 
                         if let Some(server_component_asset) =
-                            NextServerComponentModuleVc::resolve_from(asset).await?
+                            Vc::try_resolve_downcast_type::<NextServerComponentModule>(asset)
+                                .await?
                         {
                             return Ok(VisitClientReferenceNode {
                                 server_component: Some(server_component_asset),
