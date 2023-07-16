@@ -923,10 +923,10 @@ export async function renderToHTMLOrFlight(
         notFoundComponent = {
           children: (
             <>
-              {process.env.NODE_ENV === 'development' && (
-                <meta name="next-error" content="not-found-as-not-found" />
-              )}
               <meta name="robots" content="noindex" />
+              {process.env.NODE_ENV === 'development' && (
+                <meta name="next-error" content="not-found" />
+              )}
               {notFoundStyles}
               <NotFound />
             </>
@@ -1365,12 +1365,6 @@ export async function renderToHTMLOrFlight(
           asNotFound: props.asNotFound,
         })
 
-        const initialTree = createFlightRouterStateFromLoaderTree(
-          loaderTree,
-          getDynamicParamFromSegment,
-          query
-        )
-
         const createMetadata = (tree: LoaderTree, errorType?: 'not-found') => (
           // Adding key={requestId} to make metadata remount for each render
           // @ts-expect-error allow to use async server component
@@ -1385,6 +1379,18 @@ export async function renderToHTMLOrFlight(
           />
         )
 
+        const initialTree = createFlightRouterStateFromLoaderTree(
+          loaderTree,
+          getDynamicParamFromSegment,
+          query
+        )
+
+        const [NotFound, notFoundStyles] = await getNotFound(
+          loaderTree,
+          injectedCSS,
+          pathname
+        )
+
         return (
           <>
             {styles}
@@ -1395,6 +1401,15 @@ export async function renderToHTMLOrFlight(
               initialTree={initialTree}
               initialHead={<>{createMetadata(loaderTree, undefined)}</>}
               globalErrorComponent={GlobalError}
+              notFound={
+                NotFound ? (
+                  <>
+                    {createMetadata(loaderTree, 'not-found')}
+                    {notFoundStyles}
+                    <NotFound />
+                  </>
+                ) : undefined
+              }
             >
               <ComponentTree />
             </AppRouter>
@@ -1482,27 +1497,15 @@ export async function renderToHTMLOrFlight(
             flushedErrorMetaTagsUntilIndex++
           ) {
             const error = serverCapturedErrors[flushedErrorMetaTagsUntilIndex]
-            let hasNotFound = false
-            if (isMetadataError(error)) {
-              // @ts-ignore
-              const digest = error.digest.replace('NEXT_METADATA_ERROR;', '')
-              const parsedError = new Error(digest)
-              // @ts-ignore
-              parsedError.digest = digest
-              if (isNotFoundError(parsedError)) {
-                hasNotFound = true
-              }
-              console.log('hasNotFound', isNotFoundError(parsedError))
-            }
 
             if (isNotFoundError(error)) {
               errorMetaTags.push(
                 <meta name="robots" content="noindex" key={error.digest} />,
-                hasNotFound && process.env.NODE_ENV === 'development' ? (
+                process.env.NODE_ENV === 'development' ? (
                   <meta
                     name="next-error"
                     content="not-found"
-                    key="sih-next-error"
+                    key="next-error"
                   />
                 ) : null
               )
@@ -1609,7 +1612,7 @@ export async function renderToHTMLOrFlight(
 
           let is404 = false
           let isErrorFromMetadata = false
-          // let shouldInheritStreamData = true
+
           if (isMetadataError(err)) {
             const digest = err.digest.replace('NEXT_METADATA_ERROR;', '')
             err.message = digest
@@ -1629,8 +1632,8 @@ export async function renderToHTMLOrFlight(
             is404 = true
             res.statusCode = 404
           }
-          // if (isErrorFromMetadata) shouldInheritStreamData = false
 
+          console.log('is404', is404)
           let hasRedirectError = false
           if (isRedirectError(err)) {
             hasRedirectError = true
@@ -1647,24 +1650,49 @@ export async function renderToHTMLOrFlight(
             res.setHeader('Location', getURLFromRedirectError(err))
           }
 
-          const shouldRenderNewNotFound = is404
-          const shouldInheritStreamData =
-            !shouldRenderNewNotFound && !isErrorFromMetadata
+          async function mergeTransformStreams(
+            transformStream1: TransformStream,
+            transformStream2: TransformStream
+          ) {
+            let reader1 = transformStream1.readable.getReader()
+            let reader2 = transformStream2.readable.getReader()
 
-          console.log(
-            'shouldInheritStreamData',
-            shouldInheritStreamData,
-            'is404',
-            is404,
-            'isErrorFromMetadata',
-            isErrorFromMetadata,
-            'NotFound',
-            NotFound
-          )
+            let currentReader = reader1
 
-          const inheritedServerComponentsRenderOpts = shouldInheritStreamData
-            ? serverComponentsRenderOpts
-            : serverErrorComponentsRenderOpts
+            // const switchReader = () => {
+            //   currentReader = reader2;
+            // };
+
+            let mergedTransformStream = new TransformStream({
+              async start(controller) {
+                while (true) {
+                  const { done, value } = await currentReader.read()
+                  if (done) {
+                    if (currentReader === reader1) {
+                      currentReader = reader2
+                      continue
+                    } else {
+                      return
+                    }
+                  }
+                  controller.enqueue(value)
+                  break
+                }
+              },
+            })
+
+            return mergedTransformStream
+          }
+
+          const shouldInheritStreamData = !(isErrorFromMetadata && is404)
+
+          const inheritedServerComponentsRenderOpts = {
+            ...serverErrorComponentsRenderOpts,
+            transformStream: await mergeTransformStreams(
+              serverComponentsRenderOpts.transformStream,
+              serverErrorComponentsRenderOpts.transformStream
+            ),
+          }
 
           const ErrorPage = createServerComponentRenderer(
             async () => {
@@ -1689,23 +1717,26 @@ export async function renderToHTMLOrFlight(
                   {res.statusCode >= 400 && (
                     <meta name="robots" content="noindex" />
                   )}
-                  {process.env.NODE_ENV === 'development' && is404 && (
+                  {process.env.NODE_ENV === 'development' && (
                     <meta name="next-error" content="not-found" />
                   )}
                 </>
               )
-              return !shouldInheritStreamData ? (
-                <RootLayout params={{}}>
-                  {head}
-                  {is404 ? (
-                    <>
-                      {notFoundStyles}
-                      {NotFound && <NotFound />}
-                    </>
-                  ) : null}
-                </RootLayout>
-              ) : (
+
+              return (
                 <ErrorHtml head={head} />
+                // (!shouldInheritStreamData)
+                //   ? (
+                //     <RootLayout params={{}}>
+                //       {head}
+                //       {is404 ?
+                //         <>
+                //           {notFoundStyles}
+                //           {NotFound && <NotFound />}
+                //         </> : null
+                //       }
+                //     </RootLayout>
+                //   ) : <ErrorHtml head={head} />
               )
             },
             ComponentMod,

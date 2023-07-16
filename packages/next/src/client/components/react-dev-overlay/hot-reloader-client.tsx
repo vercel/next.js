@@ -35,6 +35,7 @@ import {
 } from './internal/helpers/use-websocket'
 import { parseComponentStack } from './internal/helpers/parse-component-stack'
 import type { VersionInfo } from '../../../server/dev/parse-version-info'
+import { isNotFoundError } from '../not-found'
 
 interface Dispatcher {
   onBuildOk(): void
@@ -245,7 +246,6 @@ function processMessage(
     }
   }
 
-  console.log('client:hot-reload', obj.action)
   switch (obj.action) {
     case 'building': {
       console.log('[Fast Refresh] rebuilding')
@@ -420,24 +420,22 @@ function processMessage(
         fetch(window.location.href, {
           credentials: 'same-origin',
         }).then((pageRes) => {
-          let shouldRefresh = pageRes.ok
-          // When re-fetching current page returns 404, and there's no dev mode next-error meta tag,
-          // Then we can refresh the page to load 404 content.
-          // By default if it's returning 200, always refresh
-          if (pageRes.status === 404) {
-            // Check if head present as document.head could be null
-            const devErrorMetaTag = document.head?.querySelector(
-              'meta[name="next-error"]'
-            )
-            shouldRefresh = !devErrorMetaTag
-          }
-          if (shouldRefresh) {
+          if (pageRes.ok) {
             // Page exists now, reload
             startTransition(() => {
               // @ts-ignore it exists, it's just hidden
               router.fastRefresh()
               dispatcher.onRefresh()
             })
+          } else if (pageRes.status === 404) {
+            // Check if head present as document.head could be null
+            // We are still on the page,
+            // dispatch an error so it's caught by the NotFound handler
+            dispatcher.onNotFound()
+            // const devErrorMetaTag = document.head?.querySelector(
+            //   'meta[name="next-error"]'
+            // )
+            // shouldRefresh = true // !devErrorMetaTag
           }
         })
       }
@@ -455,9 +453,11 @@ function processMessage(
 export default function HotReload({
   assetPrefix,
   children,
-}: {
+}: // notFound,
+{
   assetPrefix: string
   children?: ReactNode
+  // notFound?: React.ReactNode
 }) {
   const [state, dispatch] = useReducer(errorOverlayReducer, {
     nextId: 1,
@@ -508,7 +508,9 @@ export default function HotReload({
       frames: parseStack(reason.stack!),
     })
   }, [])
-  const handleOnReactError = useCallback(() => {
+  const handleOnReactError = useCallback((error: Error) => {
+    // not found errors are handled by the parent boundary, not the dev overlay
+    if (isNotFoundError(error)) throw error
     RuntimeErrorHandler.hadRuntimeError = true
   }, [])
   useErrorHandler(handleOnUnhandledError, handleOnUnhandledRejection)
