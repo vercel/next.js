@@ -34,6 +34,7 @@ import {
   PRERENDER_MANIFEST,
   ROUTES_MANIFEST,
 } from '../../../shared/lib/constants'
+import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 
 export type FsOutput = {
   type:
@@ -140,7 +141,8 @@ export async function setupFsCheck(opts: {
     buildId = await fs.readFile(buildIdPath, 'utf8')
 
     try {
-      for (const file of await recursiveReadDir(publicFolderPath, () => true)) {
+      for (let file of await recursiveReadDir(publicFolderPath, () => true)) {
+        file = normalizePathSep(file)
         // ensure filename is encoded
         publicFolderItems.add(encodeURI(file))
       }
@@ -151,10 +153,11 @@ export async function setupFsCheck(opts: {
     }
 
     try {
-      for (const file of await recursiveReadDir(
+      for (let file of await recursiveReadDir(
         legacyStaticFolderPath,
         () => true
       )) {
+        file = normalizePathSep(file)
         // ensure filename is encoded
         legacyStaticFolderItems.add(encodeURI(file))
       }
@@ -168,10 +171,11 @@ export async function setupFsCheck(opts: {
     }
 
     try {
-      for (const file of await recursiveReadDir(
+      for (let file of await recursiveReadDir(
         nextStaticFolderPath,
         () => true
       )) {
+        file = normalizePathSep(file)
         // ensure filename is encoded
         nextStaticFolderItems.add(
           path.posix.join('/_next/static', encodeURI(file))
