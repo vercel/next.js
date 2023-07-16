@@ -2457,7 +2457,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     })
   }
 
-  private async renderErrorToResponseImpl(
+  protected async renderErrorToResponseImpl(
     ctx: RequestContext,
     err: Error | null
   ): Promise<ResponsePayload | null> {
