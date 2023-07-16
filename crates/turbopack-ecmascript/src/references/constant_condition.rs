@@ -1,11 +1,11 @@
 use anyhow::Result;
 use swc_core::quote;
-use turbo_tasks::Value;
+use turbo_tasks::{Value, Vc};
 
-use super::AstPathVc;
+use super::AstPath;
 use crate::{
-    chunk::EcmascriptChunkingContextVc,
-    code_gen::{CodeGenerateable, CodeGenerateableVc, CodeGeneration, CodeGenerationVc},
+    chunk::EcmascriptChunkingContext,
+    code_gen::{CodeGenerateable, CodeGeneration},
     create_visitor,
 };
 
@@ -20,13 +20,13 @@ pub enum ConstantConditionValue {
 #[turbo_tasks::value]
 pub struct ConstantCondition {
     value: ConstantConditionValue,
-    path: AstPathVc,
+    path: Vc<AstPath>,
 }
 
 #[turbo_tasks::value_impl]
-impl ConstantConditionVc {
+impl ConstantCondition {
     #[turbo_tasks::function]
-    pub fn new(value: Value<ConstantConditionValue>, path: AstPathVc) -> Self {
+    pub fn new(value: Value<ConstantConditionValue>, path: Vc<AstPath>) -> Vc<Self> {
         Self::cell(ConstantCondition {
             value: value.into_value(),
             path,
@@ -39,8 +39,8 @@ impl CodeGenerateable for ConstantCondition {
     #[turbo_tasks::function]
     async fn code_generation(
         &self,
-        _context: EcmascriptChunkingContextVc,
-    ) -> Result<CodeGenerationVc> {
+        _context: Vc<Box<dyn EcmascriptChunkingContext>>,
+    ) -> Result<Vc<CodeGeneration>> {
         let value = self.value;
         let visitors = [
             create_visitor!(exact &self.path.await?, visit_mut_expr(expr: &mut Expr) {

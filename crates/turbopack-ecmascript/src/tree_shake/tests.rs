@@ -17,7 +17,9 @@ use swc_core::{
         codegen::text_writer::JsWriter,
         parser::parse_file_as_module,
     },
-    testing::{self, fixture, NormalizedOutput},
+    testing::{
+        fixture, NormalizedOutput, {self},
+    },
 };
 
 use super::{

@@ -1,44 +1,41 @@
 use std::{borrow::Cow, collections::HashSet, fmt::Display};
 
 use anyhow::Result;
-use turbo_tasks::{
-    primitives::{StringReadRef, StringVc},
-    registry, CellId, RawVc, TryJoinIterExt,
-};
-use turbo_tasks_fs::{json::parse_json_with_source_context, File, FileContent};
+use turbo_tasks::{registry, CellId, RawVc, ReadRef, TryJoinIterExt, Vc};
+use turbo_tasks_fs::{json::parse_json_with_source_context, File};
 use turbopack_core::{
     asset::AssetContent,
-    introspect::{Introspectable, IntrospectableChildrenVc, IntrospectableVc},
+    introspect::{Introspectable, IntrospectableChildren},
+    version::VersionedContentExt,
 };
 use turbopack_ecmascript::utils::FormatIter;
 
 use crate::source::{
-    route_tree::{RouteTreeVc, RouteTreesVc, RouteType},
-    ContentSource, ContentSourceContentVc, ContentSourceData, ContentSourceVc,
-    GetContentSourceContent, GetContentSourceContentVc,
+    route_tree::{RouteTree, RouteTrees, RouteType},
+    ContentSource, ContentSourceContent, ContentSourceData, GetContentSourceContent,
 };
 
 #[turbo_tasks::value(shared)]
 pub struct IntrospectionSource {
-    pub roots: HashSet<IntrospectableVc>,
+    pub roots: HashSet<Vc<Box<dyn Introspectable>>>,
 }
 
 #[turbo_tasks::value_impl]
 impl Introspectable for IntrospectionSource {
     #[turbo_tasks::function]
-    fn ty(&self) -> StringVc {
-        StringVc::cell("introspection-source".to_string())
+    fn ty(&self) -> Vc<String> {
+        Vc::cell("introspection-source".to_string())
     }
 
     #[turbo_tasks::function]
-    fn title(&self) -> StringVc {
-        StringVc::cell("introspection-source".to_string())
+    fn title(&self) -> Vc<String> {
+        Vc::cell("introspection-source".to_string())
     }
 
     #[turbo_tasks::function]
-    fn children(&self) -> IntrospectableChildrenVc {
-        let name = StringVc::cell("root".to_string());
-        IntrospectableChildrenVc::cell(self.roots.iter().map(|root| (name, *root)).collect())
+    fn children(&self) -> Vc<IntrospectableChildren> {
+        let name = Vc::cell("root".to_string());
+        Vc::cell(self.roots.iter().map(|root| (name, *root)).collect())
     }
 }
 
@@ -78,10 +75,10 @@ impl<T: Display> Display for HtmlStringEscaped<T> {
 #[turbo_tasks::value_impl]
 impl ContentSource for IntrospectionSource {
     #[turbo_tasks::function]
-    fn get_routes(self_vc: IntrospectionSourceVc) -> RouteTreeVc {
-        RouteTreesVc::cell(vec![
-            RouteTreeVc::new_route(Vec::new(), RouteType::Exact, self_vc.into()),
-            RouteTreeVc::new_route(Vec::new(), RouteType::CatchAll, self_vc.into()),
+    fn get_routes(self: Vc<Self>) -> Vc<RouteTree> {
+        Vc::<RouteTrees>::cell(vec![
+            RouteTree::new_route(Vec::new(), RouteType::Exact, Vc::upcast(self)),
+            RouteTree::new_route(Vec::new(), RouteType::CatchAll, Vc::upcast(self)),
         ])
         .merge()
     }
@@ -91,32 +88,32 @@ impl ContentSource for IntrospectionSource {
 impl GetContentSourceContent for IntrospectionSource {
     #[turbo_tasks::function]
     async fn get(
-        self_vc: IntrospectionSourceVc,
-        path: &str,
+        self: Vc<Self>,
+        path: String,
         _data: turbo_tasks::Value<ContentSourceData>,
-    ) -> Result<ContentSourceContentVc> {
+    ) -> Result<Vc<ContentSourceContent>> {
         // ignore leading slash
         let path = &path[1..];
         let introspectable = if path.is_empty() {
-            let roots = &self_vc.await?.roots;
+            let roots = &self.await?.roots;
             if roots.len() == 1 {
                 *roots.iter().next().unwrap()
             } else {
-                self_vc.as_introspectable()
+                Vc::upcast(self)
             }
         } else {
             parse_json_with_source_context(path)?
         }
         .resolve()
         .await?;
-        let raw_vc: RawVc = introspectable.into();
+        let raw_vc: RawVc = introspectable.node;
         let internal_ty = if let RawVc::TaskCell(_, CellId { type_id, index }) = raw_vc {
             let value_ty = registry::get_value_type(type_id);
             format!("{}#{}", value_ty.name, index)
         } else {
             unreachable!()
         };
-        fn str_or_err(s: &Result<StringReadRef>) -> Cow<'_, str> {
+        fn str_or_err(s: &Result<ReadRef<String>>) -> Cow<'_, str> {
             s.as_ref().map_or_else(
                 |e| Cow::<'_, str>::Owned(format!("ERROR: {:?}", e)),
                 |d| Cow::Borrowed(&**d),
@@ -179,13 +176,13 @@ impl GetContentSourceContent for IntrospectionSource {
             ty = HtmlEscaped(ty),
             children = FormatIter(|| children.iter())
         );
-        Ok(ContentSourceContentVc::static_content(
-            AssetContent::File(
-                FileContent::Content(File::from(html).with_content_type(mime::TEXT_HTML_UTF_8))
-                    .cell(),
+        Ok(ContentSourceContent::static_content(
+            AssetContent::file(
+                File::from(html)
+                    .with_content_type(mime::TEXT_HTML_UTF_8)
+                    .into(),
             )
-            .cell()
-            .into(),
+            .versioned(),
         ))
     }
 }

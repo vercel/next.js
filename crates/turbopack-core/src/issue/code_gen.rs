@@ -1,41 +1,40 @@
-use anyhow::Result;
-use turbo_tasks::primitives::StringVc;
-use turbo_tasks_fs::FileSystemPathVc;
+use turbo_tasks::Vc;
+use turbo_tasks_fs::FileSystemPath;
 
-use super::{Issue, IssueSeverityVc, IssueVc};
+use super::{Issue, IssueSeverity};
 
 #[turbo_tasks::value(shared)]
 pub struct CodeGenerationIssue {
-    pub severity: IssueSeverityVc,
-    pub path: FileSystemPathVc,
-    pub title: StringVc,
-    pub message: StringVc,
+    pub severity: Vc<IssueSeverity>,
+    pub path: Vc<FileSystemPath>,
+    pub title: Vc<String>,
+    pub message: Vc<String>,
 }
 
 #[turbo_tasks::value_impl]
 impl Issue for CodeGenerationIssue {
     #[turbo_tasks::function]
-    fn severity(&self) -> IssueSeverityVc {
+    fn severity(&self) -> Vc<IssueSeverity> {
         self.severity
     }
 
     #[turbo_tasks::function]
-    fn title(&self) -> StringVc {
+    fn title(&self) -> Vc<String> {
         self.title
     }
 
     #[turbo_tasks::function]
-    fn category(&self) -> StringVc {
-        StringVc::cell("code generation".to_string())
+    fn category(&self) -> Vc<String> {
+        Vc::cell("code generation".to_string())
     }
 
     #[turbo_tasks::function]
-    fn context(&self) -> FileSystemPathVc {
+    fn context(&self) -> Vc<FileSystemPath> {
         self.path
     }
 
     #[turbo_tasks::function]
-    fn description(&self) -> StringVc {
+    fn description(&self) -> Vc<String> {
         self.message
     }
 }

@@ -3,50 +3,47 @@ use swc_core::{
     ecma::ast::{Callee, ExprOrSpread},
     quote_expr,
 };
-use turbo_tasks::{primitives::StringVc, Value, ValueToString, ValueToStringVc};
+use turbo_tasks::{Value, ValueToString, Vc};
 use turbopack_core::{
     chunk::{
-        availability_info::AvailabilityInfo, ChunkableModuleReference, ChunkableModuleReferenceVc,
-        ChunkingType, ChunkingTypeOptionVc,
+        availability_info::AvailabilityInfo, ChunkableModuleReference, ChunkingType,
+        ChunkingTypeOption,
     },
-    issue::{IssueSourceVc, OptionIssueSourceVc},
-    reference::{AssetReference, AssetReferenceVc},
+    issue::{IssueSource, OptionIssueSource},
+    reference::AssetReference,
     reference_type::EcmaScriptModulesReferenceSubType,
-    resolve::{origin::ResolveOriginVc, parse::RequestVc, ResolveResultVc},
+    resolve::{origin::ResolveOrigin, parse::Request, ResolveResult},
 };
 
-use super::super::pattern_mapping::{PatternMapping, PatternMappingVc, ResolveType::EsmAsync};
+use super::super::pattern_mapping::{PatternMapping, ResolveType::EsmAsync};
 use crate::{
-    chunk::EcmascriptChunkingContextVc,
-    code_gen::{
-        CodeGenerateableWithAvailabilityInfo, CodeGenerateableWithAvailabilityInfoVc,
-        CodeGeneration, CodeGenerationVc,
-    },
+    chunk::EcmascriptChunkingContext,
+    code_gen::{CodeGenerateableWithAvailabilityInfo, CodeGeneration},
     create_visitor,
-    references::AstPathVc,
+    references::AstPath,
     resolve::{esm_resolve, try_to_severity},
 };
 
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct EsmAsyncAssetReference {
-    pub origin: ResolveOriginVc,
-    pub request: RequestVc,
-    pub path: AstPathVc,
-    pub issue_source: IssueSourceVc,
+    pub origin: Vc<Box<dyn ResolveOrigin>>,
+    pub request: Vc<Request>,
+    pub path: Vc<AstPath>,
+    pub issue_source: Vc<IssueSource>,
     pub in_try: bool,
 }
 
 #[turbo_tasks::value_impl]
-impl EsmAsyncAssetReferenceVc {
+impl EsmAsyncAssetReference {
     #[turbo_tasks::function]
     pub fn new(
-        origin: ResolveOriginVc,
-        request: RequestVc,
-        path: AstPathVc,
-        issue_source: IssueSourceVc,
+        origin: Vc<Box<dyn ResolveOrigin>>,
+        request: Vc<Request>,
+        path: Vc<AstPath>,
+        issue_source: Vc<IssueSource>,
         in_try: bool,
-    ) -> Self {
+    ) -> Vc<Self> {
         Self::cell(EsmAsyncAssetReference {
             origin,
             request,
@@ -60,12 +57,12 @@ impl EsmAsyncAssetReferenceVc {
 #[turbo_tasks::value_impl]
 impl AssetReference for EsmAsyncAssetReference {
     #[turbo_tasks::function]
-    fn resolve_reference(&self) -> ResolveResultVc {
+    fn resolve_reference(&self) -> Vc<ResolveResult> {
         esm_resolve(
             self.origin,
             self.request,
             Default::default(),
-            OptionIssueSourceVc::some(self.issue_source),
+            OptionIssueSource::some(self.issue_source),
             try_to_severity(self.in_try),
         )
     }
@@ -74,8 +71,8 @@ impl AssetReference for EsmAsyncAssetReference {
 #[turbo_tasks::value_impl]
 impl ValueToString for EsmAsyncAssetReference {
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<StringVc> {
-        Ok(StringVc::cell(format!(
+    async fn to_string(&self) -> Result<Vc<String>> {
+        Ok(Vc::cell(format!(
             "dynamic import {}",
             self.request.to_string().await?,
         )))
@@ -85,8 +82,8 @@ impl ValueToString for EsmAsyncAssetReference {
 #[turbo_tasks::value_impl]
 impl ChunkableModuleReference for EsmAsyncAssetReference {
     #[turbo_tasks::function]
-    fn chunking_type(&self) -> ChunkingTypeOptionVc {
-        ChunkingTypeOptionVc::cell(Some(ChunkingType::Async))
+    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
+        Vc::cell(Some(ChunkingType::Async))
     }
 }
 
@@ -95,18 +92,18 @@ impl CodeGenerateableWithAvailabilityInfo for EsmAsyncAssetReference {
     #[turbo_tasks::function]
     async fn code_generation(
         &self,
-        context: EcmascriptChunkingContextVc,
+        context: Vc<Box<dyn EcmascriptChunkingContext>>,
         availability_info: Value<AvailabilityInfo>,
-    ) -> Result<CodeGenerationVc> {
-        let pm = PatternMappingVc::resolve_request(
+    ) -> Result<Vc<CodeGeneration>> {
+        let pm = PatternMapping::resolve_request(
             self.request,
             self.origin,
-            context.into(),
+            Vc::upcast(context),
             esm_resolve(
                 self.origin,
                 self.request,
                 Value::new(EcmaScriptModulesReferenceSubType::Undefined),
-                OptionIssueSourceVc::some(self.issue_source),
+                OptionIssueSource::some(self.issue_source),
                 try_to_severity(self.in_try),
             ),
             Value::new(EsmAsync(availability_info.into_value())),

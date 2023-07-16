@@ -1,4 +1,4 @@
-use crate::asset::{Asset, AssetVc};
+use crate::asset::Asset;
 
 /// An [Asset] that should never be placed into a chunk, but whose references
 /// should still be followed.

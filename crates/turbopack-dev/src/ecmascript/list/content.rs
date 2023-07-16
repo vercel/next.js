@@ -4,38 +4,37 @@ use anyhow::{Context, Result};
 use indexmap::IndexMap;
 use indoc::writedoc;
 use serde::Serialize;
-use turbo_tasks::{IntoTraitRef, TryJoinIterExt};
+use turbo_tasks::{IntoTraitRef, TryJoinIterExt, Vc};
 use turbo_tasks_fs::File;
 use turbopack_core::{
-    asset::{Asset, AssetContentVc},
+    asset::{Asset, AssetContent},
     chunk::ChunkingContext,
-    code_builder::{CodeBuilder, CodeVc},
+    code_builder::{Code, CodeBuilder},
     version::{
-        MergeableVersionedContent, MergeableVersionedContentVc, UpdateVc, VersionVc,
-        VersionedContent, VersionedContentMerger, VersionedContentVc, VersionedContentsVc,
+        MergeableVersionedContent, Update, Version, VersionedContent, VersionedContentMerger,
     },
 };
 use turbopack_ecmascript::utils::StringifyJs;
 
 use super::{
-    asset::{EcmascriptDevChunkListSource, EcmascriptDevChunkListVc},
+    asset::{EcmascriptDevChunkList, EcmascriptDevChunkListSource},
     update::update_chunk_list,
-    version::{EcmascriptDevChunkListVersion, EcmascriptDevChunkListVersionVc},
+    version::EcmascriptDevChunkListVersion,
 };
 
 /// Contents of an [`EcmascriptDevChunkList`].
 #[turbo_tasks::value]
 pub(super) struct EcmascriptDevChunkListContent {
     chunk_list_path: String,
-    pub(super) chunks_contents: IndexMap<String, VersionedContentVc>,
+    pub(super) chunks_contents: IndexMap<String, Vc<Box<dyn VersionedContent>>>,
     source: EcmascriptDevChunkListSource,
 }
 
 #[turbo_tasks::value_impl]
-impl EcmascriptDevChunkListContentVc {
+impl EcmascriptDevChunkListContent {
     /// Creates a new [`EcmascriptDevChunkListContent`].
     #[turbo_tasks::function]
-    pub async fn new(chunk_list: EcmascriptDevChunkListVc) -> Result<Self> {
+    pub async fn new(chunk_list: Vc<EcmascriptDevChunkList>) -> Result<Vc<Self>> {
         let chunk_list_ref = chunk_list.await?;
         let output_root = chunk_list_ref.chunking_context.output_root().await?;
         Ok(EcmascriptDevChunkListContent {
@@ -70,7 +69,7 @@ impl EcmascriptDevChunkListContentVc {
 
     /// Computes the version of this content.
     #[turbo_tasks::function]
-    pub async fn version(self) -> Result<EcmascriptDevChunkListVersionVc> {
+    pub async fn version(self: Vc<Self>) -> Result<Vc<EcmascriptDevChunkListVersion>> {
         let this = self.await?;
 
         let mut by_merger = IndexMap::<_, Vec<_>>::new();
@@ -78,7 +77,8 @@ impl EcmascriptDevChunkListContentVc {
 
         for (chunk_path, chunk_content) in &this.chunks_contents {
             if let Some(mergeable) =
-                MergeableVersionedContentVc::resolve_from(chunk_content).await?
+                Vc::try_resolve_sidecast::<Box<dyn MergeableVersionedContent>>(*chunk_content)
+                    .await?
             {
                 let merger = mergeable.get_merger().resolve().await?;
                 by_merger.entry(merger).or_default().push(*chunk_content);
@@ -98,7 +98,7 @@ impl EcmascriptDevChunkListContentVc {
                     Ok((
                         merger,
                         merger
-                            .merge(VersionedContentsVc::cell(contents))
+                            .merge(Vc::cell(contents))
                             .version()
                             .into_trait_ref()
                             .await?,
@@ -114,7 +114,7 @@ impl EcmascriptDevChunkListContentVc {
     }
 
     #[turbo_tasks::function]
-    pub(super) async fn code(self) -> Result<CodeVc> {
+    pub(super) async fn code(self: Vc<Self>) -> Result<Vc<Code>> {
         let this = self.await?;
 
         let params = EcmascriptDevChunkListParams {
@@ -141,26 +141,28 @@ impl EcmascriptDevChunkListContentVc {
             StringifyJs(&params),
         )?;
 
-        Ok(CodeVc::cell(code.build()))
+        Ok(Code::cell(code.build()))
     }
 }
 
 #[turbo_tasks::value_impl]
 impl VersionedContent for EcmascriptDevChunkListContent {
     #[turbo_tasks::function]
-    async fn content(self_vc: EcmascriptDevChunkListContentVc) -> Result<AssetContentVc> {
-        let code = self_vc.code().await?;
-        Ok(File::from(code.source_code().clone()).into())
+    async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
+        let code = self.code().await?;
+        Ok(AssetContent::file(
+            File::from(code.source_code().clone()).into(),
+        ))
     }
 
     #[turbo_tasks::function]
-    fn version(self_vc: EcmascriptDevChunkListContentVc) -> VersionVc {
-        self_vc.version().into()
+    fn version(self: Vc<Self>) -> Vc<Box<dyn Version>> {
+        Vc::upcast(self.version())
     }
 
     #[turbo_tasks::function]
-    fn update(self_vc: EcmascriptDevChunkListContentVc, from_version: VersionVc) -> UpdateVc {
-        update_chunk_list(self_vc, from_version)
+    fn update(self: Vc<Self>, from_version: Vc<Box<dyn Version>>) -> Vc<Update> {
+        update_chunk_list(self, from_version)
     }
 }
 

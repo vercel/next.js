@@ -1,22 +1,15 @@
 use std::{
     fmt::Debug,
-    future::Future,
     hash::Hash,
-    pin::Pin,
     sync::atomic::{AtomicUsize, Ordering},
 };
 
-use anyhow::{Context, Result};
-
 use crate::{
-    self as turbo_tasks, registry::register_function, task_input::TaskInput, util::SharedError,
-    RawVc,
+    registry::register_function,
+    task::{function::NativeTaskFn, IntoTaskFn, TaskFn},
+    util::SharedError,
+    ConcreteTaskInput, {self as turbo_tasks},
 };
-
-type NativeTaskFuture = Pin<Box<dyn Future<Output = Result<RawVc>> + Send>>;
-type NativeTaskFn = Box<dyn Fn() -> NativeTaskFuture + Send + Sync>;
-type BoundNativeTaskFn =
-    Box<dyn (Fn(&Vec<TaskInput>) -> Result<NativeTaskFn>) + Send + Sync + 'static>;
 
 /// A native (rust) turbo-tasks function. It's used internally by
 /// `#[turbo_tasks::function]`.
@@ -27,7 +20,7 @@ pub struct NativeFunction {
     /// The functor that creates a functor from inputs. The inner functor
     /// handles the task execution.
     #[turbo_tasks(debug_ignore, trace_ignore)]
-    pub bind_fn: BoundNativeTaskFn,
+    pub implementation: Box<dyn TaskFn + Send + Sync + 'static>,
     // TODO move to Task
     /// A counter that tracks total executions of that function
     #[turbo_tasks(debug_ignore, trace_ignore)]
@@ -42,24 +35,23 @@ impl Debug for NativeFunction {
     }
 }
 
-type BindFn = Box<dyn (Fn(&Vec<TaskInput>) -> Result<NativeTaskFn>) + Send + Sync + 'static>;
-
 impl NativeFunction {
-    pub fn new(name: String, bind_fn: BindFn) -> Self {
+    pub fn new<I, Mode, Inputs>(name: String, implementation: I) -> Self
+    where
+        I: IntoTaskFn<Mode, Inputs>,
+    {
         Self {
             name,
-            bind_fn,
+            implementation: Box::new(implementation.into_task_fn()),
             executed_count: AtomicUsize::new(0),
         }
     }
 
     /// Creates a functor for execution from a fixed set of inputs.
-    pub fn bind(&'static self, inputs: &Vec<TaskInput>) -> NativeTaskFn {
-        match (self.bind_fn)(inputs)
-            .with_context(|| format!("Error during argument binding of {}", self.name))
-        {
-            Ok(native_fn) => Box::new(move || {
-                let r = native_fn();
+    pub fn bind(&'static self, inputs: &[ConcreteTaskInput]) -> NativeTaskFn {
+        match (self.implementation).functor(&self.name, inputs) {
+            Ok(functor) => Box::new(move || {
+                let r = (functor)();
                 if cfg!(feature = "log_function_stats") {
                     let count = self.executed_count.fetch_add(1, Ordering::Relaxed);
                     if count > 0 && count % 100000 == 0 {

@@ -11,13 +11,11 @@ use std::{
 use anyhow::{anyhow, Result};
 use crossterm::style::{StyledContent, Stylize};
 use owo_colors::{OwoColorize as _, Style};
-use turbo_tasks::{
-    primitives::BoolVc, RawVc, ReadRef, TransientInstance, TransientValue, TryJoinIterExt,
-};
+use turbo_tasks::{RawVc, ReadRef, TransientInstance, TransientValue, TryJoinIterExt, Vc};
 use turbo_tasks_fs::{source_context::get_source_context, FileLinesContent};
 use turbopack_core::issue::{
-    CapturedIssues, IssueReporter, IssueReporterVc, IssueSeverity, PlainIssue,
-    PlainIssueProcessingPathItem, PlainIssueProcessingPathItemReadRef, PlainIssueSource,
+    CapturedIssues, Issue, IssueReporter, IssueSeverity, PlainIssue, PlainIssueProcessingPathItem,
+    PlainIssueSource,
 };
 
 use crate::source_context::format_source_context_lines;
@@ -80,7 +78,7 @@ fn severity_to_style(severity: IssueSeverity) -> Style {
 }
 
 fn format_source_content(source: &PlainIssueSource, formatted_issue: &mut String) {
-    if let FileLinesContent::Lines(lines) = source.asset.content.lines() {
+    if let FileLinesContent::Lines(lines) = source.asset.content.lines_ref() {
         let start_line = source.start.line;
         let end_line = source.end.line;
         let start_column = source.start.column;
@@ -92,7 +90,7 @@ fn format_source_content(source: &PlainIssueSource, formatted_issue: &mut String
 }
 
 fn format_optional_path(
-    path: &Option<Vec<PlainIssueProcessingPathItemReadRef>>,
+    path: &Option<Vec<ReadRef<PlainIssueProcessingPathItem>>>,
     formatted_issue: &mut String,
 ) -> Result<()> {
     if let Some(path) = path {
@@ -335,9 +333,9 @@ impl PartialEq for ConsoleUi {
 }
 
 #[turbo_tasks::value_impl]
-impl ConsoleUiVc {
+impl ConsoleUi {
     #[turbo_tasks::function]
-    pub fn new(options: TransientInstance<LogOptions>) -> Self {
+    pub fn new(options: TransientInstance<LogOptions>) -> Vc<Self> {
         ConsoleUi {
             options: (*options).clone(),
             seen: Arc::new(Mutex::new(SeenIssues::new())),
@@ -353,7 +351,7 @@ impl IssueReporter for ConsoleUi {
         &self,
         issues: TransientInstance<ReadRef<CapturedIssues>>,
         source: TransientValue<RawVc>,
-    ) -> Result<BoolVc> {
+    ) -> Result<Vc<bool>> {
         let issues = &*issues;
         let LogOptions {
             ref current_dir,
@@ -529,7 +527,7 @@ impl IssueReporter for ConsoleUi {
             }
         }
 
-        Ok(BoolVc::cell(has_fatal))
+        Ok(Vc::cell(has_fatal))
     }
 }
 

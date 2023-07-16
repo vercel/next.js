@@ -1,22 +1,23 @@
 use anyhow::Result;
-use turbo_tasks::primitives::StringVc;
-use turbo_tasks_env::{DotenvProcessEnvVc, EnvMapVc, ProcessEnv, ProcessEnvVc};
-use turbo_tasks_fs::FileSystemPathVc;
+use turbo_tasks::Vc;
+use turbo_tasks_env::{DotenvProcessEnv, EnvMap, ProcessEnv};
+use turbo_tasks_fs::FileSystemPath;
+use turbopack_core::issue::IssueExt;
 
 use crate::ProcessEnvIssue;
 
 #[turbo_tasks::value]
 pub struct TryDotenvProcessEnv {
-    dotenv: DotenvProcessEnvVc,
-    prior: ProcessEnvVc,
-    path: FileSystemPathVc,
+    dotenv: Vc<DotenvProcessEnv>,
+    prior: Vc<Box<dyn ProcessEnv>>,
+    path: Vc<FileSystemPath>,
 }
 
 #[turbo_tasks::value_impl]
-impl TryDotenvProcessEnvVc {
+impl TryDotenvProcessEnv {
     #[turbo_tasks::function]
-    pub fn new(prior: ProcessEnvVc, path: FileSystemPathVc) -> Self {
-        let dotenv = DotenvProcessEnvVc::new(Some(prior), path);
+    pub fn new(prior: Vc<Box<dyn ProcessEnv>>, path: Vc<FileSystemPath>) -> Vc<Self> {
+        let dotenv = DotenvProcessEnv::new(Some(prior), path);
         TryDotenvProcessEnv {
             dotenv,
             prior,
@@ -29,7 +30,7 @@ impl TryDotenvProcessEnvVc {
 #[turbo_tasks::value_impl]
 impl ProcessEnv for TryDotenvProcessEnv {
     #[turbo_tasks::function]
-    async fn read_all(&self) -> Result<EnvMapVc> {
+    async fn read_all(&self) -> Result<Vc<EnvMap>> {
         let dotenv = self.dotenv;
         let prior = dotenv.read_prior();
 
@@ -49,10 +50,9 @@ impl ProcessEnv for TryDotenvProcessEnv {
                     // read_all_with_prior will wrap a current error with a context containing the
                     // failing file, which we don't really care about (we report the filepath as the
                     // Issue context, not the description). So extract the real error.
-                    description: StringVc::cell(e.root_cause().to_string()),
+                    description: Vc::cell(e.root_cause().to_string()),
                 }
                 .cell()
-                .as_issue()
                 .emit();
                 Ok(prior)
             }

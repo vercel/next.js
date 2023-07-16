@@ -1,87 +1,78 @@
 use std::ops::Deref;
 
-use anyhow::Result;
 use auto_hash_map::AutoSet;
-use turbo_tasks::debug::ValueDebugFormat;
+// This specific macro identifier is detected by turbo-tasks-build.
+use turbo_tasks_macros::primitive as __turbo_tasks_internal_primitive;
 
-use crate::{self as turbo_tasks, RawVc, ValueToString, ValueToStringVc};
+use crate::{
+    RawVc, Vc, {self as turbo_tasks},
+};
 
-#[turbo_tasks::value(transparent)]
-pub struct String(std::string::String);
+__turbo_tasks_internal_primitive!(());
+__turbo_tasks_internal_primitive!(String);
 
-#[turbo_tasks::value_impl]
-impl StringVc {
-    #[turbo_tasks::function]
-    pub fn empty() -> Self {
-        Self::cell("".to_string())
+#[turbo_tasks::function]
+fn empty_string() -> Vc<String> {
+    Vc::cell(String::new())
+}
+
+impl Vc<String> {
+    #[inline(always)]
+    pub fn empty() -> Vc<String> {
+        empty_string()
     }
 }
 
-#[turbo_tasks::value(transparent)]
-pub struct OptionU16(Option<u16>);
+__turbo_tasks_internal_primitive!(Option<String>);
+__turbo_tasks_internal_primitive!(Vec<String>);
 
-#[turbo_tasks::value(transparent)]
-pub struct U32(u32);
+#[turbo_tasks::function]
+fn empty_string_vec() -> Vc<Vec<String>> {
+    Vc::cell(Vec::new())
+}
 
-#[turbo_tasks::value(transparent)]
-pub struct U64(u64);
-
-#[turbo_tasks::value_impl]
-impl ValueToString for U64 {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> StringVc {
-        StringVc::cell(self.0.to_string())
+impl Vc<Vec<String>> {
+    #[inline(always)]
+    pub fn empty() -> Vc<Vec<String>> {
+        empty_string_vec()
     }
 }
 
-#[turbo_tasks::value(transparent)]
-pub struct OptionString(Option<std::string::String>);
+__turbo_tasks_internal_primitive!(Option<u16>);
 
-#[turbo_tasks::value_impl]
-impl OptionStringVc {
-    #[turbo_tasks::function]
+#[turbo_tasks::function]
+fn option_string_none() -> Vc<Option<String>> {
+    Vc::cell(None)
+}
+
+impl Vc<Option<String>> {
     pub fn none() -> Self {
-        Self::cell(None)
+        option_string_none()
     }
 }
 
-impl Default for OptionStringVc {
+impl Default for Vc<Option<String>> {
     fn default() -> Self {
         Self::none()
     }
 }
 
-#[turbo_tasks::value(transparent)]
-pub struct Strings(Vec<std::string::String>);
-
-#[turbo_tasks::value_impl]
-impl StringsVc {
-    #[turbo_tasks::function]
-    pub fn empty() -> Self {
-        Self::cell(Vec::new())
-    }
-}
-
-#[turbo_tasks::value(transparent)]
-pub struct Bool(bool);
-
-#[turbo_tasks::value(transparent)]
-pub struct Usize(usize);
-
-#[turbo_tasks::value(transparent)]
-pub struct RawVcSet(AutoSet<RawVc>);
-
-#[derive(ValueDebugFormat)]
-#[turbo_tasks::value(transparent)]
-pub struct JsonValue(pub serde_json::Value);
-
-#[turbo_tasks::value_impl]
-impl ValueToString for JsonValue {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> StringVc {
-        StringVc::cell(self.0.to_string())
-    }
-}
+__turbo_tasks_internal_primitive!(bool);
+__turbo_tasks_internal_primitive!(u8);
+__turbo_tasks_internal_primitive!(u16);
+__turbo_tasks_internal_primitive!(u32);
+__turbo_tasks_internal_primitive!(u64);
+__turbo_tasks_internal_primitive!(u128);
+__turbo_tasks_internal_primitive!(i8);
+__turbo_tasks_internal_primitive!(i16);
+__turbo_tasks_internal_primitive!(i32);
+__turbo_tasks_internal_primitive!(i64);
+__turbo_tasks_internal_primitive!(i128);
+__turbo_tasks_internal_primitive!(usize);
+__turbo_tasks_internal_primitive!(isize);
+__turbo_tasks_internal_primitive!(AutoSet<RawVc>);
+__turbo_tasks_internal_primitive!(serde_json::Value);
+__turbo_tasks_internal_primitive!(Vec<u8>);
 
 #[turbo_tasks::value(transparent, eq = "manual")]
 #[derive(Debug, Clone)]

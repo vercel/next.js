@@ -4,6 +4,8 @@
 #![feature(type_alias_impl_trait)]
 #![feature(assert_matches)]
 #![feature(lint_reasons)]
+#![feature(async_fn_in_trait)]
+#![feature(arbitrary_self_types)]
 
 pub mod asset;
 pub mod changed;
@@ -37,7 +39,7 @@ pub mod version;
 pub mod virtual_source;
 
 pub mod virtual_fs {
-    pub use turbo_tasks_fs::VirtualFileSystemVc;
+    pub use turbo_tasks_fs::VirtualFileSystem;
 }
 
 pub const PROJECT_FILESYSTEM_NAME: &str = "project";

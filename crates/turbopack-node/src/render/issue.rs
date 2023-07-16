@@ -1,40 +1,40 @@
 use anyhow::Result;
-use turbo_tasks::primitives::StringVc;
-use turbo_tasks_fs::FileSystemPathVc;
-use turbopack_core::issue::{Issue, IssueVc};
+use turbo_tasks::Vc;
+use turbo_tasks_fs::FileSystemPath;
+use turbopack_core::issue::Issue;
 
 #[turbo_tasks::value(shared)]
 #[derive(Copy, Clone)]
 pub struct RenderingIssue {
-    pub context: FileSystemPathVc,
-    pub message: StringVc,
+    pub context: Vc<FileSystemPath>,
+    pub message: Vc<String>,
     pub status: Option<i32>,
 }
 
 #[turbo_tasks::value_impl]
 impl Issue for RenderingIssue {
     #[turbo_tasks::function]
-    fn title(&self) -> StringVc {
-        StringVc::cell("Error during SSR Rendering".to_string())
+    fn title(&self) -> Vc<String> {
+        Vc::cell("Error during SSR Rendering".to_string())
     }
 
     #[turbo_tasks::function]
-    fn category(&self) -> StringVc {
-        StringVc::cell("rendering".to_string())
+    fn category(&self) -> Vc<String> {
+        Vc::cell("rendering".to_string())
     }
 
     #[turbo_tasks::function]
-    fn context(&self) -> FileSystemPathVc {
+    fn context(&self) -> Vc<FileSystemPath> {
         self.context
     }
 
     #[turbo_tasks::function]
-    fn description(&self) -> StringVc {
+    fn description(&self) -> Vc<String> {
         self.message
     }
 
     #[turbo_tasks::function]
-    async fn detail(&self) -> Result<StringVc> {
+    async fn detail(&self) -> Result<Vc<String>> {
         let mut details = vec![];
 
         if let Some(status) = self.status {
@@ -43,7 +43,7 @@ impl Issue for RenderingIssue {
             }
         }
 
-        Ok(StringVc::cell(details.join("\n")))
+        Ok(Vc::cell(details.join("\n")))
     }
 
     // TODO parse stack trace into source location

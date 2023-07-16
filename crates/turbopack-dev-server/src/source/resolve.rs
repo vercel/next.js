@@ -8,16 +8,15 @@ use hyper::{
     header::{HeaderName as HyperHeaderName, HeaderValue as HyperHeaderValue},
     Uri,
 };
-use turbo_tasks::{TransientInstance, Value};
+use turbo_tasks::{TransientInstance, Value, Vc};
 
 use super::{
     headers::{HeaderValue, Headers},
     query::Query,
     request::SourceRequest,
-    ContentSourceContent, ContentSourceDataVary, ContentSourceVc, HeaderListVc, ProxyResultVc,
-    RewriteType, StaticContentVc,
+    ContentSource, ContentSourceContent, ContentSourceData, ContentSourceDataVary,
+    GetContentSourceContent, HeaderList, ProxyResult, RewriteType, StaticContent,
 };
-use crate::source::{ContentSource, ContentSourceData, GetContentSourceContent};
 
 /// The result of [`resolve_source_request`]. Similar to a
 /// `ContentSourceContent`, but without the `Rewrite` variant as this is taken
@@ -25,8 +24,8 @@ use crate::source::{ContentSource, ContentSourceData, GetContentSourceContent};
 #[turbo_tasks::value(serialization = "none")]
 pub enum ResolveSourceRequestResult {
     NotFound,
-    Static(StaticContentVc, HeaderListVc),
-    HttpProxy(ProxyResultVc),
+    Static(Vc<StaticContent>, Vc<HeaderList>),
+    HttpProxy(Vc<ProxyResult>),
 }
 
 /// Resolves a [SourceRequest] within a [super::ContentSource], returning the
@@ -39,9 +38,9 @@ pub enum ResolveSourceRequestResult {
 /// any side effect in get should not wait for recomputing of get_routes.
 #[turbo_tasks::function]
 pub async fn resolve_source_request(
-    source: ContentSourceVc,
+    source: Vc<Box<dyn ContentSource>>,
     request: TransientInstance<SourceRequest>,
-) -> Result<ResolveSourceRequestResultVc> {
+) -> Result<Vc<ResolveSourceRequestResult>> {
     let original_path = request.uri.path().to_string();
     // Remove leading slash.
     let mut current_asset_path = urlencoding::decode(&original_path[1..])?.into_owned();
@@ -49,13 +48,13 @@ pub async fn resolve_source_request(
     let mut response_header_overwrites = Vec::new();
     let mut route_tree = source.get_routes().resolve_strongly_consistent().await?;
     'routes: loop {
-        let mut sources = route_tree.get(&current_asset_path);
+        let mut sources = route_tree.get(current_asset_path.clone());
         'sources: loop {
             for get_content in sources.strongly_consistent().await?.iter() {
                 let content_vary = get_content.vary().strongly_consistent().await?;
                 let content_data =
                     request_to_data(&request_overwrites, &request, &content_vary).await?;
-                let content = get_content.get(&current_asset_path, Value::new(content_data));
+                let content = get_content.get(current_asset_path.clone(), Value::new(content_data));
                 match &*content.strongly_consistent().await? {
                     ContentSourceContent::Rewrite(rewrite) => {
                         let rewrite = rewrite.await?;
@@ -109,7 +108,7 @@ pub async fn resolve_source_request(
                     ContentSourceContent::Static(static_content) => {
                         return Ok(ResolveSourceRequestResult::Static(
                             *static_content,
-                            HeaderListVc::new(response_header_overwrites),
+                            HeaderList::new(response_header_overwrites),
                         )
                         .cell());
                     }

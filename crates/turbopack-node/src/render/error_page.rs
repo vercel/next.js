@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use turbo_tasks::primitives::StringVc;
+use turbo_tasks::Vc;
 use turbo_tasks_fs::embed_file;
 
 #[turbo_tasks::function]
@@ -7,10 +7,10 @@ pub(super) async fn error_html(
     status_code: u16,
     title: String,
     details: String,
-) -> Result<StringVc> {
+) -> Result<Vc<String>> {
     let html = create_html(status_code, title, details).await?;
 
-    Ok(StringVc::cell(html))
+    Ok(Vc::cell(html))
 }
 
 #[turbo_tasks::function]
@@ -18,13 +18,13 @@ pub(super) async fn error_html_body(
     status_code: u16,
     title: String,
     details: String,
-) -> Result<StringVc> {
+) -> Result<Vc<String>> {
     let html = create_html(status_code, title, details).await?;
 
     let (_, body) = html.split_once("<body>").context("no body in html")?;
     let (body, _) = body.split_once("</body>").context("no body in html")?;
 
-    Ok(StringVc::cell(body.to_string()))
+    Ok(Vc::cell(body.to_string()))
 }
 
 async fn create_html(status_code: u16, title: String, details: String) -> Result<String> {

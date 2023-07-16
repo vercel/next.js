@@ -1,106 +1,28 @@
 use std::{
     any::{type_name, Any},
     borrow::Cow,
-    fmt::{self, Debug, Display, Formatter},
+    fmt::{
+        Debug, Display, Formatter, {self},
+    },
     hash::Hash,
     sync::Arc,
 };
 
 use auto_hash_map::{AutoMap, AutoSet};
-use nohash_hasher::BuildNoHashHasher;
 use serde::{Deserialize, Serialize};
 
 use crate::{
     id::{FunctionId, TraitTypeId},
     magic_any::{AnyDeserializeSeed, MagicAny, MagicAnyDeserializeSeed},
     registry::{register_trait_type, register_value_type},
-    CollectiblesSource, RawVc, ValueTypeId,
 };
-
-pub trait Typed {
-    type Vc: From<RawVc>;
-
-    fn get_value_type_id() -> ValueTypeId;
-}
-
-pub trait ValueVc:
-    From<RawVc>
-    + Into<RawVc>
-    + CollectiblesSource
-    + Hash
-    + PartialEq
-    + Eq
-    + PartialOrd
-    + Ord
-    + Copy
-    + Clone
-{
-    fn get_value_type_id() -> ValueTypeId;
-    fn get_trait_type_ids() -> Box<dyn Iterator<Item = TraitTypeId>>;
-}
-
-pub trait ValueTraitVc:
-    From<RawVc>
-    + Into<RawVc>
-    + CollectiblesSource
-    + Hash
-    + PartialEq
-    + Eq
-    + PartialOrd
-    + Ord
-    + Copy
-    + Clone
-{
-    fn get_trait_type_id() -> TraitTypeId;
-}
-
-pub trait IntoSuperTrait<T>: ValueTraitVc
-where
-    T: ValueTraitVc,
-{
-    fn into_super_trait(self) -> T;
-}
-
-pub trait FromSubTrait<T>: ValueTraitVc
-where
-    T: ValueTraitVc,
-{
-    fn from_sub_trait(t: T) -> Self;
-}
-
-impl<T, U> IntoSuperTrait<U> for T
-where
-    T: ValueTraitVc,
-    U: ValueTraitVc + FromSubTrait<T>,
-{
-    fn into_super_trait(self) -> U {
-        U::from_sub_trait(self)
-    }
-}
-
-impl<T> FromSubTrait<T> for T
-where
-    T: ValueTraitVc,
-{
-    /// Returns the argument unchanged.
-    #[inline(always)]
-    fn from_sub_trait(t: T) -> T {
-        t
-    }
-}
-
-/// Marker trait that a turbo_tasks::value is prepared for
-/// serialization as Value<...> input.
-/// Either use `#[turbo_tasks::value(serialization: auto_for_input)]`
-/// or avoid Value<...> in favor of a real Vc
-pub trait TypedForInput: Typed {}
 
 type MagicSerializationFn = fn(&dyn MagicAny) -> &dyn erased_serde::Serialize;
 type AnySerializationFn = fn(&(dyn Any + Sync + Send)) -> &dyn erased_serde::Serialize;
 
 // TODO this type need some refactoring when multiple languages are added to
 // turbo-task In this case a trait_method might be of a different function type.
-// It probably need to be a FunctionVc.
+// It probably need to be a Vc<Function>.
 // That's also needed in a distributed world, where the function might be only
 // available on a remote instance.
 
@@ -111,7 +33,7 @@ pub struct ValueType {
     /// A readable name of the type
     pub name: String,
     /// List of traits available
-    pub traits: AutoSet<TraitTypeId, BuildNoHashHasher<TraitTypeId>>,
+    pub traits: AutoSet<TraitTypeId>,
     /// List of trait methods available
     pub trait_methods: AutoMap<(TraitTypeId, Cow<'static, str>), FunctionId>,
 
@@ -173,7 +95,7 @@ impl ValueType {
     pub fn new<T>() -> Self {
         Self {
             name: std::any::type_name::<T>().to_string(),
-            traits: AutoSet::default(),
+            traits: AutoSet::new(),
             trait_methods: AutoMap::new(),
             magic_serialization: None,
             any_serialization: None,
@@ -186,7 +108,7 @@ impl ValueType {
     >() -> Self {
         Self {
             name: std::any::type_name::<T>().to_string(),
-            traits: AutoSet::default(),
+            traits: AutoSet::new(),
             trait_methods: AutoMap::new(),
             magic_serialization: Some((
                 <dyn MagicAny>::as_serialize::<T>,
@@ -202,7 +124,7 @@ impl ValueType {
     >() -> Self {
         Self {
             name: std::any::type_name::<T>().to_string(),
-            traits: AutoSet::default(),
+            traits: AutoSet::new(),
             trait_methods: AutoMap::new(),
             magic_serialization: None,
             any_serialization: Some((any_as_serialize::<T>, AnyDeserializeSeed::new::<T>())),

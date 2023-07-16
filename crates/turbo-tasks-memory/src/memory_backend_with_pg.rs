@@ -27,9 +27,8 @@ use turbo_tasks::{
         ActivateResult, DeactivateResult, PersistResult, PersistTaskState, PersistedGraph,
         PersistedGraphApi, ReadTaskState, TaskCell, TaskData,
     },
-    primitives::RawVcSetVc,
     util::{IdFactory, NoMoveVec, SharedError},
-    CellId, RawVc, TaskId, TraitTypeId, TurboTasksBackendApi, Unused,
+    CellId, RawVc, TaskId, TraitTypeId, TurboTasksBackendApi, Unused, Vc,
 };
 
 type RootTaskFn =
@@ -1434,7 +1433,7 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
         _trait_id: TraitTypeId,
         _reader: TaskId,
         _turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
-    ) -> RawVcSetVc {
+    ) -> Vc<AutoSet<RawVc>> {
         todo!()
     }
 

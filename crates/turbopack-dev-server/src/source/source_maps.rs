@@ -1,22 +1,18 @@
 use anyhow::Result;
 use mime::APPLICATION_JSON;
-use turbo_tasks::{primitives::StringVc, Value};
+use turbo_tasks::{Value, Vc};
 use turbo_tasks_fs::File;
 use turbopack_core::{
-    asset::AssetContentVc,
-    introspect::{Introspectable, IntrospectableVc},
-    source_map::{GenerateSourceMap, GenerateSourceMapVc},
+    asset::AssetContent, introspect::Introspectable, source_map::GenerateSourceMap,
+    version::VersionedContentExt,
 };
 
 use super::{
     query::QueryValue,
-    route_tree::{BaseSegment, RouteTreeVc, RouteType},
-    wrapping_source::{
-        ContentSourceProcessor, ContentSourceProcessorVc, WrappedGetContentSourceContentVc,
-    },
-    ContentSource, ContentSourceContent, ContentSourceContentVc, ContentSourceData,
-    ContentSourceDataFilter, ContentSourceDataVary, ContentSourceDataVaryVc, ContentSourceVc,
-    GetContentSourceContent, GetContentSourceContentVc, GetContentSourceContentsVc, RewriteBuilder,
+    route_tree::{BaseSegment, RouteTree, RouteType},
+    wrapping_source::{ContentSourceProcessor, WrappedGetContentSourceContent},
+    ContentSource, ContentSourceContent, ContentSourceData, ContentSourceDataFilter,
+    ContentSourceDataVary, GetContentSourceContent, RewriteBuilder,
 };
 
 /// SourceMapContentSource allows us to serve full source maps, and individual
@@ -32,13 +28,13 @@ use super::{
 #[turbo_tasks::value(shared)]
 pub struct SourceMapContentSource {
     /// A wrapped content source from which we will fetch assets.
-    asset_source: ContentSourceVc,
+    asset_source: Vc<Box<dyn ContentSource>>,
 }
 
 #[turbo_tasks::value_impl]
-impl SourceMapContentSourceVc {
+impl SourceMapContentSource {
     #[turbo_tasks::function]
-    pub fn new(asset_source: ContentSourceVc) -> SourceMapContentSourceVc {
+    pub fn new(asset_source: Vc<Box<dyn ContentSource>>) -> Vc<SourceMapContentSource> {
         SourceMapContentSource { asset_source }.cell()
     }
 }
@@ -46,15 +42,19 @@ impl SourceMapContentSourceVc {
 #[turbo_tasks::value_impl]
 impl ContentSource for SourceMapContentSource {
     #[turbo_tasks::function]
-    fn get_routes(self_vc: SourceMapContentSourceVc) -> RouteTreeVc {
-        RouteTreeVc::new_route(vec![BaseSegment::Dynamic], RouteType::Exact, self_vc.into())
+    fn get_routes(self: Vc<Self>) -> Vc<RouteTree> {
+        RouteTree::new_route(
+            vec![BaseSegment::Dynamic],
+            RouteType::Exact,
+            Vc::upcast(self),
+        )
     }
 }
 
 #[turbo_tasks::value_impl]
 impl GetContentSourceContent for SourceMapContentSource {
     #[turbo_tasks::function]
-    fn vary(&self) -> ContentSourceDataVaryVc {
+    fn vary(&self) -> Vc<ContentSourceDataVary> {
         ContentSourceDataVary {
             query: Some(ContentSourceDataFilter::Subset(["id".to_string()].into())),
             ..Default::default()
@@ -64,18 +64,18 @@ impl GetContentSourceContent for SourceMapContentSource {
 
     #[turbo_tasks::function]
     async fn get(
-        self_vc: SourceMapContentSourceVc,
-        path: &str,
+        self: Vc<Self>,
+        path: String,
         data: Value<ContentSourceData>,
-    ) -> Result<ContentSourceContentVc> {
+    ) -> Result<Vc<ContentSourceContent>> {
         let pathname = match path.strip_suffix(".map") {
             Some(p) => p,
-            _ => return Ok(ContentSourceContentVc::not_found()),
+            _ => return Ok(ContentSourceContent::not_found()),
         };
 
         let query = match &data.query {
             Some(q) => q,
-            _ => return Ok(ContentSourceContentVc::not_found()),
+            _ => return Ok(ContentSourceContent::not_found()),
         };
 
         let id = match query.get("id") {
@@ -83,30 +83,34 @@ impl GetContentSourceContent for SourceMapContentSource {
             _ => None,
         };
 
-        let sources = self_vc.await?.asset_source.get_routes().get(pathname);
-        let processor = SourceMapContentProcessorVc::new(id).into();
+        let sources = self
+            .await?
+            .asset_source
+            .get_routes()
+            .get(pathname.to_string());
+        let processor = Vc::upcast(SourceMapContentProcessor::new(id));
         let sources = sources
             .await?
             .iter()
-            .map(|s| WrappedGetContentSourceContentVc::new(*s, processor).into())
+            .map(|s| Vc::upcast(WrappedGetContentSourceContent::new(*s, processor)))
             .collect();
-        Ok(ContentSourceContent::Rewrite(
-            RewriteBuilder::new_sources(GetContentSourceContentsVc::cell(sources)).build(),
+        Ok(
+            ContentSourceContent::Rewrite(RewriteBuilder::new_sources(Vc::cell(sources)).build())
+                .cell(),
         )
-        .cell())
     }
 }
 
 #[turbo_tasks::value_impl]
 impl Introspectable for SourceMapContentSource {
     #[turbo_tasks::function]
-    fn ty(&self) -> StringVc {
-        StringVc::cell("source map content source".to_string())
+    fn ty(&self) -> Vc<String> {
+        Vc::cell("source map content source".to_string())
     }
 
     #[turbo_tasks::function]
-    fn details(&self) -> StringVc {
-        StringVc::cell("serves chunk and chunk item source maps".to_string())
+    fn details(&self) -> Vc<String> {
+        Vc::cell("serves chunk and chunk item source maps".to_string())
     }
 }
 
@@ -121,9 +125,9 @@ pub struct SourceMapContentProcessor {
 }
 
 #[turbo_tasks::value_impl]
-impl SourceMapContentProcessorVc {
+impl SourceMapContentProcessor {
     #[turbo_tasks::function]
-    fn new(id: Option<String>) -> Self {
+    fn new(id: Option<String>) -> Vc<Self> {
         SourceMapContentProcessor { id }.cell()
     }
 }
@@ -131,29 +135,33 @@ impl SourceMapContentProcessorVc {
 #[turbo_tasks::value_impl]
 impl ContentSourceProcessor for SourceMapContentProcessor {
     #[turbo_tasks::function]
-    async fn process(&self, content: ContentSourceContentVc) -> Result<ContentSourceContentVc> {
+    async fn process(&self, content: Vc<ContentSourceContent>) -> Result<Vc<ContentSourceContent>> {
         let file = match &*content.await? {
             ContentSourceContent::Static(static_content) => static_content.await?.content,
-            _ => return Ok(ContentSourceContentVc::not_found()),
+            _ => return Ok(ContentSourceContent::not_found()),
         };
 
-        let gen = match GenerateSourceMapVc::resolve_from(file).await? {
+        let gen = match Vc::try_resolve_sidecast::<Box<dyn GenerateSourceMap>>(file).await? {
             Some(f) => f,
-            None => return Ok(ContentSourceContentVc::not_found()),
+            None => return Ok(ContentSourceContent::not_found()),
         };
 
         let sm = if let Some(id) = &self.id {
-            gen.by_section(id).await?
+            gen.by_section(id.clone()).await?
         } else {
             gen.generate_source_map().await?
         };
         let sm = match &*sm {
             Some(sm) => *sm,
-            None => return Ok(ContentSourceContentVc::not_found()),
+            None => return Ok(ContentSourceContent::not_found()),
         };
 
         let content = sm.to_rope().await?;
-        let asset = AssetContentVc::from(File::from(content).with_content_type(APPLICATION_JSON));
-        Ok(ContentSourceContentVc::static_content(asset.into()))
+        let asset = AssetContent::file(
+            File::from(content)
+                .with_content_type(APPLICATION_JSON)
+                .into(),
+        );
+        Ok(ContentSourceContent::static_content(asset.versioned()))
     }
 }

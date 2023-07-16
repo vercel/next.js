@@ -9,31 +9,32 @@ use swc_core::{
         visit::fields::PropField,
     },
 };
+use turbo_tasks::Vc;
 
-use super::EsmAssetReferenceVc;
+use super::EsmAssetReference;
 use crate::{
-    chunk::EcmascriptChunkingContextVc,
-    code_gen::{CodeGenerateable, CodeGenerateableVc, CodeGeneration, CodeGenerationVc},
+    chunk::EcmascriptChunkingContext,
+    code_gen::{CodeGenerateable, CodeGeneration},
     create_visitor,
-    references::AstPathVc,
+    references::AstPath,
 };
 
 #[turbo_tasks::value(shared)]
 #[derive(Hash, Debug)]
 pub struct EsmBinding {
-    pub reference: EsmAssetReferenceVc,
+    pub reference: Vc<EsmAssetReference>,
     pub export: Option<String>,
-    pub ast_path: AstPathVc,
+    pub ast_path: Vc<AstPath>,
 }
 
 #[turbo_tasks::value_impl]
-impl EsmBindingVc {
+impl EsmBinding {
     #[turbo_tasks::function]
     pub fn new(
-        reference: EsmAssetReferenceVc,
+        reference: Vc<EsmAssetReference>,
         export: Option<String>,
-        ast_path: AstPathVc,
-    ) -> Self {
+        ast_path: Vc<AstPath>,
+    ) -> Vc<Self> {
         EsmBinding {
             reference,
             export,
@@ -47,10 +48,10 @@ impl EsmBindingVc {
 impl CodeGenerateable for EsmBinding {
     #[turbo_tasks::function]
     async fn code_generation(
-        self_vc: EsmBindingVc,
-        _context: EcmascriptChunkingContextVc,
-    ) -> Result<CodeGenerationVc> {
-        let this = self_vc.await?;
+        self: Vc<Self>,
+        _context: Vc<Box<dyn EcmascriptChunkingContext>>,
+    ) -> Result<Vc<CodeGeneration>> {
+        let this = self.await?;
         let mut visitors = Vec::new();
         let imported_module = this.reference.get_referenced_asset();
 

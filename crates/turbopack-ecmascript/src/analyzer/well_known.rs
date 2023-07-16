@@ -1,18 +1,19 @@
 use std::mem::take;
 
 use anyhow::Result;
-use turbopack_core::compile_time_info::CompileTimeInfoVc;
+use turbo_tasks::Vc;
+use turbopack_core::compile_time_info::CompileTimeInfo;
 use url::Url;
 
 use super::{
     imports::ImportAnnotations, ConstantValue, JsValue, ModuleValue, WellKnownFunctionKind,
     WellKnownObjectKind,
 };
-use crate::analyzer::RequireContextValueVc;
+use crate::analyzer::RequireContextValue;
 
 pub async fn replace_well_known(
     value: JsValue,
-    compile_time_info: CompileTimeInfoVc,
+    compile_time_info: Vc<CompileTimeInfo>,
 ) -> Result<(JsValue, bool)> {
     Ok(match value {
         JsValue::Call(_, box JsValue::WellKnownFunction(kind), args) => (
@@ -49,7 +50,7 @@ pub async fn well_known_function_call(
     kind: WellKnownFunctionKind,
     _this: JsValue,
     args: Vec<JsValue>,
-    compile_time_info: CompileTimeInfoVc,
+    compile_time_info: Vc<CompileTimeInfo>,
 ) -> Result<JsValue> {
     Ok(match kind {
         WellKnownFunctionKind::ObjectAssign => object_assign(args),
@@ -344,7 +345,7 @@ pub fn require(args: Vec<JsValue>) -> JsValue {
 
 /// (try to) statically evaluate `require.context(...)()`
 pub async fn require_context_require(
-    val: RequireContextValueVc,
+    val: Vc<RequireContextValue>,
     args: Vec<JsValue>,
 ) -> Result<JsValue> {
     if args.is_empty() {
@@ -393,7 +394,7 @@ pub async fn require_context_require(
 
 /// (try to) statically evaluate `require.context(...).keys()`
 pub async fn require_context_require_keys(
-    val: RequireContextValueVc,
+    val: Vc<RequireContextValue>,
     args: Vec<JsValue>,
 ) -> Result<JsValue> {
     Ok(if args.is_empty() {
@@ -414,7 +415,7 @@ pub async fn require_context_require_keys(
 
 /// (try to) statically evaluate `require.context(...).resolve()`
 pub async fn require_context_require_resolve(
-    val: RequireContextValueVc,
+    val: Vc<RequireContextValue>,
     args: Vec<JsValue>,
 ) -> Result<JsValue> {
     if args.len() != 1 {
@@ -535,7 +536,7 @@ pub fn well_known_function_member(kind: WellKnownFunctionKind, prop: JsValue) ->
 pub async fn well_known_object_member(
     kind: WellKnownObjectKind,
     prop: JsValue,
-    compile_time_info: CompileTimeInfoVc,
+    compile_time_info: Vc<CompileTimeInfo>,
 ) -> Result<(JsValue, bool)> {
     let new_value = match kind {
         WellKnownObjectKind::GlobalObject => global_object(prop),
@@ -695,7 +696,7 @@ fn os_module_member(kind: WellKnownObjectKind, prop: JsValue) -> JsValue {
 
 async fn node_process_member(
     prop: JsValue,
-    compile_time_info: CompileTimeInfoVc,
+    compile_time_info: Vc<CompileTimeInfo>,
 ) -> Result<JsValue> {
     Ok(match prop.as_str() {
         Some("arch") => compile_time_info

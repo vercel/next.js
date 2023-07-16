@@ -14,8 +14,8 @@ use turbo_tasks::Value;
 use turbo_tasks_testing::VcStorage;
 use turbopack_core::{
     compile_time_info::CompileTimeInfo,
-    environment::{EnvironmentVc, ExecutionEnvironment, NodeJsEnvironment},
-    target::CompileTargetVc,
+    environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
+    target::CompileTarget,
 };
 use turbopack_ecmascript::analyzer::{
     graph::{create_graph, EvalContext, VarGraph},
@@ -93,10 +93,10 @@ fn bench_link(b: &mut Bencher, input: &BenchInput) {
     b.to_async(rt).iter(|| async {
         for val in input.var_graph.values.values() {
             VcStorage::with(async {
-                let compile_time_info = CompileTimeInfo::builder(EnvironmentVc::new(Value::new(
+                let compile_time_info = CompileTimeInfo::builder(Environment::new(Value::new(
                     ExecutionEnvironment::NodeJsLambda(
                         NodeJsEnvironment {
-                            compile_target: CompileTargetVc::unknown(),
+                            compile_target: CompileTarget::unknown(),
                             ..Default::default()
                         }
                         .into(),

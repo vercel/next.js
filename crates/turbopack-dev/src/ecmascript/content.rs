@@ -2,41 +2,41 @@ use std::io::Write;
 
 use anyhow::{bail, Result};
 use indoc::writedoc;
+use turbo_tasks::Vc;
 use turbo_tasks_fs::File;
 use turbopack_core::{
-    asset::{Asset, AssetContentVc},
+    asset::{Asset, AssetContent},
     chunk::{ChunkingContext, ModuleId},
-    code_builder::{CodeBuilder, CodeVc},
-    source_map::{GenerateSourceMap, GenerateSourceMapVc, OptionSourceMapVc},
+    code_builder::{Code, CodeBuilder},
+    source_map::{GenerateSourceMap, OptionSourceMap},
     version::{
-        MergeableVersionedContent, MergeableVersionedContentVc, UpdateVc, VersionVc,
-        VersionedContent, VersionedContentMergerVc, VersionedContentVc,
+        MergeableVersionedContent, Update, Version, VersionedContent, VersionedContentMerger,
     },
 };
-use turbopack_ecmascript::{chunk::EcmascriptChunkContentVc, utils::StringifyJs};
+use turbopack_ecmascript::{chunk::EcmascriptChunkContent, utils::StringifyJs};
 
 use super::{
-    chunk::EcmascriptDevChunkVc, content_entry::EcmascriptDevChunkContentEntriesVc,
-    merged::merger::EcmascriptDevChunkContentMergerVc, version::EcmascriptDevChunkVersionVc,
+    chunk::EcmascriptDevChunk, content_entry::EcmascriptDevChunkContentEntries,
+    merged::merger::EcmascriptDevChunkContentMerger, version::EcmascriptDevChunkVersion,
 };
-use crate::DevChunkingContextVc;
+use crate::DevChunkingContext;
 
 #[turbo_tasks::value(serialization = "none")]
 pub(super) struct EcmascriptDevChunkContent {
-    pub(super) entries: EcmascriptDevChunkContentEntriesVc,
-    pub(super) chunking_context: DevChunkingContextVc,
-    pub(super) chunk: EcmascriptDevChunkVc,
+    pub(super) entries: Vc<EcmascriptDevChunkContentEntries>,
+    pub(super) chunking_context: Vc<DevChunkingContext>,
+    pub(super) chunk: Vc<EcmascriptDevChunk>,
 }
 
 #[turbo_tasks::value_impl]
-impl EcmascriptDevChunkContentVc {
+impl EcmascriptDevChunkContent {
     #[turbo_tasks::function]
     pub(crate) async fn new(
-        chunking_context: DevChunkingContextVc,
-        chunk: EcmascriptDevChunkVc,
-        content: EcmascriptChunkContentVc,
-    ) -> Result<Self> {
-        let entries = EcmascriptDevChunkContentEntriesVc::new(content)
+        chunking_context: Vc<DevChunkingContext>,
+        chunk: Vc<EcmascriptDevChunk>,
+        content: Vc<EcmascriptChunkContent>,
+    ) -> Result<Vc<Self>> {
+        let entries = EcmascriptDevChunkContentEntries::new(content)
             .resolve()
             .await?;
         Ok(EcmascriptDevChunkContent {
@@ -49,11 +49,11 @@ impl EcmascriptDevChunkContentVc {
 }
 
 #[turbo_tasks::value_impl]
-impl EcmascriptDevChunkContentVc {
+impl EcmascriptDevChunkContent {
     #[turbo_tasks::function]
-    pub(crate) async fn own_version(self) -> Result<EcmascriptDevChunkVersionVc> {
+    pub(crate) async fn own_version(self: Vc<Self>) -> Result<Vc<EcmascriptDevChunkVersion>> {
         let this = self.await?;
-        Ok(EcmascriptDevChunkVersionVc::new(
+        Ok(EcmascriptDevChunkVersion::new(
             this.chunking_context.output_root(),
             this.chunk.ident().path(),
             this.entries,
@@ -61,7 +61,7 @@ impl EcmascriptDevChunkContentVc {
     }
 
     #[turbo_tasks::function]
-    async fn code(self) -> Result<CodeVc> {
+    async fn code(self: Vc<Self>) -> Result<Vc<Code>> {
         let this = self.await?;
         let output_root = this.chunking_context.output_root().await?;
         let chunk_path = this.chunk.ident().path().await?;
@@ -111,18 +111,20 @@ impl EcmascriptDevChunkContentVc {
 #[turbo_tasks::value_impl]
 impl VersionedContent for EcmascriptDevChunkContent {
     #[turbo_tasks::function]
-    async fn content(self_vc: EcmascriptDevChunkContentVc) -> Result<AssetContentVc> {
-        let code = self_vc.code().await?;
-        Ok(File::from(code.source_code().clone()).into())
+    async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
+        let code = self.code().await?;
+        Ok(AssetContent::file(
+            File::from(code.source_code().clone()).into(),
+        ))
     }
 
     #[turbo_tasks::function]
-    fn version(self_vc: EcmascriptDevChunkContentVc) -> VersionVc {
-        self_vc.own_version().into()
+    fn version(self: Vc<Self>) -> Vc<Box<dyn Version>> {
+        Vc::upcast(self.own_version())
     }
 
     #[turbo_tasks::function]
-    fn update(_self_vc: EcmascriptDevChunkContentVc, _from_version: VersionVc) -> Result<UpdateVc> {
+    fn update(self: Vc<Self>, _from_version: Vc<Box<dyn Version>>) -> Result<Vc<Update>> {
         bail!("EcmascriptDevChunkContent is not updateable")
     }
 }
@@ -130,23 +132,23 @@ impl VersionedContent for EcmascriptDevChunkContent {
 #[turbo_tasks::value_impl]
 impl MergeableVersionedContent for EcmascriptDevChunkContent {
     #[turbo_tasks::function]
-    fn get_merger(&self) -> VersionedContentMergerVc {
-        EcmascriptDevChunkContentMergerVc::new().into()
+    fn get_merger(&self) -> Vc<Box<dyn VersionedContentMerger>> {
+        Vc::upcast(EcmascriptDevChunkContentMerger::new())
     }
 }
 
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for EcmascriptDevChunkContent {
     #[turbo_tasks::function]
-    fn generate_source_map(self_vc: EcmascriptDevChunkContentVc) -> OptionSourceMapVc {
-        self_vc.code().generate_source_map()
+    fn generate_source_map(self: Vc<Self>) -> Vc<OptionSourceMap> {
+        self.code().generate_source_map()
     }
 
     #[turbo_tasks::function]
-    async fn by_section(&self, section: &str) -> Result<OptionSourceMapVc> {
+    async fn by_section(&self, section: String) -> Result<Vc<OptionSourceMap>> {
         // Weirdly, the ContentSource will have already URL decoded the ModuleId, and we
         // can't reparse that via serde.
-        if let Ok(id) = ModuleId::parse(section) {
+        if let Ok(id) = ModuleId::parse(&section) {
             for (entry_id, entry) in self.entries.await?.iter() {
                 if id == **entry_id {
                     let sm = entry.code.generate_source_map();
@@ -155,6 +157,6 @@ impl GenerateSourceMap for EcmascriptDevChunkContent {
             }
         }
 
-        Ok(OptionSourceMapVc::cell(None))
+        Ok(Vc::cell(None))
     }
 }

@@ -6,7 +6,9 @@ use std::{
     cell::RefCell,
     cmp::{max, Ordering, Reverse},
     collections::{HashMap, HashSet, VecDeque},
-    fmt::{self, Debug, Display, Formatter, Write},
+    fmt::{
+        Debug, Display, Formatter, Write, {self},
+    },
     future::Future,
     hash::Hash,
     mem::{replace, take},
@@ -24,10 +26,8 @@ use tokio::task_local;
 use turbo_tasks::{
     backend::{PersistentTaskType, TaskExecutionSpec},
     event::{Event, EventListener},
-    get_invalidator,
-    primitives::{RawVcSet, RawVcSetVc},
-    registry, CellId, Invalidator, RawVc, StatsType, TaskId, TraitTypeId, TryJoinIterExt,
-    TurboTasksBackendApi, ValueTypeId,
+    get_invalidator, registry, CellId, Invalidator, RawVc, StatsType, TaskId, TraitTypeId,
+    TryJoinIterExt, TurboTasksBackendApi, ValueTypeId, Vc,
 };
 
 use crate::{
@@ -2269,11 +2269,7 @@ impl Task {
                             read_task_id,
                             &*turbo_tasks,
                         );
-                        // Safety: RawVcSet is a transparent value
-                        unsafe {
-                            RawVc::TaskOutput(task)
-                                .into_transparent_read::<RawVcSet, AutoSet<RawVc>>()
-                        }
+                        RawVc::TaskOutput(task).into_read::<AutoSet<RawVc>>()
                     })
                 })
             })
@@ -2284,7 +2280,7 @@ impl Task {
                 current.add(*v);
             }
         }
-        Ok(RawVcSetVc::cell(current.iter().copied().collect()).into())
+        Ok(Vc::<AutoSet<_>>::cell(current.iter().copied().collect()).node)
     }
 
     pub(crate) fn read_task_collectibles(
@@ -2293,7 +2289,7 @@ impl Task {
         trait_id: TraitTypeId,
         backend: &MemoryBackend,
         turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
-    ) -> RawVcSetVc {
+    ) -> Vc<AutoSet<RawVc>> {
         let task = backend.get_or_create_read_task_collectibles_task(
             self.id,
             trait_id,

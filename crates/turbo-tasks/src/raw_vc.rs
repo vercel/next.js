@@ -21,11 +21,13 @@ use crate::{
         read_task_cell, read_task_cell_untracked, read_task_output, read_task_output_untracked,
         TurboTasksApi,
     },
-    primitives::{RawVcSet, RawVcSetVc},
-    registry::{self, get_value_type},
+    registry::{
+        get_value_type, {self},
+    },
     turbo_tasks,
-    value_type::ValueTraitVc,
-    CollectiblesSource, ReadRef, SharedReference, TaskId, TraitRef, TraitTypeId, ValueTypeId,
+    vc::{cast::VcCast, VcValueTraitCast, VcValueTypeCast},
+    CollectiblesSource, ReadRef, SharedReference, TaskId, TraitTypeId, ValueTypeId, Vc,
+    VcValueTrait, VcValueType,
 };
 
 #[derive(Error, Debug)]
@@ -64,62 +66,39 @@ pub enum RawVc {
 }
 
 impl RawVc {
-    pub fn into_read<T: Any + Send + Sync>(self) -> ReadRawVcFuture<ValueCast<T>> {
+    pub fn into_read<T: VcValueType>(self) -> ReadRawVcFuture<T, VcValueTypeCast<T>> {
         // returns a custom future to have something concrete and sized
         // this avoids boxing in IntoFuture
         ReadRawVcFuture::new(self)
     }
 
-    pub fn into_strongly_consistent_read<T: Any + Send + Sync>(
+    pub fn into_strongly_consistent_read<T: VcValueType>(
         self,
-    ) -> ReadRawVcFuture<ValueCast<T>> {
+    ) -> ReadRawVcFuture<T, VcValueTypeCast<T>> {
         // returns a custom future to have something concrete and sized
         // this avoids boxing in IntoFuture
         ReadRawVcFuture::new_strongly_consistent(self)
     }
 
-    /// # Safety
-    ///
-    /// T and U must be binary identical (#[repr(transparent)])
-    pub unsafe fn into_transparent_read<T: Any + Send + Sync, U: Any + Send + Sync>(
+    pub fn into_trait_read<T: VcValueTrait + ?Sized>(
         self,
-    ) -> ReadRawVcFuture<TransparentValueCast<T, U>> {
+    ) -> ReadRawVcFuture<T, VcValueTraitCast<T>> {
         // returns a custom future to have something concrete and sized
         // this avoids boxing in IntoFuture
-        unsafe { ReadRawVcFuture::new_transparent(self) }
+        ReadRawVcFuture::new(self)
     }
 
-    /// # Safety
-    ///
-    /// T and U must be binary identical (#[repr(transparent)])
-    pub unsafe fn into_transparent_strongly_consistent_read<
-        T: Any + Send + Sync,
-        U: Any + Send + Sync,
-    >(
+    pub fn into_strongly_consistent_trait_read<T: VcValueTrait + Sized>(
         self,
-    ) -> ReadRawVcFuture<TransparentValueCast<T, U>> {
+    ) -> ReadRawVcFuture<T, VcValueTraitCast<T>> {
         // returns a custom future to have something concrete and sized
         // this avoids boxing in IntoFuture
-        unsafe { ReadRawVcFuture::new_transparent_strongly_consistent(self) }
-    }
-
-    pub fn into_trait_read<T>(self) -> ReadRawVcFuture<TraitCast<T>>
-    where
-        T: ValueTraitVc,
-    {
-        ReadRawVcFuture::new_trait(self)
-    }
-
-    pub fn into_strongly_consistent_trait_read<T>(self) -> ReadRawVcFuture<TraitCast<T>>
-    where
-        T: ValueTraitVc,
-    {
-        ReadRawVcFuture::new_trait_strongly_consistent(self)
+        ReadRawVcFuture::new_strongly_consistent(self)
     }
 
     /// INVALIDATION: Be careful with this, it will not track dependencies, so
     /// using it could break cache invalidation.
-    pub async fn into_read_untracked<T: Any + Send + Sync>(
+    pub async fn into_read_untracked<T: Any + VcValueType>(
         self,
         turbo_tasks: &dyn TurboTasksApi,
     ) -> Result<ReadRef<T>> {
@@ -130,7 +109,7 @@ impl RawVc {
 
     /// INVALIDATION: Be careful with this, it will not track dependencies, so
     /// using it could break cache invalidation.
-    pub async fn into_strongly_consistent_read_untracked<T: Any + Send + Sync>(
+    pub async fn into_strongly_consistent_read_untracked<T: Any + VcValueType>(
         self,
         turbo_tasks: &dyn TurboTasksApi,
     ) -> Result<ReadRef<T>> {
@@ -245,15 +224,7 @@ impl RawVc {
         }
     }
 
-    /// Resolve the reference until it points to a cell directly.
-    ///
-    /// Resolving will wait for task execution to be finished, so that the
-    /// returned Vc points to a cell that stores a value.
-    ///
-    /// Resolving is necessary to compare identities of Vcs.
-    ///
-    /// This is async and will rethrow any fatal error that happened during task
-    /// execution.
+    /// See [`crate::Vc::resolve`].
     pub async fn resolve(self) -> Result<RawVc> {
         let tt = turbo_tasks();
         let mut current = self;
@@ -271,17 +242,7 @@ impl RawVc {
             }
         }
     }
-
-    /// Resolve the reference until it points to a cell directly in a strongly
-    /// consistent way.
-    ///
-    /// Resolving will wait for task execution to be finished, so that the
-    /// returned Vc points to a cell that stores a value.
-    ///
-    /// Resolving is necessary to compare identities of Vcs.
-    ///
-    /// This is async and will rethrow any fatal error that happened during task
-    /// execution.
+    /// See [`crate::Vc::resolve_strongly_consistent`].
     pub async fn resolve_strongly_consistent(self) -> Result<RawVc> {
         let tt = turbo_tasks();
         let mut current = self;
@@ -320,10 +281,11 @@ impl RawVc {
 }
 
 impl CollectiblesSource for RawVc {
-    fn peek_collectibles<T: ValueTraitVc>(self) -> CollectiblesFuture<T> {
+    fn peek_collectibles<T: VcValueTrait>(self) -> CollectiblesFuture<T> {
         let tt = turbo_tasks();
         tt.notify_scheduled_tasks();
-        let set: RawVcSetVc = tt.read_task_collectibles(self.get_task_id(), T::get_trait_type_id());
+        let set: Vc<AutoSet<RawVc>> =
+            tt.read_task_collectibles(self.get_task_id(), T::get_trait_type_id());
         CollectiblesFuture {
             turbo_tasks: tt,
             inner: set.into_future(),
@@ -332,10 +294,11 @@ impl CollectiblesSource for RawVc {
         }
     }
 
-    fn take_collectibles<T: ValueTraitVc>(self) -> CollectiblesFuture<T> {
+    fn take_collectibles<T: VcValueTrait>(self) -> CollectiblesFuture<T> {
         let tt = turbo_tasks();
         tt.notify_scheduled_tasks();
-        let set: RawVcSetVc = tt.read_task_collectibles(self.get_task_id(), T::get_trait_type_id());
+        let set: Vc<AutoSet<RawVc>> =
+            tt.read_task_collectibles(self.get_task_id(), T::get_trait_type_id());
         CollectiblesFuture {
             turbo_tasks: tt,
             inner: set.into_future(),
@@ -358,21 +321,16 @@ impl Display for RawVc {
     }
 }
 
-pub struct ReadRawVcFuture<C>
-where
-    C: Cast,
-{
+pub struct ReadRawVcFuture<T: ?Sized, Cast = VcValueTypeCast<T>> {
     turbo_tasks: Arc<dyn TurboTasksApi>,
     strongly_consistent: bool,
     current: RawVc,
     listener: Option<EventListener>,
-    _cast: C,
+    phantom_data: PhantomData<Pin<Box<T>>>,
+    _cast: PhantomData<Cast>,
 }
 
-impl<T> ReadRawVcFuture<ValueCast<T>>
-where
-    T: Any + Send + Sync,
-{
+impl<T: ?Sized, Cast: VcCast> ReadRawVcFuture<T, Cast> {
     fn new(vc: RawVc) -> Self {
         let tt = turbo_tasks();
         tt.notify_scheduled_tasks();
@@ -381,9 +339,8 @@ where
             strongly_consistent: false,
             current: vc,
             listener: None,
-            _cast: ValueCast {
-                _phantom: PhantomData,
-            },
+            phantom_data: PhantomData,
+            _cast: PhantomData,
         }
     }
 
@@ -395,90 +352,14 @@ where
             strongly_consistent: true,
             current: vc,
             listener: None,
-            _cast: ValueCast {
-                _phantom: PhantomData,
-            },
+            phantom_data: PhantomData,
+            _cast: PhantomData,
         }
     }
 }
 
-impl<T, U> ReadRawVcFuture<TransparentValueCast<T, U>>
-where
-    T: Any + Send + Sync,
-{
-    /// # Safety
-    ///
-    /// T and U must be binary identical (#[repr(transparent)])
-    unsafe fn new_transparent(vc: RawVc) -> Self {
-        let tt = turbo_tasks();
-        tt.notify_scheduled_tasks();
-        ReadRawVcFuture {
-            turbo_tasks: tt,
-            strongly_consistent: false,
-            current: vc,
-            listener: None,
-            _cast: TransparentValueCast {
-                _phantom: PhantomData,
-            },
-        }
-    }
-
-    /// # Safety
-    ///
-    /// T and U must be binary identical (#[repr(transparent)])
-    unsafe fn new_transparent_strongly_consistent(vc: RawVc) -> Self {
-        let tt = turbo_tasks();
-        tt.notify_scheduled_tasks();
-        ReadRawVcFuture {
-            turbo_tasks: tt,
-            strongly_consistent: true,
-            current: vc,
-            listener: None,
-            _cast: TransparentValueCast {
-                _phantom: PhantomData,
-            },
-        }
-    }
-}
-
-impl<T> ReadRawVcFuture<TraitCast<T>>
-where
-    T: ValueTraitVc,
-{
-    fn new_trait(vc: RawVc) -> Self {
-        let tt = turbo_tasks();
-        tt.notify_scheduled_tasks();
-        ReadRawVcFuture {
-            turbo_tasks: tt,
-            strongly_consistent: false,
-            current: vc,
-            listener: None,
-            _cast: TraitCast {
-                _phantom: PhantomData,
-            },
-        }
-    }
-
-    fn new_trait_strongly_consistent(vc: RawVc) -> Self {
-        let tt = turbo_tasks();
-        tt.notify_scheduled_tasks();
-        ReadRawVcFuture {
-            turbo_tasks: tt,
-            strongly_consistent: true,
-            current: vc,
-            listener: None,
-            _cast: TraitCast {
-                _phantom: PhantomData,
-            },
-        }
-    }
-}
-
-impl<C> Future for ReadRawVcFuture<C>
-where
-    C: Cast,
-{
-    type Output = Result<C::Output>;
+impl<T: ?Sized, Cast: VcCast> Future for ReadRawVcFuture<T, Cast> {
+    type Output = Result<Cast::Output>;
 
     fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
         self.turbo_tasks.notify_scheduled_tasks();
@@ -509,7 +390,8 @@ where
                 RawVc::TaskCell(task, index) => {
                     match this.turbo_tasks.try_read_task_cell(task, index) {
                         Ok(Ok(content)) => {
-                            return Poll::Ready(C::cast(content));
+                            // SAFETY: Constructor ensures that T and U are binary identical
+                            return Poll::Ready(Cast::cast(content));
                         }
                         Ok(Err(listener)) => listener,
                         Err(err) => return Poll::Ready(Err(err)),
@@ -528,60 +410,10 @@ where
     }
 }
 
-/// Trait defined to share behavior between values and traits within
-/// [`ReadRawVcFuture`]. See [`ValueCast`] and [`TraitCast`].
-///
-/// This should not be implemented by users.
-pub trait Cast {
-    type Output;
+unsafe impl<T, Cast> Send for ReadRawVcFuture<T, Cast> where T: ?Sized {}
+unsafe impl<T, Cast> Sync for ReadRawVcFuture<T, Cast> where T: ?Sized {}
 
-    fn cast(content: CellContent) -> Result<Self::Output>;
-}
-
-/// Casts an arbitrary cell content into a [`ReadRef<T, U>`].
-pub struct ValueCast<T> {
-    _phantom: PhantomData<T>,
-}
-
-impl<T: Any + Send + Sync> Cast for ValueCast<T> {
-    type Output = ReadRef<T, T>;
-
-    fn cast(content: CellContent) -> Result<Self::Output> {
-        content.cast::<T>()
-    }
-}
-
-/// Casts an arbitrary cell content into a [`ReadRef<T, U>`].
-pub struct TransparentValueCast<T, U = T> {
-    _phantom: PhantomData<(T, U)>,
-}
-
-impl<T: Any + Send + Sync, U> Cast for TransparentValueCast<T, U> {
-    type Output = ReadRef<T, U>;
-
-    fn cast(content: CellContent) -> Result<Self::Output> {
-        // Safety: Constructor ensures that T and U are binary identical
-        unsafe { content.cast_transparent::<T, U>() }
-    }
-}
-
-/// Casts an arbitrary cell content into a [`TraitRef<T>`].
-pub struct TraitCast<T> {
-    _phantom: PhantomData<T>,
-}
-
-impl<T> Cast for TraitCast<T>
-where
-    T: ValueTraitVc,
-{
-    type Output = TraitRef<T>;
-
-    fn cast(content: CellContent) -> Result<Self::Output> {
-        // Safety: Constructor ensures the cell content points to a value that
-        // implements T
-        content.cast_trait::<T>()
-    }
-}
+impl<T, Cast> Unpin for ReadRawVcFuture<T, Cast> where T: ?Sized {}
 
 #[derive(Error, Debug)]
 #[error("Unable to read collectibles")]
@@ -589,22 +421,22 @@ pub struct ReadCollectiblesError {
     source: anyhow::Error,
 }
 
-pub struct CollectiblesFuture<T: ValueTraitVc> {
+pub struct CollectiblesFuture<T: VcValueTrait> {
     turbo_tasks: Arc<dyn TurboTasksApi>,
-    inner: ReadRawVcFuture<TransparentValueCast<RawVcSet, AutoSet<RawVc>>>,
+    inner: ReadRawVcFuture<AutoSet<RawVc>>,
     take: bool,
     phantom: PhantomData<fn() -> T>,
 }
 
-impl<T: ValueTraitVc> CollectiblesFuture<T> {
+impl<T: VcValueTrait> CollectiblesFuture<T> {
     pub fn strongly_consistent(mut self) -> Self {
         self.inner.strongly_consistent = true;
         self
     }
 }
 
-impl<T: ValueTraitVc> Future for CollectiblesFuture<T> {
-    type Output = Result<AutoSet<T>>;
+impl<T: VcValueTrait> Future for CollectiblesFuture<T> {
+    type Output = Result<AutoSet<Vc<T>>>;
 
     fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
         // SAFETY: we are not moving `this`

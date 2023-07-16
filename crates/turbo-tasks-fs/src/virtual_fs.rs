@@ -1,29 +1,27 @@
 use anyhow::{bail, Result};
-use turbo_tasks::{primitives::StringVc, CompletionVc, ValueToString, ValueToStringVc};
+use turbo_tasks::{Completion, ValueDefault, ValueToString, Vc};
 
-use super::{
-    DirectoryContentVc, FileContentVc, FileMetaVc, FileSystem, FileSystemPathVc, FileSystemVc,
-    LinkContentVc,
-};
+use super::{DirectoryContent, FileContent, FileMeta, FileSystem, FileSystemPath, LinkContent};
 
 #[turbo_tasks::value]
 pub struct VirtualFileSystem;
 
-impl VirtualFileSystemVc {
-    /// Creates a new [`VirtualFileSystemVc`].
+impl VirtualFileSystem {
+    /// Creates a new [`Vc<VirtualFileSystem>`].
     ///
     /// NOTE: This function is not a `turbo_tasks::function` to avoid instances
-    /// being equivalent identity-wise. This ensures that a [`FileSystemPathVc`]
-    /// created from this [`VirtualFileSystemVc`] will never be equivalent,
-    /// nor be interoperable, with a [`FileSystemPathVc`] created from another
-    /// [`VirtualFileSystemVc`].
-    pub fn new() -> Self {
+    /// being equivalent identity-wise. This ensures that a
+    /// [`Vc<FileSystemPath>`] created from this [`Vc<VirtualFileSystem>`]
+    /// will never be equivalent, nor be interoperable, with a
+    /// [`Vc<FileSystemPath>`] created from another
+    /// [`Vc<VirtualFileSystem>`].
+    pub fn new() -> Vc<Self> {
         Self::cell(VirtualFileSystem)
     }
 }
 
-impl Default for VirtualFileSystemVc {
-    fn default() -> Self {
+impl ValueDefault for VirtualFileSystem {
+    fn value_default() -> Vc<Self> {
         Self::new()
     }
 }
@@ -31,41 +29,45 @@ impl Default for VirtualFileSystemVc {
 #[turbo_tasks::value_impl]
 impl FileSystem for VirtualFileSystem {
     #[turbo_tasks::function]
-    fn read(&self, _fs_path: FileSystemPathVc) -> Result<FileContentVc> {
+    fn read(&self, _fs_path: Vc<FileSystemPath>) -> Result<Vc<FileContent>> {
         bail!("Reading is not possible on the virtual file system")
     }
 
     #[turbo_tasks::function]
-    fn read_link(&self, _fs_path: FileSystemPathVc) -> Result<LinkContentVc> {
+    fn read_link(&self, _fs_path: Vc<FileSystemPath>) -> Result<Vc<LinkContent>> {
         bail!("Reading is not possible on the virtual file system")
     }
 
     #[turbo_tasks::function]
-    fn read_dir(&self, _fs_path: FileSystemPathVc) -> Result<DirectoryContentVc> {
+    fn read_dir(&self, _fs_path: Vc<FileSystemPath>) -> Result<Vc<DirectoryContent>> {
         bail!("Reading is not possible on the virtual file system")
     }
 
     #[turbo_tasks::function]
-    fn track(&self, _fs_path: FileSystemPathVc) -> Result<CompletionVc> {
+    fn track(&self, _fs_path: Vc<FileSystemPath>) -> Result<Vc<Completion>> {
         bail!("Tracking is not possible on the virtual file system")
     }
 
     #[turbo_tasks::function]
-    fn write(&self, _fs_path: FileSystemPathVc, _content: FileContentVc) -> Result<CompletionVc> {
+    fn write(
+        &self,
+        _fs_path: Vc<FileSystemPath>,
+        _content: Vc<FileContent>,
+    ) -> Result<Vc<Completion>> {
         bail!("Writing is not possible on the virtual file system")
     }
 
     #[turbo_tasks::function]
     fn write_link(
         &self,
-        _fs_path: FileSystemPathVc,
-        _target: LinkContentVc,
-    ) -> Result<CompletionVc> {
+        _fs_path: Vc<FileSystemPath>,
+        _target: Vc<LinkContent>,
+    ) -> Result<Vc<Completion>> {
         bail!("Writing is not possible on the virtual file system")
     }
 
     #[turbo_tasks::function]
-    fn metadata(&self, _fs_path: FileSystemPathVc) -> Result<FileMetaVc> {
+    fn metadata(&self, _fs_path: Vc<FileSystemPath>) -> Result<Vc<FileMeta>> {
         bail!("Reading is not possible on the virtual file system")
     }
 }
@@ -73,7 +75,7 @@ impl FileSystem for VirtualFileSystem {
 #[turbo_tasks::value_impl]
 impl ValueToString for VirtualFileSystem {
     #[turbo_tasks::function]
-    fn to_string(&self) -> StringVc {
-        StringVc::cell("virtual file system".to_string())
+    fn to_string(&self) -> Vc<String> {
+        Vc::cell("virtual file system".to_string())
     }
 }

@@ -1,15 +1,15 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::trace::TraceRawVcs;
+use turbo_tasks::{trace::TraceRawVcs, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    reference_type::ReferenceType, source::SourceVc, source_transform::SourceTransformsVc,
+    reference_type::ReferenceType, source::Source, source_transform::SourceTransforms,
 };
-use turbopack_css::{CssInputTransformsVc, CssModuleAssetType};
-use turbopack_ecmascript::{EcmascriptInputTransformsVc, EcmascriptOptions};
-use turbopack_mdx::MdxTransformOptionsVc;
+use turbopack_css::{CssInputTransforms, CssModuleAssetType};
+use turbopack_ecmascript::{EcmascriptInputTransforms, EcmascriptOptions};
+use turbopack_mdx::MdxTransformOptions;
 
-use super::{CustomModuleTypeVc, ModuleRuleCondition};
+use super::{CustomModuleType, ModuleRuleCondition};
 
 #[derive(Debug, Clone, Serialize, Deserialize, TraceRawVcs, PartialEq, Eq)]
 pub struct ModuleRule {
@@ -71,7 +71,7 @@ impl ModuleRule {
 
     pub async fn matches(
         &self,
-        source: SourceVc,
+        source: Vc<Box<dyn Source>>,
         path: &FileSystemPath,
         reference_type: &ReferenceType,
     ) -> Result<bool> {
@@ -84,45 +84,45 @@ impl ModuleRule {
 #[derive(Debug, Clone)]
 pub enum ModuleRuleEffect {
     ModuleType(ModuleType),
-    AddEcmascriptTransforms(EcmascriptInputTransformsVc),
-    SourceTransforms(SourceTransformsVc),
+    AddEcmascriptTransforms(Vc<EcmascriptInputTransforms>),
+    SourceTransforms(Vc<SourceTransforms>),
 }
 
 #[turbo_tasks::value(serialization = "auto_for_input", shared)]
 #[derive(PartialOrd, Ord, Hash, Debug, Copy, Clone)]
 pub enum ModuleType {
     Ecmascript {
-        transforms: EcmascriptInputTransformsVc,
+        transforms: Vc<EcmascriptInputTransforms>,
         #[turbo_tasks(trace_ignore)]
         options: EcmascriptOptions,
     },
     Typescript {
-        transforms: EcmascriptInputTransformsVc,
+        transforms: Vc<EcmascriptInputTransforms>,
         #[turbo_tasks(trace_ignore)]
         options: EcmascriptOptions,
     },
     TypescriptWithTypes {
-        transforms: EcmascriptInputTransformsVc,
+        transforms: Vc<EcmascriptInputTransforms>,
         #[turbo_tasks(trace_ignore)]
         options: EcmascriptOptions,
     },
     TypescriptDeclaration {
-        transforms: EcmascriptInputTransformsVc,
+        transforms: Vc<EcmascriptInputTransforms>,
         #[turbo_tasks(trace_ignore)]
         options: EcmascriptOptions,
     },
     Json,
     Raw,
     Mdx {
-        transforms: EcmascriptInputTransformsVc,
-        options: MdxTransformOptionsVc,
+        transforms: Vc<EcmascriptInputTransforms>,
+        options: Vc<MdxTransformOptions>,
     },
     CssGlobal,
     CssModule,
     Css {
         ty: CssModuleAssetType,
-        transforms: CssInputTransformsVc,
+        transforms: Vc<CssInputTransforms>,
     },
     Static,
-    Custom(CustomModuleTypeVc),
+    Custom(Vc<Box<dyn CustomModuleType>>),
 }

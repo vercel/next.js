@@ -1,22 +1,22 @@
 use anyhow::Result;
-use turbo_tasks::{primitives::StringVc, ReadRef, TryJoinIterExt};
+use turbo_tasks::{ReadRef, TryJoinIterExt, Vc};
 use turbo_tasks_hash::{encode_hex, Xxh3Hash64Hasher};
-use turbopack_core::version::{Version, VersionVc};
+use turbopack_core::version::Version;
 
-use super::super::version::EcmascriptDevChunkVersionReadRef;
+use super::super::version::EcmascriptDevChunkVersion;
 
 /// The version of a [`super::content::EcmascriptMergedChunkContent`]. This is
 /// essentially a composite [`EcmascriptChunkVersion`].
 #[turbo_tasks::value(serialization = "none", shared)]
 pub(super) struct EcmascriptDevMergedChunkVersion {
     #[turbo_tasks(trace_ignore)]
-    pub(super) versions: Vec<EcmascriptDevChunkVersionReadRef>,
+    pub(super) versions: Vec<ReadRef<EcmascriptDevChunkVersion>>,
 }
 
 #[turbo_tasks::value_impl]
 impl Version for EcmascriptDevMergedChunkVersion {
     #[turbo_tasks::function]
-    async fn id(&self) -> Result<StringVc> {
+    async fn id(&self) -> Result<Vc<String>> {
         let mut hasher = Xxh3Hash64Hasher::new();
         hasher.write_value(self.versions.len());
         let sorted_ids = {
@@ -34,6 +34,6 @@ impl Version for EcmascriptDevMergedChunkVersion {
         }
         let hash = hasher.finish();
         let hex_hash = encode_hex(hash);
-        Ok(StringVc::cell(hex_hash))
+        Ok(Vc::cell(hex_hash))
     }
 }

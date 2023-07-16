@@ -1,6 +1,6 @@
-use crate::{self as turbo_tasks, CollectiblesFuture};
+use crate::{CollectiblesFuture, VcValueTrait};
 
 pub trait CollectiblesSource {
-    fn take_collectibles<T: turbo_tasks::ValueTraitVc>(self) -> CollectiblesFuture<T>;
-    fn peek_collectibles<T: turbo_tasks::ValueTraitVc>(self) -> CollectiblesFuture<T>;
+    fn take_collectibles<T: VcValueTrait>(self) -> CollectiblesFuture<T>;
+    fn peek_collectibles<T: VcValueTrait>(self) -> CollectiblesFuture<T>;
 }

@@ -1,10 +1,10 @@
 use anyhow::Result;
 use indexmap::IndexSet;
-use turbo_tasks::{TryJoinIterExt, Value};
-use turbopack_css::chunk::{CssChunkPlaceablesVc, CssChunkVc, CssChunksVc};
+use turbo_tasks::{TryJoinIterExt, Value, Vc};
+use turbopack_css::chunk::{CssChunk, CssChunks};
 
 #[turbo_tasks::function]
-pub async fn optimize_css_chunks(chunks: CssChunksVc) -> Result<CssChunksVc> {
+pub async fn optimize_css_chunks(chunks: Vc<CssChunks>) -> Result<Vc<CssChunks>> {
     // The CSS optimizer works under the constraint that the order in which
     // CSS chunks are loaded must be preserved, as CSS rules
     // precedence is determined by the order in which they are
@@ -21,9 +21,9 @@ pub async fn optimize_css_chunks(chunks: CssChunksVc) -> Result<CssChunksVc> {
 }
 
 async fn merge_chunks(
-    first: CssChunkVc,
-    chunks: impl IntoIterator<Item = &CssChunkVc>,
-) -> Result<CssChunkVc> {
+    first: Vc<CssChunk>,
+    chunks: impl IntoIterator<Item = &Vc<CssChunk>>,
+) -> Result<Vc<CssChunk>> {
     let chunks = chunks.into_iter().copied().try_join().await?;
     let main_entries = chunks
         .iter()
@@ -33,9 +33,9 @@ async fn merge_chunks(
         .iter()
         .flat_map(|e| e.iter().copied())
         .collect::<IndexSet<_>>();
-    Ok(CssChunkVc::new_normalized(
+    Ok(CssChunk::new_normalized(
         first.await?.context,
-        CssChunkPlaceablesVc::cell(main_entries.into_iter().collect()),
+        Vc::cell(main_entries.into_iter().collect()),
         Value::new(first.await?.availability_info),
     ))
 }
@@ -45,7 +45,7 @@ async fn merge_chunks(
 const MAX_CHUNK_COUNT: usize = 20;
 
 /// Groups adjacent chunks into at most `MAX_CHUNK_COUNT` groups.
-fn aggregate_adjacent_chunks(chunks: &[CssChunkVc]) -> Vec<Vec<CssChunkVc>> {
+fn aggregate_adjacent_chunks(chunks: &[Vc<CssChunk>]) -> Vec<Vec<Vc<CssChunk>>> {
     // Each of the resulting merged chunks will have `chunks_per_merged_chunk`
     // chunks in them, except for the first `chunks_mod` chunks, which will have
     // one more chunk.
@@ -76,7 +76,7 @@ fn aggregate_adjacent_chunks(chunks: &[CssChunkVc]) -> Vec<Vec<CssChunkVc>> {
 }
 
 /// Merges adjacent chunks into at most `MAX_CHUNK_COUNT` chunks.
-async fn merge_adjacent_chunks(chunks_vc: CssChunksVc) -> Result<CssChunksVc> {
+async fn merge_adjacent_chunks(chunks_vc: Vc<CssChunks>) -> Result<Vc<CssChunks>> {
     let chunks = chunks_vc.await?;
 
     if chunks.len() <= MAX_CHUNK_COUNT {
@@ -91,5 +91,5 @@ async fn merge_adjacent_chunks(chunks_vc: CssChunksVc) -> Result<CssChunksVc> {
         .try_join()
         .await?;
 
-    Ok(CssChunksVc::cell(chunks))
+    Ok(Vc::cell(chunks))
 }

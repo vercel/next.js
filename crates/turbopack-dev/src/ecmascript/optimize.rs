@@ -4,42 +4,44 @@ use std::{cmp::Ordering, collections::HashSet};
 
 use anyhow::Result;
 use indexmap::{IndexMap, IndexSet};
-use turbo_tasks::{TryJoinIterExt, Value};
-use turbo_tasks_fs::FileSystemPathOptionVc;
+use turbo_tasks::{TryJoinIterExt, Value, Vc};
+use turbo_tasks_fs::FileSystemPathOption;
 use turbopack_core::chunk::optimize::optimize_by_common_parent;
-use turbopack_ecmascript::chunk::{
-    EcmascriptChunkPlaceablesVc, EcmascriptChunkVc, EcmascriptChunkingContextVc, EcmascriptChunksVc,
-};
+use turbopack_ecmascript::chunk::{EcmascriptChunk, EcmascriptChunkingContext, EcmascriptChunks};
 
 #[turbo_tasks::function]
-pub async fn optimize_ecmascript_chunks(chunks: EcmascriptChunksVc) -> Result<EcmascriptChunksVc> {
+pub async fn optimize_ecmascript_chunks(
+    chunks: Vc<EcmascriptChunks>,
+) -> Result<Vc<EcmascriptChunks>> {
     // Ecmascript chunks in the same chunk group can have different chunking
     // contexts (e.g. through Next.js' with-client-chunks transition). They must not
     // be merged together, as this affects how module ids are computed within the
     // chunk.
-    let chunks_by_chunking_context: IndexMap<EcmascriptChunkingContextVc, Vec<EcmascriptChunkVc>> =
-        chunks
-            .await?
-            .iter()
-            .map(|chunk| async move {
-                let chunking_context = chunk.await?.context.resolve().await?;
-                Ok((chunking_context, chunk))
-            })
-            .try_join()
-            .await?
-            .into_iter()
-            .fold(IndexMap::new(), |mut acc, (chunking_context, chunk)| {
-                acc.entry(chunking_context)
-                    .or_insert_with(Vec::new)
-                    .push(*chunk);
-                acc
-            });
+    let chunks_by_chunking_context: IndexMap<
+        Vc<Box<dyn EcmascriptChunkingContext>>,
+        Vec<Vc<EcmascriptChunk>>,
+    > = chunks
+        .await?
+        .iter()
+        .map(|chunk| async move {
+            let chunking_context = chunk.await?.context.resolve().await?;
+            Ok((chunking_context, chunk))
+        })
+        .try_join()
+        .await?
+        .into_iter()
+        .fold(IndexMap::new(), |mut acc, (chunking_context, chunk)| {
+            acc.entry(chunking_context)
+                .or_insert_with(Vec::new)
+                .push(*chunk);
+            acc
+        });
 
     let optimized_chunks = chunks_by_chunking_context
         .into_values()
         .map(|chunks| async move {
             optimize_by_common_parent(&chunks, get_common_parent, |local, children| {
-                optimize_ecmascript(local.map(EcmascriptChunksVc::cell), children)
+                optimize_ecmascript(local.map(Vc::cell), children)
             })
             .await?
             .await
@@ -50,19 +52,19 @@ pub async fn optimize_ecmascript_chunks(chunks: EcmascriptChunksVc) -> Result<Ec
         .flat_map(|chunks| chunks.iter().copied().collect::<Vec<_>>())
         .collect::<Vec<_>>();
 
-    Ok(EcmascriptChunksVc::cell(optimized_chunks))
+    Ok(Vc::cell(optimized_chunks))
 }
 
 #[turbo_tasks::function]
-async fn get_common_parent(chunk: EcmascriptChunkVc) -> Result<FileSystemPathOptionVc> {
+async fn get_common_parent(chunk: Vc<EcmascriptChunk>) -> Result<Vc<FileSystemPathOption>> {
     Ok(chunk.common_parent())
 }
 
 /// Merge a few chunks into a single chunk.
 async fn merge_chunks(
-    first: EcmascriptChunkVc,
-    chunks: &[EcmascriptChunkVc],
-) -> Result<EcmascriptChunkVc> {
+    first: Vc<EcmascriptChunk>,
+    chunks: &[Vc<EcmascriptChunk>],
+) -> Result<Vc<EcmascriptChunk>> {
     let first = first.await?;
     let chunks = chunks.iter().copied().try_join().await?;
     let main_entries = chunks
@@ -73,9 +75,9 @@ async fn merge_chunks(
         .iter()
         .flat_map(|e| e.iter().copied())
         .collect::<IndexSet<_>>();
-    Ok(EcmascriptChunkVc::new_normalized(
+    Ok(EcmascriptChunk::new_normalized(
         first.context,
-        EcmascriptChunkPlaceablesVc::cell(main_entries.into_iter().collect()),
+        Vc::cell(main_entries.into_iter().collect()),
         None,
         Value::new(first.availability_info),
     ))
@@ -101,13 +103,13 @@ const MAX_CHUNK_ITEMS_PER_CHUNK: usize = 3000;
 
 /// Merge chunks with high duplication between them.
 async fn merge_duplicated_and_contained(
-    chunks: &mut Vec<(EcmascriptChunkVc, Option<EcmascriptChunksVc>)>,
+    chunks: &mut Vec<(Vc<EcmascriptChunk>, Option<Vc<EcmascriptChunks>>)>,
     mut unoptimized_count: usize,
 ) -> Result<()> {
     struct Comparison {
         /// Index of chunk in the `chunks` vec
         index: usize,
-        other: EcmascriptChunkVc,
+        other: Vc<EcmascriptChunk>,
         shared: usize,
         left: usize,
         right: usize,
@@ -157,7 +159,7 @@ async fn merge_duplicated_and_contained(
             .enumerate()
             .take(COMPARE_WITH_COUNT)
             .map(|(j, &(other, _))| async move {
-                let compare = EcmascriptChunkVc::compare(chunk, other).await?;
+                let compare = EcmascriptChunk::compare(chunk, other).await?;
                 Ok(Comparison {
                     // since enumerate is offset by `i + 1` we need to account for that
                     index: i + j + 1,
@@ -286,9 +288,9 @@ async fn merge_duplicated_and_contained(
 /// all chunks from a single source and if that's not enough it will merge
 /// chunks into equal sized groups.
 async fn merge_to_limit(
-    chunks: Vec<(EcmascriptChunkVc, Option<EcmascriptChunksVc>)>,
+    chunks: Vec<(Vc<EcmascriptChunk>, Option<Vc<EcmascriptChunks>>)>,
     target_count: usize,
-) -> Result<Vec<EcmascriptChunkVc>> {
+) -> Result<Vec<Vc<EcmascriptChunk>>> {
     let mut remaining = chunks.len();
     // Collecting chunks by source into an index map to keep original order
     let mut chunks_by_source = IndexMap::new();
@@ -343,8 +345,8 @@ async fn merge_to_limit(
 /// Merge chunks into a few chunks as possible while staying below the chunk
 /// size limit.
 async fn merge_by_size(
-    chunks: impl IntoIterator<Item = EcmascriptChunkVc>,
-) -> Result<Vec<EcmascriptChunkVc>> {
+    chunks: impl IntoIterator<Item = Vc<EcmascriptChunk>>,
+) -> Result<Vec<Vc<EcmascriptChunk>>> {
     let mut merged = Vec::new();
     let mut current = Vec::new();
     let mut current_items = 0;
@@ -384,10 +386,10 @@ async fn merge_by_size(
 /// Chunk optimization for ecmascript chunks.
 #[turbo_tasks::function]
 async fn optimize_ecmascript(
-    local: Option<EcmascriptChunksVc>,
-    children: Vec<EcmascriptChunksVc>,
-) -> Result<EcmascriptChunksVc> {
-    let mut chunks = Vec::<(EcmascriptChunkVc, Option<EcmascriptChunksVc>)>::new();
+    local: Option<Vc<EcmascriptChunks>>,
+    children: Vec<Vc<EcmascriptChunks>>,
+) -> Result<Vc<EcmascriptChunks>> {
+    let mut chunks = Vec::<(Vc<EcmascriptChunk>, Option<Vc<EcmascriptChunks>>)>::new();
     // TODO optimize
     let mut unoptimized_count = 0;
     if let Some(local) = local {
@@ -398,7 +400,7 @@ async fn optimize_ecmascript(
         }
         for chunk in local.iter_mut() {
             let content = (*chunk).await?;
-            *chunk = EcmascriptChunkVc::new_normalized(
+            *chunk = EcmascriptChunk::new_normalized(
                 content.context,
                 content.main_entries,
                 content.omit_entries,
@@ -441,5 +443,5 @@ async fn optimize_ecmascript(
         chunks.into_iter().map(|(c, _)| c).collect()
     };
 
-    Ok(EcmascriptChunksVc::cell(chunks))
+    Ok(Vc::cell(chunks))
 }

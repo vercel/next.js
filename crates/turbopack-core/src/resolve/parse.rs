@@ -2,9 +2,9 @@ use anyhow::Result;
 use indexmap::IndexMap;
 use lazy_static::lazy_static;
 use regex::Regex;
-use turbo_tasks::{primitives::StringVc, TryJoinIterExt, Value, ValueToString, ValueToStringVc};
+use turbo_tasks::{TryJoinIterExt, Value, ValueToString, Vc};
 
-use super::pattern::{Pattern, QueryMapVc};
+use super::pattern::{Pattern, QueryMap};
 
 #[turbo_tasks::value]
 #[derive(Hash, Clone, Debug)]
@@ -20,7 +20,7 @@ pub enum Request {
     Module {
         module: String,
         path: Pattern,
-        query: QueryMapVc,
+        query: Vc<QueryMap>,
     },
     ServerRelative {
         path: Pattern,
@@ -41,7 +41,7 @@ pub enum Request {
     },
     Dynamic,
     Alternatives {
-        requests: Vec<RequestVc>,
+        requests: Vec<Vc<Request>>,
     },
 }
 
@@ -82,7 +82,7 @@ impl Request {
         })
     }
 
-    pub fn parse(mut request: Pattern) -> Self {
+    pub fn parse_ref(mut request: Pattern) -> Self {
         request.normalize();
         match request {
             Pattern::Dynamic => Request::Dynamic,
@@ -125,7 +125,7 @@ impl Request {
                             return Request::Module {
                                 module: module.as_str().to_string(),
                                 path: path.as_str().to_string().into(),
-                                query: QueryMapVc::cell(query.map(|q| {
+                                query: Vc::cell(query.map(|q| {
                                     IndexMap::from_iter(qstring::QString::from(q.as_str()))
                                 })),
                             };
@@ -137,7 +137,7 @@ impl Request {
             Pattern::Concatenation(list) => {
                 let mut iter = list.into_iter();
                 if let Some(first) = iter.next() {
-                    let mut result = Self::parse(first);
+                    let mut result = Self::parse_ref(first);
                     match &mut result {
                         Request::Raw { path, .. } => {
                             path.extend(iter);
@@ -159,7 +159,7 @@ impl Request {
                             path.extend(iter);
                         }
                         Request::Empty => {
-                            result = Request::parse(Pattern::Concatenation(iter.collect()))
+                            result = Request::parse_ref(Pattern::Concatenation(iter.collect()))
                         }
                         Request::PackageInternal { path } => {
                             path.extend(iter);
@@ -181,7 +181,7 @@ impl Request {
             Pattern::Alternatives(list) => Request::Alternatives {
                 requests: list
                     .into_iter()
-                    .map(|p| RequestVc::parse(Value::new(p)))
+                    .map(|p| Request::parse(Value::new(p)))
                     .collect(),
             },
         }
@@ -189,19 +189,19 @@ impl Request {
 }
 
 #[turbo_tasks::value_impl]
-impl RequestVc {
+impl Request {
     #[turbo_tasks::function]
-    pub fn parse(request: Value<Pattern>) -> Self {
-        Self::cell(Request::parse(request.into_value()))
+    pub fn parse(request: Value<Pattern>) -> Vc<Self> {
+        Self::cell(Request::parse_ref(request.into_value()))
     }
 
     #[turbo_tasks::function]
-    pub fn parse_string(request: String) -> Self {
-        Self::cell(Request::parse(request.into()))
+    pub fn parse_string(request: String) -> Vc<Self> {
+        Self::cell(Request::parse_ref(request.into()))
     }
 
     #[turbo_tasks::function]
-    pub fn raw(request: Value<Pattern>, force_in_context: bool) -> Self {
+    pub fn raw(request: Value<Pattern>, force_in_context: bool) -> Vc<Self> {
         Self::cell(Request::Raw {
             path: request.into_value(),
             force_in_context,
@@ -209,7 +209,7 @@ impl RequestVc {
     }
 
     #[turbo_tasks::function]
-    pub fn relative(request: Value<Pattern>, force_in_context: bool) -> Self {
+    pub fn relative(request: Value<Pattern>, force_in_context: bool) -> Vc<Self> {
         Self::cell(Request::Relative {
             path: request.into_value(),
             force_in_context,
@@ -217,7 +217,7 @@ impl RequestVc {
     }
 
     #[turbo_tasks::function]
-    pub fn module(module: String, path: Value<Pattern>, query: QueryMapVc) -> Self {
+    pub fn module(module: String, path: Value<Pattern>, query: Vc<QueryMap>) -> Vc<Self> {
         Self::cell(Request::Module {
             module,
             path: path.into_value(),
@@ -226,7 +226,7 @@ impl RequestVc {
     }
 
     #[turbo_tasks::function]
-    pub async fn as_relative(self) -> Result<Self> {
+    pub async fn as_relative(self: Vc<Self>) -> Result<Vc<Self>> {
         let this = self.await?;
         Ok(match &*this {
             Request::Empty
@@ -257,11 +257,7 @@ impl RequestVc {
                 Self::parse(Value::new(pat))
             }
             Request::Alternatives { requests } => {
-                let requests = requests
-                    .iter()
-                    .copied()
-                    .map(RequestVc::as_relative)
-                    .collect();
+                let requests = requests.iter().copied().map(Request::as_relative).collect();
                 Request::Alternatives { requests }.cell()
             }
         })
@@ -271,8 +267,8 @@ impl RequestVc {
 #[turbo_tasks::value_impl]
 impl ValueToString for Request {
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<StringVc> {
-        Ok(StringVc::cell(match self {
+    async fn to_string(&self) -> Result<Vc<String>> {
+        Ok(Vc::cell(match self {
             Request::Raw {
                 path,
                 force_in_context,

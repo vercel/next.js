@@ -24,12 +24,13 @@ use swc_core::{
         atoms::{Atom, JsWord},
     },
 };
+use turbo_tasks::Vc;
 use turbopack_core::compile_time_info::CompileTimeDefineValue;
 use url::Url;
 
 use self::imports::ImportAnnotations;
 pub(crate) use self::imports::ImportMap;
-use crate::{references::require_context::RequireContextMapVc, utils::StringifyJs};
+use crate::{references::require_context::RequireContextMap, utils::StringifyJs};
 
 pub mod builtin;
 pub mod graph;
@@ -3078,22 +3079,16 @@ pub fn parse_require_context(args: &Vec<JsValue>) -> Result<RequireContextOption
 pub struct RequireContextValue(IndexMap<String, String>);
 
 #[turbo_tasks::value_impl]
-impl RequireContextValueVc {
+impl RequireContextValue {
     #[turbo_tasks::function]
-    pub async fn from_context_map(map: RequireContextMapVc) -> Result<Self> {
+    pub async fn from_context_map(map: Vc<RequireContextMap>) -> Result<Vc<Self>> {
         let mut context_map = IndexMap::new();
 
         for (key, entry) in map.await?.iter() {
             context_map.insert(key.clone(), entry.origin_relative.clone());
         }
 
-        Ok(Self::cell(context_map))
-    }
-}
-
-impl From<RequireContextMapVc> for RequireContextValueVc {
-    fn from(map: RequireContextMapVc) -> Self {
-        Self::from_context_map(map)
+        Ok(Vc::cell(context_map))
     }
 }
 
@@ -3120,9 +3115,9 @@ pub enum WellKnownFunctionKind {
     Require,
     RequireResolve,
     RequireContext,
-    RequireContextRequire(RequireContextValueVc),
-    RequireContextRequireKeys(RequireContextValueVc),
-    RequireContextRequireResolve(RequireContextValueVc),
+    RequireContextRequire(Vc<RequireContextValue>),
+    RequireContextRequireKeys(Vc<RequireContextValue>),
+    RequireContextRequireResolve(Vc<RequireContextValue>),
     Define,
     FsReadMethod(JsWord),
     PathToFileUrl,
@@ -3164,13 +3159,14 @@ fn is_unresolved(i: &Ident, unresolved_mark: Mark) -> bool {
 pub mod test_utils {
     use anyhow::Result;
     use indexmap::IndexMap;
-    use turbopack_core::{compile_time_info::CompileTimeInfoVc, error::PrettyPrintError};
+    use turbo_tasks::Vc;
+    use turbopack_core::{compile_time_info::CompileTimeInfo, error::PrettyPrintError};
 
     use super::{
         builtin::early_replace_builtin, well_known::replace_well_known, JsValue, ModuleValue,
         WellKnownFunctionKind, WellKnownObjectKind,
     };
-    use crate::analyzer::{builtin::replace_builtin, parse_require_context, RequireContextValueVc};
+    use crate::analyzer::{builtin::replace_builtin, parse_require_context};
 
     pub async fn early_visitor(mut v: JsValue) -> Result<(JsValue, bool)> {
         let m = early_replace_builtin(&mut v);
@@ -3179,7 +3175,7 @@ pub mod test_utils {
 
     pub async fn visitor(
         v: JsValue,
-        compile_time_info: CompileTimeInfoVc,
+        compile_time_info: Vc<CompileTimeInfo>,
     ) -> Result<(JsValue, bool)> {
         let mut new_value = match v {
             JsValue::Call(
@@ -3203,7 +3199,7 @@ pub mod test_utils {
                     map.insert("./c".into(), format!("[context: {}]/c", options.dir));
 
                     JsValue::WellKnownFunction(WellKnownFunctionKind::RequireContextRequire(
-                        RequireContextValueVc::cell(map),
+                        Vc::cell(map),
                     ))
                 }
                 Err(err) => v.into_unknown(PrettyPrintError(&err).to_string()),
@@ -3253,7 +3249,7 @@ mod tests {
     use turbo_tasks::{util::FormatDuration, Value};
     use turbopack_core::{
         compile_time_info::CompileTimeInfo,
-        environment::{EnvironmentVc, ExecutionEnvironment, NodeJsEnvironment},
+        environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
         target::{Arch, CompileTarget, Endianness, Libc, Platform},
     };
 
@@ -3516,7 +3512,7 @@ mod tests {
 
     async fn resolve(var_graph: &VarGraph, val: JsValue) -> JsValue {
         turbo_tasks_testing::VcStorage::with(async {
-            let compile_time_info = CompileTimeInfo::builder(EnvironmentVc::new(Value::new(
+            let compile_time_info = CompileTimeInfo::builder(Environment::new(Value::new(
                 ExecutionEnvironment::NodeJsLambda(
                     NodeJsEnvironment {
                         compile_target: CompileTarget {

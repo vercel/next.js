@@ -1,14 +1,13 @@
 use anyhow::{bail, Result};
-use turbo_tasks::TryJoinIterExt;
+use turbo_tasks::{TryJoinIterExt, Vc};
 use turbopack_core::{
-    asset::AssetContentVc,
-    version::{UpdateVc, VersionVc, VersionedContent, VersionedContentVc},
+    asset::AssetContent,
+    version::{Update, Version, VersionedContent},
 };
 
 use super::{
-    super::content::EcmascriptDevChunkContentVc,
-    update::update_ecmascript_merged_chunk,
-    version::{EcmascriptDevMergedChunkVersion, EcmascriptDevMergedChunkVersionVc},
+    super::content::EcmascriptDevChunkContent, update::update_ecmascript_merged_chunk,
+    version::EcmascriptDevMergedChunkVersion,
 };
 
 /// Composite [`EcmascriptChunkContent`] that is the result of merging multiple
@@ -18,13 +17,13 @@ use super::{
 /// [`EcmascriptChunkContentMerger`]: super::merger::EcmascriptChunkContentMerger
 #[turbo_tasks::value(serialization = "none", shared)]
 pub(super) struct EcmascriptDevMergedChunkContent {
-    pub contents: Vec<EcmascriptDevChunkContentVc>,
+    pub contents: Vec<Vc<EcmascriptDevChunkContent>>,
 }
 
 #[turbo_tasks::value_impl]
-impl EcmascriptDevMergedChunkContentVc {
+impl EcmascriptDevMergedChunkContent {
     #[turbo_tasks::function]
-    pub async fn version(self) -> Result<EcmascriptDevMergedChunkVersionVc> {
+    pub async fn version(self: Vc<Self>) -> Result<Vc<EcmascriptDevMergedChunkVersion>> {
         Ok(EcmascriptDevMergedChunkVersion {
             versions: self
                 .await?
@@ -41,21 +40,18 @@ impl EcmascriptDevMergedChunkContentVc {
 #[turbo_tasks::value_impl]
 impl VersionedContent for EcmascriptDevMergedChunkContent {
     #[turbo_tasks::function]
-    fn content(_self_vc: EcmascriptDevMergedChunkContentVc) -> Result<AssetContentVc> {
+    fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
         bail!("EcmascriptDevMergedChunkContent does not have content")
     }
 
     #[turbo_tasks::function]
-    fn version(self_vc: EcmascriptDevMergedChunkContentVc) -> VersionVc {
-        self_vc.version().into()
+    fn version(self: Vc<Self>) -> Vc<Box<dyn Version>> {
+        Vc::upcast(self.version())
     }
 
     #[turbo_tasks::function]
-    async fn update(
-        self_vc: EcmascriptDevMergedChunkContentVc,
-        from_version: VersionVc,
-    ) -> Result<UpdateVc> {
-        Ok(update_ecmascript_merged_chunk(self_vc, from_version)
+    async fn update(self: Vc<Self>, from_version: Vc<Box<dyn Version>>) -> Result<Vc<Update>> {
+        Ok(update_ecmascript_merged_chunk(self, from_version)
             .await?
             .cell())
     }

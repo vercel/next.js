@@ -1,10 +1,9 @@
 use anyhow::Result;
-use turbo_tasks::Value;
+use turbo_tasks::{Value, Vc};
 
-use super::{GetContentSourceContentsVc, RewriteType};
-use crate::source::{
-    ContentSourceContent, ContentSourceContentVc, ContentSourceData, ContentSourceDataVaryVc,
-    GetContentSourceContent, GetContentSourceContentVc, Rewrite,
+use super::{
+    ContentSourceContent, ContentSourceData, ContentSourceDataVary, GetContentSourceContent,
+    Rewrite, RewriteType,
 };
 
 /// A ContentSourceProcessor handles the final processing of an eventual
@@ -16,7 +15,7 @@ use crate::source::{
 /// [ContentSourceContent].
 #[turbo_tasks::value_trait]
 pub trait ContentSourceProcessor {
-    fn process(&self, content: ContentSourceContentVc) -> ContentSourceContentVc;
+    fn process(self: Vc<Self>, content: Vc<ContentSourceContent>) -> Vc<ContentSourceContent>;
 }
 
 /// A WrappedGetContentSourceContent simply wraps the get_content of a
@@ -25,17 +24,17 @@ pub trait ContentSourceProcessor {
 
 #[turbo_tasks::value]
 pub struct WrappedGetContentSourceContent {
-    inner: GetContentSourceContentVc,
-    processor: ContentSourceProcessorVc,
+    inner: Vc<Box<dyn GetContentSourceContent>>,
+    processor: Vc<Box<dyn ContentSourceProcessor>>,
 }
 
 #[turbo_tasks::value_impl]
-impl WrappedGetContentSourceContentVc {
+impl WrappedGetContentSourceContent {
     #[turbo_tasks::function]
     pub async fn new(
-        inner: GetContentSourceContentVc,
-        processor: ContentSourceProcessorVc,
-    ) -> Self {
+        inner: Vc<Box<dyn GetContentSourceContent>>,
+        processor: Vc<Box<dyn ContentSourceProcessor>>,
+    ) -> Vc<Self> {
         WrappedGetContentSourceContent { inner, processor }.cell()
     }
 }
@@ -43,16 +42,16 @@ impl WrappedGetContentSourceContentVc {
 #[turbo_tasks::value_impl]
 impl GetContentSourceContent for WrappedGetContentSourceContent {
     #[turbo_tasks::function]
-    fn vary(&self) -> ContentSourceDataVaryVc {
+    fn vary(&self) -> Vc<ContentSourceDataVary> {
         self.inner.vary()
     }
 
     #[turbo_tasks::function]
     async fn get(
         &self,
-        path: &str,
+        path: String,
         data: Value<ContentSourceData>,
-    ) -> Result<ContentSourceContentVc> {
+    ) -> Result<Vc<ContentSourceContent>> {
         let res = self.inner.get(path, data);
         if let ContentSourceContent::Rewrite(rewrite) = &*res.await? {
             let rewrite = rewrite.await?;
@@ -63,13 +62,15 @@ impl GetContentSourceContent for WrappedGetContentSourceContent {
                             "Rewrites for WrappedGetContentSourceContent are not implemented yet"
                         ),
                         RewriteType::Sources { sources } => RewriteType::Sources {
-                            sources: GetContentSourceContentsVc::cell(
+                            sources: Vc::cell(
                                 sources
                                     .await?
                                     .iter()
                                     .map(|s| {
-                                        WrappedGetContentSourceContentVc::new(*s, self.processor)
-                                            .into()
+                                        Vc::upcast(WrappedGetContentSourceContent::new(
+                                            *s,
+                                            self.processor,
+                                        ))
                                     })
                                     .collect(),
                             ),

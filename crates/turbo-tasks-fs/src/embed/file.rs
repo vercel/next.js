@@ -2,11 +2,15 @@ use std::path::PathBuf;
 
 use anyhow::{Context, Result};
 use dunce::canonicalize;
+use turbo_tasks::Vc;
 
-use crate::{DiskFileSystemVc, File, FileContentVc, FileSystem};
+use crate::{DiskFileSystem, File, FileContent, FileSystem};
 
 #[turbo_tasks::function]
-pub async fn content_from_relative_path(package_path: &str, path: &str) -> Result<FileContentVc> {
+pub async fn content_from_relative_path(
+    package_path: String,
+    path: String,
+) -> Result<Vc<FileContent>> {
     let package_path = PathBuf::from(package_path);
     let resolved_path = package_path.join(path);
     let resolved_path =
@@ -14,18 +18,18 @@ pub async fn content_from_relative_path(package_path: &str, path: &str) -> Resul
     let root_path = resolved_path.parent().unwrap();
     let path = resolved_path.file_name().unwrap().to_str().unwrap();
 
-    let disk_fs = DiskFileSystemVc::new(
+    let disk_fs = DiskFileSystem::new(
         root_path.to_string_lossy().to_string(),
         root_path.to_string_lossy().to_string(),
     );
     disk_fs.await?.start_watching()?;
 
-    let fs_path = disk_fs.root().join(path);
+    let fs_path = disk_fs.root().join(path.to_string());
     Ok(fs_path.read())
 }
 
 #[turbo_tasks::function]
-pub async fn content_from_str(string: &str) -> Result<FileContentVc> {
+pub async fn content_from_str(string: String) -> Result<Vc<FileContent>> {
     Ok(File::from(string).into())
 }
 
@@ -48,10 +52,8 @@ macro_rules! embed_file {
 #[macro_export]
 macro_rules! embed_file {
     ($path:expr) => {
-        turbo_tasks_fs::embed::content_from_str(include_str!(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/",
-            $path
-        )))
+        turbo_tasks_fs::embed::content_from_str(
+            include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/", $path)).to_string(),
+        )
     };
 }

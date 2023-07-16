@@ -1,4 +1,6 @@
 #![cfg(test)]
+#![feature(arbitrary_self_types)]
+#![feature(async_fn_in_trait)]
 
 mod util;
 
@@ -8,34 +10,31 @@ use std::{
 };
 
 use anyhow::{Context, Result};
-use turbo_tasks::{debug::ValueDebug, CompletionVc, NothingVc, TryJoinIterExt, TurboTasks, Value};
+use turbo_tasks::{debug::ValueDebug, unit, Completion, TryJoinIterExt, TurboTasks, Value, Vc};
 use turbo_tasks_bytes::stream::SingleValue;
-use turbo_tasks_env::CommandLineProcessEnvVc;
+use turbo_tasks_env::CommandLineProcessEnv;
 use turbo_tasks_fs::{
-    json::parse_json_with_source_context, util::sys_to_unix, DiskFileSystemVc, FileSystem,
-    FileSystemPathVc,
+    json::parse_json_with_source_context, util::sys_to_unix, DiskFileSystem, FileSystem,
+    FileSystemPath,
 };
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
-    condition::ContextCondition,
-    module_options::{ModuleOptionsContext, TypescriptTransformOptionsVc},
-    resolve_options_context::ResolveOptionsContext,
-    transition::TransitionsByNameVc,
-    ModuleAssetContextVc,
+    condition::ContextCondition, module_options::ModuleOptionsContext,
+    resolve_options_context::ResolveOptionsContext, ModuleAssetContext,
 };
 use turbopack_core::{
     asset::Asset,
-    chunk::{EvaluatableAssetVc, EvaluatableAssetsVc},
+    chunk::{EvaluatableAssetExt, EvaluatableAssets},
     compile_time_defines,
     compile_time_info::CompileTimeInfo,
-    context::{AssetContext, AssetContextVc},
-    environment::{EnvironmentVc, ExecutionEnvironment, NodeJsEnvironment},
-    file_source::FileSourceVc,
-    issue::IssueVc,
-    module::ModuleVc,
+    context::AssetContext,
+    environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
+    file_source::FileSource,
+    issue::{Issue, IssueContextExt},
+    module::Module,
     reference_type::{EntryReferenceSubType, ReferenceType},
 };
-use turbopack_dev::DevChunkingContextVc;
+use turbopack_dev::DevChunkingContext;
 use turbopack_node::evaluate::evaluate;
 use turbopack_test_utils::jest::JestRunResult;
 
@@ -43,8 +42,8 @@ use crate::util::REPO_ROOT;
 
 #[turbo_tasks::value]
 struct RunTestResult {
-    js_result: JsResultVc,
-    path: FileSystemPathVc,
+    js_result: Vc<JsResult>,
+    path: Vc<FileSystemPath>,
 }
 
 #[turbo_tasks::value]
@@ -153,7 +152,7 @@ async fn run(resource: PathBuf, snapshot_mode: IssueSnapshotMode) -> Result<JsRe
     let tt = TurboTasks::new(MemoryBackend::default());
     tt.run_once(async move {
         let resource_str = resource.to_str().unwrap();
-        let run_result = run_test(resource_str);
+        let run_result = run_test(resource_str.to_string());
         if matches!(snapshot_mode, IssueSnapshotMode::Snapshots) {
             snapshot_issues(run_result).await?;
         }
@@ -164,8 +163,8 @@ async fn run(resource: PathBuf, snapshot_mode: IssueSnapshotMode) -> Result<JsRe
 }
 
 #[turbo_tasks::function]
-async fn run_test(resource: &str) -> Result<RunTestResultVc> {
-    let resource_path = Path::new(resource);
+async fn run_test(resource: String) -> Result<Vc<RunTestResult>> {
+    let resource_path = Path::new(&resource);
     assert!(resource_path.exists(), "{} does not exist", resource);
     assert!(
         resource_path.is_dir(),
@@ -173,24 +172,24 @@ async fn run_test(resource: &str) -> Result<RunTestResultVc> {
         resource_path.to_str().unwrap()
     );
 
-    let root_fs = DiskFileSystemVc::new("workspace".to_string(), REPO_ROOT.clone());
-    let project_fs = DiskFileSystemVc::new("project".to_string(), REPO_ROOT.clone());
+    let root_fs = DiskFileSystem::new("workspace".to_string(), REPO_ROOT.clone());
+    let project_fs = DiskFileSystem::new("project".to_string(), REPO_ROOT.clone());
     let project_root = project_fs.root();
 
     let relative_path = resource_path.strip_prefix(&*REPO_ROOT)?;
     let relative_path = sys_to_unix(relative_path.to_str().unwrap());
-    let path = root_fs.root().join(&relative_path);
-    let project_path = project_root.join(&relative_path);
-    let tests_path = project_fs.root().join("crates/turbopack-tests");
+    let path = root_fs.root().join(relative_path.to_string());
+    let project_path = project_root.join(relative_path.to_string());
+    let tests_path = project_fs.root().join("crates/turbopack-tests".to_string());
 
-    let jest_runtime_path = tests_path.join("js/jest-runtime.ts");
-    let jest_entry_path = tests_path.join("js/jest-entry.ts");
-    let test_path = project_path.join("input/index.js");
+    let jest_runtime_path = tests_path.join("js/jest-runtime.ts".to_string());
+    let jest_entry_path = tests_path.join("js/jest-entry.ts".to_string());
+    let test_path = project_path.join("input/index.js".to_string());
 
-    let chunk_root_path = path.join("output");
-    let static_root_path = path.join("static");
+    let chunk_root_path = path.join("output".to_string());
+    let static_root_path = path.join("static".to_string());
 
-    let env = EnvironmentVc::new(Value::new(ExecutionEnvironment::NodeJsBuildTime(
+    let env = Environment::new(Value::new(ExecutionEnvironment::NodeJsBuildTime(
         NodeJsEnvironment::default().into(),
     )));
 
@@ -204,11 +203,11 @@ async fn run_test(resource: &str) -> Result<RunTestResultVc> {
         )
         .cell();
 
-    let context: AssetContextVc = ModuleAssetContextVc::new(
-        TransitionsByNameVc::cell(HashMap::new()),
+    let context: Vc<Box<dyn AssetContext>> = Vc::upcast(ModuleAssetContext::new(
+        Vc::cell(HashMap::new()),
         compile_time_info,
         ModuleOptionsContext {
-            enable_typescript_transform: Some(TypescriptTransformOptionsVc::default()),
+            enable_typescript_transform: Some(Default::default()),
             preset_env_versions: Some(env),
             rules: vec![(
                 ContextCondition::InDirectory("node_modules".to_string()),
@@ -236,10 +235,9 @@ async fn run_test(resource: &str) -> Result<RunTestResultVc> {
             ..Default::default()
         }
         .cell(),
-    )
-    .into();
+    ));
 
-    let chunking_context = DevChunkingContextVc::builder(
+    let chunking_context = DevChunkingContext::builder(
         project_root,
         chunk_root_path,
         chunk_root_path,
@@ -249,22 +247,22 @@ async fn run_test(resource: &str) -> Result<RunTestResultVc> {
     .build();
 
     let jest_entry_asset = process_path_to_asset(jest_entry_path, context);
-    let jest_runtime_asset = FileSourceVc::new(jest_runtime_path);
-    let test_asset = FileSourceVc::new(test_path);
+    let jest_runtime_asset = FileSource::new(jest_runtime_path);
+    let test_asset = FileSource::new(test_path);
 
     let res = evaluate(
-        jest_entry_asset.into(),
+        Vc::upcast(jest_entry_asset),
         chunk_root_path,
-        CommandLineProcessEnvVc::new().into(),
+        Vc::upcast(CommandLineProcessEnv::new()),
         test_asset.ident(),
         context,
-        chunking_context.into(),
-        Some(EvaluatableAssetsVc::many(vec![
-            EvaluatableAssetVc::from_source(jest_runtime_asset.into(), context),
-            EvaluatableAssetVc::from_source(test_asset.into(), context),
+        Vc::upcast(chunking_context),
+        Some(EvaluatableAssets::many(vec![
+            jest_runtime_asset.to_evaluatable(context),
+            test_asset.to_evaluatable(context),
         ])),
         vec![],
-        CompletionVc::immutable(),
+        Completion::immutable(),
         false,
     )
     .await?;
@@ -278,15 +276,16 @@ async fn run_test(resource: &str) -> Result<RunTestResultVc> {
     };
 
     Ok(RunTestResult {
-        js_result: JsResultVc::cell(parse_json_with_source_context(bytes.to_str()?)?),
+        js_result: JsResult::cell(parse_json_with_source_context(bytes.to_str()?)?),
         path,
     }
     .cell())
 }
 
 #[turbo_tasks::function]
-async fn snapshot_issues(run_result: RunTestResultVc) -> Result<NothingVc> {
-    let captured_issues = IssueVc::peek_issues_with_path(run_result)
+async fn snapshot_issues(run_result: Vc<RunTestResult>) -> Result<Vc<()>> {
+    let captured_issues = run_result
+        .peek_issues_with_path()
         .await?
         .strongly_consistent()
         .await?;
@@ -304,17 +303,24 @@ async fn snapshot_issues(run_result: RunTestResultVc) -> Result<NothingVc> {
         .try_join()
         .await?;
 
-    turbopack_test_utils::snapshot::snapshot_issues(plain_issues, path.join("issues"), &REPO_ROOT)
-        .await
-        .context("Unable to handle issues")?;
+    turbopack_test_utils::snapshot::snapshot_issues(
+        plain_issues,
+        path.join("issues".to_string()),
+        &REPO_ROOT,
+    )
+    .await
+    .context("Unable to handle issues")?;
 
-    Ok(NothingVc::new())
+    Ok(unit())
 }
 
 #[turbo_tasks::function]
-fn process_path_to_asset(path: FileSystemPathVc, context: AssetContextVc) -> ModuleVc {
+fn process_path_to_asset(
+    path: Vc<FileSystemPath>,
+    context: Vc<Box<dyn AssetContext>>,
+) -> Vc<Box<dyn Module>> {
     context.process(
-        FileSourceVc::new(path).into(),
+        Vc::upcast(FileSource::new(path)),
         Value::new(ReferenceType::Entry(EntryReferenceSubType::Undefined)),
     )
 }

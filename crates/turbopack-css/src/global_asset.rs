@@ -1,38 +1,38 @@
 use anyhow::{bail, Result};
-use turbo_tasks::{primitives::StringVc, Value};
+use turbo_tasks::{Value, Vc};
 use turbopack_core::{
-    asset::{Asset, AssetContentVc, AssetVc},
-    chunk::{PassthroughAsset, PassthroughAssetVc},
-    context::{AssetContext, AssetContextVc},
-    ident::AssetIdentVc,
-    module::{Module, ModuleVc},
-    reference::AssetReferencesVc,
+    asset::{Asset, AssetContent},
+    chunk::PassthroughAsset,
+    context::AssetContext,
+    ident::AssetIdent,
+    module::Module,
+    reference::AssetReferences,
     reference_type::{CssReferenceSubType, ReferenceType},
-    source::SourceVc,
+    source::Source,
 };
 
-use crate::references::internal::InternalCssAssetReferenceVc;
+use crate::references::internal::InternalCssAssetReference;
 
 #[turbo_tasks::value]
 #[derive(Clone)]
 pub struct GlobalCssAsset {
-    source: SourceVc,
-    context: AssetContextVc,
+    source: Vc<Box<dyn Source>>,
+    context: Vc<Box<dyn AssetContext>>,
 }
 
 #[turbo_tasks::value_impl]
-impl GlobalCssAssetVc {
+impl GlobalCssAsset {
     /// Creates a new CSS asset. The CSS is treated as global CSS.
     #[turbo_tasks::function]
-    pub fn new(source: SourceVc, context: AssetContextVc) -> Self {
+    pub fn new(source: Vc<Box<dyn Source>>, context: Vc<Box<dyn AssetContext>>) -> Vc<Self> {
         Self::cell(GlobalCssAsset { source, context })
     }
 }
 
 #[turbo_tasks::value_impl]
-impl GlobalCssAssetVc {
+impl GlobalCssAsset {
     #[turbo_tasks::function]
-    async fn inner(self) -> Result<ModuleVc> {
+    async fn inner(self: Vc<Self>) -> Result<Vc<Box<dyn Module>>> {
         let this = self.await?;
         // The underlying CSS is processed through an internal CSS reference.
         // This can then be picked up by other rules to treat CSS assets in
@@ -48,20 +48,20 @@ impl GlobalCssAssetVc {
 #[turbo_tasks::value_impl]
 impl Asset for GlobalCssAsset {
     #[turbo_tasks::function]
-    fn ident(&self) -> AssetIdentVc {
+    fn ident(&self) -> Vc<AssetIdent> {
         self.source.ident().with_modifier(modifier())
     }
 
     #[turbo_tasks::function]
-    fn content(&self) -> Result<AssetContentVc> {
+    fn content(&self) -> Result<Vc<AssetContent>> {
         bail!("CSS global asset has no contents")
     }
 
     #[turbo_tasks::function]
-    fn references(self_vc: GlobalCssAssetVc) -> AssetReferencesVc {
-        AssetReferencesVc::cell(vec![
-            InternalCssAssetReferenceVc::new(self_vc.inner()).into()
-        ])
+    fn references(self: Vc<Self>) -> Vc<AssetReferences> {
+        Vc::cell(vec![Vc::upcast(InternalCssAssetReference::new(
+            self.inner(),
+        ))])
     }
 }
 
@@ -69,8 +69,8 @@ impl Asset for GlobalCssAsset {
 impl Module for GlobalCssAsset {}
 
 #[turbo_tasks::function]
-fn modifier() -> StringVc {
-    StringVc::cell("global css".to_string())
+fn modifier() -> Vc<String> {
+    Vc::cell("global css".to_string())
 }
 
 /// A GlobalAsset is a transparent wrapper around an actual CSS asset.

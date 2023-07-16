@@ -2,9 +2,10 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
+use turbo_tasks::Vc;
 use turbo_tasks_fs::{File, FileContent, FileSystem};
 use turbopack_core::{
-    asset::AssetContent, server_fs::ServerFileSystemVc, virtual_source::VirtualSourceVc,
+    asset::AssetContent, server_fs::ServerFileSystem, virtual_source::VirtualSource,
 };
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
@@ -17,7 +18,7 @@ pub struct EmittedAsset {
 
 pub fn emitted_assets_to_virtual_sources(
     assets: Option<Vec<EmittedAsset>>,
-) -> Vec<VirtualSourceVc> {
+) -> Vec<Vc<VirtualSource>> {
     assets
         .into_iter()
         .flatten()
@@ -33,8 +34,8 @@ pub fn emitted_assets_to_virtual_sources(
         .into_iter()
         .map(|(file, (content, _source_map))| {
             // TODO handle SourceMap
-            VirtualSourceVc::new(
-                ServerFileSystemVc::new().root().join(&file),
+            VirtualSource::new(
+                ServerFileSystem::new().root().join(file),
                 AssetContent::File(FileContent::Content(File::from(content)).cell()).cell(),
             )
         })

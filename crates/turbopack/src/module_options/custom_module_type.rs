@@ -1,13 +1,14 @@
-use turbopack_core::{module::ModuleVc, resolve::ModulePartVc, source::SourceVc};
+use turbo_tasks::Vc;
+use turbopack_core::{module::Module, resolve::ModulePart, source::Source};
 
-use crate::ModuleAssetContextVc;
+use crate::ModuleAssetContext;
 
 #[turbo_tasks::value_trait]
 pub trait CustomModuleType {
     fn create_module(
-        &self,
-        source: SourceVc,
-        context: ModuleAssetContextVc,
-        part: Option<ModulePartVc>,
-    ) -> ModuleVc;
+        self: Vc<Self>,
+        source: Vc<Box<dyn Source>>,
+        context: Vc<ModuleAssetContext>,
+        part: Option<Vc<ModulePart>>,
+    ) -> Vc<Box<dyn Module>>;
 }

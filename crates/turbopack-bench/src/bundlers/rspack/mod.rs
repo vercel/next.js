@@ -10,7 +10,9 @@ use regex::Regex;
 use crate::{
     bundlers::Bundler,
     util::{
-        npm::{self, NpmPackage},
+        npm::{
+            NpmPackage, {self},
+        },
         wait_for_match,
     },
 };

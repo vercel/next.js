@@ -25,17 +25,18 @@ pub fn derive_value_debug_format(input: TokenStream) -> TokenStream {
     let value_debug_format_ident = get_value_debug_format_ident(ident);
 
     quote! {
+        #[doc(hidden)]
         impl #ident {
             #[doc(hidden)]
             #[allow(non_snake_case)]
-            async fn #value_debug_format_ident(&self, depth: usize) -> anyhow::Result<turbo_tasks::debug::ValueDebugStringVc> {
+            async fn #value_debug_format_ident(&self, depth: usize) -> anyhow::Result<turbo_tasks::Vc<turbo_tasks::debug::ValueDebugString>> {
                 if depth == 0 {
-                    return Ok(turbo_tasks::debug::ValueDebugStringVc::new(stringify!(#ident).to_string()));
+                    return Ok(turbo_tasks::debug::ValueDebugString::new(stringify!(#ident).to_string()));
                 }
 
                 use turbo_tasks::debug::internal::*;
                 use turbo_tasks::debug::ValueDebugFormat;
-                Ok(turbo_tasks::debug::ValueDebugStringVc::new(format!("{:#?}", #formatting_logic)))
+                Ok(turbo_tasks::debug::ValueDebugString::new(format!("{:#?}", #formatting_logic)))
             }
         }
 

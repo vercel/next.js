@@ -1,34 +1,34 @@
 use anyhow::Result;
-use turbo_tasks::Value;
+use turbo_tasks::{Value, Vc};
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::FileSystem;
 use turbopack_core::{
     compile_time_defines,
     compile_time_info::CompileTimeInfo,
-    context::AssetContextVc,
-    environment::{EnvironmentVc, ExecutionEnvironment, NodeJsEnvironment},
-    resolve::options::{ImportMap, ImportMapVc, ImportMapping},
+    context::AssetContext,
+    environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
+    resolve::options::{ImportMap, ImportMapping},
 };
-use turbopack_node::execution_context::ExecutionContextVc;
+use turbopack_node::execution_context::ExecutionContext;
 
 use crate::{
     module_options::ModuleOptionsContext, resolve_options_context::ResolveOptionsContext,
-    transition::TransitionsByNameVc, ModuleAssetContextVc,
+    transition::TransitionsByName, ModuleAssetContext,
 };
 
 #[turbo_tasks::function]
-pub fn node_build_environment() -> EnvironmentVc {
-    EnvironmentVc::new(Value::new(ExecutionEnvironment::NodeJsBuildTime(
+pub fn node_build_environment() -> Vc<Environment> {
+    Environment::new(Value::new(ExecutionEnvironment::NodeJsBuildTime(
         NodeJsEnvironment::default().cell(),
     )))
 }
 
 #[turbo_tasks::function]
 pub async fn node_evaluate_asset_context(
-    execution_context: ExecutionContextVc,
-    import_map: Option<ImportMapVc>,
-    transitions: Option<TransitionsByNameVc>,
-) -> Result<AssetContextVc> {
+    execution_context: Vc<ExecutionContext>,
+    import_map: Option<Vc<ImportMap>>,
+    transitions: Option<Vc<TransitionsByName>>,
+) -> Result<Vc<Box<dyn AssetContext>>> {
     let mut import_map = if let Some(import_map) = import_map {
         import_map.await?.clone_value()
     } else {
@@ -43,13 +43,14 @@ pub async fn node_evaluate_asset_context(
         .cell(),
     );
     let import_map = import_map.cell();
-    let node_env = if let Some(node_env) = &*execution_context.env().read("NODE_ENV").await? {
-        node_env.clone()
-    } else {
-        "development".to_string()
-    };
-    Ok(ModuleAssetContextVc::new(
-        transitions.unwrap_or_else(|| TransitionsByNameVc::cell(Default::default())),
+    let node_env =
+        if let Some(node_env) = &*execution_context.env().read("NODE_ENV".to_string()).await? {
+            node_env.clone()
+        } else {
+            "development".to_string()
+        };
+    Ok(Vc::upcast(ModuleAssetContext::new(
+        transitions.unwrap_or_else(|| Vc::cell(Default::default())),
         CompileTimeInfo::builder(node_build_environment())
             .defines(
                 compile_time_defines!(
@@ -74,6 +75,5 @@ pub async fn node_evaluate_asset_context(
             ..Default::default()
         }
         .cell(),
-    )
-    .as_asset_context())
+    )))
 }

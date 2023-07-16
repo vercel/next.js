@@ -1,37 +1,30 @@
 #![feature(async_closure)]
 #![feature(min_specialization)]
 #![feature(lint_reasons)]
+#![feature(arbitrary_self_types)]
+#![feature(async_fn_in_trait)]
 #![allow(clippy::too_many_arguments)]
 
 use std::{collections::HashMap, iter::once, thread::available_parallelism};
 
 use anyhow::{bail, Result};
 use indexmap::IndexSet;
-pub use node_entry::{
-    NodeEntry, NodeEntryVc, NodeRenderingEntriesVc, NodeRenderingEntry, NodeRenderingEntryVc,
-};
+pub use node_entry::{NodeEntry, NodeRenderingEntries, NodeRenderingEntry};
 use turbo_tasks::{
     graph::{AdjacencyMap, GraphTraversal},
-    CompletionVc, CompletionsVc, TryJoinIterExt, ValueToString,
+    Completion, Completions, TryJoinIterExt, ValueToString, Vc,
 };
-use turbo_tasks_env::{ProcessEnv, ProcessEnvVc};
-use turbo_tasks_fs::{to_sys_path, File, FileContent, FileSystemPathVc};
+use turbo_tasks_env::ProcessEnv;
+use turbo_tasks_fs::{to_sys_path, File, FileSystemPath};
 use turbopack_core::{
-    asset::{Asset, AssetVc, AssetsSetVc},
-    chunk::{
-        ChunkableModule, ChunkingContext, ChunkingContextVc, EvaluatableAssetVc,
-        EvaluatableAssetsVc,
-    },
+    asset::{Asset, AssetContent, AssetsSet},
+    chunk::{ChunkableModule, ChunkingContext, EvaluatableAsset, EvaluatableAssets},
     reference::primary_referenced_assets,
-    source_map::GenerateSourceMapVc,
-    virtual_source::VirtualSourceVc,
+    source_map::GenerateSourceMap,
+    virtual_source::VirtualSource,
 };
 
-use self::{
-    bootstrap::NodeJsBootstrapAsset,
-    pool::{NodeJsPool, NodeJsPoolVc},
-    source_map::StructuredError,
-};
+use self::{bootstrap::NodeJsBootstrapAsset, pool::NodeJsPool, source_map::StructuredError};
 
 pub mod bootstrap;
 pub mod debug;
@@ -47,10 +40,10 @@ pub mod transforms;
 
 #[turbo_tasks::function]
 async fn emit(
-    intermediate_asset: AssetVc,
-    intermediate_output_path: FileSystemPathVc,
-) -> Result<CompletionVc> {
-    Ok(CompletionsVc::cell(
+    intermediate_asset: Vc<Box<dyn Asset>>,
+    intermediate_output_path: Vc<FileSystemPath>,
+) -> Result<Vc<Completion>> {
+    Ok(Vc::<Completions>::cell(
         internal_assets(intermediate_asset, intermediate_output_path)
             .strongly_consistent()
             .await?
@@ -66,8 +59,8 @@ async fn emit(
 #[derive(Debug)]
 #[turbo_tasks::value]
 struct SeparatedAssets {
-    internal_assets: AssetsSetVc,
-    external_asset_entrypoints: AssetsSetVc,
+    internal_assets: Vc<AssetsSet>,
+    external_asset_entrypoints: Vc<AssetsSet>,
 }
 
 /// Extracts the subgraph of "internal" assets (assets within the passes
@@ -75,9 +68,9 @@ struct SeparatedAssets {
 /// "internal" subgraph.
 #[turbo_tasks::function]
 async fn internal_assets(
-    intermediate_asset: AssetVc,
-    intermediate_output_path: FileSystemPathVc,
-) -> Result<AssetsSetVc> {
+    intermediate_asset: Vc<Box<dyn Asset>>,
+    intermediate_output_path: Vc<FileSystemPath>,
+) -> Result<Vc<AssetsSet>> {
     Ok(
         separate_assets(intermediate_asset, intermediate_output_path)
             .strongly_consistent()
@@ -87,40 +80,40 @@ async fn internal_assets(
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct AssetsForSourceMapping(HashMap<String, GenerateSourceMapVc>);
+pub struct AssetsForSourceMapping(HashMap<String, Vc<Box<dyn GenerateSourceMap>>>);
 
 /// Extracts a map of "internal" assets ([`internal_assets`]) which implement
 /// the [GenerateSourceMap] trait.
 #[turbo_tasks::function]
 async fn internal_assets_for_source_mapping(
-    intermediate_asset: AssetVc,
-    intermediate_output_path: FileSystemPathVc,
-) -> Result<AssetsForSourceMappingVc> {
+    intermediate_asset: Vc<Box<dyn Asset>>,
+    intermediate_output_path: Vc<FileSystemPath>,
+) -> Result<Vc<AssetsForSourceMapping>> {
     let internal_assets = internal_assets(intermediate_asset, intermediate_output_path).await?;
     let intermediate_output_path = &*intermediate_output_path.await?;
     let mut internal_assets_for_source_mapping = HashMap::new();
     for asset in internal_assets.iter() {
-        if let Some(generate_source_map) = GenerateSourceMapVc::resolve_from(asset).await? {
+        if let Some(generate_source_map) =
+            Vc::try_resolve_sidecast::<Box<dyn GenerateSourceMap>>(*asset).await?
+        {
             if let Some(path) = intermediate_output_path.get_path_to(&*asset.ident().path().await?)
             {
                 internal_assets_for_source_mapping.insert(path.to_string(), generate_source_map);
             }
         }
     }
-    Ok(AssetsForSourceMappingVc::cell(
-        internal_assets_for_source_mapping,
-    ))
+    Ok(Vc::cell(internal_assets_for_source_mapping))
 }
 
 /// Returns a set of "external" assets on the boundary of the "internal"
 /// subgraph
 #[turbo_tasks::function]
 pub async fn external_asset_entrypoints(
-    module: EvaluatableAssetVc,
-    runtime_entries: EvaluatableAssetsVc,
-    chunking_context: ChunkingContextVc,
-    intermediate_output_path: FileSystemPathVc,
-) -> Result<AssetsSetVc> {
+    module: Vc<Box<dyn EvaluatableAsset>>,
+    runtime_entries: Vc<EvaluatableAssets>,
+    chunking_context: Vc<Box<dyn ChunkingContext>>,
+    intermediate_output_path: Vc<FileSystemPath>,
+) -> Result<Vc<AssetsSet>> {
     Ok(separate_assets(
         get_intermediate_asset(chunking_context, module, runtime_entries)
             .resolve()
@@ -136,14 +129,14 @@ pub async fn external_asset_entrypoints(
 /// assets.
 #[turbo_tasks::function]
 async fn separate_assets(
-    intermediate_asset: AssetVc,
-    intermediate_output_path: FileSystemPathVc,
-) -> Result<SeparatedAssetsVc> {
+    intermediate_asset: Vc<Box<dyn Asset>>,
+    intermediate_output_path: Vc<FileSystemPath>,
+) -> Result<Vc<SeparatedAssets>> {
     let intermediate_output_path = &*intermediate_output_path.await?;
     #[derive(PartialEq, Eq, Hash, Clone, Copy)]
     enum Type {
-        Internal(AssetVc),
-        External(AssetVc),
+        Internal(Vc<Box<dyn Asset>>),
+        External(Vc<Box<dyn Asset>>),
     }
     let get_asset_children = |asset| async move {
         let Type::Internal(asset) = asset else {
@@ -161,7 +154,7 @@ async fn separate_assets(
                     .ident()
                     .path()
                     .await?
-                    .is_inside(intermediate_output_path)
+                    .is_inside_ref(intermediate_output_path)
                 {
                     Ok(Type::Internal(*asset))
                 } else {
@@ -194,8 +187,8 @@ async fn separate_assets(
     }
 
     Ok(SeparatedAssets {
-        internal_assets: AssetsSetVc::cell(internal_assets),
-        external_asset_entrypoints: AssetsSetVc::cell(external_asset_entrypoints),
+        internal_assets: Vc::cell(internal_assets),
+        external_asset_entrypoints: Vc::cell(external_asset_entrypoints),
     }
     .cell())
 }
@@ -203,13 +196,12 @@ async fn separate_assets(
 /// Emit a basic package.json that sets the type of the package to commonjs.
 /// Currently code generated for Node is CommonJS, while authored code may be
 /// ESM, for example.
-fn emit_package_json(dir: FileSystemPathVc) -> CompletionVc {
+fn emit_package_json(dir: Vc<FileSystemPath>) -> Vc<Completion> {
     emit(
-        VirtualSourceVc::new(
-            dir.join("package.json"),
-            FileContent::Content(File::from("{\"type\": \"commonjs\"}")).into(),
-        )
-        .into(),
+        Vc::upcast(VirtualSource::new(
+            dir.join("package.json".to_string()),
+            AssetContent::file(File::from("{\"type\": \"commonjs\"}").into()),
+        )),
         dir,
     )
 }
@@ -217,14 +209,14 @@ fn emit_package_json(dir: FileSystemPathVc) -> CompletionVc {
 /// Creates a node.js renderer pool for an entrypoint.
 #[turbo_tasks::function]
 pub async fn get_renderer_pool(
-    cwd: FileSystemPathVc,
-    env: ProcessEnvVc,
-    intermediate_asset: AssetVc,
-    intermediate_output_path: FileSystemPathVc,
-    output_root: FileSystemPathVc,
-    project_dir: FileSystemPathVc,
+    cwd: Vc<FileSystemPath>,
+    env: Vc<Box<dyn ProcessEnv>>,
+    intermediate_asset: Vc<Box<dyn Asset>>,
+    intermediate_output_path: Vc<FileSystemPath>,
+    output_root: Vc<FileSystemPath>,
+    project_dir: Vc<FileSystemPath>,
     debug: bool,
-) -> Result<NodeJsPoolVc> {
+) -> Result<Vc<NodeJsPool>> {
     emit_package_json(intermediate_output_path).await?;
 
     let emit = emit(intermediate_asset, output_root);
@@ -267,18 +259,19 @@ pub async fn get_renderer_pool(
 /// Converts a module graph into node.js executable assets
 #[turbo_tasks::function]
 pub async fn get_intermediate_asset(
-    chunking_context: ChunkingContextVc,
-    main_entry: EvaluatableAssetVc,
-    other_entries: EvaluatableAssetsVc,
-) -> Result<AssetVc> {
-    Ok(NodeJsBootstrapAsset {
-        path: chunking_context.chunk_path(main_entry.ident(), ".js"),
-        chunking_context,
-        entry: main_entry.as_root_chunk(chunking_context),
-        evaluatable_assets: other_entries.with_entry(main_entry),
-    }
-    .cell()
-    .into())
+    chunking_context: Vc<Box<dyn ChunkingContext>>,
+    main_entry: Vc<Box<dyn EvaluatableAsset>>,
+    other_entries: Vc<EvaluatableAssets>,
+) -> Result<Vc<Box<dyn Asset>>> {
+    Ok(Vc::upcast(
+        NodeJsBootstrapAsset {
+            path: chunking_context.chunk_path(main_entry.ident(), ".js".to_string()),
+            chunking_context,
+            entry: main_entry.as_root_chunk(chunking_context),
+            evaluatable_assets: other_entries.with_entry(main_entry),
+        }
+        .cell(),
+    ))
 }
 
 #[derive(Clone, Debug)]

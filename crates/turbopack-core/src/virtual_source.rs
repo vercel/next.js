@@ -1,31 +1,31 @@
-use anyhow::Result;
-use turbo_tasks_fs::FileSystemPathVc;
+use turbo_tasks::Vc;
+use turbo_tasks_fs::FileSystemPath;
 
 use crate::{
-    asset::{Asset, AssetContentVc, AssetVc},
-    ident::AssetIdentVc,
-    source::{Source, SourceVc},
+    asset::{Asset, AssetContent},
+    ident::AssetIdent,
+    source::Source,
 };
 
 /// An [Asset] that is created from some passed source code.
 #[turbo_tasks::value]
 pub struct VirtualSource {
-    pub ident: AssetIdentVc,
-    pub content: AssetContentVc,
+    pub ident: Vc<AssetIdent>,
+    pub content: Vc<AssetContent>,
 }
 
 #[turbo_tasks::value_impl]
-impl VirtualSourceVc {
+impl VirtualSource {
     #[turbo_tasks::function]
-    pub fn new(path: FileSystemPathVc, content: AssetContentVc) -> Self {
+    pub fn new(path: Vc<FileSystemPath>, content: Vc<AssetContent>) -> Vc<Self> {
         Self::cell(VirtualSource {
-            ident: AssetIdentVc::from_path(path),
+            ident: AssetIdent::from_path(path),
             content,
         })
     }
 
     #[turbo_tasks::function]
-    pub fn new_with_ident(ident: AssetIdentVc, content: AssetContentVc) -> Self {
+    pub fn new_with_ident(ident: Vc<AssetIdent>, content: Vc<AssetContent>) -> Vc<Self> {
         Self::cell(VirtualSource { ident, content })
     }
 }
@@ -36,12 +36,12 @@ impl Source for VirtualSource {}
 #[turbo_tasks::value_impl]
 impl Asset for VirtualSource {
     #[turbo_tasks::function]
-    fn ident(&self) -> AssetIdentVc {
+    fn ident(&self) -> Vc<AssetIdent> {
         self.ident
     }
 
     #[turbo_tasks::function]
-    fn content(&self) -> AssetContentVc {
+    fn content(&self) -> Vc<AssetContent> {
         self.content
     }
 }

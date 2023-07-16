@@ -3,12 +3,9 @@ use std::{fmt::Write, mem::replace};
 use anyhow::Result;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{
-    primitives::StringVc, trace::TraceRawVcs, TaskInput, TryJoinIterExt, ValueToString,
-    ValueToStringVc,
-};
+use turbo_tasks::{trace::TraceRawVcs, TaskInput, TryJoinIterExt, ValueToString, Vc};
 
-use super::{GetContentSourceContentVc, GetContentSourceContentsVc};
+use super::{GetContentSourceContent, GetContentSourceContents};
 
 /// The type of the route. THis will decide about the remaining segements of the
 /// route after the base.
@@ -36,17 +33,17 @@ impl BaseSegment {
 }
 
 /// This struct allows to cell a list of RouteTrees and merge them into one.
-/// This can't be a single method `fn merge(Vec<RouteTreeVc>)` as this would
+/// This can't be a single method `fn merge(Vec<Vc<RouteTree>>)` as this would
 /// lead to creating new tasks over and over. A celled list leads to task reuse
 /// and faster operation.
 #[turbo_tasks::value(transparent)]
-pub struct RouteTrees(Vec<RouteTreeVc>);
+pub struct RouteTrees(Vec<Vc<RouteTree>>);
 
 #[turbo_tasks::value_impl]
-impl RouteTreesVc {
+impl RouteTrees {
     /// Merges the list of RouteTrees into one RouteTree.
     #[turbo_tasks::function]
-    pub async fn merge(self) -> Result<RouteTreeVc> {
+    pub async fn merge(self: Vc<Self>) -> Result<Vc<RouteTree>> {
         let trees = &*self.await?;
         if trees.is_empty() {
             return Ok(RouteTree::default().cell());
@@ -100,20 +97,20 @@ impl RouteTreesVc {
 #[derive(Default, Clone, Debug)]
 pub struct RouteTree {
     base: Vec<BaseSegment>,
-    sources: Vec<GetContentSourceContentVc>,
-    static_segments: IndexMap<String, RouteTreeVc>,
-    dynamic_segments: Vec<RouteTreeVc>,
-    catch_all_sources: Vec<GetContentSourceContentVc>,
-    fallback_sources: Vec<GetContentSourceContentVc>,
-    not_found_sources: Vec<GetContentSourceContentVc>,
+    sources: Vec<Vc<Box<dyn GetContentSourceContent>>>,
+    static_segments: IndexMap<String, Vc<RouteTree>>,
+    dynamic_segments: Vec<Vc<RouteTree>>,
+    catch_all_sources: Vec<Vc<Box<dyn GetContentSourceContent>>>,
+    fallback_sources: Vec<Vc<Box<dyn GetContentSourceContent>>>,
+    not_found_sources: Vec<Vc<Box<dyn GetContentSourceContent>>>,
 }
 
 impl RouteTree {
     /// Creates a route tree for a single route.
-    pub fn new_route(
+    pub fn new_route_ref(
         base_segments: Vec<BaseSegment>,
         route_type: RouteType,
-        source: GetContentSourceContentVc,
+        source: Vc<Box<dyn GetContentSourceContent>>,
     ) -> Self {
         match route_type {
             RouteType::Exact => Self {
@@ -171,7 +168,7 @@ impl RouteTree {
                         if value.len() == 1 {
                             value.into_iter().next().unwrap()
                         } else {
-                            RouteTreesVc::cell(value).merge().resolve().await?
+                            Vc::<RouteTrees>::cell(value).merge().resolve().await?
                         },
                     ))
                 })
@@ -189,7 +186,7 @@ impl RouteTree {
 #[turbo_tasks::value_impl]
 impl ValueToString for RouteTree {
     #[turbo_tasks::function]
-    fn to_string(&self) -> Result<StringVc> {
+    fn to_string(&self) -> Result<Vc<String>> {
         let RouteTree {
             base,
             sources,
@@ -231,15 +228,15 @@ impl ValueToString for RouteTree {
             result.truncate(result.len() - 2);
         }
         result.push(')');
-        Ok(StringVc::cell(result))
+        Ok(Vc::cell(result))
     }
 }
 
 #[turbo_tasks::value_impl]
-impl RouteTreeVc {
+impl RouteTree {
     /// Creates an empty route tree.
     #[turbo_tasks::function]
-    pub fn empty() -> RouteTreeVc {
+    pub fn empty() -> Vc<RouteTree> {
         RouteTree::default().cell()
     }
 
@@ -248,16 +245,16 @@ impl RouteTreeVc {
     pub fn new_route(
         base_segments: Vec<BaseSegment>,
         route_type: RouteType,
-        source: GetContentSourceContentVc,
-    ) -> Self {
-        RouteTree::new_route(base_segments, route_type, source).cell()
+        source: Vc<Box<dyn GetContentSourceContent>>,
+    ) -> Vc<Self> {
+        RouteTree::new_route_ref(base_segments, route_type, source).cell()
     }
 
     /// Gets the [`GetContentSourceContent`]s for the given path.
     // TODO(WEB-1252) It's unneccesary to compute all [`GetContentSourceContent`]s at once, we could
     // return some lazy iterator to make it more efficient.
     #[turbo_tasks::function]
-    pub async fn get(self, path: &str) -> Result<GetContentSourceContentsVc> {
+    pub async fn get(self: Vc<Self>, path: String) -> Result<Vc<GetContentSourceContents>> {
         let RouteTree {
             base,
             sources,
@@ -270,19 +267,19 @@ impl RouteTreeVc {
         let mut results = Vec::new();
         if path.is_empty() {
             if !base.is_empty() {
-                return Ok(GetContentSourceContentsVc::cell(vec![]));
+                return Ok(Vc::cell(vec![]));
             }
             results.extend(sources.iter().copied());
         } else {
             let mut segments = path.split('/');
             for base in base.iter() {
                 let Some(segment) = segments.next() else {
-                    return Ok(GetContentSourceContentsVc::cell(vec![]));
+                    return Ok(Vc::cell(vec![]));
                 };
                 match base {
                     BaseSegment::Static(str) => {
                         if str != segment {
-                            return Ok(GetContentSourceContentsVc::cell(vec![]));
+                            return Ok(Vc::cell(vec![]));
                         }
                     }
                     BaseSegment::Dynamic => {
@@ -294,10 +291,10 @@ impl RouteTreeVc {
             if let Some(segment) = segments.next() {
                 let remainder = segments.remainder().unwrap_or("");
                 if let Some(tree) = static_segments.get(segment) {
-                    results.extend(tree.get(remainder).await?.iter().copied());
+                    results.extend(tree.get(remainder.to_string()).await?.iter().copied());
                 }
                 for tree in dynamic_segments.iter() {
-                    results.extend(tree.get(remainder).await?.iter().copied());
+                    results.extend(tree.get(remainder.to_string()).await?.iter().copied());
                 }
             } else {
                 results.extend(sources.iter().copied());
@@ -306,23 +303,23 @@ impl RouteTreeVc {
         results.extend(catch_all_sources.iter().copied());
         results.extend(fallback_sources.iter().copied());
         results.extend(not_found_sources.iter().copied());
-        Ok(GetContentSourceContentsVc::cell(results))
+        Ok(Vc::cell(results))
     }
 
     /// Prepends a base path to all routes.
     #[turbo_tasks::function]
     pub async fn with_prepended_base(
-        self_vc: RouteTreeVc,
+        self: Vc<Self>,
         segments: Vec<BaseSegment>,
-    ) -> Result<RouteTreeVc> {
-        let mut this = self_vc.await?.clone_value();
+    ) -> Result<Vc<RouteTree>> {
+        let mut this = self.await?.clone_value();
         this.prepend_base(segments);
         Ok(this.cell())
     }
 
     #[turbo_tasks::function]
-    async fn with_base_len(self_vc: RouteTreeVc, base_len: usize) -> Result<RouteTreeVc> {
-        let this = self_vc.await?;
+    async fn with_base_len(self: Vc<Self>, base_len: usize) -> Result<Vc<RouteTree>> {
+        let this = self.await?;
         if this.base.len() > base_len {
             let mut inner = this.clone_value();
             let mut drain = inner.base.drain(base_len..);
@@ -345,14 +342,17 @@ impl RouteTreeVc {
                 .cell()),
             }
         } else {
-            Ok(self_vc)
+            Ok(self)
         }
     }
 
     /// Applies a transformation on all [`GetContentSourceContent`]s in the
     /// tree.
     #[turbo_tasks::function]
-    pub async fn map_routes(self, mapper: MapGetContentSourceContentVc) -> Result<Self> {
+    pub async fn map_routes(
+        self: Vc<Self>,
+        mapper: Vc<Box<dyn MapGetContentSourceContent>>,
+    ) -> Result<Vc<Self>> {
         let mut this = self.await?.clone_value();
         let RouteTree {
             base: _,
@@ -388,5 +388,8 @@ impl RouteTreeVc {
 /// Transformation functor
 #[turbo_tasks::value_trait]
 pub trait MapGetContentSourceContent {
-    fn map_get_content(&self, get_content: GetContentSourceContentVc) -> GetContentSourceContentVc;
+    fn map_get_content(
+        self: Vc<Self>,
+        get_content: Vc<Box<dyn GetContentSourceContent>>,
+    ) -> Vc<Box<dyn GetContentSourceContent>>;
 }

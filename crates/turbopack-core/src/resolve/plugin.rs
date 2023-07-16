@@ -1,25 +1,25 @@
 use anyhow::Result;
-use turbo_tasks::primitives::BoolVc;
-use turbo_tasks_fs::{glob::GlobVc, FileSystemPathVc};
+use turbo_tasks::Vc;
+use turbo_tasks_fs::{glob::Glob, FileSystemPath};
 
-use crate::resolve::{parse::RequestVc, ResolveResultOptionVc};
+use crate::resolve::{parse::Request, ResolveResultOption};
 
 /// A condition which determines if the hooks of a resolve plugin gets called.
 #[turbo_tasks::value]
 pub struct ResolvePluginCondition {
-    root: FileSystemPathVc,
-    glob: GlobVc,
+    root: Vc<FileSystemPath>,
+    glob: Vc<Glob>,
 }
 
 #[turbo_tasks::value_impl]
-impl ResolvePluginConditionVc {
+impl ResolvePluginCondition {
     #[turbo_tasks::function]
-    pub fn new(root: FileSystemPathVc, glob: GlobVc) -> Self {
+    pub fn new(root: Vc<FileSystemPath>, glob: Vc<Glob>) -> Vc<Self> {
         ResolvePluginCondition { root, glob }.cell()
     }
 
     #[turbo_tasks::function]
-    pub async fn matches(self, fs_path: FileSystemPathVc) -> Result<BoolVc> {
+    pub async fn matches(self: Vc<Self>, fs_path: Vc<FileSystemPath>) -> Result<Vc<bool>> {
         let this = self.await?;
         let root = this.root.await?;
         let glob = this.glob.await?;
@@ -28,26 +28,26 @@ impl ResolvePluginConditionVc {
 
         if let Some(path) = root.get_path_to(&path) {
             if glob.execute(path) {
-                return Ok(BoolVc::cell(true));
+                return Ok(Vc::cell(true));
             }
         }
 
-        Ok(BoolVc::cell(false))
+        Ok(Vc::cell(false))
     }
 }
 
 #[turbo_tasks::value_trait]
 pub trait ResolvePlugin {
     /// A condition which determines if the hooks gets called.
-    fn after_resolve_condition(&self) -> ResolvePluginConditionVc;
+    fn after_resolve_condition(self: Vc<Self>) -> Vc<ResolvePluginCondition>;
 
     /// This hook gets called when a full filepath has been resolved and the
     /// condition matches. If a value is returned it replaces the resolve
     /// result.
     fn after_resolve(
-        &self,
-        fs_path: FileSystemPathVc,
-        context: FileSystemPathVc,
-        request: RequestVc,
-    ) -> ResolveResultOptionVc;
+        self: Vc<Self>,
+        fs_path: Vc<FileSystemPath>,
+        context: Vc<FileSystemPath>,
+        request: Vc<Request>,
+    ) -> Vc<ResolveResultOption>;
 }

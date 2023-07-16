@@ -19,19 +19,15 @@ use swc_core::{
         visit::VisitMutWith,
     },
 };
-use turbo_tasks::{
-    primitives::{StringVc, U64Vc},
-    util::WrapFuture,
-    Value, ValueToString,
-};
-use turbo_tasks_fs::{FileContent, FileSystemPath, FileSystemPathVc};
+use turbo_tasks::{util::WrapFuture, Value, ValueToString, Vc};
+use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack_core::{
     asset::{Asset, AssetContent},
     error::PrettyPrintError,
-    issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc},
-    source::SourceVc,
-    source_map::{GenerateSourceMap, GenerateSourceMapVc, OptionSourceMapVc},
+    issue::{Issue, IssueExt, IssueSeverity},
+    source::Source,
+    source_map::{GenerateSourceMap, OptionSourceMap},
     SOURCE_MAP_ROOT_NAME,
 };
 use turbopack_swc_utils::emitter::IssueEmitter;
@@ -39,7 +35,7 @@ use turbopack_swc_utils::emitter::IssueEmitter;
 use super::EcmascriptModuleAssetType;
 use crate::{
     analyzer::graph::EvalContext,
-    transform::{EcmascriptInputTransformsVc, TransformContext},
+    transform::{EcmascriptInputTransforms, TransformContext},
     EcmascriptInputTransform,
 };
 
@@ -106,13 +102,13 @@ impl ParseResultSourceMap {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for ParseResultSourceMap {
     #[turbo_tasks::function]
-    fn generate_source_map(&self) -> OptionSourceMapVc {
+    fn generate_source_map(&self) -> Vc<OptionSourceMap> {
         let map = self.source_map.build_source_map_with_config(
             &self.mappings,
             None,
             InlineSourcesContentConfig {},
         );
-        OptionSourceMapVc::cell(Some(
+        Vc::cell(Some(
             turbopack_core::source_map::SourceMap::new_regular(map).cell(),
         ))
     }
@@ -140,10 +136,10 @@ impl SourceMapGenConfig for InlineSourcesContentConfig {
 
 #[turbo_tasks::function]
 pub async fn parse(
-    source: SourceVc,
+    source: Vc<Box<dyn Source>>,
     ty: Value<EcmascriptModuleAssetType>,
-    transforms: EcmascriptInputTransformsVc,
-) -> Result<ParseResultVc> {
+    transforms: Vc<EcmascriptInputTransforms>,
+) -> Result<Vc<ParseResult>> {
     match parse_internal(source, ty, transforms).await {
         Ok(result) => Ok(result),
         Err(error) => Err(error.context(format!(
@@ -154,10 +150,10 @@ pub async fn parse(
 }
 
 async fn parse_internal(
-    source: SourceVc,
+    source: Vc<Box<dyn Source>>,
     ty: Value<EcmascriptModuleAssetType>,
-    transforms: EcmascriptInputTransformsVc,
-) -> Result<ParseResultVc> {
+    transforms: Vc<EcmascriptInputTransforms>,
+) -> Result<Vc<ParseResult>> {
     let content = source.content();
     let fs_path_vc = source.ident().path();
     let fs_path = &*fs_path_vc.await?;
@@ -172,7 +168,6 @@ async fn parse_internal(
                 error: PrettyPrintError(&error).to_string(),
             }
             .cell()
-            .as_issue()
             .emit();
             return Ok(ParseResult::Unparseable.cell());
         }
@@ -210,7 +205,6 @@ async fn parse_internal(
                         error: PrettyPrintError(&error).to_string(),
                     }
                     .cell()
-                    .as_issue()
                     .emit();
                     ParseResult::Unparseable.cell()
                 }
@@ -222,14 +216,14 @@ async fn parse_internal(
 
 async fn parse_content(
     string: String,
-    fs_path_vc: FileSystemPathVc,
+    fs_path_vc: Vc<FileSystemPath>,
     fs_path: &FileSystemPath,
     ident: &str,
     file_path_hash: u128,
-    source: SourceVc,
+    source: Vc<Box<dyn Source>>,
     ty: EcmascriptModuleAssetType,
     transforms: &[EcmascriptInputTransform],
-) -> Result<ParseResultVc> {
+) -> Result<Vc<ParseResult>> {
     let source_map: Arc<swc_core::common::SourceMap> = Default::default();
     let handler = Handler::with_emitter(
         true,
@@ -244,11 +238,6 @@ async fn parse_content(
     let globals_ref = &globals;
     let helpers = GLOBALS.set(globals_ref, || Helpers::new(true));
     let mut result = WrapFuture::new(
-        |f, cx| {
-            GLOBALS.set(globals_ref, || {
-                HANDLER.set(&handler, || HELPERS.set(&helpers, || f.poll(cx)))
-            })
-        },
         async {
             let file_name = FileName::Custom(ident.to_string());
             let fm = source_map.new_source_file(file_name.clone(), string);
@@ -361,6 +350,11 @@ async fn parse_content(
                 source_map,
             })
         },
+        |f, cx| {
+            GLOBALS.set(globals_ref, || {
+                HANDLER.set(&handler, || HELPERS.set(&helpers, || f.poll(cx)))
+            })
+        },
     )
     .await?;
     if let ParseResult::Ok {
@@ -374,44 +368,44 @@ async fn parse_content(
 }
 
 #[turbo_tasks::function]
-async fn hash_ident(ident: StringVc) -> Result<U64Vc> {
+async fn hash_ident(ident: Vc<String>) -> Result<Vc<u64>> {
     let ident = &*ident.await?;
-    Ok(U64Vc::cell(hash_xxh3_hash64(ident)))
+    Ok(Vc::cell(hash_xxh3_hash64(ident)))
 }
 
 #[turbo_tasks::value]
 struct ReadSourceIssue {
-    source: SourceVc,
+    source: Vc<Box<dyn Source>>,
     error: String,
 }
 
 #[turbo_tasks::value_impl]
 impl Issue for ReadSourceIssue {
     #[turbo_tasks::function]
-    fn context(&self) -> FileSystemPathVc {
+    fn context(&self) -> Vc<FileSystemPath> {
         self.source.ident().path()
     }
 
     #[turbo_tasks::function]
-    fn title(&self) -> StringVc {
-        StringVc::cell("Reading source code for parsing failed".to_string())
+    fn title(&self) -> Vc<String> {
+        Vc::cell("Reading source code for parsing failed".to_string())
     }
 
     #[turbo_tasks::function]
-    fn description(&self) -> StringVc {
-        StringVc::cell(format!(
+    fn description(&self) -> Vc<String> {
+        Vc::cell(format!(
             "An unexpected error happened while trying to read the source code to parse: {}",
             self.error
         ))
     }
 
     #[turbo_tasks::function]
-    fn severity(&self) -> IssueSeverityVc {
+    fn severity(&self) -> Vc<IssueSeverity> {
         IssueSeverity::Error.cell()
     }
 
     #[turbo_tasks::function]
-    fn category(&self) -> StringVc {
-        StringVc::cell("parse".to_string())
+    fn category(&self) -> Vc<String> {
+        Vc::cell("parse".to_string())
     }
 }

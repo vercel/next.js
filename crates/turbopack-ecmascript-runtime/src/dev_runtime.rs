@@ -2,35 +2,37 @@ use std::io::Write;
 
 use anyhow::Result;
 use indoc::writedoc;
-use turbo_tasks::primitives::OptionStringVc;
+use turbo_tasks::Vc;
 use turbopack_core::{
-    code_builder::{CodeBuilder, CodeVc},
+    code_builder::{Code, CodeBuilder},
     context::AssetContext,
-    environment::{ChunkLoading, EnvironmentVc},
+    environment::{ChunkLoading, Environment},
 };
-use turbopack_ecmascript::{utils::StringifyJs, StaticEcmascriptCodeVc};
+use turbopack_ecmascript::{utils::StringifyJs, StaticEcmascriptCode};
 
 use crate::{asset_context::get_runtime_asset_context, embed_file_path};
 
 /// Returns the code for the development ECMAScript runtime.
 #[turbo_tasks::function]
 pub async fn get_dev_runtime_code(
-    environment: EnvironmentVc,
-    chunk_base_path: OptionStringVc,
-) -> Result<CodeVc> {
+    environment: Vc<Environment>,
+    chunk_base_path: Vc<Option<String>>,
+) -> Result<Vc<Code>> {
     let asset_context = get_runtime_asset_context(environment);
 
-    let shared_runtime_utils_code =
-        StaticEcmascriptCodeVc::new(asset_context, embed_file_path("shared/runtime-utils.ts"))
-            .code();
-
-    let runtime_base_code = StaticEcmascriptCodeVc::new(
+    let shared_runtime_utils_code = StaticEcmascriptCode::new(
         asset_context,
-        embed_file_path("dev/runtime/base/runtime-base.ts"),
+        embed_file_path("shared/runtime-utils.ts".to_string()),
     )
     .code();
 
-    let runtime_backend_code = StaticEcmascriptCodeVc::new(
+    let runtime_base_code = StaticEcmascriptCode::new(
+        asset_context,
+        embed_file_path("dev/runtime/base/runtime-base.ts".to_string()),
+    )
+    .code();
+
+    let runtime_backend_code = StaticEcmascriptCode::new(
         asset_context,
         match &*asset_context
             .compile_time_info()
@@ -38,9 +40,15 @@ pub async fn get_dev_runtime_code(
             .chunk_loading()
             .await?
         {
-            ChunkLoading::None => embed_file_path("dev/runtime/none/runtime-backend-none.ts"),
-            ChunkLoading::NodeJs => embed_file_path("dev/runtime/nodejs/runtime-backend-nodejs.ts"),
-            ChunkLoading::Dom => embed_file_path("dev/runtime/dom/runtime-backend-dom.ts"),
+            ChunkLoading::None => {
+                embed_file_path("dev/runtime/none/runtime-backend-none.ts".to_string())
+            }
+            ChunkLoading::NodeJs => {
+                embed_file_path("dev/runtime/nodejs/runtime-backend-nodejs.ts".to_string())
+            }
+            ChunkLoading::Dom => {
+                embed_file_path("dev/runtime/dom/runtime-backend-dom.ts".to_string())
+            }
         },
     )
     .code();
@@ -80,5 +88,5 @@ pub async fn get_dev_runtime_code(
         "#
     )?;
 
-    Ok(CodeVc::cell(code.build()))
+    Ok(Code::cell(code.build()))
 }

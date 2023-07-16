@@ -11,9 +11,9 @@ use pin_project_lite::pin_project;
 use tokio::select;
 use tokio_stream::StreamMap;
 use tracing::{instrument, Level};
-use turbo_tasks::{TransientInstance, TurboTasksApi};
+use turbo_tasks::{TransientInstance, TurboTasksApi, Vc};
 use turbo_tasks_fs::json::parse_json_with_source_context;
-use turbopack_core::{error::PrettyPrintError, issue::IssueReporterVc, version::Update};
+use turbopack_core::{error::PrettyPrintError, issue::IssueReporter, version::Update};
 
 use super::{
     protocol::{ClientMessage, ClientUpdateInstruction, Issue, ResourceIdentifier},
@@ -29,12 +29,12 @@ use crate::{
 pub(crate) struct UpdateServer<P: SourceProvider> {
     source_provider: P,
     #[allow(dead_code)]
-    issue_reporter: IssueReporterVc,
+    issue_reporter: Vc<Box<dyn IssueReporter>>,
 }
 
 impl<P: SourceProvider + Clone + Send + Sync> UpdateServer<P> {
     /// Create a new update server with the given websocket and content source.
-    pub fn new(source_provider: P, issue_reporter: IssueReporterVc) -> Self {
+    pub fn new(source_provider: P, issue_reporter: Vc<Box<dyn IssueReporter>>) -> Self {
         Self {
             source_provider,
             issue_reporter,

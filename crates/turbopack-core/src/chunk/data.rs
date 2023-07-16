@@ -1,63 +1,64 @@
 use anyhow::Result;
-use turbo_tasks::{primitives::StringVc, TryJoinIterExt};
-use turbo_tasks_fs::FileSystemPathVc;
+use turbo_tasks::{ReadRef, TryJoinIterExt, Vc};
+use turbo_tasks_fs::FileSystemPath;
 
 use crate::{
     asset::Asset,
-    chunk::{ModuleIdReadRef, OutputChunk, OutputChunkRuntimeInfo, OutputChunkVc},
-    output::{OutputAssetVc, OutputAssetsVc},
-    reference::{AssetReferencesVc, SingleAssetReferenceVc},
+    chunk::{ModuleId, OutputChunk, OutputChunkRuntimeInfo},
+    output::{OutputAsset, OutputAssets},
+    reference::{AssetReferences, SingleAssetReference},
 };
 
 #[turbo_tasks::value]
 pub struct ChunkData {
     pub path: String,
-    pub included: Vec<ModuleIdReadRef>,
-    pub excluded: Vec<ModuleIdReadRef>,
+    pub included: Vec<ReadRef<ModuleId>>,
+    pub excluded: Vec<ReadRef<ModuleId>>,
     pub module_chunks: Vec<String>,
-    pub references: AssetReferencesVc,
+    pub references: Vc<AssetReferences>,
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct ChunkDataOption(Option<ChunkDataVc>);
+pub struct ChunkDataOption(Option<Vc<ChunkData>>);
 
 // NOTE(alexkirsz) Our convention for naming vector types is to add an "s" to
 // the end of the type name, but in this case it would be both gramatically
 // incorrect and clash with the variable names everywhere.
 // TODO(WEB-101) Should fix this.
 #[turbo_tasks::value(transparent)]
-pub struct ChunksData(Vec<ChunkDataVc>);
+pub struct ChunksData(Vec<Vc<ChunkData>>);
 
 #[turbo_tasks::function]
-fn module_chunk_reference_description() -> StringVc {
-    StringVc::cell("module chunk".to_string())
+fn module_chunk_reference_description() -> Vc<String> {
+    Vc::cell("module chunk".to_string())
 }
 
 #[turbo_tasks::value_impl]
-impl ChunkDataVc {
+impl ChunkData {
     #[turbo_tasks::function]
     pub async fn from_asset(
-        output_root: FileSystemPathVc,
-        chunk: OutputAssetVc,
-    ) -> Result<ChunkDataOptionVc> {
+        output_root: Vc<FileSystemPath>,
+        chunk: Vc<Box<dyn OutputAsset>>,
+    ) -> Result<Vc<ChunkDataOption>> {
         let output_root = output_root.await?;
         let path = chunk.ident().path().await?;
         // The "path" in this case is the chunk's path, not the chunk item's path.
         // The difference is a chunk is a file served by the dev server, and an
         // item is one of several that are contained in that chunk file.
         let Some(path) = output_root.get_path_to(&path) else {
-            return Ok(ChunkDataOptionVc::cell(None));
+            return Ok(Vc::cell(None));
         };
         let path = path.to_string();
 
-        let Some(output_chunk) = OutputChunkVc::resolve_from(chunk).await? else {
-            return Ok(ChunkDataOptionVc::cell(Some(
+        let Some(output_chunk) = Vc::try_resolve_sidecast::<Box<dyn OutputChunk>>(chunk).await?
+        else {
+            return Ok(Vc::cell(Some(
                 ChunkData {
                     path,
                     included: Vec::new(),
                     excluded: Vec::new(),
                     module_chunks: Vec::new(),
-                    references: AssetReferencesVc::empty(),
+                    references: AssetReferences::empty(),
                 }
                 .cell(),
             )));
@@ -95,11 +96,10 @@ impl ChunkDataVc {
                         Ok(output_root.get_path_to(&chunk_path).map(|path| {
                             (
                                 path.to_owned(),
-                                SingleAssetReferenceVc::new(
+                                Vc::upcast(SingleAssetReference::new(
                                     chunk,
                                     module_chunk_reference_description(),
-                                )
-                                .as_asset_reference(),
+                                )),
                             )
                         }))
                     }
@@ -113,13 +113,13 @@ impl ChunkDataVc {
             (Vec::new(), Vec::new())
         };
 
-        Ok(ChunkDataOptionVc::cell(Some(
+        Ok(Vc::cell(Some(
             ChunkData {
                 path,
                 included,
                 excluded,
                 module_chunks,
-                references: AssetReferencesVc::cell(module_chunks_references),
+                references: Vc::cell(module_chunks_references),
             }
             .cell(),
         )))
@@ -127,14 +127,14 @@ impl ChunkDataVc {
 
     #[turbo_tasks::function]
     pub async fn from_assets(
-        output_root: FileSystemPathVc,
-        chunks: OutputAssetsVc,
-    ) -> Result<ChunksDataVc> {
-        Ok(ChunksDataVc::cell(
+        output_root: Vc<FileSystemPath>,
+        chunks: Vc<OutputAssets>,
+    ) -> Result<Vc<ChunksData>> {
+        Ok(Vc::cell(
             chunks
                 .await?
                 .iter()
-                .map(|&chunk| ChunkDataVc::from_asset(output_root, chunk))
+                .map(|&chunk| ChunkData::from_asset(output_root, chunk))
                 .try_join()
                 .await?
                 .into_iter()
@@ -146,7 +146,7 @@ impl ChunkDataVc {
     /// Returns [`AssetReferences`] to the assets that this chunk data
     /// references.
     #[turbo_tasks::function]
-    pub async fn references(self) -> Result<AssetReferencesVc> {
+    pub async fn references(self: Vc<Self>) -> Result<Vc<AssetReferences>> {
         Ok(self.await?.references)
     }
 }

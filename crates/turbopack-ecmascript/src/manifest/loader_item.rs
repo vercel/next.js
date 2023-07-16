@@ -2,27 +2,26 @@ use std::io::Write as _;
 
 use anyhow::{anyhow, Result};
 use indoc::writedoc;
-use turbo_tasks::{primitives::StringVc, TryJoinIterExt};
+use turbo_tasks::{TryJoinIterExt, Vc};
 use turbopack_core::{
     asset::Asset,
-    chunk::{ChunkDataVc, ChunkItem, ChunkItemVc, ChunkingContext, ChunksDataVc},
-    ident::AssetIdentVc,
-    reference::{AssetReferencesVc, SingleAssetReferenceVc},
+    chunk::{ChunkData, ChunkItem, ChunkingContext, ChunksData},
+    ident::AssetIdent,
+    reference::{AssetReferences, SingleAssetReference},
 };
 
-use super::chunk_asset::ManifestChunkAssetVc;
+use super::chunk_asset::ManifestChunkAsset;
 use crate::{
     chunk::{
-        data::EcmascriptChunkData, EcmascriptChunkItem, EcmascriptChunkItemContent,
-        EcmascriptChunkItemContentVc, EcmascriptChunkItemVc, EcmascriptChunkPlaceable,
-        EcmascriptChunkPlaceableVc, EcmascriptChunkingContextVc,
+        data::EcmascriptChunkData, item::EcmascriptChunkItemExt, EcmascriptChunkItem,
+        EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptChunkingContext,
     },
     utils::StringifyJs,
 };
 
 #[turbo_tasks::function]
-fn modifier() -> StringVc {
-    StringVc::cell("loader".to_string())
+fn modifier() -> Vc<String> {
+    Vc::cell("loader".to_string())
 }
 
 /// The manifest loader item is shipped in the same chunk that uses the dynamic
@@ -39,22 +38,22 @@ fn modifier() -> StringVc {
 /// import appears in.
 #[turbo_tasks::value]
 pub struct ManifestLoaderItem {
-    manifest: ManifestChunkAssetVc,
+    manifest: Vc<ManifestChunkAsset>,
 }
 
 #[turbo_tasks::value_impl]
-impl ManifestLoaderItemVc {
+impl ManifestLoaderItem {
     #[turbo_tasks::function]
-    pub fn new(manifest: ManifestChunkAssetVc) -> Self {
+    pub fn new(manifest: Vc<ManifestChunkAsset>) -> Vc<Self> {
         Self::cell(ManifestLoaderItem { manifest })
     }
 
     #[turbo_tasks::function]
-    pub async fn chunks_data(self) -> Result<ChunksDataVc> {
+    pub async fn chunks_data(self: Vc<Self>) -> Result<Vc<ChunksData>> {
         let this = self.await?;
         let chunks = this.manifest.manifest_chunks();
         let manifest = this.manifest.await?;
-        Ok(ChunkDataVc::from_assets(
+        Ok(ChunkData::from_assets(
             manifest.chunking_context.output_root(),
             chunks,
         ))
@@ -62,20 +61,20 @@ impl ManifestLoaderItemVc {
 }
 
 #[turbo_tasks::function]
-fn manifest_loader_chunk_reference_description() -> StringVc {
-    StringVc::cell("manifest loader chunk".to_string())
+fn manifest_loader_chunk_reference_description() -> Vc<String> {
+    Vc::cell("manifest loader chunk".to_string())
 }
 
 #[turbo_tasks::value_impl]
 impl ChunkItem for ManifestLoaderItem {
     #[turbo_tasks::function]
-    fn asset_ident(&self) -> AssetIdentVc {
+    fn asset_ident(&self) -> Vc<AssetIdent> {
         self.manifest.ident().with_modifier(modifier())
     }
 
     #[turbo_tasks::function]
-    async fn references(self_vc: ManifestLoaderItemVc) -> Result<AssetReferencesVc> {
-        let this = self_vc.await?;
+    async fn references(self: Vc<Self>) -> Result<Vc<AssetReferences>> {
+        let this = self.await?;
 
         let chunks = this.manifest.manifest_chunks();
 
@@ -83,42 +82,40 @@ impl ChunkItem for ManifestLoaderItem {
             .await?
             .iter()
             .map(|&chunk| {
-                SingleAssetReferenceVc::new(
-                    chunk.into(),
+                Vc::upcast(SingleAssetReference::new(
+                    Vc::upcast(chunk),
                     manifest_loader_chunk_reference_description(),
-                )
-                .into()
+                ))
             })
             .collect();
 
-        for chunk_data in &*self_vc.chunks_data().await? {
+        for chunk_data in &*self.chunks_data().await? {
             references.extend(chunk_data.references().await?.iter().copied());
         }
 
-        Ok(AssetReferencesVc::cell(references))
+        Ok(Vc::cell(references))
     }
 }
 
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for ManifestLoaderItem {
     #[turbo_tasks::function]
-    async fn chunking_context(&self) -> Result<EcmascriptChunkingContextVc> {
+    async fn chunking_context(&self) -> Result<Vc<Box<dyn EcmascriptChunkingContext>>> {
         Ok(self.manifest.await?.chunking_context)
     }
 
     #[turbo_tasks::function]
-    async fn content(self_vc: ManifestLoaderItemVc) -> Result<EcmascriptChunkItemContentVc> {
-        let this = &*self_vc.await?;
+    async fn content(self: Vc<Self>) -> Result<Vc<EcmascriptChunkItemContent>> {
+        let this = &*self.await?;
         let mut code = Vec::new();
 
         let manifest = this.manifest.await?;
-        let asset = manifest.asset.as_asset();
 
         // We need several items in order for a dynamic import to fully load. First, we
         // need the chunk path of the manifest chunk, relative from the output root. The
         // chunk is a servable file, which will contain the manifest chunk item, which
         // will perform the actual chunk traversal and generate load statements.
-        let chunks_server_data = &*self_vc.chunks_data().await?.iter().try_join().await?;
+        let chunks_server_data = &*self.chunks_data().await?.iter().try_join().await?;
 
         // We also need the manifest chunk item's id, which points to a CJS module that
         // exports a promise for all of the necessary chunk loads.
@@ -130,9 +127,10 @@ impl EcmascriptChunkItem for ManifestLoaderItem {
 
         // Finally, we need the id of the module that we're actually trying to
         // dynamically import.
-        let placeable = EcmascriptChunkPlaceableVc::resolve_from(asset)
-            .await?
-            .ok_or_else(|| anyhow!("asset is not placeable in ecmascript chunk"))?;
+        let placeable =
+            Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkPlaceable>>(manifest.asset)
+                .await?
+                .ok_or_else(|| anyhow!("asset is not placeable in ecmascript chunk"))?;
         let dynamic_id = &*placeable
             .as_chunk_item(manifest.chunking_context)
             .id()

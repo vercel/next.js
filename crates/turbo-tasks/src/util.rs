@@ -25,8 +25,11 @@ pub struct SharedError {
 
 impl SharedError {
     pub fn new(err: Error) -> Self {
-        Self {
-            inner: Arc::new(err),
+        match err.downcast::<SharedError>() {
+            Ok(shared) => shared,
+            Err(plain) => Self {
+                inner: Arc::new(plain),
+            },
         }
     }
 }
@@ -37,7 +40,7 @@ impl StdError for SharedError {
     }
 
     fn provide<'a>(&'a self, req: &mut std::any::Demand<'a>) {
-        Provider::provide(&*self.inner, req);
+        self.inner.provide(req);
     }
 }
 
@@ -235,7 +238,7 @@ pin_project! {
 }
 
 impl<F: Future, W: for<'a> Fn(Pin<&mut F>, &mut Context<'a>) -> Poll<F::Output>> WrapFuture<F, W> {
-    pub fn new(wrapper: W, future: F) -> Self {
+    pub fn new(future: F, wrapper: W) -> Self {
         Self { wrapper, future }
     }
 }

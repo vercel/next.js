@@ -1,6 +1,7 @@
 use anyhow::{Context, Result};
+use turbo_tasks::Vc;
 
-use crate::asset::{Asset, AssetVc};
+use crate::asset::Asset;
 
 /// An asset that should be outputted, e. g. written to disk or served from a
 /// server.
@@ -8,13 +9,13 @@ use crate::asset::{Asset, AssetVc};
 pub trait OutputAsset: Asset {}
 
 #[turbo_tasks::value(transparent)]
-pub struct OutputAssets(Vec<OutputAssetVc>);
+pub struct OutputAssets(Vec<Vc<Box<dyn OutputAsset>>>);
 
 #[turbo_tasks::value_impl]
-impl OutputAssetsVc {
+impl OutputAssets {
     #[turbo_tasks::function]
-    pub fn empty() -> Self {
-        Self::cell(Vec::new())
+    pub fn empty() -> Vc<Self> {
+        Vc::cell(vec![])
     }
 }
 
@@ -22,8 +23,8 @@ impl OutputAssetsVc {
 /// trait completely replaces the [Asset] trait.
 /// TODO make this function unnecessary
 #[turbo_tasks::function]
-pub async fn asset_to_output_asset(asset: AssetVc) -> Result<OutputAssetVc> {
-    OutputAssetVc::resolve_from(asset)
+pub async fn asset_to_output_asset(asset: Vc<Box<dyn Asset>>) -> Result<Vc<Box<dyn OutputAsset>>> {
+    Vc::try_resolve_sidecast::<Box<dyn OutputAsset>>(asset)
         .await?
         .context("Asset must be a OutputAsset")
 }

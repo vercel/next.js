@@ -1,40 +1,40 @@
 use anyhow::{bail, Result};
-use turbo_tasks::{primitives::StringVc, Value, ValueToString, ValueToStringVc};
+use turbo_tasks::{Value, ValueToString, Vc};
 use turbopack_core::{
     asset::Asset,
-    chunk::{ChunkGroupVc, ChunkListReferenceVc, ChunkingContext},
-    ident::AssetIdentVc,
-    reference::AssetReferencesVc,
+    chunk::{ChunkGroup, ChunkListReference, ChunkingContext},
+    ident::AssetIdent,
+    reference::AssetReferences,
 };
 use turbopack_ecmascript::chunk::{
-    EcmascriptChunkPlaceablesVc, EcmascriptChunkRuntime, EcmascriptChunkRuntimeContentVc,
-    EcmascriptChunkRuntimeVc, EcmascriptChunkVc, EcmascriptChunkingContextVc,
+    EcmascriptChunk, EcmascriptChunkPlaceables, EcmascriptChunkRuntime,
+    EcmascriptChunkRuntimeContent, EcmascriptChunkingContext,
 };
 
-use crate::ecmascript::content::EcmascriptDevChunkContentVc;
+use crate::ecmascript::content::EcmascriptDevChunkContent;
 
 /// Development runtime for Ecmascript chunks.
 #[turbo_tasks::value(shared)]
 pub(crate) struct EcmascriptDevChunkRuntime {
     /// The chunking context that created this runtime.
-    chunking_context: EcmascriptChunkingContextVc,
+    chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
     /// All chunks of this chunk group need to be ready for execution to start.
     /// When None, it will use a chunk group created from the current chunk.
-    chunk_group: Option<ChunkGroupVc>,
+    chunk_group: Option<Vc<ChunkGroup>>,
     /// If any evaluated entries are set, the main runtime code will be included
     /// in the chunk and the provided entries will be evaluated as soon as the
     /// chunk executes.
-    evaluated_entries: Option<EcmascriptChunkPlaceablesVc>,
+    evaluated_entries: Option<Vc<EcmascriptChunkPlaceables>>,
 }
 
 #[turbo_tasks::value_impl]
-impl EcmascriptDevChunkRuntimeVc {
-    /// Creates a new [`EcmascriptDevChunkRuntimeVc`].
+impl EcmascriptDevChunkRuntime {
+    /// Creates a new [`Vc<EcmascriptDevChunkRuntime>`].
     #[turbo_tasks::function]
     pub fn new(
-        chunking_context: EcmascriptChunkingContextVc,
-        evaluated_entries: Option<EcmascriptChunkPlaceablesVc>,
-    ) -> Self {
+        chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
+        evaluated_entries: Option<Vc<EcmascriptChunkPlaceables>>,
+    ) -> Vc<Self> {
         EcmascriptDevChunkRuntime {
             chunking_context,
             chunk_group: None,
@@ -47,14 +47,14 @@ impl EcmascriptDevChunkRuntimeVc {
 #[turbo_tasks::value_impl]
 impl ValueToString for EcmascriptDevChunkRuntime {
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<StringVc> {
-        Ok(StringVc::cell("Ecmascript Dev Runtime".to_string()))
+    async fn to_string(&self) -> Result<Vc<String>> {
+        Ok(Vc::cell("Ecmascript Dev Runtime".to_string()))
     }
 }
 
 #[turbo_tasks::function]
-fn modifier() -> StringVc {
-    StringVc::cell("ecmascript dev chunk".to_string())
+fn modifier() -> Vc<String> {
+    Vc::cell("ecmascript dev chunk".to_string())
 }
 
 #[turbo_tasks::value_impl]
@@ -62,9 +62,9 @@ impl EcmascriptChunkRuntime for EcmascriptDevChunkRuntime {
     #[turbo_tasks::function]
     async fn decorate_asset_ident(
         &self,
-        origin_chunk: EcmascriptChunkVc,
-        ident: AssetIdentVc,
-    ) -> Result<AssetIdentVc> {
+        origin_chunk: Vc<EcmascriptChunk>,
+        ident: Vc<AssetIdent>,
+    ) -> Result<Vc<AssetIdent>> {
         let Self {
             chunking_context: _,
             chunk_group,
@@ -100,12 +100,12 @@ impl EcmascriptChunkRuntime for EcmascriptDevChunkRuntime {
             }
         }
 
-        Ok(AssetIdentVc::new(Value::new(ident)))
+        Ok(AssetIdent::new(Value::new(ident)))
     }
 
     #[turbo_tasks::function]
-    fn with_chunk_group(&self, chunk_group: ChunkGroupVc) -> EcmascriptDevChunkRuntimeVc {
-        EcmascriptDevChunkRuntimeVc::cell(EcmascriptDevChunkRuntime {
+    fn with_chunk_group(&self, chunk_group: Vc<ChunkGroup>) -> Vc<EcmascriptDevChunkRuntime> {
+        EcmascriptDevChunkRuntime::cell(EcmascriptDevChunkRuntime {
             chunking_context: self.chunking_context,
             chunk_group: Some(chunk_group),
             evaluated_entries: self.evaluated_entries,
@@ -113,7 +113,7 @@ impl EcmascriptChunkRuntime for EcmascriptDevChunkRuntime {
     }
 
     #[turbo_tasks::function]
-    fn references(&self, origin_chunk: EcmascriptChunkVc) -> AssetReferencesVc {
+    fn references(&self, origin_chunk: Vc<EcmascriptChunk>) -> Vc<AssetReferences> {
         let Self {
             chunk_group,
             chunking_context,
@@ -123,30 +123,30 @@ impl EcmascriptChunkRuntime for EcmascriptDevChunkRuntime {
         let mut references = vec![];
         if evaluated_entries.is_some() {
             let chunk_group =
-                chunk_group.unwrap_or_else(|| ChunkGroupVc::from_chunk(origin_chunk.into()));
-            references.push(
-                ChunkListReferenceVc::new(chunking_context.output_root(), chunk_group).into(),
-            );
+                chunk_group.unwrap_or_else(|| ChunkGroup::from_chunk(origin_chunk.into()));
+            references.push(Vc::upcast(ChunkListReference::new(
+                chunking_context.output_root(),
+                chunk_group,
+            )));
         }
-        AssetReferencesVc::cell(references)
+        Vc::cell(references)
     }
 
     #[turbo_tasks::function]
-    fn content(&self, origin_chunk: EcmascriptChunkVc) -> EcmascriptChunkRuntimeContentVc {
-        EcmascriptDevChunkContentVc::new(
+    fn content(&self, origin_chunk: Vc<EcmascriptChunk>) -> Vc<EcmascriptChunkRuntimeContent> {
+        Vc::upcast(EcmascriptDevChunkContent::new(
             origin_chunk,
             self.chunking_context,
             self.chunk_group,
             self.evaluated_entries,
-        )
-        .into()
+        ))
     }
 
     #[turbo_tasks::function]
     async fn merge(
         &self,
-        runtimes: Vec<EcmascriptChunkRuntimeVc>,
-    ) -> Result<EcmascriptChunkRuntimeVc> {
+        runtimes: Vec<Vc<EcmascriptChunkRuntime>>,
+    ) -> Result<Vc<EcmascriptChunkRuntime>> {
         let Self {
             chunking_context,
             chunk_group,
@@ -167,7 +167,9 @@ impl EcmascriptChunkRuntime for EcmascriptDevChunkRuntime {
         };
 
         for runtime in runtimes {
-            let Some(runtime) = EcmascriptDevChunkRuntimeVc::resolve_from(runtime).await? else {
+            let Some(runtime) =
+                Vc::try_resolve_downcast_type::<EcmascriptDevChunkRuntime>(runtime).await?
+            else {
                 bail!("cannot merge EcmascriptDevChunkRuntime with non-EcmascriptDevChunkRuntime");
             };
 
@@ -206,7 +208,7 @@ impl EcmascriptChunkRuntime for EcmascriptDevChunkRuntime {
         Ok(EcmascriptDevChunkRuntime {
             chunking_context,
             chunk_group,
-            evaluated_entries: evaluated_entries.map(EcmascriptChunkPlaceablesVc::cell),
+            evaluated_entries: evaluated_entries.map(Vc::cell),
         }
         .cell()
         .into())

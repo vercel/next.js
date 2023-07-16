@@ -6,13 +6,14 @@ use swc_core::{
     ecma::ast::{Expr, Ident},
     quote,
 };
-use turbo_tasks_fs::FileSystemPathVc;
+use turbo_tasks::Vc;
+use turbo_tasks_fs::FileSystemPath;
 
 use crate::{
-    chunk::EcmascriptChunkingContextVc,
-    code_gen::{CodeGenerateable, CodeGenerateableVc, CodeGeneration, CodeGenerationVc},
+    chunk::EcmascriptChunkingContext,
+    code_gen::{CodeGenerateable, CodeGeneration},
     create_visitor, magic_identifier,
-    references::{as_abs_path, esm::base::insert_hoisted_stmt, AstPathVc},
+    references::{as_abs_path, esm::base::insert_hoisted_stmt, AstPath},
 };
 
 /// Responsible for initializing the `import.meta` object binding, so that it
@@ -23,13 +24,13 @@ use crate::{
 #[turbo_tasks::value(shared)]
 #[derive(Hash, Debug)]
 pub struct ImportMetaBinding {
-    path: FileSystemPathVc,
+    path: Vc<FileSystemPath>,
 }
 
 #[turbo_tasks::value_impl]
-impl ImportMetaBindingVc {
+impl ImportMetaBinding {
     #[turbo_tasks::function]
-    pub fn new(path: FileSystemPathVc) -> Self {
+    pub fn new(path: Vc<FileSystemPath>) -> Vc<Self> {
         ImportMetaBinding { path }.cell()
     }
 }
@@ -39,8 +40,8 @@ impl CodeGenerateable for ImportMetaBinding {
     #[turbo_tasks::function]
     async fn code_generation(
         &self,
-        _context: EcmascriptChunkingContextVc,
-    ) -> Result<CodeGenerationVc> {
+        _context: Vc<Box<dyn EcmascriptChunkingContext>>,
+    ) -> Result<Vc<CodeGeneration>> {
         let path = as_abs_path(self.path).await?.as_str().map_or_else(
             || {
                 quote!(
@@ -75,13 +76,13 @@ impl CodeGenerateable for ImportMetaBinding {
 #[turbo_tasks::value(shared)]
 #[derive(Hash, Debug)]
 pub struct ImportMetaRef {
-    ast_path: AstPathVc,
+    ast_path: Vc<AstPath>,
 }
 
 #[turbo_tasks::value_impl]
-impl ImportMetaRefVc {
+impl ImportMetaRef {
     #[turbo_tasks::function]
-    pub fn new(ast_path: AstPathVc) -> Self {
+    pub fn new(ast_path: Vc<AstPath>) -> Vc<Self> {
         ImportMetaRef { ast_path }.cell()
     }
 }
@@ -91,8 +92,8 @@ impl CodeGenerateable for ImportMetaRef {
     #[turbo_tasks::function]
     async fn code_generation(
         &self,
-        _context: EcmascriptChunkingContextVc,
-    ) -> Result<CodeGenerationVc> {
+        _context: Vc<Box<dyn EcmascriptChunkingContext>>,
+    ) -> Result<Vc<CodeGeneration>> {
         let ast_path = &self.ast_path.await?;
         let visitor = create_visitor!(ast_path, visit_mut_expr(expr: &mut Expr) {
             *expr = Expr::Ident(meta_ident());

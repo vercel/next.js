@@ -2,19 +2,18 @@ use std::{collections::HashMap, fs, path::PathBuf};
 
 use criterion::{Bencher, BenchmarkId, Criterion};
 use regex::Regex;
-use turbo_tasks::{NothingVc, TurboTasks, Value};
-use turbo_tasks_fs::{DiskFileSystemVc, FileSystem, NullFileSystem, NullFileSystemVc};
+use turbo_tasks::{unit, TurboTasks, Value, Vc};
+use turbo_tasks_fs::{DiskFileSystem, FileSystem, NullFileSystem};
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
-    emit_with_completion, module_options::ModuleOptionsContext, rebase::RebasedAssetVc, register,
-    resolve_options_context::ResolveOptionsContext, transition::TransitionsByNameVc,
-    ModuleAssetContextVc,
+    emit_with_completion, module_options::ModuleOptionsContext, rebase::RebasedAsset, register,
+    resolve_options_context::ResolveOptionsContext, ModuleAssetContext,
 };
 use turbopack_core::{
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
-    environment::{EnvironmentVc, ExecutionEnvironment, NodeJsEnvironment},
-    file_source::FileSourceVc,
+    environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
+    file_source::FileSource,
     reference_type::ReferenceType,
 };
 
@@ -72,20 +71,20 @@ fn bench_emit(b: &mut Bencher, bench_input: &BenchInput) {
         let input = bench_input.input.clone();
         async move {
             let task = tt.spawn_once_task(async move {
-                let input_fs = DiskFileSystemVc::new("tests".to_string(), tests_root.clone());
-                let input = input_fs.root().join(&input);
+                let input_fs = DiskFileSystem::new("tests".to_string(), tests_root.clone());
+                let input = input_fs.root().join(input.clone());
 
                 let input_dir = input.parent().parent();
-                let output_fs: NullFileSystemVc = NullFileSystem.into();
+                let output_fs: Vc<NullFileSystem> = NullFileSystem.into();
                 let output_dir = output_fs.root();
 
-                let source = FileSourceVc::new(input);
-                let compile_time_info = CompileTimeInfo::builder(EnvironmentVc::new(Value::new(
+                let source = FileSource::new(input);
+                let compile_time_info = CompileTimeInfo::builder(Environment::new(Value::new(
                     ExecutionEnvironment::NodeJsLambda(NodeJsEnvironment::default().into()),
                 )))
                 .cell();
-                let context = ModuleAssetContextVc::new(
-                    TransitionsByNameVc::cell(HashMap::new()),
+                let context = ModuleAssetContext::new(
+                    Vc::cell(HashMap::new()),
                     compile_time_info,
                     ModuleOptionsContext {
                         enable_types: true,
@@ -98,12 +97,13 @@ fn bench_emit(b: &mut Bencher, bench_input: &BenchInput) {
                     }
                     .cell(),
                 );
-                let module = context.process(source.into(), Value::new(ReferenceType::Undefined));
-                let rebased = RebasedAssetVc::new(module.into(), input_dir, output_dir);
+                let module =
+                    context.process(Vc::upcast(source), Value::new(ReferenceType::Undefined));
+                let rebased = RebasedAsset::new(Vc::upcast(module), input_dir, output_dir);
 
-                emit_with_completion(rebased.into(), output_dir).await?;
+                emit_with_completion(Vc::upcast(rebased), output_dir).await?;
 
-                Ok(NothingVc::new().into())
+                Ok(unit().node)
             });
             tt.wait_task_completion(task, true).await.unwrap();
         }

@@ -1,15 +1,17 @@
+use turbo_tasks::Vc;
+
 use crate::{
-    asset::{Asset, AssetContentVc, AssetVc},
-    ident::AssetIdentVc,
-    module::{Module, ModuleVc},
-    source::SourceVc,
+    asset::{Asset, AssetContent},
+    ident::AssetIdent,
+    module::Module,
+    source::Source,
 };
 
 /// A module where source code doesn't need to be parsed but can be usd as is.
 /// This module has no references to other modules.
 #[turbo_tasks::value]
 pub struct RawModule {
-    source: SourceVc,
+    source: Vc<Box<dyn Source>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -18,20 +20,20 @@ impl Module for RawModule {}
 #[turbo_tasks::value_impl]
 impl Asset for RawModule {
     #[turbo_tasks::function]
-    fn ident(&self) -> AssetIdentVc {
+    fn ident(&self) -> Vc<AssetIdent> {
         self.source.ident()
     }
 
     #[turbo_tasks::function]
-    fn content(&self) -> AssetContentVc {
+    fn content(&self) -> Vc<AssetContent> {
         self.source.content()
     }
 }
 
 #[turbo_tasks::value_impl]
-impl RawModuleVc {
+impl RawModule {
     #[turbo_tasks::function]
-    pub fn new(source: SourceVc) -> RawModuleVc {
+    pub fn new(source: Vc<Box<dyn Source>>) -> Vc<RawModule> {
         RawModule { source }.cell()
     }
 }

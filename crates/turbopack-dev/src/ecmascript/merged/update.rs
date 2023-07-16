@@ -3,22 +3,22 @@ use std::sync::Arc;
 use anyhow::Result;
 use indexmap::{IndexMap, IndexSet};
 use serde::Serialize;
-use turbo_tasks::{IntoTraitRef, TryJoinIterExt};
+use turbo_tasks::{IntoTraitRef, ReadRef, TryJoinIterExt, Vc};
 use turbo_tasks_fs::rope::Rope;
 use turbopack_core::{
     asset::Asset,
-    chunk::{ChunkingContext, ModuleId, ModuleIdReadRef},
-    code_builder::CodeReadRef,
-    version::{PartialUpdate, TotalUpdate, Update, VersionVc},
+    chunk::{ChunkingContext, ModuleId},
+    code_builder::Code,
+    version::{PartialUpdate, TotalUpdate, Update, Version},
 };
 
 use super::{
     super::{
         update::{update_ecmascript_chunk, EcmascriptChunkUpdate},
-        version::EcmascriptDevChunkVersionReadRef,
+        version::EcmascriptDevChunkVersion,
     },
-    content::EcmascriptDevMergedChunkContentVc,
-    version::EcmascriptDevMergedChunkVersionVc,
+    content::EcmascriptDevMergedChunkContent,
+    version::EcmascriptDevMergedChunkVersion,
 };
 
 #[derive(Serialize, Default)]
@@ -26,7 +26,7 @@ use super::{
 struct EcmascriptMergedUpdate<'a> {
     /// A map from module id to latest module entry.
     #[serde(skip_serializing_if = "IndexMap::is_empty")]
-    entries: IndexMap<ModuleIdReadRef, EcmascriptModuleEntry>,
+    entries: IndexMap<ReadRef<ModuleId>, EcmascriptModuleEntry>,
     /// A map from chunk path to the chunk update.
     #[serde(skip_serializing_if = "IndexMap::is_empty")]
     chunks: IndexMap<&'a str, EcmascriptMergedChunkUpdate>,
@@ -50,7 +50,7 @@ enum EcmascriptMergedChunkUpdate {
 #[serde(rename_all = "camelCase")]
 struct EcmascriptMergedChunkAdded {
     #[serde(skip_serializing_if = "IndexSet::is_empty")]
-    modules: IndexSet<ModuleIdReadRef>,
+    modules: IndexSet<ReadRef<ModuleId>>,
 }
 
 #[derive(Serialize, Default)]
@@ -60,16 +60,16 @@ struct EcmascriptMergedChunkDeleted {
     // modules in the chunk from the previous version. However, it's useful for
     // merging updates without access to an initial state.
     #[serde(skip_serializing_if = "IndexSet::is_empty")]
-    modules: IndexSet<ModuleIdReadRef>,
+    modules: IndexSet<ReadRef<ModuleId>>,
 }
 
 #[derive(Serialize, Default)]
 #[serde(rename_all = "camelCase")]
 struct EcmascriptMergedChunkPartial {
     #[serde(skip_serializing_if = "IndexSet::is_empty")]
-    added: IndexSet<ModuleIdReadRef>,
+    added: IndexSet<ReadRef<ModuleId>>,
     #[serde(skip_serializing_if = "IndexSet::is_empty")]
-    deleted: IndexSet<ModuleIdReadRef>,
+    deleted: IndexSet<ReadRef<ModuleId>>,
 }
 
 #[derive(Serialize)]
@@ -80,7 +80,7 @@ struct EcmascriptModuleEntry {
 }
 
 impl EcmascriptModuleEntry {
-    fn new(id: &ModuleId, code: CodeReadRef, chunk_path: &str) -> Self {
+    fn new(id: &ModuleId, code: ReadRef<Code>, chunk_path: &str) -> Self {
         /// serde_qs can't serialize a lone enum when it's [serde::untagged].
         #[derive(Serialize)]
         struct Id<'a> {
@@ -102,18 +102,18 @@ impl EcmascriptModuleEntry {
 /// versions, without having to actually merge the versions into a single
 /// hashmap, which would be expensive.
 struct MergedModuleMap {
-    versions: Vec<EcmascriptDevChunkVersionReadRef>,
+    versions: Vec<ReadRef<EcmascriptDevChunkVersion>>,
 }
 
 impl MergedModuleMap {
     /// Creates a new `MergedModuleMap` from the given versions.
-    fn new(versions: Vec<EcmascriptDevChunkVersionReadRef>) -> Self {
+    fn new(versions: Vec<ReadRef<EcmascriptDevChunkVersion>>) -> Self {
         Self { versions }
     }
 
     /// Returns the hash of the module with the given id, or `None` if the
     /// module is not present in any of the versions.
-    fn get(&self, id: &ModuleId) -> Option<u64> {
+    fn get(&self, id: &ReadRef<ModuleId>) -> Option<u64> {
         for version in &self.versions {
             if let Some(hash) = version.entries_hashes.get(id) {
                 return Some(*hash);
@@ -124,26 +124,30 @@ impl MergedModuleMap {
 }
 
 pub(super) async fn update_ecmascript_merged_chunk(
-    content: EcmascriptDevMergedChunkContentVc,
-    from_version: VersionVc,
+    content: Vc<EcmascriptDevMergedChunkContent>,
+    from_version: Vc<Box<dyn Version>>,
 ) -> Result<Update> {
     let to_merged_version = content.version();
-    let from_merged_version =
-        if let Some(from) = EcmascriptDevMergedChunkVersionVc::resolve_from(from_version).await? {
-            from
-        } else {
-            // It's likely `from_version` is `NotFoundVersion`.
-            return Ok(Update::Total(TotalUpdate {
-                to: to_merged_version.as_version().into_trait_ref().await?,
-            }));
-        };
+    let from_merged_version = if let Some(from) =
+        Vc::try_resolve_downcast_type::<EcmascriptDevMergedChunkVersion>(from_version).await?
+    {
+        from
+    } else {
+        // It's likely `from_version` is `NotFoundVersion`.
+        return Ok(Update::Total(TotalUpdate {
+            to: Vc::upcast::<Box<dyn Version>>(to_merged_version)
+                .into_trait_ref()
+                .await?,
+        }));
+    };
 
     let to = to_merged_version.await?;
     let from = from_merged_version.await?;
 
     // When to and from point to the same value we can skip comparing them.
-    // This will happen since `TraitRef<VersionVc>::cell` will not clone the value,
-    // but only make the cell point to the same immutable value (Arc).
+    // This will happen since `TraitRef<Vc<Box<dyn Version>>>::cell` will not clone
+    // the value, but only make the cell point to the same immutable value
+    // (Arc).
     if from.ptr_eq(&to) {
         return Ok(Update::None);
     }
@@ -250,7 +254,9 @@ pub(super) async fn update_ecmascript_merged_chunk(
         Update::None
     } else {
         Update::Partial(PartialUpdate {
-            to: to_merged_version.as_version().into_trait_ref().await?,
+            to: Vc::upcast::<Box<dyn Version>>(to_merged_version)
+                .into_trait_ref()
+                .await?,
             instruction: Arc::new(serde_json::to_value(&merged_update)?),
         })
     };

@@ -6,22 +6,22 @@ use std::{
 
 use anyhow::Result;
 use const_format::concatcp;
-pub use content_source::{NextSourceMapTraceContentSource, NextSourceMapTraceContentSourceVc};
+pub use content_source::NextSourceMapTraceContentSource;
 use once_cell::sync::Lazy;
 use regex::Regex;
-pub use trace::{SourceMapTrace, SourceMapTraceVc, StackFrame, TraceResult, TraceResultVc};
+pub use trace::{SourceMapTrace, StackFrame, TraceResult};
 use tracing::{instrument, Level};
+use turbo_tasks::{ReadRef, Vc};
 use turbo_tasks_fs::{
-    source_context::get_source_context, to_sys_path, FileLinesContent, FileLinesContentReadRef,
-    FileSystemPathReadRef, FileSystemPathVc,
+    source_context::get_source_context, to_sys_path, FileLinesContent, FileSystemPath,
 };
 use turbopack_cli_utils::source_context::format_source_context_lines;
 use turbopack_core::{
-    asset::AssetVc, source_map::GenerateSourceMap, PROJECT_FILESYSTEM_NAME, SOURCE_MAP_ROOT_NAME,
+    asset::Asset, source_map::GenerateSourceMap, PROJECT_FILESYSTEM_NAME, SOURCE_MAP_ROOT_NAME,
 };
 use turbopack_ecmascript::magic_identifier::unmangle_identifiers;
 
-use crate::{internal_assets_for_source_mapping, pool::FormattingMode, AssetsForSourceMappingVc};
+use crate::{internal_assets_for_source_mapping, pool::FormattingMode, AssetsForSourceMapping};
 
 pub mod content_source;
 pub mod trace;
@@ -30,9 +30,9 @@ const MAX_CODE_FRAMES: usize = 3;
 
 pub async fn apply_source_mapping(
     text: &'_ str,
-    assets_for_source_mapping: AssetsForSourceMappingVc,
-    root: FileSystemPathVc,
-    project_dir: FileSystemPathVc,
+    assets_for_source_mapping: Vc<AssetsForSourceMapping>,
+    root: Vc<FileSystemPath>,
+    project_dir: Vc<FileSystemPath>,
     formatting_mode: FormattingMode,
 ) -> Result<Cow<'_, str>> {
     static STACK_TRACE_LINE: Lazy<Regex> =
@@ -188,19 +188,19 @@ enum ResolvedSourceMapping {
     },
     MappedProject {
         frame: StackFrame<'static>,
-        project_path: FileSystemPathReadRef,
-        lines: FileLinesContentReadRef,
+        project_path: ReadRef<FileSystemPath>,
+        lines: ReadRef<FileLinesContent>,
     },
     MappedLibrary {
         frame: StackFrame<'static>,
-        project_path: FileSystemPathReadRef,
+        project_path: ReadRef<FileSystemPath>,
     },
 }
 
 async fn resolve_source_mapping(
-    assets_for_source_mapping: AssetsForSourceMappingVc,
-    root: FileSystemPathVc,
-    project_dir: FileSystemPathVc,
+    assets_for_source_mapping: Vc<AssetsForSourceMapping>,
+    root: Vc<FileSystemPath>,
+    project_dir: Vc<FileSystemPath>,
     frame: &StackFrame<'_>,
 ) -> Result<ResolvedSourceMapping> {
     let Some((line, column)) = frame.get_pos() else {
@@ -227,7 +227,7 @@ async fn resolve_source_mapping(
     let Some(sm) = *generate_source_map.generate_source_map().await? else {
         return Ok(ResolvedSourceMapping::NoSourceMap);
     };
-    let trace = SourceMapTraceVc::new(sm, line, column, name.map(|s| s.to_string()))
+    let trace = SourceMapTrace::new(sm, line, column, name.map(|s| s.to_string()))
         .trace()
         .await?;
     match &*trace {
@@ -240,7 +240,7 @@ async fn resolve_source_mapping(
                 PROJECT_FILESYSTEM_NAME,
                 "]/"
             )) {
-                let fs_path = project_dir.join(project_path);
+                let fs_path = project_dir.join(project_path.to_string());
                 if lib_code {
                     return Ok(ResolvedSourceMapping::MappedLibrary {
                         frame: frame.clone(),
@@ -275,9 +275,9 @@ pub struct StructuredError {
 impl StructuredError {
     pub async fn print(
         &self,
-        assets_for_source_mapping: AssetsForSourceMappingVc,
-        root: FileSystemPathVc,
-        project_dir: FileSystemPathVc,
+        assets_for_source_mapping: Vc<AssetsForSourceMapping>,
+        root: Vc<FileSystemPath>,
+        project_dir: Vc<FileSystemPath>,
         formatting_mode: FormattingMode,
     ) -> Result<String> {
         let mut message = String::new();
@@ -315,9 +315,9 @@ impl StructuredError {
 #[instrument(level = Level::TRACE, skip_all)]
 pub async fn trace_stack(
     error: StructuredError,
-    root_asset: AssetVc,
-    output_path: FileSystemPathVc,
-    project_dir: FileSystemPathVc,
+    root_asset: Vc<Box<dyn Asset>>,
+    output_path: Vc<FileSystemPath>,
+    project_dir: Vc<FileSystemPath>,
 ) -> Result<String> {
     let assets_for_source_mapping = internal_assets_for_source_mapping(root_asset, output_path);
 

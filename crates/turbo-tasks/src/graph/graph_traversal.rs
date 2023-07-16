@@ -18,7 +18,7 @@ pub trait GraphTraversal: GraphStore + Sized {
         self,
         root_edges: RootEdgesIt,
         visit: VisitImpl,
-    ) -> GraphTraversalFuture<Self, VisitImpl, Abort, Impl>
+    ) -> GraphTraversalFuture<Self, VisitImpl, Abort, Impl, VisitImpl::EdgesFuture>
     where
         VisitImpl: Visit<Self::Node, Abort, Impl>,
         RootEdgesIt: IntoIterator<Item = VisitImpl::Edge>;
@@ -36,7 +36,7 @@ where
         mut self,
         root_edges: RootEdgesIt,
         mut visit: VisitImpl,
-    ) -> GraphTraversalFuture<Self, VisitImpl, Abort, Impl>
+    ) -> GraphTraversalFuture<Self, VisitImpl, Abort, Impl, VisitImpl::EdgesFuture>
     where
         VisitImpl: Visit<Self::Node, Abort, Impl>,
         RootEdgesIt: IntoIterator<Item = VisitImpl::Edge>,
@@ -65,6 +65,7 @@ where
                 store: self,
                 futures,
                 visit,
+                _phantom: std::marker::PhantomData,
             }),
         }
     }
@@ -76,36 +77,43 @@ where
 
 /// A future that resolves to a [`GraphStore`] containing the result of a graph
 /// traversal.
-pub struct GraphTraversalFuture<Store, VisitImpl, Abort, Impl>
+pub struct GraphTraversalFuture<Store, VisitImpl, Abort, Impl, EdgesFuture>
 where
     Store: GraphStore,
     VisitImpl: Visit<Store::Node, Abort, Impl>,
+    EdgesFuture: Future,
 {
-    state: GraphTraversalState<Store, VisitImpl, Abort, Impl>,
+    state: GraphTraversalState<Store, VisitImpl, Abort, Impl, EdgesFuture>,
 }
 
 #[derive(Default)]
-enum GraphTraversalState<Store, VisitImpl, Abort, Impl>
+enum GraphTraversalState<Store, VisitImpl, Abort, Impl, EdgesFuture>
 where
     Store: GraphStore,
     VisitImpl: Visit<Store::Node, Abort, Impl>,
+    EdgesFuture: Future,
 {
     #[default]
     Completed,
     Aborted {
         abort: Abort,
     },
-    Running(GraphTraversalRunningState<Store, VisitImpl, Abort, Impl>),
+    Running(GraphTraversalRunningState<Store, VisitImpl, Abort, Impl, EdgesFuture>),
 }
 
-struct GraphTraversalRunningState<Store, VisitImpl, Abort, Impl>
+struct GraphTraversalRunningState<Store, VisitImpl, Abort, Impl, EdgesFuture>
 where
     Store: GraphStore,
     VisitImpl: Visit<Store::Node, Abort, Impl>,
+    EdgesFuture: Future,
 {
     store: Store,
-    futures: FuturesUnordered<With<VisitImpl::EdgesFuture, Store::Handle>>,
+    // This should be VisitImpl::EdgesFuture, but this causes a bug in the Rust
+    // compiler (see https://github.com/rust-lang/rust/issues/102211).
+    // Instead, we pass the associated type as an additional generic parameter.
+    futures: FuturesUnordered<With<EdgesFuture, Store::Handle>>,
     visit: VisitImpl,
+    _phantom: std::marker::PhantomData<(Abort, Impl)>,
 }
 
 pub enum GraphTraversalResult<Completed, Aborted> {
@@ -122,10 +130,14 @@ impl<Completed> GraphTraversalResult<Completed, !> {
     }
 }
 
-impl<Store, VisitImpl, Abort, Impl> Future for GraphTraversalFuture<Store, VisitImpl, Abort, Impl>
+impl<Store, VisitImpl, Abort, Impl, EdgesFuture> Future
+    for GraphTraversalFuture<Store, VisitImpl, Abort, Impl, EdgesFuture>
 where
     Store: GraphStore,
-    VisitImpl: Visit<Store::Node, Abort, Impl>,
+    // The EdgesFuture bound is necessary to avoid the compiler bug mentioned
+    // above.
+    VisitImpl: Visit<Store::Node, Abort, Impl, EdgesFuture = EdgesFuture>,
+    EdgesFuture: Future<Output = Result<VisitImpl::EdgesIntoIter>>,
 {
     type Output = GraphTraversalResult<Result<Store>, Abort>;
 

@@ -1,30 +1,30 @@
 use anyhow::Result;
 use indexmap::IndexSet;
-use turbo_tasks::Value;
+use turbo_tasks::{Value, Vc};
 use turbopack_core::{
     chunk::{
-        availability_info::AvailabilityInfo, chunk_content, chunk_content_split,
-        ChunkContentResult, ChunkVc,
+        availability_info::AvailabilityInfo, chunk_content, chunk_content_split, Chunk,
+        ChunkContentResult,
     },
-    reference::AssetReferenceVc,
+    reference::AssetReference,
 };
 
 use super::{
-    item::EcmascriptChunkItemVc,
-    placeable::{EcmascriptChunkPlaceableVc, EcmascriptChunkPlaceablesVc},
-    EcmascriptChunkingContextVc,
+    item::EcmascriptChunkItem,
+    placeable::{EcmascriptChunkPlaceable, EcmascriptChunkPlaceables},
+    EcmascriptChunkingContext,
 };
 
 #[turbo_tasks::value]
 pub struct EcmascriptChunkContent {
-    pub chunk_items: Vec<EcmascriptChunkItemVc>,
-    pub chunks: Vec<ChunkVc>,
-    pub external_asset_references: Vec<AssetReferenceVc>,
+    pub chunk_items: Vec<Vc<Box<dyn EcmascriptChunkItem>>>,
+    pub chunks: Vec<Vc<Box<dyn Chunk>>>,
+    pub external_asset_references: Vec<Vc<Box<dyn AssetReference>>>,
     pub availability_info: AvailabilityInfo,
 }
 
-impl From<ChunkContentResult<EcmascriptChunkItemVc>> for EcmascriptChunkContent {
-    fn from(from: ChunkContentResult<EcmascriptChunkItemVc>) -> Self {
+impl From<ChunkContentResult<Vc<Box<dyn EcmascriptChunkItem>>>> for EcmascriptChunkContent {
+    fn from(from: ChunkContentResult<Vc<Box<dyn EcmascriptChunkItem>>>) -> Self {
         EcmascriptChunkContent {
             chunk_items: from.chunk_items,
             chunks: from.chunks,
@@ -35,20 +35,23 @@ impl From<ChunkContentResult<EcmascriptChunkItemVc>> for EcmascriptChunkContent 
 }
 
 #[turbo_tasks::value_impl]
-impl EcmascriptChunkContentVc {
+impl EcmascriptChunkContent {
     #[turbo_tasks::function]
-    pub fn filter(self, _other: EcmascriptChunkContentVc) -> EcmascriptChunkContentVc {
+    pub fn filter(
+        self: Vc<Self>,
+        _other: Vc<EcmascriptChunkContent>,
+    ) -> Vc<EcmascriptChunkContent> {
         todo!()
     }
 }
 
 #[turbo_tasks::function]
 pub(crate) fn ecmascript_chunk_content(
-    context: EcmascriptChunkingContextVc,
-    main_entries: EcmascriptChunkPlaceablesVc,
-    omit_entries: Option<EcmascriptChunkPlaceablesVc>,
+    context: Vc<Box<dyn EcmascriptChunkingContext>>,
+    main_entries: Vc<EcmascriptChunkPlaceables>,
+    omit_entries: Option<Vc<EcmascriptChunkPlaceables>>,
     availability_info: Value<AvailabilityInfo>,
-) -> EcmascriptChunkContentVc {
+) -> Vc<EcmascriptChunkContent> {
     let mut chunk_content =
         ecmascript_chunk_content_internal(context, main_entries, availability_info);
     if let Some(omit_entries) = omit_entries {
@@ -61,10 +64,10 @@ pub(crate) fn ecmascript_chunk_content(
 
 #[turbo_tasks::function]
 async fn ecmascript_chunk_content_internal(
-    context: EcmascriptChunkingContextVc,
-    entries: EcmascriptChunkPlaceablesVc,
+    context: Vc<Box<dyn EcmascriptChunkingContext>>,
+    entries: Vc<EcmascriptChunkPlaceables>,
     availability_info: Value<AvailabilityInfo>,
-) -> Result<EcmascriptChunkContentVc> {
+) -> Result<Vc<EcmascriptChunkContent>> {
     let entries = entries.await?;
     let entries = entries.iter().copied();
 
@@ -76,9 +79,9 @@ async fn ecmascript_chunk_content_internal(
         return Ok(contents.into_iter().next().unwrap());
     }
 
-    let mut all_chunk_items = IndexSet::<EcmascriptChunkItemVc>::new();
-    let mut all_chunks = IndexSet::<ChunkVc>::new();
-    let mut all_external_asset_references = IndexSet::<AssetReferenceVc>::new();
+    let mut all_chunk_items = IndexSet::<Vc<Box<dyn EcmascriptChunkItem>>>::new();
+    let mut all_chunks = IndexSet::<Vc<Box<dyn Chunk>>>::new();
+    let mut all_external_asset_references = IndexSet::<Vc<Box<dyn AssetReference>>>::new();
 
     for content in contents {
         let EcmascriptChunkContent {
@@ -103,21 +106,25 @@ async fn ecmascript_chunk_content_internal(
 
 #[turbo_tasks::function]
 async fn ecmascript_chunk_content_single_entry(
-    context: EcmascriptChunkingContextVc,
-    entry: EcmascriptChunkPlaceableVc,
+    context: Vc<Box<dyn EcmascriptChunkingContext>>,
+    entry: Vc<Box<dyn EcmascriptChunkPlaceable>>,
     availability_info: Value<AvailabilityInfo>,
-) -> Result<EcmascriptChunkContentVc> {
-    let asset = entry.as_asset();
+) -> Result<Vc<EcmascriptChunkContent>> {
+    let asset = Vc::upcast(entry);
 
-    Ok(EcmascriptChunkContentVc::cell(
-        if let Some(res) =
-            chunk_content::<EcmascriptChunkItemVc>(context.into(), asset, None, availability_info)
-                .await?
+    Ok(EcmascriptChunkContent::cell(
+        if let Some(res) = chunk_content::<Box<dyn EcmascriptChunkItem>>(
+            Vc::upcast(context),
+            asset,
+            None,
+            availability_info,
+        )
+        .await?
         {
             res
         } else {
-            chunk_content_split::<EcmascriptChunkItemVc>(
-                context.into(),
+            chunk_content_split::<Box<dyn EcmascriptChunkItem>>(
+                Vc::upcast(context),
                 asset,
                 None,
                 availability_info,

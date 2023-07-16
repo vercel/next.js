@@ -4,23 +4,22 @@ use swc_core::{
     ecma::ast::{Expr, Lit},
     quote,
 };
-use turbo_tasks::{debug::ValueDebug, primitives::StringVc, Value, ValueToString};
+use turbo_tasks::{debug::ValueDebug, Value, ValueToString, Vc};
 use turbopack_core::{
     asset::Asset,
     chunk::{
-        availability_info::AvailabilityInfo, ChunkableModuleVc, ChunkingContextVc,
-        FromChunkableModule, ModuleId,
+        availability_info::AvailabilityInfo, ChunkableModule, ChunkingContext, FromChunkableModule,
+        ModuleId,
     },
-    issue::{code_gen::CodeGenerationIssue, IssueSeverity},
-    resolve::{
-        origin::{ResolveOrigin, ResolveOriginVc},
-        parse::RequestVc,
-        PrimaryResolveResult, ResolveResultVc,
-    },
+    issue::{code_gen::CodeGenerationIssue, IssueExt, IssueSeverity},
+    resolve::{origin::ResolveOrigin, parse::Request, PrimaryResolveResult, ResolveResult},
 };
 
 use super::util::{request_to_string, throw_module_not_found_expr};
-use crate::{chunk::EcmascriptChunkItemVc, utils::module_id_to_lit};
+use crate::{
+    chunk::{item::EcmascriptChunkItemExt, EcmascriptChunkItem},
+    utils::module_id_to_lit,
+};
 
 /// A mapping from a request pattern (e.g. "./module", `./images/${name}.png`)
 /// to corresponding module ids. The same pattern can map to multiple module ids
@@ -118,18 +117,18 @@ impl PatternMapping {
 }
 
 #[turbo_tasks::value_impl]
-impl PatternMappingVc {
+impl PatternMapping {
     /// Resolves a request into a pattern mapping.
     // NOTE(alexkirsz) I would rather have used `resolve` here but it's already reserved by the Vc
     // impl.
     #[turbo_tasks::function]
     pub async fn resolve_request(
-        request: RequestVc,
-        origin: ResolveOriginVc,
-        context: ChunkingContextVc,
-        resolve_result: ResolveResultVc,
+        request: Vc<Request>,
+        origin: Vc<Box<dyn ResolveOrigin>>,
+        context: Vc<Box<dyn ChunkingContext>>,
+        resolve_result: Vc<ResolveResult>,
         resolve_type: Value<ResolveType>,
-    ) -> Result<PatternMappingVc> {
+    ) -> Result<Vc<PatternMapping>> {
         let result = resolve_result.await?;
         let asset = match result.primary.first() {
             None => {
@@ -150,10 +149,10 @@ impl PatternMappingVc {
                 // TODO implement mapping
                 CodeGenerationIssue {
                     severity: IssueSeverity::Bug.into(),
-                    title: StringVc::cell(
+                    title: Vc::cell(
                         "pattern mapping is not implemented for this result".to_string(),
                     ),
-                    message: StringVc::cell(format!(
+                    message: Vc::cell(format!(
                         "the reference resolves to a non-trivial result, which is not supported \
                          yet: {:?}",
                         resolve_result.dbg().await?
@@ -161,52 +160,53 @@ impl PatternMappingVc {
                     path: origin.origin_path(),
                 }
                 .cell()
-                .as_issue()
                 .emit();
-                return Ok(PatternMappingVc::cell(PatternMapping::Invalid));
+                return Ok(PatternMapping::cell(PatternMapping::Invalid));
             }
         };
 
-        if let Some(chunkable) = ChunkableModuleVc::resolve_from(asset).await? {
+        if let Some(chunkable) = Vc::try_resolve_sidecast::<Box<dyn ChunkableModule>>(asset).await?
+        {
             if let ResolveType::EsmAsync(availability_info) = *resolve_type {
                 let available = if let Some(available_assets) = availability_info.available_assets()
                 {
-                    *available_assets.includes(chunkable.into()).await?
+                    *available_assets.includes(Vc::upcast(chunkable)).await?
                 } else {
                     false
                 };
                 if !available {
-                    if let Some(loader) = EcmascriptChunkItemVc::from_async_asset(
+                    if let Some(loader) = <Box<dyn EcmascriptChunkItem>>::from_async_asset(
                         context,
                         chunkable,
                         Value::new(availability_info),
                     )
                     .await?
                     {
-                        return Ok(PatternMappingVc::cell(PatternMapping::SingleLoader(
+                        return Ok(PatternMapping::cell(PatternMapping::SingleLoader(
                             loader.id().await?.clone_value(),
                         )));
                     }
                 }
             }
-            if let Some(chunk_item) = EcmascriptChunkItemVc::from_asset(context, asset).await? {
-                return Ok(PatternMappingVc::cell(PatternMapping::Single(
+            if let Some(chunk_item) =
+                <Box<dyn EcmascriptChunkItem>>::from_asset(context, asset).await?
+            {
+                return Ok(PatternMapping::cell(PatternMapping::Single(
                     chunk_item.id().await?.clone_value(),
                 )));
             }
         }
         CodeGenerationIssue {
             severity: IssueSeverity::Bug.into(),
-            title: StringVc::cell("non-ecmascript placeable asset".to_string()),
-            message: StringVc::cell(format!(
+            title: Vc::cell("non-ecmascript placeable asset".to_string()),
+            message: Vc::cell(format!(
                 "asset {} is not placeable in ESM chunks, so it doesn't have a module id",
                 asset.ident().to_string().await?
             )),
             path: origin.origin_path(),
         }
         .cell()
-        .as_issue()
         .emit();
-        Ok(PatternMappingVc::cell(PatternMapping::Invalid))
+        Ok(PatternMapping::cell(PatternMapping::Invalid))
     }
 }

@@ -1,12 +1,13 @@
-use turbo_tasks_fs::FileSystemPathVc;
+use turbo_tasks::Vc;
+use turbo_tasks_fs::FileSystemPath;
 
 use super::options::{
     ConditionValue, ResolutionConditions, ResolveInPackage, ResolveIntoPackage, ResolveModules,
-    ResolveOptions, ResolveOptionsVc,
+    ResolveOptions,
 };
 
 #[turbo_tasks::function]
-pub fn node_cjs_resolve_options(root: FileSystemPathVc) -> ResolveOptionsVc {
+pub fn node_cjs_resolve_options(root: Vc<FileSystemPath>) -> Vc<ResolveOptions> {
     let conditions: ResolutionConditions = [
         ("node".to_string(), ConditionValue::Set),
         ("require".to_string(), ConditionValue::Set),

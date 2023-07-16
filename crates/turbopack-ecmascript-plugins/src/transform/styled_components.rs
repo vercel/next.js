@@ -6,10 +6,11 @@ use swc_core::{
     common::FileName,
     ecma::{ast::Program, atoms::JsWord, visit::VisitMutWith},
 };
+use turbo_tasks::{ValueDefault, Vc};
 use turbopack_ecmascript::{CustomTransformer, TransformContext};
 
 #[turbo_tasks::value(transparent)]
-pub struct OptionStyledComponentsTransformConfig(Option<StyledComponentsTransformConfigVc>);
+pub struct OptionStyledComponentsTransformConfig(Option<Vc<StyledComponentsTransformConfig>>);
 
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Debug)]
@@ -39,16 +40,16 @@ impl Default for StyledComponentsTransformConfig {
 }
 
 #[turbo_tasks::value_impl]
-impl StyledComponentsTransformConfigVc {
+impl StyledComponentsTransformConfig {
     #[turbo_tasks::function]
-    pub fn default() -> Self {
+    fn default_private() -> Vc<Self> {
         Self::cell(Default::default())
     }
 }
 
-impl Default for StyledComponentsTransformConfigVc {
-    fn default() -> Self {
-        Self::default()
+impl ValueDefault for StyledComponentsTransformConfig {
+    fn value_default() -> Vc<Self> {
+        StyledComponentsTransformConfig::default_private()
     }
 }
 
