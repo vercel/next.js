@@ -15,7 +15,7 @@ use turbopack_binding::{
             context::AssetContext,
             ident::AssetIdent,
             module::Module,
-            output::OutputAssets,
+            output::{OutputAsset, OutputAssets},
             reference::{AssetReferences, SingleAssetReference},
             reference_type::{EntryReferenceSubType, ReferenceType},
             source::Source,
@@ -91,10 +91,10 @@ pub async fn create_page_loader_entry_module(
     Ok(client_context.process(
         virtual_source,
         Value::new(ReferenceType::Internal(Vc::cell(indexmap! {
-            "PAGE".to_string() => Vc::upcast(client_context.process(
+            "PAGE".to_string() => client_context.process(
                 entry_asset,
                 Value::new(ReferenceType::Entry(EntryReferenceSubType::Page))
-            )),
+            ),
         }))),
     ))
 }
@@ -136,7 +136,7 @@ fn page_loader_chunk_reference_description() -> Vc<String> {
 }
 
 #[turbo_tasks::value_impl]
-impl Asset for PageLoaderAsset {
+impl OutputAsset for PageLoaderAsset {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
         Ok(AssetIdent::from_path(self.server_root.join(format!(
@@ -144,7 +144,10 @@ impl Asset for PageLoaderAsset {
             get_asset_path_from_pathname(&self.pathname.await?, ".js")
         ))))
     }
+}
 
+#[turbo_tasks::value_impl]
+impl Asset for PageLoaderAsset {
     #[turbo_tasks::function]
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
         let this = &*self.await?;

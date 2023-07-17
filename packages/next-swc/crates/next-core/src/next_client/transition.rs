@@ -70,7 +70,7 @@ impl Transition for NextClientTransition {
             context.process(
                 internal_asset,
                 Value::new(ReferenceType::Internal(Vc::cell(indexmap! {
-                    "PAGE".to_string() => Vc::upcast(asset)
+                    "PAGE".to_string() => asset
                 }))),
             )
         } else {

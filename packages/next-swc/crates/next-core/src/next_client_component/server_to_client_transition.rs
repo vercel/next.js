@@ -52,8 +52,8 @@ impl Transition for NextServerToClientTransition {
                 context.process(
                     internal_source,
                     Value::new(ReferenceType::Internal(Vc::cell(indexmap! {
-                        "CLIENT_MODULE".to_string() => Vc::upcast(client_module),
-                        "CLIENT_CHUNKS".to_string() => Vc::upcast(client_chunks),
+                        "CLIENT_MODULE".to_string() => client_module,
+                        "CLIENT_CHUNKS".to_string() => client_chunks,
                     }))),
                 )
             }
@@ -62,7 +62,7 @@ impl Transition for NextServerToClientTransition {
                 context.process(
                     internal_source,
                     Value::new(ReferenceType::Internal(Vc::cell(indexmap! {
-                        "CLIENT_CHUNKS".to_string() => Vc::upcast(client_chunks),
+                        "CLIENT_CHUNKS".to_string() => client_chunks,
                     }))),
                 )
             }

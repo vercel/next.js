@@ -4,10 +4,11 @@ use turbo_tasks::{Value, ValueToString, Vc};
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_binding::turbopack::{
     core::{
-        asset::{Asset, AssetContent},
+        asset::AssetContent,
         chunk::EvaluatableAsset,
         context::AssetContext,
         issue::{IssueSeverity, OptionIssueSource},
+        module::{convert_asset_to_module, Module},
         reference_type::{EcmaScriptModulesReferenceSubType, InnerAssets, ReferenceType},
         resolve::parse::Request,
         source::Source,
@@ -18,7 +19,7 @@ use turbopack_binding::turbopack::{
 
 #[turbo_tasks::function]
 pub async fn route_bootstrap(
-    asset: Vc<Box<dyn Asset>>,
+    asset: Vc<Box<dyn Module>>,
     context: Vc<Box<dyn AssetContext>>,
     base_path: Vc<FileSystemPath>,
     bootstrap_asset: Vc<Box<dyn Source>>,
@@ -44,8 +45,8 @@ pub async fn route_bootstrap(
         OptionIssueSource::none(),
         IssueSeverity::Error.cell(),
     );
-    let route_module_asset = match &*resolved_route_module_asset.first_asset().await? {
-        Some(a) => *a,
+    let route_module_asset = match *resolved_route_module_asset.first_asset().await? {
+        Some(a) => convert_asset_to_module(a),
         None => bail!("could not find app asset"),
     };
 
@@ -74,7 +75,7 @@ impl BootstrapConfig {
 
 #[turbo_tasks::function]
 pub async fn bootstrap(
-    asset: Vc<Box<dyn Asset>>,
+    asset: Vc<Box<dyn Module>>,
     context: Vc<Box<dyn AssetContext>>,
     base_path: Vc<FileSystemPath>,
     bootstrap_asset: Vc<Box<dyn Source>>,
@@ -125,7 +126,7 @@ pub async fn bootstrap(
 
     let mut inner_assets = inner_assets.await?.clone_value();
     inner_assets.insert("ENTRY".to_string(), asset);
-    inner_assets.insert("BOOTSTRAP_CONFIG".to_string(), Vc::upcast(config_asset));
+    inner_assets.insert("BOOTSTRAP_CONFIG".to_string(), config_asset);
 
     let asset = context.process(
         bootstrap_asset,
