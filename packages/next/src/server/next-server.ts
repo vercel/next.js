@@ -985,6 +985,9 @@ export default class NextNodeServer extends BaseServer {
 
       try {
         if (this.renderOpts.dev) {
+          const { formatServerError } =
+            require('../lib/format-server-error') as typeof import('../lib/format-server-error')
+          formatServerError(err)
           await (this as any).logErrorWithOriginalStack(err)
         } else {
           this.logError(err)
