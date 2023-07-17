@@ -641,7 +641,11 @@ export default class DevServer extends Server {
           }
         }
 
-        if (!this.usingTypeScript && enabledTypeScript) {
+        if (
+          !this.usingTypeScript &&
+          enabledTypeScript &&
+          !this.isRenderWorker
+        ) {
           // we tolerate the error here as this is best effort
           // and the manual install command will be shown
           await this.verifyTypeScript()
@@ -882,7 +886,10 @@ export default class DevServer extends Server {
     setGlobal('distDir', this.distDir)
     setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
 
-    await this.verifyTypeScript()
+    if (!this.isRenderWorker) {
+      await this.verifyTypeScript()
+    }
+
     this.customRoutes = await loadCustomRoutes(this.nextConfig)
 
     // reload router
@@ -1442,10 +1449,6 @@ export default class DevServer extends Server {
     return this.middleware
   }
 
-  protected getServerComponentManifest() {
-    return undefined
-  }
-
   protected getNextFontManifest() {
     return undefined
   }
@@ -1755,11 +1758,6 @@ export default class DevServer extends Server {
         })
       }
 
-      // When the new page is compiled, we need to reload the server component
-      // manifest.
-      if (!!this.appDir) {
-        this.clientReferenceManifest = super.getServerComponentManifest()
-      }
       this.nextFontManifest = super.getNextFontManifest()
       // before we re-evaluate a route module, we want to restore globals that might
       // have been patched previously to their original state so that we don't

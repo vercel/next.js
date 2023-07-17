@@ -4,7 +4,7 @@ import type { DocumentType, AppType } from '../../../../shared/lib/utils'
 import type { BuildManifest } from '../../../../server/get-page-files'
 import type { ReactLoadableManifest } from '../../../../server/load-components'
 import type { ClientReferenceManifest } from '../../plugins/flight-manifest-plugin'
-import type { NextFontManifestPlugin } from '../../plugins/next-font-manifest-plugin'
+import type { NextFontManifest } from '../../plugins/next-font-manifest-plugin'
 
 import WebServer from '../../../../server/web-server'
 import {
@@ -57,19 +57,18 @@ export function getRender({
   appServerMod: any
   config: NextConfigComplete
   buildId: string
-  nextFontManifest: NextFontManifestPlugin
+  nextFontManifest: NextFontManifest
   incrementalCacheHandler?: any
 }) {
   const isAppPath = pagesType === 'app'
   const baseLoadComponentResult = {
     dev,
     buildManifest,
-    prerenderManifest,
     reactLoadableManifest,
     subresourceIntegrityManifest,
-    nextFontManifest,
     Document,
     App: appMod?.default as AppType,
+    clientReferenceManifest,
   }
 
   const server = new WebServer({
@@ -86,9 +85,9 @@ export function getRender({
         runtime: SERVER_RUNTIME.experimentalEdge,
         supportsDynamicHTML: true,
         disableOptimizedLoading: true,
-        clientReferenceManifest,
         serverActionsManifest,
         serverActionsBodySizeLimit,
+        nextFontManifest,
       },
       renderToHTML,
       incrementalCacheHandler,
