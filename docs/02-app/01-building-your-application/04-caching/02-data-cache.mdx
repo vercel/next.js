@@ -46,7 +46,7 @@ The following APIs affect the Data Cache:
 
 ### `fetch.cache`
 
-`fetch` requests are cached and [deduplicated]() automatically. But you can opt individual `fetch` requests out of caching by setting the `cache` option to `no-store`:
+`fetch` requests are cached automatically. But you can opt individual `fetch` requests out of caching by setting the `cache` option to `no-store`:
 
 ```jsx
 // Cached by default. `force-cache` is the default option and can be ommitted.
@@ -110,7 +110,7 @@ revalidatePath('/')
 
 > ** `revalidatePath` vs. `router.refresh`**:
 >
-> Calling `router.refresh` will clear the Router cache, and re-render route segments on the server without invalidating cached data.
+> Calling `router.refresh` will clear the Router cache, and re-render route segments on the server without invalidating the Data Cache or the Render Cache.
 >
 > `revalidatePath` is better suited if you need to invalidate the Data Cache **and** Router Cache for a specific path.
 

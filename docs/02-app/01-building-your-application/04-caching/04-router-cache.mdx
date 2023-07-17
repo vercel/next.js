@@ -16,11 +16,7 @@ For the user, this results in [soft navigation]() (no page reloads) and faster p
 
 When the user first visits a route, Next.js will cache the rendered result of the route segments (layouts and page). If the route contains `<Link>` components (or uses `router.prefetch`), Next.js will automatically start prefetching and caching the content of those linked routes.
 
-As users navigate between routes, Next.js will check if the route segments are already cached. If so, it will skip sending a new request to the server for rendering, and use the payload of cached segments instead. This works when navigating to new routes, as well as backwards and forwards browser navigation.
-
-> **What is the rendered result?**
->
-> You may see the terms like **RSC Payload**, **Rendered Result**, and **Flight Data** used interchangeably. They all refer to the same thing: the rendered result of Server Components, which is sent to the client. To learn more, see the [Server Components]() documentation.
+As users navigate between routes, Next.js will check if the route segments are already cached. If so, it will skip sending a new request to the server, and use the payload of cached segments instead. This works when navigating to new routes, as well as backwards and forwards browser navigation.
 
 ## Duration and Invalidation
 
@@ -39,9 +35,9 @@ The following APIs affect the Router Cache:
 
 ### `<Link>`
 
-By default, the `<Link>` component automatically prefetches linked routes. This adds the rendered result to the cache.
+By default, the `<Link>` component automatically prefetches static routes. This adds the rendered result to the cache.
 
-To disable prefetching, you can set the `prefetch` prop to `false`.
+To disable prefetching, you can set the `prefetch` prop to `false`. But this will not skip the cache, the route segment will still be cached when the user visits the route.
 
 Learn more about the [`<Link>` component]().
 
@@ -53,9 +49,9 @@ See the [`useRouter` hook]() API reference.
 
 ### `router.refresh`
 
-The `refresh` method of the `useRouter` hook can be used to manually refresh a route. This completely clears the router cache, makes a new request to the server, refetches data (which may be cached - see [Interactions]()), and re-renders Server Components from the root layout down to the page.
+The `refresh` method of the `useRouter` hook can be used to manually refresh a route. This completely clears the router cache, and makes a new request to the server. For dynamic routes, it'll also refetch data and re-render the components on the server. `refresh` does not affect the Data or Render Cache.
 
-The rendered result will be merged with client components without losing the client-side React state or browser state (e.g. scroll position).
+The rendered result will be reconciled on the client without losing the React state or browser state (e.g. scroll position).
 
 See the [`useRouter` hook]() API reference.
 
@@ -65,7 +61,7 @@ The `revalidatePath` and `revalidateTag` methods invalidates the [data cache]() 
 
 > **Difference between `router.refresh` and `revalidatePath` / `revalidateTag`:**
 >
-> Similarly to `router.refresh`, using these methods clears the router cache, makes a new request to the server, fetches data, and re-renders Server Components from the root layout down to page.
+> `router.refresh` clears the router cache and makes a new request to the server for route segments. For dynamic routes, it also re-fetches data, and re-renders Server Components from the root layout down to page.
 >
 > The difference is that `revalidatePath` and `revalidateTag` **revalidates** cached data, whereas `router.refresh` **reuses** cached data.
 
