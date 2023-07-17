@@ -537,7 +537,7 @@ impl AppEndpoint {
                 .collect(),
         };
         let app_build_manifest_output = Vc::upcast(RawOutput::new(Vc::upcast(VirtualSource::new(
-            node_root.join(format!("server/app-build-manifest.json",)),
+            node_root.join("server/app-build-manifest.json".to_string()),
             AssetContent::file(
                 File::from(serde_json::to_string_pretty(&app_build_manifest)?).into(),
             ),
@@ -560,7 +560,7 @@ impl AppEndpoint {
             ..Default::default()
         };
         let app_paths_manifest_output = Vc::upcast(RawOutput::new(Vc::upcast(VirtualSource::new(
-            node_root.join(format!("server/app-paths-manifest.json",)),
+            node_root.join("server/app-paths-manifest.json".to_string()),
             AssetContent::file(
                 File::from(serde_json::to_string_pretty(&app_paths_manifest)?).into(),
             ),
@@ -572,7 +572,7 @@ impl AppEndpoint {
             ..Default::default()
         };
         let build_manifest_output = Vc::upcast(RawOutput::new(Vc::upcast(VirtualSource::new(
-            node_root.join(format!("build-manifest.json",)),
+            node_root.join("build-manifest.json".to_string()),
             AssetContent::file(File::from(serde_json::to_string_pretty(&build_manifest)?).into()),
         ))));
         output_assets.push(build_manifest_output);
