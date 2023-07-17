@@ -9,7 +9,7 @@ use turbopack_binding::{
     turbo::tasks_fs::{rope::RopeBuilder, File, FileSystemPath},
     turbopack::{
         core::{
-            asset::{Asset, AssetContent},
+            asset::AssetContent,
             context::AssetContext,
             reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
             source::Source,
@@ -113,7 +113,7 @@ pub async fn get_app_route_entry(
     );
 
     let inner_assets = indexmap! {
-        "ENTRY".to_string() => Vc::upcast(entry)
+        "ENTRY".to_string() => entry
     };
 
     let rsc_entry = rsc_context.process(

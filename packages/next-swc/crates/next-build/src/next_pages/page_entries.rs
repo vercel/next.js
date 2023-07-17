@@ -24,7 +24,6 @@ use turbopack_binding::{
     turbopack::{
         build::BuildChunkingContext,
         core::{
-            asset::Asset,
             chunk::{ChunkableModule, ChunkingContext, EvaluatableAssets},
             compile_time_info::CompileTimeInfo,
             context::AssetContext,

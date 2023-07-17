@@ -117,13 +117,16 @@ impl EcmascriptClientReferenceProxyModule {
 }
 
 #[turbo_tasks::value_impl]
-impl Asset for EcmascriptClientReferenceProxyModule {
+impl Module for EcmascriptClientReferenceProxyModule {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
         self.server_module_ident
             .with_modifier(client_proxy_modifier())
     }
+}
 
+#[turbo_tasks::value_impl]
+impl Asset for EcmascriptClientReferenceProxyModule {
     #[turbo_tasks::function]
     fn content(&self) -> Result<Vc<AssetContent>> {
         bail!("proxy module asset has no content")
@@ -157,9 +160,6 @@ impl Asset for EcmascriptClientReferenceProxyModule {
         Ok(Vc::cell(references))
     }
 }
-
-#[turbo_tasks::value_impl]
-impl Module for EcmascriptClientReferenceProxyModule {}
 
 #[turbo_tasks::value_impl]
 impl ChunkableModule for EcmascriptClientReferenceProxyModule {

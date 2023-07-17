@@ -51,13 +51,16 @@ fn ecmascript_client_reference_modifier() -> Vc<String> {
 }
 
 #[turbo_tasks::value_impl]
-impl Asset for EcmascriptClientReferenceModule {
+impl Module for EcmascriptClientReferenceModule {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
         self.server_ident
             .with_modifier(ecmascript_client_reference_modifier())
     }
+}
 
+#[turbo_tasks::value_impl]
+impl Asset for EcmascriptClientReferenceModule {
     #[turbo_tasks::function]
     fn content(&self) -> Result<Vc<AssetContent>> {
         // The ES client reference asset only serves as a marker asset.
@@ -69,6 +72,3 @@ impl Asset for EcmascriptClientReferenceModule {
         AssetReferences::empty()
     }
 }
-
-#[turbo_tasks::value_impl]
-impl Module for EcmascriptClientReferenceModule {}
