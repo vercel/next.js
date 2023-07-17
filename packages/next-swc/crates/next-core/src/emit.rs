@@ -12,6 +12,9 @@ use turbopack_binding::turbopack::core::{
 
 /// Emits all assets transitively reachable from the given chunks, that are
 /// inside the node root or the client root.
+///
+/// Assets inside the given client root are rebased to the given client output
+/// path.
 #[turbo_tasks::function]
 pub async fn emit_all_assets(
     assets: Vc<OutputAssets>,

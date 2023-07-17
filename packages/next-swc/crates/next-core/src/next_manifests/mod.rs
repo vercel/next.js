@@ -1,9 +1,12 @@
 //! Type definitions for the Next.js manifest formats.
 
+pub(crate) mod client_reference_manifest;
+
 use std::collections::HashMap;
 
-use next_core::next_config::Rewrites;
 use serde::Serialize;
+
+use crate::next_config::Rewrites;
 
 #[derive(Serialize, Default, Debug)]
 pub struct PagesManifest {
