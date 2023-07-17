@@ -183,7 +183,7 @@ export async function makeResolver(
     srv.listen(0)
   })
 
-  if (middleware) {
+  if (middleware?.files.length) {
     fsChecker.middlewareMatcher = getMiddlewareRouteMatcher(
       middleware.matcher?.map((item) => ({
         regexp: item,
