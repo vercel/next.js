@@ -86,8 +86,15 @@ export const SERVER_RUNTIME: Record<string, ServerRuntime> = {
   nodejs: 'nodejs',
 }
 
+/**
+ * The names of the webpack layers. These layers are the primitives for the
+ * webpack chunks.
+ */
 const WEBPACK_LAYERS_NAMES = {
-  shared: 'sc_shared',
+  /**
+   * The layer for the shared code between the client and server bundles.
+   */
+  shared: 'shared',
   /**
    * React Server Components layer (rsc).
    */
@@ -96,11 +103,29 @@ const WEBPACK_LAYERS_NAMES = {
    * Server Side Rendering layer (ssr).
    */
   ssr: 'ssr',
+  /**
+   * The browser client bundle layer for actions.
+   */
   action: 'action',
+  /**
+   * The layer for the API routes.
+   */
   api: 'api',
+  /**
+   * The layer for the middleware code.
+   */
   middleware: 'middleware',
+  /**
+   * The layer for assets on the edge.
+   */
   edgeAsset: 'edge-asset',
+  /**
+   * The browser client bundle layer for App directory.
+   */
   appPages: 'app-pages',
+  /**
+   * The server bundle layer for metadata routes.
+   */
   appMetadataRoute: 'app-metadata-route',
 }
 
