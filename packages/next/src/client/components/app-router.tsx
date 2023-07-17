@@ -76,16 +76,14 @@ export function urlToUrlWithoutFlightMarker(url: string): URL {
   const urlWithoutFlightParameters = new URL(url, location.origin)
   urlWithoutFlightParameters.searchParams.delete(NEXT_RSC_UNION_QUERY)
   if (process.env.NODE_ENV === 'production') {
-    if (process.env.__NEXT_CONFIG_OUTPUT === 'export') {
-      if (urlWithoutFlightParameters.pathname.endsWith('/index.txt')) {
-        // Slice off `/index.txt` from the end of the pathname
-        urlWithoutFlightParameters.pathname =
-          urlWithoutFlightParameters.pathname.slice(0, -`/index.txt`.length)
-      } else {
-        // Slice off `.txt` from the end of the pathname
-        urlWithoutFlightParameters.pathname =
-          urlWithoutFlightParameters.pathname.slice(0, -`.txt`.length)
-      }
+    if (
+      process.env.__NEXT_CONFIG_OUTPUT === 'export' &&
+      urlWithoutFlightParameters.pathname.endsWith('.txt')
+    ) {
+      const { pathname } = urlWithoutFlightParameters
+      const length = pathname.endsWith('/index.txt') ? 10 : 4
+      // Slice off `/index.txt` or `.txt` from the end of the pathname
+      urlWithoutFlightParameters.pathname = pathname.slice(0, -length)
     }
   }
   return urlWithoutFlightParameters

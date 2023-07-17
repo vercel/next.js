@@ -193,6 +193,11 @@ createNextDescribe(
       expect(content).toMatchInlineSnapshot('"next_streaming_data"')
     })
 
+    it('should track client components in dynamic imports', async () => {
+      const html = await next.render('/dynamic')
+      expect(html).toContain('dynamic data!')
+    })
+
     it('should support next/link in server components', async () => {
       const $ = await next.render$('/next-api/link')
       const linkText = $('body a[href="/root"]').text()
