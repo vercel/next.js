@@ -1397,13 +1397,6 @@ export async function renderToHTMLOrFlight(
           query
         )
 
-        const [NotFound, notFoundStyles] = await getNotFound(
-          loaderTree,
-          injectedCSS,
-          pathname
-        )
-        const RootLayout = (await getRootLayout(loaderTree)) || ErrorHtml
-
         return (
           <>
             {styles}
@@ -1414,16 +1407,7 @@ export async function renderToHTMLOrFlight(
               initialTree={initialTree}
               initialHead={<>{createMetadata(loaderTree, undefined)}</>}
               globalErrorComponent={GlobalError}
-              notFound={
-                NotFound
-                  ? undefined
-                  : // <ErrorHtml>
-                    //   {createMetadata(loaderTree, 'not-found')}
-                    //   {notFoundStyles}
-                    //   <NotFound />
-                    // </ErrorHtml>
-                    undefined
-              }
+              notFound={undefined}
               asNotFound={props.asNotFound}
             >
               <ComponentTree />
@@ -1626,13 +1610,11 @@ export async function renderToHTMLOrFlight(
           }
 
           let is404 = false
-          let isErrorFromMetadata = false
 
           if (isMetadataError(err)) {
             const digest = err.digest.replace('NEXT_METADATA_ERROR;', '')
             err.message = digest
             err.digest = digest
-            isErrorFromMetadata = true
           }
 
           const RootLayout = await getRootLayout(loaderTree)
