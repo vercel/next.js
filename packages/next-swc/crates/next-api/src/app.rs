@@ -7,7 +7,7 @@ use next_core::{
     mode::NextMode,
     next_app::{
         get_app_client_references_chunks, get_app_client_shared_chunks, get_app_page_entry,
-        AppEntry,
+        get_app_route_entry, AppEntry,
     },
     next_client::{
         get_client_module_options_context, get_client_resolve_options_context,
@@ -17,7 +17,9 @@ use next_core::{
         ClientReferenceGraph, ClientReferenceType, NextEcmascriptClientReferenceTransition,
     },
     next_dynamic::{NextDynamicEntries, NextDynamicTransition},
-    next_manifests::{AppBuildManifest, AppPathsManifest, BuildManifest, ClientReferenceManifest},
+    next_manifests::{
+        AppBuildManifest, AppPathsManifest, BuildManifest, ClientReferenceManifest, PagesManifest,
+    },
     next_server::{
         get_server_module_options_context, get_server_resolve_options_context,
         get_server_runtime_entries, ServerContextType,
@@ -33,7 +35,10 @@ use turbopack_binding::{
     turbopack::{
         core::{
             asset::{Asset, AssetContent},
+            changed::any_content_changed_of_output_assets,
             chunk::EvaluatableAssets,
+            file_source::FileSource,
+            output::{OutputAsset, OutputAssets},
             raw_output::RawOutput,
             virtual_source::VirtualSource,
         },
@@ -45,9 +50,8 @@ use turbopack_binding::{
 };
 
 use crate::{
-    entrypoints::Entrypoints,
     project::Project,
-    route::{Endpoint, Route, WrittenEndpoint},
+    route::{Endpoint, Route, Routes, WrittenEndpoint},
 };
 
 #[turbo_tasks::value]
@@ -97,21 +101,18 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
-    async fn project(self: Vc<Self>) -> Result<Vc<Project>> {
-        Ok(self.await?.project)
+    fn project(&self) -> Vc<Project> {
+        self.project
     }
 
     #[turbo_tasks::function]
-    async fn app_dir(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
-        Ok(self.await?.app_dir)
+    fn app_dir(&self) -> Vc<FileSystemPath> {
+        self.app_dir
     }
 
     #[turbo_tasks::function]
-    fn app_entrypoints(self: Vc<Self>) -> Vc<AppEntrypoints> {
-        get_entrypoints(
-            self.app_dir(),
-            self.project().next_config().page_extensions(),
-        )
+    fn app_entrypoints(&self) -> Vc<AppEntrypoints> {
+        get_entrypoints(self.app_dir, self.project.next_config().page_extensions())
     }
 
     #[turbo_tasks::function]
@@ -283,10 +284,10 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
-    pub async fn entrypoints(self: Vc<Self>) -> Result<Vc<Entrypoints>> {
+    pub async fn routes(self: Vc<Self>) -> Result<Vc<Routes>> {
         let app_entrypoints = self.app_entrypoints();
-        Ok(Entrypoints {
-            routes: app_entrypoints
+        Ok(Vc::cell(
+            app_entrypoints
                 .await?
                 .iter()
                 .map(|(pathname, app_entrypoint)| async {
@@ -299,9 +300,7 @@ impl AppProject {
                 .await?
                 .into_iter()
                 .collect(),
-            middleware: None,
-        }
-        .into())
+        ))
     }
 }
 
@@ -314,26 +313,37 @@ pub async fn app_entry_point_to_route(
     match entrypoint {
         AppEntrypoint::AppPage { loader_tree } => Route::AppPage {
             html_endpoint: Vc::upcast(
-                AppPageEndpoint {
-                    ty: AppPageEndpointType::Html,
-                    loader_tree,
+                AppEndpoint {
+                    ty: AppEndpointType::Page {
+                        ty: AppPageEndpointType::Html,
+                        loader_tree,
+                    },
                     app_project,
                     pathname: pathname.clone(),
                 }
                 .cell(),
             ),
             rsc_endpoint: Vc::upcast(
-                AppPageEndpoint {
-                    ty: AppPageEndpointType::Rsc,
-                    loader_tree,
+                AppEndpoint {
+                    ty: AppEndpointType::Page {
+                        ty: AppPageEndpointType::Rsc,
+                        loader_tree,
+                    },
                     app_project,
                     pathname,
                 }
                 .cell(),
             ),
         },
-        AppEntrypoint::AppRoute { .. } => Route::AppRoute {
-            endpoint: Vc::upcast(AppRouteEndpoint.cell()),
+        AppEntrypoint::AppRoute { path } => Route::AppRoute {
+            endpoint: Vc::upcast(
+                AppEndpoint {
+                    ty: AppEndpointType::Route { path },
+                    app_project,
+                    pathname: pathname.clone(),
+                }
+                .cell(),
+            ),
         },
     }
     .cell()
@@ -345,60 +355,79 @@ enum AppPageEndpointType {
     Rsc,
 }
 
+#[derive(Copy, Clone, Serialize, Deserialize, PartialEq, Eq, Debug, TraceRawVcs)]
+enum AppEndpointType {
+    Page {
+        ty: AppPageEndpointType,
+        loader_tree: Vc<LoaderTree>,
+    },
+    Route {
+        path: Vc<FileSystemPath>,
+    },
+}
+
 #[turbo_tasks::value]
-struct AppPageEndpoint {
-    ty: AppPageEndpointType,
-    loader_tree: Vc<LoaderTree>,
+struct AppEndpoint {
+    ty: AppEndpointType,
     app_project: Vc<AppProject>,
     pathname: String,
 }
 
 #[turbo_tasks::value_impl]
-impl AppPageEndpoint {
+impl AppEndpoint {
     #[turbo_tasks::function]
-    async fn app_entry(self: Vc<Self>) -> Result<Vc<AppEntry>> {
-        let this = self.await?;
-        Ok(get_app_page_entry(
-            this.app_project.rsc_module_context(),
-            this.loader_tree,
-            this.app_project.app_dir(),
-            this.pathname.clone(),
-            this.app_project.project().project_path(),
-        ))
-    }
-
-    #[turbo_tasks::function]
-    async fn app_project(self: Vc<Self>) -> Result<Vc<AppProject>> {
-        let this = self.await?;
-        Ok(this.app_project)
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl Endpoint for AppPageEndpoint {
-    #[turbo_tasks::function]
-    async fn write_to_disk(self: Vc<Self>) -> Result<Vc<WrittenEndpoint>> {
-        let node_root = self.app_project().project().node_root();
-        let node_root_ref = node_root.await?;
-
-        let client_relative_path = self
-            .app_project()
+    fn client_relative_path(&self) -> Vc<FileSystemPath> {
+        self.app_project
             .project()
             .client_root()
-            .join("_next".to_string());
+            .join("_next".to_string())
+    }
+
+    #[turbo_tasks::function]
+    fn app_page_entry(&self, loader_tree: Vc<LoaderTree>) -> Vc<AppEntry> {
+        get_app_page_entry(
+            self.app_project.rsc_module_context(),
+            loader_tree,
+            self.app_project.app_dir(),
+            self.pathname.clone(),
+            self.app_project.project().project_path(),
+        )
+    }
+
+    #[turbo_tasks::function]
+    fn app_route_entry(&self, path: Vc<FileSystemPath>) -> Vc<AppEntry> {
+        get_app_route_entry(
+            self.app_project.rsc_module_context(),
+            Vc::upcast(FileSource::new(path)),
+            self.pathname.clone(),
+            self.app_project.project().project_path(),
+        )
+    }
+
+    #[turbo_tasks::function]
+    async fn output(self: Vc<Self>) -> Result<Vc<AppEndpointOutput>> {
+        let this = self.await?;
+
+        let app_entry = match this.ty {
+            AppEndpointType::Page { ty: _, loader_tree } => self.app_page_entry(loader_tree),
+            // NOTE(alexkirsz) For routes, technically, a lot of the following code is not needed,
+            // as we know we won't have any client references. However, for now, for simplicity's
+            // sake, we just do the same thing as for pages.
+            AppEndpointType::Route { path } => self.app_route_entry(path),
+        };
+
+        let node_root = this.app_project.project().node_root();
+
+        let client_relative_path = self.client_relative_path();
         let client_relative_path_ref = client_relative_path.await?;
 
-        let server_path = self
-            .app_project()
-            .project()
-            .node_root()
-            .join("server".to_string());
+        let server_path = node_root.join("server".to_string());
 
         let mut output_assets = vec![];
 
         let client_shared_chunks = get_app_client_shared_chunks(
-            self.app_project().client_runtime_entries(),
-            self.app_project().project().client_chunking_context(),
+            this.app_project.client_runtime_entries(),
+            this.app_project.project().client_chunking_context(),
         );
 
         let mut client_shared_chunks_paths = vec![];
@@ -413,8 +442,7 @@ impl Endpoint for AppPageEndpoint {
             }
         }
 
-        let app_entry = self.app_entry().await?;
-
+        let app_entry = app_entry.await?;
         let rsc_entry = app_entry.rsc_entry;
 
         let rsc_entry_asset = Vc::upcast(rsc_entry);
@@ -447,8 +475,8 @@ impl Endpoint for AppPageEndpoint {
         ))
         .await?;
 
-        let rsc_chunk = self
-            .app_project()
+        let rsc_chunk = this
+            .app_project
             .project()
             .rsc_chunking_context()
             .entry_chunk(
@@ -457,7 +485,7 @@ impl Endpoint for AppPageEndpoint {
                     original_name = app_entry.original_name
                 )),
                 app_entry.rsc_entry,
-                self.app_project().rsc_runtime_entries(),
+                this.app_project.rsc_runtime_entries(),
             );
         output_assets.push(rsc_chunk);
 
@@ -467,8 +495,8 @@ impl Endpoint for AppPageEndpoint {
 
         let client_references_chunks = get_app_client_references_chunks(
             client_reference_types,
-            self.app_project().project().client_chunking_context(),
-            self.app_project().project().ssr_chunking_context(),
+            this.app_project.project().client_chunking_context(),
+            this.app_project.project().ssr_chunking_context(),
         );
         let client_references_chunks_ref = client_references_chunks.await?;
 
@@ -503,10 +531,11 @@ impl Endpoint for AppPageEndpoint {
             .collect();
         entry_client_chunks_paths.extend(client_shared_chunks_paths.iter().cloned());
 
-        let mut app_build_manifest = AppBuildManifest::default();
-        app_build_manifest
-            .pages
-            .insert(app_entry.original_name.clone(), entry_client_chunks_paths);
+        let app_build_manifest = AppBuildManifest {
+            pages: [(app_entry.original_name.clone(), entry_client_chunks_paths)]
+                .into_iter()
+                .collect(),
+        };
         let app_build_manifest_output = Vc::upcast(RawOutput::new(Vc::upcast(VirtualSource::new(
             node_root.join(format!("server/app-build-manifest.json",)),
             AssetContent::file(
@@ -515,15 +544,21 @@ impl Endpoint for AppPageEndpoint {
         ))));
         output_assets.push(app_build_manifest_output);
 
-        let mut app_paths_manifest = AppPathsManifest::default();
-        app_paths_manifest.node_server_app_paths.pages.insert(
-            app_entry.original_name.clone(),
-            server_path
-                .await?
-                .get_path_to(&*rsc_chunk.ident().path().await?)
-                .expect("RSC chunk path should be within app paths manifest directory")
-                .to_string(),
-        );
+        let app_paths_manifest = AppPathsManifest {
+            node_server_app_paths: PagesManifest {
+                pages: [(
+                    app_entry.original_name.clone(),
+                    server_path
+                        .await?
+                        .get_path_to(&*rsc_chunk.ident().path().await?)
+                        .expect("RSC chunk path should be within app paths manifest directory")
+                        .to_string(),
+                )]
+                .into_iter()
+                .collect(),
+            },
+            ..Default::default()
+        };
         let app_paths_manifest_output = Vc::upcast(RawOutput::new(Vc::upcast(VirtualSource::new(
             node_root.join(format!("server/app-paths-manifest.json",)),
             AssetContent::file(
@@ -532,8 +567,10 @@ impl Endpoint for AppPageEndpoint {
         ))));
         output_assets.push(app_paths_manifest_output);
 
-        let mut build_manifest = BuildManifest::default();
-        build_manifest.root_main_files = client_shared_chunks_paths;
+        let build_manifest = BuildManifest {
+            root_main_files: client_shared_chunks_paths,
+            ..Default::default()
+        };
         let build_manifest_output = Vc::upcast(RawOutput::new(Vc::upcast(VirtualSource::new(
             node_root.join(format!("build-manifest.json",)),
             AssetContent::file(File::from(serde_json::to_string_pretty(&build_manifest)?).into()),
@@ -546,24 +583,42 @@ impl Endpoint for AppPageEndpoint {
             app_entry.original_name.clone(),
             client_references,
             client_references_chunks,
-            self.app_project().project().client_chunking_context(),
-            Vc::upcast(self.app_project().project().ssr_chunking_context()),
+            this.app_project.project().client_chunking_context(),
+            Vc::upcast(this.app_project.project().ssr_chunking_context()),
         );
         output_assets.push(entry_manifest);
 
-        // TODO(alexkirsz) Write chunks and manifests.
+        Ok(AppEndpointOutput {
+            rsc_chunk,
+            output_assets: Vc::cell(output_assets),
+        }
+        .cell())
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl Endpoint for AppEndpoint {
+    #[turbo_tasks::function]
+    async fn write_to_disk(self: Vc<Self>) -> Result<Vc<WrittenEndpoint>> {
+        let output = self.output();
+
+        let this = self.await?;
+        let node_root = this.app_project.project().node_root();
+
+        let output = output.await?;
+        let node_root_ref = node_root.await?;
 
         emit_all_assets(
-            Vc::cell(output_assets),
-            self.app_project().project().node_root(),
-            client_relative_path,
-            self.app_project().project().node_root(),
+            output.output_assets,
+            this.app_project.project().node_root(),
+            self.client_relative_path(),
+            this.app_project.project().node_root(),
         )
         .await?;
 
         Ok(WrittenEndpoint {
             server_entry_path: node_root_ref
-                .get_path_to(&*rsc_chunk.ident().path().await?)
+                .get_path_to(&*output.rsc_chunk.ident().path().await?)
                 .context("rsc chunk entry path must be inside the node root")?
                 .to_string(),
             server_paths: vec![],
@@ -572,23 +627,16 @@ impl Endpoint for AppPageEndpoint {
     }
 
     #[turbo_tasks::function]
-    fn changed(&self) -> Vc<Completion> {
-        todo!()
+    async fn changed(self: Vc<Self>) -> Result<Vc<Completion>> {
+        let output = self.output();
+        Ok(any_content_changed_of_output_assets(
+            output.await?.output_assets,
+        ))
     }
 }
 
 #[turbo_tasks::value]
-struct AppRouteEndpoint;
-
-#[turbo_tasks::value_impl]
-impl Endpoint for AppRouteEndpoint {
-    #[turbo_tasks::function]
-    fn write_to_disk(&self) -> Vc<WrittenEndpoint> {
-        todo!()
-    }
-
-    #[turbo_tasks::function]
-    fn changed(&self) -> Vc<Completion> {
-        todo!()
-    }
+struct AppEndpointOutput {
+    rsc_chunk: Vc<Box<dyn OutputAsset>>,
+    output_assets: Vc<OutputAssets>,
 }

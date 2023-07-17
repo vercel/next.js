@@ -5,24 +5,14 @@ use indexmap::{map::Entry, IndexMap};
 use next_core::{
     app_structure::find_app_dir,
     mode::NextMode,
-    next_client::{
-        get_client_chunking_context, get_client_compile_time_info,
-        get_client_module_options_context, get_client_resolve_options_context,
-        get_client_runtime_entries, ClientContextType,
-    },
+    next_client::{get_client_chunking_context, get_client_compile_time_info},
     next_config::NextConfig,
-    next_dynamic::NextDynamicTransition,
-    next_server::{
-        get_server_chunking_context, get_server_compile_time_info,
-        get_server_module_options_context, get_server_resolve_options_context,
-        get_server_runtime_entries, ServerContextType,
-    },
-    pages_structure::{find_pages_structure, PagesStructure},
+    next_server::{get_server_chunking_context, get_server_compile_time_info},
     util::NextSourceConfig,
 };
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, unit, TaskInput, TransientValue, Value, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs, unit, TaskInput, TransientValue, Vc,
 };
 use turbopack_binding::{
     turbo::{
@@ -32,30 +22,21 @@ use turbopack_binding::{
     turbopack::{
         build::BuildChunkingContext,
         core::{
-            chunk::{ChunkingContext, EvaluatableAssets},
-            compile_time_info::CompileTimeInfo,
-            context::AssetContext,
-            environment::ServerAddr,
+            chunk::ChunkingContext, compile_time_info::CompileTimeInfo, environment::ServerAddr,
             PROJECT_FILESYSTEM_NAME,
         },
         dev::DevChunkingContext,
         ecmascript::chunk::EcmascriptChunkingContext,
         env::dotenv::load_env,
         node::execution_context::ExecutionContext,
-        turbopack::{
-            evaluate_context::node_build_environment,
-            module_options::ModuleOptionsContext,
-            resolve_options_context::ResolveOptionsContext,
-            transition::{ContextTransition, TransitionsByName},
-            ModuleAssetContext,
-        },
+        turbopack::evaluate_context::node_build_environment,
     },
 };
 
 use crate::{
     app::{AppProject, OptionAppProject},
     entrypoints::Entrypoints,
-    pages::get_pages_routes,
+    pages::PagesProject,
     route::{Endpoint, Route},
 };
 
@@ -124,6 +105,24 @@ impl Project {
     }
 
     #[turbo_tasks::function]
+    async fn app_project(self: Vc<Self>) -> Result<Vc<OptionAppProject>> {
+        let this = self.await?;
+        let app_dir = find_app_dir(self.project_path()).await?;
+
+        Ok(Vc::cell(if let Some(app_dir) = &*app_dir {
+            Some(AppProject::new(self, *app_dir, this.mode))
+        } else {
+            None
+        }))
+    }
+
+    #[turbo_tasks::function]
+    async fn pages_project(self: Vc<Self>) -> Result<Vc<PagesProject>> {
+        let this = self.await?;
+        Ok(PagesProject::new(self, this.mode))
+    }
+
+    #[turbo_tasks::function]
     async fn project_fs(self: Vc<Self>) -> Result<Vc<Box<dyn FileSystem>>> {
         let this = self.await?;
         let disk_fs = DiskFileSystem::new(
@@ -166,6 +165,11 @@ impl Project {
     }
 
     #[turbo_tasks::function]
+    pub(super) fn client_relative_path(self: Vc<Self>) -> Vc<FileSystemPath> {
+        self.client_root().join("_next".to_string())
+    }
+
+    #[turbo_tasks::function]
     pub(super) async fn project_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
         let this = self.await?;
         let root = self.project_root_path();
@@ -175,30 +179,6 @@ impl Project {
             .unwrap_or(project_relative)
             .replace(MAIN_SEPARATOR, "/");
         Ok(root.join(project_relative))
-    }
-
-    #[turbo_tasks::function]
-    async fn pages_structure(self: Vc<Self>) -> Result<Vc<PagesStructure>> {
-        let this: turbo_tasks::ReadRef<Project> = self.await?;
-        let next_router_fs = Vc::upcast::<Box<dyn FileSystem>>(VirtualFileSystem::new());
-        let next_router_root = next_router_fs.root();
-        Ok(find_pages_structure(
-            self.project_path(),
-            next_router_root,
-            this.next_config.page_extensions(),
-        ))
-    }
-
-    #[turbo_tasks::function]
-    async fn app_project(self: Vc<Self>) -> Result<Vc<OptionAppProject>> {
-        let this = self.await?;
-        let app_dir = find_app_dir(self.project_path()).await?;
-
-        Ok(Vc::cell(if let Some(app_dir) = &*app_dir {
-            Some(AppProject::new(self, *app_dir, this.mode))
-        } else {
-            None
-        }))
     }
 
     #[turbo_tasks::function]
@@ -247,178 +227,6 @@ impl Project {
             // TODO(alexkirsz) Fill this out.
             ServerAddr::empty(),
         ))
-    }
-
-    #[turbo_tasks::function]
-    async fn pages_dir(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
-        Ok(if let Some(pages) = self.pages_structure().await?.pages {
-            pages.project_path()
-        } else {
-            self.project_path().join("pages".to_string())
-        })
-    }
-
-    #[turbo_tasks::function]
-    fn pages_transitions(self: Vc<Self>) -> Vc<TransitionsByName> {
-        Vc::cell(
-            [(
-                "next-dynamic".to_string(),
-                Vc::upcast(NextDynamicTransition::new(self.pages_client_transition())),
-            )]
-            .into_iter()
-            .collect(),
-        )
-    }
-
-    #[turbo_tasks::function]
-    fn pages_client_transition(self: Vc<Self>) -> Vc<ContextTransition> {
-        ContextTransition::new(
-            self.client_compile_time_info(),
-            self.pages_client_module_options_context(),
-            self.pages_client_resolve_options_context(),
-        )
-    }
-
-    #[turbo_tasks::function]
-    async fn pages_client_module_options_context(
-        self: Vc<Self>,
-    ) -> Result<Vc<ModuleOptionsContext>> {
-        let this = self.await?;
-        Ok(get_client_module_options_context(
-            self.project_path(),
-            self.execution_context(),
-            self.client_compile_time_info().environment(),
-            Value::new(ClientContextType::Pages {
-                pages_dir: self.pages_dir(),
-            }),
-            this.mode,
-            self.next_config(),
-        ))
-    }
-
-    #[turbo_tasks::function]
-    async fn pages_client_resolve_options_context(
-        self: Vc<Self>,
-    ) -> Result<Vc<ResolveOptionsContext>> {
-        let this = self.await?;
-        Ok(get_client_resolve_options_context(
-            self.project_path(),
-            Value::new(ClientContextType::Pages {
-                pages_dir: self.pages_dir(),
-            }),
-            this.mode,
-            self.next_config(),
-            self.execution_context(),
-        ))
-    }
-
-    #[turbo_tasks::function]
-    pub(super) fn pages_client_module_context(self: Vc<Self>) -> Vc<Box<dyn AssetContext>> {
-        Vc::upcast(ModuleAssetContext::new(
-            self.pages_transitions(),
-            self.client_compile_time_info(),
-            self.pages_client_module_options_context(),
-            self.pages_client_resolve_options_context(),
-        ))
-    }
-
-    #[turbo_tasks::function]
-    pub(super) fn pages_ssr_module_context(self: Vc<Self>) -> Vc<Box<dyn AssetContext>> {
-        Vc::upcast(ModuleAssetContext::new(
-            self.pages_transitions(),
-            self.server_compile_time_info(),
-            self.pages_ssr_module_options_context(),
-            self.pages_ssr_resolve_options_context(),
-        ))
-    }
-
-    #[turbo_tasks::function]
-    pub(super) fn pages_ssr_data_module_context(self: Vc<Self>) -> Vc<Box<dyn AssetContext>> {
-        Vc::upcast(ModuleAssetContext::new(
-            self.pages_transitions(),
-            self.server_compile_time_info(),
-            self.pages_ssr_data_module_options_context(),
-            self.pages_ssr_resolve_options_context(),
-        ))
-    }
-
-    #[turbo_tasks::function]
-    async fn pages_ssr_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
-        let this = self.await?;
-        Ok(get_server_module_options_context(
-            self.project_path(),
-            self.execution_context(),
-            Value::new(ServerContextType::Pages {
-                pages_dir: self.pages_dir(),
-            }),
-            this.mode,
-            self.next_config(),
-        ))
-    }
-
-    #[turbo_tasks::function]
-    async fn pages_ssr_data_module_options_context(
-        self: Vc<Self>,
-    ) -> Result<Vc<ModuleOptionsContext>> {
-        let this = self.await?;
-        Ok(get_server_module_options_context(
-            self.project_path(),
-            self.execution_context(),
-            Value::new(ServerContextType::PagesData {
-                pages_dir: self.pages_dir(),
-            }),
-            this.mode,
-            self.next_config(),
-        ))
-    }
-
-    #[turbo_tasks::function]
-    async fn pages_ssr_resolve_options_context(
-        self: Vc<Self>,
-    ) -> Result<Vc<ResolveOptionsContext>> {
-        let this = self.await?;
-        Ok(get_server_resolve_options_context(
-            self.project_path(),
-            Value::new(ServerContextType::Pages {
-                pages_dir: self.pages_dir(),
-            }),
-            this.mode,
-            self.next_config(),
-            self.execution_context(),
-        ))
-    }
-
-    #[turbo_tasks::function]
-    pub(super) async fn pages_client_runtime_entries(
-        self: Vc<Self>,
-    ) -> Result<Vc<EvaluatableAssets>> {
-        let this = self.await?;
-        let client_runtime_entries = get_client_runtime_entries(
-            self.project_path(),
-            self.env(),
-            Value::new(ClientContextType::Pages {
-                pages_dir: self.pages_dir(),
-            }),
-            this.mode,
-            self.next_config(),
-            self.execution_context(),
-        );
-        Ok(client_runtime_entries.resolve_entries(self.pages_client_module_context()))
-    }
-
-    #[turbo_tasks::function]
-    pub(super) async fn pages_ssr_runtime_entries(self: Vc<Self>) -> Result<Vc<EvaluatableAssets>> {
-        let this = self.await?;
-        let ssr_runtime_entries = get_server_runtime_entries(
-            self.project_path(),
-            self.env(),
-            Value::new(ServerContextType::Pages {
-                pages_dir: self.pages_dir(),
-            }),
-            this.mode,
-            self.next_config(),
-        );
-        Ok(ssr_runtime_entries.resolve_entries(self.pages_ssr_module_context()))
     }
 
     #[turbo_tasks::function]
@@ -476,21 +284,16 @@ impl Project {
     /// provided page_extensions).
     #[turbo_tasks::function]
     pub async fn entrypoints(self: Vc<Self>) -> Result<Vc<Entrypoints>> {
-        let this = self.await?;
         let mut routes = IndexMap::new();
-        if let Some(app_dir) = *find_app_dir(self.project_path()).await? {
-            let app_project = AppProject::new(self, app_dir, this.mode);
-            let app_entrypoints = app_project.entrypoints();
-            routes.extend(
-                // TODO middleware
-                app_entrypoints
-                    .await?
-                    .routes
-                    .iter()
-                    .map(|(k, v)| (k.clone(), *v)),
-            );
+        let app_project = self.app_project();
+        let pages_project = self.pages_project();
+
+        if let Some(app_project) = &*app_project.await? {
+            let app_routes = app_project.routes();
+            routes.extend(app_routes.await?.iter().map(|(k, v)| (k.clone(), *v)));
         }
-        for (pathname, page_route) in get_pages_routes(self, self.pages_structure()).await?.iter() {
+
+        for (pathname, page_route) in pages_project.routes().await?.iter() {
             match routes.entry(pathname.clone()) {
                 Entry::Occupied(mut entry) => {
                     *entry.get_mut() = Route::Conflict;
@@ -500,6 +303,7 @@ impl Project {
                 }
             }
         }
+
         // TODO middleware
         Ok(Entrypoints {
             routes,
