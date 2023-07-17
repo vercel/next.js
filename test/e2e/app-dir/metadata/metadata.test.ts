@@ -416,56 +416,6 @@ createNextDescribe(
         )
       })
 
-      it('should render root not-found with default metadata', async () => {
-        const $ = await next.render$('/does-not-exist')
-
-        // Should contain default metadata and noindex tag
-        const matchHtml = createMultiHtmlMatcher($)
-        expect($('meta[charset="utf-8"]').length).toBe(1)
-        await matchHtml('meta', 'name', 'content', {
-          viewport: 'width=device-width, initial-scale=1',
-          robots: 'noindex',
-        })
-      })
-
-      it('should support notFound in generateMetadata', async () => {
-        const res = await next.fetch('/async/not-found')
-        expect(res.status).toBe(404)
-        const html = await res.text()
-        const $ = cheerio.load(html)
-
-        // TODO-APP: support render custom not-found in SSR for generateMetadata.
-        // Check contains root not-found payload in flight response for now.
-        let hasRootNotFoundFlight = false
-        for (const el of $('script').toArray()) {
-          const text = $(el).text()
-          if (text.includes('root not found page')) {
-            hasRootNotFoundFlight = true
-          }
-        }
-        expect(hasRootNotFoundFlight).toBe(true)
-
-        // Should contain default metadata and noindex tag
-        const matchHtml = createMultiHtmlMatcher($)
-        expect($('meta[charset="utf-8"]').length).toBe(1)
-        await matchHtml('meta', 'name', 'content', {
-          viewport: 'width=device-width, initial-scale=1',
-          robots: 'noindex',
-        })
-
-        const browser = await next.browser('/async/not-found')
-        expect(await browser.elementByCss('h2').text()).toBe(
-          'root not found page'
-        )
-      })
-
-      it('should support redirect in generateMetadata', async () => {
-        const res = await next.fetch('/async/redirect', {
-          redirect: 'manual',
-        })
-        expect(res.status).toBe(307)
-      })
-
       it('should handle metadataBase for urls resolved as only URL type', async () => {
         // including few urls in opengraph and alternates
         const url$ = await next.render$('/metadata-base/url')
@@ -593,6 +543,71 @@ createNextDescribe(
       })
     })
 
+    describe('navigation', () => {
+      it('should render root not-found with default metadata', async () => {
+        const $ = await next.render$('/does-not-exist')
+
+        // Should contain default metadata and noindex tag
+        const matchHtml = createMultiHtmlMatcher($)
+        expect($('meta[charset="utf-8"]').length).toBe(1)
+        await matchHtml('meta', 'name', 'content', {
+          viewport: 'width=device-width, initial-scale=1',
+          robots: 'noindex',
+          // not found metadata
+          description: 'Root not found description',
+        })
+        expect(await $('title').text()).toBe('Root not found')
+      })
+
+      it('should support notFound in generateMetadata', async () => {
+        const res = await next.fetch('/async/not-found')
+        expect(res.status).toBe(404)
+        const html = await res.text()
+        const $ = cheerio.load(html)
+
+        // TODO-APP: support render custom not-found in SSR for generateMetadata.
+        // Check contains root not-found payload in flight response for now.
+        let hasRootNotFoundFlight = false
+        for (const el of $('script').toArray()) {
+          const text = $(el).text()
+          if (text.includes('root not found page')) {
+            hasRootNotFoundFlight = true
+          }
+        }
+        expect(hasRootNotFoundFlight).toBe(true)
+
+        // Should contain default metadata and noindex tag
+        const matchHtml = createMultiHtmlMatcher($)
+        expect($('meta[charset="utf-8"]').length).toBe(1)
+        await matchHtml('meta', 'name', 'content', {
+          viewport: 'width=device-width, initial-scale=1',
+          robots: 'noindex',
+        })
+
+        const browser = await next.browser('/async/not-found')
+        expect(await browser.elementByCss('h2').text()).toBe(
+          'root not found page'
+        )
+
+        const matchMultiDom = createMultiDomMatcher(browser)
+        await matchMultiDom('meta', 'name', 'content', {
+          viewport: 'width=device-width, initial-scale=1',
+          keywords: 'parent',
+          robots: 'noindex',
+          // not found metadata
+          description: 'Local not found description',
+        })
+        expect(await getTitle(browser)).toBe('Local not found')
+      })
+
+      it('should support redirect in generateMetadata', async () => {
+        const res = await next.fetch('/async/redirect', {
+          redirect: 'manual',
+        })
+        expect(res.status).toBe(307)
+      })
+    })
+
     describe('icons', () => {
       it('should support basic object icons field', async () => {
         const browser = await next.browser('/icons')
@@ -628,6 +643,18 @@ createNextDescribe(
         await matchDom('link', 'href="/apple-icon-x3.png"', {
           sizes: '180x180',
           type: 'image/png',
+        })
+      })
+
+      it('should merge icons from layout if no static icons files are specified', async () => {
+        const browser = await next.browser('/icons/descriptor/from-layout')
+        const matchDom = createDomMatcher(browser)
+
+        await matchDom('link', 'href="favicon-light.png"', {
+          media: '(prefers-color-scheme: light)',
+        })
+        await matchDom('link', 'href="favicon-dark.png"', {
+          media: '(prefers-color-scheme: dark)',
         })
       })
 
