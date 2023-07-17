@@ -325,11 +325,11 @@ async fn get_page_entry_for_file(
     next_original_path: Vc<FileSystemPath>,
     path_type: PathType,
 ) -> Result<Vc<PageEntry>> {
-    let reference_type = match path_type {
-        PathType::Page => Value::new(ReferenceType::Entry(EntryReferenceSubType::Page)),
-        PathType::PagesAPI => Value::new(ReferenceType::Entry(EntryReferenceSubType::PagesApi)),
+    let reference_type = Value::new(ReferenceType::Entry(match path_type {
+        PathType::Page => EntryReferenceSubType::Page,
+        PathType::PagesAPI => EntryReferenceSubType::PagesApi,
         _ => bail!("Invalid path type"),
-    };
+    }));
 
     let pathname = pathname_for_path(next_router_root, next_router_path, path_type);
 
@@ -430,7 +430,7 @@ async fn get_page_entry_for_file(
 
     let file = File::from(result.build());
 
-    let asset: Vc<VirtualSource> = VirtualSource::new(
+    let asset = VirtualSource::new(
         source.ident().path().join(match path_type {
             PathType::Page => "pages-entry.tsx".to_string(),
             PathType::PagesAPI => "pages-api-entry.tsx".to_string(),
