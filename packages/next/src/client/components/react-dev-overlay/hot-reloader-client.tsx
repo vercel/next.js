@@ -420,7 +420,7 @@ function processMessage(
         fetch(window.location.href, {
           credentials: 'same-origin',
         }).then((pageRes) => {
-          if (pageRes.ok) {
+          if (pageRes.ok || pageRes.status === 404) {
             // Page exists now, reload
             startTransition(() => {
               // @ts-ignore it exists, it's just hidden
@@ -431,7 +431,7 @@ function processMessage(
             // Check if head present as document.head could be null
             // We are still on the page,
             // dispatch an error so it's caught by the NotFound handler
-            dispatcher.onNotFound()
+            // dispatcher.onNotFound()
             // const devErrorMetaTag = document.head?.querySelector(
             //   'meta[name="next-error"]'
             // )
@@ -510,7 +510,7 @@ export default function HotReload({
   }, [])
   const handleOnReactError = useCallback((error: Error) => {
     // not found errors are handled by the parent boundary, not the dev overlay
-    if (isNotFoundError(error)) throw error
+    // if (isNotFoundError(error)) throw error
     RuntimeErrorHandler.hadRuntimeError = true
   }, [])
   useErrorHandler(handleOnUnhandledError, handleOnUnhandledRejection)

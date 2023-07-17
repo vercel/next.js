@@ -106,6 +106,7 @@ type AppRouterProps = Omit<
   assetPrefix: string
   // Top level boundaries props
   notFound: React.ReactNode | undefined
+  asNotFound: boolean
 }
 
 function isExternalURL(url: URL) {
@@ -224,6 +225,7 @@ function Router({
   children,
   assetPrefix,
   notFound,
+  asNotFound,
 }: AppRouterProps) {
   const initialState = useMemo(
     () =>
@@ -482,11 +484,11 @@ function Router({
               >
                 {HotReloader ? (
                   // HotReloader implements a separate NotFoundBoundary to maintain the HMR ping interval
-                  <NotFoundBoundary notFound={notFound} asNotFound>
-                    <HotReloader assetPrefix={assetPrefix}>
-                      {content}
-                    </HotReloader>
-                  </NotFoundBoundary>
+                  <HotReloader assetPrefix={assetPrefix}>
+                    {/* <NotFoundBoundary notFound={Fallback} asNotFound={asNotFound}> */}
+                    {content}
+                    {/* </NotFoundBoundary> */}
+                  </HotReloader>
                 ) : (
                   content
                 )}

@@ -17,10 +17,7 @@ import type { RequestAsyncStorage } from '../../client/components/request-async-
 
 import React from 'react'
 import { NotFound as DefaultNotFound } from '../../client/components/error'
-import {
-  createServerComponentRenderer,
-  ErrorHtml,
-} from './create-server-components-renderer'
+import { createServerComponentRenderer } from './create-server-components-renderer'
 
 import { ParsedUrlQuery } from 'querystring'
 import { NextParsedUrlQuery } from '../request-meta'
@@ -92,6 +89,21 @@ export type GetDynamicParamFromSegment = (
   treeSegment: Segment
   type: DynamicParamTypesShort
 } | null
+
+function ErrorHtml({
+  head,
+  children,
+}: {
+  head?: React.ReactNode
+  children?: React.ReactNode
+}) {
+  return (
+    <html id="__next_error__">
+      <head>{head}</head>
+      <body>{children}</body>
+    </html>
+  )
+}
 
 // Find the closest matched component in the loader tree for a given component type
 function findMatchedComponent(
@@ -1333,8 +1345,8 @@ export async function renderToHTMLOrFlight(
       return [NotFound, notFoundStyles]
     }
 
-    async function getRootLayout(tree: LoaderTree, injectedCSS: Set<string>) {
-      const { layout } = loaderTree[2]
+    async function getRootLayout(tree: LoaderTree) {
+      const { layout } = tree[2]
       const rootLayoutModule = layout?.[0]
       const RootLayout = rootLayoutModule
         ? interopDefault(await rootLayoutModule())
@@ -1390,6 +1402,7 @@ export async function renderToHTMLOrFlight(
           injectedCSS,
           pathname
         )
+        const RootLayout = (await getRootLayout(loaderTree)) || ErrorHtml
 
         return (
           <>
@@ -1402,14 +1415,16 @@ export async function renderToHTMLOrFlight(
               initialHead={<>{createMetadata(loaderTree, undefined)}</>}
               globalErrorComponent={GlobalError}
               notFound={
-                NotFound ? (
-                  <>
-                    {createMetadata(loaderTree, 'not-found')}
-                    {notFoundStyles}
-                    <NotFound />
-                  </>
-                ) : undefined
+                NotFound
+                  ? undefined
+                  : // <ErrorHtml>
+                    //   {createMetadata(loaderTree, 'not-found')}
+                    //   {notFoundStyles}
+                    //   <NotFound />
+                    // </ErrorHtml>
+                    undefined
               }
+              asNotFound={props.asNotFound}
             >
               <ComponentTree />
             </AppRouter>
@@ -1620,11 +1635,10 @@ export async function renderToHTMLOrFlight(
             isErrorFromMetadata = true
           }
 
-          const injectedCSS = new Set<string>()
-          const RootLayout = await getRootLayout(loaderTree, injectedCSS)
+          const RootLayout = await getRootLayout(loaderTree)
           const [NotFound, notFoundStyles] = await getNotFound(
             loaderTree,
-            injectedCSS,
+            new Set<string>(),
             pathname
           )
 
@@ -1633,7 +1647,6 @@ export async function renderToHTMLOrFlight(
             res.statusCode = 404
           }
 
-          console.log('is404', is404)
           let hasRedirectError = false
           if (isRedirectError(err)) {
             hasRedirectError = true
@@ -1659,10 +1672,6 @@ export async function renderToHTMLOrFlight(
 
             let currentReader = reader1
 
-            // const switchReader = () => {
-            //   currentReader = reader2;
-            // };
-
             let mergedTransformStream = new TransformStream({
               async start(controller) {
                 while (true) {
@@ -1684,7 +1693,7 @@ export async function renderToHTMLOrFlight(
             return mergedTransformStream
           }
 
-          const shouldInheritStreamData = !(isErrorFromMetadata && is404)
+          // const shouldInheritStreamData = !(isErrorFromMetadata && is404)
 
           const inheritedServerComponentsRenderOpts = {
             ...serverErrorComponentsRenderOpts,
@@ -1723,20 +1732,30 @@ export async function renderToHTMLOrFlight(
                 </>
               )
 
-              return (
+              const initialTree = createFlightRouterStateFromLoaderTree(
+                loaderTree,
+                getDynamicParamFromSegment,
+                query
+              )
+
+              return is404 ? (
+                <AppRouter
+                  buildId={renderOpts.buildId}
+                  assetPrefix={assetPrefix}
+                  initialCanonicalUrl={pathname}
+                  initialTree={initialTree}
+                  initialHead={head}
+                  globalErrorComponent={GlobalError}
+                  notFound={undefined}
+                  asNotFound={true}
+                >
+                  <RootLayout params={{}}>
+                    {notFoundStyles}
+                    {NotFound && <NotFound />}
+                  </RootLayout>
+                </AppRouter>
+              ) : (
                 <ErrorHtml head={head} />
-                // (!shouldInheritStreamData)
-                //   ? (
-                //     <RootLayout params={{}}>
-                //       {head}
-                //       {is404 ?
-                //         <>
-                //           {notFoundStyles}
-                //           {NotFound && <NotFound />}
-                //         </> : null
-                //       }
-                //     </RootLayout>
-                //   ) : <ErrorHtml head={head} />
               )
             },
             ComponentMod,

@@ -7,6 +7,9 @@ export default function Layout({ children }) {
           <nav id="layout-nav">Navbar</nav>
         </header>
         {children}
+        <footer>
+          <p id="layout-footer">Footer</p>
+        </footer>
       </body>
     </html>
   )
