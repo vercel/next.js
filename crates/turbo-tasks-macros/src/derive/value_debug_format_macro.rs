@@ -16,9 +16,20 @@ fn filter_field(field: &Field) -> bool {
 /// Fields annotated with `#[debug_ignore]` will not appear in the
 /// `ValueDebugFormat` representation of the type.
 pub fn derive_value_debug_format(input: TokenStream) -> TokenStream {
-    let derive_input = parse_macro_input!(input as DeriveInput);
+    let mut derive_input = parse_macro_input!(input as DeriveInput);
 
     let ident = &derive_input.ident;
+
+    for type_param in derive_input.generics.type_params_mut() {
+        type_param
+            .bounds
+            .push(syn::parse_quote!(turbo_tasks::debug::ValueDebugFormat));
+        type_param.bounds.push(syn::parse_quote!(std::fmt::Debug));
+        type_param.bounds.push(syn::parse_quote!(std::marker::Send));
+        type_param.bounds.push(syn::parse_quote!(std::marker::Sync));
+    }
+    let (impl_generics, ty_generics, where_clause) = derive_input.generics.split_for_impl();
+
     let formatting_logic =
         match_expansion(&derive_input, &format_named, &format_unnamed, &format_unit);
 
@@ -26,7 +37,7 @@ pub fn derive_value_debug_format(input: TokenStream) -> TokenStream {
 
     quote! {
         #[doc(hidden)]
-        impl #ident {
+        impl #impl_generics #ident #ty_generics #where_clause {
             #[doc(hidden)]
             #[allow(non_snake_case)]
             async fn #value_debug_format_ident(&self, depth: usize) -> anyhow::Result<turbo_tasks::Vc<turbo_tasks::debug::ValueDebugString>> {
@@ -40,7 +51,7 @@ pub fn derive_value_debug_format(input: TokenStream) -> TokenStream {
             }
         }
 
-        impl turbo_tasks::debug::ValueDebugFormat for #ident {
+        impl #impl_generics turbo_tasks::debug::ValueDebugFormat for #ident #ty_generics #where_clause {
             fn value_debug_format<'a>(&'a self, depth: usize) -> turbo_tasks::debug::ValueDebugFormatString<'a> {
                 turbo_tasks::debug::ValueDebugFormatString::Async(
                     Box::pin(async move {

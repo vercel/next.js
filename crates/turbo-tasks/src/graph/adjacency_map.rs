@@ -1,8 +1,13 @@
 use std::collections::{HashMap, HashSet};
 
+use serde::{Deserialize, Serialize};
+use turbo_tasks_macros::{TraceRawVcs, ValueDebugFormat};
+
 use super::graph_store::{GraphNode, GraphStore};
+use crate as turbo_tasks;
 
 /// A graph traversal that builds an adjacency map
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat)]
 pub struct AdjacencyMap<T>
 where
     T: Eq + std::hash::Hash + Clone,
@@ -68,10 +73,10 @@ impl<T> AdjacencyMap<T>
 where
     T: Eq + std::hash::Hash + Clone,
 {
-    /// Returns an iterator over the nodes in reverse topological order,
+    /// Returns an owned iterator over the nodes in reverse topological order,
     /// starting from the roots.
-    pub fn into_reverse_topological(self) -> ReverseTopologicalIter<T> {
-        ReverseTopologicalIter {
+    pub fn into_reverse_topological(self) -> IntoReverseTopologicalIter<T> {
+        IntoReverseTopologicalIter {
             adjacency_map: self.adjacency_map,
             stack: self
                 .roots
@@ -83,12 +88,26 @@ where
     }
 
     /// Returns an iterator over the nodes in reverse topological order,
+    /// starting from the roots.
+    pub fn reverse_topological(&self) -> ReverseTopologicalIter<T> {
+        ReverseTopologicalIter {
+            adjacency_map: &self.adjacency_map,
+            stack: self
+                .roots
+                .iter()
+                .map(|root| (ReverseTopologicalPass::Pre, root))
+                .collect(),
+            visited: HashSet::new(),
+        }
+    }
+
+    /// Returns an iterator over the nodes in reverse topological order,
     /// starting from the given node.
     pub fn reverse_topological_from_node<'graph>(
         &'graph self,
         node: &'graph T,
-    ) -> ReverseTopologicalFromNodeIter<'graph, T> {
-        ReverseTopologicalFromNodeIter {
+    ) -> ReverseTopologicalIter<'graph, T> {
+        ReverseTopologicalIter {
             adjacency_map: &self.adjacency_map,
             stack: vec![(ReverseTopologicalPass::Pre, node)],
             visited: HashSet::new(),
@@ -104,7 +123,7 @@ enum ReverseTopologicalPass {
 
 /// An iterator over the nodes of a graph in reverse topological order, starting
 /// from the roots.
-pub struct ReverseTopologicalIter<T>
+pub struct IntoReverseTopologicalIter<T>
 where
     T: Eq + std::hash::Hash + Clone,
 {
@@ -113,7 +132,7 @@ where
     visited: HashSet<T>,
 }
 
-impl<T> Iterator for ReverseTopologicalIter<T>
+impl<T> Iterator for IntoReverseTopologicalIter<T>
 where
     T: Eq + std::hash::Hash + Clone,
 {
@@ -153,8 +172,8 @@ where
 }
 
 /// An iterator over the nodes of a graph in reverse topological order, starting
-/// from a given node.
-pub struct ReverseTopologicalFromNodeIter<'graph, T>
+/// from the roots.
+pub struct ReverseTopologicalIter<'graph, T>
 where
     T: Eq + std::hash::Hash + Clone,
 {
@@ -163,7 +182,7 @@ where
     visited: HashSet<&'graph T>,
 }
 
-impl<'graph, T> Iterator for ReverseTopologicalFromNodeIter<'graph, T>
+impl<'graph, T> Iterator for ReverseTopologicalIter<'graph, T>
 where
     T: Eq + std::hash::Hash + Clone,
 {
@@ -178,7 +197,7 @@ where
                     break current;
                 }
                 ReverseTopologicalPass::Pre => {
-                    if self.visited.contains(&current) {
+                    if self.visited.contains(current) {
                         continue;
                     }
 
