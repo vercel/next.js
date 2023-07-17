@@ -4,10 +4,15 @@ import * as core from '@actions/core'
 const LABELS = {
   VERIFY_CANARY: 'please verify canary',
   ADD_REPRODUCTION: 'please add a complete reproduction',
+  SIMPLIFY_REPRODUCTION: 'please simplify reproduction',
   NEEDS_TRIAGE: 'type: needs triage',
 }
 
-const labelsRequireUserInput = [LABELS.VERIFY_CANARY, LABELS.ADD_REPRODUCTION]
+const labelsRequireUserInput = [
+  LABELS.VERIFY_CANARY,
+  LABELS.ADD_REPRODUCTION,
+  LABELS.SIMPLIFY_REPRODUCTION,
+]
 
 function assertNotNullable<T>(value: T): asserts value is NonNullable<T> {
   if (value === undefined || value === null)

@@ -3,15 +3,18 @@ use std::sync::Arc;
 use anyhow::Result;
 use napi::{bindgen_prelude::External, JsFunction};
 use next_api::{
-    project::{Middleware, ProjectOptions, ProjectVc},
-    route::{EndpointVc, Route},
+    project::{Middleware, Project, ProjectOptions},
+    route::{Endpoint, Route},
 };
-use turbo_tasks::TurboTasks;
+use turbo_tasks::{TurboTasks, Vc};
 use turbopack_binding::{
     turbo::tasks_memory::MemoryBackend, turbopack::core::error::PrettyPrintError,
 };
 
-use super::utils::{serde_enum_to_string, subscribe, NapiDiagnostic, NapiIssue, RootTask, VcArc};
+use super::{
+    endpoint::ExternalEndpoint,
+    utils::{serde_enum_to_string, subscribe, NapiDiagnostic, NapiIssue, RootTask, VcArc},
+};
 use crate::register;
 
 #[napi(object)]
@@ -46,7 +49,9 @@ impl From<NapiProjectOptions> for ProjectOptions {
 }
 
 #[napi(ts_return_type = "{ __napiType: \"Project\" }")]
-pub async fn project_new(options: NapiProjectOptions) -> napi::Result<External<VcArc<ProjectVc>>> {
+pub async fn project_new(
+    options: NapiProjectOptions,
+) -> napi::Result<External<VcArc<Vc<Project>>>> {
     register();
     let turbo_tasks = TurboTasks::new(MemoryBackend::new(
         options
@@ -56,7 +61,7 @@ pub async fn project_new(options: NapiProjectOptions) -> napi::Result<External<V
     ));
     let options = options.into();
     let project = turbo_tasks
-        .run_once(async move { ProjectVc::new(options).resolve().await })
+        .run_once(async move { Project::new(options).resolve().await })
         .await
         .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
     Ok(External::new_with_size_hint(
@@ -75,10 +80,10 @@ struct NapiRoute {
     pub r#type: &'static str,
 
     // Different representations of the endpoint
-    pub endpoint: Option<External<VcArc<EndpointVc>>>,
-    pub html_endpoint: Option<External<VcArc<EndpointVc>>>,
-    pub rsc_endpoint: Option<External<VcArc<EndpointVc>>>,
-    pub data_endpoint: Option<External<VcArc<EndpointVc>>>,
+    pub endpoint: Option<External<ExternalEndpoint>>,
+    pub html_endpoint: Option<External<ExternalEndpoint>>,
+    pub rsc_endpoint: Option<External<ExternalEndpoint>>,
+    pub data_endpoint: Option<External<ExternalEndpoint>>,
 }
 
 impl NapiRoute {
@@ -87,8 +92,12 @@ impl NapiRoute {
         value: Route,
         turbo_tasks: &Arc<TurboTasks<MemoryBackend>>,
     ) -> Self {
-        let convert_endpoint =
-            |endpoint: EndpointVc| Some(External::new(VcArc::new(turbo_tasks.clone(), endpoint)));
+        let convert_endpoint = |endpoint: Vc<Box<dyn Endpoint>>| {
+            Some(External::new(ExternalEndpoint(VcArc::new(
+                turbo_tasks.clone(),
+                endpoint,
+            ))))
+        };
         match value {
             Route::Page {
                 html_endpoint,
@@ -133,7 +142,7 @@ impl NapiRoute {
 
 #[napi(object)]
 struct NapiMiddleware {
-    pub endpoint: External<VcArc<EndpointVc>>,
+    pub endpoint: External<VcArc<Vc<Box<dyn Endpoint>>>>,
     pub runtime: String,
     pub matcher: Option<Vec<String>>,
 }
@@ -161,7 +170,7 @@ struct NapiEntrypoints {
 
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
 pub fn project_entrypoints_subscribe(
-    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<VcArc<ProjectVc>>,
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<VcArc<Vc<Project>>>,
     func: JsFunction,
 ) -> napi::Result<External<RootTask>> {
     let turbo_tasks = project.turbo_tasks().clone();

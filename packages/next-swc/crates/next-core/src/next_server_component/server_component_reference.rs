@@ -1,23 +1,21 @@
 use anyhow::Result;
-use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
+use turbo_tasks::{ValueToString, Vc};
 use turbopack_binding::turbopack::core::{
-    asset::{Asset, AssetVc},
-    chunk::{
-        ChunkableModuleReference, ChunkableModuleReferenceVc, ChunkingType, ChunkingTypeOptionVc,
-    },
-    reference::{AssetReference, AssetReferenceVc},
-    resolve::{ResolveResult, ResolveResultVc},
+    chunk::{ChunkableModuleReference, ChunkingType, ChunkingTypeOption},
+    module::Module,
+    reference::AssetReference,
+    resolve::ResolveResult,
 };
 
 #[turbo_tasks::value]
 pub struct NextServerComponentModuleReference {
-    asset: AssetVc,
+    asset: Vc<Box<dyn Module>>,
 }
 
 #[turbo_tasks::value_impl]
-impl NextServerComponentModuleReferenceVc {
+impl NextServerComponentModuleReference {
     #[turbo_tasks::function]
-    pub fn new(asset: AssetVc) -> Self {
+    pub fn new(asset: Vc<Box<dyn Module>>) -> Vc<Self> {
         NextServerComponentModuleReference { asset }.cell()
     }
 }
@@ -25,8 +23,8 @@ impl NextServerComponentModuleReferenceVc {
 #[turbo_tasks::value_impl]
 impl ValueToString for NextServerComponentModuleReference {
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<StringVc> {
-        Ok(StringVc::cell(format!(
+    async fn to_string(&self) -> Result<Vc<String>> {
+        Ok(Vc::cell(format!(
             "Next.js server component {}",
             self.asset.ident().to_string().await?
         )))
@@ -36,17 +34,17 @@ impl ValueToString for NextServerComponentModuleReference {
 #[turbo_tasks::value_impl]
 impl AssetReference for NextServerComponentModuleReference {
     #[turbo_tasks::function]
-    fn resolve_reference(&self) -> ResolveResultVc {
-        ResolveResult::asset(self.asset).cell()
+    fn resolve_reference(&self) -> Vc<ResolveResult> {
+        ResolveResult::asset(Vc::upcast(self.asset)).cell()
     }
 }
 
 #[turbo_tasks::value_impl]
 impl ChunkableModuleReference for NextServerComponentModuleReference {
     #[turbo_tasks::function]
-    fn chunking_type(&self) -> ChunkingTypeOptionVc {
+    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
         // TODO(alexkirsz) Instead of isolated parallel, have the server component
         // reference create a new chunk group entirely?
-        ChunkingTypeOptionVc::cell(Some(ChunkingType::IsolatedParallel))
+        Vc::cell(Some(ChunkingType::IsolatedParallel))
     }
 }
