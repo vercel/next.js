@@ -34,6 +34,19 @@ createNextDescribe(
       }
     })
 
+    if (isNextStart) {
+      it('should propagate unstable_cache tags correctly', async () => {
+        const meta = JSON.parse(
+          await next.readFile(
+            '.next/server/app/variable-revalidate/revalidate-360-isr.meta'
+          )
+        )
+        expect(meta.headers['x-next-cache-tags']).toContain(
+          'unstable_cache_tag1'
+        )
+      })
+    }
+
     it('should correctly include headers instance in cache key', async () => {
       const res = await next.fetch('/variable-revalidate/headers-instance')
       expect(res.status).toBe(200)
@@ -149,11 +162,13 @@ createNextDescribe(
             }
           `
         )
-        const html = await next.render('/invalid/first')
+
+        // The page may take a moment to compile, so try it a few times.
+        await check(async () => {
+          return next.render('/invalid/first')
+        }, /A required parameter \(slug\) was not provided as a string received object/)
+
         await next.deleteFile('app/invalid/[slug]/page.js')
-        expect(html).toContain(
-          'A required parameter (slug) was not provided as a string received object'
-        )
       })
 
       it('should correctly handle multi-level generateStaticParams when some levels are missing', async () => {
@@ -464,12 +479,16 @@ createNextDescribe(
           })
 
         expect(files).toEqual([
+          '(new)/custom/page_client-reference-manifest.js',
           '(new)/custom/page.js',
+          'api/draft-mode/route.js',
           'api/revalidate-path-edge/route.js',
           'api/revalidate-path-node/route.js',
           'api/revalidate-tag-edge/route.js',
           'api/revalidate-tag-node/route.js',
+          'blog/[author]/[slug]/page_client-reference-manifest.js',
           'blog/[author]/[slug]/page.js',
+          'blog/[author]/page_client-reference-manifest.js',
           'blog/[author]/page.js',
           'blog/seb.html',
           'blog/seb.rsc',
@@ -485,29 +504,45 @@ createNextDescribe(
           'blog/tim.rsc',
           'blog/tim/first-post.html',
           'blog/tim/first-post.rsc',
+          'default-cache/page_client-reference-manifest.js',
           'default-cache/page.js',
+          'dynamic-error/[id]/page_client-reference-manifest.js',
           'dynamic-error/[id]/page.js',
+          'dynamic-no-gen-params-ssr/[slug]/page_client-reference-manifest.js',
           'dynamic-no-gen-params-ssr/[slug]/page.js',
+          'dynamic-no-gen-params/[slug]/page_client-reference-manifest.js',
           'dynamic-no-gen-params/[slug]/page.js',
+          'fetch-no-cache/page_client-reference-manifest.js',
           'fetch-no-cache/page.js',
+          'flight/[slug]/[slug2]/page_client-reference-manifest.js',
           'flight/[slug]/[slug2]/page.js',
           'force-cache.html',
           'force-cache.rsc',
+          'force-cache/page_client-reference-manifest.js',
           'force-cache/page.js',
+          'force-dynamic-catch-all/[slug]/[[...id]]/page_client-reference-manifest.js',
           'force-dynamic-catch-all/[slug]/[[...id]]/page.js',
+          'force-dynamic-no-prerender/[id]/page_client-reference-manifest.js',
           'force-dynamic-no-prerender/[id]/page.js',
+          'force-dynamic-prerender/[slug]/page_client-reference-manifest.js',
           'force-dynamic-prerender/[slug]/page.js',
+          'force-no-store/page_client-reference-manifest.js',
           'force-no-store/page.js',
+          'force-static/[slug]/page_client-reference-manifest.js',
           'force-static/[slug]/page.js',
           'force-static/first.html',
           'force-static/first.rsc',
+          'force-static/page_client-reference-manifest.js',
           'force-static/page.js',
           'force-static/second.html',
           'force-static/second.rsc',
+          'gen-params-dynamic-revalidate/[slug]/page_client-reference-manifest.js',
           'gen-params-dynamic-revalidate/[slug]/page.js',
           'gen-params-dynamic-revalidate/one.html',
           'gen-params-dynamic-revalidate/one.rsc',
+          'gen-params-dynamic/[slug]/page_client-reference-manifest.js',
           'gen-params-dynamic/[slug]/page.js',
+          'hooks/use-pathname/[slug]/page_client-reference-manifest.js',
           'hooks/use-pathname/[slug]/page.js',
           'hooks/use-pathname/slug.html',
           'hooks/use-pathname/slug.rsc',
@@ -515,14 +550,19 @@ createNextDescribe(
           'hooks/use-search-params.rsc',
           'hooks/use-search-params/force-static.html',
           'hooks/use-search-params/force-static.rsc',
+          'hooks/use-search-params/force-static/page_client-reference-manifest.js',
           'hooks/use-search-params/force-static/page.js',
+          'hooks/use-search-params/page_client-reference-manifest.js',
           'hooks/use-search-params/page.js',
           'hooks/use-search-params/with-suspense.html',
           'hooks/use-search-params/with-suspense.rsc',
+          'hooks/use-search-params/with-suspense/page_client-reference-manifest.js',
           'hooks/use-search-params/with-suspense/page.js',
           'index.html',
           'index.rsc',
+          'page_client-reference-manifest.js',
           'page.js',
+          'partial-gen-params-no-additional-lang/[lang]/[slug]/page_client-reference-manifest.js',
           'partial-gen-params-no-additional-lang/[lang]/[slug]/page.js',
           'partial-gen-params-no-additional-lang/en/RAND.html',
           'partial-gen-params-no-additional-lang/en/RAND.rsc',
@@ -536,6 +576,7 @@ createNextDescribe(
           'partial-gen-params-no-additional-lang/fr/first.rsc',
           'partial-gen-params-no-additional-lang/fr/second.html',
           'partial-gen-params-no-additional-lang/fr/second.rsc',
+          'partial-gen-params-no-additional-slug/[lang]/[slug]/page_client-reference-manifest.js',
           'partial-gen-params-no-additional-slug/[lang]/[slug]/page.js',
           'partial-gen-params-no-additional-slug/en/RAND.html',
           'partial-gen-params-no-additional-slug/en/RAND.rsc',
@@ -549,9 +590,14 @@ createNextDescribe(
           'partial-gen-params-no-additional-slug/fr/first.rsc',
           'partial-gen-params-no-additional-slug/fr/second.html',
           'partial-gen-params-no-additional-slug/fr/second.rsc',
+          'partial-gen-params/[lang]/[slug]/page_client-reference-manifest.js',
           'partial-gen-params/[lang]/[slug]/page.js',
+          'react-fetch-deduping-edge/page_client-reference-manifest.js',
           'react-fetch-deduping-edge/page.js',
+          'react-fetch-deduping-node/page_client-reference-manifest.js',
           'react-fetch-deduping-node/page.js',
+          'response-url/page_client-reference-manifest.js',
+          'response-url/page.js',
           'route-handler-edge/revalidate-360/route.js',
           'route-handler/post/route.js',
           'route-handler/revalidate-360-isr/route.js',
@@ -559,49 +605,73 @@ createNextDescribe(
           'route-handler/static-cookies/route.js',
           'ssg-draft-mode.html',
           'ssg-draft-mode.rsc',
+          'ssg-draft-mode/[[...route]]/page_client-reference-manifest.js',
           'ssg-draft-mode/[[...route]]/page.js',
           'ssg-draft-mode/test-2.html',
           'ssg-draft-mode/test-2.rsc',
           'ssg-draft-mode/test.html',
           'ssg-draft-mode/test.rsc',
+          'ssr-auto/cache-no-store/page_client-reference-manifest.js',
           'ssr-auto/cache-no-store/page.js',
+          'ssr-auto/fetch-revalidate-zero/page_client-reference-manifest.js',
           'ssr-auto/fetch-revalidate-zero/page.js',
+          'ssr-forced/page_client-reference-manifest.js',
           'ssr-forced/page.js',
+          'static-to-dynamic-error-forced/[id]/page_client-reference-manifest.js',
           'static-to-dynamic-error-forced/[id]/page.js',
+          'static-to-dynamic-error/[id]/page_client-reference-manifest.js',
           'static-to-dynamic-error/[id]/page.js',
           'variable-config-revalidate/revalidate-3.html',
           'variable-config-revalidate/revalidate-3.rsc',
+          'variable-config-revalidate/revalidate-3/page_client-reference-manifest.js',
           'variable-config-revalidate/revalidate-3/page.js',
+          'variable-revalidate-edge/body/page_client-reference-manifest.js',
           'variable-revalidate-edge/body/page.js',
+          'variable-revalidate-edge/encoding/page_client-reference-manifest.js',
           'variable-revalidate-edge/encoding/page.js',
+          'variable-revalidate-edge/no-store/page_client-reference-manifest.js',
           'variable-revalidate-edge/no-store/page.js',
+          'variable-revalidate-edge/post-method-request/page_client-reference-manifest.js',
           'variable-revalidate-edge/post-method-request/page.js',
+          'variable-revalidate-edge/post-method/page_client-reference-manifest.js',
           'variable-revalidate-edge/post-method/page.js',
+          'variable-revalidate-edge/revalidate-3/page_client-reference-manifest.js',
           'variable-revalidate-edge/revalidate-3/page.js',
           'variable-revalidate/authorization.html',
           'variable-revalidate/authorization.rsc',
+          'variable-revalidate/authorization/page_client-reference-manifest.js',
           'variable-revalidate/authorization/page.js',
           'variable-revalidate/cookie.html',
           'variable-revalidate/cookie.rsc',
+          'variable-revalidate/cookie/page_client-reference-manifest.js',
           'variable-revalidate/cookie/page.js',
           'variable-revalidate/encoding.html',
           'variable-revalidate/encoding.rsc',
+          'variable-revalidate/encoding/page_client-reference-manifest.js',
           'variable-revalidate/encoding/page.js',
           'variable-revalidate/headers-instance.html',
           'variable-revalidate/headers-instance.rsc',
+          'variable-revalidate/headers-instance/page_client-reference-manifest.js',
           'variable-revalidate/headers-instance/page.js',
+          'variable-revalidate/no-store/page_client-reference-manifest.js',
           'variable-revalidate/no-store/page.js',
+          'variable-revalidate/post-method-request/page_client-reference-manifest.js',
           'variable-revalidate/post-method-request/page.js',
           'variable-revalidate/post-method.html',
           'variable-revalidate/post-method.rsc',
+          'variable-revalidate/post-method/page_client-reference-manifest.js',
           'variable-revalidate/post-method/page.js',
           'variable-revalidate/revalidate-3.html',
           'variable-revalidate/revalidate-3.rsc',
+          'variable-revalidate/revalidate-3/page_client-reference-manifest.js',
           'variable-revalidate/revalidate-3/page.js',
           'variable-revalidate/revalidate-360-isr.html',
           'variable-revalidate/revalidate-360-isr.rsc',
+          'variable-revalidate/revalidate-360-isr/page_client-reference-manifest.js',
           'variable-revalidate/revalidate-360-isr/page.js',
+          'variable-revalidate/revalidate-360/page_client-reference-manifest.js',
           'variable-revalidate/revalidate-360/page.js',
+          'variable-revalidate/status-code/page_client-reference-manifest.js',
           'variable-revalidate/status-code/page.js',
         ])
       })
@@ -996,8 +1066,7 @@ createNextDescribe(
       }, 'success')
     })
 
-    // TODO-APP: investigate flaky test
-    it.skip('should cache correctly for fetchCache = force-cache', async () => {
+    it('should cache correctly for fetchCache = force-cache', async () => {
       const res = await next.fetch('/force-cache')
       expect(res.status).toBe(200)
 
@@ -1125,6 +1194,27 @@ createNextDescribe(
         }
       })
 
+      it('should produce response with url from fetch', async () => {
+        const res = await next.fetch('/response-url')
+        expect(res.status).toBe(200)
+
+        const html = await res.text()
+        const $ = cheerio.load(html)
+
+        expect($('#data-url-default-cache').text()).toBe(
+          'https://next-data-api-endpoint.vercel.app/api/random?a1'
+        )
+        expect($('#data-url-no-cache').text()).toBe(
+          'https://next-data-api-endpoint.vercel.app/api/random?b2'
+        )
+        expect($('#data-url-cached').text()).toBe(
+          'https://next-data-api-endpoint.vercel.app/api/random?a1'
+        )
+        expect($('#data-value-default-cache').text()).toBe(
+          $('#data-value-cached').text()
+        )
+      })
+
       it('should properly error when dynamic = "error" page uses dynamic', async () => {
         const res = await next.fetch('/dynamic-error/static-bailout-1')
         const outputIndex = next.cliOutput.length
@@ -1138,6 +1228,37 @@ createNextDescribe(
         }
       })
     }
+
+    it('should skip cache in draft mode', async () => {
+      const draftRes = await next.fetch('/api/draft-mode?status=enable')
+      const setCookie = draftRes.headers.get('set-cookie')
+      const cookieHeader = { Cookie: setCookie?.split(';')[0] }
+
+      expect(cookieHeader.Cookie).toBeTruthy()
+
+      const res = await next.fetch('/ssg-draft-mode/test-1', {
+        headers: cookieHeader,
+      })
+
+      const html = await res.text()
+      const $ = cheerio.load(html)
+      const data1 = $('#data').text()
+
+      expect(data1).toBeTruthy()
+      expect(JSON.parse($('#draft-mode').text())).toEqual({ isEnabled: true })
+
+      const res2 = await next.fetch('/ssg-draft-mode/test-1', {
+        headers: cookieHeader,
+      })
+
+      const html2 = await res2.text()
+      const $2 = cheerio.load(html2)
+      const data2 = $2('#data').text()
+
+      expect(data2).toBeTruthy()
+      expect(data1).not.toBe(data2)
+      expect(JSON.parse($2('#draft-mode').text())).toEqual({ isEnabled: true })
+    })
 
     it('should handle partial-gen-params with default dynamicParams correctly', async () => {
       const res = await next.fetch('/partial-gen-params/en/first')

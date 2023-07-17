@@ -35,8 +35,9 @@ interface WebServerOptions extends Options {
     ) => Promise<LoadComponentsReturnType | null>
     extendRenderOpts: Partial<BaseServer['renderOpts']> &
       Pick<BaseServer['renderOpts'], 'buildId'>
-    pagesRenderToHTML?: typeof import('./render').renderToHTML
-    appRenderToHTML?: typeof import('./app-render/app-render').renderToHTMLOrFlight
+    renderToHTML:
+      | typeof import('./app-render/app-render').renderToHTMLOrFlight
+      | undefined
     incrementalCacheHandler?: any
     prerenderManifest: PrerenderManifest | undefined
   }
@@ -163,10 +164,6 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
       }
     }
     return prerenderManifest
-  }
-  protected getServerComponentManifest() {
-    return this.serverOptions.webServerConfig.extendRenderOpts
-      .clientReferenceManifest
   }
 
   protected getNextFontManifest() {
@@ -362,32 +359,32 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     return false
   }
 
-  protected async renderHTML(
+  protected renderHTML(
     req: WebNextRequest,
     res: WebNextResponse,
     pathname: string,
     query: NextParsedUrlQuery,
     renderOpts: RenderOpts
   ): Promise<RenderResult> {
-    const { pagesRenderToHTML, appRenderToHTML } =
-      this.serverOptions.webServerConfig
-    const curRenderToHTML = pagesRenderToHTML || appRenderToHTML
-
-    if (curRenderToHTML) {
-      return await curRenderToHTML(
-        req as any,
-        res as any,
-        pathname,
-        query,
-        Object.assign(renderOpts, {
-          disableOptimizedLoading: true,
-          runtime: 'experimental-edge',
-        })
+    const { renderToHTML } = this.serverOptions.webServerConfig
+    if (!renderToHTML) {
+      throw new Error(
+        'Invariant: routeModule should be configured when rendering pages'
       )
-    } else {
-      throw new Error(`Invariant: curRenderToHTML is missing`)
     }
+
+    return renderToHTML(
+      req as any,
+      res as any,
+      pathname,
+      query,
+      Object.assign(renderOpts, {
+        disableOptimizedLoading: true,
+        runtime: 'experimental-edge',
+      })
+    )
   }
+
   protected async sendRenderResult(
     _req: WebNextRequest,
     res: WebNextResponse,

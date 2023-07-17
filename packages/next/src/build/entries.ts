@@ -53,7 +53,7 @@ import { isAppRouteRoute } from '../lib/is-app-route-route'
 import { normalizeMetadataRoute } from '../lib/metadata/get-metadata-route'
 import { fileExists } from '../lib/file-exists'
 import { getRouteLoaderEntry } from './webpack/loaders/next-route-loader'
-import { isInternalPathname } from '../lib/is-internal-pathname'
+import { isInternalComponent } from '../lib/is-internal-component'
 import { isStaticMetadataRouteFile } from '../lib/metadata/is-metadata-route'
 
 export async function getStaticInfoIncludingLayouts({
@@ -377,6 +377,8 @@ export function getEdgeServerEntry(opts: {
     middlewareConfig: Buffer.from(
       JSON.stringify(opts.middlewareConfig || {})
     ).toString('base64'),
+    serverActionsBodySizeLimit:
+      opts.config.experimental.serverActionsBodySizeLimit,
   }
 
   return {
@@ -414,34 +416,35 @@ export function getClientEntry(opts: {
     : pageLoader
 }
 
-export async function runDependingOnPageType<T>(params: {
+export function runDependingOnPageType<T>(params: {
   onClient: () => T
   onEdgeServer: () => T
   onServer: () => T
   page: string
   pageRuntime: ServerRuntime
   pageType?: 'app' | 'pages' | 'root'
-}): Promise<void> {
+}): void {
   if (params.pageType === 'root' && isInstrumentationHookFile(params.page)) {
-    await Promise.all([params.onServer(), params.onEdgeServer()])
+    params.onServer()
+    params.onEdgeServer()
     return
   }
 
   if (isMiddlewareFile(params.page)) {
-    await params.onEdgeServer()
+    params.onEdgeServer()
     return
   }
   if (isAPIRoute(params.page)) {
     if (isEdgeRuntime(params.pageRuntime)) {
-      await params.onEdgeServer()
+      params.onEdgeServer()
       return
     }
 
-    await params.onServer()
+    params.onServer()
     return
   }
   if (params.page === '/_document') {
-    await params.onServer()
+    params.onServer()
     return
   }
   if (
@@ -450,15 +453,18 @@ export async function runDependingOnPageType<T>(params: {
     params.page === '/404' ||
     params.page === '/500'
   ) {
-    await Promise.all([params.onClient(), params.onServer()])
+    params.onClient()
+    params.onServer()
     return
   }
   if (isEdgeRuntime(params.pageRuntime)) {
-    await Promise.all([params.onClient(), params.onEdgeServer()])
+    params.onClient()
+    params.onEdgeServer()
     return
   }
 
-  await Promise.all([params.onClient(), params.onServer()])
+  params.onClient()
+  params.onServer()
   return
 }
 
@@ -554,7 +560,7 @@ export async function createEntrypoints(
         ]
       }
 
-      await runDependingOnPageType({
+      runDependingOnPageType({
         page,
         pageRuntime: staticInfo.runtime,
         pageType: pagesType,
@@ -596,16 +602,15 @@ export async function createEntrypoints(
           } else if (
             !isAPIRoute(page) &&
             !isMiddlewareFile(page) &&
-            !isInternalPathname(absolutePagePath)
+            !isInternalComponent(absolutePagePath)
           ) {
             server[serverBundlePath] = [
               getRouteLoaderEntry({
                 page,
+                pages,
                 absolutePagePath,
                 preferredRegion: staticInfo.preferredRegion,
-                middlewareConfig: Buffer.from(
-                  JSON.stringify(staticInfo.middleware || {})
-                ).toString('base64'),
+                middlewareConfig: staticInfo.middleware ?? {},
               }),
             ]
           } else {

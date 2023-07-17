@@ -14,6 +14,7 @@ export type EventSwcLoadFailure = {
     wasm?: 'enabled' | 'fallback' | 'failed'
     glibcVersion?: string
     installedSwcPackages?: string
+    nativeBindingsErrorCode?: string
   }
 }
 
@@ -60,6 +61,7 @@ export async function eventSwcLoadFailure(
       platform: process.platform,
       nodeVersion: process.versions.node,
       wasm: event?.wasm,
+      nativeBindingsErrorCode: event?.nativeBindingsErrorCode,
     },
   })
   // ensure this event is flushed before process exits

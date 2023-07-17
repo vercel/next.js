@@ -110,23 +110,24 @@ pub enum ActionManifestWorkerEntry {
 #[derive(Serialize, Default, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ClientReferenceManifest {
+    /// Mapping of module path and export name to client module ID and required
+    /// client chunks.
     pub client_modules: ManifestNode,
-    pub ssr_module_mapping: HashMap<String, ManifestNode>,
+    /// Mapping of client module ID to corresponding SSR module ID and required
+    /// SSR chunks.
+    pub ssr_module_mapping: HashMap<ModuleId, ManifestNode>,
+    /// Same as `ssr_module_mapping`, but for Edge SSR.
     #[serde(rename = "edgeSSRModuleMapping")]
-    pub edge_ssr_module_mapping: HashMap<String, ManifestNode>,
-    pub css_files: HashMap<String, Vec<String>>,
-}
-
-#[derive(Serialize, Default, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct ClientCssReferenceManifest {
-    pub css_imports: HashMap<String, Vec<String>>,
-    pub css_modules: HashMap<String, Vec<String>>,
+    pub edge_ssr_module_mapping: HashMap<ModuleId, ManifestNode>,
+    /// Mapping of server component path to required CSS client chunks.
+    #[serde(rename = "entryCSSFiles")]
+    pub entry_css_files: HashMap<String, Vec<String>>,
 }
 
 #[derive(Serialize, Default, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ManifestNode {
+    /// Mapping of export name to manifest node entry.
     #[serde(flatten)]
     pub module_exports: HashMap<String, ManifestNodeEntry>,
 }
@@ -134,18 +135,22 @@ pub struct ManifestNode {
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ManifestNodeEntry {
+    /// Turbopack module ID.
     pub id: ModuleId,
+    /// Export name.
     pub name: String,
+    /// Chunks for the module. JS and CSS.
     pub chunks: Vec<String>,
+    // TODO(WEB-434)
     pub r#async: bool,
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Debug, Eq, PartialEq, Hash)]
 #[serde(rename_all = "camelCase")]
 #[serde(untagged)]
 pub enum ModuleId {
     String(String),
-    Number(f64),
+    Number(u64),
 }
 
 #[derive(Serialize, Default, Debug)]

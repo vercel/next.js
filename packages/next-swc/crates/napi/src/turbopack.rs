@@ -181,3 +181,8 @@ impl From<NapiRouteHas> for RouteHas {
 pub async fn next_build(ctx: NextBuildContext) -> napi::Result<()> {
     turbo_next_build(ctx.try_into()?).await.convert_err()
 }
+
+#[napi]
+pub async fn experimental_turbo(_unused: Buffer) -> napi::Result<()> {
+    unimplemented!("__experimental_turbo is not yet implemented");
+}

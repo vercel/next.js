@@ -3,6 +3,8 @@ title: Static Assets
 description: Next.js allows you to serve static files, like images, in the public directory. You can learn how it works here.
 ---
 
+{/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
+
 Next.js can serve static files, like images, under a folder called `public` in the root directory. Files inside `public` can then be referenced by your code starting from the base URL (`/`).
 
 For example, if you add `me.png` inside `public`, the following code will access the image:

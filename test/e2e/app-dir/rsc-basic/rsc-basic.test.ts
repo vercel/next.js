@@ -30,7 +30,13 @@ createNextDescribe(
         await check(async () => {
           // Check that the client-side manifest is correct before any requests
           const clientReferenceManifest = JSON.parse(
-            await next.readFile('.next/server/client-reference-manifest.json')
+            JSON.parse(
+              (
+                await next.readFile(
+                  '.next/server/app/page_client-reference-manifest.js'
+                )
+              ).match(/]=(.+)$/)[1]
+            )
           )
           const clientModulesNames = Object.keys(
             clientReferenceManifest.clientModules
@@ -150,6 +156,11 @@ createNextDescribe(
       const html = await next.render('/multi')
       expect(html).toContain('bar.server.js:')
       expect(html).toContain('foo.client')
+    })
+
+    it('should create client reference successfully for all file conventions', async () => {
+      const html = await next.render('/conventions')
+      expect(html).toContain('it works')
     })
 
     it('should be able to navigate between rsc routes', async () => {
@@ -546,7 +557,6 @@ createNextDescribe(
         const files = [
           'middleware-build-manifest.js',
           'middleware-manifest.json',
-          'client-reference-manifest.json',
         ]
 
         let promises = files.map(async (file) => {

@@ -1,8 +1,6 @@
 import { existsSync } from 'fs'
 import { basename, extname, join, relative, isAbsolute, resolve } from 'path'
 import { pathToFileURL } from 'url'
-import { Agent as HttpAgent } from 'http'
-import { Agent as HttpsAgent } from 'https'
 import findUp from 'next/dist/compiled/find-up'
 import chalk from '../lib/chalk'
 import * as Log from '../build/output/log'
@@ -21,6 +19,7 @@ import { ImageConfig, imageConfigDefault } from '../shared/lib/image-config'
 import { loadEnvConfig, updateInitialEnv } from '@next/env'
 import { flushAndExit } from '../telemetry/flush-and-exit'
 import { findRootDir } from '../lib/find-root'
+import { setHttpClientAndAgentOptions } from './setup-http-agent-env'
 
 export { DomainLocale, NextConfig, normalizeConfig } from './config-shared'
 
@@ -42,28 +41,6 @@ const experimentalWarning = execOnce(
     console.warn()
   }
 )
-
-export function setHttpClientAndAgentOptions(config: {
-  httpAgentOptions?: NextConfig['httpAgentOptions']
-}) {
-  if ((globalThis as any).__NEXT_HTTP_AGENT) {
-    // We only need to assign once because we want
-    // to reuse the same agent for all requests.
-    return
-  }
-
-  if (!config) {
-    throw new Error('Expected config.httpAgentOptions to be an object')
-  }
-
-  ;(globalThis as any).__NEXT_HTTP_AGENT_OPTIONS = config.httpAgentOptions
-  ;(globalThis as any).__NEXT_HTTP_AGENT = new HttpAgent(
-    config.httpAgentOptions
-  )
-  ;(globalThis as any).__NEXT_HTTPS_AGENT = new HttpsAgent(
-    config.httpAgentOptions
-  )
-}
 
 export function warnOptionHasBeenMovedOutOfExperimental(
   config: NextConfig,
@@ -416,6 +393,17 @@ function assignDefaults(
     result.output = 'standalone'
   }
 
+  if (typeof result.experimental?.serverActionsBodySizeLimit !== 'undefined') {
+    const value = parseInt(
+      result.experimental.serverActionsBodySizeLimit.toString()
+    )
+    if (isNaN(value) || value < 1) {
+      throw new Error(
+        'Server Actions Size Limit must be a valid number or filesize format lager than 1MB: https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions'
+      )
+    }
+  }
+
   warnOptionHasBeenMovedOutOfExperimental(
     result,
     'transpilePackages',
@@ -673,6 +661,46 @@ function assignDefaults(
     }
   }
 
+  const userProvidedModularizeImports = result.modularizeImports
+  // Unfortunately these packages end up re-exporting 10600 modules, for example: https://unpkg.com/browse/@mui/icons-material@5.11.16/esm/index.js.
+  // Leveraging modularizeImports tremendously reduces compile times for these.
+  result.modularizeImports = {
+    ...(userProvidedModularizeImports || {}),
+    // This is intentionally added after the user-provided modularizeImports config.
+    '@mui/icons-material': {
+      transform: '@mui/icons-material/{{member}}',
+    },
+    'date-fns': {
+      transform: 'date-fns/{{member}}',
+    },
+    lodash: {
+      transform: 'lodash/{{member}}',
+    },
+    'lodash-es': {
+      transform: 'lodash-es/{{member}}',
+    },
+    // TODO: Enable this once we have a way to remove the "-icon" suffix from the import path.
+    // Related discussion: https://github.com/vercel/next.js/pull/50900#discussion_r1239656782
+    // 'lucide-react': {
+    //   transform: 'lucide-react/dist/esm/icons/{{ kebabCase member }}',
+    // },
+    ramda: {
+      transform: 'ramda/es/{{member}}',
+    },
+    'react-bootstrap': {
+      transform: 'react-bootstrap/{{member}}',
+    },
+    antd: {
+      transform: 'antd/lib/{{kebabCase member}}',
+    },
+    ahooks: {
+      transform: 'ahooks/es/{{member}}',
+    },
+    '@ant-design/icons': {
+      transform: '@ant-design/icons/lib/icons/{{member}}',
+    },
+  }
+
   return result
 }
 
@@ -696,7 +724,21 @@ export default async function loadConfig(
     : Log
 
   await loadEnvConfig(dir, phase === PHASE_DEVELOPMENT_SERVER, curLog)
-  loadWebpackHook()
+
+  loadWebpackHook({
+    // For render workers, there's no need to init webpack eagerly
+    init: !process.env.__NEXT_PRIVATE_RENDER_WORKER,
+  })
+
+  // For the render worker, we directly return the serialized config from the
+  // parent worker (router worker) to avoid loading it again.
+  // This is because loading the config might be expensive especiall when people
+  // have Webpack plugins added.
+  // Because of this change, unserializable fields like `.webpack` won't be
+  // existing here but the render worker shouldn't use these as well.
+  if (process.env.__NEXT_PRIVATE_RENDER_WORKER_CONFIG) {
+    return JSON.parse(process.env.__NEXT_PRIVATE_RENDER_WORKER_CONFIG)
+  }
 
   let configFileName = 'next.config.js'
 

@@ -41,7 +41,6 @@ export async function sandbox(
 
   await next.start()
   const browser = await webdriver(next.url, initialUrl, webDriverOptions)
-  // await waitForHydration(browser)
   return {
     browser,
     session: {
@@ -96,14 +95,14 @@ export async function sandbox(
       async remove(filename) {
         await next.deleteFile(filename)
       },
-      async evaluate(snippet: () => any) {
-        if (typeof snippet === 'function') {
+      async evaluate(snippet: string | Function) {
+        if (typeof snippet === 'function' || typeof snippet === 'string') {
           const result = await browser.eval(snippet)
           await waitFor(30)
           return result
         } else {
           throw new Error(
-            `You must pass a function to be evaluated in the browser.`
+            `You must pass a string or function to be evaluated in the browser.`
           )
         }
       },
