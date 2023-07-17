@@ -1333,13 +1333,28 @@ export async function renderToHTMLOrFlight(
       return [NotFound, notFoundStyles]
     }
 
-    async function getRootLayout(tree: LoaderTree) {
+    async function getRootLayout(
+      tree: LoaderTree,
+      injectedCSS: Set<string>,
+      injectedFontPreloadTags: Set<string>
+    ) {
       const { layout } = tree[2]
+      const layoutOrPagePath = layout?.[1]
+      const styles = getLayerAssets({
+        layoutOrPagePath,
+        injectedCSS: new Set(injectedCSS),
+        injectedFontPreloadTags: new Set(injectedFontPreloadTags),
+      })
       const rootLayoutModule = layout?.[0]
       const RootLayout = rootLayoutModule
         ? interopDefault(await rootLayoutModule())
         : null
-      return RootLayout
+      return ({ children, ...props }: { children: React.ReactNode }) => (
+        <RootLayout {...props}>
+          {styles}
+          {children}
+        </RootLayout>
+      )
     }
 
     /**
@@ -1568,7 +1583,7 @@ export async function renderToHTMLOrFlight(
           })
 
           const result = await continueFromInitialStream(renderStream, {
-            dataStream: serverComponentsInlinedTransformStream.readable,
+            dataStream: serverComponentsRenderOpts.transformStream.readable,
             generateStaticHTML:
               staticGenerationStore.isStaticGeneration || generateStaticHTML,
             getServerInsertedHTML: () =>
@@ -1613,26 +1628,51 @@ export async function renderToHTMLOrFlight(
             res.setHeader('Location', getURLFromRedirectError(err))
           }
 
+          const is404 = res.statusCode === 404
+          const useDefaultError = res.statusCode < 400 || hasRedirectError
+
           // Preserve the existing RSC inline chunks from the page rendering.
           // For 404 errors: the metadata from layout can be skipped with the error page.
           // For other errors (such as redirection): it can still be re-thrown on client.
           const serverErrorComponentsRenderOpts = {
             ...serverComponentsRenderOpts,
-            transformStream: cloneTransformStream(
-              serverComponentsRenderOpts.transformStream
-            ),
+            transformStream: useDefaultError
+              ? cloneTransformStream(serverComponentsRenderOpts.transformStream)
+              : new TransformStream(),
             rscChunks: [],
           }
 
-          const is404 = res.statusCode === 404
-          const RootLayout = await getRootLayout(loaderTree)
-          const [NotFound, notFoundStyles] = await getNotFound(
-            loaderTree,
-            new Set<string>(),
-            pathname
+          const errorType = is404
+            ? 'not-found'
+            : hasRedirectError
+            ? 'redirect'
+            : undefined
+
+          const errorMeta = (
+            <>
+              {res.statusCode >= 400 && (
+                <meta name="robots" content="noindex" />
+              )}
+              {process.env.NODE_ENV === 'development' && (
+                <meta name="next-error" content="not-found" />
+              )}
+            </>
           )
           const ErrorPage = createServerComponentRenderer(
             async () => {
+              const injectedCSS = new Set<string>()
+              const injectedFontPreloadTags = new Set<string>()
+              const RootLayout = await getRootLayout(
+                loaderTree,
+                injectedCSS,
+                injectedFontPreloadTags
+              )
+              const [NotFound, notFoundStyles] = await getNotFound(
+                loaderTree,
+                injectedCSS,
+                pathname
+              )
+
               const head = (
                 <>
                   {/* @ts-expect-error allow to use async server component */}
@@ -1640,23 +1680,12 @@ export async function renderToHTMLOrFlight(
                     key={requestId}
                     tree={loaderTree}
                     pathname={pathname}
-                    errorType={
-                      is404
-                        ? 'not-found'
-                        : hasRedirectError
-                        ? 'redirect'
-                        : undefined
-                    }
+                    errorType={errorType}
                     searchParams={providedSearchParams}
                     getDynamicParamFromSegment={getDynamicParamFromSegment}
                     appUsingSizeAdjust={appUsingSizeAdjust}
                   />
-                  {res.statusCode >= 400 && (
-                    <meta name="robots" content="noindex" />
-                  )}
-                  {process.env.NODE_ENV === 'development' && (
-                    <meta name="next-error" content="not-found" />
-                  )}
+                  {errorMeta}
                 </>
               )
 
@@ -1666,7 +1695,12 @@ export async function renderToHTMLOrFlight(
                 query
               )
 
-              return is404 ? (
+              function Rethrow() {
+                throw err
+                return null
+              }
+
+              return (
                 <AppRouter
                   buildId={renderOpts.buildId}
                   assetPrefix={assetPrefix}
@@ -1675,13 +1709,15 @@ export async function renderToHTMLOrFlight(
                   initialHead={head}
                   globalErrorComponent={GlobalError}
                 >
-                  <RootLayout params={{}}>
-                    {notFoundStyles}
-                    {NotFound && <NotFound />}
-                  </RootLayout>
+                  {useDefaultError ? (
+                    <Rethrow />
+                  ) : (
+                    <RootLayout params={{}}>
+                      {notFoundStyles}
+                      {NotFound && <NotFound />}
+                    </RootLayout>
+                  )}
                 </AppRouter>
-              ) : (
-                <ErrorHtml head={head} />
               )
             },
             ComponentMod,

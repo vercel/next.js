@@ -30,32 +30,19 @@ export const streamToBufferedResult = async (
   return renderChunks.join('')
 }
 
-export function cloneTransformStream(
-  source: TransformStream
-  // transformStream2: TransformStream
-) {
-  // const reader2 = transformStream2.readable.getReader()
-
-  // let currentReader = reader1
-
+export function cloneTransformStream(source: TransformStream) {
+  const sourceReader = source.readable.getReader()
   const clone = new TransformStream({
     async start(controller) {
-      const sourceReader = source.readable.getReader()
       while (true) {
         const { done, value } = await sourceReader.read()
         if (done) {
-          return
-          // if (currentReader === reader1) {
-          //   currentReader = reader2
-          //   continue
-          // } else {
-          //   return
-          // }
+          break
         }
         controller.enqueue(value)
-        break
       }
     },
+    transform(chunk, controller) {},
   })
 
   return clone
