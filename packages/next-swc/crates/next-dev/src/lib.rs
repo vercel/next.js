@@ -24,7 +24,7 @@ use indexmap::IndexMap;
 use next_core::{
     app_structure::find_app_dir_if_enabled,
     create_app_source, create_page_source, create_web_entry_source,
-    manifest::DevManifestContentSource,
+    dev_manifest::DevManifestContentSource,
     mode::NextMode,
     next_client::{get_client_chunking_context, get_client_compile_time_info},
     next_config::{load_next_config, load_rewrites},
