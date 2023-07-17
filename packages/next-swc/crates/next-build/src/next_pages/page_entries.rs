@@ -441,7 +441,7 @@ async fn get_page_entry_for_file(
     let ssr_module = ssr_module_context.process(
         Vc::upcast(asset),
         Value::new(ReferenceType::Internal(Vc::cell(indexmap! {
-            "INNER".to_string() => ssr_module.into(),
+            "INNER".to_string() => ssr_module,
         }))),
     );
 
