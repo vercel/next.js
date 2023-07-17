@@ -31,7 +31,13 @@ use std::{cell::RefCell, env, path::PathBuf};
 use anyhow::anyhow;
 use napi::bindgen_prelude::{External, Status};
 #[cfg(feature = "crash-report")]
-use sentry::{init, types::Dsn, ClientInitGuard, ClientOptions};
+use sentry::init;
+#[cfg(feature = "crash-report")]
+use sentry::types::Dsn;
+#[cfg(feature = "crash-report")]
+use sentry::ClientInitGuard;
+#[cfg(feature = "crash-report")]
+use sentry::ClientOptions;
 use tracing_chrome::{ChromeLayerBuilder, FlushGuard};
 use tracing_subscriber::{filter, prelude::*, util::SubscriberInitExt, Layer};
 

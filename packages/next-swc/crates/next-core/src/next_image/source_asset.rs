@@ -1,30 +1,28 @@
 use std::io::Write;
 
 use anyhow::{bail, Result};
+use turbo_tasks::Vc;
 use turbopack_binding::{
-    turbo::{
-        tasks::primitives::StringVc,
-        tasks_fs::{rope::RopeBuilder, FileContent},
-    },
+    turbo::tasks_fs::{rope::RopeBuilder, FileContent},
     turbopack::{
         core::{
-            asset::{Asset, AssetContent, AssetContentVc, AssetVc},
-            ident::AssetIdentVc,
-            source::{Source, SourceVc},
+            asset::{Asset, AssetContent},
+            ident::AssetIdent,
+            source::Source,
         },
         ecmascript::utils::StringifyJs,
-        image::process::{get_meta_data, BlurPlaceholderOptions, BlurPlaceholderOptionsVc},
+        image::process::{get_meta_data, BlurPlaceholderOptions},
     },
 };
 
 use super::module::BlurPlaceholderMode;
 
-fn modifier() -> StringVc {
-    StringVc::cell("structured image object".to_string())
+fn modifier() -> Vc<String> {
+    Vc::cell("structured image object".to_string())
 }
 
 #[turbo_tasks::function]
-fn blur_options() -> BlurPlaceholderOptionsVc {
+fn blur_options() -> Vc<BlurPlaceholderOptions> {
     BlurPlaceholderOptions {
         quality: 70,
         size: 8,
@@ -36,7 +34,7 @@ fn blur_options() -> BlurPlaceholderOptionsVc {
 /// an object with meta information like width, height and a blur placeholder.
 #[turbo_tasks::value(shared)]
 pub struct StructuredImageFileSource {
-    pub image: SourceVc,
+    pub image: Vc<Box<dyn Source>>,
     pub blur_placeholder_mode: BlurPlaceholderMode,
 }
 
@@ -46,15 +44,15 @@ impl Source for StructuredImageFileSource {}
 #[turbo_tasks::value_impl]
 impl Asset for StructuredImageFileSource {
     #[turbo_tasks::function]
-    fn ident(&self) -> AssetIdentVc {
+    fn ident(&self) -> Vc<AssetIdent> {
         self.image
             .ident()
             .with_modifier(modifier())
-            .rename_as("*.mjs")
+            .rename_as("*.mjs".to_string())
     }
 
     #[turbo_tasks::function]
-    async fn content(&self) -> Result<AssetContentVc> {
+    async fn content(&self) -> Result<Vc<AssetContent>> {
         let content = self.image.content().await?;
         let AssetContent::File(content) = *content else {
             bail!("Input source is not a file and can't be transformed into image information");

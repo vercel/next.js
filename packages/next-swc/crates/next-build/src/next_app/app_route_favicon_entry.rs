@@ -4,23 +4,24 @@ use anyhow::{bail, Result};
 use base64::{display::Base64Display, engine::general_purpose::STANDARD};
 use indoc::writedoc;
 use next_core::app_structure::MetadataItem;
-use turbo_tasks::ValueToString;
+use turbo_tasks::{ValueToString, Vc};
 use turbopack_binding::{
-    turbo::tasks_fs::{rope::RopeBuilder, File, FileContent, FileSystemPathVc},
+    turbo::tasks_fs::{rope::RopeBuilder, File, FileContent, FileSystemPath},
     turbopack::{
-        core::virtual_source::VirtualSourceVc, ecmascript::utils::StringifyJs,
-        turbopack::ModuleAssetContextVc,
+        core::{asset::AssetContent, virtual_source::VirtualSource},
+        ecmascript::utils::StringifyJs,
+        turbopack::ModuleAssetContext,
     },
 };
 
-use super::{app_entries::AppEntryVc, app_route_entry::get_app_route_entry};
+use super::{app_entries::AppEntry, app_route_entry::get_app_route_entry};
 
 /// Computes the entry for a Next.js favicon file.
 pub(super) async fn get_app_route_favicon_entry(
-    rsc_context: ModuleAssetContextVc,
+    rsc_context: Vc<ModuleAssetContext>,
     favicon: MetadataItem,
-    project_root: FileSystemPathVc,
-) -> Result<AppEntryVc> {
+    project_root: Vc<FileSystemPath>,
+) -> Result<Vc<AppEntry>> {
     let path = match favicon {
         // TODO(alexkirsz) Is there a difference here?
         MetadataItem::Static { path } => path,
@@ -74,11 +75,11 @@ pub(super) async fn get_app_route_favicon_entry(
     let file = File::from(code.build());
     let source =
         // TODO(alexkirsz) Figure out how to name this virtual source.
-        VirtualSourceVc::new(project_root.join("todo.tsx"), file.into());
+        VirtualSource::new(project_root.join("todo.tsx".to_string()), AssetContent::file(file.into()));
 
     get_app_route_entry(
         rsc_context,
-        source.into(),
+        Vc::upcast(source),
         // TODO(alexkirsz) Get this from the metadata?
         "/favicon.ico",
         project_root,

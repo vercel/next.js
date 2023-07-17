@@ -23,6 +23,7 @@ packages/react-dev-overlay/lib/**
 .github/actions/issue-validator/index.mjs
 .github/actions/issue-labeler/lib/index.js
 .github/actions/validate-docs-links/lib/index.js
+.github/actions/issue-on-comment/index.js
 packages/next-codemod/transforms/__testfixtures__/**/*
 packages/next-codemod/transforms/__tests__/**/*
 packages/next-codemod/**/*.js

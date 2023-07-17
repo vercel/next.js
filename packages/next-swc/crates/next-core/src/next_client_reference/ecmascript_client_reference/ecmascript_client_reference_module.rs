@@ -1,13 +1,13 @@
 use anyhow::{bail, Result};
-use turbo_tasks::primitives::StringVc;
+use turbo_tasks::Vc;
 use turbopack_binding::turbopack::{
     core::{
-        asset::{Asset, AssetContentVc, AssetVc},
-        ident::AssetIdentVc,
-        module::{Module, ModuleVc},
-        reference::AssetReferencesVc,
+        asset::{Asset, AssetContent},
+        ident::AssetIdent,
+        module::Module,
+        reference::AssetReferences,
     },
-    ecmascript::chunk::EcmascriptChunkPlaceableVc,
+    ecmascript::chunk::EcmascriptChunkPlaceable,
 };
 
 /// An [`EcmascriptClientReferenceModule`] is a marker module, used by the
@@ -15,13 +15,13 @@ use turbopack_binding::turbopack::{
 /// should appear in the client reference manifest.
 #[turbo_tasks::value(transparent)]
 pub struct EcmascriptClientReferenceModule {
-    pub server_ident: AssetIdentVc,
-    pub client_module: EcmascriptChunkPlaceableVc,
-    pub ssr_module: EcmascriptChunkPlaceableVc,
+    pub server_ident: Vc<AssetIdent>,
+    pub client_module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
+    pub ssr_module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
 }
 
 #[turbo_tasks::value_impl]
-impl EcmascriptClientReferenceModuleVc {
+impl EcmascriptClientReferenceModule {
     /// Create a new [`EcmascriptClientReferenceModule`].
     ///
     /// # Arguments
@@ -32,10 +32,10 @@ impl EcmascriptClientReferenceModuleVc {
     /// * `ssr_module` - The SSR module.
     #[turbo_tasks::function]
     pub fn new(
-        server_ident: AssetIdentVc,
-        client_module: EcmascriptChunkPlaceableVc,
-        ssr_module: EcmascriptChunkPlaceableVc,
-    ) -> EcmascriptClientReferenceModuleVc {
+        server_ident: Vc<AssetIdent>,
+        client_module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
+        ssr_module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
+    ) -> Vc<EcmascriptClientReferenceModule> {
         EcmascriptClientReferenceModule {
             server_ident,
             client_module,
@@ -46,27 +46,27 @@ impl EcmascriptClientReferenceModuleVc {
 }
 
 #[turbo_tasks::function]
-fn ecmascript_client_reference_modifier() -> StringVc {
-    StringVc::cell("ecmascript client reference".to_string())
+fn ecmascript_client_reference_modifier() -> Vc<String> {
+    Vc::cell("ecmascript client reference".to_string())
 }
 
 #[turbo_tasks::value_impl]
 impl Asset for EcmascriptClientReferenceModule {
     #[turbo_tasks::function]
-    fn ident(&self) -> AssetIdentVc {
+    fn ident(&self) -> Vc<AssetIdent> {
         self.server_ident
             .with_modifier(ecmascript_client_reference_modifier())
     }
 
     #[turbo_tasks::function]
-    fn content(&self) -> Result<AssetContentVc> {
+    fn content(&self) -> Result<Vc<AssetContent>> {
         // The ES client reference asset only serves as a marker asset.
         bail!("EcmascriptClientReferenceModule has no content")
     }
 
     #[turbo_tasks::function]
-    fn references(_self_vc: EcmascriptClientReferenceModuleVc) -> AssetReferencesVc {
-        AssetReferencesVc::empty()
+    fn references(self: Vc<Self>) -> Vc<AssetReferences> {
+        AssetReferences::empty()
     }
 }
 
