@@ -27,6 +27,7 @@ import {
   createBufferedTransformStream,
   continueFromInitialStream,
   streamToBufferedResult,
+  cloneTransformStream,
 } from '../stream-utils/node-web-streams-helper'
 import {
   canSegmentBeOverridden,
@@ -92,7 +93,6 @@ export type GetDynamicParamFromSegment = (
 
 function ErrorHtml({
   head,
-  children,
 }: {
   head?: React.ReactNode
   children?: React.ReactNode
@@ -100,7 +100,7 @@ function ErrorHtml({
   return (
     <html id="__next_error__">
       <head>{head}</head>
-      <body>{children}</body>
+      <body></body>
     </html>
   )
 }
@@ -1280,11 +1280,6 @@ export async function renderToHTMLOrFlight(
       Uint8Array
     > = new TransformStream()
 
-    const serverErrorComponentsInlinedTransformStream: TransformStream<
-      Uint8Array,
-      Uint8Array
-    > = new TransformStream()
-
     // Get the nonce from the incoming request if it has one.
     const csp = req.headers['content-security-policy']
     let nonce: string | undefined
@@ -1294,13 +1289,6 @@ export async function renderToHTMLOrFlight(
 
     const serverComponentsRenderOpts = {
       transformStream: serverComponentsInlinedTransformStream,
-      clientReferenceManifest,
-      serverContexts,
-      rscChunks: [],
-    }
-
-    const serverErrorComponentsRenderOpts = {
-      transformStream: serverErrorComponentsInlinedTransformStream,
       clientReferenceManifest,
       serverContexts,
       rscChunks: [],
@@ -1606,11 +1594,9 @@ export async function renderToHTMLOrFlight(
               pagePath
             )
           }
-
           if (isNotFoundError(err)) {
             res.statusCode = 404
           }
-
           let hasRedirectError = false
           if (isRedirectError(err)) {
             hasRedirectError = true
@@ -1627,42 +1613,15 @@ export async function renderToHTMLOrFlight(
             res.setHeader('Location', getURLFromRedirectError(err))
           }
 
-          async function mergeTransformStreams(
-            transformStream1: TransformStream,
-            transformStream2: TransformStream
-          ) {
-            let reader1 = transformStream1.readable.getReader()
-            let reader2 = transformStream2.readable.getReader()
-
-            let currentReader = reader1
-
-            let mergedTransformStream = new TransformStream({
-              async start(controller) {
-                while (true) {
-                  const { done, value } = await currentReader.read()
-                  if (done) {
-                    if (currentReader === reader1) {
-                      currentReader = reader2
-                      continue
-                    } else {
-                      return
-                    }
-                  }
-                  controller.enqueue(value)
-                  break
-                }
-              },
-            })
-
-            return mergedTransformStream
-          }
-
-          const inheritedServerComponentsRenderOpts = {
-            ...serverErrorComponentsRenderOpts,
-            transformStream: await mergeTransformStreams(
-              serverComponentsRenderOpts.transformStream,
-              serverErrorComponentsRenderOpts.transformStream
+          // Preserve the existing RSC inline chunks from the page rendering.
+          // For 404 errors: the metadata from layout can be skipped with the error page.
+          // For other errors (such as redirection): it can still be re-thrown on client.
+          const serverErrorComponentsRenderOpts = {
+            ...serverComponentsRenderOpts,
+            transformStream: cloneTransformStream(
+              serverComponentsRenderOpts.transformStream
             ),
+            rscChunks: [],
           }
 
           const is404 = res.statusCode === 404
@@ -1726,7 +1685,7 @@ export async function renderToHTMLOrFlight(
               )
             },
             ComponentMod,
-            inheritedServerComponentsRenderOpts,
+            serverErrorComponentsRenderOpts,
             serverComponentsErrorHandler,
             nonce
           )
@@ -1754,7 +1713,7 @@ export async function renderToHTMLOrFlight(
 
           return await continueFromInitialStream(renderStream, {
             dataStream:
-              inheritedServerComponentsRenderOpts.transformStream.readable,
+              serverErrorComponentsRenderOpts.transformStream.readable,
             generateStaticHTML: staticGenerationStore.isStaticGeneration,
             getServerInsertedHTML: () => getServerInsertedHTML([]),
             serverInsertedHTMLToHead: true,
