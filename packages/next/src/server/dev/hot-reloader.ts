@@ -428,7 +428,7 @@ export default class HotReloader {
                 if (file) {
                   // `file` is filepath in `pages/` but it can be weird long webpack url in `app/`.
                   // If it's a webpack loader URL, it will start with '(app-pages)/./'
-                  if (file.startsWith('(app-pages)/./')) {
+                  if (file.startsWith(`(${WEBPACK_LAYERS.appPages})/./`)) {
                     const fileUrl = new URL(file, 'file://')
                     const cwd = process.cwd()
                     const modules = fileUrl.searchParams
