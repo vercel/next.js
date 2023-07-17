@@ -97,7 +97,11 @@ export const getUser = cache(async (id) => {
 ```tsx filename="app/user/[id]/layout.tsx" switcher
 import { getUser } from '@utils/getUser'
 
-export default async function UserLayout({ params: { id } }) {
+export default async function UserLayout({
+  params: { id },
+}: {
+  params: { id: string }
+}) {
   const user = await getUser(id)
   // ...
 }
