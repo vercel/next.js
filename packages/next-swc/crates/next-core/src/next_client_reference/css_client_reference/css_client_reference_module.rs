@@ -33,14 +33,17 @@ fn css_client_reference_modifier() -> Vc<String> {
 }
 
 #[turbo_tasks::value_impl]
-impl Asset for CssClientReferenceModule {
+impl Module for CssClientReferenceModule {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
         self.client_module
             .ident()
             .with_modifier(css_client_reference_modifier())
     }
+}
 
+#[turbo_tasks::value_impl]
+impl Asset for CssClientReferenceModule {
     #[turbo_tasks::function]
     fn content(&self) -> Result<Vc<AssetContent>> {
         // The client reference asset only serves as a marker asset.
@@ -66,6 +69,3 @@ impl ParseCss for CssClientReferenceModule {
         Ok(parse_css.parse_css())
     }
 }
-
-#[turbo_tasks::value_impl]
-impl Module for CssClientReferenceModule {}

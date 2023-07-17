@@ -4,11 +4,8 @@ use turbo_tasks::{TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_binding::turbopack::{
     core::{
-        asset::{Asset, AssetContent},
-        chunk::ModuleId as TurbopackModuleId,
-        output::OutputAsset,
-        raw_output::RawOutput,
-        virtual_source::VirtualSource,
+        asset::AssetContent, chunk::ModuleId as TurbopackModuleId, output::OutputAsset,
+        raw_output::RawOutput, virtual_source::VirtualSource,
     },
     ecmascript::{
         chunk::{EcmascriptChunkItemExt, EcmascriptChunkPlaceable, EcmascriptChunkingContext},

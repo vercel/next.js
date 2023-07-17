@@ -30,8 +30,8 @@ use turbopack_binding::{
     turbopack::{
         build::BuildChunkingContext,
         core::{
-            asset::Asset, chunk::EvaluatableAssets, compile_time_info::CompileTimeInfo,
-            file_source::FileSource, output::OutputAsset,
+            chunk::EvaluatableAssets, compile_time_info::CompileTimeInfo, file_source::FileSource,
+            output::OutputAsset,
         },
         ecmascript::chunk::EcmascriptChunkingContext,
         node::execution_context::ExecutionContext,

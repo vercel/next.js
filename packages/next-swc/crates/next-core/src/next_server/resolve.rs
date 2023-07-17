@@ -5,7 +5,6 @@ use turbo_tasks::Vc;
 use turbopack_binding::{
     turbo::tasks_fs::{glob::Glob, FileJsonContent, FileSystemPath},
     turbopack::core::{
-        asset::Asset,
         resolve::{
             find_context_file,
             node::node_cjs_resolve_options,
@@ -15,6 +14,7 @@ use turbopack_binding::{
             resolve, FindContextFileResult, PrimaryResolveResult, ResolveResult,
             ResolveResultOption,
         },
+        source::{asset_to_source, Source},
     },
 };
 
@@ -54,10 +54,11 @@ async fn is_node_resolveable(
 ) -> Result<Vc<bool>> {
     let node_resolve_result = resolve(context, request, node_cjs_resolve_options(context.root()));
     let primary_node_assets = node_resolve_result.primary_assets().await?;
-    let Some(node_asset) = primary_node_assets.first() else {
+    let Some(&node_asset) = primary_node_assets.first() else {
         // can't resolve request with node.js options
         return Ok(Vc::cell(false));
     };
+    let node_asset = asset_to_source(node_asset);
 
     if node_asset.ident().path().resolve().await? != expected.resolve().await? {
         // node.js resolves to a different file

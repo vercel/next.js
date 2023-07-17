@@ -28,9 +28,9 @@ use turbopack_binding::{
         dev::DevChunkingContext,
         node::{
             debug::should_debug,
-            evaluate::evaluate,
+            evaluate::{evaluate, get_evaluate_pool},
             execution_context::ExecutionContext,
-            source_map::{trace_stack, StructuredError},
+            source_map::{trace_stack_with_source_mapping_assets, StructuredError},
         },
         turbopack::{evaluate_context::node_evaluate_asset_context, transition::TransitionsByName},
     },
@@ -207,8 +207,8 @@ async fn config_assets(
     );
 
     Ok(Vc::cell(indexmap! {
-        "MIDDLEWARE_CHUNK_GROUP".to_string() => Vc::upcast(manifest),
-        "MIDDLEWARE_CONFIG".to_string() => Vc::upcast(config_asset),
+        "MIDDLEWARE_CHUNK_GROUP".to_string() => manifest,
+        "MIDDLEWARE_CONFIG".to_string() => config_asset,
     }))
 }
 
@@ -356,9 +356,12 @@ async fn route_internal(
     let Some(dir) = to_sys_path(project_path).await? else {
         bail!("Next.js requires a disk path to check for valid routes");
     };
+    let chunking_context = chunking_context.with_layer("router".to_string());
     let server_addr = server_addr.await?;
+    let invalidation = Completions::all(vec![next_config_changed, routes_changed]);
+    let debug = should_debug("router");
     let result = evaluate(
-        Vc::upcast(router_asset),
+        router_asset,
         project_path,
         env,
         AssetIdent::from_path(project_path),
@@ -370,8 +373,8 @@ async fn route_internal(
             Vc::cell(dir.to_string_lossy().into()),
             Vc::cell(serde_json::to_value(ServerInfo::try_from(&*server_addr)?)?),
         ],
-        Completions::all(vec![next_config_changed, routes_changed]),
-        should_debug("router"),
+        invalidation,
+        debug,
     )
     .await?;
 
@@ -425,18 +428,32 @@ async fn route_internal(
 
         RouterIncomingMessage::None => (RouterResult::None, Some(read)),
 
-        RouterIncomingMessage::Error { error } => (
-            RouterResult::Error(shared_anyhow!(
-                trace_stack(
-                    error,
-                    Vc::upcast(router_asset),
-                    chunking_context.output_root(),
-                    project_path
-                )
-                .await?
-            )),
-            Some(read),
-        ),
+        RouterIncomingMessage::Error { error } => {
+            // Must be the same pool as above
+            let pool = get_evaluate_pool(
+                router_asset,
+                project_path,
+                env,
+                context,
+                chunking_context,
+                None,
+                invalidation,
+                debug,
+            )
+            .await?;
+            (
+                RouterResult::Error(shared_anyhow!(
+                    trace_stack_with_source_mapping_assets(
+                        error,
+                        pool.assets_for_source_mapping,
+                        chunking_context.output_root(),
+                        project_path
+                    )
+                    .await?
+                )),
+                Some(read),
+            )
+        }
 
         RouterIncomingMessage::MiddlewareBody { .. } => (
             RouterResult::Error(shared_anyhow!(
