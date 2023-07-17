@@ -39,7 +39,7 @@ import {
   NEXT_ROUTER_STATE_TREE,
   RSC,
 } from '../../client/components/app-router-headers'
-import { MetadataTree, isMetadataError } from '../../lib/metadata/metadata'
+import { MetadataTree } from '../../lib/metadata/metadata'
 import { RequestAsyncStorageWrapper } from '../async-storage/request-async-storage-wrapper'
 import { StaticGenerationAsyncStorageWrapper } from '../async-storage/static-generation-async-storage-wrapper'
 import { isClientReference } from '../../lib/client-reference'
@@ -1607,23 +1607,7 @@ export async function renderToHTMLOrFlight(
             )
           }
 
-          let is404 = false
-
-          if (isMetadataError(err)) {
-            const digest = err.digest.replace('NEXT_METADATA_ERROR;', '')
-            err.message = digest
-            err.digest = digest
-          }
-
-          const RootLayout = await getRootLayout(loaderTree)
-          const [NotFound, notFoundStyles] = await getNotFound(
-            loaderTree,
-            new Set<string>(),
-            pathname
-          )
-
           if (isNotFoundError(err)) {
-            is404 = true
             res.statusCode = 404
           }
 
@@ -1681,6 +1665,13 @@ export async function renderToHTMLOrFlight(
             ),
           }
 
+          const is404 = res.statusCode === 404
+          const RootLayout = await getRootLayout(loaderTree)
+          const [NotFound, notFoundStyles] = await getNotFound(
+            loaderTree,
+            new Set<string>(),
+            pathname
+          )
           const ErrorPage = createServerComponentRenderer(
             async () => {
               const head = (

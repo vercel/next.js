@@ -10,7 +10,6 @@ import stripAnsi from 'next/dist/compiled/strip-ansi'
 import formatWebpackMessages from '../../dev/error-overlay/format-webpack-messages'
 import { useRouter } from '../navigation'
 import {
-  ACTION_NOT_FOUND,
   ACTION_VERSION_INFO,
   errorOverlayReducer,
 } from './internal/error-overlay-reducer'
@@ -42,7 +41,6 @@ interface Dispatcher {
   onVersionInfo(versionInfo: VersionInfo): void
   onBeforeRefresh(): void
   onRefresh(): void
-  onNotFound(): void
 }
 
 // TODO-APP: add actual type
@@ -488,9 +486,6 @@ export default function HotReload({
       },
       onVersionInfo(versionInfo) {
         dispatch({ type: ACTION_VERSION_INFO, versionInfo })
-      },
-      onNotFound() {
-        dispatch({ type: ACTION_NOT_FOUND })
       },
     }
   }, [dispatch])
