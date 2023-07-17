@@ -1349,12 +1349,19 @@ export async function renderToHTMLOrFlight(
       const RootLayout = rootLayoutModule
         ? interopDefault(await rootLayoutModule())
         : null
-      return ({ children, ...props }: { children: React.ReactNode }) => (
-        <RootLayout {...props}>
-          {styles}
-          {children}
-        </RootLayout>
-      )
+      return ({
+        children,
+        params,
+      }: {
+        children: React.ReactNode
+        params: any
+      }) =>
+        RootLayout ? (
+          <RootLayout params={params}>
+            {styles}
+            {children}
+          </RootLayout>
+        ) : null
     }
 
     /**
