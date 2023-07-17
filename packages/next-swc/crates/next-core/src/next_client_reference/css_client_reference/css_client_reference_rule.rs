@@ -1,17 +1,18 @@
+use turbo_tasks::Vc;
 use turbopack_binding::turbopack::{
     core::reference_type::{CssReferenceSubType, ReferenceType},
     turbopack::{
         module_options::{ModuleRule, ModuleRuleCondition, ModuleRuleEffect, ModuleType},
-        transition::TransitionVc,
+        transition::Transition,
     },
 };
 
-use super::css_client_reference_module_type::CssClientReferenceModuleTypeVc;
+use super::css_client_reference_module_type::CssClientReferenceModuleType;
 
 pub(crate) fn get_next_css_client_reference_transforms_rule(
-    client_transition: TransitionVc,
+    client_transition: Vc<Box<dyn Transition>>,
 ) -> ModuleRule {
-    let module_type = CssClientReferenceModuleTypeVc::new(client_transition);
+    let module_type = CssClientReferenceModuleType::new(client_transition);
 
     ModuleRule::new_internal(
         // Override the default module type for CSS assets. Instead, they will go through the
@@ -22,7 +23,7 @@ pub(crate) fn get_next_css_client_reference_transforms_rule(
             ReferenceType::Css(CssReferenceSubType::Internal),
         )]),
         vec![ModuleRuleEffect::ModuleType(ModuleType::Custom(
-            module_type.into(),
+            Vc::upcast(module_type),
         ))],
     )
 }
