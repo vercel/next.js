@@ -4,17 +4,101 @@ nav_title: Caching
 description: An overview of caching mechanisms in Next.js.
 ---
 
-Next.js has a few caching mechanisms to improve your application's performance. This section provides an in-depth look at the different mechanisms, how they affect each other, and how you can use them.
-
-Please note that some caching heurestics are automatic, while others can be manually configured. Caching is also split between rendering cache, router cache, and data cache, client and server environments.
+Next.js has a few caching mechanisms to improve your application's performance. This page provides an in-depth look at caching, the APIs you can use to configure them, and how they interact with each other.
 
 ## Overview
 
 {/* TO DO: Diagram showing how caching mechanisms come into play in the request lifecycle, going from  initial request, to server, to response, to router cache, to subsequent navigation with new request. */}
 
-| Mechanism             | What is cached?                   | Where is it cached? | Why is it cached?                               | Duration                                                                                                           | APIs                                                                         |
-| --------------------- | --------------------------------- | ------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------- |
-| Rendering Cache       | React Components                  | Server (CDN)        | Reduce the rendering cost.                      | Persistent or revalidate lifetime                                                                                  | Route Segment Config, and Dynamic Functions                                  |
-| Router Cache          | Rendered Server Component Payload | Client (in-memory)  | Improve navigation performance.                 | Single Session (cleared by hard navigation or refresh), or 30s for dynamic routes, and 5 minutes for static routes | <Link>, router.prefetch, router.refresh, revalidatePath, revalidateTag       |
-| Data Cache            | Result of data requests           | Server (CDN)        | Store data across user requests and deployments | Persistent or revalidate lifetime                                                                                  | fetch.cache, fetch.revalidate, unstable_cache, revalidatePath, revalidateTag |
-| Request Deduplication | Result of data requests           | Server (in-memory)  | Reduce data store calls                         | Per render pass / request lifecycle                                                                                | unstable_cache                                                               |
+Here's a high-level overview of the different caching mechanisms in Next.js and their purpose:
+
+| Mechanism                     | What is cached?                | Where is it cached? | Why is it cached?                                             | Duration                        |
+| ----------------------------- | ------------------------------ | ------------------- | ------------------------------------------------------------- | ------------------------------- |
+| [React Cache](#react-cache)   | Return values of functions     | Server              | Reduce data store calls and share data between route segments | Per-request lifecycle           |
+| [Data Cache](#data-cache)     | Return values of data requests | Server              | Store data across user requests and deployments               | Persistent (can be invalidated) |
+| [Render Cache](#render-cache) | Rendered React Components      | Server              | Reduce rendering cost and improve performance.                | Persistent (can be invalidated) |
+| [Router Cache](#router-cache) | Route Segments (RSC Payload)   | Client              | Reduce server requests and improve navigation experience      | User session or time-based.     |
+
+## How caching works
+
+### React Cache
+
+React's `cache` function allows you to memoize the return value of a function, saving the result to memory. This allows you to call the same function multiple times while only executing it once during a render pass.
+
+In Next.js, the `fetch` API uses `cache` to deduplicate requests for the same data. Request deduplication is an optimization that takes **multiple** requests for the same data and only makes a **single** request to the data source. This is done by storing the result of the first request in a temporary cache, and returning the cached result for subsequent requests.
+
+With deduplication, you can fetch data in the components that need it without props drilling and worrying about the performance impact of making multiple requests for the same data. Deduplication applies to `fetch` requests in `generateMetadata`, `generateStaticParams`, Layouts, Pages, and other Server Components.
+
+{/* Diagram */}
+
+For example, if you need to fetch the same data (e.g. current user) in multiple components in a tree, Next.js will temporarily cache `fetch` requests that have the same input, and only make one request to the data source.
+
+The cache lasts the lifetime of a server request until the rendering process completes.
+
+> **Good to know:**
+>
+> - You can use React's `cache` function to manually deduplicate requests for cases where `fetch` API is not suitable. For example, database clients, CMS clients, or GraphQL.
+> - You can use `cache` to memoize any function, not just data requests.
+> - Next.js uses `cache` to memoize data requests on the server, however, `cache` can also be used on the client.
+
+### Data Cache
+
+Next.js has a built-in data caching mechanism that stores the result of data requests across user requests and deployments. This lowers cost and improves performance by reducing the number of requests to your data source.
+
+Next.js extends the native [Web fetch() API]() to allow each request on the server to set its own persistent caching semantics. By default, data requests that use `fetch` are automatically cached, and you can use the [`cache`]() and [`next.revalidate`]() options of `fetch` to configure the caching behavior.
+
+When fetching data on the server, a `fetch` request first checks the persistent HTTP cache for a cached response. If a cached response is found, it is returned immediately. If not, the request is made to the data source, and the response is cached.
+
+> **Good to know:**
+>
+> In the browser, the `cache` option indicates how a fetch request will interact with the browser's HTTP cache. By extending the `fetch` API, you can use `cache` to indicate how a server-side fetch request will interact with the framework's persistent HTTP cache.
+
+#### Duration
+
+The Data Cache is persistent across user requests and deployments, unless you revalidate or opt out.
+
+#### Revalidation
+
+Revalidation is the process of purging the Data Cache and re-fetching the latest data. This is useful when your data changes and you want to ensure you show the latest information.
+
+Cached data can be revalidated in two ways:
+
+- **Time-based revalidation**: Automatically revalidate data after a certain amount of time has passed. This is useful for data that changes infrequently and freshness is not as critical. Time-based revalidation can be configured with the [Route Segment Config options]() or per invididual [`fetch` request]().
+- **On-demand revalidation**: Manually revalidate data based on an event (e.g. form submission). On-demand revalidation can use a tag based or path based approach to revalidate groups of data at once. This is useful for when you want to ensure the latest data is shown. On-demand revalidation can be configured with the [`revalidateTag`]() and [`revalidatePath`]() APIs.
+
+> **Vercel Data Cache**
+>
+> If your Next.js application is deployed to Vercel, we recommend reading the [Vercel Data Cache](https://vercel.com/docs/infrastructure/data-cache) documentation for a better understanding of Vercel specific features.
+
+#### Opting out of caching
+
+You can opt individual fetch requests out of caching, this is called [Dynamic Data Fetching]().
+
+> **Differences between Dynamic Fetching vs. Dynamic Rendering**:
+>
+> You may see the term **Dynamic Rendering** being used, this is different to Dynamic Data Fetching. In the App Router, data fetching and rendering are not coupled together. So you have the option to use Dynamic Rendering with some cached data.
+
+### Render Cache
+
+### Router Cache
+
+### APIs
+
+The following table provides a high-level overview of how different APIs affect caching:
+
+| API                                     | Router Cache | Render Cache          | Data Cache            | React Cache |
+| --------------------------------------- | ------------ | --------------------- | --------------------- | ----------- |
+| `<Link prefetch>`                       | Cache        |                       |                       |             |
+| `router.prefetch`                       | Cache        |                       |                       |             |
+| `router.refresh`                        | Revalidate   |                       |                       |             |
+| `fetch`                                 |              |                       | Cache                 | Cache       |
+| `fetch.options.cache`                   |              |                       | Cache or Opt-out      |             |
+| `fetch.options.next.revalidate`         |              | Revalidate            | Revalidate            |             |
+| `fetch.options.next.tags`               |              | Cache                 | Cache                 |             |
+| `revalidatePath`                        | Revalidate   | Revalidate            | Revalidate            |             |
+| `revalidateTag`                         | Revalidate   | Revalidate            | Revalidate            |             |
+| `const revalidate`                      |              | Revalidate or Opt-out | Revalidate or Opt-out |             |
+| `const dynamic`                         |              | Cache or Opt-out      | Cache or Opt-out      |             |
+| `headers`, `cookies`, `useSearchParams` |              | Opt-out               |                       |             |
+| `React.cache`                           |              |                       |                       | Cache       |
+| `unstable_cache` (Experimental)         |              |                       | Coming Soon           |             |

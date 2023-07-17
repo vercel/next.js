@@ -7,12 +7,6 @@ description: Learn to use React.cache() to memoize functions, and how Next.js us
 
 ## Request Deduplication
 
-- Change in React's API design
-- Allows us to think about components in isolation
-- Fetch liberally without worrying about performance
-- Rely on the system to handle optimization
-- Replacement for passing data as from layout to page
-
 Request deduplication is an optimization that takes **multiple** requests for the same data and only makes a **single** request to the data source. This is done by storing the result of the first request in a temporary cache, and returning the cached result for subsequent requests.
 
 For example, if you need to fetch the same data (e.g. current user) in multiple components in a tree, Next.js will temporarily cache `fetch` requests that have the same input, and only make one request to the data source.
