@@ -1703,10 +1703,6 @@ export async function renderToHTMLOrFlight(
                 query
               )
 
-              function Rethrow() {
-                throw err
-              }
-
               return (
                 <AppRouter
                   buildId={renderOpts.buildId}
@@ -1716,14 +1712,13 @@ export async function renderToHTMLOrFlight(
                   initialHead={head}
                   globalErrorComponent={GlobalError}
                 >
-                  {useDefaultError ? (
-                    // @ts-ignore Its return type 'void' is not a valid JSX element.
-                    <Rethrow />
-                  ) : (
+                  {is404 ? (
                     <RootLayout params={{}}>
                       {notFoundStyles}
                       {NotFound && <NotFound />}
                     </RootLayout>
+                  ) : (
+                    <ErrorHtml head={head} />
                   )}
                 </AppRouter>
               )
