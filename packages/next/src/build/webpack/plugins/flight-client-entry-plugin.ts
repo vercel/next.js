@@ -586,8 +586,13 @@ export class FlightClientEntryPlugin {
       // We have to always use the resolved request here to make sure the
       // server and client are using the same module path (required by RSC), as
       // the server compiler and client compiler have different resolve configs.
-      const modRequest: string | undefined =
+      let modRequest: string | undefined =
         mod.resourceResolveData?.path + mod.resourceResolveData?.query
+
+      // Context modules don't have a resource path, we use the identifier instead.
+      if (mod.constructor.name === 'ContextModule') {
+        modRequest = (mod as any)._identifier
+      }
 
       if (!modRequest || visited.has(modRequest)) return
       visited.add(modRequest)

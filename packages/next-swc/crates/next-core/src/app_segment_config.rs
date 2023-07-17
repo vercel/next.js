@@ -11,13 +11,13 @@ use turbo_tasks::{trace::TraceRawVcs, TryJoinIterExt, ValueDefault, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_binding::turbopack::{
     core::{
-        asset::Asset,
         context::AssetContext,
         file_source::FileSource,
         ident::AssetIdent,
         issue::{Issue, IssueExt, IssueSeverity, IssueSource, OptionIssueSource},
         module::Module,
         reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
+        source::Source,
     },
     ecmascript::{
         analyzer::{graph::EvalContext, ConstantNumber, ConstantValue, JsValue},
@@ -211,6 +211,7 @@ impl Issue for NextSegmentConfigParsingIssue {
 #[turbo_tasks::function]
 pub async fn parse_segment_config_from_source(
     module_asset: Vc<Box<dyn Module>>,
+    source: Vc<Box<dyn Source>>,
 ) -> Result<Vc<NextSegmentConfig>> {
     let Some(ecmascript_asset) =
         Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(module_asset).await?
@@ -244,7 +245,7 @@ pub async fn parse_segment_config_from_source(
             };
 
             if let Some(init) = decl.init.as_ref() {
-                parse_config_value(module_asset, &mut config, ident, init, eval_context);
+                parse_config_value(module_asset, source, &mut config, ident, init, eval_context);
             }
         }
     }
@@ -252,12 +253,13 @@ pub async fn parse_segment_config_from_source(
     Ok(config.cell())
 }
 
-fn issue_source(source: Vc<Box<dyn Asset>>, span: Span) -> Vc<IssueSource> {
+fn issue_source(source: Vc<Box<dyn Source>>, span: Span) -> Vc<IssueSource> {
     IssueSource::from_byte_offset(source, span.lo.to_usize(), span.hi.to_usize())
 }
 
 fn parse_config_value(
     module: Vc<Box<dyn Module>>,
+    source: Vc<Box<dyn Source>>,
     config: &mut NextSegmentConfig,
     ident: &Ident,
     init: &Expr,
@@ -269,7 +271,7 @@ fn parse_config_value(
         NextSegmentConfigParsingIssue {
             ident: module.ident(),
             detail: Vc::cell(format!("{detail} Got {explainer}.{hints}")),
-            source: issue_source(Vc::upcast(module), span),
+            source: issue_source(source, span),
         }
         .cell()
         .emit();
@@ -389,13 +391,17 @@ pub async fn parse_segment_config_from_loader_tree(
         .into_iter()
         .flatten()
     {
+        let source = Vc::upcast(FileSource::new(component));
         config.apply_parent_config(
-            &*parse_segment_config_from_source(context.process(
-                Vc::upcast(FileSource::new(component)),
-                turbo_tasks::Value::new(ReferenceType::EcmaScriptModules(
-                    EcmaScriptModulesReferenceSubType::Undefined,
-                )),
-            ))
+            &*parse_segment_config_from_source(
+                context.process(
+                    source,
+                    turbo_tasks::Value::new(ReferenceType::EcmaScriptModules(
+                        EcmaScriptModulesReferenceSubType::Undefined,
+                    )),
+                ),
+                source,
+            )
             .await?,
         );
     }

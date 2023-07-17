@@ -6,9 +6,9 @@ use turbo_tasks::{Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_binding::turbopack::{
     core::{
-        asset::Asset,
         context::AssetContext,
         file_source::FileSource,
+        module::Module,
         reference_type::{EcmaScriptModulesReferenceSubType, InnerAssets, ReferenceType},
     },
     ecmascript::{magic_identifier, text::TextContentFileSource, utils::StringifyJs},
@@ -23,7 +23,7 @@ use crate::{
 };
 
 pub struct LoaderTreeBuilder {
-    inner_assets: IndexMap<String, Vc<Box<dyn Asset>>>,
+    inner_assets: IndexMap<String, Vc<Box<dyn Module>>>,
     counter: usize,
     imports: Vec<String>,
     loader_tree_code: String,
@@ -159,8 +159,7 @@ impl LoaderTreeBuilder {
                     .process(source, reference_ty),
             };
 
-            self.inner_assets
-                .insert(format!("COMPONENT_{i}"), Vc::upcast(module));
+            self.inner_assets.insert(format!("COMPONENT_{i}"), module);
         }
         Ok(())
     }
@@ -271,12 +270,12 @@ impl LoaderTreeBuilder {
                         .push(format!("import {identifier} from \"{inner_module_id}\";"));
                     self.inner_assets.insert(
                         inner_module_id,
-                        Vc::upcast(self.context.process(
+                        self.context.process(
                             Vc::upcast(TextContentFileSource::new(Vc::upcast(FileSource::new(
                                 *alt_path,
                             )))),
                             Value::new(ReferenceType::Internal(InnerAssets::empty())),
-                        )),
+                        ),
                     );
                     writeln!(self.loader_tree_code, "{s}  alt: {identifier},")?;
                 }
@@ -354,7 +353,7 @@ impl LoaderTreeBuilder {
 pub struct LoaderTreeModule {
     pub imports: Vec<String>,
     pub loader_tree_code: String,
-    pub inner_assets: IndexMap<String, Vc<Box<dyn Asset>>>,
+    pub inner_assets: IndexMap<String, Vc<Box<dyn Module>>>,
     pub unsupported_metadata: Vec<Vc<FileSystemPath>>,
     pub pages: Vec<Vc<FileSystemPath>>,
 }
