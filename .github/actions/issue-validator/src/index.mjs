@@ -8,6 +8,7 @@ import { join } from 'node:path'
 
 const verifyCanaryLabel = 'please verify canary'
 const addReproductionLabel = 'please add a complete reproduction'
+const addMimimalReproductionLabel = 'please simplify reproduction'
 // const bugLabel = 'template: bug'
 const __dirname =
   '/home/runner/work/next.js/next.js/.github/actions/issue-validator'
@@ -53,9 +54,14 @@ async function run() {
 
     if (
       // !(isBugReport && issue.number > 43554) &&
-      ![verifyCanaryLabel, addReproductionLabel].includes(newLabel) &&
+      ![
+        verifyCanaryLabel,
+        addReproductionLabel,
+        addMimimalReproductionLabel,
+      ].includes(newLabel) &&
       !(
         labels.includes(verifyCanaryLabel) ||
+        labels.includes(addReproductionLabel) ||
         labels.includes(addReproductionLabel)
       )
     ) {
@@ -106,6 +112,22 @@ async function run() {
       ])
       return core.info(
         'Commented on issue, because it did not have a sufficient reproduction.'
+      )
+    }
+
+    if (newLabel === addMimimalReproductionLabel) {
+      await Promise.all([
+        client.issues.addLabels({
+          ...issueCommon,
+          labels: [addMimimalReproductionLabel],
+        }),
+        client.issues.createComment({
+          ...issueCommon,
+          body: readFileSync(join(__dirname, 'simplify-repro.md'), 'utf8'),
+        }),
+      ])
+      return core.info(
+        'Commented on issue, because it had a complex reproduction.'
       )
     }
 

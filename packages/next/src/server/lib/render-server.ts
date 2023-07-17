@@ -61,6 +61,16 @@ export async function initialize(opts: {
   if (result) {
     return result
   }
+
+  const isRouterWorker = opts.workerType === 'router'
+  const isRenderWorker = opts.workerType === 'render'
+  if (isRouterWorker) {
+    process.title = 'next-router-worker'
+  } else if (isRenderWorker) {
+    const type = process.env.__NEXT_PRIVATE_RENDER_WORKER!
+    process.title = 'next-render-worker-' + type
+  }
+
   let requestHandler: RequestHandler
 
   const server = http.createServer((req, res) => {
@@ -126,8 +136,8 @@ export async function initialize(opts: {
         }
         const app = next({
           ...opts,
-          _routerWorker: opts.workerType === 'router',
-          _renderWorker: opts.workerType === 'render',
+          _routerWorker: isRouterWorker,
+          _renderWorker: isRenderWorker,
           hostname,
           customServer: false,
           httpServer: server,

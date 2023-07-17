@@ -1,33 +1,32 @@
 use anyhow::Result;
 use indexmap::indexmap;
+use turbo_tasks::Vc;
 use turbopack_binding::{
-    turbo::tasks_fs::FileSystemPathVc,
+    turbo::tasks_fs::FileSystemPath,
     turbopack::{
         core::{
-            chunk::ChunkingContextVc, compile_time_info::CompileTimeInfoVc, module::ModuleVc,
-            source::SourceVc,
+            chunk::ChunkingContext, compile_time_info::CompileTimeInfo, module::Module,
+            source::Source,
         },
         ecmascript::chunk_group_files_asset::ChunkGroupFilesAsset,
         turbopack::{
-            module_options::ModuleOptionsContextVc,
-            resolve_options_context::ResolveOptionsContextVc,
-            transition::{Transition, TransitionVc},
-            ModuleAssetContextVc,
+            module_options::ModuleOptionsContext, resolve_options_context::ResolveOptionsContext,
+            transition::Transition, ModuleAssetContext,
         },
     },
 };
 
-use crate::bootstrap::{route_bootstrap, BootstrapConfigVc};
+use crate::bootstrap::route_bootstrap;
 
 #[turbo_tasks::value(shared)]
 pub struct NextEdgeRouteTransition {
-    pub edge_compile_time_info: CompileTimeInfoVc,
-    pub edge_chunking_context: ChunkingContextVc,
-    pub edge_module_options_context: Option<ModuleOptionsContextVc>,
-    pub edge_resolve_options_context: ResolveOptionsContextVc,
-    pub output_path: FileSystemPathVc,
-    pub base_path: FileSystemPathVc,
-    pub bootstrap_asset: SourceVc,
+    pub edge_compile_time_info: Vc<CompileTimeInfo>,
+    pub edge_chunking_context: Vc<Box<dyn ChunkingContext>>,
+    pub edge_module_options_context: Option<Vc<ModuleOptionsContext>>,
+    pub edge_resolve_options_context: Vc<ResolveOptionsContext>,
+    pub output_path: Vc<FileSystemPath>,
+    pub base_path: Vc<FileSystemPath>,
+    pub bootstrap_asset: Vc<Box<dyn Source>>,
     pub entry_name: String,
 }
 
@@ -36,50 +35,50 @@ impl Transition for NextEdgeRouteTransition {
     #[turbo_tasks::function]
     fn process_compile_time_info(
         &self,
-        _compile_time_info: CompileTimeInfoVc,
-    ) -> CompileTimeInfoVc {
+        _compile_time_info: Vc<CompileTimeInfo>,
+    ) -> Vc<CompileTimeInfo> {
         self.edge_compile_time_info
     }
 
     #[turbo_tasks::function]
     fn process_module_options_context(
         &self,
-        context: ModuleOptionsContextVc,
-    ) -> ModuleOptionsContextVc {
+        context: Vc<ModuleOptionsContext>,
+    ) -> Vc<ModuleOptionsContext> {
         self.edge_module_options_context.unwrap_or(context)
     }
 
     #[turbo_tasks::function]
     fn process_resolve_options_context(
         &self,
-        _context: ResolveOptionsContextVc,
-    ) -> ResolveOptionsContextVc {
+        _context: Vc<ResolveOptionsContext>,
+    ) -> Vc<ResolveOptionsContext> {
         self.edge_resolve_options_context
     }
 
     #[turbo_tasks::function]
     async fn process_module(
         &self,
-        asset: ModuleVc,
-        context: ModuleAssetContextVc,
-    ) -> Result<ModuleVc> {
+        asset: Vc<Box<dyn Module>>,
+        context: Vc<ModuleAssetContext>,
+    ) -> Result<Vc<Box<dyn Module>>> {
         let new_asset = route_bootstrap(
-            asset.into(),
-            context.into(),
+            asset,
+            Vc::upcast(context),
             self.base_path,
             self.bootstrap_asset,
-            BootstrapConfigVc::cell(indexmap! {
+            Vc::cell(indexmap! {
                 "NAME".to_string() => self.entry_name.clone(),
             }),
         );
 
         let asset = ChunkGroupFilesAsset {
-            module: new_asset.into(),
+            module: Vc::upcast(new_asset),
             client_root: self.output_path,
             chunking_context: self.edge_chunking_context,
             runtime_entries: None,
         };
 
-        Ok(asset.cell().into())
+        Ok(Vc::upcast(asset.cell()))
     }
 }

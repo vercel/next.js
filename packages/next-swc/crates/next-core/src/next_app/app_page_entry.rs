@@ -2,38 +2,38 @@ use std::io::Write;
 
 use anyhow::{bail, Result};
 use indoc::writedoc;
-use next_core::{
-    app_structure::LoaderTreeVc,
-    loader_tree::{LoaderTreeModule, ServerComponentTransition},
-    mode::NextMode,
-    next_server_component::NextServerComponentTransitionVc,
-    UnsupportedDynamicMetadataIssue,
-};
-use turbo_tasks::{TryJoinIterExt, Value, ValueToString};
+use turbo_tasks::{TryJoinIterExt, Value, ValueToString, Vc};
 use turbopack_binding::{
-    turbo::tasks_fs::{rope::RopeBuilder, File, FileSystemPathVc},
+    turbo::tasks_fs::{rope::RopeBuilder, File, FileSystemPath},
     turbopack::{
         core::{
-            context::AssetContext,
-            reference_type::{InnerAssetsVc, ReferenceType},
-            virtual_source::VirtualSourceVc,
+            asset::AssetContent, context::AssetContext, issue::IssueExt,
+            reference_type::ReferenceType, virtual_source::VirtualSource,
         },
-        ecmascript::{chunk::EcmascriptChunkPlaceableVc, utils::StringifyJs},
-        turbopack::ModuleAssetContextVc,
+        ecmascript::{chunk::EcmascriptChunkPlaceable, utils::StringifyJs},
+        turbopack::ModuleAssetContext,
     },
 };
 
-use super::app_entries::{AppEntry, AppEntryVc};
+use super::app_entry::AppEntry;
+use crate::{
+    app_structure::LoaderTree,
+    loader_tree::{LoaderTreeModule, ServerComponentTransition},
+    mode::NextMode,
+    next_app::UnsupportedDynamicMetadataIssue,
+    next_server_component::NextServerComponentTransition,
+};
 
 /// Computes the entry for a Next.js app page.
-pub(super) async fn get_app_page_entry(
-    context: ModuleAssetContextVc,
-    loader_tree: LoaderTreeVc,
-    app_dir: FileSystemPathVc,
-    pathname: &str,
-    project_root: FileSystemPathVc,
-) -> Result<AppEntryVc> {
-    let server_component_transition = NextServerComponentTransitionVc::new().into();
+#[turbo_tasks::function]
+pub async fn get_app_page_entry(
+    context: Vc<ModuleAssetContext>,
+    loader_tree: Vc<LoaderTree>,
+    app_dir: Vc<FileSystemPath>,
+    pathname: String,
+    project_root: Vc<FileSystemPath>,
+) -> Result<Vc<AppEntry>> {
+    let server_component_transition = Vc::upcast(NextServerComponentTransition::new());
 
     let loader_tree = LoaderTreeModule::build(
         loader_tree,
@@ -57,7 +57,6 @@ pub(super) async fn get_app_page_entry(
             files: unsupported_metadata,
         }
         .cell()
-        .as_issue()
         .emit();
     }
 
@@ -72,7 +71,7 @@ pub(super) async fn get_app_page_entry(
     // NOTE(alexkirsz) Keep in sync with
     // next.js/packages/next/src/build/webpack/loaders/next-app-loader.ts
     // TODO(alexkirsz) Support custom global error.
-    let original_name = get_original_page_name(pathname);
+    let original_name = get_original_page_name(&pathname);
 
     writedoc!(
         result,
@@ -95,14 +94,16 @@ pub(super) async fn get_app_page_entry(
     let file = File::from(result.build());
     let source =
         // TODO(alexkirsz) Figure out how to name this virtual asset.
-        VirtualSourceVc::new(project_root.join("todo.tsx"), file.into());
+        VirtualSource::new(project_root.join("todo.tsx".to_string()), AssetContent::file(file.into()));
 
     let rsc_entry = context.process(
-        source.into(),
-        Value::new(ReferenceType::Internal(InnerAssetsVc::cell(inner_assets))),
+        Vc::upcast(source),
+        Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
     );
 
-    let Some(rsc_entry) = EcmascriptChunkPlaceableVc::resolve_from(rsc_entry).await? else {
+    let Some(rsc_entry) =
+        Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(rsc_entry).await?
+    else {
         bail!("expected an ECMAScript chunk placeable asset");
     };
 
