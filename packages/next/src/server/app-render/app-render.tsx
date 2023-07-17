@@ -1407,8 +1407,6 @@ export async function renderToHTMLOrFlight(
               initialTree={initialTree}
               initialHead={<>{createMetadata(loaderTree, undefined)}</>}
               globalErrorComponent={GlobalError}
-              notFound={undefined}
-              asNotFound={props.asNotFound}
             >
               <ComponentTree />
             </AppRouter>
@@ -1675,8 +1673,6 @@ export async function renderToHTMLOrFlight(
             return mergedTransformStream
           }
 
-          // const shouldInheritStreamData = !(isErrorFromMetadata && is404)
-
           const inheritedServerComponentsRenderOpts = {
             ...serverErrorComponentsRenderOpts,
             transformStream: await mergeTransformStreams(
@@ -1728,8 +1724,6 @@ export async function renderToHTMLOrFlight(
                   initialTree={initialTree}
                   initialHead={head}
                   globalErrorComponent={GlobalError}
-                  notFound={undefined}
-                  asNotFound={true}
                 >
                   <RootLayout params={{}}>
                     {notFoundStyles}

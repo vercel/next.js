@@ -460,11 +460,9 @@ function processMessage(
 export default function HotReload({
   assetPrefix,
   children,
-}: // notFound,
-{
+}: {
   assetPrefix: string
   children?: ReactNode
-  // notFound?: React.ReactNode
 }) {
   const [state, dispatch] = useReducer(errorOverlayReducer, {
     nextId: 1,

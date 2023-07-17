@@ -53,7 +53,6 @@ import {
 import { isBot } from '../../shared/lib/router/utils/is-bot'
 import { addBasePath } from '../add-base-path'
 import { AppRouterAnnouncer } from './app-router-announcer'
-import { NotFoundBoundary } from './not-found-boundary'
 import { RedirectBoundary } from './redirect-boundary'
 import { findHeadInCache } from './router-reducer/reducers/find-head-in-cache'
 import { createInfinitePromise } from './infinite-promise'
@@ -104,9 +103,6 @@ type AppRouterProps = Omit<
   buildId: string
   initialHead: ReactNode
   assetPrefix: string
-  // Top level boundaries props
-  notFound: React.ReactNode | undefined
-  asNotFound: boolean
 }
 
 function isExternalURL(url: URL) {
@@ -224,8 +220,6 @@ function Router({
   initialCanonicalUrl,
   children,
   assetPrefix,
-  notFound,
-  asNotFound,
 }: AppRouterProps) {
   const initialState = useMemo(
     () =>
@@ -484,11 +478,7 @@ function Router({
               >
                 {HotReloader ? (
                   // HotReloader implements a separate NotFoundBoundary to maintain the HMR ping interval
-                  <HotReloader assetPrefix={assetPrefix}>
-                    {/* <NotFoundBoundary notFound={Fallback} asNotFound={asNotFound}> */}
-                    {content}
-                    {/* </NotFoundBoundary> */}
-                  </HotReloader>
+                  <HotReloader assetPrefix={assetPrefix}>{content}</HotReloader>
                 ) : (
                   content
                 )}
