@@ -101,12 +101,6 @@ import { loadManifest } from './load-manifest'
 
 export * from './base-server'
 
-type ExpressMiddleware = (
-  req: IncomingMessage,
-  res: ServerResponse,
-  next: (err?: Error) => void
-) => void
-
 export interface NodeRequestHandler {
   (
     req: IncomingMessage | BaseNextRequest,
@@ -141,7 +135,6 @@ function getMiddlewareMatcher(
 
 export default class NextNodeServer extends BaseServer {
   private imageResponseCache?: ResponseCache
-  private compression?: ExpressMiddleware
   protected renderWorkersPromises?: Promise<void>
   protected renderWorkerOpts?: Parameters<
     typeof import('./lib/render-server').initialize
@@ -171,10 +164,6 @@ export default class NextNodeServer extends BaseServer {
     }
     if (this.renderOpts.nextScriptWorkers) {
       process.env.__NEXT_SCRIPT_WORKERS = JSON.stringify(true)
-    }
-
-    if (this.nextConfig.compress) {
-      this.compression = require('next/dist/compiled/compression')()
     }
 
     if (this.nextConfig.experimental.deploymentId) {
@@ -495,9 +484,9 @@ export default class NextNodeServer extends BaseServer {
 
   private streamResponseChunk(res: ServerResponse, chunk: any) {
     res.write(chunk)
-    // When both compression and streaming are enabled, we need to explicitly
-    // flush the response to avoid it being buffered by gzip.
-    if (this.compression && 'flush' in res) {
+    // When streaming is enabled, we need to explicitly
+    // flush the response to avoid it being buffered.
+    if ('flush' in res) {
       ;(res as any).flush()
     }
   }

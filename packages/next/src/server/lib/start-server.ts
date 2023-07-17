@@ -184,6 +184,8 @@ export async function startServer({
             (port + '').startsWith(':') ? '' : ':'
           }${port}, url: ${appUrl}`
         )
+        // expose the main port to render workers
+        process.env.PORT = port + ''
       }
       resolve()
     })
@@ -217,7 +219,6 @@ export async function startServer({
           env: {
             FORCE_COLOR: '1',
             ...((initialEnv || process.env) as typeof process.env),
-            PORT: '',
             NODE_OPTIONS: getNodeOptionsWithoutInspect(),
             ...(process.env.NEXT_CPU_PROF
               ? { __NEXT_PRIVATE_CPU_PROFILE: `CPU.router` }
