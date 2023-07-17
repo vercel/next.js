@@ -3,22 +3,22 @@ use std::future::Future;
 use anyhow::Result;
 use turbo_tasks::{
     graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow},
-    TryJoinIterExt,
+    TryJoinIterExt, Vc,
 };
 use turbopack_binding::turbopack::core::{
-    asset::{Asset, AssetVc, AssetsVc},
+    asset::{Asset, Assets},
     reference::AssetReference,
 };
 
-use super::NextDynamicEntryModuleVc;
+use super::NextDynamicEntryModule;
 
 #[turbo_tasks::value(transparent)]
-pub struct NextDynamicEntries(Vec<NextDynamicEntryModuleVc>);
+pub struct NextDynamicEntries(Vec<Vc<NextDynamicEntryModule>>);
 
 #[turbo_tasks::value_impl]
-impl NextDynamicEntriesVc {
+impl NextDynamicEntries {
     #[turbo_tasks::function]
-    pub async fn from_entries(entries: AssetsVc) -> Result<NextDynamicEntriesVc> {
+    pub async fn from_entries(entries: Vc<Assets>) -> Result<Vc<NextDynamicEntries>> {
         let nodes: Vec<_> = AdjacencyMap::new()
             .skip_duplicates()
             .visit(
@@ -50,7 +50,7 @@ impl NextDynamicEntriesVc {
             }
         }
 
-        Ok(NextDynamicEntriesVc::cell(next_dynamics))
+        Ok(Vc::cell(next_dynamics))
     }
 }
 
@@ -58,8 +58,8 @@ struct VisitDynamic;
 
 #[derive(Clone, Eq, PartialEq, Hash)]
 enum VisitDynamicNode {
-    Dynamic(NextDynamicEntryModuleVc),
-    Internal(AssetVc),
+    Dynamic(Vc<NextDynamicEntryModule>),
+    Internal(Vc<Box<dyn Asset>>),
 }
 
 impl Visit<VisitDynamicNode> for VisitDynamic {
@@ -77,7 +77,7 @@ impl Visit<VisitDynamicNode> for VisitDynamic {
         let node = node.clone();
         async move {
             let asset = match node {
-                VisitDynamicNode::Dynamic(dynamic_asset) => dynamic_asset.into(),
+                VisitDynamicNode::Dynamic(dynamic_asset) => Vc::upcast(dynamic_asset),
                 VisitDynamicNode::Internal(asset) => asset,
             };
 
@@ -97,7 +97,7 @@ impl Visit<VisitDynamicNode> for VisitDynamic {
 
             let referenced_assets = referenced_assets.map(|asset| async move {
                 if let Some(next_dynamic_asset) =
-                    NextDynamicEntryModuleVc::resolve_from(asset).await?
+                    Vc::try_resolve_downcast_type::<NextDynamicEntryModule>(asset).await?
                 {
                     return Ok(VisitDynamicNode::Dynamic(next_dynamic_asset));
                 }

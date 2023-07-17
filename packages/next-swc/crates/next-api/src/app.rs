@@ -1,26 +1,28 @@
 use next_core::app_structure::Entrypoint;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, CompletionVc};
+use turbo_tasks::{trace::TraceRawVcs, Completion, Vc};
 
-use crate::route::{Endpoint, EndpointVc, Route, RouteVc, WrittenEndpointVc};
+use crate::route::{Endpoint, Route, WrittenEndpoint};
 
 #[turbo_tasks::function]
-pub async fn app_entry_point_to_route(entrypoint: Entrypoint) -> RouteVc {
+pub async fn app_entry_point_to_route(entrypoint: Entrypoint) -> Vc<Route> {
     match entrypoint {
         Entrypoint::AppPage { .. } => Route::AppPage {
-            html_endpoint: AppPageEndpoint {
-                ty: AppPageEndpointType::Html,
-            }
-            .cell()
-            .into(),
-            rsc_endpoint: AppPageEndpoint {
-                ty: AppPageEndpointType::Rsc,
-            }
-            .cell()
-            .into(),
+            html_endpoint: Vc::upcast(
+                AppPageEndpoint {
+                    ty: AppPageEndpointType::Html,
+                }
+                .cell(),
+            ),
+            rsc_endpoint: Vc::upcast(
+                AppPageEndpoint {
+                    ty: AppPageEndpointType::Rsc,
+                }
+                .cell(),
+            ),
         },
         Entrypoint::AppRoute { .. } => Route::AppRoute {
-            endpoint: AppRouteEndpoint.cell().into(),
+            endpoint: Vc::upcast(AppRouteEndpoint.cell()),
         },
     }
     .cell()
@@ -40,12 +42,12 @@ struct AppPageEndpoint {
 #[turbo_tasks::value_impl]
 impl Endpoint for AppPageEndpoint {
     #[turbo_tasks::function]
-    fn write_to_disk(&self) -> WrittenEndpointVc {
+    fn write_to_disk(&self) -> Vc<WrittenEndpoint> {
         todo!()
     }
 
     #[turbo_tasks::function]
-    fn changed(&self) -> CompletionVc {
+    fn changed(&self) -> Vc<Completion> {
         todo!()
     }
 }
@@ -56,12 +58,12 @@ struct AppRouteEndpoint;
 #[turbo_tasks::value_impl]
 impl Endpoint for AppRouteEndpoint {
     #[turbo_tasks::function]
-    fn write_to_disk(&self) -> WrittenEndpointVc {
+    fn write_to_disk(&self) -> Vc<WrittenEndpoint> {
         todo!()
     }
 
     #[turbo_tasks::function]
-    fn changed(&self) -> CompletionVc {
+    fn changed(&self) -> Vc<Completion> {
         todo!()
     }
 }

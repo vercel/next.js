@@ -1,17 +1,15 @@
 use anyhow::{bail, Result};
+use turbo_tasks::Vc;
 use turbopack_binding::turbopack::{
-    core::module::ModuleVc,
-    ecmascript::chunk::EcmascriptChunkPlaceableVc,
-    turbopack::{
-        transition::{Transition, TransitionVc},
-        ModuleAssetContextVc,
-    },
+    core::module::Module,
+    ecmascript::chunk::EcmascriptChunkPlaceable,
+    turbopack::{transition::Transition, ModuleAssetContext},
 };
 
-use super::server_component_module::NextServerComponentModuleVc;
+use super::server_component_module::NextServerComponentModule;
 
 /// This transition wraps a module into a marker
-/// [`NextServerComponentModuleVc`].
+/// [`Vc<NextServerComponentModule>`].
 ///
 /// When walking the module graph to build the client reference manifest, this
 /// is used to determine under which server component CSS client references are
@@ -20,10 +18,10 @@ use super::server_component_module::NextServerComponentModuleVc;
 pub struct NextServerComponentTransition {}
 
 #[turbo_tasks::value_impl]
-impl NextServerComponentTransitionVc {
-    /// Creates a new [`NextServerComponentTransitionVc`].
+impl NextServerComponentTransition {
+    /// Creates a new [`Vc<NextServerComponentTransition>`].
     #[turbo_tasks::function]
-    pub fn new() -> Self {
+    pub fn new() -> Vc<Self> {
         NextServerComponentTransition {}.cell()
     }
 }
@@ -32,14 +30,16 @@ impl NextServerComponentTransitionVc {
 impl Transition for NextServerComponentTransition {
     #[turbo_tasks::function]
     async fn process_module(
-        _self_vc: NextServerComponentTransitionVc,
-        module: ModuleVc,
-        _context: ModuleAssetContextVc,
-    ) -> Result<ModuleVc> {
-        let Some(module) = EcmascriptChunkPlaceableVc::resolve_from(module).await? else {
+        self: Vc<Self>,
+        module: Vc<Box<dyn Module>>,
+        _context: Vc<ModuleAssetContext>,
+    ) -> Result<Vc<Box<dyn Module>>> {
+        let Some(module) =
+            Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(module).await?
+        else {
             bail!("not an ecmascript module");
         };
 
-        Ok(NextServerComponentModuleVc::new(module).into())
+        Ok(Vc::upcast(NextServerComponentModule::new(module)))
     }
 }
