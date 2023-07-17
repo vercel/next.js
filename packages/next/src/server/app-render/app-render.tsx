@@ -1669,11 +1669,12 @@ export async function renderToHTMLOrFlight(
             async () => {
               const injectedCSS = new Set<string>()
               const injectedFontPreloadTags = new Set<string>()
-              const RootLayout = await getRootLayout(
-                loaderTree,
-                injectedCSS,
-                injectedFontPreloadTags
-              )
+              const RootLayout =
+                (await getRootLayout(
+                  loaderTree,
+                  injectedCSS,
+                  injectedFontPreloadTags
+                )) || ErrorHtml
               const [NotFound, notFoundStyles] = await getNotFound(
                 loaderTree,
                 injectedCSS,
@@ -1704,7 +1705,6 @@ export async function renderToHTMLOrFlight(
 
               function Rethrow() {
                 throw err
-                return null
               }
 
               return (
@@ -1717,6 +1717,7 @@ export async function renderToHTMLOrFlight(
                   globalErrorComponent={GlobalError}
                 >
                   {useDefaultError ? (
+                    // @ts-ignore Its return type 'void' is not a valid JSX element.
                     <Rethrow />
                   ) : (
                     <RootLayout params={{}}>

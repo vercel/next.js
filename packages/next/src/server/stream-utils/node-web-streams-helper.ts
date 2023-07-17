@@ -42,7 +42,8 @@ export function cloneTransformStream(source: TransformStream) {
         controller.enqueue(value)
       }
     },
-    transform(chunk, controller) {},
+    // skip the its own written chunks
+    transform() {},
   })
 
   return clone
