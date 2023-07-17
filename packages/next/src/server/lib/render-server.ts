@@ -68,7 +68,7 @@ export async function initialize(opts: {
     process.title = 'next-router-worker'
   } else if (isRenderWorker) {
     const type = process.env.__NEXT_PRIVATE_RENDER_WORKER!
-    process.title = 'next-render-worker' + type
+    process.title = 'next-render-worker-' + type
   }
 
   let requestHandler: RequestHandler
