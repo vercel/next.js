@@ -1,24 +1,13 @@
 const http = require('http')
 const { parse } = require('url')
 const next = require('next')
+const getPort = require('get-port')
 
 async function main() {
   const dev = process.env.NEXT_TEST_MODE === 'dev'
   process.env.NODE_ENV = dev ? 'development' : 'production'
 
-  const port = await new Promise((resolve) => {
-    const server = http.createServer(() => {})
-    server
-      .on('listening', () => {
-        const freePort = server.address().port
-        server.close()
-        process.nextTick(() => {
-          resolve(freePort)
-        })
-      })
-      .listen(0)
-  })
-
+  const port = await getPort()
   const app = next({ dev, port })
   const handle = app.getRequestHandler()
 

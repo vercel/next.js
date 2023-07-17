@@ -1,20 +1,10 @@
 const { createServer } = require('http')
 const { parse } = require('url')
 const next = require('next')
+const getPort = require('get-port')
 
 async function main() {
-  const port = await new Promise((resolve) => {
-    const server = createServer(() => {})
-    server
-      .on('listening', () => {
-        const freePort = server.address().port
-        server.close()
-        process.nextTick(() => {
-          resolve(freePort)
-        })
-      })
-      .listen(0)
-  })
+  const port = await getPort()
   const hostname = 'localhost'
   // when using middleware `hostname` and `port` must be provided below
   const app = next({ hostname, port })
