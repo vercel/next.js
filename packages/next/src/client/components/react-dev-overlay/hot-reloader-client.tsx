@@ -35,7 +35,6 @@ import {
 } from './internal/helpers/use-websocket'
 import { parseComponentStack } from './internal/helpers/parse-component-stack'
 import type { VersionInfo } from '../../../server/dev/parse-version-info'
-import { isNotFoundError } from '../not-found'
 
 interface Dispatcher {
   onBuildOk(): void
@@ -420,23 +419,31 @@ function processMessage(
         fetch(window.location.href, {
           credentials: 'same-origin',
         }).then((pageRes) => {
-          if (pageRes.ok || pageRes.status === 404) {
-            // Page exists now, reload
-            startTransition(() => {
-              // @ts-ignore it exists, it's just hidden
-              router.fastRefresh()
-              dispatcher.onRefresh()
-            })
-          } else if (pageRes.status === 404) {
+          let shouldRefresh = pageRes.ok
+          // TODO-APP: investigate why edge runtime needs to reload
+          const isEdgeRuntime = pageRes.headers.get('x-edge-runtime') === '1'
+          if (pageRes.status === 404) {
             // Check if head present as document.head could be null
             // We are still on the page,
             // dispatch an error so it's caught by the NotFound handler
             // dispatcher.onNotFound()
-            // const devErrorMetaTag = document.head?.querySelector(
-            //   'meta[name="next-error"]'
-            // )
-            // shouldRefresh = true // !devErrorMetaTag
+            const devErrorMetaTag = document.head?.querySelector(
+              'meta[name="next-error"]'
+            )
+            shouldRefresh = !devErrorMetaTag
           }
+          // Page exists now, reload
+          startTransition(() => {
+            if (shouldRefresh) {
+              if (isEdgeRuntime) {
+                window.location.reload()
+              } else {
+                // @ts-ignore it exists, it's just hidden
+                router.fastRefresh()
+                dispatcher.onRefresh()
+              }
+            }
+          })
         })
       }
       return
@@ -508,9 +515,7 @@ export default function HotReload({
       frames: parseStack(reason.stack!),
     })
   }, [])
-  const handleOnReactError = useCallback((error: Error) => {
-    // not found errors are handled by the parent boundary, not the dev overlay
-    // if (isNotFoundError(error)) throw error
+  const handleOnReactError = useCallback(() => {
     RuntimeErrorHandler.hadRuntimeError = true
   }, [])
   useErrorHandler(handleOnUnhandledError, handleOnUnhandledRejection)

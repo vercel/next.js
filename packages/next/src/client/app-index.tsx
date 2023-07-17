@@ -260,7 +260,7 @@ export function hydrate() {
         .default as typeof import('./components/react-dev-overlay/hot-reloader-client').default
 
     // Don't try to hydrate if root layout is missing required tags, render error instead
-    if (rootLayoutMissingTagsError && false) {
+    if (rootLayoutMissingTagsError) {
       const reactRootElement = document.createElement('div')
       document.body.appendChild(reactRootElement)
       const reactRoot = (ReactDOMClient as any).createRoot(reactRootElement, {
