@@ -205,11 +205,11 @@ export async function initialize(opts: {
 
   if (devInstance) {
     Object.assign(devInstance.renderWorkers, renderWorkers)
-    ;(global as any)._nextDeleteCache = async (filePath: string) => {
+    ;(global as any)._nextDeleteCache = async (filePaths: string[]) => {
       try {
         await Promise.all([
-          renderWorkers.pages?.deleteCache(filePath),
-          renderWorkers.app?.deleteCache(filePath),
+          renderWorkers.pages?.deleteCache(filePaths),
+          renderWorkers.app?.deleteCache(filePaths),
         ])
       } catch (err) {
         console.error(err)

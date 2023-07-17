@@ -33,8 +33,10 @@ export function deleteAppClientCache() {
   return requireCacheHotReloader?.deleteAppClientCache()
 }
 
-export function deleteCache(filePath: string) {
-  return requireCacheHotReloader?.deleteCache(filePath)
+export function deleteCache(filePaths: string[]) {
+  for (const filePath of filePaths) {
+    requireCacheHotReloader?.deleteCache(filePath)
+  }
 }
 
 export async function propagateServerField(field: string, value: any) {
