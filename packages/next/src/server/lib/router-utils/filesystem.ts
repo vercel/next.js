@@ -579,6 +579,7 @@ export async function setupFsCheck(opts: {
               ) {
                 continue
               }
+              console.log('ensure succeeded', type, curItemPath)
             } else {
               continue
             }
