@@ -63,6 +63,7 @@ export async function initialize(opts: {
   if (initializeResult) {
     return initializeResult
   }
+  process.title = 'next-router-worker'
 
   if (!process.env.NODE_ENV) {
     // @ts-ignore not readonly
