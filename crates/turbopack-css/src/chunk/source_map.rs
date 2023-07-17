@@ -28,17 +28,17 @@ impl CssChunkSourceMapAsset {
 }
 
 #[turbo_tasks::value_impl]
-impl OutputAsset for CssChunkSourceMapAsset {}
-
-#[turbo_tasks::value_impl]
-impl Asset for CssChunkSourceMapAsset {
+impl OutputAsset for CssChunkSourceMapAsset {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
         Ok(AssetIdent::from_path(
             self.chunk.path().append(".map".to_string()),
         ))
     }
+}
 
+#[turbo_tasks::value_impl]
+impl Asset for CssChunkSourceMapAsset {
     #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<AssetContent>> {
         let sm = if let Some(sm) = *self.chunk.generate_source_map().await? {

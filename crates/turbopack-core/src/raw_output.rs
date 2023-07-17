@@ -15,15 +15,15 @@ pub struct RawOutput {
 }
 
 #[turbo_tasks::value_impl]
-impl OutputAsset for RawOutput {}
-
-#[turbo_tasks::value_impl]
-impl Asset for RawOutput {
+impl OutputAsset for RawOutput {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
         self.source.ident()
     }
+}
 
+#[turbo_tasks::value_impl]
+impl Asset for RawOutput {
     #[turbo_tasks::function]
     fn content(&self) -> Vc<AssetContent> {
         self.source.content()

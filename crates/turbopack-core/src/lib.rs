@@ -36,6 +36,7 @@ pub mod source_transform;
 pub mod target;
 mod utils;
 pub mod version;
+pub mod virtual_output;
 pub mod virtual_source;
 
 pub mod virtual_fs {

@@ -40,13 +40,14 @@ use turbopack::{
 };
 use turbopack_cli_utils::issue::{ConsoleUi, IssueSeverityCliOption, LogOptions};
 use turbopack_core::{
-    asset::{Asset, Assets},
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
     file_source::FileSource,
     issue::{IssueContextExt, IssueReporter, IssueSeverity},
-    reference::all_assets,
+    module::{Module, Modules},
+    output::OutputAsset,
+    reference::all_modules,
     resolve::options::{ImportMapping, ResolvedMap},
 };
 
@@ -207,23 +208,23 @@ async fn create_fs(name: &str, context: &str, watch: bool) -> Result<Vc<Box<dyn 
 async fn add_glob_results(
     context: Vc<Box<dyn AssetContext>>,
     result: Vc<ReadGlobResult>,
-    list: &mut Vec<Vc<Box<dyn Asset>>>,
+    list: &mut Vec<Vc<Box<dyn Module>>>,
 ) -> Result<()> {
     let result = result.await?;
     for entry in result.results.values() {
         if let DirectoryEntry::File(path) = entry {
             let source = Vc::upcast(FileSource::new(*path));
-            list.push(Vc::upcast(context.process(
+            list.push(context.process(
                 source,
                 Value::new(turbopack_core::reference_type::ReferenceType::Undefined),
-            )));
+            ));
         }
     }
     for result in result.inner.values() {
         fn recurse<'a>(
             context: Vc<Box<dyn AssetContext>>,
             result: Vc<ReadGlobResult>,
-            list: &'a mut Vec<Vc<Box<dyn Asset>>>,
+            list: &'a mut Vec<Vc<Box<dyn Module>>>,
         ) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'a>> {
             Box::pin(add_glob_results(context, result, list))
         }
@@ -242,7 +243,7 @@ async fn input_to_modules(
     context: String,
     module_options: TransientInstance<ModuleOptionsContext>,
     resolve_options: TransientInstance<ResolveOptionsContext>,
-) -> Result<Vc<Assets>> {
+) -> Result<Vc<Modules>> {
     let root = fs.root();
     let process_cwd = process_cwd
         .clone()
@@ -259,13 +260,9 @@ async fn input_to_modules(
     for input in input {
         if exact {
             let source = Vc::upcast(FileSource::new(root.join(input)));
-            list.push(Vc::upcast(
-                context
-                    .process(
-                        source,
-                        Value::new(turbopack_core::reference_type::ReferenceType::Undefined),
-                    )
-                    .into(),
+            list.push(context.process(
+                source,
+                Value::new(turbopack_core::reference_type::ReferenceType::Undefined),
             ));
         } else {
             let glob = Glob::new(input);
@@ -564,7 +561,7 @@ async fn main_operation(
             )
             .await?;
             for module in modules.iter() {
-                let set = all_assets(*module)
+                let set = all_modules(*module)
                     .issue_context(module.ident().path(), "gathering list of assets")
                     .await?;
                 for asset in set.await?.iter() {

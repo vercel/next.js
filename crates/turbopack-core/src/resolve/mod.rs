@@ -33,6 +33,7 @@ use crate::{
         pattern::{read_matches, PatternMatch},
         plugin::ResolvePlugin,
     },
+    source::{asset_to_source, Source},
 };
 
 mod alias_map;
@@ -685,7 +686,8 @@ async fn handle_resolve_plugins(
     let mut new_references = Vec::new();
 
     for primary in result_value.primary.iter() {
-        if let PrimaryResolveResult::Asset(asset) = primary {
+        if let &PrimaryResolveResult::Asset(asset) = primary {
+            let asset = asset_to_source(asset);
             if let Some(new_result) = apply_plugins_to_path(
                 asset.ident().path().resolve().await?,
                 context,

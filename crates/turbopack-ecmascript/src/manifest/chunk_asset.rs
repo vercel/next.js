@@ -83,12 +83,15 @@ fn manifest_chunk_reference_description() -> Vc<String> {
 }
 
 #[turbo_tasks::value_impl]
-impl Asset for ManifestChunkAsset {
+impl Module for ManifestChunkAsset {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
         self.asset.ident().with_modifier(modifier())
     }
+}
 
+#[turbo_tasks::value_impl]
+impl Asset for ManifestChunkAsset {
     #[turbo_tasks::function]
     fn content(&self) -> Vc<AssetContent> {
         todo!()
@@ -113,9 +116,6 @@ impl Asset for ManifestChunkAsset {
         ))
     }
 }
-
-#[turbo_tasks::value_impl]
-impl Module for ManifestChunkAsset {}
 
 #[turbo_tasks::value_impl]
 impl ChunkableModule for ManifestChunkAsset {

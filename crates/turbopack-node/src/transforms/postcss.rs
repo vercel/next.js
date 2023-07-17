@@ -109,15 +109,15 @@ struct PostCssTransformedAsset {
 }
 
 #[turbo_tasks::value_impl]
-impl Source for PostCssTransformedAsset {}
-
-#[turbo_tasks::value_impl]
-impl Asset for PostCssTransformedAsset {
+impl Source for PostCssTransformedAsset {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
         self.source.ident()
     }
+}
 
+#[turbo_tasks::value_impl]
+impl Asset for PostCssTransformedAsset {
     #[turbo_tasks::function]
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
         let this = self.await?;
@@ -170,10 +170,10 @@ fn postcss_executor(
     context: Vc<Box<dyn AssetContext>>,
     postcss_config_path: Vc<FileSystemPath>,
 ) -> Vc<Box<dyn Module>> {
-    let config_asset = Vc::upcast(context.process(
+    let config_asset = context.process(
         Vc::upcast(FileSource::new(postcss_config_path)),
         Value::new(ReferenceType::Entry(EntryReferenceSubType::Undefined)),
-    ));
+    );
 
     context.process(
         Vc::upcast(VirtualSource::new(
@@ -228,7 +228,7 @@ impl PostCssTransformedAsset {
         let css_path = css_fs_path.path.as_str();
 
         let config_value = evaluate(
-            Vc::upcast(postcss_executor),
+            postcss_executor,
             project_path,
             env,
             this.source.ident(),

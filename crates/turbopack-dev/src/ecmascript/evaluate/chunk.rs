@@ -10,6 +10,7 @@ use turbopack_core::{
     chunk::{Chunk, ChunkData, ChunkingContext, ChunksData, EvaluatableAssets, ModuleId},
     code_builder::{Code, CodeBuilder},
     ident::AssetIdent,
+    module::Module,
     output::{OutputAsset, OutputAssets},
     reference::AssetReferences,
     source_map::{GenerateSourceMap, OptionSourceMap, SourceMapAssetReference},
@@ -175,10 +176,7 @@ fn modifier() -> Vc<String> {
 }
 
 #[turbo_tasks::value_impl]
-impl OutputAsset for EcmascriptDevEvaluateChunk {}
-
-#[turbo_tasks::value_impl]
-impl Asset for EcmascriptDevEvaluateChunk {
+impl OutputAsset for EcmascriptDevEvaluateChunk {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
         let mut ident = self.entry_chunk.ident().await?.clone_value();
@@ -201,7 +199,10 @@ impl Asset for EcmascriptDevEvaluateChunk {
             self.chunking_context.chunk_path(ident, ".js".to_string()),
         ))
     }
+}
 
+#[turbo_tasks::value_impl]
+impl Asset for EcmascriptDevEvaluateChunk {
     #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<AssetReferences>> {
         let this = self.await?;

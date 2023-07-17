@@ -3,7 +3,6 @@ use turbo_tasks::{ReadRef, TryJoinIterExt, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
 use crate::{
-    asset::Asset,
     chunk::{ModuleId, OutputChunk, OutputChunkRuntimeInfo},
     output::{OutputAsset, OutputAssets},
     reference::{AssetReferences, SingleAssetReference},
@@ -97,7 +96,7 @@ impl ChunkData {
                             (
                                 path.to_owned(),
                                 Vc::upcast(SingleAssetReference::new(
-                                    chunk,
+                                    Vc::upcast(chunk),
                                     module_chunk_reference_description(),
                                 )),
                             )

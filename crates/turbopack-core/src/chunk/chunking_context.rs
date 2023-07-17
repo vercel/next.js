@@ -2,7 +2,12 @@ use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
 
 use super::{Chunk, EvaluatableAssets};
-use crate::{asset::Asset, environment::Environment, ident::AssetIdent, output::OutputAssets};
+use crate::{
+    environment::Environment,
+    ident::AssetIdent,
+    module::Module,
+    output::{OutputAsset, OutputAssets},
+};
 
 /// A context for the chunking that influences the way chunks are created
 #[turbo_tasks::value_trait]
@@ -22,12 +27,12 @@ pub trait ChunkingContext {
 
     // TODO(alexkirsz) Remove this from the chunking context.
     /// Reference Source Map Assets for chunks
-    fn reference_chunk_source_maps(self: Vc<Self>, chunk: Vc<Box<dyn Asset>>) -> Vc<bool>;
+    fn reference_chunk_source_maps(self: Vc<Self>, chunk: Vc<Box<dyn OutputAsset>>) -> Vc<bool>;
 
     fn can_be_in_same_chunk(
         self: Vc<Self>,
-        asset_a: Vc<Box<dyn Asset>>,
-        asset_b: Vc<Box<dyn Asset>>,
+        asset_a: Vc<Box<dyn Module>>,
+        asset_b: Vc<Box<dyn Module>>,
     ) -> Vc<bool>;
 
     fn asset_path(

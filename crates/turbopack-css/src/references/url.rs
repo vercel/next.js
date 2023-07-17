@@ -5,10 +5,10 @@ use swc_core::{
 };
 use turbo_tasks::{Value, ValueToString, Vc};
 use turbopack_core::{
-    asset::Asset,
     chunk::ChunkingContext,
     ident::AssetIdent,
     issue::{IssueSeverity, IssueSource},
+    output::OutputAsset,
     reference::AssetReference,
     reference_type::UrlReferenceSubType,
     resolve::{origin::ResolveOrigin, parse::Request, PrimaryResolveResult, ResolveResult},
@@ -24,7 +24,7 @@ use crate::{
 
 #[turbo_tasks::value(into = "new")]
 pub enum ReferencedAsset {
-    Some(Vc<Box<dyn Asset>>),
+    Some(Vc<Box<dyn OutputAsset>>),
     None,
 }
 

@@ -21,12 +21,13 @@ use turbo_tasks_fs::{
     glob::Glob, to_sys_path, DirectoryEntry, File, FileSystemPath, ReadGlobResult,
 };
 use turbopack_core::{
-    asset::{Asset, AssetContent},
+    asset::AssetContent,
     chunk::{ChunkableModule, ChunkingContext, EvaluatableAsset, EvaluatableAssets},
     context::AssetContext,
     file_source::FileSource,
     ident::AssetIdent,
     issue::{Issue, IssueExt, IssueSeverity},
+    module::Module,
     reference_type::{InnerAssets, ReferenceType},
     virtual_source::VirtualSource,
 };
@@ -94,7 +95,7 @@ pub struct JavaScriptEvaluation(#[turbo_tasks(trace_ignore)] JavaScriptStream);
 /// Pass the file you cared as `runtime_entries` to invalidate and reload the
 /// evaluated result automatically.
 pub async fn get_evaluate_pool(
-    module_asset: Vc<Box<dyn Asset>>,
+    module_asset: Vc<Box<dyn Module>>,
     cwd: Vc<FileSystemPath>,
     env: Vc<Box<dyn ProcessEnv>>,
     context: Vc<Box<dyn AssetContext>>,
@@ -133,7 +134,7 @@ pub async fn get_evaluate_pool(
         )),
         Value::new(ReferenceType::Internal(Vc::cell(indexmap! {
             "INNER".to_string() => module_asset,
-            "RUNTIME".to_string() => Vc::upcast(runtime_asset)
+            "RUNTIME".to_string() => runtime_asset
         }))),
     );
 
@@ -179,7 +180,7 @@ pub async fn get_evaluate_pool(
         .cell(),
     );
 
-    let output_root = chunking_context.output_root();
+    let output_root: Vc<FileSystemPath> = chunking_context.output_root();
     let emit_package = emit_package_json(output_root);
     let emit = emit(bootstrap, output_root);
     let assets_for_source_mapping = internal_assets_for_source_mapping(bootstrap, output_root);
@@ -228,7 +229,7 @@ impl futures_retry::ErrorHandler<anyhow::Error> for PoolErrorHandler {
 /// evaluated result automatically.
 #[turbo_tasks::function]
 pub fn evaluate(
-    module_asset: Vc<Box<dyn Asset>>,
+    module_asset: Vc<Box<dyn Module>>,
     cwd: Vc<FileSystemPath>,
     env: Vc<Box<dyn ProcessEnv>>,
     context_ident_for_issue: Vc<AssetIdent>,
@@ -292,7 +293,7 @@ pub fn evaluate(
 
 #[turbo_tasks::function]
 async fn compute_evaluate_stream(
-    module_asset: Vc<Box<dyn Asset>>,
+    module_asset: Vc<Box<dyn Module>>,
     cwd: Vc<FileSystemPath>,
     env: Vc<Box<dyn ProcessEnv>>,
     context_ident_for_issue: Vc<AssetIdent>,

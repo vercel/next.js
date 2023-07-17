@@ -76,10 +76,7 @@ fn chunk_list_chunk_reference_description() -> Vc<String> {
 }
 
 #[turbo_tasks::value_impl]
-impl OutputAsset for EcmascriptDevChunkList {}
-
-#[turbo_tasks::value_impl]
-impl Asset for EcmascriptDevChunkList {
+impl OutputAsset for EcmascriptDevChunkList {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
         let mut ident = self.entry_chunk.ident().await?.clone_value();
@@ -95,7 +92,10 @@ impl Asset for EcmascriptDevChunkList {
             self.chunking_context.chunk_path(ident, ".js".to_string()),
         ))
     }
+}
 
+#[turbo_tasks::value_impl]
+impl Asset for EcmascriptDevChunkList {
     #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<AssetReferences>> {
         Ok(Vc::cell(

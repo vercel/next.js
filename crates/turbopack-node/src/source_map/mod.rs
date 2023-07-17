@@ -17,7 +17,8 @@ use turbo_tasks_fs::{
 };
 use turbopack_cli_utils::source_context::format_source_context_lines;
 use turbopack_core::{
-    asset::Asset, source_map::GenerateSourceMap, PROJECT_FILESYSTEM_NAME, SOURCE_MAP_ROOT_NAME,
+    output::OutputAsset, source_map::GenerateSourceMap, PROJECT_FILESYSTEM_NAME,
+    SOURCE_MAP_ROOT_NAME,
 };
 use turbopack_ecmascript::magic_identifier::unmangle_identifiers;
 
@@ -312,15 +313,30 @@ impl StructuredError {
     }
 }
 
-#[instrument(level = Level::TRACE, skip_all)]
 pub async fn trace_stack(
     error: StructuredError,
-    root_asset: Vc<Box<dyn Asset>>,
+    root_asset: Vc<Box<dyn OutputAsset>>,
     output_path: Vc<FileSystemPath>,
     project_dir: Vc<FileSystemPath>,
 ) -> Result<String> {
     let assets_for_source_mapping = internal_assets_for_source_mapping(root_asset, output_path);
 
+    trace_stack_with_source_mapping_assets(
+        error,
+        assets_for_source_mapping,
+        output_path,
+        project_dir,
+    )
+    .await
+}
+
+#[instrument(level = Level::TRACE, skip_all)]
+pub async fn trace_stack_with_source_mapping_assets(
+    error: StructuredError,
+    assets_for_source_mapping: Vc<AssetsForSourceMapping>,
+    output_path: Vc<FileSystemPath>,
+    project_dir: Vc<FileSystemPath>,
+) -> Result<String> {
     error
         .print(
             assets_for_source_mapping,

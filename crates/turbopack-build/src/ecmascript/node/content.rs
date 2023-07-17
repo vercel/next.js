@@ -5,8 +5,9 @@ use indoc::writedoc;
 use turbo_tasks::{TryJoinIterExt, Value, Vc};
 use turbo_tasks_fs::File;
 use turbopack_core::{
-    asset::{Asset, AssetContent},
+    asset::AssetContent,
     code_builder::{Code, CodeBuilder},
+    output::OutputAsset,
     source_map::{GenerateSourceMap, OptionSourceMap},
 };
 use turbopack_ecmascript::{

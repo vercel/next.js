@@ -3,7 +3,7 @@ use turbo_tasks::{Upcast, Value, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
 use super::{options::ResolveOptions, parse::Request, ResolveResult};
-use crate::{asset::AssetOption, context::AssetContext, reference_type::ReferenceType};
+use crate::{context::AssetContext, module::OptionModule, reference_type::ReferenceType};
 
 /// A location where resolving can occur from. It carries some meta information
 /// that are needed for resolving from here.
@@ -21,7 +21,8 @@ pub trait ResolveOrigin {
 
     /// Get an inner asset form this origin that doesn't require resolving but
     /// is directly attached
-    fn get_inner_asset(self: Vc<Self>, _request: Vc<Request>) -> Vc<AssetOption> {
+    fn get_inner_asset(self: Vc<Self>, request: Vc<Request>) -> Vc<OptionModule> {
+        let _ = request;
         Vc::cell(None)
     }
 }
@@ -83,7 +84,7 @@ async fn resolve_asset(
     reference_type: Value<ReferenceType>,
 ) -> Result<Vc<ResolveResult>> {
     if let Some(asset) = *resolve_origin.get_inner_asset(request).await? {
-        return Ok(ResolveResult::asset(asset).cell());
+        return Ok(ResolveResult::asset(Vc::upcast(asset)).cell());
     }
     Ok(resolve_origin.context().resolve_asset(
         resolve_origin.origin_path(),
@@ -147,7 +148,7 @@ impl ResolveOrigin for ResolveOriginWithTransition {
     }
 
     #[turbo_tasks::function]
-    fn get_inner_asset(&self, request: Vc<Request>) -> Vc<AssetOption> {
+    fn get_inner_asset(&self, request: Vc<Request>) -> Vc<OptionModule> {
         self.previous.get_inner_asset(request)
     }
 }

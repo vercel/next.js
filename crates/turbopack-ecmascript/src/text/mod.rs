@@ -30,10 +30,7 @@ impl TextContentFileSource {
 }
 
 #[turbo_tasks::value_impl]
-impl Source for TextContentFileSource {}
-
-#[turbo_tasks::value_impl]
-impl Asset for TextContentFileSource {
+impl Source for TextContentFileSource {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
         self.source
@@ -41,7 +38,10 @@ impl Asset for TextContentFileSource {
             .with_modifier(modifier())
             .rename_as("*.mjs".to_string())
     }
+}
 
+#[turbo_tasks::value_impl]
+impl Asset for TextContentFileSource {
     #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<AssetContent>> {
         let source = self.source.content().file_content();

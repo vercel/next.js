@@ -5,28 +5,26 @@ use turbo_tasks_fs::{File, FileSystem};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     ident::AssetIdent,
+    module::Module,
     output::OutputAsset,
-    reference::all_assets,
+    reference::all_modules,
 };
 
 #[turbo_tasks::value(shared)]
 pub struct NftJsonAsset {
-    entry: Vc<Box<dyn Asset>>,
+    entry: Vc<Box<dyn Module>>,
 }
 
 #[turbo_tasks::value_impl]
 impl NftJsonAsset {
     #[turbo_tasks::function]
-    pub fn new(entry: Vc<Box<dyn Asset>>) -> Vc<Self> {
-        Self::cell(NftJsonAsset { entry })
+    pub fn new(entry: Vc<Box<dyn Module>>) -> Vc<Self> {
+        NftJsonAsset { entry }.cell()
     }
 }
 
 #[turbo_tasks::value_impl]
-impl OutputAsset for NftJsonAsset {}
-
-#[turbo_tasks::value_impl]
-impl Asset for NftJsonAsset {
+impl OutputAsset for NftJsonAsset {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
         let path = self.entry.ident().path().await?;
@@ -34,7 +32,10 @@ impl Asset for NftJsonAsset {
             path.fs.root().join(format!("{}.nft.json", path.path)),
         ))
     }
+}
 
+#[turbo_tasks::value_impl]
+impl Asset for NftJsonAsset {
     #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<AssetContent>> {
         let context = self.entry.ident().path().parent().await?;
@@ -42,7 +43,7 @@ impl Asset for NftJsonAsset {
         let entry_path = &*self.entry.ident().path().await?;
         let mut result = Vec::new();
         if let Some(self_path) = context.get_relative_path_to(entry_path) {
-            let set = all_assets(self.entry);
+            let set = all_modules(self.entry);
             for asset in set.await?.iter() {
                 let path = asset.ident().path().await?;
                 if let Some(rel_path) = context.get_relative_path_to(&path) {

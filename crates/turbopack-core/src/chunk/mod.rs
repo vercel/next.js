@@ -35,9 +35,9 @@ pub use self::{
     passthrough_asset::PassthroughAsset,
 };
 use crate::{
-    asset::{Asset, Assets},
+    asset::Asset,
     ident::AssetIdent,
-    module::Module,
+    module::{Module, Modules},
     output::OutputAssets,
     reference::{AssetReference, AssetReferences},
     resolve::{PrimaryResolveResult, ResolveResult},
@@ -117,6 +117,7 @@ impl Chunks {
 /// It usually contains multiple chunk items.
 #[turbo_tasks::value_trait]
 pub trait Chunk: Asset {
+    fn ident(self: Vc<Self>) -> Vc<AssetIdent>;
     fn chunking_context(self: Vc<Self>) -> Vc<Box<dyn ChunkingContext>>;
     // TODO Once output assets have their own trait, this path() method will move
     // into that trait and ident() will be removed from that. Assets on the
@@ -142,7 +143,7 @@ pub struct OutputChunkRuntimeInfo {
     /// List of paths of chunks containing individual modules that are part of
     /// this chunk. This is useful for selectively loading modules from a chunk
     /// without loading the whole chunk.
-    pub module_chunks: Option<Vc<Assets>>,
+    pub module_chunks: Option<Vc<OutputAssets>>,
     pub placeholder_for_future_extensions: (),
 }
 
@@ -253,7 +254,7 @@ pub struct ChunkContentResult<I> {
 pub trait FromChunkableModule: ChunkItem {
     async fn from_asset(
         context: Vc<Box<dyn ChunkingContext>>,
-        asset: Vc<Box<dyn Asset>>,
+        asset: Vc<Box<dyn Module>>,
     ) -> Result<Option<Vc<Self>>>;
     async fn from_async_asset(
         context: Vc<Box<dyn ChunkingContext>>,
@@ -264,8 +265,8 @@ pub trait FromChunkableModule: ChunkItem {
 
 pub async fn chunk_content_split<I>(
     context: Vc<Box<dyn ChunkingContext>>,
-    entry: Vc<Box<dyn Asset>>,
-    additional_entries: Option<Vc<Assets>>,
+    entry: Vc<Box<dyn Module>>,
+    additional_entries: Option<Vc<Modules>>,
     availability_info: Value<AvailabilityInfo>,
 ) -> Result<ChunkContentResult<Vc<I>>>
 where
@@ -278,8 +279,8 @@ where
 
 pub async fn chunk_content<I>(
     context: Vc<Box<dyn ChunkingContext>>,
-    entry: Vc<Box<dyn Asset>>,
-    additional_entries: Option<Vc<Assets>>,
+    entry: Vc<Box<dyn Module>>,
+    additional_entries: Option<Vc<Modules>>,
     availability_info: Value<AvailabilityInfo>,
 ) -> Result<Option<ChunkContentResult<Vc<I>>>>
 where
@@ -293,11 +294,11 @@ where
 enum ChunkContentGraphNode<I> {
     // An asset not placed in the current chunk, but whose references we will
     // follow to find more graph nodes.
-    PassthroughAsset { asset: Vc<Box<dyn Asset>> },
+    PassthroughAsset { asset: Vc<Box<dyn Module>> },
     // Chunk items that are placed into the current chunk
     ChunkItem { item: I, ident: ReadRef<String> },
     // Asset that is already available and doesn't need to be included
-    AvailableAsset(Vc<Box<dyn Asset>>),
+    AvailableAsset(Vc<Box<dyn Module>>),
     // Chunks that are loaded in parallel to the current chunk
     Chunk(Vc<Box<dyn Chunk>>),
     ExternalAssetReference(Vc<Box<dyn AssetReference>>),
@@ -306,7 +307,7 @@ enum ChunkContentGraphNode<I> {
 #[derive(Clone, Copy)]
 struct ChunkContentContext {
     chunking_context: Vc<Box<dyn ChunkingContext>>,
-    entry: Vc<Box<dyn Asset>>,
+    entry: Vc<Box<dyn Module>>,
     availability_info: Value<AvailabilityInfo>,
     split: bool,
 }
@@ -316,7 +317,7 @@ async fn reference_to_graph_nodes<I>(
     reference: Vc<Box<dyn AssetReference>>,
 ) -> Result<
     Vec<(
-        Option<(Vc<Box<dyn Asset>>, ChunkingType)>,
+        Option<(Vc<Box<dyn Module>>, ChunkingType)>,
         ChunkContentGraphNode<Vc<I>>,
     )>,
 >
@@ -353,6 +354,10 @@ where
     let mut graph_nodes = vec![];
 
     for asset in assets {
+        let asset = asset.resolve().await?;
+        let Some(asset) = Vc::try_resolve_downcast::<Box<dyn Module>>(asset).await? else {
+            continue;
+        };
         if let Some(available_assets) = context.availability_info.available_assets() {
             if *available_assets.includes(asset).await? {
                 graph_nodes.push((
@@ -479,13 +484,13 @@ const MAX_CHUNK_ITEMS_COUNT: usize = 5000;
 struct ChunkContentVisit<I> {
     context: ChunkContentContext,
     chunk_items_count: usize,
-    processed_assets: HashSet<(ChunkingType, Vc<Box<dyn Asset>>)>,
+    processed_assets: HashSet<(ChunkingType, Vc<Box<dyn Module>>)>,
     _phantom: PhantomData<I>,
 }
 
 type ChunkItemToGraphNodesEdges<I> = impl Iterator<
     Item = (
-        Option<(Vc<Box<dyn Asset>>, ChunkingType)>,
+        Option<(Vc<Box<dyn Module>>, ChunkingType)>,
         ChunkContentGraphNode<Vc<I>>,
     ),
 >;
@@ -498,7 +503,7 @@ where
     I: FromChunkableModule,
 {
     type Edge = (
-        Option<(Vc<Box<dyn Asset>>, ChunkingType)>,
+        Option<(Vc<Box<dyn Module>>, ChunkingType)>,
         ChunkContentGraphNode<Vc<I>>,
     );
     type EdgesIntoIter = ChunkItemToGraphNodesEdges<I>;
@@ -507,7 +512,7 @@ where
     fn visit(
         &mut self,
         (option_key, node): (
-            Option<(Vc<Box<dyn Asset>>, ChunkingType)>,
+            Option<(Vc<Box<dyn Module>>, ChunkingType)>,
             ChunkContentGraphNode<Vc<I>>,
         ),
     ) -> VisitControlFlow<ChunkContentGraphNode<Vc<I>>, ()> {
@@ -570,8 +575,8 @@ where
 
 async fn chunk_content_internal_parallel<I>(
     chunking_context: Vc<Box<dyn ChunkingContext>>,
-    entry: Vc<Box<dyn Asset>>,
-    additional_entries: Option<Vc<Assets>>,
+    entry: Vc<Box<dyn Module>>,
+    additional_entries: Option<Vc<Modules>>,
     availability_info: Value<AvailabilityInfo>,
     split: bool,
 ) -> Result<Option<ChunkContentResult<Vc<I>>>>

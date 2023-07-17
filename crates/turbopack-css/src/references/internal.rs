@@ -1,7 +1,7 @@
 use anyhow::Result;
 use turbo_tasks::{ValueToString, Vc};
 use turbopack_core::{
-    asset::Asset, chunk::ChunkableModuleReference, module::Module, reference::AssetReference,
+    chunk::ChunkableModuleReference, module::Module, reference::AssetReference,
     resolve::ResolveResult,
 };
 

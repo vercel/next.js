@@ -8,6 +8,7 @@ use turbopack_core::{
     asset::{Asset, AssetContent},
     ident::AssetIdent,
     issue::{IssueSeverity, OptionIssueSource},
+    module::Module,
     reference::{AssetReference, AssetReferences},
     reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::{
@@ -38,12 +39,15 @@ impl TsConfigModuleAsset {
 }
 
 #[turbo_tasks::value_impl]
-impl Asset for TsConfigModuleAsset {
+impl Module for TsConfigModuleAsset {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
         self.source.ident()
     }
+}
 
+#[turbo_tasks::value_impl]
+impl Asset for TsConfigModuleAsset {
     #[turbo_tasks::function]
     fn content(&self) -> Vc<AssetContent> {
         self.source.content()

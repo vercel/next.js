@@ -91,10 +91,7 @@ struct WebpackLoadersProcessedAsset {
 }
 
 #[turbo_tasks::value_impl]
-impl Source for WebpackLoadersProcessedAsset {}
-
-#[turbo_tasks::value_impl]
-impl Asset for WebpackLoadersProcessedAsset {
+impl Source for WebpackLoadersProcessedAsset {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
         Ok(
@@ -105,7 +102,10 @@ impl Asset for WebpackLoadersProcessedAsset {
             },
         )
     }
+}
 
+#[turbo_tasks::value_impl]
+impl Asset for WebpackLoadersProcessedAsset {
     #[turbo_tasks::function]
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
         Ok(self.process().await?.content)
@@ -159,7 +159,7 @@ impl WebpackLoadersProcessedAsset {
         let resource_path = resource_fs_path.path.as_str();
         let loaders = transform.loaders.await?;
         let config_value = evaluate(
-            Vc::upcast(webpack_loaders_executor),
+            webpack_loaders_executor,
             project_path,
             env,
             this.source.ident(),

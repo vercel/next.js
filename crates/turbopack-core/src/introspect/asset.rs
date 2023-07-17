@@ -7,8 +7,11 @@ use super::{Introspectable, IntrospectableChildren};
 use crate::{
     asset::{Asset, AssetContent},
     chunk::{ChunkableModuleReference, ChunkingType},
+    module::Module,
+    output::OutputAsset,
     reference::{AssetReference, AssetReferences},
     resolve::PrimaryResolveResult,
+    source::Source,
 };
 
 #[turbo_tasks::value]
@@ -67,8 +70,21 @@ impl Introspectable for IntrospectableAsset {
     }
 
     #[turbo_tasks::function]
-    fn title(&self) -> Vc<String> {
-        self.0.ident().to_string()
+    async fn title(&self) -> Result<Vc<String>> {
+        let asset = self.0.resolve().await?;
+        Ok(
+            if let Some(source) = Vc::try_resolve_downcast::<Box<dyn Source>>(asset).await? {
+                source.ident().to_string()
+            } else if let Some(module) = Vc::try_resolve_downcast::<Box<dyn Module>>(asset).await? {
+                module.ident().to_string()
+            } else if let Some(output_asset) =
+                Vc::try_resolve_downcast::<Box<dyn OutputAsset>>(asset).await?
+            {
+                output_asset.ident().to_string()
+            } else {
+                Vc::cell("unknown type".to_string())
+            },
+        )
     }
 
     #[turbo_tasks::function]

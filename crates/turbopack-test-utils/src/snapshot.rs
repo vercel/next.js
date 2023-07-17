@@ -49,7 +49,7 @@ pub async fn snapshot_issues<
         }
 
         // Annoyingly, the PlainIssue.source -> PlainIssueSource.asset ->
-        // PlainAsset.path -> FileSystemPath.fs -> DiskFileSystem.root changes
+        // PlainSource.path -> FileSystemPath.fs -> DiskFileSystem.root changes
         // for everyone.
         let content = debug_string
             .as_str()

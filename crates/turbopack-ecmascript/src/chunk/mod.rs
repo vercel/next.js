@@ -20,6 +20,7 @@ use turbopack_core::{
         asset::{children_from_asset_references, content_to_details, IntrospectableAsset},
         Introspectable, IntrospectableChildren,
     },
+    module::Module,
     reference::AssetReferences,
 };
 
@@ -218,6 +219,79 @@ pub struct EcmascriptChunkComparison {
 #[turbo_tasks::value_impl]
 impl Chunk for EcmascriptChunk {
     #[turbo_tasks::function]
+    async fn ident(self: Vc<Self>) -> Result<Vc<AssetIdent>> {
+        let this = self.await?;
+
+        // All information that makes the chunk unique need to be encoded in the params.
+
+        // All main entries are included
+        let main_entries = this.main_entries.await?;
+        let main_entry_key = Vc::cell(String::new());
+        let mut assets = main_entries
+            .iter()
+            .map(|entry| (main_entry_key, entry.ident()))
+            .collect::<Vec<_>>();
+
+        // The primary name of the chunk is the only entry or the common parent of all
+        // entries.
+        let path = if let [(_, ident)] = &assets[..] {
+            ident.path()
+        } else if let &Some(common_parent) = &*self.common_parent().await? {
+            common_parent
+        } else {
+            let (_, ident) = assets[0];
+            ident.path()
+        };
+
+        // All omit entries are included
+        if let Some(omit_entries) = this.omit_entries {
+            let omit_entries = omit_entries.await?;
+            let omit_entry_key = Vc::cell("omit".to_string());
+            for entry in omit_entries.iter() {
+                assets.push((omit_entry_key, entry.ident()))
+            }
+        }
+
+        // Current availability root is included
+        if let Some(current_availability_root) = this.availability_info.current_availability_root()
+        {
+            let ident = current_availability_root.ident();
+            let need_root = if let [(_, main_entry)] = &assets[..] {
+                main_entry.resolve().await? != ident.resolve().await?
+            } else {
+                true
+            };
+            if need_root {
+                let availability_root_key = Vc::cell("current_availability_root".to_string());
+                assets.push((availability_root_key, ident));
+            }
+        }
+
+        let mut modifiers = vec![];
+
+        // Available assets are included
+        if let Some(available_assets) = this.availability_info.available_assets() {
+            modifiers.push(Vc::cell(available_assets.hash().await?.to_string()));
+        }
+
+        // Simplify when it's only a single main entry without extra info
+        let ident = if assets.len() == 1 && modifiers.is_empty() {
+            assets[0].1
+        } else {
+            AssetIdent::new(Value::new(AssetIdent {
+                path,
+                query: None,
+                fragment: None,
+                assets,
+                modifiers,
+                part: None,
+            }))
+        };
+
+        Ok(ident)
+    }
+
+    #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
         Vc::upcast(self.context)
     }
@@ -297,79 +371,6 @@ impl EcmascriptChunk {
 
 #[turbo_tasks::value_impl]
 impl Asset for EcmascriptChunk {
-    #[turbo_tasks::function]
-    async fn ident(self: Vc<Self>) -> Result<Vc<AssetIdent>> {
-        let this = self.await?;
-
-        // All information that makes the chunk unique need to be encoded in the params.
-
-        // All main entries are included
-        let main_entries = this.main_entries.await?;
-        let main_entry_key = Vc::cell(String::new());
-        let mut assets = main_entries
-            .iter()
-            .map(|entry| (main_entry_key, entry.ident()))
-            .collect::<Vec<_>>();
-
-        // The primary name of the chunk is the only entry or the common parent of all
-        // entries.
-        let path = if let [(_, ident)] = &assets[..] {
-            ident.path()
-        } else if let &Some(common_parent) = &*self.common_parent().await? {
-            common_parent
-        } else {
-            let (_, ident) = assets[0];
-            ident.path()
-        };
-
-        // All omit entries are included
-        if let Some(omit_entries) = this.omit_entries {
-            let omit_entries = omit_entries.await?;
-            let omit_entry_key = Vc::cell("omit".to_string());
-            for entry in omit_entries.iter() {
-                assets.push((omit_entry_key, entry.ident()))
-            }
-        }
-
-        // Current availability root is included
-        if let Some(current_availability_root) = this.availability_info.current_availability_root()
-        {
-            let ident = current_availability_root.ident();
-            let need_root = if let [(_, main_entry)] = &assets[..] {
-                main_entry.resolve().await? != ident.resolve().await?
-            } else {
-                true
-            };
-            if need_root {
-                let availability_root_key = Vc::cell("current_availability_root".to_string());
-                assets.push((availability_root_key, ident));
-            }
-        }
-
-        let mut modifiers = vec![];
-
-        // Available assets are included
-        if let Some(available_assets) = this.availability_info.available_assets() {
-            modifiers.push(Vc::cell(available_assets.hash().await?.to_string()));
-        }
-
-        // Simplify when it's only a single main entry without extra info
-        let ident = if assets.len() == 1 && modifiers.is_empty() {
-            assets[0].1
-        } else {
-            AssetIdent::new(Value::new(AssetIdent {
-                path,
-                query: None,
-                fragment: None,
-                assets,
-                modifiers,
-                part: None,
-            }))
-        };
-
-        Ok(ident)
-    }
-
     #[turbo_tasks::function]
     fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
         bail!("EcmascriptChunk::content() is not implemented")

@@ -7,7 +7,7 @@ use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{Chunk, ChunkingContext, EvaluatableAssets},
     ident::AssetIdent,
-    output::OutputAssets,
+    output::{OutputAsset, OutputAssets},
     reference::{AssetReferences, SingleAssetReference},
 };
 use turbopack_ecmascript::utils::StringifyJs;
@@ -33,12 +33,15 @@ impl NodeJsBootstrapAsset {
 }
 
 #[turbo_tasks::value_impl]
-impl Asset for NodeJsBootstrapAsset {
+impl OutputAsset for NodeJsBootstrapAsset {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
         AssetIdent::from_path(self.path)
     }
+}
 
+#[turbo_tasks::value_impl]
+impl Asset for NodeJsBootstrapAsset {
     #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<AssetContent>> {
         let context_path = self.path.parent().await?;

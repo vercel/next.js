@@ -271,6 +271,12 @@ async fn css_chunk_content_single_entry(
 #[turbo_tasks::value_impl]
 impl Chunk for CssChunk {
     #[turbo_tasks::function]
+    fn ident(self: Vc<Self>) -> Vc<AssetIdent> {
+        let self_as_output_asset: Vc<Box<dyn OutputAsset>> = Vc::upcast(self);
+        self_as_output_asset.ident()
+    }
+
+    #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
         self.context
     }
@@ -349,10 +355,7 @@ impl OutputChunk for CssChunk {
 }
 
 #[turbo_tasks::value_impl]
-impl OutputAsset for CssChunk {}
-
-#[turbo_tasks::value_impl]
-impl Asset for CssChunk {
+impl OutputAsset for CssChunk {
     #[turbo_tasks::function]
     async fn ident(self: Vc<Self>) -> Result<Vc<AssetIdent>> {
         let this = self.await?;
@@ -382,7 +385,10 @@ impl Asset for CssChunk {
             this.context.chunk_path(ident, ".css".to_string()),
         ))
     }
+}
 
+#[turbo_tasks::value_impl]
+impl Asset for CssChunk {
     #[turbo_tasks::function]
     fn content(self: Vc<Self>) -> Vc<AssetContent> {
         self.chunk_content().content()
@@ -501,10 +507,10 @@ pub trait CssChunkItem: ChunkItem {
 impl FromChunkableModule for Box<dyn CssChunkItem> {
     async fn from_asset(
         context: Vc<Box<dyn ChunkingContext>>,
-        asset: Vc<Box<dyn Asset>>,
+        asset: Vc<Box<dyn Module>>,
     ) -> Result<Option<Vc<Self>>> {
         if let Some(placeable) =
-            Vc::try_resolve_sidecast::<Box<dyn CssChunkPlaceable>>(asset).await?
+            Vc::try_resolve_downcast::<Box<dyn CssChunkPlaceable>>(asset).await?
         {
             return Ok(Some(placeable.as_chunk_item(context)));
         }

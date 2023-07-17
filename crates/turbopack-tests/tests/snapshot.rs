@@ -37,6 +37,7 @@ use turbopack_core::{
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment},
     file_source::FileSource,
     issue::{Issue, IssueContextExt},
+    module::Module,
     output::OutputAsset,
     reference::all_referenced_assets,
     reference_type::{EntryReferenceSubType, ReferenceType},
@@ -413,7 +414,7 @@ async fn walk_asset(
             .iter()
             .copied()
             .map(|asset| async move {
-                Ok(Vc::try_resolve_sidecast::<Box<dyn OutputAsset>>(asset).await?)
+                Ok(Vc::try_resolve_downcast::<Box<dyn OutputAsset>>(asset).await?)
             })
             .try_join()
             .await?

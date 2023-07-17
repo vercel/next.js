@@ -37,15 +37,15 @@ fn dev_html_chunk_reference_description() -> Vc<String> {
 }
 
 #[turbo_tasks::value_impl]
-impl OutputAsset for DevHtmlAsset {}
-
-#[turbo_tasks::value_impl]
-impl Asset for DevHtmlAsset {
+impl OutputAsset for DevHtmlAsset {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
         AssetIdent::from_path(self.path)
     }
+}
 
+#[turbo_tasks::value_impl]
+impl Asset for DevHtmlAsset {
     #[turbo_tasks::function]
     fn content(self: Vc<Self>) -> Vc<AssetContent> {
         self.html_content().content()

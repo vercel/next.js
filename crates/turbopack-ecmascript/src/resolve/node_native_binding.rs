@@ -11,6 +11,7 @@ use turbo_tasks_fs::{
 use turbopack_core::{
     asset::{Asset, AssetContent},
     file_source::FileSource,
+    module::{convert_asset_to_module, Module},
     reference::AssetReference,
     resolve::{
         pattern::Pattern, resolve_raw, AffectingResolvingAssetReference, PrimaryResolveResult,
@@ -100,6 +101,7 @@ pub async fn resolve_node_pre_gyp_files(
         .await?;
     let compile_target = compile_target.await?;
     if let Some(config_asset) = *config {
+        let config_asset = convert_asset_to_module(config_asset);
         if let AssetContent::File(file) = &*config_asset.content().await? {
             if let FileContent::Content(ref config_file) = &*file.await? {
                 let config_file_path = config_asset.ident().path();
@@ -140,9 +142,10 @@ pub async fn resolve_node_pre_gyp_files(
                         .results
                         .iter()
                     {
-                        if let DirectoryEntry::File(dylib) | DirectoryEntry::Symlink(dylib) = entry
+                        if let &DirectoryEntry::File(dylib) | &DirectoryEntry::Symlink(dylib) =
+                            entry
                         {
-                            assets.insert(Vc::upcast(FileSource::new(*dylib)));
+                            assets.insert(Vc::upcast(FileSource::new(dylib)));
                         }
                     }
                     assets.insert(Vc::upcast(FileSource::new(resolved_file_vc)));
@@ -159,16 +162,16 @@ pub async fn resolve_node_pre_gyp_files(
                     .results
                     .values()
                 {
-                    match entry {
+                    match *entry {
                         DirectoryEntry::File(dylib) => {
-                            assets.insert(Vc::upcast(FileSource::new(*dylib)));
+                            assets.insert(Vc::upcast(FileSource::new(dylib)));
                         }
                         DirectoryEntry::Symlink(dylib) => {
                             let realpath_with_links = dylib.realpath_with_links().await?;
                             for symlink in realpath_with_links.symlinks.iter() {
                                 assets.insert(Vc::upcast(FileSource::new(*symlink)));
                             }
-                            assets.insert(Vc::upcast(FileSource::new(*dylib)));
+                            assets.insert(Vc::upcast(FileSource::new(dylib)));
                         }
                         _ => {}
                     }

@@ -2,16 +2,16 @@ use anyhow::{anyhow, bail, Result};
 use lazy_static::lazy_static;
 use swc_core::{
     common::DUMMY_SP,
-    ecma::ast::{Expr, ExprStmt, Ident, Lit, Module, ModuleItem, Program, Script, Stmt},
+    ecma::ast::{self, Expr, ExprStmt, Ident, Lit, ModuleItem, Program, Script, Stmt},
     quote,
 };
 use turbo_tasks::{Value, ValueToString, Vc};
 use turbopack_core::{
-    asset::Asset,
     chunk::{
         ChunkableModuleReference, ChunkingContext, ChunkingType, ChunkingTypeOption, ModuleId,
     },
     issue::{IssueSeverity, OptionIssueSource},
+    module::Module,
     reference::AssetReference,
     reference_type::EcmaScriptModulesReferenceSubType,
     resolve::{
@@ -278,7 +278,7 @@ lazy_static! {
 
 pub(crate) fn insert_hoisted_stmt(program: &mut Program, stmt: Stmt) {
     match program {
-        Program::Module(Module { body, .. }) => {
+        Program::Module(ast::Module { body, .. }) => {
             let pos = body.iter().position(|item| {
                 if let ModuleItem::Stmt(Stmt::Expr(ExprStmt {
                     expr: box Expr::Lit(Lit::Str(s)),

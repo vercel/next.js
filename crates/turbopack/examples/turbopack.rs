@@ -69,7 +69,7 @@ async fn main() -> Result<()> {
                 Vc::upcast(source),
                 Value::new(turbopack_core::reference_type::ReferenceType::Undefined),
             );
-            let rebased = RebasedAsset::new(Vc::upcast(module), input, output);
+            let rebased = RebasedAsset::new(module, input, output);
             emit_with_completion(Vc::upcast(rebased), output).await?;
 
             Ok(unit().node)
