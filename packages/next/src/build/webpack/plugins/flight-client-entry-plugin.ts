@@ -271,7 +271,7 @@ export class FlightClientEntryPlugin {
           this.collectComponentInfoFromServerEntryDependency({
             entryRequest,
             compilation,
-            connection,
+            resolvedModule: connection.resolvedModule,
           })
 
         actionImports.forEach(([dep, names]) =>
@@ -492,10 +492,10 @@ export class FlightClientEntryPlugin {
 
     const collectActions = ({
       entryRequest,
-      connection,
+      resolvedModule,
     }: {
       entryRequest: string
-      connection: any
+      resolvedModule: any
     }) => {
       const collectActionsInDep = (mod: webpack.NormalModule): void => {
         if (!mod) return
@@ -524,7 +524,7 @@ export class FlightClientEntryPlugin {
       // Don't traverse the module graph anymore once hitting the action layer.
       if (!entryRequest.includes('next-flight-action-entry-loader')) {
         // Traverse the module graph to find all client components.
-        collectActionsInDep(connection.resolvedModule)
+        collectActionsInDep(resolvedModule)
       }
     }
 
@@ -544,7 +544,7 @@ export class FlightClientEntryPlugin {
 
         collectActions({
           entryRequest: request,
-          connection,
+          resolvedModule: connection.resolvedModule,
         })
       }
     }
@@ -555,11 +555,11 @@ export class FlightClientEntryPlugin {
   collectComponentInfoFromServerEntryDependency({
     entryRequest,
     compilation,
-    connection,
+    resolvedModule,
   }: {
     entryRequest: string
     compilation: any
-    connection: any /* Dependency */
+    resolvedModule: any /* Dependency */
   }): {
     cssImports: CssImports
     clientComponentImports: ClientComponentImports
@@ -622,7 +622,7 @@ export class FlightClientEntryPlugin {
     }
 
     // Traverse the module graph to find all client components.
-    filterClientComponents(connection.resolvedModule)
+    filterClientComponents(resolvedModule)
 
     return {
       clientComponentImports,
