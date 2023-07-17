@@ -4,42 +4,34 @@ use turbo_tasks_fs::FileSystemPath;
 use crate::{
     asset::{Asset, AssetContent},
     ident::AssetIdent,
-    source::Source,
+    output::OutputAsset,
 };
 
 /// An [Asset] that is created from some passed source code.
 #[turbo_tasks::value]
-pub struct VirtualSource {
-    pub ident: Vc<AssetIdent>,
+pub struct VirtualOutputAsset {
+    pub path: Vc<FileSystemPath>,
     pub content: Vc<AssetContent>,
 }
 
 #[turbo_tasks::value_impl]
-impl VirtualSource {
+impl VirtualOutputAsset {
     #[turbo_tasks::function]
     pub fn new(path: Vc<FileSystemPath>, content: Vc<AssetContent>) -> Vc<Self> {
-        Self::cell(VirtualSource {
-            ident: AssetIdent::from_path(path),
-            content,
-        })
-    }
-
-    #[turbo_tasks::function]
-    pub fn new_with_ident(ident: Vc<AssetIdent>, content: Vc<AssetContent>) -> Vc<Self> {
-        Self::cell(VirtualSource { ident, content })
+        VirtualOutputAsset { path, content }.cell()
     }
 }
 
 #[turbo_tasks::value_impl]
-impl Source for VirtualSource {
+impl OutputAsset for VirtualOutputAsset {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
-        self.ident
+        AssetIdent::from_path(self.path)
     }
 }
 
 #[turbo_tasks::value_impl]
-impl Asset for VirtualSource {
+impl Asset for VirtualOutputAsset {
     #[turbo_tasks::function]
     fn content(&self) -> Vc<AssetContent> {
         self.content

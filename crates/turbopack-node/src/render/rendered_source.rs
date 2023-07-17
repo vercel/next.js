@@ -1,13 +1,15 @@
 use anyhow::{anyhow, Result};
 use indexmap::IndexSet;
 use serde_json::Value as JsonValue;
-use turbo_tasks::{Value, Vc};
+use turbo_tasks::{TryJoinIterExt, Value, Vc};
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::Asset,
     introspect::{asset::IntrospectableAsset, Introspectable, IntrospectableChildren},
     issue::IssueContextExt,
+    module::Module,
+    output::OutputAsset,
     reference::AssetReference,
     resolve::PrimaryResolveResult,
     version::VersionedContentExt,
@@ -123,7 +125,14 @@ impl GetContentSource for NodeRenderContentSource {
                         } else {
                             None
                         }
-                    }),
+                    })
+                    .map(|&asset| async move {
+                        Ok(Vc::try_resolve_downcast::<Box<dyn OutputAsset>>(asset).await?)
+                    })
+                    .try_join()
+                    .await?
+                    .into_iter()
+                    .flatten(),
             )
         }
         for &entry in entries.await?.iter() {
@@ -291,11 +300,11 @@ impl Introspectable for NodeRenderContentSource {
             ));
             set.insert((
                 Vc::cell("intermediate asset".to_string()),
-                IntrospectableAsset::new(get_intermediate_asset(
+                IntrospectableAsset::new(Vc::upcast(get_intermediate_asset(
                     entry.chunking_context,
                     entry.module,
                     entry.runtime_entries,
-                )),
+                ))),
             ));
         }
         Ok(Vc::cell(set))

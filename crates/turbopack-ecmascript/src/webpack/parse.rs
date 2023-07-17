@@ -13,7 +13,7 @@ use swc_core::{
 };
 use turbo_tasks::{Value, Vc};
 use turbo_tasks_fs::FileSystemPath;
-use turbopack_core::{asset::Asset, source::Source};
+use turbopack_core::source::Source;
 
 use crate::{
     analyzer::{graph::EvalContext, JsValue},

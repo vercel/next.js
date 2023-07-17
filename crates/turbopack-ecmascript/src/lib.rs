@@ -52,7 +52,7 @@ pub use transform::{
 use turbo_tasks::{trace::TraceRawVcs, RawVc, ReadRef, TryJoinIterExt, Value, ValueToString, Vc};
 use turbo_tasks_fs::{rope::Rope, FileSystemPath};
 use turbopack_core::{
-    asset::{Asset, AssetContent, AssetOption},
+    asset::{Asset, AssetContent},
     chunk::{
         availability_info::AvailabilityInfo, Chunk, ChunkItem, ChunkableModule, ChunkingContext,
         EvaluatableAsset,
@@ -60,7 +60,7 @@ use turbopack_core::{
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
     ident::AssetIdent,
-    module::Module,
+    module::{Module, OptionModule},
     reference::AssetReferences,
     reference_type::InnerAssets,
     resolve::{origin::ResolveOrigin, parse::Request, ModulePart},
@@ -376,7 +376,7 @@ impl EcmascriptModuleAsset {
 }
 
 #[turbo_tasks::value_impl]
-impl Asset for EcmascriptModuleAsset {
+impl Module for EcmascriptModuleAsset {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
         if let Some(inner_assets) = self.inner_assets {
@@ -390,7 +390,10 @@ impl Asset for EcmascriptModuleAsset {
             Ok(self.source.ident().with_modifier(modifier()))
         }
     }
+}
 
+#[turbo_tasks::value_impl]
+impl Asset for EcmascriptModuleAsset {
     #[turbo_tasks::function]
     fn content(&self) -> Vc<AssetContent> {
         self.source.content()
@@ -401,9 +404,6 @@ impl Asset for EcmascriptModuleAsset {
         Ok(self.failsafe_analyze().await?.references)
     }
 }
-
-#[turbo_tasks::value_impl]
-impl Module for EcmascriptModuleAsset {}
 
 #[turbo_tasks::value_impl]
 impl ChunkableModule for EcmascriptModuleAsset {
@@ -456,7 +456,7 @@ impl ResolveOrigin for EcmascriptModuleAsset {
     }
 
     #[turbo_tasks::function]
-    async fn get_inner_asset(&self, request: Vc<Request>) -> Result<Vc<AssetOption>> {
+    async fn get_inner_asset(&self, request: Vc<Request>) -> Result<Vc<OptionModule>> {
         Ok(Vc::cell(if let Some(inner_assets) = &self.inner_assets {
             if let Some(request) = request.await?.request() {
                 inner_assets.await?.get(&request).copied()

@@ -12,10 +12,10 @@ use turbo_tasks_bytes::{Bytes, Stream};
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    asset::Asset,
     chunk::{ChunkingContext, EvaluatableAsset, EvaluatableAssets},
     error::PrettyPrintError,
     issue::IssueExt,
+    module::Module,
 };
 use turbopack_dev_server::source::{Body, ProxyResult};
 

@@ -166,12 +166,15 @@ impl MdxModuleAsset {
 }
 
 #[turbo_tasks::value_impl]
-impl Asset for MdxModuleAsset {
+impl Module for MdxModuleAsset {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
         self.source.ident().with_modifier(modifier())
     }
+}
 
+#[turbo_tasks::value_impl]
+impl Asset for MdxModuleAsset {
     #[turbo_tasks::function]
     fn content(&self) -> Vc<AssetContent> {
         self.source.content()
@@ -182,9 +185,6 @@ impl Asset for MdxModuleAsset {
         Ok(self.failsafe_analyze().await?.references)
     }
 }
-
-#[turbo_tasks::value_impl]
-impl Module for MdxModuleAsset {}
 
 #[turbo_tasks::value_impl]
 impl ChunkableModule for MdxModuleAsset {

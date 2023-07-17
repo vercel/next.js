@@ -5,7 +5,6 @@ use serde::{Deserialize, Serialize};
 use turbo_tasks::{trace::TraceRawVcs, Upcast, Value, ValueToString, Vc};
 use turbo_tasks_fs::rope::Rope;
 use turbopack_core::{
-    asset::Asset,
     chunk::{
         availability_info::AvailabilityInfo, available_assets::AvailableAssets, ChunkItem,
         ChunkableModule, ChunkingContext, FromChunkableModule, ModuleId,
@@ -13,6 +12,7 @@ use turbopack_core::{
     code_builder::{Code, CodeBuilder},
     error::PrettyPrintError,
     issue::{code_gen::CodeGenerationIssue, IssueExt, IssueSeverity},
+    module::Module,
 };
 
 use super::{EcmascriptChunkPlaceable, EcmascriptChunkingContext};
@@ -213,10 +213,10 @@ async fn module_factory_with_code_generation_issue(
 impl FromChunkableModule for Box<dyn EcmascriptChunkItem> {
     async fn from_asset(
         context: Vc<Box<dyn ChunkingContext>>,
-        asset: Vc<Box<dyn Asset>>,
+        module: Vc<Box<dyn Module>>,
     ) -> Result<Option<Vc<Self>>> {
         let Some(placeable) =
-            Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(asset).await?
+            Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(module).await?
         else {
             return Ok(None);
         };
@@ -232,7 +232,7 @@ impl FromChunkableModule for Box<dyn EcmascriptChunkItem> {
 
     async fn from_async_asset(
         context: Vc<Box<dyn ChunkingContext>>,
-        asset: Vc<Box<dyn ChunkableModule>>,
+        module: Vc<Box<dyn ChunkableModule>>,
         availability_info: Value<AvailabilityInfo>,
     ) -> Result<Option<Vc<Self>>> {
         let Some(context) =
@@ -247,19 +247,19 @@ impl FromChunkableModule for Box<dyn EcmascriptChunkItem> {
                 current_availability_root,
             } => AvailabilityInfo::Inner {
                 available_assets: AvailableAssets::new(vec![current_availability_root]),
-                current_availability_root: Vc::upcast(asset),
+                current_availability_root: Vc::upcast(module),
             },
             AvailabilityInfo::Inner {
                 available_assets,
                 current_availability_root,
             } => AvailabilityInfo::Inner {
                 available_assets: available_assets.with_roots(vec![current_availability_root]),
-                current_availability_root: Vc::upcast(asset),
+                current_availability_root: Vc::upcast(module),
             },
         };
 
         let manifest_asset =
-            ManifestChunkAsset::new(asset, context, Value::new(next_availability_info));
+            ManifestChunkAsset::new(module, context, Value::new(next_availability_info));
         Ok(Some(Vc::upcast(ManifestLoaderItem::new(manifest_asset))))
     }
 }

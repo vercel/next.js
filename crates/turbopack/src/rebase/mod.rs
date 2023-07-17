@@ -6,15 +6,18 @@ use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::{Asset, AssetContent},
     ident::AssetIdent,
+    module::{convert_asset_to_module, Module},
     output::OutputAsset,
     reference::{AssetReference, AssetReferences},
     resolve::ResolveResult,
 };
 
+/// Converts a [Module] graph into an [OutputAsset] graph by placing it into a
+/// different directory.
 #[turbo_tasks::value]
 #[derive(Hash)]
 pub struct RebasedAsset {
-    source: Vc<Box<dyn Asset>>,
+    source: Vc<Box<dyn Module>>,
     input_dir: Vc<FileSystemPath>,
     output_dir: Vc<FileSystemPath>,
 }
@@ -23,7 +26,7 @@ pub struct RebasedAsset {
 impl RebasedAsset {
     #[turbo_tasks::function]
     pub fn new(
-        source: Vc<Box<dyn Asset>>,
+        source: Vc<Box<dyn Module>>,
         input_dir: Vc<FileSystemPath>,
         output_dir: Vc<FileSystemPath>,
     ) -> Vc<Self> {
@@ -36,10 +39,7 @@ impl RebasedAsset {
 }
 
 #[turbo_tasks::value_impl]
-impl OutputAsset for RebasedAsset {}
-
-#[turbo_tasks::value_impl]
-impl Asset for RebasedAsset {
+impl OutputAsset for RebasedAsset {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
         AssetIdent::from_path(FileSystemPath::rebase(
@@ -48,7 +48,10 @@ impl Asset for RebasedAsset {
             self.output_dir,
         ))
     }
+}
 
+#[turbo_tasks::value_impl]
+impl Asset for RebasedAsset {
     #[turbo_tasks::function]
     fn content(&self) -> Vc<AssetContent> {
         self.source.content()
@@ -87,8 +90,9 @@ impl AssetReference for RebasedAssetReference {
         Ok(result
             .map(
                 |asset| {
+                    let module = convert_asset_to_module(asset);
                     let asset =
-                        Vc::upcast(RebasedAsset::new(asset, self.input_dir, self.output_dir));
+                        Vc::upcast(RebasedAsset::new(module, self.input_dir, self.output_dir));
                     async move { Ok(asset) }
                 },
                 |reference| {

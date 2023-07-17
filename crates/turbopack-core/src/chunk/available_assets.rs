@@ -10,7 +10,8 @@ use turbo_tasks_hash::Xxh3Hash64Hasher;
 
 use super::{ChunkableModuleReference, ChunkingType};
 use crate::{
-    asset::{Asset, AssetsSet},
+    asset::Asset,
+    module::{Module, ModulesSet},
     reference::AssetReference,
 };
 
@@ -20,7 +21,7 @@ use crate::{
 #[turbo_tasks::value]
 pub struct AvailableAssets {
     parent: Option<Vc<AvailableAssets>>,
-    roots: Vec<Vc<Box<dyn Asset>>>,
+    roots: Vec<Vc<Box<dyn Module>>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -28,18 +29,18 @@ impl AvailableAssets {
     #[turbo_tasks::function]
     fn new_normalized(
         parent: Option<Vc<AvailableAssets>>,
-        roots: Vec<Vc<Box<dyn Asset>>>,
+        roots: Vec<Vc<Box<dyn Module>>>,
     ) -> Vc<Self> {
         AvailableAssets { parent, roots }.cell()
     }
 
     #[turbo_tasks::function]
-    pub fn new(roots: Vec<Vc<Box<dyn Asset>>>) -> Vc<Self> {
+    pub fn new(roots: Vec<Vc<Box<dyn Module>>>) -> Vc<Self> {
         Self::new_normalized(None, roots)
     }
 
     #[turbo_tasks::function]
-    pub async fn with_roots(self: Vc<Self>, roots: Vec<Vc<Box<dyn Asset>>>) -> Result<Vc<Self>> {
+    pub async fn with_roots(self: Vc<Self>, roots: Vec<Vc<Box<dyn Module>>>) -> Result<Vc<Self>> {
         let roots = roots
             .into_iter()
             .map(|root| async move { Ok((self.includes(root).await?, root)) })
@@ -67,7 +68,7 @@ impl AvailableAssets {
     }
 
     #[turbo_tasks::function]
-    pub async fn includes(self: Vc<Self>, asset: Vc<Box<dyn Asset>>) -> Result<Vc<bool>> {
+    pub async fn includes(self: Vc<Self>, asset: Vc<Box<dyn Module>>) -> Result<Vc<bool>> {
         let this = self.await?;
         if let Some(parent) = this.parent {
             if *parent.includes(asset).await? {
@@ -84,10 +85,10 @@ impl AvailableAssets {
 }
 
 #[turbo_tasks::function]
-async fn chunkable_assets_set(root: Vc<Box<dyn Asset>>) -> Result<Vc<AssetsSet>> {
+async fn chunkable_assets_set(root: Vc<Box<dyn Module>>) -> Result<Vc<ModulesSet>> {
     let assets = AdjacencyMap::new()
         .skip_duplicates()
-        .visit(once(root), |&asset: &Vc<Box<dyn Asset>>| async move {
+        .visit(once(root), |&asset: &Vc<Box<dyn Module>>| async move {
             Ok(asset
                 .references()
                 .await?
@@ -106,15 +107,19 @@ async fn chunkable_assets_set(root: Vc<Box<dyn Asset>>) -> Result<Vc<AssetsSet>>
                                     | ChunkingType::Placed
                             )
                         ) {
-                            return chunkable
+                            return Ok(chunkable
                                 .resolve_reference()
                                 .primary_assets()
                                 .await?
                                 .iter()
-                                .copied()
-                                .map(|asset| asset.resolve())
+                                .map(|&asset| async move {
+                                    Ok(Vc::try_resolve_downcast::<Box<dyn Module>>(asset).await?)
+                                })
                                 .try_join()
-                                .await;
+                                .await?
+                                .into_iter()
+                                .flatten()
+                                .collect());
                         }
                     }
                     Ok(Vec::new())

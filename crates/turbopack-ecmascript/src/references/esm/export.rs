@@ -8,15 +8,15 @@ use serde::{Deserialize, Serialize};
 use swc_core::{
     common::DUMMY_SP,
     ecma::ast::{
-        ComputedPropName, Expr, ExprStmt, Ident, KeyValueProp, Lit, MemberExpr, MemberProp, Module,
+        self, ComputedPropName, Expr, ExprStmt, Ident, KeyValueProp, Lit, MemberExpr, MemberProp,
         ModuleItem, ObjectLit, Program, Prop, PropName, PropOrSpread, Script, Stmt, Str,
     },
     quote, quote_expr,
 };
 use turbo_tasks::{trace::TraceRawVcs, ValueToString, Vc};
 use turbopack_core::{
-    asset::Asset,
     issue::{analyze::AnalyzeIssue, IssueExt, IssueSeverity},
+    module::Module,
 };
 
 use super::{base::ReferencedAsset, EsmAssetReference};
@@ -243,7 +243,7 @@ impl CodeGenerateable for EsmExports {
                 getters: Expr = getters.clone()
             );
             match program {
-                Program::Module(Module { body, .. }) => {
+                Program::Module(ast::Module { body, .. }) => {
                     body.insert(0, ModuleItem::Stmt(stmt));
                 }
                 Program::Script(Script { body, .. }) => {

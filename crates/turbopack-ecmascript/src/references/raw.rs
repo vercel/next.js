@@ -1,7 +1,6 @@
 use anyhow::Result;
 use turbo_tasks::{ValueToString, Vc};
 use turbopack_core::{
-    asset::Asset,
     reference::AssetReference,
     resolve::{pattern::Pattern, resolve_raw, ResolveResult},
     source::Source,

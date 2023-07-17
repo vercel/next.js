@@ -4,9 +4,8 @@ use swc_core::{
     ecma::ast::{Expr, Lit},
     quote,
 };
-use turbo_tasks::{debug::ValueDebug, Value, ValueToString, Vc};
+use turbo_tasks::{debug::ValueDebug, Value, Vc};
 use turbopack_core::{
-    asset::Asset,
     chunk::{
         availability_info::AvailabilityInfo, ChunkableModule, ChunkingContext, FromChunkableModule,
         ModuleId,
@@ -189,7 +188,7 @@ impl PatternMapping {
                 }
             }
             if let Some(chunk_item) =
-                <Box<dyn EcmascriptChunkItem>>::from_asset(context, asset).await?
+                <Box<dyn EcmascriptChunkItem>>::from_asset(context, Vc::upcast(chunkable)).await?
             {
                 return Ok(PatternMapping::cell(PatternMapping::Single(
                     chunk_item.id().await?.clone_value(),
@@ -199,10 +198,9 @@ impl PatternMapping {
         CodeGenerationIssue {
             severity: IssueSeverity::Bug.into(),
             title: Vc::cell("non-ecmascript placeable asset".to_string()),
-            message: Vc::cell(format!(
-                "asset {} is not placeable in ESM chunks, so it doesn't have a module id",
-                asset.ident().to_string().await?
-            )),
+            message: Vc::cell(
+                "asset is not placeable in ESM chunks, so it doesn't have a module id".to_string(),
+            ),
             path: origin.origin_path(),
         }
         .cell()

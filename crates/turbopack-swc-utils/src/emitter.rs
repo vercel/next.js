@@ -7,7 +7,6 @@ use swc_core::common::{
 };
 use turbo_tasks::Vc;
 use turbopack_core::{
-    asset::Asset,
     issue::{analyze::AnalyzeIssue, IssueExt, IssueSeverity, IssueSource},
     source::Source,
 };
@@ -43,7 +42,7 @@ impl Emitter for IssueEmitter {
 
         let source = db.span.primary_span().map(|span| {
             IssueSource::from_byte_offset(
-                Vc::upcast(self.source),
+                self.source,
                 self.source_map.lookup_byte_offset(span.lo()).pos.to_usize(),
                 self.source_map.lookup_byte_offset(span.lo()).pos.to_usize(),
             )

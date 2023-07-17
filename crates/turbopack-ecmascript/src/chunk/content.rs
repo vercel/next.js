@@ -110,12 +110,12 @@ async fn ecmascript_chunk_content_single_entry(
     entry: Vc<Box<dyn EcmascriptChunkPlaceable>>,
     availability_info: Value<AvailabilityInfo>,
 ) -> Result<Vc<EcmascriptChunkContent>> {
-    let asset = Vc::upcast(entry);
+    let module = Vc::upcast(entry);
 
     Ok(EcmascriptChunkContent::cell(
         if let Some(res) = chunk_content::<Box<dyn EcmascriptChunkItem>>(
             Vc::upcast(context),
-            asset,
+            module,
             None,
             availability_info,
         )
@@ -125,7 +125,7 @@ async fn ecmascript_chunk_content_single_entry(
         } else {
             chunk_content_split::<Box<dyn EcmascriptChunkItem>>(
                 Vc::upcast(context),
-                asset,
+                module,
                 None,
                 availability_info,
             )

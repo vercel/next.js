@@ -29,15 +29,15 @@ impl ProxiedAsset {
 }
 
 #[turbo_tasks::value_impl]
-impl OutputAsset for ProxiedAsset {}
-
-#[turbo_tasks::value_impl]
-impl Asset for ProxiedAsset {
+impl OutputAsset for ProxiedAsset {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
         AssetIdent::from_path(self.path)
     }
+}
 
+#[turbo_tasks::value_impl]
+impl Asset for ProxiedAsset {
     #[turbo_tasks::function]
     fn content(&self) -> Vc<AssetContent> {
         self.asset.content()

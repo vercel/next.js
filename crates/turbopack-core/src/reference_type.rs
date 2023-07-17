@@ -3,13 +3,13 @@ use std::fmt::Display;
 use indexmap::IndexMap;
 use turbo_tasks::Vc;
 
-use crate::{asset::Asset, resolve::ModulePart};
+use crate::{module::Module, resolve::ModulePart};
 
 /// Named references to inner assets. Modules can used them to allow to
 /// per-module aliases of some requests to already created module assets.
 /// Name is usually in UPPER_CASE to make it clear that this is an inner asset.
 #[turbo_tasks::value(transparent)]
-pub struct InnerAssets(IndexMap<String, Vc<Box<dyn Asset>>>);
+pub struct InnerAssets(IndexMap<String, Vc<Box<dyn Module>>>);
 
 #[turbo_tasks::value_impl]
 impl InnerAssets {

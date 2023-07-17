@@ -82,12 +82,15 @@ impl ParseCss for CssModuleAsset {
 }
 
 #[turbo_tasks::value_impl]
-impl Asset for CssModuleAsset {
+impl Module for CssModuleAsset {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
         self.source.ident().with_modifier(modifier())
     }
+}
 
+#[turbo_tasks::value_impl]
+impl Asset for CssModuleAsset {
     #[turbo_tasks::function]
     fn content(&self) -> Vc<AssetContent> {
         self.source.content()
@@ -105,9 +108,6 @@ impl Asset for CssModuleAsset {
         ))
     }
 }
-
-#[turbo_tasks::value_impl]
-impl Module for CssModuleAsset {}
 
 #[turbo_tasks::value_impl]
 impl ChunkableModule for CssModuleAsset {

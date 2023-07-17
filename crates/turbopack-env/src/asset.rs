@@ -31,15 +31,15 @@ impl ProcessEnvAsset {
 }
 
 #[turbo_tasks::value_impl]
-impl Source for ProcessEnvAsset {}
-
-#[turbo_tasks::value_impl]
-impl Asset for ProcessEnvAsset {
+impl Source for ProcessEnvAsset {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
         AssetIdent::from_path(self.root.join(".env.js".to_string()))
     }
+}
 
+#[turbo_tasks::value_impl]
+impl Asset for ProcessEnvAsset {
     #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<AssetContent>> {
         let env = self.env.read_all().await?;

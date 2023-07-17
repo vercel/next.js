@@ -23,7 +23,6 @@ use turbopack::{
     resolve_options_context::ResolveOptionsContext, ModuleAssetContext,
 };
 use turbopack_core::{
-    asset::Asset,
     chunk::{EvaluatableAssetExt, EvaluatableAssets},
     compile_time_defines,
     compile_time_info::CompileTimeInfo,
@@ -33,6 +32,7 @@ use turbopack_core::{
     issue::{Issue, IssueContextExt},
     module::Module,
     reference_type::{EntryReferenceSubType, ReferenceType},
+    source::Source,
 };
 use turbopack_dev::DevChunkingContext;
 use turbopack_node::evaluate::evaluate;
@@ -251,7 +251,7 @@ async fn run_test(resource: String) -> Result<Vc<RunTestResult>> {
     let test_asset = FileSource::new(test_path);
 
     let res = evaluate(
-        Vc::upcast(jest_entry_asset),
+        jest_entry_asset,
         chunk_root_path,
         Vc::upcast(CommandLineProcessEnv::new()),
         test_asset.ident(),

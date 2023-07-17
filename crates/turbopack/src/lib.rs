@@ -41,8 +41,9 @@ use turbopack_core::{
     ident::AssetIdent,
     issue::{Issue, IssueExt},
     module::Module,
+    output::OutputAsset,
     raw_module::RawModule,
-    reference::all_referenced_assets,
+    reference::all_referenced_output_assets,
     reference_type::{EcmaScriptModulesReferenceSubType, InnerAssets, ReferenceType},
     resolve::{
         options::ResolveOptions, origin::PlainResolveOrigin, parse::Request, resolve, ModulePart,
@@ -503,7 +504,7 @@ impl AssetContext for ModuleAssetContext {
 
 #[turbo_tasks::function]
 pub async fn emit_with_completion(
-    asset: Vc<Box<dyn Asset>>,
+    asset: Vc<Box<dyn OutputAsset>>,
     output_dir: Vc<FileSystemPath>,
 ) -> Vc<Completion> {
     emit_assets_aggregated(asset, output_dir)
@@ -511,7 +512,7 @@ pub async fn emit_with_completion(
 
 #[turbo_tasks::function]
 async fn emit_assets_aggregated(
-    asset: Vc<Box<dyn Asset>>,
+    asset: Vc<Box<dyn OutputAsset>>,
     output_dir: Vc<FileSystemPath>,
 ) -> Vc<Completion> {
     let aggregated = aggregate(asset);
@@ -535,13 +536,13 @@ async fn emit_aggregated_assets(
 }
 
 #[turbo_tasks::function]
-pub async fn emit_asset(asset: Vc<Box<dyn Asset>>) -> Vc<Completion> {
+pub async fn emit_asset(asset: Vc<Box<dyn OutputAsset>>) -> Vc<Completion> {
     asset.content().write(asset.ident().path())
 }
 
 #[turbo_tasks::function]
 pub async fn emit_asset_into_dir(
-    asset: Vc<Box<dyn Asset>>,
+    asset: Vc<Box<dyn OutputAsset>>,
     output_dir: Vc<FileSystemPath>,
 ) -> Result<Vc<Completion>> {
     let dir = &*output_dir.await?;
@@ -552,25 +553,25 @@ pub async fn emit_asset_into_dir(
     })
 }
 
-type AssetSet = HashSet<Vc<Box<dyn Asset>>>;
+type OutputAssetSet = HashSet<Vc<Box<dyn OutputAsset>>>;
 
 #[turbo_tasks::value(shared)]
 struct ReferencesList {
-    referenced_by: HashMap<Vc<Box<dyn Asset>>, AssetSet>,
+    referenced_by: HashMap<Vc<Box<dyn OutputAsset>>, OutputAssetSet>,
 }
 
 #[turbo_tasks::function]
 async fn compute_back_references(aggregated: Vc<AggregatedGraph>) -> Result<Vc<ReferencesList>> {
     Ok(match &*aggregated.content().await? {
-        AggregatedGraphNodeContent::Asset(asset) => {
+        &AggregatedGraphNodeContent::Asset(asset) => {
             let mut referenced_by = HashMap::new();
-            for reference in all_referenced_assets(*asset).await?.iter() {
-                referenced_by.insert(*reference, [*asset].into_iter().collect());
+            for reference in all_referenced_output_assets(asset).await?.iter() {
+                referenced_by.insert(*reference, [asset].into_iter().collect());
             }
             ReferencesList { referenced_by }.into()
         }
         AggregatedGraphNodeContent::Children(children) => {
-            let mut referenced_by = HashMap::<Vc<Box<dyn Asset>>, AssetSet>::new();
+            let mut referenced_by = HashMap::<Vc<Box<dyn OutputAsset>>, OutputAssetSet>::new();
             let lists = children
                 .iter()
                 .map(|child| compute_back_references(*child))
@@ -595,7 +596,10 @@ async fn compute_back_references(aggregated: Vc<AggregatedGraph>) -> Result<Vc<R
 async fn top_references(list: Vc<ReferencesList>) -> Result<Vc<ReferencesList>> {
     let list = list.await?;
     const N: usize = 5;
-    let mut top = Vec::<(&Vc<Box<dyn Asset>>, &HashSet<Vc<Box<dyn Asset>>>)>::new();
+    let mut top = Vec::<(
+        &Vc<Box<dyn OutputAsset>>,
+        &HashSet<Vc<Box<dyn OutputAsset>>>,
+    )>::new();
     for tuple in list.referenced_by.iter() {
         let mut current = tuple;
         for item in &mut top {

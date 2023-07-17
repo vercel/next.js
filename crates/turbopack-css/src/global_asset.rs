@@ -46,12 +46,15 @@ impl GlobalCssAsset {
 }
 
 #[turbo_tasks::value_impl]
-impl Asset for GlobalCssAsset {
+impl Module for GlobalCssAsset {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
         self.source.ident().with_modifier(modifier())
     }
+}
 
+#[turbo_tasks::value_impl]
+impl Asset for GlobalCssAsset {
     #[turbo_tasks::function]
     fn content(&self) -> Result<Vc<AssetContent>> {
         bail!("CSS global asset has no contents")
@@ -64,9 +67,6 @@ impl Asset for GlobalCssAsset {
         ))])
     }
 }
-
-#[turbo_tasks::value_impl]
-impl Module for GlobalCssAsset {}
 
 #[turbo_tasks::function]
 fn modifier() -> Vc<String> {

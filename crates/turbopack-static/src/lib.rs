@@ -70,20 +70,20 @@ impl StaticModuleAsset {
 }
 
 #[turbo_tasks::value_impl]
-impl Asset for StaticModuleAsset {
+impl Module for StaticModuleAsset {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
         self.source.ident().with_modifier(modifier())
     }
+}
 
+#[turbo_tasks::value_impl]
+impl Asset for StaticModuleAsset {
     #[turbo_tasks::function]
     fn content(&self) -> Vc<AssetContent> {
         self.source.content()
     }
 }
-
-#[turbo_tasks::value_impl]
-impl Module for StaticModuleAsset {}
 
 #[turbo_tasks::value_impl]
 impl ChunkableModule for StaticModuleAsset {
@@ -141,10 +141,7 @@ struct StaticAsset {
 }
 
 #[turbo_tasks::value_impl]
-impl OutputAsset for StaticAsset {}
-
-#[turbo_tasks::value_impl]
-impl Asset for StaticAsset {
+impl OutputAsset for StaticAsset {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
         let content = self.source.content();
@@ -163,7 +160,10 @@ impl Asset for StaticAsset {
             .asset_path(content_hash_b16, self.source.ident());
         Ok(AssetIdent::from_path(asset_path))
     }
+}
 
+#[turbo_tasks::value_impl]
+impl Asset for StaticAsset {
     #[turbo_tasks::function]
     fn content(&self) -> Vc<AssetContent> {
         self.source.content()
@@ -239,7 +239,7 @@ impl CssEmbed for StaticCssEmbed {
     }
 
     #[turbo_tasks::function]
-    fn embeddable_asset(&self) -> Vc<Box<dyn Asset>> {
+    fn embeddable_asset(&self) -> Vc<Box<dyn OutputAsset>> {
         Vc::upcast(self.static_asset)
     }
 }

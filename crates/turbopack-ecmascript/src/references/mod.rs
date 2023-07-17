@@ -47,10 +47,10 @@ use swc_core::{
 use turbo_tasks::{TryJoinIterExt, Upcast, Value, Vc};
 use turbo_tasks_fs::{FileJsonContent, FileSystemPath};
 use turbopack_core::{
-    asset::Asset,
     compile_time_info::{CompileTimeInfo, FreeVarReference},
     error::PrettyPrintError,
     issue::{IssueExt, IssueSource, OptionIssueSource},
+    module::Module,
     reference::{AssetReference, AssetReferences, SourceMapReference},
     reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::{
@@ -935,11 +935,7 @@ pub(crate) async fn analyze_ecmascript_module(
                     Request::parse(Value::new(pat)),
                     compile_time_info.environment().rendering(),
                     Vc::cell(ast_path),
-                    IssueSource::from_byte_offset(
-                        Vc::upcast(source),
-                        span.lo.to_usize(),
-                        span.hi.to_usize(),
-                    ),
+                    IssueSource::from_byte_offset(source, span.lo.to_usize(), span.hi.to_usize()),
                     in_try,
                 ));
             }
@@ -1734,7 +1730,7 @@ async fn handle_free_var_reference(
 }
 
 fn issue_source(source: Vc<Box<dyn Source>>, span: Span) -> Vc<IssueSource> {
-    IssueSource::from_byte_offset(Vc::upcast(source), span.lo.to_usize(), span.hi.to_usize())
+    IssueSource::from_byte_offset(source, span.lo.to_usize(), span.hi.to_usize())
 }
 
 fn analyze_amd_define(
@@ -2066,8 +2062,13 @@ async fn require_resolve_visitor(
             .primary
             .iter()
             .map(|result| async move {
-                Ok(if let PrimaryResolveResult::Asset(asset) = result {
-                    Some(require_resolve(asset.ident().path()).await?)
+                Ok(if let &PrimaryResolveResult::Asset(asset) = result {
+                    if let Some(module) = Vc::try_resolve_downcast::<Box<dyn Module>>(asset).await?
+                    {
+                        Some(require_resolve(module.ident().path()).await?)
+                    } else {
+                        None
+                    }
                 } else {
                     None
                 })

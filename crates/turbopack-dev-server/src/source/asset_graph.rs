@@ -8,9 +8,10 @@ use indexmap::{indexset, IndexSet};
 use turbo_tasks::{Completion, State, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    asset::{Asset, AssetsSet},
+    asset::Asset,
     introspect::{asset::IntrospectableAsset, Introspectable, IntrospectableChildren},
-    reference::all_referenced_assets,
+    output::{OutputAsset, OutputAssetsSet},
+    reference::all_referenced_output_assets,
 };
 
 use super::{
@@ -20,14 +21,14 @@ use super::{
 };
 
 #[turbo_tasks::value(transparent)]
-struct AssetsMap(HashMap<String, Vc<Box<dyn Asset>>>);
+struct OutputAssetsMap(HashMap<String, Vc<Box<dyn OutputAsset>>>);
 
-type ExpandedState = State<HashSet<Vc<Box<dyn Asset>>>>;
+type ExpandedState = State<HashSet<Vc<Box<dyn OutputAsset>>>>;
 
 #[turbo_tasks::value(serialization = "none", eq = "manual", cell = "new")]
 pub struct AssetGraphContentSource {
     root_path: Vc<FileSystemPath>,
-    root_assets: Vc<AssetsSet>,
+    root_assets: Vc<OutputAssetsSet>,
     expanded: Option<ExpandedState>,
 }
 
@@ -35,7 +36,10 @@ pub struct AssetGraphContentSource {
 impl AssetGraphContentSource {
     /// Serves all assets references by root_asset.
     #[turbo_tasks::function]
-    pub fn new_eager(root_path: Vc<FileSystemPath>, root_asset: Vc<Box<dyn Asset>>) -> Vc<Self> {
+    pub fn new_eager(
+        root_path: Vc<FileSystemPath>,
+        root_asset: Vc<Box<dyn OutputAsset>>,
+    ) -> Vc<Self> {
         Self::cell(AssetGraphContentSource {
             root_path,
             root_assets: Vc::cell(indexset! { root_asset }),
@@ -46,7 +50,10 @@ impl AssetGraphContentSource {
     /// Serves all assets references by root_asset. Only serve references of an
     /// asset when it has served its content before.
     #[turbo_tasks::function]
-    pub fn new_lazy(root_path: Vc<FileSystemPath>, root_asset: Vc<Box<dyn Asset>>) -> Vc<Self> {
+    pub fn new_lazy(
+        root_path: Vc<FileSystemPath>,
+        root_asset: Vc<Box<dyn OutputAsset>>,
+    ) -> Vc<Self> {
         Self::cell(AssetGraphContentSource {
             root_path,
             root_assets: Vc::cell(indexset! { root_asset }),
@@ -58,7 +65,7 @@ impl AssetGraphContentSource {
     #[turbo_tasks::function]
     pub fn new_eager_multiple(
         root_path: Vc<FileSystemPath>,
-        root_assets: Vc<AssetsSet>,
+        root_assets: Vc<OutputAssetsSet>,
     ) -> Vc<Self> {
         Self::cell(AssetGraphContentSource {
             root_path,
@@ -72,7 +79,7 @@ impl AssetGraphContentSource {
     #[turbo_tasks::function]
     pub fn new_lazy_multiple(
         root_path: Vc<FileSystemPath>,
-        root_assets: Vc<AssetsSet>,
+        root_assets: Vc<OutputAssetsSet>,
     ) -> Vc<Self> {
         Self::cell(AssetGraphContentSource {
             root_path,
@@ -82,7 +89,7 @@ impl AssetGraphContentSource {
     }
 
     #[turbo_tasks::function]
-    async fn all_assets_map(self: Vc<Self>) -> Result<Vc<AssetsMap>> {
+    async fn all_assets_map(self: Vc<Self>) -> Result<Vc<OutputAssetsMap>> {
         let this = self.await?;
         Ok(Vc::cell(
             expand(
@@ -96,10 +103,10 @@ impl AssetGraphContentSource {
 }
 
 async fn expand(
-    root_assets: &IndexSet<Vc<Box<dyn Asset>>>,
+    root_assets: &IndexSet<Vc<Box<dyn OutputAsset>>>,
     root_path: &FileSystemPath,
     expanded: Option<&ExpandedState>,
-) -> Result<HashMap<String, Vc<Box<dyn Asset>>>> {
+) -> Result<HashMap<String, Vc<Box<dyn OutputAsset>>>> {
     let mut map = HashMap::new();
     let mut assets = Vec::new();
     let mut queue = VecDeque::with_capacity(32);
@@ -111,14 +118,14 @@ async fn expand(
             assets.push((root_asset.ident().path(), *root_asset));
             assets_set.insert(*root_asset);
             if expanded {
-                queue.push_back(all_referenced_assets(*root_asset));
+                queue.push_back(all_referenced_output_assets(*root_asset));
             }
         }
     } else {
         for root_asset in root_assets.iter() {
             assets.push((root_asset.ident().path(), *root_asset));
             assets_set.insert(*root_asset);
-            queue.push_back(all_referenced_assets(*root_asset));
+            queue.push_back(all_referenced_output_assets(*root_asset));
         }
     }
 
@@ -135,7 +142,7 @@ async fn expand(
                     true
                 };
                 if expanded {
-                    queue.push_back(all_referenced_assets(*asset));
+                    queue.push_back(all_referenced_output_assets(*asset));
                 }
                 assets.push((asset.ident().path(), *asset));
             }
@@ -165,7 +172,7 @@ async fn expand(
 /// This must not be a TaskInput since this would resolve the embedded asset.
 #[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(Hash, PartialOrd, Ord, Debug, Clone)]
-struct UnresolvedAsset(Vc<Box<dyn Asset>>);
+struct UnresolvedAsset(Vc<Box<dyn OutputAsset>>);
 
 #[turbo_tasks::value_impl]
 impl ContentSource for AssetGraphContentSource {
@@ -198,7 +205,7 @@ impl ContentSource for AssetGraphContentSource {
 struct AssetGraphGetContentSourceContent {
     source: Vc<AssetGraphContentSource>,
     /// The unresolved asset.
-    asset: Vc<Box<dyn Asset>>,
+    asset: Vc<Box<dyn OutputAsset>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -281,13 +288,13 @@ impl Introspectable for AssetGraphContentSource {
         let root_assets = this.root_assets.await?;
         let root_asset_children = root_assets
             .iter()
-            .map(|&asset| (key, IntrospectableAsset::new(asset)));
+            .map(|&asset| (key, IntrospectableAsset::new(Vc::upcast(asset))));
 
         let expanded_assets = self.all_assets_map().await?;
         let expanded_asset_children = expanded_assets
             .values()
             .filter(|a| !root_assets.contains(*a))
-            .map(|asset| (inner_key, IntrospectableAsset::new(*asset)));
+            .map(|asset| (inner_key, IntrospectableAsset::new(Vc::upcast(*asset))));
 
         Ok(Vc::cell(
             root_asset_children
@@ -327,7 +334,7 @@ impl Introspectable for FullyExpaned {
             expand(&*source.root_assets.await?, &*source.root_path.await?, None).await?;
         let children = expanded_assets
             .iter()
-            .map(|(_k, &v)| (key, IntrospectableAsset::new(v)))
+            .map(|(_k, &v)| (key, IntrospectableAsset::new(Vc::upcast(v))))
             .collect();
 
         Ok(Vc::cell(children))

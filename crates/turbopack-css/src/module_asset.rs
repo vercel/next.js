@@ -61,12 +61,15 @@ impl ModuleCssAsset {
 }
 
 #[turbo_tasks::value_impl]
-impl Asset for ModuleCssAsset {
+impl Module for ModuleCssAsset {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
         self.source.ident().with_modifier(modifier())
     }
+}
 
+#[turbo_tasks::value_impl]
+impl Asset for ModuleCssAsset {
     #[turbo_tasks::function]
     fn content(&self) -> Result<Vc<AssetContent>> {
         bail!("CSS module asset has no contents")
@@ -201,9 +204,6 @@ impl ModuleCssAsset {
         Ok(Vc::cell(references))
     }
 }
-
-#[turbo_tasks::value_impl]
-impl Module for ModuleCssAsset {}
 
 #[turbo_tasks::value_impl]
 impl ChunkableModule for ModuleCssAsset {

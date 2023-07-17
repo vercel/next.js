@@ -36,13 +36,12 @@ use turbopack::{
     emit_with_completion, module_options::ModuleOptionsContext, rebase::RebasedAsset, register,
     resolve_options_context::ResolveOptionsContext, ModuleAssetContext,
 };
-#[cfg(not(feature = "bench_against_node_nft"))]
-use turbopack_core::asset::Asset;
 use turbopack_core::{
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
     file_source::FileSource,
+    output::OutputAsset,
     reference_type::ReferenceType,
 };
 

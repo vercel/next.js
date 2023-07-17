@@ -5,9 +5,10 @@ use indoc::writedoc;
 use turbo_tasks::Vc;
 use turbo_tasks_fs::File;
 use turbopack_core::{
-    asset::{Asset, AssetContent},
+    asset::AssetContent,
     chunk::{ChunkingContext, ModuleId},
     code_builder::{Code, CodeBuilder},
+    output::OutputAsset,
     source_map::{GenerateSourceMap, OptionSourceMap},
     version::{
         MergeableVersionedContent, Update, Version, VersionedContent, VersionedContentMerger,
