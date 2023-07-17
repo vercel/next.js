@@ -11,14 +11,19 @@ fn filter_field(field: &Field) -> bool {
 }
 
 pub fn derive_trace_raw_vcs(input: TokenStream) -> TokenStream {
-    let derive_input = parse_macro_input!(input as DeriveInput);
+    let mut derive_input = parse_macro_input!(input as DeriveInput);
     let ident = &derive_input.ident;
-    let generics = &derive_input.generics;
+
+    for type_param in derive_input.generics.type_params_mut() {
+        type_param
+            .bounds
+            .push(syn::parse_quote!(turbo_tasks::trace::TraceRawVcs));
+    }
+    let (impl_generics, ty_generics, where_clause) = derive_input.generics.split_for_impl();
 
     let trace_items = match_expansion(&derive_input, &trace_named, &trace_unnamed, &trace_unit);
-    let generics_params = &generics.params.iter().collect::<Vec<_>>();
     quote! {
-        impl #generics turbo_tasks::trace::TraceRawVcs for #ident #generics #(where #generics_params: turbo_tasks::trace::TraceRawVcs)* {
+        impl #impl_generics turbo_tasks::trace::TraceRawVcs for #ident #ty_generics #where_clause {
             fn trace_raw_vcs(&self, __context__: &mut turbo_tasks::trace::TraceRawVcsContext) {
                 #trace_items
             }
