@@ -140,8 +140,12 @@ import { createClientRouterFilter } from '../lib/create-client-router-filter'
 import { createValidFileMatcher } from '../server/lib/find-page-file'
 import { startTypeChecking } from './type-check'
 import { generateInterceptionRoutesRewrites } from '../lib/generate-interception-routes-rewrites'
-import { baseOverrides, experimentalOverrides } from '../server/require-hook'
-import { buildDataRoute } from '../shared/lib/router/utils/sorted-routes'
+import { buildDataRoute } from '../server/lib/router-utils/build-data-route'
+import {
+  baseOverrides,
+  defaultOverrides,
+  experimentalOverrides,
+} from '../server/require-hook'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -1979,6 +1983,11 @@ export default async function build(
               ...Object.values(experimentalOverrides).map((override) =>
                 require.resolve(override)
               ),
+              ...(config.experimental.turbotrace
+                ? []
+                : Object.values(defaultOverrides).map((value) =>
+                    require.resolve(value)
+                  )),
             ]
 
             // ensure we trace any dependencies needed for custom
