@@ -1650,7 +1650,10 @@ export async function renderToHTMLOrFlight(
             pathname
           )
 
-          const useDefaultError = isMetadataNotFound || (is404 && !NotFound)
+          const useDefaultError =
+            isMetadataNotFound ||
+            (is404 && !NotFound) ||
+            pagePath === '/_not-found'
 
           // Preserve the existing RSC inline chunks from the page rendering.
           // For 404 errors: the metadata from layout can be skipped with the error page.
@@ -1659,7 +1662,7 @@ export async function renderToHTMLOrFlight(
             {
               ...serverComponentsRenderOpts,
               rscChunks: [],
-              transformStream: isMetadataNotFound
+              transformStream: useDefaultError
                 ? new TransformStream()
                 : cloneTransformStream(
                     serverComponentsRenderOpts.transformStream
