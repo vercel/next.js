@@ -40,6 +40,14 @@ impl Modules {
 #[turbo_tasks::value(transparent)]
 pub struct ModulesSet(IndexSet<Vc<Box<dyn Module>>>);
 
+#[turbo_tasks::value_impl]
+impl ModulesSet {
+    #[turbo_tasks::function]
+    pub fn empty() -> Vc<Self> {
+        Vc::cell(IndexSet::new())
+    }
+}
+
 /// This is a temporary function that should be removed once the [Module]
 /// trait completely replaces the [Asset] trait.
 /// It converts an [Asset] into a [Module], but either casting it or wrapping it
