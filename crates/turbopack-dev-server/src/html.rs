@@ -42,14 +42,6 @@ impl OutputAsset for DevHtmlAsset {
     fn ident(&self) -> Vc<AssetIdent> {
         AssetIdent::from_path(self.path)
     }
-}
-
-#[turbo_tasks::value_impl]
-impl Asset for DevHtmlAsset {
-    #[turbo_tasks::function]
-    fn content(self: Vc<Self>) -> Vc<AssetContent> {
-        self.html_content().content()
-    }
 
     #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<AssetReferences>> {
@@ -61,6 +53,14 @@ impl Asset for DevHtmlAsset {
             )));
         }
         Ok(Vc::cell(references))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl Asset for DevHtmlAsset {
+    #[turbo_tasks::function]
+    fn content(self: Vc<Self>) -> Vc<AssetContent> {
+        self.html_content().content()
     }
 
     #[turbo_tasks::function]

@@ -5,7 +5,6 @@ use turbo_tasks::{TryJoinIterExt, Value, Vc};
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    asset::Asset,
     introspect::{asset::IntrospectableAsset, Introspectable, IntrospectableChildren},
     issue::IssueContextExt,
     module::Module,

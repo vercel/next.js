@@ -5,10 +5,7 @@ use turbo_tasks_fs::{
     FileContent, FileJsonContent, FileLinesContent, FileSystemPath, LinkContent, LinkType,
 };
 
-use crate::{
-    reference::AssetReferences,
-    version::{VersionedAssetContent, VersionedContent},
-};
+use crate::version::{VersionedAssetContent, VersionedContent};
 
 /// A list of [Asset]s
 #[turbo_tasks::value(transparent)]
@@ -33,11 +30,6 @@ impl Assets {
 pub trait Asset {
     /// The content of the [Asset].
     fn content(self: Vc<Self>) -> Vc<AssetContent>;
-
-    /// Other things (most likely [Asset]s) referenced from this [Asset].
-    fn references(self: Vc<Self>) -> Vc<AssetReferences> {
-        AssetReferences::empty()
-    }
 
     /// The content of the [Asset] alongside its version.
     async fn versioned_content(self: Vc<Self>) -> Result<Vc<Box<dyn VersionedContent>>> {

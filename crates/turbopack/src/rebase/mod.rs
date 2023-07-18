@@ -48,14 +48,6 @@ impl OutputAsset for RebasedAsset {
             self.output_dir,
         ))
     }
-}
-
-#[turbo_tasks::value_impl]
-impl Asset for RebasedAsset {
-    #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        self.source.content()
-    }
 
     #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<AssetReferences>> {
@@ -72,6 +64,14 @@ impl Asset for RebasedAsset {
             ));
         }
         Ok(Vc::cell(references))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl Asset for RebasedAsset {
+    #[turbo_tasks::function]
+    fn content(&self) -> Vc<AssetContent> {
+        self.source.content()
     }
 }
 

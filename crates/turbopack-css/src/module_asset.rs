@@ -66,14 +66,6 @@ impl Module for ModuleCssAsset {
     fn ident(&self) -> Vc<AssetIdent> {
         self.source.ident().with_modifier(modifier())
     }
-}
-
-#[turbo_tasks::value_impl]
-impl Asset for ModuleCssAsset {
-    #[turbo_tasks::function]
-    fn content(&self) -> Result<Vc<AssetContent>> {
-        bail!("CSS module asset has no contents")
-    }
 
     #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<AssetReferences>> {
@@ -87,6 +79,14 @@ impl Asset for ModuleCssAsset {
             .collect();
 
         Ok(Vc::cell(references))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl Asset for ModuleCssAsset {
+    #[turbo_tasks::function]
+    fn content(&self) -> Result<Vc<AssetContent>> {
+        bail!("CSS module asset has no contents")
     }
 }
 

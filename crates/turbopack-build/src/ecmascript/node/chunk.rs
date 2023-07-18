@@ -68,10 +68,7 @@ impl OutputAsset for EcmascriptBuildNodeChunk {
         let ident = self.chunk.ident().with_modifier(modifier());
         AssetIdent::from_path(self.chunking_context.chunk_path(ident, ".js".to_string()))
     }
-}
 
-#[turbo_tasks::value_impl]
-impl Asset for EcmascriptBuildNodeChunk {
     #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<AssetReferences>> {
         let this = self.await?;
@@ -92,7 +89,10 @@ impl Asset for EcmascriptBuildNodeChunk {
 
         Ok(Vc::cell(references))
     }
+}
 
+#[turbo_tasks::value_impl]
+impl Asset for EcmascriptBuildNodeChunk {
     #[turbo_tasks::function]
     fn content(self: Vc<Self>) -> Vc<AssetContent> {
         self.own_content().content()

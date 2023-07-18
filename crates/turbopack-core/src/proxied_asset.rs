@@ -15,7 +15,7 @@ use crate::{
 /// Next.js apps.
 #[turbo_tasks::value]
 pub struct ProxiedAsset {
-    asset: Vc<Box<dyn Asset>>,
+    asset: Vc<Box<dyn OutputAsset>>,
     path: Vc<FileSystemPath>,
 }
 
@@ -23,7 +23,7 @@ pub struct ProxiedAsset {
 impl ProxiedAsset {
     /// Creates a new [`ProxiedAsset`] from an [`Asset`] and a path.
     #[turbo_tasks::function]
-    pub fn new(asset: Vc<Box<dyn Asset>>, path: Vc<FileSystemPath>) -> Vc<Self> {
+    pub fn new(asset: Vc<Box<dyn OutputAsset>>, path: Vc<FileSystemPath>) -> Vc<Self> {
         ProxiedAsset { asset, path }.cell()
     }
 }
@@ -34,6 +34,11 @@ impl OutputAsset for ProxiedAsset {
     fn ident(&self) -> Vc<AssetIdent> {
         AssetIdent::from_path(self.path)
     }
+
+    #[turbo_tasks::function]
+    fn references(&self) -> Vc<AssetReferences> {
+        self.asset.references()
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -41,11 +46,6 @@ impl Asset for ProxiedAsset {
     #[turbo_tasks::function]
     fn content(&self) -> Vc<AssetContent> {
         self.asset.content()
-    }
-
-    #[turbo_tasks::function]
-    fn references(&self) -> Vc<AssetReferences> {
-        self.asset.references()
     }
 
     #[turbo_tasks::function]

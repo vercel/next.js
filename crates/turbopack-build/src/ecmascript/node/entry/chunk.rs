@@ -185,10 +185,7 @@ impl OutputAsset for EcmascriptBuildNodeEntryChunk {
     fn ident(&self) -> Vc<AssetIdent> {
         AssetIdent::from_path(self.path)
     }
-}
 
-#[turbo_tasks::value_impl]
-impl Asset for EcmascriptBuildNodeEntryChunk {
     #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<AssetReferences>> {
         let this = self.await?;
@@ -212,7 +209,10 @@ impl Asset for EcmascriptBuildNodeEntryChunk {
 
         Ok(Vc::cell(references))
     }
+}
 
+#[turbo_tasks::value_impl]
+impl Asset for EcmascriptBuildNodeEntryChunk {
     #[turbo_tasks::function]
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
         let code = self.code().await?;

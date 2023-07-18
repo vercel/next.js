@@ -295,6 +295,11 @@ impl Chunk for CssChunk {
         }
         Ok(Vc::cell(chunks))
     }
+
+    #[turbo_tasks::function]
+    fn references(self: Vc<Self>) -> Vc<AssetReferences> {
+        OutputAsset::references(self)
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -385,14 +390,6 @@ impl OutputAsset for CssChunk {
             this.context.chunk_path(ident, ".css".to_string()),
         ))
     }
-}
-
-#[turbo_tasks::value_impl]
-impl Asset for CssChunk {
-    #[turbo_tasks::function]
-    fn content(self: Vc<Self>) -> Vc<AssetContent> {
-        self.chunk_content().content()
-    }
 
     #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<AssetReferences>> {
@@ -431,6 +428,14 @@ impl Asset for CssChunk {
             references.push(Vc::upcast(CssChunkSourceMapAssetReference::new(self)));
         }
         Ok(Vc::cell(references))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl Asset for CssChunk {
+    #[turbo_tasks::function]
+    fn content(self: Vc<Self>) -> Vc<AssetContent> {
+        self.chunk_content().content()
     }
 }
 
@@ -570,7 +575,7 @@ impl Introspectable for CssChunk {
 
     #[turbo_tasks::function]
     async fn children(self: Vc<Self>) -> Result<Vc<IntrospectableChildren>> {
-        let mut children = children_from_asset_references(self.references())
+        let mut children = children_from_asset_references(OutputAsset::references(self))
             .await?
             .clone_value();
         for &entry in &*self.await?.main_entries.await? {

@@ -57,6 +57,11 @@ impl Module for WebpackModuleAsset {
     fn ident(&self) -> Vc<AssetIdent> {
         self.source.ident().with_modifier(modifier())
     }
+
+    #[turbo_tasks::function]
+    fn references(&self) -> Vc<AssetReferences> {
+        module_references(self.source, self.runtime, self.transforms)
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -64,11 +69,6 @@ impl Asset for WebpackModuleAsset {
     #[turbo_tasks::function]
     fn content(&self) -> Vc<AssetContent> {
         self.source.content()
-    }
-
-    #[turbo_tasks::function]
-    fn references(&self) -> Vc<AssetReferences> {
-        module_references(self.source, self.runtime, self.transforms)
     }
 }
 
