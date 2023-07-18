@@ -70,6 +70,7 @@ export type CacheNode =
 export interface NavigateOptions {
   /** @internal */
   forceOptimisticNavigation?: boolean
+  /** @internal */
   scroll?: boolean
 }
 
