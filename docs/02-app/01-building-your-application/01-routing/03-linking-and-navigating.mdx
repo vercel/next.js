@@ -160,6 +160,20 @@ By default, routes are prefetched as they become visible in the viewport when us
 > - Prefetching is only enabled in production.
 > - Prefetching can be disabled by passing `prefetch={false}` to `<Link>`.
 
+## Partial Rendering
+
+When navigating between sibling routes (e.g. `/dashboard/settings` and `/dashboard/analytics` below), Next.js will only fetch and render the layouts and pages in routes that change. It will **not** re-fetch or re-render anything above the segments in the subtree. This means that in routes that share a layout, the layout will be preserved when a user navigates between sibling pages.
+
+<Image
+  alt="How partial rendering works"
+  srcLight="/docs/light/partial-rendering.png"
+  srcDark="/docs/dark/partial-rendering.png"
+  width="1600"
+  height="945"
+/>
+
+Without partial rendering, each navigation would cause the full page to re-render on the server. Rendering only the segment that’s updating reduces the amount of data transferred and execution time, leading to improved performance.
+
 ### Soft Navigation
 
 On navigation, the cache for changed segments is reused (if it exists), and no new requests are made to the server for data.
