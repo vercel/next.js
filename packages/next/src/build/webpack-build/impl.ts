@@ -211,13 +211,13 @@ export async function webpackBuildImpl(
               ...clientEntry[CLIENT_STATIC_FILES_RUNTIME_MAIN_APP].import,
               value,
             ],
-            layer: WEBPACK_LAYERS.appPages,
+            layer: WEBPACK_LAYERS.appPagesBrowser,
           }
         } else {
           clientEntry[key] = {
             dependOn: [CLIENT_STATIC_FILES_RUNTIME_MAIN_APP],
             import: value,
-            layer: WEBPACK_LAYERS.appPages,
+            layer: WEBPACK_LAYERS.appPagesBrowser,
           }
         }
       }

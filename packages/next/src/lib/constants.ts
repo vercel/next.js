@@ -98,15 +98,15 @@ const WEBPACK_LAYERS_NAMES = {
   /**
    * React Server Components layer (rsc).
    */
-  rsc: 'rsc',
+  reactServerComponents: 'rsc',
   /**
    * Server Side Rendering layer (ssr).
    */
-  ssr: 'ssr',
+  serverSideRendering: 'ssr',
   /**
    * The browser client bundle layer for actions.
    */
-  action: 'action',
+  actionBrowser: 'actionBrowser',
   /**
    * The layer for the API routes.
    */
@@ -122,7 +122,7 @@ const WEBPACK_LAYERS_NAMES = {
   /**
    * The browser client bundle layer for App directory.
    */
-  appPages: 'app-pages',
+  appPagesBrowser: 'app-pages-browser',
   /**
    * The server bundle layer for metadata routes.
    */
@@ -133,8 +133,8 @@ export const WEBPACK_LAYERS = {
   ...WEBPACK_LAYERS_NAMES,
   GROUP: {
     server: [
-      WEBPACK_LAYERS_NAMES.rsc,
-      WEBPACK_LAYERS_NAMES.action,
+      WEBPACK_LAYERS_NAMES.reactServerComponents,
+      WEBPACK_LAYERS_NAMES.actionBrowser,
       WEBPACK_LAYERS_NAMES.appMetadataRoute,
     ],
   },

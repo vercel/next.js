@@ -314,7 +314,7 @@ export function getEdgeServerEntry(opts: {
 
     return {
       import: `next-edge-app-route-loader?${stringify(loaderParams)}!`,
-      layer: WEBPACK_LAYERS.rsc,
+      layer: WEBPACK_LAYERS.reactServerComponents,
     }
   }
   if (isMiddlewareFile(opts.page)) {
@@ -386,14 +386,14 @@ export function getEdgeServerEntry(opts: {
     // The Edge bundle includes the server in its entrypoint, so it has to
     // be in the SSR layer — we later convert the page request to the RSC layer
     // via a webpack rule.
-    layer: opts.appDirLoader ? WEBPACK_LAYERS.ssr : undefined,
+    layer: opts.appDirLoader ? WEBPACK_LAYERS.serverSideRendering : undefined,
   }
 }
 
 export function getAppEntry(opts: Readonly<AppLoaderOptions>) {
   return {
     import: `next-app-loader?${stringify(opts)}!`,
-    layer: WEBPACK_LAYERS.rsc,
+    layer: WEBPACK_LAYERS.reactServerComponents,
   }
 }
 
@@ -716,7 +716,7 @@ export function finalizeEntrypoint({
         layer: isApi
           ? WEBPACK_LAYERS.api
           : isServerComponent
-          ? WEBPACK_LAYERS.rsc
+          ? WEBPACK_LAYERS.reactServerComponents
           : undefined,
         ...entry,
       }
@@ -751,7 +751,7 @@ export function finalizeEntrypoint({
         if (isAppLayer) {
           return {
             dependOn: CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
-            layer: WEBPACK_LAYERS.appPages,
+            layer: WEBPACK_LAYERS.appPagesBrowser,
             ...entry,
           }
         }
@@ -767,7 +767,7 @@ export function finalizeEntrypoint({
 
       if (isAppLayer) {
         return {
-          layer: WEBPACK_LAYERS.appPages,
+          layer: WEBPACK_LAYERS.appPagesBrowser,
           ...entry,
         }
       }

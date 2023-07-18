@@ -188,7 +188,7 @@ export class FlightClientEntryPlugin {
       const recordModule = (modId: string, mod: any) => {
         const modResource = mod.resourceResolveData?.path || mod.resource
 
-        if (mod.layer !== WEBPACK_LAYERS.ssr) {
+        if (mod.layer !== WEBPACK_LAYERS.serverSideRendering) {
           return
         }
 
@@ -748,7 +748,7 @@ export class FlightClientEntryPlugin {
           name: entryName,
           // Layer should be client for the SSR modules
           // This ensures the client components are bundled on client layer
-          layer: WEBPACK_LAYERS.ssr,
+          layer: WEBPACK_LAYERS.serverSideRendering,
         }
       ),
       clientComponentEntryDep,
@@ -790,8 +790,8 @@ export class FlightClientEntryPlugin {
         }
         currentCompilerServerActions[id].workers[bundlePath] = ''
         currentCompilerServerActions[id].layer[bundlePath] = fromClient
-          ? WEBPACK_LAYERS.action
-          : WEBPACK_LAYERS.rsc
+          ? WEBPACK_LAYERS.actionBrowser
+          : WEBPACK_LAYERS.reactServerComponents
       }
     }
 
@@ -807,7 +807,9 @@ export class FlightClientEntryPlugin {
       actionEntryDep,
       {
         name: entryName,
-        layer: fromClient ? WEBPACK_LAYERS.action : WEBPACK_LAYERS.rsc,
+        layer: fromClient
+          ? WEBPACK_LAYERS.actionBrowser
+          : WEBPACK_LAYERS.reactServerComponents,
       }
     )
   }
@@ -874,7 +876,9 @@ export class FlightClientEntryPlugin {
         for (let name in action.workers) {
           const modId =
             pluginState.actionModServerId[name][
-              action.layer[name] === WEBPACK_LAYERS.action ? 'client' : 'server'
+              action.layer[name] === WEBPACK_LAYERS.actionBrowser
+                ? 'client'
+                : 'server'
             ]
           action.workers[name] = modId!
         }
@@ -886,7 +890,9 @@ export class FlightClientEntryPlugin {
         for (let name in action.workers) {
           const modId =
             pluginState.actionModEdgeServerId[name][
-              action.layer[name] === WEBPACK_LAYERS.action ? 'client' : 'server'
+              action.layer[name] === WEBPACK_LAYERS.actionBrowser
+                ? 'client'
+                : 'server'
             ]
           action.workers[name] = modId!
         }

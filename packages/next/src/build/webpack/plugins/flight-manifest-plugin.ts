@@ -185,7 +185,7 @@ export class ClientReferenceManifestPlugin {
       const requiredChunks = getAppPathRequiredChunks(chunkGroup)
       const recordModule = (id: ModuleId, mod: webpack.NormalModule) => {
         // Skip all modules from the pages folder.
-        if (mod.layer !== WEBPACK_LAYERS.appPages) {
+        if (mod.layer !== WEBPACK_LAYERS.appPagesBrowser) {
           return
         }
 
@@ -289,7 +289,7 @@ export class ClientReferenceManifestPlugin {
         const entryMods =
           compilation.chunkGraph.getChunkEntryModulesIterable(chunk)
         for (const mod of entryMods) {
-          if (mod.layer !== WEBPACK_LAYERS.appPages) continue
+          if (mod.layer !== WEBPACK_LAYERS.appPagesBrowser) continue
 
           const request = (mod as webpack.NormalModule).request
 
