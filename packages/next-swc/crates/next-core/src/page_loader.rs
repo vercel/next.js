@@ -16,7 +16,6 @@ use turbopack_binding::{
             ident::AssetIdent,
             module::Module,
             output::{OutputAsset, OutputAssets},
-            reference::{AssetReferences, SingleAssetReference},
             reference_type::{EntryReferenceSubType, ReferenceType},
             source::Source,
             virtual_source::VirtualSource,
@@ -146,15 +145,12 @@ impl OutputAsset for PageLoaderAsset {
     }
 
     #[turbo_tasks::function]
-    async fn references(self: Vc<Self>) -> Result<Vc<AssetReferences>> {
+    async fn references(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
         let chunks = self.get_page_chunks().await?;
 
         let mut references = Vec::with_capacity(chunks.len());
         for &chunk in chunks.iter() {
-            references.push(Vc::upcast(SingleAssetReference::new(
-                Vc::upcast(chunk),
-                page_loader_chunk_reference_description(),
-            )));
+            references.push(chunk);
         }
 
         for chunk_data in &*self.chunks_data().await? {
