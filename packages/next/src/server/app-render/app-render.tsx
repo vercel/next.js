@@ -930,7 +930,7 @@ export async function renderToHTMLOrFlight(
       // If it's a not found route, and we don't have any matched parallel
       // routes, we try to render the not found component if it exists.
       let notFoundComponent = {}
-      if (asNotFound && !parallelRouteMap.length && NotFound) {
+      if (asNotFound && NotFound) {
         notFoundComponent = {
           children: (
             <>
@@ -1312,6 +1312,7 @@ export async function renderToHTMLOrFlight(
       injectedCSS: Set<string>,
       requestPathname: string
     ) {
+      // `depth` represents how many layers we need to search into the tree.
       // For instance:
       // pathname '/abc' will be 0 depth, means stop at the root level
       // pathname '/abc/def' will be 1 depth, means stop at the first level
@@ -1645,15 +1646,16 @@ export async function renderToHTMLOrFlight(
           // Preserve the existing RSC inline chunks from the page rendering.
           // For 404 errors: the metadata from layout can be skipped with the error page.
           // For other errors (such as redirection): it can still be re-thrown on client.
-          const serverErrorComponentsRenderOpts = {
-            ...serverComponentsRenderOpts,
-            rscChunks: [],
-            transformStream: renderDefault404
-              ? new TransformStream()
-              : cloneTransformStream(
-                  serverComponentsRenderOpts.transformStream
-                ),
-          }
+          const serverErrorComponentsRenderOpts: typeof serverComponentsRenderOpts =
+            {
+              ...serverComponentsRenderOpts,
+              rscChunks: [],
+              transformStream: renderDefault404
+                ? new TransformStream()
+                : cloneTransformStream(
+                    serverComponentsRenderOpts.transformStream
+                  ),
+            }
 
           const errorType = is404
             ? 'not-found'

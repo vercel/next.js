@@ -33,12 +33,12 @@ export function createErrorHandler({
     if (allCapturedErrors) allCapturedErrors.push(err)
 
     if (
-      (err &&
-        (err.digest === DYNAMIC_ERROR_CODE ||
-          isNotFoundError(err) ||
-          err.digest === NEXT_DYNAMIC_NO_SSR_CODE ||
-          isRedirectError(err))) ||
-      isMetadataError(err)
+      err &&
+      (err.digest === DYNAMIC_ERROR_CODE ||
+        isNotFoundError(err) ||
+        err.digest === NEXT_DYNAMIC_NO_SSR_CODE ||
+        isRedirectError(err) ||
+        isMetadataError(err))
     ) {
       return err.digest
     }
