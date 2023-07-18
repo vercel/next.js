@@ -1,4 +1,3 @@
-import fs, { promises } from 'fs'
 import { join } from 'path'
 import {
   FONT_MANIFEST,
@@ -12,6 +11,8 @@ import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-pa
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import { PageNotFoundError, MissingStaticPage } from '../shared/lib/utils'
 import LRUCache from 'next/dist/compiled/lru-cache'
+import { loadManifest } from './load-manifest'
+import { promises } from 'fs'
 
 const isDev = process.env.NODE_ENV === 'development'
 const pagePathCache = isDev
@@ -25,13 +26,6 @@ const pagePathCache = isDev
   : new LRUCache<string, string | null>({
       max: 1000,
     })
-
-const loadManifest = (manifestPath: string) => {
-  if (isDev) {
-    return JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
-  }
-  return require(manifestPath)
-}
 
 export function getMaybePagePath(
   page: string,
@@ -49,10 +43,14 @@ export function getMaybePagePath(
   let appPathsManifest: undefined | PagesManifest
 
   if (isAppPath) {
-    appPathsManifest = loadManifest(join(serverBuildPath, APP_PATHS_MANIFEST))
+    appPathsManifest = loadManifest(
+      join(serverBuildPath, APP_PATHS_MANIFEST),
+      !isDev
+    )
   }
   const pagesManifest = loadManifest(
-    join(serverBuildPath, PAGES_MANIFEST)
+    join(serverBuildPath, PAGES_MANIFEST),
+    !isDev
   ) as PagesManifest
 
   try {
@@ -123,11 +121,15 @@ export function requirePage(
       throw new MissingStaticPage(page, err.message)
     })
   }
-  return require(pagePath)
+
+  return process.env.NEXT_MINIMAL
+    ? // @ts-ignore
+      __non_webpack_require__(pagePath)
+    : require(pagePath)
 }
 
 export function requireFontManifest(distDir: string) {
   const serverBuildPath = join(distDir, SERVER_DIRECTORY)
-  const fontManifest = require(join(serverBuildPath, FONT_MANIFEST))
+  const fontManifest = loadManifest(join(serverBuildPath, FONT_MANIFEST))
   return fontManifest
 }

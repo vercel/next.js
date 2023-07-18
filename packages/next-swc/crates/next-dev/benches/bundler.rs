@@ -1,6 +1,7 @@
 use std::{
-    fs,
-    io::{self, Write},
+    io::{
+        Write, {self},
+    },
     path::{Path, PathBuf},
     process::{Child, Command, Stdio},
 };
@@ -10,7 +11,9 @@ use regex::Regex;
 use turbopack_binding::turbopack::bench::{
     bundlers::{Bundler, RenderType},
     util::{
-        npm::{self, NpmPackage},
+        npm::{
+            NpmPackage, {self},
+        },
         wait_for_match,
     },
 };
@@ -68,11 +71,6 @@ impl Bundler for TurboNext {
             io::stderr().write_all(&build.stderr)?;
             return Err(anyhow!("pnpm build failed. See above."));
         }
-
-        fs::write(
-            install_dir.join("next.config.js"),
-            include_bytes!("next.config.js"),
-        )?;
 
         Ok(())
     }

@@ -28,9 +28,11 @@ import type { PrerenderManifest } from '../build'
 import type { ClientReferenceManifest } from '../build/webpack/plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
 import type { PagesRouteModule } from './future/route-modules/pages/module'
+import type { AppPageRouteModule } from './future/route-modules/app-page/module'
 import type { NodeNextRequest, NodeNextResponse } from './base-http/node'
 import type { AppRouteRouteMatch } from './future/route-matches/app-route-route-match'
 import type { RouteDefinition } from './future/route-definitions/route-definition'
+import type { WebNextRequest, WebNextResponse } from './base-http/web'
 
 import { format as formatUrl, parse as parseUrl } from 'url'
 import { getRedirectStatus } from '../lib/redirect-status'
@@ -269,7 +271,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected router: Router
   protected appPathRoutes?: Record<string, string[]>
   protected customRoutes: CustomRoutes
-  protected clientReferenceManifest?: ClientReferenceManifest
   protected nextFontManifest?: NextFontManifest
   public readonly hostname?: string
   public readonly port?: number
@@ -293,7 +294,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   }): Promise<FindComponentsResult | null>
   protected abstract getFontManifest(): FontManifest | undefined
   protected abstract getPrerenderManifest(): PrerenderManifest
-  protected abstract getServerComponentManifest(): any
   protected abstract getNextFontManifest(): NextFontManifest | undefined
   protected abstract attachRequestMeta(
     req: BaseNextRequest,
@@ -418,9 +418,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     this.hasAppDir =
       !!this.nextConfig.experimental.appDir && this.getHasAppDir(dev)
     const serverComponents = this.hasAppDir
-    this.clientReferenceManifest = serverComponents
-      ? this.getServerComponentManifest()
-      : undefined
+
     this.nextFontManifest = this.getNextFontManifest()
 
     if (process.env.NEXT_RUNTIME !== 'edge') {
@@ -1016,14 +1014,20 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     this.renderOpts.assetPrefix = prefix ? prefix.replace(/\/$/, '') : ''
   }
 
+  protected prepared: boolean = false
   protected preparedPromise: Promise<void> | null = null
   /**
    * Runs async initialization of server.
    * It is idempotent, won't fire underlying initialization more than once.
    */
   public async prepare(): Promise<void> {
+    if (this.prepared) return
+
     if (this.preparedPromise === null) {
-      this.preparedPromise = this.prepareImpl()
+      this.preparedPromise = this.prepareImpl().then(() => {
+        this.prepared = true
+        this.preparedPromise = null
+      })
     }
     return this.preparedPromise
   }
@@ -1388,9 +1392,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     }
 
     // Don't delete headers[RSC] yet, it still needs to be used in renderToHTML later
-    const isFlightRequest = Boolean(
-      this.clientReferenceManifest && req.headers[RSC.toLowerCase()]
-    )
+    const isFlightRequest = Boolean(req.headers[RSC.toLowerCase()])
 
     // For pages we need to ensure the correct Vary header is set too, to avoid
     // caching issues when navigating between pages and app
@@ -1687,9 +1689,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         getRequestMeta(req, '_nextMatch') ??
         // If the match can't be found, rely on the loaded route module. This
         // should only be required during development when we add FS routes.
-        (this.renderOpts.dev && components.ComponentMod?.routeModule
+        ((this.renderOpts.dev || process.env.NEXT_RUNTIME === 'edge') &&
+        components.routeModule
           ? {
-              definition: components.ComponentMod.routeModule.definition,
+              definition: components.routeModule.definition,
               params: opts.params
                 ? parsedUrlQueryToParams(opts.params)
                 : undefined,
@@ -1776,24 +1779,41 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       else if (
         match &&
         isRouteMatch(match, RouteKind.PAGES) &&
-        process.env.NEXT_RUNTIME !== 'edge' &&
-        components.ComponentMod.routeModule
+        components.routeModule
       ) {
-        const module: PagesRouteModule = components.ComponentMod.routeModule
+        const module = components.routeModule as PagesRouteModule
+        renderOpts.clientReferenceManifest = components.clientReferenceManifest
 
         // Due to the way we pass data by mutating `renderOpts`, we can't extend
-        // the object here but only updating its `clientReferenceManifest`
+        // the object here but only updating its `nextFontManifest`
         // field.
         // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
         renderOpts.nextFontManifest = this.nextFontManifest
 
-        // Call the built-in render method on the module. We cast these to
-        // NodeNextRequest and NodeNextResponse because we know that we're
-        // in the node runtime because we check that we're not in edge mode
-        // above.
+        // Call the built-in render method on the module.
         result = await module.render(
-          (req as NodeNextRequest).originalRequest,
-          (res as NodeNextResponse).originalResponse,
+          (req as NodeNextRequest).originalRequest ?? (req as WebNextRequest),
+          (res as NodeNextResponse).originalResponse ??
+            (res as WebNextResponse),
+          { page: pathname, params: match.params, query, renderOpts }
+        )
+      } else if (
+        match &&
+        isRouteMatch(match, RouteKind.APP_PAGE) &&
+        components.routeModule
+      ) {
+        const module = components.routeModule as AppPageRouteModule
+
+        // Due to the way we pass data by mutating `renderOpts`, we can't extend the
+        // object here but only updating its `clientReferenceManifest` field.
+        // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
+        renderOpts.nextFontManifest = this.nextFontManifest
+
+        // Call the built-in render method on the module.
+        result = await module.render(
+          (req as NodeNextRequest).originalRequest ?? (req as WebNextRequest),
+          (res as NodeNextResponse).originalResponse ??
+            (res as WebNextResponse),
           { page: pathname, params: match.params, query, renderOpts }
         )
       } else {
@@ -2437,7 +2457,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     })
   }
 
-  private async renderErrorToResponseImpl(
+  protected async renderErrorToResponseImpl(
     ctx: RequestContext,
     err: Error | null
   ): Promise<ResponsePayload | null> {
@@ -2560,9 +2580,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
       // If the page has a route module, use it for the new match. If it doesn't
       // have a route module, remove the match.
-      if (result.components.ComponentMod.routeModule) {
+      if (result.components.routeModule) {
         addRequestMeta(ctx.req, '_nextMatch', {
-          definition: result.components.ComponentMod.routeModule.definition,
+          definition: result.components.routeModule.definition,
           params: undefined,
         })
       } else {
@@ -2600,7 +2620,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         // There was an error, so use it's definition from the route module
         // to add the match to the request.
         addRequestMeta(ctx.req, '_nextMatch', {
-          definition: fallbackComponents.ComponentMod.routeModule.definition,
+          definition: fallbackComponents.routeModule!.definition,
           params: undefined,
         })
 
