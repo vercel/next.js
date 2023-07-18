@@ -19,6 +19,7 @@ export async function proxyRequest(
   const target = url.format(parsedUrl)
   const HttpProxy =
     require('next/dist/compiled/http-proxy') as typeof import('next/dist/compiled/http-proxy')
+
   const proxy = new HttpProxy({
     target,
     changeOrigin: true,
@@ -32,6 +33,25 @@ export async function proxyRequest(
 
   await new Promise((proxyResolve, proxyReject) => {
     let finished = false
+
+    proxy.on('proxyRes', (proxyRes, innerReq, innerRes) => {
+      const cleanup = (err: any) => {
+        // cleanup event listeners to allow clean garbage collection
+        proxyRes.removeListener('error', cleanup)
+        proxyRes.removeListener('close', cleanup)
+        innerRes.removeListener('error', cleanup)
+        innerRes.removeListener('close', cleanup)
+
+        // destroy all source streams to propagate the caught event backward
+        innerReq.destroy(err)
+        proxyRes.destroy(err)
+      }
+
+      proxyRes.once('error', cleanup)
+      proxyRes.once('close', cleanup)
+      innerRes.once('error', cleanup)
+      innerRes.once('close', cleanup)
+    })
 
     proxy.on('error', (err) => {
       console.error(`Failed to proxy ${target}`, err)

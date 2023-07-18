@@ -322,8 +322,23 @@ export async function startServer({
           followRedirects: false,
         })
 
-        proxyServer.on('error', (_err) => {
-          // TODO?: enable verbose error logs with --debug flag?
+        proxyServer.on('proxyRes', (proxyRes, innerReq, innerRes) => {
+          const cleanupProxy = (err: any) => {
+            // cleanup event listeners to allow clean garbage collection
+            proxyRes.removeListener('error', cleanupProxy)
+            proxyRes.removeListener('close', cleanupProxy)
+            innerRes.removeListener('error', cleanupProxy)
+            innerRes.removeListener('close', cleanupProxy)
+
+            // destroy all source streams to propagate the caught event backward
+            innerReq.destroy(err)
+            proxyRes.destroy(err)
+          }
+
+          proxyRes.once('error', cleanupProxy)
+          proxyRes.once('close', cleanupProxy)
+          innerRes.once('error', cleanupProxy)
+          innerRes.once('close', cleanupProxy)
         })
         return proxyServer
       }
