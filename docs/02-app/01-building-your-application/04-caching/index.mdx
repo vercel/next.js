@@ -76,10 +76,6 @@ Cached data can be revalidated in two ways:
 - **Time-based revalidation**: Automatically revalidate data after a certain amount of time has passed. This is useful for data that changes infrequently and freshness is not as critical. Time-based revalidation can be configured with the [Route Segment Config options]() or per individual [`fetch` request]().
 - **On-demand revalidation**: Manually revalidate data based on an event (e.g. form submission). On-demand revalidation can use a tag-based or path-based approach to revalidate groups of data at once. This is useful for when you want to ensure the latest data is always shown. On-demand revalidation can be configured with the [`revalidateTag`]() and [`revalidatePath`]() APIs.
 
-> **Vercel Data Cache**
->
-> If your Next.js application is deployed to Vercel, we recommend reading the [Vercel Data Cache](https://vercel.com/docs/infrastructure/data-cache) documentation for a better understanding of Vercel specific features.
-
 #### Opting out
 
 For individual data fetches, you can opt out of caching by setting the `cache` option to `no-store`. This means data will be fetched dynamically, on each request.
@@ -91,63 +87,65 @@ fetch(`https://...`, { cache: 'no-store' })
 
 Alternatively, you can also use the [Route Segment Config options]() to opt out of caching for **all** data requests in a route segment.
 
+> **Vercel Data Cache**
+>
+> If your Next.js application is deployed to Vercel, we recommend reading the [Vercel Data Cache](https://vercel.com/docs/infrastructure/data-cache) documentation for a better understanding of Vercel specific features.
+
 ### Render Cache
 
 Next.js automatically caches the rendered result of React Components on the server at build time. This is an optimization that allows you to skip rendering components on the server on every request, and instead directly send the cached result to the client, resulting in faster page loads.
 
 > **Related terms**:
 >
-> - You may see **Render Cache** being referred to as **ISR Cache**, this is the same concept.
 > - The terms **Automatic Static Optimization**, **Static Site Generation**, or **Static Rendering** might be also be used interchangeably to refer to the process of rendering and caching parts of your application code on the server at build time.
 
-To understand how Render Cache works, it's helpful to look at how React handles rendering, and how Next.js caches the output. Here's a high-level overview of the process:
+To understand how the Render Cache works, it's helpful to look at how React handles rendering, and how Next.js caches the result:
 
 #### 1. React Rendering on the Server
 
 On the server, Next.js uses React's APIs to orchestrate rendering. This process is split into three stages:
 
-1. React renders Server Components into a special data format, optimized for streaming, called the [**React Server Payload**](). This Payload contains:
+1. React renders Server Components into a special data format, optimized for streaming, called the **React Server Payload**.
+2. Next.js compiles, bundles, and code-splits the **JavaScript instructions** for rendering Client Components on the client.
+3. Net.js uses the React Payload and JavaScript instructions to pre-render **HTML** on the server.
 
-- The rendered result of Server Components
-- Placeholders for where Client Components should be rendered on the client
-  - Any serialized props passed to these Client Components
-  - References to the JavaScript instructions needed to render the Client Components
-- Metadata tags, such as references to stylesheets
-
-2. Next.js compiles, bundles, and code-splits the JavaScript instructions for rendering Client Components on the client.
-3. The **React Payload** and **JavaScript instructions** are used to pre-render HTML on the server.
-
-> To learn more about React's rendering process, the React Payload, and how it relates to Server and Client Components. Please see the [React Rendering]() documentation.
+> **What is React Server Payload?**
+>
+> The React Payload is a compact string representation of the React component tree. It is used by React on the client to update the DOM. The React Payload contains:
+>
+> - The rendered result of Server Components
+> - Placeholders for where Client Components should be rendered on the client
+> - Any serialized props passed to these Client Components
+> - References to the JavaScript instructions needed to render the Client Components
+> - Metadata tags, such as references to stylesheets
+>
+> To learn more, see [React Rendering]() documentation.
 
 #### 2. Next.js Caching on the Server (Render Cache)
 
-On the server and at build time, Next.js caches the React Server Payload, Client Component JavaScript, and pre-rendered HTML.
+On the server, at build time, Next.js caches the React Server Payload, Client Component JavaScript, and pre-rendered HTML.
 
 #### 3. Next.js Caching on the Client (Router Cache)
 
-At request time, the React Server Payload, Client Component JavaScript, and pre-rendered HTML are sent to the client (browser). The React Server Payload is stored in the [Router Cache](). This is a separate in-memory client cache, split by in individual route segments.
-
-> The [Router cache]() is used to improve the navigation experience by prefetching the payload for route segments, and reducing server requests for route segments that do not change between navigations. Learn more about the [Router Cache]().
+At request time, the React Server Payload is stored in the client-side [Router Cache]() - a separate in-memory cache, split by individual routes. This Router Cache is used to improve the navigation experience by prefetching. Learn more about the [Router Cache](#router-cache).
 
 #### 4. React Hydration and Reconciliation on the Client
 
 Then, on the client:
 
 1. The HTML is used to show an initial preview for Client and Server Components.
-2. The React payload is used to reconcile the Client and Server Component trees.
+2. The React payload is used to reconcile the Client and Server Component trees, and update the DOM.
 3. The JavaScript instructions are used to [hydrate]() Client Components.
 
 #### 5. Subsequent Navigations
 
-On subsequent navigations or during prefetching, Next.js will check if the payload for route segments are already in the Router Cache. If so, it will skip sending a new request to the server.
+On subsequent navigations or during prefetching, Next.js will check if the React Payload is stored in Router Cache. If so, it will skip sending a new request to the server.
 
 If the route segments are not cached, Next.js will fetch the render output from the Render Cache on the server, and populate the Router Cache on the client.
 
 #### Duration
 
-By default, the Render Cache is persistent. This means that the render output is cached across user requests. In Next.js, this is called [Static Rendering]().
-
-It's important to note invalidating the [Data Cache]() will always invalidate the Render Cache. This is because the render output depends on data. However, you can invalidate the Render Cache without invalidating the Data Cache.
+By default, the Render Cache is persistent. This means that the render output is cached across user requests.
 
 #### Invalidation
 
@@ -158,15 +156,19 @@ There are two ways you can **invalidate** the Render Cache:
 
 #### Opting out
 
-You can opt out of Static Rendering, or in other words, **skip** the Render Cache by:
+You can opt out of the Render Cache, or in other words, dynamically render components at request time, by:
 
 - **Using a [Dynamic Function]()**: This will dynamically render components at request time, but may reuse cached data, if any.
 - **Opting into [Dynamic Data Fetching]()**: This will fetch data on every request, which in turn will skip the Render Cache.
 - **Using the route segment config options `dynamic = force-dynamic` or `revalidate = 0`**: This will skip the Render Cache and the Data Cache. Meaning components will be rendered and data fetched on every request.
 
+> **Static vs. Dynamic Rendering**:
+>
+> You may see the terms **Static Rendering** and **Dynamic Rendering** being used. Static Rendering refers to caching the render output on the server, at build time, whereas Dynamic Rendering refers to rendering components on every request, at runtime.
+
 ### Router Cache
 
-Next.js has an in-memory client-side cache that stores the React Server Payload, split by individual routes. This **Router Cache** is used to improve the navigation experience. It [prefetches]() content that the user is likely going to navigate to (when using the `<Link >` component), and caches visited route segments, enabling [partial rendering](). This applies to newly visited routes, as well as backward/forward browser navigation.
+Next.js has an in-memory client-side cache that stores the React Server Payload, split by individual routes. This **Router Cache** is used to improve the navigation experience. Next.js [prefetches]() and caches routes that the user is likely going to navigate to (when using the `<Link >` component), and caches visited route segments, enabling [partial rendering](). This applies to newly visited routes, as well as backward/forward browser navigation.
 
 For the user, this results in [soft navigation]() (no page reloads) and faster page transitions; it also reduces unnecessary requests to the server.
 
