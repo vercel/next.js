@@ -10,21 +10,40 @@ export function linkGc() {
               (node as HTMLLinkElement).tagName === 'LINK'
             ) {
               const link = node as HTMLLinkElement
-              if (link.dataset.precedence === 'next.js') {
+              if (link.dataset.precedence?.startsWith('next')) {
                 const href = link.getAttribute('href')
                 if (href) {
                   const [resource, version] = href.split('?v=')
                   if (version) {
-                    const allLinks = document.querySelectorAll(
-                      `link[href^="${resource}"]`
-                    ) as NodeListOf<HTMLLinkElement>
+                    const currentOrigin = window.location.origin
+                    const allLinks = [
+                      ...document.querySelectorAll(
+                        'link[href^="' + resource + '"]'
+                      ),
+                      // It's possible that the resource is a full URL or only pathname,
+                      // so we need to remove the alternative href as well.
+                      ...document.querySelectorAll(
+                        'link[href^="' +
+                          (resource.startsWith(currentOrigin)
+                            ? resource.slice(currentOrigin.length)
+                            : currentOrigin + resource) +
+                          '"]'
+                      ),
+                    ] as HTMLLinkElement[]
+
                     for (const otherLink of allLinks) {
-                      if (otherLink.dataset.precedence === 'next.js') {
+                      if (otherLink.dataset.precedence?.startsWith('next')) {
                         const otherHref = otherLink.getAttribute('href')
                         if (otherHref) {
                           const [, otherVersion] = otherHref.split('?v=')
                           if (!otherVersion || +otherVersion < +version) {
-                            otherLink.remove()
+                            // Delay the removal of the stylesheet to avoid FOUC
+                            // caused by `@font-face` rules, as they seem to be
+                            // a couple of ticks delayed between the old and new
+                            // styles being swapped even if the font is cached.
+                            setTimeout(() => {
+                              otherLink.remove()
+                            }, 5)
                             const preloadLink = document.querySelector(
                               `link[rel="preload"][as="style"][href="${otherHref}"]`
                             )

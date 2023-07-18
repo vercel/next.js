@@ -1,16 +1,16 @@
 import fs from 'fs-extra'
-import { nextBuild, nextExport } from 'next-test-utils'
+import { nextBuild, nextExport, nextExportDefault } from 'next-test-utils'
 import { join } from 'path'
 import {
   appDir,
   distDir,
-  expectedFiles,
+  expectedWhenTrailingSlashTrue,
   exportDir,
   getFiles,
   nextConfig,
 } from './utils'
 
-describe.skip('app dir with output export (next dev / next build)', () => {
+describe('app dir with output export (next dev / next build)', () => {
   it('should throw when exportPathMap configured', async () => {
     nextConfig.replace(
       'trailingSlash: true,',
@@ -36,26 +36,52 @@ describe.skip('app dir with output export (next dev / next build)', () => {
     await fs.remove(distDir)
     await fs.remove(exportDir)
     await nextBuild(appDir)
-    expect(await getFiles()).toEqual(expectedFiles)
+    expect(await getFiles()).toEqual(expectedWhenTrailingSlashTrue)
     let stdout = ''
     let stderr = ''
-    await nextExport(
-      appDir,
-      { outdir: exportDir },
-      {
-        onStdout(msg) {
-          stdout += msg
-        },
-        onStderr(msg) {
-          stderr += msg
-        },
-      }
-    )
+    await nextExportDefault(appDir, {
+      onStdout(msg) {
+        stdout += msg
+      },
+      onStderr(msg) {
+        stderr += msg
+      },
+    })
     expect(stderr).toContain(
-      'warn  - "next export" is no longer needed when "output: export" is configured in next.config.js'
+      '- warn "next export" is no longer needed when "output: export" is configured in next.config.js'
     )
     expect(stdout).toContain('Export successful. Files written to')
-    expect(await getFiles()).toEqual(expectedFiles)
+    expect(await getFiles()).toEqual(expectedWhenTrailingSlashTrue)
+  })
+  it('should error when "next export -o <dir>" is used with config', async () => {
+    await fs.remove(distDir)
+    await fs.remove(exportDir)
+    await nextBuild(appDir)
+    expect(await getFiles()).toEqual(expectedWhenTrailingSlashTrue)
+    let stdout = ''
+    let stderr = ''
+    let error = undefined
+    try {
+      await nextExport(
+        appDir,
+        { outdir: exportDir },
+        {
+          onStdout(msg) {
+            stdout += msg
+          },
+          onStderr(msg) {
+            stderr += msg
+          },
+        }
+      )
+    } catch (e) {
+      error = e
+    }
+    expect(error).toBeDefined()
+    expect(stderr).toContain(
+      '- error "next export -o <dir>" cannot be used when "output: export" is configured in next.config.js. Instead add "distDir" in next.config.js'
+    )
+    expect(stdout).not.toContain('Export successful. Files written to')
   })
   it('should error when no config.output detected for next export', async () => {
     await fs.remove(distDir)
@@ -85,7 +111,7 @@ describe.skip('app dir with output export (next dev / next build)', () => {
       }
       expect(error).toBeDefined()
       expect(stderr).toContain(
-        'error - "next export" does not work with App Router. Please use "output: export" in next.config.js'
+        '- error "next export" does not work with App Router. Please use "output: export" in next.config.js'
       )
       expect(stdout).not.toContain('Export successful. Files written to')
       expect(await getFiles()).toEqual([])
@@ -106,7 +132,7 @@ describe.skip('app dir with output export (next dev / next build)', () => {
     )
     try {
       await nextBuild(appDir)
-      expect(await getFiles(outputDir)).toEqual(expectedFiles)
+      expect(await getFiles(outputDir)).toEqual(expectedWhenTrailingSlashTrue)
     } finally {
       nextConfig.restore()
       await fs.remove(distDir)

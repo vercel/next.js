@@ -23,7 +23,9 @@ export function parseAndValidateFlightRouterState(
   }
 
   try {
-    return flightRouterStateSchema.parse(JSON.parse(stateHeader))
+    return flightRouterStateSchema.parse(
+      JSON.parse(decodeURIComponent(stateHeader))
+    )
   } catch {
     throw new Error('The router state header was sent but could not be parsed.')
   }

@@ -5,7 +5,7 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Launch app-dir development",
+      "name": "Launch test/e2e/app-dir/app development",
       "type": "node",
       "request": "launch",
       "cwd": "${workspaceFolder}",
@@ -17,7 +17,7 @@
       }
     },
     {
-      "name": "Launch app-dir build",
+      "name": "Launch test/e2e/app-dir/app build",
       "type": "node",
       "request": "launch",
       "cwd": "${workspaceFolder}",
@@ -29,7 +29,7 @@
       }
     },
     {
-      "name": "Launch app development",
+      "name": "Launch examples/hello-world development",
       "type": "node",
       "request": "launch",
       "cwd": "${workspaceFolder}",
@@ -41,7 +41,7 @@
       }
     },
     {
-      "name": "Launch app build",
+      "name": "Launch examples/hello-world build",
       "type": "node",
       "request": "launch",
       "cwd": "${workspaceFolder}",
@@ -53,7 +53,7 @@
       }
     },
     {
-      "name": "Launch app production",
+      "name": "Launch examples/hello-world production",
       "type": "node",
       "request": "launch",
       "cwd": "${workspaceFolder}",

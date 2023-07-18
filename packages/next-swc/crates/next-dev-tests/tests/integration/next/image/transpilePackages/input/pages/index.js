@@ -1,11 +1,8 @@
-import { useEffect } from 'react'
+import { useTestHarness } from '@turbo/pack-test-harness'
 import MagicImage from 'magic-image'
 
 export default function Home() {
-  useEffect(() => {
-    // Only run on client
-    import('@turbo/pack-test-harness').then(runTests)
-  })
+  useTestHarness(runTests)
 
   return <MagicImage />
 }
@@ -13,6 +10,6 @@ export default function Home() {
 function runTests() {
   it('it should link to imported image from a package', function () {
     const img = document.querySelector('#magic')
-    expect(img.src).toContain(encodeURIComponent('_next/static/assets'))
+    expect(img.src).toContain(encodeURIComponent('static/media'))
   })
 }

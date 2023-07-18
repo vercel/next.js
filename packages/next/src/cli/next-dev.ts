@@ -8,16 +8,22 @@ import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
 import { CONFIG_FILES, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import path from 'path'
-import type { NextConfig, NextConfigComplete } from '../server/config-shared'
+import {
+  defaultConfig,
+  NextConfig,
+  NextConfigComplete,
+} from '../server/config-shared'
 import { traceGlobals } from '../trace/shared'
 import { Telemetry } from '../telemetry/storage'
 import loadConfig from '../server/config'
 import { findPagesDir } from '../lib/find-pages-dir'
-import { fileExists } from '../lib/file-exists'
+import { findRootDir } from '../lib/find-root'
+import { fileExists, FileType } from '../lib/file-exists'
 import { getNpxCommand } from '../lib/helpers/get-npx-command'
-import Watchpack from 'next/dist/compiled/watchpack'
+import Watchpack from 'watchpack'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { getPossibleInstrumentationHookFilenames } from '../build/worker'
+import { resetEnv } from '@next/env'
 
 let dir: string
 let isTurboSession = false
@@ -114,6 +120,7 @@ const nextDev: CliCommand = async (argv) => {
     '--port': Number,
     '--hostname': String,
     '--turbo': Boolean,
+    '--experimental-turbo': Boolean,
 
     // To align current messages with native binary.
     // Will need to adjust subcommand later.
@@ -156,7 +163,7 @@ const nextDev: CliCommand = async (argv) => {
   dir = getProjectDir(process.env.NEXT_PRIVATE_DEV_DIR || args._[0])
 
   // Check if pages dir exists and warn if not
-  if (!(await fileExists(dir, 'directory'))) {
+  if (!(await fileExists(dir, FileType.Directory))) {
     printAndExit(`> No such directory exists as the project root: ${dir}`)
   }
 
@@ -211,10 +218,84 @@ const nextDev: CliCommand = async (argv) => {
     allowRetry,
     isDev: true,
     hostname: host,
-    useWorkers: !process.env.__NEXT_DISABLE_MEMORY_WATCHER,
+    // This is required especially for app dir.
+    useWorkers: true,
   }
 
   if (args['--turbo']) {
+    process.env.TURBOPACK = '1'
+  }
+  if (args['--experimental-turbo']) {
+    process.env.EXPERIMENTAL_TURBOPACK = '1'
+  }
+  const experimentalTurbo = !!process.env.EXPERIMENTAL_TURBOPACK
+
+  if (experimentalTurbo) {
+    const { loadBindings } =
+      require('../build/swc') as typeof import('../build/swc')
+
+    resetEnv()
+    let bindings = await loadBindings()
+
+    const config = await loadConfig(
+      PHASE_DEVELOPMENT_SERVER,
+      dir,
+      undefined,
+      undefined,
+      true
+    )
+
+    // Just testing code here:
+
+    const project = await bindings.turbo.createProject({
+      projectPath: dir,
+      rootPath: dir,
+      nextConfig: config,
+      watch: true,
+    })
+    const iter = project.entrypointsSubscribe()
+
+    try {
+      for await (const entrypoints of iter) {
+        for (const [pathname, route] of entrypoints.routes) {
+          switch (route.type) {
+            case 'page': {
+              Log.info(`writing ${pathname} to disk`)
+              const written = await route.htmlEndpoint.writeToDisk()
+              Log.info(written)
+              break
+            }
+            case 'page-api': {
+              Log.info(`writing ${pathname} to disk`)
+              const written = await route.endpoint.writeToDisk()
+              Log.info(written)
+              break
+            }
+            case 'app-page': {
+              Log.info(`writing ${pathname} to disk`)
+              const written = await route.rscEndpoint.writeToDisk()
+              Log.info(written)
+              break
+            }
+            case 'app-route': {
+              Log.info(`writing ${pathname} to disk`)
+              const written = await route.endpoint.writeToDisk()
+              Log.info(written)
+              break
+            }
+            default:
+              Log.info(`skipping ${pathname} (${route.type})`)
+              break
+          }
+        }
+      }
+    } catch (e) {
+      console.error(e)
+    }
+
+    Log.error('Not supported yet')
+    process.exit(1)
+  } else if (process.env.TURBOPACK) {
     isTurboSession = true
 
     const { validateTurboNextConfig } =
@@ -238,7 +319,9 @@ const nextDev: CliCommand = async (argv) => {
     const distDir = path.join(dir, rawNextConfig.distDir || '.next')
     const { pagesDir, appDir } = findPagesDir(
       dir,
-      !!rawNextConfig.experimental?.appDir
+      typeof rawNextConfig?.experimental?.appDir === 'undefined'
+        ? !!defaultConfig.experimental?.appDir
+        : !!rawNextConfig.experimental?.appDir
     )
     const telemetry = new Telemetry({
       distDir,
@@ -264,21 +347,29 @@ const nextDev: CliCommand = async (argv) => {
       )
     }
 
-    const turboJson = findUp.sync('turbo.json', { cwd: dir })
-    // eslint-disable-next-line no-shadow
-    const packagePath = findUp.sync('package.json', { cwd: dir })
+    if (process.platform === 'darwin') {
+      // rust needs stdout to be blocking, otherwise it will throw an error (on macOS at least) when writing a lot of data (logs) to it
+      // see https://github.com/napi-rs/napi-rs/issues/1630
+      // and https://github.com/nodejs/node/blob/main/doc/api/process.md#a-note-on-process-io
+      if (process.stdout._handle != null) {
+        // @ts-ignore
+        process.stdout._handle.setBlocking(true)
+      }
+      if (process.stderr._handle != null) {
+        // @ts-ignore
+        process.stderr._handle.setBlocking(true)
+      }
+    }
 
-    let bindings: any = await loadBindings()
+    // Turbopack need to be in control over reading the .env files and watching them.
+    // So we need to start with a initial env to know which env vars are coming from the user.
+    resetEnv()
+    let bindings = await loadBindings()
+
     let server = bindings.turbo.startDev({
       ...devServerOptions,
       showAll: args['--show-all'] ?? false,
-      root:
-        args['--root'] ??
-        (turboJson
-          ? path.dirname(turboJson)
-          : packagePath
-          ? path.dirname(packagePath)
-          : undefined),
+      root: args['--root'] ?? findRootDir(dir),
     })
     // Start preflight after server is listening and ignore errors:
     preflight().catch(() => {})
@@ -318,7 +409,7 @@ const nextDev: CliCommand = async (argv) => {
 
         const setupFork = async (newDir?: string) => {
           // if we're using workers we can auto restart on config changes
-          if (!devServerOptions.useWorkers && devServerTeardown) {
+          if (process.env.__NEXT_DISABLE_MEMORY_WATCHER && devServerTeardown) {
             Log.info(
               `Detected change, manual restart required due to '__NEXT_DISABLE_MEMORY_WATCHER' usage`
             )
@@ -410,12 +501,6 @@ const nextDev: CliCommand = async (argv) => {
               true
             )
           }
-
-          if (config.experimental?.appDir && !devServerOptions.useWorkers) {
-            Log.error(
-              `Disabling dev workers is not supported with appDir enabled`
-            )
-          }
         }
 
         await setupFork()
@@ -450,7 +535,7 @@ const nextDev: CliCommand = async (argv) => {
             const instrumentationFileHash = (
               require('crypto') as typeof import('crypto')
             )
-              .createHash('sha256')
+              .createHash('sha1')
               .update(await fs.promises.readFile(instrumentationFile, 'utf8'))
               .digest('hex')
 
@@ -487,7 +572,9 @@ const nextDev: CliCommand = async (argv) => {
           }
 
           previousInstrumentationFiles.clear()
-          knownFiles.forEach((_, key) => previousInstrumentationFiles.add(key))
+          knownFiles.forEach((_: any, key: any) =>
+            previousInstrumentationFiles.add(key)
+          )
         })
 
         const projectFolderWatcher = new Watchpack({

@@ -12,6 +12,20 @@ export const ACTION_RESTORE = 'restore'
 export const ACTION_SERVER_PATCH = 'server-patch'
 export const ACTION_PREFETCH = 'prefetch'
 export const ACTION_FAST_REFRESH = 'fast-refresh'
+export const ACTION_SERVER_ACTION = 'server-action'
+
+export type RouterChangeByServerResponse = (
+  previousTree: FlightRouterState,
+  flightData: FlightData,
+  overrideCanonicalUrl: URL | undefined
+) => void
+
+export type RouterNavigate = (
+  href: string,
+  navigateType: 'push' | 'replace',
+  forceOptimisticNavigation: boolean,
+  shouldScroll: boolean
+) => void
 
 export interface Mutable {
   mpaNavigation?: boolean
@@ -23,6 +37,15 @@ export interface Mutable {
   cache?: CacheNode
   prefetchCache?: AppRouterState['prefetchCache']
   hashFragment?: string
+  shouldScroll?: boolean
+}
+
+export interface ServerActionMutable {
+  inFlightServerAction?: Promise<any> | null
+  serverActionApplied?: boolean
+  previousTree?: FlightRouterState
+  previousUrl?: string
+  prefetchCache?: AppRouterState['prefetchCache']
 }
 
 /**
@@ -42,6 +65,24 @@ export interface FastRefreshAction {
   cache: CacheNode
   mutable: Mutable
   origin: Location['origin']
+}
+
+export type ServerActionDispatcher = (
+  args: Omit<
+    ServerActionAction,
+    'type' | 'mutable' | 'navigate' | 'changeByServerResponse'
+  >
+) => void
+
+export interface ServerActionAction {
+  type: typeof ACTION_SERVER_ACTION
+  actionId: string
+  actionArgs: any[]
+  resolve: (value: any) => void
+  reject: (reason?: any) => void
+  mutable: ServerActionMutable
+  navigate: RouterNavigate
+  changeByServerResponse: RouterChangeByServerResponse
 }
 
 /**
@@ -86,6 +127,7 @@ export interface NavigateAction {
   locationSearch: Location['search']
   navigateType: 'push' | 'replace'
   forceOptimisticNavigation: boolean
+  shouldScroll: boolean
   cache: CacheNode
   mutable: Mutable
 }
@@ -181,6 +223,11 @@ export type PrefetchCacheEntry = {
  */
 export type AppRouterState = {
   /**
+   * The buildId is used to do a mpaNavigation when the server returns a different buildId.
+   * It is used to avoid issues where an older version of the app is loaded in the browser while the server has a new version.
+   */
+  buildId: string
+  /**
    * The router state, this is written into the history state in app-router using replaceState/pushState.
    * - Has to be serializable as it is written into the history state.
    * - Holds which segments and parallel routes are shown on the screen.
@@ -224,4 +271,5 @@ export type ReducerActions = Readonly<
   | ServerPatchAction
   | PrefetchAction
   | FastRefreshAction
+  | ServerActionAction
 >

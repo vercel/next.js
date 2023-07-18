@@ -24,6 +24,7 @@ export const DOT_NEXT_ALIAS = 'private-dot-next'
 export const ROOT_DIR_ALIAS = 'private-next-root-dir'
 export const APP_DIR_ALIAS = 'private-next-app-dir'
 export const RSC_MOD_REF_PROXY_ALIAS = 'private-next-rsc-mod-ref-proxy'
+export const RSC_ACTION_VALIDATE_ALIAS = 'private-next-rsc-action-validate'
 export const RSC_ACTION_PROXY_ALIAS = 'private-next-rsc-action-proxy'
 export const RSC_ACTION_CLIENT_WRAPPER_ALIAS =
   'private-next-rsc-action-client-wrapper'
@@ -85,13 +86,63 @@ export const SERVER_RUNTIME: Record<string, ServerRuntime> = {
   nodejs: 'nodejs',
 }
 
-export const WEBPACK_LAYERS = {
-  shared: 'sc_shared',
-  server: 'sc_server',
-  client: 'sc_client',
-  action: 'sc_action',
+/**
+ * The names of the webpack layers. These layers are the primitives for the
+ * webpack chunks.
+ */
+const WEBPACK_LAYERS_NAMES = {
+  /**
+   * The layer for the shared code between the client and server bundles.
+   */
+  shared: 'shared',
+  /**
+   * React Server Components layer (rsc).
+   */
+  reactServerComponents: 'rsc',
+  /**
+   * Server Side Rendering layer (ssr).
+   */
+  serverSideRendering: 'ssr',
+  /**
+   * The browser client bundle layer for actions.
+   */
+  actionBrowser: 'actionBrowser',
+  /**
+   * The layer for the API routes.
+   */
   api: 'api',
+  /**
+   * The layer for the middleware code.
+   */
   middleware: 'middleware',
+  /**
+   * The layer for assets on the edge.
+   */
   edgeAsset: 'edge-asset',
-  appClient: 'app-client',
+  /**
+   * The browser client bundle layer for App directory.
+   */
+  appPagesBrowser: 'app-pages-browser',
+  /**
+   * The server bundle layer for metadata routes.
+   */
+  appMetadataRoute: 'app-metadata-route',
+}
+
+export const WEBPACK_LAYERS = {
+  ...WEBPACK_LAYERS_NAMES,
+  GROUP: {
+    server: [
+      WEBPACK_LAYERS_NAMES.reactServerComponents,
+      WEBPACK_LAYERS_NAMES.actionBrowser,
+      WEBPACK_LAYERS_NAMES.appMetadataRoute,
+    ],
+  },
+}
+
+export const WEBPACK_RESOURCE_QUERIES = {
+  edgeSSREntry: '__next_edge_ssr_entry__',
+  metadata: '__next_metadata__',
+  metadataRoute: '__next_metadata_route__',
+  metadataImageMeta: '__next_metadata_image_meta__',
 }

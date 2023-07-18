@@ -17,7 +17,6 @@ import { writeConfigurationDefaults } from './typescript/writeConfigurationDefau
 import { installDependencies } from './install-dependencies'
 import { isCI } from '../telemetry/ci-info'
 import { missingDepsError } from './typescript/missingDependencyError'
-import { writeVscodeConfigurations } from './typescript/writeVscodeConfigurations'
 
 const requiredPackages = [
   {
@@ -45,7 +44,7 @@ export async function verifyTypeScriptSetup({
   tsconfigPath,
   typeCheckPreflight,
   disableStaticImages,
-  isAppDirEnabled,
+  hasAppDir,
   hasPagesDir,
 }: {
   dir: string
@@ -55,7 +54,7 @@ export async function verifyTypeScriptSetup({
   intentDirs: string[]
   typeCheckPreflight: boolean
   disableStaticImages: boolean
-  isAppDirEnabled: boolean
+  hasAppDir: boolean
   hasPagesDir: boolean
 }): Promise<{ result?: TypeCheckResult; version: string | null }> {
   const resolvedTsConfigPath = path.join(dir, tsconfigPath)
@@ -123,7 +122,7 @@ export async function verifyTypeScriptSetup({
       ts,
       resolvedTsConfigPath,
       intent.firstTimeSetup,
-      isAppDirEnabled,
+      hasAppDir,
       distDir,
       hasPagesDir
     )
@@ -133,12 +132,8 @@ export async function verifyTypeScriptSetup({
       baseDir: dir,
       imageImportsEnabled: !disableStaticImages,
       hasPagesDir,
-      isAppDirEnabled,
+      isAppDirEnabled: hasAppDir,
     })
-
-    if (isAppDirEnabled && !isCI) {
-      await writeVscodeConfigurations(dir, tsPath)
-    }
 
     let result
     if (typeCheckPreflight) {
@@ -151,7 +146,7 @@ export async function verifyTypeScriptSetup({
         distDir,
         resolvedTsConfigPath,
         cacheDir,
-        isAppDirEnabled
+        hasAppDir
       )
     }
     return { result, version: ts.version }

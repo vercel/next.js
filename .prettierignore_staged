@@ -10,4 +10,6 @@ packages/next-codemod/transforms/__tests__/**/*
 test/development/basic/hmr/components/parse-error.js
 pnpm-lock.yaml
 .github/actions/issue-validator/index.mjs
+.github/actions/validate-docs-links/lib/index.js
+.github/actions/issue-on-comment/index.js
 **/convex/_generated/**

@@ -1,12 +1,19 @@
 // Polyfill crypto() in the Node.js environment
 
-if (!(global as any).crypto) {
-  function getCryptoImpl() {
-    return require('node:crypto').webcrypto
-  }
+if (!global.crypto) {
+  let webcrypto: Crypto | undefined
+
   Object.defineProperty(global, 'crypto', {
+    enumerable: false,
+    configurable: true,
     get() {
-      return getCryptoImpl()
+      if (!webcrypto) {
+        webcrypto = require('node:crypto').webcrypto
+      }
+      return webcrypto
+    },
+    set(value: Crypto) {
+      webcrypto = value
     },
   })
 }

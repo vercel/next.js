@@ -2,11 +2,10 @@
 
 import { useEffect } from 'react'
 import { RSC_VARY_HEADER } from 'next/dist/client/components/app-router-headers'
+import { useTestHarness } from '@turbo/pack-test-harness'
 
 export default function Home() {
-  useEffect(() => {
-    import('@turbo/pack-test-harness').then(runTests)
-  }, [])
+  useTestHarness(runTests)
   return 'index'
 }
 

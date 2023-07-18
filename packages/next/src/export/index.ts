@@ -24,8 +24,6 @@ import {
   CLIENT_STATIC_FILES_PATH,
   EXPORT_DETAIL,
   EXPORT_MARKER,
-  CLIENT_REFERENCE_MANIFEST,
-  FLIGHT_SERVER_CSS_MANIFEST,
   NEXT_FONT_MANIFEST,
   MIDDLEWARE_MANIFEST,
   PAGES_MANIFEST,
@@ -148,12 +146,13 @@ export interface ExportOptions {
   threads?: number
   debugOutput?: boolean
   pages?: string[]
-  buildExport?: boolean
+  buildExport: boolean
   statusMessage?: string
   exportPageWorker?: typeof import('./worker').default
   exportAppPageWorker?: typeof import('./worker').default
   endWorker?: () => Promise<void>
   nextConfig?: NextConfigComplete
+  hasOutdirFromCli?: boolean
 }
 
 export default async function exportApp(
@@ -179,9 +178,16 @@ export default async function exportApp(
 
     const threads = options.threads || nextConfig.experimental.cpus
     const distDir = join(dir, nextConfig.distDir)
+    const isExportOutput = nextConfig.output === 'export'
 
+    // Running 'next export'
     if (options.isInvokedFromCli) {
-      if (nextConfig.output === 'export') {
+      if (isExportOutput) {
+        if (options.hasOutdirFromCli) {
+          throw new ExportError(
+            '"next export -o <dir>" cannot be used when "output: export" is configured in next.config.js. Instead add "distDir" in next.config.js https://nextjs.org/docs/advanced-features/static-html-export'
+          )
+        }
         Log.warn(
           '"next export" is no longer needed when "output: export" is configured in next.config.js https://nextjs.org/docs/advanced-features/static-html-export'
         )
@@ -195,6 +201,14 @@ export default async function exportApp(
       Log.warn(
         '"next export" is deprecated in favor of "output: export" in next.config.js https://nextjs.org/docs/advanced-features/static-html-export'
       )
+    }
+    // Running 'next export' or output is set to 'export'
+    if (options.isInvokedFromCli || isExportOutput) {
+      if (nextConfig.experimental.serverActions) {
+        throw new ExportError(
+          `Server Actions are not supported with static export.`
+        )
+      }
     }
 
     const telemetry = options.buildExport ? null : new Telemetry({ distDir })
@@ -457,6 +471,8 @@ export default async function exportApp(
       largePageDataBytes: nextConfig.experimental.largePageDataBytes,
       serverComponents: options.hasAppDir,
       hasServerComponents: options.hasAppDir,
+      serverActionsBodySizeLimit:
+        nextConfig.experimental.serverActionsBodySizeLimit,
       nextFontManifest: require(join(
         distDir,
         'server',
@@ -465,16 +481,6 @@ export default async function exportApp(
       images: nextConfig.images,
       ...(options.hasAppDir
         ? {
-            clientReferenceManifest: require(join(
-              distDir,
-              SERVER_DIRECTORY,
-              CLIENT_REFERENCE_MANIFEST + '.json'
-            )),
-            serverCSSManifest: require(join(
-              distDir,
-              SERVER_DIRECTORY,
-              FLIGHT_SERVER_CSS_MANIFEST + '.json'
-            )),
             serverActionsManifest: require(join(
               distDir,
               SERVER_DIRECTORY,
@@ -483,6 +489,7 @@ export default async function exportApp(
           }
         : {}),
       strictNextHead: !!nextConfig.experimental.strictNextHead,
+      deploymentId: nextConfig.experimental.deploymentId,
     }
 
     const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
@@ -714,8 +721,6 @@ export default async function exportApp(
               nextConfig.experimental.disableOptimizedLoading,
             parentSpanId: pageExportSpan.id,
             httpAgentOptions: nextConfig.httpAgentOptions,
-            serverComponents: options.hasAppDir,
-            enableUndici: nextConfig.experimental.enableUndici,
             debugOutput: options.debugOutput,
             isrMemoryCacheSize: nextConfig.experimental.isrMemoryCacheSize,
             fetchCache: nextConfig.experimental.appDir,

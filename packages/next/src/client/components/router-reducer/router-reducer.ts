@@ -8,6 +8,7 @@ import {
   ReducerState,
   ReadonlyReducerState,
   ACTION_FAST_REFRESH,
+  ACTION_SERVER_ACTION,
 } from './router-reducer-types'
 import { navigateReducer } from './reducers/navigate-reducer'
 import { serverPatchReducer } from './reducers/server-patch-reducer'
@@ -15,6 +16,7 @@ import { restoreReducer } from './reducers/restore-reducer'
 import { refreshReducer } from './reducers/refresh-reducer'
 import { prefetchReducer } from './reducers/prefetch-reducer'
 import { fastRefreshReducer } from './reducers/fast-refresh-reducer'
+import { serverActionReducer } from './reducers/server-action-reducer'
 
 /**
  * Reducer that handles the app-router state updates.
@@ -41,6 +43,9 @@ function clientReducer(
     }
     case ACTION_PREFETCH: {
       return prefetchReducer(state, action)
+    }
+    case ACTION_SERVER_ACTION: {
+      return serverActionReducer(state, action)
     }
     // This case should never be hit as dispatch is strongly typed.
     default:

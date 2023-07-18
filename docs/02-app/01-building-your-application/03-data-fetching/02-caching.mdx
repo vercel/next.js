@@ -1,0 +1,288 @@
+---
+title: Caching Data
+nav_title: Caching
+description: Learn about caching routes in Next.js.
+---
+
+Next.js has built-in support for caching data, both on a per-request basis (recommended) or for an entire route segment.
+
+<Image
+  alt="Fetch Request Deduplication"
+  srcLight="/docs/light/deduplicated-fetch-requests.png"
+  srcDark="/docs/dark/deduplicated-fetch-requests.png"
+  width="1600"
+  height="857"
+/>
+
+## Per-request Caching
+
+### `fetch()`
+
+By default, all `fetch()` requests are cached and deduplicated automatically. This means that if you make the same request twice, the second request will reuse the result from the first request.
+
+```tsx filename="app/page.tsx" switcher
+async function getComments() {
+  const res = await fetch('https://...') // The result is cached
+  return res.json()
+}
+
+// This function is called twice, but the result is only fetched once
+const comments = await getComments() // cache MISS
+
+// The second call could be anywhere in your application
+const comments = await getComments() // cache HIT
+```
+
+```jsx filename="app/page.js" switcher
+async function getComments() {
+  const res = await fetch('https://...') // The result is cached
+  return res.json()
+}
+
+// This function is called twice, but the result is only fetched once
+const comments = await getComments() // cache MISS
+
+// The second call could be anywhere in your application
+const comments = await getComments() // cache HIT
+```
+
+Requests are **not** cached if:
+
+- Dynamic methods (`next/headers`, `export const POST`, or similar) are used and the fetch is a `POST` request (or uses `Authorization` or `cookie` headers)
+- `fetchCache` is configured to skip cache by default
+- `revalidate: 0` or `cache: 'no-store'` is configured on individual `fetch`
+
+Requests made using `fetch` can specify a `revalidate` option to control the revalidation frequency of the request.
+
+```tsx filename="app/page.tsx" switcher
+export default async function Page() {
+  // revalidate this data every 10 seconds at most
+  const res = await fetch('https://...', { next: { revalidate: 10 } })
+  const data = res.json()
+  // ...
+}
+```
+
+```jsx filename="app/page.js" switcher
+export default async function Page() {
+  // revalidate this data every 10 seconds at most
+  const res = await fetch('https://...', { next: { revalidate: 10 } })
+  const data = res.json()
+  // ...
+}
+```
+
+### React `cache()`
+
+React allows you to [`cache()`](https://github.com/acdlite/rfcs/blob/first-class-promises/text/0000-first-class-support-for-promises.md) and deduplicate requests, memoizing the result of the wrapped function call. The same function called with the same arguments will reuse a cached value instead of re-running the function.
+
+```ts filename="utils/getUser.ts" switcher
+import { cache } from 'react'
+
+export const getUser = cache(async (id: string) => {
+  const user = await db.user.findUnique({ id })
+  return user
+})
+```
+
+```js filename="utils/getUser.js" switcher
+import { cache } from 'react'
+
+export const getUser = cache(async (id) => {
+  const user = await db.user.findUnique({ id })
+  return user
+})
+```
+
+```tsx filename="app/user/[id]/layout.tsx" switcher
+import { getUser } from '@utils/getUser'
+
+export default async function UserLayout({
+  params: { id },
+}: {
+  params: { id: string }
+}) {
+  const user = await getUser(id)
+  // ...
+}
+```
+
+```jsx filename="app/user/[id]/layout.js" switcher
+import { getUser } from '@utils/getUser'
+
+export default async function UserLayout({ params: { id } }) {
+  const user = await getUser(id)
+  // ...
+}
+```
+
+```tsx filename="app/user/[id]/page.tsx" switcher
+import { getUser } from '@utils/getUser'
+
+export default async function Page({
+  params: { id },
+}: {
+  params: { id: string }
+}) {
+  const user = await getUser(id)
+  // ...
+}
+```
+
+```jsx filename="app/user/[id]/page.js" switcher
+import { getUser } from '@utils/getUser'
+
+export default async function Page({ params: { id } }) {
+  const user = await getUser(id)
+  // ...
+}
+```
+
+Although the `getUser()` function is called twice in the example above, only one query will be made to the database. This is because `getUser()` is wrapped in `cache()`, so the second request can reuse the result from the first request.
+
+> **Good to know**:
+>
+> - `fetch()` caches requests automatically, so you don't need to wrap functions that use `fetch()` with `cache()`. See [automatic request deduping](/docs/app/building-your-application/data-fetching#automatic-fetch-request-deduping) for more information.
+> - In this new model, we recommend **fetching data directly in the component that needs it**, even if you're requesting the same data in multiple components, rather than passing the data between components as props.
+> - We recommend using the [`server-only` package](/docs/getting-started/react-essentials#keeping-server-only-code-out-of-client-components-poisoning) to make sure server data fetching functions are never used on the client.
+
+### `POST` requests and `cache()`
+
+`POST` requests are automatically deduplicated when using `fetch` – unless they are inside of `POST` Route Handler or come after reading `headers()`/`cookies()`. For example, if you are using GraphQL and `POST` requests in the above cases, you can use `cache` to deduplicate requests. The `cache` arguments must be flat and only include primitives. Deep objects won't match for deduplication.
+
+```ts filename="utils/getUser.ts" switcher
+import { cache } from 'react'
+
+export const getUser = cache(async (id: string) => {
+  const res = await fetch('...', { method: 'POST', body: '...' })
+  // ...
+})
+```
+
+```js filename="utils/getUser.js" switcher
+import { cache } from 'react'
+
+export const getUser = cache(async (id) => {
+  const res = await fetch('...', { method: 'POST', body: '...' })
+  // ...
+})
+```
+
+### Preload pattern with `cache()`
+
+As a pattern, we suggest optionally exposing a `preload()` export in utilities or components that do data fetching.
+
+```tsx filename="components/User.tsx" switcher
+import { getUser } from '@utils/getUser'
+
+export const preload = (id: string) => {
+  // void evaluates the given expression and returns undefined
+  // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/void
+  void getUser(id)
+}
+export default async function User({ id }: { id: string }) {
+  const result = await getUser(id)
+  // ...
+}
+```
+
+```jsx filename="components/User.js" switcher
+import { getUser } from '@utils/getUser'
+
+export const preload = (id) => {
+  // void evaluates the given expression and returns undefined
+  // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/void
+  void getUser(id)
+}
+export default async function User({ id }) {
+  const result = await getUser(id)
+  // ...
+}
+```
+
+By calling `preload`, you can eagerly start fetching data you're likely going to need.
+
+```tsx filename="app/user/[id]/page.tsx" switcher
+import User, { preload } from '@components/User'
+
+export default async function Page({
+  params: { id },
+}: {
+  params: { id: string }
+}) {
+  preload(id) // starting loading the user data now
+  const condition = await fetchCondition()
+  return condition ? <User id={id} /> : null
+}
+```
+
+```jsx filename="app/user/[id]/page.js" switcher
+import User, { preload } from '@components/User'
+
+export default async function Page({ params: { id } }) {
+  preload(id) // starting loading the user data now
+  const condition = await fetchCondition()
+  return condition ? <User id={id} /> : null
+}
+```
+
+> **Good to know**:
+>
+> - The `preload()` function can have any name. It's a pattern, not an API.
+> - This pattern is completely optional and something you can use to optimize on a case-by-case basis.
+>   This pattern is a further optimization on top of [parallel data fetching](/docs/app/building-your-application/data-fetching/fetching#parallel-data-fetching). Now you don't have to pass promises down as props and can instead rely on the preload pattern.
+
+### Combining `cache`, `preload`, and `server-only`
+
+You can combine the `cache` function, the `preload` pattern, and the `server-only` package to create a data fetching utility that can be used throughout your app.
+
+```ts filename="utils/getUser.ts" switcher
+import { cache } from 'react'
+import 'server-only'
+
+export const preload = (id: string) => {
+  void getUser(id)
+}
+
+export const getUser = cache(async (id: string) => {
+  // ...
+})
+```
+
+```js filename="utils/getUser.js" switcher
+import { cache } from 'react'
+import 'server-only'
+
+export const preload = (id) => {
+  void getUser(id)
+}
+
+export const getUser = cache(async (id) => {
+  // ...
+})
+```
+
+With this approach, you can eagerly fetch data, cache responses, and guarantee that this data fetching [only happens on the server](/docs/getting-started/react-essentials#keeping-server-only-code-out-of-client-components-poisoning).
+
+The `getUser.ts` exports can be used by layouts, pages, or components to give them control over when a user's data is fetched.
+
+## Segment-level Caching
+
+> **Good to know**: We recommend using per-request caching for improved granularity and control over caching.
+
+Segment-level caching allows you to cache and revalidate data used in route segments.
+
+This mechanism allows different segments of a path to control the cache lifetime of the entire route. Each `page.tsx` and `layout.tsx` in the route hierarchy can export a `revalidate` value that sets the revalidation time for the route.
+
+```tsx filename="app/page.tsx" switcher
+export const revalidate = 60 // revalidate this segment every 60 seconds
+```
+
+```jsx filename="app/page.js" switcher
+export const revalidate = 60 // revalidate this segment every 60 seconds
+```
+
+> **Good to know**:
+>
+> - If a page, layout, and fetch request inside components all specify a [`revalidate`](/docs/app/api-reference/file-conventions/route-segment-config#revalidate) frequency, the lowest value of the three will be used.
+> - Advanced: You can set `fetchCache` to `'only-cache'` or `'force-cache'` to ensure that all `fetch` requests opt into caching but the revalidation frequency might still be lowered by individual `fetch` requests. See [`fetchCache`](/docs/app/api-reference/file-conventions/route-segment-config) for more information.

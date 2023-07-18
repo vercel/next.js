@@ -18,7 +18,8 @@ type DesiredCompilerOptionsShape = {
 }
 
 function getDesiredCompilerOptions(
-  ts: typeof import('typescript')
+  ts: typeof import('typescript'),
+  userTsConfig?: { compilerOptions?: CompilerOptions }
 ): DesiredCompilerOptionsShape {
   const o: DesiredCompilerOptionsShape = {
     // These are suggested values and will be set when not present in the
@@ -57,6 +58,8 @@ function getDesiredCompilerOptions(
     moduleResolution: {
       // In TypeScript 5.0, `NodeJs` has renamed to `Node10`
       parsedValue:
+        ts.ModuleResolutionKind.Bundler ??
+        ts.ModuleResolutionKind.NodeNext ??
         (ts.ModuleResolutionKind as any).Node10 ??
         ts.ModuleResolutionKind.NodeJs,
       // All of these values work:
@@ -68,15 +71,20 @@ function getDesiredCompilerOptions(
         (ts.ModuleResolutionKind as any).Node12,
         ts.ModuleResolutionKind.Node16,
         ts.ModuleResolutionKind.NodeNext,
+        ts.ModuleResolutionKind.Bundler,
       ].filter((val) => typeof val !== 'undefined'),
       value: 'node',
       reason: 'to match webpack resolution',
     },
     resolveJsonModule: { value: true, reason: 'to match webpack resolution' },
-    isolatedModules: {
-      value: true,
-      reason: 'requirement for SWC / Babel',
-    },
+    ...(userTsConfig?.compilerOptions?.verbatimModuleSyntax === true
+      ? undefined
+      : {
+          isolatedModules: {
+            value: true,
+            reason: 'requirement for SWC / Babel',
+          },
+        }),
     jsx: {
       parsedValue: ts.JsxEmit.Preserve,
       value: 'preserve',
@@ -116,7 +124,6 @@ export async function writeConfigurationDefaults(
     await fs.writeFile(tsConfigPath, '{}' + os.EOL)
   }
 
-  const desiredCompilerOptions = getDesiredCompilerOptions(ts)
   const { options: tsOptions, raw: rawConfig } =
     await getTypeScriptConfiguration(ts, tsConfigPath, true)
 
@@ -128,6 +135,8 @@ export async function writeConfigurationDefaults(
     userTsConfig.compilerOptions = {}
     isFirstTimeSetup = true
   }
+
+  const desiredCompilerOptions = getDesiredCompilerOptions(ts, userTsConfig)
 
   const suggestedActions: string[] = []
   const requiredActions: string[] = []
@@ -222,7 +231,7 @@ export async function writeConfigurationDefaults(
           'tsconfig.json'
         )} extends another configuration, which means we cannot add the Next.js TypeScript plugin automatically. To improve your development experience, we recommend adding the Next.js plugin (\`${chalk.cyan(
           '"plugins": [{ "name": "next" }]'
-        )}\`) manually to your TypeScript configuration. Learn more: https://beta.nextjs.org/docs/configuring/typescript#using-the-typescript-plugin\n`
+        )}\`) manually to your TypeScript configuration. Learn more: https://nextjs.org/docs/app/building-your-application/configuring/typescript#the-typescript-plugin\n`
       )
     } else if (!hasNextPlugin) {
       if (!('plugins' in userTsConfig.compilerOptions)) {

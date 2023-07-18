@@ -1,29 +1,25 @@
 use anyhow::Result;
-use turbo_binding::{
-    turbo::tasks_fs::FileSystemPathVc,
+use turbo_tasks::{Value, Vc};
+use turbopack_binding::{
+    turbo::tasks_fs::FileSystemPath,
     turbopack::{
         core::{
             compile_time_defines,
             compile_time_info::{
-                CompileTimeDefines, CompileTimeDefinesVc, CompileTimeInfo, CompileTimeInfoVc,
-                FreeVarReference, FreeVarReferencesVc,
+                CompileTimeDefines, CompileTimeInfo, FreeVarReference, FreeVarReferences,
             },
-            environment::{
-                EdgeWorkerEnvironment, EnvironmentIntention, EnvironmentVc, ExecutionEnvironment,
-                ServerAddrVc,
-            },
+            environment::{EdgeWorkerEnvironment, Environment, ExecutionEnvironment, ServerAddr},
             free_var_references,
         },
-        node::execution_context::ExecutionContextVc,
-        turbopack::resolve_options_context::{ResolveOptionsContext, ResolveOptionsContextVc},
+        node::execution_context::ExecutionContext,
+        turbopack::resolve_options_context::ResolveOptionsContext,
     },
 };
-use turbo_tasks::Value;
 
 use crate::{
-    next_config::NextConfigVc, next_import_map::get_next_edge_import_map,
-    next_server::context::ServerContextType,
-    next_shared::resolve::UnsupportedModulesResolvePluginVc, util::foreign_code_context_condition,
+    mode::NextMode, next_config::NextConfig, next_import_map::get_next_edge_import_map,
+    next_server::context::ServerContextType, next_shared::resolve::UnsupportedModulesResolvePlugin,
+    util::foreign_code_context_condition,
 };
 
 fn defines() -> CompileTimeDefines {
@@ -38,12 +34,12 @@ fn defines() -> CompileTimeDefines {
 }
 
 #[turbo_tasks::function]
-pub fn next_edge_defines() -> CompileTimeDefinesVc {
+fn next_edge_defines() -> Vc<CompileTimeDefines> {
     defines().cell()
 }
 
 #[turbo_tasks::function]
-pub fn next_edge_free_vars(project_path: FileSystemPathVc) -> FreeVarReferencesVc {
+fn next_edge_free_vars(project_path: Vc<FileSystemPath>) -> Vc<FreeVarReferences> {
     free_var_references!(
         ..defines().into_iter(),
         Buffer = FreeVarReference::EcmaScriptModule {
@@ -62,16 +58,12 @@ pub fn next_edge_free_vars(project_path: FileSystemPathVc) -> FreeVarReferencesV
 
 #[turbo_tasks::function]
 pub fn get_edge_compile_time_info(
-    project_path: FileSystemPathVc,
-    server_addr: ServerAddrVc,
-    intention: Value<EnvironmentIntention>,
-) -> CompileTimeInfoVc {
-    CompileTimeInfo::builder(EnvironmentVc::new(
-        Value::new(ExecutionEnvironment::EdgeWorker(
-            EdgeWorkerEnvironment { server_addr }.into(),
-        )),
-        intention,
-    ))
+    project_path: Vc<FileSystemPath>,
+    server_addr: Vc<ServerAddr>,
+) -> Vc<CompileTimeInfo> {
+    CompileTimeInfo::builder(Environment::new(Value::new(
+        ExecutionEnvironment::EdgeWorker(EdgeWorkerEnvironment { server_addr }.into()),
+    )))
     .defines(next_edge_defines())
     .free_var_references(next_edge_free_vars(project_path))
     .cell()
@@ -79,13 +71,14 @@ pub fn get_edge_compile_time_info(
 
 #[turbo_tasks::function]
 pub async fn get_edge_resolve_options_context(
-    project_path: FileSystemPathVc,
+    project_path: Vc<FileSystemPath>,
     ty: Value<ServerContextType>,
-    next_config: NextConfigVc,
-    execution_context: ExecutionContextVc,
-) -> Result<ResolveOptionsContextVc> {
+    mode: NextMode,
+    next_config: Vc<NextConfig>,
+    execution_context: Vc<ExecutionContext>,
+) -> Result<Vc<ResolveOptionsContext>> {
     let next_edge_import_map =
-        get_next_edge_import_map(project_path, ty, next_config, execution_context);
+        get_next_edge_import_map(project_path, ty, mode, next_config, execution_context);
 
     let resolve_options_context = ResolveOptionsContext {
         enable_node_modules: Some(project_path.root().resolve().await?),
@@ -98,7 +91,9 @@ pub async fn get_edge_resolve_options_context(
         import_map: Some(next_edge_import_map),
         module: true,
         browser: true,
-        plugins: vec![UnsupportedModulesResolvePluginVc::new(project_path).into()],
+        plugins: vec![Vc::upcast(UnsupportedModulesResolvePlugin::new(
+            project_path,
+        ))],
         ..Default::default()
     };
 

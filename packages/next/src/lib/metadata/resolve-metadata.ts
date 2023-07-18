@@ -5,16 +5,20 @@ import type {
 } from './types/metadata-interface'
 import type { MetadataImageModule } from '../../build/webpack/loaders/metadata/types'
 import type { GetDynamicParamFromSegment } from '../../server/app-render/app-render'
+import type { Twitter } from './types/twitter-types'
+import type { OpenGraph } from './types/opengraph-types'
+import type { ComponentsType } from '../../build/webpack/loaders/next-app-loader'
+import type { MetadataContext } from './types/resolvers'
 import { createDefaultMetadata } from './default-metadata'
 import { resolveOpenGraph, resolveTwitter } from './resolvers/resolve-opengraph'
 import { resolveTitle } from './resolvers/resolve-title'
 import { resolveAsArrayOrUndefined } from './generate/utils'
 import { isClientReference } from '../client-reference'
 import {
+  getErrorOrLayoutModule,
   getLayoutOrPageModule,
   LoaderTree,
 } from '../../server/lib/app-dir-module'
-import { ComponentsType } from '../../build/webpack/loaders/next-app-loader'
 import { interopDefault } from '../interop-default'
 import {
   resolveAlternates,
@@ -24,12 +28,11 @@ import {
   resolveThemeColor,
   resolveVerification,
   resolveViewport,
+  resolveItunes,
 } from './resolvers/resolve-basics'
 import { resolveIcons } from './resolvers/resolve-icons'
 import { getTracer } from '../../server/lib/trace/tracer'
 import { ResolveMetadataSpan } from '../../server/lib/trace/constants'
-import { Twitter } from './types/twitter-types'
-import { OpenGraph } from './types/opengraph-types'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/constants'
 
 type StaticMetadata = Awaited<ReturnType<typeof resolveStaticMetadata>>
@@ -42,57 +45,90 @@ export type MetadataItems = [
   StaticMetadata
 ][]
 
+type TitleTemplates = {
+  title: string | null
+  twitter: string | null
+  openGraph: string | null
+}
+
+function hasIconsProperty(
+  icons: Metadata['icons'],
+  prop: 'icon' | 'apple'
+): boolean {
+  if (!icons) return false
+  if (prop === 'icon') {
+    // Detect if icons.icon will be presented, icons array and icons string will all be merged into icons.icon
+    return !!(
+      typeof icons === 'string' ||
+      icons instanceof URL ||
+      Array.isArray(icons) ||
+      (prop in icons && icons[prop])
+    )
+  } else {
+    // Detect if icons.apple will be presented, only icons.apple will be merged into icons.apple
+    return !!(typeof icons === 'object' && prop in icons && icons[prop])
+  }
+}
+
 function mergeStaticMetadata(
-  metadata: ResolvedMetadata,
-  staticFilesMetadata: StaticMetadata
+  source: Metadata | null,
+  target: ResolvedMetadata,
+  staticFilesMetadata: StaticMetadata,
+  metadataContext: MetadataContext,
+  titleTemplates: TitleTemplates
 ) {
   if (!staticFilesMetadata) return
   const { icon, apple, openGraph, twitter, manifest } = staticFilesMetadata
-  if (icon || apple) {
-    metadata.icons = {
+  // file based metadata is specified and current level metadata icons is not specified
+  if (
+    (icon && !hasIconsProperty(source?.icons, 'icon')) ||
+    (apple && !hasIconsProperty(source?.icons, 'apple'))
+  ) {
+    target.icons = {
       icon: icon || [],
       apple: apple || [],
     }
   }
-  if (twitter) {
+  // file based metadata is specified and current level metadata twitter.images is not specified
+  if (twitter && !source?.twitter?.hasOwnProperty('images')) {
     const resolvedTwitter = resolveTwitter(
-      { ...metadata.twitter, images: twitter } as Twitter,
-      metadata.metadataBase
+      { ...target.twitter, images: twitter } as Twitter,
+      target.metadataBase,
+      titleTemplates.twitter
     )
-    metadata.twitter = resolvedTwitter
+    target.twitter = resolvedTwitter
   }
 
-  if (openGraph) {
+  // file based metadata is specified and current level metadata openGraph.images is not specified
+  if (openGraph && !source?.openGraph?.hasOwnProperty('images')) {
     const resolvedOpenGraph = resolveOpenGraph(
-      { ...metadata.openGraph, images: openGraph } as OpenGraph,
-      metadata.metadataBase
+      { ...target.openGraph, images: openGraph } as OpenGraph,
+      target.metadataBase,
+      metadataContext,
+      titleTemplates.openGraph
     )
-    metadata.openGraph = resolvedOpenGraph
+    target.openGraph = resolvedOpenGraph
   }
   if (manifest) {
-    metadata.manifest = manifest
+    target.manifest = manifest
   }
 
-  return metadata
+  return target
 }
 
 // Merge the source metadata into the resolved target metadata.
 function merge({
-  target,
   source,
+  target,
   staticFilesMetadata,
   titleTemplates,
-  options,
+  metadataContext,
 }: {
-  target: ResolvedMetadata
   source: Metadata | null
+  target: ResolvedMetadata
   staticFilesMetadata: StaticMetadata
-  titleTemplates: {
-    title: string | null
-    twitter: string | null
-    openGraph: string | null
-  }
-  options: MetadataAccumulationOptions
+  titleTemplates: TitleTemplates
+  metadataContext: MetadataContext
 }) {
   // If there's override metadata, prefer it otherwise fallback to the default metadata.
   const metadataBase =
@@ -108,29 +144,28 @@ function merge({
         break
       }
       case 'alternates': {
-        target.alternates = resolveAlternates(source.alternates, metadataBase, {
-          pathname: options.pathname,
-        })
+        target.alternates = resolveAlternates(
+          source.alternates,
+          metadataBase,
+          metadataContext
+        )
         break
       }
       case 'openGraph': {
-        target.openGraph = resolveOpenGraph(source.openGraph, metadataBase)
-        if (target.openGraph) {
-          target.openGraph.title = resolveTitle(
-            target.openGraph.title,
-            titleTemplates.openGraph
-          )
-        }
+        target.openGraph = resolveOpenGraph(
+          source.openGraph,
+          metadataBase,
+          metadataContext,
+          titleTemplates.openGraph
+        )
         break
       }
       case 'twitter': {
-        target.twitter = resolveTwitter(source.twitter, metadataBase)
-        if (target.twitter) {
-          target.twitter.title = resolveTitle(
-            target.twitter.title,
-            titleTemplates.twitter
-          )
-        }
+        target.twitter = resolveTwitter(
+          source.twitter,
+          metadataBase,
+          titleTemplates.twitter
+        )
         break
       }
       case 'verification':
@@ -169,6 +204,14 @@ function merge({
         target[key] = resolveAsArrayOrUndefined(source.authors)
         break
       }
+      case 'itunes': {
+        target[key] = resolveItunes(
+          source.itunes,
+          metadataBase,
+          metadataContext
+        )
+        break
+      }
       // directly assign fields that fallback to null
       case 'applicationName':
       case 'description':
@@ -179,7 +222,6 @@ function merge({
       case 'classification':
       case 'referrer':
       case 'colorScheme':
-      case 'itunes':
       case 'formatDetection':
       case 'manifest':
         // @ts-ignore TODO: support inferring
@@ -195,34 +237,40 @@ function merge({
         break
     }
   }
-  mergeStaticMetadata(target, staticFilesMetadata)
+  mergeStaticMetadata(
+    source,
+    target,
+    staticFilesMetadata,
+    metadataContext,
+    titleTemplates
+  )
 }
 
 async function getDefinedMetadata(
   mod: any,
   props: any,
-  route: string
+  tracingProps: { route: string }
 ): Promise<Metadata | MetadataResolver | null> {
   // Layer is a client component, we just skip it. It can't have metadata exported.
   // Return early to avoid accessing properties error for client references.
   if (isClientReference(mod)) {
     return null
   }
-  return (
-    (mod.generateMetadata
-      ? (parent: ResolvingMetadata) =>
-          getTracer().trace(
-            ResolveMetadataSpan.generateMetadata,
-            {
-              spanName: `generateMetadata ${route}`,
-              attributes: {
-                'next.page': route,
-              },
-            },
-            () => mod.generateMetadata(props, parent)
-          )
-      : mod.metadata) || null
-  )
+  if (typeof mod.generateMetadata === 'function') {
+    const { route } = tracingProps
+    return (parent: ResolvingMetadata) =>
+      getTracer().trace(
+        ResolveMetadataSpan.generateMetadata,
+        {
+          spanName: `generateMetadata ${route}`,
+          attributes: {
+            'next.page': route,
+          },
+        },
+        () => mod.generateMetadata(props, parent)
+      )
+  }
+  return mod.metadata || null
 }
 
 async function collectStaticImagesFiles(
@@ -270,13 +318,22 @@ export async function collectMetadata({
   metadataItems: array,
   props,
   route,
+  errorConvention,
 }: {
   tree: LoaderTree
   metadataItems: MetadataItems
   props: any
   route: string
+  errorConvention?: 'not-found'
 }) {
-  const [mod, modType] = await getLayoutOrPageModule(tree)
+  let mod
+  let modType
+  if (errorConvention) {
+    mod = await getErrorOrLayoutModule(tree, errorConvention)
+    modType = errorConvention
+  } else {
+    ;[mod, modType] = await getLayoutOrPageModule(tree)
+  }
 
   if (modType) {
     route += `/${modType}`
@@ -284,7 +341,7 @@ export async function collectMetadata({
 
   const staticFilesMetadata = await resolveStaticMetadata(tree[2], props)
   const metadataExport = mod
-    ? await getDefinedMetadata(mod, props, route)
+    ? await getDefinedMetadata(mod, props, { route })
     : null
 
   array.push([metadataExport, staticFilesMetadata])
@@ -297,6 +354,7 @@ export async function resolveMetadata({
   treePrefix = [],
   getDynamicParamFromSegment,
   searchParams,
+  errorConvention,
 }: {
   tree: LoaderTree
   parentParams: { [key: string]: any }
@@ -305,10 +363,12 @@ export async function resolveMetadata({
   treePrefix?: string[]
   getDynamicParamFromSegment: GetDynamicParamFromSegment
   searchParams: { [key: string]: any }
+  errorConvention: 'not-found' | undefined
 }): Promise<MetadataItems> {
   const [segment, parallelRoutes, { page }] = tree
   const currentTreePrefix = [...treePrefix, segment]
   const isPage = typeof page !== 'undefined'
+
   // Handle dynamic segment params.
   const segmentParam = getDynamicParamFromSegment(segment)
   /**
@@ -332,6 +392,7 @@ export async function resolveMetadata({
   await collectMetadata({
     tree,
     metadataItems,
+    errorConvention,
     props: layerProps,
     route: currentTreePrefix
       // __PAGE__ shouldn't be shown in a route
@@ -348,29 +409,65 @@ export async function resolveMetadata({
       treePrefix: currentTreePrefix,
       searchParams,
       getDynamicParamFromSegment,
+      errorConvention,
     })
   }
 
   return metadataItems
 }
 
-type MetadataAccumulationOptions = {
-  pathname: string
+const commonOgKeys = ['title', 'description', 'images'] as const
+function postProcessMetadata(
+  metadata: ResolvedMetadata,
+  titleTemplates: TitleTemplates
+): ResolvedMetadata {
+  const { openGraph, twitter } = metadata
+  if (openGraph) {
+    let autoFillProps: Partial<{
+      [Key in (typeof commonOgKeys)[number]]: NonNullable<
+        ResolvedMetadata['openGraph']
+      >[Key]
+    }> = {}
+    const hasTwTitle = twitter?.title.absolute
+    const hasTwDescription = twitter?.description
+    const hasTwImages = Boolean(
+      twitter?.hasOwnProperty('images') && twitter.images
+    )
+    if (!hasTwTitle) autoFillProps.title = openGraph.title
+    if (!hasTwDescription) autoFillProps.description = openGraph.description
+    if (!hasTwImages) autoFillProps.images = openGraph.images
+
+    if (Object.keys(autoFillProps).length > 0) {
+      const partialTwitter = resolveTwitter(
+        autoFillProps,
+        metadata.metadataBase,
+        titleTemplates.twitter
+      )
+      if (metadata.twitter) {
+        metadata.twitter = Object.assign({}, metadata.twitter, {
+          ...(!hasTwTitle && { title: partialTwitter?.title }),
+          ...(!hasTwDescription && {
+            description: partialTwitter?.description,
+          }),
+          ...(!hasTwImages && { images: partialTwitter?.images }),
+        })
+      } else {
+        metadata.twitter = partialTwitter
+      }
+    }
+  }
+  return metadata
 }
 
 export async function accumulateMetadata(
   metadataItems: MetadataItems,
-  options: MetadataAccumulationOptions
+  metadataContext: MetadataContext
 ): Promise<ResolvedMetadata> {
   const resolvedMetadata = createDefaultMetadata()
   const resolvers: ((value: ResolvedMetadata) => void)[] = []
   const generateMetadataResults: (Metadata | Promise<Metadata>)[] = []
 
-  let titleTemplates: {
-    title: string | null
-    twitter: string | null
-    openGraph: string | null
-  } = {
+  let titleTemplates: TitleTemplates = {
     title: null,
     twitter: null,
     openGraph: null,
@@ -408,9 +505,7 @@ export async function accumulateMetadata(
       const currentResolvedMetadata: ResolvedMetadata =
         process.env.NODE_ENV === 'development'
           ? Object.freeze(
-              require('next/dist/compiled/@edge-runtime/primitives/structured-clone').structuredClone(
-                resolvedMetadata
-              )
+              require('./clone-metadata').cloneMetadata(resolvedMetadata)
             )
           : resolvedMetadata
 
@@ -428,7 +523,7 @@ export async function accumulateMetadata(
     }
 
     merge({
-      options,
+      metadataContext,
       target: resolvedMetadata,
       source: metadata,
       staticFilesMetadata,
@@ -440,11 +535,11 @@ export async function accumulateMetadata(
     if (i < metadataItems.length - 2) {
       titleTemplates = {
         title: resolvedMetadata.title?.template || null,
-        openGraph: resolvedMetadata.openGraph?.title?.template || null,
-        twitter: resolvedMetadata.twitter?.title?.template || null,
+        openGraph: resolvedMetadata.openGraph?.title.template || null,
+        twitter: resolvedMetadata.twitter?.title.template || null,
       }
     }
   }
 
-  return resolvedMetadata
+  return postProcessMetadata(resolvedMetadata, titleTemplates)
 }

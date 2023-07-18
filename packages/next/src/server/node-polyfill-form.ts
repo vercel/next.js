@@ -1,9 +1,13 @@
 /**
- * Polyfills `FormData` in the Node.js runtime.
+ * Polyfills `FormData` and `Blob` in the Node.js runtime.
  */
 
-if (!(global as any).FormData) {
-  const { FormData } =
-    require('next/dist/compiled/@edge-runtime/primitives/fetch') as typeof import('next/dist/compiled/@edge-runtime/primitives/fetch')
-  ;(global as any).FormData = FormData
+if (!global.FormData) {
+  const { FormData } = require('next/dist/compiled/@edge-runtime/ponyfill')
+  global.FormData = FormData
+}
+
+if (!global.Blob) {
+  const { Blob } = require('next/dist/compiled/@edge-runtime/ponyfill')
+  global.Blob = Blob
 }

@@ -6,7 +6,7 @@ import {
   hasNecessaryDependencies,
   NecessaryDependencies,
 } from './has-necessary-dependencies'
-import { fileExists } from './file-exists'
+import { fileExists, FileType } from './file-exists'
 import { FatalError } from './fatal-error'
 import { recursiveDelete } from './recursive-delete'
 import * as Log from '../build/output/log'
@@ -44,7 +44,10 @@ async function copyPartytownStaticFiles(
   staticDir: string
 ) {
   const partytownLibDir = path.join(staticDir, '~partytown')
-  const hasPartytownLibDir = await fileExists(partytownLibDir, 'directory')
+  const hasPartytownLibDir = await fileExists(
+    partytownLibDir,
+    FileType.Directory
+  )
 
   if (hasPartytownLibDir) {
     await recursiveDelete(partytownLibDir)

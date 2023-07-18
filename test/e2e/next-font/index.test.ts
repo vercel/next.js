@@ -311,8 +311,11 @@ describe('next/font', () => {
         expect($('link[rel="preconnect"]').length).toBe(0)
 
         expect($('link[as="font"]').length).toBe(2)
+        const links = Array.from($('link[as="font"]')).sort((a, b) => {
+          return a.attribs.href.localeCompare(b.attribs.href)
+        })
         // From /_app
-        expect($('link[as="font"]').get(0).attribs).toEqual({
+        expect(links[0].attribs).toEqual({
           as: 'font',
           crossorigin: 'anonymous',
           href: '/_next/static/media/0812efcfaefec5ea-s.p.woff2',
@@ -320,7 +323,7 @@ describe('next/font', () => {
           type: 'font/woff2',
           'data-next-font': 'size-adjust',
         })
-        expect($('link[as="font"]').get(1).attribs).toEqual({
+        expect(links[1].attribs).toEqual({
           as: 'font',
           crossorigin: 'anonymous',
           href: '/_next/static/media/675c25f648fd6a30-s.p.woff2',
@@ -422,8 +425,10 @@ describe('next/font', () => {
       test('font without size adjust', async () => {
         const html = await renderViaHTTP(next.url, '/with-fallback')
         const $ = cheerio.load(html)
-
-        expect($('link[as="font"]').get(1).attribs).toEqual({
+        const links = Array.from($('link[as="font"]')).sort((a, b) => {
+          return a.attribs.href.localeCompare(b.attribs.href)
+        })
+        expect(links[1].attribs).toEqual({
           as: 'font',
           crossorigin: 'anonymous',
           href: '/_next/static/media/0812efcfaefec5ea.p.woff2',
@@ -432,7 +437,7 @@ describe('next/font', () => {
           'data-next-font': '',
         })
 
-        expect($('link[as="font"]').get(2).attribs).toEqual({
+        expect(links[2].attribs).toEqual({
           as: 'font',
           crossorigin: 'anonymous',
           href: '/_next/static/media/ab6fdae82d1a8d92.p.woff2',

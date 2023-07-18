@@ -264,8 +264,23 @@ const configSchema = {
         cpus: {
           type: 'number',
         },
+        memoryBasedWorkersCount: {
+          type: 'boolean',
+        },
         craCompat: {
           type: 'boolean',
+        },
+        caseSensitiveRoutes: {
+          type: 'boolean',
+        },
+        useDeploymentId: {
+          type: 'boolean',
+        },
+        useDeploymentIdServerActions: {
+          type: 'boolean',
+        },
+        deploymentId: {
+          type: 'string',
         },
         disableOptimizedLoading: {
           type: 'boolean',
@@ -285,6 +300,19 @@ const configSchema = {
         },
         appDir: {
           type: 'boolean',
+        },
+        serverActions: {
+          type: 'boolean',
+        },
+        serverActionsBodySizeLimit: {
+          oneOf: [
+            {
+              type: 'number',
+            },
+            {
+              type: 'string',
+            },
+          ] as any,
         },
         extensionAlias: {
           type: 'object',
@@ -414,9 +442,6 @@ const configSchema = {
           },
           type: 'array',
         },
-        enableUndici: {
-          type: 'boolean',
-        },
         workerThreads: {
           type: 'boolean',
         },
@@ -483,6 +508,15 @@ const configSchema = {
               type: 'integer',
             },
           },
+        },
+        logging: {
+          type: 'string',
+        },
+        serverMinification: {
+          type: 'boolean',
+        },
+        serverSourceMaps: {
+          type: 'boolean',
         },
       },
       type: 'object',
@@ -708,6 +742,9 @@ const configSchema = {
     },
     publicRuntimeConfig: {
       type: 'object',
+    },
+    reactProductionProfiling: {
+      type: 'boolean',
     },
     reactStrictMode: {
       type: 'boolean',

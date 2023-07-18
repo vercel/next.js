@@ -15,6 +15,10 @@ let combinedEnv: Env | undefined = undefined
 let cachedLoadedEnvFiles: LoadedEnvFiles = []
 let previousLoadedEnvFiles: LoadedEnvFiles = []
 
+export function updateInitialEnv(newEnv: Env) {
+  Object.assign(initialEnv || {}, newEnv)
+}
+
 type Log = {
   info: (...args: any[]) => void
   error: (...args: any[]) => void
@@ -87,6 +91,12 @@ export function processEnv(
     }
   }
   return Object.assign(process.env, parsed)
+}
+
+export function resetEnv() {
+  if (initialEnv) {
+    replaceProcessEnv(initialEnv)
+  }
 }
 
 export function loadEnvConfig(

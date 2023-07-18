@@ -50,7 +50,7 @@ export type NextWebVitalsMetric = {
 } & (
   | {
       label: 'web-vital'
-      name: typeof WEB_VITALS[number]
+      name: (typeof WEB_VITALS)[number]
     }
   | {
       label: 'custom'
@@ -451,4 +451,8 @@ export interface CacheFs {
   writeFile(f: string, d: any): Promise<void>
   mkdir(dir: string): Promise<void | string>
   stat(f: string): Promise<{ mtime: Date }>
+}
+
+export function stringifyError(error: Error) {
+  return JSON.stringify({ message: error.message, stack: error.stack })
 }

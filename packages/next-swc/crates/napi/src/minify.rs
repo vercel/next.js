@@ -30,7 +30,7 @@ use std::sync::Arc;
 use fxhash::FxHashMap;
 use napi::bindgen_prelude::*;
 use serde::Deserialize;
-use turbo_binding::swc::core::{
+use turbopack_binding::swc::core::{
     base::{try_with_handler, TransformOutput},
     common::{errors::ColorConfig, sync::Lrc, FileName, SourceFile, SourceMap, GLOBALS},
 };
@@ -38,9 +38,9 @@ use turbo_binding::swc::core::{
 use crate::{get_compiler, util::MapErr};
 
 pub struct MinifyTask {
-    c: Arc<turbo_binding::swc::core::base::Compiler>,
+    c: Arc<turbopack_binding::swc::core::base::Compiler>,
     code: MinifyTarget,
-    opts: turbo_binding::swc::core::base::config::JsMinifyOptions,
+    opts: turbopack_binding::swc::core::base::config::JsMinifyOptions,
 }
 
 #[derive(Deserialize)]
@@ -80,7 +80,7 @@ impl Task for MinifyTask {
     fn compute(&mut self) -> napi::Result<Self::Output> {
         try_with_handler(
             self.c.cm.clone(),
-            turbo_binding::swc::core::base::HandlerOpts {
+            turbopack_binding::swc::core::base::HandlerOpts {
                 color: ColorConfig::Never,
                 skip_filename: true,
             },
@@ -127,7 +127,7 @@ pub fn minify_sync(input: Buffer, opts: Buffer) -> napi::Result<TransformOutput>
 
     try_with_handler(
         c.cm.clone(),
-        turbo_binding::swc::core::base::HandlerOpts {
+        turbopack_binding::swc::core::base::HandlerOpts {
             color: ColorConfig::Never,
             skip_filename: true,
         },

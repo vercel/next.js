@@ -1,4 +1,5 @@
 import path from '../../../shared/lib/isomorphic/path'
+import * as Log from '../../../build/output/log'
 
 function isStringOrURL(icon: any): icon is string | URL {
   return typeof icon === 'string' || icon instanceof URL
@@ -10,20 +11,33 @@ function createLocalMetadataBase() {
 
 // For deployment url for metadata routes, prefer to use the deployment url if possible
 // as these routes are unique to the deployments url.
-export function getFallbackMetadataBaseIfPresent(
+export function getSocialImageFallbackMetadataBase(
   metadataBase: URL | null
 ): URL | null {
+  const isMetadataBaseMissing = !metadataBase
   const defaultMetadataBase = createLocalMetadataBase()
   const deploymentUrl =
     process.env.VERCEL_URL && new URL(`https://${process.env.VERCEL_URL}`)
+
+  let fallbackMetadata
   if (process.env.NODE_ENV === 'development') {
-    return defaultMetadataBase
+    fallbackMetadata = defaultMetadataBase
+  } else {
+    fallbackMetadata =
+      process.env.NODE_ENV === 'production' &&
+      deploymentUrl &&
+      process.env.VERCEL_ENV === 'preview'
+        ? deploymentUrl
+        : metadataBase || deploymentUrl || defaultMetadataBase
   }
-  return process.env.NODE_ENV === 'production' &&
-    deploymentUrl &&
-    process.env.VERCEL_ENV === 'preview'
-    ? deploymentUrl
-    : metadataBase || deploymentUrl || defaultMetadataBase
+
+  if (isMetadataBaseMissing) {
+    Log.warnOnce(
+      `\nmetadata.metadataBase is not set for resolving social open graph or twitter images, using "${fallbackMetadata.origin}". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase`
+    )
+  }
+
+  return fallbackMetadata
 }
 
 function resolveUrl(url: null | undefined, metadataBase: URL | null): null
@@ -56,4 +70,29 @@ function resolveUrl(
   return new URL(joinedPath, metadataBase)
 }
 
-export { isStringOrURL, resolveUrl }
+// Resolve with `pathname` if `url` is a relative path.
+function resolveRelativeUrl(url: string | URL, pathname: string): string | URL {
+  if (typeof url === 'string' && url.startsWith('./')) {
+    return path.resolve(pathname, url)
+  }
+  return url
+}
+
+// Resolve `pathname` if `url` is a relative path the compose with `metadataBase`.
+function resolveAbsoluteUrlWithPathname(
+  url: string | URL,
+  metadataBase: URL | null,
+  pathname: string
+) {
+  url = resolveRelativeUrl(url, pathname)
+
+  const result = metadataBase ? resolveUrl(url, metadataBase) : url
+  return result.toString()
+}
+
+export {
+  isStringOrURL,
+  resolveUrl,
+  resolveRelativeUrl,
+  resolveAbsoluteUrlWithPathname,
+}

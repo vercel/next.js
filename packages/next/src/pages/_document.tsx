@@ -1,4 +1,4 @@
-import React, { ReactElement, ReactNode, useContext } from 'react'
+import React, { ReactElement, ReactNode } from 'react'
 import {
   OPTIMIZED_FONT_PROVIDERS,
   NEXT_BUILTIN_DOCUMENT,
@@ -17,7 +17,7 @@ import { BuildManifest, getPageFiles } from '../server/get-page-files'
 import { htmlEscapeJsonString } from '../server/htmlescape'
 import isError from '../lib/is-error'
 
-import { HtmlContext } from '../shared/lib/html-context'
+import { HtmlContext, useHtmlContext } from '../shared/lib/html-context'
 import type { HtmlProps } from '../shared/lib/html-context'
 
 export { DocumentContext, DocumentInitialProps, DocumentProps }
@@ -68,7 +68,7 @@ function getPolyfillScripts(context: HtmlProps, props: OriginProps) {
   const {
     assetPrefix,
     buildManifest,
-    devOnlyCacheBusterQueryString,
+    assetQueryString,
     disableOptimizedLoading,
     crossOrigin,
   } = context
@@ -84,7 +84,7 @@ function getPolyfillScripts(context: HtmlProps, props: OriginProps) {
         nonce={props.nonce}
         crossOrigin={props.crossOrigin || crossOrigin}
         noModule={true}
-        src={`${assetPrefix}/_next/${polyfill}${devOnlyCacheBusterQueryString}`}
+        src={`${assetPrefix}/_next/${polyfill}${assetQueryString}`}
       />
     ))
 }
@@ -146,7 +146,7 @@ function getDynamicChunks(
     dynamicImports,
     assetPrefix,
     isDevelopment,
-    devOnlyCacheBusterQueryString,
+    assetQueryString,
     disableOptimizedLoading,
     crossOrigin,
   } = context
@@ -159,9 +159,7 @@ function getDynamicChunks(
         async={!isDevelopment && disableOptimizedLoading}
         defer={!disableOptimizedLoading}
         key={file}
-        src={`${assetPrefix}/_next/${encodeURI(
-          file
-        )}${devOnlyCacheBusterQueryString}`}
+        src={`${assetPrefix}/_next/${encodeURI(file)}${assetQueryString}`}
         nonce={props.nonce}
         crossOrigin={props.crossOrigin || crossOrigin}
       />
@@ -178,7 +176,7 @@ function getScripts(
     assetPrefix,
     buildManifest,
     isDevelopment,
-    devOnlyCacheBusterQueryString,
+    assetQueryString,
     disableOptimizedLoading,
     crossOrigin,
   } = context
@@ -192,9 +190,7 @@ function getScripts(
     return (
       <script
         key={file}
-        src={`${assetPrefix}/_next/${encodeURI(
-          file
-        )}${devOnlyCacheBusterQueryString}`}
+        src={`${assetPrefix}/_next/${encodeURI(file)}${assetQueryString}`}
         nonce={props.nonce}
         async={!isDevelopment && disableOptimizedLoading}
         defer={!disableOptimizedLoading}
@@ -420,12 +416,12 @@ function getNextFontLinkTags(
 export class Head extends React.Component<HeadProps> {
   static contextType = HtmlContext
 
-  context!: React.ContextType<typeof HtmlContext>
+  context!: HtmlProps
 
   getCssLinks(files: DocumentFiles): JSX.Element[] | null {
     const {
       assetPrefix,
-      devOnlyCacheBusterQueryString,
+      assetQueryString,
       dynamicImports,
       crossOrigin,
       optimizeCss,
@@ -459,9 +455,7 @@ export class Head extends React.Component<HeadProps> {
             key={`${file}-preload`}
             nonce={this.props.nonce}
             rel="preload"
-            href={`${assetPrefix}/_next/${encodeURI(
-              file
-            )}${devOnlyCacheBusterQueryString}`}
+            href={`${assetPrefix}/_next/${encodeURI(file)}${assetQueryString}`}
             as="style"
             crossOrigin={this.props.crossOrigin || crossOrigin}
           />
@@ -474,9 +468,7 @@ export class Head extends React.Component<HeadProps> {
           key={file}
           nonce={this.props.nonce}
           rel="stylesheet"
-          href={`${assetPrefix}/_next/${encodeURI(
-            file
-          )}${devOnlyCacheBusterQueryString}`}
+          href={`${assetPrefix}/_next/${encodeURI(file)}${assetQueryString}`}
           crossOrigin={this.props.crossOrigin || crossOrigin}
           data-n-g={isUnmanagedFile ? undefined : isSharedFile ? '' : undefined}
           data-n-p={isUnmanagedFile ? undefined : isSharedFile ? undefined : ''}
@@ -494,12 +486,8 @@ export class Head extends React.Component<HeadProps> {
   }
 
   getPreloadDynamicChunks() {
-    const {
-      dynamicImports,
-      assetPrefix,
-      devOnlyCacheBusterQueryString,
-      crossOrigin,
-    } = this.context
+    const { dynamicImports, assetPrefix, assetQueryString, crossOrigin } =
+      this.context
 
     return (
       dynamicImports
@@ -514,7 +502,7 @@ export class Head extends React.Component<HeadProps> {
               key={file}
               href={`${assetPrefix}/_next/${encodeURI(
                 file
-              )}${devOnlyCacheBusterQueryString}`}
+              )}${assetQueryString}`}
               as="script"
               nonce={this.props.nonce}
               crossOrigin={this.props.crossOrigin || crossOrigin}
@@ -527,12 +515,8 @@ export class Head extends React.Component<HeadProps> {
   }
 
   getPreloadMainLinks(files: DocumentFiles): JSX.Element[] | null {
-    const {
-      assetPrefix,
-      devOnlyCacheBusterQueryString,
-      scriptLoader,
-      crossOrigin,
-    } = this.context
+    const { assetPrefix, assetQueryString, scriptLoader, crossOrigin } =
+      this.context
     const preloadFiles = files.allFiles.filter((file: string) => {
       return file.endsWith('.js')
     })
@@ -553,9 +537,7 @@ export class Head extends React.Component<HeadProps> {
           key={file}
           nonce={this.props.nonce}
           rel="preload"
-          href={`${assetPrefix}/_next/${encodeURI(
-            file
-          )}${devOnlyCacheBusterQueryString}`}
+          href={`${assetPrefix}/_next/${encodeURI(file)}${assetQueryString}`}
           as="script"
           crossOrigin={this.props.crossOrigin || crossOrigin}
         />
@@ -1004,7 +986,7 @@ function handleDocumentScriptLoaderItems(
 export class NextScript extends React.Component<OriginProps> {
   static contextType = HtmlContext
 
-  context!: React.ContextType<typeof HtmlContext>
+  context!: HtmlProps
 
   getDynamicChunks(files: DocumentFiles) {
     return getDynamicChunks(this.context, this.props, files)
@@ -1073,7 +1055,7 @@ export class NextScript extends React.Component<OriginProps> {
       buildManifest,
       unstable_runtimeJS,
       docComponentsRendered,
-      devOnlyCacheBusterQueryString,
+      assetQueryString,
       disableOptimizedLoading,
       crossOrigin,
     } = this.context
@@ -1108,7 +1090,7 @@ export class NextScript extends React.Component<OriginProps> {
           {ampDevFiles.map((file) => (
             <script
               key={file}
-              src={`${assetPrefix}/_next/${file}${devOnlyCacheBusterQueryString}`}
+              src={`${assetPrefix}/_next/${file}${assetQueryString}`}
               nonce={this.props.nonce}
               crossOrigin={this.props.crossOrigin || crossOrigin}
               data-ampdevmode
@@ -1139,7 +1121,7 @@ export class NextScript extends React.Component<OriginProps> {
                 key={file}
                 src={`${assetPrefix}/_next/${encodeURI(
                   file
-                )}${devOnlyCacheBusterQueryString}`}
+                )}${assetQueryString}`}
                 nonce={this.props.nonce}
                 crossOrigin={this.props.crossOrigin || crossOrigin}
               />
@@ -1183,7 +1165,7 @@ export function Html(
     locale,
     scriptLoader,
     __NEXT_DATA__,
-  } = useContext(HtmlContext)
+  } = useHtmlContext()
 
   docComponentsRendered.Html = true
   handleDocumentScriptLoaderItems(scriptLoader, __NEXT_DATA__, props)
@@ -1205,7 +1187,7 @@ export function Html(
 }
 
 export function Main() {
-  const { docComponentsRendered } = useContext(HtmlContext)
+  const { docComponentsRendered } = useHtmlContext()
   docComponentsRendered.Main = true
   // @ts-ignore
   return <next-js-internal-body-render-target />

@@ -1,35 +1,35 @@
 use anyhow::Result;
-use turbo_binding::turbopack::{
-    core::{
-        asset::AssetVc,
-        resolve::{find_context_file, node::node_cjs_resolve_options, FindContextFileResult},
-        source_asset::SourceAssetVc,
-    },
-    ecmascript::typescript::resolve::{read_from_tsconfigs, read_tsconfigs, tsconfig},
-    ecmascript_plugin::transform::emotion::{
-        EmotionTransformConfig, EmotionTransformConfigVc, OptionEmotionTransformConfigVc,
-    },
-    turbopack::module_options::{
-        DecoratorsKind, DecoratorsOptions, DecoratorsOptionsVc, JsxTransformOptions,
-        JsxTransformOptionsVc, OptionStyledComponentsTransformConfigVc,
-        StyledComponentsTransformConfig, TypescriptTransformOptions, TypescriptTransformOptionsVc,
+use turbo_tasks::Vc;
+use turbopack_binding::{
+    turbo::tasks_fs::{FileJsonContent, FileSystemPath},
+    turbopack::{
+        core::{
+            file_source::FileSource,
+            resolve::{find_context_file, node::node_cjs_resolve_options, FindContextFileResult},
+            source::Source,
+        },
+        dev::react_refresh::assert_can_resolve_react_refresh,
+        ecmascript::typescript::resolve::{read_from_tsconfigs, read_tsconfigs, tsconfig},
+        turbopack::{
+            module_options::{
+                DecoratorsKind, DecoratorsOptions, JsxTransformOptions, TypescriptTransformOptions,
+            },
+            resolve_options_context::ResolveOptionsContext,
+        },
     },
 };
-use turbo_tasks_fs::{FileJsonContentVc, FileSystemPathVc};
 
-use crate::next_config::{
-    EmotionTransformOptionsOrBoolean, NextConfigVc, StyledComponentsTransformOptionsOrBoolean,
-};
+use crate::mode::NextMode;
 
 async fn get_typescript_options(
-    project_path: FileSystemPathVc,
-) -> Option<Vec<(FileJsonContentVc, AssetVc)>> {
+    project_path: Vc<FileSystemPath>,
+) -> Option<Vec<(Vc<FileJsonContent>, Vc<Box<dyn Source>>)>> {
     let tsconfig = find_context_file(project_path, tsconfig());
     match *tsconfig.await.ok()? {
         FindContextFileResult::Found(path, _) => Some(
             read_tsconfigs(
                 path.read(),
-                SourceAssetVc::new(path).into(),
+                Vc::upcast(FileSource::new(path)),
                 node_cjs_resolve_options(path.root()),
             )
             .await
@@ -43,8 +43,8 @@ async fn get_typescript_options(
 /// outputs
 #[turbo_tasks::function]
 pub async fn get_typescript_transform_options(
-    project_path: FileSystemPathVc,
-) -> Result<TypescriptTransformOptionsVc> {
+    project_path: Vc<FileSystemPath>,
+) -> Result<Vc<TypescriptTransformOptions>> {
     let tsconfig = get_typescript_options(project_path).await;
 
     let use_define_for_class_fields = if let Some(tsconfig) = tsconfig {
@@ -68,8 +68,8 @@ pub async fn get_typescript_transform_options(
 /// [TODO]: Currnently only typescript's legacy decorators are supported
 #[turbo_tasks::function]
 pub async fn get_decorators_transform_options(
-    project_path: FileSystemPathVc,
-) -> Result<DecoratorsOptionsVc> {
+    project_path: Vc<FileSystemPath>,
+) -> Result<Vc<DecoratorsOptions>> {
     let tsconfig = get_typescript_options(project_path).await;
 
     let decorators_transform_options = if let Some(tsconfig) = tsconfig {
@@ -124,17 +124,29 @@ pub async fn get_decorators_transform_options(
 
 #[turbo_tasks::function]
 pub async fn get_jsx_transform_options(
-    project_path: FileSystemPathVc,
-) -> Result<JsxTransformOptionsVc> {
+    project_path: Vc<FileSystemPath>,
+    mode: NextMode,
+    resolve_options_context: Option<Vc<ResolveOptionsContext>>,
+) -> Result<Vc<JsxTransformOptions>> {
     let tsconfig = get_typescript_options(project_path).await;
+
+    let enable_react_refresh = if let Some(resolve_options_context) = resolve_options_context {
+        assert_can_resolve_react_refresh(project_path, resolve_options_context)
+            .await?
+            .is_found()
+    } else {
+        false
+    };
 
     // [NOTE]: ref: WEB-901
     // next.js does not allow to overriding react runtime config via tsconfig /
     // jsconfig, it forces overrides into automatic runtime instead.
     // [TODO]: we need to emit / validate config message like next.js devserver does
     let react_transform_options = JsxTransformOptions {
+        development: mode.is_react_development(),
         import_source: None,
         runtime: Some("automatic".to_string()),
+        react_refresh: enable_react_refresh,
     };
 
     let react_transform_options = if let Some(tsconfig) = tsconfig {
@@ -155,73 +167,4 @@ pub async fn get_jsx_transform_options(
     };
 
     Ok(react_transform_options.cell())
-}
-
-#[turbo_tasks::function]
-pub async fn get_emotion_compiler_config(
-    next_config: NextConfigVc,
-) -> Result<OptionEmotionTransformConfigVc> {
-    let emotion_compiler_config = next_config
-        .await?
-        .compiler
-        .as_ref()
-        .map(|value| {
-            value
-                .emotion
-                .as_ref()
-                .map(|value| {
-                    let options = match value {
-                        EmotionTransformOptionsOrBoolean::Boolean(true) => {
-                            Some(EmotionTransformConfigVc::cell(EmotionTransformConfig {
-                                ..Default::default()
-                            }))
-                        }
-                        EmotionTransformOptionsOrBoolean::Boolean(false) => None,
-                        EmotionTransformOptionsOrBoolean::Options(value) => {
-                            Some(EmotionTransformConfigVc::cell(value.clone()))
-                        }
-                    };
-
-                    OptionEmotionTransformConfigVc::cell(options)
-                })
-                .unwrap_or_else(|| OptionEmotionTransformConfigVc::cell(None))
-        })
-        .unwrap_or_else(|| OptionEmotionTransformConfigVc::cell(None));
-
-    Ok(emotion_compiler_config)
-}
-
-#[turbo_tasks::function]
-pub async fn get_styled_components_compiler_config(
-    next_config: NextConfigVc,
-) -> Result<OptionStyledComponentsTransformConfigVc> {
-    let styled_components_compiler_config = next_config
-        .await?
-        .compiler
-        .as_ref()
-        .map(|value| {
-            value
-                .styled_components
-                .as_ref()
-                .map(|value| {
-                    let options = match value {
-                        StyledComponentsTransformOptionsOrBoolean::Boolean(true) => Some(
-                            StyledComponentsTransformConfig {
-                                ..Default::default()
-                            }
-                            .cell(),
-                        ),
-                        StyledComponentsTransformOptionsOrBoolean::Boolean(false) => None,
-                        StyledComponentsTransformOptionsOrBoolean::Options(value) => {
-                            Some(value.clone().cell())
-                        }
-                    };
-
-                    OptionStyledComponentsTransformConfigVc::cell(options)
-                })
-                .unwrap_or_else(|| OptionStyledComponentsTransformConfigVc::cell(None))
-        })
-        .unwrap_or_else(|| OptionStyledComponentsTransformConfigVc::cell(None));
-
-    Ok(styled_components_compiler_config)
 }

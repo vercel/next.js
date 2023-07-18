@@ -3,6 +3,7 @@ import { clearModuleContext } from '../../../server/web/sandbox'
 import { realpathSync } from '../../../lib/realpath'
 import path from 'path'
 import isError from '../../../lib/is-error'
+import { clearManifestCache } from '../../../server/load-manifest'
 
 type Compiler = webpack.Compiler
 type WebpackPluginInstance = webpack.WebpackPluginInstance
@@ -12,6 +13,9 @@ const originModules = [
   require.resolve('../../../server/load-components'),
   require.resolve('../../../server/next-server'),
   require.resolve('../../../compiled/react-server-dom-webpack/client.edge'),
+  require.resolve(
+    '../../../compiled/react-server-dom-webpack-experimental/client.edge'
+  ),
 ]
 
 const RUNTIME_NAMES = ['webpack-runtime', 'webpack-api-runtime']
@@ -20,10 +24,10 @@ export function deleteAppClientCache() {
   if ((global as any)._nextDeleteAppClientCache) {
     ;(global as any)._nextDeleteAppClientCache()
   }
-  // ensure we reset the cache for sc_server components
+  // ensure we reset the cache for rsc components
   // loaded via react-server-dom-webpack
   const reactServerDomModId = require.resolve(
-    'next/dist/compiled/react-server-dom-webpack/client.edge'
+    'react-server-dom-webpack/client.edge'
   )
   const reactServerDomMod = require.cache[reactServerDomModId]
 
@@ -40,6 +44,10 @@ export function deleteCache(filePath: string) {
   if ((global as any)._nextDeleteCache) {
     ;(global as any)._nextDeleteCache(filePath)
   }
+
+  // try to clear it from the fs cache
+  clearManifestCache(filePath)
+
   try {
     filePath = realpathSync(filePath)
   } catch (e) {
@@ -77,18 +85,16 @@ export class NextJsRequireCacheHotReloader implements WebpackPluginInstance {
   }
 
   apply(compiler: Compiler) {
-    compiler.hooks.assetEmitted.tap(
-      PLUGIN_NAME,
-      (_file, { targetPath, content }) => {
-        deleteCache(targetPath)
-        const contentStr = content.toString('utf-8')
+    compiler.hooks.assetEmitted.tap(PLUGIN_NAME, (_file, { targetPath }) => {
+      deleteCache(targetPath)
 
-        if ((global as any)._nextClearModuleContext) {
-          ;(global as any)._nextClearModuleContext(targetPath, contentStr)
-        }
-        clearModuleContext(targetPath, contentStr)
+      // Clear module context in other processes
+      if ((global as any)._nextClearModuleContext) {
+        ;(global as any)._nextClearModuleContext(targetPath)
       }
-    )
+      // Clear module context in this process
+      clearModuleContext(targetPath)
+    })
 
     compiler.hooks.afterEmit.tap(PLUGIN_NAME, (compilation) => {
       RUNTIME_NAMES.forEach((name) => {

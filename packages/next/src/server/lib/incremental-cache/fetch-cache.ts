@@ -2,8 +2,11 @@ import LRUCache from 'next/dist/compiled/lru-cache'
 import { FETCH_CACHE_HEADER } from '../../../client/components/app-router-headers'
 import { CACHE_ONE_YEAR } from '../../../lib/constants'
 import type { CacheHandler, CacheHandlerContext, CacheHandlerValue } from './'
+import { getDerivedTags } from './utils'
 
 let memoryCache: LRUCache<string, CacheHandlerValue> | undefined
+
+let rateLimitedUntil = 0
 
 interface NextFetchCacheParams {
   internal?: boolean
@@ -16,10 +19,20 @@ export default class FetchCache implements CacheHandler {
   private headers: Record<string, string>
   private cacheEndpoint?: string
   private debug: boolean
+  private revalidatedTags: string[]
+
+  static isAvailable(ctx: {
+    _requestHeaders: CacheHandlerContext['_requestHeaders']
+  }) {
+    return !!(
+      ctx._requestHeaders['x-vercel-sc-host'] || process.env.SUSPENSE_CACHE_URL
+    )
+  }
 
   constructor(ctx: CacheHandlerContext) {
     this.debug = !!process.env.NEXT_PRIVATE_DEBUG_CACHE
     this.headers = {}
+    this.revalidatedTags = ctx.revalidatedTags
     this.headers['Content-Type'] = 'application/json'
 
     if (FETCH_CACHE_HEADER in ctx._requestHeaders) {
@@ -31,10 +44,21 @@ export default class FetchCache implements CacheHandler {
       }
       delete ctx._requestHeaders[FETCH_CACHE_HEADER]
     }
-    if (ctx._requestHeaders['x-vercel-sc-host']) {
-      this.cacheEndpoint = `https://${ctx._requestHeaders['x-vercel-sc-host']}${
-        ctx._requestHeaders['x-vercel-sc-basepath'] || ''
-      }`
+    const scHost =
+      ctx._requestHeaders['x-vercel-sc-host'] || process.env.SUSPENSE_CACHE_URL
+
+    const scBasePath =
+      ctx._requestHeaders['x-vercel-sc-basepath'] ||
+      process.env.SUSPENSE_CACHE_BASEPATH
+
+    if (process.env.SUSPENSE_CACHE_AUTH_TOKEN) {
+      this.headers[
+        'Authorization'
+      ] = `Bearer ${process.env.SUSPENSE_CACHE_AUTH_TOKEN}`
+    }
+
+    if (scHost) {
+      this.cacheEndpoint = `https://${scHost}${scBasePath || ''}`
       if (this.debug) {
         console.log('using cache endpoint', this.cacheEndpoint)
       }
@@ -42,30 +66,33 @@ export default class FetchCache implements CacheHandler {
       console.log('no cache endpoint available')
     }
 
-    if (ctx.maxMemoryCacheSize && !memoryCache) {
-      if (this.debug) {
-        console.log('using memory store for fetch cache')
+    if (ctx.maxMemoryCacheSize) {
+      if (!memoryCache) {
+        if (this.debug) {
+          console.log('using memory store for fetch cache')
+        }
+
+        memoryCache = new LRUCache({
+          max: ctx.maxMemoryCacheSize,
+          length({ value }) {
+            if (!value) {
+              return 25
+            } else if (value.kind === 'REDIRECT') {
+              return JSON.stringify(value.props).length
+            } else if (value.kind === 'IMAGE') {
+              throw new Error('invariant image should not be incremental-cache')
+            } else if (value.kind === 'FETCH') {
+              return JSON.stringify(value.data || '').length
+            } else if (value.kind === 'ROUTE') {
+              return value.body.length
+            }
+            // rough estimate of size of cache value
+            return (
+              value.html.length + (JSON.stringify(value.pageData)?.length || 0)
+            )
+          },
+        })
       }
-      memoryCache = new LRUCache({
-        max: ctx.maxMemoryCacheSize,
-        length({ value }) {
-          if (!value) {
-            return 25
-          } else if (value.kind === 'REDIRECT') {
-            return JSON.stringify(value.props).length
-          } else if (value.kind === 'IMAGE') {
-            throw new Error('invariant image should not be incremental-cache')
-          } else if (value.kind === 'FETCH') {
-            return JSON.stringify(value.data || '').length
-          } else if (value.kind === 'ROUTE') {
-            return value.body.length
-          }
-          // rough estimate of size of cache value
-          return (
-            value.html.length + (JSON.stringify(value.pageData)?.length || 0)
-          )
-        },
-      })
     } else {
       if (this.debug) {
         console.log('not using memory store for fetch cache')
@@ -77,6 +104,14 @@ export default class FetchCache implements CacheHandler {
     if (this.debug) {
       console.log('revalidateTag', tag)
     }
+
+    if (Date.now() < rateLimitedUntil) {
+      if (this.debug) {
+        console.log('rate limited ', rateLimitedUntil)
+      }
+      return
+    }
+
     try {
       const res = await fetch(
         `${this.cacheEndpoint}/v1/suspense-cache/revalidate?tags=${tag}`,
@@ -87,6 +122,11 @@ export default class FetchCache implements CacheHandler {
           next: { internal: true },
         }
       )
+
+      if (res.status === 429) {
+        const retryAfter = res.headers.get('retry-after') || '60000'
+        rateLimitedUntil = Date.now() + parseInt(retryAfter)
+      }
 
       if (!res.ok) {
         throw new Error(`Request failed with status ${res.status}.`)
@@ -103,6 +143,13 @@ export default class FetchCache implements CacheHandler {
     fetchIdx?: number
   ) {
     if (!fetchCache) return null
+
+    if (Date.now() < rateLimitedUntil) {
+      if (this.debug) {
+        console.log('rate limited')
+      }
+      return null
+    }
 
     let data = memoryCache?.get(key)
 
@@ -133,6 +180,11 @@ export default class FetchCache implements CacheHandler {
             next: fetchParams as NextFetchRequestConfig,
           }
         )
+
+        if (res.status === 429) {
+          const retryAfter = res.headers.get('retry-after') || '60000'
+          rateLimitedUntil = Date.now() + parseInt(retryAfter)
+        }
 
         if (res.status === 404) {
           if (this.debug) {
@@ -189,6 +241,21 @@ export default class FetchCache implements CacheHandler {
         }
       }
     }
+
+    // if a tag was revalidated we don't return stale data
+    if (data?.value?.kind === 'FETCH') {
+      const innerData = data.value.data
+      const derivedTags = getDerivedTags(innerData.tags || [])
+
+      if (
+        derivedTags.some((tag) => {
+          return this.revalidatedTags.includes(tag)
+        })
+      ) {
+        data = undefined
+      }
+    }
+
     return data || null
   }
 
@@ -200,6 +267,13 @@ export default class FetchCache implements CacheHandler {
     fetchIdx?: number
   ) {
     if (!fetchCache) return
+
+    if (Date.now() < rateLimitedUntil) {
+      if (this.debug) {
+        console.log('rate limited')
+      }
+      return
+    }
 
     memoryCache?.set(key, {
       value: data,
@@ -249,6 +323,11 @@ export default class FetchCache implements CacheHandler {
             next: fetchParams as NextFetchRequestConfig,
           }
         )
+
+        if (res.status === 429) {
+          const retryAfter = res.headers.get('retry-after') || '60000'
+          rateLimitedUntil = Date.now() + parseInt(retryAfter)
+        }
 
         if (!res.ok) {
           this.debug && console.log(await res.text())

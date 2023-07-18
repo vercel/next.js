@@ -1,21 +1,15 @@
 use anyhow::Result;
 use indexmap::indexmap;
-use turbo_binding::turbopack::{
+use turbo_tasks::{Value, Vc};
+use turbopack_binding::turbopack::{
     core::{
-        asset::AssetVc,
         context::AssetContext,
+        module::Module,
         reference_type::{EntryReferenceSubType, ReferenceType},
+        source::Source,
     },
-    ecmascript::{
-        EcmascriptInputTransform, EcmascriptInputTransformsVc, EcmascriptModuleAssetType,
-        EcmascriptModuleAssetVc, InnerAssetsVc,
-    },
-    turbopack::{
-        transition::{Transition, TransitionVc},
-        ModuleAssetContextVc,
-    },
+    turbopack::{transition::Transition, ModuleAssetContext},
 };
-use turbo_tasks::{primitives::OptionStringVc, Value};
 
 use crate::embed_js::next_asset;
 
@@ -28,50 +22,50 @@ pub struct NextServerToClientTransition {
 impl Transition for NextServerToClientTransition {
     #[turbo_tasks::function]
     async fn process(
-        self_vc: NextServerToClientTransitionVc,
-        asset: AssetVc,
-        context: ModuleAssetContextVc,
+        self: Vc<Self>,
+        source: Vc<Box<dyn Source>>,
+        context: Vc<ModuleAssetContext>,
         _reference_type: Value<ReferenceType>,
-    ) -> Result<AssetVc> {
-        let internal_asset = next_asset(if self_vc.await?.ssr {
-            "entry/app/server-to-client-ssr.tsx"
-        } else {
-            "entry/app/server-to-client.tsx"
-        });
-        let context = self_vc.process_context(context);
-        let client_chunks = context.with_transition("next-client-chunks").process(
-            asset,
-            Value::new(ReferenceType::Entry(
-                EntryReferenceSubType::AppClientComponent,
-            )),
-        );
-        let client_module = context.with_transition("next-ssr-client-module").process(
-            asset,
-            Value::new(ReferenceType::Entry(
-                EntryReferenceSubType::AppClientComponent,
-            )),
-        );
-        Ok(EcmascriptModuleAssetVc::new_with_inner_assets(
-            internal_asset,
-            context.into(),
-            Value::new(EcmascriptModuleAssetType::Typescript),
-            EcmascriptInputTransformsVc::cell(vec![
-                EcmascriptInputTransform::TypeScript {
-                    use_define_for_class_fields: false,
-                },
-                EcmascriptInputTransform::React {
-                    refresh: false,
-                    import_source: OptionStringVc::cell(None),
-                    runtime: OptionStringVc::cell(None),
-                },
-            ]),
-            Default::default(),
-            context.compile_time_info(),
-            InnerAssetsVc::cell(indexmap! {
-                "CLIENT_MODULE".to_string() => client_module,
-                "CLIENT_CHUNKS".to_string() => client_chunks,
-            }),
-        )
-        .into())
+    ) -> Result<Vc<Box<dyn Module>>> {
+        let this = self.await?;
+        let context = self.process_context(context);
+        let client_chunks = context
+            .with_transition("next-client-chunks".to_string())
+            .process(
+                source,
+                Value::new(ReferenceType::Entry(
+                    EntryReferenceSubType::AppClientComponent,
+                )),
+            );
+
+        Ok(match this.ssr {
+            true => {
+                let internal_source = next_asset("entry/app/server-to-client-ssr.tsx".to_string());
+                let client_module = context
+                    .with_transition("next-ssr-client-module".to_string())
+                    .process(
+                        source,
+                        Value::new(ReferenceType::Entry(
+                            EntryReferenceSubType::AppClientComponent,
+                        )),
+                    );
+                context.process(
+                    internal_source,
+                    Value::new(ReferenceType::Internal(Vc::cell(indexmap! {
+                        "CLIENT_MODULE".to_string() => client_module,
+                        "CLIENT_CHUNKS".to_string() => client_chunks,
+                    }))),
+                )
+            }
+            false => {
+                let internal_source = next_asset("entry/app/server-to-client.tsx".to_string());
+                context.process(
+                    internal_source,
+                    Value::new(ReferenceType::Internal(Vc::cell(indexmap! {
+                        "CLIENT_CHUNKS".to_string() => client_chunks,
+                    }))),
+                )
+            }
+        })
     }
 }
