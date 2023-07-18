@@ -930,7 +930,12 @@ export async function renderToHTMLOrFlight(
       // If it's a not found route, and we don't have any matched parallel
       // routes, we try to render the not found component if it exists.
       let notFoundComponent = {}
-      if (asNotFound && NotFound) {
+      const isLeaf =
+        process.env.NODE_ENV === 'production'
+          ? !segment && !rootLayoutIncluded
+          : !parallelRouteMap.length && segment.startsWith('__PAGE__')
+
+      if (asNotFound && isLeaf && NotFound) {
         notFoundComponent = {
           children: (
             <>
@@ -1398,7 +1403,10 @@ export async function renderToHTMLOrFlight(
               assetPrefix={assetPrefix}
               initialCanonicalUrl={pathname}
               initialTree={initialTree}
-              initialHead={<>{createMetadata(loaderTree, undefined)}</>}
+              initialHead={createMetadata(
+                loaderTree,
+                props.asNotFound ? 'not-found' : undefined
+              )}
               globalErrorComponent={GlobalError}
             >
               <ComponentTree />
@@ -1606,7 +1614,9 @@ export async function renderToHTMLOrFlight(
             err.message = digest
             err.digest = digest
           }
+          let isMetadataNotFound = false
           if (isNotFoundError(err)) {
+            if (isErrorFromMetadata) isMetadataNotFound = true
             res.statusCode = 404
           }
           let hasRedirectError = false
@@ -1626,7 +1636,6 @@ export async function renderToHTMLOrFlight(
           }
 
           const is404 = res.statusCode === 404
-          const isMetadataNotFound = isErrorFromMetadata && is404
 
           const injectedCSS = new Set<string>()
           const injectedFontPreloadTags = new Set<string>()
@@ -1641,7 +1650,7 @@ export async function renderToHTMLOrFlight(
             pathname
           )
 
-          const renderDefault404 = isMetadataNotFound || is404
+          const useDefaultError = isMetadataNotFound || (is404 && !NotFound)
 
           // Preserve the existing RSC inline chunks from the page rendering.
           // For 404 errors: the metadata from layout can be skipped with the error page.
@@ -1650,7 +1659,7 @@ export async function renderToHTMLOrFlight(
             {
               ...serverComponentsRenderOpts,
               rscChunks: [],
-              transformStream: renderDefault404
+              transformStream: isMetadataNotFound
                 ? new TransformStream()
                 : cloneTransformStream(
                     serverComponentsRenderOpts.transformStream
@@ -1719,7 +1728,7 @@ export async function renderToHTMLOrFlight(
                   initialHead={head}
                   globalErrorComponent={GlobalError}
                 >
-                  {renderDefault404 ? (
+                  {useDefaultError ? (
                     notFoundElement
                   ) : (
                     <ErrorHtml head={head} />
