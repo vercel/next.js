@@ -332,6 +332,7 @@ function createServer(options: NextServerOptions): NextServer {
                   isNodeDebugging: !!isNodeDebugging,
                   workerType: 'router',
                   dev: !!options.dev,
+                  minimalMode: options.minimalMode,
                 })
                 serverPort = initResult.port
               }
