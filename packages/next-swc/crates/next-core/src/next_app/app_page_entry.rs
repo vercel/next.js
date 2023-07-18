@@ -103,7 +103,7 @@ pub async fn get_app_page_entry(
             export const routeModule = new RouteModule({{
               definition: {{
                 kind: "APP_PAGE",
-                page: {page},
+                page: {definition_page},
                 pathname: {definition_pathname},
                 // The following aren't used in production, but are
                 // required for the RouteModule constructor.
@@ -116,10 +116,10 @@ pub async fn get_app_page_entry(
               }}
             }})
         "#,
-        page = StringifyJs(&original_name),
+        definition_page = StringifyJs(&original_name),
         pages = StringifyJs(&pages),
         pathname = StringifyJs(&original_name),
-        definition_pathname = StringifyJs(pathname),
+        definition_pathname = StringifyJs(&pathname),
     )?;
 
     let file = File::from(result.build());
