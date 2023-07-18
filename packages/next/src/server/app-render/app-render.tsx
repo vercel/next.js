@@ -78,6 +78,7 @@ import { warn } from '../../build/output/log'
 import { appendMutableCookies } from '../web/spec-extension/adapters/request-cookies'
 import { ComponentsType } from '../../build/webpack/loaders/next-app-loader'
 import { ModuleReference } from '../../build/webpack/loaders/metadata/types'
+import { NotFoundBoundary } from '../../client/components/not-found-boundary'
 
 export const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -93,6 +94,7 @@ export type GetDynamicParamFromSegment = (
 
 function ErrorHtml({
   head,
+  children,
 }: {
   head?: React.ReactNode
   children?: React.ReactNode
@@ -100,7 +102,7 @@ function ErrorHtml({
   return (
     <html id="__next_error__">
       <head>{head}</head>
-      <body></body>
+      <body>{children}</body>
     </html>
   )
 }
@@ -931,7 +933,7 @@ export async function renderToHTMLOrFlight(
       // If it's a not found route, and we don't have any matched parallel
       // routes, we try to render the not found component if it exists.
       let notFoundComponent = {}
-      if (asNotFound && !parallelRouteMap.length && NotFound) {
+      if (asNotFound && NotFound) {
         notFoundComponent = {
           children: (
             <>
@@ -1313,22 +1315,17 @@ export async function renderToHTMLOrFlight(
       injectedCSS: Set<string>,
       requestPathname: string
     ) {
-      const { layout } = tree[2]
-      // `depth` represents how many layers we need to search into the tree.
       // For instance:
       // pathname '/abc' will be 0 depth, means stop at the root level
       // pathname '/abc/def' will be 1 depth, means stop at the first level
       const depth = requestPathname.split('/').length - 2
       const notFound = findMatchedComponent(tree, 'not-found', depth)
-      const rootLayoutAtThisLevel = typeof layout !== 'undefined'
       const [NotFound, notFoundStyles] = notFound
         ? await createComponentAndStyles({
             filePath: notFound[1],
             getComponent: notFound[0],
             injectedCSS,
           })
-        : rootLayoutAtThisLevel
-        ? [DefaultNotFound]
         : []
       return [NotFound, notFoundStyles]
     }
@@ -1361,7 +1358,12 @@ export async function renderToHTMLOrFlight(
             {styles}
             {children}
           </RootLayout>
-        ) : null
+        ) : (
+          <>
+            {styles}
+            {children}
+          </>
+        )
     }
 
     /**
@@ -1645,20 +1647,36 @@ export async function renderToHTMLOrFlight(
           const is404 = res.statusCode === 404
           const isMetadataNotFound = isErrorFromMetadata && is404
 
+          const injectedCSS = new Set<string>()
+          const injectedFontPreloadTags = new Set<string>()
+          const RootLayout = await getRootLayout(
+            loaderTree,
+            injectedCSS,
+            injectedFontPreloadTags
+          )
+          const [NotFound, notFoundStyles] = await getNotFound(
+            loaderTree,
+            injectedCSS,
+            pathname
+          )
+
+          const renderDefault404 = isMetadataNotFound || (is404 && !NotFound)
+
+          console.log('renderDefault404', renderDefault404)
+
           // Preserve the existing RSC inline chunks from the page rendering.
           // For 404 errors: the metadata from layout can be skipped with the error page.
           // For other errors (such as redirection): it can still be re-thrown on client.
           const serverErrorComponentsRenderOpts = {
             ...serverComponentsRenderOpts,
-            rscChunks:
-              isErrorFromMetadata && is404
-                ? []
-                : serverComponentsRenderOpts.rscChunks,
-            transformStream: isMetadataNotFound
-              ? new TransformStream()
-              : cloneTransformStream(
-                  serverComponentsRenderOpts.transformStream
-                ),
+            rscChunks: [],
+            transformStream: !renderDefault404
+              ? cloneTransformStream(serverComponentsRenderOpts.transformStream)
+              : new TransformStream({
+                  transform(chunk, controller) {
+                    controller.enqueue(chunk)
+                  },
+                }),
           }
 
           const errorType = is404
@@ -1679,20 +1697,6 @@ export async function renderToHTMLOrFlight(
           )
           const ErrorPage = createServerComponentRenderer(
             async () => {
-              const injectedCSS = new Set<string>()
-              const injectedFontPreloadTags = new Set<string>()
-              const RootLayout =
-                (await getRootLayout(
-                  loaderTree,
-                  injectedCSS,
-                  injectedFontPreloadTags
-                )) || ErrorHtml
-              const [NotFound, notFoundStyles] = await getNotFound(
-                loaderTree,
-                injectedCSS,
-                pathname
-              )
-
               const head = (
                 <>
                   {/* @ts-expect-error allow to use async server component */}
@@ -1715,11 +1719,19 @@ export async function renderToHTMLOrFlight(
                 query
               )
 
-              // If it's not notFound error from metadata, then it could be caught by client side
-              // error boundary. In that case, only render default error html with metadata
-              if (!isMetadataNotFound) {
-                return <ErrorHtml head={head} />
-              }
+              const GlobalNotFound = NotFound || DefaultNotFound
+              console.log(
+                'RootLayout',
+                RootLayout,
+                'GlobalNotFound',
+                GlobalNotFound
+              )
+              const notFoundElement = (
+                <RootLayout params={{}}>
+                  {notFoundStyles}
+                  <GlobalNotFound />
+                </RootLayout>
+              )
 
               // For metadata notFound error there's no global not found boundary on top
               // so we create a not found page with AppRouter
@@ -1732,10 +1744,9 @@ export async function renderToHTMLOrFlight(
                   initialHead={head}
                   globalErrorComponent={GlobalError}
                 >
-                  <RootLayout params={{}}>
-                    {notFoundStyles}
-                    {NotFound && <NotFound />}
-                  </RootLayout>
+                  <ErrorHtml head={head}>
+                    {renderDefault404 ? notFoundElement : null}
+                  </ErrorHtml>
                 </AppRouter>
               )
             },
