@@ -3,20 +3,18 @@ title: Linking and Navigating
 description: Learn how navigation works in Next.js, and how to use the Link Component and `useRouter` hook.
 ---
 
-The Next.js router uses [server-centric routing](/docs/app/building-your-application/routing#server-centric-routing-with-client-side-navigation) with [client-side navigation](#how-navigation-works). It supports [instant loading states](/docs/app/building-your-application/routing/loading-ui-and-streaming) and [concurrent rendering](https://react.dev/reference/react/startTransition). This means navigation maintains client-side state, avoids expensive re-renders, is interruptible, and doesn't cause race conditions.
+There are two ways to navigate between routes in Next.js:
 
-There are two ways to navigate between routes:
-
-- [`<Link>` Component](#link-component)
-- [`useRouter` Hook](#userouter-hook)
+- Using [`<Link>` Component](#link-component)
+- Using [`useRouter` Hook](#userouter-hook)
 
 This page will go through how to use `<Link>`, `useRouter()`, and dive deeper into how navigation works.
 
 ## `<Link>` Component
 
-`<Link>` is a React component that extends the HTML `<a>` element to provide [prefetching](#prefetching) and client-side navigation between routes. It is the primary way to navigate between routes in Next.js.
+`<Link>` is a built-in component that extends the HTML `<a>` tag to provide [prefetching](#prefetching) and client-side navigation between routes. It is the primary way to navigate between routes in Next.js.
 
-To use `<Link>`, import it from `next/link`, and pass a `href` prop to the component:
+You can use it by importing it from `next/link`, and passing a `href` prop to the component:
 
 ```tsx filename="app/page.tsx" switcher
 import Link from 'next/link'
@@ -34,11 +32,11 @@ export default function Page() {
 }
 ```
 
-There are optional props you can pass to `<Link>`. See the [API reference](/docs/app/api-reference/components/link) for more information.
+There are other optional props you can pass to `<Link>`. See the [API reference](/docs/app/api-reference/components/link) for more.
 
-## Examples
+### Examples
 
-### Linking to Dynamic Segments
+#### Linking to Dynamic Segments
 
 When linking to [dynamic segments](/docs/app/building-your-application/routing/dynamic-routes), you can use [template literals and interpolation](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Template_literals) to generate a list of links. For example, to generate a list of blog posts:
 
@@ -58,7 +56,7 @@ export default function PostList({ posts }) {
 }
 ```
 
-### Checking Active Links
+#### Checking Active Links
 
 You can use [`usePathname()`](/docs/app/api-reference/functions/use-pathname) to determine if a link is active. For example, to add a class to the active link, you can check if the current `pathname` matches the `href` of the link:
 
@@ -93,13 +91,22 @@ export function Navigation({ navLinks }) {
 
 ### Scrolling to an `id`
 
-The default behavior of `<Link>` is to [scroll to the top of the route segment that has changed](#focus-and-scroll-management). When there is an `id` defined in `href`, it will scroll to the specific `id`, similarly to a normal `<a>` tag.
+The default behavior of `<Link>` is to scroll to the top of a new route or to maintain the scroll position for backwards and fowards navigation.
+
+If you'd like to scroll to a specific `id` on navigation, you can append the `href` string with a `#` hash link since `<Link>` renders to a `<a>` tag.
+
+```jsx
+<Link href="/dashboard#settings">Settings</Link>
+
+// Output
+<a href="/dashboard#settings">Settings</a>
+```
 
 ## `useRouter()` Hook
 
-The `useRouter` hook allows you to programmatically change routes inside [Client Components](/docs/getting-started/react-essentials).
+The `useRouter` hook allows you to programmatically change routes.
 
-To use `useRouter`, import it from `next/navigation`, and call the hook inside your Client Component:
+Since it's a hook, you can only use it inside Client Components. The hook is imported from `next/navigation`.
 
 ```jsx filename="app/page.js"
 'use client'
@@ -117,7 +124,7 @@ export default function Page() {
 }
 ```
 
-The `useRouter` provides methods such as `push()`, `refresh()`, and more. See the [API reference](/docs/app/api-reference/functions/use-router) for more information.
+For a full list of `useRouter` methods, see the [API reference](/docs/app/api-reference/functions/use-router).
 
 > **Recommendation:** Use the `<Link>` component to navigate between routes unless you have a specific requirement for using `useRouter`.
 
