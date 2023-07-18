@@ -57,6 +57,11 @@ impl Module for EcmascriptClientReferenceModule {
         self.server_ident
             .with_modifier(ecmascript_client_reference_modifier())
     }
+
+    #[turbo_tasks::function]
+    fn references(self: Vc<Self>) -> Vc<AssetReferences> {
+        AssetReferences::empty()
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -65,10 +70,5 @@ impl Asset for EcmascriptClientReferenceModule {
     fn content(&self) -> Result<Vc<AssetContent>> {
         // The ES client reference asset only serves as a marker asset.
         bail!("EcmascriptClientReferenceModule has no content")
-    }
-
-    #[turbo_tasks::function]
-    fn references(self: Vc<Self>) -> Vc<AssetReferences> {
-        AssetReferences::empty()
     }
 }

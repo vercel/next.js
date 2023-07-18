@@ -80,14 +80,6 @@ impl Module for WithChunksAsset {
     fn ident(&self) -> Vc<AssetIdent> {
         self.asset.ident().with_modifier(modifier())
     }
-}
-
-#[turbo_tasks::value_impl]
-impl Asset for WithChunksAsset {
-    #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        unimplemented!()
-    }
 
     #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<AssetReferences>> {
@@ -98,6 +90,14 @@ impl Asset for WithChunksAsset {
             Vc::upcast(this.chunking_context),
             entry_chunk,
         ))]))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl Asset for WithChunksAsset {
+    #[turbo_tasks::function]
+    fn content(&self) -> Vc<AssetContent> {
+        unimplemented!()
     }
 }
 
