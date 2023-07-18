@@ -255,7 +255,7 @@ function Root({ children }: React.PropsWithChildren<{}>): React.ReactElement {
     // if an error is thrown while rendering an RSC stream, this will catch it in dev
     // and show the error overlay
     return (
-      <ReactDevOverlay state={INITIAL_OVERLAY_STATE}>
+      <ReactDevOverlay state={INITIAL_OVERLAY_STATE} onReactError={() => {}}>
         {children}
       </ReactDevOverlay>
     )
