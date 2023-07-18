@@ -832,6 +832,9 @@ function loadNative(isCustomTurbopack = false, importPath?: string) {
     return nativeBindings
   }
 
+  const customBindings = !!__INTERNAL_CUSTOM_TURBOPACK_BINDINGS
+    ? require(__INTERNAL_CUSTOM_TURBOPACK_BINDINGS)
+    : null
   let bindings: any
   let attempts: any[] = []
 
@@ -1027,13 +1030,13 @@ function loadNative(isCustomTurbopack = false, importPath?: string) {
         },
         nextBuild: (options: unknown) => {
           initHeapProfiler()
-          const ret = bindings.nextBuild(options)
+          const ret = (customBindings ?? bindings).nextBuild(options)
 
           return ret
         },
         startTrace: (options = {}, turboTasks: unknown) => {
           initHeapProfiler()
-          const ret = bindings.runTurboTracing(
+          const ret = (customBindings ?? bindings).runTurboTracing(
             toBuffer({ exact: true, ...options }),
             turboTasks
           )
@@ -1049,7 +1052,7 @@ function loadNative(isCustomTurbopack = false, importPath?: string) {
             pageExtensions: string[],
             fn: (entrypoints: any) => void
           ) => {
-            return bindings.streamEntrypoints(
+            return (customBindings ?? bindings).streamEntrypoints(
               turboTasks,
               rootDir,
               applicationDir,
@@ -1063,7 +1066,7 @@ function loadNative(isCustomTurbopack = false, importPath?: string) {
             applicationDir: string,
             pageExtensions: string[]
           ) => {
-            return bindings.getEntrypoints(
+            return (customBindings ?? bindings).getEntrypoints(
               turboTasks,
               rootDir,
               applicationDir,
@@ -1071,7 +1074,7 @@ function loadNative(isCustomTurbopack = false, importPath?: string) {
             )
           },
         },
-        createProject: bindingToApi(bindings, false),
+        createProject: bindingToApi(customBindings ?? bindings, false),
       },
       mdx: {
         compile: (src: string, options: any) =>

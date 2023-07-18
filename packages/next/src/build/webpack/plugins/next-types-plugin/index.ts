@@ -576,7 +576,7 @@ export class NextTypesPlugin {
         return
       }
 
-      if (mod.layer !== WEBPACK_LAYERS.server) return
+      if (mod.layer !== WEBPACK_LAYERS.reactServerComponents) return
 
       const IS_LAYOUT = /[/\\]layout\.[^./\\]+$/.test(mod.resource)
       const IS_PAGE = !IS_LAYOUT && /[/\\]page\.[^.]+$/.test(mod.resource)
