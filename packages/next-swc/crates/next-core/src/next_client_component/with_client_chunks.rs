@@ -46,14 +46,6 @@ impl Module for WithClientChunksAsset {
     fn ident(&self) -> Vc<AssetIdent> {
         self.asset.ident().with_modifier(modifier())
     }
-}
-
-#[turbo_tasks::value_impl]
-impl Asset for WithClientChunksAsset {
-    #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        unimplemented!()
-    }
 
     #[turbo_tasks::function]
     fn references(&self) -> Vc<AssetReferences> {
@@ -63,6 +55,14 @@ impl Asset for WithClientChunksAsset {
             }
             .cell(),
         )])
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl Asset for WithClientChunksAsset {
+    #[turbo_tasks::function]
+    fn content(&self) -> Vc<AssetContent> {
+        unimplemented!()
     }
 }
 

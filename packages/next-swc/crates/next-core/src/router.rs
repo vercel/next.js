@@ -13,7 +13,7 @@ use turbopack_binding::{
     turbopack::{
         core::{
             asset::AssetContent,
-            changed::any_content_changed,
+            changed::any_content_changed_of_module,
             chunk::ChunkingContext,
             context::AssetContext,
             environment::{ServerAddr, ServerInfo},
@@ -144,7 +144,7 @@ async fn next_config_changed(
                 Vc::upcast(FileSource::new(config_path)),
                 Value::new(ReferenceType::Internal(InnerAssets::empty())),
             );
-            any_content_changed(Vc::upcast(module))
+            any_content_changed_of_module(module)
         }
         FindContextFileResult::NotFound(_) => Completion::immutable(),
     })

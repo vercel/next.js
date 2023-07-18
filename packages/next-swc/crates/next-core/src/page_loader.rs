@@ -144,6 +144,25 @@ impl OutputAsset for PageLoaderAsset {
             get_asset_path_from_pathname(&self.pathname.await?, ".js")
         ))))
     }
+
+    #[turbo_tasks::function]
+    async fn references(self: Vc<Self>) -> Result<Vc<AssetReferences>> {
+        let chunks = self.get_page_chunks().await?;
+
+        let mut references = Vec::with_capacity(chunks.len());
+        for &chunk in chunks.iter() {
+            references.push(Vc::upcast(SingleAssetReference::new(
+                Vc::upcast(chunk),
+                page_loader_chunk_reference_description(),
+            )));
+        }
+
+        for chunk_data in &*self.chunks_data().await? {
+            references.extend(chunk_data.references().await?.iter().copied());
+        }
+
+        Ok(Vc::cell(references))
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -166,24 +185,5 @@ impl Asset for PageLoaderAsset {
         );
 
         Ok(AssetContent::file(File::from(content).into()))
-    }
-
-    #[turbo_tasks::function]
-    async fn references(self: Vc<Self>) -> Result<Vc<AssetReferences>> {
-        let chunks = self.get_page_chunks().await?;
-
-        let mut references = Vec::with_capacity(chunks.len());
-        for &chunk in chunks.iter() {
-            references.push(Vc::upcast(SingleAssetReference::new(
-                Vc::upcast(chunk),
-                page_loader_chunk_reference_description(),
-            )));
-        }
-
-        for chunk_data in &*self.chunks_data().await? {
-            references.extend(chunk_data.references().await?.iter().copied());
-        }
-
-        Ok(Vc::cell(references))
     }
 }
