@@ -252,10 +252,43 @@ function Root({ children }: React.PropsWithChildren<{}>): React.ReactElement {
     const INITIAL_OVERLAY_STATE: typeof import('./components/react-dev-overlay/internal/error-overlay-reducer').INITIAL_OVERLAY_STATE =
       require('./components/react-dev-overlay/internal/error-overlay-reducer').INITIAL_OVERLAY_STATE
 
+    const useWebsocket: typeof import('./components/react-dev-overlay/internal/helpers/use-websocket').useWebsocket =
+      require('./components/react-dev-overlay/internal/helpers/use-websocket').useWebsocket
+
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    const webSocketRef = useWebsocket('')
+
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    React.useEffect(() => {
+      const handler = (event: MessageEvent) => {
+        let obj
+        try {
+          obj = JSON.parse(event.data)
+        } catch {}
+
+        if (!obj || !('action' in obj)) {
+          return
+        }
+
+        // minimal "hot reload" support for RSC errors
+        if (obj.action === 'serverComponentChanges') {
+          window.location.reload()
+        }
+      }
+
+      const websocket = webSocketRef.current
+      if (websocket) {
+        websocket.addEventListener('message', handler)
+      }
+
+      return () =>
+        websocket && websocket.removeEventListener('message', handler)
+    }, [webSocketRef])
+
     // if an error is thrown while rendering an RSC stream, this will catch it in dev
     // and show the error overlay
     return (
-      <ReactDevOverlay state={INITIAL_OVERLAY_STATE} onReactError={() => {}}>
+      <ReactDevOverlay state={INITIAL_OVERLAY_STATE}>
         {children}
       </ReactDevOverlay>
     )
