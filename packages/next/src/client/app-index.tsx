@@ -244,6 +244,23 @@ function Root({ children }: React.PropsWithChildren<{}>): React.ReactElement {
     }, [])
   }
 
+  if (process.env.NODE_ENV !== 'production') {
+    const ReactDevOverlay: typeof import('./components/react-dev-overlay/internal/ReactDevOverlay').default =
+      require('./components/react-dev-overlay/internal/ReactDevOverlay')
+        .default as typeof import('./components/react-dev-overlay/internal/ReactDevOverlay').default
+
+    const INITIAL_OVERLAY_STATE: typeof import('./components/react-dev-overlay/internal/error-overlay-reducer').INITIAL_OVERLAY_STATE =
+      require('./components/react-dev-overlay/internal/error-overlay-reducer').INITIAL_OVERLAY_STATE
+
+    // if an error is thrown while rendering an RSC stream, this will catch it in dev
+    // and show the error overlay
+    return (
+      <ReactDevOverlay onReactError={() => {}} state={INITIAL_OVERLAY_STATE}>
+        {children}
+      </ReactDevOverlay>
+    )
+  }
+
   return children as React.ReactElement
 }
 
