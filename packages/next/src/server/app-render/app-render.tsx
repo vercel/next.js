@@ -40,7 +40,7 @@ import {
   NEXT_ROUTER_STATE_TREE,
   RSC,
 } from '../../client/components/app-router-headers'
-import { MetadataTree } from '../../lib/metadata/metadata'
+import { MetadataTree, isMetadataError } from '../../lib/metadata/metadata'
 import { RequestAsyncStorageWrapper } from '../async-storage/request-async-storage-wrapper'
 import { StaticGenerationAsyncStorageWrapper } from '../async-storage/static-generation-async-storage-wrapper'
 import { isClientReference } from '../../lib/client-reference'
@@ -1616,6 +1616,13 @@ export async function renderToHTMLOrFlight(
               pagePath
             )
           }
+          let isErrorFromMetadata = false
+          if (isMetadataError(err)) {
+            isErrorFromMetadata = true
+            const digest = err.digest.replace('NEXT_METADATA_ERROR;', '')
+            err.message = digest
+            err.digest = digest
+          }
           if (isNotFoundError(err)) {
             res.statusCode = 404
           }
@@ -1636,17 +1643,22 @@ export async function renderToHTMLOrFlight(
           }
 
           const is404 = res.statusCode === 404
-          const useDefaultError = res.statusCode < 400 || hasRedirectError
+          const isMetadataNotFound = isErrorFromMetadata && is404
 
           // Preserve the existing RSC inline chunks from the page rendering.
           // For 404 errors: the metadata from layout can be skipped with the error page.
           // For other errors (such as redirection): it can still be re-thrown on client.
           const serverErrorComponentsRenderOpts = {
             ...serverComponentsRenderOpts,
-            transformStream: useDefaultError
-              ? cloneTransformStream(serverComponentsRenderOpts.transformStream)
-              : new TransformStream(),
-            rscChunks: [],
+            rscChunks:
+              isErrorFromMetadata && is404
+                ? []
+                : serverComponentsRenderOpts.rscChunks,
+            transformStream: isMetadataNotFound
+              ? new TransformStream()
+              : cloneTransformStream(
+                  serverComponentsRenderOpts.transformStream
+                ),
           }
 
           const errorType = is404
@@ -1703,6 +1715,14 @@ export async function renderToHTMLOrFlight(
                 query
               )
 
+              // If it's not notFound error from metadata, then it could be caught by client side
+              // error boundary. In that case, only render default error html with metadata
+              if (!isMetadataNotFound) {
+                return <ErrorHtml head={head} />
+              }
+
+              // For metadata notFound error there's no global not found boundary on top
+              // so we create a not found page with AppRouter
               return (
                 <AppRouter
                   buildId={renderOpts.buildId}
@@ -1712,14 +1732,10 @@ export async function renderToHTMLOrFlight(
                   initialHead={head}
                   globalErrorComponent={GlobalError}
                 >
-                  {is404 ? (
-                    <RootLayout params={{}}>
-                      {notFoundStyles}
-                      {NotFound && <NotFound />}
-                    </RootLayout>
-                  ) : (
-                    <ErrorHtml head={head} />
-                  )}
+                  <RootLayout params={{}}>
+                    {notFoundStyles}
+                    {NotFound && <NotFound />}
+                  </RootLayout>
                 </AppRouter>
               )
             },

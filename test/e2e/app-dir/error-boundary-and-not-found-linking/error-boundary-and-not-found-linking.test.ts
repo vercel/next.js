@@ -6,6 +6,7 @@ createNextDescribe(
     files: __dirname,
   },
   ({ next }) => {
+    //
     it('should allow navigation on not-found', async () => {
       const browser = await next.browser('/trigger-404')
       expect(await browser.elementByCss('#not-found-component').text()).toBe(
@@ -36,6 +37,7 @@ createNextDescribe(
       ).toBe('Result Page!')
     })
 
+    //
     it('should allow navigation to other routes on route that was initially not-found', async () => {
       // Intentionally non-existent route.
       const browser = await next.browser('/testabc')
@@ -52,6 +54,7 @@ createNextDescribe(
       ).toBe('Result Page!')
     })
 
+    //
     it('should allow navigation back to route that was initially not-found', async () => {
       // Intentionally non-existent route.
       const browser = await next.browser('/testabc')

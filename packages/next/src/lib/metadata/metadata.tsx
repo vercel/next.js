@@ -21,6 +21,10 @@ import { MetaFilter } from './generate/meta'
 import { ResolvedMetadata } from './types/metadata-interface'
 import { createDefaultMetadata } from './default-metadata'
 
+export function isMetadataError(error: any) {
+  return error && (error?.digest + '').startsWith('NEXT_METADATA_ERROR;')
+}
+
 // Generate the actual React elements from the resolved metadata.
 export async function MetadataTree({
   tree,
@@ -56,7 +60,15 @@ export async function MetadataTree({
   if (errorType === 'redirect') {
     metadata = defaultMetadata
   } else {
-    metadata = await accumulateMetadata(resolvedMetadata, metadataContext)
+    try {
+      metadata = await accumulateMetadata(resolvedMetadata, metadataContext)
+    } catch (error: any) {
+      const digest = `NEXT_METADATA_ERROR;${error?.digest || ''}`
+      const metadataError = new Error(digest)
+      // @ts-ignore
+      metadataError.digest = digest
+      throw metadataError
+    }
   }
 
   const elements = MetaFilter([
