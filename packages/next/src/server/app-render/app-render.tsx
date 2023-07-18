@@ -1662,8 +1662,6 @@ export async function renderToHTMLOrFlight(
 
           const renderDefault404 = isMetadataNotFound || (is404 && !NotFound)
 
-          console.log('renderDefault404', renderDefault404)
-
           // Preserve the existing RSC inline chunks from the page rendering.
           // For 404 errors: the metadata from layout can be skipped with the error page.
           // For other errors (such as redirection): it can still be re-thrown on client.
@@ -1720,12 +1718,6 @@ export async function renderToHTMLOrFlight(
               )
 
               const GlobalNotFound = NotFound || DefaultNotFound
-              console.log(
-                'RootLayout',
-                RootLayout,
-                'GlobalNotFound',
-                GlobalNotFound
-              )
               const notFoundElement = (
                 <RootLayout params={{}}>
                   {notFoundStyles}
