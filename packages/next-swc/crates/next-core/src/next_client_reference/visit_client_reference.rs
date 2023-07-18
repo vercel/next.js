@@ -10,7 +10,7 @@ use turbo_tasks::{
     TryJoinIterExt, Vc,
 };
 use turbopack_binding::turbopack::core::{
-    asset::{Asset, Assets},
+    module::{convert_asset_to_module, Module, Modules},
     reference::AssetReference,
 };
 
@@ -60,7 +60,7 @@ pub struct ClientReferenceGraph {
 #[turbo_tasks::value_impl]
 impl ClientReferenceGraph {
     #[turbo_tasks::function]
-    pub async fn new(entries: Vc<Assets>) -> Result<Vc<Self>> {
+    pub async fn new(entries: Vc<Modules>) -> Result<Vc<Self>> {
         let entries = entries.await?;
 
         let graph = AdjacencyMap::new()
@@ -69,9 +69,9 @@ impl ClientReferenceGraph {
                 entries
                     .iter()
                     .copied()
-                    .map(|asset| VisitClientReferenceNode {
+                    .map(|module| VisitClientReferenceNode {
                         server_component: None,
-                        ty: VisitClientReferenceNodeType::Internal(asset),
+                        ty: VisitClientReferenceNodeType::Internal(module),
                     })
                     .collect::<Vec<_>>(),
                 VisitClientReference,
@@ -104,7 +104,7 @@ impl ClientReferenceGraph {
     }
 
     #[turbo_tasks::function]
-    pub async fn entry(self: Vc<Self>, entry: Vc<Box<dyn Asset>>) -> Result<Vc<ClientReferences>> {
+    pub async fn entry(self: Vc<Self>, entry: Vc<Box<dyn Module>>) -> Result<Vc<ClientReferences>> {
         let this = self.await?;
         let mut entry_client_references = vec![];
 
@@ -145,7 +145,7 @@ struct VisitClientReferenceNode {
 )]
 enum VisitClientReferenceNodeType {
     ClientReference(ClientReference),
-    Internal(Vc<Box<dyn Asset>>),
+    Internal(Vc<Box<dyn Module>>),
 }
 
 impl Visit<VisitClientReferenceNode> for VisitClientReference {
@@ -167,24 +167,29 @@ impl Visit<VisitClientReferenceNode> for VisitClientReference {
                 // This should never occur since we always skip visiting these
                 // nodes' edges.
                 VisitClientReferenceNodeType::ClientReference(_) => Ok(vec![]),
-                VisitClientReferenceNodeType::Internal(asset) => {
-                    let references = asset.references().await?;
+                VisitClientReferenceNodeType::Internal(module) => {
+                    let references = module.references().await?;
 
-                    let referenced_assets = references
+                    let referenced_modules = references
                         .iter()
                         .copied()
                         .map(|reference| async move {
                             let resolve_result = reference.resolve_reference();
                             let assets = resolve_result.primary_assets().await?;
-                            Ok(assets.iter().copied().collect::<Vec<_>>())
+                            Ok(assets
+                                .iter()
+                                .copied()
+                                .map(convert_asset_to_module)
+                                .collect::<Vec<_>>())
                         })
                         .try_join()
                         .await?;
-                    let referenced_assets = referenced_assets.into_iter().flatten();
+                    let referenced_modules = referenced_modules.into_iter().flatten();
 
-                    let referenced_assets = referenced_assets.map(|asset| async move {
-                        if let Some(client_reference_asset) =
-                            Vc::try_resolve_downcast_type::<EcmascriptClientReferenceModule>(asset)
+                    let referenced_modules = referenced_modules.map(|module| async move {
+                        let module = module.resolve().await?;
+                        if let Some(client_reference_module) =
+                            Vc::try_resolve_downcast_type::<EcmascriptClientReferenceModule>(module)
                                 .await?
                         {
                             return Ok(VisitClientReferenceNode {
@@ -193,7 +198,7 @@ impl Visit<VisitClientReferenceNode> for VisitClientReference {
                                     ClientReference {
                                         server_component: node.server_component,
                                         ty: ClientReferenceType::EcmascriptClientReference(
-                                            client_reference_asset,
+                                            client_reference_module,
                                         ),
                                     },
                                 ),
@@ -201,7 +206,8 @@ impl Visit<VisitClientReferenceNode> for VisitClientReference {
                         }
 
                         if let Some(css_client_reference_asset) =
-                            Vc::try_resolve_downcast_type::<CssClientReferenceModule>(asset).await?
+                            Vc::try_resolve_downcast_type::<CssClientReferenceModule>(module)
+                                .await?
                         {
                             return Ok(VisitClientReferenceNode {
                                 server_component: node.server_component,
@@ -217,22 +223,22 @@ impl Visit<VisitClientReferenceNode> for VisitClientReference {
                         }
 
                         if let Some(server_component_asset) =
-                            Vc::try_resolve_downcast_type::<NextServerComponentModule>(asset)
+                            Vc::try_resolve_downcast_type::<NextServerComponentModule>(module)
                                 .await?
                         {
                             return Ok(VisitClientReferenceNode {
                                 server_component: Some(server_component_asset),
-                                ty: VisitClientReferenceNodeType::Internal(asset),
+                                ty: VisitClientReferenceNodeType::Internal(module),
                             });
                         }
 
                         Ok(VisitClientReferenceNode {
                             server_component: node.server_component,
-                            ty: VisitClientReferenceNodeType::Internal(asset),
+                            ty: VisitClientReferenceNodeType::Internal(module),
                         })
                     });
 
-                    let assets = referenced_assets.try_join().await?;
+                    let assets = referenced_modules.try_join().await?;
 
                     Ok(assets)
                 }

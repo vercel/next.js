@@ -31,6 +31,11 @@ impl Module for WithChunkingContextScopeAsset {
     fn ident(&self) -> Vc<AssetIdent> {
         self.asset.ident().with_modifier(modifier())
     }
+
+    #[turbo_tasks::function]
+    fn references(&self) -> Vc<AssetReferences> {
+        self.asset.references()
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -38,11 +43,6 @@ impl Asset for WithChunkingContextScopeAsset {
     #[turbo_tasks::function]
     fn content(&self) -> Vc<AssetContent> {
         self.asset.content()
-    }
-
-    #[turbo_tasks::function]
-    fn references(&self) -> Vc<AssetReferences> {
-        self.asset.references()
     }
 }
 
