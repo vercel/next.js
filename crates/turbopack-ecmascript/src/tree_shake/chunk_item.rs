@@ -1,7 +1,6 @@
 use anyhow::Result;
 use turbo_tasks::{Value, Vc};
 use turbopack_core::{
-    asset::Asset,
     chunk::{availability_info::AvailabilityInfo, ChunkItem},
     ident::AssetIdent,
     module::Module,

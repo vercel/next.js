@@ -8,7 +8,7 @@ use turbo_tasks_fs::{
 };
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    changed::any_content_changed,
+    changed::any_content_changed_of_module,
     context::AssetContext,
     file_source::FileSource,
     ident::AssetIdent,
@@ -149,10 +149,10 @@ async fn extra_configs(
         .map(|path| async move {
             Ok(
                 matches!(&*path.get_type().await?, FileSystemEntryType::File).then(|| {
-                    any_content_changed(Vc::upcast(context.process(
+                    any_content_changed_of_module(context.process(
                         Vc::upcast(FileSource::new(path)),
                         Value::new(ReferenceType::Internal(InnerAssets::empty())),
-                    )))
+                    ))
                 }),
             )
         })

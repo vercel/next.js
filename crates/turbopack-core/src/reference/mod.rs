@@ -4,7 +4,7 @@ use anyhow::Result;
 use turbo_tasks::{TryJoinIterExt, ValueToString, Vc};
 
 use crate::{
-    asset::{Asset, Assets},
+    asset::Asset,
     issue::IssueContextExt,
     module::{convert_asset_to_module, Module, Modules},
     output::{OutputAsset, OutputAssets},
@@ -84,39 +84,6 @@ impl SingleAssetReference {
     pub async fn asset(self: Vc<Self>) -> Result<Vc<Box<dyn Asset>>> {
         Ok(self.await?.asset)
     }
-}
-
-/// Aggregates all [Asset]s referenced by an [Asset]. [AssetReference]
-/// This does not include transitively references [Asset]s, but it includes
-/// primary and secondary [Asset]s referenced.
-///
-/// [Asset]: crate::asset::Asset
-#[turbo_tasks::function]
-pub async fn all_referenced_assets(asset: Vc<Box<dyn Asset>>) -> Result<Vc<Assets>> {
-    let references_set = asset.references().await?;
-    let mut assets = Vec::new();
-    let mut queue = VecDeque::with_capacity(32);
-    for reference in references_set.iter() {
-        queue.push_back(reference.resolve_reference());
-    }
-    // that would be non-deterministic:
-    // while let Some(result) = race_pop(&mut queue).await {
-    // match &*result? {
-    while let Some(resolve_result) = queue.pop_front() {
-        let ResolveResult {
-            primary,
-            references,
-        } = &*resolve_result.await?;
-        for result in primary {
-            if let PrimaryResolveResult::Asset(asset) = *result {
-                assets.push(asset);
-            }
-        }
-        for reference in references {
-            queue.push_back(reference.resolve_reference());
-        }
-    }
-    Ok(Vc::cell(assets))
 }
 
 /// Aggregates all [Asset]s referenced by an [Asset]. [AssetReference]
@@ -276,38 +243,6 @@ pub async fn primary_referenced_output_assets(
             .flatten()
             .collect();
     Ok(Vc::cell(output_assets))
-}
-
-/// Aggregates all primary [Asset]s referenced by an [Asset]. [AssetReference]
-/// This does not include transitively references [Asset]s, only includes
-/// primary [Asset]s referenced.
-///
-/// [Asset]: crate::asset::Asset
-#[turbo_tasks::function]
-pub async fn primary_referenced_assets(asset: Vc<Box<dyn Asset>>) -> Result<Vc<Assets>> {
-    let assets = asset
-        .references()
-        .await?
-        .iter()
-        .map(|reference| async {
-            let ResolveResult { primary, .. } = &*reference.resolve_reference().await?;
-            Ok(primary
-                .iter()
-                .filter_map(|result| {
-                    if let PrimaryResolveResult::Asset(asset) = *result {
-                        Some(asset)
-                    } else {
-                        None
-                    }
-                })
-                .collect::<Vec<_>>())
-        })
-        .try_join()
-        .await?
-        .into_iter()
-        .flatten()
-        .collect();
-    Ok(Vc::cell(assets))
 }
 
 /// Aggregates all [Module]s referenced by an [Module] including transitively

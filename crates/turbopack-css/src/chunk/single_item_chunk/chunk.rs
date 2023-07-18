@@ -101,17 +101,6 @@ impl OutputAsset for SingleItemCssChunk {
             ),
         ))
     }
-}
-
-#[turbo_tasks::value_impl]
-impl Asset for SingleItemCssChunk {
-    #[turbo_tasks::function]
-    async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
-        let code = self.code().await?;
-        Ok(AssetContent::file(
-            File::from(code.source_code().clone()).into(),
-        ))
-    }
 
     #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<AssetReferences>> {
@@ -127,6 +116,17 @@ impl Asset for SingleItemCssChunk {
             )));
         }
         Ok(Vc::cell(references))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl Asset for SingleItemCssChunk {
+    #[turbo_tasks::function]
+    async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
+        let code = self.code().await?;
+        Ok(AssetContent::file(
+            File::from(code.source_code().clone()).into(),
+        ))
     }
 }
 

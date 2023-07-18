@@ -4,12 +4,26 @@ use turbo_tasks::{
     Completion, Completions, Vc,
 };
 
-use crate::{asset::Asset, output::OutputAssets, reference::all_referenced_assets};
+use crate::{
+    asset::Asset,
+    module::Module,
+    output::{OutputAsset, OutputAssets},
+    reference::{all_referenced_modules, all_referenced_output_assets},
+};
 
-async fn get_referenced_assets(
-    parent: Vc<Box<dyn Asset>>,
-) -> Result<impl Iterator<Item = Vc<Box<dyn Asset>>> + Send> {
-    Ok(all_referenced_assets(parent)
+async fn get_referenced_output_assets(
+    parent: Vc<Box<dyn OutputAsset>>,
+) -> Result<impl Iterator<Item = Vc<Box<dyn OutputAsset>>> + Send> {
+    Ok(all_referenced_output_assets(parent)
+        .await?
+        .clone_value()
+        .into_iter())
+}
+
+async fn get_referenced_modules(
+    parent: Vc<Box<dyn Module>>,
+) -> Result<impl Iterator<Item = Vc<Box<dyn Module>>> + Send> {
+    Ok(all_referenced_modules(parent)
         .await?
         .clone_value()
         .into_iter())
@@ -18,15 +32,34 @@ async fn get_referenced_assets(
 /// Returns a completion that changes when any content of any asset in the whole
 /// asset graph changes.
 #[turbo_tasks::function]
-pub async fn any_content_changed(root: Vc<Box<dyn Asset>>) -> Result<Vc<Completion>> {
+pub async fn any_content_changed_of_module(root: Vc<Box<dyn Module>>) -> Result<Vc<Completion>> {
     let completions = NonDeterministic::new()
         .skip_duplicates()
-        .visit([root], get_referenced_assets)
+        .visit([root], get_referenced_modules)
         .await
         .completed()?
         .into_inner()
         .into_iter()
-        .map(content_changed)
+        .map(|m| content_changed(Vc::upcast(m)))
+        .collect();
+
+    Ok(Vc::<Completions>::cell(completions).completed())
+}
+
+/// Returns a completion that changes when any content of any asset in the whole
+/// asset graph changes.
+#[turbo_tasks::function]
+pub async fn any_content_changed_of_output_asset(
+    root: Vc<Box<dyn OutputAsset>>,
+) -> Result<Vc<Completion>> {
+    let completions = NonDeterministic::new()
+        .skip_duplicates()
+        .visit([root], get_referenced_output_assets)
+        .await
+        .completed()?
+        .into_inner()
+        .into_iter()
+        .map(|m| content_changed(Vc::upcast(m)))
         .collect();
 
     Ok(Vc::<Completions>::cell(completions).completed())
@@ -42,7 +75,7 @@ pub async fn any_content_changed_of_output_assets(
         roots
             .await?
             .iter()
-            .map(|&a| any_content_changed(Vc::upcast(a)))
+            .map(|&a| any_content_changed_of_output_asset(a))
             .collect(),
     )
     .completed())

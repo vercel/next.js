@@ -5,7 +5,6 @@ use turbo_tasks_fs::{FileContent, FileSystemEntryType, FileSystemPath, LinkConte
 use crate::{
     asset::{Asset, AssetContent},
     ident::AssetIdent,
-    reference::AssetReferences,
     source::Source,
 };
 
@@ -52,12 +51,5 @@ impl Asset for FileSource {
             }
             _ => Err(anyhow::anyhow!("Invalid file type {:?}", file_type)),
         }
-    }
-
-    #[turbo_tasks::function]
-    fn references(&self) -> Vc<AssetReferences> {
-        // TODO: build input sourcemaps via language specific sourceMappingURL comment
-        // or parse.
-        AssetReferences::empty()
     }
 }

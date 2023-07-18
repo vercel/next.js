@@ -38,6 +38,19 @@ impl OutputAsset for NodeJsBootstrapAsset {
     fn ident(&self) -> Vc<AssetIdent> {
         AssetIdent::from_path(self.path)
     }
+
+    #[turbo_tasks::function]
+    async fn references(&self) -> Result<Vc<AssetReferences>> {
+        let chunks = self.chunks().await?;
+        let mut references = Vec::new();
+        for &chunk in chunks.iter() {
+            references.push(Vc::upcast(SingleAssetReference::new(
+                Vc::upcast(chunk),
+                node_js_bootstrap_chunk_reference_description(),
+            )));
+        }
+        Ok(Vc::cell(references))
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -60,18 +73,5 @@ impl Asset for NodeJsBootstrapAsset {
         }
 
         Ok(AssetContent::file(File::from(output).into()))
-    }
-
-    #[turbo_tasks::function]
-    async fn references(&self) -> Result<Vc<AssetReferences>> {
-        let chunks = self.chunks().await?;
-        let mut references = Vec::new();
-        for &chunk in chunks.iter() {
-            references.push(Vc::upcast(SingleAssetReference::new(
-                Vc::upcast(chunk),
-                node_js_bootstrap_chunk_reference_description(),
-            )));
-        }
-        Ok(Vc::cell(references))
     }
 }

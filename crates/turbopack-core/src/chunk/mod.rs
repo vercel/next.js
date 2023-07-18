@@ -126,10 +126,17 @@ pub trait Chunk: Asset {
     fn path(self: Vc<Self>) -> Vc<FileSystemPath> {
         self.ident().path()
     }
+
     /// Returns a list of chunks that should be loaded in parallel to this
     /// chunk.
     fn parallel_chunks(self: Vc<Self>) -> Vc<Chunks> {
         Chunks::empty()
+    }
+
+    /// Other things (most likely [Asset]s) referenced from this [Chunk].
+    // TODO refactor this to ensure that only [OutputAsset]s can be referenced
+    fn references(self: Vc<Self>) -> Vc<AssetReferences> {
+        AssetReferences::empty()
     }
 }
 

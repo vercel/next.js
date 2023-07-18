@@ -58,14 +58,6 @@ impl Module for ChunkGroupFilesAsset {
     fn ident(&self) -> Vc<AssetIdent> {
         self.module.ident().with_modifier(modifier())
     }
-}
-
-#[turbo_tasks::value_impl]
-impl Asset for ChunkGroupFilesAsset {
-    #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        AssetContent::file(File::from("// Chunking only content".to_string()).into())
-    }
 
     #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<AssetReferences>> {
@@ -84,6 +76,14 @@ impl Asset for ChunkGroupFilesAsset {
         }
 
         Ok(Vc::cell(references))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl Asset for ChunkGroupFilesAsset {
+    #[turbo_tasks::function]
+    fn content(&self) -> Vc<AssetContent> {
+        AssetContent::file(File::from("// Chunking only content".to_string()).into())
     }
 }
 

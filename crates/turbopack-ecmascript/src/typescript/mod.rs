@@ -44,14 +44,6 @@ impl Module for TsConfigModuleAsset {
     fn ident(&self) -> Vc<AssetIdent> {
         self.source.ident()
     }
-}
-
-#[turbo_tasks::value_impl]
-impl Asset for TsConfigModuleAsset {
-    #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        self.source.content()
-    }
 
     #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<AssetReferences>> {
@@ -154,6 +146,14 @@ impl Asset for TsConfigModuleAsset {
             }
         }
         Ok(Vc::cell(references))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl Asset for TsConfigModuleAsset {
+    #[turbo_tasks::function]
+    fn content(&self) -> Vc<AssetContent> {
+        self.source.content()
     }
 }
 

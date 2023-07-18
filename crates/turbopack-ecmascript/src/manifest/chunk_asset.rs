@@ -88,14 +88,6 @@ impl Module for ManifestChunkAsset {
     fn ident(&self) -> Vc<AssetIdent> {
         self.asset.ident().with_modifier(modifier())
     }
-}
-
-#[turbo_tasks::value_impl]
-impl Asset for ManifestChunkAsset {
-    #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        todo!()
-    }
 
     #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<AssetReferences>> {
@@ -114,6 +106,14 @@ impl Asset for ManifestChunkAsset {
                 })
                 .collect(),
         ))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl Asset for ManifestChunkAsset {
+    #[turbo_tasks::function]
+    fn content(&self) -> Vc<AssetContent> {
+        todo!()
     }
 }
 

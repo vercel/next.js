@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{bail, Result};
 use indexmap::IndexSet;
 use turbo_tasks::{ValueToString, Vc};
 use turbo_tasks_fs::FileContent;
@@ -93,8 +93,24 @@ impl Introspectable for IntrospectableAsset {
     }
 
     #[turbo_tasks::function]
-    fn children(&self) -> Vc<IntrospectableChildren> {
-        children_from_asset_references(self.0.references())
+    async fn children(&self) -> Result<Vc<IntrospectableChildren>> {
+        let asset = self.0.resolve().await?;
+        Ok(
+            if Vc::try_resolve_downcast::<Box<dyn Source>>(asset)
+                .await?
+                .is_some()
+            {
+                Vc::cell(Default::default())
+            } else if let Some(module) = Vc::try_resolve_downcast::<Box<dyn Module>>(asset).await? {
+                children_from_asset_references(module.references())
+            } else if let Some(output_asset) =
+                Vc::try_resolve_downcast::<Box<dyn OutputAsset>>(asset).await?
+            {
+                children_from_asset_references(output_asset.references())
+            } else {
+                bail!("unknown type")
+            },
+        )
     }
 }
 

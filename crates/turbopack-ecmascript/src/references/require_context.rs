@@ -351,14 +351,6 @@ impl Module for RequireContextAsset {
             .ident()
             .with_modifier(modifier(self.dir.clone(), self.include_subdirs))
     }
-}
-
-#[turbo_tasks::value_impl]
-impl Asset for RequireContextAsset {
-    #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        unimplemented!()
-    }
 
     #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<AssetReferences>> {
@@ -369,6 +361,14 @@ impl Asset for RequireContextAsset {
                 .map(|(_, entry)| Vc::upcast(Vc::<ResolvedAssetReference>::cell(entry.result)))
                 .collect(),
         ))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl Asset for RequireContextAsset {
+    #[turbo_tasks::function]
+    fn content(&self) -> Vc<AssetContent> {
+        unimplemented!()
     }
 }
 

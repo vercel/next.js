@@ -199,10 +199,7 @@ impl OutputAsset for EcmascriptDevEvaluateChunk {
             self.chunking_context.chunk_path(ident, ".js".to_string()),
         ))
     }
-}
 
-#[turbo_tasks::value_impl]
-impl Asset for EcmascriptDevEvaluateChunk {
     #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<AssetReferences>> {
         let this = self.await?;
@@ -222,7 +219,10 @@ impl Asset for EcmascriptDevEvaluateChunk {
 
         Ok(Vc::cell(references))
     }
+}
 
+#[turbo_tasks::value_impl]
+impl Asset for EcmascriptDevEvaluateChunk {
     #[turbo_tasks::function]
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
         let code = self.code().await?;

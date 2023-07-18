@@ -51,16 +51,6 @@ impl Module for EcmascriptModulePartAsset {
 
         Ok(inner.with_part(self.part))
     }
-}
-
-#[turbo_tasks::value_impl]
-impl Asset for EcmascriptModulePartAsset {
-    #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        // This is not reachable because EcmascriptModulePartAsset implements
-        // ChunkableModule and ChunkableModule::as_chunk is called instead.
-        todo!("EcmascriptModulePartAsset::content is not implemented")
-    }
 
     #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<AssetReferences>> {
@@ -103,6 +93,16 @@ impl Asset for EcmascriptModulePartAsset {
         assets.extend(external.iter().cloned());
 
         Ok(Vc::cell(assets))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl Asset for EcmascriptModulePartAsset {
+    #[turbo_tasks::function]
+    fn content(&self) -> Vc<AssetContent> {
+        // This is not reachable because EcmascriptModulePartAsset implements
+        // ChunkableModule and ChunkableModule::as_chunk is called instead.
+        todo!("EcmascriptModulePartAsset::content is not implemented")
     }
 }
 

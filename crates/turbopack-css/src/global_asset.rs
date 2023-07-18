@@ -51,6 +51,13 @@ impl Module for GlobalCssAsset {
     fn ident(&self) -> Vc<AssetIdent> {
         self.source.ident().with_modifier(modifier())
     }
+
+    #[turbo_tasks::function]
+    fn references(self: Vc<Self>) -> Vc<AssetReferences> {
+        Vc::cell(vec![Vc::upcast(InternalCssAssetReference::new(
+            self.inner(),
+        ))])
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -58,13 +65,6 @@ impl Asset for GlobalCssAsset {
     #[turbo_tasks::function]
     fn content(&self) -> Result<Vc<AssetContent>> {
         bail!("CSS global asset has no contents")
-    }
-
-    #[turbo_tasks::function]
-    fn references(self: Vc<Self>) -> Vc<AssetReferences> {
-        Vc::cell(vec![Vc::upcast(InternalCssAssetReference::new(
-            self.inner(),
-        ))])
     }
 }
 
