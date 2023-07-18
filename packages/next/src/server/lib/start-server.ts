@@ -36,6 +36,53 @@ export interface StartServerOptions {
 
 type TeardownServer = () => Promise<void>
 
+export const checkIsNodeDebugging = () => {
+  let isNodeDebugging: 'brk' | boolean = !!(
+    process.execArgv.some((localArg) => localArg.startsWith('--inspect')) ||
+    process.env.NODE_OPTIONS?.match?.(/--inspect(=\S+)?( |$)/)
+  )
+
+  if (
+    process.execArgv.some((localArg) => localArg.startsWith('--inspect-brk')) ||
+    process.env.NODE_OPTIONS?.match?.(/--inspect-brk(=\S+)?( |$)/)
+  ) {
+    isNodeDebugging = 'brk'
+  }
+  return isNodeDebugging
+}
+
+export const createRouterWorker = async (
+  routerServerPath: string,
+  isNodeDebugging: boolean | 'brk',
+  jestWorkerPath = require.resolve('next/dist/compiled/jest-worker')
+) => {
+  const { Worker } =
+    require(jestWorkerPath) as typeof import('next/dist/compiled/jest-worker')
+
+  return new Worker(routerServerPath, {
+    numWorkers: 1,
+    // TODO: do we want to allow more than 8 OOM restarts?
+    maxRetries: 8,
+    forkOptions: {
+      execArgv: await genRouterWorkerExecArgv(
+        isNodeDebugging === undefined ? false : isNodeDebugging
+      ),
+      env: {
+        FORCE_COLOR: '1',
+        ...((initialEnv || process.env) as typeof process.env),
+        NODE_OPTIONS: getNodeOptionsWithoutInspect(),
+        ...(process.env.NEXT_CPU_PROF
+          ? { __NEXT_PRIVATE_CPU_PROFILE: `CPU.router` }
+          : {}),
+        WATCHPACK_WATCHER_LIMIT: '20',
+      },
+    },
+    exposedMethods: ['initialize'],
+  }) as any as InstanceType<typeof Worker> & {
+    initialize: typeof import('./render-server').initialize
+  }
+}
+
 export async function startServer({
   dir,
   prevDir,
@@ -55,18 +102,6 @@ export async function startServer({
   let routerPort: number | undefined
   let handlersReady = () => {}
   let handlersError = () => {}
-
-  let isNodeDebugging: 'brk' | boolean = !!(
-    process.execArgv.some((localArg) => localArg.startsWith('--inspect')) ||
-    process.env.NODE_OPTIONS?.match?.(/--inspect(=\S+)?( |$)/)
-  )
-
-  if (
-    process.execArgv.some((localArg) => localArg.startsWith('--inspect-brk')) ||
-    process.env.NODE_OPTIONS?.match?.(/--inspect-brk(=\S+)?( |$)/)
-  ) {
-    isNodeDebugging = 'brk'
-  }
 
   let handlersPromise: Promise<void> | undefined = new Promise<void>(
     (resolve, reject) => {
@@ -151,6 +186,7 @@ export async function startServer({
   })
 
   let targetHost = hostname
+  const isNodeDebugging = checkIsNodeDebugging()
 
   await new Promise<void>((resolve) => {
     server.on('listening', () => {
@@ -205,32 +241,11 @@ export async function startServer({
         routerServerPath = routerServerPath.replace(prevDir, dir)
       }
 
-      const { Worker } =
-        require(jestWorkerPath) as typeof import('next/dist/compiled/jest-worker')
-
-      const routerWorker = new Worker(routerServerPath, {
-        numWorkers: 1,
-        // TODO: do we want to allow more than 8 OOM restarts?
-        maxRetries: 8,
-        forkOptions: {
-          execArgv: await genRouterWorkerExecArgv(
-            isNodeDebugging === undefined ? false : isNodeDebugging
-          ),
-          env: {
-            FORCE_COLOR: '1',
-            ...((initialEnv || process.env) as typeof process.env),
-            NODE_OPTIONS: getNodeOptionsWithoutInspect(),
-            ...(process.env.NEXT_CPU_PROF
-              ? { __NEXT_PRIVATE_CPU_PROFILE: `CPU.router` }
-              : {}),
-            WATCHPACK_WATCHER_LIMIT: '20',
-          },
-        },
-        exposedMethods: ['initialize'],
-      }) as any as InstanceType<typeof Worker> & {
-        initialize: typeof import('./render-server').initialize
-      }
-
+      const routerWorker = await createRouterWorker(
+        routerServerPath,
+        isNodeDebugging,
+        jestWorkerPath
+      )
       const cleanup = () => {
         debug('start-server process cleanup')
 

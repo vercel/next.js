@@ -273,11 +273,10 @@ function createServer(options: NextServerOptions): NextServer {
     // both types of renderers (pages, app) running in separated processes,
     // instead of having the Next server only.
     let shouldUseStandaloneMode = false
-
     const dir = resolve(options.dir || '.')
     const server = new NextServer(options)
 
-    const { startServer } =
+    const { createRouterWorker, checkIsNodeDebugging } =
       require('./lib/start-server') as typeof import('./lib/start-server')
 
     let didWebSocketSetup = false
@@ -320,19 +319,21 @@ function createServer(options: NextServerOptions): NextServer {
               return async () => {
                 shouldUseStandaloneMode = true
                 server[SYMBOL_SET_STANDALONE_MODE]()
+                const isNodeDebugging = checkIsNodeDebugging()
+                const routerWorker = await createRouterWorker(
+                  require.resolve('./lib/router-server'),
+                  isNodeDebugging
+                )
 
-                const teardown = await startServer({
+                const initResult = await routerWorker.initialize({
                   dir,
-                  logReady: false,
-                  allowRetry: false,
-                  isDev: !!options.dev,
-                  port: options.port || 0,
-                  minimalMode: options.minimalMode,
+                  port: options.port || 3000,
                   hostname: options.hostname || 'localhost',
-                  useWorkers: true,
-                  customServer: options.customServer,
+                  isNodeDebugging: !!isNodeDebugging,
+                  workerType: 'router',
+                  dev: !!options.dev,
                 })
-                serverPort = (teardown as any).port
+                serverPort = initResult.port
               }
             case 'getRequestHandler': {
               return () => {
