@@ -933,7 +933,8 @@ export async function renderToHTMLOrFlight(
       const isLeaf =
         process.env.NODE_ENV === 'production'
           ? !segment && !rootLayoutIncluded
-          : !parallelRouteMap.length && segment.startsWith('__PAGE__')
+          : (!parallelRouteMap.length && segment.startsWith('__PAGE__')) ||
+            !segment
 
       if (asNotFound && isLeaf && NotFound) {
         notFoundComponent = {
