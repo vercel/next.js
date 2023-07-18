@@ -7,7 +7,6 @@ use turbo_tasks_fs::{rebase, FileSystemPath};
 use turbopack_binding::turbopack::core::{
     asset::Asset,
     output::{OutputAsset, OutputAssets},
-    reference::AssetReference,
 };
 
 /// Emits all assets transitively reachable from the given chunks, that are
@@ -89,25 +88,11 @@ async fn all_assets_from_entries(entries: Vc<OutputAssets>) -> Result<Vc<OutputA
 async fn get_referenced_assets(
     asset: Vc<Box<dyn OutputAsset>>,
 ) -> Result<impl Iterator<Item = Vc<Box<dyn OutputAsset>>> + Send> {
-    Ok(
-        asset
-            .references()
-            .await?
-            .iter()
-            .map(|reference| async move {
-                let primary_assets = reference.resolve_reference().primary_assets().await?;
-                Ok(primary_assets.clone_value())
-            })
-            .try_join()
-            .await?
-            .into_iter()
-            .flatten()
-            .map(|asset| async move {
-                Ok(Vc::try_resolve_sidecast::<Box<dyn OutputAsset>>(asset).await?)
-            })
-            .try_join()
-            .await?
-            .into_iter()
-            .flatten(),
-    )
+    Ok(asset
+        .references()
+        .await?
+        .iter()
+        .copied()
+        .collect::<Vec<_>>()
+        .into_iter())
 }
