@@ -112,28 +112,31 @@ export async function initialize(opts: {
       })
     }
 
+    let hostname = opts.hostname || 'localhost'
+
     server.on('listening', async () => {
       try {
         const addr = server.address()
+        let host = addr
+          ? typeof addr === 'object'
+            ? addr.address
+            : addr
+          : undefined
         const port = addr && typeof addr === 'object' ? addr.port : 0
 
-        if (!port) {
-          console.error(`Invariant failed to detect render worker port`, addr)
+        if (!host || !port) {
+          console.error(
+            `Invariant failed to detect render worker host/port`,
+            addr
+          )
           process.exit(1)
         }
 
-        let hostname =
-          !opts.hostname || opts.hostname === '0.0.0.0'
-            ? 'localhost'
-            : opts.hostname
-
-        if (isIPv6(hostname)) {
-          hostname = hostname === '::' ? '[::1]' : `[${hostname}]`
-        }
         result = {
           port,
-          hostname,
+          hostname: isIPv6(host) ? `[${host}]` : host,
         }
+
         const app = next({
           ...opts,
           _routerWorker: isRouterWorker,
@@ -153,6 +156,6 @@ export async function initialize(opts: {
         return reject(err)
       }
     })
-    server.listen(await getFreePort(), '0.0.0.0')
+    server.listen(await getFreePort(), hostname)
   })
 }

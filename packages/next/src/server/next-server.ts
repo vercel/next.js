@@ -32,6 +32,7 @@ import { renderToHTML, type RenderOpts } from './render'
 
 import fs from 'fs'
 import { join, relative, resolve, sep, isAbsolute } from 'path'
+import { isIPv6 } from 'net'
 import { IncomingMessage, ServerResponse } from 'http'
 import { addRequestMeta, getRequestMeta } from './request-meta'
 import {
@@ -2326,7 +2327,8 @@ export default class NextNodeServer extends BaseServer {
       const locale = params.parsed.query.__nextLocale
 
       url = `${getRequestMeta(params.request, '_protocol')}://${
-        this.hostname
+        this.hostname &&
+        (isIPv6(this.hostname) ? `[${this.hostname}]` : this.hostname)
       }:${this.port}${locale ? `/${locale}` : ''}${params.parsed.pathname}${
         query ? `?${query}` : ''
       }`
@@ -2811,7 +2813,9 @@ export default class NextNodeServer extends BaseServer {
     // When there are hostname and port we build an absolute URL
     const initUrl =
       this.hostname && this.port
-        ? `${protocol}://${this.hostname}:${this.port}${req.url}`
+        ? `${protocol}://${
+            isIPv6(this.hostname) ? `[${this.hostname}]` : this.hostname
+          }:${this.port}${req.url}`
         : (this.nextConfig.experimental as any).trustHostHeader
         ? `https://${req.headers.host || 'localhost'}${req.url}`
         : req.url

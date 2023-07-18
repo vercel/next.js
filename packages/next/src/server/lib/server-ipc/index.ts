@@ -64,7 +64,7 @@ export async function createIpcServer(
   )
 
   const ipcPort = await new Promise<number>((resolveIpc) => {
-    ipcServer.listen(0, '0.0.0.0', () => {
+    ipcServer.listen(0, server.hostname, () => {
       const addr = ipcServer.address()
 
       if (addr && typeof addr === 'object') {

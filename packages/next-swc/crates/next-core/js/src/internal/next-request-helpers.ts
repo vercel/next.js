@@ -1,4 +1,5 @@
 import { TLSSocket } from 'tls'
+import { isIPv6 } from 'net'
 import {
   addRequestMeta,
   NextUrlWithParsedQuery,
@@ -18,7 +19,7 @@ export function attachRequestMeta(
     ? 'https'
     : 'http'
 
-  const initUrl = `${protocol}://${host}${req.url}`
+  const initUrl = `${protocol}://${isIPv6(host) ? `[${host}]` : host}${req.url}`
 
   addRequestMeta(req, '__NEXT_INIT_URL', initUrl)
   addRequestMeta(req, '__NEXT_INIT_QUERY', { ...parsedUrl.query })
