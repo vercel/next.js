@@ -1,6 +1,7 @@
 'use client'
+
 import { useState } from 'react'
-import { useSegment } from '@/components/analytics'
+import { useSegment } from '@/hooks/useSegment'
 
 export default function Form() {
   const analytics = useSegment();
