@@ -374,6 +374,7 @@ export async function startServer({
         proxyServer.on('proxyRes', (proxyRes) => {
           res.on('close', () => proxyRes.destroy())
         })
+        // add error listeners to prevent uncaught exceptions on socket errors
         req.on('error', (_err) => {
           // TODO: log socket errors?
         })
@@ -383,6 +384,7 @@ export async function startServer({
         proxyServer.web(req, res)
       }
       upgradeHandler = async (req, socket, head) => {
+        // add error listeners to prevent uncaught exceptions on socket errors
         req.on('error', (_err) => {
           // TODO: log socket errors?
           // console.log(_err)
