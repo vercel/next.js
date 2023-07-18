@@ -587,12 +587,17 @@ export default class DevServer extends Server {
   }
 
   private async runInstrumentationHookIfAvailable() {
-    if (this.actualInstrumentationHookFile) {
-      NextBuildContext!.hasInstrumentationHook = true
-      await this.ensurePage({
+    if (
+      this.actualInstrumentationHookFile &&
+      (await this.ensurePage({
         page: this.actualInstrumentationHookFile!,
         clientOnly: false,
       })
+        .then(() => true)
+        .catch(() => false))
+    ) {
+      NextBuildContext!.hasInstrumentationHook = true
+
       try {
         const instrumentationHook = await require(pathJoin(
           this.distDir,

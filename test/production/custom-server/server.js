@@ -30,7 +30,7 @@ async function main() {
         res.statusCode = 500
         res.end('Internal Server Error')
       }
-    }).listen(port, (err) => {
+    }).listen(port, '0.0.0.0', (err) => {
       if (err) throw err
       // Start mode
       console.log(`started server on url: http://${hostname}:${port}`)
