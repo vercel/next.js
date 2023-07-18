@@ -83,7 +83,7 @@ pub use id::{
 pub use invalidation::{
     DynamicEqHash, InvalidationReason, InvalidationReasonKind, InvalidationReasonSet,
 };
-pub use join_iter_ext::{JoinIterExt, TryJoinIterExt};
+pub use join_iter_ext::{JoinIterExt, TryFlatJoinIterExt, TryJoinIterExt};
 pub use manager::{
     dynamic_call, emit, get_invalidator, mark_finished, mark_stateful, run_once,
     run_once_with_reason, spawn_blocking, spawn_thread, trait_call, turbo_tasks, Invalidator,

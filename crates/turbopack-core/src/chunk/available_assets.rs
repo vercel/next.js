@@ -84,7 +84,7 @@ impl AvailableAssets {
 }
 
 #[turbo_tasks::function]
-async fn chunkable_assets_set(root: Vc<Box<dyn Module>>) -> Result<Vc<ModulesSet>> {
+pub async fn chunkable_assets_set(root: Vc<Box<dyn Module>>) -> Result<Vc<ModulesSet>> {
     let assets = AdjacencyMap::new()
         .skip_duplicates()
         .visit(once(root), |&asset: &Vc<Box<dyn Module>>| async move {
