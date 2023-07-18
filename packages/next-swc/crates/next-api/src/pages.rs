@@ -29,10 +29,9 @@ use turbopack_binding::{
             context::AssetContext,
             file_source::FileSource,
             output::{OutputAsset, OutputAssets},
-            raw_output::RawOutput,
             reference_type::{EntryReferenceSubType, ReferenceType},
             source::Source,
-            virtual_source::VirtualSource,
+            virtual_output::VirtualOutputAsset,
         },
         ecmascript::EcmascriptModuleAsset,
         turbopack::{
@@ -517,10 +516,13 @@ impl PageEndpoint {
                 .into_iter()
                 .collect(),
         };
-        Ok(Vc::upcast(RawOutput::new(Vc::upcast(VirtualSource::new(
-            node_root.join("server/pages-manifest.json".to_string()),
+        Ok(Vc::upcast(VirtualOutputAsset::new(
+            node_root.join(format!(
+                "server/pages{original_name}/pages-manifest.json",
+                original_name = this.original_name.await?
+            )),
             AssetContent::file(File::from(serde_json::to_string_pretty(&pages_manifest)?).into()),
-        )))))
+        )))
     }
 
     #[turbo_tasks::function]
@@ -556,10 +558,13 @@ impl PageEndpoint {
             .collect(),
             ..Default::default()
         };
-        Ok(Vc::upcast(RawOutput::new(Vc::upcast(VirtualSource::new(
-            node_root.join("build-manifest.json".to_string()),
+        Ok(Vc::upcast(VirtualOutputAsset::new(
+            node_root.join(format!(
+                "pages{original_name}/build-manifest.json",
+                original_name = this.original_name.await?
+            )),
             AssetContent::file(File::from(serde_json::to_string_pretty(&build_manifest)?).into()),
-        )))))
+        )))
     }
 
     #[turbo_tasks::function]
