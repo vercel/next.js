@@ -232,14 +232,8 @@ impl ChunkItem for WithClientChunksChunkItem {
                 client_chunk,
             )));
         }
-        let chunk_data_key = Vc::cell("chunk data".to_string());
         for chunk_data in &*self.chunks_data().await? {
-            references.extend(chunk_data.references().await?.iter().map(|&output_asset| {
-                Vc::upcast(SingleAssetReference::new(
-                    Vc::upcast(output_asset),
-                    chunk_data_key,
-                ))
-            }));
+            references.extend(chunk_data.references().await?.iter().copied());
         }
         Ok(Vc::cell(references))
     }
