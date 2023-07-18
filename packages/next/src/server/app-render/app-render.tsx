@@ -78,7 +78,6 @@ import { warn } from '../../build/output/log'
 import { appendMutableCookies } from '../web/spec-extension/adapters/request-cookies'
 import { ComponentsType } from '../../build/webpack/loaders/next-app-loader'
 import { ModuleReference } from '../../build/webpack/loaders/metadata/types'
-import { NotFoundBoundary } from '../../client/components/not-found-boundary'
 
 export const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -101,7 +100,7 @@ function ErrorHtml({
 }) {
   return (
     <html id="__next_error__">
-      <head>{head}</head>
+      {/* <head>{head}</head> */}
       <body>{children}</body>
     </html>
   )
@@ -933,7 +932,7 @@ export async function renderToHTMLOrFlight(
       // If it's a not found route, and we don't have any matched parallel
       // routes, we try to render the not found component if it exists.
       let notFoundComponent = {}
-      if (asNotFound && NotFound) {
+      if (asNotFound && !parallelRouteMap.length && NotFound) {
         notFoundComponent = {
           children: (
             <>
@@ -1346,24 +1345,7 @@ export async function renderToHTMLOrFlight(
       const RootLayout = rootLayoutModule
         ? interopDefault(await rootLayoutModule())
         : null
-      return ({
-        children,
-        params,
-      }: {
-        children: React.ReactNode
-        params: any
-      }) =>
-        RootLayout ? (
-          <RootLayout params={params}>
-            {styles}
-            {children}
-          </RootLayout>
-        ) : (
-          <>
-            {styles}
-            {children}
-          </>
-        )
+      return [RootLayout, styles]
     }
 
     /**
@@ -1649,7 +1631,7 @@ export async function renderToHTMLOrFlight(
 
           const injectedCSS = new Set<string>()
           const injectedFontPreloadTags = new Set<string>()
-          const RootLayout = await getRootLayout(
+          const [RootLayout, rootStyles] = await getRootLayout(
             loaderTree,
             injectedCSS,
             injectedFontPreloadTags
@@ -1718,11 +1700,13 @@ export async function renderToHTMLOrFlight(
               )
 
               const GlobalNotFound = NotFound || DefaultNotFound
+              const ErrorLayout = RootLayout || ErrorHtml
               const notFoundElement = (
-                <RootLayout params={{}}>
+                <ErrorLayout params={{}}>
+                  {rootStyles}
                   {notFoundStyles}
                   <GlobalNotFound />
-                </RootLayout>
+                </ErrorLayout>
               )
 
               // For metadata notFound error there's no global not found boundary on top
@@ -1736,9 +1720,11 @@ export async function renderToHTMLOrFlight(
                   initialHead={head}
                   globalErrorComponent={GlobalError}
                 >
-                  <ErrorHtml head={head}>
-                    {renderDefault404 ? notFoundElement : null}
-                  </ErrorHtml>
+                  {renderDefault404 ? (
+                    notFoundElement
+                  ) : (
+                    <ErrorHtml head={head} />
+                  )}
                 </AppRouter>
               )
             },

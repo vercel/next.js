@@ -20,6 +20,8 @@ import { accumulateMetadata, resolveMetadata } from './resolve-metadata'
 import { MetaFilter } from './generate/meta'
 import { ResolvedMetadata } from './types/metadata-interface'
 import { createDefaultMetadata } from './default-metadata'
+import { isNotFoundError } from '../../client/components/not-found'
+import { isRedirectError } from '../../client/components/redirect'
 
 export function isMetadataError(error: any) {
   return error && (error?.digest + '').startsWith('NEXT_METADATA_ERROR;')
@@ -63,11 +65,15 @@ export async function MetadataTree({
     try {
       metadata = await accumulateMetadata(resolvedMetadata, metadataContext)
     } catch (error: any) {
-      const digest = `NEXT_METADATA_ERROR;${error?.digest || ''}`
-      const metadataError = new Error(digest)
-      // @ts-ignore
-      metadataError.digest = digest
-      throw metadataError
+      if (isNotFoundError(error) || isRedirectError(error)) {
+        const digest = `NEXT_METADATA_ERROR;${error.digest}`
+        const metadataError = new Error(digest)
+        // @ts-ignore assign digest property so that the original error can be identified
+        metadataError.digest = digest
+        throw metadataError
+      } else {
+        throw error
+      }
     }
   }
 
