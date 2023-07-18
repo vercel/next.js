@@ -1994,7 +1994,9 @@ createServerHandler({
     console.log(
       'Listening on port',
       currentPort,
-      \`url: http://\${net.isIPv6(hostname) ? \`[\${hostname}]\` : hostname}:\${currentPort}\`
+      \`url: http://\${
+        net.isIPv6(hostname) ? \`[\${hostname}]\` : hostname
+      }:\${currentPort}\`
     )
   });
 
