@@ -94,7 +94,7 @@ pub enum MetadataWithAltItem {
 }
 
 /// A single metadata file.
-#[derive(Copy, Clone, Debug, Serialize, Deserialize, PartialEq, Eq, TraceRawVcs)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, PartialEq, Eq, TaskInput, TraceRawVcs)]
 pub enum MetadataItem {
     Static { path: Vc<FileSystemPath> },
     Dynamic { path: Vc<FileSystemPath> },

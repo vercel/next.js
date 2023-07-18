@@ -73,13 +73,13 @@ impl Transition for NextEdgePageTransition {
         let module = context.process(
             self.bootstrap_asset,
             Value::new(ReferenceType::Internal(Vc::cell(indexmap! {
-                "APP_ENTRY".to_string() => Vc::upcast(asset),
-                "APP_BOOTSTRAP".to_string() => Vc::upcast(context.with_transition("next-client".to_string()).process(
+                "APP_ENTRY".to_string() => asset,
+                "APP_BOOTSTRAP".to_string() => context.with_transition("next-client".to_string()).process(
                     Vc::upcast(FileSource::new(next_js_file_path("entry/app/hydrate.tsx".to_string()))),
                     Value::new(ReferenceType::EcmaScriptModules(
                         EcmaScriptModulesReferenceSubType::Undefined,
                     )),
-                )),
+                ),
             }))),
         );
 

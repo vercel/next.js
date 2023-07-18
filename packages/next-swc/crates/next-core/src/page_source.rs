@@ -10,12 +10,12 @@ use turbopack_binding::{
     },
     turbopack::{
         core::{
-            asset::Asset,
             chunk::{ChunkingContext, EvaluatableAsset, EvaluatableAssetExt},
             compile_time_info::CompileTimeInfo,
             context::AssetContext,
             environment::ServerAddr,
             file_source::FileSource,
+            module::Module,
             reference_type::{EntryReferenceSubType, ReferenceType},
             source::{Source, Sources},
         },
@@ -808,12 +808,12 @@ impl SsrEntry {
         } else {
             this.ty
         };
-        let (internal_asset, inner_assets): (_, IndexMap<_, Vc<Box<dyn Asset>>>) = match ty {
+        let (internal_asset, inner_assets): (_, IndexMap<_, Vc<Box<dyn Module>>>) = match ty {
             SsrType::AutoApi => unreachable!(),
             SsrType::Api => (
                 next_asset("entry/server-api.tsx".to_string()),
                 indexmap! {
-                    "INNER".to_string() => Vc::upcast(entry_asset_page),
+                    "INNER".to_string() => entry_asset_page,
                 },
             ),
             SsrType::EdgeApi => {
@@ -827,14 +827,14 @@ impl SsrEntry {
                 (
                     next_asset("entry/server-edge-api.tsx".to_string()),
                     indexmap! {
-                        "INNER_EDGE_CHUNK_GROUP".to_string() => Vc::upcast(entry_asset_edge_chunk_group),
+                        "INNER_EDGE_CHUNK_GROUP".to_string() => entry_asset_edge_chunk_group,
                     },
                 )
             }
             SsrType::Data => (
                 next_asset("entry/server-data.tsx".to_string()),
                 indexmap! {
-                    "INNER".to_string() => Vc::upcast(entry_asset_page),
+                    "INNER".to_string() => entry_asset_page,
                 },
             ),
             SsrType::Html => {
@@ -848,8 +848,8 @@ impl SsrEntry {
                 (
                     next_asset("entry/server-renderer.tsx".to_string()),
                     indexmap! {
-                        "INNER".to_string() => Vc::upcast(entry_asset_page),
-                        "INNER_CLIENT_CHUNK_GROUP".to_string() => Vc::upcast(entry_asset_client_chunk_group),
+                        "INNER".to_string() => entry_asset_page,
+                        "INNER_CLIENT_CHUNK_GROUP".to_string() => entry_asset_client_chunk_group,
                     },
                 )
             }

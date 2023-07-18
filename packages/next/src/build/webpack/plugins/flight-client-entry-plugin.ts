@@ -265,14 +265,13 @@ export class FlightClientEntryPlugin {
         entryModule
       )) {
         // Entry can be any user defined entry files such as layout, page, error, loading, etc.
-        const entryDependency = connection.dependency
         const entryRequest = connection.dependency.request
 
         const { clientComponentImports, actionImports, cssImports } =
           this.collectComponentInfoFromServerEntryDependency({
             entryRequest,
             compilation,
-            dependency: entryDependency,
+            resolvedModule: connection.resolvedModule,
           })
 
         actionImports.forEach(([dep, names]) =>
@@ -493,14 +492,12 @@ export class FlightClientEntryPlugin {
 
     const collectActions = ({
       entryRequest,
-      dependency,
+      resolvedModule,
     }: {
       entryRequest: string
-      dependency: any /* Dependency */
+      resolvedModule: any
     }) => {
-      const collectActionsInDep = (dependencyToFilter: any): void => {
-        const mod: webpack.NormalModule =
-          compilation.moduleGraph.getResolvedModule(dependencyToFilter)
+      const collectActionsInDep = (mod: webpack.NormalModule): void => {
         if (!mod) return
 
         // We have to always use the resolved request here to make sure the
@@ -520,14 +517,14 @@ export class FlightClientEntryPlugin {
         compilation.moduleGraph
           .getOutgoingConnections(mod)
           .forEach((connection: any) => {
-            collectActionsInDep(connection.dependency)
+            collectActionsInDep(connection.resolvedModule)
           })
       }
 
       // Don't traverse the module graph anymore once hitting the action layer.
       if (!entryRequest.includes('next-flight-action-entry-loader')) {
         // Traverse the module graph to find all client components.
-        collectActionsInDep(dependency)
+        collectActionsInDep(resolvedModule)
       }
     }
 
@@ -547,7 +544,7 @@ export class FlightClientEntryPlugin {
 
         collectActions({
           entryRequest: request,
-          dependency,
+          resolvedModule: connection.resolvedModule,
         })
       }
     }
@@ -558,11 +555,11 @@ export class FlightClientEntryPlugin {
   collectComponentInfoFromServerEntryDependency({
     entryRequest,
     compilation,
-    dependency,
+    resolvedModule,
   }: {
     entryRequest: string
     compilation: any
-    dependency: any /* Dependency */
+    resolvedModule: any /* Dependency */
   }): {
     cssImports: CssImports
     clientComponentImports: ClientComponentImports
@@ -576,9 +573,7 @@ export class FlightClientEntryPlugin {
     const actionImports: [string, string[]][] = []
     const CSSImports = new Set<string>()
 
-    const filterClientComponents = (dependencyToFilter: any): void => {
-      const mod: webpack.NormalModule =
-        compilation.moduleGraph.getResolvedModule(dependencyToFilter)
+    const filterClientComponents = (mod: webpack.NormalModule): void => {
       if (!mod) return
 
       const isCSS = isCSSMod(mod)
@@ -586,8 +581,13 @@ export class FlightClientEntryPlugin {
       // We have to always use the resolved request here to make sure the
       // server and client are using the same module path (required by RSC), as
       // the server compiler and client compiler have different resolve configs.
-      const modRequest: string | undefined =
+      let modRequest: string | undefined =
         mod.resourceResolveData?.path + mod.resourceResolveData?.query
+
+      // Context modules don't have a resource path, we use the identifier instead.
+      if (mod.constructor.name === 'ContextModule') {
+        modRequest = (mod as any)._identifier
+      }
 
       if (!modRequest || visited.has(modRequest)) return
       visited.add(modRequest)
@@ -622,12 +622,12 @@ export class FlightClientEntryPlugin {
       compilation.moduleGraph
         .getOutgoingConnections(mod)
         .forEach((connection: any) => {
-          filterClientComponents(connection.dependency)
+          filterClientComponents(connection.resolvedModule)
         })
     }
 
     // Traverse the module graph to find all client components.
-    filterClientComponents(dependency)
+    filterClientComponents(resolvedModule)
 
     return {
       clientComponentImports,

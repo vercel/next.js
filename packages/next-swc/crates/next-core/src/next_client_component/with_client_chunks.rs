@@ -13,7 +13,7 @@ use turbopack_binding::{
             },
             ident::AssetIdent,
             module::Module,
-            output::OutputAssets,
+            output::{OutputAsset, OutputAssets},
             proxied_asset::ProxiedAsset,
             reference::{AssetReference, AssetReferences, SingleAssetReference},
             resolve::ResolveResult,
@@ -41,15 +41,10 @@ pub struct WithClientChunksAsset {
 }
 
 #[turbo_tasks::value_impl]
-impl Asset for WithClientChunksAsset {
+impl Module for WithClientChunksAsset {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
         self.asset.ident().with_modifier(modifier())
-    }
-
-    #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        unimplemented!()
     }
 
     #[turbo_tasks::function]
@@ -64,7 +59,12 @@ impl Asset for WithClientChunksAsset {
 }
 
 #[turbo_tasks::value_impl]
-impl Module for WithClientChunksAsset {}
+impl Asset for WithClientChunksAsset {
+    #[turbo_tasks::function]
+    fn content(&self) -> Vc<AssetContent> {
+        unimplemented!()
+    }
+}
 
 #[turbo_tasks::value_impl]
 impl ChunkableModule for WithClientChunksAsset {
@@ -241,7 +241,7 @@ impl ChunkItem for WithClientChunksChunkItem {
 
 #[turbo_tasks::value]
 struct WithClientChunksAssetReference {
-    asset: Vc<Box<dyn Asset>>,
+    asset: Vc<Box<dyn Module>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -259,7 +259,7 @@ impl ValueToString for WithClientChunksAssetReference {
 impl AssetReference for WithClientChunksAssetReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ResolveResult> {
-        ResolveResult::asset(self.asset).cell()
+        ResolveResult::asset(Vc::upcast(self.asset)).cell()
     }
 }
 

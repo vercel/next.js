@@ -8,6 +8,7 @@ use next_core::{
     },
     next_config::NextConfig,
     next_dynamic::NextDynamicTransition,
+    next_manifests::{BuildManifest, PagesManifest},
     next_server::{
         get_server_module_options_context, get_server_resolve_options_context,
         get_server_runtime_entries, ServerContextType,
@@ -23,7 +24,6 @@ use turbopack_binding::{
     turbopack::{
         build::BuildChunkingContext,
         core::{
-            asset::Asset,
             chunk::{ChunkableModule, ChunkingContext, EvaluatableAssets},
             compile_time_info::CompileTimeInfo,
             context::AssetContext,
@@ -40,8 +40,6 @@ use turbopack_binding::{
         turbopack::{transition::ContextTransition, ModuleAssetContext},
     },
 };
-
-use crate::manifests::{BuildManifest, PagesManifest};
 
 #[turbo_tasks::value]
 pub struct PageEntries {

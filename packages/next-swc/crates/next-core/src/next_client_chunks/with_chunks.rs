@@ -75,15 +75,10 @@ impl WithChunksAsset {
 }
 
 #[turbo_tasks::value_impl]
-impl Asset for WithChunksAsset {
+impl Module for WithChunksAsset {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
         self.asset.ident().with_modifier(modifier())
-    }
-
-    #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        unimplemented!()
     }
 
     #[turbo_tasks::function]
@@ -99,7 +94,12 @@ impl Asset for WithChunksAsset {
 }
 
 #[turbo_tasks::value_impl]
-impl Module for WithChunksAsset {}
+impl Asset for WithChunksAsset {
+    #[turbo_tasks::function]
+    fn content(&self) -> Vc<AssetContent> {
+        unimplemented!()
+    }
+}
 
 #[turbo_tasks::value_impl]
 impl ChunkableModule for WithChunksAsset {
