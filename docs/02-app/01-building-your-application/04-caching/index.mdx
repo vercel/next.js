@@ -188,6 +188,19 @@ The cache is stored in the browser's temporary memory. Two factors determine how
 
 While a page refresh or hard navigation will clear **all** cached segments, the automatic invalidation period only affects the individual segment from the time it was last accessed or created.
 
+## Cache Interactions
+
+When configuring with the different caching behaviors, it's important to understand how these different caching mechanisms interact with each other:
+
+### Data and Render
+
+- Invalidating or opting out of the Render Cache **does not** affect the Data Cache. This means you can dynamically render a route that has both cached and uncached data. This is useful when the majority of your page uses cached data (static), but you have a few components that rely on data that needs to be fetched at request time (dynamic).
+- Revalidating the Data Cache **will** invalidate the Render Cache, as the render output depends on data.
+
+### Data and Router
+
+- Revalidating the Data Cache **will not** immediately invalidate the Router Cache due to the [automatic invalidation period](). This means the Router Cache will continue to serve the previous payload until a hard navigation/refresh or the automatic invalidation period has elapsed.
+
 ## APIs
 
 The following table provides a high-level overview of how different APIs affect caching:
