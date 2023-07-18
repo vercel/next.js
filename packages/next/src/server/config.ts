@@ -723,7 +723,7 @@ export default async function loadConfig(
       }
     : Log
 
-  await loadEnvConfig(dir, phase === PHASE_DEVELOPMENT_SERVER, curLog)
+  loadEnvConfig(dir, phase === PHASE_DEVELOPMENT_SERVER, curLog)
 
   loadWebpackHook({
     // For render workers, there's no need to init webpack eagerly

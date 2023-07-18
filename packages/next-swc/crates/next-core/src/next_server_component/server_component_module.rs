@@ -54,14 +54,6 @@ impl Module for NextServerComponentModule {
     fn ident(&self) -> Vc<AssetIdent> {
         self.module.ident().with_modifier(modifier())
     }
-}
-
-#[turbo_tasks::value_impl]
-impl Asset for NextServerComponentModule {
-    #[turbo_tasks::function]
-    fn content(&self) -> Result<Vc<AssetContent>> {
-        bail!("Next.js server component module has no content")
-    }
 
     #[turbo_tasks::function]
     fn references(&self) -> Vc<AssetReferences> {
@@ -69,6 +61,14 @@ impl Asset for NextServerComponentModule {
             NextServerComponentModuleReference::new(Vc::upcast(self.module)),
         )];
         Vc::cell(references)
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl Asset for NextServerComponentModule {
+    #[turbo_tasks::function]
+    fn content(&self) -> Result<Vc<AssetContent>> {
+        bail!("Next.js server component module has no content")
     }
 }
 
