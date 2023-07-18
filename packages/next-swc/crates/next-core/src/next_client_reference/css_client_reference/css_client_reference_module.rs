@@ -40,6 +40,11 @@ impl Module for CssClientReferenceModule {
             .ident()
             .with_modifier(css_client_reference_modifier())
     }
+
+    #[turbo_tasks::function]
+    fn references(self: Vc<Self>) -> Vc<AssetReferences> {
+        AssetReferences::empty()
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -48,11 +53,6 @@ impl Asset for CssClientReferenceModule {
     fn content(&self) -> Result<Vc<AssetContent>> {
         // The client reference asset only serves as a marker asset.
         bail!("CssClientReferenceModule has no content")
-    }
-
-    #[turbo_tasks::function]
-    fn references(self: Vc<Self>) -> Vc<AssetReferences> {
-        AssetReferences::empty()
     }
 }
 
