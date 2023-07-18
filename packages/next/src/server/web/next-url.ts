@@ -20,7 +20,7 @@ interface Options {
 }
 
 const REGEX_LOCALHOST_HOSTNAME =
-  /(?!^https?:\/\/)(127(?:\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}|\[::1\]|::1|localhost)/
+  /(?!^https?:\/\/)(127(?:\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}|\[::1\]|localhost)/
 
 function parseURL(url: string | URL, base?: string | URL) {
   return new URL(

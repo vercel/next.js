@@ -197,12 +197,12 @@ it('consider 127.0.0.1 and variations as localhost', () => {
   const httpUrl = new NextURL('http://localhost:3000/hello')
   expect(new NextURL('http://127.0.0.1:3000/hello')).toStrictEqual(httpUrl)
   expect(new NextURL('http://127.0.1.0:3000/hello')).toStrictEqual(httpUrl)
-  expect(new NextURL('http://::1:3000/hello')).toStrictEqual(httpUrl)
+  expect(new NextURL('http://[::1]:3000/hello')).toStrictEqual(httpUrl)
 
   const httpsUrl = new NextURL('https://localhost:3000/hello')
   expect(new NextURL('https://127.0.0.1:3000/hello')).toStrictEqual(httpsUrl)
   expect(new NextURL('https://127.0.1.0:3000/hello')).toStrictEqual(httpsUrl)
-  expect(new NextURL('https://::1:3000/hello')).toStrictEqual(httpsUrl)
+  expect(new NextURL('https://[::1]:3000/hello')).toStrictEqual(httpsUrl)
 })
 
 it('allows to change the port', () => {

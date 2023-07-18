@@ -1926,12 +1926,14 @@ export async function copyTracedFiles(
       moduleType
         ? `import http from 'http'
 import path from 'path'
+import net from 'net'
 import { fileURLToPath } from 'url'
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
 import { createServerHandler } from 'next/dist/server/lib/render-server-standalone.js'
 `
         : `
 const http = require('http')
+const net = require('net')
 const path = require('path')
 const { createServerHandler } = require('next/dist/server/lib/render-server-standalone')`
     }
@@ -1992,7 +1994,7 @@ createServerHandler({
     console.log(
       'Listening on port',
       currentPort,
-      'url: http://' + hostname + ':' + currentPort
+      \`url: http://\${net.isIPv6(hostname) ? \`[\${hostname}]\` : hostname}:\${currentPort}\`
     )
   });
 
