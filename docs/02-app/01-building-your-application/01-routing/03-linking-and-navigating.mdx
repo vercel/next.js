@@ -125,7 +125,7 @@ The `useRouter` provides methods such as `push()`, `refresh()`, and more. See th
 
 - A route transition is initiated using `<Link>` or calling `router.push()`.
 - The router updates the URL in the browser's address bar.
-- The router avoids unnecessary work by re-using segments that haven't changed (e.g. shared layouts) from the [client-side cache](#client-side-caching-of-rendered-server-components). This is also referred to as [partial rendering](/docs/app/building-your-application/routing#partial-rendering).
+- The router avoids unnecessary work by re-using segments that haven't changed (e.g. shared layouts) from the [client-side cache](#client-side-caching-of-rendered-server-components). This is also referred to as [partial rendering](#partial-rendering).
 - If the [conditions of soft navigation](#conditions-for-soft-navigation) are met, the router fetches the new segment from the cache rather than the server. If not, the router performs a [hard navigation](#hard-navigation) and fetches the Server Component payload from the server.
 - If created, [loading UI](/docs/app/building-your-application/routing/loading-ui-and-streaming) is shown from the server while the payload is being fetched.
 - The router uses the cached or fresh payload to render the new segments on the client.
