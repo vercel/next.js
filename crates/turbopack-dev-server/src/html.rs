@@ -8,7 +8,6 @@ use turbopack_core::{
     chunk::{ChunkableModule, ChunkingContext, EvaluatableAssets},
     ident::AssetIdent,
     output::{OutputAsset, OutputAssets},
-    reference::{AssetReferences, SingleAssetReference},
     version::{Version, VersionedContent},
 };
 
@@ -44,15 +43,8 @@ impl OutputAsset for DevHtmlAsset {
     }
 
     #[turbo_tasks::function]
-    async fn references(self: Vc<Self>) -> Result<Vc<AssetReferences>> {
-        let mut references = Vec::new();
-        for &chunk in &*self.chunks().await? {
-            references.push(Vc::upcast(SingleAssetReference::new(
-                Vc::upcast(chunk),
-                dev_html_chunk_reference_description(),
-            )));
-        }
-        Ok(Vc::cell(references))
+    fn references(self: Vc<Self>) -> Vc<OutputAssets> {
+        self.chunks()
     }
 }
 

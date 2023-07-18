@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use anyhow::Result;
 use turbo_tasks::Vc;
-use turbopack_core::{output::OutputAsset, reference::all_referenced_output_assets};
+use turbopack_core::output::OutputAsset;
 
 #[turbo_tasks::value(shared)]
 pub enum AggregatedGraph {
@@ -48,7 +48,7 @@ impl AggregatedGraph {
         Ok(match *self.await? {
             AggregatedGraph::Leaf(asset) => {
                 let mut refs = HashSet::new();
-                for reference in all_referenced_output_assets(asset).await?.iter() {
+                for reference in asset.references().await?.iter() {
                     let reference = reference.resolve().await?;
                     if asset != reference {
                         refs.insert(AggregatedGraph::leaf(reference));
@@ -74,9 +74,7 @@ impl AggregatedGraph {
     #[turbo_tasks::function]
     async fn cost(self: Vc<Self>) -> Result<Vc<AggregationCost>> {
         Ok(match *self.await? {
-            AggregatedGraph::Leaf(asset) => {
-                AggregationCost(all_referenced_output_assets(asset).await?.len()).into()
-            }
+            AggregatedGraph::Leaf(asset) => AggregationCost(asset.references().await?.len()).into(),
             AggregatedGraph::Node { ref references, .. } => {
                 AggregationCost(references.len()).into()
             }

@@ -12,8 +12,7 @@ use turbopack_core::{
     ident::AssetIdent,
     module::Module,
     output::{OutputAsset, OutputAssets},
-    reference::AssetReferences,
-    source_map::{GenerateSourceMap, OptionSourceMap, SourceMapAssetReference},
+    source_map::{GenerateSourceMap, OptionSourceMap, SourceMapAsset},
 };
 use turbopack_ecmascript::{
     chunk::{EcmascriptChunkData, EcmascriptChunkItemExt, EcmascriptChunkPlaceable},
@@ -201,16 +200,17 @@ impl OutputAsset for EcmascriptDevEvaluateChunk {
     }
 
     #[turbo_tasks::function]
-    async fn references(self: Vc<Self>) -> Result<Vc<AssetReferences>> {
+    async fn references(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
         let this = self.await?;
         let mut references = Vec::new();
 
-        if *this
+        let include_source_map = *this
             .chunking_context
             .reference_chunk_source_maps(Vc::upcast(self))
-            .await?
-        {
-            references.push(Vc::upcast(SourceMapAssetReference::new(Vc::upcast(self))));
+            .await?;
+
+        if include_source_map {
+            references.push(Vc::upcast(SourceMapAsset::new(Vc::upcast(self))));
         }
 
         for chunk_data in &*self.chunks_data().await? {

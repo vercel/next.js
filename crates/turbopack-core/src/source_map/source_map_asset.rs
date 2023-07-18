@@ -8,8 +8,6 @@ use crate::{
     ident::AssetIdent,
     introspect::{Introspectable, IntrospectableChildren},
     output::OutputAsset,
-    reference::AssetReference,
-    resolve::ResolveResult,
     source_map::{GenerateSourceMap, SourceMap},
 };
 
@@ -93,40 +91,5 @@ impl Introspectable for SourceMapAsset {
             children.insert((Vc::cell("asset".to_string()), asset));
         }
         Ok(Vc::cell(children))
-    }
-}
-
-/// A reference to a [`SourceMapAsset`], used to inform the dev
-/// server/build system of the presence of the source map
-#[turbo_tasks::value]
-pub struct SourceMapAssetReference {
-    asset: Vc<Box<dyn OutputAsset>>,
-}
-
-#[turbo_tasks::value_impl]
-impl SourceMapAssetReference {
-    #[turbo_tasks::function]
-    pub fn new(asset: Vc<Box<dyn OutputAsset>>) -> Vc<Self> {
-        SourceMapAssetReference { asset }.cell()
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl AssetReference for SourceMapAssetReference {
-    #[turbo_tasks::function]
-    async fn resolve_reference(&self) -> Result<Vc<ResolveResult>> {
-        let asset = Vc::upcast(SourceMapAsset::new(self.asset));
-        Ok(ResolveResult::asset(asset).cell())
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for SourceMapAssetReference {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<String>> {
-        Ok(Vc::cell(format!(
-            "source map for {}",
-            self.asset.ident().path().to_string().await?
-        )))
     }
 }

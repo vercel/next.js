@@ -18,11 +18,12 @@ use turbopack_core::{
     },
     ident::AssetIdent,
     introspect::{
-        asset::{children_from_asset_references, content_to_details, IntrospectableAsset},
+        asset::{children_from_output_assets, content_to_details, IntrospectableAsset},
         Introspectable, IntrospectableChildren,
     },
     module::Module,
-    reference::AssetReferences,
+    output::OutputAssets,
+    reference::AssetReference,
 };
 
 use self::content::ecmascript_chunk_content;
@@ -314,7 +315,7 @@ impl Chunk for EcmascriptChunk {
     }
 
     #[turbo_tasks::function]
-    async fn references(self: Vc<Self>) -> Result<Vc<AssetReferences>> {
+    async fn references(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
         let this = self.await?;
         let content = ecmascript_chunk_content(
             this.context,
@@ -324,8 +325,16 @@ impl Chunk for EcmascriptChunk {
         )
         .await?;
         let mut references = Vec::new();
-        for r in content.external_asset_references.iter() {
-            references.push(*r);
+        let assets = content
+            .external_asset_references
+            .iter()
+            .map(|r| r.resolve_reference().primary_assets())
+            .try_join()
+            .await?;
+        for &asset in assets.iter().flatten() {
+            if let Some(output_asset) = Vc::try_resolve_downcast(asset).await? {
+                references.push(output_asset);
+            }
         }
 
         Ok(Vc::cell(references))
@@ -441,7 +450,7 @@ impl Introspectable for EcmascriptChunk {
 
     #[turbo_tasks::function]
     async fn children(self: Vc<Self>) -> Result<Vc<IntrospectableChildren>> {
-        let mut children = children_from_asset_references(self.references())
+        let mut children = children_from_output_assets(self.references())
             .await?
             .clone_value();
         for &entry in &*self.await?.main_entries.await? {

@@ -10,15 +10,14 @@ use turbopack_core::{
     code_builder::{Code, CodeBuilder},
     ident::AssetIdent,
     output::{OutputAsset, OutputAssets},
-    reference::{AssetReferences, SingleAssetReference},
-    source_map::{GenerateSourceMap, OptionSourceMap, SourceMapAssetReference},
+    source_map::{GenerateSourceMap, OptionSourceMap, SourceMapAsset},
 };
 use turbopack_ecmascript::{
     chunk::{EcmascriptChunkItemExt, EcmascriptChunkPlaceable},
     utils::StringifyJs,
 };
 
-use super::runtime::EcmascriptBuildNodeRuntimeReference;
+use super::runtime::EcmascriptBuildNodeRuntimeChunk;
 use crate::BuildChunkingContext;
 
 /// An Ecmascript chunk that loads a list of parallel chunks, then instantiates
@@ -60,12 +59,7 @@ impl EcmascriptBuildNodeEntryChunk {
         let output_root = this.chunking_context.output_root().await?;
         let chunk_path = self.ident().path().await?;
         let chunk_directory = self.ident().path().parent().await?;
-        let runtime_path = self
-            .runtime_reference()
-            .runtime_chunk()
-            .ident()
-            .path()
-            .await?;
+        let runtime_path = self.runtime_chunk().ident().path().await?;
         let runtime_relative_path =
             if let Some(path) = chunk_directory.get_relative_path_to(&runtime_path) {
                 path
@@ -153,11 +147,9 @@ impl EcmascriptBuildNodeEntryChunk {
     }
 
     #[turbo_tasks::function]
-    async fn runtime_reference(self: Vc<Self>) -> Result<Vc<EcmascriptBuildNodeRuntimeReference>> {
+    async fn runtime_chunk(self: Vc<Self>) -> Result<Vc<EcmascriptBuildNodeRuntimeChunk>> {
         let this = self.await?;
-        Ok(EcmascriptBuildNodeRuntimeReference::new(
-            this.chunking_context,
-        ))
+        Ok(EcmascriptBuildNodeRuntimeChunk::new(this.chunking_context))
     }
 }
 
@@ -187,24 +179,21 @@ impl OutputAsset for EcmascriptBuildNodeEntryChunk {
     }
 
     #[turbo_tasks::function]
-    async fn references(self: Vc<Self>) -> Result<Vc<AssetReferences>> {
+    async fn references(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
         let this = self.await?;
-        let mut references = vec![Vc::upcast(self.runtime_reference())];
+        let mut references = vec![Vc::upcast(self.runtime_chunk())];
 
         if *this
             .chunking_context
             .reference_chunk_source_maps(Vc::upcast(self))
             .await?
         {
-            references.push(Vc::upcast(SourceMapAssetReference::new(Vc::upcast(self))))
+            references.push(Vc::upcast(SourceMapAsset::new(Vc::upcast(self))))
         }
 
         let other_chunks = this.other_chunks.await?;
         for &other_chunk in &*other_chunks {
-            references.push(Vc::upcast(SingleAssetReference::new(
-                Vc::upcast(other_chunk),
-                chunk_reference_description(),
-            )));
+            references.push(Vc::upcast(other_chunk));
         }
 
         Ok(Vc::cell(references))

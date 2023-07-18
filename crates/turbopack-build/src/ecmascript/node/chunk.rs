@@ -6,9 +6,8 @@ use turbopack_core::{
     chunk::{Chunk, ChunkingContext},
     ident::AssetIdent,
     introspect::{Introspectable, IntrospectableChildren},
-    output::OutputAsset,
-    reference::AssetReferences,
-    source_map::{GenerateSourceMap, OptionSourceMap, SourceMapAssetReference},
+    output::{OutputAsset, OutputAssets},
+    source_map::{GenerateSourceMap, OptionSourceMap, SourceMapAsset},
 };
 use turbopack_ecmascript::chunk::EcmascriptChunk;
 
@@ -70,21 +69,22 @@ impl OutputAsset for EcmascriptBuildNodeChunk {
     }
 
     #[turbo_tasks::function]
-    async fn references(self: Vc<Self>) -> Result<Vc<AssetReferences>> {
+    async fn references(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
         let this = self.await?;
         let chunk_references = this.chunk.references().await?;
-        let mut references = Vec::with_capacity(chunk_references.len() + 1);
+        let include_source_map = *this
+            .chunking_context
+            .reference_chunk_source_maps(Vc::upcast(self))
+            .await?;
+        let mut references =
+            Vec::with_capacity(chunk_references.len() + if include_source_map { 1 } else { 0 });
 
         for reference in &*chunk_references {
             references.push(*reference);
         }
 
-        if *this
-            .chunking_context
-            .reference_chunk_source_maps(Vc::upcast(self))
-            .await?
-        {
-            references.push(Vc::upcast(SourceMapAssetReference::new(Vc::upcast(self))));
+        if include_source_map {
+            references.push(Vc::upcast(SourceMapAsset::new(Vc::upcast(self))));
         }
 
         Ok(Vc::cell(references))

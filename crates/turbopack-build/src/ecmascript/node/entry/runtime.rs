@@ -9,10 +9,8 @@ use turbopack_core::{
     chunk::ChunkingContext,
     code_builder::{Code, CodeBuilder},
     ident::AssetIdent,
-    output::OutputAsset,
-    reference::{AssetReference, AssetReferences},
-    resolve::ResolveResult,
-    source_map::{GenerateSourceMap, OptionSourceMap, SourceMapAssetReference},
+    output::{OutputAsset, OutputAssets},
+    source_map::{GenerateSourceMap, OptionSourceMap, SourceMapAsset},
 };
 use turbopack_ecmascript::utils::StringifyJs;
 use turbopack_ecmascript_runtime::RuntimeType;
@@ -99,7 +97,7 @@ impl OutputAsset for EcmascriptBuildNodeRuntimeChunk {
     }
 
     #[turbo_tasks::function]
-    async fn references(self: Vc<Self>) -> Result<Vc<AssetReferences>> {
+    async fn references(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
         let this = self.await?;
         let mut references = vec![];
 
@@ -108,7 +106,7 @@ impl OutputAsset for EcmascriptBuildNodeRuntimeChunk {
             .reference_chunk_source_maps(Vc::upcast(self))
             .await?
         {
-            references.push(Vc::upcast(SourceMapAssetReference::new(Vc::upcast(self))))
+            references.push(Vc::upcast(SourceMapAsset::new(Vc::upcast(self))))
         }
 
         Ok(Vc::cell(references))
@@ -131,45 +129,5 @@ impl GenerateSourceMap for EcmascriptBuildNodeRuntimeChunk {
     #[turbo_tasks::function]
     fn generate_source_map(self: Vc<Self>) -> Vc<OptionSourceMap> {
         self.code().generate_source_map()
-    }
-}
-
-/// A reference to the runtime chunk.
-#[turbo_tasks::value]
-pub(crate) struct EcmascriptBuildNodeRuntimeReference {
-    chunking_context: Vc<BuildChunkingContext>,
-}
-
-#[turbo_tasks::value_impl]
-impl EcmascriptBuildNodeRuntimeReference {
-    #[turbo_tasks::function]
-    pub fn new(chunking_context: Vc<BuildChunkingContext>) -> Vc<Self> {
-        Self::cell(EcmascriptBuildNodeRuntimeReference { chunking_context })
-    }
-
-    #[turbo_tasks::function]
-    pub async fn runtime_chunk(self: Vc<Self>) -> Result<Vc<EcmascriptBuildNodeRuntimeChunk>> {
-        Ok(EcmascriptBuildNodeRuntimeChunk::new(
-            self.await?.chunking_context,
-        ))
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl AssetReference for EcmascriptBuildNodeRuntimeReference {
-    #[turbo_tasks::function]
-    fn resolve_reference(self: Vc<Self>) -> Vc<ResolveResult> {
-        ResolveResult::asset(Vc::upcast(self.runtime_chunk())).into()
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for EcmascriptBuildNodeRuntimeReference {
-    #[turbo_tasks::function]
-    async fn to_string(self: Vc<Self>) -> Result<Vc<String>> {
-        Ok(Vc::cell(format!(
-            "runtime chunk {}",
-            self.runtime_chunk().ident().to_string().await?
-        )))
     }
 }

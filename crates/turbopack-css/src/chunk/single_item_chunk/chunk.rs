@@ -9,12 +9,11 @@ use turbopack_core::{
     code_builder::{Code, CodeBuilder},
     ident::AssetIdent,
     introspect::Introspectable,
-    output::OutputAsset,
-    reference::AssetReferences,
+    output::{OutputAsset, OutputAssets},
     source_map::{GenerateSourceMap, OptionSourceMap},
 };
 
-use super::source_map::SingleItemCssChunkSourceMapAssetReference;
+use super::source_map::SingleItemCssChunkSourceMapAsset;
 use crate::chunk::CssChunkItem;
 
 /// A CSS chunk that only contains a single item. This is used for selectively
@@ -103,7 +102,7 @@ impl OutputAsset for SingleItemCssChunk {
     }
 
     #[turbo_tasks::function]
-    async fn references(self: Vc<Self>) -> Result<Vc<AssetReferences>> {
+    async fn references(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
         let this = self.await?;
         let mut references = Vec::new();
         if *this
@@ -111,9 +110,7 @@ impl OutputAsset for SingleItemCssChunk {
             .reference_chunk_source_maps(Vc::upcast(self))
             .await?
         {
-            references.push(Vc::upcast(SingleItemCssChunkSourceMapAssetReference::new(
-                self,
-            )));
+            references.push(Vc::upcast(SingleItemCssChunkSourceMapAsset::new(self)));
         }
         Ok(Vc::cell(references))
     }

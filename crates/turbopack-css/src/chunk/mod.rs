@@ -18,21 +18,17 @@ use turbopack_core::{
     code_builder::{Code, CodeBuilder},
     ident::AssetIdent,
     introspect::{
-        asset::{children_from_asset_references, content_to_details, IntrospectableAsset},
+        asset::{children_from_output_assets, content_to_details, IntrospectableAsset},
         Introspectable, IntrospectableChildren,
     },
     module::Module,
-    output::OutputAsset,
-    reference::{AssetReference, AssetReferences},
-    resolve::PrimaryResolveResult,
+    output::{OutputAsset, OutputAssets},
+    reference::AssetReference,
     source_map::{GenerateSourceMap, OptionSourceMap},
 };
 use writer::expand_imports;
 
-use self::{
-    single_item_chunk::{chunk::SingleItemCssChunk, reference::SingleItemCssChunkReference},
-    source_map::CssChunkSourceMapAssetReference,
-};
+use self::{single_item_chunk::chunk::SingleItemCssChunk, source_map::CssChunkSourceMapAsset};
 use crate::{
     embed::{CssEmbed, CssEmbeddable},
     parse::ParseCssResultSourceMap,
@@ -297,7 +293,7 @@ impl Chunk for CssChunk {
     }
 
     #[turbo_tasks::function]
-    fn references(self: Vc<Self>) -> Vc<AssetReferences> {
+    fn references(self: Vc<Self>) -> Vc<OutputAssets> {
         OutputAsset::references(self)
     }
 }
@@ -392,7 +388,7 @@ impl OutputAsset for CssChunk {
     }
 
     #[turbo_tasks::function]
-    async fn references(self: Vc<Self>) -> Result<Vc<AssetReferences>> {
+    async fn references(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
         let this = self.await?;
         let content = css_chunk_content(
             this.context,
@@ -401,31 +397,32 @@ impl OutputAsset for CssChunk {
         )
         .await?;
         let mut references = Vec::new();
-        for r in content.external_asset_references.iter() {
-            references.push(*r);
-            for result in r.resolve_reference().await?.primary.iter() {
-                if let PrimaryResolveResult::Asset(asset) = result {
-                    if let Some(embeddable) =
-                        Vc::try_resolve_sidecast::<Box<dyn CssEmbeddable>>(*asset).await?
-                    {
-                        let embed = embeddable.as_css_embed(this.context);
-                        references.extend(embed.references().await?.iter());
-                    }
-                }
+        let assets = content
+            .external_asset_references
+            .iter()
+            .map(|r| r.resolve_reference().primary_assets())
+            .try_join()
+            .await?;
+        for &asset in assets.iter().flatten() {
+            if let Some(output_asset) = Vc::try_resolve_downcast(asset).await? {
+                references.push(output_asset);
+            }
+            if let Some(embeddable) =
+                Vc::try_resolve_sidecast::<Box<dyn CssEmbeddable>>(asset).await?
+            {
+                let embed = embeddable.as_css_embed(this.context);
+                references.extend(embed.references().await?.iter());
             }
         }
         for item in content.chunk_items.iter() {
-            references.push(Vc::upcast(SingleItemCssChunkReference::new(
-                this.context,
-                *item,
-            )));
+            references.push(Vc::upcast(SingleItemCssChunk::new(this.context, *item)));
         }
         if *this
             .context
             .reference_chunk_source_maps(Vc::upcast(self))
             .await?
         {
-            references.push(Vc::upcast(CssChunkSourceMapAssetReference::new(self)));
+            references.push(Vc::upcast(CssChunkSourceMapAsset::new(self)));
         }
         Ok(Vc::cell(references))
     }
@@ -575,7 +572,7 @@ impl Introspectable for CssChunk {
 
     #[turbo_tasks::function]
     async fn children(self: Vc<Self>) -> Result<Vc<IntrospectableChildren>> {
-        let mut children = children_from_asset_references(OutputAsset::references(self))
+        let mut children = children_from_output_assets(OutputAsset::references(self))
             .await?
             .clone_value();
         for &entry in &*self.await?.main_entries.await? {

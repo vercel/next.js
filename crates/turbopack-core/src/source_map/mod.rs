@@ -11,7 +11,7 @@ use crate::source_pos::SourcePos;
 
 pub(crate) mod source_map_asset;
 
-pub use source_map_asset::SourceMapAssetReference;
+pub use source_map_asset::SourceMapAsset;
 
 /// Allows callers to generate source maps.
 #[turbo_tasks::value_trait]

@@ -6,7 +6,6 @@ use turbopack_core::{
     chunk::{Chunk, ChunkingContext},
     ident::AssetIdent,
     output::{OutputAsset, OutputAssets},
-    reference::{AssetReferences, SingleAssetReference},
     version::VersionedContent,
 };
 
@@ -94,19 +93,8 @@ impl OutputAsset for EcmascriptDevChunkList {
     }
 
     #[turbo_tasks::function]
-    async fn references(&self) -> Result<Vc<AssetReferences>> {
-        Ok(Vc::cell(
-            self.chunks
-                .await?
-                .iter()
-                .map(|&chunk| {
-                    Vc::upcast(SingleAssetReference::new(
-                        Vc::upcast(chunk),
-                        chunk_list_chunk_reference_description(),
-                    ))
-                })
-                .collect(),
-        ))
+    async fn references(&self) -> Result<Vc<OutputAssets>> {
+        Ok(self.chunks)
     }
 }
 

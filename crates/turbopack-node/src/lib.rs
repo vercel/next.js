@@ -21,7 +21,6 @@ use turbopack_core::{
     chunk::{ChunkableModule, ChunkingContext, EvaluatableAsset, EvaluatableAssets},
     module::Module,
     output::{OutputAsset, OutputAssetsSet},
-    reference::primary_referenced_output_assets,
     source_map::GenerateSourceMap,
     virtual_output::VirtualOutputAsset,
 };
@@ -144,7 +143,8 @@ async fn separate_assets(
         let Type::Internal(asset) = asset else {
             return Ok(Vec::new());
         };
-        primary_referenced_output_assets(asset)
+        asset
+            .references()
             .await?
             .iter()
             .map(|asset| async {

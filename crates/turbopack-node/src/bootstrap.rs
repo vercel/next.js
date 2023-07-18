@@ -8,7 +8,6 @@ use turbopack_core::{
     chunk::{Chunk, ChunkingContext, EvaluatableAssets},
     ident::AssetIdent,
     output::{OutputAsset, OutputAssets},
-    reference::{AssetReferences, SingleAssetReference},
 };
 use turbopack_ecmascript::utils::StringifyJs;
 
@@ -40,16 +39,8 @@ impl OutputAsset for NodeJsBootstrapAsset {
     }
 
     #[turbo_tasks::function]
-    async fn references(&self) -> Result<Vc<AssetReferences>> {
-        let chunks = self.chunks().await?;
-        let mut references = Vec::new();
-        for &chunk in chunks.iter() {
-            references.push(Vc::upcast(SingleAssetReference::new(
-                Vc::upcast(chunk),
-                node_js_bootstrap_chunk_reference_description(),
-            )));
-        }
-        Ok(Vc::cell(references))
+    fn references(&self) -> Vc<OutputAssets> {
+        self.chunks()
     }
 }
 

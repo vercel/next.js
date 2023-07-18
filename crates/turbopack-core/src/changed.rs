@@ -8,16 +8,13 @@ use crate::{
     asset::Asset,
     module::Module,
     output::{OutputAsset, OutputAssets},
-    reference::{all_referenced_modules, all_referenced_output_assets},
+    reference::all_referenced_modules,
 };
 
 async fn get_referenced_output_assets(
     parent: Vc<Box<dyn OutputAsset>>,
 ) -> Result<impl Iterator<Item = Vc<Box<dyn OutputAsset>>> + Send> {
-    Ok(all_referenced_output_assets(parent)
-        .await?
-        .clone_value()
-        .into_iter())
+    Ok(parent.references().await?.clone_value().into_iter())
 }
 
 async fn get_referenced_modules(
