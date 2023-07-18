@@ -92,7 +92,6 @@ export type GetDynamicParamFromSegment = (
 } | null
 
 function ErrorHtml({
-  head,
   children,
 }: {
   head?: React.ReactNode
@@ -100,7 +99,6 @@ function ErrorHtml({
 }) {
   return (
     <html id="__next_error__">
-      {/* <head>{head}</head> */}
       <body>{children}</body>
     </html>
   )
@@ -1335,9 +1333,9 @@ export async function renderToHTMLOrFlight(
       injectedFontPreloadTags: Set<string>
     ) {
       const { layout } = tree[2]
-      const layoutOrPagePath = layout?.[1]
+      const layoutPath = layout?.[1]
       const styles = getLayerAssets({
-        layoutOrPagePath,
+        layoutOrPagePath: layoutPath,
         injectedCSS: new Set(injectedCSS),
         injectedFontPreloadTags: new Set(injectedFontPreloadTags),
       })
@@ -1642,7 +1640,7 @@ export async function renderToHTMLOrFlight(
             pathname
           )
 
-          const renderDefault404 = isMetadataNotFound || (is404 && !NotFound)
+          const renderDefault404 = isMetadataNotFound || is404
 
           // Preserve the existing RSC inline chunks from the page rendering.
           // For 404 errors: the metadata from layout can be skipped with the error page.
@@ -1650,13 +1648,11 @@ export async function renderToHTMLOrFlight(
           const serverErrorComponentsRenderOpts = {
             ...serverComponentsRenderOpts,
             rscChunks: [],
-            transformStream: !renderDefault404
-              ? cloneTransformStream(serverComponentsRenderOpts.transformStream)
-              : new TransformStream({
-                  transform(chunk, controller) {
-                    controller.enqueue(chunk)
-                  },
-                }),
+            transformStream: renderDefault404
+              ? new TransformStream()
+              : cloneTransformStream(
+                  serverComponentsRenderOpts.transformStream
+                ),
           }
 
           const errorType = is404
@@ -1701,6 +1697,7 @@ export async function renderToHTMLOrFlight(
 
               const GlobalNotFound = NotFound || DefaultNotFound
               const ErrorLayout = RootLayout || ErrorHtml
+
               const notFoundElement = (
                 <ErrorLayout params={{}}>
                   {rootStyles}
