@@ -92,7 +92,7 @@ export default function ShopLayout({ children, params }) {
 
 ## Good to know
 
-### Layout's do not receive `searchParams`
+### Layouts do not receive `searchParams`
 
 Unlike [Pages](/docs/app/api-reference/file-conventions/page), Layout components **do not** receive the `searchParams` prop. This is because a shared layout is [not re-rendered during navigation](/docs/app/building-your-application/routing/linking-and-navigating#partial-renderingg) which could lead to stale `searchParams` between navigations.
 
