@@ -24,7 +24,7 @@ export function deleteAppClientCache() {
   if ((global as any)._nextDeleteAppClientCache) {
     ;(global as any)._nextDeleteAppClientCache()
   }
-  // ensure we reset the cache for sc_server components
+  // ensure we reset the cache for rsc components
   // loaded via react-server-dom-webpack
   const reactServerDomModId = require.resolve(
     'react-server-dom-webpack/client.edge'
