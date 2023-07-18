@@ -11,7 +11,6 @@ use turbopack_core::{
     asset::Asset,
     introspect::{asset::IntrospectableAsset, Introspectable, IntrospectableChildren},
     output::{OutputAsset, OutputAssetsSet},
-    reference::all_referenced_output_assets,
 };
 
 use super::{
@@ -118,14 +117,14 @@ async fn expand(
             assets.push((root_asset.ident().path(), *root_asset));
             assets_set.insert(*root_asset);
             if expanded {
-                queue.push_back(all_referenced_output_assets(*root_asset));
+                queue.push_back(root_asset.references());
             }
         }
     } else {
         for root_asset in root_assets.iter() {
             assets.push((root_asset.ident().path(), *root_asset));
             assets_set.insert(*root_asset);
-            queue.push_back(all_referenced_output_assets(*root_asset));
+            queue.push_back(root_asset.references());
         }
     }
 
@@ -142,7 +141,7 @@ async fn expand(
                     true
                 };
                 if expanded {
-                    queue.push_back(all_referenced_output_assets(*asset));
+                    queue.push_back(asset.references());
                 }
                 assets.push((asset.ident().path(), *asset));
             }

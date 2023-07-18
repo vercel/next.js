@@ -43,7 +43,6 @@ use turbopack_core::{
     module::Module,
     output::OutputAsset,
     raw_module::RawModule,
-    reference::all_referenced_output_assets,
     reference_type::{EcmaScriptModulesReferenceSubType, InnerAssets, ReferenceType},
     resolve::{
         options::ResolveOptions, origin::PlainResolveOrigin, parse::Request, resolve, ModulePart,
@@ -565,7 +564,7 @@ async fn compute_back_references(aggregated: Vc<AggregatedGraph>) -> Result<Vc<R
     Ok(match &*aggregated.content().await? {
         &AggregatedGraphNodeContent::Asset(asset) => {
             let mut referenced_by = HashMap::new();
-            for reference in all_referenced_output_assets(asset).await?.iter() {
+            for reference in asset.references().await?.iter() {
                 referenced_by.insert(*reference, [asset].into_iter().collect());
             }
             ReferencesList { referenced_by }.into()

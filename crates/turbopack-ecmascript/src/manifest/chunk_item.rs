@@ -5,7 +5,7 @@ use turbopack_core::{
     chunk::{ChunkData, ChunkItem, ChunkingContext, ChunksData},
     ident::AssetIdent,
     module::Module,
-    reference::AssetReferences,
+    reference::{AssetReferences, SingleAssetReference},
 };
 
 use super::chunk_asset::ManifestChunkAsset;
@@ -81,8 +81,12 @@ impl ChunkItem for ManifestChunkItem {
         let this = self.await?;
         let mut references = this.manifest.references().await?.clone_value();
 
+        let key = Vc::cell("chunk data reference".to_string());
+
         for chunk_data in &*self.chunks_data().await? {
-            references.extend(chunk_data.references().await?.iter().copied());
+            references.extend(chunk_data.references().await?.iter().map(|&output_asset| {
+                Vc::upcast(SingleAssetReference::new(Vc::upcast(output_asset), key))
+            }));
         }
 
         Ok(Vc::cell(references))

@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use indexmap::IndexSet;
 use turbo_tasks::Vc;
 
-use crate::{asset::Asset, ident::AssetIdent, reference::AssetReferences};
+use crate::{asset::Asset, ident::AssetIdent};
 
 /// An asset that should be outputted, e. g. written to disk or served from a
 /// server.
@@ -13,10 +13,9 @@ pub trait OutputAsset: Asset {
     /// capture all properties of the [OutputAsset]. Only path must be used.
     fn ident(&self) -> Vc<AssetIdent>;
 
-    /// Other things (most likely [Asset]s) referenced from this [OutputAsset].
-    // TODO refactor this to ensure that only [OutputAsset]s can be referenced
-    fn references(self: Vc<Self>) -> Vc<AssetReferences> {
-        AssetReferences::empty()
+    /// Other references [OutputAsset]s from this [OutputAsset].
+    fn references(self: Vc<Self>) -> Vc<OutputAssets> {
+        OutputAssets::empty()
     }
 }
 

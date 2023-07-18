@@ -5,7 +5,6 @@ use turbo_tasks_fs::FileSystemPath;
 use crate::{
     chunk::{ModuleId, OutputChunk, OutputChunkRuntimeInfo},
     output::{OutputAsset, OutputAssets},
-    reference::{AssetReferences, SingleAssetReference},
 };
 
 #[turbo_tasks::value]
@@ -14,7 +13,7 @@ pub struct ChunkData {
     pub included: Vec<ReadRef<ModuleId>>,
     pub excluded: Vec<ReadRef<ModuleId>>,
     pub module_chunks: Vec<String>,
-    pub references: Vc<AssetReferences>,
+    pub references: Vc<OutputAssets>,
 }
 
 #[turbo_tasks::value(transparent)]
@@ -57,7 +56,7 @@ impl ChunkData {
                     included: Vec::new(),
                     excluded: Vec::new(),
                     module_chunks: Vec::new(),
-                    references: AssetReferences::empty(),
+                    references: OutputAssets::empty(),
                 }
                 .cell(),
             )));
@@ -92,15 +91,9 @@ impl ChunkData {
 
                     async move {
                         let chunk_path = chunk.ident().path().await?;
-                        Ok(output_root.get_path_to(&chunk_path).map(|path| {
-                            (
-                                path.to_owned(),
-                                Vc::upcast(SingleAssetReference::new(
-                                    Vc::upcast(chunk),
-                                    module_chunk_reference_description(),
-                                )),
-                            )
-                        }))
+                        Ok(output_root
+                            .get_path_to(&chunk_path)
+                            .map(|path| (path.to_owned(), chunk)))
                     }
                 })
                 .try_join()
@@ -142,10 +135,9 @@ impl ChunkData {
         ))
     }
 
-    /// Returns [`AssetReferences`] to the assets that this chunk data
-    /// references.
+    /// Returns [`OutputAsset`]s that this chunk data references.
     #[turbo_tasks::function]
-    pub async fn references(self: Vc<Self>) -> Result<Vc<AssetReferences>> {
+    pub async fn references(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
         Ok(self.await?.references)
     }
 }

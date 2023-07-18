@@ -7,7 +7,7 @@ use turbopack_core::{
     chunk::{ChunkData, ChunkItem, ChunkingContext, ChunksData},
     ident::AssetIdent,
     module::Module,
-    reference::{AssetReferences, SingleAssetReference},
+    reference::{AssetReference, AssetReferences, SingleAssetReference},
 };
 
 use super::chunk_asset::ManifestChunkAsset;
@@ -65,6 +65,11 @@ fn manifest_loader_chunk_reference_description() -> Vc<String> {
     Vc::cell("manifest loader chunk".to_string())
 }
 
+#[turbo_tasks::function]
+fn chunk_data_reference_description() -> Vc<String> {
+    Vc::cell("chunk data reference".to_string())
+}
+
 #[turbo_tasks::value_impl]
 impl ChunkItem for ManifestLoaderItem {
     #[turbo_tasks::function]
@@ -78,7 +83,7 @@ impl ChunkItem for ManifestLoaderItem {
 
         let chunks = this.manifest.manifest_chunks();
 
-        let mut references: Vec<_> = chunks
+        let mut references: Vec<Vc<Box<dyn AssetReference>>> = chunks
             .await?
             .iter()
             .map(|&chunk| {
@@ -90,7 +95,12 @@ impl ChunkItem for ManifestLoaderItem {
             .collect();
 
         for chunk_data in &*self.chunks_data().await? {
-            references.extend(chunk_data.references().await?.iter().copied());
+            references.extend(chunk_data.references().await?.iter().map(|&output_asset| {
+                Vc::upcast(SingleAssetReference::new(
+                    Vc::upcast(output_asset),
+                    chunk_data_reference_description(),
+                ))
+            }));
         }
 
         Ok(Vc::cell(references))

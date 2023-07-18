@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Result};
 use indexmap::IndexSet;
 use serde_json::Value as JsonValue;
-use turbo_tasks::{TryJoinIterExt, Value, Vc};
+use turbo_tasks::{Value, Vc};
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -9,8 +9,6 @@ use turbopack_core::{
     issue::IssueContextExt,
     module::Module,
     output::OutputAsset,
-    reference::AssetReference,
-    resolve::PrimaryResolveResult,
     version::VersionedContentExt,
 };
 use turbopack_dev_server::{
@@ -111,28 +109,8 @@ impl GetContentSource for NodeRenderContentSource {
     async fn content_source(&self) -> Result<Vc<Box<dyn ContentSource>>> {
         let entries = self.entry.entries();
         let mut set = IndexSet::new();
-        for reference in self.fallback_page.references().await?.iter() {
-            set.extend(
-                reference
-                    .resolve_reference()
-                    .await?
-                    .primary
-                    .iter()
-                    .filter_map(|result| {
-                        if let PrimaryResolveResult::Asset(asset) = result {
-                            Some(asset)
-                        } else {
-                            None
-                        }
-                    })
-                    .map(|&asset| async move {
-                        Ok(Vc::try_resolve_downcast::<Box<dyn OutputAsset>>(asset).await?)
-                    })
-                    .try_join()
-                    .await?
-                    .into_iter()
-                    .flatten(),
-            )
+        for &reference in self.fallback_page.references().await?.iter() {
+            set.insert(reference);
         }
         for &entry in entries.await?.iter() {
             let entry = entry.await?;

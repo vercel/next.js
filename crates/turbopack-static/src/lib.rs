@@ -25,7 +25,7 @@ use turbopack_core::{
     context::AssetContext,
     ident::AssetIdent,
     module::Module,
-    output::OutputAsset,
+    output::{OutputAsset, OutputAssets},
     reference::{AssetReferences, SingleAssetReference},
     source::Source,
 };
@@ -228,14 +228,8 @@ struct StaticCssEmbed {
 #[turbo_tasks::value_impl]
 impl CssEmbed for StaticCssEmbed {
     #[turbo_tasks::function]
-    async fn references(&self) -> Result<Vc<AssetReferences>> {
-        Ok(Vc::cell(vec![Vc::upcast(SingleAssetReference::new(
-            Vc::upcast(self.static_asset),
-            Vc::cell(format!(
-                "static(url) {}",
-                self.static_asset.ident().path().await?
-            )),
-        ))]))
+    async fn references(&self) -> Result<Vc<OutputAssets>> {
+        Ok(Vc::cell(vec![Vc::upcast(self.static_asset)]))
     }
 
     #[turbo_tasks::function]

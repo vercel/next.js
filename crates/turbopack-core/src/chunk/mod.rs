@@ -135,8 +135,8 @@ pub trait Chunk: Asset {
 
     /// Other things (most likely [Asset]s) referenced from this [Chunk].
     // TODO refactor this to ensure that only [OutputAsset]s can be referenced
-    fn references(self: Vc<Self>) -> Vc<AssetReferences> {
-        AssetReferences::empty()
+    fn references(self: Vc<Self>) -> Vc<OutputAssets> {
+        OutputAssets::empty()
     }
 }
 

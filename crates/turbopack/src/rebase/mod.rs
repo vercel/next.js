@@ -1,15 +1,14 @@
 use std::hash::Hash;
 
 use anyhow::Result;
-use turbo_tasks::{ValueToString, Vc};
+use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::{Asset, AssetContent},
     ident::AssetIdent,
-    module::{convert_asset_to_module, Module},
-    output::OutputAsset,
-    reference::{AssetReference, AssetReferences},
-    resolve::ResolveResult,
+    module::Module,
+    output::{OutputAsset, OutputAssets},
+    reference::all_referenced_modules,
 };
 
 /// Converts a [Module] graph into an [OutputAsset] graph by placing it into a
@@ -50,18 +49,14 @@ impl OutputAsset for RebasedAsset {
     }
 
     #[turbo_tasks::function]
-    async fn references(&self) -> Result<Vc<AssetReferences>> {
-        let input_references = self.source.references().await?;
+    async fn references(&self) -> Result<Vc<OutputAssets>> {
         let mut references = Vec::new();
-        for reference in input_references.iter() {
-            references.push(Vc::upcast(
-                RebasedAssetReference {
-                    reference: *reference,
-                    input_dir: self.input_dir,
-                    output_dir: self.output_dir,
-                }
-                .cell(),
-            ));
+        for &module in all_referenced_modules(self.source).await?.iter() {
+            references.push(Vc::upcast(RebasedAsset::new(
+                module,
+                self.input_dir,
+                self.output_dir,
+            )));
         }
         Ok(Vc::cell(references))
     }
@@ -72,53 +67,5 @@ impl Asset for RebasedAsset {
     #[turbo_tasks::function]
     fn content(&self) -> Vc<AssetContent> {
         self.source.content()
-    }
-}
-
-#[turbo_tasks::value(shared)]
-struct RebasedAssetReference {
-    reference: Vc<Box<dyn AssetReference>>,
-    input_dir: Vc<FileSystemPath>,
-    output_dir: Vc<FileSystemPath>,
-}
-
-#[turbo_tasks::value_impl]
-impl AssetReference for RebasedAssetReference {
-    #[turbo_tasks::function]
-    async fn resolve_reference(&self) -> Result<Vc<ResolveResult>> {
-        let result = self.reference.resolve_reference().await?;
-        Ok(result
-            .map(
-                |asset| {
-                    let module = convert_asset_to_module(asset);
-                    let asset =
-                        Vc::upcast(RebasedAsset::new(module, self.input_dir, self.output_dir));
-                    async move { Ok(asset) }
-                },
-                |reference| {
-                    let reference: Vc<Box<dyn AssetReference>> = Vc::upcast(
-                        RebasedAssetReference {
-                            reference,
-                            input_dir: self.input_dir,
-                            output_dir: self.output_dir,
-                        }
-                        .cell(),
-                    );
-                    async move { Ok(reference) }
-                },
-            )
-            .await?
-            .into())
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for RebasedAssetReference {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<String>> {
-        Ok(Vc::cell(format!(
-            "rebased {}",
-            self.reference.to_string().await?
-        )))
     }
 }

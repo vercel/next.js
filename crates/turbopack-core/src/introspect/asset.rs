@@ -8,7 +8,7 @@ use crate::{
     asset::{Asset, AssetContent},
     chunk::{ChunkableModuleReference, ChunkingType},
     module::Module,
-    output::OutputAsset,
+    output::{OutputAsset, OutputAssets},
     reference::{AssetReference, AssetReferences},
     resolve::PrimaryResolveResult,
     source::Source,
@@ -106,7 +106,7 @@ impl Introspectable for IntrospectableAsset {
             } else if let Some(output_asset) =
                 Vc::try_resolve_downcast::<Box<dyn OutputAsset>>(asset).await?
             {
-                children_from_asset_references(output_asset.references())
+                children_from_output_assets(output_asset.references())
             } else {
                 bail!("unknown type")
             },
@@ -160,6 +160,19 @@ pub async fn children_from_asset_references(
                 children.insert((key, IntrospectableAsset::new(*asset)));
             }
         }
+    }
+    Ok(Vc::cell(children))
+}
+
+#[turbo_tasks::function]
+pub async fn children_from_output_assets(
+    references: Vc<OutputAssets>,
+) -> Result<Vc<IntrospectableChildren>> {
+    let key = reference_ty();
+    let mut children = IndexSet::new();
+    let references = references.await?;
+    for &reference in &*references {
+        children.insert((key, IntrospectableAsset::new(Vc::upcast(reference))));
     }
     Ok(Vc::cell(children))
 }

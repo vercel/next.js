@@ -39,7 +39,6 @@ use turbopack_core::{
     issue::{Issue, IssueContextExt},
     module::Module,
     output::OutputAsset,
-    reference::all_referenced_output_assets,
     reference_type::{EntryReferenceSubType, ReferenceType},
     source::Source,
 };
@@ -409,7 +408,8 @@ async fn walk_asset(
     }
 
     queue.extend(
-        all_referenced_output_assets(asset)
+        asset
+            .references()
             .await?
             .iter()
             .copied()
