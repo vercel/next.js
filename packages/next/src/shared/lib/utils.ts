@@ -1,12 +1,14 @@
-import type { HtmlProps } from './html-context'
-import type { ComponentType } from 'react'
-import type { DomainLocale } from '../../server/config'
 import type { Env } from '@next/env'
+import type { WriteStream } from 'fs'
 import type { IncomingMessage, ServerResponse } from 'http'
-import type { NextRouter } from './router/router'
-import type { ParsedUrlQuery } from 'querystring'
 import type { PreviewData } from 'next/types'
+import type { ParsedUrlQuery } from 'querystring'
+import type { ComponentType } from 'react'
+
+import type { DomainLocale } from '../../server/config'
 import { COMPILER_NAMES } from './constants'
+import type { HtmlProps } from './html-context'
+import type { NextRouter } from './router/router'
 
 export type NextComponentType<
   Context extends BaseContext = NextPageContext,
@@ -451,6 +453,7 @@ export interface CacheFs {
   writeFile(f: string, d: any): Promise<void>
   mkdir(dir: string): Promise<void | string>
   stat(f: string): Promise<{ mtime: Date }>
+  createWriteStream(f: string): WriteStream
 }
 
 export function stringifyError(error: Error) {

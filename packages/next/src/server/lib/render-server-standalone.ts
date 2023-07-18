@@ -30,7 +30,7 @@ export const createServerHandler = async ({
       },
     },
     exposedMethods: ['initialize'],
-  }) as any as InstanceType<typeof Worker> & {
+  }) as InstanceType<typeof Worker> & {
     initialize: typeof import('./render-server').initialize
   }
 

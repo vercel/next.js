@@ -369,6 +369,7 @@ export default async function exportPage({
               writeFile: (f, d) => fs.promises.writeFile(f, d),
               mkdir: (dir) => fs.promises.mkdir(dir, { recursive: true }),
               stat: (f) => fs.promises.stat(f),
+              createWriteStream: (f) => fs.createWriteStream(f),
             },
             serverDistDir: join(distDir, 'server'),
             CurCacheHandler: CacheHandler,
