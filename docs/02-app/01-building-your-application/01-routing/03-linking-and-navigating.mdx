@@ -89,7 +89,7 @@ export function Navigation({ navLinks }) {
 }
 ```
 
-### Scrolling to an `id`
+#### Scrolling to an `id`
 
 The default behavior of `<Link>` is to scroll to the top of a new route or to maintain the scroll position for backwards and fowards navigation.
 
@@ -128,30 +128,29 @@ For a full list of `useRouter` methods, see the [API reference](/docs/app/api-re
 
 > **Recommendation:** Use the `<Link>` component to navigate between routes unless you have a specific requirement for using `useRouter`.
 
-## How Navigation Works
+## How Routing and Navigation Works
 
-- A route transition is initiated using `<Link>` or calling `router.push()`.
-- The router updates the URL in the browser's address bar.
-- The router avoids unnecessary work by re-using segments that haven't changed (e.g. shared layouts) from the [client-side cache](#client-side-caching-of-rendered-server-components). This is also referred to as [partial rendering](#partial-rendering).
-- If the [conditions of soft navigation](#conditions-for-soft-navigation) are met, the router fetches the new segment from the cache rather than the server. If not, the router performs a [hard navigation](#hard-navigation) and fetches the Server Component payload from the server.
-- If created, [loading UI](/docs/app/building-your-application/routing/loading-ui-and-streaming) is shown from the server while the payload is being fetched.
-- The router uses the cached or fresh payload to render the new segments on the client.
+The App Router uses a hybrid approach for routing and navigation. On the server, your application code is automatically code-split by route segments. And on the client, Next.js [prefetches](#1-prefetching) and caches the route segments. This means, when a user navigates to a new route, the browser doesn't reload the page, and only the route segments that change re-render - making navigation between routes instant.
 
-### Client-side Caching of Rendered Server Components
+### 1. Prefetching
 
-> **Good to know**: This client-side cache is different from the server-side [Next.js HTTP cache](/docs/app/building-your-application/data-fetching#caching-data).
+Prefetching is a way to preload a route in the background before the user visits it.
 
-The new router has an **in-memory client-side cache** that stores the **rendered result** of Server Components (payload). The cache is split by route segments which allows invalidation at any level and ensures consistency across concurrent renders.
+There are two ways routes are prefetched in Next.js:
 
-As users navigate around the app, the router will store the payload of previously fetched segments **and** [prefetched](#prefetching) segments in the cache.
+- **`<Link>` component**: Routes are automatically prefetched as they become visible in the user's viewport. Prefetching happens when the page first loads or through scrolling. You can be disable by passing `prefetch={false}` to `<Link>`.
+- **`router.prefetch()`**: The `useRouter` hook can be used to prefetched routes programmatically.
 
-This means, for certain cases, the router can re-use the cache instead of making a new request to the server. This improves performance by avoiding re-fetching data and re-rendering components unnecessarily.
+How much is prefetched depends on the type of route:
 
-### Invalidating the Cache
+- [**Static Routes**](/docs/app/building-your-application/rendering/static-and-dynamic-rendering#static-rendering-default): The whole route is prefetched and cached.
+- [**Dynamic Routes**](/docs/app/building-your-application/rendering/static-and-dynamic-rendering#dynamic-rendering): Only the shared layout down until the first `loading.js` file is prefetched. This reduces the cost of fetching an entire dynamic route, and it means you can show an [instant loading state](/docs/app/building-your-application/routing/loading-ui-and-streaming#instant-loading-states) on navigation.
 
 [Server Actions](/docs/app/building-your-application/data-fetching/server-actions) can be used to revalidate data on-demand by path ([`revalidatePath`](/docs/app/api-reference/functions/revalidatePath)) or by cache tag ([`revalidateTag`](/docs/app/api-reference/functions/revalidateTag)).
 
-### Prefetching
+> **Good to know**:
+>
+> - Prefetching is not enabled in development, only in production.
 
 Prefetching is a way to preload a route in the background before it's visited. The rendered result of prefetched routes is added to the router's client-side cache. This makes navigating to a prefetched route near-instant.
 
