@@ -70,7 +70,12 @@ export type CacheNode =
 export interface NavigateOptions {
   /** @internal */
   forceOptimisticNavigation?: boolean
-  /** @internal */
+  /**
+   * Set to `false` when you don't need to scroll back to the top
+   * when the URL changes (For instance hash query changes).
+   *
+   * @default false
+   */
   scroll?: boolean
 }
 
