@@ -1,7 +1,8 @@
 use anyhow::{bail, Context, Result};
 use indexmap::IndexMap;
 use next_core::{
-    create_page_loader_entry_module, emit_all_assets, get_asset_path_from_pathname,
+    all_server_paths, create_page_loader_entry_module, emit_all_assets,
+    get_asset_path_from_pathname,
     mode::NextMode,
     next_client::{
         get_client_module_options_context, get_client_resolve_options_context,
@@ -629,13 +630,18 @@ impl Endpoint for PageEndpoint {
 
         let this = self.await?;
 
+        let node_root = this.pages_project.project().node_root();
         emit_all_assets(
             *output_assets,
-            this.pages_project.project().node_root(),
+            node_root,
             this.pages_project.project().client_relative_path(),
             this.pages_project.project().node_root(),
         )
         .await?;
+
+        let server_paths = all_server_paths(*output_assets, node_root)
+            .await?
+            .clone_value();
 
         Ok(WrittenEndpoint {
             server_entry_path: this
@@ -646,7 +652,7 @@ impl Endpoint for PageEndpoint {
                 .get_path_to(&*entry_chunk.ident().path().await?)
                 .context("ssr chunk entry path must be inside the node root")?
                 .to_string(),
-            server_paths: vec![],
+            server_paths,
         }
         .cell())
     }
