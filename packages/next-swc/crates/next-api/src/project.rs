@@ -12,7 +12,7 @@ use next_core::{
 };
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, unit, TaskInput, TransientValue, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs, unit, State, TaskInput, TransientValue, Vc,
 };
 use turbopack_binding::{
     turbo::{
@@ -40,7 +40,7 @@ use crate::{
     route::{Endpoint, Route},
 };
 
-#[derive(Debug, Serialize, Deserialize, Clone, TaskInput)]
+#[derive(Debug, Serialize, Deserialize, Clone, TaskInput, PartialEq, Eq, TraceRawVcs)]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectOptions {
     /// A root path from which all files must be nested under. Trying to access
@@ -55,15 +55,52 @@ pub struct ProjectOptions {
 
     /// Whether to watch the filesystem for file changes.
     pub watch: bool,
-
-    /// An upper bound of memory that turbopack will attempt to stay under.
-    pub memory_limit: Option<u64>,
 }
 
 #[derive(Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, ValueDebugFormat)]
 pub struct Middleware {
     pub endpoint: Vc<Box<dyn Endpoint>>,
     pub config: NextSourceConfig,
+}
+
+#[turbo_tasks::value]
+pub struct ProjectContainer {
+    state: State<ProjectOptions>,
+}
+
+#[turbo_tasks::value_impl]
+impl ProjectContainer {
+    #[turbo_tasks::function]
+    pub fn new(options: ProjectOptions) -> Vc<Self> {
+        ProjectContainer {
+            state: State::new(options),
+        }
+        .cell()
+    }
+
+    #[turbo_tasks::function]
+    pub async fn update(self: Vc<Self>, options: ProjectOptions) -> Result<Vc<()>> {
+        self.await?.state.set(options);
+        Ok(unit())
+    }
+
+    #[turbo_tasks::function]
+    pub async fn project(self: Vc<Self>) -> Result<Vc<Project>> {
+        let this = self.await?;
+        let options = this.state.get();
+        let next_config = NextConfig::from_string(Vc::cell(options.next_config.clone()));
+        Ok(Project {
+            root_path: options.root_path.clone(),
+            project_path: options.project_path.clone(),
+            watch: options.watch,
+            next_config,
+            browserslist_query: "last 1 Chrome versions, last 1 Firefox versions, last 1 Safari \
+                                 versions, last 1 Edge versions"
+                .to_string(),
+            mode: NextMode::Development,
+        }
+        .cell())
+    }
 }
 
 #[turbo_tasks::value]
@@ -88,22 +125,6 @@ pub struct Project {
 
 #[turbo_tasks::value_impl]
 impl Project {
-    #[turbo_tasks::function]
-    pub async fn new(options: ProjectOptions) -> Result<Vc<Self>> {
-        let next_config = NextConfig::from_string(options.next_config);
-        Ok(Project {
-            root_path: options.root_path,
-            project_path: options.project_path,
-            watch: options.watch,
-            next_config,
-            browserslist_query: "last 1 Chrome versions, last 1 Firefox versions, last 1 Safari \
-                                 versions, last 1 Edge versions"
-                .to_string(),
-            mode: NextMode::Development,
-        }
-        .cell())
-    }
-
     #[turbo_tasks::function]
     async fn app_project(self: Vc<Self>) -> Result<Vc<OptionAppProject>> {
         let this = self.await?;

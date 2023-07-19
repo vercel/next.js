@@ -369,6 +369,7 @@ interface Entrypoints {
 }
 
 interface Project {
+  update(options: ProjectOptions): Promise<void>
   entrypointsSubscribe(): AsyncIterableIterator<TurbopackResult<Entrypoints>>
 }
 
@@ -508,11 +509,25 @@ function bindingToApi(binding: any, _wasm: boolean) {
     })()
   }
 
+  function rustifyProjectOptions(options: ProjectOptions): any {
+    return {
+      ...options,
+      nextConfig: JSON.stringify(options.nextConfig),
+    }
+  }
+
   class ProjectImpl implements Project {
     private _nativeProject: { __napiType: 'Project' }
 
     constructor(nativeProject: { __napiType: 'Project' }) {
       this._nativeProject = nativeProject
+    }
+
+    async update(options: ProjectOptions) {
+      await binding.projectUpdate(
+        this._nativeProject,
+        rustifyProjectOptions(options)
+      )
     }
 
     entrypointsSubscribe() {
@@ -684,10 +699,9 @@ function bindingToApi(binding: any, _wasm: boolean) {
   }
 
   async function createProject(options: ProjectOptions) {
-    const optionsForRust = options as any
-    optionsForRust.nextConfig = await serializeNextConfig(options.nextConfig)
-
-    return new ProjectImpl(await binding.projectNew(optionsForRust))
+    return new ProjectImpl(
+      await binding.projectNew(rustifyProjectOptions(options))
+    )
   }
 
   return createProject

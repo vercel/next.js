@@ -3,7 +3,7 @@ use std::sync::Arc;
 use anyhow::Result;
 use napi::{bindgen_prelude::External, JsFunction};
 use next_api::{
-    project::{Middleware, Project, ProjectOptions},
+    project::{Middleware, ProjectContainer, ProjectOptions},
     route::{Endpoint, Route},
 };
 use turbo_tasks::{TurboTasks, Vc};
@@ -43,7 +43,6 @@ impl From<NapiProjectOptions> for ProjectOptions {
             project_path: val.project_path,
             watch: val.watch,
             next_config: val.next_config,
-            memory_limit: val.memory_limit.map(|m| m as _),
         }
     }
 }
@@ -51,7 +50,7 @@ impl From<NapiProjectOptions> for ProjectOptions {
 #[napi(ts_return_type = "{ __napiType: \"Project\" }")]
 pub async fn project_new(
     options: NapiProjectOptions,
-) -> napi::Result<External<VcArc<Vc<Project>>>> {
+) -> napi::Result<External<VcArc<Vc<ProjectContainer>>>> {
     register();
     let turbo_tasks = TurboTasks::new(MemoryBackend::new(
         options
@@ -61,13 +60,45 @@ pub async fn project_new(
     ));
     let options = options.into();
     let project = turbo_tasks
-        .run_once(async move { Project::new(options).resolve().await })
+        .run_once(async move {
+            let project = ProjectContainer::new(options).resolve().await?;
+            // get errors early
+            project.project().await?;
+            Ok(project)
+        })
         .await
         .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
     Ok(External::new_with_size_hint(
         VcArc::new(turbo_tasks, project),
         100,
     ))
+}
+
+#[napi(ts_return_type = "{ __napiType: \"Project\" }")]
+pub async fn project_update(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<
+        VcArc<Vc<ProjectContainer>>,
+    >,
+    options: NapiProjectOptions,
+) -> napi::Result<()> {
+    if options.memory_limit.is_some() {
+        return Err(napi::Error::from_reason(
+            "memory_limit cannot be changed after project creation".to_string(),
+        ));
+    }
+    let turbo_tasks = project.turbo_tasks().clone();
+    let options = options.into();
+    let project = **project;
+    turbo_tasks
+        .run_once(async move {
+            project.update(options).await?;
+            // get errors early
+            project.project().await?;
+            Ok(())
+        })
+        .await
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
+    Ok(())
 }
 
 #[napi(object)]
@@ -170,7 +201,9 @@ struct NapiEntrypoints {
 
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
 pub fn project_entrypoints_subscribe(
-    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<VcArc<Vc<Project>>>,
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<
+        VcArc<Vc<ProjectContainer>>,
+    >,
     func: JsFunction,
 ) -> napi::Result<External<RootTask>> {
     let turbo_tasks = project.turbo_tasks().clone();
@@ -179,7 +212,7 @@ pub fn project_entrypoints_subscribe(
         turbo_tasks.clone(),
         func,
         move || async move {
-            let entrypoints = project.entrypoints();
+            let entrypoints = project.project().entrypoints();
             let entrypoints = entrypoints.strongly_consistent().await?;
             // TODO peek_issues and diagnostics
             Ok(entrypoints)

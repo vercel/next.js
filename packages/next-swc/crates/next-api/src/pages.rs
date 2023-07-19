@@ -560,7 +560,7 @@ impl PageEndpoint {
         };
         Ok(Vc::upcast(VirtualOutputAsset::new(
             node_root.join(format!(
-                "pages{original_name}/build-manifest.json",
+                "server/pages{original_name}/build-manifest.json",
                 original_name = this.original_name.await?
             )),
             AssetContent::file(File::from(serde_json::to_string_pretty(&build_manifest)?).into()),

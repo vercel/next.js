@@ -578,7 +578,7 @@ impl AppEndpoint {
         };
         let build_manifest_output = Vc::upcast(VirtualOutputAsset::new(
             node_root.join(format!(
-                "app{original_name}/build-manifest.json",
+                "server/app{original_name}/build-manifest.json",
                 original_name = app_entry.original_name
             )),
             AssetContent::file(File::from(serde_json::to_string_pretty(&build_manifest)?).into()),

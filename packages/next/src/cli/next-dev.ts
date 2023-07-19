@@ -250,7 +250,7 @@ const nextDev: CliCommand = async (argv) => {
     const project = await bindings.turbo.createProject({
       projectPath: dir,
       rootPath: dir,
-      nextConfig: config,
+      nextConfig: { ...config, env: {} },
       watch: true,
     })
     const iter = project.entrypointsSubscribe()
@@ -288,6 +288,12 @@ const nextDev: CliCommand = async (argv) => {
               break
           }
         }
+        await project.update({
+          projectPath: dir,
+          rootPath: dir,
+          nextConfig: config,
+          watch: true,
+        })
       }
     } catch (e) {
       console.error(e)
