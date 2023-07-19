@@ -3,7 +3,7 @@ import { context } from '@actions/github'
 import { info, setFailed } from '@actions/core'
 import { graphql } from '@octokit/graphql'
 
-const offTopicComments = ['+1']
+const offTopicComments = ['+1', '👍', 'same issue', 'any updates']
 
 async function run() {
   try {
@@ -14,7 +14,8 @@ async function run() {
 
     const { node_id: subjectId, body } = comment
 
-    if (offTopicComments.some((comment) => body === comment)) {
+    const bodyLower = body.toLowerCase()
+    if (offTopicComments.some((comment) => bodyLower === comment)) {
       await graphql(
         `
           mutation minimize($subjectId: ID!) {
