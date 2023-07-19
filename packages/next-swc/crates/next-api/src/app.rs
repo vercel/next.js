@@ -1,5 +1,6 @@
 use anyhow::{Context, Result};
 use next_core::{
+    all_server_paths,
     app_structure::{
         get_entrypoints, Entrypoint as AppEntrypoint, Entrypoints as AppEntrypoints, LoaderTree,
     },
@@ -39,8 +40,7 @@ use turbopack_binding::{
             chunk::EvaluatableAssets,
             file_source::FileSource,
             output::{OutputAsset, OutputAssets},
-            raw_output::RawOutput,
-            virtual_source::VirtualSource,
+            virtual_output::VirtualOutputAsset,
         },
         turbopack::{
             module_options::ModuleOptionsContext, resolve_options_context::ResolveOptionsContext,
@@ -536,12 +536,15 @@ impl AppEndpoint {
                 .into_iter()
                 .collect(),
         };
-        let app_build_manifest_output = Vc::upcast(RawOutput::new(Vc::upcast(VirtualSource::new(
-            node_root.join("server/app-build-manifest.json".to_string()),
+        let app_build_manifest_output = Vc::upcast(VirtualOutputAsset::new(
+            node_root.join(format!(
+                "server/app{original_name}/app-build-manifest.json",
+                original_name = app_entry.original_name
+            )),
             AssetContent::file(
                 File::from(serde_json::to_string_pretty(&app_build_manifest)?).into(),
             ),
-        ))));
+        ));
         output_assets.push(app_build_manifest_output);
 
         let app_paths_manifest = AppPathsManifest {
@@ -559,22 +562,28 @@ impl AppEndpoint {
             },
             ..Default::default()
         };
-        let app_paths_manifest_output = Vc::upcast(RawOutput::new(Vc::upcast(VirtualSource::new(
-            node_root.join("server/app-paths-manifest.json".to_string()),
+        let app_paths_manifest_output = Vc::upcast(VirtualOutputAsset::new(
+            node_root.join(format!(
+                "server/app{original_name}/app-paths-manifest.json",
+                original_name = app_entry.original_name
+            )),
             AssetContent::file(
                 File::from(serde_json::to_string_pretty(&app_paths_manifest)?).into(),
             ),
-        ))));
+        ));
         output_assets.push(app_paths_manifest_output);
 
         let build_manifest = BuildManifest {
             root_main_files: client_shared_chunks_paths,
             ..Default::default()
         };
-        let build_manifest_output = Vc::upcast(RawOutput::new(Vc::upcast(VirtualSource::new(
-            node_root.join("build-manifest.json".to_string()),
+        let build_manifest_output = Vc::upcast(VirtualOutputAsset::new(
+            node_root.join(format!(
+                "server/app{original_name}/build-manifest.json",
+                original_name = app_entry.original_name
+            )),
             AssetContent::file(File::from(serde_json::to_string_pretty(&build_manifest)?).into()),
-        ))));
+        ));
         output_assets.push(build_manifest_output);
 
         let entry_manifest = ClientReferenceManifest::build_output(
@@ -608,20 +617,25 @@ impl Endpoint for AppEndpoint {
         let output = output.await?;
         let node_root_ref = node_root.await?;
 
+        let node_root = this.app_project.project().node_root();
         emit_all_assets(
             output.output_assets,
-            this.app_project.project().node_root(),
+            node_root,
             self.client_relative_path(),
             this.app_project.project().node_root(),
         )
         .await?;
+
+        let server_paths = all_server_paths(output.output_assets, node_root)
+            .await?
+            .clone_value();
 
         Ok(WrittenEndpoint {
             server_entry_path: node_root_ref
                 .get_path_to(&*output.rsc_chunk.ident().path().await?)
                 .context("rsc chunk entry path must be inside the node root")?
                 .to_string(),
-            server_paths: vec![],
+            server_paths,
         }
         .cell())
     }

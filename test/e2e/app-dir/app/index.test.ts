@@ -1839,6 +1839,15 @@ createNextDescribe(
           '<script rel="preload" as="script" src="/test4.js"/>'
         )
       })
+
+      it('should load stylesheets for next/scripts', async () => {
+        const html = await next.render('/script')
+        const $ = cheerio.load(html)
+
+        expect($('link[href="/style3.css"]').length).toBe(1)
+        expect($('link[href="/style1a.css"]').length).toBe(1)
+        expect($('link[href="/style1b.css"]').length).toBe(1)
+      })
     })
 
     describe('data fetch with response over 16KB with chunked encoding', () => {
