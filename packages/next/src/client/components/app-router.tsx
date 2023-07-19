@@ -313,7 +313,6 @@ function Router({
           )
         })
       },
-
       push: (href, options = {}) => {
         startTransition(() => {
           navigate(
