@@ -44,6 +44,7 @@ where
     // accessible.
     #[doc(hidden)]
     pub node: RawVc,
+    #[doc(hidden)]
     pub(crate) _t: PhantomData<T>,
 }
 
