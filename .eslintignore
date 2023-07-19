@@ -24,6 +24,7 @@ packages/react-dev-overlay/lib/**
 .github/actions/issue-labeler/lib/index.js
 .github/actions/validate-docs-links/lib/index.js
 .github/actions/needs-triage/index.js
+.github/actions/minus-one/index.mjs
 packages/next-codemod/transforms/__testfixtures__/**/*
 packages/next-codemod/transforms/__tests__/**/*
 packages/next-codemod/**/*.js

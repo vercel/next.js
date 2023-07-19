@@ -10,6 +10,12 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: ./.github/actions/needs-triage
-      - uses: ./.github/actions/issue-on-comment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  minus-one:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/minus-one
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

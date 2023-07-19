@@ -12,4 +12,5 @@ pnpm-lock.yaml
 .github/actions/issue-validator/index.mjs
 .github/actions/validate-docs-links/lib/index.js
 .github/actions/needs-triage/index.js
+.github/actions/minus-one/index.mjs
 **/convex/_generated/**
