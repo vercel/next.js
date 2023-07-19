@@ -2,7 +2,6 @@ use anyhow::{bail, Result};
 use turbo_tasks::{Value, Vc};
 use turbopack_binding::turbopack::{
     core::{
-        asset::Asset,
         module::Module,
         reference_type::{EntryReferenceSubType, ReferenceType},
         source::Source,

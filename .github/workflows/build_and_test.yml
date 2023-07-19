@@ -11,7 +11,7 @@ env:
   TURBO_VERSION: 1.9.6
   PNPM_VERSION: 7.24.3
   NODE_MAINTENANCE_VERSION: 16
-  NODE_LTS_VERSION: 18
+  NODE_LTS_VERSION: 18.16.1
   TEST_CONCURRENCY: 6
   # disable backtrace for test snapshots
   RUST_BACKTRACE: 0
@@ -128,13 +128,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [1, 2, 3, 4, 5, 6]
+        group: [1, 2, 3, 4, 5]
 
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: 16
       skipForDocsOnly: 'yes'
-      afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/packages/next-swc/crates/next-dev-tests/tests-manifest.js" TURBOPACK=1 __INTERNAL_CUSTOM_TURBOPACK_BINDINGS="$(pwd)/packages/next-swc/native/next-swc.linux-x64-gnu.node" node run-tests.js --timings -g ${{ matrix.group }}/6 -c ${TEST_CONCURRENCY} --test-pattern '^(integration)/.*\.test\.(js|jsx|ts|tsx)$'
+      afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/packages/next-swc/crates/next-dev-tests/tests-manifest.js" TURBOPACK=1 __INTERNAL_CUSTOM_TURBOPACK_BINDINGS="$(pwd)/packages/next-swc/native/next-swc.linux-x64-gnu.node" node run-tests.js --timings -g ${{ matrix.group }}/5 -c ${TEST_CONCURRENCY} --test-pattern '^(integration)/.*\.test\.(js|jsx|ts|tsx)$'
     secrets: inherit
 
   test-next-swc-wasm:
@@ -166,12 +166,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [1, 2, 3]
+        group: [1, 2, 3, 4, 5]
 
     uses: ./.github/workflows/build_reusable.yml
     with:
       skipForDocsOnly: 'yes'
-      afterBuild: NEXT_TEST_MODE=start node run-tests.js --timings -g ${{ matrix.group }}/3 -c ${TEST_CONCURRENCY} --test-pattern '^(production|e2e)/.*\.test\.(js|jsx|ts|tsx)$'
+      afterBuild: NEXT_TEST_MODE=start node run-tests.js --timings -g ${{ matrix.group }}/5 -c ${TEST_CONCURRENCY} --test-pattern '^(production|e2e)/.*\.test\.(js|jsx|ts|tsx)$'
     secrets: inherit
 
   test-integration:
@@ -180,13 +180,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [1, 2, 3, 4, 5, 6]
+        group: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
 
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: 16
       skipForDocsOnly: 'yes'
-      afterBuild: node run-tests.js --timings -g ${{ matrix.group }}/6 -c ${TEST_CONCURRENCY} --test-pattern '^(integration)/.*\.test\.(js|jsx|ts|tsx)$'
+      afterBuild: node run-tests.js --timings -g ${{ matrix.group }}/12 -c ${TEST_CONCURRENCY} --test-pattern '^(integration)/.*\.test\.(js|jsx|ts|tsx)$'
     secrets: inherit
 
   test-firefox-safari:

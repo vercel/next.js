@@ -8,8 +8,7 @@ use turbopack_binding::{
     turbo::{tasks_env::EnvMap, tasks_fs::FileSystemPath},
     turbopack::{
         core::{
-            asset::Asset,
-            changed::any_content_changed,
+            changed::any_content_changed_of_module,
             chunk::ChunkingContext,
             context::AssetContext,
             file_source::FileSource,
@@ -21,6 +20,7 @@ use turbopack_binding::{
                 options::{ImportMap, ImportMapping},
                 FindContextFileResult, ResolveAliasMap,
             },
+            source::Source,
         },
         ecmascript_plugin::transform::{
             emotion::EmotionTransformConfig, relay::RelayConfig,
@@ -508,9 +508,10 @@ pub enum RemoveConsoleConfig {
 #[turbo_tasks::value_impl]
 impl NextConfig {
     #[turbo_tasks::function]
-    pub fn from_string(s: String) -> Result<Vc<Self>> {
-        let config: NextConfig = serde_json::from_str(&s)
-            .with_context(|| format!("failed to parse next.config.js: {}", s))?;
+    pub async fn from_string(string: Vc<String>) -> Result<Vc<Self>> {
+        let string = string.await?;
+        let config: NextConfig = serde_json::from_str(&string)
+            .with_context(|| format!("failed to parse next.config.js: {}", string))?;
         Ok(config.cell())
     }
 
@@ -722,14 +723,14 @@ async fn load_next_config_and_custom_routes_internal(
             Vc::upcast(config_asset),
             Value::new(ReferenceType::Internal(InnerAssets::empty())),
         );
-        any_content_changed(Vc::upcast(config_asset))
+        any_content_changed_of_module(config_asset)
     });
     let load_next_config_asset = context.process(
         next_asset("entry/config/next.js".to_string()),
         Value::new(ReferenceType::Entry(EntryReferenceSubType::Undefined)),
     );
     let config_value = evaluate(
-        Vc::upcast(load_next_config_asset),
+        load_next_config_asset,
         project_path,
         env,
         config_asset.map_or_else(|| AssetIdent::from_path(project_path), |c| c.ident()),

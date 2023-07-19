@@ -52,18 +52,12 @@ fn dynamic_modifier() -> Vc<String> {
 }
 
 #[turbo_tasks::value_impl]
-impl Asset for NextDynamicEntryModule {
+impl Module for NextDynamicEntryModule {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
         self.client_entry_module
             .ident()
             .with_modifier(dynamic_modifier())
-    }
-
-    #[turbo_tasks::function]
-    fn content(&self) -> Result<Vc<AssetContent>> {
-        // The client reference asset only serves as a marker asset.
-        bail!("NextDynamicEntryModule has no content")
     }
 
     #[turbo_tasks::function]
@@ -73,4 +67,10 @@ impl Asset for NextDynamicEntryModule {
 }
 
 #[turbo_tasks::value_impl]
-impl Module for NextDynamicEntryModule {}
+impl Asset for NextDynamicEntryModule {
+    #[turbo_tasks::function]
+    fn content(&self) -> Result<Vc<AssetContent>> {
+        // The client reference asset only serves as a marker asset.
+        bail!("NextDynamicEntryModule has no content")
+    }
+}

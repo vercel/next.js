@@ -15,8 +15,7 @@ use turbopack_binding::{
             context::AssetContext,
             ident::AssetIdent,
             module::Module,
-            output::OutputAssets,
-            reference::{AssetReferences, SingleAssetReference},
+            output::{OutputAsset, OutputAssets},
             reference_type::{EntryReferenceSubType, ReferenceType},
             source::Source,
             virtual_source::VirtualSource,
@@ -91,10 +90,10 @@ pub async fn create_page_loader_entry_module(
     Ok(client_context.process(
         virtual_source,
         Value::new(ReferenceType::Internal(Vc::cell(indexmap! {
-            "PAGE".to_string() => Vc::upcast(client_context.process(
+            "PAGE".to_string() => client_context.process(
                 entry_asset,
                 Value::new(ReferenceType::Entry(EntryReferenceSubType::Page))
-            )),
+            ),
         }))),
     ))
 }
@@ -136,7 +135,7 @@ fn page_loader_chunk_reference_description() -> Vc<String> {
 }
 
 #[turbo_tasks::value_impl]
-impl Asset for PageLoaderAsset {
+impl OutputAsset for PageLoaderAsset {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
         Ok(AssetIdent::from_path(self.server_root.join(format!(
@@ -145,6 +144,25 @@ impl Asset for PageLoaderAsset {
         ))))
     }
 
+    #[turbo_tasks::function]
+    async fn references(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
+        let chunks = self.get_page_chunks().await?;
+
+        let mut references = Vec::with_capacity(chunks.len());
+        for &chunk in chunks.iter() {
+            references.push(chunk);
+        }
+
+        for chunk_data in &*self.chunks_data().await? {
+            references.extend(chunk_data.references().await?.iter().copied());
+        }
+
+        Ok(Vc::cell(references))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl Asset for PageLoaderAsset {
     #[turbo_tasks::function]
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
         let this = &*self.await?;
@@ -163,24 +181,5 @@ impl Asset for PageLoaderAsset {
         );
 
         Ok(AssetContent::file(File::from(content).into()))
-    }
-
-    #[turbo_tasks::function]
-    async fn references(self: Vc<Self>) -> Result<Vc<AssetReferences>> {
-        let chunks = self.get_page_chunks().await?;
-
-        let mut references = Vec::with_capacity(chunks.len());
-        for &chunk in chunks.iter() {
-            references.push(Vc::upcast(SingleAssetReference::new(
-                Vc::upcast(chunk),
-                page_loader_chunk_reference_description(),
-            )));
-        }
-
-        for chunk_data in &*self.chunks_data().await? {
-            references.extend(chunk_data.references().await?.iter().copied());
-        }
-
-        Ok(Vc::cell(references))
     }
 }

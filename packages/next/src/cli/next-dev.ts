@@ -251,12 +251,16 @@ const nextDev: CliCommand = async (argv) => {
       projectPath: dir,
       rootPath: dir,
       nextConfig: config,
+      env: {
+        NEXT_PUBLIC_ENV_VAR: 'world',
+      },
       watch: true,
     })
     const iter = project.entrypointsSubscribe()
 
     try {
       for await (const entrypoints of iter) {
+        Log.info(entrypoints)
         for (const [pathname, route] of entrypoints.routes) {
           switch (route.type) {
             case 'page': {
@@ -265,14 +269,42 @@ const nextDev: CliCommand = async (argv) => {
               Log.info(written)
               break
             }
+            case 'page-api': {
+              Log.info(`writing ${pathname} to disk`)
+              const written = await route.endpoint.writeToDisk()
+              Log.info(written)
+              break
+            }
+            case 'app-page': {
+              Log.info(`writing ${pathname} to disk`)
+              const written = await route.rscEndpoint.writeToDisk()
+              Log.info(written)
+              break
+            }
+            case 'app-route': {
+              Log.info(`writing ${pathname} to disk`)
+              const written = await route.endpoint.writeToDisk()
+              Log.info(written)
+              break
+            }
             default:
               Log.info(`skipping ${pathname} (${route.type})`)
               break
           }
         }
+        Log.info('iteration done')
+        await project.update({
+          projectPath: dir,
+          rootPath: dir,
+          nextConfig: config,
+          env: {
+            NEXT_PUBLIC_ENV_VAR: 'hello',
+          },
+          watch: true,
+        })
       }
     } catch (e) {
-      console.error(e)
+      console.dir(e)
     }
 
     Log.error('Not supported yet')

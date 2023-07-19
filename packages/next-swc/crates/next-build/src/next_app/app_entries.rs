@@ -1,77 +1,43 @@
 use std::collections::HashMap;
 
-use anyhow::{Context, Result};
-use indexmap::IndexMap;
-use indoc::formatdoc;
+use anyhow::Result;
 use next_core::{
     app_structure::{find_app_dir_if_enabled, get_entrypoints, get_global_metadata, Entrypoint},
     mode::NextMode,
+    next_app::{
+        get_app_client_shared_chunks, get_app_page_entry, get_app_route_entry,
+        get_app_route_favicon_entry, AppEntry, ClientReferencesChunks,
+    },
     next_client::{
         get_client_module_options_context, get_client_resolve_options_context,
         get_client_runtime_entries, ClientContextType,
     },
-    next_client_reference::{
-        ClientReference, ClientReferenceType, NextEcmascriptClientReferenceTransition,
-    },
+    next_client_reference::{ClientReferenceGraph, NextEcmascriptClientReferenceTransition},
     next_config::NextConfig,
     next_dynamic::NextDynamicTransition,
+    next_manifests::{AppBuildManifest, AppPathsManifest, BuildManifest, ClientReferenceManifest},
     next_server::{
         get_server_module_options_context, get_server_resolve_options_context,
         get_server_runtime_entries, ServerContextType,
     },
 };
-use turbo_tasks::{TryJoinIterExt, Value, ValueToString, Vc};
+use turbo_tasks::{TryJoinIterExt, Value, Vc};
 use turbopack_binding::{
     turbo::{
         tasks_env::{CustomProcessEnv, ProcessEnv},
-        tasks_fs::{File, FileSystemPath},
+        tasks_fs::FileSystemPath,
     },
     turbopack::{
         build::BuildChunkingContext,
         core::{
-            asset::{Asset, AssetContent},
-            chunk::{
-                availability_info::AvailabilityInfo, ChunkingContext, EvaluatableAssets,
-                ModuleId as TurbopackModuleId,
-            },
-            compile_time_info::CompileTimeInfo,
-            file_source::FileSource,
-            output::{OutputAsset, OutputAssets},
-            raw_output::RawOutput,
-            virtual_source::VirtualSource,
+            chunk::EvaluatableAssets, compile_time_info::CompileTimeInfo, file_source::FileSource,
+            output::OutputAsset,
         },
-        ecmascript::{
-            chunk::{
-                EcmascriptChunk, EcmascriptChunkItemExt, EcmascriptChunkPlaceable,
-                EcmascriptChunkingContext,
-            },
-            utils::StringifyJs,
-        },
+        ecmascript::chunk::EcmascriptChunkingContext,
         node::execution_context::ExecutionContext,
         turbopack::{transition::ContextTransition, ModuleAssetContext},
     },
 };
-
-use super::{
-    app_client_reference::ClientReferenceChunks, app_page_entry::get_app_page_entry,
-    app_route_entry::get_app_route_entry, app_route_favicon_entry::get_app_route_favicon_entry,
-};
-use crate::manifests::{
-    AppBuildManifest, AppPathsManifest, BuildManifest, ClientReferenceManifest, ManifestNode,
-    ManifestNodeEntry, ModuleId,
-};
-
-/// The entry module asset for a Next.js app route or page.
-#[turbo_tasks::value(shared)]
-pub struct AppEntry {
-    /// The pathname of the route or page.
-    pub pathname: String,
-    /// The original Next.js name of the route or page. This is used instead of
-    /// the pathname to refer to this entry.
-    pub original_name: String,
-    /// The RSC module asset for the route or page.
-    pub rsc_entry: Vc<Box<dyn EcmascriptChunkPlaceable>>,
-}
 
 #[turbo_tasks::value]
 pub struct AppEntries {
@@ -223,19 +189,19 @@ pub async fn get_app_entries(
         .iter()
         .map(|(pathname, entrypoint)| async move {
             Ok(match entrypoint {
-                Entrypoint::AppPage { loader_tree } => {
-                    get_app_page_entry(rsc_context, *loader_tree, app_dir, pathname, project_root)
-                        .await?
-                }
-                Entrypoint::AppRoute { path } => {
-                    get_app_route_entry(
-                        rsc_context,
-                        Vc::upcast(FileSource::new(*path)),
-                        pathname,
-                        project_root,
-                    )
-                    .await?
-                }
+                Entrypoint::AppPage { loader_tree } => get_app_page_entry(
+                    rsc_context,
+                    *loader_tree,
+                    app_dir,
+                    pathname.clone(),
+                    project_root,
+                ),
+                Entrypoint::AppRoute { path } => get_app_route_entry(
+                    rsc_context,
+                    Vc::upcast(FileSource::new(*path)),
+                    pathname.clone(),
+                    project_root,
+                ),
             })
         })
         .try_join()
@@ -245,7 +211,11 @@ pub async fn get_app_entries(
     let global_metadata = global_metadata.await?;
 
     if let Some(favicon) = global_metadata.favicon {
-        entries.push(get_app_route_favicon_entry(rsc_context, favicon, project_root).await?);
+        entries.push(get_app_route_favicon_entry(
+            rsc_context,
+            favicon,
+            project_root,
+        ));
     }
 
     let client_context = ModuleAssetContext::new(
@@ -276,20 +246,20 @@ pub async fn get_app_entries(
 /// manifests.
 pub async fn compute_app_entries_chunks(
     app_entries: &AppEntries,
-    app_client_references_by_entry: &IndexMap<Vc<Box<dyn Asset>>, Vec<ClientReference>>,
-    app_client_references_chunks: &IndexMap<ClientReferenceType, ClientReferenceChunks>,
+    app_client_reference_graph: Vc<ClientReferenceGraph>,
+    app_client_references_chunks: Vc<ClientReferencesChunks>,
     rsc_chunking_context: Vc<BuildChunkingContext>,
     client_chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
     ssr_chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
     node_root: Vc<FileSystemPath>,
-    client_relative_path: &FileSystemPath,
+    client_relative_path: Vc<FileSystemPath>,
     app_paths_manifest_dir_path: &FileSystemPath,
     app_build_manifest: &mut AppBuildManifest,
     build_manifest: &mut BuildManifest,
     app_paths_manifest: &mut AppPathsManifest,
     all_chunks: &mut Vec<Vc<Box<dyn OutputAsset>>>,
 ) -> Result<()> {
-    let node_root_ref = node_root.await?;
+    let client_relative_path_ref = client_relative_path.await?;
 
     let app_client_shared_chunks =
         get_app_client_shared_chunks(app_entries.client_runtime_entries, client_chunking_context);
@@ -300,19 +270,21 @@ pub async fn compute_app_entries_chunks(
 
         let chunk_path = chunk.ident().path().await?;
         if chunk_path.extension_ref() == Some("js") {
-            if let Some(chunk_path) = client_relative_path.get_path_to(&chunk_path) {
+            if let Some(chunk_path) = client_relative_path.await?.get_path_to(&chunk_path) {
                 app_shared_client_chunks_paths.push(chunk_path.to_string());
                 build_manifest.root_main_files.push(chunk_path.to_string());
             }
         }
     }
 
+    let app_client_references_chunks_ref = app_client_references_chunks.await?;
+
     for app_entry in app_entries.entries.iter().copied() {
         let app_entry = app_entry.await?;
 
-        let app_entry_client_references = app_client_references_by_entry
-            .get(&Vc::upcast(app_entry.rsc_entry))
-            .expect("app entry should have a corresponding client references list");
+        let app_entry_client_references = app_client_reference_graph
+            .entry(Vc::upcast(app_entry.rsc_entry))
+            .await?;
 
         let rsc_chunk = rsc_chunking_context.entry_chunk(
             node_root.join(format!(
@@ -325,10 +297,11 @@ pub async fn compute_app_entries_chunks(
         all_chunks.push(rsc_chunk);
 
         let mut app_entry_client_chunks = vec![];
+        // TODO(alexkirsz) In which manifest should this go?
         let mut app_entry_ssr_chunks = vec![];
 
-        for client_reference in app_entry_client_references {
-            let client_reference_chunks = app_client_references_chunks
+        for client_reference in app_entry_client_references.iter() {
+            let client_reference_chunks = app_client_references_chunks_ref
                 .get(client_reference.ty())
                 .expect("client reference should have corresponding chunks");
             app_entry_client_chunks
@@ -344,7 +317,7 @@ pub async fn compute_app_entries_chunks(
         let mut app_entry_client_chunks_paths: Vec<_> = app_entry_client_chunks_paths
             .iter()
             .map(|path| {
-                client_relative_path
+                client_relative_path_ref
                     .get_path_to(path)
                     .expect("asset path should be inside client root")
                     .to_string()
@@ -365,232 +338,18 @@ pub async fn compute_app_entries_chunks(
                 .to_string(),
         );
 
-        let mut entry_manifest: ClientReferenceManifest = Default::default();
-
-        for app_client_reference in app_entry_client_references {
-            let app_client_reference_ty = app_client_reference.ty();
-
-            let app_client_reference_chunks = app_client_references_chunks
-                .get(app_client_reference.ty())
-                .context("client reference chunks not found")?;
-
-            let client_reference_chunks = app_client_references_chunks
-                .get(app_client_reference_ty)
-                .context("client reference chunks not found")?;
-            let client_chunks = &client_reference_chunks.client_chunks.await?;
-
-            let client_chunks_paths = client_chunks
-                .iter()
-                .map(|chunk| chunk.ident().path())
-                .try_join()
-                .await?;
-
-            if let Some(server_component) = app_client_reference.server_component() {
-                let server_component_name = server_component
-                    .server_path()
-                    .with_extension("".to_string())
-                    .to_string()
-                    .await?;
-
-                let entry_css_files = entry_manifest
-                    .entry_css_files
-                    .entry(server_component_name.clone_value())
-                    .or_insert_with(Default::default);
-
-                match app_client_reference_ty {
-                    ClientReferenceType::CssClientReference(_) => {
-                        entry_css_files.extend(
-                            client_chunks_paths
-                                .iter()
-                                .filter_map(|chunk_path| {
-                                    client_relative_path.get_path_to(chunk_path)
-                                })
-                                .map(ToString::to_string),
-                        );
-                    }
-
-                    ClientReferenceType::EcmascriptClientReference(_) => {
-                        entry_css_files.extend(
-                            client_chunks_paths
-                                .iter()
-                                .filter_map(|chunk_path| {
-                                    if chunk_path.extension_ref() == Some("css") {
-                                        client_relative_path.get_path_to(chunk_path)
-                                    } else {
-                                        None
-                                    }
-                                })
-                                .map(ToString::to_string),
-                        );
-                    }
-                }
-            }
-
-            match app_client_reference_ty {
-                ClientReferenceType::CssClientReference(_) => {}
-
-                ClientReferenceType::EcmascriptClientReference(ecmascript_client_reference) => {
-                    let client_chunks = &app_client_reference_chunks.client_chunks.await?;
-                    let ssr_chunks = &app_client_reference_chunks.ssr_chunks.await?;
-
-                    let ecmascript_client_reference = ecmascript_client_reference.await?;
-
-                    let client_module_id = ecmascript_client_reference
-                        .client_module
-                        .as_chunk_item(client_chunking_context)
-                        .id()
-                        .await?;
-                    let ssr_module_id = ecmascript_client_reference
-                        .ssr_module
-                        .as_chunk_item(ssr_chunking_context)
-                        .id()
-                        .await?;
-
-                    let server_path = ecmascript_client_reference
-                        .server_ident
-                        .path()
-                        .to_string()
-                        .await?;
-
-                    let client_chunks_paths = client_chunks
-                        .iter()
-                        .map(|chunk| chunk.ident().path())
-                        .try_join()
-                        .await?;
-                    let client_chunks_paths: Vec<String> = client_chunks_paths
-                        .iter()
-                        .filter_map(|chunk_path| client_relative_path.get_path_to(chunk_path))
-                        .map(ToString::to_string)
-                        .collect::<Vec<_>>();
-
-                    let ssr_chunks_paths = ssr_chunks
-                        .iter()
-                        .map(|chunk| chunk.ident().path())
-                        .try_join()
-                        .await?;
-                    let ssr_chunks_paths = ssr_chunks_paths
-                        .iter()
-                        .filter_map(|chunk_path| node_root_ref.get_path_to(chunk_path))
-                        .map(ToString::to_string)
-                        .collect::<Vec<_>>();
-
-                    let mut ssr_manifest_node = ManifestNode::default();
-
-                    entry_manifest.client_modules.module_exports.insert(
-                        get_client_reference_module_key(&server_path, "*"),
-                        ManifestNodeEntry {
-                            name: "*".to_string(),
-                            id: (&*client_module_id).into(),
-                            chunks: client_chunks_paths.clone(),
-                            // TODO(WEB-434)
-                            r#async: false,
-                        },
-                    );
-
-                    ssr_manifest_node.module_exports.insert(
-                        "*".to_string(),
-                        ManifestNodeEntry {
-                            name: "*".to_string(),
-                            id: (&*ssr_module_id).into(),
-                            chunks: ssr_chunks_paths.clone(),
-                            // TODO(WEB-434)
-                            r#async: false,
-                        },
-                    );
-
-                    entry_manifest
-                        .ssr_module_mapping
-                        .insert((&*client_module_id).into(), ssr_manifest_node);
-                }
-            }
-        }
-
-        let client_reference_manifest_json = serde_json::to_string(&entry_manifest).unwrap();
-        let client_reference_manifest_source = VirtualSource::new(
-            node_root.join(format!(
-                "server/app/{original_name}_client-reference-manifest.js",
-                original_name = app_entry.original_name
-            )),
-            AssetContent::file(
-                File::from(formatdoc! {
-                    r#"
-                    globalThis.__RSC_MANIFEST = globalThis.__RSC_MANIFEST || {{}};
-                    globalThis.__RSC_MANIFEST[{original_name}] = {manifest}
-                "#,
-                    original_name = StringifyJs(&app_entry.original_name),
-                    manifest = StringifyJs(&client_reference_manifest_json)
-                })
-                .into(),
-            ),
+        let entry_manifest = ClientReferenceManifest::build_output(
+            node_root,
+            client_relative_path,
+            app_entry.original_name.clone(),
+            app_client_reference_graph.entry(Vc::upcast(app_entry.rsc_entry)),
+            app_client_references_chunks,
+            client_chunking_context,
+            ssr_chunking_context,
         );
-        all_chunks.push(Vc::upcast(RawOutput::new(Vc::upcast(
-            client_reference_manifest_source,
-        ))));
+
+        all_chunks.push(entry_manifest);
     }
 
     Ok(())
-}
-
-#[turbo_tasks::function]
-pub async fn get_app_shared_client_chunk(
-    app_client_runtime_entries: Vc<EvaluatableAssets>,
-    client_chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
-) -> Result<Vc<EcmascriptChunk>> {
-    let client_runtime_entries: Vec<_> = app_client_runtime_entries
-        .await?
-        .iter()
-        .map(|entry| async move {
-            Ok(Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(*entry).await?)
-        })
-        .try_join()
-        .await?
-        .into_iter()
-        .flatten()
-        .collect();
-
-    Ok(EcmascriptChunk::new_normalized(
-        client_chunking_context,
-        // TODO(alexkirsz) Should this accept Evaluatable instead?
-        Vc::cell(client_runtime_entries),
-        None,
-        Value::new(AvailabilityInfo::Untracked),
-    ))
-}
-
-#[turbo_tasks::function]
-pub async fn get_app_client_shared_chunks(
-    app_client_runtime_entries: Vc<EvaluatableAssets>,
-    client_chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
-) -> Result<Vc<OutputAssets>> {
-    if app_client_runtime_entries.await?.is_empty() {
-        return Ok(OutputAssets::empty());
-    }
-
-    let app_client_shared_chunk =
-        get_app_shared_client_chunk(app_client_runtime_entries, client_chunking_context);
-
-    let app_client_shared_chunks = client_chunking_context.evaluated_chunk_group(
-        Vc::upcast(app_client_shared_chunk),
-        app_client_runtime_entries,
-    );
-
-    Ok(app_client_shared_chunks)
-}
-
-/// See next.js/packages/next/src/lib/client-reference.ts
-fn get_client_reference_module_key(server_path: &str, export_name: &str) -> String {
-    if export_name == "*" {
-        server_path.to_string()
-    } else {
-        format!("{}#{}", server_path, export_name)
-    }
-}
-
-impl From<&TurbopackModuleId> for ModuleId {
-    fn from(module_id: &TurbopackModuleId) -> Self {
-        match module_id {
-            TurbopackModuleId::String(string) => ModuleId::String(string.clone()),
-            TurbopackModuleId::Number(number) => ModuleId::Number(*number as _),
-        }
-    }
 }
