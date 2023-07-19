@@ -49,7 +49,7 @@ pub trait ChunkingContext {
         Vc::cell("".to_string())
     }
 
-    fn with_layer(self: Vc<Self>, layer: String) -> Vc<Box<dyn ChunkingContext>>;
+    fn with_layer(self: Vc<Self>, layer: String) -> Vc<Self>;
 
     fn chunk_group(self: Vc<Self>, entry: Vc<Box<dyn Chunk>>) -> Vc<OutputAssets>;
 

@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use anyhow::Result;
 pub use context_transition::ContextTransition;
-use turbo_tasks::{Value, Vc};
+use turbo_tasks::{Value, ValueDefault, Vc};
 use turbopack_core::{
     compile_time_info::CompileTimeInfo, module::Module, reference_type::ReferenceType,
     source::Source,
@@ -88,3 +88,11 @@ pub trait Transition {
 
 #[turbo_tasks::value(transparent)]
 pub struct TransitionsByName(HashMap<String, Vc<Box<dyn Transition>>>);
+
+#[turbo_tasks::value_impl]
+impl ValueDefault for TransitionsByName {
+    #[turbo_tasks::function]
+    fn value_default() -> Vc<Self> {
+        Vc::cell(Default::default())
+    }
+}
