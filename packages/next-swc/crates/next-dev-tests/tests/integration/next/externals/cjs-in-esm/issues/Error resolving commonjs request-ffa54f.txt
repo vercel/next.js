@@ -8,7 +8,7 @@ PlainIssue {
     documentation_link: "",
     source: Some(
         PlainIssueSource {
-            asset: PlainAsset {
+            asset: PlainSource {
                 ident: "[project]/packages/next-swc/crates/next-dev-tests/tests/temp/next/externals/cjs-in-esm/input/node_modules/package/cjs/index.js",
             },
             start: SourcePos {

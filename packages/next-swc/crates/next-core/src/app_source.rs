@@ -65,6 +65,7 @@ use crate::{
     fallback::get_fallback_page,
     loader_tree::{LoaderTreeModule, ServerComponentTransition},
     mode::NextMode,
+    next_app::UnsupportedDynamicMetadataIssue,
     next_client::{
         context::{
             get_client_assets_path, get_client_module_options_context,
@@ -89,7 +90,6 @@ use crate::{
         get_server_resolve_options_context, ServerContextType,
     },
     util::{render_data, NextRuntime},
-    UnsupportedDynamicMetadataIssue,
 };
 
 fn pathname_to_segments(pathname: &str) -> Result<(Vec<BaseSegment>, RouteType)> {
@@ -919,26 +919,26 @@ impl AppRenderer {
             Some(NextRuntime::NodeJs) | None => context.process(
                 Vc::upcast(FileSource::new(next_js_file_path("entry/app-renderer.tsx".to_string()))),
                 Value::new(ReferenceType::Internal(Vc::cell(indexmap! {
-                    "APP_ENTRY".to_string() => Vc::upcast(context.with_transition(rsc_transition.to_string()).process(
+                    "APP_ENTRY".to_string() => context.with_transition(rsc_transition.to_string()).process(
                         Vc::upcast(asset),
                         Value::new(ReferenceType::Internal(Vc::cell(loader_tree_module.inner_assets))),
-                    )),
-                    "APP_BOOTSTRAP".to_string() => Vc::upcast(context.with_transition("next-client".to_string()).process(
+                    ),
+                    "APP_BOOTSTRAP".to_string() =>context.with_transition("next-client".to_string()).process(
                         Vc::upcast(FileSource::new(next_js_file_path("entry/app/hydrate.tsx".to_string()))),
                         Value::new(ReferenceType::EcmaScriptModules(
                             EcmaScriptModulesReferenceSubType::Undefined,
                         )),
-                    )),
+                    ),
                 }))),
             ),
             Some(NextRuntime::Edge) =>
                 context.process(
                     Vc::upcast(FileSource::new(next_js_file_path("entry/app-edge-renderer.tsx".to_string()))),
                     Value::new(ReferenceType::Internal(Vc::cell(indexmap! {
-                        "INNER_EDGE_CHUNK_GROUP".to_string() => Vc::upcast(context.with_transition("next-edge-page".to_string()).process(
+                        "INNER_EDGE_CHUNK_GROUP".to_string() => context.with_transition("next-edge-page".to_string()).process(
                             Vc::upcast(asset),
                             Value::new(ReferenceType::Internal(Vc::cell(loader_tree_module.inner_assets))),
-                        )),
+                        ),
                     }))),
                 )
         };
@@ -1020,13 +1020,13 @@ impl AppRoute {
             Value::new(ReferenceType::Entry(EntryReferenceSubType::AppRoute)),
         );
 
-        let config = parse_segment_config_from_source(entry_asset);
+        let config = parse_segment_config_from_source(entry_asset, Vc::upcast(entry_file_source));
         let module = match config.await?.runtime {
             Some(NextRuntime::NodeJs) | None => {
                 let bootstrap_asset = next_asset("entry/app/route.ts".to_string());
 
                 route_bootstrap(
-                    Vc::upcast(entry_asset),
+                    entry_asset,
                     Vc::upcast(this.context),
                     this.project_path,
                     bootstrap_asset,
@@ -1047,7 +1047,7 @@ impl AppRoute {
                 let module = this.context.process(
                     internal_asset,
                     Value::new(ReferenceType::Internal(Vc::cell(indexmap! {
-                        "ROUTE_CHUNK_GROUP".to_string() => Vc::upcast(entry)
+                        "ROUTE_CHUNK_GROUP".to_string() => entry
                     }))),
                 );
 

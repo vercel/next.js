@@ -7,4 +7,7 @@ pub use ecmascript_client_reference::{
     ecmascript_client_reference_module::EcmascriptClientReferenceModule,
     ecmascript_client_reference_transition::NextEcmascriptClientReferenceTransition,
 };
-pub use visit_client_reference::{ClientReference, ClientReferenceType, ClientReferencesByEntry};
+pub use visit_client_reference::{
+    ClientReference, ClientReferenceGraph, ClientReferenceType, ClientReferenceTypes,
+    ClientReferences,
+};
