@@ -544,10 +544,10 @@ function bindingToApi(binding: any, _wasm: boolean) {
     })()
   }
 
-  function rustifyProjectOptions(options: ProjectOptions): any {
+  async function rustifyProjectOptions(options: ProjectOptions): Promise<any> {
     return {
       ...options,
-      nextConfig: JSON.stringify(options.nextConfig),
+      nextConfig: await serializeNextConfig(options.nextConfig),
       env: Object.entries(options.env).map(([name, value]) => ({
         name,
         value,
@@ -563,10 +563,10 @@ function bindingToApi(binding: any, _wasm: boolean) {
     }
 
     async update(options: ProjectOptions) {
-      await withErrorCause(() =>
+      await withErrorCause(async () =>
         binding.projectUpdate(
           this._nativeProject,
-          rustifyProjectOptions(options)
+          await rustifyProjectOptions(options)
         )
       )
     }
@@ -747,7 +747,7 @@ function bindingToApi(binding: any, _wasm: boolean) {
   ) {
     return new ProjectImpl(
       await binding.projectNew(
-        rustifyProjectOptions(options),
+        await rustifyProjectOptions(options),
         turboEngineOptions || {}
       )
     )
