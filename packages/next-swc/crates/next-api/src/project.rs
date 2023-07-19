@@ -16,7 +16,7 @@ use turbo_tasks::{
 };
 use turbopack_binding::{
     turbo::{
-        tasks_env::ProcessEnv,
+        tasks_env::{EnvMap, ProcessEnv},
         tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath, VirtualFileSystem},
     },
     turbopack::{
@@ -27,7 +27,6 @@ use turbopack_binding::{
         },
         dev::DevChunkingContext,
         ecmascript::chunk::EcmascriptChunkingContext,
-        env::dotenv::load_env,
         node::execution_context::ExecutionContext,
         turbopack::evaluate_context::node_build_environment,
     },
@@ -52,6 +51,9 @@ pub struct ProjectOptions {
 
     /// The contents of next.config.js, serialized to JSON.
     pub next_config: String,
+
+    /// A map of environment variables to use when compiling code.
+    pub env: Vec<(String, String)>,
 
     /// Whether to watch the filesystem for file changes.
     pub watch: bool,
@@ -89,11 +91,13 @@ impl ProjectContainer {
         let this = self.await?;
         let options = this.state.get();
         let next_config = NextConfig::from_string(Vc::cell(options.next_config.clone()));
+        let env: Vc<EnvMap> = Vc::cell(options.env.iter().cloned().collect());
         Ok(Project {
             root_path: options.root_path.clone(),
             project_path: options.project_path.clone(),
             watch: options.watch,
             next_config,
+            env: Vc::upcast(env),
             browserslist_query: "last 1 Chrome versions, last 1 Firefox versions, last 1 Safari \
                                  versions, last 1 Edge versions"
                 .to_string(),
@@ -117,6 +121,9 @@ pub struct Project {
 
     /// Next config.
     next_config: Vc<NextConfig>,
+
+    /// A map of environment variables to use when compiling code.
+    env: Vc<Box<dyn ProcessEnv>>,
 
     browserslist_query: String,
 
@@ -203,8 +210,8 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub(super) fn env(self: Vc<Self>) -> Vc<Box<dyn ProcessEnv>> {
-        load_env(self.project_path())
+    pub(super) async fn env(self: Vc<Self>) -> Result<Vc<Box<dyn ProcessEnv>>> {
+        Ok(self.await?.env)
     }
 
     #[turbo_tasks::function]

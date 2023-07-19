@@ -18,6 +18,12 @@ use super::{
 use crate::register;
 
 #[napi(object)]
+pub struct NapiEnvVar {
+    pub name: String,
+    pub value: String,
+}
+
+#[napi(object)]
 pub struct NapiProjectOptions {
     /// A root path from which all files must be nested under. Trying to access
     /// a file outside this root will fail. Think of this as a chroot.
@@ -32,6 +38,9 @@ pub struct NapiProjectOptions {
     /// The contents of next.config.js, serialized to JSON.
     pub next_config: String,
 
+    /// A map of environment variables to use when compiling code.
+    pub env: Vec<NapiEnvVar>,
+
     /// An upper bound of memory that turbopack will attempt to stay under.
     pub memory_limit: Option<f64>,
 }
@@ -43,6 +52,11 @@ impl From<NapiProjectOptions> for ProjectOptions {
             project_path: val.project_path,
             watch: val.watch,
             next_config: val.next_config,
+            env: val
+                .env
+                .into_iter()
+                .map(|NapiEnvVar { name, value }| (name, value))
+                .collect(),
         }
     }
 }

@@ -338,6 +338,11 @@ interface ProjectOptions {
   nextConfig: NextConfigComplete
 
   /**
+   * A map of environment variables to use when compiling code.
+   */
+  env: Record<string, string>
+
+  /**
    * Whether to watch he filesystem for file changes.
    */
   watch: boolean
@@ -513,6 +518,10 @@ function bindingToApi(binding: any, _wasm: boolean) {
     return {
       ...options,
       nextConfig: JSON.stringify(options.nextConfig),
+      env: Object.entries(options.env).map(([name, value]) => ({
+        name,
+        value,
+      })),
     }
   }
 

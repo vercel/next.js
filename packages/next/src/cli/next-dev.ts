@@ -250,7 +250,10 @@ const nextDev: CliCommand = async (argv) => {
     const project = await bindings.turbo.createProject({
       projectPath: dir,
       rootPath: dir,
-      nextConfig: { ...config, env: {} },
+      nextConfig: config,
+      env: {
+        NEXT_PUBLIC_ENV_VAR: 'world',
+      },
       watch: true,
     })
     const iter = project.entrypointsSubscribe()
@@ -288,10 +291,14 @@ const nextDev: CliCommand = async (argv) => {
               break
           }
         }
+        Log.info('iteration done')
         await project.update({
           projectPath: dir,
           rootPath: dir,
           nextConfig: config,
+          env: {
+            NEXT_PUBLIC_ENV_VAR: 'hello',
+          },
           watch: true,
         })
       }
