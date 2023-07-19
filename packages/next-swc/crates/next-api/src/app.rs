@@ -1,5 +1,6 @@
 use anyhow::{Context, Result};
 use next_core::{
+    all_server_paths,
     app_structure::{
         get_entrypoints, Entrypoint as AppEntrypoint, Entrypoints as AppEntrypoints, LoaderTree,
     },
@@ -578,7 +579,7 @@ impl AppEndpoint {
         };
         let build_manifest_output = Vc::upcast(VirtualOutputAsset::new(
             node_root.join(format!(
-                "app{original_name}/build-manifest.json",
+                "server/app{original_name}/build-manifest.json",
                 original_name = app_entry.original_name
             )),
             AssetContent::file(File::from(serde_json::to_string_pretty(&build_manifest)?).into()),
@@ -616,20 +617,25 @@ impl Endpoint for AppEndpoint {
         let output = output.await?;
         let node_root_ref = node_root.await?;
 
+        let node_root = this.app_project.project().node_root();
         emit_all_assets(
             output.output_assets,
-            this.app_project.project().node_root(),
+            node_root,
             self.client_relative_path(),
             this.app_project.project().node_root(),
         )
         .await?;
+
+        let server_paths = all_server_paths(output.output_assets, node_root)
+            .await?
+            .clone_value();
 
         Ok(WrittenEndpoint {
             server_entry_path: node_root_ref
                 .get_path_to(&*output.rsc_chunk.ident().path().await?)
                 .context("rsc chunk entry path must be inside the node root")?
                 .to_string(),
-            server_paths: vec![],
+            server_paths,
         }
         .cell())
     }
