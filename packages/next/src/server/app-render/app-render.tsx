@@ -929,10 +929,10 @@ export async function renderToHTMLOrFlight(
       // routes, we try to render the not found component if it exists.
       let notFoundComponent = {}
       const isLeaf =
-        process.env.NODE_ENV === 'production'
+        !segment && !rootLayoutIncluded
           ? !segment && !rootLayoutIncluded
-          : !parallelRouteMap.length &&
-            !segment &&
+          : process.env.NODE_ENV !== 'production' &&
+            !parallelRouteMap.length &&
             segment.startsWith('__PAGE__')
 
       if (asNotFound && isLeaf && NotFound) {
