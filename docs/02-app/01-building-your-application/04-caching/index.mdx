@@ -25,7 +25,7 @@ Here's a high-level overview of the different caching mechanisms in Next.js and 
 
 React's `cache` function allows you to **memoize** the return value of a function, saving the result to memory. This means you can call the same function multiple times while only executing it once when rendering a React tree.
 
-In Next.js, the [`fetch` API](#fetch) uses `cache` to **deduplicate** requests for the same data. Similar to memoization, request deduplication is an optimization that takes **multiple** requests for the same data and only makes a **single** request to the data source. This is done by storing the result of the first request in a temporary server-side cache, and returning the cached result for subsequent requests.
+In React Server Components, the [`fetch` API](#fetch) uses an implementation similar to `cache` to **memoize** requests for the same url and options. This means you can call the same fetch multiple times while only executing it once when rendering a React tree when the url and options are the same.
 
 {/* Diagram */}
 
