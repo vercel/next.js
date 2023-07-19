@@ -138,13 +138,13 @@ Prefetching is a way to preload a route in the background before the user visits
 
 There are two ways routes are prefetched in Next.js:
 
-- **`<Link>` component**: Routes are automatically prefetched as they become visible in the user's viewport. Prefetching happens when the page first loads or through scrolling. You can be disable by passing `prefetch={false}` to `<Link>`.
+- **`<Link>` component**: Routes are automatically prefetched as they become visible in the user's viewport. Prefetching happens when the page first loads or when it comes into view through scrolling.
 - **`router.prefetch()`**: The `useRouter` hook can be used to prefetched routes programmatically.
 
-How much is prefetched depends on the type of route:
+The`<Link>`'s prefetching behavior is different for static and dynamic routes:
 
-- [**Static Routes**](/docs/app/building-your-application/rendering/static-and-dynamic-rendering#static-rendering-default): The whole route is prefetched and cached.
-- [**Dynamic Routes**](/docs/app/building-your-application/rendering/static-and-dynamic-rendering#dynamic-rendering): Only the shared layout down until the first `loading.js` file is prefetched. This reduces the cost of fetching an entire dynamic route, and it means you can show an [instant loading state](/docs/app/building-your-application/routing/loading-ui-and-streaming#instant-loading-states) on navigation.
+- [**Static Routes**](/docs/app/building-your-application/rendering/static-and-dynamic-rendering#static-rendering-default): `prefetch` defaults to `true`. The whole route is prefetched and cached.
+- [**Dynamic Routes**](/docs/app/building-your-application/rendering/static-and-dynamic-rendering#dynamic-rendering): `prefetch` default to `false`. Only the shared layout down until the first `loading.js` file is prefetched and cached for 30s. This reduces the cost of fetching an entire dynamic route, and it means you can show an [instant loading state](/docs/app/building-your-application/routing/loading-ui-and-streaming#instant-loading-states).
 
 > **Good to know**:
 >
