@@ -5,14 +5,12 @@ use next_api::route::{Endpoint, WrittenEndpoint};
 use turbo_tasks::Vc;
 use turbopack_binding::turbopack::core::error::PrettyPrintError;
 
-use super::utils::{subscribe, NapiDiagnostic, NapiIssue, RootTask, VcArc};
+use super::utils::{get_issues, subscribe, NapiIssue, RootTask, TurbopackResult, VcArc};
 
 #[napi(object)]
 pub struct NapiWrittenEndpoint {
     pub server_entry_path: String,
     pub server_paths: Vec<String>,
-    pub issues: Vec<NapiIssue>,
-    pub diagnostics: Vec<NapiDiagnostic>,
 }
 
 impl From<&WrittenEndpoint> for NapiWrittenEndpoint {
@@ -20,8 +18,6 @@ impl From<&WrittenEndpoint> for NapiWrittenEndpoint {
         Self {
             server_entry_path: written_endpoint.server_entry_path.clone(),
             server_paths: written_endpoint.server_paths.clone(),
-            issues: vec![],
-            diagnostics: vec![],
         }
     }
 }
@@ -45,15 +41,24 @@ impl Deref for ExternalEndpoint {
 #[napi]
 pub async fn endpoint_write_to_disk(
     #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: External<ExternalEndpoint>,
-) -> napi::Result<NapiWrittenEndpoint> {
+) -> napi::Result<TurbopackResult<NapiWrittenEndpoint>> {
     let turbo_tasks = endpoint.turbo_tasks().clone();
     let endpoint = ***endpoint;
-    let written = turbo_tasks
-        .run_once(async move { endpoint.write_to_disk().strongly_consistent().await })
+    let (written, issues) = turbo_tasks
+        .run_once(async move {
+            let write_to_disk = endpoint.write_to_disk();
+            let issues = get_issues(write_to_disk).await?;
+            let written = write_to_disk.strongly_consistent().await?;
+            Ok((written, issues))
+        })
         .await
         .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
-    // TODO peek_issues and diagnostics
-    Ok((&*written).into())
+    // TODO diagnostics
+    Ok(TurbopackResult {
+        result: NapiWrittenEndpoint::from(&*written),
+        issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
+        diagnostics: vec![],
+    })
 }
 
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
@@ -69,10 +74,19 @@ pub fn endpoint_changed_subscribe(
         turbo_tasks,
         func,
         move || async move {
-            endpoint.changed().await?;
-            // TODO peek_issues and diagnostics
-            Ok(())
+            let changed = endpoint.changed();
+            let issues = get_issues(changed).await?;
+            changed.await?;
+            // TODO diagnostics
+            Ok(issues)
         },
-        |_ctx| Ok(vec![()]),
+        |ctx| {
+            let issues = ctx.value;
+            Ok(vec![TurbopackResult {
+                result: (),
+                issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
+                diagnostics: vec![],
+            }])
+        },
     )
 }
