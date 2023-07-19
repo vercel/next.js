@@ -49,8 +49,6 @@ type PongEvent = any
 let mostRecentCompilationHash: any = null
 let __nextDevClientId = Math.round(Math.random() * 100 + Date.now())
 
-// let startLatency = undefined
-
 function onBeforeFastRefresh(dispatcher: Dispatcher, hasUpdates: boolean) {
   if (hasUpdates) {
     dispatcher.onBeforeRefresh()
@@ -424,7 +422,6 @@ function processMessage(
             // Check if head present as document.head could be null
             // We are still on the page,
             // dispatch an error so it's caught by the NotFound handler
-            // dispatcher.onNotFound()
             const devErrorMetaTag = document.head?.querySelector(
               'meta[name="next-error"]'
             )

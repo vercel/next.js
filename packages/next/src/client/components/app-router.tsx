@@ -88,14 +88,6 @@ export function urlToUrlWithoutFlightMarker(url: string): URL {
   return urlWithoutFlightParameters
 }
 
-const HotReloader:
-  | typeof import('./react-dev-overlay/hot-reloader-client').default
-  | null =
-  process.env.NODE_ENV === 'production'
-    ? null
-    : (require('./react-dev-overlay/hot-reloader-client')
-        .default as typeof import('./react-dev-overlay/hot-reloader-client').default)
-
 type AppRouterProps = Omit<
   Omit<InitialRouterStateParameters, 'isServer' | 'location'>,
   'initialParallelRoutes'
@@ -439,13 +431,27 @@ function Router({
     return findHeadInCache(cache, tree[1])
   }, [cache, tree])
 
-  const content = (
+  const app = (
     <RedirectBoundary>
       {head}
       {cache.subTreeData}
       <AppRouterAnnouncer tree={tree} />
     </RedirectBoundary>
   )
+
+  let content = app
+  if (process.env.NODE_ENV !== 'production') {
+    const HotReloader: typeof import('./react-dev-overlay/hot-reloader-client').default =
+      require('./react-dev-overlay/hot-reloader-client').default
+    const DevRootNotFoundBoundary: typeof import('./dev-root-not-found-boundary').DevRootNotFoundBoundary =
+      require('./dev-root-not-found-boundary').DevRootNotFoundBoundary
+
+    content = (
+      <HotReloader assetPrefix={assetPrefix}>
+        <DevRootNotFoundBoundary>{app}</DevRootNotFoundBoundary>
+      </HotReloader>
+    )
+  }
 
   return (
     <>
@@ -476,12 +482,7 @@ function Router({
                   url: canonicalUrl,
                 }}
               >
-                {HotReloader ? (
-                  // HotReloader implements a separate NotFoundBoundary to maintain the HMR ping interval
-                  <HotReloader assetPrefix={assetPrefix}>{content}</HotReloader>
-                ) : (
-                  content
-                )}
+                {content}
               </LayoutRouterContext.Provider>
             </AppRouterContext.Provider>
           </GlobalLayoutRouterContext.Provider>

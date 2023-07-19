@@ -78,8 +78,7 @@ import { warn } from '../../build/output/log'
 import { appendMutableCookies } from '../web/spec-extension/adapters/request-cookies'
 import { ComponentsType } from '../../build/webpack/loaders/next-app-loader'
 import { ModuleReference } from '../../build/webpack/loaders/metadata/types'
-
-export const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
+import { bailOnNotFound } from '../../client/components/dev-root-not-found-boundary'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -1746,35 +1745,42 @@ export async function renderToHTMLOrFlight(
             nonce
           )
 
-          const renderStream = await renderToInitialStream({
-            ReactDOMServer: require('react-dom/server.edge'),
-            element: <ErrorPage />,
-            streamOptions: {
-              nonce,
-              // Include hydration scripts in the HTML
-              bootstrapScripts: subresourceIntegrityManifest
-                ? buildManifest.rootMainFiles.map((src) => ({
-                    src:
-                      `${assetPrefix}/_next/` +
-                      src +
-                      getAssetQueryString(false),
-                    integrity: subresourceIntegrityManifest[src],
-                  }))
-                : buildManifest.rootMainFiles.map(
-                    (src) =>
-                      `${assetPrefix}/_next/` + src + getAssetQueryString(false)
-                  ),
-            },
-          })
+          try {
+            const renderStream = await renderToInitialStream({
+              ReactDOMServer: require('react-dom/server.edge'),
+              element: <ErrorPage />,
+              streamOptions: {
+                nonce,
+                // Include hydration scripts in the HTML
+                bootstrapScripts: subresourceIntegrityManifest
+                  ? buildManifest.rootMainFiles.map((src) => ({
+                      src:
+                        `${assetPrefix}/_next/` +
+                        src +
+                        getAssetQueryString(false),
+                      integrity: subresourceIntegrityManifest[src],
+                    }))
+                  : buildManifest.rootMainFiles.map(
+                      (src) =>
+                        `${assetPrefix}/_next/` +
+                        src +
+                        getAssetQueryString(false)
+                    ),
+              },
+            })
 
-          return await continueFromInitialStream(renderStream, {
-            dataStream:
-              serverErrorComponentsRenderOpts.transformStream.readable,
-            generateStaticHTML: staticGenerationStore.isStaticGeneration,
-            getServerInsertedHTML: () => getServerInsertedHTML([]),
-            serverInsertedHTMLToHead: true,
-            ...validateRootLayout,
-          })
+            return await continueFromInitialStream(renderStream, {
+              dataStream:
+                serverErrorComponentsRenderOpts.transformStream.readable,
+              generateStaticHTML: staticGenerationStore.isStaticGeneration,
+              getServerInsertedHTML: () => getServerInsertedHTML([]),
+              serverInsertedHTMLToHead: true,
+              ...validateRootLayout,
+            })
+          } catch (err: any) {
+            if (isNotFoundError(err)) bailOnNotFound()
+            throw err
+          }
         }
       }
     )
