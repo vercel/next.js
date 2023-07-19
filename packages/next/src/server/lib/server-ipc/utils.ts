@@ -1,6 +1,7 @@
 export const forbiddenHeaders = [
   'accept-encoding',
   'keepalive',
+  'keep-alive',
   'content-encoding',
   'transfer-encoding',
   // https://github.com/nodejs/undici/issues/1470

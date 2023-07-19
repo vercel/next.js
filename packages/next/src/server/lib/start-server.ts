@@ -7,7 +7,11 @@ import { isIPv6 } from 'net'
 import { initialEnv } from '@next/env'
 import * as Log from '../../build/output/log'
 import setupDebug from 'next/dist/compiled/debug'
+import { splitCookiesString } from '../web/utils'
+import { getCloneableBody } from '../body-streams'
+import { filterReqHeaders } from './server-ipc/utils'
 import { normalizeRepeatedSlashes } from '../../shared/lib/utils'
+import { invokeRequest, pipeReadable } from './server-ipc/invoke-request'
 import {
   genRouterWorkerExecArgv,
   getDebugPort,
@@ -322,6 +326,11 @@ export async function startServer({
           followRedirects: false,
         })
 
+        // add error listener to prevent uncaught exceptions
+        proxyServer.on('error', (_err) => {
+          // TODO?: enable verbose error logs with --debug flag?
+        })
+
         proxyServer.on('proxyRes', (proxyRes, innerReq, innerRes) => {
           const cleanupProxy = (err: any) => {
             // cleanup event listeners to allow clean garbage collection
@@ -359,29 +368,54 @@ export async function startServer({
           res.end(cleanUrl)
           return
         }
-        const proxyServer = getProxyServer(req.url || '/')
+        const targetUrl = `http://${
+          targetHost === 'localhost' ? '127.0.0.1' : targetHost
+        }:${routerPort}${req.url || '/'}`
 
-        // http-proxy does not properly detect a client disconnect in newer
-        // versions of Node.js. This is caused because it only listens for the
-        // `aborted` event on the our request object, but it also fully reads
-        // and closes the request object. Node **will not** fire `aborted` when
-        // the request is already closed. Listening for `close` on our response
-        // object will detect the disconnect, and we can abort the proxy's
-        // connection.
-        proxyServer.on('proxyReq', (proxyReq) => {
-          res.on('close', () => proxyReq.destroy())
-        })
-        proxyServer.on('proxyRes', (proxyRes) => {
-          res.on('close', () => proxyRes.destroy())
-        })
-        // add error listeners to prevent uncaught exceptions on socket errors
-        req.on('error', (_err) => {
-          // TODO: log socket errors?
-        })
-        res.on('error', (_err) => {
-          // TODO: log socket errors?
-        })
-        proxyServer.web(req, res)
+        const invokeRes = await invokeRequest(
+          targetUrl,
+          {
+            headers: req.headers,
+            method: req.method,
+          },
+          getCloneableBody(req).cloneBodyStream()
+        )
+
+        res.statusCode = invokeRes.status
+        res.statusMessage = invokeRes.statusText
+
+        for (const [key, value] of Object.entries(
+          filterReqHeaders(Object.fromEntries(invokeRes.headers))
+        )) {
+          if (value !== undefined) {
+            if (key === 'set-cookie') {
+              const curValue = res.getHeader(key) as string
+              const newValue: string[] = [] as string[]
+
+              for (const cookie of Array.isArray(curValue)
+                ? curValue
+                : splitCookiesString(curValue || '')) {
+                newValue.push(cookie)
+              }
+              for (const val of (Array.isArray(value)
+                ? value
+                : value
+                ? [value]
+                : []) as string[]) {
+                newValue.push(val)
+              }
+              res.setHeader(key, newValue)
+            } else {
+              res.setHeader(key, value as string)
+            }
+          }
+        }
+
+        if (invokeRes.body) {
+          await pipeReadable(invokeRes.body, res)
+        } else {
+          res.end()
+        }
       }
       upgradeHandler = async (req, socket, head) => {
         // add error listeners to prevent uncaught exceptions on socket errors

@@ -491,14 +491,7 @@ export default class DevServer extends Server {
           headers: {},
         }
       )
-      const chunks = []
-
-      for await (const chunk of res) {
-        if (chunk) {
-          chunks.push(chunk)
-        }
-      }
-      const body = Buffer.concat(chunks).toString()
+      const body = await res.text()
 
       if (body.startsWith('{') && body.endsWith('}')) {
         const parsedBody = JSON.parse(body)

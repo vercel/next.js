@@ -91,7 +91,7 @@ import { getTracer } from './lib/trace/tracer'
 import { NextNodeServerSpan } from './lib/trace/constants'
 import { nodeFs } from './lib/node-fs-methods'
 import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
-import { invokeRequest } from './lib/server-ipc/invoke-request'
+import { invokeRequest, pipeReadable } from './lib/server-ipc/invoke-request'
 import { filterReqHeaders } from './lib/server-ipc/utils'
 import { createRequestResponseMocks } from './lib/mock-request'
 import chalk from 'next/dist/compiled/chalk'
@@ -520,13 +520,20 @@ export default class NextNodeServer extends BaseServer {
               headers: newReq.headers,
             }
           )
-          const filteredResHeaders = filterReqHeaders(invokeRes.headers)
+          const filteredResHeaders = filterReqHeaders(
+            Object.fromEntries(invokeRes.headers)
+          )
 
           for (const key of Object.keys(filteredResHeaders)) {
             newRes.setHeader(key, filteredResHeaders[key] || '')
           }
-          newRes.statusCode = invokeRes.statusCode || 200
-          invokeRes.pipe(newRes)
+          newRes.statusCode = invokeRes.status || 200
+
+          if (invokeRes.body) {
+            await pipeReadable(invokeRes.body, newRes)
+          } else {
+            res.send()
+          }
           return
         }
         return this.getRequestHandler()(

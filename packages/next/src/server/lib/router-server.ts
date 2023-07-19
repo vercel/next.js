@@ -14,7 +14,7 @@ import { IncomingMessage, ServerResponse } from 'http'
 import { findPagesDir } from '../../lib/find-pages-dir'
 import { setupFsCheck } from './router-utils/filesystem'
 import { proxyRequest } from './router-utils/proxy-request'
-import { invokeRequest } from './server-ipc/invoke-request'
+import { invokeRequest, pipeReadable } from './server-ipc/invoke-request'
 import { createRequestResponseMocks } from './mock-request'
 import { createIpcServer, createWorker } from './server-ipc'
 import { UnwrapPromise } from '../../lib/coalesced-function'
@@ -351,17 +351,17 @@ export async function initialize(opts: {
         getRequestMeta(req, '__NEXT_CLONABLE_BODY')?.cloneBodyStream()
       )
 
-      debug('invokeRender res', invokeRes.statusCode, invokeRes.headers)
+      debug('invokeRender res', invokeRes.status, invokeRes.headers)
 
       // when we receive x-no-fallback we restart
-      if (invokeRes.headers['x-no-fallback']) {
+      if (invokeRes.headers.get('x-no-fallback')) {
         // eslint-disable-next-line
         await handleRequest(handleIndex + 1)
         return
       }
 
       for (const [key, value] of Object.entries(
-        filterReqHeaders({ ...invokeRes.headers })
+        filterReqHeaders(Object.fromEntries(invokeRes.headers))
       )) {
         if (value !== undefined) {
           if (key === 'set-cookie') {
@@ -386,14 +386,15 @@ export async function initialize(opts: {
           }
         }
       }
-      res.statusCode = invokeRes.statusCode || 200
-      res.statusMessage = invokeRes.statusMessage || ''
+      res.statusCode = invokeRes.status || 200
+      res.statusMessage = invokeRes.statusText || ''
 
-      for await (const chunk of invokeRes) {
-        if (res.closed) break
-        writeResponseChunk(res, chunk)
+      if (invokeRes.body) {
+        await pipeReadable(invokeRes.body, res)
+      } else {
+        res.end()
       }
-      return res.end()
+      return
     }
 
     const handleRequest = async (handleIndex: number) => {
@@ -484,11 +485,7 @@ export async function initialize(opts: {
       // handle middleware body response
       if (bodyStream) {
         res.statusCode = statusCode || 200
-
-        for await (const chunk of bodyStream) {
-          writeResponseChunk(res, chunk)
-        }
-        return res.end()
+        return await pipeReadable(bodyStream, res)
       }
 
       if (finished && parsedUrl.protocol) {

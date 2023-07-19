@@ -96,7 +96,7 @@ export function getResolveRoutes(
   ): Promise<{
     finished: boolean
     statusCode?: number
-    bodyStream?: IncomingMessage
+    bodyStream?: ReadableStream | null
     resHeaders: Record<string, string | string[]>
     parsedUrl: NextUrlWithParsedQuery
     matchedOutput?: FsOutput | null
@@ -460,17 +460,14 @@ export function getResolveRoutes(
               },
               getRequestMeta(req, '__NEXT_CLONABLE_BODY')?.cloneBodyStream()
             )
+            const middlewareHeaders = Object.fromEntries(middlewareRes.headers)
 
-            debug(
-              'middleware res',
-              middlewareRes.statusCode,
-              middlewareRes.headers
-            )
+            debug('middleware res', middlewareRes.status, middlewareHeaders)
 
-            if (middlewareRes.headers['x-middleware-override-headers']) {
+            if (middlewareHeaders['x-middleware-override-headers']) {
               const overriddenHeaders: Set<string> = new Set()
-              let overrideHeaders =
-                middlewareRes.headers['x-middleware-override-headers']
+              let overrideHeaders: string | string[] =
+                middlewareHeaders['x-middleware-override-headers']
 
               if (typeof overrideHeaders === 'string') {
                 overrideHeaders = overrideHeaders.split(',')
@@ -479,7 +476,7 @@ export function getResolveRoutes(
               for (const key of overrideHeaders) {
                 overriddenHeaders.add(key.trim())
               }
-              delete middlewareRes.headers['x-middleware-override-headers']
+              delete middlewareHeaders['x-middleware-override-headers']
 
               // Delete headers.
               for (const key of Object.keys(req.headers)) {
@@ -491,27 +488,27 @@ export function getResolveRoutes(
               // Update or add headers.
               for (const key of overriddenHeaders.keys()) {
                 const valueKey = 'x-middleware-request-' + key
-                const newValue = middlewareRes.headers[valueKey]
+                const newValue = middlewareHeaders[valueKey]
                 const oldValue = req.headers[key]
 
                 if (oldValue !== newValue) {
                   req.headers[key] = newValue === null ? undefined : newValue
                 }
-                delete middlewareRes.headers[valueKey]
+                delete middlewareHeaders[valueKey]
               }
             }
 
             if (
-              !middlewareRes.headers['x-middleware-rewrite'] &&
-              !middlewareRes.headers['x-middleware-next'] &&
-              !middlewareRes.headers['location']
+              !middlewareHeaders['x-middleware-rewrite'] &&
+              !middlewareHeaders['x-middleware-next'] &&
+              !middlewareHeaders['location']
             ) {
-              middlewareRes.headers['x-middleware-refresh'] = '1'
+              middlewareHeaders['x-middleware-refresh'] = '1'
             }
-            delete middlewareRes.headers['x-middleware-next']
+            delete middlewareHeaders['x-middleware-next']
 
             for (const [key, value] of Object.entries({
-              ...filterReqHeaders(middlewareRes.headers),
+              ...filterReqHeaders(middlewareHeaders),
             })) {
               if (
                 [
@@ -532,10 +529,8 @@ export function getResolveRoutes(
               }
             }
 
-            if (middlewareRes.headers['x-middleware-rewrite']) {
-              const value = middlewareRes.headers[
-                'x-middleware-rewrite'
-              ] as string
+            if (middlewareHeaders['x-middleware-rewrite']) {
+              const value = middlewareHeaders['x-middleware-rewrite'] as string
               const rel = relativizeURL(value, initUrl)
               resHeaders['x-middleware-rewrite'] = rel
 
@@ -569,8 +564,8 @@ export function getResolveRoutes(
               }
             }
 
-            if (middlewareRes.headers['location']) {
-              const value = middlewareRes.headers['location'] as string
+            if (middlewareHeaders['location']) {
+              const value = middlewareHeaders['location'] as string
               const rel = relativizeURL(value, initUrl)
               resHeaders['location'] = rel
               parsedUrl = url.parse(rel, true)
@@ -579,17 +574,17 @@ export function getResolveRoutes(
                 parsedUrl,
                 resHeaders,
                 finished: true,
-                statusCode: middlewareRes.statusCode,
+                statusCode: middlewareRes.status,
               }
             }
 
-            if (middlewareRes.headers['x-middleware-refresh']) {
+            if (middlewareHeaders['x-middleware-refresh']) {
               return {
                 parsedUrl,
                 resHeaders,
                 finished: true,
-                bodyStream: middlewareRes,
-                statusCode: middlewareRes.statusCode,
+                bodyStream: middlewareRes.body,
+                statusCode: middlewareRes.status,
               }
             }
           }

@@ -19,6 +19,7 @@ import { PERMANENT_REDIRECT_STATUS } from '../../shared/lib/constants'
 import { splitCookiesString, toNodeOutgoingHttpHeaders } from '../web/utils'
 import { signalFromNodeRequest } from '../web/spec-extension/adapters/next-request'
 import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
+import { pipeReadable } from './server-ipc/invoke-request'
 
 type RouteResult =
   | {
@@ -265,12 +266,7 @@ export async function makeResolver(
     // handle middleware body response
     if (bodyStream) {
       res.statusCode = statusCode || 200
-
-      for await (const chunk of bodyStream) {
-        writeResponseChunk(res, chunk)
-      }
-      res.end()
-      return
+      return await pipeReadable(bodyStream, res)
     }
 
     if (finished && parsedUrl.protocol) {
