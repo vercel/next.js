@@ -201,6 +201,7 @@ export default class HotReloader {
     staleness: 'unknown',
     installed: '0.0.0',
   }
+  private reloadAfterInvalidation: boolean = false
   public multiCompiler?: webpack.MultiCompiler
   public activeConfigs?: Array<
     UnwrapPromise<ReturnType<typeof getBaseWebpackConfig>>
@@ -338,6 +339,14 @@ export default class HotReloader {
     }
   }
 
+  public async refreshServerComponents(): Promise<void> {
+    this.send({
+      action: 'serverComponentChanges',
+      // TODO: granular reloading of changes
+      // entrypoints: serverComponentChanges,
+    })
+  }
+
   public onHMR(req: IncomingMessage, _socket: Duplex, head: Buffer) {
     wsServer.handleUpgrade(req, req.socket, head, (client) => {
       this.webpackHotMiddleware?.onHMR(client)
@@ -418,8 +427,10 @@ export default class HotReloader {
                 )?.[1]
                 if (file) {
                   // `file` is filepath in `pages/` but it can be weird long webpack url in `app/`.
-                  // If it's a webpack loader URL, it will start with '(app-client)/./'
-                  if (file.startsWith('(app-client)/./')) {
+                  // If it's a webpack loader URL, it will start with '(app-pages)/./'
+                  if (
+                    file.startsWith(`(${WEBPACK_LAYERS.appPagesBrowser})/./`)
+                  ) {
                     const fileUrl = new URL(file, 'file://')
                     const cwd = process.cwd()
                     const modules = fileUrl.searchParams
@@ -776,7 +787,7 @@ export default class HotReloader {
               this.hasAppRouterEntrypoints = true
             }
 
-            await runDependingOnPageType({
+            runDependingOnPageType({
               page,
               pageRuntime: staticInfo.runtime,
               pageType,
@@ -1029,13 +1040,13 @@ export default class HotReloader {
                       // every time for both server and client so we calculate
                       // the hash without the source map for the page module
                       const hash = require('crypto')
-                        .createHash('sha256')
+                        .createHash('sha1')
                         .update(mod.originalSource().buffer())
                         .digest()
                         .toString('hex')
 
                       if (
-                        mod.layer === WEBPACK_LAYERS.server &&
+                        mod.layer === WEBPACK_LAYERS.reactServerComponents &&
                         mod?.buildInfo?.rsc?.type !== 'client'
                       ) {
                         chunksHashServerLayer.add(hash)
@@ -1050,7 +1061,7 @@ export default class HotReloader {
                       )
 
                       if (
-                        mod.layer === WEBPACK_LAYERS.server &&
+                        mod.layer === WEBPACK_LAYERS.reactServerComponents &&
                         mod?.buildInfo?.rsc?.type !== 'client'
                       ) {
                         chunksHashServerLayer.add(hash)
@@ -1083,7 +1094,8 @@ export default class HotReloader {
                   pageHashMap.set(key, curHash)
 
                   if (serverComponentChangedItems) {
-                    const serverKey = WEBPACK_LAYERS.server + ':' + key
+                    const serverKey =
+                      WEBPACK_LAYERS.reactServerComponents + ':' + key
                     const prevServerHash = pageHashMap.get(serverKey)
                     const curServerHash = chunksHashServerLayer.toString()
                     if (prevServerHash && prevServerHash !== curServerHash) {
@@ -1201,6 +1213,9 @@ export default class HotReloader {
     )
 
     this.multiCompiler.hooks.done.tap('NextjsHotReloaderForServer', () => {
+      const reloadAfterInvalidation = this.reloadAfterInvalidation
+      this.reloadAfterInvalidation = false
+
       const serverOnlyChanges = difference<string>(
         changedServerPages,
         changedClientPages
@@ -1233,12 +1248,12 @@ export default class HotReloader {
         })
       }
 
-      if (changedServerComponentPages.size || changedCSSImportPages.size) {
-        this.send({
-          action: 'serverComponentChanges',
-          // TODO: granular reloading of changes
-          // entrypoints: serverComponentChanges,
-        })
+      if (
+        changedServerComponentPages.size ||
+        changedCSSImportPages.size ||
+        reloadAfterInvalidation
+      ) {
+        this.refreshServerComponents()
       }
 
       changedClientPages.clear()
@@ -1336,7 +1351,13 @@ export default class HotReloader {
     ]
   }
 
-  public invalidate() {
+  public invalidate(
+    { reloadAfterInvalidation }: { reloadAfterInvalidation: boolean } = {
+      reloadAfterInvalidation: false,
+    }
+  ) {
+    // Cache the `reloadAfterInvalidation` flag, and use it to reload the page when compilation is done
+    this.reloadAfterInvalidation = reloadAfterInvalidation
     const outputPath = this.multiCompiler?.outputPath
     return outputPath && getInvalidator(outputPath)?.invalidate()
   }

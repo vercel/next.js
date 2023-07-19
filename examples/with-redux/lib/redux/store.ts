@@ -15,10 +15,10 @@ import {
 import { reducer } from './rootReducer'
 import { middleware } from './middleware'
 
-const configreStoreDefaultOptions: ConfigureStoreOptions = { reducer }
+const configureStoreDefaultOptions: ConfigureStoreOptions = { reducer }
 
 export const makeReduxStore = (
-  options: ConfigureStoreOptions = configreStoreDefaultOptions
+  options: ConfigureStoreOptions = configureStoreDefaultOptions
 ) => {
   const store = configureStore(options)
 

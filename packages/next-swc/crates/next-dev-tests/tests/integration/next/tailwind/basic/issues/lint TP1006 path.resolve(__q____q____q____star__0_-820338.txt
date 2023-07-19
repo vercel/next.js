@@ -8,7 +8,7 @@ PlainIssue {
     documentation_link: "",
     source: Some(
         PlainIssueSource {
-            asset: PlainAsset {
+            asset: PlainSource {
                 ident: "[project]/node_modules/.pnpm/postcss@8.4.14/node_modules/postcss/lib/input.js",
             },
             start: SourcePos {

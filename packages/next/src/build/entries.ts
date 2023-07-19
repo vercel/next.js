@@ -314,7 +314,7 @@ export function getEdgeServerEntry(opts: {
 
     return {
       import: `next-edge-app-route-loader?${stringify(loaderParams)}!`,
-      layer: WEBPACK_LAYERS.server,
+      layer: WEBPACK_LAYERS.reactServerComponents,
     }
   }
   if (isMiddlewareFile(opts.page)) {
@@ -386,14 +386,14 @@ export function getEdgeServerEntry(opts: {
     // The Edge bundle includes the server in its entrypoint, so it has to
     // be in the SSR layer — we later convert the page request to the RSC layer
     // via a webpack rule.
-    layer: opts.appDirLoader ? WEBPACK_LAYERS.client : undefined,
+    layer: opts.appDirLoader ? WEBPACK_LAYERS.serverSideRendering : undefined,
   }
 }
 
 export function getAppEntry(opts: Readonly<AppLoaderOptions>) {
   return {
     import: `next-app-loader?${stringify(opts)}!`,
-    layer: WEBPACK_LAYERS.server,
+    layer: WEBPACK_LAYERS.reactServerComponents,
   }
 }
 
@@ -416,34 +416,35 @@ export function getClientEntry(opts: {
     : pageLoader
 }
 
-export async function runDependingOnPageType<T>(params: {
+export function runDependingOnPageType<T>(params: {
   onClient: () => T
   onEdgeServer: () => T
   onServer: () => T
   page: string
   pageRuntime: ServerRuntime
   pageType?: 'app' | 'pages' | 'root'
-}): Promise<void> {
+}): void {
   if (params.pageType === 'root' && isInstrumentationHookFile(params.page)) {
-    await Promise.all([params.onServer(), params.onEdgeServer()])
+    params.onServer()
+    params.onEdgeServer()
     return
   }
 
   if (isMiddlewareFile(params.page)) {
-    await params.onEdgeServer()
+    params.onEdgeServer()
     return
   }
   if (isAPIRoute(params.page)) {
     if (isEdgeRuntime(params.pageRuntime)) {
-      await params.onEdgeServer()
+      params.onEdgeServer()
       return
     }
 
-    await params.onServer()
+    params.onServer()
     return
   }
   if (params.page === '/_document') {
-    await params.onServer()
+    params.onServer()
     return
   }
   if (
@@ -452,15 +453,18 @@ export async function runDependingOnPageType<T>(params: {
     params.page === '/404' ||
     params.page === '/500'
   ) {
-    await Promise.all([params.onClient(), params.onServer()])
+    params.onClient()
+    params.onServer()
     return
   }
   if (isEdgeRuntime(params.pageRuntime)) {
-    await Promise.all([params.onClient(), params.onEdgeServer()])
+    params.onClient()
+    params.onEdgeServer()
     return
   }
 
-  await Promise.all([params.onClient(), params.onServer()])
+  params.onClient()
+  params.onServer()
   return
 }
 
@@ -556,7 +560,7 @@ export async function createEntrypoints(
         ]
       }
 
-      await runDependingOnPageType({
+      runDependingOnPageType({
         page,
         pageRuntime: staticInfo.runtime,
         pageType: pagesType,
@@ -712,7 +716,7 @@ export function finalizeEntrypoint({
         layer: isApi
           ? WEBPACK_LAYERS.api
           : isServerComponent
-          ? WEBPACK_LAYERS.server
+          ? WEBPACK_LAYERS.reactServerComponents
           : undefined,
         ...entry,
       }
@@ -747,7 +751,7 @@ export function finalizeEntrypoint({
         if (isAppLayer) {
           return {
             dependOn: CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
-            layer: WEBPACK_LAYERS.appClient,
+            layer: WEBPACK_LAYERS.appPagesBrowser,
             ...entry,
           }
         }
@@ -763,7 +767,7 @@ export function finalizeEntrypoint({
 
       if (isAppLayer) {
         return {
-          layer: WEBPACK_LAYERS.appClient,
+          layer: WEBPACK_LAYERS.appPagesBrowser,
           ...entry,
         }
       }

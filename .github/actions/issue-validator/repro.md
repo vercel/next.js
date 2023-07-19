@@ -4,9 +4,11 @@ We cannot recreate the issue with the provided information. **Please add a repro
 
 To be able to investigate, we need access to a reproduction to identify what triggered the issue. We prefer a link to a public GitHub repository ([template for `pages`](https://github.com/vercel/next.js/tree/canary/examples/reproduction-template), [template for App Router](https://github.com/vercel/next.js/tree/canary/examples/reproduction-template-app-dir)), but you can also use these templates: [CodeSandbox: `pages`](https://codesandbox.io/s/github/vercel/next.js/tree/canary/examples/reproduction-template) or [CodeSandbox: App Router](https://github.com/vercel/next.js/tree/canary/examples/reproduction-template-app-dir).
 
-To make sure the issue is resolved as quickly as possible, please make sure that the reproduction is as **minimal** as possible. This means that you should **remove unnecessary code, files, and dependencies** that do not contribute to the issue.
+To make sure the issue is resolved as quickly as possible, please make sure that the reproduction is as **minimal** as possible. This means that you should **remove unnecessary code, files, and dependencies** that do not contribute to the issue. Ensure your reproduction does not depend on secrets, 3rd party registries, private dependencies, or any other data that cannot be made public. Avoid a reproduction including a whole monorepo (unless relevant to the issue). The easier it is to reproduce the issue, the quicker we can help.
 
 Please test your reproduction against the latest version of Next.js (`next@canary`) to make sure your issue has not already been fixed.
+
+If you cannot create a clean reproduction, another way you can help the maintainers' job is to pinpoint the `canary` version of `next` that introduced the issue. Check out our [releases](https://github.com/vercel/next.js/releases), and try to find the first `canary` release that introduced the issue. This will help us narrow down the scope of the issue, and possibly point to the PR/code change that introduced it. You can install a specific version of `next` by running `npm install next@<version>`.
 
 ### **I added a link, why was it still marked?**
 

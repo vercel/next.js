@@ -79,9 +79,6 @@ module.exports = {
           path: 'next.config.js',
           content: `
             module.exports = {
-              experimental: {
-                appDir: true,
-              },
               generateBuildId: () => 'BUILD_ID',
               webpack(config) {
                 config.optimization.minimize = false
@@ -99,9 +96,6 @@ module.exports = {
           path: 'next.config.js',
           content: `
           module.exports = {
-              experimental: {
-                appDir: true,
-              },
               generateBuildId: () => 'BUILD_ID'
             }
           `,

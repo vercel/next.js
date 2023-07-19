@@ -5,10 +5,6 @@ import { check, findPort, killApp, launchApp, nextBuild } from 'next-test-utils'
 const appDir = path.join(__dirname, '..')
 
 const setupAppDir = async () => {
-  await fs.writeFile(
-    path.join(__dirname, '../next.config.js'),
-    'module.exports = { experimental: { appDir: true } }'
-  )
   await fs.mkdir(path.join(__dirname, '../app'))
   await fs.writeFile(
     path.join(__dirname, '../app/layout.js'),
@@ -29,7 +25,6 @@ const setupAppDir = async () => {
 
   return async function teardownAppDir() {
     await fs.remove(path.join(__dirname, '../app'))
-    await fs.remove(path.join(__dirname, '../next.config.js'))
   }
 }
 

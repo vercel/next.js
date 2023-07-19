@@ -34,6 +34,7 @@ import {
   ACTION_SERVER_ACTION,
   ACTION_SERVER_PATCH,
   PrefetchKind,
+  ReducerActions,
   RouterChangeByServerResponse,
   RouterNavigate,
   ServerActionDispatcher,
@@ -75,16 +76,14 @@ export function urlToUrlWithoutFlightMarker(url: string): URL {
   const urlWithoutFlightParameters = new URL(url, location.origin)
   urlWithoutFlightParameters.searchParams.delete(NEXT_RSC_UNION_QUERY)
   if (process.env.NODE_ENV === 'production') {
-    if (process.env.__NEXT_CONFIG_OUTPUT === 'export') {
-      if (urlWithoutFlightParameters.pathname.endsWith('/index.txt')) {
-        // Slice off `/index.txt` from the end of the pathname
-        urlWithoutFlightParameters.pathname =
-          urlWithoutFlightParameters.pathname.slice(0, -`/index.txt`.length)
-      } else {
-        // Slice off `.txt` from the end of the pathname
-        urlWithoutFlightParameters.pathname =
-          urlWithoutFlightParameters.pathname.slice(0, -`.txt`.length)
-      }
+    if (
+      process.env.__NEXT_CONFIG_OUTPUT === 'export' &&
+      urlWithoutFlightParameters.pathname.endsWith('.txt')
+    ) {
+      const { pathname } = urlWithoutFlightParameters
+      const length = pathname.endsWith('/index.txt') ? 10 : 4
+      // Slice off `/index.txt` or `.txt` from the end of the pathname
+      urlWithoutFlightParameters.pathname = pathname.slice(0, -length)
     }
   }
   return urlWithoutFlightParameters
@@ -107,7 +106,6 @@ type AppRouterProps = Omit<
   assetPrefix: string
   // Top level boundaries props
   notFound: React.ReactNode | undefined
-  notFoundStyles?: React.ReactNode | undefined
   asNotFound?: boolean
 }
 
@@ -146,6 +144,76 @@ const createEmptyCacheNode = () => ({
   parallelRoutes: new Map(),
 })
 
+function useServerActionDispatcher(
+  changeByServerResponse: RouterChangeByServerResponse,
+  dispatch: React.Dispatch<ReducerActions>,
+  navigate: RouterNavigate
+) {
+  const serverActionDispatcher: ServerActionDispatcher = useCallback(
+    (actionPayload) => {
+      startTransition(() => {
+        dispatch({
+          ...actionPayload,
+          type: ACTION_SERVER_ACTION,
+          mutable: {},
+          navigate,
+          changeByServerResponse,
+        })
+      })
+    },
+    [changeByServerResponse, dispatch, navigate]
+  )
+  globalServerActionDispatcher = serverActionDispatcher
+}
+
+/**
+ * Server response that only patches the cache and tree.
+ */
+function useChangeByServerResponse(
+  dispatch: React.Dispatch<ReducerActions>
+): RouterChangeByServerResponse {
+  return useCallback(
+    (
+      previousTree: FlightRouterState,
+      flightData: FlightData,
+      overrideCanonicalUrl: URL | undefined
+    ) => {
+      startTransition(() => {
+        dispatch({
+          type: ACTION_SERVER_PATCH,
+          flightData,
+          previousTree,
+          overrideCanonicalUrl,
+          cache: createEmptyCacheNode(),
+          mutable: {},
+        })
+      })
+    },
+    [dispatch]
+  )
+}
+
+function useNavigate(dispatch: React.Dispatch<ReducerActions>): RouterNavigate {
+  return useCallback(
+    (href, navigateType, forceOptimisticNavigation, shouldScroll) => {
+      const url = new URL(addBasePath(href), location.href)
+
+      return dispatch({
+        type: ACTION_NAVIGATE,
+        url,
+        isExternalUrl: isExternalURL(url),
+        locationSearch: location.search,
+        forceOptimisticNavigation,
+        shouldScroll: shouldScroll ?? true,
+        navigateType,
+        cache: createEmptyCacheNode(),
+        mutable: {},
+      })
+    },
+    [dispatch]
+  )
+}
+
 /**
  * The global router that wraps the application components.
  */
@@ -157,7 +225,6 @@ function Router({
   children,
   assetPrefix,
   notFound,
-  notFoundStyles,
   asNotFound,
 }: AppRouterProps) {
   const initialState = useMemo(
@@ -207,67 +274,9 @@ function Router({
     }
   }, [canonicalUrl])
 
-  /**
-   * Server response that only patches the cache and tree.
-   */
-  const changeByServerResponse: RouterChangeByServerResponse = useCallback(
-    (
-      previousTree: FlightRouterState,
-      flightData: FlightData,
-      overrideCanonicalUrl: URL | undefined
-    ) => {
-      startTransition(() => {
-        dispatch({
-          type: ACTION_SERVER_PATCH,
-          flightData,
-          previousTree,
-          overrideCanonicalUrl,
-          cache: createEmptyCacheNode(),
-          mutable: {},
-        })
-      })
-    },
-    [dispatch]
-  )
-
-  const navigate: RouterNavigate = useCallback(
-    (
-      href: string,
-      navigateType: 'push' | 'replace',
-      forceOptimisticNavigation: boolean
-    ) => {
-      const url = new URL(addBasePath(href), location.href)
-
-      return dispatch({
-        type: ACTION_NAVIGATE,
-        url,
-        isExternalUrl: isExternalURL(url),
-        locationSearch: location.search,
-        forceOptimisticNavigation,
-        navigateType,
-        cache: createEmptyCacheNode(),
-        mutable: {},
-      })
-    },
-    [dispatch]
-  )
-
-  const serverActionDispatcher: ServerActionDispatcher = useCallback(
-    (actionPayload) => {
-      startTransition(() => {
-        dispatch({
-          ...actionPayload,
-          type: ACTION_SERVER_ACTION,
-          mutable: {},
-          navigate,
-          changeByServerResponse,
-        })
-      })
-    },
-    [changeByServerResponse, dispatch, navigate]
-  )
-
-  globalServerActionDispatcher = serverActionDispatcher
+  const changeByServerResponse = useChangeByServerResponse(dispatch)
+  const navigate = useNavigate(dispatch)
+  useServerActionDispatcher(changeByServerResponse, dispatch, navigate)
 
   /**
    * The app router that is exposed through `useRouter`. It's only concerned with dispatching actions to the reducer, does not hold state.
@@ -296,12 +305,22 @@ function Router({
       },
       replace: (href, options = {}) => {
         startTransition(() => {
-          navigate(href, 'replace', Boolean(options.forceOptimisticNavigation))
+          navigate(
+            href,
+            'replace',
+            Boolean(options.forceOptimisticNavigation),
+            options.scroll ?? true
+          )
         })
       },
       push: (href, options = {}) => {
         startTransition(() => {
-          navigate(href, 'push', Boolean(options.forceOptimisticNavigation))
+          navigate(
+            href,
+            'push',
+            Boolean(options.forceOptimisticNavigation),
+            options.scroll ?? true
+          )
         })
       },
       refresh: () => {
@@ -426,7 +445,7 @@ function Router({
     return findHeadInCache(cache, tree[1])
   }, [cache, tree])
 
-  const notFoundProps = { notFound, notFoundStyles, asNotFound }
+  const notFoundProps = { notFound, asNotFound }
 
   const content = (
     <RedirectBoundary>

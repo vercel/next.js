@@ -1,10 +1,13 @@
 import type webpack from 'webpack'
 import type { SizeLimit } from '../../../../../types'
+import type { PagesRouteModuleOptions } from '../../../../server/future/route-modules/pages/module'
+import type { MiddlewareConfig } from '../../../analysis/get-page-static-info'
 
 import { getModuleBuildInfo } from '../get-module-build-info'
 import { WEBPACK_RESOURCE_QUERIES } from '../../../../lib/constants'
 import { stringifyRequest } from '../../stringify-request'
-import { MiddlewareConfig } from '../../../analysis/get-page-static-info'
+import { RouteKind } from '../../../../server/future/route-kind'
+import { normalizePagePath } from '../../../../shared/lib/page-path/normalize-page-path'
 
 export type EdgeSSRLoaderQuery = {
   absolute500Path: string
@@ -36,6 +39,21 @@ so we have to do it here. It's not that bad because it keeps all references to E
 */
 function swapDistFolderWithEsmDistFolder(path: string) {
   return path.replace('next/dist/pages', 'next/dist/esm/pages')
+}
+
+function getRouteModuleOptions(page: string) {
+  const options: Omit<PagesRouteModuleOptions, 'userland' | 'components'> = {
+    definition: {
+      kind: RouteKind.PAGES,
+      page: normalizePagePath(page),
+      pathname: page,
+      // The following aren't used in production.
+      bundlePath: '',
+      filename: '',
+    },
+  }
+
+  return options
 }
 
 const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
@@ -129,21 +147,67 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
     `
         : `
       import Document from ${stringifiedDocumentPath}
-      import { renderToHTML } from 'next/dist/esm/server/render'
-      import * as pageMod from ${stringifiedPagePath}
       import * as appMod from ${stringifiedAppPath}
-      import * as errorMod from ${stringifiedErrorPath}
+      import * as userlandPage from ${stringifiedPagePath}
+      import * as userlandErrorPage from ${stringifiedErrorPath}
       ${
         stringified500Path
-          ? `import * as error500Mod from ${stringified500Path}`
-          : `const error500Mod = null`
+          ? `import * as userland500Page from ${stringified500Path}`
+          : ''
       }
-    `
+
+      // TODO: re-enable this once we've refactored to use implicit matches
+      // const renderToHTML = undefined
+
+      import { renderToHTML } from 'next/dist/esm/server/render'
+      import RouteModule from "next/dist/esm/server/future/route-modules/pages/module"
+
+      const pageMod = {
+        ...userlandPage,
+        routeModule: new RouteModule({
+          ...${JSON.stringify(getRouteModuleOptions(page))},
+          components: {
+            App: appMod.default,
+            Document,
+          },
+          userland: userlandPage,
+        }),
+      }
+
+      const errorMod = {
+        ...userlandErrorPage,
+        routeModule: new RouteModule({
+          ...${JSON.stringify(getRouteModuleOptions('/_error'))},
+          components: {
+            App: appMod.default,
+            Document,
+          },
+          userland: userlandErrorPage,
+        }),
+      }
+
+      const error500Mod = ${
+        stringified500Path
+          ? `{
+        ...userland500Page,
+        routeModule: new RouteModule({
+          ...${JSON.stringify(getRouteModuleOptions('/500'))},
+          components: {
+            App: appMod.default,
+            Document,
+          },
+          userland: userland500Page,
+        }),
+      }`
+          : 'null'
+      }`
     }
 
     ${
       incrementalCacheHandlerPath
-        ? `import incrementalCacheHandler from "${incrementalCacheHandlerPath}"`
+        ? `import incrementalCacheHandler from ${JSON.stringify(
+            incrementalCacheHandlerPath
+          )}`
         : 'const incrementalCacheHandler = null'
     }
 
@@ -152,7 +216,9 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
     const buildManifest = self.__BUILD_MANIFEST
     const prerenderManifest = maybeJSONParse(self.__PRERENDER_MANIFEST)
     const reactLoadableManifest = maybeJSONParse(self.__REACT_LOADABLE_MANIFEST)
-    const rscManifest = maybeJSONParse(self.__RSC_MANIFEST)
+    const rscManifest = maybeJSONParse(self.__RSC_MANIFEST?.[${JSON.stringify(
+      page
+    )}])
     const rscServerManifest = maybeJSONParse(self.__RSC_SERVER_MANIFEST)
     const subresourceIntegrityManifest = ${
       sriEnabled
