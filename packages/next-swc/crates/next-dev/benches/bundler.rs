@@ -1,5 +1,7 @@
 use std::{
-    io::{self, Write},
+    io::{
+        Write, {self},
+    },
     path::{Path, PathBuf},
     process::{Child, Command, Stdio},
 };
@@ -9,7 +11,9 @@ use regex::Regex;
 use turbopack_binding::turbopack::bench::{
     bundlers::{Bundler, RenderType},
     util::{
-        npm::{self, NpmPackage},
+        npm::{
+            NpmPackage, {self},
+        },
         wait_for_match,
     },
 };

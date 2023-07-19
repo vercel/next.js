@@ -4,35 +4,36 @@ use anyhow::{bail, Result};
 use indexmap::indexmap;
 use indoc::writedoc;
 use serde::Serialize;
-use turbo_tasks::{Value, ValueToString};
+use turbo_tasks::{Value, ValueToString, Vc};
 use turbopack_binding::{
-    turbo::tasks_fs::{rope::RopeBuilder, File, FileSystemPathVc},
+    turbo::tasks_fs::{rope::RopeBuilder, File, FileSystemPath},
     turbopack::{
         core::{
-            asset::Asset,
+            asset::AssetContent,
             context::AssetContext,
-            reference_type::{EcmaScriptModulesReferenceSubType, InnerAssetsVc, ReferenceType},
-            source::SourceVc,
-            virtual_source::VirtualSourceVc,
+            reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
+            source::Source,
+            virtual_source::VirtualSource,
         },
-        ecmascript::{chunk::EcmascriptChunkPlaceableVc, utils::StringifyJs},
-        turbopack::ModuleAssetContextVc,
+        ecmascript::{chunk::EcmascriptChunkPlaceable, utils::StringifyJs},
+        turbopack::ModuleAssetContext,
     },
 };
 
-use super::app_entries::{AppEntry, AppEntryVc};
+use crate::next_app::AppEntry;
 
 /// Computes the entry for a Next.js app route.
-pub(super) async fn get_app_route_entry(
-    rsc_context: ModuleAssetContextVc,
-    source: SourceVc,
-    pathname: &str,
-    project_root: FileSystemPathVc,
-) -> Result<AppEntryVc> {
+#[turbo_tasks::function]
+pub async fn get_app_route_entry(
+    rsc_context: Vc<ModuleAssetContext>,
+    source: Vc<Box<dyn Source>>,
+    pathname: String,
+    project_root: Vc<FileSystemPath>,
+) -> Result<Vc<AppEntry>> {
     let mut result = RopeBuilder::default();
 
     let kind = "app-route";
-    let original_name = get_original_route_name(pathname);
+    let original_name = get_original_route_name(&pathname);
     let path = source.ident().path();
 
     let options = AppRouteRouteModuleOptions {
@@ -99,7 +100,10 @@ pub(super) async fn get_app_route_entry(
 
     let file = File::from(result.build());
     // TODO(alexkirsz) Figure out how to name this virtual asset.
-    let virtual_source = VirtualSourceVc::new(project_root.join("todo.tsx"), file.into());
+    let virtual_source = VirtualSource::new(
+        project_root.join("todo.tsx".to_string()),
+        AssetContent::file(file.into()),
+    );
 
     let entry = rsc_context.process(
         source,
@@ -109,15 +113,17 @@ pub(super) async fn get_app_route_entry(
     );
 
     let inner_assets = indexmap! {
-        "ENTRY".to_string() => entry.into()
+        "ENTRY".to_string() => entry
     };
 
     let rsc_entry = rsc_context.process(
-        virtual_source.into(),
-        Value::new(ReferenceType::Internal(InnerAssetsVc::cell(inner_assets))),
+        Vc::upcast(virtual_source),
+        Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
     );
 
-    let Some(rsc_entry) = EcmascriptChunkPlaceableVc::resolve_from(rsc_entry).await? else {
+    let Some(rsc_entry) =
+        Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(rsc_entry).await?
+    else {
         bail!("expected an ECMAScript chunk placeable asset");
     };
 

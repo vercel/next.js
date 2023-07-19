@@ -427,8 +427,10 @@ export default class HotReloader {
                 )?.[1]
                 if (file) {
                   // `file` is filepath in `pages/` but it can be weird long webpack url in `app/`.
-                  // If it's a webpack loader URL, it will start with '(app-client)/./'
-                  if (file.startsWith('(app-client)/./')) {
+                  // If it's a webpack loader URL, it will start with '(app-pages)/./'
+                  if (
+                    file.startsWith(`(${WEBPACK_LAYERS.appPagesBrowser})/./`)
+                  ) {
                     const fileUrl = new URL(file, 'file://')
                     const cwd = process.cwd()
                     const modules = fileUrl.searchParams
@@ -1044,7 +1046,7 @@ export default class HotReloader {
                         .toString('hex')
 
                       if (
-                        mod.layer === WEBPACK_LAYERS.server &&
+                        mod.layer === WEBPACK_LAYERS.reactServerComponents &&
                         mod?.buildInfo?.rsc?.type !== 'client'
                       ) {
                         chunksHashServerLayer.add(hash)
@@ -1059,7 +1061,7 @@ export default class HotReloader {
                       )
 
                       if (
-                        mod.layer === WEBPACK_LAYERS.server &&
+                        mod.layer === WEBPACK_LAYERS.reactServerComponents &&
                         mod?.buildInfo?.rsc?.type !== 'client'
                       ) {
                         chunksHashServerLayer.add(hash)
@@ -1092,7 +1094,8 @@ export default class HotReloader {
                   pageHashMap.set(key, curHash)
 
                   if (serverComponentChangedItems) {
-                    const serverKey = WEBPACK_LAYERS.server + ':' + key
+                    const serverKey =
+                      WEBPACK_LAYERS.reactServerComponents + ':' + key
                     const prevServerHash = pageHashMap.get(serverKey)
                     const curServerHash = chunksHashServerLayer.toString()
                     if (prevServerHash && prevServerHash !== curServerHash) {
