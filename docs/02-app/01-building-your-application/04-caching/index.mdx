@@ -29,7 +29,7 @@ In Next.js, the [`fetch` API](#fetch) uses `cache` to **deduplicate** requests f
 
 {/* Diagram */}
 
-Since `fetch` requests are automatically deduplicated, you can fetch data in the components that need it without props drilling and worrying about the performance impact of making multiple requests for the same data. Deduplication applies to `fetch` requests in `generateMetadata`, `generateStaticParams`, Layouts, Pages, and other Server Components.
+Since `fetch` requests are automatically memoized, you can fetch data in the components that need it without props drilling and worrying about the performance impact of making multiple requests for the same data. Memoization applies to `fetch` requests in `generateMetadata`, `generateStaticParams`, Layouts, Pages, and other Server Components.
 
 For cases where `fetch` is not suitable (e.g. database clients, CMS clients, or GraphQL), you can use React's `cache` function to manually deduplicate requests. Although Next.js uses `cache` to memoize data requests on the server, the `cache` function can also be used to memoize any function on the server or the client.
 
