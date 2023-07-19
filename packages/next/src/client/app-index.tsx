@@ -226,6 +226,8 @@ const StrictModeIfEnabled = process.env.__NEXT_STRICT_MODE_APP
   : React.Fragment
 
 function Root({ children }: React.PropsWithChildren<{}>): React.ReactElement {
+  let hadRuntimeError = React.useRef(false)
+
   if (process.env.__NEXT_ANALYTICS_ID) {
     // eslint-disable-next-line react-hooks/rules-of-hooks
     React.useEffect(() => {
@@ -271,7 +273,10 @@ function Root({ children }: React.PropsWithChildren<{}>): React.ReactElement {
         }
 
         // minimal "hot reload" support for RSC errors
-        if (obj.action === 'serverComponentChanges') {
+        if (
+          obj.action === 'serverComponentChanges' &&
+          hadRuntimeError.current
+        ) {
           window.location.reload()
         }
       }
@@ -288,7 +293,10 @@ function Root({ children }: React.PropsWithChildren<{}>): React.ReactElement {
     // if an error is thrown while rendering an RSC stream, this will catch it in dev
     // and show the error overlay
     return (
-      <ReactDevOverlay state={INITIAL_OVERLAY_STATE}>
+      <ReactDevOverlay
+        state={INITIAL_OVERLAY_STATE}
+        onReactError={() => (hadRuntimeError.current = true)}
+      >
         {children}
       </ReactDevOverlay>
     )
