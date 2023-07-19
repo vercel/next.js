@@ -5,7 +5,7 @@ use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_binding::turbopack::{
     core::{
         asset::AssetContent, chunk::ModuleId as TurbopackModuleId, output::OutputAsset,
-        raw_output::RawOutput, virtual_source::VirtualSource,
+        virtual_output::VirtualOutputAsset,
     },
     ecmascript::{
         chunk::{EcmascriptChunkItemExt, EcmascriptChunkPlaceable, EcmascriptChunkingContext},
@@ -176,7 +176,7 @@ impl ClientReferenceManifest {
 
         let client_reference_manifest_json = serde_json::to_string(&entry_manifest).unwrap();
 
-        Ok(Vc::upcast(RawOutput::new(Vc::upcast(VirtualSource::new(
+        Ok(Vc::upcast(VirtualOutputAsset::new(
             node_root.join(format!(
                 "server/app/{entry_name}_client-reference-manifest.js",
             )),
@@ -191,7 +191,7 @@ impl ClientReferenceManifest {
                 })
                 .into(),
             ),
-        )))))
+        )))
     }
 }
 

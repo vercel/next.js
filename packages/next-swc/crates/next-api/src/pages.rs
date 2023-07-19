@@ -8,6 +8,7 @@ use next_core::{
         get_client_runtime_entries, ClientContextType,
     },
     next_dynamic::NextDynamicTransition,
+    next_manifests::{BuildManifest, PagesManifest},
     next_server::{
         get_server_module_options_context, get_server_resolve_options_context,
         get_server_runtime_entries, ServerContextType,
@@ -16,18 +17,21 @@ use next_core::{
         find_pages_structure, PagesDirectoryStructure, PagesStructure, PagesStructureItem,
     },
 };
-use turbo_tasks::{Completion, Completions, Value, Vc};
+use serde::{Deserialize, Serialize};
+use turbo_tasks::{trace::TraceRawVcs, Completion, TaskInput, TryJoinIterExt, Value, Vc};
 use turbopack_binding::{
-    turbo::tasks_fs::{FileSystem, FileSystemPath, VirtualFileSystem},
+    turbo::tasks_fs::{File, FileSystem, FileSystemPath, VirtualFileSystem},
     turbopack::{
         core::{
-            changed::{any_content_changed, any_content_changed_of_output_assets},
+            asset::AssetContent,
+            changed::any_content_changed_of_output_assets,
             chunk::{ChunkableModule, ChunkingContext, EvaluatableAssets},
             context::AssetContext,
             file_source::FileSource,
             output::{OutputAsset, OutputAssets},
             reference_type::{EntryReferenceSubType, ReferenceType},
             source::Source,
+            virtual_output::VirtualOutputAsset,
         },
         ecmascript::EcmascriptModuleAsset,
         turbopack::{
@@ -95,7 +99,13 @@ impl PagesProject {
         if let Some(api) = api {
             add_dir_to_routes(&mut routes, *api, |pathname, original_name, path| {
                 Route::PageApi {
-                    endpoint: Vc::upcast(PageApiEndpoint::new(self, pathname, original_name, path)),
+                    endpoint: Vc::upcast(PageEndpoint::new(
+                        PageEndpointType::Api,
+                        self,
+                        pathname,
+                        original_name,
+                        path,
+                    )),
                 }
             })
             .await?;
@@ -103,13 +113,15 @@ impl PagesProject {
         if let Some(page) = pages {
             add_dir_to_routes(&mut routes, *page, |pathname, original_name, path| {
                 Route::Page {
-                    html_endpoint: Vc::upcast(PageHtmlEndpoint::new(
+                    html_endpoint: Vc::upcast(PageEndpoint::new(
+                        PageEndpointType::Html,
                         self,
                         pathname,
                         original_name,
                         path,
                     )),
-                    data_endpoint: Vc::upcast(PageDataEndpoint::new(
+                    data_endpoint: Vc::upcast(PageEndpoint::new(
+                        PageEndpointType::Data,
                         self,
                         pathname,
                         original_name,
@@ -302,23 +314,33 @@ impl PagesProject {
 }
 
 #[turbo_tasks::value]
-struct PageHtmlEndpoint {
+struct PageEndpoint {
+    ty: PageEndpointType,
     pages_project: Vc<PagesProject>,
     pathname: Vc<String>,
     original_name: Vc<String>,
     path: Vc<FileSystemPath>,
 }
 
+#[derive(Copy, Clone, Serialize, Deserialize, PartialEq, Eq, Debug, TaskInput, TraceRawVcs)]
+enum PageEndpointType {
+    Api,
+    Html,
+    Data,
+}
+
 #[turbo_tasks::value_impl]
-impl PageHtmlEndpoint {
+impl PageEndpoint {
     #[turbo_tasks::function]
     fn new(
+        ty: PageEndpointType,
         pages_project: Vc<PagesProject>,
         pathname: Vc<String>,
         original_name: Vc<String>,
         path: Vc<FileSystemPath>,
     ) -> Vc<Self> {
-        PageHtmlEndpoint {
+        PageEndpoint {
+            ty,
             pages_project,
             pathname,
             original_name,
@@ -399,85 +421,6 @@ impl PageHtmlEndpoint {
 
         Ok(ssr_entry_chunk)
     }
-}
-
-#[turbo_tasks::value_impl]
-impl Endpoint for PageHtmlEndpoint {
-    #[turbo_tasks::function]
-    async fn write_to_disk(self: Vc<Self>) -> Result<Vc<WrittenEndpoint>> {
-        let this = self.await?;
-        let ssr_chunk = self.ssr_chunk();
-        let ssr_emit = emit_all_assets(
-            Vc::cell(vec![ssr_chunk]),
-            this.pages_project.project().node_root(),
-            this.pages_project.project().client_relative_path(),
-            this.pages_project.project().node_root(),
-        );
-        let client_emit = emit_all_assets(
-            self.client_chunks(),
-            this.pages_project.project().node_root(),
-            this.pages_project.project().client_relative_path(),
-            this.pages_project.project().node_root(),
-        );
-
-        ssr_emit.await?;
-        client_emit.await?;
-
-        Ok(WrittenEndpoint {
-            server_entry_path: this
-                .pages_project
-                .project()
-                .node_root()
-                .await?
-                .get_path_to(&*ssr_chunk.ident().path().await?)
-                .context("ssr chunk entry path must be inside the node root")?
-                .to_string(),
-            server_paths: vec![],
-        }
-        .cell())
-    }
-
-    #[turbo_tasks::function]
-    fn changed(self: Vc<Self>) -> Vc<Completion> {
-        let ssr_chunk = self.ssr_chunk();
-        Completions::all(vec![
-            any_content_changed(Vc::upcast(ssr_chunk)),
-            any_content_changed_of_output_assets(self.client_chunks()),
-        ])
-    }
-}
-
-#[turbo_tasks::value]
-struct PageDataEndpoint {
-    pages_project: Vc<PagesProject>,
-    pathname: Vc<String>,
-    original_name: Vc<String>,
-    path: Vc<FileSystemPath>,
-}
-
-#[turbo_tasks::value_impl]
-impl PageDataEndpoint {
-    #[turbo_tasks::function]
-    fn new(
-        pages_project: Vc<PagesProject>,
-        pathname: Vc<String>,
-        original_name: Vc<String>,
-        path: Vc<FileSystemPath>,
-    ) -> Vc<Self> {
-        PageDataEndpoint {
-            pages_project,
-            pathname,
-            original_name,
-            path,
-        }
-        .cell()
-    }
-
-    #[turbo_tasks::function]
-    async fn source(self: Vc<Self>) -> Result<Vc<Box<dyn Source>>> {
-        let this = self.await?;
-        Ok(Vc::upcast(FileSource::new(this.path)))
-    }
 
     #[turbo_tasks::function]
     async fn ssr_data_chunk(self: Vc<Self>) -> Result<Vc<Box<dyn OutputAsset>>> {
@@ -514,73 +457,6 @@ impl PageDataEndpoint {
             );
 
         Ok(ssr_data_entry_chunk)
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl Endpoint for PageDataEndpoint {
-    #[turbo_tasks::function]
-    async fn write_to_disk(self: Vc<Self>) -> Result<Vc<WrittenEndpoint>> {
-        let this = self.await?;
-        let ssr_data_chunk = self.ssr_data_chunk();
-        emit_all_assets(
-            Vc::cell(vec![ssr_data_chunk]),
-            this.pages_project.project().node_root(),
-            this.pages_project.project().client_relative_path(),
-            this.pages_project.project().node_root(),
-        )
-        .await?;
-
-        Ok(WrittenEndpoint {
-            server_entry_path: this
-                .pages_project
-                .project()
-                .node_root()
-                .await?
-                .get_path_to(&*ssr_data_chunk.ident().path().await?)
-                .context("ssr data chunk entry path must be inside the node root")?
-                .to_string(),
-            server_paths: vec![],
-        }
-        .cell())
-    }
-
-    #[turbo_tasks::function]
-    async fn changed(self: Vc<Self>) -> Result<Vc<Completion>> {
-        let ssr_data_chunk = self.ssr_data_chunk();
-        Ok(any_content_changed(Vc::upcast(ssr_data_chunk)))
-    }
-}
-
-#[turbo_tasks::value]
-struct PageApiEndpoint {
-    pages_project: Vc<PagesProject>,
-    pathname: Vc<String>,
-    original_name: Vc<String>,
-    path: Vc<FileSystemPath>,
-}
-
-#[turbo_tasks::value_impl]
-impl PageApiEndpoint {
-    #[turbo_tasks::function]
-    fn new(
-        pages_project: Vc<PagesProject>,
-        pathname: Vc<String>,
-        original_name: Vc<String>,
-        path: Vc<FileSystemPath>,
-    ) -> Vc<Self> {
-        PageApiEndpoint {
-            pages_project,
-            pathname,
-            original_name,
-            path,
-        }
-        .cell()
-    }
-
-    #[turbo_tasks::function]
-    fn source(&self) -> Vc<Box<dyn Source>> {
-        Vc::upcast(FileSource::new(self.path))
     }
 
     #[turbo_tasks::function]
@@ -619,16 +495,142 @@ impl PageApiEndpoint {
 
         Ok(api_entry_chunk)
     }
+
+    #[turbo_tasks::function]
+    async fn pages_manifest(
+        self: Vc<Self>,
+        entry_chunk: Vc<Box<dyn OutputAsset>>,
+    ) -> Result<Vc<Box<dyn OutputAsset>>> {
+        let this = self.await?;
+        let node_root = this.pages_project.project().node_root();
+        let chunk_path = entry_chunk.ident().path().await?;
+
+        let asset_path = node_root
+            .join("server".to_string())
+            .await?
+            .get_path_to(&chunk_path)
+            .context("ssr chunk entry path must be inside the node root")?;
+
+        let pages_manifest = PagesManifest {
+            pages: [(this.pathname.await?.clone_value(), asset_path.to_string())]
+                .into_iter()
+                .collect(),
+        };
+        Ok(Vc::upcast(VirtualOutputAsset::new(
+            node_root.join(format!(
+                "server/pages{original_name}/pages-manifest.json",
+                original_name = this.original_name.await?
+            )),
+            AssetContent::file(File::from(serde_json::to_string_pretty(&pages_manifest)?).into()),
+        )))
+    }
+
+    #[turbo_tasks::function]
+    async fn build_manifest(
+        self: Vc<Self>,
+        client_chunks: Vc<OutputAssets>,
+    ) -> Result<Vc<Box<dyn OutputAsset>>> {
+        let this = self.await?;
+        let node_root = this.pages_project.project().node_root();
+        let client_relative_path = this.pages_project.project().client_relative_path();
+        let client_relative_path_ref = client_relative_path.await?;
+        let build_manifest = BuildManifest {
+            pages: [(
+                this.pathname.await?.clone_value(),
+                client_chunks
+                    .await?
+                    .iter()
+                    .copied()
+                    .map(|chunk| {
+                        let client_relative_path_ref = client_relative_path_ref.clone();
+                        async move {
+                            let chunk_path = chunk.ident().path().await?;
+                            Ok(client_relative_path_ref
+                                .get_path_to(&chunk_path)
+                                .context("client chunk entry path must be inside the client root")?
+                                .to_string())
+                        }
+                    })
+                    .try_join()
+                    .await?,
+            )]
+            .into_iter()
+            .collect(),
+            ..Default::default()
+        };
+        Ok(Vc::upcast(VirtualOutputAsset::new(
+            node_root.join(format!(
+                "pages{original_name}/build-manifest.json",
+                original_name = this.original_name.await?
+            )),
+            AssetContent::file(File::from(serde_json::to_string_pretty(&build_manifest)?).into()),
+        )))
+    }
+
+    #[turbo_tasks::function]
+    async fn output(self: Vc<Self>) -> Result<Vc<PageEndpointOutput>> {
+        let this = self.await?;
+
+        match this.ty {
+            PageEndpointType::Html => {
+                let client_chunks = self.client_chunks();
+                let ssr_chunk = self.ssr_chunk();
+
+                let build_manifest = self.build_manifest(client_chunks);
+                let pages_manifest = self.pages_manifest(ssr_chunk);
+
+                Ok(PageEndpointOutput {
+                    entry_chunk: ssr_chunk,
+                    output_assets: Vc::cell(
+                        client_chunks
+                            .await?
+                            .iter()
+                            .copied()
+                            .chain([ssr_chunk, build_manifest, pages_manifest])
+                            .collect(),
+                    ),
+                }
+                .cell())
+            }
+            PageEndpointType::Data => {
+                let ssr_data_chunk = self.ssr_data_chunk();
+
+                let pages_manifest = self.pages_manifest(ssr_data_chunk);
+
+                Ok(PageEndpointOutput {
+                    entry_chunk: ssr_data_chunk,
+                    output_assets: Vc::cell(vec![ssr_data_chunk, pages_manifest]),
+                }
+                .cell())
+            }
+            PageEndpointType::Api => {
+                let api_chunk = self.api_chunk();
+
+                let pages_manifest = self.pages_manifest(api_chunk);
+
+                Ok(PageEndpointOutput {
+                    entry_chunk: api_chunk,
+                    output_assets: Vc::cell(vec![api_chunk, pages_manifest]),
+                }
+                .cell())
+            }
+        }
+    }
 }
 
 #[turbo_tasks::value_impl]
-impl Endpoint for PageApiEndpoint {
+impl Endpoint for PageEndpoint {
     #[turbo_tasks::function]
     async fn write_to_disk(self: Vc<Self>) -> Result<Vc<WrittenEndpoint>> {
+        let PageEndpointOutput {
+            entry_chunk,
+            output_assets,
+        } = &*self.output().await?;
+
         let this = self.await?;
-        let api_chunk = self.api_chunk();
+
         emit_all_assets(
-            Vc::cell(vec![api_chunk]),
+            *output_assets,
             this.pages_project.project().node_root(),
             this.pages_project.project().client_relative_path(),
             this.pages_project.project().node_root(),
@@ -641,8 +643,8 @@ impl Endpoint for PageApiEndpoint {
                 .project()
                 .node_root()
                 .await?
-                .get_path_to(&*api_chunk.ident().path().await?)
-                .context("API chunk entry path must be inside the node root")?
+                .get_path_to(&*entry_chunk.ident().path().await?)
+                .context("ssr chunk entry path must be inside the node root")?
                 .to_string(),
             server_paths: vec![],
         }
@@ -650,8 +652,18 @@ impl Endpoint for PageApiEndpoint {
     }
 
     #[turbo_tasks::function]
-    fn changed(self: Vc<Self>) -> Vc<Completion> {
-        let api_chunk = self.api_chunk();
-        any_content_changed(Vc::upcast(api_chunk))
+    async fn changed(self: Vc<Self>) -> Result<Vc<Completion>> {
+        let PageEndpointOutput {
+            entry_chunk: _,
+            output_assets,
+        } = &*self.output().await?;
+
+        Ok(any_content_changed_of_output_assets(*output_assets))
     }
+}
+
+#[turbo_tasks::value]
+struct PageEndpointOutput {
+    entry_chunk: Vc<Box<dyn OutputAsset>>,
+    output_assets: Vc<OutputAssets>,
 }
