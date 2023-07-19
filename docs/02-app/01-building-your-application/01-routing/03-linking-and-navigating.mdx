@@ -174,24 +174,9 @@ For example, when navigating between two sibling routes, `/dashboard/settings` a
 
 Without partial rendering, each navigation would cause the full page to re-render on the server. Rendering only the segment that changes reduces the amount of data transferred and execution time, leading to improved performance.
 
-On navigation, the cache for changed segments is reused (if it exists), and no new requests are made to the server for data.
+#### 4. Soft Navigation
 
-#### Conditions for Soft Navigation
-
-On navigation, Next.js will use soft navigation if the route you are navigating to has been [**prefetched**](#prefetching), and either doesn't include [dynamic segments](/docs/app/building-your-application/routing/dynamic-routes) **or** has the same dynamic parameters as the current route.
-
-For example, consider the following route that includes a dynamic `[team]` segment: `/dashboard/[team]/*`. The cached segments below `/dashboard/[team]/*` will only be invalidated when the `[team]` parameter changes.
-
-- Navigating from `/dashboard/team-red/*` to `/dashboard/team-red/*` will be a soft navigation.
-- Navigating from `/dashboard/team-red/*` to `/dashboard/team-blue/*` will be a hard navigation.
-
-### Hard Navigation
-
-On navigation, the cache is invalidated and the server refetches data and re-renders the changed segments.
-
-### Back/Forward Navigation
-
-Back and forward navigation ([popstate event](https://developer.mozilla.org/en-US/docs/Web/API/Window/popstate_event)) has a soft navigation behavior. This means, the client-side cache is re-used and navigation is near-instant.
+By default, the browser performs a hard navigation between pages. This means the browser reloads the page and resets the React state. However, in Next.js, the App Router uses soft navigation. This means React renders the segments that have changed while preserving browser and React state, and there is no page reload.
 
 ### Focus and Scroll Management
 
