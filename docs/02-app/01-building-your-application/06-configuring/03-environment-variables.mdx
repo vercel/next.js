@@ -126,6 +126,16 @@ Next.js allows you to set defaults in `.env` (all environments), `.env.developme
 
 `.env.local` always overrides the defaults set.
 
+In any context where you're not using `next dev`, but want your code to follow the same consistent environment loading pattern (e.g. in a custom `server.js`, in build-time scripts like `next.config.js`, or in an npm script), you can use the [`loadEnvConfig` function from `@next/env`](https://github.com/vercel/next.js/blob/canary/packages/next-env/index.ts):
+
+```js
+import { loadEnvConfig } from '@next/env'
+
+// you need to tell loadEnvConfig if this is a dev env (it only checks NODE_ENV for 'test' and 'production')
+const isDev = process.env.NODE_ENV === 'development'
+loadEnvConfig(process.cwd(), isDev)
+```
+
 > **Good to know**: `.env`, `.env.development`, and `.env.production` files should be included in your repository as they define defaults. **`.env*.local` should be added to `.gitignore`**, as those files are intended to be ignored. `.env.local` is where secrets can be stored.
 
 ## Environment Variables on Vercel
@@ -150,7 +160,7 @@ There is a small difference between `test` environment, and both `development` a
 
 > **Good to know**: similar to Default Environment Variables, `.env.test` file should be included in your repository, but `.env.test.local` shouldn't, as `.env*.local` are intended to be ignored through `.gitignore`.
 
-While running unit tests you can make sure to load your environment variables the same way Next.js does by leveraging the `loadEnvConfig` function from the `@next/env` package.
+While running unit tests you can make sure to load your environment variables the same way Next.js does by leveraging the `loadEnvConfig` function mentioned above:
 
 ```js
 // The below can be used in a Jest global setup file or similar for your testing set-up
