@@ -47,7 +47,14 @@ Since the cache is cleared after each request, there is no need to revalidate th
 
 #### Opting out
 
-There's no way to opt out of request deduplication for `fetch` requests.
+To opt-out of memoization in `fetch` you can pass an `AbortController` `signal` to the request.
+
+```js
+const { signal } = new AbortController()
+fetch(url, { signal })
+```
+
+There is no opt-out for the `cache` function as that has to be intentionally added to functions.
 
 ### Data Cache
 
