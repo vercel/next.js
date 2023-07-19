@@ -178,6 +178,6 @@ Without partial rendering, each navigation would cause the full page to re-rende
 
 By default, the browser performs a hard navigation between pages. This means the browser reloads the page and resets the React state. However, in Next.js, the App Router uses soft navigation. This means React renders the segments that have changed while preserving browser and React state, and there is no page reload.
 
-### Focus and Scroll Management
+#### 5. Back and Forward Navigation
 
-By default, Next.js will set focus and scroll into view the segment that's changed on navigation.
+By default, Next.js will maintain the scroll position for backwards and forwards navigation, and re-use route segments in the [Router Cache](/docs/app/building-your-application/data-fetching/caching).
