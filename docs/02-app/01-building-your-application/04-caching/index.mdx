@@ -43,7 +43,7 @@ The cache lasts the lifetime of a server request until the rendering pass comple
 
 #### Revalidating
 
-Since the cache is cleared after each request, there is no need to revalidate the cache.
+React's `cache` function is used specifically for memoizing the return values of functions when rendering the React tree. Since the memoization is not shared across requests and only applies during the rendering of the React tree, there is no revalidation. 
 
 #### Opting out
 
