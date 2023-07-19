@@ -62,9 +62,8 @@ export class EdgeRouteModuleWrapper {
   }
 
   private async handler(request: NextRequest): Promise<Response> {
-    // Get the pathname for the matcher. Pathnames should not have trailing
-    // slashes for matching.
-    const pathname = removeTrailingSlash(new URL(request.url).pathname)
+    // Get the pathname for the matcher.
+    const { pathname } = request.nextUrl
 
     // Get the match for this request.
     const match = this.matcher.match(pathname)
