@@ -78,7 +78,6 @@ import { warn } from '../../build/output/log'
 import { appendMutableCookies } from '../web/spec-extension/adapters/request-cookies'
 import { ComponentsType } from '../../build/webpack/loaders/next-app-loader'
 import { ModuleReference } from '../../build/webpack/loaders/metadata/types'
-import { bailOnNotFound } from '../../client/components/dev-root-not-found-boundary'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -932,8 +931,9 @@ export async function renderToHTMLOrFlight(
       const isLeaf =
         process.env.NODE_ENV === 'production'
           ? !segment && !rootLayoutIncluded
-          : (!parallelRouteMap.length && segment.startsWith('__PAGE__')) ||
-            !segment
+          : !parallelRouteMap.length &&
+            !segment &&
+            segment.startsWith('__PAGE__')
 
       if (asNotFound && isLeaf && NotFound) {
         notFoundComponent = {
@@ -1777,9 +1777,14 @@ export async function renderToHTMLOrFlight(
               serverInsertedHTMLToHead: true,
               ...validateRootLayout,
             })
-          } catch (err: any) {
-            if (isNotFoundError(err)) bailOnNotFound()
-            throw err
+          } catch (finalErr: any) {
+            if (
+              process.env.NODE_ENV !== 'production' &&
+              isNotFoundError(finalErr)
+            ) {
+              throw new Error('notFound() is not allowed to use in root layout')
+            }
+            throw finalErr
           }
         }
       }

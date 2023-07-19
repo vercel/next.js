@@ -443,14 +443,8 @@ function Router({
   if (process.env.NODE_ENV !== 'production') {
     const HotReloader: typeof import('./react-dev-overlay/hot-reloader-client').default =
       require('./react-dev-overlay/hot-reloader-client').default
-    const DevRootNotFoundBoundary: typeof import('./dev-root-not-found-boundary').DevRootNotFoundBoundary =
-      require('./dev-root-not-found-boundary').DevRootNotFoundBoundary
 
-    content = (
-      <HotReloader assetPrefix={assetPrefix}>
-        <DevRootNotFoundBoundary>{app}</DevRootNotFoundBoundary>
-      </HotReloader>
-    )
+    content = <HotReloader assetPrefix={assetPrefix}>{app}</HotReloader>
   }
 
   return (
