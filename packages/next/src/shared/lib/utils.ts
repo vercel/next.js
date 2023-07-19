@@ -452,6 +452,7 @@ export interface CacheFs {
   readFileSync(f: string): Buffer
   writeFile(f: string, d: any): Promise<void>
   mkdir(dir: string): Promise<void | string>
+  mkdirSync(dir: string): string | undefined
   stat(f: string): Promise<{ mtime: Date }>
   createWriteStream(f: string): WriteStream
 }

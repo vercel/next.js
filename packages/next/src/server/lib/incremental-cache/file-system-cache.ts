@@ -1,10 +1,11 @@
 import type { OutgoingHttpHeaders } from 'http'
-import type { CacheHandler, CacheHandlerContext, CacheHandlerValue } from './'
 import LRUCache from 'next/dist/compiled/lru-cache'
-import { CacheFs } from '../../../shared/lib/utils'
+
 import path from '../../../shared/lib/isomorphic/path'
+import { CacheFs } from '../../../shared/lib/utils'
 import { CachedFetchValue } from '../../response-cache'
 import { getDerivedTags } from './utils'
+import type { CacheHandler, CacheHandlerContext, CacheHandlerValue } from './'
 
 type FileSystemCacheContext = Omit<
   CacheHandlerContext,
@@ -59,11 +60,15 @@ export default class FileSystemCache implements CacheHandler {
       })
     }
     if (this.serverDistDir && this.fs) {
-      this.tagsManifestPath = path.join(
+      const fetchCacheDirectory = path.join(
         this.serverDistDir,
         '..',
         'cache',
-        'fetch-cache',
+        'fetch-cache'
+      )
+      this.fs.mkdirSync(fetchCacheDirectory)
+      this.tagsManifestPath = path.join(
+        fetchCacheDirectory,
         'tags-manifest.json'
       )
       this.loadTagsManifest()

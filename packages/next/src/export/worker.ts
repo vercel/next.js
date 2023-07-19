@@ -368,6 +368,7 @@ export default async function exportPage({
               readFileSync: (f) => fs.readFileSync(f),
               writeFile: (f, d) => fs.promises.writeFile(f, d),
               mkdir: (dir) => fs.promises.mkdir(dir, { recursive: true }),
+              mkdirSync: (dir) => fs.mkdirSync(dir, { recursive: true }),
               stat: (f) => fs.promises.stat(f),
               createWriteStream: (f) => fs.createWriteStream(f),
             },
