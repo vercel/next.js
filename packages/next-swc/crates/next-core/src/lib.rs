@@ -49,7 +49,7 @@ pub mod util;
 mod web_entry_source;
 
 pub use app_source::create_app_source;
-pub use emit::emit_all_assets;
+pub use emit::{all_server_paths, emit_all_assets};
 pub use page_loader::create_page_loader_entry_module;
 pub use page_source::create_page_source;
 pub use turbopack_binding::{turbopack::node::source_map, *};
