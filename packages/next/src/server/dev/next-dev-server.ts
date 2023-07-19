@@ -56,7 +56,7 @@ import {
   UnwrapPromise,
   withCoalescedInvoke,
 } from '../../lib/coalesced-function'
-import { loadDefaultErrorComponents } from '../load-components'
+import { loadDefaultErrorComponents } from '../load-default-error-components'
 import { DecodeError, MiddlewareNotFoundError } from '../../shared/lib/utils'
 import {
   createOriginalStackFrame,

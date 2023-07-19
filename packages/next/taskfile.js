@@ -2339,7 +2339,7 @@ export async function ncc(task, opts) {
   )
 }
 
-export async function compile(task, opts) {
+export async function next_compile(task, opts) {
   await task.parallel(
     [
       'cli',
@@ -2369,12 +2369,16 @@ export async function compile(task, opts) {
     ],
     opts
   )
+}
+
+export async function compile(task, opts) {
+  await task.serial(['next_compile', 'next_minimal_compile'])
+
   await task.serial([
     'ncc_react_refresh_utils',
     'ncc_next__react_dev_overlay',
     'ncc_next_font',
     'capsize_metrics',
-    'minimal_next_server',
   ])
 }
 
@@ -2638,6 +2642,6 @@ export async function minimal_next_server(task) {
     .target('dist/compiled/minimal-next-server')
 }
 
-export async function minimal_next_server_build(task) {
-  // await buildNextServer()
+export async function next_minimal_compile(task) {
+  await buildNextServer()
 }

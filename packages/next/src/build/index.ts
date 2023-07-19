@@ -1982,6 +1982,15 @@ export default async function build(
               ...Object.values(experimentalOverrides).map((override) =>
                 require.resolve(override)
               ),
+              require.resolve(
+                'next/dist/compiled/minimal-next-server/server.runtime.js'
+              ),
+              require.resolve(
+                'next/dist/compiled/minimal-next-server/app-page-render.runtime.js'
+              ),
+              require.resolve(
+                'next/dist/compiled/minimal-next-server/pages-render.runtime.js'
+              ),
             ]
 
             // ensure we trace any dependencies needed for custom
@@ -2008,12 +2017,15 @@ export default async function build(
 
             const minimalServerEntries = [
               ...sharedEntriesSet,
-              // require.resolve(
-              //   'next/dist/compiled/minimal-next-server/next-server-cached.js'
-              // ),
-              // require.resolve(
-              //   'next/dist/compiled/minimal-next-server/next-server.js'
-              // ),
+              require.resolve(
+                'next/dist/compiled/minimal-next-server/server.runtime.js'
+              ),
+              require.resolve(
+                'next/dist/compiled/minimal-next-server/app-page-render.runtime.js'
+              ),
+              require.resolve(
+                'next/dist/compiled/minimal-next-server/pages-render.runtime.js'
+              ),
             ].filter(Boolean)
 
             const additionalIgnores = new Set<string>()

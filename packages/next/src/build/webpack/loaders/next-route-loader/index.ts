@@ -107,7 +107,8 @@ const loader: webpack.LoaderDefinitionFunction<RouteLoaderOptions> =
 
     return `
         // Next.js Route Loader
-        import RouteModule from "next/dist/server/future/route-modules/pages/module"
+        // import RouteModule from "next/dist/server/future/route-modules/pages/module"
+        import RouteModule from "next/dist/compiled/minimal-next-server/pages-render.runtime.js"
         import { hoist } from "next/dist/build/webpack/loaders/next-route-loader/helpers"
 
         // Import the app and document modules.

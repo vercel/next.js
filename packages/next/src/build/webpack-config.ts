@@ -1310,6 +1310,14 @@ export default async function getBaseWebpackConfig(
       return `next/dist/compiled/minimal-next-server/app-page-render.runtime.js`
     }
 
+    if (
+      request.includes(
+        'dist/compiled/minimal-next-server/pages-render.runtime.js'
+      )
+    ) {
+      return `next/dist/compiled/minimal-next-server/pages-render.runtime.js`
+    }
+
     // We need to externalize internal requests for files intended to
     // not be bundled.
     const isLocal: boolean =

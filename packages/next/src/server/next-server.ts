@@ -28,7 +28,6 @@ import {
 } from '../shared/lib/router/utils/route-matcher'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
 import type { RouteMatch } from './future/route-matches/route-match'
-import { renderToHTML, type RenderOpts } from './render'
 
 import fs from 'fs'
 import { join, relative, resolve, sep, isAbsolute } from 'path'
@@ -951,7 +950,7 @@ export default class NextNodeServer extends BaseServer {
     res: NodeNextResponse,
     pathname: string,
     query: NextParsedUrlQuery,
-    renderOpts: RenderOpts
+    renderOpts: import('./render').RenderOpts
   ): Promise<RenderResult> {
     return getTracer().trace(NextNodeServerSpan.renderHTML, async () =>
       this.renderHTMLImpl(req, res, pathname, query, renderOpts)
@@ -963,17 +962,34 @@ export default class NextNodeServer extends BaseServer {
     res: NodeNextResponse,
     pathname: string,
     query: NextParsedUrlQuery,
-    renderOpts: RenderOpts
+    renderOpts: import('./render').RenderOpts
   ): Promise<RenderResult> {
-    // Due to the way we pass data by mutating `renderOpts`, we can't extend the
-    // object here but only updating its `nextFontManifest` field.
-    // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
-    renderOpts.nextFontManifest = this.nextFontManifest
+    if (process.env.NEXT_MINIMAL) {
+      throw new Error(
+        'invariant: renderHTML should not be called in minimal mode'
+      )
+    } else {
+      // Due to the way we pass data by mutating `renderOpts`, we can't extend the
+      // object here but only updating its `nextFontManifest` field.
+      // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
+      renderOpts.nextFontManifest = this.nextFontManifest
 
-    if (this.hasAppDir && renderOpts.isAppPath) {
-      const { renderToHTMLOrFlight: appRenderToHTMLOrFlight } =
-        require('./app-render/app-render') as typeof import('./app-render/app-render')
-      return appRenderToHTMLOrFlight(
+      if (this.hasAppDir && renderOpts.isAppPath) {
+        const { renderToHTMLOrFlight: appRenderToHTMLOrFlight } =
+          require('./app-render/app-render') as typeof import('./app-render/app-render')
+        return appRenderToHTMLOrFlight(
+          req.originalRequest,
+          res.originalResponse,
+          pathname,
+          query,
+          renderOpts
+        )
+      }
+
+      // TODO: re-enable this once we've refactored to use implicit matches
+      // throw new Error('Invariant: render should have used routeModule')
+
+      return require('./render').renderToHTML(
         req.originalRequest,
         res.originalResponse,
         pathname,
@@ -981,17 +997,6 @@ export default class NextNodeServer extends BaseServer {
         renderOpts
       )
     }
-
-    // TODO: re-enable this once we've refactored to use implicit matches
-    // throw new Error('Invariant: render should have used routeModule')
-
-    return renderToHTML(
-      req.originalRequest,
-      res.originalResponse,
-      pathname,
-      query,
-      renderOpts
-    )
   }
 
   private streamResponseChunk(res: ServerResponse, chunk: any) {

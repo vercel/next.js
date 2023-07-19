@@ -20,11 +20,11 @@ let api: typeof import('next/dist/compiled/@opentelemetry/api')
 if (process.env.NEXT_RUNTIME === 'edge') {
   api = require('@opentelemetry/api')
 } else {
-  try {
-    api = require('@opentelemetry/api')
-  } catch (err) {
-    api = require('next/dist/compiled/@opentelemetry/api')
-  }
+  // try {
+  //   api = require('@opentelemetry/api')
+  // } catch (err) {
+  api = require('next/dist/compiled/@opentelemetry/api')
+  // }
 }
 
 const { context, trace, SpanStatusCode, SpanKind } = api
