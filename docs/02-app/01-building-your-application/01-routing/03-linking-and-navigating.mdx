@@ -146,8 +146,6 @@ How much is prefetched depends on the type of route:
 - [**Static Routes**](/docs/app/building-your-application/rendering/static-and-dynamic-rendering#static-rendering-default): The whole route is prefetched and cached.
 - [**Dynamic Routes**](/docs/app/building-your-application/rendering/static-and-dynamic-rendering#dynamic-rendering): Only the shared layout down until the first `loading.js` file is prefetched. This reduces the cost of fetching an entire dynamic route, and it means you can show an [instant loading state](/docs/app/building-your-application/routing/loading-ui-and-streaming#instant-loading-states) on navigation.
 
-[Server Actions](/docs/app/building-your-application/data-fetching/server-actions) can be used to revalidate data on-demand by path ([`revalidatePath`](/docs/app/api-reference/functions/revalidatePath)) or by cache tag ([`revalidateTag`](/docs/app/api-reference/functions/revalidateTag)).
-
 > **Good to know**:
 >
 > - Prefetching is not enabled in development, only in production.

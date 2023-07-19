@@ -177,7 +177,7 @@ For the user, this results in [soft navigation](/docs/app/building-your-applicat
 > You may see the Router Cache being referred to as **Client-side Cache** or **Prefetch Cache**. While **Prefetch Cache** refers to the prefetched route segments, **Client-side Cache** refers to the whole Router cache, which includes both visited and prefetched segments.
 > This cache specifically applies to Next.js and Server Components, and is different to the browser's [bfcache](https://web.dev/bfcache/).
 
-#### Duration and Invalidation
+#### Duration
 
 The cache is stored in the browser's temporary memory. Two factors determine how long the router cache lasts:
 
@@ -187,6 +187,10 @@ The cache is stored in the browser's temporary memory. Two factors determine how
   - **Static routes**: 5 minutes
 
 While a page refresh or hard navigation will clear **all** cached segments, the automatic invalidation period only affects the individual segment from the time it was last accessed or created.
+
+#### Invalidation
+
+**[Server Actions](/docs/app/building-your-application/data-fetching/server-actions)** can be used to revalidate data on-demand by path ([`revalidatePath`](/docs/app/api-reference/functions/revalidatePath)) or by cache tag ([`revalidateTag`](/docs/app/api-reference/functions/revalidateTag)), which in turn will invalidate the Router Cache.
 
 #### Opting out
 
@@ -203,7 +207,8 @@ When configuring the different caching mechanisms, it's important to understand 
 
 ### Data and Router
 
-- Revalidating the Data Cache **will not** immediately invalidate the Router Cache due to the [automatic invalidation period](#duration-and-invalidation). This means the Router Cache will continue to serve the previous payload until a hard navigation/refresh, or the automatic invalidation period has elapsed.
+- Revalidating the Data Cache **will not** immediately invalidate the Router Cache due to the [automatic invalidation period](#duration-and-invalidation). This means the Router Cache will continue to serve the previous payload until a hard refresh, or the automatic invalidation period has elapsed.
+- To immediately invalidate the Router Cache, you can use [`revalidatePath`](#revalidatepath) or [`revalidateTag`](#fetchoptionsnexttag-and-revalidatetag) in a [Server Action](/docs/app/building-your-application/data-fetching/server-actions).
 
 ## APIs
 
