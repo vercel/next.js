@@ -1782,7 +1782,9 @@ export async function renderToHTMLOrFlight(
               process.env.NODE_ENV !== 'production' &&
               isNotFoundError(finalErr)
             ) {
-              throw new Error('notFound() is not allowed to use in root layout')
+              const bailOnNotFound: typeof import('../../client/components/dev-root-not-found-boundary').bailOnNotFound =
+                require('../../client/components/dev-root-not-found-boundary').bailOnNotFound
+              bailOnNotFound()
             }
             throw finalErr
           }

@@ -431,7 +431,7 @@ function Router({
     return findHeadInCache(cache, tree[1])
   }, [cache, tree])
 
-  const app = (
+  let content = (
     <RedirectBoundary>
       {head}
       {cache.subTreeData}
@@ -439,12 +439,16 @@ function Router({
     </RedirectBoundary>
   )
 
-  let content = app
   if (process.env.NODE_ENV !== 'production') {
+    if (typeof window !== 'undefined') {
+      const DevRootNotFoundBoundary: typeof import('./dev-root-not-found-boundary').DevRootNotFoundBoundary =
+        require('./dev-root-not-found-boundary').DevRootNotFoundBoundary
+      content = <DevRootNotFoundBoundary>{content}</DevRootNotFoundBoundary>
+    }
     const HotReloader: typeof import('./react-dev-overlay/hot-reloader-client').default =
       require('./react-dev-overlay/hot-reloader-client').default
 
-    content = <HotReloader assetPrefix={assetPrefix}>{app}</HotReloader>
+    content = <HotReloader assetPrefix={assetPrefix}>{content}</HotReloader>
   }
 
   return (
