@@ -260,6 +260,7 @@ const nextDev: CliCommand = async (argv) => {
 
     try {
       for await (const entrypoints of iter) {
+        Log.info(entrypoints)
         for (const [pathname, route] of entrypoints.routes) {
           switch (route.type) {
             case 'page': {
@@ -303,7 +304,7 @@ const nextDev: CliCommand = async (argv) => {
         })
       }
     } catch (e) {
-      console.error(e)
+      console.dir(e)
     }
 
     Log.error('Not supported yet')

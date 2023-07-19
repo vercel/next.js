@@ -107,7 +107,10 @@ export interface Binding {
       compile: any
       compileSync: any
     }
-    createProject: (options: ProjectOptions) => Promise<Project>
+    createProject: (
+      options: ProjectOptions,
+      turboEngineOptions?: TurboEngineOptions
+    ) => Promise<Project>
   }
   minify: any
   minifySync: any
@@ -346,14 +349,33 @@ interface ProjectOptions {
    * Whether to watch he filesystem for file changes.
    */
   watch: boolean
+}
 
+interface TurboEngineOptions {
   /**
    * An upper bound of memory that turbopack will attempt to stay under.
    */
   memoryLimit?: number
 }
 
-interface Issue {}
+interface Issue {
+  severity: string
+  category: string
+  context: string
+  title: string
+  description: string
+  detail: string
+  source?: {
+    source: {
+      ident: string
+      content?: string
+    }
+    start: { line: number; column: number }
+    end: { line: number; column: number }
+  }
+  documentationLink: string
+  subIssues: Issue[]
+}
 
 interface Diagnostics {}
 
@@ -452,6 +474,14 @@ function bindingToApi(binding: any, _wasm: boolean) {
     throw new Error(`Invariant: ${computeMessage(never)}`)
   }
 
+  async function withErrorCause<T>(fn: () => Promise<T>): Promise<T> {
+    try {
+      return await fn()
+    } catch (nativeError: any) {
+      throw new Error(nativeError.message, { cause: nativeError })
+    }
+  }
+
   /**
    * Calls a native function and streams the result.
    * If useBuffer is true, all values will be preserved, potentially buffered
@@ -494,7 +524,7 @@ function bindingToApi(binding: any, _wasm: boolean) {
     }
 
     return (async function* () {
-      const task = await nativeFunction(emitResult)
+      const task = await withErrorCause(() => nativeFunction(emitResult))
       try {
         while (true) {
           if (buffer.length > 0) {
@@ -533,9 +563,11 @@ function bindingToApi(binding: any, _wasm: boolean) {
     }
 
     async update(options: ProjectOptions) {
-      await binding.projectUpdate(
-        this._nativeProject,
-        rustifyProjectOptions(options)
+      await withErrorCause(() =>
+        binding.projectUpdate(
+          this._nativeProject,
+          rustifyProjectOptions(options)
+        )
       )
     }
 
@@ -657,7 +689,9 @@ function bindingToApi(binding: any, _wasm: boolean) {
     }
 
     async writeToDisk(): Promise<TurbopackResult<WrittenEndpoint>> {
-      return await binding.endpointWriteToDisk(this._nativeEndpoint)
+      return await withErrorCause(() =>
+        binding.endpointWriteToDisk(this._nativeEndpoint)
+      )
     }
 
     async changed(): Promise<AsyncIterableIterator<TurbopackResult>> {
@@ -707,9 +741,15 @@ function bindingToApi(binding: any, _wasm: boolean) {
     }
   }
 
-  async function createProject(options: ProjectOptions) {
+  async function createProject(
+    options: ProjectOptions,
+    turboEngineOptions: TurboEngineOptions
+  ) {
     return new ProjectImpl(
-      await binding.projectNew(rustifyProjectOptions(options))
+      await binding.projectNew(
+        rustifyProjectOptions(options),
+        turboEngineOptions || {}
+      )
     )
   }
 

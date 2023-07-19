@@ -13,7 +13,9 @@ use turbopack_binding::{
 
 use super::{
     endpoint::ExternalEndpoint,
-    utils::{serde_enum_to_string, subscribe, NapiDiagnostic, NapiIssue, RootTask, VcArc},
+    utils::{
+        get_issues, serde_enum_to_string, subscribe, NapiDiagnostic, NapiIssue, RootTask, VcArc,
+    },
 };
 use crate::register;
 
@@ -40,7 +42,10 @@ pub struct NapiProjectOptions {
 
     /// A map of environment variables to use when compiling code.
     pub env: Vec<NapiEnvVar>,
+}
 
+#[napi(object)]
+pub struct NapiTurboEngineOptions {
     /// An upper bound of memory that turbopack will attempt to stay under.
     pub memory_limit: Option<f64>,
 }
@@ -64,10 +69,11 @@ impl From<NapiProjectOptions> for ProjectOptions {
 #[napi(ts_return_type = "{ __napiType: \"Project\" }")]
 pub async fn project_new(
     options: NapiProjectOptions,
+    turbo_engine_options: NapiTurboEngineOptions,
 ) -> napi::Result<External<VcArc<Vc<ProjectContainer>>>> {
     register();
     let turbo_tasks = TurboTasks::new(MemoryBackend::new(
-        options
+        turbo_engine_options
             .memory_limit
             .map(|m| m as usize)
             .unwrap_or(usize::MAX),
@@ -75,9 +81,8 @@ pub async fn project_new(
     let options = options.into();
     let project = turbo_tasks
         .run_once(async move {
-            let project = ProjectContainer::new(options).resolve().await?;
-            // get errors early
-            project.project().await?;
+            let project = ProjectContainer::new(options);
+            let project = project.resolve().await?;
             Ok(project)
         })
         .await
@@ -95,19 +100,12 @@ pub async fn project_update(
     >,
     options: NapiProjectOptions,
 ) -> napi::Result<()> {
-    if options.memory_limit.is_some() {
-        return Err(napi::Error::from_reason(
-            "memory_limit cannot be changed after project creation".to_string(),
-        ));
-    }
     let turbo_tasks = project.turbo_tasks().clone();
     let options = options.into();
     let project = **project;
     turbo_tasks
         .run_once(async move {
             project.update(options).await?;
-            // get errors early
-            project.project().await?;
             Ok(())
         })
         .await
@@ -226,13 +224,14 @@ pub fn project_entrypoints_subscribe(
         turbo_tasks.clone(),
         func,
         move || async move {
-            let entrypoints = project.project().entrypoints();
+            let entrypoints = project.entrypoints();
+            let issues = get_issues(entrypoints).await?;
             let entrypoints = entrypoints.strongly_consistent().await?;
             // TODO peek_issues and diagnostics
-            Ok(entrypoints)
+            Ok((entrypoints, issues))
         },
         move |ctx| {
-            let entrypoints = ctx.value;
+            let (entrypoints, issues) = ctx.value;
             Ok(vec![NapiEntrypoints {
                 routes: entrypoints
                     .routes
@@ -246,7 +245,10 @@ pub fn project_entrypoints_subscribe(
                     .as_ref()
                     .map(|m| NapiMiddleware::from_middleware(m, &turbo_tasks))
                     .transpose()?,
-                issues: vec![],
+                issues: issues
+                    .iter()
+                    .map(|issue| NapiIssue::from(&**issue))
+                    .collect(),
                 diagnostics: vec![],
             }])
         },

@@ -105,6 +105,11 @@ impl ProjectContainer {
         }
         .cell())
     }
+
+    #[turbo_tasks::function]
+    pub fn entrypoints(self: Vc<Self>) -> Vc<Entrypoints> {
+        self.project().entrypoints()
+    }
 }
 
 #[turbo_tasks::value]
