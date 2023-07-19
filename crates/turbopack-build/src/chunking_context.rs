@@ -275,10 +275,10 @@ impl ChunkingContext for BuildChunkingContext {
     }
 
     #[turbo_tasks::function]
-    async fn with_layer(self: Vc<Self>, layer: String) -> Result<Vc<Box<dyn ChunkingContext>>> {
+    async fn with_layer(self: Vc<Self>, layer: String) -> Result<Vc<Self>> {
         let mut context = self.await?.clone_value();
         context.layer = (!layer.is_empty()).then(|| layer.to_string());
-        Ok(Vc::upcast(BuildChunkingContext::new(Value::new(context))))
+        Ok(BuildChunkingContext::new(Value::new(context)))
     }
 
     #[turbo_tasks::function]
