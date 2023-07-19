@@ -150,19 +150,13 @@ How much is prefetched depends on the type of route:
 >
 > - Prefetching is not enabled in development, only in production.
 
-Prefetching is a way to preload a route in the background before it's visited. The rendered result of prefetched routes is added to the router's client-side cache. This makes navigating to a prefetched route near-instant.
+### 2. Caching
 
-By default, routes are prefetched as they become visible in the viewport when using the `<Link>` component. This can happen when the page first loads or through scrolling. Routes can also be programmatically prefetched using the `prefetch` method of the [`useRouter()` hook](/docs/app/api-reference/functions/use-router#userouter).
+Next.js has an **in-memory client-side cache** called the [Router Cache](/docs/app/building-your-application/data-fetching/caching#router-cache). As users navigate around the app, the React Server Payload of [prefetched](#prefetching) route segments and visited routes are stored in the Router Cache.
 
-**Static and Dynamic Routes**:
+This means on navigation, the cache is reused as much as possible, instead of making a new request to the server; improving performance by reducing the numbers of requests and data transferred.
 
-- If the route is static, all the Server Component payloads for the route segments will be prefetched.
-- If the route is dynamic, the payload from the first shared layout down until the first `loading.js` file is prefetched. This reduces the cost of prefetching the whole route dynamically and allows [instant loading states](/docs/app/building-your-application/routing/loading-ui-and-streaming#instant-loading-states) for dynamic routes.
-
-> **Good to know**:
->
-> - Prefetching is only enabled in production.
-> - Prefetching can be disabled by passing `prefetch={false}` to `<Link>`.
+Learn how to configure the [Router Cache](/docs/app/building-your-application/data-fetching/caching).
 
 ## Partial Rendering
 
