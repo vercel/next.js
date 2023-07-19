@@ -92,7 +92,7 @@ If our wrapper `@vercel/otel` doesn't suit your needs, you can configure OpenTel
 Firstly you need to install OpenTelemetry packages:
 
 ```bash filename="Terminal"
-npm install @opentelemetry/sdk-node @opentelemetry/resources @opentelemetry/semantic-conventions @opentelemetry/sdk-trace-base @opentelemetry/exporter-trace-otlp-http
+npm install @opentelemetry/sdk-node @opentelemetry/resources @opentelemetry/semantic-conventions @opentelemetry/sdk-trace-node @opentelemetry/exporter-trace-otlp-http
 ```
 
 Now you can initialize `NodeSDK` in your `instrumentation.ts`.
@@ -109,13 +109,12 @@ export async function register() {
 ```js filename="instrumentation.js" switcher
 export async function register() {
   if (process.env.NEXT_RUNTIME === 'nodejs') {
-    await import('./instrumentation.node.ts')
+    await import('./instrumentation.node.js')
   }
 }
 ```
 
 ```ts filename="instrumentation.node.ts" switcher
-import { trace, context } from '@opentelemetry/api'
 import { NodeSDK } from '@opentelemetry/sdk-node'
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http'
 import { Resource } from '@opentelemetry/resources'

@@ -18,7 +18,7 @@ use turbopack_binding::{
             ident::AssetIdent,
             module::Module,
             output::OutputAssets,
-            reference::AssetReferences,
+            reference::{AssetReferences, SingleAssetReference},
         },
         ecmascript::{
             chunk::{
@@ -75,15 +75,10 @@ impl WithChunksAsset {
 }
 
 #[turbo_tasks::value_impl]
-impl Asset for WithChunksAsset {
+impl Module for WithChunksAsset {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
         self.asset.ident().with_modifier(modifier())
-    }
-
-    #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        unimplemented!()
     }
 
     #[turbo_tasks::function]
@@ -99,7 +94,12 @@ impl Asset for WithChunksAsset {
 }
 
 #[turbo_tasks::value_impl]
-impl Module for WithChunksAsset {}
+impl Asset for WithChunksAsset {
+    #[turbo_tasks::function]
+    fn content(&self) -> Vc<AssetContent> {
+        unimplemented!()
+    }
+}
 
 #[turbo_tasks::value_impl]
 impl ChunkableModule for WithChunksAsset {
@@ -218,8 +218,14 @@ impl ChunkItem for WithChunksChunkItem {
     async fn references(self: Vc<Self>) -> Result<Vc<AssetReferences>> {
         let mut references = self.await?.inner.references().await?.clone_value();
 
+        let chunk_data_key = Vc::cell("chunk data".to_string());
         for chunk_data in &*self.chunks_data().await? {
-            references.extend(chunk_data.references().await?.iter().copied());
+            references.extend(chunk_data.references().await?.iter().map(|&output_asset| {
+                Vc::upcast(SingleAssetReference::new(
+                    Vc::upcast(output_asset),
+                    chunk_data_key,
+                ))
+            }));
         }
 
         Ok(Vc::cell(references))

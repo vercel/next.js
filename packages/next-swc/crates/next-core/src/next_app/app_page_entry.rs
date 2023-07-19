@@ -2,13 +2,6 @@ use std::io::Write;
 
 use anyhow::{bail, Result};
 use indoc::writedoc;
-use next_core::{
-    app_structure::LoaderTree,
-    loader_tree::{LoaderTreeModule, ServerComponentTransition},
-    mode::NextMode,
-    next_server_component::NextServerComponentTransition,
-    UnsupportedDynamicMetadataIssue,
-};
 use turbo_tasks::{TryJoinIterExt, Value, ValueToString, Vc};
 use turbopack_binding::{
     turbo::tasks_fs::{rope::RopeBuilder, File, FileSystemPath},
@@ -22,14 +15,22 @@ use turbopack_binding::{
     },
 };
 
-use super::app_entries::AppEntry;
+use super::app_entry::AppEntry;
+use crate::{
+    app_structure::LoaderTree,
+    loader_tree::{LoaderTreeModule, ServerComponentTransition},
+    mode::NextMode,
+    next_app::UnsupportedDynamicMetadataIssue,
+    next_server_component::NextServerComponentTransition,
+};
 
 /// Computes the entry for a Next.js app page.
-pub(super) async fn get_app_page_entry(
+#[turbo_tasks::function]
+pub async fn get_app_page_entry(
     context: Vc<ModuleAssetContext>,
     loader_tree: Vc<LoaderTree>,
     app_dir: Vc<FileSystemPath>,
-    pathname: &str,
+    pathname: String,
     project_root: Vc<FileSystemPath>,
 ) -> Result<Vc<AppEntry>> {
     let server_component_transition = Vc::upcast(NextServerComponentTransition::new());
@@ -70,7 +71,7 @@ pub(super) async fn get_app_page_entry(
     // NOTE(alexkirsz) Keep in sync with
     // next.js/packages/next/src/build/webpack/loaders/next-app-loader.ts
     // TODO(alexkirsz) Support custom global error.
-    let original_name = get_original_page_name(pathname);
+    let original_name = get_original_page_name(&pathname);
 
     writedoc!(
         result,

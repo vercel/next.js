@@ -8,10 +8,16 @@ use anyhow::{anyhow, bail, Context, Result};
 use dunce::canonicalize;
 use next_core::{
     mode::NextMode,
+    next_app::get_app_client_references_chunks,
     next_client::{get_client_chunking_context, get_client_compile_time_info},
-    next_client_reference::{ClientReferenceType, ClientReferencesByEntry},
+    next_client_reference::{ClientReferenceGraph, ClientReferenceType},
     next_config::load_next_config,
     next_dynamic::NextDynamicEntries,
+    next_manifests::{
+        AppBuildManifest, AppPathsManifest, BuildManifest, ClientBuildManifest, FontManifest,
+        MiddlewaresManifest, NextFontManifest, PagesManifest, ReactLoadableManifest,
+        ServerReferenceManifest,
+    },
     next_server::{get_server_chunking_context, get_server_compile_time_info},
     url_node::get_sorted_routes,
     {self},
@@ -27,12 +33,11 @@ use turbopack_binding::{
         build::BuildChunkingContext,
         cli_utils::issue::{ConsoleUi, LogOptions},
         core::{
-            asset::{Asset, Assets},
+            asset::Asset,
             chunk::ChunkingContext,
             environment::ServerAddr,
             issue::{IssueContextExt, IssueReporter, IssueSeverity},
             output::{OutputAsset, OutputAssets},
-            reference::AssetReference,
             virtual_fs::VirtualFileSystem,
         },
         dev::DevChunkingContext,
@@ -45,15 +50,7 @@ use turbopack_binding::{
 
 use crate::{
     build_options::{BuildContext, BuildOptions},
-    manifests::{
-        AppBuildManifest, AppPathsManifest, BuildManifest, ClientBuildManifest, FontManifest,
-        MiddlewaresManifest, NextFontManifest, PagesManifest, ReactLoadableManifest,
-        ServerReferenceManifest,
-    },
-    next_app::{
-        app_client_reference::compute_app_client_references_chunks,
-        app_entries::{compute_app_entries_chunks, get_app_entries},
-    },
+    next_app::app_entries::{compute_app_entries_chunks, get_app_entries},
     next_pages::page_entries::{compute_page_entries_chunks, get_page_entries},
 };
 
@@ -167,26 +164,16 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
         .try_join()
         .await?;
 
-    let app_client_references_by_entry = ClientReferencesByEntry::new(Vc::cell(
+    let app_client_references = ClientReferenceGraph::new(Vc::cell(
         app_rsc_entries.iter().copied().map(Vc::upcast).collect(),
-    ))
-    .await?;
-
-    let app_client_references: HashSet<_> = app_client_references_by_entry
-        .values()
-        .flatten()
-        .copied()
-        .collect();
+    ));
 
     // The same client reference can occur from two different server components.
     // Here, we're only interested in deduped client references.
-    let app_client_reference_tys: HashSet<_> = app_client_references
-        .iter()
-        .map(|client_reference| client_reference.ty())
-        .copied()
-        .collect();
+    let app_client_reference_tys = app_client_references.types();
 
     let app_ssr_entries: Vec<_> = app_client_reference_tys
+        .await?
         .iter()
         .map(|client_reference_ty| async move {
             let ClientReferenceType::EcmascriptClientReference(entry) = client_reference_ty else {
@@ -298,26 +285,32 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
 
     // APP CLIENT REFERENCES CHUNKING
 
-    let app_client_references_chunks = compute_app_client_references_chunks(
-        &app_client_reference_tys,
+    let app_client_references_chunks = get_app_client_references_chunks(
+        app_client_reference_tys,
         client_chunking_context,
         ssr_chunking_context,
-        &mut all_chunks,
-    )
-    .await?;
+    );
+    let app_client_references_chunks_ref = app_client_references_chunks.await?;
+
+    for app_client_reference_chunks in app_client_references_chunks_ref.values() {
+        let client_chunks = &app_client_reference_chunks.client_chunks.await?;
+        let ssr_chunks = &app_client_reference_chunks.ssr_chunks.await?;
+        all_chunks.extend(client_chunks.iter().copied());
+        all_chunks.extend(ssr_chunks.iter().copied());
+    }
 
     // APP RSC CHUNKING
     // TODO(alexkirsz) Do some of that in parallel with the above.
 
     compute_app_entries_chunks(
         &app_entries,
-        &app_client_references_by_entry,
-        &app_client_references_chunks,
+        app_client_references,
+        app_client_references_chunks,
         rsc_chunking_context,
         client_chunking_context,
         Vc::upcast(ssr_chunking_context),
         node_root,
-        &client_relative_path_ref,
+        client_relative_path,
         &app_paths_manifest_dir_path,
         &mut app_build_manifest,
         &mut build_manifest,
@@ -528,13 +521,13 @@ async fn emit_all_assets(
 }
 
 #[turbo_tasks::function]
-fn emit(asset: Vc<Box<dyn Asset>>) -> Vc<Completion> {
+fn emit(asset: Vc<Box<dyn OutputAsset>>) -> Vc<Completion> {
     asset.content().write(asset.ident().path())
 }
 
 #[turbo_tasks::function]
 fn emit_rebase(
-    asset: Vc<Box<dyn Asset>>,
+    asset: Vc<Box<dyn OutputAsset>>,
     from: Vc<FileSystemPath>,
     to: Vc<FileSystemPath>,
 ) -> Vc<Completion> {
@@ -546,7 +539,7 @@ fn emit_rebase(
 /// Walks the asset graph from multiple assets and collect all referenced
 /// assets.
 #[turbo_tasks::function]
-async fn all_assets_from_entries(entries: Vc<OutputAssets>) -> Result<Vc<Assets>> {
+async fn all_assets_from_entries(entries: Vc<OutputAssets>) -> Result<Vc<OutputAssets>> {
     Ok(Vc::cell(
         AdjacencyMap::new()
             .skip_duplicates()
@@ -564,20 +557,15 @@ async fn all_assets_from_entries(entries: Vc<OutputAssets>) -> Result<Vc<Assets>
 
 /// Computes the list of all chunk children of a given chunk.
 async fn get_referenced_assets(
-    asset: Vc<Box<dyn Asset>>,
-) -> Result<impl Iterator<Item = Vc<Box<dyn Asset>>> + Send> {
+    asset: Vc<Box<dyn OutputAsset>>,
+) -> Result<impl Iterator<Item = Vc<Box<dyn OutputAsset>>> + Send> {
     Ok(asset
         .references()
         .await?
         .iter()
-        .map(|reference| async move {
-            let primary_assets = reference.resolve_reference().primary_assets().await?;
-            Ok(primary_assets.clone_value())
-        })
-        .try_join()
-        .await?
-        .into_iter()
-        .flatten())
+        .copied()
+        .collect::<Vec<_>>()
+        .into_iter())
 }
 
 /// Writes a manifest to disk. This consumes the manifest to ensure we don't

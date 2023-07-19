@@ -54,7 +54,7 @@ export const CLIENT_STATIC_FILES_PATH = 'static'
 export const CLIENT_STATIC_FILES_RUNTIME = 'runtime'
 export const STRING_LITERAL_DROP_BUNDLE = '__NEXT_DROP_CLIENT_FILE__'
 export const NEXT_BUILTIN_DOCUMENT = '__NEXT_BUILTIN_DOCUMENT__'
-export const NEXT_CLIENT_SSR_ENTRY_SUFFIX = '.__sc_client__'
+export const NEXT_CLIENT_SSR_ENTRY_SUFFIX = '.__ssr__'
 
 // server/[entry]/page_client-reference-manifest.js
 export const CLIENT_REFERENCE_MANIFEST = 'client-reference-manifest'
@@ -70,7 +70,7 @@ export const MIDDLEWARE_REACT_LOADABLE_MANIFEST =
 export const CLIENT_STATIC_FILES_RUNTIME_MAIN = `main`
 export const CLIENT_STATIC_FILES_RUNTIME_MAIN_APP = `${CLIENT_STATIC_FILES_RUNTIME_MAIN}-app`
 // next internal client components chunk for layouts
-export const APP_CLIENT_INTERNALS = 'app-client-internals'
+export const APP_CLIENT_INTERNALS = 'app-pages-internals'
 // static/runtime/react-refresh.js
 export const CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH = `react-refresh`
 // static/runtime/amp.js

@@ -9,7 +9,7 @@ use turbopack_binding::{
     turbo::tasks_fs::{rope::RopeBuilder, File, FileSystemPath},
     turbopack::{
         core::{
-            asset::{Asset, AssetContent},
+            asset::AssetContent,
             context::AssetContext,
             reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
             source::Source,
@@ -20,19 +20,20 @@ use turbopack_binding::{
     },
 };
 
-use super::app_entries::AppEntry;
+use crate::next_app::AppEntry;
 
 /// Computes the entry for a Next.js app route.
-pub(super) async fn get_app_route_entry(
+#[turbo_tasks::function]
+pub async fn get_app_route_entry(
     rsc_context: Vc<ModuleAssetContext>,
     source: Vc<Box<dyn Source>>,
-    pathname: &str,
+    pathname: String,
     project_root: Vc<FileSystemPath>,
 ) -> Result<Vc<AppEntry>> {
     let mut result = RopeBuilder::default();
 
     let kind = "app-route";
-    let original_name = get_original_route_name(pathname);
+    let original_name = get_original_route_name(&pathname);
     let path = source.ident().path();
 
     let options = AppRouteRouteModuleOptions {
@@ -112,7 +113,7 @@ pub(super) async fn get_app_route_entry(
     );
 
     let inner_assets = indexmap! {
-        "ENTRY".to_string() => Vc::upcast(entry)
+        "ENTRY".to_string() => entry
     };
 
     let rsc_entry = rsc_context.process(

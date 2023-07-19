@@ -8,7 +8,6 @@ use turbopack_binding::turbo::{
 };
 
 pub mod build_options;
-pub mod manifests;
 pub(crate) mod next_app;
 pub(crate) mod next_build;
 pub(crate) mod next_pages;
