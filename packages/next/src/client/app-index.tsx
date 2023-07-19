@@ -259,7 +259,10 @@ function Root({ children }: React.PropsWithChildren<{}>): React.ReactElement {
 
     // subscribe to hmr only if an error was captured, so that we don't have two hmr websockets active
     // eslint-disable-next-line react-hooks/rules-of-hooks
-    const webSocketRef = useWebsocket('', hadRuntimeError)
+    const webSocketRef = useWebsocket(
+      process.env.__NEXT_ASSET_PREFIX || '',
+      hadRuntimeError
+    )
 
     // eslint-disable-next-line react-hooks/rules-of-hooks
     React.useEffect(() => {
