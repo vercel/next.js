@@ -57,15 +57,18 @@ function generateComponent(thirdParty) {
     AllThirdParties[thirdParty]
 
   thirdPartyFunctions += outdent`
+
     // ${description}
     export function ${thirdParty}(args: any) {
       return (
         <Base
           ${content ? 'height={args.height || null}' : ''}
           ${content ? 'width={args.width || null}' : ''}
-          ${content ? `content={\`${content}\`}` : ''}>
+          ${content ? `content={\`${content}\`}` : ''}
+          dataAttr="${thirdParty}"
+        >
           ${scripts?.length > 0 ? insertScripts(id, scripts, stylesheets) : ''}
-          </Base>
+        </Base>
       )
     }
     `
@@ -97,7 +100,7 @@ function generateComponent(thirdParty) {
     import React from 'react'
     import Script from 'next/script'
 
-    import Base from './base'
+    import Base from '../base'
     `
     for (const thirdParty of Object.values(config)) {
       thirdPartyFunctions += generateComponent(thirdParty)

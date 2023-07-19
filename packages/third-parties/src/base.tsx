@@ -5,11 +5,13 @@ export default function Base({
   height = null,
   width = null,
   children,
+  dataAttr = '',
 }: {
   content?: string
   height?: number | null
   width?: number | null
   children?: React.ReactElement | React.ReactElement[]
+  dataAttr?: string
 }) {
   return (
     <>
@@ -22,6 +24,7 @@ export default function Base({
             height: height != null ? `${height}px` : 'auto',
             width: width != null ? `${width}px` : 'auto',
           }}
+          data-ntpc={dataAttr}
           dangerouslySetInnerHTML={{ __html: content }}
         />
       )}
