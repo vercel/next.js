@@ -226,7 +226,7 @@ const StrictModeIfEnabled = process.env.__NEXT_STRICT_MODE_APP
   : React.Fragment
 
 function Root({ children }: React.PropsWithChildren<{}>): React.ReactElement {
-  let hadRuntimeError = React.useRef(false)
+  const [hadRuntimeError, setHadRuntimeError] = React.useState(false)
 
   if (process.env.__NEXT_ANALYTICS_ID) {
     // eslint-disable-next-line react-hooks/rules-of-hooks
@@ -257,8 +257,9 @@ function Root({ children }: React.PropsWithChildren<{}>): React.ReactElement {
     const useWebsocket: typeof import('./components/react-dev-overlay/internal/helpers/use-websocket').useWebsocket =
       require('./components/react-dev-overlay/internal/helpers/use-websocket').useWebsocket
 
+    // subscribe to hmr only if an error was captured, so that we don't have two hmr websockets active
     // eslint-disable-next-line react-hooks/rules-of-hooks
-    const webSocketRef = useWebsocket('')
+    const webSocketRef = useWebsocket('', hadRuntimeError)
 
     // eslint-disable-next-line react-hooks/rules-of-hooks
     React.useEffect(() => {
@@ -273,10 +274,7 @@ function Root({ children }: React.PropsWithChildren<{}>): React.ReactElement {
         }
 
         // minimal "hot reload" support for RSC errors
-        if (
-          obj.action === 'serverComponentChanges' &&
-          hadRuntimeError.current
-        ) {
+        if (obj.action === 'serverComponentChanges' && hadRuntimeError) {
           window.location.reload()
         }
       }
@@ -288,14 +286,14 @@ function Root({ children }: React.PropsWithChildren<{}>): React.ReactElement {
 
       return () =>
         websocket && websocket.removeEventListener('message', handler)
-    }, [webSocketRef])
+    }, [webSocketRef, hadRuntimeError])
 
     // if an error is thrown while rendering an RSC stream, this will catch it in dev
     // and show the error overlay
     return (
       <ReactDevOverlay
         state={INITIAL_OVERLAY_STATE}
-        onReactError={() => (hadRuntimeError.current = true)}
+        onReactError={() => setHadRuntimeError(true)}
       >
         {children}
       </ReactDevOverlay>
