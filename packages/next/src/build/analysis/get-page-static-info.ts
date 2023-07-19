@@ -63,7 +63,10 @@ export function getRSCModuleInformation(
   source: string,
   isServerLayer: boolean
 ): RSCMeta {
-  const actions = source.match(ACTION_MODULE_LABEL)?.[1]?.split(',')
+  const actionsJson = source.match(ACTION_MODULE_LABEL)
+  const actions = actionsJson
+    ? (Object.values(JSON.parse(actionsJson[1])) as string[])
+    : undefined
   const clientInfoMatch = source.match(CLIENT_MODULE_LABEL)
   const isClientRef = !!clientInfoMatch
 

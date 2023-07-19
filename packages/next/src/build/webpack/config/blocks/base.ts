@@ -29,7 +29,7 @@ export const base = curry(function base(
       // original source, including columns and original variable names.
       // This is desirable so the in-browser debugger can correctly pause
       // and show scoped variables with their original names.
-      config.devtool = 'eval-source-map'
+      config.devtool = 'source-map'
     }
   } else {
     if (

@@ -256,6 +256,13 @@ pub async fn get_next_server_import_map(
         | ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. } => {
             import_map.insert_exact_alias(
+                "private-next-rsc-action-proxy",
+                request_to_import_mapping(
+                    project_path,
+                    "next/dist/build/webpack/loaders/next-flight-loader/action-proxy",
+                ),
+            );
+            import_map.insert_exact_alias(
                 "next/head",
                 request_to_import_mapping(project_path, "next/dist/client/components/noop-head"),
             );

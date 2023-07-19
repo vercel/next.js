@@ -11,6 +11,7 @@ use crate::{
     next_shared::transforms::{
         get_next_dynamic_transform_rule, get_next_font_transform_rule, get_next_image_rule,
         get_next_modularize_imports_rule, get_next_pages_transforms_rule,
+        get_server_actions_transform_rule,
     },
 };
 
@@ -24,6 +25,7 @@ pub async fn get_next_server_transforms_rules(
     let mut rules = vec![];
 
     let modularize_imports_config = &next_config.await?.modularize_imports;
+    let enable_server_actions = *next_config.enable_server_actions().await?;
     if let Some(modularize_imports_config) = modularize_imports_config {
         rules.push(get_next_modularize_imports_rule(modularize_imports_config));
     }
@@ -37,10 +39,18 @@ pub async fn get_next_server_transforms_rules(
             );
             (false, Some(pages_dir))
         }
-        ServerContextType::AppSSR { .. } => (false, None),
+        ServerContextType::AppSSR { .. } => {
+            if enable_server_actions {
+                rules.push(get_server_actions_transform_rule(true));
+            }
+            (false, None)
+        }
         ServerContextType::AppRSC {
             client_transition, ..
         } => {
+            if enable_server_actions {
+                rules.push(get_server_actions_transform_rule(true));
+            }
             if let Some(client_transition) = client_transition {
                 rules.push(get_next_css_client_reference_transforms_rule(
                     client_transition,
