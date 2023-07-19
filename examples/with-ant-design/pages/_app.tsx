@@ -1,10 +1,14 @@
 import type { AppProps } from 'next/app'
-import 'antd/dist/reset.css'
-import '../styles/vars.css'
-import '../styles/global.css'
+import { ConfigProvider } from 'antd'
+import theme from './themeConfig'
+import '@/styles/globals.css'
 
-function MyApp({ Component, pageProps }: AppProps) {
-  return <Component {...pageProps} />
+function App({ Component, pageProps }: AppProps) {
+  return (
+    <ConfigProvider theme={theme}>
+      <Component {...pageProps} />
+    </ConfigProvider>
+  )
 }
 
-export default MyApp
+export default App

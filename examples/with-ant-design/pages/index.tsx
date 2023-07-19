@@ -7,31 +7,27 @@ import {
   Slider,
   Switch,
 } from 'antd'
+import { Inter } from 'next/font/google'
 import type { DatePickerProps } from 'antd'
 import { SmileFilled } from '@ant-design/icons'
 import Link from 'next/link'
 
-const FormItem = Form.Item
+const inter = Inter({ subsets: ['latin'] })
 
-const content = {
-  marginTop: '100px',
+const onDatePickerChange: DatePickerProps['onChange'] = (date, dateString) => {
+  console.log(date, dateString)
 }
 
-export default function Home() {
-  const onDatePickerChange: DatePickerProps['onChange'] = (
-    date,
-    dateString
-  ) => {
-    console.log(date, dateString)
-  }
-
+function Home() {
   return (
-    <div style={content}>
+    <div
+      className={inter.className}
+      style={{ padding: '100px 0', height: '100vh' }}
+    >
       <div className="text-center mb-5">
         <Link href="#" className="logo mr-0">
           <SmileFilled style={{ fontSize: 48 }} />
         </Link>
-
         <p className="mb-0 mt-3 text-disabled">Welcome to the world !</p>
       </div>
       <div>
@@ -41,7 +37,7 @@ export default function Home() {
           labelCol={{ span: 8 }}
           wrapperCol={{ span: 8 }}
         >
-          <FormItem label="Input Number">
+          <Form.Item label="Input Number">
             <InputNumber
               min={1}
               max={10}
@@ -49,53 +45,38 @@ export default function Home() {
               defaultValue={3}
               name="inputNumber"
             />
-          </FormItem>
-
-          <FormItem label="Switch">
+          </Form.Item>
+          <Form.Item label="Switch">
             <Switch defaultChecked />
-          </FormItem>
-
-          <FormItem label="Slider">
+          </Form.Item>
+          <Form.Item label="Slider">
             <Slider defaultValue={70} />
-          </FormItem>
-
-          <FormItem label="Select">
+          </Form.Item>
+          <Form.Item label="Select">
             <Select
               defaultValue="lucy"
               style={{ width: 192 }}
               options={[
-                {
-                  value: 'jack',
-                  label: 'Jack',
-                },
-                {
-                  value: 'lucy',
-                  label: 'Lucy',
-                },
-                {
-                  value: 'disabled',
-                  disabled: true,
-                  label: 'Disabled',
-                },
-                {
-                  value: 'Yiminghe',
-                  label: 'yiminghe',
-                },
+                { value: 'jack', label: 'Jack' },
+                { value: 'lucy', label: 'Lucy' },
+                { value: 'Yiminghe', label: 'yiminghe' },
+                { value: 'disabled', disabled: true, label: 'Disabled' },
               ]}
             />
-          </FormItem>
-
-          <FormItem label="DatePicker">
+          </Form.Item>
+          <Form.Item label="DatePicker">
             <DatePicker showTime onChange={onDatePickerChange} />
-          </FormItem>
-          <FormItem style={{ marginTop: 48 }} wrapperCol={{ offset: 8 }}>
+          </Form.Item>
+          <Form.Item style={{ marginTop: 48 }} wrapperCol={{ offset: 8 }}>
             <Button type="primary" htmlType="submit">
               OK
             </Button>
             <Button style={{ marginLeft: 8 }}>Cancel</Button>
-          </FormItem>
+          </Form.Item>
         </Form>
       </div>
     </div>
   )
 }
+
+export default Home
