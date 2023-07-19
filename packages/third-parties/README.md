@@ -11,7 +11,7 @@ This package uses [Third Party Capital](https://github.com/GoogleChromeLabs/thir
 
 ### Youtube Embed
 
-The `YoutubeEmbed` component is used to load and display a YouTube embed. This component loads approximately 224× faster by using [lite-youtube-embed](https://github.com/paulirish/lite-youtube-embed) under the hood.
+The `YoutubeEmbed` component is used to load and display a YouTube embed. This component loads faster by using [lite-youtube-embed](https://github.com/paulirish/lite-youtube-embed) under the hood.
 
 ```js
 import { YoutubeEmbed } from '@next/third-parties/google'
@@ -23,7 +23,7 @@ export default function Page() {
 
 ### Google Maps Embed
 
-The `GoogleMapsEmbed` component can be used to include a [Google Maps Embed](https://developers.google.com/maps/documentation/embed/get-started) to your page. By default, it uses the `loading` attribute to lazy-load below the fold.
+The `GoogleMapsEmbed` component can be used to add a [Google Maps Embed](https://developers.google.com/maps/documentation/embed/get-started) to your page. By default, it uses the `loading` attribute to lazy-load below the fold.
 
 ```js
 import { GoogleMapsEmbed } from '@next/third-parties/google'
