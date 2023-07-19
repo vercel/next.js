@@ -18592,7 +18592,9 @@ var Resvg2 = class extends Resvg {
 // src/index.node.ts
 import { Readable } from "stream";
 import fs from "fs";
-import { fileURLToPath } from "url";
+import { fileURLToPath as originFileURLToPath } from "url";
+import { join as pathJoin } from "path";
+function fileURLToPath(fileUrl) { return originFileURLToPath(pathJoin(fileUrl)); }
 
 // src/emoji/index.ts
 var U200D = String.fromCharCode(8205);

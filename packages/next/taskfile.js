@@ -156,6 +156,19 @@ export async function copy_vercel_og(task, opts) {
         'dist/*.+(js|ttf|wasm),LICENSE'
       )
     )
+    // eslint-disable-next-line require-yield
+    .run({ every: true }, function* (file) {
+      if (file.base === 'index.node.js') {
+        const source = file.data.toString()
+        file.data = source.replace(
+          /import { fileURLToPath } from "url";\n/g,
+          `import { fileURLToPath as originFileURLToPath } from "url";
+          import { join as pathJoin } from "path";
+          function fileURLToPath(fileUrl) { return originFileURLToPath(pathJoin(fileUrl)); }
+          `
+        )
+      }
+    })
     .target('src/compiled/@vercel/og')
 
   // Types are not bundled, include satori types here
@@ -2742,7 +2755,7 @@ const cachedData =
   !process.pkg &&
   require('process').platform !== 'win32' &&
   readFileSync(join(__dirname, '${cachedOutputName}'))
-  
+
 const scriptOpts = { filename: basename, columnOffset: 0 }
 
 const script = new Script(
