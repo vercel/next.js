@@ -888,7 +888,6 @@ export async function renderToHTMLOrFlight(
                 errorStyles={errorStyles}
                 loading={Loading ? <Loading /> : undefined}
                 loadingStyles={loadingStyles}
-                asNotFound={asNotFound}
                 // TODO-APP: Add test for loading returning `undefined`. This currently can't be tested as the `webdriver()` tab will wait for the full page to load before returning.
                 hasLoading={Boolean(Loading)}
                 template={
