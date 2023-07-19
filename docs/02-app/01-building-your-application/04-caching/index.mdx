@@ -194,7 +194,11 @@ While a page refresh or hard navigation will clear **all** cached segments, the 
 
 #### Opting out
 
-It's not possible to opt out of the Router Cache. However, you can opt out of prefetching by setting the `prefetch` prop of the `<Link>` component to `false`. The routes will still be cached when visited.
+It's not possible to opt out of the Router Cache.
+
+You can opt out of prefetching by setting the `prefetch` prop of the `<Link>` component to `false`. However, this will still temporarily store the route segments for 30s to allow instant navigation between nested segments, such as tab bars.
+
+The routes will still be cached when visited.
 
 ## Cache Interactions
 
