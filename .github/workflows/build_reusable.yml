@@ -75,7 +75,7 @@ env:
 jobs:
   build:
     timeout-minutes: 25
-    runs-on: [self-hosted, linux, x64]
+    runs-on: [self-hosted, linux, x64, hv]
 
     steps:
       - run: fnm install ${{ inputs.nodeVersion || env.NODE_LTS_VERSION }}
