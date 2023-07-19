@@ -100,15 +100,11 @@ export interface AppRouterInstance {
    * Navigate to the provided href.
    * Pushes a new history entry.
    */
-  push(href: string): void
-  /** @internal */
   push(href: string, options?: NavigateOptions): void
   /**
    * Navigate to the provided href.
    * Replaces the current history entry.
    */
-  replace(href: string): void
-  /** @internal */
   replace(href: string, options?: NavigateOptions): void
   /**
    * Prefetch the provided href.

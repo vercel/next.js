@@ -18,7 +18,6 @@ import {
 import type {
   CacheNode,
   AppRouterInstance,
-  NavigateOptions,
 } from '../../shared/lib/app-router-context'
 import type {
   FlightRouterState,
@@ -304,8 +303,7 @@ function Router({
           })
         })
       },
-      // options is internal, hidden from TS users
-      replace: (href, options: NavigateOptions = {}) => {
+      replace: (href, options = {}) => {
         startTransition(() => {
           navigate(
             href,
@@ -316,7 +314,7 @@ function Router({
         })
       },
 
-      push: (href, options: NavigateOptions = {}) => {
+      push: (href, options = {}) => {
         startTransition(() => {
           navigate(
             href,
