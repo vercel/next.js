@@ -158,9 +158,11 @@ This means on navigation, the cache is reused as much as possible, instead of ma
 
 Learn how to configure the [Router Cache](/docs/app/building-your-application/data-fetching/caching).
 
-## Partial Rendering
+#### 3. Partial Rendering
 
-When navigating between sibling routes (e.g. `/dashboard/settings` and `/dashboard/analytics` below), Next.js will only fetch and render the layouts and pages in routes that change. It will **not** re-fetch or re-render anything above the segments in the subtree. This means that in routes that share a layout, the layout will be preserved when a user navigates between sibling pages.
+Partial rendering means only the route segments that change on navigation re-render on the client, and any shared segments are preserved.
+
+For example, when navigating between two sibling routes, `/dashboard/settings` and `/dashboard/analytics`, the `settings` and `analytics` pages will be rendered, and the shared `dashboard` layout will be preseved.
 
 <Image
   alt="How partial rendering works"
@@ -170,7 +172,7 @@ When navigating between sibling routes (e.g. `/dashboard/settings` and `/dashboa
   height="945"
 />
 
-Without partial rendering, each navigation would cause the full page to re-render on the server. Rendering only the segment that’s updating reduces the amount of data transferred and execution time, leading to improved performance.
+Without partial rendering, each navigation would cause the full page to re-render on the server. Rendering only the segment that changes reduces the amount of data transferred and execution time, leading to improved performance.
 
 ### Soft Navigation
 
