@@ -3,6 +3,8 @@ import { context } from '@actions/github'
 import { info, setFailed } from '@actions/core'
 import { graphql } from '@octokit/graphql'
 
+if (!process.env.GITHUB_TOKEN) throw new Error('GITHUB_TOKEN not set')
+
 /**
 MIT License
 
@@ -27,8 +29,6 @@ function isUnhelpfulComment(text) {
 
 async function run() {
   try {
-    if (!process.env.GITHUB_TOKEN) return
-
     const { comment } = context.payload
     if (!comment) return
 
