@@ -148,7 +148,11 @@ There are two ways routes are prefetched in Next.js:
 The`<Link>`'s prefetching behavior is different for static and dynamic routes:
 
 - [**Static Routes**](/docs/app/building-your-application/rendering/static-and-dynamic-rendering#static-rendering-default): `prefetch` defaults to `true`. The whole route is prefetched and cached.
-- [**Dynamic Routes**](/docs/app/building-your-application/rendering/static-and-dynamic-rendering#dynamic-rendering): `prefetch` default to `false`. Only the shared layout down until the first `loading.js` file is prefetched and cached for 30s. This reduces the cost of fetching an entire dynamic route, and it means you can show an [instant loading state](/docs/app/building-your-application/routing/loading-ui-and-streaming#instant-loading-states).
+- [**Dynamic Routes**](/docs/app/building-your-application/rendering/static-and-dynamic-rendering#dynamic-rendering): `prefetch` default to automatic. Only the shared layout down until the first `loading.js` file is prefetched and cached for 30s. This reduces the cost of fetching an entire dynamic route, and it means you can show an [instant loading state](/docs/app/building-your-application/routing/loading-ui-and-streaming#instant-loading-states).
+
+You can disable prefetching by setting the `prefetch` prop to `false`.
+
+See the [`<Link>` API reference](/docs/app/api-reference/components/link) for more information.
 
 > **Good to know**:
 >
@@ -158,9 +162,9 @@ The`<Link>`'s prefetching behavior is different for static and dynamic routes:
 
 Next.js has an **in-memory client-side cache** called the [Router Cache](/docs/app/building-your-application/data-fetching/caching#router-cache). As users navigate around the app, the React Server Component Payload of [prefetched](#prefetching) route segments and visited routes are stored in the cache.
 
-This means on navigation, the cache is reused as much as possible, instead of making a new request to the server; improving performance by reducing the numbers of requests and data transferred.
+This means on navigation, the cache is reused as much as possible, instead of making a new request to the server - improving performance by reducing the numbers of requests and data transferred.
 
-Learn more about the [Router Cache](/docs/app/building-your-application/data-fetching/caching).
+Learn more about how the [Router Cache](/docs/app/building-your-application/data-fetching/caching) works and how to configure it.
 
 #### 3. Partial Rendering
 
