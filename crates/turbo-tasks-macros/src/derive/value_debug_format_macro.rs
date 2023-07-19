@@ -33,29 +33,18 @@ pub fn derive_value_debug_format(input: TokenStream) -> TokenStream {
     let formatting_logic =
         match_expansion(&derive_input, &format_named, &format_unnamed, &format_unit);
 
-    let value_debug_format_ident = get_value_debug_format_ident(ident);
-
     quote! {
-        #[doc(hidden)]
-        impl #impl_generics #ident #ty_generics #where_clause {
-            #[doc(hidden)]
-            #[allow(non_snake_case)]
-            async fn #value_debug_format_ident(&self, depth: usize) -> anyhow::Result<turbo_tasks::Vc<turbo_tasks::debug::ValueDebugString>> {
-                if depth == 0 {
-                    return Ok(turbo_tasks::debug::ValueDebugString::new(stringify!(#ident).to_string()));
-                }
-
-                use turbo_tasks::debug::internal::*;
-                use turbo_tasks::debug::ValueDebugFormat;
-                Ok(turbo_tasks::debug::ValueDebugString::new(format!("{:#?}", #formatting_logic)))
-            }
-        }
-
         impl #impl_generics turbo_tasks::debug::ValueDebugFormat for #ident #ty_generics #where_clause {
             fn value_debug_format<'a>(&'a self, depth: usize) -> turbo_tasks::debug::ValueDebugFormatString<'a> {
                 turbo_tasks::debug::ValueDebugFormatString::Async(
                     Box::pin(async move {
-                        Ok(self.#value_debug_format_ident(depth).await?.await?.to_string())
+                        if depth == 0 {
+                            return Ok(stringify!(#ident).to_string());
+                        }
+
+                        use turbo_tasks::debug::internal::*;
+                        use turbo_tasks::debug::ValueDebugFormat;
+                        Ok(format!("{:#?}", #formatting_logic))
                     })
                 )
             }
@@ -121,8 +110,4 @@ fn format_unit(ident: &Ident) -> (TokenStream2, TokenStream2) {
             )
         },
     )
-}
-
-pub(crate) fn get_value_debug_format_ident(ident: &Ident) -> Ident {
-    Ident::new(&format!("__value_debug_format_{}", ident), ident.span())
 }
