@@ -119,6 +119,14 @@ export const RequestAsyncStorageWrapper: AsyncStorageWrapper<
 
         return cache.draftMode
       },
+
+      // if you're somehow reading this, please don't use this method.
+      // This is a temporary hack to unblock some internal use-cases,
+      // we will absolutely break this in the future. Using this will also
+      // most likely break your app in ways you won't expect.
+      get DO_NOT_USE_OR_YOU_WILL_BE_FIRED_request() {
+        return req
+      },
     }
 
     return storage.run(store, callback, store)
