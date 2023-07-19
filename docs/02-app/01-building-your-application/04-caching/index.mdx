@@ -31,7 +31,7 @@ In React Server Components, the [`fetch` API](#fetch) uses an implementation sim
 
 Since `fetch` requests are automatically memoized, you can fetch data in the components that need it without props drilling and worrying about the performance impact of making multiple requests for the same data. Memoization applies to `fetch` requests in `generateMetadata`, `generateStaticParams`, Layouts, Pages, and other Server Components.
 
-For cases where `fetch` is not suitable (e.g. database clients, CMS clients, or GraphQL), you can use React's `cache` function to manually deduplicate requests. Although Next.js uses `cache` to memoize data requests on the server, the `cache` function can also be used to memoize any function on the server or the client.
+For cases where `fetch` is not suitable (e.g. database clients, CMS clients, or GraphQL), you can use React's `cache` function to manually memoize functions.
 
 > **Memoization vs. Deduplication**:
 >
