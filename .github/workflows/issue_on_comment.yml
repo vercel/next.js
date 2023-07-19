@@ -20,6 +20,6 @@ jobs:
         with:
           node-version: 18
       - name: 'Manage +1 comments'
-        run: node ./.github/actions/minus-one
+        run: node ./.github/actions/minus-one/index.mjs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
