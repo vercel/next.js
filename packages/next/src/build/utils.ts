@@ -1969,6 +1969,7 @@ if (
 startServer({
   dir,
   isDev: false,
+  config: nextConfig,
   hostname: hostname === 'localhost' ? '0.0.0.0' : hostname,
   port: currentPort,
   allowRetry: false,

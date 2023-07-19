@@ -211,12 +211,20 @@ const nextDev: CliCommand = async (argv) => {
   // We do not set a default host value here to prevent breaking
   // some set-ups that rely on listening on other interfaces
   const host = args['--hostname']
+  const config = await loadConfig(
+    PHASE_DEVELOPMENT_SERVER,
+    dir,
+    undefined,
+    undefined,
+    true
+  )
 
   const devServerOptions: StartServerOptions = {
     dir,
     port,
     allowRetry,
     isDev: true,
+    nextConfig: config,
     hostname: host,
     // This is required especially for app dir.
     useWorkers: true,
@@ -236,14 +244,6 @@ const nextDev: CliCommand = async (argv) => {
 
     resetEnv()
     let bindings = await loadBindings()
-
-    const config = await loadConfig(
-      PHASE_DEVELOPMENT_SERVER,
-      dir,
-      undefined,
-      undefined,
-      true
-    )
 
     // Just testing code here:
 
@@ -409,7 +409,6 @@ const nextDev: CliCommand = async (argv) => {
       try {
         let shouldFilter = false
         let devServerTeardown: (() => Promise<void>) | undefined
-        let config: NextConfig | undefined
 
         watchConfigFiles(devServerOptions.dir, (filename) => {
           Log.warn(
@@ -504,16 +503,6 @@ const nextDev: CliCommand = async (argv) => {
           } finally {
             // fallback to noop, if not provided
             resolveCleanup(async () => {})
-          }
-
-          if (!config) {
-            config = await loadConfig(
-              PHASE_DEVELOPMENT_SERVER,
-              dir,
-              undefined,
-              undefined,
-              true
-            )
           }
         }
 

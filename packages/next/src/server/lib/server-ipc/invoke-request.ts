@@ -1,3 +1,5 @@
+import '../../node-polyfill-fetch'
+
 import type { IncomingMessage } from 'http'
 import type { Writable, Readable } from 'stream'
 import { filterReqHeaders } from './utils'

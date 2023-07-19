@@ -18,7 +18,6 @@ import { invokeRequest, pipeReadable } from './server-ipc/invoke-request'
 import { createRequestResponseMocks } from './mock-request'
 import { createIpcServer, createWorker } from './server-ipc'
 import { UnwrapPromise } from '../../lib/coalesced-function'
-import setupCompression from 'next/dist/compiled/compression'
 import { getResolveRoutes } from './router-utils/resolve-routes'
 import { NextUrlWithParsedQuery, getRequestMeta } from '../request-meta'
 import { pathHasPrefix } from '../../shared/lib/router/utils/path-has-prefix'
@@ -254,12 +253,6 @@ export async function initialize(opts: {
   process.on('SIGTERM', cleanup)
   process.on('uncaughtException', cleanup)
   process.on('unhandledRejection', cleanup)
-
-  let compress: ReturnType<typeof setupCompression> | undefined
-
-  if (config.compress) {
-    compress = setupCompression()
-  }
 
   const resolveRoutes = getResolveRoutes(
     fsChecker,
@@ -645,10 +638,6 @@ export async function initialize(opts: {
     }
 
     try {
-      if (typeof compress === 'function') {
-        // @ts-expect-error not express req/res
-        compress(req, res, () => {})
-      }
       await handleRequest(0)
     } catch (err) {
       try {

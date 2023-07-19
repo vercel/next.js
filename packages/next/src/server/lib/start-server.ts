@@ -1,6 +1,7 @@
 import type { Duplex } from 'stream'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { ChildProcess } from 'child_process'
+import type { NextConfigComplete } from '../config-shared'
 
 import http from 'http'
 import { isIPv6 } from 'net'
@@ -10,6 +11,7 @@ import setupDebug from 'next/dist/compiled/debug'
 import { splitCookiesString } from '../web/utils'
 import { getCloneableBody } from '../body-streams'
 import { filterReqHeaders } from './server-ipc/utils'
+import setupCompression from 'next/dist/compiled/compression'
 import { normalizeRepeatedSlashes } from '../../shared/lib/utils'
 import { invokeRequest, pipeReadable } from './server-ipc/invoke-request'
 import {
@@ -36,6 +38,7 @@ export interface StartServerOptions {
   keepAliveTimeout?: number
   onStdout?: (data: any) => void
   onStderr?: (data: any) => void
+  nextConfig: NextConfigComplete
 }
 
 type TeardownServer = () => Promise<void>
@@ -89,6 +92,7 @@ export const createRouterWorker = async (
 
 export async function startServer({
   dir,
+  nextConfig,
   prevDir,
   port,
   isDev,
@@ -313,6 +317,12 @@ export async function startServer({
       routerPort = initializeResult.port
       didInitialize = true
 
+      let compress: ReturnType<typeof setupCompression> | undefined
+
+      if (nextConfig.compress) {
+        compress = setupCompression()
+      }
+
       const getProxyServer = (pathname: string) => {
         const targetUrl = `http://${
           targetHost === 'localhost' ? '127.0.0.1' : targetHost
@@ -368,6 +378,12 @@ export async function startServer({
           res.end(cleanUrl)
           return
         }
+
+        if (typeof compress === 'function') {
+          // @ts-expect-error not express req/res
+          compress(req, res, () => {})
+        }
+
         const targetUrl = `http://${
           targetHost === 'localhost' ? '127.0.0.1' : targetHost
         }:${routerPort}${req.url || '/'}`
