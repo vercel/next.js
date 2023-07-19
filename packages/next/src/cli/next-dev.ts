@@ -251,12 +251,16 @@ const nextDev: CliCommand = async (argv) => {
       projectPath: dir,
       rootPath: dir,
       nextConfig: config,
+      env: {
+        NEXT_PUBLIC_ENV_VAR: 'world',
+      },
       watch: true,
     })
     const iter = project.entrypointsSubscribe()
 
     try {
       for await (const entrypoints of iter) {
+        Log.info(entrypoints)
         for (const [pathname, route] of entrypoints.routes) {
           switch (route.type) {
             case 'page': {
@@ -288,9 +292,19 @@ const nextDev: CliCommand = async (argv) => {
               break
           }
         }
+        Log.info('iteration done')
+        await project.update({
+          projectPath: dir,
+          rootPath: dir,
+          nextConfig: config,
+          env: {
+            NEXT_PUBLIC_ENV_VAR: 'hello',
+          },
+          watch: true,
+        })
       }
     } catch (e) {
-      console.error(e)
+      console.dir(e)
     }
 
     Log.error('Not supported yet')
