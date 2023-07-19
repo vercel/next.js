@@ -74,7 +74,7 @@ export interface NavigateOptions {
    * Set to `false` when you don't need to scroll back to the top
    * when the URL changes (For instance hash query changes).
    *
-   * @default false
+   * @default true
    */
   scroll?: boolean
 }
