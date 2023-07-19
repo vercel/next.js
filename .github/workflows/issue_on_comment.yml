@@ -5,10 +5,11 @@ on:
     types: [created]
 
 jobs:
-  issue-on-comment:
+  needs-triage:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+      - uses: ./.github/actions/needs-triage
       - uses: ./.github/actions/issue-on-comment
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
