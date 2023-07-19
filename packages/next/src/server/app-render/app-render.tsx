@@ -888,6 +888,7 @@ export async function renderToHTMLOrFlight(
                 errorStyles={errorStyles}
                 loading={Loading ? <Loading /> : undefined}
                 loadingStyles={loadingStyles}
+                asNotFound={asNotFound}
                 // TODO-APP: Add test for loading returning `undefined`. This currently can't be tested as the `webdriver()` tab will wait for the full page to load before returning.
                 hasLoading={Boolean(Loading)}
                 template={
@@ -929,11 +930,9 @@ export async function renderToHTMLOrFlight(
       // routes, we try to render the not found component if it exists.
       let notFoundComponent = {}
       const isLeaf =
-        !segment && !rootLayoutIncluded
-          ? !segment && !rootLayoutIncluded
-          : process.env.NODE_ENV !== 'production' &&
-            !parallelRouteMap.length &&
-            segment.startsWith('__PAGE__')
+        process.env.NODE_ENV !== 'production'
+          ? !parallelRouteMap.length && segment.startsWith('__PAGE__')
+          : segment.startsWith('__DEFAULT__') && rootLayoutIncluded
 
       if (asNotFound && isLeaf && NotFound) {
         notFoundComponent = {
