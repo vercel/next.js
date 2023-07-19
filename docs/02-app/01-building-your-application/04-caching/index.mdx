@@ -60,7 +60,7 @@ There is no opt-out for the `cache` function as that has to be intentionally add
 
 Next.js has a built-in Data Cache that stores the result of data requests across user requests and deployments.
 
-By default, data requests that use `fetch` are automatically cached at build time. This is possible because Next.js extends the native `fetch` API to allow each request on the server to set its own persistent caching semantics.
+By default, data requests that use `fetch` are automatically cached. This is possible because Next.js extends the native `fetch` API to allow each request on the server to set its own persistent caching semantics.
 
 You can use the [`cache`](#fetchoptionscache) and [`next.revalidate`](#fetchoptionsnextrevalidate) options of `fetch` to configure the caching behavior. In the browser, `cache` indicates how a fetch request will interact with the browser's HTTP cache, and with Next.js, the `cache` option also indicates how a server-side fetch request will interact with the framework's Data Cache.
 
