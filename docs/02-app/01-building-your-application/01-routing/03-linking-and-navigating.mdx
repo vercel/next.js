@@ -130,7 +130,7 @@ For a full list of `useRouter` methods, see the [API reference](/docs/app/api-re
 
 ## How Routing and Navigation Works
 
-The App Router uses a hybrid approach for routing and navigation. On the server, your application code is automatically code-split by route segments. And on the client, Next.js [prefetches](#1-prefetching) and caches the route segments. This means, when a user navigates to a new route, the browser doesn't reload the page, and only the route segments that change re-render - making navigation between routes instant.
+The App Router uses a hybrid approach for routing and navigation. On the server, your application code is automatically code-split by route segments. And on the client, Next.js [prefetches](#1-prefetching) and [caches](#2-caching) the route segments. This means, when a user navigates to a new route, the browser doesn't reload the page, and only the route segments that change re-render - improving navigation performance.
 
 ### 1. Prefetching
 
@@ -152,11 +152,11 @@ The`<Link>`'s prefetching behavior is different for static and dynamic routes:
 
 ### 2. Caching
 
-Next.js has an **in-memory client-side cache** called the [Router Cache](/docs/app/building-your-application/data-fetching/caching#router-cache). As users navigate around the app, the React Server Payload of [prefetched](#prefetching) route segments and visited routes are stored in the Router Cache.
+Next.js has an **in-memory client-side cache** called the [Router Cache](/docs/app/building-your-application/data-fetching/caching#router-cache). As users navigate around the app, the React Server Component Payload of [prefetched](#prefetching) route segments and visited routes are stored in the cache.
 
 This means on navigation, the cache is reused as much as possible, instead of making a new request to the server; improving performance by reducing the numbers of requests and data transferred.
 
-Learn how to configure the [Router Cache](/docs/app/building-your-application/data-fetching/caching).
+Learn more about the [Router Cache](/docs/app/building-your-application/data-fetching/caching).
 
 #### 3. Partial Rendering
 
@@ -173,8 +173,6 @@ For example, when navigating between two sibling routes, `/dashboard/settings` a
 />
 
 Without partial rendering, each navigation would cause the full page to re-render on the server. Rendering only the segment that changes reduces the amount of data transferred and execution time, leading to improved performance.
-
-### Soft Navigation
 
 On navigation, the cache for changed segments is reused (if it exists), and no new requests are made to the server for data.
 

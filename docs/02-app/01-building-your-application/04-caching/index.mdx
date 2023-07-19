@@ -16,20 +16,18 @@ Here's a high-level overview of the different caching mechanisms in Next.js and 
 | ----------------------------- | ------------------------------ | ------------------- | ------------------------------------------------------------- | ------------------------------- |
 | [React Cache](#react-cache)   | Return values of functions     | Server              | Reduce data store calls and share data between route segments | Per-request lifecycle           |
 | [Data Cache](#data-cache)     | Return values of data requests | Server              | Store data across user requests and deployments               | Persistent (can be revalidated) |
-| [Render Cache](#render-cache) | Rendered React Components      | Server              | Reduce rendering cost and improve performance                 | Persistent (can be revalidated) |
+| [Render Cache](#render-cache) | Rendered HTML and RSC payload  | Server              | Reduce rendering cost and improve performance                 | Persistent (can be revalidated) |
 | [Router Cache](#router-cache) | Route Segments (RSC Payload)   | Client              | Reduce server requests and improve navigation experience      | User session or time-based.     |
 
 ## How caching works
 
 ### React Cache
 
-React's `cache` function allows you to **memoize** the return value of a function, saving the result to memory. This means you can call the same function multiple times while only executing it once when rendering a React tree.
-
-In React Server Components, the [`fetch` API](#fetch) uses an implementation similar to `cache` to **memoize** requests for the same url and options. This means you can call the same fetch multiple times while only executing it once when rendering a React tree when the url and options are the same.
+React's `cache` function allows you to **memoize** the return value of a function, saving the result to memory. In React Server Components, the [`fetch` API](#fetch) uses an implementation similar to `cache` to **memoize** data requests using the same URL and options. This means you can call the same data in multiple components while only executing it once during a render pass of a React component tree.
 
 {/* Diagram */}
 
-Since `fetch` requests are automatically memoized, you can fetch data in the components that need it without props drilling and worrying about the performance impact of making multiple requests for the same data. Memoization applies to `fetch` requests in `generateMetadata`, `generateStaticParams`, Layouts, Pages, and other Server Components.
+With `fetch`, you can fetch data in the components that need it without props drilling and worrying about the performance impact of making multiple requests for the same data. Memoization applies to `fetch` requests in `generateMetadata`, `generateStaticParams`, Layouts, Pages, and other Server Components.
 
 For cases where `fetch` is not suitable (e.g. database clients, CMS clients, or GraphQL), you can use React's `cache` function to manually memoize functions.
 
@@ -43,18 +41,18 @@ The cache lasts the lifetime of a server request or static rendering until rende
 
 #### Revalidating
 
-React's `cache` function is used specifically for memoizing the return values of functions when rendering the React tree. Since the memoization is not shared across requests and only applies during the rendering of the React tree, there is no revalidation. 
+React's `cache` function is used specifically for memoizing the return values of functions. Since the memoization is not shared across requests and only applies during the rendering of the React tree, there is no need for revalidation.
 
 #### Opting out
 
-To opt-out of memoization in `fetch` you can pass an `AbortController` `signal` to the request.
+To opt out of memoization in `fetch` requests, you can pass an `AbortController` `signal` to the request.
 
 ```js
 const { signal } = new AbortController()
 fetch(url, { signal })
 ```
 
-There is no opt-out for the `cache` function as that has to be intentionally added to functions.
+Since you manually opt into using the `cache` function, there's no way to opt out.
 
 ### Data Cache
 
@@ -112,11 +110,11 @@ To understand how the Render Cache works, it's helpful to look at how React hand
 
 On the server, Next.js uses React's APIs to orchestrate rendering. This process is split into three stages:
 
-1. React renders Server Components into a special data format, optimized for streaming, called the **React Server Payload**.
+1. React renders Server Components into a special data format, optimized for streaming, called the **React Server Component Payload**.
 2. Next.js compiles, bundles, and code-splits the **JavaScript instructions** for rendering Client Components on the client.
-3. Net.js uses the React Payload and JavaScript instructions to pre-render **HTML** on the server.
+3. Next.js uses the React Payload and JavaScript instructions to pre-render **HTML** on the server.
 
-> **What is React Server Payload?**
+> **What is React Server Component Payload?**
 >
 > The React Payload is a compact string representation of the React Component tree. It's used by React on the client to update the DOM. The React Payload contains:
 >
@@ -130,11 +128,11 @@ On the server, Next.js uses React's APIs to orchestrate rendering. This process 
 
 #### 2. Next.js Caching on the Server (Render Cache)
 
-On the server, at build time, Next.js caches the React Server Payload, Client Component JavaScript, and pre-rendered HTML.
+On the server, at build time, Next.js caches the React Server Component Payload, Client Component JavaScript, and pre-rendered HTML.
 
 #### 3. Next.js Caching on the Client (Router Cache)
 
-At request time, the React Server Payload is stored in the client-side [Router Cache](#router-cache) - a separate in-memory cache, split by individual routes. This Router Cache is used to improve the navigation experience by prefetching.
+At request time, the React Server Component Payload is stored in the client-side [Router Cache](#router-cache) - a separate in-memory cache, split by individual routes. This Router Cache is used to improve the navigation experience by prefetching.
 
 #### 4. React Hydration and Reconciliation on the Client
 
@@ -175,7 +173,7 @@ You can opt out of the Render Cache, or in other words, dynamically render compo
 
 ### Router Cache
 
-Next.js has an in-memory client-side cache that stores the React Server Payload, split by individual routes. This **Router Cache** is used to improve the navigation experience. Next.js [prefetches](/docs/app/building-your-application/routing/linking-and-navigating#prefetching) and caches routes that the user is likely going to navigate to (when using the `<Link >` component), and caches visited route segments, enabling [partial rendering](/docs/app/building-your-application/routing/linking-and-navigating#partial-rendering). This applies to newly visited routes, as well as backward/forward browser navigation.
+Next.js has an in-memory client-side cache that stores the React Server Component Payload, split by individual routes. This **Router Cache** is used to improve the navigation experience. Next.js [prefetches](/docs/app/building-your-application/routing/linking-and-navigating#prefetching) and caches routes that the user is likely going to navigate to (when using the `<Link >` component), and caches visited route segments, enabling [partial rendering](/docs/app/building-your-application/routing/linking-and-navigating#partial-rendering). This applies to newly visited routes, as well as backward/forward browser navigation.
 
 For the user, this results in [soft navigation](/docs/app/building-your-application/routing/linking-and-navigating#soft-navigation) (no page reloads) and faster page transitions; it also reduces unnecessary requests to the server.
 
