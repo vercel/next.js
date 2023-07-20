@@ -123,6 +123,27 @@ module.exports = {
 }
 ```
 
+Certain cases may arise when you might have to redirect all pages to a specific page, regex path matching paired with wildcard can help with that: 
+
+```js filename="next.config.js"
+module.exports = {
+  async redirects() {
+    return [
+      {
+        source: '/:slug([a-zA-Z0-9]+)', 
+        destination: '/', 
+        permanent: false,
+      },
+      {
+        source: '/:slug1/:slug2*', 
+        destination: '/', 
+        permanent: false,
+      }
+    ];
+  },
+}
+```
+
 ## Header, Cookie, and Query Matching
 
 To only match a redirect when header, cookie, or query values also match the `has` field or don't match the `missing` field can be used. Both the `source` and all `has` items must match and all `missing` items must not match for the redirect to be applied.
