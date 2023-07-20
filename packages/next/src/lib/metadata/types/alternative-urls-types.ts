@@ -408,8 +408,6 @@ type LangCode =
   | 'xh-ZA'
   | 'yo-NG'
   | 'zh-CN'
-  | 'zh-Hans'
-  | 'zh-Hant'
   | 'zh-HK'
   | 'zh-MO'
   | 'zh-SG'
@@ -418,7 +416,7 @@ type LangCode =
 
 type UnmatchedLang = 'x-default'
 
-type HrefLang = LangCode | UnmatchedLang
+type HrefLang = LangCode | UnmatchedLang | string
 
 type Languages<T> = {
   [s in HrefLang]?: T
