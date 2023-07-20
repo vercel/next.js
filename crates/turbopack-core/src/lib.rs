@@ -13,6 +13,7 @@ pub mod chunk;
 pub mod code_builder;
 pub mod compile_time_info;
 pub mod context;
+pub mod diagnostics;
 pub mod environment;
 pub mod error;
 pub mod file_source;
