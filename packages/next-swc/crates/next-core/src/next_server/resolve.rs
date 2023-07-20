@@ -13,7 +13,7 @@ use turbopack_binding::{
             plugin::{ResolvePlugin, ResolvePluginCondition},
             resolve, FindContextFileResult, ResolveResult, ResolveResultItem, ResolveResultOption,
         },
-        source::{asset_to_source, Source},
+        source::Source,
     },
 };
 
@@ -52,12 +52,11 @@ async fn is_node_resolveable(
     expected: Vc<FileSystemPath>,
 ) -> Result<Vc<bool>> {
     let node_resolve_result = resolve(context, request, node_cjs_resolve_options(context.root()));
-    let primary_node_assets = node_resolve_result.primary_assets().await?;
+    let primary_node_assets = node_resolve_result.primary_sources().await?;
     let Some(&node_asset) = primary_node_assets.first() else {
         // can't resolve request with node.js options
         return Ok(Vc::cell(false));
     };
-    let node_asset = asset_to_source(node_asset);
 
     if node_asset.ident().path().resolve().await? != expected.resolve().await? {
         // node.js resolves to a different file
