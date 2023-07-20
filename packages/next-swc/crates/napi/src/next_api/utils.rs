@@ -4,12 +4,17 @@ use anyhow::{anyhow, Context, Result};
 use napi::{
     bindgen_prelude::{External, ToNapiValue},
     threadsafe_function::{ThreadSafeCallContext, ThreadsafeFunction, ThreadsafeFunctionCallMode},
-    JsFunction, JsObject, NapiRaw, NapiValue, Status,
+    JsFunction, JsObject, JsUnknown, NapiRaw, NapiValue, Status,
 };
 use serde::Serialize;
-use turbo_tasks::{unit, TaskId, TurboTasks};
+use turbo_tasks::{unit, ReadRef, TaskId, TurboTasks, Vc};
 use turbopack_binding::{
-    turbo::tasks_memory::MemoryBackend, turbopack::core::error::PrettyPrintError,
+    turbo::{tasks_fs::FileContent, tasks_memory::MemoryBackend},
+    turbopack::core::{
+        error::PrettyPrintError,
+        issue::{IssueContextExt, PlainIssue, PlainIssueSource, PlainSource},
+        source_pos::SourcePos,
+    },
 };
 
 /// A helper type to hold both a Vc operation and the TurboTasks root process.
@@ -71,8 +76,106 @@ pub fn root_task_dispose(
     Ok(())
 }
 
+pub async fn get_issues<T>(source: Vc<T>) -> Result<Vec<ReadRef<PlainIssue>>> {
+    let issues = source
+        .peek_issues_with_path()
+        .await?
+        .strongly_consistent()
+        .await?;
+    issues.get_plain_issues().await
+}
+
 #[napi(object)]
-pub struct NapiIssue {}
+pub struct NapiIssue {
+    pub severity: String,
+    pub category: String,
+    pub context: String,
+    pub title: String,
+    pub description: String,
+    pub detail: String,
+    pub source: Option<NapiIssueSource>,
+    pub documentation_link: String,
+    pub sub_issues: Vec<NapiIssue>,
+}
+
+impl From<&PlainIssue> for NapiIssue {
+    fn from(issue: &PlainIssue) -> Self {
+        Self {
+            description: issue.description.clone(),
+            category: issue.category.clone(),
+            context: issue.context.clone(),
+            detail: issue.detail.clone(),
+            documentation_link: issue.documentation_link.clone(),
+            severity: issue.severity.as_str().to_string(),
+            source: issue.source.as_deref().map(|source| source.into()),
+            title: issue.title.clone(),
+            sub_issues: issue
+                .sub_issues
+                .iter()
+                .map(|issue| (&**issue).into())
+                .collect(),
+        }
+    }
+}
+
+#[napi(object)]
+pub struct NapiIssueSource {
+    pub source: NapiSource,
+    pub start: NapiSourcePos,
+    pub end: NapiSourcePos,
+}
+
+impl From<&PlainIssueSource> for NapiIssueSource {
+    fn from(
+        PlainIssueSource {
+            asset: source,
+            start,
+            end,
+        }: &PlainIssueSource,
+    ) -> Self {
+        Self {
+            source: (&**source).into(),
+            start: (*start).into(),
+            end: (*end).into(),
+        }
+    }
+}
+
+#[napi(object)]
+pub struct NapiSource {
+    pub ident: String,
+    pub content: Option<String>,
+}
+
+impl From<&PlainSource> for NapiSource {
+    fn from(source: &PlainSource) -> Self {
+        Self {
+            ident: source.ident.to_string(),
+            content: match &*source.content {
+                FileContent::Content(content) => match content.content().to_str() {
+                    Ok(str) => Some(str.into_owned()),
+                    Err(_) => None,
+                },
+                FileContent::NotFound => None,
+            },
+        }
+    }
+}
+
+#[napi(object)]
+pub struct NapiSourcePos {
+    pub line: u32,
+    pub column: u32,
+}
+
+impl From<SourcePos> for NapiSourcePos {
+    fn from(pos: SourcePos) -> Self {
+        Self {
+            line: pos.line as u32,
+            column: pos.column as u32,
+        }
+    }
+}
 
 #[napi(object)]
 pub struct NapiDiagnostic {}
@@ -88,16 +191,20 @@ impl<T: ToNapiValue> ToNapiValue for TurbopackResult<T> {
         env: napi::sys::napi_env,
         val: Self,
     ) -> napi::Result<napi::sys::napi_value> {
-        let result = T::to_napi_value(env, val.result)?;
-        // let issues = ToNapiValue::to_napi_value(env, val.issues)?;
-        // let diagnostics = ToNapiValue::to_napi_value(env, val.diagnostics)?;
-
-        let result = JsObject::from_raw(env, result)?;
-
         let mut obj = napi::Env::from_raw(env).create_object()?;
-        for key in JsObject::keys(&result)? {
-            obj.set_named_property(&key, result.get_named_property(&key)?)?;
+
+        let result = T::to_napi_value(env, val.result)?;
+        let result = JsUnknown::from_raw(env, result)?;
+        if matches!(result.get_type()?, napi::ValueType::Object) {
+            // SAFETY: We know that result is an object, so we can cast it to a JsObject
+            let result = unsafe { result.cast::<JsObject>() };
+
+            for key in JsObject::keys(&result)? {
+                let value: JsUnknown = result.get_named_property(&key)?;
+                obj.set_named_property(&key, value)?;
+            }
         }
+
         obj.set_named_property("issues", val.issues)?;
         obj.set_named_property("diagnostics", val.diagnostics)?;
 
