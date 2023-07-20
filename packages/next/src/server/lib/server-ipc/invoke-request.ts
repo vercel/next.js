@@ -18,6 +18,7 @@ export const invokeRequest = async (
   parsedTargetUrl.hostname = '127.0.0.1'
 
   const invokeHeaders = filterReqHeaders({
+    'cache-control': '',
     ...requestInit.headers,
   }) as IncomingMessage['headers']
 

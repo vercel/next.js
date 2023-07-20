@@ -11,6 +11,7 @@ import { getCloneableBody } from '../../body-streams'
 import { filterReqHeaders } from '../server-ipc/utils'
 import { Header } from '../../../lib/load-custom-routes'
 import { stringifyQuery } from '../../server-route-utils'
+import { toNodeOutgoingHttpHeaders } from '../../web/utils'
 import { invokeRequest } from '../server-ipc/invoke-request'
 import { getCookieParser, setLazyProp } from '../../api-utils'
 import { getHostname } from '../../../shared/lib/get-hostname'
@@ -460,7 +461,9 @@ export function getResolveRoutes(
               },
               getRequestMeta(req, '__NEXT_CLONABLE_BODY')?.cloneBodyStream()
             )
-            const middlewareHeaders = Object.fromEntries(middlewareRes.headers)
+            const middlewareHeaders = toNodeOutgoingHttpHeaders(
+              middlewareRes.headers
+            ) as Record<string, string | string[] | undefined>
 
             debug('middleware res', middlewareRes.status, middlewareHeaders)
 

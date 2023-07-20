@@ -8,7 +8,7 @@ import { isIPv6 } from 'net'
 import { initialEnv } from '@next/env'
 import * as Log from '../../build/output/log'
 import setupDebug from 'next/dist/compiled/debug'
-import { splitCookiesString } from '../web/utils'
+import { splitCookiesString, toNodeOutgoingHttpHeaders } from '../web/utils'
 import { getCloneableBody } from '../body-streams'
 import { filterReqHeaders } from './server-ipc/utils'
 import setupCompression from 'next/dist/compiled/compression'
@@ -319,7 +319,7 @@ export async function startServer({
 
       let compress: ReturnType<typeof setupCompression> | undefined
 
-      if (nextConfig.compress) {
+      if (nextConfig?.compress !== false) {
         compress = setupCompression()
       }
 
@@ -401,7 +401,7 @@ export async function startServer({
         res.statusMessage = invokeRes.statusText
 
         for (const [key, value] of Object.entries(
-          filterReqHeaders(Object.fromEntries(invokeRes.headers))
+          filterReqHeaders(toNodeOutgoingHttpHeaders(invokeRes.headers))
         )) {
           if (value !== undefined) {
             if (key === 'set-cookie') {

@@ -1,3 +1,5 @@
+import type { IncomingMessage } from 'http'
+
 // this must come first as it includes require hooks
 import { initializeServerWorker } from './setup-server-worker'
 
@@ -6,11 +8,10 @@ import path from 'path'
 import loadConfig from '../config'
 import { serveStatic } from '../serve-static'
 import setupDebug from 'next/dist/compiled/debug'
-import { splitCookiesString } from '../web/utils'
+import { splitCookiesString, toNodeOutgoingHttpHeaders } from '../web/utils'
 import { Telemetry } from '../../telemetry/storage'
 import { DecodeError } from '../../shared/lib/utils'
 import { filterReqHeaders } from './server-ipc/utils'
-import { IncomingMessage, ServerResponse } from 'http'
 import { findPagesDir } from '../../lib/find-pages-dir'
 import { setupFsCheck } from './router-utils/filesystem'
 import { proxyRequest } from './router-utils/proxy-request'
@@ -263,13 +264,6 @@ export async function initialize(opts: {
     devInstance?.ensureMiddleware
   )
 
-  function writeResponseChunk(res: ServerResponse, chunk: Buffer) {
-    res.write(chunk)
-    if ('flush' in res) {
-      ;(res as any).flush()
-    }
-  }
-
   const requestHandler: Parameters<typeof initializeServerWorker>[0] = async (
     req,
     res
@@ -325,7 +319,6 @@ export async function initialize(opts: {
       const renderUrl = `http://${workerResult.hostname}:${workerResult.port}${req.url}`
 
       const invokeHeaders: typeof req.headers = {
-        'cache-control': '',
         ...req.headers,
         'x-middleware-invoke': '',
         'x-invoke-path': invokePath,
@@ -354,7 +347,7 @@ export async function initialize(opts: {
       }
 
       for (const [key, value] of Object.entries(
-        filterReqHeaders(Object.fromEntries(invokeRes.headers))
+        filterReqHeaders(toNodeOutgoingHttpHeaders(invokeRes.headers))
       )) {
         if (value !== undefined) {
           if (key === 'set-cookie') {

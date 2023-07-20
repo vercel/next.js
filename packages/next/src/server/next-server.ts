@@ -521,7 +521,7 @@ export default class NextNodeServer extends BaseServer {
             }
           )
           const filteredResHeaders = filterReqHeaders(
-            Object.fromEntries(invokeRes.headers)
+            toNodeOutgoingHttpHeaders(invokeRes.headers)
           )
 
           for (const key of Object.keys(filteredResHeaders)) {

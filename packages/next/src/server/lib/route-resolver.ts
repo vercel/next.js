@@ -52,13 +52,6 @@ type ServerAddress = {
 
 const debug = setupDebug('next:router-server')
 
-function writeResponseChunk(res: ServerResponse, chunk: Buffer) {
-  res.write(chunk)
-  if ('flush' in res) {
-    ;(res as any).flush()
-  }
-}
-
 export async function makeResolver(
   dir: string,
   nextConfig: NextConfigComplete,

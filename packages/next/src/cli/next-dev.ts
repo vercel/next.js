@@ -8,11 +8,7 @@ import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
 import { CONFIG_FILES, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import path from 'path'
-import {
-  defaultConfig,
-  NextConfig,
-  NextConfigComplete,
-} from '../server/config-shared'
+import { defaultConfig, NextConfigComplete } from '../server/config-shared'
 import { traceGlobals } from '../trace/shared'
 import { Telemetry } from '../telemetry/storage'
 import loadConfig from '../server/config'
@@ -26,6 +22,7 @@ import { getPossibleInstrumentationHookFilenames } from '../build/worker'
 import { resetEnv } from '@next/env'
 
 let dir: string
+let config: NextConfigComplete
 let isTurboSession = false
 let sessionStopHandled = false
 let sessionStarted = Date.now()
@@ -38,13 +35,15 @@ const handleSessionStop = async () => {
     const { eventCliSession } =
       require('../telemetry/events/session-stopped') as typeof import('../telemetry/events/session-stopped')
 
-    const config = await loadConfig(
-      PHASE_DEVELOPMENT_SERVER,
-      dir,
-      undefined,
-      undefined,
-      true
-    )
+    config =
+      config ||
+      (await loadConfig(
+        PHASE_DEVELOPMENT_SERVER,
+        dir,
+        undefined,
+        undefined,
+        true
+      ))
 
     let telemetry =
       (traceGlobals.get('telemetry') as InstanceType<
@@ -211,13 +210,7 @@ const nextDev: CliCommand = async (argv) => {
   // We do not set a default host value here to prevent breaking
   // some set-ups that rely on listening on other interfaces
   const host = args['--hostname']
-  const config = await loadConfig(
-    PHASE_DEVELOPMENT_SERVER,
-    dir,
-    undefined,
-    undefined,
-    true
-  )
+  config = await loadConfig(PHASE_DEVELOPMENT_SERVER, dir)
 
   const devServerOptions: StartServerOptions = {
     dir,
