@@ -5,6 +5,7 @@
 #![allow(clippy::too_many_arguments)]
 
 pub mod arguments;
+pub mod build;
 pub(crate) mod contexts;
 pub mod dev;
 pub(crate) mod embed_js;

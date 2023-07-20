@@ -9,6 +9,7 @@ use turbopack_cli_utils::issue::IssueSeverityCliOption;
 #[derive(Debug, Parser)]
 #[clap(author, version, about, long_about = None)]
 pub enum Arguments {
+    Build(BuildArguments),
     Dev(DevArguments),
 }
 
@@ -16,6 +17,7 @@ impl Arguments {
     /// The directory of the application. see [CommonArguments]::dir
     pub fn dir(&self) -> Option<&Path> {
         match self {
+            Arguments::Build(args) => args.common.dir.as_deref(),
             Arguments::Dev(args) => args.common.dir.as_deref(),
         }
     }
@@ -94,4 +96,11 @@ pub struct DevArguments {
     /// in use.
     #[clap(long)]
     pub allow_retry: bool,
+}
+
+#[derive(Debug, Args)]
+#[clap(author, version, about, long_about = None)]
+pub struct BuildArguments {
+    #[clap(flatten)]
+    pub common: CommonArguments,
 }

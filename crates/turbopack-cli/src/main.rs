@@ -81,6 +81,7 @@ async fn main_inner(args: Arguments) -> Result<()> {
     register();
 
     match args {
+        Arguments::Build(args) => turbopack_cli::build::build(&args).await,
         Arguments::Dev(args) => turbopack_cli::dev::start_server(&args).await,
     }
 }

@@ -47,6 +47,7 @@ where
 
 pin_project! {
     /// Future for the [TryJoinIterExt::try_join] method.
+    #[must_use]
     pub struct TryJoin<F>
     where
         F: Future,
