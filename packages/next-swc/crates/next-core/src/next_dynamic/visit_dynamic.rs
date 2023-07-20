@@ -6,7 +6,7 @@ use turbo_tasks::{
     TryJoinIterExt, Vc,
 };
 use turbopack_binding::turbopack::core::{
-    module::{convert_asset_to_module, Module, Modules},
+    module::{Module, Modules},
     reference::ModuleReference,
 };
 
@@ -88,12 +88,8 @@ impl Visit<VisitDynamicNode> for VisitDynamic {
                 .copied()
                 .map(|reference| async move {
                     let resolve_result = reference.resolve_reference();
-                    let assets = resolve_result.primary_assets().await?;
-                    Ok(assets
-                        .iter()
-                        .copied()
-                        .map(convert_asset_to_module)
-                        .collect::<Vec<_>>())
+                    let assets = resolve_result.primary_modules().await?;
+                    Ok(assets.clone_value())
                 })
                 .try_join()
                 .await?;

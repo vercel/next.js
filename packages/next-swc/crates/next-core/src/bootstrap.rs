@@ -8,7 +8,7 @@ use turbopack_binding::turbopack::{
         chunk::EvaluatableAsset,
         context::AssetContext,
         issue::{IssueSeverity, OptionIssueSource},
-        module::{convert_asset_to_module, Module},
+        module::Module,
         reference_type::{EcmaScriptModulesReferenceSubType, InnerAssets, ReferenceType},
         resolve::parse::Request,
         source::Source,
@@ -45,8 +45,8 @@ pub async fn route_bootstrap(
         OptionIssueSource::none(),
         IssueSeverity::Error.cell(),
     );
-    let route_module_asset = match *resolved_route_module_asset.first_asset().await? {
-        Some(a) => convert_asset_to_module(a),
+    let route_module_asset = match *resolved_route_module_asset.first_module().await? {
+        Some(module) => module,
         None => bail!("could not find app asset"),
     };
 
