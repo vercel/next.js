@@ -351,7 +351,7 @@ export class ClientReferenceManifestPlugin {
       // - app/(group)/@named/foo/page -> app/foo
       // - app/(group)/@named/(.)foo/page -> app/(.)foo
       const groupName = normalizePagePath(entryName).replace(
-        /\/(page|loading|layout|route|default|error|not-found)(\.tsx?)?/g,
+        /\/(page|loading|layout|route|default|error|not-found)(\.tsx?|\.jsx?)?/g,
         ''
       )
 
