@@ -14,7 +14,8 @@ use turbopack_binding::{
 use super::{
     endpoint::ExternalEndpoint,
     utils::{
-        get_issues, serde_enum_to_string, subscribe, NapiDiagnostic, NapiIssue, RootTask, VcArc,
+        get_diagnostics, get_issues, serde_enum_to_string, subscribe, NapiDiagnostic, NapiIssue,
+        RootTask, VcArc,
     },
 };
 use crate::register;
@@ -226,12 +227,16 @@ pub fn project_entrypoints_subscribe(
         move || async move {
             let entrypoints = project.entrypoints();
             let issues = get_issues(entrypoints).await?;
+            let diags = get_diagnostics(entrypoints).await?;
+
             let entrypoints = entrypoints.strongly_consistent().await?;
+
             // TODO peek_issues and diagnostics
-            Ok((entrypoints, issues))
+            Ok((entrypoints, issues, diags))
         },
         move |ctx| {
-            let (entrypoints, issues) = ctx.value;
+            let (entrypoints, issues, diags) = ctx.value;
+
             Ok(vec![NapiEntrypoints {
                 routes: entrypoints
                     .routes
@@ -249,7 +254,7 @@ pub fn project_entrypoints_subscribe(
                     .iter()
                     .map(|issue| NapiIssue::from(&**issue))
                     .collect(),
-                diagnostics: vec![],
+                diagnostics: diags.iter().map(|d| NapiDiagnostic::from(d)).collect(),
             }])
         },
     )
