@@ -109,8 +109,7 @@ export async function generateMetadata(
 export default function Page({ params, searchParams }: Props) {}
 ```
 
-```
-jsx filename="app/products/[id]/page.js" switcher
+```jsx filename="app/products/[id]/page.js" switcher
 export async function generateMetadata({ params, searchParams }, parent) {
   // read route params
   const id = params.id
