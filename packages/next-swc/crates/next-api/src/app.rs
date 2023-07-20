@@ -4,7 +4,7 @@ use next_core::{
     app_structure::{
         get_entrypoints, Entrypoint as AppEntrypoint, Entrypoints as AppEntrypoints, LoaderTree,
     },
-    emit_all_assets, get_edge_resolve_options_context,
+    get_edge_resolve_options_context,
     mode::NextMode,
     next_app::{
         get_app_client_references_chunks, get_app_client_shared_chunks, get_app_page_entry,
@@ -436,14 +436,6 @@ struct AppEndpoint {
 #[turbo_tasks::value_impl]
 impl AppEndpoint {
     #[turbo_tasks::function]
-    fn client_relative_path(&self) -> Vc<FileSystemPath> {
-        self.app_project
-            .project()
-            .client_root()
-            .join("_next".to_string())
-    }
-
-    #[turbo_tasks::function]
     fn app_page_entry(&self, loader_tree: Vc<LoaderTree>) -> Vc<AppEntry> {
         get_app_page_entry(
             self.app_project.rsc_module_context(),
@@ -482,7 +474,7 @@ impl AppEndpoint {
 
         let node_root = this.app_project.project().node_root();
 
-        let client_relative_path = self.client_relative_path();
+        let client_relative_path = this.app_project.project().client_relative_path();
         let client_relative_path_ref = client_relative_path.await?;
 
         let server_path = node_root.join("server".to_string());
@@ -759,13 +751,10 @@ impl Endpoint for AppEndpoint {
         let node_root_ref = &node_root.await?;
 
         let node_root = this.app_project.project().node_root();
-        emit_all_assets(
-            output_assets,
-            node_root,
-            self.client_relative_path(),
-            this.app_project.project().node_root(),
-        )
-        .await?;
+        this.app_project
+            .project()
+            .emit_all_output_assets(output_assets)
+            .await?;
 
         let server_paths = all_server_paths(output_assets, node_root)
             .await?

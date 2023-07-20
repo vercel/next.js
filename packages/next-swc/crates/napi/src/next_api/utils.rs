@@ -4,6 +4,7 @@ use anyhow::{anyhow, Context, Result};
 use napi::{
     bindgen_prelude::{External, ToNapiValue},
     threadsafe_function::{ThreadSafeCallContext, ThreadsafeFunction, ThreadsafeFunctionCallMode},
+    tokio::sync::mpsc::{channel, Sender},
     JsFunction, JsObject, JsUnknown, NapiRaw, NapiValue, Status,
 };
 use serde::Serialize;
@@ -273,4 +274,51 @@ pub fn subscribe<T: 'static + Send + Sync, F: Future<Output = Result<T>> + Send,
         turbo_tasks,
         task_id: Some(task_id),
     }))
+}
+
+pub fn stream_channel<
+    T: 'static + Send + Sync,
+    F: Future<Output = Result<()>> + Send,
+    V: ToNapiValue,
+>(
+    turbo_tasks: Arc<TurboTasks<MemoryBackend>>,
+    func: JsFunction,
+    handler: impl 'static + Sync + Send + Clone + Fn(Sender<Result<T>>) -> F,
+    mapper: impl 'static + Sync + Send + FnMut(ThreadSafeCallContext<T>) -> napi::Result<Vec<V>>,
+) -> napi::Result<External<RootTask>> {
+    let func: ThreadsafeFunction<T> = func.create_threadsafe_function(0, mapper)?;
+    let task_id = turbo_tasks.spawn_root_task(move || {
+        let handler = handler.clone();
+        let func = func.clone();
+        Box::pin(async move {
+            let (sx, mut rx) = channel(32);
+
+            if let Err(err) = handler(sx).await {
+                call_with(&func, Err(err))?;
+            } else {
+                while let Some(value) = rx.recv().await {
+                    call_with(&func, value)?;
+                }
+            }
+
+            Ok(unit().node)
+        })
+    });
+    Ok(External::new(RootTask {
+        turbo_tasks,
+        task_id: Some(task_id),
+    }))
+}
+
+fn call_with<T>(func: &ThreadsafeFunction<T>, res: Result<T>) -> Result<()> {
+    let status = func.call(
+        res.map_err(|err| napi::Error::from_reason(PrettyPrintError(&err).to_string())),
+        ThreadsafeFunctionCallMode::NonBlocking,
+    );
+    if !matches!(status, Status::Ok) {
+        let error = anyhow!("Error calling JS function: {}", status);
+        eprintln!("{}", error);
+        return Err(error);
+    }
+    Ok(())
 }
