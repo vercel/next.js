@@ -1,5 +1,8 @@
 import type { OutgoingHttpHeaders } from 'http'
 
+import { toOutgoingHeaders } from 'next/dist/compiled/@edge-runtime/node-utils'
+import { splitCookiesString } from 'next/dist/compiled/@edge-runtime/cookies'
+
 /**
  * Converts a Node.js IncomingHttpHeaders object to a Headers object. Any
  * headers with multiple values will be joined with a comma and space. Any
@@ -37,71 +40,7 @@ export function fromNodeOutgoingHttpHeaders(
   Based on: https://github.com/google/j2objc/commit/16820fdbc8f76ca0c33472810ce0cb03d20efe25
   Credits to: https://github.com/tomball for original and https://github.com/chrusart for JavaScript implementation
 */
-export function splitCookiesString(cookiesString: string) {
-  var cookiesStrings = []
-  var pos = 0
-  var start
-  var ch
-  var lastComma
-  var nextStart
-  var cookiesSeparatorFound
-
-  function skipWhitespace() {
-    while (pos < cookiesString.length && /\s/.test(cookiesString.charAt(pos))) {
-      pos += 1
-    }
-    return pos < cookiesString.length
-  }
-
-  function notSpecialChar() {
-    ch = cookiesString.charAt(pos)
-
-    return ch !== '=' && ch !== ';' && ch !== ','
-  }
-
-  while (pos < cookiesString.length) {
-    start = pos
-    cookiesSeparatorFound = false
-
-    while (skipWhitespace()) {
-      ch = cookiesString.charAt(pos)
-      if (ch === ',') {
-        // ',' is a cookie separator if we have later first '=', not ';' or ','
-        lastComma = pos
-        pos += 1
-
-        skipWhitespace()
-        nextStart = pos
-
-        while (pos < cookiesString.length && notSpecialChar()) {
-          pos += 1
-        }
-
-        // currently special character
-        if (pos < cookiesString.length && cookiesString.charAt(pos) === '=') {
-          // we found cookies separator
-          cookiesSeparatorFound = true
-          // pos is inside the next cookie, so back up and return it.
-          pos = nextStart
-          cookiesStrings.push(cookiesString.substring(start, lastComma))
-          start = pos
-        } else {
-          // in param ',' or param separator ';',
-          // we continue from that comma
-          pos = lastComma + 1
-        }
-      } else {
-        pos += 1
-      }
-    }
-
-    if (!cookiesSeparatorFound || pos >= cookiesString.length) {
-      cookiesStrings.push(cookiesString.substring(start, cookiesString.length))
-    }
-  }
-
-  return cookiesStrings
-}
+export { splitCookiesString }
 
 /**
  * Converts a Headers object to a Node.js OutgoingHttpHeaders object. This is
@@ -110,26 +49,7 @@ export function splitCookiesString(cookiesString: string) {
  * @param headers the headers object to convert
  * @returns the converted headers object
  */
-export function toNodeOutgoingHttpHeaders(
-  headers: Headers
-): OutgoingHttpHeaders {
-  const nodeHeaders: OutgoingHttpHeaders = {}
-  const cookies: string[] = []
-  if (headers) {
-    for (const [key, value] of headers.entries()) {
-      if (key.toLowerCase() === 'set-cookie') {
-        // We may have gotten a comma joined string of cookies, or multiple
-        // set-cookie headers. We need to merge them into one header array
-        // to represent all the cookies.
-        cookies.push(...splitCookiesString(value))
-        nodeHeaders[key] = cookies.length === 1 ? cookies[0] : cookies
-      } else {
-        nodeHeaders[key] = value
-      }
-    }
-  }
-  return nodeHeaders
-}
+export const toNodeOutgoingHttpHeaders = toOutgoingHeaders
 
 /**
  * Validate the correctness of a user-provided URL.

@@ -362,6 +362,10 @@ declare module 'next/dist/compiled/@edge-runtime/cookies' {
   export * from '@edge-runtime/cookies'
 }
 
+declare module 'next/dist/compiled/@edge-runtime/node-utils' {
+  export * from '@edge-runtime/node-utils'
+}
+
 declare module 'next/dist/compiled/@edge-runtime/primitives' {
   import * as m from '@edge-runtime/primitives'
   export = m

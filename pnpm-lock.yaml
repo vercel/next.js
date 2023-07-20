@@ -892,6 +892,9 @@ importers:
       '@edge-runtime/cookies':
         specifier: 3.4.1
         version: 3.4.1
+      '@edge-runtime/node-utils':
+        specifier: 2.1.1
+        version: 2.1.1
       '@edge-runtime/ponyfill':
         specifier: 2.4.0
         version: 2.4.0
@@ -5164,6 +5167,11 @@ packages:
     resolution: {integrity: sha512-smLocSfrt3s53H/XSVP3/1kP42oqvrkjUPtyaFd1F79ux24oE31BKt+q0c6lsa6hOYrFzsIwyc5GXAI5JmfOew==}
     dev: true
 
+  /@edge-runtime/cookies@3.2.2:
+    resolution: {integrity: sha512-9fa2/l1QzwoDZWlV5bNBBtMVpyzPPXzoObZYXVRs+pE1Rx9Q0LtOgJafCum4/RcYuAaez4HJZV1T3C+YNgKiDQ==}
+    engines: {node: '>=14'}
+    dev: true
+
   /@edge-runtime/cookies@3.4.1:
     resolution: {integrity: sha512-z27BvgPxI73CgSlxU/NAUf1Q/shnqi6cobHEowf6VuLdSjGR3NjI2Y5dZUIBbK2zOJVZbXcHsVzJjz8LklteFQ==}
     engines: {node: '>=16'}
@@ -5183,6 +5191,13 @@ packages:
       '@jest/fake-timers': 29.5.0
       jest-mock: 29.5.0
       jest-util: 29.5.0
+    dev: true
+
+  /@edge-runtime/node-utils@2.1.1:
+    resolution: {integrity: sha512-SsMlddTn22BFbJswyECfJzvmt6N75jfmw+XbJZ56VzyplVyisymZdZLgo44xXd0ptbjRoa5VMIV6S9XHftO7sQ==}
+    engines: {node: '>=14'}
+    dependencies:
+      '@edge-runtime/cookies': 3.2.2
     dev: true
 
   /@edge-runtime/ponyfill@2.4.0:

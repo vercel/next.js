@@ -425,6 +425,36 @@ export async function ncc_edge_runtime_cookies() {
 }
 
 // eslint-disable-next-line camelcase
+externals['@edge-runtime/node-utils'] =
+  'next/dist/compiled/@edge-runtime/node-utils'
+
+export async function ncc_edge_runtime_node_utils() {
+  // `@edge-runtime/node-utils` is precompiled and pre-bundled
+  // so we vendor the package as it is.
+  const dest = 'src/compiled/@edge-runtime/node-utils'
+  const pkg = await fs.readJson(
+    require.resolve('@edge-runtime/node-utils/package.json')
+  )
+  await fs.remove(dest)
+
+  await fs.outputJson(join(dest, 'package.json'), {
+    name: '@edge-runtime/node-utils',
+    version: pkg.version,
+    main: './index.js',
+    license: pkg.license,
+  })
+
+  await fs.copy(
+    require.resolve('@edge-runtime/node-utils/dist/index.js'),
+    join(dest, 'index.js')
+  )
+  await fs.copy(
+    require.resolve('@edge-runtime/node-utils/dist/index.d.ts'),
+    join(dest, 'index.d.ts')
+  )
+}
+
+// eslint-disable-next-line camelcase
 externals['@edge-runtime/primitives'] =
   'next/dist/compiled/@edge-runtime/primitives'
 
@@ -2348,8 +2378,9 @@ export async function ncc(task, opts) {
       'ncc_sass_loader',
       'ncc_jest_worker',
       'ncc_edge_runtime_cookies',
-      'ncc_edge_runtime_primitives',
+      'ncc_edge_runtime_node_utils',
       'ncc_edge_runtime_ponyfill',
+      'ncc_edge_runtime_primitives',
       'ncc_edge_runtime',
       'ncc_mswjs_interceptors',
     ],
