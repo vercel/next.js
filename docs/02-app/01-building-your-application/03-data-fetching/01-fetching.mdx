@@ -4,18 +4,18 @@ nav_title: Fetching, Caching, and Revalidating
 description: Learn how to fetch, cache, and revalidate data in your Next.js application.
 ---
 
-Data fetching is a core part of any application. This page goes through how you can fetch, cache, and revalidate data with React and Next.js. It also covers recommended patterns for fetching data with React.
+Data fetching is a core part of any application. This page goes through how you can fetch, cache, and revalidate data. It also covers recommended patterns for fetching data with React.
 
-## Fetching Data in Server Components
+## Fetching Data on the Server
 
 Next.js extends the native [`fetch` Web API](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) to allow you to:
 
-- Configure the [caching](#caching-data) and [revalidating](#revalidating-data) behavior for each fetch request **on the server**.
-- Automatically [memoize](#fetching-data-where-its-needed-memoization) fetch requests in a React Component tree.
+- Configure the [caching](#caching-data) and [revalidating](#revalidating-data) behavior for each fetch request.
+- Automatically [memoize](#fetching-data-where-its-needed-memoization) fetch requests while rendering a React Component tree.
 
-### Using the `fetch` API
+You can use `fetch` with [`async`/`await` in Server Components](https://github.com/acdlite/rfcs/blob/first-class-promises/text/0000-first-class-support-for-promises), [Route Handlers](), and [Server Actions]().
 
-You can use `fetch` with [`async`/`await` in Server Components](https://github.com/acdlite/rfcs/blob/first-class-promises/text/0000-first-class-support-for-promises) to fetch data on the server:
+For example:
 
 ```tsx filename="app/page.tsx" switcher
 async function getData() {
@@ -23,7 +23,6 @@ async function getData() {
   // The return value is *not* serialized
   // You can return Date, Map, Set, etc.
 
-  // Recommendation: handle errors
   if (!res.ok) {
     // This will activate the closest `error.js` Error Boundary
     throw new Error('Failed to fetch data')
@@ -45,7 +44,6 @@ async function getData() {
   // The return value is *not* serialized
   // You can return Date, Map, Set, etc.
 
-  // Recommendation: handle errors
   if (!res.ok) {
     // This will activate the closest `error.js` Error Boundary
     throw new Error('Failed to fetch data')
@@ -64,13 +62,13 @@ export default async function Page() {
 > **Good to know**:
 >
 > To use `async`/`await` in a Server Component with TypeScript, you'll need to use TypeScript `5.1.3` or higher and `@types/react` `18.2.8` or higher.
-> Next.js provides helpful server functions you may need when fetching data in Server Components such as [`cookies`](/docs/app/api-reference/functions/cookies) and [`headers`](/docs/app/api-reference/functions/headers). These will cause the route to be dynamically rendered as they rely on runtime information.
+> Next.js provides helpful functions you may need when fetching data in Server Components such as [`cookies`](/docs/app/api-reference/functions/cookies) and [`headers`](/docs/app/api-reference/functions/headers). These will cause the route to be dynamically rendered as they rely on runtime information.
 
 ### Caching Data
 
 Caching is the process of storing data on the server (e.g. an [Edge Network](https://vercel.com/docs/concepts/edge-network/overview)) so it doesn't need to be re-fetched from your data source on each request.
 
-By default, Next.js automatically caches the returned values of `fetch` in the [Data Cache](/docs/app/building-your-application/data-fetching/caching#data-cache) on the server. This means that the data will be fetched at build time, cached, and reused on each request.
+By default, Next.js automatically caches the returned values of `fetch` in the [Data Cache](/docs/app/building-your-application/data-fetching/caching#data-cache) on the server. This means that the data can be fetched at build time or runtime, cached, and reused on each request.
 
 ```js
 fetch('https://...') // cache: 'force-cache' is the default, and can be omitted
@@ -81,7 +79,7 @@ fetch('https://...') // cache: 'force-cache' is the default, and can be omitted
 > The Data Cache is a persistent [HTTP cache](https://developer.mozilla.org/en-US/docs/Web/HTTP/Caching). Depending on your platform, the cache can scale automatically and be shared across multiple regions.
 >
 > Next.js extends the [options object](https://developer.mozilla.org/en-US/docs/Web/API/fetch#:~:text=preflight%20requests.-,cache,-A%20string%20indicating) of the `fetch` function to allow each request on the server to set its own persistent caching behavior.
-> During server rendering, when Next.js comes across a fetch, it will check the cache to see if the data is already available. If it is, it will return the cached data. If not, it will fetch and store data for future requests.
+> During rendering, when Next.js comes across a fetch, it will check the cache to see if the data is already available. If it is, it will return the cached data. If not, it will fetch and store data for future requests.
 >
 > Learn more about the [Data Cache](/docs/app/building-your-application/data-fetching/caching#data-cache).
 
@@ -92,31 +90,240 @@ Revalidation is the process of purging the Data Cache and re-fetching the latest
 Cached data can be revalidated in two ways:
 
 - **Time-based revalidation**: Automatically revalidate data after a certain amount of time has passed. This is useful for data that changes infrequently and freshness is not as critical. Time-based revalidation can be configured with the [Route Segment Config options](#segment-config-options) or per individual [`fetch` request](#fetchoptionsnextrevalidate).
-- **On-demand revalidation**: Manually revalidate data based on an event (e.g. form submission). On-demand revalidation can use a tag-based or path-based approach to revalidate groups of data at once. This is useful for when you want to ensure the latest data is always shown. On-demand revalidation can be configured with the [`revalidateTag`](#fetchoptionsnexttag-and-revalidatetag) and [`revalidatePath`](#revalidatepath) APIs.
+- **On-demand revalidation**: Manually revalidate data based on an event (e.g. form submission). On-demand revalidation can use a tag-based or path-based approach to revalidate groups of data at once. This is useful for when you want to ensure the latest data is shown as soon as possible, or content from your headless CMS is updated. On-demand revalidation can be triggered with [`revalidateTag`](#fetchoptionsnexttag-and-revalidatetag) or [`revalidatePath`](#revalidatepath).
 
-### Revalidating Data
+#### Time-based Revalidation
 
-To revalidate [cached data](/docs/app/building-your-application/data-fetching/caching) at a timed interval, you can use the `next.revalidate` option in `fetch()` to set the `cache` lifetime of a resource (in seconds).
+To revalidate data at a timed interval, you can use the `next.revalidate` option of `fetch` to set the cache lifetime of a resource (in seconds).
 
-```ts
-fetch('https://...', { next: { revalidate: 10 } })
+```js
+fetch('https://...', { next: { revalidate: 3600 } })
 ```
 
-See [Revalidating Data](/docs/app/building-your-application/data-fetching/revalidating) for more information.
+Alternatively, to revalidate all `fetch` requests in a route segment, you can use the [Segment Config Options](#segment-config-options).
 
-> **Good to know**:
+```jsx filename="layout.js / page.js"
+export const revalidate = 3600 // revalidate every hour
+```
+
+If you have multiple fetch requests in a route, and each has a different revalidation frequency. The lowest time will be used for all requests.
+
+> **How does time-based revalidation work?**
 >
-> Caching at the fetch level with `revalidate` or `cache: 'force-cache'` stores the data across requests in a shared cache. You should avoid using it for user-specific data (i.e. requests that derive data from `cookies()` or `headers()`)
+> If you set a `revalidate` time of `60`, all visitors will see the same data for one minute.
+>
+> 1. The first time a fetch request with `revalidate` is called, the data will be fetched from the external data source and stored in the Data Cache.
+> 2. Any requests that are called within the 60-second window will return the cached data.
+> 3. After the 60-second window, the next request will still return the cached (now stale) data.
+> 4. Next.js will trigger a revalidation of the data in the background.
+> 5. Once the data is fetched successfully, Next.js will update the Data Cache with the fresh data. If the background revalidation fails, the previous data will be kept unaltered.
 
-## Dynamic Data Fetching
+#### On-demand Revalidation
 
-To fetch fresh data on every `fetch` request, use the `cache: 'no-store'` option.
+Data can be revalidated on-demand by path ([`revalidatePath`](/docs/app/api-reference/functions/revalidatePath)) or by cache tag ([`revalidateTag`](/docs/app/api-reference/functions/revalidateTag)).
 
-```ts
+Next.js has a cache tagging system for invalidating `fetch` requests across routes.
+
+1. When using `fetch`, you have the option to tag cache entries with one or more tags.
+2. Then, you can call `revalidateTag` to revalidate all entries associated with that tag.
+
+For example, the following `fetch` requests adds the cache tag `collection`:
+
+```tsx filename="app/page.tsx" switcher
+export default async function Page() {
+  const res = await fetch('https://...', { next: { tags: ['collection'] } })
+  const data = await res.json()
+  // ...
+}
+```
+
+```jsx filename="app/page.js" switcher
+export default async function Page() {
+  const res = await fetch('https://...', { next: { tags: ['collection'] } })
+  const data = await res.json()
+  // ...
+}
+```
+
+The data can then be revalidated on-demand by calling `revalidateTag` in a [Route Handler](/docs/app/building-your-application/routing/router-handlers) or [Server Action]().
+
+```ts filename="app/api/revalidate/route.ts" switcher
+import { NextRequest, NextResponse } from 'next/server'
+import { revalidateTag } from 'next/cache'
+
+export async function GET(request: NextRequest) {
+  const tag = request.nextUrl.searchParams.get('tag')
+  revalidateTag(tag)
+  return NextResponse.json({ revalidated: true, now: Date.now() })
+}
+```
+
+```js filename="app/api/revalidate/route.js" switcher
+import { NextResponse } from 'next/server'
+import { revalidateTag } from 'next/cache'
+
+export async function GET(request) {
+  const tag = request.nextUrl.searchParams.get('tag')
+  revalidateTag(tag)
+  return NextResponse.json({ revalidated: true, now: Date.now() })
+}
+```
+
+Alternatively, you can use [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath) in a [Route Handler]() or [Server Action]() to revalidate all data associated with a path.
+
+See the [revalidateTag](/docs/app/api-reference/functions/revalidateTag) and [revalidatePath](/docs/app/api-reference/functions/revalidatePath) API references for more information.
+
+#### Error handling and revalidation
+
+If an error is thrown while attempting to revalidate data, the last successfully generated data will continue to be served from the cache. On the next subsequent request, Next.js will retry revalidating the data.
+
+### Opting out of Data Caching
+
+#### Individiual `fetch` Requests
+
+To opt individual `fetch` requests out of caching, you can set the `cache` option in `fetch` to `'no-store'`. This will fetch data dynamically, on every request.
+
+```js
 fetch('https://...', { cache: 'no-store' })
 ```
 
+View all the available `cache` options in the [`fetch` API reference](/docs/app/api-reference/functions/fetch).
+
+> Requests are also **not** cached if:
+>
+> - The `fetch` request uses the `POST` method, the `Authorization` header, or `cookie` headers.
+> - The `fetch` request is inside a Router Handler that uses the `POST` method.
+> - `revalidate: 0` is configured on individual `fetch` requests
+> - The `fetchCache` route segment option is configured to skip cache by default.
+
+#### Multiple `fetch` Requests
+
+If you have multiple `fetch` requests in a route segment (e.g. a layout or page), you can configure the caching behavior of all data requests in the segment using the [Segment Config Options]().
+
+For example, using `const dynamic = 'force-dynamic` will cause all data to be fetched at request time, and the segment to be rendered dynamically.
+
+```ts
+// Add
+export const dynamic = 'auto'
+```
+
+There's an extensive list of Segment Config options, giving you fine-grained control of static and dynamic behavior of a route segment. See the [API reference](/docs/app/api-reference/file-conventions/route-segment-config) for more.
+
+## Fetching Data on the Client
+
+If you need to fetch data on the client, we recommend using a third-party library such as [SWR](https://swr.vercel.app/) or [React Query](https://tanstack.com/query/v4). These libraries provide their own APIs for memoizing requests, caching, revalidating, and mutating data.
+
+> **Future APIs**:
+>
+> `use` is a React function that **accepts and handles a promise** returned by a function. Wrapping `fetch` in `use` is currently **not** recommended in Client Components and may trigger multiple re-renders. Learn more about `use` in the [React RFC](https://github.com/acdlite/rfcs/blob/first-class-promises/text/0000-first-class-support-for-promises.md#usepromise).
+
+## Fetching data with third-party libraries
+
+In cases where you're using a third-party library that doesn't support or expose `fetch` (for example, a database, CMS, or ORM client), you can configure the caching and revalidating behavior of those requests using the [Route Segment Config Option]() and React's `cache` function.
+
+Whether the data is cached or not will depend on whether the route segment is [statically or dynamically rendered](). If the segment is static (default), the output of the request will be cached and revalidated as part of the route segment. If the segment is dynamic, the output of the request will _not_ be cached and will be re-fetched on every request when the segment is rendered.
+
+> **Good to know:**
+>
+> In the future, Next.js will have a API for configuring the caching and revalidating behavior of individual third-party requests. Learn more: [`unstable_cache`]()
+
+### Example
+
+In the example below:
+
+- The `revalidate` option is set to `3600`, meaning the data will be cached and revalidated every hour.
+- The React `cache` function is used to [memoize]() data requests.
+
+```ts filename="utils/getUser.ts" switcher
+import { cache } from 'react'
+
+export const revalidate = 3600 // revalidate the data every hour
+
+export const getUser = cache(async (id: string) => {
+  const user = await db.user.findUnique({ id })
+  return user
+})
+```
+
+```js filename="utils/getUser.js" switcher
+import { cache } from 'react'
+
+export const revalidate = 3600 // revalidate the data every hour
+
+export const getUser = cache(async (id) => {
+  const user = await db.user.findUnique({ id })
+  return user
+})
+```
+
+Although the `getUser` function is called twice, only one query will be made to the database.
+
+```tsx filename="app/user/[id]/layout.tsx" switcher
+import { getUser } from '@utils/getUser'
+
+export default async function UserLayout({
+  params: { id },
+}: {
+  params: { id: string }
+}) {
+  const user = await getUser(id)
+  // ...
+}
+```
+
+```jsx filename="app/user/[id]/layout.js" switcher
+import { getUser } from '@utils/getUser'
+
+export default async function UserLayout({ params: { id } }) {
+  const user = await getUser(id)
+  // ...
+}
+```
+
+```tsx filename="app/user/[id]/page.tsx" switcher
+import { getUser } from '@utils/getUser'
+
+export default async function Page({
+  params: { id },
+}: {
+  params: { id: string }
+}) {
+  const user = await getUser(id)
+  // ...
+}
+```
+
+```jsx filename="app/user/[id]/page.js" switcher
+import { getUser } from '@utils/getUser'
+
+export default async function Page({ params: { id } }) {
+  const user = await getUser(id)
+  // ...
+}
+```
+
 ## Data Fetching Patterns
+
+There are a few recommended patterns and best practises for fetching data in React and Next.js:
+
+### Fetching Data on the Server
+
+Whenever possible, we recommend fetching data in on the server with [React Server Components](/docs/getting-started/react-essentials#server-components). This allows you to:
+
+- Have direct access to backend data resources (e.g. databases).
+- Keep your application more secure by preventing sensitive information, such as access tokens and API keys, from being exposed to the client.
+- Fetch data and render in the same environment. This reduces both the back-and-forth communication between client and server, as well as the work on the main thread on the client.
+- Perform multiple data fetches with single round-trip instead of multiple individual requests on the client.
+- Reduce client-server [waterfalls](#parallel-and-sequential-data-fetching).
+- Depending on your region, data fetching can also happen closer to your data source, reducing latency and improving performance.
+
+### Fetching Data Where It's Needed
+
+If you need to use the same data (e.g. current user) in multiple components in a tree, you do not have to fetch data globally, nor pass data down as props. Instead, you can use `fetch` directly inside the component that needs it without worrying about the performance implications of making multiple requests for the same data.
+
+This is possible because Next.js automatically memoizes `fetch` requests using React's `cache` function. Learn more about [request memoization](/docs/app/building-your-application/caching#react-cache)
+
+> **Good to know**: This also applies to layouts, since it's not possible to pass data between a parent layout and its children.
 
 ### Parallel Data Fetching
 
@@ -358,53 +565,3 @@ In the `app` directory, you have additional options to explore:
 2. Second, you can move data fetching _lower_ in the component tree to only block rendering for the parts of the page that need it. For example, moving data fetching to a specific component rather than fetching it at the root layout.
 
 Whenever possible, it's best to fetch data in the segment that uses it. This also allows you to show a loading state for only the part of the page that is loading, and not the entire page.
-
-## Data Fetching without `fetch()`
-
-You might not always have the ability to use and configure `fetch` requests directly if you're using a third-party library such as an ORM or database client.
-
-In cases where you cannot use `fetch` but still want to control the caching or revalidating behavior of a layout or page, you can rely on the [default caching behavior](#default-caching-behavior) of the segment or use the [segment cache configuration](#segment-cache-configuration).
-
-### Default Caching Behavior
-
-Any data fetching libraries that do not use `fetch` directly **will not** affect caching of a route, and will be static or dynamic depending on the route segment.
-
-If the segment is static (default), the output of the request will be cached and revalidated (if configured) alongside the rest of the segment. If the segment is dynamic, the output of the request will _not_ be cached and will be re-fetched on every request when the segment is rendered.
-
-> **Good to know**: Dynamic functions like [`cookies()`](/docs/app/api-reference/functions/cookies) and [`headers()`](/docs/app/api-reference/functions/headers) will make the route segment dynamic.
-
-### Segment Cache Configuration
-
-As a temporary solution, until the caching behavior of third-party queries can be configured, you can use [segment configuration](/docs/app/api-reference/file-conventions/route-segment-config#revalidate) to customize the cache behavior of the entire segment.
-
-```tsx filename="app/page.tsx" switcher
-import prisma from './lib/prisma'
-
-export const revalidate = 3600 // revalidate every hour
-
-async function getPosts() {
-  const posts = await prisma.post.findMany()
-  return posts
-}
-
-export default async function Page() {
-  const posts = await getPosts()
-  // ...
-}
-```
-
-```jsx filename="app/page.js" switcher
-import prisma from './lib/prisma'
-
-export const revalidate = 3600 // revalidate every hour
-
-async function getPosts() {
-  const posts = await prisma.post.findMany()
-  return posts
-}
-
-export default async function Page() {
-  const posts = await getPosts()
-  // ...
-}
-```

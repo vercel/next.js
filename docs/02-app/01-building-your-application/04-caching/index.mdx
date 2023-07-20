@@ -25,9 +25,43 @@ Here's a high-level overview of the different caching mechanisms in Next.js and 
 
 React's `cache` function allows you to **memoize** the return value of a function, saving the result to memory. In React Server Components, the [`fetch` API](#fetch) uses an implementation similar to `cache` to **memoize** data requests using the same URL and options. This means you can call the same data in multiple components while only executing it once during a render pass of a React component tree.
 
-{/* Diagram */}
+<Image
+  alt="Fetch Request Deduplication"
+  srcLight="/docs/light/deduplicated-fetch-requests.png"
+  srcDark="/docs/dark/deduplicated-fetch-requests.png"
+  width="1600"
+  height="857"
+/>
 
-With `fetch`, you can fetch data in the components that need it without props drilling and worrying about the performance impact of making multiple requests for the same data. Memoization applies to `fetch` requests in `generateMetadata`, `generateStaticParams`, Layouts, Pages, and other Server Components.
+With `fetch`, you can fetch data in the components that need it without props drilling and worrying about the performance impact of making multiple requests for the same data. Memoization applies to `fetch` requests in `generateMetadata`, `generateStaticParams`, Layouts, Pages, and other Server Components
+
+For example:
+
+```tsx filename="app/page.tsx" switcher
+async function getComments() {
+  const res = await fetch('https://...') // The result is cached
+  return res.json()
+}
+
+// This function is called twice, but the result is only fetched once
+const comments = await getComments() // cache MISS
+
+// The second call could be anywhere in your application
+const comments = await getComments() // cache HIT
+```
+
+```jsx filename="app/page.js" switcher
+async function getComments() {
+  const res = await fetch('https://...') // The result is cached
+  return res.json()
+}
+
+// This function is called twice, but the result is only fetched once
+const comments = await getComments() // cache MISS
+
+// The second call could be anywhere in your application
+const comments = await getComments() // cache HIT
+```
 
 For cases where `fetch` is not suitable (e.g. database clients, CMS clients, or GraphQL), you can use React's `cache` function to manually memoize functions.
 
@@ -80,6 +114,8 @@ Cached data can be revalidated in two ways:
 
 - **Time-based revalidation**: Automatically revalidate data after a certain amount of time has passed. This is useful for data that changes infrequently and freshness is not as critical. Time-based revalidation can be configured with the [Route Segment Config options](#segment-config-options) or per individual [`fetch` request](#fetchoptionsnextrevalidate).
 - **On-demand revalidation**: Manually revalidate data based on an event (e.g. form submission). On-demand revalidation can use a tag-based or path-based approach to revalidate groups of data at once. This is useful for when you want to ensure the latest data is always shown. On-demand revalidation can be configured with the [`revalidateTag`](#fetchoptionsnexttag-and-revalidatetag) and [`revalidatePath`](#revalidatepath) APIs.
+
+> **Good to know**: Check if your upstream data provider has caching enabled by default. You might need to disable (e.g. `useCdn: false`), otherwise a revalidation won't be able to pull fresh data to update the Data Cache. Caching can occur at a CDN (for an endpoint being requested) when it returns the `Cache-Control` header. ISR on Vercel [persists the cache globally and handles rollbacks](https://vercel.com/docs/concepts/incremental-static-regeneration/overview).
 
 #### Opting out
 
