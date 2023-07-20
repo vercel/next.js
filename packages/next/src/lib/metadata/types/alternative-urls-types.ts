@@ -413,6 +413,7 @@ type LangCode =
   | 'zh-SG'
   | 'zh-TW'
   | 'zu-ZA'
+  |  string
 
 type UnmatchedLang = 'x-default'
 
