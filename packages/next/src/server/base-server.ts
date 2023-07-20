@@ -1491,7 +1491,15 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     if (isAppPath) {
       res.setHeader('vary', RSC_VARY_HEADER)
 
-      if (!isPreviewMode && isSSG && req.headers[RSC.toLowerCase()]) {
+      // We don't clear RSC headers in development since SSG doesn't apply
+      // These headers are cleared for SSG as we need to always generate the
+      // full RSC response for ISR
+      if (
+        !this.renderOpts.dev &&
+        !isPreviewMode &&
+        isSSG &&
+        req.headers[RSC.toLowerCase()]
+      ) {
         if (!this.minimalMode) {
           isDataReq = true
         }
