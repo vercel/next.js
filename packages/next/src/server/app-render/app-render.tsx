@@ -602,7 +602,7 @@ export async function renderToHTMLOrFlight(
       firstItem?: boolean
       injectedCSS: Set<string>
       injectedFontPreloadTags: Set<string>
-      asNotFound?: boolean
+      asNotFound?: boolean | 'force'
     }): Promise<{
       Component: React.ComponentType
       styles: React.ReactNode
@@ -933,7 +933,12 @@ export async function renderToHTMLOrFlight(
           : !parallelRouteMap.length && segment === '__DEFAULT__' // hit parallel-route-default
 
       let notFoundComponent = {}
-      if (asNotFound && isLeaf && NotFound) {
+      if (
+        // For action not-found we force render the NotFound and stop checking the parallel routes.
+        asNotFound === 'force' ||
+        // For normal case where we should look up for not-found, keep checking the parallel routes.
+        (asNotFound && isLeaf && NotFound)
+      ) {
         notFoundComponent = {
           children: (
             <>
@@ -1355,7 +1360,7 @@ export async function renderToHTMLOrFlight(
      * using Flight which can then be rendered to HTML.
      */
     const ServerComponentsRenderer = createServerComponentRenderer<{
-      asNotFound: boolean
+      asNotFound: boolean | 'force'
     }>(
       async (props) => {
         // Create full component tree from root to leaf.
@@ -1460,8 +1465,10 @@ export async function renderToHTMLOrFlight(
          * This option is used to indicate that the page should be rendered as
          * if it was not found. When it's enabled, instead of rendering the
          * page component, it renders the not-found segment.
+         *
+         * If it's 'force', we don't traverse the tree and directly render the NotFound.
          */
-        asNotFound?: boolean
+        asNotFound: boolean | 'force'
       }) => {
         const polyfills = buildManifest.polyfillFiles
           .filter(
@@ -1477,7 +1484,7 @@ export async function renderToHTMLOrFlight(
 
         const content = (
           <InsertedHTML>
-            <ServerComponentsRenderer asNotFound={!!asNotFound} />
+            <ServerComponentsRenderer asNotFound={asNotFound} />
           </InsertedHTML>
         )
 
@@ -1605,16 +1612,12 @@ export async function renderToHTMLOrFlight(
               pagePath
             )
           }
-          let isErrorFromMetadata = false
           if (isMetadataError(err)) {
-            isErrorFromMetadata = true
             const digest = err.digest.replace('NEXT_METADATA_ERROR;', '')
             err.message = digest
             err.digest = digest
           }
-          let isErrorMetadataNotFound = false
           if (isNotFoundError(err)) {
-            if (isErrorFromMetadata) isErrorMetadataNotFound = true
             res.statusCode = 404
           }
           let hasRedirectError = false
@@ -1805,10 +1808,7 @@ export async function renderToHTMLOrFlight(
     })
 
     if (actionRequestResult === 'not-found') {
-      // Override loader tree to match tree of not-found
-      loaderTree[0] = '__DEFAULT__'
-      loaderTree[1] = {}
-      return new RenderResult(await bodyResult({ asNotFound: true }))
+      return new RenderResult(await bodyResult({ asNotFound: 'force' }))
     } else if (actionRequestResult) {
       return actionRequestResult
     }
