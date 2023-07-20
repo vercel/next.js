@@ -14,11 +14,11 @@ use tracing::{instrument, Level};
 use turbo_tasks::{TransientInstance, TurboTasksApi, Vc};
 use turbo_tasks_fs::json::parse_json_with_source_context;
 use turbopack_core::{error::PrettyPrintError, issue::IssueReporter, version::Update};
-
-use super::{
-    protocol::{ClientMessage, ClientUpdateInstruction, Issue, ResourceIdentifier},
-    stream::UpdateStream,
+use turbopack_ecmascript_hmr_protocol::{
+    ClientMessage, ClientUpdateInstruction, Issue, ResourceIdentifier,
 };
+
+use super::stream::UpdateStream;
 use crate::{
     source::{request::SourceRequest, resolve::resolve_source_request, Body},
     update::stream::UpdateStreamItem,

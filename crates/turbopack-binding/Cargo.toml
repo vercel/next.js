@@ -101,6 +101,10 @@ __turbo_tasks_hash = ["__turbo", "turbo-tasks-hash"]
 __turbo_tasks_macros = ["__turbo", "turbo-tasks-macros"]
 __turbo_tasks_macros_shared = ["__turbo", "turbo-tasks-macros-shared"]
 __turbo_tasks_memory = ["__turbo", "turbo-tasks-memory"]
+__turbo_tasks_memory_print_task_invalidation = [
+  "__turbo_tasks_memory",
+  "turbo-tasks-memory/print_task_invalidation",
+]
 __turbo_tasks_testing = ["__turbo", "turbo-tasks-testing"]
 __turbo_updater = ["__turbo", "turbo-updater"]
 
@@ -128,6 +132,10 @@ __turbopack_ecmascript_plugin = [
   "turbopack-ecmascript-plugins/transform_emotion",
 ]
 __turbopack_ecmascript_runtime = ["__turbopack", "turbopack-ecmascript-runtime"]
+__turbopack_ecmascript_hmr_protocol = [
+  "__turbopack",
+  "turbopack-ecmascript-hmr-protocol",
+]
 
 __turbopack_env = ["__turbopack", "turbopack-env"]
 __turbopack_image = ["__turbopack", "turbopack-image"]
@@ -209,6 +217,7 @@ turbopack-css = { optional = true, workspace = true }
 turbopack-dev = { optional = true, workspace = true }
 turbopack-dev-server = { optional = true, workspace = true }
 turbopack-ecmascript = { optional = true, workspace = true }
+turbopack-ecmascript-hmr-protocol = { optional = true, workspace = true }
 turbopack-ecmascript-plugins = { optional = true, workspace = true, default-features = false }
 turbopack-ecmascript-runtime = { optional = true, workspace = true }
 turbopack-env = { optional = true, workspace = true }

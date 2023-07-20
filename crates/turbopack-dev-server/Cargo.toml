@@ -41,6 +41,7 @@ turbo-tasks-fs = { workspace = true }
 turbo-tasks-hash = { workspace = true }
 turbopack-core = { workspace = true }
 turbopack-ecmascript = { workspace = true }
+turbopack-ecmascript-hmr-protocol = { workspace = true }
 # TODO remove this dependency
 turbopack-cli-utils = { workspace = true }
 

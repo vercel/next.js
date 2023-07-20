@@ -72,6 +72,8 @@ pub mod turbopack {
     pub use turbopack_dev_server as dev_server;
     #[cfg(feature = "__turbopack_ecmascript")]
     pub use turbopack_ecmascript as ecmascript;
+    #[cfg(feature = "__turbopack_ecmascript_hmr_protocol")]
+    pub use turbopack_ecmascript_hmr_protocol as ecmascript_hmr_protocol;
     #[cfg(feature = "__turbopack_ecmascript_plugin")]
     pub use turbopack_ecmascript_plugins as ecmascript_plugin;
     #[cfg(feature = "__turbopack_ecmascript_runtime")]
