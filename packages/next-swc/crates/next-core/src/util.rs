@@ -347,7 +347,7 @@ pub async fn load_next_json<T: DeserializeOwned>(
         IssueSeverity::Error.cell(),
     )
     .await?;
-    let Some(metrics_asset) = *resolve_result.first_asset().await? else {
+    let Some(metrics_asset) = *resolve_result.first_module().await? else {
         bail!("Expected to find asset");
     };
 

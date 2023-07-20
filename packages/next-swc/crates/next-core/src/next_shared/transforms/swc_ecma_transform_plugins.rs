@@ -80,7 +80,7 @@ pub async fn get_swc_ecma_transform_plugin_impl(
             IssueSeverity::Error.cell(),
         )
         .await?;
-        let Some(plugin_module_asset) = *plugin_wasm_module_resolve_result.first_asset().await?
+        let Some(plugin_module_asset) = *plugin_wasm_module_resolve_result.first_module().await?
         else {
             bail!("Expected to find asset");
         };
