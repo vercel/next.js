@@ -66,7 +66,10 @@ export const resolveViewport: FieldResolver<'viewport'> = (viewport) => {
 
 function resolveUrlValuesOfObject(
   obj:
-    | Record<string, string | URL | AlternateLinkDescriptor[] | null>
+    | Record<
+        string,
+        string | URL | AlternateLinkDescriptor[] | null | undefined
+      >
     | null
     | undefined,
   metadataBase: ResolvedMetadata['metadataBase'],
