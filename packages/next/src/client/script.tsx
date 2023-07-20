@@ -142,6 +142,9 @@ const loadScript = (props: ScriptProps): void => {
     afterLoad()
   } else if (src) {
     el.src = src
+    el.async = props.async
+    el.defer = props.defer
+
     // do not add cacheKey into LoadCache for remote script here
     // cacheKey will be added to LoadCache when it is actually loaded (see loadPromise above)
 
