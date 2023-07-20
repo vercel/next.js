@@ -80,14 +80,8 @@ pub async fn get_swc_ecma_transform_plugin_impl(
             IssueSeverity::Error.cell(),
         )
         .await?;
-        let plugin_wasm_module_resolve_result = &*plugin_wasm_module_resolve_result.await?;
-
-        let primary = plugin_wasm_module_resolve_result
-            .primary
-            .first()
-            .context("Unable to resolve primary context")?;
-
-        let PrimaryResolveResult::Asset(plugin_module_asset) = primary else {
+        let Some(plugin_module_asset) = *plugin_wasm_module_resolve_result.first_asset().await?
+        else {
             bail!("Expected to find asset");
         };
 

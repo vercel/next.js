@@ -1,4 +1,4 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, Result};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use swc_core::ecma::ast::Program;
@@ -13,12 +13,7 @@ use turbopack_binding::{
             issue::{Issue, IssueExt, IssueSeverity, OptionIssueSource},
             module::Module,
             reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
-            resolve::{
-                handle_resolve_error,
-                node::node_cjs_resolve_options,
-                parse::Request,
-                PrimaryResolveResult, {self},
-            },
+            resolve::{self, handle_resolve_error, node::node_cjs_resolve_options, parse::Request},
         },
         ecmascript::{
             analyzer::{JsValue, ObjectPart},
@@ -352,14 +347,7 @@ pub async fn load_next_json<T: DeserializeOwned>(
         IssueSeverity::Error.cell(),
     )
     .await?;
-    let resolve_result = &*resolve_result.await?;
-
-    let primary = resolve_result
-        .primary
-        .first()
-        .context("Unable to resolve primary asset")?;
-
-    let PrimaryResolveResult::Asset(metrics_asset) = primary else {
+    let Some(metrics_asset) = *resolve_result.first_asset().await? else {
         bail!("Expected to find asset");
     };
 
