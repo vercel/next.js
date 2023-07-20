@@ -156,7 +156,7 @@ export function Hello() {
 import dynamic from 'next/dynamic'
 
 const ClientComponent = dynamic(() =>
-  import('../components/ClientComponent').then((mod) => mod.Hello)
+  import('../components/hello').then((mod) => mod.Hello)
 )
 ```
 
