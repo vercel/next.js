@@ -11,8 +11,7 @@ use turbopack_binding::{
             package_json,
             parse::Request,
             plugin::{ResolvePlugin, ResolvePluginCondition},
-            resolve, FindContextFileResult, PrimaryResolveResult, ResolveResult,
-            ResolveResultOption,
+            resolve, FindContextFileResult, ResolveResult, ResolveResultItem, ResolveResultOption,
         },
         source::{asset_to_source, Source},
     },
@@ -146,7 +145,7 @@ impl ResolvePlugin for ExternalCjsModulesResolvePlugin {
         if *is_node_resolveable(self.root.root(), request, fs_path).await? {
             // mark as external
             return Ok(ResolveResultOption::some(
-                ResolveResult::primary(PrimaryResolveResult::OriginalReferenceExternal).cell(),
+                ResolveResult::primary(ResolveResultItem::OriginalReferenceExternal).cell(),
             ));
         }
 
@@ -163,11 +162,9 @@ impl ResolvePlugin for ExternalCjsModulesResolvePlugin {
                 if *is_node_resolveable(context, request, fs_path).await? {
                     // mark as external
                     return Ok(ResolveResultOption::some(
-                        ResolveResult::primary(
-                            PrimaryResolveResult::OriginalReferenceTypeExternal(
-                                import_path.as_str().to_string(),
-                            ),
-                        )
+                        ResolveResult::primary(ResolveResultItem::OriginalReferenceTypeExternal(
+                            import_path.as_str().to_string(),
+                        ))
                         .cell(),
                     ));
                 }

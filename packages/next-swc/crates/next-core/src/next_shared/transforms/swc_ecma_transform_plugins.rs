@@ -43,7 +43,7 @@ pub async fn get_swc_ecma_transform_plugin_impl(
             reference_type::ReferenceType,
             resolve::{
                 handle_resolve_error, parse::Request, pattern::Pattern, resolve,
-                PrimaryResolveResult,
+                ModuleResolveResultItem,
             },
         },
         ecmascript_plugin::transform::swc_ecma_transform_plugins::{
