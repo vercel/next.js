@@ -57,6 +57,7 @@ turbo-tasks-fs = { workspace = true }
 turbo-tasks-malloc = { workspace = true, default-features = false }
 turbo-tasks-memory = { workspace = true }
 turbopack = { workspace = true }
+turbopack-build = { workspace = true }
 turbopack-cli-utils = { workspace = true }
 turbopack-core = { workspace = true }
 turbopack-dev = { workspace = true }

@@ -10,13 +10,12 @@ use std::{
 };
 
 use anyhow::{Context, Result};
-use dunce::canonicalize;
 use owo_colors::OwoColorize;
 use turbo_tasks::{
     util::{FormatBytes, FormatDuration},
     StatsType, TransientInstance, TurboTasks, TurboTasksBackendApi, UpdateInfo, Value, Vc,
 };
-use turbo_tasks_fs::{DiskFileSystem, FileSystem};
+use turbo_tasks_fs::FileSystem;
 use turbo_tasks_malloc::TurboMalloc;
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::evaluate_context::node_build_environment;
@@ -41,16 +40,16 @@ use turbopack_env::dotenv::load_env;
 use turbopack_node::execution_context::ExecutionContext;
 
 use self::web_entry_source::create_web_entry_source;
-use crate::arguments::DevArguments;
+use crate::{
+    arguments::DevArguments,
+    contexts::NodeEnv,
+    util::{
+        normalize_dirs, normalize_entries, output_fs, project_fs, EntryRequest, NormalizedDirs,
+    },
+};
 
 pub(crate) mod turbo_tasks_viz;
 pub(crate) mod web_entry_source;
-
-#[derive(Clone)]
-pub enum EntryRequest {
-    Relative(String),
-    Module(String, String),
-}
 
 pub struct TurbopackDevServerBuilder {
     turbo_tasks: Arc<TurboTasks<MemoryBackend>>,
@@ -229,20 +228,6 @@ impl TurbopackDevServerBuilder {
     }
 }
 
-#[turbo_tasks::function]
-async fn project_fs(project_dir: String) -> Result<Vc<Box<dyn FileSystem>>> {
-    let disk_fs = DiskFileSystem::new("project".to_string(), project_dir.to_string());
-    disk_fs.await?.start_watching()?;
-    Ok(Vc::upcast(disk_fs))
-}
-
-#[turbo_tasks::function]
-async fn output_fs(project_dir: String) -> Result<Vc<Box<dyn FileSystem>>> {
-    let disk_fs = DiskFileSystem::new("output".to_string(), project_dir.to_string());
-    disk_fs.await?.start_watching()?;
-    Ok(Vc::upcast(disk_fs))
-}
-
 #[allow(clippy::too_many_arguments)]
 #[turbo_tasks::function]
 async fn source(
@@ -297,6 +282,7 @@ async fn source(
         server_root,
         env,
         eager_compile,
+        NodeEnv::Development.cell(),
         browserslist_query,
     );
     let viz = Vc::upcast(turbo_tasks_viz::TurboTasksSource::new(turbo_tasks.into()));
@@ -339,26 +325,10 @@ pub async fn start_server(args: &DevArguments) -> Result<()> {
     console_subscriber::init();
     register();
 
-    let dir = args
-        .common
-        .dir
-        .as_ref()
-        .map(canonicalize)
-        .unwrap_or_else(current_dir)
-        .context("project directory can't be found")?
-        .to_str()
-        .context("project directory contains invalid characters")?
-        .to_string();
-
-    let root_dir = if let Some(root) = args.common.root.as_ref() {
-        canonicalize(root)
-            .context("root directory can't be found")?
-            .to_str()
-            .context("root directory contains invalid characters")?
-            .to_string()
-    } else {
-        dir.clone()
-    };
+    let NormalizedDirs {
+        project_dir,
+        root_dir,
+    } = normalize_dirs(&args.common.dir, &args.common.root)?;
 
     let tt = TurboTasks::new(MemoryBackend::new(
         args.common
@@ -374,9 +344,7 @@ pub async fn start_server(args: &DevArguments) -> Result<()> {
 
     let tt_clone = tt.clone();
 
-    #[allow(unused_mut)]
-    let mut server = TurbopackDevServerBuilder::new(tt, dir, root_dir)
-        .entry_request(EntryRequest::Relative("src/index".into()))
+    let mut server = TurbopackDevServerBuilder::new(tt, project_dir, root_dir)
         .eager_compile(args.eager_compile)
         .hostname(args.hostname)
         .port(args.port)
@@ -387,6 +355,10 @@ pub async fn start_server(args: &DevArguments) -> Result<()> {
                 .log_level
                 .map_or_else(|| IssueSeverity::Warning, |l| l.0),
         );
+
+    for entry in normalize_entries(&args.common.entries) {
+        server = server.entry_request(EntryRequest::Relative(entry))
+    }
 
     #[cfg(feature = "serializable")]
     {

@@ -505,7 +505,11 @@ async fn run<B: Backend + 'static, F: Future<Output = ()>>(
 
             let console_ui = ConsoleUi::new(log_options);
             Vc::upcast::<Box<dyn IssueReporter>>(console_ui)
-                .report_issues(TransientInstance::new(issues), source)
+                .report_issues(
+                    TransientInstance::new(issues),
+                    source,
+                    IssueSeverity::Error.cell(),
+                )
                 .await?;
 
             if has_return_value {
