@@ -1,8 +1,6 @@
 import { createNextDescribe } from 'e2e-utils'
 import { check, waitFor } from 'next-test-utils'
 
-import { BrowserInterface } from 'test/lib/browsers/base'
-import { Request } from 'playwright-chromium'
 // @ts-ignore
 import { NEXT_RSC_UNION_QUERY } from 'next/dist/client/components/app-router-headers'
 
@@ -28,44 +26,6 @@ const browserConfigWithFixedTime = {
       }
     })
   },
-}
-
-const createRequestsListener = async (browser: BrowserInterface) => {
-  // wait for network idle
-  await browser.waitForIdleNetwork()
-
-  let requests = [] as [
-    string,
-    boolean,
-    {
-      startTime: number
-      domainLookupStart: number
-      domainLookupEnd: number
-      connectStart: number
-      secureConnectionStart: number
-      connectEnd: number
-      requestStart: number
-      responseStart: number
-      responseEnd: number
-    }
-  ][]
-
-  browser.on('request', (req: Request) => {
-    requests.push([
-      req.url(),
-      !!req.headers()['next-router-prefetch'],
-      req.timing(),
-    ])
-  })
-
-  await browser.refresh()
-
-  return {
-    getRequests: () => requests,
-    clearRequests: () => {
-      requests = []
-    },
-  }
 }
 
 createNextDescribe(

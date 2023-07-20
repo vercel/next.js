@@ -32,5 +32,4 @@ export default function IdPage({ params }) {
     </>
   )
 }
-
-export const dynamic = 'force-dynamic'
+//
