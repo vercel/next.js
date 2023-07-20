@@ -14,6 +14,7 @@ export interface RequestStore {
   readonly cookies: ReadonlyRequestCookies
   readonly mutableCookies: ResponseCookies
   readonly draftMode: DraftModeProvider
+  /** @internal */
   readonly DO_NOT_USE_OR_YOU_WILL_BE_FIRED_request:
     | IncomingMessage
     | BaseNextRequest
