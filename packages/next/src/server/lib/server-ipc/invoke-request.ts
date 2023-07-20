@@ -35,6 +35,11 @@ export const invokeRequest = async (
           duplex: 'half',
         }
       : {}),
+
+    next: {
+      // @ts-ignore
+      internal: true,
+    },
   })
 
   return invokeRes
