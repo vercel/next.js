@@ -6,7 +6,7 @@ use turbo_tasks::Vc;
 use turbo_tasks_fs::{DiskFileSystem, FileSystem};
 
 #[turbo_tasks::value(transparent)]
-pub struct EntryRequests(Vec<Vc<EntryRequest>>);
+pub struct EntryRequests(pub Vec<Vc<EntryRequest>>);
 
 #[turbo_tasks::value(shared)]
 #[derive(Clone)]

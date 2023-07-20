@@ -94,6 +94,7 @@ async fn get_client_module_options_context(
     project_path: Vc<FileSystemPath>,
     execution_context: Vc<ExecutionContext>,
     env: Vc<Environment>,
+    node_env: Vc<NodeEnv>,
 ) -> Result<Vc<ModuleOptionsContext>> {
     let module_options_context = ModuleOptionsContext {
         preset_env_versions: Some(env),
@@ -103,8 +104,8 @@ async fn get_client_module_options_context(
 
     let resolve_options_context = get_client_resolve_options_context(project_path);
 
-    let enable_react_refresh =
-        assert_can_resolve_react_refresh(project_path, resolve_options_context)
+    let enable_react_refresh = matches!(*node_env.await?, NodeEnv::Development)
+        && assert_can_resolve_react_refresh(project_path, resolve_options_context)
             .await?
             .is_found();
 
@@ -153,12 +154,14 @@ pub fn get_client_asset_context(
     project_path: Vc<FileSystemPath>,
     execution_context: Vc<ExecutionContext>,
     compile_time_info: Vc<CompileTimeInfo>,
+    node_env: Vc<NodeEnv>,
 ) -> Vc<Box<dyn AssetContext>> {
     let resolve_options_context = get_client_resolve_options_context(project_path);
     let module_options_context = get_client_module_options_context(
         project_path,
         execution_context,
         compile_time_info.environment(),
+        node_env,
     );
 
     let context: Vc<Box<dyn AssetContext>> = Vc::upcast(ModuleAssetContext::new(
