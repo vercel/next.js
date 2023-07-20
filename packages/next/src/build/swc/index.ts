@@ -450,13 +450,23 @@ interface EndpointConfig {
   preferredRegion?: string
 }
 
-interface WrittenEndpoint {
-  /** The entry path for the endpoint. */
-  entryPath: string
-  /** All paths that has been written for the endpoint. */
-  paths: string[]
-  config: EndpointConfig
-}
+type WrittenEndpoint =
+  | {
+      type: 'nodejs'
+      /** The entry path for the endpoint. */
+      entryPath: string
+      /** All server paths that has been written for the endpoint. */
+      serverPaths: string[]
+      config: EndpointConfig
+    }
+  | {
+      type: 'edge'
+      files: string[]
+      /** All server paths that has been written for the endpoint. */
+      serverPaths: string[]
+      globalVarName: string
+      config: EndpointConfig
+    }
 
 // TODO(sokra) Support wasm option.
 function bindingToApi(binding: any, _wasm: boolean) {
