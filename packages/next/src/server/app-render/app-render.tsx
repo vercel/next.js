@@ -1658,9 +1658,12 @@ export async function renderToHTMLOrFlight(
             {
               ...serverComponentsRenderOpts,
               rscChunks: [],
-              transformStream: cloneTransformStream(
-                serverComponentsRenderOpts.transformStream
-              ),
+              transformStream:
+                isErrorMetadataNotFound || (is404 && !NotFound)
+                  ? new TransformStream()
+                  : cloneTransformStream(
+                      serverComponentsRenderOpts.transformStream
+                    ),
             }
 
           const errorType = is404
