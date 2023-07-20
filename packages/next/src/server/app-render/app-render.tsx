@@ -1728,11 +1728,7 @@ export async function renderToHTMLOrFlight(
                   initialHead={head}
                   globalErrorComponent={GlobalError}
                 >
-                  {useDefaultError ? (
-                    notFoundElement
-                  ) : (
-                    <ErrorHtml head={head} />
-                  )}
+                  {is404 ? notFoundElement : <ErrorHtml head={head} />}
                 </AppRouter>
               )
             },
