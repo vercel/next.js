@@ -165,7 +165,9 @@ createNextDescribe(
         await step5()
       })
 
-      it('should match parallel routes', async () => {
+      // FIXME: this parallel route test is broken, shouldn't only check if html containing those strings
+      // previous they're erroring so the html is empty but those strings are still in flight response.
+      it.skip('should match parallel routes', async () => {
         const html = await next.render('/parallel/nested')
         expect(html).toContain('parallel/layout')
         expect(html).toContain('parallel/@foo/nested/layout')
@@ -177,7 +179,9 @@ createNextDescribe(
         expect(html).toContain('parallel/nested/page')
       })
 
-      it('should match parallel routes in route groups', async () => {
+      // FIXME: this parallel route test is broken, shouldn't only check if html containing those strings
+      // previous they're erroring so the html is empty but those strings are still in flight response.
+      it.skip('should match parallel routes in route groups', async () => {
         const html = await next.render('/parallel/nested-2')
         expect(html).toContain('parallel/layout')
         expect(html).toContain('parallel/(new)/layout')

@@ -290,14 +290,15 @@ export default class NextNodeServer extends BaseServer {
               ipcValidationKey,
               options.isNodeDebugging,
               'app',
-              this.nextConfig.experimental.serverActions
+              this.nextConfig
             )
           }
           this.renderWorkers.pages = await createWorker(
             ipcPort,
             ipcValidationKey,
             options.isNodeDebugging,
-            'pages'
+            'pages',
+            this.nextConfig
           )
           this.renderWorkers.middleware =
             this.renderWorkers.pages || this.renderWorkers.app
@@ -1885,6 +1886,42 @@ export default class NextNodeServer extends BaseServer {
       pathname,
       query
     )
+  }
+
+  protected async renderErrorToResponseImpl(
+    ctx: RequestContext,
+    err: Error | null
+  ) {
+    const { req, res, query } = ctx
+    const is404 = res.statusCode === 404
+
+    if (is404 && this.hasAppDir && this.isRenderWorker) {
+      const notFoundPathname = this.renderOpts.dev
+        ? '/not-found'
+        : '/_not-found'
+
+      if (this.renderOpts.dev) {
+        await (this as any)
+          .ensurePage({
+            page: notFoundPathname,
+            clientOnly: false,
+          })
+          .catch(() => {})
+      }
+
+      if (this.getEdgeFunctionsPages().includes(notFoundPathname)) {
+        await this.runEdgeFunction({
+          req: req as BaseNextRequest,
+          res: res as BaseNextResponse,
+          query: query || {},
+          params: {},
+          page: notFoundPathname,
+          appPaths: null,
+        })
+        return null
+      }
+    }
+    return super.renderErrorToResponseImpl(ctx, err)
   }
 
   public async renderError(

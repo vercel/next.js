@@ -153,7 +153,19 @@ export async function copy_vercel_og(task, opts) {
           __dirname,
           dirname(require.resolve('@vercel/og/package.json'))
         ),
-        'dist/*.+(js|ttf|wasm),LICENSE'
+        '{./dist/*.+(js|ttf|wasm),LICENSE}'
+      )
+    )
+    .target('src/compiled/@vercel/og')
+
+  await task
+    .source(
+      join(
+        relative(
+          __dirname,
+          dirname(require.resolve('@vercel/og/package.json'))
+        ),
+        './dist/index.*.js'
       )
     )
     .target('src/compiled/@vercel/og')
@@ -2167,6 +2179,15 @@ export async function ncc_https_proxy_agent(task, opts) {
     .target('src/compiled/https-proxy-agent')
 }
 
+// eslint-disable-next-line camelcase
+externals['jest-docblock'] = 'next/dist/compiled/jest-docblock'
+export async function ncc_jest_docblock(task, opts) {
+  await task
+    .source(relative(__dirname, require.resolve('jest-docblock')))
+    .ncc({ packageName: 'jest-docblock', externals })
+    .target('src/compiled/jest-docblock')
+}
+
 export async function precompile(task, opts) {
   await task.parallel(
     [
@@ -2301,6 +2322,7 @@ export async function ncc(task, opts) {
         'ncc_opentelemetry_api',
         'ncc_http_proxy_agent',
         'ncc_https_proxy_agent',
+        'ncc_jest_docblock',
         'ncc_mini_css_extract_plugin',
       ],
       opts
@@ -2732,7 +2754,7 @@ const cachedData =
   !process.pkg &&
   require('process').platform !== 'win32' &&
   readFileSync(join(__dirname, '${cachedOutputName}'))
-  
+
 const scriptOpts = { filename: basename, columnOffset: 0 }
 
 const script = new Script(

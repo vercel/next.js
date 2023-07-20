@@ -1,6 +1,7 @@
 import type webpack from 'webpack'
 import type { ValueOf } from '../../../shared/lib/constants'
 import type { ModuleReference, CollectedMetadata } from './metadata/types'
+import type { AppPageRouteModuleOptions } from '../../../server/future/route-modules/app-page/module'
 
 import path from 'path'
 import { stringify } from 'querystring'
@@ -661,14 +662,37 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     }
   }
 
+  const pathname = new AppPathnameNormalizer().normalize(page)
+  const bundlePath = new AppBundlePathNormalizer().normalize(page)
+
+  const options: Omit<AppPageRouteModuleOptions, 'userland'> = {
+    definition: {
+      kind: RouteKind.APP_PAGE,
+      page,
+      pathname,
+      bundlePath,
+      // The following aren't used in production.
+      filename: '',
+      appPaths: [],
+    },
+  }
+
   // Prefer to modify next/src/server/app-render/entry-base.ts since this is shared with Turbopack.
   // Any changes to this code should be reflected in Turbopack's app_source.rs and/or app-renderer.tsx as well.
   const result = `
+    import RouteModule from 'next/dist/server/future/route-modules/app-page/module'
+
     export ${treeCodeResult.treeCode}
     export ${treeCodeResult.pages}
-    export { default as GlobalError } from ${JSON.stringify(
-      treeCodeResult.globalError || 'next/dist/client/components/error-boundary'
-    )}
+
+    ${
+      treeCodeResult.globalError
+        ? `export { default as GlobalError } from ${JSON.stringify(
+            treeCodeResult.globalError
+          )}`
+        : `export { GlobalError } from 'next/dist/client/components/error-boundary'`
+    }
+
     export const originalPathname = ${JSON.stringify(page)}
     export const __next_app__ = {
       require: __webpack_require__,
@@ -677,6 +701,15 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     }
 
     export * from 'next/dist/server/app-render/entry-base'
+
+    // Create and export the route module that will be consumed.
+    const options = ${JSON.stringify(options)}
+    export const routeModule = new RouteModule({
+      ...options,
+      userland: {
+        loaderTree: tree,
+      },
+    })
   `
 
   return result

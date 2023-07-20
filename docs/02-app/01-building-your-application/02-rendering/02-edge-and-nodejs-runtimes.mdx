@@ -68,6 +68,16 @@ export const runtime = 'edge' // 'nodejs' (default) | 'edge'
 export const runtime = 'edge' // 'nodejs' (default) | 'edge'
 ```
 
+You can also define `runtime` on a layout level, which will make all routes under the layout run on the edge runtime:
+
+```tsx filename="app/layout.tsx" switcher
+export const runtime = 'edge' // 'nodejs' (default) | 'edge'
+```
+
+```jsx filename="app/layout.js" switcher
+export const runtime = 'edge' // 'nodejs' (default) | 'edge'
+```
+
 If the segment runtime is _not_ set, the default `nodejs` runtime will be used. You do not need to use the `runtime` option if you do not plan to change from the Node.js runtime.
 
 </AppOnly>

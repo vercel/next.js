@@ -561,10 +561,13 @@ export default async function build(
               return isMatch(page, filterPage)
             })
           })
-        }
 
-        // TODO(alexkirsz) Filter out app pages entirely as they are not supported yet.
-        pageKeys.app = undefined
+          pageKeys.app = pageKeys.app?.filter((page) => {
+            return filterPages.some((filterPage) => {
+              return isMatch(page, filterPage)
+            })
+          })
+        }
       }
 
       const numConflictingAppPaths = conflictingAppPagePaths.length
@@ -936,7 +939,7 @@ export default async function build(
           ignore: [] as string[],
         }))
 
-      let binding = (await loadBindings()) as any
+      let binding = await loadBindings()
 
       async function turbopackBuild() {
         const turboNextBuildStart = process.hrtime()

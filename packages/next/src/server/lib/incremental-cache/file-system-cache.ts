@@ -71,7 +71,7 @@ export default class FileSystemCache implements CacheHandler {
   }
 
   private loadTagsManifest() {
-    if (!this.tagsManifestPath || !this.fs) return
+    if (!this.tagsManifestPath || !this.fs || tagsManifest) return
     try {
       tagsManifest = JSON.parse(
         this.fs.readFileSync(this.tagsManifestPath).toString('utf8')

@@ -22,7 +22,6 @@ export interface StartServerOptions {
   useWorkers: boolean
   allowRetry?: boolean
   isTurbopack?: boolean
-  isExperimentalTurbo?: boolean
   keepAliveTimeout?: number
   onStdout?: (data: any) => void
   onStderr?: (data: any) => void
