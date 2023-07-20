@@ -6,23 +6,31 @@ export const DOMAttributeNames: Record<string, string> = {
   noModule: 'noModule',
 }
 
+export function isBooleanScriptAttribute(attr: string): attr is "async" | "defer" | "noModule" {
+  return ["async", "defer", "noModule"].includes(attr)
+}
+
 function reactElementToDOM({ type, props }: JSX.Element): HTMLElement {
   const el: HTMLElement = document.createElement(type)
   for (const p in props) {
     if (!props.hasOwnProperty(p)) continue
     if (p === 'children' || p === 'dangerouslySetInnerHTML') continue
+    const value = props[p]
 
     // we don't render undefined props to the DOM
-    if (props[p] === undefined) continue
+    if (value === undefined) {
+      continue
+    }
 
     const attr = DOMAttributeNames[p] || p.toLowerCase()
-    if (
-      type === 'script' &&
-      (attr === 'async' || attr === 'defer' || attr === 'noModule')
-    ) {
-      ;(el as HTMLScriptElement)[attr] = !!props[p]
-    } else {
-      el.setAttribute(attr, props[p])
+    el.setAttribute(attr, value)
+
+    // Remove falsy non-zero boolean attributes so they are correctly interpreted
+    // (e.g. if we set them to false, this coerces to the string "false", which the browser interprets as true)
+    // NB: We must still setAttribute before, as we need to set and unset the attribute to override force async:
+    // https://html.spec.whatwg.org/multipage/scripting.html#script-force-async
+    if (value === false || (type === "script" && isBooleanScriptAttribute(attr) && (!value || value === "false"))) {
+      el.removeAttribute(attr)
     }
   }
 

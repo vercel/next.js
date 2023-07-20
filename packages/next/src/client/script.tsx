@@ -4,7 +4,7 @@ import ReactDOM from 'react-dom'
 import React, { useEffect, useContext, useRef } from 'react'
 import { ScriptHTMLAttributes } from 'react'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
-import { DOMAttributeNames } from './head-manager'
+import { DOMAttributeNames, isBooleanScriptAttribute } from './head-manager'
 import { requestIdleCallback } from './request-idle-callback'
 
 const ScriptCache = new Map()
@@ -79,8 +79,6 @@ const loadScript = (props: ScriptProps): void => {
     strategy = 'afterInteractive',
     onError,
     stylesheets,
-    async,
-    defer,
   } = props
 
   const cacheKey = id || src
@@ -144,29 +142,28 @@ const loadScript = (props: ScriptProps): void => {
     afterLoad()
   } else if (src) {
     el.src = src
-
-    // We must apply these manually because setAttribute does not update the way the scripts are actually loaded
-    // See https://github.com/vercel/next.js/pull/52939
-    if (async !== undefined) {
-      el.async = async;
-    }
-    if (defer !== undefined) {
-      el.defer = defer;
-    }
-
     // do not add cacheKey into LoadCache for remote script here
     // cacheKey will be added to LoadCache when it is actually loaded (see loadPromise above)
 
     ScriptCache.set(src, loadPromise)
   }
 
-  for (const [k, value] of Object.entries(props)) {
-    if (value === undefined || ignoreProps.includes(k)) {
+  for (const [p, value] of Object.entries(props)) {
+    // we don't render undefined props to the DOM
+    if (value === undefined || ignoreProps.includes(p)) {
       continue
     }
 
-    const attr = DOMAttributeNames[k] || k.toLowerCase()
+    const attr = DOMAttributeNames[p] || p.toLowerCase()
     el.setAttribute(attr, value)
+
+    // Remove falsy non-zero boolean attributes so they are correctly interpreted
+    // (e.g. if we set them to false, this coerces to the string "false", which the browser interprets as true)
+    // NB: We must still setAttribute before, as we need to set and unset the attribute to override force async:
+    // https://html.spec.whatwg.org/multipage/scripting.html#script-force-async
+    if (value === false || (isBooleanScriptAttribute(attr) && (!value || value === "false"))) {
+      el.removeAttribute(attr)
+    }
   }
 
   if (strategy === 'worker') {
