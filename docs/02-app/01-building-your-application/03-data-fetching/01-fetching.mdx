@@ -1,18 +1,21 @@
 ---
-title: Data Fetching
-nav_title: Fetching
-description: Learn how to fetch data in your Next.js application.
+title: Data Fetching, Caching, and Revalidating
+nav_title: Fetching, Caching, and Revalidating
+description: Learn how to fetch, cache, and revalidate data in your Next.js application.
 ---
 
-The Next.js App Router allows you to fetch data directly in your React components by marking the function as `async` and using `await` for the [Promise](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise).
+Data fetching is a core part of any application. This page goes through how you can fetch, cache, and revalidate data with React and Next.js. It also covers recommended patterns for fetching data with React.
 
-Data fetching is built on top of the [`fetch()` Web API](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) and React Server Components. When using `fetch()`, requests are [automatically deduped](/docs/app/building-your-application/data-fetching#automatic-fetch-request-deduping) by default.
+## Fetching Data in Server Components
 
-Next.js extends the `fetch` options object to allow each request to set its own [caching and revalidating](/docs/app/building-your-application/data-fetching/caching).
+Next.js extends the native [`fetch` Web API](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) to allow you to:
 
-## `async` and `await` in Server Components
+- Configure the [caching](#caching-data) and [revalidating](#revalidating-data) behavior for each fetch request **on the server**.
+- Automatically [memoize](#fetching-data-where-its-needed-memoization) fetch requests in a React Component tree.
 
-You can use `async` and `await` to fetch data in Server Components.
+### Using the `fetch` API
+
+You can use `fetch` with [`async`/`await` in Server Components](https://github.com/acdlite/rfcs/blob/first-class-promises/text/0000-first-class-support-for-promises) to fetch data on the server:
 
 ```tsx filename="app/page.tsx" switcher
 async function getData() {
@@ -60,30 +63,36 @@ export default async function Page() {
 
 > **Good to know**:
 >
-> To use an `async` Server Component with TypeScript, ensure you are using TypeScript `5.1.3` or higher and `@types/react` `18.2.8` or higher.
+> To use `async`/`await` in a Server Component with TypeScript, you'll need to use TypeScript `5.1.3` or higher and `@types/react` `18.2.8` or higher.
+> Next.js provides helpful server functions you may need when fetching data in Server Components such as [`cookies`](/docs/app/api-reference/functions/cookies) and [`headers`](/docs/app/api-reference/functions/headers). These will cause the route to be dynamically rendered as they rely on runtime information.
 
-### Server Component Functions
+### Caching Data
 
-Next.js provides helpful server functions you may need when fetching data in Server Components:
+Caching is the process of storing data on the server (e.g. an [Edge Network](https://vercel.com/docs/concepts/edge-network/overview)) so it doesn't need to be re-fetched from your data source on each request.
 
-- [`cookies()`](/docs/app/api-reference/functions/cookies)
-- [`headers()`](/docs/app/api-reference/functions/headers)
+By default, Next.js automatically caches the returned values of `fetch` in the [Data Cache](/docs/app/building-your-application/data-fetching/caching#data-cache) on the server. This means that the data will be fetched at build time, cached, and reused on each request.
 
-## `use` in Client Components
-
-`use` is a new React function that **accepts a promise** conceptually similar to `await`. `use` **handles the promise** returned by a function in a way that is compatible with components, hooks, and Suspense. Learn more about `use` in the [React RFC](https://github.com/acdlite/rfcs/blob/first-class-promises/text/0000-first-class-support-for-promises.md#usepromise).
-
-Wrapping `fetch` in `use` is currently **not** recommended in Client Components and may trigger multiple re-renders. For now, if you need to fetch data in a Client Component, we recommend using a third-party library such as [SWR](https://swr.vercel.app/) or [React Query](https://tanstack.com/query/v4).
-
-> **Good to know**: We'll be adding more examples once `fetch` and `use` work in Client Components.
-
-## Static Data Fetching
-
-By default, `fetch` will automatically fetch and [cache data](/docs/app/building-your-application/data-fetching/caching) indefinitely.
-
-```ts
-fetch('https://...') // cache: 'force-cache' is the default
+```js
+fetch('https://...') // cache: 'force-cache' is the default, and can be omitted
 ```
+
+> **How does the Data Cache work?**
+>
+> The Data Cache is a persistent [HTTP cache](https://developer.mozilla.org/en-US/docs/Web/HTTP/Caching). Depending on your platform, the cache can scale automatically and be shared across multiple regions.
+>
+> Next.js extends the [options object](https://developer.mozilla.org/en-US/docs/Web/API/fetch#:~:text=preflight%20requests.-,cache,-A%20string%20indicating) of the `fetch` function to allow each request on the server to set its own persistent caching behavior.
+> During server rendering, when Next.js comes across a fetch, it will check the cache to see if the data is already available. If it is, it will return the cached data. If not, it will fetch and store data for future requests.
+>
+> Learn more about the [Data Cache](/docs/app/building-your-application/data-fetching/caching#data-cache).
+
+### Revalidating Data
+
+Revalidation is the process of purging the Data Cache and re-fetching the latest data. This is useful when your data changes and you want to ensure you show the latest information.
+
+Cached data can be revalidated in two ways:
+
+- **Time-based revalidation**: Automatically revalidate data after a certain amount of time has passed. This is useful for data that changes infrequently and freshness is not as critical. Time-based revalidation can be configured with the [Route Segment Config options](#segment-config-options) or per individual [`fetch` request](#fetchoptionsnextrevalidate).
+- **On-demand revalidation**: Manually revalidate data based on an event (e.g. form submission). On-demand revalidation can use a tag-based or path-based approach to revalidate groups of data at once. This is useful for when you want to ensure the latest data is always shown. On-demand revalidation can be configured with the [`revalidateTag`](#fetchoptionsnexttag-and-revalidatetag) and [`revalidatePath`](#revalidatepath) APIs.
 
 ### Revalidating Data
 
