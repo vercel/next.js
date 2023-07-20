@@ -1801,9 +1801,7 @@ export async function renderToHTMLOrFlight(
     if (actionRequestResult === 'not-found') {
       // Modify loader tree to remove parallel routes to align with 404 page loader tree
       loaderTree[1] = {}
-      return new RenderResult(
-        await bodyResult({ asNotFound: true, force: true })
-      )
+      return new RenderResult(await bodyResult({ asNotFound: true }))
     } else if (actionRequestResult) {
       return actionRequestResult
     }
