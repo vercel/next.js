@@ -22,7 +22,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result};
 use hyper::{
     server::{conn::AddrIncoming, Builder},
     service::{make_service_fn, service_fn},
@@ -33,12 +33,11 @@ use socket2::{Domain, Protocol, Socket, Type};
 use tokio::task::JoinHandle;
 use tracing::{event, info_span, Instrument, Level, Span};
 use turbo_tasks::{
-    run_once_with_reason, trace::TraceRawVcs, util::FormatDuration, TransientInstance,
-    TransientValue, TurboTasksApi, Vc,
+    run_once_with_reason, trace::TraceRawVcs, util::FormatDuration, TurboTasksApi, Vc,
 };
 use turbopack_core::{
     error::PrettyPrintError,
-    issue::{IssueContextExt, IssueReporter},
+    issue::{handle_issues, IssueReporter, IssueSeverity},
 };
 
 use self::{source::ContentSource, update::UpdateServer};
@@ -75,30 +74,6 @@ pub struct DevServer {
     pub addr: SocketAddr,
     #[turbo_tasks(trace_ignore)]
     pub future: Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
-}
-
-async fn handle_issues<T>(
-    source: Vc<T>,
-    path: &str,
-    operation: &str,
-    issue_reporter: Vc<Box<dyn IssueReporter>>,
-) -> Result<()> {
-    let issues = source
-        .peek_issues_with_path()
-        .await?
-        .strongly_consistent()
-        .await?;
-
-    let has_fatal = issue_reporter.report_issues(
-        TransientInstance::new(issues.clone()),
-        TransientValue::new(source.node),
-    );
-
-    if *has_fatal.await? {
-        Err(anyhow!("Fatal issue(s) occurred in {path} ({operation})"))
-    } else {
-        Ok(())
-    }
 }
 
 impl DevServer {
@@ -235,7 +210,14 @@ impl DevServerBuilder {
                             let uri = request.uri();
                             let path = uri.path().to_string();
                             let source = source_provider.get_source();
-                            handle_issues(source, &path, "get source", issue_reporter).await?;
+                            handle_issues(
+                                source,
+                                issue_reporter,
+                                IssueSeverity::Fatal.cell(),
+                                Some(&path),
+                                Some("get source"),
+                            )
+                            .await?;
                             let resolved_source = source.resolve_strongly_consistent().await?;
                             let (response, side_effects) =
                                 http::process_request_with_content_source(

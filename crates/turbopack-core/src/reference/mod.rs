@@ -1,12 +1,16 @@
 use std::collections::{HashSet, VecDeque};
 
 use anyhow::Result;
-use turbo_tasks::{TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{
+    graph::{AdjacencyMap, GraphTraversal},
+    TryJoinIterExt, ValueToString, Vc,
+};
 
 use crate::{
     asset::Asset,
     issue::IssueContextExt,
     module::{convert_asset_to_module, Module, Modules},
+    output::{OutputAsset, OutputAssets},
     resolve::{PrimaryResolveResult, ResolveResult},
 };
 pub mod source_map;
@@ -177,4 +181,36 @@ pub async fn all_modules(asset: Vc<Box<dyn Module>>) -> Result<Vc<Modules>> {
         }
     }
     Ok(Vc::cell(assets.into_iter().collect()))
+}
+
+/// Walks the asset graph from multiple assets and collect all referenced
+/// assets.
+#[turbo_tasks::function]
+pub async fn all_assets_from_entries(entries: Vc<OutputAssets>) -> Result<Vc<OutputAssets>> {
+    Ok(Vc::cell(
+        AdjacencyMap::new()
+            .skip_duplicates()
+            .visit(
+                entries.await?.iter().copied().map(Vc::upcast),
+                get_referenced_assets,
+            )
+            .await
+            .completed()?
+            .into_inner()
+            .into_reverse_topological()
+            .collect(),
+    ))
+}
+
+/// Computes the list of all chunk children of a given chunk.
+pub async fn get_referenced_assets(
+    asset: Vc<Box<dyn OutputAsset>>,
+) -> Result<impl Iterator<Item = Vc<Box<dyn OutputAsset>>> + Send> {
+    Ok(asset
+        .references()
+        .await?
+        .iter()
+        .copied()
+        .collect::<Vec<_>>()
+        .into_iter())
 }

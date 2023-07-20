@@ -21,11 +21,16 @@ impl Arguments {
     }
 }
 
-#[derive(Debug, Args)]
+#[derive(Debug, Args, Clone)]
 pub struct CommonArguments {
+    /// The entrypoints of the project. Resolved relative to the project's
+    /// directory (`--dir`).
+    #[clap(value_parser)]
+    pub entries: Option<Vec<String>>,
+
     /// The directory of the application.
     /// If no directory is provided, the current directory will be used.
-    #[clap(value_parser)]
+    #[clap(short, long, value_parser)]
     pub dir: Option<PathBuf>,
 
     /// The root directory of the project. Nothing outside of this directory can

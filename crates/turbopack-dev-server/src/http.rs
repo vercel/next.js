@@ -14,15 +14,16 @@ use tokio_util::io::{ReaderStream, StreamReader};
 use turbo_tasks::{util::SharedError, CollectiblesSource, ReadRef, TransientInstance, Vc};
 use turbo_tasks_bytes::Bytes;
 use turbo_tasks_fs::FileContent;
-use turbopack_core::{asset::AssetContent, issue::IssueReporter, version::VersionedContent};
+use turbopack_core::{
+    asset::AssetContent,
+    issue::{handle_issues, IssueReporter, IssueSeverity},
+    version::VersionedContent,
+};
 
-use crate::{
-    handle_issues,
-    source::{
-        request::SourceRequest,
-        resolve::{resolve_source_request, ResolveSourceRequestResult},
-        Body, ContentSource, ContentSourceSideEffect, HeaderList, ProxyResult,
-    },
+use crate::source::{
+    request::SourceRequest,
+    resolve::{resolve_source_request, ResolveSourceRequestResult},
+    Body, ContentSource, ContentSourceSideEffect, HeaderList, ProxyResult,
 };
 
 #[turbo_tasks::value(serialization = "none")]
@@ -79,7 +80,14 @@ pub async fn process_request_with_content_source(
     let original_path = request.uri().path().to_string();
     let request = http_request_to_source_request(request).await?;
     let result = get_from_source(source, TransientInstance::new(request));
-    handle_issues(result, &original_path, "get_from_source", issue_reporter).await?;
+    handle_issues(
+        result,
+        issue_reporter,
+        IssueSeverity::Fatal.cell(),
+        Some(&original_path),
+        Some("get_from_source"),
+    )
+    .await?;
     let side_effects: AutoSet<Vc<Box<dyn ContentSourceSideEffect>>> =
         result.peek_collectibles().strongly_consistent().await?;
     match &*result.strongly_consistent().await? {

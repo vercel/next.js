@@ -9,7 +9,7 @@ use std::{
     sync::Arc,
 };
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use auto_hash_map::AutoSet;
 use turbo_tasks::{
@@ -604,10 +604,22 @@ pub struct PlainIssueProcessingPathItem {
 
 #[turbo_tasks::value_trait]
 pub trait IssueReporter {
+    /// Reports issues to the user (e.g. to stdio). Returns whether fatal
+    /// (program-ending) issues were present.
+    ///
+    /// # Arguments:
+    ///
+    /// * `issues` - A [ReadRef] of [CapturedIssues]. Typically obtained with
+    ///   `source.peek_issues_with_path()`.
+    /// * `source` - The root [Vc] from which issues are traced. Can be used by
+    ///   implementers to determine which issues are new.
+    /// * `min_failing_severity` - The minimum Vc<[IssueSeverity]>
+    ///  The minimum issue severity level considered to fatally end the program.
     fn report_issues(
         self: Vc<Self>,
         issues: TransientInstance<ReadRef<CapturedIssues>>,
         source: TransientValue<RawVc>,
+        min_failing_severity: Vc<IssueSeverity>,
     ) -> Vc<bool>;
 }
 
@@ -729,5 +741,39 @@ where
                 self.take_collectibles().strongly_consistent().await?,
             )),
         }))
+    }
+}
+
+pub async fn handle_issues<T>(
+    source: Vc<T>,
+    issue_reporter: Vc<Box<dyn IssueReporter>>,
+    min_failing_severity: Vc<IssueSeverity>,
+    path: Option<&str>,
+    operation: Option<&str>,
+) -> Result<()> {
+    let issues = source
+        .peek_issues_with_path()
+        .await?
+        .strongly_consistent()
+        .await?;
+
+    let has_fatal = issue_reporter.report_issues(
+        TransientInstance::new(issues.clone()),
+        TransientValue::new(source.node),
+        min_failing_severity,
+    );
+
+    if *has_fatal.await? {
+        let mut message = "Fatal issue(s) occurred".to_owned();
+        if let Some(path) = path.as_ref() {
+            message += &format!(" in {path}");
+        };
+        if let Some(operation) = operation.as_ref() {
+            message += &format!(" ({operation})");
+        };
+
+        Err(anyhow!(message))
+    } else {
+        Ok(())
     }
 }
