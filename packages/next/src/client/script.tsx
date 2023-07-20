@@ -79,6 +79,8 @@ const loadScript = (props: ScriptProps): void => {
     strategy = 'afterInteractive',
     onError,
     stylesheets,
+    async,
+    defer,
   } = props
 
   const cacheKey = id || src
@@ -142,8 +144,15 @@ const loadScript = (props: ScriptProps): void => {
     afterLoad()
   } else if (src) {
     el.src = src
-    el.async = props.async
-    el.defer = props.defer
+
+    // We must apply these manually because setAttribute does not update the way the scripts are actually loaded
+    // See https://github.com/vercel/next.js/pull/52939
+    if (async !== undefined) {
+      el.async = async;
+    }
+    if (defer !== undefined) {
+      el.defer = defer;
+    }
 
     // do not add cacheKey into LoadCache for remote script here
     // cacheKey will be added to LoadCache when it is actually loaded (see loadPromise above)
