@@ -76,7 +76,7 @@ export function processEnv(
             item.contents === envFile.contents && item.path === envFile.path
         )
       ) {
-        log.info(`Loaded env from ${path.join(dir || '', envFile.path)}`)
+        log.info(`Environment: ${envFile.path}`)
       }
 
       for (const key of Object.keys(result.parsed || {})) {

@@ -210,9 +210,15 @@ export async function startServer({
       }
 
       if (logReady) {
-        Log.ready(`started server on ${actualHostname}:${port}, url: ${appUrl}`)
+        Log.info(`Local: ${appUrl}`)
+        Log.info(
+          `Network: ${actualHostname}${
+            (port + '').startsWith(':') ? '' : ':'
+          }${port}`
+        )
         // expose the main port to render workers
         process.env.PORT = port + ''
+
       }
 
       try {

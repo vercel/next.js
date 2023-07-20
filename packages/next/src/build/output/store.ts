@@ -7,6 +7,7 @@ import {
   teardownTraceSubscriber,
 } from '../swc'
 import * as Log from './log'
+import chalk from '../../lib/chalk'
 
 export type OutputState =
   | { bootstrap: true; appUrl: string | null; bindAddr: string | null }
@@ -57,7 +58,8 @@ store.subscribe((state) => {
 
   if (state.bootstrap) {
     if (state.appUrl) {
-      Log.ready(`started server on ${state.bindAddr}, url: ${state.appUrl}`)
+      Log.info(`Local: ${chalk.bold(state.appUrl)}`)
+      Log.info(`Network: ${chalk.bold(state.bindAddr)}`)
     }
     return
   }

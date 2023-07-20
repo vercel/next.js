@@ -26,19 +26,15 @@ export { DomainLocale, NextConfig, normalizeConfig } from './config-shared'
 const experimentalWarning = execOnce(
   (configFileName: string, features: string[]) => {
     const s = features.length > 1 ? 's' : ''
-    Log.warn(
-      chalk.bold(
-        `You have enabled experimental feature${s} (${features.join(
-          ', '
-        )}) in ${configFileName}.`
-      )
+    Log.info(
+      `Experiment${s}: ` +
+        chalk.bold(`${features.join(', ')}`) +
+        ` - ${configFileName}`
     )
     Log.warn(
       `Experimental features are not covered by semver, and may cause unexpected or broken application behavior. ` +
         `Use at your own risk.`
     )
-
-    console.warn()
   }
 )
 
