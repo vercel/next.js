@@ -195,14 +195,14 @@ async function buildNextServer(task) {
   /** @type {webpack.Configuration} */
   const config = {
     entry: {
-      server: path.join(__dirname, 'dist/server/next-server.js'),
+      server: path.join(__dirname, 'dist/esm/server/next-server.js'),
       'app-page-render': path.join(
         __dirname,
-        'dist/server/future/route-modules/app-page/module.js'
+        'dist/esm/server/future/route-modules/app-page/module.js'
       ),
       'pages-render': path.join(
         __dirname,
-        'dist/server/future/route-modules/pages/module.js'
+        'dist/esm/server/future/route-modules/pages/module.js'
       ),
     },
     target: 'node',
@@ -242,6 +242,10 @@ async function buildNextServer(task) {
       }),
       // new BundleAnalyzerPlugin({}),
     ],
+    stats: {
+      // Display bailout reasons
+      optimizationBailout: true,
+    },
     externals: [minimalExternals],
   }
 

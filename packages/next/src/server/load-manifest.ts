@@ -3,7 +3,6 @@ import { readFileSync } from 'fs'
 const cache = new Map<string, any>()
 
 export function loadManifest(path: string, shouldCache: boolean = true) {
-  console.log('loadManifest', path)
   const cached = shouldCache && cache.get(path)
 
   if (cached) {
