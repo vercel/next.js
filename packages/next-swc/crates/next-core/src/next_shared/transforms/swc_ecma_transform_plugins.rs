@@ -71,7 +71,7 @@ pub async fn get_swc_ecma_transform_plugin_impl(
         );
 
         let plugin_wasm_module_resolve_result = handle_resolve_error(
-            resolve(project_path, request, resolve_options).as_raw_module_resolve_result(),
+            resolve(project_path, request, resolve_options).as_raw_module_result(),
             Value::new(ReferenceType::Undefined),
             project_path,
             request,
