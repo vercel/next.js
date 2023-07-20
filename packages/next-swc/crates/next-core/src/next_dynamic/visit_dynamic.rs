@@ -7,7 +7,7 @@ use turbo_tasks::{
 };
 use turbopack_binding::turbopack::core::{
     module::{convert_asset_to_module, Module, Modules},
-    reference::AssetReference,
+    reference::ModuleReference,
 };
 
 use super::NextDynamicEntryModule;

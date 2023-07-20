@@ -14,7 +14,7 @@ use turbopack_binding::turbopack::{
         context::AssetContext,
         ident::AssetIdent,
         module::Module,
-        reference::{AssetReferences, SingleAssetReference},
+        reference::{ModuleReferences, SingleModuleReference},
         reference_type::ReferenceType,
         virtual_source::VirtualSource,
     },
@@ -125,7 +125,7 @@ impl Module for EcmascriptClientReferenceProxyModule {
     }
 
     #[turbo_tasks::function]
-    async fn references(self: Vc<Self>) -> Result<Vc<AssetReferences>> {
+    async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
         let EcmascriptClientReferenceProxyModule {
             server_module_ident,
             server_asset_context: _,
@@ -139,7 +139,7 @@ impl Module for EcmascriptClientReferenceProxyModule {
             .await?
             .iter()
             .copied()
-            .chain(once(Vc::upcast(SingleAssetReference::new(
+            .chain(once(Vc::upcast(SingleModuleReference::new(
                 Vc::upcast(EcmascriptClientReferenceModule::new(
                     *server_module_ident,
                     *client_module,
@@ -231,7 +231,7 @@ impl ChunkItem for ProxyModuleChunkItem {
     }
 
     #[turbo_tasks::function]
-    fn references(&self) -> Vc<AssetReferences> {
+    fn references(&self) -> Vc<ModuleReferences> {
         self.client_proxy_asset.references()
     }
 }

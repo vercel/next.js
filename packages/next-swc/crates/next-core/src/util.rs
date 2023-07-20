@@ -341,7 +341,7 @@ pub async fn load_next_json<T: DeserializeOwned>(
     let resolve_options = node_cjs_resolve_options(context.root());
 
     let resolve_result = handle_resolve_error(
-        resolve::resolve(context, request, resolve_options),
+        resolve::resolve(context, request, resolve_options).as_raw_module_result(),
         Value::new(ReferenceType::EcmaScriptModules(
             EcmaScriptModulesReferenceSubType::Undefined,
         )),
