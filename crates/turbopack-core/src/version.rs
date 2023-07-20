@@ -3,7 +3,7 @@ use std::sync::Arc;
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, IntoTraitRef, ReadRef, TraitRef, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs, IntoTraitRef, ReadRef, State, TraitRef, Vc,
 };
 use turbo_tasks_fs::{FileContent, LinkType};
 use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64};
@@ -230,5 +230,35 @@ impl Version for FileHashVersion {
     #[turbo_tasks::function]
     async fn id(&self) -> Result<Vc<String>> {
         Ok(Vc::cell(self.hash.clone()))
+    }
+}
+
+#[turbo_tasks::value]
+pub struct VersionState {
+    #[turbo_tasks(trace_ignore)]
+    version: State<TraitRef<Box<dyn Version>>>,
+}
+
+#[turbo_tasks::value_impl]
+impl VersionState {
+    #[turbo_tasks::function]
+    pub async fn get(self: Vc<Self>) -> Result<Vc<Box<dyn Version>>> {
+        let this = self.await?;
+        let version = TraitRef::cell(this.version.get().clone());
+        Ok(version)
+    }
+}
+
+impl VersionState {
+    pub async fn new(version: TraitRef<Box<dyn Version>>) -> Result<Vc<Self>> {
+        Ok(Self::cell(VersionState {
+            version: State::new(version),
+        }))
+    }
+
+    pub async fn set(self: Vc<Self>, new_version: TraitRef<Box<dyn Version>>) -> Result<()> {
+        let this = self.await?;
+        this.version.set(new_version);
+        Ok(())
     }
 }

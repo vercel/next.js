@@ -8,8 +8,7 @@ use turbopack_core::{
     source_pos::SourcePos,
 };
 
-#[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Debug, Clone, Hash, PartialOrd, Ord)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct ResourceIdentifier {
     pub path: String,
     pub headers: Option<BTreeMap<String, String>>,

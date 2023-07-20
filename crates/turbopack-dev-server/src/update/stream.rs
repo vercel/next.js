@@ -5,13 +5,16 @@ use futures::{prelude::*, Stream};
 use tokio::sync::mpsc::Sender;
 use tokio_stream::wrappers::ReceiverStream;
 use tracing::Instrument;
-use turbo_tasks::{unit, IntoTraitRef, ReadRef, State, TraitRef, TransientInstance, Vc};
+use turbo_tasks::{unit, IntoTraitRef, ReadRef, TransientInstance, Vc};
 use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack_core::{
     error::PrettyPrintError,
     issue::{Issue, IssueContextExt, IssueSeverity, OptionIssueProcessingPathItems, PlainIssue},
     server_fs::ServerFileSystem,
-    version::{NotFoundVersion, PartialUpdate, TotalUpdate, Update, Version, VersionedContent},
+    version::{
+        NotFoundVersion, PartialUpdate, TotalUpdate, Update, Version, VersionState,
+        VersionedContent,
+    },
 };
 
 use crate::source::{resolve::ResolveSourceRequestResult, ProxyResult};
@@ -165,36 +168,6 @@ async fn compute_update_stream(
     let _ = sender.send(item).await;
 
     Ok(unit())
-}
-
-#[turbo_tasks::value]
-struct VersionState {
-    #[turbo_tasks(trace_ignore)]
-    version: State<TraitRef<Box<dyn Version>>>,
-}
-
-#[turbo_tasks::value_impl]
-impl VersionState {
-    #[turbo_tasks::function]
-    async fn get(self: Vc<Self>) -> Result<Vc<Box<dyn Version>>> {
-        let this = self.await?;
-        let version = TraitRef::cell(this.version.get().clone());
-        Ok(version)
-    }
-}
-
-impl VersionState {
-    async fn new(version: TraitRef<Box<dyn Version>>) -> Result<Vc<Self>> {
-        Ok(Self::cell(VersionState {
-            version: State::new(version),
-        }))
-    }
-
-    async fn set(self: Vc<Self>, new_version: TraitRef<Box<dyn Version>>) -> Result<()> {
-        let this = self.await?;
-        this.version.set(new_version);
-        Ok(())
-    }
 }
 
 pub(super) struct UpdateStream(
