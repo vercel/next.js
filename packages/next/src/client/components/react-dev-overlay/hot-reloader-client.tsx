@@ -12,6 +12,7 @@ import { useRouter } from '../navigation'
 import {
   ACTION_NOT_FOUND,
   ACTION_VERSION_INFO,
+  INITIAL_OVERLAY_STATE,
   errorOverlayReducer,
 } from './internal/error-overlay-reducer'
 import {
@@ -459,14 +460,10 @@ export default function HotReload({
   notFoundStyles?: React.ReactNode
   asNotFound?: boolean
 }) {
-  const [state, dispatch] = useReducer(errorOverlayReducer, {
-    nextId: 1,
-    buildError: null,
-    errors: [],
-    notFound: false,
-    refreshState: { type: 'idle' },
-    versionInfo: { installed: '0.0.0', staleness: 'unknown' },
-  })
+  const [state, dispatch] = useReducer(
+    errorOverlayReducer,
+    INITIAL_OVERLAY_STATE
+  )
   const dispatcher = useMemo((): Dispatcher => {
     return {
       onBuildOk() {

@@ -231,7 +231,7 @@ export const metadata = {
 };
 
 export default Page({ children }) => (
-  <MyLayoutComponent meta={meta}><HelloWorld /></MyLayoutComponent>
+  <MyLayoutComponent meta={metadata}><HelloWorld /></MyLayoutComponent>
 );
 ```
 
@@ -243,7 +243,10 @@ You can optionally provide `remark` and `rehype` plugins to transform the MDX co
 
 Since the `remark` and `rehype` ecosystem is ESM only, you'll need to use `next.config.mjs` as the configuration file.
 
-```js filename="next.config.js"
+```js filename="next.config.mjs"
+import remarkGfm from 'remark-gfm'
+import createMDX from '@next/mdx'
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: {
@@ -251,15 +254,16 @@ const nextConfig = {
   },
 }
 
-const withMDX = require('@next/mdx')({
+const withMDX = createMDX({
   options: {
-    remarkPlugins: [],
+    extension: /\.mdx?$/,
+    remarkPlugins: [remarkGfm],
     rehypePlugins: [],
     // If you use `MDXProvider`, uncomment the following line.
     // providerImportSource: "@mdx-js/react",
   },
 })
-module.exports = withMDX(nextConfig)
+export default withMDX(nextConfig)
 ```
 
 ## Frontmatter
