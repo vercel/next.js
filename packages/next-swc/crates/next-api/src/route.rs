@@ -29,11 +29,20 @@ pub trait Endpoint {
 
 #[turbo_tasks::value(shared)]
 #[derive(Debug)]
-pub struct WrittenEndpoint {
-    /// Relative to the root_path
-    pub server_entry_path: String,
-    /// Relative to the root_path
-    pub server_paths: Vec<String>,
+pub enum WrittenEndpoint {
+    NodeJs {
+        /// Relative to the root_path
+        server_entry_path: String,
+        /// Relative to the root_path
+        server_paths: Vec<String>,
+    },
+    Edge {
+        /// Relative to the root_path
+        files: Vec<String>,
+        global_var_name: String,
+        /// Relative to the root_path
+        server_paths: Vec<String>,
+    },
 }
 
 /// The routes as map from pathname to route. (pathname includes the leading
