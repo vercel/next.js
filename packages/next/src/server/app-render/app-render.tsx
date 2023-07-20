@@ -174,6 +174,18 @@ function findDynamicParamFromRouterState(
   return null
 }
 
+function hasLoadingComponentInTree(tree: LoaderTree): boolean {
+  const [, parallelRoutes, { loading }] = tree
+
+  if (loading) {
+    return true
+  }
+
+  return Object.values(parallelRoutes).some((parallelRoute) =>
+    hasLoadingComponentInTree(parallelRoute)
+  ) as boolean
+}
+
 export async function renderToHTMLOrFlight(
   req: IncomingMessage,
   res: ServerResponse,
@@ -801,12 +813,17 @@ export async function renderToHTMLOrFlight(
               : [actualSegment, parallelRouteKey]
 
             const parallelRoute = parallelRoutes[parallelRouteKey]
+
             const childSegment = parallelRoute[0]
             const childSegmentParam = getDynamicParamFromSegment(childSegment)
 
             // if we're prefetching and that there's a Loading component, we bail out
-            // otherwise we keep rendering for the prefetch
-            if (isPrefetch && Loading) {
+            // otherwise we keep rendering for the prefetch.
+            // We also want to bail out if there's no Loading component in the tree.
+            if (
+              isPrefetch &&
+              (Loading || !hasLoadingComponentInTree(parallelRoute))
+            ) {
               const childProp: ChildProp = {
                 // Null indicates the tree is not fully rendered
                 current: null,

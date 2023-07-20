@@ -8,6 +8,15 @@ export default function HomePage() {
       <Link href="/static-page" id="to-static-page">
         To Static Page
       </Link>
+      <ul>
+        {[...Array(20)].map((_, i) => (
+          <li key={i}>
+            <Link href={`/dashboard/${i}`} key={i}>
+              To Dashboard {i}
+            </Link>
+          </li>
+        ))}
+      </ul>
     </>
   )
 }
