@@ -35,7 +35,7 @@ use turbopack_binding::{
             asset::Asset,
             chunk::ChunkingContext,
             environment::ServerAddr,
-            issue::{IssueContextExt, IssueReporter, IssueSeverity},
+            issue::{handle_issues, IssueContextExt, IssueReporter, IssueSeverity},
             output::{OutputAsset, OutputAssets},
             virtual_fs::VirtualFileSystem,
         },
@@ -52,6 +52,8 @@ use crate::{
     next_app::app_entries::{compute_app_entries_chunks, get_app_entries},
     next_pages::page_entries::{compute_page_entries_chunks, get_page_entries},
 };
+
+static MIN_FAILING_SEVERITY: IssueSeverity = IssueSeverity::Error;
 
 #[turbo_tasks::function]
 pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Result<Vc<Completion>> {
@@ -149,8 +151,22 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
         next_config,
     );
 
-    handle_issues(page_entries, issue_reporter).await?;
-    handle_issues(app_entries, issue_reporter).await?;
+    handle_issues(
+        page_entries,
+        issue_reporter,
+        MIN_FAILING_SEVERITY.cell(),
+        None,
+        None,
+    )
+    .await?;
+    handle_issues(
+        app_entries,
+        issue_reporter,
+        MIN_FAILING_SEVERITY.cell(),
+        None,
+        None,
+    )
+    .await?;
 
     let page_entries = page_entries.await?;
     let app_entries = app_entries.await?;
@@ -436,7 +452,14 @@ async fn workspace_fs(
     issue_reporter: Vc<Box<dyn IssueReporter>>,
 ) -> Result<Vc<Box<dyn FileSystem>>> {
     let disk_fs = DiskFileSystem::new("workspace".to_string(), workspace_root.to_string());
-    handle_issues(disk_fs, issue_reporter).await?;
+    handle_issues(
+        disk_fs,
+        issue_reporter,
+        MIN_FAILING_SEVERITY.cell(),
+        None,
+        None,
+    )
+    .await?;
     Ok(Vc::upcast(disk_fs))
 }
 
@@ -446,7 +469,14 @@ async fn node_fs(
     issue_reporter: Vc<Box<dyn IssueReporter>>,
 ) -> Result<Vc<Box<dyn FileSystem>>> {
     let disk_fs = DiskFileSystem::new("node".to_string(), node_root.to_string());
-    handle_issues(disk_fs, issue_reporter).await?;
+    handle_issues(
+        disk_fs,
+        issue_reporter,
+        MIN_FAILING_SEVERITY.cell(),
+        None,
+        None,
+    )
+    .await?;
     Ok(Vc::upcast(disk_fs))
 }
 
@@ -456,27 +486,15 @@ async fn client_fs(
     issue_reporter: Vc<Box<dyn IssueReporter>>,
 ) -> Result<Vc<Box<dyn FileSystem>>> {
     let disk_fs = DiskFileSystem::new("client".to_string(), client_root.to_string());
-    handle_issues(disk_fs, issue_reporter).await?;
+    handle_issues(
+        disk_fs,
+        issue_reporter,
+        MIN_FAILING_SEVERITY.cell(),
+        None,
+        None,
+    )
+    .await?;
     Ok(Vc::upcast(disk_fs))
-}
-
-async fn handle_issues<T>(source: Vc<T>, issue_reporter: Vc<Box<dyn IssueReporter>>) -> Result<()> {
-    let issues = source
-        .peek_issues_with_path()
-        .await?
-        .strongly_consistent()
-        .await?;
-
-    let has_fatal = issue_reporter.report_issues(
-        TransientInstance::new(issues.clone()),
-        TransientValue::new(source.node),
-    );
-
-    if *has_fatal.await? {
-        Err(anyhow!("Fatal issue(s) occurred"))
-    } else {
-        Ok(())
-    }
 }
 
 /// Emits all assets transitively reachable from the given chunks, that are
