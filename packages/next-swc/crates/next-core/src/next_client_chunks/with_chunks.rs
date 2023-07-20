@@ -18,7 +18,7 @@ use turbopack_binding::{
             ident::AssetIdent,
             module::Module,
             output::OutputAssets,
-            reference::{ModuleReferences, SingleModuleReference},
+            reference::{ModuleReferences, SingleOutputAssetReference},
         },
         ecmascript::{
             chunk::{
@@ -221,8 +221,8 @@ impl ChunkItem for WithChunksChunkItem {
         let chunk_data_key = Vc::cell("chunk data".to_string());
         for chunk_data in &*self.chunks_data().await? {
             references.extend(chunk_data.references().await?.iter().map(|&output_asset| {
-                Vc::upcast(SingleModuleReference::new(
-                    Vc::upcast(output_asset),
+                Vc::upcast(SingleOutputAssetReference::new(
+                    output_asset,
                     chunk_data_key,
                 ))
             }));

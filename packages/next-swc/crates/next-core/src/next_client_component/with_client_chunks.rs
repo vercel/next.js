@@ -15,7 +15,7 @@ use turbopack_binding::{
             module::Module,
             output::{OutputAsset, OutputAssets},
             proxied_asset::ProxiedAsset,
-            reference::{ModuleReference, ModuleReferences, SingleModuleReference},
+            reference::{ModuleReference, ModuleReferences, SingleOutputAssetReference},
             resolve::ModuleResolveResult,
         },
         ecmascript::chunk::{EcmascriptChunkData, EcmascriptChunkItemExt},
@@ -227,16 +227,16 @@ impl ChunkItem for WithClientChunksChunkItem {
         let client_chunks = client_chunks.await?;
         let client_chunk = Vc::cell("client chunk".to_string());
         for &chunk in client_chunks.iter() {
-            references.push(Vc::upcast(SingleModuleReference::new(
-                Vc::upcast(chunk),
+            references.push(Vc::upcast(SingleOutputAssetReference::new(
+                chunk,
                 client_chunk,
             )));
         }
         let chunk_data_key = Vc::cell("chunk data".to_string());
         for chunk_data in &*self.chunks_data().await? {
             references.extend(chunk_data.references().await?.iter().map(|&output_asset| {
-                Vc::upcast(SingleModuleReference::new(
-                    Vc::upcast(output_asset),
+                Vc::upcast(SingleOutputAssetReference::new(
+                    output_asset,
                     chunk_data_key,
                 ))
             }));
@@ -265,7 +265,7 @@ impl ValueToString for WithClientChunksAssetReference {
 impl ModuleReference for WithClientChunksAssetReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
-        ModuleResolveResult::asset(Vc::upcast(self.asset)).cell()
+        ModuleResolveResult::module(self.asset).cell()
     }
 }
 
