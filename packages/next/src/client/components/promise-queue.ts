@@ -5,13 +5,14 @@
     things as well.
 */
 export class PromiseQueue {
-  maxConcurrency: number
-  runningCount: number
-  queue: Array<{ promiseFn: Promise<any>; task: () => void }>
+  #maxConcurrency: number
+  #runningCount: number
+  #queue: Array<{ promiseFn: Promise<any>; task: () => void }>
+
   constructor(maxConcurrency = 5) {
-    this.maxConcurrency = maxConcurrency
-    this.runningCount = 0
-    this.queue = []
+    this.#maxConcurrency = maxConcurrency
+    this.#runningCount = 0
+    this.#queue = []
   }
 
   enqueue<T>(promiseFn: () => Promise<T>): Promise<T> {
@@ -25,41 +26,41 @@ export class PromiseQueue {
 
     const task = async () => {
       try {
-        this.runningCount++
+        this.#runningCount++
         const result = await promiseFn()
         taskResolve(result)
       } catch (error) {
         taskReject(error)
       } finally {
-        this.runningCount--
+        this.#runningCount--
         this.#processNext()
       }
     }
 
     const enqueueResult = { promiseFn: taskPromise, task }
     // wonder if we should take a LIFO approach here
-    this.queue.push(enqueueResult)
+    this.#queue.push(enqueueResult)
     this.#processNext()
 
     return taskPromise
   }
 
   bump(promiseFn: Promise<any>) {
-    const index = this.queue.findIndex((item) => item.promiseFn === promiseFn)
+    const index = this.#queue.findIndex((item) => item.promiseFn === promiseFn)
 
     if (index > -1) {
-      const bumpedItem = this.queue.splice(index, 1)[0]
-      this.queue.unshift(bumpedItem)
+      const bumpedItem = this.#queue.splice(index, 1)[0]
+      this.#queue.unshift(bumpedItem)
       this.#processNext(true)
     }
   }
 
   #processNext(forced = false) {
     if (
-      (this.runningCount < this.maxConcurrency || forced) &&
-      this.queue.length > 0
+      (this.#runningCount < this.#maxConcurrency || forced) &&
+      this.#queue.length > 0
     ) {
-      this.queue.shift()?.task()
+      this.#queue.shift()?.task()
     }
   }
 }
