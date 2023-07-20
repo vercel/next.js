@@ -927,13 +927,13 @@ export async function renderToHTMLOrFlight(
 
       // If it's a not found route, and we don't have any matched parallel
       // routes, we try to render the not found component if it exists.
+      let isLeaf =
+        process.env.NODE_ENV === 'production'
+          ? !segment && !rootLayoutIncluded
+          : !parallelRouteMap.length && segment === '__DEFAULT__' // hit parallel-route-default
+
       let notFoundComponent = {}
-      if (
-        asNotFound &&
-        (!parallelRouteMap.length ||
-          parallelRoutes.children[0] === '__DEFAULT__') &&
-        NotFound
-      ) {
+      if (asNotFound && isLeaf && NotFound) {
         notFoundComponent = {
           children: (
             <>
@@ -1651,11 +1651,9 @@ export async function renderToHTMLOrFlight(
           // When the not found error is thrown from metadata, or if there's no custom not found found,
           // since we don't have a top level not found boundary,
           // so we create a not found page with AppRouter as fallback page.
-          const notInheritStream =
-            isErrorMetadataNotFound ||
-            (is404 && !NotFound) ||
-            pagePath === '/404'
+          // const notInheritStream = (isErrorMetadataNotFound || (!is404 && !NotFound))
 
+          // console.log(`empty stream`, isErrorMetadataNotFound || (is404 && !NotFound))
           // Preserve the existing RSC inline chunks from the page rendering.
           // For 404 errors: the metadata from layout can be skipped with the error page.
           // For other errors (such as redirection): it can still be re-thrown on client.
@@ -1663,7 +1661,7 @@ export async function renderToHTMLOrFlight(
             {
               ...serverComponentsRenderOpts,
               rscChunks: [],
-              transformStream: notInheritStream
+              transformStream: is404
                 ? new TransformStream()
                 : cloneTransformStream(
                     serverComponentsRenderOpts.transformStream
@@ -1704,8 +1702,12 @@ export async function renderToHTMLOrFlight(
                 </>
               )
 
+              const notFoundLoaderTree: LoaderTree = is404
+                ? ['__DEFAULT__', {}, loaderTree[2]]
+                : loaderTree
+
               const initialTree = createFlightRouterStateFromLoaderTree(
-                loaderTree,
+                notFoundLoaderTree,
                 getDynamicParamFromSegment,
                 query
               )
@@ -1802,12 +1804,10 @@ export async function renderToHTMLOrFlight(
       serverActionsBodySizeLimit,
     })
 
-    const isNotFoundAction = actionRequestResult === 'not-found'
-    if (isNotFoundAction) {
-      // Modify loader tree to remove parallel routes to align with 404 page loader tree
-      loaderTree[1] = { children: ['__DEFAULT__', {}, {}] }
-    }
-    if (isNotFoundAction) {
+    if (actionRequestResult === 'not-found') {
+      // Override loader tree to match tree of not-found
+      loaderTree[0] = '__DEFAULT__'
+      loaderTree[1] = {}
       return new RenderResult(await bodyResult({ asNotFound: true }))
     } else if (actionRequestResult) {
       return actionRequestResult
