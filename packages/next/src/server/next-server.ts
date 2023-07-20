@@ -1052,6 +1052,8 @@ export default class NextNodeServer extends BaseServer {
       const normalizedReq = this.normalizeReq(req)
       const normalizedRes = this.normalizeRes(res)
 
+      const enabledVerboseLogging =
+        this.nextConfig.experimental.logging === 'verbose'
       if (this.renderOpts.dev) {
         const _req = req as NodeNextRequest | IncomingMessage
         const _res = res as NodeNextResponse | ServerResponse
@@ -1089,12 +1091,14 @@ export default class NextNodeServer extends BaseServer {
           }
 
           if (Array.isArray(fetchMetrics) && fetchMetrics.length) {
-            process.stdout.write('\n')
-            process.stdout.write(
-              `-  ${chalk.grey('┌')} ${chalk.cyan(req.method || 'GET')} ${
-                req.url
-              } ${res.statusCode} in ${getDurationStr(reqDuration)}\n`
-            )
+            if (enabledVerboseLogging) {
+              process.stdout.write('\n')
+              process.stdout.write(
+                `- ${chalk.cyan(req.method || 'GET')} ${req.url} ${
+                  res.statusCode
+                } in ${getDurationStr(reqDuration)}\n`
+              )
+            }
 
             const calcNestedLevel = (
               prevMetrics: any[],
@@ -1113,9 +1117,7 @@ export default class NextNodeServer extends BaseServer {
                   nestedLevel += 1
                 }
               }
-
-              if (nestedLevel === 0) return ''
-              return ` ${nestedLevel} level${nestedLevel === 1 ? '' : 's'} `
+              return `${'───'.repeat(nestedLevel + 1)}`
             }
 
             for (let i = 0; i < fetchMetrics.length; i++) {
@@ -1156,25 +1158,27 @@ export default class NextNodeServer extends BaseServer {
                   truncatedSearch
               }
 
-              process.stdout.write(`   ${chalk.grey('│')}\n`)
+              if (enabledVerboseLogging) {
+                process.stdout.write(
+                  `   ${chalk.grey(
+                    `${lastItem ? '└' : '├'}${calcNestedLevel(
+                      fetchMetrics.slice(0, i),
+                      metric.start
+                    )}`
+                  )} ${chalk.cyan(metric.method)} ${url} ${
+                    metric.status
+                  } in ${getDurationStr(duration)} (cache: ${cacheStatus})\n`
+                )
+              }
+            }
+          } else {
+            if (enabledVerboseLogging) {
               process.stdout.write(
-                `   ${chalk.grey(
-                  `${lastItem ? '└' : '├'}──${calcNestedLevel(
-                    fetchMetrics.slice(0, i),
-                    metric.start
-                  )}──`
-                )} ${chalk.cyan(metric.method)} ${url} ${
-                  metric.status
-                } in ${getDurationStr(duration)} (cache: ${cacheStatus})\n`
+                `- ${chalk.cyan(req.method || 'GET')} ${req.url} ${
+                  res.statusCode
+                } in ${getDurationStr(reqDuration)}\n`
               )
             }
-            process.stdout.write('\n')
-          } else if (this.nextConfig.experimental.logging === 'verbose') {
-            process.stdout.write(
-              `- ${chalk.cyan(req.method || 'GET')} ${req.url} ${
-                res.statusCode
-              } in ${getDurationStr(reqDuration)}\n`
-            )
           }
           origRes.off('close', reqCallback)
         }
