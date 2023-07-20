@@ -408,6 +408,8 @@ type LangCode =
   | 'xh-ZA'
   | 'yo-NG'
   | 'zh-CN'
+  | 'zh-Hans'
+  | 'zh-Hant'
   | 'zh-HK'
   | 'zh-MO'
   | 'zh-SG'
