@@ -928,7 +928,12 @@ export async function renderToHTMLOrFlight(
       // If it's a not found route, and we don't have any matched parallel
       // routes, we try to render the not found component if it exists.
       let notFoundComponent = {}
-      if (asNotFound && !parallelRouteMap.length && NotFound) {
+      if (
+        asNotFound &&
+        (!parallelRouteMap.length ||
+          parallelRoutes.children[0] === '__DEFAULT__') &&
+        NotFound
+      ) {
         notFoundComponent = {
           children: (
             <>
@@ -1646,10 +1651,10 @@ export async function renderToHTMLOrFlight(
           // When the not found error is thrown from metadata, or if there's no custom not found found,
           // since we don't have a top level not found boundary,
           // so we create a not found page with AppRouter as fallback page.
-          // const useDefaultError =
-          //   isErrorMetadataNotFound ||
-          //   (is404 && !NotFound) ||
-          //   pagePath === '/_not-found'
+          const notInheritStream =
+            isErrorMetadataNotFound ||
+            (is404 && !NotFound) ||
+            pagePath === '/404'
 
           // Preserve the existing RSC inline chunks from the page rendering.
           // For 404 errors: the metadata from layout can be skipped with the error page.
@@ -1658,12 +1663,11 @@ export async function renderToHTMLOrFlight(
             {
               ...serverComponentsRenderOpts,
               rscChunks: [],
-              transformStream:
-                isErrorMetadataNotFound || (is404 && !NotFound)
-                  ? new TransformStream()
-                  : cloneTransformStream(
-                      serverComponentsRenderOpts.transformStream
-                    ),
+              transformStream: notInheritStream
+                ? new TransformStream()
+                : cloneTransformStream(
+                    serverComponentsRenderOpts.transformStream
+                  ),
             }
 
           const errorType = is404
@@ -1799,10 +1803,9 @@ export async function renderToHTMLOrFlight(
     })
 
     const isNotFoundAction = actionRequestResult === 'not-found'
-    const is404Page = pagePath === '/404'
-    if (isNotFoundAction || (!actionRequestResult && is404Page)) {
+    if (isNotFoundAction) {
       // Modify loader tree to remove parallel routes to align with 404 page loader tree
-      loaderTree[1] = {}
+      loaderTree[1] = { children: ['__DEFAULT__', {}, {}] }
     }
     if (isNotFoundAction) {
       return new RenderResult(await bodyResult({ asNotFound: true }))
@@ -1812,7 +1815,7 @@ export async function renderToHTMLOrFlight(
 
     const renderResult = new RenderResult(
       await bodyResult({
-        asNotFound: is404Page,
+        asNotFound: pagePath === '/404',
       })
     )
 
