@@ -11,6 +11,14 @@ export const ACTION_UNHANDLED_ERROR = 'unhandled-error'
 export const ACTION_UNHANDLED_REJECTION = 'unhandled-rejection'
 export const ACTION_VERSION_INFO = 'version-info'
 export const ACTION_NOT_FOUND = 'not-found'
+export const INITIAL_OVERLAY_STATE: OverlayState = {
+  nextId: 1,
+  buildError: null,
+  errors: [],
+  notFound: false,
+  refreshState: { type: 'idle' },
+  versionInfo: { installed: '0.0.0', staleness: 'unknown' },
+}
 
 interface BuildOkAction {
   type: typeof ACTION_BUILD_OK

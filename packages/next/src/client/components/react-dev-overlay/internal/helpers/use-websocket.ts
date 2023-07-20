@@ -2,11 +2,14 @@ import { useCallback, useContext, useEffect, useRef } from 'react'
 import { GlobalLayoutRouterContext } from '../../../../../shared/lib/app-router-context'
 import { getSocketProtocol } from './get-socket-protocol'
 
-export function useWebsocket(assetPrefix: string) {
+export function useWebsocket(
+  assetPrefix: string,
+  shouldSubscribe: boolean = true
+) {
   const webSocketRef = useRef<WebSocket>()
 
   useEffect(() => {
-    if (webSocketRef.current) {
+    if (webSocketRef.current || !shouldSubscribe) {
       return
     }
 
@@ -23,7 +26,7 @@ export function useWebsocket(assetPrefix: string) {
     }
 
     webSocketRef.current = new window.WebSocket(`${url}/_next/webpack-hmr`)
-  }, [assetPrefix])
+  }, [assetPrefix, shouldSubscribe])
 
   return webSocketRef
 }

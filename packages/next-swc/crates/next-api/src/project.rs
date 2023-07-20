@@ -1,6 +1,6 @@
 use std::path::MAIN_SEPARATOR;
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use indexmap::{map::Entry, IndexMap};
 use next_core::{
     app_structure::find_app_dir,
@@ -286,31 +286,19 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub(super) async fn ssr_chunking_context(self: Vc<Self>) -> Result<Vc<BuildChunkingContext>> {
-        let ssr_chunking_context = self.server_chunking_context().with_layer("ssr".to_string());
-        Vc::try_resolve_downcast_type::<BuildChunkingContext>(ssr_chunking_context)
-            .await?
-            .context("with_layer should not change the type of the chunking context")
+    pub(super) fn ssr_chunking_context(self: Vc<Self>) -> Vc<BuildChunkingContext> {
+        self.server_chunking_context().with_layer("ssr".to_string())
     }
 
     #[turbo_tasks::function]
-    pub(super) async fn ssr_data_chunking_context(
-        self: Vc<Self>,
-    ) -> Result<Vc<BuildChunkingContext>> {
-        let ssr_chunking_context = self
-            .server_chunking_context()
-            .with_layer("ssr data".to_string());
-        Vc::try_resolve_downcast_type::<BuildChunkingContext>(ssr_chunking_context)
-            .await?
-            .context("with_layer should not change the type of the chunking context")
+    pub(super) fn ssr_data_chunking_context(self: Vc<Self>) -> Vc<BuildChunkingContext> {
+        self.server_chunking_context()
+            .with_layer("ssr data".to_string())
     }
 
     #[turbo_tasks::function]
-    pub(super) async fn rsc_chunking_context(self: Vc<Self>) -> Result<Vc<BuildChunkingContext>> {
-        let rsc_chunking_context = self.server_chunking_context().with_layer("rsc".to_string());
-        Vc::try_resolve_downcast_type::<BuildChunkingContext>(rsc_chunking_context)
-            .await?
-            .context("with_layer should not change the type of the chunking context")
+    pub(super) fn rsc_chunking_context(self: Vc<Self>) -> Vc<BuildChunkingContext> {
+        self.server_chunking_context().with_layer("rsc".to_string())
     }
 
     /// Scans the app/pages directories for entry points files (matching the
