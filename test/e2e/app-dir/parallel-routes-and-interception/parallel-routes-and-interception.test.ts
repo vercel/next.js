@@ -560,6 +560,12 @@ createNextDescribe(
           'interception from @slot/nested'
         )
 
+        // Check if the client component is rendered
+        await check(
+          () => browser.waitForElementByCss('#interception-slot-client').text(),
+          'client component'
+        )
+
         await check(
           () => browser.refresh().waitForElementByCss('#nested').text(),
           'hello world from /nested'
