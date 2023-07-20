@@ -19,7 +19,10 @@ import { ensureLeadingSlash } from '../../page-path/ensure-leading-slash'
  * @param route the app route to normalize
  * @returns the normalized pathname
  */
-export function normalizeAppPath(route: string) {
+export function normalizeAppPath(route: string, extraLeafs?: string[]) {
+  const DEFAULT_LEAFS = ['page', 'route']
+  const mergedLeafs = [...(extraLeafs ?? []), ...DEFAULT_LEAFS]
+
   return ensureLeadingSlash(
     route.split('/').reduce((pathname, segment, index, segments) => {
       // Empty segments are ignored.
@@ -38,10 +41,7 @@ export function normalizeAppPath(route: string) {
       }
 
       // The last segment (if it's a leaf) should be ignored.
-      if (
-        (segment === 'page' || segment === 'route') &&
-        index === segments.length - 1
-      ) {
+      if (mergedLeafs.includes(segment) && index === segments.length - 1) {
         return pathname
       }
 

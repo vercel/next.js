@@ -351,10 +351,16 @@ export class ClientReferenceManifestPlugin {
       // - app/foo/page -> app/foo
       // - app/(group)/@named/foo/page -> app/foo
       // - app/(group)/@named/(.)foo/page -> app/(.)foo
-      const groupName = normalizeAppPath(entryName).replace(
-        /\/(page|loading|layout|route|default|error|not-found)(\.tsx?|\.jsx?)?/g,
-        ''
-      )
+      const preGroupName = entryName
+        .slice(0, entryName.lastIndexOf('/'))
+        .replace(/\/@[^/]+/g, '')
+        .replace(/\/\([^/]+\)/g, '')
+
+      const groupName = normalizeAppPath(entryName, [
+        'loading',
+        'layout',
+      ]).slice(1)
+      console.log({ preGroupName, groupName })
 
       if (!manifestsPerGroup.has(groupName)) {
         manifestsPerGroup.set(groupName, [])
