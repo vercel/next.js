@@ -1099,42 +1099,47 @@ export async function renderToHTMLOrFlight(
                 getDynamicParamFromSegment,
                 query
               ),
-              // Create component tree using the slice of the loaderTree
-              // @ts-expect-error TODO-APP: fix async component type
-              React.createElement(async () => {
-                const { Component } = await createComponentTree(
-                  // This ensures flightRouterPath is valid and filters down the tree
-                  {
-                    createSegmentPath,
-                    loaderTree: loaderTreeToFilter,
-                    parentParams: currentParams,
-                    firstItem: isFirst,
-                    injectedCSS,
-                    injectedFontPreloadTags,
-                    // This is intentionally not "rootLayoutIncludedAtThisLevelOrAbove" as createComponentTree starts at the current level and does a check for "rootLayoutAtThisLevel" too.
-                    rootLayoutIncluded,
-                    asNotFound,
-                  }
-                )
+              isPrefetch && !Boolean(components.loading)
+                ? null
+                : // Create component tree using the slice of the loaderTree
+                  // @ts-expect-error TODO-APP: fix async component type
+                  React.createElement(async () => {
+                    const { Component } = await createComponentTree(
+                      // This ensures flightRouterPath is valid and filters down the tree
+                      {
+                        createSegmentPath,
+                        loaderTree: loaderTreeToFilter,
+                        parentParams: currentParams,
+                        firstItem: isFirst,
+                        injectedCSS,
+                        injectedFontPreloadTags,
+                        // This is intentionally not "rootLayoutIncludedAtThisLevelOrAbove" as createComponentTree starts at the current level and does a check for "rootLayoutAtThisLevel" too.
+                        rootLayoutIncluded,
+                        asNotFound,
+                      }
+                    )
 
-                return <Component />
-              }),
-              (() => {
-                const { layoutOrPagePath } = parseLoaderTree(loaderTreeToFilter)
+                    return <Component />
+                  }),
+              isPrefetch && !Boolean(components.loading)
+                ? null
+                : (() => {
+                    const { layoutOrPagePath } =
+                      parseLoaderTree(loaderTreeToFilter)
 
-                const styles = getLayerAssets({
-                  layoutOrPagePath,
-                  injectedCSS: new Set(injectedCSS),
-                  injectedFontPreloadTags: new Set(injectedFontPreloadTags),
-                })
+                    const styles = getLayerAssets({
+                      layoutOrPagePath,
+                      injectedCSS: new Set(injectedCSS),
+                      injectedFontPreloadTags: new Set(injectedFontPreloadTags),
+                    })
 
-                return (
-                  <>
-                    {styles}
-                    {rscPayloadHead}
-                  </>
-                )
-              })(),
+                    return (
+                      <>
+                        {styles}
+                        {rscPayloadHead}
+                      </>
+                    )
+                  })(),
             ],
           ]
         }
