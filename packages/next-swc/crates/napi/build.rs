@@ -10,6 +10,9 @@ use turbopack_binding::turbo::tasks_build::generate_register;
 extern crate napi_build;
 
 fn main() {
+    // Ignore if build time generation fails
+    let _ = shadow_rs::new();
+
     // Emit current platform's target-triple into a text file to create static const
     // in util.rs
     let out_dir = env::var("OUT_DIR").expect("Outdir should exist");
