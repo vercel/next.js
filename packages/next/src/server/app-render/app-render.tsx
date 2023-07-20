@@ -40,7 +40,7 @@ import {
   NEXT_ROUTER_STATE_TREE,
   RSC,
 } from '../../client/components/app-router-headers'
-import { MetadataTree, isMetadataError } from '../../lib/metadata/metadata'
+import { MetadataTree } from '../../lib/metadata/metadata'
 import { RequestAsyncStorageWrapper } from '../async-storage/request-async-storage-wrapper'
 import { StaticGenerationAsyncStorageWrapper } from '../async-storage/static-generation-async-storage-wrapper'
 import { isClientReference } from '../../lib/client-reference'
@@ -934,10 +934,11 @@ export async function renderToHTMLOrFlight(
 
       let notFoundComponent = {}
       if (
+        NotFound &&
         // For action not-found we force render the NotFound and stop checking the parallel routes.
-        asNotFound === 'force' ||
-        // For normal case where we should look up for not-found, keep checking the parallel routes.
-        (asNotFound && isLeaf && NotFound)
+        (asNotFound === 'force' ||
+          // For normal case where we should look up for not-found, keep checking the parallel routes.
+          (asNotFound && isLeaf))
       ) {
         notFoundComponent = {
           children: (
@@ -1612,11 +1613,7 @@ export async function renderToHTMLOrFlight(
               pagePath
             )
           }
-          if (isMetadataError(err)) {
-            const digest = err.digest.replace('NEXT_METADATA_ERROR;', '')
-            err.message = digest
-            err.digest = digest
-          }
+
           if (isNotFoundError(err)) {
             res.statusCode = 404
           }
@@ -1651,12 +1648,6 @@ export async function renderToHTMLOrFlight(
             pathname
           )
 
-          // When the not found error is thrown from metadata, or if there's no custom not found found,
-          // since we don't have a top level not found boundary,
-          // so we create a not found page with AppRouter as fallback page.
-          // const notInheritStream = (isErrorMetadataNotFound || (!is404 && !NotFound))
-
-          // console.log(`empty stream`, isErrorMetadataNotFound || (is404 && !NotFound))
           // Preserve the existing RSC inline chunks from the page rendering.
           // For 404 errors: the metadata from layout can be skipped with the error page.
           // For other errors (such as redirection): it can still be re-thrown on client.

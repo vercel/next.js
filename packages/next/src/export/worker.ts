@@ -47,7 +47,6 @@ import { toNodeOutgoingHttpHeaders } from '../server/web/utils'
 import { RouteModuleLoader } from '../server/future/helpers/module-loader/route-module-loader'
 import { NextRequestAdapter } from '../server/web/spec-extension/adapters/next-request'
 import * as ciEnvironment from '../telemetry/ci-info'
-import { isMetadataError } from '../lib/metadata/metadata'
 
 const envConfig = require('../shared/lib/runtime-config')
 
@@ -383,8 +382,7 @@ export default async function exportPage({
           err.digest === DYNAMIC_ERROR_CODE ||
           isNotFoundError(err) ||
           err.digest === NEXT_DYNAMIC_NO_SSR_CODE ||
-          isRedirectError(err) ||
-          isMetadataError(err)
+          isRedirectError(err)
 
         if (isRouteHandler) {
           // Ensure that the url for the page is absolute.

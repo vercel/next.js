@@ -20,13 +20,6 @@ import { accumulateMetadata, resolveMetadata } from './resolve-metadata'
 import { MetaFilter } from './generate/meta'
 import { ResolvedMetadata } from './types/metadata-interface'
 import { createDefaultMetadata } from './default-metadata'
-import { isNotFoundError } from '../../client/components/not-found'
-import { isRedirectError } from '../../client/components/redirect'
-
-const NEXT_METADATA_ERROR_PREFIX = 'NEXT_METADATA_ERROR;'
-export function isMetadataError(error: any) {
-  return error && (error?.digest + '').startsWith(NEXT_METADATA_ERROR_PREFIX)
-}
 
 // Generate the actual React elements from the resolved metadata.
 export async function MetadataTree({
@@ -63,19 +56,7 @@ export async function MetadataTree({
   if (errorType === 'redirect') {
     metadata = defaultMetadata
   } else {
-    try {
-      metadata = await accumulateMetadata(resolvedMetadata, metadataContext)
-    } catch (error: any) {
-      if (isNotFoundError(error) || isRedirectError(error)) {
-        const digest = `${NEXT_METADATA_ERROR_PREFIX}${error.digest}`
-        const metadataError = new Error(digest)
-        // @ts-ignore assign digest property so that the original error can be identified
-        metadataError.digest = digest
-        throw metadataError
-      } else {
-        throw error
-      }
-    }
+    metadata = await accumulateMetadata(resolvedMetadata, metadataContext)
   }
 
   const elements = MetaFilter([
