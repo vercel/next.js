@@ -107,7 +107,8 @@ function entryNameToGroupName(entryName: string) {
   let groupName = entryName
     .slice(0, entryName.lastIndexOf('/'))
     .replace(/\/@[^/]+/g, '')
-    .replace(/\/\([^/]+\)(\/|$)/g, '$2')
+    // Remove the group with lookahead to make sure it's not interception route
+    .replace(/\/\([^/]+\)(?=(\/|$))/g, '')
 
   // Interception routes
   groupName = groupName
