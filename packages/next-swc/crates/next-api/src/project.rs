@@ -4,6 +4,7 @@ use anyhow::Result;
 use indexmap::{map::Entry, IndexMap};
 use next_core::{
     app_structure::find_app_dir,
+    get_edge_chunking_context, get_edge_compile_time_info,
     mode::NextMode,
     next_client::{get_client_chunking_context, get_client_compile_time_info},
     next_config::NextConfig,
@@ -263,6 +264,15 @@ impl Project {
     }
 
     #[turbo_tasks::function]
+    pub(super) fn edge_compile_time_info(self: Vc<Self>) -> Vc<CompileTimeInfo> {
+        get_edge_compile_time_info(
+            self.project_path(),
+            // TODO(alexkirsz) Fill this out.
+            ServerAddr::empty(),
+        )
+    }
+
+    #[turbo_tasks::function]
     pub(super) async fn client_chunking_context(
         self: Vc<Self>,
     ) -> Result<Vc<Box<dyn EcmascriptChunkingContext>>> {
@@ -276,12 +286,22 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub(super) fn server_chunking_context(self: Vc<Self>) -> Vc<BuildChunkingContext> {
+    fn server_chunking_context(self: Vc<Self>) -> Vc<BuildChunkingContext> {
         get_server_chunking_context(
             self.project_path(),
             self.node_root(),
-            self.client_fs().root(),
+            self.client_root(),
             self.server_compile_time_info().environment(),
+        )
+    }
+
+    #[turbo_tasks::function]
+    fn edge_chunking_context(self: Vc<Self>) -> Vc<Box<dyn EcmascriptChunkingContext>> {
+        get_edge_chunking_context(
+            self.project_path(),
+            self.node_root(),
+            self.client_root(),
+            self.edge_compile_time_info().environment(),
         )
     }
 
@@ -291,14 +311,38 @@ impl Project {
     }
 
     #[turbo_tasks::function]
+    pub(super) fn edge_ssr_chunking_context(
+        self: Vc<Self>,
+    ) -> Vc<Box<dyn EcmascriptChunkingContext>> {
+        self.edge_chunking_context()
+            .with_layer("edge ssr".to_string())
+    }
+
+    #[turbo_tasks::function]
     pub(super) fn ssr_data_chunking_context(self: Vc<Self>) -> Vc<BuildChunkingContext> {
         self.server_chunking_context()
             .with_layer("ssr data".to_string())
     }
 
     #[turbo_tasks::function]
+    pub(super) fn edge_ssr_data_chunking_context(
+        self: Vc<Self>,
+    ) -> Vc<Box<dyn EcmascriptChunkingContext>> {
+        self.edge_chunking_context()
+            .with_layer("edge ssr data".to_string())
+    }
+
+    #[turbo_tasks::function]
     pub(super) fn rsc_chunking_context(self: Vc<Self>) -> Vc<BuildChunkingContext> {
         self.server_chunking_context().with_layer("rsc".to_string())
+    }
+
+    #[turbo_tasks::function]
+    pub(super) fn edge_rsc_chunking_context(
+        self: Vc<Self>,
+    ) -> Vc<Box<dyn EcmascriptChunkingContext>> {
+        self.edge_chunking_context()
+            .with_layer("edge rsc".to_string())
     }
 
     /// Scans the app/pages directories for entry points files (matching the

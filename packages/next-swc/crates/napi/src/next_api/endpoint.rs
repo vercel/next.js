@@ -8,16 +8,43 @@ use turbopack_binding::turbopack::core::error::PrettyPrintError;
 use super::utils::{get_issues, subscribe, NapiIssue, RootTask, TurbopackResult, VcArc};
 
 #[napi(object)]
+#[derive(Default)]
+pub struct NapiEndpointConfig {}
+
+#[napi(object)]
+#[derive(Default)]
 pub struct NapiWrittenEndpoint {
-    pub server_entry_path: String,
-    pub server_paths: Vec<String>,
+    pub r#type: String,
+    pub entry_path: Option<String>,
+    pub server_paths: Option<Vec<String>>,
+    pub files: Option<Vec<String>>,
+    pub global_var_name: Option<String>,
+    pub config: NapiEndpointConfig,
 }
 
 impl From<&WrittenEndpoint> for NapiWrittenEndpoint {
     fn from(written_endpoint: &WrittenEndpoint) -> Self {
-        Self {
-            server_entry_path: written_endpoint.server_entry_path.clone(),
-            server_paths: written_endpoint.server_paths.clone(),
+        match written_endpoint {
+            WrittenEndpoint::NodeJs {
+                server_entry_path,
+                server_paths,
+            } => Self {
+                r#type: "nodejs".to_string(),
+                entry_path: Some(server_entry_path.clone()),
+                server_paths: Some(server_paths.clone()),
+                ..Default::default()
+            },
+            WrittenEndpoint::Edge {
+                files,
+                global_var_name,
+                server_paths,
+            } => Self {
+                r#type: "edge".to_string(),
+                files: Some(files.clone()),
+                server_paths: Some(server_paths.clone()),
+                global_var_name: Some(global_var_name.clone()),
+                ..Default::default()
+            },
         }
     }
 }
