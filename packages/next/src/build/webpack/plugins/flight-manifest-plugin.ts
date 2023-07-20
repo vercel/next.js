@@ -17,6 +17,7 @@ import { getProxiedPluginState } from '../../build-context'
 import { nonNullable } from '../../../lib/non-nullable'
 import { WEBPACK_LAYERS } from '../../../lib/constants'
 import { normalizePagePath } from '../../../shared/lib/page-path/normalize-page-path'
+import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
 
 interface Options {
   dev: boolean
@@ -350,7 +351,7 @@ export class ClientReferenceManifestPlugin {
       // - app/foo/page -> app/foo
       // - app/(group)/@named/foo/page -> app/foo
       // - app/(group)/@named/(.)foo/page -> app/(.)foo
-      const groupName = normalizePagePath(entryName).replace(
+      const groupName = normalizeAppPath(entryName).replace(
         /\/(page|loading|layout|route|default|error|not-found)(\.tsx?|\.jsx?)?/g,
         ''
       )
