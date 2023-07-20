@@ -19,6 +19,8 @@ packages/next/src/bundles/webpack/packages/lazy-compilation-*.js
 .github/actions/issue-validator/index.mjs
 .github/actions/issue-labeler/lib/index.js
 .github/actions/validate-docs-links/lib/index.js
+.github/actions/needs-triage/index.js
+.github/actions/minus-one/index.mjs
 
 packages/next-swc/crates/**/tests/**/output*
 packages/next-swc/crates/core/tests/loader/issue-32553/input.js

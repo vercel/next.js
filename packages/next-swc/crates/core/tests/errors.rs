@@ -5,7 +5,9 @@ use next_swc::{
     next_dynamic::next_dynamic,
     next_ssg::next_ssg,
     react_server_components::server_components,
-    server_actions::{self, server_actions},
+    server_actions::{
+        server_actions, {self},
+    },
 };
 use next_transform_font::{next_font_loaders, Config as FontLoaderConfig};
 use turbopack_binding::swc::{
@@ -168,7 +170,10 @@ fn react_server_actions_server_errors(input: PathBuf) {
                 ),
                 server_actions(
                     &FileName::Real("/app/item.js".into()),
-                    server_actions::Config { is_server: true },
+                    server_actions::Config {
+                        is_server: true,
+                        enabled: true
+                    },
                     tr.comments.as_ref().clone(),
                 )
             )
@@ -200,7 +205,10 @@ fn react_server_actions_client_errors(input: PathBuf) {
                 ),
                 server_actions(
                     &FileName::Real("/app/item.js".into()),
-                    server_actions::Config { is_server: false },
+                    server_actions::Config {
+                        is_server: false,
+                        enabled: true
+                    },
                     tr.comments.as_ref().clone(),
                 )
             )

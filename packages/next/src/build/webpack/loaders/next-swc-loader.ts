@@ -73,6 +73,7 @@ async function loaderTransform(
     swcCacheDir,
     relativeFilePathFromRoot,
     hasServerComponents,
+    isServerActionsEnabled: nextConfig?.experimental?.serverActions,
     isServerLayer,
   })
 

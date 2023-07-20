@@ -1,6 +1,7 @@
 import glob from 'glob'
 import fs from 'fs-extra'
 import { join } from 'path'
+import cheerio from 'cheerio'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import {
@@ -38,9 +39,6 @@ describe('should set-up next', () => {
       nextConfig: {
         eslint: {
           ignoreDuringBuilds: true,
-        },
-        experimental: {
-          appDir: true,
         },
         output: 'standalone',
       },
@@ -96,6 +94,64 @@ describe('should set-up next', () => {
   afterAll(async () => {
     await next.destroy()
     if (server) await killApp(server)
+  })
+
+  it('should not fail caching', async () => {
+    expect(next.cliOutput).not.toContain('ERR_INVALID_URL')
+  })
+
+  it('should properly handle prerender for bot request', async () => {
+    const res = await fetchViaHTTP(appPort, '/isr/first', undefined, {
+      headers: {
+        'user-agent':
+          'Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.5735.179 Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+        'x-matched-path': '/isr/first',
+      },
+    })
+
+    expect(res.status).toBe(200)
+    const html = await res.text()
+    const $ = cheerio.load(html)
+
+    expect($('#page').text()).toBe('/isr/[slug]')
+
+    const rscRes = await fetchViaHTTP(appPort, '/isr/first.rsc', undefined, {
+      headers: {
+        'user-agent':
+          'Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.5735.179 Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+        'x-matched-path': '/isr/first',
+      },
+    })
+
+    expect(rscRes.status).toBe(200)
+  })
+
+  it('should properly handle fallback for bot request', async () => {
+    const res = await fetchViaHTTP(appPort, '/isr/[slug]', undefined, {
+      headers: {
+        'user-agent':
+          'Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.5735.179 Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+        'x-now-route-matches': '1=second&nxtPslug=new',
+        'x-matched-path': '/isr/[slug]',
+      },
+    })
+
+    expect(res.status).toBe(200)
+    const html = await res.text()
+    const $ = cheerio.load(html)
+
+    expect($('#page').text()).toBe('/isr/[slug]')
+
+    const rscRes = await fetchViaHTTP(appPort, '/isr/[slug].rsc', undefined, {
+      headers: {
+        'user-agent':
+          'Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.5735.179 Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+        'x-now-route-matches': '1=second&nxtPslug=new',
+        'x-matched-path': '/isr/[slug]',
+      },
+    })
+
+    expect(rscRes.status).toBe(200)
   })
 
   it('should send cache tags in minimal mode for ISR', async () => {

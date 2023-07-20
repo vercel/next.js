@@ -14,13 +14,13 @@ import type {
   EdgeFunctionDefinition,
   MiddlewareManifest,
 } from './webpack/plugins/middleware-plugin'
-import type { AppRouteUserlandModule } from '../server/future/route-modules/app-route/module'
 import type { StaticGenerationAsyncStorage } from '../client/components/static-generation-async-storage'
 
 import '../server/require-hook'
 import '../server/node-polyfill-fetch'
 import '../server/node-polyfill-crypto'
 import '../server/node-environment'
+
 import chalk from 'next/dist/compiled/chalk'
 import getGzipSize from 'next/dist/compiled/gzip-size'
 import textTable from 'next/dist/compiled/text-table'
@@ -52,7 +52,7 @@ import {
   LoadComponentsReturnType,
 } from '../server/load-components'
 import { trace } from '../trace'
-import { setHttpClientAndAgentOptions } from '../server/config'
+import { setHttpClientAndAgentOptions } from '../server/setup-http-agent-env'
 import { recursiveDelete } from '../lib/recursive-delete'
 import { Sema } from 'next/dist/compiled/async-sema'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
@@ -65,6 +65,8 @@ import { patchFetch } from '../server/lib/patch-fetch'
 import { nodeFs } from '../server/lib/node-fs-methods'
 import * as ciEnvironment from '../telemetry/ci-info'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
+import { denormalizeAppPagePath } from '../shared/lib/page-path/denormalize-app-path'
+import { AppRouteRouteModule } from '../server/future/route-modules/app-route/module'
 
 export type ROUTER_TYPE = 'pages' | 'app'
 
@@ -793,11 +795,10 @@ export async function getJsPageSizeInKb(
     throw new Error('expected "app" manifest data with an "app" pageType')
   }
 
-  // Denormalization is not needed for "app" dir, as we normalize the keys of appBuildManifest instead
-  let pagePath = page
-  if (routerType === 'pages') {
-    pagePath = denormalizePagePath(page)
-  }
+  const pagePath =
+    routerType === 'pages'
+      ? denormalizePagePath(page)
+      : denormalizeAppPagePath(page)
 
   const fnFilterJs = (entry: string) => entry.endsWith('.js')
 
@@ -1339,7 +1340,6 @@ export async function isPageStatic({
   pageRuntime,
   edgeInfo,
   pageType,
-  hasServerComponents,
   originalAppPath,
   isrFlushToDisk,
   maxMemoryCacheSize,
@@ -1356,7 +1356,6 @@ export async function isPageStatic({
   edgeInfo?: any
   pageType?: 'pages' | 'app'
   pageRuntime?: ServerRuntime
-  hasServerComponents?: boolean
   originalAppPath?: string
   isrFlushToDisk?: boolean
   maxMemoryCacheSize?: number
@@ -1425,7 +1424,6 @@ export async function isPageStatic({
         componentsResult = await loadComponents({
           distDir,
           pathname: originalAppPath || page,
-          hasServerComponents: !!hasServerComponents,
           isAppPath: pageType === 'app',
         })
       }
@@ -1437,10 +1435,6 @@ export async function isPageStatic({
       if (pageType === 'app') {
         isClientComponent = isClientReference(componentsResult.ComponentMod)
         const tree = componentsResult.ComponentMod.tree
-
-        // This is present on the new route modules.
-        const userland: AppRouteUserlandModule | undefined =
-          componentsResult.ComponentMod.routeModule?.userland
 
         const staticGenerationAsyncStorage: StaticGenerationAsyncStorage =
           componentsResult.ComponentMod.staticGenerationAsyncStorage
@@ -1457,19 +1451,23 @@ export async function isPageStatic({
           )
         }
 
-        const generateParams: GenerateParams = userland
-          ? [
-              {
-                config: {
-                  revalidate: userland.revalidate,
-                  dynamic: userland.dynamic,
-                  dynamicParams: userland.dynamicParams,
+        const { routeModule } = componentsResult
+
+        const generateParams: GenerateParams =
+          routeModule && AppRouteRouteModule.is(routeModule)
+            ? [
+                {
+                  config: {
+                    revalidate: routeModule.userland.revalidate,
+                    dynamic: routeModule.userland.dynamic,
+                    dynamicParams: routeModule.userland.dynamicParams,
+                  },
+                  generateStaticParams:
+                    routeModule.userland.generateStaticParams,
+                  segmentPath: page,
                 },
-                generateStaticParams: userland.generateStaticParams,
-                segmentPath: page,
-              },
-            ]
-          : await collectGenerateParams(tree)
+              ]
+            : await collectGenerateParams(tree)
 
         appConfig = generateParams.reduce(
           (builtConfig: AppConfig, curGenParams): AppConfig => {
@@ -1669,7 +1667,6 @@ export async function hasCustomGetInitialProps(
   const components = await loadComponents({
     distDir,
     pathname: page,
-    hasServerComponents: false,
     isAppPath: false,
   })
   let mod = components.ComponentMod
@@ -1692,7 +1689,6 @@ export async function getDefinedNamedExports(
   const components = await loadComponents({
     distDir,
     pathname: page,
-    hasServerComponents: false,
     isAppPath: false,
   })
 
@@ -1955,6 +1951,10 @@ if (!process.env.NEXT_MANUAL_SIG_HANDLE) {
 const currentPort = parseInt(process.env.PORT, 10) || 3000
 const hostname = process.env.HOSTNAME || 'localhost'
 const keepAliveTimeout = parseInt(process.env.KEEP_ALIVE_TIMEOUT, 10);
+const isValidKeepAliveTimeout =
+  !Number.isNaN(keepAliveTimeout) &&
+  Number.isFinite(keepAliveTimeout) &&
+  keepAliveTimeout >= 0;
 const nextConfig = ${JSON.stringify({
       ...serverConfig,
       distDir: `./${path.relative(dir, distDir)}`,
@@ -1967,6 +1967,7 @@ createServerHandler({
   hostname,
   dir,
   conf: nextConfig,
+  keepAliveTimeout: isValidKeepAliveTimeout ? keepAliveTimeout : undefined,
 }).then((nextHandler) => {
   const server = http.createServer(async (req, res) => {
     try {
@@ -1978,13 +1979,10 @@ createServerHandler({
     }
   })
 
-  if (
-    !Number.isNaN(keepAliveTimeout) &&
-      Number.isFinite(keepAliveTimeout) &&
-      keepAliveTimeout >= 0
-  ) {
+  if (isValidKeepAliveTimeout) {
     server.keepAliveTimeout = keepAliveTimeout
   }
+
   server.listen(currentPort, async (err) => {
     if (err) {
       console.error("Failed to start server", err)

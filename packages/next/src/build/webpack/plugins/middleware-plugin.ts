@@ -9,6 +9,7 @@ import { getModuleBuildInfo } from '../loaders/get-module-build-info'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import { isMatch } from 'next/dist/compiled/micromatch'
+import path from 'path'
 import {
   EDGE_RUNTIME_WEBPACK,
   EDGE_UNSUPPORTED_NODE_APIS,
@@ -16,7 +17,6 @@ import {
   CLIENT_REFERENCE_MANIFEST,
   MIDDLEWARE_MANIFEST,
   MIDDLEWARE_REACT_LOADABLE_MANIFEST,
-  NEXT_CLIENT_SSR_ENTRY_SUFFIX,
   SUBRESOURCE_INTEGRITY_MANIFEST,
   NEXT_FONT_MANIFEST,
   SERVER_REFERENCE_MANIFEST,
@@ -28,6 +28,9 @@ import { EVENT_BUILD_FEATURE_USAGE } from '../../../telemetry/events'
 import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
 import { INSTRUMENTATION_HOOK_FILENAME } from '../../../lib/constants'
 import { NextBuildContext } from '../../build-context'
+
+const KNOWN_SAFE_DYNAMIC_PACKAGES =
+  require('../../../lib/known-edge-safe-packages.json') as string[]
 
 export interface EdgeFunctionDefinition {
   files: string[]
@@ -95,7 +98,6 @@ function getEntryFiles(
   if (meta.edgeSSR) {
     if (meta.edgeSSR.isServerComponent) {
       files.push(`server/${SERVER_REFERENCE_MANIFEST}.js`)
-      files.push(`server/${CLIENT_REFERENCE_MANIFEST}.js`)
       if (opts.sriEnabled) {
         files.push(`server/${SUBRESOURCE_INTEGRITY_MANIFEST}.js`)
       }
@@ -103,13 +105,12 @@ function getEntryFiles(
         ...entryFiles
           .filter(
             (file) =>
-              file.startsWith('pages/') && !file.endsWith('.hot-update.js')
+              file.startsWith('app/') && !file.endsWith('.hot-update.js')
           )
           .map(
             (file) =>
               'server/' +
-              // TODO-APP: seems this should be removed.
-              file.replace('.js', NEXT_CLIENT_SSR_ENTRY_SUFFIX + '.js')
+              file.replace('.js', '_' + CLIENT_REFERENCE_MANIFEST + '.js')
           )
       )
     }
@@ -131,6 +132,7 @@ function getEntryFiles(
       .filter((file) => !file.endsWith('.hot-update.js'))
       .map((file) => 'server/' + file)
   )
+
   return files
 }
 
@@ -249,6 +251,16 @@ function isDynamicCodeEvaluationAllowed(
   middlewareConfig?: MiddlewareConfig,
   rootDir?: string
 ) {
+  // Some packages are known to use `eval` but are safe to use in the Edge
+  // Runtime because the dynamic code will never be executed.
+  if (
+    KNOWN_SAFE_DYNAMIC_PACKAGES.some((pkg) =>
+      fileName.includes(`/node_modules/${pkg}/`.replace(/\//g, path.sep))
+    )
+  ) {
+    return true
+  }
+
   const name = fileName.replace(rootDir ?? '', '')
   return isMatch(name, middlewareConfig?.unstable_allowDynamicGlobs ?? [])
 }

@@ -3,7 +3,7 @@ import { optimizeImage } from '../../../../server/image-optimizer'
 
 const BLUR_IMG_SIZE = 8
 const BLUR_QUALITY = 70
-const VALID_BLUR_EXT = ['jpeg', 'png', 'webp', 'avif'] // should match next/client/image.tsx
+const VALID_BLUR_EXT = ['jpeg', 'png', 'webp', 'avif'] // should match other usages
 
 export async function getBlurImage(
   content: Buffer,

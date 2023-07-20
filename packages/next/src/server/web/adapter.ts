@@ -132,6 +132,7 @@ export async function adapter(
       ip: params.request.ip,
       method: params.request.method,
       nextConfig: params.request.nextConfig,
+      signal: params.request.signal,
     },
   })
 

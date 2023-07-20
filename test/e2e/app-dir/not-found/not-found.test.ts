@@ -8,10 +8,14 @@ createNextDescribe(
     skipDeployment: true,
   },
   ({ next, isNextDev }) => {
-    describe('root not-found page', () => {
+    const runTests = ({ isEdge }: { isEdge: boolean }) => {
       it('should use the not-found page for non-matching routes', async () => {
-        const html = await next.render('/random-content')
-        expect(html).toContain('This Is The Not Found Page')
+        const browser = await next.browser('/random-content')
+        expect(await browser.elementByCss('h1').text()).toContain(
+          'This Is The Not Found Page'
+        )
+        // should contain root layout content
+        expect(await browser.elementByCss('#layout-nav').text()).toBe('Navbar')
       })
 
       it('should allow to have a valid /not-found route', async () => {
@@ -47,7 +51,7 @@ createNextDescribe(
         })
       }
 
-      if (!isNextDev) {
+      if (!isNextDev && !isEdge) {
         it('should create the 404 mapping and copy the file to pages', async () => {
           const html = await next.readFile('.next/server/pages/404.html')
           expect(html).toContain('This Is The Not Found Page')
@@ -56,6 +60,29 @@ createNextDescribe(
           ).toContain('"pages/404.html"')
         })
       }
+    }
+
+    describe('with default runtime', () => {
+      runTests({ isEdge: false })
+    })
+
+    describe('with runtime = edge', () => {
+      let originalLayout = ''
+
+      beforeAll(async () => {
+        await next.stop()
+        originalLayout = await next.readFile('app/layout.js')
+        await next.patchFile(
+          'app/layout.js',
+          `export const runtime = 'edge'\n${originalLayout}`
+        )
+        await next.start()
+      })
+      afterAll(async () => {
+        await next.patchFile('app/layout.js', originalLayout)
+      })
+
+      runTests({ isEdge: true })
     })
   }
 )

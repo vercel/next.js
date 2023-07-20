@@ -3,6 +3,8 @@ title: MDX
 description: Learn how to configure MDX to write JSX in your markdown files.
 ---
 
+{/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
+
 [Markdown](https://daringfireball.net/projects/markdown/syntax) is a lightweight markup language used to format text. It allows you to write using plain text syntax and convert it to structurally valid HTML. It's commonly used for writing content on websites and blogs.
 
 You write...
@@ -35,7 +37,7 @@ Install the `@next/mdx` package:
 npm install @next/mdx @mdx-js/loader @mdx-js/react @types/mdx
 ```
 
-Create `mdx-components.tsx` in the root of your application (the parent folder of `app`):
+Create `mdx-components.tsx` in the root of your application (the parent folder of `app/` or `src/`):
 
 ```tsx filename="mdx-components.tsx" switcher
 import type { MDXComponents } from 'mdx/types'
@@ -224,12 +226,12 @@ To add a layout to your MDX page, create a new component and import it into the 
 import { MyLayoutComponent } from 'my-components';
 import HelloWorld from './hello.mdx';
 
-export const meta = {
+export const metadata = {
   author: 'Rich Haines',
 };
 
 export default Page({ children }) => (
-  <MyLayoutComponent meta={meta}><HelloWorld /></MyLayoutComponent>
+  <MyLayoutComponent meta={metadata}><HelloWorld /></MyLayoutComponent>
 );
 ```
 
@@ -241,7 +243,10 @@ You can optionally provide `remark` and `rehype` plugins to transform the MDX co
 
 Since the `remark` and `rehype` ecosystem is ESM only, you'll need to use `next.config.mjs` as the configuration file.
 
-```js filename="next.config.js"
+```js filename="next.config.mjs"
+import remarkGfm from 'remark-gfm'
+import createMDX from '@next/mdx'
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: {
@@ -249,15 +254,16 @@ const nextConfig = {
   },
 }
 
-const withMDX = require('@next/mdx')({
+const withMDX = createMDX({
   options: {
-    remarkPlugins: [],
+    extension: /\.mdx?$/,
+    remarkPlugins: [remarkGfm],
     rehypePlugins: [],
     // If you use `MDXProvider`, uncomment the following line.
     // providerImportSource: "@mdx-js/react",
   },
 })
-module.exports = withMDX(nextConfig)
+export default withMDX(nextConfig)
 ```
 
 ## Frontmatter
@@ -314,13 +320,17 @@ const withMDX = require('@next/mdx')({
 Then setup the provider in your page
 
 ```jsx filename="pages/index.js"
-
 import { MDXProvider } from '@mdx-js/react'
 import Image from 'next/image'
 import { Heading, InlineCode, Pre, Table, Text } from 'my-components'
 
 const ResponsiveImage = (props) => (
-  <Image alt={props.alt} sizes="100vw" style={ width: '100%', height: 'auto' }  {...props} />
+  <Image
+    alt={props.alt}
+    sizes="100vw"
+    style={{ width: '100%', height: 'auto' }}
+    {...props}
+  />
 )
 
 const components = {
@@ -366,7 +376,7 @@ async function main() {
     .use(rehypeStringify) // Convert AST into serialized HTML
     .process('Hello, Next.js!')
 
-  console.log(String(file)) // <p>>Hello, Next.js!</p>
+  console.log(String(file)) // <p>Hello, Next.js!</p>
 }
 ```
 
