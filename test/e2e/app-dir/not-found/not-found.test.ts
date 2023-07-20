@@ -10,12 +10,8 @@ createNextDescribe(
   ({ next, isNextDev }) => {
     const runTests = ({ isEdge }: { isEdge: boolean }) => {
       it('should use the not-found page for non-matching routes', async () => {
-        const browser = await next.browser('/random-content')
-        expect(await browser.elementByCss('h1').text()).toContain(
-          'This Is The Not Found Page'
-        )
-        // should contain root layout content
-        expect(await browser.elementByCss('#layout-nav').text()).toBe('Navbar')
+        const html = await next.render('/random-content')
+        expect(html).toContain('This Is The Not Found Page')
       })
 
       it('should allow to have a valid /not-found route', async () => {

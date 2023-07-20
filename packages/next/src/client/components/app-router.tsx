@@ -54,6 +54,7 @@ import { isBot } from '../../shared/lib/router/utils/is-bot'
 import { addBasePath } from '../add-base-path'
 import { AppRouterAnnouncer } from './app-router-announcer'
 import { RedirectBoundary } from './redirect-boundary'
+import { NotFoundBoundary } from './not-found-boundary'
 import { findHeadInCache } from './router-reducer/reducers/find-head-in-cache'
 import { createInfinitePromise } from './infinite-promise'
 import { NEXT_RSC_UNION_QUERY } from './app-router-headers'
@@ -88,6 +89,14 @@ export function urlToUrlWithoutFlightMarker(url: string): URL {
   return urlWithoutFlightParameters
 }
 
+const HotReloader:
+  | typeof import('./react-dev-overlay/hot-reloader-client').default
+  | null =
+  process.env.NODE_ENV === 'production'
+    ? null
+    : (require('./react-dev-overlay/hot-reloader-client')
+        .default as typeof import('./react-dev-overlay/hot-reloader-client').default)
+
 type AppRouterProps = Omit<
   Omit<InitialRouterStateParameters, 'isServer' | 'location'>,
   'initialParallelRoutes'
@@ -95,6 +104,9 @@ type AppRouterProps = Omit<
   buildId: string
   initialHead: ReactNode
   assetPrefix: string
+  // Top level boundaries props
+  notFound: React.ReactNode | undefined
+  asNotFound?: boolean
 }
 
 function isExternalURL(url: URL) {
@@ -212,6 +224,8 @@ function Router({
   initialCanonicalUrl,
   children,
   assetPrefix,
+  notFound,
+  asNotFound,
 }: AppRouterProps) {
   const initialState = useMemo(
     () =>
@@ -431,25 +445,15 @@ function Router({
     return findHeadInCache(cache, tree[1])
   }, [cache, tree])
 
-  let content = (
+  const notFoundProps = { notFound, asNotFound }
+
+  const content = (
     <RedirectBoundary>
       {head}
       {cache.subTreeData}
       <AppRouterAnnouncer tree={tree} />
     </RedirectBoundary>
   )
-
-  if (process.env.NODE_ENV !== 'production') {
-    if (typeof window !== 'undefined') {
-      const DevRootNotFoundBoundary: typeof import('./dev-root-not-found-boundary').DevRootNotFoundBoundary =
-        require('./dev-root-not-found-boundary').DevRootNotFoundBoundary
-      content = <DevRootNotFoundBoundary>{content}</DevRootNotFoundBoundary>
-    }
-    const HotReloader: typeof import('./react-dev-overlay/hot-reloader-client').default =
-      require('./react-dev-overlay/hot-reloader-client').default
-
-    content = <HotReloader assetPrefix={assetPrefix}>{content}</HotReloader>
-  }
 
   return (
     <>
@@ -480,7 +484,16 @@ function Router({
                   url: canonicalUrl,
                 }}
               >
-                {content}
+                {HotReloader ? (
+                  // HotReloader implements a separate NotFoundBoundary to maintain the HMR ping interval
+                  <HotReloader assetPrefix={assetPrefix} {...notFoundProps}>
+                    {content}
+                  </HotReloader>
+                ) : (
+                  <NotFoundBoundary {...notFoundProps}>
+                    {content}
+                  </NotFoundBoundary>
+                )}
               </LayoutRouterContext.Provider>
             </AppRouterContext.Provider>
           </GlobalLayoutRouterContext.Provider>

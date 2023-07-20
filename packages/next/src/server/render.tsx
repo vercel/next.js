@@ -457,6 +457,7 @@ export async function renderToHTMLImpl(
 
   let Document = extra.Document
 
+  // Component will be wrapped by ServerComponentWrapper for RSC
   let Component: React.ComponentType<{}> | ((props: any) => JSX.Element) =
     renderOpts.Component
   const OriginComponent = Component
