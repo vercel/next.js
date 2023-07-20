@@ -758,7 +758,7 @@ export async function renderToHTMLOrFlight(
           !isValidElementType(Component)
         ) {
           throw new Error(
-            `The default export is not a React Component in page: "${page}"`
+            `The default export is not a React Component in page: "${pagePath}"`
           )
         }
 
