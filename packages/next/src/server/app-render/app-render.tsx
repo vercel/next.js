@@ -929,7 +929,7 @@ export async function renderToHTMLOrFlight(
       // routes, we try to render the not found component if it exists.
       let notFoundComponent = {}
 
-      if (asNotFound && NotFound) {
+      if (asNotFound && !parallelRouteMap.length && NotFound) {
         notFoundComponent = {
           children: (
             <>
@@ -1608,9 +1608,9 @@ export async function renderToHTMLOrFlight(
             err.message = digest
             err.digest = digest
           }
-          let isMetadataNotFound = false
+          let isErrorMetadataNotFound = false
           if (isNotFoundError(err)) {
-            if (isErrorFromMetadata) isMetadataNotFound = true
+            if (isErrorFromMetadata) isErrorMetadataNotFound = true
             res.statusCode = 404
           }
           let hasRedirectError = false
@@ -1644,8 +1644,11 @@ export async function renderToHTMLOrFlight(
             pathname
           )
 
+          // When the not found error is thrown from metadata, or if there's no custom not found found,
+          // since we don't have a top level not found boundary,
+          // so we create a not found page with AppRouter as fallback page.
           const useDefaultError =
-            isMetadataNotFound ||
+            isErrorMetadataNotFound ||
             (is404 && !NotFound) ||
             pagePath === '/_not-found'
 
@@ -1800,7 +1803,11 @@ export async function renderToHTMLOrFlight(
     })
 
     if (actionRequestResult === 'not-found') {
-      return new RenderResult(await bodyResult({ asNotFound: true }))
+      // Modify loader tree to remove parallel routes to align with 404 page loader tree
+      loaderTree[1] = {}
+      return new RenderResult(
+        await bodyResult({ asNotFound: true, force: true })
+      )
     } else if (actionRequestResult) {
       return actionRequestResult
     }
