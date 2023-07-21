@@ -13,7 +13,7 @@ use swc_core::{
 };
 use turbo_tasks::{trace::TraceRawVcs, Vc};
 use turbopack_binding::{
-    swc::custom_transform::modularize_imports::{modularize_imports, self, PackageConfig},
+    swc::custom_transform::modularize_imports::{self, modularize_imports, PackageConfig},
     turbopack::{
         ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext},
         turbopack::module_options::{ModuleRule, ModuleRuleEffect},
