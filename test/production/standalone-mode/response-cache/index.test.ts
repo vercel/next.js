@@ -58,7 +58,7 @@ describe('minimal-mode-response-cache', () => {
       testServer,
       (await fs.readFile(testServer, 'utf8'))
         .replace('console.error(err)', `console.error('top-level', err)`)
-        .replace('port:', 'minimalMode: true,port:')
+        .replace('conf:', 'minimalMode: true,conf:')
     )
     appPort = await findPort()
     server = await initNextServerScript(

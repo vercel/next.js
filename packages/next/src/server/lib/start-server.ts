@@ -1,49 +1,51 @@
 import type { Duplex } from 'stream'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { ChildProcess } from 'child_process'
-import type { NextConfigComplete } from '../config-shared'
 
 import http from 'http'
 import { isIPv6 } from 'net'
-import { initialEnv } from '@next/env'
 import * as Log from '../../build/output/log'
-import setupDebug from 'next/dist/compiled/debug'
-import { splitCookiesString, toNodeOutgoingHttpHeaders } from '../web/utils'
-import { getCloneableBody } from '../body-streams'
-import { filterReqHeaders } from './server-ipc/utils'
-import setupCompression from 'next/dist/compiled/compression'
 import { normalizeRepeatedSlashes } from '../../shared/lib/utils'
-import { invokeRequest, pipeReadable } from './server-ipc/invoke-request'
+import { initialEnv } from '@next/env'
 import {
   genRouterWorkerExecArgv,
   getDebugPort,
   getNodeOptionsWithoutInspect,
 } from './utils'
 
-const debug = setupDebug('next:start-server')
-
 export interface StartServerOptions {
   dir: string
   prevDir?: string
   port: number
-  logReady?: boolean
   isDev: boolean
   hostname: string
   useWorkers: boolean
   allowRetry?: boolean
   isTurbopack?: boolean
-  customServer?: boolean
-  isExperimentalTurbo?: boolean
-  minimalMode?: boolean
   keepAliveTimeout?: number
   onStdout?: (data: any) => void
   onStderr?: (data: any) => void
-  nextConfig: NextConfigComplete
 }
 
 type TeardownServer = () => Promise<void>
 
-export const checkIsNodeDebugging = () => {
+export async function startServer({
+  dir,
+  prevDir,
+  port,
+  isDev,
+  hostname,
+  useWorkers,
+  allowRetry,
+  keepAliveTimeout,
+  onStdout,
+  onStderr,
+}: StartServerOptions): Promise<TeardownServer> {
+  const sockets = new Set<ServerResponse | Duplex>()
+  let worker: import('next/dist/compiled/jest-worker').Worker | undefined
+  let handlersReady = () => {}
+  let handlersError = () => {}
+
   let isNodeDebugging: 'brk' | boolean = !!(
     process.execArgv.some((localArg) => localArg.startsWith('--inspect')) ||
     process.env.NODE_OPTIONS?.match?.(/--inspect(=\S+)?( |$)/)
@@ -55,61 +57,6 @@ export const checkIsNodeDebugging = () => {
   ) {
     isNodeDebugging = 'brk'
   }
-  return isNodeDebugging
-}
-
-export const createRouterWorker = async (
-  routerServerPath: string,
-  isNodeDebugging: boolean | 'brk',
-  jestWorkerPath = require.resolve('next/dist/compiled/jest-worker')
-) => {
-  const { Worker } =
-    require(jestWorkerPath) as typeof import('next/dist/compiled/jest-worker')
-
-  return new Worker(routerServerPath, {
-    numWorkers: 1,
-    // TODO: do we want to allow more than 8 OOM restarts?
-    maxRetries: 8,
-    forkOptions: {
-      execArgv: await genRouterWorkerExecArgv(
-        isNodeDebugging === undefined ? false : isNodeDebugging
-      ),
-      env: {
-        FORCE_COLOR: '1',
-        ...((initialEnv || process.env) as typeof process.env),
-        NODE_OPTIONS: getNodeOptionsWithoutInspect(),
-        ...(process.env.NEXT_CPU_PROF
-          ? { __NEXT_PRIVATE_CPU_PROFILE: `CPU.router` }
-          : {}),
-        WATCHPACK_WATCHER_LIMIT: '20',
-      },
-    },
-    exposedMethods: ['initialize'],
-  }) as any as InstanceType<typeof Worker> & {
-    initialize: typeof import('./render-server').initialize
-  }
-}
-
-export async function startServer({
-  dir,
-  nextConfig,
-  prevDir,
-  port,
-  isDev,
-  hostname,
-  useWorkers,
-  minimalMode,
-  allowRetry,
-  keepAliveTimeout,
-  onStdout,
-  onStderr,
-  logReady = true,
-}: StartServerOptions): Promise<TeardownServer> {
-  const sockets = new Set<ServerResponse | Duplex>()
-  let worker: import('next/dist/compiled/jest-worker').Worker | undefined
-  let routerPort: number | undefined
-  let handlersReady = () => {}
-  let handlersError = () => {}
 
   let handlersPromise: Promise<void> | undefined = new Promise<void>(
     (resolve, reject) => {
@@ -194,7 +141,6 @@ export async function startServer({
   })
 
   let targetHost = hostname
-  const isNodeDebugging = checkIsNodeDebugging()
 
   await new Promise<void>((resolve) => {
     server.on('listening', () => {
@@ -222,18 +168,14 @@ export async function startServer({
         )
       }
 
-      if (logReady) {
-        Log.ready(
-          `started server on ${normalizedHostname}${
-            (port + '').startsWith(':') ? '' : ':'
-          }${port}, url: ${appUrl}`
-        )
-        // expose the main port to render workers
-        process.env.PORT = port + ''
-      }
+      Log.ready(
+        `started server on ${normalizedHostname}${
+          (port + '').startsWith(':') ? '' : ':'
+        }${port}, url: ${appUrl}`
+      )
       resolve()
     })
-    server.listen(port, hostname === 'localhost' ? '0.0.0.0' : hostname)
+    server.listen(port, hostname)
   })
 
   try {
@@ -241,35 +183,40 @@ export async function startServer({
       const httpProxy =
         require('next/dist/compiled/http-proxy') as typeof import('next/dist/compiled/http-proxy')
 
-      let routerServerPath = require.resolve('./router-server')
+      let renderServerPath = require.resolve('./render-server')
       let jestWorkerPath = require.resolve('next/dist/compiled/jest-worker')
 
       if (prevDir) {
         jestWorkerPath = jestWorkerPath.replace(prevDir, dir)
-        routerServerPath = routerServerPath.replace(prevDir, dir)
+        renderServerPath = renderServerPath.replace(prevDir, dir)
       }
 
-      const routerWorker = await createRouterWorker(
-        routerServerPath,
-        isNodeDebugging,
-        jestWorkerPath
-      )
-      const cleanup = () => {
-        debug('start-server process cleanup')
+      const { Worker } =
+        require(jestWorkerPath) as typeof import('next/dist/compiled/jest-worker')
 
-        for (const curWorker of ((routerWorker as any)._workerPool?._workers ||
-          []) as {
-          _child?: ChildProcess
-        }[]) {
-          curWorker._child?.kill('SIGKILL')
-        }
+      const routerWorker = new Worker(renderServerPath, {
+        numWorkers: 1,
+        // TODO: do we want to allow more than 10 OOM restarts?
+        maxRetries: 10,
+        forkOptions: {
+          execArgv: await genRouterWorkerExecArgv(
+            isNodeDebugging === undefined ? false : isNodeDebugging
+          ),
+          env: {
+            FORCE_COLOR: '1',
+            ...((initialEnv || process.env) as typeof process.env),
+            PORT: port + '',
+            NODE_OPTIONS: getNodeOptionsWithoutInspect(),
+            ...(process.env.NEXT_CPU_PROF
+              ? { __NEXT_PRIVATE_CPU_PROFILE: `CPU.router` }
+              : {}),
+            WATCHPACK_WATCHER_LIMIT: '20',
+          },
+        },
+        exposedMethods: ['initialize'],
+      }) as any as InstanceType<typeof Worker> & {
+        initialize: typeof import('./render-server').initialize
       }
-      process.on('exit', cleanup)
-      process.on('SIGINT', cleanup)
-      process.on('SIGTERM', cleanup)
-      process.on('uncaughtException', cleanup)
-      process.on('unhandledRejection', cleanup)
-
       let didInitialize = false
 
       for (const _worker of ((routerWorker as any)._workerPool?._workers ||
@@ -304,24 +251,16 @@ export async function startServer({
         }
       })
 
-      const initializeResult = await routerWorker.initialize({
+      const { port: routerPort } = await routerWorker.initialize({
         dir,
         port,
         hostname,
         dev: !!isDev,
-        minimalMode,
         workerType: 'router',
         isNodeDebugging: !!isNodeDebugging,
         keepAliveTimeout,
       })
-      routerPort = initializeResult.port
       didInitialize = true
-
-      let compress: ReturnType<typeof setupCompression> | undefined
-
-      if (nextConfig?.compress !== false) {
-        compress = setupCompression()
-      }
 
       const getProxyServer = (pathname: string) => {
         const targetUrl = `http://${
@@ -336,28 +275,8 @@ export async function startServer({
           followRedirects: false,
         })
 
-        // add error listener to prevent uncaught exceptions
         proxyServer.on('error', (_err) => {
           // TODO?: enable verbose error logs with --debug flag?
-        })
-
-        proxyServer.on('proxyRes', (proxyRes, innerReq, innerRes) => {
-          const cleanupProxy = (err: any) => {
-            // cleanup event listeners to allow clean garbage collection
-            proxyRes.removeListener('error', cleanupProxy)
-            proxyRes.removeListener('close', cleanupProxy)
-            innerRes.removeListener('error', cleanupProxy)
-            innerRes.removeListener('close', cleanupProxy)
-
-            // destroy all source streams to propagate the caught event backward
-            innerReq.destroy(err)
-            proxyRes.destroy(err)
-          }
-
-          proxyRes.once('error', cleanupProxy)
-          proxyRes.once('close', cleanupProxy)
-          innerRes.once('error', cleanupProxy)
-          innerRes.once('close', cleanupProxy)
         })
         return proxyServer
       }
@@ -378,75 +297,26 @@ export async function startServer({
           res.end(cleanUrl)
           return
         }
+        const proxyServer = getProxyServer(req.url || '/')
 
-        if (typeof compress === 'function') {
-          // @ts-expect-error not express req/res
-          compress(req, res, () => {})
-        }
+        // http-proxy does not properly detect a client disconnect in newer
+        // versions of Node.js. This is caused because it only listens for the
+        // `aborted` event on the our request object, but it also fully reads
+        // and closes the request object. Node **will not** fire `aborted` when
+        // the request is already closed. Listening for `close` on our response
+        // object will detect the disconnect, and we can abort the proxy's
+        // connection.
+        proxyServer.on('proxyReq', (proxyReq) => {
+          res.on('close', () => proxyReq.destroy())
+        })
+        proxyServer.on('proxyRes', (proxyRes) => {
+          res.on('close', () => proxyRes.destroy())
+        })
 
-        const targetUrl = `http://${
-          targetHost === 'localhost' ? '127.0.0.1' : targetHost
-        }:${routerPort}${req.url || '/'}`
-
-        const invokeRes = await invokeRequest(
-          targetUrl,
-          {
-            headers: req.headers,
-            method: req.method,
-          },
-          getCloneableBody(req).cloneBodyStream()
-        )
-
-        res.statusCode = invokeRes.status
-        res.statusMessage = invokeRes.statusText
-
-        for (const [key, value] of Object.entries(
-          filterReqHeaders(toNodeOutgoingHttpHeaders(invokeRes.headers))
-        )) {
-          if (value !== undefined) {
-            if (key === 'set-cookie') {
-              const curValue = res.getHeader(key) as string
-              const newValue: string[] = [] as string[]
-
-              for (const cookie of Array.isArray(curValue)
-                ? curValue
-                : splitCookiesString(curValue || '')) {
-                newValue.push(cookie)
-              }
-              for (const val of (Array.isArray(value)
-                ? value
-                : value
-                ? [value]
-                : []) as string[]) {
-                newValue.push(val)
-              }
-              res.setHeader(key, newValue)
-            } else {
-              res.setHeader(key, value as string)
-            }
-          }
-        }
-
-        if (invokeRes.body) {
-          await pipeReadable(invokeRes.body, res)
-        } else {
-          res.end()
-        }
+        proxyServer.web(req, res)
       }
       upgradeHandler = async (req, socket, head) => {
-        // add error listeners to prevent uncaught exceptions on socket errors
-        req.on('error', (_err) => {
-          // TODO: log socket errors?
-          // console.log(_err)
-        })
-        socket.on('error', (_err) => {
-          // TODO: log socket errors?
-          // console.log(_err)
-        })
         const proxyServer = getProxyServer(req.url || '/')
-        proxyServer.on('proxyReqWs', (proxyReq) => {
-          socket.on('close', () => proxyReq.destroy())
-        })
         proxyServer.ws(req, socket, head)
       }
       handlersReady()
@@ -488,6 +358,5 @@ export async function startServer({
       await worker.end()
     }
   }
-  teardown.port = routerPort
   return teardown
 }

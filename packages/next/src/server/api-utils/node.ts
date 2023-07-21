@@ -475,7 +475,16 @@ async function revalidate(
             headers: {},
           }
         )
-        const result = await res.json()
+
+        const chunks = []
+
+        for await (const chunk of res) {
+          if (chunk) {
+            chunks.push(chunk)
+          }
+        }
+        const body = Buffer.concat(chunks).toString()
+        const result = JSON.parse(body)
 
         if (result.err) {
           throw new Error(result.err.message)

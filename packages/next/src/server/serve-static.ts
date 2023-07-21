@@ -10,11 +10,10 @@ send.mime.define({
 export function serveStatic(
   req: IncomingMessage,
   res: ServerResponse,
-  path: string,
-  opts?: Parameters<typeof send>[2]
+  path: string
 ): Promise<void> {
   return new Promise((resolve, reject) => {
-    send(req, path, opts)
+    send(req, path)
       .on('directory', () => {
         // We don't allow directories to be read.
         const err: any = new Error('No directory access')

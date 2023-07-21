@@ -14,7 +14,6 @@ describe('Production Usage without production build', () => {
         dir: appDir,
         dev: false,
         quiet: true,
-        customServer: false,
       })
       await srv.prepare()
     }).rejects.toThrow(/Could not find a production build in the/)
