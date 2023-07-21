@@ -93,7 +93,6 @@ import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { invokeRequest, pipeReadable } from './lib/server-ipc/invoke-request'
 import { filterReqHeaders } from './lib/server-ipc/utils'
 import { createRequestResponseMocks } from './lib/mock-request'
-import chalk from 'next/dist/compiled/chalk'
 import { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
 import { signalFromNodeRequest } from './web/spec-extension/adapters/next-request'
 import { RouteModuleLoader } from './future/helpers/module-loader/route-module-loader'
@@ -503,6 +502,11 @@ export default class NextNodeServer extends BaseServer {
     res: NodeNextResponse,
     paramsResult: import('./image-optimizer').ImageParamsResult
   ): Promise<{ buffer: Buffer; contentType: string; maxAge: number }> {
+    if (process.env.NEXT_MINIMAL) {
+      throw new Error(
+        'Middleware is not supported in minimal mode. Please remove the `NEXT_MINIMAL` environment variable.'
+      )
+    }
     const { imageOptimizer } =
       require('./image-optimizer') as typeof import('./image-optimizer')
 
@@ -801,7 +805,11 @@ export default class NextNodeServer extends BaseServer {
     res: BaseNextResponse,
     parsedUrl: NextUrlWithParsedQuery
   ) {
-    if (this.minimalMode || this.nextConfig.output === 'export') {
+    if (
+      this.minimalMode ||
+      this.nextConfig.output === 'export' ||
+      process.env.NEXT_MINIMAL
+    ) {
       res.statusCode = 400
       res.body('Bad Request').send()
       return {
@@ -1058,6 +1066,7 @@ export default class NextNodeServer extends BaseServer {
       const normalizedRes = this.normalizeRes(res)
 
       if (this.renderOpts.dev) {
+        const chalk = require('next/dist/compiled/chalk')
         const _req = req as NodeNextRequest | IncomingMessage
         const _res = res as NodeNextResponse | ServerResponse
         const origReq = 'originalRequest' in _req ? _req.originalRequest : _req
@@ -1455,6 +1464,12 @@ export default class NextNodeServer extends BaseServer {
     parsed: UrlWithParsedQuery
     onWarning?: (warning: Error) => void
   }) {
+    if (process.env.NEXT_MINIMAL) {
+      throw new Error(
+        'Middleware is not supported in minimal mode. Please remove the `NEXT_MINIMAL` environment variable.'
+      )
+    }
+
     // Middleware is skipped for on-demand revalidate requests
     if (
       checkIsOnDemandRevalidate(params.request, this.renderOpts.previewProps)
@@ -1700,7 +1715,7 @@ export default class NextNodeServer extends BaseServer {
 
   protected getRoutesManifest() {
     return getTracer().trace(NextNodeServerSpan.getRoutesManifest, () => {
-      const manifest = require(join(this.distDir, ROUTES_MANIFEST))
+      const manifest = loadManifest(join(this.distDir, ROUTES_MANIFEST))
 
       if (Array.isArray(manifest.rewrites)) {
         manifest.rewrites = {
@@ -1751,6 +1766,11 @@ export default class NextNodeServer extends BaseServer {
     match?: RouteMatch
     onWarning?: (warning: Error) => void
   }): Promise<FetchEventResult | null> {
+    if (process.env.NEXT_MINIMAL) {
+      throw new Error(
+        'Middleware is not supported in minimal mode. Please remove the `NEXT_MINIMAL` environment variable.'
+      )
+    }
     let edgeInfo: ReturnType<typeof this.getEdgeFunctionInfo> | undefined
 
     const { query, page, match } = params
