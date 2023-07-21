@@ -323,7 +323,7 @@ Since the render output depends on data, using `cache: 'no-store'` will also ski
 
 See the [`fetch` API Reference](/docs/app/api-reference/functions/fetch) for more options.
 
-### `fetch.options.next.revalidate`
+### `fetch options.next.revalidate`
 
 You can use the `next.revalidate` option of `fetch` to set the revalidation period (in seconds) of an individual `fetch` request. This will revalidate the Data Cache, which in turn will invalidate the Render Cache. Fresh data will be fetched, and components will be re-rendered on the server.
 
