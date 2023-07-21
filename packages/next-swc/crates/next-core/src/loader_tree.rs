@@ -2,46 +2,41 @@ use anyhow::Result;
 use async_recursion::async_recursion;
 use indexmap::IndexMap;
 use indoc::formatdoc;
-use turbo_tasks::{Value, ValueToString};
-use turbo_tasks_fs::FileSystemPathVc;
+use turbo_tasks::{Value, ValueToString, Vc};
+use turbo_tasks_fs::FileSystemPath;
 use turbopack_binding::turbopack::{
     core::{
-        asset::AssetVc,
         context::AssetContext,
-        file_source::FileSourceVc,
-        reference_type::{EcmaScriptModulesReferenceSubType, InnerAssetsVc, ReferenceType},
+        file_source::FileSource,
+        module::Module,
+        reference_type::{EcmaScriptModulesReferenceSubType, InnerAssets, ReferenceType},
     },
-    ecmascript::{magic_identifier, text::TextContentFileSourceVc, utils::StringifyJs},
-    r#static::StaticModuleAssetVc,
-    turbopack::{
-        transition::{Transition, TransitionVc},
-        ModuleAssetContextVc,
-    },
+    ecmascript::{magic_identifier, text::TextContentFileSource, utils::StringifyJs},
+    r#static::StaticModuleAsset,
+    turbopack::{transition::Transition, ModuleAssetContext},
 };
 
 use crate::{
-    app_structure::{
-        Components, LoaderTree, LoaderTreeVc, Metadata, MetadataItem, MetadataWithAltItem,
-    },
+    app_structure::{Components, LoaderTree, Metadata, MetadataItem, MetadataWithAltItem},
     mode::NextMode,
     next_image::module::{BlurPlaceholderMode, StructuredImageModuleType},
 };
 
 pub struct LoaderTreeBuilder {
-    inner_assets: IndexMap<String, AssetVc>,
+    inner_assets: IndexMap<String, Vc<Box<dyn Module>>>,
     counter: usize,
     imports: Vec<String>,
     loader_tree_code: String,
-    context: ModuleAssetContextVc,
-    unsupported_metadata: Vec<FileSystemPathVc>,
+    context: Vc<ModuleAssetContext>,
+    unsupported_metadata: Vec<Vc<FileSystemPath>>,
     mode: NextMode,
     server_component_transition: ServerComponentTransition,
-    pages: Vec<FileSystemPathVc>,
+    pages: Vec<Vc<FileSystemPath>>,
 }
 
 #[derive(Clone, Debug)]
 pub enum ServerComponentTransition {
-    Transition(TransitionVc),
+    Transition(Vc<Box<dyn Transition>>),
     TransitionName(String),
 }
 
@@ -72,7 +67,7 @@ impl ComponentType {
 
 impl LoaderTreeBuilder {
     fn new(
-        context: ModuleAssetContextVc,
+        context: Vc<ModuleAssetContext>,
         server_component_transition: ServerComponentTransition,
         mode: NextMode,
     ) -> Self {
@@ -98,7 +93,7 @@ impl LoaderTreeBuilder {
     async fn write_component(
         &mut self,
         ty: ComponentType,
-        component: Option<FileSystemPathVc>,
+        component: Option<Vc<FileSystemPath>>,
     ) -> Result<()> {
         use std::fmt::Write;
 
@@ -149,7 +144,7 @@ impl LoaderTreeBuilder {
                 }
             }
 
-            let source = FileSourceVc::new(component).into();
+            let source = Vc::upcast(FileSource::new(component));
             let reference_ty = Value::new(ReferenceType::EcmaScriptModules(
                 EcmaScriptModulesReferenceSubType::Undefined,
             ));
@@ -160,12 +155,11 @@ impl LoaderTreeBuilder {
                 }
                 ServerComponentTransition::TransitionName(transition_name) => self
                     .context
-                    .with_transition(transition_name.as_str())
+                    .with_transition(transition_name.clone())
                     .process(source, reference_ty),
             };
 
-            self.inner_assets
-                .insert(format!("COMPONENT_{i}"), module.into());
+            self.inner_assets.insert(format!("COMPONENT_{i}"), module);
         }
         Ok(())
     }
@@ -206,8 +200,10 @@ impl LoaderTreeBuilder {
                     .push(format!("import {identifier} from \"{inner_module_id}\";"));
                 self.inner_assets.insert(
                     inner_module_id,
-                    StaticModuleAssetVc::new(FileSourceVc::new(path).into(), self.context.into())
-                        .into(),
+                    Vc::upcast(StaticModuleAsset::new(
+                        Vc::upcast(FileSource::new(path)),
+                        Vc::upcast(self.context),
+                    )),
                 );
                 writeln!(self.loader_tree_code, "    manifest: {identifier},")?;
             }
@@ -249,12 +245,11 @@ impl LoaderTreeBuilder {
             MetadataWithAltItem::Static { path, alt_path } => {
                 self.inner_assets.insert(
                     inner_module_id,
-                    StructuredImageModuleType::create_module(
-                        FileSourceVc::new(*path).into(),
+                    Vc::upcast(StructuredImageModuleType::create_module(
+                        Vc::upcast(FileSource::new(*path)),
                         BlurPlaceholderMode::None,
                         self.context,
-                    )
-                    .into(),
+                    )),
                 );
                 writeln!(self.loader_tree_code, "{s}(async (props) => [{{")?;
                 writeln!(self.loader_tree_code, "{s}  url: {identifier}.src,")?;
@@ -275,13 +270,12 @@ impl LoaderTreeBuilder {
                         .push(format!("import {identifier} from \"{inner_module_id}\";"));
                     self.inner_assets.insert(
                         inner_module_id,
-                        self.context
-                            .process(
-                                TextContentFileSourceVc::new(FileSourceVc::new(*alt_path).into())
-                                    .into(),
-                                Value::new(ReferenceType::Internal(InnerAssetsVc::empty())),
-                            )
-                            .into(),
+                        self.context.process(
+                            Vc::upcast(TextContentFileSource::new(Vc::upcast(FileSource::new(
+                                *alt_path,
+                            )))),
+                            Value::new(ReferenceType::Internal(InnerAssets::empty())),
+                        ),
                     );
                     writeln!(self.loader_tree_code, "{s}  alt: {identifier},")?;
                 }
@@ -295,7 +289,7 @@ impl LoaderTreeBuilder {
     }
 
     #[async_recursion]
-    async fn walk_tree(&mut self, loader_tree: LoaderTreeVc) -> Result<()> {
+    async fn walk_tree(&mut self, loader_tree: Vc<LoaderTree>) -> Result<()> {
         use std::fmt::Write;
 
         let LoaderTree {
@@ -344,7 +338,7 @@ impl LoaderTreeBuilder {
         Ok(())
     }
 
-    async fn build(mut self, loader_tree: LoaderTreeVc) -> Result<LoaderTreeModule> {
+    async fn build(mut self, loader_tree: Vc<LoaderTree>) -> Result<LoaderTreeModule> {
         self.walk_tree(loader_tree).await?;
         Ok(LoaderTreeModule {
             imports: self.imports,
@@ -359,15 +353,15 @@ impl LoaderTreeBuilder {
 pub struct LoaderTreeModule {
     pub imports: Vec<String>,
     pub loader_tree_code: String,
-    pub inner_assets: IndexMap<String, AssetVc>,
-    pub unsupported_metadata: Vec<FileSystemPathVc>,
-    pub pages: Vec<FileSystemPathVc>,
+    pub inner_assets: IndexMap<String, Vc<Box<dyn Module>>>,
+    pub unsupported_metadata: Vec<Vc<FileSystemPath>>,
+    pub pages: Vec<Vc<FileSystemPath>>,
 }
 
 impl LoaderTreeModule {
     pub async fn build(
-        loader_tree: LoaderTreeVc,
-        context: ModuleAssetContextVc,
+        loader_tree: Vc<LoaderTree>,
+        context: Vc<ModuleAssetContext>,
         server_component_transition: ServerComponentTransition,
         mode: NextMode,
     ) -> Result<Self> {

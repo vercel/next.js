@@ -154,7 +154,19 @@ export async function copy_vercel_og(task, opts) {
           __dirname,
           dirname(require.resolve('@vercel/og/package.json'))
         ),
-        'dist/*.+(js|ttf|wasm),LICENSE'
+        '{./dist/*.+(js|ttf|wasm),LICENSE}'
+      )
+    )
+    .target('src/compiled/@vercel/og')
+
+  await task
+    .source(
+      join(
+        relative(
+          __dirname,
+          dirname(require.resolve('@vercel/og/package.json'))
+        ),
+        './dist/index.*.js'
       )
     )
     .target('src/compiled/@vercel/og')

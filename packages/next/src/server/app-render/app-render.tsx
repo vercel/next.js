@@ -83,8 +83,6 @@ import { ModuleReference } from '../../build/webpack/loaders/metadata/types'
 
 export const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
-const emptyLoaderTree: LoaderTree = ['', {}, {}]
-
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
   segment: string
@@ -174,6 +172,18 @@ function findDynamicParamFromRouterState(
   }
 
   return null
+}
+
+function hasLoadingComponentInTree(tree: LoaderTree): boolean {
+  const [, parallelRoutes, { loading }] = tree
+
+  if (loading) {
+    return true
+  }
+
+  return Object.values(parallelRoutes).some((parallelRoute) =>
+    hasLoadingComponentInTree(parallelRoute)
+  ) as boolean
 }
 
 export async function renderToHTMLOrFlight(
@@ -751,7 +761,7 @@ export async function renderToHTMLOrFlight(
           !isValidElementType(Component)
         ) {
           throw new Error(
-            `The default export is not a React Component in page: "${page}"`
+            `The default export is not a React Component in page: "${pagePath}"`
           )
         }
 
@@ -803,12 +813,17 @@ export async function renderToHTMLOrFlight(
               : [actualSegment, parallelRouteKey]
 
             const parallelRoute = parallelRoutes[parallelRouteKey]
+
             const childSegment = parallelRoute[0]
             const childSegmentParam = getDynamicParamFromSegment(childSegment)
 
             // if we're prefetching and that there's a Loading component, we bail out
-            // otherwise we keep rendering for the prefetch
-            if (isPrefetch && Loading) {
+            // otherwise we keep rendering for the prefetch.
+            // We also want to bail out if there's no Loading component in the tree.
+            if (
+              isPrefetch &&
+              (Loading || !hasLoadingComponentInTree(parallelRoute))
+            ) {
               const childProp: ChildProp = {
                 // Null indicates the tree is not fully rendered
                 current: null,
@@ -1084,42 +1099,47 @@ export async function renderToHTMLOrFlight(
                 getDynamicParamFromSegment,
                 query
               ),
-              // Create component tree using the slice of the loaderTree
-              // @ts-expect-error TODO-APP: fix async component type
-              React.createElement(async () => {
-                const { Component } = await createComponentTree(
-                  // This ensures flightRouterPath is valid and filters down the tree
-                  {
-                    createSegmentPath,
-                    loaderTree: loaderTreeToFilter,
-                    parentParams: currentParams,
-                    firstItem: isFirst,
-                    injectedCSS,
-                    injectedFontPreloadTags,
-                    // This is intentionally not "rootLayoutIncludedAtThisLevelOrAbove" as createComponentTree starts at the current level and does a check for "rootLayoutAtThisLevel" too.
-                    rootLayoutIncluded,
-                    asNotFound,
-                  }
-                )
+              isPrefetch && !Boolean(components.loading)
+                ? null
+                : // Create component tree using the slice of the loaderTree
+                  // @ts-expect-error TODO-APP: fix async component type
+                  React.createElement(async () => {
+                    const { Component } = await createComponentTree(
+                      // This ensures flightRouterPath is valid and filters down the tree
+                      {
+                        createSegmentPath,
+                        loaderTree: loaderTreeToFilter,
+                        parentParams: currentParams,
+                        firstItem: isFirst,
+                        injectedCSS,
+                        injectedFontPreloadTags,
+                        // This is intentionally not "rootLayoutIncludedAtThisLevelOrAbove" as createComponentTree starts at the current level and does a check for "rootLayoutAtThisLevel" too.
+                        rootLayoutIncluded,
+                        asNotFound,
+                      }
+                    )
 
-                return <Component />
-              }),
-              (() => {
-                const { layoutOrPagePath } = parseLoaderTree(loaderTreeToFilter)
+                    return <Component />
+                  }),
+              isPrefetch && !Boolean(components.loading)
+                ? null
+                : (() => {
+                    const { layoutOrPagePath } =
+                      parseLoaderTree(loaderTreeToFilter)
 
-                const styles = getLayerAssets({
-                  layoutOrPagePath,
-                  injectedCSS: new Set(injectedCSS),
-                  injectedFontPreloadTags: new Set(injectedFontPreloadTags),
-                })
+                    const styles = getLayerAssets({
+                      layoutOrPagePath,
+                      injectedCSS: new Set(injectedCSS),
+                      injectedFontPreloadTags: new Set(injectedFontPreloadTags),
+                    })
 
-                return (
-                  <>
-                    {styles}
-                    {rscPayloadHead}
-                  </>
-                )
-              })(),
+                    return (
+                      <>
+                        {styles}
+                        {rscPayloadHead}
+                      </>
+                    )
+                  })(),
             ],
           ]
         }
@@ -1361,12 +1381,13 @@ export async function renderToHTMLOrFlight(
           query
         )
 
-        const createMetadata = (tree: LoaderTree) => (
+        const createMetadata = (tree: LoaderTree, errorType?: 'not-found') => (
           // Adding key={requestId} to make metadata remount for each render
           // @ts-expect-error allow to use async server component
           <MetadataTree
             key={requestId}
             tree={tree}
+            errorType={errorType}
             pathname={pathname}
             searchParams={providedSearchParams}
             getDynamicParamFromSegment={getDynamicParamFromSegment}
@@ -1388,12 +1409,12 @@ export async function renderToHTMLOrFlight(
               assetPrefix={assetPrefix}
               initialCanonicalUrl={pathname}
               initialTree={initialTree}
-              initialHead={<>{createMetadata(loaderTree)}</>}
+              initialHead={<>{createMetadata(loaderTree, undefined)}</>}
               globalErrorComponent={GlobalError}
               notFound={
                 NotFound ? (
                   <ErrorHtml>
-                    {createMetadata(loaderTree)}
+                    {createMetadata(loaderTree, 'not-found')}
                     {notFoundStyles}
                     <NotFound />
                   </ErrorHtml>
@@ -1594,7 +1615,9 @@ export async function renderToHTMLOrFlight(
           if (isNotFoundError(err)) {
             res.statusCode = 404
           }
+          let hasRedirectError = false
           if (isRedirectError(err)) {
+            hasRedirectError = true
             res.statusCode = 307
             if (err.mutableCookies) {
               const headers = new Headers()
@@ -1609,7 +1632,7 @@ export async function renderToHTMLOrFlight(
           }
 
           const use404Error = res.statusCode === 404
-          const useDefaultError = res.statusCode < 400 || res.statusCode === 307
+          const useDefaultError = res.statusCode < 400 || hasRedirectError
 
           const { layout } = loaderTree[2]
           const injectedCSS = new Set<string>()
@@ -1624,19 +1647,28 @@ export async function renderToHTMLOrFlight(
             ? interopDefault(await rootLayoutModule())
             : null
 
+          const metadata = (
+            // @ts-expect-error allow to use async server component
+            <MetadataTree
+              key={requestId}
+              tree={loaderTree}
+              pathname={pathname}
+              errorType={
+                use404Error
+                  ? 'not-found'
+                  : hasRedirectError
+                  ? 'redirect'
+                  : undefined
+              }
+              searchParams={providedSearchParams}
+              getDynamicParamFromSegment={getDynamicParamFromSegment}
+              appUsingSizeAdjust={appUsingSizeAdjust}
+            />
+          )
           const serverErrorElement = (
             <ErrorHtml
-              head={
-                // @ts-expect-error allow to use async server component
-                <MetadataTree
-                  key={requestId}
-                  tree={emptyLoaderTree}
-                  pathname={pathname}
-                  searchParams={providedSearchParams}
-                  getDynamicParamFromSegment={getDynamicParamFromSegment}
-                  appUsingSizeAdjust={appUsingSizeAdjust}
-                />
-              }
+              // For default error we render metadata directly into the head
+              head={useDefaultError ? metadata : null}
             >
               {useDefaultError
                 ? null
@@ -1645,6 +1677,8 @@ export async function renderToHTMLOrFlight(
                       async () => {
                         return (
                           <>
+                            {/* For server components error metadata needs to be inside inline flight data, so they can be hydrated */}
+                            {metadata}
                             {use404Error ? (
                               <RootLayout params={{}}>
                                 {notFoundStyles}

@@ -1,0 +1,19 @@
+{
+  "extends": "../../tsconfig-tsec.json",
+  "compilerOptions": {
+    "sourceMap": true,
+    "strict": true,
+    "esModuleInterop": true,
+    "target": "es2020",
+    "lib": ["dom"],
+    "downlevelIteration": true,
+    "preserveWatchOutput": true,
+    "outDir": "dist",
+    "jsx": "react",
+    "noFallthroughCasesInSwitch": true,
+    "skipLibCheck": true,
+    "moduleResolution": "Node16"
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "exclude": ["node_modules"]
+}

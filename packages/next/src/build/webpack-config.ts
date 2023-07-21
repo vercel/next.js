@@ -384,6 +384,7 @@ export function getDefineEnv({
     'process.env.__NEXT_WEB_VITALS_ATTRIBUTION': JSON.stringify(
       config.experimental.webVitalsAttribution
     ),
+    'process.env.__NEXT_ASSET_PREFIX': JSON.stringify(config.assetPrefix),
     ...(isNodeServer || isEdgeServer
       ? {
           // Fix bad-actors in the npm ecosystem (e.g. `node-formidable`)
@@ -1336,10 +1337,10 @@ export default async function getBaseWebpackConfig(
     }
 
     const isAppLayer = [
-      WEBPACK_LAYERS.server,
-      WEBPACK_LAYERS.client,
-      WEBPACK_LAYERS.appClient,
-      WEBPACK_LAYERS.action,
+      WEBPACK_LAYERS.reactServerComponents,
+      WEBPACK_LAYERS.serverSideRendering,
+      WEBPACK_LAYERS.appPagesBrowser,
+      WEBPACK_LAYERS.actionBrowser,
     ].includes(layer!)
 
     if (
@@ -1356,7 +1357,7 @@ export default async function getBaseWebpackConfig(
     }
 
     // Special internal modules that must be bundled for Server Components.
-    if (layer === WEBPACK_LAYERS.server) {
+    if (layer === WEBPACK_LAYERS.reactServerComponents) {
       // React needs to be bundled for Server Components so the special
       // `react-server` export condition can be used.
       if (reactPackagesRegex.test(request)) {
@@ -1377,9 +1378,9 @@ export default async function getBaseWebpackConfig(
         // override react-dom to server-rendering-stub for server
         if (
           request === 'react-dom' &&
-          (layer === WEBPACK_LAYERS.client ||
-            layer === WEBPACK_LAYERS.server ||
-            layer === WEBPACK_LAYERS.action)
+          (layer === WEBPACK_LAYERS.serverSideRendering ||
+            layer === WEBPACK_LAYERS.reactServerComponents ||
+            layer === WEBPACK_LAYERS.actionBrowser)
         ) {
           request = `next/dist/compiled/react-dom${bundledReactChannel}/server-rendering-stub`
         } else if (isAppLayer) {
@@ -1484,7 +1485,7 @@ export default async function getBaseWebpackConfig(
     // Early return if the request needs to be bundled, such as in the client layer.
     // Treat react packages and next internals as external for SSR layer,
     // also map react to builtin ones with require-hook.
-    if (layer === WEBPACK_LAYERS.client) {
+    if (layer === WEBPACK_LAYERS.serverSideRendering) {
       if (reactPackagesRegex.test(request)) {
         return `commonjs next/dist/compiled/${request.replace(
           /^(react-server-dom-webpack|react-dom|react)/,
@@ -1968,22 +1969,22 @@ export default async function getBaseWebpackConfig(
                 resourceQuery: new RegExp(
                   WEBPACK_RESOURCE_QUERIES.metadataRoute
                 ),
-                layer: WEBPACK_LAYERS.metadataRoute,
+                layer: WEBPACK_LAYERS.appMetadataRoute,
               },
               {
                 // Ensure that the app page module is in the client layers, this
                 // enables React to work correctly for RSC.
-                layer: WEBPACK_LAYERS.client,
+                layer: WEBPACK_LAYERS.serverSideRendering,
                 test: /next[\\/]dist[\\/](esm[\\/])?server[\\/]future[\\/]route-modules[\\/]app-page[\\/]module/,
               },
               {
                 // All app dir layers need to use this configured resolution logic
                 issuerLayer: {
                   or: [
-                    WEBPACK_LAYERS.server,
-                    WEBPACK_LAYERS.client,
-                    WEBPACK_LAYERS.appClient,
-                    WEBPACK_LAYERS.action,
+                    WEBPACK_LAYERS.reactServerComponents,
+                    WEBPACK_LAYERS.serverSideRendering,
+                    WEBPACK_LAYERS.appPagesBrowser,
+                    WEBPACK_LAYERS.actionBrowser,
                     WEBPACK_LAYERS.shared,
                   ],
                 },
@@ -2063,7 +2064,7 @@ export default async function getBaseWebpackConfig(
                 resourceQuery: new RegExp(
                   WEBPACK_RESOURCE_QUERIES.edgeSSREntry
                 ),
-                layer: WEBPACK_LAYERS.server,
+                layer: WEBPACK_LAYERS.reactServerComponents,
               },
             ]
           : []),
@@ -2101,7 +2102,7 @@ export default async function getBaseWebpackConfig(
                   },
                   {
                     test: codeCondition.test,
-                    issuerLayer: WEBPACK_LAYERS.client,
+                    issuerLayer: WEBPACK_LAYERS.serverSideRendering,
                     resolve: {
                       alias: createRSCAliases(bundledReactChannel, {
                         reactSharedSubset: false,
@@ -2115,7 +2116,7 @@ export default async function getBaseWebpackConfig(
               },
               {
                 test: codeCondition.test,
-                issuerLayer: WEBPACK_LAYERS.appClient,
+                issuerLayer: WEBPACK_LAYERS.appPagesBrowser,
                 resolve: {
                   alias: createRSCAliases(bundledReactChannel, {
                     // Only alias server rendering stub in client SSR layer.
@@ -2164,7 +2165,10 @@ export default async function getBaseWebpackConfig(
                   {
                     ...codeCondition,
                     issuerLayer: {
-                      or: [WEBPACK_LAYERS.client, WEBPACK_LAYERS.appClient],
+                      or: [
+                        WEBPACK_LAYERS.serverSideRendering,
+                        WEBPACK_LAYERS.appPagesBrowser,
+                      ],
                     },
                     exclude: [asyncStoragesRegex, codeCondition.exclude],
                     use: [
@@ -2339,7 +2343,7 @@ export default async function getBaseWebpackConfig(
         {
           test: /(node_modules|next[/\\]dist[/\\]compiled)[/\\]server-only[/\\]index.js/,
           loader: 'next-invalid-import-error-loader',
-          issuerLayer: WEBPACK_LAYERS.client,
+          issuerLayer: WEBPACK_LAYERS.serverSideRendering,
           options: {
             message:
               "'server-only' cannot be imported from a Client Component module. It should only be used from a Server Component.",

@@ -36,6 +36,7 @@ importers:
       '@next/polyfill-module': workspace:*
       '@next/polyfill-nomodule': workspace:*
       '@next/swc': workspace:*
+      '@next/third-parties': workspace:*
       '@opentelemetry/api': 1.4.1
       '@svgr/webpack': 5.5.0
       '@swc/cli': 0.1.55
@@ -62,7 +63,7 @@ importers:
       '@typescript-eslint/eslint-plugin': 4.29.1
       '@typescript-eslint/parser': 4.29.1
       '@vercel/fetch': 6.1.1
-      '@vercel/og': 0.5.6
+      '@vercel/og': 0.5.9
       '@zeit/next-typescript': 1.1.2-canary.0
       abort-controller: 3.0.0
       alex: 9.1.0
@@ -162,7 +163,7 @@ importers:
       request-promise-core: 1.1.2
       resolve-from: 5.0.0
       sass: 1.54.0
-      satori: 0.9.1
+      satori: 0.10.1
       scheduler-builtin: npm:scheduler@0.24.0-canary-9377e1010-20230712
       scheduler-experimental-builtin: npm:scheduler@0.0.0-experimental-9377e1010-20230712
       seedrandom: 3.0.5
@@ -207,6 +208,7 @@ importers:
       '@next/polyfill-module': link:packages/next-polyfill-module
       '@next/polyfill-nomodule': link:packages/next-polyfill-nomodule
       '@next/swc': link:packages/next-swc
+      '@next/third-parties': link:packages/third-parties
       '@opentelemetry/api': 1.4.1
       '@svgr/webpack': 5.5.0
       '@swc/cli': 0.1.55_@swc+core@1.3.55
@@ -233,7 +235,7 @@ importers:
       '@typescript-eslint/eslint-plugin': 4.29.1_wuj6uw3oq7f3smh22rfufwcjdq
       '@typescript-eslint/parser': 4.29.1_gbw5sebpv3ij5sxvftfumdnkh4
       '@vercel/fetch': 6.1.1_fii5qhbaymjqmfm7e2spxc5z4m
-      '@vercel/og': 0.5.6
+      '@vercel/og': 0.5.9
       '@zeit/next-typescript': 1.1.2-canary.0_@babel+core@7.18.0
       abort-controller: 3.0.0
       alex: 9.1.0
@@ -333,7 +335,7 @@ importers:
       request-promise-core: 1.1.2_request@2.88.2
       resolve-from: 5.0.0
       sass: 1.54.0
-      satori: 0.9.1
+      satori: 0.10.1
       scheduler-builtin: /scheduler/0.24.0-canary-9377e1010-20230712
       scheduler-experimental-builtin: /scheduler/0.0.0-experimental-9377e1010-20230712
       seedrandom: 3.0.5
@@ -434,7 +436,7 @@ importers:
 
   packages/eslint-config-next:
     specifiers:
-      '@next/eslint-plugin-next': 13.4.10-canary.8
+      '@next/eslint-plugin-next': 13.4.11
       '@rushstack/eslint-patch': ^1.1.3
       '@typescript-eslint/parser': ^5.42.0
       eslint: ^7.23.0 || ^8.0.0
@@ -511,12 +513,12 @@ importers:
       '@jest/types': 29.5.0
       '@napi-rs/cli': 2.14.7
       '@napi-rs/triples': 1.1.0
-      '@next/env': 13.4.10-canary.8
-      '@next/polyfill-module': 13.4.10-canary.8
-      '@next/polyfill-nomodule': 13.4.10-canary.8
-      '@next/react-dev-overlay': 13.4.10-canary.8
-      '@next/react-refresh-utils': 13.4.10-canary.8
-      '@next/swc': 13.4.10-canary.8
+      '@next/env': 13.4.11
+      '@next/polyfill-module': 13.4.11
+      '@next/polyfill-nomodule': 13.4.11
+      '@next/react-dev-overlay': 13.4.11
+      '@next/react-refresh-utils': 13.4.11
+      '@next/swc': 13.4.11
       '@opentelemetry/api': 1.4.1
       '@segment/ajv-human-errors': 2.1.2
       '@swc/helpers': 0.5.1
@@ -994,8 +996,8 @@ importers:
       '@types/react': 18.2.7
       '@types/react-dom': 18.2.4
       '@vercel/ncc': ^0.36.0
-      '@vercel/turbopack-ecmascript-runtime': https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230713.3
-      '@vercel/turbopack-node': https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-node/js?turbopack-230713.3
+      '@vercel/turbopack-ecmascript-runtime': https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230719.2
+      '@vercel/turbopack-node': https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-node/js?turbopack-230719.2
       anser: ^2.1.1
       css.escape: ^1.5.1
       find-up: ^6.3.0
@@ -1007,8 +1009,8 @@ importers:
       stacktrace-parser: ^0.1.10
       strip-ansi: ^7.0.1
     dependencies:
-      '@vercel/turbopack-ecmascript-runtime': '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230713.3_react-refresh@0.12.0'
-      '@vercel/turbopack-node': '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-node/js?turbopack-230713.3'
+      '@vercel/turbopack-ecmascript-runtime': '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230719.2_react-refresh@0.12.0'
+      '@vercel/turbopack-node': '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-node/js?turbopack-230719.2'
       anser: 2.1.1
       css.escape: 1.5.1
       next: link:../../../../next
@@ -1099,6 +1101,21 @@ importers:
     devDependencies:
       react-refresh: 0.12.0
       webpack: 5.86.0
+
+  packages/third-parties:
+    specifiers:
+      next: ^13.0.0
+      outdent: 0.8.0
+      prettier: 2.5.1
+      react: ^18.2.0
+      third-party-capital: 1.0.17
+    dependencies:
+      next: link:../next
+      react: 18.2.0
+      third-party-capital: 1.0.17
+    devDependencies:
+      outdent: 0.8.0
+      prettier: 2.5.1
 
 packages:
 
@@ -6912,7 +6929,7 @@ packages:
   /@swc/helpers/0.4.14:
     resolution: {integrity: sha512-4C7nX/dvpzB7za4Ql9K81xK3HPxCpHMgwTZVyf+9JQ6VUbn9jjZVN7/Nkdz/Ugzs2CSjqnL/UPXroiVBVHUWUw==}
     dependencies:
-      tslib: 2.4.0
+      tslib: 2.5.3
     dev: true
 
   /@swc/helpers/0.5.1:
@@ -7829,12 +7846,12 @@ packages:
       - supports-color
     dev: true
 
-  /@vercel/og/0.5.6:
-    resolution: {integrity: sha512-C7loD/Ryt+cXgZ93KVNOIa/r/WcPVPk1JflUODGUdngFwxOJab0eCdugMrwGR2Oq85g4TXXHMBZIC2Z0C9P1NQ==}
+  /@vercel/og/0.5.9:
+    resolution: {integrity: sha512-CtjaV/BVHtNCjRtxGqn8Q6AKFLqcG34Byxr91+mY+4eqyp/09LVe9jEeY9WXjbaKvu8syWPMteTpY+YQUQYzSg==}
     engines: {node: '>=16'}
     dependencies:
       '@resvg/resvg-wasm': 2.4.1
-      satori: 0.9.1
+      satori: 0.10.1
       yoga-wasm-web: 0.3.3
     dev: true
 
@@ -10607,14 +10624,6 @@ packages:
       nth-check: 2.1.1
     dev: true
 
-  /css-to-react-native/3.0.0:
-    resolution: {integrity: sha512-Ro1yETZA813eoyUp2GDBhG2j+YggidUmzO1/v9eYBKR2EHVEniE2MI/NqpTQ954BMpTPZFsGNPm46qFB9dpaPQ==}
-    dependencies:
-      camelize: 1.0.0
-      css-color-keywords: 1.0.0
-      postcss-value-parser: 4.2.0
-    dev: true
-
   /css-to-react-native/3.2.0:
     resolution: {integrity: sha512-e8RKaLXMOFii+02mOlqwjbD00KSEKqblnpO9e++1aXS1fPQOpS1YoqdVHBqPjHNoxeF2mimzVqawm2KCbEdtHQ==}
     dependencies:
@@ -11805,7 +11814,7 @@ packages:
     dev: true
 
   /escape-html/1.0.3:
-    resolution: {integrity: sha1-Aljq5NPQwJdN4cFpGI7wBR0dGYg=}
+    resolution: {integrity: sha512-NiSupZ4OeuGwr68lGIeym/ksIZMJodUGOSCZ/FSnTxcrekbvqrgdUxlJOMpijaKZVjAJrWrGs/6Jy8OMuyj9ow==}
     dev: true
 
   /escape-string-regexp/1.0.5:
@@ -20516,7 +20525,7 @@ packages:
     resolution: {integrity: sha512-jDUfCPJbKOABhwpUKcqCVbbXiloe/QXMcbJ6Iipf3sDIihEzTqRCeMBfRaOHxhBuTYqtASrI1KJWxzztZU4qUQ==}
     engines: {node: '>=10.0'}
     dependencies:
-      postcss: 8.4.14
+      postcss: 8.4.24
     dev: true
 
   /postcss-safe-parser/6.0.0_postcss@8.4.14:
@@ -20684,7 +20693,7 @@ packages:
     engines: {node: ^10 || ^12 || >=14}
     dependencies:
       colorette: 1.4.0
-      nanoid: 3.3.4
+      nanoid: 3.3.6
       source-map: 0.6.1
     dev: true
 
@@ -20709,7 +20718,7 @@ packages:
     resolution: {integrity: sha512-jBDboWM8qpaqwkMwItqTQTiFikhs/67OYVvblFFTM7MrZjt6yMKd6r2kgXizEbTTljacm4NldIlZnhbjr84QYg==}
     engines: {node: ^10 || ^12 || >=14}
     dependencies:
-      nanoid: 3.3.4
+      nanoid: 3.3.6
       picocolors: 1.0.0
       source-map-js: 1.0.2
     dev: true
@@ -20790,6 +20799,12 @@ packages:
         optional: true
     dependencies:
       prettier: 2.8.8
+    dev: true
+
+  /prettier/2.5.1:
+    resolution: {integrity: sha512-vBZcPRUR5MZJwoyi3ZoyQlc1rXeEck8KgeC9AwwOn+exuxLxq5toTRDTSaVrXHxelDMHy9zlicw8u66yxoSUFg==}
+    engines: {node: '>=10.13.0'}
+    hasBin: true
     dev: true
 
   /prettier/2.8.8:
@@ -22246,7 +22261,7 @@ packages:
     peerDependencies:
       rollup: ^2.0.0
     dependencies:
-      nanoid: 3.3.4
+      nanoid: 3.3.6
       open: 8.4.0
       rollup: 2.35.1
       source-map: 0.7.4
@@ -22305,7 +22320,7 @@ packages:
   /rxjs/7.5.7:
     resolution: {integrity: sha512-z9MzKh/UcOqB3i20H6rtrlaE/CgjLOvheWK/9ILrbhROGTweAi1BaFsTT9FbwZi5Trr1qNRs+MXkhmR06awzQA==}
     dependencies:
-      tslib: 2.4.0
+      tslib: 2.5.3
     dev: false
 
   /sade/1.7.4:
@@ -22367,15 +22382,16 @@ packages:
       immutable: 4.1.0
       source-map-js: 1.0.2
 
-  /satori/0.9.1:
-    resolution: {integrity: sha512-2ggMOiY8O8rIxQ6vywiw3LlBheWHbsOzu5hZdMXTDFKzE9sDHUOtJegGmGE+e9aRSO1ttttgXrcHVsHPKYU2GQ==}
+  /satori/0.10.1:
+    resolution: {integrity: sha512-F4bTCkDp931tLb7+UCNPBuSQwXhikrUkI4fBQo6fA8lF0Evqqgg3nDyUpRktQpR5Ry1DIiIVqLyEwkAms87ykg==}
     engines: {node: '>=16'}
     dependencies:
       '@shuding/opentype.js': 1.4.0-beta.0
       css-background-parser: 0.1.0
       css-box-shadow: 1.0.0-3
-      css-to-react-native: 3.0.0
+      css-to-react-native: 3.2.0
       emoji-regex: 10.2.1
+      escape-html: 1.0.3
       linebreak: 1.1.0
       parse-css-color: 0.2.1
       postcss-value-parser: 4.2.0
@@ -23803,6 +23819,10 @@ packages:
 
   /text-table/0.2.0:
     resolution: {integrity: sha512-N+8UisAXDGk8PFXP4HAzVR9nbfmVJ3zYLAWiTIoqC5v5isinhr+r5uaO8+7r3BMfuNIufIsA7RdpVgacC2cSpw==}
+
+  /third-party-capital/1.0.17:
+    resolution: {integrity: sha512-TOoAmaUg1sYZNErMrsEdEp8BSgtnnJL9nhHwisv3kZ2d1Ze0Cjj4zdv/qgwhVPqMvecTI3ZNxhrKSvkYEY2qtg==}
+    dev: false
 
   /throat/6.0.1:
     resolution: {integrity: sha512-8hmiGIJMDlwjg7dlJ4yKGLK8EsYqKgPWbG3b4wjJddKNwc7N7Dpn08Df4szr/sZdMVeOstrdYSsqzX6BYbcB+w==}
@@ -25499,9 +25519,9 @@ packages:
   /zwitch/2.0.4:
     resolution: {integrity: sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A==}
 
-  '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230713.3_react-refresh@0.12.0':
-    resolution: {tarball: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230713.3}
-    id: '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230713.3'
+  '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230719.2_react-refresh@0.12.0':
+    resolution: {tarball: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230719.2}
+    id: '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230719.2'
     name: '@vercel/turbopack-ecmascript-runtime'
     version: 0.0.0
     dependencies:
@@ -25512,8 +25532,8 @@ packages:
       - webpack
     dev: false
 
-  '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-node/js?turbopack-230713.3':
-    resolution: {tarball: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-node/js?turbopack-230713.3}
+  '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-node/js?turbopack-230719.2':
+    resolution: {tarball: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-node/js?turbopack-230719.2}
     name: '@vercel/turbopack-node'
     version: 0.0.0
     dependencies:

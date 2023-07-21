@@ -3,6 +3,8 @@
 #![feature(async_closure)]
 #![feature(str_split_remainder)]
 #![feature(impl_trait_in_assoc_type)]
+#![feature(arbitrary_self_types)]
+#![feature(async_fn_in_trait)]
 
 mod app_render;
 mod app_segment_config;
@@ -10,14 +12,14 @@ mod app_source;
 pub mod app_structure;
 mod babel;
 mod bootstrap;
+pub mod dev_manifest;
 mod embed_js;
 mod emit;
 pub mod env;
 mod fallback;
 pub mod loader_tree;
-pub mod manifest;
 pub mod mode;
-pub(crate) mod next_app;
+pub mod next_app;
 mod next_build;
 pub mod next_client;
 pub mod next_client_chunks;
@@ -29,6 +31,7 @@ mod next_edge;
 mod next_font;
 pub mod next_image;
 mod next_import_map;
+pub mod next_manifests;
 mod next_route_matcher;
 pub mod next_server;
 pub mod next_server_component;
@@ -45,10 +48,13 @@ pub mod url_node;
 pub mod util;
 mod web_entry_source;
 
+pub use app_segment_config::{
+    parse_segment_config_from_loader_tree, parse_segment_config_from_source,
+};
 pub use app_source::create_app_source;
-pub use emit::emit_all_assets;
-pub use next_app::unsupported_dynamic_metadata_issue::{
-    UnsupportedDynamicMetadataIssue, UnsupportedDynamicMetadataIssueVc,
+pub use emit::{all_server_paths, emit_all_assets};
+pub use next_edge::context::{
+    get_edge_chunking_context, get_edge_compile_time_info, get_edge_resolve_options_context,
 };
 pub use page_loader::create_page_loader_entry_module;
 pub use page_source::create_page_source;

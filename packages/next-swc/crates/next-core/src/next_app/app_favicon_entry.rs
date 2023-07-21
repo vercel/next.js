@@ -3,28 +3,31 @@ use std::io::Write;
 use anyhow::{bail, Result};
 use base64::{display::Base64Display, engine::general_purpose::STANDARD};
 use indoc::writedoc;
-use next_core::app_structure::MetadataItem;
-use turbo_tasks::ValueToString;
+use turbo_tasks::{ValueToString, Vc};
 use turbopack_binding::{
-    turbo::tasks_fs::{rope::RopeBuilder, File, FileContent, FileSystemPathVc},
+    turbo::tasks_fs::{rope::RopeBuilder, File, FileContent, FileSystemPath},
     turbopack::{
-        core::virtual_source::VirtualSourceVc, ecmascript::utils::StringifyJs,
-        turbopack::ModuleAssetContextVc,
+        core::{asset::AssetContent, virtual_source::VirtualSource},
+        ecmascript::utils::StringifyJs,
+        turbopack::ModuleAssetContext,
     },
 };
 
-use super::{app_entries::AppEntryVc, app_route_entry::get_app_route_entry};
+use super::app_route_entry::get_app_route_entry;
+use crate::{app_structure::MetadataItem, next_app::AppEntry};
 
 /// Computes the entry for a Next.js favicon file.
-pub(super) async fn get_app_route_favicon_entry(
-    rsc_context: ModuleAssetContextVc,
+#[turbo_tasks::function]
+pub async fn get_app_route_favicon_entry(
+    nodejs_context: Vc<ModuleAssetContext>,
+    edge_context: Vc<ModuleAssetContext>,
     favicon: MetadataItem,
-    project_root: FileSystemPathVc,
-) -> Result<AppEntryVc> {
+    project_root: Vc<FileSystemPath>,
+) -> Result<Vc<AppEntry>> {
     let path = match favicon {
         // TODO(alexkirsz) Is there a difference here?
         MetadataItem::Static { path } => path,
-        MetadataItem::Dynamic { path } => path,
+        MetadataItem::Dynamic { path: _ } => bail!("Dynamic metadata is not implemented yet"),
     };
 
     let mut code = RopeBuilder::default();
@@ -74,14 +77,14 @@ pub(super) async fn get_app_route_favicon_entry(
     let file = File::from(code.build());
     let source =
         // TODO(alexkirsz) Figure out how to name this virtual source.
-        VirtualSourceVc::new(project_root.join("todo.tsx"), file.into());
+        VirtualSource::new(project_root.join("todo.tsx".to_string()), AssetContent::file(file.into()));
 
-    get_app_route_entry(
-        rsc_context,
-        source.into(),
+    Ok(get_app_route_entry(
+        nodejs_context,
+        edge_context,
+        Vc::upcast(source),
         // TODO(alexkirsz) Get this from the metadata?
-        "/favicon.ico",
+        "/favicon.ico".to_string(),
         project_root,
-    )
-    .await
+    ))
 }

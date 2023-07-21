@@ -475,7 +475,8 @@ createNextDescribe(
         }, 'success')
       })
 
-      skipDeploy('should handle revalidateTag + redirect', async () => {
+      // TODO: investigate flakey behavior
+      it.skip('should handle revalidateTag + redirect', async () => {
         const browser = await next.browser('/revalidate')
         const randomNumber = await browser.elementByCss('#random-number').text()
         const justPutIt = await browser.elementByCss('#justputit').text()

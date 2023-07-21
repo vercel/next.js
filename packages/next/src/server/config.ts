@@ -711,24 +711,21 @@ export default async function loadConfig(
   rawConfig?: boolean,
   silent?: boolean
 ): Promise<NextConfigComplete> {
+  if (!process.env.__NEXT_PRIVATE_RENDER_WORKER) {
+    try {
+      loadWebpackHook()
+    } catch (err) {
+      // this can fail in standalone mode as the files
+      // aren't traced/included
+      if (!process.env.__NEXT_PRIVATE_STANDALONE_CONFIG) {
+        throw err
+      }
+    }
+  }
+
   if (process.env.__NEXT_PRIVATE_STANDALONE_CONFIG) {
     return JSON.parse(process.env.__NEXT_PRIVATE_STANDALONE_CONFIG)
   }
-
-  const curLog = silent
-    ? {
-        warn: () => {},
-        info: () => {},
-        error: () => {},
-      }
-    : Log
-
-  await loadEnvConfig(dir, phase === PHASE_DEVELOPMENT_SERVER, curLog)
-
-  loadWebpackHook({
-    // For render workers, there's no need to init webpack eagerly
-    init: !process.env.__NEXT_PRIVATE_RENDER_WORKER,
-  })
 
   // For the render worker, we directly return the serialized config from the
   // parent worker (router worker) to avoid loading it again.
@@ -739,6 +736,16 @@ export default async function loadConfig(
   if (process.env.__NEXT_PRIVATE_RENDER_WORKER_CONFIG) {
     return JSON.parse(process.env.__NEXT_PRIVATE_RENDER_WORKER_CONFIG)
   }
+
+  const curLog = silent
+    ? {
+        warn: () => {},
+        info: () => {},
+        error: () => {},
+      }
+    : Log
+
+  loadEnvConfig(dir, phase === PHASE_DEVELOPMENT_SERVER, curLog)
 
   let configFileName = 'next.config.js'
 
