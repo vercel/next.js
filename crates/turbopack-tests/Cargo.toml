@@ -27,6 +27,7 @@ turbo-tasks-env = { workspace = true }
 turbo-tasks-fs = { workspace = true }
 turbo-tasks-memory = { workspace = true }
 turbopack-build = { workspace = true, features = ["test"] }
+turbopack-cli-utils = { workspace = true }
 turbopack-core = { workspace = true, features = ["issue_path"] }
 turbopack-dev = { workspace = true, features = ["test"] }
 turbopack-ecmascript-plugins = { workspace = true, features = [

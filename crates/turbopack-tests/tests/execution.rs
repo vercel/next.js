@@ -10,7 +10,7 @@ use std::{
 };
 
 use anyhow::{Context, Result};
-use turbo_tasks::{debug::ValueDebug, unit, Completion, TryJoinIterExt, TurboTasks, Value, Vc};
+use turbo_tasks::{unit, Completion, TryJoinIterExt, TurboTasks, Value, Vc};
 use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_env::CommandLineProcessEnv;
 use turbo_tasks_fs::{
@@ -35,7 +35,7 @@ use turbopack_core::{
     source::Source,
 };
 use turbopack_dev::DevChunkingContext;
-use turbopack_node::evaluate::evaluate;
+use turbopack_node::{debug::should_debug, evaluate::evaluate};
 use turbopack_test_utils::jest::JestRunResult;
 
 use crate::util::REPO_ROOT;
@@ -263,16 +263,28 @@ async fn run_test(resource: String) -> Result<Vc<RunTestResult>> {
         ])),
         vec![],
         Completion::immutable(),
-        false,
+        should_debug("execution_test"),
     )
     .await?;
 
-    let SingleValue::Single(bytes) = res
+    let single = res
         .try_into_single()
         .await
-        .context("test node result did not emit anything")?
-    else {
-        panic!("Evaluation stream must yield SingleValue.");
+        .context("test node result did not emit anything")?;
+
+    let SingleValue::Single(bytes) = single else {
+        return Ok(RunTestResult {
+            js_result: JsResult {
+                uncaught_exceptions: vec![],
+                unhandled_rejections: vec![],
+                jest_result: JestRunResult {
+                    test_results: vec![],
+                },
+            }
+            .cell(),
+            path,
+        }
+        .cell());
     };
 
     Ok(RunTestResult {
@@ -294,12 +306,7 @@ async fn snapshot_issues(run_result: Vc<RunTestResult>) -> Result<Vc<()>> {
 
     let plain_issues = captured_issues
         .iter_with_shortest_path()
-        .map(|(issue_vc, path)| async move {
-            Ok((
-                issue_vc.into_plain(path).await?,
-                issue_vc.into_plain(path).dbg().await?,
-            ))
-        })
+        .map(|(issue_vc, path)| async move { issue_vc.into_plain(path).await })
         .try_join()
         .await?;
 

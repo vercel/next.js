@@ -1,14 +1,9 @@
-PlainIssue {
-    severity: Error,
-    context: "[project]/crates/turbopack-tests/tests/snapshot/imports/resolve_error_esm/input/index.js",
-    category: "resolve",
-    title: "Error resolving EcmaScript Modules request",
-    description: "unable to resolve module \"does-not-exist\" with subpath \"/path\"",
-    detail: "It was not possible to find the requested file.\nParsed request as written in source code: module \"does-not-exist\" with subpath \"/path\"\nPath where resolving has started: [project]/crates/turbopack-tests/tests/snapshot/imports/resolve_error_esm/input/index.js\nType of request: EcmaScript Modules request\nImport map: No import map entry\n",
-    documentation_link: "",
-    source: None,
-    sub_issues: [],
-    processing_path: Some(
-        [],
-    ),
-}
+error - [resolve] [project]/crates/turbopack-tests/tests/snapshot/imports/resolve_error_esm/input/index.js  Error resolving EcmaScript Modules request
+  unable to resolve module "does-not-exist" with subpath "/path"
+  
+  | It was not possible to find the requested file.
+  | Parsed request as written in source code: module "does-not-exist" with subpath "/path"
+  | Path where resolving has started: [project]/crates/turbopack-tests/tests/snapshot/imports/resolve_error_esm/input/index.js
+  | Type of request: EcmaScript Modules request
+  | Import map: No import map entry
+  |

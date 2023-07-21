@@ -10,14 +10,16 @@ autobenches = false
 bench = false
 
 [dependencies]
-anyhow = "1.0.47"
+anyhow = { workspace = true }
 once_cell = { workspace = true }
+regex = { workspace = true, features = ["pattern"] }
 serde = { workspace = true }
 similar = "2.2.0"
-turbo-tasks = { path = "../turbo-tasks" }
-turbo-tasks-fs = { path = "../turbo-tasks-fs" }
-turbo-tasks-hash = { path = "../turbo-tasks-hash" }
-turbopack-core = { path = "../turbopack-core" }
+turbo-tasks = { workspace = true }
+turbo-tasks-fs = { workspace = true }
+turbo-tasks-hash = { workspace = true }
+turbopack-cli-utils = { workspace = true }
+turbopack-core = { workspace = true }
 
 [build-dependencies]
-turbo-tasks-build = { path = "../turbo-tasks-build" }
+turbo-tasks-build = { workspace = true }
