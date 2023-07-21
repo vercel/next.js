@@ -226,10 +226,7 @@ const nextDev: CliCommand = async (argv) => {
   if (args['--turbo']) {
     process.env.TURBOPACK = '1'
   }
-  const experimentalTurbo = !!args['--experimental-turbo']
-
-  if (experimentalTurbo) {
-    resetEnv()
+  if (args['--experimental-turbo']) {
     process.env.EXPERIMENTAL_TURBOPACK = '1'
   }
 
