@@ -1,4 +1,5 @@
 import { StyleSheet, css } from 'aphrodite'
+import { Suspense, lazy } from 'react'
 
 // Rehydrate to ensure that the client doesn't duplicate styles
 // It has to execute before any code that defines styles
@@ -6,6 +7,8 @@ import { StyleSheet, css } from 'aphrodite'
 if (typeof window !== 'undefined') {
   StyleSheet.rehydrate(window.__REHYDRATE_IDS)
 }
+
+const LazyComp = lazy(() => import('./comp'));
 
 const styles = StyleSheet.create({
   root: {
@@ -31,6 +34,9 @@ export default function Home() {
   return (
     <div className={css(styles.root)}>
       <h1 className={css(styles.title)}>My page</h1>
+      <Suspense placeholder={<div>'Loading'</div>}>
+      <LazyComp />
+      </Suspense>
     </div>
   )
 }
