@@ -11,15 +11,17 @@ use turbopack_binding::{
             environment::{EdgeWorkerEnvironment, Environment, ExecutionEnvironment, ServerAddr},
             free_var_references,
         },
-        node::execution_context::ExecutionContext,
+        dev::DevChunkingContext,
+        ecmascript::chunk::EcmascriptChunkingContext,
+        node::{debug::should_debug, execution_context::ExecutionContext},
         turbopack::resolve_options_context::ResolveOptionsContext,
     },
 };
 
 use crate::{
-    mode::NextMode, next_config::NextConfig, next_import_map::get_next_edge_import_map,
-    next_server::context::ServerContextType, next_shared::resolve::UnsupportedModulesResolvePlugin,
-    util::foreign_code_context_condition,
+    mode::NextMode, next_client::context::get_client_assets_path, next_config::NextConfig,
+    next_import_map::get_next_edge_import_map, next_server::context::ServerContextType,
+    next_shared::resolve::UnsupportedModulesResolvePlugin, util::foreign_code_context_condition,
 };
 
 fn defines() -> CompileTimeDefines {
@@ -107,4 +109,24 @@ pub async fn get_edge_resolve_options_context(
         ..resolve_options_context
     }
     .cell())
+}
+
+#[turbo_tasks::function]
+pub fn get_edge_chunking_context(
+    project_path: Vc<FileSystemPath>,
+    node_root: Vc<FileSystemPath>,
+    client_root: Vc<FileSystemPath>,
+    environment: Vc<Environment>,
+) -> Vc<Box<dyn EcmascriptChunkingContext>> {
+    Vc::upcast(
+        DevChunkingContext::builder(
+            project_path,
+            node_root.join("edge".to_string()),
+            node_root.join("edge/chunks".to_string()),
+            get_client_assets_path(client_root),
+            environment,
+        )
+        .reference_chunk_source_maps(should_debug("edge"))
+        .build(),
+    )
 }

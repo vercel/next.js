@@ -35,10 +35,27 @@ function generateClientManifest(
     'NextJsBuildManifest-generateClientManifest'
   )
 
+  const normalizeRewrite = (item: {
+    source: string
+    destination: string
+    has?: any
+  }) => {
+    return {
+      has: item.has,
+      source: item.source,
+      destination: item.destination,
+    }
+  }
+
   return genClientManifestSpan?.traceFn(() => {
     const clientManifest: ClientBuildManifest = {
-      // TODO: update manifest type to include rewrites
-      __rewrites: rewrites as any,
+      __rewrites: {
+        afterFiles: rewrites.afterFiles?.map((item) => normalizeRewrite(item)),
+        beforeFiles: rewrites.beforeFiles?.map((item) =>
+          normalizeRewrite(item)
+        ),
+        fallback: rewrites.fallback?.map((item) => normalizeRewrite(item)),
+      } as any,
     }
     const appDependencies = new Set(assetMap.pages['/_app'])
     const sortedPageKeys = getSortedRoutes(Object.keys(assetMap.pages))

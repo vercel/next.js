@@ -22,17 +22,27 @@ use crate::{
     mode::NextMode,
     next_app::UnsupportedDynamicMetadataIssue,
     next_server_component::NextServerComponentTransition,
+    parse_segment_config_from_loader_tree,
+    util::NextRuntime,
 };
 
 /// Computes the entry for a Next.js app page.
 #[turbo_tasks::function]
 pub async fn get_app_page_entry(
-    context: Vc<ModuleAssetContext>,
+    nodejs_context: Vc<ModuleAssetContext>,
+    edge_context: Vc<ModuleAssetContext>,
     loader_tree: Vc<LoaderTree>,
     app_dir: Vc<FileSystemPath>,
     pathname: String,
     project_root: Vc<FileSystemPath>,
 ) -> Result<Vc<AppEntry>> {
+    let config = parse_segment_config_from_loader_tree(loader_tree, Vc::upcast(nodejs_context));
+    let context = if matches!(config.await?.runtime, Some(NextRuntime::Edge)) {
+        nodejs_context
+    } else {
+        edge_context
+    };
+
     let server_component_transition = Vc::upcast(NextServerComponentTransition::new());
 
     let loader_tree = LoaderTreeModule::build(
@@ -111,6 +121,7 @@ pub async fn get_app_page_entry(
         pathname: pathname.to_string(),
         original_name,
         rsc_entry,
+        config,
     }
     .cell())
 }

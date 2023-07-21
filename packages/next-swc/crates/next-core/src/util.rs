@@ -1,4 +1,4 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, Result};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use swc_core::ecma::ast::Program;
@@ -13,12 +13,7 @@ use turbopack_binding::{
             issue::{Issue, IssueExt, IssueSeverity, OptionIssueSource},
             module::Module,
             reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
-            resolve::{
-                handle_resolve_error,
-                node::node_cjs_resolve_options,
-                parse::Request,
-                PrimaryResolveResult, {self},
-            },
+            resolve::{self, handle_resolve_error, node::node_cjs_resolve_options, parse::Request},
         },
         ecmascript::{
             analyzer::{JsValue, ObjectPart},
@@ -34,6 +29,7 @@ use crate::next_config::{NextConfig, OutputType};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, TaskInput)]
 pub enum PathType {
     Page,
+    PagesAPI,
     Data,
 }
 
@@ -96,7 +92,20 @@ pub async fn foreign_code_context_condition(
     Ok(result)
 }
 
-#[derive(Default, PartialEq, Eq, Clone, Copy, Debug, TraceRawVcs, Serialize, Deserialize)]
+#[derive(
+    Default,
+    PartialEq,
+    Eq,
+    Clone,
+    Copy,
+    Debug,
+    TraceRawVcs,
+    Serialize,
+    Deserialize,
+    Hash,
+    PartialOrd,
+    Ord,
+)]
 #[serde(rename_all = "lowercase")]
 pub enum NextRuntime {
     #[default]
@@ -214,15 +223,12 @@ pub async fn parse_config_from_source(module: Vc<Box<dyn Module>>) -> Result<Vc<
     Ok(Default::default())
 }
 
-fn parse_config_from_js_value(
-    module_asset: Vc<Box<dyn Module>>,
-    value: &JsValue,
-) -> NextSourceConfig {
+fn parse_config_from_js_value(module: Vc<Box<dyn Module>>, value: &JsValue) -> NextSourceConfig {
     let mut config = NextSourceConfig::default();
     let invalid_config = |detail: &str, value: &JsValue| {
         let (explainer, hints) = value.explain(2, 0);
         NextSourceConfigParsingIssue {
-            ident: module_asset.ident(),
+            ident: module.ident(),
             detail: Vc::cell(format!("{detail} Got {explainer}.{hints}")),
         }
         .cell()
@@ -328,7 +334,7 @@ pub async fn load_next_json<T: DeserializeOwned>(
     let resolve_options = node_cjs_resolve_options(context.root());
 
     let resolve_result = handle_resolve_error(
-        resolve::resolve(context, request, resolve_options),
+        resolve::resolve(context, request, resolve_options).as_raw_module_result(),
         Value::new(ReferenceType::EcmaScriptModules(
             EcmaScriptModulesReferenceSubType::Undefined,
         )),
@@ -339,15 +345,8 @@ pub async fn load_next_json<T: DeserializeOwned>(
         IssueSeverity::Error.cell(),
     )
     .await?;
-    let resolve_result = &*resolve_result.await?;
-
-    let primary = resolve_result
-        .primary
-        .first()
-        .context("Unable to resolve primary asset")?;
-
-    let PrimaryResolveResult::Asset(metrics_asset) = primary else {
-        bail!("Expected to find asset");
+    let Some(metrics_asset) = *resolve_result.first_module().await? else {
+        bail!("Expected to find module");
     };
 
     let content = &*metrics_asset.content().file_content().await?;
