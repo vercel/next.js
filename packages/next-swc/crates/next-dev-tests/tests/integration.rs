@@ -665,6 +665,7 @@ impl IssueReporter for TestIssueReporter {
         &self,
         captured_issues: TransientInstance<ReadRef<CapturedIssues>>,
         _source: TransientValue<RawVc>,
+        _min_failing_severity: Vc<IssueSeverity>,
     ) -> Result<Vc<bool>> {
         let log_options = LogOptions {
             current_dir: PathBuf::new(),
