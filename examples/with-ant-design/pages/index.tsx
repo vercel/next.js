@@ -20,10 +20,7 @@ const onDatePickerChange: DatePickerProps['onChange'] = (date, dateString) => {
 
 function Home() {
   return (
-    <div
-      className={inter.className}
-      style={{ padding: 100, height: '100vh' }}
-    >
+    <div className={inter.className} style={{ padding: 100, height: '100vh' }}>
       <div className="text-center mb-5">
         <Link href="#" className="logo mr-0">
           <SmileFilled style={{ fontSize: 48 }} />
