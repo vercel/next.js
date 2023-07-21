@@ -35,7 +35,7 @@ pub async fn route_bootstrap(
     // TODO: this is where you'd switch the route kind to the one you need
     let route_module_kind = "app-route";
 
-    let resolved_route_module_asset = esm_resolve(
+    let resolved_route_module = esm_resolve(
         resolve_origin,
         Request::parse_string(format!(
             "next/dist/server/future/route-modules/{}/module",
@@ -45,7 +45,7 @@ pub async fn route_bootstrap(
         OptionIssueSource::none(),
         IssueSeverity::Error.cell(),
     );
-    let route_module_asset = match *resolved_route_module_asset.first_module().await? {
+    let route_module = match *resolved_route_module.first_module().await? {
         Some(module) => module,
         None => bail!("could not find app asset"),
     };
@@ -56,7 +56,7 @@ pub async fn route_bootstrap(
         base_path,
         bootstrap_asset,
         Vc::cell(indexmap! {
-            "ROUTE_MODULE".to_string() => route_module_asset,
+            "ROUTE_MODULE".to_string() => route_module,
         }),
         config,
     ))

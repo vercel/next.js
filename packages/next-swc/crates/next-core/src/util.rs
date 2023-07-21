@@ -223,15 +223,12 @@ pub async fn parse_config_from_source(module: Vc<Box<dyn Module>>) -> Result<Vc<
     Ok(Default::default())
 }
 
-fn parse_config_from_js_value(
-    module_asset: Vc<Box<dyn Module>>,
-    value: &JsValue,
-) -> NextSourceConfig {
+fn parse_config_from_js_value(module: Vc<Box<dyn Module>>, value: &JsValue) -> NextSourceConfig {
     let mut config = NextSourceConfig::default();
     let invalid_config = |detail: &str, value: &JsValue| {
         let (explainer, hints) = value.explain(2, 0);
         NextSourceConfigParsingIssue {
-            ident: module_asset.ident(),
+            ident: module.ident(),
             detail: Vc::cell(format!("{detail} Got {explainer}.{hints}")),
         }
         .cell()
@@ -349,7 +346,7 @@ pub async fn load_next_json<T: DeserializeOwned>(
     )
     .await?;
     let Some(metrics_asset) = *resolve_result.first_module().await? else {
-        bail!("Expected to find asset");
+        bail!("Expected to find module");
     };
 
     let content = &*metrics_asset.content().file_content().await?;

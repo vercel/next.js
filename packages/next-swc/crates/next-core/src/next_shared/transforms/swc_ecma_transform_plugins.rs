@@ -80,12 +80,11 @@ pub async fn get_swc_ecma_transform_plugin_impl(
             IssueSeverity::Error.cell(),
         )
         .await?;
-        let Some(plugin_module_asset) = *plugin_wasm_module_resolve_result.first_module().await?
-        else {
-            bail!("Expected to find asset");
+        let Some(plugin_module) = *plugin_wasm_module_resolve_result.first_module().await? else {
+            bail!("Expected to find module");
         };
 
-        let content = &*plugin_module_asset.content().file_content().await?;
+        let content = &*plugin_module.content().file_content().await?;
 
         let FileContent::Content(file) = content else {
             bail!("Expected file content for plugin module");
