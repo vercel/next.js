@@ -226,83 +226,14 @@ const nextDev: CliCommand = async (argv) => {
   if (args['--turbo']) {
     process.env.TURBOPACK = '1'
   }
-  if (args['--experimental-turbo']) {
-    process.env.EXPERIMENTAL_TURBOPACK = '1'
-  }
-  const experimentalTurbo = !!process.env.EXPERIMENTAL_TURBOPACK
+  const experimentalTurbo = !!args['--experimental-turbo']
 
   if (experimentalTurbo) {
-    const { loadBindings } =
-      require('../build/swc') as typeof import('../build/swc')
-
     resetEnv()
-    let bindings = await loadBindings()
+    process.env.EXPERIMENTAL_TURBOPACK = '1'
+  }
 
-    // Just testing code here:
-
-    const project = await bindings.turbo.createProject({
-      projectPath: dir,
-      rootPath: dir,
-      nextConfig: config,
-      env: {
-        NEXT_PUBLIC_ENV_VAR: 'world',
-      },
-      watch: true,
-    })
-    const iter = project.entrypointsSubscribe()
-
-    try {
-      for await (const entrypoints of iter) {
-        Log.info(entrypoints)
-        for (const [pathname, route] of entrypoints.routes) {
-          switch (route.type) {
-            case 'page': {
-              Log.info(`writing ${pathname} to disk`)
-              const written = await route.htmlEndpoint.writeToDisk()
-              Log.info(written)
-              break
-            }
-            case 'page-api': {
-              Log.info(`writing ${pathname} to disk`)
-              const written = await route.endpoint.writeToDisk()
-              Log.info(written)
-              break
-            }
-            case 'app-page': {
-              Log.info(`writing ${pathname} to disk`)
-              const written = await route.rscEndpoint.writeToDisk()
-              Log.info(written)
-              break
-            }
-            case 'app-route': {
-              Log.info(`writing ${pathname} to disk`)
-              const written = await route.endpoint.writeToDisk()
-              Log.info(written)
-              break
-            }
-            default:
-              Log.info(`skipping ${pathname} (${route.type})`)
-              break
-          }
-        }
-        Log.info('iteration done')
-        await project.update({
-          projectPath: dir,
-          rootPath: dir,
-          nextConfig: config,
-          env: {
-            NEXT_PUBLIC_ENV_VAR: 'hello',
-          },
-          watch: true,
-        })
-      }
-    } catch (e) {
-      console.dir(e)
-    }
-
-    Log.error('Not supported yet')
-    process.exit(1)
-  } else if (process.env.TURBOPACK) {
+  if (process.env.TURBOPACK) {
     isTurboSession = true
 
     const { validateTurboNextConfig } =

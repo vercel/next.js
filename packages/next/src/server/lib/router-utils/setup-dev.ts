@@ -1,4 +1,5 @@
 import type { NextConfigComplete } from '../../config-shared'
+import type { Route } from '../../../build/swc'
 
 import fs from 'fs'
 import url from 'url'
@@ -64,6 +65,7 @@ import {
 
 type SetupOpts = {
   dir: string
+  turbo?: boolean
   appDir?: string
   pagesDir?: string
   telemetry: Telemetry
@@ -108,16 +110,113 @@ async function startWatcher(opts: SetupOpts) {
     appDir
   )
 
-  const hotReloader = new HotReloader(opts.dir, {
-    appDir,
-    pagesDir,
-    distDir: distDir,
-    config: opts.nextConfig,
-    buildId: 'development',
-    telemetry: opts.telemetry,
-    rewrites: opts.fsChecker.rewrites,
-    previewProps: opts.fsChecker.prerenderManifest.preview,
-  })
+  let hotReloader: InstanceType<typeof HotReloader>
+
+  if (opts.turbo) {
+    const { loadBindings } =
+      require('../../../build/swc') as typeof import('../../../build/swc')
+
+    let bindings = await loadBindings()
+
+    const project = await bindings.turbo.createProject({
+      projectPath: dir,
+      rootPath: dir,
+      nextConfig: opts.nextConfig,
+      watch: true,
+      env: process.env as Record<string, string>,
+    })
+    const iter = project.entrypointsSubscribe()
+    const curEntries: Map<string, Route> = new Map()
+
+    try {
+      async function handleEntries() {
+        for await (const entrypoints of iter) {
+          console.log('new entries')
+          curEntries.clear()
+
+          for (const [pathname, route] of entrypoints.routes) {
+            switch (route.type) {
+              case 'page': {
+                Log.info(`found entry ${pathname}`)
+                curEntries.set(pathname, route)
+                break
+              }
+              default:
+                Log.info(`skipping ${pathname} (${route.type})`)
+                break
+            }
+          }
+        }
+      }
+      handleEntries().catch((err) => {
+        console.error(err)
+        process.exit(1)
+      })
+    } catch (e) {
+      console.error(e)
+    }
+
+    hotReloader = new Proxy({} as any, {
+      get(_target, prop, _receiver) {
+        console.log('get hotReloader', prop)
+
+        if (prop === 'ensurePage') {
+          return async (
+            ensureOpts: Parameters<(typeof hotReloader)['ensurePage']>[0]
+          ) => {
+            console.log('ensurePage', ensureOpts)
+            const page = ensureOpts.page
+            const route = curEntries.get(page)
+
+            if (!route) {
+              // TODO: why is this entry missing in turbopack?
+              if (page === '/_error') return
+
+              throw new Error(`route not found ${page}`)
+            }
+            const appRoute =
+              route.type === 'app-page' || route.type === 'app-route'
+
+            if (
+              ((ensureOpts.isApp && appRoute) || !ensureOpts.isApp) &&
+              'htmlEndpoint' in route
+            ) {
+              await route.htmlEndpoint.writeToDisk()
+              console.log('ensured', route)
+            } else {
+              throw new Error(
+                `mis-matched route type ${route.type} ${ensureOpts.isApp}`
+              )
+            }
+          }
+        }
+
+        if (prop === 'run') {
+          return () => ({ finished: false })
+        }
+
+        if (prop === 'activeConfigs') {
+          return []
+        }
+        return () => {}
+      },
+      set() {
+        return true
+      },
+    })
+  } else {
+    hotReloader = new HotReloader(opts.dir, {
+      appDir,
+      pagesDir,
+      distDir: distDir,
+      config: opts.nextConfig,
+      buildId: 'development',
+      telemetry: opts.telemetry,
+      rewrites: opts.fsChecker.rewrites,
+      previewProps: opts.fsChecker.prerenderManifest.preview,
+    })
+  }
+
   const renderWorkers: {
     app?: import('../router-server').RenderWorker
     pages?: import('../router-server').RenderWorker
@@ -626,18 +725,20 @@ async function startWatcher(opts: SetupOpts) {
         ) || []
 
       const exportPathMap =
-        (await nextConfig.exportPathMap?.(
-          {},
-          {
-            dev: true,
-            dir: opts.dir,
-            outDir: null,
-            distDir: distDir,
-            buildId: 'development',
-          }
-        )) || {}
+        (typeof nextConfig.exportPathMap === 'function' &&
+          (await nextConfig.exportPathMap?.(
+            {},
+            {
+              dev: true,
+              dir: opts.dir,
+              outDir: null,
+              distDir: distDir,
+              buildId: 'development',
+            }
+          ))) ||
+        {}
 
-      for (const [key, value] of Object.entries(exportPathMap)) {
+      for (const [key, value] of Object.entries(exportPathMap || {})) {
         opts.fsChecker.interceptionRoutes.push(
           buildCustomRoute(
             'before_files_rewrite',

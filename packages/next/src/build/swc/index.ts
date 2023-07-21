@@ -400,7 +400,7 @@ interface Project {
   entrypointsSubscribe(): AsyncIterableIterator<TurbopackResult<Entrypoints>>
 }
 
-type Route =
+export type Route =
   | {
       type: 'conflict'
     }
