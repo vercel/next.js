@@ -34,6 +34,7 @@ use crate::next_config::{NextConfig, OutputType};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, TaskInput)]
 pub enum PathType {
     Page,
+    PagesAPI,
     Data,
 }
 
@@ -96,7 +97,20 @@ pub async fn foreign_code_context_condition(
     Ok(result)
 }
 
-#[derive(Default, PartialEq, Eq, Clone, Copy, Debug, TraceRawVcs, Serialize, Deserialize)]
+#[derive(
+    Default,
+    PartialEq,
+    Eq,
+    Clone,
+    Copy,
+    Debug,
+    TraceRawVcs,
+    Serialize,
+    Deserialize,
+    Hash,
+    PartialOrd,
+    Ord,
+)]
 #[serde(rename_all = "lowercase")]
 pub enum NextRuntime {
     #[default]
