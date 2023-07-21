@@ -146,6 +146,9 @@ import {
   defaultOverrides,
   experimentalOverrides,
 } from '../server/require-hook'
+import { initialize } from '../server/lib/incremental-cache-server'
+import { nodeFs } from '../server/lib/node-fs-methods'
+import { CacheHandler } from '../server/lib/incremental-cache'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -1179,7 +1182,11 @@ export default async function build(
           )
         : config.experimental.cpus || 4
 
-      function createStaticWorker(type: 'app' | 'pages') {
+      function createStaticWorker(
+        type: 'app' | 'pages',
+        ipcPort: number,
+        ipcValidationKey: string
+      ) {
         let infoPrinted = false
 
         return new Worker(staticWorkerPath, {
@@ -1217,6 +1224,8 @@ export default async function build(
           forkOptions: {
             env: {
               ...process.env,
+              __NEXT_INCREMENTAL_CACHE_IPC_PORT: ipcPort + '',
+              __NEXT_INCREMENTAL_CACHE_IPC_KEY: ipcValidationKey,
               __NEXT_PRIVATE_PREBUNDLED_REACT:
                 type === 'app'
                   ? config.experimental.serverActions
@@ -1248,9 +1257,33 @@ export default async function build(
           >
       }
 
-      const pagesStaticWorkers = createStaticWorker('pages')
+      const { ipcPort, ipcValidationKey } = await initialize({
+        fs: nodeFs,
+        dev: false,
+        appDir: isAppDirEnabled,
+        flushToDisk: config.experimental.isrFlushToDisk,
+        serverDistDir: path.join(distDir, 'server'),
+        fetchCacheKeyPrefix: config.experimental.fetchCacheKeyPrefix,
+        maxMemoryCacheSize: config.experimental.isrMemoryCacheSize,
+        getPrerenderManifest: () => ({
+          version: -1 as any, // letting us know this doesn't conform to spec
+          routes: {},
+          dynamicRoutes: {},
+          notFoundRoutes: [],
+          preview: null as any, // `preview` is special case read in next-dev-server
+        }),
+        CurCacheHandler: CacheHandler,
+        requestHeaders: {},
+        minimalMode: ciEnvironment.hasNextSupport,
+      })
+
+      const pagesStaticWorkers = createStaticWorker(
+        'pages',
+        ipcPort,
+        ipcValidationKey
+      )
       const appStaticWorkers = isAppDirEnabled
-        ? createStaticWorker('app')
+        ? createStaticWorker('app', ipcPort, ipcValidationKey)
         : undefined
 
       const analysisBegin = process.hrtime()
@@ -3181,8 +3214,12 @@ export default async function build(
         const exportApp: typeof import('../export').default =
           require('../export').default
 
-        const pagesWorker = createStaticWorker('pages')
-        const appWorker = createStaticWorker('app')
+        const pagesWorker = createStaticWorker(
+          'pages',
+          ipcPort,
+          ipcValidationKey
+        )
+        const appWorker = createStaticWorker('app', ipcPort, ipcValidationKey)
 
         const options: ExportOptions = {
           isInvokedFromCli: false,

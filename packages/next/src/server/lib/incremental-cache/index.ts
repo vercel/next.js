@@ -201,6 +201,15 @@ export class IncrementalCache {
   }
 
   async revalidateTag(tag: string) {
+    if (
+      process.env.__NEXT_INCREMENTAL_CACHE_IPC_PORT &&
+      process.env.NEXT_RUNTIME !== 'edge'
+    ) {
+      const invokeIpcMethod = require('../server-ipc/request-utils')
+        .invokeIpcMethod as typeof import('../server-ipc/request-utils').invokeIpcMethod
+      return invokeIpcMethod(undefined, 'revalidateTag', [...arguments])
+    }
+
     return this.cacheHandler?.revalidateTag?.(tag)
   }
 
@@ -328,6 +337,16 @@ export class IncrementalCache {
     fetchUrl?: string,
     fetchIdx?: number
   ): Promise<IncrementalCacheEntry | null> {
+    if (
+      process.env.__NEXT_INCREMENTAL_CACHE_IPC_PORT &&
+      process.env.NEXT_RUNTIME !== 'edge'
+    ) {
+      const invokeIpcMethod = require('../server-ipc/request-utils')
+        .invokeIpcMethod as typeof import('../server-ipc/request-utils').invokeIpcMethod
+
+      return invokeIpcMethod(undefined, 'get', [...arguments])
+    }
+
     // we don't leverage the prerender cache in dev mode
     // so that getStaticProps is always called for easier debugging
     if (
@@ -432,6 +451,16 @@ export class IncrementalCache {
     fetchUrl?: string,
     fetchIdx?: number
   ) {
+    if (
+      process.env.__NEXT_INCREMENTAL_CACHE_IPC_PORT &&
+      process.env.NEXT_RUNTIME !== 'edge'
+    ) {
+      const invokeIpcMethod = require('../server-ipc/request-utils')
+        .invokeIpcMethod as typeof import('../server-ipc/request-utils').invokeIpcMethod
+
+      return invokeIpcMethod(undefined, 'set', [...arguments])
+    }
+
     if (this.dev && !fetchCache) return
     // fetchCache has upper limit of 2MB per-entry currently
     if (fetchCache && JSON.stringify(data).length > 2 * 1024 * 1024) {

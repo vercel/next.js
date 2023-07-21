@@ -341,33 +341,6 @@ function checkRedirectValues(
   }
 }
 
-export const deserializeErr = (serializedErr: any) => {
-  if (
-    !serializedErr ||
-    typeof serializedErr !== 'object' ||
-    !serializedErr.stack
-  ) {
-    return serializedErr
-  }
-  let ErrorType: any = Error
-
-  if (serializedErr.name === 'PageNotFoundError') {
-    ErrorType = PageNotFoundError
-  }
-
-  const err = new ErrorType(serializedErr.message)
-  err.stack = serializedErr.stack
-  err.name = serializedErr.name
-  ;(err as any).digest = serializedErr.digest
-
-  if (process.env.NEXT_RUNTIME !== 'edge') {
-    const { decorateServerError } =
-      require('next/dist/compiled/@next/react-dev-overlay/dist/middleware') as typeof import('next/dist/compiled/@next/react-dev-overlay/dist/middleware')
-    decorateServerError(err, serializedErr.source || 'server')
-  }
-  return err
-}
-
 export function errorToJSON(err: Error) {
   let source: typeof COMPILER_NAMES.server | typeof COMPILER_NAMES.edgeServer =
     'server'

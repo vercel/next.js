@@ -450,6 +450,31 @@ createNextDescribe(
         }, 'success')
       })
 
+      it('should handle concurrent revalidations', async () => {
+        const browser = await next.browser('/revalidate-multiple')
+        const randomNumber = await browser.elementByCss('#random-number').text()
+        const justPutIt = await browser.elementByCss('#justputit').text()
+        const thankYouNext = await browser.elementByCss('#thankyounext').text()
+
+        await browser.elementByCss('#revalidate').click()
+
+        await check(async () => {
+          const newRandomNumber = await browser
+            .elementByCss('#random-number')
+            .text()
+          const newJustPutIt = await browser.elementByCss('#justputit').text()
+          const newThankYouNext = await browser
+            .elementByCss('#thankyounext')
+            .text()
+
+          return newRandomNumber !== randomNumber &&
+            justPutIt !== newJustPutIt &&
+            thankYouNext !== newThankYouNext
+            ? 'success'
+            : 'failure'
+        }, 'success')
+      })
+
       skipDeploy('should handle revalidateTag', async () => {
         const browser = await next.browser('/revalidate')
         const randomNumber = await browser.elementByCss('#random-number').text()

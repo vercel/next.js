@@ -60,7 +60,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     requestHeaders: IncrementalCache['requestHeaders']
   }) {
     const dev = !!this.renderOpts.dev
-    // incremental-cache is request specific with a shared
+    // incremental-cache is request specific
     // although can have shared caches in module scope
     // per-cache handler
     return new IncrementalCache({
