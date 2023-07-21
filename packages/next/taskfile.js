@@ -1801,10 +1801,7 @@ export async function copy_vendor_react(task_) {
           .replace(/__webpack_require__/g, 'globalThis.__next_require__')
 
         if (file.base === 'package.json') {
-          file.data = overridePackageName(
-            file.data,
-            `${packageSuffix}-vendored`
-          )
+          file.data = overridePackageName(file.data, packageSuffix)
         }
       })
       .target(

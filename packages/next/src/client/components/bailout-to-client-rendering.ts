@@ -1,5 +1,5 @@
 import { suspense } from '../../shared/lib/lazy-dynamic/dynamic-no-ssr'
-import { staticGenerationAsyncStorage } from './static-generation-async-storage'
+import { staticGenerationAsyncStorage } from './static-generation-async-storage.sharedlayer'
 
 export function bailoutToClientRendering(): boolean | never {
   const staticGenerationStore = staticGenerationAsyncStorage.getStore()

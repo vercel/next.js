@@ -4,7 +4,9 @@ import { spans } from './profiling-plugin'
 import isError from '../../../lib/is-error'
 import {
   nodeFileTrace,
+  resolve as nftResolve,
   NodeFileTraceReasons,
+  NodeFileTraceOptions,
 } from 'next/dist/compiled/@vercel/nft'
 import {
   CLIENT_REFERENCE_MANIFEST,
@@ -102,6 +104,17 @@ function getFilesMapFromReasons(
   return parentFilesMap
 }
 
+async function traceChunks(
+  chunksToTrace: Set<string>,
+  config: NodeFileTraceOptions
+): Promise<Map<string, Set<string>>> {
+  const result = await nodeFileTrace([...chunksToTrace], config)
+  const reasons = result.reasons
+  const fileList = result.fileList
+  result.esmFileList.forEach((esmFile) => fileList.add(esmFile))
+  return getFilesMapFromReasons(fileList, reasons)
+}
+
 export interface TurbotraceAction {
   action: 'print' | 'annotate'
   input: string[]
@@ -141,6 +154,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
   private esmExternals?: NextConfigComplete['experimental']['esmExternals']
   private turbotrace?: NextConfigComplete['experimental']['turbotrace']
   private chunksToTrace: string[] = []
+  private experimentalReact: boolean
 
   constructor({
     rootDir,
@@ -151,6 +165,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
     esmExternals,
     outputFileTracingRoot,
     turbotrace,
+    experimentalReact,
   }: {
     rootDir: string
     appDir: string | undefined
@@ -160,6 +175,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
     outputFileTracingRoot?: string
     esmExternals?: NextConfigComplete['experimental']['esmExternals']
     turbotrace?: NextConfigComplete['experimental']['turbotrace']
+    experimentalReact?: boolean
   }) {
     this.rootDir = rootDir
     this.appDir = appDir
@@ -170,6 +186,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
     this.traceIgnores = traceIgnores || []
     this.tracingRoot = outputFileTracingRoot || rootDir
     this.turbotrace = turbotrace
+    this.experimentalReact = experimentalReact === true
   }
 
   // Here we output all traced assets and webpack chunks to a
@@ -184,15 +201,138 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
     const outputPath = compilation.outputOptions.path
 
     await span.traceChild('create-trace-assets').traceAsyncFn(async () => {
+      const packageBase = require.resolve('next/package.json')
+      const vendorDir = nodePath.join(
+        packageBase,
+        '../dist/vendored/node_modules'
+      )
+
       const entryFilesMap = new Map<any, Set<string>>()
-      const chunksToTrace = new Set<string>()
 
       const isTraceable = (file: string) =>
         !NOT_TRACEABLE.some((suffix) => {
           return file.endsWith(suffix)
         })
 
+      const ignores = [...TRACE_IGNORES, ...this.traceIgnores]
+
+      const ignoreFn = (path: string) => {
+        return isMatch(path, ignores, { contains: true, dot: true })
+      }
+
+      const appRouterChunksToTrace = new Set<string>()
+      const appRouterTraceConfig: NodeFileTraceOptions = {
+        base: this.tracingRoot,
+        processCwd: this.rootDir,
+        readFile: async (path) => {
+          if (appRouterChunksToTrace.has(path)) {
+            const source =
+              assets[
+                nodePath.relative(outputPath, path).replace(/\\/g, '/')
+              ]?.source?.()
+            if (source) return source
+          }
+          try {
+            return await new Promise((resolve, reject) => {
+              ;(
+                compilation.inputFileSystem
+                  .readFile as typeof import('fs').readFile
+              )(path, (err, data) => {
+                if (err) return reject(err)
+                resolve(data)
+              })
+            })
+          } catch (e) {
+            if (isError(e) && (e.code === 'ENOENT' || e.code === 'EISDIR')) {
+              return null
+            }
+            throw e
+          }
+        },
+        resolve: async (id, parent, job, isCjs) => {
+          if (id[0] !== '.' && id[0] !== '/' && id[0] !== '\\') {
+            // We have a bare specifier and might need to resolve this to a vendored package
+            const slash = id.indexOf('/')
+            const requestBase = slash === -1 ? id : id.slice(0, slash)
+            switch (requestBase) {
+              case 'react':
+              case 'react-dom':
+              case 'react-server-dom-webpack':
+              case 'scheduler': {
+                let vendoredPath: string
+                if (id === 'react-dom') {
+                  vendoredPath = '/server-rendering-stub'
+                } else {
+                  vendoredPath = slash === -1 ? '' : id.slice(slash)
+                }
+
+                let vendoredRequest = this.experimentalReact
+                  ? requestBase + '-experimental-vendored' + vendoredPath
+                  : requestBase + '-vendored' + vendoredPath
+
+                return nftResolve(vendoredRequest, vendorDir, job, isCjs)
+              }
+              case 'server-only':
+              case 'client-only': {
+                return nftResolve(id, vendorDir, job, isCjs)
+              }
+              default:
+            }
+          }
+
+          return nftResolve(id, parent, job, isCjs)
+        },
+        readlink,
+        stat,
+        ignore: ignoreFn,
+        mixedModules: true,
+      }
+
+      const pageRouterChunksToTrace = new Set<string>()
+      const pageRouterTraceConfig: NodeFileTraceOptions = {
+        base: this.tracingRoot,
+        processCwd: this.rootDir,
+        readFile: async (path) => {
+          if (pageRouterChunksToTrace.has(path)) {
+            const source =
+              assets[
+                nodePath.relative(outputPath, path).replace(/\\/g, '/')
+              ]?.source?.()
+            if (source) return source
+          }
+          try {
+            return await new Promise((resolve, reject) => {
+              ;(
+                compilation.inputFileSystem
+                  .readFile as typeof import('fs').readFile
+              )(path, (err, data) => {
+                if (err) return reject(err)
+                resolve(data)
+              })
+            })
+          } catch (e) {
+            if (isError(e) && (e.code === 'ENOENT' || e.code === 'EISDIR')) {
+              return null
+            }
+            throw e
+          }
+        },
+        readlink,
+        stat,
+        ignore: ignoreFn,
+        mixedModules: true,
+      }
+
       for (const entrypoint of compilation.entrypoints.values()) {
+        // Tracing is cached separately for App Router vs Pages Router since the module resulotion is not identical
+        // across these two types of entrypoints.
+        const isAppRouter = entrypoint.name.startsWith('app/')
+
+        // We store all the chunks needed for tracing for just this entrypoint
+        const chunksToTrace = isAppRouter
+          ? appRouterChunksToTrace
+          : pageRouterChunksToTrace
+
         const entryFiles = new Set<string>()
 
         for (const chunk of entrypoint
@@ -223,72 +363,46 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
           !binding?.isWasm &&
           typeof binding.turbo.startTrace === 'function'
         ) {
-          this.chunksToTrace = [...chunksToTrace]
+          this.chunksToTrace = [
+            ...new Set([...appRouterChunksToTrace, ...pageRouterChunksToTrace]),
+          ]
           return
         }
       }
-      const ignores = [...TRACE_IGNORES, ...this.traceIgnores]
 
-      const ignoreFn = (path: string) => {
-        return isMatch(path, ignores, { contains: true, dot: true })
-      }
-      const result = await nodeFileTrace([...chunksToTrace], {
-        base: this.tracingRoot,
-        processCwd: this.rootDir,
-        readFile: async (path) => {
-          if (chunksToTrace.has(path)) {
-            const source =
-              assets[
-                nodePath.relative(outputPath, path).replace(/\\/g, '/')
-              ]?.source?.()
-            if (source) return source
-          }
-          try {
-            return await new Promise((resolve, reject) => {
-              ;(
-                compilation.inputFileSystem
-                  .readFile as typeof import('fs').readFile
-              )(path, (err, data) => {
-                if (err) return reject(err)
-                resolve(data)
-              })
-            })
-          } catch (e) {
-            if (isError(e) && (e.code === 'ENOENT' || e.code === 'EISDIR')) {
-              return null
-            }
-            throw e
-          }
-        },
-        readlink,
-        stat,
-        ignore: ignoreFn,
-        mixedModules: true,
-      })
-      const reasons = result.reasons
-      const fileList = result.fileList
-      result.esmFileList.forEach((file) => fileList.add(file))
+      const [appRouterParentFileMap, pageRouterParentFileMap] =
+        await Promise.all([
+          traceChunks(appRouterChunksToTrace, appRouterTraceConfig),
+          traceChunks(pageRouterChunksToTrace, pageRouterTraceConfig),
+        ])
 
-      const parentFilesMap = getFilesMapFromReasons(fileList, reasons)
-
+      // We now have a filemap for every App Router and Page Router entrypoint. We iterate through all entrypoints and their files
+      // and collect all traced dependencies now
       for (const [entrypoint, entryFiles] of entryFilesMap) {
+        const isAppRouter = entrypoint.name.startsWith('app/')
+
         const traceOutputName = `../${entrypoint.name}.js.nft.json`
         const traceOutputPath = nodePath.dirname(
           nodePath.join(outputPath, traceOutputName)
         )
         const allEntryFiles = new Set<string>()
 
+        const fileMap = isAppRouter
+          ? appRouterParentFileMap
+          : pageRouterParentFileMap
+
         entryFiles.forEach((file) => {
-          parentFilesMap
+          fileMap
             .get(nodePath.relative(this.tracingRoot, file))
             ?.forEach((child) => {
               allEntryFiles.add(nodePath.join(this.tracingRoot, child))
             })
         })
+
         // don't include the entry itself in the trace
         entryFiles.delete(nodePath.join(outputPath, `../${entrypoint.name}.js`))
 
-        if (entrypoint.name.startsWith('app/')) {
+        if (isAppRouter) {
           // include the client reference manifest
           const clientManifestsForPage =
             entrypoint.name.endsWith('/page') ||

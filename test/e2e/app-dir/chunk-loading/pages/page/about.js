@@ -3,6 +3,10 @@ import { Links } from '../../components/links'
 
 import { DynamicShared } from '../../components/DynamicShared'
 
+export function getServerSideProps() {
+  return
+}
+
 export default function About() {
   let [shouldload, load] = useReducer(() => true, false)
   return (

@@ -959,8 +959,8 @@ importers:
         specifier: 0.34.0
         version: 0.34.0
       '@vercel/nft':
-        specifier: 0.22.6
-        version: 0.22.6
+        specifier: 0.23.0
+        version: 0.23.0
       acorn:
         specifier: 8.5.0
         version: 8.5.0
@@ -5606,7 +5606,7 @@ packages:
       jest-util: 27.5.1
       jest-validate: 27.0.6
       jest-watcher: 27.0.6
-      micromatch: 4.0.5
+      micromatch: 4.0.4
       p-each-series: 2.2.0
       rimraf: 3.0.2
       slash: 3.0.0
@@ -5686,7 +5686,7 @@ packages:
       chalk: 4.1.2
       collect-v8-coverage: 1.0.1
       exit: 0.1.2
-      glob: 7.2.0
+      glob: 7.1.7
       graceful-fs: 4.2.11
       istanbul-lib-coverage: 3.2.0
       istanbul-lib-instrument: 4.0.3
@@ -5784,7 +5784,7 @@ packages:
       jest-haste-map: 27.5.1
       jest-regex-util: 27.5.1
       jest-util: 27.5.1
-      micromatch: 4.0.5
+      micromatch: 4.0.4
       pirates: 4.0.5
       slash: 3.0.0
       source-map: 0.6.1
@@ -7354,7 +7354,7 @@ packages:
       '@rollup/pluginutils': 3.1.0(rollup@2.35.1)
       commondir: 1.0.1
       estree-walker: 2.0.2
-      glob: 7.2.0
+      glob: 7.1.7
       is-reference: 1.2.1
       magic-string: 0.25.7
       resolve: 1.22.1
@@ -8706,21 +8706,21 @@ packages:
     hasBin: true
     dev: true
 
-  /@vercel/nft@0.22.6:
-    resolution: {integrity: sha512-gTsFnnT4mGxodr4AUlW3/urY+8JKKB452LwF3m477RFUJTAaDmcz2JqFuInzvdybYIeyIv1sSONEJxsxnbQ5JQ==}
+  /@vercel/nft@0.23.0:
+    resolution: {integrity: sha512-1iuPjyltiPqyZrvc/bW1CyICRdng8bVhpJT8MsIXV7Wj+mRFyJs9krsHbVy2pZwu7BMAgforQsT5TCY1JoBDxw==}
     engines: {node: '>=14'}
     hasBin: true
     dependencies:
       '@mapbox/node-pre-gyp': 1.0.5
       '@rollup/pluginutils': 4.2.1
-      acorn: 8.8.0
+      acorn: 8.8.2
       async-sema: 3.1.1
       bindings: 1.5.0
       estree-walker: 2.0.2
-      glob: 7.2.0
-      graceful-fs: 4.2.10
+      glob: 7.1.7
+      graceful-fs: 4.2.11
       micromatch: 4.0.4
-      node-gyp-build: 4.2.3
+      node-gyp-build: 4.6.0
       resolve-from: 5.0.0
     transitivePeerDependencies:
       - encoding
@@ -10215,7 +10215,7 @@ packages:
       '@npmcli/move-file': 1.0.1
       chownr: 2.0.0
       fs-minipass: 2.1.0
-      glob: 7.2.0
+      glob: 7.1.7
       infer-owner: 1.0.4
       lru-cache: 6.0.0
       minipass: 3.1.3
@@ -13844,7 +13844,7 @@ packages:
     dependencies:
       detect-file: 1.0.0
       is-glob: 4.0.3
-      micromatch: 4.0.5
+      micromatch: 4.0.4
       resolve-dir: 1.0.1
     dev: true
 
@@ -14410,6 +14410,7 @@ packages:
       minimatch: 3.1.2
       once: 1.4.0
       path-is-absolute: 1.0.1
+    dev: true
 
   /global-dirs@2.1.0:
     resolution: {integrity: sha512-MG6kdOUh/xBnyo9cJFeIKkLEc1AyFq42QTU4XiX51i2NEdxLxLWXIjEjmqKeSuKR7pAZjTqUVoT2b2huxVLgYQ==}
@@ -14968,7 +14969,7 @@ packages:
       deepmerge: 4.2.2
       eslint: 7.32.0
       espree: 7.3.1
-      glob: 7.2.0
+      glob: 7.1.7
       inquirer: 7.3.3
       json-merge-patch: 1.0.2
       minimist: 1.2.6
@@ -15356,7 +15357,7 @@ packages:
     resolution: {integrity: sha512-PO64kVeArePvhX7Ff0jVWkpnE1DfGRvaWcStYrPugcJz9twQGYibagKJuIMHCX7ENcp0M6LJlcjLBuLD5KeJMg==}
     engines: {node: '>=10'}
     dependencies:
-      glob: 7.2.0
+      glob: 7.1.7
       npm-package-arg: 8.1.0
       promzard: 0.3.0
       read: 1.0.7
@@ -16229,7 +16230,7 @@ packages:
       babel-jest: 27.0.6(@babel/core@7.18.0)
       chalk: 4.1.2
       deepmerge: 4.2.2
-      glob: 7.2.0
+      glob: 7.1.7
       graceful-fs: 4.2.11
       is-ci: 3.0.0
       jest-circus: 27.5.1
@@ -16242,7 +16243,7 @@ packages:
       jest-runner: 27.0.6
       jest-util: 27.5.1
       jest-validate: 27.5.1
-      micromatch: 4.0.5
+      micromatch: 4.0.4
       pretty-format: 27.5.1
     transitivePeerDependencies:
       - bufferutil
@@ -16377,7 +16378,7 @@ packages:
       jest-serializer: 27.5.1
       jest-util: 27.5.1
       jest-worker: 27.5.1
-      micromatch: 4.0.5
+      micromatch: 4.0.4
       walker: 1.0.8
     optionalDependencies:
       fsevents: 2.3.2
@@ -16395,7 +16396,7 @@ packages:
       jest-regex-util: 29.4.3
       jest-util: 29.5.0
       jest-worker: 29.5.0
-      micromatch: 4.0.5
+      micromatch: 4.0.4
       walker: 1.0.8
     optionalDependencies:
       fsevents: 2.3.2
@@ -16499,7 +16500,7 @@ packages:
       '@types/stack-utils': 2.0.1
       chalk: 4.1.2
       graceful-fs: 4.2.11
-      micromatch: 4.0.5
+      micromatch: 4.0.4
       pretty-format: 26.6.2
       slash: 3.0.0
       stack-utils: 2.0.6
@@ -16514,7 +16515,7 @@ packages:
       '@types/stack-utils': 2.0.1
       chalk: 4.1.2
       graceful-fs: 4.2.11
-      micromatch: 4.0.5
+      micromatch: 4.0.4
       pretty-format: 27.5.1
       slash: 3.0.0
       stack-utils: 2.0.5
@@ -16528,7 +16529,7 @@ packages:
       '@types/stack-utils': 2.0.1
       chalk: 4.1.2
       graceful-fs: 4.2.11
-      micromatch: 4.0.5
+      micromatch: 4.0.4
       pretty-format: 29.5.0
       slash: 3.0.0
       stack-utils: 2.0.6
@@ -16683,7 +16684,7 @@ packages:
       cjs-module-lexer: 1.2.2
       collect-v8-coverage: 1.0.1
       exit: 0.1.2
-      glob: 7.2.0
+      glob: 7.1.7
       graceful-fs: 4.2.11
       jest-haste-map: 27.5.1
       jest-message-util: 27.5.1
@@ -16715,7 +16716,7 @@ packages:
       cjs-module-lexer: 1.2.2
       collect-v8-coverage: 1.0.1
       execa: 5.0.0
-      glob: 7.2.0
+      glob: 7.1.7
       graceful-fs: 4.2.11
       jest-haste-map: 27.5.1
       jest-message-util: 27.5.1
@@ -18635,7 +18636,6 @@ packages:
     dependencies:
       braces: 3.0.2
       picomatch: 2.2.3
-    dev: true
 
   /micromatch@4.0.5:
     resolution: {integrity: sha512-DMy+ERcEW2q8Z2Po+WNXuw3c5YaUSFjAO5GsJqfEl7UjvtIuFKO6ZrKvcItdy98dwFI2N1tg3zNIdKaQT+aNdA==}
@@ -19138,11 +19138,6 @@ packages:
     hasBin: true
     dev: true
 
-  /node-gyp-build@4.2.3:
-    resolution: {integrity: sha512-MN6ZpzmfNCRM+3t57PTJHgHyw/h4OWnZ6mR8P5j/uZtqQr46RRuDE/P+g3n0YR/AiYXeWixZZzaip77gdICfRg==}
-    hasBin: true
-    dev: true
-
   /node-gyp-build@4.6.0:
     resolution: {integrity: sha512-NTZVKn9IylLwUzaKjkas1e4u2DLNcV4rdYagA4PWdPwW87Bi7z+BznyKSRwS/761tV/lzCGXplWsiaMjLqP2zQ==}
     hasBin: true
@@ -19154,7 +19149,7 @@ packages:
     hasBin: true
     dependencies:
       env-paths: 2.2.1
-      glob: 7.2.0
+      glob: 7.1.7
       graceful-fs: 4.2.11
       mkdirp: 0.5.5
       nopt: 4.0.3
@@ -19172,7 +19167,7 @@ packages:
     hasBin: true
     dependencies:
       env-paths: 2.2.1
-      glob: 7.2.0
+      glob: 7.1.7
       graceful-fs: 4.2.11
       nopt: 5.0.0
       npmlog: 4.1.2
@@ -19336,7 +19331,7 @@ packages:
     engines: {node: '>=10'}
     hasBin: true
     dependencies:
-      glob: 7.2.0
+      glob: 7.1.7
       ignore-walk: 3.0.4
       npm-bundled: 1.1.2
       npm-normalize-package-bin: 1.0.1
@@ -20289,7 +20284,6 @@ packages:
   /picomatch@2.2.3:
     resolution: {integrity: sha512-KpELjfwcCDUb9PeigTs2mBJzXUPzAuP2oPcA989He8Rte0+YUAjw1JVedDhuTKPkHjSYzMN3npC9luThGYEKdg==}
     engines: {node: '>=8.6'}
-    dev: true
 
   /picomatch@2.3.1:
     resolution: {integrity: sha512-JU3teHTNjmE2VCGFzuY8EXzCDVwEqB2a8fsIvwaStHhAWJEeVd1o1QD80CU6+ZdEXXSLbSsuLwJjkCBWqRQUVA==}
@@ -20689,7 +20683,7 @@ packages:
   /postcss-functions@3.0.0:
     resolution: {integrity: sha1-DpTQFERwCkgd4g3k1V+yZAVkJQ4=}
     dependencies:
-      glob: 7.2.0
+      glob: 7.1.7
       object-assign: 4.1.1
       postcss: 6.0.23
       postcss-value-parser: 3.3.1
@@ -22014,7 +22008,7 @@ packages:
     engines: {node: '>=4.4.0', npm: '>=5.2.0'}
     hasBin: true
     dependencies:
-      glob: 7.2.0
+      glob: 7.1.7
       postcss: 7.0.32
       postcss-selector-parser: 6.0.11
       yargs: 14.2.2
@@ -22337,7 +22331,7 @@ packages:
   /read-package-json@2.1.1:
     resolution: {integrity: sha512-dAiqGtVc/q5doFz6096CcnXhpYk0ZN8dEKVkGLU0CsASt8SrgF6SF7OTKAYubfvFhWaqofl+Y8HK19GR8jwW+A==}
     dependencies:
-      glob: 7.2.0
+      glob: 7.1.7
       json-parse-better-errors: 1.0.2
       normalize-package-data: 2.5.0
       npm-normalize-package-bin: 1.0.1
@@ -22349,7 +22343,7 @@ packages:
     resolution: {integrity: sha512-4TnJZ5fnDs+/3deg1AuMExL4R1SFNRLQeOhV9c8oDKm3eoG6u8xU0r0mNNRJHi3K6B+jXmT7JOhwhAklWw9SSQ==}
     engines: {node: '>=10'}
     dependencies:
-      glob: 7.2.0
+      glob: 7.1.7
       json-parse-even-better-errors: 2.3.1
       normalize-package-data: 3.0.0
       npm-normalize-package-bin: 1.0.1
@@ -23074,21 +23068,21 @@ packages:
     resolution: {integrity: sha512-mwqeW5XsA2qAejG46gYdENaxXjx9onRNCfn7L0duuP4hCuTIi/QO7PDK07KJfp1d+izWPrzEJDcSqBa0OZQriA==}
     hasBin: true
     dependencies:
-      glob: 7.2.0
+      glob: 7.1.7
     dev: false
 
   /rimraf@2.7.1:
     resolution: {integrity: sha512-uWjbaKIK3T1OSVptzX7Nl6PvQ3qAGtKEtVRjRuazjfL3Bx5eI409VZSqgND+4UNnmzLVdPj9FqFJNPqBZFve4w==}
     hasBin: true
     dependencies:
-      glob: 7.2.0
+      glob: 7.1.7
     dev: true
 
   /rimraf@3.0.2:
     resolution: {integrity: sha512-JZkJMZkAGFFPP2YqXZXPbMlMBgsxzE8ILs4lMIX/2o0L9UBw9O/Y3o6wFw/i9YLapcUJWwqbi3kdxIPdC62TIA==}
     hasBin: true
     dependencies:
-      glob: 7.2.0
+      glob: 7.1.7
 
   /ripemd160@2.0.2:
     resolution: {integrity: sha512-ii4iagi25WusVoiC4B4lq7pbXfAp3D9v5CwfkY33vffw2+pkDjY1D8GaN7spsxvCSx8dkPqOZCEZyfxcmJG2IA==}
@@ -23585,7 +23579,7 @@ packages:
     engines: {node: '>=4'}
     hasBin: true
     dependencies:
-      glob: 7.2.0
+      glob: 7.1.7
       interpret: 1.4.0
       rechoir: 0.6.2
     dev: true
@@ -24721,7 +24715,7 @@ packages:
     engines: {node: '>=8'}
     dependencies:
       '@istanbuljs/schema': 0.1.2
-      glob: 7.2.0
+      glob: 7.1.7
       minimatch: 3.1.2
 
   /text-extensions@1.9.0:
@@ -25317,7 +25311,7 @@ packages:
       debug: 4.3.4
       fault: 1.0.4
       figures: 3.1.0
-      glob: 7.2.0
+      glob: 7.1.7
       ignore: 5.2.4
       is-buffer: 2.0.4
       is-empty: 1.2.0
@@ -26039,7 +26033,7 @@ packages:
     dev: true
 
   /whatwg-url@5.0.0:
-    resolution: {integrity: sha1-lmRU6HZUYuN2RNNib2dCzotwll0=}
+    resolution: {integrity: sha512-saE57nupxk6v3HY35+jzBwYa0rKSy0XR8JSxZPwgLr7ys0IBzhGviA1/TUGJLmSVqs8pb9AnvICXEuOHLprYTw==}
     dependencies:
       tr46: 0.0.3
       webidl-conversions: 3.0.1
