@@ -182,7 +182,7 @@ Then, on the client:
 
 On subsequent navigations or during prefetching, Next.js will check if the React Payload is stored in Router Cache. If so, it will skip sending a new request to the server.
 
-If the route segments are not cached, Next.js will fetch the render output from the Render Cache on the server, and populate the Router Cache on the client.
+If the route segments are not in the cache, Next.js will fetch the React Server Components Payload from the server, and populate the Router Cache on the client.
 
 #### Duration
 
