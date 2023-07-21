@@ -157,7 +157,7 @@ createNextDescribe(
       ).toBe(1)
     })
 
-    it('should fetch again when a static page was prefetched when navigating to different `Next-Url`', async () => {
+    it('`_rsc` is calculated based on `Next-Url`', async () => {
       const browser = await next.browser('/404', browserConfigWithFixedTime)
       let staticPageRequests: string[] = []
 
@@ -188,7 +188,6 @@ createNextDescribe(
           : JSON.stringify(staticPageRequests)
       }, 'success')
 
-      console.log('requests', staticPageRequests)
       expect(staticPageRequests[0]).toMatch('/static-page?_rsc=')
       expect(staticPageRequests[1]).toMatch('/static-page?_rsc=')
       // `_rsc` does not match because it depends on the `Next-Url`
