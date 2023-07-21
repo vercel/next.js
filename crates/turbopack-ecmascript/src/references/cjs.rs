@@ -7,8 +7,8 @@ use turbo_tasks::{Value, ValueToString, Vc};
 use turbopack_core::{
     chunk::ChunkableModuleReference,
     issue::{IssueSource, OptionIssueSource},
-    reference::AssetReference,
-    resolve::{origin::ResolveOrigin, parse::Request, ResolveResult},
+    reference::ModuleReference,
+    resolve::{origin::ResolveOrigin, parse::Request, ModuleResolveResult},
 };
 
 use super::pattern_mapping::{PatternMapping, ResolveType::Cjs};
@@ -48,9 +48,9 @@ impl CjsAssetReference {
 }
 
 #[turbo_tasks::value_impl]
-impl AssetReference for CjsAssetReference {
+impl ModuleReference for CjsAssetReference {
     #[turbo_tasks::function]
-    fn resolve_reference(&self) -> Vc<ResolveResult> {
+    fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
         cjs_resolve(
             self.origin,
             self.request,
@@ -105,9 +105,9 @@ impl CjsRequireAssetReference {
 }
 
 #[turbo_tasks::value_impl]
-impl AssetReference for CjsRequireAssetReference {
+impl ModuleReference for CjsRequireAssetReference {
     #[turbo_tasks::function]
-    fn resolve_reference(&self) -> Vc<ResolveResult> {
+    fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
         cjs_resolve(
             self.origin,
             self.request,
@@ -229,9 +229,9 @@ impl CjsRequireResolveAssetReference {
 }
 
 #[turbo_tasks::value_impl]
-impl AssetReference for CjsRequireResolveAssetReference {
+impl ModuleReference for CjsRequireResolveAssetReference {
     #[turbo_tasks::function]
-    fn resolve_reference(&self) -> Vc<ResolveResult> {
+    fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
         cjs_resolve(
             self.origin,
             self.request,

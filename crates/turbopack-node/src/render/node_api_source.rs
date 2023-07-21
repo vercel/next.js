@@ -5,7 +5,8 @@ use turbo_tasks::{Value, Vc};
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::introspect::{
-    asset::IntrospectableAsset, Introspectable, IntrospectableChildren,
+    module::IntrospectableModule, output_asset::IntrospectableOutputAsset, Introspectable,
+    IntrospectableChildren,
 };
 use turbopack_dev_server::source::{
     route_tree::{BaseSegment, RouteTree, RouteType},
@@ -187,15 +188,15 @@ impl Introspectable for NodeApiContentSource {
             let entry = entry.await?;
             set.insert((
                 Vc::cell("module".to_string()),
-                IntrospectableAsset::new(Vc::upcast(entry.module)),
+                IntrospectableModule::new(Vc::upcast(entry.module)),
             ));
             set.insert((
                 Vc::cell("intermediate asset".to_string()),
-                IntrospectableAsset::new(Vc::upcast(get_intermediate_asset(
+                IntrospectableOutputAsset::new(get_intermediate_asset(
                     entry.chunking_context,
                     entry.module,
                     entry.runtime_entries,
-                ))),
+                )),
             ));
         }
         Ok(Vc::cell(set))

@@ -10,7 +10,7 @@ use turbopack_core::{
     file_source::FileSource,
     ident::AssetIdent,
     issue::{Issue, IssueExt, IssueSeverity, OptionIssueSource},
-    reference::AssetReference,
+    reference::ModuleReference,
     reference_type::{ReferenceType, TypeScriptReferenceSubType},
     resolve::{
         handle_resolve_error,
@@ -22,9 +22,9 @@ use turbopack_core::{
         origin::{ResolveOrigin, ResolveOriginExt},
         parse::Request,
         pattern::{Pattern, QueryMap},
-        resolve, AliasPattern, ResolveResult,
+        resolve, AliasPattern, ModuleResolveResult,
     },
-    source::{option_asset_to_source, OptionSource, Source},
+    source::{OptionSource, Source},
 };
 #[turbo_tasks::value(shared)]
 pub struct TsConfigIssue {
@@ -135,16 +135,16 @@ async fn resolve_extends(
         // An empty extends is treated as "./tsconfig"
         Request::Empty => {
             let request = Request::parse_string("./tsconfig".to_string());
-            Ok(option_asset_to_source(resolve(context, request, resolve_options).first_asset()))
+            Ok(resolve(context, request, resolve_options).first_source())
         }
 
         // All other types are treated as module imports, and potentially joined with
         // "tsconfig.json". This includes "relative" imports like '.' and '..'.
         _ => {
-            let mut result = option_asset_to_source(resolve(context, request, resolve_options).first_asset());
+            let mut result = resolve(context, request, resolve_options).first_source();
             if result.await?.is_none() {
                 let request = Request::parse_string(format!("{extends}/tsconfig"));
-                result = option_asset_to_source(resolve(context, request, resolve_options).first_asset());
+                result = resolve(context, request, resolve_options).first_source();
             }
             Ok(result)
         }
@@ -157,15 +157,14 @@ async fn resolve_extends_rooted_or_relative(
     resolve_options: Vc<ResolveOptions>,
     path: &str,
 ) -> Result<Vc<OptionSource>> {
-    let mut result =
-        option_asset_to_source(resolve(context, request, resolve_options).first_asset());
+    let mut result = resolve(context, request, resolve_options).first_source();
 
     // If the file doesn't end with ".json" and we can't find the file, then we have
     // to try again with it.
     // https://github.com/microsoft/TypeScript/blob/611a912d/src/compiler/commandLineParser.ts#L3305
     if !path.ends_with(".json") && result.await?.is_none() {
         let request = Request::parse_string(format!("{path}.json"));
-        result = option_asset_to_source(resolve(context, request, resolve_options).first_asset());
+        result = resolve(context, request, resolve_options).first_source();
     }
     Ok(result)
 }
@@ -327,7 +326,7 @@ pub async fn apply_tsconfig_resolve_options(
 pub async fn type_resolve(
     origin: Vc<Box<dyn ResolveOrigin>>,
     request: Vc<Request>,
-) -> Result<Vc<ResolveResult>> {
+) -> Result<Vc<ModuleResolveResult>> {
     let ty = Value::new(ReferenceType::TypeScript(
         TypeScriptReferenceSubType::Undefined,
     ));
@@ -357,9 +356,10 @@ pub async fn type_resolve(
     let result = if let Some(types_request) = types_request {
         let result1 = resolve(context_path, request, options);
         if !*result1.is_unresolveable().await? {
-            return Ok(result1);
+            result1
+        } else {
+            resolve(context_path, types_request, options)
         }
-        resolve(context_path, types_request, options)
     } else {
         resolve(context_path, request, options)
     };
@@ -383,9 +383,9 @@ pub struct TypescriptTypesAssetReference {
 }
 
 #[turbo_tasks::value_impl]
-impl AssetReference for TypescriptTypesAssetReference {
+impl ModuleReference for TypescriptTypesAssetReference {
     #[turbo_tasks::function]
-    fn resolve_reference(&self) -> Vc<ResolveResult> {
+    fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
         type_resolve(self.origin, self.request)
     }
 }

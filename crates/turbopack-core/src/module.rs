@@ -1,11 +1,7 @@
-use anyhow::{bail, Result};
 use indexmap::IndexSet;
 use turbo_tasks::Vc;
 
-use crate::{
-    asset::Asset, ident::AssetIdent, raw_module::RawModule, reference::AssetReferences,
-    source::Source,
-};
+use crate::{asset::Asset, ident::AssetIdent, reference::ModuleReferences};
 
 /// A module. This usually represents parsed source code, which has references
 /// to other modules.
@@ -15,10 +11,10 @@ pub trait Module: Asset {
     /// all properties of the [Module].
     fn ident(&self) -> Vc<AssetIdent>;
 
-    /// Other things (most likely [Asset]s) referenced from this [Module].
-    // TODO refactor this to ensure that only [Module]s can be referenced
-    fn references(self: Vc<Self>) -> Vc<AssetReferences> {
-        AssetReferences::empty()
+    /// Other [Module]s or [OutputAsset]s referenced from this [Module].
+    // TODO refactor to avoid returning [OutputAsset]s here
+    fn references(self: Vc<Self>) -> Vc<ModuleReferences> {
+        ModuleReferences::empty()
     }
 }
 
@@ -45,22 +41,6 @@ impl ModulesSet {
     #[turbo_tasks::function]
     pub fn empty() -> Vc<Self> {
         Vc::cell(IndexSet::new())
-    }
-}
-
-/// This is a temporary function that should be removed once the [Module]
-/// trait completely replaces the [Asset] trait.
-/// It converts an [Asset] into a [Module], but either casting it or wrapping it
-/// in a [RawModule].
-// TODO make this function unnecessary, it should never be a Source
-#[turbo_tasks::function]
-pub async fn convert_asset_to_module(asset: Vc<Box<dyn Asset>>) -> Result<Vc<Box<dyn Module>>> {
-    if let Some(module) = Vc::try_resolve_downcast::<Box<dyn Module>>(asset).await? {
-        Ok(module)
-    } else if let Some(source) = Vc::try_resolve_downcast::<Box<dyn Source>>(asset).await? {
-        Ok(Vc::upcast(RawModule::new(source)))
-    } else {
-        bail!("Asset must be a Module or a Source")
     }
 }
 

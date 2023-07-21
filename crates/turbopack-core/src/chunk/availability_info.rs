@@ -1,6 +1,6 @@
 use turbo_tasks::Vc;
 
-use super::available_assets::AvailableAssets;
+use super::available_modules::AvailableAssets;
 use crate::module::Module;
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
@@ -11,7 +11,7 @@ pub enum AvailabilityInfo {
         current_availability_root: Vc<Box<dyn Module>>,
     },
     Inner {
-        available_assets: Vc<AvailableAssets>,
+        available_modules: Vc<AvailableAssets>,
         current_availability_root: Vc<Box<dyn Module>>,
     },
 }
@@ -30,13 +30,13 @@ impl AvailabilityInfo {
         }
     }
 
-    pub fn available_assets(&self) -> Option<Vc<AvailableAssets>> {
+    pub fn available_modules(&self) -> Option<Vc<AvailableAssets>> {
         match self {
             Self::Untracked => None,
             Self::Root { .. } => None,
             Self::Inner {
-                available_assets, ..
-            } => Some(*available_assets),
+                available_modules, ..
+            } => Some(*available_modules),
         }
     }
 }

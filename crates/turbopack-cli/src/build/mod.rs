@@ -211,18 +211,17 @@ async fn build_internal(
         .map(|request_vc| async move {
             let ty = Value::new(ReferenceType::Entry(EntryReferenceSubType::Undefined));
             let request = request_vc.await?;
-            Ok(*origin
+            origin
                 .resolve_asset(request_vc, origin.resolve_options(ty.clone()), ty)
-                .primary_assets()
+                .first_module()
                 .await?
-                .first()
                 .with_context(|| {
                     format!(
                         "Unable to resolve entry {} from directory {}.",
                         request.request().unwrap(),
                         project_dir
                     )
-                })?)
+                })
         })
         .try_join()
         .await?;

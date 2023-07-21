@@ -8,9 +8,9 @@ use turbopack_core::{
     chunk::{ChunkableModuleReference, ChunkingType, ChunkingTypeOption},
     environment::Rendering,
     issue::{code_gen::CodeGenerationIssue, IssueExt, IssueSeverity, IssueSource},
-    reference::AssetReference,
+    reference::ModuleReference,
     reference_type::UrlReferenceSubType,
-    resolve::{origin::ResolveOrigin, parse::Request, ResolveResult},
+    resolve::{origin::ResolveOrigin, parse::Request, ModuleResolveResult},
 };
 
 use super::base::ReferencedAsset;
@@ -71,9 +71,9 @@ impl UrlAssetReference {
 }
 
 #[turbo_tasks::value_impl]
-impl AssetReference for UrlAssetReference {
+impl ModuleReference for UrlAssetReference {
     #[turbo_tasks::function]
-    async fn resolve_reference(&self) -> Vc<ResolveResult> {
+    async fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
         url_resolve(
             self.origin,
             self.request,

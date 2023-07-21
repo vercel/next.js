@@ -4,7 +4,7 @@ use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemPath};
 use turbopack_core::{
     asset::Asset,
     file_source::FileSource,
-    introspect::{asset::IntrospectableAsset, Introspectable, IntrospectableChildren},
+    introspect::{source::IntrospectableSource, Introspectable, IntrospectableChildren},
     version::VersionedContentExt,
 };
 
@@ -121,7 +121,7 @@ impl Introspectable for StaticAssetsContentSource {
             .map(|(name, entry)| {
                 let child = match entry {
                     DirectoryEntry::File(path) | DirectoryEntry::Symlink(path) => {
-                        IntrospectableAsset::new(Vc::upcast(FileSource::new(*path)))
+                        IntrospectableSource::new(Vc::upcast(FileSource::new(*path)))
                     }
                     DirectoryEntry::Directory(path) => {
                         Vc::upcast(StaticAssetsContentSource::with_prefix(

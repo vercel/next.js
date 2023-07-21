@@ -5,7 +5,7 @@ use turbopack_core::{
     chunk::{ChunkData, ChunkItem, ChunkingContext, ChunksData},
     ident::AssetIdent,
     module::Module,
-    reference::{AssetReferences, SingleAssetReference},
+    reference::{ModuleReferences, SingleOutputAssetReference},
 };
 
 use super::chunk_asset::ManifestChunkAsset;
@@ -77,7 +77,7 @@ impl ChunkItem for ManifestChunkItem {
     }
 
     #[turbo_tasks::function]
-    async fn references(self: Vc<Self>) -> Result<Vc<AssetReferences>> {
+    async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
         let this = self.await?;
         let mut references = this.manifest.references().await?.clone_value();
 
@@ -85,7 +85,7 @@ impl ChunkItem for ManifestChunkItem {
 
         for chunk_data in &*self.chunks_data().await? {
             references.extend(chunk_data.references().await?.iter().map(|&output_asset| {
-                Vc::upcast(SingleAssetReference::new(Vc::upcast(output_asset), key))
+                Vc::upcast(SingleOutputAssetReference::new(output_asset, key))
             }));
         }
 

@@ -6,7 +6,7 @@ use turbo_tasks::{trace::TraceRawVcs, Upcast, Value, ValueToString, Vc};
 use turbo_tasks_fs::rope::Rope;
 use turbopack_core::{
     chunk::{
-        availability_info::AvailabilityInfo, available_assets::AvailableAssets, ChunkItem,
+        availability_info::AvailabilityInfo, available_modules::AvailableAssets, ChunkItem,
         ChunkableModule, ChunkingContext, FromChunkableModule, ModuleId,
     },
     code_builder::{Code, CodeBuilder},
@@ -273,14 +273,14 @@ impl FromChunkableModule for Box<dyn EcmascriptChunkItem> {
             AvailabilityInfo::Root {
                 current_availability_root,
             } => AvailabilityInfo::Inner {
-                available_assets: AvailableAssets::new(vec![current_availability_root]),
+                available_modules: AvailableAssets::new(vec![current_availability_root]),
                 current_availability_root: Vc::upcast(module),
             },
             AvailabilityInfo::Inner {
-                available_assets,
+                available_modules,
                 current_availability_root,
             } => AvailabilityInfo::Inner {
-                available_assets: available_assets.with_roots(vec![current_availability_root]),
+                available_modules: available_modules.with_roots(vec![current_availability_root]),
                 current_availability_root: Vc::upcast(module),
             },
         };

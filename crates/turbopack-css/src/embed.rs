@@ -15,7 +15,7 @@ pub trait CssEmbeddable: ChunkableModule + Module + Asset {
 #[turbo_tasks::value_trait]
 pub trait CssEmbed {
     /// A [CssEmbed] can describe different `references` than its original
-    /// [Asset].
+    /// [Module].
     /// TODO(alexkirsz) This should have a default impl that returns empty
     /// references.
     fn references(self: Vc<Self>) -> Vc<OutputAssets>;

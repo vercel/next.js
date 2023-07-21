@@ -8,7 +8,7 @@ use swc_core::{
 };
 use turbo_tasks::{Value, Vc};
 use turbopack_core::{
-    reference::{AssetReference, AssetReferences},
+    reference::{ModuleReference, ModuleReferences},
     source::Source,
 };
 use turbopack_swc_utils::emitter::IssueEmitter;
@@ -24,7 +24,7 @@ pub async fn module_references(
     source: Vc<Box<dyn Source>>,
     runtime: Vc<WebpackRuntime>,
     transforms: Vc<EcmascriptInputTransforms>,
-) -> Result<Vc<AssetReferences>> {
+) -> Result<Vc<ModuleReferences>> {
     let parsed = parse(
         source,
         Value::new(EcmascriptModuleAssetType::Ecmascript),
@@ -38,7 +38,7 @@ pub async fn module_references(
             ..
         } => {
             let mut references = Vec::new();
-            let mut visitor = AssetReferencesVisitor {
+            let mut visitor = ModuleReferencesVisitor {
                 references: &mut references,
                 runtime,
                 transforms,
@@ -61,13 +61,13 @@ pub async fn module_references(
     }
 }
 
-struct AssetReferencesVisitor<'a> {
+struct ModuleReferencesVisitor<'a> {
     runtime: Vc<WebpackRuntime>,
-    references: &'a mut Vec<Vc<Box<dyn AssetReference>>>,
+    references: &'a mut Vec<Vc<Box<dyn ModuleReference>>>,
     transforms: Vc<EcmascriptInputTransforms>,
 }
 
-impl<'a> Visit for AssetReferencesVisitor<'a> {
+impl<'a> Visit for ModuleReferencesVisitor<'a> {
     fn visit_call_expr(&mut self, call: &CallExpr) {
         if let Some(member) = call.callee.as_expr().and_then(|e| e.as_member()) {
             if let (Some(obj), Some(prop)) = (member.obj.as_ident(), member.prop.as_ident()) {

@@ -5,7 +5,7 @@ use turbopack_core::chunk::availability_info::AvailabilityInfo;
 
 use crate::chunk::EcmascriptChunkingContext;
 
-/// impl of code generation inferred from a AssetReference.
+/// impl of code generation inferred from a ModuleReference.
 /// This is rust only and can't be implemented by non-rust plugins.
 #[turbo_tasks::value(
     shared,

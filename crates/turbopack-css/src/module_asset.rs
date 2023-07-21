@@ -18,7 +18,7 @@ use turbopack_core::{
     ident::AssetIdent,
     issue::{Issue, IssueExt, IssueSeverity},
     module::Module,
-    reference::{AssetReference, AssetReferences},
+    reference::{ModuleReference, ModuleReferences},
     reference_type::{CssReferenceSubType, ReferenceType},
     resolve::{origin::ResolveOrigin, parse::Request},
     source::Source,
@@ -68,7 +68,7 @@ impl Module for ModuleCssAsset {
     }
 
     #[turbo_tasks::function]
-    async fn references(self: Vc<Self>) -> Result<Vc<AssetReferences>> {
+    async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
         // The inner reference must come first so it is processed before other potential
         // references inside of the CSS, like `@import` and `composes:`.
         // This affects the order in which the resulting CSS chunks will be loaded:
@@ -187,7 +187,7 @@ impl ModuleCssAsset {
     }
 
     #[turbo_tasks::function]
-    async fn module_references(self: Vc<Self>) -> Result<Vc<AssetReferences>> {
+    async fn module_references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
         let mut references = vec![];
 
         for (_, class_names) in &*self.classes().await? {
@@ -270,7 +270,7 @@ impl ChunkItem for ModuleChunkItem {
     }
 
     #[turbo_tasks::function]
-    fn references(&self) -> Vc<AssetReferences> {
+    fn references(&self) -> Vc<ModuleReferences> {
         self.module.references()
     }
 }
@@ -296,7 +296,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
                         original: original_name,
                         from,
                     } => {
-                        let resolved_module = from.resolve_reference().first_asset().await?;
+                        let resolved_module = from.resolve_reference().first_module().await?;
 
                         let Some(resolved_module) = &*resolved_module else {
                             CssModuleComposesIssue {

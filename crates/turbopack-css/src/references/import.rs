@@ -13,9 +13,9 @@ use turbo_tasks::{Value, ValueToString, Vc};
 use turbopack_core::{
     chunk::{ChunkableModuleReference, ChunkingContext},
     issue::{IssueSource, OptionIssueSource},
-    reference::AssetReference,
+    reference::ModuleReference,
     reference_type::CssReferenceSubType,
-    resolve::{origin::ResolveOrigin, parse::Request, ResolveResult},
+    resolve::{origin::ResolveOrigin, parse::Request, ModuleResolveResult},
 };
 
 use crate::{
@@ -211,9 +211,9 @@ impl ImportAssetReference {
 }
 
 #[turbo_tasks::value_impl]
-impl AssetReference for ImportAssetReference {
+impl ModuleReference for ImportAssetReference {
     #[turbo_tasks::function]
-    fn resolve_reference(&self) -> Vc<ResolveResult> {
+    fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
         css_resolve(
             self.origin,
             self.request,

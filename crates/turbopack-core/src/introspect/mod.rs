@@ -1,4 +1,7 @@
-pub mod asset;
+pub mod module;
+pub mod output_asset;
+pub mod source;
+pub mod utils;
 
 use indexmap::IndexSet;
 use turbo_tasks::Vc;

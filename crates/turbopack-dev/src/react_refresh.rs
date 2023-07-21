@@ -49,7 +49,8 @@ pub async fn assert_can_resolve_react_refresh(
     let resolve_options =
         apply_cjs_specific_options(turbopack::resolve_options(path, resolve_options_context));
     for request in [react_refresh_request_in_next(), react_refresh_request()] {
-        let result = turbopack_core::resolve::resolve(path, request, resolve_options).first_asset();
+        let result =
+            turbopack_core::resolve::resolve(path, request, resolve_options).first_source();
 
         if result.await?.is_some() {
             return Ok(ResolveReactRefreshResult::Found(request).cell());

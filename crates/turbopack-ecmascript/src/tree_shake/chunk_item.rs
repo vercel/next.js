@@ -4,7 +4,7 @@ use turbopack_core::{
     chunk::{availability_info::AvailabilityInfo, ChunkItem},
     ident::AssetIdent,
     module::Module,
-    reference::AssetReferences,
+    reference::ModuleReferences,
 };
 
 use super::{asset::EcmascriptModulePartAsset, part_of_module, split_module};
@@ -78,7 +78,7 @@ impl EcmascriptChunkItem for EcmascriptModulePartChunkItem {
 #[turbo_tasks::value_impl]
 impl ChunkItem for EcmascriptModulePartChunkItem {
     #[turbo_tasks::function]
-    async fn references(&self) -> Vc<AssetReferences> {
+    async fn references(&self) -> Vc<ModuleReferences> {
         self.module.references()
     }
 

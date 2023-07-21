@@ -6,7 +6,7 @@ use turbopack_core::{
         availability_info::AvailabilityInfo, chunk_content, chunk_content_split, Chunk,
         ChunkContentResult,
     },
-    reference::AssetReference,
+    reference::ModuleReference,
 };
 
 use super::{
@@ -19,7 +19,7 @@ use super::{
 pub struct EcmascriptChunkContent {
     pub chunk_items: Vec<Vc<Box<dyn EcmascriptChunkItem>>>,
     pub chunks: Vec<Vc<Box<dyn Chunk>>>,
-    pub external_asset_references: Vec<Vc<Box<dyn AssetReference>>>,
+    pub external_module_references: Vec<Vc<Box<dyn ModuleReference>>>,
     pub availability_info: AvailabilityInfo,
 }
 
@@ -28,7 +28,7 @@ impl From<ChunkContentResult<Vc<Box<dyn EcmascriptChunkItem>>>> for EcmascriptCh
         EcmascriptChunkContent {
             chunk_items: from.chunk_items,
             chunks: from.chunks,
-            external_asset_references: from.external_asset_references,
+            external_module_references: from.external_module_references,
             availability_info: from.availability_info,
         }
     }
@@ -81,24 +81,24 @@ async fn ecmascript_chunk_content_internal(
 
     let mut all_chunk_items = IndexSet::<Vc<Box<dyn EcmascriptChunkItem>>>::new();
     let mut all_chunks = IndexSet::<Vc<Box<dyn Chunk>>>::new();
-    let mut all_external_asset_references = IndexSet::<Vc<Box<dyn AssetReference>>>::new();
+    let mut all_external_module_references = IndexSet::<Vc<Box<dyn ModuleReference>>>::new();
 
     for content in contents {
         let EcmascriptChunkContent {
             chunk_items,
             chunks,
-            external_asset_references,
+            external_module_references,
             availability_info: _,
         } = &*content.await?;
         all_chunk_items.extend(chunk_items.iter().copied());
         all_chunks.extend(chunks.iter().copied());
-        all_external_asset_references.extend(external_asset_references.iter().copied());
+        all_external_module_references.extend(external_module_references.iter().copied());
     }
 
     Ok(EcmascriptChunkContent {
         chunk_items: all_chunk_items.into_iter().collect(),
         chunks: all_chunks.into_iter().collect(),
-        external_asset_references: all_external_asset_references.into_iter().collect(),
+        external_module_references: all_external_module_references.into_iter().collect(),
         availability_info: availability_info.into_value(),
     }
     .cell())

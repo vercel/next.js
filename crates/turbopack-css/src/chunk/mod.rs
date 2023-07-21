@@ -18,12 +18,13 @@ use turbopack_core::{
     code_builder::{Code, CodeBuilder},
     ident::AssetIdent,
     introspect::{
-        asset::{children_from_output_assets, content_to_details, IntrospectableAsset},
+        module::IntrospectableModule,
+        utils::{children_from_output_assets, content_to_details},
         Introspectable, IntrospectableChildren,
     },
     module::Module,
     output::{OutputAsset, OutputAssets},
-    reference::AssetReference,
+    reference::ModuleReference,
     source_map::{GenerateSourceMap, OptionSourceMap},
 };
 use writer::expand_imports;
@@ -192,7 +193,7 @@ impl GenerateSourceMap for CssChunkContent {
 pub struct CssChunkContentResult {
     pub chunk_items: Vec<Vc<Box<dyn CssChunkItem>>>,
     pub chunks: Vec<Vc<Box<dyn Chunk>>>,
-    pub external_asset_references: Vec<Vc<Box<dyn AssetReference>>>,
+    pub external_module_references: Vec<Vc<Box<dyn ModuleReference>>>,
 }
 
 impl From<ChunkContentResult<Vc<Box<dyn CssChunkItem>>>> for CssChunkContentResult {
@@ -200,7 +201,7 @@ impl From<ChunkContentResult<Vc<Box<dyn CssChunkItem>>>> for CssChunkContentResu
         CssChunkContentResult {
             chunk_items: from.chunk_items,
             chunks: from.chunks,
-            external_asset_references: from.external_asset_references,
+            external_module_references: from.external_module_references,
         }
     }
 }
@@ -224,23 +225,23 @@ async fn css_chunk_content(
 
     let mut all_chunk_items = IndexSet::<Vc<Box<dyn CssChunkItem>>>::new();
     let mut all_chunks = IndexSet::<Vc<Box<dyn Chunk>>>::new();
-    let mut all_external_asset_references = IndexSet::<Vc<Box<dyn AssetReference>>>::new();
+    let mut all_external_module_references = IndexSet::<Vc<Box<dyn ModuleReference>>>::new();
 
     for content in contents {
         let CssChunkContentResult {
             chunk_items,
             chunks,
-            external_asset_references,
+            external_module_references,
         } = &*content.await?;
         all_chunk_items.extend(chunk_items.iter().copied());
         all_chunks.extend(chunks.iter().copied());
-        all_external_asset_references.extend(external_asset_references.iter().copied());
+        all_external_module_references.extend(external_module_references.iter().copied());
     }
 
     Ok(CssChunkContentResult {
         chunk_items: all_chunk_items.into_iter().collect(),
         chunks: all_chunks.into_iter().collect(),
-        external_asset_references: all_external_asset_references.into_iter().collect(),
+        external_module_references: all_external_module_references.into_iter().collect(),
     }
     .cell())
 }
@@ -397,16 +398,24 @@ impl OutputAsset for CssChunk {
         )
         .await?;
         let mut references = Vec::new();
-        let assets = content
-            .external_asset_references
+        let output_assets = content
+            .external_module_references
             .iter()
-            .map(|r| r.resolve_reference().primary_assets())
+            .map(|r| r.resolve_reference().primary_output_assets())
             .try_join()
             .await?;
-        for &asset in assets.iter().flatten() {
+        for &asset in output_assets.iter().flatten() {
             if let Some(output_asset) = Vc::try_resolve_downcast(asset).await? {
                 references.push(output_asset);
             }
+        }
+        let modules = content
+            .external_module_references
+            .iter()
+            .map(|r| r.resolve_reference().primary_modules())
+            .try_join()
+            .await?;
+        for &asset in modules.iter().flatten() {
             if let Some(embeddable) =
                 Vc::try_resolve_sidecast::<Box<dyn CssEmbeddable>>(asset).await?
             {
@@ -578,7 +587,7 @@ impl Introspectable for CssChunk {
         for &entry in &*self.await?.main_entries.await? {
             children.insert((
                 entry_module_key(),
-                IntrospectableAsset::new(Vc::upcast(entry)),
+                IntrospectableModule::new(Vc::upcast(entry)),
             ));
         }
         Ok(Vc::cell(children))

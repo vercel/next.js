@@ -3,8 +3,8 @@ use swc_core::{ecma::ast::Expr, quote};
 use turbo_tasks::{ValueToString, Vc};
 use turbopack_core::{
     chunk::{ChunkableModuleReference, ChunkingTypeOption, ModuleId},
-    reference::AssetReference,
-    resolve::ResolveResult,
+    reference::ModuleReference,
+    resolve::ModuleResolveResult,
 };
 
 use super::{base::ReferencedAsset, EsmAssetReference};
@@ -31,9 +31,9 @@ impl EsmModuleIdAssetReference {
 }
 
 #[turbo_tasks::value_impl]
-impl AssetReference for EsmModuleIdAssetReference {
+impl ModuleReference for EsmModuleIdAssetReference {
     #[turbo_tasks::function]
-    fn resolve_reference(&self) -> Vc<ResolveResult> {
+    fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
         self.inner.resolve_reference()
     }
 }

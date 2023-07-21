@@ -61,7 +61,7 @@ use turbopack_core::{
     context::AssetContext,
     ident::AssetIdent,
     module::{Module, OptionModule},
-    reference::AssetReferences,
+    reference::ModuleReferences,
     reference_type::InnerAssets,
     resolve::{origin::ResolveOrigin, parse::Request, ModulePart},
     source::Source,
@@ -120,7 +120,7 @@ fn modifier() -> Vc<String> {
 #[derive(PartialEq, Eq, Clone, TraceRawVcs)]
 struct MemoizedSuccessfulAnalysis {
     operation: RawVc,
-    references: ReadRef<AssetReferences>,
+    references: ReadRef<ModuleReferences>,
     exports: ReadRef<EcmascriptExports>,
     async_module: ReadRef<OptionAsyncModule>,
 }
@@ -388,7 +388,7 @@ impl Module for EcmascriptModuleAsset {
     }
 
     #[turbo_tasks::function]
-    async fn references(self: Vc<Self>) -> Result<Vc<AssetReferences>> {
+    async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
         Ok(self.failsafe_analyze().await?.references)
     }
 }
@@ -484,7 +484,7 @@ impl ChunkItem for ModuleChunkItem {
     }
 
     #[turbo_tasks::function]
-    fn references(&self) -> Vc<AssetReferences> {
+    fn references(&self) -> Vc<ModuleReferences> {
         self.module.references()
     }
 }

@@ -4,7 +4,6 @@ use turbopack_core::{
     asset::Asset,
     chunk::{ChunkGroup, ChunkListReference, ChunkingContext},
     ident::AssetIdent,
-    reference::AssetReferences,
 };
 use turbopack_ecmascript::chunk::{
     EcmascriptChunk, EcmascriptChunkPlaceables, EcmascriptChunkRuntime,
