@@ -129,9 +129,9 @@ impl DevHtmlAsset {
             .entries
             .iter()
             .map(|entry| async move {
-                let (chunkable_asset, chunking_context, runtime_entries) = entry;
+                let (chunkable_module, chunking_context, runtime_entries) = entry;
 
-                let chunk = chunkable_asset.as_root_chunk(*chunking_context);
+                let chunk = chunkable_module.as_root_chunk(*chunking_context);
                 let assets = if let Some(runtime_entries) = runtime_entries {
                     chunking_context.evaluated_chunk_group(chunk, *runtime_entries)
                 } else {

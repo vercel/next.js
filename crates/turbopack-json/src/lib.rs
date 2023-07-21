@@ -21,7 +21,7 @@ use turbopack_core::{
     },
     ident::AssetIdent,
     module::Module,
-    reference::AssetReferences,
+    reference::ModuleReferences,
     source::Source,
 };
 use turbopack_ecmascript::chunk::{
@@ -112,7 +112,7 @@ impl ChunkItem for JsonChunkItem {
     }
 
     #[turbo_tasks::function]
-    fn references(&self) -> Vc<AssetReferences> {
+    fn references(&self) -> Vc<ModuleReferences> {
         self.module.references()
     }
 }

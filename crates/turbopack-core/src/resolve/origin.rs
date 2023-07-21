@@ -2,7 +2,7 @@ use anyhow::Result;
 use turbo_tasks::{Upcast, Value, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
-use super::{options::ResolveOptions, parse::Request, ResolveResult};
+use super::{options::ResolveOptions, parse::Request, ModuleResolveResult};
 use crate::{context::AssetContext, module::OptionModule, reference_type::ReferenceType};
 
 /// A location where resolving can occur from. It carries some meta information
@@ -38,7 +38,7 @@ pub trait ResolveOriginExt {
         request: Vc<Request>,
         options: Vc<ResolveOptions>,
         reference_type: Value<ReferenceType>,
-    ) -> Vc<ResolveResult>;
+    ) -> Vc<ModuleResolveResult>;
 
     /// Get the resolve options that apply for this origin.
     fn resolve_options(self: Vc<Self>, reference_type: Value<ReferenceType>) -> Vc<ResolveOptions>;
@@ -56,7 +56,7 @@ where
         request: Vc<Request>,
         options: Vc<ResolveOptions>,
         reference_type: Value<ReferenceType>,
-    ) -> Vc<ResolveResult> {
+    ) -> Vc<ModuleResolveResult> {
         resolve_asset(Vc::upcast(self), request, options, reference_type)
     }
 
@@ -82,9 +82,9 @@ async fn resolve_asset(
     request: Vc<Request>,
     options: Vc<ResolveOptions>,
     reference_type: Value<ReferenceType>,
-) -> Result<Vc<ResolveResult>> {
+) -> Result<Vc<ModuleResolveResult>> {
     if let Some(asset) = *resolve_origin.get_inner_asset(request).await? {
-        return Ok(ResolveResult::asset(Vc::upcast(asset)).cell());
+        return Ok(ModuleResolveResult::module(asset).cell());
     }
     Ok(resolve_origin.context().resolve_asset(
         resolve_origin.origin_path(),

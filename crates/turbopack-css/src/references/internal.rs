@@ -1,8 +1,8 @@
 use anyhow::Result;
 use turbo_tasks::{ValueToString, Vc};
 use turbopack_core::{
-    chunk::ChunkableModuleReference, module::Module, reference::AssetReference,
-    resolve::ResolveResult,
+    chunk::ChunkableModuleReference, module::Module, reference::ModuleReference,
+    resolve::ModuleResolveResult,
 };
 
 /// A reference to an internal CSS asset.
@@ -22,10 +22,10 @@ impl InternalCssAssetReference {
 }
 
 #[turbo_tasks::value_impl]
-impl AssetReference for InternalCssAssetReference {
+impl ModuleReference for InternalCssAssetReference {
     #[turbo_tasks::function]
-    fn resolve_reference(&self) -> Vc<ResolveResult> {
-        ResolveResult::asset(Vc::upcast(self.module)).cell()
+    fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
+        ModuleResolveResult::module(self.module).cell()
     }
 }
 

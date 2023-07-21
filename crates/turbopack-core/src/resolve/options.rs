@@ -9,7 +9,7 @@ use turbo_tasks_fs::{glob::Glob, FileSystemPath};
 
 use super::{
     alias_map::{AliasMap, AliasTemplate},
-    AliasPattern, PrimaryResolveResult, ResolveResult,
+    AliasPattern, ResolveResult, ResolveResultItem,
 };
 use crate::resolve::{parse::Request, plugin::ResolvePlugin};
 
@@ -269,20 +269,17 @@ async fn import_mapping_to_result(
     Ok(match &*mapping.await? {
         ImportMapping::Direct(result) => ImportMapResult::Result(*result),
         ImportMapping::External(name) => ImportMapResult::Result(
-            ResolveResult::primary_with_references(
-                name.as_ref().map_or_else(
-                    || PrimaryResolveResult::OriginalReferenceExternal,
-                    |req| PrimaryResolveResult::OriginalReferenceTypeExternal(req.to_string()),
-                ),
-                Vec::new(),
-            )
+            ResolveResult::primary(name.as_ref().map_or_else(
+                || ResolveResultItem::OriginalReferenceExternal,
+                |req| ResolveResultItem::OriginalReferenceTypeExternal(req.to_string()),
+            ))
             .into(),
         ),
         ImportMapping::Ignore => {
-            ImportMapResult::Result(ResolveResult::primary(PrimaryResolveResult::Ignore).into())
+            ImportMapResult::Result(ResolveResult::primary(ResolveResultItem::Ignore).into())
         }
         ImportMapping::Empty => {
-            ImportMapResult::Result(ResolveResult::primary(PrimaryResolveResult::Empty).into())
+            ImportMapResult::Result(ResolveResult::primary(ResolveResultItem::Empty).into())
         }
         ImportMapping::PrimaryAlternative(name, context) => {
             let request = Request::parse(Value::new(name.to_string().into()));

@@ -13,13 +13,13 @@ use swc_core::{
 use turbo_tasks::{Value, Vc};
 use turbopack_core::{
     issue::{IssueSeverity, IssueSource, OptionIssueSource},
-    reference::{AssetReference, AssetReferences},
+    reference::{ModuleReference, ModuleReferences},
     reference_type::{CssReferenceSubType, ReferenceType},
     resolve::{
         handle_resolve_error,
         origin::{ResolveOrigin, ResolveOriginExt},
         parse::Request,
-        ResolveResult,
+        ModuleResolveResult,
     },
     source::Source,
 };
@@ -45,7 +45,7 @@ pub async fn analyze_css_stylesheet(
     origin: Vc<Box<dyn ResolveOrigin>>,
     ty: CssModuleAssetType,
     transforms: Vc<CssInputTransforms>,
-) -> Result<Vc<AssetReferences>> {
+) -> Result<Vc<ModuleReferences>> {
     let mut references = Vec::new();
 
     let parsed = parse_css(source, ty, transforms).await?;
@@ -69,7 +69,7 @@ pub async fn analyze_css_stylesheet(
         HANDLER.set(&handler, || {
             GLOBALS.set(&globals, || {
                 // TODO migrate to effects
-                let mut visitor = AssetReferencesVisitor::new(source, origin, &mut references);
+                let mut visitor = ModuleReferencesVisitor::new(source, origin, &mut references);
                 stylesheet.visit_with_path(&mut visitor, &mut Default::default());
             })
         });
@@ -77,18 +77,18 @@ pub async fn analyze_css_stylesheet(
     Ok(Vc::cell(references))
 }
 
-struct AssetReferencesVisitor<'a> {
+struct ModuleReferencesVisitor<'a> {
     source: Vc<Box<dyn Source>>,
     origin: Vc<Box<dyn ResolveOrigin>>,
-    references: &'a mut Vec<Vc<Box<dyn AssetReference>>>,
+    references: &'a mut Vec<Vc<Box<dyn ModuleReference>>>,
     is_import: bool,
 }
 
-impl<'a> AssetReferencesVisitor<'a> {
+impl<'a> ModuleReferencesVisitor<'a> {
     fn new(
         source: Vc<Box<dyn Source>>,
         origin: Vc<Box<dyn ResolveOrigin>>,
-        references: &'a mut Vec<Vc<Box<dyn AssetReference>>>,
+        references: &'a mut Vec<Vc<Box<dyn ModuleReference>>>,
     ) -> Self {
         Self {
             source,
@@ -114,7 +114,7 @@ pub fn as_parent_path(ast_path: &AstNodePath<'_>) -> Vec<AstParentKind> {
     ast_path.iter().map(|n| n.kind()).collect()
 }
 
-impl<'a> VisitAstPath for AssetReferencesVisitor<'a> {
+impl<'a> VisitAstPath for ModuleReferencesVisitor<'a> {
     fn visit_import_prelude<'ast: 'r, 'r>(
         &mut self,
         i: &'ast ImportPrelude,
@@ -178,7 +178,7 @@ pub async fn css_resolve(
     request: Vc<Request>,
     ty: Value<CssReferenceSubType>,
     issue_source: Vc<OptionIssueSource>,
-) -> Result<Vc<ResolveResult>> {
+) -> Result<Vc<ModuleResolveResult>> {
     let ty = Value::new(ReferenceType::Css(ty.into_value()));
     let options = origin.resolve_options(ty.clone());
     let result = origin.resolve_asset(request, options, ty.clone());

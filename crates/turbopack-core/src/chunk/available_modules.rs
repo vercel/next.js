@@ -11,7 +11,7 @@ use turbo_tasks_hash::Xxh3Hash64Hasher;
 use super::{ChunkableModuleReference, ChunkingType};
 use crate::{
     module::{Module, ModulesSet},
-    reference::AssetReference,
+    reference::ModuleReference,
 };
 
 /// Allows to gather information about which assets are already available.
@@ -75,7 +75,7 @@ impl AvailableAssets {
             }
         }
         for root in this.roots.iter() {
-            if chunkable_assets_set(*root).await?.contains(&asset) {
+            if chunkable_modules_set(*root).await?.contains(&asset) {
                 return Ok(Vc::cell(true));
             }
         }
@@ -84,7 +84,7 @@ impl AvailableAssets {
 }
 
 #[turbo_tasks::function]
-pub async fn chunkable_assets_set(root: Vc<Box<dyn Module>>) -> Result<Vc<ModulesSet>> {
+pub async fn chunkable_modules_set(root: Vc<Box<dyn Module>>) -> Result<Vc<ModulesSet>> {
     let assets = AdjacencyMap::new()
         .skip_duplicates()
         .visit(once(root), |&asset: &Vc<Box<dyn Module>>| async move {
@@ -108,17 +108,9 @@ pub async fn chunkable_assets_set(root: Vc<Box<dyn Module>>) -> Result<Vc<Module
                         ) {
                             return Ok(chunkable
                                 .resolve_reference()
-                                .primary_assets()
+                                .primary_modules()
                                 .await?
-                                .iter()
-                                .map(|&asset| async move {
-                                    Ok(Vc::try_resolve_downcast::<Box<dyn Module>>(asset).await?)
-                                })
-                                .try_join()
-                                .await?
-                                .into_iter()
-                                .flatten()
-                                .collect());
+                                .clone_value());
                         }
                     }
                     Ok(Vec::new())

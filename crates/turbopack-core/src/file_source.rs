@@ -8,8 +8,8 @@ use crate::{
     source::Source,
 };
 
-/// The raw [Asset]. It represents raw content from a path without any
-/// references to other [Asset]s.
+/// The raw [Source]. It represents raw content from a path without any
+/// references to other [Source]s.
 #[turbo_tasks::value]
 pub struct FileSource {
     pub path: Vc<FileSystemPath>,

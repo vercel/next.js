@@ -5,7 +5,10 @@ use turbo_tasks::{Value, Vc};
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    introspect::{asset::IntrospectableAsset, Introspectable, IntrospectableChildren},
+    introspect::{
+        module::IntrospectableModule, output_asset::IntrospectableOutputAsset, Introspectable,
+        IntrospectableChildren,
+    },
     issue::IssueContextExt,
     module::Module,
     output::OutputAsset,
@@ -273,15 +276,15 @@ impl Introspectable for NodeRenderContentSource {
             let entry = entry.await?;
             set.insert((
                 Vc::cell("module".to_string()),
-                IntrospectableAsset::new(Vc::upcast(entry.module)),
+                IntrospectableModule::new(Vc::upcast(entry.module)),
             ));
             set.insert((
                 Vc::cell("intermediate asset".to_string()),
-                IntrospectableAsset::new(Vc::upcast(get_intermediate_asset(
+                IntrospectableOutputAsset::new(get_intermediate_asset(
                     entry.chunking_context,
                     entry.module,
                     entry.runtime_entries,
-                ))),
+                )),
             ));
         }
         Ok(Vc::cell(set))

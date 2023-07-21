@@ -1,8 +1,8 @@
 use anyhow::Result;
 use turbo_tasks::{ValueToString, Vc};
 use turbopack_core::{
-    reference::AssetReference,
-    resolve::{pattern::Pattern, resolve_raw, ResolveResult},
+    reference::ModuleReference,
+    resolve::{pattern::Pattern, resolve_raw, ModuleResolveResult},
     source::Source,
 };
 
@@ -22,12 +22,12 @@ impl FileSourceReference {
 }
 
 #[turbo_tasks::value_impl]
-impl AssetReference for FileSourceReference {
+impl ModuleReference for FileSourceReference {
     #[turbo_tasks::function]
-    async fn resolve_reference(&self) -> Result<Vc<ResolveResult>> {
+    fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
         let context = self.source.ident().path().parent();
 
-        Ok(resolve_raw(context, self.path, false))
+        resolve_raw(context, self.path, false).as_raw_module_result()
     }
 }
 

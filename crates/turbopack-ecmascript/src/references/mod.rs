@@ -52,7 +52,7 @@ use turbopack_core::{
     error::PrettyPrintError,
     issue::{analyze::AnalyzeIssue, IssueExt, IssueSeverity, IssueSource, OptionIssueSource},
     module::Module,
-    reference::{AssetReference, AssetReferences, SourceMapReference},
+    reference::{ModuleReference, ModuleReferences, SourceMapReference},
     reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::{
         find_context_file,
@@ -60,9 +60,9 @@ use turbopack_core::{
         package_json,
         parse::Request,
         pattern::Pattern,
-        resolve, FindContextFileResult, ModulePart, PrimaryResolveResult,
+        resolve, FindContextFileResult, ModulePart,
     },
-    source::{asset_to_source, Source},
+    source::Source,
 };
 use turbopack_swc_utils::emitter::IssueEmitter;
 use unreachable::Unreachable;
@@ -129,7 +129,7 @@ use crate::{
 
 #[turbo_tasks::value(shared)]
 pub struct AnalyzeEcmascriptModuleResult {
-    pub references: Vc<AssetReferences>,
+    pub references: Vc<ModuleReferences>,
     pub code_generation: Vc<CodeGenerateables>,
     pub exports: Vc<EcmascriptExports>,
     pub async_module: Vc<OptionAsyncModule>,
@@ -166,7 +166,7 @@ impl AnalyzeEcmascriptModuleResult {
 /// A temporary analysis result builder to pass around, to be turned into an
 /// `Vc<AnalyzeEcmascriptModuleResult>` eventually.
 pub(crate) struct AnalyzeEcmascriptModuleResultBuilder {
-    references: IndexSet<Vc<Box<dyn AssetReference>>>,
+    references: IndexSet<Vc<Box<dyn ModuleReference>>>,
     code_gens: Vec<CodeGen>,
     exports: EcmascriptExports,
     async_module: Vc<OptionAsyncModule>,
@@ -187,7 +187,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     /// Adds an asset reference to the analysis result.
     pub fn add_reference<R>(&mut self, reference: Vc<R>)
     where
-        R: Upcast<Box<dyn AssetReference>>,
+        R: Upcast<Box<dyn ModuleReference>>,
     {
         self.references.insert(Vc::upcast(reference));
     }
@@ -489,7 +489,7 @@ pub(crate) async fn analyze_ecmascript_module(
         set_handler_and_globals(&handler, globals, || {
             // TODO migrate to effects
             let mut visitor =
-                AssetReferencesVisitor::new(eval_context, &import_references, &mut analysis);
+                ModuleReferencesVisitor::new(eval_context, &import_references, &mut analysis);
 
             for (i, reexport) in eval_context.imports.reexports() {
                 let import_ref = import_references[i];
@@ -2109,28 +2109,14 @@ async fn require_resolve_visitor(
             request,
             OptionIssueSource::none(),
             try_to_severity(in_try),
-        )
-        .await?;
+        );
         let mut values = resolved
-            .primary
-            .iter()
-            .map(|result| async move {
-                Ok(if let &PrimaryResolveResult::Asset(asset) = result {
-                    if let Some(module) = Vc::try_resolve_downcast::<Box<dyn Module>>(asset).await?
-                    {
-                        Some(require_resolve(module.ident().path()).await?)
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                })
-            })
-            .try_join()
+            .primary_modules()
             .await?
-            .into_iter()
-            .flatten()
-            .collect::<Vec<_>>();
+            .iter()
+            .map(|&module| async move { require_resolve(module.ident().path()).await })
+            .try_join()
+            .await?;
 
         match values.len() {
             0 => JsValue::unknown(
@@ -2254,7 +2240,7 @@ impl StaticAnalyser {
     }
 }
 
-struct AssetReferencesVisitor<'a> {
+struct ModuleReferencesVisitor<'a> {
     eval_context: &'a EvalContext,
     old_analyser: StaticAnalyser,
     import_references: &'a [Vc<EsmAssetReference>],
@@ -2266,7 +2252,7 @@ struct AssetReferencesVisitor<'a> {
     webpack_chunks: Vec<Lit>,
 }
 
-impl<'a> AssetReferencesVisitor<'a> {
+impl<'a> ModuleReferencesVisitor<'a> {
     fn new(
         eval_context: &'a EvalContext,
         import_references: &'a [Vc<EsmAssetReference>],
@@ -2347,7 +2333,7 @@ fn for_each_ident_in_pat(pat: &Pat, f: &mut impl FnMut(String)) {
     }
 }
 
-impl<'a> VisitAstPath for AssetReferencesVisitor<'a> {
+impl<'a> VisitAstPath for ModuleReferencesVisitor<'a> {
     fn visit_export_all<'ast: 'r, 'r>(
         &mut self,
         export: &'ast ExportAll,
@@ -2599,8 +2585,8 @@ async fn resolve_as_webpack_runtime(
         options,
     );
 
-    if let Some(source) = *resolved.first_asset().await? {
-        Ok(webpack_runtime(asset_to_source(source), transforms))
+    if let Some(source) = *resolved.first_source().await? {
+        Ok(webpack_runtime(source, transforms))
     } else {
         Ok(WebpackRuntime::None.into())
     }

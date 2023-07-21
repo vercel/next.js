@@ -45,10 +45,10 @@ use turbopack_core::{
     raw_module::RawModule,
     reference_type::{EcmaScriptModulesReferenceSubType, InnerAssets, ReferenceType},
     resolve::{
-        options::ResolveOptions, origin::PlainResolveOrigin, parse::Request, resolve, ModulePart,
-        ResolveResult,
+        options::ResolveOptions, origin::PlainResolveOrigin, parse::Request, resolve,
+        AffectingResolvingAssetReference, ModulePart, ModuleResolveResult, ResolveResult,
     },
-    source::{asset_to_source, Source},
+    source::Source,
 };
 pub use turbopack_css as css;
 pub use turbopack_ecmascript as ecmascript;
@@ -421,7 +421,7 @@ impl AssetContext for ModuleAssetContext {
         request: Vc<Request>,
         resolve_options: Vc<ResolveOptions>,
         reference_type: Value<ReferenceType>,
-    ) -> Result<Vc<ResolveResult>> {
+    ) -> Result<Vc<ModuleResolveResult>> {
         let context_path = origin_path.parent().resolve().await?;
 
         let result = resolve(context_path, request, resolve_options);
@@ -444,21 +444,19 @@ impl AssetContext for ModuleAssetContext {
         self: Vc<Self>,
         result: Vc<ResolveResult>,
         reference_type: Value<ReferenceType>,
-    ) -> Result<Vc<ResolveResult>> {
+    ) -> Result<Vc<ModuleResolveResult>> {
         Ok(result
             .await?
-            .map(
-                |a| {
+            .map_module(
+                |source| {
                     let reference_type = reference_type.clone();
                     async move {
                         Ok(Vc::upcast(
-                            self.process(asset_to_source(a), reference_type)
-                                .resolve()
-                                .await?,
+                            self.process(source, reference_type).resolve().await?,
                         ))
                     }
                 },
-                |i| async move { Ok(i) },
+                |i| async move { Ok(Vc::upcast(AffectingResolvingAssetReference::new(i))) },
             )
             .await?
             .into())

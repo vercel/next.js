@@ -5,7 +5,7 @@ use turbopack_core::{
     chunk::{EvaluatableAsset, EvaluatableAssetExt, EvaluatableAssets},
     context::AssetContext,
     issue::{IssueSeverity, OptionIssueSource},
-    module::{convert_asset_to_module, Module},
+    module::Module,
     resolve::{origin::PlainResolveOrigin, parse::Request},
     source::Source,
 };
@@ -33,26 +33,25 @@ impl RuntimeEntry {
             RuntimeEntry::Request(r, path) => (r, path),
         };
 
-        let assets = cjs_resolve(
+        let modules = cjs_resolve(
             Vc::upcast(PlainResolveOrigin::new(context, path)),
             request,
             OptionIssueSource::none(),
             IssueSeverity::Error.cell(),
         )
-        .primary_assets()
+        .primary_modules()
         .await?;
 
-        let mut runtime_entries = Vec::with_capacity(assets.len());
-        for &asset in &assets {
+        let mut runtime_entries = Vec::with_capacity(modules.len());
+        for &module in &modules {
             if let Some(entry) =
-                Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(asset).await?
+                Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(module).await?
             {
                 runtime_entries.push(entry);
             } else {
-                let asset = convert_asset_to_module(asset);
                 bail!(
                     "runtime reference resolved to an asset ({}) that cannot be evaluated",
-                    asset.ident().to_string().await?
+                    module.ident().to_string().await?
                 );
             }
         }

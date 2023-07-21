@@ -10,9 +10,9 @@ use turbopack_core::{
         ChunkingTypeOption,
     },
     issue::{IssueSource, OptionIssueSource},
-    reference::AssetReference,
+    reference::ModuleReference,
     reference_type::EcmaScriptModulesReferenceSubType,
-    resolve::{origin::ResolveOrigin, parse::Request, ResolveResult},
+    resolve::{origin::ResolveOrigin, parse::Request, ModuleResolveResult},
 };
 
 use super::super::pattern_mapping::{PatternMapping, ResolveType::EsmAsync};
@@ -55,9 +55,9 @@ impl EsmAsyncAssetReference {
 }
 
 #[turbo_tasks::value_impl]
-impl AssetReference for EsmAsyncAssetReference {
+impl ModuleReference for EsmAsyncAssetReference {
     #[turbo_tasks::function]
-    fn resolve_reference(&self) -> Vc<ResolveResult> {
+    fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
         esm_resolve(
             self.origin,
             self.request,

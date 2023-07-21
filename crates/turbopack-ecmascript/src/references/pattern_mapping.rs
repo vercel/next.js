@@ -11,7 +11,9 @@ use turbopack_core::{
         ModuleId,
     },
     issue::{code_gen::CodeGenerationIssue, IssueExt, IssueSeverity},
-    resolve::{origin::ResolveOrigin, parse::Request, PrimaryResolveResult, ResolveResult},
+    resolve::{
+        origin::ResolveOrigin, parse::Request, ModuleResolveResult, ModuleResolveResultItem,
+    },
 };
 
 use super::util::{request_to_string, throw_module_not_found_expr};
@@ -125,25 +127,25 @@ impl PatternMapping {
         request: Vc<Request>,
         origin: Vc<Box<dyn ResolveOrigin>>,
         context: Vc<Box<dyn ChunkingContext>>,
-        resolve_result: Vc<ResolveResult>,
+        resolve_result: Vc<ModuleResolveResult>,
         resolve_type: Value<ResolveType>,
     ) -> Result<Vc<PatternMapping>> {
         let result = resolve_result.await?;
-        let asset = match result.primary.first() {
+        let module = match result.primary.first() {
             None => {
                 return Ok(PatternMapping::Unresolveable(
                     request_to_string(request).await?.to_string(),
                 )
                 .cell())
             }
-            Some(PrimaryResolveResult::Asset(asset)) => *asset,
-            Some(PrimaryResolveResult::OriginalReferenceExternal) => {
+            Some(ModuleResolveResultItem::Module(module)) => *module,
+            Some(ModuleResolveResultItem::OriginalReferenceExternal) => {
                 return Ok(PatternMapping::OriginalReferenceExternal.cell())
             }
-            Some(PrimaryResolveResult::OriginalReferenceTypeExternal(s)) => {
+            Some(ModuleResolveResultItem::OriginalReferenceTypeExternal(s)) => {
                 return Ok(PatternMapping::OriginalReferenceTypeExternal(s.clone()).cell())
             }
-            Some(PrimaryResolveResult::Ignore) => return Ok(PatternMapping::Ignored.cell()),
+            Some(ModuleResolveResultItem::Ignore) => return Ok(PatternMapping::Ignored.cell()),
             _ => {
                 // TODO implement mapping
                 CodeGenerationIssue {
@@ -164,15 +166,16 @@ impl PatternMapping {
             }
         };
 
-        if let Some(chunkable) = Vc::try_resolve_sidecast::<Box<dyn ChunkableModule>>(asset).await?
+        if let Some(chunkable) =
+            Vc::try_resolve_downcast::<Box<dyn ChunkableModule>>(module).await?
         {
             if let ResolveType::EsmAsync(availability_info) = *resolve_type {
-                let available = if let Some(available_assets) = availability_info.available_assets()
-                {
-                    *available_assets.includes(Vc::upcast(chunkable)).await?
-                } else {
-                    false
-                };
+                let available =
+                    if let Some(available_modules) = availability_info.available_modules() {
+                        *available_modules.includes(Vc::upcast(chunkable)).await?
+                    } else {
+                        false
+                    };
                 if !available {
                     if let Some(loader) = <Box<dyn EcmascriptChunkItem>>::from_async_asset(
                         context,

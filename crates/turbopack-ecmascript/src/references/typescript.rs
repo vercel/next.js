@@ -4,9 +4,9 @@ use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     context::AssetContext,
     file_source::FileSource,
-    reference::AssetReference,
+    reference::ModuleReference,
     reference_type::{ReferenceType, TypeScriptReferenceSubType},
-    resolve::{origin::ResolveOrigin, parse::Request, pattern::QueryMap, ResolveResult},
+    resolve::{origin::ResolveOrigin, parse::Request, pattern::QueryMap, ModuleResolveResult},
 };
 
 use crate::typescript::{resolve::type_resolve, TsConfigModuleAsset};
@@ -27,10 +27,10 @@ impl TsConfigReference {
 }
 
 #[turbo_tasks::value_impl]
-impl AssetReference for TsConfigReference {
+impl ModuleReference for TsConfigReference {
     #[turbo_tasks::function]
-    fn resolve_reference(&self) -> Vc<ResolveResult> {
-        ResolveResult::asset(Vc::upcast(TsConfigModuleAsset::new(
+    fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
+        ModuleResolveResult::module(Vc::upcast(TsConfigModuleAsset::new(
             self.origin,
             Vc::upcast(FileSource::new(self.tsconfig)),
         )))
@@ -65,9 +65,9 @@ impl TsReferencePathAssetReference {
 }
 
 #[turbo_tasks::value_impl]
-impl AssetReference for TsReferencePathAssetReference {
+impl ModuleReference for TsReferencePathAssetReference {
     #[turbo_tasks::function]
-    async fn resolve_reference(&self) -> Result<Vc<ResolveResult>> {
+    async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
         Ok(
             if let Some(path) = &*self
                 .origin
@@ -76,15 +76,15 @@ impl AssetReference for TsReferencePathAssetReference {
                 .try_join(self.path.clone())
                 .await?
             {
-                ResolveResult::asset(Vc::upcast(self.origin.context().process(
+                ModuleResolveResult::module(Vc::upcast(self.origin.context().process(
                     Vc::upcast(FileSource::new(*path)),
                     Value::new(ReferenceType::TypeScript(
                         TypeScriptReferenceSubType::Undefined,
                     )),
                 )))
-                .into()
+                .cell()
             } else {
-                ResolveResult::unresolveable().into()
+                ModuleResolveResult::unresolveable().cell()
             },
         )
     }
@@ -117,9 +117,9 @@ impl TsReferenceTypeAssetReference {
 }
 
 #[turbo_tasks::value_impl]
-impl AssetReference for TsReferenceTypeAssetReference {
+impl ModuleReference for TsReferenceTypeAssetReference {
     #[turbo_tasks::function]
-    fn resolve_reference(&self) -> Vc<ResolveResult> {
+    fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
         type_resolve(
             self.origin,
             Request::module(

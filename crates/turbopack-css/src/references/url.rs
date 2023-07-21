@@ -9,9 +9,9 @@ use turbopack_core::{
     ident::AssetIdent,
     issue::{IssueSeverity, IssueSource},
     output::OutputAsset,
-    reference::AssetReference,
+    reference::ModuleReference,
     reference_type::UrlReferenceSubType,
-    resolve::{origin::ResolveOrigin, parse::Request, PrimaryResolveResult, ResolveResult},
+    resolve::{origin::ResolveOrigin, parse::Request, ModuleResolveResult},
 };
 use turbopack_ecmascript::resolve::url_resolve;
 
@@ -59,16 +59,14 @@ impl UrlAssetReference {
         self: Vc<Self>,
         context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<ReferencedAsset>> {
-        for result in self.resolve_reference().await?.primary.iter() {
-            if let PrimaryResolveResult::Asset(asset) = result {
-                if let Some(embeddable) =
-                    Vc::try_resolve_sidecast::<Box<dyn CssEmbeddable>>(*asset).await?
-                {
-                    return Ok(ReferencedAsset::Some(
-                        embeddable.as_css_embed(context).embeddable_asset(),
-                    )
-                    .into());
-                }
+        for &module in self.resolve_reference().primary_modules().await?.iter() {
+            if let Some(embeddable) =
+                Vc::try_resolve_sidecast::<Box<dyn CssEmbeddable>>(module).await?
+            {
+                return Ok(ReferencedAsset::Some(
+                    embeddable.as_css_embed(context).embeddable_asset(),
+                )
+                .into());
             }
         }
         Ok(ReferencedAsset::cell(ReferencedAsset::None))
@@ -76,9 +74,9 @@ impl UrlAssetReference {
 }
 
 #[turbo_tasks::value_impl]
-impl AssetReference for UrlAssetReference {
+impl ModuleReference for UrlAssetReference {
     #[turbo_tasks::function]
-    fn resolve_reference(&self) -> Vc<ResolveResult> {
+    fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
         url_resolve(
             self.origin,
             self.request,

@@ -2,11 +2,11 @@ use anyhow::{bail, Result};
 use turbo_tasks::{Value, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::PassthroughAsset,
+    chunk::PassthroughModule,
     context::AssetContext,
     ident::AssetIdent,
     module::Module,
-    reference::AssetReferences,
+    reference::ModuleReferences,
     reference_type::{CssReferenceSubType, ReferenceType},
     source::Source,
 };
@@ -53,7 +53,7 @@ impl Module for GlobalCssAsset {
     }
 
     #[turbo_tasks::function]
-    fn references(self: Vc<Self>) -> Vc<AssetReferences> {
+    fn references(self: Vc<Self>) -> Vc<ModuleReferences> {
         Vc::cell(vec![Vc::upcast(InternalCssAssetReference::new(
             self.inner(),
         ))])
@@ -75,4 +75,4 @@ fn modifier() -> Vc<String> {
 
 /// A GlobalAsset is a transparent wrapper around an actual CSS asset.
 #[turbo_tasks::value_impl]
-impl PassthroughAsset for GlobalCssAsset {}
+impl PassthroughModule for GlobalCssAsset {}

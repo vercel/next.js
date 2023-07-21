@@ -26,7 +26,7 @@ use turbopack_core::{
     ident::AssetIdent,
     module::Module,
     output::{OutputAsset, OutputAssets},
-    reference::{AssetReferences, SingleAssetReference},
+    reference::{ModuleReferences, SingleOutputAssetReference},
     source::Source,
 };
 use turbopack_css::embed::{CssEmbed, CssEmbeddable};
@@ -185,8 +185,8 @@ impl ChunkItem for ModuleChunkItem {
     }
 
     #[turbo_tasks::function]
-    async fn references(&self) -> Result<Vc<AssetReferences>> {
-        Ok(Vc::cell(vec![Vc::upcast(SingleAssetReference::new(
+    async fn references(&self) -> Result<Vc<ModuleReferences>> {
+        Ok(Vc::cell(vec![Vc::upcast(SingleOutputAssetReference::new(
             Vc::upcast(self.static_asset),
             Vc::cell(format!(
                 "static(url) {}",

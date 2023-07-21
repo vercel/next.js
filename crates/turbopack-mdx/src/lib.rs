@@ -14,7 +14,7 @@ use turbopack_core::{
     context::AssetContext,
     ident::AssetIdent,
     module::Module,
-    reference::AssetReferences,
+    reference::ModuleReferences,
     resolve::origin::ResolveOrigin,
     source::Source,
     virtual_source::VirtualSource,
@@ -173,7 +173,7 @@ impl Module for MdxModuleAsset {
     }
 
     #[turbo_tasks::function]
-    async fn references(self: Vc<Self>) -> Result<Vc<AssetReferences>> {
+    async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
         Ok(self.failsafe_analyze().await?.references)
     }
 }
@@ -248,7 +248,7 @@ impl ChunkItem for MdxChunkItem {
     }
 
     #[turbo_tasks::function]
-    fn references(&self) -> Vc<AssetReferences> {
+    fn references(&self) -> Vc<ModuleReferences> {
         self.module.references()
     }
 }

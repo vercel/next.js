@@ -4,7 +4,7 @@ use turbopack_core::chunk::ChunkingContext;
 
 use crate::chunk::CssImport;
 
-/// impl of code generation inferred from a AssetReference.
+/// impl of code generation inferred from a ModuleReference.
 /// This is rust only and can't be implemented by non-rust plugins.
 #[turbo_tasks::value(
     shared,

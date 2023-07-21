@@ -24,8 +24,8 @@ use turbopack_core::{
     ident::AssetIdent,
     issue::{IssueSeverity, OptionIssueSource},
     module::Module,
-    reference::{AssetReference, AssetReferences},
-    resolve::{origin::ResolveOrigin, parse::Request, ResolveResult},
+    reference::{ModuleReference, ModuleReferences},
+    resolve::{origin::ResolveOrigin, parse::Request, ModuleResolveResult},
     source::Source,
 };
 
@@ -150,7 +150,7 @@ impl FlatDirList {
 pub struct RequireContextMapEntry {
     pub origin_relative: String,
     pub request: Vc<Request>,
-    pub result: Vc<ResolveResult>,
+    pub result: Vc<ModuleResolveResult>,
 }
 
 /// The resolved context map for a `require.context(..)` call.
@@ -253,10 +253,10 @@ impl RequireContextAssetReference {
 }
 
 #[turbo_tasks::value_impl]
-impl AssetReference for RequireContextAssetReference {
+impl ModuleReference for RequireContextAssetReference {
     #[turbo_tasks::function]
-    fn resolve_reference(&self) -> Vc<ResolveResult> {
-        ResolveResult::asset(Vc::upcast(self.inner)).cell()
+    fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
+        ModuleResolveResult::module(Vc::upcast(self.inner)).cell()
     }
 }
 
@@ -302,18 +302,18 @@ impl CodeGenerateable for RequireContextAssetReference {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct ResolvedAssetReference(Vc<ResolveResult>);
+pub struct ResolvedModuleReference(Vc<ModuleResolveResult>);
 
 #[turbo_tasks::value_impl]
-impl AssetReference for ResolvedAssetReference {
+impl ModuleReference for ResolvedModuleReference {
     #[turbo_tasks::function]
-    fn resolve_reference(&self) -> Vc<ResolveResult> {
+    fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
         self.0
     }
 }
 
 #[turbo_tasks::value_impl]
-impl ValueToString for ResolvedAssetReference {
+impl ValueToString for ResolvedModuleReference {
     #[turbo_tasks::function]
     async fn to_string(&self) -> Result<Vc<String>> {
         Ok(Vc::cell("resolved reference".to_string()))
@@ -321,7 +321,7 @@ impl ValueToString for ResolvedAssetReference {
 }
 
 #[turbo_tasks::value_impl]
-impl ChunkableModuleReference for ResolvedAssetReference {}
+impl ChunkableModuleReference for ResolvedModuleReference {}
 
 #[turbo_tasks::value]
 pub struct RequireContextAsset {
@@ -353,12 +353,12 @@ impl Module for RequireContextAsset {
     }
 
     #[turbo_tasks::function]
-    async fn references(&self) -> Result<Vc<AssetReferences>> {
+    async fn references(&self) -> Result<Vc<ModuleReferences>> {
         let map = &*self.map.await?;
 
         Ok(Vc::cell(
             map.iter()
-                .map(|(_, entry)| Vc::upcast(Vc::<ResolvedAssetReference>::cell(entry.result)))
+                .map(|(_, entry)| Vc::upcast(Vc::<ResolvedModuleReference>::cell(entry.result)))
                 .collect(),
         ))
     }
@@ -514,7 +514,7 @@ impl ChunkItem for RequireContextChunkItem {
     }
 
     #[turbo_tasks::function]
-    fn references(&self) -> Vc<AssetReferences> {
+    fn references(&self) -> Vc<ModuleReferences> {
         self.inner.references()
     }
 }

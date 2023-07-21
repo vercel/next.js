@@ -9,7 +9,7 @@ use turbo_tasks::{Completion, State, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::Asset,
-    introspect::{asset::IntrospectableAsset, Introspectable, IntrospectableChildren},
+    introspect::{output_asset::IntrospectableOutputAsset, Introspectable, IntrospectableChildren},
     output::{OutputAsset, OutputAssetsSet},
 };
 
@@ -287,13 +287,18 @@ impl Introspectable for AssetGraphContentSource {
         let root_assets = this.root_assets.await?;
         let root_asset_children = root_assets
             .iter()
-            .map(|&asset| (key, IntrospectableAsset::new(Vc::upcast(asset))));
+            .map(|&asset| (key, IntrospectableOutputAsset::new(Vc::upcast(asset))));
 
         let expanded_assets = self.all_assets_map().await?;
         let expanded_asset_children = expanded_assets
             .values()
             .filter(|a| !root_assets.contains(*a))
-            .map(|asset| (inner_key, IntrospectableAsset::new(Vc::upcast(*asset))));
+            .map(|asset| {
+                (
+                    inner_key,
+                    IntrospectableOutputAsset::new(Vc::upcast(*asset)),
+                )
+            });
 
         Ok(Vc::cell(
             root_asset_children
@@ -333,7 +338,7 @@ impl Introspectable for FullyExpaned {
             expand(&*source.root_assets.await?, &*source.root_path.await?, None).await?;
         let children = expanded_assets
             .iter()
-            .map(|(_k, &v)| (key, IntrospectableAsset::new(Vc::upcast(v))))
+            .map(|(_k, &v)| (key, IntrospectableOutputAsset::new(v)))
             .collect();
 
         Ok(Vc::cell(children))

@@ -6,7 +6,7 @@ use turbopack_core::{
     ident::AssetIdent,
     module::Module,
     output::OutputAssets,
-    reference::{AssetReferences, SingleAssetReference},
+    reference::{ModuleReferences, SingleOutputAssetReference},
 };
 
 use super::chunk_item::ManifestChunkItem;
@@ -90,7 +90,7 @@ impl Module for ManifestChunkAsset {
     }
 
     #[turbo_tasks::function]
-    async fn references(self: Vc<Self>) -> Result<Vc<AssetReferences>> {
+    async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
         let chunks = self.chunks();
 
         Ok(Vc::cell(
@@ -99,8 +99,8 @@ impl Module for ManifestChunkAsset {
                 .iter()
                 .copied()
                 .map(|chunk| {
-                    Vc::upcast(SingleAssetReference::new(
-                        Vc::upcast(chunk),
+                    Vc::upcast(SingleOutputAssetReference::new(
+                        chunk,
                         manifest_chunk_reference_description(),
                     ))
                 })

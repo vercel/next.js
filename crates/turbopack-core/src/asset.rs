@@ -1,38 +1,10 @@
 use anyhow::Result;
-use indexmap::IndexSet;
 use turbo_tasks::{Completion, Vc};
 use turbo_tasks_fs::{
     FileContent, FileJsonContent, FileLinesContent, FileSystemPath, LinkContent, LinkType,
 };
 
 use crate::version::{VersionedAssetContent, VersionedContent};
-
-/// A list of [Asset]s
-#[turbo_tasks::value(transparent)]
-#[derive(Hash)]
-pub struct Assets(Vec<Vc<Box<dyn Asset>>>);
-
-/// A set of [Asset]s
-#[turbo_tasks::value(transparent)]
-pub struct AssetsSet(IndexSet<Vc<Box<dyn Asset>>>);
-
-#[turbo_tasks::value_impl]
-impl Assets {
-    /// Creates an empty list of [Asset]s
-    #[turbo_tasks::function]
-    pub fn empty() -> Vc<Self> {
-        Vc::cell(Vec::new())
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl AssetsSet {
-    /// Creates an empty set of [Asset]s
-    #[turbo_tasks::function]
-    pub fn empty() -> Vc<AssetsSet> {
-        Vc::cell(IndexSet::new())
-    }
-}
 
 /// An asset. It also forms a graph when following [Asset::references].
 #[turbo_tasks::value_trait]
@@ -45,10 +17,6 @@ pub trait Asset {
         Ok(Vc::upcast(VersionedAssetContent::new(self.content())))
     }
 }
-
-/// An optional [Asset]
-#[turbo_tasks::value(shared, transparent)]
-pub struct AssetOption(Option<Vc<Box<dyn Asset>>>);
 
 #[turbo_tasks::value(shared)]
 #[derive(Clone)]

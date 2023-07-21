@@ -5,7 +5,7 @@ use crate::{
     compile_time_info::CompileTimeInfo,
     module::Module,
     reference_type::ReferenceType,
-    resolve::{options::ResolveOptions, parse::Request, ResolveResult},
+    resolve::{options::ResolveOptions, parse::Request, ModuleResolveResult, ResolveResult},
     source::Source,
 };
 
@@ -26,7 +26,7 @@ pub trait AssetContext {
         request: Vc<Request>,
         resolve_options: Vc<ResolveOptions>,
         reference_type: Value<ReferenceType>,
-    ) -> Vc<ResolveResult>;
+    ) -> Vc<ModuleResolveResult>;
     fn process(
         self: Vc<Self>,
         asset: Vc<Box<dyn Source>>,
@@ -36,6 +36,6 @@ pub trait AssetContext {
         self: Vc<Self>,
         result: Vc<ResolveResult>,
         reference_type: Value<ReferenceType>,
-    ) -> Vc<ResolveResult>;
+    ) -> Vc<ModuleResolveResult>;
     fn with_transition(self: Vc<Self>, transition: String) -> Vc<Box<dyn AssetContext>>;
 }

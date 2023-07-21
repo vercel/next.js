@@ -16,8 +16,8 @@ use turbo_tasks::{
 use turbopack_core::{
     chunk::ChunkableModuleReference,
     issue::{IssueSource, OptionIssueSource},
-    reference::AssetReference,
-    resolve::{origin::ResolveOrigin, parse::Request, ResolveResult},
+    reference::ModuleReference,
+    resolve::{origin::ResolveOrigin, parse::Request, ModuleResolveResult},
 };
 
 use super::pattern_mapping::{PatternMapping, ResolveType::Cjs};
@@ -57,9 +57,9 @@ impl AmdDefineAssetReference {
 }
 
 #[turbo_tasks::value_impl]
-impl AssetReference for AmdDefineAssetReference {
+impl ModuleReference for AmdDefineAssetReference {
     #[turbo_tasks::function]
-    fn resolve_reference(&self) -> Vc<ResolveResult> {
+    fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
         cjs_resolve(
             self.origin,
             self.request,

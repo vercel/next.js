@@ -7,7 +7,7 @@ use crate::{
     source::Source,
 };
 
-/// An [Asset] that is created from some passed source code.
+/// A [Source] that is created from some passed source code.
 #[turbo_tasks::value]
 pub struct VirtualSource {
     pub ident: Vc<AssetIdent>,

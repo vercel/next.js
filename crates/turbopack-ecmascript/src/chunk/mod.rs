@@ -18,12 +18,13 @@ use turbopack_core::{
     },
     ident::AssetIdent,
     introspect::{
-        asset::{children_from_output_assets, content_to_details, IntrospectableAsset},
+        module::IntrospectableModule,
+        utils::{children_from_output_assets, content_to_details},
         Introspectable, IntrospectableChildren,
     },
     module::Module,
     output::OutputAssets,
-    reference::AssetReference,
+    reference::ModuleReference,
 };
 
 use self::content::ecmascript_chunk_content;
@@ -272,8 +273,8 @@ impl Chunk for EcmascriptChunk {
         let mut modifiers = vec![];
 
         // Available assets are included
-        if let Some(available_assets) = this.availability_info.available_assets() {
-            modifiers.push(Vc::cell(available_assets.hash().await?.to_string()));
+        if let Some(available_modules) = this.availability_info.available_modules() {
+            modifiers.push(Vc::cell(available_modules.hash().await?.to_string()));
         }
 
         // Simplify when it's only a single main entry without extra info
@@ -326,15 +327,13 @@ impl Chunk for EcmascriptChunk {
         .await?;
         let mut references = Vec::new();
         let assets = content
-            .external_asset_references
+            .external_module_references
             .iter()
-            .map(|r| r.resolve_reference().primary_assets())
+            .map(|r| r.resolve_reference().primary_output_assets())
             .try_join()
             .await?;
-        for &asset in assets.iter().flatten() {
-            if let Some(output_asset) = Vc::try_resolve_downcast(asset).await? {
-                references.push(output_asset);
-            }
+        for &output_asset in assets.iter().flatten() {
+            references.push(output_asset);
         }
 
         Ok(Vc::cell(references))
@@ -456,7 +455,7 @@ impl Introspectable for EcmascriptChunk {
         for &entry in &*self.await?.main_entries.await? {
             children.insert((
                 entry_module_key(),
-                IntrospectableAsset::new(Vc::upcast(entry)),
+                IntrospectableModule::new(Vc::upcast(entry)),
             ));
         }
         Ok(Vc::cell(children))

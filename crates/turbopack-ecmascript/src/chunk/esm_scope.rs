@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use petgraph::{algo::tarjan_scc, prelude::DiGraphMap};
 use turbo_tasks::{TryFlatJoinIterExt, Value, Vc};
 use turbopack_core::{
-    chunk::{availability_info::AvailabilityInfo, available_assets::chunkable_assets_set},
+    chunk::{availability_info::AvailabilityInfo, available_modules::chunkable_modules_set},
     module::{Module, ModulesSet},
 };
 
@@ -36,7 +36,7 @@ impl EsmScope {
     #[turbo_tasks::function]
     pub(crate) async fn new(availability_info: Value<AvailabilityInfo>) -> Result<Vc<Self>> {
         let assets = if let Some(root) = availability_info.current_availability_root() {
-            chunkable_assets_set(root)
+            chunkable_modules_set(root)
         } else {
             ModulesSet::empty()
         };
