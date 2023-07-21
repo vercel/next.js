@@ -362,40 +362,36 @@ export class NextInstance {
   }
 
   public async destroy(): Promise<void> {
-    try {
-      if (this.isDestroyed) {
-        throw new Error(`next instance already destroyed`)
-      }
-      this.isDestroyed = true
-      this.emit('destroy', [])
-      await this.stop().catch(console.error)
-
-      if (process.env.TRACE_PLAYWRIGHT) {
-        await fs
-          .copy(
-            path.join(this.testDir, '.next/trace'),
-            path.join(
-              __dirname,
-              '../../traces',
-              `${path
-                .relative(
-                  path.join(__dirname, '../../'),
-                  process.env.TEST_FILE_PATH
-                )
-                .replace(/\//g, '-')}`,
-              `next-trace`
-            )
-          )
-          .catch(() => {})
-      }
-
-      if (!process.env.NEXT_TEST_SKIP_CLEANUP) {
-        await fs.remove(this.testDir)
-      }
-      require('console').log(`destroyed next instance`)
-    } catch (err) {
-      require('console').error('Error while destroying', err)
+    if (this.isDestroyed) {
+      throw new Error(`next instance already destroyed`)
     }
+    this.isDestroyed = true
+    this.emit('destroy', [])
+    await this.stop()
+
+    if (process.env.TRACE_PLAYWRIGHT) {
+      await fs
+        .copy(
+          path.join(this.testDir, '.next/trace'),
+          path.join(
+            __dirname,
+            '../../traces',
+            `${path
+              .relative(
+                path.join(__dirname, '../../'),
+                process.env.TEST_FILE_PATH
+              )
+              .replace(/\//g, '-')}`,
+            `next-trace`
+          )
+        )
+        .catch(() => {})
+    }
+
+    if (!process.env.NEXT_TEST_SKIP_CLEANUP) {
+      await fs.remove(this.testDir)
+    }
+    require('console').log(`destroyed next instance`)
   }
 
   public get url() {
@@ -424,47 +420,25 @@ export class NextInstance {
   public async readJSON(filename: string) {
     return fs.readJSON(path.join(this.testDir, filename))
   }
-  private async handleDevWatchDelay(filename: string) {
-    // to help alleviate flakiness with tests that create
-    // dynamic routes // and then request it we give a buffer
-    // of 500ms to allow WatchPack to detect the changed files
-    // TODO: replace this with an event directly from WatchPack inside
-    // router-server for better accuracy
-    if (
-      (global as any).isNextDev &&
-      (filename.startsWith('app/') || filename.startsWith('pages/'))
-    ) {
-      require('console').log('fs dev delay', filename)
-      await new Promise((resolve) => setTimeout(resolve, 500))
-    }
-  }
   public async patchFile(filename: string, content: string) {
     const outputPath = path.join(this.testDir, filename)
-    const newFile = !(await fs.pathExists(outputPath))
     await fs.ensureDir(path.dirname(outputPath))
-    await fs.writeFile(outputPath, content)
-
-    if (newFile) {
-      await this.handleDevWatchDelay(filename)
-    }
+    return fs.writeFile(outputPath, content)
   }
   public async renameFile(filename: string, newFilename: string) {
-    await fs.rename(
+    return fs.rename(
       path.join(this.testDir, filename),
       path.join(this.testDir, newFilename)
     )
-    await this.handleDevWatchDelay(filename)
   }
   public async renameFolder(foldername: string, newFoldername: string) {
-    await fs.move(
+    return fs.move(
       path.join(this.testDir, foldername),
       path.join(this.testDir, newFoldername)
     )
-    await this.handleDevWatchDelay(foldername)
   }
   public async deleteFile(filename: string) {
-    await fs.remove(path.join(this.testDir, filename))
-    await this.handleDevWatchDelay(filename)
+    return fs.remove(path.join(this.testDir, filename))
   }
 
   /**
