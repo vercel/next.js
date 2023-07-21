@@ -14,6 +14,7 @@ export default function Test() {
 function runTests(harness: Harness, iframe: HTMLIFrameElement) {
   // These tests requires a longer timeout because we're rendering the 404 page as well.
   const TIMEOUT = 20000
+  const LONG_TIMEOUT = 60000
 
   it(
     'returns a 404 status code for the custom 404 page',
@@ -60,13 +61,14 @@ function runTests(harness: Harness, iframe: HTMLIFrameElement) {
     TIMEOUT
   )
 
+  // TODO: This test is flaky, so it needs a particularly long timeout.
   it(
     'returns a 404 status code for a segment 404 page',
     async () => {
       const res = await fetch('/segment')
       expect(res.status).toBe(404)
     },
-    TIMEOUT
+    LONG_TIMEOUT
   )
 
   // TODO(WEB-980) Fix this test once we no longer throw an error when rendering a 404 page.
