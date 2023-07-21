@@ -279,7 +279,7 @@ The following table provides an overview of how different Next.js APIs affect ca
 
 ### `<Link>`
 
-By default, the `<Link>` component automatically prefetches static routes (cached) and adds the React Server Component Payload to the Router Cache.
+By default, the `<Link>` component automatically prefetches routes from the Full Route Cache and adds the React Server Component Payload to the Router Cache.
 
 To disable prefetching, you can set the `prefetch` prop to `false`. But this will not skip the cache permanently, the route segment will still be cached client-side when the user visits the route.
 
