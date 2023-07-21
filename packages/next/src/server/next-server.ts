@@ -31,6 +31,7 @@ import { renderToHTML, type RenderOpts } from './render'
 import fs from 'fs'
 import { join, resolve, isAbsolute } from 'path'
 import { IncomingMessage, ServerResponse } from 'http'
+import type { PagesAPIRouteModule } from './future/route-modules/pages-api/module'
 import { addRequestMeta, getRequestMeta } from './request-meta'
 import {
   PAGES_MANIFEST,
@@ -52,7 +53,6 @@ import { NodeNextRequest, NodeNextResponse } from './base-http/node'
 import { sendRenderResult } from './send-payload'
 import { getExtension, serveStatic } from './serve-static'
 import { ParsedUrlQuery } from 'querystring'
-import { apiResolver } from './api-utils/node'
 import { ParsedUrl, parseUrl } from '../shared/lib/router/utils/parse-url'
 import * as Log from '../build/output/log'
 
@@ -97,6 +97,7 @@ import { createRequestResponseMocks } from './lib/mock-request'
 import chalk from 'next/dist/compiled/chalk'
 import { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
 import { signalFromNodeRequest } from './web/spec-extension/adapters/next-request'
+import { RouteModuleLoader } from './future/helpers/module-loader/route-module-loader'
 import { loadManifest } from './load-manifest'
 
 export * from './base-server'
@@ -382,20 +383,18 @@ export default class NextNodeServer extends BaseServer {
     req: BaseNextRequest | NodeNextRequest,
     res: BaseNextResponse | NodeNextResponse,
     query: ParsedUrlQuery,
-    params: Params | undefined,
-    page: string,
-    builtPagePath: string
+    match: PagesAPIRouteMatch
   ): Promise<boolean> {
     const edgeFunctionsPages = this.getEdgeFunctionsPages()
 
     for (const edgeFunctionsPage of edgeFunctionsPages) {
-      if (edgeFunctionsPage === page) {
+      if (edgeFunctionsPage === match.definition.pathname) {
         const handledAsEdgeFunction = await this.runEdgeFunction({
           req,
           res,
           query,
-          params,
-          page,
+          params: match.params,
+          page: match.definition.pathname,
           appPaths: null,
         })
 
@@ -405,32 +404,35 @@ export default class NextNodeServer extends BaseServer {
       }
     }
 
-    const pageModule = await require(builtPagePath)
-    query = { ...query, ...params }
+    // The module supports minimal mode, load the minimal module.
+    const module = await RouteModuleLoader.load<PagesAPIRouteModule>(
+      match.definition.filename
+    )
+
+    query = { ...query, ...match.params }
 
     delete query.__nextLocale
     delete query.__nextDefaultLocale
     delete query.__nextInferredLocaleFromDefault
 
-    await apiResolver(
+    await module.render(
       (req as NodeNextRequest).originalRequest,
       (res as NodeNextResponse).originalResponse,
-      query,
-      pageModule,
       {
-        ...this.renderOpts.previewProps,
+        previewProps: this.renderOpts.previewProps,
         revalidate: this.revalidate.bind(this),
-        // internal config so is not typed
-        trustHostHeader: (this.nextConfig.experimental as Record<string, any>)
-          .trustHostHeader,
+        trustHostHeader: this.nextConfig.experimental.trustHostHeader,
         allowedRevalidateHeaderKeys:
           this.nextConfig.experimental.allowedRevalidateHeaderKeys,
         hostname: this.hostname,
-      },
-      this.minimalMode,
-      this.renderOpts.dev,
-      page
+        minimalMode: this.minimalMode,
+        dev: this.renderOpts.dev === true,
+        query,
+        params: match.params,
+        page: match.definition.pathname,
+      }
     )
+
     return true
   }
 
@@ -1022,12 +1024,7 @@ export default class NextNodeServer extends BaseServer {
     query: ParsedUrlQuery,
     match: PagesAPIRouteMatch
   ): Promise<boolean> {
-    const {
-      definition: { pathname, filename },
-      params,
-    } = match
-
-    return this.runApi(req, res, query, params, pathname, filename)
+    return this.runApi(req, res, query, match)
   }
 
   protected getCacheFilesystem(): CacheFs {
@@ -1214,7 +1211,6 @@ export default class NextNodeServer extends BaseServer {
     ) {
       throw new Error(`Invalid response ${mocked.res.statusCode}`)
     }
-    return {}
   }
 
   public async render(
