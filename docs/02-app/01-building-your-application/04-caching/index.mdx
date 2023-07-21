@@ -2,6 +2,9 @@
 title: Caching in Next.js
 nav_title: Caching
 description: An overview of caching mechanisms in Next.js.
+related:
+  links:
+    - app/building-your-application/configuring/typescript#statically-typed-links
 ---
 
 Next.js has a few caching mechanisms to improve your application's performance. This page provides an in-depth look at caching, the APIs you can use to configure them, and how they interact with each other.
@@ -223,15 +226,18 @@ For the user, this results in [soft navigation](/docs/app/building-your-applicat
 The cache is stored in the browser's temporary memory. Two factors determine how long the router cache lasts:
 
 - **Session**: The cache persists across [soft navigations](/docs/app/building-your-application/routing/linking-and-navigating#soft-navigation). However, it's cleared on page refresh.
-- **Automatic invalidation period**: The cache of an individual segment is automatically invalidated after a specific time. The duration depends on whether the route is [statically rendered](/docs/app/building-your-application/rendering/static-and-dynamic-rendering#static-rendering-default) or [dynamically rendered](/docs/app/building-your-application/rendering/static-and-dynamic-rendering#dynamic-rendering):
-  - **Dynamic routes**: 30 seconds
-  - **Static routes**: 5 minutes
+- **Automatic invalidation period**: The cache of an individual segment is automatically invalidated after a specific time. The duration depends on whether the route is [statically](/docs/app/building-your-application/rendering/static-and-dynamic-rendering#static-rendering-default) or [dynamically](/docs/app/building-your-application/rendering/static-and-dynamic-rendering#dynamic-rendering) rendered:
+  - **Dynamically rendered**: 30 seconds
+  - **Statically Rendered**: 5 minutes
 
 While a page refresh will clear **all** cached segments, the automatic invalidation period only affects the individual segment from the time it was last accessed or created.
 
 #### Invalidation
 
-**[Server Actions](/docs/app/building-your-application/data-fetching/server-actions)** can be used to revalidate data on-demand by path ([`revalidatePath`](/docs/app/api-reference/functions/revalidatePath)) or by cache tag ([`revalidateTag`](/docs/app/api-reference/functions/revalidateTag)), which in turn will invalidate the Router Cache.
+There are two ways you can invalidate the Router Cache:
+
+- Revalidating data on-demand by path with ([`revalidatePath`](/docs/app/api-reference/functions/revalidatePath)) or by cache tag with ([`revalidateTag`](/docs/app/api-reference/functions/revalidateTag)) in Server Actions, which in turn will invalidate the Router Cache.
+- Using `cookies.set` or `cookies.delete` in a Server Actions invalidates the Router Cache to prevent routes that use cookies from becoming stale (e.g. authentication).
 
 #### Opting out
 
