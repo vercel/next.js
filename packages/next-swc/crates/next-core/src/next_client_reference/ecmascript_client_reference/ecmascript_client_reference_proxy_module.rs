@@ -14,7 +14,7 @@ use turbopack_binding::turbopack::{
         context::AssetContext,
         ident::AssetIdent,
         module::Module,
-        reference::{AssetReferences, SingleAssetReference},
+        reference::{ModuleReferences, SingleModuleReference},
         reference_type::ReferenceType,
         virtual_source::VirtualSource,
     },
@@ -67,7 +67,7 @@ impl EcmascriptClientReferenceProxyModule {
     }
 
     #[turbo_tasks::function]
-    async fn proxy_module_asset(self: Vc<Self>) -> Result<Vc<EcmascriptModuleAsset>> {
+    async fn proxy_module(self: Vc<Self>) -> Result<Vc<EcmascriptModuleAsset>> {
         let this = self.await?;
         let mut code = CodeBuilder::default();
 
@@ -93,12 +93,12 @@ impl EcmascriptClientReferenceProxyModule {
         )?;
 
         let code = code.build();
-        let proxy_module_asset_content =
+        let proxy_module_content =
             AssetContent::file(File::from(code.source_code().clone()).into());
 
         let proxy_source = VirtualSource::new(
             this.server_module_ident.path().join("proxy.ts".to_string()),
-            proxy_module_asset_content,
+            proxy_module_content,
         );
 
         let proxy_module = this.server_asset_context.process(
@@ -125,7 +125,7 @@ impl Module for EcmascriptClientReferenceProxyModule {
     }
 
     #[turbo_tasks::function]
-    async fn references(self: Vc<Self>) -> Result<Vc<AssetReferences>> {
+    async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
         let EcmascriptClientReferenceProxyModule {
             server_module_ident,
             server_asset_context: _,
@@ -134,12 +134,12 @@ impl Module for EcmascriptClientReferenceProxyModule {
         } = &*self.await?;
 
         let references: Vec<_> = self
-            .proxy_module_asset()
+            .proxy_module()
             .references()
             .await?
             .iter()
             .copied()
-            .chain(once(Vc::upcast(SingleAssetReference::new(
+            .chain(once(Vc::upcast(SingleModuleReference::new(
                 Vc::upcast(EcmascriptClientReferenceModule::new(
                     *server_module_ident,
                     *client_module,
@@ -187,9 +187,7 @@ impl EcmascriptChunkPlaceable for EcmascriptClientReferenceProxyModule {
         Vc::upcast(
             ProxyModuleChunkItem {
                 client_proxy_asset: self,
-                inner_proxy_module_chunk_item: self
-                    .proxy_module_asset()
-                    .as_chunk_item(chunking_context),
+                inner_proxy_module_chunk_item: self.proxy_module().as_chunk_item(chunking_context),
                 chunking_context,
             }
             .cell(),
@@ -198,7 +196,7 @@ impl EcmascriptChunkPlaceable for EcmascriptClientReferenceProxyModule {
 
     #[turbo_tasks::function]
     fn get_exports(self: Vc<Self>) -> Vc<EcmascriptExports> {
-        self.proxy_module_asset().get_exports()
+        self.proxy_module().get_exports()
     }
 }
 
@@ -231,7 +229,7 @@ impl ChunkItem for ProxyModuleChunkItem {
     }
 
     #[turbo_tasks::function]
-    fn references(&self) -> Vc<AssetReferences> {
+    fn references(&self) -> Vc<ModuleReferences> {
         self.client_proxy_asset.references()
     }
 }
