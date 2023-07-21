@@ -14,7 +14,7 @@ import { loadComponents } from '../load-components'
 import { setHttpClientAndAgentOptions } from '../setup-http-agent-env'
 import { IncrementalCache } from '../lib/incremental-cache'
 import * as serverHooks from '../../client/components/hooks-server-context'
-import { staticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage'
+import { staticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage.sharedlayer'
 import { AppRouteRouteModule } from '../future/route-modules/app-route/module'
 
 type RuntimeConfig = any

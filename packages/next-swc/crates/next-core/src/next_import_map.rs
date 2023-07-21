@@ -58,6 +58,8 @@ pub async fn get_next_client_import_map(
     )
     .await?;
 
+    let vendor_dir = get_next_package(project_path).join("dist/vendored".into());
+
     match ty.into_value() {
         ClientContextType::Pages { pages_dir } => {
             insert_alias_to_alternatives(
@@ -85,26 +87,38 @@ pub async fn get_next_client_import_map(
                 ],
             );
         }
-        ClientContextType::App { app_dir } => {
+        ClientContextType::App { app_dir: _ } => {
             import_map.insert_exact_alias(
                 "react",
-                request_to_import_mapping(app_dir, "next/dist/compiled/react"),
+                request_to_import_mapping(vendor_dir, "react-vendored"),
             );
             import_map.insert_wildcard_alias(
                 "react/",
-                request_to_import_mapping(app_dir, "next/dist/compiled/react/*"),
+                request_to_import_mapping(vendor_dir, "react-vendored/*"),
             );
             import_map.insert_exact_alias(
                 "react-dom",
-                request_to_import_mapping(app_dir, "next/dist/compiled/react-dom"),
+                request_to_import_mapping(vendor_dir, "react-dom-vendored"),
             );
             import_map.insert_wildcard_alias(
                 "react-dom/",
-                request_to_import_mapping(app_dir, "next/dist/compiled/react-dom/*"),
+                request_to_import_mapping(vendor_dir, "react-dom-vendored/*"),
+            );
+            import_map.insert_exact_alias(
+                "react-server-dom-webpack",
+                request_to_import_mapping(vendor_dir, "react-server-dom-webpack-vendored"),
             );
             import_map.insert_wildcard_alias(
                 "react-server-dom-webpack/",
-                request_to_import_mapping(app_dir, "next/dist/compiled/react-server-dom-webpack/*"),
+                request_to_import_mapping(vendor_dir, "react-server-dom-webpack-vendored/*"),
+            );
+            import_map.insert_exact_alias(
+                "scheduler",
+                request_to_import_mapping(vendor_dir, "scheduler-vendored"),
+            );
+            import_map.insert_wildcard_alias(
+                "scheduler/",
+                request_to_import_mapping(vendor_dir, "scheduler-vendored/*"),
             );
             import_map.insert_exact_alias(
                 "next/dynamic",
@@ -211,7 +225,7 @@ pub async fn get_next_server_import_map(
 
     let ty = ty.into_value();
 
-    insert_next_server_special_aliases(&mut import_map, ty, mode).await?;
+    insert_next_server_special_aliases(project_path, &mut import_map, ty, mode).await?;
     let external = ImportMapping::External(None).cell();
 
     match ty {
@@ -283,7 +297,7 @@ pub async fn get_next_edge_import_map(
 
     let ty = ty.into_value();
 
-    insert_next_server_special_aliases(&mut import_map, ty, mode).await?;
+    insert_next_server_special_aliases(project_path, &mut import_map, ty, mode).await?;
 
     match ty {
         ServerContextType::Pages { .. } | ServerContextType::PagesData { .. } => {}
@@ -357,10 +371,12 @@ static NEXT_ALIASES: [(&str, &str); 23] = [
 ];
 
 pub async fn insert_next_server_special_aliases(
+    project_path: Vc<FileSystemPath>,
     import_map: &mut ImportMap,
     ty: ServerContextType,
     mode: NextMode,
 ) -> Result<()> {
+    let vendor_dir = get_next_package(project_path).join("dist/vendored".into());
     match (mode, ty) {
         (_, ServerContextType::Pages { pages_dir }) => {
             import_map.insert_exact_alias(
@@ -411,26 +427,35 @@ pub async fn insert_next_server_special_aliases(
             );
             import_map.insert_exact_alias(
                 "react",
-                request_to_import_mapping(app_dir, "next/dist/compiled/react"),
+                request_to_import_mapping(vendor_dir, "react-vendored"),
             );
             import_map.insert_wildcard_alias(
                 "react/",
-                request_to_import_mapping(app_dir, "next/dist/compiled/react/*"),
+                request_to_import_mapping(vendor_dir, "react-vendored/*"),
             );
             import_map.insert_exact_alias(
                 "react-dom",
-                request_to_import_mapping(
-                    app_dir,
-                    "next/dist/compiled/react-dom/server-rendering-stub.js",
-                ),
+                request_to_import_mapping(vendor_dir, "react-dom-vendored/server-rendering-stub"),
             );
             import_map.insert_wildcard_alias(
                 "react-dom/",
-                request_to_import_mapping(app_dir, "next/dist/compiled/react-dom/*"),
+                request_to_import_mapping(vendor_dir, "react-dom-vendored/*"),
+            );
+            import_map.insert_exact_alias(
+                "react-server-dom-webpack",
+                request_to_import_mapping(vendor_dir, "react-server-dom-webpack-vendored"),
             );
             import_map.insert_wildcard_alias(
                 "react-server-dom-webpack/",
-                request_to_import_mapping(app_dir, "next/dist/compiled/react-server-dom-webpack/*"),
+                request_to_import_mapping(vendor_dir, "react-server-dom-webpack-vendored/*"),
+            );
+            import_map.insert_exact_alias(
+                "scheduler",
+                request_to_import_mapping(vendor_dir, "scheduler-vendored"),
+            );
+            import_map.insert_wildcard_alias(
+                "scheduler/",
+                request_to_import_mapping(vendor_dir, "scheduler-vendored/*"),
             );
         }
         // NOTE(alexkirsz) This logic maps loosely to
@@ -455,26 +480,32 @@ pub async fn insert_next_server_special_aliases(
             );
             import_map.insert_exact_alias(
                 "react",
-                request_to_import_mapping(app_dir, "next/dist/compiled/react/react.shared-subset"),
+                request_to_import_mapping(vendor_dir, "react-vendored"),
             );
             import_map.insert_exact_alias(
                 "react-dom",
-                request_to_import_mapping(
-                    app_dir,
-                    "next/dist/compiled/react-dom/server-rendering-stub",
-                ),
+                request_to_import_mapping(vendor_dir, "react-dom-vendored/server-rendering-stub"),
+            );
+            import_map.insert_exact_alias(
+                "react-server-dom-webpack",
+                request_to_import_mapping(vendor_dir, "react-server-dom-webpack-vendored"),
+            );
+            import_map.insert_exact_alias(
+                "scheduler",
+                request_to_import_mapping(vendor_dir, "scheduler-vendored"),
             );
             for (wildcard_alias, request) in [
-                ("react/", "next/dist/compiled/react/*"),
-                ("react-dom/", "next/dist/compiled/react-dom/*"),
+                ("react/", "react-vendored/*"),
+                ("react-dom/", "react-dom-vendored/*"),
                 (
                     "react-server-dom-webpack/",
-                    "next/dist/compiled/react-server-dom-webpack/*",
+                    "react-server-dom-webpack-vendored/*",
                 ),
+                ("scheduler/", "scheduler-vendored/*"),
             ] {
                 import_map.insert_wildcard_alias(
                     wildcard_alias,
-                    request_to_import_mapping(app_dir, request),
+                    request_to_import_mapping(vendor_dir, request),
                 );
             }
         }
@@ -484,29 +515,27 @@ pub async fn insert_next_server_special_aliases(
         //   runtime
         // * maps react-dom -> react-dom/server-rendering-stub
         // * passes through react and (react|react-dom|react-server-dom-webpack)/(.*) to
-        //   next/dist/compiled/react and next/dist/compiled/$1/$2 resp.
+        //   next/vendored/node_modules/react-vendored and next/dist/compiled/$1-vendored/$2 resp.
         (NextMode::Build | NextMode::Development, ServerContextType::AppSSR { .. }) => {
+            import_map.insert_exact_alias("react", external_request_to_import_mapping("react"));
+            import_map
+                .insert_exact_alias("react-dom", external_request_to_import_mapping("react-dom"));
             import_map.insert_exact_alias(
-                "react",
-                external_request_to_import_mapping("next/dist/compiled/react"),
+                "react-server-dom-webpack",
+                external_request_to_import_mapping("react-server-dom-webpack"),
             );
-            import_map.insert_exact_alias(
-                "react-dom",
-                external_request_to_import_mapping(
-                    "next/dist/compiled/react-dom/server-rendering-stub",
-                ),
-            );
-
+            import_map
+                .insert_exact_alias("scheduler", external_request_to_import_mapping("scheduler"));
             for (wildcard_alias, request) in [
-                ("react/", "next/dist/compiled/react/*"),
-                ("react-dom/", "next/dist/compiled/react-dom/*"),
-                (
-                    "react-server-dom-webpack/",
-                    "next/dist/compiled/react-server-dom-webpack/*",
-                ),
+                ("react/", "react/*"),
+                ("react-dom/", "react-dom/*"),
+                ("react-server-dom-webpack/", "react-server-dom-webpack/*"),
+                ("scheduler/", "scheduler/*"),
             ] {
-                let import_mapping = external_request_to_import_mapping(request);
-                import_map.insert_wildcard_alias(wildcard_alias, import_mapping);
+                import_map.insert_wildcard_alias(
+                    wildcard_alias,
+                    external_request_to_import_mapping(request),
+                );
             }
         }
         (_, ServerContextType::Middleware) => {}

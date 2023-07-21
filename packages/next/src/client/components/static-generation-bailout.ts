@@ -1,5 +1,5 @@
 import { DynamicServerError } from './hooks-server-context'
-import { staticGenerationAsyncStorage } from './static-generation-async-storage'
+import { staticGenerationAsyncStorage } from './static-generation-async-storage.sharedlayer'
 
 class StaticGenBailoutError extends Error {
   code = 'NEXT_STATIC_GEN_BAILOUT'
