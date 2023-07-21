@@ -62,6 +62,9 @@ import {
   getSourceById,
   parseStack,
 } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
+import { BuildManifest } from '../../get-page-files'
+import { readFile, writeFile } from 'fs/promises'
+import { PagesManifest } from '../../../build/webpack/plugins/pages-manifest-plugin'
 
 type SetupOpts = {
   dir: string
@@ -156,6 +159,30 @@ async function startWatcher(opts: SetupOpts) {
       console.error(e)
     }
 
+    const buildManifests = new Map<string, BuildManifest>()
+    const pagesManifests = new Map<string, PagesManifest>()
+
+    function mergeBuildManifests(manifests: Iterable<BuildManifest>) {
+      const manifest: Partial<BuildManifest> & Pick<BuildManifest, 'pages'> = {
+        pages: {
+          '/_app': [],
+        },
+      }
+      for (const m of manifests) {
+        Object.assign(manifest, m, { pages: manifest.pages })
+        Object.assign(manifest.pages, m.pages)
+      }
+      return manifest
+    }
+
+    function mergePagesManifests(manifests: Iterable<PagesManifest>) {
+      const manifest: PagesManifest = {}
+      for (const m of manifests) {
+        Object.assign(manifest, m)
+      }
+      return manifest
+    }
+
     hotReloader = new Proxy({} as any, {
       get(_target, prop, _receiver) {
         console.log('get hotReloader', prop)
@@ -165,7 +192,8 @@ async function startWatcher(opts: SetupOpts) {
             ensureOpts: Parameters<(typeof hotReloader)['ensurePage']>[0]
           ) => {
             console.log('ensurePage', ensureOpts)
-            const page = ensureOpts.page
+            const page =
+              ensureOpts.match?.definition?.pathname ?? ensureOpts.page
             const route = curEntries.get(page)
 
             if (!route) {
@@ -174,6 +202,16 @@ async function startWatcher(opts: SetupOpts) {
 
               throw new Error(`route not found ${page}`)
             }
+
+            async function loadPartialManifest<T>(name: string): T {
+              return JSON.parse(
+                await readFile(
+                  resolve(distDir, `server/pages${page}`, name),
+                  'utf-8'
+                )
+              ) as T
+            }
+
             const appRoute =
               route.type === 'app-page' || route.type === 'app-route'
 
@@ -181,8 +219,54 @@ async function startWatcher(opts: SetupOpts) {
               ((ensureOpts.isApp && appRoute) || !ensureOpts.isApp) &&
               'htmlEndpoint' in route
             ) {
-              await route.htmlEndpoint.writeToDisk()
-              console.log('ensured', route)
+              const writtenEndpoint = await route.htmlEndpoint.writeToDisk()
+              buildManifests.set(
+                page,
+                await loadPartialManifest('build-manifest.json')
+              )
+              pagesManifests.set(
+                page,
+                await loadPartialManifest('pages-manifest.json')
+              )
+              switch (writtenEndpoint.type) {
+                case 'nodejs': {
+                  break
+                }
+                case 'edge': {
+                  throw new Error('edge is not implemented yet')
+                }
+                default: {
+                  throw new Error(
+                    `unknown endpoint type ${(writtenEndpoint as any).type}`
+                  )
+                }
+              }
+              const buildManifest = mergeBuildManifests(buildManifests.values())
+              const pagesManifest = mergePagesManifests(pagesManifests.values())
+              await writeFile(
+                path.resolve(distDir, 'build-manifest.json'),
+                JSON.stringify(buildManifest, null, 2),
+                'utf-8'
+              )
+              await writeFile(
+                path.resolve(distDir, 'server/pages-manifest.json'),
+                JSON.stringify(pagesManifest, null, 2),
+                'utf-8'
+              )
+              await writeFile(
+                path.resolve(distDir, 'server/middleware-manifest.json'),
+                JSON.stringify(
+                  {
+                    sortedMiddleware: [],
+                    middleware: {},
+                    functions: {},
+                    version: 2,
+                  },
+                  null,
+                  2
+                ),
+                'utf-8'
+              )
             } else {
               throw new Error(
                 `mis-matched route type ${route.type} ${ensureOpts.isApp}`
