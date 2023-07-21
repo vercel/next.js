@@ -34,6 +34,7 @@ use crate::next_config::{NextConfig, OutputType};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, TaskInput)]
 pub enum PathType {
     Page,
+    PagesAPI,
     Data,
 }
 
