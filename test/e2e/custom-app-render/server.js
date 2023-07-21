@@ -1,13 +1,13 @@
 const http = require('http')
 const { parse } = require('url')
 const next = require('next')
-const getPort = require('get-port')
 
 async function main() {
   const dev = process.env.NEXT_TEST_MODE === 'dev'
   process.env.NODE_ENV = dev ? 'development' : 'production'
 
-  const port = await getPort()
+  const port = parseInt(process.env.PORT, 10) || 3000
+
   const app = next({ dev, port })
   const handle = app.getRequestHandler()
 
@@ -34,7 +34,7 @@ async function main() {
     process.exit(1)
   })
 
-  server.listen(port, '0.0.0.0', () => {
+  server.listen(port, () => {
     console.log(
       `> started server on url: http://localhost:${port} as ${
         dev ? 'development' : process.env.NODE_ENV

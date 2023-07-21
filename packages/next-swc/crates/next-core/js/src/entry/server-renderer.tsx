@@ -2,8 +2,8 @@
 // the other imports
 import startHandler from '../internal/page-server-handler'
 
-import Document from '@vercel/turbopack-next/pages/_document'
 import App from '@vercel/turbopack-next/pages/_app'
+import Document from '@vercel/turbopack-next/pages/_document'
 
 import chunkGroup from 'INNER_CLIENT_CHUNK_GROUP'
 

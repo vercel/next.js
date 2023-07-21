@@ -15,12 +15,7 @@ createNextDescribe(
       const traces = await next.readFile(traceFile)
       return traces
         .split('\n')
-        .filter((val) => {
-          if (val.includes('127.0.0.1')) {
-            return false
-          }
-          return !!val
-        })
+        .filter(Boolean)
         .map((line) => JSON.parse(line))
     }
 
