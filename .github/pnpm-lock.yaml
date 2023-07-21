@@ -51,7 +51,7 @@ importers:
       '@actions/github': 5.1.1
       '@types/node': ^18.11.0
       '@vercel/ncc': 0.34.0
-      typescript: ^5.1.6
+      typescript: 5.1.6
     dependencies:
       '@actions/core': 1.10.0
       '@actions/github': 5.1.1
