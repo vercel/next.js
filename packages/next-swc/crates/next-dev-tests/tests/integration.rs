@@ -3,6 +3,7 @@
 #![cfg(test)]
 
 use std::{
+    collections::{hash_map::Entry, HashMap},
     env,
     fmt::Write,
     future::{pending, Future},
@@ -34,6 +35,7 @@ use next_core::turbopack::{
 };
 use next_dev::{EntryRequest, NextDevServerBuilder};
 use owo_colors::OwoColorize;
+use parking_lot::Mutex;
 use regex::{Captures, Regex, Replacer};
 use serde::Deserialize;
 use tempdir::TempDir;
@@ -637,10 +639,12 @@ struct ChangeFileCommand {
     replace_with: String,
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, serialization = "none", eq = "manual", cell = "new")]
 struct TestIssueReporter {
     #[turbo_tasks(trace_ignore, debug_ignore)]
     pub issue_tx: State<UnboundedSender<(ReadRef<PlainIssue>, ReadRef<ValueDebugString>)>>,
+    #[turbo_tasks(trace_ignore, debug_ignore)]
+    pub already_printed: Mutex<HashMap<String, ()>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -653,6 +657,7 @@ impl TestIssueReporter {
     ) -> Vc<Self> {
         TestIssueReporter {
             issue_tx: State::new((*issue_tx).clone()),
+            already_printed: Default::default(),
         }
         .cell()
     }
@@ -678,7 +683,11 @@ impl IssueReporter for TestIssueReporter {
         for (issue, path) in captured_issues.iter_with_shortest_path() {
             let plain = NormalizedIssue(issue).cell().into_plain(path);
             issue_tx.send((plain.await?, plain.dbg().await?))?;
-            println!("{}", format_issue(&*plain.await?, None, &log_options));
+            let str = format_issue(&*plain.await?, None, &log_options);
+            if let Entry::Vacant(e) = self.already_printed.lock().entry(str) {
+                println!("{}", e.key());
+                e.insert(());
+            }
         }
         Ok(Vc::cell(false))
     }
