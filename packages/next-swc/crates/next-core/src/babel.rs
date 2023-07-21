@@ -135,7 +135,7 @@ pub async fn is_babel_loader_available(project_path: Vc<FileSystemPath>) -> Resu
             .cell(),
         ),
     );
-    let assets = result.primary_assets().await?;
+    let assets = result.primary_sources().await?;
     Ok(Vc::cell(!assets.is_empty()))
 }
 
