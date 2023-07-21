@@ -83,6 +83,9 @@ const NEXT_PROJECT_ROOT_DIST_CLIENT = path.join(
   'client'
 )
 
+const isWebpackServerLayer = (layer: string | null) =>
+  Boolean(layer && WEBPACK_LAYERS.GROUP.server.includes(layer))
+
 if (parseInt(React.version) < 18) {
   throw new Error('Next.js requires react >= 18.2.0 to be installed.')
 }
@@ -152,7 +155,9 @@ const nodePathList = (process.env.NODE_PATH || '')
 
 const watchOptions = Object.freeze({
   aggregateTimeout: 5,
-  ignored: ['**/.git/**', '**/.next/**'],
+  ignored:
+    // Matches **/node_modules/**, **/.git/** and **/.next/**
+    /^((?:[^/]*(?:\/|$))*)(\.(git|next)|node_modules)(\/((?:[^/]*(?:\/|$))*)(?:$|\/))?/,
 })
 
 function isModuleCSS(module: { type: string }) {
@@ -379,6 +384,7 @@ export function getDefineEnv({
     'process.env.__NEXT_WEB_VITALS_ATTRIBUTION': JSON.stringify(
       config.experimental.webVitalsAttribution
     ),
+    'process.env.__NEXT_ASSET_PREFIX': JSON.stringify(config.assetPrefix),
     ...(isNodeServer || isEdgeServer
       ? {
           // Fix bad-actors in the npm ecosystem (e.g. `node-formidable`)
@@ -406,9 +412,17 @@ export function getDefineEnv({
   }
 }
 
+function getReactProfilingInProduction() {
+  return {
+    'react-dom$': 'react-dom/profiling',
+    'scheduler/tracing': 'scheduler/tracing-profiling',
+  }
+}
+
 function createRSCAliases(
   bundledReactChannel: string,
   opts: {
+    reactProductionProfiling: boolean
     reactSharedSubset: boolean
     reactDomServerRenderingStub: boolean
     reactServerCondition?: boolean
@@ -453,6 +467,15 @@ function createRSCAliases(
       alias['server-only$'] = 'next/dist/compiled/server-only/index'
       alias['client-only$'] = 'next/dist/compiled/client-only/index'
     }
+  }
+
+  if (opts.reactProductionProfiling) {
+    alias[
+      'react-dom$'
+    ] = `next/dist/compiled/react-dom${bundledReactChannel}/profiling`
+    alias[
+      'scheduler/tracing'
+    ] = `next/dist/compiled/scheduler${bundledReactChannel}/tracing-profiling`
   }
 
   return alias
@@ -998,15 +1021,6 @@ export default async function getBaseWebpackConfig(
       } as ClientEntries)
     : undefined
 
-  function getReactProfilingInProduction() {
-    if (reactProductionProfiling) {
-      return {
-        'react-dom$': 'react-dom/profiling',
-        'scheduler/tracing': 'scheduler/tracing-profiling',
-      }
-    }
-  }
-
   // tell webpack where to look for _app and _document
   // using aliases to allow falling back to the default
   // version when removed or not present
@@ -1095,8 +1109,8 @@ export default async function getBaseWebpackConfig(
               'next/dist/esm/server/web/exports/index',
             [`${NEXT_PROJECT_ROOT}/dist/client/link`]:
               'next/dist/esm/client/link',
-            [`${NEXT_PROJECT_ROOT}/dist/client/image`]:
-              'next/dist/esm/client/image',
+            [`${NEXT_PROJECT_ROOT}/dist/shared/lib/image-external`]:
+              'next/dist/esm/shared/lib/image-external',
             [`${NEXT_PROJECT_ROOT}/dist/client/script`]:
               'next/dist/esm/client/script',
             [`${NEXT_PROJECT_ROOT}/dist/client/router`]:
@@ -1145,7 +1159,7 @@ export default async function getBaseWebpackConfig(
       [ROOT_DIR_ALIAS]: dir,
       [DOT_NEXT_ALIAS]: distDir,
       ...(isClient || isEdgeServer ? getOptimizedAliases() : {}),
-      ...getReactProfilingInProduction(),
+      ...(reactProductionProfiling ? getReactProfilingInProduction() : {}),
 
       [RSC_ACTION_VALIDATE_ALIAS]:
         'next/dist/build/webpack/loaders/next-flight-loader/action-validate',
@@ -1307,10 +1321,10 @@ export default async function getBaseWebpackConfig(
     }
 
     const isAppLayer = [
-      WEBPACK_LAYERS.server,
-      WEBPACK_LAYERS.client,
-      WEBPACK_LAYERS.appClient,
-      WEBPACK_LAYERS.action,
+      WEBPACK_LAYERS.reactServerComponents,
+      WEBPACK_LAYERS.serverSideRendering,
+      WEBPACK_LAYERS.appPagesBrowser,
+      WEBPACK_LAYERS.actionBrowser,
     ].includes(layer!)
 
     if (
@@ -1327,7 +1341,7 @@ export default async function getBaseWebpackConfig(
     }
 
     // Special internal modules that must be bundled for Server Components.
-    if (layer === WEBPACK_LAYERS.server) {
+    if (layer === WEBPACK_LAYERS.reactServerComponents) {
       // React needs to be bundled for Server Components so the special
       // `react-server` export condition can be used.
       if (reactPackagesRegex.test(request)) {
@@ -1348,9 +1362,9 @@ export default async function getBaseWebpackConfig(
         // override react-dom to server-rendering-stub for server
         if (
           request === 'react-dom' &&
-          (layer === WEBPACK_LAYERS.client ||
-            layer === WEBPACK_LAYERS.server ||
-            layer === WEBPACK_LAYERS.action)
+          (layer === WEBPACK_LAYERS.serverSideRendering ||
+            layer === WEBPACK_LAYERS.reactServerComponents ||
+            layer === WEBPACK_LAYERS.actionBrowser)
         ) {
           request = `next/dist/compiled/react-dom${bundledReactChannel}/server-rendering-stub`
         } else if (isAppLayer) {
@@ -1390,12 +1404,12 @@ export default async function getBaseWebpackConfig(
       // so that the DefinePlugin can inject process.env values.
 
       // Treat next internals as non-external for server layer
-      if (layer === WEBPACK_LAYERS.server || layer === WEBPACK_LAYERS.action) {
+      if (isWebpackServerLayer(layer)) {
         return
       }
 
       const isNextExternal =
-        /next[/\\]dist[/\\](esm[\\/])?(shared|server)[/\\](?!lib[/\\](router[/\\]router|dynamic|app-dynamic|lazy-dynamic|head[^-]))/.test(
+        /next[/\\]dist[/\\](esm[\\/])?(shared|server)[/\\](?!lib[/\\](router[/\\]router|dynamic|app-dynamic|image-external|lazy-dynamic|head[^-]))/.test(
           localRes
         )
 
@@ -1417,6 +1431,64 @@ export default async function getBaseWebpackConfig(
       }
     }
 
+    // Don't bundle @vercel/og nodejs bundle for nodejs runtime.
+    // TODO-APP: bundle route.js with different layer that externals common node_module deps.
+    if (
+      isWebpackServerLayer(layer) &&
+      request === 'next/dist/compiled/@vercel/og/index.node.js'
+    ) {
+      return `module ${request}`
+    }
+
+    // Specific Next.js imports that should remain external
+    // TODO-APP: Investigate if we can remove this.
+    if (request.startsWith('next/dist/')) {
+      // Image loader needs to be transpiled
+      if (/^next\/dist\/shared\/lib\/image-loader/.test(request)) {
+        return
+      }
+
+      if (
+        /^next\/dist\/shared\/(?!lib\/router\/router)/.test(request) ||
+        /^next\/dist\/compiled\/.*\.c?js$/.test(request)
+      ) {
+        return `commonjs ${request}`
+      }
+
+      if (
+        /^next\/dist\/esm\/shared\/(?!lib\/router\/router)/.test(request) ||
+        /^next\/dist\/compiled\/.*\.mjs$/.test(request)
+      ) {
+        return `module ${request}`
+      }
+
+      // Other Next.js internals need to be transpiled.
+      return
+    }
+
+    // Early return if the request needs to be bundled, such as in the client layer.
+    // Treat react packages and next internals as external for SSR layer,
+    // also map react to builtin ones with require-hook.
+    if (layer === WEBPACK_LAYERS.serverSideRendering) {
+      if (reactPackagesRegex.test(request)) {
+        return `commonjs next/dist/compiled/${request.replace(
+          /^(react-server-dom-webpack|react-dom|react)/,
+          (name) => {
+            return name + bundledReactChannel
+          }
+        )}`
+      }
+
+      const isRelative = request.startsWith('.')
+      const fullRequest = isRelative
+        ? path.join(context, request).replace(/\\/g, '/')
+        : request
+      const resolveNextExternal = isLocalCallback(fullRequest)
+
+      return resolveNextExternal
+    }
+
+    // TODO-APP: Let's avoid this resolve call as much as possible, and eventually get rid of it.
     const resolveResult = await resolveExternal(
       dir,
       config.experimental.esmExternals,
@@ -1438,15 +1510,6 @@ export default async function getBaseWebpackConfig(
       resolveResult.res = require.resolve(request)
     }
 
-    // Don't bundle @vercel/og nodejs bundle for nodejs runtime.
-    // TODO-APP: bundle route.js with different layer that externals common node_module deps.
-    if (
-      layer === WEBPACK_LAYERS.server &&
-      request === 'next/dist/compiled/@vercel/og/index.node.js'
-    ) {
-      return `module ${request}`
-    }
-
     const { res, isEsm } = resolveResult
 
     // If the request cannot be resolved we need to have
@@ -1465,18 +1528,8 @@ export default async function getBaseWebpackConfig(
 
     const externalType = isEsm ? 'module' : 'commonjs'
 
-    if (
-      /next[/\\]dist[/\\](esm[\\/])?shared[/\\](?!lib[/\\]router[/\\]router)/.test(
-        res
-      ) ||
-      /next[/\\]dist[/\\]compiled[/\\].*\.[mc]?js$/.test(res)
-    ) {
-      return `${externalType} ${request}`
-    }
-
     // Default pages have to be transpiled
     if (
-      /[/\\]next[/\\]dist[/\\]/.test(res) ||
       // This is the @babel/plugin-transform-runtime "helpers: true" option
       /node_modules[/\\]@babel[/\\]runtime[/\\]/.test(res)
     ) {
@@ -1525,7 +1578,7 @@ export default async function getBaseWebpackConfig(
       (isEsm && isAppLayer)
 
     if (/node_modules[/\\].*\.[mc]?js$/.test(res)) {
-      if (layer === WEBPACK_LAYERS.server || layer === WEBPACK_LAYERS.action) {
+      if (isWebpackServerLayer(layer)) {
         // All packages should be bundled for the server layer if they're not opted out.
         // This option takes priority over the transpilePackages option.
 
@@ -1533,20 +1586,6 @@ export default async function getBaseWebpackConfig(
           return `${externalType} ${request}`
         }
 
-        return
-      }
-
-      // Treat react packages and next internals as external for SSR layer,
-      // also map react to builtin ones with require-hook.
-      if (layer === WEBPACK_LAYERS.client) {
-        if (reactPackagesRegex.test(request)) {
-          return `commonjs next/dist/compiled/${request.replace(
-            /^(react-server-dom-webpack|react-dom|react)/,
-            (name) => {
-              return name + bundledReactChannel
-            }
-          )}`
-        }
         return
       }
 
@@ -1766,7 +1805,11 @@ export default async function getBaseWebpackConfig(
       runtimeChunk: isClient
         ? { name: CLIENT_STATIC_FILES_RUNTIME_WEBPACK }
         : undefined,
-      minimize: !dev && (isClient || isEdgeServer),
+      minimize:
+        !dev &&
+        (isClient ||
+          isEdgeServer ||
+          (isNodeServer && config.experimental.serverMinification)),
       minimizer: [
         // Minify JavaScript
         (compiler: webpack.Compiler) => {
@@ -1905,14 +1948,27 @@ export default async function getBaseWebpackConfig(
                 layer: WEBPACK_LAYERS.shared,
                 test: asyncStoragesRegex,
               },
+              // Convert metadata routes to separate layer
+              {
+                resourceQuery: new RegExp(
+                  WEBPACK_RESOURCE_QUERIES.metadataRoute
+                ),
+                layer: WEBPACK_LAYERS.appMetadataRoute,
+              },
+              {
+                // Ensure that the app page module is in the client layers, this
+                // enables React to work correctly for RSC.
+                layer: WEBPACK_LAYERS.serverSideRendering,
+                test: /next[\\/]dist[\\/](esm[\\/])?server[\\/]future[\\/]route-modules[\\/]app-page[\\/]module/,
+              },
               {
                 // All app dir layers need to use this configured resolution logic
                 issuerLayer: {
                   or: [
-                    WEBPACK_LAYERS.server,
-                    WEBPACK_LAYERS.client,
-                    WEBPACK_LAYERS.appClient,
-                    WEBPACK_LAYERS.action,
+                    WEBPACK_LAYERS.reactServerComponents,
+                    WEBPACK_LAYERS.serverSideRendering,
+                    WEBPACK_LAYERS.appPagesBrowser,
+                    WEBPACK_LAYERS.actionBrowser,
                     WEBPACK_LAYERS.shared,
                   ],
                 },
@@ -1929,6 +1985,7 @@ export default async function getBaseWebpackConfig(
                     ...createRSCAliases(bundledReactChannel, {
                       reactSharedSubset: false,
                       reactDomServerRenderingStub: false,
+                      reactProductionProfiling,
                     }),
                   },
                 },
@@ -1939,7 +1996,7 @@ export default async function getBaseWebpackConfig(
           ? [
               {
                 issuerLayer: {
-                  or: [WEBPACK_LAYERS.server, WEBPACK_LAYERS.action],
+                  or: [isWebpackServerLayer],
                 },
                 test: {
                   // Resolve it if it is a source code file, and it has NOT been
@@ -1953,16 +2010,16 @@ export default async function getBaseWebpackConfig(
                 },
                 resolve: {
                   conditionNames: reactServerCondition,
-                  alias: {
-                    // If missing the alias override here, the default alias will be used which aliases
-                    // react to the direct file path, not the package name. In that case the condition
-                    // will be ignored completely.
-                    ...createRSCAliases(bundledReactChannel, {
-                      reactSharedSubset: true,
-                      reactDomServerRenderingStub: true,
-                      reactServerCondition: true,
-                    }),
-                  },
+                  // If missing the alias override here, the default alias will be used which aliases
+                  // react to the direct file path, not the package name. In that case the condition
+                  // will be ignored completely.
+                  alias: createRSCAliases(bundledReactChannel, {
+                    reactSharedSubset: true,
+                    reactDomServerRenderingStub: true,
+                    reactServerCondition: true,
+                    // No server components profiling
+                    reactProductionProfiling,
+                  }),
                 },
                 use: {
                   loader: 'next-flight-loader',
@@ -1991,7 +2048,7 @@ export default async function getBaseWebpackConfig(
                 resourceQuery: new RegExp(
                   WEBPACK_RESOURCE_QUERIES.edgeSSREntry
                 ),
-                layer: WEBPACK_LAYERS.server,
+                layer: WEBPACK_LAYERS.reactServerComponents,
               },
             ]
           : []),
@@ -2004,7 +2061,7 @@ export default async function getBaseWebpackConfig(
                   {
                     exclude: [asyncStoragesRegex],
                     issuerLayer: {
-                      or: [WEBPACK_LAYERS.server, WEBPACK_LAYERS.action],
+                      or: [isWebpackServerLayer],
                     },
                     test: {
                       // Resolve it if it is a source code file, and it has NOT been
@@ -2019,42 +2076,39 @@ export default async function getBaseWebpackConfig(
                     resolve: {
                       // It needs `conditionNames` here to require the proper asset,
                       // when react is acting as dependency of compiled/react-dom.
-                      alias: {
-                        ...createRSCAliases(bundledReactChannel, {
-                          reactSharedSubset: true,
-                          reactDomServerRenderingStub: true,
-                          reactServerCondition: true,
-                        }),
-                      },
+                      alias: createRSCAliases(bundledReactChannel, {
+                        reactSharedSubset: true,
+                        reactDomServerRenderingStub: true,
+                        reactServerCondition: true,
+                        reactProductionProfiling,
+                      }),
                     },
                   },
                   {
                     test: codeCondition.test,
-                    issuerLayer: WEBPACK_LAYERS.client,
+                    issuerLayer: WEBPACK_LAYERS.serverSideRendering,
                     resolve: {
-                      alias: {
-                        ...createRSCAliases(bundledReactChannel, {
-                          reactSharedSubset: false,
-                          reactDomServerRenderingStub: true,
-                          reactServerCondition: false,
-                        }),
-                      },
+                      alias: createRSCAliases(bundledReactChannel, {
+                        reactSharedSubset: false,
+                        reactDomServerRenderingStub: true,
+                        reactServerCondition: false,
+                        reactProductionProfiling,
+                      }),
                     },
                   },
                 ],
               },
               {
                 test: codeCondition.test,
-                issuerLayer: WEBPACK_LAYERS.appClient,
+                issuerLayer: WEBPACK_LAYERS.appPagesBrowser,
                 resolve: {
-                  alias: {
-                    ...createRSCAliases(bundledReactChannel, {
-                      // Only alias server rendering stub in client SSR layer.
-                      reactSharedSubset: false,
-                      reactDomServerRenderingStub: false,
-                      reactServerCondition: false,
-                    }),
-                  },
+                  alias: createRSCAliases(bundledReactChannel, {
+                    // Only alias server rendering stub in client SSR layer.
+                    reactSharedSubset: false,
+                    reactDomServerRenderingStub: false,
+                    reactServerCondition: false,
+                    reactProductionProfiling,
+                  }),
                 },
               },
             ]
@@ -2080,7 +2134,7 @@ export default async function getBaseWebpackConfig(
                   {
                     test: codeCondition.test,
                     issuerLayer: {
-                      or: [WEBPACK_LAYERS.server, WEBPACK_LAYERS.action],
+                      or: [isWebpackServerLayer],
                     },
                     exclude: [asyncStoragesRegex],
                     use: swcLoaderForServerLayer,
@@ -2095,7 +2149,10 @@ export default async function getBaseWebpackConfig(
                   {
                     ...codeCondition,
                     issuerLayer: {
-                      or: [WEBPACK_LAYERS.client, WEBPACK_LAYERS.appClient],
+                      or: [
+                        WEBPACK_LAYERS.serverSideRendering,
+                        WEBPACK_LAYERS.appPagesBrowser,
+                      ],
                     },
                     exclude: [asyncStoragesRegex, codeCondition.exclude],
                     use: [
@@ -2138,7 +2195,11 @@ export default async function getBaseWebpackConfig(
                 issuer: { not: regexLikeCss },
                 dependency: { not: ['url'] },
                 resourceQuery: {
-                  not: [new RegExp(WEBPACK_RESOURCE_QUERIES.metadata)],
+                  not: [
+                    new RegExp(WEBPACK_RESOURCE_QUERIES.metadata),
+                    new RegExp(WEBPACK_RESOURCE_QUERIES.metadataRoute),
+                    new RegExp(WEBPACK_RESOURCE_QUERIES.metadataImageMeta),
+                  ],
                 },
                 options: {
                   isDev: dev,
@@ -2256,7 +2317,7 @@ export default async function getBaseWebpackConfig(
           test: /(node_modules|next[/\\]dist[/\\]compiled)[/\\]client-only[/\\]error.js/,
           loader: 'next-invalid-import-error-loader',
           issuerLayer: {
-            or: [WEBPACK_LAYERS.server, WEBPACK_LAYERS.action],
+            or: [isWebpackServerLayer],
           },
           options: {
             message:
@@ -2266,7 +2327,7 @@ export default async function getBaseWebpackConfig(
         {
           test: /(node_modules|next[/\\]dist[/\\]compiled)[/\\]server-only[/\\]index.js/,
           loader: 'next-invalid-import-error-loader',
-          issuerLayer: WEBPACK_LAYERS.client,
+          issuerLayer: WEBPACK_LAYERS.serverSideRendering,
           options: {
             message:
               "'server-only' cannot be imported from a Client Component module. It should only be used from a Server Component.",
@@ -2724,6 +2785,7 @@ export default async function getBaseWebpackConfig(
     experimental: config.experimental,
     disableStaticImages: config.images.disableStaticImages,
     transpilePackages: config.transpilePackages,
+    serverSourceMaps: config.experimental.serverSourceMaps,
   })
 
   // @ts-ignore Cache exists

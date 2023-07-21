@@ -23,6 +23,7 @@ import { getNpxCommand } from '../lib/helpers/get-npx-command'
 import Watchpack from 'watchpack'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { getPossibleInstrumentationHookFilenames } from '../build/worker'
+import { resetEnv } from '@next/env'
 
 let dir: string
 let isTurboSession = false
@@ -119,6 +120,7 @@ const nextDev: CliCommand = async (argv) => {
     '--port': Number,
     '--hostname': String,
     '--turbo': Boolean,
+    '--experimental-turbo': Boolean,
 
     // To align current messages with native binary.
     // Will need to adjust subcommand later.
@@ -223,8 +225,91 @@ const nextDev: CliCommand = async (argv) => {
   if (args['--turbo']) {
     process.env.TURBOPACK = '1'
   }
+  if (args['--experimental-turbo']) {
+    process.env.EXPERIMENTAL_TURBOPACK = '1'
+  }
+  const experimentalTurbo = !!process.env.EXPERIMENTAL_TURBOPACK
 
-  if (process.env.TURBOPACK) {
+  if (experimentalTurbo) {
+    const { loadBindings } =
+      require('../build/swc') as typeof import('../build/swc')
+
+    resetEnv()
+    let bindings = await loadBindings()
+
+    const config = await loadConfig(
+      PHASE_DEVELOPMENT_SERVER,
+      dir,
+      undefined,
+      undefined,
+      true
+    )
+
+    // Just testing code here:
+
+    const project = await bindings.turbo.createProject({
+      projectPath: dir,
+      rootPath: dir,
+      nextConfig: config,
+      env: {
+        NEXT_PUBLIC_ENV_VAR: 'world',
+      },
+      watch: true,
+    })
+    const iter = project.entrypointsSubscribe()
+
+    try {
+      for await (const entrypoints of iter) {
+        Log.info(entrypoints)
+        for (const [pathname, route] of entrypoints.routes) {
+          switch (route.type) {
+            case 'page': {
+              Log.info(`writing ${pathname} to disk`)
+              const written = await route.htmlEndpoint.writeToDisk()
+              Log.info(written)
+              break
+            }
+            case 'page-api': {
+              Log.info(`writing ${pathname} to disk`)
+              const written = await route.endpoint.writeToDisk()
+              Log.info(written)
+              break
+            }
+            case 'app-page': {
+              Log.info(`writing ${pathname} to disk`)
+              const written = await route.rscEndpoint.writeToDisk()
+              Log.info(written)
+              break
+            }
+            case 'app-route': {
+              Log.info(`writing ${pathname} to disk`)
+              const written = await route.endpoint.writeToDisk()
+              Log.info(written)
+              break
+            }
+            default:
+              Log.info(`skipping ${pathname} (${route.type})`)
+              break
+          }
+        }
+        Log.info('iteration done')
+        await project.update({
+          projectPath: dir,
+          rootPath: dir,
+          nextConfig: config,
+          env: {
+            NEXT_PUBLIC_ENV_VAR: 'hello',
+          },
+          watch: true,
+        })
+      }
+    } catch (e) {
+      console.dir(e)
+    }
+
+    Log.error('Not supported yet')
+    process.exit(1)
+  } else if (process.env.TURBOPACK) {
     isTurboSession = true
 
     const { validateTurboNextConfig } =
@@ -276,7 +361,25 @@ const nextDev: CliCommand = async (argv) => {
       )
     }
 
-    let bindings: any = await loadBindings()
+    if (process.platform === 'darwin') {
+      // rust needs stdout to be blocking, otherwise it will throw an error (on macOS at least) when writing a lot of data (logs) to it
+      // see https://github.com/napi-rs/napi-rs/issues/1630
+      // and https://github.com/nodejs/node/blob/main/doc/api/process.md#a-note-on-process-io
+      if (process.stdout._handle != null) {
+        // @ts-ignore
+        process.stdout._handle.setBlocking(true)
+      }
+      if (process.stderr._handle != null) {
+        // @ts-ignore
+        process.stderr._handle.setBlocking(true)
+      }
+    }
+
+    // Turbopack need to be in control over reading the .env files and watching them.
+    // So we need to start with a initial env to know which env vars are coming from the user.
+    resetEnv()
+    let bindings = await loadBindings()
+
     let server = bindings.turbo.startDev({
       ...devServerOptions,
       showAll: args['--show-all'] ?? false,
@@ -446,7 +549,7 @@ const nextDev: CliCommand = async (argv) => {
             const instrumentationFileHash = (
               require('crypto') as typeof import('crypto')
             )
-              .createHash('sha256')
+              .createHash('sha1')
               .update(await fs.promises.readFile(instrumentationFile, 'utf8'))
               .digest('hex')
 

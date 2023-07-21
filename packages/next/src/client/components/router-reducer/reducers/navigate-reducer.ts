@@ -30,6 +30,7 @@ import {
   getPrefetchEntryCacheStatus,
 } from '../get-prefetch-cache-entry-status'
 import { prunePrefetchCache } from './prune-prefetch-cache'
+import { prefetchQueue } from './prefetch-reducer'
 
 export function handleExternalUrl(
   state: ReadonlyReducerState,
@@ -114,6 +115,7 @@ export function navigateReducer(
     cache,
     mutable,
     forceOptimisticNavigation,
+    shouldScroll,
   } = action
   const { pathname, hash } = url
   const href = createHrefFromUrl(url)
@@ -191,6 +193,7 @@ export function navigateReducer(
       mutable.patchedTree = optimisticTree
       mutable.pendingPush = pendingPush
       mutable.hashFragment = hash
+      mutable.shouldScroll = shouldScroll
       mutable.scrollableSegments = []
       mutable.cache = temporaryCacheNode
       mutable.canonicalUrl = href
@@ -243,6 +246,8 @@ export function navigateReducer(
   // The one before last item is the router state tree patch
   const { treeAtTimeOfPrefetch, data } = prefetchValues
 
+  prefetchQueue.bump(data!)
+
   // Unwrap cache data with `use` to suspend here (in the reducer) until the fetch resolves.
   const [flightData, canonicalUrlOverride] = readRecordValue(data!)
 
@@ -263,12 +268,15 @@ export function navigateReducer(
       -4
     ) as unknown as FlightSegmentPath
     // The one before last item is the router state tree patch
-    const [treePatch] = flightDataPath.slice(-3) as [FlightRouterState]
+    const treePatch = flightDataPath.slice(-3)[0] as FlightRouterState
+
+    // TODO-APP: remove ''
+    const flightSegmentPathWithLeadingEmpty = ['', ...flightSegmentPath]
 
     // Create new tree based on the flightSegmentPath and router state patch
     let newTree = applyRouterStatePatchToTree(
       // TODO-APP: remove ''
-      ['', ...flightSegmentPath],
+      flightSegmentPathWithLeadingEmpty,
       currentTree,
       treePatch
     )
@@ -278,7 +286,7 @@ export function navigateReducer(
     if (newTree === null) {
       newTree = applyRouterStatePatchToTree(
         // TODO-APP: remove ''
-        ['', ...flightSegmentPath],
+        flightSegmentPathWithLeadingEmpty,
         treeAtTimeOfPrefetch,
         treePatch
       )
@@ -314,7 +322,7 @@ export function navigateReducer(
 
       const hardNavigate = shouldHardNavigate(
         // TODO-APP: remove ''
-        ['', ...flightSegmentPath],
+        flightSegmentPathWithLeadingEmpty,
         currentTree
       )
 
@@ -352,12 +360,13 @@ export function navigateReducer(
 
   mutable.previousTree = state.tree
   mutable.patchedTree = currentTree
-  mutable.scrollableSegments = scrollableSegments
   mutable.canonicalUrl = canonicalUrlOverride
     ? createHrefFromUrl(canonicalUrlOverride)
     : href
   mutable.pendingPush = pendingPush
+  mutable.scrollableSegments = scrollableSegments
   mutable.hashFragment = hash
+  mutable.shouldScroll = shouldScroll
 
   return handleMutable(state, mutable)
 }

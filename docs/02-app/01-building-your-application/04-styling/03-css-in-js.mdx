@@ -3,6 +3,8 @@ title: CSS-in-JS
 description: Use CSS-in-JS libraries with Next.js
 ---
 
+{/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
+
 <AppOnly>
 
 > **Warning:** CSS-in-JS libraries which require runtime JavaScript are not currently supported in Server Components. Using CSS-in-JS with newer React features like Server Components and Streaming requires library authors to support the latest version of React, including [concurrent rendering](https://react.dev/blog/2022/03/29/react-v18#what-is-concurrent-react).
@@ -11,17 +13,19 @@ description: Use CSS-in-JS libraries with Next.js
 
 The following libraries are supported in Client Components in the `app` directory (alphabetical):
 
+- [`kuma-ui`](https://kuma-ui.com)
+- [`@mui/material`](https://mui.com/material-ui/guides/next-js-app-router/)
 - [`pandacss`](https://panda-css.com)
 - [`styled-jsx`](#styled-jsx)
 - [`styled-components`](#styled-components)
 - [`style9`](https://github.com/johanholmerin/style9)
 - [`tamagui`](https://tamagui.dev/docs/guides/next-js#server-components)
+- [`tss-react`](https://tss-react.dev/)
 - [`vanilla-extract`](https://github.com/vercel/next.js/tree/canary/examples/with-vanilla-extract)
 
 The following are currently working on support:
 
 - [`emotion`](https://github.com/emotion-js/emotion/issues/2928)
-- [Material UI](https://github.com/mui/material-ui/issues/34905#issuecomment-1401306594)
 
 > **Good to know**: We're testing out different CSS-in-JS libraries and we'll be adding more examples for libraries that support React 18 features and/or the `app` directory.
 

@@ -31,6 +31,7 @@ export const APP_PATHS_MANIFEST = 'app-paths-manifest.json'
 export const APP_PATH_ROUTES_MANIFEST = 'app-path-routes-manifest.json'
 export const BUILD_MANIFEST = 'build-manifest.json'
 export const APP_BUILD_MANIFEST = 'app-build-manifest.json'
+export const FUNCTIONS_CONFIG_MANIFEST = 'functions-config-manifest.json'
 export const SUBRESOURCE_INTEGRITY_MANIFEST = 'subresource-integrity-manifest'
 export const NEXT_FONT_MANIFEST = 'next-font-manifest'
 export const EXPORT_MARKER = 'export-marker.json'
@@ -53,9 +54,9 @@ export const CLIENT_STATIC_FILES_PATH = 'static'
 export const CLIENT_STATIC_FILES_RUNTIME = 'runtime'
 export const STRING_LITERAL_DROP_BUNDLE = '__NEXT_DROP_CLIENT_FILE__'
 export const NEXT_BUILTIN_DOCUMENT = '__NEXT_BUILTIN_DOCUMENT__'
-export const NEXT_CLIENT_SSR_ENTRY_SUFFIX = '.__sc_client__'
+export const NEXT_CLIENT_SSR_ENTRY_SUFFIX = '.__ssr__'
 
-// server/client-reference-manifest
+// server/[entry]/page_client-reference-manifest.js
 export const CLIENT_REFERENCE_MANIFEST = 'client-reference-manifest'
 // server/server-reference-manifest
 export const SERVER_REFERENCE_MANIFEST = 'server-reference-manifest'
@@ -69,7 +70,7 @@ export const MIDDLEWARE_REACT_LOADABLE_MANIFEST =
 export const CLIENT_STATIC_FILES_RUNTIME_MAIN = `main`
 export const CLIENT_STATIC_FILES_RUNTIME_MAIN_APP = `${CLIENT_STATIC_FILES_RUNTIME_MAIN}-app`
 // next internal client components chunk for layouts
-export const APP_CLIENT_INTERNALS = 'app-client-internals'
+export const APP_CLIENT_INTERNALS = 'app-pages-internals'
 // static/runtime/react-refresh.js
 export const CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH = `react-refresh`
 // static/runtime/amp.js

@@ -233,7 +233,7 @@ export async function GET(request) {
 }
 ```
 
-Then, send a request to `/api/disable-draft` to invoke the Route Handler. If calling this route using [`next/link`](/docs/pages/api-reference/components/link), you must pass `prefetch={false}` to prevent accidentally deleting the cookie on prefetch.
+Then, send a request to `/api/disable-draft` to invoke the Route Handler. If calling this route using [`next/link`](/docs/app/api-reference/components/link), you must pass `prefetch={false}` to prevent accidentally deleting the cookie on prefetch.
 
 ### Unique per `next build`
 

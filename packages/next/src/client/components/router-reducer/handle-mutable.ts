@@ -9,40 +9,49 @@ export function handleMutable(
   state: ReadonlyReducerState,
   mutable: Mutable
 ): ReducerState {
+  // shouldScroll is true by default, can override to false.
+  const shouldScroll = mutable.shouldScroll ?? true
+
   return {
     buildId: state.buildId,
     // Set href.
     canonicalUrl:
-      typeof mutable.canonicalUrl !== 'undefined'
+      mutable.canonicalUrl != null
         ? mutable.canonicalUrl === state.canonicalUrl
           ? state.canonicalUrl
           : mutable.canonicalUrl
         : state.canonicalUrl,
     pushRef: {
       pendingPush:
-        typeof mutable.pendingPush !== 'undefined'
+        mutable.pendingPush != null
           ? mutable.pendingPush
           : state.pushRef.pendingPush,
       mpaNavigation:
-        typeof mutable.mpaNavigation !== 'undefined'
+        mutable.mpaNavigation != null
           ? mutable.mpaNavigation
           : state.pushRef.mpaNavigation,
     },
     // All navigation requires scroll and focus management to trigger.
     focusAndScrollRef: {
-      apply:
-        mutable?.scrollableSegments !== undefined
+      apply: shouldScroll
+        ? mutable?.scrollableSegments !== undefined
           ? true
-          : state.focusAndScrollRef.apply,
-      hashFragment:
-        // Empty hash should trigger default behavior of scrolling layout into view.
-        // #top is handled in layout-router.
-        mutable.hashFragment && mutable.hashFragment !== ''
+          : state.focusAndScrollRef.apply
+        : // If shouldScroll is false then we should not apply scroll and focus management.
+          false,
+      hashFragment: shouldScroll
+        ? // Empty hash should trigger default behavior of scrolling layout into view.
+          // #top is handled in layout-router.
+          mutable.hashFragment && mutable.hashFragment !== ''
           ? // Remove leading # and decode hash to make non-latin hashes work.
             decodeURIComponent(mutable.hashFragment.slice(1))
-          : state.focusAndScrollRef.hashFragment,
-      segmentPaths:
-        mutable?.scrollableSegments ?? state.focusAndScrollRef.segmentPaths,
+          : state.focusAndScrollRef.hashFragment
+        : // If shouldScroll is false then we should not apply scroll and focus management.
+          null,
+      segmentPaths: shouldScroll
+        ? mutable?.scrollableSegments ?? state.focusAndScrollRef.segmentPaths
+        : // If shouldScroll is false then we should not apply scroll and focus management.
+          [],
     },
     // Apply cache.
     cache: mutable.cache ? mutable.cache : state.cache,
@@ -50,12 +59,9 @@ export function handleMutable(
       ? mutable.prefetchCache
       : state.prefetchCache,
     // Apply patched router state.
-    tree:
-      typeof mutable.patchedTree !== 'undefined'
-        ? mutable.patchedTree
-        : state.tree,
+    tree: mutable.patchedTree !== undefined ? mutable.patchedTree : state.tree,
     nextUrl:
-      typeof mutable.patchedTree !== 'undefined'
+      mutable.patchedTree !== undefined
         ? computeChangedPath(state.tree, mutable.patchedTree) ??
           state.canonicalUrl
         : state.nextUrl,
