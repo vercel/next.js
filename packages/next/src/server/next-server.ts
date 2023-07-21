@@ -457,28 +457,17 @@ export default class NextNodeServer extends BaseServer {
       throw new Error(
         'invariant: renderHTML should not be called in minimal mode'
       )
-    } else {
-      // Due to the way we pass data by mutating `renderOpts`, we can't extend the
-      // object here but only updating its `nextFontManifest` field.
-      // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
-      renderOpts.nextFontManifest = this.nextFontManifest
+    }
 
-      if (this.hasAppDir && renderOpts.isAppPath) {
-        const { renderToHTMLOrFlight: appRenderToHTMLOrFlight } =
-          require('./app-render/app-render') as typeof import('./app-render/app-render')
-        return appRenderToHTMLOrFlight(
-          req.originalRequest,
-          res.originalResponse,
-          pathname,
-          query,
-          renderOpts
-        )
-      }
+    // Due to the way we pass data by mutating `renderOpts`, we can't extend the
+    // object here but only updating its `nextFontManifest` field.
+    // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
+    renderOpts.nextFontManifest = this.nextFontManifest
 
-      // TODO: re-enable this once we've refactored to use implicit matches
-      // throw new Error('Invariant: render should have used routeModule')
-
-      return require('./render').renderToHTML(
+    if (this.hasAppDir && renderOpts.isAppPath) {
+      const { renderToHTMLOrFlight: appRenderToHTMLOrFlight } =
+        require('./app-render/app-render') as typeof import('./app-render/app-render')
+      return appRenderToHTMLOrFlight(
         req.originalRequest,
         res.originalResponse,
         pathname,
@@ -486,6 +475,17 @@ export default class NextNodeServer extends BaseServer {
         renderOpts
       )
     }
+
+    // TODO: re-enable this once we've refactored to use implicit matches
+    // throw new Error('Invariant: render should have used routeModule')
+
+    return require('./render').renderToHTML(
+      req.originalRequest,
+      res.originalResponse,
+      pathname,
+      query,
+      renderOpts
+    )
   }
 
   private streamResponseChunk(res: ServerResponse, chunk: any) {
@@ -504,7 +504,7 @@ export default class NextNodeServer extends BaseServer {
   ): Promise<{ buffer: Buffer; contentType: string; maxAge: number }> {
     if (process.env.NEXT_MINIMAL) {
       throw new Error(
-        'Middleware is not supported in minimal mode. Please remove the `NEXT_MINIMAL` environment variable.'
+        'invariant: imageOptimizer should not be called in minimal mode'
       )
     }
     const { imageOptimizer } =
@@ -1466,7 +1466,7 @@ export default class NextNodeServer extends BaseServer {
   }) {
     if (process.env.NEXT_MINIMAL) {
       throw new Error(
-        'Middleware is not supported in minimal mode. Please remove the `NEXT_MINIMAL` environment variable.'
+        'invariant: runMiddleware should not be called in minimal mode'
       )
     }
 
