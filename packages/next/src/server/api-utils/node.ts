@@ -191,17 +191,17 @@ export async function parseBody(
   }
 }
 
+type RevalidateFn = (config: {
+  urlPath: string
+  revalidateHeaders: { [key: string]: string | string[] }
+  opts: { unstable_onlyGenerated?: boolean }
+}) => Promise<void>
+
 type ApiContext = __ApiPreviewProps & {
   trustHostHeader?: boolean
   allowedRevalidateHeaderKeys?: string[]
   hostname?: string
-  revalidate?: (config: {
-    urlPath: string
-    revalidateHeaders: { [key: string]: string | string[] }
-    opts: { unstable_onlyGenerated?: boolean }
-  }) => Promise<any>
-
-  // (_req: IncomingMessage, _res: ServerResponse) => Promise<any>
+  revalidate?: RevalidateFn
 }
 
 function getMaxContentLength(responseLimit?: ResponseLimit) {
