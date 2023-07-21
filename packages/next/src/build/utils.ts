@@ -1976,6 +1976,12 @@ createServerHandler({
       console.error(err);
       res.statusCode = 500
       res.end('Internal Server Error')
+    } finally {
+      if (!res.outgoingMessage.writableEnded()){
+        console.error("next handler didn't call end()");
+        res.statusCode = 500
+        res.end('Internal Server Error')
+      }
     }
   })
 
