@@ -73,7 +73,8 @@ use self::{
     tree_shake::asset::EcmascriptModulePartAsset,
 };
 use crate::{
-    chunk::EcmascriptChunkPlaceable, references::analyze_ecmascript_module,
+    chunk::EcmascriptChunkPlaceable,
+    references::{analyze_ecmascript_module, async_module::OptionAsyncModule},
     transform::remove_shebang,
 };
 
@@ -121,7 +122,7 @@ struct MemoizedSuccessfulAnalysis {
     operation: RawVc,
     references: ReadRef<AssetReferences>,
     exports: ReadRef<EcmascriptExports>,
-    has_top_level_await: bool,
+    async_module: ReadRef<OptionAsyncModule>,
 }
 
 pub struct EcmascriptModuleAssetBuilder {
@@ -282,17 +283,8 @@ impl EcmascriptModuleAsset {
     }
 
     #[turbo_tasks::function]
-    pub async fn analyze(self: Vc<Self>) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {
-        let this = self.await?;
-        Ok(analyze_ecmascript_module(
-            this.source,
-            Vc::upcast(self),
-            Value::new(this.ty),
-            this.transforms,
-            Value::new(this.options),
-            this.compile_time_info,
-            None,
-        ))
+    pub fn analyze(self: Vc<Self>) -> Vc<AnalyzeEcmascriptModuleResult> {
+        analyze_ecmascript_module(self, None)
     }
 
     #[turbo_tasks::function]
@@ -307,13 +299,13 @@ impl EcmascriptModuleAsset {
                     // We need to store the ReadRefs since we want to keep a snapshot.
                     references: result_value.references.await?,
                     exports: result_value.exports.await?,
-                    has_top_level_await: result_value.has_top_level_await,
+                    async_module: result_value.async_module.await?,
                 }));
         } else if let Some(MemoizedSuccessfulAnalysis {
             operation,
             references,
             exports,
-            has_top_level_await,
+            async_module,
         }) = &*this.last_successful_analysis.get()
         {
             // It's important to connect to the last operation here to keep it active, so
@@ -323,7 +315,7 @@ impl EcmascriptModuleAsset {
                 references: ReadRef::cell(references.clone()),
                 exports: ReadRef::cell(exports.clone()),
                 code_generation: result_value.code_generation,
-                has_top_level_await: *has_top_level_await,
+                async_module: ReadRef::cell(async_module.clone()),
                 successful: false,
             }
             .cell());
@@ -442,6 +434,11 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleAsset {
     async fn get_exports(self: Vc<Self>) -> Result<Vc<EcmascriptExports>> {
         Ok(self.failsafe_analyze().await?.exports)
     }
+
+    #[turbo_tasks::function]
+    async fn get_async_module(self: Vc<Self>) -> Result<Vc<OptionAsyncModule>> {
+        Ok(self.failsafe_analyze().await?.async_module)
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -511,7 +508,16 @@ impl EcmascriptChunkItem for ModuleChunkItem {
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
         let this = self.await?;
         let content = this.module.module_content(this.context, availability_info);
-        Ok(EcmascriptChunkItemContent::new(content, this.context))
+        let async_module_options = this
+            .module
+            .get_async_module()
+            .module_options(availability_info);
+
+        Ok(EcmascriptChunkItemContent::new(
+            content,
+            this.context,
+            async_module_options,
+        ))
     }
 }
 

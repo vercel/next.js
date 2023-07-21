@@ -1,1 +1,2 @@
-tests/execution/**/*/output
+tests/execution/**/*/output/
+tests/snapshot/**/output/

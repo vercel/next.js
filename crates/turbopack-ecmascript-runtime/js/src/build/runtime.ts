@@ -1,4 +1,5 @@
 /// <reference path="../shared/runtime-utils.ts" />
+/// <reference path="../shared-node/require.ts" />
 
 declare var RUNTIME_PUBLIC_PATH: string;
 
@@ -24,27 +25,12 @@ type SourceInfo =
       parentId: ModuleId;
     };
 
-interface RequireContextEntry {
-  external: boolean;
-}
-
 type ExternalRequire = (id: ModuleId) => Exports | EsmNamespaceObject;
+type ExternalImport = (id: ModuleId) => Promise<Exports | EsmNamespaceObject>;
 
-interface TurbopackNodeBuildContext {
-  e: Module["exports"];
-  r: CommonJsRequire;
+interface TurbopackNodeBuildContext extends TurbopackBaseContext {
   x: ExternalRequire;
-  f: RequireContextFactory;
-  i: EsmImport;
-  s: EsmExport;
-  j: typeof dynamicExport;
-  v: ExportValue;
-  n: typeof exportNamespace;
-  m: Module;
-  c: ModuleCache;
-  l: LoadChunk;
-  g: typeof globalThis;
-  __dirname: string;
+  y: ExternalImport;
 }
 
 type ModuleFactory = (
@@ -58,47 +44,6 @@ const RUNTIME_ROOT = path.resolve(__filename, relativePathToRuntimeRoot);
 
 const moduleFactories: ModuleFactories = Object.create(null);
 const moduleCache: ModuleCache = Object.create(null);
-
-function commonJsRequireContext(
-  entry: RequireContextEntry,
-  sourceModule: Module
-): Exports {
-  return entry.external
-    ? externalRequire(entry.id(), false)
-    : commonJsRequire(sourceModule, entry.id());
-}
-
-function externalRequire(
-  id: ModuleId,
-  esm: boolean = false
-): Exports | EsmNamespaceObject {
-  let raw;
-  try {
-    raw = require(id);
-  } catch (err) {
-    // TODO(alexkirsz) This can happen when a client-side module tries to load
-    // an external module we don't provide a shim for (e.g. querystring, url).
-    // For now, we fail semi-silently, but in the future this should be a
-    // compilation error.
-    throw new Error(`Failed to load external module ${id}: ${err}`);
-  }
-  if (!esm || raw.__esModule) {
-    return raw;
-  }
-  const ns = {};
-  interopEsm(raw, ns, true);
-  return ns;
-}
-externalRequire.resolve = (
-  id: string,
-  options?:
-    | {
-        paths?: string[] | undefined;
-      }
-    | undefined
-) => {
-  return require.resolve(id, options);
-};
 
 function loadChunk(chunkPath: ChunkPath) {
   if (!chunkPath.endsWith(".js")) {
@@ -176,13 +121,15 @@ function instantiateModule(id: ModuleId, source: SourceInfo): Module {
   // NOTE(alexkirsz) This can fail when the module encounters a runtime error.
   try {
     moduleFactory.call(module.exports, {
+      a: asyncModule.bind(null, module),
       e: module.exports,
       r: commonJsRequire.bind(null, module),
       x: externalRequire,
+      y: externalImport,
       f: requireContext.bind(null, module),
       i: esmImport.bind(null, module),
       s: esm.bind(null, module.exports),
-      j: dynamicExport.bind(null, module),
+      j: dynamicExport.bind(null, module, module.exports),
       v: exportValue.bind(null, module),
       n: exportNamespace.bind(null, module),
       m: module,

@@ -18,6 +18,7 @@ use turbopack_core::{
 use super::{EcmascriptChunkPlaceable, EcmascriptChunkingContext};
 use crate::{
     manifest::{chunk_asset::ManifestChunkAsset, loader_item::ManifestLoaderItem},
+    references::async_module::{AsyncModuleOptions, OptionAsyncModuleOptions},
     utils::FormatIter,
     EcmascriptModuleContent, ParseResultSourceMap,
 };
@@ -37,6 +38,7 @@ impl EcmascriptChunkItemContent {
     pub async fn new(
         content: Vc<EcmascriptModuleContent>,
         context: Vc<Box<dyn EcmascriptChunkingContext>>,
+        async_module_options: Vc<OptionAsyncModuleOptions>,
     ) -> Result<Vc<Self>> {
         let refresh = *context.has_react_refresh().await?;
         let externals = *context.environment().node_externals().await?;
@@ -46,9 +48,12 @@ impl EcmascriptChunkItemContent {
             inner_code: content.inner_code.clone(),
             source_map: content.source_map,
             options: if content.is_esm {
+                let async_module = async_module_options.await?.clone_value();
+
                 EcmascriptChunkItemOptions {
                     refresh,
                     externals,
+                    async_module,
                     ..Default::default()
                 }
             } else {
@@ -84,8 +89,12 @@ impl EcmascriptChunkItemContent {
             // HACK
             "__dirname",
         ];
+        if this.options.async_module.is_some() {
+            args.push("a: __turbopack_async_module__");
+        }
         if this.options.externals {
             args.push("x: __turbopack_external_require__");
+            args.push("y: __turbopack_external_import__");
         }
         if this.options.refresh {
             args.push("k: __turbopack_refresh__");
@@ -104,8 +113,23 @@ impl EcmascriptChunkItemContent {
             write!(code, "(({{ {} }}) => (() => {{\n\n", args,)?;
         }
 
+        if this.options.async_module.is_some() {
+            code += "__turbopack_async_module__(async (__turbopack_handle_async_dependencies__, \
+                     __turbopack_async_result__) => { try {";
+        }
+
         let source_map = this.source_map.map(Vc::upcast);
         code.push_source(&this.inner_code, source_map);
+
+        if let Some(opts) = &this.options.async_module {
+            write!(
+                code,
+                "__turbopack_async_result__();\n}} catch(e) {{ __turbopack_async_result__(e); }} \
+                 }}, {});",
+                opts.has_top_level_await
+            )?;
+        }
+
         if this.options.this {
             code += "\n}.call(this) })";
         } else {
@@ -129,6 +153,9 @@ pub struct EcmascriptChunkItemOptions {
     /// Whether this chunk item's module factory should include a
     /// `__turbopack_external_require__` argument.
     pub externals: bool,
+    /// Whether this chunk item's module is async (either has a top level await
+    /// or is importing async modules).
+    pub async_module: Option<AsyncModuleOptions>,
     pub this: bool,
     pub placeholder_for_future_extensions: (),
 }

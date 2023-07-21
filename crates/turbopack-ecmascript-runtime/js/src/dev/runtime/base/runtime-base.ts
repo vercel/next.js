@@ -33,21 +33,8 @@ type RefreshContext = {
 
 type RefreshHelpers = RefreshRuntimeGlobals["$RefreshHelpers$"];
 
-interface TurbopackDevBaseContext {
-  e: Module["exports"];
-  r: CommonJsRequire;
-  f: RequireContextFactory;
-  i: EsmImport;
-  s: EsmExport;
-  j: typeof dynamicExport;
-  v: ExportValue;
-  n: typeof exportNamespace;
-  m: Module;
-  c: ModuleCache;
-  l: LoadChunk;
-  g: typeof globalThis;
+interface TurbopackDevBaseContext extends TurbopackBaseContext {
   k: RefreshContext;
-  __dirname: string;
 }
 
 interface TurbopackDevContext extends TurbopackDevBaseContext {}
@@ -333,12 +320,13 @@ function instantiateModule(id: ModuleId, source: SourceInfo): Module {
       moduleFactory.call(
         module.exports,
         augmentContext({
+          a: asyncModule.bind(null, module),
           e: module.exports,
           r: commonJsRequire.bind(null, module),
           f: requireContext.bind(null, module),
           i: esmImport.bind(null, module),
-          s: esmExport.bind(null, module),
-          j: dynamicExport.bind(null, module),
+          s: esmExport.bind(null, module, module.exports),
+          j: dynamicExport.bind(null, module, module.exports),
           v: exportValue.bind(null, module),
           n: exportNamespace.bind(null, module),
           m: module,

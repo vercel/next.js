@@ -99,6 +99,16 @@ pub enum SingleValue<T> {
     Single(T),
 }
 
+impl<T: fmt::Debug> fmt::Debug for SingleValue<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            SingleValue::None => f.debug_struct("SingleValue::None").finish(),
+            SingleValue::Multiple => f.debug_struct("SingleValue::Multiple").finish(),
+            SingleValue::Single(v) => f.debug_tuple("SingleValue::Single").field(v).finish(),
+        }
+    }
+}
+
 impl<T: Clone + Send, S: StreamTrait<Item = T> + Send + Unpin + 'static> From<S> for Stream<T> {
     fn from(source: S) -> Self {
         Self::new_open(vec![], Box::new(source))
