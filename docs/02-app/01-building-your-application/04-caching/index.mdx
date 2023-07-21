@@ -295,7 +295,7 @@ See the [`useRouter` hook](/docs/app/api-reference/functions/use-router) API ref
 
 The `refresh` option of the `useRouter` hook can be used to manually refresh a route. This completely clears the Router Cache, and makes a new request to the server. `refresh` does not revalidate the Data or Full Route Cache, it reuses the cached data and rendering result, if it exists.
 
-The rendered result will be reconciled on the client without losing the React state or browser state (e.g. scroll position).
+The rendered result will be reconciled on the client while preserving React state and browser state (e.g. scroll position).
 
 See the [`useRouter` hook](/docs/app/api-reference/functions/use-router) API reference.
 
