@@ -64,9 +64,6 @@ class NotFoundErrorBoundary extends React.Component<
       return (
         <>
           <meta name="robots" content="noindex" />
-          {process.env.NODE_ENV === 'development' && (
-            <meta name="next-error" content="not-found" />
-          )}
           {this.props.notFoundStyles}
           {this.props.notFound}
         </>

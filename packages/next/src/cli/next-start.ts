@@ -84,6 +84,7 @@ const nextStart: CliCommand = async (argv) => {
 
   await startServer({
     dir,
+    nextConfig: config,
     isDev: false,
     hostname: host,
     port,
