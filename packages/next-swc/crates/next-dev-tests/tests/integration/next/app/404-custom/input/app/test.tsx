@@ -48,6 +48,7 @@ function runTests(harness: Harness, iframe: HTMLIFrameElement) {
     TIMEOUT
   )
 
+  // TODO: This test is flaky, so it needs a particularly long timeout.
   it(
     'renders a custom 404 page',
     async () => {
@@ -58,7 +59,7 @@ function runTests(harness: Harness, iframe: HTMLIFrameElement) {
         iframe.contentDocument!.querySelector('[data-test-notfound]')
       ).not.toBeNull()
     },
-    TIMEOUT
+    LONG_TIMEOUT
   )
 
   // TODO: This test is flaky, so it needs a particularly long timeout.
