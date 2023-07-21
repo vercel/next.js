@@ -103,7 +103,7 @@ async function buildNextServer(task) {
         'process.env.NEXT_RUNTIME': JSON.stringify('nodejs'),
       }),
       !!process.env.ANALYZE && new BundleAnalyzerPlugin({}),
-    ],
+    ].filter(Boolean),
     stats: {
       // Display bailout reasons
       optimizationBailout: true,
