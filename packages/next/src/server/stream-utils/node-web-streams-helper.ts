@@ -98,19 +98,19 @@ export async function streamToString(
   }
 }
 
-export function createBufferedTransformStream(
-  transform: (v: string) => string | Promise<string> = (v) => v
-): TransformStream<Uint8Array, Uint8Array> {
-  let bufferedString = ''
+export function createBufferedTransformStream(): TransformStream<
+  Uint8Array,
+  Uint8Array
+> {
+  let bufferedBytes: Uint8Array = new Uint8Array()
   let pendingFlush: Promise<void> | null = null
 
   const flushBuffer = (controller: TransformStreamDefaultController) => {
     if (!pendingFlush) {
       pendingFlush = new Promise((resolve) => {
         setTimeout(async () => {
-          const buffered = await transform(bufferedString)
-          controller.enqueue(encodeText(buffered))
-          bufferedString = ''
+          controller.enqueue(bufferedBytes)
+          bufferedBytes = new Uint8Array()
           pendingFlush = null
           resolve()
         }, 0)
@@ -119,11 +119,14 @@ export function createBufferedTransformStream(
     return pendingFlush
   }
 
-  const textDecoder = new TextDecoder()
-
   return new TransformStream({
     transform(chunk, controller) {
-      bufferedString += decodeText(chunk, textDecoder)
+      const newBufferedBytes = new Uint8Array(
+        bufferedBytes.length + chunk.byteLength
+      )
+      newBufferedBytes.set(bufferedBytes)
+      newBufferedBytes.set(chunk, bufferedBytes.length)
+      bufferedBytes = newBufferedBytes
       flushBuffer(controller)
     },
 
@@ -141,7 +144,6 @@ export function createInsertedHTMLStream(
   return new TransformStream({
     async transform(chunk, controller) {
       const insertedHTMLChunk = encodeText(await getServerInsertedHTML())
-
       controller.enqueue(insertedHTMLChunk)
       controller.enqueue(chunk)
     },
@@ -264,6 +266,12 @@ export function createInlineDataStream(
         // the safe timing to pipe the data stream, this extra tick is
         // necessary.
         dataStreamFinished = new Promise((res) =>
+          // We use `setTimeout` here to ensure that it's inserted after flushing
+          // the shell. Note that this implementation might get stale if impl
+          // details of Fizz change in the future.
+          // Also we are not using `setImmediate` here because it's not available
+          // broadly in all runtimes, for example some edge workers might not
+          // have it.
           setTimeout(async () => {
             try {
               while (true) {
@@ -289,7 +297,12 @@ export function createInlineDataStream(
   })
 }
 
-export function createSuffixStream(
+/**
+ * This transform stream moves the suffix to the end of the stream, so results
+ * like `</body></html><script>...</script>` will be transformed to
+ * `<script>...</script></body></html>`.
+ */
+function createMoveSuffixStream(
   suffix: string
 ): TransformStream<Uint8Array, Uint8Array> {
   let foundSuffix = false
@@ -319,34 +332,34 @@ export function createSuffixStream(
   })
 }
 
+const BYTES_HTML_TAG = new TextEncoder().encode('<html')
+const BYTES_BODY_TAG = new TextEncoder().encode('<body')
 export function createRootLayoutValidatorStream(
   assetPrefix = '',
   getTree: () => FlightRouterState
 ): TransformStream<Uint8Array, Uint8Array> {
   let foundHtml = false
   let foundBody = false
-  const textDecoder = new TextDecoder()
 
   return new TransformStream({
     async transform(chunk, controller) {
-      if (!foundHtml || !foundBody) {
-        const content = decodeText(chunk, textDecoder)
-        if (!foundHtml && content.includes('<html')) {
-          foundHtml = true
-        }
-        if (!foundBody && content.includes('<body')) {
-          foundBody = true
-        }
+      if (!foundHtml && BYTES_HTML_TAG.every((v, i) => v === chunk[i])) {
+        foundHtml = true
+      }
+      if (!foundBody && BYTES_BODY_TAG.every((v, i) => v === chunk[i])) {
+        foundBody = true
       }
       controller.enqueue(chunk)
     },
     flush(controller) {
-      const missingTags = [
-        foundHtml ? null : 'html',
-        foundBody ? null : 'body',
-      ].filter(nonNullable)
+      // If html or body tag is missing, we need to inject a script to notify
+      // the client.
+      if (!foundHtml || !foundBody) {
+        const missingTags = [
+          foundHtml ? null : 'html',
+          foundBody ? null : 'body',
+        ].filter(nonNullable)
 
-      if (missingTags.length > 0) {
         controller.enqueue(
           encodeText(
             `<script>self.__next_root_layout_missing_tags_error=${JSON.stringify(
@@ -406,18 +419,14 @@ export async function continueFromInitialStream(
     dataStream ? createInlineDataStream(dataStream) : null,
 
     // Close tags should always be deferred to the end
-    createSuffixStream(closeTag),
+    createMoveSuffixStream(closeTag),
 
     // Special head insertions
-    createHeadInsertionTransformStream(async () => {
-      // TODO-APP: Insert server side html to end of head in app layout rendering, to avoid
-      // hydration errors. Remove this once it's ready to be handled by react itself.
-      const serverInsertedHTML =
-        getServerInsertedHTML && serverInsertedHTMLToHead
-          ? await getServerInsertedHTML()
-          : ''
-      return serverInsertedHTML
-    }),
+    // TODO-APP: Insert server side html to end of head in app layout rendering, to avoid
+    // hydration errors. Remove this once it's ready to be handled by react itself.
+    getServerInsertedHTML && serverInsertedHTMLToHead
+      ? createHeadInsertionTransformStream(getServerInsertedHTML)
+      : null,
 
     validateRootLayout
       ? createRootLayoutValidatorStream(
