@@ -16,6 +16,7 @@ import { getProxiedPluginState } from '../../build-context'
 
 import { nonNullable } from '../../../lib/non-nullable'
 import { WEBPACK_LAYERS } from '../../../lib/constants'
+import { normalizePagePath } from '../../../shared/lib/page-path/normalize-page-path'
 
 interface Options {
   dev: boolean
@@ -95,6 +96,33 @@ function getAppPathRequiredChunks(chunkGroup: webpack.ChunkGroup) {
     .filter(nonNullable)
 }
 
+// Normalize the entry names to their "group names" so a page can easily track
+// all the manifest items it needs from parent groups by looking up the group
+// segments:
+// - app/foo/loading -> app/foo
+// - app/foo/page -> app/foo
+// - app/(group)/@named/foo/page -> app/foo
+// - app/(.)foo/(..)bar/loading -> app/bar
+function entryNameToGroupName(entryName: string) {
+  let groupName = entryName
+    .slice(0, entryName.lastIndexOf('/'))
+    .replace(/\/@[^/]+/g, '')
+    // Remove the group with lookahead to make sure it's not interception route
+    .replace(/\/\([^/]+\)(?=(\/|$))/g, '')
+
+  // Interception routes
+  groupName = groupName
+    .replace(/^.+\/\(\.\.\.\)/g, 'app/')
+    .replace(/\/\(\.\)/g, '/')
+
+  // Interception routes (recursive)
+  while (/\/[^/]+\/\(\.\.\)/.test(groupName)) {
+    groupName = groupName.replace(/\/[^/]+\/\(\.\.\)/g, '/')
+  }
+
+  return groupName
+}
+
 function mergeManifest(
   manifest: ClientReferenceManifest,
   manifestToMerge: ClientReferenceManifest
@@ -154,6 +182,7 @@ export class ClientReferenceManifestPlugin {
     context: string
   ) {
     const manifestsPerGroup = new Map<string, ClientReferenceManifest[]>()
+    const manifestEntryFiles: string[] = []
 
     compilation.chunkGroups.forEach((chunkGroup) => {
       // By default it's the shared chunkGroup (main-app) for every page.
@@ -183,7 +212,7 @@ export class ClientReferenceManifestPlugin {
       const requiredChunks = getAppPathRequiredChunks(chunkGroup)
       const recordModule = (id: ModuleId, mod: webpack.NormalModule) => {
         // Skip all modules from the pages folder.
-        if (mod.layer !== WEBPACK_LAYERS.appClient) {
+        if (mod.layer !== WEBPACK_LAYERS.appPagesBrowser) {
           return
         }
 
@@ -287,7 +316,7 @@ export class ClientReferenceManifestPlugin {
         const entryMods =
           compilation.chunkGraph.getChunkEntryModulesIterable(chunk)
         for (const mod of entryMods) {
-          if (mod.layer !== WEBPACK_LAYERS.appClient) continue
+          if (mod.layer !== WEBPACK_LAYERS.appPagesBrowser) continue
 
           const request = (mod as webpack.NormalModule).request
 
@@ -333,88 +362,60 @@ export class ClientReferenceManifestPlugin {
       // A page's entry name can have extensions. For example, these are both valid:
       // - app/foo/page
       // - app/foo/page.page
-      // Let's normalize the entry name to remove the extra extension
-      const groupName = /\/page(\.[^/]+)?$/.test(entryName)
-        ? entryName.replace(/\/page(\.[^/]+)?$/, '/page')
-        : entryName.slice(0, entryName.lastIndexOf('/'))
-
-      if (!manifestsPerGroup.has(groupName)) {
-        manifestsPerGroup.set(groupName, [])
-      }
-      manifestsPerGroup.get(groupName)!.push(manifest)
-
-      if (entryName.includes('/@')) {
-        // Remove parallel route labels:
-        // - app/foo/@bar/page -> app/foo
-        // - app/foo/@bar/layout -> app/foo/layout -> app/foo
-        const entryNameWithoutNamedSegments = entryName.replace(/\/@[^/]+/g, '')
-        const groupNameWithoutNamedSegments =
-          entryNameWithoutNamedSegments.slice(
-            0,
-            entryNameWithoutNamedSegments.lastIndexOf('/')
-          )
-        if (!manifestsPerGroup.has(groupNameWithoutNamedSegments)) {
-          manifestsPerGroup.set(groupNameWithoutNamedSegments, [])
-        }
-        manifestsPerGroup.get(groupNameWithoutNamedSegments)!.push(manifest)
+      if (/\/page(\.[^/]+)?$/.test(entryName)) {
+        manifestEntryFiles.push(entryName.replace(/\/page(\.[^/]+)?$/, '/page'))
       }
 
       // Special case for the root not-found page.
       if (/^app\/not-found(\.[^.]+)?$/.test(entryName)) {
-        if (!manifestsPerGroup.has('app/not-found')) {
-          manifestsPerGroup.set('app/not-found', [])
-        }
-        manifestsPerGroup.get('app/not-found')!.push(manifest)
+        manifestEntryFiles.push('app/not-found')
       }
+
+      const groupName = entryNameToGroupName(entryName)
+      if (!manifestsPerGroup.has(groupName)) {
+        manifestsPerGroup.set(groupName, [])
+      }
+      manifestsPerGroup.get(groupName)!.push(manifest)
     })
 
     // Generate per-page manifests.
-    for (const [groupName] of manifestsPerGroup) {
-      if (groupName.endsWith('/page') || groupName === 'app/not-found') {
-        const mergedManifest: ClientReferenceManifest = {
-          ssrModuleMapping: {},
-          edgeSSRModuleMapping: {},
-          clientModules: {},
-          entryCSSFiles: {},
-        }
+    for (const pageName of manifestEntryFiles) {
+      const mergedManifest: ClientReferenceManifest = {
+        ssrModuleMapping: {},
+        edgeSSRModuleMapping: {},
+        clientModules: {},
+        entryCSSFiles: {},
+      }
 
-        const segments = groupName.split('/')
-        let group = ''
-        for (const segment of segments) {
-          if (segment.startsWith('@')) continue
-          for (const manifest of manifestsPerGroup.get(group) || []) {
-            mergeManifest(mergedManifest, manifest)
-          }
-          group += (group ? '/' : '') + segment
-        }
-        for (const manifest of manifestsPerGroup.get(groupName) || []) {
+      const segments = [...entryNameToGroupName(pageName).split('/'), 'page']
+      let group = ''
+      for (const segment of segments) {
+        for (const manifest of manifestsPerGroup.get(group) || []) {
           mergeManifest(mergedManifest, manifest)
         }
+        group += (group ? '/' : '') + segment
+      }
 
-        const json = JSON.stringify(mergedManifest)
+      const json = JSON.stringify(mergedManifest)
 
-        const pagePath = groupName.replace(/%5F/g, '_')
-        assets['server/' + pagePath + '_' + CLIENT_REFERENCE_MANIFEST + '.js'] =
+      const pagePath = pageName.replace(/%5F/g, '_')
+      const pageBundlePath = normalizePagePath(pagePath.slice('app'.length))
+      assets[
+        'server/app' + pageBundlePath + '_' + CLIENT_REFERENCE_MANIFEST + '.js'
+      ] = new sources.RawSource(
+        `globalThis.__RSC_MANIFEST=(globalThis.__RSC_MANIFEST||{});globalThis.__RSC_MANIFEST[${JSON.stringify(
+          pagePath.slice('app'.length)
+        )}]=${JSON.stringify(json)}`
+      ) as unknown as webpack.sources.RawSource
+
+      if (pagePath === 'app/not-found') {
+        // Create a separate special manifest for the root not-found page.
+        assets['server/app/_not-found_' + CLIENT_REFERENCE_MANIFEST + '.js'] =
           new sources.RawSource(
-            `globalThis.__RSC_MANIFEST=(globalThis.__RSC_MANIFEST||{});globalThis.__RSC_MANIFEST[${JSON.stringify(
-              pagePath.slice('app'.length)
-            )}]=${JSON.stringify(json)}`
-          ) as unknown as webpack.sources.RawSource
-
-        if (pagePath === 'app/not-found') {
-          // Create a separate special manifest for the root not-found page.
-          assets[
-            'server/' +
-              'app/_not-found' +
-              '_' +
-              CLIENT_REFERENCE_MANIFEST +
-              '.js'
-          ] = new sources.RawSource(
             `globalThis.__RSC_MANIFEST=(globalThis.__RSC_MANIFEST||{});globalThis.__RSC_MANIFEST[${JSON.stringify(
               '/_not-found'
             )}]=${JSON.stringify(json)}`
           ) as unknown as webpack.sources.RawSource
-        }
       }
     }
 

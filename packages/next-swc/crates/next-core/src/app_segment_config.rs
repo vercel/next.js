@@ -7,28 +7,26 @@ use swc_core::{
     common::{source_map::Pos, Span, Spanned},
     ecma::ast::{Expr, Ident, Program},
 };
-use turbo_tasks::{primitives::StringVc, trace::TraceRawVcs, TryJoinIterExt};
-use turbo_tasks_fs::FileSystemPathVc;
+use turbo_tasks::{trace::TraceRawVcs, TryJoinIterExt, ValueDefault, Vc};
+use turbo_tasks_fs::FileSystemPath;
 use turbopack_binding::turbopack::{
     core::{
-        asset::{Asset, AssetVc},
-        context::{AssetContext, AssetContextVc},
-        ident::AssetIdentVc,
-        issue::{
-            Issue, IssueSeverity, IssueSeverityVc, IssueSourceVc, IssueVc, OptionIssueSourceVc,
-        },
-        module::ModuleVc,
+        context::AssetContext,
+        file_source::FileSource,
+        ident::AssetIdent,
+        issue::{Issue, IssueExt, IssueSeverity, IssueSource, OptionIssueSource},
+        module::Module,
         reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
-        source_asset::SourceAssetVc,
+        source::Source,
     },
     ecmascript::{
         analyzer::{graph::EvalContext, ConstantNumber, ConstantValue, JsValue},
         parse::ParseResult,
-        EcmascriptModuleAssetVc,
+        EcmascriptModuleAsset,
     },
 };
 
-use crate::{app_structure::LoaderTreeVc, util::NextRuntime};
+use crate::{app_structure::LoaderTree, util::NextRuntime};
 
 #[derive(Default, PartialEq, Eq, Clone, Copy, Debug, TraceRawVcs, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -75,9 +73,9 @@ pub struct NextSegmentConfig {
 }
 
 #[turbo_tasks::value_impl]
-impl NextSegmentConfigVc {
+impl ValueDefault for NextSegmentConfig {
     #[turbo_tasks::function]
-    pub fn default() -> Self {
+    pub fn value_default() -> Vc<Self> {
         NextSegmentConfig::default().cell()
     }
 }
@@ -155,36 +153,36 @@ impl NextSegmentConfig {
 /// An issue that occurred while parsing the app segment config.
 #[turbo_tasks::value(shared)]
 pub struct NextSegmentConfigParsingIssue {
-    ident: AssetIdentVc,
-    detail: StringVc,
-    source: IssueSourceVc,
+    ident: Vc<AssetIdent>,
+    detail: Vc<String>,
+    source: Vc<IssueSource>,
 }
 
 #[turbo_tasks::value_impl]
 impl Issue for NextSegmentConfigParsingIssue {
     #[turbo_tasks::function]
-    fn severity(&self) -> IssueSeverityVc {
+    fn severity(&self) -> Vc<IssueSeverity> {
         IssueSeverity::Warning.into()
     }
 
     #[turbo_tasks::function]
-    fn title(&self) -> StringVc {
-        StringVc::cell("Unable to parse config export in source file".to_string())
+    fn title(&self) -> Vc<String> {
+        Vc::cell("Unable to parse config export in source file".to_string())
     }
 
     #[turbo_tasks::function]
-    fn category(&self) -> StringVc {
-        StringVc::cell("parsing".to_string())
+    fn category(&self) -> Vc<String> {
+        Vc::cell("parsing".to_string())
     }
 
     #[turbo_tasks::function]
-    fn context(&self) -> FileSystemPathVc {
+    fn context(&self) -> Vc<FileSystemPath> {
         self.ident.path()
     }
 
     #[turbo_tasks::function]
-    fn description(&self) -> StringVc {
-        StringVc::cell(
+    fn description(&self) -> Vc<String> {
+        Vc::cell(
             "The exported configuration object in a source file need to have a very specific \
              format from which some properties can be statically parsed at compiled-time."
                 .to_string(),
@@ -192,30 +190,33 @@ impl Issue for NextSegmentConfigParsingIssue {
     }
 
     #[turbo_tasks::function]
-    fn detail(&self) -> StringVc {
+    fn detail(&self) -> Vc<String> {
         self.detail
     }
 
     #[turbo_tasks::function]
-    fn documentation_link(&self) -> StringVc {
-        StringVc::cell(
+    fn documentation_link(&self) -> Vc<String> {
+        Vc::cell(
             "https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config"
                 .to_string(),
         )
     }
 
     #[turbo_tasks::function]
-    fn source(&self) -> OptionIssueSourceVc {
-        OptionIssueSourceVc::some(self.source)
+    fn source(&self) -> Vc<OptionIssueSource> {
+        OptionIssueSource::some(self.source)
     }
 }
 
 #[turbo_tasks::function]
 pub async fn parse_segment_config_from_source(
-    module_asset: ModuleVc,
-) -> Result<NextSegmentConfigVc> {
-    let Some(ecmascript_asset) = EcmascriptModuleAssetVc::resolve_from(module_asset).await? else {
-        return Ok(NextSegmentConfigVc::default());
+    module_asset: Vc<Box<dyn Module>>,
+    source: Vc<Box<dyn Source>>,
+) -> Result<Vc<NextSegmentConfig>> {
+    let Some(ecmascript_asset) =
+        Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(module_asset).await?
+    else {
+        return Ok(Default::default());
     };
 
     let ParseResult::Ok {
@@ -224,7 +225,7 @@ pub async fn parse_segment_config_from_source(
         ..
     } = &*ecmascript_asset.parse().await?
     else {
-        return Ok(NextSegmentConfigVc::default());
+        return Ok(Default::default());
     };
 
     let mut config = NextSegmentConfig::default();
@@ -244,7 +245,7 @@ pub async fn parse_segment_config_from_source(
             };
 
             if let Some(init) = decl.init.as_ref() {
-                parse_config_value(module_asset, &mut config, ident, init, eval_context);
+                parse_config_value(module_asset, source, &mut config, ident, init, eval_context);
             }
         }
     }
@@ -252,12 +253,13 @@ pub async fn parse_segment_config_from_source(
     Ok(config.cell())
 }
 
-fn issue_source(source: AssetVc, span: Span) -> IssueSourceVc {
-    IssueSourceVc::from_byte_offset(source, span.lo.to_usize(), span.hi.to_usize())
+fn issue_source(source: Vc<Box<dyn Source>>, span: Span) -> Vc<IssueSource> {
+    IssueSource::from_byte_offset(source, span.lo.to_usize(), span.hi.to_usize())
 }
 
 fn parse_config_value(
-    module: ModuleVc,
+    module: Vc<Box<dyn Module>>,
+    source: Vc<Box<dyn Source>>,
     config: &mut NextSegmentConfig,
     ident: &Ident,
     init: &Expr,
@@ -268,11 +270,10 @@ fn parse_config_value(
         let (explainer, hints) = value.explain(2, 0);
         NextSegmentConfigParsingIssue {
             ident: module.ident(),
-            detail: StringVc::cell(format!("{detail} Got {explainer}.{hints}")),
-            source: issue_source(module.into(), span),
+            detail: Vc::cell(format!("{detail} Got {explainer}.{hints}")),
+            source: issue_source(source, span),
         }
         .cell()
-        .as_issue()
         .emit();
     };
 
@@ -370,9 +371,9 @@ fn parse_config_value(
 
 #[turbo_tasks::function]
 pub async fn parse_segment_config_from_loader_tree(
-    loader_tree: LoaderTreeVc,
-    context: AssetContextVc,
-) -> Result<NextSegmentConfigVc> {
+    loader_tree: Vc<LoaderTree>,
+    context: Vc<Box<dyn AssetContext>>,
+) -> Result<Vc<NextSegmentConfig>> {
     let loader_tree = loader_tree.await?;
     let components = loader_tree.components.await?;
     let mut config = NextSegmentConfig::default();
@@ -390,13 +391,17 @@ pub async fn parse_segment_config_from_loader_tree(
         .into_iter()
         .flatten()
     {
+        let source = Vc::upcast(FileSource::new(component));
         config.apply_parent_config(
-            &*parse_segment_config_from_source(context.process(
-                SourceAssetVc::new(component).into(),
-                turbo_tasks::Value::new(ReferenceType::EcmaScriptModules(
-                    EcmaScriptModulesReferenceSubType::Undefined,
-                )),
-            ))
+            &*parse_segment_config_from_source(
+                context.process(
+                    source,
+                    turbo_tasks::Value::new(ReferenceType::EcmaScriptModules(
+                        EcmaScriptModulesReferenceSubType::Undefined,
+                    )),
+                ),
+                source,
+            )
             .await?,
         );
     }

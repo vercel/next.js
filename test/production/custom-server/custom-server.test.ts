@@ -5,6 +5,9 @@ createNextDescribe(
   {
     files: __dirname,
     startCommand: 'node server.js',
+    dependencies: {
+      'get-port': '5.1.1',
+    },
   },
   ({ next }) => {
     it.each(['a', 'b', 'c'])('can navigate to /%s', async (page) => {

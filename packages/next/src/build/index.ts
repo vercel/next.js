@@ -1,3 +1,4 @@
+import type { NodeFileTraceResult } from '@vercel/nft'
 import type { RemotePattern } from '../shared/lib/image-config'
 import type { AppBuildManifest } from './webpack/plugins/app-build-manifest-plugin'
 import type { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
@@ -16,7 +17,6 @@ import os from 'os'
 import { Worker } from '../lib/worker'
 import { defaultConfig } from '../server/config-shared'
 import devalue from 'next/dist/compiled/devalue'
-import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 import findUp from 'next/dist/compiled/find-up'
 import { nanoid } from 'next/dist/compiled/nanoid/index.cjs'
 import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
@@ -140,6 +140,12 @@ import { createClientRouterFilter } from '../lib/create-client-router-filter'
 import { createValidFileMatcher } from '../server/lib/find-page-file'
 import { startTypeChecking } from './type-check'
 import { generateInterceptionRoutesRewrites } from '../lib/generate-interception-routes-rewrites'
+import { buildDataRoute } from '../server/lib/router-utils/build-data-route'
+import {
+  baseOverrides,
+  defaultOverrides,
+  experimentalOverrides,
+} from '../server/require-hook'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -162,6 +168,66 @@ export type PrerenderManifest = {
   dynamicRoutes: { [route: string]: DynamicSsgRoute }
   notFoundRoutes: string[]
   preview: __ApiPreviewProps
+}
+
+type CustomRoute = {
+  regex: string
+  statusCode?: number | undefined
+  permanent?: undefined
+  source: string
+  locale?: false | undefined
+  basePath?: false | undefined
+  destination?: string | undefined
+}
+
+export type RoutesManifest = {
+  version: number
+  pages404: boolean
+  basePath: string
+  redirects: Array<CustomRoute>
+  rewrites?:
+    | Array<CustomRoute>
+    | {
+        beforeFiles: Array<CustomRoute>
+        afterFiles: Array<CustomRoute>
+        fallback: Array<CustomRoute>
+      }
+  headers: Array<CustomRoute>
+  staticRoutes: Array<{
+    page: string
+    regex: string
+    namedRegex?: string
+    routeKeys?: { [key: string]: string }
+  }>
+  dynamicRoutes: Array<{
+    page: string
+    regex: string
+    namedRegex?: string
+    routeKeys?: { [key: string]: string }
+  }>
+  dataRoutes: Array<{
+    page: string
+    routeKeys?: { [key: string]: string }
+    dataRouteRegex: string
+    namedDataRouteRegex?: string
+  }>
+  i18n?: {
+    domains?: Array<{
+      http?: true
+      domain: string
+      locales?: string[]
+      defaultLocale: string
+    }>
+    locales: string[]
+    defaultLocale: string
+    localeDetection?: false
+  }
+  rsc: {
+    header: typeof RSC
+    varyHeader: typeof RSC_VARY_HEADER
+  }
+  skipMiddlewareUrlNormalize?: boolean
+  caseSensitive?: boolean
 }
 
 async function generateClientSsgManifest(
@@ -559,10 +625,13 @@ export default async function build(
               return isMatch(page, filterPage)
             })
           })
-        }
 
-        // TODO(alexkirsz) Filter out app pages entirely as they are not supported yet.
-        pageKeys.app = undefined
+          pageKeys.app = pageKeys.app?.filter((page) => {
+            return filterPages.some((filterPage) => {
+              return isMatch(page, filterPage)
+            })
+          })
+        }
       }
 
       const numConflictingAppPaths = conflictingAppPagePaths.length
@@ -679,89 +748,45 @@ export default async function build(
       }
 
       const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
-      const routesManifest: {
-        version: number
-        pages404: boolean
-        basePath: string
-        redirects: Array<ReturnType<typeof buildCustomRoute>>
-        rewrites?:
-          | Array<ReturnType<typeof buildCustomRoute>>
-          | {
-              beforeFiles: Array<ReturnType<typeof buildCustomRoute>>
-              afterFiles: Array<ReturnType<typeof buildCustomRoute>>
-              fallback: Array<ReturnType<typeof buildCustomRoute>>
+      const routesManifest: RoutesManifest = nextBuildSpan
+        .traceChild('generate-routes-manifest')
+        .traceFn(() => {
+          const sortedRoutes = getSortedRoutes([
+            ...pageKeys.pages,
+            ...(pageKeys.app ?? []),
+          ])
+          const dynamicRoutes: Array<ReturnType<typeof pageToRoute>> = []
+          const staticRoutes: typeof dynamicRoutes = []
+
+          for (const route of sortedRoutes) {
+            if (isDynamicRoute(route)) {
+              dynamicRoutes.push(pageToRoute(route))
+            } else if (!isReservedPage(route)) {
+              staticRoutes.push(pageToRoute(route))
             }
-        headers: Array<ReturnType<typeof buildCustomRoute>>
-        staticRoutes: Array<{
-          page: string
-          regex: string
-          namedRegex?: string
-          routeKeys?: { [key: string]: string }
-        }>
-        dynamicRoutes: Array<{
-          page: string
-          regex: string
-          namedRegex?: string
-          routeKeys?: { [key: string]: string }
-        }>
-        dataRoutes: Array<{
-          page: string
-          routeKeys?: { [key: string]: string }
-          dataRouteRegex: string
-          namedDataRouteRegex?: string
-        }>
-        i18n?: {
-          domains?: Array<{
-            http?: true
-            domain: string
-            locales?: string[]
-            defaultLocale: string
-          }>
-          locales: string[]
-          defaultLocale: string
-          localeDetection?: false
-        }
-        rsc: {
-          header: typeof RSC
-          varyHeader: typeof RSC_VARY_HEADER
-        }
-        skipMiddlewareUrlNormalize?: boolean
-        caseSensitive?: boolean
-      } = nextBuildSpan.traceChild('generate-routes-manifest').traceFn(() => {
-        const sortedRoutes = getSortedRoutes([
-          ...pageKeys.pages,
-          ...(pageKeys.app ?? []),
-        ])
-        const dynamicRoutes: Array<ReturnType<typeof pageToRoute>> = []
-        const staticRoutes: typeof dynamicRoutes = []
-
-        for (const route of sortedRoutes) {
-          if (isDynamicRoute(route)) {
-            dynamicRoutes.push(pageToRoute(route))
-          } else if (!isReservedPage(route)) {
-            staticRoutes.push(pageToRoute(route))
           }
-        }
 
-        return {
-          version: 3,
-          pages404: true,
-          caseSensitive: !!config.experimental.caseSensitiveRoutes,
-          basePath: config.basePath,
-          redirects: redirects.map((r: any) => buildCustomRoute(r, 'redirect')),
-          headers: headers.map((r: any) => buildCustomRoute(r, 'header')),
-          dynamicRoutes,
-          staticRoutes,
-          dataRoutes: [],
-          i18n: config.i18n || undefined,
-          rsc: {
-            header: RSC,
-            varyHeader: RSC_VARY_HEADER,
-            contentTypeHeader: RSC_CONTENT_TYPE_HEADER,
-          },
-          skipMiddlewareUrlNormalize: config.skipMiddlewareUrlNormalize,
-        }
-      })
+          return {
+            version: 3,
+            pages404: true,
+            caseSensitive: !!config.experimental.caseSensitiveRoutes,
+            basePath: config.basePath,
+            redirects: redirects.map((r: any) =>
+              buildCustomRoute(r, 'redirect')
+            ),
+            headers: headers.map((r: any) => buildCustomRoute(r, 'header')),
+            dynamicRoutes,
+            staticRoutes,
+            dataRoutes: [],
+            i18n: config.i18n || undefined,
+            rsc: {
+              header: RSC,
+              varyHeader: RSC_VARY_HEADER,
+              contentTypeHeader: RSC_CONTENT_TYPE_HEADER,
+            },
+            skipMiddlewareUrlNormalize: config.skipMiddlewareUrlNormalize,
+          }
+        })
 
       if (rewrites.beforeFiles.length === 0 && rewrites.fallback.length === 0) {
         routesManifest.rewrites = rewrites.afterFiles.map((r: any) =>
@@ -898,6 +923,7 @@ export default async function build(
                       ]
                     : []),
                   path.join(SERVER_DIRECTORY, APP_PATHS_MANIFEST),
+                  path.join(APP_PATH_ROUTES_MANIFEST),
                   APP_BUILD_MANIFEST,
                   path.join(
                     SERVER_DIRECTORY,
@@ -934,7 +960,7 @@ export default async function build(
           ignore: [] as string[],
         }))
 
-      let binding = (await loadBindings()) as any
+      let binding = await loadBindings()
 
       async function turbopackBuild() {
         const turboNextBuildStart = process.hrtime()
@@ -1735,15 +1761,27 @@ export default async function build(
       }
 
       if (Object.keys(functionsConfigManifest).length > 0) {
+        const manifest: {
+          version: number
+          functions: Record<string, Record<string, string | number>>
+        } = {
+          version: 1,
+          functions: functionsConfigManifest,
+        }
+
         await fs.writeFile(
           path.join(distDir, SERVER_DIRECTORY, FUNCTIONS_CONFIG_MANIFEST),
-          JSON.stringify(functionsConfigManifest, null, 2)
+          JSON.stringify(manifest, null, 2)
         )
       }
 
       const nextServerTraceOutput = path.join(
         distDir,
         'next-server.js.nft.json'
+      )
+      const nextMinimalTraceOutput = path.join(
+        distDir,
+        'next-minimal-server.js.nft.json'
       )
 
       if (!isGenerate && config.outputFileTracing) {
@@ -1937,19 +1975,25 @@ export default async function build(
             const nextServerEntry = require.resolve(
               'next/dist/server/next-server'
             )
-            const toTrace = [
-              nextServerEntry,
-              isStandalone
-                ? require.resolve(
-                    'next/dist/server/lib/render-server-standalone'
-                  )
-                : null,
-            ].filter(nonNullable)
+
+            const sharedEntriesSet = [
+              ...Object.values(baseOverrides).map((override) =>
+                require.resolve(override)
+              ),
+              ...Object.values(experimentalOverrides).map((override) =>
+                require.resolve(override)
+              ),
+              ...(config.experimental.turbotrace
+                ? []
+                : Object.values(defaultOverrides).map((value) =>
+                    require.resolve(value)
+                  )),
+            ]
 
             // ensure we trace any dependencies needed for custom
             // incremental cache handler
             if (incrementalCacheHandlerPath) {
-              toTrace.push(
+              sharedEntriesSet.push(
                 require.resolve(
                   path.isAbsolute(incrementalCacheHandlerPath)
                     ? incrementalCacheHandlerPath
@@ -1958,7 +2002,23 @@ export default async function build(
               )
             }
 
-            let serverResult: import('next/dist/compiled/@vercel/nft').NodeFileTraceResult
+            const vanillaServerEntries = [
+              ...sharedEntriesSet,
+              isStandalone
+                ? require.resolve('next/dist/server/lib/start-server')
+                : null,
+              require.resolve('next/dist/server/next-server'),
+            ].filter(Boolean) as string[]
+
+            const minimalServerEntries = [
+              ...sharedEntriesSet,
+              require.resolve(
+                'next/dist/compiled/minimal-next-server/next-server-cached.js'
+              ),
+              require.resolve(
+                'next/dist/compiled/minimal-next-server/next-server.js'
+              ),
+            ].filter(Boolean)
 
             const additionalIgnores = new Set<string>()
 
@@ -2004,9 +2064,14 @@ export default async function build(
             }
             const traceContext = path.join(nextServerEntry, '..', '..')
             const tracedFiles = new Set<string>()
+            const minimalTracedFiles = new Set<string>()
 
-            function addToTracedFiles(base: string, file: string) {
-              tracedFiles.add(
+            function addToTracedFiles(
+              base: string,
+              file: string,
+              dest: Set<string>
+            ) {
+              dest.add(
                 path
                   .relative(distDir, path.join(base, file))
                   .replace(/\\/g, '/')
@@ -2016,54 +2081,93 @@ export default async function build(
             if (isStandalone) {
               addToTracedFiles(
                 '',
-                require.resolve('next/dist/compiled/jest-worker/processChild')
+                require.resolve('next/dist/compiled/jest-worker/processChild'),
+                tracedFiles
               )
               addToTracedFiles(
                 '',
-                require.resolve('next/dist/compiled/jest-worker/threadChild')
+                require.resolve('next/dist/compiled/jest-worker/threadChild'),
+                tracedFiles
               )
             }
 
             if (config.experimental.turbotrace) {
-              const files: string[] = await nodeFileTrace(
-                {
-                  action: 'print',
-                  input: toTrace,
-                  contextDirectory: traceContext,
-                  logLevel: config.experimental.turbotrace.logLevel,
-                  processCwd: config.experimental.turbotrace.processCwd,
-                  logDetail: config.experimental.turbotrace.logDetail,
-                  showAll: config.experimental.turbotrace.logAll,
-                },
-                turboTasksForTrace
-              )
-              for (const file of files) {
-                if (!ignoreFn(path.join(traceContext, file))) {
-                  addToTracedFiles(traceContext, file)
+              const makeTrace = async (entries: string[]) =>
+                nodeFileTrace(
+                  {
+                    action: 'print',
+                    input: entries,
+                    contextDirectory: traceContext,
+                    logLevel: config.experimental.turbotrace?.logLevel,
+                    processCwd: config.experimental.turbotrace?.processCwd,
+                    logDetail: config.experimental.turbotrace?.logDetail,
+                    showAll: config.experimental.turbotrace?.logAll,
+                  },
+                  turboTasksForTrace
+                )
+
+              // turbotrace does not handle concurrent tracing
+              const vanillaFiles = await makeTrace(vanillaServerEntries)
+              const minimalFiles = await makeTrace(minimalServerEntries)
+
+              for (const [set, files] of [
+                [tracedFiles, vanillaFiles],
+                [minimalTracedFiles, minimalFiles],
+              ] as [Set<string>, string[]][]) {
+                for (const file of files) {
+                  if (!ignoreFn(path.join(traceContext, file))) {
+                    addToTracedFiles(traceContext, file, set)
+                  }
                 }
               }
             } else {
-              serverResult = await nodeFileTrace(toTrace, {
-                base: root,
-                processCwd: dir,
-                ignore: ignoreFn,
-              })
+              const makeTrace = async (entries: string[]) =>
+                nodeFileTrace(entries, {
+                  base: root,
+                  processCwd: dir,
+                  ignore: ignoreFn,
+                })
 
-              serverResult.fileList.forEach((file) => {
-                addToTracedFiles(root, file)
-              })
+              const [vanillaFiles, minimalFiles]: NodeFileTraceResult[] =
+                await Promise.all([
+                  makeTrace(vanillaServerEntries),
+                  makeTrace(minimalServerEntries),
+                ])
+
+              for (const [set, traceResult] of [
+                [tracedFiles, vanillaFiles],
+                [minimalTracedFiles, minimalFiles],
+              ] as [Set<string>, NodeFileTraceResult][]) {
+                for (const file of traceResult.fileList) {
+                  addToTracedFiles(root, file, set)
+                }
+              }
             }
-            await fs.writeFile(
-              nextServerTraceOutput,
-              JSON.stringify({
-                version: 1,
-                cacheKey,
-                files: Array.from(tracedFiles),
-              } as {
-                version: number
-                files: string[]
-              })
-            )
+            await Promise.all([
+              fs.writeFile(
+                nextServerTraceOutput,
+                JSON.stringify({
+                  version: 1,
+                  cacheKey,
+                  files: Array.from(tracedFiles),
+                } as {
+                  version: number
+                  files: string[]
+                })
+              ),
+              fs.writeFile(
+                nextMinimalTraceOutput,
+                JSON.stringify({
+                  version: 1,
+                  cacheKey,
+                  files: Array.from(minimalTracedFiles),
+                } as {
+                  version: number
+                  files: string[]
+                })
+              ),
+            ])
+
             await fs.unlink(cachedTracePath).catch(() => {})
             await fs
               .copyFile(nextServerTraceOutput, cachedTracePath)
@@ -2078,49 +2182,7 @@ export default async function build(
           ...serverPropsPages,
           ...ssgPages,
         ]).map((page) => {
-          const pagePath = normalizePagePath(page)
-          const dataRoute = path.posix.join(
-            '/_next/data',
-            buildId,
-            `${pagePath}.json`
-          )
-
-          let dataRouteRegex: string
-          let namedDataRouteRegex: string | undefined
-          let routeKeys: { [named: string]: string } | undefined
-
-          if (isDynamicRoute(page)) {
-            const routeRegex = getNamedRouteRegex(
-              dataRoute.replace(/\.json$/, ''),
-              true
-            )
-
-            dataRouteRegex = normalizeRouteRegex(
-              routeRegex.re.source.replace(/\(\?:\\\/\)\?\$$/, `\\.json$`)
-            )
-            namedDataRouteRegex = routeRegex.namedRegex!.replace(
-              /\(\?:\/\)\?\$$/,
-              `\\.json$`
-            )
-            routeKeys = routeRegex.routeKeys
-          } else {
-            dataRouteRegex = normalizeRouteRegex(
-              new RegExp(
-                `^${path.posix.join(
-                  '/_next/data',
-                  escapeStringRegexp(buildId),
-                  `${pagePath}.json`
-                )}$`
-              ).source
-            )
-          }
-
-          return {
-            page,
-            routeKeys,
-            dataRouteRegex,
-            namedDataRouteRegex,
-          }
+          return buildDataRoute(page, buildId)
         })
 
         await fs.writeFile(

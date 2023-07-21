@@ -158,6 +158,11 @@ createNextDescribe(
       expect(html).toContain('foo.client')
     })
 
+    it('should create client reference successfully for all file conventions', async () => {
+      const html = await next.render('/conventions')
+      expect(html).toContain('it works')
+    })
+
     it('should be able to navigate between rsc routes', async () => {
       const browser = await next.browser('/root')
 
@@ -186,6 +191,11 @@ createNextDescribe(
         `document.querySelector('#content').innerText`
       )
       expect(content).toMatchInlineSnapshot('"next_streaming_data"')
+    })
+
+    it('should track client components in dynamic imports', async () => {
+      const html = await next.render('/dynamic')
+      expect(html).toContain('dynamic data!')
     })
 
     it('should support next/link in server components', async () => {
@@ -563,16 +573,6 @@ createNextDescribe(
           expect(await next.hasFile(file)).toBe(true)
         })
         await Promise.all(promises)
-      })
-
-      it('should generate client reference manifest for edge SSR pages', async () => {
-        const buildManifest = JSON.parse(
-          await next.readFile('.next/app-build-manifest.json')
-        )
-
-        expect(buildManifest.pages['/edge/dynamic/page']).toInclude(
-          'server/app/edge/dynamic/page_client-reference-manifest.js'
-        )
       })
     }
   }

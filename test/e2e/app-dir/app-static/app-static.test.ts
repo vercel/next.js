@@ -162,11 +162,13 @@ createNextDescribe(
             }
           `
         )
-        const html = await next.render('/invalid/first')
+
+        // The page may take a moment to compile, so try it a few times.
+        await check(async () => {
+          return next.render('/invalid/first')
+        }, /A required parameter \(slug\) was not provided as a string received object/)
+
         await next.deleteFile('app/invalid/[slug]/page.js')
-        expect(html).toContain(
-          'A required parameter (slug) was not provided as a string received object'
-        )
       })
 
       it('should correctly handle multi-level generateStaticParams when some levels are missing', async () => {

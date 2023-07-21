@@ -1,64 +1,64 @@
 use anyhow::{bail, Result};
-use turbo_tasks::{primitives::StringVc, Value};
+use turbo_tasks::{Value, Vc};
 use turbopack_binding::turbopack::{
     core::{
-        asset::{Asset, AssetContentVc, AssetVc},
-        chunk::{
-            availability_info::AvailabilityInfo, ChunkVc, ChunkableModule, ChunkableModuleVc,
-            ChunkingContextVc,
-        },
-        ident::AssetIdentVc,
-        module::{Module, ModuleVc},
-        reference::AssetReferencesVc,
+        asset::{Asset, AssetContent},
+        chunk::{availability_info::AvailabilityInfo, Chunk, ChunkableModule, ChunkingContext},
+        ident::AssetIdent,
+        module::Module,
+        reference::AssetReferences,
     },
-    ecmascript::chunk::EcmascriptChunkingContextVc,
+    ecmascript::chunk::EcmascriptChunkingContext,
     turbopack::ecmascript::chunk::{
-        EcmascriptChunkItemVc, EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc,
-        EcmascriptChunkVc, EcmascriptExportsVc,
+        EcmascriptChunk, EcmascriptChunkItem, EcmascriptChunkPlaceable, EcmascriptExports,
     },
 };
 
 #[turbo_tasks::function]
-fn modifier() -> StringVc {
-    StringVc::cell("in chunking context".to_string())
+fn modifier() -> Vc<String> {
+    Vc::cell("in chunking context".to_string())
 }
 
 #[turbo_tasks::value(shared)]
 pub struct InChunkingContextAsset {
-    pub asset: EcmascriptChunkPlaceableVc,
-    pub chunking_context: ChunkingContextVc,
+    pub asset: Vc<Box<dyn EcmascriptChunkPlaceable>>,
+    pub chunking_context: Vc<Box<dyn ChunkingContext>>,
 }
 
 #[turbo_tasks::value_impl]
-impl Asset for InChunkingContextAsset {
+impl Module for InChunkingContextAsset {
     #[turbo_tasks::function]
-    fn ident(&self) -> AssetIdentVc {
+    fn ident(&self) -> Vc<AssetIdent> {
         self.asset.ident().with_modifier(modifier())
     }
 
     #[turbo_tasks::function]
-    fn content(&self) -> AssetContentVc {
-        self.asset.content()
-    }
-
-    #[turbo_tasks::function]
-    fn references(&self) -> AssetReferencesVc {
+    fn references(&self) -> Vc<AssetReferences> {
         self.asset.references()
     }
 }
 
 #[turbo_tasks::value_impl]
-impl Module for InChunkingContextAsset {}
+impl Asset for InChunkingContextAsset {
+    #[turbo_tasks::function]
+    fn content(&self) -> Vc<AssetContent> {
+        self.asset.content()
+    }
+}
 
 #[turbo_tasks::value_impl]
 impl ChunkableModule for InChunkingContextAsset {
     #[turbo_tasks::function]
     fn as_chunk(
         &self,
-        _context: ChunkingContextVc,
+        _context: Vc<Box<dyn ChunkingContext>>,
         availability_info: Value<AvailabilityInfo>,
-    ) -> ChunkVc {
-        EcmascriptChunkVc::new(self.chunking_context, self.asset, availability_info).into()
+    ) -> Vc<Box<dyn Chunk>> {
+        Vc::upcast(EcmascriptChunk::new(
+            self.chunking_context,
+            self.asset,
+            availability_info,
+        ))
     }
 }
 
@@ -67,10 +67,11 @@ impl EcmascriptChunkPlaceable for InChunkingContextAsset {
     #[turbo_tasks::function]
     async fn as_chunk_item(
         &self,
-        _context: EcmascriptChunkingContextVc,
-    ) -> Result<EcmascriptChunkItemVc> {
+        _context: Vc<Box<dyn EcmascriptChunkingContext>>,
+    ) -> Result<Vc<Box<dyn EcmascriptChunkItem>>> {
         let Some(chunking_context) =
-            EcmascriptChunkingContextVc::resolve_from(&self.chunking_context).await?
+            Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkingContext>>(self.chunking_context)
+                .await?
         else {
             bail!("chunking context is not an EcmascriptChunkingContext")
         };
@@ -78,7 +79,7 @@ impl EcmascriptChunkPlaceable for InChunkingContextAsset {
     }
 
     #[turbo_tasks::function]
-    fn get_exports(&self) -> EcmascriptExportsVc {
+    fn get_exports(&self) -> Vc<EcmascriptExports> {
         self.asset.get_exports()
     }
 }
