@@ -52,10 +52,10 @@ export function getPathMatch(path: string, options?: Options) {
    * `false` but if it does it will return an object with the matched params
    * merged with the params provided in the second argument.
    */
-  return (
+  return <T extends { [key: string]: any }>(
     pathname?: string | null,
     params?: any
-  ): false | { [key: string]: any } => {
+  ): false | T => {
     const res = pathname == null ? false : matcher(pathname)
     if (!res) {
       return false

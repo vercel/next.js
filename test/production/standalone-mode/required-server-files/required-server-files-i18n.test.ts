@@ -107,7 +107,7 @@ describe('should set-up next', () => {
       testServer,
       (
         await fs.readFile(testServer, 'utf8')
-      ).replace('port:', 'minimalMode: true,port:')
+      ).replace('conf:', 'minimalMode: true,conf:')
     )
     appPort = await findPort()
     server = await initNextServerScript(
@@ -587,41 +587,35 @@ describe('should set-up next', () => {
   })
 
   it('should bubble error correctly for gip page', async () => {
+    errors = []
     const res = await fetchViaHTTP(appPort, '/errors/gip', { crash: '1' })
     expect(res.status).toBe(500)
     expect(await res.text()).toBe('Internal Server Error')
 
     await check(
-      () =>
-        errors.join('').includes('gip hit an oops')
-          ? 'success'
-          : errors.join('\n'),
+      () => (errors[0].includes('gip hit an oops') ? 'success' : errors[0]),
       'success'
     )
   })
 
   it('should bubble error correctly for gssp page', async () => {
+    errors = []
     const res = await fetchViaHTTP(appPort, '/errors/gssp', { crash: '1' })
     expect(res.status).toBe(500)
     expect(await res.text()).toBe('Internal Server Error')
     await check(
-      () =>
-        errors.join('\n').includes('gssp hit an oops')
-          ? 'success'
-          : errors.join('\n'),
+      () => (errors[0].includes('gssp hit an oops') ? 'success' : errors[0]),
       'success'
     )
   })
 
   it('should bubble error correctly for gsp page', async () => {
+    errors = []
     const res = await fetchViaHTTP(appPort, '/errors/gsp/crash')
     expect(res.status).toBe(500)
     expect(await res.text()).toBe('Internal Server Error')
     await check(
-      () =>
-        errors.join('\n').includes('gsp hit an oops')
-          ? 'success'
-          : errors.join('\n'),
+      () => (errors[0].includes('gsp hit an oops') ? 'success' : errors[0]),
       'success'
     )
   })
@@ -633,9 +627,9 @@ describe('should set-up next', () => {
     expect(await res.text()).toBe('Internal Server Error')
     await check(
       () =>
-        errors.join('\n').includes('some error from /api/error')
+        errors[0].includes('some error from /api/error')
           ? 'success'
-          : errors.join('\n'),
+          : errors[0],
       'success'
     )
   })

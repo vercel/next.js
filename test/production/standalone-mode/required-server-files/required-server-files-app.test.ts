@@ -71,7 +71,7 @@ describe('should set-up next', () => {
       testServer,
       (
         await fs.readFile(testServer, 'utf8')
-      ).replace('port:', `minimalMode: ${minimalMode},port:`)
+      ).replace('conf:', `minimalMode: ${minimalMode},conf:`)
     )
     appPort = await findPort()
     server = await initNextServerScript(
@@ -161,7 +161,6 @@ describe('should set-up next', () => {
       ['/api/isr/first', 'isr-page,/api/isr/[slug]/route'],
       ['/api/isr/second', 'isr-page,/api/isr/[slug]/route'],
     ]) {
-      require('console').error('checking', { path, tags })
       const res = await fetchViaHTTP(appPort, path, undefined, {
         redirect: 'manual',
       })

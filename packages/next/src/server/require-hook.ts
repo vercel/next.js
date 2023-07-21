@@ -19,11 +19,6 @@ const resolve = process.env.NEXT_MINIMAL
 const toResolveMap = (map: Record<string, string>): [string, string][] =>
   Object.entries(map).map(([key, value]) => [key, resolve(value)])
 
-export const defaultOverrides = {
-  'styled-jsx': dirname(resolve('styled-jsx/package.json')),
-  'styled-jsx/style': resolve('styled-jsx/style'),
-}
-
 export const baseOverrides = {
   react: 'next/dist/compiled/react',
   'react/package.json': 'next/dist/compiled/react/package.json',
@@ -78,7 +73,12 @@ export function addHookAliases(aliases: [string, string][] = []) {
 }
 
 // Add default aliases
-addHookAliases(toResolveMap(defaultOverrides))
+addHookAliases([
+  // Use `require.resolve` explicitly to make them statically analyzable
+  // styled-jsx needs to be resolved as the external dependency.
+  ['styled-jsx', dirname(resolve('styled-jsx/package.json'))],
+  ['styled-jsx/style', resolve('styled-jsx/style')],
+])
 
 // Override built-in React packages if necessary
 function overrideReact() {

@@ -8,7 +8,11 @@ import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
 import { CONFIG_FILES, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import path from 'path'
-import { defaultConfig, NextConfigComplete } from '../server/config-shared'
+import {
+  defaultConfig,
+  NextConfig,
+  NextConfigComplete,
+} from '../server/config-shared'
 import { traceGlobals } from '../trace/shared'
 import { Telemetry } from '../telemetry/storage'
 import loadConfig from '../server/config'
@@ -22,7 +26,6 @@ import { getPossibleInstrumentationHookFilenames } from '../build/worker'
 import { resetEnv } from '@next/env'
 
 let dir: string
-let config: NextConfigComplete
 let isTurboSession = false
 let sessionStopHandled = false
 let sessionStarted = Date.now()
@@ -35,15 +38,13 @@ const handleSessionStop = async () => {
     const { eventCliSession } =
       require('../telemetry/events/session-stopped') as typeof import('../telemetry/events/session-stopped')
 
-    config =
-      config ||
-      (await loadConfig(
-        PHASE_DEVELOPMENT_SERVER,
-        dir,
-        undefined,
-        undefined,
-        true
-      ))
+    const config = await loadConfig(
+      PHASE_DEVELOPMENT_SERVER,
+      dir,
+      undefined,
+      undefined,
+      true
+    )
 
     let telemetry =
       (traceGlobals.get('telemetry') as InstanceType<
@@ -210,14 +211,12 @@ const nextDev: CliCommand = async (argv) => {
   // We do not set a default host value here to prevent breaking
   // some set-ups that rely on listening on other interfaces
   const host = args['--hostname']
-  config = await loadConfig(PHASE_DEVELOPMENT_SERVER, dir)
 
   const devServerOptions: StartServerOptions = {
     dir,
     port,
     allowRetry,
     isDev: true,
-    nextConfig: config,
     hostname: host,
     // This is required especially for app dir.
     useWorkers: true,
@@ -237,6 +236,14 @@ const nextDev: CliCommand = async (argv) => {
 
     resetEnv()
     let bindings = await loadBindings()
+
+    const config = await loadConfig(
+      PHASE_DEVELOPMENT_SERVER,
+      dir,
+      undefined,
+      undefined,
+      true
+    )
 
     // Just testing code here:
 
@@ -402,6 +409,7 @@ const nextDev: CliCommand = async (argv) => {
       try {
         let shouldFilter = false
         let devServerTeardown: (() => Promise<void>) | undefined
+        let config: NextConfig | undefined
 
         watchConfigFiles(devServerOptions.dir, (filename) => {
           Log.warn(
@@ -496,6 +504,16 @@ const nextDev: CliCommand = async (argv) => {
           } finally {
             // fallback to noop, if not provided
             resolveCleanup(async () => {})
+          }
+
+          if (!config) {
+            config = await loadConfig(
+              PHASE_DEVELOPMENT_SERVER,
+              dir,
+              undefined,
+              undefined,
+              true
+            )
           }
         }
 

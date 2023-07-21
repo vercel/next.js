@@ -191,17 +191,17 @@ export async function parseBody(
   }
 }
 
-type RevalidateFn = (config: {
-  urlPath: string
-  revalidateHeaders: { [key: string]: string | string[] }
-  opts: { unstable_onlyGenerated?: boolean }
-}) => Promise<void>
-
 type ApiContext = __ApiPreviewProps & {
   trustHostHeader?: boolean
   allowedRevalidateHeaderKeys?: string[]
   hostname?: string
-  revalidate?: RevalidateFn
+  revalidate?: (config: {
+    urlPath: string
+    revalidateHeaders: { [key: string]: string | string[] }
+    opts: { unstable_onlyGenerated?: boolean }
+  }) => Promise<any>
+
+  // (_req: IncomingMessage, _res: ServerResponse) => Promise<any>
 }
 
 function getMaxContentLength(responseLimit?: ResponseLimit) {
@@ -475,7 +475,16 @@ async function revalidate(
             headers: {},
           }
         )
-        const result = await res.json()
+
+        const chunks = []
+
+        for await (const chunk of res) {
+          if (chunk) {
+            chunks.push(chunk)
+          }
+        }
+        const body = Buffer.concat(chunks).toString()
+        const result = JSON.parse(body)
 
         if (result.err) {
           throw new Error(result.err.message)

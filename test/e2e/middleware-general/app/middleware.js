@@ -116,18 +116,7 @@ export async function middleware(request) {
   }
 
   if (url.pathname === '/global') {
-    return serializeData(
-      JSON.stringify({
-        process: {
-          env: {
-            ANOTHER_MIDDLEWARE_TEST: process.env.ANOTHER_MIDDLEWARE_TEST,
-            STRING_ENV_VAR: process.env.STRING_ENV_VAR,
-            MIDDLEWARE_TEST: process.env.MIDDLEWARE_TEST,
-            NEXT_RUNTIME: process.env.NEXT_RUNTIME,
-          },
-        },
-      })
-    )
+    return serializeData(JSON.stringify({ process: { env: process.env } }))
   }
 
   if (url.pathname.endsWith('/globalthis')) {

@@ -55,8 +55,6 @@ import { fileExists } from '../lib/file-exists'
 import { getRouteLoaderEntry } from './webpack/loaders/next-route-loader'
 import { isInternalComponent } from '../lib/is-internal-component'
 import { isStaticMetadataRouteFile } from '../lib/metadata/is-metadata-route'
-import { RouteKind } from '../server/future/route-kind'
-import { encodeToBase64 } from './webpack/loaders/utils'
 
 export async function getStaticInfoIncludingLayouts({
   isInsideAppDir,
@@ -591,7 +589,9 @@ export async function createEntrypoints(
               assetPrefix: config.assetPrefix,
               nextConfigOutput: config.output,
               preferredRegion: staticInfo.preferredRegion,
-              middlewareConfig: encodeToBase64(staticInfo.middleware || {}),
+              middlewareConfig: Buffer.from(
+                JSON.stringify(staticInfo.middleware || {})
+              ).toString('base64'),
             })
           } else if (isInstrumentationHookFile(page) && pagesType === 'root') {
             server[serverBundlePath.replace('src/', '')] = {
@@ -599,23 +599,13 @@ export async function createEntrypoints(
               // the '../' is needed to make sure the file is not chunked
               filename: `../${INSTRUMENTATION_HOOK_FILENAME}.js`,
             }
-          } else if (isAPIRoute(page)) {
-            server[serverBundlePath] = [
-              getRouteLoaderEntry({
-                kind: RouteKind.PAGES_API,
-                page,
-                absolutePagePath,
-                preferredRegion: staticInfo.preferredRegion,
-                middlewareConfig: staticInfo.middleware || {},
-              }),
-            ]
           } else if (
+            !isAPIRoute(page) &&
             !isMiddlewareFile(page) &&
             !isInternalComponent(absolutePagePath)
           ) {
             server[serverBundlePath] = [
               getRouteLoaderEntry({
-                kind: RouteKind.PAGES,
                 page,
                 pages,
                 absolutePagePath,
