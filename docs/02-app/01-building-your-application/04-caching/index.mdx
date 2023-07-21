@@ -148,11 +148,11 @@ On the server, Next.js uses React's APIs to orchestrate rendering. This process 
 
 1. React renders Server Components into a special data format, optimized for streaming, called the **React Server Component Payload**.
 2. Next.js compiles, bundles, and code-splits the **JavaScript instructions** for rendering Client Components on the client.
-3. Next.js uses the React Payload and JavaScript instructions to pre-render **HTML** on the server.
+3. Next.js uses the React Server Component Payload and JavaScript instructions to pre-render **HTML** on the server.
 
 > **What is React Server Component Payload?**
 >
-> The React Payload is a compact string representation of the React Component tree. It's used by React on the client to update the DOM. The React Payload contains:
+> The React Server Component Payload is a compact string representation of the React Component tree. It's used by React on the client to update the DOM. The React Server Component Payload contains:
 >
 > - The rendered result of Server Components
 > - Placeholders for where Client Components should be rendered on the client
@@ -279,7 +279,7 @@ The following table provides an overview of how different Next.js APIs affect ca
 
 ### `<Link>`
 
-By default, the `<Link>` component automatically prefetches static routes (cached) and adds the React Payload to the Router Cache.
+By default, the `<Link>` component automatically prefetches static routes (cached) and adds the React Server Component Payload to the Router Cache.
 
 To disable prefetching, you can set the `prefetch` prop to `false`. But this will not skip the cache permanently, the route segment will still be cached client-side when the user visits the route.
 
@@ -287,7 +287,7 @@ Learn more about the [`<Link>` component](/docs/app/api-reference/components/lin
 
 ### `router.prefetch`
 
-The `prefetch` option of the `useRouter` hook can be used to manually prefetch a route. This adds the React Server Components Payload to the Router cache.
+The `prefetch` option of the `useRouter` hook can be used to manually prefetch a route. This adds the React Server Component Payload to the Router cache.
 
 See the [`useRouter` hook](/docs/app/api-reference/functions/use-router) API reference.
 
