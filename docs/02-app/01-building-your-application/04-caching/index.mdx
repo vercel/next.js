@@ -222,12 +222,12 @@ For the user, this results in [soft navigation](/docs/app/building-your-applicat
 
 The cache is stored in the browser's temporary memory. Two factors determine how long the router cache lasts:
 
-- **Session**: The cache persists across [soft navigations](/docs/app/building-your-application/routing/linking-and-navigating#soft-navigation). However, it's cleared on page refresh or [hard navigation](/docs/app/building-your-application/routing/linking-and-navigating#hard-navigation).
+- **Session**: The cache persists across [soft navigations](/docs/app/building-your-application/routing/linking-and-navigating#soft-navigation). However, it's cleared on page refresh.
 - **Automatic invalidation period**: The cache of an individual segment is automatically invalidated after a specific time. The duration depends on whether the route is [statically rendered](/docs/app/building-your-application/rendering/static-and-dynamic-rendering#static-rendering-default) or [dynamically rendered](/docs/app/building-your-application/rendering/static-and-dynamic-rendering#dynamic-rendering):
   - **Dynamic routes**: 30 seconds
   - **Static routes**: 5 minutes
 
-While a page refresh or hard navigation will clear **all** cached segments, the automatic invalidation period only affects the individual segment from the time it was last accessed or created.
+While a page refresh will clear **all** cached segments, the automatic invalidation period only affects the individual segment from the time it was last accessed or created.
 
 #### Invalidation
 
@@ -237,7 +237,7 @@ While a page refresh or hard navigation will clear **all** cached segments, the 
 
 It's not possible to opt out of the Router Cache.
 
-You can opt out of prefetching by setting the `prefetch` prop of the `<Link>` component to `false`. However, this will still temporarily store the route segments for 30s to allow instant navigation between nested segments, such as tab bars.
+You can opt out of prefetching by setting the `prefetch` prop of the `<Link>` component to `false`. However, this will still temporarily store the route segments for 30s to allow instant navigation between nested segments, such as tab bars, or back and forward navigation.
 
 The routes will still be cached when visited.
 
@@ -247,13 +247,13 @@ When configuring the different caching mechanisms, it's important to understand 
 
 ### Data and Render
 
-- Invalidating or opting out of the Full Route Cache **does not** affect the Data Cache. This means you can dynamically render a route that has both cached and uncached data. This is useful when most of your page uses cached data (static), but you have a few components that rely on data that needs to be fetched at request time (dynamic). You can dynamically render without worrying about the performance impact of re-fetching all the data.
+- Invalidating or opting out of the Full Route Cache **does not** affect the Data Cache. This means you can dynamically render a route that has both cached and uncached data. This is useful when most of your page uses cached data, but you have a few components that rely on data that needs to be fetched at request time. You can dynamically render without worrying about the performance impact of re-fetching all the data.
 - Revalidating the Data Cache **will** invalidate the Full Route Cache, as the render output depends on data.
 
 ### Data and Router
 
-- Revalidating the Data Cache **will not** immediately invalidate the Router Cache due to the [automatic invalidation period](#duration-and-invalidation). This means the Router Cache will continue to serve the previous payload until a hard refresh, or the automatic invalidation period has elapsed.
-- To immediately invalidate the Router Cache, you can use [`revalidatePath`](#revalidatepath) or [`revalidateTag`](#fetchoptionsnexttag-and-revalidatetag) in a [Server Action](/docs/app/building-your-application/data-fetching/server-actions).
+- Revalidating the Data Cache in a [Route Handler](/docs/app/building-your-application/routing/router-handlers) **will not** immediately invalidate the Router Cache as the Router Handler isn't tied to a specific route. This means the [automatic invalidation period](#duration-and-invalidation) will be applied, and the Router Cache will continue to serve the previous payload until a hard refresh, or the automatic invalidation period has elapsed.
+- Revalidating the Data Cache in a [Server Action](/docs/app/building-your-application/data-fetching/server-actions) you can use [`revalidatePath`](#revalidatepath) or [`revalidateTag`](#fetchoptionsnexttag-and-revalidatetag) in a [Server Action](/docs/app/building-your-application/data-fetching/server-actions).
 
 ## APIs
 
