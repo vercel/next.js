@@ -174,6 +174,18 @@ function findDynamicParamFromRouterState(
   return null
 }
 
+function hasLoadingComponentInTree(tree: LoaderTree): boolean {
+  const [, parallelRoutes, { loading }] = tree
+
+  if (loading) {
+    return true
+  }
+
+  return Object.values(parallelRoutes).some((parallelRoute) =>
+    hasLoadingComponentInTree(parallelRoute)
+  ) as boolean
+}
+
 export async function renderToHTMLOrFlight(
   req: IncomingMessage,
   res: ServerResponse,
@@ -749,7 +761,7 @@ export async function renderToHTMLOrFlight(
           !isValidElementType(Component)
         ) {
           throw new Error(
-            `The default export is not a React Component in page: "${page}"`
+            `The default export is not a React Component in page: "${pagePath}"`
           )
         }
 
@@ -801,12 +813,17 @@ export async function renderToHTMLOrFlight(
               : [actualSegment, parallelRouteKey]
 
             const parallelRoute = parallelRoutes[parallelRouteKey]
+
             const childSegment = parallelRoute[0]
             const childSegmentParam = getDynamicParamFromSegment(childSegment)
 
             // if we're prefetching and that there's a Loading component, we bail out
-            // otherwise we keep rendering for the prefetch
-            if (isPrefetch && Loading) {
+            // otherwise we keep rendering for the prefetch.
+            // We also want to bail out if there's no Loading component in the tree.
+            if (
+              isPrefetch &&
+              (Loading || !hasLoadingComponentInTree(parallelRoute))
+            ) {
               const childProp: ChildProp = {
                 // Null indicates the tree is not fully rendered
                 current: null,
@@ -1082,42 +1099,47 @@ export async function renderToHTMLOrFlight(
                 getDynamicParamFromSegment,
                 query
               ),
-              // Create component tree using the slice of the loaderTree
-              // @ts-expect-error TODO-APP: fix async component type
-              React.createElement(async () => {
-                const { Component } = await createComponentTree(
-                  // This ensures flightRouterPath is valid and filters down the tree
-                  {
-                    createSegmentPath,
-                    loaderTree: loaderTreeToFilter,
-                    parentParams: currentParams,
-                    firstItem: isFirst,
-                    injectedCSS,
-                    injectedFontPreloadTags,
-                    // This is intentionally not "rootLayoutIncludedAtThisLevelOrAbove" as createComponentTree starts at the current level and does a check for "rootLayoutAtThisLevel" too.
-                    rootLayoutIncluded,
-                    asNotFound,
-                  }
-                )
+              isPrefetch && !Boolean(components.loading)
+                ? null
+                : // Create component tree using the slice of the loaderTree
+                  // @ts-expect-error TODO-APP: fix async component type
+                  React.createElement(async () => {
+                    const { Component } = await createComponentTree(
+                      // This ensures flightRouterPath is valid and filters down the tree
+                      {
+                        createSegmentPath,
+                        loaderTree: loaderTreeToFilter,
+                        parentParams: currentParams,
+                        firstItem: isFirst,
+                        injectedCSS,
+                        injectedFontPreloadTags,
+                        // This is intentionally not "rootLayoutIncludedAtThisLevelOrAbove" as createComponentTree starts at the current level and does a check for "rootLayoutAtThisLevel" too.
+                        rootLayoutIncluded,
+                        asNotFound,
+                      }
+                    )
 
-                return <Component />
-              }),
-              (() => {
-                const { layoutOrPagePath } = parseLoaderTree(loaderTreeToFilter)
+                    return <Component />
+                  }),
+              isPrefetch && !Boolean(components.loading)
+                ? null
+                : (() => {
+                    const { layoutOrPagePath } =
+                      parseLoaderTree(loaderTreeToFilter)
 
-                const styles = getLayerAssets({
-                  layoutOrPagePath,
-                  injectedCSS: new Set(injectedCSS),
-                  injectedFontPreloadTags: new Set(injectedFontPreloadTags),
-                })
+                    const styles = getLayerAssets({
+                      layoutOrPagePath,
+                      injectedCSS: new Set(injectedCSS),
+                      injectedFontPreloadTags: new Set(injectedFontPreloadTags),
+                    })
 
-                return (
-                  <>
-                    {styles}
-                    {rscPayloadHead}
-                  </>
-                )
-              })(),
+                    return (
+                      <>
+                        {styles}
+                        {rscPayloadHead}
+                      </>
+                    )
+                  })(),
             ],
           ]
         }
