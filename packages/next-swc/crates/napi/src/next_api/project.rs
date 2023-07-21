@@ -152,6 +152,12 @@ impl NapiRoute {
                 data_endpoint: convert_endpoint(data_endpoint),
                 ..Default::default()
             },
+            Route::PageSsr { endpoint } => NapiRoute {
+                pathname,
+                r#type: "page-ssr",
+                endpoint: convert_endpoint(endpoint),
+                ..Default::default()
+            },
             Route::PageApi { endpoint } => NapiRoute {
                 pathname,
                 r#type: "page-api",

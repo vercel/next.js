@@ -66,8 +66,33 @@ impl PagesProject {
 
     #[turbo_tasks::function]
     pub async fn routes(self: Vc<Self>) -> Result<Vc<Routes>> {
-        let PagesStructure { api, pages, .. } = &*self.pages_structure().await?;
+        let PagesStructure {
+            api,
+            pages,
+            app,
+            document,
+            error,
+        } = &*self.pages_structure().await?;
         let mut routes = IndexMap::new();
+
+        async fn add_page_to_routes(
+            routes: &mut IndexMap<String, Route>,
+            page: Vc<PagesStructureItem>,
+            make_route: impl Fn(Vc<String>, Vc<String>, Vc<FileSystemPath>) -> Route,
+        ) -> Result<()> {
+            let PagesStructureItem {
+                next_router_path,
+                project_path,
+                original_path,
+            } = *page.await?;
+            let pathname = format!("/{}", next_router_path.await?.path);
+            let pathname_vc = Vc::cell(pathname.clone());
+            let original_name = Vc::cell(format!("/{}", original_path.await?.path));
+            let route = make_route(pathname_vc, original_name, project_path);
+            routes.insert(pathname, route);
+            Ok(())
+        }
+
         async fn add_dir_to_routes(
             routes: &mut IndexMap<String, Route>,
             dir: Vc<PagesDirectoryStructure>,
@@ -82,16 +107,7 @@ impl PagesProject {
                     project_path: _,
                 } = *dir.await?;
                 for &item in items.iter() {
-                    let PagesStructureItem {
-                        next_router_path,
-                        project_path,
-                        original_path,
-                    } = *item.await?;
-                    let pathname = format!("/{}", next_router_path.await?.path);
-                    let pathname_vc = Vc::cell(pathname.clone());
-                    let original_name = Vc::cell(format!("/{}", original_path.await?.path));
-                    let route = make_route(pathname_vc, original_name, project_path);
-                    routes.insert(pathname, route);
+                    add_page_to_routes(routes, item, &make_route).await?;
                 }
                 for &child in children.iter() {
                     queue.push(child);
@@ -99,6 +115,7 @@ impl PagesProject {
             }
             Ok(())
         }
+
         if let Some(api) = api {
             add_dir_to_routes(&mut routes, *api, |pathname, original_name, path| {
                 Route::PageApi {
@@ -113,27 +130,44 @@ impl PagesProject {
             })
             .await?;
         }
-        if let Some(page) = pages {
-            add_dir_to_routes(&mut routes, *page, |pathname, original_name, path| {
-                Route::Page {
-                    html_endpoint: Vc::upcast(PageEndpoint::new(
-                        PageEndpointType::Html,
-                        self,
-                        pathname,
-                        original_name,
-                        path,
-                    )),
-                    data_endpoint: Vc::upcast(PageEndpoint::new(
-                        PageEndpointType::Data,
-                        self,
-                        pathname,
-                        original_name,
-                        path,
-                    )),
-                }
-            })
-            .await?;
+
+        let make_page_route = |pathname, original_name, path| Route::Page {
+            html_endpoint: Vc::upcast(PageEndpoint::new(
+                PageEndpointType::Html,
+                self,
+                pathname,
+                original_name,
+                path,
+            )),
+            data_endpoint: Vc::upcast(PageEndpoint::new(
+                PageEndpointType::Data,
+                self,
+                pathname,
+                original_name,
+                path,
+            )),
+        };
+
+        if let Some(pages) = pages {
+            add_dir_to_routes(&mut routes, *pages, make_page_route).await?;
         }
+
+        // The document route only makes sense in a SSR setting.
+        add_page_to_routes(&mut routes, *document, |pathname, original_name, path| {
+            Route::PageSsr {
+                endpoint: Vc::upcast(PageEndpoint::new(
+                    PageEndpointType::SsrOnly,
+                    self,
+                    pathname,
+                    original_name,
+                    path,
+                )),
+            }
+        })
+        .await?;
+        add_page_to_routes(&mut routes, *app, make_page_route).await?;
+        add_page_to_routes(&mut routes, *error, make_page_route).await?;
+
         Ok(Vc::cell(routes))
     }
 
@@ -407,6 +441,7 @@ enum PageEndpointType {
     Api,
     Html,
     Data,
+    SsrOnly,
 }
 
 #[turbo_tasks::value_impl]
@@ -665,6 +700,7 @@ impl PageEndpoint {
             }
             PageEndpointType::Data => self.ssr_data_chunk(),
             PageEndpointType::Api => self.api_chunk(),
+            PageEndpointType::SsrOnly => self.ssr_chunk(),
         };
 
         let page_output = match *ssr_chunk.await? {

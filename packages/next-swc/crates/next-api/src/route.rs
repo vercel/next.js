@@ -11,6 +11,9 @@ pub enum Route {
     PageApi {
         endpoint: Vc<Box<dyn Endpoint>>,
     },
+    PageSsr {
+        endpoint: Vc<Box<dyn Endpoint>>,
+    },
     AppPage {
         html_endpoint: Vc<Box<dyn Endpoint>>,
         rsc_endpoint: Vc<Box<dyn Endpoint>>,

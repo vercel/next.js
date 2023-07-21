@@ -422,6 +422,10 @@ type Route =
       type: 'page-api'
       endpoint: Endpoint
     }
+  | {
+      type: 'page-ssr'
+      endpoint: Endpoint
+    }
 
 interface Endpoint {
   /** Write files for the endpoint to disk. */
@@ -610,6 +614,10 @@ function bindingToApi(binding: any, _wasm: boolean) {
             endpoint: NapiEndpoint
           }
         | {
+            type: 'page-ssr'
+            endpoint: NapiEndpoint
+          }
+        | {
             type: 'app-page'
             htmlEndpoint: NapiEndpoint
             rscEndpoint: NapiEndpoint
@@ -642,6 +650,12 @@ function bindingToApi(binding: any, _wasm: boolean) {
               case 'page-api':
                 route = {
                   type: 'page-api',
+                  endpoint: new EndpointImpl(nativeRoute.endpoint),
+                }
+                break
+              case 'page-ssr':
+                route = {
+                  type: 'page-ssr',
                   endpoint: new EndpointImpl(nativeRoute.endpoint),
                 }
                 break
