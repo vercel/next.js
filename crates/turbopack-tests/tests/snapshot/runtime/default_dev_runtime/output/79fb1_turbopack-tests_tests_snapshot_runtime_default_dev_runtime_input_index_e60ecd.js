@@ -34,14 +34,15 @@ function esm(exports, getters) {
         });
     }
 }
-function esmExport(module, getters) {
-    esm(module.namespaceObject = module.exports, getters);
+function esmExport(module, exports, getters) {
+    module.namespaceObject = module.exports;
+    esm(exports, getters);
 }
-function dynamicExport(module, object) {
+function ensureDynamicExports(module, exports) {
     let reexportedObjects = module[REEXPORTED_OBJECTS];
     if (!reexportedObjects) {
         reexportedObjects = module[REEXPORTED_OBJECTS] = [];
-        module.exports = module.namespaceObject = new Proxy(module.exports, {
+        module.exports = module.namespaceObject = new Proxy(exports, {
             get (target, prop) {
                 if (hasOwnProperty.call(target, prop) || prop === "default" || prop === "__esModule") {
                     return Reflect.get(target, prop);
@@ -63,7 +64,10 @@ function dynamicExport(module, object) {
             }
         });
     }
-    reexportedObjects.push(object);
+}
+function dynamicExport(module, exports, object) {
+    ensureDynamicExports(module, exports);
+    module[REEXPORTED_OBJECTS].push(object);
 }
 function exportValue(module, value) {
     module.exports = value;
@@ -92,15 +96,14 @@ function interopEsm(raw, ns, allowExportDefault) {
         getters["default"] = ()=>raw;
     }
     esm(ns, getters);
+    return ns;
 }
 function esmImport(sourceModule, id) {
     const module = getOrInstantiateModuleFromParent(id, sourceModule);
     if (module.error) throw module.error;
     if (module.namespaceObject) return module.namespaceObject;
     const raw = module.exports;
-    const ns = module.namespaceObject = {};
-    interopEsm(raw, ns, raw.__esModule);
-    return ns;
+    return module.namespaceObject = interopEsm(raw, {}, raw.__esModule);
 }
 function commonJsRequire(sourceModule, id) {
     const module = getOrInstantiateModuleFromParent(id, sourceModule);
@@ -129,6 +132,116 @@ function requireContext(sourceModule, map) {
 }
 function getChunkPath(chunkData) {
     return typeof chunkData === "string" ? chunkData : chunkData.path;
+}
+function isPromise(maybePromise) {
+    return maybePromise != null && typeof maybePromise === "object" && "then" in maybePromise && typeof maybePromise.then === "function";
+}
+function isAsyncModuleExt(obj) {
+    return turbopackQueues in obj;
+}
+function createPromise() {
+    let resolve;
+    let reject;
+    const promise = new Promise((res, rej)=>{
+        reject = rej;
+        resolve = res;
+    });
+    return {
+        promise,
+        resolve: resolve,
+        reject: reject
+    };
+}
+const turbopackQueues = Symbol("turbopack queues");
+const turbopackExports = Symbol("turbopack exports");
+const turbopackError = Symbol("turbopack error");
+function resolveQueue(queue) {
+    if (queue && !queue.resolved) {
+        queue.resolved = true;
+        queue.forEach((fn)=>fn.queueCount--);
+        queue.forEach((fn)=>fn.queueCount-- ? fn.queueCount++ : fn());
+    }
+}
+function wrapDeps(deps) {
+    return deps.map((dep)=>{
+        if (dep !== null && typeof dep === "object") {
+            if (isAsyncModuleExt(dep)) return dep;
+            if (isPromise(dep)) {
+                const queue = Object.assign([], {
+                    resolved: false
+                });
+                const obj = {
+                    [turbopackExports]: {},
+                    [turbopackQueues]: (fn)=>fn(queue)
+                };
+                dep.then((res)=>{
+                    obj[turbopackExports] = res;
+                    resolveQueue(queue);
+                }, (err)=>{
+                    obj[turbopackError] = err;
+                    resolveQueue(queue);
+                });
+                return obj;
+            }
+        }
+        const ret = {
+            [turbopackExports]: dep,
+            [turbopackQueues]: ()=>{}
+        };
+        return ret;
+    });
+}
+function asyncModule(module, body, hasAwait) {
+    const queue = hasAwait ? Object.assign([], {
+        resolved: true
+    }) : undefined;
+    const depQueues = new Set();
+    ensureDynamicExports(module, module.exports);
+    const exports = module.exports;
+    const { resolve, reject, promise: rawPromise } = createPromise();
+    const promise = Object.assign(rawPromise, {
+        [turbopackExports]: exports,
+        [turbopackQueues]: (fn)=>{
+            queue && fn(queue);
+            depQueues.forEach(fn);
+            promise["catch"](()=>{});
+        }
+    });
+    module.exports = module.namespaceObject = promise;
+    function handleAsyncDependencies(deps) {
+        const currentDeps = wrapDeps(deps);
+        const getResult = ()=>currentDeps.map((d)=>{
+                if (d[turbopackError]) throw d[turbopackError];
+                return d[turbopackExports];
+            });
+        const { promise, resolve } = createPromise();
+        const fn = Object.assign(()=>resolve(getResult), {
+            queueCount: 0
+        });
+        function fnQueue(q) {
+            if (q !== queue && !depQueues.has(q)) {
+                depQueues.add(q);
+                if (q && !q.resolved) {
+                    fn.queueCount++;
+                    q.push(fn);
+                }
+            }
+        }
+        currentDeps.map((dep)=>dep[turbopackQueues](fnQueue));
+        return fn.queueCount ? promise : getResult();
+    }
+    function asyncResult(err) {
+        if (err) {
+            reject(promise[turbopackError] = err);
+        } else {
+            resolve(exports);
+        }
+        resolveQueue(queue);
+    }
+    body(handleAsyncDependencies, asyncResult);
+    if (queue) {
+        queue.resolved = false;
+    }
 }
 ;
 ;
@@ -275,12 +388,13 @@ function instantiateModule(id, source) {
     try {
         runModuleExecutionHooks(module, (refresh)=>{
             moduleFactory.call(module.exports, augmentContext({
+                a: asyncModule.bind(null, module),
                 e: module.exports,
                 r: commonJsRequire.bind(null, module),
                 f: requireContext.bind(null, module),
                 i: esmImport.bind(null, module),
-                s: esmExport.bind(null, module),
-                j: dynamicExport.bind(null, module),
+                s: esmExport.bind(null, module, module.exports),
+                j: dynamicExport.bind(null, module, module.exports),
                 v: exportValue.bind(null, module),
                 n: exportNamespace.bind(null, module),
                 m: module,

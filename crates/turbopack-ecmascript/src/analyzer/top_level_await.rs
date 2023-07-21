@@ -1,19 +1,24 @@
-use swc_core::ecma::{
-    ast::*,
-    visit::{noop_visit_type, Visit, VisitWith},
+use swc_core::{
+    common::Span,
+    ecma::{
+        ast::*,
+        visit::{noop_visit_type, Visit, VisitWith},
+    },
 };
 
-pub(crate) fn has_top_level_await(m: &Program) -> bool {
+/// Checks if the program contains a top level await, if it does it will returns
+/// the span of the first await.
+pub(crate) fn has_top_level_await(m: &Program) -> Option<Span> {
     let mut visitor = TopLevelAwaitVisitor::default();
 
     m.visit_with(&mut visitor);
 
-    visitor.has_top_level_await
+    visitor.top_level_await_span
 }
 
 #[derive(Default)]
 struct TopLevelAwaitVisitor {
-    has_top_level_await: bool,
+    top_level_await_span: Option<Span>,
 }
 
 macro_rules! noop {
@@ -23,8 +28,10 @@ macro_rules! noop {
 }
 
 impl Visit for TopLevelAwaitVisitor {
-    fn visit_await_expr(&mut self, _: &AwaitExpr) {
-        self.has_top_level_await = true;
+    fn visit_await_expr(&mut self, n: &AwaitExpr) {
+        if self.top_level_await_span.is_none() {
+            self.top_level_await_span = Some(n.span);
+        }
     }
 
     // prevent non top level items from visiting their children

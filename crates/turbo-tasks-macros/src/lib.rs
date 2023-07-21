@@ -44,19 +44,74 @@ pub fn derive_task_input(input: TokenStream) -> TokenStream {
 /// Creates a Vc<Value> struct for a `struct` or `enum` that represent
 /// that type placed into a cell in a Task.
 ///
-/// That Vc<Value> object can be `.await?`ed to get a readonly reference
-/// to the original value.
+/// That Vc<Value> object can be `await`ed to get a readonly reference
+/// to the value contained in the cell.
 ///
-/// `into` argument (`#[turbo_tasks::value(into: xxx)]`)
+/// ## Arguments
+///
+/// Example: `#[turbo_tasks::value(into = "new", eq = "manual")]`
+///
+/// ### `cell`
+///
+/// Possible values:
+///
+/// - "new": Always overrides the value in the cell. Invalidating all
+/// dependent tasks.
+/// - "shared" (default): Compares with the existing value in the cell, before
+/// overriding it. Requires Value to implement [Eq].
+///
+/// ### `eq`
+///
+/// Possible values:
+///
+/// - "manual": Prevents deriving [Eq] so you can do it manually.
+///
+/// ### `into`
 ///
 /// When provided the Vc<Value> implement `From<Value>` to allow to convert
 /// a Value to a Vc<Value> by placing it into a cell in a Task.
 ///
-/// `into: new`: Always overrides the value in the cell. Invalidating all
-/// dependent tasks.
+/// Possible values:
 ///
-/// `into: shared`: Compares with the existing value in the cell, before
+/// - "new": Always overrides the value in the cell. Invalidating all
+/// dependent tasks.
+/// - "shared": Compares with the existing value in the cell, before
 /// overriding it. Requires Value to implement [Eq].
+/// - "none" (default): Prevents implementing `From<Value>`.
+///
+/// ### `serialization`
+///
+/// Affects serialization via [serde::Serialize] and [serde::Deserialize].
+///
+/// Possible values:
+///
+/// - "auto" (default): Derives the serialization traits and enabled
+///   serialization.
+/// - "auto_for_input": Same as "auto", but also adds the marker trait
+///   [turbo_tasks::TypedForInput].
+/// - "custom": Prevents deriving the serialization traits, but still enables
+///   serialization (you need to manually implement [serde::Serialize] and
+///   [serde::Deserialize]).
+/// - "custom_for_input":Same as "auto", but also adds the marker trait
+///   [turbo_tasks::TypedForInput].
+/// - "none": Disables serialization and prevents deriving the traits.
+///
+/// ### `shared`
+///
+/// Sets both `cell = "shared"` and `into = "shared"`
+///
+/// No value.
+///
+/// Example: `#[turbo_tasks::value(shared)]`
+///
+/// ### `transparent`
+///
+/// If applied to a unit struct (e.g. `struct Wrapper(Value)`) the outer struct
+/// is skipped for all operations (cell, into, reading).
+///
+/// No value.
+///
+/// Example: `#[turbo_tasks::value(transparent)]`
 ///
 /// TODO: add more documentation: presets, traits
 #[allow_internal_unstable(min_specialization, into_future, trivial_bounds)]

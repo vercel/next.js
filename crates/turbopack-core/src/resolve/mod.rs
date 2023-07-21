@@ -1438,7 +1438,7 @@ pub async fn handle_resolve_error(
     })
 }
 
-/// ModulePart represnts a part of a module.
+/// ModulePart represents a part of a module.
 ///
 /// Currently this is used only for ESMs.
 #[turbo_tasks::value]

@@ -1,11 +1,13 @@
-use std::ops::Deref;
+use std::{future::IntoFuture, ops::Deref};
 
+use anyhow::Result;
 use auto_hash_map::AutoSet;
+use futures::TryFutureExt;
 // This specific macro identifier is detected by turbo-tasks-build.
 use turbo_tasks_macros::primitive as __turbo_tasks_internal_primitive;
 
 use crate::{
-    RawVc, Vc, {self as turbo_tasks},
+    RawVc, TryJoinIterExt, Vc, {self as turbo_tasks},
 };
 
 __turbo_tasks_internal_primitive!(());
@@ -73,6 +75,46 @@ __turbo_tasks_internal_primitive!(isize);
 __turbo_tasks_internal_primitive!(AutoSet<RawVc>);
 __turbo_tasks_internal_primitive!(serde_json::Value);
 __turbo_tasks_internal_primitive!(Vec<u8>);
+
+__turbo_tasks_internal_primitive!(Vec<bool>);
+
+#[turbo_tasks::value(transparent)]
+pub struct Bools(Vec<Vc<bool>>);
+
+#[turbo_tasks::value_impl]
+impl Bools {
+    #[turbo_tasks::function]
+    pub fn empty() -> Vc<Bools> {
+        Vc::cell(Vec::new())
+    }
+
+    #[turbo_tasks::function]
+    async fn into_bools(self: Vc<Bools>) -> Result<Vc<Vec<bool>>> {
+        let this = self.await?;
+
+        let bools = this
+            .iter()
+            .map(|b| b.into_future().map_ok(|b| *b))
+            .try_join()
+            .await?;
+
+        Ok(Vc::cell(bools))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn all(self: Vc<Bools>) -> Result<Vc<bool>> {
+        let bools = self.into_bools().await?;
+
+        Ok(Vc::cell(bools.iter().all(|b| *b)))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn any(self: Vc<Bools>) -> Result<Vc<bool>> {
+        let bools = self.into_bools().await?;
+
+        Ok(Vc::cell(bools.iter().any(|b| *b)))
+    }
+}
 
 #[turbo_tasks::value(transparent, eq = "manual")]
 #[derive(Debug, Clone)]
