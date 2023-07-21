@@ -130,12 +130,12 @@ module.exports = {
   async redirects() {
     return [
       {
-        source: '/:slug([a-zA-Z0-9]+)', 
+        source: '/:slug([a-zA-Z0-9]+(?<!\\.[a-zA-Z0-9]+))',
         destination: '/', 
         permanent: false,
       },
       {
-        source: '/:slug1/:slug2*', 
+        source: '/:slug1/:slug2*',
         destination: '/', 
         permanent: false,
       }
