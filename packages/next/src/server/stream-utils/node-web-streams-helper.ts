@@ -30,6 +30,25 @@ export const streamToBufferedResult = async (
   return renderChunks.join('')
 }
 
+export function cloneTransformStream(source: TransformStream) {
+  const sourceReader = source.readable.getReader()
+  const clone = new TransformStream({
+    async start(controller) {
+      while (true) {
+        const { done, value } = await sourceReader.read()
+        if (done) {
+          break
+        }
+        controller.enqueue(value)
+      }
+    },
+    // skip the its own written chunks
+    transform() {},
+  })
+
+  return clone
+}
+
 export function readableStreamTee<T = any>(
   readable: ReadableStream<T>
 ): [ReadableStream<T>, ReadableStream<T>] {
