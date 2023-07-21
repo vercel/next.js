@@ -62,7 +62,6 @@ import { parseVersionInfo, VersionInfo } from './parse-version-info'
 import { isAPIRoute } from '../../lib/is-api-route'
 import { getRouteLoaderEntry } from '../../build/webpack/loaders/next-route-loader'
 import { isInternalComponent } from '../../lib/is-internal-component'
-import { RouteKind } from '../future/route-kind'
 
 function diff(a: Set<any>, b: Set<any>) {
   return new Set([...a].filter((v) => !b.has(v)))
@@ -280,7 +279,7 @@ export default class HotReloader {
       parsedPageBundleUrl: UrlObject
     ): Promise<{ finished?: true }> => {
       const { pathname } = parsedPageBundleUrl
-      const params = matchNextPageBundleRequest(pathname)
+      const params = matchNextPageBundleRequest<{ path: string[] }>(pathname)
       if (!params) {
         return {}
       }
@@ -289,7 +288,7 @@ export default class HotReloader {
 
       try {
         decodedPagePath = `/${params.path
-          .map((param: string) => decodeURIComponent(param))
+          .map((param) => decodeURIComponent(param))
           .join('/')}`
       } catch (_) {
         throw new DecodeError('failed to decode param')
@@ -907,20 +906,12 @@ export default class HotReloader {
                       JSON.stringify(staticInfo.middleware || {})
                     ).toString('base64'),
                   })
-                } else if (isAPIRoute(page)) {
-                  value = getRouteLoaderEntry({
-                    kind: RouteKind.PAGES_API,
-                    page,
-                    absolutePagePath: relativeRequest,
-                    preferredRegion: staticInfo.preferredRegion,
-                    middlewareConfig: staticInfo.middleware || {},
-                  })
                 } else if (
+                  !isAPIRoute(page) &&
                   !isMiddlewareFile(page) &&
                   !isInternalComponent(relativeRequest)
                 ) {
                   value = getRouteLoaderEntry({
-                    kind: RouteKind.PAGES,
                     page,
                     pages: this.pagesMapping,
                     absolutePagePath: relativeRequest,
@@ -1420,12 +1411,10 @@ export default class HotReloader {
     clientOnly,
     appPaths,
     match,
-    isApp,
   }: {
     page: string
     clientOnly: boolean
     appPaths?: string[] | null
-    isApp?: boolean
     match?: RouteMatch
   }): Promise<void> {
     // Make sure we don't re-build or dispose prebuilt pages
@@ -1443,7 +1432,6 @@ export default class HotReloader {
       clientOnly,
       appPaths,
       match,
-      isApp,
     }) as any
   }
 }
