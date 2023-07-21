@@ -63,11 +63,10 @@ export function runTests(ctx) {
 
     for (const locale of locales) {
       for (const asset of assets) {
-        require('console').log({ locale, asset })
         // _next/static asset
         const res = await fetchViaHTTP(
           ctx.appPort,
-          `${ctx.basePath || ''}/${locale}/_next/static/${encodeURI(asset)}`,
+          `${ctx.basePath || ''}/${locale}/_next/static/${asset}`,
           undefined,
           { redirect: 'manual' }
         )

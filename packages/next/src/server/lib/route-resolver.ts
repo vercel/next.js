@@ -1,27 +1,36 @@
-import type { NextConfigComplete } from '../config-shared'
 import type { IncomingMessage, ServerResponse } from 'http'
+import { join } from 'path'
 
-import '../require-hook'
-import '../node-polyfill-fetch'
+import {
+  StackFrame,
+  parse as parseStackTrace,
+} from 'next/dist/compiled/stacktrace-parser'
 
-import url from 'url'
-import path from 'path'
-import http from 'http'
-import { findPageFile } from './find-page-file'
-import { getRequestMeta } from '../request-meta'
-import setupDebug from 'next/dist/compiled/debug'
-import { getCloneableBody } from '../body-streams'
-import { findPagesDir } from '../../lib/find-pages-dir'
-import { setupFsCheck } from './router-utils/filesystem'
-import { proxyRequest } from './router-utils/proxy-request'
-import { getResolveRoutes } from './router-utils/resolve-routes'
-import { PERMANENT_REDIRECT_STATUS } from '../../shared/lib/constants'
-import { splitCookiesString, toNodeOutgoingHttpHeaders } from '../web/utils'
-import { signalFromNodeRequest } from '../web/spec-extension/adapters/next-request'
+import type { NextConfig } from '../config'
+import type { RouteDefinition } from '../future/route-definitions/route-definition'
+import { RouteKind } from '../future/route-kind'
+import { DefaultRouteMatcherManager } from '../future/route-matcher-managers/default-route-matcher-manager'
+import type { RouteMatch } from '../future/route-matches/route-match'
+import type { PageChecker, Route } from '../router'
+import { getMiddlewareMatchers } from '../../build/analysis/get-page-static-info'
 import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
-import { pipeReadable } from './server-ipc/invoke-request'
+import {
+  CLIENT_STATIC_FILES_PATH,
+  DEV_MIDDLEWARE_MANIFEST,
+} from '../../shared/lib/constants'
+import type { BaseNextRequest } from '../base-http'
 
-type RouteResult =
+export type MiddlewareConfig = {
+  matcher: string[]
+  files: string[]
+}
+
+export type ServerAddress = {
+  hostname?: string | null
+  port?: number | null
+}
+
+export type RouteResult =
   | {
       type: 'rewrite'
       url: string
@@ -33,255 +42,236 @@ type RouteResult =
       error: {
         name: string
         message: string
-        stack: any[]
+        stack: StackFrame[]
       }
     }
   | {
       type: 'none'
     }
 
-type MiddlewareConfig = {
-  matcher: string[] | null
-  files: string[]
-}
+class DevRouteMatcherManager extends DefaultRouteMatcherManager {
+  private hasPage: PageChecker
 
-type ServerAddress = {
-  hostname?: string
-  port?: number
-}
+  constructor(hasPage: PageChecker) {
+    super()
+    this.hasPage = hasPage
+  }
 
-const debug = setupDebug('next:router-server')
+  async match(
+    pathname: string
+  ): Promise<RouteMatch<RouteDefinition<RouteKind>> | null> {
+    if (await this.hasPage(pathname)) {
+      return {
+        definition: {
+          kind: RouteKind.PAGES,
+          page: '',
+          pathname,
+          filename: '',
+          bundlePath: '',
+        },
+        params: {},
+      }
+    }
+    return null
+  }
+
+  async test(pathname: string) {
+    return (await this.match(pathname)) !== null
+  }
+}
 
 export async function makeResolver(
   dir: string,
-  nextConfig: NextConfigComplete,
+  nextConfig: NextConfig,
   middleware: MiddlewareConfig,
   serverAddr: Partial<ServerAddress>
 ) {
-  const fsChecker = await setupFsCheck({
-    dir,
-    dev: true,
-    minimalMode: false,
-    config: nextConfig,
-  })
-  const { appDir, pagesDir } = findPagesDir(
-    dir,
-    !!nextConfig.experimental.appDir
-  )
+  const url = require('url') as typeof import('url')
+  const { default: Router } = require('../router') as typeof import('../router')
+  const { getPathMatch } =
+    require('../../shared/lib/router/utils/path-match') as typeof import('../../shared/lib/router/utils/path-match')
+  const { default: DevServer } =
+    require('../dev/next-dev-server') as typeof import('../dev/next-dev-server')
 
-  fsChecker.ensureCallback(async (item) => {
-    let result: string | null = null
+  const { NodeNextRequest, NodeNextResponse } =
+    require('../base-http/node') as typeof import('../base-http/node')
 
-    if (item.type === 'appFile') {
-      if (!appDir) {
-        throw new Error('no app dir present')
-      }
-      result = await findPageFile(
-        appDir,
-        item.itemPath,
-        nextConfig.pageExtensions,
-        true
-      )
-    } else if (item.type === 'pageFile') {
-      if (!pagesDir) {
-        throw new Error('no pages dir present')
-      }
-      result = await findPageFile(
-        pagesDir,
-        item.itemPath,
-        nextConfig.pageExtensions,
-        false
-      )
+  const { default: loadCustomRoutes } =
+    require('../../lib/load-custom-routes') as typeof import('../../lib/load-custom-routes')
+
+  const routeResults = new WeakMap<any, RouteResult>()
+
+  class TurbopackDevServerProxy extends DevServer {
+    // make sure static files are served by turbopack
+    serveStatic(): Promise<void> {
+      return Promise.resolve()
     }
-    if (!result) {
-      throw new Error(`failed to find page file ${item.type} ${item.itemPath}`)
-    }
-  })
 
-  const distDir = path.join(dir, nextConfig.distDir)
-  const middlewareInfo = middleware
-    ? {
-        name: 'middleware',
-        paths: middleware.files.map((file) => path.join(process.cwd(), file)),
-        wasm: [],
-        assets: [],
-      }
-    : {}
-
-  const middlewareServerPort = await new Promise((resolve) => {
-    const srv = http.createServer(async (req, res) => {
-      const cloneableBody = getCloneableBody(req)
-      try {
-        const { run } =
-          require('../web/sandbox') as typeof import('../web/sandbox')
-
-        const result = await run({
-          distDir,
-          name: middlewareInfo.name || '/',
-          paths: middlewareInfo.paths || [],
-          edgeFunctionEntry: middlewareInfo,
-          request: {
-            headers: req.headers,
-            method: req.method || 'GET',
-            nextConfig: {
-              i18n: nextConfig.i18n,
-              basePath: nextConfig.basePath,
-              trailingSlash: nextConfig.trailingSlash,
-            },
-            url: `http://${serverAddr.hostname || 'localhost'}:${
-              serverAddr.port || 3000
-            }${req.url}`,
-            body: cloneableBody,
-            signal: signalFromNodeRequest(req),
+    // make turbopack handle errors
+    async renderError(err: Error | null, req: BaseNextRequest): Promise<void> {
+      if (err != null) {
+        routeResults.set(req, {
+          type: 'error',
+          error: {
+            name: err.name,
+            message: err.message,
+            stack: parseStackTrace(err.stack!),
           },
-          useCache: true,
-          onWarning: console.warn,
         })
-
-        for (let [key, value] of result.response.headers) {
-          if (key.toLowerCase() !== 'set-cookie') continue
-
-          // Clear existing header.
-          result.response.headers.delete(key)
-
-          // Append each cookie individually.
-          const cookies = splitCookiesString(value)
-          for (const cookie of cookies) {
-            result.response.headers.append(key, cookie)
-          }
-        }
-
-        for (const [key, value] of Object.entries(
-          toNodeOutgoingHttpHeaders(result.response.headers)
-        )) {
-          if (key !== 'content-encoding' && value !== undefined) {
-            res.setHeader(key, value as string | string[])
-          }
-        }
-        res.statusCode = result.response.status
-
-        for await (const chunk of result.response.body || ([] as any)) {
-          if (res.closed) break
-          res.write(chunk)
-        }
-        res.end()
-      } catch (err) {
-        console.error(err)
-        res.statusCode = 500
-        res.end('Internal Server Error')
       }
-    })
-    srv.on('listening', () => {
-      resolve((srv.address() as any).port)
-    })
-    srv.listen(0)
-  })
 
-  if (middleware?.files.length) {
-    fsChecker.middlewareMatcher = getMiddlewareRouteMatcher(
-      middleware.matcher?.map((item) => ({
-        regexp: item,
-        originalSource: item,
-      })) || [{ regexp: '.*', originalSource: '/:path*' }]
-    )
+      return Promise.resolve()
+    }
+
+    // make turbopack handle 404s
+    render404(): Promise<void> {
+      return Promise.resolve()
+    }
   }
 
-  const resolveRoutes = getResolveRoutes(
-    fsChecker,
-    nextConfig,
-    {
-      dir,
-      port: serverAddr.port || 3000,
-      hostname: serverAddr.hostname,
-      isNodeDebugging: false,
-      dev: true,
-      workerType: 'render',
-    },
-    {
-      pages: {
-        async initialize() {
+  const devServer = new TurbopackDevServerProxy({
+    dir,
+    conf: nextConfig,
+    hostname: serverAddr.hostname || 'localhost',
+    port: serverAddr.port || 3000,
+  })
+
+  await devServer.matchers.reload()
+
+  // @ts-expect-error private
+  devServer.setDevReady!()
+
+  // @ts-expect-error protected
+  devServer.customRoutes = await loadCustomRoutes(nextConfig)
+
+  if (middleware.files?.length) {
+    const matchers = middleware.matcher
+      ? getMiddlewareMatchers(middleware.matcher, nextConfig)
+      : [{ regexp: '.*', originalSource: '/:path*' }]
+    // @ts-expect-error
+    devServer.middleware = {
+      page: '/',
+      match: getMiddlewareRouteMatcher(matchers),
+      matchers,
+    }
+
+    type GetEdgeFunctionInfo =
+      (typeof DevServer)['prototype']['getEdgeFunctionInfo']
+    const getEdgeFunctionInfo = (
+      original: GetEdgeFunctionInfo
+    ): GetEdgeFunctionInfo => {
+      return (params: { page: string; middleware: boolean }) => {
+        if (params.middleware) {
           return {
-            port: middlewareServerPort,
-            hostname: '127.0.0.1',
+            name: 'middleware',
+            paths: middleware.files.map((file) => join(process.cwd(), file)),
+            wasm: [],
+            assets: [],
           }
-        },
-        async deleteCache() {},
-        async clearModuleContext() {},
-        async deleteAppClientCache() {},
-        async propagateServerField() {},
-      } as any,
-    },
-    {} as any
+        }
+        return original(params)
+      }
+    }
+    // @ts-expect-error protected
+    devServer.getEdgeFunctionInfo = getEdgeFunctionInfo(
+      // @ts-expect-error protected
+      devServer.getEdgeFunctionInfo.bind(devServer)
+    )
+    // @ts-expect-error protected
+    devServer.hasMiddleware = () => true
+  }
+
+  const routes = devServer.generateRoutes(true)
+  // @ts-expect-error protected
+  const catchAllMiddleware = devServer.generateCatchAllMiddlewareRoute(true)
+
+  routes.matchers = new DevRouteMatcherManager(
+    // @ts-expect-error internal method
+    devServer.hasPage.bind(devServer)
   )
 
-  return async function resolveRoute(
-    req: IncomingMessage,
-    res: ServerResponse
-  ): Promise<RouteResult | void> {
-    const routeResult = await resolveRoutes(req, new Set(), false)
-    const {
-      matchedOutput,
-      bodyStream,
-      statusCode,
-      parsedUrl,
-      resHeaders,
-      finished,
-    } = routeResult
+  // @ts-expect-error protected
+  const buildId = devServer.buildId
 
-    debug('requestHandler!', req.url, {
-      matchedOutput,
-      statusCode,
-      resHeaders,
-      bodyStream: !!bodyStream,
-      parsedUrl: {
-        pathname: parsedUrl.pathname,
-        query: parsedUrl.query,
+  const router = new Router({
+    ...routes,
+    catchAllMiddleware,
+    catchAllRoute: {
+      match: getPathMatch('/:path*'),
+      name: 'catchall route',
+      fn: async (req, res, _params, parsedUrl) => {
+        // clean up internal query values
+        for (const key of Object.keys(parsedUrl.query || {})) {
+          if (key.startsWith('_next')) {
+            delete parsedUrl.query[key]
+          }
+        }
+
+        routeResults.set(req, {
+          type: 'rewrite',
+          url: url.format({
+            pathname: parsedUrl.pathname,
+            query: parsedUrl.query,
+            hash: parsedUrl.hash,
+          }),
+          statusCode: 200,
+          headers: res.getHeaders(),
+        })
+
+        return { finished: true }
       },
-      finished,
-    })
+    } as Route,
+  })
 
-    for (const key of Object.keys(resHeaders || {})) {
-      res.setHeader(key, resHeaders[key])
-    }
+  // @ts-expect-error internal field
+  router.compiledRoutes = router.compiledRoutes.filter((route: Route) => {
+    return (
+      route.type === 'rewrite' ||
+      route.type === 'redirect' ||
+      route.type === 'header' ||
+      route.name === 'catchall route' ||
+      route.name === 'middleware catchall' ||
+      route.name ===
+        `_next/${CLIENT_STATIC_FILES_PATH}/${buildId}/${DEV_MIDDLEWARE_MANIFEST}` ||
+      route.name?.includes('check')
+    )
+  })
 
-    if (!bodyStream && statusCode && statusCode > 300 && statusCode < 400) {
-      const destination = url.format(parsedUrl)
-      res.statusCode = statusCode
-      res.setHeader('location', destination)
+  return async function resolveRoute(
+    _req: IncomingMessage,
+    _res: ServerResponse
+  ): Promise<RouteResult | void> {
+    const req = new NodeNextRequest(_req)
+    const res = new NodeNextResponse(_res)
+    const parsedUrl = url.parse(req.url!, true)
+    // @ts-expect-error protected
+    devServer.attachRequestMeta(req, parsedUrl)
+    ;(req as any)._initUrl = req.url
 
-      if (statusCode === PERMANENT_REDIRECT_STATUS) {
-        res.setHeader('Refresh', `0;url=${destination}`)
-      }
-      res.end(destination)
+    await router.execute(req, res, parsedUrl)
+
+    // If the headers are sent, then this was handled by middleware and there's
+    // nothing for us to do.
+    if (res.originalResponse.headersSent) {
       return
     }
 
-    // handle middleware body response
-    if (bodyStream) {
-      res.statusCode = statusCode || 200
-      return await pipeReadable(bodyStream, res)
-    }
-
-    if (finished && parsedUrl.protocol) {
-      await proxyRequest(
-        req,
-        res,
-        parsedUrl,
-        undefined,
-        getRequestMeta(req, '__NEXT_CLONABLE_BODY')?.cloneBodyStream(),
-        nextConfig.experimental.proxyTimeout
-      )
-      return
-    }
-
+    // The response won't be used, but we need to close the request so that the
+    // ClientResponse's promise will resolve. We signal that this response is
+    // unneeded via the header.
     res.setHeader('x-nextjs-route-result', '1')
-    res.end()
+    res.send()
 
-    return {
-      type: 'rewrite',
-      statusCode: 200,
-      headers: resHeaders,
-      url: url.format(parsedUrl),
+    // If we have a routeResult, then we hit the catchAllRoute during execution
+    // and this is a rewrite request.
+    const routeResult = routeResults.get(req)
+    if (routeResult) {
+      routeResults.delete(req)
+      return routeResult
     }
+
+    // Finally, if the catchall didn't match, than this request is invalid
+    // (maybe they're missing the basePath?)
+    return { type: 'none' }
   }
 }

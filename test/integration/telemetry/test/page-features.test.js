@@ -1,13 +1,6 @@
 import path from 'path'
 import fs from 'fs-extra'
-import {
-  check,
-  findPort,
-  killApp,
-  launchApp,
-  nextBuild,
-  renderViaHTTP,
-} from 'next-test-utils'
+import { check, findPort, killApp, launchApp, nextBuild } from 'next-test-utils'
 
 const appDir = path.join(__dirname, '..')
 
@@ -55,7 +48,6 @@ describe('page features telemetry', () => {
           turbo: true,
         })
         await check(() => stderr, /NEXT_CLI_SESSION_STARTED/)
-        await renderViaHTTP(port, '/hello')
 
         if (app) {
           await killApp(app)
@@ -97,7 +89,6 @@ describe('page features telemetry', () => {
         })
 
         await check(() => stderr, /NEXT_CLI_SESSION_STARTED/)
-        await renderViaHTTP(port, '/hello')
 
         if (app) {
           await killApp(app)
@@ -138,7 +129,6 @@ describe('page features telemetry', () => {
         })
 
         await check(() => stderr, /NEXT_CLI_SESSION_STARTED/)
-        await renderViaHTTP(port, '/hello')
 
         if (app) {
           await killApp(app)

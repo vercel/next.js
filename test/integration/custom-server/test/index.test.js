@@ -23,8 +23,7 @@ let server
 
 const context = {}
 
-// TODO: investigate this test stalling in CI
-describe.skip.each([
+describe.each([
   { title: 'using HTTP', useHttps: false },
   { title: 'using HTTPS', useHttps: true },
 ])('Custom Server $title', ({ useHttps }) => {
@@ -39,7 +38,7 @@ describe.skip.each([
   const startServer = async (optEnv = {}, opts) => {
     const scriptPath = join(appDir, 'server.js')
     context.appPort = appPort = await getPort()
-    nextUrl = `http${useHttps ? 's' : ''}://localhost:${context.appPort}`
+    nextUrl = `http${useHttps ? 's' : ''}://127.0.0.1:${context.appPort}`
 
     const env = Object.assign(
       { ...process.env },
@@ -56,8 +55,7 @@ describe.skip.each([
     )
   }
 
-  // TODO: continue supporting this or remove it?
-  describe.skip('with dynamic assetPrefix', () => {
+  describe('with dynamic assetPrefix', () => {
     beforeAll(() => startServer())
     afterAll(() => killApp(server))
 
@@ -282,7 +280,7 @@ describe.skip.each([
       expect(stderr).toContain(
         '- error unhandledRejection: Error: unhandled rejection'
       )
-      expect(stderr).toContain('server.js:37:22')
+      expect(stderr).toContain('server.js:33:22')
     })
   })
 
