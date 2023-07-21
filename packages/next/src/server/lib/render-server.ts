@@ -1,21 +1,10 @@
 import type { RequestHandler } from '../next'
 
-import './cpu-profile'
-import v8 from 'v8'
-import http from 'http'
-import { isIPv6 } from 'net'
-
-// This is required before other imports to ensure the require hook is setup.
-import '../require-hook'
-
+// this must come first as it includes require hooks
+import { initializeServerWorker } from './setup-server-worker'
 import next from '../next'
-import { warn } from '../../build/output/log'
-import { getFreePort } from '../lib/worker-utils'
 
 export const WORKER_SELF_EXIT_CODE = 77
-
-const MAXIMUM_HEAP_SIZE_ALLOWED =
-  (v8.getHeapStatistics().heap_size_limit / 1024 / 1024) * 0.9
 
 let result:
   | undefined
@@ -23,6 +12,8 @@ let result:
       port: number
       hostname: string
     }
+
+let app: ReturnType<typeof next> | undefined
 
 let sandboxContext: undefined | typeof import('../web/sandbox/context')
 let requireCacheHotReloader:
@@ -35,15 +26,46 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 export function clearModuleContext(target: string) {
-  sandboxContext?.clearModuleContext(target)
+  return sandboxContext?.clearModuleContext(target)
 }
 
 export function deleteAppClientCache() {
-  requireCacheHotReloader?.deleteAppClientCache()
+  return requireCacheHotReloader?.deleteAppClientCache()
 }
 
-export function deleteCache(filePath: string) {
-  requireCacheHotReloader?.deleteCache(filePath)
+export function deleteCache(filePaths: string[]) {
+  for (const filePath of filePaths) {
+    requireCacheHotReloader?.deleteCache(filePath)
+  }
+}
+
+export async function propagateServerField(field: string, value: any) {
+  if (!app) {
+    throw new Error('Invariant cant propagate server field, no app initialized')
+  }
+  let appField = (app as any).server
+
+  if (field.includes('.')) {
+    const parts = field.split('.')
+
+    for (let i = 0; i < parts.length - 1; i++) {
+      if (appField) {
+        appField = appField[parts[i]]
+      }
+    }
+    field = parts[parts.length - 1]
+  }
+
+  if (appField) {
+    if (typeof appField[field] === 'function') {
+      appField[field].apply(
+        (app as any).server,
+        Array.isArray(value) ? value : []
+      )
+    } else {
+      appField[field] = value
+    }
+  }
 }
 
 export async function initialize(opts: {
@@ -55,6 +77,7 @@ export async function initialize(opts: {
   workerType: 'router' | 'render'
   isNodeDebugging: boolean
   keepAliveTimeout?: number
+  serverFields?: any
 }): Promise<NonNullable<typeof result>> {
   // if we already setup the server return as we only need to do
   // this on first worker boot
@@ -62,97 +85,40 @@ export async function initialize(opts: {
     return result
   }
 
-  const isRouterWorker = opts.workerType === 'router'
-  const isRenderWorker = opts.workerType === 'render'
-  if (isRouterWorker) {
-    process.title = 'next-router-worker'
-  } else if (isRenderWorker) {
-    const type = process.env.__NEXT_PRIVATE_RENDER_WORKER!
-    process.title = 'next-render-worker-' + type
-  }
+  const type = process.env.__NEXT_PRIVATE_RENDER_WORKER!
+  process.title = 'next-render-worker-' + type
 
   let requestHandler: RequestHandler
+  let upgradeHandler: any
 
-  const server = http.createServer((req, res) => {
-    return requestHandler(req, res)
-      .catch((err) => {
-        res.statusCode = 500
-        res.end('Internal Server Error')
-        console.error(err)
-      })
-      .finally(() => {
-        if (
-          process.memoryUsage().heapUsed / 1024 / 1024 >
-          MAXIMUM_HEAP_SIZE_ALLOWED
-        ) {
-          warn(
-            'The server is running out of memory, restarting to free up memory.'
-          )
-          server.close()
-          process.exit(WORKER_SELF_EXIT_CODE)
-        }
-      })
+  const { port, server, hostname } = await initializeServerWorker(
+    (...args) => {
+      return requestHandler(...args)
+    },
+    (...args) => {
+      return upgradeHandler(...args)
+    },
+    opts
+  )
+
+  app = next({
+    ...opts,
+    _routerWorker: opts.workerType === 'router',
+    _renderWorker: opts.workerType === 'render',
+    hostname: hostname === '0.0.0.0' ? 'localhost' : hostname,
+    customServer: false,
+    httpServer: server,
+    port: opts.port,
+    isNodeDebugging: opts.isNodeDebugging,
   })
 
-  if (opts.keepAliveTimeout) {
-    server.keepAliveTimeout = opts.keepAliveTimeout
+  requestHandler = app.getRequestHandler()
+  upgradeHandler = app.getUpgradeHandler()
+  await app.prepare(opts.serverFields)
+
+  result = {
+    port,
+    hostname: hostname === '0.0.0.0' ? '127.0.0.1' : hostname,
   }
-
-  return new Promise(async (resolve, reject) => {
-    server.on('error', (err: NodeJS.ErrnoException) => {
-      console.error(`Invariant: failed to start render worker`, err)
-      process.exit(1)
-    })
-
-    let upgradeHandler: any
-
-    if (!opts.dev) {
-      server.on('upgrade', (req, socket, upgrade) => {
-        upgradeHandler(req, socket, upgrade)
-      })
-    }
-
-    server.on('listening', async () => {
-      try {
-        const addr = server.address()
-        const port = addr && typeof addr === 'object' ? addr.port : 0
-
-        if (!port) {
-          console.error(`Invariant failed to detect render worker port`, addr)
-          process.exit(1)
-        }
-
-        let hostname =
-          !opts.hostname || opts.hostname === '0.0.0.0'
-            ? 'localhost'
-            : opts.hostname
-
-        if (isIPv6(hostname)) {
-          hostname = hostname === '::' ? '[::1]' : `[${hostname}]`
-        }
-        result = {
-          port,
-          hostname,
-        }
-        const app = next({
-          ...opts,
-          _routerWorker: isRouterWorker,
-          _renderWorker: isRenderWorker,
-          hostname,
-          customServer: false,
-          httpServer: server,
-          port: opts.port,
-          isNodeDebugging: opts.isNodeDebugging,
-        })
-
-        requestHandler = app.getRequestHandler()
-        upgradeHandler = app.getUpgradeHandler()
-        await app.prepare()
-        resolve(result)
-      } catch (err) {
-        return reject(err)
-      }
-    })
-    server.listen(await getFreePort(), '0.0.0.0')
-  })
+  return result
 }
