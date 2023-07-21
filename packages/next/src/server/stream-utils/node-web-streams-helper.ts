@@ -39,17 +39,14 @@ export function readableStreamTee<T = any>(
   const writer2 = transformStream2.writable.getWriter()
 
   const reader = readable.getReader()
-  function read() {
-    reader.read().then(({ done, value }) => {
-      if (done) {
-        writer.close()
-        writer2.close()
-        return
-      }
-      writer.write(value)
-      writer2.write(value)
-      read()
-    })
+  async function read() {
+    const { done, value } = await reader.read()
+    if (done) {
+      await Promise.all([writer.close(), writer2.close()])
+      return
+    }
+    await Promise.all([writer.write(value), writer2.write(value)])
+    await read()
   }
   read()
 
@@ -72,15 +69,14 @@ export function chainStreams<T>(
 }
 
 export function streamFromArray(strings: string[]): ReadableStream<Uint8Array> {
-  // Note: we use a TransformStream here instead of instantiating a ReadableStream
-  // because the built-in ReadableStream polyfill runs strings through TextEncoder.
-  const { readable, writable } = new TransformStream()
-
-  const writer = writable.getWriter()
-  strings.forEach((str) => writer.write(encodeText(str)))
-  writer.close()
-
-  return readable
+  return new ReadableStream({
+    start(controller) {
+      for (const str of strings) {
+        controller.enqueue(encodeText(str))
+      }
+      controller.close()
+    },
+  })
 }
 
 export async function streamToString(
@@ -218,7 +214,7 @@ function createHeadInsertionTransformStream(
 
 // Suffix after main body content - scripts before </body>,
 // but wait for the major chunks to be enqueued.
-export function createDeferredSuffixStream(
+function createDeferredSuffixStream(
   suffix: string
 ): TransformStream<Uint8Array, Uint8Array> {
   let suffixFlushed = false
@@ -227,7 +223,7 @@ export function createDeferredSuffixStream(
   return new TransformStream({
     transform(chunk, controller) {
       controller.enqueue(chunk)
-      if (!suffixFlushed && suffix) {
+      if (!suffixFlushed && suffix.length) {
         suffixFlushed = true
         suffixFlushTask = new Promise((res) => {
           // NOTE: streaming flush
@@ -242,7 +238,7 @@ export function createDeferredSuffixStream(
     },
     flush(controller) {
       if (suffixFlushTask) return suffixFlushTask
-      if (!suffixFlushed && suffix) {
+      if (!suffixFlushed && suffix.length) {
         suffixFlushed = true
         controller.enqueue(encodeText(suffix))
       }
