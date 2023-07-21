@@ -48,8 +48,8 @@ function runTests(harness: Harness, iframe: HTMLIFrameElement) {
     TIMEOUT
   )
 
-  // TODO(alexkirsz) This test is timing out.
-  it.skip(
+  // TODO: This test is flaky, so it needs a particularly long timeout.
+  it(
     'renders a custom 404 page',
     async () => {
       await harness.load(iframe, '/not-found')
