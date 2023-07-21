@@ -313,7 +313,7 @@ async fn run_test(resource: PathBuf) -> JsResult {
             )
             .await?;
 
-            Ok(unit().node)
+            Ok(unit())
         });
         tt.wait_task_completion(task, true).await.unwrap();
     }
