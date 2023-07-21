@@ -1032,14 +1032,17 @@ createNextDescribe(
       const res = await next.fetch('/default-cache')
       expect(res.status).toBe(200)
 
-      const logs = stripAnsi(next.cliOutput)
+      await check(() => {
+        const logs = stripAnsi(next.cliOutput)
 
-      // Display experimental logging in verbose mode
-      if (isDev) {
-        expect(logs).toContain('GET /default-cache 200')
-      } else {
-        expect(logs).not.toContain('GET /default-cache 200')
-      }
+        // Display experimental logging in verbose mode
+        if (isDev) {
+          expect(logs).toContain('GET /default-cache 200')
+        } else {
+          expect(logs).not.toContain('GET /default-cache 200')
+        }
+        return 'success'
+      }, 'success')
 
       let prevHtml = await res.text()
       let prev$ = cheerio.load(prevHtml)
