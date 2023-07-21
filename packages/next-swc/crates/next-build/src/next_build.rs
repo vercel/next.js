@@ -470,6 +470,7 @@ async fn handle_issues<T>(source: Vc<T>, issue_reporter: Vc<Box<dyn IssueReporte
     let has_fatal = issue_reporter.report_issues(
         TransientInstance::new(issues.clone()),
         TransientValue::new(source.node),
+        IssueSeverity::Error.cell(),
     );
 
     if *has_fatal.await? {
