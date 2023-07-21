@@ -1,28 +1,16 @@
-PlainIssue {
-    severity: Error,
-    context: "[project]/crates/turbopack-tests/tests/snapshot/imports/resolve_error_cjs/input/index.js",
-    category: "resolve",
-    title: "Error resolving commonjs request",
-    description: "unable to resolve module \"does-not-exist\" with subpath \"/path\"",
-    detail: "It was not possible to find the requested file.\nParsed request as written in source code: module \"does-not-exist\" with subpath \"/path\"\nPath where resolving has started: [project]/crates/turbopack-tests/tests/snapshot/imports/resolve_error_cjs/input/index.js\nType of request: commonjs request\nImport map: No import map entry\n",
-    documentation_link: "",
-    source: Some(
-        PlainIssueSource {
-            asset: PlainSource {
-                ident: "[project]/crates/turbopack-tests/tests/snapshot/imports/resolve_error_cjs/input/index.js",
-            },
-            start: SourcePos {
-                line: 0,
-                column: 13,
-            },
-            end: SourcePos {
-                line: 0,
-                column: 43,
-            },
-        },
-    ),
-    sub_issues: [],
-    processing_path: Some(
-        [],
-    ),
-}
+error - [resolve] [project]/crates/turbopack-tests/tests/snapshot/imports/resolve_error_cjs/input/index.js  /crates/turbopack-tests/tests/snapshot/imports/resolve_error_cjs/input/index.js:1:13  Error resolving commonjs request
+         +              v----------------------------v
+       1 + const dne = require("does-not-exist/path");
+         +              ^----------------------------^
+       2 | 
+       3 | console.log(dne);
+       4 | 
+  
+  unable to resolve module "does-not-exist" with subpath "/path"
+  
+  | It was not possible to find the requested file.
+  | Parsed request as written in source code: module "does-not-exist" with subpath "/path"
+  | Path where resolving has started: [project]/crates/turbopack-tests/tests/snapshot/imports/resolve_error_cjs/input/index.js
+  | Type of request: commonjs request
+  | Import map: No import map entry
+  |

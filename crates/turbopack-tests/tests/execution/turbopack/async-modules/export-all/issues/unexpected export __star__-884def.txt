@@ -1,14 +1,3 @@
-PlainIssue {
-    severity: Warning,
-    context: "[project]/crates/turbopack-tests/tests/execution/turbopack/async-modules/export-all/input/exports.js",
-    category: "analyze",
-    title: "unexpected export *",
-    description: "export * used with module [project]/crates/turbopack-tests/tests/execution/turbopack/async-modules/export-all/input/exports.js (ecmascript) which is a CommonJS module with exports only available at runtime\nList all export names manually (`export { a, b, c } from \"...\") or rewrite the module to ESM, to avoid the additional runtime code.`",
-    detail: "",
-    documentation_link: "",
-    source: None,
-    sub_issues: [],
-    processing_path: Some(
-        [],
-    ),
-}
+warning - [analyze] [project]/crates/turbopack-tests/tests/execution/turbopack/async-modules/export-all/input/exports.js  unexpected export *
+  export * used with module [project]/crates/turbopack-tests/tests/execution/turbopack/async-modules/export-all/input/exports.js (ecmascript) which is a CommonJS module with exports only available at runtime
+  List all export names manually (`export { a, b, c } from "...") or rewrite the module to ESM, to avoid the additional runtime code.`
