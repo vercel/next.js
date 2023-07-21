@@ -120,7 +120,7 @@ impl ImportMappingReplacement for NextFontLocalReplacer {
             AssetContent::file(FileContent::Content(file_content.into()).into()),
         );
 
-        Ok(ImportMapResult::Result(ResolveResult::asset(Vc::upcast(js_asset)).into()).into())
+        Ok(ImportMapResult::Result(ResolveResult::source(Vc::upcast(js_asset)).into()).into())
     }
 }
 
@@ -185,7 +185,7 @@ impl ImportMappingReplacement for NextFontLocalCssModuleReplacer {
             AssetContent::file(FileContent::Content(stylesheet.into()).into()),
         );
 
-        Ok(ImportMapResult::Result(ResolveResult::asset(Vc::upcast(css_asset)).into()).into())
+        Ok(ImportMapResult::Result(ResolveResult::source(Vc::upcast(css_asset)).into()).into())
     }
 }
 

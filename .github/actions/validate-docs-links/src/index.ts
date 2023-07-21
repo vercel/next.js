@@ -9,7 +9,6 @@ import GithubSlugger from 'github-slugger'
 import matter from 'gray-matter'
 import * as github from '@actions/github'
 import { setFailed } from '@actions/core'
-import type { Node, Data } from 'unist'
 
 /**
  * This script validates internal links in /docs and /errors including internal,
@@ -88,7 +87,9 @@ async function getAllMdxFilePaths(
 }
 
 // Returns the slugs of all headings in a tree
-function getHeadingsFromMarkdownTree(tree: Node<Data>): string[] {
+function getHeadingsFromMarkdownTree(
+  tree: ReturnType<typeof markdownProcessor.parse>
+): string[] {
   const headings: string[] = []
   slugger.reset()
 

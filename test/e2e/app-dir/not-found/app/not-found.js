@@ -1,4 +1,4 @@
-export default function Page() {
+export default function NotFound() {
   return (
     <>
       <h1>This Is The Not Found Page</h1>
@@ -7,3 +7,5 @@ export default function Page() {
     </>
   )
 }
+
+NotFound.displayName = 'NotFound'

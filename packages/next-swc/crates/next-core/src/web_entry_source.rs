@@ -201,7 +201,7 @@ pub async fn create_web_entry_source(
             let ty = Value::new(ReferenceType::Entry(EntryReferenceSubType::Web));
             Ok(origin
                 .resolve_asset(request, origin.resolve_options(ty.clone()), ty)
-                .primary_assets()
+                .primary_modules()
                 .await?
                 .first()
                 .copied())
