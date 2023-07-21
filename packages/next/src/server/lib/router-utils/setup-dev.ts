@@ -40,6 +40,7 @@ import {
   COMPILER_NAMES,
   DEV_CLIENT_PAGES_MANIFEST,
   DEV_MIDDLEWARE_MANIFEST,
+  NEXT_FONT_MANIFEST,
   PHASE_DEVELOPMENT_SERVER,
 } from '../../../shared/lib/constants'
 
@@ -123,7 +124,7 @@ async function startWatcher(opts: SetupOpts) {
 
     const project = await bindings.turbo.createProject({
       projectPath: dir,
-      rootPath: dir,
+      rootPath: opts.nextConfig.experimental.outputFileTracingRoot || dir,
       nextConfig: opts.nextConfig,
       watch: true,
       env: process.env as Record<string, string>,
@@ -203,12 +204,16 @@ async function startWatcher(opts: SetupOpts) {
               throw new Error(`route not found ${page}`)
             }
 
-            async function loadPartialManifest<T>(name: string): T {
+            async function loadPartialManifest<T>(name: string): Promise<T> {
+              const manifestPath = path.posix.join(
+                distDir,
+                `server`,
+                `pages`,
+                page === '/' ? 'index' : page,
+                name
+              )
               return JSON.parse(
-                await readFile(
-                  resolve(distDir, `server/pages${page}`, name),
-                  'utf-8'
-                )
+                await readFile(path.posix.join(manifestPath), 'utf-8')
               ) as T
             }
 
@@ -244,17 +249,17 @@ async function startWatcher(opts: SetupOpts) {
               const buildManifest = mergeBuildManifests(buildManifests.values())
               const pagesManifest = mergePagesManifests(pagesManifests.values())
               await writeFile(
-                path.resolve(distDir, 'build-manifest.json'),
+                path.join(distDir, 'build-manifest.json'),
                 JSON.stringify(buildManifest, null, 2),
                 'utf-8'
               )
               await writeFile(
-                path.resolve(distDir, 'server/pages-manifest.json'),
+                path.join(distDir, 'server/pages-manifest.json'),
                 JSON.stringify(pagesManifest, null, 2),
                 'utf-8'
               )
               await writeFile(
-                path.resolve(distDir, 'server/middleware-manifest.json'),
+                path.join(distDir, 'server/middleware-manifest.json'),
                 JSON.stringify(
                   {
                     sortedMiddleware: [],
@@ -266,6 +271,12 @@ async function startWatcher(opts: SetupOpts) {
                   2
                 ),
                 'utf-8'
+              )
+              // TODO: turbopack should write the correct
+              // version of this
+              await writeFile(
+                path.join(distDir, 'server', NEXT_FONT_MANIFEST + '.json'),
+                '{}'
               )
             } else {
               throw new Error(
