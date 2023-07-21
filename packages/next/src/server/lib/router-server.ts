@@ -29,6 +29,7 @@ import {
   PHASE_DEVELOPMENT_SERVER,
   PERMANENT_REDIRECT_STATUS,
 } from '../../shared/lib/constants'
+import { signalFromNodeResponse } from '../web/spec-extension/adapters/next-request'
 
 let initializeResult:
   | undefined
@@ -336,6 +337,7 @@ export async function initialize(opts: {
         {
           headers: invokeHeaders,
           method: req.method,
+          signal: signalFromNodeResponse(res),
         },
         getRequestMeta(req, '__NEXT_CLONABLE_BODY')?.cloneBodyStream()
       )
@@ -419,7 +421,12 @@ export async function initialize(opts: {
         resHeaders,
         bodyStream,
         matchedOutput,
-      } = await resolveRoutes(req, matchedDynamicRoutes, false)
+      } = await resolveRoutes(
+        req,
+        matchedDynamicRoutes,
+        false,
+        signalFromNodeResponse(res)
+      )
 
       if (devInstance && matchedOutput?.type === 'devVirtualFsItem') {
         const origUrl = req.url || '/'

@@ -17,7 +17,7 @@ import { proxyRequest } from './router-utils/proxy-request'
 import { getResolveRoutes } from './router-utils/resolve-routes'
 import { PERMANENT_REDIRECT_STATUS } from '../../shared/lib/constants'
 import { splitCookiesString, toNodeOutgoingHttpHeaders } from '../web/utils'
-import { signalFromNodeRequest } from '../web/spec-extension/adapters/next-request'
+import { signalFromNodeResponse } from '../web/spec-extension/adapters/next-request'
 import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
 import { pipeReadable } from './server-ipc/invoke-request'
 
@@ -132,7 +132,7 @@ export async function makeResolver(
               serverAddr.port || 3000
             }${req.url}`,
             body: cloneableBody,
-            signal: signalFromNodeRequest(req),
+            signal: signalFromNodeResponse(res),
           },
           useCache: true,
           onWarning: console.warn,
@@ -161,7 +161,7 @@ export async function makeResolver(
         res.statusCode = result.response.status
 
         for await (const chunk of result.response.body || ([] as any)) {
-          if (res.closed) break
+          if (res.destroyed) break
           res.write(chunk)
         }
         res.end()
@@ -218,7 +218,12 @@ export async function makeResolver(
     req: IncomingMessage,
     res: ServerResponse
   ): Promise<RouteResult | void> {
-    const routeResult = await resolveRoutes(req, new Set(), false)
+    const routeResult = await resolveRoutes(
+      req,
+      new Set(),
+      false,
+      signalFromNodeResponse(res)
+    )
     const {
       matchedOutput,
       bodyStream,

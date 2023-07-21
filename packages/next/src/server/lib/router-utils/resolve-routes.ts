@@ -93,7 +93,8 @@ export function getResolveRoutes(
   async function resolveRoutes(
     req: IncomingMessage,
     matchedDynamicRoutes: Set<string>,
-    isUpgradeReq?: boolean
+    isUpgradeReq: boolean,
+    signal: AbortSignal
   ): Promise<{
     finished: boolean
     statusCode?: number
@@ -458,6 +459,7 @@ export function getResolveRoutes(
               {
                 headers: invokeHeaders,
                 method: req.method,
+                signal,
               },
               getRequestMeta(req, '__NEXT_CLONABLE_BODY')?.cloneBodyStream()
             )

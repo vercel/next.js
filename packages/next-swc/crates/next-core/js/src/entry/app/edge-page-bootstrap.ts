@@ -80,11 +80,20 @@ async function render(request: NextRequest, event: NextFetchEvent) {
   response.headers.append('Vary', RSC_VARY_HEADER)
 
   const writer = tranform.writable.getWriter()
-  result.pipe({
+  const target = {
     write: (chunk: Uint8Array) => writer.write(chunk),
     end: () => writer.close(),
     destroy: (reason?: Error) => writer.abort(reason),
-  })
+    destroyed: false,
+  }
+  const onClose = () => {
+    target.destroyed = true
+  }
+  // No, this cannot be replaced with `finally`, because early cancelling
+  // the stream will create a rejected promise, and finally will create an
+  // unhandled rejection.
+  writer.closed.then(onClose, onClose)
+  result.pipe(target)
 
   return response
 }

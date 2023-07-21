@@ -59,7 +59,7 @@ export async function proxyRequest(
         finished = true
         proxyReject(err)
 
-        if (!res.closed) {
+        if (!res.destroyed) {
           res.statusCode = 500
           res.end('Internal Server Error')
         }

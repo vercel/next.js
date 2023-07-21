@@ -1,7 +1,7 @@
 import '../../node-polyfill-fetch'
 
 import type { IncomingMessage } from 'http'
-import type { Writable, Readable } from 'stream'
+import type { Readable } from 'stream'
 import { filterReqHeaders } from './utils'
 
 export const invokeRequest = async (
@@ -9,6 +9,7 @@ export const invokeRequest = async (
   requestInit: {
     headers: IncomingMessage['headers']
     method: IncomingMessage['method']
+    signal?: AbortSignal
   },
   readableBody?: Readable | ReadableStream
 ) => {
@@ -26,6 +27,7 @@ export const invokeRequest = async (
     headers: invokeHeaders as any as Headers,
     method: requestInit.method,
     redirect: 'manual',
+    signal: requestInit.signal,
 
     ...(requestInit.method !== 'GET' &&
     requestInit.method !== 'HEAD' &&
@@ -45,27 +47,44 @@ export const invokeRequest = async (
   return invokeRes
 }
 
+export interface PipeTarget {
+  write: (chunk: Uint8Array) => unknown
+  end: () => unknown
+  flush?: () => unknown
+  destroy: (err?: Error) => unknown
+  get destroyed(): boolean
+}
+
 export async function pipeReadable(
   readable: ReadableStream,
-  writable: Writable
+  writable: PipeTarget
 ) {
   const reader = readable.getReader()
+  let readerDone = false
 
-  async function doRead() {
-    const item = await reader.read()
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
 
-    if (item?.value) {
-      writable.write(Buffer.from(item?.value))
+      readerDone = done
+      if (done || writable.destroyed) {
+        break
+      }
 
-      if ('flush' in writable) {
-        ;(writable as any).flush()
+      if (value) {
+        writable.write(Buffer.from(value))
+        writable.flush?.()
       }
     }
-
-    if (!item?.done) {
-      return doRead()
+  } finally {
+    if (!writable.destroyed) {
+      writable.end()
+    }
+    if (!readerDone) {
+      reader.cancel().catch(() => {
+        // If reading from the reader threw an error, cancelling will throw
+        // another. Just swallow it.
+      })
     }
   }
-  await doRead()
-  writable.end()
 }

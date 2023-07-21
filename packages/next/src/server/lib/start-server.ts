@@ -19,6 +19,7 @@ import {
   getDebugPort,
   getNodeOptionsWithoutInspect,
 } from './utils'
+import { signalFromNodeResponse } from '../web/spec-extension/adapters/next-request'
 
 const debug = setupDebug('next:start-server')
 
@@ -393,6 +394,7 @@ export async function startServer({
           {
             headers: req.headers,
             method: req.method,
+            signal: signalFromNodeResponse(res),
           },
           getCloneableBody(req).cloneBodyStream()
         )
