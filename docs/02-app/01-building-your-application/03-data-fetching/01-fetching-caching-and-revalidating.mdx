@@ -4,16 +4,22 @@ nav_title: Fetching, Caching, and Revalidating
 description: Learn how to fetch, cache, and revalidate data in your Next.js application.
 ---
 
-Data fetching is a core part of any application. This page goes through how you can fetch, cache, and revalidate data. It also covers recommended patterns for fetching data with React.
+Data fetching is a core part of any application. This page goes through how you can fetch, cache, and revalidate data in React and Next.js.
 
-## Fetching Data on the Server
+There are three main ways you can fetch data:
+
+1. On the server, with the `fetch` API.
+2. On the server, with third-party libraries.
+3. On the client, with third-party libraries.
+
+## Fetching Data on the Server with `fetch`
 
 Next.js extends the native [`fetch` Web API](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) to allow you to:
 
-- Configure the [caching](#caching-data) and [revalidating](#revalidating-data) behavior for each fetch request.
-- Automatically [memoize](#fetching-data-where-its-needed-memoization) fetch requests while rendering a React Component tree.
+- Configure the [caching](#caching-data) and [revalidating](#revalidating-data) behavior for each fetch request on the server.
+- Automatically [memoize](#fetching-data-where-its-needed-memoization) requests while rendering a React Component tree.
 
-You can use `fetch` with [`async`/`await` in Server Components](https://github.com/acdlite/rfcs/blob/first-class-promises/text/0000-first-class-support-for-promises), [Route Handlers](), and [Server Actions]().
+You can use `fetch` with [`async`/`await` in Server Components](https://github.com/acdlite/rfcs/blob/first-class-promises/text/0000-first-class-support-for-promises), in [Route Handlers](), and in [Server Actions]().
 
 For example:
 
@@ -63,6 +69,7 @@ export default async function Page() {
 >
 > To use `async`/`await` in a Server Component with TypeScript, you'll need to use TypeScript `5.1.3` or higher and `@types/react` `18.2.8` or higher.
 > Next.js provides helpful functions you may need when fetching data in Server Components such as [`cookies`](/docs/app/api-reference/functions/cookies) and [`headers`](/docs/app/api-reference/functions/headers). These will cause the route to be dynamically rendered as they rely on runtime information.
+> `POST` requests are also automatically memoized when using `fetch` – unless they are inside of `POST` Route Handler or come after `headers`/`cookies`.
 
 ### Caching Data
 
@@ -78,7 +85,7 @@ fetch('https://...') // cache: 'force-cache' is the default, and can be omitted
 >
 > The Data Cache is a persistent [HTTP cache](https://developer.mozilla.org/en-US/docs/Web/HTTP/Caching). Depending on your platform, the cache can scale automatically and be shared across multiple regions.
 >
-> Next.js extends the [options object](https://developer.mozilla.org/en-US/docs/Web/API/fetch#:~:text=preflight%20requests.-,cache,-A%20string%20indicating) of the `fetch` function to allow each request on the server to set its own persistent caching behavior.
+> Next.js extends the [options object](https://developer.mozilla.org/en-US/docs/Web/API/fetch#:~:text=preflight%20requests.-,cache,-A%20string%20indicating) of the `fetch` function to allow each request on the server to set its own persistent caching behavior on the server.
 > During rendering, when Next.js comes across a fetch, it will check the cache to see if the data is already available. If it is, it will return the cached data. If not, it will fetch and store data for future requests.
 >
 > Learn more about the [Data Cache](/docs/app/building-your-application/data-fetching/caching#data-cache).
@@ -209,14 +216,6 @@ export const dynamic = 'auto'
 
 There's an extensive list of Segment Config options, giving you fine-grained control of static and dynamic behavior of a route segment. See the [API reference](/docs/app/api-reference/file-conventions/route-segment-config) for more.
 
-## Fetching Data on the Client
-
-If you need to fetch data on the client, we recommend using a third-party library such as [SWR](https://swr.vercel.app/) or [React Query](https://tanstack.com/query/v4). These libraries provide their own APIs for memoizing requests, caching, revalidating, and mutating data.
-
-> **Future APIs**:
->
-> `use` is a React function that **accepts and handles a promise** returned by a function. Wrapping `fetch` in `use` is currently **not** recommended in Client Components and may trigger multiple re-renders. Learn more about `use` in the [React RFC](https://github.com/acdlite/rfcs/blob/first-class-promises/text/0000-first-class-support-for-promises.md#usepromise).
-
 ## Fetching data with third-party libraries
 
 In cases where you're using a third-party library that doesn't support or expose `fetch` (for example, a database, CMS, or ORM client), you can configure the caching and revalidating behavior of those requests using the [Route Segment Config Option]() and React's `cache` function.
@@ -302,266 +301,10 @@ export default async function Page({ params: { id } }) {
 }
 ```
 
-## Data Fetching Patterns
+## Fetching Data on the Client
 
-There are a few recommended patterns and best practises for fetching data in React and Next.js:
+If you need to fetch data on the client, we recommend using a third-party library such as [SWR](https://swr.vercel.app/) or [React Query](https://tanstack.com/query/v4). These libraries provide their own APIs for memoizing requests, caching, revalidating, and mutating data.
 
-### Fetching Data on the Server
-
-Whenever possible, we recommend fetching data in on the server with [React Server Components](/docs/getting-started/react-essentials#server-components). This allows you to:
-
-- Have direct access to backend data resources (e.g. databases).
-- Keep your application more secure by preventing sensitive information, such as access tokens and API keys, from being exposed to the client.
-- Fetch data and render in the same environment. This reduces both the back-and-forth communication between client and server, as well as the work on the main thread on the client.
-- Perform multiple data fetches with single round-trip instead of multiple individual requests on the client.
-- Reduce client-server [waterfalls](#parallel-and-sequential-data-fetching).
-- Depending on your region, data fetching can also happen closer to your data source, reducing latency and improving performance.
-
-### Fetching Data Where It's Needed
-
-If you need to use the same data (e.g. current user) in multiple components in a tree, you do not have to fetch data globally, nor pass data down as props. Instead, you can use `fetch` directly inside the component that needs it without worrying about the performance implications of making multiple requests for the same data.
-
-This is possible because Next.js automatically memoizes `fetch` requests using React's `cache` function. Learn more about [request memoization](/docs/app/building-your-application/caching#react-cache)
-
-> **Good to know**: This also applies to layouts, since it's not possible to pass data between a parent layout and its children.
-
-### Parallel Data Fetching
-
-To minimize client-server waterfalls, we recommend this pattern to fetch data in parallel:
-
-```tsx filename="app/artist/[username]/page.tsx" switcher
-import Albums from './albums'
-
-async function getArtist(username: string) {
-  const res = await fetch(`https://api.example.com/artist/${username}`)
-  return res.json()
-}
-
-async function getArtistAlbums(username: string) {
-  const res = await fetch(`https://api.example.com/artist/${username}/albums`)
-  return res.json()
-}
-
-export default async function Page({
-  params: { username },
-}: {
-  params: { username: string }
-}) {
-  // Initiate both requests in parallel
-  const artistData = getArtist(username)
-  const albumsData = getArtistAlbums(username)
-
-  // Wait for the promises to resolve
-  const [artist, albums] = await Promise.all([artistData, albumsData])
-
-  return (
-    <>
-      <h1>{artist.name}</h1>
-      <Albums list={albums}></Albums>
-    </>
-  )
-}
-```
-
-```jsx filename="app/artist/[username]/page.js" switcher
-import Albums from './albums'
-
-async function getArtist(username) {
-  const res = await fetch(`https://api.example.com/artist/${username}`)
-  return res.json()
-}
-
-async function getArtistAlbums(username) {
-  const res = await fetch(`https://api.example.com/artist/${username}/albums`)
-  return res.json()
-}
-
-export default async function Page({ params: { username } }) {
-  // Initiate both requests in parallel
-  const artistData = getArtist(username)
-  const albumsData = getArtistAlbums(username)
-
-  // Wait for the promises to resolve
-  const [artist, albums] = await Promise.all([artistData, albumsData])
-
-  return (
-    <>
-      <h1>{artist.name}</h1>
-      <Albums list={albums}></Albums>
-    </>
-  )
-}
-```
-
-By starting the fetch prior to calling `await` in the Server Component, each request can eagerly start to fetch requests at the same time. This sets the components up so you can avoid waterfalls.
-
-We can save time by initiating both requests in parallel, however, the user won't see the rendered result until both promises are resolved.
-
-To improve the user experience, you can add a [suspense boundary](/docs/app/building-your-application/routing/loading-ui-and-streaming) to break up the rendering work and show part of the result as soon as possible:
-
-```tsx filename="artist/[username]/page.tsx" switcher
-import { getArtist, getArtistAlbums, type Album } from './api'
-
-export default async function Page({
-  params: { username },
-}: {
-  params: { username: string }
-}) {
-  // Initiate both requests in parallel
-  const artistData = getArtist(username)
-  const albumData = getArtistAlbums(username)
-
-  // Wait for the artist's promise to resolve first
-  const artist = await artistData
-
-  return (
-    <>
-      <h1>{artist.name}</h1>
-      {/* Send the artist information first,
-          and wrap albums in a suspense boundary */}
-      <Suspense fallback={<div>Loading...</div>}>
-        <Albums promise={albumData} />
-      </Suspense>
-    </>
-  )
-}
-
-// Albums Component
-async function Albums({ promise }: { promise: Promise<Album[]> }) {
-  // Wait for the albums promise to resolve
-  const albums = await promise
-
-  return (
-    <ul>
-      {albums.map((album) => (
-        <li key={album.id}>{album.name}</li>
-      ))}
-    </ul>
-  )
-}
-```
-
-```jsx filename="artist/[username]/page.js" switcher
-import { getArtist, getArtistAlbums } from './api'
-
-export default async function Page({ params: { username } }) {
-  // Initiate both requests in parallel
-  const artistData = getArtist(username)
-  const albumData = getArtistAlbums(username)
-
-  // Wait for the artist's promise to resolve first
-  const artist = await artistData
-
-  return (
-    <>
-      <h1>{artist.name}</h1>
-      {/* Send the artist information first,
-      and wrap albums in a suspense boundary */}
-      <Suspense fallback={<div>Loading...</div>}>
-        <Albums promise={albumData} />
-      </Suspense>
-    </>
-  )
-}
-
-// Albums Component
-async function Albums({ promise }) {
-  // Wait for the albums promise to resolve
-  const albums = await promise
-
-  return (
-    <ul>
-      {albums.map((album) => (
-        <li key={album.id}>{album.name}</li>
-      ))}
-    </ul>
-  )
-}
-```
-
-Take a look at the [preloading pattern](/docs/app/building-your-application/data-fetching/caching#preload-pattern-with-cache) for more information on improving components structure.
-
-### Sequential Data Fetching
-
-To fetch data sequentially, you can `fetch` directly inside the component that needs it, or you can `await` the result of `fetch` inside the component that needs it:
-
-```tsx filename="app/artist/page.tsx" switcher
-// ...
-
-async function Playlists({ artistID }: { artistID: string }) {
-  // Wait for the playlists
-  const playlists = await getArtistPlaylists(artistID)
-
-  return (
-    <ul>
-      {playlists.map((playlist) => (
-        <li key={playlist.id}>{playlist.name}</li>
-      ))}
-    </ul>
-  )
-}
-
-export default async function Page({
-  params: { username },
-}: {
-  params: { username: string }
-}) {
-  // Wait for the artist
-  const artist = await getArtist(username)
-
-  return (
-    <>
-      <h1>{artist.name}</h1>
-      <Suspense fallback={<div>Loading...</div>}>
-        <Playlists artistID={artist.id} />
-      </Suspense>
-    </>
-  )
-}
-```
-
-```jsx filename="app/artist/page.js" switcher
-// ...
-
-async function Playlists({ artistID }) {
-  // Wait for the playlists
-  const playlists = await getArtistPlaylists(artistID)
-
-  return (
-    <ul>
-      {playlists.map((playlist) => (
-        <li key={playlist.id}>{playlist.name}</li>
-      ))}
-    </ul>
-  )
-}
-
-export default async function Page({ params: { username } }) {
-  // Wait for the artist
-  const artist = await getArtist(username)
-
-  return (
-    <>
-      <h1>{artist.name}</h1>
-      <Suspense fallback={<div>Loading...</div>}>
-        <Playlists artistID={artist.id} />
-      </Suspense>
-    </>
-  )
-}
-```
-
-By fetching data inside the component, each fetch request and nested segment in the route cannot start fetching data and rendering until the previous request or segment has completed.
-
-### Blocking Rendering in a Route
-
-By fetching data in a [layout](/docs/app/building-your-application/routing/pages-and-layouts), rendering for all route segments beneath it can only start once the data has finished loading.
-
-In the `pages` directory, pages using server-rendering would show the browser loading spinner until `getServerSideProps` had finished, then render the React component for that page. This can be described as "all or nothing" data fetching. Either you had the entire data for your page, or none.
-
-In the `app` directory, you have additional options to explore:
-
-1. First, you can use `loading.js` to show an instant loading state from the server while streaming in the result from your data fetching function.
-2. Second, you can move data fetching _lower_ in the component tree to only block rendering for the parts of the page that need it. For example, moving data fetching to a specific component rather than fetching it at the root layout.
-
-Whenever possible, it's best to fetch data in the segment that uses it. This also allows you to show a loading state for only the part of the page that is loading, and not the entire page.
+> **Future APIs**:
+>
+> `use` is a React function that **accepts and handles a promise** returned by a function. Wrapping `fetch` in `use` is currently **not** recommended in Client Components and may trigger multiple re-renders. Learn more about `use` in the [React RFC](https://github.com/acdlite/rfcs/blob/first-class-promises/text/0000-first-class-support-for-promises.md#usepromise).
