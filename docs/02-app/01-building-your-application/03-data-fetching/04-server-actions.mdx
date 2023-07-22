@@ -138,6 +138,8 @@ You can invoke Server Actions using the following methods:
 You can use React's `action` prop to invoke a Server Action on a `form` element. Server Actions passed with the action prop act as asynchronous side effects in response to user interaction.
 
 ```jsx filename="app/add-to-cart.js"
+import { cookies } from 'next/headers'
+
 export default function AddToCart({ productId }) {
   async function addItem(data) {
     'use server'
