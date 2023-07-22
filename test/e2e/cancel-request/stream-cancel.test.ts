@@ -29,6 +29,14 @@ createNextDescribe(
         req.end()
 
         if (noData) {
+          req.on('error', (e) => {
+            // Swallow the "socket hang up" message that happens if you abort
+            // before the a response connection is received.
+            if ((e as any).code !== 'ECONNRESET') {
+              throw e
+            }
+          })
+
           setTimeout(() => {
             req.abort()
             resolve()
