@@ -351,22 +351,24 @@ function createMoveSuffixStream(
   })
 }
 
-const BYTES_HTML_TAG = new TextEncoder().encode('<html')
-const BYTES_BODY_TAG = new TextEncoder().encode('<body')
 export function createRootLayoutValidatorStream(
   assetPrefix = '',
   getTree: () => FlightRouterState
 ): TransformStream<Uint8Array, Uint8Array> {
   let foundHtml = false
   let foundBody = false
+  const textDecoder = new TextDecoder()
 
   return new TransformStream({
     async transform(chunk, controller) {
-      if (!foundHtml && BYTES_HTML_TAG.every((v, i) => v === chunk[i])) {
-        foundHtml = true
-      }
-      if (!foundBody && BYTES_BODY_TAG.every((v, i) => v === chunk[i])) {
-        foundBody = true
+      if (!foundHtml || !foundBody) {
+        const content = decodeText(chunk, textDecoder)
+        if (!foundHtml && content.includes('<html')) {
+          foundHtml = true
+        }
+        if (!foundBody && content.includes('<body')) {
+          foundBody = true
+        }
       }
       controller.enqueue(chunk)
     },
