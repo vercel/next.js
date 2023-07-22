@@ -1,4 +1,4 @@
----
+ ---
 title: redirects
 description: Add redirects to your Next.js app.
 ---
@@ -123,7 +123,13 @@ module.exports = {
 }
 ```
 
-Certain cases may arise when you might have to redirect all pages to a specific page, regex path matching paired with wildcard can help with that: 
+Certain cases may arise when you might have to redirect all pages to a specific page, regex path matching paired with wildcard can help with that. 
+
+`/:slug([a-zA-Z0-9]+(?<!\\.[a-zA-Z0-9]+))` helps with matching any and all routes other than the index `/` route and any routes with a period `.`, so that assets(images, videos and others) from public folder are not redirected. 
+This only handles routes like `/abc` or `/123` and not nested routes like `/a/b`.
+
+To handle that, we use `/:slug1/:slug2*`, which handles all possible routes, with any depth.
+
 
 ```js filename="next.config.js"
 module.exports = {
