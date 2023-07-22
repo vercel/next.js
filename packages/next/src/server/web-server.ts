@@ -374,14 +374,24 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
 
     if (options.result.isDynamic) {
       const writer = res.transformStream.writable.getWriter()
+
+      let innerClose: undefined | (() => void)
       const target = {
         write: (chunk: Uint8Array) => writer.write(chunk),
         end: () => writer.close(),
         destroy: (err?: Error) => writer.abort(err),
+
+        on(_event: 'close', cb: () => void) {
+          innerClose = cb
+        },
+        off(_event: 'close', _cb: () => void) {
+          innerClose = undefined
+        },
         destroyed: false,
       }
       const onClose = () => {
         target.destroyed = true
+        innerClose?.()
       }
       // No, this cannot be replaced with `finally`, because early cancelling
       // the stream will create a rejected promise, and finally will create an

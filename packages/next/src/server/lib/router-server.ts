@@ -15,7 +15,11 @@ import { filterReqHeaders } from './server-ipc/utils'
 import { findPagesDir } from '../../lib/find-pages-dir'
 import { setupFsCheck } from './router-utils/filesystem'
 import { proxyRequest } from './router-utils/proxy-request'
-import { invokeRequest, pipeReadable } from './server-ipc/invoke-request'
+import {
+  invokeRequest,
+  isAbortError,
+  pipeReadable,
+} from './server-ipc/invoke-request'
 import { createRequestResponseMocks } from './mock-request'
 import { createIpcServer, createWorker } from './server-ipc'
 import { UnwrapPromise } from '../../lib/coalesced-function'
@@ -332,15 +336,23 @@ export async function initialize(opts: {
 
       debug('invokeRender', renderUrl, invokeHeaders)
 
-      const invokeRes = await invokeRequest(
-        renderUrl,
-        {
-          headers: invokeHeaders,
-          method: req.method,
-          signal: signalFromNodeResponse(res),
-        },
-        getRequestMeta(req, '__NEXT_CLONABLE_BODY')?.cloneBodyStream()
-      )
+      let invokeRes
+      try {
+        invokeRes = await invokeRequest(
+          renderUrl,
+          {
+            headers: invokeHeaders,
+            method: req.method,
+            signal: signalFromNodeResponse(res),
+          },
+          getRequestMeta(req, '__NEXT_CLONABLE_BODY')?.cloneBodyStream()
+        )
+      } catch (e) {
+        if (isAbortError(e)) {
+          return
+        }
+        throw e
+      }
 
       debug('invokeRender res', invokeRes.status, invokeRes.headers)
 

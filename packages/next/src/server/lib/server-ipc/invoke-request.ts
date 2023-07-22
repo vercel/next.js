@@ -23,7 +23,7 @@ export const invokeRequest = async (
     ...requestInit.headers,
   }) as IncomingMessage['headers']
 
-  const invokeRes = await fetch(parsedTargetUrl.toString(), {
+  return await fetch(parsedTargetUrl.toString(), {
     headers: invokeHeaders as any as Headers,
     method: requestInit.method,
     redirect: 'manual',
@@ -43,8 +43,6 @@ export const invokeRequest = async (
       internal: true,
     },
   })
-
-  return invokeRes
 }
 
 export interface PipeTarget {
@@ -52,6 +50,10 @@ export interface PipeTarget {
   end: () => unknown
   flush?: () => unknown
   destroy: (err?: Error) => unknown
+
+  // These are necessary for us to detect client disconnect and cancel streaming.
+  on: (event: 'close', cb: () => void) => void
+  off: (event: 'close', cb: () => void) => void
   get destroyed(): boolean
 }
 
@@ -62,6 +64,16 @@ export async function pipeReadable(
   const reader = readable.getReader()
   let readerDone = false
 
+  function onClose() {
+    writable.off?.('close', onClose)
+    if (!readerDone) {
+      readerDone = true
+      reader.cancel().catch(() => {})
+    }
+  }
+  writable.on?.('close', onClose)
+
+  const id = String(Math.random()).slice(2, 5)
   try {
     while (true) {
       const { done, value } = await reader.read()
@@ -76,15 +88,24 @@ export async function pipeReadable(
         writable.flush?.()
       }
     }
+  } catch (e) {
+    // Only the reader will throw an error, and if it does then we know that it is done.
+    readerDone = true
+    // If the client disconnects, we don't want to emit an unhandled error.
+    if (!isAbortError(e)) {
+      throw e
+    }
   } finally {
     if (!writable.destroyed) {
       writable.end()
     }
     if (!readerDone) {
-      reader.cancel().catch(() => {
-        // If reading from the reader threw an error, cancelling will throw
-        // another. Just swallow it.
-      })
+      reader.cancel().catch(() => {})
     }
+    writable.off?.('close', onClose)
   }
+}
+
+export function isAbortError(e: any): e is Error & { name: 'AbortError' } {
+  return e?.name === 'AbortError'
 }

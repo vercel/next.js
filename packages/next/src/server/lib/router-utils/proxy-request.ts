@@ -34,6 +34,24 @@ export async function proxyRequest(
   await new Promise((proxyResolve, proxyReject) => {
     let finished = false
 
+    // http-proxy does not properly detect a client disconnect in newer
+    // versions of Node.js. This is caused because it only listens for the
+    // `aborted` event on the our request object, but it also fully reads
+    // and closes the request object. Node **will not** fire `aborted` when
+    // the request is already closed. Listening for `close` on our response
+    // object will detect the disconnect, and we can abort the proxy's
+    // connection.
+    proxy.on('proxyReq', (proxyReq) => {
+      res.on('close', () => proxyReq.destroy())
+    })
+    proxy.on('proxyRes', (proxyRes) => {
+      if (res.destroyed) {
+        proxyRes.destroy()
+      } else {
+        res.on('close', () => proxyRes.destroy())
+      }
+    })
+
     proxy.on('proxyRes', (proxyRes, innerReq, innerRes) => {
       const cleanup = (err: any) => {
         // cleanup event listeners to allow clean garbage collection

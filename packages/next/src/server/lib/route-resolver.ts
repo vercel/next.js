@@ -160,11 +160,11 @@ export async function makeResolver(
         }
         res.statusCode = result.response.status
 
-        for await (const chunk of result.response.body || ([] as any)) {
-          if (res.destroyed) break
-          res.write(chunk)
+        if (result.response.body) {
+          await pipeReadable(result.response.body, res)
+        } else {
+          res.end()
         }
-        res.end()
       } catch (err) {
         console.error(err)
         res.statusCode = 500

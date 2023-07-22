@@ -1625,14 +1625,12 @@ export default class NextNodeServer extends BaseServer {
         res.statusCode = result.response.status
 
         const { originalResponse } = res as NodeNextResponse
-        for await (const chunk of result.response.body || ([] as any)) {
-          if (originalResponse.destroyed) break
-          this.streamResponseChunk(originalResponse, chunk)
+        if (result.response.body) {
+          await pipeReadable(result.response.body, originalResponse)
+        } else {
+          originalResponse.end()
         }
-        res.send()
-        return {
-          finished: true,
-        }
+        return { finished: true }
       }
     } catch (err) {
       if (isError(err) && err.code === 'ENOENT') {
@@ -1836,19 +1834,7 @@ export default class NextNodeServer extends BaseServer {
 
     const nodeResStream = (params.res as NodeNextResponse).originalResponse
     if (result.response.body) {
-      // TODO(gal): not sure that we always need to stream
-      const { consumeUint8ArrayReadableStream } =
-        require('next/dist/compiled/edge-runtime') as typeof import('next/dist/compiled/edge-runtime')
-      try {
-        for await (const chunk of consumeUint8ArrayReadableStream(
-          result.response.body
-        )) {
-          if (nodeResStream.destroyed) break
-          nodeResStream.write(chunk)
-        }
-      } finally {
-        nodeResStream.end()
-      }
+      await pipeReadable(result.response.body, nodeResStream)
     } else {
       nodeResStream.end()
     }

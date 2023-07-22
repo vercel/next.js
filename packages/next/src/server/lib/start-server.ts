@@ -13,7 +13,11 @@ import { getCloneableBody } from '../body-streams'
 import { filterReqHeaders } from './server-ipc/utils'
 import setupCompression from 'next/dist/compiled/compression'
 import { normalizeRepeatedSlashes } from '../../shared/lib/utils'
-import { invokeRequest, pipeReadable } from './server-ipc/invoke-request'
+import {
+  invokeRequest,
+  isAbortError,
+  pipeReadable,
+} from './server-ipc/invoke-request'
 import {
   genRouterWorkerExecArgv,
   getDebugPort,
@@ -389,15 +393,23 @@ export async function startServer({
           targetHost === 'localhost' ? '127.0.0.1' : targetHost
         }:${routerPort}${req.url || '/'}`
 
-        const invokeRes = await invokeRequest(
-          targetUrl,
-          {
-            headers: req.headers,
-            method: req.method,
-            signal: signalFromNodeResponse(res),
-          },
-          getCloneableBody(req).cloneBodyStream()
-        )
+        let invokeRes
+        try {
+          invokeRes = await invokeRequest(
+            targetUrl,
+            {
+              headers: req.headers,
+              method: req.method,
+              signal: signalFromNodeResponse(res),
+            },
+            getCloneableBody(req).cloneBodyStream()
+          )
+        } catch (e) {
+          if (isAbortError(e)) {
+            return
+          }
+          throw e
+        }
 
         res.statusCode = invokeRes.status
         res.statusMessage = invokeRes.statusText

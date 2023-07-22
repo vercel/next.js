@@ -25,7 +25,11 @@ export const streamToBufferedResult = async (
     },
     end() {},
     destroy() {},
+
+    // We do not support stream cancellation
     destroyed: false,
+    on() {},
+    off() {},
   }
   await renderResult.pipe(writable)
   return renderChunks.join('')

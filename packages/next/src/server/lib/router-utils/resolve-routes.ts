@@ -12,7 +12,7 @@ import { filterReqHeaders } from '../server-ipc/utils'
 import { Header } from '../../../lib/load-custom-routes'
 import { stringifyQuery } from '../../server-route-utils'
 import { toNodeOutgoingHttpHeaders } from '../../web/utils'
-import { invokeRequest } from '../server-ipc/invoke-request'
+import { invokeRequest, isAbortError } from '../server-ipc/invoke-request'
 import { getCookieParser, setLazyProp } from '../../api-utils'
 import { getHostname } from '../../../shared/lib/get-hostname'
 import { UnwrapPromise } from '../../../lib/coalesced-function'
@@ -454,15 +454,28 @@ export function getResolveRoutes(
 
             debug('invoking middleware', renderUrl, invokeHeaders)
 
-            const middlewareRes = await invokeRequest(
-              renderUrl,
-              {
-                headers: invokeHeaders,
-                method: req.method,
-                signal,
-              },
-              getRequestMeta(req, '__NEXT_CLONABLE_BODY')?.cloneBodyStream()
-            )
+            let middlewareRes
+            try {
+              middlewareRes = await invokeRequest(
+                renderUrl,
+                {
+                  headers: invokeHeaders,
+                  method: req.method,
+                  signal,
+                },
+                getRequestMeta(req, '__NEXT_CLONABLE_BODY')?.cloneBodyStream()
+              )
+            } catch (e) {
+              if (isAbortError(e)) {
+                return {
+                  parsedUrl,
+                  resHeaders,
+                  finished: true,
+                }
+              }
+              throw e
+            }
+
             const middlewareHeaders = toNodeOutgoingHttpHeaders(
               middlewareRes.headers
             ) as Record<string, string | string[] | undefined>

@@ -43,7 +43,7 @@ createNextDescribe(
         const res = await next.fetch(url)
         const i = +(await res.text())
         expect(i).toBeWithin(1, 5)
-      }, 2500)
+      }, 5000)
 
       it('cancels stalled stream', async () => {
         const url = path + '?write=1'
@@ -51,7 +51,7 @@ createNextDescribe(
         const res = await next.fetch(url)
         const i = +(await res.text())
         expect(i).toBe(1)
-      }, 2500)
+      }, 5000)
 
       it('cancels stream that never sent data', async () => {
         const url = path + '?write=0'
@@ -59,7 +59,7 @@ createNextDescribe(
         const res = await next.fetch(url)
         const i = +(await res.text())
         expect(i).toBe(0)
-      }, 2500)
+      }, 5000)
     })
   }
 )
