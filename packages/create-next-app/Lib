@@ -1,0 +1,9 @@
+echo: all necessary tools to make a app
+
+import: import required tools from global tools
+
+assign author @sammyfilly full acess
+
+@maintainance regularly maintain app to avoid malfunctions
+
+create nextjs app build main using magic 
