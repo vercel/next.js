@@ -8,7 +8,7 @@ createNextDescribe(
     files: __dirname,
   },
   ({ next }) => {
-    function prime(url: string) {
+    function prime(url: string, noData?: boolean) {
       return new Promise<void>((resolve) => {
         url = new URL(url, next.url).href
 
@@ -17,6 +17,13 @@ createNextDescribe(
         // close the connection stream.
         // https://github.com/node-fetch/node-fetch/pull/670
         const req = get(url, async (res) => {
+          if (noData) {
+            return setTimeout(() => {
+              res.destroy()
+              resolve()
+            }, 100)
+          }
+
           while (true) {
             const value = res.read(1)
             if (value) break
@@ -55,7 +62,7 @@ createNextDescribe(
 
       it('cancels stream that never sent data', async () => {
         const url = path + '?write=0'
-        await prime(url)
+        await prime(url, true)
         const res = await next.fetch(url)
         const i = +(await res.text())
         expect(i).toBe(0)
