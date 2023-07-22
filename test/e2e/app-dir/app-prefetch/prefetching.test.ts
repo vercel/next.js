@@ -157,7 +157,7 @@ createNextDescribe(
       ).toBe(1)
     })
 
-    it('`_rsc` is calculated based on `Next-Url`', async () => {
+    it('should calculate `_rsc` query based on `Next-Url`', async () => {
       const browser = await next.browser('/404', browserConfigWithFixedTime)
       let staticPageRequests: string[] = []
 
