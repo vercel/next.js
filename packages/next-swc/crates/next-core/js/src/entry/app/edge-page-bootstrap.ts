@@ -9,7 +9,6 @@ import { createManifests, installRequireAndChunkLoad } from './manifest'
 import type { NextRequest, NextFetchEvent } from 'next/server'
 import type { RenderOpts } from 'next/dist/server/app-render/types'
 import type { ParsedUrlQuery } from 'querystring'
-import EventEmitter from 'events'
 
 installRequireAndChunkLoad()
 

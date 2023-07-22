@@ -81,6 +81,10 @@ export interface PipeTarget {
   off: (event: 'close', cb: () => void) => void
 }
 
+export function isAbortError(e: any): e is Error & { name: 'AbortError' } {
+  return e?.name === 'AbortError'
+}
+
 export async function pipeReadable(
   readable: ReadableStream,
   writable: PipeTarget
@@ -143,8 +147,4 @@ export async function pipeReadable(
       writable.end()
     }
   }
-}
-
-export function isAbortError(e: any): e is Error & { name: 'AbortError' } {
-  return e?.name === 'AbortError'
 }
