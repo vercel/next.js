@@ -6,4 +6,5 @@ module.exports = {
   tsconfig: './tsconfig.json',
   out: 'docs',
   commentStyle: 'all',
+  plugin: 'typedoc-plugin-markdown', // comment out this line to generate html docs
 }
