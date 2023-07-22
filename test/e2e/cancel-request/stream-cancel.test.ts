@@ -9,7 +9,7 @@ createNextDescribe(
   },
   ({ next }) => {
     function prime(url: string, noData?: boolean) {
-      return new Promise<void>((resolve, reject) => {
+      return new Promise<void>((resolve) => {
         url = new URL(url, next.url).href
 
         // There's a bug in node-fetch v2 where aborting the fetch will never abort
@@ -17,14 +17,6 @@ createNextDescribe(
         // close the connection stream.
         // https://github.com/node-fetch/node-fetch/pull/670
         const req = get(url, async (res) => {
-          reject(new Error('got'))
-          if (noData) {
-            return setTimeout(() => {
-              res.destroy()
-              resolve()
-            }, 100)
-          }
-
           while (true) {
             const value = res.read(1)
             if (value) break
@@ -35,6 +27,13 @@ createNextDescribe(
           resolve()
         })
         req.end()
+
+        if (noData) {
+          setTimeout(() => {
+            req.abort()
+            resolve()
+          }, 100)
+        }
       })
     }
 
@@ -46,6 +45,8 @@ createNextDescribe(
       ['node pages api', '/api/node-api'],
     ])('%s', (_name, path) => {
       it('cancels stream making progress', async () => {
+        // If the stream is making regular progress, then we'll eventually hit
+        // the break because `res.destroyed` is true.
         const url = path + '?write=25'
         await prime(url)
         const res = await next.fetch(url)
@@ -54,6 +55,8 @@ createNextDescribe(
       }, 2500)
 
       it('cancels stalled stream', async () => {
+        // If the stream is stalled, we'll never hit the `res.destroyed` break
+        // point, so this ensures we handle it with an out-of-band cancellation.
         const url = path + '?write=1'
         await prime(url)
         const res = await next.fetch(url)
@@ -61,10 +64,11 @@ createNextDescribe(
         expect(i).toBe(1)
       }, 2500)
 
-      it.only('cancels stream that never sent data', async () => {
+      it('cancels stream that never sent data', async () => {
+        // If the client has never sent any data (including headers), then we
+        // haven't even established the response object yet.
         const url = path + '?write=0'
         await prime(url, true)
-        throw new Error('after prime')
         const res = await next.fetch(url)
         const i = +(await res.text())
         expect(i).toBe(0)
