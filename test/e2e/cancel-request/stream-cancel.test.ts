@@ -9,7 +9,7 @@ createNextDescribe(
   },
   ({ next }) => {
     function prime(url: string, noData?: boolean) {
-      return new Promise<void>((resolve) => {
+      return new Promise<void>((resolve, reject) => {
         url = new URL(url, next.url).href
 
         // There's a bug in node-fetch v2 where aborting the fetch will never abort
@@ -17,6 +17,7 @@ createNextDescribe(
         // close the connection stream.
         // https://github.com/node-fetch/node-fetch/pull/670
         const req = get(url, async (res) => {
+          reject(new Error('got'))
           if (noData) {
             return setTimeout(() => {
               res.destroy()
@@ -50,7 +51,7 @@ createNextDescribe(
         const res = await next.fetch(url)
         const i = +(await res.text())
         expect(i).toBeWithin(1, 5)
-      }, 5000)
+      }, 2500)
 
       it('cancels stalled stream', async () => {
         const url = path + '?write=1'
@@ -58,15 +59,16 @@ createNextDescribe(
         const res = await next.fetch(url)
         const i = +(await res.text())
         expect(i).toBe(1)
-      }, 5000)
+      }, 2500)
 
-      it('cancels stream that never sent data', async () => {
+      it.only('cancels stream that never sent data', async () => {
         const url = path + '?write=0'
         await prime(url, true)
+        throw new Error('after prime')
         const res = await next.fetch(url)
         const i = +(await res.text())
         expect(i).toBe(0)
-      }, 5000)
+      }, 2500)
     })
   }
 )
