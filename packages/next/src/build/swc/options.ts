@@ -140,7 +140,23 @@ function getBaseSWCOptions({
     reactRemoveProperties: jest
       ? false
       : compilerOptions?.reactRemoveProperties,
-    modularizeImports,
+    modularizeImports: modularizeImports
+      ? Object.fromEntries(
+          Object.entries(modularizeImports).map(([key, value]) => [
+            key,
+            {
+              ...value,
+              transform:
+                typeof value.transform === 'string'
+                  ? value.transform
+                  : Object.entries(value.transform).map(([key, value]) => [
+                      key,
+                      value,
+                    ]),
+            },
+          ])
+        )
+      : undefined,
     relay: compilerOptions?.relay,
     // Always transform styled-jsx and error when `client-only` condition is triggered
     styledJsx: true,

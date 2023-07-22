@@ -25,11 +25,20 @@ use super::module_rule_match_js_no_url;
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(rename_all = "camelCase")]
 pub struct ModularizeImportPackageConfig {
-    pub transform: String,
+    pub transform: Transform,
     #[serde(default)]
     pub prevent_full_import: bool,
     #[serde(default)]
     pub skip_default_conversion: bool,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[serde(untagged)]
+pub enum Transform {
+    #[default]
+    None,
+    String(String),
+    Vec(Vec<(String, String)>),
 }
 
 /// Returns a rule which applies the Next.js modularize imports transform.
@@ -61,7 +70,13 @@ impl ModularizeImportsTransformer {
                     (
                         k.clone(),
                         PackageConfig {
-                            transform: modularize_imports::Transform::String(v.transform.clone()),
+                            transform: match &v.transform {
+                                Transform::String(s) => modularize_imports::Transform::String(s.clone()),
+                                Transform::Vec(v) => modularize_imports::Transform::Vec(v.clone()),
+                                Transform::None => {
+                                    panic!("Missing transform value for package {}", k)
+                                },
+                            },
                             prevent_full_import: v.prevent_full_import,
                             skip_default_conversion: v.skip_default_conversion,
                         },
