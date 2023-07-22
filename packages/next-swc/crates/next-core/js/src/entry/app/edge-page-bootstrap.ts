@@ -9,6 +9,7 @@ import { createManifests, installRequireAndChunkLoad } from './manifest'
 import type { NextRequest, NextFetchEvent } from 'next/server'
 import type { RenderOpts } from 'next/dist/server/app-render/types'
 import type { ParsedUrlQuery } from 'querystring'
+import EventEmitter from 'events'
 
 installRequireAndChunkLoad()
 
@@ -85,7 +86,6 @@ async function render(request: NextRequest, event: NextFetchEvent) {
   const target = {
     write: (chunk: Uint8Array) => writer.write(chunk),
     end: () => writer.close(),
-    destroy: (reason?: Error) => writer.abort(reason),
 
     on(_event: 'close', cb: () => void) {
       innerClose = cb
@@ -93,10 +93,8 @@ async function render(request: NextRequest, event: NextFetchEvent) {
     off(_event: 'close', _cb: () => void) {
       innerClose = undefined
     },
-    destroyed: false,
   }
   const onClose = () => {
-    target.destroyed = true
     innerClose?.()
   }
   // No, this cannot be replaced with `finally`, because early cancelling

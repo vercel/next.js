@@ -24,10 +24,8 @@ export const streamToBufferedResult = async (
       renderChunks.push(decodeText(chunk, textDecoder))
     },
     end() {},
-    destroy() {},
 
     // We do not support stream cancellation
-    destroyed: false,
     on() {},
     off() {},
   }

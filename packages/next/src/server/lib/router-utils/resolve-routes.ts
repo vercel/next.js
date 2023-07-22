@@ -466,6 +466,9 @@ export function getResolveRoutes(
                 getRequestMeta(req, '__NEXT_CLONABLE_BODY')?.cloneBodyStream()
               )
             } catch (e) {
+              // If the client aborts before we can receive a response object
+              // (when the headers are flushed), then we can early exit without
+              // further processing.
               if (isAbortError(e)) {
                 return {
                   parsedUrl,

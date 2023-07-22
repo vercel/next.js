@@ -379,7 +379,6 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
       const target = {
         write: (chunk: Uint8Array) => writer.write(chunk),
         end: () => writer.close(),
-        destroy: (err?: Error) => writer.abort(err),
 
         on(_event: 'close', cb: () => void) {
           innerClose = cb
@@ -387,10 +386,8 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
         off(_event: 'close', _cb: () => void) {
           innerClose = undefined
         },
-        destroyed: false,
       }
       const onClose = () => {
-        target.destroyed = true
         innerClose?.()
       }
       // No, this cannot be replaced with `finally`, because early cancelling

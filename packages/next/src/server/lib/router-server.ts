@@ -348,6 +348,9 @@ export async function initialize(opts: {
           getRequestMeta(req, '__NEXT_CLONABLE_BODY')?.cloneBodyStream()
         )
       } catch (e) {
+        // If the client aborts before we can receive a response object (when
+        // the headers are flushed), then we can early exit without further
+        // processing.
         if (isAbortError(e)) {
           return
         }
@@ -706,7 +709,8 @@ export async function initialize(opts: {
       const { matchedOutput, parsedUrl } = await resolveRoutes(
         req,
         new Set(),
-        true
+        true,
+        signalFromNodeResponse(socket)
       )
 
       // TODO: allow upgrade requests to pages/app paths?

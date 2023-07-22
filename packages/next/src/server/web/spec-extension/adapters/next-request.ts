@@ -1,13 +1,21 @@
 import type { BaseNextRequest } from '../../../base-http'
 import type { NodeNextRequest } from '../../../base-http/node'
 import type { WebNextRequest } from '../../../base-http/web'
-import type { ServerResponse } from 'node:http'
+import type { Writable } from 'node:stream'
 
 import { getRequestMeta } from '../../../request-meta'
 import { fromNodeOutgoingHttpHeaders } from '../../utils'
 import { NextRequest } from '../request'
 
-export function signalFromNodeResponse(response: ServerResponse) {
+/**
+ * Creates an AbortSignal tied to the closing of a ServerResponse (or other
+ * appropriate Writable).
+ *
+ * This cannot be done with the request (IncomingMessage or Readable) because
+ * the `abort` event will not fire if to data has been fully read (because that
+ * will "close" the readable stream and nothing fires after that).
+ */
+export function signalFromNodeResponse(response: Writable) {
   const { errored, destroyed } = response
   if (errored || destroyed) return AbortSignal.abort(errored)
 
