@@ -37,7 +37,10 @@ export default function NotFound() {
 }
 ```
 
-> **Good to know**: In addition to catching expected `notFound()` errors, the root `app/not-found.js` file also handles any unmatched URLs for your whole application. This means users that visit a URL that is not handled by your app will be shown the UI exported by the `app/not-found.js` file.
+> **Good to know**:
+>
+> - In addition to catching expected `notFound()` errors, the root `app/not-found.js` file also handles any unmatched URLs for your whole application. This means users that visit a URL that is not handled by your app will be shown the UI exported by the `app/not-found.js` file.
+> - While working on local development, if you land on a page that doesn't exist in the file system, the application will try to find it on that on intervals, reloading the page, since this could be a page you intend to build. This won't happen in production mode.
 
 ## Props
 
