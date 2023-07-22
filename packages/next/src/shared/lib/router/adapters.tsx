@@ -1,6 +1,6 @@
 import type { ParsedUrlQuery } from 'node:querystring'
 import React, { useMemo, useRef } from 'react'
-import type { AppRouterInstance } from '../app-router-context'
+import type { AppRouterInstance, NavigateOptions } from '../app-router-context'
 import { PathnameContext } from '../hooks-client-context'
 import type { NextRouter } from './router'
 import { isDynamicRoute } from './utils'
@@ -24,11 +24,11 @@ export function adaptForAppRouterInstance(
     refresh(): void {
       router.reload()
     },
-    push(href: string): void {
-      void router.push(href)
+    push(href: string, { scroll }: NavigateOptions = {}): void {
+      void router.push(href, undefined, { scroll })
     },
-    replace(href: string): void {
-      void router.replace(href)
+    replace(href: string, { scroll }: NavigateOptions = {}): void {
+      void router.replace(href, undefined, { scroll })
     },
     prefetch(href: string): void {
       void router.prefetch(href)

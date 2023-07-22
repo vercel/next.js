@@ -304,7 +304,7 @@ function generateCacheKey(request) {
   }
 }
 
-var ReactVersion = '18.3.0-experimental-7118f5dd7-20230705';
+var ReactVersion = '18.3.0-experimental-9377e1010-20230712';
 
 // ATTENTION
 // When adding new symbols to this file,
@@ -2650,7 +2650,6 @@ exports.Fragment = REACT_FRAGMENT_TYPE;
 exports.Profiler = REACT_PROFILER_TYPE;
 exports.StrictMode = REACT_STRICT_MODE_TYPE;
 exports.Suspense = REACT_SUSPENSE_TYPE;
-exports.SuspenseList = REACT_SUSPENSE_LIST_TYPE;
 exports.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED = ReactSharedInternals;
 exports.cache = cache;
 exports.cloneElement = cloneElement;
@@ -2663,6 +2662,7 @@ exports.lazy = lazy;
 exports.memo = memo;
 exports.startTransition = startTransition;
 exports.unstable_DebugTracingMode = REACT_DEBUG_TRACING_MODE_TYPE;
+exports.unstable_SuspenseList = REACT_SUSPENSE_LIST_TYPE;
 exports.unstable_getCacheForType = getCacheForType;
 exports.unstable_getCacheSignal = getCacheSignal;
 exports.use = use;

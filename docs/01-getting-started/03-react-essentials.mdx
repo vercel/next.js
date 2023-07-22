@@ -290,7 +290,7 @@ export default function ExampleClientComponent({ children }) {
 
 Now, `<ExampleClientComponent>` has no knowledge of what `children` is. It doesn't know that `children` will eventually be filled in by the result of a Server Component.
 
-The only responsibility `ExampleClientComponent` has is to decide where whatever `children` will eventually be should be placed.
+The only responsibility `ExampleClientComponent` has is to decide where whatever `children` will eventually be placed.
 
 In a parent Server Component, you can import both the `<ExampleClientComponent>` and `<ExampleServerComponent>` and pass `<ExampleServerComponent>` as a child of `<ExampleClientComponent>`:
 

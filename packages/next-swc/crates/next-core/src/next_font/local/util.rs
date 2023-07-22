@@ -1,19 +1,19 @@
 use anyhow::Result;
-use turbopack_binding::turbo::tasks::primitives::{StringVc, U32Vc};
+use turbo_tasks::Vc;
 
-use super::options::NextFontLocalOptionsVc;
+use super::options::NextFontLocalOptions;
 use crate::next_font::{
-    font_fallback::{FontFallback, FontFallbacksVc},
+    font_fallback::{FontFallback, FontFallbacks},
     util::{get_scoped_font_family, FontFamilyType},
 };
 
 /// Returns a string to be used as the `font-family` property in css.
 #[turbo_tasks::function]
 pub(super) async fn build_font_family_string(
-    options: NextFontLocalOptionsVc,
-    font_fallbacks: FontFallbacksVc,
-    request_hash: U32Vc,
-) -> Result<StringVc> {
+    options: Vc<NextFontLocalOptions>,
+    font_fallbacks: Vc<FontFallbacks>,
+    request_hash: Vc<u32>,
+) -> Result<Vc<String>> {
     let mut font_families = vec![format!(
         "'{}'",
         *get_scoped_font_family(
@@ -36,5 +36,5 @@ pub(super) async fn build_font_family_string(
         }
     }
 
-    Ok(StringVc::cell(font_families.join(", ")))
+    Ok(Vc::cell(font_families.join(", ")))
 }

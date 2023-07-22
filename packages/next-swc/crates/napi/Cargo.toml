@@ -20,6 +20,7 @@ sentry_rustls = ["sentry", "sentry/rustls", "rustls-tls"]
 native-tls = ["next-dev/native-tls"]
 rustls-tls = ["next-dev/rustls-tls"]
 serializable = ["next-dev/serializable"]
+image-webp = ["next-core/image-webp"]
 
 # Enable dhat profiling allocator for heap profiling.
 __internal_dhat-heap = ["dhat"]
@@ -42,6 +43,7 @@ napi = { version = "2", default-features = false, features = [
 napi-derive = "2"
 next-swc = { version = "0.0.0", path = "../core" }
 next-dev = { workspace = true }
+next-api = { workspace = true }
 next-build = { workspace = true }
 next-core = { workspace = true }
 turbo-tasks = { workspace = true }

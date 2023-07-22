@@ -85,7 +85,7 @@ type JSONValue =
   | JSONValue[]
   | { [k: string]: JSONValue }
 
-type TurboLoaderItem =
+export type TurboLoaderItem =
   | string
   | {
       loader: string
@@ -93,7 +93,7 @@ type TurboLoaderItem =
       options: Record<string, JSONValue>
     }
 
-interface ExperimentalTurboOptions {
+export interface ExperimentalTurboOptions {
   /**
    * (`next --turbo` only) A mapping of aliased imports to modules to load in their place.
    *
@@ -297,6 +297,11 @@ export interface ExperimentalConfig {
    * Enables source maps generation for the server production bundle.
    */
   serverSourceMaps?: boolean
+
+  /**
+   * @internal Used by the Next.js internals only.
+   */
+  trustHostHeader?: boolean
 }
 
 export type ExportPathMap = {
