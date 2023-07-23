@@ -632,7 +632,7 @@ createNextDescribe(
 
     describe('no response returned', () => {
       it('should print an error when no response is returned', async () => {
-        await next.fetch('/no-response', { method: 'POST' })
+        await next.fetch(bathPath + '/no-response', { method: 'POST' })
 
         await check(() => {
           expect(next.cliOutput).toMatch(
