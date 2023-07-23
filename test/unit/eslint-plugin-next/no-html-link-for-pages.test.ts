@@ -211,6 +211,36 @@ export class Blah extends Head {
 }
 `
 
+const validInterceptedRouteCode = `
+import Link from 'next/link';
+
+export class Blah extends Head {
+  render() {
+    return (
+      <div>
+        <Link href='/photo/1/'>Photo</Link>
+        <h1>Hello title</h1>
+      </div>
+    );
+  }
+}
+`
+
+const invalidInterceptedRouteCode = `
+import Link from 'next/link';
+
+export class Blah extends Head {
+  render() {
+    return (
+      <div>
+        <a href='/photo/1/'>Photo</a>
+        <h1>Hello title</h1>
+      </div>
+    );
+  }
+}
+`
+
 describe('no-html-link-for-pages', function () {
   it('prints warning when there are no "pages" or "app" directories', function () {
     const consoleSpy = jest.spyOn(console, 'warn').mockImplementation()
@@ -466,6 +496,32 @@ describe('no-html-link-for-pages', function () {
     assert.equal(
       thirdReport.message,
       'Do not use an `<a>` element to navigate to `/list/lorem-ipsum/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
+    )
+  })
+
+  it('valid intercepted route with appDir', function () {
+    const report = withAppLinter.verify(
+      validInterceptedRouteCode,
+      linterConfig,
+      {
+        filename: 'foo.js',
+      }
+    )
+    assert.deepEqual(report, [])
+  })
+
+  it('invalid intercepted route with appDir', function () {
+    const [report] = withAppLinter.verify(
+      invalidInterceptedRouteCode,
+      linterConfig,
+      {
+        filename: 'foo.js',
+      }
+    )
+    assert.notEqual(report, undefined, 'No lint errors found.')
+    assert.equal(
+      report.message,
+      'Do not use an `<a>` element to navigate to `/photo/1/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
     )
   })
 })

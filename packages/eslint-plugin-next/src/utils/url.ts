@@ -76,7 +76,7 @@ function parseUrlForAppDir(urlprefix: string, directory: string) {
       }
     }
   })
-  return res.map((route) => normalizeAppPath(route))
+  return res
 }
 
 /**
@@ -136,7 +136,7 @@ export function getUrlFromAppDirectory(
         .flat()
         .map(
           // Since the URLs are normalized we add `^` and `$` to the RegExp to make sure they match exactly.
-          (url) => `^${normalizeURL(url)}$`
+          (url) => `^${normalizeAppPath(url)}$`
         )
     )
   ).map((urlReg) => {
