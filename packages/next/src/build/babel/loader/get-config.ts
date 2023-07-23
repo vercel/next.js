@@ -159,6 +159,95 @@ function getCustomBabelConfig(configFilePath: string) {
   )
 }
 
+let babelConfigWarned = false
+/**
+ * Check if custom babel configuration from user only contains options that
+ * can be migrated into latest Next.js features supported by SWC.
+ *
+ * This raises soft warning messages only, not making any errors yet.
+ */
+function checkCustomBabelConfigDeprecation(
+  config: Record<string, any> | undefined
+) {
+  if (!config || Object.keys(config).length === 0) {
+    return
+  }
+
+  const { plugins, presets, ...otherOptions } = config
+  if (Object.keys(otherOptions ?? {}).length > 0) {
+    return
+  }
+
+  if (babelConfigWarned) {
+    return
+  }
+
+  babelConfigWarned = true
+
+  const isPresetReadyToDeprecate =
+    !presets ||
+    presets.length === 0 ||
+    (presets.length === 1 && presets[0] === 'next/babel')
+  const pluginReasons = []
+  const unsupportedPlugins = []
+
+  if (Array.isArray(plugins)) {
+    for (const plugin of plugins) {
+      const pluginName = Array.isArray(plugin) ? plugin[0] : plugin
+
+      // [NOTE]: We cannot detect if the user uses babel-plugin-macro based transform plugins,
+      // such as `styled-components/macro` in here.
+      switch (pluginName) {
+        case 'styled-components':
+        case 'babel-plugin-styled-components':
+          pluginReasons.push(
+            `\t- 'styled-components' can be enabled via 'compiler.styledComponents' in 'next.config.js'`
+          )
+          break
+        case '@emotion/babel-plugin':
+          pluginReasons.push(
+            `\t- '@emotion/babel-plugin' can be enabled via 'compiler.emotion' in 'next.config.js'`
+          )
+          break
+        case 'babel-plugin-relay':
+          pluginReasons.push(
+            `\t- 'babel-plugin-relay' can be enabled via 'compiler.relay' in 'next.config.js'`
+          )
+          break
+        case 'react-remove-properties':
+          pluginReasons.push(
+            `\t- 'react-remove-properties' can be enabled via 'compiler.reactRemoveProperties' in 'next.config.js'`
+          )
+          break
+        case 'transform-remove-console':
+          pluginReasons.push(
+            `\t- 'transform-remove-console' can be enabled via 'compiler.removeConsole' in 'next.config.js'`
+          )
+          break
+        default:
+          unsupportedPlugins.push(pluginName)
+          break
+      }
+    }
+  }
+
+  if (isPresetReadyToDeprecate && unsupportedPlugins.length === 0) {
+    Log.warn(
+      `It looks like there is a custom Babel configuration can be removed ${
+        pluginReasons.length > 0 ? ':' : '.'
+      }`
+    )
+
+    if (pluginReasons.length > 0) {
+      Log.warn(`Next.js supports the following features natively: `)
+      Log.warn(pluginReasons.join(''))
+      Log.warn(
+        `For more details configuration options, please refer https://nextjs.org/docs/architecture/nextjs-compiler#supported-features`
+      )
+    }
+  }
+}
+
 /**
  * Generate a new, flat Babel config, ready to be handed to Babel-traverse.
  * This config should have no unresolved overrides, presets, etc.
@@ -177,6 +266,8 @@ function getFreshConfig(
   let customConfig: any = configFile
     ? getCustomBabelConfig(configFile)
     : undefined
+
+  checkCustomBabelConfigDeprecation(customConfig)
 
   let options = {
     babelrc: false,

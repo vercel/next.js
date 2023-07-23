@@ -16,6 +16,11 @@ createNextDescribe(
       expect($('#param-id2').text()).toBe('b')
     })
 
+    it('should work for catch all params', async () => {
+      const $ = await next.render$('/a/b/c/d/e/f/g')
+      expect($('#params').text()).toBe('["a","b","c","d","e","f","g"]')
+    })
+
     it('should work for single dynamic param client navigating', async () => {
       const browser = await next.browser('/')
       expect(

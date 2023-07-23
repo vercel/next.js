@@ -59,6 +59,130 @@ describe('accumulateMetadata', () => {
     })
   })
 
+  describe('icon', () => {
+    it('should resolve icons.icon correctly', async () => {
+      // array icons
+      expect(
+        await accumulateMetadata([
+          [
+            {
+              icons: [
+                {
+                  url: 'favicon-light.png',
+                  rel: 'icon',
+                  media: '(prefers-color-scheme: light)',
+                },
+                {
+                  url: 'favicon-dark.png',
+                  rel: 'icon',
+                  media: '(prefers-color-scheme: dark)',
+                },
+              ],
+            },
+            null,
+          ],
+        ])
+      ).toMatchObject({
+        icons: {
+          icon: [
+            {
+              url: 'favicon-light.png',
+              rel: 'icon',
+              media: '(prefers-color-scheme: light)',
+            },
+            {
+              url: 'favicon-dark.png',
+              rel: 'icon',
+              media: '(prefers-color-scheme: dark)',
+            },
+          ],
+        },
+      })
+
+      // string icons
+      expect(
+        await accumulateMetadata([
+          [
+            {
+              icons: 'favicon-light.png',
+            },
+            null,
+          ],
+        ])
+      ).toMatchObject({
+        icons: {
+          icon: [
+            {
+              url: 'favicon-light.png',
+              rel: 'icon',
+            },
+          ],
+        },
+      })
+
+      // icon.icons array
+      expect(
+        await accumulateMetadata([
+          [
+            {
+              icons: {
+                icon: [
+                  {
+                    url: 'favicon-light.png',
+                  },
+                  {
+                    url: 'favicon-dark.png',
+                  },
+                ],
+              },
+            },
+            null,
+          ],
+        ])
+      ).toMatchObject({
+        icons: {
+          icon: [
+            {
+              url: 'favicon-light.png',
+            },
+            {
+              url: 'favicon-dark.png',
+            },
+          ],
+        },
+      })
+    })
+
+    it('should resolve icons.apple', async () => {
+      expect(
+        await accumulateMetadata([
+          [
+            {
+              icons: {
+                apple: [
+                  {
+                    url: 'apple-touch-icon-light.png',
+                    media: '(prefers-color-scheme: light)',
+                  },
+                ],
+              },
+            },
+            null,
+          ],
+        ])
+      ).toMatchObject({
+        icons: {
+          apple: [
+            {
+              url: 'apple-touch-icon-light.png',
+              media: '(prefers-color-scheme: light)',
+            },
+          ],
+        },
+      })
+    })
+  })
+
   describe('itunes', () => {
     it('should resolve relative url starting with ./ with pathname for itunes.appArgument', async () => {
       const metadataItems: MetadataItems = [
@@ -232,6 +356,68 @@ describe('accumulateMetadata', () => {
         metadataBase: new URL('http://test.com/base'),
         openGraph: {
           url: new URL('http://test.com/base/test/abc'),
+        },
+      })
+    })
+
+    it('should override openGraph or twitter images when current layer specifies social images properties', async () => {
+      const metadataItems1: MetadataItems = [
+        [
+          {
+            openGraph: {
+              images: 'https://test.com/og.png',
+            },
+            twitter: {
+              images: 'https://test.com/twitter.png',
+            },
+          },
+          // has static metadata files
+          {
+            icon: undefined,
+            apple: undefined,
+            twitter: ['/filebased/twitter.png'],
+            openGraph: ['/filebased/og.png'],
+            manifest: undefined,
+          },
+        ],
+      ]
+      const metadata1 = await accumulateMetadata(metadataItems1)
+      expect(metadata1).toMatchObject({
+        openGraph: {
+          images: [{ url: new URL('https://test.com/og.png') }],
+        },
+        twitter: {
+          images: [{ url: new URL('https://test.com/twitter.png ') }],
+        },
+      })
+
+      const metadataItems2: MetadataItems = [
+        [
+          function gM2() {
+            return {
+              openGraph: {
+                images: undefined,
+              },
+              // twitter is not specified, supposed to merged with openGraph but images should not be picked up
+            }
+          },
+          // has static metadata files
+          {
+            icon: undefined,
+            apple: undefined,
+            twitter: undefined,
+            openGraph: ['/filebased/og.png'],
+            manifest: undefined,
+          },
+        ],
+      ]
+      const metadata2 = await accumulateMetadata(metadataItems2)
+      expect(metadata2).toMatchObject({
+        openGraph: {
+          images: undefined,
+        },
+        twitter: {
+          images: undefined,
         },
       })
     })

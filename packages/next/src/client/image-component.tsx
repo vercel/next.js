@@ -10,6 +10,7 @@ import React, {
   forwardRef,
   version,
 } from 'react'
+import { preload } from 'react-dom'
 import Head from '../shared/lib/head'
 import { getImgProps } from '../shared/lib/get-img-props'
 import type {
@@ -26,6 +27,7 @@ import type {
 import { imageConfigDefault } from '../shared/lib/image-config'
 import { ImageConfigContext } from '../shared/lib/image-config-context'
 import { warnOnce } from '../shared/lib/utils/warn-once'
+import { RouterContext } from '../shared/lib/router-context'
 
 // @ts-ignore - This is replaced by webpack alias
 import defaultLoader from 'next/dist/shared/lib/image-loader'
@@ -44,15 +46,14 @@ type ImgElementWithDataProp = HTMLImageElement & {
   'data-loaded-src': string | undefined
 }
 
-type ImageElementProps = Omit<ImageProps, 'src' | 'alt' | 'loader'> &
-  ImgProps & {
-    unoptimized: boolean
-    placeholder: PlaceholderValue
-    onLoadRef: React.MutableRefObject<OnLoad | undefined>
-    onLoadingCompleteRef: React.MutableRefObject<OnLoadingComplete | undefined>
-    setBlurComplete: (b: boolean) => void
-    setShowAltText: (b: boolean) => void
-  }
+type ImageElementProps = ImgProps & {
+  unoptimized: boolean
+  placeholder: PlaceholderValue
+  onLoadRef: React.MutableRefObject<OnLoad | undefined>
+  onLoadingCompleteRef: React.MutableRefObject<OnLoadingComplete | undefined>
+  setBlurComplete: (b: boolean) => void
+  setShowAltText: (b: boolean) => void
+}
 
 // See https://stackoverflow.com/q/39777833/266535 for why we use this ref
 // handler instead of the img's onLoad attribute.
@@ -303,8 +304,60 @@ const ImageElement = forwardRef<HTMLImageElement | null, ImageElementProps>(
   }
 )
 
+function ImagePreload({
+  isAppRouter,
+  imgAttributes,
+}: {
+  isAppRouter: boolean
+  imgAttributes: ImgProps
+}) {
+  const opts = {
+    as: 'image',
+    imageSrcSet: imgAttributes.srcSet,
+    imageSizes: imgAttributes.sizes,
+    crossOrigin: imgAttributes.crossOrigin,
+    referrerPolicy: imgAttributes.referrerPolicy,
+    ...getDynamicProps(imgAttributes.fetchPriority),
+  }
+
+  if (isAppRouter) {
+    // See https://github.com/facebook/react/pull/26940
+    preload(
+      imgAttributes.src,
+      // @ts-expect-error TODO: upgrade to `@types/react-dom@18.3.x`
+      opts
+    )
+    return null
+  }
+
+  return (
+    <Head>
+      <link
+        key={
+          '__nimg-' +
+          imgAttributes.src +
+          imgAttributes.srcSet +
+          imgAttributes.sizes
+        }
+        rel="preload"
+        // Note how we omit the `href` attribute, as it would only be relevant
+        // for browsers that do not support `imagesrcset`, and in those cases
+        // it would cause the incorrect image to be preloaded.
+        //
+        // https://html.spec.whatwg.org/multipage/semantics.html#attr-link-imagesrcset
+        href={imgAttributes.srcSet ? undefined : imgAttributes.src}
+        {...opts}
+      />
+    </Head>
+  )
+}
+
 export const Image = forwardRef<HTMLImageElement | null, ImageProps>(
   (props, forwardedRef) => {
+    const pagesRouter = useContext(RouterContext)
+    // We're in the app directory if there is no pages router.
+    const isAppRouter = !pagesRouter
+
     const configContext = useContext(ImageConfigContext)
     const config = useMemo(() => {
       const c = configEnv || configContext || imageConfigDefault
@@ -352,29 +405,10 @@ export const Image = forwardRef<HTMLImageElement | null, ImageProps>(
           />
         }
         {imgMeta.priority ? (
-          // Note how we omit the `href` attribute, as it would only be relevant
-          // for browsers that do not support `imagesrcset`, and in those cases
-          // it would likely cause the incorrect image to be preloaded.
-          //
-          // https://html.spec.whatwg.org/multipage/semantics.html#attr-link-imagesrcset
-          <Head>
-            <link
-              key={
-                '__nimg-' +
-                imgAttributes.src +
-                imgAttributes.srcSet +
-                imgAttributes.sizes
-              }
-              rel="preload"
-              as="image"
-              href={imgAttributes.srcSet ? undefined : imgAttributes.src}
-              imageSrcSet={imgAttributes.srcSet}
-              imageSizes={imgAttributes.sizes}
-              crossOrigin={imgAttributes.crossOrigin}
-              referrerPolicy={imgAttributes.referrerPolicy}
-              {...getDynamicProps(imgAttributes.fetchPriority)}
-            />
-          </Head>
+          <ImagePreload
+            isAppRouter={isAppRouter}
+            imgAttributes={imgAttributes}
+          />
         ) : null}
       </>
     )

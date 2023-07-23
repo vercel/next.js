@@ -8,11 +8,7 @@ import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
 import { CONFIG_FILES, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import path from 'path'
-import {
-  defaultConfig,
-  NextConfig,
-  NextConfigComplete,
-} from '../server/config-shared'
+import { defaultConfig, NextConfigComplete } from '../server/config-shared'
 import { traceGlobals } from '../trace/shared'
 import { Telemetry } from '../telemetry/storage'
 import loadConfig from '../server/config'
@@ -26,6 +22,7 @@ import { getPossibleInstrumentationHookFilenames } from '../build/worker'
 import { resetEnv } from '@next/env'
 
 let dir: string
+let config: NextConfigComplete
 let isTurboSession = false
 let sessionStopHandled = false
 let sessionStarted = Date.now()
@@ -38,13 +35,15 @@ const handleSessionStop = async () => {
     const { eventCliSession } =
       require('../telemetry/events/session-stopped') as typeof import('../telemetry/events/session-stopped')
 
-    const config = await loadConfig(
-      PHASE_DEVELOPMENT_SERVER,
-      dir,
-      undefined,
-      undefined,
-      true
-    )
+    config =
+      config ||
+      (await loadConfig(
+        PHASE_DEVELOPMENT_SERVER,
+        dir,
+        undefined,
+        undefined,
+        true
+      ))
 
     let telemetry =
       (traceGlobals.get('telemetry') as InstanceType<
@@ -211,24 +210,99 @@ const nextDev: CliCommand = async (argv) => {
   // We do not set a default host value here to prevent breaking
   // some set-ups that rely on listening on other interfaces
   const host = args['--hostname']
-  const experimentalTurbo = args['--experimental-turbo']
+  config = await loadConfig(PHASE_DEVELOPMENT_SERVER, dir)
 
   const devServerOptions: StartServerOptions = {
     dir,
     port,
     allowRetry,
     isDev: true,
+    nextConfig: config,
     hostname: host,
     // This is required especially for app dir.
     useWorkers: true,
-    isExperimentalTurbo: experimentalTurbo,
   }
 
   if (args['--turbo']) {
     process.env.TURBOPACK = '1'
   }
+  if (args['--experimental-turbo']) {
+    process.env.EXPERIMENTAL_TURBOPACK = '1'
+  }
+  const experimentalTurbo = !!process.env.EXPERIMENTAL_TURBOPACK
 
-  if (process.env.TURBOPACK) {
+  if (experimentalTurbo) {
+    const { loadBindings } =
+      require('../build/swc') as typeof import('../build/swc')
+
+    resetEnv()
+    let bindings = await loadBindings()
+
+    // Just testing code here:
+
+    const project = await bindings.turbo.createProject({
+      projectPath: dir,
+      rootPath: dir,
+      nextConfig: config,
+      env: {
+        NEXT_PUBLIC_ENV_VAR: 'world',
+      },
+      watch: true,
+    })
+    const iter = project.entrypointsSubscribe()
+
+    try {
+      for await (const entrypoints of iter) {
+        Log.info(entrypoints)
+        for (const [pathname, route] of entrypoints.routes) {
+          switch (route.type) {
+            case 'page': {
+              Log.info(`writing ${pathname} to disk`)
+              const written = await route.htmlEndpoint.writeToDisk()
+              Log.info(written)
+              break
+            }
+            case 'page-api': {
+              Log.info(`writing ${pathname} to disk`)
+              const written = await route.endpoint.writeToDisk()
+              Log.info(written)
+              break
+            }
+            case 'app-page': {
+              Log.info(`writing ${pathname} to disk`)
+              const written = await route.rscEndpoint.writeToDisk()
+              Log.info(written)
+              break
+            }
+            case 'app-route': {
+              Log.info(`writing ${pathname} to disk`)
+              const written = await route.endpoint.writeToDisk()
+              Log.info(written)
+              break
+            }
+            default:
+              Log.info(`skipping ${pathname} (${route.type})`)
+              break
+          }
+        }
+        Log.info('iteration done')
+        await project.update({
+          projectPath: dir,
+          rootPath: dir,
+          nextConfig: config,
+          env: {
+            NEXT_PUBLIC_ENV_VAR: 'hello',
+          },
+          watch: true,
+        })
+      }
+    } catch (e) {
+      console.dir(e)
+    }
+
+    Log.error('Not supported yet')
+    process.exit(1)
+  } else if (process.env.TURBOPACK) {
     isTurboSession = true
 
     const { validateTurboNextConfig } =
@@ -297,7 +371,8 @@ const nextDev: CliCommand = async (argv) => {
     // Turbopack need to be in control over reading the .env files and watching them.
     // So we need to start with a initial env to know which env vars are coming from the user.
     resetEnv()
-    let bindings: any = await loadBindings()
+    let bindings = await loadBindings()
+
     let server = bindings.turbo.startDev({
       ...devServerOptions,
       showAll: args['--show-all'] ?? false,
@@ -318,11 +393,6 @@ const nextDev: CliCommand = async (argv) => {
 
     return server
   } else {
-    if (experimentalTurbo) {
-      Log.error('Not supported yet')
-      process.exit(1)
-    }
-
     let cleanupFns: (() => Promise<void> | void)[] = []
     const runDevServer = async () => {
       const oldCleanupFns = cleanupFns
@@ -332,7 +402,6 @@ const nextDev: CliCommand = async (argv) => {
       try {
         let shouldFilter = false
         let devServerTeardown: (() => Promise<void>) | undefined
-        let config: NextConfig | undefined
 
         watchConfigFiles(devServerOptions.dir, (filename) => {
           Log.warn(
@@ -427,16 +496,6 @@ const nextDev: CliCommand = async (argv) => {
           } finally {
             // fallback to noop, if not provided
             resolveCleanup(async () => {})
-          }
-
-          if (!config) {
-            config = await loadConfig(
-              PHASE_DEVELOPMENT_SERVER,
-              dir,
-              undefined,
-              undefined,
-              true
-            )
           }
         }
 

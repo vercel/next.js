@@ -1,9 +1,7 @@
 name: 'Validate Doc Links'
 on:
   pull_request:
-    paths:
-      - 'docs/**.mdx'
-      - 'errors/*.mdx'
+    types: [opened, synchronize]
 
 jobs:
   link-check:
