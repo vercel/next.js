@@ -2,6 +2,8 @@
 
 This example shows how to set up typedoc to auto generate code documentation for Next.js projects. Example is setup to generate documentation in markdown which can be used with many wiki services. However, if you want html docs, you can remove `typedoc-plugin-markdown` from the `typedoc.config.js` file.
 
+To generate the docs run `yarn build:docs` or `npm run build:docs`
+
 If you are having issues, feel free to tag @mayank1513 in the [issue you create on the next.js repo](https://github.com/vercel/next.js/issues/new)
 
 ## Deploy your own
