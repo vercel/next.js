@@ -7,6 +7,7 @@ createNextDescribe(
   {
     skipDeployment: true,
     files: {
+      'app/layout.js': new FileRef(path.join(__dirname, 'app/layout.js')),
       'app/default-cache/page.js': new FileRef(
         path.join(__dirname, 'app/default-cache/page.js')
       ),
