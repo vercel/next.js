@@ -32,6 +32,7 @@ import * as Log from '../../../../build/output/log'
 import { autoImplementMethods } from './helpers/auto-implement-methods'
 import { getNonStaticMethods } from './helpers/get-non-static-methods'
 import { appendMutableCookies } from '../../../web/spec-extension/adapters/request-cookies'
+import { RouteKind } from '../../route-kind'
 
 // These are imported weirdly like this because of the way that the bundling
 // works. We need to import the built files from the dist directory, but we
@@ -158,6 +159,10 @@ export class AppRouteRouteModule extends RouteModule<
   private readonly methods: Record<HTTP_METHOD, AppRouteHandlerFn>
   private readonly nonStaticMethods: ReadonlyArray<HTTP_METHOD> | false
   private readonly dynamic: AppRouteUserlandModule['dynamic']
+
+  public static is(route: RouteModule): route is AppRouteRouteModule {
+    return route.definition.kind === RouteKind.APP_ROUTE
+  }
 
   constructor({
     userland,

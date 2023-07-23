@@ -14,13 +14,13 @@ import type {
   EdgeFunctionDefinition,
   MiddlewareManifest,
 } from './webpack/plugins/middleware-plugin'
-import type { AppRouteUserlandModule } from '../server/future/route-modules/app-route/module'
 import type { StaticGenerationAsyncStorage } from '../client/components/static-generation-async-storage'
 
 import '../server/require-hook'
 import '../server/node-polyfill-fetch'
 import '../server/node-polyfill-crypto'
 import '../server/node-environment'
+
 import chalk from 'next/dist/compiled/chalk'
 import getGzipSize from 'next/dist/compiled/gzip-size'
 import textTable from 'next/dist/compiled/text-table'
@@ -66,6 +66,7 @@ import { nodeFs } from '../server/lib/node-fs-methods'
 import * as ciEnvironment from '../telemetry/ci-info'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { denormalizeAppPagePath } from '../shared/lib/page-path/denormalize-app-path'
+import { AppRouteRouteModule } from '../server/future/route-modules/app-route/module'
 
 export type ROUTER_TYPE = 'pages' | 'app'
 
@@ -1435,10 +1436,6 @@ export async function isPageStatic({
         isClientComponent = isClientReference(componentsResult.ComponentMod)
         const tree = componentsResult.ComponentMod.tree
 
-        // This is present on the new route modules.
-        const userland: AppRouteUserlandModule | undefined =
-          componentsResult.routeModule?.userland
-
         const staticGenerationAsyncStorage: StaticGenerationAsyncStorage =
           componentsResult.ComponentMod.staticGenerationAsyncStorage
         if (!staticGenerationAsyncStorage) {
@@ -1454,19 +1451,23 @@ export async function isPageStatic({
           )
         }
 
-        const generateParams: GenerateParams = userland
-          ? [
-              {
-                config: {
-                  revalidate: userland.revalidate,
-                  dynamic: userland.dynamic,
-                  dynamicParams: userland.dynamicParams,
+        const { routeModule } = componentsResult
+
+        const generateParams: GenerateParams =
+          routeModule && AppRouteRouteModule.is(routeModule)
+            ? [
+                {
+                  config: {
+                    revalidate: routeModule.userland.revalidate,
+                    dynamic: routeModule.userland.dynamic,
+                    dynamicParams: routeModule.userland.dynamicParams,
+                  },
+                  generateStaticParams:
+                    routeModule.userland.generateStaticParams,
+                  segmentPath: page,
                 },
-                generateStaticParams: userland.generateStaticParams,
-                segmentPath: page,
-              },
-            ]
-          : await collectGenerateParams(tree)
+              ]
+            : await collectGenerateParams(tree)
 
         appConfig = generateParams.reduce(
           (builtConfig: AppConfig, curGenParams): AppConfig => {
@@ -1927,12 +1928,12 @@ export async function copyTracedFiles(
 import path from 'path'
 import { fileURLToPath } from 'url'
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
-import { createServerHandler } from 'next/dist/server/lib/render-server-standalone.js'
+import { startServer } from 'next/dist/server/lib/start-server.js'
 `
         : `
 const http = require('http')
 const path = require('path')
-const { createServerHandler } = require('next/dist/server/lib/render-server-standalone')`
+const { startServer } = require('next/dist/server/lib/start-server')`
     }
 
 const dir = path.join(__dirname)
@@ -1949,11 +1950,7 @@ if (!process.env.NEXT_MANUAL_SIG_HANDLE) {
 
 const currentPort = parseInt(process.env.PORT, 10) || 3000
 const hostname = process.env.HOSTNAME || 'localhost'
-const keepAliveTimeout = parseInt(process.env.KEEP_ALIVE_TIMEOUT, 10);
-const isValidKeepAliveTimeout =
-  !Number.isNaN(keepAliveTimeout) &&
-  Number.isFinite(keepAliveTimeout) &&
-  keepAliveTimeout >= 0;
+let keepAliveTimeout = parseInt(process.env.KEEP_ALIVE_TIMEOUT, 10);
 const nextConfig = ${JSON.stringify({
       ...serverConfig,
       distDir: `./${path.relative(dir, distDir)}`,
@@ -1961,41 +1958,30 @@ const nextConfig = ${JSON.stringify({
 
 process.env.__NEXT_PRIVATE_STANDALONE_CONFIG = JSON.stringify(nextConfig)
 
-createServerHandler({
-  port: currentPort,
-  hostname,
+if (
+  Number.isNaN(keepAliveTimeout) ||
+  !Number.isFinite(keepAliveTimeout) ||
+  keepAliveTimeout < 0
+) {
+  keepAliveTimeout = undefined
+}
+
+startServer({
   dir,
-  conf: nextConfig,
-  keepAliveTimeout: isValidKeepAliveTimeout ? keepAliveTimeout : undefined,
-}).then((nextHandler) => {
-  const server = http.createServer(async (req, res) => {
-    try {
-      await nextHandler(req, res)
-    } catch (err) {
-      console.error(err);
-      res.statusCode = 500
-      res.end('Internal Server Error')
-    }
-  })
-
-  if (isValidKeepAliveTimeout) {
-    server.keepAliveTimeout = keepAliveTimeout
-  }
-
-  server.listen(currentPort, async (err) => {
-    if (err) {
-      console.error("Failed to start server", err)
-      process.exit(1)
-    }
-
-    console.log(
-      'Listening on port',
-      currentPort,
-      'url: http://' + hostname + ':' + currentPort
-    )
-  });
-
-}).catch(err => {
+  isDev: false,
+  config: nextConfig,
+  hostname: hostname === 'localhost' ? '0.0.0.0' : hostname,
+  port: currentPort,
+  allowRetry: false,
+  keepAliveTimeout,
+  useWorkers: !!nextConfig.experimental?.appDir,
+}).then(() => {
+  console.log(
+    'Listening on port',
+    currentPort,
+    'url: http://' + hostname + ':' + currentPort
+  )
+}).catch((err) => {
   console.error(err);
   process.exit(1);
 });`

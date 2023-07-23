@@ -69,36 +69,48 @@ const getMiniCssFilename = __webpack_require__.miniCssF
 // eslint-disable-next-line no-undef
 __webpack_require__.miniCssF = addChunkSuffix(getMiniCssFilename)
 
-// Ignore the module ID transform in client.
+// @ts-ignore
 // eslint-disable-next-line no-undef
-// @ts-expect-error TODO: fix type
-self.__next_require__ =
-  process.env.NODE_ENV !== 'production'
-    ? (id: string) => {
-        const mod = __webpack_require__(id)
-        if (typeof mod === 'object') {
-          // Return a proxy to flight client to make sure it's always getting
-          // the latest module, instead of being cached.
-          return new Proxy(mod, {
-            get(_target, prop) {
-              return __webpack_require__(id)[prop]
-            },
-          })
-        }
-
-        return mod
-      }
-    : __webpack_require__
-
-// eslint-disable-next-line no-undef
-;(self as any).__next_chunk_load__ = (chunk: string) => {
-  if (!chunk) return Promise.resolve()
-  const [chunkId, chunkFilePath] = chunk.split(':')
-  chunkFilenameMap[chunkId] = chunkFilePath
+if (process.turbopack) {
+  // eslint-disable-next-line no-undef
+  // @ts-expect-error TODO: fix type
+  self.__next_require__ = __turbopack_require__
 
   // @ts-ignore
   // eslint-disable-next-line no-undef
-  return __webpack_chunk_load__(chunkId)
+  ;(self as any).__next_chunk_load__ = __turbopack_load__
+} else {
+  // Ignore the module ID transform in client.
+  // eslint-disable-next-line no-undef
+  // @ts-expect-error TODO: fix type
+  self.__next_require__ =
+    process.env.NODE_ENV !== 'production'
+      ? (id: string) => {
+          const mod = __webpack_require__(id)
+          if (typeof mod === 'object') {
+            // Return a proxy to flight client to make sure it's always getting
+            // the latest module, instead of being cached.
+            return new Proxy(mod, {
+              get(_target, prop) {
+                return __webpack_require__(id)[prop]
+              },
+            })
+          }
+
+          return mod
+        }
+      : __webpack_require__
+
+  // eslint-disable-next-line no-undef
+  ;(self as any).__next_chunk_load__ = (chunk: string) => {
+    if (!chunk) return Promise.resolve()
+    const [chunkId, chunkFilePath] = chunk.split(':')
+    chunkFilenameMap[chunkId] = chunkFilePath
+
+    // @ts-ignore
+    // eslint-disable-next-line no-undef
+    return __webpack_chunk_load__(chunkId)
+  }
 }
 
 const appElement: HTMLElement | Document | null = document
@@ -214,6 +226,8 @@ const StrictModeIfEnabled = process.env.__NEXT_STRICT_MODE_APP
   : React.Fragment
 
 function Root({ children }: React.PropsWithChildren<{}>): React.ReactElement {
+  const [hadRuntimeError, setHadRuntimeError] = React.useState(false)
+
   if (process.env.__NEXT_ANALYTICS_ID) {
     // eslint-disable-next-line react-hooks/rules-of-hooks
     React.useEffect(() => {
@@ -230,6 +244,63 @@ function Root({ children }: React.PropsWithChildren<{}>): React.ReactElement {
         window.__NEXT_HYDRATED_CB()
       }
     }, [])
+  }
+
+  if (process.env.NODE_ENV !== 'production') {
+    const ReactDevOverlay: typeof import('./components/react-dev-overlay/internal/ReactDevOverlay').default =
+      require('./components/react-dev-overlay/internal/ReactDevOverlay')
+        .default as typeof import('./components/react-dev-overlay/internal/ReactDevOverlay').default
+
+    const INITIAL_OVERLAY_STATE: typeof import('./components/react-dev-overlay/internal/error-overlay-reducer').INITIAL_OVERLAY_STATE =
+      require('./components/react-dev-overlay/internal/error-overlay-reducer').INITIAL_OVERLAY_STATE
+
+    const useWebsocket: typeof import('./components/react-dev-overlay/internal/helpers/use-websocket').useWebsocket =
+      require('./components/react-dev-overlay/internal/helpers/use-websocket').useWebsocket
+
+    // subscribe to hmr only if an error was captured, so that we don't have two hmr websockets active
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    const webSocketRef = useWebsocket(
+      process.env.__NEXT_ASSET_PREFIX || '',
+      hadRuntimeError
+    )
+
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    React.useEffect(() => {
+      const handler = (event: MessageEvent) => {
+        let obj
+        try {
+          obj = JSON.parse(event.data)
+        } catch {}
+
+        if (!obj || !('action' in obj)) {
+          return
+        }
+
+        // minimal "hot reload" support for RSC errors
+        if (obj.action === 'serverComponentChanges' && hadRuntimeError) {
+          window.location.reload()
+        }
+      }
+
+      const websocket = webSocketRef.current
+      if (websocket) {
+        websocket.addEventListener('message', handler)
+      }
+
+      return () =>
+        websocket && websocket.removeEventListener('message', handler)
+    }, [webSocketRef, hadRuntimeError])
+
+    // if an error is thrown while rendering an RSC stream, this will catch it in dev
+    // and show the error overlay
+    return (
+      <ReactDevOverlay
+        state={INITIAL_OVERLAY_STATE}
+        onReactError={() => setHadRuntimeError(true)}
+      >
+        {children}
+      </ReactDevOverlay>
+    )
   }
 
   return children as React.ReactElement

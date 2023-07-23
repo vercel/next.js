@@ -30,6 +30,7 @@ import {
   getPrefetchEntryCacheStatus,
 } from '../get-prefetch-cache-entry-status'
 import { prunePrefetchCache } from './prune-prefetch-cache'
+import { prefetchQueue } from './prefetch-reducer'
 
 export function handleExternalUrl(
   state: ReadonlyReducerState,
@@ -244,6 +245,8 @@ export function navigateReducer(
 
   // The one before last item is the router state tree patch
   const { treeAtTimeOfPrefetch, data } = prefetchValues
+
+  prefetchQueue.bump(data!)
 
   // Unwrap cache data with `use` to suspend here (in the reducer) until the fetch resolves.
   const [flightData, canonicalUrlOverride] = readRecordValue(data!)

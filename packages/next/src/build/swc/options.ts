@@ -251,6 +251,7 @@ export function getJestSWCOptions({
     jsConfig,
     hasServerComponents,
     resolvedBaseUrl,
+    isServerLayer: isServer,
   })
 
   const isNextDist = nextDistPath.test(filename)
