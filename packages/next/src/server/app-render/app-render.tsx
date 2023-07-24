@@ -944,18 +944,15 @@ export async function renderToHTMLOrFlight(
 
       // If it's a not found route, and we don't have any matched parallel
       // routes, we try to render the not found component if it exists.
-      let isLeaf =
-        process.env.NODE_ENV === 'production'
-          ? !segment && !rootLayoutIncluded
-          : !parallelRouteMap.length && segment === '__DEFAULT__' // hit parallel-route-default
-
       let notFoundComponent = {}
       if (
         NotFound &&
         // For action not-found we force render the NotFound and stop checking the parallel routes.
         (asNotFound === 'force' ||
-          // For normal case where we should look up for not-found, keep checking the parallel routes.
-          (asNotFound && isLeaf))
+          // In production, /_not-found parallel routes is empty {}, only need to check if children routes are empty.
+          // In development, it could hit the parallel-route-default not found, so we only need to check the segment.
+          (asNotFound &&
+            (!parallelRouteMap.length || segment === '__DEFAULT__')))
       ) {
         notFoundComponent = {
           children: (
@@ -1777,7 +1774,7 @@ export async function renderToHTMLOrFlight(
             })
           } catch (finalErr: any) {
             if (
-              process.env.NODE_ENV !== 'production' &&
+              process.env.NODE_ENV === 'development' &&
               isNotFoundError(finalErr)
             ) {
               const bailOnNotFound: typeof import('../../client/components/dev-root-not-found-boundary').bailOnNotFound =
