@@ -325,8 +325,8 @@ impl Project {
     /// to detect which feature is enabled.
     #[turbo_tasks::function]
     async fn collect_project_feature_telemetry(self: Vc<Self>) -> Result<Vc<()>> {
-        let emit_event = |feature_name: &str| {
-            NextFeatureTelemetry::new(feature_name.to_string(), true)
+        let emit_event = |feature_name: &str, enabled: bool| {
+            NextFeatureTelemetry::new(feature_name.to_string(), enabled)
                 .cell()
                 .emit();
         };
@@ -334,72 +334,66 @@ impl Project {
         // First, emit an event for the binary target triple.
         // This is different to webpack-config; when this is being called,
         // it is always using SWC so we don't check swc here.
-        emit_event(build::BUILD_TARGET);
+        emit_event(build::BUILD_TARGET, true);
 
         // Go over jsconfig and report enabled features.
         let compiler_options = self.js_config().compiler_options().await?;
         let compiler_options = compiler_options.as_object();
-        if let Some(compiler_options) = compiler_options {
-            if compiler_options.contains_key("experimentalDecorators") {
-                emit_event("swcExperimentalDecorators");
-            }
+        let experimental_decorators_enabled = compiler_options
+            .as_ref()
+            .and_then(|compiler_options| compiler_options.get("experimentalDecorators"))
+            .is_some();
+        let jsx_import_source_enabled = compiler_options
+            .as_ref()
+            .and_then(|compiler_options| compiler_options.get("jsxImportSource"))
+            .is_some();
 
-            if compiler_options.contains_key("jsxImportSource") {
-                emit_event("swcImportSource");
-            }
-        }
+        emit_event("swcExperimentalDecorators", experimental_decorators_enabled);
+        emit_event("swcImportSource", jsx_import_source_enabled);
 
         // Go over config and report enabled features.
         // [TODO]: useSwcLoader is not being reported as it is not directly corresponds (it checks babel config existence)
         // need to confirm what we'll do with turbopack.
         let config = self.next_config();
-        if *config.swc_minify().await? {
-            emit_event("swcMinify");
-        }
 
-        if *config.skip_middleware_url_normalize().await? {
-            emit_event("skipMiddlewareUrlNormalize");
-        }
+        emit_event("swcMinify", *config.swc_minify().await?);
+        emit_event(
+            "skipMiddlewareUrlNormalize",
+            *config.skip_middleware_url_normalize().await?,
+        );
 
-        if *config.skip_trailing_slash_redirect().await? {
-            emit_event("skipTrailingSlashRedirect");
-        }
+        emit_event(
+            "skipTrailingSlashRedirect",
+            *config.skip_trailing_slash_redirect().await?,
+        );
 
         let config = &config.await?;
-        if config.modularize_imports.is_some() {
-            emit_event("modularizeImports");
-        }
 
-        if config.transpile_packages.is_some() {
-            emit_event("transpilePackages");
-        }
-
-        if config.experimental.turbotrace.is_some() {
-            emit_event("turbotrace");
-        }
+        emit_event("modularizeImports", config.modularize_imports.is_some());
+        emit_event("transpilePackages", config.transpile_packages.is_some());
+        emit_event("turbotrace", config.experimental.turbotrace.is_some());
 
         // compiler options
-        if let Some(compiler_options) = &config.compiler {
-            if compiler_options.relay.is_some() {
-                emit_event("swcRelay");
-            }
+        let compiler_options = config.compiler.as_ref();
+        let swc_relay_enabled = compiler_options.and_then(|c| c.relay.as_ref()).is_some();
+        let styled_components_enabled = compiler_options
+            .map(|c| c.styled_components.is_some())
+            .unwrap_or_default();
+        let react_remove_properties_enabled = compiler_options
+            .and_then(|c| c.react_remove_properties)
+            .unwrap_or_default();
+        let remove_console_enabled = compiler_options
+            .map(|c| c.remove_console.is_some())
+            .unwrap_or_default();
+        let emotion_enabled = compiler_options
+            .map(|c| c.emotion.is_some())
+            .unwrap_or_default();
 
-            if compiler_options.styled_components.is_some() {
-                emit_event("swcStyledComponents");
-            }
-
-            if let Some(true) = compiler_options.react_remove_properties {
-                emit_event("swcReactRemoveProperties");
-            }
-
-            if compiler_options.remove_console.is_some() {
-                emit_event("swcRemoveConsole");
-            }
-
-            if compiler_options.emotion.is_some() {
-                emit_event("swcEmotion");
-            }
-        }
+        emit_event("swcRelay", swc_relay_enabled);
+        emit_event("swcStyledComponents", styled_components_enabled);
+        emit_event("swcReactRemoveProperties", react_remove_properties_enabled);
+        emit_event("swcRemoveConsole", remove_console_enabled);
+        emit_event("swcEmotion", emotion_enabled);
 
         Ok(unit())
     }

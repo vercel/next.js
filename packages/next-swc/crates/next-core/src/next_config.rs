@@ -840,7 +840,9 @@ impl JsConfig {
 
     #[turbo_tasks::function]
     pub async fn compiler_options(self: Vc<Self>) -> Result<Vc<serde_json::Value>> {
-        Ok(Vc::cell(self.await?.compiler_options.clone().unwrap_or_default()))
+        Ok(Vc::cell(
+            self.await?.compiler_options.clone().unwrap_or_default(),
+        ))
     }
 }
 
