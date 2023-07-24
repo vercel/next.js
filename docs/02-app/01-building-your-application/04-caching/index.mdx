@@ -218,6 +218,8 @@ The cache is stored in the browser's temporary memory. Two factors determine how
 
 While a page refresh will clear **all** cached segments, the automatic invalidation period only affects the individual segment from the time it was last accessed or created.
 
+By adding `prefetch={true}` or calling `router.prefetch` for a dynamically rendering route you can opt-in to the statically rendered behavior of caching for 5 minutes.
+
 ### Invalidation
 
 There are two ways you can invalidate the Router Cache:
