@@ -68,14 +68,14 @@ export default async function Page() {
 > **Good to know**:
 >
 > To use `async`/`await` in a Server Component with TypeScript, you'll need to use TypeScript `5.1.3` or higher and `@types/react` `18.2.8` or higher.
-> Next.js provides helpful functions you may need when fetching data in Server Components such as [`cookies`](/docs/app/api-reference/functions/cookies) and [`headers`](/docs/app/api-reference/functions/headers). These will cause the route to be dynamically rendered as they rely on runtime information.
+> Next.js provides helpful functions you may need when fetching data in Server Components such as [`cookies`](/docs/app/api-reference/functions/cookies) and [`headers`](/docs/app/api-reference/functions/headers). These will cause the route to be dynamically rendered as they rely on request time information.
 > `POST` requests are also automatically memoized when using `fetch` – unless they are inside of `POST` Route Handler or come after `headers`/`cookies`.
 
 ### Caching Data
 
 Caching is the process of storing data on the server (e.g. an [Edge Network](https://vercel.com/docs/concepts/edge-network/overview)) so it doesn't need to be re-fetched from your data source on each request.
 
-By default, Next.js automatically caches the returned values of `fetch` in the [Data Cache](/docs/app/building-your-application/data-fetching/caching#data-cache) on the server. This means that the data can be fetched at build time or runtime, cached, and reused on each request.
+By default, Next.js automatically caches the returned values of `fetch` in the [Data Cache](/docs/app/building-your-application/data-fetching/caching#data-cache) on the server. This means that the data can be fetched at build time or request time, cached, and reused on each request.
 
 ```js
 fetch('https://...') // cache: 'force-cache' is the default, and can be omitted
