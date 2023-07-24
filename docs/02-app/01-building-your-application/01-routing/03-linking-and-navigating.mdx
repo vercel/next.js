@@ -97,7 +97,7 @@ export function Navigation({ navLinks }) {
 
 The default behavior of `<Link>` is to scroll to the top of a new route or to maintain the scroll position for backwards and fowards navigation.
 
-If you'd like to scroll to a specific `id` on navigation, you can append the `href` string with a `#` hash link since `<Link>` renders to a `<a>` tag.
+If you'd like to scroll to a specific `id` on navigation, you can append your URL with a `#` hash link or just pass a hash link to the `href` prop. This is possible since `<Link>` renders to a `<a>` tag.
 
 ```jsx
 <Link href="/dashboard#settings">Settings</Link>
