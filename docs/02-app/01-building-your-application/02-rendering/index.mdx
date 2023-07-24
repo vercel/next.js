@@ -40,9 +40,7 @@ In addition to client-side and server-side rendering with React components, Next
 
 ### Static Rendering
 
-With **Static Rendering**, both Server _and_ Client Components can be prerendered on the server at **build time**. The result of the work is [cached](/docs/app/building-your-application/data-fetching/caching) and reused on subsequent requests. The cached result can also be [revalidated](/docs/app/building-your-application/data-fetching#revalidating-data).
-
-> **Good to know**: This is equivalent to [Static Site Generation (SSG)](/docs/pages/building-your-application/rendering/static-site-generation) and [Incremental Static Regeneration (ISR)](/docs/pages/building-your-application/rendering/incremental-static-regeneration) in the [Pages Router](/docs/pages/building-your-application/rendering).
+With **Static Rendering**, both Server _and_ Client Components can be prerendered on the server at **build time**. The result of the work is [cached](/docs/app/building-your-application/data-fetching/caching) and reused on subsequent requests. The cached result can also be [invalidated](/docs/app/building-your-application/data-fetching#revalidating-data).
 
 Server and Client Components are rendered differently during Static Rendering:
 

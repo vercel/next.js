@@ -7,10 +7,10 @@ description: Learn about the switchable runtimes (Edge and Node.js) in Next.js.
 
 In the context of Next.js, "runtime" refers to the set of libraries, APIs, and general functionality available to your code during execution.
 
-Next.js has two server runtimes where you can render parts of your application code:
+On the server, there are two runtimes where parts of your application code can be rendered:
 
-- [Node.js Runtime](#nodejs-runtime)
-- [Edge Runtime](#edge-runtime)
+- The **Node.js Runtime** (default) has access to all Node.js APIs and compatible packages from the ecosystem.
+- The **Edge Runtime** is based on [Web APIs](/docs/app/api-reference/edge).
 
 Each runtime has its own set of APIs. Please refer to the [Node.js Docs](https://nodejs.org/docs/latest/api/) and [Edge Docs](/docs/app/api-reference/edge) for the full list of available APIs. Both runtimes can also support [streaming](/docs/app/building-your-application/routing/loading-ui-and-streaming) depending on your deployment infrastructure.
 
