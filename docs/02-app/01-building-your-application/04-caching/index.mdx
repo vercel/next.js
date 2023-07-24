@@ -93,7 +93,7 @@ Since you manually opt into using the `cache` function, there's no way to opt ou
 
 ### Data Cache
 
-Next.js has a built-in Data Cache that stores the result of data requests across user requests and deployments.
+Next.js has a built-in Data Cache that persists the result of data fetches across incoming requests and deployments.
 
 By default, data requests that use `fetch` are automatically cached. This is possible because Next.js extends the native `fetch` API to allow each request on the server to set its own persistent caching semantics.
 
