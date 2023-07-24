@@ -3,4 +3,5 @@
  */
 
 import '../shims'
+import './setup'
 import 'next/dist/client/next'
