@@ -33,7 +33,6 @@ import {
   canSegmentBeOverridden,
   matchSegment,
 } from '../../client/components/match-segments'
-import { ServerInsertedHTMLContext } from '../../shared/lib/server-inserted-html'
 import { stripInternalQueries } from '../internal-utils'
 import {
   NEXT_ROUTER_PREFETCH,
@@ -78,6 +77,7 @@ import { warn } from '../../build/output/log'
 import { appendMutableCookies } from '../web/spec-extension/adapters/request-cookies'
 import { ComponentsType } from '../../build/webpack/loaders/next-app-loader'
 import { ModuleReference } from '../../build/webpack/loaders/metadata/types'
+import { createServerInsertedHTML } from './server-inserted-html'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -1448,29 +1448,11 @@ export async function renderToHTMLOrFlight(
 
     const { HeadManagerContext } =
       require('../../shared/lib/head-manager-context') as typeof import('../../shared/lib/head-manager-context')
-    const serverInsertedHTMLCallbacks: Set<() => React.ReactNode> = new Set()
-    function InsertedHTML({ children }: { children: JSX.Element }) {
-      // Reset addInsertedHtmlCallback on each render
-      const addInsertedHtml = React.useCallback(
-        (handler: () => React.ReactNode) => {
-          serverInsertedHTMLCallbacks.add(handler)
-        },
-        []
-      )
 
-      return (
-        <HeadManagerContext.Provider
-          value={{
-            appDir: true,
-            nonce,
-          }}
-        >
-          <ServerInsertedHTMLContext.Provider value={addInsertedHtml}>
-            {children}
-          </ServerInsertedHTMLContext.Provider>
-        </HeadManagerContext.Provider>
-      )
-    }
+    // On each render, create a new `ServerInsertedHTML` context to capture
+    // injected nodes from user code (`useServerInsertedHTML`).
+    const { ServerInsertedHTMLProvider, renderServerInsertedHTML } =
+      createServerInsertedHTML()
 
     getTracer().getRootSpanAttributes()?.set('next.route', pagePath)
     const bodyResult = getTracer().wrap(
@@ -1506,9 +1488,16 @@ export async function renderToHTMLOrFlight(
           }))
 
         const content = (
-          <InsertedHTML>
-            <ServerComponentsRenderer asNotFound={asNotFound} />
-          </InsertedHTML>
+          <HeadManagerContext.Provider
+            value={{
+              appDir: true,
+              nonce,
+            }}
+          >
+            <ServerInsertedHTMLProvider>
+              <ServerComponentsRenderer asNotFound={asNotFound} />
+            </ServerInsertedHTMLProvider>
+          </HeadManagerContext.Provider>
         )
 
         let polyfillsFlushed = false
@@ -1553,13 +1542,6 @@ export async function renderToHTMLOrFlight(
             ReactDOMServer: require('react-dom/server.edge'),
             element: (
               <>
-                {Array.from(serverInsertedHTMLCallbacks).map(
-                  (callback, index) => (
-                    <React.Fragment key={'_next_insert' + index}>
-                      {callback()}
-                    </React.Fragment>
-                  )
-                )}
                 {polyfillsFlushed
                   ? null
                   : polyfills?.map((polyfill) => {
@@ -1573,6 +1555,7 @@ export async function renderToHTMLOrFlight(
                         />
                       )
                     })}
+                {renderServerInsertedHTML()}
                 {errorMetaTags}
               </>
             ),
