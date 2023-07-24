@@ -240,15 +240,16 @@ const nextDev: CliCommand = async (argv) => {
 
     // Just testing code here:
 
-    const project = await bindings.turbo.createProject({
+    const options = {
       projectPath: dir,
-      rootPath: dir,
+      rootPath: args['--root'] ?? findRootDir(dir) ?? dir,
       nextConfig: config,
       env: {
         NEXT_PUBLIC_ENV_VAR: 'world',
       },
       watch: true,
-    })
+    }
+    const project = await bindings.turbo.createProject(options)
     const iter = project.entrypointsSubscribe()
 
     try {
@@ -295,13 +296,10 @@ const nextDev: CliCommand = async (argv) => {
         }
         Log.info('iteration done')
         await project.update({
-          projectPath: dir,
-          rootPath: dir,
-          nextConfig: config,
+          ...options,
           env: {
             NEXT_PUBLIC_ENV_VAR: 'hello',
           },
-          watch: true,
         })
       }
     } catch (e) {
