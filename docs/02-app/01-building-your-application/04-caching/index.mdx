@@ -2,9 +2,6 @@
 title: Caching in Next.js
 nav_title: Caching
 description: An overview of caching mechanisms in Next.js.
-related:
-  links:
-    - app/building-your-application/configuring/typescript#statically-typed-links
 ---
 
 Next.js has a few caching mechanisms to improve your application's performance. This page provides an in-depth look at caching, the APIs you can use to configure them, and how they interact with each other.
@@ -111,18 +108,18 @@ The Data Cache is persistent across incoming requests and deployments unless you
 
 #### Revalidating
 
-Revalidation is the process of purging the Data Cache and re-fetching the latest data. This is useful when your data changes and you want to ensure you show the latest information.
+Cached data can be revalidated in two ways, with:
 
-Cached data can be revalidated in two ways:
+- [Time-based Revalidation](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#time-based-revalidation).
+- [On-demand Revalidation](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#revalidating-data)
 
-- **Time-based revalidation**: Automatically revalidate data after a certain amount of time has passed. This is useful for data that changes infrequently and freshness is not as critical. Time-based revalidation can be configured with the [Route Segment Config options](#segment-config-options) or per individual [`fetch` request](#fetchoptionsnextrevalidate).
-- **On-demand revalidation**: Manually revalidate data based on an event (e.g. form submission). On-demand revalidation can use a tag-based or path-based approach to revalidate groups of data at once. This is useful for when you want to ensure the latest data is always shown. On-demand revalidation can be configured with the [`revalidateTag`](#fetchoptionsnexttag-and-revalidatetag) and [`revalidatePath`](#revalidatepath) APIs.
+See the [Revalidating Data](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#revalidating-data) section for more.
 
 > **Good to know**: Check if your upstream data provider has caching enabled by default. You might need to disable (e.g. `useCdn: false`), otherwise a revalidation won't be able to pull fresh data to update the Data Cache. Caching can occur at a CDN (for an endpoint being requested) when it returns the `Cache-Control` header. ISR on Vercel [persists the cache globally and handles rollbacks](https://vercel.com/docs/concepts/incremental-static-regeneration/overview).
 
 #### Opting out
 
-For individual data fetches, you can opt out of caching by setting the [`cache`](#fetchoptionscache) option to `no-store`. This means data will be fetched dynamically, on each request.
+For individual data fetches, you can opt out of caching by setting the [`cache`](#fetchoptionscache) option to `no-store`. This means data will be fetched whenever `fetch` is called.
 
 ```jsx
 // Opt out of caching
@@ -151,7 +148,7 @@ On the server, Next.js uses React's APIs to orchestrate rendering. This process 
 
 1. React renders Server Components into a special data format, optimized for streaming, called the **React Server Component Payload**.
 2. Next.js compiles, bundles, and code-splits the **JavaScript instructions** for rendering Client Components on the client.
-2. Next.js uses the React Server Component Payload and JavaScript instructions to pre-render **HTML** on the server.
+3. Next.js uses the React Server Component Payload and JavaScript instructions to pre-render **HTML** on the server.
 
 > **What is the React Server Component Payload?**
 >
@@ -214,7 +211,7 @@ You can opt out of the Full Route Cache, or in other words, dynamically render c
 
 Next.js has an in-memory client-side cache that stores the React Server Component Payload, split by individual routes. This **Router Cache** is used to improve the navigation experience. Next.js [prefetches](/docs/app/building-your-application/routing/linking-and-navigating#prefetching) and caches routes that the user is likely going to navigate to (when using the `<Link >` component), and caches visited route segments, enabling [partial rendering](/docs/app/building-your-application/routing/linking-and-navigating#partial-rendering). This applies to newly visited routes, as well as backward/forward browser navigation.
 
-For the user, this results in [soft navigation](/docs/app/building-your-application/routing/linking-and-navigating#soft-navigation) (no page reloads) and faster page transitions; it also reduces unnecessary requests to the server.
+For the user, this results in no page reloads between navigations and faster page transitions; it also reduces unnecessary requests to the server.
 
 > **Good to know:**
 >
@@ -225,7 +222,7 @@ For the user, this results in [soft navigation](/docs/app/building-your-applicat
 
 The cache is stored in the browser's temporary memory. Two factors determine how long the router cache lasts:
 
-- **Session**: The cache persists across [soft navigations](/docs/app/building-your-application/routing/linking-and-navigating#soft-navigation). However, it's cleared on page refresh.
+- **Session**: The cache persists across navigation. However, it's cleared on page refresh.
 - **Automatic invalidation period**: The cache of an individual segment is automatically invalidated after a specific time. The duration depends on whether the route is [statically](/docs/app/building-your-application/rendering/static-and-dynamic-rendering#static-rendering-default) or [dynamically](/docs/app/building-your-application/rendering/static-and-dynamic-rendering#dynamic-rendering) rendered:
   - **Dynamically rendered**: 30 seconds
   - **Statically Rendered**: 5 minutes
