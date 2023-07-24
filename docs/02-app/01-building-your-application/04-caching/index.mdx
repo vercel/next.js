@@ -140,13 +140,12 @@ On the server, Next.js uses React's APIs to orchestrate rendering. This process 
 
 > **What is the React Server Component Payload?**
 >
-> The React Server Component Payload is a compact string representation of the React Component tree. It's used by React on the client to update the DOM. The React Server Component Payload contains:
+> The React Server Component Payload is a compact binary representation of the rendered React Server Components tree. It's used by React on the client to update the DOM. The React Server Component Payload contains:
 >
 > - The rendered result of Server Components
 > - Placeholders for where Client Components should be rendered
 > - Any props passed from a Server Component to a Client Component, these are serialized
 > - References to the JavaScript instructions needed to render the Client Components
-> - Metadata tags, such as references to stylesheets
 >
 > To learn more, see the [React Rendering](/docs/app/building-your-application/rendering/react-components) documentation.
 
