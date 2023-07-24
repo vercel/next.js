@@ -102,6 +102,10 @@ function ErrorHtml({
   )
 }
 
+function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
+  return ['__DEFAULT__', {}, loaderTree[2]]
+}
+
 // Find the closest matched component in the loader tree for a given component type
 function findMatchedComponent(
   loaderTree: LoaderTree,
@@ -950,10 +954,7 @@ export async function renderToHTMLOrFlight(
         asNotFound &&
         // In production, /_not-found parallel routes is empty {}, only need to check if children routes are empty.
         // In development, it could hit the parallel-route-default not found, so we only need to check the segment.
-        // For not-found in actions, we override pagePath to '/404' so it can directly render the NotFound component.
-        (!parallelRouteMap.length ||
-          segment === '__DEFAULT__' ||
-          pagePath === '/404')
+        (segment === '__DEFAULT__' || !parallelRouteMap.length)
       ) {
         notFoundComponent = {
           children: (
@@ -1380,69 +1381,70 @@ export async function renderToHTMLOrFlight(
      * A new React Component that renders the provided React Component
      * using Flight which can then be rendered to HTML.
      */
-    const ServerComponentsRenderer = createServerComponentRenderer<{
-      asNotFound: boolean
-    }>(
-      async (props) => {
-        // Create full component tree from root to leaf.
-        const injectedCSS = new Set<string>()
-        const injectedFontPreloadTags = new Set<string>()
+    const createServerComponentsRenderer = (loaderTree: LoaderTree) =>
+      createServerComponentRenderer<{
+        asNotFound: boolean
+      }>(
+        async (props) => {
+          // Create full component tree from root to leaf.
+          const injectedCSS = new Set<string>()
+          const injectedFontPreloadTags = new Set<string>()
 
-        const { Component: ComponentTree, styles } = await createComponentTree({
-          createSegmentPath: (child) => child,
-          loaderTree,
-          parentParams: {},
-          firstItem: true,
-          injectedCSS,
-          injectedFontPreloadTags,
-          rootLayoutIncluded: false,
-          asNotFound: props.asNotFound,
-        })
+          const { Component: ComponentTree, styles } =
+            await createComponentTree({
+              createSegmentPath: (child) => child,
+              loaderTree,
+              parentParams: {},
+              firstItem: true,
+              injectedCSS,
+              injectedFontPreloadTags,
+              rootLayoutIncluded: false,
+              asNotFound: props.asNotFound,
+            })
 
-        const createMetadata = (tree: LoaderTree, errorType?: 'not-found') => (
-          // Adding key={requestId} to make metadata remount for each render
-          // @ts-expect-error allow to use async server component
-          <MetadataTree
-            key={requestId}
-            tree={tree}
-            errorType={errorType}
-            pathname={pathname}
-            searchParams={providedSearchParams}
-            getDynamicParamFromSegment={getDynamicParamFromSegment}
-            appUsingSizeAdjust={appUsingSizeAdjust}
-          />
-        )
+          const createMetadata = (errorType?: 'not-found') => (
+            // Adding key={requestId} to make metadata remount for each render
+            // @ts-expect-error allow to use async server component
+            <MetadataTree
+              key={requestId}
+              tree={loaderTree}
+              errorType={errorType}
+              pathname={pathname}
+              searchParams={providedSearchParams}
+              getDynamicParamFromSegment={getDynamicParamFromSegment}
+              appUsingSizeAdjust={appUsingSizeAdjust}
+            />
+          )
 
-        const initialTree = createFlightRouterStateFromLoaderTree(
-          loaderTree,
-          getDynamicParamFromSegment,
-          query
-        )
+          const initialTree = createFlightRouterStateFromLoaderTree(
+            loaderTree,
+            getDynamicParamFromSegment,
+            query
+          )
 
-        return (
-          <>
-            {styles}
-            <AppRouter
-              buildId={renderOpts.buildId}
-              assetPrefix={assetPrefix}
-              initialCanonicalUrl={pathname}
-              initialTree={initialTree}
-              initialHead={createMetadata(
-                loaderTree,
-                props.asNotFound ? 'not-found' : undefined
-              )}
-              globalErrorComponent={GlobalError}
-            >
-              <ComponentTree />
-            </AppRouter>
-          </>
-        )
-      },
-      ComponentMod,
-      serverComponentsRenderOpts,
-      serverComponentsErrorHandler,
-      nonce
-    )
+          return (
+            <>
+              {styles}
+              <AppRouter
+                buildId={renderOpts.buildId}
+                assetPrefix={assetPrefix}
+                initialCanonicalUrl={pathname}
+                initialTree={initialTree}
+                initialHead={createMetadata(
+                  props.asNotFound ? 'not-found' : undefined
+                )}
+                globalErrorComponent={GlobalError}
+              >
+                <ComponentTree />
+              </AppRouter>
+            </>
+          )
+        },
+        ComponentMod,
+        serverComponentsRenderOpts,
+        serverComponentsErrorHandler,
+        nonce
+      )
 
     const { HeadManagerContext } =
       require('../../shared/lib/head-manager-context') as typeof import('../../shared/lib/head-manager-context')
@@ -1463,6 +1465,7 @@ export async function renderToHTMLOrFlight(
       },
       async ({
         asNotFound,
+        tree,
       }: {
         /**
          * This option is used to indicate that the page should be rendered as
@@ -1471,6 +1474,7 @@ export async function renderToHTMLOrFlight(
          *
          */
         asNotFound: boolean
+        tree: LoaderTree
       }) => {
         const polyfills = buildManifest.polyfillFiles
           .filter(
@@ -1484,6 +1488,7 @@ export async function renderToHTMLOrFlight(
             integrity: subresourceIntegrityManifest?.[polyfill],
           }))
 
+        const ServerComponentsRenderer = createServerComponentsRenderer(tree)
         const content = (
           <HeadManagerContext.Provider
             value={{
@@ -1640,12 +1645,12 @@ export async function renderToHTMLOrFlight(
           const injectedCSS = new Set<string>()
           const injectedFontPreloadTags = new Set<string>()
           const [RootLayout, rootStyles] = await getRootLayout(
-            loaderTree,
+            tree,
             injectedCSS,
             injectedFontPreloadTags
           )
           const [NotFound, notFoundStyles] = await getNotFound(
-            loaderTree,
+            tree,
             injectedCSS,
             pathname
           )
@@ -1687,7 +1692,7 @@ export async function renderToHTMLOrFlight(
                   {/* @ts-expect-error allow to use async server component */}
                   <MetadataTree
                     key={requestId}
-                    tree={loaderTree}
+                    tree={tree}
                     pathname={pathname}
                     errorType={errorType}
                     searchParams={providedSearchParams}
@@ -1699,8 +1704,8 @@ export async function renderToHTMLOrFlight(
               )
 
               const notFoundLoaderTree: LoaderTree = is404
-                ? ['__DEFAULT__', {}, loaderTree[2]]
-                : loaderTree
+                ? createNotFoundLoaderTree(tree)
+                : tree
 
               const initialTree = createFlightRouterStateFromLoaderTree(
                 notFoundLoaderTree,
@@ -1801,9 +1806,13 @@ export async function renderToHTMLOrFlight(
     })
 
     if (actionRequestResult === 'not-found') {
-      // Make sure it loads the 404 page
-      pagePath = '/404'
-      return new RenderResult(await bodyResult({ asNotFound: true }))
+      const notFoundLoaderTree = createNotFoundLoaderTree(loaderTree)
+      return new RenderResult(
+        await bodyResult({
+          asNotFound: true,
+          tree: notFoundLoaderTree,
+        })
+      )
     } else if (actionRequestResult) {
       return actionRequestResult
     }
@@ -1811,6 +1820,7 @@ export async function renderToHTMLOrFlight(
     const renderResult = new RenderResult(
       await bodyResult({
         asNotFound: pagePath === '/404',
+        tree: loaderTree,
       })
     )
 
