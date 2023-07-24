@@ -63,6 +63,10 @@ async function buildNextServer(task) {
         __dirname,
         'dist/esm/server/future/route-modules/pages/module.js'
       ),
+      'pages-api': path.join(
+        __dirname,
+        'dist/esm/server/future/route-modules/pages-api/module.js'
+      ),
     },
     target: 'node',
     mode: 'production',
@@ -74,8 +78,8 @@ async function buildNextServer(task) {
     // left in for debugging
     optimization: {
       // moduleIds: 'named',
-      // minimize: false,
-      minimize: true,
+      minimize: false,
+      // minimize: true,
       // splitChunks: {
       //   chunks: 'all',
       // },
@@ -126,6 +130,7 @@ async function buildNextServer(task) {
           JSON.stringify(stats.toJson()),
           'utf8'
         )
+        return resolve()
       }
     })
   })

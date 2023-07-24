@@ -62,26 +62,6 @@ const NextServer = process.env.USE_BUNDLED_NEXT
   ? require('next/dist/compiled/minimal-next-server/server.runtime').default
   : require('next/dist/server/next-server').default
 
-require('react')
-require('react/jsx-runtime')
-require('react-dom')
-require('react-dom/server.edge')
-require('react-server-dom-webpack/client.edge')
-;[
-  'next/dist/server/app-render/get-segment-param',
-  'next/dist/shared/lib/app-router-context',
-  'next/dist/shared/lib/constants',
-  'next/dist/shared/lib/hooks-client-context',
-  'next/dist/shared/lib/router/utils/add-path-prefix',
-  'next/dist/shared/lib/router/utils/handle-smooth-scroll',
-  'next/dist/shared/lib/server-inserted-html',
-  'next/dist/shared/lib/router/utils/is-bot',
-].forEach((mod) => require(mod))
-
-if (process.env.USE_BUNDLED_NEXT) {
-  require('next/dist/compiled/minimal-next-server/app-page-render.runtime')
-}
-
 if (process.env.LOG_READFILE) {
   console.log(`readFileCount: ${readFileCount + readFileSyncCount}`)
 }
@@ -123,11 +103,20 @@ require('http')
         if (process.env.LOG_READFILE) {
           console.log(`readFileCount: ${readFileCount + readFileSyncCount}`)
         }
-        console.timeEnd('next-wall-time')
-        require('process').exit(0)
       })
   })
   .listen(3000, () => {
     console.timeEnd('next-cold-start')
-    fetch('http://localhost:3000')
+    fetch('http://localhost:3000/')
+      .then((res) => res.text())
+      .then((text) => {
+        console.log(text)
+      })
+      .catch((err) => {
+        console.error(err)
+      })
+      .finally(() => {
+        console.timeEnd('next-wall-time')
+        require('process').exit(0)
+      })
   })

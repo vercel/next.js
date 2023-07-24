@@ -17,7 +17,8 @@ import {
   type RouteModuleHandleContext,
   type RouteModuleOptions,
 } from '../route-module'
-import { renderToHTMLImpl } from '../../../render'
+import { renderToHTMLImpl, renderToHTML } from '../../../render'
+import * as externals from './externals'
 
 /**
  * The userland module for a page. This is the module that is exported from the
@@ -104,6 +105,8 @@ export class PagesRouteModule extends RouteModule<
 > {
   private readonly components: PagesComponents
 
+  static readonly externals = externals
+
   constructor(options: PagesRouteModuleOptions) {
     super(options)
 
@@ -132,5 +135,8 @@ export class PagesRouteModule extends RouteModule<
     )
   }
 }
+
+// needed for the static build
+export { renderToHTML }
 
 export default PagesRouteModule

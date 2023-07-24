@@ -295,8 +295,10 @@ export default async function exportPage({
       await promises.mkdir(baseDir, { recursive: true })
       let renderResult: RenderResult | undefined
       let curRenderOpts: RenderOpts = {}
-      const { renderToHTML } =
-        require('../server/render') as typeof import('../server/render')
+      const renderToHTML =
+        require('next/dist/compiled/minimal-next-server/pages-render.runtime')
+          .renderToHTML as typeof import('../server/render').renderToHTML
+
       let renderMethod = renderToHTML
       let inAmpMode = false,
         hybridAmp = false

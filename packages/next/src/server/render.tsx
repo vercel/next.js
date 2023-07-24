@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { ParsedUrlQuery } from 'querystring'
 import type { NextRouter } from '../shared/lib/router/router'
-import type { HtmlProps } from '../shared/lib/html-context'
+import type { HtmlProps } from '../shared/lib/html-context.external'
 import type { DomainLocale } from './config'
 import type {
   AppType,
@@ -65,7 +65,7 @@ import {
   isResSent,
   loadGetInitialProps,
 } from '../shared/lib/utils'
-import { HtmlContext } from '../shared/lib/html-context'
+import { HtmlContext } from '../shared/lib/html-context.external'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import { getRequestMeta, NextParsedUrlQuery } from './request-meta'

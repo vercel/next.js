@@ -2,7 +2,7 @@ import { Worker } from 'worker_threads'
 import path from 'path'
 import chalk from 'next/dist/compiled/chalk'
 
-const worker = new Worker(path.join(__dirname, 'worker.js'), {})
+let worker: any
 
 function prettyPrint(
   node: any,
@@ -34,28 +34,7 @@ function prettyPrint(
   return output
 }
 
-const queue = [] as any[]
-let pendingPromise = Promise.resolve()
-
-function runQueue() {
-  pendingPromise = pendingPromise.then(async () => {
-    while (queue.length > 0) {
-      const { modulePath, distDir, resolve } = queue.shift()
-      const node = await traceModuleImpl(modulePath, distDir)
-      resolve(node)
-    }
-  })
-}
-
-export function traceModule(modulePath: string, distDir: string) {
-  return Promise.resolve()
-  return new Promise((resolve) => {
-    queue.push({ modulePath, distDir, resolve })
-    runQueue()
-  })
-}
-
-export async function traceModuleImpl(modulePath: string, distDir: string) {
+async function traceModuleImpl(modulePath: string, distDir: string) {
   return new Promise((resolve) => {
     const onResolve = ({ modulePath: mod, node }: any) => {
       if (mod !== modulePath) {
@@ -79,5 +58,28 @@ export async function traceModuleImpl(modulePath: string, distDir: string) {
     worker.on('message', onResolve)
 
     worker.postMessage(modulePath)
+  })
+}
+
+const queue = [] as any[]
+let pendingPromise = Promise.resolve()
+
+function runQueue() {
+  pendingPromise = pendingPromise.then(async () => {
+    while (queue.length > 0) {
+      const { modulePath, distDir, resolve } = queue.shift()
+      const node = await traceModuleImpl(modulePath, distDir)
+      resolve(node)
+    }
+  })
+}
+
+export function traceModule(modulePath: string, distDir: string) {
+  if (!worker) {
+    worker = new Worker(path.join(__dirname, 'worker.js'), {})
+  }
+  return new Promise((resolve) => {
+    queue.push({ modulePath, distDir, resolve })
+    runQueue()
   })
 }

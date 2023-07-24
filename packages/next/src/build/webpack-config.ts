@@ -1319,6 +1319,12 @@ export default async function getBaseWebpackConfig(
       return `next/dist/compiled/minimal-next-server/pages-render.runtime.js`
     }
 
+    if (
+      request.includes('dist/compiled/minimal-next-server/pages-api.runtime.js')
+    ) {
+      return `next/dist/compiled/minimal-next-server/pages-api.runtime.js`
+    }
+
     // We need to externalize internal requests for files intended to
     // not be bundled.
     const isLocal: boolean =
@@ -1424,26 +1430,60 @@ export default async function getBaseWebpackConfig(
         return
       }
 
-      const isNextExternal =
-        /next[/\\]dist[/\\](esm[\\/])?(shared|server)[/\\](?!lib[/\\](router[/\\]router|dynamic|app-dynamic|image-external|lazy-dynamic|head[^-]))/.test(
-          localRes
-        )
+      // const isNextExternal =
+      //   /next[/\\]dist[/\\](esm[\\/])?(shared|server)[/\\](?!lib[/\\](router[/\\]router|dynamic|app-dynamic|image-external|lazy-dynamic|head[^-]))/.test(
+      //     localRes
+      //   )
+
+      const pathSeparators = '[/\\\\]'
+      const optionalEsmPart = `((${pathSeparators}esm)?${pathSeparators})`
+      const externalFileEnd = '(\\.external(\\.js)?)$'
+
+      const nextDist = `next${pathSeparators}dist`
+
+      const regexPattern = new RegExp(
+        `${nextDist}${optionalEsmPart}.*${externalFileEnd}`
+      )
+
+      const isNextExternal = regexPattern.test(localRes)
 
       if (isNextExternal) {
-        // Generate Next.js external import
-        const externalRequest = path.posix.join(
-          'next',
-          'dist',
-          path
-            .relative(
-              // Root of Next.js package:
-              path.join(__dirname, '..'),
-              localRes
-            )
-            // Windows path normalization
-            .replace(/\\/g, '/')
+        const name = path.parse(localRes).name.replace('.external', '')
+        const camelCaseName = name.replace(/-([a-z])/g, (_, w) =>
+          w.toUpperCase()
         )
-        return `commonjs ${externalRequest}`
+        // // Generate Next.js external import
+        // const externalRequest = path.posix.join(
+        //   'next',
+        //   'dist',
+        //   path
+        //     .relative(
+        //       // Root of Next.js package:
+        //       path.join(__dirname, '..'),
+        //       localRes
+        //     )
+        //     // Windows path normalization
+        //     .replace(/\\/g, '/')
+        // )
+        // return `commonjs ${externalRequest}`
+
+        if (isAppLayer) {
+          // todo
+        } else {
+          return [
+            'commonjs ' +
+              path.posix.join(
+                'next',
+                'dist',
+                'compiled',
+                'minimal-next-server',
+                'pages-render.runtime.js'
+              ),
+            'default',
+            'externals',
+            camelCaseName,
+          ]
+        }
       }
     }
 

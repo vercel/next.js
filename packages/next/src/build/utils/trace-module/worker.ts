@@ -1,7 +1,7 @@
 import { parentPort } from 'worker_threads'
 
 // we import it to get all the relevant polyfills in place
-// require('next/dist/compiled/minimal-next-server/server.runtime.js')
+require('next/dist/compiled/minimal-next-server/server.runtime.js')
 
 const originalCompile = require('module').prototype._compile
 

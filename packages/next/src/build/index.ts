@@ -1696,6 +1696,7 @@ export default async function build(
                 }
 
                 if (
+                  process.env.NEXT_TRACE_MODULES &&
                   !isEdgeRuntime(pageRuntime) &&
                   !isStatic &&
                   !isSsg &&

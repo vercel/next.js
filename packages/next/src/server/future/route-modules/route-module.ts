@@ -53,6 +53,11 @@ export abstract class RouteModule<
     context: RouteModuleHandleContext
   ): Promise<Response>
 
+  /**
+   * The externals that are required for the route module.
+   */
+  public static readonly externals: any
+
   constructor({ userland, definition }: RouteModuleOptions<D, U>) {
     this.userland = userland
     this.definition = definition
