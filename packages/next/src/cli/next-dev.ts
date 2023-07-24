@@ -254,6 +254,14 @@ const nextDev: CliCommand = async (argv) => {
     try {
       for await (const entrypoints of iter) {
         Log.info(entrypoints)
+
+        Log.info(`writing _document to disk`)
+        Log.info(await entrypoints.pagesDocumentEndpoint.writeToDisk())
+        Log.info(`writing _app to disk`)
+        Log.info(await entrypoints.pagesAppEndpoint.writeToDisk())
+        Log.info(`writing _error to disk`)
+        Log.info(await entrypoints.pagesErrorEndpoint.writeToDisk())
+
         for (const [pathname, route] of entrypoints.routes) {
           switch (route.type) {
             case 'page': {
@@ -263,12 +271,6 @@ const nextDev: CliCommand = async (argv) => {
               break
             }
             case 'page-api': {
-              Log.info(`writing ${pathname} to disk`)
-              const written = await route.endpoint.writeToDisk()
-              Log.info(written)
-              break
-            }
-            case 'page-ssr': {
               Log.info(`writing ${pathname} to disk`)
               const written = await route.endpoint.writeToDisk()
               Log.info(written)

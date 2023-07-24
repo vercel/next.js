@@ -69,9 +69,9 @@ impl PagesProject {
         let PagesStructure {
             api,
             pages,
-            app,
-            document,
-            error,
+            app: _,
+            document: _,
+            error: _,
         } = &*self.pages_structure().await?;
         let mut routes = IndexMap::new();
 
@@ -152,23 +152,50 @@ impl PagesProject {
             add_dir_to_routes(&mut routes, *pages, make_page_route).await?;
         }
 
-        // The document route only makes sense in a SSR setting.
-        add_page_to_routes(&mut routes, *document, |pathname, original_name, path| {
-            Route::PageSsr {
-                endpoint: Vc::upcast(PageEndpoint::new(
-                    PageEndpointType::SsrOnly,
-                    self,
-                    pathname,
-                    original_name,
-                    path,
-                )),
-            }
-        })
-        .await?;
-        add_page_to_routes(&mut routes, *app, make_page_route).await?;
-        add_page_to_routes(&mut routes, *error, make_page_route).await?;
-
         Ok(Vc::cell(routes))
+    }
+
+    #[turbo_tasks::function]
+    async fn to_endpoint(
+        self: Vc<Self>,
+        item: Vc<PagesStructureItem>,
+        ty: PageEndpointType,
+    ) -> Result<Vc<Box<dyn Endpoint>>> {
+        let PagesStructureItem {
+            next_router_path,
+            project_path,
+            original_path,
+        } = *item.await?;
+        let pathname = format!("/{}", next_router_path.await?.path);
+        let pathname_vc = Vc::cell(pathname.clone());
+        let original_name = Vc::cell(format!("/{}", original_path.await?.path));
+        let path = project_path;
+        let endpoint = Vc::upcast(PageEndpoint::new(
+            ty,
+            self,
+            pathname_vc,
+            original_name,
+            path,
+        ));
+        Ok(endpoint)
+    }
+
+    #[turbo_tasks::function]
+    pub async fn document_endpoint(self: Vc<Self>) -> Result<Vc<Box<dyn Endpoint>>> {
+        Ok(self.to_endpoint(
+            self.pages_structure().await?.document,
+            PageEndpointType::SsrOnly,
+        ))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn app_endpoint(self: Vc<Self>) -> Result<Vc<Box<dyn Endpoint>>> {
+        Ok(self.to_endpoint(self.pages_structure().await?.app, PageEndpointType::Html))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn error_endpoint(self: Vc<Self>) -> Result<Vc<Box<dyn Endpoint>>> {
+        Ok(self.to_endpoint(self.pages_structure().await?.error, PageEndpointType::Html))
     }
 
     #[turbo_tasks::function]

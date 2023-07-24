@@ -393,6 +393,9 @@ interface Middleware {
 interface Entrypoints {
   routes: Map<string, Route>
   middleware?: Middleware
+  pagesDocumentEndpoint: Endpoint
+  pagesAppEndpoint: Endpoint
+  pagesErrorEndpoint: Endpoint
 }
 
 interface Project {
@@ -420,10 +423,6 @@ type Route =
     }
   | {
       type: 'page-api'
-      endpoint: Endpoint
-    }
-  | {
-      type: 'page-ssr'
       endpoint: Endpoint
     }
 
@@ -591,6 +590,9 @@ function bindingToApi(binding: any, _wasm: boolean) {
       type NapiEntrypoints = {
         routes: NapiRoute[]
         middleware?: NapiMiddleware
+        pagesDocumentEndpoint: NapiEndpoint
+        pagesAppEndpoint: NapiEndpoint
+        pagesErrorEndpoint: NapiEndpoint
         issues: Issue[]
         diagnostics: Diagnostics[]
       }
@@ -611,10 +613,6 @@ function bindingToApi(binding: any, _wasm: boolean) {
           }
         | {
             type: 'page-api'
-            endpoint: NapiEndpoint
-          }
-        | {
-            type: 'page-ssr'
             endpoint: NapiEndpoint
           }
         | {
@@ -650,12 +648,6 @@ function bindingToApi(binding: any, _wasm: boolean) {
               case 'page-api':
                 route = {
                   type: 'page-api',
-                  endpoint: new EndpointImpl(nativeRoute.endpoint),
-                }
-                break
-              case 'page-ssr':
-                route = {
-                  type: 'page-ssr',
                   endpoint: new EndpointImpl(nativeRoute.endpoint),
                 }
                 break
@@ -697,6 +689,13 @@ function bindingToApi(binding: any, _wasm: boolean) {
           yield {
             routes,
             middleware,
+            pagesDocumentEndpoint: new EndpointImpl(
+              entrypoints.pagesDocumentEndpoint
+            ),
+            pagesAppEndpoint: new EndpointImpl(entrypoints.pagesAppEndpoint),
+            pagesErrorEndpoint: new EndpointImpl(
+              entrypoints.pagesErrorEndpoint
+            ),
             issues: entrypoints.issues,
             diagnostics: entrypoints.diagnostics,
           }
