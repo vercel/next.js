@@ -115,8 +115,6 @@ Cached data can be revalidated in two ways, with:
 
 See the [Revalidating Data](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#revalidating-data) section for more.
 
-> **Good to know**: Check if your upstream data provider has caching enabled by default. You might need to disable (e.g. `useCdn: false`), otherwise a revalidation won't be able to pull fresh data to update the Data Cache. Caching can occur at a CDN (for an endpoint being requested) when it returns the `Cache-Control` header. ISR on Vercel [persists the cache globally and handles rollbacks](https://vercel.com/docs/concepts/incremental-static-regeneration/overview).
-
 #### Opting out
 
 For individual data fetches, you can opt out of caching by setting the [`cache`](#fetchoptionscache) option to `no-store`. This means data will be fetched whenever `fetch` is called.
