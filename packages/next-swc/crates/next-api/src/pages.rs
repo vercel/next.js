@@ -31,12 +31,18 @@ use turbopack_binding::{
             chunk::{ChunkableModule, ChunkingContext, EvaluatableAssets},
             context::AssetContext,
             file_source::FileSource,
+            issue::{IssueSeverity, OptionIssueSource},
             output::{OutputAsset, OutputAssets},
-            reference_type::{EntryReferenceSubType, ReferenceType},
+            reference_type::{
+                EcmaScriptModulesReferenceSubType, EntryReferenceSubType, ReferenceType,
+            },
+            resolve::{origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
             source::Source,
             virtual_output::VirtualOutputAsset,
         },
-        ecmascript::{chunk::EcmascriptChunkingContext, EcmascriptModuleAsset},
+        ecmascript::{
+            chunk::EcmascriptChunkingContext, resolve::esm_resolve, EcmascriptModuleAsset,
+        },
         turbopack::{
             module_options::ModuleOptionsContext,
             resolve_options_context::ResolveOptionsContext,
@@ -501,14 +507,39 @@ impl PageEndpoint {
     async fn client_chunks(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
         let this = self.await?;
 
-        let client_module = create_page_loader_entry_module(
-            this.pages_project.client_module_context(),
-            self.source(),
-            this.pathname,
-        );
+        let client_module_context = this.pages_project.client_module_context();
+        let client_module =
+            create_page_loader_entry_module(client_module_context, self.source(), this.pathname);
 
         let Some(client_module) =
             Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(client_module).await?
+        else {
+            bail!("expected an ECMAScript module asset");
+        };
+
+        let Some(client_main_module) = *esm_resolve(
+            Vc::upcast(PlainResolveOrigin::new(
+                client_module_context,
+                this.pages_project
+                    .project()
+                    .project_path()
+                    .join("_".to_string()),
+            )),
+            Request::parse(Value::new(Pattern::Constant(
+                "next/dist/client/next-dev-turbopack.js".to_string(),
+            ))),
+            Value::new(EcmaScriptModulesReferenceSubType::Undefined),
+            OptionIssueSource::none(),
+            IssueSeverity::Error.cell(),
+        )
+        .first_module()
+        .await?
+        else {
+            bail!("expected next/dist/client/next-dev-turbopack.js to resolve to a module");
+        };
+
+        let Some(client_main_module) =
+            Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(client_main_module).await?
         else {
             bail!("expected an ECMAScript module asset");
         };
@@ -521,6 +552,7 @@ impl PageEndpoint {
             client_entry_chunk,
             this.pages_project
                 .client_runtime_entries()
+                .with_entry(Vc::upcast(client_main_module))
                 .with_entry(Vc::upcast(client_module)),
         );
 
