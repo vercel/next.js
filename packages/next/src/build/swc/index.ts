@@ -393,6 +393,9 @@ interface Middleware {
 interface Entrypoints {
   routes: Map<string, Route>
   middleware?: Middleware
+  pagesDocumentEndpoint: Endpoint
+  pagesAppEndpoint: Endpoint
+  pagesErrorEndpoint: Endpoint
 }
 
 interface Project {
@@ -587,6 +590,9 @@ function bindingToApi(binding: any, _wasm: boolean) {
       type NapiEntrypoints = {
         routes: NapiRoute[]
         middleware?: NapiMiddleware
+        pagesDocumentEndpoint: NapiEndpoint
+        pagesAppEndpoint: NapiEndpoint
+        pagesErrorEndpoint: NapiEndpoint
         issues: Issue[]
         diagnostics: Diagnostics[]
       }
@@ -683,6 +689,13 @@ function bindingToApi(binding: any, _wasm: boolean) {
           yield {
             routes,
             middleware,
+            pagesDocumentEndpoint: new EndpointImpl(
+              entrypoints.pagesDocumentEndpoint
+            ),
+            pagesAppEndpoint: new EndpointImpl(entrypoints.pagesAppEndpoint),
+            pagesErrorEndpoint: new EndpointImpl(
+              entrypoints.pagesErrorEndpoint
+            ),
             issues: entrypoints.issues,
             diagnostics: entrypoints.diagnostics,
           }
