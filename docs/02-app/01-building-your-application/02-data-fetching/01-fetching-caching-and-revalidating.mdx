@@ -73,9 +73,9 @@ export default async function Page() {
 
 ### Caching Data
 
-Caching is the process of storing data on the server (e.g. an [Edge Network](https://vercel.com/docs/concepts/edge-network/overview)) so it doesn't need to be re-fetched from your data source on each request.
+Caching is the process of storing data on the server (e.g. an [Edge Network](https://vercel.com/docs/concepts/edge-network/overview)) so it doesn't need to be re-fetched from your data source each time `fetch` is called.
 
-By default, Next.js automatically caches the returned values of `fetch` in the [Data Cache](/docs/app/building-your-application/data-fetching/caching#data-cache) on the server. This means that the data can be fetched at build time or request time, cached, and reused on each request.
+By default, Next.js automatically caches the returned values of `fetch` in the [Data Cache](/docs/app/building-your-application/data-fetching/caching#data-cache) on the server. This means that the data can be fetched at build time or request time, cached, and reused on each data request.
 
 ```js
 fetch('https://...') // cache: 'force-cache' is the default, and can be omitted
@@ -124,6 +124,8 @@ If you have multiple fetch requests in a route, and each has a different revalid
 > 3. After the 60-second window, the next request will still return the cached (now stale) data.
 > 4. Next.js will trigger a revalidation of the data in the background.
 > 5. Once the data is fetched successfully, Next.js will update the Data Cache with the fresh data. If the background revalidation fails, the previous data will be kept unaltered.
+>
+> This is similar to [**stale-while-revalidate**](https://web.dev/stale-while-revalidate/) behavior.
 
 #### On-demand Revalidation
 
