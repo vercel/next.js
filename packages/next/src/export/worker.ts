@@ -48,7 +48,7 @@ import { RouteModuleLoader } from '../server/future/helpers/module-loader/route-
 import { NextRequestAdapter } from '../server/web/spec-extension/adapters/next-request'
 import * as ciEnvironment from '../telemetry/ci-info'
 
-const envConfig = require('../shared/lib/runtime-config')
+const envConfig = require('../shared/lib/runtime-config.external')
 
 ;(globalThis as any).__NEXT_DATA__ = {
   nextExport: true,

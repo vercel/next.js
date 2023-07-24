@@ -1447,7 +1447,7 @@ export async function renderToHTMLOrFlight(
     )
 
     const { HeadManagerContext } =
-      require('../../shared/lib/head-manager-context') as typeof import('../../shared/lib/head-manager-context.external')
+      require('../../shared/lib/head-manager-context.external') as typeof import('../../shared/lib/head-manager-context.external')
 
     // On each render, create a new `ServerInsertedHTML` context to capture
     // injected nodes from user code (`useServerInsertedHTML`).

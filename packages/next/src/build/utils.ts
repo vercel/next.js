@@ -1378,7 +1378,9 @@ export async function isPageStatic({
   const isPageStaticSpan = trace('is-page-static-utils', parentId)
   return isPageStaticSpan
     .traceAsyncFn(async () => {
-      require('../shared/lib/runtime-config').setConfig(runtimeEnvConfig)
+      require('../shared/lib/runtime-config.external').setConfig(
+        runtimeEnvConfig
+      )
       setHttpClientAndAgentOptions({
         httpAgentOptions,
       })
@@ -1662,7 +1664,7 @@ export async function hasCustomGetInitialProps(
   runtimeEnvConfig: any,
   checkingApp: boolean
 ): Promise<boolean> {
-  require('../shared/lib/runtime-config').setConfig(runtimeEnvConfig)
+  require('../shared/lib/runtime-config.external').setConfig(runtimeEnvConfig)
 
   const components = await loadComponents({
     distDir,
@@ -1685,7 +1687,7 @@ export async function getDefinedNamedExports(
   distDir: string,
   runtimeEnvConfig: any
 ): Promise<ReadonlyArray<string>> {
-  require('../shared/lib/runtime-config').setConfig(runtimeEnvConfig)
+  require('../shared/lib/runtime-config.external').setConfig(runtimeEnvConfig)
   const components = await loadComponents({
     distDir,
     pathname: page,

@@ -19,7 +19,7 @@ import {
   urlQueryToSearchParams,
   assign,
 } from '../shared/lib/router/utils/querystring'
-import { setConfig } from '../shared/lib/runtime-config'
+import { setConfig } from '../shared/lib/runtime-config.external'
 import {
   getURL,
   loadGetInitialProps,

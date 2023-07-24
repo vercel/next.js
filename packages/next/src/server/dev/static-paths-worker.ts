@@ -56,7 +56,7 @@ export async function loadStaticPaths({
   fallback?: boolean | 'blocking'
 }> {
   // update work memory runtime-config
-  require('../../shared/lib/runtime-config').setConfig(config)
+  require('../../shared/lib/runtime-config.external').setConfig(config)
   setHttpClientAndAgentOptions({
     httpAgentOptions,
   })

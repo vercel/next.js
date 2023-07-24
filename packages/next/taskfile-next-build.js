@@ -4,51 +4,55 @@ const path = require('path')
 const TerserPlugin = require('terser-webpack-plugin')
 const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer')
 
+const minimalExternals = [
+  'react',
+  'react/package.json',
+  'react/jsx-runtime',
+  'react/jsx-dev-runtime',
+  'react-dom',
+  'react-dom/package.json',
+  'react-dom/client',
+  'react-dom/server',
+  'react-dom/server.browser',
+  'react-dom/server.edge',
+  'react-server-dom-webpack/client',
+  'react-server-dom-webpack/client.edge',
+  'react-server-dom-webpack/server.edge',
+  'react-server-dom-webpack/server.node',
+  'styled-jsx',
+  'styled-jsx/style',
+  '@opentelemetry/api',
+  'next/dist/compiled/@next/react-dev-overlay/dist/middleware',
+  'next/dist/compiled/@ampproject/toolbox-optimizer',
+  'next/dist/compiled/edge-runtime',
+  'next/dist/compiled/@edge-runtime/ponyfill',
+  'next/dist/compiled/undici',
+  'next/dist/compiled/raw-body',
+  'next/dist/server/capsize-font-metrics.json',
+  'critters',
+  'next/dist/compiled/node-html-parser',
+  'next/dist/compiled/compression',
+  'next/dist/compiled/jsonwebtoken',
+  'next/dist/compiled/@opentelemetry/api',
+]
+
+const externalsMap = {
+  '/(.*)config$/': 'next/dist/server/config',
+  './web/sandbox': 'next/dist/server/web/sandbox',
+}
+
+const externalHandler = ({ context, request }, callback) => {
+  if (/(.*)shared\/lib\/runtime-config.external/.test(request)) {
+    return callback(null, 'next/dist/shared/lib/runtime-config.external')
+  }
+  callback()
+}
+
 async function buildNextServer(task) {
   // cleanup old files
   await fs.rm(path.join(__dirname, 'dist/compiled/minimal-next-server'), {
     recursive: true,
     force: true,
-  })
-
-  const minimalExternals = [
-    'react',
-    'react/package.json',
-    'react/jsx-runtime',
-    'react/jsx-dev-runtime',
-    'react-dom',
-    'react-dom/package.json',
-    'react-dom/client',
-    'react-dom/server',
-    'react-dom/server.browser',
-    'react-dom/server.edge',
-    'react-server-dom-webpack/client',
-    'react-server-dom-webpack/client.edge',
-    'react-server-dom-webpack/server.edge',
-    'react-server-dom-webpack/server.node',
-    'styled-jsx',
-    'styled-jsx/style',
-    '@opentelemetry/api',
-    'next/dist/compiled/@next/react-dev-overlay/dist/middleware',
-    'next/dist/compiled/@ampproject/toolbox-optimizer',
-    'next/dist/compiled/edge-runtime',
-    'next/dist/compiled/@edge-runtime/ponyfill',
-    'next/dist/compiled/undici',
-    'next/dist/compiled/raw-body',
-    'next/dist/server/capsize-font-metrics.json',
-    'critters',
-    'next/dist/compiled/node-html-parser',
-    'next/dist/compiled/compression',
-    'next/dist/compiled/jsonwebtoken',
-    'next/dist/compiled/@opentelemetry/api',
-  ].reduce((acc, pkg) => {
-    acc[pkg] = pkg
-    return acc
-  }, {})
-
-  Object.assign(minimalExternals, {
-    '/(.*)config$/': 'next/dist/server/config',
-    './web/sandbox': 'next/dist/server/web/sandbox',
   })
 
   /** @type {webpack.Configuration} */
@@ -112,7 +116,7 @@ async function buildNextServer(task) {
       // Display bailout reasons
       optimizationBailout: true,
     },
-    externals: [minimalExternals],
+    externals: [...minimalExternals, externalsMap, externalHandler],
   }
 
   await new Promise((resolve, reject) => {

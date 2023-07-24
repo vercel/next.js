@@ -49,7 +49,7 @@ import {
   getCookieParser,
   checkIsOnDemandRevalidate,
 } from './api-utils'
-import { setConfig } from '../shared/lib/runtime-config'
+import { setConfig } from '../shared/lib/runtime-config.external'
 
 import { setRevalidateHeaders } from './send-payload/revalidate-headers'
 import { execOnce } from '../shared/lib/utils'
