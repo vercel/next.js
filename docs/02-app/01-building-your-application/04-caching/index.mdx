@@ -118,11 +118,9 @@ Cached data can be revalidated in two ways:
 - **Time-based revalidation**: Automatically revalidate data after a certain amount of time has passed. This is useful for data that changes infrequently and freshness is not as critical. Time-based revalidation can be configured with the [Route Segment Config options](#segment-config-options) or per individual [`fetch` request](#fetchoptionsnextrevalidate).
 - **On-demand revalidation**: Manually revalidate data based on an event (e.g. form submission). On-demand revalidation can use a tag-based or path-based approach to revalidate groups of data at once. This is useful for when you want to ensure the latest data is always shown. On-demand revalidation can be configured with the [`revalidateTag`](#fetchoptionsnexttag-and-revalidatetag) and [`revalidatePath`](#revalidatepath) APIs.
 
-> **Good to know**: Check if your upstream data provider has caching enabled by default. You might need to disable (e.g. `useCdn: false`), otherwise a revalidation won't be able to pull fresh data to update the Data Cache. Caching can occur at a CDN (for an endpoint being requested) when it returns the `Cache-Control` header. ISR on Vercel [persists the cache globally and handles rollbacks](https://vercel.com/docs/concepts/incremental-static-regeneration/overview).
-
 #### Opting out
 
-For individual data fetches, you can opt out of caching by setting the [`cache`](#fetchoptionscache) option to `no-store`. This means data will be fetched dynamically, on each request.
+For individual data fetches, you can opt out of caching by setting the [`cache`](#fetchoptionscache) option to `no-store`. This means data will be fetched whenever the fetch is called.
 
 ```jsx
 // Opt out of caching
