@@ -56,6 +56,7 @@ import fs from 'fs-extra'
       path.join(tmpdir, 'package.json'),
       JSON.stringify(pkgJson)
     )
+    await fs.writeFile(path.join(tmpdir, '.npmrc'), 'node-linker=hoisted')
     let { stdout } = await execa('pnpm', ['install', '--force'], {
       cwd: tmpdir,
     })
