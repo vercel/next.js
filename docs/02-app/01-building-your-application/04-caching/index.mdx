@@ -266,6 +266,7 @@ The following table provides an overview of how different Next.js APIs affect ca
 | [`const dynamic`](#segment-config-options)                          |              | Cache or Opt out      | Cache or Opt out      |             |
 | [`cookies`](#cookies)                                               | Revalidate   | Opt out               |                       |             |
 | [`headers`, `useSearchParams`, `searchParams`](#dynamic-functions)  |              | Opt out               |                       |             |
+| [`generateStaticParams`](#generatestaticparams)                     |              | Cache                 |                       |             |
 | [`React.cache`](#react-cache-function)                              |              |                       |                       | Cache       |
 | [`unstable_cache`](#unstable_cache) (Coming Soon)                   |              |                       |                       |             |
 
@@ -404,6 +405,14 @@ The following Route Segment Config options will opt out of the Data Cache and Fu
 - `const revalidate = 0`
 
 See the [Route Segment Config](/docs/app/api-reference/file-conventions/route-segment-config) documentation for more options.
+
+### `generateStaticParams`
+
+For [dynamic segments](/docs/app/building-your-application/routing/dynamic-routes) (e.g. app/blog/[slug]/page.js), paths provided by `generateStaticParams` are cached in the Full Route Cache at build time. At request time, Next.js will also cache paths that weren't known at build time the first time they're visited.
+
+You can disable caching at request time by using `export const dynamicParams = false` option in a route segment. When this config option is used, only paths provided by `generateStaticParams` will be served, and other routes will 404 or match (in the case of [catch-all routes](/docs/app/building-your-application/routing/dynamic-routes#catch-all-segments)).
+
+See the [`generateStaticParams` API reference](/docs/app/api-reference/functions/generate-static-params).
 
 ### React `cache` function
 
