@@ -180,6 +180,10 @@ Alternatively, you can use [`revalidatePath`](/docs/app/api-reference/functions/
 
 See the [revalidateTag](/docs/app/api-reference/functions/revalidateTag) and [revalidatePath](/docs/app/api-reference/functions/revalidatePath) API references for more information.
 
+> **How does On-demand Revalidation work?**
+>
+> On-demand revalidation removes the entry from the Data Cache. When the request is executed again, it'll be a cache miss, and the Data Cache will be populated with fresh data. This is different from time-based revalidation, which keeps the stale data in the cache until the fresh data is fetched.
+
 #### Error handling and revalidation
 
 If an error is thrown while attempting to revalidate data, the last successfully generated data will continue to be served from the cache. On the next subsequent request, Next.js will retry revalidating the data.
