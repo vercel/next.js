@@ -4,7 +4,7 @@ use std::{
     path::{PathBuf, MAIN_SEPARATOR},
 };
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result};
 use dunce::canonicalize;
 use next_core::{
     mode::NextMode,
@@ -25,7 +25,7 @@ use next_core::{
 use serde::Serialize;
 use turbo_tasks::{
     graph::{AdjacencyMap, GraphTraversal},
-    Completion, Completions, TransientInstance, TransientValue, TryJoinIterExt, Vc,
+    Completion, Completions, TransientInstance, TryJoinIterExt, Vc,
 };
 use turbopack_binding::{
     turbo::tasks_fs::{rebase, DiskFileSystem, FileContent, FileSystem, FileSystemPath},
@@ -35,7 +35,7 @@ use turbopack_binding::{
             asset::Asset,
             chunk::ChunkingContext,
             environment::ServerAddr,
-            issue::{handle_issues, IssueContextExt, IssueReporter, IssueSeverity},
+            issue::{handle_issues, IssueReporter, IssueSeverity},
             output::{OutputAsset, OutputAssets},
             virtual_fs::VirtualFileSystem,
         },
