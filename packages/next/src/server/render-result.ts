@@ -1,4 +1,4 @@
-import { pipeReadable, PipeTarget } from './lib/server-ipc/invoke-request'
+import { pipeReadable, PipeTarget } from './pipe-readable'
 
 type ContentTypeOption = string | undefined
 

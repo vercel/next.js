@@ -15,11 +15,8 @@ import { filterReqHeaders } from './server-ipc/utils'
 import { findPagesDir } from '../../lib/find-pages-dir'
 import { setupFsCheck } from './router-utils/filesystem'
 import { proxyRequest } from './router-utils/proxy-request'
-import {
-  invokeRequest,
-  isAbortError,
-  pipeReadable,
-} from './server-ipc/invoke-request'
+import { invokeRequest } from './server-ipc/invoke-request'
+import { isAbortError, pipeReadable } from '../pipe-readable'
 import { createRequestResponseMocks } from './mock-request'
 import { createIpcServer, createWorker } from './server-ipc'
 import { UnwrapPromise } from '../../lib/coalesced-function'

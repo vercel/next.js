@@ -19,7 +19,7 @@ import { PERMANENT_REDIRECT_STATUS } from '../../shared/lib/constants'
 import { splitCookiesString, toNodeOutgoingHttpHeaders } from '../web/utils'
 import { signalFromNodeResponse } from '../web/spec-extension/adapters/next-request'
 import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
-import { pipeReadable } from './server-ipc/invoke-request'
+import { pipeReadable } from '../pipe-readable'
 
 type RouteResult =
   | {

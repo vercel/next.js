@@ -1,6 +1,6 @@
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
 import type { NodeNextResponse } from './base-http/node'
-import { pipeReadable } from './lib/server-ipc/invoke-request'
+import { pipeReadable } from './pipe-readable'
 import { splitCookiesString } from './web/utils'
 
 /**

@@ -13,11 +13,8 @@ import { getCloneableBody } from '../body-streams'
 import { filterReqHeaders } from './server-ipc/utils'
 import setupCompression from 'next/dist/compiled/compression'
 import { normalizeRepeatedSlashes } from '../../shared/lib/utils'
-import {
-  invokeRequest,
-  isAbortError,
-  pipeReadable,
-} from './server-ipc/invoke-request'
+import { invokeRequest } from './server-ipc/invoke-request'
+import { isAbortError, pipeReadable } from '../pipe-readable'
 import {
   genRouterWorkerExecArgv,
   getDebugPort,
