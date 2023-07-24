@@ -16,6 +16,7 @@ use crate::embed_js::next_asset;
 #[turbo_tasks::value(shared)]
 pub struct NextServerToClientTransition {
     pub ssr: bool,
+    pub edge: bool,
 }
 
 #[turbo_tasks::value_impl]
@@ -41,14 +42,17 @@ impl Transition for NextServerToClientTransition {
         Ok(match this.ssr {
             true => {
                 let internal_source = next_asset("entry/app/server-to-client-ssr.tsx".to_string());
-                let client_module = context
-                    .with_transition("next-ssr-client-module".to_string())
-                    .process(
-                        source,
-                        Value::new(ReferenceType::Entry(
-                            EntryReferenceSubType::AppClientComponent,
-                        )),
-                    );
+                let transition = if this.edge {
+                    "next-edge-ssr-client-module"
+                } else {
+                    "next-ssr-client-module"
+                };
+                let client_module = context.with_transition(transition.to_string()).process(
+                    source,
+                    Value::new(ReferenceType::Entry(
+                        EntryReferenceSubType::AppClientComponent,
+                    )),
+                );
                 context.process(
                     internal_source,
                     Value::new(ReferenceType::Internal(Vc::cell(indexmap! {
