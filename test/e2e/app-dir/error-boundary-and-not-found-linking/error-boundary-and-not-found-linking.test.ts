@@ -1,6 +1,6 @@
 import { createNextDescribe } from 'e2e-utils'
 
-function runTest({ next }) {
+export function runTest({ next }) {
   it('should allow navigation on not-found', async () => {
     const browser = await next.browser('/trigger-404')
     expect(await browser.elementByCss('#not-found-component').text()).toBe(
@@ -101,17 +101,6 @@ createNextDescribe(
   'app dir - not found navigation',
   {
     files: __dirname,
-  },
-  ({ next }) => {
-    runTest({ next })
-  }
-)
-
-createNextDescribe(
-  'app dir - not found navigation - with overridden node env',
-  {
-    files: __dirname,
-    env: { NODE_ENV: 'test' },
   },
   ({ next }) => {
     runTest({ next })

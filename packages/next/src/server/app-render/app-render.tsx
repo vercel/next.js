@@ -104,7 +104,7 @@ function ErrorHtml({
 }
 
 function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
-  return ['__DEFAULT__', {}, loaderTree[2]]
+  return ['', {}, loaderTree[2]]
 }
 
 // Find the closest matched component in the loader tree for a given component type
@@ -953,12 +953,11 @@ export async function renderToHTMLOrFlight(
       if (
         NotFound &&
         asNotFound &&
-        // In production, /_not-found parallel routes is empty {}, only need to check if children routes are empty.
         // In development, it could hit the parallel-route-default not found, so we only need to check the segment.
-        // If it's /_not-found path (production not-found), render the not-found component.
-        (segment === '__DEFAULT__' ||
-          !parallelRouteMap.length ||
-          removeTrailingSlash(pathname) === '/_not-found')
+        // Or if there's no parallel routes means it reaches the end.
+        (!parallelRouteMap.length ||
+          // For production build the original pathname is /_not-found, always render not-found component.
+          renderOpts.originalPathname === '/_not-found')
       ) {
         notFoundComponent = {
           children: (
