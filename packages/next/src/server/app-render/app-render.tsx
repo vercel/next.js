@@ -78,6 +78,7 @@ import { appendMutableCookies } from '../web/spec-extension/adapters/request-coo
 import { ComponentsType } from '../../build/webpack/loaders/next-app-loader'
 import { ModuleReference } from '../../build/webpack/loaders/metadata/types'
 import { createServerInsertedHTML } from './server-inserted-html'
+import { removeTrailingSlash } from '../../shared/lib/router/utils/remove-trailing-slash'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -954,7 +955,10 @@ export async function renderToHTMLOrFlight(
         asNotFound &&
         // In production, /_not-found parallel routes is empty {}, only need to check if children routes are empty.
         // In development, it could hit the parallel-route-default not found, so we only need to check the segment.
-        (segment === '__DEFAULT__' || !parallelRouteMap.length)
+        // If it's /_not-found path (production not-found), render the not-found component.
+        (segment === '__DEFAULT__' ||
+          !parallelRouteMap.length ||
+          removeTrailingSlash(pathname) === '/_not-found')
       ) {
         notFoundComponent = {
           children: (
@@ -1381,7 +1385,7 @@ export async function renderToHTMLOrFlight(
      * A new React Component that renders the provided React Component
      * using Flight which can then be rendered to HTML.
      */
-    const createServerComponentsRenderer = (loaderTree: LoaderTree) =>
+    const createServerComponentsRenderer = (loaderTreeToRender: LoaderTree) =>
       createServerComponentRenderer<{
         asNotFound: boolean
       }>(
@@ -1393,7 +1397,7 @@ export async function renderToHTMLOrFlight(
           const { Component: ComponentTree, styles } =
             await createComponentTree({
               createSegmentPath: (child) => child,
-              loaderTree,
+              loaderTree: loaderTreeToRender,
               parentParams: {},
               firstItem: true,
               injectedCSS,
@@ -1407,7 +1411,7 @@ export async function renderToHTMLOrFlight(
             // @ts-expect-error allow to use async server component
             <MetadataTree
               key={requestId}
-              tree={loaderTree}
+              tree={loaderTreeToRender}
               errorType={errorType}
               pathname={pathname}
               searchParams={providedSearchParams}
@@ -1417,7 +1421,7 @@ export async function renderToHTMLOrFlight(
           )
 
           const initialTree = createFlightRouterStateFromLoaderTree(
-            loaderTree,
+            loaderTreeToRender,
             getDynamicParamFromSegment,
             query
           )
