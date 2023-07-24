@@ -143,12 +143,11 @@ This means we don't have to wait for everything to render before caching the wor
 
 > **What is the React Server Component Payload?**
 >
-> The React Server Component Payload is a compact string representation of the React Component tree. It's used by React on the client to update the DOM. The React Server Component Payload contains:
+> The React Server Component Payload is a compact binary representation of the rendered React Server Components tree. It's used by React on the client to update the DOM. The React Server Component Payload contains:
 >
 > - The rendered result of Server Components
 > - Placeholders for where Client Components should be rendered and references to their JavaScript files
 > - Any props passed from a Server Component to a Client Component, these are serialized
-> - Metadata tags, such as references to stylesheets
 >
 > To learn more, see the [React Rendering](/docs/app/building-your-application/rendering/react-components) documentation.
 
