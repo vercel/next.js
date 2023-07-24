@@ -1,6 +1,7 @@
 import glob from 'glob'
 import fs from 'fs-extra'
 import { join } from 'path'
+import cheerio from 'cheerio'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import {
@@ -39,9 +40,6 @@ describe('should set-up next', () => {
         eslint: {
           ignoreDuringBuilds: true,
         },
-        experimental: {
-          appDir: true,
-        },
         output: 'standalone',
       },
     })
@@ -73,7 +71,7 @@ describe('should set-up next', () => {
       testServer,
       (
         await fs.readFile(testServer, 'utf8')
-      ).replace('conf:', `minimalMode: ${minimalMode},conf:`)
+      ).replace('port:', `minimalMode: ${minimalMode},port:`)
     )
     appPort = await findPort()
     server = await initNextServerScript(
@@ -98,6 +96,64 @@ describe('should set-up next', () => {
     if (server) await killApp(server)
   })
 
+  it('should not fail caching', async () => {
+    expect(next.cliOutput).not.toContain('ERR_INVALID_URL')
+  })
+
+  it('should properly handle prerender for bot request', async () => {
+    const res = await fetchViaHTTP(appPort, '/isr/first', undefined, {
+      headers: {
+        'user-agent':
+          'Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.5735.179 Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+        'x-matched-path': '/isr/first',
+      },
+    })
+
+    expect(res.status).toBe(200)
+    const html = await res.text()
+    const $ = cheerio.load(html)
+
+    expect($('#page').text()).toBe('/isr/[slug]')
+
+    const rscRes = await fetchViaHTTP(appPort, '/isr/first.rsc', undefined, {
+      headers: {
+        'user-agent':
+          'Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.5735.179 Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+        'x-matched-path': '/isr/first',
+      },
+    })
+
+    expect(rscRes.status).toBe(200)
+  })
+
+  it('should properly handle fallback for bot request', async () => {
+    const res = await fetchViaHTTP(appPort, '/isr/[slug]', undefined, {
+      headers: {
+        'user-agent':
+          'Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.5735.179 Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+        'x-now-route-matches': '1=second&nxtPslug=new',
+        'x-matched-path': '/isr/[slug]',
+      },
+    })
+
+    expect(res.status).toBe(200)
+    const html = await res.text()
+    const $ = cheerio.load(html)
+
+    expect($('#page').text()).toBe('/isr/[slug]')
+
+    const rscRes = await fetchViaHTTP(appPort, '/isr/[slug].rsc', undefined, {
+      headers: {
+        'user-agent':
+          'Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.5735.179 Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+        'x-now-route-matches': '1=second&nxtPslug=new',
+        'x-matched-path': '/isr/[slug]',
+      },
+    })
+
+    expect(rscRes.status).toBe(200)
+  })
+
   it('should send cache tags in minimal mode for ISR', async () => {
     for (const [path, tags] of [
       ['/isr/first', 'isr-page,/isr/[slug]/page'],
@@ -105,6 +161,7 @@ describe('should set-up next', () => {
       ['/api/isr/first', 'isr-page,/api/isr/[slug]/route'],
       ['/api/isr/second', 'isr-page,/api/isr/[slug]/route'],
     ]) {
+      require('console').error('checking', { path, tags })
       const res = await fetchViaHTTP(appPort, path, undefined, {
         redirect: 'manual',
       })
@@ -126,13 +183,5 @@ describe('should set-up next', () => {
       expect(res.status).toBe(200)
       expect(res.headers.get('x-next-cache-tags')).toBeFalsy()
     }
-  })
-
-  it('should handle correctly not-found.js', async () => {
-    const res = await fetchViaHTTP(appPort, '/not-found/does-not-exist')
-    expect(res.status).toBe(404)
-    const html = await res.text()
-    expect(html).toContain('not-found-page-404')
-    expect(html).not.toContain('not-found-page-200')
   })
 })

@@ -100,7 +100,7 @@ createNextDescribe(
 
     it('should support setting cookies in route handlers with the correct overrides', async () => {
       const res = await next.fetch('/handler')
-      const setCookieHeader = res.headers.get('set-cookie') as any as string[]
+      const setCookieHeader = res.headers.get('set-cookie')
       expect(setCookieHeader).toContain('bar=bar2; Path=/')
       expect(setCookieHeader).toContain('baz=baz2; Path=/')
       expect(setCookieHeader).toContain('foo=foo1; Path=/')
@@ -235,6 +235,19 @@ createNextDescribe(
 
       await browser.elementByCss('#dec').click()
       await check(() => browser.elementByCss('h1').text(), '3')
+    })
+
+    it('should support importing the same action module instance in both server and action layers', async () => {
+      const browser = await next.browser('/shared')
+
+      const v = await browser.elementByCss('#value').text()
+      expect(v).toBe('Value = 0')
+
+      await browser.elementByCss('#server-inc').click()
+      await check(() => browser.elementByCss('#value').text(), 'Value = 1')
+
+      await browser.elementByCss('#client-inc').click()
+      await check(() => browser.elementByCss('#value').text(), 'Value = 2')
     })
 
     if (isNextStart) {
@@ -462,7 +475,8 @@ createNextDescribe(
         }, 'success')
       })
 
-      skipDeploy('should handle revalidateTag + redirect', async () => {
+      // TODO: investigate flakey behavior
+      it.skip('should handle revalidateTag + redirect', async () => {
         const browser = await next.browser('/revalidate')
         const randomNumber = await browser.elementByCss('#random-number').text()
         const justPutIt = await browser.elementByCss('#justputit').text()

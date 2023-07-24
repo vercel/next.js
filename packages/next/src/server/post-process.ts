@@ -182,7 +182,17 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
 async function postProcessHTML(
   pathname: string,
   content: string,
-  renderOpts: RenderOpts,
+  renderOpts: Pick<
+    RenderOpts,
+    | 'ampOptimizerConfig'
+    | 'ampValidator'
+    | 'ampSkipValidation'
+    | 'optimizeFonts'
+    | 'fontManifest'
+    | 'optimizeCss'
+    | 'distDir'
+    | 'assetPrefix'
+  >,
   { inAmpMode, hybridAmp }: { inAmpMode: boolean; hybridAmp: boolean }
 ) {
   const postProcessors: Array<PostProcessorFunction> = [

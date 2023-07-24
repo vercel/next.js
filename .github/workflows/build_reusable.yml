@@ -7,6 +7,12 @@ on:
         required: false
         description: 'additional steps to run'
         type: string
+      # Toggles the mold linker. The default linker is much slower and can run into OOMs.
+      # However, custom linkers won't work for wasm.
+      mold:
+        required: false
+        description: 'whether to use the mold linker'
+        type: string
       skipInstallBuild:
         required: false
         description: 'whether to skip pnpm install && pnpm build'
@@ -46,10 +52,10 @@ on:
 
 env:
   NAPI_CLI_VERSION: 2.14.7
-  TURBO_VERSION: 1.9.6
-  PNPM_VERSION: 7.32.2
+  TURBO_VERSION: 1.10.9
+  PNPM_VERSION: 7.24.3
   NODE_MAINTENANCE_VERSION: 16
-  NODE_LTS_VERSION: 18
+  NODE_LTS_VERSION: 18.16.1
   TEST_CONCURRENCY: 6
   # disable backtrace for test snapshots
   RUST_BACKTRACE: 0
@@ -69,7 +75,7 @@ env:
 jobs:
   build:
     timeout-minutes: 25
-    runs-on: [self-hosted, linux, x64]
+    runs-on: [self-hosted, linux, x64, hv]
 
     steps:
       - run: fnm install ${{ inputs.nodeVersion || env.NODE_LTS_VERSION }}
@@ -87,6 +93,13 @@ jobs:
         if: ${{ inputs.skipNativeBuild != 'yes' || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes' }}
         with:
           components: rustfmt, clippy
+
+      - name: 'Install mold linker'
+        if: ${{ inputs.mold == 'yes' }}
+        run: |
+          sudo apt update
+          sudo apt install -y mold
+          echo RUSTFLAGS=${RUSTFLAGS}\ -C\ link-arg=-fuse-ld=mold >> $GITHUB_ENV
 
       - name: Install nextest
         if: ${{ inputs.needsNextest == 'yes' }}
@@ -121,10 +134,10 @@ jobs:
         name: normalize versions
 
       - run: turbo run build-native-release --remote-cache-timeout 90 --summarize -- --target x86_64-unknown-linux-gnu
-        if: ${{ inputs.skipNativeBuild != 'yes' }}
+        if: ${{ inputs.skipNativeBuild != 'yes' && steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
 
       - name: Upload next-swc artifact
-        if: ${{ inputs.uploadSwcArtifact == 'yes' }}
+        if: ${{ inputs.uploadSwcArtifact == 'yes' && steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
         uses: actions/upload-artifact@v3
         with:
           name: next-swc-binary

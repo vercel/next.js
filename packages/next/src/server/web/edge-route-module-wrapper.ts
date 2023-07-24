@@ -4,11 +4,12 @@ import type { RouteModule } from '../future/route-modules/route-module'
 import type { NextRequest } from './spec-extension/request'
 
 import './globals'
+
 import { adapter, type AdapterOptions } from './adapter'
 import { IncrementalCache } from '../lib/incremental-cache'
-
-import { removeTrailingSlash } from '../../shared/lib/router/utils/remove-trailing-slash'
 import { RouteMatcher } from '../future/route-matchers/route-matcher'
+import { removeTrailingSlash } from '../../shared/lib/router/utils/remove-trailing-slash'
+import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
 
 type WrapOptions = Partial<Pick<AdapterOptions, 'page'>>
 
@@ -62,13 +63,16 @@ export class EdgeRouteModuleWrapper {
   }
 
   private async handler(request: NextRequest): Promise<Response> {
-    // Setup the handler if it hasn't been setup yet. It is the responsibility
-    // of the module to ensure that this is only called once.
-    this.routeModule.setup()
-
     // Get the pathname for the matcher. Pathnames should not have trailing
     // slashes for matching.
-    const pathname = removeTrailingSlash(new URL(request.url).pathname)
+    let pathname = removeTrailingSlash(new URL(request.url).pathname)
+
+    // Get the base path and strip it from the pathname if it exists.
+    const { basePath } = request.nextUrl
+    if (basePath) {
+      // If the path prefix doesn't exist, then this will do nothing.
+      pathname = removePathPrefix(pathname, basePath)
+    }
 
     // Get the match for this request.
     const match = this.matcher.match(pathname)

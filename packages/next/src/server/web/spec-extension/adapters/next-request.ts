@@ -1,10 +1,21 @@
 import type { BaseNextRequest } from '../../../base-http'
 import type { NodeNextRequest } from '../../../base-http/node'
 import type { WebNextRequest } from '../../../base-http/web'
+import type { IncomingMessage } from 'node:http'
 
 import { getRequestMeta } from '../../../request-meta'
 import { fromNodeOutgoingHttpHeaders } from '../../utils'
 import { NextRequest } from '../request'
+
+export function signalFromNodeRequest(request: IncomingMessage) {
+  const { errored } = request
+  if (errored) return AbortSignal.abort(errored)
+  const controller = new AbortController()
+  request.on('error', (e) => {
+    controller.abort(e)
+  })
+  return controller.signal
+}
 
 export class NextRequestAdapter {
   public static fromBaseNextRequest(request: BaseNextRequest): NextRequest {
@@ -30,9 +41,14 @@ export class NextRequestAdapter {
     } else {
       // Grab the full URL from the request metadata.
       const base = getRequestMeta(request, '__NEXT_INIT_URL')
-      if (!base) throw new Error('Invariant: missing url on request')
-
-      url = new URL(request.url, base)
+      if (!base || !base.startsWith('http')) {
+        // Because the URL construction relies on the fact that the URL provided
+        // is absolute, we need to provide a base URL. We can't use the request
+        // URL because it's relative, so we use a dummy URL instead.
+        url = new URL(request.url, 'http://n')
+      } else {
+        url = new URL(request.url, base)
+      }
     }
 
     return new NextRequest(url, {
@@ -41,6 +57,7 @@ export class NextRequestAdapter {
       headers: fromNodeOutgoingHttpHeaders(request.headers),
       // @ts-expect-error - see https://github.com/whatwg/fetch/pull/1457
       duplex: 'half',
+      signal: signalFromNodeRequest(request.originalRequest),
       // geo
       // ip
       // nextConfig
@@ -60,6 +77,7 @@ export class NextRequestAdapter {
       headers: fromNodeOutgoingHttpHeaders(request.headers),
       // @ts-expect-error - see https://github.com/whatwg/fetch/pull/1457
       duplex: 'half',
+      signal: request.request.signal,
       // geo
       // ip
       // nextConfig

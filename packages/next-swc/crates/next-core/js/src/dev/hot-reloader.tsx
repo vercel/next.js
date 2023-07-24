@@ -10,7 +10,7 @@ type HotReloadProps = React.PropsWithChildren<{
   assetPrefix?: string
 }>
 
-export default function HotReload({ assetPrefix, children }: HotReloadProps) {
+export default function HotReload({ children }: HotReloadProps) {
   const router = useRouter()
   const path = usePathname()!.slice(1)
 

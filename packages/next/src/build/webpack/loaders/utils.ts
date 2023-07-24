@@ -50,3 +50,11 @@ export function generateActionId(filePath: string, exportName: string) {
     .update(filePath + ':' + exportName)
     .digest('hex')
 }
+
+export function encodeToBase64<T extends {}>(obj: T): string {
+  return Buffer.from(JSON.stringify(obj)).toString('base64')
+}
+
+export function decodeFromBase64<T extends {}>(str: string): T {
+  return JSON.parse(Buffer.from(str, 'base64').toString('utf8'))
+}

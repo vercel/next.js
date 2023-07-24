@@ -114,7 +114,11 @@ export class IncrementalCache {
         }
         CurCacheHandler = FileSystemCache
       }
-      if (minimalMode && fetchCache) {
+      if (
+        FetchCache.isAvailable({ _requestHeaders: requestHeaders }) &&
+        minimalMode &&
+        fetchCache
+      ) {
         if (debug) {
           console.log('using fetch cache handler')
         }
@@ -147,7 +151,7 @@ export class IncrementalCache {
     if (
       minimalMode &&
       typeof requestHeaders['x-next-revalidated-tags'] === 'string' &&
-      requestHeaders['x-next-revalidats-tag-token'] ===
+      requestHeaders['x-next-revalidate-tag-token'] ===
         this.prerenderManifest?.preview?.previewModeId
     ) {
       revalidatedTags = requestHeaders['x-next-revalidated-tags'].split(',')

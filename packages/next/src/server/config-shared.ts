@@ -9,6 +9,7 @@ import {
 import { SubresourceIntegrityAlgorithm } from '../build/webpack/plugins/subresource-integrity-plugin'
 import { WEB_VITALS } from '../shared/lib/utils'
 import type { NextParsedUrlQuery } from './request-meta'
+import { SizeLimit } from '../../types'
 
 export type NextConfigComplete = Required<NextConfig> & {
   images: Required<ImageConfigComplete>
@@ -84,7 +85,7 @@ type JSONValue =
   | JSONValue[]
   | { [k: string]: JSONValue }
 
-type TurboLoaderItem =
+export type TurboLoaderItem =
   | string
   | {
       loader: string
@@ -92,7 +93,7 @@ type TurboLoaderItem =
       options: Record<string, JSONValue>
     }
 
-interface ExperimentalTurboOptions {
+export interface ExperimentalTurboOptions {
   /**
    * (`next --turbo` only) A mapping of aliased imports to modules to load in their place.
    *
@@ -281,6 +282,26 @@ export interface ExperimentalConfig {
    * Enable `react@experimental` channel for the `app` directory.
    */
   serverActions?: boolean
+
+  /**
+   * Allows adjusting body parser size limit for server actions.
+   */
+  serverActionsBodySizeLimit?: SizeLimit
+
+  /**
+   * enables the minification of server code.
+   */
+  serverMinification?: boolean
+
+  /**
+   * Enables source maps generation for the server production bundle.
+   */
+  serverSourceMaps?: boolean
+
+  /**
+   * @internal Used by the Next.js internals only.
+   */
+  trustHostHeader?: boolean
 }
 
 export type ExportPathMap = {
@@ -492,6 +513,12 @@ export interface NextConfig extends Record<string, any> {
   optimizeFonts?: boolean
 
   /**
+   * Enable react profiling in production
+   *
+   */
+  reactProductionProfiling?: boolean
+
+  /**
    * The Next.js runtime is Strict Mode-compliant.
    *
    * @see [React Strict Mode](https://nextjs.org/docs/api-reference/next.config.js/react-strict-mode)
@@ -639,8 +666,8 @@ export const defaultConfig: NextConfig = {
     buildActivityPosition: 'bottom-right',
   },
   onDemandEntries: {
-    maxInactiveAge: 15 * 1000,
-    pagesBufferLength: 2,
+    maxInactiveAge: 60 * 1000,
+    pagesBufferLength: 5,
   },
   amp: {
     canonicalBase: '',
@@ -654,6 +681,7 @@ export const defaultConfig: NextConfig = {
   excludeDefaultMomentLocales: true,
   serverRuntimeConfig: {},
   publicRuntimeConfig: {},
+  reactProductionProfiling: false,
   reactStrictMode: false,
   httpAgentOptions: {
     keepAlive: true,
@@ -664,6 +692,8 @@ export const defaultConfig: NextConfig = {
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
   experimental: {
+    serverMinification: false,
+    serverSourceMaps: false,
     caseSensitiveRoutes: false,
     useDeploymentId: false,
     deploymentId: undefined,
@@ -730,9 +760,15 @@ export async function normalizeConfig(phase: string, config: any) {
 export function validateConfig(userConfig: NextConfig): {
   errors?: Array<any> | null
 } {
-  const configValidator = require('next/dist/next-config-validate.js')
-  configValidator(userConfig)
-  return {
-    errors: configValidator.errors,
+  if (process.env.NEXT_MINIMAL) {
+    return {
+      errors: [],
+    }
+  } else {
+    const configValidator = require('next/dist/next-config-validate.js')
+    configValidator(userConfig)
+    return {
+      errors: configValidator.errors,
+    }
   }
 }

@@ -1,7 +1,7 @@
 export const forbiddenHeaders = [
   'accept-encoding',
-  'content-length',
   'keepalive',
+  'keep-alive',
   'content-encoding',
   'transfer-encoding',
   // https://github.com/nodejs/undici/issues/1470
@@ -9,7 +9,7 @@ export const forbiddenHeaders = [
 ]
 
 export const filterReqHeaders = (
-  headers: Record<string, undefined | string | string[]>
+  headers: Record<string, undefined | string | number | string[]>
 ) => {
   for (const [key, value] of Object.entries(headers)) {
     if (
@@ -19,5 +19,5 @@ export const filterReqHeaders = (
       delete headers[key]
     }
   }
-  return headers
+  return headers as Record<string, undefined | string | string[]>
 }

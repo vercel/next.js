@@ -3,11 +3,14 @@ title: TypeScript
 description: Next.js provides a TypeScript-first development experience for building your React application.
 ---
 
+{/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
+
 Next.js provides a TypeScript-first development experience for building your React application.
 
 It comes with built-in TypeScript support for automatically installing the necessary packages and configuring the proper settings.
 
 <AppOnly>
+
 As well as a [TypeScript Plugin](#typescript-plugin) for your editor.
 
 > **🎥 Watch:** Learn about the built-in TypeScript plugin → [YouTube (3 minutes)](https://www.youtube.com/watch?v=pqMqn9fKEf8)
@@ -26,23 +29,15 @@ npx create-next-app@latest
 
 Add TypeScript to your project by renaming a file to `.ts` / `.tsx`. Run `next dev` and `next build` to automatically install the necessary dependencies and add a `tsconfig.json` file with the recommended config options.
 
+If you already had a `jsconfig.json` file, copy the `paths` compiler option from the old `jsconfig.json` into the new `tsconfig.json` file, and delete the old `jsconfig.json` file.
+
 <AppOnly>
 
 ## TypeScript Plugin
 
 Next.js includes a custom TypeScript plugin and type checker, which VSCode and other code editors can use for advanced type-checking and auto-completion.
 
-The first time you run `next dev` with a TypeScript file open, you will receive a prompt to enable the plugin.
-
-<Image
-  alt="TypeScript Prompt"
-  srcLight="/docs/light/typescript-prompt.png"
-  srcDark="/docs/dark/typescript-prompt.png"
-  width="1600"
-  height="403"
-/>
-
-If you miss the prompt, you can enable the plugin manually by:
+You can enable the plugin in VS Code by:
 
 1. Opening the command palette (`Ctrl/⌘` + `Shift` + `P`)
 2. Searching for "TypeScript: Select TypeScript Version"
@@ -56,7 +51,7 @@ If you miss the prompt, you can enable the plugin manually by:
   height="637"
 />
 
-Now, when editing files, the custom plugin will be enabled. When running `next build`, the custom type checker will be used. Further, we automatically create a VSCode settings file for you to automate this process.
+Now, when editing files, the custom plugin will be enabled. When running `next build`, the custom type checker will be used.
 
 ### Plugin Features
 
@@ -115,15 +110,15 @@ import Link from 'next/link'
 To accept `href` in a custom component wrapping `next/link`, use a generic:
 
 ```tsx
-import type { Route } from 'next';
-import Link from 'next/link';
+import type { Route } from 'next'
+import Link from 'next/link'
 
-function Card<T extends string>({ href }: { href: Route<T> | URL })
+function Card<T extends string>({ href }: { href: Route<T> | URL }) {
   return (
     <Link href={href}>
       <div>My Card</div>
     </Link>
-  );
+  )
 }
 ```
 
@@ -136,7 +131,7 @@ function Card<T extends string>({ href }: { href: Route<T> | URL })
 Next.js 13 has **enhanced type safety**. This includes:
 
 1. **No serialization of data between fetching function and page**: You can `fetch` directly in components, layouts, and pages on the server. This data _does not_ need to be serialized (converted to a string) to be passed to the client side for consumption in React. Instead, since `app` uses Server Components by default, we can use values like `Date`, `Map`, `Set`, and more without any extra steps. Previously, you needed to manually type the boundary between server and client with Next.js-specific types.
-2. **Streamlined data flow between components**: With the removal of `_app` in favor of root layouts, it is now easier to visualize the data flow between components and pages. Previous, data flowing between individual `pages` and `_app` were difficult to type and could introduce confusing bugs. With [colocated data fetching](/docs/app/building-your-application/data-fetching/fetching) in Next.js 13, this is no longer an issue.
+2. **Streamlined data flow between components**: With the removal of `_app` in favor of root layouts, it is now easier to visualize the data flow between components and pages. Previously, data flowing between individual `pages` and `_app` were difficult to type and could introduce confusing bugs. With [colocated data fetching](/docs/app/building-your-application/data-fetching/fetching) in Next.js 13, this is no longer an issue.
 
 [Data Fetching in Next.js](/docs/app/building-your-application/data-fetching/fetching) now provides as close to end-to-end type safety as possible without being prescriptive about your database or content provider selection.
 
@@ -242,7 +237,17 @@ export default function MyApp({ Component, pageProps }: AppProps) {
 
 Next.js automatically supports the `tsconfig.json` `"paths"` and `"baseUrl"` options.
 
+<AppOnly>
+
+You can learn more about this feature on the [Module Path aliases documentation](/docs/app/building-your-application/configuring/absolute-imports-and-module-aliases).
+
+</AppOnly>
+
+<PagesOnly>
+
 You can learn more about this feature on the [Module Path aliases documentation](/docs/pages/building-your-application/configuring/absolute-imports-and-module-aliases).
+
+</PagesOnly>
 
 ## Type checking next.config.js
 

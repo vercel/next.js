@@ -3,6 +3,8 @@ title: OpenTelemetry
 description: Learn how to instrument your Next.js app with OpenTelemetry.
 ---
 
+{/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
+
 > **Good to know**: This feature is **experimental**, you need to explicitly opt-in by providing `experimental.instrumentationHook = true;` in your `next.config.js`.
 
 Observability is crucial for understanding and optimizing the behavior and performance of your Next.js app.
@@ -25,7 +27,7 @@ When you enable OpenTelemetry we will automatically wrap all your code like `get
 
 OpenTelemetry is extensible but setting it up properly can be quite verbose.
 That's why we prepared a package `@vercel/otel` that helps you get started quickly.
-It's not extensible and you should configure OpenTelemetry manually you need to customize your setup.
+It's not extensible and you should configure OpenTelemetry manually if you need to customize your setup.
 
 ### Using `@vercel/otel`
 
@@ -35,7 +37,17 @@ To get started, you must install `@vercel/otel`:
 npm install @vercel/otel
 ```
 
+<AppOnly>
+
+Next, create a custom [`instrumentation.ts`](/docs/app/building-your-application/optimizing/instrumentation) (or `.js`) file in the **root directory** of the project (or inside `src` folder if using one):
+
+</AppOnly>
+
+<PagesOnly>
+
 Next, create a custom [`instrumentation.ts`](/docs/pages/building-your-application/optimizing/instrumentation) (or `.js`) file in the **root directory** of the project (or inside `src` folder if using one):
+
+</PagesOnly>
 
 ```ts filename="your-project/instrumentation.ts" switcher
 import { registerOTel } from '@vercel/otel'
@@ -53,11 +65,25 @@ export function register() {
 }
 ```
 
+<AppOnly>
+
 > **Good to know**
 >
 > - The `instrumentation` file should be in the root of your project and not inside the `app` or `pages` directory. If you're using the `src` folder, then place the file inside `src` alongside `pages` and `app`.
-> - If you use the [`pagesExtension` config option](/docs/pages/api-reference/next-config-js/pageExtensions) to add a suffix, you will also need to update the `instrumentation` filename to match.
+> - If you use the [`pageExtensions` config option](/docs/app/api-reference/next-config-js/pageExtensions) to add a suffix, you will also need to update the `instrumentation` filename to match.
 > - We have created a basic [with-opentelemetry](https://github.com/vercel/next.js/tree/canary/examples/with-opentelemetry) example that you can use.
+
+</AppOnly>
+
+<PagesOnly>
+
+> **Good to know**
+>
+> - The `instrumentation` file should be in the root of your project and not inside the `app` or `pages` directory. If you're using the `src` folder, then place the file inside `src` alongside `pages` and `app`.
+> - If you use the [`pageExtensions` config option](/docs/pages/api-reference/next-config-js/pageExtensions) to add a suffix, you will also need to update the `instrumentation` filename to match.
+> - We have created a basic [with-opentelemetry](https://github.com/vercel/next.js/tree/canary/examples/with-opentelemetry) example that you can use.
+
+</PagesOnly>
 
 ### Manual OpenTelemetry configuration
 
@@ -66,7 +92,7 @@ If our wrapper `@vercel/otel` doesn't suit your needs, you can configure OpenTel
 Firstly you need to install OpenTelemetry packages:
 
 ```bash filename="Terminal"
-npm install @opentelemetry/sdk-node @opentelemetry/resources @opentelemetry/semantic-conventions @opentelemetry/sdk-trace-base @opentelemetry/exporter-trace-otlp-http
+npm install @opentelemetry/sdk-node @opentelemetry/resources @opentelemetry/semantic-conventions @opentelemetry/sdk-trace-node @opentelemetry/exporter-trace-otlp-http
 ```
 
 Now you can initialize `NodeSDK` in your `instrumentation.ts`.
@@ -83,13 +109,12 @@ export async function register() {
 ```js filename="instrumentation.js" switcher
 export async function register() {
   if (process.env.NEXT_RUNTIME === 'nodejs') {
-    await import('./instrumentation.node.ts')
+    await import('./instrumentation.node.js')
   }
 }
 ```
 
 ```ts filename="instrumentation.node.ts" switcher
-import { trace, context } from '@opentelemetry/api'
 import { NodeSDK } from '@opentelemetry/sdk-node'
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http'
 import { Resource } from '@opentelemetry/resources'
