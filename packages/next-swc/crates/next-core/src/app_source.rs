@@ -194,6 +194,38 @@ fn next_ssr_client_module_transition(
 }
 
 #[turbo_tasks::function]
+fn next_edge_ssr_client_module_transition(
+    project_path: Vc<FileSystemPath>,
+    execution_context: Vc<ExecutionContext>,
+    app_dir: Vc<FileSystemPath>,
+    next_config: Vc<NextConfig>,
+    server_addr: Vc<ServerAddr>,
+) -> Vc<Box<dyn Transition>> {
+    let ty = Value::new(ServerContextType::AppSSR { app_dir });
+    let mode = NextMode::Development;
+    Vc::upcast(
+        NextSSRClientModuleTransition {
+            ssr_module_options_context: get_server_module_options_context(
+                project_path,
+                execution_context,
+                ty,
+                mode,
+                next_config,
+            ),
+            ssr_resolve_options_context: get_edge_resolve_options_context(
+                project_path,
+                ty,
+                mode,
+                next_config,
+                execution_context,
+            ),
+            ssr_environment: get_edge_compile_time_info(project_path, server_addr),
+        }
+        .cell(),
+    )
+}
+
+#[turbo_tasks::function]
 fn next_server_component_transition(
     project_path: Vc<FileSystemPath>,
     execution_context: Vc<ExecutionContext>,
@@ -377,8 +409,6 @@ fn app_context(
     server_addr: Vc<ServerAddr>,
     output_path: Vc<FileSystemPath>,
 ) -> Vc<ModuleAssetContext> {
-    let next_server_to_client_transition = Vc::upcast(NextServerToClientTransition { ssr }.cell());
-
     let mut transitions = HashMap::new();
     transitions.insert(
         "next-edge-route".to_string(),
@@ -421,6 +451,11 @@ fn app_context(
         ),
     );
     transitions.insert(
+        ecmacscript_client_reference_transition_name,
+        Vc::upcast(NextServerToClientTransition { ssr, edge: false }.cell()),
+    );
+    let ecmacscript_edge_client_reference_transition_name = "edge-server-to-client".to_string();
+    transitions.insert(
         "next-edge-server-component".to_string(),
         next_edge_server_component_transition(
             project_path,
@@ -430,12 +465,12 @@ fn app_context(
             mode,
             next_config,
             server_addr,
-            Vc::cell(ecmacscript_client_reference_transition_name.clone()),
+            Vc::cell(ecmacscript_edge_client_reference_transition_name.clone()),
         ),
     );
     transitions.insert(
-        ecmacscript_client_reference_transition_name,
-        next_server_to_client_transition,
+        ecmacscript_edge_client_reference_transition_name,
+        Vc::upcast(NextServerToClientTransition { ssr, edge: true }.cell()),
     );
     transitions.insert(
         "next-client".to_string(),
@@ -469,6 +504,16 @@ fn app_context(
             execution_context,
             app_dir,
             env,
+            next_config,
+            server_addr,
+        ),
+    );
+    transitions.insert(
+        "next-edge-ssr-client-module".to_string(),
+        next_edge_ssr_client_module_transition(
+            project_path,
+            execution_context,
+            app_dir,
             next_config,
             server_addr,
         ),
