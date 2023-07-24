@@ -51,7 +51,7 @@ export async function pipeReadable(
   // cancel the readable, and that requires an out-of-band listener.
   function onClose() {
     writableClosed = true
-    writable.off?.('close', onClose)
+    writable.off('close', onClose)
 
     // If the reader is not yet done, we need to cancel it so that the stream
     // source's resources can be cleaned up. If a read is in-progress, this
@@ -61,7 +61,7 @@ export async function pipeReadable(
       reader.cancel().catch(() => {})
     }
   }
-  writable.on?.('close', onClose)
+  writable.on('close', onClose)
 
   try {
     while (true) {
@@ -86,7 +86,7 @@ export async function pipeReadable(
       throw e
     }
   } finally {
-    writable.off?.('close', onClose)
+    writable.off('close', onClose)
 
     // If we broke out of the loop because of a client disconnect, and the
     // close event hasn't yet fired, we can early cancel.
