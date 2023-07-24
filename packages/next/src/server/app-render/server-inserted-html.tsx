@@ -2,7 +2,7 @@
 // elements into the HTML stream.
 
 import React from 'react'
-import { ServerInsertedHTMLContext } from '../../shared/lib/server-inserted-html'
+import { ServerInsertedHTMLContext } from '../../shared/lib/server-inserted-html.external'
 
 export function createServerInsertedHTML() {
   const serverInsertedHTMLCallbacks: (() => React.ReactNode)[] = []

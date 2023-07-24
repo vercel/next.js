@@ -11,6 +11,7 @@ import {
   type RouteModuleOptions,
   type RouteModuleHandleContext,
 } from '../route-module'
+import * as externals from './externals'
 
 type AppPageUserlandModule = {
   /**
@@ -34,6 +35,8 @@ export class AppPageRouteModule extends RouteModule<
   AppPageRouteDefinition,
   AppPageUserlandModule
 > {
+  static readonly externals = externals
+
   public handle(): Promise<Response> {
     throw new Error('Method not implemented.')
   }

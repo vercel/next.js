@@ -1467,23 +1467,25 @@ export default async function getBaseWebpackConfig(
         // )
         // return `commonjs ${externalRequest}`
 
-        if (isAppLayer) {
-          // todo
-        } else {
-          return [
-            'commonjs ' +
-              path.posix.join(
-                'next',
-                'dist',
-                'compiled',
-                'minimal-next-server',
-                'pages-render.runtime.js'
-              ),
-            'default',
-            'externals',
-            camelCaseName,
-          ]
-        }
+        // if (isAppLayer) {
+        //   // todo
+        // } else {
+        return [
+          'commonjs ' +
+            path.posix.join(
+              'next',
+              'dist',
+              'compiled',
+              'minimal-next-server',
+              isAppLayer
+                ? 'app-page-render.runtime.js'
+                : 'pages-render.runtime.js'
+            ),
+          'default',
+          'externals',
+          camelCaseName,
+        ]
+        // }
       }
     }
 

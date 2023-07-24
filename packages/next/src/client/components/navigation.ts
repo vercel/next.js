@@ -111,7 +111,7 @@ export function usePathname(): string {
 export {
   ServerInsertedHTMLContext,
   useServerInsertedHTML,
-} from '../../shared/lib/server-inserted-html'
+} from '../../shared/lib/server-inserted-html.external'
 
 /**
  * Get the router methods. For example router.push('/dashboard')
