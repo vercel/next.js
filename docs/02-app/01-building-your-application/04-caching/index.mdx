@@ -26,7 +26,7 @@ Here's a high-level overview of the different caching mechanisms in Next.js and 
 React's `cache` function allows you to **memoize** the return value of a function, saving the result to memory. In React Server Components, the [`fetch` API](#fetch) uses an implementation similar to `cache` to **memoize** data requests using the same URL and options. This means you can call the same data in multiple components while only executing it once during a render pass of a React component tree.
 
 <Image
-  alt="Fetch Request Deduplication"
+  alt="Fetch Request Memoization"
   srcLight="/docs/light/deduplicated-fetch-requests.png"
   srcDark="/docs/dark/deduplicated-fetch-requests.png"
   width="1600"
@@ -97,10 +97,6 @@ By default, data requests that use `fetch` are automatically cached. This is pos
 You can use the [`cache`](#fetchoptionscache) and [`next.revalidate`](#fetchoptionsnextrevalidate) options of `fetch` to configure the caching behavior. In the browser, `cache` indicates how a fetch request will interact with the browser's HTTP cache, and with Next.js, the `cache` option also indicates how a server-side fetch request will interact with the Data Cache.
 
 When fetching data on the server, a `fetch` request first checks the Data Cache for a cached response. If a cached response is found, it is returned immediately. If not, the request is made to the data source, and the response is cached.
-
-> **Static vs. Dynamic Data Fetching**:
->
-> You may see the terms **Static Data Fetching** and **Dynamic Data Fetching** being used. Static Data Fetching refers to cached data requests (default), whereas Dynamic Data Fetching refers to data that is fetched on every request, at request time.
 
 #### Duration
 
