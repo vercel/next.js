@@ -8,11 +8,7 @@ import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
 import { CONFIG_FILES, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import path from 'path'
-import {
-  defaultConfig,
-  NextConfig,
-  NextConfigComplete,
-} from '../server/config-shared'
+import { defaultConfig, NextConfigComplete } from '../server/config-shared'
 import { traceGlobals } from '../trace/shared'
 import { Telemetry } from '../telemetry/storage'
 import loadConfig from '../server/config'
@@ -26,6 +22,7 @@ import { getPossibleInstrumentationHookFilenames } from '../build/worker'
 import { resetEnv } from '@next/env'
 
 let dir: string
+let config: NextConfigComplete
 let isTurboSession = false
 let sessionStopHandled = false
 let sessionStarted = Date.now()
@@ -38,13 +35,15 @@ const handleSessionStop = async () => {
     const { eventCliSession } =
       require('../telemetry/events/session-stopped') as typeof import('../telemetry/events/session-stopped')
 
-    const config = await loadConfig(
-      PHASE_DEVELOPMENT_SERVER,
-      dir,
-      undefined,
-      undefined,
-      true
-    )
+    config =
+      config ||
+      (await loadConfig(
+        PHASE_DEVELOPMENT_SERVER,
+        dir,
+        undefined,
+        undefined,
+        true
+      ))
 
     let telemetry =
       (traceGlobals.get('telemetry') as InstanceType<
@@ -211,12 +210,14 @@ const nextDev: CliCommand = async (argv) => {
   // We do not set a default host value here to prevent breaking
   // some set-ups that rely on listening on other interfaces
   const host = args['--hostname']
+  config = await loadConfig(PHASE_DEVELOPMENT_SERVER, dir)
 
   const devServerOptions: StartServerOptions = {
     dir,
     port,
     allowRetry,
     isDev: true,
+    nextConfig: config,
     hostname: host,
     // This is required especially for app dir.
     useWorkers: true,
@@ -237,30 +238,31 @@ const nextDev: CliCommand = async (argv) => {
     resetEnv()
     let bindings = await loadBindings()
 
-    const config = await loadConfig(
-      PHASE_DEVELOPMENT_SERVER,
-      dir,
-      undefined,
-      undefined,
-      true
-    )
-
     // Just testing code here:
 
-    const project = await bindings.turbo.createProject({
+    const options = {
       projectPath: dir,
-      rootPath: dir,
+      rootPath: args['--root'] ?? findRootDir(dir) ?? dir,
       nextConfig: config,
       env: {
         NEXT_PUBLIC_ENV_VAR: 'world',
       },
       watch: true,
-    })
+    }
+    const project = await bindings.turbo.createProject(options)
     const iter = project.entrypointsSubscribe()
 
     try {
       for await (const entrypoints of iter) {
         Log.info(entrypoints)
+
+        Log.info(`writing _document to disk`)
+        Log.info(await entrypoints.pagesDocumentEndpoint.writeToDisk())
+        Log.info(`writing _app to disk`)
+        Log.info(await entrypoints.pagesAppEndpoint.writeToDisk())
+        Log.info(`writing _error to disk`)
+        Log.info(await entrypoints.pagesErrorEndpoint.writeToDisk())
+
         for (const [pathname, route] of entrypoints.routes) {
           switch (route.type) {
             case 'page': {
@@ -294,13 +296,10 @@ const nextDev: CliCommand = async (argv) => {
         }
         Log.info('iteration done')
         await project.update({
-          projectPath: dir,
-          rootPath: dir,
-          nextConfig: config,
+          ...options,
           env: {
             NEXT_PUBLIC_ENV_VAR: 'hello',
           },
-          watch: true,
         })
       }
     } catch (e) {
@@ -409,7 +408,6 @@ const nextDev: CliCommand = async (argv) => {
       try {
         let shouldFilter = false
         let devServerTeardown: (() => Promise<void>) | undefined
-        let config: NextConfig | undefined
 
         watchConfigFiles(devServerOptions.dir, (filename) => {
           Log.warn(
@@ -504,16 +502,6 @@ const nextDev: CliCommand = async (argv) => {
           } finally {
             // fallback to noop, if not provided
             resolveCleanup(async () => {})
-          }
-
-          if (!config) {
-            config = await loadConfig(
-              PHASE_DEVELOPMENT_SERVER,
-              dir,
-              undefined,
-              undefined,
-              true
-            )
           }
         }
 

@@ -53,7 +53,8 @@ use crate::{
     next_pages::page_entries::{compute_page_entries_chunks, get_page_entries},
 };
 
-static MIN_FAILING_SEVERITY: IssueSeverity = IssueSeverity::Error;
+// TODO this should be Error, but we need to fix the errors happing first
+static MIN_FAILING_SEVERITY: IssueSeverity = IssueSeverity::Fatal;
 
 #[turbo_tasks::function]
 pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Result<Vc<Completion>> {

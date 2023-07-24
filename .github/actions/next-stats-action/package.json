@@ -14,5 +14,8 @@
     "pretty-bytes": "^5.3.0",
     "pretty-ms": "^5.0.0",
     "semver": "7.3.4"
+  },
+  "devDependencies": {
+    "typescript": "5.1.6"
   }
 }
