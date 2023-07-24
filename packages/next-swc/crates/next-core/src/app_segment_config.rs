@@ -210,17 +210,17 @@ impl Issue for NextSegmentConfigParsingIssue {
 
 #[turbo_tasks::function]
 pub async fn parse_segment_config_from_source(
-    module_asset: Vc<Box<dyn Module>>,
+    module: Vc<Box<dyn Module>>,
     source: Vc<Box<dyn Source>>,
 ) -> Result<Vc<NextSegmentConfig>> {
     let Some(ecmascript_asset) =
-        Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(module_asset).await?
+        Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(module).await?
     else {
         return Ok(Default::default());
     };
 
     let ParseResult::Ok {
-        program: Program::Module(module),
+        program: Program::Module(module_ast),
         eval_context,
         ..
     } = &*ecmascript_asset.parse().await?
@@ -230,7 +230,7 @@ pub async fn parse_segment_config_from_source(
 
     let mut config = NextSegmentConfig::default();
 
-    for item in &module.body {
+    for item in &module_ast.body {
         let Some(decl) = item
             .as_module_decl()
             .and_then(|mod_decl| mod_decl.as_export_decl())
@@ -245,7 +245,7 @@ pub async fn parse_segment_config_from_source(
             };
 
             if let Some(init) = decl.init.as_ref() {
-                parse_config_value(module_asset, source, &mut config, ident, init, eval_context);
+                parse_config_value(module, source, &mut config, ident, init, eval_context);
             }
         }
     }
