@@ -1,15 +1,4 @@
 import { join } from 'path'
-import cheerio from 'cheerio'
-import webdriver from 'next-webdriver'
-import {
-  check,
-  getBrowserBodyText,
-  getRedboxHeader,
-  getRedboxSource,
-  hasRedbox,
-  renderViaHTTP,
-  waitFor,
-} from 'next-test-utils'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 

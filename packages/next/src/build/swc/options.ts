@@ -140,16 +140,17 @@ function getBaseSWCOptions({
     reactRemoveProperties: jest
       ? false
       : compilerOptions?.reactRemoveProperties,
+    // Map the k-v map to an array of pairs.
     modularizeImports: modularizeImports
       ? Object.fromEntries(
-          Object.entries(modularizeImports).map(([key, value]) => [
-            key,
+          Object.entries(modularizeImports).map(([mod, config]) => [
+            mod,
             {
-              ...value,
+              ...config,
               transform:
-                typeof value.transform === 'string'
-                  ? value.transform
-                  : Object.entries(value.transform).map(([key, value]) => [
+                typeof config.transform === 'string'
+                  ? config.transform
+                  : Object.entries(config.transform).map(([key, value]) => [
                       key,
                       value,
                     ]),
