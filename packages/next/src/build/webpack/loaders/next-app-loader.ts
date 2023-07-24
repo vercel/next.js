@@ -40,6 +40,7 @@ export type AppLoaderOptions = {
   basePath: string
   nextConfigOutput?: NextConfig['output']
   middlewareConfig: string
+  isEdge?: boolean
 }
 type AppLoader = webpack.LoaderDefinitionFunction<AppLoaderOptions>
 
@@ -455,6 +456,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     preferredRegion,
     basePath,
     middlewareConfig: middlewareConfigBase64,
+    isEdge,
   } = loaderOptions
 
   const buildInfo = getModuleBuildInfo((this as any)._module)
@@ -677,10 +679,14 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     },
   }
 
+  const routeModulePath = isEdge
+    ? 'next/dist/server/future/route-modules/app-page/module'
+    : 'next/dist/compiled/minimal-next-server/app-page-render.runtime.js'
+
   // Prefer to modify next/src/server/app-render/entry-base.ts since this is shared with Turbopack.
   // Any changes to this code should be reflected in Turbopack's app_source.rs and/or app-renderer.tsx as well.
   const result = `
-    import RouteModule from 'next/dist/compiled/minimal-next-server/app-page-render.runtime.js'
+    import RouteModule from ${JSON.stringify(routeModulePath)}
 
     export ${treeCodeResult.treeCode}
     export ${treeCodeResult.pages}
