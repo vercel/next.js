@@ -63,9 +63,6 @@ const comments = await getComments() // cache HIT
 
 For cases where `fetch` is not suitable (e.g. database clients, CMS clients, or GraphQL), you can use React's `cache` function to manually memoize functions.
 
-> **Memoization vs. Deduplication**:
->
-> You may see the terms **memoization** and **deduplication** being used interchangeably. Memoization is a general term that applies storing the return values of **any function** in-memory, whereas request deduplication applies specifically to **data requests**.
 
 ### Duration
 
@@ -126,7 +123,7 @@ Alternatively, you can also use the [Route Segment Config options](#segment-conf
 
 ## Full Route Cache
 
-Next.js automatically caches the rendered result of React Components on the server at build time. This is an optimization that allows you to skip rendering components on the server on every request, and instead directly send the cached result to the client, resulting in faster page loads.
+Next.js automatically renders and caches routes at build time. This is an optimization that allows you to serve the cached route instead of rendering on the server for every request, resulting in faster page loads.
 
 > **Related terms**:
 >
@@ -139,8 +136,7 @@ To understand how the Full Route Cache works, it's helpful to look at how React 
 On the server, Next.js uses React's APIs to orchestrate rendering. This process is split into three stages:
 
 1. React renders Server Components into a special data format, optimized for streaming, called the **React Server Component Payload**.
-2. Next.js compiles, bundles, and code-splits the **JavaScript instructions** for rendering Client Components on the client.
-3. Next.js uses the React Server Component Payload and JavaScript instructions to pre-render **HTML** on the server.
+2. Next.js uses the React Server Component Payload and JavaScript instructions to pre-render **HTML** on the server.
 
 > **What is the React Server Component Payload?**
 >
