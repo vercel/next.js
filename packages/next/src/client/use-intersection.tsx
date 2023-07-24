@@ -23,8 +23,6 @@ type Observer = {
   elements: Map<Element, ObserveCallback>
 }
 
-const hasIntersectionObserver = typeof IntersectionObserver === 'function'
-
 const observers = new Map<Identifier, Observer>()
 const idList: Identifier[] = []
 
@@ -98,36 +96,38 @@ export function useIntersection<T extends Element>({
   rootMargin,
   disabled,
 }: UseIntersection): [(element: T | null) => void, boolean, () => void] {
-  const isDisabled: boolean = disabled || !hasIntersectionObserver
-
   const [visible, setVisible] = useState(false)
-  const elementRef = useRef<T | null>(null)
-  const setElement = useCallback((element: T | null) => {
-    elementRef.current = element
-  }, [])
+  const unobserveRef = useRef<() => void>()
+
+  const setElement = useCallback(
+    (element: T | null) => {
+      if (unobserveRef.current) {
+        unobserveRef.current()
+        unobserveRef.current = undefined
+      }
+      if (typeof IntersectionObserver === 'function') {
+        if (disabled || visible) return
+
+        if (element && element.tagName) {
+          unobserveRef.current = observe(
+            element,
+            (isVisible) => isVisible && setVisible(isVisible),
+            { root: rootRef?.current, rootMargin }
+          )
+        }
+      } else {
+        if (!visible) {
+          const idleCallback = requestIdleCallback(() => setVisible(true))
+          unobserveRef.current = () => cancelIdleCallback(idleCallback)
+        }
+      }
+    },
+    [disabled, rootMargin, rootRef, visible]
+  )
 
   useEffect(() => {
-    if (hasIntersectionObserver) {
-      if (isDisabled || visible) return
-
-      const element = elementRef.current
-      if (element && element.tagName) {
-        const unobserve = observe(
-          element,
-          (isVisible) => isVisible && setVisible(isVisible),
-          { root: rootRef?.current, rootMargin }
-        )
-
-        return unobserve
-      }
-    } else {
-      if (!visible) {
-        const idleCallback = requestIdleCallback(() => setVisible(true))
-        return () => cancelIdleCallback(idleCallback)
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isDisabled, rootMargin, rootRef, visible, elementRef.current])
+    return () => unobserveRef.current?.()
+  }, [])
 
   const resetVisible = useCallback(() => {
     setVisible(false)
