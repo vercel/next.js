@@ -107,7 +107,7 @@ When fetching data on the server, a `fetch` request first checks the Data Cache 
 
 #### Duration
 
-The Data Cache is persistent across user requests and deployments unless you revalidate or opt-out.
+The Data Cache is persistent across incoming requests and deployments unless you revalidate or opt-out.
 
 #### Revalidating
 
@@ -141,7 +141,7 @@ Next.js automatically caches the rendered result of React Components on the serv
 
 > **Related terms**:
 >
-> - The terms **Automatic Static Optimization**, **Static Site Generation**, or **Static Rendering** might be also be used interchangeably to refer to the process of rendering and caching parts of your application code on the server at build time.
+> - The terms **Automatic Static Optimization**, **Static Site Generation**, or **Static Rendering** might be also be used interchangeably to refer to the process of rendering and caching routes of your application at build time.
 
 To understand how the Full Route Cache works, it's helpful to look at how React handles rendering, and how Next.js caches the result:
 
@@ -151,15 +151,15 @@ On the server, Next.js uses React's APIs to orchestrate rendering. This process 
 
 1. React renders Server Components into a special data format, optimized for streaming, called the **React Server Component Payload**.
 2. Next.js compiles, bundles, and code-splits the **JavaScript instructions** for rendering Client Components on the client.
-3. Next.js uses the React Server Component Payload and JavaScript instructions to pre-render **HTML** on the server.
+2. Next.js uses the React Server Component Payload and JavaScript instructions to pre-render **HTML** on the server.
 
-> **What is React Server Component Payload?**
+> **What is the React Server Component Payload?**
 >
 > The React Server Component Payload is a compact string representation of the React Component tree. It's used by React on the client to update the DOM. The React Server Component Payload contains:
 >
 > - The rendered result of Server Components
-> - Placeholders for where Client Components should be rendered on the client
-> - Any serialized props passed to these Client Components
+> - Placeholders for where Client Components should be rendered
+> - Any props passed from a Server Component to a Client Component, these are serialized
 > - References to the JavaScript instructions needed to render the Client Components
 > - Metadata tags, such as references to stylesheets
 >
@@ -200,11 +200,11 @@ There are two ways you can **invalidate** the Full Route Cache:
 
 #### Opting out
 
-You can opt out of the Full Route Cache, or in other words, dynamically render components at request time, by:
+You can opt out of the Full Route Cache, or in other words, dynamically render components for every incoming request, by:
 
 - **Using a [Dynamic Function](#dynamic-functions)**: This will dynamically render components at request time, but may reuse cached data, if any.
 - **Opting out of the [Data Cache](#data-cache)**: This will fetch data on every request, which in turn will skip the Full Route Cache.
-- **Using the route segment config options `dynamic = force-dynamic` or `revalidate = 0`**: This will skip the Full Route Cache and the Data Cache. Meaning components will be rendered and data fetched on every request.
+- **Using the route segment config options `export const dynamic = force-dynamic` or `export const revalidate = 0`**: This will skip the Full Route Cache and the Data Cache. Meaning components will be rendered and data fetched on every incoming request. The Router Cache will still apply as it's a client-side cache.
 
 > **Static vs. Dynamic Rendering**:
 >
@@ -219,7 +219,7 @@ For the user, this results in [soft navigation](/docs/app/building-your-applicat
 > **Good to know:**
 >
 > You may see the Router Cache being referred to as **Client-side Cache** or **Prefetch Cache**. While **Prefetch Cache** refers to the prefetched route segments, **Client-side Cache** refers to the whole Router cache, which includes both visited and prefetched segments.
-> This cache specifically applies to Next.js and Server Components, and is different to the browser's [bfcache](https://web.dev/bfcache/).
+> This cache specifically applies to Next.js and Server Components, and is different to the browser's [bfcache](https://web.dev/bfcache/), though it has a similar result.
 
 #### Duration
 
@@ -299,7 +299,7 @@ See the [`useRouter` hook](/docs/app/api-reference/functions/use-router) API ref
 
 ### `router.refresh`
 
-The `refresh` option of the `useRouter` hook can be used to manually refresh a route. This completely clears the Router Cache, and makes a new request to the server. `refresh` does not revalidate the Data or Full Route Cache, it reuses the cached data and rendering result, if it exists.
+The `refresh` option of the `useRouter` hook can be used to manually refresh a route. This completely clears the Router Cache, and makes a new request to the server for the current route. `refresh` does not affect the Data or Full Route Cache.
 
 The rendered result will be reconciled on the client while preserving React state and browser state (e.g. scroll position).
 
@@ -325,7 +325,7 @@ You can opt individual `fetch` requests out of data caching by setting the `cach
 fetch(`https://...`, { cache: 'no-store' })
 ```
 
-Since the render output depends on data, using `cache: 'no-store'` will also skip the Full Route Cache for the route where the `fetch` request is used. That is, the route will be dynamically rendered, but you can still have other cached data requests in the same route.
+Since the render output depends on data, using `cache: 'no-store'` will also skip the Full Route Cache for the route where the `fetch` request is used. That is, the route will be dynamically rendered every request, but you can still have other cached data requests in the same route.
 
 See the [`fetch` API Reference](/docs/app/api-reference/functions/fetch) for more options.
 
@@ -340,12 +340,12 @@ fetch(`https://...`, { next: { revalidate: 3600 } })
 
 See the [`fetch` API reference](/docs/app/api-reference/functions/fetch) for more options.
 
-### `fetch.options.next.tag` and `revalidateTag`
+### `fetch options.next.tag` and `revalidateTag`
 
 Next.js has a cache tagging system for fine-grained data caching and revalidation.
 
-1. When using `fetch` and `unstable_cache`, you have the option to tag cache entries with one or more tags.
-2. Then, you can call `revalidateTag` to revalidate all entries associated with that tag.
+1. When using `fetch` or `unstable_cache`, you have the option to tag cache entries with one or more tags.
+2. Then, you can call `revalidateTag` to purge the cache entries associated with that tag.
 
 For example, you can set a tag when fetching data:
 
@@ -354,7 +354,7 @@ For example, you can set a tag when fetching data:
 fetch(`https://...`, { next: { tags: ['a', 'b', 'c'] } })
 ```
 
-Then, then call `revalidateTag` with a tag to revalidate:
+Then, then call `revalidateTag` with a tag to purge the cache entry:
 
 ```jsx
 // Revalidate entries with a specific tag
@@ -371,7 +371,7 @@ If you're calling it from a route handler, then it makes sense if it's for next 
 
 ### `revalidatePath`
 
-`revalidatePath` allows you manually revalidate data **and** re-render the route segments below a specific path in a single operation. Calling `revalidatePath` methods revalidate the Data Cache, which in turn invalidates the Full Route Cache. It does not immediately invalidate the Router Cache due to the [automatic invalidation period](#duration-and-invalidation).
+`revalidatePath` allows you manually revalidate data **and** re-render the route segments below a specific path in a single operation. Calling `revalidatePath` methods revalidate the Data Cache, which in turn invalidates the Full Route Cache.
 
 ```jsx
 revalidatePath('/')
@@ -379,14 +379,14 @@ revalidatePath('/')
 
 There are two places you can use `revalidatePath`, depending on what you're trying to achieve:
 
-1. [Route Handlers](/docs/app/building-your-application/routing/router-handlers) - to revalidate data in response of a third party event (e.g. webhook).
-2. [Server Actions](/docs/app/building-your-application/data-fetching/server-actions) - to revalidate data after a user action (e.g. form submission).
+1. [Route Handlers](/docs/app/building-your-application/routing/router-handlers) - to revalidate data in response to a third party event (e.g. webhook).
+2. [Server Actions](/docs/app/building-your-application/data-fetching/server-actions) - to revalidate data after a user interaction (e.g. form submission, clicking a button).
 
 > ** `revalidatePath` vs. `router.refresh`**:
 >
 > Calling `router.refresh` will clear the Router cache, and re-render route segments on the server without invalidating the Data Cache or the Full Route Cache.
 >
-> The difference is that `revalidatePath` **revalidates** cached data in Static Routes, whereas `router.refresh` **reuses** cached data.
+> The difference is that `revalidatePath` purges the Data Cache and Full Route Cache, whereas `router.refresh()` does not change the Data Cache and Full Route Cache, as it is a client-side API.
 
 See the [`revalidatePath` API reference]() for more information.
 
@@ -400,11 +400,11 @@ See the [`revalidatePath` API reference]() for more information.
 
 ### Dynamic Functions
 
-`cookies`, `headers`, `useSearchParams`, and `searchParams` are all dynamic functions that depend on runtime information. Using them will opt a route out of the Full Route Cache, in other words, the routes will be dynamically rendered.
+`cookies`, `headers`, `useSearchParams`, and `searchParams` are all dynamic functions that depend on runtime incoming request information. Using them will opt a route out of the Full Route Cache, in other words, the route will be dynamically rendered.
 
 #### `cookies`
 
-Using `cookies.set` or `cookies.delete` in a Server Action invalidates the Router Cache to prevent routes that use cookies from becoming stale (e.g. authentication).
+Using `cookies.set` or `cookies.delete` in a Server Action invalidates the Router Cache to prevent routes that use cookies from becoming stale (e.g. to reflect authentication changes).
 
 See the [`cookies`](/docs/app/api-reference/functions/cookies) API reference.
 
@@ -412,7 +412,7 @@ See the [`cookies`](/docs/app/api-reference/functions/cookies) API reference.
 
 The Route Segment Config options can be used configure the caching behavior of _all_ fetch requests in a route segment. Although you can configure individual fetch requests, for multiple fetch requests, it's generally recommended to configure the cache and time-based revalidation at the route segment level - this prevents unexpected scenarios where `fetch` requests in the same segment revalidate at different times.
 
-The following Route Segment Config options will opt out of the Data and Full Route Cache:
+The following Route Segment Config options will opt out of the Data Cache and Full Route Cache:
 
 - `const dynamic = force-dynamic`
 - `const revalidate = 0`
