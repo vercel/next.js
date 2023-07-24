@@ -1,4 +1,5 @@
 // TODO: Remove use of `any` type.
+import './webpack'
 import { initialize, hydrate, version, router, emitter } from './'
 import initOnDemandEntries from './dev/on-demand-entries-client'
 import initWebpackHMR from './dev/webpack-hot-middleware-client'

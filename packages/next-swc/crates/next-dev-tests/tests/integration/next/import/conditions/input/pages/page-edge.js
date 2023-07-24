@@ -6,8 +6,12 @@ export const config = {
 }
 
 export default function PageEdge() {
-  return JSON.stringify({
-    edgeThenNode,
-    nodeThenEdge,
-  })
+  return (
+    <div id="server">
+      {JSON.stringify({
+        edgeThenNode,
+        nodeThenEdge,
+      })}
+    </div>
+  )
 }

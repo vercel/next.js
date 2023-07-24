@@ -52,6 +52,18 @@ jobs:
       afterBuild: pnpm lint-no-typescript && pnpm check-examples
     secrets: inherit
 
+  validate-docs-links:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18
+      - name: 'Run link checker'
+        run: node ./.github/actions/validate-docs-links/lib
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   check-types-precompiled:
     name: types and precompiled
     needs: ['build-native', 'build-next']
@@ -220,6 +232,7 @@ jobs:
         'build-native',
         'build-next',
         'lint',
+        'validate-docs-links',
         'check-types-precompiled',
         'test-dev',
         'test-prod',
