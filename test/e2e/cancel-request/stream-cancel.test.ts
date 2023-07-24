@@ -60,7 +60,7 @@ createNextDescribe(
         const res = await next.fetch(url)
         const i = +(await res.text())
         expect(i).toBeWithin(1, 5)
-      }, 5000)
+      })
 
       it('cancels stalled stream', async () => {
         // If the stream is stalled, we'll never hit the `res.destroyed` break
@@ -70,7 +70,7 @@ createNextDescribe(
         const res = await next.fetch(url)
         const i = +(await res.text())
         expect(i).toBe(1)
-      }, 5000)
+      })
 
       it('cancels stream that never sent data', async () => {
         // If the client has never sent any data (including headers), then we
@@ -80,7 +80,7 @@ createNextDescribe(
         const res = await next.fetch(url)
         const i = +(await res.text())
         expect(i).toBe(0)
-      }, 5000)
+      })
     })
   }
 )
