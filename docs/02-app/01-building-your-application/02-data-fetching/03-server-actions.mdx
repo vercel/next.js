@@ -138,6 +138,8 @@ You can invoke Server Actions using the following methods:
 You can use React's `action` prop to invoke a Server Action on a `form` element. Server Actions passed with the action prop act as asynchronous side effects in response to user interaction.
 
 ```jsx filename="app/add-to-cart.js"
+import { cookies } from 'next/headers'
+
 export default function AddToCart({ productId }) {
   async function addItem(data) {
     'use server'
@@ -296,7 +298,7 @@ When a Server Action is invoked, the UI is updated immediately to reflect the ex
 ```jsx filename="app/thread.js"
 'use client'
 
-import { experimental_useOptimistic as useOptimistic } from 'react'
+import { experimental_useOptimistic as useOptimistic, useRef } from 'react'
 import { send } from './actions.js'
 
 export function Thread({ messages }) {
