@@ -65,9 +65,6 @@ export async function pipeReadable(
 
   try {
     while (true) {
-      // If the read throws, then the reader is done. If not, then we'll set
-      // readerDone to the actual done value after the read.
-      readerDone = true
       const { done, value } = await reader.read()
       readerDone = done
 
