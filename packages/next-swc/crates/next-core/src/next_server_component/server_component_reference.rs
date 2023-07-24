@@ -3,8 +3,8 @@ use turbo_tasks::{ValueToString, Vc};
 use turbopack_binding::turbopack::core::{
     chunk::{ChunkableModuleReference, ChunkingType, ChunkingTypeOption},
     module::Module,
-    reference::AssetReference,
-    resolve::ResolveResult,
+    reference::ModuleReference,
+    resolve::ModuleResolveResult,
 };
 
 #[turbo_tasks::value]
@@ -32,10 +32,10 @@ impl ValueToString for NextServerComponentModuleReference {
 }
 
 #[turbo_tasks::value_impl]
-impl AssetReference for NextServerComponentModuleReference {
+impl ModuleReference for NextServerComponentModuleReference {
     #[turbo_tasks::function]
-    fn resolve_reference(&self) -> Vc<ResolveResult> {
-        ResolveResult::asset(Vc::upcast(self.asset)).cell()
+    fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
+        ModuleResolveResult::module(self.asset).cell()
     }
 }
 
