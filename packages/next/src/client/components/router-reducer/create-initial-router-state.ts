@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react'
-import type { CacheNode } from '../../../shared/lib/app-router-context'
+import type { CacheNode } from '../../../shared/lib/app-router-context.external'
 import type { FlightRouterState } from '../../../server/app-render/types'
 
-import { CacheStates } from '../../../shared/lib/app-router-context'
+import { CacheStates } from '../../../shared/lib/app-router-context.external'
 import { createHrefFromUrl } from './create-href-from-url'
 import { fillLazyItemsTillLeafWithHead } from './fill-lazy-items-till-leaf-with-head'
 import { extractPathFromFlightRouterState } from './compute-changed-path'

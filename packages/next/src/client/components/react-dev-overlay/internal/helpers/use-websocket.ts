@@ -1,5 +1,5 @@
 import { useCallback, useContext, useEffect, useRef } from 'react'
-import { GlobalLayoutRouterContext } from '../../../../../shared/lib/app-router-context'
+import { GlobalLayoutRouterContext } from '../../../../../shared/lib/app-router-context.external'
 import { getSocketProtocol } from './get-socket-protocol'
 
 export function useWebsocket(

@@ -1,6 +1,9 @@
 import React from 'react'
 import { fillCacheWithNewSubTreeData } from './fill-cache-with-new-subtree-data'
-import { CacheStates, CacheNode } from '../../../shared/lib/app-router-context'
+import {
+  CacheStates,
+  CacheNode,
+} from '../../../shared/lib/app-router-context.external'
 import type { FlightData } from '../../../server/app-render/types'
 
 const getFlightData = (): FlightData => {

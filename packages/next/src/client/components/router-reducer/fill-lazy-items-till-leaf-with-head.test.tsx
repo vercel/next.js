@@ -1,6 +1,9 @@
 import React from 'react'
 import { fillLazyItemsTillLeafWithHead } from './fill-lazy-items-till-leaf-with-head'
-import { CacheStates, CacheNode } from '../../../shared/lib/app-router-context'
+import {
+  CacheStates,
+  CacheNode,
+} from '../../../shared/lib/app-router-context.external'
 import type { FlightData } from '../../../server/app-render/types'
 
 const getFlightData = (): FlightData => {

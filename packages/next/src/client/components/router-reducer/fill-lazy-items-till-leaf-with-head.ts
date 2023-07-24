@@ -1,4 +1,7 @@
-import { CacheNode, CacheStates } from '../../../shared/lib/app-router-context'
+import {
+  CacheNode,
+  CacheStates,
+} from '../../../shared/lib/app-router-context.external'
 import type { FlightRouterState } from '../../../server/app-render/types'
 import { createRouterCacheKey } from './create-router-cache-key'
 

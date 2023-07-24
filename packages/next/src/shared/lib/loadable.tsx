@@ -23,7 +23,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
 // Modified to be compatible with webpack 4 / Next.js
 
 import React from 'react'
-import { LoadableContext } from './loadable-context'
+import { LoadableContext } from './loadable-context.external'
 
 function resolve(obj: any) {
   return obj && obj.default ? obj.default : obj

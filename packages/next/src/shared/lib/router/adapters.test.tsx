@@ -1,4 +1,4 @@
-import { adaptForAppRouterInstance } from './adapters'
+import { adaptForAppRouterInstance } from './adapters.external'
 import { NextRouter } from './router'
 
 describe('adaptForAppRouterInstance', () => {

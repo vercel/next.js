@@ -1,7 +1,10 @@
 import React from 'react'
 import { fetchServerResponse } from './fetch-server-response'
 import { fillCacheWithDataProperty } from './fill-cache-with-data-property'
-import { CacheStates, CacheNode } from '../../../shared/lib/app-router-context'
+import {
+  CacheStates,
+  CacheNode,
+} from '../../../shared/lib/app-router-context.external'
 describe('fillCacheWithDataProperty', () => {
   it('should add data property', () => {
     const fetchServerResponseMock: jest.Mock<

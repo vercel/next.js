@@ -1,6 +1,6 @@
 'use client'
 
-import type { ChildSegmentMap } from '../../shared/lib/app-router-context'
+import type { ChildSegmentMap } from '../../shared/lib/app-router-context.external'
 import type {
   FlightRouterState,
   FlightSegmentPath,
@@ -17,7 +17,7 @@ import {
   LayoutRouterContext,
   GlobalLayoutRouterContext,
   TemplateContext,
-} from '../../shared/lib/app-router-context'
+} from '../../shared/lib/app-router-context.external'
 import { fetchServerResponse } from './router-reducer/fetch-server-response'
 import { createInfinitePromise } from './infinite-promise'
 import { ErrorBoundary } from './error-boundary'

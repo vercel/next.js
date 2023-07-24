@@ -17,7 +17,7 @@ import {
   AppRouterContext,
   AppRouterInstance,
   PrefetchOptions as AppRouterPrefetchOptions,
-} from '../shared/lib/app-router-context'
+} from '../shared/lib/app-router-context.external'
 import { useIntersection } from './use-intersection'
 import { getDomainLocale } from './get-domain-locale'
 import { addBasePath } from './add-base-path'

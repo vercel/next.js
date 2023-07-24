@@ -1,5 +1,8 @@
 import { FlightSegmentPath } from '../../../server/app-render/types'
-import { CacheNode, CacheStates } from '../../../shared/lib/app-router-context'
+import {
+  CacheNode,
+  CacheStates,
+} from '../../../shared/lib/app-router-context.external'
 import { createRouterCacheKey } from './create-router-cache-key'
 import { fetchServerResponse } from './fetch-server-response'
 

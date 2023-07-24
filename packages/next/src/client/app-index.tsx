@@ -7,8 +7,8 @@ import React, { use } from 'react'
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { createFromReadableStream } from 'react-server-dom-webpack/client'
 
-import { HeadManagerContext } from '../shared/lib/head-manager-context'
-import { GlobalLayoutRouterContext } from '../shared/lib/app-router-context'
+import { HeadManagerContext } from '../shared/lib/head-manager-context.external'
+import { GlobalLayoutRouterContext } from '../shared/lib/app-router-context.external'
 import onRecoverableError from './on-recoverable-error'
 import { callServer } from './app-call-server'
 import { isNextRouterError } from './components/is-next-router-error'

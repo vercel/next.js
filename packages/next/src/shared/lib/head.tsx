@@ -2,8 +2,8 @@
 
 import React, { useContext } from 'react'
 import Effect from './side-effect'
-import { AmpStateContext } from './amp-context'
-import { HeadManagerContext } from './head-manager-context'
+import { AmpStateContext } from './amp-context.external'
+import { HeadManagerContext } from './head-manager-context.external'
 import { isInAmpMode } from './amp-mode'
 import { warnOnce } from './utils/warn-once'
 

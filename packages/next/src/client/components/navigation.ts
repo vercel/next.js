@@ -6,11 +6,11 @@ import {
   AppRouterContext,
   GlobalLayoutRouterContext,
   LayoutRouterContext,
-} from '../../shared/lib/app-router-context'
+} from '../../shared/lib/app-router-context.external'
 import {
   SearchParamsContext,
   PathnameContext,
-} from '../../shared/lib/hooks-client-context'
+} from '../../shared/lib/hooks-client-context.external'
 import { clientHookInServerComponentError } from './client-hook-in-server-component-error'
 import { getSegmentValue } from './router-reducer/reducers/get-segment-value'
 
@@ -116,7 +116,7 @@ export {
 /**
  * Get the router methods. For example router.push('/dashboard')
  */
-export function useRouter(): import('../../shared/lib/app-router-context').AppRouterInstance {
+export function useRouter(): import('../../shared/lib/app-router-context.external').AppRouterInstance {
   clientHookInServerComponentError('useRouter')
   const router = useContext(AppRouterContext)
   if (router === null) {

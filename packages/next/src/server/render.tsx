@@ -52,11 +52,11 @@ import {
 } from '../shared/lib/constants'
 import { isSerializableProps } from '../lib/is-serializable-props'
 import { isInAmpMode } from '../shared/lib/amp-mode'
-import { AmpStateContext } from '../shared/lib/amp-context'
+import { AmpStateContext } from '../shared/lib/amp-context.external'
 import { defaultHead } from '../shared/lib/head'
-import { HeadManagerContext } from '../shared/lib/head-manager-context'
+import { HeadManagerContext } from '../shared/lib/head-manager-context.external'
 import Loadable from '../shared/lib/loadable'
-import { LoadableContext } from '../shared/lib/loadable-context'
+import { LoadableContext } from '../shared/lib/loadable-context.external'
 import { RouterContext } from '../shared/lib/router-context.external'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import {
@@ -79,16 +79,16 @@ import {
   renderToInitialStream,
   continueFromInitialStream,
 } from './stream-utils/node-web-streams-helper'
-import { ImageConfigContext } from '../shared/lib/image-config-context'
+import { ImageConfigContext } from '../shared/lib/image-config-context.external'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { stripInternalQueries } from './internal-utils'
 import {
   adaptForAppRouterInstance,
   adaptForSearchParams,
   PathnameContextProviderAdapter,
-} from '../shared/lib/router/adapters'
-import { AppRouterContext } from '../shared/lib/app-router-context'
-import { SearchParamsContext } from '../shared/lib/hooks-client-context'
+} from '../shared/lib/router/adapters.external'
+import { AppRouterContext } from '../shared/lib/app-router-context.external'
+import { SearchParamsContext } from '../shared/lib/hooks-client-context.external'
 import { getTracer } from './lib/trace/tracer'
 import { RenderSpan } from './lib/trace/constants'
 import { PageNotFoundError } from '../shared/lib/utils'

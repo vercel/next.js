@@ -11,7 +11,7 @@ import {
 } from '../router-reducer-types'
 import { handleExternalUrl } from './navigate-reducer'
 import { handleMutable } from '../handle-mutable'
-import { CacheStates } from '../../../../shared/lib/app-router-context'
+import { CacheStates } from '../../../../shared/lib/app-router-context.external'
 import { fillLazyItemsTillLeafWithHead } from '../fill-lazy-items-till-leaf-with-head'
 
 export function refreshReducer(

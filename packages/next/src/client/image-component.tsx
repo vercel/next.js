@@ -25,7 +25,7 @@ import type {
   ImageLoaderProps,
 } from '../shared/lib/image-config'
 import { imageConfigDefault } from '../shared/lib/image-config'
-import { ImageConfigContext } from '../shared/lib/image-config-context'
+import { ImageConfigContext } from '../shared/lib/image-config-context.external'
 import { warnOnce } from '../shared/lib/utils/warn-once'
 import { RouterContext } from '../shared/lib/router-context.external'
 

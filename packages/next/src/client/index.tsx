@@ -10,7 +10,7 @@ import type {
 
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import { HeadManagerContext } from '../shared/lib/head-manager-context'
+import { HeadManagerContext } from '../shared/lib/head-manager-context.external'
 import mitt, { MittEmitter } from '../shared/lib/mitt'
 import { RouterContext } from '../shared/lib/router-context.external'
 import { handleSmoothScroll } from '../shared/lib/router/utils/handle-smooth-scroll'
@@ -34,17 +34,17 @@ import measureWebVitals from './performance-relayer'
 import { RouteAnnouncer } from './route-announcer'
 import { createRouter, makePublicRouterInstance } from './router'
 import { getProperError } from '../lib/is-error'
-import { ImageConfigContext } from '../shared/lib/image-config-context'
+import { ImageConfigContext } from '../shared/lib/image-config-context.external'
 import { ImageConfigComplete } from '../shared/lib/image-config'
 import { removeBasePath } from './remove-base-path'
 import { hasBasePath } from './has-base-path'
-import { AppRouterContext } from '../shared/lib/app-router-context'
+import { AppRouterContext } from '../shared/lib/app-router-context.external'
 import {
   adaptForAppRouterInstance,
   adaptForSearchParams,
   PathnameContextProviderAdapter,
-} from '../shared/lib/router/adapters'
-import { SearchParamsContext } from '../shared/lib/hooks-client-context'
+} from '../shared/lib/router/adapters.external'
+import { SearchParamsContext } from '../shared/lib/hooks-client-context.external'
 import onRecoverableError from './on-recoverable-error'
 
 /// <reference types="react-dom/experimental" />
