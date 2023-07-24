@@ -63,7 +63,6 @@ const comments = await getComments() // cache HIT
 
 For cases where `fetch` is not suitable (e.g. database clients, CMS clients, or GraphQL), you can use React's `cache` function to manually memoize functions.
 
-
 ### Duration
 
 The cache lasts the lifetime of a server request or static rendering until rendering the React tree completes.
@@ -133,19 +132,22 @@ To understand how the Full Route Cache works, it's helpful to look at how React 
 
 ### 1. React Rendering on the Server
 
-On the server, Next.js uses React's APIs to orchestrate rendering. This process is split into three stages:
+On the server, Next.js uses React's APIs to orchestrate rendering. The rendering work split into chunks, by individual routes segments and Suspense boundaries.
+
+Each chunk is rendered in two steps:
 
 1. React renders Server Components into a special data format, optimized for streaming, called the **React Server Component Payload**.
 2. Next.js uses the React Server Component Payload and JavaScript instructions to pre-render **HTML** on the server.
+
+This means we don't have to wait for everything to render before caching the work or sending a response. Instead, we can stream a response as work is completed.
 
 > **What is the React Server Component Payload?**
 >
 > The React Server Component Payload is a compact string representation of the React Component tree. It's used by React on the client to update the DOM. The React Server Component Payload contains:
 >
 > - The rendered result of Server Components
-> - Placeholders for where Client Components should be rendered
+> - Placeholders for where Client Components should be rendered and references to their JavaScript files
 > - Any props passed from a Server Component to a Client Component, these are serialized
-> - References to the JavaScript instructions needed to render the Client Components
 > - Metadata tags, such as references to stylesheets
 >
 > To learn more, see the [React Rendering](/docs/app/building-your-application/rendering/react-components) documentation.
