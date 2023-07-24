@@ -78,7 +78,6 @@ import { appendMutableCookies } from '../web/spec-extension/adapters/request-coo
 import { ComponentsType } from '../../build/webpack/loaders/next-app-loader'
 import { ModuleReference } from '../../build/webpack/loaders/metadata/types'
 import { createServerInsertedHTML } from './server-inserted-html'
-import { removeTrailingSlash } from '../../shared/lib/router/utils/remove-trailing-slash'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
