@@ -53,7 +53,7 @@ use crate::{
     next_pages::page_entries::{compute_page_entries_chunks, get_page_entries},
 };
 
-// TODO this should be Error, but we need to fix the errors happing first
+// TODO this should be Error, but we need to fix the errors happening first
 static MIN_FAILING_SEVERITY: IssueSeverity = IssueSeverity::Fatal;
 
 #[turbo_tasks::function]
