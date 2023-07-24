@@ -224,6 +224,7 @@ There are two ways you can invalidate the Router Cache:
 
 - Revalidating data on-demand by path with ([`revalidatePath`](/docs/app/api-reference/functions/revalidatePath)) or by cache tag with ([`revalidateTag`](/docs/app/api-reference/functions/revalidateTag)) in Server Actions, which in turn will invalidate the Router Cache.
 - Using `cookies.set` or `cookies.delete` in a Server Actions invalidates the Router Cache to prevent routes that use cookies from becoming stale (e.g. authentication).
+- Calling `router.refresh` will invalidate the Router Cache and make a new request to the server for the current route.
 
 ### Opting out
 
