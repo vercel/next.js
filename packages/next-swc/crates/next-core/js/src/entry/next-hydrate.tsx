@@ -10,6 +10,8 @@ import { formatWithValidation } from 'next/dist/shared/lib/router/utils/format-u
 import { initializeHMR } from '../dev/client'
 import { subscribeToUpdate } from '@vercel/turbopack-ecmascript-runtime/dev/client/hmr-client'
 
+;(self as any).__next_set_public_path__ = () => {}
+
 async function loadPageChunk(assetPrefix: string, chunkData: ChunkData) {
   if (typeof chunkData === 'string') {
     const fullPath = assetPrefix + chunkData
