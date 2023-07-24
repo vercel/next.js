@@ -85,7 +85,7 @@ export const createRouterWorker = async (
       },
     },
     exposedMethods: ['initialize'],
-  }) as any as InstanceType<typeof Worker> & {
+  }) as InstanceType<typeof Worker> & {
     initialize: typeof import('./render-server').initialize
   }
 }
@@ -201,17 +201,13 @@ export async function startServer({
       const addr = server.address()
       port = typeof addr === 'object' ? addr?.port || port : port
 
-      let host = !hostname || hostname === '0.0.0.0' ? 'localhost' : hostname
+      targetHost = hostname || 'localhost'
 
-      let normalizedHostname = hostname || '0.0.0.0'
-
-      if (isIPv6(hostname)) {
-        host = host === '::' ? '[::1]' : `[${host}]`
-        normalizedHostname = `[${hostname}]`
+      if (isIPv6(targetHost)) {
+        targetHost = `[${targetHost}]`
       }
-      targetHost = host
 
-      const appUrl = `http://${host}:${port}`
+      const appUrl = `http://${targetHost}:${port}`
 
       if (isNodeDebugging) {
         const debugPort = getDebugPort()
@@ -224,7 +220,7 @@ export async function startServer({
 
       if (logReady) {
         Log.ready(
-          `started server on ${normalizedHostname}${
+          `started server on ${targetHost}${
             (port + '').startsWith(':') ? '' : ':'
           }${port}, url: ${appUrl}`
         )
@@ -233,7 +229,7 @@ export async function startServer({
       }
       resolve()
     })
-    server.listen(port, hostname === 'localhost' ? '0.0.0.0' : hostname)
+    server.listen(port, hostname)
   })
 
   try {
@@ -324,9 +320,7 @@ export async function startServer({
       }
 
       const getProxyServer = (pathname: string) => {
-        const targetUrl = `http://${
-          targetHost === 'localhost' ? '127.0.0.1' : targetHost
-        }:${routerPort}${pathname}`
+        const targetUrl = `http://${targetHost}:${routerPort}${pathname}`
         const proxyServer = httpProxy.createProxy({
           target: targetUrl,
           changeOrigin: false,
@@ -384,9 +378,7 @@ export async function startServer({
           compress(req, res, () => {})
         }
 
-        const targetUrl = `http://${
-          targetHost === 'localhost' ? '127.0.0.1' : targetHost
-        }:${routerPort}${req.url || '/'}`
+        const targetUrl = `http://${targetHost}:${routerPort}${req.url || '/'}`
 
         const invokeRes = await invokeRequest(
           targetUrl,

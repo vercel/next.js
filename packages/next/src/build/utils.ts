@@ -1970,17 +1970,11 @@ startServer({
   dir,
   isDev: false,
   config: nextConfig,
-  hostname: hostname === 'localhost' ? '0.0.0.0' : hostname,
+  hostname,
   port: currentPort,
   allowRetry: false,
   keepAliveTimeout,
   useWorkers: !!nextConfig.experimental?.appDir,
-}).then(() => {
-  console.log(
-    'Listening on port',
-    currentPort,
-    'url: http://' + hostname + ':' + currentPort
-  )
 }).catch((err) => {
   console.error(err);
   process.exit(1);

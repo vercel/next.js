@@ -1,3 +1,5 @@
+import net from 'net'
+
 import type { RequestHandler } from '../next'
 
 // this must come first as it includes require hooks
@@ -105,7 +107,7 @@ export async function initialize(opts: {
     ...opts,
     _routerWorker: opts.workerType === 'router',
     _renderWorker: opts.workerType === 'render',
-    hostname: hostname === '0.0.0.0' ? 'localhost' : hostname,
+    hostname,
     customServer: false,
     httpServer: server,
     port: opts.port,
@@ -118,7 +120,7 @@ export async function initialize(opts: {
 
   result = {
     port,
-    hostname: hostname === '0.0.0.0' ? '127.0.0.1' : hostname,
+    hostname: net.isIPv6(hostname) ? `[${hostname}]` : hostname,
   }
   return result
 }

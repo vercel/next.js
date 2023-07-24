@@ -302,7 +302,12 @@ function createServer(options: NextServerOptions): NextServer {
               await proxyRequest(
                 req,
                 socket as any,
-                url.parse(`http://127.0.0.1:${serverPort}${req.url}`, true),
+                url.parse(
+                  `http://${req.headers.host || 'localhost'}:${serverPort}${
+                    req.url
+                  }`,
+                  true
+                ),
                 head
               )
             }
@@ -343,7 +348,9 @@ function createServer(options: NextServerOptions): NextServer {
                   if (shouldUseStandaloneMode) {
                     setupWebSocketHandler(options.httpServer, req)
                     const parsedUrl = url.parse(
-                      `http://127.0.0.1:${serverPort}${req.url}`,
+                      `http://${req.headers.host || 'localhost'}:${serverPort}${
+                        req.url
+                      }`,
                       true
                     )
                     if ((req?.socket as TLSSocket)?.encrypted) {
@@ -394,7 +401,12 @@ function createServer(options: NextServerOptions): NextServer {
                   await proxyRequest(
                     req,
                     res,
-                    url.parse(`http://127.0.0.1:${serverPort}${req.url}`, true),
+                    url.parse(
+                      `http://${req.headers.host || 'localhost'}:${serverPort}${
+                        req.url
+                      }`,
+                      true
+                    ),
                     undefined,
                     req
                   )

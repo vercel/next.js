@@ -483,7 +483,7 @@ export default class DevServer extends Server {
     const ipcKey = process.env.__NEXT_PRIVATE_ROUTER_IPC_KEY
     if (ipcPort) {
       const res = await invokeRequest(
-        `http://${this.hostname}:${ipcPort}?key=${ipcKey}&method=${
+        `http://${this.getHostname()}:${ipcPort}?key=${ipcKey}&method=${
           method as string
         }&args=${encodeURIComponent(JSON.stringify(args))}`,
         {

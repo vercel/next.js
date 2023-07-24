@@ -76,25 +76,30 @@ export async function initializeServerWorker(
         upgradeHandler(req, socket, upgrade)
       })
     }
-    const hostname =
-      !opts.hostname || opts.hostname === 'localhost'
-        ? '0.0.0.0'
-        : opts.hostname
+    let hostname = opts.hostname || 'localhost'
 
     server.on('listening', async () => {
       try {
         const addr = server.address()
+        const host = addr
+          ? typeof addr === 'object'
+            ? addr.address
+            : addr
+          : undefined
         const port = addr && typeof addr === 'object' ? addr.port : 0
 
-        if (!port) {
-          console.error(`Invariant failed to detect render worker port`, addr)
+        if (!port || !host) {
+          console.error(
+            `Invariant failed to detect render worker host/port`,
+            addr
+          )
           process.exit(1)
         }
 
         resolve({
           server,
           port,
-          hostname,
+          hostname: host,
         })
       } catch (err) {
         return reject(err)
