@@ -426,7 +426,7 @@ export type Route =
       endpoint: Endpoint
     }
 
-interface Endpoint {
+export interface Endpoint {
   /** Write files for the endpoint to disk. */
   writeToDisk(): Promise<TurbopackResult<WrittenEndpoint>>
   /**

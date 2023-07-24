@@ -1,5 +1,5 @@
 import type { NextConfigComplete } from '../../config-shared'
-import type { Route } from '../../../build/swc'
+import type { Endpoint, Route } from '../../../build/swc'
 
 import fs from 'fs'
 import url from 'url'
@@ -131,11 +131,25 @@ async function startWatcher(opts: SetupOpts) {
     })
     const iter = project.entrypointsSubscribe()
     const curEntries: Map<string, Route> = new Map()
+    const globalEntries: {
+      app: Endpoint | undefined
+      document: Endpoint | undefined
+      error: Endpoint | undefined
+    } = {
+      app: undefined,
+      document: undefined,
+      error: undefined,
+    }
 
     try {
       async function handleEntries() {
         for await (const entrypoints of iter) {
           console.log('new entries')
+
+          globalEntries.app = entrypoints.pagesAppEndpoint
+          globalEntries.document = entrypoints.pagesDocumentEndpoint
+          globalEntries.error = entrypoints.pagesErrorEndpoint
+
           curEntries.clear()
 
           for (const [pathname, route] of entrypoints.routes) {
@@ -200,16 +214,21 @@ async function startWatcher(opts: SetupOpts) {
             if (!route) {
               // TODO: why is this entry missing in turbopack?
               if (page === '/_error') return
+              if (page === '/_app') return
+              if (page === '/_document') return
 
               throw new Error(`route not found ${page}`)
             }
 
-            async function loadPartialManifest<T>(name: string): Promise<T> {
+            async function loadPartialManifest<T>(
+              name: string,
+              pageOverride: string = page
+            ): Promise<T> {
               const manifestPath = path.posix.join(
                 distDir,
                 `server`,
                 `pages`,
-                page === '/' ? 'index' : page,
+                pageOverride === '/' ? 'index' : pageOverride,
                 name
               )
               return JSON.parse(
@@ -224,6 +243,30 @@ async function startWatcher(opts: SetupOpts) {
               ((ensureOpts.isApp && appRoute) || !ensureOpts.isApp) &&
               'htmlEndpoint' in route
             ) {
+              await globalEntries.app?.writeToDisk()
+              buildManifests.set(
+                '_app',
+                await loadPartialManifest('build-manifest.json', '_app')
+              )
+              pagesManifests.set(
+                '_app',
+                await loadPartialManifest('pages-manifest.json', '_app')
+              )
+              await globalEntries.document?.writeToDisk()
+              pagesManifests.set(
+                '/_document',
+                await loadPartialManifest('pages-manifest.json', '_document')
+              )
+              await globalEntries.error?.writeToDisk()
+              buildManifests.set(
+                '/_error',
+                await loadPartialManifest('build-manifest.json', '_error')
+              )
+              pagesManifests.set(
+                '/_error',
+                await loadPartialManifest('pages-manifest.json', '_error')
+              )
+
               const writtenEndpoint = await route.htmlEndpoint.writeToDisk()
               buildManifests.set(
                 page,
@@ -272,11 +315,25 @@ async function startWatcher(opts: SetupOpts) {
                 ),
                 'utf-8'
               )
+              await writeFile(
+                path.join(distDir, 'react-loadable-manifest.json'),
+                JSON.stringify({}, null, 2),
+                'utf-8'
+              )
               // TODO: turbopack should write the correct
               // version of this
               await writeFile(
                 path.join(distDir, 'server', NEXT_FONT_MANIFEST + '.json'),
-                '{}'
+                JSON.stringify(
+                  {
+                    pages: {},
+                    app: {},
+                    appUsingSizeAdjust: false,
+                    pagesUsingSizeAdjust: false,
+                  },
+                  null,
+                  2
+                )
               )
             } else {
               throw new Error(
