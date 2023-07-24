@@ -486,8 +486,9 @@ export default async function exportPage({
             results.fromBuildExportRevalidate = 0
           }
         } else {
-          const { renderToHTMLOrFlight } =
-            require('../server/app-render/app-render') as typeof import('../server/app-render/app-render')
+          const renderToHTMLOrFlight =
+            require('next/dist/compiled/minimal-next-server/app-page-render.runtime')
+              .renderToHTMLOrFlight as typeof import('../server/app-render/app-render').renderToHTMLOrFlight
 
           try {
             curRenderOpts.params ||= {}

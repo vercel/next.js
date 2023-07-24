@@ -56,4 +56,6 @@ export class AppPageRouteModule extends RouteModule<
   }
 }
 
+export { renderToHTMLOrFlight }
+
 export default AppPageRouteModule
