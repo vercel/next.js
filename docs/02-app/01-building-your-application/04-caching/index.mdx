@@ -19,9 +19,7 @@ Here's a high-level overview of the different caching mechanisms in Next.js and 
 | [Full Route Cache](#full-route-cache) | Rendered HTML and RSC payload  | Server              | Reduce rendering cost and improve performance                 | Persistent (can be revalidated) |
 | [Router Cache](#router-cache)         | Route Segments (RSC Payload)   | Client              | Reduce server requests and improve navigation experience      | User session or time-based.     |
 
-## How caching works
-
-### React Cache
+## React Cache
 
 React's `cache` function allows you to **memoize** the return value of a function, saving the result to memory. In React Server Components, the [`fetch` API](#fetch) uses an implementation similar to `cache` to **memoize** data requests using the same URL and options. This means you can call the same data in multiple components while only executing it once during a render pass of a React component tree.
 
@@ -69,15 +67,15 @@ For cases where `fetch` is not suitable (e.g. database clients, CMS clients, or 
 >
 > You may see the terms **memoization** and **deduplication** being used interchangeably. Memoization is a general term that applies storing the return values of **any function** in-memory, whereas request deduplication applies specifically to **data requests**.
 
-#### Duration
+### Duration
 
 The cache lasts the lifetime of a server request or static rendering until rendering the React tree completes.
 
-#### Revalidating
+### Revalidating
 
 React's `cache` function is used specifically for memoizing the return values of functions. Since the memoization is not shared across requests and only applies during the rendering of the React tree, there is no need for revalidation.
 
-#### Opting out
+### Opting out
 
 To opt out of memoization in `fetch` requests, you can pass an `AbortController` `signal` to the request.
 
@@ -88,7 +86,7 @@ fetch(url, { signal })
 
 Since you manually opt into using the `cache` function, there's no way to opt out.
 
-### Data Cache
+## Data Cache
 
 Next.js has a built-in Data Cache that persists the result of data fetches across incoming requests and deployments.
 
@@ -98,11 +96,11 @@ You can use the [`cache`](#fetchoptionscache) and [`next.revalidate`](#fetchopti
 
 When fetching data on the server, a `fetch` request first checks the Data Cache for a cached response. If a cached response is found, it is returned immediately. If not, the request is made to the data source, and the response is cached.
 
-#### Duration
+### Duration
 
 The Data Cache is persistent across incoming requests and deployments unless you revalidate or opt-out.
 
-#### Revalidating
+### Revalidating
 
 Cached data can be revalidated in two ways, with:
 
@@ -111,7 +109,7 @@ Cached data can be revalidated in two ways, with:
 
 See the [Revalidating Data](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#revalidating-data) section for more.
 
-#### Opting out
+### Opting out
 
 For individual data fetches, you can opt out of caching by setting the [`cache`](#fetchoptionscache) option to `no-store`. This means data will be fetched whenever `fetch` is called.
 
@@ -126,7 +124,7 @@ Alternatively, you can also use the [Route Segment Config options](#segment-conf
 >
 > If your Next.js application is deployed to Vercel, we recommend reading the [Vercel Data Cache](https://vercel.com/docs/infrastructure/data-cache) documentation for a better understanding of Vercel specific features.
 
-### Full Route Cache
+## Full Route Cache
 
 Next.js automatically caches the rendered result of React Components on the server at build time. This is an optimization that allows you to skip rendering components on the server on every request, and instead directly send the cached result to the client, resulting in faster page loads.
 
@@ -136,7 +134,7 @@ Next.js automatically caches the rendered result of React Components on the serv
 
 To understand how the Full Route Cache works, it's helpful to look at how React handles rendering, and how Next.js caches the result:
 
-#### 1. React Rendering on the Server
+### 1. React Rendering on the Server
 
 On the server, Next.js uses React's APIs to orchestrate rendering. This process is split into three stages:
 
@@ -156,15 +154,15 @@ On the server, Next.js uses React's APIs to orchestrate rendering. This process 
 >
 > To learn more, see the [React Rendering](/docs/app/building-your-application/rendering/react-components) documentation.
 
-#### 2. Next.js Caching on the Server (Full Route Cache)
+### 2. Next.js Caching on the Server (Full Route Cache)
 
 On the server, at build time, Next.js caches the React Server Component Payload, Client Component JavaScript, and rendered HTML.
 
-#### 3. Next.js Caching on the Client (Router Cache)
+### 3. Next.js Caching on the Client (Router Cache)
 
 At request time, the React Server Component Payload is stored in the client-side [Router Cache](#router-cache) - a separate in-memory cache, split by individual routes. This Router Cache is used to improve the navigation experience by prefetching.
 
-#### 4. React Hydration and Reconciliation on the Client
+### 4. React Hydration and Reconciliation on the Client
 
 Then, on the client:
 
@@ -172,24 +170,24 @@ Then, on the client:
 2. The React Server Components Payload is used to reconcile the Client and rendered Server Component trees, and update the DOM.
 3. The JavaScript instructions are used to [hydrate](https://react.dev/reference/react-dom/client/hydrateRoot) Client Components.
 
-#### 5. Subsequent Navigations
+### 5. Subsequent Navigations
 
 On subsequent navigations or during prefetching, Next.js will check if the React Server Components Payload is stored in Router Cache. If so, it will skip sending a new request to the server.
 
 If the route segments are not in the cache, Next.js will fetch the React Server Components Payload from the server, and populate the Router Cache on the client.
 
-#### Duration
+### Duration
 
 By default, the Full Route Cache is persistent. This means that the render output is cached across user requests.
 
-#### Invalidation
+### Invalidation
 
 There are two ways you can **invalidate** the Full Route Cache:
 
 - **Revalidating Data** This will invalidate the [Data Cache](#data-cache), which in turn will re-render components on the server, and cache the new render output.
 - **Redeploying**: Unlike the Data Cache, which persists across deployments, the Full Route Cache is cleared on new deployments.
 
-#### Opting out
+### Opting out
 
 You can opt out of the Full Route Cache, or in other words, dynamically render components for every incoming request, by:
 
@@ -201,7 +199,7 @@ You can opt out of the Full Route Cache, or in other words, dynamically render c
 >
 > You may see the terms **Static Rendering** and **Dynamic Rendering** being used. Static Rendering refers to caching the render output on the server, at build time, whereas Dynamic Rendering refers to rendering components on every request, at request time.
 
-### Router Cache
+## Router Cache
 
 Next.js has an in-memory client-side cache that stores the React Server Component Payload, split by individual routes. This **Router Cache** is used to improve the navigation experience. Next.js [prefetches](/docs/app/building-your-application/routing/linking-and-navigating#prefetching) and caches routes that the user is likely going to navigate to (when using the `<Link >` component), and caches visited route segments, enabling [partial rendering](/docs/app/building-your-application/routing/linking-and-navigating#partial-rendering). This applies to newly visited routes, as well as backward/forward browser navigation.
 
@@ -212,7 +210,7 @@ For the user, this results in no page reloads between navigations and faster pag
 > You may see the Router Cache being referred to as **Client-side Cache** or **Prefetch Cache**. While **Prefetch Cache** refers to the prefetched route segments, **Client-side Cache** refers to the whole Router cache, which includes both visited and prefetched segments.
 > This cache specifically applies to Next.js and Server Components, and is different to the browser's [bfcache](https://web.dev/bfcache/), though it has a similar result.
 
-#### Duration
+### Duration
 
 The cache is stored in the browser's temporary memory. Two factors determine how long the router cache lasts:
 
@@ -223,14 +221,14 @@ The cache is stored in the browser's temporary memory. Two factors determine how
 
 While a page refresh will clear **all** cached segments, the automatic invalidation period only affects the individual segment from the time it was last accessed or created.
 
-#### Invalidation
+### Invalidation
 
 There are two ways you can invalidate the Router Cache:
 
 - Revalidating data on-demand by path with ([`revalidatePath`](/docs/app/api-reference/functions/revalidatePath)) or by cache tag with ([`revalidateTag`](/docs/app/api-reference/functions/revalidateTag)) in Server Actions, which in turn will invalidate the Router Cache.
 - Using `cookies.set` or `cookies.delete` in a Server Actions invalidates the Router Cache to prevent routes that use cookies from becoming stale (e.g. authentication).
 
-#### Opting out
+### Opting out
 
 It's not possible to opt out of the Router Cache.
 
