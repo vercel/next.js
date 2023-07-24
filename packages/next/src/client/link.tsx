@@ -12,7 +12,7 @@ import { isLocalURL } from '../shared/lib/router/utils/is-local-url'
 import { formatUrl } from '../shared/lib/router/utils/format-url'
 import { isAbsoluteUrl } from '../shared/lib/utils'
 import { addLocale } from './add-locale'
-import { RouterContext } from '../shared/lib/router-context'
+import { RouterContext } from '../shared/lib/router-context.external'
 import {
   AppRouterContext,
   AppRouterInstance,

@@ -57,7 +57,7 @@ import { defaultHead } from '../shared/lib/head'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import Loadable from '../shared/lib/loadable'
 import { LoadableContext } from '../shared/lib/loadable-context'
-import { RouterContext } from '../shared/lib/router-context'
+import { RouterContext } from '../shared/lib/router-context.external'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import {
   ComponentsEnhancer,
