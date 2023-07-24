@@ -207,6 +207,9 @@ impl NapiMiddleware {
 struct NapiEntrypoints {
     pub routes: Vec<NapiRoute>,
     pub middleware: Option<NapiMiddleware>,
+    pub pages_document_endpoint: External<ExternalEndpoint>,
+    pub pages_app_endpoint: External<ExternalEndpoint>,
+    pub pages_error_endpoint: External<ExternalEndpoint>,
     pub issues: Vec<NapiIssue>,
     pub diagnostics: Vec<NapiDiagnostic>,
 }
@@ -245,6 +248,18 @@ pub fn project_entrypoints_subscribe(
                     .as_ref()
                     .map(|m| NapiMiddleware::from_middleware(m, &turbo_tasks))
                     .transpose()?,
+                pages_document_endpoint: External::new(ExternalEndpoint(VcArc::new(
+                    turbo_tasks.clone(),
+                    entrypoints.pages_document_endpoint,
+                ))),
+                pages_app_endpoint: External::new(ExternalEndpoint(VcArc::new(
+                    turbo_tasks.clone(),
+                    entrypoints.pages_app_endpoint,
+                ))),
+                pages_error_endpoint: External::new(ExternalEndpoint(VcArc::new(
+                    turbo_tasks.clone(),
+                    entrypoints.pages_error_endpoint,
+                ))),
                 issues: issues
                     .iter()
                     .map(|issue| NapiIssue::from(&**issue))
