@@ -373,6 +373,9 @@ impl Project {
         Ok(Entrypoints {
             routes,
             middleware: None,
+            pages_document_endpoint: self.pages_project().document_endpoint(),
+            pages_app_endpoint: self.pages_project().app_endpoint(),
+            pages_error_endpoint: self.pages_project().error_endpoint(),
         }
         .cell())
     }
