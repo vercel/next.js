@@ -1,9 +1,8 @@
-import net from 'net'
-
 import type { RequestHandler } from '../next'
 
 // this must come first as it includes require hooks
 import { initializeServerWorker } from './setup-server-worker'
+import { isIPv6 } from 'net'
 import next from '../next'
 
 export const WORKER_SELF_EXIT_CODE = 77
@@ -120,7 +119,8 @@ export async function initialize(opts: {
 
   result = {
     port,
-    hostname: net.isIPv6(hostname) ? `[${hostname}]` : hostname,
+    hostname: isIPv6(hostname) ? `[${hostname}]` : hostname,
   }
+
   return result
 }
