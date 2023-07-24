@@ -614,7 +614,7 @@ export async function renderToHTMLOrFlight(
       firstItem?: boolean
       injectedCSS: Set<string>
       injectedFontPreloadTags: Set<string>
-      asNotFound?: boolean | 'force'
+      asNotFound?: boolean
     }): Promise<{
       Component: React.ComponentType
       styles: React.ReactNode
@@ -947,12 +947,13 @@ export async function renderToHTMLOrFlight(
       let notFoundComponent = {}
       if (
         NotFound &&
-        // For action not-found we force render the NotFound and stop checking the parallel routes.
-        (asNotFound === 'force' ||
-          // In production, /_not-found parallel routes is empty {}, only need to check if children routes are empty.
-          // In development, it could hit the parallel-route-default not found, so we only need to check the segment.
-          (asNotFound &&
-            (!parallelRouteMap.length || segment === '__DEFAULT__')))
+        asNotFound &&
+        // In production, /_not-found parallel routes is empty {}, only need to check if children routes are empty.
+        // In development, it could hit the parallel-route-default not found, so we only need to check the segment.
+        // For not-found in actions, we override pagePath to '/404' so it can directly render the NotFound component.
+        (!parallelRouteMap.length ||
+          segment === '__DEFAULT__' ||
+          pagePath === '/404')
       ) {
         notFoundComponent = {
           children: (
@@ -1380,7 +1381,7 @@ export async function renderToHTMLOrFlight(
      * using Flight which can then be rendered to HTML.
      */
     const ServerComponentsRenderer = createServerComponentRenderer<{
-      asNotFound: boolean | 'force'
+      asNotFound: boolean
     }>(
       async (props) => {
         // Create full component tree from root to leaf.
@@ -1468,9 +1469,8 @@ export async function renderToHTMLOrFlight(
          * if it was not found. When it's enabled, instead of rendering the
          * page component, it renders the not-found segment.
          *
-         * If it's 'force', we don't traverse the tree and directly render the NotFound.
          */
-        asNotFound: boolean | 'force'
+        asNotFound: boolean
       }) => {
         const polyfills = buildManifest.polyfillFiles
           .filter(
@@ -1801,7 +1801,9 @@ export async function renderToHTMLOrFlight(
     })
 
     if (actionRequestResult === 'not-found') {
-      return new RenderResult(await bodyResult({ asNotFound: 'force' }))
+      // Make sure it loads the 404 page
+      pagePath = '/404'
+      return new RenderResult(await bodyResult({ asNotFound: true }))
     } else if (actionRequestResult) {
       return actionRequestResult
     }
