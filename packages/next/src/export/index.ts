@@ -827,14 +827,18 @@ export default async function exportApp(
               )
             : join(pagesDataDir, `${route}.json`)
 
-          await promises.mkdir(dirname(htmlDest), { recursive: true })
-          await promises.mkdir(dirname(jsonDest), { recursive: true })
+          await Promise.all([
+            promises.mkdir(dirname(htmlDest), { recursive: true }),
+            promises.mkdir(dirname(jsonDest), { recursive: true })
+          ])
 
           const htmlSrc = `${orig}.html`
           const jsonSrc = `${orig}${isAppPath ? '.rsc' : '.json'}`
 
-          await promises.copyFile(htmlSrc, htmlDest)
-          await promises.copyFile(jsonSrc, jsonDest)
+          await Promise.all([
+            promises.copyFile(htmlSrc, htmlDest),
+            promises.copyFile(jsonSrc, jsonDest)
+          ])
 
           if (await exists(`${orig}.amp.html`)) {
             await promises.mkdir(dirname(ampHtmlDest), { recursive: true })

@@ -717,8 +717,10 @@ export async function loadProjectInfo({
   config: NextConfigComplete
   dev: boolean
 }) {
-  const { jsConfig, resolvedBaseUrl } = await loadJsConfig(dir, config)
-  const supportedBrowsers = await getSupportedBrowsers(dir, dev, config)
+  const [{ jsConfig, resolvedBaseUrl }, supportedBrowsers] = await Promise.all([
+    loadJsConfig(dir, config),
+    getSupportedBrowsers(dir, dev, config)
+  ])
   return {
     jsConfig,
     resolvedBaseUrl,
