@@ -202,6 +202,9 @@ Support for `preferredRegion`, and regions supported, is dependent on your deplo
 
 ### `maxDuration`
 
+Based on your deployment platform, you may be able to use a higher default execution time for your function.
+This setting allows you to opt into a higher execution time within your plans limit.
+
 ```tsx filename="layout.tsx / page.tsx / route.ts" switcher
 export const maxDuration = 5
 ```
@@ -212,7 +215,6 @@ export const maxDuration = 5
 
 > **Good to know**:
 >
-> - This setting allows you to opt into longer function execution time.
 > - If a `maxDuration` is not specified, the default value is dependent on your deployment platform and plan.
 
 ### `generateStaticParams`
