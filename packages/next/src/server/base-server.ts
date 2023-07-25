@@ -2522,6 +2522,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       return null
     }
 
+    // TODO: remove after debugging
+    console.log('fell through no match', pathname)
+
     res.statusCode = 404
     return this.renderErrorToResponse(ctx, null)
   }

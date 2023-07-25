@@ -71,6 +71,7 @@ import { BuildManifest } from '../../get-page-files'
 import { mkdir, readFile, writeFile } from 'fs/promises'
 import { PagesManifest } from '../../../build/webpack/plugins/pages-manifest-plugin'
 import { AppBuildManifest } from '../../../build/webpack/plugins/app-build-manifest-plugin'
+import { PageNotFoundError } from '../../../shared/lib/utils'
 
 type SetupOpts = {
   dir: string
@@ -412,10 +413,9 @@ async function startWatcher(opts: SetupOpts) {
               // TODO: why is this entry missing in turbopack?
               if (page === '/_app') return
               if (page === '/_document') return
-
               console.log('missing route', page)
 
-              throw new Error(`route not found ${page}`)
+              throw new PageNotFoundError(`route not found ${page}`)
             }
 
             switch (route.type) {
