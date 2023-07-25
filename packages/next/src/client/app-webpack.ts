@@ -3,9 +3,6 @@
 
 declare const __webpack_require__: any
 
-// Override chunk URL mapping in the webpack runtime
-// https://github.com/webpack/webpack/blob/2738eebc7880835d88c727d364ad37f3ec557593/lib/RuntimeGlobals.js#L204
-
 const addChunkSuffix =
   (getOriginalChunk: (chunkId: any) => string) => (chunkId: any) => {
     return (
@@ -68,3 +65,5 @@ self.__next_require__ =
   // eslint-disable-next-line no-undef
   return __webpack_chunk_load__(chunkId)
 }
+
+export {}
