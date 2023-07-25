@@ -192,6 +192,13 @@ async function startWatcher(opts: SetupOpts) {
         pages: {
           '/_app': [],
         },
+        // Something in next.js depends on these to exist even for app dir rendering
+        devFiles: [],
+        ampDevFiles: [],
+        polyfillFiles: [],
+        lowPriorityFiles: [],
+        rootMainFiles: [],
+        ampFirstPages: [],
       }
       for (const m of manifests) {
         Object.assign(manifest, m, { pages: manifest.pages })
@@ -322,9 +329,7 @@ async function startWatcher(opts: SetupOpts) {
             ensureOpts: Parameters<(typeof hotReloader)['ensurePage']>[0]
           ) => {
             console.log('ensurePage', ensureOpts)
-            const page =
-              ensureOpts.match?.definition?.pathname ?? ensureOpts.page
-            const route = curEntries.get(page)
+            let page = ensureOpts.match?.definition?.pathname ?? ensureOpts.page
 
             async function loadPartialManifest<T>(
               name: string,
@@ -337,7 +342,11 @@ async function startWatcher(opts: SetupOpts) {
                 `server`,
                 isApp ? 'app' : 'pages',
                 pageName === '/' ? 'index' : pageName,
-                isApp ? (isRoute ? 'route' : 'page') : '',
+                isApp && pageName !== '/_not-found' && pageName !== '/not-found'
+                  ? isRoute
+                    ? 'route'
+                    : 'page'
+                  : '',
                 name
               )
               return JSON.parse(
@@ -397,12 +406,12 @@ async function startWatcher(opts: SetupOpts) {
               return
             }
 
+            const route = curEntries.get(page)
+
             if (!route) {
               // TODO: why is this entry missing in turbopack?
               if (page === '/_app') return
               if (page === '/_document') return
-              if (page === '/not-found') return
-              if (page === '/_not-found') return
 
               console.log('missing route', page)
 

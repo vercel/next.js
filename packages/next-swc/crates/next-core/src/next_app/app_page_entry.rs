@@ -132,6 +132,7 @@ fn get_original_page_name(pathname: &str) -> String {
     match pathname {
         "/" => "/page".to_string(),
         "/_not-found" => "/_not-found".to_string(),
+        "/not-found" => "/not-found".to_string(),
         _ => format!("{}/page", pathname),
     }
 }
