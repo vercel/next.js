@@ -2856,22 +2856,24 @@ export default async function build(
                 const extraRoutes = additionalSsgPaths.get(page) || []
                 for (const route of extraRoutes) {
                   const pageFile = normalizePagePath(route)
-                  await moveExportedPage(
-                    page,
-                    route,
-                    pageFile,
-                    isSsg,
-                    'html',
-                    true
-                  )
-                  await moveExportedPage(
-                    page,
-                    route,
-                    pageFile,
-                    isSsg,
-                    'json',
-                    true
-                  )
+                  await Promise.all([
+                    moveExportedPage(
+                      page,
+                      route,
+                      pageFile,
+                      isSsg,
+                      'html',
+                      true
+                    ),
+                    moveExportedPage(
+                      page,
+                      route,
+                      pageFile,
+                      isSsg,
+                      'json',
+                      true
+                    )
+                  ])
 
                   if (hasAmp) {
                     const ampPage = `${pageFile}.amp`
@@ -3009,18 +3011,20 @@ export default async function build(
         NextBuildContext.allowedRevalidateHeaderKeys =
           config.experimental.allowedRevalidateHeaderKeys
 
-        await fs.writeFile(
-          path.join(distDir, PRERENDER_MANIFEST),
-          JSON.stringify(prerenderManifest),
-          'utf8'
-        )
-        await fs.writeFile(
-          path.join(distDir, PRERENDER_MANIFEST).replace(/\.json$/, '.js'),
-          `self.__PRERENDER_MANIFEST=${JSON.stringify(
-            JSON.stringify(prerenderManifest)
-          )}`,
-          'utf8'
-        )
+        await Promise.all([
+          fs.writeFile(
+            path.join(distDir, PRERENDER_MANIFEST),
+            JSON.stringify(prerenderManifest),
+            'utf8'
+          ),
+          fs.writeFile(
+            path.join(distDir, PRERENDER_MANIFEST).replace(/\.json$/, '.js'),
+            `self.__PRERENDER_MANIFEST=${JSON.stringify(
+              JSON.stringify(prerenderManifest)
+            )}`,
+            'utf8'
+          )
+        ])
         await generateClientSsgManifest(prerenderManifest, {
           distDir,
           buildId,
@@ -3034,18 +3038,20 @@ export default async function build(
           preview: previewProps,
           notFoundRoutes: [],
         }
-        await fs.writeFile(
-          path.join(distDir, PRERENDER_MANIFEST),
-          JSON.stringify(prerenderManifest),
-          'utf8'
-        )
-        await fs.writeFile(
-          path.join(distDir, PRERENDER_MANIFEST).replace(/\.json$/, '.js'),
-          `self.__PRERENDER_MANIFEST=${JSON.stringify(
-            JSON.stringify(prerenderManifest)
-          )}`,
-          'utf8'
-        )
+        await Promise.all([
+          fs.writeFile(
+            path.join(distDir, PRERENDER_MANIFEST),
+            JSON.stringify(prerenderManifest),
+            'utf8'
+          ),
+          fs.writeFile(
+            path.join(distDir, PRERENDER_MANIFEST).replace(/\.json$/, '.js'),
+            `self.__PRERENDER_MANIFEST=${JSON.stringify(
+              JSON.stringify(prerenderManifest)
+            )}`,
+            'utf8'
+          )
+        ])
       }
 
       const images = { ...config.images }
@@ -3061,24 +3067,26 @@ export default async function build(
         pathname: makeRe(p.pathname ?? '**').source,
       }))
 
-      await fs.writeFile(
-        path.join(distDir, IMAGES_MANIFEST),
-        JSON.stringify({
-          version: 1,
-          images,
-        }),
-        'utf8'
-      )
-      await fs.writeFile(
-        path.join(distDir, EXPORT_MARKER),
-        JSON.stringify({
-          version: 1,
-          hasExportPathMap: typeof config.exportPathMap === 'function',
-          exportTrailingSlash: config.trailingSlash === true,
-          isNextImageImported: isNextImageImported === true,
-        }),
-        'utf8'
-      )
+      await Promise.all([
+        fs.writeFile(
+          path.join(distDir, IMAGES_MANIFEST),
+          JSON.stringify({
+            version: 1,
+            images,
+          }),
+          'utf8'
+        ),
+        fs.writeFile(
+          path.join(distDir, EXPORT_MARKER),
+          JSON.stringify({
+            version: 1,
+            hasExportPathMap: typeof config.exportPathMap === 'function',
+            exportTrailingSlash: config.trailingSlash === true,
+            isNextImageImported: isNextImageImported === true,
+          }),
+          'utf8'
+        )
+      ])
       await fs.unlink(path.join(distDir, EXPORT_DETAIL)).catch((err) => {
         if (err.code === 'ENOENT') {
           return Promise.resolve()
