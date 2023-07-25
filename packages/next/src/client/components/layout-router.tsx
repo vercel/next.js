@@ -491,7 +491,6 @@ export default function OuterLayoutRouter({
   template,
   notFound,
   notFoundStyles,
-  asNotFound,
   styles,
 }: {
   parallelRouterKey: string
@@ -506,7 +505,6 @@ export default function OuterLayoutRouter({
   hasLoading: boolean
   notFound: React.ReactNode | undefined
   notFoundStyles: React.ReactNode | undefined
-  asNotFound?: boolean
   styles?: React.ReactNode
 }) {
   const context = useContext(LayoutRouterContext)
@@ -574,7 +572,6 @@ export default function OuterLayoutRouter({
                     <NotFoundBoundary
                       notFound={notFound}
                       notFoundStyles={notFoundStyles}
-                      asNotFound={asNotFound}
                     >
                       <RedirectBoundary>
                         <InnerLayoutRouter

@@ -8,7 +8,7 @@ on:
 
 env:
   NAPI_CLI_VERSION: 2.14.7
-  TURBO_VERSION: 1.9.6
+  TURBO_VERSION: 1.10.9
   PNPM_VERSION: 7.24.3
   NODE_MAINTENANCE_VERSION: 16
   NODE_LTS_VERSION: 18.16.1
@@ -51,6 +51,18 @@ jobs:
     with:
       afterBuild: pnpm lint-no-typescript && pnpm check-examples
     secrets: inherit
+
+  validate-docs-links:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18
+      - name: 'Run link checker'
+        run: node ./.github/actions/validate-docs-links/lib
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   check-types-precompiled:
     name: types and precompiled
@@ -220,6 +232,7 @@ jobs:
         'build-native',
         'build-next',
         'lint',
+        'validate-docs-links',
         'check-types-precompiled',
         'test-dev',
         'test-prod',

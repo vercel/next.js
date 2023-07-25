@@ -1,4 +1,4 @@
-export default function notFound() {
+export default function NotFound() {
   return <h2>root not found page</h2>
 }
 

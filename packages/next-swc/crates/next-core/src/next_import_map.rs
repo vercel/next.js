@@ -12,7 +12,7 @@ use turbopack_binding::{
                 pattern::Pattern,
                 resolve, AliasPattern, ResolveAliasMap, SubpathValue,
             },
-            source::{asset_to_source, Source},
+            source::Source,
         },
         node::execution_context::ExecutionContext,
         turbopack::{resolve_options, resolve_options_context::ResolveOptionsContext},
@@ -628,9 +628,8 @@ pub async fn get_next_package(project_path: Vc<FileSystemPath>) -> Result<Vc<Fil
         ))),
         package_lookup_resolve_options(project_path),
     );
-    let assets = result.primary_assets().await?;
+    let assets = result.primary_sources().await?;
     let asset = *assets.first().context("Next.js package not found")?;
-    let asset = asset_to_source(asset);
     Ok(asset.ident().path().parent())
 }
 
