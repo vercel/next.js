@@ -9,3 +9,4 @@ export * as appRouterContext from '../../../../shared/lib/app-router-context.ext
 export * as hooksClientContext from '../../../../shared/lib/hooks-client-context.external'
 export * as imageConfigContext from '../../../../shared/lib/image-config-context.external'
 export * as runtimeConfig from '../../../../shared/lib/runtime-config.external'
+export * as loadable from '../../../../shared/lib/loadable.external'

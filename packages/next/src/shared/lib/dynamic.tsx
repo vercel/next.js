@@ -1,5 +1,5 @@
 import React from 'react'
-import Loadable from './loadable'
+import Loadable from './loadable.external'
 
 const isServerSide = typeof window === 'undefined'
 
