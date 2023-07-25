@@ -1218,7 +1218,6 @@ async function startWatcher(opts: SetupOpts) {
 
     if (parsedUrl.pathname === clientPagesManifestPath) {
       res.statusCode = 200
-      console.log('prevSortedRoutes', prevSortedRoutes)
       res.setHeader('Content-Type', 'application/json; charset=utf-8')
       res.end(
         JSON.stringify({
