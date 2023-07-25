@@ -3,8 +3,7 @@
 import { appBootstrap } from './app-bootstrap'
 
 appBootstrap(() => {
-  const { install } = require('./app-webpack')
-  install()
+  require('./app-webpack')
   const { hydrate } = require('./app-index')
   hydrate()
 })
