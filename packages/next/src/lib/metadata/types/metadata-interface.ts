@@ -423,6 +423,17 @@ interface Metadata extends DeprecatedMetadataFields {
    */
   bookmarks?: null | string | Array<string> // This is technically against HTML spec but is used in wild
 
+  /**
+   * The pagination link rel property.
+   * @example
+   * ```tsx
+   * "https://example.com/articles/2"
+   * <link rel="prev" href="https://example.com/articles/1" />
+   * <link rel="next" href="https://example.com/articles/3" />
+   * ```
+   */
+  pagination?: null | { [K in 'prev' | 'next']: string }
+
   // meta name properties
 
   /**
@@ -522,6 +533,7 @@ interface ResolvedMetadata extends DeprecatedMetadataFields {
   archives: null | Array<string>
   assets: null | Array<string>
   bookmarks: null | Array<string> // This is technically against HTML spec but is used in wild
+  pagination: null | { [K in 'prev' | 'next']: string }
 
   // meta name properties
   category: null | string

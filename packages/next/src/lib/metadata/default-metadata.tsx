@@ -37,6 +37,7 @@ export function createDefaultMetadata(): ResolvedMetadata {
     archives: null,
     assets: null,
     bookmarks: null,
+    pagination: null,
     category: null,
     classification: null,
     other: {},

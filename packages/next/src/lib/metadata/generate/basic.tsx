@@ -54,6 +54,11 @@ export function BasicMetadata({ metadata }: { metadata: ResolvedMetadata }) {
           <link rel="bookmarks" href={bookmark} />
         ))
       : []),
+    ...(metadata.pagination
+      ? Object.entries(metadata.pagination).map(
+          ([rel, href]: [string, string]) => <link rel={rel} href={href} />
+        )
+      : []),
     Meta({ name: 'category', content: metadata.category }),
     Meta({ name: 'classification', content: metadata.classification }),
     ...(metadata.other

@@ -224,6 +224,7 @@ function merge({
       case 'colorScheme':
       case 'formatDetection':
       case 'manifest':
+      case 'pagination':
         // @ts-ignore TODO: support inferring
         target[key] = source[key] || null
         break
