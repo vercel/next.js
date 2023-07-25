@@ -486,10 +486,13 @@ export default class DevServer extends Server {
     type?: 'unhandledRejection' | 'uncaughtException' | 'warning' | 'app-dir'
   ) {
     if (this.isRenderWorker) {
-      await invokeIpcMethod(this.hostname, 'logErrorWithOriginalStack', [
-        errorToJSON(err as Error),
-        type,
-      ])
+      await invokeIpcMethod({
+        hostname: this.hostname,
+        method: 'logErrorWithOriginalStack',
+        args: [errorToJSON(err as Error), type],
+        ipcPort: process.env.__NEXT_PRIVATE_ROUTER_IPC_PORT,
+        ipcKey: process.env.__NEXT_PRIVATE_ROUTER_IPC_KEY,
+      })
       return
     }
     throw new Error(
@@ -739,7 +742,13 @@ export default class DevServer extends Server {
     match?: RouteMatch
   }) {
     if (this.isRenderWorker) {
-      await invokeIpcMethod(this.hostname, 'ensurePage', [opts])
+      await invokeIpcMethod({
+        hostname: this.hostname,
+        method: 'ensurePage',
+        args: [opts],
+        ipcPort: process.env.__NEXT_PRIVATE_ROUTER_IPC_PORT,
+        ipcKey: process.env.__NEXT_PRIVATE_ROUTER_IPC_KEY,
+      })
       return
     }
     throw new Error('Invariant ensurePage called outside render worker')
@@ -798,7 +807,13 @@ export default class DevServer extends Server {
 
   protected async getFallbackErrorComponents(): Promise<LoadComponentsReturnType | null> {
     if (this.isRenderWorker) {
-      await invokeIpcMethod(this.hostname, 'getFallbackErrorComponents', [])
+      await invokeIpcMethod({
+        hostname: this.hostname,
+        method: 'getFallbackErrorComponents',
+        args: [],
+        ipcPort: process.env.__NEXT_PRIVATE_ROUTER_IPC_PORT,
+        ipcKey: process.env.__NEXT_PRIVATE_ROUTER_IPC_KEY,
+      })
       return await loadDefaultErrorComponents(this.distDir)
     }
     throw new Error(
@@ -808,9 +823,13 @@ export default class DevServer extends Server {
 
   async getCompilationError(page: string): Promise<any> {
     if (this.isRenderWorker) {
-      const err = await invokeIpcMethod(this.hostname, 'getCompilationError', [
-        page,
-      ])
+      const err = await invokeIpcMethod({
+        hostname: this.hostname,
+        method: 'getCompilationError',
+        args: [page],
+        ipcPort: process.env.__NEXT_PRIVATE_ROUTER_IPC_PORT,
+        ipcKey: process.env.__NEXT_PRIVATE_ROUTER_IPC_KEY,
+      })
       return deserializeErr(err)
     }
     throw new Error(

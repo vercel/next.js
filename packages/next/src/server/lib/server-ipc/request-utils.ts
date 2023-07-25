@@ -28,13 +28,19 @@ export const deserializeErr = (serializedErr: any) => {
   return err
 }
 
-export async function invokeIpcMethod(
-  hostname: string = '127.0.0.1',
-  method: string,
+export async function invokeIpcMethod({
+  hostname = '127.0.0.1',
+  method,
+  args,
+  ipcPort,
+  ipcKey,
+}: {
+  hostname?: string
+  method: string
   args: any[]
-): Promise<any> {
-  const ipcPort = process.env.__NEXT_PRIVATE_ROUTER_IPC_PORT
-  const ipcKey = process.env.__NEXT_PRIVATE_ROUTER_IPC_KEY
+  ipcPort?: string
+  ipcKey?: string
+}): Promise<any> {
   if (ipcPort) {
     const res = await invokeRequest(
       `http://${hostname}:${ipcPort}?key=${ipcKey}&method=${
