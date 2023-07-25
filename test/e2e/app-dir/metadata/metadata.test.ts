@@ -380,6 +380,37 @@ createNextDescribe(
         })
       })
 
+      it('should support pagination tags', async () => {
+        const browser = await next.browser('/pagination')
+        const matchMultiDom = createMultiDomMatcher(browser)
+        await matchMultiDom('link', 'rel', 'href', {
+          prev: 'https://example.com/pagination/prev',
+          next: 'https://example.com/pagination/next',
+        })
+      })
+
+      it('should support pagination tag with prev only', async () => {
+        const browser = await next.browser('/pagination/prev-only')
+        const matchMultiDom = createMultiDomMatcher(browser)
+        await matchMultiDom('link', 'rel', 'href', {
+          prev: 'https://example.com/pagination/prev',
+        })
+      })
+
+      it('should support pagination tag with next only', async () => {
+        const browser = await next.browser('/pagination/next-only')
+        const matchMultiDom = createMultiDomMatcher(browser)
+        await matchMultiDom('link', 'rel', 'href', {
+          next: 'https://example.com/pagination/next',
+        })
+      })
+
+      it('should not support pagination tag when empty value', async () => {
+        const browser = await next.browser('/pagination/empty-value')
+        const matchMultiDom = createMultiDomMatcher(browser)
+        await matchMultiDom('link', 'rel', 'href', {})
+      })
+
       it('should apply metadata when navigating client-side', async () => {
         const browser = await next.browser('/')
 
