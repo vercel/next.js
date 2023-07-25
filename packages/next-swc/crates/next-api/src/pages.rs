@@ -18,6 +18,7 @@ use next_core::{
         find_pages_structure, PagesDirectoryStructure, PagesStructure, PagesStructureItem,
     },
     util::{parse_config_from_source, NextRuntime},
+    PageLoaderAsset,
 };
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{trace::TraceRawVcs, Completion, TaskInput, TryJoinIterExt, Value, Vc};
@@ -548,15 +549,26 @@ impl PageEndpoint {
 
         let client_entry_chunk = client_module.as_root_chunk(Vc::upcast(client_chunking_context));
 
-        let client_chunks = client_chunking_context.evaluated_chunk_group(
-            client_entry_chunk,
-            this.pages_project
-                .client_runtime_entries()
-                .with_entry(Vc::upcast(client_main_module))
-                .with_entry(Vc::upcast(client_module)),
-        );
+        let mut client_chunks = client_chunking_context
+            .evaluated_chunk_group(
+                client_entry_chunk,
+                this.pages_project
+                    .client_runtime_entries()
+                    .with_entry(Vc::upcast(client_main_module))
+                    .with_entry(Vc::upcast(client_module)),
+            )
+            .await?
+            .clone_value();
 
-        Ok(client_chunks)
+        client_chunks.push(Vc::upcast(PageLoaderAsset::new(
+            this.pages_project.project().client_root(),
+            client_module_context,
+            Vc::upcast(client_chunking_context),
+            self.source(),
+            this.pathname,
+        )));
+
+        Ok(Vc::cell(client_chunks))
     }
 
     #[turbo_tasks::function]

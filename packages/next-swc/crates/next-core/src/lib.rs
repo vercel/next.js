@@ -57,7 +57,7 @@ pub use emit::{all_server_paths, emit_all_assets};
 pub use next_edge::context::{
     get_edge_chunking_context, get_edge_compile_time_info, get_edge_resolve_options_context,
 };
-pub use page_loader::create_page_loader_entry_module;
+pub use page_loader::{create_page_loader_entry_module, PageLoaderAsset};
 pub use page_source::create_page_source;
 pub use turbopack_binding::{turbopack::node::source_map, *};
 pub use util::{get_asset_path_from_pathname, pathname_for_path, PathType};
