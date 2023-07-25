@@ -384,7 +384,7 @@ export default function HomePage({ recentPosts }) {
 
 - Create a new `app/page.tsx` file inside the `app` directory. This is a Server Component by default.
 - Import the `home-page.tsx` Client Component into the page.
-- If you were fetching data in `pages/index.js`, move the data fetching logic directly into the Server Component using the new [data fetching APIs](/docs/app/building-your-application/data-fetching/fetching). See the [data fetching upgrade guide](#step-6-migrating-data-fetching-methods) for more details.
+- If you were fetching data in `pages/index.js`, move the data fetching logic directly into the Server Component using the new [data fetching APIs](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating). See the [data fetching upgrade guide](#step-6-migrating-data-fetching-methods) for more details.
 
   ```tsx filename="app/page.tsx" switcher
   // Import your Client Component
@@ -549,7 +549,7 @@ export default function Dashboard({ projects }) {
 
 In the `app` directory, we can colocate our data fetching inside our React components using [Server Components](/docs/getting-started/react-essentials#server-components). This allows us to send less JavaScript to the client, while maintaining the rendered HTML from the server.
 
-By setting the `cache` option to `no-store`, we can indicate that the fetched data should [never be cached](/docs/app/building-your-application/data-fetching/caching). This is similar to `getServerSideProps` in the `pages` directory.
+By setting the `cache` option to `no-store`, we can indicate that the fetched data should [never be cached](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating. This is similar to `getServerSideProps` in the `pages` directory.
 
 ```tsx filename="app/dashboard/page.tsx" switcher
 // `app` directory
@@ -812,7 +812,7 @@ With [`dynamicParams`](/docs/app/api-reference/file-conventions/route-segment-co
 
 #### Incremental Static Regeneration (`getStaticProps` with `revalidate`)
 
-In the `pages` directory, the `getStaticProps` function allows you to add a `revalidate` field to automatically regenerate a page after a certain amount of time. This is called [Incremental Static Regeneration (ISR)](/docs/app/building-your-application/data-fetching/fetching#static-data-fetching) and helps you update static content without redeploying.
+In the `pages` directory, the `getStaticProps` function allows you to add a `revalidate` field to automatically regenerate a page after a certain amount of time.
 
 ```jsx filename="pages/index.js"
 // `pages` directory
@@ -869,7 +869,7 @@ export async function GET(request: Request) {}
 export async function GET(request) {}
 ```
 
-> **Good to know**: If you previously used API routes to call an external API from the client, you can now use [Server Components](/docs/getting-started/react-essentials#server-components) instead to securely fetch data. Learn more about [data fetching](/docs/app/building-your-application/data-fetching/fetching).
+> **Good to know**: If you previously used API routes to call an external API from the client, you can now use [Server Components](/docs/getting-started/react-essentials#server-components) instead to securely fetch data. Learn more about [data fetching](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating).
 
 ### Step 7: Styling
 

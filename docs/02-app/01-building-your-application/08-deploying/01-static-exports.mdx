@@ -68,7 +68,7 @@ export default async function Page() {
 
 ### Client Components
 
-If you want to perform data fetching on the client, you can use a Client Component with [SWR](https://github.com/vercel/swr) to deduplicate requests.
+If you want to perform data fetching on the client, you can use a Client Component with [SWR](https://github.com/vercel/swr) to memoize requests.
 
 ```tsx filename="app/other/page.tsx" switcher
 'use client'
@@ -293,7 +293,7 @@ The following additional dynamic features are not supported with a static export
 - `redirects` in `next.config.js`
 - `headers` in `next.config.js`
 - Middleware
-- [Incremental Static Regeneration](/docs/app/building-your-application/data-fetching/revalidating)
+- [Incremental Static Regeneration](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating)
 
 </AppOnly>
 

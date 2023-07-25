@@ -299,7 +299,7 @@ export default function Page({ params }) {
 }
 ```
 
-> **Good to know**: When rendering a route, Next.js will [automatically deduplicate `fetch` requests](/docs/app/building-your-application/caching#request-memoization) for the same data across `generateMetadata`, `generateStaticParams`, Layouts, Pages, and Server Components. React [`cache` can be used](/docs/app/building-your-application/data-fetching/caching#request-memoization) if `fetch` is unavailable.
+> **Good to know**: `fetch` requests are automatically [memoized](/docs/app/building-your-application/caching#request-memoization) for the same data across `generateMetadata`, `generateStaticParams`, Layouts, Pages, and Server Components. React [`cache` can be used](/docs/app/building-your-application/caching#request-memoization) if `fetch` is unavailable.
 
 ## Version History
 

@@ -860,4 +860,4 @@ In the above example, both the layout and page need to make database queries. Ea
 
 When fetching data, you may want to share the result of a `fetch` between a `page` or `layout` and some of its children components. This is an unnecessary coupling between the components and can lead to passing `props` back and forth between components.
 
-Instead, we recommend colocating data fetching alongside the component that consumes the data. [`fetch` requests are automatically deduped](/docs/app/building-your-application/caching#request-memoization) in Server Components, so each route segment can request exactly the data it needs without worrying about duplicate requests. Next.js will read the same value from the `fetch` cache.
+Instead, we recommend colocating data fetching alongside the component that consumes the data. [`fetch` requests are automatically memoized](/docs/app/building-your-application/caching#request-memoization) in Server Components, so each route segment can request exactly the data it needs without worrying about duplicate requests. Next.js will read the same value from the `fetch` cache.

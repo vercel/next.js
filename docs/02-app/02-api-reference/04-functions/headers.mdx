@@ -33,7 +33,7 @@ export default function Page() {
 
 > **Good to know**:
 >
-> - `headers()` is a **[Dynamic Function](/docs/app/building-your-application/rendering/static-and-dynamic-rendering#dynamic-functions)** whose returned values cannot be known ahead of time. Using it in a layout or page will opt a route into **[dynamic rendering](/docs/app/building-your-application/rendering/static-and-dynamic-rendering#dynamic-rendering)** at request time.
+> - `headers()` is a **[Dynamic Function](/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-functions)** whose returned values cannot be known ahead of time. Using it in a layout or page will opt a route into **[dynamic rendering](/docs/app/building-your-application/rendering/static-and-dynamic-rendering#dynamic-rendering)** at request time.
 
 ### API Reference
 
@@ -60,7 +60,7 @@ const headersList = headers()
 
 #### Usage with Data Fetching
 
-`headers()` can be used in combination with [Suspense for Data Fetching](/docs/app/building-your-application/data-fetching/fetching).
+`headers()` can be used in combination with [Suspense for Data Fetching](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating).
 
 ```jsx filename="app/page.js"
 import { headers } from 'next/headers'
