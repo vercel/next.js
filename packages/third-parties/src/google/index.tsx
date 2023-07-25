@@ -4,35 +4,37 @@
 import React from 'react'
 import Script from 'next/script'
 
-import Base from '../base'
+import ThirdPartyScriptEmbed from '../ThirdPartyScriptEmbed'
+import * as Types from '../types/google'
 
 // Embed a Google Maps embed on your webpage
-export function GoogleMapsEmbed(args: any) {
+export function GoogleMapsEmbed(args: Types.GoogleMapsEmbed) {
   return (
-    <Base
+    <ThirdPartyScriptEmbed
       height={args.height || null}
       width={args.width || null}
       content={`<iframe loading="lazy" src="https://www.google.com/maps/embed/v1/${args.mapMode}?key=${args.apiKey}&${args.parameters}" width=${args.width} height=${args.height} style=${args.style} loading=${args.loading} allowfullscreen=${args.allowfullscreen} referrerpolicy="no-referrer-when-downgrade"></iframe>`}
-      dataAttr="GoogleMapsEmbed"
-    ></Base>
+      dataNtpc="GoogleMapsEmbed"
+    ></ThirdPartyScriptEmbed>
   )
 }
 // Embed a YouTube embed on your webpage.
-export function YoutubeEmbed(args: any) {
+export function YoutubeEmbed(args: Types.YoutubeEmbed) {
   return (
-    <Base
+    <ThirdPartyScriptEmbed
       height={args.height || null}
       width={args.width || null}
       content={`<lite-youtube videoid=${args.videoid} playlabel=${args.playlabel}></lite-youtube>`}
-      dataAttr="YoutubeEmbed"
+      dataNtpc="YoutubeEmbed"
     >
       <Script
         src={`https://cdn.jsdelivr.net/gh/paulirish/lite-youtube-embed@master/src/lite-yt-embed.js`}
         strategy="lazyOnload"
+        // @ts-ignore
         stylesheets={[
           'https://cdn.jsdelivr.net/gh/paulirish/lite-youtube-embed@master/src/lite-yt-embed.css',
         ]}
       />
-    </Base>
+    </ThirdPartyScriptEmbed>
   )
 }

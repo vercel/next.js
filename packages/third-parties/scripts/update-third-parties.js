@@ -23,7 +23,11 @@ function generateComponent(thirdParty) {
     let props = ''
 
     if (stylesheets?.length > 0) {
-      props += ` stylesheets={${JSON.stringify(stylesheets)}}`
+      // TODO: Remove ts-ignore after new <Script> component is published
+      // New <Script> accepts stylesheet as a param. Otherwise it throws error
+      props += `
+      // @ts-ignore
+      stylesheets={${JSON.stringify(stylesheets)}}`
     }
 
     return scripts
@@ -59,16 +63,16 @@ function generateComponent(thirdParty) {
   thirdPartyFunctions += outdent`
 
     // ${description}
-    export function ${thirdParty}(args: any) {
+    export function ${thirdParty}(args: Types.${thirdParty}) {
       return (
-        <Base
+        <ThirdPartyScriptEmbed
           ${content ? 'height={args.height || null}' : ''}
           ${content ? 'width={args.width || null}' : ''}
           ${content ? `content={\`${content}\`}` : ''}
-          dataAttr="${thirdParty}"
+          dataNtpc="${thirdParty}"
         >
           ${scripts?.length > 0 ? insertScripts(id, scripts, stylesheets) : ''}
-        </Base>
+        </ThirdPartyScriptEmbed>
       )
     }
     `
@@ -100,7 +104,8 @@ function generateComponent(thirdParty) {
     import React from 'react'
     import Script from 'next/script'
 
-    import Base from '../base'
+    import ThirdPartyScriptEmbed from '../ThirdPartyScriptEmbed'
+    import * as Types from '../types/${dir}'
     `
     for (const thirdParty of Object.values(config)) {
       thirdPartyFunctions += generateComponent(thirdParty)

@@ -15,5 +15,5 @@
     "moduleResolution": "Node16"
   },
   "include": ["src/**/*.ts", "src/**/*.tsx"],
-  "exclude": ["node_modules", "src/google/index.tsx"]
+  "exclude": ["node_modules"]
 }

@@ -1,15 +1,14 @@
 # `@next/third-parties`
 
-`@next/third-parties` is collection of components that can be used to efficiently load third party libraries into your Next.js application.
-This package uses [Third Party Capital](https://github.com/GoogleChromeLabs/third-party-capital/) under the hood to fetch the best loading recommendations.
+`@next/third-parties` is a collection of components and utilities that can be used to efficiently load third-party libraries into your Next.js application.
 
-> Note: `@next/third-parties` is still experimental and under active development
+> Note: `@next/third-parties` is still experimental and under active development.
 
 # Usage
 
-## Google third parties
+## Google Third-Parties
 
-### Youtube Embed
+### YouTube Embed
 
 The `YoutubeEmbed` component is used to load and display a YouTube embed. This component loads faster by using [lite-youtube-embed](https://github.com/paulirish/lite-youtube-embed) under the hood.
 
@@ -41,4 +40,4 @@ export default function Page() {
 }
 ```
 
-To get a better idea of how these components work, take a look at this [demo](https://test-next-script-housseindjirdeh.vercel.app/).
+To get a better idea of how these components work, take a look at this [demo](https://test-next-script-housseindjirdeh.vercel.app/). <!--- TODO: Replace with a better demo page -->

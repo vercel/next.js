@@ -20,7 +20,7 @@
     "typescript": "tsec --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "third-party-capital": "1.0.17"
+    "third-party-capital": "1.0.18"
   },
   "devDependencies": {
     "outdent": "0.8.0",
