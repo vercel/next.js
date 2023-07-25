@@ -120,6 +120,16 @@ async function startWatcher(opts: SetupOpts) {
     appDir
   )
 
+  const renderWorkers: {
+    app?: import('../router-server').RenderWorker
+    pages?: import('../router-server').RenderWorker
+  } = {}
+
+  async function propagateToWorkers(field: string, args: any) {
+    await renderWorkers.app?.propagateServerField(field, args)
+    await renderWorkers.pages?.propagateServerField(field, args)
+  }
+
   let hotReloader: InstanceType<typeof HotReloader>
 
   if (opts.turbo) {
@@ -226,10 +236,15 @@ async function startWatcher(opts: SetupOpts) {
       return manifest
     }
 
+    const clearCache = (filePath: string) =>
+      (global as any)._nextDeleteCache?.([filePath])
+
     async function writeBuildManifest(): Promise<void> {
       const buildManifest = mergeBuildManifests(buildManifests.values())
+      const buildManifestPath = path.join(distDir, 'build-manifest.json')
+      await clearCache(buildManifestPath)
       await writeFile(
-        path.join(distDir, 'build-manifest.json'),
+        buildManifestPath,
         JSON.stringify(buildManifest, null, 2),
         'utf-8'
       )
@@ -257,8 +272,10 @@ async function startWatcher(opts: SetupOpts) {
       const appBuildManifest = mergeAppBuildManifests(
         appBuildManifests.values()
       )
+      const appBuildManifestPath = path.join(distDir, APP_BUILD_MANIFEST)
+      await clearCache(appBuildManifestPath)
       await writeFile(
-        path.join(distDir, APP_BUILD_MANIFEST),
+        appBuildManifestPath,
         JSON.stringify(appBuildManifest, null, 2),
         'utf-8'
       )
@@ -266,8 +283,10 @@ async function startWatcher(opts: SetupOpts) {
 
     async function writePagesManifest(): Promise<void> {
       const pagesManifest = mergePagesManifests(pagesManifests.values())
+      const pagesManifestPath = path.join(distDir, 'server', PAGES_MANIFEST)
+      await clearCache(pagesManifestPath)
       await writeFile(
-        path.join(distDir, 'server', PAGES_MANIFEST),
+        pagesManifestPath,
         JSON.stringify(pagesManifest, null, 2),
         'utf-8'
       )
@@ -275,16 +294,27 @@ async function startWatcher(opts: SetupOpts) {
 
     async function writeAppPathsManifest(): Promise<void> {
       const appPathsManifest = mergePagesManifests(appPathsManifests.values())
+      const appPathsManifestPath = path.join(
+        distDir,
+        'server',
+        APP_PATHS_MANIFEST
+      )
+      await clearCache(appPathsManifestPath)
       await writeFile(
-        path.join(distDir, 'server', APP_PATHS_MANIFEST),
+        appPathsManifestPath,
         JSON.stringify(appPathsManifest, null, 2),
         'utf-8'
       )
     }
 
     async function writeMiddlewareManifest(): Promise<void> {
+      const middlewareManifestPath = path.join(
+        distDir,
+        'server/middleware-manifest.json'
+      )
+      await clearCache(middlewareManifestPath)
       await writeFile(
-        path.join(distDir, 'server/middleware-manifest.json'),
+        middlewareManifestPath,
         JSON.stringify(
           {
             sortedMiddleware: [],
@@ -300,15 +330,26 @@ async function startWatcher(opts: SetupOpts) {
     }
 
     async function writeOtherManifests(): Promise<void> {
+      const loadableManifestPath = path.join(
+        distDir,
+        'react-loadable-manifest.json'
+      )
+      await clearCache(loadableManifestPath)
       await writeFile(
-        path.join(distDir, 'react-loadable-manifest.json'),
+        loadableManifestPath,
         JSON.stringify({}, null, 2),
         'utf-8'
       )
       // TODO: turbopack should write the correct
       // version of this
+      const fontManifestPath = path.join(
+        distDir,
+        'server',
+        NEXT_FONT_MANIFEST + '.json'
+      )
+      await clearCache(fontManifestPath)
       await writeFile(
-        path.join(distDir, 'server', NEXT_FONT_MANIFEST + '.json'),
+        fontManifestPath,
         JSON.stringify(
           {
             pages: {},
@@ -562,11 +603,6 @@ async function startWatcher(opts: SetupOpts) {
     })
   }
 
-  const renderWorkers: {
-    app?: import('../router-server').RenderWorker
-    pages?: import('../router-server').RenderWorker
-  } = {}
-
   await hotReloader.start()
 
   if (opts.nextConfig.experimental.nextScriptWorkers) {
@@ -605,11 +641,6 @@ async function startWatcher(opts: SetupOpts) {
       typeof import('./filesystem').buildCustomRoute
     >[]
   } = {}
-
-  async function propagateToWorkers(field: string, args: any) {
-    await renderWorkers.app?.propagateServerField(field, args)
-    await renderWorkers.pages?.propagateServerField(field, args)
-  }
 
   await new Promise<void>(async (resolve, reject) => {
     if (pagesDir) {
