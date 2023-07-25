@@ -2,7 +2,6 @@
 
 import { useContext, useMemo } from 'react'
 import type { FlightRouterState } from '../../server/app-render/types'
-
 import {
   AppRouterContext,
   GlobalLayoutRouterContext,
