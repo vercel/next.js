@@ -292,6 +292,7 @@ pub fn get_client_chunking_context(
 
     let builder = match mode {
         NextMode::Development => builder.hot_module_replacement(),
+        NextMode::DevServer => builder.hot_module_replacement(),
         NextMode::Build => builder.chunk_base_path(Vc::cell(Some("_next/".to_string()))),
     };
 
@@ -328,7 +329,7 @@ pub async fn get_client_runtime_entries(
     }
 
     match mode {
-        NextMode::Development => {
+        NextMode::Development | NextMode::DevServer => {
             let resolve_options_context = get_client_resolve_options_context(
                 project_root,
                 ty,
