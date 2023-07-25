@@ -46,7 +46,7 @@ export class ReadonlyURLSearchParams {
     this.keys = urlSearchParams.keys.bind(urlSearchParams)
     this.values = urlSearchParams.values.bind(urlSearchParams)
     this.toString = urlSearchParams.toString.bind(urlSearchParams)
-    this.size = urlSearchParams.size.bind(urlSearchParams)
+    this.size = urlSearchParams.size;
   }
   [Symbol.iterator]() {
     return this[INTERNAL_URLSEARCHPARAMS_INSTANCE][Symbol.iterator]()
