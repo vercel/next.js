@@ -6,6 +6,8 @@ Running examples can be done with:
 pnpm next-with-deps ./examples/basic-css/
 ```
 
+> Before you can run the example, you need to install all the dependencies with `pnpm i` and build the `next.js` by running `yarn build` or `pnpm run build` in the root directory.
+
 To figure out which pages are available for the given example, you can run:
 
 ```sh
