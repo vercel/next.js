@@ -1,13 +1,13 @@
+'use client'
+
 import edgeThenNode from 'edge-then-node'
 import nodeThenEdge from 'node-then-edge'
 
-export const config = {
-  runtime: 'nodejs',
-}
+export const runtime = 'edge'
 
-export default function PageNodeJs() {
+export default function ClientComponent() {
   return (
-    <div id="server">
+    <div id="client">
       {JSON.stringify({
         edgeThenNode,
         nodeThenEdge,
