@@ -1219,6 +1219,7 @@ export default async function build(
           forkOptions: {
             env: {
               ...process.env,
+              __NEXT_PRIVATE_RENDER_RUNTIME: type,
               __NEXT_PRIVATE_PREBUNDLED_REACT:
                 type === 'app'
                   ? config.experimental.serverActions
