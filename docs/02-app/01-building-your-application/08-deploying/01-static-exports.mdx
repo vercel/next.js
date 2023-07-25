@@ -232,7 +232,7 @@ export default function Page() {
 
 ### Route Handlers
 
-Route Handlers will render a static response when running `next build`. Only the `GET` HTTP verb is supported. This can be used to generate static HTML, JSON, TXT, or other files from dynamic or static data. For example:
+Route Handlers will render a static response when running `next build`. Only the `GET` HTTP verb is supported. This can be used to generate static HTML, JSON, TXT, or other files from cached or uncached data. For example:
 
 ```ts filename="app/data.json/route.ts" switcher
 import { NextResponse } from 'next/server'

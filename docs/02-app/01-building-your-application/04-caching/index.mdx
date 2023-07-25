@@ -253,7 +253,7 @@ When configuring the different caching mechanisms, it's important to understand 
 ### Data and Router
 
 - Revalidating the Data Cache in a [Route Handler](/docs/app/building-your-application/routing/route-handlers) **will not** immediately invalidate the Router Cache as the Router Handler isn't tied to a specific route. This means the automatic invalidation period will be applied, and the Router Cache will continue to serve the previous payload until a hard refresh, or the automatic invalidation period has elapsed.
-- To immediately invalidate the Data Cache and Router cache, you can use [`revalidatePath`](#revalidatepath) or [`revalidateTag`](#revalidatetag) in a [Server Action](/docs/app/building-your-application/data-fetching/server-actions).
+- To immediately invalidate the Data Cache and Router cache, you can use [`revalidatePath`](#revalidatepath) or [`revalidateTag`](#fetch-optionsnexttag-and-revalidatetag) in a [Server Action](/docs/app/building-your-application/data-fetching/server-actions).
 
 ## APIs
 
@@ -268,7 +268,7 @@ The following table provides an overview of how different Next.js APIs affect ca
 | [`fetch.options.cache`](#fetch-optionscache)                         |              |                       | Cache or Opt out      |             |
 | [`fetch.options.next.revalidate`](#fetch-optionsnextrevalidate)      |              | Revalidate            | Revalidate            |             |
 | [`fetch.options.next.tags`](#fetch-optionsnexttag-and-revalidatetag) |              | Cache                 | Cache                 |             |
-| [`revalidateTag`](#revalidatetag)                                    |              | Revalidate            | Revalidate            |             |
+| [`revalidateTag`](#fetch-optionsnexttag-and-revalidatetag)           |              | Revalidate            | Revalidate            |             |
 | [`revalidatePath`](#revalidatepath)                                  |              | Revalidate            | Revalidate            |             |
 | [`const revalidate`](#segment-config-options)                        |              | Revalidate or Opt out | Revalidate or Opt out |             |
 | [`const dynamic`](#segment-config-options)                           |              | Cache or Opt out      | Cache or Opt out      |             |
