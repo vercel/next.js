@@ -463,6 +463,8 @@ function createRSCAliases(
       // Alias to the `react-server` exports.
       alias['server-only$'] = 'next/dist/compiled/server-only/empty'
       alias['client-only$'] = 'next/dist/compiled/client-only/error'
+      alias['next/dist/shared/lib/image-stuff/index'] =
+        'next/dist/shared/lib/image-stuff/server'
     } else {
       alias['server-only$'] = 'next/dist/compiled/server-only/index'
       alias['client-only$'] = 'next/dist/compiled/client-only/index'

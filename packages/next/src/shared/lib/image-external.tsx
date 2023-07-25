@@ -1,12 +1,16 @@
 import type { ImageConfigComplete, ImageLoaderProps } from './image-config'
 import type { ImageProps, ImageLoader, StaticImageData } from './get-img-props'
 
+import React from 'react'
 import { getImgProps } from './get-img-props'
 import { warnOnce } from './utils/warn-once'
 import { Image } from '../../client/image-component'
 
 // @ts-ignore - This is replaced by webpack alias
 import defaultLoader from 'next/dist/shared/lib/image-loader'
+
+// @ts-ignore - This is replaced by webpack alias
+import { isServerComponent } from 'next/dist/shared/lib/image-stuff/index'
 
 const unstable_getImgProps = (imgProps: ImageProps) => {
   warnOnce(
@@ -25,7 +29,20 @@ const unstable_getImgProps = (imgProps: ImageProps) => {
   return { props }
 }
 
-export default Image
+const WrappedImage = (props: Parameters<typeof Image>[0]) => {
+  if (process.env.NODE_ENV !== 'production') {
+    if (typeof props.loader === 'function') {
+      if (isServerComponent) {
+        throw new Error(
+          `Please add 'use client' to the file with your "loader" function so it can be used with next/image.`
+        )
+      }
+    }
+  }
+  return <Image {...props} />
+}
+
+export default WrappedImage
 
 export {
   ImageProps,
