@@ -2,223 +2,119 @@ import { NextConfig } from './config'
 import type { JSONSchemaType } from 'ajv'
 import { VALID_LOADERS } from '../shared/lib/image-config'
 
+import { z } from 'zod'
+import type zod from 'zod'
+
+export const configSchemaZod: zod.ZodType<NextConfig> = z.lazy(() =>
+  z.object({
+    amp: z.object({
+      canonicalBase: z.string().optional(),
+    }),
+    analyticsId: z.string().optional(),
+    assetPrefix: z.string().optional(),
+    basePath: z.string().optional(),
+    cleanDistDir: z.boolean().optional(),
+    compiler: z.object({
+      emotion: z
+        .union([
+          z.boolean(),
+          z.object({
+            sourceMap: z.boolean().optional(),
+            autoLabel: z
+              .union([
+                z.literal('always'),
+                z.literal('dev-only'),
+                z.literal('never'),
+              ])
+              .optional(),
+            labelFormat: z.string().min(1).optional(),
+            importMap: z
+              .record(
+                z.string(),
+                z.record(
+                  z.string(),
+                  z.object({
+                    canonicalImport: z
+                      .tuple([z.string(), z.string()])
+                      .optional(),
+                    styledBaseImport: z
+                      .tuple([z.string(), z.string()])
+                      .optional(),
+                  })
+                )
+              )
+              .optional(),
+          }),
+        ])
+        .optional(),
+      reactRemoveProperties: z
+        .union([
+          z.boolean().optional(),
+          z.object({
+            properties: z.array(z.string()).optional(),
+          }),
+        ])
+        .optional(),
+      relay: z.any().optional(),
+      removeConsole: z
+        .union([
+          z.boolean().optional(),
+          z.object({
+            exclude: z.array(z.string()).min(1).optional(),
+          }),
+        ])
+        .optional(),
+      styledComponents: z.union([
+        z.boolean().optional(),
+        z.object({
+          displayName: z.boolean().optional(),
+          topLevelImportPaths: z.array(z.string()).min(1).optional(),
+          ssr: z.boolean().optional(),
+          fileName: z.boolean().optional(),
+          meaninglessFileNames: z.array(z.string()).min(1).optional(),
+          minify: z.boolean().optional(),
+          transpileTemplateLiterals: z.boolean().optional(),
+          namespace: z.string().min(1).optional(),
+          pure: z.boolean().optional(),
+          cssProp: z.boolean().optional(),
+        }),
+      ]),
+    }),
+    compress: z.boolean().optional(),
+    configOrigin: z.string().optional(),
+    crossOrigin: z
+      .union([
+        z.literal(false),
+        z.literal('anonymous'),
+        z.literal('use-credentials'),
+      ])
+      .optional(),
+    devIndicators: z
+      .object({
+        buildActivity: z.boolean().optional(),
+        buildActivityPosition: z
+          .union([
+            z.literal('bottom-left'),
+            z.literal('bottom-right'),
+            z.literal('top-left'),
+            z.literal('top-right'),
+          ])
+          .optional(),
+      })
+      .optional(),
+    distDir: z.string().optional(),
+    env: z.record(z.string(), z.string()).optional(),
+    eslint: z.object({
+      dirs: z.array(z.string()).optional(),
+      ignoreDuringBuilds: z.boolean().optional(),
+    }),
+  })
+)
+
 const configSchema = {
   type: 'object',
   additionalProperties: false,
   properties: {
-    amp: {
-      additionalProperties: false,
-      properties: {
-        canonicalBase: {
-          nullable: true,
-          type: 'string',
-        },
-      },
-      type: 'object',
-    },
-    analyticsId: {
-      type: 'string',
-    },
-    assetPrefix: {
-      nullable: true,
-      type: 'string',
-    },
-    basePath: {
-      type: 'string',
-    },
-    cleanDistDir: {
-      type: 'boolean',
-    },
-    compiler: {
-      additionalProperties: false,
-      properties: {
-        emotion: {
-          oneOf: [
-            {
-              type: 'boolean',
-            },
-            {
-              type: 'object',
-              additionalProperties: false,
-              properties: {
-                sourceMap: {
-                  type: 'boolean',
-                },
-                autoLabel: {
-                  type: 'string',
-                  enum: ['always', 'dev-only', 'never'],
-                },
-                labelFormat: {
-                  type: 'string',
-                  minLength: 1,
-                },
-                importMap: {
-                  type: 'object',
-                },
-              },
-            },
-          ] as any,
-        },
-        reactRemoveProperties: {
-          oneOf: [
-            {
-              type: 'boolean',
-            },
-            {
-              type: 'object',
-              additionalProperties: false,
-              properties: {
-                properties: {
-                  type: 'array',
-                  items: {
-                    type: 'string',
-                  },
-                },
-              },
-            },
-          ] as any,
-        },
-        relay: {
-          type: 'object',
-        },
-        removeConsole: {
-          oneOf: [
-            {
-              type: 'boolean',
-            },
-            {
-              type: 'object',
-              additionalProperties: false,
-              properties: {
-                exclude: {
-                  type: 'array',
-                  items: {
-                    type: 'string',
-                    minLength: 1,
-                  },
-                },
-              },
-            },
-          ] as any,
-        },
-        styledComponents: {
-          oneOf: [
-            {
-              type: 'boolean',
-            },
-            {
-              type: 'object',
-              additionalProperties: false,
-              properties: {
-                displayName: {
-                  type: 'boolean',
-                },
-                topLevelImportPaths: {
-                  oneOf: [
-                    { type: 'boolean' },
-                    {
-                      type: 'array',
-                      items: {
-                        type: 'string',
-                        minLength: 1,
-                      },
-                    },
-                  ],
-                },
-                ssr: {
-                  type: 'boolean',
-                },
-                fileName: {
-                  type: 'boolean',
-                },
-                meaninglessFileNames: {
-                  oneOf: [
-                    { type: 'boolean' },
-                    {
-                      type: 'array',
-                      items: {
-                        type: 'string',
-                        minLength: 1,
-                      },
-                    },
-                  ],
-                },
-                minify: {
-                  type: 'boolean',
-                },
-                transpileTemplateLiterals: {
-                  type: 'boolean',
-                },
-                namespace: {
-                  type: 'string',
-                  minLength: 1,
-                },
-                pure: {
-                  type: 'boolean',
-                },
-                cssProp: {
-                  type: 'boolean',
-                },
-              },
-            },
-          ] as any,
-        },
-      },
-      type: 'object',
-    },
-    compress: {
-      type: 'boolean',
-    },
-    configOrigin: {
-      type: 'string',
-    },
-    crossOrigin: {
-      oneOf: [
-        false,
-        {
-          enum: ['anonymous', 'use-credentials'],
-          type: 'string',
-        },
-      ], // automatic typing does not like enum
-    } as any,
-    devIndicators: {
-      additionalProperties: false,
-      properties: {
-        buildActivity: {
-          type: 'boolean',
-        },
-        buildActivityPosition: {
-          // automatic typing does not like enum
-          enum: ['bottom-left', 'bottom-right', 'top-left', 'top-right'] as any,
-          type: 'string',
-        },
-      },
-      type: 'object',
-    },
-    distDir: {
-      minLength: 1,
-      type: 'string',
-      nullable: true,
-    },
-    env: {
-      type: 'object',
-    },
-    eslint: {
-      additionalProperties: false,
-      properties: {
-        dirs: {
-          items: {
-            minLength: 1,
-            type: 'string',
-          },
-          type: 'array',
-        },
-        ignoreDuringBuilds: {
-          type: 'boolean',
-        },
-      },
-      type: 'object',
-    },
     excludeDefaultMomentLocales: {
       type: 'boolean',
     },
