@@ -11,7 +11,7 @@ import isError from '../../../lib/is-error'
 import findUp from 'next/dist/compiled/find-up'
 import { buildCustomRoute } from './filesystem'
 import * as Log from '../../../build/output/log'
-import HotReloader from '../../dev/hot-reloader'
+import HotReloader, { matchNextPageBundleRequest } from '../../dev/hot-reloader'
 import { traceGlobals } from '../../../trace/shared'
 import { Telemetry } from '../../../telemetry/storage'
 import { IncomingMessage, ServerResponse } from 'http'
@@ -568,17 +568,17 @@ async function startWatcher(opts: SetupOpts) {
         if (prop === 'run') {
           return async (req: IncomingMessage, _res: ServerResponse) => {
             // intercept page chunks request and ensure them with turbopack
-            if (req.url?.startsWith('/_next/static/chunks')) {
-              const match = req.url.match(
-                /\/(pages|app)_(.*)(?:_[\w\d]{1,6}\.)/
-              )
+            if (req.url?.startsWith('/_next/static/chunks/pages/')) {
+              const params = matchNextPageBundleRequest(req.url)
 
-              const type = match?.[0]
+              if (params) {
+                const decodedPagePath = `/${params.path
+                  .map((param: string) => decodeURIComponent(param))
+                  .join('/')}`
 
-              if ((type === 'pages' || type === 'app') && match?.[1]) {
                 await hotReloader
                   .ensurePage({
-                    page: `/${match[1]}`,
+                    page: decodedPagePath,
                     clientOnly: false,
                   })
                   .catch(console.error)
