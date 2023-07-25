@@ -2,11 +2,14 @@
 // This is needed for userland plugins to attach to the same webpack instance as Next.js'.
 // Individually compiled modules are as defined for the compilation in bundles/webpack/packages/*.
 
+import path from 'path'
+
 // This module will only be loaded once per process.
 
 const { dirname } = require('path')
 const mod = require('module')
 const resolveFilename = mod._resolveFilename
+const originalRequire = mod.prototype.require
 const hookPropertyMap = new Map()
 
 let aliasedPrebundledReact = false
@@ -23,6 +26,11 @@ export const defaultOverrides = {
   'styled-jsx': dirname(resolve('styled-jsx/package.json')),
   'styled-jsx/style': resolve('styled-jsx/style'),
 }
+
+const currentRuntime =
+  process.env.__NEXT_PRIVATE_RENDER_RUNTIME === 'pages'
+    ? 'next/dist/compiled/minimal-next-server/pages-render.runtime'
+    : 'next/dist/compiled/minimal-next-server/app-page-render.runtime'
 
 export const baseOverrides = {
   react: 'next/dist/compiled/react',
@@ -116,3 +124,16 @@ mod._resolveFilename = function (
 
   // We use `bind` here to avoid referencing outside variables to create potential memory leaks.
 }.bind(null, resolveFilename, hookPropertyMap)
+
+mod.prototype.require = function (request: string) {
+  if (process.env.__NEXT_PRIVATE_RENDER_RUNTIME) {
+    if (request.endsWith('.external') && request.startsWith('.')) {
+      const base = path.basename(request, '.external')
+      const camelized = base.replace(/-([a-z])/g, (g) => g[1].toUpperCase())
+      const instance = originalRequire.call(this, currentRuntime)
+      return instance.default.externals[camelized]
+    }
+  }
+
+  return originalRequire.call(this, request)
+}
