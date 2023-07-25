@@ -399,7 +399,6 @@ importers:
       ci-info: watson/ci-info#f43f6a1cefff47fb361c88cf4b943fdbcaafe540
       commander: 2.20.0
       conf: 10.2.0
-      cpy: 7.3.0
       cross-spawn: 6.0.5
       fast-glob: 2.2.7
       got: 10.7.0
@@ -423,7 +422,6 @@ importers:
       ci-info: github.com/watson/ci-info/f43f6a1cefff47fb361c88cf4b943fdbcaafe540
       commander: 2.20.0
       conf: 10.2.0
-      cpy: 7.3.0
       cross-spawn: 6.0.5
       fast-glob: 2.2.7
       got: 10.7.0
@@ -8525,6 +8523,7 @@ packages:
     engines: {node: '>=0.10.0'}
     dependencies:
       array-uniq: 1.0.3
+    dev: false
 
   /array-union/2.1.0:
     resolution: {integrity: sha512-HGyxoOTYUyCM6stUe6EJgnd4EoewAI7zMdfqO+kGjnlZmBDz/cR5pf8r/cR4Wq60sL/p0IkcjUEEPwS3GFrIyw==}
@@ -8538,6 +8537,7 @@ packages:
   /array-uniq/1.0.3:
     resolution: {integrity: sha512-MNha4BWQ6JbwhFhj03YK552f7cb3AzoE8SzeljgChvL1dl3IcvggXVz1DilzySZkCja+CXuZbdW7yATchWn8/Q==}
     engines: {node: '>=0.10.0'}
+    dev: false
 
   /array-unique/0.3.2:
     resolution: {integrity: sha512-SleRWjh9JUud2wH1hPs9rZBZ33H6T9HOiL0uwGnGx9FpE6wKGyfWugmbkEOIs6qWrZhg0LWeLziLrEwQJhs5mQ==}
@@ -10451,29 +10451,6 @@ packages:
       request: 2.88.2
     dev: true
 
-  /cp-file/6.2.0:
-    resolution: {integrity: sha512-fmvV4caBnofhPe8kOcitBwSn2f39QLjnAnGq3gO9dfd75mUytzKNZB1hde6QHunW2Rt+OwuBOMc3i1tNElbszA==}
-    engines: {node: '>=6'}
-    dependencies:
-      graceful-fs: 4.2.11
-      make-dir: 2.1.0
-      nested-error-stacks: 2.1.0
-      pify: 4.0.1
-      safe-buffer: 5.2.0
-    dev: true
-
-  /cpy/7.3.0:
-    resolution: {integrity: sha512-auvDu6h/J+cO1uqV40ymL/VoPM0+qPpNGaNttTzkYVXO/+GeynuyAK/MwFcWgU/P82ezcZw7RaN34CIIWajKLA==}
-    engines: {node: '>=6'}
-    dependencies:
-      arrify: 1.0.1
-      cp-file: 6.2.0
-      globby: 9.2.0
-      nested-error-stacks: 2.1.0
-    transitivePeerDependencies:
-      - supports-color
-    dev: true
-
   /create-ecdh/4.0.3:
     resolution: {integrity: sha512-GbEHQPMOswGpKXM9kCWVrremUcBmjteUaQ01T9rkKCPDXfUHX0IoP9LpHYo2NPFampa4e+/pFDc3jQdxrxQLaw==}
     dependencies:
@@ -11389,13 +11366,6 @@ packages:
       bn.js: 4.11.9
       miller-rabin: 4.0.1
       randombytes: 2.1.0
-    dev: true
-
-  /dir-glob/2.2.2:
-    resolution: {integrity: sha512-f9LBi5QWzIW3I6e//uxZoLBlUt9kcp66qo0sSCxL6YZKc75R1c4MFCoe/LaZiBGmgujvQdxc5Bn3QhfyvK5Hsw==}
-    engines: {node: '>=4'}
-    dependencies:
-      path-type: 3.0.0
     dev: true
 
   /dir-glob/3.0.1:
@@ -13260,7 +13230,7 @@ packages:
     engines: {node: '>=10'}
     dependencies:
       at-least-node: 1.0.0
-      graceful-fs: 4.2.9
+      graceful-fs: 4.2.11
       jsonfile: 6.0.1
       universalify: 1.0.0
     dev: true
@@ -13744,22 +13714,6 @@ packages:
       slash: 4.0.0
     dev: false
 
-  /globby/9.2.0:
-    resolution: {integrity: sha512-ollPHROa5mcxDEkwg6bPt3QbEf4pDQSNtd6JPL1YvOvAo/7/0VAm9TccUeoTmarjPw4pfUthSCqcyfNB1I3ZSg==}
-    engines: {node: '>=6'}
-    dependencies:
-      '@types/glob': 7.1.1
-      array-union: 1.0.2
-      dir-glob: 2.2.2
-      fast-glob: 2.2.7
-      glob: 7.2.0
-      ignore: 4.0.6
-      pify: 4.0.1
-      slash: 2.0.0
-    transitivePeerDependencies:
-      - supports-color
-    dev: true
-
   /globrex/0.1.2:
     resolution: {integrity: sha512-uHJgbwAMwNFf5mLst7IWLNg14x1CkeqglJb/K3doi4dw6q2IvAAmM/Y81kevy83wP+Sst+nutFTYOGg3d1lsxg==}
 
@@ -13835,6 +13789,7 @@ packages:
 
   /graceful-fs/4.2.9:
     resolution: {integrity: sha512-NtNxqUcXgpW2iMrfqSfR73Glt39K+BLwWsPs94yR63v45T0Wbej7eRmL5cWfwEgqXnmjQp3zaJTshdRW/qC2ZQ==}
+    dev: false
 
   /grapheme-splitter/1.0.4:
     resolution: {integrity: sha512-bzh50DW9kTPM00T8y4o8vQg89Di9oLJVLW/KaOGIXJWP/iqCN6WKYkbNOF04vFLJhwcpYUh9ydh/+5vpOqV4YQ==}
@@ -18215,10 +18170,6 @@ packages:
 
   /neo-async/2.6.2:
     resolution: {integrity: sha512-Yd3UES5mWCSqR+qNT93S3UoYUkqAZ9lLg8a7g9rimsWmYGK8cVToA4/sF3RrshdyV3sAGMXVUmpMYOw+dLpOuw==}
-
-  /nested-error-stacks/2.1.0:
-    resolution: {integrity: sha512-AO81vsIO1k1sM4Zrd6Hu7regmJN1NSiAja10gc4bX3F0wd+9rQmcuHQaHVQCYIEC8iFXnE+mavh23GOt7wBgug==}
-    dev: true
 
   /next-tick/1.0.0:
     resolution: {integrity: sha1-yobR/ogoFpsBICCOPchCS524NCw=}
