@@ -75,6 +75,8 @@ export class IncrementalCache {
   revalidatedTags?: string[]
   isOnDemandRevalidate?: boolean
   pendingResponses: Map<string, Promise<IncrementalCacheEntry | null>>
+  private locks = new Map<string, Promise<void>>()
+  private unlocks = new Map<string, () => void>()
 
   constructor({
     fs,
@@ -200,6 +202,60 @@ export class IncrementalCache {
 
   _getPathname(pathname: string, fetchCache?: boolean) {
     return fetchCache ? pathname : normalizePagePath(pathname)
+  }
+
+  async unlock(cacheKey: string) {
+    const unlock = this.unlocks.get(cacheKey)
+    if (unlock) {
+      unlock()
+      this.locks.delete(cacheKey)
+      this.unlocks.delete(cacheKey)
+    }
+  }
+
+  async lock(cacheKey: string) {
+    if (
+      process.env.__NEXT_INCREMENTAL_CACHE_IPC_PORT &&
+      process.env.__NEXT_INCREMENTAL_CACHE_IPC_KEY &&
+      process.env.NEXT_RUNTIME !== 'edge'
+    ) {
+      const invokeIpcMethod = require('../server-ipc/request-utils')
+        .invokeIpcMethod as typeof import('../server-ipc/request-utils').invokeIpcMethod
+
+      await invokeIpcMethod({
+        method: 'lock',
+        ipcPort: process.env.__NEXT_INCREMENTAL_CACHE_IPC_PORT,
+        ipcKey: process.env.__NEXT_INCREMENTAL_CACHE_IPC_KEY,
+        args: [cacheKey],
+      })
+
+      return async () => {
+        await invokeIpcMethod({
+          method: 'unlock',
+          ipcPort: process.env.__NEXT_INCREMENTAL_CACHE_IPC_PORT,
+          ipcKey: process.env.__NEXT_INCREMENTAL_CACHE_IPC_KEY,
+          args: [cacheKey],
+        })
+      }
+    }
+
+    let unlockNext: () => Promise<void>
+    const lockPromise = new Promise<void>((resolve) => {
+      unlockNext = async () => {
+        resolve()
+      }
+    })
+
+    this.unlocks.set(cacheKey, unlockNext!)
+    const prevLock = this.locks.get(cacheKey) || Promise.resolve()
+
+    this.locks.set(
+      cacheKey,
+      prevLock.then(() => lockPromise)
+    )
+
+    await prevLock
+    return unlockNext!
   }
 
   async revalidateTag(tag: string) {

@@ -33,6 +33,14 @@ export async function initialize(
     async set(...args: Parameters<IncrementalCache['set']>) {
       return incrementalCache.set(...args)
     },
+
+    async lock(...args: Parameters<IncrementalCache['lock']>) {
+      return incrementalCache.lock(...args)
+    },
+
+    async unlock(...args: Parameters<IncrementalCache['unlock']>) {
+      return incrementalCache.unlock(...args)
+    },
   } as any)
 
   return {
