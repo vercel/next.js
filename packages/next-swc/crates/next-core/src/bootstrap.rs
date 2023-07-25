@@ -1,49 +1,52 @@
 use anyhow::{bail, Result};
 use indexmap::{indexmap, IndexMap};
-use turbo_tasks::{Value, ValueToString};
-use turbo_tasks_fs::{File, FileSystemPathVc};
+use turbo_tasks::{Value, ValueToString, Vc};
+use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_binding::turbopack::{
     core::{
-        asset::{Asset, AssetVc},
-        chunk::EvaluatableAssetVc,
-        context::{AssetContext, AssetContextVc},
-        issue::{IssueSeverity, OptionIssueSourceVc},
-        reference_type::{EcmaScriptModulesReferenceSubType, InnerAssetsVc, ReferenceType},
-        resolve::parse::RequestVc,
-        virtual_asset::VirtualAssetVc,
+        asset::AssetContent,
+        chunk::EvaluatableAsset,
+        context::AssetContext,
+        issue::{IssueSeverity, OptionIssueSource},
+        module::Module,
+        reference_type::{EcmaScriptModulesReferenceSubType, InnerAssets, ReferenceType},
+        resolve::parse::Request,
+        source::Source,
+        virtual_source::VirtualSource,
     },
-    ecmascript::{resolve::esm_resolve, utils::StringifyJs, EcmascriptModuleAssetVc},
+    ecmascript::{resolve::esm_resolve, utils::StringifyJs, EcmascriptModuleAsset},
 };
 
 #[turbo_tasks::function]
 pub async fn route_bootstrap(
-    asset: AssetVc,
-    context: AssetContextVc,
-    base_path: FileSystemPathVc,
-    bootstrap_asset: AssetVc,
-    config: BootstrapConfigVc,
-) -> Result<EvaluatableAssetVc> {
-    let resolve_origin = if let Some(m) = EcmascriptModuleAssetVc::resolve_from(asset).await? {
-        m.as_resolve_origin()
-    } else {
-        bail!("asset does not represent an ecmascript module");
-    };
+    asset: Vc<Box<dyn Module>>,
+    context: Vc<Box<dyn AssetContext>>,
+    base_path: Vc<FileSystemPath>,
+    bootstrap_asset: Vc<Box<dyn Source>>,
+    config: Vc<BootstrapConfig>,
+) -> Result<Vc<Box<dyn EvaluatableAsset>>> {
+    let resolve_origin =
+        if let Some(m) = Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(asset).await? {
+            Vc::upcast(m)
+        } else {
+            bail!("asset does not represent an ecmascript module");
+        };
 
     // TODO: this is where you'd switch the route kind to the one you need
     let route_module_kind = "app-route";
 
-    let resolved_route_module_asset = esm_resolve(
+    let resolved_route_module = esm_resolve(
         resolve_origin,
-        RequestVc::parse_string(format!(
+        Request::parse_string(format!(
             "next/dist/server/future/route-modules/{}/module",
             route_module_kind
         )),
         Value::new(EcmaScriptModulesReferenceSubType::Undefined),
-        OptionIssueSourceVc::none(),
+        OptionIssueSource::none(),
         IssueSeverity::Error.cell(),
     );
-    let route_module_asset = match &*resolved_route_module_asset.first_asset().await? {
-        Some(a) => *a,
+    let route_module = match *resolved_route_module.first_module().await? {
+        Some(module) => module,
         None => bail!("could not find app asset"),
     };
 
@@ -52,8 +55,8 @@ pub async fn route_bootstrap(
         context,
         base_path,
         bootstrap_asset,
-        InnerAssetsVc::cell(indexmap! {
-            "ROUTE_MODULE".to_string() => route_module_asset,
+        Vc::cell(indexmap! {
+            "ROUTE_MODULE".to_string() => route_module,
         }),
         config,
     ))
@@ -63,22 +66,22 @@ pub async fn route_bootstrap(
 pub struct BootstrapConfig(IndexMap<String, String>);
 
 #[turbo_tasks::value_impl]
-impl BootstrapConfigVc {
+impl BootstrapConfig {
     #[turbo_tasks::function]
-    pub fn empty() -> Self {
-        BootstrapConfigVc::cell(IndexMap::new())
+    pub fn empty() -> Vc<Self> {
+        Vc::cell(IndexMap::new())
     }
 }
 
 #[turbo_tasks::function]
 pub async fn bootstrap(
-    asset: AssetVc,
-    context: AssetContextVc,
-    base_path: FileSystemPathVc,
-    bootstrap_asset: AssetVc,
-    inner_assets: InnerAssetsVc,
-    config: BootstrapConfigVc,
-) -> Result<EvaluatableAssetVc> {
+    asset: Vc<Box<dyn Module>>,
+    context: Vc<Box<dyn AssetContext>>,
+    base_path: Vc<FileSystemPath>,
+    bootstrap_asset: Vc<Box<dyn Source>>,
+    inner_assets: Vc<InnerAssets>,
+    config: Vc<BootstrapConfig>,
+) -> Result<Vc<Box<dyn EvaluatableAsset>>> {
     let path = asset.ident().path().await?;
     let Some(path) = base_path.await?.get_path_to(&path) else {
         bail!(
@@ -105,19 +108,20 @@ pub async fn bootstrap(
     config.insert("KIND".to_string(), "APP_ROUTE".to_string());
 
     let config_asset = context.process(
-        VirtualAssetVc::new(
-            asset.ident().path().join("bootstrap-config.ts"),
-            File::from(
-                config
-                    .iter()
-                    .map(|(k, v)| format!("export const {} = {};\n", k, StringifyJs(v)))
-                    .collect::<Vec<_>>()
-                    .join(""),
-            )
-            .into(),
-        )
-        .as_asset(),
-        Value::new(ReferenceType::Internal(InnerAssetsVc::empty())),
+        Vc::upcast(VirtualSource::new(
+            asset.ident().path().join("bootstrap-config.ts".to_string()),
+            AssetContent::file(
+                File::from(
+                    config
+                        .iter()
+                        .map(|(k, v)| format!("export const {} = {};\n", k, StringifyJs(v)))
+                        .collect::<Vec<_>>()
+                        .join(""),
+                )
+                .into(),
+            ),
+        )),
+        Value::new(ReferenceType::Internal(InnerAssets::empty())),
     );
 
     let mut inner_assets = inner_assets.await?.clone_value();
@@ -126,10 +130,10 @@ pub async fn bootstrap(
 
     let asset = context.process(
         bootstrap_asset,
-        Value::new(ReferenceType::Internal(InnerAssetsVc::cell(inner_assets))),
+        Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
     );
 
-    let Some(asset) = EvaluatableAssetVc::resolve_from(asset).await? else {
+    let Some(asset) = Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(asset).await? else {
         bail!("internal module must be evaluatable");
     };
 

@@ -3,6 +3,8 @@ title: images
 description: Custom configuration for the next/image loader
 ---
 
+{/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
+
 If you want to use a cloud provider to optimize images instead of using the Next.js built-in Image Optimization API, you can configure `next.config.js` with the following:
 
 ```js filename="next.config.js"
@@ -22,7 +24,17 @@ export default function myImageLoader({ src, width, quality }) {
 }
 ```
 
+<AppOnly>
+
+Alternatively, you can use the [`loader` prop](/docs/app/api-reference/components/image#loader) to pass the function to each instance of `next/image`.
+
+</AppOnly>
+
+<PagesOnly>
+
 Alternatively, you can use the [`loader` prop](/docs/pages/api-reference/components/image#loader) to pass the function to each instance of `next/image`.
+
+</PagesOnly>
 
 ## Example Loader Configuration
 
@@ -35,6 +47,7 @@ Alternatively, you can use the [`loader` prop](/docs/pages/api-reference/compone
 - [ImageEngine](#imageengine)
 - [Imgix](#imgix)
 - [Thumbor](#thumbor)
+- [Supabase](#supabase)
 
 ### Akamai
 
@@ -69,11 +82,11 @@ export default function cloudflareLoader({ src, width, quality }) {
 
 ```js
 // Docs: https://www.contentful.com/developers/docs/references/images-api/
-export default function contentfulLoader({ src, quality, width }) {
+export default function contentfulLoader({ src, width, quality }) {
   const url = new URL(`https://example.com${src}`)
   url.searchParams.set('fm', 'webp')
   url.searchParams.set('w', width.toString())
-  url.searchParams.set('q', quality.toString() || '75')
+  url.searchParams.set('q', (quality || 75).toString())
   return url.href
 }
 ```
@@ -86,7 +99,7 @@ export default function fastlyLoader({ src, width, quality }) {
   const url = new URL(`https://example.com${src}`)
   url.searchParams.set('auto', 'webp')
   url.searchParams.set('width', width.toString())
-  url.searchParams.set('quality', quality.toString() || '75')
+  url.searchParams.set('quality', (quality || 75).toString())
   return url.href
 }
 ```
@@ -99,7 +112,7 @@ export default function gumletLoader({ src, width, quality }) {
   const url = new URL(`https://example.com${src}`)
   url.searchParams.set('format', 'auto')
   url.searchParams.set('w', width.toString())
-  url.searchParams.set('q', quality.toString() || '75')
+  url.searchParams.set('q', (quality || 75).toString())
   return url.href
 }
 ```
@@ -125,7 +138,7 @@ export default function imgixLoader({ src, width, quality }) {
   params.set('auto', params.getAll('auto').join(',') || 'format')
   params.set('fit', params.get('fit') || 'max')
   params.set('w', params.get('w') || width.toString())
-  params.set('q', quality.toString() || '50')
+  params.set('q', (quality || 50).toString())
   return url.href
 }
 ```
@@ -137,5 +150,17 @@ export default function imgixLoader({ src, width, quality }) {
 export default function thumborLoader({ src, width, quality }) {
   const params = [`${width}x0`, `filters:quality(${quality || 75})`]
   return `https://example.com${params.join('/')}${src}`
+}
+```
+
+### Supabase
+
+```js
+// Docs: https://supabase.com/docs/guides/storage/image-transformations#nextjs-loader
+export default function supabaseLoader({ src, width, quality }) {
+  const url = new URL(`https://example.com${src}`)
+  url.searchParams.set('width', width.toString())
+  url.searchParams.set('quality', (quality || 75).toString())
+  return url.href
 }
 ```

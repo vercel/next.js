@@ -256,8 +256,8 @@ createNextDescribe(
       expect(res.headers.get('x-edge-runtime')).toBe('1')
       expect(res.headers.get('vary')).toBe(
         isNextDeploy
-          ? 'RSC, Next-Router-State-Tree, Next-Router-Prefetch'
-          : 'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Accept-Encoding'
+          ? 'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Url'
+          : 'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Url, Accept-Encoding'
       )
     })
 
@@ -269,8 +269,8 @@ createNextDescribe(
       })
       expect(res.headers.get('vary')).toBe(
         isNextDeploy
-          ? 'RSC, Next-Router-State-Tree, Next-Router-Prefetch'
-          : 'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Accept-Encoding'
+          ? 'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Url'
+          : 'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Url, Accept-Encoding'
       )
     })
 
@@ -1546,7 +1546,7 @@ createNextDescribe(
           expect(
             await browser.waitForElementByCss('body').elementByCss('h2').text()
           ).toBe(
-            'Application error: a client-side exception has occurred (see the browser console for more information).'
+            'Application error: a server-side exception has occurred (see the server logs for more information).'
           )
           expect(
             await browser.waitForElementByCss('body').elementByCss('p').text()
@@ -1838,6 +1838,15 @@ createNextDescribe(
         expect(html).not.toContain(
           '<script rel="preload" as="script" src="/test4.js"/>'
         )
+      })
+
+      it('should load stylesheets for next/scripts', async () => {
+        const html = await next.render('/script')
+        const $ = cheerio.load(html)
+
+        expect($('link[href="/style3.css"]').length).toBe(1)
+        expect($('link[href="/style1a.css"]').length).toBe(1)
+        expect($('link[href="/style1b.css"]').length).toBe(1)
       })
     })
 

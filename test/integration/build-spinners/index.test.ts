@@ -30,16 +30,6 @@ const appDirFiles: File[] = [
     }
   `,
   },
-  {
-    filename: 'next.config.js',
-    content: `
-    module.exports = {
-      experimental: {
-        appDir: true
-      }
-    }
-  `,
-  },
 ]
 const pagesFiles: File[] = [
   {
@@ -65,7 +55,6 @@ it.each([
         content: `
         module.exports = {
           experimental: {
-            appDir: true,
             webpackBuildWorker: true,
           }
         }

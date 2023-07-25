@@ -93,6 +93,12 @@ export function processEnv(
   return Object.assign(process.env, parsed)
 }
 
+export function resetEnv() {
+  if (initialEnv) {
+    replaceProcessEnv(initialEnv)
+  }
+}
+
 export function loadEnvConfig(
   dir: string,
   dev?: boolean,

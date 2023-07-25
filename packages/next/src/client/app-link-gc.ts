@@ -37,7 +37,13 @@ export function linkGc() {
                         if (otherHref) {
                           const [, otherVersion] = otherHref.split('?v=')
                           if (!otherVersion || +otherVersion < +version) {
-                            otherLink.remove()
+                            // Delay the removal of the stylesheet to avoid FOUC
+                            // caused by `@font-face` rules, as they seem to be
+                            // a couple of ticks delayed between the old and new
+                            // styles being swapped even if the font is cached.
+                            setTimeout(() => {
+                              otherLink.remove()
+                            }, 5)
                             const preloadLink = document.querySelector(
                               `link[rel="preload"][as="style"][href="${otherHref}"]`
                             )

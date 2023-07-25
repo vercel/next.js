@@ -14,6 +14,7 @@ import { getImageSize } from '../../../server/image-optimizer'
 import { imageExtMimeTypeMap } from '../../../lib/mime-type'
 import { fileExists } from '../../../lib/file-exists'
 import { WEBPACK_RESOURCE_QUERIES } from '../../../lib/constants'
+import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 
 interface Options {
   segment: string
@@ -25,9 +26,9 @@ interface Options {
 async function nextMetadataImageLoader(this: any, content: Buffer) {
   const options: Options = this.getOptions()
   const { type, segment, pageExtensions, basePath } = options
-  const numericSizes = type === 'twitter' || type === 'openGraph'
   const { resourcePath, rootContext: context } = this
   const { name: fileNameBase, ext } = path.parse(resourcePath)
+  const useNumericSizes = type === 'twitter' || type === 'openGraph'
 
   let extension = ext.slice(1)
   if (extension === 'jpg') {
@@ -51,7 +52,7 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
   const isDynamicResource = pageExtensions.includes(extension)
   const pageSegment = isDynamicResource ? fileNameBase : interpolatedName
   const hashQuery = contentHash ? '?' + contentHash : ''
-  const pathnamePrefix = path.join(basePath, segment)
+  const pathnamePrefix = normalizePathSep(path.join(basePath, segment))
 
   if (isDynamicResource) {
     const mod = await new Promise<webpack.NormalModule>((res, rej) => {
@@ -81,6 +82,7 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
         .map((dep: any) => {
           return dep.name
         }) || []
+
     // re-export and spread as `exportedImageData` to avoid non-exported error
     return `\
     import {
@@ -142,7 +144,7 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
     }`
   }
 
-  const imageSize = await getImageSize(
+  const imageSize: { width?: number; height?: number } = await getImageSize(
     content,
     extension as 'avif' | 'webp' | 'png' | 'jpeg'
   ).catch((err) => err)
@@ -157,11 +159,11 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
     ...(extension in imageExtMimeTypeMap && {
       type: imageExtMimeTypeMap[extension as keyof typeof imageExtMimeTypeMap],
     }),
-    ...(numericSizes
-      ? { width: imageSize.width as number, height: imageSize.height as number }
+    ...(useNumericSizes && imageSize.width != null && imageSize.height != null
+      ? imageSize
       : {
           sizes:
-            extension === 'ico'
+            extension === 'ico' || extension === 'svg'
               ? 'any'
               : `${imageSize.width}x${imageSize.height}`,
         }),

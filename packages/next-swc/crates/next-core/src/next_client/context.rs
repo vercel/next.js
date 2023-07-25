@@ -1,42 +1,33 @@
 use core::{default::Default, result::Result::Ok};
-use std::collections::HashMap;
 
 use anyhow::Result;
-use turbo_tasks::{primitives::StringVc, Value};
+use turbo_tasks::{Value, Vc};
 use turbo_tasks_fs::FileSystem;
 use turbopack_binding::{
-    turbo::{tasks_env::ProcessEnvVc, tasks_fs::FileSystemPathVc},
+    turbo::{tasks_env::ProcessEnv, tasks_fs::FileSystemPath},
     turbopack::{
         core::{
-            chunk::ChunkingContextVc,
             compile_time_defines,
             compile_time_info::{
-                CompileTimeDefines, CompileTimeDefinesVc, CompileTimeInfo, CompileTimeInfoVc,
-                FreeVarReference, FreeVarReferencesVc,
+                CompileTimeDefines, CompileTimeInfo, FreeVarReference, FreeVarReferences,
             },
-            context::AssetContextVc,
-            environment::{
-                BrowserEnvironment, EnvironmentIntention, EnvironmentVc, ExecutionEnvironment,
-            },
+            environment::{BrowserEnvironment, Environment, ExecutionEnvironment},
             free_var_references,
-            resolve::{parse::RequestVc, pattern::Pattern},
+            resolve::{parse::Request, pattern::Pattern},
         },
-        dev::{react_refresh::assert_can_resolve_react_refresh, DevChunkingContextVc},
-        ecmascript::TransformPluginVc,
+        dev::{react_refresh::assert_can_resolve_react_refresh, DevChunkingContext},
+        ecmascript::chunk::EcmascriptChunkingContext,
         ecmascript_plugin::transform::directives::server::ServerDirectiveTransformer,
-        env::ProcessEnvAssetVc,
-        node::execution_context::ExecutionContextVc,
+        env::ProcessEnvAsset,
+        node::execution_context::ExecutionContext,
         turbopack::{
             condition::ContextCondition,
             module_options::{
-                module_options_context::{ModuleOptionsContext, ModuleOptionsContextVc},
-                CustomEcmascriptTransformPlugins, CustomEcmascriptTransformPluginsVc,
+                module_options_context::ModuleOptionsContext, CustomEcmascriptTransformPlugins,
                 JsxTransformOptions, MdxTransformModuleOptions, PostCssTransformOptions,
                 TypescriptTransformOptions, WebpackLoadersOptions,
             },
-            resolve_options_context::{ResolveOptionsContext, ResolveOptionsContextVc},
-            transition::TransitionsByNameVc,
-            ModuleAssetContextVc,
+            resolve_options_context::ResolveOptionsContext,
         },
     },
 };
@@ -48,18 +39,19 @@ use crate::{
     env::env_for_js,
     mode::NextMode,
     next_build::{get_external_next_compiled_package_mapping, get_postcss_package_mapping},
-    next_client::runtime_entry::{RuntimeEntriesVc, RuntimeEntry},
-    next_config::NextConfigVc,
+    next_client::runtime_entry::{RuntimeEntries, RuntimeEntry},
+    next_config::NextConfig,
     next_import_map::{
         get_next_client_fallback_import_map, get_next_client_import_map,
         get_next_client_resolved_map, mdx_import_source_file,
     },
     next_shared::{
-        resolve::UnsupportedModulesResolvePluginVc,
+        resolve::{ModuleFeatureReportResolvePlugin, UnsupportedModulesResolvePlugin},
         transforms::{
             emotion::get_emotion_transform_plugin, get_relay_transform_plugin,
             styled_components::get_styled_components_transform_plugin,
             styled_jsx::get_styled_jsx_transform_plugin,
+            swc_ecma_transform_plugins::get_swc_ecma_transform_plugin,
         },
     },
     sass::maybe_add_sass_loader,
@@ -83,12 +75,12 @@ fn defines(mode: NextMode) -> CompileTimeDefines {
 }
 
 #[turbo_tasks::function]
-fn next_client_defines(mode: NextMode) -> CompileTimeDefinesVc {
+fn next_client_defines(mode: NextMode) -> Vc<CompileTimeDefines> {
     defines(mode).cell()
 }
 
 #[turbo_tasks::function]
-async fn next_client_free_vars(mode: NextMode) -> Result<FreeVarReferencesVc> {
+async fn next_client_free_vars(mode: NextMode) -> Result<Vc<FreeVarReferences>> {
     Ok(free_var_references!(
         ..defines(mode).into_iter(),
         Buffer = FreeVarReference::EcmaScriptModule {
@@ -106,19 +98,19 @@ async fn next_client_free_vars(mode: NextMode) -> Result<FreeVarReferencesVc> {
 }
 
 #[turbo_tasks::function]
-pub fn get_client_compile_time_info(mode: NextMode, browserslist_query: &str) -> CompileTimeInfoVc {
-    CompileTimeInfo::builder(EnvironmentVc::new(
-        Value::new(ExecutionEnvironment::Browser(
-            BrowserEnvironment {
-                dom: true,
-                web_worker: false,
-                service_worker: false,
-                browserslist_query: browserslist_query.to_owned(),
-            }
-            .into(),
-        )),
-        Value::new(EnvironmentIntention::Client),
-    ))
+pub fn get_client_compile_time_info(
+    mode: NextMode,
+    browserslist_query: String,
+) -> Vc<CompileTimeInfo> {
+    CompileTimeInfo::builder(Environment::new(Value::new(ExecutionEnvironment::Browser(
+        BrowserEnvironment {
+            dom: true,
+            web_worker: false,
+            service_worker: false,
+            browserslist_query: browserslist_query.to_owned(),
+        }
+        .into(),
+    ))))
     .defines(next_client_defines(mode))
     .free_var_references(next_client_free_vars(mode))
     .cell()
@@ -127,20 +119,20 @@ pub fn get_client_compile_time_info(mode: NextMode, browserslist_query: &str) ->
 #[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(Debug, Copy, Clone, Hash, PartialOrd, Ord)]
 pub enum ClientContextType {
-    Pages { pages_dir: FileSystemPathVc },
-    App { app_dir: FileSystemPathVc },
+    Pages { pages_dir: Vc<FileSystemPath> },
+    App { app_dir: Vc<FileSystemPath> },
     Fallback,
     Other,
 }
 
 #[turbo_tasks::function]
 pub async fn get_client_resolve_options_context(
-    project_path: FileSystemPathVc,
+    project_path: Vc<FileSystemPath>,
     ty: Value<ClientContextType>,
     mode: NextMode,
-    next_config: NextConfigVc,
-    execution_context: ExecutionContextVc,
-) -> Result<ResolveOptionsContextVc> {
+    next_config: Vc<NextConfig>,
+    execution_context: Vc<ExecutionContext>,
+) -> Result<Vc<ResolveOptionsContext>> {
     let next_client_import_map =
         get_next_client_import_map(project_path, ty, next_config, execution_context);
     let next_client_fallback_import_map = get_next_client_fallback_import_map(ty);
@@ -153,7 +145,10 @@ pub async fn get_client_resolve_options_context(
         resolved_map: Some(next_client_resolved_map),
         browser: true,
         module: true,
-        plugins: vec![UnsupportedModulesResolvePluginVc::new(project_path).into()],
+        plugins: vec![
+            Vc::upcast(ModuleFeatureReportResolvePlugin::new(project_path)),
+            Vc::upcast(UnsupportedModulesResolvePlugin::new(project_path)),
+        ],
         ..Default::default()
     };
     Ok(ResolveOptionsContext {
@@ -170,14 +165,14 @@ pub async fn get_client_resolve_options_context(
 
 #[turbo_tasks::function]
 pub async fn get_client_module_options_context(
-    project_path: FileSystemPathVc,
-    execution_context: ExecutionContextVc,
-    env: EnvironmentVc,
+    project_path: Vc<FileSystemPath>,
+    execution_context: Vc<ExecutionContext>,
+    env: Vc<Environment>,
     ty: Value<ClientContextType>,
     mode: NextMode,
-    next_config: NextConfigVc,
-) -> Result<ModuleOptionsContextVc> {
-    let custom_rules = get_next_client_transforms_rules(next_config, ty.into_value()).await?;
+    next_config: Vc<NextConfig>,
+) -> Result<Vc<ModuleOptionsContext>> {
+    let custom_rules = get_next_client_transforms_rules(next_config, ty.into_value(), mode).await?;
     let resolve_options_context =
         get_client_resolve_options_context(project_path, ty, mode, next_config, execution_context);
 
@@ -201,31 +196,30 @@ pub async fn get_client_module_options_context(
     let enable_webpack_loaders = webpack_rules.map(|rules| {
         WebpackLoadersOptions {
             rules,
-            loader_runner_package: Some(get_external_next_compiled_package_mapping(
-                StringVc::cell("loader-runner".to_owned()),
-            )),
+            loader_runner_package: Some(get_external_next_compiled_package_mapping(Vc::cell(
+                "loader-runner".to_owned(),
+            ))),
         }
         .cell()
     });
 
     let source_transforms = vec![
+        *get_swc_ecma_transform_plugin(project_path, next_config).await?,
         *get_relay_transform_plugin(next_config).await?,
         *get_emotion_transform_plugin(next_config).await?,
         *get_styled_components_transform_plugin(next_config).await?,
         *get_styled_jsx_transform_plugin().await?,
-        Some(TransformPluginVc::cell(Box::new(
-            ServerDirectiveTransformer::new(
-                // ServerDirective is not implemented yet and always reports an issue.
-                // We don't have to pass a valid transition name yet, but the API is prepared.
-                &StringVc::cell("TODO".to_string()),
-            ),
-        ))),
+        Some(Vc::cell(Box::new(ServerDirectiveTransformer::new(
+            // ServerDirective is not implemented yet and always reports an issue.
+            // We don't have to pass a valid transition name yet, but the API is prepared.
+            &Vc::cell("TODO".to_string()),
+        )) as _)),
     ]
     .into_iter()
     .flatten()
     .collect();
 
-    let custom_ecma_transform_plugins = Some(CustomEcmascriptTransformPluginsVc::cell(
+    let custom_ecma_transform_plugins = Some(CustomEcmascriptTransformPlugins::cell(
         CustomEcmascriptTransformPlugins {
             source_transforms,
             output_transforms: vec![],
@@ -282,81 +276,42 @@ pub async fn get_client_module_options_context(
 }
 
 #[turbo_tasks::function]
-pub fn get_client_asset_context(
-    project_path: FileSystemPathVc,
-    execution_context: ExecutionContextVc,
-    compile_time_info: CompileTimeInfoVc,
-    ty: Value<ClientContextType>,
+pub fn get_client_chunking_context(
+    project_path: Vc<FileSystemPath>,
+    client_root: Vc<FileSystemPath>,
+    environment: Vc<Environment>,
     mode: NextMode,
-    next_config: NextConfigVc,
-) -> AssetContextVc {
-    let resolve_options_context =
-        get_client_resolve_options_context(project_path, ty, mode, next_config, execution_context);
-    let module_options_context = get_client_module_options_context(
+) -> Vc<Box<dyn EcmascriptChunkingContext>> {
+    let builder = DevChunkingContext::builder(
         project_path,
-        execution_context,
-        compile_time_info.environment(),
-        ty,
-        mode,
-        next_config,
+        client_root,
+        client_root.join("_next/static/chunks".to_string()),
+        get_client_assets_path(client_root),
+        environment,
     );
 
-    let context: AssetContextVc = ModuleAssetContextVc::new(
-        TransitionsByNameVc::cell(HashMap::new()),
-        compile_time_info,
-        module_options_context,
-        resolve_options_context,
-    )
-    .into();
+    let builder = match mode {
+        NextMode::Development => builder.hot_module_replacement(),
+        NextMode::Build => builder.chunk_base_path(Vc::cell(Some("_next/".to_string()))),
+    };
 
-    context
+    Vc::upcast(builder.build())
 }
 
 #[turbo_tasks::function]
-pub fn get_client_chunking_context(
-    project_path: FileSystemPathVc,
-    server_root: FileSystemPathVc,
-    environment: EnvironmentVc,
-    ty: Value<ClientContextType>,
-) -> ChunkingContextVc {
-    DevChunkingContextVc::builder(
-        project_path,
-        server_root,
-        match ty.into_value() {
-            ClientContextType::Pages { .. }
-            | ClientContextType::App { .. }
-            | ClientContextType::Fallback => server_root.join("/_next/static/chunks"),
-            ClientContextType::Other => server_root.join("/_chunks"),
-        },
-        get_client_assets_path(server_root, ty),
-        environment,
-    )
-    .hot_module_replacement()
-    .build()
-}
-
-#[turbo_tasks::function]
-pub fn get_client_assets_path(
-    client_root: FileSystemPathVc,
-    ty: Value<ClientContextType>,
-) -> FileSystemPathVc {
-    match ty.into_value() {
-        ClientContextType::Pages { .. }
-        | ClientContextType::App { .. }
-        | ClientContextType::Fallback => client_root.join("/_next/static/media"),
-        ClientContextType::Other => client_root.join("/_assets"),
-    }
+pub fn get_client_assets_path(client_root: Vc<FileSystemPath>) -> Vc<FileSystemPath> {
+    client_root.join("_next/static/media".to_string())
 }
 
 #[turbo_tasks::function]
 pub async fn get_client_runtime_entries(
-    project_root: FileSystemPathVc,
-    env: ProcessEnvVc,
+    project_root: Vc<FileSystemPath>,
+    env: Vc<Box<dyn ProcessEnv>>,
     ty: Value<ClientContextType>,
     mode: NextMode,
-    next_config: NextConfigVc,
-    execution_context: ExecutionContextVc,
-) -> Result<RuntimeEntriesVc> {
+    next_config: Vc<NextConfig>,
+    execution_context: Vc<ExecutionContext>,
+) -> Result<Vc<RuntimeEntries>> {
     let mut runtime_entries = vec![];
 
     if matches!(
@@ -364,9 +319,10 @@ pub async fn get_client_runtime_entries(
         ClientContextType::App { .. } | ClientContextType::Pages { .. },
     ) {
         runtime_entries.push(
-            RuntimeEntry::Source(
-                ProcessEnvAssetVc::new(project_root, env_for_js(env, true, next_config)).into(),
-            )
+            RuntimeEntry::Source(Vc::upcast(ProcessEnvAsset::new(
+                project_root,
+                env_for_js(env, true, next_config),
+            )))
             .cell(),
         );
     }
@@ -389,21 +345,36 @@ pub async fn get_client_runtime_entries(
             // because the bootstrap contains JSX which requires Refresh's global
             // functions to be available.
             if let Some(request) = enable_react_refresh {
-                runtime_entries.push(RuntimeEntry::Request(request, project_root.join("_")).cell())
+                runtime_entries
+                    .push(RuntimeEntry::Request(request, project_root.join("_".to_string())).cell())
             };
         }
-        NextMode::Build => {
-            runtime_entries.push(
-                RuntimeEntry::Request(
-                    RequestVc::parse(Value::new(Pattern::Constant(
-                        "./build/client/bootstrap.ts".to_string(),
-                    ))),
-                    next_js_fs().root().join("_"),
-                )
-                .cell(),
-            );
-        }
+        NextMode::Build => match *ty {
+            ClientContextType::App { .. } => {
+                runtime_entries.push(
+                    RuntimeEntry::Request(
+                        Request::parse(Value::new(Pattern::Constant(
+                            "./build/client/app-bootstrap.ts".to_string(),
+                        ))),
+                        next_js_fs().root().join("_".to_string()),
+                    )
+                    .cell(),
+                );
+            }
+            ClientContextType::Pages { .. } => {
+                runtime_entries.push(
+                    RuntimeEntry::Request(
+                        Request::parse(Value::new(Pattern::Constant(
+                            "./build/client/bootstrap.ts".to_string(),
+                        ))),
+                        next_js_fs().root().join("_".to_string()),
+                    )
+                    .cell(),
+                );
+            }
+            _ => {}
+        },
     }
 
-    Ok(RuntimeEntriesVc::cell(runtime_entries))
+    Ok(Vc::cell(runtime_entries))
 }
