@@ -185,16 +185,16 @@ export async function initialize(opts: {
   } as any)
 
   if (!!config.experimental.appDir) {
-    renderWorkers.app =
-      require('./render-server') as typeof import('./render-server')
+    renderWorkers.app = await createWorker(
+      ipcPort,
+      ipcValidationKey,
+      opts.isNodeDebugging,
+      'app',
+      config
+    )
   }
-  renderWorkers.pages = await createWorker(
-    ipcPort,
-    ipcValidationKey,
-    opts.isNodeDebugging,
-    'pages',
-    config
-  )
+  renderWorkers.pages =
+    require('./render-server') as typeof import('./render-server')
 
   // pre-initialize workers
   await renderWorkers.app?.initialize(renderWorkerOpts)
