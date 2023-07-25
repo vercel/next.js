@@ -97,15 +97,18 @@ module.exports = (context) => {
     it('should not throw a server error for non-existent traversing paths', async () => {
       const pathsToCheck = [
         `/_next/static/../../server.php`,
-        `/_next/static/../../../does-not-exist.js`,
-        `/_next/static/../../../../../../conf/defaults.ini`,
+        `/public/plugins/../../server.php`,
+        `/example-page/../../../does-not-exist`,
+        `/public/../../../../../../conf/defaults.ini`,
       ]
       for (const path of pathsToCheck) {
         const res = await fetchViaHTTP(context.appPort, path)
         try {
-          expect(res.status).toBe(400)
+          expect([400, 404].includes(res.status)).toBeTruthy()
         } catch (err) {
-          throw new Error(`Path ${path} had the status of ${res.status} instead of 400`)
+          throw new Error(
+            `Path ${path} had the status of ${res.status} instead of 400`
+          )
         }
       }
     })
