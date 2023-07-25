@@ -17,13 +17,7 @@ export async function initialize(
     async revalidateTag(
       ...args: Parameters<IncrementalCache['revalidateTag']>
     ) {
-      return incrementalCache.cacheHandler?.revalidateTag?.(...args)
-    },
-
-    async fetchCacheKey(
-      ...args: Parameters<IncrementalCache['fetchCacheKey']>
-    ) {
-      return incrementalCache.fetchCacheKey(...args)
+      return incrementalCache.revalidateTag(...args)
     },
 
     async get(...args: Parameters<IncrementalCache['get']>) {

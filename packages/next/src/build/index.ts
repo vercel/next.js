@@ -148,7 +148,6 @@ import {
 } from '../server/require-hook'
 import { initialize } from '../server/lib/incremental-cache-server'
 import { nodeFs } from '../server/lib/node-fs-methods'
-import { CacheHandler } from '../server/lib/incremental-cache'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -1257,10 +1256,18 @@ export default async function build(
           >
       }
 
+      let CacheHandler: any
+
+      if (incrementalCacheHandlerPath) {
+        CacheHandler = require(incrementalCacheHandlerPath)
+        CacheHandler = CacheHandler.default || CacheHandler
+      }
+
       const { ipcPort, ipcValidationKey } = await initialize({
         fs: nodeFs,
         dev: false,
         appDir: isAppDirEnabled,
+        fetchCache: isAppDirEnabled,
         flushToDisk: config.experimental.isrFlushToDisk,
         serverDistDir: path.join(distDir, 'server'),
         fetchCacheKeyPrefix: config.experimental.fetchCacheKeyPrefix,
@@ -1272,9 +1279,12 @@ export default async function build(
           notFoundRoutes: [],
           preview: null as any, // `preview` is special case read in next-dev-server
         }),
-        CurCacheHandler: CacheHandler,
         requestHeaders: {},
+        CurCacheHandler: CacheHandler,
         minimalMode: ciEnvironment.hasNextSupport,
+
+        allowedRevalidateHeaderKeys:
+          config.experimental.allowedRevalidateHeaderKeys,
       })
 
       const pagesStaticWorkers = createStaticWorker(
