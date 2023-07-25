@@ -930,9 +930,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           for (const key of routeParamKeys) {
             delete parsedUrl.query[key]
           }
-          parsedUrl.pathname = `${this.nextConfig.basePath || ''}${
-            matchedPath === '/' && this.nextConfig.basePath ? '' : matchedPath
-          }`
+          parsedUrl.pathname = matchedPath
           url.pathname = parsedUrl.pathname
         } catch (err) {
           if (err instanceof DecodeError || err instanceof NormalizeError) {
