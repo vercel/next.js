@@ -72,6 +72,7 @@ import { mkdir, readFile, writeFile } from 'fs/promises'
 import { PagesManifest } from '../../../build/webpack/plugins/pages-manifest-plugin'
 import { AppBuildManifest } from '../../../build/webpack/plugins/app-build-manifest-plugin'
 import { PageNotFoundError } from '../../../shared/lib/utils'
+import { srcEmptySsgManifest } from '../../../build/webpack/plugins/build-manifest-plugin'
 
 type SetupOpts = {
   dir: string
@@ -207,12 +208,14 @@ async function startWatcher(opts: SetupOpts) {
         devFiles: [],
         ampDevFiles: [],
         polyfillFiles: [],
-        lowPriorityFiles: [],
+        lowPriorityFiles: [
+          'static/development/_ssgManifest.js',
+          'static/development/_buildManifest.js',
+        ],
         rootMainFiles: [],
         ampFirstPages: [],
       }
       for (const m of manifests) {
-        Object.assign(manifest, m, { pages: manifest.pages })
         Object.assign(manifest.pages, m.pages)
       }
       return manifest
@@ -264,6 +267,11 @@ async function startWatcher(opts: SetupOpts) {
       await writeFile(
         path.join(distDir, 'static', 'development', '_buildManifest.js'),
         buildManifestJs,
+        'utf-8'
+      )
+      await writeFile(
+        path.join(distDir, 'static', 'development', '_ssgManifest.js'),
+        srcEmptySsgManifest,
         'utf-8'
       )
     }
@@ -1210,6 +1218,7 @@ async function startWatcher(opts: SetupOpts) {
 
     if (parsedUrl.pathname === clientPagesManifestPath) {
       res.statusCode = 200
+      console.log('prevSortedRoutes', prevSortedRoutes)
       res.setHeader('Content-Type', 'application/json; charset=utf-8')
       res.end(
         JSON.stringify({
