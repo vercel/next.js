@@ -4,7 +4,7 @@ use std::{
     path::{PathBuf, MAIN_SEPARATOR},
 };
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{anyhow, Context, Result};
 use dunce::canonicalize;
 use next_core::{
     mode::NextMode,
@@ -30,7 +30,6 @@ use turbo_tasks::{
 use turbopack_binding::{
     turbo::tasks_fs::{rebase, DiskFileSystem, FileContent, FileSystem, FileSystemPath},
     turbopack::{
-        build::BuildChunkingContext,
         cli_utils::issue::{ConsoleUi, LogOptions},
         core::{
             asset::Asset,
@@ -38,7 +37,6 @@ use turbopack_binding::{
             environment::ServerAddr,
             issue::{IssueContextExt, IssueReporter, IssueSeverity},
             output::{OutputAsset, OutputAssets},
-            reference::AssetReference,
             virtual_fs::VirtualFileSystem,
         },
         dev::DevChunkingContext,
@@ -238,12 +236,6 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
     // be applied on the AssetContext level instead.
     let rsc_chunking_context = server_chunking_context.with_layer("rsc".to_string());
     let ssr_chunking_context = server_chunking_context.with_layer("ssr".to_string());
-    let (Some(rsc_chunking_context), Some(ssr_chunking_context)) = (
-        Vc::try_resolve_downcast_type::<BuildChunkingContext>(rsc_chunking_context).await?,
-        Vc::try_resolve_downcast_type::<BuildChunkingContext>(ssr_chunking_context).await?,
-    ) else {
-        bail!("with_layer should not change the type of the chunking context");
-    };
 
     let mut all_chunks = vec![];
 
@@ -478,6 +470,8 @@ async fn handle_issues<T>(source: Vc<T>, issue_reporter: Vc<Box<dyn IssueReporte
     let has_fatal = issue_reporter.report_issues(
         TransientInstance::new(issues.clone()),
         TransientValue::new(source.node),
+        // TODO this should be Error, but we need to fix the errors happing first
+        IssueSeverity::Fatal.cell(),
     );
 
     if *has_fatal.await? {
@@ -560,27 +554,13 @@ async fn all_assets_from_entries(entries: Vc<OutputAssets>) -> Result<Vc<OutputA
 async fn get_referenced_assets(
     asset: Vc<Box<dyn OutputAsset>>,
 ) -> Result<impl Iterator<Item = Vc<Box<dyn OutputAsset>>> + Send> {
-    Ok(
-        asset
-            .references()
-            .await?
-            .iter()
-            .map(|reference| async move {
-                let primary_assets = reference.resolve_reference().primary_assets().await?;
-                Ok(primary_assets.clone_value())
-            })
-            .try_join()
-            .await?
-            .into_iter()
-            .flatten()
-            .map(|asset| async move {
-                Ok(Vc::try_resolve_downcast::<Box<dyn OutputAsset>>(asset).await?)
-            })
-            .try_join()
-            .await?
-            .into_iter()
-            .flatten(),
-    )
+    Ok(asset
+        .references()
+        .await?
+        .iter()
+        .copied()
+        .collect::<Vec<_>>()
+        .into_iter())
 }
 
 /// Writes a manifest to disk. This consumes the manifest to ensure we don't

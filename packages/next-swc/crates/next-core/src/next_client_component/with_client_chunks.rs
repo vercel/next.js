@@ -15,8 +15,8 @@ use turbopack_binding::{
             module::Module,
             output::{OutputAsset, OutputAssets},
             proxied_asset::ProxiedAsset,
-            reference::{AssetReference, AssetReferences, SingleAssetReference},
-            resolve::ResolveResult,
+            reference::{ModuleReference, ModuleReferences, SingleOutputAssetReference},
+            resolve::ModuleResolveResult,
         },
         ecmascript::chunk::{EcmascriptChunkData, EcmascriptChunkItemExt},
         turbopack::ecmascript::{
@@ -48,7 +48,7 @@ impl Module for WithClientChunksAsset {
     }
 
     #[turbo_tasks::function]
-    fn references(&self) -> Vc<AssetReferences> {
+    fn references(&self) -> Vc<ModuleReferences> {
         Vc::cell(vec![Vc::upcast(
             WithClientChunksAssetReference {
                 asset: Vc::upcast(self.asset),
@@ -213,7 +213,7 @@ impl ChunkItem for WithClientChunksChunkItem {
     }
 
     #[turbo_tasks::function]
-    async fn references(self: Vc<Self>) -> Result<Vc<AssetReferences>> {
+    async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
         let this = self.await?;
         let inner = this.inner.await?;
         let mut references = Vec::new();
@@ -227,13 +227,19 @@ impl ChunkItem for WithClientChunksChunkItem {
         let client_chunks = client_chunks.await?;
         let client_chunk = Vc::cell("client chunk".to_string());
         for &chunk in client_chunks.iter() {
-            references.push(Vc::upcast(SingleAssetReference::new(
-                Vc::upcast(chunk),
+            references.push(Vc::upcast(SingleOutputAssetReference::new(
+                chunk,
                 client_chunk,
             )));
         }
+        let chunk_data_key = Vc::cell("chunk data".to_string());
         for chunk_data in &*self.chunks_data().await? {
-            references.extend(chunk_data.references().await?.iter().copied());
+            references.extend(chunk_data.references().await?.iter().map(|&output_asset| {
+                Vc::upcast(SingleOutputAssetReference::new(
+                    output_asset,
+                    chunk_data_key,
+                ))
+            }));
         }
         Ok(Vc::cell(references))
     }
@@ -256,10 +262,10 @@ impl ValueToString for WithClientChunksAssetReference {
 }
 
 #[turbo_tasks::value_impl]
-impl AssetReference for WithClientChunksAssetReference {
+impl ModuleReference for WithClientChunksAssetReference {
     #[turbo_tasks::function]
-    fn resolve_reference(&self) -> Vc<ResolveResult> {
-        ResolveResult::asset(Vc::upcast(self.asset)).cell()
+    fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
+        ModuleResolveResult::module(self.asset).cell()
     }
 }
 

@@ -43,7 +43,7 @@ pub async fn get_swc_ecma_transform_plugin_impl(
             reference_type::ReferenceType,
             resolve::{
                 handle_resolve_error, parse::Request, pattern::Pattern, resolve,
-                PrimaryResolveResult,
+                ModuleResolveResultItem,
             },
         },
         ecmascript_plugin::transform::swc_ecma_transform_plugins::{
@@ -71,7 +71,7 @@ pub async fn get_swc_ecma_transform_plugin_impl(
         );
 
         let plugin_wasm_module_resolve_result = handle_resolve_error(
-            resolve(project_path, request, resolve_options),
+            resolve(project_path, request, resolve_options).as_raw_module_result(),
             Value::new(ReferenceType::Undefined),
             project_path,
             request,
@@ -80,18 +80,11 @@ pub async fn get_swc_ecma_transform_plugin_impl(
             IssueSeverity::Error.cell(),
         )
         .await?;
-        let plugin_wasm_module_resolve_result = &*plugin_wasm_module_resolve_result.await?;
-
-        let primary = plugin_wasm_module_resolve_result
-            .primary
-            .first()
-            .context("Unable to resolve primary context")?;
-
-        let PrimaryResolveResult::Asset(plugin_module_asset) = primary else {
-            bail!("Expected to find asset");
+        let Some(plugin_module) = *plugin_wasm_module_resolve_result.first_module().await? else {
+            bail!("Expected to find module");
         };
 
-        let content = &*plugin_module_asset.content().file_content().await?;
+        let content = &*plugin_module.content().file_content().await?;
 
         let FileContent::Content(file) = content else {
             bail!("Expected file content for plugin module");
