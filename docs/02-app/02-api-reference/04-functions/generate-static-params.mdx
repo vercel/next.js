@@ -3,7 +3,7 @@ title: generateStaticParams
 description: API reference for the generateStaticParams function.
 ---
 
-The `generateStaticParams` function can be used in combination with [dynamic route segments](/docs/app/building-your-application/routing/dynamic-routes) to [**statically generate**](/docs/app/building-your-application/rendering/static-and-dynamic-rendering#static-rendering-default) routes at build time instead of on-demand at request time.
+The `generateStaticParams` function can be used in combination with [dynamic route segments](/docs/app/building-your-application/routing/dynamic-routes) to [**statically generate**](/docs/app/building-your-application/rendering/static-and-dynamic#static-rendering-default) routes at build time instead of on-demand at request time.
 
 ```jsx filename="app/blog/[slug]/page.js"
 // Return a list of `params` to populate the [slug] dynamic segment
@@ -299,7 +299,7 @@ export default function Page({ params }) {
 }
 ```
 
-> **Good to know**: When rendering a route, Next.js will [automatically deduplicate `fetch` requests](/docs/app/building-your-application/data-fetching#automatic-fetch-request-deduping) for the same data across `generateMetadata`, `generateStaticParams`, Layouts, Pages, and Server Components. React [`cache` can be used](/docs/app/building-your-application/data-fetching/caching#react-cache) if `fetch` is unavailable.
+> **Good to know**: When rendering a route, Next.js will [automatically deduplicate `fetch` requests](/docs/app/building-your-application/caching#request-memoization) for the same data across `generateMetadata`, `generateStaticParams`, Layouts, Pages, and Server Components. React [`cache` can be used](/docs/app/building-your-application/data-fetching/caching#request-memoization) if `fetch` is unavailable.
 
 ## Version History
 

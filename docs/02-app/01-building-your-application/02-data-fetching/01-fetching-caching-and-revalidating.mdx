@@ -14,7 +14,7 @@ There are three main ways you can fetch data:
 
 ## Fetching Data on the Server with `fetch`
 
-Next.js extends the native [`fetch` Web API](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) to allow you to configure the [caching](#caching-data) and [revalidating](#revalidating-data) behavior for each fetch request on the server. React extends `fetch` to automatically [memoize](#fetching-data-where-its-needed-memoization) fetch requests while rendering a React Component tree.
+Next.js extends the native [`fetch` Web API](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) to allow you to configure the [caching](#caching-data) and [revalidating](#revalidating-data) behavior for each fetch request on the server. React extends `fetch` to automatically [memoize](/docs/app/building-your-application/data-fetching/patterns#fetching-data-where-its-needed) fetch requests while rendering a React Component tree.
 
 You can use `fetch` with [`async`/`await` in Server Components](https://github.com/acdlite/rfcs/blob/first-class-promises/text/0000-first-class-support-for-promises), in [Route Handlers](), and in [Server Actions]().
 
@@ -95,8 +95,8 @@ Revalidation is the process of purging the Data Cache and re-fetching the latest
 
 Cached data can be revalidated in two ways:
 
-- **Time-based revalidation**: Automatically revalidate data after a certain amount of time has passed. This is useful for data that changes infrequently and freshness is not as critical. Time-based revalidation can be configured with the [Route Segment Config options](#segment-config-options) or per individual [`fetch` request](#fetchoptionsnextrevalidate).
-- **On-demand revalidation**: Manually revalidate data based on an event (e.g. form submission). On-demand revalidation can use a tag-based or path-based approach to revalidate groups of data at once. This is useful for when you want to ensure the latest data is shown as soon as possible, or content from your headless CMS is updated. On-demand revalidation can be triggered with [`revalidateTag`](#fetchoptionsnexttag-and-revalidatetag) or [`revalidatePath`](#revalidatepath).
+- **Time-based revalidation**: Automatically revalidate data after a certain amount of time has passed. This is useful for data that changes infrequently and freshness is not as critical. Time-based revalidation can be configured with the [Route Segment Config options](/docs/app/api-reference/file-conventions/route-segment-config) or per individual `fetch` request.
+- **On-demand revalidation**: Manually revalidate data based on an event (e.g. form submission). On-demand revalidation can use a tag-based or path-based approach to revalidate groups of data at once. This is useful when you want to ensure the latest data is shown as soon as possible, or content from your headless CMS is updated. On-demand revalidation can be triggered with [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) or [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath).
 
 #### Time-based Revalidation
 
@@ -106,7 +106,7 @@ To revalidate data at a timed interval, you can use the `next.revalidate` option
 fetch('https://...', { next: { revalidate: 3600 } })
 ```
 
-Alternatively, to revalidate all `fetch` requests in a route segment, you can use the [Segment Config Options](#segment-config-options).
+Alternatively, to revalidate all `fetch` requests in a route segment, you can use the [Segment Config Options](/docs/app/api-reference/file-conventions/route-segment-config).
 
 ```jsx filename="layout.js / page.js"
 export const revalidate = 3600 // revalidate every hour

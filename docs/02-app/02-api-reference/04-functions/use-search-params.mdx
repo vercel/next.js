@@ -78,7 +78,7 @@ const searchParams = useSearchParams()
 
 ### Static Rendering
 
-If a route is [statically rendered](/docs/app/building-your-application/rendering/static-and-dynamic-rendering#static-rendering-default), calling `useSearchParams()` will cause the tree up to the closest [`Suspense` boundary](/docs/app/building-your-application/routing/loading-ui-and-streaming#example) to be client-side rendered.
+If a route is [statically rendered](/docs/app/building-your-application/rendering/static-and-dynamic#static-rendering-default), calling `useSearchParams()` will cause the tree up to the closest [`Suspense` boundary](/docs/app/building-your-application/routing/loading-ui-and-streaming#example) to be client-side rendered.
 
 This allows a part of the page to be statically rendered while the dynamic part that uses `searchParams` is client-side rendered.
 

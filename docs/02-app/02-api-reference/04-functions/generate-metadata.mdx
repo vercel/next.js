@@ -162,7 +162,7 @@ export default function Page({ params, searchParams }) {}
 > **Good to know**:
 >
 > - If metadata doesn't depend on runtime information, it should be defined using the static [`metadata` object](#the-metadata-object) rather than `generateMetadata`.
-> - When rendering a route, Next.js will [automatically deduplicate `fetch` requests](/docs/app/building-your-application/data-fetching#automatic-fetch-request-deduping) for the same data across `generateMetadata`, `generateStaticParams`, Layouts, Pages, and Server Components. React [`cache` can be used](/docs/app/building-your-application/data-fetching/caching#react-cache) if `fetch` is unavailable.
+> - When rendering a route, Next.js will [automatically deduplicate `fetch` requests](/docs/app/building-your-application/caching#request-memoization) for the same data across `generateMetadata`, `generateStaticParams`, Layouts, Pages, and Server Components. React [`cache` can be used](/docs/app/building-your-application/data-fetching/caching#request-memoization) if `fetch` is unavailable.
 > - `searchParams` are only available in `page.js` segments.
 > - The [`redirect()`](/docs/app/api-reference/functions/redirect) and [`notFound()`](/docs/app/api-reference/functions/not-found) Next.js methods can also be used inside `generateMetadata`.
 

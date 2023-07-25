@@ -10,14 +10,14 @@ Next.js has a few caching mechanisms to improve your application's performance. 
 
 Here's a high-level overview of the different caching mechanisms in Next.js and their purpose:
 
-| Mechanism                             | What is cached?                | Where is it cached? | Why is it cached?                                             | Duration                        |
-| ------------------------------------- | ------------------------------ | ------------------- | ------------------------------------------------------------- | ------------------------------- |
-| [React Cache](#react-cache)           | Return values of functions     | Server              | Reduce data store calls and share data between route segments | Per-request lifecycle           |
-| [Data Cache](#data-cache)             | Return values of data requests | Server              | Store data across user requests and deployments               | Persistent (can be revalidated) |
-| [Full Route Cache](#full-route-cache) | Rendered HTML and RSC payload  | Server              | Reduce rendering cost and improve performance                 | Persistent (can be revalidated) |
-| [Router Cache](#router-cache)         | Route Segments (RSC Payload)   | Client              | Reduce server requests and improve navigation experience      | User session or time-based.     |
+| Mechanism                                   | What is cached?                | Where is it cached? | Why is it cached?                                             | Duration                        |
+| ------------------------------------------- | ------------------------------ | ------------------- | ------------------------------------------------------------- | ------------------------------- |
+| [Request Memoization](#request-memoization) | Return values of functions     | Server              | Reduce data store calls and share data between route segments | Per-request lifecycle           |
+| [Data Cache](#data-cache)                   | Return values of data requests | Server              | Store data across user requests and deployments               | Persistent (can be revalidated) |
+| [Full Route Cache](#full-route-cache)       | Rendered HTML and RSC payload  | Server              | Reduce rendering cost and improve performance                 | Persistent (can be revalidated) |
+| [Router Cache](#router-cache)               | Route Segments (RSC Payload)   | Client              | Reduce server requests and improve navigation experience      | User session or time-based.     |
 
-## React Cache
+## Request Memoization
 
 The React `cache` function allows you to **memoize** the return value of a function, allowing you to call the same function multiple times while only executing it once.
 

@@ -45,13 +45,12 @@ export default function Page() {
 - `router.replace(href: string)`: Perform a client-side navigation to the provided route without adding a new entry into the [browser’s history stack](https://developer.mozilla.org/en-US/docs/Web/API/History_API).
 - `router.refresh()`: Refresh the current route. Making a new request to the server, re-fetching data requests, and re-rendering Server Components. The client will merge the updated React Server Component payload without losing unaffected client-side React (e.g. `useState`) or browser state (e.g. scroll position).
 - `router.prefetch(href: string)`: [Prefetch](/docs/app/building-your-application/routing/linking-and-navigating#1-prefetching) the provided route for faster client-side transitions.
-- `router.back()`: Navigate back to the previous route in the browser’s history stack using [soft navigation](/docs/app/building-your-application/routing/linking-and-navigating#4-soft-navigation).
-- `router.forward()`: Navigate forwards to the next page in the browser’s history stack using [soft navigation](/docs/app/building-your-application/routing/linking-and-navigating#4-soft-navigation).
+- `router.back()`: Navigate back to the previous route in the browser’s history stack.
+- `router.forward()`: Navigate forwards to the next page in the browser’s history stack.
 
 > **Good to know**:
 >
-> - The `push()` and `replace()` methods will perform a [soft navigation](/docs/app/building-your-application/routing/linking-and-navigating#soft-navigation) if the new route has been prefetched, and either, doesn't include [dynamic segments](/docs/app/building-your-application/routing/dynamic-routes) or has the same dynamic parameters as the current route.
-> - `next/link` automatically prefetch routes as they become visible in the viewport.
+> - The `<Link>` component automatically prefetch routes as they become visible in the viewport.
 > - `refresh()` could re-produce the same result if fetch requests are cached. Other dynamic functions like `cookies` and `headers` could also change the response.
 
 > **Migrating from the `pages` directory:**

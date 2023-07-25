@@ -172,7 +172,7 @@ export default function Icon() {
 
 > **Good to know**
 >
-> - By default, generated icons are [**statically optimized**](/docs/app/building-your-application/rendering/static-and-dynamic-rendering#static-rendering-default) (generated at build time and cached) unless they use [dynamic functions](/docs/app/building-your-application/rendering/static-and-dynamic-rendering#dynamic-functions) or [dynamic data fetching](/docs/app/building-your-application/rendering/static-and-dynamic-rendering#dynamic-data-fetching).
+> - By default, generated icons are [**statically optimized**](/docs/app/building-your-application/rendering/static-and-dynamic#static-rendering-default) (generated at build time and cached) unless they use [dynamic functions](/docs/app/building-your-application/rendering/static-and-dynamic-rendering#dynamic-functions) or [dynamic data fetching](/docs/app/building-your-application/rendering/static-and-dynamic-rendering#dynamic-data-fetching).
 > - You can generate multiple icons in the same file using [`generateImageMetadata`](/docs/app/api-reference/functions/generate-image-metadata).
 > - You cannot generate a `favicon` icon. Use [`icon`](#icon) or a [favicon.ico](#favicon) file instead.
 
@@ -256,7 +256,7 @@ export default function Icon() {}
 
 #### Route Segment Config
 
-`icon` and `apple-icon` are specialized [Route Handlers](/docs/app/building-your-application/routing/router-handlers) that can use the same [route segment configuration](/docs/app/api-reference/file-conventions/route-segment-config) options as Pages and Layouts.
+`icon` and `apple-icon` are specialized [Route Handlers](/docs/app/building-your-application/routing/route-handlers) that can use the same [route segment configuration](/docs/app/api-reference/file-conventions/route-segment-config) options as Pages and Layouts.
 
 | Option                                                                                             | Type                                                     | Default    |
 | -------------------------------------------------------------------------------------------------- | -------------------------------------------------------- | ---------- |

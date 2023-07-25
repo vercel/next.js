@@ -4,7 +4,7 @@ nav_title: Patterns
 description: Learn about common data fetching patterns in React and Next.js.
 ---
 
-There are a few recommended patterns and best practises for fetching data in React and Next.js. This page will go over some of the most common patterns and how to use them.
+There are a few recommended patterns and best practices for fetching data in React and Next.js. This page will go over some of the most common patterns and how to use them.
 
 ### Fetching Data on the Server
 
@@ -17,13 +17,13 @@ Whenever possible, we recommend fetching data on the server. This allows you to:
 - Reduce client-server [waterfalls](#parallel-and-sequential-data-fetching).
 - Depending on your region, data fetching can also happen closer to your data source, reducing latency and improving performance.
 
-You can fetch data on the server using [Server Components](/docs/getting-started/server-components), [Route Handlers](/docs/app/building-your-application/routing/route-handlers), and [Server Actions](/docs/app/building-your-application/routing/server-actions).
+You can fetch data on the server using Server Components, [Route Handlers](/docs/app/building-your-application/routing/route-handlers), and [Server Actions](/docs/app/building-your-application/data-fetching/server-actions).
 
 ### Fetching Data Where It's Needed
 
 If you need to use the same data (e.g. current user) in multiple components in a tree, you do not have to fetch data globally, nor props drill. Instead, you can use `fetch` or React `cache` in the component that needs the data without worrying about the performance implications of making multiple requests for the same data.
 
-This is possible because Next.js automatically memoizes `fetch` requests using React's `cache` function. Learn more about [request memoization](/docs/app/building-your-application/caching#react-cache)
+This is possible because Next.js automatically memoizes `fetch` requests using React's `cache` function. Learn more about [request memoization](/docs/app/building-your-application/caching#request-memoization)
 
 > **Good to know**: This also applies to layouts, since it's not possible to pass data between a parent layout and its children.
 

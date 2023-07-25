@@ -47,7 +47,7 @@ To make the transition to Server Components easier, all components inside the [A
 
 ## Client Components
 
-Client Components enable you to add client-side interactivity to your application. In Next.js, they are [pre-rendered](/docs/app/building-your-application/rendering#rendering-environments) on the server and [hydrated](/docs/app/building-your-application/rendering#component-level-client-and-server-rendering) on the client. You can think of Client Components as how components in the [Pages Router](/docs/pages) have always worked.
+Client Components enable you to add client-side interactivity to your application. In Next.js, they are [pre-rendered](/docs/app/building-your-application/rendering) on the server and hydrated on the client. You can think of Client Components as how components in the [Pages Router](/docs/pages) have always worked.
 
 ### The "use client" directive
 
@@ -186,7 +186,7 @@ Behind the scenes, React handles rendering as follows:
 - On the client, React renders Client Components and _slots in_ the rendered result of Server Components, merging the work done on the server and client.
   - If any Server Components are nested inside a Client Component, their rendered content will be placed correctly within the Client Component.
 
-> **Good to know**: In Next.js, during the initial page load, both the rendered result of Server Components from the above step and Client Components are [pre-rendered on the server as HTML](/docs/app/building-your-application/rendering/static-and-dynamic-on-the-server) to produce a faster initial page load.
+> **Good to know**: In Next.js, during the initial page load, both the rendered result of Server Components from the above step and Client Components are [pre-rendered on the server as HTML](/docs/app/building-your-application/rendering) to produce a faster initial page load.
 
 ### Nesting Server Components inside Client Components
 
@@ -345,7 +345,7 @@ Props passed from the Server to Client Components need to be [serializable](http
 
 > **Where is the Network Boundary?**
 >
-> In the App Router, the network boundary is between Server Components and Client Components. This is different from the Pages where the boundary is between `getStaticProps`/`getServerSideProps` and Page Components. Data fetched inside Server Components do not need to be serialized as it doesn't cross the network boundary unless it is passed to a Client Component. Learn more about [data fetching](/docs/app/building-your-application/data-fetching#fetching-data-on-the-server) with Server Components.
+> In the App Router, the network boundary is between Server Components and Client Components. This is different from the Pages where the boundary is between `getStaticProps`/`getServerSideProps` and Page Components. Data fetched inside Server Components do not need to be serialized as it doesn't cross the network boundary unless it is passed to a Client Component. Learn more about [data fetching](/docs/app/building-your-application/data-fetching/patterns#fetching-data-on-the-server) with Server Components.
 
 ### Keeping Server-Only Code out of Client Components (Poisoning)
 
@@ -860,4 +860,4 @@ In the above example, both the layout and page need to make database queries. Ea
 
 When fetching data, you may want to share the result of a `fetch` between a `page` or `layout` and some of its children components. This is an unnecessary coupling between the components and can lead to passing `props` back and forth between components.
 
-Instead, we recommend colocating data fetching alongside the component that consumes the data. [`fetch` requests are automatically deduped](/docs/app/building-your-application/data-fetching#automatic-fetch-request-deduping) in Server Components, so each route segment can request exactly the data it needs without worrying about duplicate requests. Next.js will read the same value from the `fetch` cache.
+Instead, we recommend colocating data fetching alongside the component that consumes the data. [`fetch` requests are automatically deduped](/docs/app/building-your-application/caching#request-memoization) in Server Components, so each route segment can request exactly the data it needs without worrying about duplicate requests. Next.js will read the same value from the `fetch` cache.
