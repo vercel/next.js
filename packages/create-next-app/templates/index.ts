@@ -6,7 +6,7 @@ import globOrig from 'glob'
 import os from 'os'
 import fs from 'fs'
 import path from 'path'
-import chalk from 'chalk'
+import { cyan, bold } from 'picocolors'
 import util from 'util'
 import { Sema } from 'async-sema'
 
@@ -42,7 +42,7 @@ export const installTemplate = async ({
   srcDir,
   importAlias,
 }: InstallTemplateArgs) => {
-  console.log(chalk.bold(`Using ${packageManager}.`))
+  console.log(bold(`Using ${packageManager}.`))
 
   /**
    * Copy the template files to the target directory.
@@ -232,7 +232,7 @@ export const installTemplate = async ({
     console.log()
     console.log('Installing dependencies:')
     for (const dependency of dependencies) {
-      console.log(`- ${chalk.cyan(dependency)}`)
+      console.log(`- ${cyan(dependency)}`)
     }
     console.log()
 
