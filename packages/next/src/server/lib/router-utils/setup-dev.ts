@@ -36,11 +36,15 @@ import { absolutePathToPage } from '../../../shared/lib/page-path/absolute-path-
 import { generateInterceptionRoutesRewrites } from '../../../lib/generate-interception-routes-rewrites'
 
 import {
+  APP_BUILD_MANIFEST,
+  APP_PATHS_MANIFEST,
+  BUILD_MANIFEST,
   CLIENT_STATIC_FILES_PATH,
   COMPILER_NAMES,
   DEV_CLIENT_PAGES_MANIFEST,
   DEV_MIDDLEWARE_MANIFEST,
   NEXT_FONT_MANIFEST,
+  PAGES_MANIFEST,
   PHASE_DEVELOPMENT_SERVER,
 } from '../../../shared/lib/constants'
 
@@ -64,8 +68,9 @@ import {
   parseStack,
 } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
 import { BuildManifest } from '../../get-page-files'
-import { readFile, writeFile } from 'fs/promises'
+import { mkdir, readFile, writeFile } from 'fs/promises'
 import { PagesManifest } from '../../../build/webpack/plugins/pages-manifest-plugin'
+import { AppBuildManifest } from '../../../build/webpack/plugins/app-build-manifest-plugin'
 
 type SetupOpts = {
   dir: string
@@ -178,8 +183,9 @@ async function startWatcher(opts: SetupOpts) {
     }
 
     const buildManifests = new Map<string, BuildManifest>()
+    const appBuildManifests = new Map<string, AppBuildManifest>()
     const pagesManifests = new Map<string, PagesManifest>()
-    // const appPathsManifests = new Map<string, PagesManifest>()
+    const appPathsManifests = new Map<string, PagesManifest>()
 
     function mergeBuildManifests(manifests: Iterable<BuildManifest>) {
       const manifest: Partial<BuildManifest> & Pick<BuildManifest, 'pages'> = {
@@ -194,6 +200,16 @@ async function startWatcher(opts: SetupOpts) {
       return manifest
     }
 
+    function mergeAppBuildManifests(manifests: Iterable<AppBuildManifest>) {
+      const manifest: AppBuildManifest = {
+        pages: {},
+      }
+      for (const m of manifests) {
+        Object.assign(manifest.pages, m.pages)
+      }
+      return manifest
+    }
+
     function mergePagesManifests(manifests: Iterable<PagesManifest>) {
       const manifest: PagesManifest = {}
       for (const m of manifests) {
@@ -201,6 +217,103 @@ async function startWatcher(opts: SetupOpts) {
       }
       return manifest
     }
+
+    async function writeBuildManifest(): Promise<void> {
+      const buildManifest = mergeBuildManifests(buildManifests.values())
+      await writeFile(
+        path.join(distDir, 'build-manifest.json'),
+        JSON.stringify(buildManifest, null, 2),
+        'utf-8'
+      )
+    }
+
+    async function writeAppBuildManifest(): Promise<void> {
+      const appBuildManifest = mergeAppBuildManifests(
+        appBuildManifests.values()
+      )
+      await writeFile(
+        path.join(distDir, APP_BUILD_MANIFEST),
+        JSON.stringify(appBuildManifest, null, 2),
+        'utf-8'
+      )
+    }
+
+    async function writePagesManifest(): Promise<void> {
+      const pagesManifest = mergePagesManifests(pagesManifests.values())
+      await writeFile(
+        path.join(distDir, 'server', PAGES_MANIFEST),
+        JSON.stringify(pagesManifest, null, 2),
+        'utf-8'
+      )
+    }
+
+    async function writeAppPathsManifest(): Promise<void> {
+      const appPathsManifest = mergePagesManifests(appPathsManifests.values())
+      await writeFile(
+        path.join(distDir, 'server', APP_PATHS_MANIFEST),
+        JSON.stringify(appPathsManifest, null, 2),
+        'utf-8'
+      )
+    }
+
+    async function writeMiddlewareManifest(): Promise<void> {
+      await writeFile(
+        path.join(distDir, 'server/middleware-manifest.json'),
+        JSON.stringify(
+          {
+            sortedMiddleware: [],
+            middleware: {},
+            functions: {},
+            version: 2,
+          },
+          null,
+          2
+        ),
+        'utf-8'
+      )
+    }
+
+    async function writeOtherManifests(): Promise<void> {
+      await writeFile(
+        path.join(distDir, 'react-loadable-manifest.json'),
+        JSON.stringify({}, null, 2),
+        'utf-8'
+      )
+      // TODO: turbopack should write the correct
+      // version of this
+      await writeFile(
+        path.join(distDir, 'server', NEXT_FONT_MANIFEST + '.json'),
+        JSON.stringify(
+          {
+            pages: {},
+            app: {},
+            appUsingSizeAdjust: false,
+            pagesUsingSizeAdjust: false,
+          },
+          null,
+          2
+        )
+      )
+      await writeFile(
+        path.join(distDir, 'package.json'),
+        JSON.stringify(
+          {
+            type: 'commonjs',
+          },
+          null,
+          2
+        )
+      )
+    }
+
+    // Write empty manifests
+    await mkdir(path.join(distDir, 'server'), { recursive: true })
+    await writeBuildManifest()
+    await writeAppBuildManifest()
+    await writePagesManifest()
+    await writeAppPathsManifest()
+    await writeMiddlewareManifest()
+    await writeOtherManifests()
 
     hotReloader = new Proxy({} as any, {
       get(_target, prop, _receiver) {
@@ -213,41 +326,151 @@ async function startWatcher(opts: SetupOpts) {
               ensureOpts.match?.definition?.pathname ?? ensureOpts.page
             const route = curEntries.get(page)
 
-            if (!route) {
-              // TODO: why is this entry missing in turbopack?
-              if (page === '/_error') return
-              if (page === '/_app') return
-              if (page === '/_document') return
-              if (page === '/not-found') return
-
-              console.log('missing route', page)
-
-              throw new Error(`route not found ${page}`)
-            }
-            const isApp =
-              route.type === 'app-page' || route.type === 'app-route'
-
             async function loadPartialManifest<T>(
               name: string,
-              pageOverride: string = page
+              pageName: string,
+              isApp: boolean = false,
+              isRoute: boolean = false
             ): Promise<T> {
-              const isAppItem = name === page && isApp
-
               const manifestPath = path.posix.join(
                 distDir,
                 `server`,
-                isAppItem ? 'app' : 'pages',
-                pageOverride === '/' ? 'index' : pageOverride,
-                isAppItem
-                  ? route?.type === 'app-page'
-                    ? 'page'
-                    : 'route'
-                  : '',
+                isApp ? 'app' : 'pages',
+                pageName === '/' ? 'index' : pageName,
+                isApp ? (isRoute ? 'route' : 'page') : '',
                 name
               )
               return JSON.parse(
                 await readFile(path.posix.join(manifestPath), 'utf-8')
               ) as T
+            }
+
+            async function loadBuildManifest(pageName: string): Promise<void> {
+              buildManifests.set(
+                pageName,
+                await loadPartialManifest(BUILD_MANIFEST, pageName, false)
+              )
+            }
+
+            async function loadAppBuildManifest(
+              pageName: string
+            ): Promise<void> {
+              appBuildManifests.set(
+                pageName,
+                await loadPartialManifest(APP_BUILD_MANIFEST, pageName, true)
+              )
+            }
+
+            async function loadPagesManifest(pageName: string): Promise<void> {
+              pagesManifests.set(
+                pageName,
+                await loadPartialManifest(PAGES_MANIFEST, pageName)
+              )
+            }
+
+            async function loadAppPathManifest(
+              pageName: string
+            ): Promise<void> {
+              appPathsManifests.set(
+                pageName,
+                await loadPartialManifest(APP_PATHS_MANIFEST, pageName, true)
+              )
+            }
+
+            if (page === '/_error') {
+              await globalEntries.app?.writeToDisk()
+              await loadBuildManifest('_app')
+              await loadPagesManifest('_app')
+
+              await globalEntries.document?.writeToDisk()
+              await loadPagesManifest('_document')
+
+              await globalEntries.error?.writeToDisk()
+              await loadBuildManifest('_error')
+              await loadPagesManifest('_error')
+
+              await writeBuildManifest()
+              await writePagesManifest()
+              await writeMiddlewareManifest()
+              await writeOtherManifests()
+
+              return
+            }
+
+            if (!route) {
+              // TODO: why is this entry missing in turbopack?
+              if (page === '/_app') return
+              if (page === '/_document') return
+              if (page === '/not-found') return
+              if (page === '/_not-found') return
+
+              console.log('missing route', page)
+
+              throw new Error(`route not found ${page}`)
+            }
+
+            switch (route.type) {
+              case 'page': {
+                if (ensureOpts.isApp) {
+                  throw new Error(
+                    `mis-matched route type: isApp && page for ${page}`
+                  )
+                }
+
+                await globalEntries.app?.writeToDisk()
+                await loadBuildManifest('_app')
+                await loadPagesManifest('_app')
+
+                await globalEntries.document?.writeToDisk()
+                await loadPagesManifest('_document')
+
+                const writtenEndpoint = await route.htmlEndpoint.writeToDisk()
+                await loadBuildManifest(page)
+                await loadPagesManifest(page)
+
+                switch (writtenEndpoint.type) {
+                  case 'nodejs': {
+                    break
+                  }
+                  case 'edge': {
+                    throw new Error('edge is not implemented yet')
+                  }
+                  default: {
+                    throw new Error(
+                      `unknown endpoint type ${(writtenEndpoint as any).type}`
+                    )
+                  }
+                }
+
+                await writeBuildManifest()
+                await writePagesManifest()
+                await writeMiddlewareManifest()
+                await writeOtherManifests()
+
+                break
+              }
+              case 'page-api': {
+                break
+              }
+              case 'app-page': {
+                await route.htmlEndpoint.writeToDisk()
+
+                await loadAppBuildManifest(page)
+                await loadAppPathManifest(page)
+
+                await writeAppBuildManifest()
+                await writeAppPathsManifest()
+                await writeMiddlewareManifest()
+                await writeOtherManifests()
+
+                break
+              }
+              case 'app-route': {
+                break
+              }
+              default: {
+                throw new Error(`unknown route type ${route.type} for ${page}`)
+              }
             }
 
             const appRoute =
@@ -257,101 +480,6 @@ async function startWatcher(opts: SetupOpts) {
               ((ensureOpts.isApp && appRoute) || !ensureOpts.isApp) &&
               'htmlEndpoint' in route
             ) {
-              await globalEntries.app?.writeToDisk()
-              const writtenEndpoint = await route.htmlEndpoint.writeToDisk()
-
-              buildManifests.set(
-                '_app',
-                await loadPartialManifest('build-manifest.json', '_app')
-              )
-              pagesManifests.set(
-                '_app',
-                await loadPartialManifest('pages-manifest.json', '_app')
-              )
-              await globalEntries.document?.writeToDisk()
-              pagesManifests.set(
-                '/_document',
-                await loadPartialManifest('pages-manifest.json', '_document')
-              )
-              await globalEntries.error?.writeToDisk()
-              buildManifests.set(
-                '/_error',
-                await loadPartialManifest('build-manifest.json', '_error')
-              )
-              pagesManifests.set(
-                '/_error',
-                await loadPartialManifest('pages-manifest.json', '_error')
-              )
-
-              pagesManifests.set(
-                page,
-                await loadPartialManifest('pages-manifest.json')
-              )
-
-              buildManifests.set(
-                page,
-                await loadPartialManifest('build-manifest.json')
-              )
-              switch (writtenEndpoint.type) {
-                case 'nodejs': {
-                  break
-                }
-                case 'edge': {
-                  throw new Error('edge is not implemented yet')
-                }
-                default: {
-                  throw new Error(
-                    `unknown endpoint type ${(writtenEndpoint as any).type}`
-                  )
-                }
-              }
-              const buildManifest = mergeBuildManifests(buildManifests.values())
-              const pagesManifest = mergePagesManifests(pagesManifests.values())
-
-              await writeFile(
-                path.join(distDir, 'build-manifest.json'),
-                JSON.stringify(buildManifest, null, 2),
-                'utf-8'
-              )
-              await writeFile(
-                path.join(distDir, 'server/pages-manifest.json'),
-                JSON.stringify(pagesManifest, null, 2),
-                'utf-8'
-              )
-              await writeFile(
-                path.join(distDir, 'server/middleware-manifest.json'),
-                JSON.stringify(
-                  {
-                    sortedMiddleware: [],
-                    middleware: {},
-                    functions: {},
-                    version: 2,
-                  },
-                  null,
-                  2
-                ),
-                'utf-8'
-              )
-              await writeFile(
-                path.join(distDir, 'react-loadable-manifest.json'),
-                JSON.stringify({}, null, 2),
-                'utf-8'
-              )
-              // TODO: turbopack should write the correct
-              // version of this
-              await writeFile(
-                path.join(distDir, 'server', NEXT_FONT_MANIFEST + '.json'),
-                JSON.stringify(
-                  {
-                    pages: {},
-                    app: {},
-                    appUsingSizeAdjust: false,
-                    pagesUsingSizeAdjust: false,
-                  },
-                  null,
-                  2
-                )
-              )
             } else {
               throw new Error(
                 `mis-matched route type ${route.type} ${ensureOpts.isApp}`
