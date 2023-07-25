@@ -179,6 +179,7 @@ async function startWatcher(opts: SetupOpts) {
 
     const buildManifests = new Map<string, BuildManifest>()
     const pagesManifests = new Map<string, PagesManifest>()
+    // const appPathsManifests = new Map<string, PagesManifest>()
 
     function mergeBuildManifests(manifests: Iterable<BuildManifest>) {
       const manifest: Partial<BuildManifest> & Pick<BuildManifest, 'pages'> = {
@@ -217,21 +218,31 @@ async function startWatcher(opts: SetupOpts) {
               if (page === '/_error') return
               if (page === '/_app') return
               if (page === '/_document') return
+              if (page === '/not-found') return
 
               console.log('missing route', page)
 
               throw new Error(`route not found ${page}`)
             }
+            const isApp =
+              route.type === 'app-page' || route.type === 'app-route'
 
             async function loadPartialManifest<T>(
               name: string,
               pageOverride: string = page
             ): Promise<T> {
+              const isAppItem = name === page && isApp
+
               const manifestPath = path.posix.join(
                 distDir,
                 `server`,
-                `pages`,
+                isAppItem ? 'app' : 'pages',
                 pageOverride === '/' ? 'index' : pageOverride,
+                isAppItem
+                  ? route?.type === 'app-page'
+                    ? 'page'
+                    : 'route'
+                  : '',
                 name
               )
               return JSON.parse(
@@ -247,6 +258,8 @@ async function startWatcher(opts: SetupOpts) {
               'htmlEndpoint' in route
             ) {
               await globalEntries.app?.writeToDisk()
+              const writtenEndpoint = await route.htmlEndpoint.writeToDisk()
+
               buildManifests.set(
                 '_app',
                 await loadPartialManifest('build-manifest.json', '_app')
@@ -270,14 +283,14 @@ async function startWatcher(opts: SetupOpts) {
                 await loadPartialManifest('pages-manifest.json', '_error')
               )
 
-              const writtenEndpoint = await route.htmlEndpoint.writeToDisk()
-              buildManifests.set(
-                page,
-                await loadPartialManifest('build-manifest.json')
-              )
               pagesManifests.set(
                 page,
                 await loadPartialManifest('pages-manifest.json')
+              )
+
+              buildManifests.set(
+                page,
+                await loadPartialManifest('build-manifest.json')
               )
               switch (writtenEndpoint.type) {
                 case 'nodejs': {
@@ -294,6 +307,7 @@ async function startWatcher(opts: SetupOpts) {
               }
               const buildManifest = mergeBuildManifests(buildManifests.values())
               const pagesManifest = mergePagesManifests(pagesManifests.values())
+
               await writeFile(
                 path.join(distDir, 'build-manifest.json'),
                 JSON.stringify(buildManifest, null, 2),
@@ -348,6 +362,7 @@ async function startWatcher(opts: SetupOpts) {
 
         if (prop === 'run') {
           return async (req: IncomingMessage, _res: ServerResponse) => {
+            // intercept page chunks request and ensure them with turbopack
             if (req.url?.startsWith('/_next/static/chunks')) {
               const match = req.url.match(
                 /\/(pages|app)_(.*)(?:_[\w\d]{1,6}\.)/

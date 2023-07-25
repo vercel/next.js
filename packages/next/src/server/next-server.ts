@@ -675,6 +675,8 @@ export default class NextNodeServer extends BaseServer {
           },
         }
       } catch (err) {
+        // TODO: remove after debugging
+        console.log('findPageComponent error', err)
         // we should only not throw if we failed to find the page
         // in the pages-manifest
         if (!(err instanceof PageNotFoundError)) {
