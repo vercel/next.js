@@ -14,7 +14,8 @@ use turbopack_binding::{
 use super::{
     endpoint::ExternalEndpoint,
     utils::{
-        get_issues, serde_enum_to_string, subscribe, NapiDiagnostic, NapiIssue, RootTask, VcArc,
+        get_diagnostics, get_issues, serde_enum_to_string, subscribe, NapiDiagnostic, NapiIssue,
+        RootTask, VcArc,
     },
 };
 use crate::register;
@@ -207,6 +208,9 @@ impl NapiMiddleware {
 struct NapiEntrypoints {
     pub routes: Vec<NapiRoute>,
     pub middleware: Option<NapiMiddleware>,
+    pub pages_document_endpoint: External<ExternalEndpoint>,
+    pub pages_app_endpoint: External<ExternalEndpoint>,
+    pub pages_error_endpoint: External<ExternalEndpoint>,
     pub issues: Vec<NapiIssue>,
     pub diagnostics: Vec<NapiDiagnostic>,
 }
@@ -226,12 +230,16 @@ pub fn project_entrypoints_subscribe(
         move || async move {
             let entrypoints = project.entrypoints();
             let issues = get_issues(entrypoints).await?;
+            let diags = get_diagnostics(entrypoints).await?;
+
             let entrypoints = entrypoints.strongly_consistent().await?;
+
             // TODO peek_issues and diagnostics
-            Ok((entrypoints, issues))
+            Ok((entrypoints, issues, diags))
         },
         move |ctx| {
-            let (entrypoints, issues) = ctx.value;
+            let (entrypoints, issues, diags) = ctx.value;
+
             Ok(vec![NapiEntrypoints {
                 routes: entrypoints
                     .routes
@@ -245,11 +253,23 @@ pub fn project_entrypoints_subscribe(
                     .as_ref()
                     .map(|m| NapiMiddleware::from_middleware(m, &turbo_tasks))
                     .transpose()?,
+                pages_document_endpoint: External::new(ExternalEndpoint(VcArc::new(
+                    turbo_tasks.clone(),
+                    entrypoints.pages_document_endpoint,
+                ))),
+                pages_app_endpoint: External::new(ExternalEndpoint(VcArc::new(
+                    turbo_tasks.clone(),
+                    entrypoints.pages_app_endpoint,
+                ))),
+                pages_error_endpoint: External::new(ExternalEndpoint(VcArc::new(
+                    turbo_tasks.clone(),
+                    entrypoints.pages_error_endpoint,
+                ))),
                 issues: issues
                     .iter()
                     .map(|issue| NapiIssue::from(&**issue))
                     .collect(),
-                diagnostics: vec![],
+                diagnostics: diags.iter().map(|d| NapiDiagnostic::from(d)).collect(),
             }])
         },
     )
