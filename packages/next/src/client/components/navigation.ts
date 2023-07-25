@@ -2,7 +2,7 @@
 
 import { useContext, useMemo } from 'react'
 import type { FlightRouterState } from '../../server/app-render/types'
-import type { URLSearchParams } from '@types/node';
+
 import {
   AppRouterContext,
   GlobalLayoutRouterContext,
