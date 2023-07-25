@@ -14,10 +14,7 @@ There are three main ways you can fetch data:
 
 ## Fetching Data on the Server with `fetch`
 
-Next.js extends the native [`fetch` Web API](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) to allow you to:
-
-- Configure the [caching](#caching-data) and [revalidating](#revalidating-data) behavior for each fetch request on the server.
-- Automatically [memoize](#fetching-data-where-its-needed-memoization) requests while rendering a React Component tree.
+Next.js extends the native [`fetch` Web API](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) to allow you to configure the [caching](#caching-data) and [revalidating](#revalidating-data) behavior for each fetch request on the server React extends `fetch` to automatically [memoize](#fetching-data-where-its-needed-memoization) fetch requests while rendering a React Component tree.
 
 You can use `fetch` with [`async`/`await` in Server Components](https://github.com/acdlite/rfcs/blob/first-class-promises/text/0000-first-class-support-for-promises), in [Route Handlers](), and in [Server Actions]().
 
