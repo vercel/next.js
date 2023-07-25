@@ -94,6 +94,22 @@ module.exports = (context) => {
       }
     })
 
+    it('should not throw a server error for non-existent traversing paths', async () => {
+      const pathsToCheck = [
+        `/_next/static/../../server.php`,
+        `/_next/static/../../../does-not-exist.js`,
+        `/_next/static/../../../../../../conf/defaults.ini`,
+      ]
+      for (const path of pathsToCheck) {
+        const res = await fetchViaHTTP(context.appPort, path)
+        try {
+          expect(res.status).toBe(400)
+        } catch (err) {
+          throw new Error(`Path ${path} had the status of ${res.status} instead of 400`)
+        }
+      }
+    })
+
     it("should not leak the user's home directory into the build", async () => {
       const buildId = readFileSync(join(__dirname, '../.next/BUILD_ID'), 'utf8')
 

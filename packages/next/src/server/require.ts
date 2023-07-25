@@ -9,7 +9,7 @@ import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
-import { PageNotFoundError, MissingStaticPage } from '../shared/lib/utils'
+import { PageNotFoundError, MissingStaticPage, NormalizeError } from '../shared/lib/utils'
 import LRUCache from 'next/dist/compiled/lru-cache'
 import { loadManifest } from './load-manifest'
 import { promises } from 'fs'
@@ -57,6 +57,9 @@ export function getMaybePagePath(
     page = denormalizePagePath(normalizePagePath(page))
   } catch (err) {
     console.error(err)
+    if (err instanceof NormalizeError) {
+      throw err
+    }
     throw new PageNotFoundError(page)
   }
 
