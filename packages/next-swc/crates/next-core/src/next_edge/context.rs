@@ -19,9 +19,13 @@ use turbopack_binding::{
 };
 
 use crate::{
-    mode::NextMode, next_client::context::get_client_assets_path, next_config::NextConfig,
-    next_import_map::get_next_edge_import_map, next_server::context::ServerContextType,
-    next_shared::resolve::UnsupportedModulesResolvePlugin, util::foreign_code_context_condition,
+    mode::NextMode,
+    next_client::context::get_client_assets_path,
+    next_config::NextConfig,
+    next_import_map::get_next_edge_import_map,
+    next_server::context::ServerContextType,
+    next_shared::resolve::{ModuleFeatureReportResolvePlugin, UnsupportedModulesResolvePlugin},
+    util::foreign_code_context_condition,
 };
 
 fn defines() -> CompileTimeDefines {
@@ -93,9 +97,10 @@ pub async fn get_edge_resolve_options_context(
         import_map: Some(next_edge_import_map),
         module: true,
         browser: true,
-        plugins: vec![Vc::upcast(UnsupportedModulesResolvePlugin::new(
-            project_path,
-        ))],
+        plugins: vec![
+            Vc::upcast(ModuleFeatureReportResolvePlugin::new(project_path)),
+            Vc::upcast(UnsupportedModulesResolvePlugin::new(project_path)),
+        ],
         ..Default::default()
     };
 
