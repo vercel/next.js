@@ -154,7 +154,10 @@ async function startWatcher(opts: SetupOpts) {
 
           for (const [pathname, route] of entrypoints.routes) {
             switch (route.type) {
-              case 'page': {
+              case 'page':
+              case 'page-api':
+              case 'app-page':
+              case 'app-route': {
                 Log.info(`found entry ${pathname}`)
                 curEntries.set(pathname, route)
                 break
@@ -200,8 +203,6 @@ async function startWatcher(opts: SetupOpts) {
 
     hotReloader = new Proxy({} as any, {
       get(_target, prop, _receiver) {
-        console.log('get hotReloader', prop)
-
         if (prop === 'ensurePage') {
           return async (
             ensureOpts: Parameters<(typeof hotReloader)['ensurePage']>[0]
@@ -216,6 +217,8 @@ async function startWatcher(opts: SetupOpts) {
               if (page === '/_error') return
               if (page === '/_app') return
               if (page === '/_document') return
+
+              console.log('missing route', page)
 
               throw new Error(`route not found ${page}`)
             }
@@ -344,12 +347,31 @@ async function startWatcher(opts: SetupOpts) {
         }
 
         if (prop === 'run') {
-          return () => ({ finished: false })
+          return async (req: IncomingMessage, _res: ServerResponse) => {
+            if (req.url?.startsWith('/_next/static/chunks')) {
+              const match = req.url.match(
+                /\/(pages|app)_(.*)(?:_[\w\d]{1,6}\.)/
+              )
+
+              const type = match?.[0]
+
+              if ((type === 'pages' || type === 'app') && match?.[1]) {
+                await hotReloader
+                  .ensurePage({
+                    page: `/${match[1]}`,
+                    clientOnly: false,
+                  })
+                  .catch(console.error)
+              }
+            }
+            return { finished: false }
+          }
         }
 
         if (prop === 'activeConfigs') {
           return []
         }
+        console.log('get hotReloader', prop)
         return () => {}
       },
       set() {
