@@ -127,7 +127,7 @@ mod._resolveFilename = function (
 
 mod.prototype.require = function (request: string) {
   if (process.env.__NEXT_PRIVATE_RENDER_RUNTIME) {
-    if (request.endsWith('.external') && request.startsWith('.')) {
+    if (request.endsWith('.external')) {
       const base = path.basename(request, '.external')
       const camelized = base.replace(/-([a-z])/g, (g) => g[1].toUpperCase())
       const instance = originalRequire.call(this, currentRuntime)

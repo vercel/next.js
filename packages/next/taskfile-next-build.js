@@ -42,9 +42,6 @@ const externalsMap = {
 }
 
 const externalHandler = ({ context, request }, callback) => {
-  if (/(.*)shared\/lib\/runtime-config.external/.test(request)) {
-    return callback(null, 'next/dist/shared/lib/runtime-config.external')
-  }
   callback()
 }
 
