@@ -232,6 +232,24 @@ async function startWatcher(opts: SetupOpts) {
         JSON.stringify(buildManifest, null, 2),
         'utf-8'
       )
+      const content = {
+        __rewrites: { afterFiles: [], beforeFiles: [], fallback: [] },
+        ...Object.fromEntries(
+          [...curEntries.keys()].map((pathname) => [
+            pathname,
+            `static/chunks/pages${pathname === '/' ? '/index' : pathname}.js`,
+          ])
+        ),
+        sortedPages: [...curEntries.keys()],
+      }
+      const buildManifestJs = `self.__BUILD_MANIFEST = ${JSON.stringify(
+        content
+      )};self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB()`
+      await writeFile(
+        path.join(distDir, 'static', 'development', '_buildManifest.js'),
+        buildManifestJs,
+        'utf-8'
+      )
     }
 
     async function writeAppBuildManifest(): Promise<void> {
@@ -315,6 +333,7 @@ async function startWatcher(opts: SetupOpts) {
 
     // Write empty manifests
     await mkdir(path.join(distDir, 'server'), { recursive: true })
+    await mkdir(path.join(distDir, 'static/development'), { recursive: true })
     await writeBuildManifest()
     await writeAppBuildManifest()
     await writePagesManifest()
