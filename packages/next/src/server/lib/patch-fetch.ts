@@ -402,10 +402,10 @@ export function patchFetch({
           })
         }
 
-        let handleUnlock = async () => Promise.resolve()
+        let handleUnlock = () => Promise.resolve()
 
         if (cacheKey && staticGenerationStore.incrementalCache) {
-          handleUnlock = await staticGenerationStore.incrementalCache?.lock(
+          handleUnlock = await staticGenerationStore.incrementalCache.lock(
             cacheKey
           )
 

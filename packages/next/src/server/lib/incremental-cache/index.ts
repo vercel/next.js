@@ -74,9 +74,8 @@ export class IncrementalCache {
   fetchCacheKeyPrefix?: string
   revalidatedTags?: string[]
   isOnDemandRevalidate?: boolean
-  pendingResponses: Map<string, Promise<IncrementalCacheEntry | null>>
   private locks = new Map<string, Promise<void>>()
-  private unlocks = new Map<string, () => void>()
+  private unlocks = new Map<string, () => Promise<void>>()
 
   constructor({
     fs,
@@ -143,7 +142,6 @@ export class IncrementalCache {
     this.prerenderManifest = getPrerenderManifest()
     this.fetchCacheKeyPrefix = fetchCacheKeyPrefix
     let revalidatedTags: string[] = []
-    this.pendingResponses = new Map()
 
     if (
       requestHeaders[PRERENDER_REVALIDATE_HEADER] ===
@@ -239,23 +237,23 @@ export class IncrementalCache {
       }
     }
 
-    let unlockNext: () => Promise<void>
-    const lockPromise = new Promise<void>((resolve) => {
-      unlockNext = async () => {
-        resolve()
-      }
-    })
+    let unlockNext: () => Promise<void> = () => Promise.resolve()
+    const existingLock = this.locks.get(cacheKey)
 
-    this.unlocks.set(cacheKey, unlockNext!)
-    const prevLock = this.locks.get(cacheKey) || Promise.resolve()
+    if (existingLock) {
+      await existingLock
+    } else {
+      const newLock = new Promise<void>((resolve) => {
+        unlockNext = async () => {
+          resolve()
+        }
+      })
 
-    this.locks.set(
-      cacheKey,
-      prevLock.then(() => lockPromise)
-    )
+      this.locks.set(cacheKey, newLock)
+      this.unlocks.set(cacheKey, unlockNext)
+    }
 
-    await prevLock
-    return unlockNext!
+    return unlockNext
   }
 
   async revalidateTag(tag: string) {
@@ -429,104 +427,88 @@ export class IncrementalCache {
     pathname = this._getPathname(pathname, fetchCache)
     let entry: IncrementalCacheEntry | null = null
 
-    // Check if a promise for this pathname is already in the pendingResponses
-    const pendingResponse = this.pendingResponses.get(pathname)
-    if (pendingResponse) {
-      return pendingResponse
+    const cacheData = await this.cacheHandler?.get(
+      pathname,
+      fetchCache,
+      fetchUrl,
+      fetchIdx
+    )
+
+    if (cacheData?.value?.kind === 'FETCH') {
+      revalidate = revalidate || cacheData.value.revalidate
+      const age = Math.round(
+        (Date.now() - (cacheData.lastModified || 0)) / 1000
+      )
+
+      const isStale = age > revalidate
+      const data = cacheData.value.data
+
+      return {
+        isStale: isStale,
+        value: {
+          kind: 'FETCH',
+          data,
+          revalidate: revalidate,
+        },
+        revalidateAfter: Date.now() + revalidate * 1000,
+      }
     }
 
-    // If not, create a new promise and store it in the pendingResponses
-    const promise: Promise<IncrementalCacheEntry | null> = (async () => {
-      const cacheData = await this.cacheHandler?.get(
+    const curRevalidate =
+      this.prerenderManifest.routes[toRoute(pathname)]?.initialRevalidateSeconds
+
+    let isStale: boolean | -1 | undefined
+    let revalidateAfter: false | number
+
+    if (cacheData?.lastModified === -1) {
+      isStale = -1
+      revalidateAfter = -1 * CACHE_ONE_YEAR
+    } else {
+      revalidateAfter = this.calculateRevalidate(
         pathname,
+        cacheData?.lastModified || Date.now(),
+        this.dev && !fetchCache
+      )
+      isStale =
+        revalidateAfter !== false && revalidateAfter < Date.now()
+          ? true
+          : undefined
+    }
+
+    if (cacheData) {
+      entry = {
+        isStale,
+        curRevalidate,
+        revalidateAfter,
+        value: cacheData.value,
+      }
+    }
+
+    if (
+      !cacheData &&
+      this.prerenderManifest.notFoundRoutes.includes(pathname)
+    ) {
+      // for the first hit after starting the server the cache
+      // may not have a way to save notFound: true so if
+      // the prerender-manifest marks this as notFound then we
+      // return that entry and trigger a cache set to give it a
+      // chance to update in-memory entries
+      entry = {
+        isStale,
+        value: null,
+        curRevalidate,
+        revalidateAfter,
+      }
+      this.set(
+        pathname,
+        entry.value,
+        curRevalidate,
         fetchCache,
         fetchUrl,
         fetchIdx
       )
-
-      if (cacheData?.value?.kind === 'FETCH') {
-        revalidate = revalidate || cacheData.value.revalidate
-        const age = Math.round(
-          (Date.now() - (cacheData.lastModified || 0)) / 1000
-        )
-
-        const isStale = age > revalidate
-        const data = cacheData.value.data
-
-        return {
-          isStale: isStale,
-          value: {
-            kind: 'FETCH',
-            data,
-            revalidate: revalidate,
-          },
-          revalidateAfter: Date.now() + revalidate * 1000,
-        }
-      }
-
-      const curRevalidate =
-        this.prerenderManifest.routes[toRoute(pathname)]
-          ?.initialRevalidateSeconds
-
-      let isStale: boolean | -1 | undefined
-      let revalidateAfter: false | number
-
-      if (cacheData?.lastModified === -1) {
-        isStale = -1
-        revalidateAfter = -1 * CACHE_ONE_YEAR
-      } else {
-        revalidateAfter = this.calculateRevalidate(
-          pathname,
-          cacheData?.lastModified || Date.now(),
-          this.dev && !fetchCache
-        )
-        isStale =
-          revalidateAfter !== false && revalidateAfter < Date.now()
-            ? true
-            : undefined
-      }
-
-      if (cacheData) {
-        entry = {
-          isStale,
-          curRevalidate,
-          revalidateAfter,
-          value: cacheData.value,
-        }
-      }
-
-      if (
-        !cacheData &&
-        this.prerenderManifest.notFoundRoutes.includes(pathname)
-      ) {
-        // for the first hit after starting the server the cache
-        // may not have a way to save notFound: true so if
-        // the prerender-manifest marks this as notFound then we
-        // return that entry and trigger a cache set to give it a
-        // chance to update in-memory entries
-        entry = {
-          isStale,
-          value: null,
-          curRevalidate,
-          revalidateAfter,
-        }
-        this.set(
-          pathname,
-          entry.value,
-          curRevalidate,
-          fetchCache,
-          fetchUrl,
-          fetchIdx
-        )
-      }
-      return entry
-    })()
-
-    this.pendingResponses.set(pathname, promise)
-
-    promise.finally(() => this.pendingResponses.delete(pathname))
-
-    return promise
+    }
+    return entry
   }
 
   // populate the incremental cache with new data
@@ -586,17 +568,6 @@ export class IncrementalCache {
         fetchUrl,
         fetchIdx
       )
-
-      // After the cache entry has been set, update the pendingResponses.
-      const promise = Promise.resolve({
-        isStale: false,
-        value: data,
-        revalidateAfter: Date.now() + (revalidateSeconds || 0) * 1000,
-      })
-
-      this.pendingResponses.set(pathname, promise)
-
-      promise.finally(() => this.pendingResponses.delete(pathname))
     } catch (error) {
       console.warn('Failed to update prerender cache for', pathname, error)
     }
