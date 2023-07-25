@@ -203,7 +203,7 @@ The following examples show how to combine Route Handlers with other Next.js API
 
 ### Revalidating Static Data
 
-You can [revalidate static data](/docs/app/building-your-application/data-fetching/revalidating) fetches using the [`next.revalidate`](/docs/app/building-your-application/data-fetching/fetching#revalidating-data) option:
+You can [revalidate static data](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#revalidating-data) fetches using the [`next.revalidate`](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#revalidating-data) option:
 
 ```ts filename="app/items/route.ts" switcher
 import { NextResponse } from 'next/server'
@@ -604,7 +604,7 @@ export async function GET(request) {
 
 ### Edge and Node.js Runtimes
 
-Route Handlers have an isomorphic Web API to support both Edge and Node.js runtimes seamlessly, including support for streaming. Since Route Handlers use the same [route segment configuration](/docs/app/api-reference/file-conventions/route-segment-config) as Pages and Layouts, they support long-awaited features like general-purpose [statically regenerated](/docs/app/building-your-application/data-fetching/revalidating) Route Handlers.
+Route Handlers have an isomorphic Web API to support both Edge and Node.js runtimes seamlessly, including support for streaming. Since Route Handlers use the same [route segment configuration](/docs/app/api-reference/file-conventions/route-segment-config) as Pages and Layouts, they support long-awaited features like general-purpose [statically regenerated](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#revalidating-data) Route Handlers.
 
 You can use the `runtime` segment config option to specify the runtime:
 

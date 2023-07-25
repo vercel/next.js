@@ -17,7 +17,7 @@ Server and Client Components allow developers to build applications that span th
 
 ### Thinking in Server Components
 
-Similar to how React changed the way we think about building UIs, React Server Components introduce a new mental model for building hybrid applications that leverage the [server and the client](/docs/app/building-your-application/rendering#rendering-environments).
+Similar to how React changed the way we think about building UIs, React Server Components introduce a new mental model for building hybrid applications that leverage the server and the client.
 
 Instead of React rendering your whole application client-side (such as in the case of Single-Page Applications), React now gives you the flexibility to choose where to render your components based on their purpose.
 
@@ -47,7 +47,7 @@ To make the transition to Server Components easier, all components inside the [A
 
 ## Client Components
 
-Client Components enable you to add client-side interactivity to your application. In Next.js, they are [pre-rendered](/docs/app/building-your-application/rendering#component-level-client-and-server-rendering) on the server and [hydrated](/docs/app/building-your-application/rendering#component-level-client-and-server-rendering) on the client. You can think of Client Components as how components in the [Pages Router](/docs/pages) have always worked.
+Client Components enable you to add client-side interactivity to your application. In Next.js, they are [pre-rendered](/docs/app/building-your-application/rendering#rendering-environments) on the server and [hydrated](/docs/app/building-your-application/rendering#component-level-client-and-server-rendering) on the client. You can think of Client Components as how components in the [Pages Router](/docs/pages) have always worked.
 
 ### The "use client" directive
 
@@ -186,7 +186,7 @@ Behind the scenes, React handles rendering as follows:
 - On the client, React renders Client Components and _slots in_ the rendered result of Server Components, merging the work done on the server and client.
   - If any Server Components are nested inside a Client Component, their rendered content will be placed correctly within the Client Component.
 
-> **Good to know**: In Next.js, during the initial page load, both the rendered result of Server Components from the above step and Client Components are [pre-rendered on the server as HTML](/docs/app/building-your-application/rendering#static-and-dynamic-rendering-on-the-server) to produce a faster initial page load.
+> **Good to know**: In Next.js, during the initial page load, both the rendered result of Server Components from the above step and Client Components are [pre-rendered on the server as HTML](/docs/app/building-your-application/rendering/static-and-dynamic-on-the-server) to produce a faster initial page load.
 
 ### Nesting Server Components inside Client Components
 

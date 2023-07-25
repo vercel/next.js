@@ -100,10 +100,10 @@ The Data Cache is persistent across incoming requests and deployments unless you
 
 Cached data can be revalidated in two ways, with:
 
-- [Time-based Revalidation](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#time-based-revalidation).
-- [On-demand Revalidation](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#revalidating-data)
+- [Time-based Revalidation](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating-caching-and-revalidating#time-based-revalidation).
+- [On-demand Revalidation](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating-caching-and-revalidating#revalidating-data)
 
-See the [Revalidating Data](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#revalidating-data) section for more.
+See the [Revalidating Data](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating-caching-and-revalidating#revalidating-data) section for more.
 
 ### Opting out
 
@@ -203,7 +203,7 @@ You can opt out of the Full Route Cache, or in other words, dynamically render c
 
 ## Router Cache
 
-Next.js has an in-memory client-side cache that stores the React Server Component Payload, split by individual routes. This **Router Cache** is used to improve the navigation experience. Next.js [prefetches](/docs/app/building-your-application/routing/linking-and-navigating#1-prefetching) and caches routes that the user is likely going to navigate to (when using the `<Link >` component), and caches visited route segments, enabling [partial rendering](/docs/app/building-your-application/routing/linking-and-navigating#partial-rendering). This applies to newly visited routes, as well as backward/forward browser navigation.
+Next.js has an in-memory client-side cache that stores the React Server Component Payload, split by individual routes. This **Router Cache** is used to improve the navigation experience. Next.js [prefetches](/docs/app/building-your-application/routing/linking-and-navigating#1-prefetching) and caches routes that the user is likely going to navigate to (when using the `<Link >` component), and caches visited route segments, enabling [partial rendering](/docs/app/building-your-application/routing/linking-and-navigating#3-partial-rendering). This applies to newly visited routes, as well as backward/forward browser navigation.
 
 For the user, this results in no page reloads between navigations and faster page transitions; it also reduces unnecessary requests to the server.
 
@@ -217,7 +217,7 @@ For the user, this results in no page reloads between navigations and faster pag
 The cache is stored in the browser's temporary memory. Two factors determine how long the router cache lasts:
 
 - **Session**: The cache persists across navigation. However, it's cleared on page refresh.
-- **Automatic invalidation period**: The cache of an individual segment is automatically invalidated after a specific time. The duration depends on whether the route is [statically](/docs/app/building-your-application/rendering/static-and-dynamic-rendering#static-rendering-default) or [dynamically](/docs/app/building-your-application/rendering/static-and-dynamic-rendering#dynamic-rendering) rendered:
+- **Automatic invalidation period**: The cache of an individual segment is automatically invalidated after a specific time. The duration depends on whether the route is [statically](/docs/app/building-your-application/rendering/static-and-dynamic#static-rendering-default) or [dynamically](/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering) rendered:
   - **Dynamically Rendered**: 30 seconds
   - **Statically Rendered**: 5 minutes
 
@@ -252,7 +252,7 @@ When configuring the different caching mechanisms, it's important to understand 
 
 ### Data and Router
 
-- Revalidating the Data Cache in a [Route Handler](/docs/app/building-your-application/routing/router-handlers) **will not** immediately invalidate the Router Cache as the Router Handler isn't tied to a specific route. This means the [automatic invalidation period](#duration-and-invalidation) will be applied, and the Router Cache will continue to serve the previous payload until a hard refresh, or the automatic invalidation period has elapsed.
+- Revalidating the Data Cache in a [Route Handler](/docs/app/building-your-application/routing/route-handlers) **will not** immediately invalidate the Router Cache as the Router Handler isn't tied to a specific route. This means the [automatic invalidation period](#duration-and-invalidation) will be applied, and the Router Cache will continue to serve the previous payload until a hard refresh, or the automatic invalidation period has elapsed.
 - To immediately invalidate the Data Cache and Router cache, you can use [`revalidatePath`](#revalidatepath) or [`revalidateTag`](#fetchoptionsnexttag-and-revalidatetag) in a [Server Action](/docs/app/building-your-application/data-fetching/server-actions).
 
 ## APIs
@@ -358,7 +358,7 @@ revalidateTag('a')
 
 There are two places you can use `revalidateTag`, depending on what you're trying to achieve:
 
-1. [Route Handlers](/docs/app/building-your-application/routing/router-handlers) - to revalidate data in response of a third party event (e.g. webhook). This will not invalidate the Router Cache immediately as the Router Handler isn't tied to a specific route.
+1. [Route Handlers](/docs/app/building-your-application/routing/route-handlers) - to revalidate data in response of a third party event (e.g. webhook). This will not invalidate the Router Cache immediately as the Router Handler isn't tied to a specific route.
 2. [Server Actions](/docs/app/building-your-application/data-fetching/server-actions) - to revalidate data after a user action (e.g. form submission). This will invalidate the Router Cache for the associated route.
 
 ### `revalidatePath`
@@ -371,7 +371,7 @@ revalidatePath('/')
 
 There are two places you can use `revalidatePath`, depending on what you're trying to achieve:
 
-1. [Route Handlers](/docs/app/building-your-application/routing/router-handlers) - to revalidate data in response to a third party event (e.g. webhook).
+1. [Route Handlers](/docs/app/building-your-application/routing/route-handlers) - to revalidate data in response to a third party event (e.g. webhook).
 2. [Server Actions](/docs/app/building-your-application/data-fetching/server-actions) - to revalidate data after a user interaction (e.g. form submission, clicking a button).
 
 See the [`revalidatePath` API reference]() for more information.
