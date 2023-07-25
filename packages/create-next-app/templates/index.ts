@@ -2,17 +2,14 @@ import { install } from '../helpers/install'
 import { makeDir } from '../helpers/make-dir'
 
 import cpy from 'cpy'
-import globOrig from 'glob'
+import { async as glob } from 'fast-glob'
 import os from 'os'
 import fs from 'fs'
 import path from 'path'
 import { cyan, bold } from 'picocolors'
-import util from 'util'
 import { Sema } from 'async-sema'
 
 import { GetTemplateFileArgs, InstallTemplateArgs } from './types'
-
-const glob = util.promisify(globOrig)
 
 /**
  * Get the file path for a given file in a template, e.g. "next.config.js".
@@ -90,7 +87,11 @@ export const installTemplate = async ({
 
   // update import alias in any files if not using the default
   if (importAlias !== '@/*') {
-    const files = await glob('**/*', { cwd: root, dot: true })
+    const files = await glob<string>('**/*', {
+      cwd: root,
+      dot: true,
+      stats: false,
+    })
     const writeSema = new Sema(8, { capacity: files.length })
     await Promise.all(
       files.map(async (file) => {

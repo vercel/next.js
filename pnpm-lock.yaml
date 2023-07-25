@@ -401,7 +401,7 @@ importers:
       conf: 10.2.0
       cpy: 7.3.0
       cross-spawn: 6.0.5
-      glob: 8.0.3
+      fast-glob: 2.2.7
       got: 10.7.0
       picocolors: 1.0.0
       prettier-plugin-tailwindcss: 0.3.0
@@ -425,7 +425,7 @@ importers:
       conf: 10.2.0
       cpy: 7.3.0
       cross-spawn: 6.0.5
-      glob: 8.0.3
+      fast-glob: 2.2.7
       got: 10.7.0
       picocolors: 1.0.0
       prettier-plugin-tailwindcss: 0.3.0_prettier@2.8.8
@@ -5324,7 +5324,7 @@ packages:
       jest-haste-map: 27.5.1
       jest-regex-util: 27.5.1
       jest-util: 27.5.1
-      micromatch: 4.0.4
+      micromatch: 4.0.5
       pirates: 4.0.5
       slash: 3.0.0
       source-map: 0.6.1
@@ -6901,7 +6901,7 @@ packages:
     dependencies:
       '@swc/core': 1.3.55_@swc+helpers@0.5.1
       commander: 7.2.0
-      fast-glob: 3.2.11
+      fast-glob: 3.2.12
       slash: 3.0.0
       source-map: 0.7.3
     dev: true
@@ -12806,6 +12806,7 @@ packages:
       glob-parent: 5.1.2
       merge2: 1.4.1
       micromatch: 4.0.5
+    dev: false
 
   /fast-glob/3.2.12:
     resolution: {integrity: sha512-DVj4CQIYYow0BlaelwK1pHl5n5cRSJfM60UA0zK891sVInoPri2Ekj7+e1CT3/3qxXenpI+nBBmQAcJPJgaj4w==}
@@ -12815,7 +12816,7 @@ packages:
       '@nodelib/fs.walk': 1.2.8
       glob-parent: 5.1.2
       merge2: 1.4.1
-      micromatch: 4.0.4
+      micromatch: 4.0.5
 
   /fast-json-stable-stringify/2.1.0:
     resolution: {integrity: sha512-lhd/wF+Lk98HZoTCtlVraHtfh5XYijIjalXck7saUtuanSDyLMxnHhSXEDJqHxD7msR8D0uCmqlkwjCV8xvwHw==}
@@ -13060,7 +13061,7 @@ packages:
     dependencies:
       detect-file: 1.0.0
       is-glob: 4.0.3
-      micromatch: 4.0.4
+      micromatch: 4.0.5
       resolve-dir: 1.0.1
     dev: true
 
@@ -13636,17 +13637,6 @@ packages:
       minimatch: 3.1.2
       once: 1.4.0
       path-is-absolute: 1.0.1
-
-  /glob/8.0.3:
-    resolution: {integrity: sha512-ull455NHSHI/Y1FqGaaYFaLGkNMMJbavMrEGFXG/PGrg6y7sutWHUHrz6gy6WEBH6akM1M414dWKCNs+IhKdiQ==}
-    engines: {node: '>=12'}
-    dependencies:
-      fs.realpath: 1.0.0
-      inflight: 1.0.6
-      inherits: 2.0.4
-      minimatch: 5.1.0
-      once: 1.4.0
-    dev: true
 
   /global-dirs/2.1.0:
     resolution: {integrity: sha512-MG6kdOUh/xBnyo9cJFeIKkLEc1AyFq42QTU4XiX51i2NEdxLxLWXIjEjmqKeSuKR7pAZjTqUVoT2b2huxVLgYQ==}
@@ -15484,7 +15474,7 @@ packages:
       jest-runner: 27.0.6
       jest-util: 27.5.1
       jest-validate: 27.5.1
-      micromatch: 4.0.4
+      micromatch: 4.0.5
       pretty-format: 27.5.1
     transitivePeerDependencies:
       - bufferutil
@@ -15629,7 +15619,7 @@ packages:
       jest-serializer: 27.5.1
       jest-util: 27.5.1
       jest-worker: 27.5.1
-      micromatch: 4.0.4
+      micromatch: 4.0.5
       walker: 1.0.8
     optionalDependencies:
       fsevents: 2.3.2
@@ -15751,7 +15741,7 @@ packages:
       '@types/stack-utils': 2.0.1
       chalk: 4.1.0
       graceful-fs: 4.2.11
-      micromatch: 4.0.4
+      micromatch: 4.0.5
       pretty-format: 26.6.2
       slash: 3.0.0
       stack-utils: 2.0.6
@@ -15780,7 +15770,7 @@ packages:
       '@types/stack-utils': 2.0.1
       chalk: 4.1.0
       graceful-fs: 4.2.11
-      micromatch: 4.0.4
+      micromatch: 4.0.5
       pretty-format: 29.5.0
       slash: 3.0.0
       stack-utils: 2.0.6
@@ -17874,6 +17864,7 @@ packages:
     dependencies:
       braces: 3.0.2
       picomatch: 2.2.3
+    dev: true
 
   /micromatch/4.0.5:
     resolution: {integrity: sha512-DMy+ERcEW2q8Z2Po+WNXuw3c5YaUSFjAO5GsJqfEl7UjvtIuFKO6ZrKvcItdy98dwFI2N1tg3zNIdKaQT+aNdA==}
@@ -19519,6 +19510,7 @@ packages:
   /picomatch/2.2.3:
     resolution: {integrity: sha512-KpELjfwcCDUb9PeigTs2mBJzXUPzAuP2oPcA989He8Rte0+YUAjw1JVedDhuTKPkHjSYzMN3npC9luThGYEKdg==}
     engines: {node: '>=8.6'}
+    dev: true
 
   /picomatch/2.3.1:
     resolution: {integrity: sha512-JU3teHTNjmE2VCGFzuY8EXzCDVwEqB2a8fsIvwaStHhAWJEeVd1o1QD80CU6+ZdEXXSLbSsuLwJjkCBWqRQUVA==}

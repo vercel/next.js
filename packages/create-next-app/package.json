@@ -44,7 +44,7 @@
     "conf": "10.2.0",
     "cpy": "7.3.0",
     "cross-spawn": "6.0.5",
-    "glob": "8.0.3",
+    "fast-glob": "2.2.7",
     "got": "10.7.0",
     "picocolors": "1.0.0",
     "prettier-plugin-tailwindcss": "0.3.0",
