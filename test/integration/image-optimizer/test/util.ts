@@ -19,7 +19,7 @@ import type { RequestInit } from 'node-fetch'
 
 const largeSize = 1080 // defaults defined in server/config.ts
 const sharpMissingText = `For production Image Optimization with Next.js, the optional 'sharp' package is strongly recommended`
-const sharpOutdatedText = `Your installed version of the 'sharp' package does not support AVIF images. Run 'yarn add sharp@latest' to upgrade to the latest version`
+const sharpOutdatedText = `Your installed version of the 'sharp' package does not support AVIF images. Run 'npm i sharp@latest' to upgrade to the latest version`
 
 export async function serveSlowImage() {
   const port = await findPort()
