@@ -15,6 +15,56 @@ import { getValidatedArgs } from '../lib/get-validated-args'
 
 const dir = process.cwd()
 
+type TaskResult = {
+  // Additional messages to notify to the users, i.e certain script cannot be run due to missing xyz.
+  messages?: string | undefined
+  // Output of the script, either fails or success. This'll be printed to stdout or written into a file.
+  output?: string | undefined
+  result: 'pass' | 'fail' | 'skipped'
+}
+
+type TaskScript = () => Promise<TaskResult>
+type PlatformTaskScript =
+  | {
+      win32: TaskScript
+      linux?: TaskScript
+      darwin?: TaskScript
+      default?: TaskScript
+    }
+  | {
+      linux: TaskScript
+      win32?: TaskScript
+      darwin?: TaskScript
+      default?: TaskScript
+    }
+  | {
+      darwin: TaskScript
+      win32?: TaskScript
+      linux?: TaskScript
+      default?: TaskScript
+    }
+  | {
+      // A common task script if task does not need to be platform specific.
+      default: TaskScript
+      win32?: TaskScript
+      linux?: TaskScript
+      darwin?: TaskScript
+    }
+
+/**
+ * Supported CLI arguments.
+ */
+const validArgs: arg.Spec = {
+  // Types
+  '--help': Boolean,
+  // Aliases
+  '-h': '--help',
+  // Detailed diagnostics
+  '--verbose': Boolean,
+  // Write output into file when running --verbose.
+  '--out-file': String,
+}
+
 function getPackageVersion(packageName: string) {
   try {
     return require(`${packageName}/package.json`).version
@@ -31,6 +81,10 @@ async function getNextConfig() {
   }
 }
 
+/**
+ * Returns the version of the specified binary, by supplying `--version` argument.
+ * N/A if it fails to run the binary.
+ */
 function getBinaryVersion(binaryName: string) {
   try {
     return childProcess
@@ -42,34 +96,28 @@ function getBinaryVersion(binaryName: string) {
   }
 }
 
-const nextInfo: CliCommand = async (argv) => {
-  const validArgs: arg.Spec = {
-    // Types
-    '--help': Boolean,
-    // Aliases
-    '-h': '--help',
-  }
-  const args = getValidatedArgs(validArgs, argv)
+function printHelp() {
+  console.log(
+    `
+    Description
+      Prints relevant details about the current system which can be used to report Next.js bugs
 
-  if (args['--help']) {
-    console.log(
-      `
-      Description
-        Prints relevant details about the current system which can be used to report Next.js bugs
+    Usage
+      $ next info
 
-      Usage
-        $ next info
+    Options
+      --help, -h    Displays this message
+      --verbose     Collect additional information for debugging
+      --out-file    Writes output into file instead of printing to stdout (--verbose only)
 
-      Options
-        --help, -h  Displays this message
+    Learn more: ${chalk.cyan('https://nextjs.org/docs/api-reference/cli#info')}`
+  )
+}
 
-      Learn more: ${chalk.cyan(
-        'https://nextjs.org/docs/api-reference/cli#info'
-      )}`
-    )
-    return
-  }
-
+/**
+ * Collect basic next.js installation information and print it to stdout.
+ */
+async function printDefaultInfo() {
   const installedRelease = getPackageVersion('next')
   const nextConfig = await getNextConfig()
 
@@ -121,6 +169,411 @@ const nextInfo: CliCommand = async (argv) => {
       Make sure to try the latest canary version (eg.: \`npm install next@canary\`) to confirm the issue still exists before creating a new issue.
       Read more - https://nextjs.org/docs/messages/opening-an-issue`
     )
+  }
+}
+
+/**
+ * Collect additional diagnostics information and print it to stdout or write it into a file.
+ *
+ * @param outFile If specified, the output will be written into this file instead of stdout.
+ */
+async function printDiagsInfo(outFile: string | undefined) {
+  const fs = require('fs')
+  const currentPlatform = os.platform()
+
+  if (
+    currentPlatform !== 'win32' &&
+    currentPlatform !== 'linux' &&
+    currentPlatform !== 'darwin'
+  ) {
+    console.log(
+      'Unsupported platform, only win32, linux, darwin are supported.'
+    )
+    return
+  }
+
+  console.log(`Collecting diagnostics information..`)
+
+  // List of tasks to run.
+  const tasks: Array<{
+    title: string
+    // If specified, only run this task on the specified platform.
+    targetPlatform?: string | undefined
+    scripts: PlatformTaskScript
+  }> = [
+    {
+      title: 'Host system information',
+      scripts: {
+        default: async () => {
+          // Node.js diagnostic report contains basic information, i.e OS version, CPU architecture, etc.
+          // Only collect few addtional details here.
+          const isWsl = require('next/dist/compiled/is-wsl')
+          const ciInfo = require('next/dist/compiled/ci-info')
+          const isDocker = require('next/dist/compiled/is-docker')
+
+          const output = `
+  WSL: ${isWsl}
+  Docker: ${isDocker()}
+  CI: ${ciInfo.isCI ? ciInfo.name || 'unknown' : 'false'}
+`
+
+          return {
+            output,
+            result: 'pass',
+          }
+        },
+      },
+    },
+    {
+      title: 'Next.js installation',
+      scripts: {
+        default: async () => {
+          const installedRelease = getPackageVersion('next')
+          const nextConfig = await getNextConfig()
+          const output = `
+  Binaries:
+    Node: ${process.versions.node}
+    npm: ${getBinaryVersion('npm')}
+    Yarn: ${getBinaryVersion('yarn')}
+    pnpm: ${getBinaryVersion('pnpm')}
+  Relevant Packages:
+    next: ${installedRelease}
+    eslint-config-next: ${getPackageVersion('eslint-config-next')}
+    react: ${getPackageVersion('react')}
+    react-dom: ${getPackageVersion('react-dom')}
+    typescript: ${getPackageVersion('typescript')}
+  Next.js Config:
+    output: ${nextConfig.output}
+
+`
+          return {
+            output,
+            result: 'pass',
+          }
+        },
+      },
+    },
+    {
+      title: 'Node.js diagnostic report',
+      scripts: {
+        default: async () => {
+          const report = process.report?.getReport()
+
+          if (!report) {
+            return {
+              messages: 'Node.js diagnostic report is not available.',
+              result: 'fail',
+            }
+          }
+
+          const { header, javascriptHeap, sharedObjects } =
+            report as any as Record<string, any>
+          // Delete some fields potentially containing sensitive information.
+          delete header?.cwd
+          delete header?.commandLine
+          delete header?.host
+          delete header?.cpus
+          delete header?.networkInterfaces
+
+          const reportSummary = {
+            header,
+            javascriptHeap,
+            sharedObjects,
+          }
+
+          return {
+            output: JSON.stringify(reportSummary, null, 2),
+            result: 'pass',
+          }
+        },
+      },
+    },
+    {
+      title: 'next-swc installation',
+      scripts: {
+        default: async () => {
+          const output = [] as any
+
+          // First, try to load next-swc via loadBindings.
+          try {
+            const { loadBindings } = require('../build/swc')
+            const bindings = await loadBindings()
+            // Run arbitary function to verify the bindings are loaded correctly.
+            const target = bindings.getTargetTriple()
+
+            // We think next-swc is installed correctly if getTargetTriple returns.
+            return {
+              output: `next-swc is installed correctly for ${target}`,
+              result: 'pass',
+            }
+          } catch (e) {
+            output.push(`loadBindings() failed: ${(e as Error).message}`)
+          }
+
+          const {
+            platformArchTriples,
+          } = require('next/dist/compiled/@napi-rs/triples')
+          const triples = platformArchTriples[currentPlatform]?.[os.arch()]
+
+          if (!triples || triples.length === 0) {
+            return {
+              messages: `No target triples found for ${currentPlatform} / ${os.arch()}`,
+              result: 'fail',
+            }
+          }
+
+          // Trying to manually resolve corresponding target triples to see if bindings are physically located.
+          const path = require('path')
+          let fallbackBindingsDirectory
+          try {
+            const nextPath = path.dirname(require.resolve('next/package.json'))
+            fallbackBindingsDirectory = path.join(nextPath, 'next-swc-fallback')
+          } catch (e) {
+            // Not able to locate next package from current running location, skipping fallback bindings check.
+          }
+
+          const tryResolve = (pkgName: string) => {
+            try {
+              const resolved = require.resolve(pkgName)
+              const fileExists = fs.existsSync(resolved)
+              let loadError
+              let loadSuccess
+
+              try {
+                loadSuccess = !!require(resolved).getTargetTriple()
+              } catch (e) {
+                loadError = (e as Error).message
+              }
+
+              output.push(
+                `${pkgName} exists: ${fileExists} for the triple ${loadSuccess}`
+              )
+              if (loadError) {
+                output.push(`${pkgName} load failed: ${loadError ?? 'unknown'}`)
+              }
+
+              if (loadSuccess) {
+                return true
+              }
+            } catch (e) {
+              output.push(
+                `${pkgName} resolve failed: ${
+                  (e as Error).message ?? 'unknown'
+                }`
+              )
+            }
+            return false
+          }
+
+          for (const triple of triples) {
+            const triplePkgName = `@next/swc-${triple.platformArchABI}`
+            // Check installed optional dependencies. This is the normal way package being installed.
+            // For the targets have multiple triples (gnu / musl), if any of them loads successfully, we consider as installed.
+            if (tryResolve(triplePkgName)) {
+              break
+            }
+
+            // Check if fallback binaries are installed.
+            if (!fallbackBindingsDirectory) {
+              continue
+            }
+
+            tryResolve(path.join(fallbackBindingsDirectory, triplePkgName))
+          }
+
+          return {
+            output: output.join('\n'),
+            result: 'pass',
+          }
+        },
+      },
+    },
+    {
+      // For the simplicity, we only check the correctly installed optional dependencies -
+      // as this is mainly for checking DLOPEN failure. If user hit MODULE_NOT_FOUND,
+      // expect above next-swc installation would give some hint instead.
+      title: 'next-swc shared object dependencies',
+      scripts: {
+        linux: async () => {
+          return {
+            messages: 'This diagnostics is not supported on linux.',
+            result: 'skipped',
+          }
+        },
+        win32: async () => {
+          return {
+            messages: 'This diagnostics is not supported on windows.',
+            result: 'skipped',
+          }
+        },
+        darwin: async () => {
+          const spawn = require('next/dist/compiled/cross-spawn')
+          const {
+            platformArchTriples,
+          } = require('next/dist/compiled/@napi-rs/triples')
+          const triples =
+            platformArchTriples[currentPlatform]?.[os.arch()] ?? []
+
+          // First, check if system have a tool installed. We can't install these by our own since it's part of the mac os system.
+          const tools = []
+
+          try {
+            const checkOtool = spawn.sync('otool', ['--version'])
+            if (checkOtool.status === 0) {
+              tools.push(['otool', ['-L']])
+            }
+
+            const checkDyld = spawn.sync('dyld_info')
+            if (checkDyld.status === 0) {
+              tools.push(['dyld_info', []])
+            }
+          } catch {
+            // ignore if existence check fails
+          }
+
+          if (tools.length === 0) {
+            return {
+              messages:
+                'This diagnostics uses system-installed tools (otools, dyld_info) to check next-swc dependencies, but none of them are found. Skipping dependencies check.',
+              result: 'skipped',
+            }
+          }
+
+          const outputs: Array<string> = []
+          for (const triple of triples) {
+            const triplePkgName = `@next/swc-${triple.platformArchABI}`
+            let resolved
+            try {
+              resolved = require.resolve(triplePkgName)
+            } catch (e) {
+              return {
+                messages:
+                  'Cannot find next-swc installation, skipping dependencies check',
+                result: 'skipped',
+              }
+            }
+
+            for (const [tool, args] of tools) {
+              const proc = spawn(tool, [...args, resolved])
+              // Captures output, doesn't matter if it fails or not since we'll forward both to output.
+              const procPromise = new Promise((resolve) => {
+                proc.stdout.on('data', function (data: string) {
+                  outputs.push(data)
+                })
+                proc.stderr.on('data', function (data: string) {
+                  outputs.push(data)
+                })
+                proc.on('close', (c: any) => resolve(c))
+              })
+
+              await procPromise
+            }
+          }
+
+          return {
+            output: outputs.join('\n'),
+            result: 'pass',
+          }
+        },
+      },
+    },
+  ]
+
+  // Collected output after running all tasks.
+  const report: Array<{
+    title: string
+    result: TaskResult
+  }> = []
+
+  console.log('\n')
+  for (const task of tasks) {
+    if (task.targetPlatform && task.targetPlatform !== currentPlatform) {
+      report.push({
+        title: task.title,
+        result: {
+          messages: undefined,
+          output: `[SKIPPED (${os.platform()} / ${task.targetPlatform})] ${
+            task.title
+          }`,
+          result: 'skipped',
+        },
+      })
+      continue
+    }
+
+    const taskScript = task.scripts[currentPlatform] ?? task.scripts.default!
+    let taskResult: TaskResult
+    try {
+      taskResult = await taskScript()
+    } catch (e) {
+      taskResult = {
+        messages: `Unexpected failure while running diagnostics: ${
+          (e as Error).message
+        }`,
+        result: 'fail',
+      }
+    }
+
+    console.log(`- ${task.title}: ${taskResult.result}`)
+    if (taskResult.messages) {
+      console.log(`  ${taskResult.messages}`)
+    }
+
+    report.push({
+      title: task.title,
+      result: taskResult,
+    })
+  }
+
+  console.log(`\n${chalk.bold('Generated diagnostics report')}`)
+  if (outFile) {
+    try {
+      fs.writeFileSync(
+        outFile,
+        report
+          .map(
+            ({ title, result }) =>
+              `### ${title}\n${result.messages ?? ''}\n${result.output ?? ''}`
+          )
+          .join('\n\n')
+      )
+      console.log(`Report written to ${outFile}`)
+    } catch (e) {
+      console.log(`Failed to write report to ${outFile}`)
+    }
+  } else {
+    console.log(`\nPlease copy below report and paste it into your issue.`)
+    for (const { title, result } of report) {
+      console.log(`\n### ${title}`)
+
+      if (result.messages) {
+        console.log(result.messages)
+      }
+
+      if (result.output) {
+        console.log(result.output)
+      }
+    }
+  }
+}
+
+/**
+ * Runs few scripts to collect system information to help with debugging next.js installation issues.
+ * There are 2 modes, by default it collects basic next.js installation with runtime information. If
+ * `--verbose` mode is enabled it'll try to collect, verify more data for next-swc installation and others.
+ */
+const nextInfo: CliCommand = async (argv) => {
+  const args = getValidatedArgs(validArgs, argv)
+
+  if (args['--help']) {
+    printHelp()
+    return
+  }
+
+  if (!args['--verbose']) {
+    await printDefaultInfo()
+  } else {
+    await printDiagsInfo(args['--out-file'])
   }
 }
 
