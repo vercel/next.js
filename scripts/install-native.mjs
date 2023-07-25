@@ -56,7 +56,10 @@ import fs from 'fs-extra'
       path.join(tmpdir, 'package.json'),
       JSON.stringify(pkgJson)
     )
-    let { stdout } = await execa('yarn', ['--force'], { cwd: tmpdir })
+    await fs.writeFile(path.join(tmpdir, '.npmrc'), 'node-linker=hoisted')
+    let { stdout } = await execa('pnpm', ['install', '--force'], {
+      cwd: tmpdir,
+    })
     console.log(stdout)
     let pkgs = await fs.readdir(path.join(tmpdir, 'node_modules/@next'))
     await fs.ensureDir(path.join(cwd, 'node_modules/@next'))
