@@ -1253,9 +1253,7 @@ export default class NextNodeServer extends BaseServer {
     const is404 = res.statusCode === 404
 
     if (is404 && this.hasAppDir && this.isRenderWorker) {
-      const notFoundPathname = this.renderOpts.dev
-        ? '/not-found'
-        : '/_not-found'
+      const notFoundPathname = '/_not-found'
 
       if (this.renderOpts.dev) {
         await (this as any)

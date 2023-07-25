@@ -2631,7 +2631,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         if (this.hasAppDir && this.isRenderWorker) {
           // Use the not-found entry in app directory
           result = await this.findPageComponents({
-            pathname: this.renderOpts.dev ? '/not-found' : '/_not-found',
+            pathname: '/_not-found',
             query,
             params: {},
             isAppPath: true,

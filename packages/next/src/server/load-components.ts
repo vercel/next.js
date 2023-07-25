@@ -134,10 +134,7 @@ async function loadComponentsImpl({
 
   // Make sure to avoid loading the manifest for Route Handlers
   const hasClientManifest =
-    isAppPath &&
-    (pathname.endsWith('/page') ||
-      pathname === '/not-found' ||
-      pathname === '/_not-found')
+    isAppPath && (pathname.endsWith('/page') || pathname === '/_not-found')
 
   const [
     buildManifest,
