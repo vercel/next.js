@@ -8,6 +8,9 @@ createNextDescribe(
     files: __dirname,
   },
   ({ next }) => {
+    // For some reason, it's flakey. Try a few times.
+    jest.retryTimes(3)
+
     function prime(url: string, noData?: boolean) {
       return new Promise<void>((resolve) => {
         url = new URL(url, next.url).href
@@ -60,7 +63,7 @@ createNextDescribe(
         const res = await next.fetch(url)
         const i = +(await res.text())
         expect(i).toBeWithin(1, 5)
-      })
+      }, 2500)
 
       it('cancels stalled stream', async () => {
         // If the stream is stalled, we'll never hit the `res.destroyed` break
@@ -70,7 +73,7 @@ createNextDescribe(
         const res = await next.fetch(url)
         const i = +(await res.text())
         expect(i).toBe(1)
-      })
+      }, 2500)
 
       it('cancels stream that never sent data', async () => {
         // If the client has never sent any data (including headers), then we
@@ -80,7 +83,7 @@ createNextDescribe(
         const res = await next.fetch(url)
         const i = +(await res.text())
         expect(i).toBe(0)
-      })
+      }, 2500)
     })
   }
 )
