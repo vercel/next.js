@@ -8,8 +8,8 @@ import * as Log from '../build/output/log'
 import { printAndExit } from '../server/lib/utils'
 import { CliCommand } from '../lib/commands'
 import { trace } from '../trace'
-import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
+import { getValidatedArgs } from '../lib/get-validated-args'
 
 const nextExport: CliCommand = (argv) => {
   const nextExportCliSpan = trace('next-export-cli')
@@ -25,15 +25,7 @@ const nextExport: CliCommand = (argv) => {
     '-o': '--outdir',
     '-s': '--silent',
   }
-  let args: arg.Result<arg.Spec>
-  try {
-    args = arg(validArgs, { argv })
-  } catch (error) {
-    if (isError(error) && error.code === 'ARG_UNKNOWN_OPTION') {
-      return printAndExit(error.message, 1)
-    }
-    throw error
-  }
+  const args = getValidatedArgs(validArgs, argv)
   if (args['--help']) {
     console.log(`
       Description
