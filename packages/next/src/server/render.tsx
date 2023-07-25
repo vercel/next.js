@@ -91,7 +91,6 @@ import { AppRouterContext } from '../shared/lib/app-router-context'
 import { SearchParamsContext } from '../shared/lib/hooks-client-context'
 import { getTracer } from './lib/trace/tracer'
 import { RenderSpan } from './lib/trace/constants'
-import { PageNotFoundError } from '../shared/lib/utils'
 import { ReflectAdapter } from './web/spec-extension/adapters/reflect'
 
 let tryGetPreviewData: typeof import('./api-utils/node').tryGetPreviewData
