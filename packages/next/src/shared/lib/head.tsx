@@ -1,6 +1,4 @@
-'use client'
-
-import React, { useContext } from 'react'
+import React from 'react'
 import Effect from './side-effect'
 import { AmpStateContext } from './amp-context'
 import { HeadManagerContext } from './head-manager-context'
@@ -182,8 +180,8 @@ function reduceComponents<T extends {} & WithInAmpMode>(
  * To avoid duplicated `tags` in `<head>` you can use the `key` property, which will make sure every tag is only rendered once.
  */
 function Head({ children }: { children: React.ReactNode }) {
-  const ampState = useContext(AmpStateContext)
-  const headManager = useContext(HeadManagerContext)
+  const ampState = React.use(AmpStateContext)
+  const headManager = React.use(HeadManagerContext)
   return (
     <Effect
       reduceComponentsToState={reduceComponents}

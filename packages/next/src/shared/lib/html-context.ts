@@ -4,7 +4,7 @@ import type { NEXT_DATA } from './utils'
 import type { FontConfig } from '../../server/font-utils'
 import type { NextFontManifest } from '../../build/webpack/plugins/next-font-manifest-plugin'
 
-import { createContext, useContext } from 'react'
+import { createServerContext, use } from 'react'
 
 export type HtmlProps = {
   __NEXT_DATA__: NEXT_DATA
@@ -48,13 +48,13 @@ export type HtmlProps = {
   nextFontManifest?: NextFontManifest
 }
 
-export const HtmlContext = createContext<HtmlProps | undefined>(undefined)
+export const HtmlContext = createServerContext<HtmlProps | undefined>('HtmlContext', undefined)
 if (process.env.NODE_ENV !== 'production') {
   HtmlContext.displayName = 'HtmlContext'
 }
 
 export function useHtmlContext() {
-  const context = useContext(HtmlContext)
+  const context = use(HtmlContext)
 
   if (!context) {
     throw new Error(

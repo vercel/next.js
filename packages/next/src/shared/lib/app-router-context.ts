@@ -1,5 +1,3 @@
-'use client'
-
 import {
   FocusAndScrollRef,
   PrefetchKind,
@@ -106,15 +104,15 @@ export interface AppRouterInstance {
   prefetch(href: string, options?: PrefetchOptions): void
 }
 
-export const AppRouterContext = React.createContext<AppRouterInstance | null>(
+export const AppRouterContext = React.createServerContext<AppRouterInstance | null>('AppRouterContext',
   null
 )
-export const LayoutRouterContext = React.createContext<{
+export const LayoutRouterContext = React.createServerContext<{
   childNodes: CacheNode['parallelRoutes']
   tree: FlightRouterState
   url: string
-}>(null as any)
-export const GlobalLayoutRouterContext = React.createContext<{
+}>('LayoutRouterContext', null as any)
+export const GlobalLayoutRouterContext = React.createServerContext<{
   buildId: string
   tree: FlightRouterState
   changeByServerResponse: (
@@ -124,9 +122,9 @@ export const GlobalLayoutRouterContext = React.createContext<{
   ) => void
   focusAndScrollRef: FocusAndScrollRef
   nextUrl: string | null
-}>(null as any)
+}>('GlobalLayoutRouterContext', null as any)
 
-export const TemplateContext = React.createContext<React.ReactNode>(null as any)
+export const TemplateContext = React.createServerContext<React.ReactNode>('TemplateContext', null as any)
 
 if (process.env.NODE_ENV !== 'production') {
   AppRouterContext.displayName = 'AppRouterContext'

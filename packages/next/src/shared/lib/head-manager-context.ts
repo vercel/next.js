@@ -10,7 +10,7 @@ export const HeadManagerContext: React.Context<{
   // Used in app directory, to render script tags as server components.
   appDir?: boolean
   nonce?: string
-}> = React.createContext({})
+}> = React.createServerContext('HeadManagerContext', {})
 
 if (process.env.NODE_ENV !== 'production') {
   HeadManagerContext.displayName = 'HeadManagerContext'
