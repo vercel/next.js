@@ -2,6 +2,7 @@
 
 import { useContext, useMemo } from 'react'
 import type { FlightRouterState } from '../../server/app-render/types'
+import type { URLSearchParams } from '@types/node';
 import {
   AppRouterContext,
   GlobalLayoutRouterContext,
@@ -33,6 +34,7 @@ export class ReadonlyURLSearchParams {
   keys: URLSearchParams['keys']
   values: URLSearchParams['values']
   toString: URLSearchParams['toString']
+  size: URLSearchParams['size']
 
   constructor(urlSearchParams: URLSearchParams) {
     this[INTERNAL_URLSEARCHPARAMS_INSTANCE] = urlSearchParams
@@ -45,6 +47,7 @@ export class ReadonlyURLSearchParams {
     this.keys = urlSearchParams.keys.bind(urlSearchParams)
     this.values = urlSearchParams.values.bind(urlSearchParams)
     this.toString = urlSearchParams.toString.bind(urlSearchParams)
+    this.size = urlSearchParams.size.bind(urlSearchParams)
   }
   [Symbol.iterator]() {
     return this[INTERNAL_URLSEARCHPARAMS_INSTANCE][Symbol.iterator]()
