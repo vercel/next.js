@@ -39,9 +39,7 @@ let initializeResult:
 
 const debug = setupDebug('next:router-server:main')
 
-export type RenderWorker = InstanceType<
-  typeof import('next/dist/compiled/jest-worker').Worker
-> & {
+export type RenderWorker = {
   initialize: typeof import('./render-server').initialize
   deleteCache: typeof import('./render-server').deleteCache
   deleteAppClientCache: typeof import('./render-server').deleteAppClientCache
@@ -187,13 +185,8 @@ export async function initialize(opts: {
   } as any)
 
   if (!!config.experimental.appDir) {
-    renderWorkers.app = await createWorker(
-      ipcPort,
-      ipcValidationKey,
-      opts.isNodeDebugging,
-      'app',
-      config
-    )
+    renderWorkers.app =
+      require('./render-server') as typeof import('./render-server')
   }
   renderWorkers.pages = await createWorker(
     ipcPort,
