@@ -14,7 +14,7 @@ use turbopack_binding::{
     turbopack::core::issue::{Issue, IssueExt, IssueSeverity},
 };
 
-use crate::next_config::NextConfig;
+use crate::{next_config::NextConfig, next_import_map::get_next_package};
 
 /// A final route in the app directory.
 #[turbo_tasks::value]
@@ -675,9 +675,16 @@ async fn directory_tree_to_entrypoints_internal(
                 LoaderTree {
                     segment: directory_name.to_string(),
                     parallel_routes: indexmap! {
-                        // TODO(alexkirsz) Next.js has a __DEFAULT__ entry for
-                        // next/dist/client/components/parallel-route-default
-                        // here.
+                        "children".to_string() => LoaderTree {
+                            segment: "__DEFAULT__".to_string(),
+                            parallel_routes: IndexMap::new(),
+                            components: Components {
+                                default: Some(get_next_package(app_dir).join("dist/client/components/parallel-route-default.js".to_string())),
+                                ..Default::default()
+                            }
+                            .cell(),
+                        }
+                        .cell(),
                     },
                     components: components.without_leafs().cell(),
                 }
