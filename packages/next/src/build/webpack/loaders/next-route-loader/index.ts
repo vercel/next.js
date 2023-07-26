@@ -184,6 +184,12 @@ export async function loadEntrypointWithReplacements(
         )
       )
 
+      if (!relative.startsWith('next/')) {
+        throw new Error(
+          `Invariant: Expected relative import to start with "next/", found "${relative}"`
+        )
+      }
+
       return fromRequest ? `from "${relative}"` : `import "${relative}"`
     }
   )
