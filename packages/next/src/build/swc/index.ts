@@ -379,7 +379,7 @@ interface Issue {
 
 interface Diagnostics {}
 
-type TurbopackResult<T = {}> = T & {
+export type TurbopackResult<T = {}> = T & {
   issues: Issue[]
   diagnostics: Diagnostics[]
 }
@@ -453,7 +453,7 @@ interface EndpointConfig {
   preferredRegion?: string
 }
 
-type WrittenEndpoint =
+export type WrittenEndpoint =
   | {
       type: 'nodejs'
       /** The entry path for the endpoint. */

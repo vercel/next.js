@@ -1,5 +1,10 @@
 import type { NextConfigComplete } from '../../config-shared'
-import type { Endpoint, Route } from '../../../build/swc'
+import type {
+  Endpoint,
+  Route,
+  TurbopackResult,
+  WrittenEndpoint,
+} from '../../../build/swc'
 
 import fs from 'fs'
 import url from 'url'
@@ -217,6 +222,7 @@ async function startWatcher(opts: SetupOpts) {
       }
       for (const m of manifests) {
         Object.assign(manifest.pages, m.pages)
+        if (m.rootMainFiles.length) manifest.rootMainFiles = m.rootMainFiles
       }
       return manifest
     }
@@ -237,6 +243,20 @@ async function startWatcher(opts: SetupOpts) {
         Object.assign(manifest, m)
       }
       return manifest
+    }
+
+    function printIssues(
+      result: TurbopackResult<WrittenEndpoint> | undefined
+    ): TurbopackResult<WrittenEndpoint> | undefined {
+      if (result) {
+        for (const issue of result.issues) {
+          // TODO better formatting
+          console.error(
+            `${issue.severity} - ${issue.context}\n${issue.title}\n${issue.description}`
+          )
+        }
+      }
+      return result
     }
 
     const clearCache = (filePath: string) =>
@@ -423,10 +443,13 @@ async function startWatcher(opts: SetupOpts) {
               ) as T
             }
 
-            async function loadBuildManifest(pageName: string): Promise<void> {
+            async function loadBuildManifest(
+              pageName: string,
+              isApp: boolean = false
+            ): Promise<void> {
               buildManifests.set(
                 pageName,
-                await loadPartialManifest(BUILD_MANIFEST, pageName, false)
+                await loadPartialManifest(BUILD_MANIFEST, pageName, isApp)
               )
             }
 
@@ -462,14 +485,14 @@ async function startWatcher(opts: SetupOpts) {
             }
 
             if (page === '/_error') {
-              await globalEntries.app?.writeToDisk()
+              printIssues(await globalEntries.app?.writeToDisk())
               await loadBuildManifest('_app')
               await loadPagesManifest('_app')
 
-              await globalEntries.document?.writeToDisk()
+              printIssues(await globalEntries.document?.writeToDisk())
               await loadPagesManifest('_document')
 
-              await globalEntries.error?.writeToDisk()
+              printIssues(await globalEntries.error?.writeToDisk())
               await loadBuildManifest('_error')
               await loadPagesManifest('_error')
 
@@ -501,24 +524,24 @@ async function startWatcher(opts: SetupOpts) {
                   )
                 }
 
-                await globalEntries.app?.writeToDisk()
+                printIssues(await globalEntries.app?.writeToDisk())
                 await loadBuildManifest('_app')
                 await loadPagesManifest('_app')
 
-                await globalEntries.document?.writeToDisk()
+                printIssues(await globalEntries.document?.writeToDisk())
                 await loadPagesManifest('_document')
 
                 const writtenEndpoint =
                   route.type === 'page-api'
-                    ? await route.endpoint.writeToDisk()
-                    : await route.htmlEndpoint.writeToDisk()
+                    ? printIssues(await route.endpoint.writeToDisk())
+                    : printIssues(await route.htmlEndpoint.writeToDisk())
 
                 if (route.type === 'page') {
                   await loadBuildManifest(page)
                 }
                 await loadPagesManifest(page)
 
-                switch (writtenEndpoint.type) {
+                switch (writtenEndpoint!.type) {
                   case 'nodejs': {
                     break
                   }
@@ -540,12 +563,14 @@ async function startWatcher(opts: SetupOpts) {
                 break
               }
               case 'app-page': {
-                await route.htmlEndpoint.writeToDisk()
+                printIssues(await route.htmlEndpoint.writeToDisk())
 
                 await loadAppBuildManifest(page)
+                await loadBuildManifest(page, true)
                 await loadAppPathManifest(page, false)
 
                 await writeAppBuildManifest()
+                await writeBuildManifest()
                 await writeAppPathsManifest()
                 await writeMiddlewareManifest()
                 await writeOtherManifests()
@@ -553,9 +578,10 @@ async function startWatcher(opts: SetupOpts) {
                 break
               }
               case 'app-route': {
-                await route.endpoint.writeToDisk()
+                printIssues(await route.endpoint.writeToDisk())
 
                 await loadAppPathManifest(page, true)
+
                 await writeAppBuildManifest()
                 await writeAppPathsManifest()
                 await writeMiddlewareManifest()
