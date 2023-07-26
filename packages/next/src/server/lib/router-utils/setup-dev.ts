@@ -251,8 +251,9 @@ async function startWatcher(opts: SetupOpts) {
       if (result) {
         for (const issue of result.issues) {
           // TODO better formatting
+          if (issue.severity !== 'error' && issue.severity !== 'fatal') continue
           console.error(
-            `${issue.severity} - ${issue.context}\n${issue.title}\n${issue.description}`
+            `⚠ ${issue.severity} - ${issue.context}\n${issue.title}\n${issue.description}\n\n`
           )
         }
       }
