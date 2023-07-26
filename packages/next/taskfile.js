@@ -5,6 +5,7 @@ const glob = require('glob')
 const fs = require('fs-extra')
 // eslint-disable-next-line import/no-extraneous-dependencies
 const resolveFrom = require('resolve-from')
+const execa = require('execa')
 
 export async function next__polyfill_nomodule(task, opts) {
   await task
@@ -1654,10 +1655,59 @@ export async function ncc_icss_utils(task, opts) {
     .target('src/compiled/icss-utils')
 }
 
-externals['scheduler'] = 'next/dist/compiled/scheduler-experimental'
-externals['scheduler'] = 'next/dist/compiled/scheduler'
-export async function copy_vendor_react(task_) {
-  function* copy_vendor_react_vendored_impl(task, opts) {
+export async function vendor_deps(task, opts) {
+  await task.clear('vendored/*').serial([
+    'vendor_react',
+    'vendor_poison_packages',
+    // @TODO-APP to properly install transitive dependencies it may be better to install
+    // the vendored packages using a tarball. However pnpm does not support this when installing
+    // without bundleDepedencies and when using this feature transitive deps are not included. For
+    // now let's avoid the packing of these vendored deps until we can figure out a better option
+    // that works across all package managers consitently
+    // 'package_vendored'
+  ])
+}
+
+export async function package_vendored(task) {
+  const nextPath = dirname(require.resolve('next/package.json'))
+  const vendoredDir = join(nextPath, 'vendored')
+  const vendoredPackagesDir = join(nextPath, 'vendored/node_modules')
+  const files = await fs.readdir(vendoredPackagesDir)
+  for (let file of files) {
+    const pkgFolder = join(vendoredPackagesDir, file)
+    const pkgJSON = join(pkgFolder, 'package.json')
+    try {
+      await fs.stat(pkgJSON)
+    } catch (e) {
+      require('console').error(
+        'When attempting to package vendored pacakges we found a package without a package.json. This is likely an error in the task that prepares the vendored package source. The package in question is: ' +
+          pkgFolder
+      )
+      throw e
+    }
+    try {
+      const result = await execa('npm', ['pack'], {
+        cwd: join(pkgFolder),
+      })
+      const packedName = result.stdout.trim()
+      await fs.move(
+        join(pkgFolder, packedName),
+        join(vendoredDir, file + '.tgz')
+      )
+    } catch (e) {
+      require('console').error(
+        'There was an error packing a vendored package. This is a critical error because it can cause next to fail to install in certain package managers. The actual error encounter follows this message. The package in question is: ' +
+          pkgFolder
+      )
+      throw e
+    }
+  }
+}
+
+// externals['scheduler'] = 'next/dist/compiled/scheduler-experimental'
+// externals['scheduler'] = 'next/dist/compiled/scheduler'
+export async function vendor_react(task_) {
+  function* vendor_react_vendored_impl(task, opts) {
     const builtInChannel = opts.experimental
       ? `-experimental-builtin`
       : `-builtin`
@@ -1676,6 +1726,9 @@ export async function copy_vendor_react(task_) {
         {
           name: json.name,
           main: json.main,
+          // Version is required for certain package managers to be able to
+          // recognize these as valid packages even though they are vendored
+          version: json.version,
           exports: json.exports,
           dependencies: json.dependencies,
           browser: json.browser,
@@ -1699,13 +1752,13 @@ export async function copy_vendor_react(task_) {
           file.data = overridePackageName(file.data.toString(), packageSuffix)
         }
       })
-      .target(`src/vendored/node_modules/scheduler${packageSuffix}`)
+      .target(`vendored/node_modules/scheduler${packageSuffix}`)
     yield task
       .source(join(schedulerDir, 'cjs/**/*.js'))
-      .target(`src/vendored/node_modules/scheduler${packageSuffix}/cjs`)
+      .target(`vendored/node_modules/scheduler${packageSuffix}/cjs`)
     yield task
       .source(join(schedulerDir, 'LICENSE'))
-      .target(`src/vendored/node_modules/scheduler${packageSuffix}`)
+      .target(`vendored/node_modules/scheduler${packageSuffix}`)
 
     const reactDir = dirname(
       relative(
@@ -1728,13 +1781,13 @@ export async function copy_vendor_react(task_) {
           file.data = overridePackageName(file.data.toString(), packageSuffix)
         }
       })
-      .target(`src/vendored/node_modules/react${packageSuffix}`)
+      .target(`vendored/node_modules/react${packageSuffix}`)
     yield task
       .source(join(reactDir, 'LICENSE'))
-      .target(`src/vendored/node_modules/react${packageSuffix}`)
+      .target(`vendored/node_modules/react${packageSuffix}`)
     yield task
       .source(join(reactDir, 'cjs/**/*.js'))
-      .target(`src/vendored/node_modules/react${packageSuffix}/cjs`)
+      .target(`vendored/node_modules/react${packageSuffix}/cjs`)
 
     yield task
       .source(join(reactDomDir, '*.{json,js}'))
@@ -1744,18 +1797,18 @@ export async function copy_vendor_react(task_) {
           file.data = overridePackageName(file.data.toString(), packageSuffix)
         }
       })
-      .target(`src/vendored/node_modules/react-dom${packageSuffix}`)
+      .target(`vendored/node_modules/react-dom${packageSuffix}`)
     yield task
       .source(join(reactDomDir, 'LICENSE'))
-      .target(`src/vendored/node_modules/react-dom${packageSuffix}`)
+      .target(`vendored/node_modules/react-dom${packageSuffix}`)
     yield task
       .source(join(reactDomDir, 'cjs/**/*.js'))
-      .target(`src/vendored/node_modules/react-dom${packageSuffix}/cjs`)
+      .target(`vendored/node_modules/react-dom${packageSuffix}/cjs`)
 
     // Remove unused files
     const reactDomCompiledDir = join(
       __dirname,
-      `src/vendored/node_modules/react-dom${packageSuffix}`
+      `vendored/node_modules/react-dom${packageSuffix}`
     )
     const itemsToRemove = [
       'static.js',
@@ -1785,9 +1838,7 @@ export async function copy_vendor_react(task_) {
     )
     yield task
       .source(join(reactServerDomDir, 'LICENSE'))
-      .target(
-        `src/vendored/node_modules/react-server-dom-webpack${packageSuffix}`
-      )
+      .target(`vendored/node_modules/react-server-dom-webpack${packageSuffix}`)
     yield task
       .source(join(reactServerDomDir, '{package.json,*.js,cjs/**/*.js}'))
       // eslint-disable-next-line require-yield
@@ -1804,19 +1855,17 @@ export async function copy_vendor_react(task_) {
           file.data = overridePackageName(file.data, packageSuffix)
         }
       })
-      .target(
-        `src/vendored/node_modules/react-server-dom-webpack${packageSuffix}`
-      )
+      .target(`vendored/node_modules/react-server-dom-webpack${packageSuffix}`)
   }
 
   // As taskr transpiles async functions into generators, to reuse the same logic
   // we need to directly write this iteration logic here.
-  for (const res of copy_vendor_react_vendored_impl(task_, {
+  for (const res of vendor_react_vendored_impl(task_, {
     experimental: false,
   })) {
     await res
   }
-  for (const res of copy_vendor_react_vendored_impl(task_, {
+  for (const res of vendor_react_vendored_impl(task_, {
     experimental: true,
   })) {
     await res
@@ -1825,12 +1874,33 @@ export async function copy_vendor_react(task_) {
 
 // eslint-disable-next-line camelcase
 export async function vendor_poison_packages(task, opts) {
+  function overridePackageName(source, suffix) {
+    const json = JSON.parse(source)
+    if (!json.name.endsWith(suffix)) {
+      json.name = json.name + suffix
+    }
+    return JSON.stringify(json, null, 2)
+  }
+
   await task
     .source(join(dirname(require.resolve('server-only')), '*'))
-    .target('src/vendored/node_modules/server-only')
+    // eslint-disable-next-line require-yield
+    .run({ every: true }, function* (file) {
+      if (file.base === 'package.json') {
+        file.data = overridePackageName(file.data.toString(), '-vendored')
+      }
+    })
+    .target('vendored/node_modules/server-only-vendored')
+
   await task
     .source(join(dirname(require.resolve('client-only')), '*'))
-    .target('src/vendored/node_modules/client-only')
+    // eslint-disable-next-line require-yield
+    .run({ every: true }, function* (file) {
+      if (file.base === 'package.json') {
+        file.data = overridePackageName(file.data.toString(), '-vendored')
+      }
+    })
+    .target('vendored/node_modules/client-only-vendored')
 }
 
 externals['sass-loader'] = 'next/dist/compiled/sass-loader'
@@ -2189,7 +2259,6 @@ export async function precompile(task, opts) {
       'browser_polyfills',
       'path_to_regexp',
       'copy_ncced',
-      'copy_vendored',
       'copy_styled_jsx_assets',
     ],
     opts
@@ -2201,10 +2270,6 @@ export async function copy_ncced(task) {
   // we don't ncc every time we build since these won't change
   // that often and can be committed to the repo saving build time
   await task.source('src/compiled/**/*').target('dist/compiled')
-}
-
-export async function copy_vendored(task) {
-  await task.source('src/vendored/**/*').target('dist/vendored')
 }
 
 export async function ncc(task, opts) {
@@ -2337,8 +2402,7 @@ export async function ncc(task, opts) {
       'copy_babel_runtime',
       'copy_vercel_og',
       'copy_constants_browserify',
-      'copy_vendor_react',
-      'vendor_poison_packages',
+      'vendor_deps',
       'copy_react_is',
       'ncc_sass_loader',
       'ncc_jest_worker',

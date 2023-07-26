@@ -6,12 +6,12 @@ const { default: RenderFromTemplateContext } =
   require('next/dist/client/components/render-from-template-context') as typeof import('../../client/components/render-from-template-context')
 
 const { staticGenerationAsyncStorage } =
-  require('next/dist/client/components/static-generation-async-storage.sharedlayer') as typeof import('../../client/components/static-generation-async-storage.sharedlayer')
+  require('next/dist/client/components/static-generation-async-storage') as typeof import('../../client/components/static-generation-async-storage')
 
 const { requestAsyncStorage } =
-  require('next/dist/client/components/request-async-storage.sharedlayer') as typeof import('../../client/components/request-async-storage.sharedlayer')
+  require('next/dist/client/components/request-async-storage') as typeof import('../../client/components/request-async-storage')
 const { actionAsyncStorage } =
-  require('next/dist/client/components/action-async-storage.sharedlayer') as typeof import('../../client/components/action-async-storage.sharedlayer')
+  require('next/dist/client/components/action-async-storage') as typeof import('../../client/components/action-async-storage')
 
 const { staticGenerationBailout } =
   require('next/dist/client/components/static-generation-bailout') as typeof import('../../client/components/static-generation-bailout')

@@ -14,7 +14,7 @@ import type {
   EdgeFunctionDefinition,
   MiddlewareManifest,
 } from './webpack/plugins/middleware-plugin'
-import type { StaticGenerationAsyncStorage } from '../client/components/static-generation-async-storage.sharedlayer'
+import type { StaticGenerationAsyncStorage } from '../client/components/static-generation-async-storage'
 
 import '../server/require-hook'
 import '../server/node-polyfill-fetch'

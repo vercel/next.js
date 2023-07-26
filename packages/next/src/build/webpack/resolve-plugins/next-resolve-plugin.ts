@@ -147,7 +147,7 @@ export class NextAppResolvePlugin {
     // Alias resolving is bespoke so this is better modeled by a map than with switch branches like we do
     // with vendored resolves where the logic follows a consistent pattern for most packages. Think of aliasing as
     // being for individual files and vendoring for entire packages.
-    // This aliasing is subtley different from builtin webpack aliasing. It matches exact request strings rather than path segments.
+    // This aliasing is subtly different from builtin webpack aliasing. It matches exact request strings rather than path segments.
     // This choice was made for practicality and simplicity, there just aren't any instances that needed segment based aliasing
     // after adopting vendoring. If this changes in the future we will need to refactor this to support aliasing path segments.
     this.aliases = new Map([
@@ -162,7 +162,7 @@ export class NextAppResolvePlugin {
         : '-vendored'
 
     const nextPackage = require.resolve('next/package.json')
-    this.vendorPath = resolve(nextPackage, '../dist/vendored')
+    this.vendorPath = resolve(nextPackage, '../vendored')
   }
 
   getOptions() {
@@ -262,7 +262,12 @@ export class NextAppResolvePlugin {
                 // Restart the resolution process from teh vendored package path
                 return resolver.doResolve(
                   target,
-                  this.getVendoredRequestObject(request, requestString),
+                  this.getVendoredRequestObject(
+                    request,
+                    packageName +
+                      '-vendored' +
+                      requestString.slice(packageName.length)
+                  ),
                   'vendoring ' + packageName,
                   resolveContext,
                   callback

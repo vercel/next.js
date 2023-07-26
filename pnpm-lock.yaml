@@ -714,33 +714,9 @@ importers:
       react-dom:
         specifier: ^18.2.0
         version: 18.2.0(react@18.2.0)
-      react-dom-experimental-vendored:
-        specifier: ./dist/vendored/node_modules/react-dom-experimental-vendored
-        version: link:dist/vendored/node_modules/react-dom-experimental-vendored
-      react-dom-vendored:
-        specifier: ./dist/vendored/node_modules/react-dom-vendored
-        version: link:dist/vendored/node_modules/react-dom-vendored
-      react-experimental-vendored:
-        specifier: ./dist/vendored/node_modules/react-experimental-vendored
-        version: link:dist/vendored/node_modules/react-experimental-vendored
-      react-server-dom-webpack-experimental-vendored:
-        specifier: ./dist/vendored/node_modules/react-server-dom-webpack-experimental-vendored
-        version: link:dist/vendored/node_modules/react-server-dom-webpack-experimental-vendored
-      react-server-dom-webpack-vendored:
-        specifier: ./dist/vendored/node_modules/react-server-dom-webpack-vendored
-        version: link:dist/vendored/node_modules/react-server-dom-webpack-vendored
-      react-vendored:
-        specifier: ./dist/vendored/node_modules/react-vendored
-        version: link:dist/vendored/node_modules/react-vendored
       sass:
         specifier: ^1.3.0
         version: 1.54.0
-      scheduler-experimental-vendored:
-        specifier: ./dist/vendored/node_modules/scheduler-experimental-vendored
-        version: link:dist/vendored/node_modules/scheduler-experimental-vendored
-      scheduler-vendored:
-        specifier: ./dist/vendored/node_modules/scheduler-vendored
-        version: link:dist/vendored/node_modules/scheduler-vendored
       styled-jsx:
         specifier: 5.1.1
         version: 5.1.1(@babel/core@7.18.0)(react@18.2.0)
@@ -750,6 +726,37 @@ importers:
       zod:
         specifier: 3.21.4
         version: 3.21.4
+    optionalDependencies:
+      client-only-vendored:
+        specifier: file:vendored/node_modules/client-only-vendored
+        version: file:packages/next/vendored/node_modules/client-only-vendored
+      react-dom-experimental-vendored:
+        specifier: file:vendored/node_modules/react-dom-experimental-vendored
+        version: file:packages/next/vendored/node_modules/react-dom-experimental-vendored
+      react-dom-vendored:
+        specifier: file:vendored/node_modules/react-dom-vendored
+        version: file:packages/next/vendored/node_modules/react-dom-vendored
+      react-experimental-vendored:
+        specifier: file:vendored/node_modules/react-experimental-vendored
+        version: file:packages/next/vendored/node_modules/react-experimental-vendored
+      react-server-dom-webpack-experimental-vendored:
+        specifier: file:vendored/node_modules/react-server-dom-webpack-experimental-vendored
+        version: file:packages/next/vendored/node_modules/react-server-dom-webpack-experimental-vendored
+      react-server-dom-webpack-vendored:
+        specifier: file:vendored/node_modules/react-server-dom-webpack-vendored
+        version: file:packages/next/vendored/node_modules/react-server-dom-webpack-vendored
+      react-vendored:
+        specifier: file:vendored/node_modules/react-vendored
+        version: file:packages/next/vendored/node_modules/react-vendored
+      scheduler-experimental-vendored:
+        specifier: file:vendored/node_modules/scheduler-experimental-vendored
+        version: file:packages/next/vendored/node_modules/scheduler-experimental-vendored
+      scheduler-vendored:
+        specifier: file:vendored/node_modules/scheduler-vendored
+        version: file:packages/next/vendored/node_modules/scheduler-vendored
+      server-only-vendored:
+        specifier: file:vendored/node_modules/server-only-vendored
+        version: file:packages/next/vendored/node_modules/server-only-vendored
     devDependencies:
       '@ampproject/toolbox-optimizer':
         specifier: 2.8.3
@@ -8657,7 +8664,6 @@ packages:
     engines: {node: '>=0.4.0'}
     dependencies:
       acorn: 8.5.0
-    dev: true
 
   /acorn-node@1.8.2:
     resolution: {integrity: sha512-8mt+fslDufLYntIoPAaIMUe/lrbrehIiwmR3t2k9LljIzoigEPF27eLk2hy8zSGzmR/ogr7zbRKINMo1u0yh5A==}
@@ -18709,7 +18715,6 @@ packages:
 
   /neo-async@2.6.1:
     resolution: {integrity: sha512-iyam8fBuCUpWeKPGpaNMetEocMt364qkCsfL9JuhjXX6dRnguRVOfk2GZaDpPjcOKiiXCPINZC1GczQ7iTq3Zw==}
-    dev: true
 
   /neo-async@2.6.2:
     resolution: {integrity: sha512-Yd3UES5mWCSqR+qNT93S3UoYUkqAZ9lLg8a7g9rimsWmYGK8cVToA4/sF3RrshdyV3sAGMXVUmpMYOw+dLpOuw==}
@@ -23004,7 +23009,6 @@ packages:
     resolution: {integrity: sha512-erBGUg1HGmkjFMXB13bTmWeziYzqjTJNBDKBZhHixAXAs8PJu72/y+Nfj0rgrHgIYuF3SQG4cRpaJj7SOXBd/w==}
     dependencies:
       loose-envify: 1.4.0
-    dev: true
 
   /scheduler@0.20.2:
     resolution: {integrity: sha512-2eWfGgAqqWFGqtdMmcL5zCMK1U8KlXv8SQFGglL3CEtd0aDVDWgeF/YoCmvln55m5zSk3J/20hTaSBeSObsQDQ==}
@@ -23021,7 +23025,6 @@ packages:
     resolution: {integrity: sha512-/JDhG6OGuF/3x22+q9i2WY/PmUKqbKVOHUavQ3HJosQcyM3I5SD5G+Jjd6U2CO/CjFISBWuc73F7u9oWElWOSQ==}
     dependencies:
       loose-envify: 1.4.0
-    dev: true
 
   /schema-utils@2.7.1:
     resolution: {integrity: sha512-SHiNtMOUGWBQJwzISiVYKu82GiV4QYGePp3odlY1tuKO7gPtphAT5R/py0fA6xtbgLL/RvtJZnU9b8s0F1q0Xg==}
@@ -26097,6 +26100,98 @@ packages:
     dependencies:
       loader-runner: 4.3.0
     dev: false
+
+  file:packages/next/vendored/node_modules/client-only-vendored:
+    resolution: {directory: packages/next/vendored/node_modules/client-only-vendored, type: directory}
+    name: client-only-vendored
+    requiresBuild: true
+    dev: false
+    optional: true
+
+  file:packages/next/vendored/node_modules/react-dom-experimental-vendored:
+    resolution: {directory: packages/next/vendored/node_modules/react-dom-experimental-vendored, type: directory}
+    name: react-dom-experimental-vendored
+    requiresBuild: true
+    dependencies:
+      loose-envify: 1.4.0
+      scheduler: 0.0.0-experimental-546fe4681-20230713
+    dev: false
+    optional: true
+
+  file:packages/next/vendored/node_modules/react-dom-vendored:
+    resolution: {directory: packages/next/vendored/node_modules/react-dom-vendored, type: directory}
+    name: react-dom-vendored
+    requiresBuild: true
+    dependencies:
+      loose-envify: 1.4.0
+      scheduler: 0.24.0-canary-546fe4681-20230713
+    dev: false
+    optional: true
+
+  file:packages/next/vendored/node_modules/react-experimental-vendored:
+    resolution: {directory: packages/next/vendored/node_modules/react-experimental-vendored, type: directory}
+    name: react-experimental-vendored
+    requiresBuild: true
+    dependencies:
+      loose-envify: 1.4.0
+    dev: false
+    optional: true
+
+  file:packages/next/vendored/node_modules/react-server-dom-webpack-experimental-vendored:
+    resolution: {directory: packages/next/vendored/node_modules/react-server-dom-webpack-experimental-vendored, type: directory}
+    name: react-server-dom-webpack-experimental-vendored
+    requiresBuild: true
+    dependencies:
+      acorn-loose: 8.3.0
+      loose-envify: 1.4.0
+      neo-async: 2.6.1
+    dev: false
+    optional: true
+
+  file:packages/next/vendored/node_modules/react-server-dom-webpack-vendored:
+    resolution: {directory: packages/next/vendored/node_modules/react-server-dom-webpack-vendored, type: directory}
+    name: react-server-dom-webpack-vendored
+    requiresBuild: true
+    dependencies:
+      acorn-loose: 8.3.0
+      loose-envify: 1.4.0
+      neo-async: 2.6.1
+    dev: false
+    optional: true
+
+  file:packages/next/vendored/node_modules/react-vendored:
+    resolution: {directory: packages/next/vendored/node_modules/react-vendored, type: directory}
+    name: react-vendored
+    requiresBuild: true
+    dependencies:
+      loose-envify: 1.4.0
+    dev: false
+    optional: true
+
+  file:packages/next/vendored/node_modules/scheduler-experimental-vendored:
+    resolution: {directory: packages/next/vendored/node_modules/scheduler-experimental-vendored, type: directory}
+    name: scheduler-experimental-vendored
+    requiresBuild: true
+    dependencies:
+      loose-envify: 1.4.0
+    dev: false
+    optional: true
+
+  file:packages/next/vendored/node_modules/scheduler-vendored:
+    resolution: {directory: packages/next/vendored/node_modules/scheduler-vendored, type: directory}
+    name: scheduler-vendored
+    requiresBuild: true
+    dependencies:
+      loose-envify: 1.4.0
+    dev: false
+    optional: true
+
+  file:packages/next/vendored/node_modules/server-only-vendored:
+    resolution: {directory: packages/next/vendored/node_modules/server-only-vendored, type: directory}
+    name: server-only-vendored
+    requiresBuild: true
+    dev: false
+    optional: true
 
   github.com/watson/ci-info/f43f6a1cefff47fb361c88cf4b943fdbcaafe540:
     resolution: {tarball: https://codeload.github.com/watson/ci-info/tar.gz/f43f6a1cefff47fb361c88cf4b943fdbcaafe540}

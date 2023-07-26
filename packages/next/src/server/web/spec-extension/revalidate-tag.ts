@@ -1,7 +1,7 @@
 import {
   StaticGenerationAsyncStorage,
   StaticGenerationStore,
-} from '../../../client/components/static-generation-async-storage.sharedlayer'
+} from '../../../client/components/static-generation-async-storage'
 
 export function revalidateTag(tag: string) {
   const staticGenerationAsyncStorage = (

@@ -4,8 +4,8 @@ import {
 } from '../../server/web/spec-extension/adapters/request-cookies'
 import { HeadersAdapter } from '../../server/web/spec-extension/adapters/headers'
 import { RequestCookies } from '../../server/web/spec-extension/cookies'
-import { requestAsyncStorage } from './request-async-storage.sharedlayer'
-import { actionAsyncStorage } from './action-async-storage.sharedlayer'
+import { requestAsyncStorage } from './request-async-storage'
+import { actionAsyncStorage } from './action-async-storage'
 import { staticGenerationBailout } from './static-generation-bailout'
 import { DraftMode } from './draft-mode'
 

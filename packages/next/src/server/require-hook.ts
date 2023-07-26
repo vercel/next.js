@@ -20,16 +20,19 @@ const resolve = process.env.NEXT_MINIMAL
     __non_webpack_require__.resolve
   : require.resolve
 
+const toResolveMap = (map: Record<string, string>): [string, string][] =>
+  Object.entries(map).map(([key, value]) => [key, resolve(value)])
+
+export const globalOverrides = {
+  'styled-jsx': dirname(resolve('styled-jsx/package.json')),
+  'styled-jsx/style': resolve('styled-jsx/style'),
+}
+
 // Add default aliases
-addHookAliases([
-  // Use `require.resolve` explicitly to make them statically analyzable
-  // styled-jsx needs to be resolved as the external dependency.
-  ['styled-jsx', dirname(resolve('styled-jsx/package.json'))],
-  ['styled-jsx/style', resolve('styled-jsx/style')],
-])
+addHookAliases(toResolveMap(globalOverrides))
 
 const nextPackageAnchor = resolve('next/package.json')
-const vendoredPath = pathResolve(nextPackageAnchor, '../dist/vendored')
+const vendoredPath = pathResolve(nextPackageAnchor, '../vendored')
 
 Module._resolveFilename = function (
   originalResolveFilename: typeof resolveFilename,
@@ -50,14 +53,14 @@ Module._resolveFilename = function (
    * file and the corresponding webpack plugins that perfom similar functionality we distinguish vendoring from
    * aliasing because the requirement of maintaining package semantics is very important.
    *
-   * It should be noted that while `require('next/dist/vendored/react')` looks like a bare specifier it is for the
-   * `next` package not `react`. If we alias `react` to this `next/dist/vendored/react` it will not use the
+   * It should be noted that while `require('next/vendored/react')` looks like a bare specifier it is for the
+   * `next` package not `react`. If we alias `react` to this `next/vendored/react` it will not use the
    * exports map defined in the react package to resolve this request. This is important for things like the "react-server"
    * condition which loads a shared subset of React that can run in RSC.
    *
    * A rule of thumb for whether you want to vendor something or alias is whether the replacement is for an entire
    * package vs a few files and whether the replacement is structurally indentical. Our vendoring of React packages is
-   * a good exampel of this whereas our aliasing of a precompiled webpack build is a good example for aliasing
+   * a good example of this whereas our aliasing of a precompiled webpack build is a good example for aliasing
    * where the aliasing is to files that bear no resemblance to the uncompiled package structure
    */
   if (request[0] !== '.' && request[0] !== '/' && request[0] !== '\\') {
@@ -98,17 +101,26 @@ Module._resolveFilename = function (
 
         const vendoredRequest = requestBase + vendoredSuffix + requestPath
 
-        // This will resolve the modified request from the path next/dist/vendored rather than
+        // This will resolve the modified request from the path next/vendored rather than
         // where the actual require originated.
         return resolve(vendoredRequest, {
           paths: [vendoredPath],
         })
+      case 'client-only':
+      case 'server-only': {
+        return resolve(
+          requestBase + '-vendored' + request.slice(requestBase.length),
+          {
+            paths: [vendoredPath],
+          }
+        )
+      }
       default:
       // If we have no special vendoring defined for this package we fall through to check for aliasing
     }
   }
 
-  // If an alias is register for this request we replace the request and resolv
+  // If an alias is registered for this request we resolve the alias instead otherwise we resolve the request
   const hookResolved = requestMap.get(request)
   if (hookResolved) request = hookResolved
   return originalResolveFilename.call(Module, request, parent, isMain, options)

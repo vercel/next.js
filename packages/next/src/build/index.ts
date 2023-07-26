@@ -141,6 +141,7 @@ import { createValidFileMatcher } from '../server/lib/find-page-file'
 import { startTypeChecking } from './type-check'
 import { generateInterceptionRoutesRewrites } from '../lib/generate-interception-routes-rewrites'
 import { buildDataRoute } from '../server/lib/router-utils/build-data-route'
+import { globalOverrides } from '../server/require-hook'
 import { initialize } from '../server/lib/incremental-cache-server'
 import { nodeFs } from '../server/lib/node-fs-methods'
 
@@ -1842,10 +1843,7 @@ export default async function build(
         let nftResolve: any
         let resolveHook: any
         const packageBase = require.resolve('next/package.json')
-        const vendorDir = path.join(
-          packageBase,
-          '../dist/vendored/node_modules'
-        )
+        const vendorDir = path.join(packageBase, '../vendored/node_modules')
 
         if (config.experimental.turbotrace) {
           if (!binding?.isWasm) {
@@ -1905,7 +1903,12 @@ export default async function build(
                 case 'client-only': {
                   const asyncResults = Promise.all([
                     nftResolve(id, parent, job, isCjs),
-                    nftResolve(id, vendorDir, job, isCjs),
+                    nftResolve(
+                      requestBase + '-vendored' + id.slice(requestBase.length),
+                      vendorDir,
+                      job,
+                      isCjs
+                    ),
                   ])
                   return asyncResults
                 }
@@ -2096,7 +2099,28 @@ export default async function build(
               'next/dist/server/next-server'
             )
 
+            const sharedEntriesSet = [
+              ...(config.experimental.turbotrace
+                ? []
+                : Object.values(globalOverrides).map((value) =>
+                    require.resolve(value)
+                  )),
+            ]
+
+            // ensure we trace any dependencies needed for custom
+            // incremental cache handler
+            if (incrementalCacheHandlerPath) {
+              sharedEntriesSet.push(
+                require.resolve(
+                  path.isAbsolute(incrementalCacheHandlerPath)
+                    ? incrementalCacheHandlerPath
+                    : path.join(dir, incrementalCacheHandlerPath)
+                )
+              )
+            }
+
             const vanillaServerEntries = [
+              ...sharedEntriesSet,
               isStandalone
                 ? require.resolve('next/dist/server/lib/start-server')
                 : null,
@@ -2104,6 +2128,7 @@ export default async function build(
             ].filter(Boolean) as string[]
 
             const minimalServerEntries = [
+              ...sharedEntriesSet,
               require.resolve(
                 'next/dist/compiled/minimal-next-server/next-server-cached.js'
               ),
