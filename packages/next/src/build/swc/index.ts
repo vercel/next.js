@@ -107,7 +107,10 @@ export interface Binding {
       compile: any
       compileSync: any
     }
-    createProject: (options: ProjectOptions) => Promise<Project>
+    createProject: (
+      options: ProjectOptions,
+      turboEngineOptions?: TurboEngineOptions
+    ) => Promise<Project>
   }
   minify: any
   minifySync: any
@@ -338,17 +341,52 @@ interface ProjectOptions {
   nextConfig: NextConfigComplete
 
   /**
+   * Jsconfig, or tsconfig contents.
+   *
+   * Next.js implicitly requires to read it to support few options
+   * https://nextjs.org/docs/architecture/nextjs-compiler#legacy-decorators
+   * https://nextjs.org/docs/architecture/nextjs-compiler#importsource
+   */
+  jsConfig: {
+    compilerOptions: object
+  }
+
+  /**
+   * A map of environment variables to use when compiling code.
+   */
+  env: Record<string, string>
+
+  /**
    * Whether to watch he filesystem for file changes.
    */
   watch: boolean
+}
 
+interface TurboEngineOptions {
   /**
    * An upper bound of memory that turbopack will attempt to stay under.
    */
   memoryLimit?: number
 }
 
-interface Issue {}
+interface Issue {
+  severity: string
+  category: string
+  context: string
+  title: string
+  description: string
+  detail: string
+  source?: {
+    source: {
+      ident: string
+      content?: string
+    }
+    start: { line: number; column: number }
+    end: { line: number; column: number }
+  }
+  documentationLink: string
+  subIssues: Issue[]
+}
 
 interface Diagnostics {}
 
@@ -366,9 +404,13 @@ interface Middleware {
 interface Entrypoints {
   routes: Map<string, Route>
   middleware?: Middleware
+  pagesDocumentEndpoint: Endpoint
+  pagesAppEndpoint: Endpoint
+  pagesErrorEndpoint: Endpoint
 }
 
 interface Project {
+  update(options: ProjectOptions): Promise<void>
   entrypointsSubscribe(): AsyncIterableIterator<TurbopackResult<Entrypoints>>
 }
 
@@ -422,13 +464,23 @@ interface EndpointConfig {
   preferredRegion?: string
 }
 
-interface WrittenEndpoint {
-  /** The entry path for the endpoint. */
-  entryPath: string
-  /** All paths that has been written for the endpoint. */
-  paths: string[]
-  config: EndpointConfig
-}
+type WrittenEndpoint =
+  | {
+      type: 'nodejs'
+      /** The entry path for the endpoint. */
+      entryPath: string
+      /** All server paths that has been written for the endpoint. */
+      serverPaths: string[]
+      config: EndpointConfig
+    }
+  | {
+      type: 'edge'
+      files: string[]
+      /** All server paths that has been written for the endpoint. */
+      serverPaths: string[]
+      globalVarName: string
+      config: EndpointConfig
+    }
 
 // TODO(sokra) Support wasm option.
 function bindingToApi(binding: any, _wasm: boolean) {
@@ -444,6 +496,14 @@ function bindingToApi(binding: any, _wasm: boolean) {
     computeMessage: (arg: any) => string
   ): never {
     throw new Error(`Invariant: ${computeMessage(never)}`)
+  }
+
+  async function withErrorCause<T>(fn: () => Promise<T>): Promise<T> {
+    try {
+      return await fn()
+    } catch (nativeError: any) {
+      throw new Error(nativeError.message, { cause: nativeError })
+    }
   }
 
   /**
@@ -488,7 +548,7 @@ function bindingToApi(binding: any, _wasm: boolean) {
     }
 
     return (async function* () {
-      const task = await nativeFunction(emitResult)
+      const task = await withErrorCause(() => nativeFunction(emitResult))
       try {
         while (true) {
           if (buffer.length > 0) {
@@ -508,11 +568,32 @@ function bindingToApi(binding: any, _wasm: boolean) {
     })()
   }
 
+  async function rustifyProjectOptions(options: ProjectOptions): Promise<any> {
+    return {
+      ...options,
+      nextConfig: await serializeNextConfig(options.nextConfig),
+      jsConfig: JSON.stringify(options.jsConfig ?? {}),
+      env: Object.entries(options.env).map(([name, value]) => ({
+        name,
+        value,
+      })),
+    }
+  }
+
   class ProjectImpl implements Project {
     private _nativeProject: { __napiType: 'Project' }
 
     constructor(nativeProject: { __napiType: 'Project' }) {
       this._nativeProject = nativeProject
+    }
+
+    async update(options: ProjectOptions) {
+      await withErrorCause(async () =>
+        binding.projectUpdate(
+          this._nativeProject,
+          await rustifyProjectOptions(options)
+        )
+      )
     }
 
     entrypointsSubscribe() {
@@ -521,6 +602,9 @@ function bindingToApi(binding: any, _wasm: boolean) {
       type NapiEntrypoints = {
         routes: NapiRoute[]
         middleware?: NapiMiddleware
+        pagesDocumentEndpoint: NapiEndpoint
+        pagesAppEndpoint: NapiEndpoint
+        pagesErrorEndpoint: NapiEndpoint
         issues: Issue[]
         diagnostics: Diagnostics[]
       }
@@ -617,6 +701,13 @@ function bindingToApi(binding: any, _wasm: boolean) {
           yield {
             routes,
             middleware,
+            pagesDocumentEndpoint: new EndpointImpl(
+              entrypoints.pagesDocumentEndpoint
+            ),
+            pagesAppEndpoint: new EndpointImpl(entrypoints.pagesAppEndpoint),
+            pagesErrorEndpoint: new EndpointImpl(
+              entrypoints.pagesErrorEndpoint
+            ),
             issues: entrypoints.issues,
             diagnostics: entrypoints.diagnostics,
           }
@@ -633,7 +724,9 @@ function bindingToApi(binding: any, _wasm: boolean) {
     }
 
     async writeToDisk(): Promise<TurbopackResult<WrittenEndpoint>> {
-      return await binding.endpointWriteToDisk(this._nativeEndpoint)
+      return await withErrorCause(() =>
+        binding.endpointWriteToDisk(this._nativeEndpoint)
+      )
     }
 
     async changed(): Promise<AsyncIterableIterator<TurbopackResult>> {
@@ -683,11 +776,16 @@ function bindingToApi(binding: any, _wasm: boolean) {
     }
   }
 
-  async function createProject(options: ProjectOptions) {
-    const optionsForRust = options as any
-    optionsForRust.nextConfig = await serializeNextConfig(options.nextConfig)
-
-    return new ProjectImpl(await binding.projectNew(optionsForRust))
+  async function createProject(
+    options: ProjectOptions,
+    turboEngineOptions: TurboEngineOptions
+  ) {
+    return new ProjectImpl(
+      await binding.projectNew(
+        await rustifyProjectOptions(options),
+        turboEngineOptions || {}
+      )
+    )
   }
 
   return createProject

@@ -46,7 +46,7 @@ use crate::{
     next_import_map::{get_next_server_import_map, mdx_import_source_file},
     next_server::resolve::ExternalPredicate,
     next_shared::{
-        resolve::UnsupportedModulesResolvePlugin,
+        resolve::{ModuleFeatureReportResolvePlugin, UnsupportedModulesResolvePlugin},
         transforms::{
             emotion::get_emotion_transform_plugin, get_relay_transform_plugin,
             styled_components::get_styled_components_transform_plugin,
@@ -97,6 +97,7 @@ pub async fn get_server_resolve_options_context(
         get_next_server_import_map(project_path, ty, mode, next_config, execution_context);
     let foreign_code_context_condition = foreign_code_context_condition(next_config).await?;
     let root_dir = project_path.root().resolve().await?;
+    let module_feature_report_resolve_plugin = ModuleFeatureReportResolvePlugin::new(project_path);
     let unsupported_modules_resolve_plugin = UnsupportedModulesResolvePlugin::new(project_path);
     let server_component_externals_plugin = ExternalCjsModulesResolvePlugin::new(
         project_path,
@@ -118,6 +119,7 @@ pub async fn get_server_resolve_options_context(
                 custom_conditions: vec![mode.node_env().to_string(), "node".to_string()],
                 import_map: Some(next_server_import_map),
                 plugins: vec![
+                    Vc::upcast(module_feature_report_resolve_plugin),
                     Vc::upcast(external_cjs_modules_plugin),
                     Vc::upcast(unsupported_modules_resolve_plugin),
                 ],
@@ -146,6 +148,7 @@ pub async fn get_server_resolve_options_context(
                 ],
                 import_map: Some(next_server_import_map),
                 plugins: vec![
+                    Vc::upcast(module_feature_report_resolve_plugin),
                     Vc::upcast(server_component_externals_plugin),
                     Vc::upcast(unsupported_modules_resolve_plugin),
                 ],
@@ -175,6 +178,7 @@ pub async fn get_server_resolve_options_context(
                 ],
                 import_map: Some(next_server_import_map),
                 plugins: vec![
+                    Vc::upcast(module_feature_report_resolve_plugin),
                     Vc::upcast(server_component_externals_plugin),
                     Vc::upcast(unsupported_modules_resolve_plugin),
                 ],
@@ -197,6 +201,7 @@ pub async fn get_server_resolve_options_context(
                 custom_conditions: vec![mode.node_env().to_string(), "node".to_string()],
                 import_map: Some(next_server_import_map),
                 plugins: vec![
+                    Vc::upcast(module_feature_report_resolve_plugin),
                     Vc::upcast(server_component_externals_plugin),
                     Vc::upcast(unsupported_modules_resolve_plugin),
                 ],
@@ -218,7 +223,10 @@ pub async fn get_server_resolve_options_context(
                 enable_node_externals: true,
                 module: true,
                 custom_conditions: vec![mode.node_env().to_string()],
-                plugins: vec![Vc::upcast(unsupported_modules_resolve_plugin)],
+                plugins: vec![
+                    Vc::upcast(module_feature_report_resolve_plugin),
+                    Vc::upcast(unsupported_modules_resolve_plugin),
+                ],
                 ..Default::default()
             };
             ResolveOptionsContext {
@@ -635,6 +643,7 @@ pub fn get_server_runtime_entries(
 
     match mode {
         NextMode::Development => {}
+        NextMode::DevServer => {}
         NextMode::Build => {
             if let ServerContextType::AppRSC { .. } = ty.into_value() {
                 runtime_entries.push(

@@ -39,14 +39,17 @@ use either::Either;
 use fxhash::FxHashSet;
 use next_transform_font::next_font_loaders;
 use serde::Deserialize;
-use turbopack_binding::swc::core::{
-    common::{
-        chain, comments::Comments, pass::Optional, FileName, Mark, SourceFile, SourceMap,
-        SyntaxContext,
+use turbopack_binding::swc::{
+    core::{
+        common::{
+            chain, comments::Comments, pass::Optional, FileName, Mark, SourceFile, SourceMap,
+            SyntaxContext,
+        },
+        ecma::{
+            ast::EsVersion, parser::parse_file_as_module, transforms::base::pass::noop, visit::Fold,
+        },
     },
-    ecma::{
-        ast::EsVersion, parser::parse_file_as_module, transforms::base::pass::noop, visit::Fold,
-    },
+    custom_transform::modularize_imports,
 };
 
 pub mod amp_attributes;
@@ -123,8 +126,7 @@ pub struct TransformOptions {
     pub emotion: Option<turbopack_binding::swc::custom_transform::emotion::EmotionOptions>,
 
     #[serde(default)]
-    pub modularize_imports:
-        Option<turbopack_binding::swc::custom_transform::modularize_imports::Config>,
+    pub modularize_imports: Option<modularize_imports::Config>,
 
     #[serde(default)]
     pub font_loaders: Option<next_transform_font::Config>,
@@ -167,14 +169,16 @@ where
 
     let mut modularize_imports_config = match &opts.modularize_imports {
         Some(config) => config.clone(),
-        None => turbopack_binding::swc::custom_transform::modularize_imports::Config {
+        None => modularize_imports::Config {
             packages: std::collections::HashMap::new(),
         },
     };
     modularize_imports_config.packages.insert(
         "next/server".to_string(),
-        turbopack_binding::swc::custom_transform::modularize_imports::PackageConfig {
-            transform: "next/dist/server/web/exports/{{ kebabCase member }}".to_string(),
+        modularize_imports::PackageConfig {
+            transform: modularize_imports::Transform::String(
+                "next/dist/server/web/exports/{{ kebabCase member }}".to_string(),
+            ),
             prevent_full_import: false,
             skip_default_conversion: false,
         },
@@ -272,7 +276,7 @@ where
                 }
             })
             .unwrap_or_else(|| Either::Right(noop())),
-        turbopack_binding::swc::custom_transform::modularize_imports::modularize_imports(
+        modularize_imports::modularize_imports(
             modularize_imports_config
         ),
         match &opts.font_loaders {

@@ -40,15 +40,15 @@ next-transform-strip-page-exports = { path = "packages/next-swc/crates/next-tran
 
 # SWC crates
 # Keep consistent with preset_env_base through swc_core
-swc_core = { version = "0.79.13" }
-testing = { version = "0.33.20" }
+swc_core = { version = "0.79.22" }
+testing = { version = "0.33.21" }
 
 # Turbo crates
-turbopack-binding = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230718.3" }
+turbopack-binding = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230726.2" }
 # [TODO]: need to refactor embed_directory! macro usages, as well as resolving turbo_tasks::function, macros..
-turbo-tasks = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230718.3" }
+turbo-tasks = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230726.2" }
 # [TODO]: need to refactor embed_directory! macro usage in next-core
-turbo-tasks-fs = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230718.3" }
+turbo-tasks-fs = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230726.2" }
 
 # General Deps
 
@@ -121,6 +121,7 @@ serde = { version = "1.0.152", features = ["derive"] }
 serde_json = "1.0.93"
 serde_qs = "0.11.0"
 serde_yaml = "0.9.17"
+shadow-rs = { version = "0.23.0", default-features = false, features = ["tzdb"] }
 syn = "1.0.107"
 tempfile = "3.3.0"
 thiserror = "1.0.38"

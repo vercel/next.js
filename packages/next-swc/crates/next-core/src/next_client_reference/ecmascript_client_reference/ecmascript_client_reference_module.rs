@@ -5,7 +5,6 @@ use turbopack_binding::turbopack::{
         asset::{Asset, AssetContent},
         ident::AssetIdent,
         module::Module,
-        reference::AssetReferences,
     },
     ecmascript::chunk::EcmascriptChunkPlaceable,
 };
@@ -56,11 +55,6 @@ impl Module for EcmascriptClientReferenceModule {
     fn ident(&self) -> Vc<AssetIdent> {
         self.server_ident
             .with_modifier(ecmascript_client_reference_modifier())
-    }
-
-    #[turbo_tasks::function]
-    fn references(self: Vc<Self>) -> Vc<AssetReferences> {
-        AssetReferences::empty()
     }
 }
 
