@@ -138,7 +138,8 @@ impl EcmascriptBuildNodeEntryChunk {
         writedoc!(
             code,
             r#"
-                    module.exports = runtime.getOrInstantiateRuntimeModule({}, CHUNK_PUBLIC_PATH).exports;
+                    const internalModule = runtime.getOrInstantiateRuntimeModule({}, CHUNK_PUBLIC_PATH);
+                    module.exports = internalModule.namespace ?? internalModule.exports;
                 "#,
             StringifyJs(&*runtime_module_id),
         )?;
