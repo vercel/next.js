@@ -643,6 +643,7 @@ pub fn get_server_runtime_entries(
 
     match mode {
         NextMode::Development => {}
+        NextMode::DevServer => {}
         NextMode::Build => {
             if let ServerContextType::AppRSC { .. } = ty.into_value() {
                 runtime_entries.push(
