@@ -8,16 +8,26 @@ Next.js has a few caching mechanisms to improve your application's performance. 
 
 ## Overview
 
-Here's a high-level overview of the different caching mechanisms in Next.js and their purpose:
+Here's a high-level overview of the different caching mechanisms and their purpose:
 
-| Mechanism                                   | What is cached?                | Where is it cached? | Why is it cached?                                             | Duration                        |
-| ------------------------------------------- | ------------------------------ | ------------------- | ------------------------------------------------------------- | ------------------------------- |
-| [Request Memoization](#request-memoization) | Return values of functions     | Server              | Reduce data store calls and share data between route segments | Per-request lifecycle           |
-| [Data Cache](#data-cache)                   | Return values of data requests | Server              | Store data across user requests and deployments               | Persistent (can be revalidated) |
-| [Full Route Cache](#full-route-cache)       | Rendered HTML and RSC payload  | Server              | Reduce rendering cost and improve performance                 | Persistent (can be revalidated) |
-| [Router Cache](#router-cache)               | Route Segments (RSC Payload)   | Client              | Reduce server requests and improve navigation experience      | User session or time-based.     |
+| Mechanism                                   | What is cached?                | Where is it cached? | Why is it cached?                                        | Duration                        |
+| ------------------------------------------- | ------------------------------ | ------------------- | -------------------------------------------------------- | ------------------------------- |
+| [Request Memoization](#request-memoization) | Return values of functions     | Server              | Share data between React components in a tree            | Per-request lifecycle           |
+| [Data Cache](#data-cache)                   | Return values of data requests | Server              | Share data across user requests and deployments          | Persistent (can be revalidated) |
+| [Full Route Cache](#full-route-cache)       | HTML and RSC payload           | Server              | Reduce rendering cost and improve performance            | Persistent (can be revalidated) |
+| [Router Cache](#router-cache)               | Route Segments (RSC Payload)   | Client              | Reduce server requests and improve navigation experience | User session or time-based.     |
 
-## Request Memoization
+By default, Next.js will cache as much as possible to improve performance and reduce cost. This means routes are statically rendered and data is cached. The diagram below shows the default caching behavior; at build time and when the application is first visited.
+
+<Image
+  alt="Diagram showing the default caching behavior in Next.js for the four mechanis, with HIT, MISS and SET at build time and when the application is first visited."
+  srcLight="/docs/light/caching-overview.png"
+  srcDark="/docs/dark/caching-overview.png"
+  width="1600"
+  height="1117"
+/>
+
+This behavior changes depending on whether the route is statically or dynamically rendered, data is cached or uncached, inital visit and subsequent navigations. Depending on your use case, you can configure the caching behavior for individual routes and data requests.
 
 ## Request Memoization
 
