@@ -258,7 +258,9 @@ describe('create-next-app templates', () => {
           cwd,
           // @ts-expect-error process.env.NODE_ENV is not always avaliable in create-next-app
           env: {
-            // Use NO_COLOR=1 to test picocolors
+            // Since picocolors assumes `CI=1` means colors are supported
+            // this test will fail in GitHub Actions unless we disable color here.
+            // See https://github.com/alexeyraspopov/picocolors/blob/6b43e8e83bcfe69ad1391a2bb07239bf11a13bc4/picocolors.js#L9
             NO_COLOR: '1',
           },
         },
