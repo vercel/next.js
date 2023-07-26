@@ -79,7 +79,9 @@ jobs:
       - 'self-hosted'
       - 'linux'
       - 'x64'
-      - 'hosted-ci-cd:ignore'
+
+    container:
+      image: public.ecr.aws/c7u5x0t0/nextjs-runner:latest
 
     steps:
       - run: fnm install ${{ inputs.nodeVersion || env.NODE_LTS_VERSION }}
