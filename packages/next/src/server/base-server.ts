@@ -2641,7 +2641,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
       if (is404) {
         // Rendering app routes only in render worker to make sure the require-hook is setup
-        if (this.hasAppDir && this.isRenderWorker) {
+        if (this.hasAppDir && (this.isRenderWorker || this.minimalMode)) {
           // Use the not-found entry in app directory
           result = await this.findPageComponents({
             pathname: this.renderOpts.dev ? '/not-found' : '/_not-found',
