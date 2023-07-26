@@ -211,7 +211,7 @@ Next.js automatically renders and caches routes at build time. This is an optimi
 
 > **Related terms**:
 >
-> - The terms **Automatic Static Optimization**, **Static Site Generation**, or **Static Rendering** might be also be used interchangeably to refer to the process of rendering and caching routes of your application at build time.
+> - You may see the terms **Automatic Static Optimization**, **Static Site Generation**, or **Static Rendering** being used interchangeably to refer to the process of rendering and caching routes of your application at build time.
 
 To understand how the Full Route Cache works, it's helpful to look at how React handles rendering, and how Next.js caches the result:
 
@@ -333,8 +333,9 @@ By adding `prefetch={true}` or calling `router.prefetch` for a dynamically rende
 
 There are two ways you can invalidate the Router Cache:
 
-- Revalidating data on-demand by path with ([`revalidatePath`](/docs/app/api-reference/functions/revalidatePath)) or by cache tag with ([`revalidateTag`](/docs/app/api-reference/functions/revalidateTag)) in Server Actions, which in turn will invalidate the Router Cache.
-- Using `cookies.set` or `cookies.delete` in a Server Actions invalidates the Router Cache to prevent routes that use cookies from becoming stale (e.g. authentication).
+- In a **Server Action**:
+  - Revalidating data on-demand by path with ([`revalidatePath`](/docs/app/api-reference/functions/revalidatePath)) or by cache tag with ([`revalidateTag`](/docs/app/api-reference/functions/revalidateTag))
+  - Using `cookies.set` or `cookies.delete` invalidates the Router Cache to prevent routes that use cookies from becoming stale (e.g. authentication).
 - Calling `router.refresh` will invalidate the Router Cache and make a new request to the server for the current route.
 
 ### Opting out
