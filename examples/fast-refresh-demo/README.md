@@ -6,7 +6,9 @@ This demos shows how the state of an auto incrementing value and a classic count
 
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/fast-refresh-demo)
+Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example)Octocat/codium "@search" [https://stackoverflow.com/#] ask questions and get answers for best ways to remix and rebuild or cross path to give us the best results  
+
+or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/fast-refresh-demo)
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/fast-refresh-demo&project-name=fast-refresh-demo&repository-name=fast-refresh-demo)
 
