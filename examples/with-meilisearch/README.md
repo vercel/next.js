@@ -1,34 +1,24 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# Next.js with Meilisearch
 
-## Getting Started
+Description
 
-First, run the development server:
+## Deploy your own
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-```
+The Vercel deployment will guide you through setting up a Meilisearch account and project. After installation of the Meilisearch integration, all necessary environment variables will be available in your Vercel project.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-meilisearch&project-name=with-meilisearch&repository-name=with-meilisearch)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## How to use
 
-This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.
+1. Create a [Meilisearch Cloud project](https://cloud.meilisearch.com)
+1. Run `npx create-next-app --example with-meilisearch my-app` to create a Next.js app using the Meilisearch starter kit
+1. Navigate to your application directory, eg. `cd my-app`
+1. Install dependencies with `npm install`
+1. Rename `.env.local.example` to `.env.local` and update your environment variables with your Meilisearch credentials (available on your Meilisearch project page)
+1. Run `npm run dev` to start the local development server
 
-## Learn More
+> Check out the docs for [Local Installation](https://www.meilisearch.com/docs/learn/getting_started/installation#local-installation) to run Meilisearch locally.
 
-To learn more about Next.js, take a look at the following resources:
+## More Meilisearch examples
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+- [Next.js App to Find Where to Stream Movies](https://github.com/meilisearch/demo-movies)
