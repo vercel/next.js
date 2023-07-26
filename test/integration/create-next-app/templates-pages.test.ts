@@ -256,6 +256,11 @@ describe('create-next-app templates', () => {
         ],
         {
           cwd,
+          // @ts-expect-error process.env.NODE_ENV is not always avaliable in create-next-app
+          env: {
+            // Use NO_COLOR=1 to test picocolors
+            NO_COLOR: '1',
+          },
         },
         testVersion
       )
