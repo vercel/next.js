@@ -193,7 +193,7 @@ async fn get_page_entries_for_root_directory(
         next_router_root,
         app.next_router_path,
         app.original_path,
-        PathType::Page,
+        PathType::PagesPage,
     ));
 
     // This only makes sense on the server.
@@ -205,7 +205,7 @@ async fn get_page_entries_for_root_directory(
         next_router_root,
         document.next_router_path,
         document.original_path,
-        PathType::Page,
+        PathType::PagesPage,
     ));
 
     // This only makes sense on both the client and the server, but they should map
@@ -218,7 +218,7 @@ async fn get_page_entries_for_root_directory(
         next_router_root,
         error.next_router_path,
         error.original_path,
-        PathType::Page,
+        PathType::PagesPage,
     ));
 
     if let Some(api) = api {
@@ -228,7 +228,7 @@ async fn get_page_entries_for_root_directory(
             api,
             next_router_root,
             &mut entries,
-            PathType::PagesAPI,
+            PathType::PagesApi,
         )
         .await?;
     }
@@ -240,7 +240,7 @@ async fn get_page_entries_for_root_directory(
             pages,
             next_router_root,
             &mut entries,
-            PathType::Page,
+            PathType::PagesPage,
         )
         .await?;
     }
@@ -317,8 +317,8 @@ async fn get_page_entry_for_file(
     path_type: PathType,
 ) -> Result<Vc<PageEntry>> {
     let reference_type = Value::new(ReferenceType::Entry(match path_type {
-        PathType::Page => EntryReferenceSubType::Page,
-        PathType::PagesAPI => EntryReferenceSubType::PagesApi,
+        PathType::PagesPage => EntryReferenceSubType::Page,
+        PathType::PagesApi => EntryReferenceSubType::PagesApi,
         _ => bail!("Invalid path type"),
     }));
 
