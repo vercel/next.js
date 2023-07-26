@@ -76,20 +76,18 @@ jobs:
   build:
     timeout-minutes: 25
     runs-on:
-      # - 'self-hosted'
-      # - 'size:lg'
-      # - 'platform:linux/amd64'
-
-      - self-hosted
-      - Linux
-      - x64
+      - 'self-hosted'
+      - 'size:lg'
+      - 'platform:linux/amd64'
 
     defaults:
       run:
-        shell: bash -leo pipefail -c "source /root/.bashrc && {0}"
+        shell: bash -leo pipefail -c "source /root/.bashrc && fnm --version && bash {0}"
 
     container:
       image: public.ecr.aws/c7u5x0t0/nextjs-runner:latest
+      volumes:
+        - /root:/root
 
     steps:
       - run: env
