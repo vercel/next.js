@@ -62,14 +62,21 @@ pub async fn pathname_for_path(
 }
 
 // Adapted from https://github.com/vercel/next.js/blob/canary/packages/next/shared/lib/router/utils/get-asset-path-from-route.ts
-pub fn get_asset_path_from_pathname(pathname: &str, ext: &str) -> String {
+// TODO(alexkirsz) There's no need to create an intermediate string here (and
+// below), we should instead return an `impl Display`.
+pub fn get_asset_prefix_from_pathname(pathname: &str) -> String {
     if pathname == "/" {
-        format!("/index{}", ext)
+        format!("/index")
     } else if pathname == "/index" || pathname.starts_with("/index/") {
-        format!("/index{}{}", pathname, ext)
+        format!("/index{}", pathname)
     } else {
-        format!("{}{}", pathname, ext)
+        format!("{}", pathname)
     }
+}
+
+// Adapted from https://github.com/vercel/next.js/blob/canary/packages/next/shared/lib/router/utils/get-asset-path-from-route.ts
+pub fn get_asset_path_from_pathname(pathname: &str, ext: &str) -> String {
+    format!("{}{}", get_asset_prefix_from_pathname(pathname), ext)
 }
 
 pub async fn foreign_code_context_condition(

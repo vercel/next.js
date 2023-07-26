@@ -17,7 +17,7 @@ use next_core::{
     pages_structure::{
         find_pages_structure, PagesDirectoryStructure, PagesStructure, PagesStructureItem,
     },
-    util::{parse_config_from_source, NextRuntime},
+    util::{get_asset_prefix_from_pathname, parse_config_from_source, NextRuntime},
     PageLoaderAsset,
 };
 use serde::{Deserialize, Serialize};
@@ -705,10 +705,10 @@ impl PageEndpoint {
                 .into_iter()
                 .collect(),
         };
+        let pages_manifest_path_prefix = get_asset_prefix_from_pathname(&this.pathname.await?);
         Ok(Vc::upcast(VirtualOutputAsset::new(
             node_root.join(format!(
-                "server/pages{original_name}/pages-manifest.json",
-                original_name = this.original_name.await?
+                "server/pages{pages_manifest_path_prefix}/pages-manifest.json",
             )),
             AssetContent::file(File::from(serde_json::to_string_pretty(&pages_manifest)?).into()),
         )))
