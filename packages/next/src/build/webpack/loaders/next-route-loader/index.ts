@@ -167,6 +167,31 @@ export async function loadEntrypointWithReplacements(
 
   let file = await fs.readFile(filepath, 'utf8')
 
+  // Update the relative imports to be absolute. This will update any relative
+  // imports to be relative to the root of the `next` package.
+  let count = 0
+  file = file.replaceAll(
+    /(?:from "(\..*)"|import "(\..*)")/g,
+    function (_, fromRequest, importRequest) {
+      count++
+
+      const relative = path.relative(
+        // NOTE: this should be updated if this loader file is moved.
+        path.normalize(path.join(__dirname, '../../../../../..')),
+        path.resolve(
+          path.join(__dirname, 'entries'),
+          fromRequest ?? importRequest
+        )
+      )
+
+      return fromRequest ? `from "${relative}"` : `import "${relative}"`
+    }
+  )
+
+  if (count === 0) {
+    throw new Error('Invariant: Expected to replace at least one import')
+  }
+
   const replaced = new Set<string>()
 
   // Replace all the template variables with the actual values. If a template
@@ -244,31 +269,6 @@ export async function loadEntrypointWithReplacements(
         ', '
       )} in template`
     )
-  }
-
-  // Update the relative imports to be absolute. This will update any relative
-  // imports to be relative to the root of the `next` package.
-  let count = 0
-  file = file.replaceAll(
-    /(?:from "(\..*)"|import "(\..*)")/g,
-    function (_, fromRequest, importRequest) {
-      count++
-
-      const relative = path.relative(
-        // NOTE: this should be updated if this loader file is moved.
-        path.normalize(path.join(__dirname, '../../../../../..')),
-        path.resolve(
-          path.join(__dirname, 'entries'),
-          fromRequest ?? importRequest
-        )
-      )
-
-      return fromRequest ? `from "${relative}"` : `import "${relative}"`
-    }
-  )
-
-  if (count === 0) {
-    throw new Error('Invariant: Expected to replace at least one import')
   }
 
   return file
