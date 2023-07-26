@@ -69,7 +69,7 @@ export default async function Page() {
 
 ### Caching Data
 
-Caching stores data so it doesn't need to be re-fetched from your data source each time `fetch` is called.
+Caching stores data so it doesn't need to be re-fetched from your data source on every request.
 
 By default, Next.js automatically caches the returned values of `fetch` in the [Data Cache](/docs/app/building-your-application/caching#data-cache) on the server. This means that the data can be fetched at build time or request time, cached, and reused on each data request.
 
@@ -80,14 +80,11 @@ fetch('https://...', { cache: 'force-cache' })
 
 `fetch` requests that use the `POST` method are also automatically cached in the Data Cache – unless it's used in `POST` [Route Handler](/docs/app/building-your-application/routing/route-handlers) or comes after `headers`/`cookies`.
 
-> **How does the Data Cache work?**
+> **What is the Data Cache?**
 >
 > The Data Cache is a persistent [HTTP cache](https://developer.mozilla.org/en-US/docs/Web/HTTP/Caching). Depending on your platform, the cache can scale automatically and be [shared across multiple regions](https://vercel.com/docs/infrastructure/data-cache).
 >
-> Next.js extends the [options object](https://developer.mozilla.org/en-US/docs/Web/API/fetch#:~:text=preflight%20requests.-,cache,-A%20string%20indicating) of the `fetch` function to allow each request on the server to set its own persistent caching behavior on the server.
-> During rendering, when Next.js comes across a fetch, it will check the cache to see if the data is already available. If it is, it will return the cached data. If not, it will fetch and store data for future requests.
->
-> Learn more about the [Data Cache](/docs/app/building-your-application/caching#data-cache).
+> > Learn more about the [Data Cache](/docs/app/building-your-application/caching#data-cache).
 
 ### Revalidating Data
 
@@ -95,8 +92,8 @@ Revalidation is the process of purging the Data Cache and re-fetching the latest
 
 Cached data can be revalidated in two ways:
 
-- **Time-based revalidation**: Automatically revalidate data after a certain amount of time has passed. This is useful for data that changes infrequently and freshness is not as critical. Time-based revalidation can be configured with the [Route Segment Config options](/docs/app/api-reference/file-conventions/route-segment-config) or on individual `fetch` requests.
-- **On-demand revalidation**: Manually revalidate data based on an event (e.g. form submission). On-demand revalidation can use a tag-based or path-based approach to revalidate groups of data at once. This is useful when you want to ensure the latest data is shown as soon as possible (e.g. when content from your headless CMS is updated). On-demand revalidation can be triggered with [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) or [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath).
+- **Time-based revalidation**: Automatically revalidate data after a certain amount of time has passed. This is useful for data that changes infrequently and freshness is not as critical.
+- **On-demand revalidation**: Manually revalidate data based on an event (e.g. form submission). On-demand revalidation can use a tag-based or path-based approach to revalidate groups of data at once. This is useful when you want to ensure the latest data is shown as soon as possible (e.g. when content from your headless CMS is updated).
 
 #### Time-based Revalidation
 
@@ -114,17 +111,7 @@ export const revalidate = 3600 // revalidate every hour
 
 If you have multiple fetch requests in a route, and each has a different revalidation frequency. The lowest time will be used for all requests.
 
-> **How does time-based revalidation work?**
->
-> If you set a `revalidate` time of `60`, all visitors will see the same data for one minute.
->
-> 1. The first time a fetch request with `revalidate` is called, the data will be fetched from the external data source and stored in the Data Cache.
-> 2. Any requests that are called within the 60-second window will return the cached data.
-> 3. After the 60-second window, the next request will still return the cached (now stale) data.
-> 4. Next.js will trigger a revalidation of the data in the background.
-> 5. Once the data is fetched successfully, Next.js will update the Data Cache with the fresh data. If the background revalidation fails, the previous data will be kept unaltered.
->
-> This is similar to [**stale-while-revalidate**](https://web.dev/stale-while-revalidate/) behavior.
+Learn more about [time-based revalidation](/docs/app/building-your-application/caching#time-based-revalidation).
 
 #### On-demand Revalidation
 
@@ -179,11 +166,7 @@ export async function GET(request) {
 
 Alternatively, you can use [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath) in a [Route Handler](/docs/app/building-your-application/routing/route-handlers) or [Server Action](/docs/app/building-your-application/data-fetching/server-actions) to revalidate all data associated with a path.
 
-See the [revalidateTag](/docs/app/api-reference/functions/revalidateTag) and [revalidatePath](/docs/app/api-reference/functions/revalidatePath) API references for more information.
-
-> **How does On-demand Revalidation work?**
->
-> On-demand revalidation removes the entry from the Data Cache. When the request is executed again, it'll be a cache miss, and the Data Cache will be populated with fresh data. This is different from time-based revalidation, which keeps the stale data in the cache until the fresh data is fetched.
+Learn more about [on-demand revalidation](/docs/app/building-your-application/caching#on-demand-revalidation).
 
 #### Error handling and revalidation
 
