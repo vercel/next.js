@@ -9,8 +9,8 @@ related:
 
 There are two ways to navigate between routes in Next.js:
 
-- Using [`<Link>` Component](#link-component)
-- Using [`useRouter` Hook](#userouter-hook)
+- Using the [`<Link>` Component](#link-component)
+- Using the [`useRouter` Hook](#userouter-hook)
 
 This page will go through how to use `<Link>`, `useRouter()`, and dive deeper into how navigation works.
 
@@ -110,7 +110,7 @@ If you'd like to scroll to a specific `id` on navigation, you can append your UR
 
 The `useRouter` hook allows you to programmatically change routes.
 
-Since it's a hook, you can only use it inside Client Components. The hook is imported from `next/navigation`.
+This hook can only be used inside Client Components and is imported from `next/navigation`.
 
 ```jsx filename="app/page.js"
 'use client'
@@ -143,12 +143,12 @@ Prefetching is a way to preload a route in the background before the user visits
 There are two ways routes are prefetched in Next.js:
 
 - **`<Link>` component**: Routes are automatically prefetched as they become visible in the user's viewport. Prefetching happens when the page first loads or when it comes into view through scrolling.
-- **`router.prefetch()`**: The `useRouter` hook can be used to prefetched routes programmatically.
+- **`router.prefetch()`**: The `useRouter` hook can be used to prefetch routes programmatically.
 
 The`<Link>`'s prefetching behavior is different for static and dynamic routes:
 
-- [**Static Routes**](/docs/app/building-your-application/rendering/static-and-dynamic#static-rendering-default): `prefetch` defaults to `true`. The whole route is prefetched and cached.
-- [**Dynamic Routes**](/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering): `prefetch` default to automatic. Only the shared layout down until the first `loading.js` file is prefetched and cached for 30s. This reduces the cost of fetching an entire dynamic route, and it means you can show an [instant loading state](/docs/app/building-your-application/routing/loading-ui-and-streaming#instant-loading-states).
+- [**Static Routes**](/docs/app/building-your-application/rendering/static-and-dynamic#static-rendering-default): `prefetch` defaults to `true`. The entire route is prefetched and cached.
+- [**Dynamic Routes**](/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering): `prefetch` default to automatic. Only the shared layout down until the first `loading.js` file is prefetched and cached for `30s`. This reduces the cost of fetching an entire dynamic route, and it means you can show an [instant loading state](/docs/app/building-your-application/routing/loading-ui-and-streaming#instant-loading-states) for better visual feedback to visitors.
 
 You can disable prefetching by setting the `prefetch` prop to `false`.
 
@@ -162,7 +162,7 @@ See the [`<Link>` API reference](/docs/app/api-reference/components/link) for mo
 
 Next.js has an **in-memory client-side cache** called the [Router Cache](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#caching-data#router-cache). As users navigate around the app, the React Server Component Payload of [prefetched](#1-prefetching) route segments and visited routes are stored in the cache.
 
-This means on navigation, the cache is reused as much as possible, instead of making a new request to the server - improving performance by reducing the numbers of requests and data transferred.
+This means on navigation, the cache is reused as much as possible, instead of making a new request to the server - improving performance by reducing the number of requests and data transferred.
 
 Learn more about how the [Router Cache](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#caching-data) works and how to configure it.
 

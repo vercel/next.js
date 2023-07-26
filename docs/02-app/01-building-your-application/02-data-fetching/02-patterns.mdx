@@ -12,7 +12,7 @@ Whenever possible, we recommend fetching data on the server. This allows you to:
 
 - Have direct access to backend data resources (e.g. databases).
 - Keep your application more secure by preventing sensitive information, such as access tokens and API keys, from being exposed to the client.
-- Fetch data and render in the same environment. This reduces both the back-and-forth communication between client and server, as well as the work on the main thread on the client.
+- Fetch data and render in the same environment. This reduces both the back-and-forth communication between client and server, as well as the [work on the main thread](https://vercel.com/blog/how-react-18-improves-application-performance) on the client.
 - Perform multiple data fetches with single round-trip instead of multiple individual requests on the client.
 - Reduce client-server [waterfalls](#parallel-and-sequential-data-fetching).
 - Depending on your region, data fetching can also happen closer to your data source, reducing latency and improving performance.
@@ -21,7 +21,7 @@ You can fetch data on the server using Server Components, [Route Handlers](/docs
 
 ### Fetching Data Where It's Needed
 
-If you need to use the same data (e.g. current user) in multiple components in a tree, you do not have to fetch data globally, nor props drill. Instead, you can use `fetch` or React `cache` in the component that needs the data without worrying about the performance implications of making multiple requests for the same data.
+If you need to use the same data (e.g. current user) in multiple components in a tree, you do not have to fetch data globally, nor forward props between components. Instead, you can use `fetch` or React `cache` in the component that needs the data without worrying about the performance implications of making multiple requests for the same data.
 
 This is possible because Next.js automatically memoizes `fetch` requests using React's `cache` function. Learn more about [request memoization](/docs/app/building-your-application/caching#request-memoization)
 
