@@ -92,7 +92,9 @@ describe('requirePage', () => {
       await requirePage('/../../test', distDir, false)
     } catch (err) {
       // eslint-disable-next-line jest/no-try-expect
-      expect(err.code).toBe('ENOENT')
+      expect(err.message).toBe(
+        'Requested and resolved page mismatch: /../../test /test'
+      )
     }
   })
 
