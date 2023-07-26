@@ -3,22 +3,22 @@ use std::future::Future;
 use anyhow::Result;
 use turbo_tasks::{
     graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow},
-    TryJoinIterExt,
+    TryJoinIterExt, Vc,
 };
 use turbopack_binding::turbopack::core::{
-    asset::{Asset, AssetVc, AssetsVc},
-    reference::AssetReference,
+    module::{Module, Modules},
+    reference::ModuleReference,
 };
 
-use super::NextDynamicEntryModuleVc;
+use super::NextDynamicEntryModule;
 
 #[turbo_tasks::value(transparent)]
-pub struct NextDynamicEntries(Vec<NextDynamicEntryModuleVc>);
+pub struct NextDynamicEntries(Vec<Vc<NextDynamicEntryModule>>);
 
 #[turbo_tasks::value_impl]
-impl NextDynamicEntriesVc {
+impl NextDynamicEntries {
     #[turbo_tasks::function]
-    pub async fn from_entries(entries: AssetsVc) -> Result<NextDynamicEntriesVc> {
+    pub async fn from_entries(entries: Vc<Modules>) -> Result<Vc<NextDynamicEntries>> {
         let nodes: Vec<_> = AdjacencyMap::new()
             .skip_duplicates()
             .visit(
@@ -50,7 +50,7 @@ impl NextDynamicEntriesVc {
             }
         }
 
-        Ok(NextDynamicEntriesVc::cell(next_dynamics))
+        Ok(Vc::cell(next_dynamics))
     }
 }
 
@@ -58,8 +58,8 @@ struct VisitDynamic;
 
 #[derive(Clone, Eq, PartialEq, Hash)]
 enum VisitDynamicNode {
-    Dynamic(NextDynamicEntryModuleVc),
-    Internal(AssetVc),
+    Dynamic(Vc<NextDynamicEntryModule>),
+    Internal(Vc<Box<dyn Module>>),
 }
 
 impl Visit<VisitDynamicNode> for VisitDynamic {
@@ -76,38 +76,39 @@ impl Visit<VisitDynamicNode> for VisitDynamic {
     fn edges(&mut self, node: &VisitDynamicNode) -> Self::EdgesFuture {
         let node = node.clone();
         async move {
-            let asset = match node {
-                VisitDynamicNode::Dynamic(dynamic_asset) => dynamic_asset.into(),
-                VisitDynamicNode::Internal(asset) => asset,
+            let module = match node {
+                VisitDynamicNode::Dynamic(dynamic_module) => Vc::upcast(dynamic_module),
+                VisitDynamicNode::Internal(module) => module,
             };
 
-            let references = asset.references().await?;
+            let references = module.references().await?;
 
-            let referenced_assets = references
+            let referenced_modules = references
                 .iter()
                 .copied()
                 .map(|reference| async move {
                     let resolve_result = reference.resolve_reference();
-                    let assets = resolve_result.primary_assets().await?;
-                    Ok(assets.iter().copied().collect::<Vec<_>>())
+                    let assets = resolve_result.primary_modules().await?;
+                    Ok(assets.clone_value())
                 })
                 .try_join()
                 .await?;
-            let referenced_assets = referenced_assets.into_iter().flatten();
+            let referenced_modules = referenced_modules.into_iter().flatten();
 
-            let referenced_assets = referenced_assets.map(|asset| async move {
-                if let Some(next_dynamic_asset) =
-                    NextDynamicEntryModuleVc::resolve_from(asset).await?
+            let referenced_modules = referenced_modules.map(|module| async move {
+                let module = module.resolve().await?;
+                if let Some(next_dynamic_module) =
+                    Vc::try_resolve_downcast_type::<NextDynamicEntryModule>(module).await?
                 {
-                    return Ok(VisitDynamicNode::Dynamic(next_dynamic_asset));
+                    return Ok(VisitDynamicNode::Dynamic(next_dynamic_module));
                 }
 
-                Ok(VisitDynamicNode::Internal(asset))
+                Ok(VisitDynamicNode::Internal(module))
             });
 
-            let assets = referenced_assets.try_join().await?;
+            let nodes = referenced_modules.try_join().await?;
 
-            Ok(assets)
+            Ok(nodes)
         }
     }
 }
