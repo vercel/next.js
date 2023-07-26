@@ -1,3 +1,4 @@
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 declare let __webpack_public_path__: string
 
 const addChunkSuffix =
