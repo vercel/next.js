@@ -1,13 +1,12 @@
 use std::io::Write;
 
 use anyhow::{bail, Result};
-use indoc::writedoc;
 use turbo_tasks::{TryJoinIterExt, Value, ValueToString, Vc};
 use turbopack_binding::{
     turbo::tasks_fs::{rope::RopeBuilder, File, FileSystemPath},
     turbopack::{
         core::{
-            asset::AssetContent, context::AssetContext, issue::IssueExt,
+            asset::AssetContent, context::AssetContext, issue::IssueExt, module::Module,
             reference_type::ReferenceType, virtual_source::VirtualSource,
         },
         ecmascript::{chunk::EcmascriptChunkPlaceable, utils::StringifyJs},
@@ -23,7 +22,7 @@ use crate::{
     next_app::UnsupportedDynamicMetadataIssue,
     next_server_component::NextServerComponentTransition,
     parse_segment_config_from_loader_tree,
-    util::NextRuntime,
+    util::{load_next_js, resolve_next_module, NextRuntime},
 };
 
 /// Computes the entry for a Next.js app page.
@@ -78,54 +77,55 @@ pub async fn get_app_page_entry(
 
     let pages = pages.iter().map(|page| page.to_string()).try_join().await?;
 
-    // NOTE(alexkirsz) Keep in sync with
-    // next.js/packages/next/src/build/webpack/loaders/next-app-loader.ts
-    // TODO(alexkirsz) Support custom global error.
     let original_name = get_original_page_name(&pathname);
 
-    writedoc!(
-        result,
-        r#"
-            import RouteModule from "next/dist/server/future/route-modules/app-page/module"
+    let template_file = "/dist/esm/build/webpack/loaders/next-route-loader/entries/app-page.js";
 
-            export const tree = {loader_tree_code}
-            export const pages = {pages}
-            export {{ default as GlobalError }} from "next/dist/client/components/error-boundary"
-            export const originalPathname = {pathname}
-            export const __next_app__ = {{
-                require: __turbopack_require__,
-                loadChunk: __turbopack_load__,
-            }};
+    // Load the file from the next.js codebase.
+    let file = load_next_js(project_root, template_file).await?.await?;
 
-            export * from "next/dist/server/app-render/entry-base"
+    let file = file
+        .to_str()?
+        .replace("VAR_DEFINITION_PAGE", &original_name)
+        .replace("VAR_DEFINITION_PATHNAME", &pathname)
+        .replace("VAR_ORIGINAL_PATHNAME", &original_name)
+        // TODO(alexkirsz) Support custom global error.
+        .replace(
+            "VAR_MODULE_GLOBAL_ERROR",
+            "next/dist/client/components/error-boundary",
+        )
+        .replace(
+            "// INJECT:tree",
+            format!("const tree = {};", loader_tree_code).as_str(),
+        )
+        .replace(
+            "// INJECT:pages",
+            format!("const pages = {};", StringifyJs(&pages)).as_str(),
+        )
+        .replace(
+            "// INJECT:__next_app_require__",
+            "const __next_app_require__ = __turbopack_require__",
+        )
+        .replace(
+            "// INJECT:__next_app_load_chunk__",
+            "const __next_app_load_chunk__ = __turbopack_load__",
+        )
+        .as_bytes()
+        .to_vec();
 
-            // Create and export the route module that will be consumed.
-            export const routeModule = new RouteModule({{
-              definition: {{
-                kind: "APP_PAGE",
-                page: {definition_page},
-                pathname: {definition_pathname},
-                // The following aren't used in production, but are
-                // required for the RouteModule constructor.
-                bundlePath: "",
-                filename: "",
-                appPaths: []
-              }},
-              userland: {{
-                loaderTree: tree,
-              }}
-            }})
-        "#,
-        definition_page = StringifyJs(&original_name),
-        pages = StringifyJs(&pages),
-        pathname = StringifyJs(&original_name),
-        definition_pathname = StringifyJs(&pathname),
-    )?;
+    result.concat(&RopeBuilder::from(file).build());
 
     let file = File::from(result.build());
-    let source =
-        // TODO(alexkirsz) Figure out how to name this virtual asset.
-        VirtualSource::new(project_root.join("todo.tsx".to_string()), AssetContent::file(file.into()));
+
+    let resolve_result = resolve_next_module(project_root, template_file).await?;
+
+    let Some(template_path) = *resolve_result.first_module().await? else {
+        bail!("Expected to find module");
+    };
+
+    let template_path = template_path.ident().path();
+
+    let source = VirtualSource::new(template_path, AssetContent::file(file.into()));
 
     let rsc_entry = context.process(
         Vc::upcast(source),

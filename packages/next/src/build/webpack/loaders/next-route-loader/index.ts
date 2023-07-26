@@ -1,14 +1,17 @@
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
+import type { MiddlewareConfig } from '../../../analysis/get-page-static-info'
 
+import fs from 'fs/promises'
+import path from 'path'
 import { stringify } from 'querystring'
-import { ModuleBuildInfo, getModuleBuildInfo } from '../get-module-build-info'
-import { PagesRouteModuleOptions } from '../../../../server/future/route-modules/pages/module'
+import {
+  type ModuleBuildInfo,
+  getModuleBuildInfo,
+} from '../get-module-build-info'
 import { RouteKind } from '../../../../server/future/route-kind'
 import { normalizePagePath } from '../../../../shared/lib/page-path/normalize-page-path'
-import { MiddlewareConfig } from '../../../analysis/get-page-static-info'
 import { decodeFromBase64, encodeToBase64 } from '../utils'
 import { isInstrumentationHookFile } from '../../../worker'
-import { PagesAPIRouteModuleOptions } from '../../../../server/future/route-modules/pages-api/module'
 
 type RouteLoaderOptionsPagesAPIInput = {
   kind: RouteKind.PAGES_API
@@ -134,7 +137,144 @@ export function getRouteLoaderEntry(options: RouteLoaderOptionsInput): string {
   }
 }
 
-const loadPages = (
+/**
+ * Load the entrypoint file from the ESM directory and performs string
+ * replacements of the template variables specified in the `replacements`
+ * argument.
+ *
+ * For non-string replacements, the template should use the
+ * `declare const ${key}: ${type}` syntax. to ensure that the type is correct
+ * and the typescript can compile. You may have to use `@ts-expect-error` to
+ * handle replacement values that are related to imports.
+ *
+ * @param entrypoint the entrypoint to load
+ * @param replacements the replacements to perform
+ * @returns the loaded file with the replacements
+ */
+export async function loadEntrypointWithReplacements(
+  entrypoint: 'pages' | 'pages-api' | 'app-page' | 'app-route',
+  replacements: Record<string, string>,
+  injections?: Record<string, string>
+): Promise<string> {
+  const filepath = path.resolve(
+    path.join(
+      __dirname,
+      // Load the ESM version of the entrypoint.
+      '../../../../esm/build/webpack/loaders/next-route-loader/entries',
+      `${entrypoint}.js`
+    )
+  )
+
+  let file = await fs.readFile(filepath, 'utf8')
+
+  const replaced = new Set<string>()
+
+  // Replace all the template variables with the actual values. If a template
+  // variable is missing, throw an error.
+  file = file.replaceAll(
+    new RegExp(`${Object.keys(replacements).join('|')}`, 'g'),
+    (match) => {
+      if (!(match in replacements)) {
+        throw new Error(`Invariant: Unexpected template variable ${match}`)
+      }
+
+      replaced.add(match)
+
+      return replacements[match]
+    }
+  )
+
+  // Check to see if there's any remaining template variables.
+  let matches = file.match(/VAR_[A-Z_]+/g)
+  if (matches) {
+    throw new Error(
+      `Invariant: Expected to replace all template variables, found ${matches.join(
+        ', '
+      )}`
+    )
+  }
+
+  if (replaced.size !== Object.keys(replacements).length) {
+    const difference = Object.keys(replacements).filter(
+      (key) => !replaced.has(key)
+    )
+
+    throw new Error(
+      `Invariant: Expected to replace all template variables, missing ${difference.join(
+        ', '
+      )} in template`
+    )
+  }
+
+  // Inject the injections.
+  const injected = new Set<string>()
+  if (injections) {
+    // Track all the injections to ensure that we're not missing any.
+    file = file.replaceAll(
+      new RegExp(`// INJECT:(${Object.keys(injections).join('|')})`, 'g'),
+      (_, key) => {
+        if (!(key in injections)) {
+          throw new Error(`Invariant: Unexpected injection ${key}`)
+        }
+
+        injected.add(key)
+
+        return `const ${key} = ${injections[key]}`
+      }
+    )
+  }
+
+  // Check to see if there's any remaining injections.
+  matches = file.match(/\/\/ INJECT:[A-Za-z0-9_]+/g)
+  if (matches) {
+    throw new Error(
+      `Invariant: Expected to inject all injections, found ${matches.join(
+        ', '
+      )}`
+    )
+  }
+
+  if (injected.size !== Object.keys(injections ?? {}).length) {
+    const difference = Object.keys(injections ?? {}).filter(
+      (key) => !injected.has(key)
+    )
+
+    throw new Error(
+      `Invariant: Expected to inject all injections, missing ${difference.join(
+        ', '
+      )} in template`
+    )
+  }
+
+  // Update the relative imports to be absolute. This will update any relative
+  // imports to be relative to the root of the `next` package.
+  let count = 0
+  file = file.replaceAll(
+    /(?:from "(\..*)"|import "(\..*)")/g,
+    function (_, fromRequest, importRequest) {
+      count++
+
+      const relative = path.relative(
+        // NOTE: this should be updated if this loader file is moved.
+        path.normalize(path.join(__dirname, '../../../../../..')),
+        path.resolve(
+          path.join(__dirname, 'entries'),
+          fromRequest ?? importRequest
+        )
+      )
+
+      return fromRequest ? `from "${relative}"` : `import "${relative}"`
+    }
+  )
+
+  if (count === 0) {
+    throw new Error('Invariant: Expected to replace at least one import')
+  }
+
+  return file
+}
+
+const loadPages = async (
   {
     page,
     absolutePagePath,
@@ -157,68 +297,25 @@ const loadPages = (
     middlewareConfig,
   }
 
-  const options: Omit<PagesRouteModuleOptions, 'userland' | 'components'> = {
-    definition: {
-      kind: RouteKind.PAGES,
-      page: normalizePagePath(page),
-      pathname: page,
-      // The following aren't used in production.
-      bundlePath: '',
-      filename: '',
-    },
+  let file = await loadEntrypointWithReplacements('pages', {
+    VAR_USERLAND: absolutePagePath,
+    VAR_MODULE_DOCUMENT: absoluteDocumentPath,
+    VAR_MODULE_APP: absoluteAppPath,
+    VAR_DEFINITION_PAGE: normalizePagePath(page),
+    VAR_DEFINITION_PATHNAME: page,
+  })
+
+  if (isInstrumentationHookFile(page)) {
+    // When we're building the instrumentation page (only when the
+    // instrumentation file conflicts with a page also labeled
+    // /instrumentation) hoist the `register` method.
+    file += `export const register = hoist(userland, "register")\n`
   }
 
-  return `
-      // Next.js Route Loader
-      import RouteModule from "next/dist/server/future/route-modules/pages/module"
-      import { hoist } from "next/dist/build/webpack/loaders/next-route-loader/helpers"
-
-      // Import the app and document modules.
-      import Document from ${JSON.stringify(absoluteDocumentPath)}
-      import App from ${JSON.stringify(absoluteAppPath)}
-
-      // Import the userland code.
-      import * as userland from ${JSON.stringify(absolutePagePath)}
-
-      // Re-export the component (should be the default export).
-      export default hoist(userland, "default")
-
-      // Re-export methods.
-      export const getStaticProps = hoist(userland, "getStaticProps")
-      export const getStaticPaths = hoist(userland, "getStaticPaths")
-      export const getServerSideProps = hoist(userland, "getServerSideProps")
-      export const config = hoist(userland, "config")
-      export const reportWebVitals = hoist(userland, "reportWebVitals")
-      ${
-        // When we're building the instrumentation page (only when the
-        // instrumentation file conflicts with a page also labeled
-        // /instrumentation) hoist the `register` method.
-        isInstrumentationHookFile(page)
-          ? 'export const register = hoist(userland, "register")'
-          : ''
-      }
-
-      // Re-export legacy methods.
-      export const unstable_getStaticProps = hoist(userland, "unstable_getStaticProps")
-      export const unstable_getStaticPaths = hoist(userland, "unstable_getStaticPaths")
-      export const unstable_getStaticParams = hoist(userland, "unstable_getStaticParams")
-      export const unstable_getServerProps = hoist(userland, "unstable_getServerProps")
-      export const unstable_getServerSideProps = hoist(userland, "unstable_getServerSideProps")
-
-      // Create and export the route module that will be consumed.
-      const options = ${JSON.stringify(options)}
-      export const routeModule = new RouteModule({
-        ...options,
-        components: {
-          App,
-          Document,
-        },
-        userland,
-      })
-  `
+  return file
 }
 
-const loadPagesAPI = (
+const loadPagesAPI = async (
   {
     page,
     absolutePagePath,
@@ -239,38 +336,11 @@ const loadPagesAPI = (
     middlewareConfig,
   }
 
-  const options: Omit<PagesAPIRouteModuleOptions, 'userland' | 'components'> = {
-    definition: {
-      kind: RouteKind.PAGES_API,
-      page: normalizePagePath(page),
-      pathname: page,
-      // The following aren't used in production.
-      bundlePath: '',
-      filename: '',
-    },
-  }
-
-  return `
-      // Next.js Route Loader
-      import RouteModule from "next/dist/server/future/route-modules/pages-api/module"
-      import { hoist } from "next/dist/build/webpack/loaders/next-route-loader/helpers"
-
-      // Import the userland code.
-      import * as userland from ${JSON.stringify(absolutePagePath)}
-
-      // Re-export the handler (should be the default export).
-      export default hoist(userland, "default")
-
-      // Re-export config.
-      export const config = hoist(userland, "config")
-
-      // Create and export the route module that will be consumed.
-      const options = ${JSON.stringify(options)}
-      export const routeModule = new RouteModule({
-        ...options,
-        userland,
-      })
-  `
+  return await loadEntrypointWithReplacements('pages-api', {
+    VAR_USERLAND: absolutePagePath,
+    VAR_DEFINITION_PAGE: normalizePagePath(page),
+    VAR_DEFINITION_PATHNAME: page,
+  })
 }
 
 /**
@@ -278,7 +348,7 @@ const loadPagesAPI = (
  * @returns the loader definition function
  */
 const loader: webpack.LoaderDefinitionFunction<RouteLoaderOptions> =
-  function () {
+  async function () {
     if (!this._module) {
       throw new Error('Invariant: expected this to reference a module')
     }
@@ -288,10 +358,10 @@ const loader: webpack.LoaderDefinitionFunction<RouteLoaderOptions> =
 
     switch (opts.kind) {
       case RouteKind.PAGES: {
-        return loadPages(opts, buildInfo)
+        return await loadPages(opts, buildInfo)
       }
       case RouteKind.PAGES_API: {
-        return loadPagesAPI(opts, buildInfo)
+        return await loadPagesAPI(opts, buildInfo)
       }
       default: {
         throw new Error('Invariant: Unexpected route kind')

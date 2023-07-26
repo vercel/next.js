@@ -1,9 +1,5 @@
-use std::io::Write;
-
 use anyhow::{bail, Result};
 use indexmap::indexmap;
-use indoc::writedoc;
-use serde::Serialize;
 use turbo_tasks::{Value, ValueToString, Vc};
 use turbopack_binding::{
     turbo::tasks_fs::{rope::RopeBuilder, File, FileSystemPath},
@@ -11,18 +7,23 @@ use turbopack_binding::{
         core::{
             asset::AssetContent,
             context::AssetContext,
+            module::Module,
             reference_type::{
                 EcmaScriptModulesReferenceSubType, EntryReferenceSubType, ReferenceType,
             },
             source::Source,
             virtual_source::VirtualSource,
         },
-        ecmascript::{chunk::EcmascriptChunkPlaceable, utils::StringifyJs},
+        ecmascript::chunk::EcmascriptChunkPlaceable,
         turbopack::ModuleAssetContext,
     },
 };
 
-use crate::{next_app::AppEntry, parse_segment_config_from_source, util::NextRuntime};
+use crate::{
+    next_app::AppEntry,
+    parse_segment_config_from_source,
+    util::{load_next_js, resolve_next_module, NextRuntime},
+};
 
 /// Computes the entry for a Next.js app route.
 #[turbo_tasks::function]
@@ -48,78 +49,46 @@ pub async fn get_app_route_entry(
 
     let mut result = RopeBuilder::default();
 
-    let kind = "app-route";
     let original_name = get_original_route_name(&pathname);
     let path = source.ident().path();
 
-    let options = AppRouteRouteModuleOptions {
-        definition: AppRouteRouteDefinition {
-            kind: RouteKind::AppRoute,
-            page: original_name.clone(),
-            pathname: pathname.to_string(),
-            filename: path.file_stem().await?.as_ref().unwrap().clone(),
-            // TODO(alexkirsz) Is this necessary?
-            bundle_path: "".to_string(),
-        },
-        resolved_page_path: path.to_string().await?.clone_value(),
+    let template_file = "/dist/esm/build/webpack/loaders/next-route-loader/entries/app-route.js";
+
+    // Load the file from the next.js codebase.
+    let file = load_next_js(project_root, template_file).await?.await?;
+
+    let file = file
+        .to_str()?
+        .replace("VAR_DEFINITION_PAGE", &original_name)
+        .replace("VAR_DEFINITION_PATHNAME", &pathname)
+        .replace(
+            "VAR_DEFINITION_FILENAME",
+            &path.file_stem().await?.as_ref().unwrap().clone(),
+        )
         // TODO(alexkirsz) Is this necessary?
-        next_config_output: "".to_string(),
-    };
+        .replace("VAR_DEFINITION_BUNDLE_PATH", "")
+        .replace("VAR_ORIGINAL_PATHNAME", &original_name)
+        .replace("VAR_RESOLVED_PAGE_PATH", &path.to_string().await?)
+        .replace(
+            "// INJECT:nextConfigOutput",
+            "const nextConfigOutput = \"\"",
+        )
+        .as_bytes()
+        .to_vec();
 
-    // NOTE(alexkirsz) Keep in sync with
-    // next.js/packages/next/src/build/webpack/loaders/next-app-loader.ts
-    // TODO(alexkirsz) Support custom global error.
-    writedoc!(
-        result,
-        r#"
-            import 'next/dist/server/node-polyfill-headers'
-
-            import RouteModule from {route_module}
-
-            import * as userland from "ENTRY"
-
-            const options = {options}
-            const routeModule = new RouteModule({{
-                ...options,
-                userland,
-            }})
-
-            // Pull out the exports that we need to expose from the module. This should         
-            // be eliminated when we've moved the other routes to the new format. These
-            // are used to hook into the route.
-            const {{
-                requestAsyncStorage,
-                staticGenerationAsyncStorage,
-                serverHooks,
-                headerHooks,
-                staticGenerationBailout
-            }} = routeModule
-
-            const originalPathname = {original}
-
-            export {{
-                routeModule,
-                requestAsyncStorage,
-                staticGenerationAsyncStorage,
-                serverHooks,
-                headerHooks,
-                staticGenerationBailout,
-                originalPathname
-            }}
-        "#,
-        route_module = StringifyJs(&format!(
-            "next/dist/server/future/route-modules/{kind}/module"
-        )),
-        options = StringifyJs(&options),
-        original = StringifyJs(&original_name),
-    )?;
+    result.concat(&RopeBuilder::from(file).build());
 
     let file = File::from(result.build());
-    // TODO(alexkirsz) Figure out how to name this virtual asset.
-    let virtual_source = VirtualSource::new(
-        project_root.join("todo.tsx".to_string()),
-        AssetContent::file(file.into()),
-    );
+
+    let resolve_result = resolve_next_module(project_root, template_file).await?;
+
+    let Some(template_path) = *resolve_result.first_module().await? else {
+        bail!("Expected to find module");
+    };
+
+    let template_path = template_path.ident().path();
+
+    let virtual_source = VirtualSource::new(template_path, AssetContent::file(file.into()));
 
     let entry = context.process(
         source,
@@ -129,7 +98,7 @@ pub async fn get_app_route_entry(
     );
 
     let inner_assets = indexmap! {
-        "ENTRY".to_string() => entry
+        "VAR_USERLAND".to_string() => entry
     };
 
     let rsc_entry = context.process(
@@ -157,28 +126,4 @@ fn get_original_route_name(pathname: &str) -> String {
         "/" => "/route".to_string(),
         _ => format!("{}/route", pathname),
     }
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct AppRouteRouteModuleOptions {
-    definition: AppRouteRouteDefinition,
-    resolved_page_path: String,
-    next_config_output: String,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct AppRouteRouteDefinition {
-    kind: RouteKind,
-    page: String,
-    pathname: String,
-    filename: String,
-    bundle_path: String,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-enum RouteKind {
-    AppRoute,
 }
