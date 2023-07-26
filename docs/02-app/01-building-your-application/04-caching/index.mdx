@@ -238,7 +238,15 @@ This means we don't have to wait for everything to render before caching the wor
 
 ### 2. Next.js Caching on the Server (Full Route Cache)
 
-On the server, at build time, Next.js caches the React Server Component Payload, Client Component JavaScript, and rendered HTML.
+<Image
+  alt="Full Route Cache"
+  srcLight="/docs/light/full-route-cache.png"
+  srcDark="/docs/dark/full-route-cache.png"
+  width="1600"
+  height="770"
+/>
+
+On the server, at build time, Next.js caches the React Server Component Payload and HTML. This is the behavior for statically rendered routes (default).
 
 ### 3. Next.js Caching on the Client (Router Cache)
 
