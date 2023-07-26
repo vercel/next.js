@@ -16,7 +16,7 @@ There are three main ways you can fetch data:
 
 Next.js extends the native [`fetch` Web API](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) to allow you to configure the [caching](#caching-data) and [revalidating](#revalidating-data) behavior for each fetch request on the server. React extends `fetch` to automatically [memoize](/docs/app/building-your-application/data-fetching/patterns#fetching-data-where-its-needed) fetch requests while rendering a React Component tree.
 
-You can use `fetch` with [`async`/`await` in Server Components](https://github.com/acdlite/rfcs/blob/first-class-promises/text/0000-first-class-support-for-promises), in [Route Handlers](), and in [Server Actions]().
+You can use `fetch` with [`async`/`await` in Server Components](https://github.com/acdlite/rfcs/blob/first-class-promises/text/0000-first-class-support-for-promises), in [Route Handlers](/docs/app/building-your-application/routing/route-handlers), and in [Server Actions](/docs/app/building-your-application/data-fetching/server-actions).
 
 For example:
 
@@ -153,7 +153,7 @@ export default async function Page() {
 }
 ```
 
-The data can then be revalidated on-demand by calling `revalidateTag` in a [Route Handler](/docs/app/building-your-application/routing/route-handlers) or [Server Action]().
+The data can then be revalidated on-demand by calling `revalidateTag` in a [Route Handler](/docs/app/building-your-application/routing/route-handlers) or [Server Action](/docs/app/building-your-application/data-fetching/server-actions).
 
 ```ts filename="app/api/revalidate/route.ts" switcher
 import { NextRequest, NextResponse } from 'next/server'
@@ -177,7 +177,7 @@ export async function GET(request) {
 }
 ```
 
-Alternatively, you can use [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath) in a [Route Handler]() or [Server Action]() to revalidate all data associated with a path.
+Alternatively, you can use [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath) in a [Route Handler](/docs/app/building-your-application/routing/route-handlers) or [Server Action](/docs/app/building-your-application/data-fetching/server-actions) to revalidate all data associated with a path.
 
 See the [revalidateTag](/docs/app/api-reference/functions/revalidateTag) and [revalidatePath](/docs/app/api-reference/functions/revalidatePath) API references for more information.
 
@@ -210,7 +210,7 @@ View all the available `cache` options in the [`fetch` API reference](/docs/app/
 
 #### Multiple `fetch` Requests
 
-If you have multiple `fetch` requests in a route segment (e.g. a layout or page), you can configure the caching behavior of all data requests in the segment using the [Segment Config Options]().
+If you have multiple `fetch` requests in a route segment (e.g. a layout or page), you can configure the caching behavior of all data requests in the segment using the [Segment Config Options](/docs/app/api-reference/file-conventions/route-segment-config).
 
 For example, using `const dynamic = 'force-dynamic` will cause all data to be fetched at request time, and the segment to be rendered dynamically.
 
@@ -223,20 +223,20 @@ There's an extensive list of Segment Config options, giving you fine-grained con
 
 ## Fetching data with third-party libraries
 
-In cases where you're using a third-party library that doesn't support or expose `fetch` (for example, a database, CMS, or ORM client), you can configure the caching and revalidating behavior of those requests using the [Route Segment Config Option]() and React's `cache` function.
+In cases where you're using a third-party library that doesn't support or expose `fetch` (for example, a database, CMS, or ORM client), you can configure the caching and revalidating behavior of those requests using the [Route Segment Config Option](/docs/app/api-reference/file-conventions/route-segment-config) and React's `cache` function.
 
-Whether the data is cached or not will depend on whether the route segment is [statically or dynamically rendered](). If the segment is static (default), the output of the request will be cached and revalidated as part of the route segment. If the segment is dynamic, the output of the request will _not_ be cached and will be re-fetched on every request when the segment is rendered.
+Whether the data is cached or not will depend on whether the route segment is [statically or dynamically rendered](/docs/app/building-your-application/rendering/static-and-dynamic). If the segment is static (default), the output of the request will be cached and revalidated as part of the route segment. If the segment is dynamic, the output of the request will _not_ be cached and will be re-fetched on every request when the segment is rendered.
 
 > **Good to know:**
 >
-> In the future, Next.js will have a API for configuring the caching and revalidating behavior of individual third-party requests. Learn more: [`unstable_cache`]()
+> Next.js is working on an API, `unstable_cache`, for configuring the caching and revalidating behavior of individual third-party requests.
 
 ### Example
 
 In the example below:
 
 - The `revalidate` option is set to `3600`, meaning the data will be cached and revalidated every hour.
-- The React `cache` function is used to [memoize]() data requests.
+- The React `cache` function is used to [memoize](/docs/app/building-your-application/caching#request-memoization) data requests.
 
 ```ts filename="utils/getUser.ts" switcher
 import { cache } from 'react'

@@ -19,9 +19,9 @@ Here's a high-level overview of the different caching mechanisms in Next.js and 
 
 ## Request Memoization
 
-The React `cache` function allows you to **memoize** the return value of a function, allowing you to call the same function multiple times while only executing it once.
+## Request Memoization
 
-In React Server Components, the [`fetch` API](#fetch) uses an implementation similar to `cache` to **memoize** data requests using the same URL and options. This means you can call the same data in multiple components while only executing it once during a render pass of a React component tree.
+In React Server Components, the [`fetch` API](#fetch) automatically **memoizes** data requests that have the same URL and options. This means you can call the same data in multiple places in a React component tree while only executing it once.
 
 <Image
   alt="Fetch Request Memoization"
@@ -31,7 +31,7 @@ In React Server Components, the [`fetch` API](#fetch) uses an implementation sim
   height="857"
 />
 
-With `fetch`, you can fetch data in the components that need it without props drilling and worrying about the performance impact of making multiple requests for the same data. Memoization applies to `fetch` requests in `generateMetadata`, `generateStaticParams`, Layouts, Pages, and other Server Components
+By using `fetch`, you can fetch data in the components that need it without props drilling and worrying about the performance impact of making multiple requests for the same data. Memoization applies to `fetch` requests in `generateMetadata`, `generateStaticParams`, Layouts, Pages, and other Server Components
 
 For example:
 
@@ -61,7 +61,7 @@ const comments = await getComments() // cache MISS
 const comments = await getComments() // cache HIT
 ```
 
-For cases where `fetch` is not suitable (e.g. database clients, CMS clients, or GraphQL), you can use React's `cache` function to manually memoize functions.
+For cases where `fetch` is not suitable (e.g. database clients, CMS clients, or GraphQL), you can use the [React `cache` function](#react-cache-function) to manually memoize functions.
 
 ### Duration
 
@@ -374,7 +374,7 @@ There are two places you can use `revalidatePath`, depending on what you're tryi
 1. [Route Handlers](/docs/app/building-your-application/routing/route-handlers) - to revalidate data in response to a third party event (e.g. webhook).
 2. [Server Actions](/docs/app/building-your-application/data-fetching/server-actions) - to revalidate data after a user interaction (e.g. form submission, clicking a button).
 
-See the [`revalidatePath` API reference]() for more information.
+See the [`revalidatePath` API reference](/docs/app/api-reference/functions/revalidatePath) for more information.
 
 > ** `revalidatePath` vs. `router.refresh`**:
 >
