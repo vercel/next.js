@@ -1030,7 +1030,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       if (
         !(req.headers['x-matched-path'] && this.minimalMode) &&
         process.env.NEXT_RUNTIME !== 'edge' &&
-        process.env.__NEXT_PRIVATE_RENDER_WORKER &&
         matchedPath
       ) {
         if (req.headers['x-invoke-status']) {
@@ -1120,7 +1119,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
       if (
         process.env.NEXT_RUNTIME !== 'edge' &&
-        process.env.__NEXT_PRIVATE_RENDER_WORKER &&
         req.headers['x-middleware-invoke']
       ) {
         const nextDataResult = await this.normalizeNextData(req, res, parsedUrl)

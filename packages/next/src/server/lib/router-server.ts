@@ -39,13 +39,14 @@ let initializeResult:
 
 const debug = setupDebug('next:router-server:main')
 
-export type RenderWorker = {
-  initialize: typeof import('./render-server').initialize
-  deleteCache: typeof import('./render-server').deleteCache
-  deleteAppClientCache: typeof import('./render-server').deleteAppClientCache
-  clearModuleContext: typeof import('./render-server').clearModuleContext
-  propagateServerField: typeof import('./render-server').propagateServerField
-}
+export type RenderWorker = Pick<
+  typeof import('./render-server'),
+  | 'initialize'
+  | 'deleteCache'
+  | 'clearModuleContext'
+  | 'deleteAppClientCache'
+  | 'propagateServerField'
+>
 
 export async function initialize(opts: {
   dir: string
@@ -195,6 +196,8 @@ export async function initialize(opts: {
   }
   renderWorkers.pages =
     require('./render-server') as typeof import('./render-server')
+  process.env.__NEXT_PRIVATE_ROUTER_IPC_PORT = ipcPort + ''
+  process.env.__NEXT_PRIVATE_ROUTER_IPC_KEY = ipcValidationKey
 
   // pre-initialize workers
   await renderWorkers.app?.initialize(renderWorkerOpts)

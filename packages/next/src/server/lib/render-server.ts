@@ -85,7 +85,7 @@ export async function initialize(opts: {
     return result
   }
 
-  const type = process.env.__NEXT_PRIVATE_RENDER_WORKER!
+  const type = process.env.__NEXT_PRIVATE_RENDER_WORKER || 'pages'
   process.title = 'next-render-worker-' + type
 
   let requestHandler: RequestHandler
@@ -103,7 +103,6 @@ export async function initialize(opts: {
 
   app = next({
     ...opts,
-    _routerWorker: opts.workerType === 'router',
     _renderWorker: opts.workerType === 'render',
     hostname: hostname === '0.0.0.0' ? 'localhost' : hostname,
     customServer: false,
