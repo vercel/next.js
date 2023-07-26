@@ -2,8 +2,10 @@
 
 import { appBootstrap } from './app-bootstrap'
 
+window.next.version += '-turbo'
+
 appBootstrap(() => {
-  require('./app-webpack')
+  require('./app-turbopack')
   const { hydrate } = require('./app-index')
   hydrate()
 })
