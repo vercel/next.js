@@ -13,10 +13,10 @@ const originModules = [
   require.resolve('../../../server/load-components'),
   require.resolve('../../../server/next-server'),
   require.resolve(
-    '../../../vendored/node_modules/react-server-dom-webpack-vendored/client.edge'
+    '../../../../vendored/node_modules/react-server-dom-webpack-vendored/client.edge'
   ),
   require.resolve(
-    '../../../vendored/node_modules/react-server-dom-webpack-experimental-vendored/client.edge'
+    '../../../../vendored/node_modules/react-server-dom-webpack-experimental-vendored/client.edge'
   ),
 ]
 

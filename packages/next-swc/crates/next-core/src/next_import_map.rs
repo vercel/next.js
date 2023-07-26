@@ -59,7 +59,7 @@ pub async fn get_next_client_import_map(
     )
     .await?;
 
-    let vendor_dir = get_next_package(project_path).join("dist/vendored".into());
+    let vendor_dir = get_next_package(project_path).join("vendored".into());
 
     match ty.into_value() {
         ClientContextType::Pages { pages_dir } => {
@@ -90,41 +90,33 @@ pub async fn get_next_client_import_map(
         }
         ClientContextType::App { app_dir: _ } => {
             import_map.insert_exact_alias(
-                "react",
-                request_to_import_mapping(vendor_dir, "react-vendored"),
-            );
-            import_map.insert_wildcard_alias(
-                "react/",
-                request_to_import_mapping(vendor_dir, "react-vendored/*"),
-            );
-            import_map.insert_exact_alias(
-                "react-dom",
-                request_to_import_mapping(vendor_dir, "react-dom-vendored"),
-            );
-            import_map.insert_wildcard_alias(
-                "react-dom/",
-                request_to_import_mapping(vendor_dir, "react-dom-vendored/*"),
-            );
-            import_map.insert_exact_alias(
-                "react-server-dom-webpack",
-                request_to_import_mapping(vendor_dir, "react-server-dom-webpack-vendored"),
-            );
-            import_map.insert_wildcard_alias(
-                "react-server-dom-webpack/",
-                request_to_import_mapping(vendor_dir, "react-server-dom-webpack-vendored/*"),
-            );
-            import_map.insert_exact_alias(
-                "scheduler",
-                request_to_import_mapping(vendor_dir, "scheduler-vendored"),
-            );
-            import_map.insert_wildcard_alias(
-                "scheduler/",
-                request_to_import_mapping(vendor_dir, "scheduler-vendored/*"),
-            );
-            import_map.insert_exact_alias(
                 "next/dynamic",
                 request_to_import_mapping(project_path, "next/dist/shared/lib/app-dynamic"),
             );
+
+            for (package_name, vendored_name) in [
+                ("react", "react-vendored"),
+                ("react-dom", "react-dom-vendored"),
+                (
+                    "react-server-dom-webpack",
+                    "react-server-dom-webpack-vendored",
+                ),
+                ("scheduler", "scheduler-vendored"),
+                ("client-only", "client-only-vendored"),
+                ("server-only", "server-only-vendored"),
+            ] {
+                import_map.insert_exact_alias(
+                    package_name,
+                    request_to_import_mapping(vendor_dir, vendored_name),
+                );
+                import_map.insert_wildcard_alias(
+                    format!("{}{}", package_name, "/"),
+                    request_to_import_mapping(
+                        vendor_dir,
+                        format!("{}{}", vendored_name, "/*").as_str(),
+                    ),
+                );
+            }
         }
         ClientContextType::Fallback => {}
         ClientContextType::Other => {}
@@ -390,7 +382,7 @@ async fn insert_next_server_special_aliases(
         NextRuntime::Edge => request_to_import_mapping(context_dir, request),
         NextRuntime::NodeJs => external_request_to_import_mapping(request),
     };
-    let vendor_dir = get_next_package(project_path).join("dist/vendored".into());
+    let vendor_dir = get_next_package(project_path).join("vendored".into());
     match (mode, ty) {
         (_, ServerContextType::Pages { pages_dir }) => {
             import_map.insert_exact_alias(
@@ -439,38 +431,30 @@ async fn insert_next_server_special_aliases(
                 // @opentelemetry/api
                 request_to_import_mapping(app_dir, "next/dist/compiled/@opentelemetry/api"),
             );
-            import_map.insert_exact_alias(
-                "react",
-                request_to_import_mapping(vendor_dir, "react-vendored"),
-            );
-            import_map.insert_wildcard_alias(
-                "react/",
-                request_to_import_mapping(vendor_dir, "react-vendored/*"),
-            );
-            import_map.insert_exact_alias(
-                "react-dom",
-                request_to_import_mapping(vendor_dir, "react-dom-vendored/server-rendering-stub"),
-            );
-            import_map.insert_wildcard_alias(
-                "react-dom/",
-                request_to_import_mapping(vendor_dir, "react-dom-vendored/*"),
-            );
-            import_map.insert_exact_alias(
-                "react-server-dom-webpack",
-                request_to_import_mapping(vendor_dir, "react-server-dom-webpack-vendored"),
-            );
-            import_map.insert_wildcard_alias(
-                "react-server-dom-webpack/",
-                request_to_import_mapping(vendor_dir, "react-server-dom-webpack-vendored/*"),
-            );
-            import_map.insert_exact_alias(
-                "scheduler",
-                request_to_import_mapping(vendor_dir, "scheduler-vendored"),
-            );
-            import_map.insert_wildcard_alias(
-                "scheduler/",
-                request_to_import_mapping(vendor_dir, "scheduler-vendored/*"),
-            );
+
+            for (package_name, vendored_name) in [
+                ("react", "react-vendored"),
+                ("react-dom", "react-dom-vendored"),
+                (
+                    "react-server-dom-webpack",
+                    "react-server-dom-webpack-vendored",
+                ),
+                ("scheduler", "scheduler-vendored"),
+                ("client-only", "client-only-vendored"),
+                ("server-only", "server-only-vendored"),
+            ] {
+                import_map.insert_exact_alias(
+                    package_name,
+                    request_to_import_mapping(vendor_dir, vendored_name),
+                );
+                import_map.insert_wildcard_alias(
+                    format!("{}{}", package_name, "/"),
+                    request_to_import_mapping(
+                        vendor_dir,
+                        format!("{}{}", vendored_name, "/*").as_str(),
+                    ),
+                );
+            }
         }
         // NOTE(alexkirsz) This logic maps loosely to
         // `next.js/packages/next/src/build/webpack-config.ts`, where:
@@ -492,34 +476,28 @@ async fn insert_next_server_special_aliases(
                 // @opentelemetry/api
                 request_to_import_mapping(app_dir, "next/dist/compiled/@opentelemetry/api"),
             );
-            import_map.insert_exact_alias(
-                "react",
-                request_to_import_mapping(vendor_dir, "react-vendored"),
-            );
-            import_map.insert_exact_alias(
-                "react-dom",
-                request_to_import_mapping(vendor_dir, "react-dom-vendored/server-rendering-stub"),
-            );
-            import_map.insert_exact_alias(
-                "react-server-dom-webpack",
-                request_to_import_mapping(vendor_dir, "react-server-dom-webpack-vendored"),
-            );
-            import_map.insert_exact_alias(
-                "scheduler",
-                request_to_import_mapping(vendor_dir, "scheduler-vendored"),
-            );
-            for (wildcard_alias, request) in [
-                ("react/", "react-vendored/*"),
-                ("react-dom/", "react-dom-vendored/*"),
+
+            for (package_name, vendored_name) in [
+                ("react", "react-vendored"),
+                ("react-dom", "react-dom-vendored"),
                 (
-                    "react-server-dom-webpack/",
-                    "react-server-dom-webpack-vendored/*",
+                    "react-server-dom-webpack",
+                    "react-server-dom-webpack-vendored",
                 ),
-                ("scheduler/", "scheduler-vendored/*"),
+                ("scheduler", "scheduler-vendored"),
+                ("client-only", "client-only-vendored"),
+                ("server-only", "server-only-vendored"),
             ] {
+                import_map.insert_exact_alias(
+                    package_name,
+                    request_to_import_mapping(vendor_dir, vendored_name),
+                );
                 import_map.insert_wildcard_alias(
-                    wildcard_alias,
-                    request_to_import_mapping(vendor_dir, request),
+                    format!("{}{}", package_name, "/"),
+                    request_to_import_mapping(
+                        vendor_dir,
+                        format!("{}{}", vendored_name, "/*").as_str(),
+                    ),
                 );
             }
         }
@@ -527,27 +505,21 @@ async fn insert_next_server_special_aliases(
         //
         // * always uses externals, to ensure we're using the same React instance as the Next.js
         //   runtime
-        // * maps react-dom -> react-dom/server-rendering-stub
-        // * passes through react and (react|react-dom|react-server-dom-webpack)/(.*) to
-        //   next/vendored/node_modules/react-vendored and next/dist/compiled/$1-vendored/$2 resp.
         (NextMode::Build | NextMode::Development, ServerContextType::AppSSR { .. }) => {
-            import_map.insert_exact_alias("react", external_if_node(vendor_dir, "react"));
-            // This needs to alias to server-rendering-stub if not node.
-            import_map.insert_exact_alias("react-dom", external_if_node(vendor_dir, "react-dom"));
-            import_map.insert_exact_alias(
+            for package_name in [
+                "react",
+                "react-dom",
                 "react-server-dom-webpack",
-                external_if_node(vendor_dir, "react-server-dom-webpack"),
-            );
-            import_map
-                .insert_exact_alias("scheduler", external_request_to_import_mapping("scheduler"));
-            for (wildcard_alias, request) in [
-                ("react/", "react/*"),
-                ("react-dom/", "react-dom/*"),
-                ("react-server-dom-webpack/", "react-server-dom-webpack/*"),
-                ("scheduler/", "scheduler/*"),
+                "scheduler",
+                "client-only",
+                "server-only",
             ] {
-                let import_mapping = external_if_node(vendor_dir, request);
-                import_map.insert_wildcard_alias(wildcard_alias, import_mapping);
+                import_map
+                    .insert_exact_alias(package_name, external_if_node(vendor_dir, package_name));
+                import_map.insert_wildcard_alias(
+                    format!("{}{}", package_name, "/"),
+                    external_if_node(vendor_dir, format!("{}{}", package_name, "/*").as_str()),
+                );
             }
         }
         (_, ServerContextType::Middleware) => {}

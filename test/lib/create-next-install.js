@@ -106,7 +106,7 @@ async function createNextInstall({
                   filter: (item) => {
                     return (
                       // We allowlist this node_modules because it would otherwise be excluded below
-                      item.includes('/vendored/node_modules') ||
+                      item.includes('vendored/node_modules') ||
                       // We denylist the following items
                       !(
                         item.includes('node_modules') ||

@@ -202,10 +202,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
 
     await span.traceChild('create-trace-assets').traceAsyncFn(async () => {
       const packageBase = require.resolve('next/package.json')
-      const vendorDir = nodePath.join(
-        packageBase,
-        '../dist/vendored/node_modules'
-      )
+      const vendorDir = nodePath.join(packageBase, '../vendored/node_modules')
 
       const entryFilesMap = new Map<any, Set<string>>()
 
@@ -324,7 +321,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
       }
 
       for (const entrypoint of compilation.entrypoints.values()) {
-        // Tracing is cached separately for App Router vs Pages Router since the module resulotion is not identical
+        // Tracing is cached separately for App Router vs Pages Router since the module resolution is not identical
         // across these two types of entrypoints.
         const isAppRouter = entrypoint.name.startsWith('app/')
 

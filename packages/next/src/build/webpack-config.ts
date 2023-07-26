@@ -110,8 +110,8 @@ const ssrLayerRegex =
   /next[\\/]dist[\\/](esm[\\/])?(client|server)[\\/].*?(?:\.|[\\/])clientlayer(?:$|(?:\.(tsx|ts|js|cjs|mjs|jsx))|\\|\/)/
 const serverComponentsLayerRegex =
   /next[\\/]dist[\\/](esm[\\/])?(client|server)[\\/].*?(?:\.|[\\/])serverlayer(?:$|(?:\.(tsx|ts|js|cjs|mjs|jsx))|\\|\/)/
-const sharedLayerRegex =
-  /next[\\/]dist[\\/](esm[\\/])?(client|server)[\\/].*?(?:\.|[\\/])sharedlayer(?:$|(?:\.(tsx|ts|js|cjs|mjs|jsx))|\\|\/)/
+const asyncStoragesRegex =
+  /next[\\/]dist[\\/](esm[\\/])?client[\\/]components[\\/](static-generation-async-storage|action-async-storage|request-async-storage)/
 
 // exports.<conditionName>
 const edgeConditionNames = [
@@ -1932,7 +1932,7 @@ export default async function getBaseWebpackConfig(
                 },
               },
               {
-                include: sharedLayerRegex,
+                include: asyncStoragesRegex,
                 layer: WEBPACK_LAYERS.shared,
               },
               {
@@ -1953,7 +1953,7 @@ export default async function getBaseWebpackConfig(
                   and: [
                     codeCondition.test,
                     {
-                      not: [optOutBundlingPackageRegex, sharedLayerRegex],
+                      not: [optOutBundlingPackageRegex, asyncStoragesRegex],
                     },
                   ],
                 },
@@ -1998,7 +1998,7 @@ export default async function getBaseWebpackConfig(
                     issuerLayer: {
                       or: [isWebpackServerLayer],
                     },
-                    exclude: [sharedLayerRegex],
+                    exclude: [asyncStoragesRegex],
                     use: swcLoaderForServerLayer,
                   },
                   {
@@ -2016,7 +2016,7 @@ export default async function getBaseWebpackConfig(
                         WEBPACK_LAYERS.appPagesBrowser,
                       ],
                     },
-                    exclude: [sharedLayerRegex, codeCondition.exclude],
+                    exclude: [asyncStoragesRegex, codeCondition.exclude],
                     use: [
                       ...(dev && isClient
                         ? [
@@ -2176,7 +2176,7 @@ export default async function getBaseWebpackConfig(
             ]
           : []),
         {
-          test: /(node_modules|next[/\\]dist[/\\]compiled)[/\\]client-only[/\\]error.js/,
+          test: /(node_modules|next[/\\]vendored[/\\]node_modules)[/\\]client-only(-vendored)?[/\\]error.js/,
           loader: 'next-invalid-import-error-loader',
           issuerLayer: {
             or: [isWebpackServerLayer],
@@ -2187,7 +2187,7 @@ export default async function getBaseWebpackConfig(
           },
         },
         {
-          test: /(node_modules|next[/\\]dist[/\\]compiled)[/\\]server-only[/\\]index.js/,
+          test: /(node_modules|next[/\\]vendored[/\\]node_modules)[/\\]server-only(-vendored)?[/\\]index.js/,
           loader: 'next-invalid-import-error-loader',
           issuerLayer: WEBPACK_LAYERS.serverSideRendering,
           options: {

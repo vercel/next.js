@@ -12,7 +12,7 @@ import {
 import { createRecordFromThenable } from '../create-record-from-thenable'
 import { readRecordValue } from '../read-record-value'
 
-// Making this as a namespace import to avoid erroring on the server where the node version is loaded
+// Marking this as a namespace import to avoid erroring on the server where the node version is loaded
 // This code is only actually called on the client so it's fine for the node package to be
 // used on the server as long as no methods are actually called from it.
 // @TODO-APP Refactor this to use forking so the SSR variant doesn't load any code

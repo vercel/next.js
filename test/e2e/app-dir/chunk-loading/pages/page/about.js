@@ -4,7 +4,7 @@ import { Links } from '../../components/links'
 import { DynamicShared } from '../../components/DynamicShared'
 
 export function getServerSideProps() {
-  return
+  return { props: {} }
 }
 
 export default function About() {

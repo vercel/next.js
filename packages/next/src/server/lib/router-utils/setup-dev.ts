@@ -273,11 +273,11 @@ async function startWatcher(opts: SetupOpts) {
             .concat([
               // We need to clear the chunk cache in react
               require.resolve(
-                'next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.edge.development.js'
+                'next/vendored/node_modules/react-server-dom-webpack-vendored/cjs/react-server-dom-webpack-client.edge.development.js'
               ),
               // And this redirecting module as well
               require.resolve(
-                'next/dist/compiled/react-server-dom-webpack/client.edge.js'
+                'next/vendored/node_modules/react-server-dom-webpack-vendored/client.edge.js'
               ),
             ])
         )
