@@ -1,17 +1,14 @@
 {
-  "name": "with-meilisearch",
-  "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
+    "start": "next start"
   },
   "dependencies": {
-    "@meilisearch/instant-meilisearch": "^0.13.3",
+    "@meilisearch/instant-meilisearch": "latest",
     "autoprefixer": "10.4.14",
-    "next": "13.4.12",
+    "next": "latest",
     "postcss": "8.4.27",
     "react": "18.2.0",
     "react-dom": "18.2.0",
