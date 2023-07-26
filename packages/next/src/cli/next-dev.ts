@@ -226,6 +226,9 @@ const nextDev: CliCommand = async (argv) => {
   if (experimentalTurbo) {
     const { loadBindings } =
       require('../build/swc') as typeof import('../build/swc')
+    const { default: loadJsConfig } =
+      require('../build/load-jsconfig') as typeof import('../build/load-jsconfig')
+    const { jsConfig } = await loadJsConfig(dir, config)
 
     resetEnv()
     let bindings = await loadBindings()
@@ -236,6 +239,7 @@ const nextDev: CliCommand = async (argv) => {
       projectPath: dir,
       rootPath: args['--root'] ?? findRootDir(dir) ?? dir,
       nextConfig: config,
+      jsConfig,
       env: {
         NEXT_PUBLIC_ENV_VAR: 'world',
       },

@@ -41,6 +41,9 @@ pub struct NapiProjectOptions {
     /// The contents of next.config.js, serialized to JSON.
     pub next_config: String,
 
+    /// The contents of ts/config read by load-jsconfig, serialized to JSON.
+    pub js_config: String,
+
     /// A map of environment variables to use when compiling code.
     pub env: Vec<NapiEnvVar>,
 }
@@ -58,6 +61,7 @@ impl From<NapiProjectOptions> for ProjectOptions {
             project_path: val.project_path,
             watch: val.watch,
             next_config: val.next_config,
+            js_config: val.js_config,
             env: val
                 .env
                 .into_iter()
