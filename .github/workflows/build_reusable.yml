@@ -82,7 +82,7 @@ jobs:
 
     defaults:
       run:
-        shell: bash
+        shell: bash -leo pipefail {0}
 
     container:
       image: public.ecr.aws/c7u5x0t0/nextjs-runner:latest
