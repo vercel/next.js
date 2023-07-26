@@ -76,13 +76,17 @@ jobs:
   build:
     timeout-minutes: 25
     runs-on:
-      - 'self-hosted'
-      - 'size:lg'
-      - 'platform:linux/amd64'
+      # - 'self-hosted'
+      # - 'size:lg'
+      # - 'platform:linux/amd64'
+
+      - self-hosted
+      - Linux
+      - x64
 
     defaults:
       run:
-        shell: bash -leo pipefail {0}
+        shell: bash -leo pipefail -c "source /root/.bashrc && {0}"
 
     container:
       image: public.ecr.aws/c7u5x0t0/nextjs-runner:latest
@@ -90,7 +94,6 @@ jobs:
     steps:
       - run: env
       - run: pwd
-      - run: cat ~/.bashrc
       - run: fnm install ${{ inputs.nodeVersion || env.NODE_LTS_VERSION }}
       - run: fnm use ${{ inputs.nodeVersion || env.NODE_LTS_VERSION }}
       - run: node -v
