@@ -447,11 +447,17 @@ async function startWatcher(opts: SetupOpts) {
             }
 
             async function loadAppPathManifest(
-              pageName: string
+              pageName: string,
+              routeHandler: boolean
             ): Promise<void> {
               appPathsManifests.set(
                 pageName,
-                await loadPartialManifest(APP_PATHS_MANIFEST, pageName, true)
+                await loadPartialManifest(
+                  APP_PATHS_MANIFEST,
+                  pageName,
+                  true,
+                  routeHandler
+                )
               )
             }
 
@@ -487,7 +493,8 @@ async function startWatcher(opts: SetupOpts) {
             }
 
             switch (route.type) {
-              case 'page': {
+              case 'page':
+              case 'page-api': {
                 if (ensureOpts.isApp) {
                   throw new Error(
                     `mis-matched route type: isApp && page for ${page}`
@@ -501,8 +508,14 @@ async function startWatcher(opts: SetupOpts) {
                 await globalEntries.document?.writeToDisk()
                 await loadPagesManifest('_document')
 
-                const writtenEndpoint = await route.htmlEndpoint.writeToDisk()
-                await loadBuildManifest(page)
+                const writtenEndpoint =
+                  route.type === 'page-api'
+                    ? await route.endpoint.writeToDisk()
+                    : await route.htmlEndpoint.writeToDisk()
+
+                if (route.type === 'page') {
+                  await loadBuildManifest(page)
+                }
                 await loadPagesManifest(page)
 
                 switch (writtenEndpoint.type) {
@@ -526,14 +539,11 @@ async function startWatcher(opts: SetupOpts) {
 
                 break
               }
-              case 'page-api': {
-                break
-              }
               case 'app-page': {
                 await route.htmlEndpoint.writeToDisk()
 
                 await loadAppBuildManifest(page)
-                await loadAppPathManifest(page)
+                await loadAppPathManifest(page, false)
 
                 await writeAppBuildManifest()
                 await writeAppPathsManifest()
@@ -543,24 +553,19 @@ async function startWatcher(opts: SetupOpts) {
                 break
               }
               case 'app-route': {
+                await route.endpoint.writeToDisk()
+
+                await loadAppPathManifest(page, true)
+                await writeAppBuildManifest()
+                await writeAppPathsManifest()
+                await writeMiddlewareManifest()
+                await writeOtherManifests()
+
                 break
               }
               default: {
                 throw new Error(`unknown route type ${route.type} for ${page}`)
               }
-            }
-
-            const appRoute =
-              route.type === 'app-page' || route.type === 'app-route'
-
-            if (
-              ((ensureOpts.isApp && appRoute) || !ensureOpts.isApp) &&
-              'htmlEndpoint' in route
-            ) {
-            } else {
-              throw new Error(
-                `mis-matched route type ${route.type} ${ensureOpts.isApp}`
-              )
             }
           }
         }
