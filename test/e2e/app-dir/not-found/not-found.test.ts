@@ -9,7 +9,7 @@ createNextDescribe(
   },
   ({ next, isNextDev, isNextStart }) => {
     if (isNextStart) {
-      it('should include not found page in the file trace', async () => {
+      it('should include not found client reference manifest in the file trace', async () => {
         const fileTrace = JSON.parse(
           await next.readFile('.next/server/app/_not-found.js.nft.json')
         )
