@@ -374,14 +374,27 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
 
     if (options.result.isDynamic) {
       const writer = res.transformStream.writable.getWriter()
-      options.result.pipe({
+
+      let innerClose: undefined | (() => void)
+      const target = {
         write: (chunk: Uint8Array) => writer.write(chunk),
         end: () => writer.close(),
-        destroy: (err: Error) => writer.abort(err),
-        cork: () => {},
-        uncork: () => {},
-        // Not implemented: on/removeListener
-      } as any)
+
+        on(_event: 'close', cb: () => void) {
+          innerClose = cb
+        },
+        off(_event: 'close', _cb: () => void) {
+          innerClose = undefined
+        },
+      }
+      const onClose = () => {
+        innerClose?.()
+      }
+      // No, this cannot be replaced with `finally`, because early cancelling
+      // the stream will create a rejected promise, and finally will create an
+      // unhandled rejection.
+      writer.closed.then(onClose, onClose)
+      options.result.pipe(target)
     } else {
       const payload = await options.result.toUnchunkedString()
       res.setHeader('Content-Length', String(byteLength(payload)))

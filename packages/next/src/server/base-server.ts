@@ -116,6 +116,7 @@ import {
   type RouteMatch,
 } from './future/route-matches/route-match'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
+import { signalFromNodeResponse } from './web/spec-extension/adapters/next-request'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -720,11 +721,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         addRequestMeta(req, '_nextHadBasePath', true)
       }
 
+      const useMatchedPathHeader =
+        this.minimalMode && typeof req.headers['x-matched-path'] === 'string'
+
       // TODO: merge handling with x-invoke-path
-      if (
-        this.minimalMode &&
-        typeof req.headers['x-matched-path'] === 'string'
-      ) {
+      if (useMatchedPathHeader) {
         try {
           if (this.hasAppDir) {
             // ensure /index path is normalized for prerender
@@ -738,7 +739,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           // x-matched-path is the source of truth, it tells what page
           // should be rendered because we don't process rewrites in minimalMode
           let matchedPath = normalizeRscPath(
-            new URL(req.headers['x-matched-path'], 'http://localhost').pathname,
+            new URL(req.headers['x-matched-path'] as string, 'http://localhost')
+              .pathname,
             this.hasAppDir
           )
 
@@ -1023,14 +1025,14 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       // when x-invoke-path is specified we can short short circuit resolving
       // we only honor this header if we are inside of a render worker to
       // prevent external users coercing the routing path
-      const matchedPath = req.headers['x-invoke-path'] as string
-
-      if (
-        !(req.headers['x-matched-path'] && this.minimalMode) &&
+      const invokePath = req.headers['x-invoke-path'] as string
+      const useInvokePath =
+        !useMatchedPathHeader &&
         process.env.NEXT_RUNTIME !== 'edge' &&
         process.env.__NEXT_PRIVATE_RENDER_WORKER &&
-        matchedPath
-      ) {
+        invokePath
+
+      if (useInvokePath) {
         if (req.headers['x-invoke-status']) {
           const invokeQuery = req.headers['x-invoke-query']
 
@@ -1054,7 +1056,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           return this.renderError(err, req, res, '/_error', parsedUrl.query)
         }
 
-        const parsedMatchedPath = new URL(matchedPath || '/', 'http://n')
+        const parsedMatchedPath = new URL(invokePath || '/', 'http://n')
         const invokePathnameInfo = getNextPathnameInfo(
           parsedMatchedPath.pathname,
           {
@@ -1137,6 +1139,14 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           res.send()
         }
         return
+      }
+
+      // ensure we strip the basePath when not using an invoke header
+      if (!(useMatchedPathHeader || useInvokePath) && pathnameInfo.basePath) {
+        parsedUrl.pathname = removePathPrefix(
+          parsedUrl.pathname,
+          pathnameInfo.basePath
+        )
       }
 
       res.statusCode = 200
@@ -1828,7 +1838,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
         try {
           // Handle the match and collect the response if it's a static response.
-          const response = await this.handlers.handle(match, req, context)
+          const response = await this.handlers.handle(
+            match,
+            req,
+            context,
+            signalFromNodeResponse((res as NodeNextResponse).originalResponse)
+          )
 
           ;(req as any).fetchMetrics = (
             context.staticGenerationContext as any

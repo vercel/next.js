@@ -341,6 +341,17 @@ interface ProjectOptions {
   nextConfig: NextConfigComplete
 
   /**
+   * Jsconfig, or tsconfig contents.
+   *
+   * Next.js implicitly requires to read it to support few options
+   * https://nextjs.org/docs/architecture/nextjs-compiler#legacy-decorators
+   * https://nextjs.org/docs/architecture/nextjs-compiler#importsource
+   */
+  jsConfig: {
+    compilerOptions: object
+  }
+
+  /**
    * A map of environment variables to use when compiling code.
    */
   env: Record<string, string>
@@ -561,6 +572,7 @@ function bindingToApi(binding: any, _wasm: boolean) {
     return {
       ...options,
       nextConfig: await serializeNextConfig(options.nextConfig),
+      jsConfig: JSON.stringify(options.jsConfig ?? {}),
       env: Object.entries(options.env).map(([name, value]) => ({
         name,
         value,
