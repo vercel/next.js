@@ -247,6 +247,8 @@ function Root({ children }: React.PropsWithChildren<{}>): React.ReactElement {
   }
 
   if (process.env.NODE_ENV !== 'production') {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    const [isServer, setServer] = React.useState(true)
     const ReactDevOverlay: typeof import('./components/react-dev-overlay/internal/ReactDevOverlay').default =
       require('./components/react-dev-overlay/internal/ReactDevOverlay')
         .default as typeof import('./components/react-dev-overlay/internal/ReactDevOverlay').default
@@ -291,6 +293,14 @@ function Root({ children }: React.PropsWithChildren<{}>): React.ReactElement {
         websocket && websocket.removeEventListener('message', handler)
     }, [webSocketRef, hadRuntimeError])
 
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    React.useEffect(() => {
+      setServer(false)
+    }, [])
+
+    if (isServer) {
+      return <>{children}</>
+    }
     // if an error is thrown while rendering an RSC stream, this will catch it in dev
     // and show the error overlay
     return (
