@@ -334,6 +334,7 @@ export function hydrate() {
             changeByServerResponse: () => {},
             focusAndScrollRef: {
               apply: false,
+              onlyHashChange: false,
               hashFragment: null,
               segmentPaths: [],
             },

@@ -158,7 +158,7 @@ interface ScrollAndFocusHandlerProps {
   segmentPath: FlightSegmentPath
 }
 class InnerScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerProps> {
-  handlePotentialScroll = (isUpdate?: boolean) => {
+  handlePotentialScroll = () => {
     // Handle scroll and focus, it's only applied once in the first useEffect that triggers that changed.
     const { focusAndScrollRef, segmentPath } = this.props
 
@@ -185,6 +185,8 @@ class InnerScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerPr
       if (hashFragment) {
         domNode = getHashFragmentDomNode(hashFragment)
       }
+
+      console.log(focusAndScrollRef.onlyHashChange)
 
       // `findDOMNode` is tricky because it returns just the first child if the component is a fragment.
       // This already caused a bug where the first child was a <link/> in head.
@@ -247,7 +249,7 @@ class InnerScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerPr
         {
           // We will force layout by querying domNode position
           dontForceLayout: true,
-          onlyHashChange: !!isUpdate,
+          onlyHashChange: focusAndScrollRef.onlyHashChange,
         }
       )
 
@@ -263,7 +265,7 @@ class InnerScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerPr
   componentDidUpdate() {
     // Because this property is overwritten in handlePotentialScroll it's fine to always run it when true as it'll be set to false for subsequent renders.
     if (this.props.focusAndScrollRef.apply) {
-      this.handlePotentialScroll(true)
+      this.handlePotentialScroll()
     }
   }
 
