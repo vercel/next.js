@@ -28,15 +28,15 @@ use next_core::{
     util::NextRuntime,
 };
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, Completion, TryJoinIterExt, Value, Vc};
+use turbo_tasks::{trace::TraceRawVcs, Completion, TryFlatJoinIterExt, TryJoinIterExt, Value, Vc};
 use turbopack_binding::{
     turbo::{
         tasks_env::{CustomProcessEnv, ProcessEnv},
-        tasks_fs::{File, FileSystemPath},
+        tasks_fs::{rope::RopeBuilder, File, FileContent, FileSystemPath},
     },
     turbopack::{
         core::{
-            asset::AssetContent,
+            asset::{Asset, AssetContent},
             changed::any_content_changed_of_output_assets,
             chunk::{ChunkableModule, ChunkingContext, EvaluatableAssets},
             file_source::FileSource,
@@ -608,6 +608,29 @@ impl AppEndpoint {
         );
         output_assets.push(entry_manifest);
 
+        fn create_app_paths_manifest(
+            node_root: Vc<FileSystemPath>,
+            original_name: &str,
+            filename: String,
+        ) -> Result<Vc<Box<dyn OutputAsset>>> {
+            let path =
+                node_root.join(format!("server/app{original_name}/app-paths-manifest.json",));
+            let app_paths_manifest = AppPathsManifest {
+                node_server_app_paths: PagesManifest {
+                    pages: [(original_name.to_string(), filename)]
+                        .into_iter()
+                        .collect(),
+                },
+                ..Default::default()
+            };
+            Ok(Vc::upcast(VirtualOutputAsset::new(
+                path,
+                AssetContent::file(
+                    File::from(serde_json::to_string_pretty(&app_paths_manifest)?).into(),
+                ),
+            )))
+        }
+
         let endpoint_output = match app_entry.config.await?.runtime.unwrap_or_default() {
             NextRuntime::Edge => {
                 let chunking_context = this.app_project.project().edge_rsc_chunking_context();
@@ -617,10 +640,30 @@ impl AppEndpoint {
                         .as_root_chunk(Vc::upcast(chunking_context)),
                     this.app_project.edge_rsc_runtime_entries(),
                 );
-                output_assets.extend(files.await?.iter().copied());
+                // TODO concatenation is not good, we should use all files once next.js supports
+                // that output_assets.extend(files.await?.iter().copied());
+                let file = concatenate_output_assets(
+                    server_path.join(format!(
+                        "app/{original_name}.js",
+                        original_name = app_entry.original_name
+                    )),
+                    files,
+                );
+                output_assets.push(file);
+
+                let app_paths_manifest_output = create_app_paths_manifest(
+                    node_root,
+                    &app_entry.original_name,
+                    server_path
+                        .await?
+                        .get_path_to(&*file.ident().path().await?)
+                        .expect("edge bundle path should be within app paths manifest directory")
+                        .to_string(),
+                )?;
+                output_assets.push(app_paths_manifest_output);
 
                 AppEndpointOutput::Edge {
-                    files,
+                    file,
                     output_assets: Vc::cell(output_assets),
                 }
             }
@@ -639,32 +682,15 @@ impl AppEndpoint {
                     );
                 output_assets.push(rsc_chunk);
 
-                let app_paths_manifest = AppPathsManifest {
-                    node_server_app_paths: PagesManifest {
-                        pages: [(
-                            app_entry.original_name.clone(),
-                            server_path
-                                .await?
-                                .get_path_to(&*rsc_chunk.ident().path().await?)
-                                .expect(
-                                    "RSC chunk path should be within app paths manifest directory",
-                                )
-                                .to_string(),
-                        )]
-                        .into_iter()
-                        .collect(),
-                    },
-                    ..Default::default()
-                };
-                let app_paths_manifest_output = Vc::upcast(VirtualOutputAsset::new(
-                    node_root.join(format!(
-                        "server/app{original_name}/app-paths-manifest.json",
-                        original_name = app_entry.original_name
-                    )),
-                    AssetContent::file(
-                        File::from(serde_json::to_string_pretty(&app_paths_manifest)?).into(),
-                    ),
-                ));
+                let app_paths_manifest_output = create_app_paths_manifest(
+                    node_root,
+                    &app_entry.original_name,
+                    server_path
+                        .await?
+                        .get_path_to(&*rsc_chunk.ident().path().await?)
+                        .expect("RSC chunk path should be within app paths manifest directory")
+                        .to_string(),
+                )?;
                 output_assets.push(app_paths_manifest_output);
 
                 AppEndpointOutput::NodeJs {
@@ -675,6 +701,40 @@ impl AppEndpoint {
         };
         Ok(endpoint_output.cell())
     }
+}
+
+#[turbo_tasks::function]
+async fn concatenate_output_assets(
+    path: Vc<FileSystemPath>,
+    files: Vc<OutputAssets>,
+) -> Result<Vc<Box<dyn OutputAsset>>> {
+    let mut concatenated_content = RopeBuilder::default();
+    let contents = files
+        .await?
+        .iter()
+        .map(|&file| async move {
+            Ok(
+                if let AssetContent::File(content) = *file.content().await? {
+                    Some(content.await?)
+                } else {
+                    None
+                },
+            )
+        })
+        .try_flat_join()
+        .await?;
+    for file in contents
+        .iter()
+        .map(|content| content.as_content())
+        .flatten()
+    {
+        concatenated_content.concat(file.content());
+        concatenated_content.push_static_bytes(b"\n\n");
+    }
+    Ok(Vc::upcast(VirtualOutputAsset::new(
+        path,
+        AssetContent::file(FileContent::Content(concatenated_content.build().into()).cell()),
+    )))
 }
 
 #[turbo_tasks::value_impl]
@@ -709,25 +769,18 @@ impl Endpoint for AppEndpoint {
             } => WrittenEndpoint::NodeJs {
                 server_entry_path: node_root_ref
                     .get_path_to(&*rsc_chunk.ident().path().await?)
-                    .context("rsc chunk entry path must be inside the node root")?
+                    .context("Node.js chunk entry path must be inside the node root")?
                     .to_string(),
                 server_paths,
             },
             AppEndpointOutput::Edge {
-                files,
+                file,
                 output_assets: _,
             } => WrittenEndpoint::Edge {
-                files: files
-                    .await?
-                    .iter()
-                    .map(|&file| async move {
-                        Ok(node_root_ref
-                            .get_path_to(&*file.ident().path().await?)
-                            .context("ssr chunk file path must be inside the node root")?
-                            .to_string())
-                    })
-                    .try_join()
-                    .await?,
+                files: vec![node_root_ref
+                    .get_path_to(&*file.ident().path().await?)
+                    .context("edge chunk file path must be inside the node root")?
+                    .to_string()],
                 global_var_name: "TODO".to_string(),
                 server_paths,
             },
@@ -749,7 +802,7 @@ enum AppEndpointOutput {
         output_assets: Vc<OutputAssets>,
     },
     Edge {
-        files: Vc<OutputAssets>,
+        file: Vc<Box<dyn OutputAsset>>,
         output_assets: Vc<OutputAssets>,
     },
 }
@@ -764,7 +817,7 @@ impl AppEndpointOutput {
                 output_assets,
             } => output_assets,
             AppEndpointOutput::Edge {
-                files: _,
+                file: _,
                 output_assets,
             } => output_assets,
         }
