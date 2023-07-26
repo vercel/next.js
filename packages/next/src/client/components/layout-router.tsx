@@ -186,8 +186,6 @@ class InnerScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerPr
         domNode = getHashFragmentDomNode(hashFragment)
       }
 
-      console.log(focusAndScrollRef.onlyHashChange)
-
       // `findDOMNode` is tricky because it returns just the first child if the component is a fragment.
       // This already caused a bug where the first child was a <link/> in head.
       if (!domNode) {
