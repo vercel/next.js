@@ -211,6 +211,7 @@ class InnerScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerPr
 
       // State is mutated to ensure that the focus and scroll is applied only once.
       focusAndScrollRef.apply = false
+      focusAndScrollRef.onlyHashChange = false
       focusAndScrollRef.hashFragment = null
       focusAndScrollRef.segmentPaths = []
 
