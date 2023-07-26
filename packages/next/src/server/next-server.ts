@@ -281,7 +281,7 @@ export default class NextNodeServer extends BaseServer {
       CacheHandler = CacheHandler.default || CacheHandler
     }
 
-    // incremental-cache is request specific with a shared
+    // incremental-cache is request specific
     // although can have shared caches in module scope
     // per-cache handler
     return new IncrementalCache({

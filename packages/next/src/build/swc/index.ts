@@ -16,7 +16,6 @@ const nextVersion = process.env.__NEXT_VERSION as string
 
 const ArchName = arch()
 const PlatformName = platform()
-const triples = platformArchTriples[PlatformName]?.[ArchName] || []
 
 const infoLog = (...args: any[]) => {
   if (process.env.NEXT_PRIVATE_BUILD_WORKER) {
@@ -24,6 +23,67 @@ const infoLog = (...args: any[]) => {
   }
   Log.info(...args)
 }
+
+/**
+ * Based on napi-rs's target triples, returns triples that have corresponding next-swc binaries.
+ */
+const getSupportedArchTriples: () => Record<string, any> = () => {
+  const { darwin, win32, linux, freebsd, android } = platformArchTriples
+
+  return {
+    darwin,
+    win32: {
+      arm64: win32.arm64,
+      ia32: win32.ia32.filter(
+        (triple: { abi: string }) => triple.abi === 'msvc'
+      ),
+      x64: win32.x64.filter((triple: { abi: string }) => triple.abi === 'msvc'),
+    },
+    linux: {
+      // linux[x64] includes `gnux32` abi, with x64 arch.
+      x64: linux.x64.filter(
+        (triple: { abi: string }) => triple.abi !== 'gnux32'
+      ),
+      arm64: linux.arm64,
+      // This target is being deprecated, however we keep it in `knownDefaultWasmFallbackTriples` for now
+      arm: linux.arm,
+    },
+    // Below targets are being deprecated, however we keep it in `knownDefaultWasmFallbackTriples` for now
+    freebsd: {
+      x64: freebsd.x64,
+    },
+    android: {
+      arm64: android.arm64,
+      arm: android.arm,
+    },
+  }
+}
+
+const triples = (() => {
+  const supportedArchTriples = getSupportedArchTriples()
+  const targetTriple = supportedArchTriples[PlatformName]?.[ArchName]
+
+  // If we have supported triple, return it right away
+  if (targetTriple) {
+    return targetTriple
+  }
+
+  // If there isn't corresponding target triple in `supportedArchTriples`, check if it's excluded from original raw triples
+  // Otherwise, it is completely unsupported platforms.
+  let rawTargetTriple = platformArchTriples[PlatformName]?.[ArchName]
+
+  if (rawTargetTriple) {
+    Log.warn(
+      `Trying to load next-swc for target triple ${rawTargetTriple}, but there next-swc does not have native bindings support`
+    )
+  } else {
+    Log.warn(
+      `Trying to load next-swc for unsupported platforms ${PlatformName}/${ArchName}`
+    )
+  }
+
+  return []
+})()
 
 // Allow to specify an absolute path to the custom turbopack binary to load.
 // If one of env variables is set, `loadNative` will try to use any turbo-* interfaces from specified
@@ -65,12 +125,13 @@ function checkVersionMismatch(pkgData: any) {
 // once we can verify loading-wasm-first won't cause visible regressions,
 // we'll not include native bindings for these platform at all.
 const knownDefaultWasmFallbackTriples = [
-  'aarch64-linux-android',
   'x86_64-unknown-freebsd',
-  'aarch64-pc-windows-msvc',
+  'aarch64-linux-android',
   'arm-linux-androideabi',
   'armv7-unknown-linux-gnueabihf',
   'i686-pc-windows-msvc',
+  // WOA targets are TBD, while current userbase is small we may support it in the future
+  //'aarch64-pc-windows-msvc',
 ]
 
 // The last attempt's error code returned when cjs require to native bindings fails.

@@ -1,3 +1,5 @@
+import '../node-polyfill-fetch'
+
 import type { Duplex } from 'stream'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { ChildProcess } from 'child_process'
