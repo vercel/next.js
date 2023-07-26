@@ -79,6 +79,7 @@ jobs:
       - 'self-hosted'
       - 'linux'
       - 'x64'
+      - 'hosted-ci-cd'
 
     container:
       image: public.ecr.aws/c7u5x0t0/nextjs-runner:latest
