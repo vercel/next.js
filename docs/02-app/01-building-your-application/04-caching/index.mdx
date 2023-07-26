@@ -10,12 +10,12 @@ Next.js has a few caching mechanisms to improve your application's performance. 
 
 Here's a high-level overview of the different caching mechanisms and their purpose:
 
-| Mechanism                                   | What is cached?                | Where is it cached? | Why is it cached?                                        | Duration                        |
-| ------------------------------------------- | ------------------------------ | ------------------- | -------------------------------------------------------- | ------------------------------- |
-| [Request Memoization](#request-memoization) | Return values of functions     | Server              | Share data between React components in a tree            | Per-request lifecycle           |
-| [Data Cache](#data-cache)                   | Return values of data requests | Server              | Share data across user requests and deployments          | Persistent (can be revalidated) |
-| [Full Route Cache](#full-route-cache)       | HTML and RSC payload           | Server              | Reduce rendering cost and improve performance            | Persistent (can be revalidated) |
-| [Router Cache](#router-cache)               | Route Segments (RSC Payload)   | Client              | Reduce server requests and improve navigation experience | User session or time-based.     |
+| Mechanism                                   | What                       | Where  | Purpose                                         | Duration                        |
+| ------------------------------------------- | -------------------------- | ------ | ----------------------------------------------- | ------------------------------- |
+| [Request Memoization](#request-memoization) | Return values of functions | Server | Re-use data in a React Component tree           | Per-request lifecycle           |
+| [Data Cache](#data-cache)                   | Data                       | Server | Store data across user requests and deployments | Persistent (can be revalidated) |
+| [Full Route Cache](#full-route-cache)       | HTML and RSC payload       | Server | Reduce rendering cost and improve performance   | Persistent (can be revalidated) |
+| [Router Cache](#router-cache)               | RSC Payload                | Client | Reduce server requests on navigation            | User session or time-based.     |
 
 By default, Next.js will cache as much as possible to improve performance and reduce cost. This means routes are statically rendered and data is cached. The diagram below shows the default caching behavior; at build time and when the application is first visited.
 
@@ -27,59 +27,71 @@ By default, Next.js will cache as much as possible to improve performance and re
   height="1117"
 />
 
-This behavior changes depending on whether the route is statically or dynamically rendered, data is cached or uncached, inital visit and subsequent navigations. Depending on your use case, you can configure the caching behavior for individual routes and data requests.
+This behavior changes depending on whether the route is statically or dynamically rendered, data is cached or uncached, whether it's the initial visit and subsequent navigations. Depending on your use case, you can configure the caching behavior for individual routes and data requests.
 
 ## Request Memoization
 
-In React Server Components, the [`fetch` API](#fetch) automatically **memoizes** data requests that have the same URL and options. This means you can call the same data in multiple places in a React component tree while only executing it once.
+React extends the [`fetch` API](#fetch) to automatically **memoize** requests that have the same URL and options. This means you can call the same data in multiple places in a React component tree while only executing it once.
 
 <Image
-  alt="Fetch Request Memoization"
+  alt="Deduplicated Fetch Requests"
   srcLight="/docs/light/deduplicated-fetch-requests.png"
   srcDark="/docs/dark/deduplicated-fetch-requests.png"
   width="1600"
   height="857"
 />
 
-By using `fetch`, you can fetch data in the components that need it without props drilling and worrying about the performance impact of making multiple requests for the same data. Memoization applies to `fetch` requests in `generateMetadata`, `generateStaticParams`, Layouts, Pages, and other Server Components
+For example, if you need to use the same data (e.g. current user) across a route, you do not have to fetch data globally, nor forward props between components. Instead, you can fetch data in the components that need the data without worrying about the performance implications of making multiple requests for the same data.
 
-For example:
-
-```tsx filename="app/page.tsx" switcher
-async function getComments() {
+```tsx filename="app/layout.tsx" switcher
+async function getUser() {
   const res = await fetch('https://...') // The result is cached
   return res.json()
 }
 
 // This function is called twice, but the result is only fetched once
-const comments = await getComments() // cache MISS
+const comments = await getUser() // cache MISS
 
-// The second call could be anywhere in your application
-const comments = await getComments() // cache HIT
+// The second call could be anywhere in your route
+const comments = await getUser() // cache HIT
 ```
 
-```jsx filename="app/page.js" switcher
-async function getComments() {
+```jsx filename="app/layout.js" switcher
+async function getUser() {
   const res = await fetch('https://...') // The result is cached
   return res.json()
 }
 
 // This function is called twice, but the result is only fetched once
-const comments = await getComments() // cache MISS
+const comments = await getUser() // cache MISS
 
-// The second call could be anywhere in your application
-const comments = await getComments() // cache HIT
+// The second call could be anywhere in your route
+const comments = await getUser() // cache HIT
 ```
 
-For cases where `fetch` is not suitable (e.g. database clients, CMS clients, or GraphQL), you can use the [React `cache` function](#react-cache-function) to manually memoize functions.
+<Image
+  alt="Fetch Request Memoization"
+  srcLight="/docs/light/request-memoization.png"
+  srcDark="/docs/dark/request-memoization.png"
+  width="1600"
+  height="770"
+/>
+
+The first time the request is called, it'll be a cache `MISS`, the function will be executed, and the data will be fetched from the Next.js [Data Cache](#data-cache) or your data store. Subsequent function calls will be a cache `HIT`, and the data will be returned from memory.
+
+> **Good to know**:
+>
+> - Request memoization is a React feature, not a Next.js feature. It's included here to show how it interacts with the other caching mechanisms.
+> - Memoization applies to `fetch` requests in `generateMetadata`, `generateStaticParams`, Layouts, Pages, and other Server Components.
+> - For cases where `fetch` is not suitable (e.g. database clients, CMS clients, or GraphQL), you can use the [React `cache` function](#react-cache-function) to manually memoize functions.
 
 ### Duration
 
-The cache lasts the lifetime of a server request or static rendering until rendering the React tree completes.
+The cache lasts the lifetime of a server request until the React component tree has finished rendering.
 
 ### Revalidating
 
-React's `cache` function is used specifically for memoizing the return values of functions. Since the memoization is not shared across requests and only applies during the rendering of the React tree, there is no need for revalidation.
+Since the memoization is not shared across requests and only applies during rendering, there is no need to revalidate it.
 
 ### Opting out
 
@@ -90,7 +102,7 @@ const { signal } = new AbortController()
 fetch(url, { signal })
 ```
 
-Since you manually opt into using the `cache` function, there's no way to opt out.
+Since you manually opt into using the React `cache` function, there's no way to opt out.
 
 ## Data Cache
 

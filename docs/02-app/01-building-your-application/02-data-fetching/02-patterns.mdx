@@ -23,7 +23,7 @@ You can fetch data on the server using Server Components, [Route Handlers](/docs
 
 If you need to use the same data (e.g. current user) in multiple components in a tree, you do not have to fetch data globally, nor forward props between components. Instead, you can use `fetch` or React `cache` in the component that needs the data without worrying about the performance implications of making multiple requests for the same data.
 
-This is possible because Next.js automatically memoizes `fetch` requests using React's `cache` function. Learn more about [request memoization](/docs/app/building-your-application/caching#request-memoization)
+This is possible because `fetch` requests are automatically memoized. Learn more about [request memoization](/docs/app/building-your-application/caching#request-memoization)
 
 > **Good to know**: This also applies to layouts, since it's not possible to pass data between a parent layout and its children.
 
