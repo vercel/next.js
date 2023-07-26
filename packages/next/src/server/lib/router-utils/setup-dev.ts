@@ -410,7 +410,7 @@ async function startWatcher(opts: SetupOpts) {
                 distDir,
                 `server`,
                 isApp ? 'app' : 'pages',
-                pageName === '/' ? 'index' : pageName,
+                pageName === '/' && !isApp ? 'index' : pageName,
                 isApp && pageName !== '/_not-found' && pageName !== '/not-found'
                   ? isRoute
                     ? 'route'
