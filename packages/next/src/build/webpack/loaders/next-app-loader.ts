@@ -638,6 +638,8 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     {
       tree: treeCodeResult.treeCode,
       pages: treeCodeResult.pages,
+      __next_app_require__: '__webpack_require__',
+      __next_app_load_chunk__: '() => Promise.resolve()',
     }
   )
 }

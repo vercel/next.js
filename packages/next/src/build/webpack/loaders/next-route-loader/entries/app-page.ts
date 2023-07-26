@@ -26,9 +26,6 @@ declare const __next_app_load_chunk__: any
 
 export const originalPathname = 'VAR_ORIGINAL_PATHNAME'
 export const __next_app__ = {
-  // require: __webpack_require__,
-  // // all modules are in the entry chunk, so we never actually need to load chunks in webpack
-  // loadChunk: () => Promise.resolve(),
   require: __next_app_require__,
   loadChunk: __next_app_load_chunk__,
 }
