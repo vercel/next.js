@@ -36,6 +36,7 @@ mod next_route_matcher;
 pub mod next_server;
 pub mod next_server_component;
 pub mod next_shared;
+pub mod next_telemetry;
 mod page_loader;
 mod page_source;
 pub mod pages_structure;
