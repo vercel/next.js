@@ -10,6 +10,7 @@ use next_core::{
     },
     next_dynamic::NextDynamicTransition,
     next_manifests::{BuildManifest, PagesManifest},
+    next_pages::create_page_ssr_entry_module,
     next_server::{
         get_server_module_options_context, get_server_resolve_options_context,
         get_server_runtime_entries, ServerContextType,
@@ -591,13 +592,13 @@ impl PageEndpoint {
         let is_edge = matches!(config.runtime, NextRuntime::Edge);
 
         if is_edge {
-            let ssr_module = edge_module_context.process(self.source(), reference_type.clone());
-
-            let Some(ssr_module) =
-                Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(ssr_module).await?
-            else {
-                bail!("expected an ECMAScript module asset");
-            };
+            let ssr_module = create_page_ssr_entry_module(
+                this.pathname,
+                reference_type,
+                Vc::upcast(edge_module_context),
+                self.source(),
+                this.original_name,
+            );
 
             let edge_files = edge_chunking_context.evaluated_chunk_group(
                 ssr_module.as_root_chunk(Vc::upcast(edge_chunking_context)),
@@ -606,21 +607,20 @@ impl PageEndpoint {
 
             Ok(SsrChunk::Edge { files: edge_files }.cell())
         } else {
-            let Some(ssr_module) =
-                Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(ssr_module).await?
-            else {
-                bail!("expected an ECMAScript module asset");
-            };
+            let ssr_module = create_page_ssr_entry_module(
+                this.pathname,
+                reference_type,
+                Vc::upcast(module_context),
+                self.source(),
+                this.original_name,
+            );
 
             let asset_path = get_asset_path_from_pathname(&this.pathname.await?, ".js");
 
             let ssr_entry_chunk_path_string = format!("pages{asset_path}");
             let ssr_entry_chunk_path = node_path.join(ssr_entry_chunk_path_string);
-            let ssr_entry_chunk = chunking_context.entry_chunk(
-                ssr_entry_chunk_path,
-                Vc::upcast(ssr_module),
-                runtime_entries,
-            );
+            let ssr_entry_chunk =
+                chunking_context.entry_chunk(ssr_entry_chunk_path, ssr_module, runtime_entries);
 
             Ok(SsrChunk::NodeJs {
                 entry: ssr_entry_chunk,
