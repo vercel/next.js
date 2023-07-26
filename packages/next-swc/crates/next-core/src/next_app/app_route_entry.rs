@@ -41,9 +41,9 @@ pub async fn get_app_route_entry(
         source,
     );
     let context = if matches!(config.await?.runtime, Some(NextRuntime::Edge)) {
-        nodejs_context
-    } else {
         edge_context
+    } else {
+        nodejs_context
     };
 
     let mut result = RopeBuilder::default();
