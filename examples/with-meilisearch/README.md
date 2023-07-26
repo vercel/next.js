@@ -1,6 +1,6 @@
 # Next.js with Meilisearch
 
-Description
+This starter configures Meilisearch and InstantSearch for a Next.js application.
 
 ## Deploy your own
 

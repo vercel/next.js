@@ -1,5 +1,6 @@
-import Image from 'next/image'
 import React from 'react'
+import Image from 'next/image'
+import { Poppins } from 'next/font/google'
 import {
   InstantSearch,
   Hits,
@@ -8,18 +9,15 @@ import {
 } from 'react-instantsearch-dom'
 import { instantMeiliSearch } from '@meilisearch/instant-meilisearch'
 
-import { Poppins } from 'next/font/google'
-
 const poppins = Poppins({
   weight: ['700'],
   subsets: ['latin'],
   variable: '--font-poppins',
 })
 
-// Update these credentials with your Meilisearch project
 const searchClient = instantMeiliSearch(
-  'https://ms-adf78ae33284-106.lon.meilisearch.io',
-  'a63da4928426f12639e19d62886f621130f3fa9ff3c7534c5d179f0f51c4f303'
+  process.env.NEXT_PUBLIC_MEILISEARCH_HOST,
+  process.env.NEXT_PUBLIC_MEILISEARCH_SEARCH_API_KEY
 )
 
 interface HitProps {
@@ -42,20 +40,19 @@ const SearchBox = ({
   isSearchStalled,
   refine,
 }: SearchBoxProps) => (
-  <form
-    noValidate
-    action=""
-    role="search"
-    className="relative w-full h-10 mb-12 shadow-md group"
-  >
+  <form noValidate action="" role="search" className="mb-12">
     <input
       type="search"
       value={currentRefinement}
       placeholder="Search Steam video games"
       onChange={(event) => refine(event.currentTarget.value)}
-      className="w-full h-full px-3 overflow-hidden rounded-lg"
+      className="w-full h-10 px-3 overflow-hidden rounded-lg shadow-md"
     />
-    {isSearchStalled ? 'My search is stalled' : ''}
+    {isSearchStalled ? (
+      <div className="my-5 text-center text-primary">Loading...</div>
+    ) : (
+      ''
+    )}
   </form>
 )
 
