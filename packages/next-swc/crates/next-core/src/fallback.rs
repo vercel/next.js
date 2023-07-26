@@ -37,7 +37,7 @@ pub async fn get_fallback_page(
     next_config: Vc<NextConfig>,
 ) -> Result<Vc<DevHtmlAsset>> {
     let ty = Value::new(ClientContextType::Fallback);
-    let mode = NextMode::Development;
+    let mode = NextMode::DevServer;
     let resolve_options_context =
         get_client_resolve_options_context(project_path, ty, mode, next_config, execution_context);
     let module_options_context = get_client_module_options_context(
