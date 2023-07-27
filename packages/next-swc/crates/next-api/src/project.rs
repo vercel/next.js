@@ -7,8 +7,9 @@ use next_core::{
     get_edge_chunking_context, get_edge_compile_time_info,
     mode::NextMode,
     next_client::{get_client_chunking_context, get_client_compile_time_info},
-    next_config::NextConfig,
+    next_config::{JsConfig, NextConfig},
     next_server::{get_server_chunking_context, get_server_compile_time_info},
+    next_telemetry::NextFeatureTelemetry,
     util::NextSourceConfig,
 };
 use serde::{Deserialize, Serialize};
@@ -23,8 +24,8 @@ use turbopack_binding::{
     turbopack::{
         build::BuildChunkingContext,
         core::{
-            chunk::ChunkingContext, compile_time_info::CompileTimeInfo, environment::ServerAddr,
-            PROJECT_FILESYSTEM_NAME,
+            chunk::ChunkingContext, compile_time_info::CompileTimeInfo, diagnostics::DiagnosticExt,
+            environment::ServerAddr, PROJECT_FILESYSTEM_NAME,
         },
         dev::DevChunkingContext,
         ecmascript::chunk::EcmascriptChunkingContext,
@@ -35,6 +36,7 @@ use turbopack_binding::{
 
 use crate::{
     app::{AppProject, OptionAppProject},
+    build,
     entrypoints::Entrypoints,
     pages::PagesProject,
     route::{Endpoint, Route},
@@ -52,6 +54,9 @@ pub struct ProjectOptions {
 
     /// The contents of next.config.js, serialized to JSON.
     pub next_config: String,
+
+    /// The contents of ts/config read by load-jsconfig, serialized to JSON.
+    pub js_config: String,
 
     /// A map of environment variables to use when compiling code.
     pub env: Vec<(String, String)>,
@@ -92,12 +97,14 @@ impl ProjectContainer {
         let this = self.await?;
         let options = this.state.get();
         let next_config = NextConfig::from_string(Vc::cell(options.next_config.clone()));
+        let js_config = JsConfig::from_string(Vc::cell(options.js_config.clone()));
         let env: Vc<EnvMap> = Vc::cell(options.env.iter().cloned().collect());
         Ok(Project {
             root_path: options.root_path.clone(),
             project_path: options.project_path.clone(),
             watch: options.watch,
             next_config,
+            js_config,
             env: Vc::upcast(env),
             browserslist_query: "last 1 Chrome versions, last 1 Firefox versions, last 1 Safari \
                                  versions, last 1 Edge versions"
@@ -127,6 +134,9 @@ pub struct Project {
 
     /// Next config.
     next_config: Vc<NextConfig>,
+
+    /// Js/Tsconfig read by load-jsconfig
+    js_config: Vc<JsConfig>,
 
     /// A map of environment variables to use when compiling code.
     env: Vc<Box<dyn ProcessEnv>>,
@@ -226,6 +236,11 @@ impl Project {
     }
 
     #[turbo_tasks::function]
+    pub(super) async fn js_config(self: Vc<Self>) -> Result<Vc<JsConfig>> {
+        Ok(self.await?.js_config)
+    }
+
+    #[turbo_tasks::function]
     pub(super) fn execution_context(self: Vc<Self>) -> Vc<ExecutionContext> {
         let node_root = self.node_root();
 
@@ -305,6 +320,84 @@ impl Project {
         )
     }
 
+    /// Emit a telemetry event corresponding to webpack configuration telemetry
+    /// (https://github.com/vercel/next.js/blob/9da305fe320b89ee2f8c3cfb7ecbf48856368913/packages/next/src/build/webpack-config.ts#L2516)
+    /// to detect which feature is enabled.
+    #[turbo_tasks::function]
+    async fn collect_project_feature_telemetry(self: Vc<Self>) -> Result<Vc<()>> {
+        let emit_event = |feature_name: &str, enabled: bool| {
+            NextFeatureTelemetry::new(feature_name.to_string(), enabled)
+                .cell()
+                .emit();
+        };
+
+        // First, emit an event for the binary target triple.
+        // This is different to webpack-config; when this is being called,
+        // it is always using SWC so we don't check swc here.
+        emit_event(build::BUILD_TARGET, true);
+
+        // Go over jsconfig and report enabled features.
+        let compiler_options = self.js_config().compiler_options().await?;
+        let compiler_options = compiler_options.as_object();
+        let experimental_decorators_enabled = compiler_options
+            .as_ref()
+            .and_then(|compiler_options| compiler_options.get("experimentalDecorators"))
+            .is_some();
+        let jsx_import_source_enabled = compiler_options
+            .as_ref()
+            .and_then(|compiler_options| compiler_options.get("jsxImportSource"))
+            .is_some();
+
+        emit_event("swcExperimentalDecorators", experimental_decorators_enabled);
+        emit_event("swcImportSource", jsx_import_source_enabled);
+
+        // Go over config and report enabled features.
+        // [TODO]: useSwcLoader is not being reported as it is not directly corresponds (it checks babel config existence)
+        // need to confirm what we'll do with turbopack.
+        let config = self.next_config();
+
+        emit_event("swcMinify", *config.swc_minify().await?);
+        emit_event(
+            "skipMiddlewareUrlNormalize",
+            *config.skip_middleware_url_normalize().await?,
+        );
+
+        emit_event(
+            "skipTrailingSlashRedirect",
+            *config.skip_trailing_slash_redirect().await?,
+        );
+
+        let config = &config.await?;
+
+        emit_event("modularizeImports", config.modularize_imports.is_some());
+        emit_event("transpilePackages", config.transpile_packages.is_some());
+        emit_event("turbotrace", config.experimental.turbotrace.is_some());
+
+        // compiler options
+        let compiler_options = config.compiler.as_ref();
+        let swc_relay_enabled = compiler_options.and_then(|c| c.relay.as_ref()).is_some();
+        let styled_components_enabled = compiler_options
+            .map(|c| c.styled_components.is_some())
+            .unwrap_or_default();
+        let react_remove_properties_enabled = compiler_options
+            .and_then(|c| c.react_remove_properties)
+            .unwrap_or_default();
+        let remove_console_enabled = compiler_options
+            .map(|c| c.remove_console.is_some())
+            .unwrap_or_default();
+        let emotion_enabled = compiler_options
+            .map(|c| c.emotion.is_some())
+            .unwrap_or_default();
+
+        emit_event("swcRelay", swc_relay_enabled);
+        emit_event("swcStyledComponents", styled_components_enabled);
+        emit_event("swcReactRemoveProperties", react_remove_properties_enabled);
+        emit_event("swcRemoveConsole", remove_console_enabled);
+        emit_event("swcEmotion", emotion_enabled);
+
+        Ok(unit())
+    }
+
     #[turbo_tasks::function]
     pub(super) fn ssr_chunking_context(self: Vc<Self>) -> Vc<BuildChunkingContext> {
         self.server_chunking_context().with_layer("ssr".to_string())
@@ -349,6 +442,8 @@ impl Project {
     /// provided page_extensions).
     #[turbo_tasks::function]
     pub async fn entrypoints(self: Vc<Self>) -> Result<Vc<Entrypoints>> {
+        self.collect_project_feature_telemetry().await?;
+
         let mut routes = IndexMap::new();
         let app_project = self.app_project();
         let pages_project = self.pages_project();
