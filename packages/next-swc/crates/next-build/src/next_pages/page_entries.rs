@@ -381,6 +381,11 @@ async fn get_page_entry_for_file(
             .replace("VAR_MODULE_APP", "@vercel/turbopack-next/pages/_app");
     }
 
+    // Ensure that the last line is a newline.
+    if !file.ends_with('\n') {
+        file.push('\n');
+    }
+
     let mut result = RopeBuilder::from(file.as_bytes().to_vec());
 
     if path_type == PathType::Page {

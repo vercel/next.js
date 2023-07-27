@@ -57,7 +57,7 @@ pub async fn get_app_route_entry(
     // Load the file from the next.js codebase.
     let file = load_next_js(project_root, template_file).await?.await?;
 
-    let file = file
+    let mut file = file
         .to_str()?
         .replace("VAR_DEFINITION_PAGE", &original_name)
         .replace("VAR_DEFINITION_PATHNAME", &pathname)
@@ -72,11 +72,14 @@ pub async fn get_app_route_entry(
         .replace(
             "// INJECT:nextConfigOutput",
             "const nextConfigOutput = \"\"",
-        )
-        .as_bytes()
-        .to_vec();
+        );
 
-    result.concat(&RopeBuilder::from(file).build());
+    // Ensure that the last line is a newline.
+    if !file.ends_with('\n') {
+        file.push('\n');
+    }
+
+    result.concat(&RopeBuilder::from(file.as_bytes().to_vec()).build());
 
     let file = File::from(result.build());
 

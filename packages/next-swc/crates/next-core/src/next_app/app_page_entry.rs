@@ -84,7 +84,7 @@ pub async fn get_app_page_entry(
     // Load the file from the next.js codebase.
     let file = load_next_js(project_root, template_file).await?.await?;
 
-    let file = file
+    let mut file = file
         .to_str()?
         .replace("VAR_DEFINITION_PAGE", &original_name)
         .replace("VAR_DEFINITION_PATHNAME", &pathname)
@@ -109,11 +109,14 @@ pub async fn get_app_page_entry(
         .replace(
             "// INJECT:__next_app_load_chunk__",
             "const __next_app_load_chunk__ = __turbopack_load__",
-        )
-        .as_bytes()
-        .to_vec();
+        );
 
-    result.concat(&RopeBuilder::from(file).build());
+    // Ensure that the last line is a newline.
+    if !file.ends_with('\n') {
+        file.push('\n');
+    }
+
+    result.concat(&RopeBuilder::from(file.as_bytes().to_vec()).build());
 
     let file = File::from(result.build());
 
