@@ -25,6 +25,7 @@ import { getTracer } from './lib/trace/tracer'
 import { NextServerSpan } from './lib/trace/constants'
 import { formatUrl } from '../shared/lib/router/utils/format-url'
 import { proxyRequest } from './lib/router-utils/proxy-request'
+import { formatHostname } from './lib/utils'
 import { TLSSocket } from 'tls'
 
 let ServerImpl: typeof Server
@@ -303,7 +304,7 @@ function createServer(options: NextServerOptions): NextServer {
                 req,
                 socket as any,
                 url.parse(
-                  `http://${req.headers.host || 'localhost'}:${serverPort}${
+                  `http://${formatHostname(options.hostname)}:${serverPort}${
                     req.url
                   }`,
                   true
@@ -348,9 +349,9 @@ function createServer(options: NextServerOptions): NextServer {
                   if (shouldUseStandaloneMode) {
                     setupWebSocketHandler(options.httpServer, req)
                     const parsedUrl = url.parse(
-                      `http://${req.headers.host || 'localhost'}:${serverPort}${
-                        req.url
-                      }`,
+                      `http://${formatHostname(
+                        options.hostname
+                      )}:${serverPort}${req.url}`,
                       true
                     )
                     if ((req?.socket as TLSSocket)?.encrypted) {
@@ -402,9 +403,9 @@ function createServer(options: NextServerOptions): NextServer {
                     req,
                     res,
                     url.parse(
-                      `http://${req.headers.host || 'localhost'}:${serverPort}${
-                        req.url
-                      }`,
+                      `http://${formatHostname(
+                        options.hostname
+                      )}:${serverPort}${req.url}`,
                       true
                     ),
                     undefined,
