@@ -70,7 +70,7 @@ pub fn get_asset_prefix_from_pathname(pathname: &str) -> String {
     } else if pathname == "/index" || pathname.starts_with("/index/") {
         format!("/index{}", pathname)
     } else {
-        format!("{}", pathname.to_string())
+        pathname.to_string()
     }
 }
 
