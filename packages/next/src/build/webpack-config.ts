@@ -1412,7 +1412,7 @@ export default async function getBaseWebpackConfig(
         /next[/\\]dist[/\\](esm[\\/])?(shared|server)[/\\](?!lib[/\\](router[/\\]router|dynamic|app-dynamic|image-external|lazy-dynamic|head[^-]))/.test(
           localRes
         ) ||
-        // No need to bundle so many things during dev
+        // There's no need to bundle the dev overlay
         (process.env.NODE_ENV === 'development' &&
           /next[/\\]dist[/\\](esm[/\\])?client[/\\]components[/\\]react-dev-overlay[/\\]/.test(
             localRes
