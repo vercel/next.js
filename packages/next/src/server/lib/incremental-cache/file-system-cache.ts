@@ -118,7 +118,7 @@ export default class FileSystemCache implements CacheHandler {
 
     const manifestWriteStream = this.fs.createWriteStream(this.tagsManifestPath)
 
-    return new Promise<void>((resolve, reject) => {
+    return new Promise<void>((resolve) => {
       manifestWriteStream.on('ready', () => {
         this.loadTagsManifest()
         if (!tagsManifest) {
@@ -133,9 +133,10 @@ export default class FileSystemCache implements CacheHandler {
         manifestWriteStream.end()
       })
       manifestWriteStream.on('finish', resolve)
-      manifestWriteStream.on('error', (err) =>
-        reject(`Failed to update tags manifest. ${err}`)
-      )
+      manifestWriteStream.on('error', (err) => {
+        console.warn('Failed to update tags manifest.', err)
+        resolve()
+      })
     })
   }
 
