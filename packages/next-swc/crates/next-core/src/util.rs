@@ -66,7 +66,7 @@ pub async fn pathname_for_path(
 // below), we should instead return an `impl Display`.
 pub fn get_asset_prefix_from_pathname(pathname: &str) -> String {
     if pathname == "/" {
-        format!("/index".to_string())
+        "/index".to_string()
     } else if pathname == "/index" || pathname.starts_with("/index/") {
         format!("/index{}", pathname)
     } else {
