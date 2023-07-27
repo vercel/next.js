@@ -738,8 +738,7 @@ async fn concatenate_output_assets(
         .await?;
     for file in contents
         .iter()
-        .map(|content| content.as_content())
-        .flatten()
+        .flat_map(|content| content.as_content())
     {
         concatenated_content.concat(file.content());
         concatenated_content.push_static_bytes(b"\n\n");
