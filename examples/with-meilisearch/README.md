@@ -6,7 +6,7 @@ This starter configures Meilisearch and InstantSearch for a Next.js application.
 
 The Vercel deployment will guide you through setting up a Meilisearch account and project. After installation of the Meilisearch integration, all necessary environment variables will be available in your Vercel project.
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-meilisearch&project-name=with-meilisearch&repository-name=with-meilisearch)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-meilisearch&project-name=with-meilisearch&repository-name=with-meilisearch&integration-ids=oac_rwEl59xztJi8dRne84Aqaw1r)
 
 ## How to use
 
