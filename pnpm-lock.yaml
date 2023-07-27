@@ -399,7 +399,7 @@ importers:
       ci-info: watson/ci-info#f43f6a1cefff47fb361c88cf4b943fdbcaafe540
       commander: 2.20.0
       conf: 10.2.0
-      cross-spawn: 6.0.5
+      cross-spawn: 7.0.3
       fast-glob: 2.2.7
       got: 10.7.0
       picocolors: 1.0.0
@@ -422,7 +422,7 @@ importers:
       ci-info: github.com/watson/ci-info/f43f6a1cefff47fb361c88cf4b943fdbcaafe540
       commander: 2.20.0
       conf: 10.2.0
-      cross-spawn: 6.0.5
+      cross-spawn: 7.0.3
       fast-glob: 2.2.7
       got: 10.7.0
       picocolors: 1.0.0
