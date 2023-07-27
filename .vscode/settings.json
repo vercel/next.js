@@ -82,5 +82,6 @@
       "language": "markdown",
       "scheme": "file"
     }
-  ]
+  ],
+  "githubPullRequests.ignoredPullRequestBranches": ["canary"]
 }
