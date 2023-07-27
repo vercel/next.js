@@ -44,6 +44,7 @@ use turbopack_binding::{
         },
         ecmascript::{
             chunk::{EcmascriptChunkPlaceable, EcmascriptChunkingContext},
+            utils::StringifyJs,
             EcmascriptModuleAsset,
         },
         node::execution_context::ExecutionContext,
@@ -371,8 +372,8 @@ async fn get_page_entry_for_file(
                     export const routeModule = new RouteModule({{
                         definition: {{
                             kind: "PAGES",
-                            page: "{definition_page}",
-                            pathname: "{definition_pathname}",
+                            page: {definition_page},
+                            pathname: {definition_pathname},
                             // The following aren't used in production, but are
                             // required for the RouteModule constructor.
                             bundlePath: "",
@@ -384,7 +385,9 @@ async fn get_page_entry_for_file(
                         }},
                         userland,
                     }})
-                "#
+                "#,
+                definition_page = StringifyJs(&definition_page),
+                definition_pathname = StringifyJs(&definition_pathname),
             )?;
 
             // When we're building the instrumentation page (only when the
@@ -413,8 +416,8 @@ async fn get_page_entry_for_file(
                     export const routeModule = new RouteModule({{
                         definition: {{
                             kind: "PAGES_API",
-                            page: "{definition_page}",
-                            pathname: "{definition_pathname}",
+                            page: {definition_page},
+                            pathname: {definition_pathname},
                             // The following aren't used in production, but are
                             // required for the RouteModule constructor.
                             bundlePath: "",
@@ -422,7 +425,9 @@ async fn get_page_entry_for_file(
                         }},
                         userland,
                     }})
-                "#
+                "#,
+                definition_page = StringifyJs(&definition_page),
+                definition_pathname = StringifyJs(&definition_pathname),
             )?;
         }
         _ => bail!("Invalid path type"),

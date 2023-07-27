@@ -4,7 +4,6 @@ import { startServer, StartServerOptions } from '../server/lib/start-server'
 import { getPort, printAndExit } from '../server/lib/utils'
 import * as Log from '../build/output/log'
 import { CliCommand } from '../lib/commands'
-import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
 import { CONFIG_FILES, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import path from 'path'
@@ -20,6 +19,7 @@ import Watchpack from 'watchpack'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { getPossibleInstrumentationHookFilenames } from '../build/worker'
 import { resetEnv } from '@next/env'
+import { getValidatedArgs } from '../lib/get-validated-args'
 
 let dir: string
 let config: NextConfigComplete
@@ -131,15 +131,7 @@ const nextDev: CliCommand = async (argv) => {
     '-p': '--port',
     '-H': '--hostname',
   }
-  let args: arg.Result<arg.Spec>
-  try {
-    args = arg(validArgs, { argv })
-  } catch (error) {
-    if (isError(error) && error.code === 'ARG_UNKNOWN_OPTION') {
-      return printAndExit(error.message, 1)
-    }
-    throw error
-  }
+  const args = getValidatedArgs(validArgs, argv)
   if (args['--help']) {
     console.log(`
       Description
@@ -234,26 +226,39 @@ const nextDev: CliCommand = async (argv) => {
   if (experimentalTurbo) {
     const { loadBindings } =
       require('../build/swc') as typeof import('../build/swc')
+    const { default: loadJsConfig } =
+      require('../build/load-jsconfig') as typeof import('../build/load-jsconfig')
+    const { jsConfig } = await loadJsConfig(dir, config)
 
     resetEnv()
     let bindings = await loadBindings()
 
     // Just testing code here:
 
-    const project = await bindings.turbo.createProject({
+    const options = {
       projectPath: dir,
-      rootPath: dir,
+      rootPath: args['--root'] ?? findRootDir(dir) ?? dir,
       nextConfig: config,
+      jsConfig,
       env: {
         NEXT_PUBLIC_ENV_VAR: 'world',
       },
       watch: true,
-    })
+    }
+    const project = await bindings.turbo.createProject(options)
     const iter = project.entrypointsSubscribe()
 
     try {
       for await (const entrypoints of iter) {
         Log.info(entrypoints)
+
+        Log.info(`writing _document to disk`)
+        Log.info(await entrypoints.pagesDocumentEndpoint.writeToDisk())
+        Log.info(`writing _app to disk`)
+        Log.info(await entrypoints.pagesAppEndpoint.writeToDisk())
+        Log.info(`writing _error to disk`)
+        Log.info(await entrypoints.pagesErrorEndpoint.writeToDisk())
+
         for (const [pathname, route] of entrypoints.routes) {
           switch (route.type) {
             case 'page': {
@@ -287,13 +292,10 @@ const nextDev: CliCommand = async (argv) => {
         }
         Log.info('iteration done')
         await project.update({
-          projectPath: dir,
-          rootPath: dir,
-          nextConfig: config,
+          ...options,
           env: {
             NEXT_PUBLIC_ENV_VAR: 'hello',
           },
-          watch: true,
         })
       }
     } catch (e) {
