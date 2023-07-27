@@ -14,7 +14,7 @@ use turbopack_binding::{
             source::Source,
             virtual_source::VirtualSource,
         },
-        ecmascript::chunk::EcmascriptChunkPlaceable,
+        ecmascript::{chunk::EcmascriptChunkPlaceable, utils::StringifyJs},
         turbopack::ModuleAssetContext,
     },
 };
@@ -59,16 +59,31 @@ pub async fn get_app_route_entry(
 
     let mut file = file
         .to_str()?
-        .replace("VAR_DEFINITION_PAGE", &original_name)
-        .replace("VAR_DEFINITION_PATHNAME", &pathname)
         .replace(
-            "VAR_DEFINITION_FILENAME",
-            &path.file_stem().await?.as_ref().unwrap().clone(),
+            "\"VAR_DEFINITION_PAGE\"",
+            &StringifyJs(&original_name).to_string(),
+        )
+        .replace(
+            "\"VAR_DEFINITION_PATHNAME\"",
+            &StringifyJs(&pathname).to_string(),
+        )
+        .replace(
+            "\"VAR_DEFINITION_FILENAME\"",
+            &StringifyJs(&path.file_stem().await?.as_ref().unwrap().clone()).to_string(),
         )
         // TODO(alexkirsz) Is this necessary?
-        .replace("VAR_DEFINITION_BUNDLE_PATH", "")
-        .replace("VAR_ORIGINAL_PATHNAME", &original_name)
-        .replace("VAR_RESOLVED_PAGE_PATH", &path.to_string().await?)
+        .replace(
+            "\"VAR_DEFINITION_BUNDLE_PATH\"",
+            &StringifyJs("").to_string(),
+        )
+        .replace(
+            "\"VAR_ORIGINAL_PATHNAME\"",
+            &StringifyJs(&original_name).to_string(),
+        )
+        .replace(
+            "\"VAR_RESOLVED_PAGE_PATH\"",
+            &StringifyJs(&path.to_string().await?).to_string(),
+        )
         .replace(
             "// INJECT:nextConfigOutput",
             "const nextConfigOutput = \"\"",

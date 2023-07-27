@@ -86,13 +86,22 @@ pub async fn get_app_page_entry(
 
     let mut file = file
         .to_str()?
-        .replace("VAR_DEFINITION_PAGE", &original_name)
-        .replace("VAR_DEFINITION_PATHNAME", &pathname)
-        .replace("VAR_ORIGINAL_PATHNAME", &original_name)
+        .replace(
+            "\"VAR_DEFINITION_PAGE\"",
+            &StringifyJs(&original_name).to_string(),
+        )
+        .replace(
+            "\"VAR_DEFINITION_PATHNAME\"",
+            &StringifyJs(&pathname).to_string(),
+        )
+        .replace(
+            "\"VAR_ORIGINAL_PATHNAME\"",
+            &StringifyJs(&original_name).to_string(),
+        )
         // TODO(alexkirsz) Support custom global error.
         .replace(
-            "VAR_MODULE_GLOBAL_ERROR",
-            "next/dist/client/components/error-boundary",
+            "\"VAR_MODULE_GLOBAL_ERROR\"",
+            &StringifyJs("next/dist/client/components/error-boundary").to_string(),
         )
         .replace(
             "// INJECT:tree",

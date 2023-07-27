@@ -46,6 +46,7 @@ use turbopack_binding::{
         },
         ecmascript::{
             chunk::{EcmascriptChunkPlaceable, EcmascriptChunkingContext},
+            utils::StringifyJs,
             EcmascriptModuleAsset,
         },
         node::execution_context::ExecutionContext,
@@ -368,16 +369,25 @@ async fn get_page_entry_for_file(
 
     let mut file = file
         .to_str()?
-        .replace("VAR_DEFINITION_PAGE", &definition_page)
-        .replace("VAR_DEFINITION_PATHNAME", &definition_pathname);
+        .replace(
+            "\"VAR_DEFINITION_PAGE\"",
+            &StringifyJs(&definition_page).to_string(),
+        )
+        .replace(
+            "\"VAR_DEFINITION_PATHNAME\"",
+            &StringifyJs(&definition_pathname).to_string(),
+        );
 
     if path_type == PathType::Page {
         file = file
             .replace(
                 "VAR_MODULE_DOCUMENT",
-                "@vercel/turbopack-next/pages/_document",
+                &StringifyJs("@vercel/turbopack-next/pages/_document").to_string(),
             )
-            .replace("VAR_MODULE_APP", "@vercel/turbopack-next/pages/_app");
+            .replace(
+                "VAR_MODULE_APP",
+                &StringifyJs("@vercel/turbopack-next/pages/_app").to_string(),
+            );
     }
 
     // Ensure that the last line is a newline.

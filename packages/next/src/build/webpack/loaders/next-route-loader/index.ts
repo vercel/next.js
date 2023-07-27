@@ -177,13 +177,13 @@ export async function loadEntrypointWithReplacements(
 
       const relative = path
         .relative(
-        // NOTE: this should be updated if this loader file is moved.
-        path.normalize(path.join(__dirname, '../../../../../..')),
-        path.resolve(
-          path.join(__dirname, 'entries'),
-          fromRequest ?? importRequest
+          // NOTE: this should be updated if this loader file is moved.
+          path.normalize(path.join(__dirname, '../../../../../..')),
+          path.resolve(
+            path.join(__dirname, 'entries'),
+            fromRequest ?? importRequest
+          )
         )
-      )
         // Ensure that we use linux style path separators for node.
         .replace(/\\/g, '/')
 
@@ -193,7 +193,9 @@ export async function loadEntrypointWithReplacements(
         )
       }
 
-      return fromRequest ? `from "${relative}"` : `import "${relative}"`
+      return fromRequest
+        ? `from ${JSON.stringify(relative)}`
+        : `import ${JSON.stringify(relative)}`
     }
   )
 
@@ -206,15 +208,22 @@ export async function loadEntrypointWithReplacements(
   // Replace all the template variables with the actual values. If a template
   // variable is missing, throw an error.
   file = file.replaceAll(
-    new RegExp(`${Object.keys(replacements).join('|')}`, 'g'),
+    new RegExp(
+      `${Object.keys(replacements)
+        .map((k) => `"${k}"`)
+        .join('|')}`,
+      'g'
+    ),
     (match) => {
-      if (!(match in replacements)) {
-        throw new Error(`Invariant: Unexpected template variable ${match}`)
+      const key = JSON.parse(match)
+
+      if (!(key in replacements)) {
+        throw new Error(`Invariant: Unexpected template variable ${key}`)
       }
 
-      replaced.add(match)
+      replaced.add(key)
 
-      return replacements[match]
+      return JSON.stringify(replacements[key])
     }
   )
 
