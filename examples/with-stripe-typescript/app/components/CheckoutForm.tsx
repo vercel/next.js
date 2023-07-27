@@ -1,10 +1,13 @@
+'use client'
+
 import React, { useState } from 'react'
 
-import CustomDonationInput from '../components/CustomDonationInput'
-import StripeTestCards from '../components/StripeTestCards'
+import CustomDonationInput from '../../components/CustomDonationInput'
+import StripeTestCards from '../../components/StripeTestCards'
 
-import { formatAmountForDisplay } from '../utils/stripe-helpers'
-import * as config from '../config'
+import { formatAmountForDisplay } from '../../utils/stripe-helpers'
+import * as config from '../../config'
+import { createCheckoutSession } from '../actions/stripe'
 
 const CheckoutForm = () => {
   const [loading, setLoading] = useState(false)
@@ -19,7 +22,7 @@ const CheckoutForm = () => {
     })
 
   return (
-    <form action="/api/checkout_sessions" method="POST">
+    <form action={createCheckoutSession}>
       <CustomDonationInput
         className="checkout-style"
         name="customDonation"
