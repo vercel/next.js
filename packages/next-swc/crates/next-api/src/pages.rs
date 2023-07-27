@@ -705,10 +705,10 @@ impl PageEndpoint {
                 .into_iter()
                 .collect(),
         };
-        let pages_manifest_path_prefix = get_asset_prefix_from_pathname(&this.pathname.await?);
+        let manifest_path_prefix = get_asset_prefix_from_pathname(&this.pathname.await?);
         Ok(Vc::upcast(VirtualOutputAsset::new(
             node_root.join(format!(
-                "server/pages{pages_manifest_path_prefix}/pages-manifest.json",
+                "server/pages{manifest_path_prefix}/pages-manifest.json",
             )),
             AssetContent::file(File::from(serde_json::to_string_pretty(&pages_manifest)?).into()),
         )))
@@ -747,10 +747,10 @@ impl PageEndpoint {
             .collect(),
             ..Default::default()
         };
+        let manifest_path_prefix = get_asset_prefix_from_pathname(&this.pathname.await?);
         Ok(Vc::upcast(VirtualOutputAsset::new(
             node_root.join(format!(
-                "server/pages{original_name}/build-manifest.json",
-                original_name = this.original_name.await?
+                "server/pages{manifest_path_prefix}/build-manifest.json",
             )),
             AssetContent::file(File::from(serde_json::to_string_pretty(&build_manifest)?).into()),
         )))
