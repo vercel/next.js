@@ -4,7 +4,6 @@ import { startServer, StartServerOptions } from '../server/lib/start-server'
 import { getPort, printAndExit } from '../server/lib/utils'
 import * as Log from '../build/output/log'
 import { CliCommand } from '../lib/commands'
-import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
 import { CONFIG_FILES, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import path from 'path'
@@ -20,6 +19,7 @@ import Watchpack from 'watchpack'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { getPossibleInstrumentationHookFilenames } from '../build/worker'
 import { resetEnv } from '@next/env'
+import { getValidatedArgs } from '../lib/get-validated-args'
 
 let dir: string
 let config: NextConfigComplete
@@ -131,15 +131,7 @@ const nextDev: CliCommand = async (argv) => {
     '-p': '--port',
     '-H': '--hostname',
   }
-  let args: arg.Result<arg.Spec>
-  try {
-    args = arg(validArgs, { argv })
-  } catch (error) {
-    if (isError(error) && error.code === 'ARG_UNKNOWN_OPTION') {
-      return printAndExit(error.message, 1)
-    }
-    throw error
-  }
+  const args = getValidatedArgs(validArgs, argv)
   if (args['--help']) {
     console.log(`
       Description
@@ -234,6 +226,9 @@ const nextDev: CliCommand = async (argv) => {
   if (experimentalTurbo) {
     const { loadBindings } =
       require('../build/swc') as typeof import('../build/swc')
+    const { default: loadJsConfig } =
+      require('../build/load-jsconfig') as typeof import('../build/load-jsconfig')
+    const { jsConfig } = await loadJsConfig(dir, config)
 
     resetEnv()
     let bindings = await loadBindings()
@@ -244,6 +239,7 @@ const nextDev: CliCommand = async (argv) => {
       projectPath: dir,
       rootPath: args['--root'] ?? findRootDir(dir) ?? dir,
       nextConfig: config,
+      jsConfig,
       env: {
         NEXT_PUBLIC_ENV_VAR: 'world',
       },
