@@ -2,10 +2,11 @@ import type NextServer from '../../next-server'
 import type { NextConfigComplete } from '../../config-shared'
 
 import { getNodeOptionsWithoutInspect } from '../utils'
-import { deserializeErr, errorToJSON } from '../../render'
+import { errorToJSON } from '../../render'
 import crypto from 'crypto'
 import isError from '../../../lib/is-error'
 import { genRenderExecArgv } from '../worker-utils'
+import { deserializeErr } from './request-utils'
 
 // we can't use process.send as jest-worker relies on
 // it already and can cause unexpected message errors
