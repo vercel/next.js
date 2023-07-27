@@ -6,7 +6,6 @@ import type { ChildProcess } from 'child_process'
 import type { NextConfigComplete } from '../config-shared'
 
 import http from 'http'
-import { isIPv6 } from 'net'
 import { initialEnv } from '@next/env'
 import * as Log from '../../build/output/log'
 import setupDebug from 'next/dist/compiled/debug'
@@ -18,6 +17,7 @@ import { normalizeRepeatedSlashes } from '../../shared/lib/utils'
 import { invokeRequest } from './server-ipc/invoke-request'
 import { isAbortError, pipeReadable } from '../pipe-readable'
 import {
+  formatHostname,
   genRouterWorkerExecArgv,
   getDebugPort,
   getNodeOptionsWithoutInspect,
@@ -205,11 +205,7 @@ export async function startServer({
       const addr = server.address()
       port = typeof addr === 'object' ? addr?.port || port : port
 
-      targetHost = hostname || 'localhost'
-
-      if (isIPv6(targetHost)) {
-        targetHost = `[${targetHost}]`
-      }
+      targetHost = formatHostname(hostname)
 
       const appUrl = `http://${targetHost}:${port}`
 

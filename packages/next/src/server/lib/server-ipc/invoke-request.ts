@@ -16,7 +16,7 @@ export const invokeRequest = async (
     ...requestInit.headers,
   }) as IncomingMessage['headers']
 
-  return await fetch(parsedTargetUrl.toString(), {
+  return await fetch(targetUrl, {
     headers: invokeHeaders as any as Headers,
     method: requestInit.method,
     redirect: 'manual',

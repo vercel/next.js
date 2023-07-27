@@ -30,7 +30,6 @@ import { renderToHTML, type RenderOpts } from './render'
 
 import fs from 'fs'
 import { join, resolve, isAbsolute } from 'path'
-import { isIPv6 } from 'net'
 import { IncomingMessage, ServerResponse } from 'http'
 import type { PagesAPIRouteModule } from './future/route-modules/pages-api/module'
 import { addRequestMeta, getRequestMeta } from './request-meta'
@@ -101,6 +100,7 @@ import { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
 import { signalFromNodeResponse } from './web/spec-extension/adapters/next-request'
 import { RouteModuleLoader } from './future/helpers/module-loader/route-module-loader'
 import { loadManifest } from './load-manifest'
+import { formatHostname } from './lib/utils'
 
 export * from './base-server'
 
@@ -516,7 +516,9 @@ export default class NextNodeServer extends BaseServer {
 
         if (this.isRenderWorker) {
           const invokeRes = await invokeRequest(
-            `http://${this.getHostname()}:${this.port}${newReq.url || ''}`,
+            `http://${formatHostname(this.hostname)}:${this.port}${
+              newReq.url || ''
+            }`,
             {
               method: newReq.method || 'GET',
               headers: newReq.headers,
@@ -1044,16 +1046,6 @@ export default class NextNodeServer extends BaseServer {
     return res instanceof ServerResponse ? new NodeNextResponse(res) : res
   }
 
-  // Use this instead of this.hostname for constructing URLs.
-  protected getHostname(): string {
-    // Handles IPv6 hostnames and fallbacks to 'localhost'
-    return this.hostname
-      ? isIPv6(this.hostname)
-        ? `[${this.hostname}]`
-        : this.hostname
-      : 'localhost'
-  }
-
   public getRequestHandler(): NodeRequestHandler {
     // This is just optimization to fire prepare as soon as possible
     // It will be properly awaited later
@@ -1482,12 +1474,11 @@ export default class NextNodeServer extends BaseServer {
       const query = urlQueryToSearchParams(params.parsed.query).toString()
       const locale = params.parsed.query.__nextLocale
 
-      url = `${getRequestMeta(
-        params.request,
-        '_protocol'
-      )}://${this.getHostname()}:${this.port}${locale ? `/${locale}` : ''}${
-        params.parsed.pathname
-      }${query ? `?${query}` : ''}`
+      url = `${getRequestMeta(params.request, '_protocol')}://${formatHostname(
+        this.hostname
+      )}:${this.port}${locale ? `/${locale}` : ''}${params.parsed.pathname}${
+        query ? `?${query}` : ''
+      }`
     }
 
     if (!url.startsWith('http')) {
@@ -1736,7 +1727,9 @@ export default class NextNodeServer extends BaseServer {
     // When there are hostname and port we build an absolute URL
     const initUrl =
       this.hostname && this.port
-        ? `${protocol}://${this.getHostname()}:${this.port}${req.url}`
+        ? `${protocol}://${formatHostname(this.hostname)}:${this.port}${
+            req.url
+          }`
         : (this.nextConfig.experimental as any).trustHostHeader
         ? `https://${req.headers.host || 'localhost'}${req.url}`
         : req.url
