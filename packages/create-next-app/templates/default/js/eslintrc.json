@@ -1,6 +1,3 @@
 {
-  "extends": [
-    "plugin:@typescript-eslint/recommended-type-checked",
-    "next/core-web-vitals"
-  ]
+  "extends": ["next/core-web-vitals", "next/typescript"]
 }

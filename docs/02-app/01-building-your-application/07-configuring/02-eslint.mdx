@@ -204,18 +204,16 @@ The `next/core-web-vitals` rule set is enabled when `next lint` is run for the f
 
 ### TypeScript
 
-In addition to the Next.js ESLint rules, `create-next-app --typescript` will also add `@typescript-eslint`'s base recommended rules to your config:
+In addition to the Next.js ESLint rules, `create-next-app --typescript` will also add TypeScript-specific lint rules with `next/typescript`: to your config:
 
 ```json filename=".eslintrc.json"
 {
-  "extends": [
-    "plugin:@typescript-eslint/recommended-type-checked",
-    "next/core-web-vitals"
-  ]
+  "extends": ["next/core-web-vitals", "next/typescript"]
 }
 ```
 
-See [typescript-eslint > Configs](https://typescript-eslint.io/linting/configs) for details on those recommended rules.
+Those rules are based on [`plugin:@typescript-eslint/recommended-type-checked`](https://typescript-eslint.io/linting/configs#recommended-type-checked).
+See [typescript-eslint > Configs](https://typescript-eslint.io/linting/configs) for more details.
 
 ## Usage With Other Tools
 

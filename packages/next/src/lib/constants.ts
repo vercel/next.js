@@ -79,26 +79,6 @@ export const SSG_FALLBACK_EXPORT_ERROR = `Pages with \`fallback\` enabled in \`g
 
 export const ESLINT_DEFAULT_DIRS = ['app', 'pages', 'components', 'lib', 'src']
 
-export const ESLINT_PROMPT_VALUES = [
-  {
-    title: 'Strict',
-    recommended: true,
-    config: {
-      extends: 'next/core-web-vitals',
-    },
-  },
-  {
-    title: 'Base',
-    config: {
-      extends: 'next',
-    },
-  },
-  {
-    title: 'Cancel',
-    config: null,
-  },
-]
-
 export const SERVER_RUNTIME: Record<string, ServerRuntime> = {
   edge: 'edge',
   experimentalEdge: 'experimental-edge',
