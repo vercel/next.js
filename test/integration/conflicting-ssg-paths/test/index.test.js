@@ -184,4 +184,64 @@ describe('Conflicting SSG paths', () => {
       `path: "/hellO/world" from page: "/[...catchAll]" conflicts with path: "/hello/world"`
     )
   })
+
+  it('should show proper error when a non-string value is supplied as the parameter to a dynamic route', async () => {
+    await fs.ensureDir(join(pagesDir, 'blog'))
+    await fs.writeFile(
+      join(pagesDir, 'blog/[...slug].js'),
+      `
+      export const getStaticProps = () => {
+        return {
+          props: {}
+        }
+      }
+
+      export const getStaticPaths = () => {
+        return {
+          paths: [
+            { params: { slug: [1] }}
+          ],
+          fallback: false
+        }
+      }
+
+      export default function Page() {
+        return '/hello/[...slug]'
+      }
+    `
+    )
+
+    await fs.writeFile(
+      join(pagesDir, '[...catchAll].js'),
+      `
+      export const getStaticProps = () => {
+        return {
+          props: {}
+        }
+      }
+
+      export const getStaticPaths = () => {
+        return {
+          paths: [
+            { params: { slug: [1] }}
+          ],
+          fallback: false
+        }
+      }
+
+      export default function Page() {
+        return '/[catchAll]'
+      }
+    `
+    )
+
+    const result = await nextBuild(appDir, undefined, {
+      stdout: true,
+      stderr: true,
+    })
+    const output = result.stdout + result.stderr
+    expect(output).toContain(
+      'A required parameter (slug) was not provided as an array of string received object in getStaticPaths for /blog/[...slug]'
+    )
+  })
 })
