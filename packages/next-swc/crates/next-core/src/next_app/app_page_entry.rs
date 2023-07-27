@@ -113,9 +113,9 @@ pub async fn get_app_page_entry(
     );
 
     let Some(rsc_entry) =
-        Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(rsc_entry).await?
+        Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkPlaceable>>(rsc_entry).await?
     else {
-        bail!("expected an ECMAScript chunk placeable asset");
+        bail!("expected an ECMAScript chunk placeable module");
     };
 
     Ok(AppEntry {
@@ -133,6 +133,7 @@ fn get_original_page_name(pathname: &str) -> String {
     match pathname {
         "/" => "/page".to_string(),
         "/_not-found" => "/_not-found".to_string(),
+        "/not-found" => "/not-found".to_string(),
         _ => format!("{}/page", pathname),
     }
 }

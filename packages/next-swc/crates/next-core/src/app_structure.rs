@@ -754,28 +754,37 @@ async fn directory_tree_to_entrypoints_internal(
         // Next.js has this logic in "collect-app-paths", where the root not-found page
         // is considered as its own entry point.
         if let Some(_not_found) = components.not_found {
+            let tree = LoaderTree {
+                segment: directory_name.to_string(),
+                parallel_routes: indexmap! {
+                    "children".to_string() => LoaderTree {
+                        segment: "__DEFAULT__".to_string(),
+                        parallel_routes: IndexMap::new(),
+                        components: Components {
+                            default: Some(get_next_package(app_dir).join("dist/client/components/parallel-route-default.js".to_string())),
+                            ..Default::default()
+                        }
+                        .cell(),
+                    }
+                    .cell(),
+                },
+                components: components.without_leafs().cell(),
+            }
+            .cell();
+            add_app_page(
+                app_dir,
+                &mut result,
+                "/not-found".to_string(),
+                "/not-found".to_string(),
+                tree,
+            )
+            .await?;
             add_app_page(
                 app_dir,
                 &mut result,
                 "/_not-found".to_string(),
                 "/_not-found".to_string(),
-                LoaderTree {
-                    segment: directory_name.to_string(),
-                    parallel_routes: indexmap! {
-                        "children".to_string() => LoaderTree {
-                            segment: "__DEFAULT__".to_string(),
-                            parallel_routes: IndexMap::new(),
-                            components: Components {
-                                default: Some(get_next_package(app_dir).join("dist/client/components/parallel-route-default.js".to_string())),
-                                ..Default::default()
-                            }
-                            .cell(),
-                        }
-                        .cell(),
-                    },
-                    components: components.without_leafs().cell(),
-                }
-                .cell(),
+                tree,
             )
             .await?;
         }
