@@ -342,7 +342,8 @@ impl AppProject {
                 .map(|(pathname, app_entrypoint)| async {
                     Ok((
                         pathname.clone(),
-                        *app_entry_point_to_route(self, *app_entrypoint, pathname.clone()).await?,
+                        *app_entry_point_to_route(self, app_entrypoint.clone(), pathname.clone())
+                            .await?,
                     ))
                 })
                 .try_join()
@@ -360,7 +361,10 @@ pub async fn app_entry_point_to_route(
     pathname: String,
 ) -> Vc<Route> {
     match entrypoint {
-        AppEntrypoint::AppPage { loader_tree } => Route::AppPage {
+        AppEntrypoint::AppPage {
+            original_name,
+            loader_tree,
+        } => Route::AppPage {
             html_endpoint: Vc::upcast(
                 AppEndpoint {
                     ty: AppEndpointType::Page {
@@ -369,6 +373,7 @@ pub async fn app_entry_point_to_route(
                     },
                     app_project,
                     pathname: pathname.clone(),
+                    original_name: original_name.clone(),
                 }
                 .cell(),
             ),
@@ -380,16 +385,21 @@ pub async fn app_entry_point_to_route(
                     },
                     app_project,
                     pathname,
+                    original_name,
                 }
                 .cell(),
             ),
         },
-        AppEntrypoint::AppRoute { path } => Route::AppRoute {
+        AppEntrypoint::AppRoute {
+            original_name,
+            path,
+        } => Route::AppRoute {
             endpoint: Vc::upcast(
                 AppEndpoint {
                     ty: AppEndpointType::Route { path },
                     app_project,
-                    pathname: pathname.clone(),
+                    pathname,
+                    original_name,
                 }
                 .cell(),
             ),
@@ -420,6 +430,7 @@ struct AppEndpoint {
     ty: AppEndpointType,
     app_project: Vc<AppProject>,
     pathname: String,
+    original_name: String,
 }
 
 #[turbo_tasks::value_impl]
@@ -440,6 +451,7 @@ impl AppEndpoint {
             loader_tree,
             self.app_project.app_dir(),
             self.pathname.clone(),
+            self.original_name.clone(),
             self.app_project.project().project_path(),
         )
     }
@@ -451,6 +463,7 @@ impl AppEndpoint {
             self.app_project.edge_rsc_module_context(),
             Vc::upcast(FileSource::new(path)),
             self.pathname.clone(),
+            self.original_name.clone(),
             self.app_project.project().project_path(),
         )
     }
