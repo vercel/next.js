@@ -31,6 +31,7 @@ pub async fn get_app_route_entry(
     edge_context: Vc<ModuleAssetContext>,
     source: Vc<Box<dyn Source>>,
     pathname: String,
+    original_name: String,
     project_root: Vc<FileSystemPath>,
 ) -> Result<Vc<AppEntry>> {
     let config = parse_segment_config_from_source(
@@ -49,7 +50,7 @@ pub async fn get_app_route_entry(
     let mut result = RopeBuilder::default();
 
     let kind = "app-route";
-    let original_name = get_original_route_name(&pathname);
+    let original_name = get_original_route_name(&original_name);
     let path = source.ident().path();
 
     let options = AppRouteRouteModuleOptions {
