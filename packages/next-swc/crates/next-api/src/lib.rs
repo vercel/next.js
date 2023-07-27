@@ -8,6 +8,9 @@ mod pages;
 pub mod project;
 pub mod route;
 
+// Declare build-time information variables generated in build.rs
+shadow_rs::shadow!(build);
+
 pub fn register() {
     next_core::register();
     turbopack_binding::turbopack::build::register();
