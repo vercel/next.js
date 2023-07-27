@@ -2640,8 +2640,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       let using404Page = false
 
       if (is404) {
-        // Rendering app routes only in render worker to make sure the require-hook is setup
-        if (this.hasAppDir && this.isRenderWorker) {
+        if (this.hasAppDir) {
           // Use the not-found entry in app directory
           result = await this.findPageComponents({
             pathname: this.renderOpts.dev ? '/not-found' : '/_not-found',

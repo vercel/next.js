@@ -60,9 +60,12 @@ import { NextBuildContext } from '../../build/build-context'
 import { IncrementalCache } from '../lib/incremental-cache'
 import LRUCache from 'next/dist/compiled/lru-cache'
 import { NextUrlWithParsedQuery } from '../request-meta'
-import { deserializeErr, errorToJSON } from '../render'
-import { invokeRequest } from '../lib/server-ipc/invoke-request'
+import { errorToJSON } from '../render'
 import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
+import {
+  deserializeErr,
+  invokeIpcMethod,
+} from '../lib/server-ipc/request-utils'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: FunctionComponent
@@ -478,46 +481,18 @@ export default class DevServer extends Server {
     }
   }
 
-  private async invokeIpcMethod(method: string, args: any[]): Promise<any> {
-    const ipcPort = process.env.__NEXT_PRIVATE_ROUTER_IPC_PORT
-    const ipcKey = process.env.__NEXT_PRIVATE_ROUTER_IPC_KEY
-    if (ipcPort) {
-      const res = await invokeRequest(
-        `http://${this.hostname}:${ipcPort}?key=${ipcKey}&method=${
-          method as string
-        }&args=${encodeURIComponent(JSON.stringify(args))}`,
-        {
-          method: 'GET',
-          headers: {},
-        }
-      )
-      const body = await res.text()
-
-      if (body.startsWith('{') && body.endsWith('}')) {
-        const parsedBody = JSON.parse(body)
-
-        if (
-          parsedBody &&
-          typeof parsedBody === 'object' &&
-          'err' in parsedBody &&
-          'stack' in parsedBody.err
-        ) {
-          throw deserializeErr(parsedBody.err)
-        }
-        return parsedBody
-      }
-    }
-  }
-
   protected async logErrorWithOriginalStack(
     err?: unknown,
     type?: 'unhandledRejection' | 'uncaughtException' | 'warning' | 'app-dir'
   ) {
     if (this.isRenderWorker) {
-      await this.invokeIpcMethod('logErrorWithOriginalStack', [
-        errorToJSON(err as Error),
-        type,
-      ])
+      await invokeIpcMethod({
+        hostname: this.hostname,
+        method: 'logErrorWithOriginalStack',
+        args: [errorToJSON(err as Error), type],
+        ipcPort: process.env.__NEXT_PRIVATE_ROUTER_IPC_PORT,
+        ipcKey: process.env.__NEXT_PRIVATE_ROUTER_IPC_KEY,
+      })
       return
     }
     throw new Error(
@@ -767,7 +742,13 @@ export default class DevServer extends Server {
     match?: RouteMatch
   }) {
     if (this.isRenderWorker) {
-      await this.invokeIpcMethod('ensurePage', [opts])
+      await invokeIpcMethod({
+        hostname: this.hostname,
+        method: 'ensurePage',
+        args: [opts],
+        ipcPort: process.env.__NEXT_PRIVATE_ROUTER_IPC_PORT,
+        ipcKey: process.env.__NEXT_PRIVATE_ROUTER_IPC_KEY,
+      })
       return
     }
     throw new Error('Invariant ensurePage called outside render worker')
@@ -826,7 +807,13 @@ export default class DevServer extends Server {
 
   protected async getFallbackErrorComponents(): Promise<LoadComponentsReturnType | null> {
     if (this.isRenderWorker) {
-      await this.invokeIpcMethod('getFallbackErrorComponents', [])
+      await invokeIpcMethod({
+        hostname: this.hostname,
+        method: 'getFallbackErrorComponents',
+        args: [],
+        ipcPort: process.env.__NEXT_PRIVATE_ROUTER_IPC_PORT,
+        ipcKey: process.env.__NEXT_PRIVATE_ROUTER_IPC_KEY,
+      })
       return await loadDefaultErrorComponents(this.distDir)
     }
     throw new Error(
@@ -836,7 +823,13 @@ export default class DevServer extends Server {
 
   async getCompilationError(page: string): Promise<any> {
     if (this.isRenderWorker) {
-      const err = await this.invokeIpcMethod('getCompilationError', [page])
+      const err = await invokeIpcMethod({
+        hostname: this.hostname,
+        method: 'getCompilationError',
+        args: [page],
+        ipcPort: process.env.__NEXT_PRIVATE_ROUTER_IPC_PORT,
+        ipcKey: process.env.__NEXT_PRIVATE_ROUTER_IPC_KEY,
+      })
       return deserializeErr(err)
     }
     throw new Error(
