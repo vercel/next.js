@@ -175,7 +175,8 @@ export async function loadEntrypointWithReplacements(
     function (_, fromRequest, importRequest) {
       count++
 
-      const relative = path.relative(
+      const relative = path
+        .relative(
         // NOTE: this should be updated if this loader file is moved.
         path.normalize(path.join(__dirname, '../../../../../..')),
         path.resolve(
@@ -183,10 +184,12 @@ export async function loadEntrypointWithReplacements(
           fromRequest ?? importRequest
         )
       )
+        // Ensure that we use linux style path separators for node.
+        .replace(/\\/g, '/')
 
-      if (!relative.startsWith('next' + path.sep)) {
+      if (!relative.startsWith('next/')) {
         throw new Error(
-          `Invariant: Expected relative import to start with "next${path.sep}", found "${relative}"`
+          `Invariant: Expected relative import to start with "next/", found "${relative}"`
         )
       }
 
