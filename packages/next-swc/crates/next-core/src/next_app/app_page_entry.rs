@@ -38,9 +38,9 @@ pub async fn get_app_page_entry(
 ) -> Result<Vc<AppEntry>> {
     let config = parse_segment_config_from_loader_tree(loader_tree, Vc::upcast(nodejs_context));
     let context = if matches!(config.await?.runtime, Some(NextRuntime::Edge)) {
-        nodejs_context
-    } else {
         edge_context
+    } else {
+        nodejs_context
     };
 
     let server_component_transition = Vc::upcast(NextServerComponentTransition::new());
