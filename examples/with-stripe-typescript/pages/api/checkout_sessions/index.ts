@@ -22,19 +22,20 @@ export default async function handler(
       }
       // Create Checkout Sessions from body params.
       const params: Stripe.Checkout.SessionCreateParams = {
+        mode: 'payment',
         submit_type: 'donate',
         payment_method_types: ['card'],
         line_items: [
           {
-            amount: formatAmountForStripe(amount, CURRENCY),
             quantity: 1,
             price_data: {
               currency: CURRENCY,
               product_data: {
                 name: 'Custom amount donation',
               },
-            },
-          },
+              unit_amount: formatAmountForStripe(amount, CURRENCY)
+            }
+          }
         ],
         success_url: `${req.headers.origin}/result?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${req.headers.origin}/donate-with-checkout`,
