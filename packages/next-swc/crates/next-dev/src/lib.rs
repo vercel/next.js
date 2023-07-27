@@ -337,7 +337,7 @@ async fn source(
     let execution_context =
         ExecutionContext::new(project_path, Vc::upcast(build_chunking_context), env);
 
-    let mode = NextMode::Development;
+    let mode = NextMode::DevServer;
     let next_config_execution_context = execution_context.with_layer("next_config".to_string());
     let next_config = load_next_config(next_config_execution_context);
     let rewrites = load_rewrites(next_config_execution_context);

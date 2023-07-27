@@ -1,3 +1,4 @@
+declare const __webpack_require__: any
 declare let __webpack_public_path__: string
 
 const addChunkSuffix =
@@ -34,3 +35,5 @@ __webpack_require__.miniCssF = addChunkSuffix(getMiniCssFilename)
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   __webpack_public_path__ = path
 }
+
+export {}

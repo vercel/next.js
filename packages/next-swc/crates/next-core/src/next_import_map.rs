@@ -391,7 +391,7 @@ pub async fn insert_next_server_special_aliases(
         // In development, we *always* use the bundled version of React, even in
         // SSR, since we're bundling Next.js alongside it.
         (
-            NextMode::Development,
+            NextMode::DevServer,
             ServerContextType::AppSSR { app_dir }
             | ServerContextType::AppRSC { app_dir, .. }
             | ServerContextType::AppRoute { app_dir },
@@ -429,7 +429,7 @@ pub async fn insert_next_server_special_aliases(
         // NOTE(alexkirsz) This logic maps loosely to
         // `next.js/packages/next/src/build/webpack-config.ts`, where:
         //
-        // ## RSC (Build)
+        // ## RSC
         //
         // * always bundles
         // * maps react -> react/shared-subset (through the "react-server" exports condition)
@@ -437,7 +437,7 @@ pub async fn insert_next_server_special_aliases(
         // * passes through (react|react-dom|react-server-dom-webpack)/(.*) to
         //   next/dist/compiled/$1/$2
         (
-            NextMode::Build,
+            NextMode::Build | NextMode::Development,
             ServerContextType::AppRSC { app_dir, .. } | ServerContextType::AppRoute { app_dir },
         ) => {
             import_map.insert_exact_alias(
@@ -471,14 +471,14 @@ pub async fn insert_next_server_special_aliases(
                 );
             }
         }
-        // ## SSR (Build)
+        // ## SSR
         //
         // * always uses externals, to ensure we're using the same React instance as the Next.js
         //   runtime
         // * maps react-dom -> react-dom/server-rendering-stub
         // * passes through react and (react|react-dom|react-server-dom-webpack)/(.*) to
         //   next/dist/compiled/react and next/dist/compiled/$1/$2 resp.
-        (NextMode::Build, ServerContextType::AppSSR { .. }) => {
+        (NextMode::Build | NextMode::Development, ServerContextType::AppSSR { .. }) => {
             import_map.insert_exact_alias(
                 "react",
                 external_request_to_import_mapping("next/dist/compiled/react"),
