@@ -64,8 +64,9 @@ export default async function Page() {
 
 > **Good to know**:
 >
-> To use `async`/`await` in a Server Component with TypeScript, you'll need to use TypeScript `5.1.3` or higher and `@types/react` `18.2.8` or higher.
 > Next.js provides helpful functions you may need when fetching data in Server Components such as [`cookies`](/docs/app/api-reference/functions/cookies) and [`headers`](/docs/app/api-reference/functions/headers). These will cause the route to be dynamically rendered as they rely on request time information.
+> In Route handlers, `fetch` requests are not memoized as Route Handlers are not part of the React component tree.
+> To use `async`/`await` in a Server Component with TypeScript, you'll need to use TypeScript `5.1.3` or higher and `@types/react` `18.2.8` or higher.
 
 ### Caching Data
 
@@ -109,7 +110,7 @@ Alternatively, to revalidate all `fetch` requests in a route segment, you can us
 export const revalidate = 3600 // revalidate every hour
 ```
 
-If you have multiple fetch requests in a route, and each has a different revalidation frequency. The lowest time will be used for all requests.
+If you have multiple fetch requests in a statically rendered route, and each has a different revalidation frequency. The lowest time will be used for all requests. For dynamically rendered routes, each `fetch` request will be revalidated independently.
 
 Learn more about [time-based revalidation](/docs/app/building-your-application/caching#time-based-revalidation).
 
