@@ -6,7 +6,7 @@ import { isStringOrURL } from './resolve-url'
 import { IconKeys } from '../constants'
 
 export function resolveIcon(icon: Icon): IconDescriptor {
-  if (isStringOrURL(icon)) return { url: icon }
+  if (isStringOrURL(icon)) return { url: icon, rel: 'icon' }
   else if (Array.isArray(icon)) return icon
   return icon
 }

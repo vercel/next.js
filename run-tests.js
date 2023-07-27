@@ -157,7 +157,7 @@ async function main() {
     tests = (
       await glob('**/*.test.{js,ts,tsx}', {
         nodir: true,
-        cwd: path.join(__dirname, 'test'),
+        cwd: __dirname,
       })
     ).filter((test) => {
       if (testPatternRegex) {
@@ -212,9 +212,7 @@ async function main() {
   let testNames = [
     ...new Set(
       tests.map((f) => {
-        let name = `${f.replace(/\\/g, '/').replace(/\/test$/, '')}`
-        if (!name.startsWith('test/')) name = `test/${name}`
-        return name
+        return `${f.replace(/\\/g, '/').replace(/\/test$/, '')}`
       })
     ),
   ]
