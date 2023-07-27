@@ -131,9 +131,9 @@ import { useSelectedLayoutSegment } from 'next/navigation'
 
 export default async function Layout(props: {
   //...
-  authModal: React.ReactNode
+  auth: React.ReactNode
 }) {
-  const loginSegments = useSelectedLayoutSegment('authModal')
+  const loginSegments = useSelectedLayoutSegment('auth')
   // ...
 }
 ```
@@ -144,12 +144,12 @@ export default async function Layout(props: {
 import { useSelectedLayoutSegment } from 'next/navigation'
 
 export default async function Layout(props) {
-  const loginSegments = useSelectedLayoutSegment('authModal')
+  const loginSegments = useSelectedLayoutSegment('auth')
   // ...
 }
 ```
 
-When a user navigates to `@authModal/login`, or `/login` in the URL bar, `loginSegments` will be equal to the string `"login"`.
+When a user navigates to `@auth/login`, or `/login` in the URL bar, `loginSegments` will be equal to the string `"login"`.
 
 ## Examples
 
@@ -165,17 +165,17 @@ Parallel Routing can be used to render modals.
   height="687"
 />
 
-The `@authModal` slot renders a`<Modal>` component that can be shown by navigating to a matching route, for example `/login`.
+The `@auth` slot renders a `<Modal>` component that can be shown by navigating to a matching route, for example `/login`.
 
 ```tsx filename="app/layout.tsx" switcher
 export default async function Layout(props: {
   // ...
-  authModal: React.ReactNode
+  auth: React.ReactNode
 }) {
   return (
     <>
       {/* ... */}
-      {props.authModal}
+      {props.auth}
     </>
   )
 }
@@ -186,13 +186,13 @@ export default async function Layout(props) {
   return (
     <>
       {/* ... */}
-      {props.authModal}
+      {props.auth}
     </>
   )
 }
 ```
 
-```tsx filename="app/@authModal/login/page.tsx" switcher
+```tsx filename="app/@auth/login/page.tsx" switcher
 import { Modal } from 'components/modal'
 
 export default function Login() {
@@ -205,7 +205,7 @@ export default function Login() {
 }
 ```
 
-```jsx filename="app/@authModal/login/page.js" switcher
+```jsx filename="app/@auth/login/page.js" switcher
 import { Modal } from 'components/modal'
 
 export default function Login() {
@@ -220,13 +220,13 @@ export default function Login() {
 
 To ensure that the contents of the modal don't get rendered when it's not active, you can create a `default.js` file that returns `null`.
 
-```tsx filename="app/@authModal/default.tsx" switcher
+```tsx filename="app/@auth/default.tsx" switcher
 export default function Default() {
   return null
 }
 ```
 
-```jsx filename="app/@authModal/default.js" switcher
+```jsx filename="app/@auth/default.js" switcher
 export default function Default() {
   return null
 }
@@ -236,7 +236,7 @@ export default function Default() {
 
 If a modal was initiated through client navigation, e.g. by using `<Link href="/login">`, you can dismiss the modal by calling `router.back()` or by using a `Link` component.
 
-```tsx filename="app/@authModal/login/page.tsx" highlight="5" switcher
+```tsx filename="app/@auth/login/page.tsx" highlight="5" switcher
 'use client'
 import { useRouter } from 'next/navigation'
 import { Modal } from 'components/modal'
@@ -253,7 +253,7 @@ export default async function Login() {
 }
 ```
 
-```jsx filename="app/@authModal/login/page.js" highlight="5" switcher
+```jsx filename="app/@auth/login/page.js" highlight="5" switcher
 'use client'
 import { useRouter } from 'next/navigation'
 import { Modal } from 'components/modal'
@@ -282,13 +282,13 @@ If you want to navigate elsewhere and dismiss a modal, you can also use a catch-
   height="768"
 />
 
-```tsx filename="app/@authModal/[...catchAll]/page.tsx" switcher
+```tsx filename="app/@auth/[...catchAll]/page.tsx" switcher
 export default function CatchAll() {
   return null
 }
 ```
 
-```jsx filename="app/@authModal/[...catchAll]/page.js" switcher
+```jsx filename="app/@auth/[...catchAll]/page.js" switcher
 export default function CatchAll() {
   return null
 }

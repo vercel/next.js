@@ -298,7 +298,7 @@ When a Server Action is invoked, the UI is updated immediately to reflect the ex
 ```jsx filename="app/thread.js"
 'use client'
 
-import { experimental_useOptimistic as useOptimistic } from 'react'
+import { experimental_useOptimistic as useOptimistic, useRef } from 'react'
 import { send } from './actions.js'
 
 export function Thread({ messages }) {
@@ -455,7 +455,7 @@ function ExampleServerComponent({ id }) {
 'use client'
 
 function ExampleClientComponent({ updateItem }) {
-  async function action(formData: FormData) {
+  async function action(formData) {
     await updateItem(formData)
   }
 
@@ -497,7 +497,7 @@ export const action = withValidate((data) => {
 
 ```js filename="lib/form-validation.js"
 export function withValidate(action) {
-  return async (formData: FormData) => {
+  return async (formData) => {
     'use server'
 
     const isValidData = verifyData(formData)

@@ -5,7 +5,10 @@ use next_api::route::{Endpoint, WrittenEndpoint};
 use turbo_tasks::Vc;
 use turbopack_binding::turbopack::core::error::PrettyPrintError;
 
-use super::utils::{get_issues, subscribe, NapiIssue, RootTask, TurbopackResult, VcArc};
+use super::utils::{
+    get_diagnostics, get_issues, subscribe, NapiDiagnostic, NapiIssue, RootTask, TurbopackResult,
+    VcArc,
+};
 
 #[napi(object)]
 #[derive(Default)]
@@ -71,12 +74,13 @@ pub async fn endpoint_write_to_disk(
 ) -> napi::Result<TurbopackResult<NapiWrittenEndpoint>> {
     let turbo_tasks = endpoint.turbo_tasks().clone();
     let endpoint = ***endpoint;
-    let (written, issues) = turbo_tasks
+    let (written, issues, diags) = turbo_tasks
         .run_once(async move {
             let write_to_disk = endpoint.write_to_disk();
             let issues = get_issues(write_to_disk).await?;
+            let diags = get_diagnostics(write_to_disk).await?;
             let written = write_to_disk.strongly_consistent().await?;
-            Ok((written, issues))
+            Ok((written, issues, diags))
         })
         .await
         .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
@@ -84,7 +88,7 @@ pub async fn endpoint_write_to_disk(
     Ok(TurbopackResult {
         result: NapiWrittenEndpoint::from(&*written),
         issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
-        diagnostics: vec![],
+        diagnostics: diags.iter().map(|d| NapiDiagnostic::from(d)).collect(),
     })
 }
 
@@ -103,16 +107,16 @@ pub fn endpoint_changed_subscribe(
         move || async move {
             let changed = endpoint.changed();
             let issues = get_issues(changed).await?;
+            let diags = get_diagnostics(changed).await?;
             changed.await?;
-            // TODO diagnostics
-            Ok(issues)
+            Ok((issues, diags))
         },
         |ctx| {
-            let issues = ctx.value;
+            let (issues, diags) = ctx.value;
             Ok(vec![TurbopackResult {
                 result: (),
                 issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
-                diagnostics: vec![],
+                diagnostics: diags.iter().map(|d| NapiDiagnostic::from(d)).collect(),
             }])
         },
     )

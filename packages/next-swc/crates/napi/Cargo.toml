@@ -50,6 +50,7 @@ turbo-tasks = { workspace = true }
 once_cell = { workspace = true }
 serde = "1"
 serde_json = "1"
+shadow-rs = { workspace = true }
 tracing = { workspace = true }
 tracing-futures = "0.2.5"
 tracing-subscriber = { workspace = true }
@@ -84,6 +85,8 @@ sentry = { version = "0.27.0", default-features = false, features = [
 napi-build = "2"
 serde = "1"
 serde_json = "1"
+# It is not a mistake this dependency is specified in dep / build-dep both.
+shadow-rs = { workspace = true }
 turbopack-binding = { workspace = true, features = [
   "__turbo_tasks_build"
 ]}

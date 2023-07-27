@@ -45,12 +45,10 @@ use tokio::{
     task::JoinSet,
 };
 use tungstenite::{error::ProtocolError::ResetWithoutClosingHandshake, Error::Protocol};
-use turbo_tasks::{debug::ValueDebug, unit, ReadRef, Vc};
+use turbo_tasks::{unit, ReadRef, Vc};
 use turbopack_binding::{
     turbo::{
-        tasks::{
-            debug::ValueDebugString, RawVc, State, TransientInstance, TransientValue, TurboTasks,
-        },
+        tasks::{RawVc, State, TransientInstance, TransientValue, TurboTasks},
         tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath},
         tasks_memory::MemoryBackend,
         tasks_testing::retry::{retry, retry_async},
@@ -642,7 +640,7 @@ struct ChangeFileCommand {
 #[turbo_tasks::value(shared, serialization = "none", eq = "manual", cell = "new")]
 struct TestIssueReporter {
     #[turbo_tasks(trace_ignore, debug_ignore)]
-    pub issue_tx: State<UnboundedSender<(ReadRef<PlainIssue>, ReadRef<ValueDebugString>)>>,
+    pub issue_tx: State<UnboundedSender<ReadRef<PlainIssue>>>,
     #[turbo_tasks(trace_ignore, debug_ignore)]
     pub already_printed: Mutex<HashMap<String, ()>>,
 }
@@ -650,11 +648,7 @@ struct TestIssueReporter {
 #[turbo_tasks::value_impl]
 impl TestIssueReporter {
     #[turbo_tasks::function]
-    fn new(
-        issue_tx: TransientInstance<
-            UnboundedSender<(ReadRef<PlainIssue>, ReadRef<ValueDebugString>)>,
-        >,
-    ) -> Vc<Self> {
+    fn new(issue_tx: TransientInstance<UnboundedSender<ReadRef<PlainIssue>>>) -> Vc<Self> {
         TestIssueReporter {
             issue_tx: State::new((*issue_tx).clone()),
             already_printed: Default::default(),
@@ -682,7 +676,7 @@ impl IssueReporter for TestIssueReporter {
         let issue_tx = self.issue_tx.get_untracked().clone();
         for (issue, path) in captured_issues.iter_with_shortest_path() {
             let plain = NormalizedIssue(issue).cell().into_plain(path);
-            issue_tx.send((plain.await?, plain.dbg().await?))?;
+            issue_tx.send(plain.await?)?;
             let str = format_issue(&*plain.await?, None, &log_options);
             if let Entry::Vacant(e) = self.already_printed.lock().entry(str) {
                 println!("{}", e.key());
