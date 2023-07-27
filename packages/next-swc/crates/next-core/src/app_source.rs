@@ -133,7 +133,7 @@ async fn next_client_transition(
     next_config: Vc<NextConfig>,
 ) -> Result<Vc<Box<dyn Transition>>> {
     let ty: Value<ClientContextType> = Value::new(ClientContextType::App { app_dir });
-    let mode = NextMode::Development;
+    let mode = NextMode::DevServer;
     let client_module_options_context = get_client_module_options_context(
         project_path,
         execution_context,
@@ -170,7 +170,7 @@ fn next_ssr_client_module_transition(
     server_addr: Vc<ServerAddr>,
 ) -> Vc<Box<dyn Transition>> {
     let ty = Value::new(ServerContextType::AppSSR { app_dir });
-    let mode = NextMode::Development;
+    let mode = NextMode::DevServer;
     Vc::upcast(
         NextSSRClientModuleTransition {
             ssr_module_options_context: get_server_module_options_context(
@@ -202,7 +202,7 @@ fn next_edge_ssr_client_module_transition(
     server_addr: Vc<ServerAddr>,
 ) -> Vc<Box<dyn Transition>> {
     let ty = Value::new(ServerContextType::AppSSR { app_dir });
-    let mode = NextMode::Development;
+    let mode = NextMode::DevServer;
     Vc::upcast(
         NextSSRClientModuleTransition {
             ssr_module_options_context: get_server_module_options_context(
@@ -306,7 +306,7 @@ fn next_edge_route_transition(
     output_path: Vc<FileSystemPath>,
     execution_context: Vc<ExecutionContext>,
 ) -> Vc<Box<dyn Transition>> {
-    let mode = NextMode::Development;
+    let mode = NextMode::DevServer;
     let server_ty = Value::new(ServerContextType::AppRoute { app_dir });
 
     let edge_compile_time_info = get_edge_compile_time_info(project_path, server_addr);
@@ -570,7 +570,7 @@ pub async fn create_app_source(
         client_chunking_context,
         client_compile_time_info,
         true,
-        NextMode::Development,
+        NextMode::DevServer,
         next_config,
         server_addr,
         output_path,
@@ -584,7 +584,7 @@ pub async fn create_app_source(
         client_chunking_context,
         client_compile_time_info,
         false,
-        NextMode::Development,
+        NextMode::DevServer,
         next_config,
         server_addr,
         output_path,
@@ -905,7 +905,7 @@ impl AppRenderer {
             loader_tree,
             context,
             ServerComponentTransition::TransitionName(rsc_transition.to_string()),
-            NextMode::Development,
+            NextMode::DevServer,
         )
         .await?;
 

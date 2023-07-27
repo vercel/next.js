@@ -96,7 +96,7 @@ pub async fn create_page_source(
         project_root.join("pages".to_string())
     };
 
-    let mode = NextMode::Development;
+    let mode = NextMode::DevServer;
     let client_ty = Value::new(ClientContextType::Pages { pages_dir });
     let server_ty = Value::new(ServerContextType::Pages { pages_dir });
     let server_data_ty = Value::new(ServerContextType::PagesData { pages_dir });
@@ -344,7 +344,7 @@ async fn create_page_source_for_file(
     node_root: Vc<FileSystemPath>,
     render_data: Vc<JsonValue>,
 ) -> Result<Vc<Box<dyn ContentSource>>> {
-    let mode = NextMode::Development;
+    let mode = NextMode::DevServer;
 
     let server_chunking_context = Vc::upcast(
         DevChunkingContext::builder(

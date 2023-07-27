@@ -15,7 +15,8 @@ import { filterReqHeaders } from './server-ipc/utils'
 import { findPagesDir } from '../../lib/find-pages-dir'
 import { setupFsCheck } from './router-utils/filesystem'
 import { proxyRequest } from './router-utils/proxy-request'
-import { invokeRequest, pipeReadable } from './server-ipc/invoke-request'
+import { invokeRequest } from './server-ipc/invoke-request'
+import { isAbortError, pipeReadable } from '../pipe-readable'
 import { createRequestResponseMocks } from './mock-request'
 import { createIpcServer, createWorker } from './server-ipc'
 import { UnwrapPromise } from '../../lib/coalesced-function'
@@ -29,6 +30,7 @@ import {
   PHASE_DEVELOPMENT_SERVER,
   PERMANENT_REDIRECT_STATUS,
 } from '../../shared/lib/constants'
+import { signalFromNodeResponse } from '../web/spec-extension/adapters/next-request'
 
 let initializeResult:
   | undefined
@@ -331,14 +333,26 @@ export async function initialize(opts: {
 
       debug('invokeRender', renderUrl, invokeHeaders)
 
-      const invokeRes = await invokeRequest(
-        renderUrl,
-        {
-          headers: invokeHeaders,
-          method: req.method,
-        },
-        getRequestMeta(req, '__NEXT_CLONABLE_BODY')?.cloneBodyStream()
-      )
+      let invokeRes
+      try {
+        invokeRes = await invokeRequest(
+          renderUrl,
+          {
+            headers: invokeHeaders,
+            method: req.method,
+            signal: signalFromNodeResponse(res),
+          },
+          getRequestMeta(req, '__NEXT_CLONABLE_BODY')?.cloneBodyStream()
+        )
+      } catch (e) {
+        // If the client aborts before we can receive a response object (when
+        // the headers are flushed), then we can early exit without further
+        // processing.
+        if (isAbortError(e)) {
+          return
+        }
+        throw e
+      }
 
       debug('invokeRender res', invokeRes.status, invokeRes.headers)
 
@@ -419,7 +433,12 @@ export async function initialize(opts: {
         resHeaders,
         bodyStream,
         matchedOutput,
-      } = await resolveRoutes(req, matchedDynamicRoutes, false)
+      } = await resolveRoutes(
+        req,
+        matchedDynamicRoutes,
+        false,
+        signalFromNodeResponse(res)
+      )
 
       if (devInstance && matchedOutput?.type === 'devVirtualFsItem') {
         const origUrl = req.url || '/'
@@ -687,7 +706,8 @@ export async function initialize(opts: {
       const { matchedOutput, parsedUrl } = await resolveRoutes(
         req,
         new Set(),
-        true
+        true,
+        signalFromNodeResponse(socket)
       )
 
       // TODO: allow upgrade requests to pages/app paths?
