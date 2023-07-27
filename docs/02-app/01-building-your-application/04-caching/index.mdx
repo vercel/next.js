@@ -181,10 +181,10 @@ Data can be revalidated on-demand by path ([`revalidatePath`](#revalidatepath)) 
   srcLight="/docs/light/on-demand-revalidation.png"
   srcDark="/docs/dark/on-demand-revalidation.png"
   width="1600"
-  height="747"
+  height="956"
 />
 
-On-demand revalidation updates the entry in the Data Cache. When the request is executed again, it'll be a cache miss, and the Data Cache will be populated with fresh data. This is different from time-based revalidation, which keeps the stale data in the cache until the fresh data is fetched.
+On-demand revalidation purges entries from the Data Cache. When the request is executed again, it'll be a cache miss, and the Data Cache will be populated with fresh data. This is different from time-based revalidation, which keeps the stale data in the cache until the fresh data is fetched.
 
 ### Opting out
 
