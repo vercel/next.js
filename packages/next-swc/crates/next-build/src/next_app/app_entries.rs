@@ -199,7 +199,6 @@ pub async fn get_app_entries(
                     *loader_tree,
                     app_dir,
                     pathname.clone(),
-                    original_name.clone(),
                     project_root,
                 ),
                 Entrypoint::AppRoute {
@@ -211,7 +210,6 @@ pub async fn get_app_entries(
                     rsc_context,
                     Vc::upcast(FileSource::new(*path)),
                     pathname.clone(),
-                    original_name.clone(),
                     project_root,
                 ),
             })

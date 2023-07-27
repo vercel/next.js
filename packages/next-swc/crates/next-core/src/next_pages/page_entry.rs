@@ -2,8 +2,8 @@ use std::io::Write;
 
 use anyhow::{bail, Result};
 use indexmap::indexmap;
-use indoc::writedoc;
 use turbo_tasks::Vc;
+use turbo_tasks_fs::FileSystemPath;
 use turbopack_binding::{
     turbo::{
         tasks::Value,
@@ -13,6 +13,7 @@ use turbopack_binding::{
         core::{
             asset::AssetContent,
             context::AssetContext,
+            module::Module,
             reference_type::{EntryReferenceSubType, ReferenceType},
             source::Source,
             virtual_source::VirtualSource,
@@ -21,10 +22,13 @@ use turbopack_binding::{
     },
 };
 
+use crate::util::{load_next_js, resolve_next_module};
+
 #[turbo_tasks::function]
 pub async fn create_page_ssr_entry_module(
     pathname: Vc<String>,
     reference_type: Value<ReferenceType>,
+    project_root: Vc<FileSystemPath>,
     ssr_module_context: Vc<Box<dyn AssetContext>>,
     source: Vc<Box<dyn Source>>,
     next_original_name: Vc<String>,
@@ -34,116 +38,83 @@ pub async fn create_page_ssr_entry_module(
 
     let ssr_module = ssr_module_context.process(source, reference_type.clone());
 
-    let mut result = RopeBuilder::default();
+    let reference_type = reference_type.into_value();
 
-    let entry_suffix = match reference_type.into_value() {
+    let template_file = match reference_type {
         ReferenceType::Entry(EntryReferenceSubType::Page) => {
-            // Sourced from https://github.com/vercel/next.js/blob/2848ce51d1552633119c89ab49ff7fe2e4e91c91/packages/next/src/build/webpack/loaders/next-route-loader/index.ts
-            writedoc!(
-                result,
-                r#"
-                    import RouteModule from "next/dist/server/future/route-modules/pages/module"
-                    import {{ hoist }} from "next/dist/build/webpack/loaders/next-route-loader/helpers"
-
-                    import Document from "@vercel/turbopack-next/pages/_document"
-                    import App from "@vercel/turbopack-next/pages/_app"
-
-                    import * as userland from "INNER"
-
-                    export default hoist(userland, "default")
-
-                    export const getStaticProps = hoist(userland, "getStaticProps")
-                    export const getStaticPaths = hoist(userland, "getStaticPaths")
-                    export const getServerSideProps = hoist(userland, "getServerSideProps")
-                    export const config = hoist(userland, "config")
-                    export const reportWebVitals = hoist(userland, "reportWebVitals")
-
-                    export const unstable_getStaticProps = hoist(userland, "unstable_getStaticProps")
-                    export const unstable_getStaticPaths = hoist(userland, "unstable_getStaticPaths")
-                    export const unstable_getStaticParams = hoist(userland, "unstable_getStaticParams")
-                    export const unstable_getServerProps = hoist(userland, "unstable_getServerProps")
-                    export const unstable_getServerSideProps = hoist(userland, "unstable_getServerSideProps")
-                    
-                    export const routeModule = new RouteModule({{
-                        definition: {{
-                            kind: "PAGES",
-                            page: {definition_page},
-                            pathname: {definition_pathname},
-                            // The following aren't used in production, but are
-                            // required for the RouteModule constructor.
-                            bundlePath: "",
-                            filename: "",
-                        }},
-                        components: {{
-                            App,
-                            Document,
-                        }},
-                        userland,
-                    }})
-                "#,
-                definition_page = StringifyJs(&definition_page),
-                definition_pathname = StringifyJs(&definition_pathname),
-            )?;
-
-            // When we're building the instrumentation page (only when the
-            // instrumentation file conflicts with a page also labeled
-            // /instrumentation) hoist the `register` method.
-            if definition_page.as_str() == "/instrumentation"
-                || definition_page.as_str() == "/src/instrumentation"
-            {
-                writeln!(
-                    result,
-                    r#"export const register = hoist(userland, "register")"#
-                )?;
-            }
-
-            "pages-entry.tsx".to_string()
+            // Load the Page entry file.
+            "/dist/esm/build/webpack/loaders/next-route-loader/entries/pages.js"
         }
         ReferenceType::Entry(EntryReferenceSubType::PagesApi) => {
-            // Sourced from https://github.com/vercel/next.js/blob/2848ce51d1552633119c89ab49ff7fe2e4e91c91/packages/next/src/build/webpack/loaders/next-route-loader/index.ts
-            writedoc!(
-                result,
-                r#"
-                    import RouteModule from "next/dist/server/future/route-modules/pages-api/module"
-                    import {{ hoist }} from "next/dist/build/webpack/loaders/next-route-loader/helpers"
-
-                    import * as userland from "INNER"
-
-                    export default hoist(userland, "default")
-                    export const config = hoist(userland, "config")
-                    
-                    export const routeModule = new RouteModule({{
-                        definition: {{
-                            kind: "PAGES_API",
-                            page: {definition_page},
-                            pathname: {definition_pathname},
-                            // The following aren't used in production, but are
-                            // required for the RouteModule constructor.
-                            bundlePath: "",
-                            filename: "",
-                        }},
-                        userland,
-                    }})
-                "#,
-                definition_page = StringifyJs(&definition_page),
-                definition_pathname = StringifyJs(&definition_pathname),
-            )?;
-
-            "pages-api-entry.tsx".to_string()
+            // Load the Pages API entry file.
+            "/dist/esm/build/webpack/loaders/next-route-loader/entries/pages-api.js"
         }
-        reference_type => bail!("unexpected reference type: {:?}", reference_type),
+        _ => bail!("Invalid path type"),
     };
+
+    // Load the file from the next.js codebase.
+    let file = load_next_js(project_root, template_file).await?.await?;
+
+    let mut file = file
+        .to_str()?
+        .replace(
+            "\"VAR_DEFINITION_PAGE\"",
+            &StringifyJs(&definition_page).to_string(),
+        )
+        .replace(
+            "\"VAR_DEFINITION_PATHNAME\"",
+            &StringifyJs(&definition_pathname).to_string(),
+        );
+
+    if reference_type == ReferenceType::Entry(EntryReferenceSubType::Page) {
+        file = file
+            .replace(
+                "\"VAR_MODULE_DOCUMENT\"",
+                &StringifyJs("@vercel/turbopack-next/pages/_document").to_string(),
+            )
+            .replace(
+                "\"VAR_MODULE_APP\"",
+                &StringifyJs("@vercel/turbopack-next/pages/_app").to_string(),
+            );
+    }
+
+    // Ensure that the last line is a newline.
+    if !file.ends_with('\n') {
+        file.push('\n');
+    }
+
+    let mut result = RopeBuilder::from(file.as_bytes().to_vec());
+
+    if reference_type == ReferenceType::Entry(EntryReferenceSubType::Page) {
+        // When we're building the instrumentation page (only when the
+        // instrumentation file conflicts with a page also labeled
+        // /instrumentation) hoist the `register` method.
+        if definition_page.to_string() == "/instrumentation"
+            || definition_page.to_string() == "/src/instrumentation"
+        {
+            writeln!(
+                result,
+                r#"export const register = hoist(userland, "register")"#
+            )?;
+        }
+    }
 
     let file = File::from(result.build());
 
-    let source = VirtualSource::new(
-        source.ident().path().join(entry_suffix),
-        AssetContent::file(file.into()),
-    );
+    let resolve_result = resolve_next_module(project_root, template_file).await?;
+
+    let Some(template_path) = *resolve_result.first_module().await? else {
+        bail!("Expected to find module");
+    };
+
+    let template_path = template_path.ident().path();
+
+    let source = VirtualSource::new(template_path, AssetContent::file(file.into()));
+
     let ssr_module = ssr_module_context.process(
         Vc::upcast(source),
         Value::new(ReferenceType::Internal(Vc::cell(indexmap! {
-            "INNER".to_string() => ssr_module,
+            "VAR_USERLAND".to_string() => ssr_module,
         }))),
     );
 

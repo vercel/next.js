@@ -343,6 +343,7 @@ async fn get_page_entry_for_file(
     let ssr_module = create_page_ssr_entry_module(
         pathname,
         reference_type,
+        project_root,
         ssr_module_context,
         source,
         Vc::cell(original_name),
