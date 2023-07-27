@@ -391,21 +391,21 @@ async function startWatcher(opts: SetupOpts) {
           2
         )
       )
-      await writeFile(
-        path.join(distDir, 'package.json'),
-        JSON.stringify(
-          {
-            type: 'commonjs',
-          },
-          null,
-          2
-        )
-      )
     }
 
     // Write empty manifests
     await mkdir(path.join(distDir, 'server'), { recursive: true })
     await mkdir(path.join(distDir, 'static/development'), { recursive: true })
+    await writeFile(
+      path.join(distDir, 'package.json'),
+      JSON.stringify(
+        {
+          type: 'commonjs',
+        },
+        null,
+        2
+      )
+    )
     await writeBuildManifest()
     await writeAppBuildManifest()
     await writePagesManifest()
