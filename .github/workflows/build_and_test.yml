@@ -169,7 +169,8 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       skipForDocsOnly: 'yes'
-      afterBuild: NEXT_TEST_MODE=dev node run-tests.js --timings -g ${{ matrix.group }}/3 -c ${TEST_CONCURRENCY} --test-pattern '^(test\/(development|e2e|unit)|packages\/next\/src\/.*|packages\/font\/src\/.*)/.*\.test\.(js|jsx|ts|tsx)$'
+      afterBuild: NEXT_TEST_MODE=dev node run-tests.js --timings -g ${{ matrix.group }}/3 -c ${TEST_CONCURRENCY} --test-pattern '^(test\/(development|e2e|unit)|packages\/.*\/src\/.*)/.*\.test\.(js|jsx|ts|tsx)$'
+
     secrets: inherit
 
   test-prod:
