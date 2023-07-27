@@ -13,7 +13,7 @@ describe('fillCacheWithDataProperty', () => {
       ])
     )
     const pathname = '/dashboard/settings'
-    const segments = pathname.split('/').slice(1)
+    const segments = pathname.split('/')
 
     const flightSegmentPath = segments
       .slice(1)
@@ -91,7 +91,7 @@ describe('fillCacheWithDataProperty', () => {
                 Linking
               </React.Fragment>,
             },
-            "settings" => Object {
+            "dashboard" => Object {
               "data": Promise {},
               "parallelRoutes": Map {},
               "status": "DATAFETCH",
