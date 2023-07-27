@@ -1,7 +1,11 @@
 {
   "compilerOptions": {
     "target": "ES2019",
-    "lib": ["dom", "dom.iterable", "esnext"],
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
@@ -14,8 +18,20 @@
     "allowSyntheticDefaultImports": true,
     "isolatedModules": true,
     "incremental": true,
-    "jsx": "preserve"
+    "jsx": "preserve",
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ]
   },
-  "exclude": ["node_modules"],
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx"]
+  "exclude": [
+    "node_modules"
+  ],
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts"
+  ]
 }
