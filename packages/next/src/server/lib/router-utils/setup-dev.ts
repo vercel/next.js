@@ -181,7 +181,6 @@ async function startWatcher(opts: SetupOpts) {
               case 'page-api':
               case 'app-page':
               case 'app-route': {
-                Log.info(`found entry ${pathname}`)
                 curEntries.set(pathname, route)
                 break
               }
