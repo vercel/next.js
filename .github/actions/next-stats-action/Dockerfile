@@ -11,7 +11,7 @@ RUN apt install unzip wget curl nano htop screen build-essential pkg-config libs
 
 RUN ln $(which python3) /usr/bin/python
 
-RUN curl -sfLS https://install-node.vercel.app/v18 | bash -s -- -f
+RUN curl -sfLS https://install-node.vercel.app/v18.16.1 | bash -s -- -f
 
 # Install node_modules
 RUN npm i -g pnpm@7.24.3 yarn@1.22.19

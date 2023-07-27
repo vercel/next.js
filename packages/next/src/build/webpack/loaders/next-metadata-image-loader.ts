@@ -26,9 +26,9 @@ interface Options {
 async function nextMetadataImageLoader(this: any, content: Buffer) {
   const options: Options = this.getOptions()
   const { type, segment, pageExtensions, basePath } = options
-  const numericSizes = type === 'twitter' || type === 'openGraph'
   const { resourcePath, rootContext: context } = this
   const { name: fileNameBase, ext } = path.parse(resourcePath)
+  const useNumericSizes = type === 'twitter' || type === 'openGraph'
 
   let extension = ext.slice(1)
   if (extension === 'jpg') {
@@ -82,6 +82,7 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
         .map((dep: any) => {
           return dep.name
         }) || []
+
     // re-export and spread as `exportedImageData` to avoid non-exported error
     return `\
     import {
@@ -143,7 +144,7 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
     }`
   }
 
-  const imageSize = await getImageSize(
+  const imageSize: { width?: number; height?: number } = await getImageSize(
     content,
     extension as 'avif' | 'webp' | 'png' | 'jpeg'
   ).catch((err) => err)
@@ -158,11 +159,11 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
     ...(extension in imageExtMimeTypeMap && {
       type: imageExtMimeTypeMap[extension as keyof typeof imageExtMimeTypeMap],
     }),
-    ...(numericSizes
-      ? { width: imageSize.width as number, height: imageSize.height as number }
+    ...(useNumericSizes && imageSize.width != null && imageSize.height != null
+      ? imageSize
       : {
           sizes:
-            extension === 'ico'
+            extension === 'ico' || extension === 'svg'
               ? 'any'
               : `${imageSize.width}x${imageSize.height}`,
         }),

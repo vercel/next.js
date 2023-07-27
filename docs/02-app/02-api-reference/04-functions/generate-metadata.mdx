@@ -109,6 +109,28 @@ export async function generateMetadata(
 export default function Page({ params, searchParams }: Props) {}
 ```
 
+```jsx filename="app/products/[id]/page.js" switcher
+export async function generateMetadata({ params, searchParams }, parent) {
+  // read route params
+  const id = params.id
+
+  // fetch data
+  const product = await fetch(`https://.../${id}`).then((res) => res.json())
+
+  // optionally access and extend (rather than replace) parent metadata
+  const previousImages = (await parent).openGraph?.images || []
+
+  return {
+    title: product.title,
+    openGraph: {
+      images: ['/some-specific-page-image.jpg', ...previousImages],
+    },
+  }
+}
+
+export default function Page({ params, searchParams }) {}
+```
+
 ### Parameters
 
 `generateMetadata` function accepts the following parameters:
@@ -177,9 +199,7 @@ export const metadata: Metadata = {
 ```
 
 ```jsx filename="app/layout.js" switcher
-import { Metadata } from 'next'
-
-export const metadata: Metadata = {
+export const metadata = {
   title: {
     default: '...',
     template: '...',
@@ -193,7 +213,9 @@ export const metadata: Metadata = {
 `title.default` can be used to provide a **fallback title** to child route segments that don't define a `title`.
 
 ```tsx filename="app/layout.tsx"
-export const metadata = {
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = {
   title: {
     default: 'Acme',
   },
@@ -201,7 +223,9 @@ export const metadata = {
 ```
 
 ```tsx filename="app/about/page.tsx"
-export const metadata = {}
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = {}
 
 // Output: <title>Acme</title>
 ```
@@ -222,9 +246,7 @@ export const metadata: Metadata = {
 ```
 
 ```jsx filename="app/layout.js" switcher
-import { Metadata } from 'next'
-
-export const metadata: Metadata = {
+export const metadata = {
   title: {
     template: '%s | Acme',
     default: 'Acme', // a default is required when creating a template
@@ -243,9 +265,7 @@ export const metadata: Metadata = {
 ```
 
 ```jsx filename="app/about/page.js" switcher
-import { Metadata } from 'next'
-
-export const metadata: Metadata = {
+export const metadata = {
   title: 'About',
 }
 
@@ -520,7 +540,9 @@ export const metadata = {
 ### `robots`
 
 ```tsx
-export const metadata = {
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = {
   robots: {
     index: false,
     follow: true,

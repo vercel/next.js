@@ -1,6 +1,10 @@
 ---
 title: Linking and Navigating
 description: Learn how navigation works in Next.js, and how to use the Link Component and `useRouter` hook.
+related:
+  description: Learn more about statically typed links with TypeScript.
+  links:
+    - app/building-your-application/configuring/typescript
 ---
 
 The Next.js router uses [server-centric routing](/docs/app/building-your-application/routing#server-centric-routing-with-client-side-navigation) with [client-side navigation](#how-navigation-works). It supports [instant loading states](/docs/app/building-your-application/routing/loading-ui-and-streaming) and [concurrent rendering](https://react.dev/reference/react/startTransition). This means navigation maintains client-side state, avoids expensive re-renders, is interruptible, and doesn't cause race conditions.
@@ -66,7 +70,7 @@ You can use [`usePathname()`](/docs/app/api-reference/functions/use-pathname) to
 'use client'
 
 import { usePathname } from 'next/navigation'
-import { Link } from 'next/link'
+import Link from 'next/link'
 
 export function Navigation({ navLinks }) {
   const pathname = usePathname()
@@ -94,14 +98,6 @@ export function Navigation({ navLinks }) {
 ### Scrolling to an `id`
 
 The default behavior of `<Link>` is to [scroll to the top of the route segment that has changed](#focus-and-scroll-management). When there is an `id` defined in `href`, it will scroll to the specific `id`, similarly to a normal `<a>` tag.
-
-To prevent scrolling to the top of the route segment, set `scroll={false}` and add a hashed `id` to `href`:
-
-```jsx
-<Link href="/#hashid" scroll={false}>
-  Scroll to specific id.
-</Link>
-```
 
 ## `useRouter()` Hook
 

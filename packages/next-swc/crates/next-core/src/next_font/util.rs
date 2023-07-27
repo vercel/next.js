@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
-use turbo_tasks::primitives::{OptionStringVc, StringVc, U32Vc};
+use turbo_tasks::Vc;
 use turbopack_binding::{
-    turbo::tasks_hash::hash_xxh3_hash64, turbopack::core::resolve::pattern::QueryMapVc,
+    turbo::tasks_hash::hash_xxh3_hash64, turbopack::core::resolve::pattern::QueryMap,
 };
 
 /// CSS properties and values for a given font variation. These are rendered as
@@ -9,17 +9,17 @@ use turbopack_binding::{
 /// module.
 #[turbo_tasks::value(shared)]
 pub(crate) struct FontCssProperties {
-    pub font_family: StringVc,
-    pub weight: OptionStringVc,
-    pub style: OptionStringVc,
-    pub variable: OptionStringVc,
+    pub font_family: Vc<String>,
+    pub weight: Vc<Option<String>>,
+    pub style: Vc<Option<String>>,
+    pub variable: Vc<Option<String>>,
 }
 
 /// A hash of the requested querymap derived from how the user invoked
 /// next/font. Used to uniquely identify font requests for generated filenames
 /// and scoped font family names.
 #[turbo_tasks::function]
-pub(crate) async fn get_request_hash(query_vc: QueryMapVc) -> Result<U32Vc> {
+pub(crate) async fn get_request_hash(query_vc: Vc<QueryMap>) -> Result<Vc<u32>> {
     let query = &*query_vc.await?;
     let query = query.as_ref().context("Query map must be present")?;
     let mut to_hash = vec![];
@@ -28,7 +28,7 @@ pub(crate) async fn get_request_hash(query_vc: QueryMapVc) -> Result<U32Vc> {
         to_hash.push(v);
     }
 
-    Ok(U32Vc::cell(
+    Ok(Vc::cell(
         // Truncate the hash to u32. These hashes are ultimately displayed as 6- or 8-character
         // hexadecimal values.
         hash_xxh3_hash64(to_hash) as u32,
@@ -48,10 +48,10 @@ pub(crate) enum FontFamilyType {
 /// * `request_hash` - The hash value of the font request
 #[turbo_tasks::function]
 pub(crate) async fn get_scoped_font_family(
-    ty: FontFamilyTypeVc,
-    font_family_name: StringVc,
-    request_hash: U32Vc,
-) -> Result<StringVc> {
+    ty: Vc<FontFamilyType>,
+    font_family_name: Vc<String>,
+    request_hash: Vc<u32>,
+) -> Result<Vc<String>> {
     let hash = {
         let mut hash = format!("{:x?}", request_hash.await?);
         hash.truncate(6);
@@ -64,13 +64,13 @@ pub(crate) async fn get_scoped_font_family(
         FontFamilyType::Fallback => format!("{}_Fallback", font_family_base),
     };
 
-    Ok(StringVc::cell(format!("__{}_{}", font_family_name, hash)))
+    Ok(Vc::cell(format!("__{}_{}", font_family_name, hash)))
 }
 
-/// Returns a [[StringVc]] uniquely identifying the request for the font.
+/// Returns a [[Vc<String>]] uniquely identifying the request for the font.
 #[turbo_tasks::function]
-pub async fn get_request_id(font_family: StringVc, request_hash: U32Vc) -> Result<StringVc> {
-    Ok(StringVc::cell(format!(
+pub async fn get_request_id(font_family: Vc<String>, request_hash: Vc<u32>) -> Result<Vc<String>> {
+    Ok(Vc::cell(format!(
         "{}_{:x?}",
         font_family.await?.to_lowercase().replace(' ', "_"),
         request_hash.await?

@@ -1,4 +1,6 @@
 [
+  "@aws-sdk/client-s3",
+  "@aws-sdk/s3-presigned-post",
   "@blockfrost/blockfrost-js",
   "@jpg-store/lucid-cardano",
   "@mikro-orm/core",
@@ -13,6 +15,7 @@
   "bcrypt",
   "better-sqlite3",
   "canvas",
+  "cpu-features",
   "cypress",
   "eslint",
   "express",
@@ -25,6 +28,7 @@
   "mongoose",
   "next-mdx-remote",
   "next-seo",
+  "payload",
   "pg",
   "playwright",
   "postcss",

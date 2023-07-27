@@ -24,6 +24,10 @@ const httpOptions = {
   cert: readFileSync(join(__dirname, 'ssh/localhost.pem')),
 }
 
+process.on('unhandledRejection', (err) => {
+  console.error('- error unhandledRejection:', err)
+})
+
 app.prepare().then(() => {
   const server = createServer(httpOptions, async (req, res) => {
     if (req.url === '/no-query') {

@@ -3,6 +3,8 @@ title: CSS Modules
 description: Style your Next.js Application with CSS Modules.
 ---
 
+{/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
+
 <PagesOnly>
 
 <details open>
@@ -38,11 +40,7 @@ export default function DashboardLayout({
 ```jsx filename="app/dashboard/layout.js" switcher
 import styles from './styles.module.css'
 
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode,
-}) {
+export default function DashboardLayout({ children }) {
   return <section className={styles.dashboard}>{children}</section>
 }
 ```
