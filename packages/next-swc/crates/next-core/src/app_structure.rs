@@ -691,6 +691,7 @@ async fn directory_tree_to_entrypoints_internal(
     }
 
     for (subdir_name, &subdirectory) in subdirectories.iter() {
+        let is_route_group = subdir_name.starts_with('(') && subdir_name.ends_with(')');
         let parallel_route_key = match_parallel_route(subdir_name);
         let map = directory_tree_to_entrypoints_internal(
             app_dir,
@@ -698,7 +699,7 @@ async fn directory_tree_to_entrypoints_internal(
             subdirectory,
             // TODO(alexkirsz) We don't check optional segment here because Next.js seems to expect
             // it, although this might just need to be computed as "original name".
-            if parallel_route_key.is_some() {
+            if is_route_group || parallel_route_key.is_some() {
                 path_prefix.clone()
             } else if path_prefix == "/" {
                 format!("/{subdir_name}")
