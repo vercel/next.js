@@ -46,7 +46,6 @@ use turbopack_binding::{
         },
         ecmascript::{
             chunk::{EcmascriptChunkPlaceable, EcmascriptChunkingContext},
-            utils::StringifyJs,
             EcmascriptModuleAsset,
         },
         node::execution_context::ExecutionContext,
