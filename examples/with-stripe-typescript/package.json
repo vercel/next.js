@@ -13,10 +13,10 @@
     "next": "latest",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "stripe": "10.14.0",
+    "redux": "4.2.0",
+    "stripe": "12.14.0",
     "swr": "^2.0.0",
-    "use-shopping-cart": "3.1.2",
-    "redux": "4.2.0"
+    "use-shopping-cart": "3.1.2"
   },
   "devDependencies": {
     "@types/micro": "^7.3.7",

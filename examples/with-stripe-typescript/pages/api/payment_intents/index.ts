@@ -6,7 +6,7 @@ import { formatAmountForStripe } from '../../../utils/stripe-helpers'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   // https://github.com/stripe/stripe-node#configuration
-  apiVersion: '2022-08-01',
+  apiVersion: '2022-11-15'
 })
 
 export default async function handler(
