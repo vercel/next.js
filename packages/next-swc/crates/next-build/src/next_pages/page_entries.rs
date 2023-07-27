@@ -32,7 +32,6 @@ use turbopack_binding::{
             compile_time_info::CompileTimeInfo,
             context::AssetContext,
             file_source::FileSource,
-            module::Module,
             output::OutputAsset,
             reference_type::{EntryReferenceSubType, ReferenceType},
             source::Source,
