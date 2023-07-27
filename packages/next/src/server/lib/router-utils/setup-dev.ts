@@ -169,8 +169,6 @@ async function startWatcher(opts: SetupOpts) {
     try {
       async function handleEntries() {
         for await (const entrypoints of iter) {
-          console.log('new entries')
-
           globalEntries.app = entrypoints.pagesAppEndpoint
           globalEntries.document = entrypoints.pagesDocumentEndpoint
           globalEntries.error = entrypoints.pagesErrorEndpoint
@@ -421,7 +419,6 @@ async function startWatcher(opts: SetupOpts) {
           return async (
             ensureOpts: Parameters<(typeof hotReloader)['ensurePage']>[0]
           ) => {
-            console.log('ensurePage', ensureOpts)
             let page = ensureOpts.match?.definition?.pathname ?? ensureOpts.page
 
             async function loadPartialManifest<T>(
@@ -514,7 +511,6 @@ async function startWatcher(opts: SetupOpts) {
               // TODO: why is this entry missing in turbopack?
               if (page === '/_app') return
               if (page === '/_document') return
-              console.log('missing route', page)
 
               throw new PageNotFoundError(`route not found ${page}`)
             }
@@ -626,7 +622,6 @@ async function startWatcher(opts: SetupOpts) {
         if (prop === 'activeConfigs') {
           return []
         }
-        console.log('get hotReloader', prop)
         return () => {}
       },
       set() {
