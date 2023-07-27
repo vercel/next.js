@@ -1,0 +1,19 @@
+Operating System:
+      Platform: darwin
+      Arch: arm64
+      Version: Darwin Kernel Version 22.5.0: Thu Jun  8 22:22:20 PDT 2023; root:xnu-8796.121.3~7/RELEASE_ARM64_T6000
+    Binaries:
+      Node: 19.2.0
+      npm: 8.19.3
+      Yarn: 1.22.19
+      pnpm: 8.6.5
+    Relevant Packages:
+      next: 13.4.10-canary.6
+      eslint-config-next: 13.4.10
+      react: 18.2.0
+      react-dom: 18.2.0
+      typescript: 5.1.6
+    Next.js Config:
+      output: N/A
+
+ import : import any dependencies needed to complete job -download
