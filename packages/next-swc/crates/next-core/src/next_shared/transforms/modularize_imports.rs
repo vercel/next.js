@@ -71,11 +71,13 @@ impl ModularizeImportsTransformer {
                         k.clone(),
                         PackageConfig {
                             transform: match &v.transform {
-                                Transform::String(s) => modularize_imports::Transform::String(s.clone()),
+                                Transform::String(s) => {
+                                    modularize_imports::Transform::String(s.clone())
+                                }
                                 Transform::Vec(v) => modularize_imports::Transform::Vec(v.clone()),
                                 Transform::None => {
                                     panic!("Missing transform value for package {}", k)
-                                },
+                                }
                             },
                             prevent_full_import: v.prevent_full_import,
                             skip_default_conversion: v.skip_default_conversion,
