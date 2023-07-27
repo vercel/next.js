@@ -33,6 +33,7 @@ pub async fn get_app_page_entry(
     loader_tree: Vc<LoaderTree>,
     app_dir: Vc<FileSystemPath>,
     pathname: String,
+    original_name: String,
     project_root: Vc<FileSystemPath>,
 ) -> Result<Vc<AppEntry>> {
     let config = parse_segment_config_from_loader_tree(loader_tree, Vc::upcast(nodejs_context));
@@ -145,9 +146,9 @@ pub async fn get_app_page_entry(
     );
 
     let Some(rsc_entry) =
-        Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(rsc_entry).await?
+        Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkPlaceable>>(rsc_entry).await?
     else {
-        bail!("expected an ECMAScript chunk placeable asset");
+        bail!("expected an ECMAScript chunk placeable module");
     };
 
     Ok(AppEntry {
@@ -165,6 +166,7 @@ fn get_original_page_name(pathname: &str) -> String {
     match pathname {
         "/" => "/page".to_string(),
         "/_not-found" => "/_not-found".to_string(),
+        "/not-found" => "/not-found".to_string(),
         _ => format!("{}/page", pathname),
     }
 }
