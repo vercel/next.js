@@ -291,7 +291,10 @@ pub fn get_client_chunking_context(
     );
 
     let builder = match mode {
-        NextMode::Development => builder.hot_module_replacement(),
+        NextMode::DevServer => builder.hot_module_replacement(),
+        NextMode::Development => builder
+            .hot_module_replacement()
+            .chunk_base_path(Vc::cell(Some("_next/".to_string()))),
         NextMode::Build => builder.chunk_base_path(Vc::cell(Some("_next/".to_string()))),
     };
 
@@ -328,6 +331,27 @@ pub async fn get_client_runtime_entries(
     }
 
     match mode {
+        NextMode::DevServer => {
+            let resolve_options_context = get_client_resolve_options_context(
+                project_root,
+                ty,
+                mode,
+                next_config,
+                execution_context,
+            );
+            let enable_react_refresh =
+                assert_can_resolve_react_refresh(project_root, resolve_options_context)
+                    .await?
+                    .as_request();
+
+            // It's important that React Refresh come before the regular bootstrap file,
+            // because the bootstrap contains JSX which requires Refresh's global
+            // functions to be available.
+            if let Some(request) = enable_react_refresh {
+                runtime_entries
+                    .push(RuntimeEntry::Request(request, project_root.join("_".to_string())).cell())
+            };
+        }
         NextMode::Development => {
             let resolve_options_context = get_client_resolve_options_context(
                 project_root,
@@ -348,6 +372,18 @@ pub async fn get_client_runtime_entries(
                 runtime_entries
                     .push(RuntimeEntry::Request(request, project_root.join("_".to_string())).cell())
             };
+
+            if matches!(*ty, ClientContextType::App { .. },) {
+                runtime_entries.push(
+                    RuntimeEntry::Request(
+                        Request::parse(Value::new(Pattern::Constant(
+                            "next/dist/client/app-next-dev-turbopack.js".to_string(),
+                        ))),
+                        project_root.join("_".to_string()),
+                    )
+                    .cell(),
+                );
+            }
         }
         NextMode::Build => match *ty {
             ClientContextType::App { .. } => {

@@ -5,14 +5,15 @@ description: Learn about how to configure options for Next.js route segments.
 
 The Route Segment options allows you configure the behavior of a [Page](/docs/app/building-your-application/routing/pages-and-layouts), [Layout](/docs/app/building-your-application/routing/pages-and-layouts), or [Route Handler](/docs/app/building-your-application/routing/router-handlers) by directly exporting the following variables:
 
-| Option                                | Type                                                                                                                      | Default    |
-| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| [`dynamic`](#dynamic)                 | `'auto' \| 'force-dynamic' \| 'error' \| 'force-static'`                                                                  | `'auto'`   |
-| [`dynamicParams`](#dynamicparams)     | `boolean`                                                                                                                 | `true`     |
-| [`revalidate`](#revalidate)           | `false \| 'force-cache' \| 0 \| number`                                                                                   | `false`    |
-| [`fetchCache`](#fetchcache)           | `'auto' \| 'default-cache' \| 'only-cache' \| 'force-cache' \| 'force-no-store' \| 'default-no-store' \| 'only-no-store'` | `'auto'`   |
-| [`runtime`](#runtime)                 | `'nodejs' \| 'edge'`                                                                                                      | `'nodejs'` |
-| [`preferredRegion`](#preferredregion) | `'auto' \| 'global' \| 'home' \| string \| string[]`                                                                      | `'auto'`   |
+| Option                                | Type                                                                                                                      | Default                    |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
+| [`dynamic`](#dynamic)                 | `'auto' \| 'force-dynamic' \| 'error' \| 'force-static'`                                                                  | `'auto'`                   |
+| [`dynamicParams`](#dynamicparams)     | `boolean`                                                                                                                 | `true`                     |
+| [`revalidate`](#revalidate)           | `false \| 'force-cache' \| 0 \| number`                                                                                   | `false`                    |
+| [`fetchCache`](#fetchcache)           | `'auto' \| 'default-cache' \| 'only-cache' \| 'force-cache' \| 'force-no-store' \| 'default-no-store' \| 'only-no-store'` | `'auto'`                   |
+| [`runtime`](#runtime)                 | `'nodejs' \| 'edge'`                                                                                                      | `'nodejs'`                 |
+| [`preferredRegion`](#preferredregion) | `'auto' \| 'global' \| 'home' \| string \| string[]`                                                                      | `'auto'`                   |
+| [`maxDuration`](#maxduration)         | `number`                                                                                                                  | Set by deployment platform |
 
 ```tsx filename="layout.tsx / page.tsx / route.ts" switcher
 export const dynamic = 'auto'
@@ -21,6 +22,7 @@ export const revalidate = false
 export const fetchCache = 'auto'
 export const runtime = 'nodejs'
 export const preferredRegion = 'auto'
+export const maxDuration = 5
 
 export default function MyComponent() {}
 ```
@@ -32,6 +34,7 @@ export const revalidate = false
 export const fetchCache = 'auto'
 export const runtime = 'nodejs'
 export const preferredRegion = 'auto'
+export const maxDuration = 5
 
 export default function MyComponent() {}
 ```
@@ -196,6 +199,24 @@ Support for `preferredRegion`, and regions supported, is dependent on your deplo
 >
 > - If a `preferredRegion` is not specified, it will inherit the option of the nearest parent layout.
 > - The root layout defaults to `all` regions.
+
+### `maxDuration`
+
+Based on your deployment platform, you may be able to use a higher default execution time for your function.
+This setting allows you to opt into a higher execution time within your plans limit.
+**Note**: This settings requires Next.js `13.4.10` or higher.
+
+```tsx filename="layout.tsx / page.tsx / route.ts" switcher
+export const maxDuration = 5
+```
+
+```js filename="layout.js / page.js / route.js" switcher
+export const maxDuration = 5
+```
+
+> **Good to know**:
+>
+> - If a `maxDuration` is not specified, the default value is dependent on your deployment platform and plan.
 
 ### `generateStaticParams`
 

@@ -13,6 +13,7 @@ import { Header } from '../../../lib/load-custom-routes'
 import { stringifyQuery } from '../../server-route-utils'
 import { toNodeOutgoingHttpHeaders } from '../../web/utils'
 import { invokeRequest } from '../server-ipc/invoke-request'
+import { isAbortError } from '../../pipe-readable'
 import { getCookieParser, setLazyProp } from '../../api-utils'
 import { getHostname } from '../../../shared/lib/get-hostname'
 import { UnwrapPromise } from '../../../lib/coalesced-function'
@@ -93,7 +94,8 @@ export function getResolveRoutes(
   async function resolveRoutes(
     req: IncomingMessage,
     matchedDynamicRoutes: Set<string>,
-    isUpgradeReq?: boolean
+    isUpgradeReq: boolean,
+    signal: AbortSignal
   ): Promise<{
     finished: boolean
     statusCode?: number
@@ -453,14 +455,31 @@ export function getResolveRoutes(
 
             debug('invoking middleware', renderUrl, invokeHeaders)
 
-            const middlewareRes = await invokeRequest(
-              renderUrl,
-              {
-                headers: invokeHeaders,
-                method: req.method,
-              },
-              getRequestMeta(req, '__NEXT_CLONABLE_BODY')?.cloneBodyStream()
-            )
+            let middlewareRes
+            try {
+              middlewareRes = await invokeRequest(
+                renderUrl,
+                {
+                  headers: invokeHeaders,
+                  method: req.method,
+                  signal,
+                },
+                getRequestMeta(req, '__NEXT_CLONABLE_BODY')?.cloneBodyStream()
+              )
+            } catch (e) {
+              // If the client aborts before we can receive a response object
+              // (when the headers are flushed), then we can early exit without
+              // further processing.
+              if (isAbortError(e)) {
+                return {
+                  parsedUrl,
+                  resHeaders,
+                  finished: true,
+                }
+              }
+              throw e
+            }
+
             const middlewareHeaders = toNodeOutgoingHttpHeaders(
               middlewareRes.headers
             ) as Record<string, string | string[] | undefined>
