@@ -736,10 +736,7 @@ async fn concatenate_output_assets(
         })
         .try_flat_join()
         .await?;
-    for file in contents
-        .iter()
-        .flat_map(|content| content.as_content())
-    {
+    for file in contents.iter().flat_map(|content| content.as_content()) {
         concatenated_content.concat(file.content());
         concatenated_content.push_static_bytes(b"\n\n");
     }
