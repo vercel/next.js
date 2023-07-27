@@ -144,10 +144,13 @@ async function startWatcher(opts: SetupOpts) {
 
     let bindings = await loadBindings()
 
+    const { jsConfig } = await loadJsConfig(dir, opts.nextConfig)
+
     const project = await bindings.turbo.createProject({
       projectPath: dir,
       rootPath: opts.nextConfig.experimental.outputFileTracingRoot || dir,
       nextConfig: opts.nextConfig,
+      jsConfig,
       watch: true,
       env: process.env as Record<string, string>,
     })
