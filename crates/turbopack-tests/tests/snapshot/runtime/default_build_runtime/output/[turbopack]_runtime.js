@@ -335,7 +335,7 @@ function instantiateModule(id, source) {
             y: externalImport,
             f: requireContext.bind(null, module1),
             i: esmImport.bind(null, module1),
-            s: esm.bind(null, module1.exports),
+            s: esmExport.bind(null, module1, module1.exports),
             j: dynamicExport.bind(null, module1, module1.exports),
             v: exportValue.bind(null, module1),
             n: exportNamespace.bind(null, module1),
