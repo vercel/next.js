@@ -315,7 +315,7 @@ const loadPages = async (
     // When we're building the instrumentation page (only when the
     // instrumentation file conflicts with a page also labeled
     // /instrumentation) hoist the `register` method.
-    file += `export const register = hoist(userland, "register")\n`
+    file += '\nexport const register = hoist(userland, "register")'
   }
 
   return file
