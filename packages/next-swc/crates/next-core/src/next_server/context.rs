@@ -103,142 +103,63 @@ pub async fn get_server_resolve_options_context(
         project_path,
         ExternalPredicate::Only(next_config.server_component_externals()).cell(),
     );
+    let ty = ty.into_value();
 
-    Ok(match ty.into_value() {
+    let mut custom_conditions = vec![mode.node_env().to_string(), "node".to_string()];
+
+    match ty {
+        ServerContextType::AppRSC { .. }
+        | ServerContextType::AppRoute { .. }
+        | ServerContextType::Middleware { .. } => {
+            custom_conditions.push("react-server".to_string())
+        }
+        ServerContextType::Pages { .. }
+        | ServerContextType::PagesData { .. }
+        | ServerContextType::AppSSR { .. } => {}
+    };
+    let external_cjs_modules_plugin = ExternalCjsModulesResolvePlugin::new(
+        project_path,
+        ExternalPredicate::AllExcept(next_config.transpile_packages()).cell(),
+    );
+
+    let plugins = match ty {
         ServerContextType::Pages { .. } | ServerContextType::PagesData { .. } => {
-            let external_cjs_modules_plugin = ExternalCjsModulesResolvePlugin::new(
-                project_path,
-                ExternalPredicate::AllExcept(next_config.transpile_packages()).cell(),
-            );
+            vec![
+                Vc::upcast(module_feature_report_resolve_plugin),
+                Vc::upcast(external_cjs_modules_plugin),
+                Vc::upcast(unsupported_modules_resolve_plugin),
+            ]
+        }
+        ServerContextType::AppSSR { .. }
+        | ServerContextType::AppRSC { .. }
+        | ServerContextType::AppRoute { .. }
+        | ServerContextType::Middleware { .. } => {
+            vec![
+                Vc::upcast(module_feature_report_resolve_plugin),
+                Vc::upcast(server_component_externals_plugin),
+                Vc::upcast(unsupported_modules_resolve_plugin),
+            ]
+        }
+    };
+    let resolve_options_context = ResolveOptionsContext {
+        enable_node_modules: Some(root_dir),
+        enable_node_externals: true,
+        enable_node_native_modules: true,
+        module: true,
+        custom_conditions,
+        import_map: Some(next_server_import_map),
+        plugins,
+        ..Default::default()
+    };
 
-            let resolve_options_context = ResolveOptionsContext {
-                enable_node_modules: Some(root_dir),
-                enable_node_externals: true,
-                enable_node_native_modules: true,
-                module: true,
-                custom_conditions: vec![mode.node_env().to_string(), "node".to_string()],
-                import_map: Some(next_server_import_map),
-                plugins: vec![
-                    Vc::upcast(module_feature_report_resolve_plugin),
-                    Vc::upcast(external_cjs_modules_plugin),
-                    Vc::upcast(unsupported_modules_resolve_plugin),
-                ],
-                ..Default::default()
-            };
-            ResolveOptionsContext {
-                enable_typescript: true,
-                enable_react: true,
-                rules: vec![(
-                    foreign_code_context_condition,
-                    resolve_options_context.clone().cell(),
-                )],
-                ..resolve_options_context
-            }
-        }
-        ServerContextType::AppSSR { .. } => {
-            let resolve_options_context = ResolveOptionsContext {
-                enable_node_modules: Some(root_dir),
-                enable_node_externals: true,
-                enable_node_native_modules: true,
-                module: true,
-                custom_conditions: vec![
-                    mode.node_env().to_string(),
-                    // TODO!
-                    "node".to_string(),
-                ],
-                import_map: Some(next_server_import_map),
-                plugins: vec![
-                    Vc::upcast(module_feature_report_resolve_plugin),
-                    Vc::upcast(server_component_externals_plugin),
-                    Vc::upcast(unsupported_modules_resolve_plugin),
-                ],
-                ..Default::default()
-            };
-            ResolveOptionsContext {
-                enable_typescript: true,
-                enable_react: true,
-                rules: vec![(
-                    foreign_code_context_condition,
-                    resolve_options_context.clone().cell(),
-                )],
-                ..resolve_options_context
-            }
-        }
-        ServerContextType::AppRSC { .. } => {
-            let resolve_options_context = ResolveOptionsContext {
-                enable_node_modules: Some(root_dir),
-                enable_node_externals: true,
-                enable_node_native_modules: true,
-                module: true,
-                custom_conditions: vec![
-                    mode.node_env().to_string(),
-                    "react-server".to_string(),
-                    // TODO
-                    "node".to_string(),
-                ],
-                import_map: Some(next_server_import_map),
-                plugins: vec![
-                    Vc::upcast(module_feature_report_resolve_plugin),
-                    Vc::upcast(server_component_externals_plugin),
-                    Vc::upcast(unsupported_modules_resolve_plugin),
-                ],
-                ..Default::default()
-            };
-            ResolveOptionsContext {
-                enable_typescript: true,
-                enable_react: true,
-                rules: vec![(
-                    foreign_code_context_condition,
-                    resolve_options_context.clone().cell(),
-                )],
-                ..resolve_options_context
-            }
-        }
-        ServerContextType::AppRoute { .. } => {
-            let resolve_options_context = ResolveOptionsContext {
-                enable_node_modules: Some(root_dir),
-                module: true,
-                custom_conditions: vec![mode.node_env().to_string(), "node".to_string()],
-                import_map: Some(next_server_import_map),
-                plugins: vec![
-                    Vc::upcast(module_feature_report_resolve_plugin),
-                    Vc::upcast(server_component_externals_plugin),
-                    Vc::upcast(unsupported_modules_resolve_plugin),
-                ],
-                ..Default::default()
-            };
-            ResolveOptionsContext {
-                enable_typescript: true,
-                enable_react: true,
-                rules: vec![(
-                    foreign_code_context_condition,
-                    resolve_options_context.clone().cell(),
-                )],
-                ..resolve_options_context
-            }
-        }
-        ServerContextType::Middleware => {
-            let resolve_options_context = ResolveOptionsContext {
-                enable_node_modules: Some(root_dir),
-                enable_node_externals: true,
-                module: true,
-                custom_conditions: vec![mode.node_env().to_string()],
-                plugins: vec![
-                    Vc::upcast(module_feature_report_resolve_plugin),
-                    Vc::upcast(unsupported_modules_resolve_plugin),
-                ],
-                ..Default::default()
-            };
-            ResolveOptionsContext {
-                enable_typescript: true,
-                enable_react: true,
-                rules: vec![(
-                    foreign_code_context_condition,
-                    resolve_options_context.clone().cell(),
-                )],
-                ..resolve_options_context
-            }
-        }
+    Ok(ResolveOptionsContext {
+        enable_typescript: true,
+        enable_react: true,
+        rules: vec![(
+            foreign_code_context_condition,
+            resolve_options_context.clone().cell(),
+        )],
+        ..resolve_options_context
     }
     .cell())
 }
