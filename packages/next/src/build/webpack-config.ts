@@ -1411,7 +1411,12 @@ export default async function getBaseWebpackConfig(
       const isNextExternal =
         /next[/\\]dist[/\\](esm[\\/])?(shared|server)[/\\](?!lib[/\\](router[/\\]router|dynamic|app-dynamic|image-external|lazy-dynamic|head[^-]))/.test(
           localRes
-        )
+        ) ||
+        // There's no need to bundle the dev overlay
+        (process.env.NODE_ENV === 'development' &&
+          /next[/\\]dist[/\\](esm[/\\])?client[/\\]components[/\\]react-dev-overlay[/\\]/.test(
+            localRes
+          ))
 
       if (isNextExternal) {
         // Generate Next.js external import
