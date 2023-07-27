@@ -184,9 +184,9 @@ export async function loadEntrypointWithReplacements(
         )
       )
 
-      if (!relative.startsWith('next/')) {
+      if (!relative.startsWith('next' + path.sep)) {
         throw new Error(
-          `Invariant: Expected relative import to start with "next/", found "${relative}"`
+          `Invariant: Expected relative import to start with "next${path.sep}", found "${relative}"`
         )
       }
 
