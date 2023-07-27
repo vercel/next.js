@@ -2549,6 +2549,16 @@ export default async function build(
               appConfig.revalidate === 0 ||
               exportConfig.initialPageRevalidationMap[page] === 0
 
+            if (hasDynamicData && pageInfos.get(page)?.static) {
+              // if the page was marked as being static, but it contains dynamic data
+              // (ie, in the case of a static generation bailout), then it should be marked dynamic
+              pageInfos.set(page, {
+                ...(pageInfos.get(page) as PageInfo),
+                static: false,
+                isSsg: false,
+              })
+            }
+
             const isRouteHandler = isAppRouteRoute(originalAppPath)
 
             routes.forEach((route) => {
