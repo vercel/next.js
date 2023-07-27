@@ -14,7 +14,7 @@ export default async function handler(
   res: NextApiResponse
 ) {
   if (req.method === 'POST') {
-    const amount: number = req.body.amount
+    const amount: number = req.body.customDonation
     try {
       // Validate the amount that was passed from the client.
       if (!(amount >= MIN_AMOUNT && amount <= MAX_AMOUNT)) {
@@ -43,7 +43,7 @@ export default async function handler(
       const checkoutSession: Stripe.Checkout.Session =
         await stripe.checkout.sessions.create(params)
 
-      res.status(200).json(checkoutSession)
+      res.redirect(303, checkoutSession.url as string)
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : 'Internal server error'
