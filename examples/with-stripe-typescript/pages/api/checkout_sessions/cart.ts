@@ -33,7 +33,6 @@ export default async function handler(
       // Create Checkout Sessions from body params.
       const params: Stripe.Checkout.SessionCreateParams = {
         submit_type: 'pay',
-        payment_method_types: ['card'],
         billing_address_collection: 'auto',
         shipping_address_collection: {
           allowed_countries: ['US', 'CA'],

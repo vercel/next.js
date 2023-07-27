@@ -24,7 +24,6 @@ export default async function handler(
       const params: Stripe.Checkout.SessionCreateParams = {
         mode: 'payment',
         submit_type: 'donate',
-        payment_method_types: ['card'],
         line_items: [
           {
             quantity: 1,
