@@ -194,7 +194,7 @@ View all the available `cache` options in the [`fetch` API reference](/docs/app/
 
 #### Multiple `fetch` Requests
 
-If you have multiple `fetch` requests in a route segment (e.g. a layout or page), you can configure the caching behavior of all data requests in the segment using the [Segment Config Options](/docs/app/api-reference/file-conventions/route-segment-config).
+If you have multiple `fetch` requests in a route segment (e.g. a Layout or Page), you can configure the caching behavior of all data requests in the segment using the [Segment Config Options](/docs/app/api-reference/file-conventions/route-segment-config).
 
 For example, using `const dynamic = 'force-dynamic` will cause all data to be fetched at request time, and the segment to be rendered dynamically.
 
@@ -222,64 +222,70 @@ In the example below:
 - The `revalidate` option is set to `3600`, meaning the data will be cached and revalidated at most every hour.
 - The React `cache` function is used to [memoize](/docs/app/building-your-application/caching#request-memoization) data requests.
 
-```ts filename="utils/getUser.ts" switcher
+```ts filename="utils/get-item.ts" switcher
 import { cache } from 'react'
 
 export const revalidate = 3600 // revalidate the data at most every hour
 
-export const getUser = cache(async (id: string) => {
-  const user = await db.user.findUnique({ id })
-  return user
-})
-
-export const getUser = cache(async (id) => {
-  const user = await db.user.findUnique({ id })
-  return user
+export const getItem = cache(async (id: string) => {
+  const item = await db.item.findUnique({ id })
+  return item
 })
 ```
 
-Although the `getUser` function is called twice, only one query will be made to the database.
+```js filename="utils/get-item.js" switcher
+import { cache } from 'react'
 
-```tsx filename="app/user/[id]/layout.tsx" switcher
-import { getUser } from '@utils/getUser'
+export const revalidate = 3600 // revalidate the data at most every hour
 
-export default async function UserLayout({
+export const getItem = cache(async (id) => {
+  const item = await db.item.findUnique({ id })
+  return item
+})
+```
+
+Although the `getItem` function is called twice, only one query will be made to the database.
+
+```tsx filename="app/item/layout.tsx" switcher
+import { getItem } from '@/utils/get-item'
+
+export default async function Layout({
   params: { id },
 }: {
   params: { id: string }
 }) {
-  const user = await getUser(id)
+  const item = await getItem(id)
   // ...
 }
 ```
 
-```jsx filename="app/user/[id]/layout.js" switcher
-import { getUser } from '@utils/getUser'
+```jsx filename="app/item/layout.js" switcher
+import { getItem } from '@/utils/get-item'
 
-export default async function UserLayout({ params: { id } }) {
-  const user = await getUser(id)
+export default async function Layout({ params: { id } }) {
+  const item = await getItem(id)
   // ...
 }
 ```
 
-```tsx filename="app/user/[id]/page.tsx" switcher
-import { getUser } from '@utils/getUser'
+```tsx filename="app/item/[id]/page.tsx" switcher
+import { getItem } from '@/utils/get-item'
 
 export default async function Page({
   params: { id },
 }: {
   params: { id: string }
 }) {
-  const user = await getUser(id)
+  const item = await getItem(id)
   // ...
 }
 ```
 
-```jsx filename="app/user/[id]/page.js" switcher
-import { getUser } from '@utils/getUser'
+```jsx filename="app/item/[id]/page.js" switcher
+import { getItem } from '@/utils/get-item'
 
 export default async function Page({ params: { id } }) {
-  const user = await getUser(id)
+  const item = await getItem(id)
   // ...
 }
 ```

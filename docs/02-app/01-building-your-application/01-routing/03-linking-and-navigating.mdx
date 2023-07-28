@@ -95,9 +95,9 @@ export function Navigation({ navLinks }) {
 
 #### Scrolling to an `id`
 
-The default behavior of `<Link>` is to scroll to the top of a new route or to maintain the scroll position for backwards and fowards navigation.
+The default behavior of `<Link>` is to scroll to the top of a new route or to maintain the scroll position for backwards and forwards navigation.
 
-If you'd like to scroll to a specific `id` on navigation, you can append your URL with a `#` hash link or just pass a hash link to the `href` prop. This is possible since `<Link>` renders to a `<a>` tag.
+If you'd like to scroll to a specific `id` on navigation, you can append your URL with a `#` hash link or just pass a hash link to the `href` prop. This is possible since `<Link>` renders to an `<a>` element.
 
 ```jsx
 <Link href="/dashboard#settings">Settings</Link>
@@ -134,7 +134,7 @@ For a full list of `useRouter` methods, see the [API reference](/docs/app/api-re
 
 ## How Routing and Navigation Works
 
-The App Router uses a hybrid approach for routing and navigation. On the server, your application code is automatically code-split by route segments. And on the client, Next.js [prefetches](#1-prefetching) and [caches](#2-caching) the route segments. This means, when a user navigates to a new route, the browser doesn't reload the page, and only the route segments that change re-render - improving navigation performance.
+The App Router uses a hybrid approach for routing and navigation. On the server, your application code is automatically code-split by route segments. And on the client, Next.js [prefetches](#1-prefetching) and [caches](#2-caching) the route segments. This means, when a user navigates to a new route, the browser doesn't reload the page, and only the route segments that change re-render - improving the navigation experience and performance.
 
 ### 1. Prefetching
 
@@ -148,7 +148,7 @@ There are two ways routes are prefetched in Next.js:
 The`<Link>`'s prefetching behavior is different for static and dynamic routes:
 
 - [**Static Routes**](/docs/app/building-your-application/rendering/static-and-dynamic#static-rendering-default): `prefetch` defaults to `true`. The entire route is prefetched and cached.
-- [**Dynamic Routes**](/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering): `prefetch` default to automatic. Only the shared layout down until the first `loading.js` file is prefetched and cached for `30s`. This reduces the cost of fetching an entire dynamic route, and it means you can show an [instant loading state](/docs/app/building-your-application/routing/loading-ui-and-streaming#instant-loading-states) for better visual feedback to visitors.
+- [**Dynamic Routes**](/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering): `prefetch` default to automatic. Only the shared layout down until the first `loading.js` file is prefetched and cached for `30s`. This reduces the cost of fetching an entire dynamic route, and it means you can show an [instant loading state](/docs/app/building-your-application/routing/loading-ui-and-streaming#instant-loading-states) for better visual feedback to users.
 
 You can disable prefetching by setting the `prefetch` prop to `false`.
 
@@ -184,7 +184,7 @@ Without partial rendering, each navigation would cause the full page to re-rende
 
 #### 4. Soft Navigation
 
-By default, the browser performs a hard navigation between pages. This means the browser reloads the page and resets the React state. However, in Next.js, the App Router uses soft navigation. This means React renders the segments that have changed while preserving browser and React state, and there is no page reload.
+By default, the browser performs a hard navigation between pages. This means the browser reloads the page and resets React state such as `useState` hooks in your app and browser state such as the user's scroll position or focused element. However, in Next.js, the App Router uses soft navigation. This means React only renders the segments that have changed while preserving React and browser state, and there is no full page reload.
 
 #### 5. Back and Forward Navigation
 

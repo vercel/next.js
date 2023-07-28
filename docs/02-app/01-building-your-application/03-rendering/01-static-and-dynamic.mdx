@@ -20,7 +20,7 @@ By default, Next.js statically renders routes to improve performance. At **build
 
 With Dynamic Rendering, both Server _and_ Client Components for a route are rendered on the server at **request time**.
 
-During rendering, if a [dynamic function](#dynamic-functions) or uncached data is discovered, Next.js will switch to dynamically rendering the whole route. This table summarizes how dynamic functions and data caching affect whether a route is statically or dynamically rendered:
+During rendering, if a [dynamic function](#dynamic-functions) or uncached data request is discovered, Next.js will switch to dynamically rendering the whole route. This table summarizes how dynamic functions and data caching affect whether a route is statically or dynamically rendered:
 
 | Data       | Dynamic Functions | Route                |
 | ---------- | ----------------- | -------------------- |
