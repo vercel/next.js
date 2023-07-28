@@ -86,9 +86,11 @@ The first time the request is called, it'll be a cache `MISS`, the function will
 > **Good to know**:
 >
 > - Request memoization is a React feature, not a Next.js feature. It's included here to show how it interacts with the other caching mechanisms.
-> - Memoization applies to `fetch` requests in `generateMetadata`, `generateStaticParams`, Layouts, Pages, and other Server Components.
-> - Memoization doesn't apply to `fetch` requests in Route Handlers as they are not a part of the React component tree.
-> - For cases where `fetch` is not suitable (e.g. database clients, CMS clients, or GraphQL), you can use the [React `cache` function](#react-cache-function) to manually memoize functions.
+> - Memoization only applies to the `GET` method in `fetch` requests.
+> - Memoization only applies to the React Component tree, this means:
+>   - It applies to `fetch` requests in `generateMetadata`, `generateStaticParams`, Layouts, Pages, and other Server Components.
+>   - It doesn't apply to `fetch` requests in Route Handlers as they are not a part of the React component tree.
+> - For cases where `fetch` is not suitable (e.g. database clients, CMS clients, or GraphQL), you can use the [React `cache` function](#react-cache-function) to memoize functions.
 
 ### Duration
 
