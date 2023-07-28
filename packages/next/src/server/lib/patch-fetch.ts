@@ -33,7 +33,7 @@ function trackFetchMetric(
     status: number
     method: string
     cacheReason: string
-    cacheStatus: 'hit' | 'miss'
+    cacheStatus: 'hit' | 'miss' | 'skip'
     start: number
   }
 ) {
@@ -56,6 +56,7 @@ function trackFetchMetric(
   staticGenerationStore.fetchMetrics.push({
     url: ctx.url,
     cacheStatus: ctx.cacheStatus,
+    cacheReason: ctx.cacheReason,
     status: ctx.status,
     method: ctx.method,
     start: ctx.start,
@@ -176,6 +177,7 @@ export function patchFetch({
           staticGenerationStore.fetchCache === 'force-no-store'
 
         let _cache = getRequestMeta('cache')
+        let cacheReason = ''
 
         if (
           typeof _cache === 'string' &&
@@ -192,12 +194,12 @@ export function patchFetch({
         }
         if (['no-cache', 'no-store'].includes(_cache || '')) {
           curRevalidate = 0
+          cacheReason = `cache: ${_cache}`
         }
         if (typeof curRevalidate === 'number' || curRevalidate === false) {
           revalidate = curRevalidate
         }
 
-        let cacheReason = ''
         const _headers = getRequestMeta('headers')
         const initHeaders: Headers =
           typeof _headers?.get === 'function'
@@ -355,7 +357,7 @@ export function patchFetch({
                 start: fetchStart,
                 url: fetchUrl,
                 cacheReason,
-                cacheStatus: 'miss',
+                cacheStatus: revalidate === 0 ? 'skip' : 'miss',
                 status: res.status,
                 method: clonedInit.method || 'GET',
               })
