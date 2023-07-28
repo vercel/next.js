@@ -245,10 +245,25 @@ async function startWatcher(opts: SetupOpts) {
       return manifest
     }
 
-    function printIssues(
+    async function processResult(
       result: TurbopackResult<WrittenEndpoint> | undefined
-    ): TurbopackResult<WrittenEndpoint> | undefined {
+    ): Promise<TurbopackResult<WrittenEndpoint> | undefined> {
       if (result) {
+        await (global as any)._nextDeleteCache?.(
+          result.serverPaths
+            .map((p) => path.join(distDir, p))
+            .concat([
+              // We need to clear the chunk cache in react
+              require.resolve(
+                'next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.edge.development.js'
+              ),
+              // And this redirecting module as well
+              require.resolve(
+                'next/dist/compiled/react-server-dom-webpack/client.edge.js'
+              ),
+            ])
+        )
+
         for (const issue of result.issues) {
           // TODO better formatting
           if (issue.severity !== 'error' && issue.severity !== 'fatal') continue
@@ -485,14 +500,14 @@ async function startWatcher(opts: SetupOpts) {
             }
 
             if (page === '/_error') {
-              printIssues(await globalEntries.app?.writeToDisk())
+              await processResult(await globalEntries.app?.writeToDisk())
               await loadBuildManifest('_app')
               await loadPagesManifest('_app')
 
-              printIssues(await globalEntries.document?.writeToDisk())
+              await processResult(await globalEntries.document?.writeToDisk())
               await loadPagesManifest('_document')
 
-              printIssues(await globalEntries.error?.writeToDisk())
+              await processResult(await globalEntries.error?.writeToDisk())
               await loadBuildManifest('_error')
               await loadPagesManifest('_error')
 
@@ -523,17 +538,19 @@ async function startWatcher(opts: SetupOpts) {
                   )
                 }
 
-                printIssues(await globalEntries.app?.writeToDisk())
+                await processResult(await globalEntries.app?.writeToDisk())
                 await loadBuildManifest('_app')
                 await loadPagesManifest('_app')
 
-                printIssues(await globalEntries.document?.writeToDisk())
+                await processResult(await globalEntries.document?.writeToDisk())
                 await loadPagesManifest('_document')
 
                 const writtenEndpoint =
                   route.type === 'page-api'
-                    ? printIssues(await route.endpoint.writeToDisk())
-                    : printIssues(await route.htmlEndpoint.writeToDisk())
+                    ? await processResult(await route.endpoint.writeToDisk())
+                    : await processResult(
+                        await route.htmlEndpoint.writeToDisk()
+                      )
 
                 if (route.type === 'page') {
                   await loadBuildManifest(page)
@@ -562,7 +579,7 @@ async function startWatcher(opts: SetupOpts) {
                 break
               }
               case 'app-page': {
-                printIssues(await route.htmlEndpoint.writeToDisk())
+                await processResult(await route.htmlEndpoint.writeToDisk())
 
                 await loadAppBuildManifest(page)
                 await loadBuildManifest(page, true)
@@ -577,7 +594,7 @@ async function startWatcher(opts: SetupOpts) {
                 break
               }
               case 'app-route': {
-                printIssues(await route.endpoint.writeToDisk())
+                await processResult(await route.endpoint.writeToDisk())
 
                 await loadAppPathManifest(page, true)
 
