@@ -158,6 +158,7 @@ async function main() {
       await glob('**/*.test.{js,ts,tsx}', {
         nodir: true,
         cwd: __dirname,
+        ignore: '**/node_modules/**',
       })
     ).filter((test) => {
       if (testPatternRegex) {
