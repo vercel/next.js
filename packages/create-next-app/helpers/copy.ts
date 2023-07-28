@@ -22,7 +22,7 @@ export const copy = async (
     throw new TypeError('`src` and `dest` are required')
   }
 
-  const sourceFiles = await glob<string>(source, {
+  const sourceFiles = await glob(source, {
     cwd,
     dot: true,
     absolute: false,

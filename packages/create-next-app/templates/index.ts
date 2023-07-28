@@ -87,7 +87,7 @@ export const installTemplate = async ({
 
   // update import alias in any files if not using the default
   if (importAlias !== '@/*') {
-    const files = await glob<string>('**/*', {
+    const files = await glob('**/*', {
       cwd: root,
       dot: true,
       stats: false,
