@@ -86,6 +86,7 @@ export const createRouterWorker = async (
           ? { __NEXT_PRIVATE_CPU_PROFILE: `CPU.router` }
           : {}),
         WATCHPACK_WATCHER_LIMIT: '20',
+        EXPERIMENTAL_TURBOPACK: process.env.EXPERIMENTAL_TURBOPACK,
       },
     },
     exposedMethods: ['initialize'],
