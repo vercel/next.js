@@ -1,8 +1,9 @@
 import { ReadonlyURLSearchParams } from './navigation'
 
 describe('next/navigation', () => {
-  it('should be able to construct ReadonlyURLSearchParams from URLSearchParams', () => {
+  it('should be able to construct URLSearchParams from ReadonlyURLSearchParams', () => {
     const searchParams = new URLSearchParams('?foo=test&bar=test')
-    expect(() => new ReadonlyURLSearchParams(searchParams)).not.toThrow()
+    const readonlySearchParams = new ReadonlyURLSearchParams(searchParams)
+    expect(() => new URLSearchParams(readonlySearchParams)).not.toThrow()
   })
 })
