@@ -41,11 +41,74 @@ impl Default for MiddlewaresManifest {
     }
 }
 
+#[derive(Serialize, Debug)]
+#[serde(tag = "type", rename_all = "kebab-case")]
+pub enum RouteHas {
+    Header {
+        key: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        value: Option<String>,
+    },
+    Cookie {
+        key: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        value: Option<String>,
+    },
+    Query {
+        key: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        value: Option<String>,
+    },
+    Host {
+        value: String,
+    },
+}
+
+#[derive(Serialize, Default, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct MiddlewareMatcher {
+    regexp: String,
+    #[serde(skip_serializing_if = "bool_is_true")]
+    locale: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    has: Option<Vec<RouteHas>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    missing: Option<Vec<RouteHas>>,
+    original_source: String,
+}
+
+fn bool_is_true(b: &bool) -> bool {
+    *b
+}
+
+#[derive(Serialize, Default, Debug)]
+pub struct EdgeFunctionDefinition {
+    files: Vec<String>,
+    name: String,
+    page: String,
+    matchers: Vec<MiddlewareMatcher>,
+    // TODO: AssetBinding[]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    wasm: Option<Vec<()>>,
+    // TODO: AssetBinding[]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    assets: Option<Vec<()>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    regions: Option<Regions>,
+}
+
+#[derive(Serialize, Debug)]
+#[serde(untagged)]
+pub enum Regions {
+    Multiple(Vec<String>),
+    Single(String),
+}
+
 #[derive(Serialize, Default, Debug)]
 pub struct MiddlewaresManifestV2 {
-    pub sorted_middleware: Vec<()>,
+    pub sorted_middleware: Vec<String>,
     pub middleware: HashMap<String, ()>,
-    pub functions: HashMap<String, ()>,
+    pub functions: HashMap<String, EdgeFunctionDefinition>,
 }
 
 #[derive(Serialize, Default, Debug)]

@@ -621,6 +621,36 @@ impl AppEndpoint {
         );
         output_assets.push(entry_manifest);
 
+        // TODO(alexkirsz) Expose config and type: edge/normal on AppEntry.
+        // TODO(alexkirsz) This should be shared with next build.
+        if let Some(edge_config) = &app_entry.edge_config {
+            let named_regex = get_named_middleware_regex(&app_entry.pathname);
+            let matchers = MiddlewareMatcher {
+                regexp: named_regex,
+                original_source: app_entry.pathname.clone(),
+                ..Default::default()
+            };
+            let edge_function_definition = EdgeFunctionDefinition {
+                files: todo!(), // get_entry_files(...),
+                name: "".to_string(),
+                page: app_entry.original_name.clone(),
+                regions: edge_config
+                    .await?
+                    .preferred_region
+                    .map(|region| Regions::Single(region)),
+                matchers: vec![matchers],
+                ..Default::default()
+            };
+            let middleware_manifest_v2 = MiddlewaresManifestV2 {
+                sorted_middleware: vec![original_name.clone()],
+                middleware: Default::default(),
+                functions: [(original_name, edge_function_definition)]
+                    .into_iter()
+                    .collect(),
+            };
+            // TODO(alexkirsz) Add the manifest.
+        }
+
         fn create_app_paths_manifest(
             node_root: Vc<FileSystemPath>,
             original_name: &str,
