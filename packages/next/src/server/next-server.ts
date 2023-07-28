@@ -100,7 +100,6 @@ import { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
 import { signalFromNodeResponse } from './web/spec-extension/adapters/next-request'
 import { RouteModuleLoader } from './future/helpers/module-loader/route-module-loader'
 import { loadManifest } from './load-manifest'
-import { formatHostname } from './lib/utils'
 
 export * from './base-server'
 
@@ -426,7 +425,7 @@ export default class NextNodeServer extends BaseServer {
         trustHostHeader: this.nextConfig.experimental.trustHostHeader,
         allowedRevalidateHeaderKeys:
           this.nextConfig.experimental.allowedRevalidateHeaderKeys,
-        hostname: this.hostname,
+        hostname: this.fetchHostname,
         minimalMode: this.minimalMode,
         dev: this.renderOpts.dev === true,
         query,
@@ -516,9 +515,7 @@ export default class NextNodeServer extends BaseServer {
 
         if (this.isRenderWorker) {
           const invokeRes = await invokeRequest(
-            `http://${formatHostname(this.hostname)}:${this.port}${
-              newReq.url || ''
-            }`,
+            `http://${this.fetchHostname}:${this.port}${newReq.url || ''}`,
             {
               method: newReq.method || 'GET',
               headers: newReq.headers,
@@ -1474,9 +1471,9 @@ export default class NextNodeServer extends BaseServer {
       const query = urlQueryToSearchParams(params.parsed.query).toString()
       const locale = params.parsed.query.__nextLocale
 
-      url = `${getRequestMeta(params.request, '_protocol')}://${formatHostname(
-        this.hostname
-      )}:${this.port}${locale ? `/${locale}` : ''}${params.parsed.pathname}${
+      url = `${getRequestMeta(params.request, '_protocol')}://${
+        this.fetchHostname
+      }:${this.port}${locale ? `/${locale}` : ''}${params.parsed.pathname}${
         query ? `?${query}` : ''
       }`
     }
@@ -1727,9 +1724,7 @@ export default class NextNodeServer extends BaseServer {
     // When there are hostname and port we build an absolute URL
     const initUrl =
       this.hostname && this.port
-        ? `${protocol}://${formatHostname(this.hostname)}:${this.port}${
-            req.url
-          }`
+        ? `${protocol}://${this.fetchHostname}:${this.port}${req.url}`
         : (this.nextConfig.experimental as any).trustHostHeader
         ? `https://${req.headers.host || 'localhost'}${req.url}`
         : req.url

@@ -20,6 +20,7 @@ import { splitCookiesString, toNodeOutgoingHttpHeaders } from '../web/utils'
 import { signalFromNodeResponse } from '../web/spec-extension/adapters/next-request'
 import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
 import { pipeReadable } from '../pipe-readable'
+import { formatHostname } from './utils'
 
 type RouteResult =
   | {
@@ -68,6 +69,8 @@ export async function makeResolver(
     dir,
     !!nextConfig.experimental.appDir
   )
+  // we format the hostname so that it can be fetched
+  const fetchHostname = formatHostname(serverAddr.hostname)
 
   fsChecker.ensureCallback(async (item) => {
     let result: string | null = null
@@ -128,9 +131,7 @@ export async function makeResolver(
               basePath: nextConfig.basePath,
               trailingSlash: nextConfig.trailingSlash,
             },
-            url: `http://${serverAddr.hostname || 'localhost'}:${
-              serverAddr.port || 3000
-            }${req.url}`,
+            url: `http://${fetchHostname}:${serverAddr.port || 3000}${req.url}`,
             body: cloneableBody,
             signal: signalFromNodeResponse(res),
           },
@@ -202,7 +203,7 @@ export async function makeResolver(
         async initialize() {
           return {
             port: middlewareServerPort,
-            hostname: '127.0.0.1',
+            hostname: fetchHostname,
           }
         },
         async deleteCache() {},

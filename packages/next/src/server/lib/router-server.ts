@@ -31,6 +31,7 @@ import {
   PERMANENT_REDIRECT_STATUS,
 } from '../../shared/lib/constants'
 import { signalFromNodeResponse } from '../web/spec-extension/adapters/next-request'
+import { formatHostname } from './utils'
 
 let initializeResult:
   | undefined
@@ -736,7 +737,7 @@ export async function initialize(opts: {
 
   initializeResult = {
     port,
-    hostname: hostname === '0.0.0.0' ? '127.0.0.1' : hostname,
+    hostname: formatHostname(hostname),
   }
 
   return initializeResult

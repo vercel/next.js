@@ -29,6 +29,7 @@ import {
   getModifiedCookieValues,
 } from '../web/spec-extension/adapters/request-cookies'
 import { RequestStore } from '../../client/components/request-async-storage'
+import { formatHostname } from '../lib/utils'
 
 function nodeToWebReadableStream(nodeReadable: import('stream').Readable) {
   if (process.env.NEXT_RUNTIME !== 'edge') {
@@ -115,22 +116,9 @@ function getForwardedHeaders(
   return new Headers(mergedHeaders)
 }
 
-function fetchIPv4v6(
-  url: URL,
-  init: RequestInit,
-  v6 = false
-): Promise<Response> {
-  const hostname = url.hostname
-
-  if (!v6 && hostname === 'localhost') {
-    url.hostname = '127.0.0.1'
-  }
-  return fetch(url, init).catch((err) => {
-    if (err.code === 'ECONNREFUSED' && !v6) {
-      return fetchIPv4v6(url, init, true)
-    }
-    throw err
-  })
+function fetchIPv4v6(url: URL, init: RequestInit): Promise<Response> {
+  url.hostname = formatHostname(url.hostname)
+  return fetch(url, init)
 }
 
 async function addRevalidationHeader(

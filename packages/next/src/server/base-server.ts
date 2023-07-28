@@ -34,6 +34,7 @@ import type { WebNextRequest, WebNextResponse } from './base-http/web'
 import type { PagesAPIRouteMatch } from './future/route-matches/pages-api-route-match'
 
 import { format as formatUrl, parse as parseUrl } from 'url'
+import { formatHostname } from './lib/utils'
 import { getRedirectStatus } from '../lib/redirect-status'
 import { isEdgeRuntime } from '../lib/is-edge-runtime'
 import {
@@ -272,6 +273,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected clientReferenceManifest?: ClientReferenceManifest
   protected nextFontManifest?: NextFontManifest
   public readonly hostname?: string
+  public readonly fetchHostname?: string
   public readonly port?: number
 
   protected abstract getPublicDir(): string
@@ -372,6 +374,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     // values from causing issues as this can be user provided
     this.nextConfig = conf as NextConfigComplete
     this.hostname = hostname
+    // we format the hostname so that it can be fetched
+    this.fetchHostname = formatHostname(this.hostname)
     this.port = port
     this.distDir =
       process.env.NEXT_RUNTIME === 'edge'

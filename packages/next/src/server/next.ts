@@ -283,6 +283,10 @@ function createServer(options: NextServerOptions): NextServer {
     let didWebSocketSetup = false
     let serverPort: number = 0
 
+    const hostname = options.hostname || 'localhost'
+    // we format the hostname so that it can be fetched
+    const fetchHostname = formatHostname(hostname)
+
     function setupWebSocketHandler(
       customServer?: import('http').Server,
       _req?: IncomingMessage
@@ -304,9 +308,7 @@ function createServer(options: NextServerOptions): NextServer {
                 req,
                 socket as any,
                 url.parse(
-                  `http://${formatHostname(options.hostname)}:${serverPort}${
-                    req.url
-                  }`,
+                  `http://${fetchHostname}:${serverPort}${req.url}`,
                   true
                 ),
                 head
@@ -334,7 +336,7 @@ function createServer(options: NextServerOptions): NextServer {
                 const initResult = await routerWorker.initialize({
                   dir,
                   port: options.port || 3000,
-                  hostname: options.hostname || 'localhost',
+                  hostname,
                   isNodeDebugging: !!isNodeDebugging,
                   workerType: 'router',
                   dev: !!options.dev,
@@ -349,9 +351,7 @@ function createServer(options: NextServerOptions): NextServer {
                   if (shouldUseStandaloneMode) {
                     setupWebSocketHandler(options.httpServer, req)
                     const parsedUrl = url.parse(
-                      `http://${formatHostname(
-                        options.hostname
-                      )}:${serverPort}${req.url}`,
+                      `http://${fetchHostname}:${serverPort}${req.url}`,
                       true
                     )
                     if ((req?.socket as TLSSocket)?.encrypted) {
@@ -403,9 +403,7 @@ function createServer(options: NextServerOptions): NextServer {
                     req,
                     res,
                     url.parse(
-                      `http://${formatHostname(
-                        options.hostname
-                      )}:${serverPort}${req.url}`,
+                      `http://${fetchHostname}:${serverPort}${req.url}`,
                       true
                     ),
                     undefined,

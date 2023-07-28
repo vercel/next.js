@@ -198,15 +198,16 @@ export async function startServer({
     }
   })
 
-  let targetHost = hostname
+  let targetHost: string
   const isNodeDebugging = checkIsNodeDebugging()
 
   await new Promise<void>((resolve) => {
     server.on('listening', () => {
       const addr = server.address()
       port = typeof addr === 'object' ? addr?.port || port : port
-
-      targetHost = formatHostname(hostname)
+      targetHost = formatHostname(
+        typeof addr === 'object' ? addr?.address || hostname : addr
+      )
 
       const appUrl = `http://${targetHost}:${port}`
 
