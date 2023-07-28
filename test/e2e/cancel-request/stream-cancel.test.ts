@@ -12,7 +12,7 @@ createNextDescribe(
     jest.retryTimes(3)
 
     function prime(url: string, noData?: boolean) {
-      return new Promise<void>((resolve) => {
+      return new Promise<void>((resolve, reject) => {
         url = new URL(url, next.url).href
 
         // There's a bug in node-fetch v2 where aborting the fetch will never abort
@@ -29,6 +29,7 @@ createNextDescribe(
           res.destroy()
           resolve()
         })
+        req.on('error', reject)
         req.end()
 
         if (noData) {
@@ -58,9 +59,8 @@ createNextDescribe(
       it('cancels stream making progress', async () => {
         // If the stream is making regular progress, then we'll eventually hit
         // the break because `res.destroyed` is true.
-        const url = path + '?write=25'
-        await prime(url)
-        const res = await next.fetch(url)
+        await prime(path + '?write=25')
+        const res = await next.fetch(path)
         const i = +(await res.text())
         expect(i).toBeWithin(1, 5)
       }, 2500)
@@ -68,9 +68,8 @@ createNextDescribe(
       it('cancels stalled stream', async () => {
         // If the stream is stalled, we'll never hit the `res.destroyed` break
         // point, so this ensures we handle it with an out-of-band cancellation.
-        const url = path + '?write=1'
-        await prime(url)
-        const res = await next.fetch(url)
+        await prime(path + '?write=1')
+        const res = await next.fetch(path)
         const i = +(await res.text())
         expect(i).toBe(1)
       }, 2500)
@@ -78,9 +77,8 @@ createNextDescribe(
       it('cancels stream that never sent data', async () => {
         // If the client has never sent any data (including headers), then we
         // haven't even established the response object yet.
-        const url = path + '?write=0'
-        await prime(url, true)
-        const res = await next.fetch(url)
+        await prime(path + '?write=0', true)
+        const res = await next.fetch(path)
         const i = +(await res.text())
         expect(i).toBe(0)
       }, 2500)
