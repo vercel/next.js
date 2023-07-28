@@ -1445,13 +1445,7 @@ export default async function getBaseWebpackConfig(
         `${nextDist}${optionalEsmPart}.*${externalFileEnd}`
       )
 
-      const isNextExternal =
-        regexPattern.test(localRes) ||
-        // There's no need to bundle the dev overlay
-        (process.env.NODE_ENV === 'development' &&
-          /next[/\\]dist[/\\](esm[/\\])?client[/\\]components[/\\]react-dev-overlay[/\\]/.test(
-            localRes
-          ))
+      const isNextExternal = regexPattern.test(localRes)
 
       if (isNextExternal) {
         const name = path.parse(localRes).name.replace('.external', '')
