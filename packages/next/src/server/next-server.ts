@@ -515,7 +515,9 @@ export default class NextNodeServer extends BaseServer {
 
         if (this.isRenderWorker) {
           const invokeRes = await invokeRequest(
-            `http://${this.fetchHostname}:${this.port}${newReq.url || ''}`,
+            `http://${this.fetchHostname || 'localhost'}:${this.port}${
+              newReq.url || ''
+            }`,
             {
               method: newReq.method || 'GET',
               headers: newReq.headers,

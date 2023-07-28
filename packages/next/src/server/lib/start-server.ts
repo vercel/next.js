@@ -205,9 +205,9 @@ export async function startServer({
     server.on('listening', () => {
       const addr = server.address()
       targetHost = formatHostname(
-        typeof addr === 'object' ? addr?.address || hostname : addr
+        addr ? (typeof addr === 'object' ? addr.address : addr) : hostname
       )
-      port = typeof addr === 'object' ? addr?.port || port : port
+      port = addr ? (typeof addr === 'object' ? addr.port : port) : port
 
       const appUrl = `http://${formatHostname(hostname)}:${port}`
 
