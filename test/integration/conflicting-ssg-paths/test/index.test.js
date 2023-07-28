@@ -199,38 +199,14 @@ describe('Conflicting SSG paths', () => {
       export const getStaticPaths = () => {
         return {
           paths: [
-            { params: { slug: [1] }}
+            { params: { slug: ['string', 4] }}
           ],
           fallback: false
         }
       }
 
       export default function Page() {
-        return '/hello/[...slug]'
-      }
-    `
-    )
-
-    await fs.writeFile(
-      join(pagesDir, '[...catchAll].js'),
-      `
-      export const getStaticProps = () => {
-        return {
-          props: {}
-        }
-      }
-
-      export const getStaticPaths = () => {
-        return {
-          paths: [
-            { params: { slug: [1] }}
-          ],
-          fallback: false
-        }
-      }
-
-      export default function Page() {
-        return '/[catchAll]'
+        return '/blog/[...slug]'
       }
     `
     )
