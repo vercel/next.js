@@ -158,7 +158,7 @@ interface ScrollAndFocusHandlerProps {
   segmentPath: FlightSegmentPath
 }
 class InnerScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerProps> {
-  handlePotentialScroll = (isUpdate?: boolean) => {
+  handlePotentialScroll = () => {
     // Handle scroll and focus, it's only applied once in the first useEffect that triggers that changed.
     const { focusAndScrollRef, segmentPath } = this.props
 
@@ -211,6 +211,7 @@ class InnerScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerPr
 
       // State is mutated to ensure that the focus and scroll is applied only once.
       focusAndScrollRef.apply = false
+      focusAndScrollRef.onlyHashChange = false
       focusAndScrollRef.hashFragment = null
       focusAndScrollRef.segmentPaths = []
 
@@ -247,7 +248,7 @@ class InnerScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerPr
         {
           // We will force layout by querying domNode position
           dontForceLayout: true,
-          onlyHashChange: !!isUpdate,
+          onlyHashChange: focusAndScrollRef.onlyHashChange,
         }
       )
 
@@ -263,7 +264,7 @@ class InnerScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerPr
   componentDidUpdate() {
     // Because this property is overwritten in handlePotentialScroll it's fine to always run it when true as it'll be set to false for subsequent renders.
     if (this.props.focusAndScrollRef.apply) {
-      this.handlePotentialScroll(true)
+      this.handlePotentialScroll()
     }
   }
 

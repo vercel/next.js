@@ -90,11 +90,12 @@ import { getTracer } from './lib/trace/tracer'
 import { NextNodeServerSpan } from './lib/trace/constants'
 import { nodeFs } from './lib/node-fs-methods'
 import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
-import { invokeRequest, pipeReadable } from './lib/server-ipc/invoke-request'
+import { invokeRequest } from './lib/server-ipc/invoke-request'
+import { pipeReadable } from './pipe-readable'
 import { filterReqHeaders } from './lib/server-ipc/utils'
 import { createRequestResponseMocks } from './lib/mock-request'
 import { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
-import { signalFromNodeRequest } from './web/spec-extension/adapters/next-request'
+import { signalFromNodeResponse } from './web/spec-extension/adapters/next-request'
 import { RouteModuleLoader } from './future/helpers/module-loader/route-module-loader'
 import { loadManifest } from './load-manifest'
 
@@ -278,7 +279,7 @@ export default class NextNodeServer extends BaseServer {
       CacheHandler = CacheHandler.default || CacheHandler
     }
 
-    // incremental-cache is request specific with a shared
+    // incremental-cache is request specific
     // although can have shared caches in module scope
     // per-cache handler
     return new IncrementalCache({
@@ -529,6 +530,7 @@ export default class NextNodeServer extends BaseServer {
             {
               method: newReq.method || 'GET',
               headers: newReq.headers,
+              signal: signalFromNodeResponse(res.originalResponse),
             }
           )
           const filteredResHeaders = filterReqHeaders(
@@ -1065,6 +1067,8 @@ export default class NextNodeServer extends BaseServer {
       const normalizedReq = this.normalizeReq(req)
       const normalizedRes = this.normalizeRes(res)
 
+      const enabledVerboseLogging =
+        this.nextConfig.experimental.logging === 'verbose'
       if (this.renderOpts.dev) {
         const chalk = require('next/dist/compiled/chalk')
         const _req = req as NodeNextRequest | IncomingMessage
@@ -1103,12 +1107,14 @@ export default class NextNodeServer extends BaseServer {
           }
 
           if (Array.isArray(fetchMetrics) && fetchMetrics.length) {
-            process.stdout.write('\n')
-            process.stdout.write(
-              `-  ${chalk.grey('┌')} ${chalk.cyan(req.method || 'GET')} ${
-                req.url
-              } ${res.statusCode} in ${getDurationStr(reqDuration)}\n`
-            )
+            if (enabledVerboseLogging) {
+              process.stdout.write('\n')
+              process.stdout.write(
+                `- ${chalk.cyan(req.method || 'GET')} ${req.url} ${
+                  res.statusCode
+                } in ${getDurationStr(reqDuration)}\n`
+              )
+            }
 
             const calcNestedLevel = (
               prevMetrics: any[],
@@ -1127,9 +1133,7 @@ export default class NextNodeServer extends BaseServer {
                   nestedLevel += 1
                 }
               }
-
-              if (nestedLevel === 0) return ''
-              return ` ${nestedLevel} level${nestedLevel === 1 ? '' : 's'} `
+              return `${'───'.repeat(nestedLevel + 1)}`
             }
 
             for (let i = 0; i < fetchMetrics.length; i++) {
@@ -1170,25 +1174,27 @@ export default class NextNodeServer extends BaseServer {
                   truncatedSearch
               }
 
-              process.stdout.write(`   ${chalk.grey('│')}\n`)
+              if (enabledVerboseLogging) {
+                process.stdout.write(
+                  `   ${chalk.grey(
+                    `${lastItem ? '└' : '├'}${calcNestedLevel(
+                      fetchMetrics.slice(0, i),
+                      metric.start
+                    )}`
+                  )} ${chalk.cyan(metric.method)} ${url} ${
+                    metric.status
+                  } in ${getDurationStr(duration)} (cache: ${cacheStatus})\n`
+                )
+              }
+            }
+          } else {
+            if (enabledVerboseLogging) {
               process.stdout.write(
-                `   ${chalk.grey(
-                  `${lastItem ? '└' : '├'}──${calcNestedLevel(
-                    fetchMetrics.slice(0, i),
-                    metric.start
-                  )}──`
-                )} ${chalk.cyan(metric.method)} ${url} ${
-                  metric.status
-                } in ${getDurationStr(duration)} (cache: ${cacheStatus})\n`
+                `- ${chalk.cyan(req.method || 'GET')} ${req.url} ${
+                  res.statusCode
+                } in ${getDurationStr(reqDuration)}\n`
               )
             }
-            process.stdout.write('\n')
-          } else if (this.nextConfig.experimental.logging === 'verbose') {
-            process.stdout.write(
-              `- ${chalk.cyan(req.method || 'GET')} ${req.url} ${
-                res.statusCode
-              } in ${getDurationStr(reqDuration)}\n`
-            )
           }
           origRes.off('close', reqCallback)
         }
@@ -1542,8 +1548,8 @@ export default class NextNodeServer extends BaseServer {
         url: url,
         page: page,
         body: getRequestMeta(params.request, '__NEXT_CLONABLE_BODY'),
-        signal: signalFromNodeRequest(
-          (params.request as NodeNextRequest).originalRequest
+        signal: signalFromNodeResponse(
+          (params.response as NodeNextResponse).originalResponse
         ),
       },
       useCache: true,
@@ -1644,14 +1650,12 @@ export default class NextNodeServer extends BaseServer {
         res.statusCode = result.response.status
 
         const { originalResponse } = res as NodeNextResponse
-        for await (const chunk of result.response.body || ([] as any)) {
-          if (originalResponse.closed) break
-          this.streamResponseChunk(originalResponse, chunk)
+        if (result.response.body) {
+          await pipeReadable(result.response.body, originalResponse)
+        } else {
+          originalResponse.end()
         }
-        res.send()
-        return {
-          finished: true,
-        }
+        return { finished: true }
       }
     } catch (err) {
       if (isError(err) && err.code === 'ENOENT') {
@@ -1830,8 +1834,8 @@ export default class NextNodeServer extends BaseServer {
           ...(params.params && { params: params.params }),
         },
         body: getRequestMeta(params.req, '__NEXT_CLONABLE_BODY'),
-        signal: signalFromNodeRequest(
-          (params.req as NodeNextRequest).originalRequest
+        signal: signalFromNodeResponse(
+          (params.res as NodeNextResponse).originalResponse
         ),
       },
       useCache: true,
@@ -1860,19 +1864,7 @@ export default class NextNodeServer extends BaseServer {
 
     const nodeResStream = (params.res as NodeNextResponse).originalResponse
     if (result.response.body) {
-      // TODO(gal): not sure that we always need to stream
-      const { consumeUint8ArrayReadableStream } =
-        require('next/dist/compiled/edge-runtime') as typeof import('next/dist/compiled/edge-runtime')
-      try {
-        for await (const chunk of consumeUint8ArrayReadableStream(
-          result.response.body
-        )) {
-          if (nodeResStream.closed) break
-          nodeResStream.write(chunk)
-        }
-      } finally {
-        nodeResStream.end()
-      }
+      await pipeReadable(result.response.body, nodeResStream)
     } else {
       nodeResStream.end()
     }

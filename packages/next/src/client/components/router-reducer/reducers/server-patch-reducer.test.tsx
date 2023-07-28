@@ -191,6 +191,7 @@ describe('serverPatchReducer', () => {
       },
       focusAndScrollRef: {
         apply: false,
+        onlyHashChange: false,
         hashFragment: null,
         segmentPaths: [],
       },
@@ -390,6 +391,7 @@ describe('serverPatchReducer', () => {
       },
       focusAndScrollRef: {
         apply: false,
+        onlyHashChange: false,
         hashFragment: null,
         segmentPaths: [],
       },
@@ -568,6 +570,7 @@ describe('serverPatchReducer', () => {
       },
       focusAndScrollRef: {
         apply: true,
+        onlyHashChange: false,
         hashFragment: null,
         segmentPaths: [
           ['children', 'linking', 'children', 'about', 'children', ''],
