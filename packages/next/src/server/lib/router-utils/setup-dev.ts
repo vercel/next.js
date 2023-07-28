@@ -250,7 +250,18 @@ async function startWatcher(opts: SetupOpts) {
     ): Promise<TurbopackResult<WrittenEndpoint> | undefined> {
       if (result) {
         await (global as any)._nextDeleteCache?.(
-          result.serverPaths.map((p) => path.join(distDir, p))
+          result.serverPaths
+            .map((p) => path.join(distDir, p))
+            .concat([
+              // We need to clear the chunk cache in react
+              require.resolve(
+                'next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.edge.development.js'
+              ),
+              // And this redirecting module as well
+              require.resolve(
+                'next/dist/compiled/react-server-dom-webpack/client.edge.js'
+              ),
+            ])
         )
 
         for (const issue of result.issues) {
