@@ -379,7 +379,7 @@ async fn create_page_source_for_file(
         mode,
     );
 
-    let pathname = pathname_for_path(client_root, client_path, PathType::Page);
+    let pathname = pathname_for_path(client_root, client_path, PathType::PagesPage);
     let route_matcher = NextParamsMatcher::new(pathname);
 
     let (base_segments, route_type) = pathname_to_segments(&pathname.await?, "")?;
