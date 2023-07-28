@@ -3,7 +3,13 @@ import path from 'path'
 
 // NOTE: this should be updated if this loader file is moved.
 const PACKAGE_ROOT = path.normalize(path.join(__dirname, '../../../../../..'))
-const TEMPLATE_FOLDER = path.join(__dirname, 'entries')
+const TEMPLATE_FOLDER = path.join(__dirname, 'templates')
+const TEMPLATES_ESM_FOLDER = path.normalize(
+  path.join(
+    __dirname,
+    '../../../../../dist/esm/build/webpack/loaders/next-route-loader/templates'
+  )
+)
 
 /**
  * Load the entrypoint file from the ESM directory and performs string
@@ -26,12 +32,7 @@ export async function loadEntrypoint(
   injections?: Record<string, string>
 ): Promise<string> {
   const filepath = path.resolve(
-    path.join(
-      __dirname,
-      // Load the ESM version of the entrypoint.
-      '../../../../esm/build/webpack/loaders/next-route-loader/templates',
-      `${entrypoint}.js`
-    )
+    path.join(TEMPLATES_ESM_FOLDER, `${entrypoint}.js`)
   )
 
   let file = await fs.readFile(filepath, 'utf8')
@@ -52,6 +53,9 @@ export async function loadEntrypoint(
         // Ensure that we use linux style path separators for node.
         .replace(/\\/g, '/')
 
+      // Verify that the relative import is relative to the `next` package. This
+      // will catch cases where the constants at the top of the file were not
+      // updated after the file was moved.
       if (!relative.startsWith('next/')) {
         throw new Error(
           `Invariant: Expected relative import to start with "next/", found "${relative}"`
@@ -64,6 +68,10 @@ export async function loadEntrypoint(
     }
   )
 
+  // Verify that at least one import was replaced. It's the case today where
+  // every template file has at least one import to update, so this ensures that
+  // we don't accidentally remove the import replacement code or use the wrong
+  // template file.
   if (count === 0) {
     throw new Error('Invariant: Expected to replace at least one import')
   }
@@ -102,7 +110,11 @@ export async function loadEntrypoint(
     )
   }
 
+  // Check to see if any template variable was provided but not used.
   if (replaced.size !== Object.keys(replacements).length) {
+    // Find the difference between the provided replacements and the replaced
+    // template variables. This will let us notify the user of any template
+    // variables that were not used but were provided.
     const difference = Object.keys(replacements).filter(
       (key) => !replaced.has(key)
     )
@@ -114,7 +126,7 @@ export async function loadEntrypoint(
     )
   }
 
-  // Inject the injections.
+  // Replace the injections.
   const injected = new Set<string>()
   if (injections) {
     // Track all the injections to ensure that we're not missing any.
@@ -142,7 +154,11 @@ export async function loadEntrypoint(
     )
   }
 
+  // Check to see if any injection was provided but not used.
   if (injected.size !== Object.keys(injections ?? {}).length) {
+    // Find the difference between the provided injections and the injected
+    // injections. This will let us notify the user of any injections that were
+    // not used but were provided.
     const difference = Object.keys(injections ?? {}).filter(
       (key) => !injected.has(key)
     )
