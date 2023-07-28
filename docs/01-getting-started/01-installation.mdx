@@ -183,6 +183,11 @@ Learn more about [using the Pages Router](/docs/pages/building-your-application/
 
 You can optionally create a `public` folder to store static assets such as images, fonts, etc. Files inside `public` directory can then be referenced by your code starting from the base URL (`/`).
 
+> **Good to know**: `public` is considered an immutable directory which is read during bootup.
+> If the number of files in `public` gets to the hundreds of thousands, you may begin to experience slower startups.
+>
+> If your project requires a large amount of files, we recommend the use of external file hosts to minimize the amount of files in `public`.
+
 ## Run the Development Server
 
 1. Run `npm run dev` to start the development server.
