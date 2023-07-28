@@ -57,7 +57,7 @@ export async function makeResolver(
   dir: string,
   nextConfig: NextConfigComplete,
   middleware: MiddlewareConfig,
-  serverAddr: Partial<ServerAddress>
+  { hostname = 'localhost', port = 3000 }: Partial<ServerAddress>
 ) {
   const fsChecker = await setupFsCheck({
     dir,
@@ -70,7 +70,7 @@ export async function makeResolver(
     !!nextConfig.experimental.appDir
   )
   // we format the hostname so that it can be fetched
-  const fetchHostname = formatHostname(serverAddr.hostname)
+  const fetchHostname = formatHostname(hostname)
 
   fsChecker.ensureCallback(async (item) => {
     let result: string | null = null
@@ -131,7 +131,7 @@ export async function makeResolver(
               basePath: nextConfig.basePath,
               trailingSlash: nextConfig.trailingSlash,
             },
-            url: `http://${fetchHostname}:${serverAddr.port || 3000}${req.url}`,
+            url: `http://${fetchHostname}:${port}${req.url}`,
             body: cloneableBody,
             signal: signalFromNodeResponse(res),
           },
@@ -192,8 +192,8 @@ export async function makeResolver(
     nextConfig,
     {
       dir,
-      port: serverAddr.port || 3000,
-      hostname: serverAddr.hostname,
+      port,
+      hostname,
       isNodeDebugging: false,
       dev: true,
       workerType: 'render',

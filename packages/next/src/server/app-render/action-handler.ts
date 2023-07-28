@@ -29,7 +29,6 @@ import {
   getModifiedCookieValues,
 } from '../web/spec-extension/adapters/request-cookies'
 import { RequestStore } from '../../client/components/request-async-storage'
-import { formatHostname } from '../lib/utils'
 
 function nodeToWebReadableStream(nodeReadable: import('stream').Readable) {
   if (process.env.NEXT_RUNTIME !== 'edge') {
@@ -116,11 +115,6 @@ function getForwardedHeaders(
   return new Headers(mergedHeaders)
 }
 
-function fetchIPv4v6(url: URL, init: RequestInit): Promise<Response> {
-  url.hostname = formatHostname(url.hostname)
-  return fetch(url, init)
-}
-
 async function addRevalidationHeader(
   res: ServerResponse,
   {
@@ -189,7 +183,7 @@ async function createRedirectRenderResult(
     }
 
     try {
-      const headResponse = await fetchIPv4v6(fetchUrl, {
+      const headResponse = await fetch(fetchUrl, {
         method: 'HEAD',
         headers: forwardedHeaders,
         next: {
@@ -201,7 +195,7 @@ async function createRedirectRenderResult(
       if (
         headResponse.headers.get('content-type') === RSC_CONTENT_TYPE_HEADER
       ) {
-        const response = await fetchIPv4v6(fetchUrl, {
+        const response = await fetch(fetchUrl, {
           method: 'GET',
           headers: forwardedHeaders,
           next: {
