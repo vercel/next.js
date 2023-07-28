@@ -402,7 +402,13 @@ export function patchFetch({
           })
         }
 
-        if (cacheKey && staticGenerationStore?.incrementalCache) {
+        let handleUnlock = () => Promise.resolve()
+
+        if (cacheKey && staticGenerationStore.incrementalCache) {
+          handleUnlock = await staticGenerationStore.incrementalCache.lock(
+            cacheKey
+          )
+
           const entry = staticGenerationStore.isOnDemandRevalidate
             ? null
             : await staticGenerationStore.incrementalCache.get(
@@ -412,6 +418,10 @@ export function patchFetch({
                 fetchUrl,
                 fetchIdx
               )
+
+          if (entry) {
+            await handleUnlock()
+          }
 
           if (entry?.value && entry.value.kind === 'FETCH') {
             const currentTags = entry.value.data.tags
@@ -535,7 +545,7 @@ export function patchFetch({
           }
         }
 
-        return doOriginalFetch()
+        return doOriginalFetch().finally(handleUnlock)
       }
     )
   }

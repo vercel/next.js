@@ -221,86 +221,8 @@ const nextDev: CliCommand = async (argv) => {
   if (args['--experimental-turbo']) {
     process.env.EXPERIMENTAL_TURBOPACK = '1'
   }
-  const experimentalTurbo = !!process.env.EXPERIMENTAL_TURBOPACK
 
-  if (experimentalTurbo) {
-    const { loadBindings } =
-      require('../build/swc') as typeof import('../build/swc')
-
-    resetEnv()
-    let bindings = await loadBindings()
-
-    // Just testing code here:
-
-    const options = {
-      projectPath: dir,
-      rootPath: args['--root'] ?? findRootDir(dir) ?? dir,
-      nextConfig: config,
-      env: {
-        NEXT_PUBLIC_ENV_VAR: 'world',
-      },
-      watch: true,
-    }
-    const project = await bindings.turbo.createProject(options)
-    const iter = project.entrypointsSubscribe()
-
-    try {
-      for await (const entrypoints of iter) {
-        Log.info(entrypoints)
-
-        Log.info(`writing _document to disk`)
-        Log.info(await entrypoints.pagesDocumentEndpoint.writeToDisk())
-        Log.info(`writing _app to disk`)
-        Log.info(await entrypoints.pagesAppEndpoint.writeToDisk())
-        Log.info(`writing _error to disk`)
-        Log.info(await entrypoints.pagesErrorEndpoint.writeToDisk())
-
-        for (const [pathname, route] of entrypoints.routes) {
-          switch (route.type) {
-            case 'page': {
-              Log.info(`writing ${pathname} to disk`)
-              const written = await route.htmlEndpoint.writeToDisk()
-              Log.info(written)
-              break
-            }
-            case 'page-api': {
-              Log.info(`writing ${pathname} to disk`)
-              const written = await route.endpoint.writeToDisk()
-              Log.info(written)
-              break
-            }
-            case 'app-page': {
-              Log.info(`writing ${pathname} to disk`)
-              const written = await route.rscEndpoint.writeToDisk()
-              Log.info(written)
-              break
-            }
-            case 'app-route': {
-              Log.info(`writing ${pathname} to disk`)
-              const written = await route.endpoint.writeToDisk()
-              Log.info(written)
-              break
-            }
-            default:
-              Log.info(`skipping ${pathname} (${route.type})`)
-              break
-          }
-        }
-        Log.info('iteration done')
-        await project.update({
-          ...options,
-          env: {
-            NEXT_PUBLIC_ENV_VAR: 'hello',
-          },
-        })
-      }
-    } catch (e) {
-      console.dir(e)
-    }
-
-    Log.error('Not supported yet')
-    process.exit(1)
-  } else if (process.env.TURBOPACK) {
+  if (process.env.TURBOPACK) {
     isTurboSession = true
 
     const { validateTurboNextConfig } =

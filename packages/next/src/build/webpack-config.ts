@@ -1411,7 +1411,12 @@ export default async function getBaseWebpackConfig(
       const isNextExternal =
         /next[/\\]dist[/\\](esm[\\/])?(shared|server)[/\\](?!lib[/\\](router[/\\]router|dynamic|app-dynamic|image-external|lazy-dynamic|head[^-]))/.test(
           localRes
-        )
+        ) ||
+        // There's no need to bundle the dev overlay
+        (process.env.NODE_ENV === 'development' &&
+          /next[/\\]dist[/\\](esm[/\\])?client[/\\]components[/\\]react-dev-overlay[/\\]/.test(
+            localRes
+          ))
 
       if (isNextExternal) {
         // Generate Next.js external import
@@ -1926,6 +1931,7 @@ export default async function getBaseWebpackConfig(
         'next-font-loader',
         'next-invalid-import-error-loader',
         'next-metadata-route-loader',
+        'modularize-import-loader',
       ].reduce((alias, loader) => {
         // using multiple aliases to replace `resolveLoader.modules`
         alias[loader] = path.join(__dirname, 'webpack', 'loaders', loader)

@@ -627,7 +627,7 @@ export interface NextConfig extends Record<string, any> {
   modularizeImports?: Record<
     string,
     {
-      transform: string
+      transform: string | Record<string, string>
       preventFullImport?: boolean
       skipDefaultConversion?: boolean
     }
