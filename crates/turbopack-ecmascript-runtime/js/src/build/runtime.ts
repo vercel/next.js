@@ -53,7 +53,6 @@ function loadChunk(chunkPath: ChunkPath) {
   }
 
   const resolved = require.resolve(path.resolve(RUNTIME_ROOT, chunkPath));
-  delete require.cache[resolved];
   const chunkModules: ModuleFactories = require(resolved);
 
   for (const [moduleId, moduleFactory] of Object.entries(chunkModules)) {

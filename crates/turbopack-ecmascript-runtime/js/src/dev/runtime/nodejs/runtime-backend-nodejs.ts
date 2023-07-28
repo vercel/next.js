@@ -85,7 +85,6 @@ let BACKEND: RuntimeBackend;
     const resolved = require.resolve(
       "./" + path.relative(path.dirname(fromChunkPath), chunkPath)
     );
-    delete require.cache[resolved];
     require(resolved);
   }
 })();
