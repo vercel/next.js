@@ -1,11 +1,11 @@
 import path from 'path'
-import { createNextDescribe, FileRef } from 'e2e-utils'
+import { createNextDescribe, FileRef } from '../../../lib/e2e-utils'
 import stripAnsi from 'strip-ansi'
 
 function parseLogsFromCli(cliOutput: string) {
   return stripAnsi(cliOutput)
     .split('\n')
-    .filter((log) => log.includes('├'))
+    .filter((log) => log.includes('cache:'))
     .map((log) => {
       const trimmedLog = log.replace(/^[^a-zA-Z]+/, '')
       const parts = trimmedLog.split(' ')
@@ -77,6 +77,22 @@ createNextDescribe(
 
           expect(logEntry?.cache).toMatchInlineSnapshot(
             `"(cache: SKIP, reason: revalidate: 0)"`
+          )
+          await next.stop()
+        })
+
+        it("should log 'skip' cache status with a reason when the browser indicates caching should be ignored", async () => {
+          await next.start()
+          await next.fetch('/default-cache', {
+            headers: { 'Cache-Control': 'no-cache' },
+          })
+          const logs = parseLogsFromCli(next.cliOutput)
+          const logEntry = logs.find((log) =>
+            log.url.includes('api/random?auto-cache')
+          )
+
+          expect(logEntry?.cache).toMatchInlineSnapshot(
+            `"(cache: SKIP, reason: cache-control: no-cache (hard refresh))"`
           )
           await next.stop()
         })

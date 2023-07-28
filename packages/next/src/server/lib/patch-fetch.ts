@@ -344,7 +344,10 @@ export function patchFetch({
         const normalizedRevalidate =
           typeof revalidate !== 'number' ? CACHE_ONE_YEAR : revalidate
 
-        const doOriginalFetch = async (isStale?: boolean) => {
+        const doOriginalFetch = async (
+          isStale?: boolean,
+          cacheReasonOverride?: string
+        ) => {
           // add metadata to init without editing the original
           const clonedInit = {
             ...init,
@@ -356,8 +359,9 @@ export function patchFetch({
               trackFetchMetric(staticGenerationStore, {
                 start: fetchStart,
                 url: fetchUrl,
-                cacheReason,
-                cacheStatus: revalidate === 0 ? 'skip' : 'miss',
+                cacheReason: cacheReasonOverride || cacheReason,
+                cacheStatus:
+                  revalidate === 0 || cacheReasonOverride ? 'skip' : 'miss',
                 status: res.status,
                 method: clonedInit.method || 'GET',
               })
@@ -405,6 +409,7 @@ export function patchFetch({
         }
 
         let handleUnlock = () => Promise.resolve()
+        let cacheReasonOverride
 
         if (cacheKey && staticGenerationStore.incrementalCache) {
           handleUnlock = await staticGenerationStore.incrementalCache.lock(
@@ -423,6 +428,9 @@ export function patchFetch({
 
           if (entry) {
             await handleUnlock()
+          } else {
+            // in dev, incremental cache response will be null in case the browser adds `cache-control: no-cache` in the request headers
+            cacheReasonOverride = 'cache-control: no-cache (hard refresh)'
           }
 
           if (entry?.value && entry.value.kind === 'FETCH') {
@@ -547,7 +555,7 @@ export function patchFetch({
           }
         }
 
-        return doOriginalFetch().finally(handleUnlock)
+        return doOriginalFetch(false, cacheReasonOverride).finally(handleUnlock)
       }
     )
   }
