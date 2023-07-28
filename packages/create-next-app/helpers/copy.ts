@@ -19,7 +19,7 @@ export const copy = async (
   const source = typeof src === 'string' ? [src] : src
 
   if (source.length === 0 || !dest) {
-    throw new TypeError('`files` and `destination` are required')
+    throw new TypeError('`src` and `dest` are required')
   }
 
   const sourceFiles = await glob<string>(source, {
@@ -41,7 +41,7 @@ export const copy = async (
         ? path.join(destRelativeToCwd, dirname, basename)
         : path.join(destRelativeToCwd, basename)
 
-      // This ensure the destination directory exists
+      // Ensure the destination directory exists
       await fs.promises.mkdir(path.dirname(to), { recursive: true })
 
       return fs.promises.copyFile(from, to)
