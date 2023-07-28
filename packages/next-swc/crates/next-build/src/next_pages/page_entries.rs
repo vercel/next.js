@@ -1,5 +1,4 @@
 use anyhow::{bail, Result};
-use indexmap::indexmap;
 use next_core::{
     create_page_loader_entry_module, get_asset_path_from_pathname,
     mode::NextMode,
@@ -18,9 +17,7 @@ use next_core::{
     pages_structure::{
         find_pages_structure, PagesDirectoryStructure, PagesStructure, PagesStructureItem,
     },
-    pathname_for_path,
-    util::{load_next_js, resolve_next_module},
-    PathType,
+    pathname_for_path, PathType,
 };
 use turbo_tasks::Vc;
 use turbopack_binding::{
