@@ -185,7 +185,7 @@ describe('Conflicting SSG paths', () => {
     )
   })
 
-  it('should show proper error when a non-string value is supplied as the parameter to a dynamic route', async () => {
+  it('should show proper error when a non-string value is supplied as the parameter to a catch-all segment', async () => {
     await fs.ensureDir(join(pagesDir, 'blog'))
     await fs.writeFile(
       join(pagesDir, 'blog/[...slug].js'),
