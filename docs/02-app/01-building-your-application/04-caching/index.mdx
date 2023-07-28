@@ -162,7 +162,7 @@ Alternatively, you can use [Route Segment Config options](#segment-config-option
 />
 
 1.  The first time a fetch request with `revalidate` is called, the data will be fetched from the external data source and stored in the Data Cache.
-2.  Any requests that are called within the specified timeframe (e.60-seconds) will return the cached data.
+2.  Any requests that are called within the specified timeframe (e.g. 60-seconds) will return the cached data.
 3.  After the timeframe, the next request will still return the cached (now stale) data.
     - Next.js will trigger a revalidation of the data in the background.
     - Once the data is fetched successfully, Next.js will update the Data Cache with the fresh data.
