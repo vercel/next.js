@@ -82,20 +82,19 @@ jobs:
 
     defaults:
       run:
-        shell: bash -leo pipefail -c "source /root/.bashrc && fnm --version && bash {0}"
+        shell: bash -leo pipefail /entrypoint.sh {0}
 
     container:
       image: public.ecr.aws/c7u5x0t0/nextjs-runner:latest
-      volumes:
-        - /root:/root
 
     steps:
-      - run: env
-      - run: pwd
       - run: fnm install ${{ inputs.nodeVersion || env.NODE_LTS_VERSION }}
       - run: fnm use ${{ inputs.nodeVersion || env.NODE_LTS_VERSION }}
       - run: node -v
       - run: pwd
+      - run: ls /
+      - run: ls -a /__e
+      - run: git config --global --add safe.directory '*'
 
       - uses: actions/checkout@v3
         with:
