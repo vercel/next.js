@@ -374,8 +374,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     // values from causing issues as this can be user provided
     this.nextConfig = conf as NextConfigComplete
     this.hostname = hostname
-    // we format the hostname so that it can be fetched
-    this.fetchHostname = formatHostname(this.hostname)
+    if (this.hostname) {
+      // we format the hostname so that it can be fetched
+      this.fetchHostname = formatHostname(this.hostname)
+    }
     this.port = port
     this.distDir =
       process.env.NEXT_RUNTIME === 'edge'

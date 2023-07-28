@@ -77,10 +77,6 @@ export function getPort(args: arg.Result<arg.Spec>): number {
  * @param hostname
  * @returns
  */
-export function formatHostname(hostname: string | undefined): string {
-  return hostname
-    ? isIPv6(hostname)
-      ? `[${hostname}]`
-      : hostname
-    : 'localhost'
+export function formatHostname(hostname: string): string {
+  return isIPv6(hostname) ? `[${hostname}]` : hostname
 }

@@ -138,7 +138,9 @@ export function getResolveRoutes(
     const initUrl = (config.experimental as any).trustHostHeader
       ? `https://${req.headers.host || 'localhost'}${req.url}`
       : opts.port
-      ? `${protocol}://${formatHostname(opts.hostname)}:${opts.port}${req.url}`
+      ? `${protocol}://${formatHostname(opts.hostname || 'localhost')}:${
+          opts.port
+        }${req.url}`
       : req.url || ''
 
     addRequestMeta(req, '__NEXT_INIT_URL', initUrl)

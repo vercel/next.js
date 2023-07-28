@@ -30,7 +30,7 @@ export const deserializeErr = (serializedErr: any) => {
 }
 
 export async function invokeIpcMethod({
-  hostname,
+  hostname = 'localhost',
   method,
   args,
   ipcPort,

@@ -32,7 +32,7 @@ export interface StartServerOptions {
   port: number
   logReady?: boolean
   isDev: boolean
-  hostname: string
+  hostname: string | undefined
   useWorkers: boolean
   allowRetry?: boolean
   isTurbopack?: boolean
@@ -101,7 +101,7 @@ export async function startServer({
   prevDir,
   port,
   isDev,
-  hostname,
+  hostname = 'localhost',
   useWorkers,
   minimalMode,
   allowRetry,
@@ -204,12 +204,12 @@ export async function startServer({
   await new Promise<void>((resolve) => {
     server.on('listening', () => {
       const addr = server.address()
-      port = typeof addr === 'object' ? addr?.port || port : port
       targetHost = formatHostname(
         typeof addr === 'object' ? addr?.address || hostname : addr
       )
+      port = typeof addr === 'object' ? addr?.port || port : port
 
-      const appUrl = `http://${targetHost}:${port}`
+      const appUrl = `http://${formatHostname(hostname)}:${port}`
 
       if (isNodeDebugging) {
         const debugPort = getDebugPort()

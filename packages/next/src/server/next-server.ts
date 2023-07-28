@@ -1723,7 +1723,7 @@ export default class NextNodeServer extends BaseServer {
 
     // When there are hostname and port we build an absolute URL
     const initUrl =
-      this.hostname && this.port
+      this.fetchHostname && this.port
         ? `${protocol}://${this.fetchHostname}:${this.port}${req.url}`
         : (this.nextConfig.experimental as any).trustHostHeader
         ? `https://${req.headers.host || 'localhost'}${req.url}`
