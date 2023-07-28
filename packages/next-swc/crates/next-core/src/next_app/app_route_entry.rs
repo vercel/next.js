@@ -52,7 +52,7 @@ pub async fn get_app_route_entry(
     let original_name = get_original_route_name(&pathname);
     let path = source.ident().path();
 
-    let template_file = "/dist/esm/build/webpack/loaders/next-route-loader/entries/app-route.js";
+    let template_file = "/dist/esm/build/webpack/loaders/next-route-loader/templates/app-route.js";
 
     // Load the file from the next.js codebase.
     let file = load_next_js(project_root, template_file).await?.await?;
@@ -94,7 +94,7 @@ pub async fn get_app_route_entry(
         file.push('\n');
     }
 
-    result.concat(&RopeBuilder::from(file.as_bytes().to_vec()).build());
+    result.concat(&file.into());
 
     let file = File::from(result.build());
 

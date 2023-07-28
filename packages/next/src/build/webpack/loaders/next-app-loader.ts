@@ -21,7 +21,7 @@ import { AppPathnameNormalizer } from '../../../server/future/normalizers/built/
 import { AppBundlePathNormalizer } from '../../../server/future/normalizers/built/app/app-bundle-path-normalizer'
 import { MiddlewareConfig } from '../../analysis/get-page-static-info'
 import { getFilenameAndExtension } from './next-metadata-route-loader'
-import { loadEntrypointWithReplacements } from './next-route-loader'
+import { loadEntrypoint } from './next-route-loader/load-entrypoint'
 
 export type AppLoaderOptions = {
   name: string
@@ -117,7 +117,7 @@ async function createAppRouteCode({
   const pathname = new AppPathnameNormalizer().normalize(page)
   const bundlePath = new AppBundlePathNormalizer().normalize(page)
 
-  return await loadEntrypointWithReplacements(
+  return await loadEntrypoint(
     'app-route',
     {
       VAR_USERLAND: resolvedPagePath,
@@ -625,7 +625,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
 
   // Prefer to modify next/src/server/app-render/entry-base.ts since this is shared with Turbopack.
   // Any changes to this code should be reflected in Turbopack's app_source.rs and/or app-renderer.tsx as well.
-  return await loadEntrypointWithReplacements(
+  return await loadEntrypoint(
     'app-page',
     {
       VAR_DEFINITION_PAGE: page,

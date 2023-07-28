@@ -1,6 +1,6 @@
 import { PagesAPIRouteModule } from '../../../../../server/future/route-modules/pages-api/module'
 import { RouteKind } from '../../../../../server/future/route-kind'
-import { hoist } from '../../../../../build/webpack/loaders/next-route-loader/helpers'
+import { hoist } from '../helpers'
 
 // Import the userland code.
 // @ts-expect-error - replaced by webpack/turbopack loader
