@@ -1,5 +1,6 @@
-use std::{fs::canonicalize, path::PathBuf};
+use std::path::PathBuf;
 
+use dunce::canonicalize;
 use once_cell::sync::Lazy;
 
 /// The turbo repo root. Should be used as the root when building with turbopack
