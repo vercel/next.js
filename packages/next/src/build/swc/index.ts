@@ -451,7 +451,7 @@ interface Issue {
 
 interface Diagnostics {}
 
-type TurbopackResult<T = {}> = T & {
+export type TurbopackResult<T = {}> = T & {
   issues: Issue[]
   diagnostics: Diagnostics[]
 }
@@ -475,7 +475,7 @@ interface Project {
   entrypointsSubscribe(): AsyncIterableIterator<TurbopackResult<Entrypoints>>
 }
 
-type Route =
+export type Route =
   | {
       type: 'conflict'
     }
@@ -498,7 +498,7 @@ type Route =
       endpoint: Endpoint
     }
 
-interface Endpoint {
+export interface Endpoint {
   /** Write files for the endpoint to disk. */
   writeToDisk(): Promise<TurbopackResult<WrittenEndpoint>>
   /**
@@ -525,7 +525,7 @@ interface EndpointConfig {
   preferredRegion?: string
 }
 
-type WrittenEndpoint =
+export type WrittenEndpoint =
   | {
       type: 'nodejs'
       /** The entry path for the endpoint. */
@@ -817,7 +817,28 @@ function bindingToApi(binding: any, _wasm: boolean) {
       )
     }
 
-    return JSON.stringify(nextConfigSerializable)
+    nextConfigSerializable.modularizeImports =
+      nextConfigSerializable.modularizeImports
+        ? Object.fromEntries(
+            Object.entries<any>(nextConfigSerializable.modularizeImports).map(
+              ([mod, config]) => [
+                mod,
+                {
+                  ...config,
+                  transform:
+                    typeof config.transform === 'string'
+                      ? config.transform
+                      : Object.entries(config.transform).map(([key, value]) => [
+                          key,
+                          value,
+                        ]),
+                },
+              ]
+            )
+          )
+        : undefined
+
+    return JSON.stringify(nextConfigSerializable, null, 2)
   }
 
   function ensureLoadersHaveSerializableOptions(
