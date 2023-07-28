@@ -38,7 +38,7 @@ createNextDescribe(
     },
   },
   ({ next, isNextDev }) => {
-    describe('with logging verbose', () => {
+    describe('with verbose logging', () => {
       it('should only log requests in dev mode', async () => {
         await next.fetch('/default-cache')
         const logs = stripAnsi(next.cliOutput)
@@ -57,11 +57,11 @@ createNextDescribe(
           await next.start()
           await next.fetch('/default-cache')
           const logs = parseLogsFromCli(next.cliOutput)
-          const noCacheLog = logs.find((log) =>
+          const logEntry = logs.find((log) =>
             log.url.includes('api/random?no-cache')
           )
 
-          expect(noCacheLog.cache).toMatchInlineSnapshot(
+          expect(logEntry?.cache).toMatchInlineSnapshot(
             `"(cache: SKIP, reason: cache: no-cache)"`
           )
           await next.stop()
@@ -71,11 +71,11 @@ createNextDescribe(
           await next.start()
           await next.fetch('/default-cache')
           const logs = parseLogsFromCli(next.cliOutput)
-          const noCacheLog = logs.find((log) =>
+          const logEntry = logs.find((log) =>
             log.url.includes('api/random?revalidate-0')
           )
 
-          expect(noCacheLog.cache).toMatchInlineSnapshot(
+          expect(logEntry?.cache).toMatchInlineSnapshot(
             `"(cache: SKIP, reason: revalidate: 0)"`
           )
           await next.stop()
