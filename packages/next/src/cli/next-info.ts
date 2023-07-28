@@ -173,6 +173,84 @@ async function printDefaultInfo() {
 }
 
 /**
+ * Using system-installed tools per each platform, trying to read shared dependencies of next-swc.
+ * This is mainly for debugging DLOPEN failure.
+ *
+ * We don't / can't install these tools by ourselves, will skip the check if we can't find them.
+ */
+async function runSharedDependencyCheck(
+  tools: Array<{ bin: string; checkArgs: Array<string>; args: Array<string> }>,
+  skipMessage: string
+): Promise<TaskResult> {
+  const currentPlatform = os.platform()
+  const spawn = require('next/dist/compiled/cross-spawn')
+  const { getSupportedArchTriples } = require('../build/swc')
+  const triples = getSupportedArchTriples()[currentPlatform]?.[os.arch()] ?? []
+  // First, check if system have a tool installed. We can't install these by our own.
+
+  const availableTools = []
+  for (const tool of tools) {
+    try {
+      const check = spawn.sync(tool.bin, tool.checkArgs)
+      if (check.status === 0) {
+        availableTools.push(tool)
+      }
+    } catch {
+      // ignore if existence check fails
+    }
+  }
+
+  if (availableTools.length === 0) {
+    return {
+      messages: skipMessage,
+      result: 'skipped',
+    }
+  }
+
+  const outputs: Array<string> = []
+  let result: 'pass' | 'fail' = 'fail'
+
+  for (const triple of triples) {
+    const triplePkgName = `@next/swc-${triple.platformArchABI}`
+    let resolved
+    try {
+      resolved = require.resolve(triplePkgName)
+    } catch (e) {
+      return {
+        messages:
+          'Cannot find next-swc installation, skipping dependencies check',
+        result: 'skipped',
+      }
+    }
+
+    for (const tool of availableTools) {
+      const proc = spawn(tool.bin, [...tool.args, resolved])
+      outputs.push(`Running ${tool.bin} ------------- `)
+      // Captures output, doesn't matter if it fails or not since we'll forward both to output.
+      const procPromise = new Promise((resolve) => {
+        proc.stdout.on('data', function (data: string) {
+          outputs.push(data)
+        })
+        proc.stderr.on('data', function (data: string) {
+          outputs.push(data)
+        })
+        proc.on('close', (c: any) => resolve(c))
+      })
+
+      let code = await procPromise
+      if (code === 0) {
+        result = 'pass'
+      }
+    }
+  }
+
+  return {
+    output: outputs.join('\n'),
+    result,
+  }
+}
+
+/**
  * Collect additional diagnostics information and print it to stdout or write it into a file.
  *
  * @param outFile If specified, the output will be written into this file instead of stdout.
@@ -395,85 +473,58 @@ async function printDiagsInfo(outFile: string | undefined) {
       title: 'next-swc shared object dependencies',
       scripts: {
         linux: async () => {
-          return {
-            messages: 'This diagnostics is not supported on linux.',
-            result: 'skipped',
-          }
+          const skipMessage =
+            'This diagnostics uses system-installed tools (ldd) to check next-swc dependencies, but it is not found. Skipping dependencies check.'
+
+          return await runSharedDependencyCheck(
+            [
+              {
+                bin: 'ldd',
+                checkArgs: ['--help'],
+                args: ['--verbose'],
+              },
+            ],
+            skipMessage
+          )
         },
         win32: async () => {
-          return {
-            messages: 'This diagnostics is not supported on windows.',
-            result: 'skipped',
-          }
+          const skipMessage = `This diagnostics uses system-installed tools (dumpbin.exe) to check next-swc dependencies, but it was not found in the path. Skipping dependencies check.
+          dumpbin (https://learn.microsoft.com/en-us/cpp/build/reference/dumpbin-reference) is a part of Microsoft VC toolset,
+          can be installed with Windows SDK, Windows Build tools or Visual Studio.
+
+          Please make sure you have one of them installed and dumpbin.exe is in the path.
+          `
+
+          return await runSharedDependencyCheck(
+            [
+              {
+                bin: 'dumpbin.exe',
+                checkArgs: ['/summary'],
+                args: ['/imports'],
+              },
+            ],
+            skipMessage
+          )
         },
         darwin: async () => {
-          const spawn = require('next/dist/compiled/cross-spawn')
-          const {
-            platformArchTriples,
-          } = require('next/dist/compiled/@napi-rs/triples')
-          const triples =
-            platformArchTriples[currentPlatform]?.[os.arch()] ?? []
+          const skipMessage =
+            'This diagnostics uses system-installed tools (otools, dyld_info) to check next-swc dependencies, but none of them are found. Skipping dependencies check.'
 
-          // First, check if system have a tool installed. We can't install these by our own since it's part of the mac os system.
-          const tools = []
-
-          try {
-            const checkOtool = spawn.sync('otool', ['--version'])
-            if (checkOtool.status === 0) {
-              tools.push(['otool', ['-L']])
-            }
-
-            const checkDyld = spawn.sync('dyld_info')
-            if (checkDyld.status === 0) {
-              tools.push(['dyld_info', []])
-            }
-          } catch {
-            // ignore if existence check fails
-          }
-
-          if (tools.length === 0) {
-            return {
-              messages:
-                'This diagnostics uses system-installed tools (otools, dyld_info) to check next-swc dependencies, but none of them are found. Skipping dependencies check.',
-              result: 'skipped',
-            }
-          }
-
-          const outputs: Array<string> = []
-          for (const triple of triples) {
-            const triplePkgName = `@next/swc-${triple.platformArchABI}`
-            let resolved
-            try {
-              resolved = require.resolve(triplePkgName)
-            } catch (e) {
-              return {
-                messages:
-                  'Cannot find next-swc installation, skipping dependencies check',
-                result: 'skipped',
-              }
-            }
-
-            for (const [tool, args] of tools) {
-              const proc = spawn(tool, [...args, resolved])
-              // Captures output, doesn't matter if it fails or not since we'll forward both to output.
-              const procPromise = new Promise((resolve) => {
-                proc.stdout.on('data', function (data: string) {
-                  outputs.push(data)
-                })
-                proc.stderr.on('data', function (data: string) {
-                  outputs.push(data)
-                })
-                proc.on('close', (c: any) => resolve(c))
-              })
-
-              await procPromise
-            }
-          }
-
-          return {
-            output: outputs.join('\n'),
-            result: 'pass',
-          }
+          return await runSharedDependencyCheck(
+            [
+              {
+                bin: 'otool',
+                checkArgs: ['--version'],
+                args: ['-L'],
+              },
+              {
+                bin: 'dyld_info',
+                checkArgs: [],
+                args: [],
+              },
+            ],
+            skipMessage
+          )
         },
       },
     },
