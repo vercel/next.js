@@ -2,6 +2,7 @@
 // the other imports
 import { IPC } from '@vercel/turbopack-node/ipc/index'
 
+import 'next/dist/server/require-hook.js'
 import 'next/dist/server/node-polyfill-fetch.js'
 import './shims'
 
