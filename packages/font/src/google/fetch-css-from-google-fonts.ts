@@ -12,7 +12,7 @@ async function retry<T>(fn: () => Promise<T>, attempts: number): Promise<T> {
       cnt--
       if (cnt <= 0) throw err
       console.error(
-        (err as Error).message + `\n\nRetrying ${attempts - cnt}/3...`
+        (err as Error).message + `\n\nRetrying ${attempts - cnt}/${attempts}...`
       )
       await new Promise((resolve) => setTimeout(resolve, 100))
     }
@@ -79,7 +79,7 @@ export async function fetchCSSFromGoogleFonts(
       }
 
       return res.text()
-    }, 3)
+    }, 5)
   }
 
   return cssResponse
