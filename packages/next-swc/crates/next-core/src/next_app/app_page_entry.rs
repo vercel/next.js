@@ -34,13 +34,14 @@ pub async fn get_app_page_entry(
     loader_tree: Vc<LoaderTree>,
     app_dir: Vc<FileSystemPath>,
     pathname: String,
+    original_name: String,
     project_root: Vc<FileSystemPath>,
 ) -> Result<Vc<AppEntry>> {
     let config = parse_segment_config_from_loader_tree(loader_tree, Vc::upcast(nodejs_context));
     let context = if matches!(config.await?.runtime, Some(NextRuntime::Edge)) {
-        nodejs_context
-    } else {
         edge_context
+    } else {
+        nodejs_context
     };
 
     let server_component_transition = Vc::upcast(NextServerComponentTransition::new());
@@ -81,7 +82,7 @@ pub async fn get_app_page_entry(
     // NOTE(alexkirsz) Keep in sync with
     // next.js/packages/next/src/build/webpack/loaders/next-app-loader.ts
     // TODO(alexkirsz) Support custom global error.
-    let original_name = get_original_page_name(&pathname);
+    let original_name = get_original_page_name(&original_name);
 
     writedoc!(
         result,
@@ -89,7 +90,7 @@ pub async fn get_app_page_entry(
             export const tree = {loader_tree_code}
             export const pages = {pages}
             export {{ default as GlobalError }} from 'next/dist/client/components/error-boundary'
-            export const originalPathname = {pathname}
+            export const originalPathname = {original_name}
             export const __next_app__ = {{
                 require: __turbopack_require__,
                 loadChunk: __turbopack_load__,
@@ -98,7 +99,7 @@ pub async fn get_app_page_entry(
             export * from 'next/dist/server/app-render/entry-base'
         "#,
         pages = StringifyJs(&pages),
-        pathname = StringifyJs(&original_name),
+        original_name = StringifyJs(&original_name),
     )?;
 
     let file = File::from(result.build());
@@ -112,9 +113,9 @@ pub async fn get_app_page_entry(
     );
 
     let Some(rsc_entry) =
-        Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(rsc_entry).await?
+        Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkPlaceable>>(rsc_entry).await?
     else {
-        bail!("expected an ECMAScript chunk placeable asset");
+        bail!("expected an ECMAScript chunk placeable module");
     };
 
     Ok(AppEntry {
@@ -132,6 +133,7 @@ fn get_original_page_name(pathname: &str) -> String {
     match pathname {
         "/" => "/page".to_string(),
         "/_not-found" => "/_not-found".to_string(),
+        "/not-found" => "/not-found".to_string(),
         _ => format!("{}/page", pathname),
     }
 }
