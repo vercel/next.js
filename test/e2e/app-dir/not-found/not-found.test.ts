@@ -7,7 +7,21 @@ createNextDescribe(
     files: __dirname,
     skipDeployment: true,
   },
-  ({ next, isNextDev }) => {
+  ({ next, isNextDev, isNextStart }) => {
+    if (isNextStart) {
+      it('should include not found client reference manifest in the file trace', async () => {
+        const fileTrace = JSON.parse(
+          await next.readFile('.next/server/app/_not-found.js.nft.json')
+        )
+
+        const isTraced = fileTrace.files.some((filePath) =>
+          filePath.includes('_not-found_client-reference-manifest.js')
+        )
+
+        expect(isTraced).toBe(true)
+      })
+    }
+
     const runTests = ({ isEdge }: { isEdge: boolean }) => {
       it('should use the not-found page for non-matching routes', async () => {
         const browser = await next.browser('/random-content')
