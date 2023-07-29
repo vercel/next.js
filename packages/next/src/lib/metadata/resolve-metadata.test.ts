@@ -114,7 +114,6 @@ describe('accumulateMetadata', () => {
           icon: [
             {
               url: 'favicon-light.png',
-              rel: 'icon',
             },
           ],
         },

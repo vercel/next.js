@@ -53,6 +53,7 @@ export function resolveImages(
 
   const nonNullableImages = []
   for (const item of resolvedImages) {
+    if (!item) continue
     const isItemUrl = isStringOrURL(item)
     const inputUrl = isItemUrl ? item : item.url
     if (!inputUrl) continue

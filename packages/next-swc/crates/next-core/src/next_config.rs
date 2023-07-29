@@ -117,12 +117,14 @@ pub struct NextConfig {
     public_runtime_config: IndexMap<String, serde_json::Value>,
     server_runtime_config: IndexMap<String, serde_json::Value>,
     static_page_generation_timeout: f64,
-    swc_minify: bool,
+    swc_minify: Option<bool>,
     target: Option<String>,
     trailing_slash: bool,
     typescript: TypeScriptConfig,
     use_file_system_public_routes: bool,
     webpack: Option<serde_json::Value>,
+    skip_middleware_url_normalize: Option<bool>,
+    skip_trailing_slash_redirect: Option<bool>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs)]
@@ -446,15 +448,13 @@ pub struct ExperimentalConfig {
     runtime: Option<serde_json::Value>,
     scroll_restoration: Option<bool>,
     shared_pool: Option<bool>,
-    skip_middleware_url_normalize: Option<bool>,
-    skip_trailing_slash_redirect: Option<bool>,
     sri: Option<serde_json::Value>,
     swc_file_reading: Option<bool>,
     swc_minify: Option<bool>,
     swc_minify_debug_options: Option<serde_json::Value>,
     swc_trace_profiling: Option<bool>,
     transpile_packages: Option<Vec<String>>,
-    turbotrace: Option<serde_json::Value>,
+    pub turbotrace: Option<serde_json::Value>,
     url_imports: Option<serde_json::Value>,
     web_vitals_attribution: Option<serde_json::Value>,
     worker_threads: Option<bool>,
@@ -653,6 +653,25 @@ impl NextConfig {
             self.await?.sass_options.clone().unwrap_or_default(),
         ))
     }
+
+    #[turbo_tasks::function]
+    pub async fn swc_minify(self: Vc<Self>) -> Result<Vc<bool>> {
+        Ok(Vc::cell(self.await?.swc_minify.unwrap_or(false)))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn skip_middleware_url_normalize(self: Vc<Self>) -> Result<Vc<bool>> {
+        Ok(Vc::cell(
+            self.await?.skip_middleware_url_normalize.unwrap_or(false),
+        ))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn skip_trailing_slash_redirect(self: Vc<Self>) -> Result<Vc<bool>> {
+        Ok(Vc::cell(
+            self.await?.skip_trailing_slash_redirect.unwrap_or(false),
+        ))
+    }
 }
 
 fn next_configs() -> Vc<Vec<String>> {
@@ -797,6 +816,34 @@ pub async fn has_next_config(context: Vc<FileSystemPath>) -> Result<Vc<bool>> {
         *find_context_file(context, next_configs()).await?,
         FindContextFileResult::NotFound(_)
     )))
+}
+
+/// A subset of ts/jsconfig that next.js implicitly
+/// interops with.
+#[turbo_tasks::value(serialization = "custom", eq = "manual")]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JsConfig {
+    compiler_options: Option<serde_json::Value>,
+}
+
+#[turbo_tasks::value_impl]
+impl JsConfig {
+    #[turbo_tasks::function]
+    pub async fn from_string(string: Vc<String>) -> Result<Vc<Self>> {
+        let string = string.await?;
+        let config: JsConfig = serde_json::from_str(&string)
+            .with_context(|| format!("failed to parse next.config.js: {}", string))?;
+
+        Ok(config.cell())
+    }
+
+    #[turbo_tasks::function]
+    pub async fn compiler_options(self: Vc<Self>) -> Result<Vc<serde_json::Value>> {
+        Ok(Vc::cell(
+            self.await?.compiler_options.clone().unwrap_or_default(),
+        ))
+    }
 }
 
 #[turbo_tasks::value]
