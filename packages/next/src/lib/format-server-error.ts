@@ -10,6 +10,7 @@ const invalidServerComponentReactHooks = [
   'useSyncExternalStore',
   'useTransition',
   'experimental_useOptimistic',
+  'useOptimistic'
 ]
 
 function setMessage(error: Error, message: string): void {
