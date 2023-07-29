@@ -611,8 +611,11 @@ pub async fn create_app_source(
     let entrypoints = entrypoints.await?;
     let mut sources: Vec<_> = entrypoints
         .iter()
-        .map(|(pathname, &loader_tree)| match loader_tree {
-            Entrypoint::AppPage { loader_tree } => create_app_page_source_for_route(
+        .map(|(pathname, entrypoint)| match *entrypoint {
+            Entrypoint::AppPage {
+                original_name: _,
+                loader_tree,
+            } => create_app_page_source_for_route(
                 pathname.clone(),
                 loader_tree,
                 context_ssr,
@@ -626,7 +629,10 @@ pub async fn create_app_source(
                 output_path,
                 render_data,
             ),
-            Entrypoint::AppRoute { path } => create_app_route_source_for_route(
+            Entrypoint::AppRoute {
+                original_name: _,
+                path,
+            } => create_app_route_source_for_route(
                 pathname.clone(),
                 path,
                 context_ssr,
@@ -646,7 +652,11 @@ pub async fn create_app_source(
         )))
         .collect();
 
-    if let Some(&Entrypoint::AppPage { loader_tree }) = entrypoints.get("/_not-found") {
+    if let Some(&Entrypoint::AppPage {
+        original_name: _,
+        loader_tree,
+    }) = entrypoints.get("/_not-found")
+    {
         if loader_tree.await?.components.await?.not_found.is_some() {
             // Only add a source for the app 404 page if a top-level not-found page is
             // defined. Otherwise, the 404 page is handled by the pages logic.

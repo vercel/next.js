@@ -1125,11 +1125,14 @@ export default class NextNodeServer extends BaseServer {
             for (let i = 0; i < fetchMetrics.length; i++) {
               const metric = fetchMetrics[i]
               const lastItem = i === fetchMetrics.length - 1
-              let cacheStatus = metric.cacheStatus
+              let { cacheStatus, cacheReason } = metric
+
               const duration = metric.end - metric.start
 
               if (cacheStatus === 'hit') {
                 cacheStatus = chalk.green('HIT')
+              } else if (cacheStatus === 'skip') {
+                cacheStatus = `${chalk.yellow('SKIP')}, reason: ${cacheReason}`
               } else {
                 cacheStatus = chalk.yellow('MISS')
               }
