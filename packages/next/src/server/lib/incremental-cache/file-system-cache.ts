@@ -114,7 +114,7 @@ export default class FileSystemCache implements CacheHandler {
     }: {
       fetchCache?: boolean
       tags?: string[]
-    }
+    } = {}
   ) {
     let data = memoryCache?.get(key)
 
