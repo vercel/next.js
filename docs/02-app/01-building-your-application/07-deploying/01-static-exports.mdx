@@ -337,17 +337,17 @@ If you are using a static host like Nginx, you can configure rewrites from incom
 server {
   listen 80;
   server_name acme.com;
- 
+
   root /var/www/out;
- 
+
   location / {
-      try_files $uri $uri.html $uri/ =404;   
+      try_files $uri $uri.html $uri/ =404;
   }
- 
+
   location /blog/ {
       rewrite ^/blog/(.*)$ /blog/$1.html break;
   }
- 
+
   error_page 404 /404.html;
   location = /404.html {
       internal;
