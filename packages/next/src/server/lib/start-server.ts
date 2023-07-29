@@ -101,7 +101,7 @@ export async function startServer({
   prevDir,
   port,
   isDev,
-  hostname = 'localhost',
+  hostname,
   useWorkers,
   minimalMode,
   allowRetry,
@@ -112,6 +112,7 @@ export async function startServer({
 }: StartServerOptions): Promise<TeardownServer> {
   const sockets = new Set<ServerResponse | Duplex>()
   let worker: import('next/dist/compiled/jest-worker').Worker | undefined
+  let routerHostname: string | undefined
   let routerPort: number | undefined
   let handlersReady = () => {}
   let handlersError = () => {}
@@ -198,18 +199,18 @@ export async function startServer({
     }
   })
 
-  let targetHost: string
   const isNodeDebugging = checkIsNodeDebugging()
 
   await new Promise<void>((resolve) => {
     server.on('listening', () => {
       const addr = server.address()
-      targetHost = formatHostname(
-        addr ? (typeof addr === 'object' ? addr.address : addr) : hostname
+      const actualHostname = formatHostname(
+        typeof addr === 'object'
+          ? addr?.address || hostname || 'localhost'
+          : addr
       )
-      port = addr ? (typeof addr === 'object' ? addr.port : port) : port
-
-      const appUrl = `http://${formatHostname(hostname)}:${port}`
+      const formattedHostname = formatHostname(hostname || 'localhost')
+      port = typeof addr === 'object' ? addr?.port || port : port
 
       if (isNodeDebugging) {
         const debugPort = getDebugPort()
@@ -222,9 +223,7 @@ export async function startServer({
 
       if (logReady) {
         Log.ready(
-          `started server on ${targetHost}${
-            (port + '').startsWith(':') ? '' : ':'
-          }${port}, url: ${appUrl}`
+          `started server on ${actualHostname}:${port}, url: http://${formattedHostname}:${port}`
         )
         // expose the main port to render workers
         process.env.PORT = port + ''
@@ -312,6 +311,7 @@ export async function startServer({
         isNodeDebugging: !!isNodeDebugging,
         keepAliveTimeout,
       })
+      routerHostname = initializeResult.hostname
       routerPort = initializeResult.port
       didInitialize = true
 
@@ -322,7 +322,7 @@ export async function startServer({
       }
 
       const getProxyServer = (pathname: string) => {
-        const targetUrl = `http://${targetHost}:${routerPort}${pathname}`
+        const targetUrl = `http://${routerHostname}:${routerPort}${pathname}`
         const proxyServer = httpProxy.createProxy({
           target: targetUrl,
           changeOrigin: false,
@@ -380,7 +380,9 @@ export async function startServer({
           compress(req, res, () => {})
         }
 
-        const targetUrl = `http://${targetHost}:${routerPort}${req.url || '/'}`
+        const targetUrl = `http://${routerHostname}:${routerPort}${
+          req.url || '/'
+        }`
 
         let invokeRes
         try {

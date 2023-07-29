@@ -1,5 +1,4 @@
 import { PageNotFoundError } from '../../../shared/lib/utils'
-import { formatHostname } from '../utils'
 import { invokeRequest } from './invoke-request'
 
 export const deserializeErr = (serializedErr: any) => {
@@ -30,13 +29,13 @@ export const deserializeErr = (serializedErr: any) => {
 }
 
 export async function invokeIpcMethod({
-  hostname = 'localhost',
+  fetchHostname = 'localhost',
   method,
   args,
   ipcPort,
   ipcKey,
 }: {
-  hostname?: string
+  fetchHostname?: string
   method: string
   args: any[]
   ipcPort?: string
@@ -44,7 +43,7 @@ export async function invokeIpcMethod({
 }): Promise<any> {
   if (ipcPort) {
     const res = await invokeRequest(
-      `http://${formatHostname(hostname)}:${ipcPort}?key=${ipcKey}&method=${
+      `http://${fetchHostname}:${ipcPort}?key=${ipcKey}&method=${
         method as string
       }&args=${encodeURIComponent(JSON.stringify(args))}`,
       {

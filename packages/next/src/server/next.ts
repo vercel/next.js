@@ -25,7 +25,6 @@ import { getTracer } from './lib/trace/tracer'
 import { NextServerSpan } from './lib/trace/constants'
 import { formatUrl } from '../shared/lib/router/utils/format-url'
 import { proxyRequest } from './lib/router-utils/proxy-request'
-import { formatHostname } from './lib/utils'
 import { TLSSocket } from 'tls'
 
 let ServerImpl: typeof Server
@@ -282,10 +281,7 @@ function createServer(options: NextServerOptions): NextServer {
 
     let didWebSocketSetup = false
     let serverPort: number = 0
-
-    const hostname = options.hostname || 'localhost'
-    // we format the hostname so that it can be fetched
-    const fetchHostname = formatHostname(hostname)
+    let fetchHostname: string | undefined
 
     function setupWebSocketHandler(
       customServer?: import('http').Server,
@@ -336,12 +332,13 @@ function createServer(options: NextServerOptions): NextServer {
                 const initResult = await routerWorker.initialize({
                   dir,
                   port: options.port || 3000,
-                  hostname,
+                  hostname: options.hostname || 'localhost',
                   isNodeDebugging: !!isNodeDebugging,
                   workerType: 'router',
                   dev: !!options.dev,
                   minimalMode: options.minimalMode,
                 })
+                fetchHostname = initResult.hostname
                 serverPort = initResult.port
               }
             case 'getRequestHandler': {

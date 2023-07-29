@@ -1727,7 +1727,7 @@ export default class NextNodeServer extends BaseServer {
     const initUrl =
       this.fetchHostname && this.port
         ? `${protocol}://${this.fetchHostname}:${this.port}${req.url}`
-        : (this.nextConfig.experimental as any).trustHostHeader
+        : this.nextConfig.experimental.trustHostHeader
         ? `https://${req.headers.host || 'localhost'}${req.url}`
         : req.url
 

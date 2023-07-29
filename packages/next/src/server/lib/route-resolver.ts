@@ -17,10 +17,11 @@ import { proxyRequest } from './router-utils/proxy-request'
 import { getResolveRoutes } from './router-utils/resolve-routes'
 import { PERMANENT_REDIRECT_STATUS } from '../../shared/lib/constants'
 import { splitCookiesString, toNodeOutgoingHttpHeaders } from '../web/utils'
+import { formatHostname } from './utils'
 import { signalFromNodeResponse } from '../web/spec-extension/adapters/next-request'
 import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
+import type { RenderWorker } from './router-server'
 import { pipeReadable } from '../pipe-readable'
-import { formatHostname } from './utils'
 
 type RouteResult =
   | {
@@ -111,7 +112,10 @@ export async function makeResolver(
       }
     : {}
 
-  const middlewareServerPort = await new Promise((resolve) => {
+  const middlewareServerAddr = await new Promise<{
+    hostname: string
+    port: number
+  }>((resolve) => {
     const srv = http.createServer(async (req, res) => {
       const cloneableBody = getCloneableBody(req)
       try {
@@ -173,7 +177,14 @@ export async function makeResolver(
       }
     })
     srv.on('listening', () => {
-      resolve((srv.address() as any).port)
+      const srvAddr = srv.address()
+      if (!srvAddr || typeof srvAddr === 'string') {
+        throw new Error("Failed to determine middleware's host/port.")
+      }
+      resolve({
+        hostname: srvAddr.address,
+        port: srvAddr.port,
+      })
     })
     srv.listen(0)
   })
@@ -202,15 +213,15 @@ export async function makeResolver(
       pages: {
         async initialize() {
           return {
-            port: middlewareServerPort,
-            hostname: fetchHostname,
+            port: middlewareServerAddr.port,
+            hostname: formatHostname(middlewareServerAddr.hostname),
           }
         },
         async deleteCache() {},
         async clearModuleContext() {},
         async deleteAppClientCache() {},
         async propagateServerField() {},
-      } as any,
+      } as Partial<RenderWorker> as any,
     },
     {} as any
   )
