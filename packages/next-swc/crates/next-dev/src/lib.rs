@@ -32,8 +32,10 @@ use next_core::{
     pages_structure::find_pages_structure,
     router_source::NextRouterContentSource,
     source_map::NextSourceMapTraceContentSource,
+    tracing_presets::{
+        TRACING_NEXT_TARGETS, TRACING_NEXT_TURBOPACK_TARGETS, TRACING_NEXT_TURBO_TASKS_TARGETS,
+    },
 };
-use once_cell::sync::Lazy;
 use owo_colors::OwoColorize;
 use tracing_subscriber::{prelude::*, EnvFilter, Registry};
 use turbo_tasks::{
@@ -53,9 +55,7 @@ use turbopack_binding::{
             issue::{ConsoleUi, LogOptions},
             raw_trace::RawTraceLayer,
             trace_writer::TraceWriter,
-            tracing_presets::{
-                TRACING_OVERVIEW_TARGETS, TRACING_TURBOPACK_TARGETS, TRACING_TURBO_TASKS_TARGETS,
-            },
+            tracing_presets::TRACING_OVERVIEW_TARGETS,
         },
         core::{
             environment::ServerAddr,
@@ -337,7 +337,7 @@ async fn source(
     let execution_context =
         ExecutionContext::new(project_path, Vc::upcast(build_chunking_context), env);
 
-    let mode = NextMode::Development;
+    let mode = NextMode::DevServer;
     let next_config_execution_context = execution_context.with_layer("next_config".to_string());
     let next_config = load_next_config(next_config_execution_context);
     let rewrites = load_rewrites(next_config_execution_context);
@@ -462,28 +462,6 @@ pub fn register() {
     next_core::register();
     include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }
-
-static TRACING_NEXT_TARGETS: Lazy<Vec<&str>> = Lazy::new(|| {
-    [
-        &TRACING_OVERVIEW_TARGETS[..],
-        &[
-            "next_dev=trace",
-            "next_core=trace",
-            "next_font=trace",
-            "turbopack_node=trace",
-        ],
-    ]
-    .concat()
-});
-static TRACING_NEXT_TURBOPACK_TARGETS: Lazy<Vec<&str>> =
-    Lazy::new(|| [&TRACING_NEXT_TARGETS[..], &TRACING_TURBOPACK_TARGETS[..]].concat());
-static TRACING_NEXT_TURBO_TASKS_TARGETS: Lazy<Vec<&str>> = Lazy::new(|| {
-    [
-        &TRACING_TURBOPACK_TARGETS[..],
-        &TRACING_TURBO_TASKS_TARGETS[..],
-    ]
-    .concat()
-});
 
 /// Start a devserver with the given options.
 pub async fn start_server(options: &DevServerOptions) -> Result<()> {

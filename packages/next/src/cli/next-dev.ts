@@ -4,7 +4,6 @@ import { startServer, StartServerOptions } from '../server/lib/start-server'
 import { getPort, printAndExit } from '../server/lib/utils'
 import * as Log from '../build/output/log'
 import { CliCommand } from '../lib/commands'
-import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
 import { CONFIG_FILES, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import path from 'path'
@@ -20,6 +19,7 @@ import Watchpack from 'watchpack'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { getPossibleInstrumentationHookFilenames } from '../build/worker'
 import { resetEnv } from '@next/env'
+import { getValidatedArgs } from '../lib/get-validated-args'
 
 let dir: string
 let config: NextConfigComplete
@@ -131,15 +131,7 @@ const nextDev: CliCommand = async (argv) => {
     '-p': '--port',
     '-H': '--hostname',
   }
-  let args: arg.Result<arg.Spec>
-  try {
-    args = arg(validArgs, { argv })
-  } catch (error) {
-    if (isError(error) && error.code === 'ARG_UNKNOWN_OPTION') {
-      return printAndExit(error.message, 1)
-    }
-    throw error
-  }
+  const args = getValidatedArgs(validArgs, argv)
   if (args['--help']) {
     console.log(`
       Description
@@ -229,80 +221,8 @@ const nextDev: CliCommand = async (argv) => {
   if (args['--experimental-turbo']) {
     process.env.EXPERIMENTAL_TURBOPACK = '1'
   }
-  const experimentalTurbo = !!process.env.EXPERIMENTAL_TURBOPACK
 
-  if (experimentalTurbo) {
-    const { loadBindings } =
-      require('../build/swc') as typeof import('../build/swc')
-
-    resetEnv()
-    let bindings = await loadBindings()
-
-    // Just testing code here:
-
-    const project = await bindings.turbo.createProject({
-      projectPath: dir,
-      rootPath: dir,
-      nextConfig: config,
-      env: {
-        NEXT_PUBLIC_ENV_VAR: 'world',
-      },
-      watch: true,
-    })
-    const iter = project.entrypointsSubscribe()
-
-    try {
-      for await (const entrypoints of iter) {
-        Log.info(entrypoints)
-        for (const [pathname, route] of entrypoints.routes) {
-          switch (route.type) {
-            case 'page': {
-              Log.info(`writing ${pathname} to disk`)
-              const written = await route.htmlEndpoint.writeToDisk()
-              Log.info(written)
-              break
-            }
-            case 'page-api': {
-              Log.info(`writing ${pathname} to disk`)
-              const written = await route.endpoint.writeToDisk()
-              Log.info(written)
-              break
-            }
-            case 'app-page': {
-              Log.info(`writing ${pathname} to disk`)
-              const written = await route.rscEndpoint.writeToDisk()
-              Log.info(written)
-              break
-            }
-            case 'app-route': {
-              Log.info(`writing ${pathname} to disk`)
-              const written = await route.endpoint.writeToDisk()
-              Log.info(written)
-              break
-            }
-            default:
-              Log.info(`skipping ${pathname} (${route.type})`)
-              break
-          }
-        }
-        Log.info('iteration done')
-        await project.update({
-          projectPath: dir,
-          rootPath: dir,
-          nextConfig: config,
-          env: {
-            NEXT_PUBLIC_ENV_VAR: 'hello',
-          },
-          watch: true,
-        })
-      }
-    } catch (e) {
-      console.dir(e)
-    }
-
-    Log.error('Not supported yet')
-    process.exit(1)
-  } else if (process.env.TURBOPACK) {
+  if (process.env.TURBOPACK) {
     isTurboSession = true
 
     const { validateTurboNextConfig } =
