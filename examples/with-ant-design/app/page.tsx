@@ -1,3 +1,8 @@
+'use client'
+
+import React from 'react'
+import Link from 'next/link'
+import { SmileFilled } from '@ant-design/icons'
 import {
   Button,
   DatePicker,
@@ -6,21 +11,13 @@ import {
   Select,
   Slider,
   Switch,
+  ConfigProvider,
 } from 'antd'
-import { Inter } from 'next/font/google'
-import type { DatePickerProps } from 'antd'
-import { SmileFilled } from '@ant-design/icons'
-import Link from 'next/link'
+import theme from './themeConfig'
 
-const inter = Inter({ subsets: ['latin'] })
-
-const onDatePickerChange: DatePickerProps['onChange'] = (date, dateString) => {
-  console.log(date, dateString)
-}
-
-function Home() {
-  return (
-    <div className={inter.className} style={{ padding: 100, height: '100vh' }}>
+const HomePage = () => (
+  <ConfigProvider theme={theme}>
+    <div style={{ padding: 100, height: '100vh' }}>
       <div className="text-center mb-5">
         <Link href="#" className="logo mr-0">
           <SmileFilled style={{ fontSize: 48 }} />
@@ -57,12 +54,13 @@ function Home() {
                 { value: 'jack', label: 'Jack' },
                 { value: 'lucy', label: 'Lucy' },
                 { value: 'Yiminghe', label: 'yiminghe' },
-                { value: 'disabled', disabled: true, label: 'Disabled' },
+                { value: 'lijianan', label: 'lijianan' },
+                { value: 'disabled', label: 'Disabled', disabled: true },
               ]}
             />
           </Form.Item>
           <Form.Item label="DatePicker">
-            <DatePicker showTime onChange={onDatePickerChange} />
+            <DatePicker showTime />
           </Form.Item>
           <Form.Item style={{ marginTop: 48 }} wrapperCol={{ offset: 8 }}>
             <Button type="primary" htmlType="submit">
@@ -73,7 +71,7 @@ function Home() {
         </Form>
       </div>
     </div>
-  )
-}
+  </ConfigProvider>
+)
 
-export default Home
+export default HomePage
