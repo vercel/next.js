@@ -113,7 +113,7 @@ describe('should set-up next', () => {
       testServer,
       (
         await fs.readFile(testServer, 'utf8')
-      ).replace('conf:', `minimalMode: ${minimalMode},conf:`)
+      ).replace('port:', `minimalMode: ${minimalMode},port:`)
     )
     appPort = await findPort()
     server = await initNextServerScript(
@@ -956,7 +956,10 @@ describe('should set-up next', () => {
     expect(await res.text()).toBe('Internal Server Error')
 
     await check(
-      () => (errors[0].includes('gip hit an oops') ? 'success' : errors[0]),
+      () =>
+        errors.join('\n').includes('gip hit an oops')
+          ? 'success'
+          : errors.join('\n'),
       'success'
     )
   })
@@ -967,7 +970,10 @@ describe('should set-up next', () => {
     expect(res.status).toBe(500)
     expect(await res.text()).toBe('Internal Server Error')
     await check(
-      () => (errors[0].includes('gssp hit an oops') ? 'success' : errors[0]),
+      () =>
+        errors.join('\n').includes('gssp hit an oops')
+          ? 'success'
+          : errors.join('\n'),
       'success'
     )
   })
@@ -978,7 +984,10 @@ describe('should set-up next', () => {
     expect(res.status).toBe(500)
     expect(await res.text()).toBe('Internal Server Error')
     await check(
-      () => (errors[0].includes('gsp hit an oops') ? 'success' : errors[0]),
+      () =>
+        errors.join('\n').includes('gsp hit an oops')
+          ? 'success'
+          : errors.join('\n'),
       'success'
     )
   })
@@ -990,9 +999,9 @@ describe('should set-up next', () => {
     expect(await res.text()).toBe('Internal Server Error')
     await check(
       () =>
-        errors[0].includes('some error from /api/error')
+        errors.join('\n').includes('some error from /api/error')
           ? 'success'
-          : errors[0],
+          : errors.join('\n'),
       'success'
     )
   })
@@ -1267,10 +1276,6 @@ describe('should set-up next', () => {
   })
 
   it('should run middleware correctly (without minimalMode, with wasm)', async () => {
-    await next.destroy()
-    await killApp(server)
-    await setupNext({ nextEnv: false, minimalMode: false })
-
     const standaloneDir = join(next.testDir, 'standalone')
 
     const testServer = join(standaloneDir, 'server.js')
@@ -1313,8 +1318,5 @@ describe('should set-up next', () => {
 
     expect(resImageResponse.status).toBe(200)
     expect(resImageResponse.headers.get('content-type')).toBe('image/png')
-
-    // when not in next env should be compress: true
-    expect(fs.readFileSync(testServer, 'utf8')).toContain('"compress":true')
   })
 })

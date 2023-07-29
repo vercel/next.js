@@ -9,6 +9,7 @@ use next_core::{
     next_config::NextConfig,
     next_dynamic::NextDynamicTransition,
     next_manifests::{BuildManifest, PagesManifest},
+    next_pages::create_page_ssr_entry_module,
     next_server::{
         get_server_module_options_context, get_server_resolve_options_context,
         get_server_runtime_entries, ServerContextType,
@@ -191,6 +192,8 @@ async fn get_page_entries_for_root_directory(
         Vc::upcast(FileSource::new(app.project_path)),
         next_router_root,
         app.next_router_path,
+        app.original_path,
+        PathType::PagesPage,
     ));
 
     // This only makes sense on the server.
@@ -201,6 +204,8 @@ async fn get_page_entries_for_root_directory(
         Vc::upcast(FileSource::new(document.project_path)),
         next_router_root,
         document.next_router_path,
+        document.original_path,
+        PathType::PagesPage,
     ));
 
     // This only makes sense on both the client and the server, but they should map
@@ -212,6 +217,8 @@ async fn get_page_entries_for_root_directory(
         Vc::upcast(FileSource::new(error.project_path)),
         next_router_root,
         error.next_router_path,
+        error.original_path,
+        PathType::PagesPage,
     ));
 
     if let Some(api) = api {
@@ -221,6 +228,7 @@ async fn get_page_entries_for_root_directory(
             api,
             next_router_root,
             &mut entries,
+            PathType::PagesApi,
         )
         .await?;
     }
@@ -232,6 +240,7 @@ async fn get_page_entries_for_root_directory(
             pages,
             next_router_root,
             &mut entries,
+            PathType::PagesPage,
         )
         .await?;
     }
@@ -246,6 +255,7 @@ async fn get_page_entries_for_directory(
     pages_structure: Vc<PagesDirectoryStructure>,
     next_router_root: Vc<FileSystemPath>,
     entries: &mut Vec<Vc<PageEntry>>,
+    path_type: PathType,
 ) -> Result<()> {
     let PagesDirectoryStructure {
         ref items,
@@ -257,7 +267,7 @@ async fn get_page_entries_for_directory(
         let PagesStructureItem {
             project_path,
             next_router_path,
-            original_path: _,
+            original_path,
         } = *item.await?;
         entries.push(get_page_entry_for_file(
             ssr_module_context,
@@ -265,6 +275,8 @@ async fn get_page_entries_for_directory(
             Vc::upcast(FileSource::new(project_path)),
             next_router_root,
             next_router_path,
+            original_path,
+            path_type,
         ));
     }
 
@@ -275,6 +287,7 @@ async fn get_page_entries_for_directory(
             *child,
             next_router_root,
             entries,
+            path_type,
         )
         .await?;
     }
@@ -300,12 +313,25 @@ async fn get_page_entry_for_file(
     source: Vc<Box<dyn Source>>,
     next_router_root: Vc<FileSystemPath>,
     next_router_path: Vc<FileSystemPath>,
+    next_original_path: Vc<FileSystemPath>,
+    path_type: PathType,
 ) -> Result<Vc<PageEntry>> {
-    let reference_type = Value::new(ReferenceType::Entry(EntryReferenceSubType::Page));
+    let reference_type = Value::new(ReferenceType::Entry(match path_type {
+        PathType::PagesPage => EntryReferenceSubType::Page,
+        PathType::PagesApi => EntryReferenceSubType::PagesApi,
+        _ => bail!("Invalid path type"),
+    }));
 
-    let pathname = pathname_for_path(next_router_root, next_router_path, PathType::Page);
+    let pathname = pathname_for_path(next_router_root, next_router_path, path_type);
+    let original_name = next_original_path.await?.path.clone();
 
-    let ssr_module = ssr_module_context.process(source, reference_type.clone());
+    let ssr_module = create_page_ssr_entry_module(
+        pathname,
+        reference_type,
+        ssr_module_context,
+        source,
+        Vc::cell(original_name),
+    );
 
     let client_module = create_page_loader_entry_module(client_module_context, source, pathname);
 
@@ -313,12 +339,6 @@ async fn get_page_entry_for_file(
         Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(client_module).await?
     else {
         bail!("expected an ECMAScript module asset");
-    };
-
-    let Some(ssr_module) =
-        Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(ssr_module).await?
-    else {
-        bail!("expected an ECMAScript chunk placeable asset");
     };
 
     Ok(PageEntry {
@@ -356,7 +376,7 @@ pub async fn compute_page_entries_chunks(
 
         let ssr_entry_chunk = ssr_chunking_context.entry_chunk(
             node_root.join(format!("server/pages/{asset_path}")),
-            page_entry.ssr_module,
+            Vc::upcast(page_entry.ssr_module),
             page_entries.ssr_runtime_entries,
         );
         all_chunks.push(ssr_entry_chunk);

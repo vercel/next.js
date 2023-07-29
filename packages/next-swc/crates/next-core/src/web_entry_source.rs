@@ -175,7 +175,7 @@ pub async fn create_web_entry_source(
     next_config: Vc<NextConfig>,
 ) -> Result<Vc<Box<dyn ContentSource>>> {
     let ty = Value::new(ClientContextType::Other);
-    let mode = NextMode::Development;
+    let mode = NextMode::DevServer;
     let compile_time_info = get_compile_time_info(browserslist_query);
     let context = get_web_client_asset_context(
         project_root,
@@ -201,7 +201,7 @@ pub async fn create_web_entry_source(
             let ty = Value::new(ReferenceType::Entry(EntryReferenceSubType::Web));
             Ok(origin
                 .resolve_asset(request, origin.resolve_options(ty.clone()), ty)
-                .primary_assets()
+                .primary_modules()
                 .await?
                 .first()
                 .copied())

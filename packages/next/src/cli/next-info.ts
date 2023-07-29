@@ -8,11 +8,10 @@ import arg from 'next/dist/compiled/arg/index.js'
 const { fetch } = require('next/dist/compiled/undici') as {
   fetch: typeof global.fetch
 }
-import { printAndExit } from '../server/lib/utils'
 import { CliCommand } from '../lib/commands'
-import isError from '../lib/is-error'
 import { PHASE_INFO } from '../shared/lib/constants'
 import loadConfig from '../server/config'
+import { getValidatedArgs } from '../lib/get-validated-args'
 
 const dir = process.cwd()
 
@@ -50,15 +49,7 @@ const nextInfo: CliCommand = async (argv) => {
     // Aliases
     '-h': '--help',
   }
-  let args: arg.Result<arg.Spec>
-  try {
-    args = arg(validArgs, { argv })
-  } catch (error) {
-    if (isError(error) && error.code === 'ARG_UNKNOWN_OPTION') {
-      return printAndExit(error.message, 1)
-    }
-    throw error
-  }
+  const args = getValidatedArgs(validArgs, argv)
 
   if (args['--help']) {
     console.log(

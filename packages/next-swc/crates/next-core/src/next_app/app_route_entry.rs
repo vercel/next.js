@@ -11,7 +11,9 @@ use turbopack_binding::{
         core::{
             asset::AssetContent,
             context::AssetContext,
-            reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
+            reference_type::{
+                EcmaScriptModulesReferenceSubType, EntryReferenceSubType, ReferenceType,
+            },
             source::Source,
             virtual_source::VirtualSource,
         },
@@ -20,20 +22,35 @@ use turbopack_binding::{
     },
 };
 
-use crate::next_app::AppEntry;
+use crate::{next_app::AppEntry, parse_segment_config_from_source, util::NextRuntime};
 
 /// Computes the entry for a Next.js app route.
 #[turbo_tasks::function]
 pub async fn get_app_route_entry(
-    rsc_context: Vc<ModuleAssetContext>,
+    nodejs_context: Vc<ModuleAssetContext>,
+    edge_context: Vc<ModuleAssetContext>,
     source: Vc<Box<dyn Source>>,
     pathname: String,
+    original_name: String,
     project_root: Vc<FileSystemPath>,
 ) -> Result<Vc<AppEntry>> {
+    let config = parse_segment_config_from_source(
+        nodejs_context.process(
+            source,
+            Value::new(ReferenceType::Entry(EntryReferenceSubType::AppRoute)),
+        ),
+        source,
+    );
+    let context = if matches!(config.await?.runtime, Some(NextRuntime::Edge)) {
+        edge_context
+    } else {
+        nodejs_context
+    };
+
     let mut result = RopeBuilder::default();
 
     let kind = "app-route";
-    let original_name = get_original_route_name(&pathname);
+    let original_name = get_original_route_name(&original_name);
     let path = source.ident().path();
 
     let options = AppRouteRouteModuleOptions {
@@ -105,7 +122,7 @@ pub async fn get_app_route_entry(
         AssetContent::file(file.into()),
     );
 
-    let entry = rsc_context.process(
+    let entry = context.process(
         source,
         Value::new(ReferenceType::EcmaScriptModules(
             EcmaScriptModulesReferenceSubType::Undefined,
@@ -116,21 +133,22 @@ pub async fn get_app_route_entry(
         "ENTRY".to_string() => entry
     };
 
-    let rsc_entry = rsc_context.process(
+    let rsc_entry = context.process(
         Vc::upcast(virtual_source),
         Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
     );
 
     let Some(rsc_entry) =
-        Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(rsc_entry).await?
+        Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkPlaceable>>(rsc_entry).await?
     else {
-        bail!("expected an ECMAScript chunk placeable asset");
+        bail!("expected an ECMAScript chunk placeable module");
     };
 
     Ok(AppEntry {
         pathname: pathname.to_string(),
         original_name,
         rsc_entry,
+        config,
     }
     .cell())
 }
