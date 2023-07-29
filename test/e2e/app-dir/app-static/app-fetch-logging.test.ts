@@ -1,6 +1,29 @@
 import path from 'path'
-import { createNextDescribe, FileRef } from 'e2e-utils'
+import { createNextDescribe, FileRef } from '../../../lib/e2e-utils'
 import stripAnsi from 'strip-ansi'
+
+function parseLogsFromCli(cliOutput: string) {
+  return stripAnsi(cliOutput)
+    .split('\n')
+    .filter((log) => log.includes('cache:'))
+    .map((log) => {
+      const trimmedLog = log.replace(/^[^a-zA-Z]+/, '')
+      const parts = trimmedLog.split(' ')
+      const method = parts[0]
+      const url = parts[1]
+      const statusCode = parseInt(parts[2])
+      const responseTime = parseInt(parts[4])
+      const cache = parts.slice(5).join(' ')
+
+      return {
+        method,
+        url,
+        statusCode,
+        responseTime,
+        cache,
+      }
+    })
+}
 
 createNextDescribe(
   'app-dir - data fetching with cache logging',
@@ -15,21 +38,65 @@ createNextDescribe(
     },
   },
   ({ next, isNextDev }) => {
-    function runTests({ isVerbose }: { isVerbose: boolean }) {
-      it('should not log fetching hits in dev mode by default', async () => {
+    describe('with verbose logging', () => {
+      it('should only log requests in dev mode', async () => {
         await next.fetch('/default-cache')
-
         const logs = stripAnsi(next.cliOutput)
-        if (isVerbose && isNextDev) {
+
+        if (isNextDev) {
           expect(logs).toContain('GET /default-cache 200')
         } else {
           expect(logs).not.toContain('GET /default-cache 200')
         }
-      })
-    }
 
-    describe('with logging verbose', () => {
-      runTests({ isVerbose: true })
+        await next.stop()
+      })
+
+      if (isNextDev) {
+        it("should log 'skip' cache status with a reason when cache: 'no-cache' is used", async () => {
+          await next.start()
+          await next.fetch('/default-cache')
+          const logs = parseLogsFromCli(next.cliOutput)
+          const logEntry = logs.find((log) =>
+            log.url.includes('api/random?no-cache')
+          )
+
+          expect(logEntry?.cache).toMatchInlineSnapshot(
+            `"(cache: SKIP, reason: cache: no-cache)"`
+          )
+          await next.stop()
+        })
+
+        it("should log 'skip' cache status with a reason when revalidate: 0 is used", async () => {
+          await next.start()
+          await next.fetch('/default-cache')
+          const logs = parseLogsFromCli(next.cliOutput)
+          const logEntry = logs.find((log) =>
+            log.url.includes('api/random?revalidate-0')
+          )
+
+          expect(logEntry?.cache).toMatchInlineSnapshot(
+            `"(cache: SKIP, reason: revalidate: 0)"`
+          )
+          await next.stop()
+        })
+
+        it("should log 'skip' cache status with a reason when the browser indicates caching should be ignored", async () => {
+          await next.start()
+          await next.fetch('/default-cache', {
+            headers: { 'Cache-Control': 'no-cache' },
+          })
+          const logs = parseLogsFromCli(next.cliOutput)
+          const logEntry = logs.find((log) =>
+            log.url.includes('api/random?auto-cache')
+          )
+
+          expect(logEntry?.cache).toMatchInlineSnapshot(
+            `"(cache: SKIP, reason: cache-control: no-cache (hard refresh))"`
+          )
+          await next.stop()
+        })
+      }
     })
 
     describe('with default logging', () => {
@@ -38,7 +105,13 @@ createNextDescribe(
         await next.deleteFile('next.config.js')
         await next.start()
       })
-      runTests({ isVerbose: false })
+
+      it('should not log fetch requests at all', async () => {
+        await next.fetch('/default-cache')
+        const logs = stripAnsi(next.cliOutput)
+
+        expect(logs).not.toContain('GET /default-cache 200')
+      })
     })
   }
 )
