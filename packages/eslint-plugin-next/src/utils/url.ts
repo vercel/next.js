@@ -38,22 +38,23 @@ function parseUrlForPages(urlprefix: string, directory: string) {
  * Recursively parse app directory for URLs.
  */
 function parseUrlForAppDir(urlprefix: string, directory: string) {
-  fsReadDirSyncCache[directory] =
-    fsReadDirSyncCache[directory] || fs.readdirSync(directory)
+  fsReadDirSyncCache[directory] ??= fs.readdirSync(directory, {
+    withFileTypes: true,
+  })
   const res = []
   fsReadDirSyncCache[directory].forEach((fname) => {
     // TODO: this should account for all page extensions
     // not just js(x) and ts(x)
-    if (/(\.(j|t)sx?)$/.test(fname)) {
-      if (/^page(\.(j|t)sx?)$/.test(fname)) {
-        res.push(`${urlprefix}${fname.replace(/^page(\.(j|t)sx?)$/, '')}`)
-      } else if (!/^layout(\.(j|t)sx?)$/.test(fname)) {
-        res.push(`${urlprefix}${fname.replace(/(\.(j|t)sx?)$/, '')}`)
+    if (/(\.(j|t)sx?)$/.test(fname.name)) {
+      if (/^page(\.(j|t)sx?)$/.test(fname.name)) {
+        res.push(`${urlprefix}${fname.name.replace(/^page(\.(j|t)sx?)$/, '')}`)
+      } else if (!/^layout(\.(j|t)sx?)$/.test(fname.name)) {
+        res.push(`${urlprefix}${fname.name.replace(/(\.(j|t)sx?)$/, '')}`)
       }
     } else {
       const dirPath = path.join(directory, fname)
-      if (isDirectory(dirPath) && !isSymlink(dirPath)) {
-        res.push(...parseUrlForPages(urlprefix + fname + '/', dirPath))
+      if (fname.isDirectory(dirPath) && !fname.isSymlink(dirPath)) {
+        res.push(...parseUrlForPages(urlprefix + fname.name + '/', dirPath))
       }
     }
   })
