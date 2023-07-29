@@ -404,7 +404,7 @@ const openai = new OpenAIApi(apiConfig)
 
 export async function POST(req: Request) {
   // Extract the `messages` from the body of the request
-  const { messages } = await req.json();
+  const { messages } = await req.json()
 
   // Request the OpenAI API for the response based on the prompt
   const response = await openai.createChatCompletion({
@@ -440,7 +440,7 @@ const openai = new OpenAIApi(apiConfig)
 
 export async function POST(req) {
   // Extract the `messages` from the body of the request
-  const { messages } = await req.json();
+  const { messages } = await req.json()
 
   // Request the OpenAI API for the response based on the prompt
   const response = await openai.createChatCompletion({
