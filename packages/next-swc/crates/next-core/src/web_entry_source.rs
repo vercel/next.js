@@ -1,30 +1,34 @@
+use std::collections::HashMap;
+
 use anyhow::{anyhow, Result};
+use turbo_tasks::Vc;
 use turbopack_binding::{
     turbo::{
         tasks::{TryJoinIterExt, Value},
-        tasks_fs::FileSystemPathVc,
+        tasks_fs::FileSystemPath,
     },
     turbopack::{
         core::{
-            chunk::{ChunkableAssetVc, ChunkingContextVc},
+            chunk::{ChunkableModule, ChunkingContext},
             compile_time_defines,
-            compile_time_info::{
-                CompileTimeDefines, CompileTimeDefinesVc, CompileTimeInfo, CompileTimeInfoVc,
-                FreeVarReferencesVc,
-            },
-            environment::{BrowserEnvironment, EnvironmentVc, ExecutionEnvironment},
+            compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReferences},
+            context::AssetContext,
+            environment::{BrowserEnvironment, Environment, ExecutionEnvironment},
+            file_source::FileSource,
             free_var_references,
             reference_type::{EntryReferenceSubType, ReferenceType},
-            resolve::{origin::PlainResolveOriginVc, parse::RequestVc},
-            source_asset::SourceAssetVc,
+            resolve::{
+                origin::{PlainResolveOrigin, ResolveOrigin, ResolveOriginExt},
+                parse::Request,
+            },
         },
-        dev::{react_refresh::assert_can_resolve_react_refresh, DevChunkingContextVc},
+        dev::{react_refresh::assert_can_resolve_react_refresh, DevChunkingContext},
         dev_server::{
-            html::DevHtmlAssetVc,
-            source::{asset_graph::AssetGraphContentSourceVc, ContentSourceVc},
+            html::DevHtmlAsset,
+            source::{asset_graph::AssetGraphContentSource, ContentSource},
         },
-        node::execution_context::ExecutionContextVc,
-        turbopack::ecmascript::EcmascriptModuleAssetVc,
+        node::execution_context::ExecutionContext,
+        turbopack::{ecmascript::EcmascriptModuleAsset, ModuleAssetContext},
     },
 };
 
@@ -32,12 +36,10 @@ use crate::{
     embed_js::next_js_file_path,
     mode::NextMode,
     next_client::{
-        context::{
-            get_client_asset_context, get_client_resolve_options_context, ClientContextType,
-        },
-        RuntimeEntriesVc, RuntimeEntry,
+        context::{get_client_resolve_options_context, ClientContextType},
+        get_client_module_options_context, RuntimeEntries, RuntimeEntry,
     },
-    next_config::NextConfigVc,
+    next_config::NextConfig,
 };
 
 fn defines() -> CompileTimeDefines {
@@ -48,28 +50,26 @@ fn defines() -> CompileTimeDefines {
 }
 
 #[turbo_tasks::function]
-fn web_defines() -> CompileTimeDefinesVc {
+fn web_defines() -> Vc<CompileTimeDefines> {
     defines().cell()
 }
 
 #[turbo_tasks::function]
-async fn web_free_vars() -> Result<FreeVarReferencesVc> {
+async fn web_free_vars() -> Result<Vc<FreeVarReferences>> {
     Ok(free_var_references!(..defines().into_iter()).cell())
 }
 
 #[turbo_tasks::function]
-pub fn get_compile_time_info(browserslist_query: &str) -> CompileTimeInfoVc {
-    CompileTimeInfo::builder(EnvironmentVc::new(Value::new(
-        ExecutionEnvironment::Browser(
-            BrowserEnvironment {
-                dom: true,
-                web_worker: false,
-                service_worker: false,
-                browserslist_query: browserslist_query.to_owned(),
-            }
-            .into(),
-        ),
-    )))
+pub fn get_compile_time_info(browserslist_query: String) -> Vc<CompileTimeInfo> {
+    CompileTimeInfo::builder(Environment::new(Value::new(ExecutionEnvironment::Browser(
+        BrowserEnvironment {
+            dom: true,
+            web_worker: false,
+            service_worker: false,
+            browserslist_query: browserslist_query.to_owned(),
+        }
+        .into(),
+    ))))
     .defines(web_defines())
     .free_var_references(web_free_vars())
     .cell()
@@ -77,12 +77,12 @@ pub fn get_compile_time_info(browserslist_query: &str) -> CompileTimeInfoVc {
 
 #[turbo_tasks::function]
 async fn get_web_runtime_entries(
-    project_root: FileSystemPathVc,
+    project_root: Vc<FileSystemPath>,
     ty: Value<ClientContextType>,
     mode: NextMode,
-    next_config: NextConfigVc,
-    execution_context: ExecutionContextVc,
-) -> Result<RuntimeEntriesVc> {
+    next_config: Vc<NextConfig>,
+    execution_context: Vc<ExecutionContext>,
+) -> Result<Vc<RuntimeEntries>> {
     let mut runtime_entries = vec![];
 
     let resolve_options_context =
@@ -96,15 +96,18 @@ async fn get_web_runtime_entries(
     // because the bootstrap contains JSX which requires Refresh's global
     // functions to be available.
     if let Some(request) = enable_react_refresh {
-        runtime_entries.push(RuntimeEntry::Request(request, project_root.join("_")).cell())
+        runtime_entries
+            .push(RuntimeEntry::Request(request, project_root.join("_".to_string())).cell())
     };
 
     runtime_entries.push(
-        RuntimeEntry::Source(SourceAssetVc::new(next_js_file_path("dev/bootstrap.ts")).into())
-            .cell(),
+        RuntimeEntry::Source(Vc::upcast(FileSource::new(next_js_file_path(
+            "dev/bootstrap.ts".to_string(),
+        ))))
+        .cell(),
     );
 
-    Ok(RuntimeEntriesVc::cell(runtime_entries))
+    Ok(Vc::cell(runtime_entries))
 }
 
 // This is different from `get_client_chunking_context` as we need the assets
@@ -114,35 +117,67 @@ async fn get_web_runtime_entries(
 // create new dev chunking contexts for no reason.
 #[turbo_tasks::function]
 fn get_web_client_chunking_context(
-    project_path: FileSystemPathVc,
-    client_root: FileSystemPathVc,
-    environment: EnvironmentVc,
-) -> ChunkingContextVc {
-    DevChunkingContextVc::builder(
-        project_path,
-        client_root,
-        client_root.join("/_static/chunks"),
-        client_root.join("/_media"),
-        environment,
+    project_path: Vc<FileSystemPath>,
+    client_root: Vc<FileSystemPath>,
+    environment: Vc<Environment>,
+) -> Vc<Box<dyn ChunkingContext>> {
+    Vc::upcast(
+        DevChunkingContext::builder(
+            project_path,
+            client_root,
+            client_root.join("_chunks".to_string()),
+            client_root.join("_media".to_string()),
+            environment,
+        )
+        .hot_module_replacement()
+        .build(),
     )
-    .hot_module_replacement()
-    .build()
+}
+
+#[turbo_tasks::function]
+fn get_web_client_asset_context(
+    project_path: Vc<FileSystemPath>,
+    execution_context: Vc<ExecutionContext>,
+    compile_time_info: Vc<CompileTimeInfo>,
+    ty: Value<ClientContextType>,
+    mode: NextMode,
+    next_config: Vc<NextConfig>,
+) -> Vc<Box<dyn AssetContext>> {
+    let resolve_options_context =
+        get_client_resolve_options_context(project_path, ty, mode, next_config, execution_context);
+    let module_options_context = get_client_module_options_context(
+        project_path,
+        execution_context,
+        compile_time_info.environment(),
+        ty,
+        mode,
+        next_config,
+    );
+
+    let context: Vc<Box<dyn AssetContext>> = Vc::upcast(ModuleAssetContext::new(
+        Vc::cell(HashMap::new()),
+        compile_time_info,
+        module_options_context,
+        resolve_options_context,
+    ));
+
+    context
 }
 
 #[turbo_tasks::function]
 pub async fn create_web_entry_source(
-    project_root: FileSystemPathVc,
-    execution_context: ExecutionContextVc,
-    entry_requests: Vec<RequestVc>,
-    client_root: FileSystemPathVc,
+    project_root: Vc<FileSystemPath>,
+    execution_context: Vc<ExecutionContext>,
+    entry_requests: Vec<Vc<Request>>,
+    client_root: Vc<FileSystemPath>,
     eager_compile: bool,
-    browserslist_query: &str,
-    next_config: NextConfigVc,
-) -> Result<ContentSourceVc> {
+    browserslist_query: String,
+    next_config: Vc<NextConfig>,
+) -> Result<Vc<Box<dyn ContentSource>>> {
     let ty = Value::new(ClientContextType::Other);
-    let mode = NextMode::Development;
+    let mode = NextMode::DevServer;
     let compile_time_info = get_compile_time_info(browserslist_query);
-    let context = get_client_asset_context(
+    let context = get_web_client_asset_context(
         project_root,
         execution_context,
         compile_time_info,
@@ -156,14 +191,17 @@ pub async fn create_web_entry_source(
 
     let runtime_entries = entries.resolve_entries(context);
 
-    let origin = PlainResolveOriginVc::new(context, project_root.join("_")).as_resolve_origin();
+    let origin = Vc::upcast::<Box<dyn ResolveOrigin>>(PlainResolveOrigin::new(
+        context,
+        project_root.join("_".to_string()),
+    ));
     let entries = entry_requests
         .into_iter()
         .map(|request| async move {
             let ty = Value::new(ReferenceType::Entry(EntryReferenceSubType::Web));
             Ok(origin
                 .resolve_asset(request, origin.resolve_options(ty.clone()), ty)
-                .primary_assets()
+                .primary_modules()
                 .await?
                 .first()
                 .copied())
@@ -175,13 +213,17 @@ pub async fn create_web_entry_source(
         .into_iter()
         .flatten()
         .map(|module| async move {
-            if let Some(ecmascript) = EcmascriptModuleAssetVc::resolve_from(module).await? {
+            if let Some(ecmascript) =
+                Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(module).await?
+            {
                 Ok((
-                    ecmascript.into(),
+                    Vc::upcast(ecmascript),
                     chunking_context,
-                    Some(runtime_entries.with_entry(ecmascript.into())),
+                    Some(runtime_entries.with_entry(Vc::upcast(ecmascript))),
                 ))
-            } else if let Some(chunkable) = ChunkableAssetVc::resolve_from(module).await? {
+            } else if let Some(chunkable) =
+                Vc::try_resolve_sidecast::<Box<dyn ChunkableModule>>(module).await?
+            {
                 // TODO this is missing runtime code, so it's probably broken and we should also
                 // add an ecmascript chunk with the runtime code
                 Ok((chunkable, chunking_context, None))
@@ -196,13 +238,15 @@ pub async fn create_web_entry_source(
         .try_join()
         .await?;
 
-    let entry_asset = DevHtmlAssetVc::new(client_root.join("index.html"), entries).into();
+    let entry_asset = Vc::upcast(DevHtmlAsset::new(
+        client_root.join("index.html".to_string()),
+        entries,
+    ));
 
-    let graph = if eager_compile {
-        AssetGraphContentSourceVc::new_eager(client_root, entry_asset)
+    let graph = Vc::upcast(if eager_compile {
+        AssetGraphContentSource::new_eager(client_root, entry_asset)
     } else {
-        AssetGraphContentSourceVc::new_lazy(client_root, entry_asset)
-    }
-    .into();
+        AssetGraphContentSource::new_lazy(client_root, entry_asset)
+    });
     Ok(graph)
 }

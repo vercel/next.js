@@ -1,21 +1,18 @@
 use std::collections::HashMap;
 
 use anyhow::{bail, Result};
-use turbo_tasks::Value;
+use turbo_tasks::{Value, Vc};
 use turbopack_binding::{
-    turbo::{tasks_env::ProcessEnvVc, tasks_fs::FileSystemPathVc},
+    turbo::{tasks_env::ProcessEnv, tasks_fs::FileSystemPath},
     turbopack::{
         core::{
-            compile_time_info::CompileTimeInfoVc,
-            context::AssetContextVc,
-            resolve::{options::ImportMap, origin::PlainResolveOriginVc},
+            compile_time_info::CompileTimeInfo,
+            context::AssetContext,
+            resolve::{options::ImportMap, origin::PlainResolveOrigin},
         },
-        dev_server::html::DevHtmlAssetVc,
-        node::execution_context::ExecutionContextVc,
-        turbopack::{
-            ecmascript::EcmascriptModuleAssetVc, transition::TransitionsByNameVc,
-            ModuleAssetContextVc,
-        },
+        dev_server::html::DevHtmlAsset,
+        node::execution_context::ExecutionContext,
+        turbopack::{ecmascript::EcmascriptModuleAsset, ModuleAssetContext},
     },
 };
 
@@ -25,22 +22,22 @@ use crate::{
         get_client_chunking_context, get_client_module_options_context,
         get_client_resolve_options_context, get_client_runtime_entries, ClientContextType,
     },
-    next_config::NextConfigVc,
+    next_config::NextConfig,
     next_import_map::insert_next_shared_aliases,
     runtime::resolve_runtime_request,
 };
 
 #[turbo_tasks::function]
 pub async fn get_fallback_page(
-    project_path: FileSystemPathVc,
-    execution_context: ExecutionContextVc,
-    dev_server_root: FileSystemPathVc,
-    env: ProcessEnvVc,
-    client_compile_time_info: CompileTimeInfoVc,
-    next_config: NextConfigVc,
-) -> Result<DevHtmlAssetVc> {
+    project_path: Vc<FileSystemPath>,
+    execution_context: Vc<ExecutionContext>,
+    dev_server_root: Vc<FileSystemPath>,
+    env: Vc<Box<dyn ProcessEnv>>,
+    client_compile_time_info: Vc<CompileTimeInfo>,
+    next_config: Vc<NextConfig>,
+) -> Result<Vc<DevHtmlAsset>> {
     let ty = Value::new(ClientContextType::Fallback);
-    let mode = NextMode::Development;
+    let mode = NextMode::DevServer;
     let resolve_options_context =
         get_client_resolve_options_context(project_path, ty, mode, next_config, execution_context);
     let module_options_context = get_client_module_options_context(
@@ -55,6 +52,7 @@ pub async fn get_fallback_page(
         project_path,
         dev_server_root,
         client_compile_time_info.environment(),
+        mode,
     );
     let entries =
         get_client_runtime_entries(project_path, env, ty, mode, next_config, execution_context);
@@ -68,35 +66,34 @@ pub async fn get_fallback_page(
     )
     .await?;
 
-    let context: AssetContextVc = ModuleAssetContextVc::new(
-        TransitionsByNameVc::cell(HashMap::new()),
+    let context: Vc<Box<dyn AssetContext>> = Vc::upcast(ModuleAssetContext::new(
+        Vc::cell(HashMap::new()),
         client_compile_time_info,
         module_options_context,
         resolve_options_context.with_extended_import_map(import_map.cell()),
-    )
-    .into();
+    ));
 
     let runtime_entries = entries.resolve_entries(context);
 
     let fallback_chunk = resolve_runtime_request(
-        PlainResolveOriginVc::new(context, project_path).into(),
-        "entry/fallback",
+        Vc::upcast(PlainResolveOrigin::new(context, project_path)),
+        "entry/fallback".to_string(),
     );
 
     let module = if let Some(module) =
-        EcmascriptModuleAssetVc::resolve_from(fallback_chunk.as_asset()).await?
+        Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(fallback_chunk).await?
     {
         module
     } else {
         bail!("fallback runtime entry is not an ecmascript module");
     };
 
-    Ok(DevHtmlAssetVc::new(
-        dev_server_root.join("fallback.html"),
+    Ok(DevHtmlAsset::new(
+        dev_server_root.join("fallback.html".to_string()),
         vec![(
-            module.into(),
-            chunking_context,
-            Some(runtime_entries.with_entry(module.into())),
+            Vc::upcast(module),
+            Vc::upcast(chunking_context),
+            Some(runtime_entries.with_entry(Vc::upcast(module))),
         )],
     ))
 }

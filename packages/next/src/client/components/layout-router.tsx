@@ -211,6 +211,7 @@ class InnerScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerPr
 
       // State is mutated to ensure that the focus and scroll is applied only once.
       focusAndScrollRef.apply = false
+      focusAndScrollRef.onlyHashChange = false
       focusAndScrollRef.hashFragment = null
       focusAndScrollRef.segmentPaths = []
 
@@ -247,6 +248,7 @@ class InnerScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerPr
         {
           // We will force layout by querying domNode position
           dontForceLayout: true,
+          onlyHashChange: focusAndScrollRef.onlyHashChange,
         }
       )
 
@@ -490,7 +492,6 @@ export default function OuterLayoutRouter({
   template,
   notFound,
   notFoundStyles,
-  asNotFound,
   styles,
 }: {
   parallelRouterKey: string
@@ -505,7 +506,6 @@ export default function OuterLayoutRouter({
   hasLoading: boolean
   notFound: React.ReactNode | undefined
   notFoundStyles: React.ReactNode | undefined
-  asNotFound?: boolean
   styles?: React.ReactNode
 }) {
   const context = useContext(LayoutRouterContext)
@@ -573,7 +573,6 @@ export default function OuterLayoutRouter({
                     <NotFoundBoundary
                       notFound={notFound}
                       notFoundStyles={notFoundStyles}
-                      asNotFound={asNotFound}
                     >
                       <RedirectBoundary>
                         <InnerLayoutRouter

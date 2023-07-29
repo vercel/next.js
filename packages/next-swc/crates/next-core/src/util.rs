@@ -1,49 +1,45 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, Result};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde_json::Value as JsonValue;
 use swc_core::ecma::ast::Program;
-use turbo_tasks::{
-    primitives::{JsonValue, JsonValueVc, StringVc},
-    trace::TraceRawVcs,
-    TaskInput, Value, ValueToString,
-};
+use turbo_tasks::{trace::TraceRawVcs, TaskInput, Value, ValueDefault, ValueToString, Vc};
 use turbopack_binding::{
-    turbo::tasks_fs::{json::parse_json_rope_with_source_context, FileContent, FileSystemPathVc},
+    turbo::tasks_fs::{json::parse_json_rope_with_source_context, FileContent, FileSystemPath},
     turbopack::{
         core::{
-            asset::{Asset, AssetVc},
-            environment::{ServerAddrVc, ServerInfo},
-            ident::AssetIdentVc,
-            issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc, OptionIssueSourceVc},
+            asset::Asset,
+            environment::{ServerAddr, ServerInfo},
+            ident::AssetIdent,
+            issue::{Issue, IssueExt, IssueSeverity, OptionIssueSource},
+            module::Module,
             reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
-            resolve::{
-                self, handle_resolve_error, node::node_cjs_resolve_options, parse::RequestVc,
-                pattern::QueryMapVc, PrimaryResolveResult,
-            },
+            resolve::{self, handle_resolve_error, node::node_cjs_resolve_options, parse::Request},
         },
         ecmascript::{
             analyzer::{JsValue, ObjectPart},
             parse::ParseResult,
-            EcmascriptModuleAssetVc,
+            EcmascriptModuleAsset,
         },
         turbopack::condition::ContextCondition,
     },
 };
 
-use crate::next_config::{NextConfigVc, OutputType};
+use crate::next_config::{NextConfig, OutputType};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, TaskInput)]
 pub enum PathType {
-    Page,
+    PagesPage,
+    PagesApi,
     Data,
 }
 
 /// Converts a filename within the server root into a next pathname.
 #[turbo_tasks::function]
 pub async fn pathname_for_path(
-    server_root: FileSystemPathVc,
-    server_path: FileSystemPathVc,
+    server_root: Vc<FileSystemPath>,
+    server_path: Vc<FileSystemPath>,
     path_ty: PathType,
-) -> Result<StringVc> {
+) -> Result<Vc<String>> {
     let server_path_value = &*server_path.await?;
     let path = if let Some(path) = server_root.await?.get_path_to(server_path_value) {
         path
@@ -62,21 +58,30 @@ pub async fn pathname_for_path(
         (_, path) => format!("/{}", path),
     };
 
-    Ok(StringVc::cell(path))
+    Ok(Vc::cell(path))
+}
+
+// Adapted from https://github.com/vercel/next.js/blob/canary/packages/next/shared/lib/router/utils/get-asset-path-from-route.ts
+// TODO(alexkirsz) There's no need to create an intermediate string here (and
+// below), we should instead return an `impl Display`.
+pub fn get_asset_prefix_from_pathname(pathname: &str) -> String {
+    if pathname == "/" {
+        "/index".to_string()
+    } else if pathname == "/index" || pathname.starts_with("/index/") {
+        format!("/index{}", pathname)
+    } else {
+        pathname.to_string()
+    }
 }
 
 // Adapted from https://github.com/vercel/next.js/blob/canary/packages/next/shared/lib/router/utils/get-asset-path-from-route.ts
 pub fn get_asset_path_from_pathname(pathname: &str, ext: &str) -> String {
-    if pathname == "/" {
-        format!("/index{}", ext)
-    } else if pathname == "/index" || pathname.starts_with("/index/") {
-        format!("/index{}{}", pathname, ext)
-    } else {
-        format!("{}{}", pathname, ext)
-    }
+    format!("{}{}", get_asset_prefix_from_pathname(pathname), ext)
 }
 
-pub async fn foreign_code_context_condition(next_config: NextConfigVc) -> Result<ContextCondition> {
+pub async fn foreign_code_context_condition(
+    next_config: Vc<NextConfig>,
+) -> Result<ContextCondition> {
     let transpile_packages = next_config.transpile_packages().await?;
     let result = if transpile_packages.is_empty() {
         ContextCondition::InDirectory("node_modules".to_string())
@@ -94,7 +99,20 @@ pub async fn foreign_code_context_condition(next_config: NextConfigVc) -> Result
     Ok(result)
 }
 
-#[derive(Default, PartialEq, Eq, Clone, Copy, Debug, TraceRawVcs, Serialize, Deserialize)]
+#[derive(
+    Default,
+    PartialEq,
+    Eq,
+    Clone,
+    Copy,
+    Debug,
+    TraceRawVcs,
+    Serialize,
+    Deserialize,
+    Hash,
+    PartialOrd,
+    Ord,
+)]
 #[serde(rename_all = "lowercase")]
 pub enum NextRuntime {
     #[default]
@@ -113,9 +131,9 @@ pub struct NextSourceConfig {
 }
 
 #[turbo_tasks::value_impl]
-impl NextSourceConfigVc {
+impl ValueDefault for NextSourceConfig {
     #[turbo_tasks::function]
-    pub fn default() -> Self {
+    pub fn value_default() -> Vc<Self> {
         NextSourceConfig::default().cell()
     }
 }
@@ -123,35 +141,35 @@ impl NextSourceConfigVc {
 /// An issue that occurred while parsing the page config.
 #[turbo_tasks::value(shared)]
 pub struct NextSourceConfigParsingIssue {
-    ident: AssetIdentVc,
-    detail: StringVc,
+    ident: Vc<AssetIdent>,
+    detail: Vc<String>,
 }
 
 #[turbo_tasks::value_impl]
 impl Issue for NextSourceConfigParsingIssue {
     #[turbo_tasks::function]
-    fn severity(&self) -> IssueSeverityVc {
+    fn severity(&self) -> Vc<IssueSeverity> {
         IssueSeverity::Warning.into()
     }
 
     #[turbo_tasks::function]
-    fn title(&self) -> StringVc {
-        StringVc::cell("Unable to parse config export in source file".to_string())
+    fn title(&self) -> Vc<String> {
+        Vc::cell("Unable to parse config export in source file".to_string())
     }
 
     #[turbo_tasks::function]
-    fn category(&self) -> StringVc {
-        StringVc::cell("parsing".to_string())
+    fn category(&self) -> Vc<String> {
+        Vc::cell("parsing".to_string())
     }
 
     #[turbo_tasks::function]
-    fn context(&self) -> FileSystemPathVc {
+    fn context(&self) -> Vc<FileSystemPath> {
         self.ident.path()
     }
 
     #[turbo_tasks::function]
-    fn description(&self) -> StringVc {
-        StringVc::cell(
+    fn description(&self) -> Vc<String> {
+        Vc::cell(
             "The exported configuration object in a source file need to have a very specific \
              format from which some properties can be statically parsed at compiled-time."
                 .to_string(),
@@ -159,21 +177,23 @@ impl Issue for NextSourceConfigParsingIssue {
     }
 
     #[turbo_tasks::function]
-    fn detail(&self) -> StringVc {
+    fn detail(&self) -> Vc<String> {
         self.detail
     }
 }
 
 #[turbo_tasks::function]
-pub async fn parse_config_from_source(module_asset: AssetVc) -> Result<NextSourceConfigVc> {
-    if let Some(ecmascript_asset) = EcmascriptModuleAssetVc::resolve_from(module_asset).await? {
+pub async fn parse_config_from_source(module: Vc<Box<dyn Module>>) -> Result<Vc<NextSourceConfig>> {
+    if let Some(ecmascript_asset) =
+        Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(module).await?
+    {
         if let ParseResult::Ok {
-            program: Program::Module(module),
+            program: Program::Module(module_ast),
             eval_context,
             ..
         } = &*ecmascript_asset.parse().await?
         {
-            for item in &module.body {
+            for item in &module_ast.body {
                 if let Some(decl) = item
                     .as_module_decl()
                     .and_then(|mod_decl| mod_decl.as_export_decl())
@@ -188,18 +208,17 @@ pub async fn parse_config_from_source(module_asset: AssetVc) -> Result<NextSourc
                         {
                             if let Some(init) = decl.init.as_ref() {
                                 let value = eval_context.eval(init);
-                                return Ok(parse_config_from_js_value(module_asset, &value).cell());
+                                return Ok(parse_config_from_js_value(module, &value).cell());
                             } else {
                                 NextSourceConfigParsingIssue {
-                                    ident: module_asset.ident(),
-                                    detail: StringVc::cell(
+                                    ident: module.ident(),
+                                    detail: Vc::cell(
                                         "The exported config object must contain an variable \
                                          initializer."
                                             .to_string(),
                                     ),
                                 }
                                 .cell()
-                                .as_issue()
                                 .emit()
                             }
                         }
@@ -208,19 +227,18 @@ pub async fn parse_config_from_source(module_asset: AssetVc) -> Result<NextSourc
             }
         }
     }
-    Ok(NextSourceConfigVc::default())
+    Ok(Default::default())
 }
 
-fn parse_config_from_js_value(module_asset: AssetVc, value: &JsValue) -> NextSourceConfig {
+fn parse_config_from_js_value(module: Vc<Box<dyn Module>>, value: &JsValue) -> NextSourceConfig {
     let mut config = NextSourceConfig::default();
     let invalid_config = |detail: &str, value: &JsValue| {
         let (explainer, hints) = value.explain(2, 0);
         NextSourceConfigParsingIssue {
-            ident: module_asset.ident(),
-            detail: StringVc::cell(format!("{detail} Got {explainer}.{hints}")),
+            ident: module.ident(),
+            detail: Vc::cell(format!("{detail} Got {explainer}.{hints}")),
         }
         .cell()
-        .as_issue()
         .emit()
     };
     if let JsValue::Object { parts, .. } = value {
@@ -312,37 +330,30 @@ fn parse_config_from_js_value(module_asset: AssetVc, value: &JsValue) -> NextSou
 }
 
 pub async fn load_next_json<T: DeserializeOwned>(
-    context: FileSystemPathVc,
+    context: Vc<FileSystemPath>,
     path: &str,
 ) -> Result<T> {
-    let request = RequestVc::module(
+    let request = Request::module(
         "next".to_owned(),
         Value::new(path.to_string().into()),
-        QueryMapVc::cell(None),
+        Vc::cell(None),
     );
     let resolve_options = node_cjs_resolve_options(context.root());
 
     let resolve_result = handle_resolve_error(
-        resolve::resolve(context, request, resolve_options),
+        resolve::resolve(context, request, resolve_options).as_raw_module_result(),
         Value::new(ReferenceType::EcmaScriptModules(
             EcmaScriptModulesReferenceSubType::Undefined,
         )),
         context,
         request,
         resolve_options,
-        OptionIssueSourceVc::none(),
+        OptionIssueSource::none(),
         IssueSeverity::Error.cell(),
     )
     .await?;
-    let resolve_result = &*resolve_result.await?;
-
-    let primary = resolve_result
-        .primary
-        .first()
-        .context("Unable to resolve primary asset")?;
-
-    let PrimaryResolveResult::Asset(metrics_asset) = primary else {
-        bail!("Expected to find asset");
+    let Some(metrics_asset) = *resolve_result.first_module().await? else {
+        bail!("Expected to find module");
     };
 
     let content = &*metrics_asset.content().file_content().await?;
@@ -358,9 +369,9 @@ pub async fn load_next_json<T: DeserializeOwned>(
 
 #[turbo_tasks::function]
 pub async fn render_data(
-    next_config: NextConfigVc,
-    server_addr: ServerAddrVc,
-) -> Result<JsonValueVc> {
+    next_config: Vc<NextConfig>,
+    server_addr: Vc<ServerAddr>,
+) -> Result<Vc<JsonValue>> {
     #[derive(Serialize)]
     #[serde(rename_all = "camelCase")]
     struct Data {
@@ -385,5 +396,5 @@ pub async fn render_data(
         isr_memory_cache_size: experimental.isr_memory_cache_size,
         isr_flush_to_disk: experimental.isr_flush_to_disk,
     })?;
-    Ok(JsonValue(value).cell())
+    Ok(Vc::cell(value))
 }

@@ -11,7 +11,7 @@ If you need to redirect to a 404, use the [`notFound` function](/docs/app/api-re
 
 The `redirect` function accepts two arguments:
 
-```
+```js
 redirect(path, type)
 ```
 
@@ -20,7 +20,7 @@ redirect(path, type)
 | `path`    | `string`                                                      | The URL to redirect to. Can be a relative or absolute path. |
 | `type`    | `'replace'` (default) or `'push'` (default in Server Actions) | The type of redirect to perform.                            |
 
-By default, `redirect` will use `push` (adding a new entry to the browser history stack) in [Server Actions](/docs/app/building-your-application/data-fetching/server-actions)) and `replace` (replacing the current URL in the browser history stack) everywhere else. You can override this behavior by specifying the `type` parameter.
+By default, `redirect` will use `push` (adding a new entry to the browser history stack) in [Server Actions](/docs/app/building-your-application/data-fetching/server-actions) and `replace` (replacing the current URL in the browser history stack) everywhere else. You can override this behavior by specifying the `type` parameter.
 
 The `type` parameter has no effect when used in Server Components.
 

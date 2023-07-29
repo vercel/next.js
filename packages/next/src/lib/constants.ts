@@ -86,25 +86,56 @@ export const SERVER_RUNTIME: Record<string, ServerRuntime> = {
   nodejs: 'nodejs',
 }
 
+/**
+ * The names of the webpack layers. These layers are the primitives for the
+ * webpack chunks.
+ */
 const WEBPACK_LAYERS_NAMES = {
-  shared: 'sc_shared',
-  server: 'sc_server',
-  client: 'sc_client',
-  action: 'sc_action',
+  /**
+   * The layer for the shared code between the client and server bundles.
+   */
+  shared: 'shared',
+  /**
+   * React Server Components layer (rsc).
+   */
+  reactServerComponents: 'rsc',
+  /**
+   * Server Side Rendering layer (ssr).
+   */
+  serverSideRendering: 'ssr',
+  /**
+   * The browser client bundle layer for actions.
+   */
+  actionBrowser: 'actionBrowser',
+  /**
+   * The layer for the API routes.
+   */
   api: 'api',
+  /**
+   * The layer for the middleware code.
+   */
   middleware: 'middleware',
+  /**
+   * The layer for assets on the edge.
+   */
   edgeAsset: 'edge-asset',
-  appClient: 'app-client',
-  metadataRoute: 'app-metadata-route',
+  /**
+   * The browser client bundle layer for App directory.
+   */
+  appPagesBrowser: 'app-pages-browser',
+  /**
+   * The server bundle layer for metadata routes.
+   */
+  appMetadataRoute: 'app-metadata-route',
 }
 
 export const WEBPACK_LAYERS = {
   ...WEBPACK_LAYERS_NAMES,
   GROUP: {
     server: [
-      WEBPACK_LAYERS_NAMES.server,
-      WEBPACK_LAYERS_NAMES.action,
-      WEBPACK_LAYERS_NAMES.metadataRoute,
+      WEBPACK_LAYERS_NAMES.reactServerComponents,
+      WEBPACK_LAYERS_NAMES.actionBrowser,
+      WEBPACK_LAYERS_NAMES.appMetadataRoute,
     ],
   },
 }

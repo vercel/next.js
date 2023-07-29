@@ -35,8 +35,11 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
   }
 
   private waitTillReadyPromise?: Promise<void>
-  public waitTillReady(): Promise<void> {
-    return this.waitTillReadyPromise ?? Promise.resolve()
+  public async waitTillReady(): Promise<void> {
+    if (this.waitTillReadyPromise) {
+      await this.waitTillReadyPromise
+      delete this.waitTillReadyPromise
+    }
   }
 
   private previousMatchers: ReadonlyArray<RouteMatcher> = []
