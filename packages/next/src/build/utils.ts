@@ -1241,7 +1241,7 @@ export async function buildAppStaticPaths({
   return StaticGenerationAsyncStorageWrapper.wrap(
     staticGenerationAsyncStorage,
     {
-      pathname: page,
+      urlPathname: page,
       renderOpts: {
         originalPathname: page,
         incrementalCache,

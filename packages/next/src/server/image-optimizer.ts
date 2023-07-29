@@ -321,7 +321,11 @@ export class ImageOptimizerCache {
   async set(
     cacheKey: string,
     value: IncrementalCacheValue | null,
-    revalidate?: number | false
+    {
+      revalidate,
+    }: {
+      revalidate?: number | false
+    }
   ) {
     if (value?.kind !== 'IMAGE') {
       throw new Error('invariant attempted to set non-image to image-cache')
