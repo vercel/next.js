@@ -170,7 +170,7 @@ export async function POST() {
 }
 ```
 
-> **Good to know**: Previously, API Routes could have been used for use cases like handling form submissions. Route Handlers are likely not the solution for these use cases. We will be recommending the use of [mutations](/docs/app/building-your-application/data-fetching/server-actions) for this when ready.
+> **Good to know**: Like API Routes, Route Handlers can be used for cases like handling form submissions. A new abstraction for [handling forms and mutations](/docs/app/building-your-application/data-fetching/server-actions) that integrates deeply with React is being worked on.
 
 ### Route Resolution
 
@@ -390,52 +390,74 @@ export async function GET(request, { params }) {
 
 Streaming is commonly used in combination with Large Language Models (LLMs), such an OpenAI, for AI-generated content. Learn more about the [AI SDK](https://sdk.vercel.ai/docs).
 
-```ts filename="app/api/completion/route.ts" switcher
+```ts filename="app/api/chat/route.ts" switcher
 import { Configuration, OpenAIApi } from 'openai-edge'
 import { OpenAIStream, StreamingTextResponse } from 'ai'
 
-const config = new Configuration({
-  apiKey: process.env.OPENAI_API_KEY,
-})
-const openai = new OpenAIApi(config)
-
 export const runtime = 'edge'
 
+const apiConfig = new Configuration({
+  apiKey: process.env.OPENAI_API_KEY!,
+})
+
+const openai = new OpenAIApi(apiConfig)
+
 export async function POST(req: Request) {
-  const { prompt } = await req.json()
-  const response = await openai.createCompletion({
-    model: 'text-davinci-003',
+  // Extract the `messages` from the body of the request
+  const { messages } = await req.json()
+
+  // Request the OpenAI API for the response based on the prompt
+  const response = await openai.createChatCompletion({
+    model: 'gpt-3.5-turbo',
     stream: true,
-    temperature: 0.6,
-    prompt: 'What is Next.js?',
+    messages: messages,
+    max_tokens: 500,
+    temperature: 0.7,
+    top_p: 1,
+    frequency_penalty: 1,
+    presence_penalty: 1,
   })
 
+  // Convert the response into a friendly text-stream
   const stream = OpenAIStream(response)
+
+  // Respond with the stream
   return new StreamingTextResponse(stream)
 }
 ```
 
-```js filename="app/api/completion/route.js" switcher
+```js filename="app/api/chat/route.js" switcher
 import { Configuration, OpenAIApi } from 'openai-edge'
 import { OpenAIStream, StreamingTextResponse } from 'ai'
 
-const config = new Configuration({
-  apiKey: process.env.OPENAI_API_KEY,
-})
-const openai = new OpenAIApi(config)
-
 export const runtime = 'edge'
 
+const apiConfig = new Configuration({
+  apiKey: process.env.OPENAI_API_KEY,
+})
+
+const openai = new OpenAIApi(apiConfig)
+
 export async function POST(req) {
-  const { prompt } = await req.json()
-  const response = await openai.createCompletion({
-    model: 'text-davinci-003',
+  // Extract the `messages` from the body of the request
+  const { messages } = await req.json()
+
+  // Request the OpenAI API for the response based on the prompt
+  const response = await openai.createChatCompletion({
+    model: 'gpt-3.5-turbo',
     stream: true,
-    temperature: 0.6,
-    prompt: 'What is Next.js?',
+    messages: messages,
+    max_tokens: 500,
+    temperature: 0.7,
+    top_p: 1,
+    frequency_penalty: 1,
+    presence_penalty: 1,
   })
 
+  // Convert the response into a friendly text-stream
   const stream = OpenAIStream(response)
+
+  // Respond with the stream
   return new StreamingTextResponse(stream)
 }
 ```
@@ -553,7 +575,9 @@ import { NextResponse } from 'next/server'
 
 export async function POST(request: Request) {
   const formData = await request.formData()
-  return NextResponse.json({ formData })
+  const name = formData.get('name')
+  const email = formData.get('email')
+  return NextResponse.json({ name, email })
 }
 ```
 
@@ -562,9 +586,13 @@ import { NextResponse } from 'next/server'
 
 export async function POST(request) {
   const formData = await request.formData()
-  return NextResponse.json({ formData })
+  const name = formData.get('name')
+  const email = formData.get('email')
+  return NextResponse.json({ name, email })
 }
 ```
+
+Since `formData` data are all strings, you may want to use [`zod-form-data`](https://www.npmjs.com/zod-form-data) to validate the request and retrieve data in the format you prefer (e.g. `number`).
 
 ### CORS
 

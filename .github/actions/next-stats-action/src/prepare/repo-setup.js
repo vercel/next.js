@@ -142,13 +142,37 @@ module.exports = (actionInfo) => {
         Array.from(pkgDatas.keys()).map(async (pkgName) => {
           const { pkgPath, packedPkgPath } = pkgDatas.get(pkgName)
 
-          await execa('yarn', ['pack', '-f', packedPkgPath], {
+          let cleanup = null
+
+          if (pkgName === '@next/swc') {
+            // next-swc uses a gitignore to prevent the committing of native builds but it doesn't
+            // use files in package.json because it publishes to individual packages based on architecture.
+            // When we used yarn to pack these packages the gitignore was ignored so the native builds were packed
+            // however npm does respect gitignore when packing so we need to remove it in this specific case
+            // to ensure the native builds are packed for use in gh actions and related scripts
+            await fs.rename(
+              path.join(pkgPath, 'native/.gitignore'),
+              path.join(pkgPath, 'disabled-native-gitignore')
+            )
+            cleanup = async () => {
+              await fs.rename(
+                path.join(pkgPath, 'disabled-native-gitignore'),
+                path.join(pkgPath, 'native/.gitignore')
+              )
+            }
+          }
+
+          const { stdout } = await execa('npm', ['pack'], {
             cwd: pkgPath,
             env: {
               ...process.env,
               COREPACK_ENABLE_STRICT: '0',
             },
           })
+          await fs.rename(path.resolve(pkgPath, stdout.trim()), packedPkgPath)
+          if (cleanup) {
+            await cleanup()
+          }
         })
       )
       return pkgPaths

@@ -218,7 +218,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
 
       // startTrace existed and callable
       if (this.turbotrace) {
-        let binding = (await loadBindings()) as any
+        let binding = await loadBindings()
         if (
           !binding?.isWasm &&
           typeof binding.turbo.startTrace === 'function'
@@ -292,8 +292,8 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
           // include the client reference manifest
           const clientManifestsForPage =
             entrypoint.name.endsWith('/page') ||
-            entrypoint.name === '/not-found' ||
-            entrypoint.name === '/_not-found'
+            entrypoint.name === 'app/not-found' ||
+            entrypoint.name === 'app/_not-found'
               ? nodePath.join(
                   outputPath,
                   '..',
@@ -475,7 +475,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
             })
             // startTrace existed and callable
             if (this.turbotrace) {
-              let binding = (await loadBindings()) as any
+              let binding = await loadBindings()
               if (
                 !binding?.isWasm &&
                 typeof binding.turbo.startTrace === 'function'
@@ -825,7 +825,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
 
     if (this.turbotrace) {
       compiler.hooks.afterEmit.tapPromise(PLUGIN_NAME, async () => {
-        let binding = (await loadBindings()) as any
+        let binding = await loadBindings()
         if (
           !binding?.isWasm &&
           typeof binding.turbo.startTrace === 'function'

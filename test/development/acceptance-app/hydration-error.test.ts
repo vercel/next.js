@@ -221,4 +221,41 @@ describe('Error overlay for hydration errors', () => {
 
     await cleanup()
   })
+
+  it('should not show a hydration error when using `useId` in a client component', async () => {
+    const { cleanup, browser } = await sandbox(
+      next,
+      new Map([
+        [
+          'app/page.js',
+          outdent`
+            'use client'
+
+            import { useId } from "react"
+
+            export default function Page() {
+              let id = useId();
+              return (
+                <div className="parent" data-id={id}>
+                  Hello World
+                </div>
+              );
+            }
+          `,
+        ],
+      ])
+    )
+
+    const logs = await browser.log()
+    const errors = logs
+      .filter((x) => x.source === 'error')
+      .map((x) => x.message)
+      .join('\n')
+
+    expect(errors).not.toInclude(
+      'Warning: Prop `%s` did not match. Server: %s Client: %s'
+    )
+
+    await cleanup()
+  })
 })
