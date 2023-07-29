@@ -20,9 +20,9 @@ for (let i = originalPaths.length - 1; i >= 0; i--) {
 
   if (currentPath.replace(/\\/g, '/').startsWith(cwd)) {
     sortedPaths.push(currentPath)
-  } else {
-    keptPaths.unshift(currentPath)
+    continue
   }
+  keptPaths.unshift(currentPath)
 }
 
 // maintain order of node_modules outside of cwd
