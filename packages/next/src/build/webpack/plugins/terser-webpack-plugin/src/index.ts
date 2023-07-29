@@ -155,6 +155,7 @@ export class TerserPlugin {
         if (this.options.swcMinify) {
           return {
             minify: async (options: any) => {
+              const { terserOptions } = options
               const result = await require('../../../../swc').minify(
                 options.input,
                 {
@@ -165,8 +166,19 @@ export class TerserPlugin {
                         },
                       }
                     : {}),
-                  compress: true,
-                  mangle: true,
+                  ...terserOptions,
+                  compress:
+                    terserOptions.compress == null
+                      ? true
+                      : typeof terserOptions.compress === 'boolean'
+                      ? terserOptions.compress
+                      : { ...terserOptions.compress },
+                  mangle:
+                    terserOptions.mangle == null
+                      ? true
+                      : typeof terserOptions.mangle === 'boolean'
+                      ? terserOptions.mangle
+                      : { ...terserOptions.mangle },
                 }
               )
 
