@@ -442,9 +442,14 @@ export function patchFetch({
                 if (!staticGenerationStore.pendingRevalidates) {
                   staticGenerationStore.pendingRevalidates = []
                 }
-                staticGenerationStore.pendingRevalidates.push(
-                  doOriginalFetch(true).catch(console.error)
-                )
+                // if dynamically rendered we revalidate immediately
+                if (!staticGenerationStore.isStaticGeneration) {
+                  return doOriginalFetch().finally(handleUnlock)
+                } else {
+                  staticGenerationStore.pendingRevalidates.push(
+                    doOriginalFetch(true).catch(console.error)
+                  )
+                }
               } else if (
                 tags &&
                 !tags.every((tag) => currentTags?.includes(tag))
