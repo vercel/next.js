@@ -2,7 +2,7 @@ import Link from 'next/link'
 
 import Image from 'next/image'
 import { Inter } from 'next/font/google'
-import styles from '../styles/Home.module.css'
+import styles from './Home.module.css'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -81,7 +81,7 @@ export default function Home() {
       <div className={styles.grid}>
         <div className={styles.card}>
           <h2 className={inter.className}>
-            API routes <span>-&gt;</span>
+            Pages API routes <span>-&gt;</span>
           </h2>
           <p className={inter.className}>
             The following examples are Sentry tests. Note that 1 and 2 are not
@@ -123,88 +123,54 @@ export default function Home() {
         </div>
         <div className={styles.card}>
           <h2 className={inter.className}>
-            SSR <span>-&gt;</span>
+            APP Router Route/API handler <span>-&gt;</span>
           </h2>
           <p className={inter.className}>
-            There are currently two known bugs with respect to SSR transactions:
-            they don't get recorded on Vercel, and ones that are recorded and
-            have an error are grouped in the Sentry UI by the error page name
-            rather than the requested page name.
+            Sentry is on a mission to provide first class support for app
+            directory route handlers. Until this goal is acheived use
+            `Sentry.captureException` to log errors to Sentry
           </p>
 
           <p className={inter.className}>
-            <code className={styles.code}>getServerSideProps </code>
-            &nbsp;throws an Error. This should cause _error.js to render and
-            record and Error in Sentry.{' '}
+            App router route handler error cought via Sentry.captureException.
+            {'  '}
             <code className={styles.code}>
-              <Link className={styles.link} href="/ssr/test1">
-                SSR Test 1
-              </Link>
-            </code>
-          </p>
-          <p className={inter.className}>
-            <code className={styles.code}>getServerSideProps </code>
-            returns a Promise that rejects. This should cause _error.js to
-            render and record an Error in Sentry.{' '}
-            <code className={styles.code}>
-              <Link className={styles.link} href="/ssr/test2">
-                SSR Test 2
-              </Link>
-            </code>
-          </p>
-          <p className={inter.className}>
-            <code className={styles.code}>getServerSideProps </code>
-            calls a Promise that rejects, but does not handle the rejection or
-            await its result (returning synchronously). Sentry records an Error
-            but <strong>will not</strong> when deployed to Vercel because the
-            serverless function will already have exited.{' '}
-            <code className={styles.code}>
-              <Link className={styles.link} href="/ssr/test3">
-                SSR Test 3
-              </Link>
-            </code>
-          </p>
-          <p className={inter.className}>
-            <code className={styles.code}>getServerSideProps </code>
-            manually captures an exception from a try/catch. This should record
-            Error in Sentry.{' '}
-            <code className={styles.code}>
-              <Link className={styles.link} href="/ssr/test4">
-                SSR Test 4
-              </Link>
+              <a className={styles.link} href="/routes/test1" target="_blank">
+                APP router route handler test
+              </a>
             </code>
           </p>
         </div>
 
         <div className={styles.card}>
           <h2 className={inter.className}>
-            Client exceptions <span>-&gt;</span>
+            Client/Server component exceptions <span>-&gt;</span>
           </h2>
           <p className={inter.className}>
             There is a top-of-module Promise that rejects, but its result is not
             awaited. Sentry records an Error.{' '}
             <code className={styles.code}>
-              <Link className={styles.link} href="/client/test1">
-                Client Test 1
+              <Link className={styles.link} href="/test1">
+                Test 1
               </Link>
             </code>
           </p>
           <p className={inter.className}>
-            There is a top-of-module exception. _error.js should render and
+            There is a top-of-module exception. error.tsx should render and
             record ReferenceError('process is not defined') in Sentry.{' '}
             <code className={styles.code}>
-              <Link className={styles.link} href="/client/test2">
-                Client Test 2
+              <Link className={styles.link} href="/test2">
+                Test 2
               </Link>
             </code>
           </p>
           <p className={inter.className}>
             There is an exception during React lifecycle that is caught by
             Next.js's React Error Boundary. In this case, when the component
-            mounts. This causes _error.js to render and records Error in Sentry.{' '}
+            mounts. This causes error.tsx to render and records Error in Sentry.{' '}
             <code className={styles.code}>
-              <Link className={styles.link} href="/client/test3">
-                Client Test 3
+              <Link className={styles.link} href="/test3">
+                Test 3
               </Link>
             </code>
           </p>
@@ -212,9 +178,9 @@ export default function Home() {
             There is an unhandled Promise rejection during React lifecycle. In
             this case, when the component mounts. Sentry records an Error.{' '}
             <code className={styles.code}>
-              <Link className={styles.link} href="/client/test4">
+              <Link className={styles.link} href="/test4">
                 {' '}
-                Client Test 4
+                Test 4
               </Link>
             </code>
           </p>
@@ -223,8 +189,25 @@ export default function Home() {
             (This page also demonstrates how to manually instrument your code
             for performance monitoring.){' '}
             <code className={styles.code}>
-              <Link className={styles.link} href="/client/test5">
-                Client Test 5
+              <Link className={styles.link} href="/test5">
+                Test 5
+              </Link>
+            </code>
+          </p>
+          <p className={inter.className}>
+            An Error is thrown becasue client side code is used in server
+            component{' '}
+            <code className={styles.code}>
+              <Link className={styles.link} href="/test5">
+                Test 6
+              </Link>
+            </code>
+          </p>
+          <p className={inter.className}>
+            An Error is thrown during async data fetcihng in server component.{' '}
+            <code className={styles.code}>
+              <Link className={styles.link} href="/test5">
+                Test 7
               </Link>
             </code>
           </p>
@@ -273,7 +256,7 @@ export default function Home() {
             Add Edge Function example
             <br />
             <code className={styles.code}>
-              <Link className={styles.link} href="/client/test5">
+              <Link className={styles.link} href="/test5">
                 Trigger Edge Function
               </Link>
             </code>
