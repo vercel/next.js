@@ -26,6 +26,8 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 */
 
+// TODO(alexkirsz) Remove once the diagnostic is fixed.
+#![allow(rustc::untranslatable_diagnostic_trivial)]
 #![recursion_limit = "2048"]
 #![deny(clippy::all)]
 #![feature(box_patterns)]
@@ -37,14 +39,17 @@ use either::Either;
 use fxhash::FxHashSet;
 use next_transform_font::next_font_loaders;
 use serde::Deserialize;
-use turbopack_binding::swc::core::{
-    common::{
-        chain, comments::Comments, pass::Optional, FileName, Mark, SourceFile, SourceMap,
-        SyntaxContext,
+use turbopack_binding::swc::{
+    core::{
+        common::{
+            chain, comments::Comments, pass::Optional, FileName, Mark, SourceFile, SourceMap,
+            SyntaxContext,
+        },
+        ecma::{
+            ast::EsVersion, parser::parse_file_as_module, transforms::base::pass::noop, visit::Fold,
+        },
     },
-    ecma::{
-        ast::EsVersion, parser::parse_file_as_module, transforms::base::pass::noop, visit::Fold,
-    },
+    custom_transform::modularize_imports,
 };
 
 pub mod amp_attributes;
@@ -121,8 +126,7 @@ pub struct TransformOptions {
     pub emotion: Option<turbopack_binding::swc::custom_transform::emotion::EmotionOptions>,
 
     #[serde(default)]
-    pub modularize_imports:
-        Option<turbopack_binding::swc::custom_transform::modularize_imports::Config>,
+    pub modularize_imports: Option<modularize_imports::Config>,
 
     #[serde(default)]
     pub font_loaders: Option<next_transform_font::Config>,
@@ -163,20 +167,12 @@ where
         }
     };
 
-    let mut modularize_imports_config = match &opts.modularize_imports {
+    let modularize_imports_config = match &opts.modularize_imports {
         Some(config) => config.clone(),
-        None => turbopack_binding::swc::custom_transform::modularize_imports::Config {
+        None => modularize_imports::Config {
             packages: std::collections::HashMap::new(),
         },
     };
-    modularize_imports_config.packages.insert(
-        "next/server".to_string(),
-        turbopack_binding::swc::custom_transform::modularize_imports::PackageConfig {
-            transform: "next/dist/server/web/exports/{{ kebabCase member }}".to_string(),
-            prevent_full_import: false,
-            skip_default_conversion: false,
-        },
-    );
 
     chain!(
         disallow_re_export_all_in_page::disallow_re_export_all_in_page(opts.is_page_file),
@@ -270,7 +266,7 @@ where
                 }
             })
             .unwrap_or_else(|| Either::Right(noop())),
-        turbopack_binding::swc::custom_transform::modularize_imports::modularize_imports(
+        modularize_imports::modularize_imports(
             modularize_imports_config
         ),
         match &opts.font_loaders {
@@ -311,7 +307,7 @@ impl TransformOptions {
 
         if should_enable_commonjs {
             self.swc.config.module = Some(
-                serde_json::from_str(r##"{ "type": "commonjs", "ignoreDynamic": true }"##).unwrap(),
+                serde_json::from_str(r#"{ "type": "commonjs", "ignoreDynamic": true }"#).unwrap(),
             );
         }
 

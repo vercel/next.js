@@ -1,6 +1,7 @@
 import type webpack from 'webpack'
 import type { ValueOf } from '../../../shared/lib/constants'
 import type { ModuleReference, CollectedMetadata } from './metadata/types'
+import type { AppPageRouteModuleOptions } from '../../../server/future/route-modules/app-page/module'
 
 import path from 'path'
 import { stringify } from 'querystring'
@@ -237,20 +238,16 @@ async function createTreeCodeFromPath(
     }
 
     // We need to resolve all parallel routes in this level.
-    const files = await fs.readdir(absoluteSegmentPath)
+    const files = await fs.opendir(absoluteSegmentPath)
 
     const parallelSegments: string[] = ['children']
 
-    await Promise.all(
-      files.map(async (file) => {
-        const filePath = path.join(absoluteSegmentPath, file)
-        const stat = await fs.stat(filePath)
-
-        if (stat.isDirectory() && file.startsWith('@')) {
-          parallelSegments.push(file)
-        }
-      })
-    )
+    for await (const dirent of files) {
+      // Make sure name starts with "@" and is a directory.
+      if (dirent.isDirectory() && dirent.name.charCodeAt(0) === 64) {
+        parallelSegments.push(dirent.name)
+      }
+    }
 
     return parallelSegments
   }
@@ -665,14 +662,37 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     }
   }
 
+  const pathname = new AppPathnameNormalizer().normalize(page)
+  const bundlePath = new AppBundlePathNormalizer().normalize(page)
+
+  const options: Omit<AppPageRouteModuleOptions, 'userland'> = {
+    definition: {
+      kind: RouteKind.APP_PAGE,
+      page,
+      pathname,
+      bundlePath,
+      // The following aren't used in production.
+      filename: '',
+      appPaths: [],
+    },
+  }
+
   // Prefer to modify next/src/server/app-render/entry-base.ts since this is shared with Turbopack.
   // Any changes to this code should be reflected in Turbopack's app_source.rs and/or app-renderer.tsx as well.
   const result = `
+    import RouteModule from 'next/dist/server/future/route-modules/app-page/module'
+
     export ${treeCodeResult.treeCode}
     export ${treeCodeResult.pages}
-    export { default as GlobalError } from ${JSON.stringify(
-      treeCodeResult.globalError || 'next/dist/client/components/error-boundary'
-    )}
+
+    ${
+      treeCodeResult.globalError
+        ? `export { default as GlobalError } from ${JSON.stringify(
+            treeCodeResult.globalError
+          )}`
+        : `export { GlobalError } from 'next/dist/client/components/error-boundary'`
+    }
+
     export const originalPathname = ${JSON.stringify(page)}
     export const __next_app__ = {
       require: __webpack_require__,
@@ -681,6 +701,15 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     }
 
     export * from 'next/dist/server/app-render/entry-base'
+
+    // Create and export the route module that will be consumed.
+    const options = ${JSON.stringify(options)}
+    export const routeModule = new RouteModule({
+      ...options,
+      userland: {
+        loaderTree: tree,
+      },
+    })
   `
 
   return result

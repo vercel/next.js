@@ -5,7 +5,6 @@ import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
 import type { Params } from '../shared/lib/router/utils/route-matcher'
 import type { PayloadOptions } from './send-payload'
 import type { LoadComponentsReturnType } from './load-components'
-import type { Route, RouterOptions } from './router'
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
 import type { UrlWithParsedQuery } from 'url'
 
@@ -61,7 +60,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     requestHeaders: IncrementalCache['requestHeaders']
   }) {
     const dev = !!this.renderOpts.dev
-    // incremental-cache is request specific with a shared
+    // incremental-cache is request specific
     // although can have shared caches in module scope
     // per-cache handler
     return new IncrementalCache({
@@ -165,196 +164,150 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     }
     return prerenderManifest
   }
-  protected getServerComponentManifest() {
-    return this.serverOptions.webServerConfig.extendRenderOpts
-      .clientReferenceManifest
-  }
 
   protected getNextFontManifest() {
     return this.serverOptions.webServerConfig.extendRenderOpts.nextFontManifest
   }
 
-  protected generateRoutes(): RouterOptions {
-    const fsRoutes: Route[] = [
-      {
-        match: getPathMatch('/_next/data/:path*'),
-        type: 'route',
-        name: '_next/data catchall',
-        check: true,
-        fn: async (req, res, params, _parsedUrl) => {
-          // Make sure to 404 for /_next/data/ itself and
-          // we also want to 404 if the buildId isn't correct
-          if (!params.path || params.path[0] !== this.buildId) {
-            await this.render404(req, res, _parsedUrl)
-            return {
-              finished: true,
-            }
-          }
-          // remove buildId from URL
-          params.path.shift()
+  protected async normalizeNextData(
+    req: BaseNextRequest,
+    res: BaseNextResponse,
+    parsedUrl: NextUrlWithParsedQuery
+  ): Promise<{ finished: boolean }> {
+    const middleware = this.getMiddleware()
+    const params = getPathMatch('/_next/data/:path*')(parsedUrl.pathname)
 
-          const lastParam = params.path[params.path.length - 1]
+    // Make sure to 404 for /_next/data/ itself and
+    // we also want to 404 if the buildId isn't correct
+    if (!params || !params.path || params.path[0] !== this.buildId) {
+      await this.render404(req, res, parsedUrl)
+      return {
+        finished: true,
+      }
+    }
+    // remove buildId from URL
+    params.path.shift()
 
-          // show 404 if it doesn't end with .json
-          if (typeof lastParam !== 'string' || !lastParam.endsWith('.json')) {
-            await this.render404(req, res, _parsedUrl)
-            return {
-              finished: true,
-            }
-          }
+    const lastParam = params.path[params.path.length - 1]
 
-          // re-create page's pathname
-          let pathname = `/${params.path.join('/')}`
-          pathname = getRouteFromAssetPath(pathname, '.json')
-
-          // ensure trailing slash is normalized per config
-          if (this.router.hasMiddleware) {
-            if (this.nextConfig.trailingSlash && !pathname.endsWith('/')) {
-              pathname += '/'
-            }
-            if (
-              !this.nextConfig.trailingSlash &&
-              pathname.length > 1 &&
-              pathname.endsWith('/')
-            ) {
-              pathname = pathname.substring(0, pathname.length - 1)
-            }
-          }
-
-          if (this.nextConfig.i18n) {
-            const { host } = req?.headers || {}
-            // remove port from host and remove port if present
-            const hostname = host?.split(':')[0].toLowerCase()
-            const localePathResult = normalizeLocalePath(
-              pathname,
-              this.nextConfig.i18n.locales
-            )
-            const domainLocale = this.i18nProvider?.detectDomainLocale(hostname)
-
-            let detectedLocale = ''
-
-            if (localePathResult.detectedLocale) {
-              pathname = localePathResult.pathname
-              detectedLocale = localePathResult.detectedLocale
-            }
-
-            _parsedUrl.query.__nextLocale = detectedLocale
-            _parsedUrl.query.__nextDefaultLocale =
-              domainLocale?.defaultLocale || this.nextConfig.i18n.defaultLocale
-
-            if (!detectedLocale && !this.router.hasMiddleware) {
-              _parsedUrl.query.__nextLocale =
-                _parsedUrl.query.__nextDefaultLocale
-              await this.render404(req, res, _parsedUrl)
-              return { finished: true }
-            }
-          }
-
-          return {
-            pathname,
-            query: { ..._parsedUrl.query, __nextDataReq: '1' },
-            finished: false,
-          }
-        },
-      },
-      {
-        match: getPathMatch('/_next/:path*'),
-        type: 'route',
-        name: '_next catchall',
-        // This path is needed because `render()` does a check for `/_next` and the calls the routing again
-        fn: async (req, res, _params, parsedUrl) => {
-          await this.render404(req, res, parsedUrl)
-          return {
-            finished: true,
-          }
-        },
-      },
-    ]
-
-    const catchAllRoute: Route = {
-      match: getPathMatch('/:path*'),
-      type: 'route',
-      matchesLocale: true,
-      name: 'Catchall render',
-      fn: async (req, res, _params, parsedUrl) => {
-        let { pathname, query } = parsedUrl
-        if (!pathname) {
-          throw new Error('pathname is undefined')
-        }
-
-        // interpolate query information into page for dynamic route
-        // so that rewritten paths are handled properly
-        const normalizedPage = this.serverOptions.webServerConfig.normalizedPage
-
-        if (pathname !== normalizedPage) {
-          pathname = normalizedPage
-
-          if (isDynamicRoute(pathname)) {
-            const routeRegex = getNamedRouteRegex(pathname, false)
-            pathname = interpolateDynamicPath(pathname, query, routeRegex)
-            normalizeVercelUrl(
-              req,
-              true,
-              Object.keys(routeRegex.routeKeys),
-              true,
-              routeRegex
-            )
-          }
-        }
-
-        // next.js core assumes page path without trailing slash
-        pathname = removeTrailingSlash(pathname)
-
-        if (this.i18nProvider) {
-          const { detectedLocale } = await this.i18nProvider.analyze(pathname)
-          if (detectedLocale) {
-            parsedUrl.query.__nextLocale = detectedLocale
-          }
-        }
-
-        const bubbleNoFallback = !!query._nextBubbleNoFallback
-
-        if (isAPIRoute(pathname)) {
-          delete query._nextBubbleNoFallback
-        }
-
-        try {
-          await this.render(req, res, pathname, query, parsedUrl, true)
-
-          return {
-            finished: true,
-          }
-        } catch (err) {
-          if (err instanceof NoFallbackError && bubbleNoFallback) {
-            return {
-              finished: false,
-            }
-          }
-          throw err
-        }
-      },
+    // show 404 if it doesn't end with .json
+    if (typeof lastParam !== 'string' || !lastParam.endsWith('.json')) {
+      await this.render404(req, res, parsedUrl)
+      return {
+        finished: true,
+      }
     }
 
-    const { useFileSystemPublicRoutes } = this.nextConfig
+    // re-create page's pathname
+    let pathname = `/${params.path.join('/')}`
+    pathname = getRouteFromAssetPath(pathname, '.json')
 
-    if (useFileSystemPublicRoutes) {
-      this.appPathRoutes = this.getAppPathRoutes()
+    // ensure trailing slash is normalized per config
+    if (middleware) {
+      if (this.nextConfig.trailingSlash && !pathname.endsWith('/')) {
+        pathname += '/'
+      }
+      if (
+        !this.nextConfig.trailingSlash &&
+        pathname.length > 1 &&
+        pathname.endsWith('/')
+      ) {
+        pathname = pathname.substring(0, pathname.length - 1)
+      }
     }
 
-    return {
-      headers: [],
-      fsRoutes,
-      rewrites: {
-        beforeFiles: [],
-        afterFiles: [],
-        fallback: [],
-      },
-      redirects: [],
-      catchAllRoute,
-      catchAllMiddleware: [],
-      useFileSystemPublicRoutes,
-      matchers: this.matchers,
-      nextConfig: this.nextConfig,
+    if (this.nextConfig.i18n) {
+      const { host } = req?.headers || {}
+      // remove port from host and remove port if present
+      const hostname = host?.split(':')[0].toLowerCase()
+      const localePathResult = normalizeLocalePath(
+        pathname,
+        this.nextConfig.i18n.locales
+      )
+      const domainLocale = this.i18nProvider?.detectDomainLocale(hostname)
+
+      let detectedLocale = ''
+
+      if (localePathResult.detectedLocale) {
+        pathname = localePathResult.pathname
+        detectedLocale = localePathResult.detectedLocale
+      }
+
+      parsedUrl.query.__nextLocale = detectedLocale
+      parsedUrl.query.__nextDefaultLocale =
+        domainLocale?.defaultLocale || this.nextConfig.i18n.defaultLocale
+
+      if (!detectedLocale && !middleware) {
+        parsedUrl.query.__nextLocale = parsedUrl.query.__nextDefaultLocale
+        await this.render404(req, res, parsedUrl)
+        return { finished: true }
+      }
+    }
+    parsedUrl.pathname = pathname
+    parsedUrl.query.__nextDataReq = '1'
+
+    return { finished: false }
+  }
+
+  protected async handleCatchallRenderRequest(
+    req: BaseNextRequest,
+    res: BaseNextResponse,
+    parsedUrl: NextUrlWithParsedQuery
+  ): Promise<{ finished: boolean }> {
+    let { pathname, query } = parsedUrl
+    if (!pathname) {
+      throw new Error('pathname is undefined')
+    }
+
+    // interpolate query information into page for dynamic route
+    // so that rewritten paths are handled properly
+    const normalizedPage = this.serverOptions.webServerConfig.normalizedPage
+
+    if (pathname !== normalizedPage) {
+      pathname = normalizedPage
+
+      if (isDynamicRoute(pathname)) {
+        const routeRegex = getNamedRouteRegex(pathname, false)
+        pathname = interpolateDynamicPath(pathname, query, routeRegex)
+        normalizeVercelUrl(
+          req,
+          true,
+          Object.keys(routeRegex.routeKeys),
+          true,
+          routeRegex
+        )
+      }
+    }
+
+    // next.js core assumes page path without trailing slash
+    pathname = removeTrailingSlash(pathname)
+
+    if (this.i18nProvider) {
+      const { detectedLocale } = await this.i18nProvider.analyze(pathname)
+      if (detectedLocale) {
+        parsedUrl.query.__nextLocale = detectedLocale
+      }
+    }
+
+    const bubbleNoFallback = !!query._nextBubbleNoFallback
+
+    if (isAPIRoute(pathname)) {
+      delete query._nextBubbleNoFallback
+    }
+
+    try {
+      await this.render(req, res, pathname, query, parsedUrl, true)
+
+      return {
+        finished: true,
+      }
+    } catch (err) {
+      if (err instanceof NoFallbackError && bubbleNoFallback) {
+        return {
+          finished: false,
+        }
+      }
+      throw err
     }
   }
 
@@ -421,14 +374,27 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
 
     if (options.result.isDynamic) {
       const writer = res.transformStream.writable.getWriter()
-      options.result.pipe({
+
+      let innerClose: undefined | (() => void)
+      const target = {
         write: (chunk: Uint8Array) => writer.write(chunk),
         end: () => writer.close(),
-        destroy: (err: Error) => writer.abort(err),
-        cork: () => {},
-        uncork: () => {},
-        // Not implemented: on/removeListener
-      } as any)
+
+        on(_event: 'close', cb: () => void) {
+          innerClose = cb
+        },
+        off(_event: 'close', _cb: () => void) {
+          innerClose = undefined
+        },
+      }
+      const onClose = () => {
+        innerClose?.()
+      }
+      // No, this cannot be replaced with `finally`, because early cancelling
+      // the stream will create a rejected promise, and finally will create an
+      // unhandled rejection.
+      writer.closed.then(onClose, onClose)
+      options.result.pipe(target)
     } else {
       const payload = await options.result.toUnchunkedString()
       res.setHeader('Content-Length', String(byteLength(payload)))

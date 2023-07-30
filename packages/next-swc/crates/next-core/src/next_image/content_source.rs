@@ -1,24 +1,17 @@
 use anyhow::{bail, Result};
-use turbo_tasks::{primitives::StringVc, Value};
+use turbo_tasks::{Value, Vc};
 use turbo_tasks_fs::FileSystem;
 use turbopack_binding::turbopack::{
     core::{
-        asset::AssetContent,
-        ident::AssetIdentVc,
-        introspect::{Introspectable, IntrospectableVc},
-        server_fs::ServerFileSystemVc,
-        version::VersionedContent,
+        asset::AssetContent, ident::AssetIdent, introspect::Introspectable,
+        server_fs::ServerFileSystem, version::VersionedContent,
     },
     dev_server::source::{
         query::QueryValue,
-        route_tree::{RouteTreeVc, RouteType},
-        wrapping_source::{
-            ContentSourceProcessor, ContentSourceProcessorVc, WrappedGetContentSourceContentVc,
-        },
-        ContentSource, ContentSourceContent, ContentSourceContentVc, ContentSourceData,
-        ContentSourceDataFilter, ContentSourceDataVary, ContentSourceDataVaryVc, ContentSourceVc,
-        GetContentSourceContent, GetContentSourceContentVc, GetContentSourceContentsVc,
-        ProxyResult, RewriteBuilder,
+        route_tree::{RouteTree, RouteType},
+        wrapping_source::{ContentSourceProcessor, WrappedGetContentSourceContent},
+        ContentSource, ContentSourceContent, ContentSourceData, ContentSourceDataFilter,
+        ContentSourceDataVary, GetContentSourceContent, ProxyResult, RewriteBuilder,
     },
     image::process::optimize,
 };
@@ -27,13 +20,13 @@ use turbopack_binding::turbopack::{
 /// next/image.
 #[turbo_tasks::value(shared)]
 pub struct NextImageContentSource {
-    asset_source: ContentSourceVc,
+    asset_source: Vc<Box<dyn ContentSource>>,
 }
 
 #[turbo_tasks::value_impl]
-impl NextImageContentSourceVc {
+impl NextImageContentSource {
     #[turbo_tasks::function]
-    pub fn new(asset_source: ContentSourceVc) -> NextImageContentSourceVc {
+    pub fn new(asset_source: Vc<Box<dyn ContentSource>>) -> Vc<NextImageContentSource> {
         NextImageContentSource { asset_source }.cell()
     }
 }
@@ -41,15 +34,15 @@ impl NextImageContentSourceVc {
 #[turbo_tasks::value_impl]
 impl ContentSource for NextImageContentSource {
     #[turbo_tasks::function]
-    fn get_routes(self_vc: NextImageContentSourceVc) -> RouteTreeVc {
-        RouteTreeVc::new_route(Vec::new(), RouteType::Exact, self_vc.into())
+    fn get_routes(self: Vc<Self>) -> Vc<RouteTree> {
+        RouteTree::new_route(Vec::new(), RouteType::Exact, Vc::upcast(self))
     }
 }
 
 #[turbo_tasks::value_impl]
 impl GetContentSourceContent for NextImageContentSource {
     #[turbo_tasks::function]
-    async fn vary(&self) -> ContentSourceDataVaryVc {
+    async fn vary(&self) -> Vc<ContentSourceDataVary> {
         ContentSourceDataVary {
             query: Some(ContentSourceDataFilter::Subset(
                 ["url".to_string(), "w".to_string(), "q".to_string()].into(),
@@ -61,11 +54,11 @@ impl GetContentSourceContent for NextImageContentSource {
 
     #[turbo_tasks::function]
     async fn get(
-        self_vc: NextImageContentSourceVc,
-        _path: &str,
+        self: Vc<Self>,
+        _path: String,
         data: Value<ContentSourceData>,
-    ) -> Result<ContentSourceContentVc> {
-        let this = self_vc.await?;
+    ) -> Result<Vc<ContentSourceContent>> {
+        let this = self.await?;
 
         let Some(query) = &data.query else {
             bail!("missing query");
@@ -99,18 +92,17 @@ impl GetContentSourceContent for NextImageContentSource {
         // TODO: re-encode into next-gen formats.
 
         if let Some(path) = url.strip_prefix('/') {
-            let sources = this.asset_source.get_routes().get(path).await?;
+            let sources = this.asset_source.get_routes().get(path.to_string()).await?;
             let sources = sources
                 .iter()
                 .map(|s| {
-                    WrappedGetContentSourceContentVc::new(
+                    Vc::upcast(WrappedGetContentSourceContent::new(
                         *s,
-                        NextImageContentSourceProcessorVc::new(path.to_string(), w, q).into(),
-                    )
-                    .into()
+                        Vc::upcast(NextImageContentSourceProcessor::new(path.to_string(), w, q)),
+                    ))
                 })
                 .collect();
-            let sources = GetContentSourceContentsVc::cell(sources);
+            let sources = Vc::cell(sources);
             return Ok(
                 ContentSourceContent::Rewrite(RewriteBuilder::new_sources(sources).build()).cell(),
             );
@@ -132,13 +124,13 @@ impl GetContentSourceContent for NextImageContentSource {
 #[turbo_tasks::value_impl]
 impl Introspectable for NextImageContentSource {
     #[turbo_tasks::function]
-    fn ty(&self) -> StringVc {
-        StringVc::cell("next image content source".to_string())
+    fn ty(&self) -> Vc<String> {
+        Vc::cell("next image content source".to_string())
     }
 
     #[turbo_tasks::function]
-    fn details(&self) -> StringVc {
-        StringVc::cell("supports dynamic serving of any statically imported image".to_string())
+    fn details(&self) -> Vc<String> {
+        Vc::cell("supports dynamic serving of any statically imported image".to_string())
     }
 }
 
@@ -150,9 +142,9 @@ struct NextImageContentSourceProcessor {
 }
 
 #[turbo_tasks::value_impl]
-impl NextImageContentSourceProcessorVc {
+impl NextImageContentSourceProcessor {
     #[turbo_tasks::function]
-    pub fn new(path: String, width: u32, quality: u8) -> NextImageContentSourceProcessorVc {
+    pub fn new(path: String, width: u32, quality: u8) -> Vc<NextImageContentSourceProcessor> {
         NextImageContentSourceProcessor {
             path,
             width,
@@ -165,7 +157,7 @@ impl NextImageContentSourceProcessorVc {
 #[turbo_tasks::value_impl]
 impl ContentSourceProcessor for NextImageContentSourceProcessor {
     #[turbo_tasks::function]
-    async fn process(&self, content: ContentSourceContentVc) -> Result<ContentSourceContentVc> {
+    async fn process(&self, content: Vc<ContentSourceContent>) -> Result<Vc<ContentSourceContent>> {
         let ContentSourceContent::Static(static_content) = *content.await? else {
             return Ok(content);
         };
@@ -175,13 +167,13 @@ impl ContentSourceProcessor for NextImageContentSourceProcessor {
             return Ok(content);
         };
         let optimized_file_content = optimize(
-            AssetIdentVc::from_path(ServerFileSystemVc::new().root().join(&self.path)),
+            AssetIdent::from_path(ServerFileSystem::new().root().join(self.path.clone())),
             file_content,
             self.width,
             u32::MAX,
             self.quality,
         );
-        Ok(ContentSourceContentVc::static_content(
+        Ok(ContentSourceContent::static_content(
             AssetContent::File(optimized_file_content).into(),
         ))
     }

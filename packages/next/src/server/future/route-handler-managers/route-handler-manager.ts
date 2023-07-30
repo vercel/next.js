@@ -24,7 +24,8 @@ export class RouteHandlerManager {
   public async handle(
     match: AppRouteRouteMatch,
     req: BaseNextRequest,
-    context: RouteHandlerManagerContext
+    context: RouteHandlerManagerContext,
+    signal: AbortSignal
   ): Promise<Response> {
     // The module supports minimal mode, load the minimal module.
     const module = await RouteModuleLoader.load<RouteModule>(
@@ -33,7 +34,7 @@ export class RouteHandlerManager {
     )
 
     // Convert the BaseNextRequest to a NextRequest.
-    const request = NextRequestAdapter.fromBaseNextRequest(req)
+    const request = NextRequestAdapter.fromBaseNextRequest(req, signal)
 
     // Get the response from the handler and send it back.
     return await module.handle(request, context)
