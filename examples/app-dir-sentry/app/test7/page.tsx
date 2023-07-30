@@ -1,8 +1,6 @@
 import * as Sentry from '@sentry/nextjs'
 
-const Test4 = () => <h1>SSR Test 4</h1>
-
-export async function getServerSideProps() {
+const getData = async () => {
   try {
     throw new Error('SSR Test 4')
   } catch (error) {
@@ -12,8 +10,14 @@ export async function getServerSideProps() {
     // https://vercel.com/docs/platform/limits#streaming-responses
     await Sentry.flush(2000)
   }
-
-  return { props: {} }
+  return { data: 'ok' }
 }
 
-export default Test4
+export default async function Test7() {
+  const data = await getData()
+  return (
+    <div>
+      <h1>Async data fetching and Sentry.captureException</h1>
+    </div>
+  )
+}
