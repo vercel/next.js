@@ -12,14 +12,14 @@
     "react": "18.2.0",
     "react-dom": "18.2.0"
   },
+  "devDependencies": {
+    "@types/node": "^20.4.5",
+    "@types/react": "^18.2.17",
+    "@types/react-dom": "^18.2.7",
+    "typescript": "^5.1.6"
+  },
   "browser": {
     "fs": false,
     "path": false
-  },
-  "devDependencies": {
-    "@types/node": "18.0.3",
-    "@types/react": "18.0.15",
-    "@types/react-dom": "18.0.6",
-    "typescript": "^5.1.6"
   }
 }
