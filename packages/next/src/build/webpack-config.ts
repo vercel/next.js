@@ -68,6 +68,7 @@ import { SubresourceIntegrityPlugin } from './webpack/plugins/subresource-integr
 import { NextFontManifestPlugin } from './webpack/plugins/next-font-manifest-plugin'
 import { getSupportedBrowsers } from './utils'
 import { MemoryWithGcCachePlugin } from './webpack/plugins/memory-with-gc-cache-plugin'
+import { parallelAcornPlugin } from './webpack/plugins/parallel-acorn/parallel-acorn-plugin'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 type ClientEntries = {
@@ -2398,6 +2399,7 @@ export default async function getBaseWebpackConfig(
     },
     plugins: [
       dev && new MemoryWithGcCachePlugin({ maxGenerations: 5 }),
+      parallelAcornPlugin,
       dev && isClient && new ReactRefreshWebpackPlugin(webpack),
       // Makes sure `Buffer` and `process` are polyfilled in client and flight bundles (same behavior as webpack 4)
       (isClient || isEdgeServer) &&
