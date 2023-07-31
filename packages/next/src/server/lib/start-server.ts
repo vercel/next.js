@@ -12,7 +12,7 @@ import * as Log from '../../build/output/log'
 import setupDebug from 'next/dist/compiled/debug'
 import { splitCookiesString, toNodeOutgoingHttpHeaders } from '../web/utils'
 import { getCloneableBody } from '../body-streams'
-import { filterReqHeaders } from './server-ipc/utils'
+import { filterReqHeaders, ipcForbiddenHeaders } from './server-ipc/utils'
 import setupCompression from 'next/dist/compiled/compression'
 import { normalizeRepeatedSlashes } from '../../shared/lib/utils'
 import { invokeRequest } from './server-ipc/invoke-request'
@@ -86,6 +86,7 @@ export const createRouterWorker = async (
           ? { __NEXT_PRIVATE_CPU_PROFILE: `CPU.router` }
           : {}),
         WATCHPACK_WATCHER_LIMIT: '20',
+        EXPERIMENTAL_TURBOPACK: process.env.EXPERIMENTAL_TURBOPACK,
       },
     },
     exposedMethods: ['initialize'],
@@ -417,7 +418,10 @@ export async function startServer({
         res.statusMessage = invokeRes.statusText
 
         for (const [key, value] of Object.entries(
-          filterReqHeaders(toNodeOutgoingHttpHeaders(invokeRes.headers))
+          filterReqHeaders(
+            toNodeOutgoingHttpHeaders(invokeRes.headers),
+            ipcForbiddenHeaders
+          )
         )) {
           if (value !== undefined) {
             if (key === 'set-cookie') {
