@@ -109,8 +109,6 @@ const { signal } = new AbortController()
 fetch(url, { signal })
 ```
 
-Since you manually opt into using the React `cache` function, there's no way to opt out.
-
 ## Data Cache
 
 Next.js has a built-in Data Cache that **persists** the result of data fetches across incoming **server requests** and **deployments**. This is possible because Next.js extends the native `fetch` API to allow each request on the server to set its own persistent caching semantics.
@@ -131,6 +129,8 @@ The first time a `fetch` request is called during rendering, Next.js checks the 
 
 For uncached data (e.g. `{ cache: no store }`), the result is always fetched from the data source, and memoized.
 
+Whether the data is cached or uncached, the requests are always memoized to avoid making duplicate requests for the same data during a React render pass.
+
 > **Differences between the Data Cache and Request Memoization**
 >
 > While both caching mechanisms help improve performance by re-using cached data, the Data Cache is persistent across incoming requests and deployments, whereas memoization only lasts the lifetime of a request.
@@ -145,8 +145,8 @@ The Data Cache is persistent across incoming requests and deployments unless you
 
 Cached data can be revalidated in two ways, with:
 
-- **Time-based Revalidation**: Automatically revalidate data after a certain amount of time has passed. This is useful for data that changes infrequently and freshness is not as critical.
-- **On-demand Revalidation:** Manually revalidate data based on an event (e.g. form submission). On-demand revalidation can use a tag-based or path-based approach to revalidate groups of data at once. This is useful when you want to ensure the latest data is shown as soon as possible (e.g. when content from your headless CMS is updated).
+- **Time-based Revalidation**: Revalidate data after a certain amount of time has passed and a new request is made. This is useful for data that changes infrequently and freshness is not as critical.
+- **On-demand Revalidation:** Revalidate data based on an event (e.g. form submission). On-demand revalidation can use a tag-based or path-based approach to revalidate groups of data at once. This is useful when you want to ensure the latest data is shown as soon as possible (e.g. when content from your headless CMS is updated).
 
 #### Time-based Revalidation
 

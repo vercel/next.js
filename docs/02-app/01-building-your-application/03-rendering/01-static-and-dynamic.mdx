@@ -37,8 +37,8 @@ From the table above, for a route to be fully static, all data must be cached. H
 
 Dynamic functions rely on information that can only be known at request time such as a user's cookies, current requests headers, or the URL's search params. In Next.js, these dynamic functions are:
 
-- Using [`cookies()`](/docs/app/api-reference/functions/cookies) or [`headers()`](/docs/app/api-reference/functions/headers) in a Server Component will opt the whole route into dynamic rendering at request time.
-- Using [`useSearchParams()`](/docs/app/api-reference/functions/use-search-params) in Client Components.
-  - This will skip static rendering and instead render all Client Components up to the nearest parent Suspense boundary on the client.
+- **[`cookies()`](/docs/app/api-reference/functions/cookies) and [`headers()`](/docs/app/api-reference/functions/headers)**: Using these in a Server Component will opt the whole route into dynamic rendering at request time.
+- **[`useSearchParams()`](/docs/app/api-reference/functions/use-search-params)**:
+  - In Client Components, it'll skip static rendering and instead render all Client Components up to the nearest parent Suspense boundary on the client.
   - We recommend wrapping the Client Component that uses `useSearchParams()` in a `<Suspense/>` boundary. This will allow any Client Components above it to be statically rendered. [Example](/docs/app/api-reference/functions/use-search-params#static-rendering).
-- Using the [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) [Pages](/docs/app/api-reference/file-conventions/page) prop will opt the page into dynamic rendering at request time.
+- **[`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional)**: Using the [Pages](/docs/app/api-reference/file-conventions/page) prop will opt the page into dynamic rendering at request time.
