@@ -79,8 +79,6 @@ export interface ServerActionAction {
   reject: (reason?: any) => void
   cache: CacheNode
   mutable: ServerActionMutable
-  // navigate: RouterNavigate
-  // changeByServerResponse: RouterChangeByServerResponse
 }
 
 /**

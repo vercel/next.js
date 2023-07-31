@@ -150,8 +150,6 @@ export function serverActionReducer(
   }
 
   if (!action.mutable.inFlightServerAction) {
-    // action.mutable.previousTree = state.tree
-    // action.mutable.previousUrl = state.canonicalUrl
     action.mutable.inFlightServerAction = createRecordFromThenable(
       fetchServerAction(state, action)
     )
@@ -162,7 +160,7 @@ export function serverActionReducer(
     actionResult,
     actionFlightData: flightData,
     redirectLocation,
-    revalidatedParts,
+    // revalidatedParts,
   } = readRecordValue(
     action.mutable.inFlightServerAction!
   ) as Awaited<FetchServerActionResult>
