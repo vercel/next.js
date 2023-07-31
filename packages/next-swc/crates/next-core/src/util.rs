@@ -3,6 +3,7 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use swc_core::ecma::ast::Program;
 use turbo_tasks::{trace::TraceRawVcs, TaskInput, Value, ValueDefault, ValueToString, Vc};
+use turbo_tasks_fs::rope::Rope;
 use turbopack_binding::{
     turbo::tasks_fs::{json::parse_json_rope_with_source_context, FileContent, FileSystemPath},
     turbopack::{
@@ -13,7 +14,10 @@ use turbopack_binding::{
             issue::{Issue, IssueExt, IssueSeverity, OptionIssueSource},
             module::Module,
             reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
-            resolve::{self, handle_resolve_error, node::node_cjs_resolve_options, parse::Request},
+            resolve::{
+                self, handle_resolve_error, node::node_cjs_resolve_options, parse::Request,
+                ModuleResolveResult,
+            },
         },
         ecmascript::{
             analyzer::{JsValue, ObjectPart},
@@ -329,10 +333,26 @@ fn parse_config_from_js_value(module: Vc<Box<dyn Module>>, value: &JsValue) -> N
     config
 }
 
-pub async fn load_next_json<T: DeserializeOwned>(
+pub async fn load_next_js(context: Vc<FileSystemPath>, path: &str) -> Result<Vc<Rope>> {
+    let resolve_result = resolve_next_module(context, path).await?;
+
+    let Some(js_asset) = *resolve_result.first_module().await? else {
+        bail!("Expected to find module");
+    };
+
+    let content = &*js_asset.content().file_content().await?;
+
+    let FileContent::Content(file) = content else {
+        bail!("Expected file content for file");
+    };
+
+    Ok(file.content().to_owned().cell())
+}
+
+pub async fn resolve_next_module(
     context: Vc<FileSystemPath>,
     path: &str,
-) -> Result<T> {
+) -> Result<Vc<ModuleResolveResult>> {
     let request = Request::module(
         "next".to_owned(),
         Value::new(path.to_string().into()),
@@ -352,6 +372,16 @@ pub async fn load_next_json<T: DeserializeOwned>(
         IssueSeverity::Error.cell(),
     )
     .await?;
+
+    Ok(resolve_result)
+}
+
+pub async fn load_next_json<T: DeserializeOwned>(
+    context: Vc<FileSystemPath>,
+    path: &str,
+) -> Result<T> {
+    let resolve_result = resolve_next_module(context, path).await?;
+
     let Some(metrics_asset) = *resolve_result.first_module().await? else {
         bail!("Expected to find module");
     };
