@@ -76,7 +76,7 @@ export function Navigation({ navLinks }) {
   return (
     <>
       {navLinks.map((link) => {
-        const isActive = pathname.startsWith(link.href)
+        const isActive = pathname === link.href
 
         return (
           <Link

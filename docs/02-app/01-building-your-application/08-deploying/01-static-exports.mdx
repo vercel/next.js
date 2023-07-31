@@ -338,17 +338,17 @@ server {
   listen 80;
   server_name acme.com;
 
-  root /var/www;
+  root /var/www/out;
 
   location / {
-      try_files /out/index.html =404;
+      try_files $uri $uri.html $uri/ =404;
   }
 
   location /blog/ {
-      rewrite ^/blog/(.*)$ /out/blog/$1.html break;
+      rewrite ^/blog/(.*)$ /blog/$1.html break;
   }
 
-  error_page 404 /out/404.html;
+  error_page 404 /404.html;
   location = /404.html {
       internal;
   }
