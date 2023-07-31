@@ -207,9 +207,9 @@ async function createRedirectRenderResult(
     }
 
     // Ensures that when the path was revalidated we don't return a partial response on redirects
-    if (staticGenerationStore.pathWasRevalidated) {
-      forwardedHeaders.delete('next-router-state-tree')
-    }
+    // if (staticGenerationStore.pathWasRevalidated) {
+    forwardedHeaders.delete('next-router-state-tree')
+    // }
 
     try {
       const headResponse = await fetchIPv4v6(fetchUrl, {
