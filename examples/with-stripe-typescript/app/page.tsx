@@ -27,12 +27,6 @@ export default function IndexPage(): JSX.Element {
           <img src="/elements-card-payment.svg" />
         </Link>
       </li>
-      <li>
-        <Link href="/use-shopping-cart" className="card cart-style-background">
-          <h2 className="bottom">Use Shopping Cart</h2>
-          <img src="/use-shopping-cart.png" />
-        </Link>
-      </li>
     </ul>
   )
 }
