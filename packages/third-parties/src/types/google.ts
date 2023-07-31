@@ -6,6 +6,7 @@ export type GoogleMapsEmbed = {
   parameters: string
   style: string
   allowfullscreen: boolean
+  loading: string
 }
 
 export type YoutubeEmbed = {
