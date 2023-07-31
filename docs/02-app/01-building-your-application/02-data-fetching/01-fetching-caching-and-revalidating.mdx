@@ -79,7 +79,7 @@ By default, Next.js automatically caches the returned values of `fetch` in the [
 fetch('https://...', { cache: 'force-cache' })
 ```
 
-`fetch` requests that use the `POST` method are also automatically cached in the Data Cache – unless it's used in `POST` [Route Handler](/docs/app/building-your-application/routing/route-handlers) or comes after `headers`/`cookies`.
+`fetch` requests that use the `POST` method are also automatically cached. Unless it's inside a [Route Handler](/docs/app/building-your-application/routing/route-handlers) that uses the `POST` method, then it will not be cached.
 
 > **What is the Data Cache?**
 >
@@ -175,6 +175,16 @@ If an error is thrown while attempting to revalidate data, the last successfully
 
 ### Opting out of Data Caching
 
+`fetch` requests are **not** cached if:
+
+- The `cache: 'no-store` is added to `fetch` requests.
+- The `revalidate: 0` option is added to individual `fetch` requests.
+- The `fetch` request is inside a Router Handler that uses the `POST` method.
+- The `fetch` request comes after the usage of `headers` or `cookies`.
+- The `const dynamic = 'force-dynamic'` route segment option is used.
+- The `fetchCache` route segment option is configured to skip cache by default.
+- The `fetch` request uses `Authorization` or `Cookie` headers and there's an uncached request above it in the component tree.
+
 #### Individiual `fetch` Requests
 
 To opt individual `fetch` requests out of caching, you can set the `cache` option in `fetch` to `'no-store'`. This will fetch data dynamically, on every request.
@@ -184,13 +194,6 @@ fetch('https://...', { cache: 'no-store' })
 ```
 
 View all the available `cache` options in the [`fetch` API reference](/docs/app/api-reference/functions/fetch).
-
-> Requests are also **not** cached if:
->
-> - The `fetch` request uses the `POST` method, the `Authorization` header, or `cookie` headers.
-> - The `fetch` request is inside a Router Handler that uses the `POST` method.
-> - `revalidate: 0` is configured on individual `fetch` requests
-> - The `fetchCache` route segment option is configured to skip cache by default.
 
 #### Multiple `fetch` Requests
 
