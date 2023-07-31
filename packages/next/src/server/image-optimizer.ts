@@ -50,7 +50,7 @@ try {
   sharp = require(process.env.NEXT_SHARP_PATH || 'sharp')
   if (sharp) {
     // During development, there's no need to create a large thread pool to
-    // process images. This helpes to reduce the memory usage of the dev server.
+    // process images. This helps to reduce the memory usage of the dev server.
     // For production, we set a larger number here.
     // https://sharp.pixelplumbing.com/api-utility#concurrency
     sharp.concurrency(
