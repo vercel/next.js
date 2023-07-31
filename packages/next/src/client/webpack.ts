@@ -1,4 +1,3 @@
-
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 declare const __webpack_require__: any
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
