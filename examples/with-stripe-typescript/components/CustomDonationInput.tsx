@@ -8,6 +8,7 @@ type Props = {
   currency: string
   step: number
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void
+  value: number
   className?: string
 }
 
@@ -18,6 +19,7 @@ const CustomDonationInput = ({
   currency,
   step,
   onChange,
+  value,
   className
 }: Props) => (
   <label>
@@ -30,6 +32,7 @@ const CustomDonationInput = ({
       max={max}
       step={step}
       onChange={onChange}
+      value={value}
     ></input>
   </label>
 )

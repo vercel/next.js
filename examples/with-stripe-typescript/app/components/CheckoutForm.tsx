@@ -31,6 +31,7 @@ const CheckoutForm = () => {
         step={config.AMOUNT_STEP}
         currency={config.CURRENCY}
         onChange={handleInputChange}
+        value={input.customDonation}
       />
       <StripeTestCards />
       <button
