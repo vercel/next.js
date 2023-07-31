@@ -170,6 +170,16 @@ export function serverActionReducer(
       resolve(actionResult)
       mutable.actionResultResolved = true
     }
+
+    // If there is a redirect but no flight data we need to do a mpaNavigation.
+    if (redirectLocation) {
+      return handleExternalUrl(
+        state,
+        mutable,
+        redirectLocation.href,
+        state.pushRef.pendingPush
+      )
+    }
     return state
   }
 
