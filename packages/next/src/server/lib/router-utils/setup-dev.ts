@@ -133,7 +133,9 @@ async function startWatcher(opts: SetupOpts) {
 
   async function propagateToWorkers(field: string, args: any) {
     await renderWorkers.app?.propagateServerField(field, args)
-    await renderWorkers.pages?.propagateServerField(field, args)
+    try {
+      await renderWorkers.pages?.propagateServerField(field, args)
+    } catch {}
   }
 
   let hotReloader: InstanceType<typeof HotReloader>
