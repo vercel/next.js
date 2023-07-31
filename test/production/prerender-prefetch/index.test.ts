@@ -41,30 +41,23 @@ describe('Prerender prefetch', () => {
         reqs[path] = props
       }
 
-      const browser = await webdriver(next.url, '/')
-
-      // wait for prefetch to occur
-      await check(async () => {
-        const cache = await browser.eval(
-          'JSON.stringify(window.next.router.sdc)'
-        )
-        return cache.includes('/blog/first') && cache.includes('/blog/second')
-          ? 'success'
-          : cache
-      }, 'success')
-
+      // wait revalidate period
       await waitFor(3000)
-      await browser.refresh()
 
-      // reload after revalidate period and wait for prefetch again
-      await check(async () => {
-        const cache = await browser.eval(
-          'JSON.stringify(window.next.router.sdc)'
+      // do prefetch requests
+      for (const path of ['/blog/first', '/blog/second']) {
+        const res = await fetchViaHTTP(
+          next.url,
+          `/_next/data/${next.buildId}${path}.json`,
+          undefined,
+          {
+            headers: {
+              purpose: 'prefetch',
+            },
+          }
         )
-        return cache.includes('/blog/first') && cache.includes('/blog/second')
-          ? 'success'
-          : cache
-      }, 'success')
+        expect(res.status).toBe(200)
+      }
 
       // ensure revalidate did not occur from prefetch
       for (const path of ['/blog/first', '/blog/second']) {

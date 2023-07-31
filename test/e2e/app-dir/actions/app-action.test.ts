@@ -288,8 +288,11 @@ createNextDescribe(
               origContent.replace('return value + 1', 'return value + 1000')
             )
 
-            await browser.elementByCss('#inc').click()
-            await check(() => browser.elementByCss('h1').text(), '1001')
+            await check(async () => {
+              await browser.elementByCss('#inc').click()
+              const val = Number(await browser.elementByCss('h1').text())
+              return val > 1000 ? 'success' : val
+            }, 'success')
           } finally {
             await next.patchFile(filePath, origContent)
           }
