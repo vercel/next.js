@@ -50,6 +50,7 @@ const testFilters = {
   unit: new RegExp(
     '^test/unit|packages/.*/src/.*/.*\\.test\\.(js|jsx|ts|tsx)$'
   ),
+  examples: 'examples/',
   integration: 'test/integration/',
   e2e: 'e2e/',
 }
@@ -74,6 +75,14 @@ const cleanUpAndExit = async (code) => {
   setTimeout(() => {
     process.exit(code)
   }, 1)
+}
+
+const isMatchingPattern = (pattern, test) => {
+  if (pattern instanceof RegExp) {
+    return pattern.test(test)
+  } else {
+    return test.startsWith(pattern)
+  }
 }
 
 async function getTestTimings() {
@@ -154,22 +163,18 @@ async function main() {
         ignore: '**/node_modules/**',
       })
     ).filter((test) => {
-      if (testPatternRegex) {
-        return testPatternRegex.test(test)
+      if (testPatternRegex && isMatchingPattern(testPatternRegex, test)) {
+        return true
       }
       if (filterTestsBy) {
         // only include the specified type
         if (filterTestsBy === 'none') {
           return true
-        } else if (filterTestsBy instanceof RegExp) {
-          return filterTestsBy.test(test)
-        } else {
-          return test.startsWith(filterTestsBy)
         }
-      } else {
-        // include all except the separately configured types
-        return !configuredTestTypes.some((type) => test.startsWith(type))
+        return isMatchingPattern(filterTestsBy, test)
       }
+      // include all except the separately configured types
+      return !configuredTestTypes.some((type) => isMatchingPattern(type, test))
     })
   }
 
