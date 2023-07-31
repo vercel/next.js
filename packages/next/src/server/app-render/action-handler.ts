@@ -206,6 +206,9 @@ async function createRedirectRenderResult(
       )
     }
 
+    // TODO-APP: Only do this when revalidatePath / revalidateTag was called.
+    forwardedHeaders.delete('next-router-state-tree')
+
     try {
       const headResponse = await fetchIPv4v6(fetchUrl, {
         method: 'HEAD',
