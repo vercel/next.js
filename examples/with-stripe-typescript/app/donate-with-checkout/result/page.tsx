@@ -20,12 +20,12 @@ export default async function ResultPage({
       expand: ['line_items', 'payment_intent']
     })
 
-  const payment_intent = checkoutSession.payment_intent as Stripe.PaymentIntent
+  const paymentIntent = checkoutSession.payment_intent as Stripe.PaymentIntent
 
   return (
     <>
-      <h2>Status: {payment_intent.status}</h2>
-      <h3>CheckoutSession response:</h3>
+      <h2>Status: {paymentIntent.status}</h2>
+      <h3>Checkout Session response:</h3>
       <PrintObject content={checkoutSession} />
     </>
   )

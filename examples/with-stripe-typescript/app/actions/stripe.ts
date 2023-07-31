@@ -34,7 +34,7 @@ export async function createCheckoutSession(data: FormData): Promise<void> {
       ],
       success_url: `${headers().get(
         'origin'
-      )}/result?session_id={CHECKOUT_SESSION_ID}`,
+      )}/donate-with-checkout/result?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${headers().get('origin')}/donate-with-checkout`
     })
 

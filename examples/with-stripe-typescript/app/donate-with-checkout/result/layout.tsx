@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Checkout Payment Result'
+  title: 'Checkout Session Result'
 }
 
 export default function ResultLayout({
@@ -11,7 +11,7 @@ export default function ResultLayout({
 }): JSX.Element {
   return (
     <div className="page-container">
-      <h1>Checkout Payment Result</h1>
+      <h1>Checkout Session Result</h1>
       {children}
     </div>
   )
