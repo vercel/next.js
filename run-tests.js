@@ -52,7 +52,7 @@ const testFilters = {
   ),
   examples: 'examples/',
   integration: 'test/integration/',
-  e2e: 'e2e/',
+  e2e: 'test/e2e/',
 }
 
 const mockTrace = () => ({
