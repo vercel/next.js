@@ -243,14 +243,14 @@ If you have multiple `fetch` requests in a route segment (e.g. a Layout or Page)
 
 For example, using `const dynamic = 'force-dynamic` will cause all data to be fetched at request time, and the segment to be rendered dynamically.
 
-```ts
+```js filename="layout.js / page.js"
 // Add
 export const dynamic = 'auto'
 ```
 
 There's an extensive list of Segment Config options, giving you fine-grained control of static and dynamic behavior of a route segment. See the [API reference](/docs/app/api-reference/file-conventions/route-segment-config) for more.
 
-## Fetching data with third-party libraries
+## Fetching data on the Server with third-party libraries
 
 In cases where you're using a third-party library that doesn't support or expose `fetch` (for example, a database, CMS, or ORM client), you can configure the caching and revalidating behavior of those requests using the [Route Segment Config Option](/docs/app/api-reference/file-conventions/route-segment-config) and React's `cache` function.
 
