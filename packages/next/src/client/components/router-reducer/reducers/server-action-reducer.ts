@@ -153,8 +153,9 @@ export function serverActionReducer(
     )
   }
 
-  // suspends until the server action is resolved.
+  // TODO-APP: Make try/catch wrap only readRecordValue so that other errors bubble up through the reducer instead.
   try {
+    // suspends until the server action is resolved.
     const {
       actionResult,
       actionFlightData: flightData,
