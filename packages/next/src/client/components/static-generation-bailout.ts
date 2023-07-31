@@ -32,7 +32,7 @@ export const staticGenerationBailout: StaticGenerationBailout = (
 
   if (staticGenerationStore?.dynamicShouldError) {
     throw new StaticGenBailoutError(
-      formatErrorMessage(reason, { ...opts, dynamic: 'error' })
+      formatErrorMessage(reason, { ...opts, dynamic: opts?.dynamic ?? 'error' })
     )
   }
 

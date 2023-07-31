@@ -5,7 +5,7 @@ export default function Page() {
   headers()
   return (
     <>
-      <p>Dynamic Page</p>
+      <h1>Dynamic Page</h1>
       <p id="nanoid">{nanoid()}</p>
     </>
   )
