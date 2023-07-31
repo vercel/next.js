@@ -4,6 +4,9 @@ createNextDescribe(
   '@next/third-parties basic usage',
   {
     files: __dirname,
+    dependencies: {
+      '@next/third-parties': 'canary',
+    },
   },
   ({ next }) => {
     it('renders YoutubeEmbed', async () => {
