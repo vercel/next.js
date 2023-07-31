@@ -1,10 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { useSegment } from '@/hooks/useSegment'
+import { analytics } from '@/lib/segment'
 
 export default function Form() {
-  const analytics = useSegment();
   const [message, setMessage] = useState('')
 
   const handleSubmit = (e: React.FormEvent) => {
