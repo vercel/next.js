@@ -136,7 +136,7 @@ This will prevent the whole route from being blocked by data fetching, and the u
 
 > **Blocking Data Requests:**
 >
-> An alternative approach to prevent waterfalls is to fetch data globally, at the root of your application, but this will block rendering for all route segments beneath it until the data has finished loading. This can be described as "all or nothing" data fetching. Either you had the entire data for your page or application, or none.
+> An alternative approach to prevent waterfalls is to fetch data globally, at the root of your application, but this will block rendering for all route segments beneath it until the data has finished loading. This can be described as "all or nothing" data fetching. Either you have the entire data for your page or application, or none.
 >
 > Any fetch requests with `await` will block rendering and data fetching for the entire tree beneath it, unless they are wrapped in a `<Suspense>` boundary or `loading.js` is used. Another alternative is use [parallel data fetching](#parallel-data-fetching) or the [preload pattern](#preloading-data).
 
@@ -214,7 +214,7 @@ To improve the user experience, you can add a [suspense boundary](/docs/app/buil
 
 ### Preloading Data
 
-Another way to prevent waterfalls is to use the preload pattern. You can optionally create a `preload` function to further optimiza parallel data fetching. With this approach, you don't have to pass promises down as props. The `preload` function can also have any name as it's not an API, but a convention.
+Another way to prevent waterfalls is to use the preload pattern. You can optionally create a `preload` function to further optimize parallel data fetching. With this approach, you don't have to pass promises down as props. The `preload` function can also have any name as it's not an API, but a convention.
 
 ```tsx filename="components/User.tsx" switcher
 import { getUser } from '@utils/getUser'
