@@ -1,7 +1,6 @@
 import { NextInstance } from 'test/lib/next-modes/base'
 import { createNext, FileRef } from 'e2e-utils'
 import { check, fetchViaHTTP, renderViaHTTP, waitFor } from 'next-test-utils'
-import cheerio from 'cheerio'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 import assert from 'assert'
