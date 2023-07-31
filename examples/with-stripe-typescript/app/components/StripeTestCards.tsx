@@ -1,4 +1,4 @@
-const StripeTestCards = () => {
+export default function StripeTestCards(): JSX.Element {
   return (
     <div className="test-card-notice">
       Use any of the{' '}
@@ -17,5 +17,3 @@ const StripeTestCards = () => {
     </div>
   )
 }
-
-export default StripeTestCards

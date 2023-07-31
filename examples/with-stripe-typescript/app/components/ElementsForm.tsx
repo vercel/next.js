@@ -10,15 +10,15 @@ import {
   Elements
 } from '@stripe/react-stripe-js'
 
-import CustomDonationInput from '../components/CustomDonationInput'
-import StripeTestCards from '../components/StripeTestCards'
+import CustomDonationInput from './CustomDonationInput'
+import StripeTestCards from './StripeTestCards'
 
 import {
   formatAmountForDisplay
-} from '../utils/stripe-helpers'
-import * as config from '../config'
-import getStripe from '../utils/get-stripejs'
-import { createPaymentIntent } from '../app/actions/stripe'
+} from '../../utils/stripe-helpers'
+import * as config from '../../config'
+import getStripe from '../../utils/get-stripejs'
+import { createPaymentIntent } from '../actions/stripe'
 
 function CheckoutForm(): JSX.Element {
   const [input, setInput] = React.useState<{customDonation: number, cardholderName: string}>({
