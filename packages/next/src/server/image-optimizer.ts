@@ -58,7 +58,7 @@ try {
         process.env.NODE_ENV === 'development' ? 2 : 8,
         cpus().length,
         // The current concurrency value from Sharp. This varies based on the
-        // sytem the server is running on.
+        // system the server is running on.
         sharp.concurrency()
       )
     )
