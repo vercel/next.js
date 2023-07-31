@@ -5,7 +5,7 @@ use indexmap::IndexMap;
 use turbo_tasks::{ValueToString, Vc};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 
-use crate::{EnvMap, ProcessEnv, GLOBAL_ENV_LOCK};
+use crate::{sorted_env_vars, EnvMap, ProcessEnv, GLOBAL_ENV_LOCK};
 
 /// Load the environment variables defined via a dotenv file, with an
 /// optional prior state that we can lookup already defined variables
@@ -47,7 +47,7 @@ impl DotenvProcessEnv {
                 // Unfortunately, dotenvy only looks up variable references from the global env.
                 // So we must mutate while we process. Afterwards, we can restore the initial
                 // state.
-                let initial = env::vars().collect();
+                let initial = sorted_env_vars();
 
                 restore_env(&initial, &prior, &lock);
 
@@ -56,7 +56,7 @@ impl DotenvProcessEnv {
                 // var, it'll be ignored.
                 res = dotenv::from_read(f.read()).map(|e| e.load());
 
-                vars = env::vars().collect();
+                vars = sorted_env_vars();
                 restore_env(&vars, &initial, &lock);
             }
 

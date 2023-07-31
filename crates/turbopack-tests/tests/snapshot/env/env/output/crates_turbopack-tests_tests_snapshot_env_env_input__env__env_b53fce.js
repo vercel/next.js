@@ -5,10 +5,10 @@
 const env = process.env = {
     ...process.env
 };
+env["ALLFOOBAR"] = foobarfoobar;
+env["BARFOO"] = barfoo;
 env["FOO"] = foo;
 env["FOOBAR"] = foobar;
-env["BARFOO"] = barfoo;
-env["ALLFOOBAR"] = foobarfoobar;
 
 }.call(this) }),
 }]);
