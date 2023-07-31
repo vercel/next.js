@@ -5,14 +5,12 @@ description: Learn about the switchable runtimes (Edge and Node.js) in Next.js.
 
 {/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
 
-In the context of Next.js, "runtime" refers to the set of libraries, APIs, and general functionality available to your code during execution.
+In the context of Next.js, runtime refers to the set of libraries, APIs, and general functionality available to your code during execution.
 
-Next.js has two server runtimes where you can render parts of your application code:
+On the server, there are two runtimes where parts of your application code can be rendered:
 
-- [Node.js Runtime](#nodejs-runtime)
-- [Edge Runtime](#edge-runtime)
-
-Each runtime has its own set of APIs. Please refer to the [Node.js Docs](https://nodejs.org/docs/latest/api/) and [Edge Docs](/docs/app/api-reference/edge) for the full list of available APIs. Both runtimes can also support [streaming](/docs/app/building-your-application/routing/loading-ui-and-streaming) depending on your deployment infrastructure.
+- The **Node.js Runtime** (default) has access to all Node.js APIs and compatible packages from the ecosystem.
+- The **Edge Runtime** is based on [Web APIs](/docs/app/api-reference/edge).
 
 By default, the `app` directory uses the Node.js runtime. However, you can opt into different runtimes (e.g. Edge) on a per-route basis.
 
@@ -81,3 +79,5 @@ export const runtime = 'edge' // 'nodejs' (default) | 'edge'
 If the segment runtime is _not_ set, the default `nodejs` runtime will be used. You do not need to use the `runtime` option if you do not plan to change from the Node.js runtime.
 
 </AppOnly>
+
+> Please refer to the [Node.js Docs](https://nodejs.org/docs/latest/api/) and [Edge Docs](/docs/app/api-reference/edge) for the full list of available APIs. Both runtimes can also support [streaming](/docs/app/building-your-application/routing/loading-ui-and-streaming) depending on your deployment infrastructure.
