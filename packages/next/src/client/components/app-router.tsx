@@ -132,11 +132,7 @@ const createEmptyCacheNode = () => ({
   parallelRoutes: new Map(),
 })
 
-function useServerActionDispatcher(
-  changeByServerResponse: RouterChangeByServerResponse,
-  dispatch: React.Dispatch<ReducerActions>,
-  navigate: RouterNavigate
-) {
+function useServerActionDispatcher(dispatch: React.Dispatch<ReducerActions>) {
   const serverActionDispatcher: ServerActionDispatcher = useCallback(
     (actionPayload) => {
       startTransition(() => {
@@ -144,12 +140,11 @@ function useServerActionDispatcher(
           ...actionPayload,
           type: ACTION_SERVER_ACTION,
           mutable: {},
-          navigate,
-          changeByServerResponse,
+          cache: createEmptyCacheNode(),
         })
       })
     },
-    [changeByServerResponse, dispatch, navigate]
+    [dispatch]
   )
   globalServerActionDispatcher = serverActionDispatcher
 }
@@ -262,7 +257,7 @@ function Router({
 
   const changeByServerResponse = useChangeByServerResponse(dispatch)
   const navigate = useNavigate(dispatch)
-  useServerActionDispatcher(changeByServerResponse, dispatch, navigate)
+  useServerActionDispatcher(dispatch)
 
   /**
    * The app router that is exposed through `useRouter`. It's only concerned with dispatching actions to the reducer, does not hold state.
