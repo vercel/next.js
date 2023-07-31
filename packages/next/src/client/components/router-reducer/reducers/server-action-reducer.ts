@@ -17,14 +17,12 @@ import { createFromFetch } from 'react-server-dom-webpack/client'
 import { encodeReply } from 'react-server-dom-webpack/client'
 
 import {
-  PrefetchKind,
   ReadonlyReducerState,
   ReducerState,
   ServerActionAction,
 } from '../router-reducer-types'
 import { addBasePath } from '../../../add-base-path'
 import { createHrefFromUrl } from '../create-href-from-url'
-import { RedirectType, getRedirectError } from '../../redirect'
 import { handleExternalUrl } from './navigate-reducer'
 import { applyRouterStatePatchToTree } from '../apply-router-state-patch-to-tree'
 import { isNavigatingToNewRootLayout } from '../is-navigating-to-new-root-layout'
