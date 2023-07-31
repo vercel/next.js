@@ -45,9 +45,9 @@ In addition to supporting native [Request](https://developer.mozilla.org/en-US/d
 
 ## Behavior
 
-### Static Route Handlers
+### Caching
 
-Route Handlers are [statically evaluated](/docs/app/building-your-application/data-fetching#static-and-dynamic-data-fetching) by default when using the `GET` method with the `Response` object.
+Route Handlers are cached by default when using the `GET` method with the `Response` object.
 
 ```ts filename="app/items/route.ts" switcher
 import { NextResponse } from 'next/server'
@@ -83,9 +83,9 @@ export async function GET() {
 
 > **TypeScript Warning:** Although `Response.json()` is valid, native TypeScript types currently shows an error, you can use [`NextResponse.json()`](/docs/app/api-reference/functions/next-response#json) for typed responses instead.
 
-### Dynamic Route Handlers
+### Opting out of caching
 
-Route handlers are evaluated dynamically when:
+You can opt out of caching by:
 
 - Using the `Request` object with the `GET` method.
 - Using any of the other HTTP methods.
@@ -201,9 +201,9 @@ export async function POST(request) {}
 
 The following examples show how to combine Route Handlers with other Next.js APIs and features.
 
-### Revalidating Static Data
+### Revalidating Cached Data
 
-You can [revalidate static data](/docs/app/building-your-application/data-fetching/revalidating) fetches using the [`next.revalidate`](/docs/app/building-your-application/data-fetching/fetching#revalidating-data) option:
+You can [revalidate cached data](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#revalidating-data) using the [`next.revalidate`](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#revalidating-data) option:
 
 ```ts filename="app/items/route.ts" switcher
 import { NextResponse } from 'next/server'
@@ -390,52 +390,74 @@ export async function GET(request, { params }) {
 
 Streaming is commonly used in combination with Large Language Models (LLMs), such an OpenAI, for AI-generated content. Learn more about the [AI SDK](https://sdk.vercel.ai/docs).
 
-```ts filename="app/api/completion/route.ts" switcher
+```ts filename="app/api/chat/route.ts" switcher
 import { Configuration, OpenAIApi } from 'openai-edge'
 import { OpenAIStream, StreamingTextResponse } from 'ai'
 
-const config = new Configuration({
-  apiKey: process.env.OPENAI_API_KEY,
-})
-const openai = new OpenAIApi(config)
-
 export const runtime = 'edge'
 
+const apiConfig = new Configuration({
+  apiKey: process.env.OPENAI_API_KEY!,
+})
+
+const openai = new OpenAIApi(apiConfig)
+
 export async function POST(req: Request) {
-  const { prompt } = await req.json()
-  const response = await openai.createCompletion({
-    model: 'text-davinci-003',
+  // Extract the `messages` from the body of the request
+  const { messages } = await req.json()
+
+  // Request the OpenAI API for the response based on the prompt
+  const response = await openai.createChatCompletion({
+    model: 'gpt-3.5-turbo',
     stream: true,
-    temperature: 0.6,
-    prompt: 'What is Next.js?',
+    messages: messages,
+    max_tokens: 500,
+    temperature: 0.7,
+    top_p: 1,
+    frequency_penalty: 1,
+    presence_penalty: 1,
   })
 
+  // Convert the response into a friendly text-stream
   const stream = OpenAIStream(response)
+
+  // Respond with the stream
   return new StreamingTextResponse(stream)
 }
 ```
 
-```js filename="app/api/completion/route.js" switcher
+```js filename="app/api/chat/route.js" switcher
 import { Configuration, OpenAIApi } from 'openai-edge'
 import { OpenAIStream, StreamingTextResponse } from 'ai'
 
-const config = new Configuration({
-  apiKey: process.env.OPENAI_API_KEY,
-})
-const openai = new OpenAIApi(config)
-
 export const runtime = 'edge'
 
+const apiConfig = new Configuration({
+  apiKey: process.env.OPENAI_API_KEY,
+})
+
+const openai = new OpenAIApi(apiConfig)
+
 export async function POST(req) {
-  const { prompt } = await req.json()
-  const response = await openai.createCompletion({
-    model: 'text-davinci-003',
+  // Extract the `messages` from the body of the request
+  const { messages } = await req.json()
+
+  // Request the OpenAI API for the response based on the prompt
+  const response = await openai.createChatCompletion({
+    model: 'gpt-3.5-turbo',
     stream: true,
-    temperature: 0.6,
-    prompt: 'What is Next.js?',
+    messages: messages,
+    max_tokens: 500,
+    temperature: 0.7,
+    top_p: 1,
+    frequency_penalty: 1,
+    presence_penalty: 1,
   })
 
+  // Convert the response into a friendly text-stream
   const stream = OpenAIStream(response)
+
+  // Respond with the stream
   return new StreamingTextResponse(stream)
 }
 ```
@@ -604,7 +626,7 @@ export async function GET(request) {
 
 ### Edge and Node.js Runtimes
 
-Route Handlers have an isomorphic Web API to support both Edge and Node.js runtimes seamlessly, including support for streaming. Since Route Handlers use the same [route segment configuration](/docs/app/api-reference/file-conventions/route-segment-config) as Pages and Layouts, they support long-awaited features like general-purpose [statically regenerated](/docs/app/building-your-application/data-fetching/revalidating) Route Handlers.
+Route Handlers have an isomorphic Web API to support both Edge and Node.js runtimes seamlessly, including support for streaming. Since Route Handlers use the same [route segment configuration](/docs/app/api-reference/file-conventions/route-segment-config) as Pages and Layouts, they support long-awaited features like general-purpose [statically regenerated](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#revalidating-data) Route Handlers.
 
 You can use the `runtime` segment config option to specify the runtime:
 

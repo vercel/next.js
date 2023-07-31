@@ -3,7 +3,7 @@ title: incrementalCacheHandlerPath
 description: Configure the Next.js cache used for storing and revalidating data.
 ---
 
-In Next.js, the [default cache handler](/docs/app/building-your-application/data-fetching/caching) uses the filesystem cache. This requires no configuration, however, you can customize the cache handler by using the `incrementalCacheHandlerPath` field in `next.config.js`.
+In Next.js, the [default cache handler](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating uses the filesystem cache. This requires no configuration, however, you can customize the cache handler by using the `incrementalCacheHandlerPath` field in `next.config.js`.
 
 ```js filename="next.config.js"
 module.exports = {
@@ -64,4 +64,4 @@ Returns `Promise<void>`.
 | --------- | -------- | ---------------------------- |
 | `tag`     | `string` | The cache tag to revalidate. |
 
-Returns `Promise<void>`. Learn more about [revalidating data](/docs/app/building-your-application/data-fetching/revalidating) or the [`revalidateTag()`](/docs/app/api-reference/functions/revalidateTag) function.
+Returns `Promise<void>`. Learn more about [revalidating data](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating) or the [`revalidateTag()`](/docs/app/api-reference/functions/revalidateTag) function.
