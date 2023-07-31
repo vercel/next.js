@@ -68,7 +68,7 @@ export default async function Page() {
 
 ### Client Components
 
-If you want to perform data fetching on the client, you can use a Client Component with [SWR](https://github.com/vercel/swr) to deduplicate requests.
+If you want to perform data fetching on the client, you can use a Client Component with [SWR](https://github.com/vercel/swr) to memoize requests.
 
 ```tsx filename="app/other/page.tsx" switcher
 'use client'
@@ -232,7 +232,7 @@ export default function Page() {
 
 ### Route Handlers
 
-Route Handlers will render a static response when running `next build`. Only the `GET` HTTP verb is supported. This can be used to generate static HTML, JSON, TXT, or other files from dynamic or static data. For example:
+Route Handlers will render a static response when running `next build`. Only the `GET` HTTP verb is supported. This can be used to generate static HTML, JSON, TXT, or other files from cached or uncached data. For example:
 
 ```ts filename="app/data.json/route.ts" switcher
 import { NextResponse } from 'next/server'
@@ -293,7 +293,7 @@ The following additional dynamic features are not supported with a static export
 - `redirects` in `next.config.js`
 - `headers` in `next.config.js`
 - Middleware
-- [Incremental Static Regeneration](/docs/app/building-your-application/data-fetching/revalidating)
+- [Incremental Static Regeneration](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating)
 
 </AppOnly>
 
