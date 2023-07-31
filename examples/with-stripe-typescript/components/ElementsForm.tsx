@@ -1,32 +1,34 @@
-import React, { useState, FC } from 'react'
+'use client'
+
+import type { StripeError } from '@stripe/stripe-js'
+
+import * as React from 'react'
+import {
+  useStripe,
+  useElements,
+  PaymentElement,
+  Elements
+} from '@stripe/react-stripe-js'
 
 import CustomDonationInput from '../components/CustomDonationInput'
 import StripeTestCards from '../components/StripeTestCards'
-import PrintObject from '../components/PrintObject'
 
-import { fetchPostJSON } from '../utils/api-helpers'
 import {
-  formatAmountForDisplay,
-  formatAmountFromStripe,
+  formatAmountForDisplay
 } from '../utils/stripe-helpers'
 import * as config from '../config'
+import getStripe from '../utils/get-stripejs'
+import { createPaymentIntent } from '../app/actions/stripe'
 
-import { useStripe, useElements, PaymentElement } from '@stripe/react-stripe-js'
-import { PaymentIntent } from '@stripe/stripe-js'
-
-const ElementsForm: FC<{
-  paymentIntent?: PaymentIntent | null
-}> = ({ paymentIntent = null }) => {
-  const defaultAmout = paymentIntent
-    ? formatAmountFromStripe(paymentIntent.amount, paymentIntent.currency)
-    : Math.round(config.MAX_AMOUNT / config.AMOUNT_STEP)
-  const [input, setInput] = useState({
-    customDonation: defaultAmout,
-    cardholderName: '',
+function CheckoutForm(): JSX.Element {
+  const [input, setInput] = React.useState<{customDonation: number, cardholderName: string}>({
+    customDonation: Math.round(config.MAX_AMOUNT / config.AMOUNT_STEP),
+    cardholderName: ''
   })
-  const [paymentType, setPaymentType] = useState('')
-  const [payment, setPayment] = useState({ status: 'initial' })
-  const [errorMessage, setErrorMessage] = useState('')
+  const [paymentType, setPaymentType] = React.useState<string>('')
+  const [payment, setPayment] = React.useState<{status:'initial' | 'processing' | 'error'}>({ status: 'initial' })
+  const [errorMessage, setErrorMessage] = React.useState<string>('')
+
   const stripe = useStripe()
   const elements = useElements()
 
@@ -59,47 +61,55 @@ const ElementsForm: FC<{
   const handleInputChange: React.ChangeEventHandler<HTMLInputElement> = (e) =>
     setInput({
       ...input,
-      [e.currentTarget.name]: e.currentTarget.value,
+      [e.currentTarget.name]: e.currentTarget.value
     })
 
   const handleSubmit: React.FormEventHandler<HTMLFormElement> = async (e) => {
-    e.preventDefault()
-    // Abort if form isn't valid
-    if (!e.currentTarget.reportValidity()) return
-    if (!elements) return
-    setPayment({ status: 'processing' })
+    try {
+      e.preventDefault()
+      // Abort if form isn't valid
+      if (!e.currentTarget.reportValidity()) return
+      if (!elements || !stripe) return
 
-    // Create a PaymentIntent with the specified amount.
-    const response = await fetchPostJSON('/api/payment_intents', {
-      amount: input.customDonation,
-      payment_intent_id: paymentIntent?.id,
-    })
-    setPayment(response)
+      setPayment({ status: 'processing' })
 
-    if (response.statusCode === 500) {
+      const { error: submitError } = await elements.submit()
+
+      if (submitError) {
+        setPayment({ status: 'error' })
+        setErrorMessage(submitError.message ?? 'An unknown error occurred')
+
+        return
+      }
+
+      // Create a PaymentIntent with the specified amount.
+      const { client_secret: clientSecret } = await createPaymentIntent(
+        new FormData(e.target as HTMLFormElement)
+      )
+
+      // Use your card Element with other Stripe.js APIs
+      const { error: confirmError } = await stripe!.confirmPayment({
+        elements,
+        clientSecret,
+        confirmParams: {
+          return_url: `${window.location.origin}/donate-with-elements/result`,
+          payment_method_data: {
+            billing_details: {
+              name: input.cardholderName
+            }
+          }
+        }
+      })
+
+      if (confirmError) {
+        setPayment({ status: 'error' })
+        setErrorMessage(confirmError.message ?? 'An unknown error occurred')
+      }
+    } catch (err) {
+      const { message } = err as StripeError
+
       setPayment({ status: 'error' })
-      setErrorMessage(response.message)
-      return
-    }
-
-    // Use your card Element with other Stripe.js APIs
-    const { error } = await stripe!.confirmPayment({
-      elements,
-      confirmParams: {
-        return_url: 'http://localhost:3000/donate-with-elements',
-        payment_method_data: {
-          billing_details: {
-            name: input.cardholderName,
-          },
-        },
-      },
-    })
-
-    if (error) {
-      setPayment({ status: 'error' })
-      setErrorMessage(error.message ?? 'An unknown error occurred')
-    } else if (paymentIntent) {
-      setPayment(paymentIntent)
+      setErrorMessage(message ?? 'An unknown error occurred')
     }
   }
 
@@ -149,9 +159,27 @@ const ElementsForm: FC<{
         </button>
       </form>
       <PaymentStatus status={payment.status} />
-      <PrintObject content={payment} />
     </>
   )
 }
 
-export default ElementsForm
+export default function ElementsForm(): JSX.Element {
+  return (
+    <Elements
+      stripe={getStripe()}
+      options={{
+        appearance: {
+          variables: {
+            colorIcon: '#6772e5',
+            fontFamily: 'Roboto, Open Sans, Segoe UI, sans-serif'
+          }
+        },
+        currency: config.CURRENCY,
+        mode: 'payment',
+        amount: Math.round(config.MAX_AMOUNT / config.AMOUNT_STEP)
+      }}
+    >
+      <CheckoutForm />
+    </Elements>
+  )
+}
