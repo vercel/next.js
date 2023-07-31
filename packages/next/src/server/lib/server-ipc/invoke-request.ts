@@ -1,14 +1,13 @@
-import '../../node-polyfill-fetch'
-
 import type { IncomingMessage } from 'http'
-import type { Writable, Readable } from 'stream'
-import { filterReqHeaders } from './utils'
+import type { Readable } from 'stream'
+import { filterReqHeaders, ipcForbiddenHeaders } from './utils'
 
 export const invokeRequest = async (
   targetUrl: string,
   requestInit: {
     headers: IncomingMessage['headers']
     method: IncomingMessage['method']
+    signal?: AbortSignal
   },
   readableBody?: Readable | ReadableStream
 ) => {
@@ -17,15 +16,19 @@ export const invokeRequest = async (
   const parsedTargetUrl = new URL(targetUrl)
   parsedTargetUrl.hostname = '127.0.0.1'
 
-  const invokeHeaders = filterReqHeaders({
-    'cache-control': '',
-    ...requestInit.headers,
-  }) as IncomingMessage['headers']
+  const invokeHeaders = filterReqHeaders(
+    {
+      'cache-control': '',
+      ...requestInit.headers,
+    },
+    ipcForbiddenHeaders
+  ) as IncomingMessage['headers']
 
-  const invokeRes = await fetch(parsedTargetUrl.toString(), {
+  return await fetch(parsedTargetUrl.toString(), {
     headers: invokeHeaders as any as Headers,
     method: requestInit.method,
     redirect: 'manual',
+    signal: requestInit.signal,
 
     ...(requestInit.method !== 'GET' &&
     requestInit.method !== 'HEAD' &&
@@ -41,31 +44,4 @@ export const invokeRequest = async (
       internal: true,
     },
   })
-
-  return invokeRes
-}
-
-export async function pipeReadable(
-  readable: ReadableStream,
-  writable: Writable
-) {
-  const reader = readable.getReader()
-
-  async function doRead() {
-    const item = await reader.read()
-
-    if (item?.value) {
-      writable.write(Buffer.from(item?.value))
-
-      if ('flush' in writable) {
-        ;(writable as any).flush()
-      }
-    }
-
-    if (!item?.done) {
-      return doRead()
-    }
-  }
-  await doRead()
-  writable.end()
 }

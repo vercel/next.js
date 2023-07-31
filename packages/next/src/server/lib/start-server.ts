@@ -1,3 +1,5 @@
+import '../node-polyfill-fetch'
+
 import type { Duplex } from 'stream'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { ChildProcess } from 'child_process'
@@ -10,15 +12,17 @@ import * as Log from '../../build/output/log'
 import setupDebug from 'next/dist/compiled/debug'
 import { splitCookiesString, toNodeOutgoingHttpHeaders } from '../web/utils'
 import { getCloneableBody } from '../body-streams'
-import { filterReqHeaders } from './server-ipc/utils'
+import { filterReqHeaders, ipcForbiddenHeaders } from './server-ipc/utils'
 import setupCompression from 'next/dist/compiled/compression'
 import { normalizeRepeatedSlashes } from '../../shared/lib/utils'
-import { invokeRequest, pipeReadable } from './server-ipc/invoke-request'
+import { invokeRequest } from './server-ipc/invoke-request'
+import { isAbortError, pipeReadable } from '../pipe-readable'
 import {
   genRouterWorkerExecArgv,
   getDebugPort,
   getNodeOptionsWithoutInspect,
 } from './utils'
+import { signalFromNodeResponse } from '../web/spec-extension/adapters/next-request'
 
 const debug = setupDebug('next:start-server')
 
@@ -82,6 +86,7 @@ export const createRouterWorker = async (
           ? { __NEXT_PRIVATE_CPU_PROFILE: `CPU.router` }
           : {}),
         WATCHPACK_WATCHER_LIMIT: '20',
+        EXPERIMENTAL_TURBOPACK: process.env.EXPERIMENTAL_TURBOPACK,
       },
     },
     exposedMethods: ['initialize'],
@@ -388,20 +393,35 @@ export async function startServer({
           targetHost === 'localhost' ? '127.0.0.1' : targetHost
         }:${routerPort}${req.url || '/'}`
 
-        const invokeRes = await invokeRequest(
-          targetUrl,
-          {
-            headers: req.headers,
-            method: req.method,
-          },
-          getCloneableBody(req).cloneBodyStream()
-        )
+        let invokeRes
+        try {
+          invokeRes = await invokeRequest(
+            targetUrl,
+            {
+              headers: req.headers,
+              method: req.method,
+              signal: signalFromNodeResponse(res),
+            },
+            getCloneableBody(req).cloneBodyStream()
+          )
+        } catch (e) {
+          // If the client aborts before we can receive a response object (when
+          // the headers are flushed), then we can early exit without further
+          // processing.
+          if (isAbortError(e)) {
+            return
+          }
+          throw e
+        }
 
         res.statusCode = invokeRes.status
         res.statusMessage = invokeRes.statusText
 
         for (const [key, value] of Object.entries(
-          filterReqHeaders(toNodeOutgoingHttpHeaders(invokeRes.headers))
+          filterReqHeaders(
+            toNodeOutgoingHttpHeaders(invokeRes.headers),
+            ipcForbiddenHeaders
+          )
         )) {
           if (value !== undefined) {
             if (key === 'set-cookie') {
