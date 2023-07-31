@@ -107,7 +107,7 @@ fetch('https://...', { next: { revalidate: 3600 } })
 Alternatively, to revalidate all `fetch` requests in a route segment, you can use the [Segment Config Options](/docs/app/api-reference/file-conventions/route-segment-config).
 
 ```jsx filename="layout.js / page.js"
-export const revalidate = 3600 // revalidate every hour
+export const revalidate = 3600 // revalidate at most every hour
 ```
 
 If you have multiple fetch requests in a statically rendered route, and each has a different revalidation frequency. The lowest time will be used for all requests. For dynamically rendered routes, each `fetch` request will be revalidated independently.
@@ -229,7 +229,7 @@ If an error is thrown while attempting to revalidate data, the last successfully
 
 #### Individiual `fetch` Requests
 
-To opt individual `fetch` requests out of caching, you can set the `cache` option in `fetch` to `'no-store'`. This will fetch data dynamically, on every request.
+To opt out of caching for individual `fetch` requests, you can set the `cache` option in `fetch` to `'no-store'`. This will fetch data dynamically, on every request.
 
 ```js
 fetch('https://...', { cache: 'no-store' })
