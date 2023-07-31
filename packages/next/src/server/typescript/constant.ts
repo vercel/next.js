@@ -35,7 +35,7 @@ export const DISALLOWED_SERVER_REACT_APIS: string[] = [
   'createContext',
   'createFactory',
   'experimental_useOptimistic',
-  'useOptimistic'
+  'useOptimistic',
 ]
 
 export const ALLOWED_PAGE_PROPS = ['params', 'searchParams']
