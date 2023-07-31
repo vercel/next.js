@@ -426,7 +426,7 @@ createNextDescribe(
       })
 
       // TODO: investigate flakey behavior with revalidate
-      it.skip('should handle revalidatePath', async () => {
+      it('should handle revalidatePath', async () => {
         const browser = await next.browser('/revalidate')
         const randomNumber = await browser.elementByCss('#random-number').text()
         const justPutIt = await browser.elementByCss('#justputit').text()
@@ -452,7 +452,7 @@ createNextDescribe(
       })
 
       // TODO: investigate flakey behavior with revalidate
-      it.skip('should handle revalidateTag', async () => {
+      it('should handle revalidateTag', async () => {
         const browser = await next.browser('/revalidate')
         const randomNumber = await browser.elementByCss('#random-number').text()
         const justPutIt = await browser.elementByCss('#justputit').text()
@@ -478,7 +478,7 @@ createNextDescribe(
       })
 
       // TODO: investigate flakey behavior with revalidate
-      it.skip('should handle revalidateTag + redirect', async () => {
+      it('should handle revalidateTag + redirect', async () => {
         const browser = await next.browser('/revalidate')
         const randomNumber = await browser.elementByCss('#random-number').text()
         const justPutIt = await browser.elementByCss('#justputit').text()
@@ -503,7 +503,7 @@ createNextDescribe(
         }, 'success')
       })
 
-      it.skip('should store revalidation data in the prefetch cache', async () => {
+      it('should store revalidation data in the prefetch cache', async () => {
         const browser = await next.browser('/revalidate')
         const justPutIt = await browser.elementByCss('#justputit').text()
         await browser.elementByCss('#revalidate-justputit').click()
@@ -534,7 +534,7 @@ createNextDescribe(
       })
 
       // TODO: investigate flakey behavior with revalidate
-      it.skip('should revalidate when cookies.set is called', async () => {
+      it('should revalidate when cookies.set is called', async () => {
         const browser = await next.browser('/revalidate')
         const randomNumber = await browser.elementByCss('#random-cookie').text()
 
@@ -550,7 +550,7 @@ createNextDescribe(
       })
 
       // TODO: investigate flakey behavior with revalidate
-      it.skip('should revalidate when cookies.set is called in a client action', async () => {
+      it('should revalidate when cookies.set is called in a client action', async () => {
         const browser = await next.browser('/revalidate')
         await browser.refresh()
 
@@ -607,7 +607,7 @@ createNextDescribe(
         }, 'success')
       })
 
-      it.skip.each(['tag', 'path'])(
+      it.each(['tag', 'path'])(
         'should invalidate client cache when %s is revalidated',
         async (type) => {
           const browser = await next.browser('/revalidate')
