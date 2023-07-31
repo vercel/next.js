@@ -116,14 +116,14 @@ Learn more about [time-based revalidation](/docs/app/building-your-application/c
 
 #### On-demand Revalidation
 
-Data can be revalidated on-demand by path ([`revalidatePath`](/docs/app/api-reference/functions/revalidatePath)) or by cache tag ([`revalidateTag`](/docs/app/api-reference/functions/revalidateTag)).
+Data can be revalidated on-demand by path ([`revalidatePath`](/docs/app/api-reference/functions/revalidatePath)) or by cache tag ([`revalidateTag`](/docs/app/api-reference/functions/revalidateTag)) inside a Route Handler or a Server Action.
 
 Next.js has a cache tagging system for invalidating `fetch` requests across routes.
 
 1. When using `fetch`, you have the option to tag cache entries with one or more tags.
 2. Then, you can call `revalidateTag` to revalidate all entries associated with that tag.
 
-For example, the following `fetch` requests adds the cache tag `collection`:
+For example, the following `fetch` request adds the cache tag `collection`:
 
 ```tsx filename="app/page.tsx" switcher
 export default async function Page() {
@@ -141,13 +141,25 @@ export default async function Page() {
 }
 ```
 
-The data can then be revalidated on-demand by calling `revalidateTag` in a [Route Handler](/docs/app/building-your-application/routing/route-handlers) or [Server Action](/docs/app/building-your-application/data-fetching/server-actions).
+If using a Route Handler, you should create a secret token only known by your Next.js app. This secret will be used to prevent unauthorized revalidation attempts. For example, you can access the route (either manually or with a webhook) with the following URL structure:
+
+```
+https://<your-site.com>/api/revalidate?tag=collection&secret=<token>
+```
 
 ```ts filename="app/api/revalidate/route.ts" switcher
 import { NextRequest, NextResponse } from 'next/server'
 import { revalidateTag } from 'next/cache'
 
+// e.g a webhook to `your-website.com/api/revalidate?tag=collection&secret=<token>`
 export async function GET(request: NextRequest) {
+  // Check for secret to confirm this is a valid request
+  if (
+    request.nextUrl.searchParams.get('secret') !== process.env.MY_SECRET_TOKEN
+  ) {
+    return res.status(401).json({ message: 'Invalid token' })
+  }
+
   const tag = request.nextUrl.searchParams.get('tag')
   revalidateTag(tag)
   return NextResponse.json({ revalidated: true, now: Date.now() })
@@ -158,14 +170,44 @@ export async function GET(request: NextRequest) {
 import { NextResponse } from 'next/server'
 import { revalidateTag } from 'next/cache'
 
+// e.g a webhook to `your-website.com/api/revalidate?tag=collection&secret=<token>`
 export async function GET(request) {
+  // Check for secret to confirm this is a valid request
+  if (
+    request.nextUrl.searchParams.get('secret') !== process.env.MY_SECRET_TOKEN
+  ) {
+    return res.status(401).json({ message: 'Invalid token' })
+  }
+
   const tag = request.nextUrl.searchParams.get('tag')
   revalidateTag(tag)
   return NextResponse.json({ revalidated: true, now: Date.now() })
 }
 ```
 
-Alternatively, you can use [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath) in a [Route Handler](/docs/app/building-your-application/routing/route-handlers) or [Server Action](/docs/app/building-your-application/data-fetching/server-actions) to revalidate all data associated with a path.
+Alternatively, you can use [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath) to revalidate all data associated with a path.
+
+```ts filename="app/api/revalidate/route.ts" switcher
+import { NextRequest, NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
+
+export async function GET(request: NextRequest) {
+  const path = request.nextUrl.searchParams.get('path')
+  revalidatePath(path)
+  return NextResponse.json({ revalidated: true, now: Date.now() })
+}
+```
+
+```js filename="app/api/revalidate/route.js" switcher
+import { NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
+
+export async function GET(request) {
+  const path = request.nextUrl.searchParams.get('path')
+  revalidatePath(path)
+  return NextResponse.json({ revalidated: true, now: Date.now() })
+}
+```
 
 Learn more about [on-demand revalidation](/docs/app/building-your-application/caching#on-demand-revalidation).
 
