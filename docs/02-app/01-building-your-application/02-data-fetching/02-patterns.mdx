@@ -210,61 +210,67 @@ export default async function Page({ params: { username } }) {
 }
 ```
 
-To improve the user experience, you can add a [suspense boundary](/docs/app/building-your-application/routing/loading-ui-and-streaming) to break up the rendering work and show part of the result as soon as possible.
+To improve the user experience, you can add a [Suspense Boundary](/docs/app/building-your-application/routing/loading-ui-and-streaming) to break up the rendering work and show part of the result as soon as possible.
 
 ### Preloading Data
 
-Another way to prevent waterfalls is to use the preload pattern. You can optionally create a `preload` function to further optimize parallel data fetching. With this approach, you don't have to pass promises down as props. The `preload` function can also have any name as it's not an API, but a convention.
+Another way to prevent waterfalls is to use the preload pattern. You can optionally create a `preload` function to further optimize parallel data fetching. With this approach, you don't have to pass promises down as props. The `preload` function can also have any name as it's a pattern, not an API.
 
-```tsx filename="components/User.tsx" switcher
-import { getUser } from '@utils/getUser'
+```tsx filename="components/Item.tsx" switcher
+import { getItem } from '@/utils/get-item'
 
 export const preload = (id: string) => {
   // void evaluates the given expression and returns undefined
   // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/void
-  void getUser(id)
+  void getItem(id)
 }
-export default async function User({ id }: { id: string }) {
-  const result = await getUser(id)
+export default async function Item({ id }: { id: string }) {
+  const result = await getItem(id)
   // ...
 }
 ```
 
-```jsx filename="components/User.js" switcher
-import { getUser } from '@utils/getUser'
+```jsx filename="components/Item.js" switcher
+import { getItem } from '@/utils/get-item'
 
 export const preload = (id) => {
   // void evaluates the given expression and returns undefined
   // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/void
-  void getUser(id)
+  void getItem(id)
 }
-export default async function User({ id }) {
-  const result = await getUser(id)
+export default async function Item({ id }) {
+  const result = await getItem(id)
   // ...
 }
 ```
 
-```tsx filename="app/user/[id]/page.tsx" switcher
-import User, { preload } from '@components/User'
+```tsx filename="app/item/[id]/page.tsx" switcher
+import Item, { preload, checkIsAvailable } from '@/components/Item'
 
 export default async function Page({
   params: { id },
 }: {
   params: { id: string }
 }) {
-  preload(id) // starting loading the user data now
-  const condition = await fetchCondition()
-  return condition ? <User id={id} /> : null
+  // starting loading item data
+  preload(id)
+  // perform another asynchronous task
+  const isAvailable = await checkIsAvailable()
+
+  return isAvailable ? <Item id={id} /> : null
 }
 ```
 
-```jsx filename="app/user/[id]/page.js" switcher
-import User, { preload } from '@components/User'
+```jsx filename="app/item/[id]/page.js" switcher
+import Item, { preload, checkIsAvailable } from '@/components/Item'
 
 export default async function Page({ params: { id } }) {
-  preload(id) // starting loading the user data now
-  const condition = await fetchCondition()
-  return condition ? <User id={id} /> : null
+  // starting loading item data
+  preload(id)
+  // perform another asynchronous task
+  const isAvailable = await checkIsAvailable()
+
+  return isAvailable ? <Item id={id} /> : null
 }
 ```
 
@@ -272,34 +278,34 @@ export default async function Page({ params: { id } }) {
 
 You can combine the `cache` function, the `preload` pattern, and the `server-only` package to create a data fetching utility that can be used throughout your app.
 
-```ts filename="utils/getUser.ts" switcher
+```ts filename="utils/get-item.ts" switcher
 import { cache } from 'react'
 import 'server-only'
 
 export const preload = (id: string) => {
-  void getUser(id)
+  void getItem(id)
 }
 
-export const getUser = cache(async (id: string) => {
+export const getItem = cache(async (id: string) => {
   // ...
 })
 ```
 
-```js filename="utils/getUser.js" switcher
+```js filename="utils/get-item.js" switcher
 import { cache } from 'react'
 import 'server-only'
 
 export const preload = (id) => {
-  void getUser(id)
+  void getItem(id)
 }
 
-export const getUser = cache(async (id) => {
+export const getItem = cache(async (id) => {
   // ...
 })
 ```
 
 With this approach, you can eagerly fetch data, cache responses, and guarantee that this data fetching [only happens on the server](/docs/getting-started/react-essentials#keeping-server-only-code-out-of-client-components-poisoning).
 
-The `getUser.ts` exports can be used by layouts, pages, or components to give them control over when a user's data is fetched.
+The `utils/get-item` exports can be used by Layouts, Pages, or other components to give them control over when an item's data is fetched.
 
 > - We recommend using the [`server-only` package](/docs/getting-started/react-essentials#keeping-server-only-code-out-of-client-components-poisoning) to make sure server data fetching functions are never used on the client.
