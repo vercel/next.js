@@ -1,5 +1,8 @@
+use std::io::Write;
+
 use anyhow::{bail, Result};
 use indexmap::indexmap;
+use indoc::writedoc;
 use turbo_tasks::{Value, ValueToString, Vc};
 use turbopack_binding::{
     turbo::tasks_fs::{rope::RopeBuilder, File, FileSystemPath},
@@ -7,9 +10,7 @@ use turbopack_binding::{
         core::{
             asset::AssetContent,
             context::AssetContext,
-            reference_type::{
-                EcmaScriptModulesReferenceSubType, EntryReferenceSubType, ReferenceType,
-            },
+            reference_type::{EntryReferenceSubType, ReferenceType},
             source::Source,
             virtual_source::VirtualSource,
         },
@@ -34,14 +35,13 @@ pub async fn get_app_route_entry(
     original_name: String,
     project_root: Vc<FileSystemPath>,
 ) -> Result<Vc<AppEntry>> {
-    let config = parse_segment_config_from_source(
-        nodejs_context.process(
-            source,
-            Value::new(ReferenceType::Entry(EntryReferenceSubType::AppRoute)),
-        ),
+    let userland_module = nodejs_context.process(
         source,
+        Value::new(ReferenceType::Entry(EntryReferenceSubType::AppRoute)),
     );
-    let context = if matches!(config.await?.runtime, Some(NextRuntime::Edge)) {
+    let config = parse_segment_config_from_source(userland_module, source);
+    let is_edge = matches!(config.await?.runtime, Some(NextRuntime::Edge));
+    let context = if is_edge {
         edge_context
     } else {
         nodejs_context
@@ -102,21 +102,48 @@ pub async fn get_app_route_entry(
 
     let virtual_source = VirtualSource::new(template_path, AssetContent::file(file.into()));
 
-    let entry = context.process(
-        source,
-        Value::new(ReferenceType::EcmaScriptModules(
-            EcmaScriptModulesReferenceSubType::Undefined,
-        )),
-    );
-
     let inner_assets = indexmap! {
-        "VAR_USERLAND".to_string() => entry
+        "VAR_USERLAND".to_string() => userland_module
     };
 
-    let rsc_entry = context.process(
+    let mut rsc_entry = context.process(
         Vc::upcast(virtual_source),
         Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
     );
+
+    if is_edge {
+        let mut source = RopeBuilder::default();
+        writedoc!(
+            source,
+            r#"
+                import {{ EdgeRouteModuleWrapper }} from 'next/dist/esm/server/web/edge-route-module-wrapper'
+                import * as module from "MODULE"
+
+                export const ComponentMod = module
+
+                console.log("loaded edge route module")
+                self._ENTRIES ||= {{}}
+                self._ENTRIES.middleware_ = {{
+                    ComponentMod: module,
+                    default: EdgeRouteModuleWrapper.wrap(module.routeModule),
+                }}
+            "#
+        )?;
+        let file = File::from(source.build());
+        // TODO(alexkirsz) Figure out how to name this virtual asset.
+        let virtual_source = VirtualSource::new(
+            project_root.join("edge-wrapper.js".to_string()),
+            AssetContent::file(file.into()),
+        );
+        let inner_assets = indexmap! {
+            "MODULE".to_string() => rsc_entry
+        };
+
+        rsc_entry = context.process(
+            Vc::upcast(virtual_source),
+            Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
+        );
+    }
 
     let Some(rsc_entry) =
         Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkPlaceable>>(rsc_entry).await?

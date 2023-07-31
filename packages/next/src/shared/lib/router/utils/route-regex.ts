@@ -102,16 +102,16 @@ function buildGetSafeRouteKey() {
 }
 
 function getSafeKeyFromSegment({
+  getSafeRouteKey,
   segment,
   routeKeys,
   keyPrefix,
 }: {
+  getSafeRouteKey: () => string
   segment: string
   routeKeys: Record<string, string>
   keyPrefix?: string
 }) {
-  const getSafeRouteKey = buildGetSafeRouteKey()
-
   const { key, optional, repeat } = parseParameter(segment)
 
   // replace any non-word characters since they can break
@@ -151,6 +151,7 @@ function getSafeKeyFromSegment({
 
 function getNamedParametrizedRoute(route: string, prefixRouteKeys: boolean) {
   const segments = removeTrailingSlash(route).slice(1).split('/')
+  const getSafeRouteKey = buildGetSafeRouteKey()
   const routeKeys: { [named: string]: string } = {}
   return {
     namedParameterizedRoute: segments
@@ -162,6 +163,7 @@ function getNamedParametrizedRoute(route: string, prefixRouteKeys: boolean) {
 
         if (hasInterceptionMarker && paramMatches) {
           return getSafeKeyFromSegment({
+            getSafeRouteKey,
             segment: paramMatches[1],
             routeKeys,
             keyPrefix: prefixRouteKeys
@@ -170,6 +172,7 @@ function getNamedParametrizedRoute(route: string, prefixRouteKeys: boolean) {
           })
         } else if (paramMatches) {
           return getSafeKeyFromSegment({
+            getSafeRouteKey,
             segment: paramMatches[1],
             routeKeys,
             keyPrefix: prefixRouteKeys ? NEXT_QUERY_PARAM_PREFIX : undefined,

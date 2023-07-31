@@ -67,14 +67,14 @@ pub enum RouteHas {
 #[derive(Serialize, Default, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct MiddlewareMatcher {
-    regexp: String,
+    pub regexp: String,
     #[serde(skip_serializing_if = "bool_is_true")]
-    locale: bool,
+    pub locale: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
-    has: Option<Vec<RouteHas>>,
+    pub has: Option<Vec<RouteHas>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    missing: Option<Vec<RouteHas>>,
-    original_source: String,
+    pub missing: Option<Vec<RouteHas>>,
+    pub original_source: String,
 }
 
 fn bool_is_true(b: &bool) -> bool {
@@ -83,18 +83,18 @@ fn bool_is_true(b: &bool) -> bool {
 
 #[derive(Serialize, Default, Debug)]
 pub struct EdgeFunctionDefinition {
-    files: Vec<String>,
-    name: String,
-    page: String,
-    matchers: Vec<MiddlewareMatcher>,
+    pub files: Vec<String>,
+    pub name: String,
+    pub page: String,
+    pub matchers: Vec<MiddlewareMatcher>,
     // TODO: AssetBinding[]
     #[serde(skip_serializing_if = "Option::is_none")]
-    wasm: Option<Vec<()>>,
+    pub wasm: Option<Vec<()>>,
     // TODO: AssetBinding[]
     #[serde(skip_serializing_if = "Option::is_none")]
-    assets: Option<Vec<()>>,
+    pub assets: Option<Vec<()>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    regions: Option<Regions>,
+    pub regions: Option<Regions>,
 }
 
 #[derive(Serialize, Debug)]

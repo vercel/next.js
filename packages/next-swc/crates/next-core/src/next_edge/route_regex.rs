@@ -11,10 +11,10 @@
 
 use std::collections::HashMap;
 
-use lazy_static::lazy_static;
+use once_cell::sync::Lazy;
 use regex::Regex;
 
-const INTERCEPTION_ROUTE_MARKERS: [&str; 0] = []; // Filler value
+const INTERCEPTION_ROUTE_MARKERS: [&str; 4] = ["(..)(..)", "(.)", "(..)", "(...)"];
 const NEXT_QUERY_PARAM_PREFIX: &str = "nxtP";
 const NEXT_INTERCEPTION_MARKER_PREFIX: &str = "nxtI";
 
@@ -28,19 +28,25 @@ pub struct Group {
 #[derive(Debug)]
 pub struct RouteRegex {
     pub groups: HashMap<String, Group>,
-    pub re: Regex,
+    pub regex: String,
 }
 
 #[derive(Debug)]
 pub struct NamedRouteRegex {
     pub regex: RouteRegex,
-    pub named_regex: Regex,
+    pub named_regex: String,
     pub route_keys: HashMap<String, String>,
 }
 
 #[derive(Debug)]
 pub struct NamedMiddlewareRegex {
-    pub named_regex: Regex,
+    pub named_regex: String,
+}
+
+struct ParsedParameter {
+    key: String,
+    repeat: bool,
+    optional: bool,
 }
 
 /// Parses a given parameter from a route to a data structure that can be used
@@ -49,30 +55,32 @@ pub struct NamedMiddlewareRegex {
 ///   - `...slug` -> `{ key: 'slug', repeat: true, optional: false }`
 ///   - `[foo]` -> `{ key: 'foo', repeat: false, optional: true }`
 ///   - `bar` -> `{ key: 'bar', repeat: false, optional: false }`
-fn parse_parameter(param: &str) -> (String, bool, bool) {
-    let mut param = param.to_string();
-    let optional = param.starts_with('[') && param.ends_with(']');
+fn parse_parameter(param: &str) -> ParsedParameter {
+    let mut key = param.to_string();
+    let optional = key.starts_with('[') && key.ends_with(']');
     if optional {
-        param = param[1..param.len() - 1].to_string();
+        key = key[1..key.len() - 1].to_string();
     }
-    let repeat = param.starts_with("...");
+    let repeat = key.starts_with("...");
     if repeat {
-        param = param[3..].to_string();
+        key = key[3..].to_string();
     }
-    (param, repeat, optional)
+    ParsedParameter {
+        key,
+        repeat,
+        optional,
+    }
 }
 
 fn escape_string_regexp(segment: &str) -> String {
     regex::escape(segment)
 }
 
-fn remove_trailing_slash(route: &str) -> String {
-    route.trim_end_matches('/').to_string()
+fn remove_trailing_slash(route: &str) -> &str {
+    route.trim_end_matches('/')
 }
 
-lazy_static! {
-    static ref PARAM_MATCH_REGEX: Regex = Regex::new(r"\[((?:\[.*\])|.+)\]").unwrap();
-}
+static PARAM_MATCH_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"\[((?:\[.*\])|.+)\]").unwrap());
 
 fn get_parametrized_route(route: &str) -> (String, HashMap<String, Group>) {
     let segments: Vec<&str> = remove_trailing_slash(route)[1..].split('/').collect();
@@ -83,26 +91,17 @@ fn get_parametrized_route(route: &str) -> (String, HashMap<String, Group>) {
         .map(|segment| {
             let marker_match = INTERCEPTION_ROUTE_MARKERS
                 .iter()
-                .find(|m| segment.starts_with(m));
+                .find(|&&m| segment.starts_with(m))
+                .copied();
             let param_matches = PARAM_MATCH_REGEX.captures(segment);
-            if let Some(marker) = marker_match {
-                if let Some(matches) = param_matches {
-                    let (key, optional, repeat) = parse_parameter(&matches[1]);
-                    groups.insert(
-                        key.clone(),
-                        Group {
-                            pos: group_index,
-                            repeat,
-                            optional,
-                        },
-                    );
-                    group_index += 1;
-                    return format!("/{}([^/]+?)", escape_string_regexp(marker));
-                }
-            } else if let Some(matches) = param_matches {
-                let (key, optional, repeat) = parse_parameter(&matches[1]);
+            if let Some(matches) = param_matches {
+                let ParsedParameter {
+                    key,
+                    optional,
+                    repeat,
+                } = parse_parameter(&matches[1]);
                 groups.insert(
-                    key.clone(),
+                    key,
                     Group {
                         pos: group_index,
                         repeat,
@@ -110,16 +109,17 @@ fn get_parametrized_route(route: &str) -> (String, HashMap<String, Group>) {
                     },
                 );
                 group_index += 1;
-                return if repeat {
-                    if optional {
-                        "(?:/(.+?))?"
-                    } else {
-                        "/(.+?)"
-                    }
+                if let Some(marker) = marker_match {
+                    return format!("/{}([^/]+?)", escape_string_regexp(marker));
                 } else {
-                    "/([^/]+?)"
+                    return match (repeat, optional) {
+                        (true, true) => "(?:/(.+?))?",
+                        (true, false) => "/(.+?)",
+                        (false, true) => "(?:/([^/]+?))?",
+                        (false, false) => "/([^/]+?)",
+                    }
+                    .to_string();
                 }
-                .to_string();
             }
             format!("/{}", escape_string_regexp(segment))
         })
@@ -134,14 +134,14 @@ fn get_parametrized_route(route: &str) -> (String, HashMap<String, Group>) {
 pub fn get_route_regex(normalized_route: &str) -> RouteRegex {
     let (parameterized_route, groups) = get_parametrized_route(normalized_route);
     RouteRegex {
-        re: Regex::new(&format!("^{}(?:/)?$", parameterized_route)).unwrap(),
+        regex: format!("^{}(?:/)?$", parameterized_route),
         groups,
     }
 }
 
 /// Builds a function to generate a minimal routeKey using only a-z and minimal
 /// number of characters.
-fn build_get_safe_route_key() -> Box<dyn FnMut() -> String> {
+fn build_get_safe_route_key() -> impl FnMut() -> String {
     let mut route_key_char_code = 97;
     let mut route_key_char_length = 1;
     Box::new(move || {
@@ -159,12 +159,16 @@ fn build_get_safe_route_key() -> Box<dyn FnMut() -> String> {
 }
 
 fn get_safe_key_from_segment(
+    get_safe_route_key: &mut impl FnMut() -> String,
     segment: &str,
     route_keys: &mut HashMap<String, String>,
-    key_prefix: Option<String>,
+    key_prefix: Option<&'static str>,
 ) -> String {
-    let mut get_safe_route_key = build_get_safe_route_key();
-    let (key, optional, repeat) = parse_parameter(segment);
+    let ParsedParameter {
+        key,
+        optional,
+        repeat,
+    } = parse_parameter(segment);
 
     // replace any non-word characters since they can break
     // the named regex
@@ -190,14 +194,11 @@ fn get_safe_key_from_segment(
     } else {
         route_keys.insert(cleaned_key.clone(), key);
     }
-    if repeat {
-        if optional {
-            format!(r"(?:/(?P<{}>.+?))?", cleaned_key)
-        } else {
-            format!(r"/(?P<{}>.+?)", cleaned_key)
-        }
-    } else {
-        format!(r"/(?P<{}>[^/]+?)", cleaned_key)
+    match (repeat, optional) {
+        (true, true) => format!(r"(?:/(?P<{}>.+?))?", cleaned_key),
+        (true, false) => format!(r"/(?P<{}>.+?)", cleaned_key),
+        (false, true) => format!(r"(?:/(?P<{}>[^/]+?))?", cleaned_key),
+        (false, false) => format!(r"/(?P<{}>[^/]+?)", cleaned_key),
     }
 }
 
@@ -206,26 +207,33 @@ fn get_named_parametrized_route(
     prefix_route_keys: bool,
 ) -> (String, HashMap<String, String>) {
     let segments: Vec<&str> = remove_trailing_slash(route)[1..].split('/').collect();
+    let get_safe_route_key = &mut build_get_safe_route_key();
     let mut route_keys: HashMap<String, String> = HashMap::new();
     let parameterized_route = segments
         .iter()
         .map(|segment| {
-            let marker_match = INTERCEPTION_ROUTE_MARKERS
-                .iter()
-                .find(|m| segment.starts_with(m));
+            let key_prefix = if prefix_route_keys {
+                let has_interception_marker = INTERCEPTION_ROUTE_MARKERS
+                    .iter()
+                    .any(|&m| segment.starts_with(m));
+                if has_interception_marker {
+                    Some(NEXT_INTERCEPTION_MARKER_PREFIX)
+                } else {
+                    Some(NEXT_QUERY_PARAM_PREFIX)
+                }
+            } else {
+                None
+            };
             let param_matches = Regex::new(r"\[((?:\[.*\])|.+)\]")
                 .unwrap()
                 .captures(segment);
-            if let Some(marker) = marker_match {
-                if let Some(matches) = param_matches {
-                    return get_safe_key_from_segment(
-                        &matches[1],
-                        &mut route_keys,
-                        Some(escape_string_regexp(marker)),
-                    );
-                }
-            } else if let Some(matches) = param_matches {
-                return get_safe_key_from_segment(&matches[1], &mut route_keys, None);
+            if let Some(matches) = param_matches {
+                return get_safe_key_from_segment(
+                    get_safe_route_key,
+                    &matches[1],
+                    &mut route_keys,
+                    key_prefix,
+                );
             }
             format!("/{}", escape_string_regexp(segment))
         })
@@ -245,16 +253,14 @@ pub fn get_named_route_regex(normalized_route: &str) -> NamedRouteRegex {
     let regex = get_route_regex(normalized_route);
     NamedRouteRegex {
         regex,
-        named_regex: Regex::new(&format!("^{}(?:/)?$", parameterized_route)).unwrap(),
+        named_regex: format!("^{}(?:/)?$", parameterized_route),
         route_keys,
     }
 }
 
 /// Generates a named regexp.
 /// This is intended to be using for build time only.
-pub fn get_named_middleware_regex(normalized_route: &str) -> NamedMiddlewareRegex {
+pub fn get_named_middleware_regex(normalized_route: &str) -> String {
     let (parameterized_route, _route_keys) = get_named_parametrized_route(normalized_route, true);
-    NamedMiddlewareRegex {
-        named_regex: Regex::new(&format!("^{}(?:/)?$", parameterized_route)).unwrap(),
-    }
+    format!("^{}(?:/)?$", parameterized_route)
 }
