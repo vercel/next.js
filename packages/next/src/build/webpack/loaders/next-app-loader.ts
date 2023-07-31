@@ -1,7 +1,6 @@
 import type webpack from 'webpack'
 import type { ValueOf } from '../../../shared/lib/constants'
 import type { ModuleReference, CollectedMetadata } from './metadata/types'
-import type { AppPageRouteModuleOptions } from '../../../server/future/route-modules/app-page/module'
 
 import path from 'path'
 import { stringify } from 'querystring'
@@ -19,11 +18,10 @@ import { isAppRouteRoute } from '../../../lib/is-app-route-route'
 import { isMetadataRoute } from '../../../lib/metadata/is-metadata-route'
 import { NextConfig } from '../../../server/config-shared'
 import { AppPathnameNormalizer } from '../../../server/future/normalizers/built/app/app-pathname-normalizer'
-import { RouteKind } from '../../../server/future/route-kind'
-import { AppRouteRouteModuleOptions } from '../../../server/future/route-modules/app-route/module'
 import { AppBundlePathNormalizer } from '../../../server/future/normalizers/built/app/app-bundle-path-normalizer'
 import { MiddlewareConfig } from '../../analysis/get-page-static-info'
 import { getFilenameAndExtension } from './next-metadata-route-loader'
+import { loadEntrypoint } from './next-route-loader/load-entrypoint'
 
 export type AppLoaderOptions = {
   name: string
@@ -116,63 +114,24 @@ async function createAppRouteCode({
     })}!${resolvedPagePath}${`?${WEBPACK_RESOURCE_QUERIES.metadataRoute}`}`
   }
 
-  // References the route handler file to load found in `./routes/${kind}.ts`.
-  // TODO: allow switching to the different kinds of routes
-  const kind = 'app-route'
   const pathname = new AppPathnameNormalizer().normalize(page)
   const bundlePath = new AppBundlePathNormalizer().normalize(page)
 
-  // This is providing the options defined by the route options type found at
-  // ./routes/${kind}.ts. This is stringified here so that the literal for
-  // `userland` can reference the variable for `userland` that's in scope for
-  // the loader code.
-  const options: Omit<AppRouteRouteModuleOptions, 'userland'> = {
-    definition: {
-      kind: RouteKind.APP_ROUTE,
-      page,
-      pathname,
-      filename,
-      bundlePath,
+  return await loadEntrypoint(
+    'app-route',
+    {
+      VAR_USERLAND: resolvedPagePath,
+      VAR_DEFINITION_PAGE: page,
+      VAR_DEFINITION_PATHNAME: pathname,
+      VAR_DEFINITION_FILENAME: filename,
+      VAR_DEFINITION_BUNDLE_PATH: bundlePath,
+      VAR_RESOLVED_PAGE_PATH: resolvedPagePath,
+      VAR_ORIGINAL_PATHNAME: page,
     },
-    resolvedPagePath,
-    nextConfigOutput,
-  }
-
-  return `
-    import 'next/dist/server/node-polyfill-headers'
-
-    import RouteModule from 'next/dist/server/future/route-modules/${kind}/module'
-
-    import * as userland from ${JSON.stringify(resolvedPagePath)}
-
-    const options = ${JSON.stringify(options)}
-    const routeModule = new RouteModule({
-      ...options,
-      userland,
-    })
-
-    // Pull out the exports that we need to expose from the module. This should
-    // be eliminated when we've moved the other routes to the new format. These
-    // are used to hook into the route.
-    const {
-      requestAsyncStorage,
-      staticGenerationAsyncStorage,
-      serverHooks,
-      headerHooks,
-      staticGenerationBailout
-    } = routeModule
-
-    const originalPathname = "${page}"
-
-    export {
-      routeModule,
-      requestAsyncStorage,
-      staticGenerationAsyncStorage,
-      serverHooks,
-      headerHooks,
-      staticGenerationBailout,
-      originalPathname
-    }`
+    {
+      nextConfigOutput: JSON.stringify(nextConfigOutput),
+    }
+  )
 }
 
 const normalizeParallelKey = (key: string) =>
@@ -424,8 +383,8 @@ async function createTreeCodeFromPath(
   const { treeCode } = await createSubtreePropsFromSegmentPath([])
 
   return {
-    treeCode: `const tree = ${treeCode}.children;`,
-    pages: `const pages = ${JSON.stringify(pages)};`,
+    treeCode: `${treeCode}.children;`,
+    pages: `${JSON.stringify(pages)};`,
     rootLayout,
     globalError,
   }
@@ -663,56 +622,26 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
   }
 
   const pathname = new AppPathnameNormalizer().normalize(page)
-  const bundlePath = new AppBundlePathNormalizer().normalize(page)
-
-  const options: Omit<AppPageRouteModuleOptions, 'userland'> = {
-    definition: {
-      kind: RouteKind.APP_PAGE,
-      page,
-      pathname,
-      bundlePath,
-      // The following aren't used in production.
-      filename: '',
-      appPaths: [],
-    },
-  }
 
   // Prefer to modify next/src/server/app-render/entry-base.ts since this is shared with Turbopack.
   // Any changes to this code should be reflected in Turbopack's app_source.rs and/or app-renderer.tsx as well.
-  const result = `
-    import RouteModule from 'next/dist/server/future/route-modules/app-page/module'
-
-    export ${treeCodeResult.treeCode}
-    export ${treeCodeResult.pages}
-
-    ${
-      treeCodeResult.globalError
-        ? `export { default as GlobalError } from ${JSON.stringify(
-            treeCodeResult.globalError
-          )}`
-        : `export { GlobalError } from 'next/dist/client/components/error-boundary'`
+  return await loadEntrypoint(
+    'app-page',
+    {
+      VAR_DEFINITION_PAGE: page,
+      VAR_DEFINITION_PATHNAME: pathname,
+      VAR_MODULE_GLOBAL_ERROR: treeCodeResult.globalError
+        ? treeCodeResult.globalError
+        : 'next/dist/client/components/error-boundary',
+      VAR_ORIGINAL_PATHNAME: page,
+    },
+    {
+      tree: treeCodeResult.treeCode,
+      pages: treeCodeResult.pages,
+      __next_app_require__: '__webpack_require__',
+      __next_app_load_chunk__: '() => Promise.resolve()',
     }
-
-    export const originalPathname = ${JSON.stringify(page)}
-    export const __next_app__ = {
-      require: __webpack_require__,
-      // all modules are in the entry chunk, so we never actually need to load chunks in webpack
-      loadChunk: () => Promise.resolve()
-    }
-
-    export * from 'next/dist/server/app-render/entry-base'
-
-    // Create and export the route module that will be consumed.
-    const options = ${JSON.stringify(options)}
-    export const routeModule = new RouteModule({
-      ...options,
-      userland: {
-        loaderTree: tree,
-      },
-    })
-  `
-
-  return result
+  )
 }
 
 export default nextAppLoader

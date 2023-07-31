@@ -208,6 +208,10 @@ export type FocusAndScrollRef = {
    * The paths of the segments that should be focused.
    */
   segmentPaths: FlightSegmentPath[]
+  /**
+   * If only the URLs hash fragment changed
+   */
+  onlyHashChange: boolean
 }
 
 export type PrefetchCacheEntry = {

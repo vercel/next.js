@@ -33,7 +33,7 @@ pub async fn get_swc_ecma_transform_plugin_impl(
     project_path: Vc<FileSystemPath>,
     plugin_configs: &[(String, serde_json::Value)],
 ) -> Result<Vc<OptionTransformPlugin>> {
-    use anyhow::{bail, Context};
+    use anyhow::bail;
     use turbo_tasks::Value;
     use turbo_tasks_fs::FileContent;
     use turbopack_binding::turbopack::{
@@ -41,10 +41,7 @@ pub async fn get_swc_ecma_transform_plugin_impl(
             asset::Asset,
             issue::{IssueSeverity, OptionIssueSource},
             reference_type::ReferenceType,
-            resolve::{
-                handle_resolve_error, parse::Request, pattern::Pattern, resolve,
-                ModuleResolveResultItem,
-            },
+            resolve::{handle_resolve_error, parse::Request, pattern::Pattern, resolve},
         },
         ecmascript_plugin::transform::swc_ecma_transform_plugins::{
             SwcEcmaTransformPluginsTransformer, SwcPluginModule,
