@@ -1,9 +1,7 @@
-use std::env;
-
 use indexmap::IndexMap;
 use turbo_tasks::Vc;
 
-use crate::{EnvMap, ProcessEnv, GLOBAL_ENV_LOCK};
+use crate::{sorted_env_vars, EnvMap, ProcessEnv, GLOBAL_ENV_LOCK};
 
 /// Load the environment variables defined via command line.
 #[turbo_tasks::value]
@@ -20,7 +18,7 @@ impl CommandLineProcessEnv {
 /// Clones the current env vars into a IndexMap.
 fn env_snapshot() -> IndexMap<String, String> {
     let _lock = GLOBAL_ENV_LOCK.lock().unwrap();
-    env::vars().collect::<IndexMap<_, _>>()
+    sorted_env_vars()
 }
 
 #[turbo_tasks::value_impl]

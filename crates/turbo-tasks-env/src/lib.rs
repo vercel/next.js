@@ -57,6 +57,12 @@ pub trait ProcessEnv {
     }
 }
 
+pub fn sorted_env_vars() -> IndexMap<String, String> {
+    let mut vars = env::vars().collect::<IndexMap<_, _>>();
+    vars.sort_keys();
+    vars
+}
+
 #[turbo_tasks::function]
 pub async fn case_insensitive_read(map: Vc<EnvMap>, name: String) -> Result<Vc<Option<String>>> {
     Ok(Vc::cell(
