@@ -7,7 +7,6 @@
     "directory": "packages/third-parties"
   },
   "exports": {
-    ".": "./dist/index.js",
     "./google": "./dist/google/index.js"
   },
   "files": [
