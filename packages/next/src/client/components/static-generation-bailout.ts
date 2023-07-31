@@ -5,10 +5,20 @@ class StaticGenBailoutError extends Error {
   code = 'NEXT_STATIC_GEN_BAILOUT'
 }
 
+type BailoutOpts = { dynamic?: string; link?: string }
+
 export type StaticGenerationBailout = (
   reason: string,
-  opts?: { dynamic?: string; link?: string }
+  opts?: BailoutOpts
 ) => boolean | never
+
+function formatErrorMessage(reason: string, opts?: BailoutOpts) {
+  const { dynamic, link } = opts || {}
+  const suffix = link ? ` See more info here: ${link}` : ''
+  return `Page${
+    dynamic ? ` with \`dynamic = "${dynamic}"\`` : ''
+  } couldn't be rendered statically because it used \`${reason}\`.${suffix}`
+}
 
 export const staticGenerationBailout: StaticGenerationBailout = (
   reason,
@@ -21,10 +31,8 @@ export const staticGenerationBailout: StaticGenerationBailout = (
   }
 
   if (staticGenerationStore?.dynamicShouldError) {
-    const { dynamic = 'error', link } = opts || {}
-    const suffix = link ? ` See more info here: ${link}` : ''
     throw new StaticGenBailoutError(
-      `Page with \`dynamic = "${dynamic}"\` couldn't be rendered statically because it used \`${reason}\`.${suffix}`
+      formatErrorMessage(reason, { ...opts, dynamic: 'error' })
     )
   }
 
@@ -33,8 +41,14 @@ export const staticGenerationBailout: StaticGenerationBailout = (
   }
 
   if (staticGenerationStore?.isStaticGeneration) {
-    const err = new DynamicServerError(reason)
-
+    const err = new DynamicServerError(
+      formatErrorMessage(reason, {
+        ...opts,
+        // this error should be caught by Next to bail out of static generation
+        // in case it's uncaught, this link provides some additional context as to why
+        link: 'https://nextjs.org/docs/messages/dynamic-server-error',
+      })
+    )
     staticGenerationStore.dynamicUsageDescription = reason
     staticGenerationStore.dynamicUsageStack = err.stack
 

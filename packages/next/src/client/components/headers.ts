@@ -10,14 +10,18 @@ import { staticGenerationBailout } from './static-generation-bailout'
 import { DraftMode } from './draft-mode'
 
 export function headers() {
-  if (staticGenerationBailout('headers')) {
+  if (
+    staticGenerationBailout('headers', {
+      link: 'https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic-rendering#dynamic-functions',
+    })
+  ) {
     return HeadersAdapter.seal(new Headers({}))
   }
 
   const requestStore = requestAsyncStorage.getStore()
   if (!requestStore) {
     throw new Error(
-      `Invariant: Method expects to have requestAsyncStorage, none available`
+      `Invariant: headers() expects to have requestAsyncStorage, none available.`
     )
   }
 
@@ -25,14 +29,18 @@ export function headers() {
 }
 
 export function cookies() {
-  if (staticGenerationBailout('cookies')) {
+  if (
+    staticGenerationBailout('cookies', {
+      link: 'https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic-rendering#dynamic-functions',
+    })
+  ) {
     return RequestCookiesAdapter.seal(new RequestCookies(new Headers({})))
   }
 
   const requestStore = requestAsyncStorage.getStore()
   if (!requestStore) {
     throw new Error(
-      `Invariant: Method expects to have requestAsyncStorage, none available`
+      `Invariant: cookies() expects to have requestAsyncStorage, none available.`
     )
   }
 
@@ -53,7 +61,7 @@ export function draftMode() {
   const requestStore = requestAsyncStorage.getStore()
   if (!requestStore) {
     throw new Error(
-      `Invariant: Method expects to have requestAsyncStorage, none available`
+      `Invariant: draftMode() expects to have requestAsyncStorage, none available.`
     )
   }
   return new DraftMode(requestStore.draftMode)
