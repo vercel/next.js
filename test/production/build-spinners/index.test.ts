@@ -1,7 +1,7 @@
-import * as pty from 'node-pty'
 import fs from 'fs-extra'
 import path from 'path'
 import stripAnsi from 'strip-ansi'
+import { createNext } from 'e2e-utils'
 
 type File = {
   filename: string
@@ -81,17 +81,25 @@ it.each([
   { name: 'page dir (compile workers)', files: pagesFiles },
   { name: 'app and pages', files: [...appDirFiles, ...pagesFiles] },
 ])('should handle build spinners correctly $name', async ({ files }) => {
-  const appDir = path.join(__dirname, 'app')
-  await fs.remove(appDir)
+  const filesMap = {}
+  for (const { filename, content } of files) {
+    filesMap[filename] = content
+  }
+  const next = await createNext({
+    skipStart: true,
+    files: filesMap,
+    dependencies: {
+      'node-pty': '0.10.1',
+    },
+  })
+
+  const appDir = next.testDir
 
   try {
-    for (const file of files) {
-      await fs.ensureDir(path.dirname(path.join(appDir, file.filename)))
-      await fs.writeFile(path.join(appDir, file.filename), file.content)
-    }
-
     const nextBin = require.resolve('next/dist/bin/next')
-
+    const ptyPath = require.resolve('node-pty', { paths: [appDir] }) as any
+    console.log({ appDir, ptyPath, nextBin })
+    const pty = require(ptyPath)
     const output = []
     const ptyProcess = pty.spawn(process.execPath, [nextBin, 'build'], {
       name: 'xterm-color',
@@ -171,6 +179,6 @@ it.each([
     expect(collectingPageDataIdx).toBeLessThan(generatingStaticIdx)
     expect(generatingStaticIdx).toBeLessThan(finalizingOptimization)
   } finally {
-    await fs.remove(appDir)
+    await next.destroy()
   }
 })
