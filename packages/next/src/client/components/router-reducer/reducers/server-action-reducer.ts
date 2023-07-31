@@ -135,7 +135,7 @@ export function serverActionReducer(
   state: ReadonlyReducerState,
   action: ServerActionAction
 ): ReducerState {
-  const { mutable, cache, resolve } = action
+  const { mutable, cache, resolve, reject } = action
   const href = state.canonicalUrl
 
   let currentTree = state.tree
@@ -154,106 +154,125 @@ export function serverActionReducer(
   }
 
   // suspends until the server action is resolved.
-  const {
-    actionResult,
-    actionFlightData: flightData,
-    redirectLocation,
-    // revalidatedParts,
-  } = readRecordValue(
-    action.mutable.inFlightServerAction!
-  ) as Awaited<FetchServerActionResult>
+  try {
+    const {
+      actionResult,
+      actionFlightData: flightData,
+      redirectLocation,
+      // revalidatedParts,
+    } = readRecordValue(
+      action.mutable.inFlightServerAction!
+    ) as Awaited<FetchServerActionResult>
 
-  mutable.previousTree = state.tree
+    mutable.previousTree = state.tree
 
-  if (!flightData) {
+    if (!flightData) {
+      if (!mutable.actionResultResolved) {
+        resolve(actionResult)
+        mutable.actionResultResolved = true
+      }
+
+      // If there is a redirect but no flight data we need to do a mpaNavigation.
+      if (redirectLocation) {
+        return handleExternalUrl(
+          state,
+          mutable,
+          redirectLocation.href,
+          state.pushRef.pendingPush
+        )
+      }
+      return state
+    }
+
+    if (typeof flightData === 'string') {
+      // Handle case when navigating to page in `pages` from `app`
+      return handleExternalUrl(
+        state,
+        mutable,
+        flightData,
+        state.pushRef.pendingPush
+      )
+    }
+
+    // Remove cache.data as it has been resolved at this point.
+    mutable.inFlightServerAction = null
+
+    for (const flightDataPath of flightData) {
+      // FlightDataPath with more than two items means unexpected Flight data was returned
+      if (flightDataPath.length !== 3) {
+        // TODO-APP: handle this case better
+        console.log('SERVER ACTION APPLY FAILED')
+        return state
+      }
+
+      // Given the path can only have two items the items are only the router state and subTreeData for the root.
+      const [treePatch] = flightDataPath
+      const newTree = applyRouterStatePatchToTree(
+        // TODO-APP: remove ''
+        [''],
+        currentTree,
+        treePatch
+      )
+
+      if (newTree === null) {
+        throw new Error('SEGMENT MISMATCH')
+      }
+
+      if (isNavigatingToNewRootLayout(currentTree, newTree)) {
+        return handleExternalUrl(
+          state,
+          mutable,
+          href,
+          state.pushRef.pendingPush
+        )
+      }
+
+      // The one before last item is the router state tree patch
+      const [subTreeData, head] = flightDataPath.slice(-2)
+
+      // Handles case where prefetch only returns the router tree patch without rendered components.
+      if (subTreeData !== null) {
+        cache.status = CacheStates.READY
+        cache.subTreeData = subTreeData
+        fillLazyItemsTillLeafWithHead(
+          cache,
+          // Existing cache is not passed in as `router.refresh()` has to invalidate the entire cache.
+          undefined,
+          treePatch,
+          head
+        )
+        mutable.cache = cache
+        mutable.prefetchCache = new Map()
+      }
+
+      mutable.previousTree = currentTree
+      mutable.patchedTree = newTree
+      mutable.canonicalUrl = href
+
+      currentTree = newTree
+    }
+
+    if (redirectLocation) {
+      const newHref = createHrefFromUrl(redirectLocation, false)
+      mutable.canonicalUrl = newHref
+    }
+
     if (!mutable.actionResultResolved) {
       resolve(actionResult)
       mutable.actionResultResolved = true
     }
+    return handleMutable(state, mutable)
+  } catch (e: any) {
+    if (e.status === 'rejected') {
+      if (!mutable.actionResultResolved) {
+        reject(e.value)
+        mutable.actionResultResolved = true
+      }
 
-    // If there is a redirect but no flight data we need to do a mpaNavigation.
-    if (redirectLocation) {
-      return handleExternalUrl(
-        state,
-        mutable,
-        redirectLocation.href,
-        state.pushRef.pendingPush
-      )
-    }
-    return state
-  }
-
-  if (typeof flightData === 'string') {
-    // Handle case when navigating to page in `pages` from `app`
-    return handleExternalUrl(
-      state,
-      mutable,
-      flightData,
-      state.pushRef.pendingPush
-    )
-  }
-
-  // Remove cache.data as it has been resolved at this point.
-  mutable.inFlightServerAction = null
-
-  for (const flightDataPath of flightData) {
-    // FlightDataPath with more than two items means unexpected Flight data was returned
-    if (flightDataPath.length !== 3) {
-      // TODO-APP: handle this case better
-      console.log('SERVER ACTION APPLY FAILED')
+      // When the server action is rejected we don't update the state and instead call the reject handler of the promise.
       return state
     }
 
-    // Given the path can only have two items the items are only the router state and subTreeData for the root.
-    const [treePatch] = flightDataPath
-    const newTree = applyRouterStatePatchToTree(
-      // TODO-APP: remove ''
-      [''],
-      currentTree,
-      treePatch
-    )
-
-    if (newTree === null) {
-      throw new Error('SEGMENT MISMATCH')
-    }
-
-    if (isNavigatingToNewRootLayout(currentTree, newTree)) {
-      return handleExternalUrl(state, mutable, href, state.pushRef.pendingPush)
-    }
-
-    // The one before last item is the router state tree patch
-    const [subTreeData, head] = flightDataPath.slice(-2)
-
-    // Handles case where prefetch only returns the router tree patch without rendered components.
-    if (subTreeData !== null) {
-      cache.status = CacheStates.READY
-      cache.subTreeData = subTreeData
-      fillLazyItemsTillLeafWithHead(
-        cache,
-        // Existing cache is not passed in as `router.refresh()` has to invalidate the entire cache.
-        undefined,
-        treePatch,
-        head
-      )
-      mutable.cache = cache
-      mutable.prefetchCache = new Map()
-    }
-
-    mutable.previousTree = currentTree
-    mutable.patchedTree = newTree
-    mutable.canonicalUrl = href
-
-    currentTree = newTree
+    throw e
   }
-
-  if (redirectLocation) {
-    const newHref = createHrefFromUrl(redirectLocation, false)
-    mutable.canonicalUrl = newHref
-  }
-
-  if (!mutable.actionResultResolved) {
-    resolve(actionResult)
-    mutable.actionResultResolved = true
-  }
-  return handleMutable(state, mutable)
 }
