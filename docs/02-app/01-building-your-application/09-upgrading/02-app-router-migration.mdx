@@ -384,7 +384,7 @@ export default function HomePage({ recentPosts }) {
 
 - Create a new `app/page.tsx` file inside the `app` directory. This is a Server Component by default.
 - Import the `home-page.tsx` Client Component into the page.
-- If you were fetching data in `pages/index.js`, move the data fetching logic directly into the Server Component using the new [data fetching APIs](/docs/app/building-your-application/data-fetching/fetching). See the [data fetching upgrade guide](#step-6-migrating-data-fetching-methods) for more details.
+- If you were fetching data in `pages/index.js`, move the data fetching logic directly into the Server Component using the new [data fetching APIs](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating). See the [data fetching upgrade guide](#step-6-migrating-data-fetching-methods) for more details.
 
   ```tsx filename="app/page.tsx" switcher
   // Import your Client Component
@@ -472,7 +472,7 @@ In addition, the new `useRouter` hook has the following changes:
 - The `locale`, `locales`, `defaultLocales`, `domainLocales` values have been removed because built-in i18n Next.js features are no longer necessary in the `app` directory. [Learn more about i18n](/docs/pages/building-your-application/routing/internationalization).
 - `basePath` has been removed. The alternative will not be part of `useRouter`. It has not yet been implemented.
 - `asPath` has been removed because the concept of `as` has been removed from the new router.
-- `isReady` has been removed because it is no longer necessary. During [static rendering](/docs/app/building-your-application/rendering#static-rendering), any component that uses the [`useSearchParams()`](/docs/app/api-reference/functions/use-params) hook will skip the prerendering step and instead be rendered on the client at runtime.
+- `isReady` has been removed because it is no longer necessary. During [static rendering](/docs/app/building-your-application/rendering/static-and-dynamic#static-rendering-default), any component that uses the [`useSearchParams()`](/docs/app/api-reference/functions/use-params) hook will skip the prerendering step and instead be rendered on the client at runtime.
 
 [View the `useRouter()` API reference](/docs/app/api-reference/functions/use-router).
 
@@ -549,7 +549,7 @@ export default function Dashboard({ projects }) {
 
 In the `app` directory, we can colocate our data fetching inside our React components using [Server Components](/docs/getting-started/react-essentials#server-components). This allows us to send less JavaScript to the client, while maintaining the rendered HTML from the server.
 
-By setting the `cache` option to `no-store`, we can indicate that the fetched data should [never be cached](/docs/app/building-your-application/data-fetching/caching). This is similar to `getServerSideProps` in the `pages` directory.
+By setting the `cache` option to `no-store`, we can indicate that the fetched data should [never be cached](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating. This is similar to `getServerSideProps` in the `pages` directory.
 
 ```tsx filename="app/dashboard/page.tsx" switcher
 // `app` directory
@@ -808,11 +808,11 @@ export default async function Post({ params }) {
 }
 ```
 
-With [`dynamicParams`](/docs/app/api-reference/file-conventions/route-segment-config#dynamicparams) set to `true` (the default), when a route segment is requested that hasn't been generated, it will be server-rendered and cached as [static data](/docs/app/building-your-application/data-fetching#static-and-dynamic-data-fetching) on success.
+With [`dynamicParams`](/docs/app/api-reference/file-conventions/route-segment-config#dynamicparams) set to `true` (the default), when a route segment is requested that hasn't been generated, it will be server-rendered and cached.
 
 #### Incremental Static Regeneration (`getStaticProps` with `revalidate`)
 
-In the `pages` directory, the `getStaticProps` function allows you to add a `revalidate` field to automatically regenerate a page after a certain amount of time. This is called [Incremental Static Regeneration (ISR)](/docs/app/building-your-application/data-fetching/fetching#static-data-fetching) and helps you update static content without redeploying.
+In the `pages` directory, the `getStaticProps` function allows you to add a `revalidate` field to automatically regenerate a page after a certain amount of time.
 
 ```jsx filename="pages/index.js"
 // `pages` directory
@@ -857,7 +857,7 @@ export default async function PostList() {
 
 #### API Routes
 
-API Routes continue to work in the `pages/api` directory without any changes. However, they have been replaced by [Route Handlers](/docs/app/building-your-application/routing/router-handlers) in the `app` directory.
+API Routes continue to work in the `pages/api` directory without any changes. However, they have been replaced by [Route Handlers](/docs/app/building-your-application/routing/route-handlers) in the `app` directory.
 
 Route Handlers allow you to create custom request handlers for a given route using the Web [Request](https://developer.mozilla.org/en-US/docs/Web/API/Request) and [Response](https://developer.mozilla.org/en-US/docs/Web/API/Response) APIs.
 
@@ -869,7 +869,7 @@ export async function GET(request: Request) {}
 export async function GET(request) {}
 ```
 
-> **Good to know**: If you previously used API routes to call an external API from the client, you can now use [Server Components](/docs/getting-started/react-essentials#server-components) instead to securely fetch data. Learn more about [data fetching](/docs/app/building-your-application/data-fetching/fetching).
+> **Good to know**: If you previously used API routes to call an external API from the client, you can now use [Server Components](/docs/getting-started/react-essentials#server-components) instead to securely fetch data. Learn more about [data fetching](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating).
 
 ### Step 7: Styling
 
