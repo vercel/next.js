@@ -163,8 +163,8 @@ async function main() {
         ignore: '**/node_modules/**',
       })
     ).filter((test) => {
-      if (testPatternRegex && isMatchingPattern(testPatternRegex, test)) {
-        return true
+      if (testPatternRegex) {
+        return testPatternRegex.test(test)
       }
       if (filterTestsBy) {
         // only include the specified type
