@@ -22,12 +22,12 @@ With Dynamic Rendering, both Server _and_ Client Components for a route are rend
 
 During rendering, if a [dynamic function](#dynamic-functions) or uncached data request is discovered, Next.js will switch to dynamically rendering the whole route. This table summarizes how dynamic functions and data caching affect whether a route is statically or dynamically rendered:
 
-| Data       | Dynamic Functions | Route                |
-| ---------- | ----------------- | -------------------- |
-| Cached     | No                | Statically Rendered  |
-| Cached     | Yes               | Dynamically Rendered |
-| Not Cached | No                | Dynamic Rendered     |
-| Not Cached | Yes               | Dynamic Rendered     |
+| Route                | Dynamic Functions | Data       |
+| -------------------- | ----------------- | ---------- |
+| Statically Rendered  | No                | Cached     |
+| Dynamically Rendered | Yes               | Cached     |
+| Dynamic Rendered     | No                | Not Cached |
+| Dynamic Rendered     | Yes               | Not Cached |
 
 From the table above, for a route to be fully static, all data must be cached. However, you can have a dynamically rendered route that uses both cached and uncached data fetches. This is useful when you have a page that mostly re-uses cached data, but has some uncached data. It allows you to opt into dynamic rendering without worrying about the performance impact of fetching all the data at request time.
 
