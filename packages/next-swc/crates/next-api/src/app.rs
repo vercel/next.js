@@ -682,8 +682,6 @@ impl AppEndpoint {
                     .try_flat_join()
                     .await?;
 
-                println!("files_paths_from_root: {:?}", files_paths_from_root);
-
                 let server_path_value = server_path.await?;
                 let files_paths_from_server = files
                     .await?
@@ -700,8 +698,6 @@ impl AppEndpoint {
                     .await?;
                 let base_file = files_paths_from_server[0].to_string();
 
-                println!("files_paths_from_server: {:?}", files_paths_from_server);
-
                 // create middleware manifest
                 // TODO(alexkirsz) This should be shared with next build.
                 let named_regex = get_named_middleware_regex(&app_entry.pathname);
@@ -712,7 +708,7 @@ impl AppEndpoint {
                 };
                 let edge_function_definition = EdgeFunctionDefinition {
                     files: files_paths_from_root,
-                    name: "".to_string(),
+                    name: app_entry.original_name.to_string(),
                     page: app_entry.original_name.clone(),
                     regions: app_entry
                         .config

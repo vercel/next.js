@@ -112,37 +112,7 @@ pub async fn get_app_route_entry(
     );
 
     if is_edge {
-        let mut source = RopeBuilder::default();
-        writedoc!(
-            source,
-            r#"
-                import {{ EdgeRouteModuleWrapper }} from 'next/dist/esm/server/web/edge-route-module-wrapper'
-                import * as module from "MODULE"
-
-                export const ComponentMod = module
-
-                console.log("loaded edge route module")
-                self._ENTRIES ||= {{}}
-                self._ENTRIES.middleware_ = {{
-                    ComponentMod: module,
-                    default: EdgeRouteModuleWrapper.wrap(module.routeModule),
-                }}
-            "#
-        )?;
-        let file = File::from(source.build());
-        // TODO(alexkirsz) Figure out how to name this virtual asset.
-        let virtual_source = VirtualSource::new(
-            project_root.join("edge-wrapper.js".to_string()),
-            AssetContent::file(file.into()),
-        );
-        let inner_assets = indexmap! {
-            "MODULE".to_string() => rsc_entry
-        };
-
-        rsc_entry = context.process(
-            Vc::upcast(virtual_source),
-            Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
-        );
+        rsc_entry = wrap_edge_entry(context, project_root, rsc_entry, original_name.clone());
     }
 
     let Some(rsc_entry) =
@@ -158,6 +128,46 @@ pub async fn get_app_route_entry(
         config,
     }
     .cell())
+}
+
+#[turbo_tasks::function]
+pub async fn wrap_edge_entry(
+    context: Vc<ModuleAssetContext>,
+    project_root: Vc<FileSystemPath>,
+    entry: Vc<Box<dyn Module>>,
+    original_name: String,
+) -> Result<Vc<Box<dyn Module>>> {
+    let mut source = RopeBuilder::default();
+    writedoc!(
+        source,
+        r#"
+            import {{ EdgeRouteModuleWrapper }} from 'next/dist/esm/server/web/edge-route-module-wrapper'
+            import * as module from "MODULE"
+
+            export const ComponentMod = module
+
+            self._ENTRIES ||= {{}}
+            self._ENTRIES[{}] = {{
+                ComponentMod: module,
+                default: EdgeRouteModuleWrapper.wrap(module.routeModule),
+            }}
+        "#,
+        StringifyJs(&format_args!("middleware_{}", original_name))
+    )?;
+    let file = File::from(source.build());
+    // TODO(alexkirsz) Figure out how to name this virtual asset.
+    let virtual_source = VirtualSource::new(
+        project_root.join("edge-wrapper.js".to_string()),
+        AssetContent::file(file.into()),
+    );
+    let inner_assets = indexmap! {
+        "MODULE".to_string() => entry
+    };
+
+    Ok(context.process(
+        Vc::upcast(virtual_source),
+        Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
+    ))
 }
 
 fn get_original_route_name(pathname: &str) -> String {
