@@ -85,7 +85,6 @@ pub async fn get_app_route_favicon_entry(
         Vc::upcast(source),
         // TODO(alexkirsz) Get this from the metadata?
         "/favicon.ico".to_string(),
-        "/favicon.ico".to_string(),
         project_root,
     ))
 }
