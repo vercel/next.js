@@ -1,4 +1,4 @@
-import { createNextDescribe } from 'e2e-utils'
+import { createNextDescribe } from '../../../lib/e2e-utils'
 import { outdent } from 'outdent'
 
 createNextDescribe(
@@ -10,18 +10,21 @@ createNextDescribe(
     },
   },
   ({ next, isNextStart }) => {
+    if (!isNextStart) {
+      it('should skip', () => {})
+      return
+    }
+
     it('should bailout when using an import from next/headers', async () => {
       const url = '/page-with-headers'
       const $ = await next.render$(url)
       expect($('h1').text()).toBe('Dynamic Page')
 
       // Check if the page is not statically generated.
-      if (isNextStart) {
-        const id = $('#nanoid').text()
-        const $2 = await next.render$(url)
-        const id2 = $2('#nanoid').text()
-        expect(id).not.toBe(id2)
-      }
+      const id = $('#nanoid').text()
+      const $2 = await next.render$(url)
+      const id2 = $2('#nanoid').text()
+      expect(id).not.toBe(id2)
     })
 
     it('should not bailout when not using headers', async () => {
@@ -31,12 +34,10 @@ createNextDescribe(
       expect($('h1').text()).toBe('Static Page')
 
       // Check if the page is not statically generated.
-      if (isNextStart) {
-        const id = $('#nanoid').text()
-        const $2 = await next.render$(url)
-        const id2 = $2('#nanoid').text()
-        expect(id).toBe(id2)
-      }
+      const id = $('#nanoid').text()
+      const $2 = await next.render$(url)
+      const id2 = $2('#nanoid').text()
+      expect(id).toBe(id2)
     })
 
     it('it provides a helpful link in case static generation bailout is uncaught', async () => {
