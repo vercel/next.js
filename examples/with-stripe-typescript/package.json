@@ -6,8 +6,8 @@
     "start": "next start"
   },
   "dependencies": {
-    "@stripe/react-stripe-js": "1.13.0",
-    "@stripe/stripe-js": "1.42.0",
+    "@stripe/react-stripe-js": "2.1.1",
+    "@stripe/stripe-js": "1.54.1",
     "micro": "^9.4.1",
     "micro-cors": "^0.1.1",
     "next": "latest",
@@ -15,8 +15,7 @@
     "react-dom": "^18.2.0",
     "redux": "4.2.0",
     "stripe": "12.14.0",
-    "swr": "^2.0.0",
-    "use-shopping-cart": "3.1.2"
+    "swr": "^2.0.0"
   },
   "devDependencies": {
     "@types/micro": "^7.3.7",
