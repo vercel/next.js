@@ -1,5 +1,6 @@
 import { createHash } from 'crypto'
 import { promises } from 'fs'
+import { cpus } from 'os'
 import type { IncomingMessage, ServerResponse } from 'http'
 import { mediaType } from 'next/dist/compiled/@hapi/accept'
 import chalk from 'next/dist/compiled/chalk'
@@ -43,15 +44,25 @@ const VECTOR_TYPES = [SVG]
 const BLUR_IMG_SIZE = 8 // should match `next-image-loader`
 const BLUR_QUALITY = 70 // should match `next-image-loader`
 
-let sharp:
-  | ((
-      input?: string | Buffer,
-      options?: import('sharp').SharpOptions
-    ) => import('sharp').Sharp)
-  | undefined
+let sharp: typeof import('sharp') | undefined
 
 try {
   sharp = require(process.env.NEXT_SHARP_PATH || 'sharp')
+  if (sharp) {
+    // During development, there's no need to create a large thread pool to
+    // process images. This helpes to reduce the memory usage of the dev server.
+    // For production, we set a larger number here.
+    // https://sharp.pixelplumbing.com/api-utility#concurrency
+    sharp.concurrency(
+      Math.min(
+        process.env.NODE_ENV === 'development' ? 2 : 8,
+        cpus().length,
+        // The current concurrency value from Sharp. This varies based on the
+        // sytem the server is running on.
+        sharp.concurrency()
+      )
+    )
+  }
 } catch (e) {
   // Sharp not present on the server, Squoosh fallback will be used
 }
