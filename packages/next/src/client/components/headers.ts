@@ -12,7 +12,7 @@ import { DraftMode } from './draft-mode'
 export function headers() {
   if (
     staticGenerationBailout('headers', {
-      link: 'https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic-rendering#dynamic-functions',
+      link: 'https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering',
     })
   ) {
     return HeadersAdapter.seal(new Headers({}))
@@ -31,7 +31,7 @@ export function headers() {
 export function cookies() {
   if (
     staticGenerationBailout('cookies', {
-      link: 'https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic-rendering#dynamic-functions',
+      link: 'https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering',
     })
   ) {
     return RequestCookiesAdapter.seal(new RequestCookies(new Headers({})))
