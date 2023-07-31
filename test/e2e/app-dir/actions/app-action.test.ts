@@ -374,7 +374,7 @@ createNextDescribe(
 
         await check(async () => {
           return browser.eval('window.location.toString()')
-        }, 'https://example.com/')
+        }, 'https://next-data-api-endpoint.vercel.app/api/random?page')
       })
 
       it('should allow cookie and header async storages', async () => {
@@ -422,7 +422,7 @@ createNextDescribe(
 
         await check(async () => {
           return browser.eval('window.location.toString()')
-        }, 'https://example.com/')
+        }, 'https://next-data-api-endpoint.vercel.app/api/random?page')
       })
 
       // TODO: investigate flakey behavior with revalidate
