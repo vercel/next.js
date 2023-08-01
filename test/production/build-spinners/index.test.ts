@@ -110,7 +110,6 @@ describe('build-spinners', () => {
 
     const nextBin = resolveFrom(appDir, 'next/dist/bin/next')
     const ptyPath = resolveFrom(appDir, 'node-pty')
-    console.log({ appDir, ptyPath, nextBin })
     const pty = require(ptyPath)
     const output = []
     const ptyProcess = pty.spawn(process.execPath, [nextBin, 'build'], {
