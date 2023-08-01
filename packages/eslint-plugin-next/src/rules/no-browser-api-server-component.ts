@@ -5,6 +5,44 @@ const description = 'Prevent the use of browser APIs in server components.'
 const url =
   'https://nextjs.org/docs/messages/no-browser-api-in-server-component'
 
+const browserAPIs = [
+  'document',
+  'window',
+  'navigator',
+  'location',
+  'history',
+  'localStorage',
+  'sessionStorage',
+  'fetch',
+  'XMLHttpRequest',
+  'setTimeout',
+  'setInterval',
+  'requestAnimationFrame',
+  'addEventListener',
+  'removeEventListener',
+  'CustomEvent',
+  'Promise',
+  'Worker',
+  'navigator.geolocation',
+  'canvas',
+  'WebSocket',
+  'navigator.mediaDevices.getUserMedia',
+  'AudioContext',
+  'history',
+  'Notification',
+  'navigator.serviceWorker',
+  'IntersectionObserver',
+  'ondragstart',
+  'ondragover',
+  'Element.requestFullscreen',
+  'Storage',
+  'navigator.clipboard',
+  'Animation',
+  'alert',
+  'confirm',
+  'prompt',
+]
+
 export = defineRule({
   meta: {
     docs: {
@@ -49,44 +87,6 @@ export = defineRule({
         }
       },
       Identifier(node) {
-        const browserAPIs = [
-          'document',
-          'window',
-          'navigator',
-          'location',
-          'history',
-          'localStorage',
-          'sessionStorage',
-          'fetch',
-          'XMLHttpRequest',
-          'setTimeout',
-          'setInterval',
-          'requestAnimationFrame',
-          'addEventListener',
-          'removeEventListener',
-          'CustomEvent',
-          'Promise',
-          'Worker',
-          'navigator.geolocation',
-          'canvas',
-          'WebSocket',
-          'navigator.mediaDevices.getUserMedia',
-          'AudioContext',
-          'history',
-          'Notification',
-          'navigator.serviceWorker',
-          'IntersectionObserver',
-          'ondragstart',
-          'ondragover',
-          'Element.requestFullscreen',
-          'Storage',
-          'navigator.clipboard',
-          'Animation',
-          'alert',
-          'confirm',
-          'prompt',
-        ]
-
         if (
           !inUseEffectHook &&
           browserAPIs.includes(node.name) &&
