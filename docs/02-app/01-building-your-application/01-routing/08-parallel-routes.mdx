@@ -103,20 +103,13 @@ Consider the following folder structure. The `@team` slot has a `settings` direc
   height="930"
 />
 
-If you were to navigate from the root `/` to `/settings`, the content that gets rendered is different based on the type of navigation and the availability of the `default.js` file.
+#### Navigation
 
-|                 | With `@analytics/default.js`                         | Without `@analytics/default.js`                   |
-| --------------- | ---------------------------------------------------- | ------------------------------------------------- |
-| Soft Navigation | `@team/settings/page.js` and `@analytics/page.js`    | `@team/settings/page.js` and `@analytics/page.js` |
-| Hard Navigation | `@team/settings/page.js` and `@analytics/default.js` | 404                                               |
+On navigation, Next.js will render the slot's previously active state, even if it doesn't match the current URL.
 
-#### Soft Navigation
+#### Reload
 
-On a [soft navigation](/docs/app/building-your-application/routing/linking-and-navigating#soft-navigation) - Next.js will render the slot's previously active state, even if it doesn't match the current URL.
-
-#### Hard Navigation
-
-On a [hard navigation](/docs/app/building-your-application/routing/linking-and-navigating#hard-navigation) - a navigation that requires a full page reload - Next.js will first try to render the unmatched slot's `default.js` file. If that's not available, a 404 gets rendered.
+On reload, Next.js will first try to render the unmatched slot's `default.js` file. If that's not available, a 404 gets rendered.
 
 > The 404 for unmatched routes helps ensure that you don't accidentally render a route that shouldn't be parallel rendered.
 

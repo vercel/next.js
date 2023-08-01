@@ -577,6 +577,7 @@ impl PageEndpoint {
         self: Vc<Self>,
         reference_type: Value<ReferenceType>,
         node_path: Vc<FileSystemPath>,
+        project_root: Vc<FileSystemPath>,
         module_context: Vc<ModuleAssetContext>,
         edge_module_context: Vc<ModuleAssetContext>,
         chunking_context: Vc<BuildChunkingContext>,
@@ -595,6 +596,7 @@ impl PageEndpoint {
             let ssr_module = create_page_ssr_entry_module(
                 this.pathname,
                 reference_type,
+                project_root,
                 Vc::upcast(edge_module_context),
                 self.source(),
                 this.original_name,
@@ -610,6 +612,7 @@ impl PageEndpoint {
             let ssr_module = create_page_ssr_entry_module(
                 this.pathname,
                 reference_type,
+                project_root,
                 Vc::upcast(module_context),
                 self.source(),
                 this.original_name,
@@ -638,6 +641,7 @@ impl PageEndpoint {
                 .project()
                 .node_root()
                 .join("server".to_string()),
+            this.path.root(),
             this.pages_project.ssr_module_context(),
             this.pages_project.edge_ssr_module_context(),
             this.pages_project.project().ssr_chunking_context(),
@@ -656,6 +660,7 @@ impl PageEndpoint {
                 .project()
                 .node_root()
                 .join("server-data".to_string()),
+            this.path.root(),
             this.pages_project.ssr_data_module_context(),
             this.pages_project.edge_ssr_data_module_context(),
             this.pages_project.project().ssr_data_chunking_context(),
@@ -676,6 +681,7 @@ impl PageEndpoint {
                 .project()
                 .node_root()
                 .join("server".to_string()),
+            this.path.root(),
             this.pages_project.ssr_module_context(),
             this.pages_project.edge_ssr_module_context(),
             this.pages_project.project().ssr_chunking_context(),
