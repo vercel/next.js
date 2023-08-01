@@ -46,6 +46,14 @@ ruleTester.run('no-browser-api-in-server-component', rule, {
         );
       }
     `,
+    `
+      const functionWithWindow = () => {
+        const myWindow = window;
+      }
+    `,
+    `
+      const myWindow = window;
+    `,
   ],
   invalid: [
     {

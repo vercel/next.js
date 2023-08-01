@@ -1,4 +1,5 @@
 import { defineRule } from '../utils/define-rule'
+import { isCapitalized } from '../utils/regex'
 
 const description = 'Prevent the use of browser APIs in server components.'
 
@@ -54,7 +55,6 @@ export = defineRule({
     schema: [],
   },
   create(context) {
-    let inUseEffectHook = false
     const sourceCode = context.getSourceCode()
     const text = sourceCode.text
     const allComments = sourceCode.getAllComments()
@@ -69,28 +69,21 @@ export = defineRule({
     }
 
     return {
-      CallExpression(node) {
-        if (
-          node.callee.type === 'Identifier' &&
-          node.callee.name === 'useEffect'
-        ) {
-          inUseEffectHook = true
-        }
-      },
-      'CallExpression:exit'(node) {
-        // Check if we're leaving a useEffect hook
-        if (
-          node.callee.type === 'Identifier' &&
-          node.callee.name === 'useEffect'
-        ) {
-          inUseEffectHook = false
-        }
-      },
       Identifier(node) {
+        let parentFunction = node.parent
+        while (
+          parentFunction &&
+          parentFunction.type !== 'FunctionDeclaration' &&
+          parentFunction.type !== 'ArrowFunctionExpression'
+        ) {
+          parentFunction = parentFunction.parent
+        }
+
         if (
-          !inUseEffectHook &&
           browserAPIs.includes(node.name) &&
-          node.name !== 'useEffect'
+          node.name !== 'useEffect' &&
+          parentFunction?.type === 'FunctionDeclaration' &&
+          isCapitalized(parentFunction.id.name)
         ) {
           context.report({
             node,
