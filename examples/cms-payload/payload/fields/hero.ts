@@ -14,19 +14,19 @@ export const hero: Field = {
       name: 'type',
       label: 'Type',
       required: true,
-      defaultValue: 'lowImpact',
+      defaultValue: 'light',
       options: [
         {
-          label: 'High Impact',
-          value: 'highImpact',
+          label: 'Heavy',
+          value: 'heavy',
         },
         {
-          label: 'Medium Impact',
-          value: 'mediumImpact',
+          label: 'Medium',
+          value: 'medium',
         },
         {
-          label: 'Low Impact',
-          value: 'lowImpact',
+          label: 'Light',
+          value: 'light',
         },
       ],
     },
@@ -48,7 +48,7 @@ export const hero: Field = {
       required: true,
       admin: {
         condition: (_, { type } = {}) =>
-          ['highImpact', 'mediumImpact'].includes(type),
+          ['heavy', 'medium'].includes(type),
       },
     },
   ],

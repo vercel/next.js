@@ -8,7 +8,7 @@ import RichText from '../../RichText'
 
 import classes from './index.module.scss'
 
-export const MediumImpactHero: React.FC<Page['hero']> = (props) => {
+export const MediumHero: React.FC<Page['hero']> = (props) => {
   const { richText, media, links } = props
 
   return (

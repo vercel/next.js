@@ -37,7 +37,7 @@ If we were to split the page into smaller components, you'll notice that the maj
 
 So, you may be thinking, why Server Components? What are the advantages of using them over Client Components?
 
-Server Components allow developers to better leverage server infrastructure. For example, you can move data fetching to the server, closer to your database, and keep large dependencies that previously would impact the client JavaScript bundle size on the server, leading to improved performance. Server Components make writing a React application feel similar to PHP or Ruby on Rails, but with the power and flexibility of React and the components model for templating UI.
+Server Components allow developers to better leverage server infrastructure. For example, you can move data fetching to the server, closer to your database, and keep large dependencies that previously would affect the client JavaScript bundle size on the server, leading to improved performance. Server Components make writing a React application feel similar to PHP or Ruby on Rails, but with the power and flexibility of React and the components model for templating UI.
 
 With Server Components, the initial page load is faster, and the client-side JavaScript bundle size is reduced. The base client-side runtime is **cacheable** and **predictable** in size, and does _not_ increase as your application grows. Additional JavaScript is _only added_ as client-side interactivity is used in your application through [Client Components](#client-components).
 

@@ -19,7 +19,7 @@ export interface Page {
   id: string
   title: string
   hero: {
-    type: 'highImpact' | 'mediumImpact' | 'lowImpact'
+    type: 'heavy' | 'medium' | 'light'
     richText: {
       [k: string]: unknown
     }[]
