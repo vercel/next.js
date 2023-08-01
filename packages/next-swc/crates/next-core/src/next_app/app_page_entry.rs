@@ -6,7 +6,7 @@ use turbopack_binding::{
     turbo::tasks_fs::{rope::RopeBuilder, File, FileSystemPath},
     turbopack::{
         core::{
-            asset::AssetContent, context::AssetContext, issue::IssueExt, module::Module,
+            asset::AssetContent, context::AssetContext, issue::IssueExt,
             reference_type::ReferenceType, virtual_source::VirtualSource,
         },
         ecmascript::{chunk::EcmascriptChunkPlaceable, utils::StringifyJs},
@@ -20,9 +20,10 @@ use crate::{
     loader_tree::{LoaderTreeModule, ServerComponentTransition},
     mode::NextMode,
     next_app::UnsupportedDynamicMetadataIssue,
+    next_import_map::get_next_package,
     next_server_component::NextServerComponentTransition,
     parse_segment_config_from_loader_tree,
-    util::{load_next_js, resolve_next_module, NextRuntime},
+    util::{load_next_js, NextRuntime},
 };
 
 /// Computes the entry for a Next.js app page.
@@ -79,10 +80,10 @@ pub async fn get_app_page_entry(
 
     let original_name = get_original_page_name(&pathname);
 
-    let template_file = "/dist/esm/build/webpack/loaders/next-route-loader/templates/app-page.js";
+    let template_file = "dist/esm/build/webpack/loaders/next-route-loader/templates/app-page.js";
 
     // Load the file from the next.js codebase.
-    let file = load_next_js(project_root, template_file).await?.await?;
+    let file = load_next_js(project_root, template_file.to_string()).await?;
 
     let mut file = file
         .to_str()?
@@ -129,13 +130,7 @@ pub async fn get_app_page_entry(
 
     let file = File::from(result.build());
 
-    let resolve_result = resolve_next_module(project_root, template_file).await?;
-
-    let Some(template_path) = *resolve_result.first_module().await? else {
-        bail!("Expected to find module");
-    };
-
-    let template_path = template_path.ident().path();
+    let template_path = get_next_package(project_root).join(template_file.to_string());
 
     let source = VirtualSource::new(template_path, AssetContent::file(file.into()));
 

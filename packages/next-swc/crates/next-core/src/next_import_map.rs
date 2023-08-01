@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, HashMap};
 
 use anyhow::{Context, Result};
-use turbo_tasks::{Value, Vc};
+use turbo_tasks::{debug::ValueDebug, Value, ValueToString, Vc};
 use turbopack_binding::{
     turbo::tasks_fs::{glob::Glob, FileSystem, FileSystemPath},
     turbopack::{
@@ -620,17 +620,19 @@ async fn package_lookup_resolve_options(
 }
 
 #[turbo_tasks::function]
-pub async fn get_next_package(project_path: Vc<FileSystemPath>) -> Result<Vc<FileSystemPath>> {
+pub async fn get_next_package(context_directory: Vc<FileSystemPath>) -> Result<Vc<FileSystemPath>> {
     let result = resolve(
-        project_path,
+        context_directory,
         Request::parse(Value::new(Pattern::Constant(
             "next/package.json".to_string(),
         ))),
-        package_lookup_resolve_options(project_path),
+        package_lookup_resolve_options(context_directory),
     );
-    let assets = result.primary_sources().await?;
-    let asset = *assets.first().context("Next.js package not found")?;
-    Ok(asset.ident().path().parent())
+    let source = result
+        .first_source()
+        .await?
+        .context("Next.js package not found")?;
+    Ok(source.ident().path().parent())
 }
 
 pub async fn insert_alias_option<const N: usize>(
