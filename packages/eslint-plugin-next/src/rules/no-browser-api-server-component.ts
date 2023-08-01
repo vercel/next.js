@@ -94,7 +94,7 @@ export = defineRule({
         ) {
           context.report({
             node,
-            message: `Do not use ${node.name} outside of a useEffect hook in a server component.`,
+            message: `${description} Avoid using \`${node.name}\` in server components. See: ${url}`,
           })
         }
       },
