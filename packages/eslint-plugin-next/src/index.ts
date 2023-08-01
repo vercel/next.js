@@ -21,6 +21,7 @@ module.exports = {
     'no-title-in-document-head': require('./rules/no-title-in-document-head'),
     'no-typos': require('./rules/no-typos'),
     'no-unwanted-polyfillio': require('./rules/no-unwanted-polyfillio'),
+    'no-browser-api-server-component': require('./rules/no-browser-api-server-component'),
   },
   configs: {
     recommended: {

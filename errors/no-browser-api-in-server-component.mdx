@@ -1,0 +1,47 @@
+---
+title: No Browser API In Server Component
+---
+
+> Prevent the use of browser APIs in server components.
+
+#### Why This Error Occurred
+
+<!-- Explain why the error occurred. Ensure the description makes it clear why the warning/error exists -->
+
+The error occurs when a server-side component uses a browser-specific API that is not available in the server environment.
+
+#### Possible Ways to Fix It
+
+<!-- Explain how to fix the warning/error, potentially by providing alternative approaches. Ensure this section is actionable by users -->
+
+1. Put the browser API related code in a useEffect.
+
+```jsx filename="app/my-server-component.tsx"
+import { useEffect } from 'react'
+
+const MyComponent = () => {
+  useEffect(() => {
+    // Browser API related code
+  }, [])
+
+  return <div>My Component</div>
+}
+```
+
+2.Convert the component to a client component.
+
+```jsx filename="app/my-client-component.tsx"
+'use client'
+
+const MyComponent = () => {
+  // Browser API related code
+
+  return <div>My Component</div>
+}
+```
+
+### Useful Links
+
+<!-- Add links to relevant documentation -->
+
+- [When to use Server and Client Components?](/docs/getting-started/react-essentials#when-to-use-server-and-client-components)
