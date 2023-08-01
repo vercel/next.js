@@ -1,7 +1,8 @@
-import fs from 'fs-extra'
 import path from 'path'
+import fs from 'fs-extra'
 import stripAnsi from 'strip-ansi'
-import { createNext } from 'e2e-utils'
+import resolveFrom from 'resolve-from'
+import { NextInstance, createNext } from 'e2e-utils'
 
 type File = {
   filename: string
@@ -44,60 +45,71 @@ const pagesFiles: File[] = [
   },
 ]
 
-it.each([
-  { name: 'app dir', files: appDirFiles },
-  {
-    name: 'app dir (compile workers)',
-    files: [
-      ...appDirFiles,
-      {
-        filename: 'next.config.js',
-        content: `
-        module.exports = {
-          experimental: {
-            webpackBuildWorker: true,
-          }
-        }
-      `,
+let next: NextInstance
+
+describe('build-spinners', () => {
+  beforeAll(async () => {
+    next = await createNext({
+      skipStart: true,
+      files: {},
+      dependencies: {
+        'node-pty': '0.10.1',
       },
-    ],
-  },
-  {
-    name: 'page dir',
-    files: [
-      ...pagesFiles,
-      {
-        filename: 'next.config.js',
-        content: `
-        module.exports = {
-          experimental: {
-            webpackBuildWorker: true,
-          }
-        }
-      `,
-      },
-    ],
-  },
-  { name: 'page dir (compile workers)', files: pagesFiles },
-  { name: 'app and pages', files: [...appDirFiles, ...pagesFiles] },
-])('should handle build spinners correctly $name', async ({ files }) => {
-  const filesMap = {}
-  for (const { filename, content } of files) {
-    filesMap[filename] = content
-  }
-  const next = await createNext({
-    skipStart: true,
-    files: filesMap,
-    dependencies: {
-      'node-pty': '0.10.1',
-    },
+    })
   })
 
-  const appDir = next.testDir
+  afterAll(() => next.destroy())
 
-  try {
-    const nextBin = require.resolve('next/dist/bin/next')
-    const ptyPath = require.resolve('node-pty', { paths: [appDir] }) as any
+  beforeEach(async () => {
+    await fs.remove(path.join(next.testDir, 'pages'))
+    await fs.remove(path.join(next.testDir, 'app'))
+  })
+
+  it.each([
+    { name: 'app dir', files: appDirFiles },
+    {
+      name: 'app dir (compile workers)',
+      files: [
+        ...appDirFiles,
+        {
+          filename: 'next.config.js',
+          content: `
+        module.exports = {
+          experimental: {
+            webpackBuildWorker: true,
+          }
+        }
+      `,
+        },
+      ],
+    },
+    {
+      name: 'page dir',
+      files: [
+        ...pagesFiles,
+        {
+          filename: 'next.config.js',
+          content: `
+        module.exports = {
+          experimental: {
+            webpackBuildWorker: true,
+          }
+        }
+      `,
+        },
+      ],
+    },
+    { name: 'page dir (compile workers)', files: pagesFiles },
+    { name: 'app and pages', files: [...appDirFiles, ...pagesFiles] },
+  ])('should handle build spinners correctly $name', async ({ files }) => {
+    for (const { filename, content } of files) {
+      await next.patchFile(filename, content)
+    }
+
+    const appDir = next.testDir
+
+    const nextBin = resolveFrom(appDir, 'next/dist/bin/next')
+    const ptyPath = resolveFrom(appDir, 'node-pty')
     console.log({ appDir, ptyPath, nextBin })
     const pty = require(ptyPath)
     const output = []
@@ -178,7 +190,5 @@ it.each([
     expect(compiledIdx).toBeLessThan(collectingPageDataIdx)
     expect(collectingPageDataIdx).toBeLessThan(generatingStaticIdx)
     expect(generatingStaticIdx).toBeLessThan(finalizingOptimization)
-  } finally {
-    await next.destroy()
-  }
+  })
 })
