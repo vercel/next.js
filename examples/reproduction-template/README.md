@@ -15,15 +15,15 @@ These are the steps you should follow when creating a bug report:
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
 
 ```bash
-npx create-next-app --example reproduction-template-app-dir reproduction-app
+npx create-next-app --example reproduction-template reproduction-app
 ```
 
 ```bash
-yarn create next-app --example reproduction-template-app-dir reproduction-app
+yarn create next-app --example reproduction-template reproduction-app
 ```
 
 ```bash
-pnpm create next-app --example reproduction-template-app-dir reproduction-app
+pnpm create next-app --example reproduction-template reproduction-app
 ```
 
 ## Learn More
@@ -42,4 +42,4 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 
 If your reproduction needs to be deployed, the easiest way is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.

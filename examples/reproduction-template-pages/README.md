@@ -14,15 +14,15 @@ These are the steps you should follow when creating a bug report:
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
 
 ```bash
-npx create-next-app --example reproduction-template reproduction-app
+npx create-next-app --example reproduction-template-pages reproduction-app
 ```
 
 ```bash
-yarn create next-app --example reproduction-template reproduction-app
+yarn create next-app --example reproduction-template-pages reproduction-app
 ```
 
 ```bash
-pnpm create next-app --example reproduction-template reproduction-app
+pnpm create next-app --example reproduction-template-pages reproduction-app
 ```
 
 ## Learn More
