@@ -229,6 +229,8 @@ pub async fn get_next_server_import_map(
         ServerContextType::AppSSR { .. }
         | ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. } => {
+            import_map.insert_wildcard_alias("next/dist/server/", external);
+            import_map.insert_wildcard_alias("next/dist/shared/", external);
             import_map.insert_exact_alias(
                 "next/head",
                 request_to_import_mapping(project_path, "next/dist/client/components/noop-head"),
@@ -237,9 +239,6 @@ pub async fn get_next_server_import_map(
                 "next/dynamic",
                 request_to_import_mapping(project_path, "next/dist/shared/lib/app-dynamic"),
             );
-
-            // The sandbox can't be bundled and needs to be external
-            import_map.insert_exact_alias("next/dist/server/web/sandbox", external);
         }
         ServerContextType::Middleware => {}
     }
