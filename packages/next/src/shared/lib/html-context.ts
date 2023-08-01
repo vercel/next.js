@@ -4,7 +4,7 @@ import type { NEXT_DATA } from './utils'
 import type { FontConfig } from '../../server/font-utils'
 import type { NextFontManifest } from '../../build/webpack/plugins/next-font-manifest-plugin'
 
-import { createContext } from 'react'
+import { createContext, useContext } from 'react'
 
 export type HtmlProps = {
   __NEXT_DATA__: NEXT_DATA
@@ -27,7 +27,7 @@ export type HtmlProps = {
   headTags: any[]
   unstable_runtimeJS?: false
   unstable_JsPreload?: false
-  devOnlyCacheBusterQueryString: string
+  assetQueryString: string
   scriptLoader: {
     afterInteractive?: string[]
     beforeInteractive?: any[]
@@ -48,7 +48,20 @@ export type HtmlProps = {
   nextFontManifest?: NextFontManifest
 }
 
-export const HtmlContext = createContext<HtmlProps>(null as any)
+export const HtmlContext = createContext<HtmlProps | undefined>(undefined)
 if (process.env.NODE_ENV !== 'production') {
   HtmlContext.displayName = 'HtmlContext'
+}
+
+export function useHtmlContext() {
+  const context = useContext(HtmlContext)
+
+  if (!context) {
+    throw new Error(
+      `<Html> should not be imported outside of pages/_document.\n` +
+        'Read more: https://nextjs.org/docs/messages/no-document-import-in-page'
+    )
+  }
+
+  return context
 }

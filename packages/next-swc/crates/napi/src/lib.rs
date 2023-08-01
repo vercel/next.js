@@ -28,6 +28,8 @@ DEALINGS IN THE SOFTWARE.
 
 #![recursion_limit = "2048"]
 //#![deny(clippy::all)]
+#![feature(arbitrary_self_types)]
+#![feature(async_fn_in_trait)]
 
 #[macro_use]
 extern crate napi_derive;
@@ -41,7 +43,7 @@ use std::{
 use backtrace::Backtrace;
 use fxhash::FxHashSet;
 use napi::bindgen_prelude::*;
-use turbo_binding::swc::core::{
+use turbopack_binding::swc::core::{
     base::{Compiler, TransformOutput},
     common::{sync::Lazy, FilePathMapping, SourceMap},
 };
@@ -49,11 +51,15 @@ use turbo_binding::swc::core::{
 pub mod app_structure;
 pub mod mdx;
 pub mod minify;
+pub mod next_api;
 pub mod parse;
 pub mod transform;
 pub mod turbopack;
 pub mod turbotrace;
 pub mod util;
+
+// Declare build-time information variables generated in build.rs
+shadow_rs::shadow!(build);
 
 // don't use turbo malloc (`mimalloc`) on linux-musl-aarch64 because of the
 // compile error
@@ -63,7 +69,8 @@ pub mod util;
     feature = "__internal_dhat-ad-hoc"
 )))]
 #[global_allocator]
-static ALLOC: turbo_binding::turbo::malloc::TurboMalloc = turbo_binding::turbo::malloc::TurboMalloc;
+static ALLOC: turbopack_binding::turbo::malloc::TurboMalloc =
+    turbopack_binding::turbo::malloc::TurboMalloc;
 
 #[cfg(feature = "__internal_dhat-heap")]
 #[global_allocator]
@@ -115,6 +122,7 @@ static REGISTER_ONCE: Once = Once::new();
 
 fn register() {
     REGISTER_ONCE.call_once(|| {
+        ::next_api::register();
         next_core::register();
         include!(concat!(env!("OUT_DIR"), "/register.rs"));
     });

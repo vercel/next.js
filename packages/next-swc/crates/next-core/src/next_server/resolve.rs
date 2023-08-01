@@ -1,31 +1,30 @@
 use anyhow::Result;
 use once_cell::sync::Lazy;
 use regex::Regex;
-use turbo_binding::{
-    turbo::tasks_fs::{glob::GlobVc, FileJsonContent, FileSystemPathVc},
+use turbo_tasks::Vc;
+use turbopack_binding::{
+    turbo::tasks_fs::{glob::Glob, FileJsonContent, FileSystemPath},
     turbopack::core::{
-        asset::Asset,
         resolve::{
             find_context_file,
             node::node_cjs_resolve_options,
             package_json,
-            parse::{Request, RequestVc},
-            plugin::{ResolvePlugin, ResolvePluginConditionVc, ResolvePluginVc},
-            resolve, FindContextFileResult, PrimaryResolveResult, ResolveResult,
-            ResolveResultOptionVc,
+            parse::Request,
+            plugin::{ResolvePlugin, ResolvePluginCondition},
+            resolve, FindContextFileResult, ResolveResult, ResolveResultItem, ResolveResultOption,
         },
+        source::Source,
     },
 };
-use turbo_tasks::primitives::{BoolVc, StringsVc};
 
 /// The predicated based on which the [ExternalCjsModulesResolvePlugin] decides
 /// whether to mark a module as external.
 #[turbo_tasks::value(into = "shared")]
 pub enum ExternalPredicate {
     /// Mark all modules as external if they're not listed in the list.
-    AllExcept(StringsVc),
+    AllExcept(Vc<Vec<String>>),
     /// Only mark modules listed as external.
-    Only(StringsVc),
+    Only(Vc<Vec<String>>),
 }
 
 /// Mark modules as external, so they're resolved at runtime instead of bundled.
@@ -34,65 +33,65 @@ pub enum ExternalPredicate {
 /// possible to resolve them at runtime.
 #[turbo_tasks::value]
 pub(crate) struct ExternalCjsModulesResolvePlugin {
-    root: FileSystemPathVc,
-    predicate: ExternalPredicateVc,
+    root: Vc<FileSystemPath>,
+    predicate: Vc<ExternalPredicate>,
 }
 
 #[turbo_tasks::value_impl]
-impl ExternalCjsModulesResolvePluginVc {
+impl ExternalCjsModulesResolvePlugin {
     #[turbo_tasks::function]
-    pub fn new(root: FileSystemPathVc, predicate: ExternalPredicateVc) -> Self {
+    pub fn new(root: Vc<FileSystemPath>, predicate: Vc<ExternalPredicate>) -> Vc<Self> {
         ExternalCjsModulesResolvePlugin { root, predicate }.cell()
     }
 }
 
 #[turbo_tasks::function]
 async fn is_node_resolveable(
-    context: FileSystemPathVc,
-    request: RequestVc,
-    expected: FileSystemPathVc,
-) -> Result<BoolVc> {
+    context: Vc<FileSystemPath>,
+    request: Vc<Request>,
+    expected: Vc<FileSystemPath>,
+) -> Result<Vc<bool>> {
     let node_resolve_result = resolve(context, request, node_cjs_resolve_options(context.root()));
-    let primary_node_assets = node_resolve_result.primary_assets().await?;
-    let Some(node_asset) = primary_node_assets.first() else {
+    let primary_node_assets = node_resolve_result.primary_sources().await?;
+    let Some(&node_asset) = primary_node_assets.first() else {
         // can't resolve request with node.js options
-        return Ok(BoolVc::cell(false));
+        return Ok(Vc::cell(false));
     };
 
     if node_asset.ident().path().resolve().await? != expected.resolve().await? {
         // node.js resolves to a different file
-        return Ok(BoolVc::cell(false));
+        return Ok(Vc::cell(false));
     }
 
-    Ok(BoolVc::cell(true))
+    Ok(Vc::cell(true))
 }
 
 static PNPM: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?:/|^)node_modules/(.pnpm/.+)").unwrap());
 
 #[turbo_tasks::function]
-fn condition(root: FileSystemPathVc) -> ResolvePluginConditionVc {
-    ResolvePluginConditionVc::new(root.root(), GlobVc::new("**/node_modules/**"))
+fn condition(root: Vc<FileSystemPath>) -> Vc<ResolvePluginCondition> {
+    ResolvePluginCondition::new(root.root(), Glob::new("**/node_modules/**".to_string()))
 }
 
 #[turbo_tasks::value_impl]
 impl ResolvePlugin for ExternalCjsModulesResolvePlugin {
     #[turbo_tasks::function]
-    fn after_resolve_condition(&self) -> ResolvePluginConditionVc {
+    fn after_resolve_condition(&self) -> Vc<ResolvePluginCondition> {
         condition(self.root)
     }
 
     #[turbo_tasks::function]
     async fn after_resolve(
         &self,
-        fs_path: FileSystemPathVc,
-        context: FileSystemPathVc,
-        request: RequestVc,
-    ) -> Result<ResolveResultOptionVc> {
+        fs_path: Vc<FileSystemPath>,
+        context: Vc<FileSystemPath>,
+        request: Vc<Request>,
+    ) -> Result<Vc<ResolveResultOption>> {
         if *condition(self.root).matches(context).await? {
-            return Ok(ResolveResultOptionVc::none());
+            return Ok(ResolveResultOption::none());
         }
         if !matches!(&*request.await?, Request::Module { .. }) {
-            return Ok(ResolveResultOptionVc::none());
+            return Ok(ResolveResultOption::none());
         }
 
         let raw_fs_path = &*fs_path.await?;
@@ -103,14 +102,14 @@ impl ResolvePlugin for ExternalCjsModulesResolvePlugin {
                 let exception_glob = packages_glob(*exceptions).await?;
 
                 if exception_glob.execute(&raw_fs_path.path) {
-                    return Ok(ResolveResultOptionVc::none());
+                    return Ok(ResolveResultOption::none());
                 }
             }
             ExternalPredicate::Only(externals) => {
                 let external_glob = packages_glob(*externals).await?;
 
                 if !external_glob.execute(&raw_fs_path.path) {
-                    return Ok(ResolveResultOptionVc::none());
+                    return Ok(ResolveResultOption::none());
                 }
             }
         }
@@ -118,34 +117,34 @@ impl ResolvePlugin for ExternalCjsModulesResolvePlugin {
         // node.js only supports these file extensions
         // mjs is an esm module and we can't bundle that yet
         if !matches!(
-            raw_fs_path.extension(),
+            raw_fs_path.extension_ref(),
             Some("cjs" | "js" | "node" | "json")
         ) {
-            return Ok(ResolveResultOptionVc::none());
+            return Ok(ResolveResultOption::none());
         }
 
         let FindContextFileResult::Found(package_json, _) =
             *find_context_file(fs_path.parent(), package_json()).await?
         else {
             // can't find package.json
-            return Ok(ResolveResultOptionVc::none());
+            return Ok(ResolveResultOption::none());
         };
         let FileJsonContent::Content(package) = &*package_json.read_json().await? else {
             // can't parse package.json
-            return Ok(ResolveResultOptionVc::none());
+            return Ok(ResolveResultOption::none());
         };
 
         // always bundle esm modules
         if let Some("module") = package["type"].as_str() {
-            return Ok(ResolveResultOptionVc::none());
+            return Ok(ResolveResultOption::none());
         }
 
         // check if we can resolve the package from the project dir with node.js resolve
         // options (might be hidden by pnpm)
         if *is_node_resolveable(self.root.root(), request, fs_path).await? {
             // mark as external
-            return Ok(ResolveResultOptionVc::some(
-                ResolveResult::primary(PrimaryResolveResult::OriginalReferenceExternal).cell(),
+            return Ok(ResolveResultOption::some(
+                ResolveResult::primary(ResolveResultItem::OriginalReferenceExternal).cell(),
             ));
         }
 
@@ -161,24 +160,22 @@ impl ResolvePlugin for ExternalCjsModulesResolvePlugin {
                 // options, to come here like the `module` field in package.json
                 if *is_node_resolveable(context, request, fs_path).await? {
                     // mark as external
-                    return Ok(ResolveResultOptionVc::some(
-                        ResolveResult::primary(
-                            PrimaryResolveResult::OriginalReferenceTypeExternal(
-                                import_path.as_str().to_string(),
-                            ),
-                        )
+                    return Ok(ResolveResultOption::some(
+                        ResolveResult::primary(ResolveResultItem::OriginalReferenceTypeExternal(
+                            import_path.as_str().to_string(),
+                        ))
                         .cell(),
                     ));
                 }
             }
         }
-        Ok(ResolveResultOptionVc::none())
+        Ok(ResolveResultOption::none())
     }
 }
 
 #[turbo_tasks::function]
-async fn packages_glob(packages: StringsVc) -> Result<GlobVc> {
-    Ok(GlobVc::new(&format!(
+async fn packages_glob(packages: Vc<Vec<String>>) -> Result<Vc<Glob>> {
+    Ok(Glob::new(format!(
         "**/node_modules/{{{}}}/**",
         packages.await?.join(",")
     )))

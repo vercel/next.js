@@ -1,6 +1,6 @@
 use std::hash::Hash;
 
-use turbo_binding::swc::core::{
+use turbopack_binding::swc::core::{
     common::{collections::AHashSet, SyntaxContext},
     ecma::{
         ast::{

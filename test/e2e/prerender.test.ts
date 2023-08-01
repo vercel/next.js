@@ -1850,8 +1850,8 @@ describe('Prerender', () => {
         previewRes.headers
           .get('set-cookie')
           .split(',')
-          .forEach((c) => {
-            c = cookie.parse(c)
+          .forEach((s) => {
+            const c = cookie.parse(s)
             const isBypass = c.__prerender_bypass
 
             if (isBypass || c.__next_preview_data) {
@@ -2287,8 +2287,8 @@ describe('Prerender', () => {
         const html = await res.text()
         const $ = cheerio.load(html)
         const initialTime = $('#time').text()
-        expect(res.headers.get('x-nextjs-cache')).toMatch(/MISS/)
         expect($('p').text()).toMatch(/Post:.*?test-if-generated-2/)
+        expect(res.headers.get('x-nextjs-cache')).toMatch(/MISS/)
 
         const res2 = await fetchViaHTTP(
           next.url,
@@ -2296,9 +2296,9 @@ describe('Prerender', () => {
         )
         const html2 = await res2.text()
         const $2 = cheerio.load(html2)
-        expect(res2.headers.get('x-nextjs-cache')).toMatch(/(HIT|STALE)/)
 
         expect(initialTime).toBe($2('#time').text())
+        expect(res2.headers.get('x-nextjs-cache')).toMatch(/(HIT|STALE)/)
 
         const res3 = await fetchViaHTTP(
           next.url,

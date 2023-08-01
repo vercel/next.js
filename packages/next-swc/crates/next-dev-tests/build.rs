@@ -1,4 +1,4 @@
-use turbo_binding::turbo::tasks_build::{generate_register, rerun_if_glob};
+use turbopack_binding::turbo::tasks_build::{generate_register, rerun_if_glob};
 
 fn main() {
     generate_register();

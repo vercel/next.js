@@ -1,4 +1,5 @@
 import type arg from 'next/dist/compiled/arg/index.js'
+import * as Log from '../../build/output/log'
 
 export function printAndExit(message: string, code = 1) {
   if (code === 0) {
@@ -10,24 +11,49 @@ export function printAndExit(message: string, code = 1) {
   process.exit(code)
 }
 
-export const genExecArgv = (enabled: boolean | 'brk', debugPort: number) => {
+export const getDebugPort = () => {
+  const debugPortStr =
+    process.execArgv
+      .find(
+        (localArg) =>
+          localArg.startsWith('--inspect') ||
+          localArg.startsWith('--inspect-brk')
+      )
+      ?.split('=')[1] ??
+    process.env.NODE_OPTIONS?.match?.(/--inspect(-brk)?(=(\S+))?( |$)/)?.[3]
+  return debugPortStr ? parseInt(debugPortStr, 10) : 9229
+}
+
+export const genRouterWorkerExecArgv = async (
+  isNodeDebugging: boolean | 'brk'
+) => {
   const execArgv = process.execArgv.filter((localArg) => {
     return (
       !localArg.startsWith('--inspect') && !localArg.startsWith('--inspect-brk')
     )
   })
 
-  if (enabled) {
+  if (isNodeDebugging) {
+    const isDebuggingWithBrk = isNodeDebugging === 'brk'
+
+    let debugPort = getDebugPort() + 1
+
+    Log.info(
+      `the --inspect${
+        isDebuggingWithBrk ? '-brk' : ''
+      } option was detected, the Next.js routing server should be inspected at port ${debugPort}.`
+    )
+
     execArgv.push(
-      `--inspect${enabled === 'brk' ? '-brk' : ''}=${debugPort + 1}`
+      `--inspect${isNodeDebugging === 'brk' ? '-brk' : ''}=${debugPort}`
     )
   }
 
   return execArgv
 }
 
+const NODE_INSPECT_RE = /--inspect(-brk)?(=\S+)?( |$)/
 export function getNodeOptionsWithoutInspect() {
-  const NODE_INSPECT_RE = /--inspect(-brk)?(=\S+)?( |$)/
   return (process.env.NODE_OPTIONS || '').replace(NODE_INSPECT_RE, '')
 }
 

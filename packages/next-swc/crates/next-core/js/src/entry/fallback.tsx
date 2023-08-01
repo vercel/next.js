@@ -3,7 +3,7 @@ import '../internal/shims-client'
 import { createRoot } from 'react-dom/client'
 
 import { initializeHMR, ReactDevOverlay } from '../dev/client'
-import { subscribeToUpdate } from '@vercel/turbopack-dev/client/hmr-client'
+import { subscribeToUpdate } from '@vercel/turbopack-ecmascript-runtime/dev/client/hmr-client'
 
 const pageChunkPath = location.pathname.slice(1)
 

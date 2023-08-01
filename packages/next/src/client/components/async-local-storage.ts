@@ -1,12 +1,14 @@
 import type { AsyncLocalStorage } from 'async_hooks'
 
+const sharedAsyncLocalStorageNotAvailableError = new Error(
+  'Invariant: AsyncLocalStorage accessed in runtime where it is not available'
+)
+
 class FakeAsyncLocalStorage<Store extends {}>
   implements AsyncLocalStorage<Store>
 {
   disable(): void {
-    throw new Error(
-      'Invariant: AsyncLocalStorage accessed in runtime where it is not available'
-    )
+    throw sharedAsyncLocalStorageNotAvailableError
   }
 
   getStore(): Store | undefined {
@@ -15,30 +17,25 @@ class FakeAsyncLocalStorage<Store extends {}>
   }
 
   run<R>(): R {
-    throw new Error(
-      'Invariant: AsyncLocalStorage accessed in runtime where it is not available'
-    )
+    throw sharedAsyncLocalStorageNotAvailableError
   }
 
   exit<R>(): R {
-    throw new Error(
-      'Invariant: AsyncLocalStorage accessed in runtime where it is not available'
-    )
+    throw sharedAsyncLocalStorageNotAvailableError
   }
 
   enterWith(): void {
-    throw new Error(
-      'Invariant: AsyncLocalStorage accessed in runtime where it is not available'
-    )
+    throw sharedAsyncLocalStorageNotAvailableError
   }
 }
+
+const maybeGlobalAsyncLocalStorage = (globalThis as any).AsyncLocalStorage
 
 export function createAsyncLocalStorage<
   Store extends {}
 >(): AsyncLocalStorage<Store> {
-  if ((globalThis as any).AsyncLocalStorage) {
-    return new (globalThis as any).AsyncLocalStorage()
+  if (maybeGlobalAsyncLocalStorage) {
+    return new maybeGlobalAsyncLocalStorage()
   }
-
   return new FakeAsyncLocalStorage()
 }

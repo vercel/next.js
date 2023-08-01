@@ -8,6 +8,10 @@ import {
 } from '../router-reducer-types'
 import { createRecordFromThenable } from '../create-record-from-thenable'
 import { prunePrefetchCache } from './prune-prefetch-cache'
+import { NEXT_RSC_UNION_QUERY } from '../../app-router-headers'
+import { PromiseQueue } from '../../promise-queue'
+
+export const prefetchQueue = new PromiseQueue(5)
 
 export function prefetchReducer(
   state: ReadonlyReducerState,
@@ -17,6 +21,8 @@ export function prefetchReducer(
   prunePrefetchCache(state.prefetchCache)
 
   const { url } = action
+  url.searchParams.delete(NEXT_RSC_UNION_QUERY)
+
   const href = createHrefFromUrl(
     url,
     // Ensures the hash is not part of the cache key as it does not affect fetching the server
@@ -52,12 +58,15 @@ export function prefetchReducer(
 
   // fetchServerResponse is intentionally not awaited so that it can be unwrapped in the navigate-reducer
   const serverResponse = createRecordFromThenable(
-    fetchServerResponse(
-      url,
-      // initialTree is used when history.state.tree is missing because the history state is set in `useEffect` below, it being missing means this is the hydration case.
-      state.tree,
-      state.nextUrl,
-      action.kind
+    prefetchQueue.enqueue(() =>
+      fetchServerResponse(
+        url,
+        // initialTree is used when history.state.tree is missing because the history state is set in `useEffect` below, it being missing means this is the hydration case.
+        state.tree,
+        state.nextUrl,
+        state.buildId,
+        action.kind
+      )
     )
   )
 

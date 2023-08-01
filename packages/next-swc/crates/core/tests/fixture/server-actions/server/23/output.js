@@ -1,5 +1,5 @@
 /* __next_internal_action_entry_do_not_use__ $$ACTION_0,$$ACTION_2 */ import __create_action_proxy__ from "private-next-rsc-action-proxy";
-export default function Page({ foo , x , y  }) {
+export default function Page({ foo, x, y }) {
     async function action(...args) {
         return $$ACTION_0.apply(null, (action.$$bound || []).concat(args));
     }
@@ -12,10 +12,10 @@ export default function Page({ foo , x , y  }) {
     ], $$ACTION_1, $$ACTION_2), $$ACTION_1);
     action2.bind(null, foo[0], foo[1], foo.x, foo[y]);
 }
-export async function $$ACTION_0(x, a, b, c, d) {
-    console.log(a, b, x, c, d);
+export async function $$ACTION_0($$ACTION_ARG_0, a, b, c, d) {
+    console.log(a, b, $$ACTION_ARG_0, c, d);
 }
-export const $$ACTION_2 = async (x, a, b, c, d)=>{
-    console.log(a, b, x, c, d);
+export var $$ACTION_2 = async ($$ACTION_ARG_0, a, b, c, d)=>{
+    console.log(a, b, $$ACTION_ARG_0, c, d);
 };
 var $$ACTION_1;

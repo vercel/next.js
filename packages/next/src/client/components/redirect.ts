@@ -1,3 +1,6 @@
+import { requestAsyncStorage } from './request-async-storage'
+import type { ResponseCookies } from '../../server/web/spec-extension/cookies'
+
 const REDIRECT_ERROR_CODE = 'NEXT_REDIRECT'
 
 export enum RedirectType {
@@ -7,18 +10,20 @@ export enum RedirectType {
 
 type RedirectError<U extends string> = Error & {
   digest: `${typeof REDIRECT_ERROR_CODE};${RedirectType};${U}`
+  mutableCookies: ResponseCookies
 }
 
 export function getRedirectError(
   url: string,
   type: RedirectType
 ): RedirectError<typeof url> {
-  // eslint-disable-next-line no-throw-literal
-  const error = new Error(REDIRECT_ERROR_CODE)
-  ;(
-    error as RedirectError<typeof url>
-  ).digest = `${REDIRECT_ERROR_CODE};${type};${url}`
-  return error as RedirectError<typeof url>
+  const error = new Error(REDIRECT_ERROR_CODE) as RedirectError<typeof url>
+  error.digest = `${REDIRECT_ERROR_CODE};${type};${url}`
+  const requestStore = requestAsyncStorage.getStore()
+  if (requestStore) {
+    error.mutableCookies = requestStore.mutableCookies
+  }
+  return error
 }
 
 /**

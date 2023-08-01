@@ -19,6 +19,7 @@ const supportedTurbopackNextConfigOptions = [
   'reactStrictMode',
   'swcMinify',
   'transpilePackages',
+  'sassOptions.includePaths',
   'experimental.appDir',
   'experimental.serverComponentsExternalPackages',
   'experimental.turbo',
@@ -35,6 +36,7 @@ const supportedTurbopackNextConfigOptions = [
   'experimental.isrFlushToDisk',
   'experimental.workerThreads',
   'experimenatl.pageEnv',
+  'experimental.caseSensitiveRoutes',
 ]
 
 // The following will need to be supported by `next build --turbo`

@@ -10,6 +10,6 @@ export default function Home() {
 function runTests() {
   it('it should link to imported image from a package', function () {
     const img = document.querySelector('#magic')
-    expect(img.src).toContain(encodeURIComponent('_next/static/assets'))
+    expect(img.src).toContain(encodeURIComponent('static/media'))
   })
 }

@@ -191,17 +191,17 @@ export async function parseBody(
   }
 }
 
+type RevalidateFn = (config: {
+  urlPath: string
+  revalidateHeaders: { [key: string]: string | string[] }
+  opts: { unstable_onlyGenerated?: boolean }
+}) => Promise<void>
+
 type ApiContext = __ApiPreviewProps & {
   trustHostHeader?: boolean
   allowedRevalidateHeaderKeys?: string[]
   hostname?: string
-  revalidate?: (config: {
-    urlPath: string
-    revalidateHeaders: { [key: string]: string | string[] }
-    opts: { unstable_onlyGenerated?: boolean }
-  }) => Promise<any>
-
-  // (_req: IncomingMessage, _res: ServerResponse) => Promise<any>
+  revalidate?: RevalidateFn
 }
 
 function getMaxContentLength(responseLimit?: ResponseLimit) {
@@ -475,16 +475,7 @@ async function revalidate(
             headers: {},
           }
         )
-
-        const chunks = []
-
-        for await (const chunk of res) {
-          if (chunk) {
-            chunks.push(chunk)
-          }
-        }
-        const body = Buffer.concat(chunks).toString()
-        const result = JSON.parse(body)
+        const result = await res.json()
 
         if (result.err) {
           throw new Error(result.err.message)
@@ -580,7 +571,7 @@ export async function apiResolver(
         )
       }
 
-      endResponse.apply(apiRes, args)
+      return endResponse.apply(apiRes, args)
     }
     apiRes.status = (statusCode) => sendStatusCode(apiRes, statusCode)
     apiRes.send = (data) => sendData(apiReq, apiRes, data)

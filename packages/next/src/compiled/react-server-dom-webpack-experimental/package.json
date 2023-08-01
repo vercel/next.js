@@ -6,13 +6,13 @@
     "./plugin": "./plugin.js",
     "./client": {
       "workerd": "./client.edge.js",
-      "edge-light": "./client.edge.js",
       "deno": "./client.edge.js",
       "worker": "./client.edge.js",
       "node": {
         "webpack": "./client.node.js",
         "default": "./client.node.unbundled.js"
       },
+      "edge-light": "./client.edge.js",
       "browser": "./client.browser.js",
       "default": "./client.browser.js"
     },
@@ -23,12 +23,12 @@
     "./server": {
       "react-server": {
         "workerd": "./server.edge.js",
-        "edge-light": "./server.edge.js",
         "deno": "./server.browser.js",
         "node": {
           "webpack": "./server.node.js",
           "default": "./server.node.unbundled.js"
         },
+        "edge-light": "./server.edge.js",
         "browser": "./server.browser.js"
       },
       "default": "./server.js"
@@ -47,8 +47,8 @@
     "loose-envify": "^1.1.0"
   },
   "peerDependencies": {
-    "react": "0.0.0-experimental-16d053d59-20230506",
-    "react-dom": "0.0.0-experimental-16d053d59-20230506",
+    "react": "0.0.0-experimental-9377e1010-20230712",
+    "react-dom": "0.0.0-experimental-9377e1010-20230712",
     "webpack": "^5.59.0"
   }
 }

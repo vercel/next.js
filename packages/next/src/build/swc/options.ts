@@ -43,6 +43,7 @@ function getBaseSWCOptions({
   swcCacheDir,
   isServerLayer,
   hasServerComponents,
+  isServerActionsEnabled,
 }: {
   filename: string
   jest?: boolean
@@ -57,6 +58,7 @@ function getBaseSWCOptions({
   swcCacheDir?: string
   isServerLayer?: boolean
   hasServerComponents?: boolean
+  isServerActionsEnabled?: boolean
 }) {
   const parserConfig = getParserOptions({ filename, jsConfig })
   const paths = jsConfig?.compilerOptions?.paths
@@ -138,7 +140,24 @@ function getBaseSWCOptions({
     reactRemoveProperties: jest
       ? false
       : compilerOptions?.reactRemoveProperties,
-    modularizeImports,
+    // Map the k-v map to an array of pairs.
+    modularizeImports: modularizeImports
+      ? Object.fromEntries(
+          Object.entries(modularizeImports).map(([mod, config]) => [
+            mod,
+            {
+              ...config,
+              transform:
+                typeof config.transform === 'string'
+                  ? config.transform
+                  : Object.entries(config.transform).map(([key, value]) => [
+                      key,
+                      value,
+                    ]),
+            },
+          ])
+        )
+      : undefined,
     relay: compilerOptions?.relay,
     // Always transform styled-jsx and error when `client-only` condition is triggered
     styledJsx: true,
@@ -157,6 +176,8 @@ function getBaseSWCOptions({
       : undefined,
     serverActions: hasServerComponents
       ? {
+          // TODO-APP: When Server Actions is stable, we need to remove this flag.
+          enabled: !!isServerActionsEnabled,
           isServer: !!isServerLayer,
         }
       : undefined,
@@ -247,6 +268,7 @@ export function getJestSWCOptions({
     jsConfig,
     hasServerComponents,
     resolvedBaseUrl,
+    isServerLayer: isServer,
   })
 
   const isNextDist = nextDistPath.test(filename)
@@ -285,6 +307,7 @@ export function getLoaderSWCOptions({
   relativeFilePathFromRoot,
   hasServerComponents,
   isServerLayer,
+  isServerActionsEnabled,
 }: // This is not passed yet as "paths" resolving is handled by webpack currently.
 // resolvedBaseUrl,
 {
@@ -304,6 +327,7 @@ export function getLoaderSWCOptions({
   relativeFilePathFromRoot: string
   hasServerComponents?: boolean
   isServerLayer: boolean
+  isServerActionsEnabled?: boolean
 }) {
   let baseOptions: any = getBaseSWCOptions({
     filename,
@@ -318,6 +342,7 @@ export function getLoaderSWCOptions({
     swcCacheDir,
     hasServerComponents,
     isServerLayer,
+    isServerActionsEnabled,
   })
   baseOptions.fontLoaders = {
     fontLoaders: [
@@ -329,6 +354,19 @@ export function getLoaderSWCOptions({
       '@next/font/google',
     ],
     relativeFilePathFromRoot,
+  }
+  baseOptions.cjsRequireOptimizer = {
+    packages: {
+      'next/server': {
+        transforms: {
+          NextRequest: 'next/dist/server/web/spec-extension/request',
+          NextResponse: 'next/dist/server/web/spec-extension/response',
+          ImageResponse: 'next/dist/server/web/spec-extension/image-response',
+          userAgentFromString: 'next/dist/server/web/spec-extension/user-agent',
+          userAgent: 'next/dist/server/web/spec-extension/user-agent',
+        },
+      },
+    },
   }
 
   const isNextDist = nextDistPath.test(filename)

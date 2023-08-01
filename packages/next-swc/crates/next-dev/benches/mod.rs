@@ -1,5 +1,5 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use turbo_binding::turbopack::{
+use turbopack_binding::turbopack::{
     bench as turbopack_bench,
     bench::bundlers::{Bundler, RenderType},
 };

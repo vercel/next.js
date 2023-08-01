@@ -16,9 +16,6 @@ export function unstable_cache<T extends Callback>(
     tags?: string[]
   } = {}
 ): T {
-  const joinedKey =
-    keyParts && keyParts.length > 0 ? keyParts.join(',') : cb.toString()
-
   const staticGenerationAsyncStorage: StaticGenerationAsyncStorage =
     (fetch as any).__nextGetStaticStore?.() || _staticGenerationAsyncStorage
 
@@ -32,16 +29,20 @@ export function unstable_cache<T extends Callback>(
 
   if (!incrementalCache) {
     throw new Error(
-      `Invariant: incrementalCache missing in unstable_cache ${joinedKey}`
+      `Invariant: incrementalCache missing in unstable_cache ${cb.toString()}`
     )
   }
   if (options.revalidate === 0) {
     throw new Error(
-      `Invariant revalidate: 0 can not be passed to unstable_cache(), must be "false" or "> 0" ${joinedKey}`
+      `Invariant revalidate: 0 can not be passed to unstable_cache(), must be "false" or "> 0" ${cb.toString()}`
     )
   }
 
   const cachedCb = async (...args: any[]) => {
+    const joinedKey = `${cb.toString()}-${
+      Array.isArray(keyParts) && keyParts.join(',')
+    }-${JSON.stringify(args)}`
+
     // We override the default fetch cache handling inside of the
     // cache callback so that we only cache the specific values returned
     // from the callback instead of also caching any fetches done inside
@@ -63,6 +64,17 @@ export function unstable_cache<T extends Callback>(
           (await incrementalCache?.get(cacheKey, true, options.revalidate))
 
         const tags = options.tags || []
+
+        if (Array.isArray(tags) && store) {
+          if (!store.tags) {
+            store.tags = []
+          }
+          for (const tag of tags) {
+            if (!store.tags.includes(tag)) {
+              store.tags.push(tag)
+            }
+          }
+        }
         const implicitTags = addImplicitTags(store)
 
         for (const tag of implicitTags) {
@@ -85,6 +97,7 @@ export function unstable_cache<T extends Callback>(
                   body: JSON.stringify(result),
                   status: 200,
                   tags,
+                  url: '',
                 },
                 revalidate:
                   typeof options.revalidate !== 'number'

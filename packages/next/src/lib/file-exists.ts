@@ -1,15 +1,20 @@
 import { constants, promises } from 'fs'
 import isError from './is-error'
 
+export enum FileType {
+  File = 'file',
+  Directory = 'directory',
+}
+
 export async function fileExists(
   fileName: string,
-  type?: 'file' | 'directory'
+  type?: FileType
 ): Promise<boolean> {
   try {
-    if (type === 'file') {
+    if (type === FileType.File) {
       const stats = await promises.stat(fileName)
       return stats.isFile()
-    } else if (type === 'directory') {
+    } else if (type === FileType.Directory) {
       const stats = await promises.stat(fileName)
       return stats.isDirectory()
     } else {

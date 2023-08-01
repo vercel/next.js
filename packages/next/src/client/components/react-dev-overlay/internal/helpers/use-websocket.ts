@@ -1,6 +1,6 @@
 import { useCallback, useContext, useEffect, useRef } from 'react'
 import { GlobalLayoutRouterContext } from '../../../../../shared/lib/app-router-context'
-import { getSocketProtocol } from './get-socket-protocol'
+import { getSocketUrl } from './get-socket-url'
 
 export function useWebsocket(assetPrefix: string) {
   const webSocketRef = useRef<WebSocket>()
@@ -10,17 +10,7 @@ export function useWebsocket(assetPrefix: string) {
       return
     }
 
-    const { hostname, port } = window.location
-    const protocol = getSocketProtocol(assetPrefix)
-    const normalizedAssetPrefix = assetPrefix.replace(/^\/+/, '')
-
-    let url = `${protocol}://${hostname}:${port}${
-      normalizedAssetPrefix ? `/${normalizedAssetPrefix}` : ''
-    }`
-
-    if (normalizedAssetPrefix.startsWith('http')) {
-      url = `${protocol}://${normalizedAssetPrefix.split('://')[1]}`
-    }
+    const url = getSocketUrl(assetPrefix)
 
     webSocketRef.current = new window.WebSocket(`${url}/_next/webpack-hmr`)
   }, [assetPrefix])
@@ -50,7 +40,6 @@ export function useWebsocketPing(
 
   useEffect(() => {
     // Taken from on-demand-entries-client.js
-    // TODO-APP: check 404 case
     const interval = setInterval(() => {
       sendMessage(
         JSON.stringify({

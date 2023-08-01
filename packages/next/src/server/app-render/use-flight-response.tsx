@@ -3,7 +3,8 @@ import type { FlightResponseRef } from './flight-response-ref'
 import { readableStreamTee } from '../stream-utils/node-web-streams-helper'
 import { encodeText, decodeText } from '../stream-utils/encode-decode'
 import { htmlEscapeJsonString } from '../htmlescape'
-import { isEdgeRuntime } from './app-render'
+
+const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
 /**
  * Render Flight stream.
@@ -20,6 +21,7 @@ export function useFlightResponse(
   if (flightResponseRef.current !== null) {
     return flightResponseRef.current
   }
+  // react-server-dom-webpack/client.edge must not be hoisted for require cache clearing to work correctly
   const {
     createFromReadableStream,
   } = require(`react-server-dom-webpack/client.edge`)
@@ -58,7 +60,13 @@ export function useFlightResponse(
         )
       }
       if (done) {
-        flightResponseRef.current = null
+        // Add a setTimeout here because the error component is too small, the first forwardReader.read() read will return the full chunk
+        // and then it immediately set flightResponseRef.current as null.
+        // react renders the component twice, the second render will run into the state with useFlightResponse where flightResponseRef.current is null,
+        // so it tries to render the flight payload again
+        setTimeout(() => {
+          flightResponseRef.current = null
+        })
         writer.close()
       } else {
         const responsePartial = decodeText(value, textDecoder)

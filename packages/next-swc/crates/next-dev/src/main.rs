@@ -1,12 +1,15 @@
 #![feature(future_join)]
 #![feature(min_specialization)]
+#![feature(arbitrary_self_types)]
+#![feature(async_fn_in_trait)]
 
 use anyhow::Result;
 #[cfg(feature = "cli")]
 use clap::Parser;
 
 #[global_allocator]
-static ALLOC: turbo_binding::turbo::malloc::TurboMalloc = turbo_binding::turbo::malloc::TurboMalloc;
+static ALLOC: turbopack_binding::turbo::malloc::TurboMalloc =
+    turbopack_binding::turbo::malloc::TurboMalloc;
 
 #[cfg(not(feature = "cli"))]
 fn main() -> Result<()> {
@@ -15,7 +18,7 @@ fn main() -> Result<()> {
 
 #[cfg(feature = "cli")]
 fn main() {
-    use turbo_binding::turbo::malloc::TurboMalloc;
+    use turbopack_binding::turbo::malloc::TurboMalloc;
 
     tokio::runtime::Builder::new_multi_thread()
         .enable_all()

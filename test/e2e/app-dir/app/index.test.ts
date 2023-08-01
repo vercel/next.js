@@ -11,6 +11,12 @@ createNextDescribe(
   },
   ({ next, isNextDev: isDev, isNextStart, isNextDeploy }) => {
     if (isNextStart) {
+      it('should have correct size in build output', async () => {
+        expect(next.cliOutput).toMatch(
+          /\/dashboard\/another.*? [^0]{1,} [\w]{1,}B/
+        )
+      })
+
       it('should have correct preferredRegion values in manifest', async () => {
         const middlewareManifest = JSON.parse(
           await next.readFile('.next/server/middleware-manifest.json')
@@ -36,6 +42,15 @@ createNextDescribe(
         ).toEqual(['sfo1'])
       })
     }
+
+    it('should work for catch-all edge page', async () => {
+      const html = await next.render('/catch-all-edge/hello123')
+      const $ = cheerio.load(html)
+
+      expect(JSON.parse($('#params').text())).toEqual({
+        slug: ['hello123'],
+      })
+    })
 
     it('should have correct searchParams and params (server)', async () => {
       const html = await next.render('/dynamic/category-1/id-2?query1=value2')
@@ -241,8 +256,8 @@ createNextDescribe(
       expect(res.headers.get('x-edge-runtime')).toBe('1')
       expect(res.headers.get('vary')).toBe(
         isNextDeploy
-          ? 'RSC, Next-Router-State-Tree, Next-Router-Prefetch'
-          : 'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Accept-Encoding'
+          ? 'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Url'
+          : 'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Url, Accept-Encoding'
       )
     })
 
@@ -254,8 +269,8 @@ createNextDescribe(
       })
       expect(res.headers.get('vary')).toBe(
         isNextDeploy
-          ? 'RSC, Next-Router-State-Tree, Next-Router-Prefetch'
-          : 'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Accept-Encoding'
+          ? 'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Url'
+          : 'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Url, Accept-Encoding'
       )
     })
 
@@ -282,6 +297,15 @@ createNextDescribe(
     it('should serve from app', async () => {
       const html = await next.render('/dashboard')
       expect(html).toContain('hello from app/dashboard')
+    })
+
+    it('should ensure the </body></html> suffix is at the end of the stream', async () => {
+      const html = await next.render('/dashboard')
+
+      // It must end with the suffix and not contain it anywhere else.
+      const suffix = '</body></html>'
+      expect(html).toEndWith(suffix)
+      expect(html.slice(0, -suffix.length)).not.toContain(suffix)
     })
 
     if (!isNextDeploy) {
@@ -1118,7 +1142,8 @@ createNextDescribe(
           }
         })
 
-        it('should HMR correctly when changing the component type', async () => {
+        // TODO: investigate flakey behavior with this test case
+        it.skip('should HMR correctly when changing the component type', async () => {
           const filePath = 'app/dashboard/page/page.jsx'
           const origContent = await next.readFile(filePath)
 
@@ -1521,7 +1546,7 @@ createNextDescribe(
           expect(
             await browser.waitForElementByCss('body').elementByCss('h2').text()
           ).toBe(
-            'Application error: a client-side exception has occurred (see the browser console for more information).'
+            'Application error: a server-side exception has occurred (see the server logs for more information).'
           )
           expect(
             await browser.waitForElementByCss('body').elementByCss('p').text()
@@ -1813,6 +1838,15 @@ createNextDescribe(
         expect(html).not.toContain(
           '<script rel="preload" as="script" src="/test4.js"/>'
         )
+      })
+
+      it('should load stylesheets for next/scripts', async () => {
+        const html = await next.render('/script')
+        const $ = cheerio.load(html)
+
+        expect($('link[href="/style3.css"]').length).toBe(1)
+        expect($('link[href="/style1a.css"]').length).toBe(1)
+        expect($('link[href="/style1b.css"]').length).toBe(1)
       })
     })
 

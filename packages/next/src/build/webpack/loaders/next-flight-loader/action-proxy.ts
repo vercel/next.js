@@ -4,27 +4,34 @@ export default function createActionProxy(
   action: any,
   originalAction?: any
 ) {
-  action.$$typeof = Symbol.for('react.server.reference')
-  action.$$id = id
-  action.$$bound = bound
+  function bindImpl(this: any, _: any, ...boundArgs: any[]) {
+    const currentAction = this
 
-  action.bind = function (_: any, ...boundArgs: any[]) {
     const newAction = async function (...args: any[]) {
       if (originalAction) {
         return originalAction(newAction.$$bound.concat(args))
       } else {
         // In this case we're calling the user-defined action directly.
-        return action(...newAction.$$bound, ...args)
+        return currentAction(...newAction.$$bound, ...args)
       }
     }
 
     for (const key of ['$$typeof', '$$id', '$$FORM_ACTION']) {
       // @ts-ignore
-      newAction[key] = action[key]
+      newAction[key] = currentAction[key]
     }
+
     // Rebind args
-    newAction.$$bound = (action.$$bound || []).concat(boundArgs)
+    newAction.$$bound = (currentAction.$$bound || []).concat(boundArgs)
+
+    // Assign bind method
+    newAction.bind = bindImpl.bind(newAction)
 
     return newAction
   }
+
+  action.$$typeof = Symbol.for('react.server.reference')
+  action.$$id = id
+  action.$$bound = bound
+  action.bind = bindImpl.bind(action)
 }

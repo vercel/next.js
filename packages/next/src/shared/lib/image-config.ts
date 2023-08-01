@@ -6,7 +6,7 @@ export const VALID_LOADERS = [
   'custom',
 ] as const
 
-export type LoaderValue = typeof VALID_LOADERS[number]
+export type LoaderValue = (typeof VALID_LOADERS)[number]
 
 export type ImageLoaderProps = {
   src: string

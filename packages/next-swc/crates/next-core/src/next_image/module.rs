@@ -1,23 +1,18 @@
-use anyhow::Result;
 use indexmap::indexmap;
-use turbo_binding::{
+use turbo_tasks::Vc;
+use turbopack_binding::{
     turbo::tasks::Value,
     turbopack::{
         core::{
-            asset::AssetVc,
-            context::{AssetContext, AssetContextVc},
-            plugin::{CustomModuleType, CustomModuleTypeVc},
-            resolve::ModulePartVc,
+            context::AssetContext, module::Module, reference_type::ReferenceType,
+            resolve::ModulePart, source::Source,
         },
-        ecmascript::{
-            EcmascriptInputTransformsVc, EcmascriptModuleAssetType, EcmascriptModuleAssetVc,
-            EcmascriptOptions, InnerAssetsVc,
-        },
-        r#static::StaticModuleAssetVc,
+        r#static::StaticModuleAsset,
+        turbopack::{module_options::CustomModuleType, ModuleAssetContext},
     },
 };
 
-use super::source_asset::StructuredImageSourceAsset;
+use super::source_asset::StructuredImageFileSource;
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(Clone, Copy, Debug, PartialOrd, Ord, Hash)]
@@ -44,37 +39,31 @@ pub struct StructuredImageModuleType {
 
 impl StructuredImageModuleType {
     pub(crate) fn create_module(
-        source: AssetVc,
+        source: Vc<Box<dyn Source>>,
         blur_placeholder_mode: BlurPlaceholderMode,
-        context: AssetContextVc,
-    ) -> EcmascriptModuleAssetVc {
-        let static_asset = StaticModuleAssetVc::new(source, context);
-        EcmascriptModuleAssetVc::new_with_inner_assets(
-            StructuredImageSourceAsset {
-                image: source,
-                blur_placeholder_mode,
-            }
-            .cell()
-            .into(),
-            context,
-            Value::new(EcmascriptModuleAssetType::Ecmascript),
-            EcmascriptInputTransformsVc::empty(),
-            Value::new(EcmascriptOptions {
-                ..Default::default()
-            }),
-            context.compile_time_info(),
-            InnerAssetsVc::cell(indexmap!(
-                "IMAGE".to_string() => static_asset.into()
-            )),
+        context: Vc<ModuleAssetContext>,
+    ) -> Vc<Box<dyn Module>> {
+        let static_asset = StaticModuleAsset::new(source, Vc::upcast(context));
+        context.process(
+            Vc::upcast(
+                StructuredImageFileSource {
+                    image: source,
+                    blur_placeholder_mode,
+                }
+                .cell(),
+            ),
+            Value::new(ReferenceType::Internal(Vc::cell(indexmap!(
+                "IMAGE".to_string() => Vc::upcast(static_asset)
+            )))),
         )
     }
 }
 
 #[turbo_tasks::value_impl]
-impl StructuredImageModuleTypeVc {
+impl StructuredImageModuleType {
     #[turbo_tasks::function]
-    pub fn new(blur_placeholder_mode: Value<BlurPlaceholderMode>) -> Self {
-        StructuredImageModuleTypeVc::cell(StructuredImageModuleType {
+    pub fn new(blur_placeholder_mode: Value<BlurPlaceholderMode>) -> Vc<Self> {
+        StructuredImageModuleType::cell(StructuredImageModuleType {
             blur_placeholder_mode: blur_placeholder_mode.into_value(),
         })
     }
@@ -85,10 +74,10 @@ impl CustomModuleType for StructuredImageModuleType {
     #[turbo_tasks::function]
     fn create_module(
         &self,
-        source: AssetVc,
-        context: AssetContextVc,
-        _part: Option<ModulePartVc>,
-    ) -> AssetVc {
-        StructuredImageModuleType::create_module(source, self.blur_placeholder_mode, context).into()
+        source: Vc<Box<dyn Source>>,
+        context: Vc<ModuleAssetContext>,
+        _part: Option<Vc<ModulePart>>,
+    ) -> Vc<Box<dyn Module>> {
+        StructuredImageModuleType::create_module(source, self.blur_placeholder_mode, context)
     }
 }

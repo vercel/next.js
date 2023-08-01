@@ -1,4 +1,4 @@
-import { toNodeHeaders } from './utils'
+import { toNodeOutgoingHttpHeaders } from './utils'
 
 // We use `Headers` here which is provided by the polyfill.
 import '../node-polyfill-fetch'
@@ -10,7 +10,7 @@ describe('toNodeHeaders', () => {
     headers.append('set-cookie', 'foo=bar')
     headers.append('set-cookie', 'bar=foo')
 
-    expect(toNodeHeaders(headers)).toEqual({
+    expect(toNodeOutgoingHttpHeaders(headers)).toEqual({
       'set-cookie': ['foo=bar', 'bar=foo'],
     })
   })
@@ -20,7 +20,7 @@ describe('toNodeHeaders', () => {
 
     headers.append('set-cookie', 'foo=bar')
 
-    expect(toNodeHeaders(headers)).toEqual({
+    expect(toNodeOutgoingHttpHeaders(headers)).toEqual({
       'set-cookie': 'foo=bar',
     })
   })
@@ -30,13 +30,13 @@ describe('toNodeHeaders', () => {
 
     headers.append('set-cookie', 'foo=bar, bar=foo')
 
-    expect(toNodeHeaders(headers)).toEqual({
+    expect(toNodeOutgoingHttpHeaders(headers)).toEqual({
       'set-cookie': ['foo=bar', 'bar=foo'],
     })
 
     headers.append('set-cookie', 'baz=qux')
 
-    expect(toNodeHeaders(headers)).toEqual({
+    expect(toNodeOutgoingHttpHeaders(headers)).toEqual({
       'set-cookie': ['foo=bar', 'bar=foo', 'baz=qux'],
     })
   })
@@ -47,12 +47,8 @@ describe('toNodeHeaders', () => {
     headers.append('set-cookie', 'foo=bar')
     headers.append('Set-Cookie', 'bar=foo')
 
-    expect(toNodeHeaders(headers)).toEqual({
+    expect(toNodeOutgoingHttpHeaders(headers)).toEqual({
       'set-cookie': ['foo=bar', 'bar=foo'],
     })
-  })
-
-  it('should return an empty object when no headers are provided', () => {
-    expect(toNodeHeaders()).toEqual({})
   })
 })

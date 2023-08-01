@@ -304,7 +304,7 @@ function generateCacheKey(request) {
   }
 }
 
-var ReactVersion = '18.3.0-experimental-16d053d59-20230506';
+var ReactVersion = '18.3.0-experimental-9377e1010-20230712';
 
 // ATTENTION
 // When adding new symbols to this file,
@@ -1799,8 +1799,7 @@ function useId() {
   return dispatcher.useId();
 }
 function use(usable) {
-  var dispatcher = resolveDispatcher(); // $FlowFixMe[not-a-function] This is unstable, thus optional
-
+  var dispatcher = resolveDispatcher();
   return dispatcher.use(usable);
 }
 
@@ -2000,7 +1999,14 @@ function describeNativeComponentFrame(fn, construct) {
       // in simple components too
 
 
-      fn();
+      var maybePromise = fn(); // If the function component returns a promise, it's likely an async
+      // component, which we don't yet support. Attach a noop catch handler to
+      // silence the error.
+      // TODO: Implement component stacks for async client components?
+
+      if (maybePromise && typeof maybePromise.catch === 'function') {
+        maybePromise.catch(function () {});
+      }
     }
   } catch (sample) {
     // This is inlined manually because closure doesn't do it for us.
@@ -2644,7 +2650,6 @@ exports.Fragment = REACT_FRAGMENT_TYPE;
 exports.Profiler = REACT_PROFILER_TYPE;
 exports.StrictMode = REACT_STRICT_MODE_TYPE;
 exports.Suspense = REACT_SUSPENSE_TYPE;
-exports.SuspenseList = REACT_SUSPENSE_LIST_TYPE;
 exports.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED = ReactSharedInternals;
 exports.cache = cache;
 exports.cloneElement = cloneElement;
@@ -2657,6 +2662,7 @@ exports.lazy = lazy;
 exports.memo = memo;
 exports.startTransition = startTransition;
 exports.unstable_DebugTracingMode = REACT_DEBUG_TRACING_MODE_TYPE;
+exports.unstable_SuspenseList = REACT_SUSPENSE_LIST_TYPE;
 exports.unstable_getCacheForType = getCacheForType;
 exports.unstable_getCacheSignal = getCacheSignal;
 exports.use = use;

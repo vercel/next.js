@@ -31,6 +31,7 @@ export default async function handler(req, res) {
   const items = {
     nextConfigEnv: process.env.nextConfigEnv,
     nextConfigPublicEnv: process.env.nextConfigPublicEnv,
+    nextConfigNewPublicEnv: process.env.NEXT_PUBLIC_NEW_NEXT_CONFIG_VALUE,
   }
 
   variables.forEach((variable) => {

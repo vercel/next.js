@@ -52,6 +52,11 @@ import { EdgeFunctionLoaderOptions } from './webpack/loaders/next-edge-function-
 import { isAppRouteRoute } from '../lib/is-app-route-route'
 import { normalizeMetadataRoute } from '../lib/metadata/get-metadata-route'
 import { fileExists } from '../lib/file-exists'
+import { getRouteLoaderEntry } from './webpack/loaders/next-route-loader'
+import { isInternalComponent } from '../lib/is-internal-component'
+import { isStaticMetadataRouteFile } from '../lib/metadata/is-metadata-route'
+import { RouteKind } from '../server/future/route-kind'
+import { encodeToBase64 } from './webpack/loaders/utils'
 
 export async function getStaticInfoIncludingLayouts({
   isInsideAppDir,
@@ -125,6 +130,13 @@ export async function getStaticInfoIncludingLayouts({
     }
     if (pageStaticInfo.preferredRegion) {
       staticInfo.preferredRegion = pageStaticInfo.preferredRegion
+    }
+
+    // if it's static metadata route, don't inherit runtime from layout
+    const relativePath = pageFilePath.replace(appDir, '')
+    if (isStaticMetadataRouteFile(relativePath)) {
+      delete staticInfo.runtime
+      delete staticInfo.preferredRegion
     }
   }
   return staticInfo
@@ -284,6 +296,7 @@ export function getEdgeServerEntry(opts: {
   appDirLoader?: string
   hasInstrumentationHook?: boolean
   preferredRegion: string | string[] | undefined
+  middlewareConfig?: MiddlewareConfig
 }) {
   if (
     opts.pagesType === 'app' &&
@@ -296,11 +309,14 @@ export function getEdgeServerEntry(opts: {
       appDirLoader: Buffer.from(opts.appDirLoader || '').toString('base64'),
       nextConfigOutput: opts.config.output,
       preferredRegion: opts.preferredRegion,
+      middlewareConfig: Buffer.from(
+        JSON.stringify(opts.middlewareConfig || {})
+      ).toString('base64'),
     }
 
     return {
       import: `next-edge-app-route-loader?${stringify(loaderParams)}!`,
-      layer: WEBPACK_LAYERS.server,
+      layer: WEBPACK_LAYERS.reactServerComponents,
     }
   }
   if (isMiddlewareFile(opts.page)) {
@@ -311,6 +327,10 @@ export function getEdgeServerEntry(opts: {
       matchers: opts.middleware?.matchers
         ? encodeMatchers(opts.middleware.matchers)
         : '',
+      preferredRegion: opts.preferredRegion,
+      middlewareConfig: Buffer.from(
+        JSON.stringify(opts.middlewareConfig || {})
+      ).toString('base64'),
     }
 
     return `next-middleware-loader?${stringify(loaderParams)}!`
@@ -322,6 +342,9 @@ export function getEdgeServerEntry(opts: {
       page: opts.page,
       rootDir: opts.rootDir,
       preferredRegion: opts.preferredRegion,
+      middlewareConfig: Buffer.from(
+        JSON.stringify(opts.middlewareConfig || {})
+      ).toString('base64'),
     }
 
     return `next-edge-function-loader?${stringify(loaderParams)}!`
@@ -344,13 +367,20 @@ export function getEdgeServerEntry(opts: {
     dev: opts.isDev,
     isServerComponent: opts.isServerComponent,
     page: opts.page,
-    stringifiedConfig: JSON.stringify(opts.config),
+    stringifiedConfig: Buffer.from(JSON.stringify(opts.config)).toString(
+      'base64'
+    ),
     pagesType: opts.pagesType,
     appDirLoader: Buffer.from(opts.appDirLoader || '').toString('base64'),
     sriEnabled: !opts.isDev && !!opts.config.experimental.sri?.algorithm,
     incrementalCacheHandlerPath:
       opts.config.experimental.incrementalCacheHandlerPath,
     preferredRegion: opts.preferredRegion,
+    middlewareConfig: Buffer.from(
+      JSON.stringify(opts.middlewareConfig || {})
+    ).toString('base64'),
+    serverActionsBodySizeLimit:
+      opts.config.experimental.serverActionsBodySizeLimit,
   }
 
   return {
@@ -358,14 +388,14 @@ export function getEdgeServerEntry(opts: {
     // The Edge bundle includes the server in its entrypoint, so it has to
     // be in the SSR layer — we later convert the page request to the RSC layer
     // via a webpack rule.
-    layer: opts.appDirLoader ? WEBPACK_LAYERS.client : undefined,
+    layer: opts.appDirLoader ? WEBPACK_LAYERS.serverSideRendering : undefined,
   }
 }
 
 export function getAppEntry(opts: Readonly<AppLoaderOptions>) {
   return {
     import: `next-app-loader?${stringify(opts)}!`,
-    layer: WEBPACK_LAYERS.server,
+    layer: WEBPACK_LAYERS.reactServerComponents,
   }
 }
 
@@ -388,34 +418,35 @@ export function getClientEntry(opts: {
     : pageLoader
 }
 
-export async function runDependingOnPageType<T>(params: {
+export function runDependingOnPageType<T>(params: {
   onClient: () => T
   onEdgeServer: () => T
   onServer: () => T
   page: string
   pageRuntime: ServerRuntime
   pageType?: 'app' | 'pages' | 'root'
-}): Promise<void> {
+}): void {
   if (params.pageType === 'root' && isInstrumentationHookFile(params.page)) {
-    await Promise.all([params.onServer(), params.onEdgeServer()])
+    params.onServer()
+    params.onEdgeServer()
     return
   }
 
   if (isMiddlewareFile(params.page)) {
-    await params.onEdgeServer()
+    params.onEdgeServer()
     return
   }
   if (isAPIRoute(params.page)) {
     if (isEdgeRuntime(params.pageRuntime)) {
-      await params.onEdgeServer()
+      params.onEdgeServer()
       return
     }
 
-    await params.onServer()
+    params.onServer()
     return
   }
   if (params.page === '/_document') {
-    await params.onServer()
+    params.onServer()
     return
   }
   if (
@@ -424,15 +455,18 @@ export async function runDependingOnPageType<T>(params: {
     params.page === '/404' ||
     params.page === '/500'
   ) {
-    await Promise.all([params.onClient(), params.onServer()])
+    params.onClient()
+    params.onServer()
     return
   }
   if (isEdgeRuntime(params.pageRuntime)) {
-    await Promise.all([params.onClient(), params.onEdgeServer()])
+    params.onClient()
+    params.onEdgeServer()
     return
   }
 
-  await Promise.all([params.onClient(), params.onServer()])
+  params.onClient()
+  params.onServer()
   return
 }
 
@@ -528,7 +562,7 @@ export async function createEntrypoints(
         ]
       }
 
-      await runDependingOnPageType({
+      runDependingOnPageType({
         page,
         pageRuntime: staticInfo.runtime,
         pageType: pagesType,
@@ -538,7 +572,7 @@ export async function createEntrypoints(
             // server compiler inject them instead.
           } else {
             client[clientBundlePath] = getClientEntry({
-              absolutePagePath: mappings[page],
+              absolutePagePath,
               page,
             })
           }
@@ -549,7 +583,7 @@ export async function createEntrypoints(
             server[serverBundlePath] = getAppEntry({
               page,
               name: serverBundlePath,
-              pagePath: mappings[page],
+              pagePath: absolutePagePath,
               appDir,
               appPaths: matchedAppPaths,
               pageExtensions,
@@ -557,17 +591,40 @@ export async function createEntrypoints(
               assetPrefix: config.assetPrefix,
               nextConfigOutput: config.output,
               preferredRegion: staticInfo.preferredRegion,
+              middlewareConfig: encodeToBase64(staticInfo.middleware || {}),
             })
-          } else {
-            if (isInstrumentationHookFile(page) && pagesType === 'root') {
-              server[serverBundlePath.replace('src/', '')] = {
-                import: mappings[page],
-                // the '../' is needed to make sure the file is not chunked
-                filename: `../${INSTRUMENTATION_HOOK_FILENAME}.js`,
-              }
-            } else {
-              server[serverBundlePath] = [mappings[page]]
+          } else if (isInstrumentationHookFile(page) && pagesType === 'root') {
+            server[serverBundlePath.replace('src/', '')] = {
+              import: absolutePagePath,
+              // the '../' is needed to make sure the file is not chunked
+              filename: `../${INSTRUMENTATION_HOOK_FILENAME}.js`,
             }
+          } else if (isAPIRoute(page)) {
+            server[serverBundlePath] = [
+              getRouteLoaderEntry({
+                kind: RouteKind.PAGES_API,
+                page,
+                absolutePagePath,
+                preferredRegion: staticInfo.preferredRegion,
+                middlewareConfig: staticInfo.middleware || {},
+              }),
+            ]
+          } else if (
+            !isMiddlewareFile(page) &&
+            !isInternalComponent(absolutePagePath)
+          ) {
+            server[serverBundlePath] = [
+              getRouteLoaderEntry({
+                kind: RouteKind.PAGES,
+                page,
+                pages,
+                absolutePagePath,
+                preferredRegion: staticInfo.preferredRegion,
+                middlewareConfig: staticInfo.middleware ?? {},
+              }),
+            ]
+          } else {
+            server[serverBundlePath] = [absolutePagePath]
           }
         },
         onEdgeServer: () => {
@@ -577,7 +634,7 @@ export async function createEntrypoints(
             appDirLoader = getAppEntry({
               name: serverBundlePath,
               page,
-              pagePath: mappings[page],
+              pagePath: absolutePagePath,
               appDir: appDir!,
               appPaths: matchedAppPaths,
               pageExtensions,
@@ -587,6 +644,9 @@ export async function createEntrypoints(
               // This isn't used with edge as it needs to be set on the entry module, which will be the `edgeServerEntry` instead.
               // Still passing it here for consistency.
               preferredRegion: staticInfo.preferredRegion,
+              middlewareConfig: Buffer.from(
+                JSON.stringify(staticInfo.middleware || {})
+              ).toString('base64'),
             }).import
           }
           const normalizedServerBundlePath =
@@ -596,7 +656,7 @@ export async function createEntrypoints(
           edgeServer[normalizedServerBundlePath] = getEdgeServerEntry({
             ...params,
             rootDir,
-            absolutePagePath: mappings[page],
+            absolutePagePath: absolutePagePath,
             bundlePath: clientBundlePath,
             isDev: false,
             isServerComponent,
@@ -605,6 +665,7 @@ export async function createEntrypoints(
             pagesType,
             appDirLoader,
             preferredRegion: staticInfo.preferredRegion,
+            middlewareConfig: staticInfo.middleware,
           })
         },
       })
@@ -665,7 +726,7 @@ export function finalizeEntrypoint({
         layer: isApi
           ? WEBPACK_LAYERS.api
           : isServerComponent
-          ? WEBPACK_LAYERS.server
+          ? WEBPACK_LAYERS.reactServerComponents
           : undefined,
         ...entry,
       }
@@ -700,7 +761,7 @@ export function finalizeEntrypoint({
         if (isAppLayer) {
           return {
             dependOn: CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
-            layer: WEBPACK_LAYERS.appClient,
+            layer: WEBPACK_LAYERS.appPagesBrowser,
             ...entry,
           }
         }
@@ -716,7 +777,7 @@ export function finalizeEntrypoint({
 
       if (isAppLayer) {
         return {
-          layer: WEBPACK_LAYERS.appClient,
+          layer: WEBPACK_LAYERS.appPagesBrowser,
           ...entry,
         }
       }

@@ -6,7 +6,10 @@ import {
   nodeFileTrace,
   NodeFileTraceReasons,
 } from 'next/dist/compiled/@vercel/nft'
-import { TRACE_OUTPUT_VERSION } from '../../../shared/lib/constants'
+import {
+  CLIENT_REFERENCE_MANIFEST,
+  TRACE_OUTPUT_VERSION,
+} from '../../../shared/lib/constants'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import {
   NODE_ESM_RESOLVE_OPTIONS,
@@ -215,7 +218,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
 
       // startTrace existed and callable
       if (this.turbotrace) {
-        let binding = (await loadBindings()) as any
+        let binding = await loadBindings()
         if (
           !binding?.isWasm &&
           typeof binding.turbo.startTrace === 'function'
@@ -285,20 +288,45 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
         // don't include the entry itself in the trace
         entryFiles.delete(nodePath.join(outputPath, `../${entrypoint.name}.js`))
 
+        if (entrypoint.name.startsWith('app/')) {
+          // include the client reference manifest
+          const clientManifestsForPage =
+            entrypoint.name.endsWith('/page') ||
+            entrypoint.name === 'app/not-found' ||
+            entrypoint.name === 'app/_not-found'
+              ? nodePath.join(
+                  outputPath,
+                  '..',
+                  entrypoint.name.replace(/%5F/g, '_') +
+                    '_' +
+                    CLIENT_REFERENCE_MANIFEST +
+                    '.js'
+                )
+              : null
+
+          if (clientManifestsForPage !== null) {
+            entryFiles.add(clientManifestsForPage)
+          }
+        }
+
+        const finalFiles: string[] = []
+
+        for (const file of new Set([
+          ...entryFiles,
+          ...allEntryFiles,
+          ...(this.entryTraces.get(entrypoint.name) || []),
+        ])) {
+          if (file) {
+            finalFiles.push(
+              nodePath.relative(traceOutputPath, file).replace(/\\/g, '/')
+            )
+          }
+        }
+
         assets[traceOutputName] = new sources.RawSource(
           JSON.stringify({
             version: TRACE_OUTPUT_VERSION,
-            files: [
-              ...new Set([
-                ...entryFiles,
-                ...allEntryFiles,
-                ...(this.entryTraces.get(entrypoint.name) || []),
-              ]),
-            ].map((file) => {
-              return nodePath
-                .relative(traceOutputPath, file)
-                .replace(/\\/g, '/')
-            }),
+            files: finalFiles,
           })
         )
       }
@@ -369,41 +397,34 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
                           entryModMap.set(absolutePath, entryMod)
                           entryNameMap.set(absolutePath, name)
                         }
-                      } else {
-                        // If there was no `route` property, we can assume that it was something custom instead.
-                        // In order to trace these we add them to the additionalEntries map.
-                        if (entryMod.request) {
-                          let curMap = additionalEntries.get(name)
-
-                          if (!curMap) {
-                            curMap = new Map()
-                            additionalEntries.set(name, curMap)
-                          }
-                          depModMap.set(entryMod.request, entryMod)
-                          curMap.set(entryMod.resource, entryMod)
-                        }
                       }
-                    }
 
-                    if (entryMod && entryMod.resource) {
-                      const normalizedResource = entryMod.resource.replace(
-                        /\\/g,
-                        '/'
-                      )
-
-                      if (normalizedResource.includes('pages/')) {
-                        entryNameMap.set(entryMod.resource, name)
-                        entryModMap.set(entryMod.resource, entryMod)
-                      } else {
+                      // If there was no `route` property, we can assume that it was something custom instead.
+                      // In order to trace these we add them to the additionalEntries map.
+                      if (entryMod.request) {
                         let curMap = additionalEntries.get(name)
 
                         if (!curMap) {
                           curMap = new Map()
                           additionalEntries.set(name, curMap)
                         }
-                        depModMap.set(entryMod.resource, entryMod)
+                        depModMap.set(entryMod.request, entryMod)
                         curMap.set(entryMod.resource, entryMod)
                       }
+                    }
+
+                    if (entryMod && entryMod.resource) {
+                      entryNameMap.set(entryMod.resource, name)
+                      entryModMap.set(entryMod.resource, entryMod)
+
+                      let curMap = additionalEntries.get(name)
+
+                      if (!curMap) {
+                        curMap = new Map()
+                        additionalEntries.set(name, curMap)
+                      }
+                      depModMap.set(entryMod.resource, entryMod)
+                      curMap.set(entryMod.resource, entryMod)
                     }
                   }
                 }
@@ -454,7 +475,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
             })
             // startTrace existed and callable
             if (this.turbotrace) {
-              let binding = (await loadBindings()) as any
+              let binding = await loadBindings()
               if (
                 !binding?.isWasm &&
                 typeof binding.turbo.startTrace === 'function'
@@ -545,6 +566,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
                     this.tracingRoot,
                     entry
                   )
+
                   const curExtraEntries = additionalEntries.get(entryName)
                   const finalDeps = new Set<string>()
 
@@ -803,7 +825,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
 
     if (this.turbotrace) {
       compiler.hooks.afterEmit.tapPromise(PLUGIN_NAME, async () => {
-        let binding = (await loadBindings()) as any
+        let binding = await loadBindings()
         if (
           !binding?.isWasm &&
           typeof binding.turbo.startTrace === 'function'

@@ -1,9 +1,10 @@
+import { ServerInfo } from './server'
+
+export type Headers = Record<string, string | string[]>
 /**
  * Converts an array of raw header entries to a map of header names to values.
  */
-export function headersFromEntries(
-  entries: Array<[string, string]>
-): Record<string, string | string[]> {
+export function headersFromEntries(entries: Array<[string, string]>): Headers {
   const headers: Record<string, string | string[]> = Object.create(null)
   for (const [key, value] of entries) {
     if (key in headers) {
@@ -40,4 +41,21 @@ export function toPairs<T>(arr: T[]): Array<[T, T]> {
   }
 
   return pairs
+}
+
+/**
+ * These headers are provided by default to match the http-proxy behavior
+ * https://github.com/http-party/node-http-proxy/blob/9b96cd72/lib/http-proxy/passes/web-incoming.js#L58-L86
+ */
+export function initProxiedHeaders(
+  headers: Headers,
+  proxiedFor: ServerInfo | null | undefined
+): Headers {
+  const hostname = proxiedFor?.hostname || 'localhost'
+  const port = String(proxiedFor?.port || 3000)
+  headers['x-forwarded-for'] = proxiedFor?.ip || '::1'
+  headers['x-forwarded-host'] = `${hostname}:${port}`
+  headers['x-forwarded-port'] = port
+  headers['x-forwarded-proto'] = proxiedFor?.protocol || 'http'
+  return headers
 }

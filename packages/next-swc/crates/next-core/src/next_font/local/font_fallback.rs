@@ -3,18 +3,16 @@ use allsorts::{
     Font,
 };
 use anyhow::{bail, Context, Result};
-use turbo_binding::turbo::{
-    tasks::primitives::{StringVc, StringsVc, U32Vc},
-    tasks_fs::{FileContent, FileSystemPathVc},
-};
+use turbo_tasks::Vc;
+use turbopack_binding::turbo::tasks_fs::{FileContent, FileSystemPath};
 
 use super::{
-    options::{FontDescriptor, FontDescriptors, FontWeight, NextFontLocalOptionsVc},
+    options::{FontDescriptor, FontDescriptors, FontWeight, NextFontLocalOptions},
     request::AdjustFontFallback,
 };
 use crate::next_font::{
     font_fallback::{
-        AutomaticFontFallback, DefaultFallbackFont, FontAdjustment, FontFallback, FontFallbacksVc,
+        AutomaticFontFallback, DefaultFallbackFont, FontAdjustment, FontFallback, FontFallbacks,
         DEFAULT_SANS_SERIF_FONT, DEFAULT_SERIF_FONT,
     },
     util::{get_scoped_font_family, FontFamilyType},
@@ -28,10 +26,10 @@ static BOLD_WEIGHT: f64 = 700.0;
 
 #[turbo_tasks::function]
 pub(super) async fn get_font_fallbacks(
-    context: FileSystemPathVc,
-    options_vc: NextFontLocalOptionsVc,
-    request_hash: U32Vc,
-) -> Result<FontFallbacksVc> {
+    context: Vc<FileSystemPath>,
+    options_vc: Vc<NextFontLocalOptions>,
+    request_hash: Vc<u32>,
+) -> Result<Vc<FontFallbacks>> {
     let options = &*options_vc.await?;
     let mut font_fallbacks = vec![];
     let scoped_font_family = get_scoped_font_family(
@@ -45,7 +43,7 @@ pub(super) async fn get_font_fallbacks(
             FontFallback::Automatic(
                 AutomaticFontFallback {
                     scoped_font_family,
-                    local_font_family: StringVc::cell("Arial".to_owned()),
+                    local_font_family: Vc::cell("Arial".to_owned()),
                     adjustment: Some(
                         get_font_adjustment(context, options_vc, &DEFAULT_SANS_SERIF_FONT).await?,
                     ),
@@ -58,7 +56,7 @@ pub(super) async fn get_font_fallbacks(
             FontFallback::Automatic(
                 AutomaticFontFallback {
                     scoped_font_family,
-                    local_font_family: StringVc::cell("Times New Roman".to_owned()),
+                    local_font_family: Vc::cell("Times New Roman".to_owned()),
                     adjustment: Some(
                         get_font_adjustment(context, options_vc, &DEFAULT_SERIF_FONT).await?,
                     ),
@@ -71,20 +69,20 @@ pub(super) async fn get_font_fallbacks(
     };
 
     if let Some(fallback) = &options.fallback {
-        font_fallbacks.push(FontFallback::Manual(StringsVc::cell(fallback.clone())).into());
+        font_fallbacks.push(FontFallback::Manual(Vc::cell(fallback.clone())).into());
     }
 
-    Ok(FontFallbacksVc::cell(font_fallbacks))
+    Ok(Vc::cell(font_fallbacks))
 }
 
 async fn get_font_adjustment(
-    context: FileSystemPathVc,
-    options: NextFontLocalOptionsVc,
+    context: Vc<FileSystemPath>,
+    options: Vc<NextFontLocalOptions>,
     fallback_font: &DefaultFallbackFont,
 ) -> Result<FontAdjustment> {
     let options = &*options.await?;
     let main_descriptor = pick_font_for_fallback_generation(&options.fonts)?;
-    let font_file = &*context.join(&main_descriptor.path).read().await?;
+    let font_file = &*context.join(main_descriptor.path.clone()).read().await?;
     let font_file_rope = match font_file {
         FileContent::NotFound => bail!("Expected font file content"),
         FileContent::Content(file) => file.content(),
@@ -106,7 +104,9 @@ async fn get_font_adjustment(
         ))?
         .units_per_em as f64;
 
-    let fallback_avg_width = fallback_font.x_width_avg / fallback_font.units_per_em as f64;
+    let fallback_avg_width = fallback_font.az_avg_width / fallback_font.units_per_em as f64;
+    // TODO: Use xWidthAvg like next/google.
+    //       JS implementation: https://github.com/seek-oss/capsize/blob/42d6dc39d58247bc6b9e013a4b1c4463bf287dca/packages/unpack/src/index.ts#L7-L83
     let size_adjust = match az_avg_width {
         Some(az_avg_width) => az_avg_width as f64 / units_per_em / fallback_avg_width,
         None => 1.0,
@@ -208,9 +208,7 @@ fn pick_font_for_fallback_generation(
 /// If it's not a variable font we can just return the distance.
 /// If it's a variable font we need to compare its weight range to 400.
 fn get_distance_from_normal_weight(weight: &Option<FontWeight>) -> Result<f64> {
-    let Some(weight) = weight else {
-        return Ok(0.0)
-    };
+    let Some(weight) = weight else { return Ok(0.0) };
 
     Ok(match weight {
         FontWeight::Fixed(val) => parse_weight_string(val)? - NORMAL_WEIGHT,

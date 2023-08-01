@@ -3,33 +3,31 @@ const fs = require('fs-extra')
 const exec = require('../util/exec')
 const { remove } = require('fs-extra')
 const logger = require('../util/logger')
-const semver = require('semver')
 const execa = require('execa')
 
 module.exports = (actionInfo) => {
   return {
-    async cloneRepo(repoPath = '', dest = '') {
+    async cloneRepo(repoPath = '', dest = '', branch = '', depth = '20') {
       await remove(dest)
-      await exec(`git clone ${actionInfo.gitRoot}${repoPath} ${dest}`)
+      await exec(
+        `git clone ${actionInfo.gitRoot}${repoPath} --single-branch --branch ${branch} --depth=${depth} ${dest}`
+      )
     },
-    async checkoutRef(ref = '', repoDir = '') {
-      await exec(`cd ${repoDir} && git fetch && git checkout ${ref}`)
-    },
-    async getLastStable(repoDir = '', ref) {
-      const { stdout } = await exec(`cd ${repoDir} && git tag -l`)
-      const tags = stdout.trim().split('\n')
-      let lastStableTag
+    async getLastStable(repoDir = '') {
+      const { stdout } = await exec(`cd ${repoDir} && git describe`)
+      const tag = stdout.trim()
 
-      for (let i = tags.length - 1; i >= 0; i--) {
-        const curTag = tags[i]
-        // stable doesn't include `-canary` or `-beta`
-        if (!curTag.includes('-') && !ref.includes(curTag)) {
-          if (!lastStableTag || semver.gt(curTag, lastStableTag)) {
-            lastStableTag = curTag
-          }
-        }
+      if (!tag || !tag.startsWith('v')) {
+        throw new Error(`Failed to get tag info: "${stdout}"`)
       }
-      return lastStableTag
+      const [major, minor, patch] = tag.split('-canary')[0].split('.')
+      if (!major || !minor || !patch) {
+        throw new Error(
+          `Failed to split tag into major/minor/patch: "${stdout}"`
+        )
+      }
+      // last stable tag will always be 1 patch less than canary
+      return `${major}.${minor}.${Number(patch) - 1}`
     },
     async getCommitId(repoDir = '') {
       const { stdout } = await exec(`cd ${repoDir} && git rev-parse HEAD`)
@@ -80,6 +78,7 @@ module.exports = (actionInfo) => {
         }
         const pkgData = require(pkgDataPath)
         const { name } = pkgData
+
         pkgDatas.set(name, {
           pkgDataPath,
           pkg,
@@ -104,7 +103,7 @@ module.exports = (actionInfo) => {
           if (!pkgData.files) {
             pkgData.files = []
           }
-          pkgData.files.push('native/*')
+          pkgData.files.push('native')
           require('console').log(
             'using swc binaries: ',
             await exec(`ls ${path.join(path.dirname(pkgDataPath), 'native')}`)
@@ -112,6 +111,10 @@ module.exports = (actionInfo) => {
         }
 
         if (pkg === 'next') {
+          console.log('using swc dep', {
+            nextSwcVersion,
+            nextSwcPkg: pkgDatas.get('@next/swc'),
+          })
           if (nextSwcVersion) {
             Object.assign(pkgData.dependencies, {
               '@next/swc-linux-x64-gnu': nextSwcVersion,
@@ -121,16 +124,9 @@ module.exports = (actionInfo) => {
               pkgData.dependencies['@next/swc'] =
                 pkgDatas.get('@next/swc').packedPkgPath
             } else {
-              pkgData.files.push('native/*')
+              pkgData.files.push('native')
             }
           }
-        }
-
-        if (pkgData?.scripts?.prepublishOnly) {
-          // There's a bug in `pnpm pack` where it will run
-          // the prepublishOnly script and that will fail.
-          // See https://github.com/pnpm/pnpm/issues/2941
-          delete pkgData.scripts.prepublishOnly
         }
 
         await fs.writeFile(
@@ -144,21 +140,41 @@ module.exports = (actionInfo) => {
       // to the correct versions
       await Promise.all(
         Array.from(pkgDatas.keys()).map(async (pkgName) => {
-          const { pkg, pkgPath, pkgData, packedPkgPath } = pkgDatas.get(pkgName)
-          // Copied from pnpm source: https://github.com/pnpm/pnpm/blob/5a5512f14c47f4778b8d2b6d957fb12c7ef40127/releasing/plugin-commands-publishing/src/pack.ts#L96
-          const tmpTarball = path.join(
-            pkgPath,
-            `${pkgData.name.replace('@', '').replace('/', '-')}-${
-              pkgData.version
-            }.tgz`
-          )
-          await execa('pnpm', ['pack'], {
+          const { pkgPath, packedPkgPath } = pkgDatas.get(pkgName)
+
+          let cleanup = null
+
+          if (pkgName === '@next/swc') {
+            // next-swc uses a gitignore to prevent the committing of native builds but it doesn't
+            // use files in package.json because it publishes to individual packages based on architecture.
+            // When we used yarn to pack these packages the gitignore was ignored so the native builds were packed
+            // however npm does respect gitignore when packing so we need to remove it in this specific case
+            // to ensure the native builds are packed for use in gh actions and related scripts
+            await fs.rename(
+              path.join(pkgPath, 'native/.gitignore'),
+              path.join(pkgPath, 'disabled-native-gitignore')
+            )
+            cleanup = async () => {
+              await fs.rename(
+                path.join(pkgPath, 'disabled-native-gitignore'),
+                path.join(pkgPath, 'native/.gitignore')
+              )
+            }
+          }
+
+          const { stdout } = await execa('npm', ['pack'], {
             cwd: pkgPath,
+            env: {
+              ...process.env,
+              COREPACK_ENABLE_STRICT: '0',
+            },
           })
-          await fs.copyFile(tmpTarball, packedPkgPath)
+          await fs.rename(path.resolve(pkgPath, stdout.trim()), packedPkgPath)
+          if (cleanup) {
+            await cleanup()
+          }
         })
       )
-
       return pkgPaths
     },
   }

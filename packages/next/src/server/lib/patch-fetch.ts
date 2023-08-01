@@ -33,7 +33,7 @@ function trackFetchMetric(
     status: number
     method: string
     cacheReason: string
-    cacheStatus: 'hit' | 'miss'
+    cacheStatus: 'hit' | 'miss' | 'skip'
     start: number
   }
 ) {
@@ -56,6 +56,7 @@ function trackFetchMetric(
   staticGenerationStore.fetchMetrics.push({
     url: ctx.url,
     cacheStatus: ctx.cacheStatus,
+    cacheReason: ctx.cacheReason,
     status: ctx.status,
     method: ctx.method,
     start: ctx.start,
@@ -73,10 +74,14 @@ export function patchFetch({
   serverHooks: typeof ServerHooks
   staticGenerationAsyncStorage: StaticGenerationAsyncStorage
 }) {
+  if (!(globalThis as any)._nextOriginalFetch) {
+    ;(globalThis as any)._nextOriginalFetch = globalThis.fetch
+  }
+
   if ((globalThis.fetch as any).__nextPatched) return
 
   const { DynamicServerError } = serverHooks
-  const originFetch = globalThis.fetch
+  const originFetch: typeof fetch = (globalThis as any)._nextOriginalFetch
 
   globalThis.fetch = async (
     input: RequestInfo | URL,
@@ -91,6 +96,7 @@ export function patchFetch({
       // Error caused by malformed URL should be handled by native fetch
       url = undefined
     }
+    const fetchUrl = url?.href ?? ''
     const fetchStart = Date.now()
     const method = init?.method?.toUpperCase() || 'GET'
 
@@ -98,11 +104,9 @@ export function patchFetch({
       AppRenderSpan.fetch,
       {
         kind: SpanKind.CLIENT,
-        spanName: ['fetch', method, url?.toString() ?? input.toString()]
-          .filter(Boolean)
-          .join(' '),
+        spanName: ['fetch', method, fetchUrl].filter(Boolean).join(' '),
         attributes: {
-          'http.url': url?.toString(),
+          'http.url': fetchUrl,
           'http.method': method,
           'net.peer.name': url?.hostname,
           'net.peer.port': url?.port || undefined,
@@ -123,7 +127,11 @@ export function patchFetch({
         // If the staticGenerationStore is not available, we can't do any
         // special treatment of fetch, therefore fallback to the original
         // fetch implementation.
-        if (!staticGenerationStore || (init?.next as any)?.internal) {
+        if (
+          !staticGenerationStore ||
+          (init?.next as any)?.internal ||
+          staticGenerationStore.isDraftMode
+        ) {
           return originFetch(input, init)
         }
 
@@ -169,13 +177,14 @@ export function patchFetch({
           staticGenerationStore.fetchCache === 'force-no-store'
 
         let _cache = getRequestMeta('cache')
+        let cacheReason = ''
 
         if (
           typeof _cache === 'string' &&
           typeof curRevalidate !== 'undefined'
         ) {
           console.warn(
-            `Warning: fetch for ${input.toString()} specified "cache: ${_cache}" and "revalidate: ${curRevalidate}", only one should be specified.`
+            `Warning: fetch for ${fetchUrl} on ${staticGenerationStore.pathname} specified "cache: ${_cache}" and "revalidate: ${curRevalidate}", only one should be specified.`
           )
           _cache = undefined
         }
@@ -185,12 +194,12 @@ export function patchFetch({
         }
         if (['no-cache', 'no-store'].includes(_cache || '')) {
           curRevalidate = 0
+          cacheReason = `cache: ${_cache}`
         }
         if (typeof curRevalidate === 'number' || curRevalidate === false) {
           revalidate = curRevalidate
         }
 
-        let cacheReason = ''
         const _headers = getRequestMeta('headers')
         const initHeaders: Headers =
           typeof _headers?.get === 'function'
@@ -219,7 +228,7 @@ export function patchFetch({
         if (isOnlyNoStore) {
           if (_cache === 'force-cache' || revalidate === 0) {
             throw new Error(
-              `cache: 'force-cache' used on fetch for ${input.toString()} with 'export const fetchCache = 'only-no-store'`
+              `cache: 'force-cache' used on fetch for ${fetchUrl} with 'export const fetchCache = 'only-no-store'`
             )
           }
           revalidate = 0
@@ -228,7 +237,7 @@ export function patchFetch({
 
         if (isOnlyCache && _cache === 'no-store') {
           throw new Error(
-            `cache: 'no-store' used on fetch for ${input.toString()} with 'export const fetchCache = 'only-cache'`
+            `cache: 'no-store' used on fetch for ${fetchUrl} with 'export const fetchCache = 'only-cache'`
           )
         }
 
@@ -284,7 +293,7 @@ export function patchFetch({
           try {
             cacheKey =
               await staticGenerationStore.incrementalCache.fetchCacheKey(
-                isRequestInput ? (input as Request).url : input.toString(),
+                fetchUrl,
                 isRequestInput ? (input as RequestInit) : init
               )
           } catch (err) {
@@ -329,14 +338,16 @@ export function patchFetch({
           }
         }
 
-        const fetchUrl = url?.toString() ?? ''
         const fetchIdx = staticGenerationStore.nextFetchId ?? 1
         staticGenerationStore.nextFetchId = fetchIdx + 1
 
         const normalizedRevalidate =
           typeof revalidate !== 'number' ? CACHE_ONE_YEAR : revalidate
 
-        const doOriginalFetch = async (isStale?: boolean) => {
+        const doOriginalFetch = async (
+          isStale?: boolean,
+          cacheReasonOverride?: string
+        ) => {
           // add metadata to init without editing the original
           const clonedInit = {
             ...init,
@@ -348,8 +359,9 @@ export function patchFetch({
               trackFetchMetric(staticGenerationStore, {
                 start: fetchStart,
                 url: fetchUrl,
-                cacheReason,
-                cacheStatus: 'miss',
+                cacheReason: cacheReasonOverride || cacheReason,
+                cacheStatus:
+                  revalidate === 0 || cacheReasonOverride ? 'skip' : 'miss',
                 status: res.status,
                 method: clonedInit.method || 'GET',
               })
@@ -372,6 +384,7 @@ export function patchFetch({
                       body: bodyBuffer.toString('base64'),
                       status: res.status,
                       tags,
+                      url: res.url,
                     },
                     revalidate: normalizedRevalidate,
                   },
@@ -384,16 +397,25 @@ export function patchFetch({
                 console.warn(`Failed to set fetch cache`, input, err)
               }
 
-              return new Response(bodyBuffer, {
+              const response = new Response(bodyBuffer, {
                 headers: new Headers(res.headers),
                 status: res.status,
               })
+              Object.defineProperty(response, 'url', { value: res.url })
+              return response
             }
             return res
           })
         }
 
-        if (cacheKey && staticGenerationStore?.incrementalCache) {
+        let handleUnlock = () => Promise.resolve()
+        let cacheReasonOverride
+
+        if (cacheKey && staticGenerationStore.incrementalCache) {
+          handleUnlock = await staticGenerationStore.incrementalCache.lock(
+            cacheKey
+          )
+
           const entry = staticGenerationStore.isOnDemandRevalidate
             ? null
             : await staticGenerationStore.incrementalCache.get(
@@ -403,6 +425,13 @@ export function patchFetch({
                 fetchUrl,
                 fetchIdx
               )
+
+          if (entry) {
+            await handleUnlock()
+          } else {
+            // in dev, incremental cache response will be null in case the browser adds `cache-control: no-cache` in the request headers
+            cacheReasonOverride = 'cache-control: no-cache (hard refresh)'
+          }
 
           if (entry?.value && entry.value.kind === 'FETCH') {
             const currentTags = entry.value.data.tags
@@ -461,10 +490,14 @@ export function patchFetch({
                 method: init?.method || 'GET',
               })
 
-              return new Response(decodedBody, {
+              const response = new Response(decodedBody, {
                 headers: resData.headers,
                 status: resData.status,
               })
+              Object.defineProperty(response, 'url', {
+                value: entry.value.data.url,
+              })
+              return response
             }
           }
         }
@@ -478,18 +511,15 @@ export function patchFetch({
             }
             if (cache === 'no-store') {
               staticGenerationStore.revalidate = 0
-              // TODO: ensure this error isn't logged to the user
-              // seems it's slipping through currently
               const dynamicUsageReason = `no-store fetch ${input}${
                 staticGenerationStore.pathname
                   ? ` ${staticGenerationStore.pathname}`
                   : ''
               }`
               const err = new DynamicServerError(dynamicUsageReason)
+              staticGenerationStore.dynamicUsageErr = err
               staticGenerationStore.dynamicUsageStack = err.stack
               staticGenerationStore.dynamicUsageDescription = dynamicUsageReason
-
-              throw err
             }
 
             const hasNextConfig = 'next' in init
@@ -497,7 +527,8 @@ export function patchFetch({
             if (
               typeof next.revalidate === 'number' &&
               (typeof staticGenerationStore.revalidate === 'undefined' ||
-                next.revalidate < staticGenerationStore.revalidate)
+                (typeof staticGenerationStore.revalidate === 'number' &&
+                  next.revalidate < staticGenerationStore.revalidate))
             ) {
               const forceDynamic = staticGenerationStore.forceDynamic
 
@@ -514,23 +545,22 @@ export function patchFetch({
                     : ''
                 }`
                 const err = new DynamicServerError(dynamicUsageReason)
+                staticGenerationStore.dynamicUsageErr = err
                 staticGenerationStore.dynamicUsageStack = err.stack
                 staticGenerationStore.dynamicUsageDescription =
                   dynamicUsageReason
-
-                throw err
               }
             }
             if (hasNextConfig) delete init.next
           }
         }
 
-        return doOriginalFetch()
+        return doOriginalFetch(false, cacheReasonOverride).finally(handleUnlock)
       }
     )
   }
-  ;(fetch as any).__nextGetStaticStore = () => {
+  ;(globalThis.fetch as any).__nextGetStaticStore = () => {
     return staticGenerationAsyncStorage
   }
-  ;(fetch as any).__nextPatched = true
+  ;(globalThis.fetch as any).__nextPatched = true
 }

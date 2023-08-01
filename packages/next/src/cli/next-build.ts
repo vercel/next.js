@@ -7,6 +7,7 @@ import build from '../build'
 import { printAndExit } from '../server/lib/utils'
 import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
+import { getValidatedArgs } from '../lib/get-validated-args'
 
 const nextBuild: CliCommand = (argv) => {
   const validArgs: arg.Spec = {
@@ -18,21 +19,15 @@ const nextBuild: CliCommand = (argv) => {
     '--no-mangling': Boolean,
     '--experimental-app-only': Boolean,
     '--experimental-turbo': Boolean,
+    '--experimental-turbo-root': String,
     '--build-mode': String,
     // Aliases
     '-h': '--help',
     '-d': '--debug',
   }
 
-  let args: arg.Result<arg.Spec>
-  try {
-    args = arg(validArgs, { argv })
-  } catch (error) {
-    if (isError(error) && error.code === 'ARG_UNKNOWN_OPTION') {
-      return printAndExit(error.message, 1)
-    }
-    throw error
-  }
+  const args = getValidatedArgs(validArgs, argv)
+
   if (args['--help']) {
     printAndExit(
       `
@@ -46,10 +41,12 @@ const nextBuild: CliCommand = (argv) => {
       If no directory is provided, the current directory will be used.
 
       Options
-      --profile                 Can be used to enable React Production Profiling
-      --no-lint                 Disable linting
-      --no-mangling             Disable mangling
-      --experimental-app-only   Only build 'app' routes
+      --profile                Can be used to enable React Production Profiling
+      --no-lint                Disable linting
+      --no-mangling            Disable mangling
+      --experimental-app-only  Only build 'app' routes
+      --experimental-turbo     Enable experimental turbo mode
+      --help, -h               Displays this message
     `,
       0
     )
@@ -72,6 +69,10 @@ const nextBuild: CliCommand = (argv) => {
     printAndExit(`> No such directory exists as the project root: ${dir}`)
   }
 
+  if (args['--experimental-turbo']) {
+    process.env.TURBOPACK = '1'
+  }
+
   return build(
     dir,
     args['--profile'],
@@ -79,7 +80,8 @@ const nextBuild: CliCommand = (argv) => {
     !args['--no-lint'],
     args['--no-mangling'],
     args['--experimental-app-only'],
-    args['--experimental-turbo'],
+    !!process.env.TURBOPACK,
+    args['--experimental-turbo-root'],
     args['--build-mode'] || 'default'
   ).catch((err) => {
     console.error('')

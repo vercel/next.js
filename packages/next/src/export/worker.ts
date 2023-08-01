@@ -30,7 +30,7 @@ import { requireFontManifest } from '../server/require'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { trace } from '../trace'
 import { isInAmpMode } from '../shared/lib/amp-mode'
-import { setHttpClientAndAgentOptions } from '../server/config'
+import { setHttpClientAndAgentOptions } from '../server/setup-http-agent-env'
 import RenderResult from '../server/render-result'
 import isError from '../lib/is-error'
 import { addRequestMeta } from '../server/request-meta'
@@ -43,9 +43,12 @@ import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/lazy-dynamic/no-ssr-erro
 import { createRequestResponseMocks } from '../server/lib/mock-request'
 import { NodeNextRequest } from '../server/base-http/node'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
-import { toNodeHeaders } from '../server/web/utils'
+import { toNodeOutgoingHttpHeaders } from '../server/web/utils'
 import { RouteModuleLoader } from '../server/future/helpers/module-loader/route-module-loader'
-import { NextRequestAdapter } from '../server/web/spec-extension/adapters/next-request'
+import {
+  NextRequestAdapter,
+  signalFromNodeResponse,
+} from '../server/web/spec-extension/adapters/next-request'
 import * as ciEnvironment from '../telemetry/ci-info'
 
 const envConfig = require('../shared/lib/runtime-config')
@@ -79,7 +82,6 @@ interface ExportPageInput {
   disableOptimizedLoading: any
   parentSpanId: any
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
-  serverComponents?: boolean
   debugOutput?: boolean
   isrMemoryCacheSize?: NextConfigComplete['experimental']['isrMemoryCacheSize']
   fetchCache?: boolean
@@ -119,6 +121,7 @@ interface RenderOpts {
   incrementalCache?: IncrementalCache
   strictNextHead?: boolean
   originalPathname?: string
+  deploymentId?: string
 }
 
 export default async function exportPage({
@@ -136,7 +139,6 @@ export default async function exportPage({
   optimizeCss,
   disableOptimizedLoading,
   httpAgentOptions,
-  serverComponents,
   debugOutput,
   isrMemoryCacheSize,
   fetchCache,
@@ -155,6 +157,9 @@ export default async function exportPage({
     }
 
     try {
+      if (renderOpts.deploymentId) {
+        process.env.NEXT_DEPLOYMENT_ID = renderOpts.deploymentId
+      }
       const { query: originalQuery = {} } = pathMap
       const { page } = pathMap
       const pathname = normalizeAppPath(page)
@@ -309,7 +314,6 @@ export default async function exportPage({
         components = await loadComponents({
           distDir,
           pathname: page,
-          hasServerComponents: !!serverComponents,
           isAppPath: isAppDir,
         })
         curRenderOpts = {
@@ -387,7 +391,8 @@ export default async function exportPage({
           // Ensure that the url for the page is absolute.
           req.url = `http://localhost:3000${req.url}`
           const request = NextRequestAdapter.fromNodeNextRequest(
-            new NodeNextRequest(req)
+            new NodeNextRequest(req),
+            signalFromNodeResponse(res)
           )
 
           // Create the context for the handler. This contains the params from
@@ -424,7 +429,9 @@ export default async function exportPage({
             const filename = posix.join(distDir, 'server', 'app', page)
 
             // Load the module for the route.
-            const module = RouteModuleLoader.load<AppRouteRouteModule>(filename)
+            const module = await RouteModuleLoader.load<AppRouteRouteModule>(
+              filename
+            )
 
             // Call the handler with the request and context from the module.
             const response = await module.handle(request, context)
@@ -443,7 +450,7 @@ export default async function exportPage({
                 context.staticGenerationContext.store?.revalidate || false
 
               results.fromBuildExportRevalidate = revalidate
-              const headers = toNodeHeaders(response.headers)
+              const headers = toNodeOutgoingHttpHeaders(response.headers)
               const cacheTags = (context.staticGenerationContext as any)
                 .fetchTags
 
@@ -496,9 +503,9 @@ export default async function exportPage({
               curRenderOpts as any
             )
             const html = result.toUnchunkedString()
-            const renderResultMeta = result.metadata()
-            const flightData = renderResultMeta.pageData
-            const revalidate = renderResultMeta.revalidate
+            const { metadata } = result
+            const flightData = metadata.pageData
+            const revalidate = metadata.revalidate
             results.fromBuildExportRevalidate = revalidate
 
             if (revalidate !== 0) {
@@ -532,7 +539,7 @@ export default async function exportPage({
               )
             }
 
-            const staticBailoutInfo = renderResultMeta.staticBailoutInfo || {}
+            const staticBailoutInfo = metadata.staticBailoutInfo || {}
 
             if (
               revalidate === 0 &&
@@ -621,7 +628,7 @@ export default async function exportPage({
         }
       }
 
-      results.ssgNotFound = renderResult?.metadata().isNotFound
+      results.ssgNotFound = renderResult?.metadata.isNotFound
 
       const validateAmp = async (
         rawAmpHtml: string,
@@ -645,7 +652,7 @@ export default async function exportPage({
       }
 
       const html =
-        renderResult && !renderResult.isNull()
+        renderResult && !renderResult.isNull
           ? renderResult.toUnchunkedString()
           : ''
 
@@ -684,7 +691,7 @@ export default async function exportPage({
           }
 
           const ampHtml =
-            ampRenderResult && !ampRenderResult.isNull()
+            ampRenderResult && !ampRenderResult.isNull
               ? ampRenderResult.toUnchunkedString()
               : ''
           if (!curRenderOpts.ampSkipValidation) {
@@ -695,9 +702,8 @@ export default async function exportPage({
         }
       }
 
-      const renderResultMeta =
-        renderResult?.metadata() || ampRenderResult?.metadata() || {}
-      if (renderResultMeta.pageData) {
+      const metadata = renderResult?.metadata || ampRenderResult?.metadata || {}
+      if (metadata.pageData) {
         const dataFile = join(
           pagesDataDir,
           htmlFilename.replace(/\.html$/, '.json')
@@ -706,19 +712,19 @@ export default async function exportPage({
         await promises.mkdir(dirname(dataFile), { recursive: true })
         await promises.writeFile(
           dataFile,
-          JSON.stringify(renderResultMeta.pageData),
+          JSON.stringify(metadata.pageData),
           'utf8'
         )
 
         if (hybridAmp) {
           await promises.writeFile(
             dataFile.replace(/\.json$/, '.amp.json'),
-            JSON.stringify(renderResultMeta.pageData),
+            JSON.stringify(metadata.pageData),
             'utf8'
           )
         }
       }
-      results.fromBuildExportRevalidate = renderResultMeta.revalidate
+      results.fromBuildExportRevalidate = metadata.revalidate
 
       if (!results.ssgNotFound) {
         // don't attempt writing to disk if getStaticProps returned not found

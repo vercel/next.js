@@ -1,6 +1,7 @@
 if (process.env.POLYFILL_FETCH) {
   global.fetch = require('node-fetch').default
   global.Request = require('node-fetch').Request
+  global.Headers = require('node-fetch').Headers
 }
 
 const { readFileSync } = require('fs')
@@ -21,6 +22,10 @@ const httpOptions = {
   key: readFileSync(join(__dirname, 'ssh/localhost-key.pem')),
   cert: readFileSync(join(__dirname, 'ssh/localhost.pem')),
 }
+
+process.on('unhandledRejection', (err) => {
+  console.error('- error unhandledRejection:', err)
+})
 
 app.prepare().then(() => {
   const server = createServer(httpOptions, async (req, res) => {

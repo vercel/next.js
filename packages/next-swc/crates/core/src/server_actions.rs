@@ -3,7 +3,7 @@ use std::convert::{TryFrom, TryInto};
 use hex::encode as hex_encode;
 use serde::Deserialize;
 use sha1::{Digest, Sha1};
-use turbo_binding::swc::core::{
+use turbopack_binding::swc::core::{
     common::{
         comments::{Comment, CommentKind, Comments},
         errors::HANDLER,
@@ -22,6 +22,7 @@ use turbo_binding::swc::core::{
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct Config {
     pub is_server: bool,
+    pub enabled: bool,
 }
 
 pub fn server_actions<C: Comments>(
@@ -101,6 +102,7 @@ impl<C: Comments> ServerActions<C> {
                     &mut body.stmts,
                     remove_directive,
                     &mut is_action_fn,
+                    self.config.enabled,
                 );
 
                 if is_action_fn && !self.config.is_server {
@@ -108,8 +110,7 @@ impl<C: Comments> ServerActions<C> {
                         handler
                             .struct_span_err(
                                 body.span,
-                                "\"use server\" functions are not allowed in client components. \
-                                 You can import them from a \"use server\" file instead.",
+                                "It is not allowed to define inline \"use server\" annotated Server Actions in Client Components.\nTo use Server Actions in a Client Component, you can either export them from a separate file with \"use server\" at the top, or pass them down through props from a Server Component.\n\nRead more: https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions#with-client-components\n",
                             )
                             .emit()
                     });
@@ -220,6 +221,12 @@ impl<C: Comments> ServerActions<C> {
                 Some(action_ident.clone()),
             );
 
+            if let BlockStmtOrExpr::BlockStmt(block) = &mut *a.body {
+                block.visit_mut_with(&mut ClosureReplacer {
+                    used_ids: &ids_from_closure,
+                });
+            }
+
             let new_arrow = ArrowExpr {
                 span: DUMMY_SP,
                 params: vec![
@@ -239,11 +246,13 @@ impl<C: Comments> ServerActions<C> {
             };
 
             // export const $ACTION_myAction = async () => {}
-            let mut new_params: Vec<Pat> = ids_from_closure
-                .iter()
-                .cloned()
-                .map(|id| Pat::Ident(Ident::from(id.0).into()))
-                .collect();
+            let mut new_params: Vec<Pat> = vec![];
+
+            for i in 0..ids_from_closure.len() {
+                new_params.push(Pat::Ident(
+                    Ident::new(format!("$$ACTION_ARG_{}", i).into(), DUMMY_SP).into(),
+                ));
+            }
             for p in a.params.iter() {
                 new_params.push(p.clone());
             }
@@ -253,7 +262,7 @@ impl<C: Comments> ServerActions<C> {
                     span: DUMMY_SP,
                     decl: Decl::Var(Box::new(VarDecl {
                         span: DUMMY_SP,
-                        kind: VarDeclKind::Const,
+                        kind: VarDeclKind::Var,
                         declare: Default::default(),
                         decls: vec![VarDeclarator {
                             span: DUMMY_SP,
@@ -313,6 +322,10 @@ impl<C: Comments> ServerActions<C> {
                 Some(action_ident.clone()),
             );
 
+            f.body.visit_mut_with(&mut ClosureReplacer {
+                used_ids: &ids_from_closure,
+            });
+
             let new_fn = Function {
                 params: vec![
                     // ...args
@@ -343,11 +356,18 @@ impl<C: Comments> ServerActions<C> {
             };
 
             // export async function $ACTION_myAction () {}
-            let mut new_params: Vec<Param> = ids_from_closure
-                .iter()
-                .cloned()
-                .map(|id| Param::from(Pat::Ident(Ident::from(id.0).into())))
-                .collect();
+            let mut new_params: Vec<Param> = vec![];
+
+            // add params from closure collected ids
+            for i in 0..ids_from_closure.len() {
+                new_params.push(Param {
+                    span: DUMMY_SP,
+                    decorators: vec![],
+                    pat: Pat::Ident(
+                        Ident::new(format!("$$ACTION_ARG_{}", i).into(), DUMMY_SP).into(),
+                    ),
+                });
+            }
             for p in f.params.iter() {
                 new_params.push(p.clone());
             }
@@ -599,6 +619,20 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         }
     }
 
+    fn visit_mut_prop_or_spread(&mut self, n: &mut PropOrSpread) {
+        if self.in_action_fn && self.in_action_closure {
+            if let PropOrSpread::Prop(box Prop::Shorthand(i)) = n {
+                self.in_action_closure = false;
+                self.action_closure_idents.push(Name::from(&*i));
+                n.visit_mut_children_with(self);
+                self.in_action_closure = true;
+                return;
+            }
+        }
+
+        n.visit_mut_children_with(self);
+    }
+
     fn visit_mut_expr(&mut self, n: &mut Expr) {
         if self.in_action_fn && self.in_action_closure {
             if let Ok(name) = Name::try_from(&*n) {
@@ -688,6 +722,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             stmts,
             &mut self.in_action_file,
             &mut self.has_action,
+            self.config.enabled,
         );
 
         let old_annotations = self.annotations.take();
@@ -909,7 +944,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                 span: DUMMY_SP,
                                 decl: Decl::Var(Box::new(VarDecl {
                                     span: DUMMY_SP,
-                                    kind: VarDeclKind::Const,
+                                    kind: VarDeclKind::Var,
                                     declare: false,
                                     decls: vec![VarDeclarator {
                                         span: DUMMY_SP,
@@ -1198,6 +1233,7 @@ fn remove_server_directive_index_in_module(
     stmts: &mut Vec<ModuleItem>,
     in_action_file: &mut bool,
     has_action: &mut bool,
+    enabled: bool,
 ) {
     let mut is_directive = true;
 
@@ -1211,6 +1247,16 @@ fn remove_server_directive_index_in_module(
                     if is_directive {
                         *in_action_file = true;
                         *has_action = true;
+                        if !enabled {
+                            HANDLER.with(|handler| {
+                                handler
+                                    .struct_span_err(
+                                        *span,
+                                        "To use Server Actions, please enable the feature flag in your Next.js config. Read more: https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions#convention",
+                                    )
+                                    .emit()
+                            });
+                        }
                         return false;
                     } else {
                         HANDLER.with(|handler| {
@@ -1287,6 +1333,7 @@ fn remove_server_directive_index_in_fn(
     stmts: &mut Vec<Stmt>,
     remove_directive: bool,
     is_action_fn: &mut bool,
+    enabled: bool,
 ) {
     let mut is_directive = true;
 
@@ -1299,6 +1346,16 @@ fn remove_server_directive_index_in_fn(
             if value == "use server" {
                 if is_directive {
                     *is_action_fn = true;
+                    if !enabled {
+                        HANDLER.with(|handler| {
+                            handler
+                                .struct_span_err(
+                                    *span,
+                                    "To use Server Actions, please enable the feature flag in your Next.js config. Read more: https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions#convention",
+                                )
+                                .emit()
+                        });
+                    }
                     if remove_directive {
                         return false;
                     }
@@ -1432,8 +1489,66 @@ fn collect_idents_in_stmt(stmt: &Stmt) -> Vec<Id> {
     ids
 }
 
+pub(crate) struct ClosureReplacer<'a> {
+    used_ids: &'a [Name],
+}
+
+impl ClosureReplacer<'_> {
+    fn index(&self, e: &Expr) -> Option<usize> {
+        let name = Name::try_from(e).ok()?;
+        self.used_ids.iter().position(|used_id| *used_id == name)
+    }
+}
+
+impl VisitMut for ClosureReplacer<'_> {
+    fn visit_mut_expr(&mut self, e: &mut Expr) {
+        e.visit_mut_children_with(self);
+
+        if let Some(index) = self.index(e) {
+            *e = Expr::Ident(Ident::new(
+                // $$ACTION_ARG_0
+                format!("$$ACTION_ARG_{}", index).into(),
+                DUMMY_SP,
+            ));
+        }
+    }
+
+    fn visit_mut_prop_or_spread(&mut self, n: &mut PropOrSpread) {
+        n.visit_mut_children_with(self);
+
+        if let PropOrSpread::Prop(box Prop::Shorthand(i)) = n {
+            let name = Name::from(&*i);
+            if let Some(index) = self.used_ids.iter().position(|used_id| *used_id == name) {
+                *n = PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
+                    key: PropName::Ident(i.clone()),
+                    value: Box::new(Expr::Ident(Ident::new(
+                        // $$ACTION_ARG_0
+                        format!("$$ACTION_ARG_{}", index).into(),
+                        DUMMY_SP,
+                    ))),
+                })));
+            }
+        }
+    }
+
+    noop_visit_mut_type!();
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct Name(Id, Vec<(JsWord, bool)>);
+struct NamePart {
+    prop: JsWord,
+    is_member: bool,
+    optional: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct Name(Id, Vec<NamePart>);
+
+impl From<&'_ Ident> for Name {
+    fn from(value: &Ident) -> Self {
+        Name(value.to_id(), vec![])
+    }
+}
 
 impl TryFrom<&'_ Expr> for Name {
     type Error = ();
@@ -1455,7 +1570,11 @@ impl TryFrom<&'_ MemberExpr> for Name {
         match &value.prop {
             MemberProp::Ident(prop) => {
                 let mut obj: Name = value.obj.as_ref().try_into()?;
-                obj.1.push((prop.sym.clone(), true));
+                obj.1.push(NamePart {
+                    prop: prop.sym.clone(),
+                    is_member: true,
+                    optional: false,
+                });
                 Ok(obj)
             }
             _ => Err(()),
@@ -1468,10 +1587,14 @@ impl TryFrom<&'_ OptChainExpr> for Name {
 
     fn try_from(value: &OptChainExpr) -> Result<Self, Self::Error> {
         match &*value.base {
-            OptChainBase::Member(value) => match &value.prop {
+            OptChainBase::Member(m) => match &m.prop {
                 MemberProp::Ident(prop) => {
-                    let mut obj: Name = value.obj.as_ref().try_into()?;
-                    obj.1.push((prop.sym.clone(), false));
+                    let mut obj: Name = m.obj.as_ref().try_into()?;
+                    obj.1.push(NamePart {
+                        prop: prop.sym.clone(),
+                        is_member: false,
+                        optional: value.optional,
+                    });
                     Ok(obj)
                 }
                 _ => Err(()),
@@ -1485,7 +1608,12 @@ impl From<Name> for Expr {
     fn from(value: Name) -> Self {
         let mut expr = Expr::Ident(value.0.into());
 
-        for (prop, is_member) in value.1.into_iter() {
+        for NamePart {
+            prop,
+            is_member,
+            optional,
+        } in value.1.into_iter()
+        {
             if is_member {
                 expr = Expr::Member(MemberExpr {
                     span: DUMMY_SP,
@@ -1495,12 +1623,12 @@ impl From<Name> for Expr {
             } else {
                 expr = Expr::OptChain(OptChainExpr {
                     span: DUMMY_SP,
-                    question_dot_token: DUMMY_SP,
                     base: Box::new(OptChainBase::Member(MemberExpr {
                         span: DUMMY_SP,
                         obj: expr.into(),
                         prop: MemberProp::Ident(Ident::new(prop, DUMMY_SP)),
                     })),
+                    optional,
                 });
             }
         }
