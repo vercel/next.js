@@ -50,6 +50,7 @@ module.exports = {
         '@next/next/no-duplicate-head': 'error',
         '@next/next/no-head-import-in-document': 'error',
         '@next/next/no-script-component-in-head': 'error',
+        '@next/next/no-browser-api-server-component': 'error',
       },
     },
     'core-web-vitals': {
