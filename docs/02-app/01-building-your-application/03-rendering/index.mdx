@@ -48,3 +48,20 @@ On the server, there are two runtimes where parts of your application code can b
 By default, the `app` directory uses the Node.js runtime. However, you can opt into different runtimes (e.g. Edge) on a per-route basis.
 
 Learn more about the [Edge and Node.js Runtimes](/docs/app/building-your-application/rendering/03-edge-and-nodejs-runtimes).
+
+### Rendering Strategies
+
+Over the years, the web has gone through several architectural models that have shifted how much code is rendered on the server vs. the client. We call these **Rendering Strategies**, and you may have already used some of them. For example, Multi-page Applications (MPA), Single-page Applications (SPA), Server-side Rendering (SSR), Static Site Generation (SSG), Client-side Rendering (CSR), etc.
+
+In the App Router, there are three rendering strategies:
+
+- **Static Rendering (Default)**: At build time, components are rendered on the server, and the result of the rendering work is [cached](/docs/app/building-your-application/caching#full-route-cache) and shared across requests.
+- **Dynamic Rendering**: At request time, components are rendered on the server or the client (depending on whether they are Server or Client components).
+- **Streaming**: At request time, components are rendered on the server, and the result of the work is streamed to the client as it becomes ready. In React, this is called **Streaming Server-side Rendering**.
+
+The rendering work is also split by routes, allowing you to use different rendering strategies in the same application.
+
+> **Good to know:**
+>
+> - We are working on introducing Hybrid Rendering to Next.js, which will automatically determine the best rendering strategy for each route segment.
+> - If you're interested in learning more about previous rendering strategies (SSG, SSR, and CSR), see the [Pages Router documentation](https://nextjs.org/docs/pages/building-your-application/rendering).
