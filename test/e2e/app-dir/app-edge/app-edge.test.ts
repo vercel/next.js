@@ -21,6 +21,11 @@ createNextDescribe(
       expect(await res.text()).toInclude('Hello')
     })
 
+    it('should handle /index routes correctly', async () => {
+      const appHtml = await next.render('/index')
+      expect(appHtml).toContain('the /index route')
+    })
+
     if ((globalThis as any).isNextDev) {
       it('should resolve module without error in edge runtime', async () => {
         const logs = []

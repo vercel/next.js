@@ -6,7 +6,6 @@ export function loadWebpackHook() {
     return
   }
   installed = true
-
   initWebpack()
 
   // hook the Node.js require so that webpack requires are

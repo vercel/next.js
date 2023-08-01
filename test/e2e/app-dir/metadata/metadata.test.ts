@@ -1,6 +1,6 @@
+import type { BrowserInterface } from 'test/lib/browsers/base'
 import { createNextDescribe } from 'e2e-utils'
 import { check } from 'next-test-utils'
-import { BrowserInterface } from 'test/lib/browsers/base'
 import fs from 'fs/promises'
 import path from 'path'
 import cheerio from 'cheerio'
@@ -89,7 +89,7 @@ createNextDescribe(
         tag: string,
         queryKey: string,
         domAttributeField: string,
-        expected: Record<string, string | string[]>
+        expected: Record<string, string | string[] | undefined>
       ) => {
         const res = {}
         for (const key of Object.keys(expected)) {
@@ -416,56 +416,6 @@ createNextDescribe(
         )
       })
 
-      it('should render root not-found with default metadata', async () => {
-        const $ = await next.render$('/does-not-exist')
-
-        // Should contain default metadata and noindex tag
-        const matchHtml = createMultiHtmlMatcher($)
-        expect($('meta[charset="utf-8"]').length).toBe(1)
-        await matchHtml('meta', 'name', 'content', {
-          viewport: 'width=device-width, initial-scale=1',
-          robots: 'noindex',
-        })
-      })
-
-      it('should support notFound in generateMetadata', async () => {
-        const res = await next.fetch('/async/not-found')
-        expect(res.status).toBe(404)
-        const html = await res.text()
-        const $ = cheerio.load(html)
-
-        // TODO-APP: support render custom not-found in SSR for generateMetadata.
-        // Check contains root not-found payload in flight response for now.
-        let hasRootNotFoundFlight = false
-        for (const el of $('script').toArray()) {
-          const text = $(el).text()
-          if (text.includes('root not found page')) {
-            hasRootNotFoundFlight = true
-          }
-        }
-        expect(hasRootNotFoundFlight).toBe(true)
-
-        // Should contain default metadata and noindex tag
-        const matchHtml = createMultiHtmlMatcher($)
-        expect($('meta[charset="utf-8"]').length).toBe(1)
-        await matchHtml('meta', 'name', 'content', {
-          viewport: 'width=device-width, initial-scale=1',
-          robots: 'noindex',
-        })
-
-        const browser = await next.browser('/async/not-found')
-        expect(await browser.elementByCss('h2').text()).toBe(
-          'root not found page'
-        )
-      })
-
-      it('should support redirect in generateMetadata', async () => {
-        const res = await next.fetch('/async/redirect', {
-          redirect: 'manual',
-        })
-        expect(res.status).toBe(307)
-      })
-
       it('should handle metadataBase for urls resolved as only URL type', async () => {
         // including few urls in opengraph and alternates
         const url$ = await next.render$('/metadata-base/url')
@@ -569,8 +519,92 @@ createNextDescribe(
         })
 
         // favicon shouldn't be overridden
-        const $icon = $('link[rel="icon"]')
-        expect($icon.attr('href')).toBe('/favicon.ico')
+        expect($('link[rel="icon"]').attr('href')).toBe('/favicon.ico')
+      })
+
+      it('should override file based images when opengraph-image and twitter-image specify images property', async () => {
+        const $ = await next.render$('/opengraph/static/override')
+
+        const match = createMultiHtmlMatcher($)
+        await match('meta', 'property', 'content', {
+          'og:title': 'no-og-image',
+          'og:image': undefined,
+        })
+
+        await match('meta', 'name', 'content', {
+          'twitter:image': undefined,
+          'twitter:title': 'no-tw-image',
+        })
+
+        // icon should be overridden
+        expect($('link[rel="icon"]').attr('href')).toBe(
+          'https://custom-icon-1.png'
+        )
+      })
+    })
+
+    describe('navigation', () => {
+      it('should render root not-found with default metadata', async () => {
+        const $ = await next.render$('/does-not-exist')
+
+        // Should contain default metadata and noindex tag
+        const matchHtml = createMultiHtmlMatcher($)
+        expect($('meta[charset="utf-8"]').length).toBe(1)
+        await matchHtml('meta', 'name', 'content', {
+          viewport: 'width=device-width, initial-scale=1',
+          robots: 'noindex',
+          // not found metadata
+          description: 'Root not found description',
+        })
+        expect(await $('title').text()).toBe('Root not found')
+      })
+
+      it('should support notFound in generateMetadata', async () => {
+        const res = await next.fetch('/async/not-found')
+        expect(res.status).toBe(404)
+        const html = await res.text()
+        const $ = cheerio.load(html)
+
+        // TODO-APP: support render custom not-found in SSR for generateMetadata.
+        // Check contains root not-found payload in flight response for now.
+        let hasRootNotFoundFlight = false
+        for (const el of $('script').toArray()) {
+          const text = $(el).text()
+          if (text.includes('root not found page')) {
+            hasRootNotFoundFlight = true
+          }
+        }
+        expect(hasRootNotFoundFlight).toBe(true)
+
+        // Should contain default metadata and noindex tag
+        const matchHtml = createMultiHtmlMatcher($)
+        expect($('meta[charset="utf-8"]').length).toBe(1)
+        await matchHtml('meta', 'name', 'content', {
+          viewport: 'width=device-width, initial-scale=1',
+          robots: 'noindex',
+        })
+
+        const browser = await next.browser('/async/not-found')
+        expect(await browser.elementByCss('h2').text()).toBe(
+          'root not found page'
+        )
+
+        const matchMultiDom = createMultiDomMatcher(browser)
+        await matchMultiDom('meta', 'name', 'content', {
+          viewport: 'width=device-width, initial-scale=1',
+          keywords: 'parent',
+          robots: 'noindex',
+          // not found metadata
+          description: 'Local not found description',
+        })
+        expect(await getTitle(browser)).toBe('Local not found')
+      })
+
+      it('should support redirect in generateMetadata', async () => {
+        const res = await next.fetch('/async/redirect', {
+          redirect: 'manual',
+        })
+        expect(res.status).toBe(307)
       })
     })
 
@@ -612,6 +646,18 @@ createNextDescribe(
         })
       })
 
+      it('should merge icons from layout if no static icons files are specified', async () => {
+        const browser = await next.browser('/icons/descriptor/from-layout')
+        const matchDom = createDomMatcher(browser)
+
+        await matchDom('link', 'href="favicon-light.png"', {
+          media: '(prefers-color-scheme: light)',
+        })
+        await matchDom('link', 'href="favicon-dark.png"', {
+          media: '(prefers-color-scheme: dark)',
+        })
+      })
+
       it('should not hoist meta[itemProp] to head', async () => {
         const $ = await next.render$('/')
         expect($('head meta[itemProp]').length).toBe(0)
@@ -623,15 +669,16 @@ createNextDescribe(
         const favIcon = $('link[rel="icon"]')
         expect(favIcon.attr('href')).toBe('/favicon.ico')
         expect(favIcon.attr('type')).toBe('image/x-icon')
-        expect(favIcon.attr('sizes')).toBe('any')
+        expect(favIcon.attr('sizes')).toBe('16x16')
 
         const iconSvg = $('link[rel="icon"][type="image/svg+xml"]')
         expect(iconSvg.attr('href')).toBe('/icon.svg?90699bff34adba1f')
+        expect(iconSvg.attr('sizes')).toBe('any')
 
         $ = await next.render$('/basic')
         const icon = $('link[rel="icon"]')
         expect(icon.attr('href')).toBe('/favicon.ico')
-        expect(icon.attr('sizes')).toBe('any')
+        expect(icon.attr('sizes')).toBe('16x16')
 
         if (!isNextDeploy) {
           const faviconFileBuffer = await fs.readFile(
