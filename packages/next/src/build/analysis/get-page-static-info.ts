@@ -77,6 +77,25 @@ export function getRSCModuleInformation(
   return { type, actions, clientRefs, clientEntryType, isClientRef }
 }
 
+const warnedInvalidValueMap = {
+  runtime: new Map<string, boolean>(),
+  preferredRegion: new Map<string, boolean>(),
+} as const
+function warnInvalidValue(
+  pageFilePath: string,
+  key: keyof typeof warnedInvalidValueMap,
+  message: string
+): void {
+  if (warnedInvalidValueMap[key].has(pageFilePath)) return
+
+  Log.warn(
+    `Next.js can't recognize the exported \`${key}\` field in "${pageFilePath}" as ${message}.` +
+      '\n' +
+      'The default runtime will be used instead.'
+  )
+
+  warnedInvalidValueMap[key].set(pageFilePath, true)
+}
 /**
  * Receives a parsed AST from SWC and checks if it belongs to a module that
  * requires a runtime to be specified. Those are:
@@ -84,7 +103,10 @@ export function getRSCModuleInformation(
  *   - Modules with `export { getStaticProps | getServerSideProps } <from ...>`
  *   - Modules with `export const runtime = ...`
  */
-function checkExports(swcAST: any): {
+function checkExports(
+  swcAST: any,
+  pageFilePath: string
+): {
   ssr: boolean
   ssg: boolean
   runtime?: string
@@ -177,6 +199,18 @@ function checkExports(swcAST: any): {
               generateImageMetadata = true
             if (!generateSitemaps && value === 'generateSitemaps')
               generateSitemaps = true
+            if (!runtime && value === 'runtime')
+              warnInvalidValue(
+                pageFilePath,
+                'runtime',
+                'it was not assigned to a string literal'
+              )
+            if (!preferredRegion && value === 'preferredRegion')
+              warnInvalidValue(
+                pageFilePath,
+                'preferredRegion',
+                'it was not assigned to a string literal or an array of string literals'
+              )
           }
         }
       }
@@ -379,7 +413,7 @@ export async function isDynamicMetadataRoute(
   if (!/generateImageMetadata|generateSitemaps/.test(fileContent)) return false
 
   const swcAST = await parseModule(pageFilePath, fileContent)
-  const exportsInfo = checkExports(swcAST)
+  const exportsInfo = checkExports(swcAST, pageFilePath)
 
   return !exportsInfo.generateImageMetadata || !exportsInfo.generateSitemaps
 }
@@ -408,7 +442,7 @@ export async function getPageStaticInfo(params: {
   ) {
     const swcAST = await parseModule(pageFilePath, fileContent)
     const { ssg, ssr, runtime, preferredRegion, extraProperties } =
-      checkExports(swcAST)
+      checkExports(swcAST, pageFilePath)
     const rsc = getRSCModuleInformation(fileContent).type
 
     // default / failsafe value for config
