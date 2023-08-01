@@ -18,6 +18,8 @@ import {
 } from '../../client/components/app-router-headers'
 import { NEXT_QUERY_PARAM_PREFIX } from '../../lib/constants'
 import { ensureInstrumentationRegistered } from './globals'
+import { RequestAsyncStorageWrapper } from '../async-storage/request-async-storage-wrapper'
+import { requestAsyncStorage } from '../../client/components/request-async-storage'
 
 class NextRequestHint extends NextRequest {
   sourcePage: string
@@ -177,7 +179,17 @@ export async function adapter(
   }
 
   const event = new NextFetchEvent({ request, page: params.page })
-  let response = await params.handler(request, event)
+  let response
+
+  if (isEdgeRendering) {
+    response = await params.handler(request, event)
+  } else {
+    response = await RequestAsyncStorageWrapper.wrap(
+      requestAsyncStorage,
+      { req: request },
+      () => params.handler(request, event)
+    )
+  }
 
   // check if response is a Response object
   if (response && !(response instanceof Response)) {

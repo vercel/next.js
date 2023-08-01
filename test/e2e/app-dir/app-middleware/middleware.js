@@ -1,20 +1,29 @@
 import { NextResponse } from 'next/server'
 
-// It should be able to import `headers` inside middleware
-import { headers } from 'next/headers'
-console.log(!!headers)
+import { headers as nextHeaders } from 'next/headers'
 
 /**
  * @param {import('next/server').NextRequest} request
  */
 export async function middleware(request) {
-  const headers = new Headers(request.headers)
-  headers.set('x-from-middleware', 'hello-from-middleware')
+  const headersFromRequest = new Headers(request.headers)
+  // It should be able to import and use `headers` inside middleware
+  const headersFromNext = nextHeaders()
+  headersFromRequest.set('x-from-middleware', 'hello-from-middleware')
+
+  // make sure headers() from `next/headers` is behaving properly
+  if (
+    headersFromRequest.get('x-from-client') &&
+    headersFromNext.get('x-from-client') !==
+      headersFromRequest.get('x-from-client')
+  ) {
+    throw new Error('Expected headers from client to match')
+  }
 
   const removeHeaders = request.nextUrl.searchParams.get('remove-headers')
   if (removeHeaders) {
     for (const key of removeHeaders.split(',')) {
-      headers.delete(key)
+      headersFromRequest.delete(key)
     }
   }
 
@@ -22,7 +31,7 @@ export async function middleware(request) {
   if (updateHeader) {
     for (const kv of updateHeader.split(',')) {
       const [key, value] = kv.split('=')
-      headers.set(key, value)
+      headersFromRequest.set(key, value)
     }
   }
 
@@ -33,7 +42,7 @@ export async function middleware(request) {
 
   return NextResponse.next({
     request: {
-      headers,
+      headers: headersFromRequest,
     },
   })
 }
