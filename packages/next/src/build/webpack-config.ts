@@ -2701,7 +2701,7 @@ export default async function getBaseWebpackConfig(
     // So we disable compression here and allow the build runner to take care of compressing the cache as a whole.
     // For local development, we still want to compress the cache files individually to avoid I/O bottlenecks
     // as we are seeing 1~10 seconds of fs I/O time from user reports.
-    compression: process.env.NODE_ENV === 'development' ? 'gzip' : false,
+    compression: dev ? 'gzip' : false,
   }
 
   // Adds `next.config.js` as a buildDependency when custom webpack config is provided
