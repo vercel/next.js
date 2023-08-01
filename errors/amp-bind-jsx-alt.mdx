@@ -1,0 +1,19 @@
+---
+title: Resolving "AMP Bind JSX Error" in Next.js
+description: This document explains the "AMP Bind JSX Error" in Next.js and provides a valid solution to resolve it.
+---
+
+## Why This Error Occurred
+
+The "AMP Bind JSX Error" arises when you use the `[prop]='something'` syntax somewhere in your code.
+
+JSX is a syntax extension for JavaScript used by React (and by extension, Next.js). JSX does not support the usage of this particular syntax, hence the error.
+
+## Possible Ways to Fix It
+
+To fix this issue, instead of using `[prop]='something'`, you can use `data-amp-bind-prop='something'`. This is a valid alternative in Accelerated Mobile Pages (AMP) that works well with JSX.
+
+## Useful Links
+
+- [AMP HTML Specification](https://www.ampproject.org/docs/fundamentals/spec) - Understand the underlying standards and rules for creating AMP pages.
+- [Possible future syntax](https://github.com/ampproject/amphtml/issues/21600) - Check out the discussions on potential syntax changes that may be applicable in the future.

@@ -1,65 +1,64 @@
 use anyhow::{Context, Result};
-use turbo_binding::turbopack::{
+use turbo_tasks::{Value, Vc};
+use turbopack_binding::turbopack::{
     core::{
-        asset::{Asset, AssetContentVc, AssetVc},
-        chunk::{
-            availability_info::AvailabilityInfo, ChunkVc, ChunkableAsset, ChunkableAssetVc,
-            ChunkingContext, ChunkingContextVc,
-        },
-        ident::AssetIdentVc,
-        reference::AssetReferencesVc,
+        asset::{Asset, AssetContent},
+        chunk::{availability_info::AvailabilityInfo, Chunk, ChunkableModule, ChunkingContext},
+        ident::AssetIdent,
+        module::Module,
+        reference::ModuleReferences,
     },
-    ecmascript::chunk::EcmascriptChunkingContextVc,
+    ecmascript::chunk::EcmascriptChunkingContext,
     turbopack::ecmascript::chunk::{
-        EcmascriptChunkItemVc, EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc,
-        EcmascriptChunkVc, EcmascriptExportsVc,
+        EcmascriptChunk, EcmascriptChunkItem, EcmascriptChunkPlaceable, EcmascriptExports,
     },
 };
-use turbo_tasks::{primitives::StringVc, Value};
 
 #[turbo_tasks::function]
-fn modifier() -> StringVc {
-    StringVc::cell("with chunking context scope".to_string())
+fn modifier() -> Vc<String> {
+    Vc::cell("with chunking context scope".to_string())
 }
 
 #[turbo_tasks::value(shared)]
 pub struct WithChunkingContextScopeAsset {
-    pub asset: EcmascriptChunkPlaceableVc,
+    pub asset: Vc<Box<dyn EcmascriptChunkPlaceable>>,
     pub layer: String,
 }
 
 #[turbo_tasks::value_impl]
-impl Asset for WithChunkingContextScopeAsset {
+impl Module for WithChunkingContextScopeAsset {
     #[turbo_tasks::function]
-    fn ident(&self) -> AssetIdentVc {
+    fn ident(&self) -> Vc<AssetIdent> {
         self.asset.ident().with_modifier(modifier())
     }
 
     #[turbo_tasks::function]
-    fn content(&self) -> AssetContentVc {
-        self.asset.content()
-    }
-
-    #[turbo_tasks::function]
-    fn references(&self) -> AssetReferencesVc {
+    fn references(&self) -> Vc<ModuleReferences> {
         self.asset.references()
     }
 }
 
 #[turbo_tasks::value_impl]
-impl ChunkableAsset for WithChunkingContextScopeAsset {
+impl Asset for WithChunkingContextScopeAsset {
+    #[turbo_tasks::function]
+    fn content(&self) -> Vc<AssetContent> {
+        self.asset.content()
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ChunkableModule for WithChunkingContextScopeAsset {
     #[turbo_tasks::function]
     fn as_chunk(
         &self,
-        context: ChunkingContextVc,
+        context: Vc<Box<dyn ChunkingContext>>,
         availability_info: Value<AvailabilityInfo>,
-    ) -> ChunkVc {
-        EcmascriptChunkVc::new(
-            context.with_layer(&self.layer),
+    ) -> Vc<Box<dyn Chunk>> {
+        Vc::upcast(EcmascriptChunk::new(
+            context.with_layer(self.layer.clone()),
             self.asset,
             availability_info,
-        )
-        .into()
+        ))
     }
 }
 
@@ -68,20 +67,22 @@ impl EcmascriptChunkPlaceable for WithChunkingContextScopeAsset {
     #[turbo_tasks::function]
     async fn as_chunk_item(
         &self,
-        context: EcmascriptChunkingContextVc,
-    ) -> Result<EcmascriptChunkItemVc> {
+        context: Vc<Box<dyn EcmascriptChunkingContext>>,
+    ) -> Result<Vc<Box<dyn EcmascriptChunkItem>>> {
         Ok(self.asset.as_chunk_item(
-            EcmascriptChunkingContextVc::resolve_from(context.with_layer(&self.layer))
-                .await?
-                .context(
-                    "ChunkingContextVc::with_layer should not return a different kind of chunking \
-                     context",
-                )?,
+            Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkingContext>>(
+                context.with_layer(self.layer.clone()),
+            )
+            .await?
+            .context(
+                "ChunkingContext::with_layer should not return a different kind of chunking \
+                 context",
+            )?,
         ))
     }
 
     #[turbo_tasks::function]
-    fn get_exports(&self) -> EcmascriptExportsVc {
+    fn get_exports(&self) -> Vc<EcmascriptExports> {
         self.asset.get_exports()
     }
 }

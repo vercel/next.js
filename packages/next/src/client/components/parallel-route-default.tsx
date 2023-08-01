@@ -1,3 +1,5 @@
+import { notFound } from './not-found'
+
 export default function NoopParallelRouteDefault() {
-  return null
+  notFound()
 }

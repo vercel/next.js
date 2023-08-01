@@ -1,4 +1,3 @@
-import { promises } from 'fs'
 import { join } from 'path'
 import {
   FONT_MANIFEST,
@@ -12,19 +11,21 @@ import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-pa
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import { PageNotFoundError, MissingStaticPage } from '../shared/lib/utils'
 import LRUCache from 'next/dist/compiled/lru-cache'
+import { loadManifest } from './load-manifest'
+import { promises } from 'fs'
 
-const pagePathCache =
-  process.env.NODE_ENV === 'development'
-    ? {
-        get: (_key: string) => {
-          return null
-        },
-        set: () => {},
-        has: () => false,
-      }
-    : new LRUCache<string, string | null>({
-        max: 1000,
-      })
+const isDev = process.env.NODE_ENV === 'development'
+const pagePathCache = isDev
+  ? {
+      get: (_key: string) => {
+        return null
+      },
+      set: () => {},
+      has: () => false,
+    }
+  : new LRUCache<string, string | null>({
+      max: 1000,
+    })
 
 export function getMaybePagePath(
   page: string,
@@ -42,12 +43,15 @@ export function getMaybePagePath(
   let appPathsManifest: undefined | PagesManifest
 
   if (isAppPath) {
-    appPathsManifest = require(join(serverBuildPath, APP_PATHS_MANIFEST))
+    appPathsManifest = loadManifest(
+      join(serverBuildPath, APP_PATHS_MANIFEST),
+      !isDev
+    )
   }
-  const pagesManifest = require(join(
-    serverBuildPath,
-    PAGES_MANIFEST
-  )) as PagesManifest
+  const pagesManifest = loadManifest(
+    join(serverBuildPath, PAGES_MANIFEST),
+    !isDev
+  ) as PagesManifest
 
   try {
     page = denormalizePagePath(normalizePagePath(page))
@@ -117,11 +121,15 @@ export function requirePage(
       throw new MissingStaticPage(page, err.message)
     })
   }
-  return require(pagePath)
+
+  return process.env.NEXT_MINIMAL
+    ? // @ts-ignore
+      __non_webpack_require__(pagePath)
+    : require(pagePath)
 }
 
 export function requireFontManifest(distDir: string) {
   const serverBuildPath = join(distDir, SERVER_DIRECTORY)
-  const fontManifest = require(join(serverBuildPath, FONT_MANIFEST))
+  const fontManifest = loadManifest(join(serverBuildPath, FONT_MANIFEST))
   return fontManifest
 }

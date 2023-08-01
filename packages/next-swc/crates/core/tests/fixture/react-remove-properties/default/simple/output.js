@@ -1,11 +1,15 @@
 export default function Home() {
     return <div data-custom="1a">
 
-    <div data-custom="2">
+      <div data-custom="2">
 
-      <h1 nested={()=><div>nested</div>}>Hello World!</h1>
+        <h1 nested={()=><div>nested</div>}>
 
-    </div>
+          Hello World!
 
-  </div>;
+        </h1>
+
+      </div>
+
+    </div>;
 }

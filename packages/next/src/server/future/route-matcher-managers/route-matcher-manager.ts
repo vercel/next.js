@@ -1,8 +1,17 @@
 import { RouteMatch } from '../route-matches/route-match'
 import { RouteMatcherProvider } from '../route-matcher-providers/route-matcher-provider'
-import { LocaleMatcherMatchOptions } from '../route-matchers/locale-route-matcher'
+import type { LocaleAnalysisResult } from '../helpers/i18n-provider'
 
-export type MatchOptions = { skipDynamic?: boolean } & LocaleMatcherMatchOptions
+export type MatchOptions = {
+  skipDynamic?: boolean
+
+  /**
+   * If defined, this indicates to the matcher that the request should be
+   * treated as locale-aware. If this is undefined, it means that this
+   * application was not configured for additional locales.
+   */
+  i18n?: LocaleAnalysisResult | undefined
+}
 
 export interface RouteMatcherManager {
   /**

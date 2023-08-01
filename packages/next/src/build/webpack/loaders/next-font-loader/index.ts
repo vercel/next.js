@@ -49,6 +49,15 @@ export default async function nextFontLoader(this: any) {
       postcss: getPostcss,
     } = this.getOptions()
 
+    if (assetPrefix && !/^\/|https?:\/\//.test(assetPrefix)) {
+      const err = new Error(
+        'assetPrefix must start with a leading slash or be an absolute URL(http:// or https://)'
+      )
+      err.name = 'NextFontError'
+      callback(err)
+      return
+    }
+
     /**
      * Emit font files to .next/static/media as [hash].[ext].
      *
@@ -87,22 +96,24 @@ export default async function nextFontLoader(this: any) {
       // The font loader function emits font files and returns @font-faces and fallback font metrics
       const fontLoader: FontLoader = require(fontLoaderPath).default
       let { css, fallbackFonts, adjustFontFallback, weight, style, variable } =
-        await fontLoader({
-          functionName,
-          variableName,
-          data,
-          emitFontFile,
-          resolve: (src: string) =>
-            promisify(this.resolve)(
-              path.dirname(
-                path.join(this.rootContext, relativeFilePathFromRoot)
+        await nextFontLoaderSpan.traceChild('font-loader').traceAsyncFn(() =>
+          fontLoader({
+            functionName,
+            variableName,
+            data,
+            emitFontFile,
+            resolve: (src: string) =>
+              promisify(this.resolve)(
+                path.dirname(
+                  path.join(this.rootContext, relativeFilePathFromRoot)
+                ),
+                src.startsWith('.') ? src : `./${src}`
               ),
-              src.startsWith('.') ? src : `./${src}`
-            ),
-          isDev,
-          isServer,
-          loaderContext: this,
-        })
+            isDev,
+            isServer,
+            loaderContext: this,
+          })
+        )
 
       const { postcss } = await getPostcss()
 
@@ -112,25 +123,29 @@ export default async function nextFontLoader(this: any) {
       // Generate a hash from the CSS content. Used to generate classnames and font families
       const fontFamilyHash = loaderUtils.getHashDigest(
         Buffer.from(css),
-        'md5',
+        'sha1',
         'hex',
         6
       )
 
-      // Add CSS classes, exports and make the font-family localy scoped by turning it unguessable
-      const result = await postcss(
-        postcssNextFontPlugin({
-          exports,
-          fontFamilyHash,
-          fallbackFonts,
-          weight,
-          style,
-          adjustFontFallback,
-          variable,
-        })
-      ).process(css, {
-        from: undefined,
-      })
+      // Add CSS classes, exports and make the font-family locally scoped by turning it unguessable
+      const result = await nextFontLoaderSpan
+        .traceChild('postcss')
+        .traceAsyncFn(() =>
+          postcss(
+            postcssNextFontPlugin({
+              exports,
+              fontFamilyHash,
+              fallbackFonts,
+              weight,
+              style,
+              adjustFontFallback,
+              variable,
+            })
+          ).process(css, {
+            from: undefined,
+          })
+        )
 
       const ast = {
         type: 'postcss',

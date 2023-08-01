@@ -10,16 +10,9 @@ import type {
 } from '../server/config-shared'
 import type { OutgoingHttpHeaders } from 'http'
 
-// `NEXT_PREBUNDLED_REACT` env var is inherited from parent process,
-// then override react packages here for export worker.
-if (process.env.NEXT_PREBUNDLED_REACT) {
-  require('../build/webpack/require-hook').overrideBuiltInReactPackages()
-}
-
 // Polyfill fetch for the export worker.
 import '../server/node-polyfill-fetch'
-
-import { loadRequireHook } from '../build/webpack/require-hook'
+import '../server/node-environment'
 
 import { extname, join, dirname, sep, posix } from 'path'
 import fs, { promises } from 'fs'
@@ -37,7 +30,7 @@ import { requireFontManifest } from '../server/require'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { trace } from '../trace'
 import { isInAmpMode } from '../shared/lib/amp-mode'
-import { setHttpClientAndAgentOptions } from '../server/config'
+import { setHttpClientAndAgentOptions } from '../server/setup-http-agent-env'
 import RenderResult from '../server/render-result'
 import isError from '../lib/is-error'
 import { addRequestMeta } from '../server/request-meta'
@@ -47,13 +40,16 @@ import { IncrementalCache } from '../server/lib/incremental-cache'
 import { isNotFoundError } from '../client/components/not-found'
 import { isRedirectError } from '../client/components/redirect'
 import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/lazy-dynamic/no-ssr-error'
-import { mockRequest } from '../server/lib/mock-request'
+import { createRequestResponseMocks } from '../server/lib/mock-request'
 import { NodeNextRequest } from '../server/base-http/node'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
-import { toNodeHeaders } from '../server/web/utils'
+import { toNodeOutgoingHttpHeaders } from '../server/web/utils'
 import { RouteModuleLoader } from '../server/future/helpers/module-loader/route-module-loader'
-
-loadRequireHook()
+import {
+  NextRequestAdapter,
+  signalFromNodeResponse,
+} from '../server/web/spec-extension/adapters/next-request'
+import * as ciEnvironment from '../telemetry/ci-info'
 
 const envConfig = require('../shared/lib/runtime-config')
 
@@ -86,12 +82,11 @@ interface ExportPageInput {
   disableOptimizedLoading: any
   parentSpanId: any
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
-  serverComponents?: boolean
-  enableUndici: NextConfigComplete['experimental']['enableUndici']
   debugOutput?: boolean
   isrMemoryCacheSize?: NextConfigComplete['experimental']['isrMemoryCacheSize']
   fetchCache?: boolean
   incrementalCacheHandlerPath?: string
+  fetchCacheKeyPrefix?: string
   nextConfigOutput?: NextConfigComplete['output']
 }
 
@@ -124,11 +119,10 @@ interface RenderOpts {
   trailingSlash?: boolean
   supportsDynamicHTML?: boolean
   incrementalCache?: IncrementalCache
+  strictNextHead?: boolean
+  originalPathname?: string
+  deploymentId?: string
 }
-
-// expose AsyncLocalStorage on globalThis for react usage
-const { AsyncLocalStorage } = require('async_hooks')
-;(globalThis as any).AsyncLocalStorage = AsyncLocalStorage
 
 export default async function exportPage({
   parentSpanId,
@@ -145,16 +139,14 @@ export default async function exportPage({
   optimizeCss,
   disableOptimizedLoading,
   httpAgentOptions,
-  serverComponents,
-  enableUndici,
   debugOutput,
   isrMemoryCacheSize,
   fetchCache,
+  fetchCacheKeyPrefix,
   incrementalCacheHandlerPath,
 }: ExportPageInput): Promise<ExportPageResults> {
   setHttpClientAndAgentOptions({
     httpAgentOptions,
-    experimental: { enableUndici },
   })
   const exportPageSpan = trace('export-page-worker', parentSpanId)
 
@@ -165,6 +157,9 @@ export default async function exportPage({
     }
 
     try {
+      if (renderOpts.deploymentId) {
+        process.env.NEXT_DEPLOYMENT_ID = renderOpts.deploymentId
+      }
       const { query: originalQuery = {} } = pathMap
       const { page } = pathMap
       const pathname = normalizeAppPath(page)
@@ -235,7 +230,7 @@ export default async function exportPage({
         }
       }
 
-      const { req, res } = mockRequest(updatedPath, {}, 'GET')
+      const { req, res } = createRequestResponseMocks({ url: updatedPath })
 
       for (const statusCode of [404, 500]) {
         if (
@@ -319,12 +314,12 @@ export default async function exportPage({
         components = await loadComponents({
           distDir,
           pathname: page,
-          hasServerComponents: !!serverComponents,
           isAppPath: isAppDir,
         })
         curRenderOpts = {
           ...components,
           ...renderOpts,
+          strictNextHead: !!renderOpts.strictNextHead,
           ampPath: renderAmpPath,
           params,
           optimizeFonts,
@@ -333,6 +328,12 @@ export default async function exportPage({
           fontManifest: optimizeFonts ? requireFontManifest(distDir) : null,
           locale: locale as string,
           supportsDynamicHTML: false,
+          originalPathname: page,
+          ...(ciEnvironment.hasNextSupport
+            ? {
+                isRevalidate: true,
+              }
+            : {}),
         }
       }
 
@@ -347,12 +348,13 @@ export default async function exportPage({
             CacheHandler = require(incrementalCacheHandlerPath)
             CacheHandler = CacheHandler.default || CacheHandler
           }
-
-          curRenderOpts.incrementalCache = new IncrementalCache({
+          const incrementalCache = new IncrementalCache({
             dev: false,
             requestHeaders: {},
             flushToDisk: true,
+            fetchCache: true,
             maxMemoryCacheSize: isrMemoryCacheSize,
+            fetchCacheKeyPrefix,
             getPrerenderManifest: () => ({
               version: 4,
               routes: {},
@@ -365,15 +367,18 @@ export default async function exportPage({
               notFoundRoutes: [],
             }),
             fs: {
-              readFile: (f) => fs.promises.readFile(f, 'utf8'),
-              readFileSync: (f) => fs.readFileSync(f, 'utf8'),
-              writeFile: (f, d) => fs.promises.writeFile(f, d, 'utf8'),
+              readFile: (f) => fs.promises.readFile(f),
+              readFileSync: (f) => fs.readFileSync(f),
+              writeFile: (f, d) => fs.promises.writeFile(f, d),
               mkdir: (dir) => fs.promises.mkdir(dir, { recursive: true }),
               stat: (f) => fs.promises.stat(f),
             },
             serverDistDir: join(distDir, 'server'),
             CurCacheHandler: CacheHandler,
+            minimalMode: ciEnvironment.hasNextSupport,
           })
+          ;(globalThis as any).__incrementalCache = incrementalCache
+          curRenderOpts.incrementalCache = incrementalCache
         }
 
         const isDynamicUsageError = (err: any) =>
@@ -383,23 +388,38 @@ export default async function exportPage({
           isRedirectError(err)
 
         if (isRouteHandler) {
-          const request = new NodeNextRequest(req)
-
-          addRequestMeta(
-            request.originalRequest,
-            '__NEXT_INIT_URL',
-            `http://localhost:3000${req.url}`
+          // Ensure that the url for the page is absolute.
+          req.url = `http://localhost:3000${req.url}`
+          const request = NextRequestAdapter.fromNodeNextRequest(
+            new NodeNextRequest(req),
+            signalFromNodeResponse(res)
           )
 
           // Create the context for the handler. This contains the params from
           // the route and the context for the request.
           const context: AppRouteRouteHandlerContext = {
-            // Query contains the route parameters.
-            params: query,
+            params,
+            prerenderManifest: {
+              version: 4,
+              routes: {},
+              dynamicRoutes: {},
+              preview: {
+                previewModeEncryptionKey: '',
+                previewModeId: '',
+                previewModeSigningKey: '',
+              },
+              notFoundRoutes: [],
+            },
             staticGenerationContext: {
+              originalPathname: page,
               nextExport: true,
               supportsDynamicHTML: false,
               incrementalCache: curRenderOpts.incrementalCache,
+              ...(ciEnvironment.hasNextSupport
+                ? {
+                    isRevalidate: true,
+                  }
+                : {}),
             },
           }
 
@@ -409,7 +429,9 @@ export default async function exportPage({
             const filename = posix.join(distDir, 'server', 'app', page)
 
             // Load the module for the route.
-            const module = RouteModuleLoader.load<AppRouteRouteModule>(filename)
+            const module = await RouteModuleLoader.load<AppRouteRouteModule>(
+              filename
+            )
 
             // Call the handler with the request and context from the module.
             const response = await module.handle(request, context)
@@ -428,7 +450,13 @@ export default async function exportPage({
                 context.staticGenerationContext.store?.revalidate || false
 
               results.fromBuildExportRevalidate = revalidate
-              const headers = toNodeHeaders(response.headers)
+              const headers = toNodeOutgoingHttpHeaders(response.headers)
+              const cacheTags = (context.staticGenerationContext as any)
+                .fetchTags
+
+              if (cacheTags) {
+                headers['x-next-cache-tags'] = cacheTags
+              }
 
               if (!headers['content-type'] && body.type) {
                 headers['content-type'] = body.type
@@ -475,13 +503,32 @@ export default async function exportPage({
               curRenderOpts as any
             )
             const html = result.toUnchunkedString()
-            const renderResultMeta = result.metadata()
-            const flightData = renderResultMeta.pageData
-            const revalidate = renderResultMeta.revalidate
+            const { metadata } = result
+            const flightData = metadata.pageData
+            const revalidate = metadata.revalidate
             results.fromBuildExportRevalidate = revalidate
 
             if (revalidate !== 0) {
+              const cacheTags = (curRenderOpts as any).fetchTags
+              const headers = cacheTags
+                ? {
+                    'x-next-cache-tags': cacheTags,
+                  }
+                : undefined
+
+              if (ciEnvironment.hasNextSupport) {
+                if (cacheTags) {
+                  results.fromBuildExportMeta = {
+                    headers,
+                  }
+                }
+              }
+
               await promises.writeFile(htmlFilepath, html ?? '', 'utf8')
+              await promises.writeFile(
+                htmlFilepath.replace(/\.html$/, '.meta'),
+                JSON.stringify({ headers })
+              )
               await promises.writeFile(
                 htmlFilepath.replace(/\.html$/, '.rsc'),
                 flightData
@@ -492,7 +539,7 @@ export default async function exportPage({
               )
             }
 
-            const staticBailoutInfo = renderResultMeta.staticBailoutInfo || {}
+            const staticBailoutInfo = metadata.staticBailoutInfo || {}
 
             if (
               revalidate === 0 &&
@@ -581,7 +628,7 @@ export default async function exportPage({
         }
       }
 
-      results.ssgNotFound = renderResult?.metadata().isNotFound
+      results.ssgNotFound = renderResult?.metadata.isNotFound
 
       const validateAmp = async (
         rawAmpHtml: string,
@@ -605,7 +652,7 @@ export default async function exportPage({
       }
 
       const html =
-        renderResult && !renderResult.isNull()
+        renderResult && !renderResult.isNull
           ? renderResult.toUnchunkedString()
           : ''
 
@@ -644,7 +691,7 @@ export default async function exportPage({
           }
 
           const ampHtml =
-            ampRenderResult && !ampRenderResult.isNull()
+            ampRenderResult && !ampRenderResult.isNull
               ? ampRenderResult.toUnchunkedString()
               : ''
           if (!curRenderOpts.ampSkipValidation) {
@@ -655,9 +702,8 @@ export default async function exportPage({
         }
       }
 
-      const renderResultMeta =
-        renderResult?.metadata() || ampRenderResult?.metadata() || {}
-      if (renderResultMeta.pageData) {
+      const metadata = renderResult?.metadata || ampRenderResult?.metadata || {}
+      if (metadata.pageData) {
         const dataFile = join(
           pagesDataDir,
           htmlFilename.replace(/\.html$/, '.json')
@@ -666,19 +712,19 @@ export default async function exportPage({
         await promises.mkdir(dirname(dataFile), { recursive: true })
         await promises.writeFile(
           dataFile,
-          JSON.stringify(renderResultMeta.pageData),
+          JSON.stringify(metadata.pageData),
           'utf8'
         )
 
         if (hybridAmp) {
           await promises.writeFile(
             dataFile.replace(/\.json$/, '.amp.json'),
-            JSON.stringify(renderResultMeta.pageData),
+            JSON.stringify(metadata.pageData),
             'utf8'
           )
         }
       }
-      results.fromBuildExportRevalidate = renderResultMeta.revalidate
+      results.fromBuildExportRevalidate = metadata.revalidate
 
       if (!results.ssgNotFound) {
         // don't attempt writing to disk if getStaticProps returned not found

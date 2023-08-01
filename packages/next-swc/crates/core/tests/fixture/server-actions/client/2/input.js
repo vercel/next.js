@@ -1,5 +1,5 @@
 // app/send.ts
-"use server";
+'use server'
 
 import 'db'
 

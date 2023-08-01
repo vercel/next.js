@@ -3,7 +3,4 @@ module.exports = {
     defaultLocale: 'en-CA',
     locales: ['en-CA', 'en-US', 'fr-CA', 'fr-FR'],
   },
-  experimental: {
-    appDir: true,
-  },
 }

@@ -1,4 +1,4 @@
-import { BaseIcon, IconProps } from "./BaseIcon";
+import { BaseIcon, IconProps } from './BaseIcon'
 
 export const PackageX = (props: IconProps) => {
   return (
@@ -9,5 +9,5 @@ export const PackageX = (props: IconProps) => {
       <line x1="12" y1="22" x2="12" y2="12"></line>
       <path d="m17 13 5 5m-5 0 5-5"></path>
     </BaseIcon>
-  );
-};
+  )
+}

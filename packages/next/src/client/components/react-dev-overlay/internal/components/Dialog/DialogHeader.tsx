@@ -1,6 +1,7 @@
 import * as React from 'react'
 
 export type DialogHeaderProps = {
+  children?: React.ReactNode
   className?: string
 }
 

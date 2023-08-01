@@ -1,4 +1,3 @@
-// hello world api route
 import { NextApiRequest, NextApiResponse } from 'next'
 import { fetchGithubStars } from '../../shared/fetch-github-stars'
 

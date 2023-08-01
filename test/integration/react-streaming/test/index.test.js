@@ -12,11 +12,10 @@ export default function Page500() {
 
 const appDir = join(__dirname, '../app')
 const error500Page = new File(join(appDir, 'pages/500.js'))
-const nextConfig = new File(join(appDir, 'next.config.js'))
 
-const edgeRuntimeBasicSuite = {
+const testSuite = {
   runTests: (context, env) => {
-    const options = { runtime: 'experimental-edge', env }
+    const options = { env }
     streaming(context, options)
   },
   beforeAll: () => {
@@ -27,21 +26,5 @@ const edgeRuntimeBasicSuite = {
   },
 }
 
-const nodejsRuntimeBasicSuite = {
-  runTests: (context, env) => {
-    const options = { runtime: 'nodejs', env }
-    streaming(context, options)
-  },
-  beforeAll: () => {
-    error500Page.write(page500)
-  },
-  afterAll: () => {
-    error500Page.delete()
-    nextConfig.restore()
-  },
-}
-
-runDevSuite('Node.js runtime', appDir, nodejsRuntimeBasicSuite)
-runProdSuite('Node.js runtime', appDir, nodejsRuntimeBasicSuite)
-runDevSuite('Edge runtime', appDir, edgeRuntimeBasicSuite)
-runProdSuite('Edge runtime', appDir, edgeRuntimeBasicSuite)
+runDevSuite('streaming dev', appDir, testSuite)
+runProdSuite('streaming prod', appDir, testSuite)

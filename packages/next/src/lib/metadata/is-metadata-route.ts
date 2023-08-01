@@ -1,3 +1,5 @@
+import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
+
 export const STATIC_METADATA_IMAGES = {
   icon: {
     filename: 'icon',
@@ -43,14 +45,7 @@ export function isMetadataRouteFile(
     new RegExp(
       `^[\\\\/]robots${
         withExtension
-          ? `\\.${getExtensionRegexString(pageExtensions.concat('txt'))}`
-          : ''
-      }`
-    ),
-    new RegExp(
-      `^[\\\\/]sitemap${
-        withExtension
-          ? `\\.${getExtensionRegexString(pageExtensions.concat('xml'))}`
+          ? `\\.${getExtensionRegexString(pageExtensions.concat('txt'))}$`
           : ''
       }`
     ),
@@ -59,51 +54,64 @@ export function isMetadataRouteFile(
         withExtension
           ? `\\.${getExtensionRegexString(
               pageExtensions.concat('webmanifest', 'json')
-            )}`
+            )}$`
           : ''
       }`
     ),
     new RegExp(`^[\\\\/]favicon\\.ico$`),
-    // TODO-METADATA: add dynamic routes for metadata images
     new RegExp(
-      `[\\\\/]${STATIC_METADATA_IMAGES.icon.filename}${
+      `[\\\\/]sitemap${
+        withExtension
+          ? `\\.${getExtensionRegexString(pageExtensions.concat('xml'))}$`
+          : ''
+      }`
+    ),
+    new RegExp(
+      `[\\\\/]${STATIC_METADATA_IMAGES.icon.filename}\\d?${
         withExtension
           ? `\\.${getExtensionRegexString(
               pageExtensions.concat(STATIC_METADATA_IMAGES.icon.extensions)
-            )}`
+            )}$`
           : ''
       }`
     ),
     new RegExp(
-      `[\\\\/]${STATIC_METADATA_IMAGES.apple.filename}${
+      `[\\\\/]${STATIC_METADATA_IMAGES.apple.filename}\\d?${
         withExtension
           ? `\\.${getExtensionRegexString(
               pageExtensions.concat(STATIC_METADATA_IMAGES.apple.extensions)
-            )}`
+            )}$`
           : ''
       }`
     ),
     new RegExp(
-      `[\\\\/]${STATIC_METADATA_IMAGES.openGraph.filename}${
+      `[\\\\/]${STATIC_METADATA_IMAGES.openGraph.filename}\\d?${
         withExtension
           ? `\\.${getExtensionRegexString(
               pageExtensions.concat(STATIC_METADATA_IMAGES.openGraph.extensions)
-            )}`
+            )}$`
           : ''
       }`
     ),
     new RegExp(
-      `[\\\\/]${STATIC_METADATA_IMAGES.twitter.filename}${
+      `[\\\\/]${STATIC_METADATA_IMAGES.twitter.filename}\\d?${
         withExtension
           ? `\\.${getExtensionRegexString(
               pageExtensions.concat(STATIC_METADATA_IMAGES.twitter.extensions)
-            )}`
+            )}$`
           : ''
       }`
     ),
   ]
 
-  return metadataRouteFilesRegex.some((r) => r.test(appDirRelativePath))
+  const normalizedAppDirRelativePath = normalizePathSep(appDirRelativePath)
+  return metadataRouteFilesRegex.some((r) =>
+    r.test(normalizedAppDirRelativePath)
+  )
+}
+
+export function isStaticMetadataRouteFile(appDirRelativePath: string) {
+  return isMetadataRouteFile(appDirRelativePath, [], true)
 }
 
 /*

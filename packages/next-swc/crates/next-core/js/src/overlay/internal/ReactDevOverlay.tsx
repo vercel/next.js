@@ -1,40 +1,41 @@
-import * as React from "react";
+import * as React from 'react'
 
-import type { Issue } from "@vercel/turbopack-dev-runtime/types/protocol";
-
-import * as Bus from "./bus";
-import { ShadowPortal } from "./components/ShadowPortal";
-import { Errors, SupportedErrorEvent } from "./container/Errors";
-import { ErrorBoundary } from "./ErrorBoundary";
-import { Base } from "./styles/Base";
-import { ComponentStyles } from "./styles/ComponentStyles";
-import { CssReset } from "./styles/CssReset";
+import * as Bus from './bus'
+import { ShadowPortal } from './components/ShadowPortal'
+import { Errors, SupportedErrorEvent } from './container/Errors'
+import { ErrorBoundary } from './ErrorBoundary'
+import { Base } from './styles/Base'
+import { ComponentStyles } from './styles/ComponentStyles'
+import { CssReset } from './styles/CssReset'
 
 type RefreshState =
   | {
       // No refresh in progress.
-      type: "idle";
+      type: 'idle'
     }
   | {
       // The refresh process has been triggered, but the new code has not been
       // executed yet.
-      type: "pending";
-      errors: SupportedErrorEvent[];
-    };
+      type: 'pending'
+      errors: SupportedErrorEvent[]
+      reactError: Error | null
+    }
 
 type OverlayState = {
-  nextId: number;
+  nextId: number
 
   // issues are from turbopack
-  issues: Issue[];
+  issues: Issue[]
 
   // errors are client side
-  errors: SupportedErrorEvent[];
+  errors: SupportedErrorEvent[]
 
-  refreshState: RefreshState;
+  refreshState: RefreshState
 
-  reactError: Error | null;
-};
+  reactError: Error | null
+
+  notFound?: boolean
+}
 
 function pushErrorFilterDuplicates(
   errors: SupportedErrorEvent[],
@@ -43,33 +44,30 @@ function pushErrorFilterDuplicates(
   return [
     ...errors.filter((e) => {
       // Filter out duplicate errors
-      return e.event.reason !== err.event.reason;
+      return e.event.reason !== err.event.reason
     }),
     err,
-  ];
+  ]
 }
 
 function reducer(state: OverlayState, ev: Bus.BusEvent): OverlayState {
   switch (ev.type) {
     case Bus.TYPE_BUILD_OK: {
-      if (state.reactError != null) {
-        console.warn(
-          "[Fast Refresh] performing full reload because your application had an unrecoverable error"
-        );
-        window.location.reload();
-      }
-
-      return { ...state };
+      return { ...state, notFound: false }
     }
     case Bus.TYPE_TURBOPACK_ISSUES: {
-      return { ...state, issues: ev.issues };
+      return { ...state, issues: ev.issues }
     }
     case Bus.TYPE_BEFORE_REFRESH: {
-      return { ...state, refreshState: { type: "pending", errors: [] } };
+      return {
+        ...state,
+        refreshState: { type: 'pending', errors: [], reactError: null },
+      }
     }
     case Bus.TYPE_REFRESH: {
       return {
         ...state,
+        notFound: false,
         errors:
           // Errors can come in during updates. In this case, UNHANDLED_ERROR
           // and UNHANDLED_REJECTION events might be dispatched between the
@@ -77,16 +75,20 @@ function reducer(state: OverlayState, ev: Bus.BusEvent): OverlayState {
           // around until the next refresh. Otherwise we run into a race
           // condition where those errors would be cleared on refresh completion
           // before they can be displayed.
-          state.refreshState.type === "pending"
+          state.refreshState.type === 'pending'
             ? state.refreshState.errors
             : [],
-        refreshState: { type: "idle" },
-      };
+        reactError:
+          state.refreshState.type === 'pending'
+            ? state.refreshState.reactError
+            : null,
+        refreshState: { type: 'idle' },
+      }
     }
     case Bus.TYPE_UNHANDLED_ERROR:
     case Bus.TYPE_UNHANDLED_REJECTION: {
       switch (state.refreshState.type) {
-        case "idle": {
+        case 'idle': {
           return {
             ...state,
             nextId: state.nextId + 1,
@@ -94,9 +96,9 @@ function reducer(state: OverlayState, ev: Bus.BusEvent): OverlayState {
               id: state.nextId,
               event: ev,
             }),
-          };
+          }
         }
-        case "pending": {
+        case 'pending': {
           return {
             ...state,
             nextId: state.nextId + 1,
@@ -107,38 +109,59 @@ function reducer(state: OverlayState, ev: Bus.BusEvent): OverlayState {
                 event: ev,
               }),
             },
-          };
+          }
         }
         default:
-          return state;
+          return state
       }
     }
+    case Bus.TYPE_NOT_FOUND: {
+      return { ...state, notFound: true }
+    }
     case Bus.TYPE_REACT_ERROR: {
-      return { ...state, reactError: ev.error };
+      switch (state.refreshState.type) {
+        case 'idle': {
+          return {
+            ...state,
+            reactError: ev.error,
+          }
+        }
+        case 'pending': {
+          return {
+            ...state,
+            refreshState: {
+              ...state.refreshState,
+              reactError: ev.error,
+            },
+          }
+        }
+        default:
+          return state
+      }
     }
     default: {
-      return state;
+      return state
     }
   }
 }
 
-type ErrorType = "runtime" | "build";
+type ErrorType = 'runtime' | 'build'
 
 const shouldPreventDisplay = (
   errorType?: ErrorType | null,
   preventType?: ErrorType[] | null
 ) => {
   if (!preventType || !errorType) {
-    return false;
+    return false
   }
-  return preventType.includes(errorType);
-};
+  return preventType.includes(errorType)
+}
 
 type ReactDevOverlayProps = {
-  globalOverlay?: boolean;
-  preventDisplay?: ErrorType[];
-  children?: React.ReactNode;
-};
+  globalOverlay?: boolean
+  preventDisplay?: ErrorType[]
+  children?: React.ReactNode
+}
 
 export default function ReactDevOverlay({
   children,
@@ -152,17 +175,17 @@ export default function ReactDevOverlay({
     issues: [],
     errors: [],
     refreshState: {
-      type: "idle",
+      type: 'idle',
     },
     reactError: null,
-  });
+  })
 
   React.useEffect(() => {
-    Bus.on(dispatch);
+    Bus.on(dispatch)
     return function () {
-      Bus.off(dispatch);
-    };
-  }, [dispatch]);
+      Bus.off(dispatch)
+    }
+  }, [dispatch])
 
   const onComponentError = React.useCallback(
     (error: Error, componentStack: string | null) => {
@@ -170,25 +193,26 @@ export default function ReactDevOverlay({
         type: Bus.TYPE_REACT_ERROR,
         error,
         componentStack,
-      });
+      })
     },
     []
-  );
+  )
 
-  const hasBuildError = state.issues.length > 0;
-  const hasRuntimeErrors = state.errors.length > 0;
+  const hasBuildError = state.issues.length > 0
+  const hasRuntimeErrors = state.errors.length > 0
 
   const errorType = hasBuildError
-    ? "build"
+    ? 'build'
     : hasRuntimeErrors
-    ? "runtime"
-    : null;
+    ? 'runtime'
+    : null
 
-  const isMounted = hasBuildError || hasRuntimeErrors;
+  const isMounted = hasBuildError || hasRuntimeErrors
 
   return (
     <React.Fragment>
       <ErrorBoundary
+        error={state.reactError}
         onError={onComponentError}
         fallback={
           // When the overlay is global for the application and it wraps a component rendering `<html>`
@@ -203,7 +227,12 @@ export default function ReactDevOverlay({
         {children ?? null}
       </ErrorBoundary>
       {isMounted ? (
-        <ShadowPortal globalOverlay={globalOverlay}>
+        <ShadowPortal
+          // setting key ensures that ShadowPortal is re-mounted when the error changes
+          // this is necessary as nextjs-portal need to be reinjected when we re-render <body>
+          key={'' + !state.reactError}
+          globalOverlay={globalOverlay}
+        >
           <CssReset />
           <Base />
           <ComponentStyles />
@@ -214,5 +243,5 @@ export default function ReactDevOverlay({
         </ShadowPortal>
       ) : null}
     </React.Fragment>
-  );
+  )
 }

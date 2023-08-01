@@ -41,8 +41,7 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
 
     // clone PR/newer repository/ref first to get settings
     if (!actionInfo.skipClone) {
-      await cloneRepo(actionInfo.prRepo, diffRepoDir)
-      await checkoutRef(actionInfo.prRef, diffRepoDir)
+      await cloneRepo(actionInfo.prRepo, diffRepoDir, actionInfo.prRef)
     }
 
     if (actionInfo.isRelease) {
@@ -65,23 +64,20 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
       statsConfig.mainRepo = actionInfo.prRepo
     }
 
-    // clone main repository/ref
-    if (!actionInfo.skipClone) {
-      await cloneRepo(statsConfig.mainRepo, mainRepoDir)
-      await checkoutRef(statsConfig.mainBranch, mainRepoDir)
-    }
     /* eslint-disable-next-line */
     actionInfo.commitId = await getCommitId(diffRepoDir)
     let mainNextSwcVersion
 
     if (!actionInfo.skipClone) {
+      let mainRef = statsConfig.mainBranch
+
       if (actionInfo.isRelease) {
-        logger('Release detected, resetting mainRepo to last stable tag')
-        const lastStableTag = await getLastStable(mainRepoDir, actionInfo.prRef)
+        logger(`Release detected, using last stable tag: "${actionInfo.prRef}"`)
+        const lastStableTag = await getLastStable(diffRepoDir, actionInfo.prRef)
+        mainRef = lastStableTag
         mainNextSwcVersion = lastStableTag
         if (!lastStableTag) throw new Error('failed to get last stable tag')
-        console.log('using latestStable', lastStableTag)
-        await checkoutRef(lastStableTag, mainRepoDir)
+        logger(`using latestStable: "${lastStableTag}"`)
 
         /* eslint-disable-next-line */
         actionInfo.lastStableTag = lastStableTag
@@ -92,12 +88,15 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
           /* eslint-disable-next-line */
           actionInfo.commentEndpoint = `https://api.github.com/repos/${statsConfig.mainRepo}/commits/${actionInfo.commitId}/comments`
         }
-      } else if (statsConfig.autoMergeMain) {
+      }
+
+      await cloneRepo(statsConfig.mainRepo, mainRepoDir, mainRef)
+
+      if (!actionInfo.isRelease && statsConfig.autoMergeMain) {
         logger('Attempting auto merge of main branch')
         await mergeBranch(statsConfig.mainBranch, mainRepoDir, diffRepoDir)
       }
     }
-
     let mainRepoPkgPaths
     let diffRepoPkgPaths
 
@@ -133,6 +132,9 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
           path.join(dir, 'packages/next-swc/native')
         )
         .catch(console.error)
+
+      console.log(await exec(`ls ${path.join(__dirname, '../native')}`))
+      console.log(await exec(`cd ${dir} && ls ${dir}/packages/next-swc/native`))
 
       logger(`Linking packages in ${dir}`)
       const isMainRepo = dir === mainRepoDir

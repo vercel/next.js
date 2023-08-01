@@ -1,8 +1,13 @@
 import type { IncomingMessage } from 'http'
 import type { BaseNextRequest } from '../base-http'
-
-import { NextApiRequest, NextApiResponse } from '../../shared/lib/utils'
 import type { CookieSerializeOptions } from 'next/dist/compiled/cookie'
+import type { NextApiResponse } from '../../shared/lib/utils'
+
+import { HeadersAdapter } from '../web/spec-extension/adapters/headers'
+import {
+  PRERENDER_REVALIDATE_HEADER,
+  PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER,
+} from '../../lib/constants'
 
 export type NextApiRequestCookies = Partial<{ [key: string]: string }>
 export type NextApiRequestQuery = Partial<{ [key: string]: string | string[] }>
@@ -18,17 +23,17 @@ export type __ApiPreviewProps = {
  * @param req request object
  */
 export function getCookieParser(headers: {
-  [key: string]: undefined | string | string[]
+  [key: string]: string | string[] | null | undefined
 }): () => NextApiRequestCookies {
   return function parseCookie(): NextApiRequestCookies {
-    const header: undefined | string | string[] = headers.cookie
+    const { cookie } = headers
 
-    if (!header) {
+    if (!cookie) {
       return {}
     }
 
     const { parse: parseCookieFn } = require('next/dist/compiled/cookie')
-    return parseCookieFn(Array.isArray(header) ? header.join(';') : header)
+    return parseCookieFn(Array.isArray(cookie) ? cookie.join('; ') : cookie)
   }
 }
 
@@ -71,23 +76,23 @@ export function redirect(
   return res
 }
 
-export const PRERENDER_REVALIDATE_HEADER = 'x-prerender-revalidate'
-export const PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER =
-  'x-prerender-revalidate-if-generated'
-
-export function checkIsManualRevalidate(
-  req: IncomingMessage | BaseNextRequest,
+export function checkIsOnDemandRevalidate(
+  req: Request | IncomingMessage | BaseNextRequest,
   previewProps: __ApiPreviewProps
 ): {
-  isManualRevalidate: boolean
+  isOnDemandRevalidate: boolean
   revalidateOnlyGenerated: boolean
 } {
-  return {
-    isManualRevalidate:
-      req.headers[PRERENDER_REVALIDATE_HEADER] === previewProps.previewModeId,
-    revalidateOnlyGenerated:
-      !!req.headers[PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER],
-  }
+  const headers = HeadersAdapter.from(req.headers)
+
+  const previewModeId = headers.get(PRERENDER_REVALIDATE_HEADER)
+  const isOnDemandRevalidate = previewModeId === previewProps.previewModeId
+
+  const revalidateOnlyGenerated = headers.has(
+    PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER
+  )
+
+  return { isOnDemandRevalidate, revalidateOnlyGenerated }
 }
 
 export const COOKIE_NAME_PRERENDER_BYPASS = `__prerender_bypass`
@@ -181,7 +186,7 @@ export function sendError(
 }
 
 interface LazyProps {
-  req: NextApiRequest
+  req: IncomingMessage
 }
 
 /**

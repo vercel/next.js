@@ -1,6 +1,7 @@
 /* eslint-env jest */
 
 import {
+  check,
   findPort,
   killApp,
   launchApp,
@@ -8,15 +9,200 @@ import {
   runNextCommand,
   runNextCommandDev,
 } from 'next-test-utils'
+import fs from 'fs-extra'
 import { join } from 'path'
 import pkg from 'next/package'
 import http from 'http'
 import stripAnsi from 'strip-ansi'
 
-const dir = join(__dirname, '..')
+const dirBasic = join(__dirname, '../basic')
 const dirDuplicateSass = join(__dirname, '../duplicate-sass')
 
+const testExitSignal = async (
+  killSignal = '',
+  args = [],
+  readyRegex = /Creating an optimized production/
+) => {
+  let instance
+  const killSigint = (inst) => {
+    instance = inst
+  }
+  let output = ''
+
+  let cmdPromise = runNextCommand(args, {
+    ignoreFail: true,
+    instance: killSigint,
+    onStdout: (msg) => {
+      output += stripAnsi(msg)
+    },
+  }).catch((err) => expect.fail(err.message))
+
+  await check(() => output, readyRegex)
+  instance.kill(killSignal)
+
+  const { code, signal } = await cmdPromise
+  // Node can only partially emulate signals on Windows. Our signal handlers won't affect the exit code.
+  // See: https://nodejs.org/api/process.html#process_signal_events
+  const expectedExitSignal = process.platform === `win32` ? killSignal : null
+  expect(signal).toBe(expectedExitSignal)
+  expect(code).toBe(0)
+}
+
 describe('CLI Usage', () => {
+  describe('start', () => {
+    test('should exit when SIGINT is signalled', async () => {
+      require('console').log('before build')
+      await fs.remove(join(dirBasic, '.next'))
+      await nextBuild(dirBasic, undefined, {
+        onStdout(msg) {
+          console.log(msg)
+        },
+        onStderr(msg) {
+          console.log(msg)
+        },
+      })
+      require('console').log('build finished')
+
+      const port = await findPort()
+      await testExitSignal(
+        'SIGINT',
+        ['start', dirBasic, '-p', port],
+        /started server on/
+      )
+    })
+    test('should exit when SIGTERM is signalled', async () => {
+      await fs.remove(join(dirBasic, '.next'))
+      await nextBuild(dirBasic, undefined, {
+        onStdout(msg) {
+          console.log(msg)
+        },
+        onStderr(msg) {
+          console.log(msg)
+        },
+      })
+      const port = await findPort()
+      await testExitSignal(
+        'SIGTERM',
+        ['start', dirBasic, '-p', port],
+        /started server on/
+      )
+    })
+
+    test('--help', async () => {
+      const help = await runNextCommand(['start', '--help'], {
+        stdout: true,
+      })
+      expect(help.stdout).toMatch(/Starts the application in production mode/)
+    })
+
+    test('-h', async () => {
+      const help = await runNextCommand(['start', '-h'], {
+        stdout: true,
+      })
+      expect(help.stdout).toMatch(/Starts the application in production mode/)
+    })
+
+    test('should format IPv6 addresses correctly', async () => {
+      const port = await findPort()
+      const output = await runNextCommand(
+        ['start', '--hostname', '::', '--port', port],
+        {
+          stdout: true,
+        }
+      )
+      expect(output.stdout).toMatch(new RegExp(`on \\[::\\]:${port}`))
+      expect(output.stdout).toMatch(new RegExp(`http://\\[::1\\]:${port}`))
+    })
+
+    test('should warn when unknown argument provided', async () => {
+      const { stderr } = await runNextCommand(['start', '--random'], {
+        stderr: true,
+      })
+      expect(stderr).toEqual('Unknown or unexpected option: --random\n')
+    })
+    test('should not throw UnhandledPromiseRejectionWarning', async () => {
+      const { stderr } = await runNextCommand(['start', '--random'], {
+        stderr: true,
+      })
+      expect(stderr).not.toContain('UnhandledPromiseRejectionWarning')
+    })
+
+    test('duplicate sass deps', async () => {
+      const port = await findPort()
+
+      let stderr = ''
+      let instance = await launchApp(dirDuplicateSass, port, {
+        stderr: true,
+        onStderr(msg) {
+          stderr += msg
+        },
+      })
+
+      try {
+        await check(() => stderr, /both `sass` and `node-sass` installed/)
+      } finally {
+        await killApp(instance).catch(() => {})
+      }
+    })
+
+    test('invalid directory', async () => {
+      const output = await runNextCommand(['start', 'non-existent'], {
+        stderr: true,
+      })
+      expect(output.stderr).toContain(
+        'Invalid project directory provided, no such directory'
+      )
+    })
+
+    test('--keepAliveTimeout string arg', async () => {
+      const { stderr } = await runNextCommand(
+        ['start', '--keepAliveTimeout', 'string'],
+        {
+          stderr: true,
+        }
+      )
+      expect(stderr).toContain(
+        'Invalid --keepAliveTimeout, expected a non negative number but received "NaN"'
+      )
+    })
+
+    test('--keepAliveTimeout negative number', async () => {
+      const { stderr } = await runNextCommand(
+        ['start', '--keepAliveTimeout=-100'],
+        {
+          stderr: true,
+        }
+      )
+      expect(stderr).toContain(
+        'Invalid --keepAliveTimeout, expected a non negative number but received "-100"'
+      )
+    })
+
+    test('--keepAliveTimeout Infinity', async () => {
+      const { stderr } = await runNextCommand(
+        ['start', '--keepAliveTimeout', 'Infinity'],
+        {
+          stderr: true,
+        }
+      )
+      expect(stderr).toContain(
+        'Invalid --keepAliveTimeout, expected a non negative number but received "Infinity"'
+      )
+    })
+
+    test('--keepAliveTimeout happy path', async () => {
+      const { stderr } = await runNextCommand(
+        ['start', '--keepAliveTimeout', '100'],
+        {
+          stderr: true,
+        }
+      )
+      expect(stderr).not.toContain(
+        'Invalid keep alive timeout provided, expected a non negative number'
+      )
+    })
+  })
+
   describe('no command', () => {
     test('--help', async () => {
       const help = await runNextCommand(['--help'], {
@@ -113,32 +299,11 @@ describe('CLI Usage', () => {
     })
 
     test('should exit when SIGINT is signalled', async () => {
-      const killSigint = (instance) =>
-        setTimeout(() => instance.kill('SIGINT'), 1000)
-      const { code, signal } = await runNextCommand(['build', dir], {
-        ignoreFail: true,
-        instance: killSigint,
-      })
-      // Node can only partially emulate signals on Windows. Our signal handlers won't affect the exit code.
-      // See: https://nodejs.org/api/process.html#process_signal_events
-      const expectedExitCode = process.platform === `win32` ? null : 0
-      const expectedExitSignal = process.platform === `win32` ? 'SIGINT' : null
-      expect(code).toBe(expectedExitCode)
-      expect(signal).toBe(expectedExitSignal)
+      await testExitSignal('SIGINT', ['build', dirBasic])
     })
+
     test('should exit when SIGTERM is signalled', async () => {
-      const killSigterm = (instance) =>
-        setTimeout(() => instance.kill('SIGTERM'), 1000)
-      const { code, signal } = await runNextCommand(['build', dir], {
-        ignoreFail: true,
-        instance: killSigterm,
-      })
-      // Node can only partially emulate signals on Windows. Our signal handlers won't affect the exit code.
-      // See: https://nodejs.org/api/process.html#process_signal_events
-      const expectedExitCode = process.platform === `win32` ? null : 0
-      const expectedExitSignal = process.platform === `win32` ? 'SIGTERM' : null
-      expect(code).toBe(expectedExitCode)
-      expect(signal).toBe(expectedExitSignal)
+      await testExitSignal('SIGTERM', ['build', dirBasic])
     })
 
     test('invalid directory', async () => {
@@ -168,61 +333,129 @@ describe('CLI Usage', () => {
 
     test('custom directory', async () => {
       const port = await findPort()
-      const output = await runNextCommandDev([dir, '--port', port], true)
-      expect(output).toMatch(/started server/i)
+      let output = ''
+      const app = await runNextCommandDev(
+        [dirBasic, '--port', port],
+        undefined,
+        {
+          onStdout(msg) {
+            output += stripAnsi(msg)
+          },
+        }
+      )
+      try {
+        await check(() => output, /started server/i)
+      } finally {
+        await killApp(app)
+      }
     })
 
     test('--port', async () => {
       const port = await findPort()
-      const output = await runNextCommandDev([dir, '--port', port], true)
-      expect(output).toMatch(new RegExp(`on 0.0.0.0:${port}`))
-      expect(output).toMatch(new RegExp(`http://localhost:${port}`))
+      let output = ''
+      const app = await runNextCommandDev(
+        [dirBasic, '--port', port],
+        undefined,
+        {
+          onStdout(msg) {
+            output += stripAnsi(msg)
+          },
+        }
+      )
+      try {
+        await check(() => output, new RegExp(`on 0.0.0.0:${port}`))
+        await check(() => output, new RegExp(`http://localhost:${port}`))
+      } finally {
+        await killApp(app)
+      }
     })
 
     test('--port 0', async () => {
-      const output = await runNextCommandDev([dir, '--port', '0'], true)
+      const port = await findPort()
+      let output = ''
+      const app = await runNextCommandDev(
+        [dirBasic, '--port', port],
+        undefined,
+        {
+          onStdout(msg) {
+            output += stripAnsi(msg)
+          },
+        }
+      )
+      try {
+        await check(() => output, new RegExp(`on 0.0.0.0:${port}`))
+        await check(() => output, new RegExp(`http://localhost:${port}`))
+      } finally {
+        await killApp(app)
+      }
       const matches = /on 0.0.0.0:(\d+)/.exec(output)
       expect(matches).not.toBe(null)
 
-      const port = parseInt(matches[1])
+      const _port = parseInt(matches[1])
       // Regression test: port 0 was interpreted as if no port had been
       // provided, falling back to 3000.
-      expect(port).not.toBe(3000)
-
-      expect(output).toMatch(new RegExp(`http://localhost:${port}`))
+      expect(_port).not.toBe(3000)
     })
 
     test('PORT=0', async () => {
-      const output = await runNextCommandDev([dir], true, {
-        env: { PORT: 0 },
+      let output = ''
+      const app = await runNextCommandDev([dirBasic], undefined, {
+        env: {
+          PORT: 0,
+        },
+        onStdout(msg) {
+          output += stripAnsi(msg)
+        },
       })
-      const matches = /on 0.0.0.0:(\d+)/.exec(output)
-      expect(matches).not.toBe(null)
-
-      const port = parseInt(matches[1])
-      // Regression test: port 0 was interpreted as if no port had been
-      // provided, falling back to 3000.
-      expect(port).not.toBe(3000)
-
-      expect(output).toMatch(new RegExp(`http://localhost:${port}`))
+      try {
+        await check(() => output, /on 0.0.0.0:(\d+)/)
+        const matches = /on 0.0.0.0:(\d+)/.exec(output)
+        const _port = parseInt(matches[1])
+        expect(matches).not.toBe(null)
+        // Regression test: port 0 was interpreted as if no port had been
+        // provided, falling back to 3000.
+        expect(_port).not.toBe(3000)
+      } finally {
+        await killApp(app)
+      }
     })
 
     test("NODE_OPTIONS='--inspect'", async () => {
-      // this test checks that --inspect works by launching a single debugger for the main Next.js process,
-      // not for its subprocesses
       const port = await findPort()
-      const output = await runNextCommandDev([dir, '--port', port], true, {
-        env: { NODE_OPTIONS: '--inspect' },
-      })
-      expect(output).toMatch(new RegExp(`on 0.0.0.0:${port}`))
-      expect(output).toMatch(new RegExp(`http://localhost:${port}`))
+      let output = ''
+      const app = await runNextCommandDev(
+        [dirBasic, '--port', port],
+        undefined,
+        {
+          onStdout(msg) {
+            output += stripAnsi(msg)
+          },
+          env: { NODE_OPTIONS: '--inspect' },
+        }
+      )
+      try {
+        await check(() => output, new RegExp(`on 0.0.0.0:${port}`))
+        await check(() => output, new RegExp(`http://localhost:${port}`))
+      } finally {
+        await killApp(app)
+      }
     })
 
     test('-p', async () => {
       const port = await findPort()
-      const output = await runNextCommandDev([dir, '-p', port], true)
-      expect(output).toMatch(new RegExp(`on 0.0.0.0:${port}`))
-      expect(output).toMatch(new RegExp(`http://localhost:${port}`))
+      let output = ''
+      const app = await runNextCommandDev([dirBasic, '-p', port], undefined, {
+        onStdout(msg) {
+          output += stripAnsi(msg)
+        },
+        env: { NODE_OPTIONS: '--inspect' },
+      })
+      try {
+        await check(() => output, new RegExp(`on 0.0.0.0:${port}`))
+        await check(() => output, new RegExp(`http://localhost:${port}`))
+      } finally {
+        await killApp(app)
+      }
     })
 
     test('-p conflict', async () => {
@@ -240,7 +473,7 @@ describe('CLI Usage', () => {
       })
       let stdout = '',
         stderr = ''
-      await launchApp(dir, port, {
+      await launchApp(dirBasic, port, {
         stdout: true,
         stderr: true,
         onStdout(msg) {
@@ -260,32 +493,62 @@ describe('CLI Usage', () => {
 
     test('--hostname', async () => {
       const port = await findPort()
-      const output = await runNextCommandDev(
-        [dir, '--hostname', '0.0.0.0', '--port', port],
-        true
+      let output = ''
+      const app = await runNextCommandDev(
+        [dirBasic, '--hostname', '0.0.0.0', '--port', port],
+        undefined,
+        {
+          onStdout(msg) {
+            output += stripAnsi(msg)
+          },
+        }
       )
-      expect(output).toMatch(new RegExp(`on 0.0.0.0:${port}`))
-      expect(output).toMatch(new RegExp(`http://localhost:${port}`))
+      try {
+        await check(() => output, new RegExp(`on 0.0.0.0:${port}`))
+        await check(() => output, new RegExp(`http://localhost:${port}`))
+      } finally {
+        await killApp(app)
+      }
     })
 
     test('-H', async () => {
       const port = await findPort()
-      const output = await runNextCommandDev(
-        [dir, '-H', '0.0.0.0', '--port', port],
-        true
+      let output = ''
+      const app = await runNextCommandDev(
+        [dirBasic, '-H', '0.0.0.0', '--port', port],
+        undefined,
+        {
+          onStdout(msg) {
+            output += stripAnsi(msg)
+          },
+        }
       )
-      expect(output).toMatch(new RegExp(`on 0.0.0.0:${port}`))
-      expect(output).toMatch(new RegExp(`http://localhost:${port}`))
+      try {
+        await check(() => output, new RegExp(`on 0.0.0.0:${port}`))
+        await check(() => output, new RegExp(`http://localhost:${port}`))
+      } finally {
+        await killApp(app)
+      }
     })
 
     test('should format IPv6 addresses correctly', async () => {
       const port = await findPort()
-      const output = await runNextCommandDev(
-        [dir, '--hostname', '::', '--port', port],
-        true
+      let output = ''
+      const app = await runNextCommandDev(
+        [dirBasic, '--hostname', '::', '--port', port],
+        undefined,
+        {
+          onStdout(msg) {
+            output += stripAnsi(msg)
+          },
+        }
       )
-      expect(output).toMatch(new RegExp(`on \\[::\\]:${port}`))
-      expect(output).toMatch(new RegExp(`http://\\[::1\\]:${port}`))
+      try {
+        await check(() => output, new RegExp(`on \\[::\\]:${port}`))
+        await check(() => output, new RegExp(`http://\\[::1\\]:${port}`))
+      } finally {
+        await killApp(app).catch(() => {})
+      }
     })
 
     test('should warn when unknown argument provided', async () => {
@@ -302,34 +565,20 @@ describe('CLI Usage', () => {
     })
 
     test('should exit when SIGINT is signalled', async () => {
-      const killSigint = (instance) =>
-        setTimeout(() => instance.kill('SIGINT'), 2000)
       const port = await findPort()
-      const { code, signal } = await runNextCommand(['dev', dir, '-p', port], {
-        ignoreFail: true,
-        instance: killSigint,
-      })
-      // Node can only partially emulate signals on Windows. Our signal handlers won't affect the exit code.
-      // See: https://nodejs.org/api/process.html#process_signal_events
-      const expectedExitCode = process.platform === `win32` ? null : 0
-      const expectedExitSignal = process.platform === `win32` ? 'SIGINT' : null
-      expect(code).toBe(expectedExitCode)
-      expect(signal).toBe(expectedExitSignal)
+      await testExitSignal(
+        'SIGINT',
+        ['dev', dirBasic, '-p', port],
+        /started server on/
+      )
     })
     test('should exit when SIGTERM is signalled', async () => {
-      const killSigterm = (instance) =>
-        setTimeout(() => instance.kill('SIGTERM'), 2000)
       const port = await findPort()
-      const { code, signal } = await runNextCommand(['dev', dir, '-p', port], {
-        ignoreFail: true,
-        instance: killSigterm,
-      })
-      // Node can only partially emulate signals on Windows. Our signal handlers won't affect the exit code.
-      // See: https://nodejs.org/api/process.html#process_signal_events
-      const expectedExitCode = process.platform === `win32` ? null : 0
-      const expectedExitSignal = process.platform === `win32` ? 'SIGTERM' : null
-      expect(code).toBe(expectedExitCode)
-      expect(signal).toBe(expectedExitSignal)
+      await testExitSignal(
+        'SIGTERM',
+        ['dev', dirBasic, '-p', port],
+        /started server on/
+      )
     })
 
     test('invalid directory', async () => {
@@ -342,172 +591,19 @@ describe('CLI Usage', () => {
     })
   })
 
-  describe('start', () => {
-    test('--help', async () => {
-      const help = await runNextCommand(['start', '--help'], {
-        stdout: true,
-      })
-      expect(help.stdout).toMatch(/Starts the application in production mode/)
-    })
-
-    test('-h', async () => {
-      const help = await runNextCommand(['start', '-h'], {
-        stdout: true,
-      })
-      expect(help.stdout).toMatch(/Starts the application in production mode/)
-    })
-
-    test('should format IPv6 addresses correctly', async () => {
-      const port = await findPort()
-      const output = await runNextCommand(
-        ['start', '--hostname', '::', '--port', port],
-        {
-          stdout: true,
-        }
-      )
-      expect(output.stdout).toMatch(new RegExp(`on \\[::\\]:${port}`))
-      expect(output.stdout).toMatch(new RegExp(`http://\\[::1\\]:${port}`))
-    })
-
-    test('should warn when unknown argument provided', async () => {
-      const { stderr } = await runNextCommand(['start', '--random'], {
-        stderr: true,
-      })
-      expect(stderr).toEqual('Unknown or unexpected option: --random\n')
-    })
-    test('should not throw UnhandledPromiseRejectionWarning', async () => {
-      const { stderr } = await runNextCommand(['start', '--random'], {
-        stderr: true,
-      })
-      expect(stderr).not.toContain('UnhandledPromiseRejectionWarning')
-    })
-
-    test('duplicate sass deps', async () => {
-      const port = await findPort()
-
-      let stderr = ''
-      let instance = await launchApp(dirDuplicateSass, port, {
-        stderr: true,
-        onStderr(msg) {
-          stderr += msg
-        },
-      })
-
-      expect(stderr).toMatch('both `sass` and `node-sass` installed')
-
-      await killApp(instance)
-    })
-
-    test('should exit when SIGINT is signalled', async () => {
-      const killSigint = (instance) =>
-        setTimeout(() => instance.kill('SIGINT'), 1000)
-      await nextBuild(dir)
-      const port = await findPort()
-      const { code, signal } = await runNextCommand(
-        ['start', dir, '-p', port],
-        {
-          ignoreFail: true,
-          instance: killSigint,
-        }
-      )
-      // Node can only partially emulate signals on Windows. Our signal handlers won't affect the exit code.
-      // See: https://nodejs.org/api/process.html#process_signal_events
-      const expectedExitCode = process.platform === `win32` ? null : 0
-      const expectedExitSignal = process.platform === `win32` ? 'SIGINT' : null
-      expect(code).toBe(expectedExitCode)
-      expect(signal).toBe(expectedExitSignal)
-    })
-    test('should exit when SIGTERM is signalled', async () => {
-      const killSigterm = (instance) =>
-        setTimeout(() => instance.kill('SIGTERM'), 1000)
-      await nextBuild(dir)
-      const port = await findPort()
-      const { code, signal } = await runNextCommand(
-        ['start', dir, '-p', port],
-        {
-          ignoreFail: true,
-          instance: killSigterm,
-        }
-      )
-      // Node can only partially emulate signals on Windows. Our signal handlers won't affect the exit code.
-      // See: https://nodejs.org/api/process.html#process_signal_events
-      const expectedExitCode = process.platform === `win32` ? null : 0
-      const expectedExitSignal = process.platform === `win32` ? 'SIGTERM' : null
-      expect(code).toBe(expectedExitCode)
-      expect(signal).toBe(expectedExitSignal)
-    })
-
-    test('invalid directory', async () => {
-      const output = await runNextCommand(['start', 'non-existent'], {
-        stderr: true,
-      })
-      expect(output.stderr).toContain(
-        'Invalid project directory provided, no such directory'
-      )
-    })
-
-    test('--keepAliveTimeout string arg', async () => {
-      const { stderr } = await runNextCommand(
-        ['start', '--keepAliveTimeout', 'string'],
-        {
-          stderr: true,
-        }
-      )
-      expect(stderr).toContain(
-        'Invalid --keepAliveTimeout, expected a non negative number but received "NaN"'
-      )
-    })
-
-    test('--keepAliveTimeout negative number', async () => {
-      const { stderr } = await runNextCommand(
-        ['start', '--keepAliveTimeout=-100'],
-        {
-          stderr: true,
-        }
-      )
-      expect(stderr).toContain(
-        'Invalid --keepAliveTimeout, expected a non negative number but received "-100"'
-      )
-    })
-
-    test('--keepAliveTimeout Infinity', async () => {
-      const { stderr } = await runNextCommand(
-        ['start', '--keepAliveTimeout', 'Infinity'],
-        {
-          stderr: true,
-        }
-      )
-      expect(stderr).toContain(
-        'Invalid --keepAliveTimeout, expected a non negative number but received "Infinity"'
-      )
-    })
-
-    test('--keepAliveTimeout happy path', async () => {
-      const { stderr } = await runNextCommand(
-        ['start', '--keepAliveTimeout', '100'],
-        {
-          stderr: true,
-        }
-      )
-      expect(stderr).not.toContain(
-        'Invalid keep alive timeout provided, expected a non negative number'
-      )
-    })
-  })
-
   describe('export', () => {
     test('--help', async () => {
       const help = await runNextCommand(['export', '--help'], {
         stdout: true,
       })
-      expect(help.stdout).toMatch(/Exports the application/)
+      expect(help.stdout).toMatch(/Exports a static version of the application/)
     })
 
     test('-h', async () => {
       const help = await runNextCommand(['export', '-h'], {
         stdout: true,
       })
-      expect(help.stdout).toMatch(/Exports the application/)
+      expect(help.stdout).toMatch(/Exports a static version of the application/)
     })
 
     test('should warn when unknown argument provided', async () => {
@@ -567,6 +663,30 @@ describe('CLI Usage', () => {
   })
 
   describe('info', () => {
+    function matchInfoOutput(stdout, { nextConfigOutput = '.*' } = {}) {
+      expect(stdout).toMatch(
+        new RegExp(`
+    Operating System:
+      Platform: .*
+      Arch: .*
+      Version: .*
+    Binaries:
+      Node: .*
+      npm: .*
+      Yarn: .*
+      pnpm: .*
+    Relevant Packages:
+      next: .*
+      eslint-config-next: .*
+      react: .*
+      react-dom: .*
+      typescript: .*
+    Next.js Config:
+      output: ${nextConfigOutput}
+`)
+      )
+    }
+
     test('--help', async () => {
       const help = await runNextCommand(['info', '--help'], {
         stdout: true,
@@ -590,26 +710,37 @@ describe('CLI Usage', () => {
         stdout: true,
         stderr: true,
       })
-      expect((info.stderr || '').toLowerCase()).not.toContain('error')
 
-      expect(info.stdout).toMatch(
-        new RegExp(`
-    Operating System:
-      Platform: .*
-      Arch: .*
-      Version: .*
-    Binaries:
-      Node: .*
-      npm: .*
-      Yarn: .*
-      pnpm: .*
-    Relevant packages:
-      next: .*
-      eslint-config-next: .*
-      react: .*
-      react-dom: .*
-`)
-      )
+      expect((info.stderr || '').toLowerCase()).not.toContain('error')
+      matchInfoOutput(info.stdout)
+    })
+
+    test('should print output with next.config.mjs', async () => {
+      let info = { stdout: '', stderr: '' }
+
+      try {
+        await fs.writeFile(
+          join(dirBasic, 'next.config.mjs'),
+          `export default { output: 'standalone' }`
+        )
+        await fs.writeFile(
+          join(dirBasic, 'package.json'),
+          JSON.stringify({
+            type: 'module',
+          })
+        )
+        info = await runNextCommand(['info'], {
+          cwd: dirBasic,
+          stdout: true,
+          stderr: true,
+        })
+      } finally {
+        await fs.remove(join(dirBasic, 'next.config.mjs'))
+        await fs.remove(join(dirBasic, 'package.json'))
+      }
+
+      expect((info.stderr || '').toLowerCase()).not.toContain('error')
+      matchInfoOutput(info.stdout, { nextConfigOutput: 'standalone' })
     })
   })
 })

@@ -1,19 +1,33 @@
 #!/usr/bin/env node
+
 import os from 'os'
 import childProcess from 'child_process'
 
 import chalk from 'next/dist/compiled/chalk'
 import arg from 'next/dist/compiled/arg/index.js'
-import fetch from 'next/dist/compiled/node-fetch'
-import { printAndExit } from '../server/lib/utils'
+const { fetch } = require('next/dist/compiled/undici') as {
+  fetch: typeof global.fetch
+}
 import { CliCommand } from '../lib/commands'
-import isError from '../lib/is-error'
+import { PHASE_INFO } from '../shared/lib/constants'
+import loadConfig from '../server/config'
+import { getValidatedArgs } from '../lib/get-validated-args'
+
+const dir = process.cwd()
 
 function getPackageVersion(packageName: string) {
   try {
     return require(`${packageName}/package.json`).version
   } catch {
     return 'N/A'
+  }
+}
+
+async function getNextConfig() {
+  const config = await loadConfig(PHASE_INFO, dir, undefined, undefined, true)
+
+  return {
+    output: config.output ?? 'N/A',
   }
 }
 
@@ -35,24 +49,19 @@ const nextInfo: CliCommand = async (argv) => {
     // Aliases
     '-h': '--help',
   }
-  let args: arg.Result<arg.Spec>
-  try {
-    args = arg(validArgs, { argv })
-  } catch (error) {
-    if (isError(error) && error.code === 'ARG_UNKNOWN_OPTION') {
-      return printAndExit(error.message, 1)
-    }
-    throw error
-  }
+  const args = getValidatedArgs(validArgs, argv)
 
   if (args['--help']) {
     console.log(
       `
       Description
         Prints relevant details about the current system which can be used to report Next.js bugs
-        
+
       Usage
         $ next info
+
+      Options
+        --help, -h  Displays this message
 
       Learn more: ${chalk.cyan(
         'https://nextjs.org/docs/api-reference/cli#info'
@@ -62,6 +71,7 @@ const nextInfo: CliCommand = async (argv) => {
   }
 
   const installedRelease = getPackageVersion('next')
+  const nextConfig = await getNextConfig()
 
   console.log(`
     Operating System:
@@ -73,11 +83,15 @@ const nextInfo: CliCommand = async (argv) => {
       npm: ${getBinaryVersion('npm')}
       Yarn: ${getBinaryVersion('yarn')}
       pnpm: ${getBinaryVersion('pnpm')}
-    Relevant packages:
+    Relevant Packages:
       next: ${installedRelease}
       eslint-config-next: ${getPackageVersion('eslint-config-next')}
       react: ${getPackageVersion('react')}
       react-dom: ${getPackageVersion('react-dom')}
+      typescript: ${getPackageVersion('typescript')}
+    Next.js Config:
+      output: ${nextConfig.output}
+
 `)
 
   try {

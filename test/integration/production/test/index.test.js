@@ -352,7 +352,10 @@ describe('Production Usage', () => {
           if (files.some((file) => item.test(file))) {
             return true
           }
-          console.error(`Failed to find ${item} in`, files)
+          console.error(
+            `Failed to find ${item} for page ${check.page} in`,
+            files
+          )
           return false
         })
       ).toBe(true)

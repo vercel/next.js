@@ -221,7 +221,12 @@ function getMiddlewareData<T extends FetchDataOutput>(
         ) {
           const parsedSource = getNextPathnameInfo(
             parseRelativeUrl(source).pathname,
-            { parseData: true }
+            {
+              nextConfig: process.env.__NEXT_HAS_REWRITES
+                ? undefined
+                : nextConfig,
+              parseData: true,
+            }
           )
 
           as = addBasePath(parsedSource.pathname)
@@ -787,18 +792,18 @@ export default class Router implements BaseRouter {
       const dynamicFilterData: typeof staticFilterData = process.env
         .__NEXT_CLIENT_ROUTER_D_FILTER as any
 
-      if (staticFilterData?.hashes) {
+      if (staticFilterData?.numHashes) {
         this._bfl_s = new BloomFilter(
-          staticFilterData.size,
-          staticFilterData.hashes
+          staticFilterData.numItems,
+          staticFilterData.errorRate
         )
         this._bfl_s.import(staticFilterData)
       }
 
-      if (dynamicFilterData?.hashes) {
+      if (dynamicFilterData?.numHashes) {
         this._bfl_d = new BloomFilter(
-          dynamicFilterData.size,
-          dynamicFilterData.hashes
+          dynamicFilterData.numItems,
+          dynamicFilterData.errorRate
         )
         this._bfl_d.import(dynamicFilterData)
       }
@@ -1077,8 +1082,8 @@ export default class Router implements BaseRouter {
           ) {
             matchesBflStatic =
               matchesBflStatic ||
-              !!this._bfl_s?.has(asNoSlash) ||
-              !!this._bfl_s?.has(asNoSlashLocale)
+              !!this._bfl_s?.contains(asNoSlash) ||
+              !!this._bfl_s?.contains(asNoSlashLocale)
 
             for (const normalizedAS of [asNoSlash, asNoSlashLocale]) {
               // if any sub-path of as matches a dynamic filter path
@@ -1090,7 +1095,7 @@ export default class Router implements BaseRouter {
                 i++
               ) {
                 const currentPart = curAsParts.slice(0, i).join('/')
-                if (currentPart && this._bfl_d?.has(currentPart)) {
+                if (currentPart && this._bfl_d?.contains(currentPart)) {
                   matchesBflDynamic = true
                   break
                 }
@@ -1323,7 +1328,7 @@ export default class Router implements BaseRouter {
     // if we detected the path as app route during prefetching
     // trigger hard navigation
     if ((this.components[pathname] as any)?.__appRouter) {
-      handleHardNavigation({ url, router: this })
+      handleHardNavigation({ url: as, router: this })
       return new Promise(() => {})
     }
 
@@ -2242,27 +2247,35 @@ export default class Router implements BaseRouter {
 
   scrollToHash(as: string): void {
     const [, hash = ''] = as.split('#')
-    // Scroll to top if the hash is just `#` with no value or `#top`
-    // To mirror browsers
-    if (hash === '' || hash === 'top') {
-      handleSmoothScroll(() => window.scrollTo(0, 0))
-      return
-    }
 
-    // Decode hash to make non-latin anchor works.
-    const rawHash = decodeURIComponent(hash)
-    // First we check if the element by id is found
-    const idEl = document.getElementById(rawHash)
-    if (idEl) {
-      handleSmoothScroll(() => idEl.scrollIntoView())
-      return
-    }
-    // If there's no element with the id, we check the `name` property
-    // To mirror browsers
-    const nameEl = document.getElementsByName(rawHash)[0]
-    if (nameEl) {
-      handleSmoothScroll(() => nameEl.scrollIntoView())
-    }
+    handleSmoothScroll(
+      () => {
+        // Scroll to top if the hash is just `#` with no value or `#top`
+        // To mirror browsers
+        if (hash === '' || hash === 'top') {
+          window.scrollTo(0, 0)
+          return
+        }
+
+        // Decode hash to make non-latin anchor works.
+        const rawHash = decodeURIComponent(hash)
+        // First we check if the element by id is found
+        const idEl = document.getElementById(rawHash)
+        if (idEl) {
+          idEl.scrollIntoView()
+          return
+        }
+        // If there's no element with the id, we check the `name` property
+        // To mirror browsers
+        const nameEl = document.getElementsByName(rawHash)[0]
+        if (nameEl) {
+          nameEl.scrollIntoView()
+        }
+      },
+      {
+        onlyHashChange: this.onlyAHashChange(as),
+      }
+    )
   }
 
   urlIsNew(asPath: string): boolean {

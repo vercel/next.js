@@ -1,11 +1,12 @@
 import type { BaseNextRequest } from '../../base-http'
 import type { ModuleLoader } from '../helpers/module-loader/module-loader'
-import type { RouteMatch } from '../route-matches/route-match'
 import type { RouteModule } from '../route-modules/route-module'
 import type { AppRouteRouteHandlerContext } from '../route-modules/app-route/module'
+import type { AppRouteRouteMatch } from '../route-matches/app-route-route-match'
 
 import { NodeModuleLoader } from '../helpers/module-loader/node-module-loader'
 import { RouteModuleLoader } from '../helpers/module-loader/route-module-loader'
+import { NextRequestAdapter } from '../../web/spec-extension/adapters/next-request'
 
 /**
  * RouteHandlerManager is a manager for route handlers.
@@ -21,25 +22,21 @@ export class RouteHandlerManager {
   ) {}
 
   public async handle(
-    match: RouteMatch,
+    match: AppRouteRouteMatch,
     req: BaseNextRequest,
-    context: RouteHandlerManagerContext
-  ): Promise<Response | undefined> {
+    context: RouteHandlerManagerContext,
+    signal: AbortSignal
+  ): Promise<Response> {
     // The module supports minimal mode, load the minimal module.
-    const module = RouteModuleLoader.load<RouteModule>(
+    const module = await RouteModuleLoader.load<RouteModule>(
       match.definition.filename,
       this.moduleLoader
     )
 
-    // Setup the handler. It is the responsibility of the module to ensure that
-    // this is only called once. If this is in development mode, the require
-    // cache will be cleared and the module will be re-created.
-    module.setup()
+    // Convert the BaseNextRequest to a NextRequest.
+    const request = NextRequestAdapter.fromBaseNextRequest(req, signal)
 
-    // Get the response from the handler.
-    const response = await module.handle(req, context)
-
-    // Send the response back.
-    return response
+    // Get the response from the handler and send it back.
+    return await module.handle(request, context)
   }
 }

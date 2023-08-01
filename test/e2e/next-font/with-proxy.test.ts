@@ -1,7 +1,7 @@
 import { FileRef, createNext, NextInstance } from 'e2e-utils'
 import { findPort, renderViaHTTP, fetchViaHTTP } from 'next-test-utils'
 import { join } from 'path'
-import { spawn } from 'cross-spawn'
+import spawn from 'cross-spawn'
 
 describe('next/font/google with proxy', () => {
   let next: NextInstance
@@ -22,8 +22,8 @@ describe('next/font/google with proxy', () => {
       stdio: 'inherit',
       env: {
         ...process.env,
-        PROXY_PORT,
-        SERVER_PORT,
+        PROXY_PORT: PROXY_PORT.toString(),
+        SERVER_PORT: SERVER_PORT.toString(),
       },
     })
 

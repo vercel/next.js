@@ -16,10 +16,12 @@ import { RouterContext } from '../shared/lib/router-context'
 import {
   AppRouterContext,
   AppRouterInstance,
+  PrefetchOptions as AppRouterPrefetchOptions,
 } from '../shared/lib/app-router-context'
 import { useIntersection } from './use-intersection'
 import { getDomainLocale } from './get-domain-locale'
 import { addBasePath } from './add-base-path'
+import { PrefetchKind } from './components/router-reducer/router-reducer-types'
 
 type Url = string | UrlObject
 type RequiredKeys<T> = {
@@ -37,7 +39,7 @@ type InternalLinkProps = {
    */
   href: Url
   /**
-   * Optional decorator for the path that will be shown in the browser URL bar. Before Next.js 9.5.3 this was used for dynamic routes, check our [previous docs](https://nextjs.org/docs/tag/v9.5.2/api-reference/next/link#dynamic-routes) to see how it worked. Note: when this path differs from the one provided in `href` the previous `href`/`as` behavior is used as shown in the [previous docs](https://nextjs.org/docs/tag/v9.5.2/api-reference/next/link#dynamic-routes).
+   * Optional decorator for the path that will be shown in the browser URL bar. Before Next.js 9.5.3 this was used for dynamic routes, check our [previous docs](https://github.com/vercel/next.js/blob/v9.5.2/docs/api-reference/next/link.md#dynamic-routes) to see how it worked. Note: when this path differs from the one provided in `href` the previous `href`/`as` behavior is used as shown in the [previous docs](https://github.com/vercel/next.js/blob/v9.5.2/docs/api-reference/next/link.md#dynamic-routes).
    */
   as?: Url
   /**
@@ -120,6 +122,7 @@ function prefetch(
   href: string,
   as: string,
   options: PrefetchOptions,
+  appOptions: AppRouterPrefetchOptions,
   isAppRouter: boolean
 ): void {
   if (typeof window === 'undefined') {
@@ -154,11 +157,15 @@ function prefetch(
     prefetched.add(prefetchedKey)
   }
 
+  const prefetchPromise = isAppRouter
+    ? (router as AppRouterInstance).prefetch(href, appOptions)
+    : (router as NextRouter).prefetch(href, as, options)
+
   // Prefetch the JSON page if asked (only in the client)
   // We need to handle a prefetch error here since we may be
   // loading with priority which can reject but we don't
   // want to force navigation since this is only a prefetch
-  Promise.resolve(router.prefetch(href, as, options)).catch((err) => {
+  Promise.resolve(prefetchPromise).catch((err) => {
     if (process.env.NODE_ENV !== 'production') {
       // rethrow to show invalid URL errors
       throw err
@@ -210,21 +217,22 @@ function linkClicked(
 
   const navigate = () => {
     // If the router is an NextRouter instance it will have `beforePopState`
+    const routerScroll = scroll ?? true
     if ('beforePopState' in router) {
       router[replace ? 'replace' : 'push'](href, as, {
         shallow,
         locale,
-        scroll,
+        scroll: routerScroll,
       })
     } else {
       router[replace ? 'replace' : 'push'](as || href, {
         forceOptimisticNavigation: !prefetchEnabled,
+        scroll: routerScroll,
       })
     }
   }
 
   if (isAppRouter) {
-    // @ts-expect-error startTransition exists.
     React.startTransition(navigate)
   } else {
     navigate()
@@ -249,6 +257,52 @@ function formatStringOrUrl(urlObjOrString: UrlObject | string): string {
  */
 const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
   function LinkComponent(props, forwardedRef) {
+    let children: React.ReactNode
+
+    const {
+      href: hrefProp,
+      as: asProp,
+      children: childrenProp,
+      prefetch: prefetchProp = null,
+      passHref,
+      replace,
+      shallow,
+      scroll,
+      locale,
+      onClick,
+      onMouseEnter: onMouseEnterProp,
+      onTouchStart: onTouchStartProp,
+      // @ts-expect-error this is inlined as a literal boolean not a string
+      legacyBehavior = process.env.__NEXT_NEW_LINK_BEHAVIOR === false,
+      ...restProps
+    } = props
+
+    children = childrenProp
+
+    if (
+      legacyBehavior &&
+      (typeof children === 'string' || typeof children === 'number')
+    ) {
+      children = <a>{children}</a>
+    }
+
+    const pagesRouter = React.useContext(RouterContext)
+    const appRouter = React.useContext(AppRouterContext)
+    const router = pagesRouter ?? appRouter
+
+    // We're in the app directory if there is no pages router.
+    const isAppRouter = !pagesRouter
+
+    const prefetchEnabled = prefetchProp !== false
+    /**
+     * The possible states for prefetch are:
+     * - null: this is the default "auto" mode, where we will prefetch partially if the link is in the viewport
+     * - true: we will prefetch if the link is visible and prefetch the full page, not just partially
+     * - false: we will not prefetch if in the viewport at all
+     */
+    const appPrefetchKind =
+      prefetchProp === null ? PrefetchKind.AUTO : PrefetchKind.FULL
+
     if (process.env.NODE_ENV !== 'production') {
       function createPropError(args: {
         key: string
@@ -362,51 +416,13 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       // This hook is in a conditional but that is ok because `process.env.NODE_ENV` never changes
       // eslint-disable-next-line react-hooks/rules-of-hooks
       const hasWarned = React.useRef(false)
-      if (props.prefetch && !hasWarned.current) {
+      if (props.prefetch && !hasWarned.current && !isAppRouter) {
         hasWarned.current = true
         console.warn(
           'Next.js auto-prefetches automatically based on viewport. The prefetch attribute is no longer needed. More: https://nextjs.org/docs/messages/prefetch-true-deprecated'
         )
       }
     }
-
-    let children: React.ReactNode
-
-    const {
-      href: hrefProp,
-      as: asProp,
-      children: childrenProp,
-      prefetch: prefetchProp,
-      passHref,
-      replace,
-      shallow,
-      scroll,
-      locale,
-      onClick,
-      onMouseEnter: onMouseEnterProp,
-      onTouchStart: onTouchStartProp,
-      // @ts-expect-error this is inlined as a literal boolean not a string
-      legacyBehavior = process.env.__NEXT_NEW_LINK_BEHAVIOR === false,
-      ...restProps
-    } = props
-
-    children = childrenProp
-
-    if (
-      legacyBehavior &&
-      (typeof children === 'string' || typeof children === 'number')
-    ) {
-      children = <a>{children}</a>
-    }
-
-    const prefetchEnabled = prefetchProp !== false
-
-    const pagesRouter = React.useContext(RouterContext)
-    const appRouter = React.useContext(AppRouterContext)
-    const router = pagesRouter ?? appRouter
-
-    // We're in the app directory if there is no pages router.
-    const isAppRouter = !pagesRouter
 
     if (process.env.NODE_ENV !== 'production') {
       if (isAppRouter && !asProp) {
@@ -547,7 +563,16 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       }
 
       // Prefetch the URL.
-      prefetch(router, href, as, { locale }, isAppRouter)
+      prefetch(
+        router,
+        href,
+        as,
+        { locale },
+        {
+          kind: appPrefetchKind,
+        },
+        isAppRouter
+      )
     }, [
       as,
       href,
@@ -557,6 +582,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       pagesRouter?.locale,
       router,
       isAppRouter,
+      appPrefetchKind,
     ])
 
     const childProps: {
@@ -626,7 +652,10 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           return
         }
 
-        if (!prefetchEnabled && isAppRouter) {
+        if (
+          (!prefetchEnabled || process.env.NODE_ENV === 'development') &&
+          isAppRouter
+        ) {
           return
         }
 
@@ -639,6 +668,9 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
             priority: true,
             // @see {https://github.com/vercel/next.js/discussions/40268?sort=top#discussioncomment-3572642}
             bypassPrefetchedCheck: true,
+          },
+          {
+            kind: appPrefetchKind,
           },
           isAppRouter
         )
@@ -673,6 +705,9 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
             priority: true,
             // @see {https://github.com/vercel/next.js/discussions/40268?sort=top#discussioncomment-3572642}
             bypassPrefetchedCheck: true,
+          },
+          {
+            kind: appPrefetchKind,
           },
           isAppRouter
         )

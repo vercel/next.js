@@ -1,11 +1,11 @@
 export const getStaticPaths = async () => {
-  return [];
-};
+  return []
+}
 
 export const getStaticProps = async function () {
-  return { props: {} };
-};
+  return { props: {} }
+}
 
 export default function Test() {
-  return <div />;
+  return <div />
 }

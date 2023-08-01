@@ -1,3 +1,3 @@
-"use client";
+'use client'
 
 module.exports = function () {}

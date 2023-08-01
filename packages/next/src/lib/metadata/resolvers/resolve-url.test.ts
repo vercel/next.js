@@ -8,10 +8,6 @@ describe('metadata: resolveUrl', () => {
     expect(resolveUrl(undefined, null)).toBe(null)
   })
 
-  it('should error when metadataBase is not provided but url is not valid URL', () => {
-    expect(() => resolveUrl('/abc', null)).toThrow()
-  })
-
   it('should return url itself when metadataBase is null or url is valid URL', () => {
     expect(resolveUrl('https://example.com/abc', null)).toEqual(
       new URL('https://example.com/abc')

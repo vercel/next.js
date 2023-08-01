@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use napi::bindgen_prelude::*;
-use turbo_binding::{
+use turbopack_binding::{
     features::node_file_trace::{start, Args},
     turbo::{tasks::TurboTasks, tasks_memory::MemoryBackend},
     turbopack::turbopack::{

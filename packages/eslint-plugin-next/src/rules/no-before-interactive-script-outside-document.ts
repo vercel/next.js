@@ -34,10 +34,15 @@ export = defineRule({
 
         if (startsWithUsingCorrectSeparators(pathname, 'src/')) {
           pathname = pathname.slice(4)
+        } else if (startsWithUsingCorrectSeparators(pathname, '/src/')) {
+          pathname = pathname.slice(5)
         }
 
         // This rule shouldn't fire in `app/`
-        if (startsWithUsingCorrectSeparators(pathname, 'app/')) {
+        if (
+          startsWithUsingCorrectSeparators(pathname, 'app/') ||
+          startsWithUsingCorrectSeparators(pathname, '/app/')
+        ) {
           return
         }
 

@@ -1,1 +1,6 @@
-{"name":"scheduler","main":"index.js","license":"MIT"}
+{
+  "name": "scheduler-builtin",
+  "dependencies": {
+    "loose-envify": "^1.1.0"
+  }
+}

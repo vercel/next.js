@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use anyhow::Context as _;
 use napi::bindgen_prelude::*;
-use turbo_binding::swc::core::{
+use turbopack_binding::swc::core::{
     base::{config::ParseOptions, try_with_handler},
     common::{
         comments::Comments, errors::ColorConfig, FileName, FilePathMapping, SourceMap, GLOBALS,
@@ -24,7 +24,7 @@ impl Task for ParseTask {
 
     fn compute(&mut self) -> napi::Result<Self::Output> {
         GLOBALS.set(&Default::default(), || {
-            let c = turbo_binding::swc::core::base::Compiler::new(Arc::new(SourceMap::new(
+            let c = turbopack_binding::swc::core::base::Compiler::new(Arc::new(SourceMap::new(
                 FilePathMapping::empty(),
             )));
 
@@ -39,7 +39,7 @@ impl Task for ParseTask {
                 c.cm.new_source_file(self.filename.clone(), self.src.clone());
             let program = try_with_handler(
                 c.cm.clone(),
-                turbo_binding::swc::core::base::HandlerOpts {
+                turbopack_binding::swc::core::base::HandlerOpts {
                     color: ColorConfig::Never,
                     skip_filename: false,
                 },

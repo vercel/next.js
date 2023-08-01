@@ -9,9 +9,15 @@ import type { OutgoingHttpHeaders } from 'http'
 export function getHostname(
   parsed: { hostname?: string | null },
   headers?: OutgoingHttpHeaders
-) {
-  return ((!Array.isArray(headers?.host) && headers?.host) || parsed.hostname)
-    ?.toString()
-    .split(':')[0]
-    .toLowerCase()
+): string | undefined {
+  // Get the hostname from the headers if it exists, otherwise use the parsed
+  // hostname.
+  let hostname: string
+  if (headers?.host && !Array.isArray(headers.host)) {
+    hostname = headers.host.toString().split(':')[0]
+  } else if (parsed.hostname) {
+    hostname = parsed.hostname
+  } else return
+
+  return hostname.toLowerCase()
 }

@@ -14,7 +14,7 @@ const server = http.createServer(async (req, res) => {
   } catch (err) {
     console.error(err)
     res.statusCode = 500
-    res.end('internal server error')
+    res.end('Internal Server Error')
   }
 })
 const currentPort = parseInt(process.env.PORT, 10) || 3000

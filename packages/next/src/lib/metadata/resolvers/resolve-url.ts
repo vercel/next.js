@@ -1,8 +1,43 @@
 import path from '../../../shared/lib/isomorphic/path'
-import { warnOnce } from '../../../shared/lib/utils/warn-once'
+import * as Log from '../../../build/output/log'
 
 function isStringOrURL(icon: any): icon is string | URL {
   return typeof icon === 'string' || icon instanceof URL
+}
+
+function createLocalMetadataBase() {
+  return new URL(`http://localhost:${process.env.PORT || 3000}`)
+}
+
+// For deployment url for metadata routes, prefer to use the deployment url if possible
+// as these routes are unique to the deployments url.
+export function getSocialImageFallbackMetadataBase(
+  metadataBase: URL | null
+): URL | null {
+  const isMetadataBaseMissing = !metadataBase
+  const defaultMetadataBase = createLocalMetadataBase()
+  const deploymentUrl =
+    process.env.VERCEL_URL && new URL(`https://${process.env.VERCEL_URL}`)
+
+  let fallbackMetadata
+  if (process.env.NODE_ENV === 'development') {
+    fallbackMetadata = defaultMetadataBase
+  } else {
+    fallbackMetadata =
+      process.env.NODE_ENV === 'production' &&
+      deploymentUrl &&
+      process.env.VERCEL_ENV === 'preview'
+        ? deploymentUrl
+        : metadataBase || deploymentUrl || defaultMetadataBase
+  }
+
+  if (isMetadataBaseMissing) {
+    Log.warnOnce(
+      `\nmetadata.metadataBase is not set for resolving social open graph or twitter images, using "${fallbackMetadata.origin}". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase`
+    )
+  }
+
+  return fallbackMetadata
 }
 
 function resolveUrl(url: null | undefined, metadataBase: URL | null): null
@@ -25,30 +60,39 @@ function resolveUrl(
   } catch (_) {}
 
   if (!metadataBase) {
-    if (process.env.NODE_ENV !== 'production') {
-      metadataBase = new URL(`http://localhost:${process.env.PORT || 3000}`)
-      // Development mode warning
-      warnOnce(
-        `metadata.metadataBase is not set and fallbacks to "${metadataBase.origin}", please specify it in root layout to resolve absolute urls.`
-      )
-    } else {
-      throw new Error(
-        `metadata.metadataBase needs to be provided for resolving absolute URL: ${url}`
-      )
-    }
+    metadataBase = createLocalMetadataBase()
   }
 
   // Handle relative or absolute paths
-  const basePath = metadataBase.pathname || '/'
+  const basePath = metadataBase.pathname || ''
   const joinedPath = path.join(basePath, url)
 
   return new URL(joinedPath, metadataBase)
 }
 
-// Return a string url without trailing slash
-const resolveStringUrl = (url: string | URL) => {
-  const href = typeof url === 'string' ? url : url.toString()
-  return href.endsWith('/') ? href.slice(0, -1) : href
+// Resolve with `pathname` if `url` is a relative path.
+function resolveRelativeUrl(url: string | URL, pathname: string): string | URL {
+  if (typeof url === 'string' && url.startsWith('./')) {
+    return path.resolve(pathname, url)
+  }
+  return url
 }
 
-export { isStringOrURL, resolveUrl, resolveStringUrl }
+// Resolve `pathname` if `url` is a relative path the compose with `metadataBase`.
+function resolveAbsoluteUrlWithPathname(
+  url: string | URL,
+  metadataBase: URL | null,
+  pathname: string
+) {
+  url = resolveRelativeUrl(url, pathname)
+
+  const result = metadataBase ? resolveUrl(url, metadataBase) : url
+  return result.toString()
+}
+
+export {
+  isStringOrURL,
+  resolveUrl,
+  resolveRelativeUrl,
+  resolveAbsoluteUrlWithPathname,
+}

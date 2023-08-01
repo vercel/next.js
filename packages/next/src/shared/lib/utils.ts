@@ -50,7 +50,7 @@ export type NextWebVitalsMetric = {
 } & (
   | {
       label: 'web-vital'
-      name: typeof WEB_VITALS[number]
+      name: (typeof WEB_VITALS)[number]
     }
   | {
       label: 'custom'
@@ -215,6 +215,8 @@ export interface NextApiRequest extends IncomingMessage {
 
   env: Env
 
+  draftMode?: boolean
+
   preview?: boolean
   /**
    * Preview data set on the request, if any
@@ -242,6 +244,11 @@ export type NextApiResponse<Data = any> = ServerResponse & {
   status: (statusCode: number) => NextApiResponse<Data>
   redirect(url: string): NextApiResponse<Data>
   redirect(status: number, url: string): NextApiResponse<Data>
+
+  /**
+   * Set draft mode
+   */
+  setDraftMode: (options: { enable: boolean }) => NextApiResponse<Data>
 
   /**
    * Set preview data for Next.js' prerender mode
@@ -417,6 +424,7 @@ export class PageNotFoundError extends Error {
   constructor(page: string) {
     super()
     this.code = 'ENOENT'
+    this.name = 'PageNotFoundError'
     this.message = `Cannot find module for page: ${page}`
   }
 }
@@ -438,9 +446,13 @@ export class MiddlewareNotFoundError extends Error {
 }
 
 export interface CacheFs {
-  readFile(f: string): Promise<string>
-  readFileSync(f: string): string
+  readFile(f: string): Promise<Buffer>
+  readFileSync(f: string): Buffer
   writeFile(f: string, d: any): Promise<void>
   mkdir(dir: string): Promise<void | string>
   stat(f: string): Promise<{ mtime: Date }>
+}
+
+export function stringifyError(error: Error) {
+  return JSON.stringify({ message: error.message, stack: error.stack })
 }

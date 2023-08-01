@@ -1,3 +1,10 @@
+import type {
+  NextConfig,
+  ExperimentalConfig,
+  EmotionConfig,
+  StyledComponentsConfig,
+} from '../../server/config-shared'
+
 const nextDistPath =
   /(next[\\/]dist[\\/]shared[\\/]lib)|(next[\\/]dist[\\/]client)|(next[\\/]dist[\\/]pages)/
 
@@ -28,13 +35,31 @@ function getBaseSWCOptions({
   development,
   hasReactRefresh,
   globalWindow,
-  nextConfig,
+  modularizeImports,
+  swcPlugins,
+  compilerOptions,
   resolvedBaseUrl,
   jsConfig,
   swcCacheDir,
   isServerLayer,
   hasServerComponents,
-}: any) {
+  isServerActionsEnabled,
+}: {
+  filename: string
+  jest?: boolean
+  development: boolean
+  hasReactRefresh: boolean
+  globalWindow: boolean
+  modularizeImports?: NextConfig['modularizeImports']
+  swcPlugins: ExperimentalConfig['swcPlugins']
+  compilerOptions: NextConfig['compiler']
+  resolvedBaseUrl?: string
+  jsConfig: any
+  swcCacheDir?: string
+  isServerLayer?: boolean
+  hasServerComponents?: boolean
+  isServerActionsEnabled?: boolean
+}) {
   const parserConfig = getParserOptions({ filename, jsConfig })
   const paths = jsConfig?.compilerOptions?.paths
   const enableDecorators = Boolean(
@@ -46,17 +71,9 @@ function getBaseSWCOptions({
   const useDefineForClassFields = Boolean(
     jsConfig?.compilerOptions?.useDefineForClassFields
   )
-  const plugins = (nextConfig?.experimental?.swcPlugins ?? [])
+  const plugins = (swcPlugins ?? [])
     .filter(Array.isArray)
     .map(([name, options]: any) => [require.resolve(name), options])
-
-  // Use modularized imports for next/server to ensure treeshaking.
-  // This prevents ImageResponse related assets from being bundled when not used.
-  // TODO: move it into next-swc
-  const modularizeImports = nextConfig?.modularizeImports || {}
-  modularizeImports['next/server'] = {
-    transform: 'next/dist/server/web/exports/{{ kebabCase member }}',
-  }
 
   return {
     jsc: {
@@ -88,7 +105,7 @@ function getBaseSWCOptions({
         react: {
           importSource:
             jsConfig?.compilerOptions?.jsxImportSource ??
-            (nextConfig?.compiler?.emotion ? '@emotion/react' : 'react'),
+            (compilerOptions?.emotion ? '@emotion/react' : 'react'),
           runtime: 'automatic',
           pragma: 'React.createElement',
           pragmaFrag: 'React.Fragment',
@@ -117,52 +134,83 @@ function getBaseSWCOptions({
       },
     },
     sourceMaps: jest ? 'inline' : undefined,
-    removeConsole: nextConfig?.compiler?.removeConsole,
+    removeConsole: compilerOptions?.removeConsole,
     // disable "reactRemoveProperties" when "jest" is true
     // otherwise the setting from next.config.js will be used
     reactRemoveProperties: jest
       ? false
-      : nextConfig?.compiler?.reactRemoveProperties,
-    modularizeImports,
-    relay: nextConfig?.compiler?.relay,
+      : compilerOptions?.reactRemoveProperties,
+    // Map the k-v map to an array of pairs.
+    modularizeImports: modularizeImports
+      ? Object.fromEntries(
+          Object.entries(modularizeImports).map(([mod, config]) => [
+            mod,
+            {
+              ...config,
+              transform:
+                typeof config.transform === 'string'
+                  ? config.transform
+                  : Object.entries(config.transform).map(([key, value]) => [
+                      key,
+                      value,
+                    ]),
+            },
+          ])
+        )
+      : undefined,
+    relay: compilerOptions?.relay,
     // Always transform styled-jsx and error when `client-only` condition is triggered
     styledJsx: true,
     // Disable css-in-js libs (without client-only integration) transform on server layer for server components
     ...(!isServerLayer && {
       // eslint-disable-next-line @typescript-eslint/no-use-before-define
-      emotion: getEmotionOptions(nextConfig, development),
+      emotion: getEmotionOptions(compilerOptions?.emotion, development),
       // eslint-disable-next-line @typescript-eslint/no-use-before-define
-      styledComponents: getStyledComponentsOptions(nextConfig, development),
+      styledComponents: getStyledComponentsOptions(
+        compilerOptions?.styledComponents,
+        development
+      ),
     }),
     serverComponents: hasServerComponents
       ? { isServer: !!isServerLayer }
       : undefined,
     serverActions: hasServerComponents
       ? {
+          // TODO-APP: When Server Actions is stable, we need to remove this flag.
+          enabled: !!isServerActionsEnabled,
           isServer: !!isServerLayer,
         }
       : undefined,
   }
 }
 
-function getStyledComponentsOptions(nextConfig: any, development: any) {
-  let styledComponentsOptions = nextConfig?.compiler?.styledComponents
-  if (!styledComponentsOptions) {
+function getStyledComponentsOptions(
+  styledComponentsConfig: undefined | boolean | StyledComponentsConfig,
+  development: any
+) {
+  if (!styledComponentsConfig) {
     return null
-  }
-
-  return {
-    ...styledComponentsOptions,
-    displayName: styledComponentsOptions.displayName ?? Boolean(development),
+  } else if (typeof styledComponentsConfig === 'object') {
+    return {
+      ...styledComponentsConfig,
+      displayName: styledComponentsConfig.displayName ?? Boolean(development),
+    }
+  } else {
+    return {
+      displayName: Boolean(development),
+    }
   }
 }
 
-function getEmotionOptions(nextConfig: any, development: any) {
-  if (!nextConfig?.compiler?.emotion) {
+function getEmotionOptions(
+  emotionConfig: undefined | boolean | EmotionConfig,
+  development: boolean
+) {
+  if (!emotionConfig) {
     return null
   }
-  let autoLabel = false
-  switch (nextConfig?.compiler?.emotion?.autoLabel) {
+  let autoLabel = !!development
+  switch (typeof emotionConfig === 'object' && emotionConfig.autoLabel) {
     case 'never':
       autoLabel = false
       break
@@ -171,17 +219,17 @@ function getEmotionOptions(nextConfig: any, development: any) {
       break
     case 'dev-only':
     default:
-      autoLabel = !!development
       break
   }
   return {
     enabled: true,
     autoLabel,
-    importMap: nextConfig?.compiler?.emotion?.importMap,
-    labelFormat: nextConfig?.compiler?.emotion?.labelFormat,
-    sourcemap: development
-      ? nextConfig?.compiler?.emotion?.sourceMap ?? true
-      : false,
+    sourcemap: development,
+    ...(typeof emotionConfig === 'object' && {
+      importMap: emotionConfig.importMap,
+      labelFormat: emotionConfig.labelFormat,
+      sourcemap: development && emotionConfig.sourceMap,
+    }),
   }
 }
 
@@ -189,22 +237,38 @@ export function getJestSWCOptions({
   isServer,
   filename,
   esm,
-  nextConfig,
+  modularizeImports,
+  swcPlugins,
+  compilerOptions,
   jsConfig,
   resolvedBaseUrl,
   pagesDir,
   hasServerComponents,
-}: any) {
+}: {
+  isServer: boolean
+  filename: string
+  esm: boolean
+  modularizeImports?: NextConfig['modularizeImports']
+  swcPlugins: ExperimentalConfig['swcPlugins']
+  compilerOptions: NextConfig['compiler']
+  jsConfig: any
+  resolvedBaseUrl?: string
+  pagesDir?: string
+  hasServerComponents?: boolean
+}) {
   let baseOptions = getBaseSWCOptions({
     filename,
     jest: true,
     development: false,
     hasReactRefresh: false,
     globalWindow: !isServer,
-    nextConfig,
+    modularizeImports,
+    swcPlugins,
+    compilerOptions,
     jsConfig,
     hasServerComponents,
     resolvedBaseUrl,
+    isServerLayer: isServer,
   })
 
   const isNextDist = nextDistPath.test(filename)
@@ -234,28 +298,51 @@ export function getLoaderSWCOptions({
   appDir,
   isPageFile,
   hasReactRefresh,
-  nextConfig,
+  modularizeImports,
+  swcPlugins,
+  compilerOptions,
   jsConfig,
   supportedBrowsers,
   swcCacheDir,
   relativeFilePathFromRoot,
   hasServerComponents,
   isServerLayer,
+  isServerActionsEnabled,
 }: // This is not passed yet as "paths" resolving is handled by webpack currently.
 // resolvedBaseUrl,
-any) {
+{
+  filename: string
+  development: boolean
+  isServer: boolean
+  pagesDir?: string
+  appDir: string
+  isPageFile: boolean
+  hasReactRefresh: boolean
+  modularizeImports: NextConfig['modularizeImports']
+  swcPlugins: ExperimentalConfig['swcPlugins']
+  compilerOptions: NextConfig['compiler']
+  jsConfig: any
+  supportedBrowsers: string[]
+  swcCacheDir: string
+  relativeFilePathFromRoot: string
+  hasServerComponents?: boolean
+  isServerLayer: boolean
+  isServerActionsEnabled?: boolean
+}) {
   let baseOptions: any = getBaseSWCOptions({
     filename,
     development,
     globalWindow: !isServer,
     hasReactRefresh,
-    nextConfig,
+    modularizeImports,
+    swcPlugins,
+    compilerOptions,
     jsConfig,
     // resolvedBaseUrl,
     swcCacheDir,
-    relativeFilePathFromRoot,
     hasServerComponents,
     isServerLayer,
+    isServerActionsEnabled,
   })
   baseOptions.fontLoaders = {
     fontLoaders: [
@@ -267,6 +354,19 @@ any) {
       '@next/font/google',
     ],
     relativeFilePathFromRoot,
+  }
+  baseOptions.cjsRequireOptimizer = {
+    packages: {
+      'next/server': {
+        transforms: {
+          NextRequest: 'next/dist/server/web/spec-extension/request',
+          NextResponse: 'next/dist/server/web/spec-extension/response',
+          ImageResponse: 'next/dist/server/web/spec-extension/image-response',
+          userAgentFromString: 'next/dist/server/web/spec-extension/user-agent',
+          userAgent: 'next/dist/server/web/spec-extension/user-agent',
+        },
+      },
+    },
   }
 
   const isNextDist = nextDistPath.test(filename)

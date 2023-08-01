@@ -1,12 +1,12 @@
 # Example with Server Side Rendered portals
 
-An example of Server Side Rendered React [Portals](https://reactjs.org/docs/portals.html) with [`@jesstelford/react-portal-universal`](https://www.npmjs.com/package/@jesstelford/react-portal-universal) and Next.js.
+An example of Server Side Rendered React [Portals](https://react.dev/reference/react-dom/createPortal) with [`@jesstelford/react-portal-universal`](https://www.npmjs.com/package/@jesstelford/react-portal-universal) and Next.js.
 
 ## Deploy your own
 
 Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-portals-ssr)
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-portals-ssr&project-name=with-portals-ssr&repository-name=with-portals-ssr)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-portals-ssr&project-name=with-portals-ssr&repository-name=with-portals-ssr)
 
 ## How to use
 

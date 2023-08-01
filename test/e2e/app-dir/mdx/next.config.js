@@ -8,7 +8,6 @@ const withMDX = require('@next/mdx')({
 const nextConfig = {
   pageExtensions: ['js', 'jsx', 'ts', 'tsx', 'mdx'],
   experimental: {
-    appDir: true,
     mdxRs: process.env.WITH_MDX_RS === 'true',
   },
 }

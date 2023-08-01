@@ -1,1 +1,1 @@
-export { getStaticProps, getServerSideProps };
+export { getStaticProps, getServerSideProps }

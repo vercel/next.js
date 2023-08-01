@@ -35,8 +35,11 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
   }
 
   private waitTillReadyPromise?: Promise<void>
-  public waitTillReady(): Promise<void> {
-    return this.waitTillReadyPromise ?? Promise.resolve()
+  public async waitTillReady(): Promise<void> {
+    if (this.waitTillReadyPromise) {
+      await this.waitTillReadyPromise
+      delete this.waitTillReadyPromise
+    }
   }
 
   private previousMatchers: ReadonlyArray<RouteMatcher> = []
@@ -64,6 +67,8 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
       const duplicates: Record<string, RouteMatcher[]> = {}
       for (const providerMatchers of providersMatchers) {
         for (const matcher of providerMatchers) {
+          // Reset duplicated matches when reloading from pages conflicting state.
+          if (matcher.duplicated) delete matcher.duplicated
           // Test to see if the matcher being added is a duplicate.
           const duplicate = all.get(matcher.definition.pathname)
           if (duplicate) {
@@ -163,7 +168,9 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
           throw new Error('Invariant: expected to find identity in indexes map')
         }
 
-        for (const index of indexes) sortedDynamicMatchers.push(dynamic[index])
+        const dynamicMatches = indexes.map((index) => dynamic[index])
+
+        sortedDynamicMatchers.push(...dynamicMatches)
       }
 
       this.matchers.dynamic = sortedDynamicMatchers

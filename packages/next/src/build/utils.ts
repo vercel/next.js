@@ -10,11 +10,17 @@ import type {
   CustomRoutes,
 } from '../lib/load-custom-routes'
 import type { UnwrapPromise } from '../lib/coalesced-function'
-import type { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
-import type { AppRouteUserlandModule } from '../server/future/route-modules/app-route/module'
+import type {
+  EdgeFunctionDefinition,
+  MiddlewareManifest,
+} from './webpack/plugins/middleware-plugin'
 import type { StaticGenerationAsyncStorage } from '../client/components/static-generation-async-storage'
 
+import '../server/require-hook'
 import '../server/node-polyfill-fetch'
+import '../server/node-polyfill-crypto'
+import '../server/node-environment'
+
 import chalk from 'next/dist/compiled/chalk'
 import getGzipSize from 'next/dist/compiled/gzip-size'
 import textTable from 'next/dist/compiled/text-table'
@@ -46,30 +52,21 @@ import {
   LoadComponentsReturnType,
 } from '../server/load-components'
 import { trace } from '../trace'
-import { setHttpClientAndAgentOptions } from '../server/config'
+import { setHttpClientAndAgentOptions } from '../server/setup-http-agent-env'
 import { recursiveDelete } from '../lib/recursive-delete'
 import { Sema } from 'next/dist/compiled/async-sema'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { getRuntimeContext } from '../server/web/sandbox'
-import {
-  loadRequireHook,
-  overrideBuiltInReactPackages,
-} from './webpack/require-hook'
 import { isClientReference } from '../lib/client-reference'
 import { StaticGenerationAsyncStorageWrapper } from '../server/async-storage/static-generation-async-storage-wrapper'
 import { IncrementalCache } from '../server/lib/incremental-cache'
 import { patchFetch } from '../server/lib/patch-fetch'
 import { nodeFs } from '../server/lib/node-fs-methods'
-
-loadRequireHook()
-if (process.env.NEXT_PREBUNDLED_REACT) {
-  overrideBuiltInReactPackages()
-}
-
-// expose AsyncLocalStorage on global for react usage
-const { AsyncLocalStorage } = require('async_hooks')
-;(globalThis as any).AsyncLocalStorage = AsyncLocalStorage
+import * as ciEnvironment from '../telemetry/ci-info'
+import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
+import { denormalizeAppPagePath } from '../shared/lib/page-path/denormalize-app-path'
+import { AppRouteRouteModule } from '../server/future/route-modules/app-route/module'
 
 export type ROUTER_TYPE = 'pages' | 'app'
 
@@ -114,14 +111,6 @@ function intersect<T>(main: ReadonlyArray<T>, sub: ReadonlyArray<T>): T[] {
 
 function sum(a: ReadonlyArray<number>): number {
   return a.reduce((size, stat) => size + stat, 0)
-}
-
-function denormalizeAppPagePath(page: string): string {
-  // `/` is normalized to `/index` and `/index` is normalized to `/index/index`
-  if (page.endsWith('/index')) {
-    page = page.replace(/\/index$/, '')
-  }
-  return page + '/page'
 }
 
 type ComputeFilesGroup = {
@@ -779,6 +768,18 @@ export async function getJsPageSizeInKb(
     throw new Error('expected appBuildManifest with an "app" pageType')
   }
 
+  // Normalize appBuildManifest keys
+  if (routerType === 'app') {
+    pageManifest.pages = Object.entries(pageManifest.pages).reduce(
+      (acc: Record<string, string[]>, [key, value]) => {
+        const newKey = normalizeAppPath(key)
+        acc[newKey] = value as string[]
+        return acc
+      },
+      {}
+    )
+  }
+
   // If stats was not provided, then compute it again.
   const stats =
     cachedStats ??
@@ -1086,6 +1087,7 @@ export type AppConfig = {
 }
 export type GenerateParams = Array<{
   config?: AppConfig
+  isDynamicSegment?: boolean
   segmentPath: string
   getStaticPaths?: GetStaticPaths
   generateStaticParams?: any
@@ -1133,9 +1135,11 @@ export const collectGenerateParams = async (
   const config = collectAppConfig(mod)
 
   const isClientComponent = isClientReference(mod)
+  const isDynamicSegment = segment[0] && /^\[.+\]$/.test(segment[0])
 
   const result = {
     isLayout,
+    isDynamicSegment,
     segmentPath: `/${parentSegments.join('/')}${
       segment[0] && parentSegments.length > 0 ? '/' : ''
     }${segment[0]}`,
@@ -1152,7 +1156,11 @@ export const collectGenerateParams = async (
 
   if (result.config || result.generateStaticParams || result.getStaticPaths) {
     generateParams.push(result)
+  } else if (isDynamicSegment) {
+    // It is a dynamic route, but no config was provided
+    generateParams.push(result)
   }
+
   return collectGenerateParams(
     segment[1]?.children,
     parentSegments,
@@ -1216,6 +1224,7 @@ export async function buildAppStaticPaths({
     }),
     CurCacheHandler: CacheHandler,
     requestHeaders,
+    minimalMode: ciEnvironment.hasNextSupport,
   })
 
   return StaticGenerationAsyncStorageWrapper.wrap(
@@ -1223,6 +1232,7 @@ export async function buildAppStaticPaths({
     {
       pathname: page,
       renderOpts: {
+        originalPathname: page,
         incrementalCache,
         supportsDynamicHTML: true,
         isRevalidate: false,
@@ -1243,7 +1253,7 @@ export async function buildAppStaticPaths({
         // if generateStaticParams is being used we iterate over them
         // collecting them from each level
         type Params = Array<Record<string, string | string[]>>
-        let hadGenerateParams = false
+        let hadAllParamsGenerated = false
 
         const buildParams = async (
           paramsItems: Params = [{}],
@@ -1258,9 +1268,15 @@ export async function buildAppStaticPaths({
             typeof curGenerate.generateStaticParams !== 'function' &&
             idx < generateParams.length
           ) {
+            if (curGenerate.isDynamicSegment) {
+              // This dynamic level has no generateStaticParams so we change
+              // this flag to false, but it could be covered by a later
+              // generateStaticParams so it could be set back to true.
+              hadAllParamsGenerated = false
+            }
             return buildParams(paramsItems, idx + 1)
           }
-          hadGenerateParams = true
+          hadAllParamsGenerated = true
 
           const newParams = []
 
@@ -1287,7 +1303,7 @@ export async function buildAppStaticPaths({
           (generate) => generate.config?.dynamicParams === false
         )
 
-        if (!hadGenerateParams) {
+        if (!hadAllParamsGenerated) {
           return {
             paths: undefined,
             fallback:
@@ -1318,33 +1334,28 @@ export async function isPageStatic({
   configFileName,
   runtimeEnvConfig,
   httpAgentOptions,
-  enableUndici,
   locales,
   defaultLocale,
   parentId,
   pageRuntime,
   edgeInfo,
   pageType,
-  hasServerComponents,
   originalAppPath,
   isrFlushToDisk,
   maxMemoryCacheSize,
   incrementalCacheHandlerPath,
-  nextConfigOutput,
 }: {
   page: string
   distDir: string
   configFileName: string
   runtimeEnvConfig: any
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
-  enableUndici?: NextConfigComplete['experimental']['enableUndici']
   locales?: string[]
   defaultLocale?: string
   parentId?: any
   edgeInfo?: any
   pageType?: 'pages' | 'app'
   pageRuntime?: ServerRuntime
-  hasServerComponents?: boolean
   originalAppPath?: string
   isrFlushToDisk?: boolean
   maxMemoryCacheSize?: number
@@ -1370,7 +1381,6 @@ export async function isPageStatic({
       require('../shared/lib/runtime-config').setConfig(runtimeEnvConfig)
       setHttpClientAndAgentOptions({
         httpAgentOptions,
-        experimental: { enableUndici },
       })
 
       let componentsResult: LoadComponentsReturnType
@@ -1379,11 +1389,11 @@ export async function isPageStatic({
       let prerenderFallback: boolean | 'blocking' | undefined
       let appConfig: AppConfig = {}
       let isClientComponent: boolean = false
+      const pathIsEdgeRuntime = isEdgeRuntime(pageRuntime)
 
-      if (isEdgeRuntime(pageRuntime)) {
+      if (pathIsEdgeRuntime) {
         const runtime = await getRuntimeContext({
           paths: edgeInfo.files.map((file: string) => path.join(distDir, file)),
-          env: edgeInfo.env,
           edgeFunctionEntry: {
             ...edgeInfo,
             wasm: (edgeInfo.wasm ?? []).map((binding: AssetBinding) => ({
@@ -1414,7 +1424,6 @@ export async function isPageStatic({
         componentsResult = await loadComponents({
           distDir,
           pathname: originalAppPath || page,
-          hasServerComponents: !!hasServerComponents,
           isAppPath: pageType === 'app',
         })
       }
@@ -1426,10 +1435,6 @@ export async function isPageStatic({
       if (pageType === 'app') {
         isClientComponent = isClientReference(componentsResult.ComponentMod)
         const tree = componentsResult.ComponentMod.tree
-
-        // This is present on the new route modules.
-        const userland: AppRouteUserlandModule | undefined =
-          componentsResult.ComponentMod.routeModule?.userland
 
         const staticGenerationAsyncStorage: StaticGenerationAsyncStorage =
           componentsResult.ComponentMod.staticGenerationAsyncStorage
@@ -1446,19 +1451,23 @@ export async function isPageStatic({
           )
         }
 
-        const generateParams: GenerateParams = userland
-          ? [
-              {
-                config: {
-                  revalidate: userland.revalidate,
-                  dynamic: userland.dynamic,
-                  dynamicParams: userland.dynamicParams,
+        const { routeModule } = componentsResult
+
+        const generateParams: GenerateParams =
+          routeModule && AppRouteRouteModule.is(routeModule)
+            ? [
+                {
+                  config: {
+                    revalidate: routeModule.userland.revalidate,
+                    dynamic: routeModule.userland.dynamic,
+                    dynamicParams: routeModule.userland.dynamicParams,
+                  },
+                  generateStaticParams:
+                    routeModule.userland.generateStaticParams,
+                  segmentPath: page,
                 },
-                generateStaticParams: userland.generateStaticParams,
-                segmentPath: page,
-              },
-            ]
-          : await collectGenerateParams(tree)
+              ]
+            : await collectGenerateParams(tree)
 
         appConfig = generateParams.reduce(
           (builtConfig: AppConfig, curGenParams): AppConfig => {
@@ -1498,14 +1507,10 @@ export async function isPageStatic({
           {}
         )
 
-        if (nextConfigOutput === 'export') {
-          if (!appConfig.dynamic || appConfig.dynamic === 'auto') {
-            appConfig.dynamic = 'error'
-          } else if (appConfig.dynamic === 'force-dynamic') {
-            throw new Error(
-              `export const dynamic = "force-dynamic" on page "${page}" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export`
-            )
-          }
+        if (appConfig.dynamic === 'force-static' && pathIsEdgeRuntime) {
+          Log.warn(
+            `Page "${page}" is using runtime = 'edge' which is currently incompatible with dynamic = 'force-static'. Please remove either "runtime" or "force-static" for correct behavior`
+          )
         }
 
         if (appConfig.dynamic === 'force-dynamic') {
@@ -1662,7 +1667,6 @@ export async function hasCustomGetInitialProps(
   const components = await loadComponents({
     distDir,
     pathname: page,
-    hasServerComponents: false,
     isAppPath: false,
   })
   let mod = components.ComponentMod
@@ -1676,21 +1680,21 @@ export async function hasCustomGetInitialProps(
   return mod.getInitialProps !== mod.origGetInitialProps
 }
 
-export async function getNamedExports(
+export async function getDefinedNamedExports(
   page: string,
   distDir: string,
   runtimeEnvConfig: any
-): Promise<Array<string>> {
+): Promise<ReadonlyArray<string>> {
   require('../shared/lib/runtime-config').setConfig(runtimeEnvConfig)
   const components = await loadComponents({
     distDir,
     pathname: page,
-    hasServerComponents: false,
     isAppPath: false,
   })
-  let mod = components.ComponentMod
 
-  return Object.keys(mod)
+  return Object.keys(components.ComponentMod).filter((key) => {
+    return typeof components.ComponentMod[key] !== 'undefined'
+  })
 }
 
 export function detectConflictingPaths(
@@ -1788,7 +1792,8 @@ export async function copyTracedFiles(
   appPageKeys: readonly string[] | undefined,
   tracingRoot: string,
   serverConfig: { [key: string]: any },
-  middlewareManifest: MiddlewareManifest
+  middlewareManifest: MiddlewareManifest,
+  hasInstrumentationHook: boolean
 ) {
   const outputPath = path.join(distDir, 'standalone')
   let moduleType = false
@@ -1841,23 +1846,8 @@ export async function copyTracedFiles(
     )
   }
 
-  for (const middleware of Object.values(middlewareManifest.middleware) || []) {
-    if (isMiddlewareFilename(middleware.name)) {
-      for (const file of middleware.files) {
-        const originalPath = path.join(distDir, file)
-        const fileOutputPath = path.join(
-          outputPath,
-          path.relative(tracingRoot, distDir),
-          file
-        )
-        await fs.mkdir(path.dirname(fileOutputPath), { recursive: true })
-        await fs.copyFile(originalPath, fileOutputPath)
-      }
-    }
-  }
-
-  for (const page of Object.values(middlewareManifest.functions)) {
-    for (const file of page.files) {
+  async function handleEdgeFunction(page: EdgeFunctionDefinition) {
+    async function handleFile(file: string) {
       const originalPath = path.join(distDir, file)
       const fileOutputPath = path.join(
         outputPath,
@@ -1867,17 +1857,26 @@ export async function copyTracedFiles(
       await fs.mkdir(path.dirname(fileOutputPath), { recursive: true })
       await fs.copyFile(originalPath, fileOutputPath)
     }
-    for (const file of [...(page.wasm ?? []), ...(page.assets ?? [])]) {
-      const originalPath = path.join(distDir, file.filePath)
-      const fileOutputPath = path.join(
-        outputPath,
-        path.relative(tracingRoot, distDir),
-        file.filePath
-      )
-      await fs.mkdir(path.dirname(fileOutputPath), { recursive: true })
-      await fs.copyFile(originalPath, fileOutputPath)
+    await Promise.all([
+      page.files.map(handleFile),
+      page.wasm?.map((file) => handleFile(file.filePath)),
+      page.assets?.map((file) => handleFile(file.filePath)),
+    ])
+  }
+
+  const edgeFunctionHandlers: Promise<any>[] = []
+
+  for (const middleware of Object.values(middlewareManifest.middleware)) {
+    if (isMiddlewareFilename(middleware.name)) {
+      edgeFunctionHandlers.push(handleEdgeFunction(middleware))
     }
   }
+
+  for (const page of Object.values(middlewareManifest.functions)) {
+    edgeFunctionHandlers.push(handleEdgeFunction(page))
+  }
+
+  await Promise.all(edgeFunctionHandlers)
 
   for (const page of pageKeys) {
     if (middlewareManifest.functions.hasOwnProperty(page)) {
@@ -1894,6 +1893,7 @@ export async function copyTracedFiles(
       Log.warn(`Failed to copy traced files for ${pageFile}`, err)
     })
   }
+
   if (appPageKeys) {
     for (const page of appPageKeys) {
       if (middlewareManifest.functions.hasOwnProperty(page)) {
@@ -1906,6 +1906,13 @@ export async function copyTracedFiles(
       })
     }
   }
+
+  if (hasInstrumentationHook) {
+    await handleTraceFiles(
+      path.join(distDir, 'server', 'instrumentation.js.nft.json')
+    )
+  }
+
   await handleTraceFiles(path.join(distDir, 'next-server.js.nft.json'))
   const serverOutputPath = path.join(
     outputPath,
@@ -1917,17 +1924,20 @@ export async function copyTracedFiles(
     serverOutputPath,
     `${
       moduleType
-        ? `import Server from 'next/dist/server/next-server.js'
-import http from 'http'
+        ? `import http from 'http'
 import path from 'path'
 import { fileURLToPath } from 'url'
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
-const NextServer = Server.default`
+import { startServer } from 'next/dist/server/lib/start-server.js'
+`
         : `
-const NextServer = require('next/dist/server/next-server').default
 const http = require('http')
-const path = require('path')`
+const path = require('path')
+const { startServer } = require('next/dist/server/lib/start-server')`
     }
+
+const dir = path.join(__dirname)
+
 process.env.NODE_ENV = 'production'
 process.chdir(__dirname)
 
@@ -1938,52 +1948,43 @@ if (!process.env.NEXT_MANUAL_SIG_HANDLE) {
   process.on('SIGINT', () => process.exit(0))
 }
 
-let handler
-
-const server = http.createServer(async (req, res) => {
-  try {
-    await handler(req, res)
-  } catch (err) {
-    console.error(err);
-    res.statusCode = 500
-    res.end('internal server error')
-  }
-})
 const currentPort = parseInt(process.env.PORT, 10) || 3000
 const hostname = process.env.HOSTNAME || 'localhost'
-const keepAliveTimeout = parseInt(process.env.KEEP_ALIVE_TIMEOUT, 10);
-
-if (
-  !Number.isNaN(keepAliveTimeout) &&
-    Number.isFinite(keepAliveTimeout) &&
-    keepAliveTimeout >= 0
-) {
-  server.keepAliveTimeout = keepAliveTimeout
-}
-server.listen(currentPort, (err) => {
-  if (err) {
-    console.error("Failed to start server", err)
-    process.exit(1)
-  }
-  const nextServer = new NextServer({
-    hostname,
-    port: currentPort,
-    dir: path.join(__dirname),
-    dev: false,
-    customServer: false,
-    conf: ${JSON.stringify({
+let keepAliveTimeout = parseInt(process.env.KEEP_ALIVE_TIMEOUT, 10);
+const nextConfig = ${JSON.stringify({
       ...serverConfig,
       distDir: `./${path.relative(dir, distDir)}`,
-    })},
-  })
-  handler = nextServer.getRequestHandler()
+    })}
 
+process.env.__NEXT_PRIVATE_STANDALONE_CONFIG = JSON.stringify(nextConfig)
+
+if (
+  Number.isNaN(keepAliveTimeout) ||
+  !Number.isFinite(keepAliveTimeout) ||
+  keepAliveTimeout < 0
+) {
+  keepAliveTimeout = undefined
+}
+
+startServer({
+  dir,
+  isDev: false,
+  config: nextConfig,
+  hostname: hostname === 'localhost' ? '0.0.0.0' : hostname,
+  port: currentPort,
+  allowRetry: false,
+  keepAliveTimeout,
+  useWorkers: !!nextConfig.experimental?.appDir,
+}).then(() => {
   console.log(
     'Listening on port',
     currentPort,
     'url: http://' + hostname + ':' + currentPort
   )
-})`
+}).catch((err) => {
+  console.error(err);
+  process.exit(1);
+});`
   )
 }
 

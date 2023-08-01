@@ -39,6 +39,11 @@ export abstract class BaseNextResponse<Destination = any> {
   abstract setHeader(name: string, value: string | string[]): this
 
   /**
+   * Removes a header
+   */
+  abstract removeHeader(name: string): this
+
+  /**
    * Appends value for the given header name
    */
   abstract appendHeader(name: string, value: string): this

@@ -26,6 +26,8 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 */
 
+// TODO(alexkirsz) Remove once the diagnostic is fixed.
+#![allow(rustc::untranslatable_diagnostic_trivial)]
 #![recursion_limit = "2048"]
 #![deny(clippy::all)]
 #![feature(box_patterns)]
@@ -37,15 +39,22 @@ use either::Either;
 use fxhash::FxHashSet;
 use next_transform_font::next_font_loaders;
 use serde::Deserialize;
-use turbo_binding::swc::core::{
-    common::{chain, comments::Comments, pass::Optional, FileName, SourceFile, SourceMap},
-    ecma::{
-        ast::EsVersion, parser::parse_file_as_module, transforms::base::pass::noop, visit::Fold,
+use turbopack_binding::swc::{
+    core::{
+        common::{
+            chain, comments::Comments, pass::Optional, FileName, Mark, SourceFile, SourceMap,
+            SyntaxContext,
+        },
+        ecma::{
+            ast::EsVersion, parser::parse_file_as_module, transforms::base::pass::noop, visit::Fold,
+        },
     },
+    custom_transform::modularize_imports,
 };
 
 pub mod amp_attributes;
 mod auto_cjs;
+pub mod cjs_optimizer;
 pub mod disallow_re_export_all_in_page;
 pub mod next_dynamic;
 pub mod next_ssg;
@@ -61,7 +70,7 @@ mod top_level_binding_collector;
 #[serde(rename_all = "camelCase")]
 pub struct TransformOptions {
     #[serde(flatten)]
-    pub swc: turbo_binding::swc::core::base::config::Options,
+    pub swc: turbopack_binding::swc::core::base::config::Options,
 
     #[serde(default)]
     pub disable_next_ssg: bool,
@@ -91,7 +100,8 @@ pub struct TransformOptions {
     pub styled_jsx: bool,
 
     #[serde(default)]
-    pub styled_components: Option<turbo_binding::swc::custom_transform::styled_components::Config>,
+    pub styled_components:
+        Option<turbopack_binding::swc::custom_transform::styled_components::Config>,
 
     #[serde(default)]
     pub remove_console: Option<remove_console::Config>,
@@ -101,7 +111,7 @@ pub struct TransformOptions {
 
     #[serde(default)]
     #[cfg(not(target_arch = "wasm32"))]
-    pub relay: Option<swc_relay::Config>,
+    pub relay: Option<turbopack_binding::swc::custom_transform::relay::Config>,
 
     #[allow(unused)]
     #[serde(default)]
@@ -113,17 +123,19 @@ pub struct TransformOptions {
     pub shake_exports: Option<shake_exports::Config>,
 
     #[serde(default)]
-    pub emotion: Option<turbo_binding::swc::custom_transform::emotion::EmotionOptions>,
+    pub emotion: Option<turbopack_binding::swc::custom_transform::emotion::EmotionOptions>,
 
     #[serde(default)]
-    pub modularize_imports:
-        Option<turbo_binding::swc::custom_transform::modularize_imports::Config>,
+    pub modularize_imports: Option<modularize_imports::Config>,
 
     #[serde(default)]
     pub font_loaders: Option<next_transform_font::Config>,
 
     #[serde(default)]
     pub server_actions: Option<server_actions::Config>,
+
+    #[serde(default)]
+    pub cjs_require_optimizer: Option<cjs_optimizer::Config>,
 }
 
 pub fn custom_before_pass<'a, C: Comments + 'a>(
@@ -132,6 +144,7 @@ pub fn custom_before_pass<'a, C: Comments + 'a>(
     opts: &'a TransformOptions,
     comments: C,
     eliminated_packages: Rc<RefCell<FxHashSet<String>>>,
+    unresolved_mark: Mark,
 ) -> impl Fold + 'a
 where
     C: Clone,
@@ -142,15 +155,23 @@ where
     #[cfg(not(target_arch = "wasm32"))]
     let relay_plugin = {
         if let Some(config) = &opts.relay {
-            Either::Left(swc_relay::relay(
+            Either::Left(turbopack_binding::swc::custom_transform::relay::relay(
                 config,
                 file.name.clone(),
                 current_dir().unwrap(),
                 opts.pages_dir.clone(),
+                None,
             ))
         } else {
             Either::Right(noop())
         }
+    };
+
+    let modularize_imports_config = match &opts.modularize_imports {
+        Some(config) => config.clone(),
+        None => modularize_imports::Config {
+            packages: std::collections::HashMap::new(),
+        },
     };
 
     chain!(
@@ -167,7 +188,7 @@ where
         },
         if opts.styled_jsx {
             Either::Left(
-                turbo_binding::swc::custom_transform::styled_jsx::visitor::styled_jsx(
+                turbopack_binding::swc::custom_transform::styled_jsx::visitor::styled_jsx(
                     cm.clone(),
                     file.name.clone(),
                 ),
@@ -177,7 +198,7 @@ where
         },
         match &opts.styled_components {
             Some(config) => Either::Left(
-                turbo_binding::swc::custom_transform::styled_components::styled_components(
+                turbopack_binding::swc::custom_transform::styled_components::styled_components(
                     file.name.clone(),
                     file.src_hash,
                     config.clone(),
@@ -231,9 +252,10 @@ where
                 if let FileName::Real(path) = &file.name {
                     path.to_str().map(|_| {
                         Either::Left(
-                            turbo_binding::swc::custom_transform::emotion::EmotionTransformer::new(
+                            turbopack_binding::swc::custom_transform::emotion::EmotionTransformer::new(
                                 config.clone(),
                                 path,
+                                file.src_hash as u32,
                                 cm,
                                 comments.clone(),
                             ),
@@ -244,14 +266,9 @@ where
                 }
             })
             .unwrap_or_else(|| Either::Right(noop())),
-        match &opts.modularize_imports {
-            Some(config) => Either::Left(
-                turbo_binding::swc::custom_transform::modularize_imports::modularize_imports(
-                    config.clone()
-                )
-            ),
-            None => Either::Right(noop()),
-        },
+        modularize_imports::modularize_imports(
+            modularize_imports_config
+        ),
         match &opts.font_loaders {
             Some(config) => Either::Left(next_font_loaders(config.clone())),
             None => Either::Right(noop()),
@@ -262,6 +279,12 @@ where
                 config.clone(),
                 comments,
             )),
+            None => Either::Right(noop()),
+        },
+        match &opts.cjs_require_optimizer {
+            Some(config) => {
+                Either::Left(cjs_optimizer::cjs_optimizer(config.clone(), SyntaxContext::empty().apply_mark(unresolved_mark)))
+            },
             None => Either::Right(noop()),
         },
     )
@@ -284,7 +307,7 @@ impl TransformOptions {
 
         if should_enable_commonjs {
             self.swc.config.module = Some(
-                serde_json::from_str(r##"{ "type": "commonjs", "ignoreDynamic": true }"##).unwrap(),
+                serde_json::from_str(r#"{ "type": "commonjs", "ignoreDynamic": true }"#).unwrap(),
             );
         }
 

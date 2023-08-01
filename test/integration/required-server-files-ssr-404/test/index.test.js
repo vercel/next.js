@@ -55,6 +55,7 @@ describe('Required Server Files', () => {
       quiet: false,
       minimalMode: true,
     })
+    await nextApp.prepare()
     appPort = await findPort()
 
     server = http.createServer(async (req, res) => {
@@ -193,7 +194,7 @@ describe('Required Server Files', () => {
   it('should render dynamic SSR page correctly with x-matched-path', async () => {
     const html = await renderViaHTTP(
       appPort,
-      '/some-other-path?slug=first',
+      '/some-other-path?nxtPslug=first',
       undefined,
       {
         headers: {
@@ -259,7 +260,7 @@ describe('Required Server Files', () => {
   it('should return data correctly with x-matched-path', async () => {
     const res = await fetchViaHTTP(
       appPort,
-      `/_next/data/${buildId}/dynamic/first.json?slug=first`,
+      `/_next/data/${buildId}/dynamic/first.json?nxtPslug=first`,
       undefined,
       {
         headers: {
@@ -442,27 +443,21 @@ describe('Required Server Files', () => {
     errors = []
     const res = await fetchViaHTTP(appPort, '/errors/gip', { crash: '1' })
     expect(res.status).toBe(500)
-    expect(await res.text()).toBe('error')
-    expect(errors.length).toBe(1)
-    expect(errors[0].message).toContain('gip hit an oops')
+    expect(await res.text()).toBe('Internal Server Error')
   })
 
   it('should bubble error correctly for gssp page', async () => {
     errors = []
     const res = await fetchViaHTTP(appPort, '/errors/gssp', { crash: '1' })
     expect(res.status).toBe(500)
-    expect(await res.text()).toBe('error')
-    expect(errors.length).toBe(1)
-    expect(errors[0].message).toContain('gssp hit an oops')
+    expect(await res.text()).toBe('Internal Server Error')
   })
 
   it('should bubble error correctly for gsp page', async () => {
     errors = []
     const res = await fetchViaHTTP(appPort, '/errors/gsp/crash')
     expect(res.status).toBe(500)
-    expect(await res.text()).toBe('error')
-    expect(errors.length).toBe(1)
-    expect(errors[0].message).toContain('gsp hit an oops')
+    expect(await res.text()).toBe('Internal Server Error')
   })
 
   it('should normalize optional values correctly for SSP page', async () => {

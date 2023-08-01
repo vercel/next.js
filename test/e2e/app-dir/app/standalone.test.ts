@@ -16,12 +16,6 @@ if (!(globalThis as any).isNextStart) {
     'output: standalone with app dir',
     {
       files: __dirname,
-      dependencies: {
-        swr: '2.0.0-rc.0',
-        react: 'latest',
-        'react-dom': 'latest',
-        sass: 'latest',
-      },
       skipStart: true,
     },
     ({ next }) => {
@@ -76,7 +70,7 @@ if (!(globalThis as any).isNextStart) {
             /Listening on/,
             {
               ...process.env,
-              PORT: appPort,
+              PORT: appPort.toString(),
             },
             undefined,
             {

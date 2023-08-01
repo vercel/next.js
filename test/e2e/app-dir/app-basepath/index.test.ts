@@ -6,7 +6,6 @@ createNextDescribe(
     files: __dirname,
     skipDeployment: true,
     dependencies: {
-      swr: '2.0.0-rc.0',
       react: 'latest',
       'react-dom': 'latest',
       sass: 'latest',
@@ -27,6 +26,13 @@ createNextDescribe(
           .waitForElementByCss('#page-2')
           .text()
       ).toBe(`Page 2`)
+    })
+
+    it('should prefix metadata og image with basePath', async () => {
+      const $ = await next.render$('/base/another')
+      const ogImageHref = $('meta[property="og:image"]').attr('content')
+
+      expect(ogImageHref).toContain('/base/another/opengraph-image.png')
     })
   }
 )

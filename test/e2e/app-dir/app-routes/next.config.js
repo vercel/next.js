@@ -1,11 +1,14 @@
 /**
  * @type {import('next').NextConfig}
  */
-module.exports = {
-  experimental: {
-    appDir: true,
-  },
+const config = {
   typescript: {
     ignoreBuildErrors: true,
   },
 }
+
+if (process.env.BASE_PATH) {
+  config.basePath = process.env.BASE_PATH
+}
+
+module.exports = config

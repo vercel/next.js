@@ -15,11 +15,14 @@ declare module 'next/dist/compiled/react-server-dom-webpack/client.edge'
 declare module 'next/dist/compiled/react-server-dom-webpack/client.browser'
 declare module 'next/dist/compiled/react-server-dom-webpack/server.browser'
 declare module 'next/dist/compiled/react-server-dom-webpack/server.edge'
+declare module 'next/dist/client/app-call-server'
 declare module 'next/dist/compiled/react-dom/server'
 declare module 'next/dist/compiled/react-dom/server.edge'
 declare module 'next/dist/compiled/react-dom/server.browser'
 declare module 'next/dist/compiled/browserslist'
+declare module 'react-server-dom-webpack/client'
 declare module 'react-dom/server.browser'
+declare module 'react-dom/server.edge'
 
 declare module 'next/dist/compiled/@next/react-dev-overlay/dist/client' {
   export * from '@next/react-dev-overlay/dist/client'
@@ -150,6 +153,10 @@ declare module 'next/dist/compiled/babel/generator' {
   export * from '@babel/generator'
 }
 declare module 'next/dist/compiled/babel/preset-env' {
+  const anyType: any
+  export default anyType
+}
+declare module 'watchpack' {
   const anyType: any
   export default anyType
 }
@@ -454,7 +461,7 @@ declare module 'next/dist/compiled/@opentelemetry/api' {
   export = m
 }
 
-declare module 'next/dist/compiled/zod' {
-  import m from 'zod'
+declare module 'next/dist/compiled/jest-docblock' {
+  import m from 'jest-docblock'
   export = m
 }

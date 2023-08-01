@@ -1,0 +1,26 @@
+---
+title: Sharp Version Does Not Support AVIF
+---
+
+## Why This Error Occurred
+
+The `next/image` component's default loader uses [`sharp`](https://www.npmjs.com/package/sharp) if its installed.
+
+You are seeing this error because you have an outdated version of [`sharp`](https://www.npmjs.com/package/sharp) installed that does not support the AVIF image format.
+
+AVIF support was added to [`sharp`](https://www.npmjs.com/package/sharp) in version 0.27.0 (December 2020) so your installed version is likely older.
+
+## Possible Ways to Fix It
+
+- Install the latest version of `sharp` by running `npm i sharp@latest` in your project directory
+- If you're using the `NEXT_SHARP_PATH` environment variable, then update the `sharp` install referenced in that path, for example `cd "$NEXT_SHARP_PATH/../" && npm i sharp@latest`
+- If you cannot upgrade `sharp`, you can instead disable AVIF by configuring [`formats`](/docs/pages/api-reference/components/image#formats) in your `next.config.js`
+
+After choosing an option above, reboot the server by running either `next dev` or `next start` for development or production respectively.
+
+> Note: This is not necessary for Vercel deployments, since `sharp` is installed automatically for you.
+
+## Useful Links
+
+- [Image Optimization Documentation](/docs/pages/building-your-application/optimizing/images)
+- [`next/image` Documentation](/docs/pages/api-reference/components/image)

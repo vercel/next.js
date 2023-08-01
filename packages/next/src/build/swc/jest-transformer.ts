@@ -29,49 +29,93 @@ DEALINGS IN THE SOFTWARE.
 import vm from 'vm'
 import { transformSync } from './index'
 import { getJestSWCOptions } from './options'
+import * as docblock from 'next/dist/compiled/jest-docblock'
+import type {
+  TransformerCreator,
+  TransformOptions,
+  SyncTransformer,
+} from '@jest/transform'
+import type { Config } from '@jest/types'
+import type { NextConfig, ExperimentalConfig } from '../../server/config-shared'
+
+type TransformerConfig = Config.TransformerConfig[1]
+export interface JestTransformerConfig extends TransformerConfig {
+  jsConfig: any
+  resolvedBaseUrl?: string
+  pagesDir?: string
+  hasServerComponents?: boolean
+  isEsmProject: boolean
+  modularizeImports?: NextConfig['modularizeImports']
+  swcPlugins: ExperimentalConfig['swcPlugins']
+  compilerOptions: NextConfig['compiler']
+}
 
 // Jest use the `vm` [Module API](https://nodejs.org/api/vm.html#vm_class_vm_module) for ESM.
 // see https://github.com/facebook/jest/issues/9430
 const isSupportEsm = 'Module' in vm
 
-function getJestConfig(jestConfig: any) {
+function getJestConfig(
+  jestConfig: TransformOptions<JestTransformerConfig>
+): Config.ProjectConfig {
   return 'config' in jestConfig
     ? // jest 27
       jestConfig.config
     : // jest 26
-      jestConfig
+      (jestConfig as unknown as Config.ProjectConfig)
 }
 
-function isEsm(isEsmProject: boolean, filename: any, jestConfig: any) {
+function isEsm(
+  isEsmProject: boolean,
+  filename: string,
+  jestConfig: Config.ProjectConfig
+): boolean {
   return (
     (/\.jsx?$/.test(filename) && isEsmProject) ||
-    jestConfig.extensionsToTreatAsEsm?.find((ext: any) =>
+    jestConfig.extensionsToTreatAsEsm?.some((ext: any) =>
       filename.endsWith(ext)
     )
   )
 }
 
-module.exports = {
-  createTransformer: (inputOptions: any) => ({
-    process(src: any, filename: any, jestOptions: any) {
-      const jestConfig = getJestConfig(jestOptions)
-
-      let swcTransformOpts = getJestSWCOptions({
-        // When target is node it's similar to the server option set in SWC.
-        isServer:
-          jestConfig.testEnvironment && jestConfig.testEnvironment === 'node',
-        filename,
-        nextConfig: inputOptions.nextConfig,
-        jsConfig: inputOptions.jsConfig,
-        resolvedBaseUrl: inputOptions.resolvedBaseUrl,
-        pagesDir: inputOptions.pagesDir,
-        hasServerComponents: inputOptions.hasServerComponents,
-        esm:
-          isSupportEsm &&
-          isEsm(Boolean(inputOptions.isEsmProject), filename, jestConfig),
-      })
-
-      return transformSync(src, { ...swcTransformOpts, filename })
-    },
-  }),
+function getTestEnvironment(
+  src: string,
+  jestConfig: Config.ProjectConfig
+): string {
+  const docblockPragmas = docblock.parse(docblock.extract(src))
+  const pragma = docblockPragmas['jest-environment']
+  const environment =
+    (Array.isArray(pragma) ? pragma[0] : pragma) ?? jestConfig.testEnvironment
+  return environment
 }
+
+const createTransformer: TransformerCreator<
+  SyncTransformer<JestTransformerConfig>,
+  JestTransformerConfig
+> = (inputOptions) => ({
+  process(src, filename, jestOptions) {
+    const jestConfig = getJestConfig(jestOptions)
+    const testEnvironment = getTestEnvironment(src, jestConfig)
+
+    const swcTransformOpts = getJestSWCOptions({
+      // When target is node it's similar to the server option set in SWC.
+      isServer:
+        testEnvironment === 'node' ||
+        testEnvironment.includes('jest-environment-node'),
+      filename,
+      jsConfig: inputOptions?.jsConfig,
+      resolvedBaseUrl: inputOptions?.resolvedBaseUrl,
+      pagesDir: inputOptions?.pagesDir,
+      hasServerComponents: inputOptions?.hasServerComponents,
+      modularizeImports: inputOptions?.modularizeImports,
+      swcPlugins: inputOptions?.swcPlugins,
+      compilerOptions: inputOptions?.compilerOptions,
+      esm:
+        isSupportEsm &&
+        isEsm(Boolean(inputOptions?.isEsmProject), filename, jestConfig),
+    })
+
+    return transformSync(src, { ...swcTransformOpts, filename })
+  },
+})
+
+module.exports = { createTransformer }
