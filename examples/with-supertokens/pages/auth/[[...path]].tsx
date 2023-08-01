@@ -7,10 +7,14 @@ import { redirectToAuth } from 'supertokens-auth-react'
 import { ThirdPartyEmailPasswordPreBuiltUI } from "supertokens-auth-react/recipe/thirdpartyemailpassword/prebuiltui";
 import { EmailVerificationPreBuiltUI } from "supertokens-auth-react/recipe/emailverification/prebuiltui";
 
+<<<<<<< HEAD
 const SuperTokensComponentNoSSR = dynamic(
   new Promise<ComponentType>((res) => res(() => getRoutingComponent([ThirdPartyEmailPasswordPreBuiltUI, EmailVerificationPreBuiltUI]))), 
   { ssr: false }
 )
+=======
+const SuperTokensComponentNoSSR = dynamic<{}>(new Promise((res) => res(() => getRoutingComponent([ThirdPartyEmailPasswordPreBuiltUI, EmailVerificationPreBuiltUI]))), { ssr: false })
+>>>>>>> b942c0a79a (fixes types issue)
 
 export default function Auth(): JSX.Element {
   useEffect(() => {
