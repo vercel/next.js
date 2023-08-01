@@ -21,12 +21,12 @@ export = defineRule({
     const text = sourceCode.text
     const allComments = sourceCode.getAllComments()
 
-    const useClientInText = text.includes('use client')
-    const useClientInComments = allComments.some((comment) =>
+    const isClientSideComponent = text.includes('use client')
+    const isUseClientCommented = allComments.some((comment) =>
       comment.value.includes('use client')
     )
 
-    if (useClientInText && !useClientInComments) {
+    if (isClientSideComponent && !isUseClientCommented) {
       return {}
     }
 
