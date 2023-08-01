@@ -34,6 +34,7 @@ pub async fn get_app_page_entry(
     loader_tree: Vc<LoaderTree>,
     app_dir: Vc<FileSystemPath>,
     pathname: String,
+    original_name: String,
     project_root: Vc<FileSystemPath>,
 ) -> Result<Vc<AppEntry>> {
     let config = parse_segment_config_from_loader_tree(loader_tree, Vc::upcast(nodejs_context));
@@ -78,7 +79,7 @@ pub async fn get_app_page_entry(
 
     let pages = pages.iter().map(|page| page.to_string()).try_join().await?;
 
-    let original_name = get_original_page_name(&pathname);
+    let original_page_name = get_original_page_name(&original_name);
 
     let template_file = "dist/esm/build/webpack/loaders/next-route-loader/templates/app-page.js";
 
@@ -97,7 +98,7 @@ pub async fn get_app_page_entry(
         )
         .replace(
             "\"VAR_ORIGINAL_PATHNAME\"",
-            &StringifyJs(&original_name).to_string(),
+            &StringifyJs(&original_page_name).to_string(),
         )
         // TODO(alexkirsz) Support custom global error.
         .replace(

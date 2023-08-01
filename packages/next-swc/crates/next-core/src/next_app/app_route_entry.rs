@@ -32,6 +32,7 @@ pub async fn get_app_route_entry(
     edge_context: Vc<ModuleAssetContext>,
     source: Vc<Box<dyn Source>>,
     pathname: String,
+    original_name: String,
     project_root: Vc<FileSystemPath>,
 ) -> Result<Vc<AppEntry>> {
     let config = parse_segment_config_from_source(
@@ -49,7 +50,7 @@ pub async fn get_app_route_entry(
 
     let mut result = RopeBuilder::default();
 
-    let original_name = get_original_route_name(&pathname);
+    let original_page_name = get_original_route_name(&original_name);
     let path = source.ident().path();
 
     let template_file = "dist/esm/build/webpack/loaders/next-route-loader/templates/app-route.js";
@@ -78,7 +79,7 @@ pub async fn get_app_route_entry(
         )
         .replace(
             "\"VAR_ORIGINAL_PATHNAME\"",
-            &StringifyJs(&original_name).to_string(),
+            &StringifyJs(&original_page_name).to_string(),
         )
         .replace(
             "\"VAR_RESOLVED_PAGE_PATH\"",
