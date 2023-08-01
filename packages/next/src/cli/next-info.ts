@@ -61,8 +61,6 @@ const validArgs: arg.Spec = {
   '-h': '--help',
   // Detailed diagnostics
   '--verbose': Boolean,
-  // Write output into file when running --verbose.
-  '--out-file': String,
 }
 
 function getPackageVersion(packageName: string) {
@@ -108,7 +106,6 @@ function printHelp() {
     Options
       --help, -h    Displays this message
       --verbose     Collect additional information for debugging
-      --out-file    Writes output into file instead of printing to stdout (--verbose only)
 
     Learn more: ${chalk.cyan('https://nextjs.org/docs/api-reference/cli#info')}`
   )
@@ -251,11 +248,9 @@ async function runSharedDependencyCheck(
 }
 
 /**
- * Collect additional diagnostics information and print it to stdout or write it into a file.
- *
- * @param outFile If specified, the output will be written into this file instead of stdout.
+ * Collect additional diagnostics information.
  */
-async function printDiagsInfo(outFile: string | undefined) {
+async function printVerbose() {
   const fs = require('fs')
   const currentPlatform = os.platform()
 
@@ -269,8 +264,6 @@ async function printDiagsInfo(outFile: string | undefined) {
     )
     return
   }
-
-  console.log(`Collecting diagnostics information..`)
 
   // List of tasks to run.
   const tasks: Array<{
@@ -577,33 +570,17 @@ async function printDiagsInfo(outFile: string | undefined) {
   }
 
   console.log(`\n${chalk.bold('Generated diagnostics report')}`)
-  if (outFile) {
-    try {
-      fs.writeFileSync(
-        outFile,
-        report
-          .map(
-            ({ title, result }) =>
-              `### ${title}\n${result.messages ?? ''}\n${result.output ?? ''}`
-          )
-          .join('\n\n')
-      )
-      console.log(`Report written to ${outFile}`)
-    } catch (e) {
-      console.log(`Failed to write report to ${outFile}`)
+
+  console.log(`\nPlease copy below report and paste it into your issue.`)
+  for (const { title, result } of report) {
+    console.log(`\n### ${title}`)
+
+    if (result.messages) {
+      console.log(result.messages)
     }
-  } else {
-    console.log(`\nPlease copy below report and paste it into your issue.`)
-    for (const { title, result } of report) {
-      console.log(`\n### ${title}`)
 
-      if (result.messages) {
-        console.log(result.messages)
-      }
-
-      if (result.output) {
-        console.log(result.output)
-      }
+    if (result.output) {
+      console.log(result.output)
     }
   }
 }
@@ -624,7 +601,7 @@ const nextInfo: CliCommand = async (argv) => {
   if (!args['--verbose']) {
     await printDefaultInfo()
   } else {
-    await printDiagsInfo(args['--out-file'])
+    await printVerbose()
   }
 }
 
