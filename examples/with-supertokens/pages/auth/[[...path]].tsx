@@ -7,9 +7,7 @@ import { redirectToAuth } from 'supertokens-auth-react'
 import { ThirdPartyEmailPasswordPreBuiltUI } from "supertokens-auth-react/recipe/thirdpartyemailpassword/prebuiltui";
 import { EmailVerificationPreBuiltUI } from "supertokens-auth-react/recipe/emailverification/prebuiltui";
 
-const SuperTokensComponentNoSSR = dynamic<
-  React.ComponentProps<typeof getRoutingComponent>
->(new Promise((res) => res(() => getRoutingComponent([ThirdPartyEmailPasswordPreBuiltUI, EmailVerificationPreBuiltUI]))) as any, { ssr: false })
+const SuperTokensComponentNoSSR = dynamic<{}>(new Promise((res) => res(() => getRoutingComponent([ThirdPartyEmailPasswordPreBuiltUI, EmailVerificationPreBuiltUI]))), { ssr: false })
 
 export default function Auth(): JSX.Element {
   useEffect(() => {
