@@ -3,9 +3,17 @@ title: Rendering
 description: Learn the differences between Next.js rendering environments, strategies, and runtimes.
 ---
 
-Rendering converts the code you write into user interfaces. This section will help you understand the differences between rendering environments, Client and Server Component rendering, static and dynamic rendering, and runtimes.
+Rendering converts the code you write into user interfaces. This section will help you understand the differences between rendering environments, strategies, runtimes, and how Client and Server components are rendered.
 
-## Background
+## Fundamentals
+
+To understand rendering in React and Next.js, it's helpful to be familiar with five foundational web concepts:
+
+- The [Environments](#environemnts) your application code can be rendered in.
+- The [Runtimes](#runtimes) that execute your application code.
+- The [Rendering Strategies](#rendering-strategies) which determine how much code is rendered in each environment, and how much of it is cached.
+- The [Request-Response Lifecycle](#request-response-lifecycle) that's initiated when a user visits or interacts with your application.
+- The [Network Boundary](#network-boundary) that separates server and client code (module graphs).
 
 There are two environments where web applications can be rendered: the client and the server.
 
