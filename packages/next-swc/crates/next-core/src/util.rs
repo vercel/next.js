@@ -331,8 +331,13 @@ fn parse_config_from_js_value(module: Vc<Box<dyn Module>>, value: &JsValue) -> N
 }
 
 #[turbo_tasks::function]
-pub async fn load_next_js(project_path: Vc<FileSystemPath>, path: String) -> Result<Vc<Rope>> {
-    let file_path = get_next_package(project_path).join(path);
+pub async fn load_next_js_template(
+    project_path: Vc<FileSystemPath>,
+    path: String,
+) -> Result<Vc<Rope>> {
+    let file_path = get_next_package(project_path)
+        .join("dist/esm".to_string())
+        .join(path);
 
     let content = &*file_path.read().await?;
 
@@ -343,7 +348,17 @@ pub async fn load_next_js(project_path: Vc<FileSystemPath>, path: String) -> Res
     Ok(file.content().to_owned().cell())
 }
 
-pub async fn load_next_json<T: DeserializeOwned>(
+#[turbo_tasks::function]
+pub fn virtual_next_js_template_path(
+    project_path: Vc<FileSystemPath>,
+    path: String,
+) -> Vc<FileSystemPath> {
+    get_next_package(project_path)
+        .join("dist/esm".to_string())
+        .join(path)
+}
+
+pub async fn load_next_js_templateon<T: DeserializeOwned>(
     project_path: Vc<FileSystemPath>,
     path: String,
 ) -> Result<T> {
