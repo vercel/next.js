@@ -41,11 +41,18 @@ const TIMINGS_API_HEADERS = {
 }
 
 const testFilters = {
-  unit: 'unit/',
-  e2e: 'e2e/',
-  production: 'production/',
-  development: 'development/',
+  development: new RegExp(
+    '^(test/(development|e2e|unit)|packages/.*/src/.*)/.*\\.test\\.(js|jsx|ts|tsx)$'
+  ),
+  production: new RegExp(
+    '^(test/(production|e2e))/.*\\.test\\.(js|jsx|ts|tsx)$'
+  ),
+  unit: new RegExp(
+    '^test/unit|packages/.*/src/.*/.*\\.test\\.(js|jsx|ts|tsx)$'
+  ),
   examples: 'examples/',
+  integration: 'test/integration/',
+  e2e: 'test/e2e/',
 }
 
 const mockTrace = () => ({
@@ -68,6 +75,14 @@ const cleanUpAndExit = async (code) => {
   setTimeout(() => {
     process.exit(code)
   }, 1)
+}
+
+const isMatchingPattern = (pattern, test) => {
+  if (pattern instanceof RegExp) {
+    return pattern.test(test)
+  } else {
+    return test.startsWith(pattern)
+  }
 }
 
 async function getTestTimings() {
@@ -119,27 +134,14 @@ async function main() {
       filterTestsBy = testFilters.unit
       break
     }
-    case 'development': {
-      filterTestsBy = testFilters.development
-      break
-    }
-    case 'production': {
-      filterTestsBy = testFilters.production
-      break
-    }
-    case 'e2e': {
-      filterTestsBy = testFilters.e2e
-      break
-    }
-    case 'examples': {
-      filterTestsBy = testFilters.examples
-      break
-    }
-    case 'all':
+    case 'all': {
       filterTestsBy = 'none'
       break
-    default:
+    }
+    default: {
+      filterTestsBy = testFilters[testType]
       break
+    }
   }
 
   console.log('Running tests with concurrency:', concurrency)
@@ -166,11 +168,13 @@ async function main() {
       }
       if (filterTestsBy) {
         // only include the specified type
-        return filterTestsBy === 'none' ? true : test.startsWith(filterTestsBy)
-      } else {
-        // include all except the separately configured types
-        return !configuredTestTypes.some((type) => test.startsWith(type))
+        if (filterTestsBy === 'none') {
+          return true
+        }
+        return isMatchingPattern(filterTestsBy, test)
       }
+      // include all except the separately configured types
+      return !configuredTestTypes.some((type) => isMatchingPattern(type, test))
     })
   }
 
@@ -265,7 +269,7 @@ async function main() {
 
   if (testNames.length === 0) {
     console.log('No tests found for', testType, 'exiting..')
-    return cleanUpAndExit(0)
+    return cleanUpAndExit(1)
   }
 
   console.log('Running tests:', '\n', ...testNames.map((name) => `${name}\n`))

@@ -64,9 +64,9 @@ export default async function Page() {
 
 > **Good to know**:
 >
-> Next.js provides helpful functions you may need when fetching data in Server Components such as [`cookies`](/docs/app/api-reference/functions/cookies) and [`headers`](/docs/app/api-reference/functions/headers). These will cause the route to be dynamically rendered as they rely on request time information.
-> In Route handlers, `fetch` requests are not memoized as Route Handlers are not part of the React component tree.
-> To use `async`/`await` in a Server Component with TypeScript, you'll need to use TypeScript `5.1.3` or higher and `@types/react` `18.2.8` or higher.
+> - Next.js provides helpful functions you may need when fetching data in Server Components such as [`cookies`](/docs/app/api-reference/functions/cookies) and [`headers`](/docs/app/api-reference/functions/headers). These will cause the route to be dynamically rendered as they rely on request time information.
+> - In Route handlers, `fetch` requests are not memoized as Route Handlers are not part of the React component tree.
+> - To use `async`/`await` in a Server Component with TypeScript, you'll need to use TypeScript `5.1.3` or higher and `@types/react` `18.2.8` or higher.
 
 ### Caching Data
 
@@ -85,7 +85,7 @@ fetch('https://...', { cache: 'force-cache' })
 >
 > The Data Cache is a persistent [HTTP cache](https://developer.mozilla.org/en-US/docs/Web/HTTP/Caching). Depending on your platform, the cache can scale automatically and be [shared across multiple regions](https://vercel.com/docs/infrastructure/data-cache).
 >
-> > Learn more about the [Data Cache](/docs/app/building-your-application/caching#data-cache).
+> Learn more about the [Data Cache](/docs/app/building-your-application/caching#data-cache).
 
 ### Revalidating Data
 
@@ -143,7 +143,7 @@ export default async function Page() {
 
 If using a Route Handler, you should create a secret token only known by your Next.js app. This secret will be used to prevent unauthorized revalidation attempts. For example, you can access the route (either manually or with a webhook) with the following URL structure:
 
-```
+```bash filename="URL"
 https://<your-site.com>/api/revalidate?tag=collection&secret=<token>
 ```
 
@@ -231,7 +231,7 @@ If an error is thrown while attempting to revalidate data, the last successfully
 
 To opt out of caching for individual `fetch` requests, you can set the `cache` option in `fetch` to `'no-store'`. This will fetch data dynamically, on every request.
 
-```js
+```js filename="layout.js / page.js"
 fetch('https://...', { cache: 'no-store' })
 ```
 

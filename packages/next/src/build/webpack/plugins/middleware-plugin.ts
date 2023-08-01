@@ -465,7 +465,7 @@ function getCodeAnalyzer(params: {
           buildInfo.importLocByPath = new Map()
         }
 
-        const importedModule = node.source.value?.toString()!
+        const importedModule = node.source.value?.toString()
         buildInfo.importLocByPath.set(importedModule, {
           sourcePosition: {
             ...node.loc.start,

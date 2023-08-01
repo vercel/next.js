@@ -43,27 +43,61 @@
     },
     { "files": ["**/__tests__/**"], "env": { "jest": true } },
     {
+      "extends": [
+        "plugin:@typescript-eslint/recommended",
+        "plugin:@typescript-eslint/stylistic"
+      ],
       "files": ["**/*.ts", "**/*.tsx"],
       "parser": "@typescript-eslint/parser",
       "parserOptions": {
-        "ecmaVersion": 2018,
         "sourceType": "module",
-        "ecmaFeatures": {
-          "jsx": true
-        },
         "warnOnUnsupportedTypeScriptVersion": false
       },
       "plugins": ["@typescript-eslint"],
       "rules": {
-        // Already handled by TS
-        "no-dupe-class-members": "off",
-        "no-undef": "off",
-
-        // Add TypeScript specific rules (and turn off ESLint equivalents)
-        "@typescript-eslint/consistent-type-assertions": "warn",
-        "no-array-constructor": "off",
-        "@typescript-eslint/no-array-constructor": "warn",
+        // Todo: investigate, for each of these rules, whether we want them.
+        "@typescript-eslint/array-type": "off",
+        "@typescript-eslint/ban-ts-comment": "off",
+        "@typescript-eslint/ban-tslint-comment": "off",
+        "@typescript-eslint/ban-types": "off",
+        "@typescript-eslint/class-literal-property-style": "off",
+        "@typescript-eslint/consistent-generic-constructors": "off",
+        "@typescript-eslint/consistent-indexed-object-style": "off",
+        "@typescript-eslint/consistent-type-definitions": "off",
+        "@typescript-eslint/no-empty-function": "off",
         "@typescript-eslint/no-namespace": "off",
+        "@typescript-eslint/no-shadow": "off",
+        "@typescript-eslint/no-empty-interface": "off",
+        "@typescript-eslint/no-explicit-any": "off",
+        "@typescript-eslint/no-inferrable-types": "off",
+        "@typescript-eslint/no-var-requires": "off",
+        "@typescript-eslint/prefer-for-of": "off",
+        "@typescript-eslint/prefer-function-type": "off",
+        "@typescript-eslint/no-this-alias": "off",
+        "@typescript-eslint/triple-slash-reference": "off",
+        "no-var": "off",
+        "prefer-const": "off",
+        "prefer-rest-params": "off",
+        "prefer-spread": "off",
+
+        // These off- or differently-configured rules work well for us.
+        "no-unused-expressions": "off",
+        "@typescript-eslint/no-unused-expressions": [
+          "error",
+          {
+            "allowShortCircuit": true,
+            "allowTernary": true,
+            "allowTaggedTemplates": true
+          }
+        ],
+        "no-unused-vars": "off",
+        "@typescript-eslint/no-unused-vars": [
+          "warn",
+          {
+            "args": "none",
+            "ignoreRestSiblings": true
+          }
+        ],
         "no-use-before-define": "off",
         "@typescript-eslint/no-use-before-define": [
           "warn",
@@ -75,27 +109,9 @@
             "typedefs": true
           }
         ],
-        "no-unused-vars": "off",
-        "@typescript-eslint/no-unused-vars": [
-          "warn",
-          {
-            "args": "none",
-            "ignoreRestSiblings": true
-          }
-        ],
-        "no-unused-expressions": "off",
-        "@typescript-eslint/no-unused-expressions": [
-          "error",
-          {
-            "allowShortCircuit": true,
-            "allowTernary": true,
-            "allowTaggedTemplates": true
-          }
-        ],
         "no-useless-constructor": "off",
         "@typescript-eslint/no-useless-constructor": "warn",
-        "@typescript-eslint/prefer-literal-enum-member": "error",
-        "@typescript-eslint/prefer-namespace-keyword": "error"
+        "@typescript-eslint/prefer-literal-enum-member": "error"
       },
       "overrides": [
         {

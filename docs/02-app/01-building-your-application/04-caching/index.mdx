@@ -104,18 +104,16 @@ Since the memoization is not shared across server requests and only applies duri
 
 To opt out of memoization in `fetch` requests, you can pass an `AbortController` `signal` to the request.
 
-```js
+```js filename="app/example.js"
 const { signal } = new AbortController()
 fetch(url, { signal })
 ```
 
 ## Data Cache
 
-Next.js has a built-in Data Cache that **persists** the result of data fetches across incoming **server requests** and **deployments**. This is possible because Next.js extends the native `fetch` API to allow each request on the server to set its own persistent caching semantics.
+Next.js has a built-in Data Cache that **persists** the result of data fetches across incoming **server requests** and **deployments**. This is possible because Next.js extends the native `fetch` API to allow each request on the server to set its own persistent caching semantics. n the browser, the `cache` option of `fetch` indicates how a request will interact with the browser's HTTP cache, with Next.js, the `cache` option indicates how a server-side request will interact with the servers Data Cache.
 
 By default, data requests that use `fetch` are **cached**. You can use the [`cache`](#fetch-optionscache) and [`next.revalidate`](#fetch-optionsnextrevalidate) options of `fetch` to configure the caching behavior.
-
-> **Good to know**: In the browser, the `cache` option of `fetch` indicates how a request will interact with the browser's HTTP cache, with Next.js, the `cache` option indicates how a server-side request will interact with the servers Data Cache.
 
 <Image
   alt="Diagram showing how cached and uncached fetch requests interact with the Data Cache. Cached requests are stored in the Data Cache, and memoized, uncached requests are fetched from the data source, not stored in the Data Cache, and memoized."
@@ -164,7 +162,7 @@ Alternatively, you can use [Route Segment Config options](#segment-config-option
 <Image
   alt="Diagram showing how time-based revalidation works, after the revalidation period, stale data is returned for the first request, then data is revalidated."
   srcLight="/docs/light/time-based-revalidation.png"
-  srcDark="/docs/dark/time-based-revalidatioin.png"
+  srcDark="/docs/dark/time-based-revalidation.png"
   width="1600"
   height="1192"
 />
@@ -216,11 +214,11 @@ export const dynamic = 'force-dynamic'
 
 ## Full Route Cache
 
-Next.js automatically renders and caches routes at build time. This is an optimization that allows you to serve the cached route instead of rendering on the server for every request, resulting in faster page loads.
-
 > **Related terms**:
 >
-> - You may see the terms **Automatic Static Optimization**, **Static Site Generation**, or **Static Rendering** being used interchangeably to refer to the process of rendering and caching routes of your application at build time.
+> You may see the terms **Automatic Static Optimization**, **Static Site Generation**, or **Static Rendering** being used interchangeably to refer to the process of rendering and caching routes of your application at build time.
+
+Next.js automatically renders and caches routes at build time. This is an optimization that allows you to serve the cached route instead of rendering on the server for every request, resulting in faster page loads.
 
 To understand how the Full Route Cache works, it's helpful to look at how React handles rendering, and how Next.js caches the result:
 
@@ -312,6 +310,11 @@ You can opt out of the Full Route Cache, or in other words, dynamically render c
 
 ## Router Cache
 
+> **Related Terms:**
+>
+> You may see the Router Cache being referred to as **Client-side Cache** or **Prefetch Cache**. While **Prefetch Cache** refers to the prefetched route segments, **Client-side Cache** refers to the whole Router cache, which includes both visited and prefetched segments.
+> This cache specifically applies to Next.js and Server Components, and is different to the browser's [bfcache](https://web.dev/bfcache/), though it has a similar result.
+
 Next.js has an in-memory client-side cache that stores the React Server Component Payload, split by individual route segments, for the duration of a user session. This is called the Router Cache.
 
 <Image
@@ -332,13 +335,8 @@ This results in an improved navigation experience for the user:
 > **Difference between the Router Cache and Full Route Cache**:
 >
 > The Router Cache temporarily stores the React Server Component Payload in the browser for the duration of a user session, whereas the Full Route Cache persistently stores the React Server Component Payload and HTML on the server across multiple user requests.
-
-> While the Full Route Cache only caches statically rendered routes, the Router Cache applies to both statically and dynamically rendered routes.
-
-> **Related Terms:**
 >
-> You may see the Router Cache being referred to as **Client-side Cache** or **Prefetch Cache**. While **Prefetch Cache** refers to the prefetched route segments, **Client-side Cache** refers to the whole Router cache, which includes both visited and prefetched segments.
-> This cache specifically applies to Next.js and Server Components, and is different to the browser's [bfcache](https://web.dev/bfcache/), though it has a similar result.
+> While the Full Route Cache only caches statically rendered routes, the Router Cache applies to both statically and dynamically rendered routes.
 
 ### Duration
 
@@ -386,24 +384,24 @@ When configuring the different caching mechanisms, it's important to understand 
 
 The following table provides an overview of how different Next.js APIs affect caching:
 
-| API                                                                  | Router Cache | Full Route Cache      | Data Cache            | React Cache |
-| -------------------------------------------------------------------- | ------------ | --------------------- | --------------------- | ----------- |
-| [`<Link prefetch>`](#link)                                           | Cache        |                       |                       |             |
-| [`router.prefetch`](#routerprefetch)                                 | Cache        |                       |                       |             |
-| [`router.refresh`](#routerrefresh)                                   | Revalidate   |                       |                       |             |
-| [`fetch`](#fetch)                                                    |              |                       | Cache                 | Cache       |
-| [`fetch.options.cache`](#fetch-optionscache)                         |              |                       | Cache or Opt out      |             |
-| [`fetch.options.next.revalidate`](#fetch-optionsnextrevalidate)      |              | Revalidate            | Revalidate            |             |
-| [`fetch.options.next.tags`](#fetch-optionsnexttag-and-revalidatetag) |              | Cache                 | Cache                 |             |
-| [`revalidateTag`](#fetch-optionsnexttag-and-revalidatetag)           |              | Revalidate            | Revalidate            |             |
-| [`revalidatePath`](#revalidatepath)                                  |              | Revalidate            | Revalidate            |             |
-| [`const revalidate`](#segment-config-options)                        |              | Revalidate or Opt out | Revalidate or Opt out |             |
-| [`const dynamic`](#segment-config-options)                           |              | Cache or Opt out      | Cache or Opt out      |             |
-| [`cookies`](#cookies)                                                | Revalidate   | Opt out               |                       |             |
-| [`headers`, `useSearchParams`, `searchParams`](#dynamic-functions)   |              | Opt out               |                       |             |
-| [`generateStaticParams`](#generatestaticparams)                      |              | Cache                 |                       |             |
-| [`React.cache`](#react-cache-function)                               |              |                       |                       | Cache       |
-| [`unstable_cache`](#unstable_cache) (Coming Soon)                    |              |                       |                       |             |
+| API                                                                    | Router Cache | Full Route Cache      | Data Cache            | React Cache |
+| ---------------------------------------------------------------------- | ------------ | --------------------- | --------------------- | ----------- |
+| [`<Link prefetch>`](#link)                                             | Cache        |                       |                       |             |
+| [`router.prefetch`](#routerprefetch)                                   | Cache        |                       |                       |             |
+| [`router.refresh`](#routerrefresh)                                     | Revalidate   |                       |                       |             |
+| [`fetch`](#fetch)                                                      |              |                       | Cache                 | Cache       |
+| [`fetch` `options.cache`](#fetch-optionscache)                         |              |                       | Cache or Opt out      |             |
+| [`fetch` `options.next.revalidate`](#fetch-optionsnextrevalidate)      |              | Revalidate            | Revalidate            |             |
+| [`fetch` `options.next.tags`](#fetch-optionsnexttag-and-revalidatetag) |              | Cache                 | Cache                 |             |
+| [`revalidateTag`](#fetch-optionsnexttag-and-revalidatetag)             |              | Revalidate            | Revalidate            |             |
+| [`revalidatePath`](#revalidatepath)                                    |              | Revalidate            | Revalidate            |             |
+| [`const revalidate`](#segment-config-options)                          |              | Revalidate or Opt out | Revalidate or Opt out |             |
+| [`const dynamic`](#segment-config-options)                             |              | Cache or Opt out      | Cache or Opt out      |             |
+| [`cookies`](#cookies)                                                  | Revalidate   | Opt out               |                       |             |
+| [`headers`, `useSearchParams`, `searchParams`](#dynamic-functions)     |              | Opt out               |                       |             |
+| [`generateStaticParams`](#generatestaticparams)                        |              | Cache                 |                       |             |
+| [`React.cache`](#react-cache-function)                                 |              |                       |                       | Cache       |
+| [`unstable_cache`](#unstable_cache) (Coming Soon)                      |              |                       |                       |             |
 
 ### `<Link>`
 
@@ -503,7 +501,7 @@ There are two places you can use `revalidatePath`, depending on what you're tryi
 
 See the [`revalidatePath` API reference](/docs/app/api-reference/functions/revalidatePath) for more information.
 
-> ** `revalidatePath` vs. `router.refresh`**:
+> **`revalidatePath`** vs. **`router.refresh`**:
 >
 > Calling `router.refresh` will clear the Router cache, and re-render route segments on the server without invalidating the Data Cache or the Full Route Cache.
 >
