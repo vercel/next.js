@@ -86,7 +86,7 @@ export type ImageLoader = (p: ImageLoaderProps) => string
 // built-in loaders, not for a custom loader() prop.
 type ImageLoaderWithConfig = (p: ImageLoaderPropsWithConfig) => string
 
-export type PlaceholderValue = 'blur' | 'empty'
+export type PlaceholderValue = 'blur' | 'empty' | `data:image/${string}`
 export type OnLoad = React.ReactEventHandler<HTMLImageElement> | undefined
 export type OnLoadingComplete = (img: HTMLImageElement) => void
 
@@ -112,7 +112,7 @@ function isStaticImport(src: string | StaticImport): src is StaticImport {
 
 const allImgs = new Map<
   string,
-  { src: string; priority: boolean; placeholder: string }
+  { src: string; priority: boolean; placeholder: PlaceholderValue }
 >()
 let perfObserver: PerformanceObserver | undefined
 
@@ -544,7 +544,7 @@ export function getImgProps(
           if (
             lcpImage &&
             !lcpImage.priority &&
-            lcpImage.placeholder !== 'blur' &&
+            lcpImage.placeholder === 'empty' &&
             !lcpImage.src.startsWith('data:') &&
             !lcpImage.src.startsWith('blob:')
           ) {
@@ -585,31 +585,41 @@ export function getImgProps(
     style
   )
 
-  const blurStyle =
-    placeholder === 'blur' && blurDataURL && !blurComplete
-      ? {
-          backgroundSize: imgStyle.objectFit || 'cover',
-          backgroundPosition: imgStyle.objectPosition || '50% 50%',
-          backgroundRepeat: 'no-repeat',
-          backgroundImage: `url("data:image/svg+xml;charset=utf-8,${getImageBlurSvg(
-            {
-              widthInt,
-              heightInt,
-              blurWidth,
-              blurHeight,
-              blurDataURL,
-              objectFit: imgStyle.objectFit,
-            }
-          )}")`,
-        }
-      : {}
+  const backgroundImage =
+    !blurComplete && placeholder !== 'empty'
+      ? placeholder === 'blur' && blurDataURL
+        ? `url("data:image/svg+xml;charset=utf-8,${getImageBlurSvg({
+            widthInt,
+            heightInt,
+            blurWidth,
+            blurHeight,
+            blurDataURL,
+            objectFit: imgStyle.objectFit,
+          })}")`
+        : placeholder === 'blur'
+        ? null
+        : `url("${placeholder}")`
+      : null
+
+  let placeholderStyle = backgroundImage
+    ? {
+        backgroundSize: imgStyle.objectFit || 'cover',
+        backgroundPosition: imgStyle.objectPosition || '50% 50%',
+        backgroundRepeat: 'no-repeat',
+        backgroundImage,
+      }
+    : {}
 
   if (process.env.NODE_ENV === 'development') {
-    if (blurStyle.backgroundImage && blurDataURL?.startsWith('/')) {
+    if (
+      placeholderStyle.backgroundImage &&
+      placeholder === 'blur' &&
+      blurDataURL?.startsWith('/')
+    ) {
       // During `next dev`, we don't want to generate blur placeholders with webpack
       // because it can delay starting the dev server. Instead, `next-image-loader.js`
       // will inline a special url to lazily generate the blur placeholder at request time.
-      blurStyle.backgroundImage = `url("${blurDataURL}")`
+      placeholderStyle.backgroundImage = `url("${blurDataURL}")`
     }
   }
 
@@ -643,7 +653,7 @@ export function getImgProps(
     height: heightInt,
     decoding: 'async',
     className,
-    style: { ...imgStyle, ...blurStyle },
+    style: { ...imgStyle, ...placeholderStyle },
     sizes: imgAttributes.sizes,
     srcSet: imgAttributes.srcSet,
     src: imgAttributes.src,
