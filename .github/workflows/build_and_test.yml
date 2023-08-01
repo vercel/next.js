@@ -8,10 +8,10 @@ on:
 
 env:
   NAPI_CLI_VERSION: 2.14.7
-  TURBO_VERSION: 1.9.6
+  TURBO_VERSION: 1.10.9
   PNPM_VERSION: 7.24.3
   NODE_MAINTENANCE_VERSION: 16
-  NODE_LTS_VERSION: 18
+  NODE_LTS_VERSION: 18.16.1
   TEST_CONCURRENCY: 6
   # disable backtrace for test snapshots
   RUST_BACKTRACE: 0
@@ -51,6 +51,18 @@ jobs:
     with:
       afterBuild: pnpm lint-no-typescript && pnpm check-examples
     secrets: inherit
+
+  validate-docs-links:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18
+      - name: 'Run link checker'
+        run: node ./.github/actions/validate-docs-links/lib
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   check-types-precompiled:
     name: types and precompiled
@@ -119,7 +131,22 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       skipForDocsOnly: 'yes'
-      afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/packages/next-swc/crates/next-dev-tests/tests-manifest.js" TURBOPACK=1 __INTERNAL_CUSTOM_TURBOPACK_BINDINGS="$(pwd)/packages/next-swc/native/next-swc.linux-x64-gnu.node" NEXT_E2E_TEST_TIMEOUT=240000 NEXT_TEST_MODE=dev node run-tests.js --type development --timings -c ${TEST_CONCURRENCY}
+      afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/packages/next-swc/crates/next-dev-tests/tests-manifest.js" TURBOPACK=1 __INTERNAL_CUSTOM_TURBOPACK_BINDINGS="$(pwd)/packages/next-swc/native/next-swc.linux-x64-gnu.node" NEXT_E2E_TEST_TIMEOUT=240000 NEXT_TEST_MODE=dev node run-tests.js --test-pattern '^(test\/development)/.*\.test\.(js|jsx|ts|tsx)$' --timings -c ${TEST_CONCURRENCY}
+    secrets: inherit
+
+  test-turbopack-integration:
+    name: test turbopack integration
+    needs: ['build-native', 'build-next']
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1, 2, 3, 4, 5]
+
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      nodeVersion: 16
+      skipForDocsOnly: 'yes'
+      afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/packages/next-swc/crates/next-dev-tests/tests-manifest.js" TURBOPACK=1 __INTERNAL_CUSTOM_TURBOPACK_BINDINGS="$(pwd)/packages/next-swc/native/next-swc.linux-x64-gnu.node" node run-tests.js --timings -g ${{ matrix.group }}/5 -c ${TEST_CONCURRENCY} --type integration
     secrets: inherit
 
   test-next-swc-wasm:
@@ -142,7 +169,8 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       skipForDocsOnly: 'yes'
-      afterBuild: NEXT_TEST_MODE=dev node run-tests.js --timings -g ${{ matrix.group }}/3 -c ${TEST_CONCURRENCY} --test-pattern '^(development|e2e|unit)/.*\.test\.(js|jsx|ts|tsx)$'
+      afterBuild: NEXT_TEST_MODE=dev node run-tests.js --timings -g ${{ matrix.group }}/3 -c ${TEST_CONCURRENCY} --type development
+
     secrets: inherit
 
   test-prod:
@@ -151,12 +179,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [1, 2, 3]
+        group: [1, 2, 3, 4, 5]
 
     uses: ./.github/workflows/build_reusable.yml
     with:
       skipForDocsOnly: 'yes'
-      afterBuild: NEXT_TEST_MODE=start node run-tests.js --timings -g ${{ matrix.group }}/3 -c ${TEST_CONCURRENCY} --test-pattern '^(production|e2e)/.*\.test\.(js|jsx|ts|tsx)$'
+      afterBuild: NEXT_TEST_MODE=start node run-tests.js --timings -g ${{ matrix.group }}/5 -c ${TEST_CONCURRENCY} --type production
     secrets: inherit
 
   test-integration:
@@ -165,13 +193,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [1, 2, 3, 4, 5, 6]
+        group: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
 
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: 16
       skipForDocsOnly: 'yes'
-      afterBuild: node run-tests.js --timings -g ${{ matrix.group }}/6 -c ${TEST_CONCURRENCY} --test-pattern '^(integration)/.*\.test\.(js|jsx|ts|tsx)$'
+      afterBuild: node run-tests.js --timings -g ${{ matrix.group }}/12 -c ${TEST_CONCURRENCY} --type integration
     secrets: inherit
 
   test-firefox-safari:
@@ -185,7 +213,14 @@ jobs:
     secrets: inherit
 
   report-test-results:
-    needs: ['test-dev', 'test-prod', 'test-integration', 'test-turbopack-dev']
+    needs:
+      [
+        'test-dev',
+        'test-prod',
+        'test-integration',
+        'test-turbopack-dev',
+        'test-turbopack-integration',
+      ]
     uses: ./.github/workflows/build_reusable.yml
     with:
       skipForDocsOnly: 'yes'
@@ -198,6 +233,7 @@ jobs:
         'build-native',
         'build-next',
         'lint',
+        'validate-docs-links',
         'check-types-precompiled',
         'test-dev',
         'test-prod',
@@ -208,11 +244,12 @@ jobs:
         'rust-check',
         'test-next-swc-wasm',
         'test-turbopack-dev',
+        'test-turbopack-integration',
       ]
 
     if: always()
-    runs-on: [self-hosted, linux, x64]
+    runs-on: ubuntu-latest
     name: thank you, next
     steps:
       - run: exit 1
-        if: ${{ always() && contains(needs.*.result, 'failure') }}
+        if: ${{ always() && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'skipped') || contains(needs.*.result, 'cancelled')) }}

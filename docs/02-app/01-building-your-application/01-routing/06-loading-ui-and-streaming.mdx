@@ -3,7 +3,7 @@ title: Loading UI and Streaming
 description: Built on top of Suspense, Loading UI allows you to create a fallback for specific route segments, and automatically stream content as it becomes ready.
 ---
 
-The special file `loading.js` helps you create meaningful Loading UI with [React Suspense](https://react.dev/reference/react/Suspense). With this convention, you can show an [instant loading state](#instant-loading-states) from the server while the content of a route segment loads, the new content is automatically swapped in once rendering is complete.
+The special file `loading.js` helps you create meaningful Loading UI with [React Suspense](https://react.dev/reference/react/Suspense). With this convention, you can show an [instant loading state](#instant-loading-states) from the server while the content of a route segment loads. The new content is automatically swapped in once rendering is complete.
 
 <Image
   alt="Loading UI"
@@ -53,7 +53,7 @@ In the same folder, `loading.js` will be nested inside `layout.js`. It will auto
 
 > **Good to know**:
 >
-> - Navigation is immediate, even with [server-centric routing](/docs/app/building-your-application/routing#server-centric-routing-with-client-side-navigation).
+> - Navigation is immediate, even with [server-centric routing](/docs/app/building-your-application/routing/linking-and-navigating#how-routing-and-navigation-works).
 > - Navigation is interruptible, meaning changing routes does not need to wait for the content of the route to fully load before navigating to another route.
 > - Shared layouts remain interactive while new route segments load.
 

@@ -17,7 +17,7 @@ Server and Client Components allow developers to build applications that span th
 
 ### Thinking in Server Components
 
-Similar to how React changed the way we think about building UIs, React Server Components introduce a new mental model for building hybrid applications that leverage the [server and the client](/docs/app/building-your-application/rendering#rendering-environments).
+Similar to how React changed the way we think about building UIs, React Server Components introduce a new mental model for building hybrid applications that leverage the server and the client.
 
 Instead of React rendering your whole application client-side (such as in the case of Single-Page Applications), React now gives you the flexibility to choose where to render your components based on their purpose.
 
@@ -47,7 +47,7 @@ To make the transition to Server Components easier, all components inside the [A
 
 ## Client Components
 
-Client Components enable you to add client-side interactivity to your application. In Next.js, they are [pre-rendered](/docs/app/building-your-application/rendering#component-level-client-and-server-rendering) on the server and [hydrated](/docs/app/building-your-application/rendering#component-level-client-and-server-rendering) on the client. You can think of Client Components as how components in the [Pages Router](/docs/pages) have always worked.
+Client Components enable you to add client-side interactivity to your application. In Next.js, they are [pre-rendered](/docs/app/building-your-application/rendering) on the server and hydrated on the client. You can think of Client Components as how components in the [Pages Router](/docs/pages) have always worked.
 
 ### The "use client" directive
 
@@ -186,7 +186,7 @@ Behind the scenes, React handles rendering as follows:
 - On the client, React renders Client Components and _slots in_ the rendered result of Server Components, merging the work done on the server and client.
   - If any Server Components are nested inside a Client Component, their rendered content will be placed correctly within the Client Component.
 
-> **Good to know**: In Next.js, during the initial page load, both the rendered result of Server Components from the above step and Client Components are [pre-rendered on the server as HTML](/docs/app/building-your-application/rendering#static-and-dynamic-rendering-on-the-server) to produce a faster initial page load.
+> **Good to know**: In Next.js, during the initial page load, both the rendered result of Server Components from the above step and Client Components are [pre-rendered on the server as HTML](/docs/app/building-your-application/rendering) to produce a faster initial page load.
 
 ### Nesting Server Components inside Client Components
 
@@ -242,11 +242,11 @@ export default function ExampleClientComponent({ children }) {
 
 #### Recommended Pattern: Passing Server Components to Client Components as Props
 
-Instead, when designing Client Components you can use React props to mark _"holes"_ for Server Components.
+Instead, when designing Client Components you can use React props to mark _"slots"_ for Server Components.
 
-The Server Component will be rendered on the server, and when the Client Component is rendered on the client, the _"hole"_ will be filled in with the rendered result of the Server Component.
+The Server Component will be rendered on the server, and when the Client Component is rendered on the client, the _"slot"_ will be filled in with the rendered result of the Server Component.
 
-A common pattern is to use the React `children` prop to create the _"hole"_. We can refactor `<ExampleClientComponent>` to accept a generic `children` prop and move the import and explicit nesting of `<ExampleClientComponent>` up to a parent component.
+A common pattern is to use the React `children` prop to create the _"slot"_. We can refactor `<ExampleClientComponent>` to accept a generic `children` prop and move the import and explicit nesting of `<ExampleClientComponent>` up to a parent component.
 
 ```tsx filename="app/example-client-component.tsx" switcher highlight={6,16}
 'use client'
@@ -288,9 +288,9 @@ export default function ExampleClientComponent({ children }) {
 }
 ```
 
-Now, `<ExampleClientComponent>` has no knowledge of what `children` is. Infact, from its perspective it doesn't even know that `children` will eventually be filled in by the result of a Server Component.
+Now, `<ExampleClientComponent>` has no knowledge of what `children` is. It doesn't know that `children` will eventually be filled in by the result of a Server Component.
 
-The only responsibility `ExampleClientComponent` has is to decide where whatever `children` will eventually be should be placed.
+The only responsibility `ExampleClientComponent` has is to decide where whatever `children` will eventually be placed.
 
 In a parent Server Component, you can import both the `<ExampleClientComponent>` and `<ExampleServerComponent>` and pass `<ExampleServerComponent>` as a child of `<ExampleClientComponent>`:
 
@@ -345,7 +345,7 @@ Props passed from the Server to Client Components need to be [serializable](http
 
 > **Where is the Network Boundary?**
 >
-> In the App Router, the network boundary is between Server Components and Client Components. This is different from the Pages where the boundary is between `getStaticProps`/`getServerSideProps` and Page Components. Data fetched inside Server Components do not need to be serialized as it doesn't cross the network boundary unless it is passed to a Client Component. Learn more about [data fetching](/docs/app/building-your-application/data-fetching#fetching-data-on-the-server) with Server Components.
+> In the App Router, the network boundary is between Server Components and Client Components. This is different from the Pages where the boundary is between `getStaticProps`/`getServerSideProps` and Page Components. Data fetched inside Server Components do not need to be serialized as it doesn't cross the network boundary unless it is passed to a Client Component. Learn more about [data fetching](/docs/app/building-your-application/data-fetching/patterns#fetching-data-on-the-server) with Server Components.
 
 ### Keeping Server-Only Code out of Client Components (Poisoning)
 
@@ -425,7 +425,7 @@ Since Server Components are new, third-party packages in the ecosystem are just 
 
 Today, many components from `npm` packages that use client-only features do not yet have the directive. These third-party components will work as expected within your own [Client Components](#the-use-client-directive) since they have the `"use client"` directive, but they won't work within Server Components.
 
-For example, let's say you've installed the hypothetical `acme-carousel` package which has an `<Carousel />` component. This component uses `useState`, but it doesn't yet have the `"use client"` directive.
+For example, let's say you've installed the hypothetical `acme-carousel` package which has a `<Carousel />` component. This component uses `useState`, but it doesn't yet have the `"use client"` directive.
 
 If you use `<Carousel />` within a Client Component, it will work as expected:
 
@@ -860,4 +860,4 @@ In the above example, both the layout and page need to make database queries. Ea
 
 When fetching data, you may want to share the result of a `fetch` between a `page` or `layout` and some of its children components. This is an unnecessary coupling between the components and can lead to passing `props` back and forth between components.
 
-Instead, we recommend colocating data fetching alongside the component that consumes the data. [`fetch` requests are automatically deduped](/docs/app/building-your-application/data-fetching#automatic-fetch-request-deduping) in Server Components, so each route segment can request exactly the data it needs without worrying about duplicate requests. Next.js will read the same value from the `fetch` cache.
+Instead, we recommend colocating data fetching alongside the component that consumes the data. [`fetch` requests are automatically memoized](/docs/app/building-your-application/caching#request-memoization) in Server Components, so each route segment can request exactly the data it needs without worrying about duplicate requests. Next.js will read the same value from the `fetch` cache.

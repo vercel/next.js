@@ -3,6 +3,8 @@ title: <Link>
 description: Enable fast client-side navigation with the built-in `next/link` component.
 ---
 
+{/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
+
 <details>
   <summary>Examples</summary>
 
@@ -11,7 +13,7 @@ description: Enable fast client-side navigation with the built-in `next/link` co
 
 </details>
 
-`<Link>` is a React component that extends the HTML `<a>` element to provide [prefetching](/docs/app/building-your-application/routing/linking-and-navigating#prefetching) and client-side navigation between routes. It is the primary way to navigate between routes in Next.js.
+`<Link>` is a React component that extends the HTML `<a>` element to provide [prefetching](/docs/app/building-your-application/routing/linking-and-navigating#1-prefetching) and client-side navigation between routes. It is the primary way to navigate between routes in Next.js.
 
 <AppOnly>
 
@@ -243,7 +245,17 @@ function Page({ posts }) {
 
 ### If the child is a custom component that wraps an `<a>` tag
 
+<AppOnly>
+
+If the child of `Link` is a custom component that wraps an `<a>` tag, you must add `passHref` to `Link`. This is necessary if you’re using libraries like [styled-components](https://styled-components.com/). Without this, the `<a>` tag will not have the `href` attribute, which hurts your site's accessibility and might affect SEO. If you're using [ESLint](/docs/app/building-your-application/configuring/eslint#eslint-plugin), there is a built-in rule `next/link-passhref` to ensure correct usage of `passHref`.
+
+</AppOnly>
+
+<PagesOnly>
+
 If the child of `Link` is a custom component that wraps an `<a>` tag, you must add `passHref` to `Link`. This is necessary if you’re using libraries like [styled-components](https://styled-components.com/). Without this, the `<a>` tag will not have the `href` attribute, which hurts your site's accessibility and might affect SEO. If you're using [ESLint](/docs/pages/building-your-application/configuring/eslint#eslint-plugin), there is a built-in rule `next/link-passhref` to ensure correct usage of `passHref`.
+
+</PagesOnly>
 
 ```jsx
 import Link from 'next/link'

@@ -1,31 +1,35 @@
 use anyhow::{bail, Result};
+use turbo_tasks::Vc;
 use turbopack_binding::turbopack::{
     core::{
-        issue::{IssueSeverity, OptionIssueSourceVc},
-        resolve::{origin::ResolveOriginVc, parse::RequestVc},
+        issue::{IssueSeverity, OptionIssueSource},
+        resolve::{origin::ResolveOrigin, parse::Request},
     },
-    turbopack::ecmascript::{chunk::EcmascriptChunkPlaceableVc, resolve::cjs_resolve},
+    turbopack::ecmascript::{chunk::EcmascriptChunkPlaceable, resolve::cjs_resolve},
 };
 
-/// Resolves the turbopack runtime module from the given [AssetContextVc].
+/// Resolves the turbopack runtime module from the given [Vc<Box<dyn
+/// AssetContext>>].
 #[turbo_tasks::function]
 pub async fn resolve_runtime_request(
-    origin: ResolveOriginVc,
-    path: &str,
-) -> Result<EcmascriptChunkPlaceableVc> {
+    origin: Vc<Box<dyn ResolveOrigin>>,
+    path: String,
+) -> Result<Vc<Box<dyn EcmascriptChunkPlaceable>>> {
     let runtime_request_path = format!("@vercel/turbopack-next/{}", path);
-    let request = RequestVc::parse_string(runtime_request_path.clone());
+    let request = Request::parse_string(runtime_request_path.clone());
 
     if let Some(asset) = *cjs_resolve(
         origin,
         request,
-        OptionIssueSourceVc::none(),
+        OptionIssueSource::none(),
         IssueSeverity::Error.cell(),
     )
-    .first_asset()
+    .first_module()
     .await?
     {
-        if let Some(placeable) = EcmascriptChunkPlaceableVc::resolve_from(asset).await? {
+        if let Some(placeable) =
+            Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(asset).await?
+        {
             Ok(placeable)
         } else {
             bail!("turbopack runtime asset is not placeable")
