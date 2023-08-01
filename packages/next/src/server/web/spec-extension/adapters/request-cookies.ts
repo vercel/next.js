@@ -97,7 +97,8 @@ type ResponseCookie = NonNullable<
 export class MutableRequestCookiesAdapter {
   public static wrap(
     cookies: RequestCookies,
-    res: ServerResponse | BaseNextResponse | undefined
+    res: ServerResponse | BaseNextResponse | undefined,
+    onUpdateCookies?: (cookies: string[]) => void
   ): ResponseCookies {
     const responseCookes = new ResponseCookies(new Headers())
     for (const cookie of cookies.getAll()) {
@@ -117,14 +118,19 @@ export class MutableRequestCookiesAdapter {
 
       const allCookies = responseCookes.getAll()
       modifiedValues = allCookies.filter((c) => modifiedCookies.has(c.name))
-      if (res) {
+      if (res || onUpdateCookies) {
         const serializedCookies: string[] = []
         for (const cookie of modifiedValues) {
           const tempCookies = new ResponseCookies(new Headers())
           tempCookies.set(cookie)
           serializedCookies.push(tempCookies.toString())
         }
-        res.setHeader('Set-Cookie', serializedCookies)
+
+        if (res) {
+          res.setHeader('Set-Cookie', serializedCookies)
+        } else if (onUpdateCookies) {
+          onUpdateCookies(serializedCookies)
+        }
       }
     }
 

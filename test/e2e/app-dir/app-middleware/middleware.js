@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 
-import { headers as nextHeaders } from 'next/headers'
+import { headers as nextHeaders, draftMode } from 'next/headers'
 
 /**
  * @param {import('next/server').NextRequest} request
@@ -18,6 +18,10 @@ export async function middleware(request) {
       headersFromRequest.get('x-from-client')
   ) {
     throw new Error('Expected headers from client to match')
+  }
+
+  if (request.nextUrl.searchParams.get('draft')) {
+    draftMode().enable()
   }
 
   const removeHeaders = request.nextUrl.searchParams.get('remove-headers')
