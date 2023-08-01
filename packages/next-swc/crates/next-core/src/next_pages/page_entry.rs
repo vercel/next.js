@@ -2,7 +2,7 @@ use std::io::Write;
 
 use anyhow::{bail, Result};
 use indexmap::indexmap;
-use turbo_tasks::{ValueToString, Vc};
+use turbo_tasks::Vc;
 use turbo_tasks_fs::{rope::Rope, FileSystemPath};
 use turbopack_binding::{
     turbo::{

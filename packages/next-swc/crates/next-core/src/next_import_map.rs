@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, HashMap};
 
 use anyhow::{Context, Result};
-use turbo_tasks::{debug::ValueDebug, Value, ValueToString, Vc};
+use turbo_tasks::{Value, Vc};
 use turbopack_binding::{
     turbo::tasks_fs::{glob::Glob, FileSystem, FileSystemPath},
     turbopack::{
