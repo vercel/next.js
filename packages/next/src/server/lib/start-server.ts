@@ -266,7 +266,7 @@ export async function startServer({
           []) as {
           _child?: ChildProcess
         }[]) {
-          curWorker._child?.kill('SIGKILL')
+          curWorker._child?.kill('SIGINT')
         }
       }
       process.on('exit', cleanup)
