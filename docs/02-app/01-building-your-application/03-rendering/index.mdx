@@ -64,4 +64,26 @@ The rendering work is also split by routes, allowing you to use different render
 > **Good to know:**
 >
 > - We are working on introducing Hybrid Rendering to Next.js, which will automatically determine the best rendering strategy for each route segment.
+
+### Request-Response Lifecycle
+
+Each rendering strategy mentioned above has its benefits and drawbacks, but, broadly speaking, all rendering strategies follow the same **Request-Response Lifecycle**:
+
+<Image
+  alt="Request-Response Lifecycle"
+  srcLight="/docs/light/request-response-lifecycle.png"
+  srcDark="/docs/dark/request-response-lifecycle.png"
+  width=""
+  height=""
+/>
+
+1. **User Action:** The user interacts with a web application, which could be clicking a link, submitting a form, or typing a URL directly into the browser's address bar.
+2. **HTTP Request:** The client sends a [HTTP](https://developer.mozilla.org/en-US/docs/Web/HTTP) request to the server. This request contains necessary information about what resource is being requested, what method should be used (e.g. `GET`, `POST`), and additional data if necessary, like form data or tokens.
+3. **Server Processing:** The server processes the request and responds with the appropriate resources. This may involve several steps like routing, querying a database, performing some logic, rendering the HTML of a page, etc.
+4. **HTTP Response:** After processing the request, the server sends a HTTP response back to the client. This response contains a status code (which tells the client whether the request was successful or not) and the requested resources. These resources can be a HTML document, static assets like images, JSON files, or some other type of resource. In the case of React, the server also responds with the [RSC Payload](/docs/app/building-your-application/rendering/server-and-client-components#rsc-payload).
+5. **Client Processing:** The client receives the response from the server, and parses the HTML, CSS, and JavaScript to render the user interface. If there are additional resources to be loaded, like images, the browser will send additional requests for these resources, each of which goes through the same lifecycle. In the case of React, React consolidates the Server and Client modules graphs into a single Component tree, and updates the DOM.
+6. **User Interaction:** Once the user interface is rendered, the user can interact with the user interface, and the whole process starts again.
+
+Understanding the lifecycle is important because it helps us [understand the flow of code](#unidirectional-flow) and where Server and Client Components fit in. In the next section, we'll cover the **Network Boundary** and how it relates to components.
+
 > - If you're interested in learning more about previous rendering strategies (SSG, SSR, and CSR), see the [Pages Router documentation](https://nextjs.org/docs/pages/building-your-application/rendering).
