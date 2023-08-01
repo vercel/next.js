@@ -70,12 +70,8 @@ function ProtectedPage({ userId }) {
         <p className={styles.description}>
           You are authenticated with SuperTokens!
         </p>
-
         <p className={styles.description}>
           UserId: {session.userId} <br /> (from SSR: {userId})
-        </p>
-        <p className={styles.description}>
-          Access token payload: {JSON.stringify(session.accessTokenPayload)}
         </p>
         <div
           style={{
@@ -134,6 +130,13 @@ function ProtectedPage({ userId }) {
           </div>
         </div>
 
+        <p className={styles.description}>
+          Access token payload:
+          <pre className={styles.code}>
+            {JSON.stringify(session.accessTokenPayload, null, 2)}
+          </pre>
+        </p>
+        
         <div className={styles.grid}>
           <a href="https://nextjs.org/docs" className={styles.card}>
             <h3>Documentation &rarr;</h3>

@@ -1,5 +1,5 @@
 import Head from 'next/head'
-import React, { useEffect } from 'react'
+import React, { ComponentType, useEffect } from 'react'
 import styles from '../../styles/Home.module.css'
 import dynamic from 'next/dynamic'
 import { canHandleRoute, getRoutingComponent } from 'supertokens-auth-react/ui'
