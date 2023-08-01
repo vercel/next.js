@@ -164,7 +164,7 @@ Alternatively, you can use [Route Segment Config options](#segment-config-option
 <Image
   alt="Diagram showing how time-based revalidation works, after the revalidation period, stale data is returned for the first request, then data is revalidated."
   srcLight="/docs/light/time-based-revalidation.png"
-  srcDark="/docs/dark/time-based-revalidatioin.png"
+  srcDark="/docs/dark/time-based-revalidation.png"
   width="1600"
   height="1192"
 />
@@ -503,7 +503,7 @@ There are two places you can use `revalidatePath`, depending on what you're tryi
 
 See the [`revalidatePath` API reference](/docs/app/api-reference/functions/revalidatePath) for more information.
 
-> ** `revalidatePath` vs. `router.refresh`**:
+> **`revalidatePath` vs. `router.refresh`**:
 >
 > Calling `router.refresh` will clear the Router cache, and re-render route segments on the server without invalidating the Data Cache or the Full Route Cache.
 >
