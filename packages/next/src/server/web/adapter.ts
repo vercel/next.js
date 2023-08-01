@@ -198,7 +198,7 @@ export async function adapter(
             cookiesFromResponse = cookies
           },
           // @ts-expect-error: TODO: investigate why previewProps isn't on RenderOpts
-          previewProps: prerenderManifest.preview || {
+          previewProps: prerenderManifest?.preview || {
             previewModeId: 'development-id',
             previewModeEncryptionKey: '',
             previewModeSigningKey: '',
