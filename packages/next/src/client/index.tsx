@@ -191,8 +191,13 @@ export async function initialize(opts: { webpackHMR?: any } = {}): Promise<{
     webpackHMR = opts.webpackHMR
   }
 
+  // This block prevents cannot get `script#__NEXT_DATA__` some use cases.
+  while (document.readyState === 'loading') {
+    await new Promise((resolve) => setTimeout(resolve, 0))
+  }
+
   initialData = JSON.parse(
-    document.getElementById('__NEXT_DATA__')!.textContent!
+    document.getElementById('__NEXT_DATA__')?.textContent || '{}'
   )
   window.__NEXT_DATA__ = initialData
 
