@@ -163,9 +163,14 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
       ? imageSize
       : {
           sizes:
-            extension === 'ico' || extension === 'svg'
-              ? 'any'
-              : `${imageSize.width}x${imageSize.height}`,
+            // For SVGs, skip sizes and use "any" to let it scale automatically based on viewport,
+            // For the images doesn't provide the size properly, use "any" as well.
+            // If the size is presented, use the actual size for the image.
+            extension !== 'svg' &&
+            imageSize.width != null &&
+            imageSize.height != null
+              ? `${imageSize.width}x${imageSize.height}`
+              : 'any',
         }),
   }
   if (type === 'openGraph' || type === 'twitter') {
