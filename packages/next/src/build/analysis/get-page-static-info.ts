@@ -380,7 +380,8 @@ function warnAboutExperimentalEdge(apiRoute: string | null) {
   apiRouteWarnings.set(apiRoute, 1)
 }
 
-const warnedUnsupportedValueMap = new Map<string, boolean>()
+const warnedUnsupportedValueMap = new LRUCache<string, boolean>({ max: 250 })
+
 function warnAboutUnsupportedValue(
   pageFilePath: string,
   page: string | undefined,
