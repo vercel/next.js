@@ -456,14 +456,14 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     this.appPathsManifest = this.getAppPathsManifest()
     this.appPathRoutes = this.getAppPathRoutes()
 
-    // Configure the routes.
-    const { matchers } = this.getRoutes()
-    this.matchers = matchers
+    // Configure the matchers.
+    this.matchers = this.getMatchers()
 
     // Start route compilation. We don't wait for the routes to finish loading
     // because we use the `waitTillReady` promise below in `handleRequest` to
     // wait. Also we can't `await` in the constructor.
-    matchers.reload()
+    void this.matchers.reload()
+
     this.setAssetPrefix(assetPrefix)
     this.responseCache = this.getResponseCache({ dev })
   }
@@ -500,9 +500,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     return { finished: false }
   }
 
-  protected getRoutes(): {
-    matchers: RouteMatcherManager
-  } {
+  protected getMatchers(): RouteMatcherManager {
     // Create a new manifest loader that get's the manifests from the server.
     const manifestLoader = new ServerManifestLoader((name) => {
       switch (name) {
@@ -547,7 +545,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       )
     }
 
-    return { matchers }
+    return matchers
   }
 
   public logError(err: Error): void {

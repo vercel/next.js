@@ -360,7 +360,7 @@ export async function setupFsCheck(opts: {
   debug('pageFiles', pageFiles)
   debug('appFiles', appFiles)
 
-  let ensureFn: (item: FsOutput) => Promise<void> | undefined
+  let ensureFn: ((item: FsOutput) => Promise<void>) | undefined
 
   return {
     headers,
@@ -569,19 +569,20 @@ export async function setupFsCheck(opts: {
                   continue
                 }
               }
-            } else if (type === 'pageFile' || type === 'appFile') {
-              if (
-                ensureFn &&
-                (await ensureFn({
-                  type,
-                  itemPath: curItemPath,
-                })?.catch(() => 'ENSURE_FAILED')) === 'ENSURE_FAILED'
-              ) {
+            }
+          }
+
+          if (type === 'pageFile' || type === 'appFile') {
+            if (ensureFn) {
+              try {
+                await ensureFn({ type, itemPath: curItemPath })
+              } catch {
+                // If we can't ensure the page, keep going.
                 continue
               }
-            } else {
-              continue
             }
+          } else {
+            continue
           }
 
           // i18n locales aren't matched for app dir

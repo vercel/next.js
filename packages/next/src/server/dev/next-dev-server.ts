@@ -44,18 +44,9 @@ import isError, { getProperError } from '../../lib/is-error'
 import { NodeNextResponse, NodeNextRequest } from '../base-http/node'
 import { isMiddlewareFile } from '../../build/utils'
 import { formatServerError } from '../../lib/format-server-error'
-import {
-  DevRouteMatcherManager,
-  RouteEnsurer,
-} from '../future/route-matcher-managers/dev-route-matcher-manager'
-import { DevPagesRouteMatcherProvider } from '../future/route-matcher-providers/dev/dev-pages-route-matcher-provider'
-import { DevPagesAPIRouteMatcherProvider } from '../future/route-matcher-providers/dev/dev-pages-api-route-matcher-provider'
-import { DevAppPageRouteMatcherProvider } from '../future/route-matcher-providers/dev/dev-app-page-route-matcher-provider'
-import { DevAppRouteRouteMatcherProvider } from '../future/route-matcher-providers/dev/dev-app-route-route-matcher-provider'
+import { DevRouteMatcherManager } from '../future/route-matcher-managers/dev-route-matcher-manager'
 import { PagesManifest } from '../../build/webpack/plugins/pages-manifest-plugin'
 import { NodeManifestLoader } from '../future/route-matcher-providers/helpers/manifest-loaders/node-manifest-loader'
-import { CachedFileReader } from '../future/route-matcher-providers/dev/helpers/file-reader/cached-file-reader'
-import { DefaultFileReader } from '../future/route-matcher-providers/dev/helpers/file-reader/default-file-reader'
 import { NextBuildContext } from '../../build/build-context'
 import { IncrementalCache } from '../lib/incremental-cache'
 import LRUCache from 'next/dist/compiled/lru-cache'
@@ -186,61 +177,8 @@ export default class DevServer extends Server {
     this.appDir = appDir
   }
 
-  protected getRoutes() {
-    const { pagesDir, appDir } = findPagesDir(
-      this.dir,
-      !!this.nextConfig.experimental.appDir
-    )
-
-    const ensurer: RouteEnsurer = {
-      ensure: async (match) => {
-        await this.ensurePage({
-          match,
-          page: match.definition.page,
-          clientOnly: false,
-        })
-      },
-    }
-
-    const routes = super.getRoutes()
-    const matchers = new DevRouteMatcherManager(
-      routes.matchers,
-      ensurer,
-      this.dir
-    )
-    const extensions = this.nextConfig.pageExtensions
-    const fileReader = new CachedFileReader(new DefaultFileReader())
-
-    // If the pages directory is available, then configure those matchers.
-    if (pagesDir) {
-      matchers.push(
-        new DevPagesRouteMatcherProvider(
-          pagesDir,
-          extensions,
-          fileReader,
-          this.localeNormalizer
-        )
-      )
-      matchers.push(
-        new DevPagesAPIRouteMatcherProvider(
-          pagesDir,
-          extensions,
-          fileReader,
-          this.localeNormalizer
-        )
-      )
-    }
-
-    if (appDir) {
-      matchers.push(
-        new DevAppPageRouteMatcherProvider(appDir, extensions, fileReader)
-      )
-      matchers.push(
-        new DevAppRouteRouteMatcherProvider(appDir, extensions, fileReader)
-      )
-    }
-
-    return { matchers }
+  protected getMatchers() {
+    return DevRouteMatcherManager.wrap(super.getMatchers())
   }
 
   protected getBuildId(): string {
