@@ -267,8 +267,12 @@ function Router({
       back: () => window.history.back(),
       forward: () => window.history.forward(),
       prefetch: (href, options) => {
-        // If prefetch has already been triggered, don't trigger it again.
-        if (isBot(window.navigator.userAgent)) {
+        // Don't prefetch for bots as they don't navigate.
+        // Don't prefetch during development (improves compilation performance)
+        if (
+          isBot(window.navigator.userAgent) ||
+          process.env.NODE_ENV === 'development'
+        ) {
           return
         }
         const url = new URL(addBasePath(href), location.href)
