@@ -7,7 +7,6 @@ use turbopack_binding::{
         core::{
             asset::AssetContent,
             context::AssetContext,
-            module::Module,
             reference_type::{
                 EcmaScriptModulesReferenceSubType, EntryReferenceSubType, ReferenceType,
             },
@@ -22,7 +21,7 @@ use turbopack_binding::{
 use crate::{
     next_app::AppEntry,
     parse_segment_config_from_source,
-    util::{load_next_js, resolve_next_module, NextRuntime},
+    util::{load_next_js_template, virtual_next_js_template_path, NextRuntime},
 };
 
 /// Computes the entry for a Next.js app route.
@@ -32,6 +31,7 @@ pub async fn get_app_route_entry(
     edge_context: Vc<ModuleAssetContext>,
     source: Vc<Box<dyn Source>>,
     pathname: String,
+    original_name: String,
     project_root: Vc<FileSystemPath>,
 ) -> Result<Vc<AppEntry>> {
     let config = parse_segment_config_from_source(
@@ -49,13 +49,13 @@ pub async fn get_app_route_entry(
 
     let mut result = RopeBuilder::default();
 
-    let original_name = get_original_route_name(&pathname);
+    let original_page_name = get_original_route_name(&original_name);
     let path = source.ident().path();
 
-    let template_file = "/dist/esm/build/webpack/loaders/next-route-loader/templates/app-route.js";
+    let template_file = "build/webpack/loaders/next-route-loader/templates/app-route.js";
 
     // Load the file from the next.js codebase.
-    let file = load_next_js(project_root, template_file).await?.await?;
+    let file = load_next_js_template(project_root, template_file.to_string()).await?;
 
     let mut file = file
         .to_str()?
@@ -78,7 +78,7 @@ pub async fn get_app_route_entry(
         )
         .replace(
             "\"VAR_ORIGINAL_PATHNAME\"",
-            &StringifyJs(&original_name).to_string(),
+            &StringifyJs(&original_page_name).to_string(),
         )
         .replace(
             "\"VAR_RESOLVED_PAGE_PATH\"",
@@ -98,13 +98,7 @@ pub async fn get_app_route_entry(
 
     let file = File::from(result.build());
 
-    let resolve_result = resolve_next_module(project_root, template_file).await?;
-
-    let Some(template_path) = *resolve_result.first_module().await? else {
-        bail!("Expected to find module");
-    };
-
-    let template_path = template_path.ident().path();
+    let template_path = virtual_next_js_template_path(project_root, template_file.to_string());
 
     let virtual_source = VirtualSource::new(template_path, AssetContent::file(file.into()));
 
@@ -132,7 +126,7 @@ pub async fn get_app_route_entry(
 
     Ok(AppEntry {
         pathname: pathname.to_string(),
-        original_name,
+        original_name: original_page_name,
         rsc_entry,
         config,
     }
