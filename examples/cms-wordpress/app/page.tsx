@@ -1,6 +1,6 @@
+// This file has been sourced from: /intuita/next.js/examples/cms-wordpress/pages/index.tsx
 import { notFound, redirect } from 'next/navigation'
 import { Metadata } from 'next'
-import Head from 'next/head'
 import { GetStaticProps } from 'next'
 import Container from '../components/container'
 import MoreStories from '../components/more-stories'
@@ -9,15 +9,12 @@ import Intro from '../components/intro'
 import Layout from '../components/layout'
 import { getAllPostsForHome } from '../lib/api'
 import { CMS_NAME, HOME_OG_IMAGE_URL } from '../lib/constants'
-
 type Params = {
   [key: string]: string | string[] | undefined
 }
-
 type PageProps = {
   params: Params
 }
-
 export const metadata: Metadata = {
   title: `Next.js Blog Example with ${CMS_NAME}`,
   icons: {
@@ -75,7 +72,7 @@ export const metadata: Metadata = {
     ],
   },
 }
-export const getStaticProps: GetStaticProps = async ({ preview = false }) => {
+const getStaticProps: GetStaticProps = async ({ preview = false }) => {
   const allPosts = await getAllPostsForHome(preview)
   return {
     props: { allPosts, preview },
@@ -84,15 +81,12 @@ export const getStaticProps: GetStaticProps = async ({ preview = false }) => {
 }
 async function getData({ params }: { params: Params }) {
   const result = await getStaticProps({ params })
-
   if ('redirect' in result) {
     redirect(result.redirect.destination)
   }
-
   if ('notFound' in result) {
     notFound()
   }
-
   return 'props' in result ? result.props : {}
 }
 export default async function Index({ params }: PageProps) {
@@ -102,14 +96,10 @@ export default async function Index({ params }: PageProps) {
   } = await getData({
     params,
   })
-
   const heroPost = edges[0]?.node
   const morePosts = edges.slice(1)
   return (
     <Layout preview={preview}>
-      <Head>
-        <title>{`Next.js Blog Example with ${CMS_NAME}`}</title>
-      </Head>
       <Container>
         <Intro />
         {heroPost && (

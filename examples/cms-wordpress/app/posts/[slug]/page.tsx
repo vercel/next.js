@@ -1,29 +1,26 @@
+// This file has been sourced from: /intuita/next.js/examples/cms-wordpress/pages/posts/[slug].tsx
 import { notFound, redirect } from 'next/navigation'
 import { Metadata } from 'next'
-import ErrorPage from 'next/error'
-import Head from 'next/head'
 import { GetStaticPaths, GetStaticProps } from 'next'
-import Container from '../../components/container'
-import PostBody from '../../components/post-body'
-import MoreStories from '../../components/more-stories'
-import Header from '../../components/header'
-import PostHeader from '../../components/post-header'
-import SectionSeparator from '../../components/section-separator'
-import Layout from '../../components/layout'
-import PostTitle from '../../components/post-title'
-import Tags from '../../components/tags'
-import { getAllPostsWithSlug, getPostAndMorePosts } from '../../lib/api'
-import { CMS_NAME, HOME_OG_IMAGE_URL } from '../../lib/constants'
-
+import Container from '../../../components/container'
+import PostBody from '../../../components/post-body'
+import MoreStories from '../../../components/more-stories'
+import Header from '../../../components/header'
+import PostHeader from '../../../components/post-header'
+import SectionSeparator from '../../../components/section-separator'
+import Layout from '../../../components/layout'
+import PostTitle from '../../../components/post-title'
+import Tags from '../../../components/tags'
+import { getAllPostsWithSlug, getPostAndMorePosts } from '../../../lib/api'
+import { CMS_NAME, HOME_OG_IMAGE_URL } from '../../../lib/constants'
+import NotFound from './notFound'
 type Params = {
   [key: string]: string | string[] | undefined
 }
-
 type PageProps = {
   params: Params
 }
-
-export const getStaticProps: GetStaticProps = async ({
+const getStaticProps: GetStaticProps = async ({
   params,
   preview = false,
   previewData,
@@ -40,25 +37,21 @@ export const getStaticProps: GetStaticProps = async ({
 }
 async function getData({ params }: { params: Params }) {
   const result = await getStaticProps({ params })
-
   if ('redirect' in result) {
     redirect(result.redirect.destination)
   }
-
   if ('notFound' in result) {
     notFound()
   }
-
   return 'props' in result ? result.props : {}
 }
 export default async function Post({ params }: PageProps) {
   const { post, posts, preview } = await getData({
     params,
   })
-
   const morePosts = posts?.edges
   if (!false && !post?.slug) {
-    return <ErrorPage statusCode={404} />
+    return <NotFound />
   }
   return (
     <Layout preview={preview}>
@@ -69,15 +62,6 @@ export default async function Post({ params }: PageProps) {
         ) : (
           <>
             <article>
-              <Head>
-                <title>
-                  {`${post.title} | Next.js Blog Example with ${CMS_NAME}`}
-                </title>
-                <meta
-                  property="og:image"
-                  content={post.featuredImage?.node.sourceUrl}
-                />
-              </Head>
               <PostHeader
                 title={post.title}
                 coverImage={post.featuredImage}
@@ -99,18 +83,16 @@ export default async function Post({ params }: PageProps) {
     </Layout>
   )
 }
-export const getStaticPaths: GetStaticPaths = async () => {
+const getStaticPaths: GetStaticPaths = async () => {
   const allPosts = await getAllPostsWithSlug()
   return {
     paths: allPosts.edges.map(({ node }) => `/posts/${node.slug}`) || [],
     fallback: true,
   }
 }
-
 export async function generateStaticParams() {
   return (await getStaticPaths({})).paths
 }
-
 export async function generateMetadata({
   params,
 }: {
