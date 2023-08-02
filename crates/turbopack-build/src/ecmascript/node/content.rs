@@ -16,7 +16,7 @@ use turbopack_ecmascript::{
 };
 
 use super::chunk::EcmascriptBuildNodeChunk;
-use crate::BuildChunkingContext;
+use crate::{chunking_context::MinifyType, ecmascript::minify::minify, BuildChunkingContext};
 
 #[turbo_tasks::value]
 pub(super) struct EcmascriptBuildNodeChunkContent {
@@ -47,7 +47,8 @@ impl EcmascriptBuildNodeChunkContent {
     #[turbo_tasks::function]
     async fn code(self: Vc<Self>) -> Result<Vc<Code>> {
         let this = self.await?;
-        let chunk_path = this.chunk.ident().path().await?;
+        let chunk_path_vc = this.chunk.ident().path();
+        let chunk_path = chunk_path_vc.await?;
 
         let mut code = CodeBuilder::default();
 
@@ -85,8 +86,15 @@ impl EcmascriptBuildNodeChunkContent {
             write!(code, "\n\n//# sourceMappingURL={}.map", filename)?;
         }
 
-        let code = code.build();
-        Ok(code.cell())
+        let code = code.build().cell();
+        if matches!(
+            &*this.chunking_context.await?.minify_type().await?,
+            MinifyType::Minify
+        ) {
+            return Ok(minify(chunk_path_vc, code));
+        }
+
+        Ok(code)
     }
 
     #[turbo_tasks::function]

@@ -11,6 +11,7 @@ bench = false
 
 [dependencies]
 anyhow = { workspace = true }
+async-recursion = { workspace = true }
 async-trait = { workspace = true }
 auto-hash-map = { workspace = true }
 browserslist-rs = { workspace = true }
@@ -23,7 +24,7 @@ regex = { workspace = true }
 serde = { workspace = true, features = ["rc"] }
 serde_json = { workspace = true, features = ["preserve_order"] }
 serde_qs = { workspace = true }
-sourcemap = "6.0.2"
+sourcemap = { workspace = true }
 swc_core = { workspace = true, features = ["ecma_preset_env", "common"] }
 tracing = { workspace = true }
 turbo-tasks = { workspace = true }
@@ -37,6 +38,8 @@ turbo-tasks-build = { workspace = true }
 [dev-dependencies]
 rstest = { workspace = true }
 tokio = { workspace = true }
+turbo-tasks-memory = { workspace = true }
+turbo-tasks-testing = { workspace = true }
 
 [features]
 default = []

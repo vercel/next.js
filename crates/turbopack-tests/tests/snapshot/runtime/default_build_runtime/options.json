@@ -1,4 +1,5 @@
 {
-    "runtime": "Build",
-    "runtimeType": "Default"
+  "minifyType": "NoMinify",
+  "runtime": "Build",
+  "runtimeType": "Default"
 }
