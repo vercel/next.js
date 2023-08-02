@@ -83,7 +83,7 @@ export class EdgeRouteModuleWrapper {
       )
     }
 
-    const prerenderManifest: PrerenderManifest =
+    const prerenderManifest: PrerenderManifest | undefined =
       typeof self.__PRERENDER_MANIFEST === 'string'
         ? JSON.parse(self.__PRERENDER_MANIFEST)
         : undefined
@@ -96,7 +96,7 @@ export class EdgeRouteModuleWrapper {
         version: 4,
         routes: {},
         dynamicRoutes: {},
-        preview: prerenderManifest.preview || {
+        preview: prerenderManifest?.preview || {
           previewModeEncryptionKey: '',
           previewModeId: '',
           previewModeSigningKey: '',

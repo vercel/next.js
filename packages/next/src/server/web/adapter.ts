@@ -68,7 +68,7 @@ export async function adapter(
 
   // TODO-APP: use explicit marker for this
   const isEdgeRendering = typeof self.__BUILD_MANIFEST !== 'undefined'
-  const prerenderManifest: PrerenderManifest =
+  const prerenderManifest: PrerenderManifest | undefined =
     typeof self.__PRERENDER_MANIFEST === 'string'
       ? JSON.parse(self.__PRERENDER_MANIFEST)
       : undefined
