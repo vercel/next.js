@@ -1,6 +1,4 @@
 import type { RequestCookies } from '../cookies'
-import type { BaseNextResponse } from '../../../base-http'
-import type { ServerResponse } from 'http'
 import { StaticGenerationStore } from '../../../../client/components/static-generation-async-storage'
 
 import { ResponseCookies } from '../cookies'
