@@ -34,29 +34,8 @@ const resources = [
 const examples = [
   { type: 'Client Components', src: 'app/_examples/client-component/page.tsx' },
   { type: 'Server Components', src: 'app/_examples/server-component/page.tsx' },
-  {
-    type: 'Server Components - Edge Runtime',
-    src: 'app/_examples/server-component-edge/page.tsx',
-  },
-  {
-    type: 'Server Components - Protected Routes',
-    src: 'app/_examples/server-component-protected-route/page.tsx',
-  },
-  {
-    type: 'Server Components - Static',
-    src: 'app/_examples/server-component-static/page.tsx',
-  },
   { type: 'Server Actions', src: 'app/_examples/server-action/page.tsx' },
   { type: 'Route Handlers', src: 'app/_examples/route-handler.ts' },
-  {
-    type: 'Route Handlers - Edge Runtime',
-    src: 'app/_examples/route-handler-edge.ts',
-  },
-  {
-    type: 'Route Handlers - Static',
-    src: 'app/_examples/route-handler-static/route.ts',
-  },
-  { type: 'Middleware', src: 'app/middleware.ts' },
 ]
 
 export default async function Index() {
