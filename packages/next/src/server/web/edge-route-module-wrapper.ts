@@ -11,6 +11,7 @@ import { IncrementalCache } from '../lib/incremental-cache'
 import { RouteMatcher } from '../future/route-matchers/route-matcher'
 import { removeTrailingSlash } from '../../shared/lib/router/utils/remove-trailing-slash'
 import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
+import { PrerenderManifest } from '../../build'
 
 type WrapOptions = Partial<Pick<AdapterOptions, 'page'>>
 
@@ -81,6 +82,11 @@ export class EdgeRouteModuleWrapper {
       )
     }
 
+    const prerenderManifest: PrerenderManifest | undefined =
+      typeof self.__PRERENDER_MANIFEST === 'string'
+        ? JSON.parse(self.__PRERENDER_MANIFEST)
+        : undefined
+
     // Create the context for the handler. This contains the params from the
     // match (if any).
     const context: AppRouteRouteHandlerContext = {
@@ -89,9 +95,9 @@ export class EdgeRouteModuleWrapper {
         version: 4,
         routes: {},
         dynamicRoutes: {},
-        preview: {
+        preview: prerenderManifest?.preview || {
           previewModeEncryptionKey: '',
-          previewModeId: '',
+          previewModeId: 'development-id',
           previewModeSigningKey: '',
         },
         notFoundRoutes: [],
