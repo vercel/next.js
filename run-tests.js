@@ -392,17 +392,28 @@ ${ENDGROUP}`)
         children.delete(child)
         if (code !== 0 || signal !== null) {
           if (hideOutput) {
-            console.log(`${GROUP}${test} output:`)
+            // ensure stdout and stderr are flushed in order
+            let lastType = 'stdout'
+            let promise = new Promise((resolve) =>
+              process.stdout.write(`${GROUP}${test} output\n`, resolve)
+            )
             // limit out to last 64kb so that we don't
             // run out of log room in CI
-            outputChunks.forEach(({ type, chunk }) => {
-              if (type === 'stdout') {
-                process.stdout.write(chunk)
-              } else {
-                process.stderr.write(chunk)
+            for (const { type, chunk } of outputChunks) {
+              if (type !== lastType) {
+                await promise
+                lastType = type
               }
-            })
-            if (ENDGROUP) console.log(ENDGROUP)
+              promise = new Promise((resolve) => {
+                if (type === 'stdout') {
+                  process.stdout.write(chunk, resolve)
+                } else {
+                  process.stderr.write(chunk, resolve)
+                }
+              })
+            }
+            await promise
+            if (ENDGROUP) process.stdout.write(`${ENDGROUP}\n`)
           }
           const err = new Error(
             code ? `failed with code: ${code}` : `failed with signal: ${signal}`
