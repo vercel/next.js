@@ -726,6 +726,8 @@ export async function loadProjectInfo({
   }
 }
 
+const UNSAFE_CACHE_REGEX = /[\\/]pages[\\/][^\\/]+(?:$|\?|#)/
+
 export default async function getBaseWebpackConfig(
   dir: string,
   {
@@ -2806,11 +2808,10 @@ export default async function getBaseWebpackConfig(
   if (dev) {
     if (webpackConfig.module) {
       webpackConfig.module.unsafeCache = (module: any) =>
-        !/[\\/]pages[\\/][^\\/]+(?:$|\?|#)/.test(module.resource)
+        !UNSAFE_CACHE_REGEX.test(module.resource)
     } else {
       webpackConfig.module = {
-        unsafeCache: (module: any) =>
-          !/[\\/]pages[\\/][^\\/]+(?:$|\?|#)/.test(module.resource),
+        unsafeCache: (module: any) => !UNSAFE_CACHE_REGEX.test(module.resource),
       }
     }
   }
