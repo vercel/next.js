@@ -5,18 +5,20 @@ import { check, describeVariants as describe } from 'next-test-utils'
 import { outdent } from 'outdent'
 import path from 'path'
 
-describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
-  const { next } = nextTestSetup({
-    files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
-    skipStart: true,
-  })
+describe.each(['default', 'turbo', 'experimentalTurbo'])(
+  'ReactRefreshLogBox %s',
+  () => {
+    const { next } = nextTestSetup({
+      files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
+      skipStart: true,
+    })
 
-  test('logbox: can recover from a syntax error without losing state', async () => {
-    const { session, cleanup } = await sandbox(next)
+    test('logbox: can recover from a syntax error without losing state', async () => {
+      const { session, cleanup } = await sandbox(next)
 
-    await session.patch(
-      'index.js',
-      outdent`
+      await session.patch(
+        'index.js',
+        outdent`
         import { useCallback, useState } from 'react'
 
         export default function Index() {
@@ -30,23 +32,23 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
           )
         }
       `
-    )
+      )
 
-    await session.evaluate(() => document.querySelector('button').click())
-    expect(
-      await session.evaluate(() => document.querySelector('p').textContent)
-    ).toBe('1')
+      await session.evaluate(() => document.querySelector('button').click())
+      expect(
+        await session.evaluate(() => document.querySelector('p').textContent)
+      ).toBe('1')
 
-    await session.patch('index.js', `export default () => <div/`)
+      await session.patch('index.js', `export default () => <div/`)
 
-    expect(await session.hasRedbox(true)).toBe(true)
-    expect(await session.getRedboxSource()).toInclude(
-      'export default () => <div/'
-    )
+      expect(await session.hasRedbox(true)).toBe(true)
+      expect(await session.getRedboxSource()).toInclude(
+        'export default () => <div/'
+      )
 
-    await session.patch(
-      'index.js',
-      outdent`
+      await session.patch(
+        'index.js',
+        outdent`
         import { useCallback, useState } from 'react'
 
         export default function Index() {
@@ -60,24 +62,24 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
           )
         }
       `
-    )
+      )
 
-    await check(
-      () => session.evaluate(() => document.querySelector('p').textContent),
-      /Count: 1/
-    )
+      await check(
+        () => session.evaluate(() => document.querySelector('p').textContent),
+        /Count: 1/
+      )
 
-    expect(await session.hasRedbox(false)).toBe(false)
+      expect(await session.hasRedbox(false)).toBe(false)
 
-    await cleanup()
-  })
+      await cleanup()
+    })
 
-  test('logbox: can recover from a event handler error', async () => {
-    const { session, cleanup } = await sandbox(next)
+    test('logbox: can recover from a event handler error', async () => {
+      const { session, cleanup } = await sandbox(next)
 
-    await session.patch(
-      'index.js',
-      outdent`
+      await session.patch(
+        'index.js',
+        outdent`
         import { useCallback, useState } from 'react'
 
         export default function Index() {
@@ -94,18 +96,18 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
           )
         }
       `
-    )
+      )
 
-    expect(
-      await session.evaluate(() => document.querySelector('p').textContent)
-    ).toBe('0')
-    await session.evaluate(() => document.querySelector('button').click())
-    expect(
-      await session.evaluate(() => document.querySelector('p').textContent)
-    ).toBe('1')
+      expect(
+        await session.evaluate(() => document.querySelector('p').textContent)
+      ).toBe('0')
+      await session.evaluate(() => document.querySelector('button').click())
+      expect(
+        await session.evaluate(() => document.querySelector('p').textContent)
+      ).toBe('1')
 
-    expect(await session.hasRedbox(true)).toBe(true)
-    expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+      expect(await session.hasRedbox(true)).toBe(true)
+      expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
       "index.js (7:10) @ eval
 
          5 | const increment = useCallback(() => {
@@ -117,9 +119,9 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
         10 |   <main>"
     `)
 
-    await session.patch(
-      'index.js',
-      outdent`
+      await session.patch(
+        'index.js',
+        outdent`
         import { useCallback, useState } from 'react'
 
         export default function Index() {
@@ -133,38 +135,38 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
           )
         }
       `
-    )
+      )
 
-    expect(await session.hasRedbox(false)).toBe(false)
+      expect(await session.hasRedbox(false)).toBe(false)
 
-    expect(
-      await session.evaluate(() => document.querySelector('p').textContent)
-    ).toBe('Count: 1')
-    await session.evaluate(() => document.querySelector('button').click())
-    expect(
-      await session.evaluate(() => document.querySelector('p').textContent)
-    ).toBe('Count: 2')
+      expect(
+        await session.evaluate(() => document.querySelector('p').textContent)
+      ).toBe('Count: 1')
+      await session.evaluate(() => document.querySelector('button').click())
+      expect(
+        await session.evaluate(() => document.querySelector('p').textContent)
+      ).toBe('Count: 2')
 
-    expect(await session.hasRedbox(false)).toBe(false)
+      expect(await session.hasRedbox(false)).toBe(false)
 
-    await cleanup()
-  })
+      await cleanup()
+    })
 
-  test('logbox: can recover from a component error', async () => {
-    const { session, cleanup } = await sandbox(next)
+    test('logbox: can recover from a component error', async () => {
+      const { session, cleanup } = await sandbox(next)
 
-    await session.write(
-      'child.js',
-      outdent`
+      await session.write(
+        'child.js',
+        outdent`
         export default function Child() {
           return <p>Hello</p>;
         }
       `
-    )
+      )
 
-    await session.patch(
-      'index.js',
-      outdent`
+      await session.patch(
+        'index.js',
+        outdent`
         import Child from './child'
 
         export default function Index() {
@@ -175,53 +177,53 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
           )
         }
       `
-    )
+      )
 
-    expect(
-      await session.evaluate(() => document.querySelector('p').textContent)
-    ).toBe('Hello')
+      expect(
+        await session.evaluate(() => document.querySelector('p').textContent)
+      ).toBe('Hello')
 
-    await session.patch(
-      'child.js',
-      outdent`
+      await session.patch(
+        'child.js',
+        outdent`
         // hello
         export default function Child() {
           throw new Error('oops')
         }
       `
-    )
+      )
 
-    expect(await session.hasRedbox(true)).toBe(true)
-    expect(await session.getRedboxSource()).toInclude(
-      'export default function Child()'
-    )
+      expect(await session.hasRedbox(true)).toBe(true)
+      expect(await session.getRedboxSource()).toInclude(
+        'export default function Child()'
+      )
 
-    const didNotReload = await session.patch(
-      'child.js',
-      outdent`
+      const didNotReload = await session.patch(
+        'child.js',
+        outdent`
         export default function Child() {
           return <p>Hello</p>;
         }
       `
-    )
+      )
 
-    expect(didNotReload).toBe(true)
-    expect(await session.hasRedbox(false)).toBe(false)
-    expect(
-      await session.evaluate(() => document.querySelector('p').textContent)
-    ).toBe('Hello')
+      expect(didNotReload).toBe(true)
+      expect(await session.hasRedbox(false)).toBe(false)
+      expect(
+        await session.evaluate(() => document.querySelector('p').textContent)
+      ).toBe('Hello')
 
-    await cleanup()
-  })
+      await cleanup()
+    })
 
-  // https://github.com/pmmmwh/react-refresh-webpack-plugin/pull/3#issuecomment-554137262
-  test('render error not shown right after syntax error', async () => {
-    const { session, cleanup } = await sandbox(next)
+    // https://github.com/pmmmwh/react-refresh-webpack-plugin/pull/3#issuecomment-554137262
+    test('render error not shown right after syntax error', async () => {
+      const { session, cleanup } = await sandbox(next)
 
-    // Starting here:
-    await session.patch(
-      'index.js',
-      outdent`
+      // Starting here:
+      await session.patch(
+        'index.js',
+        outdent`
         import * as React from 'react';
         class ClassDefault extends React.Component {
           render() {
@@ -231,16 +233,16 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
 
         export default ClassDefault;
       `
-    )
+      )
 
-    expect(
-      await session.evaluate(() => document.querySelector('h1').textContent)
-    ).toBe('Default Export')
+      expect(
+        await session.evaluate(() => document.querySelector('h1').textContent)
+      ).toBe('Default Export')
 
-    // Break it with a syntax error:
-    await session.patch(
-      'index.js',
-      outdent`
+      // Break it with a syntax error:
+      await session.patch(
+        'index.js',
+        outdent`
         import * as React from 'react';
 
         class ClassDefault extends React.Component {
@@ -251,13 +253,13 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
 
         export default ClassDefault;
       `
-    )
-    expect(await session.hasRedbox(true)).toBe(true)
+      )
+      expect(await session.hasRedbox(true)).toBe(true)
 
-    // Now change the code to introduce a runtime error without fixing the syntax error:
-    await session.patch(
-      'index.js',
-      outdent`
+      // Now change the code to introduce a runtime error without fixing the syntax error:
+      await session.patch(
+        'index.js',
+        outdent`
         import * as React from 'react';
 
         class ClassDefault extends React.Component {
@@ -269,13 +271,13 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
 
         export default ClassDefault;
       `
-    )
-    expect(await session.hasRedbox(true)).toBe(true)
+      )
+      expect(await session.hasRedbox(true)).toBe(true)
 
-    // Now fix the syntax error:
-    await session.patch(
-      'index.js',
-      outdent`
+      // Now fix the syntax error:
+      await session.patch(
+        'index.js',
+        outdent`
         import * as React from 'react';
 
         class ClassDefault extends React.Component {
@@ -287,29 +289,29 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
 
         export default ClassDefault;
       `
-    )
-    expect(await session.hasRedbox(true)).toBe(true)
+      )
+      expect(await session.hasRedbox(true)).toBe(true)
 
-    await check(async () => {
-      const source = await session.getRedboxSource()
-      return source?.includes('render() {') ? 'success' : source
-    }, 'success')
+      await check(async () => {
+        const source = await session.getRedboxSource()
+        return source?.includes('render() {') ? 'success' : source
+      }, 'success')
 
-    expect(await session.getRedboxSource()).toInclude(
-      "throw new Error('nooo');"
-    )
+      expect(await session.getRedboxSource()).toInclude(
+        "throw new Error('nooo');"
+      )
 
-    await cleanup()
-  })
+      await cleanup()
+    })
 
-  // https://github.com/pmmmwh/react-refresh-webpack-plugin/pull/3#issuecomment-554144016
-  test('stuck error', async () => {
-    const { session, cleanup } = await sandbox(next)
+    // https://github.com/pmmmwh/react-refresh-webpack-plugin/pull/3#issuecomment-554144016
+    test('stuck error', async () => {
+      const { session, cleanup } = await sandbox(next)
 
-    // We start here.
-    await session.patch(
-      'index.js',
-      outdent`
+      // We start here.
+      await session.patch(
+        'index.js',
+        outdent`
         import * as React from 'react';
 
         function FunctionDefault() {
@@ -318,23 +320,23 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
 
         export default FunctionDefault;
       `
-    )
+      )
 
-    // We add a new file. Let's call it Foo.js.
-    await session.write(
-      'Foo.js',
-      outdent`
+      // We add a new file. Let's call it Foo.js.
+      await session.write(
+        'Foo.js',
+        outdent`
         // intentionally skips export
         export default function Foo() {
           return React.createElement('h1', null, 'Foo');
         }
       `
-    )
+      )
 
-    // We edit our first file to use it.
-    await session.patch(
-      'index.js',
-      outdent`
+      // We edit our first file to use it.
+      await session.patch(
+        'index.js',
+        outdent`
         import * as React from 'react';
         import Foo from './Foo';
         function FunctionDefault() {
@@ -342,50 +344,50 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
         }
         export default FunctionDefault;
       `
-    )
+      )
 
-    // We get an error because Foo didn't import React. Fair.
-    expect(await session.hasRedbox(true)).toBe(true)
-    expect(await session.getRedboxSource()).toInclude(
-      "return React.createElement('h1', null, 'Foo');"
-    )
+      // We get an error because Foo didn't import React. Fair.
+      expect(await session.hasRedbox(true)).toBe(true)
+      expect(await session.getRedboxSource()).toInclude(
+        "return React.createElement('h1', null, 'Foo');"
+      )
 
-    // Let's add that to Foo.
-    await session.patch(
-      'Foo.js',
-      outdent`
+      // Let's add that to Foo.
+      await session.patch(
+        'Foo.js',
+        outdent`
         import * as React from 'react';
         export default function Foo() {
           return React.createElement('h1', null, 'Foo');
         }
       `
-    )
+      )
 
-    // Expected: this fixes the problem
-    expect(await session.hasRedbox(false)).toBe(false)
+      // Expected: this fixes the problem
+      expect(await session.hasRedbox(false)).toBe(false)
 
-    await cleanup()
-  })
+      await cleanup()
+    })
 
-  // https://github.com/pmmmwh/react-refresh-webpack-plugin/pull/3#issuecomment-554150098
-  test('syntax > runtime error', async () => {
-    const { session, cleanup } = await sandbox(next)
+    // https://github.com/pmmmwh/react-refresh-webpack-plugin/pull/3#issuecomment-554150098
+    test('syntax > runtime error', async () => {
+      const { session, cleanup } = await sandbox(next)
 
-    // Start here.
-    await session.patch(
-      'index.js',
-      outdent`
+      // Start here.
+      await session.patch(
+        'index.js',
+        outdent`
         import * as React from 'react';
 
         export default function FunctionNamed() {
           return <div />
         }
       `
-    )
-    // TODO: this acts weird without above step
-    await session.patch(
-      'index.js',
-      outdent`
+      )
+      // TODO: this acts weird without above step
+      await session.patch(
+        'index.js',
+        outdent`
         import * as React from 'react';
         let i = 0
         setInterval(() => {
@@ -396,20 +398,20 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
           return <div />
         }
       `
-    )
+      )
 
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    expect(await session.hasRedbox(true)).toBe(true)
-    if (process.platform === 'win32') {
-      expect(await session.getRedboxSource()).toMatchSnapshot()
-    } else {
-      expect(await session.getRedboxSource()).toMatchSnapshot()
-    }
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+      expect(await session.hasRedbox(true)).toBe(true)
+      if (process.platform === 'win32') {
+        expect(await session.getRedboxSource()).toMatchSnapshot()
+      } else {
+        expect(await session.getRedboxSource()).toMatchSnapshot()
+      }
 
-    // Make a syntax error.
-    await session.patch(
-      'index.js',
-      outdent`
+      // Make a syntax error.
+      await session.patch(
+        'index.js',
+        outdent`
         import * as React from 'react';
         let i = 0
         setInterval(() => {
@@ -417,14 +419,14 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
           throw Error('no ' + i)
         }, 1000)
         export default function FunctionNamed() {`
-    )
+      )
 
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    expect(await session.hasRedbox(true)).toBe(true)
-    expect(
-      next.normalizeTestDirContent(await session.getRedboxSource())
-    ).toMatchInlineSnapshot(
-      next.normalizeSnapshot(`
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+      expect(await session.hasRedbox(true)).toBe(true)
+      expect(
+        next.normalizeTestDirContent(await session.getRedboxSource())
+      ).toMatchInlineSnapshot(
+        next.normalizeSnapshot(`
         "./index.js
         Error: 
           x Expected '}', got '<eof>'
@@ -443,15 +445,15 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
         ./index.js
         ./pages/index.js"
       `)
-    )
+      )
 
-    // Test that runtime error does not take over:
-    await new Promise((resolve) => setTimeout(resolve, 2000))
-    expect(await session.hasRedbox(true)).toBe(true)
-    expect(
-      next.normalizeTestDirContent(await session.getRedboxSource())
-    ).toMatchInlineSnapshot(
-      next.normalizeSnapshot(`
+      // Test that runtime error does not take over:
+      await new Promise((resolve) => setTimeout(resolve, 2000))
+      expect(await session.hasRedbox(true)).toBe(true)
+      expect(
+        next.normalizeTestDirContent(await session.getRedboxSource())
+      ).toMatchInlineSnapshot(
+        next.normalizeSnapshot(`
         "./index.js
         Error: 
           x Expected '}', got '<eof>'
@@ -470,8 +472,9 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
         ./index.js
         ./pages/index.js"
       `)
-    )
+      )
 
-    await cleanup()
-  })
-})
+      await cleanup()
+    })
+  }
+)

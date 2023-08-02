@@ -139,6 +139,7 @@ export type RenderOptsPartial = {
   originalPathname?: string
   isDraftMode?: boolean
   deploymentId?: string
+  onUpdateCookies?: (cookies: string[]) => void
   loadConfig?: (
     phase: string,
     dir: string,
