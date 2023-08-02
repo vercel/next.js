@@ -103,4 +103,8 @@ pub struct DevArguments {
 pub struct BuildArguments {
     #[clap(flatten)]
     pub common: CommonArguments,
+
+    /// Don't minify build output.
+    #[clap(long)]
+    pub no_minify: bool,
 }

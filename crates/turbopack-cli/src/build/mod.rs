@@ -10,7 +10,7 @@ use turbo_tasks::{unit, TransientInstance, TryJoinIterExt, TurboTasks, Value, Vc
 use turbo_tasks_fs::FileSystem;
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::ecmascript::EcmascriptModuleAsset;
-use turbopack_build::BuildChunkingContext;
+use turbopack_build::{BuildChunkingContext, MinifyType};
 use turbopack_cli_utils::issue::{ConsoleUi, LogOptions};
 use turbopack_core::{
     asset::Asset,
@@ -53,6 +53,7 @@ pub struct TurbopackBuildBuilder {
     log_level: IssueSeverity,
     show_all: bool,
     log_detail: bool,
+    minify_type: MinifyType,
 }
 
 impl TurbopackBuildBuilder {
@@ -70,6 +71,7 @@ impl TurbopackBuildBuilder {
             log_level: IssueSeverity::Warning,
             show_all: false,
             log_detail: false,
+            minify_type: MinifyType::Minify,
         }
     }
 
@@ -98,6 +100,11 @@ impl TurbopackBuildBuilder {
         self
     }
 
+    pub fn minify_type(mut self, minify_type: MinifyType) -> Self {
+        self.minify_type = minify_type;
+        self
+    }
+
     pub async fn build(self) -> Result<()> {
         let task = self.turbo_tasks.spawn_once_task(async move {
             let build_result = build_internal(
@@ -112,6 +119,7 @@ impl TurbopackBuildBuilder {
                 )
                 .cell(),
                 self.browserslist_query,
+                self.minify_type.cell(),
             );
 
             // Await the result to propagate any errors.
@@ -150,6 +158,7 @@ async fn build_internal(
     root_dir: String,
     entry_requests: Vc<EntryRequests>,
     browserslist_query: String,
+    minify_type: Vc<MinifyType>,
 ) -> Result<Vc<()>> {
     let env = Environment::new(Value::new(ExecutionEnvironment::Browser(
         BrowserEnvironment {
@@ -178,6 +187,7 @@ async fn build_internal(
             build_output_root,
             env,
         )
+        .minify_type(minify_type)
         .build(),
     );
 
@@ -298,12 +308,17 @@ pub async fn build(args: &BuildArguments) -> Result<()> {
 
     let mut builder = TurbopackBuildBuilder::new(tt, project_dir, root_dir)
         .log_detail(args.common.log_detail)
-        .show_all(args.common.show_all)
         .log_level(
             args.common
                 .log_level
                 .map_or_else(|| IssueSeverity::Warning, |l| l.0),
-        );
+        )
+        .minify_type(if args.no_minify {
+            MinifyType::NoMinify
+        } else {
+            MinifyType::Minify
+        })
+        .show_all(args.common.show_all);
 
     for entry in normalize_entries(&args.common.entries) {
         builder = builder.entry_request(EntryRequest::Relative(entry));
