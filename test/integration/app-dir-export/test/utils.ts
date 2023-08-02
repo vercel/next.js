@@ -46,6 +46,8 @@ export const expectedWhenTrailingSlashTrue = [
   'image-import/index.txt',
   'index.html',
   'index.txt',
+  'path.with.dot/index.html',
+  'path.with.dot/index.txt',
   'robots.txt',
 ]
 
@@ -67,6 +69,8 @@ const expectedWhenTrailingSlashFalse = [
   'image-import.txt',
   'index.html',
   'index.txt',
+  'path.with.dot.html',
+  'path.with.dot.txt',
   'robots.txt',
 ]
 
@@ -150,6 +154,29 @@ export async function runTests({
     } else {
       const a = (n: number) => `li:nth-child(${n}) a`
       const browser = await webdriver(port, '/')
+      if (trailingSlash) {
+        expect(await browser.elementByCss(a(1)).getAttribute('href')).toEndWith(
+          '/'
+        )
+        expect(await browser.elementByCss(a(2)).getAttribute('href')).toEndWith(
+          '/'
+        )
+        expect(await browser.elementByCss(a(3)).getAttribute('href')).toEndWith(
+          '/'
+        )
+        expect(await browser.elementByCss(a(4)).getAttribute('href')).toEndWith(
+          '/'
+        )
+        expect(await browser.elementByCss(a(5)).getAttribute('href')).toEndWith(
+          '/'
+        )
+        expect(await browser.elementByCss(a(6)).getAttribute('href')).toEndWith(
+          '/'
+        )
+        expect(await browser.elementByCss(a(7)).getAttribute('href')).toEndWith(
+          '/'
+        )
+      }
       await check(() => browser.elementByCss('h1').text(), 'Home')
       expect(await browser.elementByCss(a(1)).text()).toBe(
         'another no trailingslash'
@@ -192,8 +219,28 @@ export async function runTests({
       await browser.elementByCss(a(1)).click()
 
       await check(() => browser.elementByCss('h1').text(), 'Another')
-      expect(await browser.elementByCss(a(5)).text()).toBe('image import page')
+      expect(await browser.elementByCss(a(5)).text()).toBe(
+        'path with dot has no trailingSlash'
+      )
       await browser.elementByCss(a(5)).click()
+
+      await check(() => browser.elementByCss('h1').text(), 'Path With Dot')
+      expect(await browser.elementByCss(a(1)).text()).toBe('visit another page')
+      await browser.elementByCss(a(1)).click()
+
+      await check(() => browser.elementByCss('h1').text(), 'Another')
+      expect(await browser.elementByCss(a(6)).text()).toBe(
+        'path with dot has trailingSlash'
+      )
+      await browser.elementByCss(a(6)).click()
+
+      await check(() => browser.elementByCss('h1').text(), 'Path With Dot')
+      expect(await browser.elementByCss(a(1)).text()).toBe('visit another page')
+      await browser.elementByCss(a(1)).click()
+
+      await check(() => browser.elementByCss('h1').text(), 'Another')
+      expect(await browser.elementByCss(a(7)).text()).toBe('image import page')
+      await browser.elementByCss(a(7)).click()
 
       await check(() => browser.elementByCss('h1').text(), 'Image Import')
       expect(await browser.elementByCss(a(2)).text()).toBe('View the image')

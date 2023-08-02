@@ -18,6 +18,12 @@ export default function Another() {
           <Link href="/another/second">another second page</Link>
         </li>
         <li>
+          <Link href="/path.with.dot">path with dot has no trailingSlash</Link>
+        </li>
+        <li>
+          <Link href="/path.with.dot/">path with dot has trailingSlash</Link>
+        </li>
+        <li>
           <Link href="/image-import">image import page</Link>
         </li>
       </ul>
