@@ -726,6 +726,8 @@ export async function loadProjectInfo({
   }
 }
 
+const UNSAFE_CACHE_REGEX = /[\\/]pages[\\/][^\\/]+(?:$|\?|#)/
+
 export default async function getBaseWebpackConfig(
   dir: string,
   {
@@ -2802,6 +2804,17 @@ export default async function getBaseWebpackConfig(
   webpackConfig.cache.name = `${webpackConfig.name}-${webpackConfig.mode}${
     isDevFallback ? '-fallback' : ''
   }`
+
+  if (dev) {
+    if (webpackConfig.module) {
+      webpackConfig.module.unsafeCache = (module: any) =>
+        !UNSAFE_CACHE_REGEX.test(module.resource)
+    } else {
+      webpackConfig.module = {
+        unsafeCache: (module: any) => !UNSAFE_CACHE_REGEX.test(module.resource),
+      }
+    }
+  }
 
   let originalDevtool = webpackConfig.devtool
   if (typeof config.webpack === 'function') {
