@@ -1583,14 +1583,20 @@ export async function renderToHTMLOrFlight(
                       src:
                         `${assetPrefix}/_next/` +
                         src +
-                        getAssetQueryString(false),
+                        // Always include the timestamp query in development
+                        // as Safari caches them during the same session, no
+                        // matter what cache headers are set.
+                        getAssetQueryString(true),
                       integrity: subresourceIntegrityManifest[src],
                     }))
                   : buildManifest.rootMainFiles.map(
                       (src) =>
                         `${assetPrefix}/_next/` +
                         src +
-                        getAssetQueryString(false)
+                        // Always include the timestamp query in development
+                        // as Safari caches them during the same session, no
+                        // matter what cache headers are set.
+                        getAssetQueryString(true)
                     )),
               ],
             },

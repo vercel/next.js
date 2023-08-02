@@ -1,5 +1,4 @@
 import type { RouteDefinition } from '../route-definitions/route-definition'
-import type { NextRequest } from '../../web/spec-extension/request'
 
 /**
  * RouteModuleOptions is the options that are passed to the route module, other
@@ -22,7 +21,7 @@ export interface RouteModuleHandleContext {
    * Any matched parameters for the request. This is only defined for dynamic
    * routes.
    */
-  params: Record<string, string | string[]> | undefined
+  params: Record<string, string | string[] | undefined> | undefined
 }
 
 /**
@@ -44,14 +43,6 @@ export abstract class RouteModule<
    * The definition of the route.
    */
   public readonly definition: Readonly<D>
-
-  /**
-   * Handle will handle the request and return a response.
-   */
-  public abstract handle(
-    req: NextRequest,
-    context: RouteModuleHandleContext
-  ): Promise<Response>
 
   /**
    * The externals that are required for the route module.

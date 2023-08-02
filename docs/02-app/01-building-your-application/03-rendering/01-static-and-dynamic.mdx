@@ -1,0 +1,44 @@
+---
+title: Static and Dynamic Rendering
+nav_title: Static and Dynamic
+description: Learn about static and dynamic rendering in Next.js.
+related:
+  description: Learn how Next.js caches data and the result of static rendering.
+  links:
+    - app/building-your-application/caching
+---
+
+In Next.js, a route can be statically or dynamically rendered.
+
+## Static Rendering (Default)
+
+By default, Next.js statically renders routes to improve performance. At **build time**, Server and Client components are rendered on the server, and the result of the work is [cached](/docs/app/building-your-application/caching#full-route-cache) and reused on subsequent requests.
+
+> To understand how Client and Server Components are rendered, see the [Rendering Client and Server Components](/docs/app/building-your-application/rendering/server-and-client-components) page.
+
+## Dynamic Rendering
+
+With Dynamic Rendering, both Server _and_ Client Components for a route are rendered on the server at **request time**.
+
+During rendering, if a [dynamic function](#dynamic-functions) or uncached data request is discovered, Next.js will switch to dynamically rendering the whole route. This table summarizes how dynamic functions and data caching affect whether a route is statically or dynamically rendered:
+
+| Route                | Dynamic Functions | Data       |
+| -------------------- | ----------------- | ---------- |
+| Statically Rendered  | No                | Cached     |
+| Dynamically Rendered | Yes               | Cached     |
+| Dynamic Rendered     | No                | Not Cached |
+| Dynamic Rendered     | Yes               | Not Cached |
+
+From the table above, for a route to be fully static, all data must be cached. However, you can have a dynamically rendered route that uses both cached and uncached data fetches. This is useful when you have a page that mostly re-uses cached data, but has some uncached data. It allows you to opt into dynamic rendering without worrying about the performance impact of fetching all the data at request time.
+
+> **Good to know**: In the future, Next.js will introduce hybrid server-side rendering where layouts and pages in a route can be independently statically or dynamically rendered, instead of the whole route.
+
+### Dynamic Functions
+
+Dynamic functions rely on information that can only be known at request time such as a user's cookies, current requests headers, or the URL's search params. In Next.js, these dynamic functions are:
+
+- **[`cookies()`](/docs/app/api-reference/functions/cookies) and [`headers()`](/docs/app/api-reference/functions/headers)**: Using these in a Server Component will opt the whole route into dynamic rendering at request time.
+- **[`useSearchParams()`](/docs/app/api-reference/functions/use-search-params)**:
+  - In Client Components, it'll skip static rendering and instead render all Client Components up to the nearest parent Suspense boundary on the client.
+  - We recommend wrapping the Client Component that uses `useSearchParams()` in a `<Suspense/>` boundary. This will allow any Client Components above it to be statically rendered. [Example](/docs/app/api-reference/functions/use-search-params#static-rendering).
+- **[`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional)**: Using the [Pages](/docs/app/api-reference/file-conventions/page) prop will opt the page into dynamic rendering at request time.

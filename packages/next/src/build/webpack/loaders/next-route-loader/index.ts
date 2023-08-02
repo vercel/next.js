@@ -1,14 +1,16 @@
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
+import type { MiddlewareConfig } from '../../../analysis/get-page-static-info'
 
 import { stringify } from 'querystring'
-import { ModuleBuildInfo, getModuleBuildInfo } from '../get-module-build-info'
-import { PagesRouteModuleOptions } from '../../../../server/future/route-modules/pages/module'
+import {
+  type ModuleBuildInfo,
+  getModuleBuildInfo,
+} from '../get-module-build-info'
 import { RouteKind } from '../../../../server/future/route-kind'
 import { normalizePagePath } from '../../../../shared/lib/page-path/normalize-page-path'
-import { MiddlewareConfig } from '../../../analysis/get-page-static-info'
 import { decodeFromBase64, encodeToBase64 } from '../utils'
 import { isInstrumentationHookFile } from '../../../worker'
-import { PagesAPIRouteModuleOptions } from '../../../../server/future/route-modules/pages-api/module'
+import { loadEntrypoint } from './load-entrypoint'
 
 type RouteLoaderOptionsPagesAPIInput = {
   kind: RouteKind.PAGES_API
@@ -134,7 +136,7 @@ export function getRouteLoaderEntry(options: RouteLoaderOptionsInput): string {
   }
 }
 
-const loadPages = (
+const loadPages = async (
   {
     page,
     absolutePagePath,
@@ -157,69 +159,25 @@ const loadPages = (
     middlewareConfig,
   }
 
-  const options: Omit<PagesRouteModuleOptions, 'userland' | 'components'> = {
-    definition: {
-      kind: RouteKind.PAGES,
-      page: normalizePagePath(page),
-      pathname: page,
-      // The following aren't used in production.
-      bundlePath: '',
-      filename: '',
-    },
+  let file = await loadEntrypoint('pages', {
+    VAR_USERLAND: absolutePagePath,
+    VAR_MODULE_DOCUMENT: absoluteDocumentPath,
+    VAR_MODULE_APP: absoluteAppPath,
+    VAR_DEFINITION_PAGE: normalizePagePath(page),
+    VAR_DEFINITION_PATHNAME: page,
+  })
+
+  if (isInstrumentationHookFile(page)) {
+    // When we're building the instrumentation page (only when the
+    // instrumentation file conflicts with a page also labeled
+    // /instrumentation) hoist the `register` method.
+    file += '\nexport const register = hoist(userland, "register")'
   }
 
-  return `
-      // Next.js Route Loader
-      // import RouteModule from "next/dist/server/future/route-modules/pages/module"
-      import RouteModule from "next/dist/compiled/minimal-next-server/pages-render.runtime.js"
-      import { hoist } from "next/dist/build/webpack/loaders/next-route-loader/helpers"
-
-      // Import the app and document modules.
-      import Document from ${JSON.stringify(absoluteDocumentPath)}
-      import App from ${JSON.stringify(absoluteAppPath)}
-
-      // Import the userland code.
-      import * as userland from ${JSON.stringify(absolutePagePath)}
-
-      // Re-export the component (should be the default export).
-      export default hoist(userland, "default")
-
-      // Re-export methods.
-      export const getStaticProps = hoist(userland, "getStaticProps")
-      export const getStaticPaths = hoist(userland, "getStaticPaths")
-      export const getServerSideProps = hoist(userland, "getServerSideProps")
-      export const config = hoist(userland, "config")
-      export const reportWebVitals = hoist(userland, "reportWebVitals")
-      ${
-        // When we're building the instrumentation page (only when the
-        // instrumentation file conflicts with a page also labeled
-        // /instrumentation) hoist the `register` method.
-        isInstrumentationHookFile(page)
-          ? 'export const register = hoist(userland, "register")'
-          : ''
-      }
-
-      // Re-export legacy methods.
-      export const unstable_getStaticProps = hoist(userland, "unstable_getStaticProps")
-      export const unstable_getStaticPaths = hoist(userland, "unstable_getStaticPaths")
-      export const unstable_getStaticParams = hoist(userland, "unstable_getStaticParams")
-      export const unstable_getServerProps = hoist(userland, "unstable_getServerProps")
-      export const unstable_getServerSideProps = hoist(userland, "unstable_getServerSideProps")
-
-      // Create and export the route module that will be consumed.
-      const options = ${JSON.stringify(options)}
-      export const routeModule = new RouteModule({
-        ...options,
-        components: {
-          App,
-          Document,
-        },
-        userland,
-      })
-  `
+  return file
 }
 
-const loadPagesAPI = (
+const loadPagesAPI = async (
   {
     page,
     absolutePagePath,
@@ -240,39 +198,11 @@ const loadPagesAPI = (
     middlewareConfig,
   }
 
-  const options: Omit<PagesAPIRouteModuleOptions, 'userland' | 'components'> = {
-    definition: {
-      kind: RouteKind.PAGES_API,
-      page: normalizePagePath(page),
-      pathname: page,
-      // The following aren't used in production.
-      bundlePath: '',
-      filename: '',
-    },
-  }
-
-  return `
-      // Next.js Route Loader
-      // import RouteModule from "next/dist/server/future/route-modules/pages-api/module.js"
-      import RouteModule from "next/dist/compiled/minimal-next-server/pages-api.runtime.js"
-      import { hoist } from "next/dist/build/webpack/loaders/next-route-loader/helpers"
-
-      // Import the userland code.
-      import * as userland from ${JSON.stringify(absolutePagePath)}
-
-      // Re-export the handler (should be the default export).
-      export default hoist(userland, "default")
-
-      // Re-export config.
-      export const config = hoist(userland, "config")
-
-      // Create and export the route module that will be consumed.
-      const options = ${JSON.stringify(options)}
-      export const routeModule = new RouteModule({
-        ...options,
-        userland,
-      })
-  `
+  return await loadEntrypoint('pages-api', {
+    VAR_USERLAND: absolutePagePath,
+    VAR_DEFINITION_PAGE: normalizePagePath(page),
+    VAR_DEFINITION_PATHNAME: page,
+  })
 }
 
 /**
@@ -280,7 +210,7 @@ const loadPagesAPI = (
  * @returns the loader definition function
  */
 const loader: webpack.LoaderDefinitionFunction<RouteLoaderOptions> =
-  function () {
+  async function () {
     if (!this._module) {
       throw new Error('Invariant: expected this to reference a module')
     }
@@ -290,10 +220,10 @@ const loader: webpack.LoaderDefinitionFunction<RouteLoaderOptions> =
 
     switch (opts.kind) {
       case RouteKind.PAGES: {
-        return loadPages(opts, buildInfo)
+        return await loadPages(opts, buildInfo)
       }
       case RouteKind.PAGES_API: {
-        return loadPagesAPI(opts, buildInfo)
+        return await loadPagesAPI(opts, buildInfo)
       }
       default: {
         throw new Error('Invariant: Unexpected route kind')

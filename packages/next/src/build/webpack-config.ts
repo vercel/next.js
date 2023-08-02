@@ -726,6 +726,8 @@ export async function loadProjectInfo({
   }
 }
 
+const UNSAFE_CACHE_REGEX = /[\\/]pages[\\/][^\\/]+(?:$|\?|#)/
+
 export default async function getBaseWebpackConfig(
   dir: string,
   {
@@ -2750,7 +2752,11 @@ export default async function getBaseWebpackConfig(
     //  - next.config.js keys that affect compilation
     version: `${process.env.__NEXT_VERSION}|${configVars}`,
     cacheDirectory: path.join(distDir, 'cache', 'webpack'),
-    compression: 'gzip',
+    // For production builds, it's more efficient to compress all cache files together instead of compression each one individually.
+    // So we disable compression here and allow the build runner to take care of compressing the cache as a whole.
+    // For local development, we still want to compress the cache files individually to avoid I/O bottlenecks
+    // as we are seeing 1~10 seconds of fs I/O time from user reports.
+    compression: dev ? 'gzip' : false,
   }
 
   // Adds `next.config.js` as a buildDependency when custom webpack config is provided
@@ -2851,6 +2857,17 @@ export default async function getBaseWebpackConfig(
   webpackConfig.cache.name = `${webpackConfig.name}-${webpackConfig.mode}${
     isDevFallback ? '-fallback' : ''
   }`
+
+  if (dev) {
+    if (webpackConfig.module) {
+      webpackConfig.module.unsafeCache = (module: any) =>
+        !UNSAFE_CACHE_REGEX.test(module.resource)
+    } else {
+      webpackConfig.module = {
+        unsafeCache: (module: any) => !UNSAFE_CACHE_REGEX.test(module.resource),
+      }
+    }
+  }
 
   let originalDevtool = webpackConfig.devtool
   if (typeof config.webpack === 'function') {

@@ -37,10 +37,6 @@ export class AppPageRouteModule extends RouteModule<
 > {
   static readonly externals = externals
 
-  public handle(): Promise<Response> {
-    throw new Error('Method not implemented.')
-  }
-
   public render(
     req: IncomingMessage,
     res: ServerResponse,

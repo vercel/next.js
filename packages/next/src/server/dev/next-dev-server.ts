@@ -208,7 +208,6 @@ export default class DevServer extends Server {
       ensurer,
       this.dir
     )
-    const handlers = routes.handlers
     const extensions = this.nextConfig.pageExtensions
     const fileReader = new CachedFileReader(new DefaultFileReader())
 
@@ -241,7 +240,7 @@ export default class DevServer extends Server {
       )
     }
 
-    return { matchers, handlers }
+    return { matchers }
   }
 
   protected getBuildId(): string {

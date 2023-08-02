@@ -1,7 +1,10 @@
+import path from 'path'
 import { PagesRouteDefinition } from '../../route-definitions/pages-route-definition'
 import { RouteKind } from '../../route-kind'
 import { DevPagesRouteMatcherProvider } from './dev-pages-route-matcher-provider'
 import { FileReader } from './helpers/file-reader/file-reader'
+
+const normalizeSlashes = (p: string) => p.replace(/\//g, path.sep)
 
 describe('DevPagesRouteMatcherProvider', () => {
   const dir = '<root>'
@@ -21,41 +24,41 @@ describe('DevPagesRouteMatcherProvider', () => {
       route: PagesRouteDefinition
     }>([
       {
-        files: [`${dir}/index.ts`],
+        files: [normalizeSlashes(`${dir}/index.ts`)],
         route: {
           kind: RouteKind.PAGES,
           pathname: '/',
-          filename: `${dir}/index.ts`,
+          filename: normalizeSlashes(`${dir}/index.ts`),
           page: '/',
           bundlePath: 'pages/index',
         },
       },
       {
-        files: [`${dir}/some/api/route.ts`],
+        files: [normalizeSlashes(`${dir}/some/api/route.ts`)],
         route: {
           kind: RouteKind.PAGES,
           pathname: '/some/api/route',
-          filename: `${dir}/some/api/route.ts`,
+          filename: normalizeSlashes(`${dir}/some/api/route.ts`),
           page: '/some/api/route',
           bundlePath: 'pages/some/api/route',
         },
       },
       {
-        files: [`${dir}/some/other/route/index.ts`],
+        files: [normalizeSlashes(`${dir}/some/other/route/index.ts`)],
         route: {
           kind: RouteKind.PAGES,
           pathname: '/some/other/route',
-          filename: `${dir}/some/other/route/index.ts`,
+          filename: normalizeSlashes(`${dir}/some/other/route/index.ts`),
           page: '/some/other/route',
           bundlePath: 'pages/some/other/route',
         },
       },
       {
-        files: [`${dir}/some/other/route/index/route.ts`],
+        files: [normalizeSlashes(`${dir}/some/other/route/index/route.ts`)],
         route: {
           kind: RouteKind.PAGES,
           pathname: '/some/other/route/index/route',
-          filename: `${dir}/some/other/route/index/route.ts`,
+          filename: normalizeSlashes(`${dir}/some/other/route/index/route.ts`),
           page: '/some/other/route/index/route',
           bundlePath: 'pages/some/other/route/index/route',
         },
@@ -65,7 +68,9 @@ describe('DevPagesRouteMatcherProvider', () => {
       async ({ files, route }) => {
         const reader: FileReader = {
           read: jest.fn(() => [
-            ...extensions.map((ext) => `${dir}/api/other/page.${ext}`),
+            ...extensions.map((ext) =>
+              normalizeSlashes(`${dir}/api/other/page.${ext}`)
+            ),
             ...files,
           ]),
         }

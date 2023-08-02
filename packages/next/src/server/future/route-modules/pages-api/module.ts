@@ -100,10 +100,6 @@ export class PagesAPIRouteModule extends RouteModule<
   PagesAPIRouteDefinition,
   PagesAPIUserlandModule
 > {
-  public handle(): Promise<Response> {
-    throw new Error('Method not implemented.')
-  }
-
   constructor(options: PagesAPIRouteModuleOptions) {
     super(options)
 

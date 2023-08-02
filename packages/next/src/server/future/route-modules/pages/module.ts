@@ -113,10 +113,6 @@ export class PagesRouteModule extends RouteModule<
     this.components = options.components
   }
 
-  public handle(): Promise<Response> {
-    throw new Error('Method not implemented.')
-  }
-
   public render(
     req: IncomingMessage,
     res: ServerResponse,
