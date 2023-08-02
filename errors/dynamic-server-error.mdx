@@ -37,10 +37,10 @@ export default async function Page() {
 
 ## Possible Ways to Fix It
 
-**Manage Execution Contexts Correctly:** Understand that JavaScript operations like setTimeout, setInterval, event handlers, and Promises create new execution contexts. You need to maintain the async context when using these operations. Some strategies include:
+**Manage Execution Contexts Correctly:** JavaScript operations like `setTimeout`, `setInterval`, event handlers, and Promises create new execution contexts. You need to maintain the async context when using these operations. Some strategies include:
 
-- Invoke the function that depends on the async context outside of the function that creates a new execution context
-- Ensure that you await Promises when invoking a function that depends on async context, otherwise the function may be called after the async operation has completed.
+- Invoke the function that depends on the async context outside of the function that creates a new execution context.
+- Ensure that you await Promises that invoke a function that depends on async context, otherwise the function may be called after the async operation has completed.
 
 ### Example of Correct Usage
 
