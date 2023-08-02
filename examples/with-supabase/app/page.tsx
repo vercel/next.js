@@ -36,8 +36,6 @@ const examples = [
   { type: 'Server Components', src: 'app/_examples/server-component/page.tsx' },
   { type: 'Server Actions', src: 'app/_examples/server-action/page.tsx' },
   { type: 'Route Handlers', src: 'app/_examples/route-handler.ts' },
-  { type: 'Middleware', src: 'app/middleware.ts' },
-  { type: 'Protected Routes', src: 'app/_examples/protected/page.tsx' },
 ]
 
 export default async function Index() {
