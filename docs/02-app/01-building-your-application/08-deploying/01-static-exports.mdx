@@ -289,7 +289,7 @@ With this configuration, your application **will produce an error** if you try t
 
 The following additional dynamic features are not supported with a static export:
 
-- Routes containing [Dynamic segments](https://nextjs.org/docs/app/building-your-application/routing/dynamic-routes) like `app/blog/[slug]/page.js` (see https://github.com/vercel/next.js/issues/48022)
+- [Dynamic Routes](https://nextjs.org/docs/app/building-your-application/routing/dynamic-routes) without `generateStaticParams()`
 - `rewrites` in `next.config.js`
 - `redirects` in `next.config.js`
 - `headers` in `next.config.js`
