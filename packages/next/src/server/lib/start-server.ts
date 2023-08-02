@@ -12,7 +12,7 @@ import * as Log from '../../build/output/log'
 import setupDebug from 'next/dist/compiled/debug'
 import { splitCookiesString, toNodeOutgoingHttpHeaders } from '../web/utils'
 import { getCloneableBody } from '../body-streams'
-import { filterReqHeaders } from './server-ipc/utils'
+import { filterReqHeaders, ipcForbiddenHeaders } from './server-ipc/utils'
 import setupCompression from 'next/dist/compiled/compression'
 import { normalizeRepeatedSlashes } from '../../shared/lib/utils'
 import { invokeRequest } from './server-ipc/invoke-request'
@@ -261,13 +261,13 @@ export async function startServer({
       )
       const cleanup = () => {
         debug('start-server process cleanup')
-
         for (const curWorker of ((routerWorker as any)._workerPool?._workers ||
           []) as {
           _child?: ChildProcess
         }[]) {
-          curWorker._child?.kill('SIGKILL')
+          curWorker._child?.kill('SIGINT')
         }
+        process.exit(0)
       }
       process.on('exit', cleanup)
       process.on('SIGINT', cleanup)
@@ -418,7 +418,10 @@ export async function startServer({
         res.statusMessage = invokeRes.statusText
 
         for (const [key, value] of Object.entries(
-          filterReqHeaders(toNodeOutgoingHttpHeaders(invokeRes.headers))
+          filterReqHeaders(
+            toNodeOutgoingHttpHeaders(invokeRes.headers),
+            ipcForbiddenHeaders
+          )
         )) {
           if (value !== undefined) {
             if (key === 'set-cookie') {

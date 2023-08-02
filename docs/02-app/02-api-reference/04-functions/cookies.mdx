@@ -8,9 +8,9 @@ related:
     - app/building-your-application/data-fetching/server-actions
 ---
 
-The `cookies` function allows you to read the HTTP incoming request cookies from a [Server Component](/docs/getting-started/react-essentials) or write outgoing request cookies in a [Server Action](/docs/app/building-your-application/data-fetching/server-actions) or [Route Handler](/docs/app/building-your-application/routing/router-handlers).
+The `cookies` function allows you to read the HTTP incoming request cookies from a [Server Component](/docs/getting-started/react-essentials) or write outgoing request cookies in a [Server Action](/docs/app/building-your-application/data-fetching/server-actions) or [Route Handler](/docs/app/building-your-application/routing/route-handlers).
 
-> **Good to know**: `cookies()` is a **[Dynamic Function](/docs/app/building-your-application/rendering/static-and-dynamic-rendering#dynamic-functions)** whose returned values cannot be known ahead of time. Using it in a layout or page will opt a route into **[dynamic rendering](/docs/app/building-your-application/rendering/static-and-dynamic-rendering#dynamic-rendering)** at request time.
+> **Good to know**: `cookies()` is a **[Dynamic Function](/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-functions)** whose returned values cannot be known ahead of time. Using it in a layout or page will opt a route into **[dynamic rendering](/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering)** at request time.
 
 ## `cookies().get(name)`
 
@@ -62,7 +62,7 @@ export default function Page() {
 
 A method that takes a cookie name, value, and options and sets the outgoing request cookie.
 
-> **Good to know**: `.set()` is only available in a [Server Action](/docs/app/building-your-application/data-fetching/server-actions) or [Route Handler](/docs/app/building-your-application/routing/router-handlers).
+> **Good to know**: `.set()` is only available in a [Server Action](/docs/app/building-your-application/data-fetching/server-actions) or [Route Handler](/docs/app/building-your-application/routing/route-handlers).
 
 ```js filename="app/actions.js"
 'use server'
@@ -116,6 +116,8 @@ async function create(data) {
   cookies().set('name', '')
 }
 ```
+
+> **Good to know**: `.set()` is only available in a [Server Action](/docs/app/building-your-application/data-fetching/server-actions) or [Route Handler](/docs/app/building-your-application/routing/route-handlers).
 
 ### `cookies().set(name, value, { maxAge: 0 })`
 

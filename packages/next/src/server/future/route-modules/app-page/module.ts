@@ -34,10 +34,6 @@ export class AppPageRouteModule extends RouteModule<
   AppPageRouteDefinition,
   AppPageUserlandModule
 > {
-  public handle(): Promise<Response> {
-    throw new Error('Method not implemented.')
-  }
-
   public render(
     req: IncomingMessage,
     res: ServerResponse,
