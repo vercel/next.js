@@ -98,7 +98,7 @@ export class EdgeRouteModuleWrapper {
         dynamicRoutes: {},
         preview: prerenderManifest?.preview || {
           previewModeEncryptionKey: '',
-          previewModeId: '',
+          previewModeId: 'development-id',
           previewModeSigningKey: '',
         },
         notFoundRoutes: [],
