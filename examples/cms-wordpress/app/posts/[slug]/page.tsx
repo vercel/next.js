@@ -86,7 +86,7 @@ export default async function Post({ params }: PageProps) {
 const getStaticPaths: GetStaticPaths = async () => {
   const allPosts = await getAllPostsWithSlug()
   return {
-    paths: allPosts.edges.map(({ node }) => `/posts/${node.slug}`) || [],
+    paths: allPosts.edges.map(({ node }) => ({ slug: node.slug })) || [],
     fallback: true,
   }
 }
