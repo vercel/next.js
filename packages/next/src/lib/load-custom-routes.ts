@@ -674,29 +674,13 @@ export default async function loadCustomRoutes(
 
   if (!config.skipTrailingSlashRedirect) {
     if (config.trailingSlash) {
-      redirects.unshift(
-        {
-          source: '/:file((?!\\.well-known(?:/.*)?)(?:[^/]+/)*[^/]+\\.\\w+)/',
-          destination: '/:file',
-          permanent: true,
-          locale: config.i18n ? false : undefined,
-          internal: true,
-          // don't run this redirect for _next/data requests
-          missing: [
-            {
-              type: 'header',
-              key: 'x-nextjs-data',
-            },
-          ],
-        } as Redirect,
-        {
-          source: '/:notfile((?!\\.well-known(?:/.*)?)(?:[^/]+/)*[^/\\.]+)',
-          destination: '/:notfile/',
-          permanent: true,
-          locale: config.i18n ? false : undefined,
-          internal: true,
-        } as Redirect
-      )
+      redirects.unshift({
+        source: '/:notfile((?!\\.well-known(?:/.*)?)(?:[^/]+/)*[^/\\.]+)',
+        destination: '/:notfile/',
+        permanent: true,
+        locale: config.i18n ? false : undefined,
+        internal: true,
+      } as Redirect)
       if (config.basePath) {
         redirects.unshift({
           source: config.basePath,
