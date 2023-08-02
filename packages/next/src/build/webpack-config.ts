@@ -2795,9 +2795,13 @@ export default async function getBaseWebpackConfig(
 
   if (dev) {
     if (webpackConfig.module) {
-      webpackConfig.module.unsafeCache = true
+      webpackConfig.module.unsafeCache = (module: any) =>
+        !/[\\/]pages[\\/][^\\/]+(?:$|\?|#)/.test(module.resource)
     } else {
-      webpackConfig.module = { unsafeCache: true }
+      webpackConfig.module = {
+        unsafeCache: (module: any) =>
+          !/[\\/]pages[\\/][^\\/]+(?:$|\?|#)/.test(module.resource),
+      }
     }
   }
 
