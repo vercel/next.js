@@ -3,25 +3,29 @@ import type { NodeRequestHandler } from './next-server'
 import type { UrlWithParsedQuery } from 'url'
 import type { NextConfigComplete } from './config-shared'
 import type { IncomingMessage, ServerResponse } from 'http'
-import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
+import {
+  addRequestMeta,
+  type NextParsedUrlQuery,
+  type NextUrlWithParsedQuery,
+} from './request-meta'
 
 import './require-hook'
 import './node-polyfill-fetch'
 import './node-polyfill-crypto'
+
+import url from 'url'
 import { default as Server } from './next-server'
 import * as log from '../build/output/log'
 import loadConfig from './config'
-import { join, resolve } from 'path'
+import { resolve } from 'path'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
-import {
-  PHASE_DEVELOPMENT_SERVER,
-  SERVER_DIRECTORY,
-} from '../shared/lib/constants'
+import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import { PHASE_PRODUCTION_SERVER } from '../shared/lib/constants'
 import { getTracer } from './lib/trace/tracer'
 import { NextServerSpan } from './lib/trace/constants'
 import { formatUrl } from '../shared/lib/router/utils/format-url'
-import { findDir } from '../lib/find-pages-dir'
+import { proxyRequest } from './lib/router-utils/proxy-request'
+import { TLSSocket } from 'tls'
 
 let ServerImpl: typeof Server
 
@@ -136,16 +140,14 @@ export class NextServer {
     return server.render404(...args)
   }
 
-  async serveStatic(...args: Parameters<Server['serveStatic']>) {
-    const server = await this.getServer()
-    return server.serveStatic(...args)
-  }
-
-  async prepare() {
+  async prepare(serverFields?: any) {
     if (this.standaloneMode) return
 
     const server = await this.getServer()
 
+    if (serverFields) {
+      Object.assign(server, serverFields)
+    }
     // We shouldn't prepare the server in production,
     // because this code won't be executed when deployed
     if (this.options.dev) {
@@ -271,15 +273,43 @@ function createServer(options: NextServerOptions): NextServer {
     // both types of renderers (pages, app) running in separated processes,
     // instead of having the Next server only.
     let shouldUseStandaloneMode = false
-
     const dir = resolve(options.dir || '.')
     const server = new NextServer(options)
 
-    const { createServerHandler } =
-      require('./lib/render-server-standalone') as typeof import('./lib/render-server-standalone')
+    const { createRouterWorker, checkIsNodeDebugging } =
+      require('./lib/start-server') as typeof import('./lib/start-server')
 
-    let handlerPromise: Promise<ReturnType<typeof createServerHandler>>
+    let didWebSocketSetup = false
+    let serverPort: number = 0
 
+    function setupWebSocketHandler(
+      customServer?: import('http').Server,
+      _req?: IncomingMessage
+    ) {
+      if (!didWebSocketSetup) {
+        didWebSocketSetup = true
+        customServer = customServer || (_req?.socket as any)?.server
+
+        if (!customServer) {
+          // this is very unlikely to happen but show an error in case
+          // it does somehow
+          console.error(
+            `Invalid IncomingMessage received, make sure http.createServer is being used to handle requests.`
+          )
+        } else {
+          customServer.on('upgrade', async (req, socket, head) => {
+            if (shouldUseStandaloneMode) {
+              await proxyRequest(
+                req,
+                socket as any,
+                url.parse(`http://127.0.0.1:${serverPort}${req.url}`, true),
+                head
+              )
+            }
+          })
+        }
+      }
+    }
     return new Proxy(
       {},
       {
@@ -287,50 +317,53 @@ function createServer(options: NextServerOptions): NextServer {
           switch (propKey) {
             case 'prepare':
               return async () => {
-                // Instead of running Next Server's `prepare`, we'll run the loadConfig first to determine
-                // if we should run the standalone server or not.
-                const config = await server[SYMBOL_LOAD_CONFIG]()
-
-                // Check if the application has app dir or not. This depends on the mode (dev or prod).
-                // For dev, `app` should be existing in the sources and for prod it should be existing
-                // in the dist folder.
-                const distDir =
-                  process.env.NEXT_RUNTIME === 'edge'
-                    ? config.distDir
-                    : join(dir, config.distDir)
-                const serverDistDir = join(distDir, SERVER_DIRECTORY)
-                const hasAppDir = !!findDir(
-                  options.dev ? dir : serverDistDir,
-                  'app'
+                shouldUseStandaloneMode = true
+                server[SYMBOL_SET_STANDALONE_MODE]()
+                const isNodeDebugging = checkIsNodeDebugging()
+                const routerWorker = await createRouterWorker(
+                  require.resolve('./lib/router-server'),
+                  isNodeDebugging
                 )
 
-                if (hasAppDir) {
-                  shouldUseStandaloneMode = true
-                  server[SYMBOL_SET_STANDALONE_MODE]()
-
-                  handlerPromise =
-                    handlerPromise ||
-                    createServerHandler({
-                      port: options.port || 3000,
-                      dev: options.dev,
-                      dir,
-                      hostname: options.hostname || 'localhost',
-                      minimalMode: false,
-                    })
-                } else {
-                  return server.prepare()
-                }
+                const initResult = await routerWorker.initialize({
+                  dir,
+                  port: options.port || 3000,
+                  hostname: options.hostname || 'localhost',
+                  isNodeDebugging: !!isNodeDebugging,
+                  workerType: 'router',
+                  dev: !!options.dev,
+                  minimalMode: options.minimalMode,
+                })
+                serverPort = initResult.port
               }
             case 'getRequestHandler': {
               return () => {
                 let handler: RequestHandler
-                return async (req: IncomingMessage, res: ServerResponse) => {
+                return async (
+                  req: IncomingMessage,
+                  res: ServerResponse,
+                  parsedUrl?: UrlWithParsedQuery
+                ) => {
                   if (shouldUseStandaloneMode) {
-                    const standaloneHandler = await handlerPromise
-                    return standaloneHandler(req, res)
+                    setupWebSocketHandler(options.httpServer, req)
+                    const proxyParsedUrl = url.parse(
+                      `http://127.0.0.1:${serverPort}${req.url}`,
+                      true
+                    )
+                    if ((req?.socket as TLSSocket)?.encrypted) {
+                      req.headers['x-forwarded-proto'] = 'https'
+                    }
+                    addRequestMeta(
+                      req,
+                      '__NEXT_INIT_QUERY',
+                      proxyParsedUrl.query
+                    )
+
+                    await proxyRequest(req, res, proxyParsedUrl, undefined, req)
+                    return
                   }
                   handler = handler || server.getRequestHandler()
-                  return handler(req, res)
+                  return handler(req, res, parsedUrl)
                 }
               }
             }
@@ -343,13 +376,37 @@ function createServer(options: NextServerOptions): NextServer {
                 parsedUrl?: NextUrlWithParsedQuery
               ) => {
                 if (shouldUseStandaloneMode) {
-                  const handler = await handlerPromise
+                  setupWebSocketHandler(options.httpServer, req)
+
+                  if (!pathname.startsWith('/')) {
+                    console.error(`Cannot render page with path "${pathname}"`)
+                    pathname = `/${pathname}`
+                  }
+                  pathname = pathname === '/index' ? '/' : pathname
+
                   req.url = formatUrl({
                     ...parsedUrl,
                     pathname,
                     query,
                   })
-                  return handler(req, res)
+
+                  if ((req?.socket as TLSSocket)?.encrypted) {
+                    req.headers['x-forwarded-proto'] = 'https'
+                  }
+                  addRequestMeta(
+                    req,
+                    '__NEXT_INIT_QUERY',
+                    parsedUrl?.query || query || {}
+                  )
+
+                  await proxyRequest(
+                    req,
+                    res,
+                    url.parse(`http://127.0.0.1:${serverPort}${req.url}`, true),
+                    undefined,
+                    req
+                  )
+                  return
                 }
 
                 return server.render(req, res, pathname, query, parsedUrl)
@@ -366,7 +423,6 @@ function createServer(options: NextServerOptions): NextServer {
       }
     ) as any
   }
-
   return new NextServer(options)
 }
 

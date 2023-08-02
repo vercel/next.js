@@ -2,10 +2,11 @@ import type NextServer from '../../next-server'
 import type { NextConfigComplete } from '../../config-shared'
 
 import { getNodeOptionsWithoutInspect } from '../utils'
-import { deserializeErr, errorToJSON } from '../../render'
+import { errorToJSON } from '../../render'
 import crypto from 'crypto'
 import isError from '../../../lib/is-error'
 import { genRenderExecArgv } from '../worker-utils'
+import { deserializeErr } from './request-utils'
 
 // we can't use process.send as jest-worker relies on
 // it already and can cause unexpected message errors
@@ -88,13 +89,14 @@ export const createWorker = async (
   nextConfig: NextConfigComplete
 ) => {
   const { initialEnv } = require('@next/env') as typeof import('@next/env')
-  const { Worker } = require('next/dist/compiled/jest-worker')
   const useServerActions = !!nextConfig.experimental.serverActions
+  const { Worker } =
+    require('next/dist/compiled/jest-worker') as typeof import('next/dist/compiled/jest-worker')
 
   const worker = new Worker(require.resolve('../render-server'), {
     numWorkers: 1,
-    // TODO: do we want to allow more than 10 OOM restarts?
-    maxRetries: 10,
+    // TODO: do we want to allow more than 8 OOM restarts?
+    maxRetries: 8,
     forkOptions: {
       env: {
         FORCE_COLOR: '1',
@@ -129,11 +131,14 @@ export const createWorker = async (
       'deleteCache',
       'deleteAppClientCache',
       'clearModuleContext',
+      'propagateServerField',
     ],
   }) as any as InstanceType<typeof Worker> & {
     initialize: typeof import('../render-server').initialize
     deleteCache: typeof import('../render-server').deleteCache
     deleteAppClientCache: typeof import('../render-server').deleteAppClientCache
+    clearModuleContext: typeof import('../render-server').clearModuleContext
+    propagateServerField: typeof import('../render-server').propagateServerField
   }
 
   worker.getStderr().pipe(process.stderr)

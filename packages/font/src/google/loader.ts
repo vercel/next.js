@@ -164,7 +164,9 @@ const nextFontGoogleFontLoader: FontLoader = async ({
     if (isDev) {
       if (isServer) {
         Log.error(
-          `Failed to download \`${fontFamily}\` from Google Fonts. Using fallback font instead.`
+          `Failed to download \`${fontFamily}\` from Google Fonts. Using fallback font instead.\n\n${
+            (err as Error).message
+          }}`
         )
       }
 

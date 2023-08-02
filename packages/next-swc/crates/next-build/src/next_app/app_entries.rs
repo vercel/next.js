@@ -189,7 +189,10 @@ pub async fn get_app_entries(
         .iter()
         .map(|(pathname, entrypoint)| async move {
             Ok(match entrypoint {
-                Entrypoint::AppPage { loader_tree } => get_app_page_entry(
+                Entrypoint::AppPage {
+                    original_name: _,
+                    loader_tree,
+                } => get_app_page_entry(
                     rsc_context,
                     // TODO add edge support
                     rsc_context,
@@ -198,7 +201,10 @@ pub async fn get_app_entries(
                     pathname.clone(),
                     project_root,
                 ),
-                Entrypoint::AppRoute { path } => get_app_route_entry(
+                Entrypoint::AppRoute {
+                    original_name: _,
+                    path,
+                } => get_app_route_entry(
                     rsc_context,
                     // TODO add edge support
                     rsc_context,

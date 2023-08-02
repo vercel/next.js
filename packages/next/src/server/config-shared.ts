@@ -297,6 +297,11 @@ export interface ExperimentalConfig {
    * Enables source maps generation for the server production bundle.
    */
   serverSourceMaps?: boolean
+
+  /**
+   * @internal Used by the Next.js internals only.
+   */
+  trustHostHeader?: boolean
 }
 
 export type ExportPathMap = {
@@ -622,7 +627,7 @@ export interface NextConfig extends Record<string, any> {
   modularizeImports?: Record<
     string,
     {
-      transform: string
+      transform: string | Record<string, string>
       preventFullImport?: boolean
       skipDefaultConversion?: boolean
     }
