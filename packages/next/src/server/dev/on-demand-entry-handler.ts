@@ -469,19 +469,8 @@ async function findRoutePathData(
   page: string,
   extensions: string[],
   pagesDir?: string,
-  appDir?: string,
-  match?: RouteMatch
+  appDir?: string
 ): ReturnType<typeof findPagePathData> {
-  if (match) {
-    // If the match is available, we don't have to discover the data from the
-    // filesystem.
-    return {
-      absolutePagePath: match.definition.filename,
-      page: match.definition.page,
-      bundlePath: match.definition.bundlePath,
-    }
-  }
-
   return findPagePathData(rootDir, page, extensions, pagesDir, appDir)
 }
 
@@ -688,13 +677,11 @@ export function onDemandEntryHandler({
     page,
     clientOnly,
     appPaths = null,
-    match,
     isApp,
   }: {
     page: string
     clientOnly: boolean
     appPaths?: ReadonlyArray<string> | null
-    match?: RouteMatch
     isApp?: boolean
   }): Promise<void> {
     const stalledTime = 60
@@ -704,21 +691,13 @@ export function onDemandEntryHandler({
       )
     }, stalledTime * 1000)
 
-    // If the route is actually an app page route, then we should have access
-    // to the app route match, and therefore, the appPaths from it.
-    if (match?.definition.kind === RouteKind.APP_PAGE) {
-      const { definition: route } = match as AppPageRouteMatch
-      appPaths = route.appPaths
-    }
-
     try {
       const pagePathData = await findRoutePathData(
         rootDir,
         page,
         nextConfig.pageExtensions,
         pagesDir,
-        appDir,
-        match
+        appDir
       )
 
       const isInsideAppDir =
@@ -901,13 +880,11 @@ export function onDemandEntryHandler({
       page,
       clientOnly,
       appPaths = null,
-      match,
       isApp,
     }: {
       page: string
       clientOnly: boolean
       appPaths?: ReadonlyArray<string> | null
-      match?: RouteMatch
       isApp?: boolean
     }) {
       if (curEnsurePage.has(page)) {
@@ -917,7 +894,6 @@ export function onDemandEntryHandler({
         page,
         clientOnly,
         appPaths,
-        match,
         isApp,
       }).finally(() => {
         curEnsurePage.delete(page)

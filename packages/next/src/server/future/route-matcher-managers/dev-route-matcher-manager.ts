@@ -5,8 +5,9 @@ import { MatchOptions, RouteMatcherManager } from './route-matcher-manager'
 
 export class DevRouteMatcherManager {
   static wrap(manager: RouteMatcherManager): RouteMatcherManager {
-    // We need to wrap the production matcher manager so that we can reload the
-    // production matcher manager when we reload the dev matcher manager.
+    // We need to replace the `matchAll` method with one that will reload the
+    // routes before matching. This is because in development we may have
+    // updated the routes since the last time we matched.
     const matchAll = manager.matchAll.bind(manager)
     manager.matchAll = async function* (
       pathname: string,

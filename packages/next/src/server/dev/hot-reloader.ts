@@ -1419,7 +1419,6 @@ export default class HotReloader {
     page,
     clientOnly,
     appPaths,
-    match,
     isApp,
   }: {
     page: string
@@ -1442,7 +1441,6 @@ export default class HotReloader {
       page,
       clientOnly,
       appPaths,
-      match,
       isApp,
     }) as any
   }
