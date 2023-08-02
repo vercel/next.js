@@ -56,28 +56,10 @@ declare module 'ENTRY' {
   export = module
 }
 
-declare module 'ROUTE_MODULE' {
-  import {
-    RouteModule,
-    type RouteModuleOptions,
-  } from 'next/dist/server/future/route-modules/route-module'
-
-  /**
-   * This is the implementation class for the route module. This provides base
-   * typing for the options and context.
-   */
-  export default class<O extends RouteModuleOptions> extends RouteModule {
-    constructor(options: O)
-  }
-}
-
 declare module 'BOOTSTRAP_CONFIG' {
-  import type { RouteKind } from 'next/dist/server/future/route-kind'
-
   export const NAME: string
   export const PAGE: string
   export const PATHNAME: string
-  export const KIND: RouteKind
 }
 
 declare module 'APP_BOOTSTRAP' {

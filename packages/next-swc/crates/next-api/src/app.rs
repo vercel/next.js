@@ -451,6 +451,7 @@ impl AppEndpoint {
             loader_tree,
             self.app_project.app_dir(),
             self.pathname.clone(),
+            self.original_name.clone(),
             self.app_project.project().project_path(),
         )
     }
@@ -462,6 +463,7 @@ impl AppEndpoint {
             self.app_project.edge_rsc_module_context(),
             Vc::upcast(FileSource::new(path)),
             self.pathname.clone(),
+            self.original_name.clone(),
             self.app_project.project().project_path(),
         )
     }
