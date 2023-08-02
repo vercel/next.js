@@ -46,3 +46,15 @@ externalRequire.resolve = (
 ) => {
   return require.resolve(id, options);
 };
+
+async function loadWebAssemblyFromPath(
+  path: string,
+  importsObj: WebAssembly.Imports
+): Promise<Exports> {
+  const { readFile } = require("fs/promises") as typeof import("fs/promises");
+
+  const buffer = await readFile(path);
+  const { instance } = await WebAssembly.instantiate(buffer, importsObj);
+
+  return instance.exports;
+}

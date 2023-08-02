@@ -55,6 +55,7 @@ pub use turbopack_ecmascript as ecmascript;
 use turbopack_json::JsonModuleAsset;
 use turbopack_mdx::MdxModuleAsset;
 use turbopack_static::StaticModuleAsset;
+use turbopack_wasm::WebAssemblyModuleAsset;
 
 use self::{
     module_options::CustomModuleType,
@@ -180,6 +181,9 @@ async fn apply_module_type(
             *transforms,
             *options,
         )),
+        ModuleType::WebAssembly => {
+            Vc::upcast(WebAssemblyModuleAsset::new(source, Vc::upcast(context)))
+        }
         ModuleType::Custom(custom) => custom.create_module(source, context, part),
     })
 }
@@ -628,5 +632,6 @@ pub fn register() {
     turbopack_mdx::register();
     turbopack_json::register();
     turbopack_static::register();
+    turbopack_wasm::register();
     include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }

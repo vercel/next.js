@@ -27,6 +27,19 @@ function commonJsRequireContext(
   return commonJsRequire(sourceModule, entry.id());
 }
 
+async function loadWebAssembly(
+  _source: SourceInfo,
+  wasmChunkPath: ChunkPath,
+  importsObj: WebAssembly.Imports
+): Promise<Exports> {
+  const chunkUrl = `/${getChunkRelativeUrl(wasmChunkPath)}`;
+
+  const req = fetch(chunkUrl);
+  const { instance } = await WebAssembly.instantiateStreaming(req, importsObj);
+
+  return instance.exports;
+}
+
 (() => {
   BACKEND = {
     async registerChunk(chunkPath, params) {

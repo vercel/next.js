@@ -105,6 +105,9 @@ impl EcmascriptChunkItemContent {
         if this.options.exports {
             args.push("e: exports");
         }
+        if this.options.wasm {
+            args.push("w: __turbopack_wasm__");
+        }
         let mut code = CodeBuilder::default();
         let args = FormatIter(|| args.iter().copied().intersperse(", "));
         if this.options.this {
@@ -157,6 +160,9 @@ pub struct EcmascriptChunkItemOptions {
     /// or is importing async modules).
     pub async_module: Option<AsyncModuleOptions>,
     pub this: bool,
+    /// Whether this chunk item's module factory should include
+    /// `__turbopack_wasm__` to load WebAssembly.
+    pub wasm: bool,
     pub placeholder_for_future_extensions: (),
 }
 

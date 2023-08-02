@@ -340,6 +340,14 @@ impl ModuleOptions {
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Static)],
             ),
             ModuleRule::new(
+                ModuleRuleCondition::any(vec![
+                    ModuleRuleCondition::ResourcePathEndsWith(".wasm".to_string()),
+                    // TODO(WEB-1316): add support for `wat` files
+                    // ModuleRuleCondition::ResourcePathEndsWith(".wat".to_string()),
+                ]),
+                vec![ModuleRuleEffect::ModuleType(ModuleType::WebAssembly)],
+            ),
+            ModuleRule::new(
                 ModuleRuleCondition::ResourcePathHasNoExtension,
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript {
                     transforms: vendor_transforms,

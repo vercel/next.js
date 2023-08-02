@@ -66,7 +66,7 @@ pub async fn get_dev_runtime_code(
 
     if matches!(chunk_loading, ChunkLoading::NodeJs) {
         code.push_code(
-            &*embed_static_code(asset_context, "shared-node/require.ts".to_string()).await?,
+            &*embed_static_code(asset_context, "shared-node/node-utils.ts".to_string()).await?,
         );
     }
 

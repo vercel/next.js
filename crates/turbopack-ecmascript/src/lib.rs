@@ -17,7 +17,7 @@ pub mod magic_identifier;
 pub(crate) mod manifest;
 pub mod parse;
 mod path_visitor;
-pub(crate) mod references;
+pub mod references;
 pub mod resolve;
 pub(crate) mod special_cases;
 pub(crate) mod static_code;

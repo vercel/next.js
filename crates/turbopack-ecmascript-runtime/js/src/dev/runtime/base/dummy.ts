@@ -14,3 +14,4 @@ declare var augmentContext: (
   context: TurbopackDevBaseContext
 ) => TurbopackDevContext;
 declare var commonJsRequireContext: CommonJsRequireContext;
+declare var loadWebAssembly: (source: SourceInfo, wasmChunkPath: ChunkPath, imports: WebAssembly.Imports) => Exports;

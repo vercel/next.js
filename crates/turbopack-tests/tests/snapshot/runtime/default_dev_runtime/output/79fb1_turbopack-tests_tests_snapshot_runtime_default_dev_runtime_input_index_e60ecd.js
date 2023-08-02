@@ -386,6 +386,10 @@ function instantiateModule(id, source) {
     moduleCache[id] = module;
     moduleHotState.set(module, hotState);
     try {
+        const sourceInfo = {
+            type: SourceType.Parent,
+            parentId: id
+        };
         runModuleExecutionHooks(module, (refresh)=>{
             moduleFactory.call(module.exports, augmentContext({
                 a: asyncModule.bind(null, module),
@@ -399,10 +403,8 @@ function instantiateModule(id, source) {
                 n: exportNamespace.bind(null, module),
                 m: module,
                 c: moduleCache,
-                l: loadChunk.bind(null, {
-                    type: SourceType.Parent,
-                    parentId: id
-                }),
+                l: loadChunk.bind(null, sourceInfo),
+                w: loadWebAssembly.bind(null, sourceInfo),
                 g: globalThis,
                 k: refresh,
                 __dirname: module.id.replace(/(^|\/)\/+$/, "")
@@ -1054,6 +1056,12 @@ function augmentContext(context1) {
 }
 function commonJsRequireContext(entry1, sourceModule1) {
     return commonJsRequire(sourceModule1, entry1.id());
+}
+async function loadWebAssembly(_source1, wasmChunkPath1, importsObj1) {
+    const chunkUrl1 = `/${getChunkRelativeUrl(wasmChunkPath1)}`;
+    const req1 = fetch(chunkUrl1);
+    const { instance: instance1 } = await WebAssembly.instantiateStreaming(req1, importsObj1);
+    return instance1.exports;
 }
 (()=>{
     BACKEND = {

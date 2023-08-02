@@ -582,7 +582,7 @@ pub(crate) async fn analyze_ecmascript_module(
         }
 
         let async_module = AsyncModule {
-            module,
+            placeable: Vc::upcast(module),
             references: import_references.iter().copied().collect(),
             has_top_level_await,
         }
@@ -601,7 +601,7 @@ pub(crate) async fn analyze_ecmascript_module(
         EcmascriptExports::EsmExports(esm_exports)
     } else if matches!(specified_type, SpecifiedModuleType::EcmaScript) {
         let async_module = AsyncModule {
-            module,
+            placeable: Vc::upcast(module),
             references: import_references.iter().copied().collect(),
             has_top_level_await,
         }
@@ -644,7 +644,7 @@ pub(crate) async fn analyze_ecmascript_module(
             DetectedDynamicExportType::Value => EcmascriptExports::Value,
             DetectedDynamicExportType::UsingModuleDeclarations => {
                 let async_module = AsyncModule {
-                    module,
+                    placeable: Vc::upcast(module),
                     references: import_references.iter().copied().collect(),
                     has_top_level_await,
                 }
