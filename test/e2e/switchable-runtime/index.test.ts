@@ -188,6 +188,7 @@ describe('Switchable runtime', () => {
             functions: {
               '/api/hello': {
                 files: [
+                  'prerender-manifest.js',
                   'server/edge-runtime-webpack.js',
                   'server/pages/api/hello.js',
                 ],
@@ -200,6 +201,7 @@ describe('Switchable runtime', () => {
               },
               '/api/edge': {
                 files: [
+                  'prerender-manifest.js',
                   'server/edge-runtime-webpack.js',
                   'server/pages/api/edge.js',
                 ],
