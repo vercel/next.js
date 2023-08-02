@@ -1,7 +1,8 @@
-import type { RouteHandlerManagerContext } from '../future/route-handler-managers/route-handler-manager'
-import type { RouteDefinition } from '../future/route-definitions/route-definition'
-import type { RouteModule } from '../future/route-modules/route-module'
 import type { NextRequest } from './spec-extension/request'
+import type {
+  AppRouteRouteHandlerContext,
+  AppRouteRouteModule,
+} from '../future/route-modules/app-route/module'
 
 import './globals'
 
@@ -27,9 +28,7 @@ export class EdgeRouteModuleWrapper {
    *
    * @param routeModule the route module to wrap
    */
-  private constructor(
-    private readonly routeModule: RouteModule<RouteDefinition>
-  ) {
+  private constructor(private readonly routeModule: AppRouteRouteModule) {
     // TODO: (wyattjoh) possibly allow the module to define it's own matcher
     this.matcher = new RouteMatcher(routeModule.definition)
   }
@@ -44,7 +43,7 @@ export class EdgeRouteModuleWrapper {
    * @returns a function that can be used as a handler for the edge runtime
    */
   public static wrap(
-    routeModule: RouteModule<RouteDefinition>,
+    routeModule: AppRouteRouteModule,
     options: WrapOptions = {}
   ) {
     // Create the module wrapper.
@@ -84,7 +83,7 @@ export class EdgeRouteModuleWrapper {
 
     // Create the context for the handler. This contains the params from the
     // match (if any).
-    const context: RouteHandlerManagerContext = {
+    const context: AppRouteRouteHandlerContext = {
       params: match.params,
       prerenderManifest: {
         version: 4,
