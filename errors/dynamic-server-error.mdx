@@ -13,8 +13,7 @@ You attempted to use a Next.js function that depends on Async Context (such as `
 ## Scenarios that can cause this to happen
 
 - The function was called inside of a `setTimeout` or `setInterval`, causing the value to be read outside of the call stack that the context was bound to
-- The function was called after an async operation, but the promise wasn't returned. This can cause the function to be called after the async operation has completed, resulting in a new execution context and loss of the original async context.
-- The function was used in an async context, but errors weren't adequately handled. An unhandled error can cause a function to exit prematurely, leading to a loss of the async context.
+- The function was called after an async operation, but the promise wasn't awaited. This can cause the function to be called after the async operation has completed, resulting in a new execution context and loss of the original async context.
 
 ### Example of Incorrect Usage
 
@@ -38,11 +37,10 @@ export default async function Page() {
 
 ## Possible Ways to Fix It
 
-**Return Promises:** Ensure to return Promises when dealing with asynchronous operations. This makes sure that the asynchronous operation completes within the same async context.
+**Manage Execution Contexts Correctly:** Understand that JavaScript operations like setTimeout, setInterval, event handlers, and Promises create new execution contexts. You need to maintain the async context when using these operations. Some strategies include:
 
-**Manage Execution Contexts Correctly:** Understand that JavaScript operations like setTimeout, setInterval, event handlers, and Promises create new execution contexts. You need to maintain the async context when using these operations.
-
-**Handle Errors Appropriately:** Always handle errors in your async functions. Failing to do so can cause an early exit from the function, leading to a loss of the async context.
+- Invoke the function that depends on the async context outside of the function that creates a new execution context
+- Ensure that you await Promises when invoking a function that depends on async context, otherwise the function may be called after the async operation has completed.
 
 ### Example of Correct Usage
 
