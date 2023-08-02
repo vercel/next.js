@@ -278,18 +278,3 @@ jobs:
     steps:
       - run: exit 1
         if: ${{ always() && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'skipped') || contains(needs.*.result, 'cancelled')) }}
-
-  warmup:
-    runs-on:
-      - 'self-hosted'
-      - 'linux'
-      - 'x64'
-      - 'hosted-ci-cd:ignore'
-    strategy:
-      fail-fast: false
-      matrix:
-        # we need ~30 workers to run all the tests in parallel
-        a: [1, 2, 3, 4, 5]
-        b: [1, 2, 3, 4, 5, 6]
-    steps:
-      - run: echo 'warmup'
