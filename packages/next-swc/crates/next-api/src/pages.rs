@@ -641,7 +641,7 @@ impl PageEndpoint {
                 .project()
                 .node_root()
                 .join("server".to_string()),
-            this.path.root(),
+            this.pages_project.project().project_path(),
             this.pages_project.ssr_module_context(),
             this.pages_project.edge_ssr_module_context(),
             this.pages_project.project().ssr_chunking_context(),
@@ -660,7 +660,7 @@ impl PageEndpoint {
                 .project()
                 .node_root()
                 .join("server-data".to_string()),
-            this.path.root(),
+            this.pages_project.project().project_path(),
             this.pages_project.ssr_data_module_context(),
             this.pages_project.edge_ssr_data_module_context(),
             this.pages_project.project().ssr_data_chunking_context(),
@@ -681,7 +681,7 @@ impl PageEndpoint {
                 .project()
                 .node_root()
                 .join("server".to_string()),
-            this.path.root(),
+            this.pages_project.project().project_path(),
             this.pages_project.ssr_module_context(),
             this.pages_project.edge_ssr_module_context(),
             this.pages_project.project().ssr_chunking_context(),
