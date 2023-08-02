@@ -316,6 +316,8 @@ function instantiateModule(id: ModuleId, source: SourceInfo): Module {
 
   // NOTE(alexkirsz) This can fail when the module encounters a runtime error.
   try {
+    const sourceInfo: SourceInfo = { type: SourceType.Parent, parentId: id };
+
     runModuleExecutionHooks(module, (refresh) => {
       moduleFactory.call(
         module.exports,
@@ -331,7 +333,8 @@ function instantiateModule(id: ModuleId, source: SourceInfo): Module {
           n: exportNamespace.bind(null, module),
           m: module,
           c: moduleCache,
-          l: loadChunk.bind(null, { type: SourceType.Parent, parentId: id }),
+          l: loadChunk.bind(null, sourceInfo),
+          w: loadWebAssembly.bind(null, sourceInfo),
           g: globalThis,
           k: refresh,
           __dirname: module.id.replace(/(^|\/)\/+$/, ""),

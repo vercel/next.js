@@ -22,6 +22,9 @@ pub(crate) struct EsmScope {
     scc_graph: DiGraphMap<Vc<EsmScopeScc>, ()>,
 }
 
+/// Represents a strongly connected component in the EsmScope graph.
+///
+/// See https://en.wikipedia.org/wiki/Strongly_connected_component
 #[turbo_tasks::value(transparent)]
 pub(crate) struct EsmScopeScc(Vec<Vc<Box<dyn EcmascriptChunkPlaceable>>>);
 
@@ -33,6 +36,7 @@ pub(crate) struct EsmScopeSccs(Vec<Vc<EsmScopeScc>>);
 
 #[turbo_tasks::value_impl]
 impl EsmScope {
+    /// Create a new [EsmScope] from the availability root given.
     #[turbo_tasks::function]
     pub(crate) async fn new(availability_info: Value<AvailabilityInfo>) -> Result<Vc<Self>> {
         let assets = if let Some(root) = availability_info.current_availability_root() {
@@ -78,6 +82,8 @@ impl EsmScope {
         Ok(Self::cell(EsmScope { scc_map, scc_graph }))
     }
 
+    /// Gets the [EsmScopeScc] for a given [EcmascriptChunkPlaceable] if it's
+    /// part of this graph.
     #[turbo_tasks::function]
     pub(crate) async fn get_scc(
         self: Vc<Self>,
@@ -88,6 +94,7 @@ impl EsmScope {
         Ok(Vc::cell(this.scc_map.get(&placeable).copied()))
     }
 
+    /// Returns all direct children of an [EsmScopeScc].
     #[turbo_tasks::function]
     pub(crate) async fn get_scc_children(
         self: Vc<Self>,

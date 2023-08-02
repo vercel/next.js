@@ -15,7 +15,7 @@ pub async fn get_build_runtime_code(environment: Vc<Environment>) -> Result<Vc<C
     let shared_runtime_utils_code =
         embed_static_code(asset_context, "shared/runtime-utils.ts".to_string());
     let shared_node_utils_code =
-        embed_static_code(asset_context, "shared-node/require.ts".to_string());
+        embed_static_code(asset_context, "shared-node/node-utils.ts".to_string());
     let runtime_code = embed_static_code(asset_context, "build/runtime.ts".to_string());
 
     let mut code = CodeBuilder::default();

@@ -124,5 +124,6 @@ pub enum ModuleType {
         transforms: Vc<CssInputTransforms>,
     },
     Static,
+    WebAssembly,
     Custom(Vc<Box<dyn CustomModuleType>>),
 }

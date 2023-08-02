@@ -26,6 +26,14 @@ function commonJsRequireContext(
   return commonJsRequire(sourceModule, entry.id());
 }
 
+async function loadWebAssembly(
+  _source: SourceInfo,
+  _id: ModuleId,
+  _importsObj: any
+): Promise<Exports> {
+  throw new Error("loading WebAssemly is not supported");
+}
+
 (() => {
   BACKEND = {
     // The "none" runtime expects all chunks within the same chunk group to be

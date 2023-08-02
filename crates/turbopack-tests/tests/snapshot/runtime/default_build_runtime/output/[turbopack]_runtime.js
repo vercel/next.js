@@ -255,6 +255,12 @@ function externalRequire(id, esm = false) {
 externalRequire.resolve = (id, options)=>{
     return require.resolve(id, options);
 };
+async function loadWebAssemblyFromPath(path, importsObj) {
+    const { readFile } = require("fs/promises");
+    const buffer = await readFile(path);
+    const { instance } = await WebAssembly.instantiate(buffer, importsObj);
+    return instance.exports;
+}
 ;
 var SourceType;
 (function(SourceType) {
@@ -271,7 +277,7 @@ function loadChunk(chunkPath) {
     if (!chunkPath.endsWith(".js")) {
         return;
     }
-    const resolved = require.resolve(path.resolve(RUNTIME_ROOT, chunkPath));
+    const resolved = path.resolve(RUNTIME_ROOT, chunkPath);
     const chunkModules = require(resolved);
     for (const [moduleId, moduleFactory] of Object.entries(chunkModules)){
         if (!moduleFactories[moduleId]) {
@@ -289,6 +295,10 @@ function loadChunkAsync(source, chunkPath) {
         }
         resolve();
     });
+}
+function loadWebAssembly(chunkPath, imports) {
+    const resolved = path.resolve(RUNTIME_ROOT, chunkPath);
+    return loadWebAssemblyFromPath(resolved, imports);
 }
 function instantiateModule(id, source) {
     const moduleFactory = moduleFactories[id];
@@ -344,6 +354,7 @@ function instantiateModule(id, source) {
                 type: SourceType.Parent,
                 parentId: id
             }),
+            w: loadWebAssembly,
             g: globalThis,
             __dirname: module1.id.replace(/(^|\/)[\/]+$/, "")
         });

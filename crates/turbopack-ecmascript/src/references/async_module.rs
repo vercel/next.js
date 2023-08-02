@@ -17,14 +17,16 @@ use crate::{
     code_gen::{CodeGenerateableWithAvailabilityInfo, CodeGeneration},
     create_visitor,
     references::esm::{base::insert_hoisted_stmt, EsmAssetReference},
-    EcmascriptModuleAsset,
 };
 
+/// Information needed for generating the async module wrapper for
+/// [EcmascriptChunkItem](crate::chunk::EcmascriptChunkItem)s.
 #[derive(PartialEq, Eq, Default, Debug, Clone, Serialize, Deserialize, TraceRawVcs)]
 pub struct AsyncModuleOptions {
     pub has_top_level_await: bool,
 }
 
+/// Option<[AsyncModuleOptions]>.
 #[turbo_tasks::value(transparent)]
 pub struct OptionAsyncModuleOptions(Option<AsyncModuleOptions>);
 
@@ -34,35 +36,35 @@ impl OptionAsyncModuleOptions {
     pub(crate) fn none() -> Vc<Self> {
         Vc::cell(None)
     }
-
-    #[turbo_tasks::function]
-    pub(crate) async fn is_async(self: Vc<Self>) -> Result<Vc<bool>> {
-        Ok(Vc::cell(self.await?.is_some()))
-    }
 }
 
+/// Contains the information necessary to decide if an ecmascript module is
+/// async.
+///
+/// It will check if the current module or any of it's children contain a top
+/// level await statement or is referencing an external ESM module.
 #[turbo_tasks::value(shared)]
 pub struct AsyncModule {
-    pub(super) module: Vc<EcmascriptModuleAsset>,
-    pub(super) references: IndexSet<Vc<EsmAssetReference>>,
-    pub(super) has_top_level_await: bool,
+    pub placeable: Vc<Box<dyn EcmascriptChunkPlaceable>>,
+    pub references: IndexSet<Vc<EsmAssetReference>>,
+    pub has_top_level_await: bool,
 }
 
-#[turbo_tasks::value(transparent)]
-pub struct AsyncModules(IndexSet<Vc<AsyncModule>>);
-
+/// Option<[AsyncModule]>.
 #[turbo_tasks::value(transparent)]
 pub struct OptionAsyncModule(Option<Vc<AsyncModule>>);
 
 #[turbo_tasks::value_impl]
 impl OptionAsyncModule {
+    /// Create an empty [OptionAsyncModule].
     #[turbo_tasks::function]
-    pub(crate) fn none() -> Vc<Self> {
+    pub fn none() -> Vc<Self> {
         Vc::cell(None)
     }
 
+    /// See [AsyncModule::is_async].
     #[turbo_tasks::function]
-    pub(crate) async fn is_async(
+    pub async fn is_async(
         self: Vc<Self>,
         availability_info: Value<AvailabilityInfo>,
     ) -> Result<Vc<bool>> {
@@ -72,7 +74,7 @@ impl OptionAsyncModule {
     }
 
     #[turbo_tasks::function]
-    pub(crate) async fn module_options(
+    pub async fn module_options(
         self: Vc<Self>,
         availability_info: Value<AvailabilityInfo>,
     ) -> Result<Vc<OptionAsyncModuleOptions>> {
@@ -84,14 +86,20 @@ impl OptionAsyncModule {
     }
 }
 
+/// We use the acyclic graph in the [EsmScope] to resolve all referenced
+/// [AsyncModule]s.
+///
+/// If we resolved raw references we would run into a deadlock if there are any
+/// circular imports.
 #[turbo_tasks::value]
-pub struct AsyncModuleScc {
+struct AsyncModuleScc {
     scc: Vc<EsmScopeScc>,
     scope: Vc<EsmScope>,
 }
 
+/// Option<[AsyncModuleScc]>.
 #[turbo_tasks::value(transparent)]
-pub struct OptionAsyncModuleScc(Option<Vc<AsyncModuleScc>>);
+struct OptionAsyncModuleScc(Option<Vc<AsyncModuleScc>>);
 
 #[turbo_tasks::function]
 async fn is_placeable_self_async(
@@ -112,7 +120,7 @@ impl AsyncModuleScc {
     }
 
     #[turbo_tasks::function]
-    pub(crate) async fn is_async(self: Vc<Self>) -> Result<Vc<bool>> {
+    async fn is_async(self: Vc<Self>) -> Result<Vc<bool>> {
         let this = self.await?;
 
         let mut bools = Vec::new();
@@ -132,12 +140,12 @@ impl AsyncModuleScc {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct AsyncModuleIdents(IndexSet<String>);
+struct AsyncModuleIdents(IndexSet<String>);
 
 #[turbo_tasks::value_impl]
 impl AsyncModule {
     #[turbo_tasks::function]
-    pub(crate) async fn get_async_idents(
+    async fn get_async_idents(
         self: Vc<Self>,
         availability_info: Value<AvailabilityInfo>,
     ) -> Result<Vc<AsyncModuleIdents>> {
@@ -162,12 +170,12 @@ impl AsyncModule {
     }
 
     #[turbo_tasks::function]
-    pub(crate) async fn has_top_level_await(self: Vc<Self>) -> Result<Vc<bool>> {
+    async fn has_top_level_await(self: Vc<Self>) -> Result<Vc<bool>> {
         Ok(Vc::cell(self.await?.has_top_level_await))
     }
 
     #[turbo_tasks::function]
-    pub(crate) async fn is_self_async(self: Vc<Self>) -> Result<Vc<bool>> {
+    async fn is_self_async(self: Vc<Self>) -> Result<Vc<bool>> {
         let this = self.await?;
 
         if this.has_top_level_await {
@@ -192,7 +200,7 @@ impl AsyncModule {
         let this = self.await?;
 
         let scope = EsmScope::new(availability_info);
-        let Some(scc) = &*scope.get_scc(Vc::upcast(this.module)).await? else {
+        let Some(scc) = &*scope.get_scc(this.placeable).await? else {
             // I'm not sure if this should be possible.
             return Ok(Vc::cell(None));
         };
@@ -202,8 +210,10 @@ impl AsyncModule {
         Ok(Vc::cell(Some(scc)))
     }
 
+    /// Check if the current module or any of it's ESM children contain a top
+    /// level await statement or is referencing an external ESM module.
     #[turbo_tasks::function]
-    pub(crate) async fn is_async(
+    pub async fn is_async(
         self: Vc<Self>,
         availability_info: Value<AvailabilityInfo>,
     ) -> Result<Vc<bool>> {
@@ -216,8 +226,9 @@ impl AsyncModule {
         )
     }
 
+    /// Returns
     #[turbo_tasks::function]
-    pub(crate) async fn module_options(
+    pub async fn module_options(
         self: Vc<Self>,
         availability_info: Value<AvailabilityInfo>,
     ) -> Result<Vc<OptionAsyncModuleOptions>> {

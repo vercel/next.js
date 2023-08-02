@@ -252,7 +252,7 @@ async fn run_test(resource: String) -> Result<Vc<RunTestResult>> {
 
     let res = evaluate(
         jest_entry_asset,
-        chunk_root_path,
+        path,
         Vc::upcast(CommandLineProcessEnv::new()),
         test_asset.ident(),
         context,
