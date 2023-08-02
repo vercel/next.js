@@ -254,6 +254,10 @@ export async function initialize(opts: {
     }[]) {
       curWorker._child?.kill('SIGINT')
     }
+
+    if (!process.env.__NEXT_PRIVATE_CPU_PROFILE) {
+      process.exit(0)
+    }
   }
   process.on('exit', cleanup)
   process.on('SIGINT', cleanup)
