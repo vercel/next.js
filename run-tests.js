@@ -12,6 +12,9 @@ const { createNextInstall } = require('./test/lib/create-next-install')
 const glob = promisify(_glob)
 const exec = promisify(execOrig)
 
+const GROUP = process.env.CI ? '##[group]' : ''
+const ENDGROUP = process.env.CI ? '##[endgroup]' : ''
+
 // Try to read an external array-based json to filter tests to be allowed / or disallowed.
 // If process.argv contains a test to be executed, this'll append it to the list.
 const externalTestsFilterLists = process.env.NEXT_EXTERNAL_TESTS_FILTERS
@@ -272,7 +275,9 @@ async function main() {
     return cleanUpAndExit(1)
   }
 
-  console.log('Running tests:', '\n', ...testNames.map((name) => `${name}\n`))
+  console.log(`${GROUP}Running tests:
+${testNames.join('\n')}
+${ENDGROUP}`)
 
   const hasIsolatedTests = testNames.some((test) => {
     return configuredTestTypes.some(
@@ -288,7 +293,7 @@ async function main() {
     // for isolated next tests: e2e, dev, prod we create
     // a starter Next.js install to re-use to speed up tests
     // to avoid having to run yarn each time
-    console.log('Creating Next.js install for isolated tests')
+    console.log(`${GROUP}Creating Next.js install for isolated tests`)
     const reactVersion = process.env.NEXT_TEST_REACT_VERSION || 'latest'
     const { installDir, pkgPaths, tmpRepoDir } = await createNextInstall({
       parentSpan: mockTrace(),
@@ -307,6 +312,7 @@ async function main() {
     process.env.NEXT_TEST_PKG_PATHS = JSON.stringify(serializedPkgPaths)
     process.env.NEXT_TEST_TEMP_REPO = tmpRepoDir
     process.env.NEXT_TEST_STARTER = installDir
+    console.log(`${ENDGROUP}`)
   }
 
   const sema = new Sema(concurrency, { capacity: testNames.length })
@@ -386,6 +392,7 @@ async function main() {
         children.delete(child)
         if (code !== 0 || signal !== null) {
           if (hideOutput) {
+            console.log(`${GROUP}${test} output:`)
             // limit out to last 64kb so that we don't
             // run out of log room in CI
             outputChunks.forEach(({ type, chunk }) => {
@@ -395,6 +402,7 @@ async function main() {
                 process.stderr.write(chunk)
               }
             })
+            if (ENDGROUP) console.log(ENDGROUP)
           }
           const err = new Error(
             code ? `failed with code: ${code}` : `failed with signal: ${signal}`
@@ -498,11 +506,13 @@ async function main() {
       if ((!passed || shouldContinueTestsOnError) && isTestJob) {
         try {
           const testsOutput = await fs.readFile(`${test}${RESULTS_EXT}`, 'utf8')
+          if (GROUP) console.log(`${GROUP}Result as JSON for tooling`)
           console.log(
             `--test output start--`,
             testsOutput,
             `--test output end--`
           )
+          if (ENDGROUP) console.log(ENDGROUP)
         } catch (err) {
           console.log(`Failed to load test output`, err)
         }
