@@ -1,4 +1,4 @@
-# `@next/third-parties`
+# Experimental `@next/third-parties`
 
 `@next/third-parties` is a collection of components and utilities that can be used to efficiently load third-party libraries into your Next.js application.
 
