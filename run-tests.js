@@ -381,7 +381,7 @@ ${ENDGROUP}`)
         if (hideOutput) {
           outputChunks.push({ type, chunk })
         } else {
-          process.stderr.write(chunk)
+          process.stdout.write(chunk)
         }
       }
       child.stdout.on('data', handleOutput('stdout'))
@@ -394,34 +394,21 @@ ${ENDGROUP}`)
         if (code !== 0 || signal !== null) {
           if (hideOutput) {
             await outputSema.acquire()
-            // ensure stdout and stderr are flushed in order
-            let lastType = 'stdout'
-            let promise = new Promise((resolve) =>
-              process.stdout.write(`${GROUP}${test} output\n`, resolve)
-            )
+            process.stdout.write(`${GROUP}${test} output\n`)
             // limit out to last 64kb so that we don't
             // run out of log room in CI
-            for (const { type, chunk } of outputChunks) {
-              if (type !== lastType) {
-                await promise
-                lastType = type
-              }
-              promise = new Promise((resolve) => {
-                if (type === 'stdout') {
-                  process.stdout.write(chunk, resolve)
-                } else {
-                  process.stderr.write(chunk, resolve)
-                }
-              })
+            for (const { chunk } of outputChunks) {
+              process.stdout.write(chunk)
             }
-            await promise
-            if (ENDGROUP) process.stdout.write(`${ENDGROUP}\n`)
+            process.stdout.write(`end of ${test} output\n${ENDGROUP}\n`)
             outputSema.release()
           }
           const err = new Error(
             code ? `failed with code: ${code}` : `failed with signal: ${signal}`
           )
-          err.output = outputChunks.map((chunk) => chunk.toString()).join('')
+          err.output = outputChunks
+            .map(({ chunk }) => chunk.toString())
+            .join('')
 
           return reject(err)
         }
