@@ -27,7 +27,7 @@ export default function Login() {
 
       <form
         className="flex-1 flex flex-col w-full justify-center gap-2 text-foreground"
-        action="/auth/login"
+        action="/auth/sign-in"
         method="post"
       >
         <label className="text-md" htmlFor="email">
