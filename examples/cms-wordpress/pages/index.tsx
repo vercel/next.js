@@ -1,3 +1,4 @@
+import { notFound, redirect } from 'next/navigation'
 import { Metadata } from 'next'
 import Head from 'next/head'
 import { GetStaticProps } from 'next'
@@ -8,6 +9,15 @@ import Intro from '../components/intro'
 import Layout from '../components/layout'
 import { getAllPostsForHome } from '../lib/api'
 import { CMS_NAME, HOME_OG_IMAGE_URL } from '../lib/constants'
+
+type Params = {
+  [key: string]: string | string[] | undefined
+}
+
+type PageProps = {
+  params: Params
+}
+
 export const metadata: Metadata = {
   title: `Next.js Blog Example with ${CMS_NAME}`,
   icons: {
@@ -65,7 +75,34 @@ export const metadata: Metadata = {
     ],
   },
 }
-export default function Index({ allPosts: { edges }, preview }) {
+export const getStaticProps: GetStaticProps = async ({ preview = false }) => {
+  const allPosts = await getAllPostsForHome(preview)
+  return {
+    props: { allPosts, preview },
+    revalidate: 10,
+  }
+}
+async function getData({ params }: { params: Params }) {
+  const result = await getStaticProps({ params })
+
+  if ('redirect' in result) {
+    redirect(result.redirect.destination)
+  }
+
+  if ('notFound' in result) {
+    notFound()
+  }
+
+  return 'props' in result ? result.props : {}
+}
+export default async function Index({ params }: PageProps) {
+  const {
+    allPosts: { edges },
+    preview,
+  } = await getData({
+    params,
+  })
+
   const heroPost = edges[0]?.node
   const morePosts = edges.slice(1)
   return (
@@ -90,10 +127,4 @@ export default function Index({ allPosts: { edges }, preview }) {
     </Layout>
   )
 }
-export const getStaticProps: GetStaticProps = async ({ preview = false }) => {
-  const allPosts = await getAllPostsForHome(preview)
-  return {
-    props: { allPosts, preview },
-    revalidate: 10,
-  }
-}
+export const revalidate = 10

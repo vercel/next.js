@@ -1,3 +1,4 @@
+import { notFound, redirect } from 'next/navigation'
 import { Metadata } from 'next'
 import ErrorPage from 'next/error'
 import Head from 'next/head'
@@ -13,7 +14,48 @@ import PostTitle from '../../components/post-title'
 import Tags from '../../components/tags'
 import { getAllPostsWithSlug, getPostAndMorePosts } from '../../lib/api'
 import { CMS_NAME, HOME_OG_IMAGE_URL } from '../../lib/constants'
-export default function Post({ post, posts, preview }) {
+
+type Params = {
+  [key: string]: string | string[] | undefined
+}
+
+type PageProps = {
+  params: Params
+}
+
+export const getStaticProps: GetStaticProps = async ({
+  params,
+  preview = false,
+  previewData,
+}) => {
+  const data = await getPostAndMorePosts(params?.slug, preview, previewData)
+  return {
+    props: {
+      preview,
+      post: data.post,
+      posts: data.posts,
+    },
+    revalidate: 10,
+  }
+}
+async function getData({ params }: { params: Params }) {
+  const result = await getStaticProps({ params })
+
+  if ('redirect' in result) {
+    redirect(result.redirect.destination)
+  }
+
+  if ('notFound' in result) {
+    notFound()
+  }
+
+  return 'props' in result ? result.props : {}
+}
+export default async function Post({ params }: PageProps) {
+  const { post, posts, preview } = await getData({
+    params,
+  })
+
   const morePosts = posts?.edges
   if (!false && !post?.slug) {
     return <ErrorPage statusCode={404} />
@@ -57,21 +99,6 @@ export default function Post({ post, posts, preview }) {
     </Layout>
   )
 }
-export const getStaticProps: GetStaticProps = async ({
-  params,
-  preview = false,
-  previewData,
-}) => {
-  const data = await getPostAndMorePosts(params?.slug, preview, previewData)
-  return {
-    props: {
-      preview,
-      post: data.post,
-      posts: data.posts,
-    },
-    revalidate: 10,
-  }
-}
 export const getStaticPaths: GetStaticPaths = async () => {
   const allPosts = await getAllPostsWithSlug()
   return {
@@ -79,6 +106,11 @@ export const getStaticPaths: GetStaticPaths = async () => {
     fallback: true,
   }
 }
+
+export async function generateStaticParams() {
+  return (await getStaticPaths({})).paths
+}
+
 export async function generateMetadata({
   params,
 }: {
@@ -149,3 +181,5 @@ export async function generateMetadata({
     description: `A statically generated blog example using Next.js and ${CMS_NAME}.`,
   }
 }
+export const revalidate = 10
+export const dynamicParams = true
