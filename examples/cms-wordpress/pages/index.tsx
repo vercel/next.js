@@ -1,3 +1,4 @@
+import { Metadata } from 'next'
 import Head from 'next/head'
 import { GetStaticProps } from 'next'
 import Container from '../components/container'
@@ -6,12 +7,67 @@ import HeroPost from '../components/hero-post'
 import Intro from '../components/intro'
 import Layout from '../components/layout'
 import { getAllPostsForHome } from '../lib/api'
-import { CMS_NAME } from '../lib/constants'
-
+import { CMS_NAME, HOME_OG_IMAGE_URL } from '../lib/constants'
+export const metadata: Metadata = {
+  title: `Next.js Blog Example with ${CMS_NAME}`,
+  icons: {
+    apple: [
+      {
+        sizes: '180x180',
+        url: '/favicon/apple-touch-icon.png',
+      },
+    ],
+    icon: [
+      {
+        sizes: '32x32',
+        type: 'image/png',
+        url: '/favicon/favicon-32x32.png',
+      },
+      {
+        sizes: '16x16',
+        type: 'image/png',
+        url: '/favicon/favicon-16x16.png',
+      },
+    ],
+    other: [
+      {
+        url: '/favicon/safari-pinned-tab.svg',
+        rel: 'mask-icon',
+      },
+    ],
+    shortcut: [
+      {
+        url: '/favicon/favicon.ico',
+      },
+    ],
+  },
+  manifest: '/favicon/site.webmanifest',
+  other: {
+    'msapplication-TileColor': '#000000',
+    'msapplication-config': '/favicon/browserconfig.xml',
+  },
+  themeColor: [
+    {
+      color: '#000',
+    },
+  ],
+  alternates: {
+    types: {
+      'application/rss+xml': '/feed.xml',
+    },
+  },
+  description: `A statically generated blog example using Next.js and ${CMS_NAME}.`,
+  openGraph: {
+    images: [
+      {
+        url: HOME_OG_IMAGE_URL,
+      },
+    ],
+  },
+}
 export default function Index({ allPosts: { edges }, preview }) {
   const heroPost = edges[0]?.node
   const morePosts = edges.slice(1)
-
   return (
     <Layout preview={preview}>
       <Head>
@@ -34,10 +90,8 @@ export default function Index({ allPosts: { edges }, preview }) {
     </Layout>
   )
 }
-
 export const getStaticProps: GetStaticProps = async ({ preview = false }) => {
   const allPosts = await getAllPostsForHome(preview)
-
   return {
     props: { allPosts, preview },
     revalidate: 10,

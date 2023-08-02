@@ -1,3 +1,4 @@
+import { Metadata } from 'next'
 import ErrorPage from 'next/error'
 import Head from 'next/head'
 import { GetStaticPaths, GetStaticProps } from 'next'
@@ -11,7 +12,7 @@ import Layout from '../../components/layout'
 import PostTitle from '../../components/post-title'
 import Tags from '../../components/tags'
 import { getAllPostsWithSlug, getPostAndMorePosts } from '../../lib/api'
-import { CMS_NAME } from '../../lib/constants'
+import { CMS_NAME, HOME_OG_IMAGE_URL } from '../../lib/constants'
 export default function Post({ post, posts, preview }) {
   const morePosts = posts?.edges
   if (!false && !post?.slug) {
@@ -76,5 +77,75 @@ export const getStaticPaths: GetStaticPaths = async () => {
   return {
     paths: allPosts.edges.map(({ node }) => `/posts/${node.slug}`) || [],
     fallback: true,
+  }
+}
+export async function generateMetadata({
+  params,
+}: {
+  params: Record<string, string | string[]>
+}): Promise<Metadata> {
+  const getStaticPropsResult = await getStaticProps({ params })
+  if (!('props' in getStaticPropsResult)) {
+    return {}
+  }
+  const { post, posts, preview } = getStaticPropsResult.props
+  return {
+    title: `
+                  ${post.title} | Next.js Blog Example with ${CMS_NAME}
+                `,
+    openGraph: {
+      images: [
+        {
+          url: HOME_OG_IMAGE_URL,
+        },
+      ],
+    },
+    icons: {
+      apple: [
+        {
+          sizes: '180x180',
+          url: '/favicon/apple-touch-icon.png',
+        },
+      ],
+      icon: [
+        {
+          sizes: '32x32',
+          type: 'image/png',
+          url: '/favicon/favicon-32x32.png',
+        },
+        {
+          sizes: '16x16',
+          type: 'image/png',
+          url: '/favicon/favicon-16x16.png',
+        },
+      ],
+      other: [
+        {
+          url: '/favicon/safari-pinned-tab.svg',
+          rel: 'mask-icon',
+        },
+      ],
+      shortcut: [
+        {
+          url: '/favicon/favicon.ico',
+        },
+      ],
+    },
+    manifest: '/favicon/site.webmanifest',
+    other: {
+      'msapplication-TileColor': '#000000',
+      'msapplication-config': '/favicon/browserconfig.xml',
+    },
+    themeColor: [
+      {
+        color: '#000',
+      },
+    ],
+    alternates: {
+      types: {
+        'application/rss+xml': '/feed.xml',
+      },
+    },
+    description: `A statically generated blog example using Next.js and ${CMS_NAME}.`,
   }
 }
