@@ -316,6 +316,7 @@ ${ENDGROUP}`)
   }
 
   const sema = new Sema(concurrency, { capacity: testNames.length })
+  const outputSema = new Sema(1, { capacity: testNames.length })
   const children = new Set()
   const jestPath = path.join(
     __dirname,
@@ -392,6 +393,7 @@ ${ENDGROUP}`)
         children.delete(child)
         if (code !== 0 || signal !== null) {
           if (hideOutput) {
+            await outputSema.acquire()
             // ensure stdout and stderr are flushed in order
             let lastType = 'stdout'
             let promise = new Promise((resolve) =>
@@ -414,6 +416,7 @@ ${ENDGROUP}`)
             }
             await promise
             if (ENDGROUP) process.stdout.write(`${ENDGROUP}\n`)
+            outputSema.release()
           }
           const err = new Error(
             code ? `failed with code: ${code}` : `failed with signal: ${signal}`
@@ -517,6 +520,7 @@ ${ENDGROUP}`)
       if ((!passed || shouldContinueTestsOnError) && isTestJob) {
         try {
           const testsOutput = await fs.readFile(`${test}${RESULTS_EXT}`, 'utf8')
+          await outputSema.acquire()
           if (GROUP) console.log(`${GROUP}Result as JSON for tooling`)
           console.log(
             `--test output start--`,
@@ -524,6 +528,7 @@ ${ENDGROUP}`)
             `--test output end--`
           )
           if (ENDGROUP) console.log(ENDGROUP)
+          outputSema.release()
         } catch (err) {
           console.log(`Failed to load test output`, err)
         }
