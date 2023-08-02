@@ -164,13 +164,13 @@ Alternatively, you can use the [loaderFile](#loaderfile) configuration in `next.
 fill={true} // {true} | {false}
 ```
 
-A boolean that causes the image to fill the parent element instead of setting [`width`](#width) and [`height`](#height).
+A boolean that causes the image to fill the parent element, which is useful when the [`width`](#width) and [`height`](#height) are unknown.
 
 The parent element _must_ assign `position: "relative"`, `position: "fixed"`, or `position: "absolute"` style.
 
 By default, the img element will automatically be assigned the `position: "absolute"` style.
 
-The default image fit behavior will stretch the image to fit the container. You may prefer to set `object-fit: "contain"` for an image which is letterboxed to fit the container and preserve aspect ratio.
+If no styles are applied to the image, the image will stetch to fit the container. You may prefer to set `object-fit: "contain"` for an image which is letterboxed to fit the container and preserve aspect ratio.
 
 Alternatively, `object-fit: "cover"` will cause the image to fill the entire container and be cropped to preserve aspect ratio. For this to look correct, the `overflow: "hidden"` style should be assigned to the parent element.
 
@@ -182,12 +182,12 @@ For more information, see also:
 
 ### `sizes`
 
-A string that provides information about how wide the image will be at different breakpoints. The value of `sizes` will greatly affect performance for images using [`fill`](#fill) or which are styled to have a responsive size.
+A string, similar to a media query, that provides information about how wide the image will be at different breakpoints. The value of `sizes` will greatly affect performance for images using [`fill`](#fill) or which are [styled to have a responsive size](#responsive-images).
 
 The `sizes` property serves two important purposes related to image performance:
 
-- First, the value of `sizes` is used by the browser to determine which size of the image to download, from `next/image`'s automatically-generated source set. When the browser chooses, it does not yet know the size of the image on the page, so it selects an image that is the same size or larger than the viewport. The `sizes` property allows you to tell the browser that the image will actually be smaller than full screen. If you don't specify a `sizes` value in an image with the `fill` property, a default value of `100vw` (full screen width) is used.
-- Second, the `sizes` property configures how `next/image` automatically generates an image source set. If no `sizes` value is present, a small source set is generated, suitable for a fixed-size image. If `sizes` is defined, a large source set is generated, suitable for a responsive image. If the `sizes` property includes sizes such as `50vw`, which represent a percentage of the viewport width, then the source set is trimmed to not include any values which are too small to ever be necessary.
+- First, the value of `sizes` is used by the browser to determine which size of the image to download, from `next/image`'s automatically generated `srcset`. When the browser chooses, it does not yet know the size of the image on the page, so it selects an image that is the same size or larger than the viewport. The `sizes` property allows you to tell the browser that the image will actually be smaller than full screen. If you don't specify a `sizes` value in an image with the `fill` property, a default value of `100vw` (full screen width) is used.
+- Second, the `sizes` property changes the behavior of the automatically generated `srcset` value. If no `sizes` value is present, a small `srcset` is generated, suitable for a fixed-size image (1x/2x/etc). If `sizes` is defined, a large `srcset` is generated, suitable for a responsive image (640w/750w/etc). If the `sizes` property includes sizes such as `50vw`, which represent a percentage of the viewport width, then the `srcset` is trimmed to not include any values which are too small to ever be necessary.
 
 For example, if you know your styling will cause an image to be full-width on mobile devices, in a 2-column layout on tablets, and a 3-column layout on desktop displays, you should include a sizes property such as the following:
 
@@ -635,6 +635,95 @@ In addition, it is strongly recommended to also set `contentDispositionType` to 
 The default [loader](#loader) will automatically bypass Image Optimization for animated images and serve the image as-is.
 
 Auto-detection for animated files is best-effort and supports GIF, APNG, and WebP. If you want to explicitly bypass Image Optimization for a given animated image, use the [unoptimized](#unoptimized) prop.
+
+## Responsive Images
+
+The default generated `srcset` contains `1x` and `2x` images in order to support different device pixel ratios. However, you may wish to render a responsive image that stretches with the viewport. In that case, you'll need to set [`sizes`](#sizes) as well as `style` (or `className`).
+
+You can render a responsive image using one of the following methods below.
+
+### Responsive image using a static import
+
+If the source image is not dynamic, you can statically import to create a responsive image:
+
+```jsx filename="components/author.js"
+import Image from 'next/image'
+import me from '../photos/me.jpg'
+
+export default function Author() {
+  return (
+    <Image
+      src={me}
+      alt="Picture of the author"
+      sizes="100vw"
+      style={{
+        width: '100%',
+        height: 'auto',
+      }}
+    />
+  )
+}
+```
+
+Try it out:
+
+- [Demo the image responsive to viewport](https://image-component.nextjs.gallery/responsive)
+
+### Responsive image with aspect ratio
+
+If the source image is a dynamic or a remote url, you will also need to provide `width` and `height` to set the correct aspect ratio of the responsive image:
+
+```jsx filename="components/page.js"
+import Image from 'next/image'
+
+export default function Page({ photoUrl }) {
+  return (
+    <Image
+      src={photoUrl}
+      alt="Picture of the author"
+      sizes="100vw"
+      style={{
+        width: '100%',
+        height: 'auto',
+      }}
+      width={500}
+      height{300}
+    />
+  )
+}
+```
+
+Try it out:
+
+- [Demo the image responsive to viewport](https://image-component.nextjs.gallery/responsive)
+
+### Responsive image with `fill`
+
+If you don't know the aspect ratio, you will need to set the [`fill`](#fill) prop and set `position: relative` on the parent. Optionally, you can set `object-fit` style depending on the desired stretch vs crop behavior:
+
+```jsx filename="app/page.js"
+import Image from 'next/image'
+
+export default function Page({ photoUrl }) {
+  return (
+    <div style={{ position: 'relative', width: '500px', height: '300px' }}>
+      <Image
+        src={photoUrl}
+        alt="Picture of the author"
+        sizes="500px"
+        fill
+        style={{
+          objectFit: 'contain',
+        }}
+      />
+    </div>
+  )
+}
+```
+
+Try it out:
+
+- [Demo the `fill` prop](https://image-component.nextjs.gallery/fill)
 
 ## Known Browser Bugs
 
