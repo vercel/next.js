@@ -36,11 +36,13 @@ pub async fn get_app_route_entry(
     original_name: String,
     project_root: Vc<FileSystemPath>,
 ) -> Result<Vc<AppEntry>> {
-    let userland_module = nodejs_context.process(
+    let config = parse_segment_config_from_source(
+        nodejs_context.process(
+            source,
+            Value::new(ReferenceType::Entry(EntryReferenceSubType::AppRoute)),
+        ),
         source,
-        Value::new(ReferenceType::Entry(EntryReferenceSubType::AppRoute)),
     );
-    let config = parse_segment_config_from_source(userland_module, source);
     let is_edge = matches!(config.await?.runtime, Some(NextRuntime::Edge));
     let context = if is_edge {
         edge_context
@@ -103,6 +105,11 @@ pub async fn get_app_route_entry(
 
     let virtual_source = VirtualSource::new(template_path, AssetContent::file(file.into()));
 
+    let userland_module = context.process(
+        source,
+        Value::new(ReferenceType::Entry(EntryReferenceSubType::AppRoute)),
+    );
+
     let inner_assets = indexmap! {
         "VAR_USERLAND".to_string() => userland_module
     };
@@ -113,7 +120,7 @@ pub async fn get_app_route_entry(
     );
 
     if is_edge {
-        rsc_entry = wrap_edge_entry(context, project_root, rsc_entry, original_name.clone());
+        rsc_entry = wrap_edge_entry(context, project_root, rsc_entry, original_page_name.clone());
     }
 
     let Some(rsc_entry) =
@@ -144,8 +151,6 @@ pub async fn wrap_edge_entry(
         r#"
             import {{ EdgeRouteModuleWrapper }} from 'next/dist/esm/server/web/edge-route-module-wrapper'
             import * as module from "MODULE"
-
-            export const ComponentMod = module
 
             self._ENTRIES ||= {{}}
             self._ENTRIES[{}] = {{

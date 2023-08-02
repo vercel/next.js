@@ -211,7 +211,7 @@ pub async fn get_next_server_import_map(
 
     let ty = ty.into_value();
 
-    insert_next_server_special_aliases(&mut import_map, ty, mode).await?;
+    insert_next_server_special_aliases(&mut import_map, ty, mode, false).await?;
     let external = ImportMapping::External(None).cell();
 
     match ty {
@@ -283,7 +283,7 @@ pub async fn get_next_edge_import_map(
 
     let ty = ty.into_value();
 
-    insert_next_server_special_aliases(&mut import_map, ty, mode).await?;
+    insert_next_server_special_aliases(&mut import_map, ty, mode, true).await?;
 
     match ty {
         ServerContextType::Pages { .. } | ServerContextType::PagesData { .. } => {}
@@ -360,21 +360,29 @@ pub async fn insert_next_server_special_aliases(
     import_map: &mut ImportMap,
     ty: ServerContextType,
     mode: NextMode,
+    is_edge: bool,
 ) -> Result<()> {
+    let external_if_node = move |context_dir: Vc<FileSystemPath>, request: &str| {
+        if is_edge {
+            request_to_import_mapping(context_dir, request)
+        } else {
+            external_request_to_import_mapping(request)
+        }
+    };
     match (mode, ty) {
         (_, ServerContextType::Pages { pages_dir }) => {
             import_map.insert_exact_alias(
                 "@opentelemetry/api",
                 // TODO(WEB-625) this actually need to prefer the local version of
                 // @opentelemetry/api
-                external_request_to_import_mapping("next/dist/compiled/@opentelemetry/api"),
+                external_if_node(pages_dir, "next/dist/compiled/@opentelemetry/api"),
             );
             insert_alias_to_alternatives(
                 import_map,
                 format!("{VIRTUAL_PACKAGE_NAME}/pages/_app"),
                 vec![
                     request_to_import_mapping(pages_dir, "./_app"),
-                    external_request_to_import_mapping("next/app"),
+                    external_if_node(pages_dir, "next/app"),
                 ],
             );
             insert_alias_to_alternatives(
@@ -382,7 +390,7 @@ pub async fn insert_next_server_special_aliases(
                 format!("{VIRTUAL_PACKAGE_NAME}/pages/_document"),
                 vec![
                     request_to_import_mapping(pages_dir, "./_document"),
-                    external_request_to_import_mapping("next/document"),
+                    external_if_node(pages_dir, "next/document"),
                 ],
             );
             insert_alias_to_alternatives(
@@ -390,7 +398,7 @@ pub async fn insert_next_server_special_aliases(
                 format!("{VIRTUAL_PACKAGE_NAME}/pages/_error"),
                 vec![
                     request_to_import_mapping(pages_dir, "./_error"),
-                    external_request_to_import_mapping("next/error"),
+                    external_if_node(pages_dir, "next/error"),
                 ],
             );
         }
@@ -485,14 +493,15 @@ pub async fn insert_next_server_special_aliases(
         // * maps react-dom -> react-dom/server-rendering-stub
         // * passes through react and (react|react-dom|react-server-dom-webpack)/(.*) to
         //   next/dist/compiled/react and next/dist/compiled/$1/$2 resp.
-        (NextMode::Build | NextMode::Development, ServerContextType::AppSSR { .. }) => {
+        (NextMode::Build | NextMode::Development, ServerContextType::AppSSR { app_dir }) => {
             import_map.insert_exact_alias(
                 "react",
-                external_request_to_import_mapping("next/dist/compiled/react"),
+                external_if_node(app_dir, "next/dist/compiled/react"),
             );
             import_map.insert_exact_alias(
                 "react-dom",
-                external_request_to_import_mapping(
+                external_if_node(
+                    app_dir,
                     "next/dist/compiled/react-dom/server-rendering-stub",
                 ),
             );
@@ -505,7 +514,7 @@ pub async fn insert_next_server_special_aliases(
                     "next/dist/compiled/react-server-dom-webpack/*",
                 ),
             ] {
-                let import_mapping = external_request_to_import_mapping(request);
+                let import_mapping = external_if_node(app_dir, request);
                 import_map.insert_wildcard_alias(wildcard_alias, import_mapping);
             }
         }
