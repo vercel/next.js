@@ -238,10 +238,10 @@ Should only be used when the image is visible above the fold. Defaults to `false
 ### `placeholder`
 
 ```js
-placeholder = 'empty' // {empty} | {blur}
+placeholder = 'empty' // {empty} | {blur} | {data:image/...}
 ```
 
-A placeholder to use while the image is loading. Possible values are `blur` or `empty`. Defaults to `empty`.
+A placeholder to use while the image is loading. Possible values are `blur`, `empty` or `data:image/...`. Defaults to `empty`.
 
 When `blur`, the [`blurDataURL`](#blurdataurl) property will be used as the placeholder. If `src` is an object from a [static import](/docs/app/building-your-application/optimizing/images#local-images) and the imported image is `.jpg`, `.png`, `.webp`, or `.avif`, then `blurDataURL` will be automatically populated.
 
@@ -249,10 +249,12 @@ For dynamic images, you must provide the [`blurDataURL`](#blurdataurl) property.
 
 When `empty`, there will be no placeholder while the image is loading, only empty space.
 
+When `data:image/...`, the base64-encoded image will be used as the placeholder.
+
 Try it out:
 
 - [Demo the `blur` placeholder](https://image-component.nextjs.gallery/placeholder)
-- [Demo the shimmer effect with `blurDataURL` prop](https://image-component.nextjs.gallery/shimmer)
+- [Demo the shimmer effect with data URL `placeholder` prop](https://image-component.nextjs.gallery/shimmer)
 - [Demo the color effect with `blurDataURL` prop](https://image-component.nextjs.gallery/color)
 
 ## Advanced Props
