@@ -11,14 +11,15 @@ async function run() {
     const octoClient = getOctokit(process.env.GITHUB_TOKEN)
     const slackClient = new WebClient(process.env.SLACK_TOKEN)
 
-    const prs = await octoClient.rest.pulls.list({
-      repo: context.repo.repo,
-      owner: context.repo.owner,
+    const { owner, repo } = context.repo
+    const prs = await octoClient.rest.search.issuesAndPullRequests({
+      q: `is:pr is:open review:approved repo:${owner}/${repo}`,
     })
 
     await slackClient.chat.postMessage({
       channel: '#team-next-js',
-      text: `${prs.data.length} PR(s) are awaiting merge.`,
+      text: `🤖 Pending PRs for Next.js. There are [${prs.data.total_count} PRs] awaiting merge(https://github.com/vercel/next.js/pulls?q=is%3Apr+is%3Aopen+review%3Aapproved).`,
+      mrkdwn: true,
       username: 'GitHub Notifier',
       icon_emoji: ':github:',
     })
