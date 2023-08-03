@@ -9,13 +9,15 @@ import { formatAmountForDisplay } from '@/utils/stripe-helpers'
 import * as config from '@/config'
 import { createCheckoutSession } from '@/actions/stripe'
 
-const CheckoutForm = () => {
-  const [loading, setLoading] = useState(false)
-  const [input, setInput] = useState({
+export default function CheckoutForm(): JSX.Element {
+  const [loading, setLoading] = useState<boolean>(false)
+  const [input, setInput] = useState<{ customDonation: number }>({
     customDonation: Math.round(config.MAX_AMOUNT / config.AMOUNT_STEP)
   })
 
-  const handleInputChange: React.ChangeEventHandler<HTMLInputElement> = (e) =>
+  const handleInputChange: React.ChangeEventHandler<HTMLInputElement> = (
+    e
+  ): void =>
     setInput({
       ...input,
       [e.currentTarget.name]: e.currentTarget.value
@@ -44,5 +46,3 @@ const CheckoutForm = () => {
     </form>
   )
 }
-
-export default CheckoutForm
