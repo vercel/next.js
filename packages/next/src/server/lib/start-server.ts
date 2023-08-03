@@ -50,8 +50,6 @@ export async function startServer({
   keepAliveTimeout,
   logReady = true,
 }: StartServerOptions): Promise<TeardownServer> {
-  const sockets = new Set<ServerResponse | Duplex>()
-  let worker: import('next/dist/compiled/jest-worker').Worker | undefined
   let routerPort: number | undefined
   let handlersReady = () => {}
   let handlersError = () => {}
@@ -91,8 +89,6 @@ export async function startServer({
         await handlersPromise
         handlersPromise = undefined
       }
-      sockets.add(res)
-      res.on('close', () => sockets.delete(res))
       await requestHandler(req, res)
     } catch (err) {
       res.statusCode = 500
@@ -107,8 +103,6 @@ export async function startServer({
   }
   server.on('upgrade', async (req, socket, head) => {
     try {
-      sockets.add(socket)
-      socket.on('close', () => sockets.delete(socket))
       await upgradeHandler(req, socket, head)
     } catch (err) {
       socket.destroy()
@@ -217,14 +211,6 @@ export async function startServer({
   // return teardown function for destroying the server
   async function teardown() {
     server.close()
-    sockets.forEach((socket) => {
-      sockets.delete(socket)
-      socket.destroy()
-    })
-
-    if (worker) {
-      await worker.end()
-    }
   }
   teardown.port = routerPort
   return teardown
