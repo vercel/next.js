@@ -55,7 +55,7 @@ body:
       description: |
         A link to a [GitHub repository](https://github.com/vercel/next.js/tree/canary/examples/reproduction-template) or a [CodeSandbox](https://codesandbox.io/p/sandbox/github/vercel/next.js/tree/canary/examples/reproduction-template) minimal reproduction. Minimal reproductions should be created from our [bug report template with `npx create-next-app -e reproduction-template`](https://github.com/vercel/next.js/tree/canary/examples/reproduction-template) and should include only changes that contribute to the issue.
         If a minimal reproduction can't be created please share a [replay](https://www.replay.io/) of the bug which doesn't require sharing a private repo.
-        To report an App Router related issue, you can use these templates: [CodeSandbox](https://codesandbox.io/p/sandbox/github/vercel/next.js/tree/canary/examples/reproduction-template-app-dir) or [`npx create-next-app -e reproduction-template-app-dir`](https://github.com/vercel/next.js/tree/canary/examples/reproduction-template-app-dir)
+        To report an App Router related issue, you can use these templates: [CodeSandbox](https://codesandbox.io/p/sandbox/github/vercel/next.js/tree/canary/examples/reproduction-template) or [`npx create-next-app -e reproduction-template`](https://github.com/vercel/next.js/tree/canary/examples/reproduction-template)
     validations:
       required: true
   - type: textarea
