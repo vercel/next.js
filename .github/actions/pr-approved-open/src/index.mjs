@@ -1,6 +1,6 @@
 // @ts-check
 import { context, getOctokit } from '@actions/github'
-import { setFailed, info, debug } from '@actions/core'
+import { setFailed, info } from '@actions/core'
 import { WebClient } from '@slack/web-api'
 
 async function run() {
@@ -13,7 +13,9 @@ async function run() {
 
     const { owner, repo } = context.repo
     const prs = await octoClient.rest.search.issuesAndPullRequests({
-      q: `is:pr is:open review:approved repo:${owner}/${repo}`,
+      q: encodeURIComponent(
+        `repo:${owner}/${repo} is:pr is:open review:approved`
+      ),
     })
 
     const pendingPRs = prs.data.items.length
