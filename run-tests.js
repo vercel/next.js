@@ -12,6 +12,9 @@ const { createNextInstall } = require('./test/lib/create-next-install')
 const glob = promisify(_glob)
 const exec = promisify(execOrig)
 
+const GROUP = process.env.CI ? '##[group]' : ''
+const ENDGROUP = process.env.CI ? '##[endgroup]' : ''
+
 // Try to read an external array-based json to filter tests to be allowed / or disallowed.
 // If process.argv contains a test to be executed, this'll append it to the list.
 const externalTestsFilterLists = process.env.NEXT_EXTERNAL_TESTS_FILTERS
@@ -41,11 +44,18 @@ const TIMINGS_API_HEADERS = {
 }
 
 const testFilters = {
-  unit: 'unit/',
-  e2e: 'e2e/',
-  production: 'production/',
-  development: 'development/',
+  development: new RegExp(
+    '^(test/(development|e2e|unit)|packages/.*/src/.*)/.*\\.test\\.(js|jsx|ts|tsx)$'
+  ),
+  production: new RegExp(
+    '^(test/(production|e2e))/.*\\.test\\.(js|jsx|ts|tsx)$'
+  ),
+  unit: new RegExp(
+    '^test/unit|packages/.*/src/.*/.*\\.test\\.(js|jsx|ts|tsx)$'
+  ),
   examples: 'examples/',
+  integration: 'test/integration/',
+  e2e: 'test/e2e/',
 }
 
 const mockTrace = () => ({
@@ -68,6 +78,14 @@ const cleanUpAndExit = async (code) => {
   setTimeout(() => {
     process.exit(code)
   }, 1)
+}
+
+const isMatchingPattern = (pattern, test) => {
+  if (pattern instanceof RegExp) {
+    return pattern.test(test)
+  } else {
+    return test.startsWith(pattern)
+  }
 }
 
 async function getTestTimings() {
@@ -119,27 +137,14 @@ async function main() {
       filterTestsBy = testFilters.unit
       break
     }
-    case 'development': {
-      filterTestsBy = testFilters.development
-      break
-    }
-    case 'production': {
-      filterTestsBy = testFilters.production
-      break
-    }
-    case 'e2e': {
-      filterTestsBy = testFilters.e2e
-      break
-    }
-    case 'examples': {
-      filterTestsBy = testFilters.examples
-      break
-    }
-    case 'all':
+    case 'all': {
       filterTestsBy = 'none'
       break
-    default:
+    }
+    default: {
+      filterTestsBy = testFilters[testType]
       break
+    }
   }
 
   console.log('Running tests with concurrency:', concurrency)
@@ -166,11 +171,13 @@ async function main() {
       }
       if (filterTestsBy) {
         // only include the specified type
-        return filterTestsBy === 'none' ? true : test.startsWith(filterTestsBy)
-      } else {
-        // include all except the separately configured types
-        return !configuredTestTypes.some((type) => test.startsWith(type))
+        if (filterTestsBy === 'none') {
+          return true
+        }
+        return isMatchingPattern(filterTestsBy, test)
       }
+      // include all except the separately configured types
+      return !configuredTestTypes.some((type) => isMatchingPattern(type, test))
     })
   }
 
@@ -265,10 +272,12 @@ async function main() {
 
   if (testNames.length === 0) {
     console.log('No tests found for', testType, 'exiting..')
-    return cleanUpAndExit(0)
+    return cleanUpAndExit(1)
   }
 
-  console.log('Running tests:', '\n', ...testNames.map((name) => `${name}\n`))
+  console.log(`${GROUP}Running tests:
+${testNames.join('\n')}
+${ENDGROUP}`)
 
   const hasIsolatedTests = testNames.some((test) => {
     return configuredTestTypes.some(
@@ -284,7 +293,7 @@ async function main() {
     // for isolated next tests: e2e, dev, prod we create
     // a starter Next.js install to re-use to speed up tests
     // to avoid having to run yarn each time
-    console.log('Creating Next.js install for isolated tests')
+    console.log(`${GROUP}Creating Next.js install for isolated tests`)
     const reactVersion = process.env.NEXT_TEST_REACT_VERSION || 'latest'
     const { installDir, pkgPaths, tmpRepoDir } = await createNextInstall({
       parentSpan: mockTrace(),
@@ -303,9 +312,11 @@ async function main() {
     process.env.NEXT_TEST_PKG_PATHS = JSON.stringify(serializedPkgPaths)
     process.env.NEXT_TEST_TEMP_REPO = tmpRepoDir
     process.env.NEXT_TEST_STARTER = installDir
+    console.log(`${ENDGROUP}`)
   }
 
   const sema = new Sema(concurrency, { capacity: testNames.length })
+  const outputSema = new Sema(1, { capacity: testNames.length })
   const children = new Set()
   const jestPath = path.join(
     __dirname,
@@ -370,7 +381,7 @@ async function main() {
         if (hideOutput) {
           outputChunks.push({ type, chunk })
         } else {
-          process.stderr.write(chunk)
+          process.stdout.write(chunk)
         }
       }
       child.stdout.on('data', handleOutput('stdout'))
@@ -382,20 +393,22 @@ async function main() {
         children.delete(child)
         if (code !== 0 || signal !== null) {
           if (hideOutput) {
+            await outputSema.acquire()
+            process.stdout.write(`${GROUP}${test} output\n`)
             // limit out to last 64kb so that we don't
             // run out of log room in CI
-            outputChunks.forEach(({ type, chunk }) => {
-              if (type === 'stdout') {
-                process.stdout.write(chunk)
-              } else {
-                process.stderr.write(chunk)
-              }
-            })
+            for (const { chunk } of outputChunks) {
+              process.stdout.write(chunk)
+            }
+            process.stdout.write(`end of ${test} output\n${ENDGROUP}\n`)
+            outputSema.release()
           }
           const err = new Error(
             code ? `failed with code: ${code}` : `failed with signal: ${signal}`
           )
-          err.output = outputChunks.map((chunk) => chunk.toString()).join('')
+          err.output = outputChunks
+            .map(({ chunk }) => chunk.toString())
+            .join('')
 
           return reject(err)
         }
@@ -494,11 +507,15 @@ async function main() {
       if ((!passed || shouldContinueTestsOnError) && isTestJob) {
         try {
           const testsOutput = await fs.readFile(`${test}${RESULTS_EXT}`, 'utf8')
+          await outputSema.acquire()
+          if (GROUP) console.log(`${GROUP}Result as JSON for tooling`)
           console.log(
             `--test output start--`,
             testsOutput,
             `--test output end--`
           )
+          if (ENDGROUP) console.log(ENDGROUP)
+          outputSema.release()
         } catch (err) {
           console.log(`Failed to load test output`, err)
         }
