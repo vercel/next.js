@@ -10,7 +10,7 @@ import * as config from '@/config'
 import { createCheckoutSession } from '@/actions/stripe'
 
 export default function CheckoutForm(): JSX.Element {
-  const [loading, setLoading] = useState<boolean>(false)
+  const [loading] = useState<boolean>(false)
   const [input, setInput] = useState<{ customDonation: number }>({
     customDonation: Math.round(config.MAX_AMOUNT / config.AMOUNT_STEP),
   })
