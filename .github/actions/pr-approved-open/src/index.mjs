@@ -1,6 +1,6 @@
 // @ts-check
 import { context, getOctokit } from '@actions/github'
-import { setFailed } from '@actions/core'
+import { setFailed, info, debug } from '@actions/core'
 import { WebClient } from '@slack/web-api'
 
 async function run() {
@@ -16,13 +16,19 @@ async function run() {
       q: `is:pr is:open review:approved repo:${owner}/${repo}`,
     })
 
-    await slackClient.chat.postMessage({
-      channel: '#coord-next-turbopack',
-      text: `🤖 Pending PRs for Next.js: There are [${prs.data.items.length} PRs](https://github.com/vercel/next.js/pulls?q=is%3Apr+is%3Aopen+review%3Aapproved) awaiting merge.`,
-      mrkdwn: true,
-      username: 'GitHub Notifier',
-      icon_emoji: ':github:',
-    })
+    const pendingPRs = prs.data.items.length
+
+    if (pendingPRs) {
+      await slackClient.chat.postMessage({
+        channel: '#coord-next-turbopack',
+        text: `🤖 Pending PRs for Next.js: There are [${prs.data.items.length} PRs](https://github.com/vercel/next.js/pulls?q=is%3Apr+is%3Aopen+review%3Aapproved) awaiting merge.`,
+        username: 'GitHub Notifier',
+        icon_emoji: ':github:',
+      })
+
+      info(`Posted to Slack: ${pendingPRs} pending PRs`)
+    }
+    info(`No pending PRs`)
   } catch (error) {
     setFailed(error)
   }
