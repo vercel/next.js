@@ -30,7 +30,7 @@ import { requireFontManifest } from '../server/require'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { trace } from '../trace'
 import { isInAmpMode } from '../shared/lib/amp-mode'
-import { setHttpClientAndAgentOptions } from '../server/config'
+import { setHttpClientAndAgentOptions } from '../server/setup-http-agent-env'
 import RenderResult from '../server/render-result'
 import isError from '../lib/is-error'
 import { addRequestMeta } from '../server/request-meta'
@@ -45,7 +45,10 @@ import { NodeNextRequest } from '../server/base-http/node'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
 import { toNodeOutgoingHttpHeaders } from '../server/web/utils'
 import { RouteModuleLoader } from '../server/future/helpers/module-loader/route-module-loader'
-import { NextRequestAdapter } from '../server/web/spec-extension/adapters/next-request'
+import {
+  NextRequestAdapter,
+  signalFromNodeResponse,
+} from '../server/web/spec-extension/adapters/next-request'
 import * as ciEnvironment from '../telemetry/ci-info'
 
 const envConfig = require('../shared/lib/runtime-config')
@@ -79,7 +82,6 @@ interface ExportPageInput {
   disableOptimizedLoading: any
   parentSpanId: any
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
-  serverComponents?: boolean
   debugOutput?: boolean
   isrMemoryCacheSize?: NextConfigComplete['experimental']['isrMemoryCacheSize']
   fetchCache?: boolean
@@ -137,7 +139,6 @@ export default async function exportPage({
   optimizeCss,
   disableOptimizedLoading,
   httpAgentOptions,
-  serverComponents,
   debugOutput,
   isrMemoryCacheSize,
   fetchCache,
@@ -313,7 +314,6 @@ export default async function exportPage({
         components = await loadComponents({
           distDir,
           pathname: page,
-          hasServerComponents: !!serverComponents,
           isAppPath: isAppDir,
         })
         curRenderOpts = {
@@ -391,7 +391,8 @@ export default async function exportPage({
           // Ensure that the url for the page is absolute.
           req.url = `http://localhost:3000${req.url}`
           const request = NextRequestAdapter.fromNodeNextRequest(
-            new NodeNextRequest(req)
+            new NodeNextRequest(req),
+            signalFromNodeResponse(res)
           )
 
           // Create the context for the handler. This contains the params from

@@ -5,6 +5,10 @@ import { grafbase } from '../lib/grafbase'
 
 export const revalidate = 0
 
+export const metadata = {
+  title: 'Grafbase + Next.js',
+}
+
 const GetAllPostsDocument = graphql(/* GraphQL */ `
   query GetAllPosts($first: Int!) {
     postCollection(first: $first) {

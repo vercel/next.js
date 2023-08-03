@@ -138,7 +138,22 @@ describe('Error overlay - RSC build errors', () => {
 
     expect(await session.hasRedbox(true)).toBe(true)
     expect(await session.getRedboxDescription()).toInclude(
-      'The default export is not a React Component in page:'
+      'The default export is not a React Component in page: "/server-with-errors/page-export"'
+    )
+
+    await cleanup()
+  })
+
+  it('should error when page component export is not valid on initial load', async () => {
+    const { session, cleanup } = await sandbox(
+      next,
+      undefined,
+      '/server-with-errors/page-export-initial-error'
+    )
+
+    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.getRedboxDescription()).toInclude(
+      'The default export is not a React Component in page: "/server-with-errors/page-export-initial-error"'
     )
 
     await cleanup()

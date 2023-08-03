@@ -3,16 +3,16 @@ title: Custom Document
 description: Extend the default document markup added by Next.js.
 ---
 
-A custom `Document` can update the `<html>` and `<body>` tags used to render a [Page](/docs/pages/building-your-application/routing/pages-and-layouts). This file is only rendered on the server, so event handlers like `onClick` cannot be used in `_document`.
+A custom `Document` can update the `<html>` and `<body>` tags used to render a [Page](/docs/pages/building-your-application/routing/pages-and-layouts).
 
-To override the default `Document`, create the file `pages/_document.js` as shown below:
+To override the default `Document`, create the file `pages/_document` as shown below:
 
-```jsx
+```tsx filename="pages/_document.tsx" switcher
 import { Html, Head, Main, NextScript } from 'next/document'
 
 export default function Document() {
   return (
-    <Html>
+    <Html lang="en">
       <Head />
       <body>
         <Main />
@@ -23,19 +23,26 @@ export default function Document() {
 }
 ```
 
-The code above is the default `Document` added by Next.js. Custom attributes are allowed as props. For example, we might want to add `lang="en"` to the `<html>` tag:
+```jsx filename="pages/_document.jsx" switcher
+import { Html, Head, Main, NextScript } from 'next/document'
 
-```jsx
-<Html lang="en">
+export default function Document() {
+  return (
+    <Html lang="en">
+      <Head />
+      <body>
+        <Main />
+        <NextScript />
+      </body>
+    </Html>
+  )
+}
 ```
 
-Or add a `className` to the `body` tag:
-
-```jsx
-<body className="bg-white">
-```
-
-`<Html>`, `<Head />`, `<Main />` and `<NextScript />` are required for the page to be properly rendered.
+> **Good to know**
+>
+> - `_document` is only rendered on the server, so event handlers like `onClick` cannot be used in this file.
+> - `<Html>`, `<Head />`, `<Main />` and `<NextScript />` are required for the page to be properly rendered.
 
 ## Caveats
 
@@ -45,13 +52,58 @@ Or add a `className` to the `body` tag:
 
 ## Customizing `renderPage`
 
-> **Good to know**: This is advanced and only needed for libraries like CSS-in-JS to support server-side rendering. This is not needed for built-in `styled-jsx` support.
+Customizing `renderPage` is advanced and only needed for libraries like CSS-in-JS to support server-side rendering. This is not needed for built-in `styled-jsx` support.
 
-For [React 18](/docs/getting-started/react-essentials) support, we recommend avoiding customizing `getInitialProps` and `renderPage`, if possible.
+**We do not recommend using this pattern.** Instead, consider [incrementally adopting](/docs/app/building-your-application/upgrading/app-router-migration) the App Router, which allows you to more easily fetch data for [pages and layouts](/docs/app/building-your-application/routing/pages-and-layouts).
 
-The `ctx` object shown below is equivalent to the one received in [`getInitialProps`](/docs/pages/api-reference/functions/get-initial-props#context-object), with the addition of `renderPage`.
+```tsx filename="pages/_document.tsx" switcher
+import Document, {
+  Html,
+  Head,
+  Main,
+  NextScript,
+  DocumentContext,
+  DocumentInitialProps,
+} from 'next/document'
 
-```jsx
+class MyDocument extends Document {
+  static async getInitialProps(
+    ctx: DocumentContext
+  ): Promise<DocumentInitialProps> {
+    const originalRenderPage = ctx.renderPage
+
+    // Run the React rendering logic synchronously
+    ctx.renderPage = () =>
+      originalRenderPage({
+        // Useful for wrapping the whole react tree
+        enhanceApp: (App) => App,
+        // Useful for wrapping in a per-page basis
+        enhanceComponent: (Component) => Component,
+      })
+
+    // Run the parent `getInitialProps`, it now includes the custom `renderPage`
+    const initialProps = await Document.getInitialProps(ctx)
+
+    return initialProps
+  }
+
+  render() {
+    return (
+      <Html lang="en">
+        <Head />
+        <body>
+          <Main />
+          <NextScript />
+        </body>
+      </Html>
+    )
+  }
+}
+
+export default MyDocument
+```
+
+```jsx filename="pages/_document.jsx" switcher
 import Document, { Html, Head, Main, NextScript } from 'next/document'
 
 class MyDocument extends Document {
@@ -75,7 +127,7 @@ class MyDocument extends Document {
 
   render() {
     return (
-      <Html>
+      <Html lang="en">
         <Head />
         <body>
           <Main />
@@ -89,24 +141,7 @@ class MyDocument extends Document {
 export default MyDocument
 ```
 
-> **Good to know**: `getInitialProps` in `_document` is not called during client-side transitions.
-
-## TypeScript
-
-You can use the built-in `DocumentContext` type and change the file name to `./pages/_document.tsx` like so:
-
-```tsx
-import Document, { DocumentContext, DocumentInitialProps } from 'next/document'
-
-class MyDocument extends Document {
-  static async getInitialProps(
-    ctx: DocumentContext
-  ): Promise<DocumentInitialProps> {
-    const initialProps = await Document.getInitialProps(ctx)
-
-    return initialProps
-  }
-}
-
-export default MyDocument
-```
+> **Good to know**
+>
+> - `getInitialProps` in `_document` is not called during client-side transitions.
+> - The `ctx` object for `_document` is equivalent to the one received in [`getInitialProps`](/docs/pages/api-reference/functions/get-initial-props#context-object), with the addition of `renderPage`.

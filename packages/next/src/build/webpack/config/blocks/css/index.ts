@@ -26,11 +26,19 @@ const regexSassGlobal = /(?<!\.module)\.(scss|sass)$/
 const regexSassModules = /\.module\.(scss|sass)$/
 
 const APP_LAYER_RULE = {
-  or: [WEBPACK_LAYERS.server, WEBPACK_LAYERS.client, WEBPACK_LAYERS.appClient],
+  or: [
+    WEBPACK_LAYERS.reactServerComponents,
+    WEBPACK_LAYERS.serverSideRendering,
+    WEBPACK_LAYERS.appPagesBrowser,
+  ],
 }
 
 const PAGES_LAYER_RULE = {
-  not: [WEBPACK_LAYERS.server, WEBPACK_LAYERS.client, WEBPACK_LAYERS.appClient],
+  not: [
+    WEBPACK_LAYERS.reactServerComponents,
+    WEBPACK_LAYERS.serverSideRendering,
+    WEBPACK_LAYERS.appPagesBrowser,
+  ],
 }
 
 /**
@@ -258,7 +266,14 @@ export const css = curry(async function css(
               test: regexCssModules,
               issuerLayer: APP_LAYER_RULE,
               use: [
-                require.resolve('../../../loaders/next-flight-css-loader'),
+                {
+                  loader: require.resolve(
+                    '../../../loaders/next-flight-css-loader'
+                  ),
+                  options: {
+                    cssModules: true,
+                  },
+                },
                 ...getCssModuleLoader(
                   { ...ctx, isAppDir: true },
                   lazyPostCSSInitializer
@@ -291,7 +306,14 @@ export const css = curry(async function css(
               test: regexSassModules,
               issuerLayer: APP_LAYER_RULE,
               use: [
-                require.resolve('../../../loaders/next-flight-css-loader'),
+                {
+                  loader: require.resolve(
+                    '../../../loaders/next-flight-css-loader'
+                  ),
+                  options: {
+                    cssModules: true,
+                  },
+                },
                 ...getCssModuleLoader(
                   { ...ctx, isAppDir: true },
                   lazyPostCSSInitializer,
@@ -338,7 +360,14 @@ export const css = curry(async function css(
                 sideEffects: true,
                 test: [regexCssGlobal, regexSassGlobal],
                 issuerLayer: APP_LAYER_RULE,
-                use: require.resolve('../../../loaders/next-flight-css-loader'),
+                use: {
+                  loader: require.resolve(
+                    '../../../loaders/next-flight-css-loader'
+                  ),
+                  options: {
+                    cssModules: false,
+                  },
+                },
               })
             : null,
           markRemovable({
@@ -389,7 +418,14 @@ export const css = curry(async function css(
                   test: regexCssGlobal,
                   issuerLayer: APP_LAYER_RULE,
                   use: [
-                    require.resolve('../../../loaders/next-flight-css-loader'),
+                    {
+                      loader: require.resolve(
+                        '../../../loaders/next-flight-css-loader'
+                      ),
+                      options: {
+                        cssModules: false,
+                      },
+                    },
                     ...getGlobalCssLoader(
                       { ...ctx, isAppDir: true },
                       lazyPostCSSInitializer
@@ -401,7 +437,14 @@ export const css = curry(async function css(
                   test: regexSassGlobal,
                   issuerLayer: APP_LAYER_RULE,
                   use: [
-                    require.resolve('../../../loaders/next-flight-css-loader'),
+                    {
+                      loader: require.resolve(
+                        '../../../loaders/next-flight-css-loader'
+                      ),
+                      options: {
+                        cssModules: false,
+                      },
+                    },
                     ...getGlobalCssLoader(
                       { ...ctx, isAppDir: true },
                       lazyPostCSSInitializer,
