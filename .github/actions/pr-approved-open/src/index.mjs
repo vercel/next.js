@@ -1,6 +1,5 @@
 // @ts-check
 import { context, getOctokit } from '@actions/github'
-
 import { setFailed, info } from '@actions/core'
 import { WebClient } from '@slack/web-api'
 
