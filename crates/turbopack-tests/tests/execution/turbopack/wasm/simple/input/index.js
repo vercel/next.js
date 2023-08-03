@@ -1,5 +1,5 @@
 it("should handle wasm imports", async () => {
-  // math.js is an async module, so we import it in here
+  // magic.js is an async module, so we import it inside this function to make sure the entrypoint isn't async.
   const {
     add,
     factorial,

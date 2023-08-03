@@ -12,15 +12,15 @@ bench = false
 [dependencies]
 anyhow = { workspace = true }
 indexmap = { workspace = true }
-
+indoc = { workspace = true }
+serde = { workspace = true }
 turbo-tasks = { workspace = true }
 turbo-tasks-fs = { workspace = true }
 turbo-tasks-hash = { workspace = true }
 turbopack-core = { workspace = true }
-turbopack-css = { workspace = true }
 turbopack-ecmascript = { workspace = true }
-
-serde = { workspace = true }
+wasmparser = "0.110.0"
+wat = "1.0.69"
 
 [build-dependencies]
 turbo-tasks-build = { workspace = true }
