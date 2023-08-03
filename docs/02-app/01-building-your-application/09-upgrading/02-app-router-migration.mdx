@@ -549,7 +549,7 @@ export default function Dashboard({ projects }) {
 
 In the `app` directory, we can colocate our data fetching inside our React components using [Server Components](/docs/getting-started/react-essentials#server-components). This allows us to send less JavaScript to the client, while maintaining the rendered HTML from the server.
 
-By setting the `cache` option to `no-store`, we can indicate that the fetched data should [never be cached](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating. This is similar to `getServerSideProps` in the `pages` directory.
+By setting the `cache` option to `no-store`, we can indicate that the fetched data should [never be cached](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating). This is similar to `getServerSideProps` in the `pages` directory.
 
 ```tsx filename="app/dashboard/page.tsx" switcher
 // `app` directory
