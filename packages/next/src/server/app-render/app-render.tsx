@@ -210,6 +210,12 @@ export async function renderToHTMLOrFlight(
   const isFlight = req.headers[RSC.toLowerCase()] !== undefined
   const pathname = validateURL(req.url)
 
+  // A unique request timestamp used by development to ensure that it's
+  // consistent and won't change during this request. This is important to
+  // avoid that resources can be deduped by React Float if the same resource is
+  // rendered or preloaded multiple times: `<link href="a.css?v={Date.now()}"/>`.
+  const DEV_REQUEST_TS = Date.now()
+
   const {
     buildManifest,
     subresourceIntegrityManifest,
@@ -427,7 +433,7 @@ export async function renderToHTMLOrFlight(
       let qs = ''
 
       if (isDev && addTimestamp) {
-        qs += `?v=${Date.now()}`
+        qs += `?v=${DEV_REQUEST_TS}`
       }
 
       if (renderOpts.deploymentId) {

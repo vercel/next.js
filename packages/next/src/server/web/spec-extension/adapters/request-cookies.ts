@@ -1,6 +1,4 @@
 import type { RequestCookies } from '../cookies'
-import type { BaseNextResponse } from '../../../base-http'
-import type { ServerResponse } from 'http'
 import { StaticGenerationStore } from '../../../../client/components/static-generation-async-storage.shared-runtime'
 
 import { ResponseCookies } from '../cookies'
@@ -97,7 +95,7 @@ type ResponseCookie = NonNullable<
 export class MutableRequestCookiesAdapter {
   public static wrap(
     cookies: RequestCookies,
-    res: ServerResponse | BaseNextResponse | undefined
+    onUpdateCookies?: (cookies: string[]) => void
   ): ResponseCookies {
     const responseCookes = new ResponseCookies(new Headers())
     for (const cookie of cookies.getAll()) {
@@ -117,14 +115,15 @@ export class MutableRequestCookiesAdapter {
 
       const allCookies = responseCookes.getAll()
       modifiedValues = allCookies.filter((c) => modifiedCookies.has(c.name))
-      if (res) {
+      if (onUpdateCookies) {
         const serializedCookies: string[] = []
         for (const cookie of modifiedValues) {
           const tempCookies = new ResponseCookies(new Headers())
           tempCookies.set(cookie)
           serializedCookies.push(tempCookies.toString())
         }
-        res.setHeader('Set-Cookie', serializedCookies)
+
+        onUpdateCookies(serializedCookies)
       }
     }
 

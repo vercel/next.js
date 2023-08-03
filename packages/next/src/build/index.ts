@@ -872,6 +872,19 @@ export default async function build(
           )
         )
 
+      // We need to write a partial prerender manifest to make preview mode settings available in edge middleware
+      const partialManifest: Partial<PrerenderManifest> = {
+        preview: previewProps,
+      }
+
+      await fs.writeFile(
+        path.join(distDir, PRERENDER_MANIFEST).replace(/\.json$/, '.js'),
+        `self.__PRERENDER_MANIFEST=${JSON.stringify(
+          JSON.stringify(partialManifest)
+        )}`,
+        'utf8'
+      )
+
       const outputFileTracingRoot =
         config.experimental.outputFileTracingRoot || dir
 
@@ -906,6 +919,7 @@ export default async function build(
             path.relative(distDir, manifestPath),
             BUILD_MANIFEST,
             PRERENDER_MANIFEST,
+            PRERENDER_MANIFEST.replace(/\.json$/, '.js'),
             path.join(SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
             path.join(SERVER_DIRECTORY, MIDDLEWARE_BUILD_MANIFEST + '.js'),
             path.join(
