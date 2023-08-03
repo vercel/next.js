@@ -7,7 +7,7 @@ export default function Page() {
       <Link id="back" href="/mutate-cookie">
         back
       </Link>
-      <p id="value">{cookies().get('test-cookie')?.value}</p>
+      <p id="value">{cookies().get('test-cookie2')?.value}</p>
     </>
   )
 }
