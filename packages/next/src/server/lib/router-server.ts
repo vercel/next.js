@@ -252,7 +252,11 @@ export async function initialize(opts: {
     ] as {
       _child?: import('child_process').ChildProcess
     }[]) {
-      curWorker._child?.kill('SIGKILL')
+      curWorker._child?.kill('SIGINT')
+    }
+
+    if (!process.env.__NEXT_PRIVATE_CPU_PROFILE) {
+      process.exit(0)
     }
   }
   process.on('exit', cleanup)
