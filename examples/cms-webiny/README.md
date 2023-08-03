@@ -34,8 +34,8 @@ Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_mediu
 - [TakeShape](/examples/cms-takeshape)
 - [Umbraco heartcore](/examples/cms-umbraco-heartcore)
 - [Webiny](/examples/cms-webiny)
-- [Wordpress](/examples/cms-wordpress)
 - [Blog Starter](/examples/blog-starter)
+- [WordPress](/examples/cms-wordpress)
 
 ## How to use
 

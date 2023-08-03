@@ -35,7 +35,7 @@ Once you have access to [the environment variables you'll need](#step-3-set-up-e
 - [Umbraco heartcore](/examples/cms-umbraco-heartcore)
 - [Webiny](/examples/cms-webiny)
 - [Blog Starter](/examples/blog-starter)
-- [Wordpress](/examples/cms-wordpress)
+- [WordPress](/examples/cms-wordpress)
 
 ## How to use
 

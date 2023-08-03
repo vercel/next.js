@@ -38,8 +38,8 @@ Once you have access to your Butter API token, you can deploy your Butterized pr
 - [TakeShape](/examples/cms-takeshape)
 - [Umbraco heartcore](/examples/cms-umbraco-heartcore)
 - [Webiny](/examples/cms-webiny)
-- [Wordpress](/examples/cms-wordpress)
 - [Blog Starter](/examples/blog-starter)
+- [WordPress](/examples/cms-wordpress)
 
 ## How to use
 

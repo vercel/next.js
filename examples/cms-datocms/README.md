@@ -28,8 +28,8 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 - [TakeShape](/examples/cms-takeshape)
 - [Umbraco heartcore](/examples/cms-umbraco-heartcore)
 - [Webiny](/examples/cms-webiny)
-- [Wordpress](/examples/cms-wordpress)
 - [Blog Starter](/examples/blog-starter)
+- [WordPress](/examples/cms-wordpress)
 
 ## Deploy your own
 

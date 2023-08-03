@@ -34,8 +34,8 @@ Once you have [configured the Next.js module for Drupal](https://next-drupal.org
 - [TakeShape](/examples/cms-takeshape)
 - [Umbraco heartcore](/examples/cms-umbraco-heartcore)
 - [Webiny](/examples/cms-webiny)
-- [Wordpress](/examples/cms-wordpress)
 - [Blog Starter](/examples/blog-starter)
+- [WordPress](/examples/cms-wordpress)
 
 ## How to use
 

@@ -103,5 +103,5 @@ Alternatively, you can deploy using our template by clicking on the Deploy butto
 - [TakeShape](/examples/cms-takeshape)
 - [Umbraco heartcore](/examples/cms-umbraco-heartcore)
 - [Webiny](/examples/cms-webiny)
-- [Wordpress](/examples/cms-wordpress)
+- [WordPress](/examples/cms-wordpress)
 - [Blog Starter](/examples/blog-starter)

@@ -34,8 +34,8 @@ Once you have access to [the environment variables you'll need](#step-3-set-up-e
 - [TakeShape](/examples/cms-takeshape)
 - [Umbraco heartcore](/examples/cms-umbraco-heartcore)
 - [Webiny](/examples/cms-webiny)
-- [Wordpress](/examples/cms-wordpress)
 - [Blog Starter](/examples/blog-starter)
+- [WordPress](/examples/cms-wordpress)
 
 ## How to use
 
