@@ -61,23 +61,23 @@ export async function startServer({
     }
   )
   let requestHandler = async (
-    _req: IncomingMessage,
-    _res: ServerResponse
+    req: IncomingMessage,
+    res: ServerResponse
   ): Promise<void> => {
     if (handlersPromise) {
       await handlersPromise
-      return requestHandler(_req, _res)
+      return requestHandler(req, res)
     }
     throw new Error('Invariant request handler was not setup')
   }
   let upgradeHandler = async (
-    _req: IncomingMessage,
-    _socket: ServerResponse | Duplex,
-    _head: Buffer
+    req: IncomingMessage,
+    socket: ServerResponse | Duplex,
+    head: Buffer
   ): Promise<void> => {
     if (handlersPromise) {
       await handlersPromise
-      return upgradeHandler(_req, _socket, _head)
+      return upgradeHandler(req, socket, head)
     }
     throw new Error('Invariant upgrade handler was not setup')
   }
