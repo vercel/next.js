@@ -548,6 +548,22 @@ async function create(data) {
 }
 ```
 
+### Redirection
+
+You can also trigger a redirection within a Server Action by using the `redirect` function.
+
+```js highlight={8}
+import { redirect } from 'next/navigation'
+
+async function addItem(data) {
+  'use server'
+
+  await saveToDb({ data })
+
+  redirect('/success')
+}
+```
+
 ## Glossary
 
 ### Actions

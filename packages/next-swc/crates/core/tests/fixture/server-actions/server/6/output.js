@@ -8,11 +8,11 @@ if (true) {
     const g191 = 1;
 }
 function x() {
-    const f21 = 1;
+    const f2 = 1;
     const g201 = 1;
 }
 export function y(p, [p1, { p2 }], ...p3) {
-    const f21 = 1;
+    const f2 = 1;
     const f11 = 1;
     const f19 = 1;
     if (true) {
@@ -22,7 +22,7 @@ export function y(p, [p1, { p2 }], ...p3) {
         return $$ACTION_0.apply(null, (action.$$bound || []).concat(args));
     }
     __create_action_proxy__("6d53ce510b2e36499b8f56038817b9bad86cabb4", [
-        f21,
+        f2,
         f11,
         p,
         p1,
