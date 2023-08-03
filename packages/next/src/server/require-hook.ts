@@ -8,8 +8,8 @@ const { dirname } = require('path')
 const mod = require('module')
 const resolveFilename = mod._resolveFilename
 const hookPropertyMap = new Map()
-const nextRenderAsyncStorage =
-  require('./async-storage/next-render-async-storage') as import('./async-storage/next-render-async-storage').NextRenderAsyncStorage
+const { nextRenderAsyncStorage } =
+  require('./async-storage/next-render-async-storage') as typeof import('./async-storage/next-render-async-storage')
 
 const resolve = process.env.NEXT_MINIMAL
   ? // @ts-ignore
