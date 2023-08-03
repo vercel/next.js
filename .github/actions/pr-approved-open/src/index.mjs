@@ -18,7 +18,7 @@ async function run() {
       ),
     })
 
-    const pendingPRs = prs.data.items.length
+    const pendingPRs = prs.data.total_count
 
     if (pendingPRs) {
       await slackClient.chat.postMessage({
