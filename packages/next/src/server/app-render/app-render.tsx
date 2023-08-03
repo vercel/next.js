@@ -252,7 +252,6 @@ export async function renderToHTMLOrFlight(
     allCapturedErrors,
   })
 
-  console.log(ComponentMod)
   patchFetch(ComponentMod)
   /**
    * Rules of Static & Dynamic HTML:
