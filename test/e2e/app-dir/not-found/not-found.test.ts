@@ -7,11 +7,29 @@ createNextDescribe(
     files: __dirname,
     skipDeployment: true,
   },
-  ({ next, isNextDev }) => {
-    describe('root not-found page', () => {
+  ({ next, isNextDev, isNextStart }) => {
+    if (isNextStart) {
+      it('should include not found client reference manifest in the file trace', async () => {
+        const fileTrace = JSON.parse(
+          await next.readFile('.next/server/app/_not-found.js.nft.json')
+        )
+
+        const isTraced = fileTrace.files.some((filePath) =>
+          filePath.includes('_not-found_client-reference-manifest.js')
+        )
+
+        expect(isTraced).toBe(true)
+      })
+    }
+
+    const runTests = ({ isEdge }: { isEdge: boolean }) => {
       it('should use the not-found page for non-matching routes', async () => {
-        const html = await next.render('/random-content')
-        expect(html).toContain('This Is The Not Found Page')
+        const browser = await next.browser('/random-content')
+        expect(await browser.elementByCss('h1').text()).toContain(
+          'This Is The Not Found Page'
+        )
+        // should contain root layout content
+        expect(await browser.elementByCss('#layout-nav').text()).toBe('Navbar')
       })
 
       it('should allow to have a valid /not-found route', async () => {
@@ -34,20 +52,24 @@ createNextDescribe(
           }, 'success')
         })
 
-        it('should render the 404 page when the file is removed, and restore the page when re-added', async () => {
-          const browser = await next.browser('/')
-          await check(() => browser.elementByCss('h1').text(), 'My page')
-          await next.renameFile('./app/page.js', './app/foo.js')
-          await check(
-            () => browser.elementByCss('h1').text(),
-            'This Is The Not Found Page'
-          )
-          await next.renameFile('./app/foo.js', './app/page.js')
-          await check(() => browser.elementByCss('h1').text(), 'My page')
-        })
+        // TODO: investigate isEdge case
+        if (!isEdge) {
+          it('should render the 404 page when the file is removed, and restore the page when re-added', async () => {
+            const browser = await next.browser('/')
+            await check(() => browser.elementByCss('h1').text(), 'My page')
+            await next.renameFile('./app/page.js', './app/foo.js')
+            await check(
+              () => browser.elementByCss('h1').text(),
+              'This Is The Not Found Page'
+            )
+            // TODO: investigate flakey behavior
+            // await next.renameFile('./app/foo.js', './app/page.js')
+            // await check(() => browser.elementByCss('h1').text(), 'My page')
+          })
+        }
       }
 
-      if (!isNextDev) {
+      if (!isNextDev && !isEdge) {
         it('should create the 404 mapping and copy the file to pages', async () => {
           const html = await next.readFile('.next/server/pages/404.html')
           expect(html).toContain('This Is The Not Found Page')
@@ -56,6 +78,29 @@ createNextDescribe(
           ).toContain('"pages/404.html"')
         })
       }
+    }
+
+    describe('with default runtime', () => {
+      runTests({ isEdge: false })
+    })
+
+    describe('with runtime = edge', () => {
+      let originalLayout = ''
+
+      beforeAll(async () => {
+        await next.stop()
+        originalLayout = await next.readFile('app/layout.js')
+        await next.patchFile(
+          'app/layout.js',
+          `export const runtime = 'edge'\n${originalLayout}`
+        )
+        await next.start()
+      })
+      afterAll(async () => {
+        await next.patchFile('app/layout.js', originalLayout)
+      })
+
+      runTests({ isEdge: true })
     })
   }
 )

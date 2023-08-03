@@ -257,15 +257,15 @@ For example, create a `fonts.ts` file in a `styles` folder at the root of your a
 Then, specify your font definitions as follows:
 
 ```ts filename="styles/fonts.ts" switcher
-import { Inter, Lora, Source_Sans_Pro } from 'next/font/google'
+import { Inter, Lora, Source_Sans_3 } from 'next/font/google'
 import localFont from 'next/font/local'
 
 // define your variable fonts
 const inter = Inter()
 const lora = Lora()
 // define 2 weights of a non-variable font
-const sourceCodePro400 = Source_Sans_Pro({ weight: '400' })
-const sourceCodePro700 = Source_Sans_Pro({ weight: '700' })
+const sourceCodePro400 = Source_Sans_3({ weight: '400' })
+const sourceCodePro700 = Source_Sans_3({ weight: '700' })
 // define a custom local font where GreatVibes-Regular.ttf is stored in the styles folder
 const greatVibes = localFont({ src: './GreatVibes-Regular.ttf' })
 
@@ -273,15 +273,15 @@ export { inter, lora, sourceCodePro400, sourceCodePro700, greatVibes }
 ```
 
 ```js filename="styles/fonts.js" switcher
-import { Inter, Lora, Source_Sans_Pro } from 'next/font/google'
+import { Inter, Lora, Source_Sans_3 } from 'next/font/google'
 import localFont from 'next/font/local'
 
 // define your variable fonts
 const inter = Inter()
 const lora = Lora()
 // define 2 weights of a non-variable font
-const sourceCodePro400 = Source_Sans_Pro({ weight: '400' })
-const sourceCodePro700 = Source_Sans_Pro({ weight: '700' })
+const sourceCodePro400 = Source_Sans_3({ weight: '400' })
+const sourceCodePro700 = Source_Sans_3({ weight: '700' })
 // define a custom local font where GreatVibes-Regular.ttf is stored in the styles folder
 const greatVibes = localFont({ src: './GreatVibes-Regular.ttf' })
 
@@ -299,7 +299,7 @@ export default function Page() {
       <p className={inter.className}>Hello world using Inter font</p>
       <p style={lora.style}>Hello world using Lora font</p>
       <p className={sourceCodePro700.className}>
-        Hello world using Source_Sans_Pro font with weight 700
+        Hello world using Source_Sans_3 font with weight 700
       </p>
       <p className={greatVibes.className}>My title in Great Vibes font</p>
     </div>
@@ -316,7 +316,7 @@ export default function Page() {
       <p className={inter.className}>Hello world using Inter font</p>
       <p style={lora.style}>Hello world using Lora font</p>
       <p className={sourceCodePro700.className}>
-        Hello world using Source_Sans_Pro font with weight 700
+        Hello world using Source_Sans_3 font with weight 700
       </p>
       <p className={greatVibes.className}>My title in Great Vibes font</p>
     </div>
