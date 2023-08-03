@@ -75,11 +75,11 @@ impl ChunkableModule for RawWebAssemblyModuleAsset {
     #[turbo_tasks::function]
     fn as_chunk(
         self: Vc<Self>,
-        context: Vc<Box<dyn ChunkingContext>>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
         availability_info: Value<AvailabilityInfo>,
     ) -> Vc<Box<dyn Chunk>> {
         Vc::upcast(EcmascriptChunk::new(
-            context,
+            chunking_context,
             Vc::upcast(self),
             availability_info,
         ))
@@ -91,13 +91,13 @@ impl EcmascriptChunkPlaceable for RawWebAssemblyModuleAsset {
     #[turbo_tasks::function]
     fn as_chunk_item(
         self: Vc<Self>,
-        context: Vc<Box<dyn EcmascriptChunkingContext>>,
+        chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
     ) -> Vc<Box<dyn EcmascriptChunkItem>> {
         Vc::upcast(
             RawModuleChunkItem {
                 module: self,
-                context,
-                wasm_asset: self.wasm_asset(Vc::upcast(context)),
+                chunking_context,
+                wasm_asset: self.wasm_asset(Vc::upcast(chunking_context)),
             }
             .cell(),
         )
@@ -112,7 +112,7 @@ impl EcmascriptChunkPlaceable for RawWebAssemblyModuleAsset {
 #[turbo_tasks::value]
 struct RawModuleChunkItem {
     module: Vc<RawWebAssemblyModuleAsset>,
-    context: Vc<Box<dyn EcmascriptChunkingContext>>,
+    chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
     wasm_asset: Vc<WebAssemblyAsset>,
 }
 
@@ -139,13 +139,13 @@ impl ChunkItem for RawModuleChunkItem {
 impl EcmascriptChunkItem for RawModuleChunkItem {
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn EcmascriptChunkingContext>> {
-        self.context
+        self.chunking_context
     }
 
     #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<EcmascriptChunkItemContent>> {
         let path = self.wasm_asset.ident().path().await?;
-        let output_root = self.context.output_root().await?;
+        let output_root = self.chunking_context.output_root().await?;
 
         let Some(path) = output_root.get_path_to(&path) else {
             bail!("WASM asset ident is not relative to output root");

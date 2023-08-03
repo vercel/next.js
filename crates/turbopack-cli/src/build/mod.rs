@@ -195,7 +195,7 @@ async fn build_internal(
     let compile_time_info = get_client_compile_time_info(browserslist_query, node_env);
     let execution_context =
         ExecutionContext::new(project_path, chunking_context, load_env(project_path));
-    let context =
+    let asset_context =
         get_client_asset_context(project_path, execution_context, compile_time_info, node_env);
 
     let entry_requests = (*entry_requests
@@ -214,7 +214,7 @@ async fn build_internal(
         .await?)
         .to_vec();
 
-    let origin = PlainResolveOrigin::new(context, output_fs.root().join("_".to_string()));
+    let origin = PlainResolveOrigin::new(asset_context, output_fs.root().join("_".to_string()));
     let project_dir = &project_dir;
     let entries = entry_requests
         .into_iter()

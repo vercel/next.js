@@ -17,4 +17,4 @@ describe("complex wasm", () => {
     expect(getNumber()).toBeGreaterThanOrEqual(0);
     expect(getNumber()).toBeGreaterThanOrEqual(0);
   });
-})
+});

@@ -320,7 +320,7 @@ async fn parse_content(
                 is_typescript,
             ));
 
-            let context = TransformContext {
+            let transform_context = TransformContext {
                 comments: &comments,
                 source_map: &source_map,
                 top_level_mark,
@@ -331,7 +331,9 @@ async fn parse_content(
                 file_path: fs_path_vc,
             };
             for transform in transforms.iter() {
-                transform.apply(&mut parsed_program, &context).await?;
+                transform
+                    .apply(&mut parsed_program, &transform_context)
+                    .await?;
             }
 
             parsed_program.visit_mut_with(

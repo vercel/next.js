@@ -38,15 +38,15 @@ impl OutputAsset for NftJsonAsset {
 impl Asset for NftJsonAsset {
     #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<AssetContent>> {
-        let context = self.entry.ident().path().parent().await?;
+        let parent_dir = self.entry.ident().path().parent().await?;
         // For clippy -- This explicit deref is necessary
         let entry_path = &*self.entry.ident().path().await?;
         let mut result = Vec::new();
-        if let Some(self_path) = context.get_relative_path_to(entry_path) {
+        if let Some(self_path) = parent_dir.get_relative_path_to(entry_path) {
             let set = all_modules(self.entry);
             for asset in set.await?.iter() {
                 let path = asset.ident().path().await?;
-                if let Some(rel_path) = context.get_relative_path_to(&path) {
+                if let Some(rel_path) = parent_dir.get_relative_path_to(&path) {
                     if rel_path != self_path {
                         result.push(rel_path);
                     }
