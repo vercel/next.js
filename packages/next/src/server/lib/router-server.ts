@@ -1,7 +1,10 @@
 import type { IncomingMessage } from 'http'
 
 // this must come first as it includes require hooks
-import { initializeServerWorker } from './setup-server-worker'
+import type {
+  WorkerRequestHandler,
+  WorkerUpgradeHandler,
+} from './setup-server-worker'
 
 import url from 'url'
 import path from 'path'
@@ -54,7 +57,7 @@ export async function initialize(opts: {
   isNodeDebugging: boolean
   keepAliveTimeout?: number
   customServer?: boolean
-}): Promise<[any, any]> {
+}): Promise<[WorkerRequestHandler, WorkerUpgradeHandler]> {
   process.title = 'next-router-worker'
 
   if (!process.env.NODE_ENV) {
@@ -266,10 +269,7 @@ export async function initialize(opts: {
     devInstance?.ensureMiddleware
   )
 
-  const requestHandler: Parameters<typeof initializeServerWorker>[0] = async (
-    req,
-    res
-  ) => {
+  const requestHandler: WorkerRequestHandler = async (req, res) => {
     req.on('error', (_err) => {
       // TODO: log socket errors?
     })
@@ -681,11 +681,7 @@ export async function initialize(opts: {
     }
   }
 
-  const upgradeHandler: Parameters<typeof initializeServerWorker>[1] = async (
-    req,
-    socket,
-    head
-  ) => {
+  const upgradeHandler: WorkerUpgradeHandler = async (req, socket, head) => {
     try {
       req.on('error', (_err) => {
         // TODO: log socket errors?

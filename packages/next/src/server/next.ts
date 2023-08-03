@@ -4,7 +4,6 @@ import type { UrlWithParsedQuery } from 'url'
 import type { NextConfigComplete } from './config-shared'
 import type { IncomingMessage, ServerResponse } from 'http'
 import {
-  addRequestMeta,
   type NextParsedUrlQuery,
   type NextUrlWithParsedQuery,
 } from './request-meta'
@@ -25,7 +24,7 @@ import { getTracer } from './lib/trace/tracer'
 import { NextServerSpan } from './lib/trace/constants'
 import { formatUrl } from '../shared/lib/router/utils/format-url'
 import { proxyRequest } from './lib/router-utils/proxy-request'
-import { TLSSocket } from 'tls'
+import { WorkerRequestHandler } from './lib/setup-server-worker'
 
 let ServerImpl: typeof Server
 
@@ -276,7 +275,7 @@ function createServer(options: NextServerOptions): NextServer {
     const dir = resolve(options.dir || '.')
     const server = new NextServer(options)
 
-    const { createRouterWorker, checkIsNodeDebugging } =
+    const { getRequestHandlers, checkIsNodeDebugging } =
       require('./lib/start-server') as typeof import('./lib/start-server')
 
     let didWebSocketSetup = false
@@ -310,6 +309,7 @@ function createServer(options: NextServerOptions): NextServer {
         }
       }
     }
+    let requestHandler: WorkerRequestHandler
     return new Proxy(
       {},
       {
@@ -320,21 +320,16 @@ function createServer(options: NextServerOptions): NextServer {
                 shouldUseStandaloneMode = true
                 server[SYMBOL_SET_STANDALONE_MODE]()
                 const isNodeDebugging = checkIsNodeDebugging()
-                const routerWorker = await createRouterWorker(
-                  require.resolve('./lib/router-server'),
-                  isNodeDebugging
-                )
 
-                const initResult = await routerWorker.initialize({
+                const initResult = await getRequestHandlers({
                   dir,
                   port: options.port || 3000,
+                  isDev: !!options.dev,
                   hostname: options.hostname || 'localhost',
-                  isNodeDebugging: !!isNodeDebugging,
-                  workerType: 'router',
-                  dev: !!options.dev,
                   minimalMode: options.minimalMode,
+                  isNodeDebugging: !!isNodeDebugging,
                 })
-                serverPort = initResult.port
+                requestHandler = initResult[0]
               }
             case 'getRequestHandler': {
               return () => {
@@ -346,20 +341,12 @@ function createServer(options: NextServerOptions): NextServer {
                 ) => {
                   if (shouldUseStandaloneMode) {
                     setupWebSocketHandler(options.httpServer, req)
-                    const proxyParsedUrl = url.parse(
-                      `http://127.0.0.1:${serverPort}${req.url}`,
-                      true
-                    )
-                    if ((req?.socket as TLSSocket)?.encrypted) {
-                      req.headers['x-forwarded-proto'] = 'https'
-                    }
-                    addRequestMeta(
-                      req,
-                      '__NEXT_INIT_QUERY',
-                      proxyParsedUrl.query
-                    )
 
-                    await proxyRequest(req, res, proxyParsedUrl, undefined, req)
+                    if (parsedUrl) {
+                      req.url = formatUrl(parsedUrl)
+                    }
+
+                    requestHandler(req, res)
                     return
                   }
                   handler = handler || server.getRequestHandler()
@@ -390,22 +377,7 @@ function createServer(options: NextServerOptions): NextServer {
                     query,
                   })
 
-                  if ((req?.socket as TLSSocket)?.encrypted) {
-                    req.headers['x-forwarded-proto'] = 'https'
-                  }
-                  addRequestMeta(
-                    req,
-                    '__NEXT_INIT_QUERY',
-                    parsedUrl?.query || query || {}
-                  )
-
-                  await proxyRequest(
-                    req,
-                    res,
-                    url.parse(`http://127.0.0.1:${serverPort}${req.url}`, true),
-                    undefined,
-                    req
-                  )
+                  requestHandler(req, res)
                   return
                 }
 

@@ -1,6 +1,5 @@
 import '../node-polyfill-fetch'
 
-import type { Duplex } from 'stream'
 import type { IncomingMessage, ServerResponse } from 'http'
 
 import http from 'http'
@@ -9,6 +8,10 @@ import * as Log from '../../build/output/log'
 import setupDebug from 'next/dist/compiled/debug'
 import { getDebugPort } from './utils'
 import { initialize } from './router-server'
+import {
+  WorkerRequestHandler,
+  WorkerUpgradeHandler,
+} from './setup-server-worker'
 const debug = setupDebug('next:start-server')
 
 export interface StartServerOptions {
@@ -40,6 +43,35 @@ export const checkIsNodeDebugging = () => {
   return isNodeDebugging
 }
 
+export async function getRequestHandlers({
+  dir,
+  port,
+  isDev,
+  hostname,
+  minimalMode,
+  isNodeDebugging,
+  keepAliveTimeout,
+}: {
+  dir: string
+  port: number
+  isDev: boolean
+  hostname: string
+  minimalMode?: boolean
+  isNodeDebugging?: boolean
+  keepAliveTimeout?: number
+}): ReturnType<typeof initialize> {
+  return initialize({
+    dir,
+    port,
+    hostname,
+    dev: isDev,
+    minimalMode,
+    workerType: 'router',
+    isNodeDebugging: isNodeDebugging || false,
+    keepAliveTimeout,
+  })
+}
+
 export async function startServer({
   dir,
   port,
@@ -60,7 +92,7 @@ export async function startServer({
       handlersError = reject
     }
   )
-  let requestHandler = async (
+  let requestHandler: WorkerRequestHandler = async (
     req: IncomingMessage,
     res: ServerResponse
   ): Promise<void> => {
@@ -70,10 +102,10 @@ export async function startServer({
     }
     throw new Error('Invariant request handler was not setup')
   }
-  let upgradeHandler = async (
-    req: IncomingMessage,
-    socket: ServerResponse | Duplex,
-    head: Buffer
+  let upgradeHandler: WorkerUpgradeHandler = async (
+    req,
+    socket,
+    head
   ): Promise<void> => {
     if (handlersPromise) {
       await handlersPromise
@@ -182,14 +214,13 @@ export async function startServer({
         process.on('uncaughtException', cleanup)
         process.on('unhandledRejection', cleanup)
 
-        const initResult = await initialize({
+        const initResult = await getRequestHandlers({
           dir,
           port,
+          isDev,
           hostname: targetHost,
-          dev: !!isDev,
           minimalMode,
-          workerType: 'router',
-          isNodeDebugging: !!isNodeDebugging,
+          isNodeDebugging: Boolean(isNodeDebugging),
           keepAliveTimeout,
         })
         requestHandler = initResult[0]
