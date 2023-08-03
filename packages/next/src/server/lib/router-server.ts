@@ -27,6 +27,7 @@ import { getResolveRoutes } from './router-utils/resolve-routes'
 import { NextUrlWithParsedQuery, getRequestMeta } from '../request-meta'
 import { pathHasPrefix } from '../../shared/lib/router/utils/path-has-prefix'
 import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
+import setupCompression from 'next/dist/compiled/compression'
 
 import {
   PHASE_PRODUCTION_SERVER,
@@ -72,6 +73,12 @@ export async function initialize(opts: {
     undefined,
     true
   )
+
+  let compress: ReturnType<typeof setupCompression> | undefined
+
+  if (config?.compress !== false) {
+    compress = setupCompression()
+  }
 
   const fsChecker = await setupFsCheck({
     dev: opts.dev,
@@ -270,6 +277,10 @@ export async function initialize(opts: {
   )
 
   const requestHandler: WorkerRequestHandler = async (req, res) => {
+    if (compress) {
+      // @ts-expect-error not express req/res
+      compress(req, res, () => {})
+    }
     req.on('error', (_err) => {
       // TODO: log socket errors?
     })
