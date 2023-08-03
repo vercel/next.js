@@ -156,6 +156,7 @@ describe('refreshReducer', () => {
       },
       focusAndScrollRef: {
         apply: false,
+        onlyHashChange: false,
         hashFragment: null,
         segmentPaths: [],
       },
@@ -318,6 +319,7 @@ describe('refreshReducer', () => {
       },
       focusAndScrollRef: {
         apply: false,
+        onlyHashChange: false,
         hashFragment: null,
         segmentPaths: [],
       },
@@ -504,6 +506,7 @@ describe('refreshReducer', () => {
       },
       focusAndScrollRef: {
         apply: false,
+        onlyHashChange: false,
         hashFragment: null,
         segmentPaths: [],
       },
@@ -739,6 +742,7 @@ describe('refreshReducer', () => {
       },
       focusAndScrollRef: {
         apply: false,
+        onlyHashChange: false,
         hashFragment: null,
         segmentPaths: [],
       },

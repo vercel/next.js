@@ -1,21 +1,45 @@
-use std::sync::Arc;
+use std::{path::PathBuf, sync::Arc};
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use napi::{bindgen_prelude::External, JsFunction};
 use next_api::{
-    project::{Middleware, Project, ProjectOptions},
+    project::{Middleware, ProjectContainer, ProjectOptions},
     route::{Endpoint, Route},
+};
+use next_core::tracing_presets::{
+    TRACING_NEXT_TARGETS, TRACING_NEXT_TURBOPACK_TARGETS, TRACING_NEXT_TURBO_TASKS_TARGETS,
+};
+use tracing_subscriber::{
+    prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry,
 };
 use turbo_tasks::{TurboTasks, Vc};
 use turbopack_binding::{
-    turbo::tasks_memory::MemoryBackend, turbopack::core::error::PrettyPrintError,
+    turbo::tasks_memory::MemoryBackend,
+    turbopack::{
+        cli_utils::{
+            exit::ExitGuard,
+            raw_trace::RawTraceLayer,
+            trace_writer::{TraceWriter, TraceWriterGuard},
+            tracing_presets::TRACING_OVERVIEW_TARGETS,
+        },
+        core::error::PrettyPrintError,
+    },
 };
 
 use super::{
     endpoint::ExternalEndpoint,
-    utils::{serde_enum_to_string, subscribe, NapiDiagnostic, NapiIssue, RootTask, VcArc},
+    utils::{
+        get_diagnostics, get_issues, serde_enum_to_string, subscribe, NapiDiagnostic, NapiIssue,
+        RootTask, VcArc,
+    },
 };
 use crate::register;
+
+#[napi(object)]
+pub struct NapiEnvVar {
+    pub name: String,
+    pub value: String,
+}
 
 #[napi(object)]
 pub struct NapiProjectOptions {
@@ -32,6 +56,15 @@ pub struct NapiProjectOptions {
     /// The contents of next.config.js, serialized to JSON.
     pub next_config: String,
 
+    /// The contents of ts/config read by load-jsconfig, serialized to JSON.
+    pub js_config: String,
+
+    /// A map of environment variables to use when compiling code.
+    pub env: Vec<NapiEnvVar>,
+}
+
+#[napi(object)]
+pub struct NapiTurboEngineOptions {
     /// An upper bound of memory that turbopack will attempt to stay under.
     pub memory_limit: Option<f64>,
 }
@@ -43,31 +76,113 @@ impl From<NapiProjectOptions> for ProjectOptions {
             project_path: val.project_path,
             watch: val.watch,
             next_config: val.next_config,
-            memory_limit: val.memory_limit.map(|m| m as _),
+            js_config: val.js_config,
+            env: val
+                .env
+                .into_iter()
+                .map(|NapiEnvVar { name, value }| (name, value))
+                .collect(),
         }
     }
+}
+
+pub struct ProjectInstance {
+    turbo_tasks: Arc<TurboTasks<MemoryBackend>>,
+    container: Vc<ProjectContainer>,
+    #[allow(dead_code)]
+    guard: Option<ExitGuard<TraceWriterGuard>>,
 }
 
 #[napi(ts_return_type = "{ __napiType: \"Project\" }")]
 pub async fn project_new(
     options: NapiProjectOptions,
-) -> napi::Result<External<VcArc<Vc<Project>>>> {
+    turbo_engine_options: NapiTurboEngineOptions,
+) -> napi::Result<External<ProjectInstance>> {
     register();
+
+    let trace = std::env::var("NEXT_TURBOPACK_TRACING").ok();
+
+    let guard = if let Some(mut trace) = trace {
+        // Trace presets
+        match trace.as_str() {
+            "overview" => {
+                trace = TRACING_OVERVIEW_TARGETS.join(",");
+            }
+            "next" => {
+                trace = TRACING_NEXT_TARGETS.join(",");
+            }
+            "turbopack" => {
+                trace = TRACING_NEXT_TURBOPACK_TARGETS.join(",");
+            }
+            "turbo-tasks" => {
+                trace = TRACING_NEXT_TURBO_TASKS_TARGETS.join(",");
+            }
+            _ => {}
+        }
+
+        let subscriber = Registry::default();
+
+        let subscriber = subscriber.with(EnvFilter::builder().parse(trace).unwrap());
+
+        let internal_dir = PathBuf::from(&options.project_path).join(".next");
+        std::fs::create_dir_all(&internal_dir)
+            .context("Unable to create .next directory")
+            .unwrap();
+        let trace_file = internal_dir.join("trace.log");
+        let trace_writer = std::fs::File::create(trace_file).unwrap();
+        let (trace_writer, guard) = TraceWriter::new(trace_writer);
+        let subscriber = subscriber.with(RawTraceLayer::new(trace_writer));
+
+        let guard = ExitGuard::new(guard).unwrap();
+
+        subscriber.init();
+
+        Some(guard)
+    } else {
+        None
+    };
+
     let turbo_tasks = TurboTasks::new(MemoryBackend::new(
-        options
+        turbo_engine_options
             .memory_limit
             .map(|m| m as usize)
             .unwrap_or(usize::MAX),
     ));
     let options = options.into();
-    let project = turbo_tasks
-        .run_once(async move { Project::new(options).resolve().await })
+    let container = turbo_tasks
+        .run_once(async move {
+            let project = ProjectContainer::new(options);
+            let project = project.resolve().await?;
+            Ok(project)
+        })
         .await
         .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
     Ok(External::new_with_size_hint(
-        VcArc::new(turbo_tasks, project),
+        ProjectInstance {
+            turbo_tasks,
+            container,
+            guard,
+        },
         100,
     ))
+}
+
+#[napi(ts_return_type = "{ __napiType: \"Project\" }")]
+pub async fn project_update(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+    options: NapiProjectOptions,
+) -> napi::Result<()> {
+    let turbo_tasks = project.turbo_tasks.clone();
+    let options = options.into();
+    let container = project.container;
+    turbo_tasks
+        .run_once(async move {
+            container.update(options).await?;
+            Ok(())
+        })
+        .await
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
+    Ok(())
 }
 
 #[napi(object)]
@@ -164,28 +279,36 @@ impl NapiMiddleware {
 struct NapiEntrypoints {
     pub routes: Vec<NapiRoute>,
     pub middleware: Option<NapiMiddleware>,
+    pub pages_document_endpoint: External<ExternalEndpoint>,
+    pub pages_app_endpoint: External<ExternalEndpoint>,
+    pub pages_error_endpoint: External<ExternalEndpoint>,
     pub issues: Vec<NapiIssue>,
     pub diagnostics: Vec<NapiDiagnostic>,
 }
 
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
 pub fn project_entrypoints_subscribe(
-    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<VcArc<Vc<Project>>>,
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
     func: JsFunction,
 ) -> napi::Result<External<RootTask>> {
-    let turbo_tasks = project.turbo_tasks().clone();
-    let project = **project;
+    let turbo_tasks = project.turbo_tasks.clone();
+    let container = project.container;
     subscribe(
         turbo_tasks.clone(),
         func,
         move || async move {
-            let entrypoints = project.entrypoints();
+            let entrypoints = container.entrypoints();
+            let issues = get_issues(entrypoints).await?;
+            let diags = get_diagnostics(entrypoints).await?;
+
             let entrypoints = entrypoints.strongly_consistent().await?;
+
             // TODO peek_issues and diagnostics
-            Ok(entrypoints)
+            Ok((entrypoints, issues, diags))
         },
         move |ctx| {
-            let entrypoints = ctx.value;
+            let (entrypoints, issues, diags) = ctx.value;
+
             Ok(vec![NapiEntrypoints {
                 routes: entrypoints
                     .routes
@@ -199,8 +322,23 @@ pub fn project_entrypoints_subscribe(
                     .as_ref()
                     .map(|m| NapiMiddleware::from_middleware(m, &turbo_tasks))
                     .transpose()?,
-                issues: vec![],
-                diagnostics: vec![],
+                pages_document_endpoint: External::new(ExternalEndpoint(VcArc::new(
+                    turbo_tasks.clone(),
+                    entrypoints.pages_document_endpoint,
+                ))),
+                pages_app_endpoint: External::new(ExternalEndpoint(VcArc::new(
+                    turbo_tasks.clone(),
+                    entrypoints.pages_app_endpoint,
+                ))),
+                pages_error_endpoint: External::new(ExternalEndpoint(VcArc::new(
+                    turbo_tasks.clone(),
+                    entrypoints.pages_error_endpoint,
+                ))),
+                issues: issues
+                    .iter()
+                    .map(|issue| NapiIssue::from(&**issue))
+                    .collect(),
+                diagnostics: diags.iter().map(|d| NapiDiagnostic::from(d)).collect(),
             }])
         },
     )

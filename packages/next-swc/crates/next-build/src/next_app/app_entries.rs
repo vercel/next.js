@@ -189,17 +189,29 @@ pub async fn get_app_entries(
         .iter()
         .map(|(pathname, entrypoint)| async move {
             Ok(match entrypoint {
-                Entrypoint::AppPage { loader_tree } => get_app_page_entry(
+                Entrypoint::AppPage {
+                    original_name,
+                    loader_tree,
+                } => get_app_page_entry(
+                    rsc_context,
+                    // TODO add edge support
                     rsc_context,
                     *loader_tree,
                     app_dir,
                     pathname.clone(),
+                    original_name.clone(),
                     project_root,
                 ),
-                Entrypoint::AppRoute { path } => get_app_route_entry(
+                Entrypoint::AppRoute {
+                    original_name,
+                    path,
+                } => get_app_route_entry(
+                    rsc_context,
+                    // TODO add edge support
                     rsc_context,
                     Vc::upcast(FileSource::new(*path)),
                     pathname.clone(),
+                    original_name.clone(),
                     project_root,
                 ),
             })
@@ -212,6 +224,8 @@ pub async fn get_app_entries(
 
     if let Some(favicon) = global_metadata.favicon {
         entries.push(get_app_route_favicon_entry(
+            rsc_context,
+            // TODO add edge support
             rsc_context,
             favicon,
             project_root,

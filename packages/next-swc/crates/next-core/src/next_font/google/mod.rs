@@ -48,7 +48,7 @@ use super::{
         get_request_hash, get_request_id, get_scoped_font_family, FontCssProperties, FontFamilyType,
     },
 };
-use crate::{embed_js::next_js_file_path, util::load_next_json};
+use crate::{embed_js::next_js_file_path, util::load_next_js_templateon};
 
 pub mod font_fallback;
 pub mod options;
@@ -154,7 +154,7 @@ impl ImportMappingReplacement for NextFontGoogleReplacer {
             .into()),
         );
 
-        Ok(ImportMapResult::Result(ResolveResult::asset(Vc::upcast(js_asset)).into()).into())
+        Ok(ImportMapResult::Result(ResolveResult::source(Vc::upcast(js_asset)).into()).into())
     }
 }
 
@@ -260,15 +260,15 @@ impl ImportMappingReplacement for NextFontGoogleCssModuleReplacer {
             ),
         );
 
-        Ok(ImportMapResult::Result(ResolveResult::asset(Vc::upcast(css_asset)).into()).into())
+        Ok(ImportMapResult::Result(ResolveResult::source(Vc::upcast(css_asset)).into()).into())
     }
 }
 
 #[turbo_tasks::function]
 async fn load_font_data(project_root: Vc<FileSystemPath>) -> Result<Vc<FontData>> {
-    let data: FontData = load_next_json(
+    let data: FontData = load_next_js_templateon(
         project_root,
-        "/dist/compiled/@next/font/dist/google/font-data.json",
+        "dist/compiled/@next/font/dist/google/font-data.json".to_string(),
     )
     .await?;
 
