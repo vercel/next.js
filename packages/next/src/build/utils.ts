@@ -67,9 +67,8 @@ import * as ciEnvironment from '../telemetry/ci-info'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { denormalizeAppPagePath } from '../shared/lib/page-path/denormalize-app-path'
 // import { AppRouteRouteModule } from '../server/future/route-modules/app-route/module'
-const {
-  AppRouteRouteModule,
-} = require('../server/future/route-modules/app-route/module.compiled')
+const { AppRouteRouteModule } =
+  require('../server/future/route-modules/app-route/module.compiled') as typeof import('../server/future/route-modules/app-route/module')
 
 export type ROUTER_TYPE = 'pages' | 'app'
 
