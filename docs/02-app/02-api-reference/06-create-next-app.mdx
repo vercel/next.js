@@ -5,7 +5,9 @@ description: Create Next.js apps in one command with create-next-app.
 
 {/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
 
-The easiest way to get started with Next.js is by using `create-next-app`. This CLI tool enables you to quickly start building a new Next.js application, with everything set up for you. You can create a new app using the default Next.js template, or by using one of the [official Next.js examples](https://github.com/vercel/next.js/tree/canary/examples). To get started, use the following command:
+The easiest way to get started with Next.js is by using `create-next-app`. This CLI tool enables you to quickly start building a new Next.js application, with everything set up for you.
+
+You can create a new app using the default Next.js template, or by using one of the [official Next.js examples](https://github.com/vercel/next.js/tree/canary/examples).
 
 ### Interactive
 
@@ -13,9 +15,13 @@ You can create a new project interactively by running:
 
 ```bash filename="Terminal"
 npx create-next-app@latest
+```
 
+```bash filename="Terminal"
 yarn create next-app
+```
 
+```bash filename="Terminal"
 pnpm create next-app
 ```
 
@@ -23,11 +29,11 @@ You will then be asked the following prompts:
 
 ```bash filename="Terminal"
 What is your project named?  my-app
-Would you like to use TypeScript with this project?  No / Yes
-Would you like to use ESLint with this project?  No / Yes
-Would you like to use Tailwind CSS with this project?  No / Yes
-Would you like to use `src/` directory with this project?  No / Yes
-Use App Router (recommended)?  No / Yes
+Would you like to use TypeScript?  No / Yes
+Would you like to use ESLint?  No / Yes
+Would you like to use Tailwind CSS?  No / Yes
+Would you like to use `src/` directory?  No / Yes
+Would you like to use App Router? (recommended)  No / Yes
 Would you like to customize the default import alias?  No / Yes
 ```
 
@@ -89,7 +95,7 @@ Options:
   -e, --example [name]|[github-url]
 
     An example to bootstrap the app with. You can use an example name
-    from the official Next.js repo or a GitHub URL. The URL can use
+    from the official Next.js repo or a public GitHub URL. The URL can use
     any branch and/or subdirectory
 
   --example-path <path-to-example>
@@ -113,5 +119,5 @@ Options:
 - **Interactive Experience**: Running `npx create-next-app@latest` (with no arguments) launches an interactive experience that guides you through setting up a project.
 - **Zero Dependencies**: Initializing a project is as quick as one second. Create Next App has zero dependencies.
 - **Offline Support**: Create Next App will automatically detect if you're offline and bootstrap your project using your local package cache.
-- **Support for Examples**: Create Next App can bootstrap your application using an example from the Next.js examples collection (e.g. `npx create-next-app --example api-routes`).
+- **Support for Examples**: Create Next App can bootstrap your application using an example from the Next.js examples collection (e.g. `npx create-next-app --example api-routes`) or any public GitHub repository.
 - **Tested**: The package is part of the Next.js monorepo and tested using the same integration test suite as Next.js itself, ensuring it works as expected with every release.

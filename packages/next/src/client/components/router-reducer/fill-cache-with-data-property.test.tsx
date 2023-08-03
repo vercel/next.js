@@ -14,8 +14,11 @@ describe('fillCacheWithDataProperty', () => {
     )
     const pathname = '/dashboard/settings'
     const segments = pathname.split('/')
-    // TODO-APP: figure out something better for index pages
-    segments.push('')
+
+    const flightSegmentPath = segments
+      .slice(1)
+      .map((segment) => ['children', segment])
+      .flat()
 
     const cache: CacheNode = {
       status: CacheStates.LAZY_INITIALIZED,
@@ -60,56 +63,45 @@ describe('fillCacheWithDataProperty', () => {
       ]),
     }
 
-    fillCacheWithDataProperty(cache, existingCache, segments, () =>
+    fillCacheWithDataProperty(cache, existingCache, flightSegmentPath, () =>
       fetchServerResponseMock()
     )
 
-    const expectedCache: CacheNode = {
-      data: null,
-      status: CacheStates.LAZY_INITIALIZED,
-      subTreeData: null,
-      parallelRoutes: new Map([
-        [
-          'children',
-          new Map([
-            [
-              'linking',
-              {
-                data: null,
-                status: CacheStates.READY,
-                subTreeData: <>Linking</>,
-                parallelRoutes: new Map([
-                  [
-                    'children',
-                    new Map([
-                      [
-                        '',
-                        {
-                          data: null,
-                          status: CacheStates.READY,
-                          subTreeData: <>Page</>,
-                          parallelRoutes: new Map(),
-                        },
-                      ],
-                    ]),
-                  ],
-                ]),
+    expect(cache).toMatchInlineSnapshot(`
+      Object {
+        "data": null,
+        "parallelRoutes": Map {
+          "children" => Map {
+            "linking" => Object {
+              "data": null,
+              "parallelRoutes": Map {
+                "children" => Map {
+                  "" => Object {
+                    "data": null,
+                    "parallelRoutes": Map {},
+                    "status": "READY",
+                    "subTreeData": <React.Fragment>
+                      Page
+                    </React.Fragment>,
+                  },
+                },
               },
-            ],
-            [
-              '',
-              {
-                data: fetchServerResponseMock(),
-                parallelRoutes: new Map(),
-                status: CacheStates.DATA_FETCH,
-                subTreeData: null,
-              },
-            ],
-          ]),
-        ],
-      ]),
-    }
-
-    expect(cache).toMatchObject(expectedCache)
+              "status": "READY",
+              "subTreeData": <React.Fragment>
+                Linking
+              </React.Fragment>,
+            },
+            "dashboard" => Object {
+              "data": Promise {},
+              "parallelRoutes": Map {},
+              "status": "DATAFETCH",
+              "subTreeData": null,
+            },
+          },
+        },
+        "status": "LAZYINITIALIZED",
+        "subTreeData": null,
+      }
+    `)
   })
 })

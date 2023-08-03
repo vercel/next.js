@@ -64,6 +64,17 @@ export function unstable_cache<T extends Callback>(
           (await incrementalCache?.get(cacheKey, true, options.revalidate))
 
         const tags = options.tags || []
+
+        if (Array.isArray(tags) && store) {
+          if (!store.tags) {
+            store.tags = []
+          }
+          for (const tag of tags) {
+            if (!store.tags.includes(tag)) {
+              store.tags.push(tag)
+            }
+          }
+        }
         const implicitTags = addImplicitTags(store)
 
         for (const tag of implicitTags) {

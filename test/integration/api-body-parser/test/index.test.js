@@ -27,7 +27,9 @@ function runTests() {
     killApp(app)
   })
 
-  it('should not throw if request body is already parsed in custom middleware', async () => {
+  // TODO: we can't allow req fields with the proxying required for separate
+  // workers
+  it.skip('should not throw if request body is already parsed in custom middleware', async () => {
     await startServer()
     const data = await makeRequest()
     expect(data).toEqual([{ title: 'Nextjs' }])
