@@ -197,8 +197,10 @@ export async function initialize(opts: {
   )
 
   // pre-initialize workers
-  await renderWorkers.app?.initialize(renderWorkerOpts)
-  await renderWorkers.pages?.initialize(renderWorkerOpts)
+  const initialized = {
+    app: await renderWorkers.app?.initialize(renderWorkerOpts),
+    pages: await renderWorkers.pages?.initialize(renderWorkerOpts),
+  }
 
   if (devInstance) {
     Object.assign(devInstance.renderWorkers, renderWorkers)
@@ -309,8 +311,7 @@ export async function initialize(opts: {
         return null
       }
 
-      const curWorker = renderWorkers[type]
-      const workerResult = await curWorker?.initialize(renderWorkerOpts)
+      const workerResult = initialized[type]
 
       if (!workerResult) {
         throw new Error(`Failed to initialize render worker ${type}`)
