@@ -8,6 +8,7 @@ use turbopack_core::{
 use turbopack_css::{CssInputTransforms, CssModuleAssetType};
 use turbopack_ecmascript::{EcmascriptInputTransforms, EcmascriptOptions};
 use turbopack_mdx::MdxTransformOptions;
+use turbopack_wasm::source::WebAssemblySourceType;
 
 use super::{CustomModuleType, ModuleRuleCondition};
 
@@ -124,6 +125,8 @@ pub enum ModuleType {
         transforms: Vc<CssInputTransforms>,
     },
     Static,
-    WebAssembly,
+    WebAssembly {
+        source_ty: WebAssemblySourceType,
+    },
     Custom(Vc<Box<dyn CustomModuleType>>),
 }

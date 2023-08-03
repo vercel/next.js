@@ -24,7 +24,7 @@ use crate::{
 };
 
 #[turbo_tasks::value(shared)]
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct EcmascriptChunkItemContent {
     pub inner_code: Rope,
     pub source_map: Option<Vc<ParseResultSourceMap>>,
