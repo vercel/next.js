@@ -1,5 +1,5 @@
 // @ts-ignore this need to be imported from next/dist to be external
-import * as module from 'next/dist/server/future/route-modules/pages/module'
+import * as module from 'next/dist/server/future/route-modules/pages/module.compiled'
 import { RouteKind } from '../../../../../server/future/route-kind'
 import { hoist } from '../helpers'
 

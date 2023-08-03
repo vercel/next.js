@@ -625,10 +625,6 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
 
   const pathname = new AppPathnameNormalizer().normalize(page)
 
-  const routeModulePath = isEdge
-    ? 'next/dist/server/future/route-modules/app-page/module'
-    : 'next/dist/compiled/minimal-next-server/app-page-render.runtime.js'
-
   // Prefer to modify next/src/server/app-render/entry-base.ts since this is shared with Turbopack.
   // Any changes to this code should be reflected in Turbopack's app_source.rs and/or app-renderer.tsx as well.
   return await loadEntrypoint(

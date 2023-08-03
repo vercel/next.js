@@ -1305,27 +1305,19 @@ export default async function getBaseWebpackConfig(
       resolveRequest: string
     ) => Promise<[string | null, boolean]>
   ) {
-    if (
-      request.includes(
-        'dist/compiled/minimal-next-server/app-page-render.runtime.js'
-      )
-    ) {
-      return `next/dist/compiled/minimal-next-server/app-page-render.runtime.js`
-    }
+    // if (
+    //   request.includes('dist/compiled/next-server/app-page-render.runtime.js')
+    // ) {
+    //   return `next/dist/compiled/next-server/app-page-render.runtime.js`
+    // }
 
-    if (
-      request.includes(
-        'dist/compiled/minimal-next-server/pages-render.runtime.js'
-      )
-    ) {
-      return `next/dist/compiled/minimal-next-server/pages-render.runtime.js`
-    }
+    // if (request.includes('dist/compiled/next-server/pages-render.runtime.js')) {
+    //   return `next/dist/compiled/next-server/pages-render.runtime.js`
+    // }
 
-    if (
-      request.includes('dist/compiled/minimal-next-server/pages-api.runtime.js')
-    ) {
-      return `next/dist/compiled/minimal-next-server/pages-api.runtime.js`
-    }
+    // if (request.includes('dist/compiled/next-server/pages-api.runtime.js')) {
+    //   return `next/dist/compiled/next-server/pages-api.runtime.js`
+    // }
 
     // We need to externalize internal requests for files intended to
     // not be bundled.
@@ -1450,6 +1442,10 @@ export default async function getBaseWebpackConfig(
       const isNextExternal = regexPattern.test(localRes)
 
       if (isNextExternal) {
+        if (dev) {
+          return `commonjs ${localRes}`
+        }
+
         const name = path.parse(localRes).name.replace('.external', '')
         const camelCaseName = name.replace(/-([a-z])/g, (_, w) =>
           w.toUpperCase()
@@ -1472,16 +1468,18 @@ export default async function getBaseWebpackConfig(
         // if (isAppLayer) {
         //   // todo
         // } else {
+
         return [
           'commonjs ' +
             path.posix.join(
               'next',
               'dist',
               'compiled',
-              'minimal-next-server',
-              isAppLayer
-                ? 'app-page-render.runtime.js'
-                : 'pages-render.runtime.js'
+              'next-server',
+              // TODO: check if externals can happen for app routes or API routes
+              `${isAppLayer ? 'app-page' : 'pages'}.runtime.${
+                dev ? 'dev' : 'prod'
+              }`
             ),
           'default',
           'externals',
@@ -1506,6 +1504,10 @@ export default async function getBaseWebpackConfig(
       // Image loader needs to be transpiled
       if (/^next\/dist\/shared\/lib\/image-loader/.test(request)) {
         return
+      }
+
+      if (/^next\/dist\/compiled\/next-server/.test(request)) {
+        return `commonjs ${request}`
       }
 
       if (

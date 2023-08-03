@@ -1,4 +1,3 @@
-const fs = require('fs').promises
 const webpack = require('webpack')
 const path = require('path')
 const TerserPlugin = require('terser-webpack-plugin')
@@ -41,26 +40,28 @@ const externalsMap = {
   './web/sandbox': 'next/dist/server/web/sandbox',
 }
 
-const externalHandler = ({ context, request }, callback) => {
-  callback()
-}
+module.exports = ({ dev }) => {
+  const externalHandler = ({ context, request }, callback) => {
+    if (dev && request.endsWith('.external')) {
+      return callback(null, `commonjs ${request}`)
+    }
 
-async function buildNextServer(task) {
-  // cleanup old files
-  await fs.rm(path.join(__dirname, 'dist/compiled/minimal-next-server'), {
-    recursive: true,
-    force: true,
-  })
+    callback()
+  }
 
   /** @type {webpack.Configuration} */
-  const config = {
+  return {
     entry: {
       server: path.join(__dirname, 'dist/esm/server/next-server.js'),
-      'app-page-render': path.join(
+      'app-page': path.join(
         __dirname,
         'dist/esm/server/future/route-modules/app-page/module.js'
       ),
-      'pages-render': path.join(
+      'app-route': path.join(
+        __dirname,
+        'dist/esm/server/future/route-modules/app-route/module.js'
+      ),
+      pages: path.join(
         __dirname,
         'dist/esm/server/future/route-modules/pages/module.js'
       ),
@@ -72,15 +73,13 @@ async function buildNextServer(task) {
     target: 'node',
     mode: 'production',
     output: {
-      path: path.join(__dirname, 'dist/compiled/minimal-next-server'),
-      filename: '[name].runtime.js',
+      path: path.join(__dirname, 'dist/compiled/next-server'),
+      filename: `[name].runtime.${dev ? 'dev' : 'prod'}.js`,
       libraryTarget: 'commonjs2',
     },
-    // left in for debugging
     optimization: {
-      // moduleIds: 'named',
-      minimize: false,
-      // minimize: true,
+      moduleIds: 'named',
+      minimize: true,
       // splitChunks: {
       //   chunks: 'all',
       // },
@@ -101,50 +100,19 @@ async function buildNextServer(task) {
     },
     plugins: [
       new webpack.DefinePlugin({
-        'this.minimalMode': JSON.stringify(true),
-        'this.renderOpts.dev': JSON.stringify(false),
-        'process.env.NODE_ENV': JSON.stringify('production'),
         'process.env.NEXT_MINIMAL': JSON.stringify('true'),
+        'this.minimalMode': JSON.stringify(true),
+        'this.renderOpts.dev': JSON.stringify(dev),
+        'process.env.NODE_ENV': JSON.stringify(
+          dev ? 'development' : 'production'
+        ),
         'process.env.NEXT_RUNTIME': JSON.stringify('nodejs'),
       }),
       !!process.env.ANALYZE && new BundleAnalyzerPlugin({}),
     ].filter(Boolean),
     stats: {
-      // Display bailout reasons
       optimizationBailout: true,
     },
     externals: [...minimalExternals, externalsMap, externalHandler],
   }
-
-  await new Promise((resolve, reject) => {
-    webpack(config, (err, stats) => {
-      if (err) return reject(err)
-      if (stats.hasErrors()) {
-        return reject(new Error(stats.toString('errors-only')))
-      } else {
-        fs.writeFile(
-          path.join(
-            __dirname,
-            'dist/compiled/minimal-next-server',
-            'stats.json'
-          ),
-          JSON.stringify(stats.toJson()),
-          'utf8'
-        )
-        return resolve()
-      }
-    })
-  })
-
-  return
-}
-
-module.exports = {
-  buildNextServer,
-}
-
-if (require.main === module) {
-  buildNextServer().then(() => {
-    console.log('Success!')
-  })
 }

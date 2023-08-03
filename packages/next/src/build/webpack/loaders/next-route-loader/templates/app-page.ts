@@ -1,7 +1,7 @@
 import type { LoaderTree } from '../../../../../server/lib/app-dir-module'
 
 // @ts-ignore this need to be imported from next/dist to be external
-import * as module from 'next/dist/server/future/route-modules/app-page/module'
+import * as module from 'next/dist/server/future/route-modules/app-page/module.compiled'
 import { RouteKind } from '../../../../../server/future/route-kind'
 
 const AppPageRouteModule =

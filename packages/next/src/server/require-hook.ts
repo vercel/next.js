@@ -27,10 +27,11 @@ export const defaultOverrides = {
   'styled-jsx/style': resolve('styled-jsx/style'),
 }
 
-const currentRuntime =
+const currentRuntime = `${
   process.env.__NEXT_PRIVATE_RENDER_RUNTIME === 'pages'
-    ? 'next/dist/compiled/minimal-next-server/pages-render.runtime'
-    : 'next/dist/compiled/minimal-next-server/app-page-render.runtime'
+    ? 'next/dist/compiled/next-server/pages.runtime'
+    : 'next/dist/compiled/next-server/app-page.runtime'
+}.${process.env.NODE_ENV === 'production' ? 'prod' : 'dev'}`
 
 export const baseOverrides = {
   react: 'next/dist/compiled/react',

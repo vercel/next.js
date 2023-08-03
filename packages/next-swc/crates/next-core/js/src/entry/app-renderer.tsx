@@ -25,7 +25,7 @@ import { IncrementalCache } from 'next/dist/server/lib/incremental-cache'
 
 const {
   renderToHTMLOrFlight,
-} = require('next/dist/compiled/minimal-next-server/app-page-render.runtime')
+} = require('next/dist/compiled/next-server/app-page.runtime.dev')
 
 installRequireAndChunkLoad()
 

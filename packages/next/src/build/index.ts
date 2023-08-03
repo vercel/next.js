@@ -2051,13 +2051,13 @@ export default async function build(
                 require.resolve(override)
               ),
               require.resolve(
-                'next/dist/compiled/minimal-next-server/server.runtime.js'
+                'next/dist/compiled/next-server/server.runtime.prod'
               ),
               require.resolve(
-                'next/dist/compiled/minimal-next-server/app-page-render.runtime.js'
+                'next/dist/compiled/next-server/app-page.runtime.prod'
               ),
               require.resolve(
-                'next/dist/compiled/minimal-next-server/pages-render.runtime.js'
+                'next/dist/compiled/next-server/pages.runtime.prod'
               ),
               ...(config.experimental.turbotrace
                 ? []
@@ -2089,13 +2089,19 @@ export default async function build(
             const minimalServerEntries = [
               ...sharedEntriesSet,
               require.resolve(
-                'next/dist/compiled/minimal-next-server/server.runtime.js'
+                'next/dist/compiled/next-server/server.runtime.prod'
               ),
               require.resolve(
-                'next/dist/compiled/minimal-next-server/app-page-render.runtime.js'
+                'next/dist/compiled/next-server/app-page.runtime.prod'
               ),
               require.resolve(
-                'next/dist/compiled/minimal-next-server/pages-render.runtime.js'
+                'next/dist/compiled/next-server/pages.runtime.prod'
+              ),
+              require.resolve(
+                'next/dist/compiled/next-server/pages-api.runtime.prod'
+              ),
+              require.resolve(
+                'next/dist/compiled/next-server/app-route.runtime.prod'
               ),
             ].filter(Boolean)
 

@@ -59,7 +59,7 @@ if (process.env.LOG_READFILE) {
 console.time('next-cold-start')
 
 const NextServer = process.env.USE_BUNDLED_NEXT
-  ? require('next/dist/compiled/minimal-next-server/server.runtime').default
+  ? require('next/dist/compiled/next-server/server.runtime.prod').default
   : require('next/dist/server/next-server').default
 
 if (process.env.LOG_READFILE) {

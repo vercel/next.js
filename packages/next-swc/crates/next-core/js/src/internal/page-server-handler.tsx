@@ -24,7 +24,7 @@ import type { NextComponentType } from 'next/types'
 import { parse } from 'node:querystring'
 const {
   renderToHTML,
-} = require('next/dist/compiled/minimal-next-server/pages-render.runtime')
+} = require('next/dist/compiled/next-server/pages.runtime.dev')
 
 const ipc = IPC as Ipc<IpcIncomingMessage, IpcOutgoingMessage>
 

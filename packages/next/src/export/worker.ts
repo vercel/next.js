@@ -299,7 +299,7 @@ export default async function exportPage({
       let renderResult: RenderResult | undefined
       let curRenderOpts: RenderOpts = {}
       const renderToHTML =
-        require('next/dist/compiled/minimal-next-server/pages-render.runtime')
+        require('../server/future/route-modules/pages/module.compiled')
           .renderToHTML as typeof import('../server/render').renderToHTML
 
       let renderMethod = renderToHTML
@@ -491,7 +491,7 @@ export default async function exportPage({
           }
         } else {
           const renderToHTMLOrFlight =
-            require('next/dist/compiled/minimal-next-server/app-page-render.runtime')
+            require('../server/future/route-modules/app-page/module.compiled')
               .renderToHTMLOrFlight as typeof import('../server/app-render/app-render').renderToHTMLOrFlight
 
           try {

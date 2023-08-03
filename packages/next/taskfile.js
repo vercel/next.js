@@ -5,7 +5,6 @@ const glob = require('glob')
 const fs = require('fs-extra')
 // eslint-disable-next-line import/no-extraneous-dependencies
 const resolveFrom = require('resolve-from')
-const { buildNextServer } = require('./taskfile-next-build')
 
 export async function next__polyfill_nomodule(task, opts) {
   await task
@@ -2384,7 +2383,7 @@ export async function next_compile(task, opts) {
 }
 
 export async function compile(task, opts) {
-  await task.serial(['next_compile', 'next_minimal_compile'])
+  await task.serial(['next_compile', 'next_bundle'], opts)
 
   await task.serial([
     'ncc_react_refresh_utils',
@@ -2648,12 +2647,26 @@ export async function release(task) {
   await task.clear('dist').start('build')
 }
 
-export async function minimal_next_server(task) {
-  await task
-    .watch('src/', 'minimal_next_server_build')
-    .target('dist/compiled/minimal-next-server')
+export async function next_bundle_prod(task, opts) {
+  await task.source('dist').webpack({
+    watch: opts.dev,
+    config: require('./webpack.config')({
+      dev: false,
+    }),
+    name: 'next-bundle-prod',
+  })
 }
 
-export async function next_minimal_compile(task) {
-  await buildNextServer()
+export async function next_bundle_dev(task, opts) {
+  await task.source('dist').webpack({
+    watch: opts.dev,
+    config: require('./webpack.config')({
+      dev: true,
+    }),
+    name: 'next-bundle-dev',
+  })
+}
+
+export async function next_bundle(task, opts) {
+  await task.parallel(['next_bundle_prod', 'next_bundle_dev'], opts)
 }

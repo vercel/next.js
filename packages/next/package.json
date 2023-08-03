@@ -77,6 +77,7 @@
   },
   "taskr": {
     "requires": [
+      "./taskfile-webpack.js",
       "./taskfile-ncc.js",
       "./taskfile-swc.js",
       "./taskfile-watch.js"
