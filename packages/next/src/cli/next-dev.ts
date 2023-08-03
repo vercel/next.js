@@ -16,7 +16,6 @@ import { findRootDir } from '../lib/find-root'
 import { fileExists, FileType } from '../lib/file-exists'
 import { getNpxCommand } from '../lib/helpers/get-npx-command'
 import Watchpack from 'watchpack'
-import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { getPossibleInstrumentationHookFilenames } from '../build/worker'
 import { resetEnv } from '@next/env'
 import { getValidatedArgs } from '../lib/get-validated-args'
@@ -209,7 +208,6 @@ const nextDev: CliCommand = async (argv) => {
     port,
     allowRetry,
     isDev: true,
-    nextConfig: config,
     hostname: host,
   }
 
@@ -318,7 +316,6 @@ const nextDev: CliCommand = async (argv) => {
       await Promise.allSettled(oldCleanupFns.map((fn) => fn()))
 
       try {
-        let shouldFilter = false
         let devServerTeardown: (() => Promise<void>) | undefined
 
         watchConfigFiles(devServerOptions.dir, (filename) => {
@@ -356,37 +353,6 @@ const nextDev: CliCommand = async (argv) => {
             process.chdir(newDir)
 
             devServerOptions.dir = newDir
-            devServerOptions.prevDir = startDir
-          }
-
-          // since errors can start being logged from the fork
-          // before we detect the project directory rename
-          // attempt suppressing them long enough to check
-          const filterForkErrors = (chunk: Buffer, fd: 'stdout' | 'stderr') => {
-            const cleanChunk = stripAnsi(chunk + '')
-            if (
-              cleanChunk.match(
-                /(ENOENT|Module build failed|Module not found|Cannot find module|Can't resolve)/
-              )
-            ) {
-              if (startDir === dir) {
-                try {
-                  // check if start directory is still valid
-                  const result = findPagesDir(
-                    startDir,
-                    !!config?.experimental?.appDir
-                  )
-                  shouldFilter = !Boolean(result.pagesDir || result.appDir)
-                } catch (_) {
-                  shouldFilter = true
-                }
-              }
-              if (shouldFilter || startDir !== dir) {
-                shouldFilter = true
-                return
-              }
-            }
-            process[fd].write(chunk)
           }
 
           let resolveCleanup!: (cleanup: () => Promise<void>) => void
@@ -403,13 +369,6 @@ const nextDev: CliCommand = async (argv) => {
           devServerTeardown = cleanupWrapper
 
           try {
-            devServerOptions.onStdout = (chunk) => {
-              filterForkErrors(chunk, 'stdout')
-            }
-            devServerOptions.onStderr = (chunk) => {
-              filterForkErrors(chunk, 'stderr')
-            }
-            shouldFilter = false
             resolveCleanup(await startServer(devServerOptions))
           } finally {
             // fallback to noop, if not provided

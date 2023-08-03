@@ -5,9 +5,6 @@ import { startServer } from '../server/lib/start-server'
 import { getPort, printAndExit } from '../server/lib/utils'
 import { getProjectDir } from '../lib/get-project-dir'
 import { CliCommand } from '../lib/commands'
-import { resolve } from 'path'
-import { PHASE_PRODUCTION_SERVER } from '../shared/lib/constants'
-import loadConfig from '../server/config'
 import { getValidatedArgs } from '../lib/get-validated-args'
 
 const nextStart: CliCommand = async (argv) => {
@@ -66,17 +63,8 @@ const nextStart: CliCommand = async (argv) => {
     ? Math.ceil(keepAliveTimeoutArg)
     : undefined
 
-  const config = await loadConfig(
-    PHASE_PRODUCTION_SERVER,
-    resolve(dir || '.'),
-    undefined,
-    undefined,
-    true
-  )
-
   await startServer({
     dir,
-    nextConfig: config,
     isDev: false,
     hostname: host,
     port,
