@@ -32,13 +32,6 @@ import {
 } from '../../shared/lib/constants'
 import { signalFromNodeResponse } from '../web/spec-extension/adapters/next-request'
 
-let initializeResult:
-  | undefined
-  | {
-      port: number
-      hostname: string
-    }
-
 const debug = setupDebug('next:router-server:main')
 
 export type RenderWorker = InstanceType<
@@ -61,10 +54,7 @@ export async function initialize(opts: {
   isNodeDebugging: boolean
   keepAliveTimeout?: number
   customServer?: boolean
-}): Promise<NonNullable<typeof initializeResult>> {
-  if (initializeResult) {
-    return initializeResult
-  }
+}): Promise<[any, any]> {
   process.title = 'next-router-worker'
 
   if (!process.env.NODE_ENV) {
@@ -735,16 +725,5 @@ export async function initialize(opts: {
     }
   }
 
-  const { port, hostname } = await initializeServerWorker(
-    requestHandler,
-    upgradeHandler,
-    opts
-  )
-
-  initializeResult = {
-    port,
-    hostname: hostname === '0.0.0.0' ? '127.0.0.1' : hostname,
-  }
-
-  return initializeResult
+  return [requestHandler, upgradeHandler]
 }
