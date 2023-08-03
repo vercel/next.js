@@ -7,7 +7,7 @@ import {
   useStripe,
   useElements,
   PaymentElement,
-  Elements
+  Elements,
 } from '@stripe/react-stripe-js'
 
 import CustomDonationInput from './CustomDonationInput'
@@ -24,7 +24,7 @@ function CheckoutForm(): JSX.Element {
     cardholderName: string
   }>({
     customDonation: Math.round(config.MAX_AMOUNT / config.AMOUNT_STEP),
-    cardholderName: ''
+    cardholderName: '',
   })
   const [paymentType, setPaymentType] = React.useState<string>('')
   const [payment, setPayment] = React.useState<{
@@ -64,7 +64,7 @@ function CheckoutForm(): JSX.Element {
   const handleInputChange: React.ChangeEventHandler<HTMLInputElement> = (e) =>
     setInput({
       ...input,
-      [e.currentTarget.name]: e.currentTarget.value
+      [e.currentTarget.name]: e.currentTarget.value,
     })
 
   const handleSubmit: React.FormEventHandler<HTMLFormElement> = async (e) => {
@@ -98,10 +98,10 @@ function CheckoutForm(): JSX.Element {
           return_url: `${window.location.origin}/donate-with-elements/result`,
           payment_method_data: {
             billing_details: {
-              name: input.cardholderName
-            }
-          }
-        }
+              name: input.cardholderName,
+            },
+          },
+        },
       })
 
       if (confirmError) {
@@ -174,12 +174,12 @@ export default function ElementsForm(): JSX.Element {
         appearance: {
           variables: {
             colorIcon: '#6772e5',
-            fontFamily: 'Roboto, Open Sans, Segoe UI, sans-serif'
-          }
+            fontFamily: 'Roboto, Open Sans, Segoe UI, sans-serif',
+          },
         },
         currency: config.CURRENCY,
         mode: 'payment',
-        amount: Math.round(config.MAX_AMOUNT / config.AMOUNT_STEP)
+        amount: Math.round(config.MAX_AMOUNT / config.AMOUNT_STEP),
       }}
     >
       <CheckoutForm />

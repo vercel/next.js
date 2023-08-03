@@ -12,7 +12,7 @@ import { createCheckoutSession } from '@/actions/stripe'
 export default function CheckoutForm(): JSX.Element {
   const [loading, setLoading] = useState<boolean>(false)
   const [input, setInput] = useState<{ customDonation: number }>({
-    customDonation: Math.round(config.MAX_AMOUNT / config.AMOUNT_STEP)
+    customDonation: Math.round(config.MAX_AMOUNT / config.AMOUNT_STEP),
   })
 
   const handleInputChange: React.ChangeEventHandler<HTMLInputElement> = (
@@ -20,7 +20,7 @@ export default function CheckoutForm(): JSX.Element {
   ): void =>
     setInput({
       ...input,
-      [e.currentTarget.name]: e.currentTarget.value
+      [e.currentTarget.name]: e.currentTarget.value,
     })
 
   return (

@@ -20,7 +20,6 @@ Use the `4000002760003184` test card number to trigger a 3D Secure challenge flo
 
 [Read more](https://stripe.com/docs/testing) about testing on Stripe.
 
-
 <details><summary>Checkout Donations Demo</summary>
 <img src="./public/checkout_demo.gif" alt="A gif of the Checkout payment page." align="center">
 </details>

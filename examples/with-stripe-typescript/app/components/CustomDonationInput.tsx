@@ -8,7 +8,7 @@ export default function CustomDonationInput({
   step,
   onChange,
   value,
-  className
+  className,
 }: {
   name: string
   min: number

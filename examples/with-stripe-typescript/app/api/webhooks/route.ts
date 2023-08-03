@@ -30,7 +30,7 @@ export async function POST(req: Request) {
   const permittedEvents: string[] = [
     'checkout.session.completed',
     'payment_intent.succeeded',
-    'payment_intent.payment_failed'
+    'payment_intent.payment_failed',
   ]
 
   if (permittedEvents.includes(event.type)) {

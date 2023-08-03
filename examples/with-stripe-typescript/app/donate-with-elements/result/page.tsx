@@ -4,7 +4,7 @@ import PrintObject from '@/components/PrintObject'
 import { stripe } from '@/lib/stripe'
 
 export default async function ResultPage({
-  searchParams
+  searchParams,
 }: {
   searchParams: { payment_intent: string }
 }): Promise<JSX.Element> {

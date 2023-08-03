@@ -20,19 +20,19 @@ export async function createCheckoutSession(data: FormData): Promise<void> {
           price_data: {
             currency: CURRENCY,
             product_data: {
-              name: 'Custom amount donation'
+              name: 'Custom amount donation',
             },
             unit_amount: formatAmountForStripe(
               Number(data.get('customDonation') as string),
               CURRENCY
-            )
-          }
-        }
+            ),
+          },
+        },
       ],
       success_url: `${headers().get(
         'origin'
       )}/donate-with-checkout/result?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${headers().get('origin')}/donate-with-checkout`
+      cancel_url: `${headers().get('origin')}/donate-with-checkout`,
     })
 
   redirect(checkoutSession.url as string)
@@ -48,7 +48,7 @@ export async function createPaymentIntent(
         CURRENCY
       ),
       automatic_payment_methods: { enabled: true },
-      currency: CURRENCY
+      currency: CURRENCY,
     })
 
   return { client_secret: paymentIntent.client_secret as string }
