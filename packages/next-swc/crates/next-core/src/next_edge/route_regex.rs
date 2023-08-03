@@ -142,20 +142,21 @@ pub fn get_route_regex(normalized_route: &str) -> RouteRegex {
 /// Builds a function to generate a minimal routeKey using only a-z and minimal
 /// number of characters.
 fn build_get_safe_route_key() -> impl FnMut() -> String {
-    let mut route_key_char_code = 97;
-    let mut route_key_char_length = 1;
-    Box::new(move || {
+    let i = 0;
+
+    move || {
         let mut route_key = String::new();
-        for _ in 0..route_key_char_length {
-            route_key.push(route_key_char_code as u8 as char);
-            route_key_char_code += 1;
-            if route_key_char_code > 122 {
-                route_key_char_length += 1;
-                route_key_char_code = 97;
-            }
+        i += 1;
+        let mut j = i;
+
+        while j > 0 {
+            route_key.push((97 + ((j - 1) % 26)) as char);
+            j = (j - 1) / 26;
         }
+
+        i += 1;
         route_key
-    })
+    }
 }
 
 fn get_safe_key_from_segment(

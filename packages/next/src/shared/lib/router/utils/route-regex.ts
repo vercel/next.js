@@ -83,19 +83,14 @@ export function getRouteRegex(normalizedRoute: string): RouteRegex {
  * number of characters.
  */
 function buildGetSafeRouteKey() {
-  let routeKeyCharCode = 97
-  let routeKeyCharLength = 1
+  let i = 0
 
   return () => {
     let routeKey = ''
-    for (let i = 0; i < routeKeyCharLength; i++) {
-      routeKey += String.fromCharCode(routeKeyCharCode)
-      routeKeyCharCode++
-
-      if (routeKeyCharCode > 122) {
-        routeKeyCharLength++
-        routeKeyCharCode = 97
-      }
+    let j = ++i
+    while (j > 0) {
+      routeKey += String.fromCharCode(97 + ((j - 1) % 26))
+      j = Math.floor((j - 1) / 26)
     }
     return routeKey
   }
