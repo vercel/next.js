@@ -543,7 +543,7 @@ export interface NextConfig extends Record<string, any> {
    * Next.js enables HTTP Keep-Alive by default.
    * You may want to disable HTTP Keep-Alive for certain `fetch()` calls or globally.
    *
-   * @see [Disabling HTTP Keep-Alive](https://nextjs.org/docs/pages/api-reference/next-config-js/httpAgentOptions)
+   * @see [Disabling HTTP Keep-Alive](https://nextjs.org/docs/app/api-reference/next-config-js/httpAgentOptions)
    */
   httpAgentOptions?: { keepAlive?: boolean }
 
