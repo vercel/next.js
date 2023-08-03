@@ -1,6 +1,6 @@
 {
   "private": true,
-  "description": "Manage +1 comments on GitHub issues",
+  "description": "Notify Next.js team about pending PRs",
   "exports": "./index.mjs",
   "files": [
     "src"
@@ -14,6 +14,6 @@
   "dependencies": {
     "@actions/core": "1.10.0",
     "@actions/github": "5.1.1",
-    "@octokit/graphql": "7.0.1"
+    "@slack/web-api": "^6.9.0"
   }
 }
