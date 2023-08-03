@@ -4,15 +4,10 @@ import { startServer, StartServerOptions } from '../server/lib/start-server'
 import { getPort, printAndExit } from '../server/lib/utils'
 import * as Log from '../build/output/log'
 import { CliCommand } from '../lib/commands'
-import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
 import { CONFIG_FILES, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import path from 'path'
-import {
-  defaultConfig,
-  NextConfig,
-  NextConfigComplete,
-} from '../server/config-shared'
+import { defaultConfig, NextConfigComplete } from '../server/config-shared'
 import { traceGlobals } from '../trace/shared'
 import { Telemetry } from '../telemetry/storage'
 import loadConfig from '../server/config'
@@ -24,8 +19,10 @@ import Watchpack from 'watchpack'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { getPossibleInstrumentationHookFilenames } from '../build/worker'
 import { resetEnv } from '@next/env'
+import { getValidatedArgs } from '../lib/get-validated-args'
 
 let dir: string
+let config: NextConfigComplete
 let isTurboSession = false
 let sessionStopHandled = false
 let sessionStarted = Date.now()
@@ -38,13 +35,15 @@ const handleSessionStop = async () => {
     const { eventCliSession } =
       require('../telemetry/events/session-stopped') as typeof import('../telemetry/events/session-stopped')
 
-    const config = await loadConfig(
-      PHASE_DEVELOPMENT_SERVER,
-      dir,
-      undefined,
-      undefined,
-      true
-    )
+    config =
+      config ||
+      (await loadConfig(
+        PHASE_DEVELOPMENT_SERVER,
+        dir,
+        undefined,
+        undefined,
+        true
+      ))
 
     let telemetry =
       (traceGlobals.get('telemetry') as InstanceType<
@@ -132,15 +131,7 @@ const nextDev: CliCommand = async (argv) => {
     '-p': '--port',
     '-H': '--hostname',
   }
-  let args: arg.Result<arg.Spec>
-  try {
-    args = arg(validArgs, { argv })
-  } catch (error) {
-    if (isError(error) && error.code === 'ARG_UNKNOWN_OPTION') {
-      return printAndExit(error.message, 1)
-    }
-    throw error
-  }
+  const args = getValidatedArgs(validArgs, argv)
   if (args['--help']) {
     console.log(`
       Description
@@ -211,21 +202,24 @@ const nextDev: CliCommand = async (argv) => {
   // We do not set a default host value here to prevent breaking
   // some set-ups that rely on listening on other interfaces
   const host = args['--hostname']
-  const experimentalTurbo = args['--experimental-turbo']
+  config = await loadConfig(PHASE_DEVELOPMENT_SERVER, dir)
 
   const devServerOptions: StartServerOptions = {
     dir,
     port,
     allowRetry,
     isDev: true,
+    nextConfig: config,
     hostname: host,
     // This is required especially for app dir.
     useWorkers: true,
-    isExperimentalTurbo: experimentalTurbo,
   }
 
   if (args['--turbo']) {
     process.env.TURBOPACK = '1'
+  }
+  if (args['--experimental-turbo']) {
+    process.env.EXPERIMENTAL_TURBOPACK = '1'
   }
 
   if (process.env.TURBOPACK) {
@@ -297,7 +291,8 @@ const nextDev: CliCommand = async (argv) => {
     // Turbopack need to be in control over reading the .env files and watching them.
     // So we need to start with a initial env to know which env vars are coming from the user.
     resetEnv()
-    let bindings: any = await loadBindings()
+    let bindings = await loadBindings()
+
     let server = bindings.turbo.startDev({
       ...devServerOptions,
       showAll: args['--show-all'] ?? false,
@@ -318,11 +313,6 @@ const nextDev: CliCommand = async (argv) => {
 
     return server
   } else {
-    if (experimentalTurbo) {
-      Log.error('Not supported yet')
-      process.exit(1)
-    }
-
     let cleanupFns: (() => Promise<void> | void)[] = []
     const runDevServer = async () => {
       const oldCleanupFns = cleanupFns
@@ -332,7 +322,6 @@ const nextDev: CliCommand = async (argv) => {
       try {
         let shouldFilter = false
         let devServerTeardown: (() => Promise<void>) | undefined
-        let config: NextConfig | undefined
 
         watchConfigFiles(devServerOptions.dir, (filename) => {
           Log.warn(
@@ -428,16 +417,6 @@ const nextDev: CliCommand = async (argv) => {
             // fallback to noop, if not provided
             resolveCleanup(async () => {})
           }
-
-          if (!config) {
-            config = await loadConfig(
-              PHASE_DEVELOPMENT_SERVER,
-              dir,
-              undefined,
-              undefined,
-              true
-            )
-          }
         }
 
         await setupFork()
@@ -472,7 +451,7 @@ const nextDev: CliCommand = async (argv) => {
             const instrumentationFileHash = (
               require('crypto') as typeof import('crypto')
             )
-              .createHash('sha256')
+              .createHash('sha1')
               .update(await fs.promises.readFile(instrumentationFile, 'utf8'))
               .digest('hex')
 

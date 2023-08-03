@@ -11,6 +11,7 @@ yarn.lock
 !/yarn.lock
 test/node_modules
 .pnpm-store/
+.github/**/node_modules
 
 # logs & pids
 *.log

@@ -3,60 +3,55 @@ use futures::StreamExt;
 use indexmap::indexmap;
 use serde::Deserialize;
 use serde_json::json;
-use turbo_tasks::{
-    primitives::{JsonValueVc, StringsVc},
-    util::SharedError,
-    CompletionVc, CompletionsVc, Value,
-};
+use turbo_tasks::{util::SharedError, Completion, Completions, Value, Vc};
 use turbo_tasks_fs::json::parse_json_with_source_context;
 use turbopack_binding::{
     turbo::{
         tasks_bytes::{Bytes, Stream},
-        tasks_fs::{to_sys_path, File, FileSystemPathVc},
+        tasks_fs::{to_sys_path, File, FileSystemPath},
     },
     turbopack::{
         core::{
-            asset::{AssetOptionVc, AssetVc},
-            changed::any_content_changed,
+            asset::AssetContent,
+            changed::any_content_changed_of_module,
             chunk::ChunkingContext,
-            context::{AssetContext, AssetContextVc},
-            environment::{ServerAddrVc, ServerInfo},
-            ident::AssetIdentVc,
-            issue::IssueVc,
-            reference_type::{EcmaScriptModulesReferenceSubType, InnerAssetsVc, ReferenceType},
+            context::AssetContext,
+            environment::{ServerAddr, ServerInfo},
+            file_source::FileSource,
+            ident::AssetIdent,
+            issue::IssueContextExt,
+            module::Module,
+            reference_type::{EcmaScriptModulesReferenceSubType, InnerAssets, ReferenceType},
             resolve::{find_context_file, FindContextFileResult},
-            source_asset::SourceAssetVc,
-            virtual_asset::VirtualAssetVc,
+            virtual_source::VirtualSource,
         },
-        dev::DevChunkingContextVc,
+        dev::DevChunkingContext,
         node::{
             debug::should_debug,
-            evaluate::evaluate,
-            execution_context::{ExecutionContext, ExecutionContextVc},
-            source_map::{trace_stack, StructuredError},
+            evaluate::{evaluate, get_evaluate_pool},
+            execution_context::ExecutionContext,
+            source_map::{trace_stack_with_source_mapping_assets, StructuredError},
         },
-        turbopack::{
-            evaluate_context::node_evaluate_asset_context, transition::TransitionsByNameVc,
-        },
+        turbopack::{evaluate_context::node_evaluate_asset_context, transition::TransitionsByName},
     },
 };
 
 use crate::{
     embed_js::next_asset,
     mode::NextMode,
-    next_config::NextConfigVc,
+    next_config::NextConfig,
     next_edge::{
         context::{get_edge_compile_time_info, get_edge_resolve_options_context},
         route_transition::NextEdgeRouteTransition,
     },
     next_import_map::get_next_build_import_map,
     next_server::context::{get_server_module_options_context, ServerContextType},
-    util::{parse_config_from_source, NextSourceConfigVc},
+    util::parse_config_from_source,
 };
 
 #[turbo_tasks::function]
-fn next_configs() -> StringsVc {
-    StringsVc::cell(
+fn next_configs() -> Vc<Vec<String>> {
+    Vc::cell(
         ["next.config.mjs", "next.config.js"]
             .into_iter()
             .map(ToOwned::to_owned)
@@ -65,7 +60,7 @@ fn next_configs() -> StringsVc {
 }
 
 #[turbo_tasks::function]
-async fn middleware_files(page_extensions: StringsVc) -> Result<StringsVc> {
+async fn middleware_files(page_extensions: Vc<Vec<String>>) -> Result<Vc<Vec<String>>> {
     let extensions = page_extensions.await?;
     let files = ["middleware.", "src/middleware."]
         .into_iter()
@@ -75,7 +70,7 @@ async fn middleware_files(page_extensions: StringsVc) -> Result<StringsVc> {
                 .map(move |ext| String::from(f) + ext.as_str())
         })
         .collect();
-    Ok(StringsVc::cell(files))
+    Ok(Vc::cell(files))
 }
 
 #[turbo_tasks::value(shared)]
@@ -138,123 +133,124 @@ pub enum RouterResult {
 }
 
 #[turbo_tasks::function]
-async fn get_config(
-    context: AssetContextVc,
-    project_path: FileSystemPathVc,
-    configs: StringsVc,
-) -> Result<AssetOptionVc> {
-    let find_config_result = find_context_file(project_path, configs);
-    let config_asset = match &*find_config_result.await? {
-        FindContextFileResult::Found(config_path, _) => Some(context.process(
-            SourceAssetVc::new(*config_path).as_asset(),
-            Value::new(ReferenceType::Internal(InnerAssetsVc::empty())),
-        )),
-        FindContextFileResult::NotFound(_) => None,
-    };
-    Ok(AssetOptionVc::cell(config_asset))
-}
-
-#[turbo_tasks::function]
 async fn next_config_changed(
-    context: AssetContextVc,
-    project_path: FileSystemPathVc,
-) -> Result<CompletionVc> {
-    let next_config = get_config(context, project_path, next_configs()).await?;
-    Ok(if let Some(c) = *next_config {
-        any_content_changed(c)
-    } else {
-        CompletionVc::immutable()
+    context: Vc<Box<dyn AssetContext>>,
+    project_path: Vc<FileSystemPath>,
+) -> Result<Vc<Completion>> {
+    let find_config_result = find_context_file(project_path, next_configs());
+    Ok(match *find_config_result.await? {
+        FindContextFileResult::Found(config_path, _) => {
+            let module = context.process(
+                Vc::upcast(FileSource::new(config_path)),
+                Value::new(ReferenceType::Internal(InnerAssets::empty())),
+            );
+            any_content_changed_of_module(module)
+        }
+        FindContextFileResult::NotFound(_) => Completion::immutable(),
     })
 }
 
 #[turbo_tasks::function]
 async fn config_assets(
-    context: AssetContextVc,
-    project_path: FileSystemPathVc,
-    page_extensions: StringsVc,
-) -> Result<InnerAssetsVc> {
-    let middleware_config =
-        get_config(context, project_path, middleware_files(page_extensions)).await?;
+    context: Vc<Box<dyn AssetContext>>,
+    project_path: Vc<FileSystemPath>,
+    page_extensions: Vc<Vec<String>>,
+) -> Result<Vc<InnerAssets>> {
+    let find_config_result = find_context_file(project_path, middleware_files(page_extensions));
 
     // The router.ts file expects a manifest of chunks for the middleware. If there
     // is no middleware file, then we need to generate a default empty manifest
     // and we cannot process it with the next-edge transition because it
     // requires a real file for some reason.
-    let (manifest, config) = match &*middleware_config {
-        Some(c) => {
-            let manifest = context.with_transition("next-edge").process(
-                *c,
+    let (manifest, config) = match *find_config_result.await? {
+        FindContextFileResult::Found(config_path, _) => {
+            let config = context.process(
+                Vc::upcast(FileSource::new(config_path)),
                 Value::new(ReferenceType::EcmaScriptModules(
                     EcmaScriptModulesReferenceSubType::Undefined,
                 )),
             );
-            let config = parse_config_from_source(*c);
+            let config = parse_config_from_source(config);
+            let manifest = context.with_transition("next-edge".to_string()).process(
+                Vc::upcast(FileSource::new(config_path)),
+                Value::new(ReferenceType::EcmaScriptModules(
+                    EcmaScriptModulesReferenceSubType::Undefined,
+                )),
+            );
             (manifest, config)
         }
-        None => {
+        FindContextFileResult::NotFound(_) => {
             let manifest = context.process(
-                VirtualAssetVc::new(
-                    project_path.join("middleware.js"),
-                    File::from("export default [];").into(),
-                )
-                .as_asset(),
-                Value::new(ReferenceType::Internal(InnerAssetsVc::empty())),
+                Vc::upcast(VirtualSource::new(
+                    project_path.join("middleware.js".to_string()),
+                    AssetContent::file(File::from("export default [];").into()),
+                )),
+                Value::new(ReferenceType::Internal(InnerAssets::empty())),
             );
-            let config = NextSourceConfigVc::default();
+            let config = Default::default();
             (manifest, config)
         }
     };
 
     let config_asset = context.process(
-        VirtualAssetVc::new(
-            project_path.join("middleware_config.js"),
-            File::from(format!(
-                "export default {};",
-                json!({ "matcher": &config.await?.matcher })
-            ))
-            .into(),
-        )
-        .as_asset(),
-        Value::new(ReferenceType::Internal(InnerAssetsVc::empty())),
+        Vc::upcast(VirtualSource::new(
+            project_path.join("middleware_config.js".to_string()),
+            AssetContent::file(
+                File::from(format!(
+                    "export default {};",
+                    json!({ "matcher": &config.await?.matcher })
+                ))
+                .into(),
+            ),
+        )),
+        Value::new(ReferenceType::Internal(InnerAssets::empty())),
     );
 
-    Ok(InnerAssetsVc::cell(indexmap! {
+    Ok(Vc::cell(indexmap! {
         "MIDDLEWARE_CHUNK_GROUP".to_string() => manifest,
         "MIDDLEWARE_CONFIG".to_string() => config_asset,
     }))
 }
 
 #[turbo_tasks::function]
-fn route_executor(context: AssetContextVc, configs: InnerAssetsVc) -> AssetVc {
+fn route_executor(
+    context: Vc<Box<dyn AssetContext>>,
+    configs: Vc<InnerAssets>,
+) -> Vc<Box<dyn Module>> {
     context.process(
-        next_asset("entry/router.ts"),
+        next_asset("entry/router.ts".to_string()),
         Value::new(ReferenceType::Internal(configs)),
     )
 }
 
 #[turbo_tasks::function]
 fn edge_transition_map(
-    server_addr: ServerAddrVc,
-    project_path: FileSystemPathVc,
-    output_path: FileSystemPathVc,
-    next_config: NextConfigVc,
-    execution_context: ExecutionContextVc,
-) -> TransitionsByNameVc {
+    server_addr: Vc<ServerAddr>,
+    project_path: Vc<FileSystemPath>,
+    output_path: Vc<FileSystemPath>,
+    next_config: Vc<NextConfig>,
+    execution_context: Vc<ExecutionContext>,
+) -> Vc<TransitionsByName> {
+    let mode = NextMode::DevServer;
+
     let edge_compile_time_info = get_edge_compile_time_info(project_path, server_addr);
 
-    let edge_chunking_context = DevChunkingContextVc::builder(
-        project_path,
-        output_path.join("edge"),
-        output_path.join("edge/chunks"),
-        output_path.join("edge/assets"),
-        edge_compile_time_info.environment(),
-    )
-    .reference_chunk_source_maps(should_debug("router"))
-    .build();
+    let edge_chunking_context = Vc::upcast(
+        DevChunkingContext::builder(
+            project_path,
+            output_path.join("edge".to_string()),
+            output_path.join("edge/chunks".to_string()),
+            output_path.join("edge/assets".to_string()),
+            edge_compile_time_info.environment(),
+        )
+        .reference_chunk_source_maps(should_debug("router"))
+        .build(),
+    );
 
     let edge_resolve_options_context = get_edge_resolve_options_context(
         project_path,
         Value::new(ServerContextType::Middleware),
+        mode,
         next_config,
         execution_context,
     );
@@ -263,24 +259,25 @@ fn edge_transition_map(
         project_path,
         execution_context,
         Value::new(ServerContextType::Middleware),
-        NextMode::Development,
+        mode,
         next_config,
     );
 
-    let next_edge_transition = NextEdgeRouteTransition {
-        edge_compile_time_info,
-        edge_chunking_context,
-        edge_module_options_context: Some(server_module_options_context),
-        edge_resolve_options_context,
-        output_path: output_path.root(),
-        base_path: project_path,
-        bootstrap_asset: next_asset("entry/edge-bootstrap.ts"),
-        entry_name: "middleware".to_string(),
-    }
-    .cell()
-    .into();
+    let next_edge_transition = Vc::upcast(
+        NextEdgeRouteTransition {
+            edge_compile_time_info,
+            edge_chunking_context,
+            edge_module_options_context: Some(server_module_options_context),
+            edge_resolve_options_context,
+            output_path: output_path.root(),
+            base_path: project_path,
+            bootstrap_asset: next_asset("entry/edge-bootstrap.ts".to_string()),
+            entry_name: "middleware".to_string(),
+        }
+        .cell(),
+    );
 
-    TransitionsByNameVc::cell(
+    Vc::cell(
         [("next-edge".to_string(), next_edge_transition)]
             .into_iter()
             .collect(),
@@ -289,27 +286,25 @@ fn edge_transition_map(
 
 #[turbo_tasks::function]
 pub async fn route(
-    execution_context: ExecutionContextVc,
-    request: RouterRequestVc,
-    next_config: NextConfigVc,
-    server_addr: ServerAddrVc,
-    routes_changed: CompletionVc,
-) -> Result<RouterResultVc> {
+    execution_context: Vc<ExecutionContext>,
+    request: Vc<RouterRequest>,
+    next_config: Vc<NextConfig>,
+    server_addr: Vc<ServerAddr>,
+    routes_changed: Vc<Completion>,
+) -> Result<Vc<RouterResult>> {
     let RouterRequest {
         ref method,
         ref pathname,
         ..
     } = *request.await?;
-    IssueVc::attach_description(
-        format!("Next.js Routing for {} {}", method, pathname),
-        route_internal(
-            execution_context,
-            request,
-            next_config,
-            server_addr,
-            routes_changed,
-        ),
+    route_internal(
+        execution_context,
+        request,
+        next_config,
+        server_addr,
+        routes_changed,
     )
+    .attach_description(format!("Next.js Routing for {} {}", method, pathname))
     .await
 }
 
@@ -327,12 +322,12 @@ macro_rules! shared_anyhow {
 
 #[turbo_tasks::function]
 async fn route_internal(
-    execution_context: ExecutionContextVc,
-    request: RouterRequestVc,
-    next_config: NextConfigVc,
-    server_addr: ServerAddrVc,
-    routes_changed: CompletionVc,
-) -> Result<RouterResultVc> {
+    execution_context: Vc<ExecutionContext>,
+    request: Vc<RouterRequest>,
+    next_config: Vc<NextConfig>,
+    server_addr: Vc<ServerAddr>,
+    routes_changed: Vc<Completion>,
+) -> Result<Vc<RouterResult>> {
     let ExecutionContext {
         project_path,
         chunking_context,
@@ -361,22 +356,25 @@ async fn route_internal(
     let Some(dir) = to_sys_path(project_path).await? else {
         bail!("Next.js requires a disk path to check for valid routes");
     };
+    let chunking_context = chunking_context.with_layer("router".to_string());
     let server_addr = server_addr.await?;
+    let invalidation = Completions::all(vec![next_config_changed, routes_changed]);
+    let debug = should_debug("router");
     let result = evaluate(
         router_asset,
         project_path,
         env,
-        AssetIdentVc::from_path(project_path),
+        AssetIdent::from_path(project_path),
         context,
-        chunking_context.with_layer("router"),
+        chunking_context.with_layer("router".to_string()),
         None,
         vec![
-            JsonValueVc::cell(request),
-            JsonValueVc::cell(dir.to_string_lossy().into()),
-            JsonValueVc::cell(serde_json::to_value(ServerInfo::try_from(&*server_addr)?)?),
+            Vc::cell(request),
+            Vc::cell(dir.to_string_lossy().into()),
+            Vc::cell(serde_json::to_value(ServerInfo::try_from(&*server_addr)?)?),
         ],
-        CompletionsVc::all(vec![next_config_changed, routes_changed]),
-        should_debug("router"),
+        invalidation,
+        debug,
     )
     .await?;
 
@@ -430,18 +428,32 @@ async fn route_internal(
 
         RouterIncomingMessage::None => (RouterResult::None, Some(read)),
 
-        RouterIncomingMessage::Error { error } => (
-            RouterResult::Error(shared_anyhow!(
-                trace_stack(
-                    error,
-                    router_asset,
-                    chunking_context.output_root(),
-                    project_path
-                )
-                .await?
-            )),
-            Some(read),
-        ),
+        RouterIncomingMessage::Error { error } => {
+            // Must be the same pool as above
+            let pool = get_evaluate_pool(
+                router_asset,
+                project_path,
+                env,
+                context,
+                chunking_context,
+                None,
+                invalidation,
+                debug,
+            )
+            .await?;
+            (
+                RouterResult::Error(shared_anyhow!(
+                    trace_stack_with_source_mapping_assets(
+                        error,
+                        pool.assets_for_source_mapping,
+                        chunking_context.output_root(),
+                        project_path
+                    )
+                    .await?
+                )),
+                Some(read),
+            )
+        }
 
         RouterIncomingMessage::MiddlewareBody { .. } => (
             RouterResult::Error(shared_anyhow!(

@@ -1,35 +1,55 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use anyhow::Result;
 use lazy_static::lazy_static;
-use turbo_tasks_fs::glob::GlobVc;
+use turbo_tasks::Vc;
+use turbo_tasks_fs::glob::Glob;
 use turbopack_binding::{
-    turbo::tasks_fs::FileSystemPathVc,
+    turbo::tasks_fs::FileSystemPath,
     turbopack::core::{
-        issue::unsupported_module::UnsupportedModuleIssue,
+        diagnostics::DiagnosticExt,
+        issue::{unsupported_module::UnsupportedModuleIssue, IssueExt},
         resolve::{
-            parse::{Request, RequestVc},
+            parse::Request,
             pattern::Pattern,
-            plugin::{ResolvePlugin, ResolvePluginConditionVc, ResolvePluginVc},
-            ResolveResultOptionVc,
+            plugin::{ResolvePlugin, ResolvePluginCondition},
+            ResolveResultOption,
         },
     },
 };
 
+use crate::next_telemetry::ModuleFeatureTelemetry;
+
 lazy_static! {
     static ref UNSUPPORTED_PACKAGES: HashSet<&'static str> = ["@vercel/og"].into();
     static ref UNSUPPORTED_PACKAGE_PATHS: HashSet<(&'static str, &'static str)> = [].into();
+    // Set of the features we want to track, following existing references in webpack/plugins/telemetry-plugin.
+    static ref FEATURE_MODULES: HashMap<&'static str, Vec<&'static str>> = HashMap::from([
+        (
+            "next",
+            vec![
+                "/image",
+                "/future/image",
+                "/legacy/image",
+                "/script",
+                "/dynamic",
+                "/font/google",
+                "/font/local"
+            ]
+        ),
+        ("@next", vec!["/font/google", "/font/local"])
+    ]);
 }
 
 #[turbo_tasks::value]
 pub(crate) struct UnsupportedModulesResolvePlugin {
-    root: FileSystemPathVc,
+    root: Vc<FileSystemPath>,
 }
 
 #[turbo_tasks::value_impl]
-impl UnsupportedModulesResolvePluginVc {
+impl UnsupportedModulesResolvePlugin {
     #[turbo_tasks::function]
-    pub fn new(root: FileSystemPathVc) -> Self {
+    pub fn new(root: Vc<FileSystemPath>) -> Vc<Self> {
         UnsupportedModulesResolvePlugin { root }.cell()
     }
 }
@@ -37,17 +57,17 @@ impl UnsupportedModulesResolvePluginVc {
 #[turbo_tasks::value_impl]
 impl ResolvePlugin for UnsupportedModulesResolvePlugin {
     #[turbo_tasks::function]
-    fn after_resolve_condition(&self) -> ResolvePluginConditionVc {
-        ResolvePluginConditionVc::new(self.root.root(), GlobVc::new("**"))
+    fn after_resolve_condition(&self) -> Vc<ResolvePluginCondition> {
+        ResolvePluginCondition::new(self.root.root(), Glob::new("**".to_string()))
     }
 
     #[turbo_tasks::function]
     async fn after_resolve(
         &self,
-        _fs_path: FileSystemPathVc,
-        context: FileSystemPathVc,
-        request: RequestVc,
-    ) -> Result<ResolveResultOptionVc> {
+        _fs_path: Vc<FileSystemPath>,
+        context: Vc<FileSystemPath>,
+        request: Vc<Request>,
+    ) -> Result<Vc<ResolveResultOption>> {
         if let Request::Module {
             module,
             path,
@@ -62,7 +82,6 @@ impl ResolvePlugin for UnsupportedModulesResolvePlugin {
                     package_path: None,
                 }
                 .cell()
-                .as_issue()
                 .emit();
             }
 
@@ -74,12 +93,64 @@ impl ResolvePlugin for UnsupportedModulesResolvePlugin {
                         package_path: Some(path.to_owned()),
                     }
                     .cell()
-                    .as_issue()
                     .emit();
                 }
             }
         }
 
-        Ok(ResolveResultOptionVc::none())
+        Ok(ResolveResultOption::none())
+    }
+}
+
+/// A resolver plugin tracks the usage of certain import paths, emit
+/// telemetry events if there is a match.
+#[turbo_tasks::value]
+pub(crate) struct ModuleFeatureReportResolvePlugin {
+    root: Vc<FileSystemPath>,
+}
+
+#[turbo_tasks::value_impl]
+impl ModuleFeatureReportResolvePlugin {
+    #[turbo_tasks::function]
+    pub fn new(root: Vc<FileSystemPath>) -> Vc<Self> {
+        ModuleFeatureReportResolvePlugin { root }.cell()
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ResolvePlugin for ModuleFeatureReportResolvePlugin {
+    #[turbo_tasks::function]
+    fn after_resolve_condition(&self) -> Vc<ResolvePluginCondition> {
+        ResolvePluginCondition::new(self.root.root(), Glob::new("**".to_string()))
+    }
+
+    #[turbo_tasks::function]
+    async fn after_resolve(
+        &self,
+        _fs_path: Vc<FileSystemPath>,
+        _context: Vc<FileSystemPath>,
+        request: Vc<Request>,
+    ) -> Result<Vc<ResolveResultOption>> {
+        if let Request::Module {
+            module,
+            path,
+            query: _,
+        } = &*request.await?
+        {
+            let feature_module = FEATURE_MODULES.get(module.as_str());
+            if let Some(feature_module) = feature_module {
+                let sub_path = feature_module
+                    .iter()
+                    .find(|sub_path| path.is_match(sub_path));
+
+                if let Some(sub_path) = sub_path {
+                    ModuleFeatureTelemetry::new(format!("{}{}", module, sub_path), 1)
+                        .cell()
+                        .emit();
+                }
+            }
+        }
+
+        Ok(ResolveResultOption::none())
     }
 }
