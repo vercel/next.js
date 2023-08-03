@@ -3,6 +3,7 @@ name: Notify about approved but still open PRs
 on:
   schedule:
     - cron: '0 0 * * *' # Once a day
+  workflow_dispatch:
 
 jobs:
   pr-approved-open:
