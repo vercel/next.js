@@ -112,7 +112,7 @@ jobs:
       - run: rustc --version
         if: ${{ inputs.skipNativeBuild != 'yes' || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes' }}
 
-      - run: npm i -g "turbo@${TURBO_VERSION}" "@napi-rs/cli@${NAPI_CLI_VERSION}"
+      - run: corepack prepare --activate yarn@latest && npm i -g "turbo@${TURBO_VERSION}" "@napi-rs/cli@${NAPI_CLI_VERSION}"
 
       # clean up any previous artifacts to avoid hitting disk space limits
       - run: git clean -xdf && rm -rf /tmp/next-repo-*; rm -rf /tmp/next-install-* /tmp/yarn-* /tmp/ncc-cache target

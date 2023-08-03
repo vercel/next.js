@@ -120,7 +120,11 @@ it('should use Yarn as the package manager on supplying --use-yarn with example'
     await execa('yarn', ['--version'])
   } catch (_) {
     // install yarn if not available
-    await execa('npm', ['i', '-g', 'yarn'])
+    try {
+      await execa('corepack', ['prepare', '--activate', 'yarn@latest'])
+    } catch (_) {
+      await execa('npm', ['i', '-g', 'yarn'])
+    }
   }
 
   await useTempDir(async (cwd) => {
@@ -193,7 +197,11 @@ it('should use pnpm as the package manager on supplying --use-pnpm with example'
     await execa('pnpm', ['--version'])
   } catch (_) {
     // install pnpm if not available
-    await execa('npm', ['i', '-g', 'pnpm'])
+    try {
+      await execa('corepack', ['prepare', '--activate', 'pnpm@latest'])
+    } catch (_) {
+      await execa('npm', ['i', '-g', 'pnpm'])
+    }
   }
 
   await useTempDir(async (cwd) => {
@@ -365,7 +373,11 @@ it('should infer yarn as the package manager', async () => {
     await execa('yarn', ['--version'])
   } catch (_) {
     // install yarn if not available
-    await execa('npm', ['i', '-g', 'yarn'])
+    try {
+      await execa('corepack', ['prepare', '--activate', 'yarn@latest'])
+    } catch (_) {
+      await execa('npm', ['i', '-g', 'yarn'])
+    }
   }
 
   await useTempDir(async (cwd) => {
@@ -405,7 +417,11 @@ it('should infer yarn as the package manager with example', async () => {
     await execa('yarn', ['--version'])
   } catch (_) {
     // install yarn if not available
-    await execa('npm', ['i', '-g', 'yarn'])
+    try {
+      await execa('corepack', ['prepare', '--activate', 'yarn@latest'])
+    } catch (_) {
+      await execa('npm', ['i', '-g', 'yarn'])
+    }
   }
 
   await useTempDir(async (cwd) => {
@@ -440,7 +456,11 @@ it('should infer pnpm as the package manager', async () => {
     await execa('pnpm', ['--version'])
   } catch (_) {
     // install pnpm if not available
-    await execa('npm', ['i', '-g', 'pnpm'])
+    try {
+      await execa('corepack', ['prepare', '--activate', 'pnpm@latest'])
+    } catch (_) {
+      await execa('npm', ['i', '-g', 'pnpm'])
+    }
   }
 
   await useTempDir(async (cwd) => {
@@ -480,7 +500,11 @@ it('should infer pnpm as the package manager with example', async () => {
     await execa('pnpm', ['--version'])
   } catch (_) {
     // install pnpm if not available
-    await execa('npm', ['i', '-g', 'pnpm'])
+    try {
+      await execa('corepack', ['prepare', '--activate', 'pnpm@latest'])
+    } catch (_) {
+      await execa('npm', ['i', '-g', 'pnpm'])
+    }
   }
 
   await useTempDir(async (cwd) => {
