@@ -9,13 +9,13 @@
     "@stripe/react-stripe-js": "2.1.1",
     "@stripe/stripe-js": "1.54.1",
     "next": "latest",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
     "stripe": "12.14.0"
   },
   "devDependencies": {
-    "@types/node": "^18.11.2",
-    "@types/react": "^18.0.21",
-    "typescript": "4.8.4"
+    "@types/node": "20.4.6",
+    "@types/react": "18.2.18",
+    "typescript": "5.1.6"
   }
 }
