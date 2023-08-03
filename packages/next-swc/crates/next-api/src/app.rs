@@ -715,7 +715,7 @@ impl AppEndpoint {
                         .await?
                         .preferred_region
                         .clone()
-                        .map(|region| Regions::Single(region)),
+                        .map(Regions::Single),
                     matchers: vec![matchers],
                     ..Default::default()
                 };
