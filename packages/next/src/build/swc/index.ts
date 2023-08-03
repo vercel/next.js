@@ -27,7 +27,7 @@ const infoLog = (...args: any[]) => {
 /**
  * Based on napi-rs's target triples, returns triples that have corresponding next-swc binaries.
  */
-const getSupportedArchTriples: () => Record<string, any> = () => {
+export const getSupportedArchTriples: () => Record<string, any> = () => {
   const { darwin, win32, linux, freebsd, android } = platformArchTriples
 
   return {
