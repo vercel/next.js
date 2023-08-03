@@ -11,11 +11,11 @@ use super::pattern::{Pattern, QueryMap};
 pub enum Request {
     Raw {
         path: Pattern,
-        force_in_context: bool,
+        force_in_lookup_dir: bool,
     },
     Relative {
         path: Pattern,
-        force_in_context: bool,
+        force_in_lookup_dir: bool,
     },
     Module {
         module: String,
@@ -96,7 +96,7 @@ impl Request {
                 } else if r.starts_with("./") || r.starts_with("../") || r == "." || r == ".." {
                     Request::Relative {
                         path: request,
-                        force_in_context: false,
+                        force_in_lookup_dir: false,
                     }
                 } else {
                     lazy_static! {
@@ -201,18 +201,18 @@ impl Request {
     }
 
     #[turbo_tasks::function]
-    pub fn raw(request: Value<Pattern>, force_in_context: bool) -> Vc<Self> {
+    pub fn raw(request: Value<Pattern>, force_in_lookup_dir: bool) -> Vc<Self> {
         Self::cell(Request::Raw {
             path: request.into_value(),
-            force_in_context,
+            force_in_lookup_dir,
         })
     }
 
     #[turbo_tasks::function]
-    pub fn relative(request: Value<Pattern>, force_in_context: bool) -> Vc<Self> {
+    pub fn relative(request: Value<Pattern>, force_in_lookup_dir: bool) -> Vc<Self> {
         Self::cell(Request::Relative {
             path: request.into_value(),
-            force_in_context,
+            force_in_lookup_dir,
         })
     }
 
@@ -271,20 +271,20 @@ impl ValueToString for Request {
         Ok(Vc::cell(match self {
             Request::Raw {
                 path,
-                force_in_context,
+                force_in_lookup_dir,
             } => {
-                if *force_in_context {
-                    format!("in-context {path}")
+                if *force_in_lookup_dir {
+                    format!("in-lookup-dir {path}")
                 } else {
                     format!("{path}")
                 }
             }
             Request::Relative {
                 path,
-                force_in_context,
+                force_in_lookup_dir,
             } => {
-                if *force_in_context {
-                    format!("relative-in-context {path}")
+                if *force_in_lookup_dir {
+                    format!("relative-in-lookup-dir {path}")
                 } else {
                     format!("relative {path}")
                 }

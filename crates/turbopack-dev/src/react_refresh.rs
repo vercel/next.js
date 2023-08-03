@@ -84,7 +84,7 @@ impl Issue for ReactRefreshResolvingIssue {
     }
 
     #[turbo_tasks::function]
-    fn context(&self) -> Vc<FileSystemPath> {
+    fn file_path(&self) -> Vc<FileSystemPath> {
         self.path
     }
 

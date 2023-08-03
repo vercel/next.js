@@ -143,7 +143,7 @@ impl ResolveOrigin for CssModuleAsset {
     }
 
     #[turbo_tasks::function]
-    fn context(&self) -> Vc<Box<dyn AssetContext>> {
+    fn asset_context(&self) -> Vc<Box<dyn AssetContext>> {
         self.context
     }
 }

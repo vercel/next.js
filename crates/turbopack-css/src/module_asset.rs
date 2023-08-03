@@ -251,7 +251,7 @@ impl ResolveOrigin for ModuleCssAsset {
     }
 
     #[turbo_tasks::function]
-    fn context(&self) -> Vc<Box<dyn AssetContext>> {
+    fn asset_context(&self) -> Vc<Box<dyn AssetContext>> {
         self.context
     }
 }
@@ -418,7 +418,7 @@ impl Issue for CssModuleComposesIssue {
     }
 
     #[turbo_tasks::function]
-    fn context(&self) -> Vc<FileSystemPath> {
+    fn file_path(&self) -> Vc<FileSystemPath> {
         self.source.path()
     }
 

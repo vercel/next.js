@@ -134,7 +134,7 @@ pub struct FetchIssue {
 #[turbo_tasks::value_impl]
 impl Issue for FetchIssue {
     #[turbo_tasks::function]
-    fn context(&self) -> Vc<FileSystemPath> {
+    fn file_path(&self) -> Vc<FileSystemPath> {
         self.issue_context
     }
 

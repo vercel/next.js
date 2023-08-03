@@ -76,7 +76,7 @@ impl ModuleReference for TsReferencePathAssetReference {
                 .try_join(self.path.clone())
                 .await?
             {
-                ModuleResolveResult::module(Vc::upcast(self.origin.context().process(
+                ModuleResolveResult::module(Vc::upcast(self.origin.asset_context().process(
                     Vc::upcast(FileSource::new(*path)),
                     Value::new(ReferenceType::TypeScript(
                         TypeScriptReferenceSubType::Undefined,

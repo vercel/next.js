@@ -87,13 +87,16 @@ pub struct ModuleIds(Vec<Vc<ModuleId>>);
 pub trait ChunkableModule: Module + Asset {
     fn as_chunk(
         self: Vc<Self>,
-        context: Vc<Box<dyn ChunkingContext>>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
         availability_info: Value<AvailabilityInfo>,
     ) -> Vc<Box<dyn Chunk>>;
 
-    fn as_root_chunk(self: Vc<Self>, context: Vc<Box<dyn ChunkingContext>>) -> Vc<Box<dyn Chunk>> {
+    fn as_root_chunk(
+        self: Vc<Self>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+    ) -> Vc<Box<dyn Chunk>> {
         self.as_chunk(
-            context,
+            chunking_context,
             Value::new(AvailabilityInfo::Root {
                 current_availability_root: Vc::upcast(self),
             }),
@@ -254,18 +257,18 @@ pub struct ChunkContentResult<I> {
 #[async_trait::async_trait]
 pub trait FromChunkableModule: ChunkItem {
     async fn from_asset(
-        context: Vc<Box<dyn ChunkingContext>>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
         asset: Vc<Box<dyn Module>>,
     ) -> Result<Option<Vc<Self>>>;
     async fn from_async_asset(
-        context: Vc<Box<dyn ChunkingContext>>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
         asset: Vc<Box<dyn ChunkableModule>>,
         availability_info: Value<AvailabilityInfo>,
     ) -> Result<Option<Vc<Self>>>;
 }
 
 pub async fn chunk_content_split<I>(
-    context: Vc<Box<dyn ChunkingContext>>,
+    chunking_context: Vc<Box<dyn ChunkingContext>>,
     entry: Vc<Box<dyn Module>>,
     additional_entries: Option<Vc<Modules>>,
     availability_info: Value<AvailabilityInfo>,
@@ -273,13 +276,19 @@ pub async fn chunk_content_split<I>(
 where
     I: FromChunkableModule,
 {
-    chunk_content_internal_parallel(context, entry, additional_entries, availability_info, true)
-        .await
-        .map(|o| o.unwrap())
+    chunk_content_internal_parallel(
+        chunking_context,
+        entry,
+        additional_entries,
+        availability_info,
+        true,
+    )
+    .await
+    .map(|o| o.unwrap())
 }
 
 pub async fn chunk_content<I>(
-    context: Vc<Box<dyn ChunkingContext>>,
+    chunking_context: Vc<Box<dyn ChunkingContext>>,
     entry: Vc<Box<dyn Module>>,
     additional_entries: Option<Vc<Modules>>,
     availability_info: Value<AvailabilityInfo>,
@@ -287,8 +296,14 @@ pub async fn chunk_content<I>(
 where
     I: FromChunkableModule,
 {
-    chunk_content_internal_parallel(context, entry, additional_entries, availability_info, false)
-        .await
+    chunk_content_internal_parallel(
+        chunking_context,
+        entry,
+        additional_entries,
+        availability_info,
+        false,
+    )
+    .await
 }
 
 #[derive(Eq, PartialEq, Clone, Hash)]
@@ -314,7 +329,7 @@ struct ChunkContentContext {
 }
 
 async fn reference_to_graph_nodes<I>(
-    context: ChunkContentContext,
+    chunk_content_context: ChunkContentContext,
     reference: Vc<Box<dyn ModuleReference>>,
 ) -> Result<
     Vec<(
@@ -347,7 +362,8 @@ where
 
     for &module in &modules {
         let module = module.resolve().await?;
-        if let Some(available_modules) = context.availability_info.available_modules() {
+        if let Some(available_modules) = chunk_content_context.availability_info.available_modules()
+        {
             if *available_modules.includes(module).await? {
                 graph_nodes.push((
                     Some((module, chunking_type)),
@@ -381,7 +397,9 @@ where
 
         match chunking_type {
             ChunkingType::Placed => {
-                if let Some(chunk_item) = I::from_asset(context.chunking_context, module).await? {
+                if let Some(chunk_item) =
+                    I::from_asset(chunk_content_context.chunking_context, module).await?
+                {
                     graph_nodes.push((
                         Some((module, chunking_type)),
                         ChunkContentGraphNode::ChunkItem {
@@ -398,15 +416,17 @@ where
                 }
             }
             ChunkingType::Parallel => {
-                let chunk =
-                    chunkable_module.as_chunk(context.chunking_context, context.availability_info);
+                let chunk = chunkable_module.as_chunk(
+                    chunk_content_context.chunking_context,
+                    chunk_content_context.availability_info,
+                );
                 graph_nodes.push((
                     Some((module, chunking_type)),
                     ChunkContentGraphNode::Chunk(chunk),
                 ));
             }
             ChunkingType::IsolatedParallel => {
-                let chunk = chunkable_module.as_root_chunk(context.chunking_context);
+                let chunk = chunkable_module.as_root_chunk(chunk_content_context.chunking_context);
                 graph_nodes.push((
                     Some((module, chunking_type)),
                     ChunkContentGraphNode::Chunk(chunk),
@@ -414,15 +434,15 @@ where
             }
             ChunkingType::PlacedOrParallel => {
                 // heuristic for being in the same chunk
-                if !context.split
-                    && *context
+                if !chunk_content_context.split
+                    && *chunk_content_context
                         .chunking_context
-                        .can_be_in_same_chunk(context.entry, module)
+                        .can_be_in_same_chunk(chunk_content_context.entry, module)
                         .await?
                 {
                     // chunk item, chunk or other asset?
                     if let Some(chunk_item) =
-                        I::from_asset(context.chunking_context, module).await?
+                        I::from_asset(chunk_content_context.chunking_context, module).await?
                     {
                         graph_nodes.push((
                             Some((module, chunking_type)),
@@ -435,8 +455,10 @@ where
                     }
                 }
 
-                let chunk =
-                    chunkable_module.as_chunk(context.chunking_context, context.availability_info);
+                let chunk = chunkable_module.as_chunk(
+                    chunk_content_context.chunking_context,
+                    chunk_content_context.availability_info,
+                );
                 graph_nodes.push((
                     Some((module, chunking_type)),
                     ChunkContentGraphNode::Chunk(chunk),
@@ -444,9 +466,9 @@ where
             }
             ChunkingType::Async => {
                 if let Some(manifest_loader_item) = I::from_async_asset(
-                    context.chunking_context,
+                    chunk_content_context.chunking_context,
                     chunkable_module,
-                    context.availability_info,
+                    chunk_content_context.availability_info,
                 )
                 .await?
                 {
@@ -475,7 +497,7 @@ where
 const MAX_CHUNK_ITEMS_COUNT: usize = 5000;
 
 struct ChunkContentVisit<I> {
-    context: ChunkContentContext,
+    chunk_content_context: ChunkContentContext,
     chunk_items_count: usize,
     processed_assets: HashSet<(ChunkingType, Vc<Box<dyn Module>>)>,
     _phantom: PhantomData<I>,
@@ -522,7 +544,8 @@ where
 
             // Make sure the chunk doesn't become too large.
             // This will hurt performance in many aspects.
-            if !self.context.split && self.chunk_items_count >= MAX_CHUNK_ITEMS_COUNT {
+            if !self.chunk_content_context.split && self.chunk_items_count >= MAX_CHUNK_ITEMS_COUNT
+            {
                 // Chunk is too large, cancel this algorithm and restart with splitting from the
                 // start.
                 return VisitControlFlow::Abort(());
@@ -535,7 +558,7 @@ where
     fn edges(&mut self, node: &ChunkContentGraphNode<Vc<I>>) -> Self::EdgesFuture {
         let node = node.clone();
 
-        let context = self.context;
+        let chunk_content_context = self.chunk_content_context;
 
         async move {
             let references = match node {
@@ -549,7 +572,7 @@ where
             Ok(references
                 .await?
                 .into_iter()
-                .map(|reference| reference_to_graph_nodes::<I>(context, *reference))
+                .map(|reference| reference_to_graph_nodes::<I>(chunk_content_context, *reference))
                 .try_join()
                 .await?
                 .into_iter()
@@ -597,7 +620,7 @@ where
         .try_join()
         .await?;
 
-    let context = ChunkContentContext {
+    let chunk_content_context = ChunkContentContext {
         chunking_context,
         entry,
         split,
@@ -605,7 +628,7 @@ where
     };
 
     let visit = ChunkContentVisit {
-        context,
+        chunk_content_context,
         chunk_items_count: 0,
         processed_assets: Default::default(),
         _phantom: PhantomData,

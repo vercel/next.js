@@ -499,7 +499,7 @@ impl Issue for EvaluationIssue {
     }
 
     #[turbo_tasks::function]
-    fn context(&self) -> Vc<FileSystemPath> {
+    fn file_path(&self) -> Vc<FileSystemPath> {
         self.context_ident.path()
     }
 
@@ -543,7 +543,7 @@ impl Issue for BuildDependencyIssue {
     }
 
     #[turbo_tasks::function]
-    fn context(&self) -> Vc<FileSystemPath> {
+    fn file_path(&self) -> Vc<FileSystemPath> {
         self.context_ident.path()
     }
 
@@ -608,7 +608,7 @@ pub struct EvaluateEmittedErrorIssue {
 #[turbo_tasks::value_impl]
 impl Issue for EvaluateEmittedErrorIssue {
     #[turbo_tasks::function]
-    fn context(&self) -> Vc<FileSystemPath> {
+    fn file_path(&self) -> Vc<FileSystemPath> {
         self.context
     }
 

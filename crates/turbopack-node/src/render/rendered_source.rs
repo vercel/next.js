@@ -9,7 +9,7 @@ use turbopack_core::{
         module::IntrospectableModule, output_asset::IntrospectableOutputAsset, Introspectable,
         IntrospectableChildren,
     },
-    issue::IssueContextExt,
+    issue::IssueFilePathExt,
     module::Module,
     output::OutputAsset,
     version::VersionedContentExt,
@@ -213,7 +213,7 @@ impl GetContentSourceContent for NodeRenderContentSource {
             .cell(),
             self.debug,
         )
-        .issue_context(
+        .issue_file_path(
             entry.module.ident().path(),
             format!("server-side rendering {}", self.pathname.await?),
         )

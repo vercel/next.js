@@ -83,7 +83,7 @@ pub trait Issue {
 
     /// The file path that generated the issue, displayed to the user as message
     /// header.
-    fn context(self: Vc<Self>) -> Vc<FileSystemPath>;
+    fn file_path(self: Vc<Self>) -> Vc<FileSystemPath>;
 
     /// A short identifier of the type of error (eg "parse", "analyze", or
     /// "evaluate") displayed to the user as part of the message header.
@@ -132,7 +132,7 @@ pub trait Issue {
     ) -> Result<Vc<PlainIssue>> {
         Ok(PlainIssue {
             severity: *self.severity().await?,
-            context: self.context().to_string().await?.clone_value(),
+            file_path: self.file_path().to_string().await?.clone_value(),
             category: self.category().await?.clone_value(),
             title: self.title().await?.clone_value(),
             description: self.description().await?.clone_value(),
@@ -170,7 +170,7 @@ trait IssueProcessingPath {
 
 #[turbo_tasks::value]
 pub struct IssueProcessingPathItem {
-    pub context: Option<Vc<FileSystemPath>>,
+    pub file_path: Option<Vc<FileSystemPath>>,
     pub description: Vc<String>,
 }
 
@@ -178,7 +178,7 @@ pub struct IssueProcessingPathItem {
 impl ValueToString for IssueProcessingPathItem {
     #[turbo_tasks::function]
     async fn to_string(&self) -> Result<Vc<String>> {
-        if let Some(context) = self.context {
+        if let Some(context) = self.file_path {
             Ok(Vc::cell(format!(
                 "{} ({})",
                 context.to_string().await?,
@@ -196,7 +196,7 @@ impl IssueProcessingPathItem {
     pub async fn into_plain(self: Vc<Self>) -> Result<Vc<PlainIssueProcessingPathItem>> {
         let this = self.await?;
         Ok(PlainIssueProcessingPathItem {
-            context: if let Some(context) = this.context {
+            file_path: if let Some(context) = this.file_path {
                 Some(context.to_string().await?)
             } else {
                 None
@@ -466,7 +466,7 @@ impl OptionIssueSource {
 #[derive(Clone, Debug)]
 pub struct PlainIssue {
     pub severity: IssueSeverity,
-    pub context: String,
+    pub file_path: String,
     pub category: String,
 
     pub title: String,
@@ -481,7 +481,7 @@ pub struct PlainIssue {
 
 fn hash_plain_issue(issue: &PlainIssue, hasher: &mut Xxh3Hash64Hasher, full: bool) {
     hasher.write_ref(&issue.severity);
-    hasher.write_ref(&issue.context);
+    hasher.write_ref(&issue.file_path);
     hasher.write_ref(&issue.category);
     hasher.write_ref(&issue.title);
     hasher.write_ref(
@@ -598,7 +598,7 @@ pub struct PlainIssueProcessingPath(Option<Vec<ReadRef<PlainIssueProcessingPathI
 #[turbo_tasks::value(serialization = "none")]
 #[derive(Clone, Debug, DeterministicHash)]
 pub struct PlainIssueProcessingPathItem {
-    pub context: Option<ReadRef<String>>,
+    pub file_path: Option<ReadRef<String>>,
     pub description: ReadRef<String>,
 }
 
@@ -624,23 +624,23 @@ pub trait IssueReporter {
 }
 
 #[async_trait]
-pub trait IssueContextExt
+pub trait IssueFilePathExt
 where
     Self: Sized,
 {
     #[allow(unused_variables, reason = "behind feature flag")]
-    async fn attach_context(
+    async fn attach_file_path(
         self,
-        context: impl Into<Option<Vc<FileSystemPath>>> + Send,
+        file_path: impl Into<Option<Vc<FileSystemPath>>> + Send,
         description: impl Into<String> + Send,
     ) -> Result<Self>;
 
     #[allow(unused_variables, reason = "behind feature flag")]
     async fn attach_description(self, description: impl Into<String> + Send) -> Result<Self>;
 
-    async fn issue_context(
+    async fn issue_file_path(
         self,
-        context: impl Into<Option<Vc<FileSystemPath>>> + Send,
+        file_path: impl Into<Option<Vc<FileSystemPath>>> + Send,
         description: impl Into<String> + Send,
     ) -> Result<Self>;
     async fn issue_description(self, description: impl Into<String> + Send) -> Result<Self>;
@@ -657,14 +657,14 @@ where
 }
 
 #[async_trait]
-impl<T> IssueContextExt for T
+impl<T> IssueFilePathExt for T
 where
     T: CollectiblesSource + Copy + Send,
 {
     #[allow(unused_variables, reason = "behind feature flag")]
-    async fn attach_context(
+    async fn attach_file_path(
         self,
-        context: impl Into<Option<Vc<FileSystemPath>>> + Send,
+        file_path: impl Into<Option<Vc<FileSystemPath>>> + Send,
         description: impl Into<String> + Send,
     ) -> Result<Self> {
         #[cfg(feature = "issue_path")]
@@ -674,7 +674,7 @@ where
                 emit(Vc::upcast::<Box<dyn IssueProcessingPath>>(
                     ItemIssueProcessingPath::cell(ItemIssueProcessingPath(
                         Some(IssueProcessingPathItem::cell(IssueProcessingPathItem {
-                            context: context.into(),
+                            file_path: file_path.into(),
                             description: Vc::cell(description.into()),
                         })),
                         children,
@@ -687,12 +687,12 @@ where
 
     #[allow(unused_variables, reason = "behind feature flag")]
     async fn attach_description(self, description: impl Into<String> + Send) -> Result<T> {
-        self.attach_context(None, description).await
+        self.attach_file_path(None, description).await
     }
 
-    async fn issue_context(
+    async fn issue_file_path(
         self,
-        context: impl Into<Option<Vc<FileSystemPath>>> + Send,
+        file_path: impl Into<Option<Vc<FileSystemPath>>> + Send,
         description: impl Into<String> + Send,
     ) -> Result<Self> {
         #[cfg(feature = "issue_path")]
@@ -702,7 +702,7 @@ where
                 emit(Vc::upcast::<Box<dyn IssueProcessingPath>>(
                     ItemIssueProcessingPath::cell(ItemIssueProcessingPath(
                         Some(IssueProcessingPathItem::cell(IssueProcessingPathItem {
-                            context: context.into(),
+                            file_path: file_path.into(),
                             description: Vc::cell(description.into()),
                         })),
                         children,
@@ -712,13 +712,13 @@ where
         }
         #[cfg(not(feature = "issue_path"))]
         {
-            let _ = (context, description);
+            let _ = (file_path, description);
         }
         Ok(self)
     }
 
     async fn issue_description(self, description: impl Into<String> + Send) -> Result<Self> {
-        self.issue_context(None, description).await
+        self.issue_file_path(None, description).await
     }
 
     async fn peek_issues_with_path(self) -> Result<Vc<CapturedIssues>> {

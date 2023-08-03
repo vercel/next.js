@@ -11,7 +11,7 @@ rule:
             any:
               - kind: closure_parameters
               - kind: parameter
-              - kind: function_type
+              - kind: function_item
               - kind: let_declaration
         - kind: identifier
     - all:
@@ -19,7 +19,6 @@ rule:
         - inside:
             kind: field_declaration
 ignores:
-  - "./crates/turbopack-core/**"
   - "./crates/turbopack-css/**"
   - "./crates/turbopack-dev-server/**"
   - "./crates/turbopack-dev/**"

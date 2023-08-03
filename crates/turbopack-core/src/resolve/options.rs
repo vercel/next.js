@@ -105,16 +105,16 @@ pub enum ImportMapping {
 impl ImportMapping {
     pub fn primary_alternatives(
         list: Vec<String>,
-        context: Option<Vc<FileSystemPath>>,
+        lookup_path: Option<Vc<FileSystemPath>>,
     ) -> ImportMapping {
         if list.is_empty() {
             ImportMapping::Ignore
         } else if list.len() == 1 {
-            ImportMapping::PrimaryAlternative(list.into_iter().next().unwrap(), context)
+            ImportMapping::PrimaryAlternative(list.into_iter().next().unwrap(), lookup_path)
         } else {
             ImportMapping::Alternatives(
                 list.into_iter()
-                    .map(|s| ImportMapping::PrimaryAlternative(s, context).cell())
+                    .map(|s| ImportMapping::PrimaryAlternative(s, lookup_path).cell())
                     .collect(),
             )
         }
@@ -263,7 +263,7 @@ pub enum ImportMapResult {
 
 async fn import_mapping_to_result(
     mapping: Vc<ImportMapping>,
-    context: Vc<FileSystemPath>,
+    lookup_path: Vc<FileSystemPath>,
     request: Vc<Request>,
 ) -> Result<ImportMapResult> {
     Ok(match &*mapping.await? {
@@ -288,12 +288,12 @@ async fn import_mapping_to_result(
         }
         ImportMapping::Alternatives(list) => ImportMapResult::Alternatives(
             list.iter()
-                .map(|mapping| import_mapping_to_result_boxed(*mapping, context, request))
+                .map(|mapping| import_mapping_to_result_boxed(*mapping, lookup_path, request))
                 .try_join()
                 .await?,
         ),
         ImportMapping::Dynamic(replacement) => {
-            (*replacement.result(context, request).await?).clone()
+            (*replacement.result(lookup_path, request).await?).clone()
         }
     })
 }
@@ -339,10 +339,10 @@ impl ValueToString for ImportMapResult {
 //     `resolve::options::import_mapping_to_result::{opaque#0}`
 fn import_mapping_to_result_boxed(
     mapping: Vc<ImportMapping>,
-    context: Vc<FileSystemPath>,
+    lookup_path: Vc<FileSystemPath>,
     request: Vc<Request>,
 ) -> Pin<Box<dyn Future<Output = Result<ImportMapResult>> + Send>> {
-    Box::pin(async move { import_mapping_to_result(mapping, context, request).await })
+    Box::pin(async move { import_mapping_to_result(mapping, lookup_path, request).await })
 }
 
 #[turbo_tasks::value_impl]
@@ -350,7 +350,7 @@ impl ImportMap {
     #[turbo_tasks::function]
     pub async fn lookup(
         self: Vc<Self>,
-        context: Vc<FileSystemPath>,
+        lookup_path: Vc<FileSystemPath>,
         request: Vc<Request>,
     ) -> Result<Vc<ImportMapResult>> {
         let this = self.await?;
@@ -359,7 +359,7 @@ impl ImportMap {
             if let Some(result) = this.map.lookup(&request_string).next() {
                 return Ok(import_mapping_to_result(
                     result.try_join_into_self().await?.into_owned(),
-                    context,
+                    lookup_path,
                     request,
                 )
                 .await?
@@ -376,7 +376,7 @@ impl ResolvedMap {
     pub async fn lookup(
         self: Vc<Self>,
         resolved: Vc<FileSystemPath>,
-        context: Vc<FileSystemPath>,
+        lookup_path: Vc<FileSystemPath>,
         request: Vc<Request>,
     ) -> Result<Vc<ImportMapResult>> {
         let this = self.await?;
@@ -385,7 +385,7 @@ impl ResolvedMap {
             let root = root.await?;
             if let Some(path) = root.get_path_to(&resolved) {
                 if glob.await?.execute(path) {
-                    return Ok(import_mapping_to_result(*mapping, context, request)
+                    return Ok(import_mapping_to_result(*mapping, lookup_path, request)
                         .await?
                         .into());
                 }
@@ -480,7 +480,7 @@ pub trait ImportMappingReplacement {
     fn replace(self: Vc<Self>, capture: String) -> Vc<ImportMapping>;
     fn result(
         self: Vc<Self>,
-        context: Vc<FileSystemPath>,
+        lookup_path: Vc<FileSystemPath>,
         request: Vc<Request>,
     ) -> Vc<ImportMapResult>;
 }

@@ -47,7 +47,7 @@ pub trait ResolvePlugin {
     fn after_resolve(
         self: Vc<Self>,
         fs_path: Vc<FileSystemPath>,
-        context: Vc<FileSystemPath>,
+        lookup_path: Vc<FileSystemPath>,
         request: Vc<Request>,
     ) -> Vc<ResolveResultOption>;
 }

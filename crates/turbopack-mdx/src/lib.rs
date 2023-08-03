@@ -229,7 +229,7 @@ impl ResolveOrigin for MdxModuleAsset {
     }
 
     #[turbo_tasks::function]
-    fn context(&self) -> Vc<Box<dyn AssetContext>> {
+    fn asset_context(&self) -> Vc<Box<dyn AssetContext>> {
         self.context
     }
 }

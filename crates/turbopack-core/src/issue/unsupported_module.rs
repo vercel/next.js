@@ -6,7 +6,7 @@ use super::{Issue, IssueSeverity};
 
 #[turbo_tasks::value(shared)]
 pub struct UnsupportedModuleIssue {
-    pub context: Vc<FileSystemPath>,
+    pub file_path: Vc<FileSystemPath>,
     pub package: String,
     pub package_path: Option<String>,
 }
@@ -29,8 +29,8 @@ impl Issue for UnsupportedModuleIssue {
     }
 
     #[turbo_tasks::function]
-    fn context(&self) -> Vc<FileSystemPath> {
-        self.context
+    fn file_path(&self) -> Vc<FileSystemPath> {
+        self.file_path
     }
 
     #[turbo_tasks::function]
