@@ -35,9 +35,7 @@ export interface StartServerOptions {
   hostname: string
   useWorkers: boolean
   allowRetry?: boolean
-  isTurbopack?: boolean
   customServer?: boolean
-  isExperimentalTurbo?: boolean
   minimalMode?: boolean
   keepAliveTimeout?: number
   onStdout?: (data: any) => void
