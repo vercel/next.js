@@ -50,6 +50,8 @@ import {
   signalFromNodeResponse,
 } from '../server/web/spec-extension/adapters/next-request'
 import * as ciEnvironment from '../telemetry/ci-info'
+import { nextRenderAsyncStorage } from '../server/async-storage/next-render-async-storage'
+import { RouteKind } from '../server/future/route-kind'
 
 const envConfig = require('../shared/lib/runtime-config')
 
@@ -434,7 +436,12 @@ export default async function exportPage({
             )
 
             // Call the handler with the request and context from the module.
-            const response = await module.handle(request, context)
+            const response = await nextRenderAsyncStorage.run(
+              {
+                routeKind: RouteKind.APP_ROUTE,
+              },
+              () => module.handle(request, context)
+            )
 
             // TODO: (wyattjoh) if cookie headers are present, should we bail?
 

@@ -2,22 +2,19 @@
 // This is needed for userland plugins to attach to the same webpack instance as Next.js'.
 // Individually compiled modules are as defined for the compilation in bundles/webpack/packages/*.
 
-// This module will only be loaded once per process.
+import { RouteKind } from './future/route-kind'
 
 const { dirname } = require('path')
 const mod = require('module')
 const resolveFilename = mod._resolveFilename
 const hookPropertyMap = new Map()
-
-let aliasedPrebundledReact = false
+const nextRenderAsyncStorage =
+  require('./async-storage/next-render-async-storage') as import('./async-storage/next-render-async-storage').NextRenderAsyncStorage
 
 const resolve = process.env.NEXT_MINIMAL
   ? // @ts-ignore
     __non_webpack_require__.resolve
   : require.resolve
-
-const toResolveMap = (map: Record<string, string>): [string, string][] =>
-  Object.entries(map).map(([key, value]) => [key, resolve(value)])
 
 export const defaultOverrides = {
   'styled-jsx': dirname(resolve('styled-jsx/package.json')),
@@ -43,7 +40,7 @@ export const baseOverrides = {
     'next/dist/compiled/react-server-dom-webpack/server.edge',
   'react-server-dom-webpack/server.node':
     'next/dist/compiled/react-server-dom-webpack/server.node',
-}
+} as Record<string, string>
 
 export const experimentalOverrides = {
   react: 'next/dist/compiled/react-experimental',
@@ -69,33 +66,13 @@ export const experimentalOverrides = {
     'next/dist/compiled/react-server-dom-webpack-experimental/server.edge',
   'react-server-dom-webpack/server.node':
     'next/dist/compiled/react-server-dom-webpack-experimental/server.node',
-}
+} as Record<string, string>
 
 export function addHookAliases(aliases: [string, string][] = []) {
   for (const [key, value] of aliases) {
     hookPropertyMap.set(key, value)
   }
 }
-
-// Add default aliases
-addHookAliases(toResolveMap(defaultOverrides))
-
-// Override built-in React packages if necessary
-function overrideReact() {
-  if (process.env.__NEXT_PRIVATE_PREBUNDLED_REACT) {
-    aliasedPrebundledReact = true
-
-    // Require these modules with static paths to make sure they are tracked by
-    // NFT when building the app in standalone mode, as we are now conditionally
-    // aliasing them it's tricky to track them in build time.
-    if (process.env.__NEXT_PRIVATE_PREBUNDLED_REACT === 'experimental') {
-      addHookAliases(toResolveMap(experimentalOverrides))
-    } else {
-      addHookAliases(toResolveMap(baseOverrides))
-    }
-  }
-}
-overrideReact()
 
 mod._resolveFilename = function (
   originalResolveFilename: typeof resolveFilename,
@@ -105,14 +82,29 @@ mod._resolveFilename = function (
   isMain: boolean,
   options: any
 ) {
-  if (process.env.__NEXT_PRIVATE_PREBUNDLED_REACT && !aliasedPrebundledReact) {
-    // In case the environment variable is set after the module is loaded.
-    overrideReact()
+  const { routeKind, experimentalReact } =
+    nextRenderAsyncStorage.getStore?.() || {}
+
+  let resolved = undefined as undefined | string
+
+  if (routeKind === RouteKind.APP_PAGE) {
+    resolved = experimentalReact
+      ? experimentalOverrides[request]
+      : baseOverrides[request]
+
+    if (resolved) {
+      resolved = resolve(resolved)
+    }
   }
 
-  const hookResolved = requestMap.get(request)
-  if (hookResolved) request = hookResolved
-  return originalResolveFilename.call(mod, request, parent, isMain, options)
+  resolved = resolved || requestMap.get(request)
 
+  return originalResolveFilename.call(
+    mod,
+    resolved || request,
+    parent,
+    isMain,
+    options
+  )
   // We use `bind` here to avoid referencing outside variables to create potential memory leaks.
 }.bind(null, resolveFilename, hookPropertyMap)

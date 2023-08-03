@@ -22,6 +22,8 @@ import type {
   AppRouteRouteHandlerContext,
   AppRouteRouteModule,
 } from 'next/dist/server/future/route-modules/app-route/module'
+import { nextRenderAsyncStorage } from 'next/dist/server/async-storage/next-render-async-storage'
+import { RouteKind } from 'next/dist/server/future/route-kind'
 
 export default (routeModule: AppRouteRouteModule) => {
   startHandler(async ({ request, response, params }) => {
@@ -47,12 +49,18 @@ export default (routeModule: AppRouteRouteModule) => {
       },
     }
 
-    const routeResponse = await routeModule.handle(
-      NextRequestAdapter.fromNodeNextRequest(
-        req,
-        signalFromNodeResponse(response)
-      ),
-      context
+    const routeResponse = await nextRenderAsyncStorage.run(
+      {
+        routeKind: RouteKind.APP_ROUTE,
+      },
+      () =>
+        routeModule.handle(
+          NextRequestAdapter.fromNodeNextRequest(
+            req,
+            signalFromNodeResponse(response)
+          ),
+          context
+        )
     )
 
     await sendResponse(req, res, routeResponse)

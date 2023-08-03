@@ -242,7 +242,7 @@ export async function startServer({
   })
 
   try {
-    if (useWorkers) {
+    if (false) {
       const httpProxy =
         require('next/dist/compiled/http-proxy') as typeof import('next/dist/compiled/http-proxy')
 

@@ -113,6 +113,7 @@ import {
   NextRequestAdapter,
   signalFromNodeResponse,
 } from './web/spec-extension/adapters/next-request'
+import { nextRenderAsyncStorage } from './async-storage/next-render-async-storage'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -1818,7 +1819,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             signalFromNodeResponse((res as NodeNextResponse).originalResponse)
           )
 
-          const response = await routeModule.handle(request, context)
+          const response = await nextRenderAsyncStorage.run(
+            {
+              routeKind: RouteKind.APP_ROUTE,
+            },
+            () => routeModule.handle(request, context)
+          )
 
           ;(req as any).fetchMetrics = (
             context.staticGenerationContext as any
@@ -1889,11 +1895,18 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         renderOpts.clientReferenceManifest = components.clientReferenceManifest
 
         // Call the built-in render method on the module.
-        result = await module.render(
-          (req as NodeNextRequest).originalRequest ?? (req as WebNextRequest),
-          (res as NodeNextResponse).originalResponse ??
-            (res as WebNextResponse),
-          { page: pathname, params: opts.params, query, renderOpts }
+        result = await nextRenderAsyncStorage.run(
+          {
+            routeKind: RouteKind.PAGES,
+          },
+          () =>
+            module.render(
+              (req as NodeNextRequest).originalRequest ??
+                (req as WebNextRequest),
+              (res as NodeNextResponse).originalResponse ??
+                (res as WebNextResponse),
+              { page: pathname, params: opts.params, query, renderOpts }
+            )
         )
       } else if (
         components.routeModule?.definition.kind === RouteKind.APP_PAGE
@@ -1906,11 +1919,19 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         renderOpts.nextFontManifest = this.nextFontManifest
 
         // Call the built-in render method on the module.
-        result = await module.render(
-          (req as NodeNextRequest).originalRequest ?? (req as WebNextRequest),
-          (res as NodeNextResponse).originalResponse ??
-            (res as WebNextResponse),
-          { page: pathname, params: opts.params, query, renderOpts }
+        result = await nextRenderAsyncStorage.run(
+          {
+            routeKind: RouteKind.APP_PAGE,
+            experimentalReact: this.nextConfig.experimental.serverActions,
+          },
+          () =>
+            module.render(
+              (req as NodeNextRequest).originalRequest ??
+                (req as WebNextRequest),
+              (res as NodeNextResponse).originalResponse ??
+                (res as WebNextResponse),
+              { page: pathname, params: opts.params, query, renderOpts }
+            )
         )
       } else {
         // If we didn't match a page, we should fallback to using the legacy

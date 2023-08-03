@@ -100,6 +100,7 @@ import { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
 import { signalFromNodeResponse } from './web/spec-extension/adapters/next-request'
 import { RouteModuleLoader } from './future/helpers/module-loader/route-module-loader'
 import { loadManifest } from './load-manifest'
+import { nextRenderAsyncStorage } from './async-storage/next-render-async-storage'
 
 export * from './base-server'
 
@@ -416,22 +417,28 @@ export default class NextNodeServer extends BaseServer {
     delete query.__nextDefaultLocale
     delete query.__nextInferredLocaleFromDefault
 
-    await module.render(
-      (req as NodeNextRequest).originalRequest,
-      (res as NodeNextResponse).originalResponse,
+    await nextRenderAsyncStorage.run(
       {
-        previewProps: this.renderOpts.previewProps,
-        revalidate: this.revalidate.bind(this),
-        trustHostHeader: this.nextConfig.experimental.trustHostHeader,
-        allowedRevalidateHeaderKeys:
-          this.nextConfig.experimental.allowedRevalidateHeaderKeys,
-        hostname: this.hostname,
-        minimalMode: this.minimalMode,
-        dev: this.renderOpts.dev === true,
-        query,
-        params: match.params,
-        page: match.definition.pathname,
-      }
+        routeKind: RouteKind.PAGES_API,
+      },
+      () =>
+        module.render(
+          (req as NodeNextRequest).originalRequest,
+          (res as NodeNextResponse).originalResponse,
+          {
+            previewProps: this.renderOpts.previewProps,
+            revalidate: this.revalidate.bind(this),
+            trustHostHeader: this.nextConfig.experimental.trustHostHeader,
+            allowedRevalidateHeaderKeys:
+              this.nextConfig.experimental.allowedRevalidateHeaderKeys,
+            hostname: this.hostname,
+            minimalMode: this.minimalMode,
+            dev: this.renderOpts.dev === true,
+            query,
+            params: match.params,
+            page: match.definition.pathname,
+          }
+        )
     )
 
     return true
