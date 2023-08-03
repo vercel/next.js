@@ -1,0 +1,19 @@
+{
+  "license": "MIT",
+  "scripts": {
+    "build": "next build",
+    "dev": "next dev",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@keystatic/core": "^0.0.114",
+    "@keystatic/next": "^0.0.11",
+    "next": "latest",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.8",
+    "typescript": "^5.1.3"
+  }
+}
