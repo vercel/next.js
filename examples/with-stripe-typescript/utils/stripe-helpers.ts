@@ -5,7 +5,7 @@ export function formatAmountForDisplay(
   let numberFormat = new Intl.NumberFormat(['en-US'], {
     style: 'currency',
     currency: currency,
-    currencyDisplay: 'symbol',
+    currencyDisplay: 'symbol'
   })
   return numberFormat.format(amount)
 }
@@ -17,7 +17,7 @@ export function formatAmountForStripe(
   let numberFormat = new Intl.NumberFormat(['en-US'], {
     style: 'currency',
     currency: currency,
-    currencyDisplay: 'symbol',
+    currencyDisplay: 'symbol'
   })
   const parts = numberFormat.formatToParts(amount)
   let zeroDecimalCurrency: boolean = true

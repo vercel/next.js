@@ -2,12 +2,12 @@
 
 import React, { useState } from 'react'
 
-import CustomDonationInput from '../../components/CustomDonationInput'
-import StripeTestCards from '../../components/StripeTestCards'
+import CustomDonationInput from '@/components/CustomDonationInput'
+import StripeTestCards from '@/components/StripeTestCards'
 
-import { formatAmountForDisplay } from '../../utils/stripe-helpers'
-import * as config from '../../config'
-import { createCheckoutSession } from '../actions/stripe'
+import { formatAmountForDisplay } from '@/utils/stripe-helpers'
+import * as config from '@/config'
+import { createCheckoutSession } from '@/actions/stripe'
 
 const CheckoutForm = () => {
   const [loading, setLoading] = useState(false)

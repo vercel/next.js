@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 
-import ElementsForm from '../components/ElementsForm'
+import ElementsForm from '@/components/ElementsForm'
 
 export const metadata: Metadata = {
   title: 'Donate with Elements'

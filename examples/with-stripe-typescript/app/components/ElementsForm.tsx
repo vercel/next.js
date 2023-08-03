@@ -13,20 +13,23 @@ import {
 import CustomDonationInput from './CustomDonationInput'
 import StripeTestCards from './StripeTestCards'
 
-import {
-  formatAmountForDisplay
-} from '../../utils/stripe-helpers'
-import * as config from '../../config'
-import getStripe from '../../utils/get-stripejs'
-import { createPaymentIntent } from '../actions/stripe'
+import { formatAmountForDisplay } from '@/utils/stripe-helpers'
+import * as config from '@/config'
+import getStripe from '@/utils/get-stripejs'
+import { createPaymentIntent } from '@/actions/stripe'
 
 function CheckoutForm(): JSX.Element {
-  const [input, setInput] = React.useState<{customDonation: number, cardholderName: string}>({
+  const [input, setInput] = React.useState<{
+    customDonation: number
+    cardholderName: string
+  }>({
     customDonation: Math.round(config.MAX_AMOUNT / config.AMOUNT_STEP),
     cardholderName: ''
   })
   const [paymentType, setPaymentType] = React.useState<string>('')
-  const [payment, setPayment] = React.useState<{status:'initial' | 'processing' | 'error'}>({ status: 'initial' })
+  const [payment, setPayment] = React.useState<{
+    status: 'initial' | 'processing' | 'error'
+  }>({ status: 'initial' })
   const [errorMessage, setErrorMessage] = React.useState<string>('')
 
   const stripe = useStripe()

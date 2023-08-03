@@ -4,8 +4,8 @@ import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
 import Stripe from 'stripe'
 
-import { CURRENCY } from '../../config'
-import { formatAmountForStripe } from '../../utils/stripe-helpers'
+import { CURRENCY } from '@/config'
+import { formatAmountForStripe } from '@/utils/stripe-helpers'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   // https://github.com/stripe/stripe-node#configuration
