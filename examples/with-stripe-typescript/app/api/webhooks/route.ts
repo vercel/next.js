@@ -1,10 +1,8 @@
-import { NextResponse } from 'next/server'
-import Stripe from 'stripe'
+import type { Stripe } from 'stripe'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  // https://github.com/stripe/stripe-node#configuration
-  apiVersion: '2022-11-15'
-})
+import { NextResponse } from 'next/server'
+
+import { stripe } from '@/lib/stripe'
 
 export async function POST(req: Request) {
   let event: Stripe.Event
