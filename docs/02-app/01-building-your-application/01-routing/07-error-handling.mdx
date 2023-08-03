@@ -224,3 +224,7 @@ This is a security precaution to avoid leaking potentially sensitive details inc
 The `message` property contains a generic message about the error and the `digest` property contains an automatically generated hash of the error that can be used to match the corresponding error in server-side logs.
 
 During development, the `Error` object forwarded to the client will be serialized and include the `message` of the original error for easier debugging.
+
+### Handling Metadata Errors
+
+If an error is thrown inside `generateMetadata`, it will not be caught by the `error.js` boundary. Instead, it must be caught and handled inside of `generateMetadata` itself.
