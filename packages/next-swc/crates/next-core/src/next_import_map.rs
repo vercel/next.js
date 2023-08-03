@@ -229,6 +229,16 @@ pub async fn get_next_server_import_map(
         ServerContextType::AppSSR { .. }
         | ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. } => {
+            match mode {
+                NextMode::Development | NextMode::Build => {
+                    import_map.insert_wildcard_alias("next/dist/server/", external);
+                    import_map.insert_wildcard_alias("next/dist/shared/", external);
+                }
+                NextMode::DevServer => {
+                    // The sandbox can't be bundled and needs to be external
+                    import_map.insert_exact_alias("next/dist/server/web/sandbox", external);
+                }
+            }
             import_map.insert_exact_alias(
                 "next/head",
                 request_to_import_mapping(project_path, "next/dist/client/components/noop-head"),
@@ -237,9 +247,6 @@ pub async fn get_next_server_import_map(
                 "next/dynamic",
                 request_to_import_mapping(project_path, "next/dist/shared/lib/app-dynamic"),
             );
-
-            // The sandbox can't be bundled and needs to be external
-            import_map.insert_exact_alias("next/dist/server/web/sandbox", external);
         }
         ServerContextType::Middleware => {}
     }
@@ -620,17 +627,19 @@ async fn package_lookup_resolve_options(
 }
 
 #[turbo_tasks::function]
-pub async fn get_next_package(project_path: Vc<FileSystemPath>) -> Result<Vc<FileSystemPath>> {
+pub async fn get_next_package(context_directory: Vc<FileSystemPath>) -> Result<Vc<FileSystemPath>> {
     let result = resolve(
-        project_path,
+        context_directory,
         Request::parse(Value::new(Pattern::Constant(
             "next/package.json".to_string(),
         ))),
-        package_lookup_resolve_options(project_path),
+        package_lookup_resolve_options(context_directory),
     );
-    let assets = result.primary_sources().await?;
-    let asset = *assets.first().context("Next.js package not found")?;
-    Ok(asset.ident().path().parent())
+    let source = result
+        .first_source()
+        .await?
+        .context("Next.js package not found")?;
+    Ok(source.ident().path().parent())
 }
 
 pub async fn insert_alias_option<const N: usize>(
