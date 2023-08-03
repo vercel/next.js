@@ -13,7 +13,6 @@ export function headers() {
   if (staticGenerationBailout('headers')) {
     return HeadersAdapter.seal(new Headers({}))
   }
-
   const requestStore = requestAsyncStorage.getStore()
   if (!requestStore) {
     throw new Error(

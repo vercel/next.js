@@ -116,7 +116,10 @@ module.exports = ({ dev }) => {
         ),
         'process.env.NEXT_RUNTIME': JSON.stringify('nodejs'),
       }),
-      !!process.env.ANALYZE && new BundleAnalyzerPlugin({}),
+      !!process.env.ANALYZE &&
+        new BundleAnalyzerPlugin({
+          analyzerPort: dev ? 8888 : 8889,
+        }),
     ].filter(Boolean),
     stats: {
       optimizationBailout: true,

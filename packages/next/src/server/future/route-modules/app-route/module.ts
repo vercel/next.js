@@ -34,23 +34,21 @@ import { getNonStaticMethods } from './helpers/get-non-static-methods'
 import { appendMutableCookies } from '../../../web/spec-extension/adapters/request-cookies'
 import { RouteKind } from '../../route-kind'
 import { parsedUrlQueryToParams } from './helpers/parsed-url-query-to-params'
+import * as externals from './externals'
 
-// These are imported weirdly like this because of the way that the bundling
-// works. We need to import the built files from the dist directory, but we
-// can't do that directly because we need types from the source files. So we
-// import the types from the source files and then import the built files.
-const { requestAsyncStorage } =
-  require('next/dist/client/components/request-async-storage.shared-runtime') as typeof import('../../../../client/components/request-async-storage.shared-runtime')
-const { staticGenerationAsyncStorage } =
-  require('next/dist/client/components/static-generation-async-storage.shared-runtime') as typeof import('../../../../client/components/static-generation-async-storage.shared-runtime')
-const serverHooks =
-  require('next/dist/client/components/hooks-server-context') as typeof import('../../../../client/components/hooks-server-context')
-const headerHooks =
-  require('next/dist/client/components/headers') as typeof import('../../../../client/components/headers')
-const { staticGenerationBailout } =
-  require('next/dist/client/components/static-generation-bailout') as typeof import('../../../../client/components/static-generation-bailout')
-const { actionAsyncStorage } =
-  require('next/dist/client/components/action-async-storage.shared-runtime') as typeof import('../../../../client/components/action-async-storage.shared-runtime')
+import * as serverHooks from '../../../../client/components/hooks-server-context'
+import * as headerHooks from '../../../../client/components/headers'
+import { staticGenerationBailout } from '../../../../client/components/static-generation-bailout'
+
+const {
+  requestAsyncStorage: { requestAsyncStorage },
+  staticGenerationAsyncStorage: { staticGenerationAsyncStorage },
+  actionAsyncStorage: { actionAsyncStorage },
+} = externals as {
+  requestAsyncStorage: typeof import('../../../../client/components/request-async-storage.shared-runtime')
+  staticGenerationAsyncStorage: typeof import('../../../../client/components/static-generation-async-storage.shared-runtime')
+  actionAsyncStorage: typeof import('../../../../client/components/action-async-storage.shared-runtime')
+}
 
 /**
  * AppRouteRouteHandlerContext is the context that is passed to the route
@@ -159,6 +157,8 @@ export class AppRouteRouteModule extends RouteModule<
   private readonly methods: Record<HTTP_METHOD, AppRouteHandlerFn>
   private readonly nonStaticMethods: ReadonlyArray<HTTP_METHOD> | false
   private readonly dynamic: AppRouteUserlandModule['dynamic']
+
+  public static readonly externals = externals
 
   public static is(route: RouteModule): route is AppRouteRouteModule {
     return route.definition.kind === RouteKind.APP_ROUTE

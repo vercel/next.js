@@ -1448,7 +1448,7 @@ export default async function getBaseWebpackConfig(
         }
 
         const name = path.parse(localRes).name.replace('.shared-runtime', '')
-        console.log(layer, name, isAppLayer)
+
         const camelCaseName = name.replace(/-([a-z])/g, (_, w) =>
           w.toUpperCase()
         )
