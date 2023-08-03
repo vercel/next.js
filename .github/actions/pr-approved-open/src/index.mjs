@@ -1,7 +1,7 @@
 // @ts-check
 import { context, getOctokit } from '@actions/github'
 import { setFailed } from '@actions/core'
-const { WebClient } = require('@slack/web-api')
+import { WebClient } from '@slack/web-api'
 
 async function run() {
   try {
