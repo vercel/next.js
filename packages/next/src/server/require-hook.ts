@@ -127,7 +127,10 @@ mod._resolveFilename = function (
 }.bind(null, resolveFilename, hookPropertyMap)
 
 mod.prototype.require = function (request: string) {
-  if (process.env.__NEXT_PRIVATE_RENDER_RUNTIME) {
+  if (
+    process.env.NODE_ENV === 'production' &&
+    process.env.__NEXT_PRIVATE_RENDER_RUNTIME
+  ) {
     if (request.endsWith('.external')) {
       const base = path.basename(request, '.external')
       const camelized = base.replace(/-([a-z])/g, (g) => g[1].toUpperCase())

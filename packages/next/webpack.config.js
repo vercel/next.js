@@ -41,12 +41,20 @@ const externalsMap = {
 }
 
 module.exports = ({ dev }) => {
-  const externalHandler = ({ context, request }, callback) => {
-    if (dev && request.endsWith('.external')) {
-      return callback(null, `commonjs ${request}`)
-    }
-
-    callback()
+  const externalHandler = ({ context, request, getResolve }, callback) => {
+    ;(async () => {
+      if (dev && request.endsWith('.external')) {
+        const resolve = getResolve()
+        const resolved = await resolve(context, request)
+        const relative = path.relative(
+          path.join(__dirname, '..'),
+          resolved.replace('esm' + path.sep, '')
+        )
+        callback(null, `commonjs ${relative}`)
+      } else {
+        callback()
+      }
+    })()
   }
 
   /** @type {webpack.Configuration} */
@@ -83,7 +91,7 @@ module.exports = ({ dev }) => {
       // splitChunks: {
       //   chunks: 'all',
       // },
-      concatenateModules: false,
+      concatenateModules: true,
       minimizer: [
         new TerserPlugin({
           extractComments: false,
