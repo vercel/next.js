@@ -1,6 +1,4 @@
 import { createNextDescribe } from 'e2e-utils'
-import { check } from 'next-test-utils'
-import { Readable } from 'stream'
 
 const bathPath = process.env.BASE_PATH ?? ''
 
@@ -9,7 +7,7 @@ createNextDescribe(
   {
     files: __dirname,
   },
-  ({ next, isNextDeploy, isNextDev, isNextStart }) => {
+  ({ next }) => {
     describe('works with simple routes', () => {
       it('renders a node route', async () => {
         expect(
