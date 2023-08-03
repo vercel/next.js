@@ -211,8 +211,6 @@ const nextDev: CliCommand = async (argv) => {
     isDev: true,
     nextConfig: config,
     hostname: host,
-    // This is required especially for app dir.
-    useWorkers: true,
   }
 
   if (args['--turbo']) {

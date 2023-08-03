@@ -81,7 +81,6 @@ const nextStart: CliCommand = async (argv) => {
     hostname: host,
     port,
     keepAliveTimeout,
-    useWorkers: !!config.experimental.appDir,
   })
 }
 

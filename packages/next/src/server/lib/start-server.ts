@@ -33,7 +33,6 @@ export interface StartServerOptions {
   logReady?: boolean
   isDev: boolean
   hostname: string
-  useWorkers: boolean
   allowRetry?: boolean
   customServer?: boolean
   minimalMode?: boolean
@@ -100,7 +99,6 @@ export async function startServer({
   port,
   isDev,
   hostname,
-  useWorkers,
   minimalMode,
   allowRetry,
   keepAliveTimeout,
@@ -240,253 +238,233 @@ export async function startServer({
   })
 
   try {
-    if (useWorkers) {
-      const httpProxy =
-        require('next/dist/compiled/http-proxy') as typeof import('next/dist/compiled/http-proxy')
+    const httpProxy =
+      require('next/dist/compiled/http-proxy') as typeof import('next/dist/compiled/http-proxy')
 
-      let routerServerPath = require.resolve('./router-server')
-      let jestWorkerPath = require.resolve('next/dist/compiled/jest-worker')
+    let routerServerPath = require.resolve('./router-server')
+    let jestWorkerPath = require.resolve('next/dist/compiled/jest-worker')
 
-      if (prevDir) {
-        jestWorkerPath = jestWorkerPath.replace(prevDir, dir)
-        routerServerPath = routerServerPath.replace(prevDir, dir)
-      }
+    if (prevDir) {
+      jestWorkerPath = jestWorkerPath.replace(prevDir, dir)
+      routerServerPath = routerServerPath.replace(prevDir, dir)
+    }
 
-      const routerWorker = await createRouterWorker(
-        routerServerPath,
-        isNodeDebugging,
-        jestWorkerPath
-      )
-      const cleanup = () => {
-        debug('start-server process cleanup')
-        for (const curWorker of ((routerWorker as any)._workerPool?._workers ||
-          []) as {
-          _child?: ChildProcess
-        }[]) {
-          curWorker._child?.kill('SIGINT')
-        }
-        process.exit(0)
-      }
-      process.on('exit', cleanup)
-      process.on('SIGINT', cleanup)
-      process.on('SIGTERM', cleanup)
-      process.on('uncaughtException', cleanup)
-      process.on('unhandledRejection', cleanup)
-
-      let didInitialize = false
-
-      for (const _worker of ((routerWorker as any)._workerPool?._workers ||
+    const routerWorker = await createRouterWorker(
+      routerServerPath,
+      isNodeDebugging,
+      jestWorkerPath
+    )
+    const cleanup = () => {
+      debug('start-server process cleanup')
+      for (const curWorker of ((routerWorker as any)._workerPool?._workers ||
         []) as {
-        _child: ChildProcess
+        _child?: ChildProcess
       }[]) {
-        // eslint-disable-next-line no-loop-func
-        _worker._child.on('exit', (code, signal) => {
-          // catch failed initializing without retry
-          if ((code || signal) && !didInitialize) {
-            routerWorker?.end()
-            process.exit(1)
-          }
-        })
+        curWorker._child?.kill('SIGINT')
       }
+      process.exit(0)
+    }
+    process.on('exit', cleanup)
+    process.on('SIGINT', cleanup)
+    process.on('SIGTERM', cleanup)
+    process.on('uncaughtException', cleanup)
+    process.on('unhandledRejection', cleanup)
 
-      const workerStdout = routerWorker.getStdout()
-      const workerStderr = routerWorker.getStderr()
+    let didInitialize = false
 
-      workerStdout.on('data', (data) => {
-        if (typeof onStdout === 'function') {
-          onStdout(data)
-        } else {
-          process.stdout.write(data)
+    for (const _worker of ((routerWorker as any)._workerPool?._workers ||
+      []) as {
+      _child: ChildProcess
+    }[]) {
+      // eslint-disable-next-line no-loop-func
+      _worker._child.on('exit', (code, signal) => {
+        // catch failed initializing without retry
+        if ((code || signal) && !didInitialize) {
+          routerWorker?.end()
+          process.exit(1)
         }
       })
-      workerStderr.on('data', (data) => {
-        if (typeof onStderr === 'function') {
-          onStderr(data)
-        } else {
-          process.stderr.write(data)
+    }
+
+    const workerStdout = routerWorker.getStdout()
+    const workerStderr = routerWorker.getStderr()
+
+    workerStdout.on('data', (data) => {
+      if (typeof onStdout === 'function') {
+        onStdout(data)
+      } else {
+        process.stdout.write(data)
+      }
+    })
+    workerStderr.on('data', (data) => {
+      if (typeof onStderr === 'function') {
+        onStderr(data)
+      } else {
+        process.stderr.write(data)
+      }
+    })
+
+    const initializeResult = await routerWorker.initialize({
+      dir,
+      port,
+      hostname,
+      dev: !!isDev,
+      minimalMode,
+      workerType: 'router',
+      isNodeDebugging: !!isNodeDebugging,
+      keepAliveTimeout,
+    })
+    routerPort = initializeResult.port
+    didInitialize = true
+
+    let compress: ReturnType<typeof setupCompression> | undefined
+
+    if (nextConfig?.compress !== false) {
+      compress = setupCompression()
+    }
+
+    const getProxyServer = (pathname: string) => {
+      const targetUrl = `http://${
+        targetHost === 'localhost' ? '127.0.0.1' : targetHost
+      }:${routerPort}${pathname}`
+      const proxyServer = httpProxy.createProxy({
+        target: targetUrl,
+        changeOrigin: false,
+        ignorePath: true,
+        xfwd: true,
+        ws: true,
+        followRedirects: false,
+      })
+
+      // add error listener to prevent uncaught exceptions
+      proxyServer.on('error', (_err) => {
+        // TODO?: enable verbose error logs with --debug flag?
+      })
+
+      proxyServer.on('proxyRes', (proxyRes, innerReq, innerRes) => {
+        const cleanupProxy = (err: any) => {
+          // cleanup event listeners to allow clean garbage collection
+          proxyRes.removeListener('error', cleanupProxy)
+          proxyRes.removeListener('close', cleanupProxy)
+          innerRes.removeListener('error', cleanupProxy)
+          innerRes.removeListener('close', cleanupProxy)
+
+          // destroy all source streams to propagate the caught event backward
+          innerReq.destroy(err)
+          proxyRes.destroy(err)
         }
+
+        proxyRes.once('error', cleanupProxy)
+        proxyRes.once('close', cleanupProxy)
+        innerRes.once('error', cleanupProxy)
+        innerRes.once('close', cleanupProxy)
       })
+      return proxyServer
+    }
 
-      const initializeResult = await routerWorker.initialize({
-        dir,
-        port,
-        hostname,
-        dev: !!isDev,
-        minimalMode,
-        workerType: 'router',
-        isNodeDebugging: !!isNodeDebugging,
-        keepAliveTimeout,
-      })
-      routerPort = initializeResult.port
-      didInitialize = true
+    // proxy to router worker
+    requestHandler = async (req, res) => {
+      const urlParts = (req.url || '').split('?')
+      const urlNoQuery = urlParts[0]
 
-      let compress: ReturnType<typeof setupCompression> | undefined
-
-      if (nextConfig?.compress !== false) {
-        compress = setupCompression()
+      // this normalizes repeated slashes in the path e.g. hello//world ->
+      // hello/world or backslashes to forward slashes, this does not
+      // handle trailing slash as that is handled the same as a next.config.js
+      // redirect
+      if (urlNoQuery?.match(/(\\|\/\/)/)) {
+        const cleanUrl = normalizeRepeatedSlashes(req.url!)
+        res.statusCode = 308
+        res.setHeader('Location', cleanUrl)
+        res.end(cleanUrl)
+        return
       }
 
-      const getProxyServer = (pathname: string) => {
-        const targetUrl = `http://${
-          targetHost === 'localhost' ? '127.0.0.1' : targetHost
-        }:${routerPort}${pathname}`
-        const proxyServer = httpProxy.createProxy({
-          target: targetUrl,
-          changeOrigin: false,
-          ignorePath: true,
-          xfwd: true,
-          ws: true,
-          followRedirects: false,
-        })
-
-        // add error listener to prevent uncaught exceptions
-        proxyServer.on('error', (_err) => {
-          // TODO?: enable verbose error logs with --debug flag?
-        })
-
-        proxyServer.on('proxyRes', (proxyRes, innerReq, innerRes) => {
-          const cleanupProxy = (err: any) => {
-            // cleanup event listeners to allow clean garbage collection
-            proxyRes.removeListener('error', cleanupProxy)
-            proxyRes.removeListener('close', cleanupProxy)
-            innerRes.removeListener('error', cleanupProxy)
-            innerRes.removeListener('close', cleanupProxy)
-
-            // destroy all source streams to propagate the caught event backward
-            innerReq.destroy(err)
-            proxyRes.destroy(err)
-          }
-
-          proxyRes.once('error', cleanupProxy)
-          proxyRes.once('close', cleanupProxy)
-          innerRes.once('error', cleanupProxy)
-          innerRes.once('close', cleanupProxy)
-        })
-        return proxyServer
+      if (typeof compress === 'function') {
+        // @ts-expect-error not express req/res
+        compress(req, res, () => {})
       }
 
-      // proxy to router worker
-      requestHandler = async (req, res) => {
-        const urlParts = (req.url || '').split('?')
-        const urlNoQuery = urlParts[0]
+      const targetUrl = `http://${
+        targetHost === 'localhost' ? '127.0.0.1' : targetHost
+      }:${routerPort}${req.url || '/'}`
 
-        // this normalizes repeated slashes in the path e.g. hello//world ->
-        // hello/world or backslashes to forward slashes, this does not
-        // handle trailing slash as that is handled the same as a next.config.js
-        // redirect
-        if (urlNoQuery?.match(/(\\|\/\/)/)) {
-          const cleanUrl = normalizeRepeatedSlashes(req.url!)
-          res.statusCode = 308
-          res.setHeader('Location', cleanUrl)
-          res.end(cleanUrl)
+      let invokeRes
+      try {
+        invokeRes = await invokeRequest(
+          targetUrl,
+          {
+            headers: req.headers,
+            method: req.method,
+            signal: signalFromNodeResponse(res),
+          },
+          getCloneableBody(req).cloneBodyStream()
+        )
+      } catch (e) {
+        // If the client aborts before we can receive a response object (when
+        // the headers are flushed), then we can early exit without further
+        // processing.
+        if (isAbortError(e)) {
           return
         }
+        throw e
+      }
 
-        if (typeof compress === 'function') {
-          // @ts-expect-error not express req/res
-          compress(req, res, () => {})
-        }
+      res.statusCode = invokeRes.status
+      res.statusMessage = invokeRes.statusText
 
-        const targetUrl = `http://${
-          targetHost === 'localhost' ? '127.0.0.1' : targetHost
-        }:${routerPort}${req.url || '/'}`
+      for (const [key, value] of Object.entries(
+        filterReqHeaders(
+          toNodeOutgoingHttpHeaders(invokeRes.headers),
+          ipcForbiddenHeaders
+        )
+      )) {
+        if (value !== undefined) {
+          if (key === 'set-cookie') {
+            const curValue = res.getHeader(key) as string
+            const newValue: string[] = [] as string[]
 
-        let invokeRes
-        try {
-          invokeRes = await invokeRequest(
-            targetUrl,
-            {
-              headers: req.headers,
-              method: req.method,
-              signal: signalFromNodeResponse(res),
-            },
-            getCloneableBody(req).cloneBodyStream()
-          )
-        } catch (e) {
-          // If the client aborts before we can receive a response object (when
-          // the headers are flushed), then we can early exit without further
-          // processing.
-          if (isAbortError(e)) {
-            return
-          }
-          throw e
-        }
-
-        res.statusCode = invokeRes.status
-        res.statusMessage = invokeRes.statusText
-
-        for (const [key, value] of Object.entries(
-          filterReqHeaders(
-            toNodeOutgoingHttpHeaders(invokeRes.headers),
-            ipcForbiddenHeaders
-          )
-        )) {
-          if (value !== undefined) {
-            if (key === 'set-cookie') {
-              const curValue = res.getHeader(key) as string
-              const newValue: string[] = [] as string[]
-
-              for (const cookie of Array.isArray(curValue)
-                ? curValue
-                : splitCookiesString(curValue || '')) {
-                newValue.push(cookie)
-              }
-              for (const val of (Array.isArray(value)
-                ? value
-                : value
-                ? [value]
-                : []) as string[]) {
-                newValue.push(val)
-              }
-              res.setHeader(key, newValue)
-            } else {
-              res.setHeader(key, value as string)
+            for (const cookie of Array.isArray(curValue)
+              ? curValue
+              : splitCookiesString(curValue || '')) {
+              newValue.push(cookie)
             }
+            for (const val of (Array.isArray(value)
+              ? value
+              : value
+              ? [value]
+              : []) as string[]) {
+              newValue.push(val)
+            }
+            res.setHeader(key, newValue)
+          } else {
+            res.setHeader(key, value as string)
           }
         }
+      }
 
-        if (invokeRes.body) {
-          await pipeReadable(invokeRes.body, res)
-        } else {
-          res.end()
-        }
+      if (invokeRes.body) {
+        await pipeReadable(invokeRes.body, res)
+      } else {
+        res.end()
       }
-      upgradeHandler = async (req, socket, head) => {
-        // add error listeners to prevent uncaught exceptions on socket errors
-        req.on('error', (_err) => {
-          // TODO: log socket errors?
-          // console.log(_err)
-        })
-        socket.on('error', (_err) => {
-          // TODO: log socket errors?
-          // console.log(_err)
-        })
-        const proxyServer = getProxyServer(req.url || '/')
-        proxyServer.on('proxyReqWs', (proxyReq) => {
-          socket.on('close', () => proxyReq.destroy())
-        })
-        proxyServer.ws(req, socket, head)
-      }
-      handlersReady()
-    } else {
-      // when not using a worker start next in main process
-      const next = require('../next') as typeof import('../next').default
-      const addr = server.address()
-      const app = next({
-        dir,
-        hostname,
-        dev: isDev,
-        isNodeDebugging,
-        httpServer: server,
-        customServer: false,
-        port: addr && typeof addr === 'object' ? addr.port : port,
-      })
-      // handle in process
-      requestHandler = app.getRequestHandler()
-      upgradeHandler = app.getUpgradeHandler()
-      await app.prepare()
-      handlersReady()
     }
+    upgradeHandler = async (req, socket, head) => {
+      // add error listeners to prevent uncaught exceptions on socket errors
+      req.on('error', (_err) => {
+        // TODO: log socket errors?
+        // console.log(_err)
+      })
+      socket.on('error', (_err) => {
+        // TODO: log socket errors?
+        // console.log(_err)
+      })
+      const proxyServer = getProxyServer(req.url || '/')
+      proxyServer.on('proxyReqWs', (proxyReq) => {
+        socket.on('close', () => proxyReq.destroy())
+      })
+      proxyServer.ws(req, socket, head)
+    }
+    handlersReady()
   } catch (err) {
     // fatal error if we can't setup
     handlersError()
