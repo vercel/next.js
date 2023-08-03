@@ -4,4 +4,6 @@ if (process.env.NEXT_RUNTIME !== 'edge') {
   } else {
     module.exports = require('next/dist/compiled/next-server/pages-api.runtime.dev.js')
   }
+} else {
+  module.exports = require('next/dist/server/future/route-modules/pages-api/module.js')
 }
