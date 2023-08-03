@@ -3,7 +3,7 @@ import { invalidateCacheByRouterState } from './invalidate-cache-by-router-state
 import {
   CacheStates,
   CacheNode,
-} from '../../../shared/lib/app-router-context.external'
+} from '../../../shared/lib/app-router-context.shared-runtime'
 import type { FlightRouterState } from '../../../server/app-render/types'
 
 describe('invalidateCacheByRouterState', () => {

@@ -1341,6 +1341,7 @@ export default async function getBaseWebpackConfig(
       WEBPACK_LAYERS.serverSideRendering,
       WEBPACK_LAYERS.appPagesBrowser,
       WEBPACK_LAYERS.actionBrowser,
+      'app-route-handler',
     ].includes(layer!)
 
     if (
@@ -1431,7 +1432,7 @@ export default async function getBaseWebpackConfig(
 
       const pathSeparators = '[/\\\\]'
       const optionalEsmPart = `((${pathSeparators}esm)?${pathSeparators})`
-      const externalFileEnd = '(\\.external(\\.js)?)$'
+      const externalFileEnd = '(\\.shared-runtime(\\.js)?)$'
 
       const nextDist = `next${pathSeparators}dist`
 
@@ -1446,7 +1447,8 @@ export default async function getBaseWebpackConfig(
           return `commonjs ${localRes}`
         }
 
-        const name = path.parse(localRes).name.replace('.external', '')
+        const name = path.parse(localRes).name.replace('.shared-runtime', '')
+        console.log(layer, name, isAppLayer)
         const camelCaseName = name.replace(/-([a-z])/g, (_, w) =>
           w.toUpperCase()
         )
@@ -1469,6 +1471,17 @@ export default async function getBaseWebpackConfig(
         //   // todo
         // } else {
 
+        // app vs pages
+        // - app
+        // - pages
+        // - api
+        // - app route
+        const runtime =
+          layer === 'app-route-handler'
+            ? 'app-route'
+            : isAppLayer
+            ? 'app-page'
+            : 'pages'
         return [
           'commonjs ' +
             path.posix.join(
@@ -1477,9 +1490,7 @@ export default async function getBaseWebpackConfig(
               'compiled',
               'next-server',
               // TODO: check if externals can happen for app routes or API routes
-              `${isAppLayer ? 'app-page' : 'pages'}.runtime.${
-                dev ? 'dev' : 'prod'
-              }`
+              `${runtime}.runtime.${dev ? 'dev' : 'prod'}`
             ),
           'default',
           'externals',
@@ -2005,6 +2016,10 @@ export default async function getBaseWebpackConfig(
       rules: [
         ...(hasAppDir
           ? [
+              {
+                layer: 'app-route-handler',
+                test: /\/route\.(js|ts)x?$/,
+              },
               {
                 // Make sure that AsyncLocalStorage module instance is shared between server and client
                 // layers.

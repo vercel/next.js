@@ -20,8 +20,8 @@ import isError from '../lib/is-error'
 import {
   HtmlContext,
   useHtmlContext,
-} from '../shared/lib/html-context.external'
-import type { HtmlProps } from '../shared/lib/html-context.external'
+} from '../shared/lib/html-context.shared-runtime'
+import type { HtmlProps } from '../shared/lib/html-context.shared-runtime'
 
 export { DocumentContext, DocumentInitialProps, DocumentProps }
 

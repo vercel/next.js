@@ -1,4 +1,4 @@
-import type { CacheNode } from '../../../shared/lib/app-router-context.external'
+import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
 import type { FlightSegmentPath } from '../../../server/app-render/types'
 import { createRouterCacheKey } from './create-router-cache-key'
 

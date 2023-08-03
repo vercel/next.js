@@ -1,4 +1,4 @@
-import type { StaticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage'
+import type { StaticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage.shared-runtime'
 import type * as ServerHooks from '../../client/components/hooks-server-context'
 
 import { AppRenderSpan } from './trace/constants'

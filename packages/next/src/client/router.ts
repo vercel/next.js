@@ -2,7 +2,7 @@
 import React from 'react'
 import Router from '../shared/lib/router/router'
 import type { NextRouter } from '../shared/lib/router/router'
-import { RouterContext } from '../shared/lib/router-context.external'
+import { RouterContext } from '../shared/lib/router-context.shared-runtime'
 import isError from '../lib/is-error'
 
 type SingletonRouterBase = {

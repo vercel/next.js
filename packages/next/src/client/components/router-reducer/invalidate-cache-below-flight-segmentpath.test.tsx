@@ -4,7 +4,7 @@ import { invalidateCacheBelowFlightSegmentPath } from './invalidate-cache-below-
 import {
   CacheStates,
   CacheNode,
-} from '../../../shared/lib/app-router-context.external'
+} from '../../../shared/lib/app-router-context.shared-runtime'
 import { fillCacheWithNewSubTreeData } from './fill-cache-with-new-subtree-data'
 
 const getFlightData = (): FlightData => {

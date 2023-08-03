@@ -11,9 +11,9 @@ import type {
   Segment,
 } from './types'
 
-import type { StaticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage'
+import type { StaticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage.shared-runtime'
 import type { StaticGenerationBailout } from '../../client/components/static-generation-bailout'
-import type { RequestAsyncStorage } from '../../client/components/request-async-storage'
+import type { RequestAsyncStorage } from '../../client/components/request-async-storage.shared-runtime'
 
 import React from 'react'
 import { NotFound as DefaultNotFound } from '../../client/components/error'
@@ -1450,7 +1450,7 @@ export async function renderToHTMLOrFlight(
       )
 
     const { HeadManagerContext } =
-      require('../../shared/lib/head-manager-context.external') as typeof import('../../shared/lib/head-manager-context.external')
+      require('../../shared/lib/head-manager-context.shared-runtime') as typeof import('../../shared/lib/head-manager-context.shared-runtime')
 
     // On each render, create a new `ServerInsertedHTML` context to capture
     // injected nodes from user code (`useServerInsertedHTML`).

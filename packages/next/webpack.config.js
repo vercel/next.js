@@ -43,7 +43,7 @@ const externalsMap = {
 module.exports = ({ dev }) => {
   const externalHandler = ({ context, request, getResolve }, callback) => {
     ;(async () => {
-      if (dev && request.endsWith('.external')) {
+      if (dev && request.endsWith('.shared-runtime')) {
         const resolve = getResolve()
         const resolved = await resolve(context, request)
         const relative = path.relative(

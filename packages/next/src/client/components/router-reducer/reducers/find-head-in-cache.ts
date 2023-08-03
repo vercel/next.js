@@ -1,5 +1,5 @@
 import type { FlightRouterState } from '../../../../server/app-render/types'
-import type { CacheNode } from '../../../../shared/lib/app-router-context.external'
+import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
 import { createRouterCacheKey } from '../create-router-cache-key'
 
 export function findHeadInCache(

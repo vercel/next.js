@@ -4,7 +4,7 @@ import { fillCacheWithDataProperty } from './fill-cache-with-data-property'
 import {
   CacheStates,
   CacheNode,
-} from '../../../shared/lib/app-router-context.external'
+} from '../../../shared/lib/app-router-context.shared-runtime'
 describe('fillCacheWithDataProperty', () => {
   it('should add data property', () => {
     const fetchServerResponseMock: jest.Mock<

@@ -6,7 +6,7 @@ import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-we
 import { callServer } from 'next/dist/client/app-call-server'
 import { linkGc } from 'next/dist/client/app-link-gc'
 
-import { HeadManagerContext } from 'next/dist/shared/lib/head-manager-context.external'
+import { HeadManagerContext } from 'next/dist/shared/lib/head-manager-context.shared-runtime'
 
 import { initializeHMR } from '@vercel/turbopack-next/dev/client'
 

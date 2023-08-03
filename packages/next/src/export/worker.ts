@@ -51,7 +51,7 @@ import {
 } from '../server/web/spec-extension/adapters/next-request'
 import * as ciEnvironment from '../telemetry/ci-info'
 
-const envConfig = require('../shared/lib/runtime-config.external')
+const envConfig = require('../shared/lib/runtime-config.shared-runtime')
 
 ;(globalThis as any).__NEXT_DATA__ = {
   nextExport: true,

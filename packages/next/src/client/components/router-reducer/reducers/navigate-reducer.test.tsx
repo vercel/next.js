@@ -79,7 +79,7 @@ import { FlightRouterState } from '../../../../server/app-render/types'
 import {
   CacheNode,
   CacheStates,
-} from '../../../../shared/lib/app-router-context.external'
+} from '../../../../shared/lib/app-router-context.shared-runtime'
 import { createInitialRouterState } from '../create-initial-router-state'
 import {
   NavigateAction,

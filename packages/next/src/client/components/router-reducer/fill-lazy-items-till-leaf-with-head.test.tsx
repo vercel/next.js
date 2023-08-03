@@ -3,7 +3,7 @@ import { fillLazyItemsTillLeafWithHead } from './fill-lazy-items-till-leaf-with-
 import {
   CacheStates,
   CacheNode,
-} from '../../../shared/lib/app-router-context.external'
+} from '../../../shared/lib/app-router-context.shared-runtime'
 import type { FlightData } from '../../../server/app-render/types'
 
 const getFlightData = (): FlightData => {

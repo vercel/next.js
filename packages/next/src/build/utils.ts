@@ -14,7 +14,7 @@ import type {
   EdgeFunctionDefinition,
   MiddlewareManifest,
 } from './webpack/plugins/middleware-plugin'
-import type { StaticGenerationAsyncStorage } from '../client/components/static-generation-async-storage'
+import type { StaticGenerationAsyncStorage } from '../client/components/static-generation-async-storage.shared-runtime'
 
 import '../server/require-hook'
 import '../server/node-polyfill-fetch'
@@ -66,7 +66,10 @@ import { nodeFs } from '../server/lib/node-fs-methods'
 import * as ciEnvironment from '../telemetry/ci-info'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { denormalizeAppPagePath } from '../shared/lib/page-path/denormalize-app-path'
-import { AppRouteRouteModule } from '../server/future/route-modules/app-route/module'
+// import { AppRouteRouteModule } from '../server/future/route-modules/app-route/module'
+const {
+  AppRouteRouteModule,
+} = require('../server/future/route-modules/app-route/module.compiled')
 
 export type ROUTER_TYPE = 'pages' | 'app'
 
@@ -1378,7 +1381,7 @@ export async function isPageStatic({
   const isPageStaticSpan = trace('is-page-static-utils', parentId)
   return isPageStaticSpan
     .traceAsyncFn(async () => {
-      require('../shared/lib/runtime-config.external').setConfig(
+      require('../shared/lib/runtime-config.shared-runtime').setConfig(
         runtimeEnvConfig
       )
       setHttpClientAndAgentOptions({
@@ -1664,7 +1667,9 @@ export async function hasCustomGetInitialProps(
   runtimeEnvConfig: any,
   checkingApp: boolean
 ): Promise<boolean> {
-  require('../shared/lib/runtime-config.external').setConfig(runtimeEnvConfig)
+  require('../shared/lib/runtime-config.shared-runtime').setConfig(
+    runtimeEnvConfig
+  )
 
   const components = await loadComponents({
     distDir,
@@ -1687,7 +1692,9 @@ export async function getDefinedNamedExports(
   distDir: string,
   runtimeEnvConfig: any
 ): Promise<ReadonlyArray<string>> {
-  require('../shared/lib/runtime-config.external').setConfig(runtimeEnvConfig)
+  require('../shared/lib/runtime-config.shared-runtime').setConfig(
+    runtimeEnvConfig
+  )
   const components = await loadComponents({
     distDir,
     pathname: page,

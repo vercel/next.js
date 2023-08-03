@@ -2,7 +2,7 @@ import {
   StaticGenerationStore,
   staticGenerationAsyncStorage as _staticGenerationAsyncStorage,
   StaticGenerationAsyncStorage,
-} from '../../../client/components/static-generation-async-storage'
+} from '../../../client/components/static-generation-async-storage.shared-runtime'
 import { CACHE_ONE_YEAR } from '../../../lib/constants'
 import { addImplicitTags } from '../../lib/patch-fetch'
 

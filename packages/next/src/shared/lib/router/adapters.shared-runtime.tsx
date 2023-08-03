@@ -3,8 +3,8 @@ import React, { useMemo, useRef } from 'react'
 import type {
   AppRouterInstance,
   NavigateOptions,
-} from '../app-router-context.external'
-import { PathnameContext } from '../hooks-client-context.external'
+} from '../app-router-context.shared-runtime'
+import { PathnameContext } from '../hooks-client-context.shared-runtime'
 import type { NextRouter } from './router'
 import { isDynamicRoute } from './utils'
 

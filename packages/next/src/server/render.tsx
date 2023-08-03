@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { ParsedUrlQuery } from 'querystring'
 import type { NextRouter } from '../shared/lib/router/router'
-import type { HtmlProps } from '../shared/lib/html-context.external'
+import type { HtmlProps } from '../shared/lib/html-context.shared-runtime'
 import type { DomainLocale } from './config'
 import type {
   AppType,
@@ -52,12 +52,12 @@ import {
 } from '../shared/lib/constants'
 import { isSerializableProps } from '../lib/is-serializable-props'
 import { isInAmpMode } from '../shared/lib/amp-mode'
-import { AmpStateContext } from '../shared/lib/amp-context.external'
+import { AmpStateContext } from '../shared/lib/amp-context.shared-runtime'
 import { defaultHead } from '../shared/lib/head'
-import { HeadManagerContext } from '../shared/lib/head-manager-context.external'
-import Loadable from '../shared/lib/loadable.external'
-import { LoadableContext } from '../shared/lib/loadable-context.external'
-import { RouterContext } from '../shared/lib/router-context.external'
+import { HeadManagerContext } from '../shared/lib/head-manager-context.shared-runtime'
+import Loadable from '../shared/lib/loadable.shared-runtime'
+import { LoadableContext } from '../shared/lib/loadable-context.shared-runtime'
+import { RouterContext } from '../shared/lib/router-context.shared-runtime'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import {
   ComponentsEnhancer,
@@ -65,7 +65,7 @@ import {
   isResSent,
   loadGetInitialProps,
 } from '../shared/lib/utils'
-import { HtmlContext } from '../shared/lib/html-context.external'
+import { HtmlContext } from '../shared/lib/html-context.shared-runtime'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import { getRequestMeta, NextParsedUrlQuery } from './request-meta'
@@ -79,16 +79,16 @@ import {
   renderToInitialStream,
   continueFromInitialStream,
 } from './stream-utils/node-web-streams-helper'
-import { ImageConfigContext } from '../shared/lib/image-config-context.external'
+import { ImageConfigContext } from '../shared/lib/image-config-context.shared-runtime'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { stripInternalQueries } from './internal-utils'
 import {
   adaptForAppRouterInstance,
   adaptForSearchParams,
   PathnameContextProviderAdapter,
-} from '../shared/lib/router/adapters.external'
-import { AppRouterContext } from '../shared/lib/app-router-context.external'
-import { SearchParamsContext } from '../shared/lib/hooks-client-context.external'
+} from '../shared/lib/router/adapters.shared-runtime'
+import { AppRouterContext } from '../shared/lib/app-router-context.shared-runtime'
+import { SearchParamsContext } from '../shared/lib/hooks-client-context.shared-runtime'
 import { getTracer } from './lib/trace/tracer'
 import { RenderSpan } from './lib/trace/constants'
 import { ReflectAdapter } from './web/spec-extension/adapters/reflect'

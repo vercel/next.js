@@ -1,7 +1,7 @@
 import type { RequestCookies } from '../cookies'
 import type { BaseNextResponse } from '../../../base-http'
 import type { ServerResponse } from 'http'
-import { StaticGenerationStore } from '../../../../client/components/static-generation-async-storage'
+import { StaticGenerationStore } from '../../../../client/components/static-generation-async-storage.shared-runtime'
 
 import { ResponseCookies } from '../cookies'
 import { ReflectAdapter } from './reflect'

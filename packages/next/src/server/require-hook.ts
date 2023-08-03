@@ -131,8 +131,8 @@ mod.prototype.require = function (request: string) {
     process.env.NODE_ENV === 'production' &&
     process.env.__NEXT_PRIVATE_RENDER_RUNTIME
   ) {
-    if (request.endsWith('.external')) {
-      const base = path.basename(request, '.external')
+    if (request.endsWith('.shared-runtime')) {
+      const base = path.basename(request, '.shared-runtime')
       const camelized = base.replace(/-([a-z])/g, (g) => g[1].toUpperCase())
       const instance = originalRequire.call(this, currentRuntime)
       return instance.default.externals[camelized]

@@ -1,3 +1,3 @@
-import getConfig from './dist/shared/lib/runtime-config.external'
-export * from './dist/shared/lib/runtime-config.external'
+import getConfig from './dist/shared/lib/runtime-config.shared-runtime'
+export * from './dist/shared/lib/runtime-config.shared-runtime'
 export default getConfig

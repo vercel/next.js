@@ -1,7 +1,7 @@
 import type { BaseNextRequest, BaseNextResponse } from '../base-http'
 import type { IncomingHttpHeaders, IncomingMessage, ServerResponse } from 'http'
 import type { AsyncLocalStorage } from 'async_hooks'
-import type { RequestStore } from '../../client/components/request-async-storage'
+import type { RequestStore } from '../../client/components/request-async-storage.shared-runtime'
 import type { RenderOpts } from '../app-render/types'
 import type { AsyncStorageWrapper } from './async-storage-wrapper'
 import type { NextRequest } from '../web/spec-extension/request'

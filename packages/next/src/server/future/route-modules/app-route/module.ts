@@ -40,9 +40,9 @@ import { parsedUrlQueryToParams } from './helpers/parsed-url-query-to-params'
 // can't do that directly because we need types from the source files. So we
 // import the types from the source files and then import the built files.
 const { requestAsyncStorage } =
-  require('next/dist/client/components/request-async-storage') as typeof import('../../../../client/components/request-async-storage')
+  require('next/dist/client/components/request-async-storage.shared-runtime') as typeof import('../../../../client/components/request-async-storage.shared-runtime')
 const { staticGenerationAsyncStorage } =
-  require('next/dist/client/components/static-generation-async-storage') as typeof import('../../../../client/components/static-generation-async-storage')
+  require('next/dist/client/components/static-generation-async-storage.shared-runtime') as typeof import('../../../../client/components/static-generation-async-storage.shared-runtime')
 const serverHooks =
   require('next/dist/client/components/hooks-server-context') as typeof import('../../../../client/components/hooks-server-context')
 const headerHooks =
@@ -50,7 +50,7 @@ const headerHooks =
 const { staticGenerationBailout } =
   require('next/dist/client/components/static-generation-bailout') as typeof import('../../../../client/components/static-generation-bailout')
 const { actionAsyncStorage } =
-  require('next/dist/client/components/action-async-storage') as typeof import('../../../../client/components/action-async-storage')
+  require('next/dist/client/components/action-async-storage.shared-runtime') as typeof import('../../../../client/components/action-async-storage.shared-runtime')
 
 /**
  * AppRouteRouteHandlerContext is the context that is passed to the route

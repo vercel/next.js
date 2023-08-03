@@ -1,6 +1,6 @@
 'use client'
 import React, { useEffect } from 'react'
-import { AppRouterInstance } from '../../shared/lib/app-router-context.external'
+import { AppRouterInstance } from '../../shared/lib/app-router-context.shared-runtime'
 import { useRouter } from './navigation'
 import {
   RedirectType,

@@ -1,7 +1,7 @@
 import {
   CacheNode,
   CacheStates,
-} from '../../../shared/lib/app-router-context.external'
+} from '../../../shared/lib/app-router-context.shared-runtime'
 import { FlightDataPath } from '../../../server/app-render/types'
 import { fillLazyItemsTillLeafWithHead } from './fill-lazy-items-till-leaf-with-head'
 import { fillCacheWithNewSubTreeData } from './fill-cache-with-new-subtree-data'
