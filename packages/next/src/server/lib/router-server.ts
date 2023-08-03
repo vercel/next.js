@@ -11,7 +11,7 @@ import setupDebug from 'next/dist/compiled/debug'
 import { splitCookiesString, toNodeOutgoingHttpHeaders } from '../web/utils'
 import { Telemetry } from '../../telemetry/storage'
 import { DecodeError } from '../../shared/lib/utils'
-import { filterReqHeaders } from './server-ipc/utils'
+import { filterReqHeaders, ipcForbiddenHeaders } from './server-ipc/utils'
 import { findPagesDir } from '../../lib/find-pages-dir'
 import { setupFsCheck } from './router-utils/filesystem'
 import { proxyRequest } from './router-utils/proxy-request'
@@ -252,7 +252,11 @@ export async function initialize(opts: {
     ] as {
       _child?: import('child_process').ChildProcess
     }[]) {
-      curWorker._child?.kill('SIGKILL')
+      curWorker._child?.kill('SIGINT')
+    }
+
+    if (!process.env.__NEXT_PRIVATE_CPU_PROFILE) {
+      process.exit(0)
     }
   }
   process.on('exit', cleanup)
@@ -365,7 +369,10 @@ export async function initialize(opts: {
       }
 
       for (const [key, value] of Object.entries(
-        filterReqHeaders(toNodeOutgoingHttpHeaders(invokeRes.headers))
+        filterReqHeaders(
+          toNodeOutgoingHttpHeaders(invokeRes.headers),
+          ipcForbiddenHeaders
+        )
       )) {
         if (value !== undefined) {
           if (key === 'set-cookie') {
