@@ -539,9 +539,9 @@ dependencies = [
 
 [[package]]
 name = "binding_macros"
-version = "0.53.33"
+version = "0.53.35"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2008e650911414009fcff2ec2336780485e5cd68872c2d9db6e4606640ed0a31"
+checksum = "57137ed3253ee2e0c3388f495e5c51ba0023caea679ac0aff09fa3d991840263"
 dependencies = [
  "anyhow",
  "console_error_panic_hook",
@@ -5600,9 +5600,9 @@ dependencies = [
 
 [[package]]
 name = "swc"
-version = "0.264.33"
+version = "0.264.35"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9b3613c388c35108a29a9cdc1fb273a0e3ab5c88764978c2c061968c8218a3db"
+checksum = "16f53427436fd51730435514ade63b5021e4d0805e21f86a76e4dc0960280f05"
 dependencies = [
  "ahash 0.8.3",
  "anyhow",
@@ -5668,9 +5668,9 @@ dependencies = [
 
 [[package]]
 name = "swc_bundler"
-version = "0.217.28"
+version = "0.217.29"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1301a680599d53649ead3278afdd8e44a46ff4889acd462ae03af49b834c55b5"
+checksum = "48149463e3568e52eb99c5a9ac4a65a370bbd995a87f479a1edda571cacbaa39"
 dependencies = [
  "ahash 0.8.3",
  "anyhow",
@@ -5774,9 +5774,9 @@ dependencies = [
 
 [[package]]
 name = "swc_core"
-version = "0.79.36"
+version = "0.79.38"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9d9a40fe968df8d09e6d84ce78cef8aad9445210f2d4158c2211afc31b287d61"
+checksum = "0f93b5eb1844b7ead17d061be925a18bce2c9c7ee9ccc8d9d37fe591f39111a2"
 dependencies = [
  "binding_macros",
  "swc",
@@ -6060,9 +6060,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_minifier"
-version = "0.184.28"
+version = "0.184.29"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3712cf39d4451a8e1cd3e06e6f11db9fc6e48ff5cebe1c41a82b97ace5e87b55"
+checksum = "5caa10f698c9a4aa5fbfd1d4a43a604636893bd02e3ae3089d977026e0279c81"
 dependencies = [
  "ahash 0.8.3",
  "arrayvec",
@@ -6413,9 +6413,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_usage_analyzer"
-version = "0.16.10"
+version = "0.16.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e8b1ab1783d611b31207d2b9390ff7d991afcaf5b96b8e4da5415ee807434d17"
+checksum = "f292d37c5da5be3e7cde1ecf1d44e0564e251a40c496901af8dd0f5632211a81"
 dependencies = [
  "ahash 0.8.3",
  "indexmap",
