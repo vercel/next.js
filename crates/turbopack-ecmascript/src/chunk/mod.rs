@@ -71,12 +71,13 @@ impl EcmascriptChunk {
 
     #[turbo_tasks::function]
     pub async fn new(
-        context: Vc<Box<dyn ChunkingContext>>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
         main_entry: Vc<Box<dyn EcmascriptChunkPlaceable>>,
         availability_info: Value<AvailabilityInfo>,
     ) -> Result<Vc<Self>> {
         let Some(context) =
-            Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkingContext>>(context).await?
+            Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkingContext>>(chunking_context)
+                .await?
         else {
             bail!("Ecmascript chunking context not found");
         };

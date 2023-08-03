@@ -778,8 +778,8 @@ enum ImportsFieldResult {
 /// Extracts the "imports" field out of the nearest package.json, parsing it
 /// into an appropriate [AliasMap] for lookups.
 #[turbo_tasks::function]
-async fn imports_field(context: Vc<FileSystemPath>) -> Result<Vc<ImportsFieldResult>> {
-    let package_json_context = find_context_file(context, package_json()).await?;
+async fn imports_field(lookup_path: Vc<FileSystemPath>) -> Result<Vc<ImportsFieldResult>> {
+    let package_json_context = find_context_file(lookup_path, package_json()).await?;
     let FindContextFileResult::Found(package_json_path, _refs) = &*package_json_context else {
         return Ok(ImportsFieldResult::None.cell());
     };
@@ -820,13 +820,13 @@ pub enum FindContextFileResult {
 
 #[turbo_tasks::function]
 pub async fn find_context_file(
-    context: Vc<FileSystemPath>,
+    lookup_path: Vc<FileSystemPath>,
     names: Vc<Vec<String>>,
 ) -> Result<Vc<FindContextFileResult>> {
     let mut refs = Vec::new();
-    let context_value = context.await?;
+    let context_value = lookup_path.await?;
     for name in &*names.await? {
-        let fs_path = context.join(name.clone());
+        let fs_path = lookup_path.join(name.clone());
         if let Some(fs_path) = exists(fs_path, &mut refs).await? {
             return Ok(FindContextFileResult::Found(fs_path, refs).into());
         }
@@ -836,9 +836,9 @@ pub async fn find_context_file(
     }
     if refs.is_empty() {
         // Tailcall
-        Ok(find_context_file(context.parent(), names))
+        Ok(find_context_file(lookup_path.parent(), names))
     } else {
-        let parent_result = find_context_file(context.parent(), names).await?;
+        let parent_result = find_context_file(lookup_path.parent(), names).await?;
         Ok(match &*parent_result {
             FindContextFileResult::Found(p, r) => {
                 refs.extend(r.iter().copied());
@@ -861,7 +861,7 @@ struct FindPackageResult {
 
 #[turbo_tasks::function]
 async fn find_package(
-    context: Vc<FileSystemPath>,
+    lookup_path: Vc<FileSystemPath>,
     package_name: String,
     options: Vc<ResolveModulesOptions>,
 ) -> Result<Vc<FindPackageResult>> {
@@ -871,13 +871,13 @@ async fn find_package(
     for resolve_modules in &options.modules {
         match resolve_modules {
             ResolveModules::Nested(root_vc, names) => {
-                let mut context = context;
-                let mut context_value = context.await?;
+                let mut lookup_path = lookup_path;
+                let mut lookup_path_value = lookup_path.await?;
                 // For clippy -- This explicit deref is necessary
                 let root = &*root_vc.await?;
-                while context_value.is_inside_ref(root) {
+                while lookup_path_value.is_inside_ref(root) {
                     for name in names.iter() {
-                        let fs_path = context.join(name.clone());
+                        let fs_path = lookup_path.join(name.clone());
                         if let Some(fs_path) = dir_exists(fs_path, &mut affecting_sources).await? {
                             let fs_path = fs_path.join(package_name.clone());
                             if let Some(fs_path) =
@@ -887,12 +887,12 @@ async fn find_package(
                             }
                         }
                     }
-                    context = context.parent().resolve().await?;
-                    let new_context_value = context.await?;
-                    if *new_context_value == *context_value {
+                    lookup_path = lookup_path.parent().resolve().await?;
+                    let new_context_value = lookup_path.await?;
+                    if *new_context_value == *lookup_path_value {
                         break;
                     }
-                    context_value = new_context_value;
+                    lookup_path_value = new_context_value;
                 }
             }
             ResolveModules::Path(context) => {

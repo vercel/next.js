@@ -195,8 +195,8 @@ impl Args {
     }
 }
 
-async fn create_fs(name: &str, context: &str, watch: bool) -> Result<Vc<Box<dyn FileSystem>>> {
-    let fs = DiskFileSystem::new(name.to_string(), context.to_string());
+async fn create_fs(name: &str, root: &str, watch: bool) -> Result<Vc<Box<dyn FileSystem>>> {
+    let fs = DiskFileSystem::new(name.to_string(), root.to_string());
     if watch {
         fs.await?.start_watching()?;
     } else {
@@ -206,7 +206,7 @@ async fn create_fs(name: &str, context: &str, watch: bool) -> Result<Vc<Box<dyn 
 }
 
 async fn add_glob_results(
-    context: Vc<Box<dyn AssetContext>>,
+    asset_context: Vc<Box<dyn AssetContext>>,
     result: Vc<ReadGlobResult>,
     list: &mut Vec<Vc<Box<dyn Module>>>,
 ) -> Result<()> {
@@ -214,7 +214,7 @@ async fn add_glob_results(
     for entry in result.results.values() {
         if let DirectoryEntry::File(path) = entry {
             let source = Vc::upcast(FileSource::new(*path));
-            list.push(context.process(
+            list.push(asset_context.process(
                 source,
                 Value::new(turbopack_core::reference_type::ReferenceType::Undefined),
             ));
@@ -222,14 +222,14 @@ async fn add_glob_results(
     }
     for result in result.inner.values() {
         fn recurse<'a>(
-            context: Vc<Box<dyn AssetContext>>,
+            asset_context: Vc<Box<dyn AssetContext>>,
             result: Vc<ReadGlobResult>,
             list: &'a mut Vec<Vc<Box<dyn Module>>>,
         ) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'a>> {
-            Box::pin(add_glob_results(context, result, list))
+            Box::pin(add_glob_results(asset_context, result, list))
         }
         // Boxing for async recursion
-        recurse(context, *result, list).await?;
+        recurse(asset_context, *result, list).await?;
     }
     Ok(())
 }
@@ -240,16 +240,16 @@ async fn input_to_modules(
     input: Vec<String>,
     exact: bool,
     process_cwd: Option<String>,
-    context: String,
+    context_directory: String,
     module_options: TransientInstance<ModuleOptionsContext>,
     resolve_options: TransientInstance<ResolveOptionsContext>,
 ) -> Result<Vc<Modules>> {
     let root = fs.root();
     let process_cwd = process_cwd
         .clone()
-        .map(|p| p.trim_start_matches(&context).to_owned());
+        .map(|p| p.trim_start_matches(&context_directory).to_owned());
 
-    let context: Vc<Box<dyn AssetContext>> = Vc::upcast(create_module_asset(
+    let asset_context: Vc<Box<dyn AssetContext>> = Vc::upcast(create_module_asset(
         root,
         process_cwd,
         module_options,
@@ -260,42 +260,42 @@ async fn input_to_modules(
     for input in input {
         if exact {
             let source = Vc::upcast(FileSource::new(root.join(input)));
-            list.push(context.process(
+            list.push(asset_context.process(
                 source,
                 Value::new(turbopack_core::reference_type::ReferenceType::Undefined),
             ));
         } else {
             let glob = Glob::new(input);
-            add_glob_results(context, root.read_glob(glob, false), &mut list).await?;
+            add_glob_results(asset_context, root.read_glob(glob, false), &mut list).await?;
         };
     }
     Ok(Vc::cell(list))
 }
 
 fn process_context(dir: &Path, context_directory: Option<&String>) -> Result<String> {
-    let mut context = PathBuf::from(context_directory.map_or(".", |s| s));
-    if !context.is_absolute() {
-        context = dir.join(context);
+    let mut context_directory = PathBuf::from(context_directory.map_or(".", |s| s));
+    if !context_directory.is_absolute() {
+        context_directory = dir.join(context_directory);
     }
     // context = context.canonicalize().unwrap();
-    Ok(context
+    Ok(context_directory
         .to_str()
         .ok_or_else(|| anyhow!("context directory contains invalid characters"))
         .unwrap()
         .to_string())
 }
 
-fn make_relative_path(dir: &Path, context: &str, input: &str) -> Result<String> {
+fn make_relative_path(dir: &Path, context_directory: &str, input: &str) -> Result<String> {
     let mut input = PathBuf::from(input);
     if !input.is_absolute() {
         input = dir.join(input);
     }
     // input = input.canonicalize()?;
-    let input = input.strip_prefix(context).with_context(|| {
+    let input = input.strip_prefix(context_directory).with_context(|| {
         anyhow!(
             "{} is not part of the context directory {}",
             input.display(),
-            context
+            context_directory
         )
     })?;
     Ok(input
@@ -304,10 +304,10 @@ fn make_relative_path(dir: &Path, context: &str, input: &str) -> Result<String> 
         .replace('\\', "/"))
 }
 
-fn process_input(dir: &Path, context: &str, input: &[String]) -> Result<Vec<String>> {
+fn process_input(dir: &Path, context_directory: &str, input: &[String]) -> Result<Vec<String>> {
     input
         .iter()
-        .map(|input| make_relative_path(dir, context, input))
+        .map(|input| make_relative_path(dir, context_directory, input))
         .collect()
 }
 
@@ -547,19 +547,19 @@ async fn main_operation(
         ref process_cwd,
         ..
     } = args.common();
-    let context = process_context(&dir, context_directory.as_ref()).unwrap();
-    let fs = create_fs("context directory", &context, watch).await?;
+    let context_directory = process_context(&dir, context_directory.as_ref()).unwrap();
+    let fs = create_fs("context directory", &context_directory, watch).await?;
 
     match *args {
         Args::Print { common: _ } => {
-            let input = process_input(&dir, &context, input).unwrap();
+            let input = process_input(&dir, &context_directory, input).unwrap();
             let mut result = BTreeSet::new();
             let modules = input_to_modules(
                 fs,
                 input,
                 exact,
                 process_cwd.clone(),
-                context,
+                context_directory,
                 module_options,
                 resolve_options,
             )
@@ -577,7 +577,7 @@ async fn main_operation(
             return Ok(Vc::cell(result.into_iter().collect::<Vec<_>>()));
         }
         Args::Annotate { common: _ } => {
-            let input = process_input(&dir, &context, input).unwrap();
+            let input = process_input(&dir, &context_directory, input).unwrap();
             let mut output_nft_assets = Vec::new();
             let mut emits = Vec::new();
             for module in input_to_modules(
@@ -585,7 +585,7 @@ async fn main_operation(
                 input,
                 exact,
                 process_cwd.clone(),
-                context,
+                context_directory,
                 module_options,
                 resolve_options,
             )
@@ -608,7 +608,7 @@ async fn main_operation(
             common: _,
         } => {
             let output = process_context(&dir, Some(output_directory)).unwrap();
-            let input = process_input(&dir, &context, input).unwrap();
+            let input = process_input(&dir, &context_directory, input).unwrap();
             let out_fs = create_fs("output directory", &output, watch).await?;
             let input_dir = fs.root();
             let output_dir = out_fs.root();
@@ -618,7 +618,7 @@ async fn main_operation(
                 input,
                 exact,
                 process_cwd.clone(),
-                context,
+                context_directory,
                 module_options,
                 resolve_options,
             )

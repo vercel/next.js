@@ -33,8 +33,8 @@ impl<T: Debug> Debug for State<T> {
 }
 
 impl<T: TraceRawVcs> TraceRawVcs for State<T> {
-    fn trace_raw_vcs(&self, context: &mut crate::trace::TraceRawVcsContext) {
-        self.inner.lock().value.trace_raw_vcs(context);
+    fn trace_raw_vcs(&self, trace_context: &mut crate::trace::TraceRawVcsContext) {
+        self.inner.lock().value.trace_raw_vcs(trace_context);
     }
 }
 

@@ -164,14 +164,14 @@ pub fn get_client_asset_context(
         node_env,
     );
 
-    let context: Vc<Box<dyn AssetContext>> = Vc::upcast(ModuleAssetContext::new(
+    let asset_context: Vc<Box<dyn AssetContext>> = Vc::upcast(ModuleAssetContext::new(
         Vc::cell(HashMap::new()),
         compile_time_info,
         module_options_context,
         resolve_options_context,
     ));
 
-    context
+    asset_context
 }
 
 fn client_defines(node_env: &NodeEnv) -> Vc<CompileTimeDefines> {

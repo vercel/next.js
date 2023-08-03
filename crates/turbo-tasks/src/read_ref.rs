@@ -65,8 +65,8 @@ where
     T: VcValueType,
     <T::Read as VcRead<T>>::Target: TraceRawVcs,
 {
-    fn trace_raw_vcs(&self, context: &mut TraceRawVcsContext) {
-        (**self).trace_raw_vcs(context);
+    fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
+        (**self).trace_raw_vcs(trace_context);
     }
 }
 

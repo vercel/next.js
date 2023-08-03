@@ -446,8 +446,8 @@ impl<T> TraceRawVcs for Vc<T>
 where
     T: ?Sized,
 {
-    fn trace_raw_vcs(&self, context: &mut TraceRawVcsContext) {
-        TraceRawVcs::trace_raw_vcs(&self.node, context);
+    fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
+        TraceRawVcs::trace_raw_vcs(&self.node, trace_context);
     }
 }
 

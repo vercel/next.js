@@ -90,15 +90,15 @@ pub async fn create_web_entry_source(
     browserslist_query: String,
 ) -> Result<Vc<Box<dyn ContentSource>>> {
     let compile_time_info = get_client_compile_time_info(browserslist_query, node_env);
-    let context =
+    let asset_context =
         get_client_asset_context(project_path, execution_context, compile_time_info, node_env);
     let chunking_context =
         get_client_chunking_context(project_path, server_root, compile_time_info.environment());
     let entries = get_client_runtime_entries(project_path);
 
-    let runtime_entries = entries.resolve_entries(context);
+    let runtime_entries = entries.resolve_entries(asset_context);
 
-    let origin = PlainResolveOrigin::new(context, project_path.join("_".to_string()));
+    let origin = PlainResolveOrigin::new(asset_context, project_path.join("_".to_string()));
     let entries = entry_requests
         .into_iter()
         .map(|request| async move {

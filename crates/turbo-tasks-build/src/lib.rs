@@ -267,13 +267,13 @@ impl<'a> RegisterContext<'a> {
     fn process_mod(&mut self, mod_item: ItemMod) -> Result<()> {
         if mod_item.content.is_none() {
             let name = mod_item.ident.to_string();
-            let context = self.file_path.parent().unwrap();
-            let direct = context.join(format!("{name}.rs"));
+            let parent_path = self.file_path.parent().unwrap();
+            let direct = parent_path.join(format!("{name}.rs"));
             if direct.exists() {
                 self.queue
                     .push((format!("{}::{name}", self.mod_path), direct));
             } else {
-                let nested = context.join(&name).join("mod.rs");
+                let nested = parent_path.join(&name).join("mod.rs");
                 if nested.exists() {
                     self.queue
                         .push((format!("{}::{name}", self.mod_path), nested));

@@ -109,11 +109,11 @@ impl ChunkableModule for WebAssemblyModuleAsset {
     #[turbo_tasks::function]
     fn as_chunk(
         self: Vc<Self>,
-        context: Vc<Box<dyn ChunkingContext>>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
         availability_info: Value<AvailabilityInfo>,
     ) -> Vc<Box<dyn Chunk>> {
         Vc::upcast(EcmascriptChunk::new(
-            context,
+            chunking_context,
             Vc::upcast(self),
             availability_info,
         ))
@@ -125,12 +125,12 @@ impl EcmascriptChunkPlaceable for WebAssemblyModuleAsset {
     #[turbo_tasks::function]
     fn as_chunk_item(
         self: Vc<Self>,
-        context: Vc<Box<dyn EcmascriptChunkingContext>>,
+        chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
     ) -> Vc<Box<dyn EcmascriptChunkItem>> {
         Vc::upcast(
             ModuleChunkItem {
                 module: self,
-                context,
+                chunking_context,
             }
             .cell(),
         )
@@ -168,7 +168,7 @@ impl ResolveOrigin for WebAssemblyModuleAsset {
 #[turbo_tasks::value]
 struct ModuleChunkItem {
     module: Vc<WebAssemblyModuleAsset>,
-    context: Vc<Box<dyn EcmascriptChunkingContext>>,
+    chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -180,7 +180,7 @@ impl ChunkItem for ModuleChunkItem {
 
     #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
-        let loader = self.module.loader().as_chunk_item(self.context);
+        let loader = self.module.loader().as_chunk_item(self.chunking_context);
 
         Ok(loader.references())
     }
@@ -190,7 +190,7 @@ impl ChunkItem for ModuleChunkItem {
 impl EcmascriptChunkItem for ModuleChunkItem {
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn EcmascriptChunkingContext>> {
-        self.context
+        self.chunking_context
     }
 
     #[turbo_tasks::function]
@@ -206,7 +206,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
         let loader_asset = self.module.loader();
 
         let chunk_item_content = loader_asset
-            .as_chunk_item(self.context)
+            .as_chunk_item(self.chunking_context)
             .content_with_availability_info(availability_info)
             .await?;
 
