@@ -155,7 +155,7 @@ impl<'a> From<&'a PlainIssue> for Issue<'a> {
 
         Issue {
             severity: plain.severity,
-            context: &plain.context,
+            context: &plain.file_path,
             category: &plain.category,
             title: &plain.title,
             description: &plain.description,

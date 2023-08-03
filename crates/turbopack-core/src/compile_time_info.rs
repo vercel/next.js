@@ -122,7 +122,7 @@ impl CompileTimeDefines {
 pub enum FreeVarReference {
     EcmaScriptModule {
         request: String,
-        context: Option<Vc<FileSystemPath>>,
+        lookup_path: Option<Vc<FileSystemPath>>,
         export: Option<String>,
     },
     Value(CompileTimeDefineValue),

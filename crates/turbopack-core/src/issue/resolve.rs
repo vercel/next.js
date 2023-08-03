@@ -16,7 +16,7 @@ pub struct ResolvingIssue {
     pub severity: Vc<IssueSeverity>,
     pub request_type: String,
     pub request: Vc<Request>,
-    pub context: Vc<FileSystemPath>,
+    pub file_path: Vc<FileSystemPath>,
     pub resolve_options: Vc<ResolveOptions>,
     pub error_message: Option<String>,
     pub source: Vc<OptionIssueSource>,
@@ -43,8 +43,8 @@ impl Issue for ResolvingIssue {
     }
 
     #[turbo_tasks::function]
-    fn context(&self) -> Vc<FileSystemPath> {
-        self.context
+    fn file_path(&self) -> Vc<FileSystemPath> {
+        self.file_path
     }
 
     #[turbo_tasks::function]
@@ -73,7 +73,7 @@ impl Issue for ResolvingIssue {
         writeln!(
             detail,
             "Path where resolving has started: {context}",
-            context = self.context.to_string().await?
+            context = self.file_path.to_string().await?
         )?;
         writeln!(
             detail,
@@ -81,7 +81,7 @@ impl Issue for ResolvingIssue {
             request_type = self.request_type,
         )?;
         if let Some(import_map) = &self.resolve_options.await?.import_map {
-            let result = import_map.lookup(self.context, self.request);
+            let result = import_map.lookup(self.file_path, self.request);
 
             match result.to_string().await {
                 Ok(str) => writeln!(detail, "Import map: {}", str)?,

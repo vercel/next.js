@@ -1751,12 +1751,15 @@ async fn handle_free_var_reference(
         }
         FreeVarReference::EcmaScriptModule {
             request,
-            context,
+            lookup_path: context,
             export,
         } => {
             let esm_reference = EsmAssetReference::new(
                 context.map_or(state.origin, |context| {
-                    Vc::upcast(PlainResolveOrigin::new(state.origin.context(), context))
+                    Vc::upcast(PlainResolveOrigin::new(
+                        state.origin.asset_context(),
+                        context,
+                    ))
                 }),
                 Request::parse(Value::new(request.clone().into())),
                 Default::default(),

@@ -3,7 +3,7 @@ use turbo_tasks::{Value, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     introspect::{Introspectable, IntrospectableChildren},
-    issue::IssueContextExt,
+    issue::IssueFilePathExt,
 };
 
 use super::{
@@ -54,7 +54,7 @@ impl ContentSource for IssueContextContentSource {
         let routes = this
             .source
             .get_routes()
-            .issue_context(this.context, &this.description)
+            .issue_file_path(this.context, &this.description)
             .await?;
         Ok(routes.map_routes(Vc::upcast(
             IssueContextContentSourceMapper { source: self }.cell(),
@@ -103,7 +103,7 @@ impl GetContentSourceContent for IssueContextGetContentSourceContent {
         let result = self
             .get_content
             .vary()
-            .issue_context(source.context, &source.description)
+            .issue_file_path(source.context, &source.description)
             .await?;
         Ok(result)
     }
@@ -118,7 +118,7 @@ impl GetContentSourceContent for IssueContextGetContentSourceContent {
         let result = self
             .get_content
             .get(path, data)
-            .issue_context(source.context, &source.description)
+            .issue_file_path(source.context, &source.description)
             .await?;
         Ok(result)
     }

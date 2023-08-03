@@ -97,7 +97,7 @@ fn format_optional_path(
         let mut last_context = None;
         for item in path.iter().rev() {
             let PlainIssueProcessingPathItem {
-                ref context,
+                file_path: ref context,
                 ref description,
             } = **item;
             if let Some(context) = context {
@@ -138,7 +138,7 @@ pub fn format_issue(
     let severity = plain_issue.severity;
     // TODO CLICKABLE PATHS
     let context_path = plain_issue
-        .context
+        .file_path
         .replace("[project]", &current_dir.to_string_lossy())
         .replace("/./", "/")
         .replace("\\\\?\\", "");
@@ -187,7 +187,7 @@ pub fn format_issue(
         "{} - [{}] {}",
         severity.style(severity_to_style(severity)),
         category,
-        plain_issue.context
+        plain_issue.file_path
     )
     .unwrap();
 
@@ -392,7 +392,8 @@ impl IssueReporter for ConsoleUi {
                 has_fatal = true;
             }
 
-            let context_path = make_relative_to_cwd(&plain_issue.context, project_dir, current_dir);
+            let context_path =
+                make_relative_to_cwd(&plain_issue.file_path, project_dir, current_dir);
             let category = &plain_issue.category;
             let title = &plain_issue.title;
             let processing_path = &*plain_issue.processing_path;

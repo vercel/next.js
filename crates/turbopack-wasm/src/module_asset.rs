@@ -155,7 +155,7 @@ impl ResolveOrigin for WebAssemblyModuleAsset {
     }
 
     #[turbo_tasks::function]
-    fn context(&self) -> Vc<Box<dyn AssetContext>> {
+    fn asset_context(&self) -> Vc<Box<dyn AssetContext>> {
         self.asset_context
     }
 

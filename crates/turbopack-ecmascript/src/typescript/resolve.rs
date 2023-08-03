@@ -363,7 +363,9 @@ pub async fn type_resolve(
     } else {
         resolve(context_path, request, options)
     };
-    let result = origin.context().process_resolve_result(result, ty.clone());
+    let result = origin
+        .asset_context()
+        .process_resolve_result(result, ty.clone());
     handle_resolve_error(
         result,
         ty,
@@ -466,7 +468,7 @@ impl Issue for TsConfigIssue {
     }
 
     #[turbo_tasks::function]
-    fn context(&self) -> Vc<FileSystemPath> {
+    fn file_path(&self) -> Vc<FileSystemPath> {
         self.source_ident.path()
     }
 

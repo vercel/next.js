@@ -7,7 +7,7 @@ use turbo_tasks::{
 };
 
 use crate::{
-    issue::IssueContextExt,
+    issue::IssueFilePathExt,
     module::{Module, Modules},
     output::{OutputAsset, OutputAssets},
     resolve::ModuleResolveResult,
@@ -198,7 +198,7 @@ pub async fn all_modules(asset: Vc<Box<dyn Module>>) -> Result<Vc<Modules>> {
     assets.insert(asset);
     while let Some((parent, references)) = queue.pop_front() {
         let references = references
-            .issue_context(parent.ident().path(), "expanding references of asset")
+            .issue_file_path(parent.ident().path(), "expanding references of asset")
             .await?;
         for asset in references.await?.iter() {
             if assets.insert(*asset) {

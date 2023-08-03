@@ -20,7 +20,7 @@ pub trait EvaluatableAsset: Asset + Module + ChunkableModule {}
 pub trait EvaluatableAssetExt {
     fn to_evaluatable(
         self: Vc<Self>,
-        context: Vc<Box<dyn AssetContext>>,
+        asset_context: Vc<Box<dyn AssetContext>>,
     ) -> Vc<Box<dyn EvaluatableAsset>>;
 }
 
@@ -30,18 +30,18 @@ where
 {
     fn to_evaluatable(
         self: Vc<Self>,
-        context: Vc<Box<dyn AssetContext>>,
+        asset_context: Vc<Box<dyn AssetContext>>,
     ) -> Vc<Box<dyn EvaluatableAsset>> {
-        to_evaluatable(Vc::upcast(self), context)
+        to_evaluatable(Vc::upcast(self), asset_context)
     }
 }
 
 #[turbo_tasks::function]
 async fn to_evaluatable(
     asset: Vc<Box<dyn Source>>,
-    context: Vc<Box<dyn AssetContext>>,
+    asset_context: Vc<Box<dyn AssetContext>>,
 ) -> Result<Vc<Box<dyn EvaluatableAsset>>> {
-    let asset = context.process(
+    let asset = asset_context.process(
         asset,
         Value::new(ReferenceType::Entry(EntryReferenceSubType::Runtime)),
     );

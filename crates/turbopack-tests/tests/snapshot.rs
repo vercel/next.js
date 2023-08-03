@@ -34,7 +34,7 @@ use turbopack_core::{
     context::AssetContext,
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment},
     file_source::FileSource,
-    issue::{Issue, IssueContextExt},
+    issue::{Issue, IssueFilePathExt},
     module::Module,
     output::OutputAsset,
     reference_type::{EntryReferenceSubType, ReferenceType},

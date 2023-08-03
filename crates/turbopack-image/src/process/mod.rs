@@ -398,7 +398,7 @@ struct ImageProcessingIssue {
 #[turbo_tasks::value_impl]
 impl Issue for ImageProcessingIssue {
     #[turbo_tasks::function]
-    fn context(&self) -> Vc<FileSystemPath> {
+    fn file_path(&self) -> Vc<FileSystemPath> {
         self.path
     }
     #[turbo_tasks::function]

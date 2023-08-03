@@ -24,7 +24,7 @@ impl Issue for RenderingIssue {
     }
 
     #[turbo_tasks::function]
-    fn context(&self) -> Vc<FileSystemPath> {
+    fn file_path(&self) -> Vc<FileSystemPath> {
         self.context
     }
 

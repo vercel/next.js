@@ -110,10 +110,10 @@ impl<T> TraceRawVcs for AliasMap<T>
 where
     T: TraceRawVcs,
 {
-    fn trace_raw_vcs(&self, context: &mut TraceRawVcsContext) {
+    fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
         for (_, map) in self.map.iter() {
             for value in map.values() {
-                value.trace_raw_vcs(context);
+                value.trace_raw_vcs(trace_context);
             }
         }
     }

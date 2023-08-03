@@ -12,7 +12,7 @@ use turbopack_core::{
     context::AssetContext,
     file_source::FileSource,
     ident::AssetIdent,
-    issue::IssueContextExt,
+    issue::IssueFilePathExt,
     module::Module,
     reference_type::{EntryReferenceSubType, InnerAssets, ReferenceType},
     resolve::{find_context_file, FindContextFileResult},
@@ -123,7 +123,7 @@ impl Asset for PostCssTransformedAsset {
         let this = self.await?;
         Ok(self
             .process()
-            .issue_context(this.source.ident().path(), "PostCSS processing")
+            .issue_file_path(this.source.ident().path(), "PostCSS processing")
             .await?
             .await?
             .content)

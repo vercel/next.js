@@ -104,7 +104,9 @@ pub async fn url_resolve(
     } else {
         rel_result
     };
-    let result = origin.context().process_resolve_result(result, ty.clone());
+    let result = origin
+        .asset_context()
+        .process_resolve_result(result, ty.clone());
     handle_resolve_error(
         result,
         ty,

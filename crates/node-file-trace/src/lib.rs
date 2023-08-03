@@ -44,7 +44,7 @@ use turbopack_core::{
     context::AssetContext,
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
     file_source::FileSource,
-    issue::{IssueContextExt, IssueReporter, IssueSeverity},
+    issue::{IssueFilePathExt, IssueReporter, IssueSeverity},
     module::{Module, Modules},
     output::OutputAsset,
     reference::all_modules,
@@ -566,7 +566,7 @@ async fn main_operation(
             .await?;
             for module in modules.iter() {
                 let set = all_modules(*module)
-                    .issue_context(module.ident().path(), "gathering list of assets")
+                    .issue_file_path(module.ident().path(), "gathering list of assets")
                     .await?;
                 for asset in set.await?.iter() {
                     let path = asset.ident().path().await?;

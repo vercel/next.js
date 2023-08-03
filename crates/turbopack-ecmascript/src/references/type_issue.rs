@@ -13,7 +13,7 @@ pub struct SpecifiedModuleTypeIssue {
 #[turbo_tasks::value_impl]
 impl Issue for SpecifiedModuleTypeIssue {
     #[turbo_tasks::function]
-    fn context(&self) -> Vc<FileSystemPath> {
+    fn file_path(&self) -> Vc<FileSystemPath> {
         self.path
     }
 
