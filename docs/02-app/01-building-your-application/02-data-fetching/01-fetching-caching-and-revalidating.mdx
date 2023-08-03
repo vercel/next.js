@@ -157,7 +157,7 @@ export async function GET(request: NextRequest) {
   if (
     request.nextUrl.searchParams.get('secret') !== process.env.MY_SECRET_TOKEN
   ) {
-    return res.status(401).json({ message: 'Invalid token' })
+    return NextResponse.status(401).json({ message: 'Invalid token' })
   }
 
   const tag = request.nextUrl.searchParams.get('tag')
@@ -176,7 +176,7 @@ export async function GET(request) {
   if (
     request.nextUrl.searchParams.get('secret') !== process.env.MY_SECRET_TOKEN
   ) {
-    return res.status(401).json({ message: 'Invalid token' })
+    return NextResponse.status(401).json({ message: 'Invalid token' })
   }
 
   const tag = request.nextUrl.searchParams.get('tag')
