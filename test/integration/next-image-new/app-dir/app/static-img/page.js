@@ -1,5 +1,5 @@
 import React from 'react'
-import testImg from '../../public/foo/test-rect-broken.jpg'
+import testImg from '../../public/foo/test-rect.jpg'
 import Image from 'next/image'
 
 import testJPG from '../../public/test.jpg'
