@@ -14,7 +14,7 @@ import { loadComponents } from '../load-components'
 import { setHttpClientAndAgentOptions } from '../setup-http-agent-env'
 import { IncrementalCache } from '../lib/incremental-cache'
 import * as serverHooks from '../../client/components/hooks-server-context'
-import { staticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage.shared-runtime'
+import { staticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage.external'
 
 const { AppRouteRouteModule } =
   require('../future/route-modules/app-route/module.compiled') as typeof import('../future/route-modules/app-route/module')

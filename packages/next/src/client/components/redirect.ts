@@ -1,4 +1,4 @@
-import { requestAsyncStorage } from './request-async-storage.shared-runtime'
+import { requestAsyncStorage } from './request-async-storage.external'
 import type { ResponseCookies } from '../../server/web/spec-extension/cookies'
 
 const REDIRECT_ERROR_CODE = 'NEXT_REDIRECT'

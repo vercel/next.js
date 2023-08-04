@@ -19,7 +19,7 @@ import {
 import { NEXT_QUERY_PARAM_PREFIX } from '../../lib/constants'
 import { ensureInstrumentationRegistered } from './globals'
 import { RequestAsyncStorageWrapper } from '../async-storage/request-async-storage-wrapper'
-import { requestAsyncStorage } from '../../client/components/request-async-storage.shared-runtime'
+import { requestAsyncStorage } from '../../client/components/request-async-storage.external'
 import { PrerenderManifest } from '../../build'
 
 class NextRequestHint extends NextRequest {

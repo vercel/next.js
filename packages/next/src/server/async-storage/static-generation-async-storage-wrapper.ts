@@ -1,5 +1,5 @@
 import type { AsyncStorageWrapper } from './async-storage-wrapper'
-import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.shared-runtime'
+import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
 import type { AsyncLocalStorage } from 'async_hooks'
 import type { IncrementalCache } from '../lib/incremental-cache'
 

@@ -1420,10 +1420,10 @@ export default async function getBaseWebpackConfig(
       // we need to process shared `router/router`, `head` and `dynamic`,
       // so that the DefinePlugin can inject process.env values.
 
-      // Treat next internals as non-external for server layer
-      if (isWebpackServerLayer(layer)) {
-        return
-      }
+      // // Treat next internals as non-external for server layer
+      // if (isWebpackServerLayer(layer)) {
+      //   return
+      // }
 
       // const isNextExternal =
       //   /next[/\\]dist[/\\](esm[\\/])?(shared|server)[/\\](?!lib[/\\](router[/\\]router|dynamic|app-dynamic|image-external|lazy-dynamic|head[^-]))/.test(
@@ -1432,17 +1432,24 @@ export default async function getBaseWebpackConfig(
 
       const pathSeparators = '[/\\\\]'
       const optionalEsmPart = `((${pathSeparators}esm)?${pathSeparators})`
-      const externalFileEnd = '(\\.shared-runtime(\\.js)?)$'
-
+      const sharedRuntimeFileEnd = '(\\.shared-runtime(\\.js)?)$'
+      const externalFileEnd = '(\\.external(\\.js)?)$'
       const nextDist = `next${pathSeparators}dist`
 
-      const regexPattern = new RegExp(
+      const sharedRuntimePattern = new RegExp(
+        `${nextDist}${optionalEsmPart}.*${sharedRuntimeFileEnd}`
+      )
+      const externalPattern = new RegExp(
         `${nextDist}${optionalEsmPart}.*${externalFileEnd}`
       )
 
-      const isNextExternal = regexPattern.test(localRes)
+      const isSharedRuntime = sharedRuntimePattern.test(localRes)
+      const isExternal = externalPattern.test(localRes)
 
-      if (isNextExternal) {
+      if (isExternal) {
+        return `commonjs ${localRes}`
+      }
+      if (isSharedRuntime) {
         if (dev) {
           return `commonjs ${localRes}`
         }
@@ -1542,7 +1549,10 @@ export default async function getBaseWebpackConfig(
     // Early return if the request needs to be bundled, such as in the client layer.
     // Treat react packages and next internals as external for SSR layer,
     // also map react to builtin ones with require-hook.
-    if (layer === WEBPACK_LAYERS.serverSideRendering) {
+    if (
+      layer === WEBPACK_LAYERS.serverSideRendering ||
+      layer === WEBPACK_LAYERS.reactServerComponents
+    ) {
       if (reactPackagesRegex.test(request)) {
         return `commonjs next/dist/compiled/${request.replace(
           /^(react-server-dom-webpack|react-dom|react)/,
@@ -2020,12 +2030,12 @@ export default async function getBaseWebpackConfig(
                 layer: 'app-route-handler',
                 test: /\/route\.(js|ts)x?$/,
               },
-              {
-                // Make sure that AsyncLocalStorage module instance is shared between server and client
-                // layers.
-                layer: WEBPACK_LAYERS.shared,
-                test: asyncStoragesRegex,
-              },
+              // {
+              //   // Make sure that AsyncLocalStorage module instance is shared between server and client
+              //   // layers.
+              //   layer: WEBPACK_LAYERS.shared,
+              //   test: asyncStoragesRegex,
+              // },
               // Convert metadata routes to separate layer
               {
                 resourceQuery: new RegExp(
@@ -2082,7 +2092,7 @@ export default async function getBaseWebpackConfig(
                   and: [
                     codeCondition.test,
                     {
-                      not: [optOutBundlingPackageRegex, asyncStoragesRegex],
+                      not: [optOutBundlingPackageRegex],
                     },
                   ],
                 },
@@ -2137,7 +2147,7 @@ export default async function getBaseWebpackConfig(
                 // Alias react for switching between default set and share subset.
                 oneOf: [
                   {
-                    exclude: [asyncStoragesRegex],
+                    // exclude: [asyncStoragesRegex],
                     issuerLayer: {
                       or: [isWebpackServerLayer],
                     },
@@ -2146,9 +2156,9 @@ export default async function getBaseWebpackConfig(
                       // opted out of bundling.
                       and: [
                         codeCondition.test,
-                        {
-                          not: [optOutBundlingPackageRegex],
-                        },
+                        // {
+                        //   // not: [optOutBundlingPackageRegex],
+                        // },
                       ],
                     },
                     resolve: {
@@ -2214,7 +2224,7 @@ export default async function getBaseWebpackConfig(
                     issuerLayer: {
                       or: [isWebpackServerLayer],
                     },
-                    exclude: [asyncStoragesRegex],
+                    // exclude: [asyncStoragesRegex],
                     use: swcLoaderForServerLayer,
                   },
                   {
@@ -2232,7 +2242,7 @@ export default async function getBaseWebpackConfig(
                         WEBPACK_LAYERS.appPagesBrowser,
                       ],
                     },
-                    exclude: [asyncStoragesRegex, codeCondition.exclude],
+                    exclude: [codeCondition.exclude],
                     use: [
                       ...(dev && isClient
                         ? [

@@ -1,7 +1,7 @@
 import {
   StaticGenerationAsyncStorage,
   StaticGenerationStore,
-} from '../../../client/components/static-generation-async-storage.shared-runtime'
+} from '../../../client/components/static-generation-async-storage.external'
 
 export function revalidateTag(tag: string) {
   const staticGenerationAsyncStorage = (

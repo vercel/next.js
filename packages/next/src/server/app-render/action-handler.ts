@@ -19,10 +19,10 @@ import {
   isRedirectError,
 } from '../../client/components/redirect'
 import RenderResult from '../render-result'
-import { StaticGenerationStore } from '../../client/components/static-generation-async-storage.shared-runtime'
+import { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
 import { FlightRenderResult } from './flight-render-result'
 import { ActionResult } from './types'
-import { ActionAsyncStorage } from '../../client/components/action-async-storage.shared-runtime'
+import { ActionAsyncStorage } from '../../client/components/action-async-storage.external'
 import {
   filterReqHeaders,
   actionsForbiddenHeaders,
@@ -31,7 +31,7 @@ import {
   appendMutableCookies,
   getModifiedCookieValues,
 } from '../web/spec-extension/adapters/request-cookies'
-import { RequestStore } from '../../client/components/request-async-storage.shared-runtime'
+import { RequestStore } from '../../client/components/request-async-storage.external'
 
 function nodeToWebReadableStream(nodeReadable: import('stream').Readable) {
   if (process.env.NEXT_RUNTIME !== 'edge') {
