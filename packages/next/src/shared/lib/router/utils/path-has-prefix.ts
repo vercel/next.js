@@ -8,7 +8,7 @@ import { parsePath } from './parse-path'
  * @param prefix The prefix to check against.
  */
 export function pathHasPrefix(path: string, prefix: string) {
-  if (typeof path !== 'string') {
+  if (typeof path !== 'string' || prefix.length === 0) {
     return false
   }
 
