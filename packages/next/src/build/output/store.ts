@@ -50,6 +50,7 @@ function hasStoreChanged(nextStore: OutputState) {
 }
 
 let startTime = 0
+let lastTime = Date.now()
 
 store.subscribe((state) => {
   if (!hasStoreChanged(state)) {
@@ -70,7 +71,9 @@ store.subscribe((state) => {
         Log.wait(`compiling ${state.trigger}...`)
       }
     } else {
-      Log.wait('compiling...')
+      if (Date.now() - lastTime > 3 * 1000) {
+        Log.wait('compiling...')
+      }
     }
     if (startTime === 0) {
       startTime = Date.now()
@@ -134,17 +137,19 @@ store.subscribe((state) => {
 
   if (state.typeChecking) {
     Log.info(
-      `bundled${partialMessage} successfully${timeMessage}${modulesMessage}, waiting for typecheck results...`
+      `bundled${partialMessage} ${timeMessage}${modulesMessage}, type checking...`
     )
     return
   }
 
-  Log.event(
-    `compiled${partialMessage} successfully${timeMessage}${modulesMessage}`
-  )
+  Log.event(`compiled${partialMessage} ${timeMessage}${modulesMessage}`)
   // Ensure traces are flushed after each compile in development mode
   flushAllTraces()
   teardownTraceSubscriber()
   teardownHeapProfiler()
   teardownCrashReporter()
+})
+
+store.subscribe((state) => {
+  lastTime = Date.now()
 })

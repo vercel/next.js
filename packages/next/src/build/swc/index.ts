@@ -21,7 +21,9 @@ const infoLog = (...args: any[]) => {
   if (process.env.NEXT_PRIVATE_BUILD_WORKER) {
     return
   }
-  Log.info(...args)
+  if (process.env.DEBUG) {
+    Log.info(...args)
+  }
 }
 
 /**

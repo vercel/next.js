@@ -27,14 +27,15 @@ const experimentalWarning = execOnce(
   (configFileName: string, features: string[]) => {
     const s = features.length > 1 ? 's' : ''
     Log.info(
-      `Experiment${s}: ` +
-        chalk.bold(`${features.join(', ')}`) +
-        ` - ${configFileName}`
+      `Experimental feature${s} (use at your own risk): ` +
+        chalk.bold(`${features.join(', ')}`)
+      //  +
+      // ` - ${configFileName}`
     )
-    Log.warn(
-      `Experimental features are not covered by semver, and may cause unexpected or broken application behavior. ` +
-        `Use at your own risk.`
-    )
+    // Log.warn(
+    //   `Experimental features are not covered by semver, and may cause unexpected or broken application behavior. ` +
+    //     `Use at your own risk.`
+    // )
   }
 )
 
