@@ -17,15 +17,18 @@ use crate::references::internal::InternalCssAssetReference;
 #[derive(Clone)]
 pub struct GlobalCssAsset {
     source: Vc<Box<dyn Source>>,
-    context: Vc<Box<dyn AssetContext>>,
+    asset_context: Vc<Box<dyn AssetContext>>,
 }
 
 #[turbo_tasks::value_impl]
 impl GlobalCssAsset {
     /// Creates a new CSS asset. The CSS is treated as global CSS.
     #[turbo_tasks::function]
-    pub fn new(source: Vc<Box<dyn Source>>, context: Vc<Box<dyn AssetContext>>) -> Vc<Self> {
-        Self::cell(GlobalCssAsset { source, context })
+    pub fn new(source: Vc<Box<dyn Source>>, asset_context: Vc<Box<dyn AssetContext>>) -> Vc<Self> {
+        Self::cell(GlobalCssAsset {
+            source,
+            asset_context,
+        })
     }
 }
 
@@ -38,7 +41,7 @@ impl GlobalCssAsset {
         // This can then be picked up by other rules to treat CSS assets in
         // a special way. For instance, in the Next App Router implementation,
         // RSC CSS assets will be added to the client references manifest.
-        Ok(this.context.process(
+        Ok(this.asset_context.process(
             this.source,
             Value::new(ReferenceType::Css(CssReferenceSubType::Internal)),
         ))

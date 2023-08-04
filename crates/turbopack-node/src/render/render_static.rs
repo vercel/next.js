@@ -166,7 +166,7 @@ async fn static_error(
     );
 
     let issue = RenderingIssue {
-        context: path,
+        file_path: path,
         message: Vc::cell(error),
         status: status.and_then(|status| status.code()),
     };

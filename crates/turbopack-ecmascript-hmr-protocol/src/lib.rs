@@ -129,7 +129,7 @@ pub struct IssueSource<'a> {
 #[derive(Serialize)]
 pub struct Issue<'a> {
     pub severity: IssueSeverity,
-    pub context: &'a str,
+    pub file_path: &'a str,
     pub category: &'a str,
 
     pub title: &'a str,
@@ -155,7 +155,7 @@ impl<'a> From<&'a PlainIssue> for Issue<'a> {
 
         Issue {
             severity: plain.severity,
-            context: &plain.file_path,
+            file_path: &plain.file_path,
             category: &plain.category,
             title: &plain.title,
             description: &plain.description,

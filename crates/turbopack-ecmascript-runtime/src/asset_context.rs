@@ -16,12 +16,12 @@ pub fn get_runtime_asset_context(environment: Vc<Environment>) -> Vc<Box<dyn Ass
     .cell();
     let compile_time_info = CompileTimeInfo::builder(environment).cell();
 
-    let context: Vc<Box<dyn AssetContext>> = Vc::upcast(ModuleAssetContext::new(
+    let asset_context: Vc<Box<dyn AssetContext>> = Vc::upcast(ModuleAssetContext::new(
         Vc::cell(Default::default()),
         compile_time_info,
         module_options_context,
         Vc::default(),
     ));
 
-    context
+    asset_context
 }

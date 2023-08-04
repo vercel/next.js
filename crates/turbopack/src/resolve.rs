@@ -71,17 +71,17 @@ const NODE_EXTERNALS: [&str; 51] = [
 
 #[turbo_tasks::function]
 async fn base_resolve_options(
-    context: Vc<FileSystemPath>,
+    resolve_path: Vc<FileSystemPath>,
     options_context: Vc<ResolveOptionsContext>,
 ) -> Result<Vc<ResolveOptions>> {
-    let parent = context.parent().resolve().await?;
-    if parent != context {
+    let parent = resolve_path.parent().resolve().await?;
+    if parent != resolve_path {
         return Ok(base_resolve_options(parent, options_context));
     }
-    let context_value = context.await?;
+    let resolve_path_value = resolve_path.await?;
     let opt = options_context.await?;
     let emulating = opt.emulate_environment;
-    let root = context_value.fs.root();
+    let root = resolve_path_value.fs.root();
     let mut direct_mappings = AliasMap::new();
     let node_externals = if let Some(environment) = emulating {
         environment.node_externals().await?.clone_value()
@@ -232,23 +232,23 @@ async fn base_resolve_options(
 
 #[turbo_tasks::function]
 pub async fn resolve_options(
-    context: Vc<FileSystemPath>,
+    resolve_path: Vc<FileSystemPath>,
     options_context: Vc<ResolveOptionsContext>,
 ) -> Result<Vc<ResolveOptions>> {
     let options_context_value = options_context.await?;
     if !options_context_value.rules.is_empty() {
-        let context_value = &*context.await?;
+        let context_value = &*resolve_path.await?;
         for (condition, new_options_context) in options_context_value.rules.iter() {
             if condition.matches(context_value).await? {
-                return Ok(resolve_options(context, *new_options_context));
+                return Ok(resolve_options(resolve_path, *new_options_context));
             }
         }
     }
 
-    let resolve_options = base_resolve_options(context, options_context);
+    let resolve_options = base_resolve_options(resolve_path, options_context);
 
     let resolve_options = if options_context_value.enable_typescript {
-        let tsconfig = find_context_file(context, tsconfig()).await?;
+        let tsconfig = find_context_file(resolve_path, tsconfig()).await?;
         match *tsconfig {
             FindContextFileResult::Found(path, _) => {
                 apply_tsconfig_resolve_options(resolve_options, tsconfig_resolve_options(path))

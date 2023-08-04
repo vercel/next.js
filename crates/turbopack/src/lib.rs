@@ -96,7 +96,7 @@ impl Issue for ModuleIssue {
 #[turbo_tasks::function]
 async fn apply_module_type(
     source: Vc<Box<dyn Source>>,
-    context: Vc<ModuleAssetContext>,
+    module_asset_context: Vc<ModuleAssetContext>,
     module_type: Vc<ModuleType>,
     part: Option<Vc<ModulePart>>,
     inner_assets: Option<Vc<InnerAssets>>,
@@ -122,16 +122,16 @@ async fn apply_module_type(
             let context_for_module = match module_type {
                 ModuleType::TypescriptWithTypes { .. }
                 | ModuleType::TypescriptDeclaration { .. } => {
-                    context.with_types_resolving_enabled()
+                    module_asset_context.with_types_resolving_enabled()
                 }
-                _ => context,
+                _ => module_asset_context,
             };
             let mut builder = EcmascriptModuleAsset::builder(
                 source,
                 Vc::upcast(context_for_module),
                 *transforms,
                 *options,
-                context.compile_time_info(),
+                module_asset_context.compile_time_info(),
             );
             match module_type {
                 ModuleType::Ecmascript { .. } => {
@@ -163,29 +163,38 @@ async fn apply_module_type(
         }
         ModuleType::Json => Vc::upcast(JsonModuleAsset::new(source)),
         ModuleType::Raw => Vc::upcast(RawModule::new(source)),
-        ModuleType::CssGlobal => Vc::upcast(GlobalCssAsset::new(source, Vc::upcast(context))),
-        ModuleType::CssModule => Vc::upcast(ModuleCssAsset::new(source, Vc::upcast(context))),
+        ModuleType::CssGlobal => Vc::upcast(GlobalCssAsset::new(
+            source,
+            Vc::upcast(module_asset_context),
+        )),
+        ModuleType::CssModule => Vc::upcast(ModuleCssAsset::new(
+            source,
+            Vc::upcast(module_asset_context),
+        )),
         ModuleType::Css { ty, transforms } => Vc::upcast(CssModuleAsset::new(
             source,
-            Vc::upcast(context),
+            Vc::upcast(module_asset_context),
             *transforms,
             *ty,
         )),
-        ModuleType::Static => Vc::upcast(StaticModuleAsset::new(source, Vc::upcast(context))),
+        ModuleType::Static => Vc::upcast(StaticModuleAsset::new(
+            source,
+            Vc::upcast(module_asset_context),
+        )),
         ModuleType::Mdx {
             transforms,
             options,
         } => Vc::upcast(MdxModuleAsset::new(
             source,
-            Vc::upcast(context),
+            Vc::upcast(module_asset_context),
             *transforms,
             *options,
         )),
         ModuleType::WebAssembly { source_ty } => Vc::upcast(WebAssemblyModuleAsset::new(
             WebAssemblySource::new(source, *source_ty),
-            Vc::upcast(context),
+            Vc::upcast(module_asset_context),
         )),
-        ModuleType::Custom(custom) => custom.create_module(source, context, part),
+        ModuleType::Custom(custom) => custom.create_module(source, module_asset_context, part),
     })
 }
 
@@ -241,8 +250,10 @@ impl ModuleAssetContext {
 
     #[turbo_tasks::function]
     pub async fn is_types_resolving_enabled(self: Vc<Self>) -> Result<Vc<bool>> {
-        let context = self.await?.resolve_options_context.await?;
-        Ok(Vc::cell(context.enable_types && context.enable_typescript))
+        let resolve_options_context = self.await?.resolve_options_context.await?;
+        Ok(Vc::cell(
+            resolve_options_context.enable_types && resolve_options_context.enable_typescript,
+        ))
     }
 
     #[turbo_tasks::function]
@@ -276,13 +287,16 @@ impl ModuleAssetContext {
 
 #[turbo_tasks::function]
 async fn process_default(
-    context: Vc<ModuleAssetContext>,
+    module_asset_context: Vc<ModuleAssetContext>,
     source: Vc<Box<dyn Source>>,
     reference_type: Value<ReferenceType>,
     processed_rules: Vec<usize>,
 ) -> Result<Vc<Box<dyn Module>>> {
     let ident = source.ident().resolve().await?;
-    let options = ModuleOptions::new(ident.path().parent(), context.module_options_context());
+    let options = ModuleOptions::new(
+        ident.path().parent(),
+        module_asset_context.module_options_context(),
+    );
 
     let reference_type = reference_type.into_value();
     let part: Option<Vc<ModulePart>> = match &reference_type {
@@ -314,7 +328,7 @@ async fn process_default(
                             let mut processed_rules = processed_rules.clone();
                             processed_rules.push(i);
                             return Ok(process_default(
-                                context,
+                                module_asset_context,
                                 current_source,
                                 Value::new(reference_type),
                                 processed_rules,
@@ -386,7 +400,7 @@ async fn process_default(
 
     Ok(apply_module_type(
         current_source,
-        context,
+        module_asset_context,
         module_type,
         part,
         inner_assets,
@@ -407,7 +421,7 @@ impl AssetContext for ModuleAssetContext {
         _reference_type: Value<ReferenceType>,
     ) -> Result<Vc<ResolveOptions>> {
         let this = self.await?;
-        let context = if let Some(transition) = this.transition {
+        let module_asset_context = if let Some(transition) = this.transition {
             transition.process_context(self)
         } else {
             self
@@ -415,7 +429,7 @@ impl AssetContext for ModuleAssetContext {
         // TODO move `apply_commonjs/esm_resolve_options` etc. to here
         Ok(resolve_options(
             origin_path.parent().resolve().await?,
-            context.await?.resolve_options_context,
+            module_asset_context.await?.resolve_options_context,
         ))
     }
 

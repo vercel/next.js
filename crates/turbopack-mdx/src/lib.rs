@@ -75,7 +75,7 @@ impl ValueDefault for MdxTransformOptions {
 #[derive(Clone, Copy)]
 pub struct MdxModuleAsset {
     source: Vc<Box<dyn Source>>,
-    context: Vc<Box<dyn AssetContext>>,
+    asset_context: Vc<Box<dyn AssetContext>>,
     transforms: Vc<EcmascriptInputTransforms>,
     options: Vc<MdxTransformOptions>,
 }
@@ -132,11 +132,11 @@ async fn into_ecmascript_module_asset(
     );
     Ok(EcmascriptModuleAsset::new(
         Vc::upcast(source),
-        this.context,
+        this.asset_context,
         Value::new(EcmascriptModuleAssetType::Typescript),
         this.transforms,
         Value::new(Default::default()),
-        this.context.compile_time_info(),
+        this.asset_context.compile_time_info(),
     ))
 }
 
@@ -145,13 +145,13 @@ impl MdxModuleAsset {
     #[turbo_tasks::function]
     pub fn new(
         source: Vc<Box<dyn Source>>,
-        context: Vc<Box<dyn AssetContext>>,
+        asset_context: Vc<Box<dyn AssetContext>>,
         transforms: Vc<EcmascriptInputTransforms>,
         options: Vc<MdxTransformOptions>,
     ) -> Vc<Self> {
         Self::cell(MdxModuleAsset {
             source,
-            context,
+            asset_context,
             transforms,
             options,
         })
@@ -191,11 +191,11 @@ impl ChunkableModule for MdxModuleAsset {
     #[turbo_tasks::function]
     fn as_chunk(
         self: Vc<Self>,
-        context: Vc<Box<dyn ChunkingContext>>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
         availability_info: Value<AvailabilityInfo>,
     ) -> Vc<Box<dyn Chunk>> {
         Vc::upcast(EcmascriptChunk::new(
-            context,
+            chunking_context,
             Vc::upcast(self),
             availability_info,
         ))
@@ -207,11 +207,11 @@ impl EcmascriptChunkPlaceable for MdxModuleAsset {
     #[turbo_tasks::function]
     fn as_chunk_item(
         self: Vc<Self>,
-        context: Vc<Box<dyn EcmascriptChunkingContext>>,
+        chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
     ) -> Vc<Box<dyn EcmascriptChunkItem>> {
         Vc::upcast(MdxChunkItem::cell(MdxChunkItem {
             module: self,
-            context,
+            chunking_context,
         }))
     }
 
@@ -230,14 +230,14 @@ impl ResolveOrigin for MdxModuleAsset {
 
     #[turbo_tasks::function]
     fn asset_context(&self) -> Vc<Box<dyn AssetContext>> {
-        self.context
+        self.asset_context
     }
 }
 
 #[turbo_tasks::value]
 struct MdxChunkItem {
     module: Vc<MdxModuleAsset>,
-    context: Vc<Box<dyn EcmascriptChunkingContext>>,
+    chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -257,7 +257,7 @@ impl ChunkItem for MdxChunkItem {
 impl EcmascriptChunkItem for MdxChunkItem {
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn EcmascriptChunkingContext>> {
-        self.context
+        self.chunking_context
     }
 
     /// Once we have mdx contents, we should treat it as j|tsx components and
@@ -266,7 +266,7 @@ impl EcmascriptChunkItem for MdxChunkItem {
     async fn content(&self) -> Result<Vc<EcmascriptChunkItemContent>> {
         Ok(into_ecmascript_module_asset(&self.module)
             .await?
-            .as_chunk_item(self.context)
+            .as_chunk_item(self.chunking_context)
             .content())
     }
 }

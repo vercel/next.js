@@ -203,7 +203,7 @@ async fn run_test(resource: String) -> Result<Vc<RunTestResult>> {
         )
         .cell();
 
-    let context: Vc<Box<dyn AssetContext>> = Vc::upcast(ModuleAssetContext::new(
+    let asset_context: Vc<Box<dyn AssetContext>> = Vc::upcast(ModuleAssetContext::new(
         Vc::cell(HashMap::new()),
         compile_time_info,
         ModuleOptionsContext {
@@ -246,7 +246,7 @@ async fn run_test(resource: String) -> Result<Vc<RunTestResult>> {
     )
     .build();
 
-    let jest_entry_asset = process_path_to_asset(jest_entry_path, context);
+    let jest_entry_asset = process_path_to_asset(jest_entry_path, asset_context);
     let jest_runtime_asset = FileSource::new(jest_runtime_path);
     let test_asset = FileSource::new(test_path);
 
@@ -255,11 +255,11 @@ async fn run_test(resource: String) -> Result<Vc<RunTestResult>> {
         path,
         Vc::upcast(CommandLineProcessEnv::new()),
         test_asset.ident(),
-        context,
+        asset_context,
         Vc::upcast(chunking_context),
         Some(EvaluatableAssets::many(vec![
-            jest_runtime_asset.to_evaluatable(context),
-            test_asset.to_evaluatable(context),
+            jest_runtime_asset.to_evaluatable(asset_context),
+            test_asset.to_evaluatable(asset_context),
         ])),
         vec![],
         Completion::immutable(),
@@ -324,9 +324,9 @@ async fn snapshot_issues(run_result: Vc<RunTestResult>) -> Result<Vc<()>> {
 #[turbo_tasks::function]
 fn process_path_to_asset(
     path: Vc<FileSystemPath>,
-    context: Vc<Box<dyn AssetContext>>,
+    asset_context: Vc<Box<dyn AssetContext>>,
 ) -> Vc<Box<dyn Module>> {
-    context.process(
+    asset_context.process(
         Vc::upcast(FileSource::new(path)),
         Value::new(ReferenceType::Entry(EntryReferenceSubType::Undefined)),
     )

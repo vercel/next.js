@@ -33,14 +33,14 @@ impl ContextCondition {
 
     #[async_recursion]
     /// Returns true if the condition matches the context.
-    pub async fn matches(&self, context: &FileSystemPath) -> Result<bool> {
+    pub async fn matches(&self, path: &FileSystemPath) -> Result<bool> {
         match self {
             ContextCondition::All(conditions) => {
                 // False positive.
                 #[allow(clippy::manual_try_fold)]
                 stream::iter(conditions)
                     .fold(Ok(true), |acc, c| async move {
-                        Ok(acc? && c.matches(context).await?)
+                        Ok(acc? && c.matches(path).await?)
                     })
                     .await
             }
@@ -49,16 +49,16 @@ impl ContextCondition {
                 #[allow(clippy::manual_try_fold)]
                 stream::iter(conditions)
                     .fold(Ok(true), |acc, c| async move {
-                        Ok(acc? || c.matches(context).await?)
+                        Ok(acc? || c.matches(path).await?)
                     })
                     .await
             }
-            ContextCondition::Not(condition) => condition.matches(context).await.map(|b| !b),
-            ContextCondition::InPath(path) => Ok(context.is_inside_ref(&*path.await?)),
-            ContextCondition::InDirectory(dir) => Ok(context.path.starts_with(&format!("{dir}/"))
-                || context.path.contains(&format!("/{dir}/"))
-                || context.path.ends_with(&format!("/{dir}"))
-                || context.path == *dir),
+            ContextCondition::Not(condition) => condition.matches(path).await.map(|b| !b),
+            ContextCondition::InPath(other_path) => Ok(path.is_inside_ref(&*other_path.await?)),
+            ContextCondition::InDirectory(dir) => Ok(path.path.starts_with(&format!("{dir}/"))
+                || path.path.contains(&format!("/{dir}/"))
+                || path.path.ends_with(&format!("/{dir}"))
+                || path.path == *dir),
         }
     }
 }

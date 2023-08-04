@@ -6,7 +6,7 @@ use turbopack_core::issue::Issue;
 #[turbo_tasks::value(shared)]
 #[derive(Copy, Clone)]
 pub struct RenderingIssue {
-    pub context: Vc<FileSystemPath>,
+    pub file_path: Vc<FileSystemPath>,
     pub message: Vc<String>,
     pub status: Option<i32>,
 }
@@ -25,7 +25,7 @@ impl Issue for RenderingIssue {
 
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        self.context
+        self.file_path
     }
 
     #[turbo_tasks::function]

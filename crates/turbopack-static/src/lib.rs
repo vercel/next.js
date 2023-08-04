@@ -47,23 +47,26 @@ fn modifier() -> Vc<String> {
 #[derive(Clone)]
 pub struct StaticModuleAsset {
     pub source: Vc<Box<dyn Source>>,
-    pub context: Vc<Box<dyn AssetContext>>,
+    pub asset_context: Vc<Box<dyn AssetContext>>,
 }
 
 #[turbo_tasks::value_impl]
 impl StaticModuleAsset {
     #[turbo_tasks::function]
-    pub fn new(source: Vc<Box<dyn Source>>, context: Vc<Box<dyn AssetContext>>) -> Vc<Self> {
-        Self::cell(StaticModuleAsset { source, context })
+    pub fn new(source: Vc<Box<dyn Source>>, asset_context: Vc<Box<dyn AssetContext>>) -> Vc<Self> {
+        Self::cell(StaticModuleAsset {
+            source,
+            asset_context,
+        })
     }
 
     #[turbo_tasks::function]
     async fn static_asset(
         self: Vc<Self>,
-        context: Vc<Box<dyn ChunkingContext>>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<StaticAsset>> {
         Ok(StaticAsset::cell(StaticAsset {
-            context,
+            chunking_context,
             source: self.await?.source,
         }))
     }
@@ -90,11 +93,11 @@ impl ChunkableModule for StaticModuleAsset {
     #[turbo_tasks::function]
     fn as_chunk(
         self: Vc<Self>,
-        context: Vc<Box<dyn ChunkingContext>>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
         availability_info: Value<AvailabilityInfo>,
     ) -> Vc<Box<dyn Chunk>> {
         Vc::upcast(EcmascriptChunk::new(
-            context,
+            chunking_context,
             Vc::upcast(self),
             availability_info,
         ))
@@ -106,12 +109,12 @@ impl EcmascriptChunkPlaceable for StaticModuleAsset {
     #[turbo_tasks::function]
     fn as_chunk_item(
         self: Vc<Self>,
-        context: Vc<Box<dyn EcmascriptChunkingContext>>,
+        chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
     ) -> Vc<Box<dyn EcmascriptChunkItem>> {
         Vc::upcast(ModuleChunkItem::cell(ModuleChunkItem {
             module: self,
-            context,
-            static_asset: self.static_asset(Vc::upcast(context)),
+            chunking_context,
+            static_asset: self.static_asset(Vc::upcast(chunking_context)),
         }))
     }
 
@@ -126,17 +129,17 @@ impl CssEmbeddable for StaticModuleAsset {
     #[turbo_tasks::function]
     fn as_css_embed(
         self: Vc<Self>,
-        context: Vc<Box<dyn ChunkingContext>>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Vc<Box<dyn CssEmbed>> {
         Vc::upcast(StaticCssEmbed::cell(StaticCssEmbed {
-            static_asset: self.static_asset(context),
+            static_asset: self.static_asset(chunking_context),
         }))
     }
 }
 
 #[turbo_tasks::value]
 struct StaticAsset {
-    context: Vc<Box<dyn ChunkingContext>>,
+    chunking_context: Vc<Box<dyn ChunkingContext>>,
     source: Vc<Box<dyn Source>>,
 }
 
@@ -156,7 +159,7 @@ impl OutputAsset for StaticAsset {
         };
         let content_hash_b16 = turbo_tasks_hash::encode_hex(content_hash);
         let asset_path = self
-            .context
+            .chunking_context
             .asset_path(content_hash_b16, self.source.ident());
         Ok(AssetIdent::from_path(asset_path))
     }
@@ -173,7 +176,7 @@ impl Asset for StaticAsset {
 #[turbo_tasks::value]
 struct ModuleChunkItem {
     module: Vc<StaticModuleAsset>,
-    context: Vc<Box<dyn EcmascriptChunkingContext>>,
+    chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
     static_asset: Vc<StaticAsset>,
 }
 
@@ -200,7 +203,7 @@ impl ChunkItem for ModuleChunkItem {
 impl EcmascriptChunkItem for ModuleChunkItem {
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn EcmascriptChunkingContext>> {
-        self.context
+        self.chunking_context
     }
 
     #[turbo_tasks::function]

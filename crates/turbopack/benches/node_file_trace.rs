@@ -83,7 +83,7 @@ fn bench_emit(b: &mut Bencher, bench_input: &BenchInput) {
                     ExecutionEnvironment::NodeJsLambda(NodeJsEnvironment::default().into()),
                 )))
                 .cell();
-                let context = ModuleAssetContext::new(
+                let module_asset_context = ModuleAssetContext::new(
                     Vc::cell(HashMap::new()),
                     compile_time_info,
                     ModuleOptionsContext {
@@ -97,8 +97,8 @@ fn bench_emit(b: &mut Bencher, bench_input: &BenchInput) {
                     }
                     .cell(),
                 );
-                let module =
-                    context.process(Vc::upcast(source), Value::new(ReferenceType::Undefined));
+                let module = module_asset_context
+                    .process(Vc::upcast(source), Value::new(ReferenceType::Undefined));
                 let rebased = RebasedAsset::new(Vc::upcast(module), input_dir, output_dir);
 
                 emit_with_completion(Vc::upcast(rebased), output_dir).await?;

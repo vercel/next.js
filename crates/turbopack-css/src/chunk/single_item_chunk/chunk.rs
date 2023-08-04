@@ -21,7 +21,7 @@ use crate::chunk::CssChunkItem;
 /// avoiding rule duplication.
 #[turbo_tasks::value]
 pub struct SingleItemCssChunk {
-    context: Vc<Box<dyn ChunkingContext>>,
+    chunking_context: Vc<Box<dyn ChunkingContext>>,
     item: Vc<Box<dyn CssChunkItem>>,
 }
 
@@ -29,8 +29,15 @@ pub struct SingleItemCssChunk {
 impl SingleItemCssChunk {
     /// Creates a new [`Vc<SingleItemCssChunk>`].
     #[turbo_tasks::function]
-    pub fn new(context: Vc<Box<dyn ChunkingContext>>, item: Vc<Box<dyn CssChunkItem>>) -> Vc<Self> {
-        SingleItemCssChunk { context, item }.cell()
+    pub fn new(
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        item: Vc<Box<dyn CssChunkItem>>,
+    ) -> Vc<Self> {
+        SingleItemCssChunk {
+            chunking_context,
+            item,
+        }
+        .cell()
     }
 }
 
@@ -50,7 +57,7 @@ impl SingleItemCssChunk {
         code.push_source(&content.inner_code, content.source_map.map(Vc::upcast));
 
         if *this
-            .context
+            .chunking_context
             .reference_chunk_source_maps(Vc::upcast(self))
             .await?
             && code.has_source_map()
@@ -78,7 +85,7 @@ impl Chunk for SingleItemCssChunk {
 
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        self.context
+        self.chunking_context
     }
 }
 
@@ -92,7 +99,7 @@ impl OutputAsset for SingleItemCssChunk {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
         Ok(AssetIdent::from_path(
-            self.context.chunk_path(
+            self.chunking_context.chunk_path(
                 self.item
                     .asset_ident()
                     .with_modifier(single_item_modifier()),
@@ -106,7 +113,7 @@ impl OutputAsset for SingleItemCssChunk {
         let this = self.await?;
         let mut references = Vec::new();
         if *this
-            .context
+            .chunking_context
             .reference_chunk_source_maps(Vc::upcast(self))
             .await?
         {

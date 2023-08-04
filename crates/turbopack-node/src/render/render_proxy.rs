@@ -118,7 +118,7 @@ async fn proxy_error(
     .clone_value();
 
     RenderingIssue {
-        context: path,
+        file_path: path,
         message: Vc::cell(message),
         status: status.and_then(|status| status.code()),
     }

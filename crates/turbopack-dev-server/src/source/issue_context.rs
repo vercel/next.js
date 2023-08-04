@@ -13,22 +13,22 @@ use super::{
 };
 
 #[turbo_tasks::value]
-pub struct IssueContextContentSource {
-    context: Option<Vc<FileSystemPath>>,
+pub struct IssueFilePathContentSource {
+    file_path: Option<Vc<FileSystemPath>>,
     description: String,
     source: Vc<Box<dyn ContentSource>>,
 }
 
 #[turbo_tasks::value_impl]
-impl IssueContextContentSource {
+impl IssueFilePathContentSource {
     #[turbo_tasks::function]
-    pub fn new_context(
-        context: Vc<FileSystemPath>,
+    pub fn new_file_path(
+        file_path: Vc<FileSystemPath>,
         description: String,
         source: Vc<Box<dyn ContentSource>>,
     ) -> Vc<Self> {
-        IssueContextContentSource {
-            context: Some(context),
+        IssueFilePathContentSource {
+            file_path: Some(file_path),
             description,
             source,
         }
@@ -37,8 +37,8 @@ impl IssueContextContentSource {
 
     #[turbo_tasks::function]
     pub fn new_description(description: String, source: Vc<Box<dyn ContentSource>>) -> Vc<Self> {
-        IssueContextContentSource {
-            context: None,
+        IssueFilePathContentSource {
+            file_path: None,
             description,
             source,
         }
@@ -47,14 +47,14 @@ impl IssueContextContentSource {
 }
 
 #[turbo_tasks::value_impl]
-impl ContentSource for IssueContextContentSource {
+impl ContentSource for IssueFilePathContentSource {
     #[turbo_tasks::function]
     async fn get_routes(self: Vc<Self>) -> Result<Vc<RouteTree>> {
         let this = self.await?;
         let routes = this
             .source
             .get_routes()
-            .issue_file_path(this.context, &this.description)
+            .issue_file_path(this.file_path, &this.description)
             .await?;
         Ok(routes.map_routes(Vc::upcast(
             IssueContextContentSourceMapper { source: self }.cell(),
@@ -69,7 +69,7 @@ impl ContentSource for IssueContextContentSource {
 
 #[turbo_tasks::value]
 struct IssueContextContentSourceMapper {
-    source: Vc<IssueContextContentSource>,
+    source: Vc<IssueFilePathContentSource>,
 }
 
 #[turbo_tasks::value_impl]
@@ -92,7 +92,7 @@ impl MapGetContentSourceContent for IssueContextContentSourceMapper {
 #[turbo_tasks::value]
 struct IssueContextGetContentSourceContent {
     get_content: Vc<Box<dyn GetContentSourceContent>>,
-    source: Vc<IssueContextContentSource>,
+    source: Vc<IssueFilePathContentSource>,
 }
 
 #[turbo_tasks::value_impl]
@@ -103,7 +103,7 @@ impl GetContentSourceContent for IssueContextGetContentSourceContent {
         let result = self
             .get_content
             .vary()
-            .issue_file_path(source.context, &source.description)
+            .issue_file_path(source.file_path, &source.description)
             .await?;
         Ok(result)
     }
@@ -118,14 +118,14 @@ impl GetContentSourceContent for IssueContextGetContentSourceContent {
         let result = self
             .get_content
             .get(path, data)
-            .issue_file_path(source.context, &source.description)
+            .issue_file_path(source.file_path, &source.description)
             .await?;
         Ok(result)
     }
 }
 
 #[turbo_tasks::value_impl]
-impl Introspectable for IssueContextContentSource {
+impl Introspectable for IssueFilePathContentSource {
     #[turbo_tasks::function]
     async fn ty(&self) -> Result<Vc<String>> {
         Ok(
