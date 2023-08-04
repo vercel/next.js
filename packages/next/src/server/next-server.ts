@@ -1276,12 +1276,6 @@ export default class NextNodeServer extends BaseServer {
           .catch(() => {})
       }
 
-      console.log(
-        'this.getEdgeFunctionsPages()',
-        this.getEdgeFunctionsPages(),
-        'notFoundPathname',
-        notFoundPathname
-      )
       if (this.getEdgeFunctionsPages().includes(notFoundPathname)) {
         await this.runEdgeFunction({
           req: req as BaseNextRequest,
