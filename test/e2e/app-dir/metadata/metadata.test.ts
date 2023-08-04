@@ -33,7 +33,11 @@ createNextDescribe(
         } else {
           // If expected is undefined, then it should not exist.
           // Otherwise, it should exist in the matched values.
-          expect(values.includes(expected)).toBe(expected !== undefined)
+          if (expected === undefined) {
+            expect(values).not.toContain(undefined)
+          } else {
+            expect(values).toContain(expected)
+          }
         }
       }
     }
