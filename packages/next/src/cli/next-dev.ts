@@ -65,7 +65,7 @@ const handleSessionStop = async () => {
       typeof traceGlobals.get('pagesDir') === 'undefined' ||
       typeof traceGlobals.get('appDir') === 'undefined'
     ) {
-      const pagesResult = findPagesDir(dir, !!config.experimental.appDir)
+      const pagesResult = findPagesDir(dir, true)
       appDir = !!pagesResult.appDir
       pagesDir = !!pagesResult.pagesDir
     }
@@ -387,7 +387,7 @@ const nextDev: CliCommand = async (argv) => {
       }
     }
 
-    let runningServer = await runDevServer(false)
+    let runningServer: Awaited<ReturnType<typeof runDevServer>> | undefined
 
     watchConfigFiles(devServerOptions.dir, async (filename) => {
       if (process.env.__NEXT_DISABLE_MEMORY_WATCHER) {
@@ -412,6 +412,8 @@ const nextDev: CliCommand = async (argv) => {
         process.exit(1)
       }
     })
+
+    runningServer = await runDevServer(false)
   }
 }
 
