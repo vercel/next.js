@@ -479,7 +479,10 @@ export default class HotReloader {
     return span
       .traceChild('clean')
       .traceAsyncFn(() =>
-        recursiveDelete(join(this.dir, this.config.distDir), /^cache/)
+        recursiveDelete(
+          join(this.dir, this.config.distDir),
+          /^cache|next-env\.d\.ts/
+        )
       )
   }
 

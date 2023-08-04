@@ -14,7 +14,7 @@ export async function writeAppTypeDeclarations({
   isAppDirEnabled: boolean
 }): Promise<void> {
   // Reference `next` types
-  const appTypeDeclarations = path.join(baseDir, 'next-env.d.ts')
+  const appTypeDeclarations = path.join(baseDir, '.next', 'next-env.d.ts')
 
   // Defaults EOL to system default
   let eol = os.EOL
@@ -55,18 +55,21 @@ export async function writeAppTypeDeclarations({
     )
   }
 
-  // Push the notice in.
-  directives.push(
-    '',
-    '// NOTE: This file should not be edited',
-    '// see https://nextjs.org/docs/basic-features/typescript for more information.'
-  )
-
   const content = directives.join(eol) + eol
 
   // Avoids an un-necessary write on read-only fs
   if (currentContent === content) {
     return
   }
+
+  const appTypeDeclarationsDir = path.dirname(appTypeDeclarations)
+
+  try {
+    await fs.access(appTypeDeclarationsDir)
+  } catch (error) {
+    if ((error as any).code !== 'ENOENT') return
+    await fs.mkdir(appTypeDeclarationsDir, { recursive: true })
+  }
+
   await fs.writeFile(appTypeDeclarations, content)
 }
