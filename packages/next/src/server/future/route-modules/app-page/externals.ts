@@ -11,3 +11,6 @@ export * as loadableContext from '../../../../shared/lib/loadable-context.shared
 export * as imageConfigContext from '../../../../shared/lib/image-config-context.shared-runtime'
 export * as runtimeConfig from '../../../../shared/lib/runtime-config.shared-runtime'
 export * as loadable from '../../../../shared/lib/loadable.shared-runtime'
+export * as requestAsyncStorage from '../../../../client/components/request-async-storage.shared-runtime'
+export * as actionAsyncStorage from '../../../../client/components/action-async-storage.shared-runtime'
+export * as staticGenerationAsyncStorage from '../../../../client/components/static-generation-async-storage.shared-runtime'
