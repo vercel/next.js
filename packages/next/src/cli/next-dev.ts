@@ -407,10 +407,15 @@ const nextDev: CliCommand = async (argv) => {
         )}. Restarting the server to apply the changes...`
       )
 
-      if (runningServer) {
-        await runningServer.cleanup()
+      try {
+        if (runningServer) {
+          await runningServer.cleanup()
+        }
+        runningServer = await runDevServer(true)
+      } catch (err) {
+        console.error(err)
+        process.exit(1)
       }
-      runningServer = await runDevServer(true)
     })
   }
 }
