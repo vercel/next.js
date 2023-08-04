@@ -98,12 +98,7 @@ process.on('SIGTERM', handleSessionStop)
 
 function watchConfigFiles(
   dirToWatch: string,
-  onChange = (filename: string) =>
-    Log.warn(
-      `\n> Found a change in ${path.basename(
-        filename
-      )}. Restart the server to see the changes in effect.`
-    )
+  onChange: (filename: string) => void
 ) {
   const wp = new Watchpack()
   wp.watch({ files: CONFIG_FILES.map((file) => path.join(dirToWatch, file)) })
