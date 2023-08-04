@@ -344,6 +344,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     forceReload?: boolean
   }): void
 
+  protected loggedEnv: boolean
+
   // TODO-APP: (wyattjoh): Make protected again. Used for turbopack in route-resolver.ts right now.
   public readonly matchers: RouteMatcherManager
   protected readonly i18nProvider?: I18NProvider
@@ -368,7 +370,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       process.env.NEXT_RUNTIME === 'edge' ? dir : require('path').resolve(dir)
 
     this.quiet = quiet
+    this.loggedEnv = false
     this.loadEnvConfig({ dev })
+    this.loggedEnv = true
 
     // TODO: should conf be normalized to prevent missing
     // values from causing issues as this can be user provided

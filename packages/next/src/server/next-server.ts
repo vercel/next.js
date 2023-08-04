@@ -261,12 +261,21 @@ export default class NextNodeServer extends BaseServer {
     forceReload?: boolean
     silent?: boolean
   }) {
-    loadEnvConfig(
+    const { loadedEnvFiles } = loadEnvConfig(
       this.dir,
       dev,
       silent ? { info: () => {}, error: () => {} } : Log,
       forceReload
     )
+    // console.log('this.loggedEnv', this.loggedEnv, 'this.isRenderWorker', this.isRenderWorker)
+    if (!silent && !this.loggedEnv) {
+      // console.trace('trace logging', )
+      this.loggedEnv = true
+      Log.bootstrap(
+        '- Environments:',
+        loadedEnvFiles.map((f) => f.path).join(', ')
+      )
+    }
   }
 
   protected getIncrementalCache({

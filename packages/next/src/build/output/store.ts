@@ -59,8 +59,8 @@ store.subscribe((state) => {
 
   if (state.bootstrap) {
     if (state.appUrl) {
-      Log.info(`Local: ${chalk.bold(state.appUrl)}`)
-      Log.info(`Network: ${chalk.bold(state.bindAddr)}`)
+      Log.bootstrap(`- Local: ${chalk.bold(state.appUrl)}`)
+      Log.bootstrap(`- Network: ${chalk.bold(state.bindAddr)}`)
     }
     return
   }
@@ -142,7 +142,9 @@ store.subscribe((state) => {
     return
   }
 
-  Log.event(`compiled${partialMessage} ${timeMessage}${modulesMessage}`)
+  if (partialMessage !== ' client and server') {
+    Log.event(`compiled${partialMessage} ${timeMessage}${modulesMessage}`)
+  }
   // Ensure traces are flushed after each compile in development mode
   flushAllTraces()
   teardownTraceSubscriber()

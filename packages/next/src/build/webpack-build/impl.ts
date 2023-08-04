@@ -314,7 +314,7 @@ export async function webpackBuildImpl(
       console.warn()
     } else if (!compilerName) {
       NextBuildContext.buildSpinner?.stopAndPersist()
-      Log.info('Compiled successfully')
+      Log.info('Compiled')
     }
 
     return {

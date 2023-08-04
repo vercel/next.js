@@ -210,9 +210,9 @@ export async function startServer({
       }
 
       if (logReady) {
-        Log.info(`Local: ${appUrl}`)
-        Log.info(
-          `Network: ${actualHostname}${
+        Log.bootstrap(`- Local: ${appUrl}`)
+        Log.bootstrap(
+          `- Network: ${actualHostname}${
             (port + '').startsWith(':') ? '' : ':'
           }${port}`
         )

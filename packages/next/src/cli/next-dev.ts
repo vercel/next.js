@@ -27,6 +27,7 @@ import type { ChildProcess } from 'child_process'
 import { checkIsNodeDebugging } from '../server/lib/is-node-debugging'
 import { createSelfSignedCertificate } from '../lib/mkcert'
 import uploadTrace from '../trace/upload-trace'
+import { version } from '../../package.json'
 
 let dir: string
 let config: NextConfigComplete
@@ -301,6 +302,9 @@ const nextDev: CliCommand = async (argv) => {
   // We do not set a default host value here to prevent breaking
   // some set-ups that rely on listening on other interfaces
   const host = args['--hostname']
+
+  Log.bootstrap(Log.prefixes.ready, `Next.js ${version}`)
+
   config = await loadConfig(PHASE_DEVELOPMENT_SERVER, dir)
   const isExperimentalTestProxy = args['--experimental-test-proxy']
 

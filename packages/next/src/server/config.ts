@@ -26,8 +26,8 @@ export { DomainLocale, NextConfig, normalizeConfig } from './config-shared'
 const experimentalWarning = execOnce(
   (configFileName: string, features: string[]) => {
     const s = features.length > 1 ? 's' : ''
-    Log.info(
-      `Experimental feature${s} (use at your own risk): ` +
+    Log.bootstrap(
+      `- Experimental feature${s} (use at your own risk): ` +
         chalk.bold(`${features.join(', ')}`)
       //  +
       // ` - ${configFileName}`

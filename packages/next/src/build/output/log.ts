@@ -28,6 +28,11 @@ export function now() {
   return `${hourStr}:${minStr}:${secStr}:${milStr}`
 }
 
+const timestampPrefixLength = now().length
+export function bootstrap(...message: any[]) {
+  console.log(' '.repeat(timestampPrefixLength) + ' ', ...message)
+}
+
 export function wait(...message: any[]) {
   console.log(now() + ' ' + prefixes.wait, ...message)
 }
