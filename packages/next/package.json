@@ -305,10 +305,6 @@
     "webpack-sources3": "npm:webpack-sources@3.2.3",
     "ws": "8.2.3"
   },
-  "resolutions": {
-    "browserslist": "4.20.2",
-    "caniuse-lite": "1.0.30001406"
-  },
   "engines": {
     "node": ">=16.8.0"
   }
