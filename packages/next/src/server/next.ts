@@ -339,23 +339,31 @@ function createServer(options: NextServerOptions): NextServer {
             case 'getRequestHandler': {
               return () => {
                 let handler: RequestHandler
-                return async (req: IncomingMessage, res: ServerResponse) => {
+                return async (
+                  req: IncomingMessage,
+                  res: ServerResponse,
+                  parsedUrl?: UrlWithParsedQuery
+                ) => {
                   if (shouldUseStandaloneMode) {
                     setupWebSocketHandler(options.httpServer, req)
-                    const parsedUrl = url.parse(
+                    const proxyParsedUrl = url.parse(
                       `http://127.0.0.1:${serverPort}${req.url}`,
                       true
                     )
                     if ((req?.socket as TLSSocket)?.encrypted) {
                       req.headers['x-forwarded-proto'] = 'https'
                     }
-                    addRequestMeta(req, '__NEXT_INIT_QUERY', parsedUrl.query)
+                    addRequestMeta(
+                      req,
+                      '__NEXT_INIT_QUERY',
+                      proxyParsedUrl.query
+                    )
 
-                    await proxyRequest(req, res, parsedUrl, undefined, req)
+                    await proxyRequest(req, res, proxyParsedUrl, undefined, req)
                     return
                   }
                   handler = handler || server.getRequestHandler()
-                  return handler(req, res)
+                  return handler(req, res, parsedUrl)
                 }
               }
             }
