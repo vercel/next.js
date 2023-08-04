@@ -1,4 +1,4 @@
-import { PlaywrightTestConfig, devices } from '@playwright/test'
+import { defineConfig, devices } from '@playwright/test'
 import path from 'path'
 
 // Use process.env.PORT by default and fallback to port 3000
@@ -8,7 +8,7 @@ const PORT = process.env.PORT || 3000
 const baseURL = `http://localhost:${PORT}`
 
 // Reference: https://playwright.dev/docs/test-configuration
-const config: PlaywrightTestConfig = {
+export default defineConfig({
   // Timeout per test
   timeout: 30 * 1000,
   // Test directory
@@ -73,5 +73,4 @@ const config: PlaywrightTestConfig = {
       use: devices['iPhone 12'],
     },
   ],
-}
-export default config
+})
