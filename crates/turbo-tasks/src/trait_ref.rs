@@ -130,6 +130,7 @@ pub trait IntoTraitRef {
     type Future: Future<Output = Result<<VcValueTraitCast<Self::ValueTrait> as VcCast>::Output>>;
 
     fn into_trait_ref(self) -> Self::Future;
+    fn into_trait_ref_untracked(self) -> Self::Future;
 }
 
 impl<T> IntoTraitRef for Vc<T>
@@ -142,5 +143,9 @@ where
 
     fn into_trait_ref(self) -> Self::Future {
         self.node.into_trait_read::<T>()
+    }
+
+    fn into_trait_ref_untracked(self) -> Self::Future {
+        self.node.into_trait_read_untracked::<T>()
     }
 }
