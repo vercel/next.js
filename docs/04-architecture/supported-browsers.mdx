@@ -59,7 +59,7 @@ Next.js allows you to use the latest JavaScript features out of the box. In addi
 
 ### Server-Side Polyfills
 
-In addition to `fetch()` on the client-side, Next.js polyfills `fetch()` in the Node.js environment. You can use `fetch()` in your server code (such as `getStaticProps`/`getServerSideProps`) without using polyfills such as `isomorphic-unfetch` or `node-fetch`.
+In addition to `fetch()` on the client-side, Next.js polyfills `fetch()` in the Node.js environment where it's not yet available. It uses `undici`, the same implementation that Node.js itself uses. You can use `fetch()` in your server code (such as `getStaticProps`/`getServerSideProps`) without using polyfills such as `isomorphic-unfetch` or `node-fetch`.
 
 ### TypeScript Features
 
