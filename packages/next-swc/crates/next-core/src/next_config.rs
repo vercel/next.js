@@ -13,7 +13,7 @@ use turbopack_binding::{
             context::AssetContext,
             file_source::FileSource,
             ident::AssetIdent,
-            issue::{Issue, IssueContextExt, IssueExt, IssueSeverity},
+            issue::{Issue, IssueExt, IssueFilePathExt, IssueSeverity},
             reference_type::{EntryReferenceSubType, InnerAssets, ReferenceType},
             resolve::{
                 find_context_file,
@@ -711,7 +711,7 @@ async fn load_config_and_custom_routes(
     };
 
     load_next_config_and_custom_routes_internal(execution_context, config_file)
-        .issue_context(config_file, "Loading Next.js config")
+        .issue_file_path(config_file, "Loading Next.js config")
         .await
 }
 
@@ -867,7 +867,7 @@ impl Issue for OutdatedConfigIssue {
     }
 
     #[turbo_tasks::function]
-    fn context(&self) -> Vc<FileSystemPath> {
+    fn file_path(&self) -> Vc<FileSystemPath> {
         self.path
     }
 
