@@ -111,15 +111,14 @@ function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
 function findMatchedComponent(
   loaderTree: LoaderTree,
   componentType: Exclude<keyof ComponentsType, 'metadata'>,
-  depth: number,
   result?: ModuleReference
 ): ModuleReference | undefined {
-  const [, parallelRoutes, components] = loaderTree
+  const [segment, parallelRoutes, components] = loaderTree
   const childKeys = Object.keys(parallelRoutes)
   result = components[componentType] || result
 
   // reached the end of the tree
-  if (depth <= 0 || childKeys.length === 0) {
+  if (segment === '__DEFAULT__' || segment === '__PAGE__') {
     return result
   }
 
@@ -128,7 +127,6 @@ function findMatchedComponent(
     const matchedComponent = findMatchedComponent(
       childTree,
       componentType,
-      depth - 1,
       result
     )
     if (matchedComponent) {
@@ -966,7 +964,7 @@ export async function renderToHTMLOrFlight(
         // Or if there's no parallel routes means it reaches the end.
         ((segment === '__DEFAULT__' && !parallelRouteMap.length) ||
           // For production build the original pathname is /_not-found, always render not-found component.
-          renderOpts.originalPathname === '/_not-found')
+          (!renderOpts.dev && renderOpts.originalPathname === '/_not-found'))
       ) {
         notFoundComponent = {
           children: (
@@ -1354,17 +1352,8 @@ export async function renderToHTMLOrFlight(
         }
       : {}
 
-    async function getNotFound(
-      tree: LoaderTree,
-      injectedCSS: Set<string>,
-      requestPathname: string
-    ) {
-      // `depth` represents how many layers we need to search into the tree.
-      // For instance:
-      // pathname '/abc' will be 0 depth, means stop at the root level
-      // pathname '/abc/def' will be 1 depth, means stop at the first level
-      const depth = requestPathname.split('/').length - 2
-      const notFound = findMatchedComponent(tree, 'not-found', depth)
+    async function getNotFound(tree: LoaderTree, injectedCSS: Set<string>) {
+      const notFound = findMatchedComponent(tree, 'not-found')
       const [NotFound, notFoundStyles] = notFound
         ? await createComponentAndStyles({
             filePath: notFound[1],
@@ -1661,19 +1650,6 @@ export async function renderToHTMLOrFlight(
 
           const is404 = res.statusCode === 404
 
-          const injectedCSS = new Set<string>()
-          const injectedFontPreloadTags = new Set<string>()
-          const [RootLayout, rootStyles] = await getRootLayout(
-            tree,
-            injectedCSS,
-            injectedFontPreloadTags
-          )
-          const [NotFound, notFoundStyles] = await getNotFound(
-            tree,
-            injectedCSS,
-            pathname
-          )
-
           // Preserve the existing RSC inline chunks from the page rendering.
           // For 404 errors: the metadata from layout can be skipped with the error page.
           // For other errors (such as redirection): it can still be re-thrown on client.
@@ -1730,6 +1706,20 @@ export async function renderToHTMLOrFlight(
                 notFoundLoaderTree,
                 getDynamicParamFromSegment,
                 query
+              )
+
+              const injectedCSS = new Set<string>()
+              const injectedFontPreloadTags = new Set<string>()
+              const [RootLayout, rootStyles] = await getRootLayout(
+                tree,
+                injectedCSS,
+                injectedFontPreloadTags
+              )
+              const [NotFound, notFoundStyles] = await getNotFound(
+                !renderOpts.dev && renderOpts.originalPathname === '/_not-found'
+                  ? notFoundLoaderTree
+                  : tree,
+                injectedCSS
               )
 
               const GlobalNotFound = NotFound || DefaultNotFound
