@@ -66,6 +66,10 @@ yarn add sharp
 pnpm add sharp
 ```
 
+```bash filename="Terminal"
+bun add sharp
+```
+
 ## Caveats
 
 - While tracing in monorepo setups, the project directory is used for tracing by default. For `next build packages/web-app`, `packages/web-app` would be the tracing root and any files outside of that folder will not be included. To include files outside of this folder you can set `experimental.outputFileTracingRoot` in your `next.config.js`.
