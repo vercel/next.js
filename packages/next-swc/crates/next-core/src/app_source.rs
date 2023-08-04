@@ -772,7 +772,7 @@ async fn create_app_page_source_for_route(
         should_debug("app_source"),
     );
 
-    Ok(source.issue_context(app_dir, format!("Next.js App Page Route {pathname}")))
+    Ok(source.issue_file_path(app_dir, format!("Next.js App Page Route {pathname}")))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -818,7 +818,7 @@ async fn create_app_not_found_page_source(
         should_debug("app_source"),
     );
 
-    Ok(source.issue_context(app_dir, "Next.js App Page Route /404".to_string()))
+    Ok(source.issue_file_path(app_dir, "Next.js App Page Route /404".to_string()))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -866,7 +866,7 @@ async fn create_app_route_source_for_route(
         should_debug("app_source"),
     );
 
-    Ok(source.issue_context(app_dir, format!("Next.js App Route {pathname}")))
+    Ok(source.issue_file_path(app_dir, format!("Next.js App Route {pathname}")))
 }
 
 /// The renderer for pages in app directory
