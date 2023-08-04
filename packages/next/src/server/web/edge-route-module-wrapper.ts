@@ -3,6 +3,7 @@ import type {
   AppRouteRouteHandlerContext,
   AppRouteRouteModule,
 } from '../future/route-modules/app-route/module'
+import type { PrerenderManifest } from '../../build'
 
 import './globals'
 
@@ -81,6 +82,11 @@ export class EdgeRouteModuleWrapper {
       )
     }
 
+    const prerenderManifest: PrerenderManifest | undefined =
+      typeof self.__PRERENDER_MANIFEST === 'string'
+        ? JSON.parse(self.__PRERENDER_MANIFEST)
+        : undefined
+
     // Create the context for the handler. This contains the params from the
     // match (if any).
     const context: AppRouteRouteHandlerContext = {
@@ -89,9 +95,9 @@ export class EdgeRouteModuleWrapper {
         version: 4,
         routes: {},
         dynamicRoutes: {},
-        preview: {
+        preview: prerenderManifest?.preview || {
           previewModeEncryptionKey: '',
-          previewModeId: '',
+          previewModeId: 'development-id',
           previewModeSigningKey: '',
         },
         notFoundRoutes: [],
