@@ -1,6 +1,6 @@
 async function fetchAPI(query, { variables, preview } = {}) {
   const response = await fetch(process.env.PREPRIO_API, {
-    method: "POST",
+    method: 'POST',
     headers: {
       Authorization:
         'Bearer ' +
@@ -11,10 +11,10 @@ async function fetchAPI(query, { variables, preview } = {}) {
     body: JSON.stringify({
       query,
       variables,
-    })
+    }),
   })
 
-  const result = await response.json();
+  const result = await response.json()
 
   return result
 }
