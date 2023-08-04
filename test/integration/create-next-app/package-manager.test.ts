@@ -226,6 +226,79 @@ it('should use pnpm as the package manager on supplying --use-pnpm with example'
   })
 })
 
+it('should use Bun as the package manager on supplying --use-bun', async () => {
+  await useTempDir(async (cwd) => {
+    const projectName = 'use-bun'
+    const res = await run(
+      [
+        projectName,
+        '--js',
+        '--no-tailwind',
+        '--eslint',
+        '--use-bun',
+        '--no-src-dir',
+        '--app',
+        `--import-alias=@/*`,
+      ],
+      {
+        cwd,
+      }
+    )
+
+    expect(res.exitCode).toBe(0)
+    projectFilesShouldExist({
+      cwd,
+      projectName,
+      files: [
+        'package.json',
+        'app/page.js',
+        '.gitignore',
+        '.eslintrc.json',
+        'bun.lockb',
+        'node_modules/next',
+      ],
+    })
+  })
+})
+
+it('should use Bun as the package manager on supplying --use-bun with example', async () => {
+  try {
+    await execa('bun', ['--version'])
+  } catch (_) {
+    // install Bun if not available
+    await execa('npm', ['i', '-g', 'bun'])
+  }
+
+  await useTempDir(async (cwd) => {
+    const projectName = 'use-bun'
+    const res = await run(
+      [
+        projectName,
+        '--js',
+        '--no-tailwind',
+        '--eslint',
+        '--use-bun',
+        '--example',
+        `${exampleRepo}/${examplePath}`,
+      ],
+      { cwd }
+    )
+
+    expect(res.exitCode).toBe(0)
+    projectFilesShouldExist({
+      cwd,
+      projectName,
+      files: [
+        'package.json',
+        'pages/index.tsx',
+        '.gitignore',
+        'bun.lockb',
+        'node_modules/next',
+      ],
+    })
+  })
+})
+
 it('should infer npm as the package manager', async () => {
   await useTempDir(async (cwd) => {
     const projectName = 'infer-package-manager-npm'
@@ -429,6 +502,81 @@ it('should infer pnpm as the package manager with example', async () => {
       'pages/index.tsx',
       '.gitignore',
       'pnpm-lock.yaml',
+      'node_modules/next',
+    ]
+
+    expect(res.exitCode).toBe(0)
+    projectFilesShouldExist({ cwd, projectName, files })
+  })
+})
+
+it('should infer Bun as the package manager', async () => {
+  try {
+    await execa('bun', ['--version'])
+  } catch (_) {
+    // install Bun if not available
+    await execa('npm', ['i', '-g', 'bun'])
+  }
+
+  await useTempDir(async (cwd) => {
+    const projectName = 'infer-package-manager'
+    const res = await run(
+      [
+        projectName,
+        '--js',
+        '--no-tailwind',
+        '--eslint',
+        '--no-src-dir',
+        '--app',
+        `--import-alias=@/*`,
+      ],
+      {
+        cwd,
+        env: { ...process.env, npm_config_user_agent: 'bun' },
+      }
+    )
+
+    const files = [
+      'package.json',
+      'app/page.js',
+      '.gitignore',
+      '.eslintrc.json',
+      'bun.lockb',
+      'node_modules/next',
+    ]
+
+    expect(res.exitCode).toBe(0)
+    projectFilesShouldExist({ cwd, projectName, files })
+  })
+})
+
+it('should infer Bun as the package manager with example', async () => {
+  try {
+    await execa('bun', ['--version'])
+  } catch (_) {
+    // install Bun if not available
+    await execa('npm', ['i', '-g', 'bun'])
+  }
+
+  await useTempDir(async (cwd) => {
+    const projectName = 'infer-package-manager-npm'
+    const res = await run(
+      [
+        projectName,
+        '--js',
+        '--no-tailwind',
+        '--eslint',
+        '--example',
+        `${exampleRepo}/${examplePath}`,
+      ],
+      { cwd, env: { ...process.env, npm_config_user_agent: 'bun' } }
+    )
+
+    const files = [
+      'package.json',
+      'pages/index.tsx',
+      '.gitignore',
+      'bun.lockb',
       'node_modules/next',
     ]
 
