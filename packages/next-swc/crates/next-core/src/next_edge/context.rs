@@ -50,12 +50,12 @@ fn next_edge_free_vars(project_path: Vc<FileSystemPath>) -> Vc<FreeVarReferences
         ..defines().into_iter(),
         Buffer = FreeVarReference::EcmaScriptModule {
             request: "next/dist/compiled/buffer".to_string(),
-            context: Some(project_path),
+            lookup_path: Some(project_path),
             export: Some("Buffer".to_string()),
         },
         process = FreeVarReference::EcmaScriptModule {
             request: "next/dist/build/polyfills/process".to_string(),
-            context: Some(project_path),
+            lookup_path: Some(project_path),
             export: Some("default".to_string()),
         },
     )
