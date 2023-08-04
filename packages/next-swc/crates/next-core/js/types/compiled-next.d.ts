@@ -1,1 +1,1 @@
-declare module 'next/dist/compiled/react-server-dom-webpack/client'
+declare module 'react-server-dom-webpack/client'
