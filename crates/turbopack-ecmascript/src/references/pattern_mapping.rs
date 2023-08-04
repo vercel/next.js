@@ -126,7 +126,7 @@ impl PatternMapping {
     pub async fn resolve_request(
         request: Vc<Request>,
         origin: Vc<Box<dyn ResolveOrigin>>,
-        context: Vc<Box<dyn ChunkingContext>>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
         resolve_result: Vc<ModuleResolveResult>,
         resolve_type: Value<ResolveType>,
     ) -> Result<Vc<PatternMapping>> {
@@ -178,7 +178,7 @@ impl PatternMapping {
                     };
                 if !available {
                     if let Some(loader) = <Box<dyn EcmascriptChunkItem>>::from_async_asset(
-                        context,
+                        chunking_context,
                         chunkable,
                         Value::new(availability_info),
                     )
@@ -191,7 +191,8 @@ impl PatternMapping {
                 }
             }
             if let Some(chunk_item) =
-                <Box<dyn EcmascriptChunkItem>>::from_asset(context, Vc::upcast(chunkable)).await?
+                <Box<dyn EcmascriptChunkItem>>::from_asset(chunking_context, Vc::upcast(chunkable))
+                    .await?
             {
                 return Ok(PatternMapping::cell(PatternMapping::Single(
                     chunk_item.id().await?.clone_value(),

@@ -22,7 +22,7 @@ use crate::{
 /// __turbopack_import__ the actual module that was dynamically imported.
 #[turbo_tasks::value(shared)]
 pub(super) struct ManifestChunkItem {
-    pub context: Vc<Box<dyn EcmascriptChunkingContext>>,
+    pub chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
     pub manifest: Vc<ManifestChunkAsset>,
 }
 
@@ -32,7 +32,7 @@ impl ManifestChunkItem {
     async fn chunks_data(self: Vc<Self>) -> Result<Vc<ChunksData>> {
         let this = self.await?;
         Ok(ChunkData::from_assets(
-            this.context.output_root(),
+            this.chunking_context.output_root(),
             this.manifest.chunks(),
         ))
     }
@@ -42,7 +42,7 @@ impl ManifestChunkItem {
 impl EcmascriptChunkItem for ManifestChunkItem {
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn EcmascriptChunkingContext>> {
-        self.context
+        self.chunking_context
     }
 
     #[turbo_tasks::function]

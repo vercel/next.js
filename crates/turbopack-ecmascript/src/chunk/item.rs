@@ -37,11 +37,11 @@ impl EcmascriptChunkItemContent {
     #[turbo_tasks::function]
     pub async fn new(
         content: Vc<EcmascriptModuleContent>,
-        context: Vc<Box<dyn EcmascriptChunkingContext>>,
+        chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
         async_module_options: Vc<OptionAsyncModuleOptions>,
     ) -> Result<Vc<Self>> {
-        let refresh = *context.has_react_refresh().await?;
-        let externals = *context.environment().node_externals().await?;
+        let refresh = *chunking_context.has_react_refresh().await?;
+        let externals = *chunking_context.environment().node_externals().await?;
 
         let content = content.await?;
         Ok(EcmascriptChunkItemContent {
@@ -245,7 +245,7 @@ async fn module_factory_with_code_generation_issue(
 #[async_trait::async_trait]
 impl FromChunkableModule for Box<dyn EcmascriptChunkItem> {
     async fn from_asset(
-        context: Vc<Box<dyn ChunkingContext>>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
         module: Vc<Box<dyn Module>>,
     ) -> Result<Option<Vc<Self>>> {
         let Some(placeable) =
@@ -255,7 +255,8 @@ impl FromChunkableModule for Box<dyn EcmascriptChunkItem> {
         };
 
         let Some(context) =
-            Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkingContext>>(context).await?
+            Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkingContext>>(chunking_context)
+                .await?
         else {
             return Ok(None);
         };
@@ -264,12 +265,13 @@ impl FromChunkableModule for Box<dyn EcmascriptChunkItem> {
     }
 
     async fn from_async_asset(
-        context: Vc<Box<dyn ChunkingContext>>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
         module: Vc<Box<dyn ChunkableModule>>,
         availability_info: Value<AvailabilityInfo>,
     ) -> Result<Option<Vc<Self>>> {
         let Some(context) =
-            Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkingContext>>(context).await?
+            Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkingContext>>(chunking_context)
+                .await?
         else {
             return Ok(None);
         };

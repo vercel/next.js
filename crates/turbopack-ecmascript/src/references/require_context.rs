@@ -280,9 +280,9 @@ impl CodeGenerateable for RequireContextAssetReference {
     #[turbo_tasks::function]
     async fn code_generation(
         &self,
-        context: Vc<Box<dyn EcmascriptChunkingContext>>,
+        chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
     ) -> Result<Vc<CodeGeneration>> {
-        let chunk_item = self.inner.as_chunk_item(context);
+        let chunk_item = self.inner.as_chunk_item(chunking_context);
         let module_id = chunk_item.id().await?.clone_value();
 
         let mut visitors = Vec::new();
@@ -377,11 +377,11 @@ impl ChunkableModule for RequireContextAsset {
     #[turbo_tasks::function]
     fn as_chunk(
         self: Vc<Self>,
-        context: Vc<Box<dyn ChunkingContext>>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
         availability_info: Value<AvailabilityInfo>,
     ) -> Vc<Box<dyn Chunk>> {
         Vc::upcast(EcmascriptChunk::new(
-            context,
+            chunking_context,
             Vc::upcast(self),
             availability_info,
         ))
@@ -393,12 +393,12 @@ impl EcmascriptChunkPlaceable for RequireContextAsset {
     #[turbo_tasks::function]
     async fn as_chunk_item(
         self: Vc<Self>,
-        context: Vc<Box<dyn EcmascriptChunkingContext>>,
+        chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
     ) -> Result<Vc<Box<dyn EcmascriptChunkItem>>> {
         let this = self.await?;
         Ok(Vc::upcast(
             RequireContextChunkItem {
-                context,
+                chunking_context,
                 inner: self,
 
                 origin: this.origin,
@@ -416,7 +416,7 @@ impl EcmascriptChunkPlaceable for RequireContextAsset {
 
 #[turbo_tasks::value]
 pub struct RequireContextChunkItem {
-    context: Vc<Box<dyn EcmascriptChunkingContext>>,
+    chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
     inner: Vc<RequireContextAsset>,
 
     origin: Vc<Box<dyn ResolveOrigin>>,
@@ -427,7 +427,7 @@ pub struct RequireContextChunkItem {
 impl EcmascriptChunkItem for RequireContextChunkItem {
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn EcmascriptChunkingContext>> {
-        self.context
+        self.chunking_context
     }
 
     #[turbo_tasks::function]
@@ -443,7 +443,7 @@ impl EcmascriptChunkItem for RequireContextChunkItem {
             let pm = PatternMapping::resolve_request(
                 entry.request,
                 self.origin,
-                Vc::upcast(self.context),
+                Vc::upcast(self.chunking_context),
                 entry.result,
                 Value::new(Cjs),
             )
@@ -451,7 +451,7 @@ impl EcmascriptChunkItem for RequireContextChunkItem {
 
             let prop = KeyValueProp {
                 key: PropName::Str(key.as_str().into()),
-                value: match *self.context.environment().node_externals().await? {
+                value: match *self.chunking_context.environment().node_externals().await? {
                     true => quote_expr!(
                         "{ external: $external, id: () => $id }",
                         external: Expr = (!pm.is_internal_import()).into(),

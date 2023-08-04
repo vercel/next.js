@@ -25,7 +25,6 @@ ignores:
   - "./crates/turbopack-ecmascript-hmr-protocol/**"
   - "./crates/turbopack-ecmascript-plugins/**"
   - "./crates/turbopack-ecmascript-runtime/**"
-  - "./crates/turbopack-ecmascript/**"
   - "./crates/turbopack-json/**"
   - "./crates/turbopack-mdx/**"
   - "./crates/turbopack-node/**"

@@ -92,13 +92,13 @@ impl CodeGenerateableWithAvailabilityInfo for EsmAsyncAssetReference {
     #[turbo_tasks::function]
     async fn code_generation(
         &self,
-        context: Vc<Box<dyn EcmascriptChunkingContext>>,
+        chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
         availability_info: Value<AvailabilityInfo>,
     ) -> Result<Vc<CodeGeneration>> {
         let pm = PatternMapping::resolve_request(
             self.request,
             self.origin,
-            Vc::upcast(context),
+            Vc::upcast(chunking_context),
             esm_resolve(
                 self.origin,
                 self.request,

@@ -108,7 +108,7 @@ impl CodeGenerateable for UrlAssetReference {
     #[turbo_tasks::function]
     async fn code_generation(
         self: Vc<Self>,
-        context: Vc<Box<dyn EcmascriptChunkingContext>>,
+        chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
     ) -> Result<Vc<CodeGeneration>> {
         let this = self.await?;
         let mut visitors = vec![];
@@ -151,7 +151,7 @@ impl CodeGenerateable for UrlAssetReference {
             ReferencedAsset::Some(asset) => {
                 // We rewrite the first `new URL()` arguments to be a require() of the chunk
                 // item, which exports the static asset path to the linked file.
-                let id = asset.as_chunk_item(context).id().await?;
+                let id = asset.as_chunk_item(chunking_context).id().await?;
 
                 visitors.push(
                     create_visitor!(ast_path, visit_mut_expr(new_expr: &mut Expr) {

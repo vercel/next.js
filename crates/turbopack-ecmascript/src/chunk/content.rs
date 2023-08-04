@@ -47,16 +47,16 @@ impl EcmascriptChunkContent {
 
 #[turbo_tasks::function]
 pub(crate) fn ecmascript_chunk_content(
-    context: Vc<Box<dyn EcmascriptChunkingContext>>,
+    chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
     main_entries: Vc<EcmascriptChunkPlaceables>,
     omit_entries: Option<Vc<EcmascriptChunkPlaceables>>,
     availability_info: Value<AvailabilityInfo>,
 ) -> Vc<EcmascriptChunkContent> {
     let mut chunk_content =
-        ecmascript_chunk_content_internal(context, main_entries, availability_info);
+        ecmascript_chunk_content_internal(chunking_context, main_entries, availability_info);
     if let Some(omit_entries) = omit_entries {
         let omit_chunk_content =
-            ecmascript_chunk_content_internal(context, omit_entries, availability_info);
+            ecmascript_chunk_content_internal(chunking_context, omit_entries, availability_info);
         chunk_content = chunk_content.filter(omit_chunk_content);
     }
     chunk_content
@@ -64,7 +64,7 @@ pub(crate) fn ecmascript_chunk_content(
 
 #[turbo_tasks::function]
 async fn ecmascript_chunk_content_internal(
-    context: Vc<Box<dyn EcmascriptChunkingContext>>,
+    chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
     entries: Vc<EcmascriptChunkPlaceables>,
     availability_info: Value<AvailabilityInfo>,
 ) -> Result<Vc<EcmascriptChunkContent>> {
@@ -72,7 +72,9 @@ async fn ecmascript_chunk_content_internal(
     let entries = entries.iter().copied();
 
     let contents = entries
-        .map(|entry| ecmascript_chunk_content_single_entry(context, entry, availability_info))
+        .map(|entry| {
+            ecmascript_chunk_content_single_entry(chunking_context, entry, availability_info)
+        })
         .collect::<Vec<_>>();
 
     if contents.len() == 1 {
@@ -106,7 +108,7 @@ async fn ecmascript_chunk_content_internal(
 
 #[turbo_tasks::function]
 async fn ecmascript_chunk_content_single_entry(
-    context: Vc<Box<dyn EcmascriptChunkingContext>>,
+    chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
     entry: Vc<Box<dyn EcmascriptChunkPlaceable>>,
     availability_info: Value<AvailabilityInfo>,
 ) -> Result<Vc<EcmascriptChunkContent>> {
@@ -114,7 +116,7 @@ async fn ecmascript_chunk_content_single_entry(
 
     Ok(EcmascriptChunkContent::cell(
         if let Some(res) = chunk_content::<Box<dyn EcmascriptChunkItem>>(
-            Vc::upcast(context),
+            Vc::upcast(chunking_context),
             module,
             None,
             availability_info,
@@ -124,7 +126,7 @@ async fn ecmascript_chunk_content_single_entry(
             res
         } else {
             chunk_content_split::<Box<dyn EcmascriptChunkItem>>(
-                Vc::upcast(context),
+                Vc::upcast(chunking_context),
                 module,
                 None,
                 availability_info,

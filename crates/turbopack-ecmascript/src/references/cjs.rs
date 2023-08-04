@@ -136,12 +136,12 @@ impl CodeGenerateable for CjsRequireAssetReference {
     #[turbo_tasks::function]
     async fn code_generation(
         &self,
-        context: Vc<Box<dyn EcmascriptChunkingContext>>,
+        chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
     ) -> Result<Vc<CodeGeneration>> {
         let pm = PatternMapping::resolve_request(
             self.request,
             self.origin,
-            Vc::upcast(context),
+            Vc::upcast(chunking_context),
             cjs_resolve(
                 self.origin,
                 self.request,
@@ -260,12 +260,12 @@ impl CodeGenerateable for CjsRequireResolveAssetReference {
     #[turbo_tasks::function]
     async fn code_generation(
         &self,
-        context: Vc<Box<dyn EcmascriptChunkingContext>>,
+        chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
     ) -> Result<Vc<CodeGeneration>> {
         let pm = PatternMapping::resolve_request(
             self.request,
             self.origin,
-            Vc::upcast(context),
+            Vc::upcast(chunking_context),
             cjs_resolve(
                 self.origin,
                 self.request,

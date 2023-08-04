@@ -122,11 +122,11 @@ impl ChunkableModule for ManifestChunkAsset {
     #[turbo_tasks::function]
     fn as_chunk(
         self: Vc<Self>,
-        context: Vc<Box<dyn ChunkingContext>>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
         availability_info: Value<AvailabilityInfo>,
     ) -> Vc<Box<dyn Chunk>> {
         Vc::upcast(EcmascriptChunk::new(
-            context,
+            chunking_context,
             Vc::upcast(self),
             availability_info,
         ))
@@ -138,11 +138,11 @@ impl EcmascriptChunkPlaceable for ManifestChunkAsset {
     #[turbo_tasks::function]
     async fn as_chunk_item(
         self: Vc<Self>,
-        context: Vc<Box<dyn EcmascriptChunkingContext>>,
+        chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
     ) -> Result<Vc<Box<dyn EcmascriptChunkItem>>> {
         Ok(Vc::upcast(
             ManifestChunkItem {
-                context,
+                chunking_context,
                 manifest: self,
             }
             .cell(),

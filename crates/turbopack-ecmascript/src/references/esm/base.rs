@@ -233,7 +233,7 @@ impl CodeGenerateable for EsmAssetReference {
     #[turbo_tasks::function]
     async fn code_generation(
         self: Vc<Self>,
-        context: Vc<Box<dyn EcmascriptChunkingContext>>,
+        chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
     ) -> Result<Vc<CodeGeneration>> {
         let mut visitors = Vec::new();
 
@@ -263,7 +263,7 @@ impl CodeGenerateable for EsmAssetReference {
             if let Some(ident) = referenced_asset.get_ident().await? {
                 match &*referenced_asset {
                     ReferencedAsset::Some(asset) => {
-                        let id = asset.as_chunk_item(context).id().await?;
+                        let id = asset.as_chunk_item(chunking_context).id().await?;
                         visitors.push(create_visitor!(visit_mut_program(program: &mut Program) {
                             let stmt = quote!(
                                 "var $name = __turbopack_import__($id);" as Stmt,
@@ -277,7 +277,7 @@ impl CodeGenerateable for EsmAssetReference {
                         }));
                     }
                     ReferencedAsset::OriginalReferenceTypeExternal(request) => {
-                        if !*context.environment().node_externals().await? {
+                        if !*chunking_context.environment().node_externals().await? {
                             bail!(
                                 "the chunking context does not support Node.js external modules \
                                  (request: {})",

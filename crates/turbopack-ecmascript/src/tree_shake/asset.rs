@@ -111,12 +111,12 @@ impl EcmascriptChunkPlaceable for EcmascriptModulePartAsset {
     #[turbo_tasks::function]
     async fn as_chunk_item(
         self: Vc<Self>,
-        context: Vc<Box<dyn EcmascriptChunkingContext>>,
+        chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
     ) -> Result<Vc<Box<dyn EcmascriptChunkItem>>> {
         Ok(Vc::upcast(
             EcmascriptModulePartChunkItem {
                 module: self,
-                context,
+                chunking_context,
             }
             .cell(),
         ))
@@ -133,11 +133,11 @@ impl ChunkableModule for EcmascriptModulePartAsset {
     #[turbo_tasks::function]
     async fn as_chunk(
         self: Vc<Self>,
-        context: Vc<Box<dyn ChunkingContext>>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
         availability_info: Value<AvailabilityInfo>,
     ) -> Vc<Box<dyn Chunk>> {
         Vc::upcast(EcmascriptChunk::new(
-            context,
+            chunking_context,
             Vc::upcast(self),
             availability_info,
         ))

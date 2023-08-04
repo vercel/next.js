@@ -28,7 +28,7 @@ pub trait VisitorFactory: Send + Sync {
 pub trait CodeGenerateable {
     fn code_generation(
         self: Vc<Self>,
-        context: Vc<Box<dyn EcmascriptChunkingContext>>,
+        chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
     ) -> Vc<CodeGeneration>;
 }
 
@@ -36,7 +36,7 @@ pub trait CodeGenerateable {
 pub trait CodeGenerateableWithAvailabilityInfo {
     fn code_generation(
         self: Vc<Self>,
-        context: Vc<Box<dyn EcmascriptChunkingContext>>,
+        chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
         availability_info: Value<AvailabilityInfo>,
     ) -> Vc<CodeGeneration>;
 }
