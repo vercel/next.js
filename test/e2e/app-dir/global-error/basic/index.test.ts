@@ -64,6 +64,7 @@ createNextDescribe(
       expect(await browser.elementByCss('#error').text()).toBe(
         'Local error boundary'
       )
+      expect(await browser.hasElementByCssSelector('#digest')).toBeFalsy()
     })
 
     it('should catch metadata error in global-error if no error boundary is presented', async () => {
@@ -76,7 +77,6 @@ createNextDescribe(
         expect(await browser.elementByCss('#error').text()).toBe(
           'Global error: An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
         )
-        expect(await browser.hasElementByCssSelector('#digest')).toBeFalsy()
       }
     })
   }
