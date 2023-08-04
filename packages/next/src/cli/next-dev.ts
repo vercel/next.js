@@ -20,7 +20,6 @@ import { findRootDir } from '../lib/find-root'
 import { fileExists, FileType } from '../lib/file-exists'
 import { getNpxCommand } from '../lib/helpers/get-npx-command'
 import Watchpack from 'watchpack'
-// import { getPossibleInstrumentationHookFilenames } from '../build/worker'
 import { resetEnv } from '@next/env'
 import { getValidatedArgs } from '../lib/get-validated-args'
 import { Worker } from 'next/dist/compiled/jest-worker'
@@ -225,7 +224,7 @@ const nextDev: CliCommand = async (argv) => {
     printAndExit(`> No such directory exists as the project root: ${dir}`)
   }
 
-  async function preflight() {
+  async function preflight(skipOnReboot: boolean) {
     const { getPackageVersion, getDependencies } = (await Promise.resolve(
       require('../lib/get-package-version')
     )) as typeof import('../lib/get-package-version')
@@ -242,22 +241,24 @@ const nextDev: CliCommand = async (argv) => {
       )
     }
 
-    const { dependencies, devDependencies } = await getDependencies({
-      cwd: dir,
-    })
+    if (!skipOnReboot) {
+      const { dependencies, devDependencies } = await getDependencies({
+        cwd: dir,
+      })
 
-    // Warn if @next/font is installed as a dependency. Ignore `workspace:*` to not warn in the Next.js monorepo.
-    if (
-      dependencies['@next/font'] ||
-      (devDependencies['@next/font'] &&
-        devDependencies['@next/font'] !== 'workspace:*')
-    ) {
-      const command = getNpxCommand(dir)
-      Log.warn(
-        'Your project has `@next/font` installed as a dependency, please use the built-in `next/font` instead. ' +
-          'The `@next/font` package will be removed in Next.js 14. ' +
-          `You can migrate by running \`${command} @next/codemod@latest built-in-next-font .\`. Read more: https://nextjs.org/docs/messages/built-in-next-font`
-      )
+      // Warn if @next/font is installed as a dependency. Ignore `workspace:*` to not warn in the Next.js monorepo.
+      if (
+        dependencies['@next/font'] ||
+        (devDependencies['@next/font'] &&
+          devDependencies['@next/font'] !== 'workspace:*')
+      ) {
+        const command = getNpxCommand(dir)
+        Log.warn(
+          'Your project has `@next/font` installed as a dependency, please use the built-in `next/font` instead. ' +
+            'The `@next/font` package will be removed in Next.js 14. ' +
+            `You can migrate by running \`${command} @next/codemod@latest built-in-next-font .\`. Read more: https://nextjs.org/docs/messages/built-in-next-font`
+        )
+      }
     }
   }
 
@@ -363,7 +364,7 @@ const nextDev: CliCommand = async (argv) => {
       root: args['--root'] ?? findRootDir(dir),
     })
     // Start preflight after server is listening and ignore errors:
-    preflight().catch(() => {})
+    preflight(false).catch(() => {})
 
     if (!isCustomTurbopack) {
       await telemetry.flush()
@@ -377,32 +378,40 @@ const nextDev: CliCommand = async (argv) => {
 
     return server
   } else {
-    // watchConfigFiles(devServerOptions.dir, (filename) => {
-    //   if (process.env.__NEXT_DISABLE_MEMORY_WATCHER) {
-    //     Log.info(
-    //       `Detected change, manual restart required due to '__NEXT_DISABLE_MEMORY_WATCHER' usage`
-    //     )
-    //     return
-    //   }
-    //   Log.warn(
-    //     `\n> Found a change in ${path.basename(
-    //       filename
-    //     )}. Restarting the server to apply the changes...`
-    //   )
-    //   runDevServer()
-    // })
-
-    const runDevServer = async () => {
+    const runDevServer = async (reboot: boolean) => {
       try {
         const workerInit = await createRouterWorker()
         await workerInit.worker.startServer(devServerOptions)
-        await preflight()
+        await preflight(reboot)
+        return {
+          cleanup: workerInit.cleanup,
+        }
       } catch (err) {
         console.error(err)
         process.exit(1)
       }
     }
-    await runDevServer()
+
+    let runningServer = await runDevServer(false)
+
+    watchConfigFiles(devServerOptions.dir, async (filename) => {
+      if (process.env.__NEXT_DISABLE_MEMORY_WATCHER) {
+        Log.info(
+          `Detected change, manual restart required due to '__NEXT_DISABLE_MEMORY_WATCHER' usage`
+        )
+        return
+      }
+      Log.warn(
+        `\n> Found a change in ${path.basename(
+          filename
+        )}. Restarting the server to apply the changes...`
+      )
+
+      if (runningServer) {
+        await runningServer.cleanup()
+      }
+      runningServer = await runDevServer(true)
+    })
   }
 }
 
