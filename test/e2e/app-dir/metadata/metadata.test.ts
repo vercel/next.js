@@ -570,7 +570,7 @@ createNextDescribe(
         let hasRootNotFoundFlight = false
         for (const el of $('script').toArray()) {
           const text = $(el).text()
-          if (text.includes('root not found page')) {
+          if (text.includes('Local found boundary')) {
             hasRootNotFoundFlight = true
           }
         }
