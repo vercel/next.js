@@ -39,7 +39,7 @@ import {
   NEXT_ROUTER_STATE_TREE,
   RSC,
 } from '../../client/components/app-router-headers'
-import { makeMetadata } from '../../lib/metadata/metadata'
+import { createMetadataComponents } from '../../lib/metadata/metadata'
 import { RequestAsyncStorageWrapper } from '../async-storage/request-async-storage-wrapper'
 import { StaticGenerationAsyncStorageWrapper } from '../async-storage/static-generation-async-storage-wrapper'
 import { isClientReference } from '../../lib/client-reference'
@@ -1006,7 +1006,7 @@ export async function renderToHTMLOrFlight(
         Component: () => {
           return (
             <>
-              {metadataOutlet}
+              {isPage ? metadataOutlet : null}
               {/* <Component /> needs to be the first element because we use `findDOMNode` in layout router to locate it. */}
               {isPage && isClientComponent && isStaticGeneration ? (
                 <StaticGenerationSearchParamsBailoutProvider
@@ -1255,7 +1255,7 @@ export async function renderToHTMLOrFlight(
 
       let flightData: FlightData | null = null
       if (!options?.skipFlight) {
-        const [MetadataTree, MetadataOutlet] = makeMetadata({
+        const [MetadataTree, MetadataOutlet] = createMetadataComponents({
           tree: loaderTree,
           pathname,
           searchParams: providedSearchParams,
@@ -1406,7 +1406,7 @@ export async function renderToHTMLOrFlight(
             query
           )
 
-          const [MetadataTree, MetadataOutlet] = makeMetadata({
+          const [MetadataTree, MetadataOutlet] = createMetadataComponents({
             tree: loaderTreeToRender,
             errorType: props.asNotFound ? 'not-found' : undefined,
             pathname: pathname,
@@ -1700,16 +1700,13 @@ export async function renderToHTMLOrFlight(
           )
           const ErrorPage = createServerComponentRenderer(
             async () => {
-              const notFoundLoaderTree: LoaderTree = is404
-                ? createNotFoundLoaderTree(tree)
-                : tree
-              const [MetadataTree, MetadataOutlet] = makeMetadata({
-                tree: notFoundLoaderTree,
-                pathname: pathname,
-                errorType: errorType,
+              const [MetadataTree, MetadataOutlet] = createMetadataComponents({
+                tree, // still use original tree with not-found boundaries to extract metadata
+                pathname,
+                errorType,
                 searchParams: providedSearchParams,
-                getDynamicParamFromSegment: getDynamicParamFromSegment,
-                appUsingSizeAdjust: appUsingSizeAdjust,
+                getDynamicParamFromSegment,
+                appUsingSizeAdjust,
               })
 
               const head = (
@@ -1720,6 +1717,9 @@ export async function renderToHTMLOrFlight(
                 </>
               )
 
+              const notFoundLoaderTree: LoaderTree = is404
+                ? createNotFoundLoaderTree(tree)
+                : tree
               const initialTree = createFlightRouterStateFromLoaderTree(
                 notFoundLoaderTree,
                 getDynamicParamFromSegment,

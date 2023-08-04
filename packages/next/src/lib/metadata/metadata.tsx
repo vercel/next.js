@@ -27,7 +27,7 @@ import { createDefaultMetadata } from './default-metadata'
 // `MetadataOutlet` is the one that will be rendered under error boundaries for metadata resolving errors.
 // In this way we can let the metadata tags always render successfully,
 // and the error will be caught by the error boundary and trigger fallbacks.
-export function makeMetadata({
+export function createMetadataComponents({
   tree,
   pathname,
   searchParams,
@@ -53,8 +53,8 @@ export function makeMetadata({
   })
 
   async function MetadataTree() {
-    let metadata: ResolvedMetadata | undefined = undefined
     const defaultMetadata = createDefaultMetadata()
+    let metadata: ResolvedMetadata | undefined = defaultMetadata
     try {
       const resolvedMetadata = await resolveMetadata({
         tree,
@@ -73,7 +73,6 @@ export function makeMetadata({
       }
       resolve(undefined)
     } catch (error: any) {
-      metadata = defaultMetadata
       resolve(error)
     }
 
