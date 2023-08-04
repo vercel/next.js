@@ -22,7 +22,7 @@ createNextDescribe(
                   {
                     source: '/about',
                     destination: '/',
-                    permanent: true,
+                    permanent: false,
                   },
                 ]
               },
