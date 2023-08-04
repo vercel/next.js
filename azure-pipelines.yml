@@ -33,7 +33,6 @@ pr:
 
 variables:
   PNPM_CACHE_FOLDER: $(Pipeline.Workspace)/.pnpm-store
-  PNPM_VERSION: 7.24.3
   NEXT_TELEMETRY_DISABLED: '1'
   node_16_version: ^16.8.0
 
@@ -53,8 +52,9 @@ stages:
               node scripts/run-for-change.js --not --type docs --exec echo "##vso[task.setvariable variable=isDocsOnly]No"
             displayName: 'Check Docs Only Change'
 
-          - script: npm i -g pnpm@$(PNPM_VERSION)
+          - script: corepack enable
             condition: eq(variables['isDocsOnly'], 'No')
+            displayName: 'Enable Corepack'
 
           - script: pnpm config set store-dir $(PNPM_CACHE_FOLDER)
             condition: eq(variables['isDocsOnly'], 'No')
@@ -91,8 +91,9 @@ stages:
               node scripts/run-for-change.js --not --type docs --exec echo "##vso[task.setvariable variable=isDocsOnly]No"
             displayName: 'Check Docs Only Change'
 
-          - script: npm i -g pnpm@$(PNPM_VERSION)
+          - script: corepack enable
             condition: eq(variables['isDocsOnly'], 'No')
+            displayName: 'Enable Corepack'
 
           - script: pnpm config set store-dir $(PNPM_CACHE_FOLDER)
             condition: eq(variables['isDocsOnly'], 'No')
@@ -121,8 +122,9 @@ stages:
       #         node scripts/run-for-change.js --not --type docs --exec echo "##vso[task.setvariable variable=isDocsOnly]No"
       #       displayName: 'Check Docs Only Change'
 
-      #     - script: npm i -g pnpm@$(PNPM_VERSION)
+      #     - script: corepack enable
       #       condition: eq(variables['isDocsOnly'], 'No')
+      #       displayName: 'Enable Corepack'
 
       #     - script: pnpm config set store-dir $(PNPM_CACHE_FOLDER)
       #       condition: eq(variables['isDocsOnly'], 'No')
@@ -157,8 +159,9 @@ stages:
       #         node scripts/run-for-change.js --not --type docs --exec echo "##vso[task.setvariable variable=isDocsOnly]No"
       #       displayName: 'Check Docs Only Change'
 
-      #     - script: npm i -g pnpm@$(PNPM_VERSION)
+      #     - script: corepack enable
       #       condition: eq(variables['isDocsOnly'], 'No')
+      #       displayName: 'Enable Corepack'
 
       #     - script: pnpm config set store-dir $(PNPM_CACHE_FOLDER)
       #       condition: eq(variables['isDocsOnly'], 'No')
