@@ -98,13 +98,13 @@ pub async fn get_evaluate_pool(
     module_asset: Vc<Box<dyn Module>>,
     cwd: Vc<FileSystemPath>,
     env: Vc<Box<dyn ProcessEnv>>,
-    context: Vc<Box<dyn AssetContext>>,
+    asset_context: Vc<Box<dyn AssetContext>>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     runtime_entries: Option<Vc<EvaluatableAssets>>,
     additional_invalidation: Vc<Completion>,
     debug: bool,
 ) -> Result<Vc<NodeJsPool>> {
-    let runtime_asset = context.process(
+    let runtime_asset = asset_context.process(
         Vc::upcast(FileSource::new(embed_file_path(
             "ipc/evaluate.ts".to_string(),
         ))),
@@ -121,7 +121,7 @@ pub async fn get_evaluate_pool(
         Cow::Owned(format!("{file_name}.js"))
     };
     let path = chunking_context.output_root().join(file_name.to_string());
-    let entry_module = context.process(
+    let entry_module = asset_context.process(
         Vc::upcast(VirtualSource::new(
             runtime_asset.ident().path().join("evaluate.js".to_string()),
             AssetContent::file(
@@ -149,7 +149,7 @@ pub async fn get_evaluate_pool(
     };
 
     let runtime_entries = {
-        let globals_module = context.process(
+        let globals_module = asset_context.process(
             Vc::upcast(FileSource::new(embed_file_path("globals.ts".to_string()))),
             Value::new(ReferenceType::Internal(InnerAssets::empty())),
         );
@@ -233,7 +233,7 @@ pub fn evaluate(
     cwd: Vc<FileSystemPath>,
     env: Vc<Box<dyn ProcessEnv>>,
     context_ident_for_issue: Vc<AssetIdent>,
-    context: Vc<Box<dyn AssetContext>>,
+    asset_context: Vc<Box<dyn AssetContext>>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     runtime_entries: Option<Vc<EvaluatableAssets>>,
     args: Vec<Vc<JsonValue>>,
@@ -262,7 +262,7 @@ pub fn evaluate(
         cwd,
         env,
         context_ident_for_issue,
-        context,
+        asset_context,
         chunking_context,
         runtime_entries,
         args,
@@ -297,7 +297,7 @@ async fn compute_evaluate_stream(
     cwd: Vc<FileSystemPath>,
     env: Vc<Box<dyn ProcessEnv>>,
     context_ident_for_issue: Vc<AssetIdent>,
-    context: Vc<Box<dyn AssetContext>>,
+    asset_context: Vc<Box<dyn AssetContext>>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     runtime_entries: Option<Vc<EvaluatableAssets>>,
     args: Vec<Vc<JsonValue>>,
@@ -316,7 +316,7 @@ async fn compute_evaluate_stream(
             module_asset,
             cwd,
             env,
-            context,
+            asset_context,
             chunking_context,
             runtime_entries,
             additional_invalidation,
@@ -450,7 +450,7 @@ async fn pull_operation(
             }
             EvalJavaScriptIncomingMessage::EmittedError { error, severity } => {
                 EvaluateEmittedErrorIssue {
-                    context: context_ident_for_issue.path(),
+                    file_path: context_ident_for_issue.path(),
                     error,
                     severity: severity.cell(),
                     assets_for_source_mapping: pool.assets_for_source_mapping,
@@ -597,7 +597,7 @@ async fn dir_dependency_shallow(glob: Vc<ReadGlobResult>) -> Result<Vc<Completio
 
 #[turbo_tasks::value(shared)]
 pub struct EvaluateEmittedErrorIssue {
-    pub context: Vc<FileSystemPath>,
+    pub file_path: Vc<FileSystemPath>,
     pub severity: Vc<IssueSeverity>,
     pub error: StructuredError,
     pub assets_for_source_mapping: Vc<AssetsForSourceMapping>,
@@ -609,7 +609,7 @@ pub struct EvaluateEmittedErrorIssue {
 impl Issue for EvaluateEmittedErrorIssue {
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        self.context
+        self.file_path
     }
 
     #[turbo_tasks::function]

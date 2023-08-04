@@ -197,11 +197,13 @@ async fn parse_content(
         return Ok(ParseCssResult::Unparseable.into());
     }
 
-    let context = TransformContext {
+    let transform_context = TransformContext {
         source_map: &source_map,
     };
     for transform in transforms.iter() {
-        transform.apply(&mut parsed_stylesheet, &context).await?;
+        transform
+            .apply(&mut parsed_stylesheet, &transform_context)
+            .await?;
     }
 
     let (imports, exports) = match ty {

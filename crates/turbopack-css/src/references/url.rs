@@ -57,14 +57,14 @@ impl UrlAssetReference {
     #[turbo_tasks::function]
     async fn get_referenced_asset(
         self: Vc<Self>,
-        context: Vc<Box<dyn ChunkingContext>>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<ReferencedAsset>> {
         for &module in self.resolve_reference().primary_modules().await?.iter() {
             if let Some(embeddable) =
                 Vc::try_resolve_sidecast::<Box<dyn CssEmbeddable>>(module).await?
             {
                 return Ok(ReferencedAsset::Some(
-                    embeddable.as_css_embed(context).embeddable_asset(),
+                    embeddable.as_css_embed(chunking_context).embeddable_asset(),
                 )
                 .into());
             }
@@ -102,12 +102,12 @@ impl CodeGenerateable for UrlAssetReference {
     #[turbo_tasks::function]
     async fn code_generation(
         self: Vc<Self>,
-        context: Vc<Box<dyn ChunkingContext>>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<CodeGeneration>> {
         let this = self.await?;
         // TODO(WEB-662) This is not the correct way to get the current chunk path. It
         // currently works as all chunks are in the same directory.
-        let chunk_path = context.chunk_path(
+        let chunk_path = chunking_context.chunk_path(
             AssetIdent::from_path(this.origin.origin_path()),
             ".css".to_string(),
         );
@@ -115,7 +115,7 @@ impl CodeGenerateable for UrlAssetReference {
 
         let mut visitors = Vec::new();
 
-        if let ReferencedAsset::Some(asset) = &*self.get_referenced_asset(context).await? {
+        if let ReferencedAsset::Some(asset) = &*self.get_referenced_asset(chunking_context).await? {
             // TODO(WEB-662) This is not the correct way to get the path of the asset.
             // `asset` is on module-level, but we need the output-level asset instead.
             let path = asset.ident().path().await?;

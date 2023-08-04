@@ -58,7 +58,7 @@ impl ModuleOptions {
     #[turbo_tasks::function]
     pub async fn new(
         path: Vc<FileSystemPath>,
-        context: Vc<ModuleOptionsContext>,
+        module_options_context: Vc<ModuleOptionsContext>,
     ) -> Result<Vc<ModuleOptions>> {
         let ModuleOptionsContext {
             enable_jsx,
@@ -77,7 +77,7 @@ impl ModuleOptions {
             execution_context,
             ref rules,
             ..
-        } = *context.await?;
+        } = *module_options_context.await?;
         if !rules.is_empty() {
             let path_value = path.await?;
 

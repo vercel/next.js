@@ -54,7 +54,7 @@ impl SwcPluginModule {
 
 #[turbo_tasks::value(shared)]
 struct UnsupportedSwcEcmaTransformPluginsIssue {
-    pub context: Vc<FileSystemPath>,
+    pub file_path: Vc<FileSystemPath>,
 }
 
 #[turbo_tasks::value_impl]
@@ -78,7 +78,7 @@ impl Issue for UnsupportedSwcEcmaTransformPluginsIssue {
 
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        self.context
+        self.file_path
     }
 
     #[turbo_tasks::function]
@@ -226,7 +226,7 @@ impl CustomTransformer for SwcEcmaTransformPluginsTransformer {
             use turbopack_core::issue::IssueExt;
 
             UnsupportedSwcEcmaTransformPluginsIssue {
-                context: ctx.file_path,
+                file_path: ctx.file_path,
             }
             .cell()
             .emit();

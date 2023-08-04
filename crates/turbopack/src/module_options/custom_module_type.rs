@@ -8,7 +8,7 @@ pub trait CustomModuleType {
     fn create_module(
         self: Vc<Self>,
         source: Vc<Box<dyn Source>>,
-        context: Vc<ModuleAssetContext>,
+        module_asset_context: Vc<ModuleAssetContext>,
         part: Option<Vc<ModulePart>>,
     ) -> Vc<Box<dyn Module>>;
 }

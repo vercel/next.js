@@ -27,8 +27,10 @@ pub trait VisitorFactory: Send + Sync {
 
 #[turbo_tasks::value_trait]
 pub trait CodeGenerateable {
-    fn code_generation(self: Vc<Self>, context: Vc<Box<dyn ChunkingContext>>)
-        -> Vc<CodeGeneration>;
+    fn code_generation(
+        self: Vc<Self>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+    ) -> Vc<CodeGeneration>;
 }
 
 #[turbo_tasks::value(transparent)]

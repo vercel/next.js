@@ -8,8 +8,10 @@ use turbopack_core::{
 
 #[turbo_tasks::value_trait]
 pub trait CssEmbeddable: ChunkableModule + Module + Asset {
-    fn as_css_embed(self: Vc<Self>, context: Vc<Box<dyn ChunkingContext>>)
-        -> Vc<Box<dyn CssEmbed>>;
+    fn as_css_embed(
+        self: Vc<Self>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+    ) -> Vc<Box<dyn CssEmbed>>;
 }
 
 #[turbo_tasks::value_trait]

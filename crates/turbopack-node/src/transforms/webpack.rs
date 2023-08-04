@@ -119,8 +119,8 @@ struct ProcessWebpackLoadersResult {
 }
 
 #[turbo_tasks::function]
-fn webpack_loaders_executor(context: Vc<Box<dyn AssetContext>>) -> Vc<Box<dyn Module>> {
-    context.process(
+fn webpack_loaders_executor(evaluate_context: Vc<Box<dyn AssetContext>>) -> Vc<Box<dyn Module>> {
+    evaluate_context.process(
         Vc::upcast(FileSource::new(embed_file_path(
             "transforms/webpack-loaders.ts".to_string(),
         ))),
@@ -152,9 +152,9 @@ impl WebpackLoadersProcessedAsset {
             .cell());
         };
         let content = content.content().to_str()?;
-        let context = transform.evaluate_context;
+        let evaluate_context = transform.evaluate_context;
 
-        let webpack_loaders_executor = webpack_loaders_executor(context);
+        let webpack_loaders_executor = webpack_loaders_executor(evaluate_context);
         let resource_fs_path = this.source.ident().path().await?;
         let resource_path = resource_fs_path.path.as_str();
         let loaders = transform.loaders.await?;
@@ -163,7 +163,7 @@ impl WebpackLoadersProcessedAsset {
             project_path,
             env,
             this.source.ident(),
-            context,
+            evaluate_context,
             chunking_context,
             None,
             vec![

@@ -50,7 +50,7 @@ async fn main() -> Result<()> {
             let entry = fs.root().join("demo/index.js".to_string());
 
             let source = FileSource::new(entry);
-            let context = turbopack::ModuleAssetContext::new(
+            let module_asset_context = turbopack::ModuleAssetContext::new(
                 Vc::cell(HashMap::new()),
                 CompileTimeInfo::new(Environment::new(Value::new(
                     ExecutionEnvironment::NodeJsLambda(NodeJsEnvironment::default().into()),
@@ -65,7 +65,7 @@ async fn main() -> Result<()> {
                 }
                 .cell(),
             );
-            let module = context.process(
+            let module = module_asset_context.process(
                 Vc::upcast(source),
                 Value::new(turbopack_core::reference_type::ReferenceType::Undefined),
             );

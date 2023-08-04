@@ -416,7 +416,7 @@ fn node_file_trace<B: Backend + 'static>(
                 let output_dir = output_fs.root();
 
                 let source = FileSource::new(input);
-                let context = ModuleAssetContext::new(
+                let module_asset_context = ModuleAssetContext::new(
                     Vc::cell(HashMap::new()),
                     // TODO It's easy to make a mistake here as this should match the config in the
                     // binary. TODO These test cases should move into the
@@ -438,8 +438,8 @@ fn node_file_trace<B: Backend + 'static>(
                     }
                     .cell(),
                 );
-                let module =
-                    context.process(Vc::upcast(source), Value::new(ReferenceType::Undefined));
+                let module = module_asset_context
+                    .process(Vc::upcast(source), Value::new(ReferenceType::Undefined));
                 let rebased = RebasedAsset::new(Vc::upcast(module), input_dir, output_dir);
 
                 #[cfg(not(feature = "bench_against_node_nft"))]

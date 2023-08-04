@@ -138,7 +138,7 @@ struct ProcessPostCssResult {
 
 #[turbo_tasks::function]
 async fn extra_configs(
-    context: Vc<Box<dyn AssetContext>>,
+    asset_context: Vc<Box<dyn AssetContext>>,
     postcss_config_path: Vc<FileSystemPath>,
 ) -> Result<Vc<Completion>> {
     let config_paths = [postcss_config_path
@@ -149,7 +149,7 @@ async fn extra_configs(
         .map(|path| async move {
             Ok(
                 matches!(&*path.get_type().await?, FileSystemEntryType::File).then(|| {
-                    any_content_changed_of_module(context.process(
+                    any_content_changed_of_module(asset_context.process(
                         Vc::upcast(FileSource::new(path)),
                         Value::new(ReferenceType::Internal(InnerAssets::empty())),
                     ))
@@ -167,15 +167,15 @@ async fn extra_configs(
 
 #[turbo_tasks::function]
 fn postcss_executor(
-    context: Vc<Box<dyn AssetContext>>,
+    asset_context: Vc<Box<dyn AssetContext>>,
     postcss_config_path: Vc<FileSystemPath>,
 ) -> Vc<Box<dyn Module>> {
-    let config_asset = context.process(
+    let config_asset = asset_context.process(
         Vc::upcast(FileSource::new(postcss_config_path)),
         Value::new(ReferenceType::Entry(EntryReferenceSubType::Undefined)),
     );
 
-    context.process(
+    asset_context.process(
         Vc::upcast(VirtualSource::new(
             postcss_config_path.join("transform.ts".to_string()),
             AssetContent::File(embed_file("transforms/postcss.ts".to_string())).cell(),
@@ -218,12 +218,12 @@ impl PostCssTransformedAsset {
             .cell());
         };
         let content = content.content().to_str()?;
-        let context = this.evaluate_context;
+        let evaluate_context = this.evaluate_context;
 
         // This invalidates the transform when the config changes.
-        let extra_configs_changed = extra_configs(context, config_path);
+        let extra_configs_changed = extra_configs(evaluate_context, config_path);
 
-        let postcss_executor = postcss_executor(context, config_path);
+        let postcss_executor = postcss_executor(evaluate_context, config_path);
         let css_fs_path = this.source.ident().path().await?;
         let css_path = css_fs_path.path.as_str();
 
@@ -232,7 +232,7 @@ impl PostCssTransformedAsset {
             project_path,
             env,
             this.source.ident(),
-            context,
+            evaluate_context,
             chunking_context,
             None,
             vec![Vc::cell(content.into()), Vc::cell(css_path.into())],

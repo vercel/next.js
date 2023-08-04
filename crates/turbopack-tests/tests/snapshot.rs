@@ -239,7 +239,7 @@ async fn run_test(resource: String) -> Result<Vc<FileSystemPath>> {
             output_transforms: vec![],
         },
     ));
-    let context: Vc<Box<dyn AssetContext>> = Vc::upcast(ModuleAssetContext::new(
+    let asset_context: Vc<Box<dyn AssetContext>> = Vc::upcast(ModuleAssetContext::new(
         Vc::cell(HashMap::new()),
         compile_time_info,
         ModuleOptionsContext {
@@ -278,9 +278,9 @@ async fn run_test(resource: String) -> Result<Vc<FileSystemPath>> {
         .cell(),
     ));
 
-    let runtime_entries = maybe_load_env(context, project_path)
+    let runtime_entries = maybe_load_env(asset_context, project_path)
         .await?
-        .map(|asset| EvaluatableAssets::one(asset.to_evaluatable(context)));
+        .map(|asset| EvaluatableAssets::one(asset.to_evaluatable(asset_context)));
 
     let chunk_root_path = path.join("output".to_string());
     let static_root_path = path.join("static".to_string());
@@ -311,7 +311,7 @@ async fn run_test(resource: String) -> Result<Vc<FileSystemPath>> {
         .copied()
         .collect();
 
-    let entry_module = context.process(
+    let entry_module = asset_context.process(
         Vc::upcast(FileSource::new(entry_asset)),
         Value::new(ReferenceType::Entry(EntryReferenceSubType::Undefined)),
     );

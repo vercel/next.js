@@ -43,7 +43,7 @@ fn modifier() -> Vc<String> {
 #[derive(Clone)]
 pub struct CssModuleAsset {
     source: Vc<Box<dyn Source>>,
-    context: Vc<Box<dyn AssetContext>>,
+    asset_context: Vc<Box<dyn AssetContext>>,
     transforms: Vc<CssInputTransforms>,
     ty: CssModuleAssetType,
 }
@@ -54,13 +54,13 @@ impl CssModuleAsset {
     #[turbo_tasks::function]
     pub fn new(
         source: Vc<Box<dyn Source>>,
-        context: Vc<Box<dyn AssetContext>>,
+        asset_context: Vc<Box<dyn AssetContext>>,
         transforms: Vc<CssInputTransforms>,
         ty: CssModuleAssetType,
     ) -> Vc<Self> {
         Self::cell(CssModuleAsset {
             source,
-            context,
+            asset_context,
             transforms,
             ty,
         })
@@ -114,10 +114,14 @@ impl ChunkableModule for CssModuleAsset {
     #[turbo_tasks::function]
     fn as_chunk(
         self: Vc<Self>,
-        context: Vc<Box<dyn ChunkingContext>>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
         availability_info: Value<AvailabilityInfo>,
     ) -> Vc<Box<dyn Chunk>> {
-        Vc::upcast(CssChunk::new(context, Vc::upcast(self), availability_info))
+        Vc::upcast(CssChunk::new(
+            chunking_context,
+            Vc::upcast(self),
+            availability_info,
+        ))
     }
 }
 
@@ -126,11 +130,11 @@ impl CssChunkPlaceable for CssModuleAsset {
     #[turbo_tasks::function]
     fn as_chunk_item(
         self: Vc<Self>,
-        context: Vc<Box<dyn ChunkingContext>>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Vc<Box<dyn CssChunkItem>> {
         Vc::upcast(CssModuleChunkItem::cell(CssModuleChunkItem {
             module: self,
-            context,
+            chunking_context,
         }))
     }
 }
@@ -144,14 +148,14 @@ impl ResolveOrigin for CssModuleAsset {
 
     #[turbo_tasks::function]
     fn asset_context(&self) -> Vc<Box<dyn AssetContext>> {
-        self.context
+        self.asset_context
     }
 }
 
 #[turbo_tasks::value]
 struct CssModuleChunkItem {
     module: Vc<CssModuleAsset>,
-    context: Vc<Box<dyn ChunkingContext>>,
+    chunking_context: Vc<Box<dyn ChunkingContext>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -173,7 +177,7 @@ impl CssChunkItem for CssModuleChunkItem {
     async fn content(&self) -> Result<Vc<CssChunkItemContent>> {
         let references = &*self.module.references().await?;
         let mut imports = vec![];
-        let context = self.context;
+        let chunking_context = self.chunking_context;
 
         for reference in references.iter() {
             if let Some(import_ref) =
@@ -190,7 +194,7 @@ impl CssChunkItem for CssModuleChunkItem {
                     {
                         imports.push(CssImport::Internal(
                             import_ref,
-                            placeable.as_chunk_item(context),
+                            placeable.as_chunk_item(chunking_context),
                         ));
                     }
                 }
@@ -206,7 +210,9 @@ impl CssChunkItem for CssModuleChunkItem {
                     if let Some(placeable) =
                         Vc::try_resolve_downcast::<Box<dyn CssChunkPlaceable>>(module).await?
                     {
-                        imports.push(CssImport::Composes(placeable.as_chunk_item(context)));
+                        imports.push(CssImport::Composes(
+                            placeable.as_chunk_item(chunking_context),
+                        ));
                     }
                 }
             }
@@ -217,7 +223,7 @@ impl CssChunkItem for CssModuleChunkItem {
             if let Some(code_gen) =
                 Vc::try_resolve_sidecast::<Box<dyn CodeGenerateable>>(*r).await?
             {
-                code_gens.push(code_gen.code_generation(context));
+                code_gens.push(code_gen.code_generation(chunking_context));
             }
         }
         // need to keep that around to allow references into that
@@ -308,6 +314,6 @@ impl CssChunkItem for CssModuleChunkItem {
 
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        self.context
+        self.chunking_context
     }
 }

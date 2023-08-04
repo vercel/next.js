@@ -37,14 +37,17 @@ impl ResolvePlugin for UnsupportedSassResolvePlugin {
     async fn after_resolve(
         &self,
         fs_path: Vc<FileSystemPath>,
-        context: Vc<FileSystemPath>,
+        lookup_path: Vc<FileSystemPath>,
         request: Vc<Request>,
     ) -> Result<Vc<ResolveResultOption>> {
         let extension = fs_path.extension().await?;
         if ["sass", "scss"].iter().any(|ext| ext == &*extension) {
-            UnsupportedSassModuleIssue { context, request }
-                .cell()
-                .emit();
+            UnsupportedSassModuleIssue {
+                file_path: lookup_path,
+                request,
+            }
+            .cell()
+            .emit();
         }
 
         Ok(ResolveResultOption::none())
@@ -53,7 +56,7 @@ impl ResolvePlugin for UnsupportedSassResolvePlugin {
 
 #[turbo_tasks::value(shared)]
 struct UnsupportedSassModuleIssue {
-    context: Vc<FileSystemPath>,
+    file_path: Vc<FileSystemPath>,
     request: Vc<Request>,
 }
 
@@ -79,7 +82,7 @@ impl Issue for UnsupportedSassModuleIssue {
 
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        self.context
+        self.file_path
     }
 
     #[turbo_tasks::function]

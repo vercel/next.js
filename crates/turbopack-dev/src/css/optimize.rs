@@ -34,7 +34,7 @@ async fn merge_chunks(
         .flat_map(|e| e.iter().copied())
         .collect::<IndexSet<_>>();
     Ok(CssChunk::new_normalized(
-        first.await?.context,
+        first.await?.chunking_context,
         Vc::cell(main_entries.into_iter().collect()),
         Value::new(first.await?.availability_info),
     ))

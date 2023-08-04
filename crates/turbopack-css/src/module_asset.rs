@@ -46,7 +46,7 @@ fn modifier() -> Vc<String> {
 #[derive(Clone)]
 pub struct ModuleCssAsset {
     pub source: Vc<Box<dyn Source>>,
-    pub context: Vc<Box<dyn AssetContext>>,
+    pub asset_context: Vc<Box<dyn AssetContext>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -54,9 +54,12 @@ impl ModuleCssAsset {
     #[turbo_tasks::function]
     pub async fn new(
         source: Vc<Box<dyn Source>>,
-        context: Vc<Box<dyn AssetContext>>,
+        asset_context: Vc<Box<dyn AssetContext>>,
     ) -> Result<Vc<Self>> {
-        Ok(Self::cell(ModuleCssAsset { source, context }))
+        Ok(Self::cell(ModuleCssAsset {
+            source,
+            asset_context,
+        }))
     }
 }
 
@@ -139,7 +142,7 @@ impl ModuleCssAsset {
     #[turbo_tasks::function]
     async fn inner(self: Vc<Self>) -> Result<Vc<Box<dyn Module>>> {
         let this = self.await?;
-        Ok(this.context.process(
+        Ok(this.asset_context.process(
             this.source,
             Value::new(ReferenceType::Css(CssReferenceSubType::Internal)),
         ))
@@ -210,11 +213,11 @@ impl ChunkableModule for ModuleCssAsset {
     #[turbo_tasks::function]
     fn as_chunk(
         self: Vc<Self>,
-        context: Vc<Box<dyn ChunkingContext>>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
         availability_info: Value<AvailabilityInfo>,
     ) -> Vc<Box<dyn Chunk>> {
         Vc::upcast(EcmascriptChunk::new(
-            context,
+            chunking_context,
             Vc::upcast(self),
             availability_info,
         ))
@@ -226,11 +229,11 @@ impl EcmascriptChunkPlaceable for ModuleCssAsset {
     #[turbo_tasks::function]
     fn as_chunk_item(
         self: Vc<Self>,
-        context: Vc<Box<dyn EcmascriptChunkingContext>>,
+        chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
     ) -> Vc<Box<dyn EcmascriptChunkItem>> {
         Vc::upcast(
             ModuleChunkItem {
-                context,
+                chunking_context,
                 module: self,
             }
             .cell(),
@@ -252,14 +255,14 @@ impl ResolveOrigin for ModuleCssAsset {
 
     #[turbo_tasks::function]
     fn asset_context(&self) -> Vc<Box<dyn AssetContext>> {
-        self.context
+        self.asset_context
     }
 }
 
 #[turbo_tasks::value]
 struct ModuleChunkItem {
     module: Vc<ModuleCssAsset>,
-    context: Vc<Box<dyn EcmascriptChunkingContext>>,
+    chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -279,7 +282,7 @@ impl ChunkItem for ModuleChunkItem {
 impl EcmascriptChunkItem for ModuleChunkItem {
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn EcmascriptChunkingContext>> {
-        self.context
+        self.chunking_context
     }
 
     #[turbo_tasks::function]
@@ -335,7 +338,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
                         let placeable: Vc<Box<dyn EcmascriptChunkPlaceable>> =
                             Vc::upcast(css_module);
 
-                        let module_id = placeable.as_chunk_item(self.context).id().await?;
+                        let module_id = placeable.as_chunk_item(self.chunking_context).id().await?;
                         let module_id = StringifyJs(&*module_id);
                         let original_name = StringifyJs(&original_name);
                         exported_class_names.push(format! {

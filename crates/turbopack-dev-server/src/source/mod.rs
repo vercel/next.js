@@ -27,7 +27,8 @@ use turbo_tasks_hash::{DeterministicHash, DeterministicHasher, Xxh3Hash64Hasher}
 use turbopack_core::version::{Version, VersionedContent};
 
 use self::{
-    headers::Headers, issue_context::IssueContextContentSource, query::Query, route_tree::RouteTree,
+    headers::Headers, issue_context::IssueFilePathContentSource, query::Query,
+    route_tree::RouteTree,
 };
 
 /// The result of proxying a request to another HTTP server.
@@ -420,9 +421,9 @@ pub trait ContentSource {
 }
 
 pub trait ContentSourceExt {
-    fn issue_context(
+    fn issue_file_path(
         self: Vc<Self>,
-        context: Vc<FileSystemPath>,
+        file_path: Vc<FileSystemPath>,
         description: String,
     ) -> Vc<Box<dyn ContentSource>>;
 }
@@ -431,13 +432,13 @@ impl<T> ContentSourceExt for T
 where
     T: Upcast<Box<dyn ContentSource>>,
 {
-    fn issue_context(
+    fn issue_file_path(
         self: Vc<Self>,
-        context: Vc<FileSystemPath>,
+        file_path: Vc<FileSystemPath>,
         description: String,
     ) -> Vc<Box<dyn ContentSource>> {
-        Vc::upcast(IssueContextContentSource::new_context(
-            context,
+        Vc::upcast(IssueFilePathContentSource::new_file_path(
+            file_path,
             description,
             Vc::upcast(self),
         ))
