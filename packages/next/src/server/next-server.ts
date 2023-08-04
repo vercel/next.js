@@ -715,9 +715,15 @@ export default class NextNodeServer extends BaseServer {
   ) {
     const params = getPathMatch('/_next/data/:path*')(parsedUrl.pathname)
 
-    // Make sure to 404 for /_next/data/ itself and
-    // we also want to 404 if the buildId isn't correct
-    if (!params || !params.path || params.path[0] !== this.buildId) {
+    // ignore for non-next data URLs
+    if (!params || !params.path) {
+      return {
+        finished: false,
+      }
+    }
+
+    // Make sure to 404 if the buildId isn't correct
+    if (params.path[0] !== this.buildId) {
       await this.render404(req, res, parsedUrl)
       return {
         finished: true,
