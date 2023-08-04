@@ -23,9 +23,8 @@
   "debug.javascript.unmapMissingSources": true,
 
   "files.exclude": {
-    "**/node_modules": false,
-    "node_modules": true,
-    "*[!test]**/node_modules": true
+    "*[!test]**/node_modules": true,
+    "**/node_modules": false
   },
 
   // Ensure enough terminal history is preserved when running tests.

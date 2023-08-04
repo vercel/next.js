@@ -5,6 +5,7 @@ const glob = require('glob')
 const fs = require('fs-extra')
 // eslint-disable-next-line import/no-extraneous-dependencies
 const resolveFrom = require('resolve-from')
+const execa = require('execa')
 
 export async function next__polyfill_nomodule(task, opts) {
   await task
@@ -1654,26 +1655,82 @@ export async function ncc_icss_utils(task, opts) {
     .target('src/compiled/icss-utils')
 }
 
-externals['scheduler'] = 'next/dist/compiled/scheduler-experimental'
-externals['scheduler'] = 'next/dist/compiled/scheduler'
-export async function copy_vendor_react(task_) {
-  function* copy_vendor_react_impl(task, opts) {
-    const channel = opts.experimental ? `experimental-builtin` : `builtin`
-    const packageSuffix = opts.experimental ? `-experimental` : ``
+export async function vendor_deps(task, opts) {
+  await task.clear('vendored/*').serial([
+    'vendor_react',
+    'vendor_poison_packages',
+    // @TODO-APP to properly install transitive dependencies it may be better to install
+    // the vendored packages using a tarball. However pnpm does not support this when installing
+    // without bundleDepedencies and when using this feature transitive deps are not included. For
+    // now let's avoid the packing of these vendored deps until we can figure out a better option
+    // that works across all package managers consitently
+    // 'package_vendored'
+  ])
+}
+
+export async function package_vendored(task) {
+  const nextPath = dirname(require.resolve('next/package.json'))
+  const vendoredDir = join(nextPath, 'vendored')
+  const vendoredPackagesDir = join(nextPath, 'vendored/node_modules')
+  const files = await fs.readdir(vendoredPackagesDir)
+  for (let file of files) {
+    const pkgFolder = join(vendoredPackagesDir, file)
+    const pkgJSON = join(pkgFolder, 'package.json')
+    try {
+      await fs.stat(pkgJSON)
+    } catch (e) {
+      require('console').error(
+        'When attempting to package vendored pacakges we found a package without a package.json. This is likely an error in the task that prepares the vendored package source. The package in question is: ' +
+          pkgFolder
+      )
+      throw e
+    }
+    try {
+      const result = await execa('npm', ['pack'], {
+        cwd: join(pkgFolder),
+      })
+      const packedName = result.stdout.trim()
+      await fs.move(
+        join(pkgFolder, packedName),
+        join(vendoredDir, file + '.tgz')
+      )
+    } catch (e) {
+      require('console').error(
+        'There was an error packing a vendored package. This is a critical error because it can cause next to fail to install in certain package managers. The actual error encounter follows this message. The package in question is: ' +
+          pkgFolder
+      )
+      throw e
+    }
+  }
+}
+
+// externals['scheduler'] = 'next/dist/compiled/scheduler-experimental'
+// externals['scheduler'] = 'next/dist/compiled/scheduler'
+export async function vendor_react(task_) {
+  function* vendor_react_vendored_impl(task, opts) {
+    const builtInChannel = opts.experimental
+      ? `-experimental-builtin`
+      : `-builtin`
+    const channel = opts.experimental ? `-experimental` : ``
+    const packageSuffix = opts.experimental
+      ? `-experimental-vendored`
+      : `-vendored`
 
     // Override the `react`, `react-dom` and `scheduler`'s package names to avoid
     // "The name `react` was looked up in the Haste module map" warnings.
     // TODO-APP: remove unused fields from package.json and unused files
-    function overridePackageName(source) {
+    function overridePackageName(source, suffix) {
       const json = JSON.parse(source)
-      json.name = json.name + '-' + channel
+      json.name = json.name + suffix
       return JSON.stringify(
         {
           name: json.name,
           main: json.main,
+          // Version is required for certain package managers to be able to
+          // recognize these as valid packages even though they are vendored
+          version: json.version,
           exports: json.exports,
           dependencies: json.dependencies,
-          peerDependencies: json.peerDependencies,
           browser: json.browser,
         },
         null,
@@ -1682,29 +1739,38 @@ export async function copy_vendor_react(task_) {
     }
 
     const schedulerDir = dirname(
-      relative(__dirname, require.resolve(`scheduler-${channel}/package.json`))
+      relative(
+        __dirname,
+        require.resolve(`scheduler${builtInChannel}/package.json`)
+      )
     )
     yield task
       .source(join(schedulerDir, '*.{json,js}'))
       // eslint-disable-next-line require-yield
       .run({ every: true }, function* (file) {
         if (file.base === 'package.json') {
-          file.data = overridePackageName(file.data.toString())
+          file.data = overridePackageName(file.data.toString(), packageSuffix)
         }
       })
-      .target(`src/compiled/scheduler${packageSuffix}`)
+      .target(`vendored/node_modules/scheduler${packageSuffix}`)
     yield task
       .source(join(schedulerDir, 'cjs/**/*.js'))
-      .target(`src/compiled/scheduler${packageSuffix}/cjs`)
+      .target(`vendored/node_modules/scheduler${packageSuffix}/cjs`)
     yield task
       .source(join(schedulerDir, 'LICENSE'))
-      .target(`src/compiled/scheduler${packageSuffix}`)
+      .target(`vendored/node_modules/scheduler${packageSuffix}`)
 
     const reactDir = dirname(
-      relative(__dirname, require.resolve(`react-${channel}/package.json`))
+      relative(
+        __dirname,
+        require.resolve(`react${builtInChannel}/package.json`)
+      )
     )
     const reactDomDir = dirname(
-      relative(__dirname, require.resolve(`react-dom-${channel}/package.json`))
+      relative(
+        __dirname,
+        require.resolve(`react-dom${builtInChannel}/package.json`)
+      )
     )
 
     yield task
@@ -1712,63 +1778,37 @@ export async function copy_vendor_react(task_) {
       // eslint-disable-next-line require-yield
       .run({ every: true }, function* (file) {
         if (file.base === 'package.json') {
-          file.data = overridePackageName(file.data.toString())
+          file.data = overridePackageName(file.data.toString(), packageSuffix)
         }
       })
-      .target(`src/compiled/react${packageSuffix}`)
+      .target(`vendored/node_modules/react${packageSuffix}`)
     yield task
       .source(join(reactDir, 'LICENSE'))
-      .target(`src/compiled/react${packageSuffix}`)
+      .target(`vendored/node_modules/react${packageSuffix}`)
     yield task
       .source(join(reactDir, 'cjs/**/*.js'))
-      // eslint-disable-next-line require-yield
-      .run({ every: true }, function* (file) {
-        const source = file.data.toString()
-        // We replace the module/chunk loading code with our own implementation in Next.js.
-        file.data = source.replace(
-          /require\(["']react["']\)/g,
-          `require("next/dist/compiled/react${packageSuffix}")`
-        )
-      })
-      .target(`src/compiled/react${packageSuffix}/cjs`)
+      .target(`vendored/node_modules/react${packageSuffix}/cjs`)
 
     yield task
       .source(join(reactDomDir, '*.{json,js}'))
       // eslint-disable-next-line require-yield
       .run({ every: true }, function* (file) {
         if (file.base === 'package.json') {
-          file.data = overridePackageName(file.data.toString())
+          file.data = overridePackageName(file.data.toString(), packageSuffix)
         }
       })
-      .target(`src/compiled/react-dom${packageSuffix}`)
+      .target(`vendored/node_modules/react-dom${packageSuffix}`)
     yield task
       .source(join(reactDomDir, 'LICENSE'))
-      .target(`src/compiled/react-dom${packageSuffix}`)
+      .target(`vendored/node_modules/react-dom${packageSuffix}`)
     yield task
       .source(join(reactDomDir, 'cjs/**/*.js'))
-      // eslint-disable-next-line require-yield
-      .run({ every: true }, function* (file) {
-        const source = file.data.toString()
-        // We replace the module/chunk loading code with our own implementation in Next.js.
-        file.data = source
-          .replace(
-            /require\(["']scheduler["']\)/g,
-            `require("next/dist/compiled/scheduler${packageSuffix}")`
-          )
-          .replace(
-            /require\(["']react["']\)/g,
-            `require("next/dist/compiled/react${packageSuffix}")`
-          )
-
-        // Note that we don't replace `react-dom` with `next/dist/compiled/react-dom`
-        // as it mighe be aliased to the server rendering stub.
-      })
-      .target(`src/compiled/react-dom${packageSuffix}/cjs`)
+      .target(`vendored/node_modules/react-dom${packageSuffix}/cjs`)
 
     // Remove unused files
     const reactDomCompiledDir = join(
       __dirname,
-      `src/compiled/react-dom${packageSuffix}`
+      `vendored/node_modules/react-dom${packageSuffix}`
     )
     const itemsToRemove = [
       'static.js',
@@ -1793,12 +1833,12 @@ export async function copy_vendor_react(task_) {
     const reactServerDomDir = dirname(
       relative(
         __dirname,
-        require.resolve(`react-server-dom-webpack${packageSuffix}/package.json`)
+        require.resolve(`react-server-dom-webpack${channel}/package.json`)
       )
     )
     yield task
       .source(join(reactServerDomDir, 'LICENSE'))
-      .target(`src/compiled/react-server-dom-webpack${packageSuffix}`)
+      .target(`vendored/node_modules/react-server-dom-webpack${packageSuffix}`)
     yield task
       .source(join(reactServerDomDir, '{package.json,*.js,cjs/**/*.js}'))
       // eslint-disable-next-line require-yield
@@ -1812,30 +1852,55 @@ export async function copy_vendor_react(task_) {
           .replace(/__webpack_require__/g, 'globalThis.__next_require__')
 
         if (file.base === 'package.json') {
-          file.data = overridePackageName(file.data)
+          file.data = overridePackageName(file.data, packageSuffix)
         }
       })
-      .target(`src/compiled/react-server-dom-webpack${packageSuffix}`)
+      .target(`vendored/node_modules/react-server-dom-webpack${packageSuffix}`)
   }
 
   // As taskr transpiles async functions into generators, to reuse the same logic
   // we need to directly write this iteration logic here.
-  for (const res of copy_vendor_react_impl(task_, { experimental: false })) {
+  for (const res of vendor_react_vendored_impl(task_, {
+    experimental: false,
+  })) {
     await res
   }
-  for (const res of copy_vendor_react_impl(task_, { experimental: true })) {
+  for (const res of vendor_react_vendored_impl(task_, {
+    experimental: true,
+  })) {
     await res
   }
 }
 
 // eslint-disable-next-line camelcase
-export async function ncc_rsc_poison_packages(task, opts) {
+export async function vendor_poison_packages(task, opts) {
+  function overridePackageName(source, suffix) {
+    const json = JSON.parse(source)
+    if (!json.name.endsWith(suffix)) {
+      json.name = json.name + suffix
+    }
+    return JSON.stringify(json, null, 2)
+  }
+
   await task
     .source(join(dirname(require.resolve('server-only')), '*'))
-    .target('src/compiled/server-only')
+    // eslint-disable-next-line require-yield
+    .run({ every: true }, function* (file) {
+      if (file.base === 'package.json') {
+        file.data = overridePackageName(file.data.toString(), '-vendored')
+      }
+    })
+    .target('vendored/node_modules/server-only-vendored')
+
   await task
     .source(join(dirname(require.resolve('client-only')), '*'))
-    .target('src/compiled/client-only')
+    // eslint-disable-next-line require-yield
+    .run({ every: true }, function* (file) {
+      if (file.base === 'package.json') {
+        file.data = overridePackageName(file.data.toString(), '-vendored')
+      }
+    })
+    .target('vendored/node_modules/client-only-vendored')
 }
 
 externals['sass-loader'] = 'next/dist/compiled/sass-loader'
@@ -2337,7 +2402,7 @@ export async function ncc(task, opts) {
       'copy_babel_runtime',
       'copy_vercel_og',
       'copy_constants_browserify',
-      'copy_vendor_react',
+      'vendor_deps',
       'copy_react_is',
       'ncc_sass_loader',
       'ncc_jest_worker',

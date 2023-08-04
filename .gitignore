@@ -6,6 +6,7 @@ packages/next/wasm/@next
 
 # dependencies
 node_modules
+!packages/next/vendored/node_modules
 package-lock.json
 yarn.lock
 !/yarn.lock
