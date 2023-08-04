@@ -3,6 +3,7 @@ import type {
   AppRouteRouteHandlerContext,
   AppRouteRouteModule,
 } from '../future/route-modules/app-route/module'
+import type { PrerenderManifest } from '../../build'
 
 import './globals'
 
@@ -11,7 +12,6 @@ import { IncrementalCache } from '../lib/incremental-cache'
 import { RouteMatcher } from '../future/route-matchers/route-matcher'
 import { removeTrailingSlash } from '../../shared/lib/router/utils/remove-trailing-slash'
 import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
-import { PrerenderManifest } from '../../build'
 
 type WrapOptions = Partial<Pick<AdapterOptions, 'page'>>
 
