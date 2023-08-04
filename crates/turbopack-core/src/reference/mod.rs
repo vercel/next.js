@@ -7,7 +7,7 @@ use turbo_tasks::{
 };
 
 use crate::{
-    issue::IssueFilePathExt,
+    issue::IssueDescriptionExt,
     module::{Module, Modules},
     output::{OutputAsset, OutputAssets},
     resolve::ModuleResolveResult,

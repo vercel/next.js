@@ -9,7 +9,7 @@ use turbopack_core::{
         module::IntrospectableModule, output_asset::IntrospectableOutputAsset, Introspectable,
         IntrospectableChildren,
     },
-    issue::IssueFilePathExt,
+    issue::IssueDescriptionExt,
     module::Module,
     output::OutputAsset,
     version::VersionedContentExt,

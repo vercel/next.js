@@ -624,7 +624,7 @@ pub trait IssueReporter {
 }
 
 #[async_trait]
-pub trait IssueFilePathExt
+pub trait IssueDescriptionExt
 where
     Self: Sized,
 {
@@ -657,7 +657,7 @@ where
 }
 
 #[async_trait]
-impl<T> IssueFilePathExt for T
+impl<T> IssueDescriptionExt for T
 where
     T: CollectiblesSource + Copy + Send,
 {

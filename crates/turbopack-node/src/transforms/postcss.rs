@@ -12,7 +12,7 @@ use turbopack_core::{
     context::AssetContext,
     file_source::FileSource,
     ident::AssetIdent,
-    issue::IssueFilePathExt,
+    issue::IssueDescriptionExt,
     module::Module,
     reference_type::{EntryReferenceSubType, InnerAssets, ReferenceType},
     resolve::{find_context_file, FindContextFileResult},

@@ -29,7 +29,7 @@ use turbopack_core::{
     context::AssetContext,
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
     file_source::FileSource,
-    issue::{Issue, IssueFilePathExt},
+    issue::{Issue, IssueDescriptionExt},
     module::Module,
     reference_type::{EntryReferenceSubType, ReferenceType},
     source::Source,

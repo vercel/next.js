@@ -9,7 +9,9 @@ use turbo_tasks::{unit, IntoTraitRef, ReadRef, TransientInstance, Vc};
 use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack_core::{
     error::PrettyPrintError,
-    issue::{Issue, IssueFilePathExt, IssueSeverity, OptionIssueProcessingPathItems, PlainIssue},
+    issue::{
+        Issue, IssueDescriptionExt, IssueSeverity, OptionIssueProcessingPathItems, PlainIssue,
+    },
     server_fs::ServerFileSystem,
     version::{
         NotFoundVersion, PartialUpdate, TotalUpdate, Update, Version, VersionState,
