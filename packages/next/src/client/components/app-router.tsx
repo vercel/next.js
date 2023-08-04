@@ -58,6 +58,7 @@ import { findHeadInCache } from './router-reducer/reducers/find-head-in-cache'
 import { createInfinitePromise } from './infinite-promise'
 import { NEXT_RSC_UNION_QUERY } from './app-router-headers'
 import { removeBasePath } from '../remove-base-path'
+import { hasBasePath } from '../has-base-path'
 
 const isServer = typeof window === 'undefined'
 
@@ -252,7 +253,9 @@ function Router({
     return {
       // This is turned into a readonly class in `useSearchParams`
       searchParams: url.searchParams,
-      pathname: removeBasePath(url.pathname),
+      pathname: hasBasePath(url.pathname)
+        ? removeBasePath(url.pathname)
+        : url.pathname,
     }
   }, [canonicalUrl])
 
