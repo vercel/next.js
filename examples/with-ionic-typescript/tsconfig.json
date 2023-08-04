@@ -14,6 +14,6 @@
     "isolatedModules": true,
     "jsx": "preserve"
   },
-  "include": ["next-env.d.ts", "ionic.d.ts", "**/*.ts", "**/*.tsx"],
+  "include": ["ionic.d.ts", "**/*.ts", "**/*.tsx"],
   "exclude": ["node_modules"]
 }

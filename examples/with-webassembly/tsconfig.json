@@ -15,6 +15,6 @@
     "jsx": "preserve",
     "incremental": true
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", "wasm.d.ts"],
+  "include": ["**/*.ts", "**/*.tsx", "wasm.d.ts"],
   "exclude": ["node_modules"]
 }

@@ -15,6 +15,6 @@
     "isolatedModules": true,
     "jsx": "preserve"
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", "interfaces.d.ts"],
+  "include": ["**/*.ts", "**/*.tsx", "interfaces.d.ts"],
   "exclude": ["node_modules"]
 }

@@ -15,6 +15,6 @@
     "jsx": "preserve",
     "incremental": true
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", "videojs.d.ts"],
+  "include": ["**/*.ts", "**/*.tsx", "videojs.d.ts"],
   "exclude": ["node_modules"]
 }
