@@ -18,6 +18,6 @@
       "@turbo/pack-test-harness": ["../../../../../../test-harness"]
     }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", "pages/index.jsx"],
+  "include": [".next/next-env.d.ts", "**/*.ts", "**/*.tsx", "pages/index.jsx"],
   "exclude": ["node_modules"]
 }

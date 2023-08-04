@@ -2,5 +2,5 @@
 {
   "extends": "../../tsconfig.json",
   "exclude": ["node_modules"],
-  "include": ["next-env.d.ts", "components", "pages"]
+  "include": [".next/next-env.d.ts", "components", "pages"]
 }

@@ -59,6 +59,8 @@ export const installTemplate = async ({
     cwd: templatePath,
     rename(name) {
       switch (name) {
+        case 'next-env.d.ts':
+          return '.next/next-env.d.ts'
         case 'gitignore':
         case 'eslintrc.json': {
           return `.${name}`
