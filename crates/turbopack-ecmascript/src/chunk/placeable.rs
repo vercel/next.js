@@ -8,7 +8,7 @@ use crate::references::{async_module::OptionAsyncModule, esm::EsmExports};
 pub trait EcmascriptChunkPlaceable: ChunkableModule + Module + Asset {
     fn as_chunk_item(
         self: Vc<Self>,
-        context: Vc<Box<dyn EcmascriptChunkingContext>>,
+        chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
     ) -> Vc<Box<dyn EcmascriptChunkItem>>;
     fn get_exports(self: Vc<Self>) -> Vc<EcmascriptExports>;
     fn get_async_module(self: Vc<Self>) -> Vc<OptionAsyncModule> {

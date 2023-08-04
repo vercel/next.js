@@ -24,7 +24,7 @@ pub async fn optimize_ecmascript_chunks(
         .await?
         .iter()
         .map(|chunk| async move {
-            let chunking_context = chunk.await?.context.resolve().await?;
+            let chunking_context = chunk.await?.chunking_context.resolve().await?;
             Ok((chunking_context, chunk))
         })
         .try_join()
@@ -76,7 +76,7 @@ async fn merge_chunks(
         .flat_map(|e| e.iter().copied())
         .collect::<IndexSet<_>>();
     Ok(EcmascriptChunk::new_normalized(
-        first.context,
+        first.chunking_context,
         Vc::cell(main_entries.into_iter().collect()),
         None,
         Value::new(first.availability_info),
@@ -401,7 +401,7 @@ async fn optimize_ecmascript(
         for chunk in local.iter_mut() {
             let content = (*chunk).await?;
             *chunk = EcmascriptChunk::new_normalized(
-                content.context,
+                content.chunking_context,
                 content.main_entries,
                 content.omit_entries,
                 Value::new(content.availability_info),

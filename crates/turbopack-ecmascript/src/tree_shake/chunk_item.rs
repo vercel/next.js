@@ -23,7 +23,7 @@ use crate::{
 #[turbo_tasks::value(shared)]
 pub struct EcmascriptModulePartChunkItem {
     pub(super) module: Vc<EcmascriptModulePartAsset>,
-    pub(super) context: Vc<Box<dyn EcmascriptChunkingContext>>,
+    pub(super) chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -52,7 +52,7 @@ impl EcmascriptChunkItem for EcmascriptModulePartChunkItem {
         let content = EcmascriptModuleContent::new(
             parsed,
             module.full_module.ident(),
-            this.context,
+            this.chunking_context,
             this.module.analyze(),
             availability_info,
         );
@@ -64,14 +64,14 @@ impl EcmascriptChunkItem for EcmascriptModulePartChunkItem {
 
         Ok(EcmascriptChunkItemContent::new(
             content,
-            this.context,
+            this.chunking_context,
             async_module_options,
         ))
     }
 
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn EcmascriptChunkingContext>> {
-        self.context
+        self.chunking_context
     }
 }
 

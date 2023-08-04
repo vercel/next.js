@@ -25,9 +25,9 @@ impl FileSourceReference {
 impl ModuleReference for FileSourceReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
-        let context = self.source.ident().path().parent();
+        let context_dir = self.source.ident().path().parent();
 
-        resolve_raw(context, self.path, false).as_raw_module_result()
+        resolve_raw(context_dir, self.path, false).as_raw_module_result()
     }
 }
 

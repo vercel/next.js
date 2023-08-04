@@ -74,10 +74,10 @@ impl ModuleReference for DirAssetReference {
         if context_path.path.contains("node_modules/node-gyp") {
             return Ok(ModuleResolveResult::unresolveable().cell());
         }
-        let context = self.source.ident().path().parent();
+        let parent_path = self.source.ident().path().parent();
         let pat = self.path.await?;
         let mut result = IndexSet::default();
-        let fs = context.fs();
+        let fs = parent_path.fs();
         match &*pat {
             Pattern::Constant(p) => {
                 extend_with_constant_pattern(p, fs, &mut result).await?;

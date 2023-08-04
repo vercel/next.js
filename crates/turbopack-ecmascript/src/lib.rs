@@ -127,7 +127,7 @@ struct MemoizedSuccessfulAnalysis {
 
 pub struct EcmascriptModuleAssetBuilder {
     source: Vc<Box<dyn Source>>,
-    context: Vc<Box<dyn AssetContext>>,
+    asset_context: Vc<Box<dyn AssetContext>>,
     ty: EcmascriptModuleAssetType,
     transforms: Vc<EcmascriptInputTransforms>,
     options: EcmascriptOptions,
@@ -156,7 +156,7 @@ impl EcmascriptModuleAssetBuilder {
         let base = if let Some(inner_assets) = self.inner_assets {
             EcmascriptModuleAsset::new_with_inner_assets(
                 self.source,
-                self.context,
+                self.asset_context,
                 Value::new(self.ty),
                 self.transforms,
                 Value::new(self.options),
@@ -166,7 +166,7 @@ impl EcmascriptModuleAssetBuilder {
         } else {
             EcmascriptModuleAsset::new(
                 self.source,
-                self.context,
+                self.asset_context,
                 Value::new(self.ty),
                 self.transforms,
                 Value::new(self.options),
@@ -184,7 +184,7 @@ impl EcmascriptModuleAssetBuilder {
 #[turbo_tasks::value]
 pub struct EcmascriptModuleAsset {
     pub source: Vc<Box<dyn Source>>,
-    pub context: Vc<Box<dyn AssetContext>>,
+    pub asset_context: Vc<Box<dyn AssetContext>>,
     pub ty: EcmascriptModuleAssetType,
     pub transforms: Vc<EcmascriptInputTransforms>,
     pub options: EcmascriptOptions,
@@ -206,14 +206,14 @@ pub struct EcmascriptModuleAssets(Vec<Vc<EcmascriptModuleAsset>>);
 impl EcmascriptModuleAsset {
     pub fn builder(
         source: Vc<Box<dyn Source>>,
-        context: Vc<Box<dyn AssetContext>>,
+        asset_context: Vc<Box<dyn AssetContext>>,
         transforms: Vc<EcmascriptInputTransforms>,
         options: EcmascriptOptions,
         compile_time_info: Vc<CompileTimeInfo>,
     ) -> EcmascriptModuleAssetBuilder {
         EcmascriptModuleAssetBuilder {
             source,
-            context,
+            asset_context,
             ty: EcmascriptModuleAssetType::Ecmascript,
             transforms,
             options,
@@ -229,7 +229,7 @@ impl EcmascriptModuleAsset {
     #[turbo_tasks::function]
     pub fn new(
         source: Vc<Box<dyn Source>>,
-        context: Vc<Box<dyn AssetContext>>,
+        asset_context: Vc<Box<dyn AssetContext>>,
         ty: Value<EcmascriptModuleAssetType>,
         transforms: Vc<EcmascriptInputTransforms>,
         options: Value<EcmascriptOptions>,
@@ -237,7 +237,7 @@ impl EcmascriptModuleAsset {
     ) -> Vc<Self> {
         Self::cell(EcmascriptModuleAsset {
             source,
-            context,
+            asset_context,
             ty: ty.into_value(),
             transforms,
             options: options.into_value(),
@@ -250,7 +250,7 @@ impl EcmascriptModuleAsset {
     #[turbo_tasks::function]
     pub fn new_with_inner_assets(
         source: Vc<Box<dyn Source>>,
-        context: Vc<Box<dyn AssetContext>>,
+        asset_context: Vc<Box<dyn AssetContext>>,
         ty: Value<EcmascriptModuleAssetType>,
         transforms: Vc<EcmascriptInputTransforms>,
         options: Value<EcmascriptOptions>,
@@ -259,7 +259,7 @@ impl EcmascriptModuleAsset {
     ) -> Vc<Self> {
         Self::cell(EcmascriptModuleAsset {
             source,
-            context,
+            asset_context,
             ty: ty.into_value(),
             transforms,
             options: options.into_value(),
@@ -272,11 +272,11 @@ impl EcmascriptModuleAsset {
     #[turbo_tasks::function]
     pub fn as_root_chunk_with_entries(
         self: Vc<Self>,
-        context: Vc<Box<dyn EcmascriptChunkingContext>>,
+        chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
         other_entries: Vc<EcmascriptChunkPlaceables>,
     ) -> Vc<Box<dyn Chunk>> {
         Vc::upcast(EcmascriptChunk::new_root_with_entries(
-            context,
+            chunking_context,
             Vc::upcast(self),
             other_entries,
         ))
@@ -406,11 +406,11 @@ impl ChunkableModule for EcmascriptModuleAsset {
     #[turbo_tasks::function]
     fn as_chunk(
         self: Vc<Self>,
-        context: Vc<Box<dyn ChunkingContext>>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
         availability_info: Value<AvailabilityInfo>,
     ) -> Vc<Box<dyn Chunk>> {
         Vc::upcast(EcmascriptChunk::new(
-            context,
+            chunking_context,
             Vc::upcast(self),
             availability_info,
         ))
@@ -422,11 +422,11 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleAsset {
     #[turbo_tasks::function]
     fn as_chunk_item(
         self: Vc<Self>,
-        context: Vc<Box<dyn EcmascriptChunkingContext>>,
+        chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
     ) -> Vc<Box<dyn EcmascriptChunkItem>> {
         Vc::upcast(ModuleChunkItem::cell(ModuleChunkItem {
             module: self,
-            context,
+            chunking_context,
         }))
     }
 
@@ -453,7 +453,7 @@ impl ResolveOrigin for EcmascriptModuleAsset {
 
     #[turbo_tasks::function]
     fn asset_context(&self) -> Vc<Box<dyn AssetContext>> {
-        self.context
+        self.asset_context
     }
 
     #[turbo_tasks::function]
@@ -473,7 +473,7 @@ impl ResolveOrigin for EcmascriptModuleAsset {
 #[turbo_tasks::value]
 struct ModuleChunkItem {
     module: Vc<EcmascriptModuleAsset>,
-    context: Vc<Box<dyn EcmascriptChunkingContext>>,
+    chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -493,7 +493,7 @@ impl ChunkItem for ModuleChunkItem {
 impl EcmascriptChunkItem for ModuleChunkItem {
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn EcmascriptChunkingContext>> {
-        self.context
+        self.chunking_context
     }
 
     #[turbo_tasks::function]
@@ -507,7 +507,9 @@ impl EcmascriptChunkItem for ModuleChunkItem {
         availability_info: Value<AvailabilityInfo>,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
         let this = self.await?;
-        let content = this.module.module_content(this.context, availability_info);
+        let content = this
+            .module
+            .module_content(this.chunking_context, availability_info);
         let async_module_options = this
             .module
             .get_async_module()
@@ -515,7 +517,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
 
         Ok(EcmascriptChunkItemContent::new(
             content,
-            this.context,
+            this.chunking_context,
             async_module_options,
         ))
     }
@@ -536,7 +538,7 @@ impl EcmascriptModuleContent {
     pub async fn new(
         parsed: Vc<ParseResult>,
         ident: Vc<AssetIdent>,
-        context: Vc<Box<dyn EcmascriptChunkingContext>>,
+        chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
         analyzed: Vc<AnalyzeEcmascriptModuleResult>,
         availability_info: Value<AvailabilityInfo>,
     ) -> Result<Vc<Self>> {
@@ -552,20 +554,20 @@ impl EcmascriptModuleContent {
             if let Some(code_gen) =
                 Vc::try_resolve_sidecast::<Box<dyn CodeGenerateableWithAvailabilityInfo>>(r).await?
             {
-                code_gens.push(code_gen.code_generation(context, availability_info));
+                code_gens.push(code_gen.code_generation(chunking_context, availability_info));
             } else if let Some(code_gen) =
                 Vc::try_resolve_sidecast::<Box<dyn CodeGenerateable>>(r).await?
             {
-                code_gens.push(code_gen.code_generation(context));
+                code_gens.push(code_gen.code_generation(chunking_context));
             }
         }
         for c in code_generation.await?.iter() {
             match c {
                 CodeGen::CodeGenerateable(c) => {
-                    code_gens.push(c.code_generation(context));
+                    code_gens.push(c.code_generation(chunking_context));
                 }
                 CodeGen::CodeGenerateableWithAvailabilityInfo(c) => {
-                    code_gens.push(c.code_generation(context, availability_info));
+                    code_gens.push(c.code_generation(chunking_context, availability_info));
                 }
             }
         }

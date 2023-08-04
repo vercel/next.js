@@ -62,12 +62,12 @@ impl CodeGenerateable for EsmModuleIdAssetReference {
     #[turbo_tasks::function]
     async fn code_generation(
         &self,
-        context: Vc<Box<dyn EcmascriptChunkingContext>>,
+        chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
     ) -> Result<Vc<CodeGeneration>> {
         let mut visitors = Vec::new();
 
         if let ReferencedAsset::Some(asset) = &*self.inner.get_referenced_asset().await? {
-            let id = asset.as_chunk_item(context).id().await?;
+            let id = asset.as_chunk_item(chunking_context).id().await?;
             visitors.push(
                 create_visitor!(self.ast_path.await?, visit_mut_expr(expr: &mut Expr) {
                     *expr = Expr::Lit(match &*id {

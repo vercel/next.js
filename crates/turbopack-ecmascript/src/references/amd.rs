@@ -138,7 +138,7 @@ impl CodeGenerateable for AmdDefineWithDependenciesCodeGen {
     #[turbo_tasks::function]
     async fn code_generation(
         &self,
-        context: Vc<Box<dyn EcmascriptChunkingContext>>,
+        chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
     ) -> Result<Vc<CodeGeneration>> {
         let mut visitors = Vec::new();
 
@@ -152,7 +152,7 @@ impl CodeGenerateable for AmdDefineWithDependenciesCodeGen {
                             PatternMapping::resolve_request(
                                 *request,
                                 self.origin,
-                                Vc::upcast(context),
+                                Vc::upcast(chunking_context),
                                 cjs_resolve(
                                     self.origin,
                                     *request,

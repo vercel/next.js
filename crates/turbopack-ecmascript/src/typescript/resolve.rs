@@ -107,7 +107,7 @@ async fn resolve_extends(
     extends: &str,
     resolve_options: Vc<ResolveOptions>,
 ) -> Result<Vc<OptionSource>> {
-    let context = tsconfig.ident().path().parent();
+    let parent_dir = tsconfig.ident().path().parent();
     let request = Request::parse_string(extends.to_string());
 
     // TS's resolution is weird, and has special behavior for different import
@@ -120,7 +120,7 @@ async fn resolve_extends(
         Request::Windows { path: Pattern::Constant(path) } |
         // Server relative is treated as absolute
         Request::ServerRelative { path: Pattern::Constant(path) } => {
-            resolve_extends_rooted_or_relative(context, request, resolve_options, path).await
+            resolve_extends_rooted_or_relative(parent_dir, request, resolve_options, path).await
         }
 
         // TS has special behavior for (explicitly) './' and '../', but not '.' nor '..':
@@ -129,22 +129,22 @@ async fn resolve_extends(
             path: Pattern::Constant(path),
             ..
         } if path.starts_with("./") || path.starts_with("../") => {
-            resolve_extends_rooted_or_relative(context, request, resolve_options, path).await
+            resolve_extends_rooted_or_relative(parent_dir, request, resolve_options, path).await
         }
 
         // An empty extends is treated as "./tsconfig"
         Request::Empty => {
             let request = Request::parse_string("./tsconfig".to_string());
-            Ok(resolve(context, request, resolve_options).first_source())
+            Ok(resolve(parent_dir, request, resolve_options).first_source())
         }
 
         // All other types are treated as module imports, and potentially joined with
         // "tsconfig.json". This includes "relative" imports like '.' and '..'.
         _ => {
-            let mut result = resolve(context, request, resolve_options).first_source();
+            let mut result = resolve(parent_dir, request, resolve_options).first_source();
             if result.await?.is_none() {
                 let request = Request::parse_string(format!("{extends}/tsconfig"));
-                result = resolve(context, request, resolve_options).first_source();
+                result = resolve(parent_dir, request, resolve_options).first_source();
             }
             Ok(result)
         }
@@ -152,19 +152,19 @@ async fn resolve_extends(
 }
 
 async fn resolve_extends_rooted_or_relative(
-    context: Vc<FileSystemPath>,
+    lookup_path: Vc<FileSystemPath>,
     request: Vc<Request>,
     resolve_options: Vc<ResolveOptions>,
     path: &str,
 ) -> Result<Vc<OptionSource>> {
-    let mut result = resolve(context, request, resolve_options).first_source();
+    let mut result = resolve(lookup_path, request, resolve_options).first_source();
 
     // If the file doesn't end with ".json" and we can't find the file, then we have
     // to try again with it.
     // https://github.com/microsoft/TypeScript/blob/611a912d/src/compiler/commandLineParser.ts#L3305
     if !path.ends_with(".json") && result.await?.is_none() {
         let request = Request::parse_string(format!("{path}.json"));
-        result = resolve(context, request, resolve_options).first_source();
+        result = resolve(lookup_path, request, resolve_options).first_source();
     }
     Ok(result)
 }
@@ -237,10 +237,10 @@ pub async fn tsconfig_resolve_options(
     for (content, source) in configs.iter().rev() {
         if let FileJsonContent::Content(json) = &*content.await? {
             if let JsonValue::Object(paths) = &json["compilerOptions"]["paths"] {
-                let mut context = source.ident().path().parent();
+                let mut context_dir = source.ident().path().parent();
                 if let Some(base_url) = json["compilerOptions"]["baseUrl"].as_str() {
-                    if let Some(new_context) = *context.try_join(base_url.to_string()).await? {
-                        context = new_context;
+                    if let Some(new_context) = *context_dir.try_join(base_url.to_string()).await? {
+                        context_dir = new_context;
                     }
                 };
                 for (key, value) in paths.iter() {
@@ -251,7 +251,7 @@ pub async fn tsconfig_resolve_options(
                             .collect();
                         all_paths.insert(
                             key.to_string(),
-                            ImportMapping::primary_alternatives(entries, Some(context)),
+                            ImportMapping::primary_alternatives(entries, Some(context_dir)),
                         );
                     } else {
                         TsConfigIssue {
