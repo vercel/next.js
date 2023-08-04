@@ -955,7 +955,7 @@ export async function renderToHTMLOrFlight(
         // Or if there's no parallel routes means it reaches the end.
         ((segment === '__DEFAULT__' && !parallelRouteMap.length) ||
           // For production build the original pathname is /_not-found, always render not-found component.
-          renderOpts.originalPathname === '/_not-found')
+          (!renderOpts.dev && renderOpts.originalPathname === '/_not-found'))
       ) {
         notFoundComponent = {
           children: (
@@ -1640,18 +1640,6 @@ export async function renderToHTMLOrFlight(
 
           const is404 = res.statusCode === 404
 
-          const injectedCSS = new Set<string>()
-          const injectedFontPreloadTags = new Set<string>()
-          const [RootLayout, rootStyles] = await getRootLayout(
-            tree,
-            injectedCSS,
-            injectedFontPreloadTags
-          )
-          const [NotFound, notFoundStyles] = await getNotFound(
-            tree,
-            injectedCSS
-          )
-
           // Preserve the existing RSC inline chunks from the page rendering.
           // For 404 errors: the metadata from layout can be skipped with the error page.
           // For other errors (such as redirection): it can still be re-thrown on client.
@@ -1708,6 +1696,20 @@ export async function renderToHTMLOrFlight(
                 notFoundLoaderTree,
                 getDynamicParamFromSegment,
                 query
+              )
+
+              const injectedCSS = new Set<string>()
+              const injectedFontPreloadTags = new Set<string>()
+              const [RootLayout, rootStyles] = await getRootLayout(
+                tree,
+                injectedCSS,
+                injectedFontPreloadTags
+              )
+              const [NotFound, notFoundStyles] = await getNotFound(
+                !renderOpts.dev && renderOpts.originalPathname === '/_not-found'
+                  ? notFoundLoaderTree
+                  : tree,
+                injectedCSS
               )
 
               const GlobalNotFound = NotFound || DefaultNotFound

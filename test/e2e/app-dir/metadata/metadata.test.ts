@@ -586,7 +586,7 @@ createNextDescribe(
 
         const browser = await next.browser('/async/not-found')
         expect(await browser.elementByCss('h2').text()).toBe(
-          'root not found page'
+          'Local found boundary'
         )
 
         const matchMultiDom = createMultiDomMatcher(browser)
