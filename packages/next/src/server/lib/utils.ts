@@ -34,15 +34,9 @@ export const genRouterWorkerExecArgv = async (
   })
 
   if (isNodeDebugging) {
-    const isDebuggingWithBrk = isNodeDebugging === 'brk'
-
     let debugPort = getDebugPort() + 1
 
-    Log.info(
-      `the --inspect${
-        isDebuggingWithBrk ? '-brk' : ''
-      } option was detected, the Next.js routing server should be inspected at port ${debugPort}.`
-    )
+    // Process will log it's own debugger port
 
     execArgv.push(
       `--inspect${isNodeDebugging === 'brk' ? '-brk' : ''}=${debugPort}`

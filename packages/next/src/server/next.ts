@@ -26,6 +26,7 @@ import {
   WorkerRequestHandler,
   WorkerUpgradeHandler,
 } from './lib/setup-server-worker'
+import { checkIsNodeDebugging } from './lib/is-node-debugging'
 
 let ServerImpl: typeof Server
 
@@ -276,7 +277,7 @@ function createServer(options: NextServerOptions): NextServer {
     const dir = resolve(options.dir || '.')
     const server = new NextServer(options)
 
-    const { getRequestHandlers, checkIsNodeDebugging } =
+    const { getRequestHandlers } =
       require('./lib/start-server') as typeof import('./lib/start-server')
 
     let didWebSocketSetup = false

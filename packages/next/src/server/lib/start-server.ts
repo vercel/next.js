@@ -12,6 +12,7 @@ import {
   WorkerRequestHandler,
   WorkerUpgradeHandler,
 } from './setup-server-worker'
+import { checkIsNodeDebugging } from './is-node-debugging'
 const debug = setupDebug('next:start-server')
 
 export interface StartServerOptions {
@@ -24,23 +25,6 @@ export interface StartServerOptions {
   customServer?: boolean
   minimalMode?: boolean
   keepAliveTimeout?: number
-}
-
-type TeardownServer = () => Promise<void>
-
-export const checkIsNodeDebugging = () => {
-  let isNodeDebugging: 'brk' | boolean = !!(
-    process.execArgv.some((localArg) => localArg.startsWith('--inspect')) ||
-    process.env.NODE_OPTIONS?.match?.(/--inspect(=\S+)?( |$)/)
-  )
-
-  if (
-    process.execArgv.some((localArg) => localArg.startsWith('--inspect-brk')) ||
-    process.env.NODE_OPTIONS?.match?.(/--inspect-brk(=\S+)?( |$)/)
-  ) {
-    isNodeDebugging = 'brk'
-  }
-  return isNodeDebugging
 }
 
 export async function getRequestHandlers({
@@ -81,8 +65,7 @@ export async function startServer({
   allowRetry,
   keepAliveTimeout,
   logReady = true,
-}: StartServerOptions): Promise<TeardownServer> {
-  let routerPort: number | undefined
+}: StartServerOptions): Promise<void> {
   let handlersReady = () => {}
   let handlersError = () => {}
 
@@ -189,7 +172,7 @@ export async function startServer({
         Log.info(
           `the --inspect${
             isNodeDebugging === 'brk' ? '-brk' : ''
-          } option was detected, the Next.js proxy server should be inspected at port ${debugPort}.`
+          } option was detected, the Next.js router server should be inspected at port ${debugPort}.`
         )
       }
 
@@ -206,6 +189,7 @@ export async function startServer({
       try {
         const cleanup = () => {
           debug('start-server process cleanup')
+          server.close()
           process.exit(0)
         }
         process.on('exit', cleanup)
@@ -225,7 +209,6 @@ export async function startServer({
         })
         requestHandler = initResult[0]
         upgradeHandler = initResult[1]
-        routerPort = port
         handlersReady()
       } catch (err) {
         // fatal error if we can't setup
@@ -238,11 +221,4 @@ export async function startServer({
     })
     server.listen(port, hostname === 'localhost' ? '0.0.0.0' : hostname)
   })
-
-  // return teardown function for destroying the server
-  async function teardown() {
-    server.close()
-  }
-  teardown.port = routerPort
-  return teardown
 }
