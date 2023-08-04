@@ -258,7 +258,7 @@ export default class FileSystemCache implements CacheHandler {
 
       // we trigger a blocking validation if an ISR page
       // had a tag revalidated, if we want to be a background
-      // revalidation instead we return data.lastModified = -1 instead
+      // revalidation instead we return data.lastModified = -1
       if (isStale) {
         data = undefined
       }
