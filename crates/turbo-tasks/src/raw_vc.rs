@@ -9,7 +9,7 @@ use std::{
     task::Poll,
 };
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use auto_hash_map::AutoSet;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -17,17 +17,14 @@ use thiserror::Error;
 use crate::{
     backend::CellContent,
     event::EventListener,
-    manager::{
-        read_task_cell, read_task_cell_untracked, read_task_output, read_task_output_untracked,
-        TurboTasksApi,
-    },
+    manager::{read_task_cell, read_task_output, TurboTasksApi},
     registry::{
         get_value_type, {self},
     },
     turbo_tasks,
     vc::{cast::VcCast, VcValueTraitCast, VcValueTypeCast},
-    CollectiblesSource, ReadRef, SharedReference, TaskId, TraitTypeId, ValueTypeId, Vc,
-    VcValueTrait, VcValueType,
+    CollectiblesSource, SharedReference, TaskId, TraitTypeId, ValueTypeId, Vc, VcValueTrait,
+    VcValueType,
 };
 
 #[derive(Error, Debug)]
@@ -98,58 +95,27 @@ impl RawVc {
 
     /// INVALIDATION: Be careful with this, it will not track dependencies, so
     /// using it could break cache invalidation.
-    pub async fn into_read_untracked<T: Any + VcValueType>(
+    pub fn into_read_untracked_with_turbo_tasks<T: Any + VcValueType>(
         self,
         turbo_tasks: &dyn TurboTasksApi,
-    ) -> Result<ReadRef<T>> {
-        self.into_read_untracked_internal(false, turbo_tasks)
-            .await?
-            .cast::<T>()
+    ) -> ReadRawVcFuture<T, VcValueTypeCast<T>> {
+        ReadRawVcFuture::new_untracked_with_turbo_tasks(self, turbo_tasks)
     }
 
     /// INVALIDATION: Be careful with this, it will not track dependencies, so
     /// using it could break cache invalidation.
-    pub async fn into_strongly_consistent_read_untracked<T: Any + VcValueType>(
+    pub fn into_trait_read_untracked<T: VcValueTrait + ?Sized>(
         self,
-        turbo_tasks: &dyn TurboTasksApi,
-    ) -> Result<ReadRef<T>> {
-        self.into_read_untracked_internal(true, turbo_tasks)
-            .await?
-            .cast::<T>()
+    ) -> ReadRawVcFuture<T, VcValueTraitCast<T>> {
+        ReadRawVcFuture::new_untracked(self)
     }
 
-    /// Returns the hash of the pointer that holds the Vc's current data. This
-    /// value will change every time the TaskCell recomputes.
-    ///
     /// INVALIDATION: Be careful with this, it will not track dependencies, so
     /// using it could break cache invalidation.
-    pub async fn internal_pointer_untracked(
+    pub fn into_strongly_consistent_read_untracked<T: Any + VcValueType>(
         self,
-        turbo_tasks: &dyn TurboTasksApi,
-    ) -> Result<SharedReference> {
-        let read = self.into_read_untracked_internal(true, turbo_tasks).await?;
-        read.0
-            .ok_or_else(|| anyhow!("failed to read cell content into hash"))
-    }
-
-    async fn into_read_untracked_internal(
-        self,
-        strongly_consistent: bool,
-        turbo_tasks: &dyn TurboTasksApi,
-    ) -> Result<CellContent> {
-        turbo_tasks.notify_scheduled_tasks();
-        let mut current = self;
-        loop {
-            match current {
-                RawVc::TaskOutput(task) => {
-                    current =
-                        read_task_output_untracked(turbo_tasks, task, strongly_consistent).await?
-                }
-                RawVc::TaskCell(task, index) => {
-                    return read_task_cell_untracked(turbo_tasks, task, index).await;
-                }
-            }
-        }
+    ) -> ReadRawVcFuture<T, VcValueTypeCast<T>> {
+        ReadRawVcFuture::new_strongly_consistent_untracked(self)
     }
 
     pub async fn resolve_trait(
@@ -325,6 +291,7 @@ pub struct ReadRawVcFuture<T: ?Sized, Cast = VcValueTypeCast<T>> {
     turbo_tasks: Arc<dyn TurboTasksApi>,
     strongly_consistent: bool,
     current: RawVc,
+    untracked: bool,
     listener: Option<EventListener>,
     phantom_data: PhantomData<Pin<Box<T>>>,
     _cast: PhantomData<Cast>,
@@ -333,11 +300,37 @@ pub struct ReadRawVcFuture<T: ?Sized, Cast = VcValueTypeCast<T>> {
 impl<T: ?Sized, Cast: VcCast> ReadRawVcFuture<T, Cast> {
     fn new(vc: RawVc) -> Self {
         let tt = turbo_tasks();
-        tt.notify_scheduled_tasks();
         ReadRawVcFuture {
             turbo_tasks: tt,
             strongly_consistent: false,
             current: vc,
+            untracked: false,
+            listener: None,
+            phantom_data: PhantomData,
+            _cast: PhantomData,
+        }
+    }
+
+    fn new_untracked_with_turbo_tasks(vc: RawVc, turbo_tasks: &dyn TurboTasksApi) -> Self {
+        let tt = turbo_tasks.pin();
+        ReadRawVcFuture {
+            turbo_tasks: tt,
+            strongly_consistent: false,
+            current: vc,
+            untracked: true,
+            listener: None,
+            phantom_data: PhantomData,
+            _cast: PhantomData,
+        }
+    }
+
+    fn new_untracked(vc: RawVc) -> Self {
+        let tt = turbo_tasks();
+        ReadRawVcFuture {
+            turbo_tasks: tt,
+            strongly_consistent: false,
+            current: vc,
+            untracked: true,
             listener: None,
             phantom_data: PhantomData,
             _cast: PhantomData,
@@ -346,11 +339,24 @@ impl<T: ?Sized, Cast: VcCast> ReadRawVcFuture<T, Cast> {
 
     fn new_strongly_consistent(vc: RawVc) -> Self {
         let tt = turbo_tasks();
-        tt.notify_scheduled_tasks();
         ReadRawVcFuture {
             turbo_tasks: tt,
             strongly_consistent: true,
             current: vc,
+            untracked: false,
+            listener: None,
+            phantom_data: PhantomData,
+            _cast: PhantomData,
+        }
+    }
+
+    fn new_strongly_consistent_untracked(vc: RawVc) -> Self {
+        let tt = turbo_tasks();
+        ReadRawVcFuture {
+            turbo_tasks: tt,
+            strongly_consistent: true,
+            current: vc,
+            untracked: true,
             listener: None,
             phantom_data: PhantomData,
             _cast: PhantomData,
@@ -375,20 +381,31 @@ impl<T: ?Sized, Cast: VcCast> Future for ReadRawVcFuture<T, Cast> {
                 this.listener = None;
             }
             let mut listener = match this.current {
-                RawVc::TaskOutput(task) => match this
-                    .turbo_tasks
-                    .try_read_task_output(task, this.strongly_consistent)
-                {
-                    Ok(Ok(vc)) => {
-                        this.strongly_consistent = false;
-                        this.current = vc;
-                        continue 'outer;
+                RawVc::TaskOutput(task) => {
+                    let read_result = if this.untracked {
+                        this.turbo_tasks
+                            .try_read_task_output_untracked(task, this.strongly_consistent)
+                    } else {
+                        this.turbo_tasks
+                            .try_read_task_output(task, this.strongly_consistent)
+                    };
+                    match read_result {
+                        Ok(Ok(vc)) => {
+                            this.strongly_consistent = false;
+                            this.current = vc;
+                            continue 'outer;
+                        }
+                        Ok(Err(listener)) => listener,
+                        Err(err) => return Poll::Ready(Err(err)),
                     }
-                    Ok(Err(listener)) => listener,
-                    Err(err) => return Poll::Ready(Err(err)),
-                },
+                }
                 RawVc::TaskCell(task, index) => {
-                    match this.turbo_tasks.try_read_task_cell(task, index) {
+                    let read_result = if this.untracked {
+                        this.turbo_tasks.try_read_task_cell_untracked(task, index)
+                    } else {
+                        this.turbo_tasks.try_read_task_cell(task, index)
+                    };
+                    match read_result {
                         Ok(Ok(content)) => {
                             // SAFETY: Constructor ensures that T and U are binary identical
                             return Poll::Ready(Cast::cast(content));

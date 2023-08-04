@@ -65,6 +65,8 @@ pub trait TurboTasksCallApi: Sync + Send {
 }
 
 pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
+    fn pin(&self) -> Arc<dyn TurboTasksApi>;
+
     fn invalidate(&self, task: TaskId);
     fn invalidate_with_reason(&self, task: TaskId, reason: StaticOrArc<dyn InvalidationReason>);
 
@@ -380,7 +382,9 @@ impl<B: Backend + 'static> TurboTasks<B> {
         // INVALIDATION: A Once task will never invalidate, therefore we don't need to
         // track a dependency
         let raw_result = read_task_output_untracked(self, task_id, false).await?;
-        raw_result.into_read_untracked::<Completion>(self).await?;
+        raw_result
+            .into_read_untracked_with_turbo_tasks::<Completion>(self)
+            .await?;
 
         Ok(rx.await?)
     }
@@ -869,6 +873,10 @@ impl<B: Backend + 'static> TurboTasksCallApi for TurboTasks<B> {
 }
 
 impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
+    fn pin(&self) -> Arc<dyn TurboTasksApi> {
+        self.pin()
+    }
+
     #[instrument(level = Level::INFO, skip_all, name = "invalidate")]
     fn invalidate(&self, task: TaskId) {
         self.backend.invalidate_task(task, self);
@@ -1272,7 +1280,9 @@ pub async fn run_once<T: Send + 'static>(
     // INVALIDATION: A Once task will never invalidate, therefore we don't need to
     // track a dependency
     let raw_result = read_task_output_untracked(&*tt, task_id, false).await?;
-    raw_result.into_read_untracked::<Completion>(&*tt).await?;
+    raw_result
+        .into_read_untracked_with_turbo_tasks::<Completion>(&*tt)
+        .await?;
 
     Ok(rx.await?)
 }
@@ -1297,7 +1307,9 @@ pub async fn run_once_with_reason<T: Send + 'static>(
     // INVALIDATION: A Once task will never invalidate, therefore we don't need to
     // track a dependency
     let raw_result = read_task_output_untracked(&*tt, task_id, false).await?;
-    raw_result.into_read_untracked::<Completion>(&*tt).await?;
+    raw_result
+        .into_read_untracked_with_turbo_tasks::<Completion>(&*tt)
+        .await?;
 
     Ok(rx.await?)
 }
@@ -1449,21 +1461,6 @@ pub(crate) async fn read_task_cell(
 ) -> Result<CellContent> {
     loop {
         match this.try_read_task_cell(id, index)? {
-            Ok(result) => return Ok(result),
-            Err(listener) => listener.await,
-        }
-    }
-}
-
-/// INVALIDATION: Be careful with this, it will not track dependencies, so
-/// using it could break cache invalidation.
-pub(crate) async fn read_task_cell_untracked(
-    this: &dyn TurboTasksApi,
-    id: TaskId,
-    index: CellId,
-) -> Result<CellContent> {
-    loop {
-        match this.try_read_task_cell_untracked(id, index)? {
             Ok(result) => return Ok(result),
             Err(listener) => listener.await,
         }

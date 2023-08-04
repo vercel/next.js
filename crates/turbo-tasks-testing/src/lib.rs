@@ -122,6 +122,10 @@ impl TurboTasksCallApi for VcStorage {
 }
 
 impl TurboTasksApi for VcStorage {
+    fn pin(&self) -> Arc<dyn TurboTasksApi> {
+        self.this.upgrade().unwrap()
+    }
+
     fn invalidate(&self, _task: TaskId) {
         unreachable!()
     }
