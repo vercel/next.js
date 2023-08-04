@@ -1,7 +1,7 @@
 use std::{path::PathBuf, sync::Arc};
 
 use anyhow::{Context, Result};
-use napi::{bindgen_prelude::External, JsFunction, JsUnknown};
+use napi::{bindgen_prelude::External, JsFunction};
 use next_api::{
     project::{Middleware, ProjectContainer, ProjectOptions},
     route::{Endpoint, Route},
@@ -22,7 +22,10 @@ use turbopack_binding::{
             trace_writer::{TraceWriter, TraceWriterGuard},
             tracing_presets::TRACING_OVERVIEW_TARGETS,
         },
-        core::{error::PrettyPrintError, version::Update},
+        core::{
+            error::PrettyPrintError,
+            version::{PartialUpdate, TotalUpdate, Update},
+        },
         ecmascript_hmr_protocol::{ClientUpdateInstruction, ResourceIdentifier},
     },
 };
@@ -30,8 +33,8 @@ use turbopack_binding::{
 use super::{
     endpoint::ExternalEndpoint,
     utils::{
-        get_diagnostics, get_issues, serde_enum_to_string, stream_channel, subscribe,
-        NapiDiagnostic, NapiIssue, RootTask, TurbopackResult, VcArc,
+        get_diagnostics, get_issues, serde_enum_to_string, subscribe, NapiDiagnostic, NapiIssue,
+        RootTask, TurbopackResult, VcArc,
     },
 };
 use crate::register;
@@ -344,11 +347,6 @@ pub fn project_entrypoints_subscribe(
     )
 }
 
-#[napi(object)]
-struct NapiUpdate {
-    pub update: JsUnknown,
-}
-
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
 pub fn project_hmr_events(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<
@@ -359,51 +357,68 @@ pub fn project_hmr_events(
 ) -> napi::Result<External<RootTask>> {
     let turbo_tasks = project.turbo_tasks().clone();
     let project = **project;
-    stream_channel(
+    let session = TransientInstance::new(());
+    subscribe(
         turbo_tasks.clone(),
         func,
         {
             let identifier = identifier.clone();
-            move |sender| {
+            let session = session.clone();
+            move || {
                 let identifier = identifier.clone();
+                let session = session.clone();
                 async move {
-                    project
+                    let state = project
                         .project()
-                        .hmr_events(identifier, TransientInstance::new(sender))
-                        .await?;
-
-                    Ok(())
+                        .hmr_version_state(identifier.clone(), session);
+                    let update = project.project().hmr_update(identifier, state);
+                    let issues = get_issues(update).await?;
+                    let diags = get_diagnostics(update).await?;
+                    let update = update.strongly_consistent().await?;
+                    match &*update {
+                        Update::None => {}
+                        Update::Total(TotalUpdate { to }) => {
+                            state.set(to.clone()).await?;
+                        }
+                        Update::Partial(PartialUpdate { to, .. }) => {
+                            state.set(to.clone()).await?;
+                        }
+                    }
+                    Ok((update, issues, diags))
                 }
             }
         },
         move |ctx| {
-            let item = ctx.value;
+            let (update, issues, diags) = ctx.value;
 
-            let issues: Vec<_> = item.issues.iter().map(|issue| (&**issue).into()).collect();
+            let napi_issues = issues
+                .iter()
+                .map(|issue| NapiIssue::from(&**issue))
+                .collect();
+            let update_issues = issues
+                .iter()
+                .map(|issue| (&**issue).into())
+                .collect::<Vec<_>>();
+
             let identifier = ResourceIdentifier {
                 path: identifier.clone(),
                 headers: None,
             };
-            let update = match &*item.update {
-                Update::Total(_) => ClientUpdateInstruction::restart(&identifier, &issues),
-                Update::Partial(update) => {
-                    ClientUpdateInstruction::partial(&identifier, &update.instruction, &issues)
-                }
-                Update::None => ClientUpdateInstruction::issues(&identifier, &issues),
+            let update = match &*update {
+                Update::Total(_) => ClientUpdateInstruction::restart(&identifier, &update_issues),
+                Update::Partial(update) => ClientUpdateInstruction::partial(
+                    &identifier,
+                    &update.instruction,
+                    &update_issues,
+                ),
+                Update::None => ClientUpdateInstruction::issues(&identifier, &update_issues),
             };
 
-            let result = TurbopackResult {
-                result: NapiUpdate {
-                    update: ctx.env.to_js_value(&update)?,
-                },
-                issues: item
-                    .issues
-                    .iter()
-                    .map(|issue| NapiIssue::from(&**issue))
-                    .collect(),
-                diagnostics: vec![],
-            };
-            Ok(vec![result])
+            Ok(vec![TurbopackResult {
+                result: ctx.env.to_js_value(&update)?,
+                issues: napi_issues,
+                diagnostics: diags.iter().map(|d| NapiDiagnostic::from(d)).collect(),
+            }])
         },
     )
 }

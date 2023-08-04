@@ -14,10 +14,9 @@ use next_core::{
     util::NextSourceConfig,
 };
 use serde::{Deserialize, Serialize};
-use tokio::sync::mpsc::Sender;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, unit, Completion, IntoTraitRef, ReadRef, State,
-    TaskInput, TraitRef, TransientInstance, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs, unit, Completion, IntoTraitRef, State, TaskInput,
+    TransientInstance, Vc,
 };
 use turbopack_binding::{
     turbo::{
@@ -31,9 +30,8 @@ use turbopack_binding::{
             compile_time_info::CompileTimeInfo,
             diagnostics::DiagnosticExt,
             environment::ServerAddr,
-            issue::{IssueFilePathExt, PlainIssue},
             output::OutputAssets,
-            version::{PartialUpdate, TotalUpdate, Update, VersionState, VersionedContent},
+            version::{Update, Version, VersionState, VersionedContent},
             PROJECT_FILESYSTEM_NAME,
         },
         dev::DevChunkingContext,
@@ -509,83 +507,54 @@ impl Project {
             self.node_root(),
         ))
     }
-}
 
-impl Project {
-    /// Emits opaque HMR events whenever a change is detected in the chunk group
-    /// internally known as `identifier`.
-    pub async fn hmr_events(
+    #[turbo_tasks::function]
+    async fn hmr_content(
         self: Vc<Self>,
         identifier: String,
-        sender: TransientInstance<Sender<Result<ReadRef<UpdateItem>>>>,
-    ) -> Result<()> {
-        let content = self
+    ) -> Result<Vc<Box<dyn VersionedContent>>> {
+        Ok(self
             .await?
             .versioned_content_map
-            .get(self.client_root().join(identifier));
-
-        let version = content.version();
-        let version_state = VersionState::new(version.into_trait_ref().await?).await?;
-
-        compute_update_stream(content, version_state, sender).await?;
-
-        Ok(())
-    }
-}
-
-#[turbo_tasks::function]
-async fn compute_update_stream(
-    content: Vc<Box<dyn VersionedContent>>,
-    from: Vc<VersionState>,
-    sender: TransientInstance<Sender<Result<ReadRef<UpdateItem>>>>,
-) -> Result<Vc<()>> {
-    let item = get_update_item(content, from).strongly_consistent().await;
-
-    let send = if let Ok(item) = &item {
-        match &*item.update {
-            Update::Total(TotalUpdate { to: version, .. })
-            | Update::Partial(PartialUpdate { to: version, .. }) => {
-                from.set(TraitRef::clone(&version)).await?;
-                true
-            }
-            // Don't send no-op updates when there are no issues.
-            Update::None => !item.issues.is_empty(),
-        }
-    } else {
-        true
-    };
-
-    if send {
-        // Send update. Ignore channel closed error.
-        let _ = sender.send(item).await;
+            .get(self.client_root().join(identifier)))
     }
 
-    Ok(unit())
-}
+    #[turbo_tasks::function]
+    async fn hmr_version(self: Vc<Self>, identifier: String) -> Result<Vc<Box<dyn Version>>> {
+        let content = self.hmr_content(identifier);
 
-#[turbo_tasks::function]
-async fn get_update_item(
-    content: Vc<Box<dyn VersionedContent>>,
-    from: Vc<VersionState>,
-) -> Result<Vc<UpdateItem>> {
-    let from = from.get();
-    let update = content.update(from);
-
-    let issues = {
-        let captured = update.peek_issues_with_path().await?.await?;
-        captured.get_plain_issues().await?
-    };
-
-    Ok(UpdateItem {
-        update: update.await?,
-        issues,
+        Ok(content.version())
     }
-    .cell())
-}
 
-#[derive(Debug)]
-#[turbo_tasks::value(serialization = "none")]
-pub struct UpdateItem {
-    pub update: ReadRef<Update>,
-    pub issues: Vec<ReadRef<PlainIssue>>,
+    /// Get the version state for a session. Initialized with the first seen
+    /// version in that session.
+    #[turbo_tasks::function]
+    pub async fn hmr_version_state(
+        self: Vc<Self>,
+        identifier: String,
+        session: TransientInstance<()>,
+    ) -> Result<Vc<VersionState>> {
+        let version = self.hmr_version(identifier);
+
+        // The session argument is important to avoid caching this function between
+        // sessions.
+        let _ = session;
+
+        // INVALIDATION: This is intentionally untracked to avoid invalidating this
+        // function completely. We want to initialize the VersionState with the
+        // first seen version of the session.
+        Ok(VersionState::new(version.into_trait_ref_untracked().await?).await?)
+    }
+
+    /// Emits opaque HMR events whenever a change is detected in the chunk group
+    /// internally known as `identifier`.
+    #[turbo_tasks::function]
+    pub async fn hmr_update(
+        self: Vc<Self>,
+        identifier: String,
+        from: Vc<VersionState>,
+    ) -> Result<Vc<Update>> {
+        let from = from.get();
+        Ok(self.hmr_content(identifier).update(from))
+    }
 }
