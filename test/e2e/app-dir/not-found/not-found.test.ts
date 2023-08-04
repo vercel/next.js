@@ -7,7 +7,21 @@ createNextDescribe(
     files: __dirname,
     skipDeployment: true,
   },
-  ({ next, isNextDev }) => {
+  ({ next, isNextDev, isNextStart }) => {
+    if (isNextStart) {
+      it('should include not found client reference manifest in the file trace', async () => {
+        const fileTrace = JSON.parse(
+          await next.readFile('.next/server/app/_not-found.js.nft.json')
+        )
+
+        const isTraced = fileTrace.files.some((filePath) =>
+          filePath.includes('_not-found_client-reference-manifest.js')
+        )
+
+        expect(isTraced).toBe(true)
+      })
+    }
+
     const runTests = ({ isEdge }: { isEdge: boolean }) => {
       it('should use the not-found page for non-matching routes', async () => {
         const browser = await next.browser('/random-content')
@@ -21,6 +35,15 @@ createNextDescribe(
       it('should allow to have a valid /not-found route', async () => {
         const html = await next.render('/not-found')
         expect(html).toContain("I'm still a valid page")
+      })
+
+      it('should match dynamic route not-found boundary correctly', async () => {
+        const $dynamic = await next.render$('/dynamic')
+        const $dynamicId = await next.render$('/dynamic/123')
+        // `/dynamic` display works
+        expect($dynamic('main').text()).toBe('dynamic')
+        // `/dynamic/[id]` calling notFound() will match the same level not-found boundary
+        expect($dynamicId('#not-found').text()).toBe('dynamic/[id] not found')
       })
 
       if (isNextDev) {

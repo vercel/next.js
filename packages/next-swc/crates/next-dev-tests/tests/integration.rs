@@ -712,8 +712,8 @@ impl Issue for NormalizedIssue {
     }
 
     #[turbo_tasks::function]
-    fn context(&self) -> Vc<FileSystemPath> {
-        self.0.context()
+    fn file_path(&self) -> Vc<FileSystemPath> {
+        self.0.file_path()
     }
 
     #[turbo_tasks::function]

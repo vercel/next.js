@@ -19,7 +19,7 @@ use turbopack_binding::{
             environment::{ServerAddr, ServerInfo},
             file_source::FileSource,
             ident::AssetIdent,
-            issue::IssueContextExt,
+            issue::IssueFilePathExt,
             module::Module,
             reference_type::{EcmaScriptModulesReferenceSubType, InnerAssets, ReferenceType},
             resolve::{find_context_file, FindContextFileResult},
@@ -231,7 +231,7 @@ fn edge_transition_map(
     next_config: Vc<NextConfig>,
     execution_context: Vc<ExecutionContext>,
 ) -> Vc<TransitionsByName> {
-    let mode = NextMode::Development;
+    let mode = NextMode::DevServer;
 
     let edge_compile_time_info = get_edge_compile_time_info(project_path, server_addr);
 

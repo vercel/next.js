@@ -288,8 +288,11 @@ createNextDescribe(
               origContent.replace('return value + 1', 'return value + 1000')
             )
 
-            await browser.elementByCss('#inc').click()
-            await check(() => browser.elementByCss('h1').text(), '1001')
+            await check(async () => {
+              await browser.elementByCss('#inc').click()
+              const val = Number(await browser.elementByCss('h1').text())
+              return val > 1000 ? 'success' : val
+            }, 'success')
           } finally {
             await next.patchFile(filePath, origContent)
           }
@@ -371,7 +374,7 @@ createNextDescribe(
 
         await check(async () => {
           return browser.eval('window.location.toString()')
-        }, 'https://example.com/')
+        }, 'https://next-data-api-endpoint.vercel.app/api/random?page')
       })
 
       it('should allow cookie and header async storages', async () => {
@@ -419,11 +422,11 @@ createNextDescribe(
 
         await check(async () => {
           return browser.eval('window.location.toString()')
-        }, 'https://example.com/')
+        }, 'https://next-data-api-endpoint.vercel.app/api/random?page')
       })
 
       // TODO: investigate flakey behavior with revalidate
-      it.skip('should handle revalidatePath', async () => {
+      it('should handle revalidatePath', async () => {
         const browser = await next.browser('/revalidate')
         const randomNumber = await browser.elementByCss('#random-number').text()
         const justPutIt = await browser.elementByCss('#justputit').text()
@@ -449,7 +452,7 @@ createNextDescribe(
       })
 
       // TODO: investigate flakey behavior with revalidate
-      it.skip('should handle revalidateTag', async () => {
+      it('should handle revalidateTag', async () => {
         const browser = await next.browser('/revalidate')
         const randomNumber = await browser.elementByCss('#random-number').text()
         const justPutIt = await browser.elementByCss('#justputit').text()
@@ -500,7 +503,7 @@ createNextDescribe(
         }, 'success')
       })
 
-      it.skip('should store revalidation data in the prefetch cache', async () => {
+      it('should store revalidation data in the prefetch cache', async () => {
         const browser = await next.browser('/revalidate')
         const justPutIt = await browser.elementByCss('#justputit').text()
         await browser.elementByCss('#revalidate-justputit').click()
@@ -530,8 +533,7 @@ createNextDescribe(
         expect(newJustPutIt).toEqual(newJustPutIt2)
       })
 
-      // TODO: investigate flakey behavior with revalidate
-      it.skip('should revalidate when cookies.set is called', async () => {
+      it('should revalidate when cookies.set is called', async () => {
         const browser = await next.browser('/revalidate')
         const randomNumber = await browser.elementByCss('#random-cookie').text()
 
@@ -546,8 +548,38 @@ createNextDescribe(
         }, 'success')
       })
 
+      it('should invalidate client cache on other routes when cookies.set is called', async () => {
+        const browser = await next.browser('/mutate-cookie')
+        await browser.elementByCss('#update-cookie').click()
+
+        let cookie
+        await check(async () => {
+          cookie = await browser.elementByCss('#value').text()
+          return parseInt(cookie) > 0 ? 'success' : 'failure'
+        }, 'success')
+
+        // Make sure the route is cached
+        await browser.elementByCss('#page-2').click()
+        await browser.elementByCss('#back').click()
+
+        // Modify the cookie
+        await browser.elementByCss('#update-cookie').click()
+        let newCookie
+        await check(async () => {
+          newCookie = await browser.elementByCss('#value').text()
+          return newCookie !== cookie && parseInt(newCookie) > 0
+            ? 'success'
+            : 'failure'
+        }, 'success')
+
+        // Navigate to another page and make sure the cookie is not cached
+        await browser.elementByCss('#page-2').click()
+        const otherPageCookie = await browser.elementByCss('#value').text()
+        expect(otherPageCookie).toEqual(newCookie)
+      })
+
       // TODO: investigate flakey behavior with revalidate
-      it.skip('should revalidate when cookies.set is called in a client action', async () => {
+      it('should revalidate when cookies.set is called in a client action', async () => {
         const browser = await next.browser('/revalidate')
         await browser.refresh()
 
@@ -604,7 +636,7 @@ createNextDescribe(
         }, 'success')
       })
 
-      it.skip.each(['tag', 'path'])(
+      it.each(['tag', 'path'])(
         'should invalidate client cache when %s is revalidated',
         async (type) => {
           const browser = await next.browser('/revalidate')

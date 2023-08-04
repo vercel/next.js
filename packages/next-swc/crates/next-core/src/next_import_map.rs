@@ -229,6 +229,16 @@ pub async fn get_next_server_import_map(
         ServerContextType::AppSSR { .. }
         | ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. } => {
+            match mode {
+                NextMode::Development | NextMode::Build => {
+                    import_map.insert_wildcard_alias("next/dist/server/", external);
+                    import_map.insert_wildcard_alias("next/dist/shared/", external);
+                }
+                NextMode::DevServer => {
+                    // The sandbox can't be bundled and needs to be external
+                    import_map.insert_exact_alias("next/dist/server/web/sandbox", external);
+                }
+            }
             import_map.insert_exact_alias(
                 "next/head",
                 request_to_import_mapping(project_path, "next/dist/client/components/noop-head"),
@@ -237,9 +247,6 @@ pub async fn get_next_server_import_map(
                 "next/dynamic",
                 request_to_import_mapping(project_path, "next/dist/shared/lib/app-dynamic"),
             );
-
-            // The sandbox can't be bundled and needs to be external
-            import_map.insert_exact_alias("next/dist/server/web/sandbox", external);
         }
         ServerContextType::Middleware => {}
     }
@@ -391,7 +398,7 @@ pub async fn insert_next_server_special_aliases(
         // In development, we *always* use the bundled version of React, even in
         // SSR, since we're bundling Next.js alongside it.
         (
-            NextMode::Development,
+            NextMode::DevServer,
             ServerContextType::AppSSR { app_dir }
             | ServerContextType::AppRSC { app_dir, .. }
             | ServerContextType::AppRoute { app_dir },
@@ -429,7 +436,7 @@ pub async fn insert_next_server_special_aliases(
         // NOTE(alexkirsz) This logic maps loosely to
         // `next.js/packages/next/src/build/webpack-config.ts`, where:
         //
-        // ## RSC (Build)
+        // ## RSC
         //
         // * always bundles
         // * maps react -> react/shared-subset (through the "react-server" exports condition)
@@ -437,7 +444,7 @@ pub async fn insert_next_server_special_aliases(
         // * passes through (react|react-dom|react-server-dom-webpack)/(.*) to
         //   next/dist/compiled/$1/$2
         (
-            NextMode::Build,
+            NextMode::Build | NextMode::Development,
             ServerContextType::AppRSC { app_dir, .. } | ServerContextType::AppRoute { app_dir },
         ) => {
             import_map.insert_exact_alias(
@@ -471,14 +478,14 @@ pub async fn insert_next_server_special_aliases(
                 );
             }
         }
-        // ## SSR (Build)
+        // ## SSR
         //
         // * always uses externals, to ensure we're using the same React instance as the Next.js
         //   runtime
         // * maps react-dom -> react-dom/server-rendering-stub
         // * passes through react and (react|react-dom|react-server-dom-webpack)/(.*) to
         //   next/dist/compiled/react and next/dist/compiled/$1/$2 resp.
-        (NextMode::Build, ServerContextType::AppSSR { .. }) => {
+        (NextMode::Build | NextMode::Development, ServerContextType::AppSSR { .. }) => {
             import_map.insert_exact_alias(
                 "react",
                 external_request_to_import_mapping("next/dist/compiled/react"),
@@ -620,17 +627,19 @@ async fn package_lookup_resolve_options(
 }
 
 #[turbo_tasks::function]
-pub async fn get_next_package(project_path: Vc<FileSystemPath>) -> Result<Vc<FileSystemPath>> {
+pub async fn get_next_package(context_directory: Vc<FileSystemPath>) -> Result<Vc<FileSystemPath>> {
     let result = resolve(
-        project_path,
+        context_directory,
         Request::parse(Value::new(Pattern::Constant(
             "next/package.json".to_string(),
         ))),
-        package_lookup_resolve_options(project_path),
+        package_lookup_resolve_options(context_directory),
     );
-    let assets = result.primary_sources().await?;
-    let asset = *assets.first().context("Next.js package not found")?;
-    Ok(asset.ident().path().parent())
+    let source = result
+        .first_source()
+        .await?
+        .context("Next.js package not found")?;
+    Ok(source.ident().path().parent())
 }
 
 pub async fn insert_alias_option<const N: usize>(

@@ -28,10 +28,12 @@ import type { NextFontManifest } from '../build/webpack/plugins/next-font-manife
 import type { PagesRouteModule } from './future/route-modules/pages/module'
 import type { AppPageRouteModule } from './future/route-modules/app-page/module'
 import type { NodeNextRequest, NodeNextResponse } from './base-http/node'
-import type { AppRouteRouteMatch } from './future/route-matches/app-route-route-match'
-import type { RouteDefinition } from './future/route-definitions/route-definition'
 import type { WebNextRequest, WebNextResponse } from './base-http/web'
 import type { PagesAPIRouteMatch } from './future/route-matches/pages-api-route-match'
+import type {
+  AppRouteRouteHandlerContext,
+  AppRouteRouteModule,
+} from './future/route-modules/app-route/module'
 
 import { format as formatUrl, parse as parseUrl } from 'url'
 import { getRedirectStatus } from '../lib/redirect-status'
@@ -88,10 +90,6 @@ import {
   MatchOptions,
   RouteMatcherManager,
 } from './future/route-matcher-managers/route-matcher-manager'
-import {
-  RouteHandlerManager,
-  type RouteHandlerManagerContext,
-} from './future/route-handler-managers/route-handler-manager'
 import { LocaleRouteNormalizer } from './future/normalizers/locale-route-normalizer'
 import { DefaultRouteMatcherManager } from './future/route-matcher-managers/default-route-matcher-manager'
 import { AppPageRouteMatcherProvider } from './future/route-matcher-providers/app-page-route-matcher-provider'
@@ -110,12 +108,11 @@ import {
   toNodeOutgoingHttpHeaders,
 } from './web/utils'
 import { NEXT_QUERY_PARAM_PREFIX } from '../lib/constants'
-import {
-  isRouteMatch,
-  parsedUrlQueryToParams,
-  type RouteMatch,
-} from './future/route-matches/route-match'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
+import {
+  NextRequestAdapter,
+  signalFromNodeResponse,
+} from './web/spec-extension/adapters/next-request'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -342,7 +339,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
   // TODO-APP: (wyattjoh): Make protected again. Used for turbopack in route-resolver.ts right now.
   public readonly matchers: RouteMatcherManager
-  protected readonly handlers: RouteHandlerManager
   protected readonly i18nProvider?: I18NProvider
   protected readonly localeNormalizer?: LocaleRouteNormalizer
   protected readonly isRenderWorker?: boolean
@@ -461,9 +457,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     this.appPathRoutes = this.getAppPathRoutes()
 
     // Configure the routes.
-    const { matchers, handlers } = this.getRoutes()
+    const { matchers } = this.getRoutes()
     this.matchers = matchers
-    this.handlers = handlers
 
     // Start route compilation. We don't wait for the routes to finish loading
     // because we use the `waitTillReady` promise below in `handleRequest` to
@@ -507,7 +502,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
   protected getRoutes(): {
     matchers: RouteMatcherManager
-    handlers: RouteHandlerManager
   } {
     // Create a new manifest loader that get's the manifests from the server.
     const manifestLoader = new ServerManifestLoader((name) => {
@@ -523,7 +517,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
     // Configure the matchers and handlers.
     const matchers: RouteMatcherManager = new DefaultRouteMatcherManager()
-    const handlers = new RouteHandlerManager()
 
     // Match pages under `pages/`.
     matchers.push(
@@ -554,7 +547,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       )
     }
 
-    return { matchers, handlers }
+    return { matchers }
   }
 
   public logError(err: Error): void {
@@ -1805,27 +1798,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       // served by the server.
       let result: RenderResult
 
-      // Get the match for the page if it exists.
-      const match: RouteMatch<RouteDefinition<RouteKind>> | undefined =
-        getRequestMeta(req, '_nextMatch') ??
-        // If the match can't be found, rely on the loaded route module. This
-        // should only be required during development when we add FS routes.
-        ((this.renderOpts.dev || process.env.NEXT_RUNTIME === 'edge') &&
-        components.routeModule
-          ? {
-              definition: components.routeModule.definition,
-              params: opts.params
-                ? parsedUrlQueryToParams(opts.params)
-                : undefined,
-            }
-          : undefined)
+      if (components.routeModule?.definition.kind === RouteKind.APP_ROUTE) {
+        const routeModule = components.routeModule as AppRouteRouteModule
 
-      if (
-        match &&
-        isRouteMatch<AppRouteRouteMatch>(match, RouteKind.APP_ROUTE)
-      ) {
-        const context: RouteHandlerManagerContext = {
-          params: match.params,
+        const context: AppRouteRouteHandlerContext = {
+          params: opts.params,
           prerenderManifest: this.getPrerenderManifest(),
           staticGenerationContext: {
             originalPathname: components.ComponentMod.originalPathname,
@@ -1836,8 +1813,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         }
 
         try {
-          // Handle the match and collect the response if it's a static response.
-          const response = await this.handlers.handle(match, req, context)
+          const request = NextRequestAdapter.fromBaseNextRequest(
+            req,
+            signalFromNodeResponse((res as NodeNextResponse).originalResponse)
+          )
+
+          const response = await routeModule.handle(request, context)
 
           ;(req as any).fetchMetrics = (
             context.staticGenerationContext as any
@@ -1897,11 +1878,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       // If we've matched a page while not in edge where the module exports a
       // `routeModule`, then we should be able to render it using the provided
       // `render` method.
-      else if (
-        match &&
-        isRouteMatch(match, RouteKind.PAGES) &&
-        components.routeModule
-      ) {
+      else if (components.routeModule?.definition.kind === RouteKind.PAGES) {
         const module = components.routeModule as PagesRouteModule
 
         // Due to the way we pass data by mutating `renderOpts`, we can't extend
@@ -1916,12 +1893,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           (req as NodeNextRequest).originalRequest ?? (req as WebNextRequest),
           (res as NodeNextResponse).originalResponse ??
             (res as WebNextResponse),
-          { page: pathname, params: match.params, query, renderOpts }
+          { page: pathname, params: opts.params, query, renderOpts }
         )
       } else if (
-        match &&
-        isRouteMatch(match, RouteKind.APP_PAGE) &&
-        components.routeModule
+        components.routeModule?.definition.kind === RouteKind.APP_PAGE
       ) {
         const module = components.routeModule as AppPageRouteModule
 
@@ -1935,7 +1910,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           (req as NodeNextRequest).originalRequest ?? (req as WebNextRequest),
           (res as NodeNextResponse).originalResponse ??
             (res as WebNextResponse),
-          { page: pathname, params: match.params, query, renderOpts }
+          { page: pathname, params: opts.params, query, renderOpts }
         )
       } else {
         // If we didn't match a page, we should fallback to using the legacy
@@ -2634,8 +2609,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       let using404Page = false
 
       if (is404) {
-        // Rendering app routes only in render worker to make sure the require-hook is setup
-        if (this.hasAppDir && this.isRenderWorker) {
+        if (this.hasAppDir) {
           // Use the not-found entry in app directory
           result = await this.findPageComponents({
             pathname: this.renderOpts.dev ? '/not-found' : '/_not-found',
