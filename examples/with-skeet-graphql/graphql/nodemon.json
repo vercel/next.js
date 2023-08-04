@@ -1,0 +1,7 @@
+{
+  "watch": ["src"],
+  "ignore": ["src/**/*.test.ts", "node_modules"],
+  "ext": "ts,mjs,js,json,graphql",
+  "exec": "yarn s && npx ts-node devBuild.ts && node ./dist/index.js",
+  "legacyWatch": true
+}

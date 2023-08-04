@@ -1,0 +1,29 @@
+{
+  "title": "Doc Home",
+  "body": "You can start creating documents compatible with syntax highlights immediately",
+  "previousPage": "Previous page",
+  "nextPage": "Next page",
+  "actions": {
+    "motivation": {
+      "title": "Motivation",
+      "body": "Skeet allows you to get your app up and running quickly and maintain it for the long term at a low cost."
+    },
+    "quickstart": {
+      "title": "Quickstart",
+      "body": "Describes the setup for getting started with the Skeet framework."
+    }
+  },
+  "menuNav": {
+    "home": "Doc Home",
+    "general": {
+      "groupTitle": "General",
+      "motivation": "Motivation",
+      "quickstart": "Quickstart",
+      "readme": "README"
+    }
+  },
+  "headerNav": {
+    "home": "Home",
+    "news": "News"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "title": "Open AI Chat",
+  "newChat": "New Chat",
+  "chatList": "Chat List",
+  "createChatRoom": "Create New Chat",
+  "chatRoomCreatedSuccessTitle": "Chat Room Created",
+  "chatRoomCreatedSuccessBody": "Chat room has been created successfully.",
+  "model": "Model",
+  "modelErrorText": "Please select a model from the list.",
+  "maxTokens": "Max Tokens (100 ~ 4096: more thinking)",
+  "maxTokensErrorText": "Please enter a number between 100 and 4096.",
+  "temperature": "Temperature (0: most conservative ~ 2: most creative)",
+  "temperatureErrorText": "Please enter a number between 0 and 2.",
+  "defaultSystemContent": "This is a conversation with an AI assistant. The assistant is helpful, creative, clever, and very friendly.",
+  "systemContent": "AI Character Setting",
+  "systemContentErrorText": "Please enter AI character setting in 1000 characters.",
+  "chatGPTCustom": "Chat GPT Custom with API",
+  "chatMessageSubmit": "Submit",
+  "pleaseRefetch": "Excuse me. Failed to get data. Please try again later.",
+  "refetchButton": "Retry"
+}

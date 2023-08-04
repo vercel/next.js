@@ -1,0 +1,41 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700;900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: Outfit, 'Noto Sans JP', ui-sans-serif, system-ui, -apple-system,
+      BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+      'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+      'Segoe UI Symbol', 'Noto Color Emoji';
+    scroll-padding-top: 104px;
+    box-sizing: border-box;
+  }
+}
+
+@layer utilities {
+  .content-height {
+    height: calc(var(--vh, 1vh) * 100 - 112px);
+  }
+  .content-height-mobile {
+    height: calc(var(--vh, 1vh) * 100 - 112px - 32px);
+  }
+  .chat-height-1 {
+    height: calc(var(--vh, 1vh) * 100 - 112px - 40px - 16px);
+  }
+  .chat-height-2 {
+    height: calc(var(--vh, 1vh) * 100 - 112px - 80px - 16px);
+  }
+  .chat-height-3 {
+    height: calc(var(--vh, 1vh) * 100 - 112px - 112px - 16px);
+  }
+  .chat-height-4 {
+    height: calc(var(--vh, 1vh) * 100 - 112px - 144px - 16px);
+  }
+  .chat-height-5 {
+    height: calc(var(--vh, 1vh) * 100 - 112px - 192px - 16px);
+  }
+}

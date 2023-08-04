@@ -1,0 +1,71 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+generator nexusPrisma {
+  provider = "nexus-prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+  MASTER
+}
+
+model User {
+  id               Int               @id @default(autoincrement())
+  uid              String            @unique
+  username         String?
+  email            String            @unique
+  iconUrl          String?
+  role             Role              @default(USER)
+  iv               String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  chatRoomMessages ChatRoomMessage[]
+  userChatRooms    UserChatRoom[]
+
+  @@index([username])
+}
+
+model ChatRoom {
+  id               Int               @id @default(autoincrement())
+  name             String?
+  title            String?
+  model            String            @default("gpt4")
+  maxTokens        Int               @default(500)
+  temperature      Int               @default(0)
+  stream           Boolean           @default(false)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  chatRoomMessages ChatRoomMessage[]
+  userChatRooms    UserChatRoom[]
+}
+
+model ChatRoomMessage {
+  id         Int      @id @default(autoincrement())
+  role       String
+  content    String
+  userId     Int
+  chatRoomId Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  User       User     @relation(fields: [userId], references: [id])
+  ChatRoom   ChatRoom @relation(fields: [chatRoomId], references: [id])
+}
+
+model UserChatRoom {
+  userId     Int
+  chatRoomId Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  User       User     @relation(fields: [userId], references: [id])
+  ChatRoom   ChatRoom @relation(fields: [chatRoomId], references: [id])
+
+  @@id([userId, chatRoomId])
+}

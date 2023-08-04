@@ -1,0 +1,19 @@
+{
+  "title": "Settings",
+  "register": "Register",
+  "username": "Username",
+  "editIconUrl": "Edit avatar image",
+  "editProfile": "Edit profile",
+  "avatarUpdated": "Avatar Updated",
+  "avatarUpdatedMessage": "Successfully updated your avatar image🎉",
+  "avatarUpdatedError": "Avatar Update Failed",
+  "avatarUpdatedErrorMessage": "Something went wrong... Please try it again later.",
+  "updateProfileSuccess": "Profile Updated",
+  "updateProfileSuccessMessage": "Successfully updated your profile🎉",
+  "updateProfileError": "Profile Update Failed",
+  "updateProfileErrorMessage": "Something went wrong... Please try it again later.",
+  "usernameErrorText": "Please input username (1~20 characters).",
+  "upload": "Upload",
+  "dropFiles": "Drop the files here ...",
+  "dragDropFiles": "Drag 'n' drop some files here, or click to select files"
+}

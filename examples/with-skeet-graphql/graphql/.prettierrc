@@ -1,0 +1,14 @@
+{
+  "semi": false,
+  "singleQuote": true,
+  "overrides": [
+    {
+      "files": "*.prisma",
+      "options": {
+        "parser": "prisma",
+        "printWidth": 100,
+        "endOfLine": "auto"
+      }
+    }
+  ]
+}

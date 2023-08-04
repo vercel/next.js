@@ -1,0 +1,9 @@
+{
+  "projectId": "skeet-graphql",
+  "region": "asia-northeast1",
+  "appDomain": "skeet.dev",
+  "lbDomain": "sql.skeet.dev",
+  "nsDomain": "skeet.dev",
+  "fbProjectId": "skeet-graphql",
+  "name": "skeet-graphql"
+}

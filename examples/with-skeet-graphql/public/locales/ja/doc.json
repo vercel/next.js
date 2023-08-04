@@ -1,0 +1,29 @@
+{
+  "title": "ドキュメントホーム",
+  "body": "シンタックスハイライト対応のドキュメント作成をすぐにスタートできます",
+  "previousPage": "前のページ",
+  "nextPage": "次のページ",
+  "actions": {
+    "motivation": {
+      "title": "モチベーション",
+      "body": "Skeet は素早くアプリを立ち上げ、少ないコストで長期的にメンテナンスしていくことを可能にします。"
+    },
+    "quickstart": {
+      "title": "クイックスタート",
+      "body": "Skeet フレームワークを使い始めるための設定について説明します。"
+    }
+  },
+  "menuNav": {
+    "home": "ドキュメントホーム",
+    "general": {
+      "groupTitle": "全般",
+      "motivation": "モチベーション",
+      "quickstart": "クイックスタート",
+      "readme": "README"
+    }
+  },
+  "headerNav": {
+    "home": "ホームページ",
+    "news": "ニュース"
+  }
+}

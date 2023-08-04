@@ -1,0 +1,49 @@
+{
+  "agreeOn": "次に同意:",
+  "terms": "利用規約",
+  "privacy": "プライバシーポリシー",
+  "404title": "ページが見つかりませんでした",
+  "404body": "すみません、お探しのページは見つかりませんでした。",
+  "backToTop": "トップページに戻る",
+  "toc": "目次",
+  "openMenu": "メニューを開く",
+  "closeMenu": "メニューを閉じる",
+  "aiChat": "AIチャット",
+  "login": "ログイン",
+  "register": "アカウント登録",
+  "navs": {
+    "defaultMainNav": {
+      "news": "ニュース",
+      "doc": "ドキュメント"
+    },
+    "commonFooterNav": {
+      "news": "ニュース",
+      "doc": "ドキュメント",
+      "privacy": "プライバシーポリシー"
+    }
+  },
+  "AgreeToPolicy": {
+    "title": "クッキーについて",
+    "body": "私達および私達のサードパーティパートナーは、Cookie および類似の技術を使用して、IP アドレスやデジタル識別子などの特定の情報を処理し、サイトの使用状況を分析し、ユーザー体験向上に努めます。 詳しくはプライバシーポリシーをお読みください。",
+    "yes": "はい、承諾します",
+    "no": "いいえ、やめてください"
+  },
+  "DiscordRow": {
+    "title": "コミュニティ Discord",
+    "body": "各種お問い合わせ等ございましたらコミュニティDiscord内にてサポートチケットを作成してください。",
+    "button": "JOIN"
+  },
+  "succeedLogin": "ログイン成功🎉",
+  "howdy": "おつかれさまです",
+  "errorLoginTitle": "ログイン失敗",
+  "errorLoginBody": "大変お手数おかけしますが、もう一度お試しください。",
+  "succeedLogout": "ログアウトしました",
+  "seeYouSoon": "では、また👋",
+  "logout": "ログアウト",
+  "errorTokenExpiredTitle": "ログイン期限切れ",
+  "errorTokenExpiredBody": "もう一度ログインしてください。",
+  "errorTitle": "エラーです",
+  "errorBody": "大変お手数おかけしますが、もう一度お試しください。",
+  "noTitle": "無題",
+  "tokens": "トークン"
+}

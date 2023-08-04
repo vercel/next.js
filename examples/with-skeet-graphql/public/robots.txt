@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://graphql-next.skeet.dev/sitemap.xml

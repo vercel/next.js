@@ -1,0 +1,44 @@
+{
+  "name": "skeet-functions",
+  "scripts": {
+    "lint": "eslint --ext .ts,.js --fix .",
+    "dev": "nodemon",
+    "dev:login": "npx ts-node -r tsconfig-paths/register --transpile-only src/scripts/login.ts",
+    "build": "npx ts-node build.ts",
+    "serve": "firebase emulators:start",
+    "shell": "yarn build && firebase functions:shell",
+    "start": "node dist/index.js",
+    "deploy": "firebase deploy --only functions",
+    "logs": "firebase functions:log",
+    "add:whiteList:production": "NODE_ENV=production npx ts-node -r tsconfig-paths/register --transpile-only src/scripts/addWhiteList.ts",
+    "add:whiteList:development": "NODE_ENV=development npx ts-node -r tsconfig-paths/register --transpile-only src/scripts/addWhiteList.ts"
+  },
+  "engines": {
+    "node": "18"
+  },
+  "main": "dist/index.js",
+  "dependencies": {
+    "@skeet-framework/pubsub": "0.1.2",
+    "@skeet-framework/utils": "^0.9.0",
+    "date-fns": "2.29.3",
+    "date-fns-tz": "2.0.0",
+    "dotenv": "16.0.3",
+    "firebase-admin": "11.9.0",
+    "firebase-functions": "4.4.1",
+    "node-fetch": "2.6.9",
+    "openai": "^3.3.0"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "5.12.0",
+    "@typescript-eslint/parser": "5.12.0",
+    "esbuild": "0.17.14",
+    "eslint": "8.9.0",
+    "eslint-config-google": "0.14.0",
+    "eslint-plugin-import": "2.25.4",
+    "firebase": "9.21.0",
+    "nodemon": "2.0.20",
+    "prettier": "2.8.7",
+    "typescript": "5.0.4"
+  },
+  "private": true
+}

@@ -1,0 +1,1 @@
+Relay creates Type files in this folder.

@@ -1,0 +1,9 @@
+{
+  "menuNav": {
+    "chat": "Open AI Chat",
+    "settings": "Settings"
+  },
+  "headerNav": {
+    "settings": "Settings"
+  }
+}

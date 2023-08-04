@@ -1,0 +1,36 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "CommonJS",
+    "outDir": "./dist",
+    "rootDir": ".",
+    "strict": true,
+    "moduleResolution": "node",
+    "baseUrl": ".",
+    "esModuleInterop": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "isolatedModules": false,
+    "resolveJsonModule": true,
+    "lib": ["esnext"],
+    "inlineSources": true,
+    "inlineSourceMap": false,
+    "declaration": false,
+    "noEmitOnError": true,
+    "typeRoots": ["./node_modules/@types"],
+    "sourceMap": true,
+    "paths": {
+      "@/*": ["src/*"]
+    }
+  },
+  "ts-node": {
+    "compilerOptions": {
+      "module": "NodeNext"
+    }
+  },
+  "include": ["src/**/*", "prisma/**/*", "test/**/*"],
+  "exclude": ["node_modules"],
+  "compileOnSave": true
+}

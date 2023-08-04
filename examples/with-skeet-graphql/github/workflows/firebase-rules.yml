@@ -1,0 +1,32 @@
+name: FirebaseRules
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'firestore.rules'
+      - 'firestore.indexes.json'
+      - 'storage.rules'
+      - '.github/workflows/firebase-rules.yml'
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+      - name: Install Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '18.16.0'
+      - id: auth
+        uses: google-github-actions/auth@v0
+        with:
+          credentials_json: ${{ secrets.SKEET_GCP_SA_KEY }}
+      - name: Install firebase tools
+        run: npm i -g npm firebase-tools
+      - name: GitHub repository setting
+        run: git config --global url."https://github.com".insteadOf ssh://git@github.com
+      - name: Deploy rules to Firebase
+        run: firebase deploy --only firestore:rules,storage
