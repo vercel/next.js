@@ -12,7 +12,6 @@ import './require-hook'
 import './node-polyfill-fetch'
 import './node-polyfill-crypto'
 
-import url from 'url'
 import { default as Server } from './next-server'
 import * as log from '../build/output/log'
 import loadConfig from './config'
@@ -23,8 +22,10 @@ import { PHASE_PRODUCTION_SERVER } from '../shared/lib/constants'
 import { getTracer } from './lib/trace/tracer'
 import { NextServerSpan } from './lib/trace/constants'
 import { formatUrl } from '../shared/lib/router/utils/format-url'
-import { proxyRequest } from './lib/router-utils/proxy-request'
-import { WorkerRequestHandler } from './lib/setup-server-worker'
+import {
+  WorkerRequestHandler,
+  WorkerUpgradeHandler,
+} from './lib/setup-server-worker'
 
 let ServerImpl: typeof Server
 
@@ -279,7 +280,8 @@ function createServer(options: NextServerOptions): NextServer {
       require('./lib/start-server') as typeof import('./lib/start-server')
 
     let didWebSocketSetup = false
-    let serverPort: number = 0
+    let requestHandler: WorkerRequestHandler
+    let upgradeHandler: WorkerUpgradeHandler
 
     function setupWebSocketHandler(
       customServer?: import('http').Server,
@@ -298,18 +300,12 @@ function createServer(options: NextServerOptions): NextServer {
         } else {
           customServer.on('upgrade', async (req, socket, head) => {
             if (shouldUseStandaloneMode) {
-              await proxyRequest(
-                req,
-                socket as any,
-                url.parse(`http://127.0.0.1:${serverPort}${req.url}`, true),
-                head
-              )
+              upgradeHandler(req, socket, head)
             }
           })
         }
       }
     }
-    let requestHandler: WorkerRequestHandler
     return new Proxy(
       {},
       {
@@ -330,6 +326,7 @@ function createServer(options: NextServerOptions): NextServer {
                   isNodeDebugging: !!isNodeDebugging,
                 })
                 requestHandler = initResult[0]
+                upgradeHandler = initResult[1]
               }
             case 'getRequestHandler': {
               return () => {
