@@ -722,8 +722,15 @@ export default class NextNodeServer extends BaseServer {
       }
     }
 
-    // Make sure to 404 if the buildId isn't correct
     if (params.path[0] !== this.buildId) {
+      // ignore if its a middleware request
+      if (req.headers['x-middleware-invoke']) {
+        return {
+          finished: false,
+        }
+      }
+
+      // Make sure to 404 if the buildId isn't correct
       await this.render404(req, res, parsedUrl)
       return {
         finished: true,
