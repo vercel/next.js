@@ -1,7 +1,7 @@
 /* eslint-disable import/no-extraneous-dependencies */
 import retry from 'async-retry'
 import { red, green, cyan } from 'picocolors'
-import fs from 'fs'
+import fs from 'fs/promises'
 import path from 'path'
 import {
   downloadAndExtractExample,
@@ -194,23 +194,25 @@ export async function createApp({
     }
     // Copy `.gitignore` if the application did not provide one
     const ignorePath = path.join(root, '.gitignore')
-    if (!fs.existsSync(ignorePath)) {
-      fs.copyFileSync(
+    if (!(await fs.access(ignorePath).then(() => true))) {
+      await fs.copyFile(
         getTemplateFile({ template, mode, file: 'gitignore' }),
         ignorePath
       )
     }
 
-    // Copy `next-env.d.ts` to any example that is typescript
+    // Copy `next-env.d.ts` to any example that is TypeScript
     const tsconfigPath = path.join(root, 'tsconfig.json')
-    if (fs.existsSync(tsconfigPath)) {
-      fs.copyFileSync(
-        getTemplateFile({ template, mode: 'ts', file: 'next-env.d.ts' }),
-        path.join(root, 'next-env.d.ts')
+    if (await fs.access(tsconfigPath).then(() => true)) {
+      await fs.mkdir('.next', { recursive: true })
+
+      await fs.rename(
+        path.join(root, 'next-env.d.ts'),
+        path.join(root, '.next', 'next-env.d.ts')
       )
     }
 
-    hasPackageJson = fs.existsSync(packageJsonPath)
+    hasPackageJson = await fs.access(packageJsonPath).then(() => true)
     if (hasPackageJson) {
       console.log('Installing packages. This might take a couple of minutes.')
       console.log()
