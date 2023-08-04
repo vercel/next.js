@@ -19,7 +19,7 @@ use turbopack_binding::{
             environment::{ServerAddr, ServerInfo},
             file_source::FileSource,
             ident::AssetIdent,
-            issue::IssueContextExt,
+            issue::IssueFilePathExt,
             module::Module,
             reference_type::{EcmaScriptModulesReferenceSubType, InnerAssets, ReferenceType},
             resolve::{find_context_file, FindContextFileResult},
