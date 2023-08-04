@@ -540,7 +540,6 @@ importers:
       '@types/lodash.curry': 4.1.6
       '@types/lru-cache': 5.1.0
       '@types/micromatch': 4.0.2
-      '@types/node-fetch': 2.6.1
       '@types/path-to-regexp': 1.7.0
       '@types/platform': 1.3.4
       '@types/react': 18.2.7
@@ -623,7 +622,6 @@ importers:
       nanoid: 3.1.32
       native-url: 0.3.4
       neo-async: 2.6.1
-      node-fetch: 2.6.7
       node-html-parser: 5.3.3
       ora: 4.0.4
       os-browserify: 0.3.0
@@ -760,7 +758,6 @@ importers:
       '@types/lodash.curry': 4.1.6
       '@types/lru-cache': 5.1.0
       '@types/micromatch': 4.0.2
-      '@types/node-fetch': 2.6.1
       '@types/path-to-regexp': 1.7.0
       '@types/platform': 1.3.4
       '@types/react': 18.2.7
@@ -841,7 +838,6 @@ importers:
       nanoid: 3.1.32
       native-url: 0.3.4
       neo-async: 2.6.1
-      node-fetch: 2.6.7
       node-html-parser: 5.3.3
       ora: 4.0.4
       os-browserify: 0.3.0
