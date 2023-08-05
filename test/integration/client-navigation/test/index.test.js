@@ -1748,6 +1748,50 @@ describe('Client Navigation', () => {
     expect(value).toBe(false)
   })
 
+  it.each([true, false])(
+    'should handle boolean async prop in next/head client-side: %s',
+    async (bool) => {
+      const browser = await webdriver(context.appPort, '/head')
+      const value = await browser.eval(
+        `document.querySelector('script[src="/test-async-${bool}.js"]').async`
+      )
+
+      expect(value).toBe(bool)
+    }
+  )
+
+  it.each([true, false])(
+    'should handle boolean async prop in next/script client-side: %s',
+    async (bool) => {
+      const browser = await webdriver(context.appPort, '/script')
+      const value = await browser.eval(
+        `document.querySelector('script[src="/test-async-${bool}.js"]').async`
+      )
+
+      expect(value).toBe(bool)
+    }
+  )
+
+  it('should only execute async and defer scripts with next/script once', async () => {
+    let browser
+    try {
+      browser = await webdriver(context.appPort, '/script')
+
+      await browser.waitForElementByCss('h1')
+      await waitFor(2000)
+      expect(Number(await browser.eval('window.__test_async_executions'))).toBe(
+        1
+      )
+      expect(Number(await browser.eval('window.__test_defer_executions'))).toBe(
+        1
+      )
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
+
   it('should emit routeChangeError on hash change cancel', async () => {
     const browser = await webdriver(context.appPort, '/')
 

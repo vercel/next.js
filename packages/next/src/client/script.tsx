@@ -4,7 +4,7 @@ import ReactDOM from 'react-dom'
 import React, { useEffect, useContext, useRef } from 'react'
 import { ScriptHTMLAttributes } from 'react'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
-import { DOMAttributeNames, isBooleanScriptAttribute } from './head-manager'
+import { setBasicAttributesFromProps } from './head-manager'
 import { requestIdleCallback } from './request-idle-callback'
 
 const ScriptCache = new Map()
@@ -24,16 +24,6 @@ export interface ScriptProps extends ScriptHTMLAttributes<HTMLScriptElement> {
  * @deprecated Use `ScriptProps` instead.
  */
 export type Props = ScriptProps
-
-const ignoreProps = [
-  'onLoad',
-  'onReady',
-  'dangerouslySetInnerHTML',
-  'children',
-  'onError',
-  'strategy',
-  'stylesheets',
-]
 
 const insertStylesheets = (stylesheets: string[]) => {
   // Case 1: Styles for afterInteractive/lazyOnload with appDir injected via handleClientScriptLoad
@@ -148,23 +138,7 @@ const loadScript = (props: ScriptProps): void => {
     ScriptCache.set(src, loadPromise)
   }
 
-  for (const [p, value] of Object.entries(props)) {
-    // we don't render undefined props to the DOM
-    if (value === undefined || ignoreProps.includes(p)) {
-      continue
-    }
-
-    const attr = DOMAttributeNames[p] || p.toLowerCase()
-    el.setAttribute(attr, value)
-
-    // Remove falsy non-zero boolean attributes so they are correctly interpreted
-    // (e.g. if we set them to false, this coerces to the string "false", which the browser interprets as true)
-    // NB: We must still setAttribute before, as we need to set and unset the attribute to override force async:
-    // https://html.spec.whatwg.org/multipage/scripting.html#script-force-async
-    if (value === false || (isBooleanScriptAttribute(attr) && (!value || value === "false"))) {
-      el.removeAttribute(attr)
-    }
-  }
+  setBasicAttributesFromProps(el, props)
 
   if (strategy === 'worker') {
     el.setAttribute('type', 'text/partytown')

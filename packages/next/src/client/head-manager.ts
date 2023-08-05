@@ -6,16 +6,26 @@ export const DOMAttributeNames: Record<string, string> = {
   noModule: 'noModule',
 }
 
-export function isBooleanScriptAttribute(attr: string): attr is "async" | "defer" | "noModule" {
-  return ["async", "defer", "noModule"].includes(attr)
+function isBooleanScriptAttribute(
+  attr: string
+): attr is 'async' | 'defer' | 'noModule' {
+  return ['async', 'defer', 'noModule'].includes(attr)
 }
 
-function reactElementToDOM({ type, props }: JSX.Element): HTMLElement {
-  const el: HTMLElement = document.createElement(type)
-  for (const p in props) {
+const ignoreProps = [
+  'onLoad',
+  'onReady',
+  'dangerouslySetInnerHTML',
+  'children',
+  'onError',
+  'strategy',
+  'stylesheets',
+]
+
+export function setBasicAttributesFromProps(el: HTMLElement, props: object) {
+  for (const [p, value] of Object.entries(props)) {
     if (!props.hasOwnProperty(p)) continue
-    if (p === 'children' || p === 'dangerouslySetInnerHTML') continue
-    const value = props[p]
+    if (ignoreProps.includes(p)) continue
 
     // we don't render undefined props to the DOM
     if (value === undefined) {
@@ -23,16 +33,34 @@ function reactElementToDOM({ type, props }: JSX.Element): HTMLElement {
     }
 
     const attr = DOMAttributeNames[p] || p.toLowerCase()
-    el.setAttribute(attr, value)
+
+    if (el.tagName === 'SCRIPT' && isBooleanScriptAttribute(attr)) {
+      // Correctly assign boolean script attributes
+      // https://github.com/vercel/next.js/pull/20748
+      ;(el as HTMLScriptElement)[attr] = !!value
+    } else {
+      el.setAttribute(attr, String(value))
+    }
 
     // Remove falsy non-zero boolean attributes so they are correctly interpreted
     // (e.g. if we set them to false, this coerces to the string "false", which the browser interprets as true)
-    // NB: We must still setAttribute before, as we need to set and unset the attribute to override force async:
-    // https://html.spec.whatwg.org/multipage/scripting.html#script-force-async
-    if (value === false || (type === "script" && isBooleanScriptAttribute(attr) && (!value || value === "false"))) {
+    if (
+      value === false ||
+      (el.tagName === 'SCRIPT' &&
+        isBooleanScriptAttribute(attr) &&
+        (!value || value === 'false'))
+    ) {
+      // Call setAttribute before, as we need to set and unset the attribute to override force async:
+      // https://html.spec.whatwg.org/multipage/scripting.html#script-force-async
+      el.setAttribute(attr, '')
       el.removeAttribute(attr)
     }
   }
+}
+
+function reactElementToDOM({ type, props }: JSX.Element): HTMLElement {
+  const el: HTMLElement = document.createElement(type)
+  setBasicAttributesFromProps(el, props)
 
   const { children, dangerouslySetInnerHTML } = props
   if (dangerouslySetInnerHTML) {
