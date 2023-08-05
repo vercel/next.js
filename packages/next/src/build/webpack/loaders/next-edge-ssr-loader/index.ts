@@ -126,7 +126,7 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
     const pageModPath = `${appDirLoader}${stringifiedPagePath.substring(
       1,
       stringifiedPagePath.length - 1
-    )}${isAppDir ? `?${WEBPACK_RESOURCE_QUERIES.edgeSSREntry}` : ''}`
+    )}${isAppDir ? `?${WEBPACK_RESOURCE_QUERIES.edgeRSCEntry}` : ''}`
 
     const transformed = `
     import 'next/dist/esm/server/web/globals'

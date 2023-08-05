@@ -3,6 +3,7 @@
 **/dist/**
 packages/next-swc/crates/**
 packages/next/src/compiled/**/*
+packages/next/vendored/**/*
 packages/next/bundles/webpack/packages/*.runtime.js
 lerna.json
 packages/next-codemod/transforms/__testfixtures__/**/*
