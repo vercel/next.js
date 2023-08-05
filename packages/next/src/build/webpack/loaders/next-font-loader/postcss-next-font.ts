@@ -26,6 +26,7 @@ const postcssNextFontPlugin = ({
   variable,
   weight,
   style,
+  usedFontFamilyName,
 }: {
   exports: { name: any; value: any }[]
   fontFamilyHash: string
@@ -34,6 +35,7 @@ const postcssNextFontPlugin = ({
   variable?: string
   weight?: string
   style?: string
+  usedFontFamilyName?: string
 }) => {
   return {
     postcssPlugin: 'postcss-next-font',
@@ -45,6 +47,8 @@ const postcssNextFontPlugin = ({
       }
 
       const formatFamily = (family: string) => {
+        if (!fontFamilyHash) return family
+
         // Turn the font family unguessable to make it locally scoped
         return `'__${family.replace(/ /g, '_')}_${fontFamilyHash}'`
       }
@@ -60,7 +64,7 @@ const postcssNextFontPlugin = ({
           }
 
           if (!fontFamily) {
-            fontFamily = normalizeFamily(familyNode.value)
+            fontFamily = normalizeFamily(usedFontFamilyName || familyNode.value)
           }
 
           familyNode.value = formatFamily(fontFamily)

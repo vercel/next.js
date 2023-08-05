@@ -93,25 +93,32 @@ export default async function nextFontLoader(this: any) {
       // Import the font loader function from either next/font/local or next/font/google
       // The font loader function emits font files and returns @font-faces and fallback font metrics
       const fontLoader: FontLoader = require(fontLoaderPath).default
-      let { css, fallbackFonts, adjustFontFallback, weight, style, variable } =
-        await nextFontLoaderSpan.traceChild('font-loader').traceAsyncFn(() =>
-          fontLoader({
-            functionName,
-            variableName,
-            data,
-            emitFontFile,
-            resolve: (src: string) =>
-              promisify(this.resolve)(
-                path.dirname(
-                  path.join(this.rootContext, relativeFilePathFromRoot)
-                ),
-                src.startsWith('.') ? src : `./${src}`
+      let {
+        css,
+        fallbackFonts,
+        adjustFontFallback,
+        weight,
+        style,
+        variable,
+        usedFontFamilyName,
+      } = await nextFontLoaderSpan.traceChild('font-loader').traceAsyncFn(() =>
+        fontLoader({
+          functionName,
+          variableName,
+          data,
+          emitFontFile,
+          resolve: (src: string) =>
+            promisify(this.resolve)(
+              path.dirname(
+                path.join(this.rootContext, relativeFilePathFromRoot)
               ),
-            isDev,
-            isServer,
-            loaderContext: this,
-          })
-        )
+              src.startsWith('.') ? src : `./${src}`
+            ),
+          isDev,
+          isServer,
+          loaderContext: this,
+        })
+      )
 
       const { postcss } = await getPostcss()
 
@@ -119,12 +126,9 @@ export default async function nextFontLoader(this: any) {
       const exports: { name: any; value: any }[] = []
 
       // Generate a hash from the CSS content. Used to generate classnames and font families
-      const fontFamilyHash = loaderUtils.getHashDigest(
-        Buffer.from(css),
-        'sha1',
-        'hex',
-        6
-      )
+      const fontFamilyHash = !usedFontFamilyName
+        ? loaderUtils.getHashDigest(Buffer.from(css), 'sha1', 'hex', 6)
+        : undefined
 
       // Add CSS classes, exports and make the font-family locally scoped by turning it unguessable
       const result = await nextFontLoaderSpan
@@ -139,6 +143,7 @@ export default async function nextFontLoader(this: any) {
               style,
               adjustFontFallback,
               variable,
+              usedFontFamilyName,
             })
           ).process(css, {
             from: undefined,

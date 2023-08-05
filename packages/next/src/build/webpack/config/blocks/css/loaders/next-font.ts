@@ -48,6 +48,7 @@ export function getNextFontLoader(
           _options: any,
           meta: any
         ) => {
+          if (!meta.fontFamilyHash) return exportName
           // hash from next-font-loader
           return `__${exportName}_${meta.fontFamilyHash}`
         },
