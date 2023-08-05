@@ -284,9 +284,15 @@ export function hydrate() {
       }
 
       socket.addEventListener('message', handler)
-      ReactDOMClient.createRoot(appElement as any, options).render(errorTree)
+      const _reactErrorTreeRoot = ReactDOMClient.createRoot(appElement as any, options)
+      React.startTransition(() =>
+       _reactErrorTreeRoot.render(errorTree)
+      )
     } else {
-      ReactDOMClient.createRoot(appElement as any, options).render(reactEl)
+      const _reactElementRoot = ReactDOMClient.createRoot(appElement as any, options)
+      React.startTransition(() =>
+       _reactElementRoot.render(reactEl)
+      )
     }
   } else {
     React.startTransition(() =>
