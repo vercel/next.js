@@ -1,11 +1,12 @@
 import path from 'path'
 import { createNextDescribe, FileRef } from '../../../lib/e2e-utils'
 import stripAnsi from 'strip-ansi'
+import { check } from '../../../lib/next-test-utils'
 
 function parseLogsFromCli(cliOutput: string) {
   return stripAnsi(cliOutput)
     .split('\n')
-    .filter((log) => log.includes('cache:'))
+    .filter((log) => log.includes('ms (cache:'))
     .map((log) => {
       const trimmedLog = log.replace(/^[^a-zA-Z]+/, '')
       const parts = trimmedLog.split(' ')
@@ -40,61 +41,76 @@ createNextDescribe(
   ({ next, isNextDev }) => {
     describe('with verbose logging', () => {
       it('should only log requests in dev mode', async () => {
+        const outputIndex = next.cliOutput.length
         await next.fetch('/default-cache')
-        const logs = stripAnsi(next.cliOutput)
 
-        if (isNextDev) {
-          expect(logs).toContain('GET /default-cache 200')
-        } else {
-          expect(logs).not.toContain('GET /default-cache 200')
-        }
+        await check(() => {
+          const logs = stripAnsi(next.cliOutput.slice(outputIndex))
+          const hasLogs = logs.includes('GET /default-cache 200')
 
-        await next.stop()
+          if (isNextDev && hasLogs) {
+            return 'success'
+          }
+
+          if (!isNextDev && !hasLogs) {
+            return 'success'
+          }
+        }, 'success')
       })
 
       if (isNextDev) {
         it("should log 'skip' cache status with a reason when cache: 'no-cache' is used", async () => {
-          await next.start()
+          const outputIndex = next.cliOutput.length
           await next.fetch('/default-cache')
-          const logs = parseLogsFromCli(next.cliOutput)
-          const logEntry = logs.find((log) =>
-            log.url.includes('api/random?no-cache')
-          )
 
-          expect(logEntry?.cache).toMatchInlineSnapshot(
-            `"(cache: SKIP, reason: cache: no-cache)"`
-          )
-          await next.stop()
+          await check(() => {
+            const logs = parseLogsFromCli(next.cliOutput.slice(outputIndex))
+
+            const logEntry = logs.find((log) =>
+              log.url.includes('api/random?no-cache')
+            )
+
+            if (logEntry?.cache === '(cache: SKIP, reason: cache: no-cache)') {
+              return 'success'
+            }
+          }, 'success')
         })
 
         it("should log 'skip' cache status with a reason when revalidate: 0 is used", async () => {
-          await next.start()
+          const outputIndex = next.cliOutput.length
           await next.fetch('/default-cache')
-          const logs = parseLogsFromCli(next.cliOutput)
-          const logEntry = logs.find((log) =>
-            log.url.includes('api/random?revalidate-0')
-          )
+          await check(() => {
+            const logs = parseLogsFromCli(next.cliOutput.slice(outputIndex))
 
-          expect(logEntry?.cache).toMatchInlineSnapshot(
-            `"(cache: SKIP, reason: revalidate: 0)"`
-          )
-          await next.stop()
+            const logEntry = logs.find((log) =>
+              log.url.includes('api/random?revalidate-0')
+            )
+
+            if (logEntry?.cache === '(cache: SKIP, reason: revalidate: 0)') {
+              return 'success'
+            }
+          }, 'success')
         })
 
         it("should log 'skip' cache status with a reason when the browser indicates caching should be ignored", async () => {
-          await next.start()
+          const outputIndex = next.cliOutput.length
           await next.fetch('/default-cache', {
             headers: { 'Cache-Control': 'no-cache' },
           })
-          const logs = parseLogsFromCli(next.cliOutput)
-          const logEntry = logs.find((log) =>
-            log.url.includes('api/random?auto-cache')
-          )
+          await check(() => {
+            const logs = parseLogsFromCli(next.cliOutput.slice(outputIndex))
 
-          expect(logEntry?.cache).toMatchInlineSnapshot(
-            `"(cache: SKIP, reason: cache-control: no-cache (hard refresh))"`
-          )
-          await next.stop()
+            const logEntry = logs.find((log) =>
+              log.url.includes('api/random?auto-cache')
+            )
+
+            if (
+              logEntry?.cache ===
+              '(cache: SKIP, reason: cache-control: no-cache (hard refresh))'
+            ) {
+              return 'success'
+            }
+          }, 'success')
         })
       }
     })
@@ -107,10 +123,17 @@ createNextDescribe(
       })
 
       it('should not log fetch requests at all', async () => {
+        const outputIndex = next.cliOutput.length
         await next.fetch('/default-cache')
-        const logs = stripAnsi(next.cliOutput)
 
-        expect(logs).not.toContain('GET /default-cache 200')
+        await check(() => {
+          const logs = stripAnsi(next.cliOutput.slice(outputIndex))
+          if (logs.includes('GET /default-cache 200')) {
+            return 'fail'
+          }
+
+          return 'success'
+        }, 'success')
       })
     })
   }
