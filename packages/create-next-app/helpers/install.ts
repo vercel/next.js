@@ -1,5 +1,5 @@
 /* eslint-disable import/no-extraneous-dependencies */
-import chalk from 'chalk'
+import { yellow } from 'picocolors'
 import spawn from 'cross-spawn'
 import type { PackageManager } from './get-pkg-manager'
 
@@ -43,6 +43,7 @@ export function install(
     let args: string[]
     let command = packageManager
     const useYarn = packageManager === 'yarn'
+    const useBun = packageManager === 'bun'
 
     if (dependencies && dependencies.length) {
       /**
@@ -56,6 +57,11 @@ export function install(
         if (!isOnline) args.push('--offline')
         args.push('--cwd', root)
         if (devDependencies) args.push('--dev')
+        args.push(...dependencies)
+      } else if (useBun) {
+        args = ['add', '--exact']
+        args.push('--cwd', root)
+        if (devDependencies) args.push('--development')
         args.push(...dependencies)
       } else {
         /**
@@ -72,9 +78,9 @@ export function install(
        */
       args = ['install']
       if (!isOnline) {
-        console.log(chalk.yellow('You appear to be offline.'))
+        console.log(yellow('You appear to be offline.'))
         if (useYarn) {
-          console.log(chalk.yellow('Falling back to the local Yarn cache.'))
+          console.log(yellow('Falling back to the local Yarn cache.'))
           console.log()
           args.push('--offline')
         } else {

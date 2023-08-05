@@ -12,7 +12,7 @@ use turbopack_binding::{
                 pattern::Pattern,
                 resolve, AliasPattern, ResolveAliasMap, SubpathValue,
             },
-            source::{asset_to_source, Source},
+            source::Source,
         },
         node::execution_context::ExecutionContext,
         turbopack::{resolve_options, resolve_options_context::ResolveOptionsContext},
@@ -58,6 +58,8 @@ pub async fn get_next_client_import_map(
     )
     .await?;
 
+    let vendor_dir = get_next_package(project_path).join("vendored".into());
+
     match ty.into_value() {
         ClientContextType::Pages { pages_dir } => {
             insert_alias_to_alternatives(
@@ -85,31 +87,35 @@ pub async fn get_next_client_import_map(
                 ],
             );
         }
-        ClientContextType::App { app_dir } => {
-            import_map.insert_exact_alias(
-                "react",
-                request_to_import_mapping(app_dir, "next/dist/compiled/react"),
-            );
-            import_map.insert_wildcard_alias(
-                "react/",
-                request_to_import_mapping(app_dir, "next/dist/compiled/react/*"),
-            );
-            import_map.insert_exact_alias(
-                "react-dom",
-                request_to_import_mapping(app_dir, "next/dist/compiled/react-dom"),
-            );
-            import_map.insert_wildcard_alias(
-                "react-dom/",
-                request_to_import_mapping(app_dir, "next/dist/compiled/react-dom/*"),
-            );
-            import_map.insert_wildcard_alias(
-                "react-server-dom-webpack/",
-                request_to_import_mapping(app_dir, "next/dist/compiled/react-server-dom-webpack/*"),
-            );
+        ClientContextType::App { app_dir: _ } => {
             import_map.insert_exact_alias(
                 "next/dynamic",
                 request_to_import_mapping(project_path, "next/dist/shared/lib/app-dynamic"),
             );
+
+            for (package_name, vendored_name) in [
+                ("react", "react-vendored"),
+                ("react-dom", "react-dom-vendored"),
+                (
+                    "react-server-dom-webpack",
+                    "react-server-dom-webpack-vendored",
+                ),
+                ("scheduler", "scheduler-vendored"),
+                ("client-only", "client-only-vendored"),
+                ("server-only", "server-only-vendored"),
+            ] {
+                import_map.insert_exact_alias(
+                    package_name,
+                    request_to_import_mapping(vendor_dir, vendored_name),
+                );
+                import_map.insert_wildcard_alias(
+                    format!("{}{}", package_name, "/"),
+                    request_to_import_mapping(
+                        vendor_dir,
+                        format!("{}{}", vendored_name, "/*").as_str(),
+                    ),
+                );
+            }
         }
         ClientContextType::Fallback => {}
         ClientContextType::Other => {}
@@ -211,7 +217,7 @@ pub async fn get_next_server_import_map(
 
     let ty = ty.into_value();
 
-    insert_next_server_special_aliases(&mut import_map, ty, mode).await?;
+    insert_next_server_special_aliases(project_path, &mut import_map, ty, mode).await?;
     let external = ImportMapping::External(None).cell();
 
     match ty {
@@ -229,6 +235,16 @@ pub async fn get_next_server_import_map(
         ServerContextType::AppSSR { .. }
         | ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. } => {
+            match mode {
+                NextMode::Development | NextMode::Build => {
+                    import_map.insert_wildcard_alias("next/dist/server/", external);
+                    import_map.insert_wildcard_alias("next/dist/shared/", external);
+                }
+                NextMode::DevServer => {
+                    // The sandbox can't be bundled and needs to be external
+                    import_map.insert_exact_alias("next/dist/server/web/sandbox", external);
+                }
+            }
             import_map.insert_exact_alias(
                 "next/head",
                 request_to_import_mapping(project_path, "next/dist/client/components/noop-head"),
@@ -237,9 +253,6 @@ pub async fn get_next_server_import_map(
                 "next/dynamic",
                 request_to_import_mapping(project_path, "next/dist/shared/lib/app-dynamic"),
             );
-
-            // The sandbox can't be bundled and needs to be external
-            import_map.insert_exact_alias("next/dist/server/web/sandbox", external);
         }
         ServerContextType::Middleware => {}
     }
@@ -276,7 +289,7 @@ pub async fn get_next_edge_import_map(
 
     let ty = ty.into_value();
 
-    insert_next_server_special_aliases(&mut import_map, ty, mode).await?;
+    insert_next_server_special_aliases(project_path, &mut import_map, ty, mode).await?;
 
     match ty {
         ServerContextType::Pages { .. } | ServerContextType::PagesData { .. } => {}
@@ -350,10 +363,12 @@ static NEXT_ALIASES: [(&str, &str); 23] = [
 ];
 
 pub async fn insert_next_server_special_aliases(
+    project_path: Vc<FileSystemPath>,
     import_map: &mut ImportMap,
     ty: ServerContextType,
     mode: NextMode,
 ) -> Result<()> {
+    let vendor_dir = get_next_package(project_path).join("vendored".into());
     match (mode, ty) {
         (_, ServerContextType::Pages { pages_dir }) => {
             import_map.insert_exact_alias(
@@ -391,7 +406,7 @@ pub async fn insert_next_server_special_aliases(
         // In development, we *always* use the bundled version of React, even in
         // SSR, since we're bundling Next.js alongside it.
         (
-            NextMode::Development,
+            NextMode::DevServer,
             ServerContextType::AppSSR { app_dir }
             | ServerContextType::AppRSC { app_dir, .. }
             | ServerContextType::AppRoute { app_dir },
@@ -402,34 +417,35 @@ pub async fn insert_next_server_special_aliases(
                 // @opentelemetry/api
                 request_to_import_mapping(app_dir, "next/dist/compiled/@opentelemetry/api"),
             );
-            import_map.insert_exact_alias(
-                "react",
-                request_to_import_mapping(app_dir, "next/dist/compiled/react"),
-            );
-            import_map.insert_wildcard_alias(
-                "react/",
-                request_to_import_mapping(app_dir, "next/dist/compiled/react/*"),
-            );
-            import_map.insert_exact_alias(
-                "react-dom",
-                request_to_import_mapping(
-                    app_dir,
-                    "next/dist/compiled/react-dom/server-rendering-stub.js",
+
+            for (package_name, vendored_name) in [
+                ("react", "react-vendored"),
+                ("react-dom", "react-dom-vendored"),
+                (
+                    "react-server-dom-webpack",
+                    "react-server-dom-webpack-vendored",
                 ),
-            );
-            import_map.insert_wildcard_alias(
-                "react-dom/",
-                request_to_import_mapping(app_dir, "next/dist/compiled/react-dom/*"),
-            );
-            import_map.insert_wildcard_alias(
-                "react-server-dom-webpack/",
-                request_to_import_mapping(app_dir, "next/dist/compiled/react-server-dom-webpack/*"),
-            );
+                ("scheduler", "scheduler-vendored"),
+                ("client-only", "client-only-vendored"),
+                ("server-only", "server-only-vendored"),
+            ] {
+                import_map.insert_exact_alias(
+                    package_name,
+                    request_to_import_mapping(vendor_dir, vendored_name),
+                );
+                import_map.insert_wildcard_alias(
+                    format!("{}{}", package_name, "/"),
+                    request_to_import_mapping(
+                        vendor_dir,
+                        format!("{}{}", vendored_name, "/*").as_str(),
+                    ),
+                );
+            }
         }
         // NOTE(alexkirsz) This logic maps loosely to
         // `next.js/packages/next/src/build/webpack-config.ts`, where:
         //
-        // ## RSC (Build)
+        // ## RSC
         //
         // * always bundles
         // * maps react -> react/shared-subset (through the "react-server" exports condition)
@@ -437,7 +453,7 @@ pub async fn insert_next_server_special_aliases(
         // * passes through (react|react-dom|react-server-dom-webpack)/(.*) to
         //   next/dist/compiled/$1/$2
         (
-            NextMode::Build,
+            NextMode::Build | NextMode::Development,
             ServerContextType::AppRSC { app_dir, .. } | ServerContextType::AppRoute { app_dir },
         ) => {
             import_map.insert_exact_alias(
@@ -446,60 +462,54 @@ pub async fn insert_next_server_special_aliases(
                 // @opentelemetry/api
                 request_to_import_mapping(app_dir, "next/dist/compiled/@opentelemetry/api"),
             );
-            import_map.insert_exact_alias(
-                "react",
-                request_to_import_mapping(app_dir, "next/dist/compiled/react/react.shared-subset"),
-            );
-            import_map.insert_exact_alias(
-                "react-dom",
-                request_to_import_mapping(
-                    app_dir,
-                    "next/dist/compiled/react-dom/server-rendering-stub",
-                ),
-            );
-            for (wildcard_alias, request) in [
-                ("react/", "next/dist/compiled/react/*"),
-                ("react-dom/", "next/dist/compiled/react-dom/*"),
+
+            for (package_name, vendored_name) in [
+                ("react", "react-vendored"),
+                ("react-dom", "react-dom-vendored"),
                 (
-                    "react-server-dom-webpack/",
-                    "next/dist/compiled/react-server-dom-webpack/*",
+                    "react-server-dom-webpack",
+                    "react-server-dom-webpack-vendored",
                 ),
+                ("scheduler", "scheduler-vendored"),
+                ("client-only", "client-only-vendored"),
+                ("server-only", "server-only-vendored"),
             ] {
+                import_map.insert_exact_alias(
+                    package_name,
+                    request_to_import_mapping(vendor_dir, vendored_name),
+                );
                 import_map.insert_wildcard_alias(
-                    wildcard_alias,
-                    request_to_import_mapping(app_dir, request),
+                    format!("{}{}", package_name, "/"),
+                    request_to_import_mapping(
+                        vendor_dir,
+                        format!("{}{}", vendored_name, "/*").as_str(),
+                    ),
                 );
             }
         }
-        // ## SSR (Build)
+        // ## SSR
         //
         // * always uses externals, to ensure we're using the same React instance as the Next.js
         //   runtime
-        // * maps react-dom -> react-dom/server-rendering-stub
-        // * passes through react and (react|react-dom|react-server-dom-webpack)/(.*) to
-        //   next/dist/compiled/react and next/dist/compiled/$1/$2 resp.
-        (NextMode::Build, ServerContextType::AppSSR { .. }) => {
-            import_map.insert_exact_alias(
+        (NextMode::Build | NextMode::Development, ServerContextType::AppSSR { .. }) => {
+            for package_name in [
                 "react",
-                external_request_to_import_mapping("next/dist/compiled/react"),
-            );
-            import_map.insert_exact_alias(
                 "react-dom",
-                external_request_to_import_mapping(
-                    "next/dist/compiled/react-dom/server-rendering-stub",
-                ),
-            );
-
-            for (wildcard_alias, request) in [
-                ("react/", "next/dist/compiled/react/*"),
-                ("react-dom/", "next/dist/compiled/react-dom/*"),
-                (
-                    "react-server-dom-webpack/",
-                    "next/dist/compiled/react-server-dom-webpack/*",
-                ),
+                "react-server-dom-webpack",
+                "scheduler",
+                "client-only",
+                "server-only",
             ] {
-                let import_mapping = external_request_to_import_mapping(request);
-                import_map.insert_wildcard_alias(wildcard_alias, import_mapping);
+                import_map.insert_exact_alias(
+                    package_name,
+                    external_request_to_import_mapping(package_name),
+                );
+                import_map.insert_wildcard_alias(
+                    format!("{}{}", package_name, "/"),
+                    external_request_to_import_mapping(
+                        format!("{}{}", package_name, "/*").as_str(),
+                    ),
+                );
             }
         }
         (_, ServerContextType::Middleware) => {}
@@ -620,18 +630,19 @@ async fn package_lookup_resolve_options(
 }
 
 #[turbo_tasks::function]
-pub async fn get_next_package(project_path: Vc<FileSystemPath>) -> Result<Vc<FileSystemPath>> {
+pub async fn get_next_package(context_directory: Vc<FileSystemPath>) -> Result<Vc<FileSystemPath>> {
     let result = resolve(
-        project_path,
+        context_directory,
         Request::parse(Value::new(Pattern::Constant(
             "next/package.json".to_string(),
         ))),
-        package_lookup_resolve_options(project_path),
+        package_lookup_resolve_options(context_directory),
     );
-    let assets = result.primary_assets().await?;
-    let asset = *assets.first().context("Next.js package not found")?;
-    let asset = asset_to_source(asset);
-    Ok(asset.ident().path().parent())
+    let source = result
+        .first_source()
+        .await?
+        .context("Next.js package not found")?;
+    Ok(source.ident().path().parent())
 }
 
 pub async fn insert_alias_option<const N: usize>(

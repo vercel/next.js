@@ -135,7 +135,7 @@ pub async fn is_babel_loader_available(project_path: Vc<FileSystemPath>) -> Resu
             .cell(),
         ),
     );
-    let assets = result.primary_assets().await?;
+    let assets = result.primary_sources().await?;
     Ok(Vc::cell(!assets.is_empty()))
 }
 
@@ -160,7 +160,7 @@ impl Issue for BabelIssue {
     }
 
     #[turbo_tasks::function]
-    fn context(&self) -> Vc<FileSystemPath> {
+    fn file_path(&self) -> Vc<FileSystemPath> {
         self.path
     }
 

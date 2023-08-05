@@ -12,17 +12,25 @@ const originModules = [
   require.resolve('../../../server/require'),
   require.resolve('../../../server/load-components'),
   require.resolve('../../../server/next-server'),
-  require.resolve('../../../compiled/react-server-dom-webpack/client.edge'),
   require.resolve(
-    '../../../compiled/react-server-dom-webpack-experimental/client.edge'
+    '../../../../vendored/node_modules/react-server-dom-webpack-vendored/client.edge'
+  ),
+  require.resolve(
+    '../../../../vendored/node_modules/react-server-dom-webpack-experimental-vendored/client.edge'
   ),
 ]
 
 const RUNTIME_NAMES = ['webpack-runtime', 'webpack-api-runtime']
 
+const nextDeleteCacheRpc = async (filePaths: string[]) => {
+  if ((global as any)._nextDeleteCache) {
+    return (global as any)._nextDeleteCache(filePaths)
+  }
+}
+
 export function deleteAppClientCache() {
   if ((global as any)._nextDeleteAppClientCache) {
-    ;(global as any)._nextDeleteAppClientCache()
+    return (global as any)._nextDeleteAppClientCache()
   }
   // ensure we reset the cache for rsc components
   // loaded via react-server-dom-webpack
@@ -41,10 +49,6 @@ export function deleteAppClientCache() {
 }
 
 export function deleteCache(filePath: string) {
-  if ((global as any)._nextDeleteCache) {
-    ;(global as any)._nextDeleteCache(filePath)
-  }
-
   // try to clear it from the fs cache
   clearManifestCache(filePath)
 
@@ -86,7 +90,7 @@ export class NextJsRequireCacheHotReloader implements WebpackPluginInstance {
 
   apply(compiler: Compiler) {
     compiler.hooks.assetEmitted.tap(PLUGIN_NAME, (_file, { targetPath }) => {
-      deleteCache(targetPath)
+      nextDeleteCacheRpc([targetPath])
 
       // Clear module context in other processes
       if ((global as any)._nextClearModuleContext) {
@@ -96,35 +100,33 @@ export class NextJsRequireCacheHotReloader implements WebpackPluginInstance {
       clearModuleContext(targetPath)
     })
 
-    compiler.hooks.afterEmit.tap(PLUGIN_NAME, (compilation) => {
-      RUNTIME_NAMES.forEach((name) => {
+    compiler.hooks.afterEmit.tapPromise(PLUGIN_NAME, async (compilation) => {
+      const cacheEntriesToDelete = []
+
+      for (const name of RUNTIME_NAMES) {
         const runtimeChunkPath = path.join(
           compilation.outputOptions.path!,
           `${name}.js`
         )
-        deleteCache(runtimeChunkPath)
-      })
-      let hasAppPath = false
+        cacheEntriesToDelete.push(runtimeChunkPath)
+      }
 
       // we need to make sure to clear all server entries from cache
       // since they can have a stale webpack-runtime cache
       // which needs to always be in-sync
       const entries = [...compilation.entries.keys()].filter((entry) => {
         const isAppPath = entry.toString().startsWith('app/')
-        hasAppPath = hasAppPath || isAppPath
         return entry.toString().startsWith('pages/') || isAppPath
       })
 
-      if (hasAppPath) {
-      }
-
-      entries.forEach((page) => {
+      for (const page of entries) {
         const outputPath = path.join(
           compilation.outputOptions.path!,
           page + '.js'
         )
-        deleteCache(outputPath)
-      })
+        cacheEntriesToDelete.push(outputPath)
+      }
+      await nextDeleteCacheRpc(cacheEntriesToDelete)
     })
   }
 }

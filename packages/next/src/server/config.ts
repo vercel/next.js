@@ -679,25 +679,82 @@ function assignDefaults(
     'lodash-es': {
       transform: 'lodash-es/{{member}}',
     },
-    // TODO: Enable this once we have a way to remove the "-icon" suffix from the import path.
-    // Related discussion: https://github.com/vercel/next.js/pull/50900#discussion_r1239656782
-    // 'lucide-react': {
-    //   transform: 'lucide-react/dist/esm/icons/{{ kebabCase member }}',
-    // },
+    'lucide-react': {
+      // Note that we need to first resolve to the base path (`lucide-react`) and join the subpath,
+      // instead of just resolving `lucide-react/esm/icons/{{kebabCase member}}` because this package
+      // doesn't have proper `exports` fields for individual icons in its package.json.
+      transform: {
+        // Special aliases
+        '(SortAsc|LucideSortAsc|SortAscIcon)':
+          'modularize-import-loader?name={{ member }}&from=default&as=default&join=./icons/arrow-up-narrow-wide!lucide-react',
+        '(SortDesc|LucideSortDesc|SortDescIcon)':
+          'modularize-import-loader?name={{ member }}&from=default&as=default&join=./icons/arrow-down-wide-narrow!lucide-react',
+        '(Verified|LucideVerified|VerifiedIcon)':
+          'modularize-import-loader?name={{ member }}&from=default&as=default&join=./icons/badge-check!lucide-react',
+        '(Slash|LucideSlash|SlashIcon)':
+          'modularize-import-loader?name={{ member }}&from=default&as=default&join=./icons/ban!lucide-react',
+        '(CurlyBraces|LucideCurlyBraces|CurlyBracesIcon)':
+          'modularize-import-loader?name={{ member }}&from=default&as=default&join=./icons/braces!lucide-react',
+        '(CircleSlashed|LucideCircleSlashed|CircleSlashedIcon)':
+          'modularize-import-loader?name={{ member }}&from=default&as=default&join=./icons/circle-slash-2!lucide-react',
+        '(SquareGantt|LucideSquareGantt|SquareGanttIcon)':
+          'modularize-import-loader?name={{ member }}&from=default&as=default&join=./icons/gantt-chart-square!lucide-react',
+        '(SquareKanbanDashed|LucideSquareKanbanDashed|SquareKanbanDashedIcon)':
+          'modularize-import-loader?name={{ member }}&from=default&as=default&join=./icons/kanban-square-dashed!lucide-react',
+        '(SquareKanban|LucideSquareKanban|SquareKanbanIcon)':
+          'modularize-import-loader?name={{ member }}&from=default&as=default&join=./icons/kanban-square!lucide-react',
+        '(Edit3|LucideEdit3|Edit3Icon)':
+          'modularize-import-loader?name={{ member }}&from=default&as=default&join=./icons/pen-line!lucide-react',
+        '(Edit|LucideEdit|EditIcon|PenBox|LucidePenBox|PenBoxIcon)':
+          'modularize-import-loader?name={{ member }}&from=default&as=default&join=./icons/pen-square!lucide-react',
+        '(Edit2|LucideEdit2|Edit2Icon)':
+          'modularize-import-loader?name={{ member }}&from=default&as=default&join=./icons/pen!lucide-react',
+        '(Stars|LucideStars|StarsIcon)':
+          'modularize-import-loader?name={{ member }}&from=default&as=default&join=./icons/sparkles!lucide-react',
+        '(TextSelection|LucideTextSelection|TextSelectionIcon)':
+          'modularize-import-loader?name={{ member }}&from=default&as=default&join=./icons/text-select!lucide-react',
+        // General rules
+        'Lucide(.*)':
+          'modularize-import-loader?name={{ member }}&from=default&as=default&join=./icons/{{ kebabCase memberMatches.[1] }}!lucide-react',
+        '(.*)Icon':
+          'modularize-import-loader?name={{ member }}&from=default&as=default&join=./icons/{{ kebabCase memberMatches.[1] }}!lucide-react',
+        '*': 'modularize-import-loader?name={{ member }}&from=default&as=default&join=./icons/{{ kebabCase member }}!lucide-react',
+      },
+    },
     ramda: {
       transform: 'ramda/es/{{member}}',
     },
     'react-bootstrap': {
-      transform: 'react-bootstrap/{{member}}',
+      transform: {
+        useAccordionButton:
+          'modularize-import-loader?name=useAccordionButton&from=named&as=default!react-bootstrap/AccordionButton',
+        '*': 'react-bootstrap/{{member}}',
+      },
     },
     antd: {
       transform: 'antd/lib/{{kebabCase member}}',
     },
     ahooks: {
-      transform: 'ahooks/es/{{member}}',
+      transform: {
+        createUpdateEffect:
+          'modularize-import-loader?name=createUpdateEffect&from=named&as=default!ahooks/es/createUpdateEffect',
+        '*': 'ahooks/es/{{member}}',
+      },
     },
     '@ant-design/icons': {
-      transform: '@ant-design/icons/lib/icons/{{member}}',
+      transform: {
+        IconProvider:
+          'modularize-import-loader?name=IconProvider&from=named&as=default!@ant-design/icons',
+        createFromIconfontCN: '@ant-design/icons/es/components/IconFont',
+        getTwoToneColor:
+          'modularize-import-loader?name=getTwoToneColor&from=named&as=default!@ant-design/icons/es/components/twoTonePrimaryColor',
+        setTwoToneColor:
+          'modularize-import-loader?name=setTwoToneColor&from=named&as=default!@ant-design/icons/es/components/twoTonePrimaryColor',
+        '*': '@ant-design/icons/lib/icons/{{member}}',
+      },
+    },
+    'next/server': {
+      transform: 'next/dist/server/web/exports/{{ kebabCase member }}',
     },
   }
 
@@ -711,8 +768,30 @@ export default async function loadConfig(
   rawConfig?: boolean,
   silent?: boolean
 ): Promise<NextConfigComplete> {
+  if (!process.env.__NEXT_PRIVATE_RENDER_WORKER) {
+    try {
+      loadWebpackHook()
+    } catch (err) {
+      // this can fail in standalone mode as the files
+      // aren't traced/included
+      if (!process.env.__NEXT_PRIVATE_STANDALONE_CONFIG) {
+        throw err
+      }
+    }
+  }
+
   if (process.env.__NEXT_PRIVATE_STANDALONE_CONFIG) {
     return JSON.parse(process.env.__NEXT_PRIVATE_STANDALONE_CONFIG)
+  }
+
+  // For the render worker, we directly return the serialized config from the
+  // parent worker (router worker) to avoid loading it again.
+  // This is because loading the config might be expensive especiall when people
+  // have Webpack plugins added.
+  // Because of this change, unserializable fields like `.webpack` won't be
+  // existing here but the render worker shouldn't use these as well.
+  if (process.env.__NEXT_PRIVATE_RENDER_WORKER_CONFIG) {
+    return JSON.parse(process.env.__NEXT_PRIVATE_RENDER_WORKER_CONFIG)
   }
 
   const curLog = silent
@@ -724,21 +803,6 @@ export default async function loadConfig(
     : Log
 
   loadEnvConfig(dir, phase === PHASE_DEVELOPMENT_SERVER, curLog)
-
-  loadWebpackHook({
-    // For render workers, there's no need to init webpack eagerly
-    init: !process.env.__NEXT_PRIVATE_RENDER_WORKER,
-  })
-
-  // For the render worker, we directly return the serialized config from the
-  // parent worker (router worker) to avoid loading it again.
-  // This is because loading the config might be expensive especiall when people
-  // have Webpack plugins added.
-  // Because of this change, unserializable fields like `.webpack` won't be
-  // existing here but the render worker shouldn't use these as well.
-  if (process.env.__NEXT_PRIVATE_RENDER_WORKER_CONFIG) {
-    return JSON.parse(process.env.__NEXT_PRIVATE_RENDER_WORKER_CONFIG)
-  }
 
   let configFileName = 'next.config.js'
 

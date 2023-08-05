@@ -6,5 +6,10 @@
     "next": "latest",
     "react": "latest",
     "react-dom": "latest"
-  }
+  },
+  "engines": {
+    "node": ">=16.8.0",
+    "pnpm": "8.6.11"
+  },
+  "packageManager": "pnpm@8.6.11"
 }

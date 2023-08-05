@@ -10,15 +10,7 @@ declare module 'next/dist/compiled/postcss-modules-scope'
 declare module 'next/dist/compiled/babel/plugin-transform-modules-commonjs'
 declare module 'next/dist/compiled/babel/plugin-syntax-jsx'
 declare module 'next/dist/compiled/loader-utils2'
-declare module 'next/dist/compiled/react-server-dom-webpack/client'
-declare module 'next/dist/compiled/react-server-dom-webpack/client.edge'
-declare module 'next/dist/compiled/react-server-dom-webpack/client.browser'
-declare module 'next/dist/compiled/react-server-dom-webpack/server.browser'
-declare module 'next/dist/compiled/react-server-dom-webpack/server.edge'
 declare module 'next/dist/client/app-call-server'
-declare module 'next/dist/compiled/react-dom/server'
-declare module 'next/dist/compiled/react-dom/server.edge'
-declare module 'next/dist/compiled/react-dom/server.browser'
 declare module 'next/dist/compiled/browserslist'
 declare module 'react-server-dom-webpack/client'
 declare module 'react-dom/server.browser'
@@ -39,12 +31,6 @@ declare module 'next/dist/compiled/@next/react-refresh-utils/dist/ReactRefreshWe
 
 declare module 'next/dist/compiled/node-html-parser' {
   export * from 'node-html-parser'
-}
-
-declare module 'next/dist/compiled/node-fetch' {
-  import m from 'node-fetch'
-  export default m
-  export * from 'node-fetch'
 }
 
 declare module 'next/dist/compiled/undici' {}
@@ -370,15 +356,6 @@ declare module 'next/dist/compiled/@edge-runtime/primitives' {
 
 declare module 'next/dist/compiled/@segment/ajv-human-errors' {
   import * as m from '@segment/ajv-human-errors'
-  export = m
-}
-
-declare module 'next/dist/compiled/react' {
-  import * as m from 'react'
-  export = m
-}
-declare module 'next/dist/compiled/react-dom' {
-  import * as m from 'react-dom'
   export = m
 }
 

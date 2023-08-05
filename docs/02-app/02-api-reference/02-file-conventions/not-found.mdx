@@ -13,9 +13,7 @@ export default function NotFound() {
     <div>
       <h2>Not Found</h2>
       <p>Could not find requested resource</p>
-      <p>
-        View <Link href="/blog">all posts</Link>
-      </p>
+      <Link href="/">Return Home</Link>
     </div>
   )
 }
@@ -29,9 +27,7 @@ export default function NotFound() {
     <div>
       <h2>Not Found</h2>
       <p>Could not find requested resource</p>
-      <p>
-        View <Link href="/blog">all posts</Link>
-      </p>
+      <Link href="/">Return Home</Link>
     </div>
   )
 }
@@ -42,6 +38,50 @@ export default function NotFound() {
 ## Props
 
 `not-found.js` components do not accept any props.
+
+## Data Fetching
+
+By default, `not-found` is a Server Component. You can mark it as `async` to fetch and display data:
+
+```tsx filename="app/blog/not-found.tsx" switcher
+import Link from 'next/link'
+import { headers } from 'next/headers'
+
+export default async function NotFound() {
+  const headersList = headers()
+  const domain = headersList.get('host')
+  const data = await getSiteData(domain)
+  return (
+    <div>
+      <h2>Not Found: {data.name}</h2>
+      <p>Could not find requested resource</p>
+      <p>
+        View <Link href="/blog">all posts</Link>
+      </p>
+    </div>
+  )
+}
+```
+
+```jsx filename="app/blog/not-found.jsx" switcher
+import Link from 'next/link'
+import { headers } from 'next/headers'
+
+export default async function NotFound() {
+  const headersList = headers()
+  const domain = headersList.get('host')
+  const data = await getSiteData(domain)
+  return (
+    <div>
+      <h2>Not Found: {data.name}</h2>
+      <p>Could not find requested resource</p>
+      <p>
+        View <Link href="/blog">all posts</Link>
+      </p>
+    </div>
+  )
+}
+```
 
 ## Version History
 

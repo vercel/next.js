@@ -1,24 +1,17 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, Result};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use swc_core::ecma::ast::Program;
-use turbo_tasks::{trace::TraceRawVcs, TaskInput, Value, ValueDefault, ValueToString, Vc};
+use turbo_tasks::{trace::TraceRawVcs, TaskInput, ValueDefault, ValueToString, Vc};
+use turbo_tasks_fs::rope::Rope;
 use turbopack_binding::{
     turbo::tasks_fs::{json::parse_json_rope_with_source_context, FileContent, FileSystemPath},
     turbopack::{
         core::{
-            asset::Asset,
             environment::{ServerAddr, ServerInfo},
             ident::AssetIdent,
-            issue::{Issue, IssueExt, IssueSeverity, OptionIssueSource},
+            issue::{Issue, IssueExt, IssueSeverity},
             module::Module,
-            reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
-            resolve::{
-                handle_resolve_error,
-                node::node_cjs_resolve_options,
-                parse::Request,
-                PrimaryResolveResult, {self},
-            },
         },
         ecmascript::{
             analyzer::{JsValue, ObjectPart},
@@ -29,11 +22,15 @@ use turbopack_binding::{
     },
 };
 
-use crate::next_config::{NextConfig, OutputType};
+use crate::{
+    next_config::{NextConfig, OutputType},
+    next_import_map::get_next_package,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, TaskInput)]
 pub enum PathType {
-    Page,
+    PagesPage,
+    PagesApi,
     Data,
 }
 
@@ -66,14 +63,21 @@ pub async fn pathname_for_path(
 }
 
 // Adapted from https://github.com/vercel/next.js/blob/canary/packages/next/shared/lib/router/utils/get-asset-path-from-route.ts
-pub fn get_asset_path_from_pathname(pathname: &str, ext: &str) -> String {
+// TODO(alexkirsz) There's no need to create an intermediate string here (and
+// below), we should instead return an `impl Display`.
+pub fn get_asset_prefix_from_pathname(pathname: &str) -> String {
     if pathname == "/" {
-        format!("/index{}", ext)
+        "/index".to_string()
     } else if pathname == "/index" || pathname.starts_with("/index/") {
-        format!("/index{}{}", pathname, ext)
+        format!("/index{}", pathname)
     } else {
-        format!("{}{}", pathname, ext)
+        pathname.to_string()
     }
+}
+
+// Adapted from https://github.com/vercel/next.js/blob/canary/packages/next/shared/lib/router/utils/get-asset-path-from-route.ts
+pub fn get_asset_path_from_pathname(pathname: &str, ext: &str) -> String {
+    format!("{}{}", get_asset_prefix_from_pathname(pathname), ext)
 }
 
 pub async fn foreign_code_context_condition(
@@ -160,7 +164,7 @@ impl Issue for NextSourceConfigParsingIssue {
     }
 
     #[turbo_tasks::function]
-    fn context(&self) -> Vc<FileSystemPath> {
+    fn file_path(&self) -> Vc<FileSystemPath> {
         self.ident.path()
     }
 
@@ -227,15 +231,12 @@ pub async fn parse_config_from_source(module: Vc<Box<dyn Module>>) -> Result<Vc<
     Ok(Default::default())
 }
 
-fn parse_config_from_js_value(
-    module_asset: Vc<Box<dyn Module>>,
-    value: &JsValue,
-) -> NextSourceConfig {
+fn parse_config_from_js_value(module: Vc<Box<dyn Module>>, value: &JsValue) -> NextSourceConfig {
     let mut config = NextSourceConfig::default();
     let invalid_config = |detail: &str, value: &JsValue| {
         let (explainer, hints) = value.explain(2, 0);
         NextSourceConfigParsingIssue {
-            ident: module_asset.ident(),
+            ident: module.ident(),
             detail: Vc::cell(format!("{detail} Got {explainer}.{hints}")),
         }
         .cell()
@@ -329,41 +330,41 @@ fn parse_config_from_js_value(
     config
 }
 
-pub async fn load_next_json<T: DeserializeOwned>(
-    context: Vc<FileSystemPath>,
-    path: &str,
-) -> Result<T> {
-    let request = Request::module(
-        "next".to_owned(),
-        Value::new(path.to_string().into()),
-        Vc::cell(None),
-    );
-    let resolve_options = node_cjs_resolve_options(context.root());
+#[turbo_tasks::function]
+pub async fn load_next_js_template(
+    project_path: Vc<FileSystemPath>,
+    path: String,
+) -> Result<Vc<Rope>> {
+    let file_path = get_next_package(project_path)
+        .join("dist/esm".to_string())
+        .join(path);
 
-    let resolve_result = handle_resolve_error(
-        resolve::resolve(context, request, resolve_options),
-        Value::new(ReferenceType::EcmaScriptModules(
-            EcmaScriptModulesReferenceSubType::Undefined,
-        )),
-        context,
-        request,
-        resolve_options,
-        OptionIssueSource::none(),
-        IssueSeverity::Error.cell(),
-    )
-    .await?;
-    let resolve_result = &*resolve_result.await?;
+    let content = &*file_path.read().await?;
 
-    let primary = resolve_result
-        .primary
-        .first()
-        .context("Unable to resolve primary asset")?;
-
-    let PrimaryResolveResult::Asset(metrics_asset) = primary else {
-        bail!("Expected to find asset");
+    let FileContent::Content(file) = content else {
+        bail!("Expected file content for file");
     };
 
-    let content = &*metrics_asset.content().file_content().await?;
+    Ok(file.content().to_owned().cell())
+}
+
+#[turbo_tasks::function]
+pub fn virtual_next_js_template_path(
+    project_path: Vc<FileSystemPath>,
+    path: String,
+) -> Vc<FileSystemPath> {
+    get_next_package(project_path)
+        .join("dist/esm".to_string())
+        .join(path)
+}
+
+pub async fn load_next_js_templateon<T: DeserializeOwned>(
+    project_path: Vc<FileSystemPath>,
+    path: String,
+) -> Result<T> {
+    let file_path = get_next_package(project_path).join(path);
+
+    let content = &*file_path.read().await?;
 
     let FileContent::Content(file) = content else {
         bail!("Expected file content for metrics data");

@@ -8,10 +8,12 @@ const imagesDir = join(appDir, '.next', 'cache', 'images')
 
 describe('with latest sharp', () => {
   beforeAll(async () => {
-    await execa('yarn', ['init', '-y'], {
-      cwd: appDir,
-      stdio: 'inherit',
-    })
+    await fs.writeFile(
+      join(appDir, 'package.json'),
+      JSON.stringify({
+        packageManager: 'yarn@1.22.19',
+      })
+    )
     await execa('yarn', ['add', 'sharp'], {
       cwd: appDir,
       stdio: 'inherit',

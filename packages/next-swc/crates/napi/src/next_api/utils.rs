@@ -1,4 +1,4 @@
-use std::{future::Future, ops::Deref, sync::Arc};
+use std::{collections::HashMap, future::Future, ops::Deref, sync::Arc};
 
 use anyhow::{anyhow, Context, Result};
 use napi::{
@@ -7,12 +7,13 @@ use napi::{
     JsFunction, JsObject, JsUnknown, NapiRaw, NapiValue, Status,
 };
 use serde::Serialize;
-use turbo_tasks::{unit, ReadRef, TaskId, TurboTasks, Vc};
+use turbo_tasks::{unit, ReadRef, TaskId, TryJoinIterExt, TurboTasks, Vc};
 use turbopack_binding::{
     turbo::{tasks_fs::FileContent, tasks_memory::MemoryBackend},
     turbopack::core::{
+        diagnostics::{Diagnostic, DiagnosticContextExt, PlainDiagnostic},
         error::PrettyPrintError,
-        issue::{IssueContextExt, PlainIssue, PlainIssueSource, PlainSource},
+        issue::{IssueDescriptionExt, PlainIssue, PlainIssueSource, PlainSource},
         source_pos::SourcePos,
     },
 };
@@ -85,11 +86,28 @@ pub async fn get_issues<T>(source: Vc<T>) -> Result<Vec<ReadRef<PlainIssue>>> {
     issues.get_plain_issues().await
 }
 
+/// Collect [turbopack::core::diagnostics::Diagnostic] from given source,
+/// returns [turbopack::core::diagnostics::PlainDiagnostic]
+pub async fn get_diagnostics<T>(source: Vc<T>) -> Result<Vec<ReadRef<PlainDiagnostic>>> {
+    let captured_diags = source
+        .peek_diagnostics()
+        .await?
+        .strongly_consistent()
+        .await?;
+
+    captured_diags
+        .diagnostics
+        .iter()
+        .map(|d| d.into_plain())
+        .try_join()
+        .await
+}
+
 #[napi(object)]
 pub struct NapiIssue {
     pub severity: String,
     pub category: String,
-    pub context: String,
+    pub file_path: String,
     pub title: String,
     pub description: String,
     pub detail: String,
@@ -103,7 +121,7 @@ impl From<&PlainIssue> for NapiIssue {
         Self {
             description: issue.description.clone(),
             category: issue.category.clone(),
-            context: issue.context.clone(),
+            file_path: issue.file_path.clone(),
             detail: issue.detail.clone(),
             documentation_link: issue.documentation_link.clone(),
             severity: issue.severity.as_str().to_string(),
@@ -178,7 +196,21 @@ impl From<SourcePos> for NapiSourcePos {
 }
 
 #[napi(object)]
-pub struct NapiDiagnostic {}
+pub struct NapiDiagnostic {
+    pub category: String,
+    pub name: String,
+    pub payload: HashMap<String, String>,
+}
+
+impl NapiDiagnostic {
+    pub fn from(diagnostic: &PlainDiagnostic) -> Self {
+        Self {
+            category: diagnostic.category.clone(),
+            name: diagnostic.name.clone(),
+            payload: diagnostic.payload.clone(),
+        }
+    }
+}
 
 pub struct TurbopackResult<T: ToNapiValue> {
     pub result: T,

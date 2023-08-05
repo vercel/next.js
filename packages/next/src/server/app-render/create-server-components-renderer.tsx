@@ -17,6 +17,7 @@ export function createServerComponentRenderer<Props>(
       require: any
       loadChunk: any
     }
+    createFromReadableStream: any
   },
   {
     transformStream,
@@ -74,19 +75,4 @@ export function createServerComponentRenderer<Props>(
     )
     return use(response)
   }
-}
-
-export function ErrorHtml({
-  head,
-  children,
-}: {
-  head?: React.ReactNode
-  children?: React.ReactNode
-}) {
-  return (
-    <html id="__next_error__">
-      <head>{head}</head>
-      <body>{children}</body>
-    </html>
-  )
 }
