@@ -111,7 +111,7 @@ Or, run this command with no arguments to use the most recently published versio
     }
 
     console.log('Building vendored React files...\n')
-    const nccSubprocess = execa('pnpm', ['taskr', 'copy_vendor_react'], {
+    const nccSubprocess = execa('pnpm', ['taskr', 'vendor_react'], {
       cwd: path.join(cwd, 'packages', 'next'),
     })
     if (nccSubprocess.stdout) {
