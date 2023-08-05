@@ -1,7 +1,7 @@
 import path from 'path'
-import { createNextDescribe, FileRef } from '../../../lib/e2e-utils'
 import stripAnsi from 'strip-ansi'
-import { check } from '../../../lib/next-test-utils'
+import { check } from 'next-test-utils'
+import { createNextDescribe, FileRef } from 'e2e-utils'
 
 function parseLogsFromCli(cliOutput: string) {
   return stripAnsi(cliOutput)
