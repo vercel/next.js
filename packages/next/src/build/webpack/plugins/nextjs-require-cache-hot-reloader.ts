@@ -12,9 +12,11 @@ const originModules = [
   require.resolve('../../../server/require'),
   require.resolve('../../../server/load-components'),
   require.resolve('../../../server/next-server'),
-  require.resolve('../../../compiled/react-server-dom-webpack/client.edge'),
   require.resolve(
-    '../../../compiled/react-server-dom-webpack-experimental/client.edge'
+    '../../../../vendored/node_modules/react-server-dom-webpack-vendored/client.edge'
+  ),
+  require.resolve(
+    '../../../../vendored/node_modules/react-server-dom-webpack-experimental-vendored/client.edge'
   ),
 ]
 

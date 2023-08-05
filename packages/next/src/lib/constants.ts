@@ -132,6 +132,14 @@ const WEBPACK_LAYERS_NAMES = {
 export const WEBPACK_LAYERS = {
   ...WEBPACK_LAYERS_NAMES,
   GROUP: {
+    app: [
+      WEBPACK_LAYERS_NAMES.shared,
+      WEBPACK_LAYERS_NAMES.reactServerComponents,
+      WEBPACK_LAYERS_NAMES.serverSideRendering,
+      WEBPACK_LAYERS_NAMES.actionBrowser,
+      WEBPACK_LAYERS_NAMES.appPagesBrowser,
+      WEBPACK_LAYERS_NAMES.appMetadataRoute,
+    ],
     server: [
       WEBPACK_LAYERS_NAMES.reactServerComponents,
       WEBPACK_LAYERS_NAMES.actionBrowser,
@@ -141,7 +149,7 @@ export const WEBPACK_LAYERS = {
 }
 
 export const WEBPACK_RESOURCE_QUERIES = {
-  edgeSSREntry: '__next_edge_ssr_entry__',
+  edgeRSCEntry: '__next_edge_rsc_entry__',
   metadata: '__next_metadata__',
   metadataRoute: '__next_metadata_route__',
   metadataImageMeta: '__next_metadata_image_meta__',

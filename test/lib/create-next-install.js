@@ -7,6 +7,27 @@ const { randomBytes } = require('crypto')
 const { linkPackages } =
   require('../../.github/actions/next-stats-action/src/prepare/repo-setup')()
 
+/**
+ * Sets the `resolution-mode` for pnpm in the specified directory.
+ *
+ * See [pnpm/.npmrc#resolution-mode]{@link https://pnpm.io/npmrc#resolution-mode} and
+ * [GitHub Issue]{@link https://github.com/pnpm/pnpm/issues/6463}
+ *
+ * @param {string} cwd - The project directory where pnpm configuration is set.
+ * @returns {Promise<void>}
+ */
+async function setPnpmResolutionMode(cwd) {
+  await execa(
+    'pnpm',
+    ['config', 'set', '--location=project', 'resolution-mode', 'highest'],
+    {
+      cwd: cwd,
+      stdio: ['ignore', 'inherit', 'inherit'],
+      env: process.env,
+    }
+  )
+}
+
 async function createNextInstall({
   parentSpan = null,
   dependencies = null,
@@ -84,12 +105,17 @@ async function createNextInstall({
                 {
                   filter: (item) => {
                     return (
-                      !item.includes('node_modules') &&
-                      !item.includes('pnpm-lock.yaml') &&
-                      !item.includes('.DS_Store') &&
-                      // Exclude Rust compilation files
-                      !/next[\\/]build[\\/]swc[\\/]target/.test(item) &&
-                      !/next-swc[\\/]target/.test(item)
+                      // We allowlist this node_modules because it would otherwise be excluded below
+                      item.includes('vendored/node_modules') ||
+                      // We denylist the following items
+                      !(
+                        item.includes('node_modules') ||
+                        item.includes('pnpm-lock.yaml') ||
+                        item.includes('.DS_Store') ||
+                        // Exclude Rust compilation files
+                        /next[\\/]build[\\/]swc[\\/]target/.test(item) ||
+                        /next-swc[\\/]target/.test(item)
+                      )
                     )
                   },
                 }
@@ -132,6 +158,7 @@ async function createNextInstall({
           2
         )
       )
+      await setPnpmResolutionMode(installDir)
 
       if (installCommand) {
         const installString =
@@ -178,11 +205,13 @@ async function createNextInstall({
           tmpRepoDir,
         }
       }
+
       return installDir
     })
 }
 
 module.exports = {
+  setPnpmResolutionMode,
   createNextInstall,
   getPkgPaths: linkPackages,
 }

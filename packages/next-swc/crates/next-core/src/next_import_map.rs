@@ -58,6 +58,8 @@ pub async fn get_next_client_import_map(
     )
     .await?;
 
+    let vendor_dir = get_next_package(project_path).join("vendored".into());
+
     match ty.into_value() {
         ClientContextType::Pages { pages_dir } => {
             insert_alias_to_alternatives(
@@ -85,31 +87,35 @@ pub async fn get_next_client_import_map(
                 ],
             );
         }
-        ClientContextType::App { app_dir } => {
-            import_map.insert_exact_alias(
-                "react",
-                request_to_import_mapping(app_dir, "next/dist/compiled/react"),
-            );
-            import_map.insert_wildcard_alias(
-                "react/",
-                request_to_import_mapping(app_dir, "next/dist/compiled/react/*"),
-            );
-            import_map.insert_exact_alias(
-                "react-dom",
-                request_to_import_mapping(app_dir, "next/dist/compiled/react-dom"),
-            );
-            import_map.insert_wildcard_alias(
-                "react-dom/",
-                request_to_import_mapping(app_dir, "next/dist/compiled/react-dom/*"),
-            );
-            import_map.insert_wildcard_alias(
-                "react-server-dom-webpack/",
-                request_to_import_mapping(app_dir, "next/dist/compiled/react-server-dom-webpack/*"),
-            );
+        ClientContextType::App { app_dir: _ } => {
             import_map.insert_exact_alias(
                 "next/dynamic",
                 request_to_import_mapping(project_path, "next/dist/shared/lib/app-dynamic"),
             );
+
+            for (package_name, vendored_name) in [
+                ("react", "react-vendored"),
+                ("react-dom", "react-dom-vendored"),
+                (
+                    "react-server-dom-webpack",
+                    "react-server-dom-webpack-vendored",
+                ),
+                ("scheduler", "scheduler-vendored"),
+                ("client-only", "client-only-vendored"),
+                ("server-only", "server-only-vendored"),
+            ] {
+                import_map.insert_exact_alias(
+                    package_name,
+                    request_to_import_mapping(vendor_dir, vendored_name),
+                );
+                import_map.insert_wildcard_alias(
+                    format!("{}{}", package_name, "/"),
+                    request_to_import_mapping(
+                        vendor_dir,
+                        format!("{}{}", vendored_name, "/*").as_str(),
+                    ),
+                );
+            }
         }
         ClientContextType::Fallback => {}
         ClientContextType::Other => {}
@@ -211,7 +217,7 @@ pub async fn get_next_server_import_map(
 
     let ty = ty.into_value();
 
-    insert_next_server_special_aliases(&mut import_map, ty, mode).await?;
+    insert_next_server_special_aliases(project_path, &mut import_map, ty, mode).await?;
     let external = ImportMapping::External(None).cell();
 
     match ty {
@@ -283,7 +289,7 @@ pub async fn get_next_edge_import_map(
 
     let ty = ty.into_value();
 
-    insert_next_server_special_aliases(&mut import_map, ty, mode).await?;
+    insert_next_server_special_aliases(project_path, &mut import_map, ty, mode).await?;
 
     match ty {
         ServerContextType::Pages { .. } | ServerContextType::PagesData { .. } => {}
@@ -357,10 +363,12 @@ static NEXT_ALIASES: [(&str, &str); 23] = [
 ];
 
 pub async fn insert_next_server_special_aliases(
+    project_path: Vc<FileSystemPath>,
     import_map: &mut ImportMap,
     ty: ServerContextType,
     mode: NextMode,
 ) -> Result<()> {
+    let vendor_dir = get_next_package(project_path).join("vendored".into());
     match (mode, ty) {
         (_, ServerContextType::Pages { pages_dir }) => {
             import_map.insert_exact_alias(
@@ -409,29 +417,30 @@ pub async fn insert_next_server_special_aliases(
                 // @opentelemetry/api
                 request_to_import_mapping(app_dir, "next/dist/compiled/@opentelemetry/api"),
             );
-            import_map.insert_exact_alias(
-                "react",
-                request_to_import_mapping(app_dir, "next/dist/compiled/react"),
-            );
-            import_map.insert_wildcard_alias(
-                "react/",
-                request_to_import_mapping(app_dir, "next/dist/compiled/react/*"),
-            );
-            import_map.insert_exact_alias(
-                "react-dom",
-                request_to_import_mapping(
-                    app_dir,
-                    "next/dist/compiled/react-dom/server-rendering-stub.js",
+
+            for (package_name, vendored_name) in [
+                ("react", "react-vendored"),
+                ("react-dom", "react-dom-vendored"),
+                (
+                    "react-server-dom-webpack",
+                    "react-server-dom-webpack-vendored",
                 ),
-            );
-            import_map.insert_wildcard_alias(
-                "react-dom/",
-                request_to_import_mapping(app_dir, "next/dist/compiled/react-dom/*"),
-            );
-            import_map.insert_wildcard_alias(
-                "react-server-dom-webpack/",
-                request_to_import_mapping(app_dir, "next/dist/compiled/react-server-dom-webpack/*"),
-            );
+                ("scheduler", "scheduler-vendored"),
+                ("client-only", "client-only-vendored"),
+                ("server-only", "server-only-vendored"),
+            ] {
+                import_map.insert_exact_alias(
+                    package_name,
+                    request_to_import_mapping(vendor_dir, vendored_name),
+                );
+                import_map.insert_wildcard_alias(
+                    format!("{}{}", package_name, "/"),
+                    request_to_import_mapping(
+                        vendor_dir,
+                        format!("{}{}", vendored_name, "/*").as_str(),
+                    ),
+                );
+            }
         }
         // NOTE(alexkirsz) This logic maps loosely to
         // `next.js/packages/next/src/build/webpack-config.ts`, where:
@@ -453,28 +462,28 @@ pub async fn insert_next_server_special_aliases(
                 // @opentelemetry/api
                 request_to_import_mapping(app_dir, "next/dist/compiled/@opentelemetry/api"),
             );
-            import_map.insert_exact_alias(
-                "react",
-                request_to_import_mapping(app_dir, "next/dist/compiled/react/react.shared-subset"),
-            );
-            import_map.insert_exact_alias(
-                "react-dom",
-                request_to_import_mapping(
-                    app_dir,
-                    "next/dist/compiled/react-dom/server-rendering-stub",
-                ),
-            );
-            for (wildcard_alias, request) in [
-                ("react/", "next/dist/compiled/react/*"),
-                ("react-dom/", "next/dist/compiled/react-dom/*"),
+
+            for (package_name, vendored_name) in [
+                ("react", "react-vendored"),
+                ("react-dom", "react-dom-vendored"),
                 (
-                    "react-server-dom-webpack/",
-                    "next/dist/compiled/react-server-dom-webpack/*",
+                    "react-server-dom-webpack",
+                    "react-server-dom-webpack-vendored",
                 ),
+                ("scheduler", "scheduler-vendored"),
+                ("client-only", "client-only-vendored"),
+                ("server-only", "server-only-vendored"),
             ] {
+                import_map.insert_exact_alias(
+                    package_name,
+                    request_to_import_mapping(vendor_dir, vendored_name),
+                );
                 import_map.insert_wildcard_alias(
-                    wildcard_alias,
-                    request_to_import_mapping(app_dir, request),
+                    format!("{}{}", package_name, "/"),
+                    request_to_import_mapping(
+                        vendor_dir,
+                        format!("{}{}", vendored_name, "/*").as_str(),
+                    ),
                 );
             }
         }
@@ -482,31 +491,25 @@ pub async fn insert_next_server_special_aliases(
         //
         // * always uses externals, to ensure we're using the same React instance as the Next.js
         //   runtime
-        // * maps react-dom -> react-dom/server-rendering-stub
-        // * passes through react and (react|react-dom|react-server-dom-webpack)/(.*) to
-        //   next/dist/compiled/react and next/dist/compiled/$1/$2 resp.
         (NextMode::Build | NextMode::Development, ServerContextType::AppSSR { .. }) => {
-            import_map.insert_exact_alias(
+            for package_name in [
                 "react",
-                external_request_to_import_mapping("next/dist/compiled/react"),
-            );
-            import_map.insert_exact_alias(
                 "react-dom",
-                external_request_to_import_mapping(
-                    "next/dist/compiled/react-dom/server-rendering-stub",
-                ),
-            );
-
-            for (wildcard_alias, request) in [
-                ("react/", "next/dist/compiled/react/*"),
-                ("react-dom/", "next/dist/compiled/react-dom/*"),
-                (
-                    "react-server-dom-webpack/",
-                    "next/dist/compiled/react-server-dom-webpack/*",
-                ),
+                "react-server-dom-webpack",
+                "scheduler",
+                "client-only",
+                "server-only",
             ] {
-                let import_mapping = external_request_to_import_mapping(request);
-                import_map.insert_wildcard_alias(wildcard_alias, import_mapping);
+                import_map.insert_exact_alias(
+                    package_name,
+                    external_request_to_import_mapping(package_name),
+                );
+                import_map.insert_wildcard_alias(
+                    format!("{}{}", package_name, "/"),
+                    external_request_to_import_mapping(
+                        format!("{}{}", package_name, "/*").as_str(),
+                    ),
+                );
             }
         }
         (_, ServerContextType::Middleware) => {}
