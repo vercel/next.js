@@ -51,10 +51,11 @@ export default function ExampleClientComponent() {
 ## Parameters
 
 ```tsx
-const segments = useSelectedLayoutSegments()
+const segments = useSelectedLayoutSegments(parallelRoutesKey?: string)
 ```
 
-`useSelectedLayoutSegments` does not take any parameters.
+`useSelectedLayoutSegments` accepts *optionally* a [`parallelRoutesKey`](docs/app/building-your-application/routing/parallel-routes#useselectedlayoutsegments), which allows you to read the active segment within that slot.
+s.
 
 ## Returns
 
