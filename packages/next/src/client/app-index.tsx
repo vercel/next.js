@@ -291,7 +291,7 @@ export function hydrate() {
     } else {
       const _reactElementRoot = ReactDOMClient.createRoot(appElement as any, options)
       React.startTransition(() =>
-       _reactElementRoot.render(reactEl)
+       _reactElementRoot.render(reactEl) 
       )
     }
   } else {
