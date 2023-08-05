@@ -255,11 +255,11 @@ async function startWatcher(opts: SetupOpts) {
             .concat([
               // We need to clear the chunk cache in react
               require.resolve(
-                'next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.edge.development.js'
+                'next/vendored/node_modules/react-server-dom-webpack-vendored/cjs/react-server-dom-webpack-client.edge.development.js'
               ),
               // And this redirecting module as well
               require.resolve(
-                'next/dist/compiled/react-server-dom-webpack/client.edge.js'
+                'next/vendored/node_modules/react-server-dom-webpack-vendored/client.edge.js'
               ),
             ])
         )
@@ -268,7 +268,7 @@ async function startWatcher(opts: SetupOpts) {
           // TODO better formatting
           if (issue.severity !== 'error' && issue.severity !== 'fatal') continue
           console.error(
-            `⚠ ${issue.severity} - ${issue.context}\n${issue.title}\n${issue.description}\n\n`
+            `⚠ ${issue.severity} - ${issue.filePath}\n${issue.title}\n${issue.description}\n\n`
           )
         }
       }
