@@ -26,10 +26,10 @@ async function main() {
 
   await exec(`git config user.name "vercel-release-bot"`)
   await exec(`git config user.email "infra+release@vercel.com"`)
-  await exec('git', ['checkout', '-b', branchName])
-  await exec('git', ['add', '-A'])
-  await exec('git', ['commit', '--message', branchName])
-  await exec('git', ['push', 'origin', branchName])
+  await exec(`git checkout -b branchName`)
+  await exec(`git add -A`)
+  await exec(`git commit --message branchName`)
+  await exec(`git push origin branchName`)
 
   const repo = 'next.js'
   const owner = 'vercel'
