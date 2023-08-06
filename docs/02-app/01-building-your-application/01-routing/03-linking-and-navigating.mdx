@@ -166,7 +166,11 @@ This means on navigation, the cache is reused as much as possible, instead of ma
 
 Learn more about how the [Router Cache](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#caching-data) works and how to configure it.
 
-#### 3. Partial Rendering
+### 3. Soft Navigation
+
+By default, the browser performs a hard navigation between pages. This means the browser reloads the page and resets React state such as `useState` hooks in your app and browser state such as the user's scroll position or focused element. However, in Next.js, the App Router uses soft navigation which means [Preserving States](#b-preserving-states) and [Partial Rendering](#a-partial-rendering), to ensure a seamless and fast user experience.
+
+#### a. Partial Rendering
 
 Partial rendering means only the route segments that change on navigation re-render on the client, and any shared segments are preserved.
 
@@ -182,10 +186,10 @@ For example, when navigating between two sibling routes, `/dashboard/settings` a
 
 Without partial rendering, each navigation would cause the full page to re-render on the server. Rendering only the segment that changes reduces the amount of data transferred and execution time, leading to improved performance.
 
-#### 4. Soft Navigation
+#### b. Preserving States
 
-By default, the browser performs a hard navigation between pages. This means the browser reloads the page and resets React state such as `useState` hooks in your app and browser state such as the user's scroll position or focused element. However, in Next.js, the App Router uses soft navigation. This means React only renders the segments that have changed while preserving React and browser state, and there is no full page reload.
+Preserving States means that both React state and browser state remain intact during page transitions. As users navigate between pages, Next.js retains the state such as `useState` hooks in your app and browser state such as the user's scroll position or focused element.
 
-#### 5. Back and Forward Navigation
+### 4. Back and Forward Navigation
 
 By default, Next.js will maintain the scroll position for backwards and forwards navigation, and re-use route segments in the [Router Cache](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#caching-data).
