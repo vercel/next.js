@@ -141,7 +141,11 @@ import { createValidFileMatcher } from '../server/lib/find-page-file'
 import { startTypeChecking } from './type-check'
 import { generateInterceptionRoutesRewrites } from '../lib/generate-interception-routes-rewrites'
 import { buildDataRoute } from '../server/lib/router-utils/build-data-route'
-import { globalOverrides } from '../server/require-hook'
+import {
+  baseOverrides,
+  defaultOverrides,
+  experimentalOverrides,
+} from '../server/require-hook'
 import { initialize } from '../server/lib/incremental-cache-server'
 import { nodeFs } from '../server/lib/node-fs-methods'
 
@@ -1840,11 +1844,6 @@ export default async function build(
 
       if (!isGenerate && config.outputFileTracing) {
         let nodeFileTrace: any
-        let nftResolve: any
-        let resolveHook: any
-        const packageBase = require.resolve('next/package.json')
-        const vendorDir = path.join(packageBase, '../vendored/node_modules')
-
         if (config.experimental.turbotrace) {
           if (!binding?.isWasm) {
             nodeFileTrace = binding.turbo.startTrace
@@ -1854,70 +1853,6 @@ export default async function build(
         if (!nodeFileTrace) {
           nodeFileTrace =
             require('next/dist/compiled/@vercel/nft').nodeFileTrace
-          nftResolve = require('next/dist/compiled/@vercel/nft').resolve
-          resolveHook = async (
-            id: string,
-            parent: string,
-            job: any,
-            isCjs: boolean
-          ) => {
-            if (id[0] !== '.' && id[0] !== '/' && id[0] !== '\\') {
-              // We have a bare specifier and might need to resolve this to a vendored package
-              const slash = id.indexOf('/')
-              const requestBase = slash === -1 ? id : id.slice(0, slash)
-              switch (requestBase) {
-                case 'react':
-                case 'react-dom':
-                case 'react-server-dom-webpack':
-                case 'scheduler': {
-                  let vendoredPath: string
-                  if (id === 'react-dom') {
-                    vendoredPath = '/server-rendering-stub'
-                  } else {
-                    vendoredPath = slash === -1 ? '' : id.slice(slash)
-                  }
-
-                  const nodeModulesPackage = nftResolve(id, parent, job, isCjs)
-                  const vendoredPackage = nftResolve(
-                    requestBase + '-vendored' + vendoredPath,
-                    vendorDir,
-                    job,
-                    isCjs
-                  )
-                  const vendoredExperimentalPackage = nftResolve(
-                    requestBase + '-experimental-vendored' + vendoredPath,
-                    vendorDir,
-                    job,
-                    isCjs
-                  )
-
-                  const asyncResults = Promise.all([
-                    nodeModulesPackage,
-                    vendoredPackage,
-                    vendoredExperimentalPackage,
-                  ])
-
-                  return asyncResults
-                }
-                case 'server-only':
-                case 'client-only': {
-                  const asyncResults = Promise.all([
-                    nftResolve(id, parent, job, isCjs),
-                    nftResolve(
-                      requestBase + '-vendored' + id.slice(requestBase.length),
-                      vendorDir,
-                      job,
-                      isCjs
-                    ),
-                  ])
-                  return asyncResults
-                }
-                default:
-              }
-            }
-
-            return nftResolve(id, parent, job, isCjs)
-          }
         }
 
         const includeExcludeSpan = nextBuildSpan.traceChild(
@@ -2100,9 +2035,15 @@ export default async function build(
             )
 
             const sharedEntriesSet = [
+              ...Object.values(baseOverrides).map((override) =>
+                require.resolve(override)
+              ),
+              ...Object.values(experimentalOverrides).map((override) =>
+                require.resolve(override)
+              ),
               ...(config.experimental.turbotrace
                 ? []
-                : Object.values(globalOverrides).map((value) =>
+                : Object.values(defaultOverrides).map((value) =>
                     require.resolve(value)
                   )),
             ]
@@ -2219,7 +2160,6 @@ export default async function build(
                     processCwd: config.experimental.turbotrace?.processCwd,
                     logDetail: config.experimental.turbotrace?.logDetail,
                     showAll: config.experimental.turbotrace?.logAll,
-                    resolve: resolveHook,
                   },
                   turboTasksForTrace
                 )
@@ -2244,7 +2184,6 @@ export default async function build(
                   base: root,
                   processCwd: dir,
                   ignore: ignoreFn,
-                  resolve: resolveHook,
                 })
 
               const [vanillaFiles, minimalFiles]: NodeFileTraceResult[] =
