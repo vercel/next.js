@@ -105,17 +105,12 @@ async function createNextInstall({
                 {
                   filter: (item) => {
                     return (
-                      // We allowlist this node_modules because it would otherwise be excluded below
-                      item.includes('vendored/node_modules') ||
-                      // We denylist the following items
-                      !(
-                        item.includes('node_modules') ||
-                        item.includes('pnpm-lock.yaml') ||
-                        item.includes('.DS_Store') ||
-                        // Exclude Rust compilation files
-                        /next[\\/]build[\\/]swc[\\/]target/.test(item) ||
-                        /next-swc[\\/]target/.test(item)
-                      )
+                      !item.includes('node_modules') &&
+                      !item.includes('pnpm-lock.yaml') &&
+                      !item.includes('.DS_Store') &&
+                      // Exclude Rust compilation files
+                      !/next[\\/]build[\\/]swc[\\/]target/.test(item) &&
+                      !/next-swc[\\/]target/.test(item)
                     )
                   },
                 }
@@ -205,7 +200,6 @@ async function createNextInstall({
           tmpRepoDir,
         }
       }
-
       return installDir
     })
 }
