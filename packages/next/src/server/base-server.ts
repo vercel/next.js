@@ -743,12 +743,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           // basePath is already stripped by this point
           if (urlPathname.startsWith(`/_next/data/`)) {
             parsedUrl.query.__nextDataReq = '1'
-
-            // TODO: remove once normalizeNextData is used instead
-            if (pathnameInfo.buildId && pathnameInfo.buildId !== this.buildId) {
-              await this.render404(req, res, parsedUrl)
-              return
-            }
           }
 
           const normalizedUrlPath = this.stripNextDataPath(urlPathname)
@@ -932,6 +926,16 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           }
           parsedUrl.pathname = matchedPath
           url.pathname = parsedUrl.pathname
+
+          const normalizeResult = await this.normalizeNextData(
+            req,
+            res,
+            parsedUrl
+          )
+
+          if (normalizeResult.finished) {
+            return
+          }
         } catch (err) {
           if (err instanceof DecodeError || err instanceof NormalizeError) {
             res.statusCode = 400
