@@ -1,6 +1,6 @@
 {
   "name": "@next/third-parties",
-  "version": "13.4.13-canary.16",
+  "version": "13.4.13-canary.17",
   "private": true,
   "repository": {
     "url": "vercel/next.js",
