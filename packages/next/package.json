@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "13.4.13-canary.16",
+  "version": "13.4.13",
   "description": "The React Framework",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -10,8 +10,6 @@
   "types": "index.d.ts",
   "files": [
     "dist",
-    "vendored",
-    "vendored/node_modules",
     "app.js",
     "app.d.ts",
     "babel.js",
@@ -85,7 +83,7 @@
     ]
   },
   "dependencies": {
-    "@next/env": "13.4.13-canary.16",
+    "@next/env": "13.4.13",
     "@swc/helpers": "0.5.1",
     "busboy": "1.6.0",
     "caniuse-lite": "^1.0.30001406",
@@ -107,18 +105,6 @@
     "@opentelemetry/api": {
       "optional": true
     }
-  },
-  "optionalDependencies": {
-    "client-only-vendored": "file:vendored/node_modules/client-only-vendored",
-    "react-dom-experimental-vendored": "file:vendored/node_modules/react-dom-experimental-vendored",
-    "react-dom-vendored": "file:vendored/node_modules/react-dom-vendored",
-    "react-experimental-vendored": "file:vendored/node_modules/react-experimental-vendored",
-    "react-server-dom-webpack-experimental-vendored": "file:vendored/node_modules/react-server-dom-webpack-experimental-vendored",
-    "react-server-dom-webpack-vendored": "file:vendored/node_modules/react-server-dom-webpack-vendored",
-    "react-vendored": "file:vendored/node_modules/react-vendored",
-    "scheduler-experimental-vendored": "file:vendored/node_modules/scheduler-experimental-vendored",
-    "scheduler-vendored": "file:vendored/node_modules/scheduler-vendored",
-    "server-only-vendored": "file:vendored/node_modules/server-only-vendored"
   },
   "devDependencies": {
     "@ampproject/toolbox-optimizer": "2.8.3",
@@ -151,11 +137,11 @@
     "@jest/types": "29.5.0",
     "@napi-rs/cli": "2.14.7",
     "@napi-rs/triples": "1.1.0",
-    "@next/polyfill-module": "13.4.13-canary.16",
-    "@next/polyfill-nomodule": "13.4.13-canary.16",
-    "@next/react-dev-overlay": "13.4.13-canary.16",
-    "@next/react-refresh-utils": "13.4.13-canary.16",
-    "@next/swc": "13.4.13-canary.16",
+    "@next/polyfill-module": "13.4.13",
+    "@next/polyfill-nomodule": "13.4.13",
+    "@next/react-dev-overlay": "13.4.13",
+    "@next/react-refresh-utils": "13.4.13",
+    "@next/swc": "13.4.13",
     "@opentelemetry/api": "1.4.1",
     "@segment/ajv-human-errors": "2.1.2",
     "@taskr/clear": "1.1.0",
@@ -197,7 +183,7 @@
     "@types/webpack-sources1": "npm:@types/webpack-sources@0.1.5",
     "@types/ws": "8.2.0",
     "@vercel/ncc": "0.34.0",
-    "@vercel/nft": "0.23.0",
+    "@vercel/nft": "0.22.6",
     "acorn": "8.5.0",
     "ajv": "8.11.0",
     "amphtml-validator": "1.0.35",

@@ -126,7 +126,7 @@ if (!process.env.NEXT_MANUAL_SIG_HANDLE && command !== 'dev') {
 commands[command]()
   .then((exec) => exec(forwardedArgs))
   .then(() => {
-    if (command === 'build') {
+    if (command === 'build' || command === 'experimental-compile') {
       // ensure process exits after build completes so open handles/connections
       // don't cause process to hang
       process.exit(0)
