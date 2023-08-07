@@ -11,6 +11,7 @@ describe('next/jest', () => {
   beforeAll(async () => {
     next = await createNext({
       files: {
+        skipStart: true,
         app: new FileRef(path.join(appDir, 'app')),
         [`${appDir}/app/index.test.tsx`]: `
         import { render, screen } from '@testing-library/react'
@@ -28,8 +29,8 @@ describe('next/jest', () => {
       },
       dependencies: {
         jest: '27.4.7',
-        '@testing-library/react': '^13.1.1',
-        jsdom: '^19.0.0',
+        '@testing-library/react': '13.1.1',
+        jsdom: '19.0.0',
         '@testing-library/jest-dom': '5.16.4',
       },
       packageJson: {
@@ -39,7 +40,6 @@ describe('next/jest', () => {
             'pnpm jest --forceExit tests/index.test.tsx && pnpm next build',
         },
       },
-      buildCommand: `pnpm build`,
     })
   })
   afterAll(() => next.destroy())
