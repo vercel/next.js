@@ -378,9 +378,11 @@ export async function runLintCheck(
             await installDependencies(baseDir, deps.missing, true)
 
           // Write default ESLint config.
-          // Check for /pages and src/pages is to make sure this happens in Next.js folder
+          // Check for /app, /pages, src/app, and src/pages is to make sure this happens in Next.js folder
           if (
+            existsSync(path.join(baseDir, 'app')) ||
             existsSync(path.join(baseDir, 'pages')) ||
+            existsSync(path.join(baseDir, 'src/app')) ||
             existsSync(path.join(baseDir, 'src/pages'))
           ) {
             await writeDefaultConfig(
