@@ -37,7 +37,7 @@ const handleSessionStop = async () => {
   sessionStopHandled = true
 
   try {
-    const { eventCliSession } =
+    const { eventCliSessionStopped } =
       require('../telemetry/events/session-stopped') as typeof import('../telemetry/events/session-stopped')
 
     config =
@@ -71,7 +71,7 @@ const handleSessionStop = async () => {
     }
 
     telemetry.record(
-      eventCliSession({
+      eventCliSessionStopped({
         cliCommand: 'dev',
         turboFlag: isTurboSession,
         durationMilliseconds: Date.now() - sessionStarted,
