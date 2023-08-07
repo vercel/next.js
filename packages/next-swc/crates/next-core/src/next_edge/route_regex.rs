@@ -1,13 +1,5 @@
 //! The following code was mostly generated using GTP-4 from
 //! next.js/packages/next/src/shared/lib/router/utils/route-regex.ts
-//!
-//! It contains errors and is not meant to be used as-is.
-//!
-//! The following should be changed:
-//! * NamedMiddlewareRegex should just contain a string, not an actual Regex.
-//! * There's plenty of places where more Rust-idiomatic string processing could
-//!   be used.
-//! * Compilation errors.
 
 use std::collections::HashMap;
 
