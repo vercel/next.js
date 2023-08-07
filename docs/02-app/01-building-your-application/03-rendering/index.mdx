@@ -3,11 +3,11 @@ title: Rendering
 description: Learn the differences between Next.js rendering environments, strategies, and runtimes.
 ---
 
-Rendering converts the code you write into user interfaces. React and Next.js allow you to create hybrid web applications that can be rendered on the server and the client, statically or dynamically. This section will help you understand the differences between these rendering environments, strategies, and runtimes.
+Rendering converts the code you write into user interfaces. React and Next.js allow you to create hybrid web applications where parts of your code can be rendered on the server or the client. This section will help you understand the differences between these rendering environments, strategies, and runtimes.
 
 ## Fundamentals
 
-To understand rendering in React and Next.js, it's helpful to be familiar with three foundational web concepts:
+To start, it's helpful to be familiar with three foundational web concepts:
 
 - The [Environments](#environemnts) your application code can be executed in: the server and the client.
 - The [Request-Response Lifecycle](#request-response-lifecycle) that's initiated when a user visits or interacts with your application.
@@ -28,11 +28,11 @@ There are two environments where web applications can be rendered: the client an
 - The **client** refers to the browser on a user's device that sends a request to a server for your application code. It then turns the response from the server into a user-friendly interface.
 - The **server** refers to the computer in a data center that stores your application code, receives requests from a client, and sends back an appropriate response.
 
-Historically, developers had to use different languages (e.g. JavaScript, PHP) and frameworks when writing code for the server and the client. With React, developers can use the **same language** (JavaScript), and the **same framework** (e.g. Next.js or your framework of choice). This flexibility is great as it allows you to seamlessly write code for the server or the client without context switching.
+Historically, developers had to use different languages (e.g. JavaScript, PHP) and frameworks when writing code for the server and the client. With React, developers can use the **same language** (JavaScript), and the **same framework** (e.g. Next.js or your framework of choice). This flexibility is great as it allows you to seamlessly write code for both environments without context switching.
 
-However, each environment has its own set of roles, capabilities, and constraints. Therefore, the code you write for the server and the client cannot be the same, and there are certain operations that are better suited for one environment over the other (e.g. fetching data).
+However, each environment has its own set of roles, capabilities, and constraints. Therefore, the code you write for the server and the client cannot be the same. There are certain operations (e.g. data fetching), that are better suited for one environment over the other.
 
-Understanding these differences is key to effectively writing code for each environment. We'll cover the differences and use cases in more detail on the [Server](/docs/app/building-your-application/rendering/server-environment) and [Client](/docs/app/building-your-application/rendering/server-environment) environments pages, for now, let's continue building on our foundation.
+Understanding these differences is key to effectively using React and Next.js. We'll cover the differences and use cases in more detail on the [Server](/docs/app/building-your-application/rendering/server-environment) and [Client](/docs/app/building-your-application/rendering/server-environment) environments pages, for now, let's continue building on our foundation.
 
 ### Request-Response Lifecycle
 
@@ -47,17 +47,17 @@ Broadly speaking, all websites follow the same **Request-Response Lifecycle**:
 />
 
 1. **User Action:** The user interacts with a web application. This could be clicking a link, submitting a form, or typing a URL directly into the browser's address bar.
-2. **HTTP Request:** The client sends a [HTTP](https://developer.mozilla.org/en-US/docs/Web/HTTP) request to the server that contains necessary information about what resources are being requested, what method is being used (e.g. `GET`, `POST`), and additional data if necessary.
-3. **Server:** The server processes the request and responds with the appropriate resources. This may take a couple of steps like routing, fetching data, rendering, etc.
-4. **HTTP Response:** After processing the request, the server sends a HTTP response back to the client. This response contains a status code (which tells the client whether the request was successful or not) and requested resources (e.g. HTML, CSS, JavaScript, static assets, etc).
+2. **HTTP Request:** The client sends an [HTTP](https://developer.mozilla.org/en-US/docs/Web/HTTP) request to the server that contains necessary information about what resources are being requested, what method is being used (e.g. `GET`, `POST`), and additional data if necessary.
+3. **Server:** The server processes the request and responds with the appropriate resources. This process may take a couple of steps like routing, fetching data, etc.
+4. **HTTP Response:** After processing the request, the server sends an HTTP response back to the client. This response contains a status code (which tells the client whether the request was successful or not) and requested resources (e.g. HTML, CSS, JavaScript, static assets, etc).
 5. **Client:** The client parses the resources to render the user interface.
 6. **User Interaction:** Once the user interface is rendered, the user can interact with it, and the whole process starts again.
 
-A major part of building a hybrid web application is deciding how to split the work in the lifecyle - between the server and the client - and where to place the Network Boundary.
+A major part of building a hybrid web application is deciding how to split the work in the lifecycle, and where to place the Network Boundary.
 
 ### Network Boundary
 
-In web development, the **Network Boundary** is a conceptual line that separates the different environments. For example, client and the server, or the server and the data store.
+In web development, the **Network Boundary** is a conceptual line that separates the different environments. For example, the client and the server, or the server and the data store.
 
 <Image
   alt="Network Boundary"
@@ -67,7 +67,11 @@ In web development, the **Network Boundary** is a conceptual line that separates
   height=""
 />
 
-In React, you can place the Client-Server Network Boundary wherever it makes the most sense for your application. React splits the module graph into two parts: the **client module graph** and the **server module graph**. The client module graph contains all components that are executed on the client, and the server module graph contains all the components that are executed on the server.
+In React, you choose where to place the network boundary that separates the client and server wherever it makes the most sense.
+
+Behind the scenes, the work is split into two parts: **client module graph** and the **server module graph**. The client module graph contains all components that are executed on the client, and the server module graph contains all the components that are executed on the server.
+
+It may be helpful to think about module graphs as a visual representation of how files in your application depend on each other. For example, if you have a file called `Page.jsx` that imports a file called `Button.jsx` on the server, the module graph would look something like this:
 
 <Image
   alt="Module Graph"
@@ -77,14 +81,4 @@ In React, you can place the Client-Server Network Boundary wherever it makes the
   height=""
 />
 
-It may be helpful to think about module graphs as a visual representation of how files in your application depend on each other. For example, if you have a file called `Page.jsx` that imports a file called `Button.jsx` on the server, the module graph would look something like this:
-
-<Image
-  alt="Module Graph"
-  srcLight="/docs/light/module-graph.png"
-  srcDark="/docs/dark/module-graph.png"
-  width=""
-  height=""
-/>
-
-With React, you define the Network Boundary with a convention called ["use client"](). This convention is used to tell React if your component should be rendered on the client. There's also ["use server"]() convention, which tells React to do some computational work on the server.
+The Network Boundary is defined with a React convention called ["use client"](). There's also a ["use server"]() convention, which tells React to do some computational work on the server.
