@@ -143,7 +143,7 @@ impl TurbopackBuildBuilder {
             )
             .await?;
 
-            Ok(unit().node)
+            Ok(unit())
         });
 
         self.turbo_tasks.wait_task_completion(task, true).await?;

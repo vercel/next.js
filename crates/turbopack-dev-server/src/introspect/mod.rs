@@ -1,7 +1,7 @@
 use std::{borrow::Cow, collections::HashSet, fmt::Display};
 
 use anyhow::Result;
-use turbo_tasks::{registry, CellId, RawVc, ReadRef, TryJoinIterExt, Vc};
+use turbo_tasks::{ReadRef, TryJoinIterExt, Vc};
 use turbo_tasks_fs::{json::parse_json_with_source_context, File};
 use turbopack_core::{
     asset::AssetContent,
@@ -103,16 +103,8 @@ impl GetContentSourceContent for IntrospectionSource {
             }
         } else {
             parse_json_with_source_context(path)?
-        }
-        .resolve()
-        .await?;
-        let raw_vc: RawVc = introspectable.node;
-        let internal_ty = if let RawVc::TaskCell(_, CellId { type_id, index }) = raw_vc {
-            let value_ty = registry::get_value_type(type_id);
-            format!("{}#{}", value_ty.name, index)
-        } else {
-            unreachable!()
         };
+        let internal_ty = Vc::debug_identifier(introspectable).await?;
         fn str_or_err(s: &Result<ReadRef<String>>) -> Cow<'_, str> {
             s.as_ref().map_or_else(
                 |e| Cow::<'_, str>::Owned(format!("ERROR: {:?}", e)),

@@ -19,8 +19,9 @@ pub use self::{
 };
 use crate::{
     debug::{ValueDebug, ValueDebugFormat, ValueDebugFormatString},
+    registry,
     trace::{TraceRawVcs, TraceRawVcsContext},
-    CollectiblesFuture, CollectiblesSource, RawVc, ReadRawVcFuture, ResolveTypeError,
+    CellId, CollectiblesFuture, CollectiblesSource, RawVc, ReadRawVcFuture, ResolveTypeError,
 };
 
 /// A Value Cell (`Vc` for short) is a reference to a memoized computation
@@ -40,10 +41,7 @@ pub struct Vc<T>
 where
     T: ?Sized,
 {
-    // TODO(alexkirsz) Should be private (or undocumented), but turbo-tasks-memory needs it to be
-    // accessible.
-    #[doc(hidden)]
-    pub node: RawVc,
+    pub(crate) node: RawVc,
     #[doc(hidden)]
     pub(crate) _t: PhantomData<T>,
 }
@@ -296,6 +294,28 @@ impl<T> Vc<T>
 where
     T: ?Sized,
 {
+    /// Connects the operation pointed to by this `Vc` to the current task.
+    pub fn connect(vc: Self) {
+        vc.node.connect()
+    }
+
+    /// Returns a debug identifier for this `Vc`.
+    pub async fn debug_identifier(vc: Self) -> Result<String> {
+        let resolved = vc.resolve().await?;
+        let raw_vc: RawVc = resolved.node;
+        if let RawVc::TaskCell(_, CellId { type_id, index }) = raw_vc {
+            let value_ty = registry::get_value_type(type_id);
+            Ok(format!("{}#{}", value_ty.name, index))
+        } else {
+            unreachable!()
+        }
+    }
+
+    /// Returns the `RawVc` corresponding to this `Vc`.
+    pub fn into_raw(vc: Self) -> RawVc {
+        vc.node
+    }
+
     /// Upcasts the given `Vc<T>` to a `Vc<Box<dyn K>>`.
     ///
     /// This is also available as an `Into`/`From` conversion.

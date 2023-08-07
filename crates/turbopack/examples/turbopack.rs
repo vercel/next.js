@@ -72,7 +72,7 @@ async fn main() -> Result<()> {
             let rebased = RebasedAsset::new(module, input, output);
             emit_with_completion(Vc::upcast(rebased), output).await?;
 
-            Ok(unit().node)
+            Ok(unit())
         })
     });
     spawn({

@@ -156,7 +156,7 @@ async fn run(resource: PathBuf) -> Result<()> {
         snapshot_issues(plain_issues, out.join("issues".to_string()), &REPO_ROOT)
             .await
             .context("Unable to handle issues")?;
-        Ok(unit().node)
+        Ok(unit())
     });
     tt.wait_task_completion(task, true).await?;
 

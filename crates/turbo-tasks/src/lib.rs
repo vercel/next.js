@@ -58,6 +58,7 @@ mod once_map;
 pub mod persisted_graph;
 pub mod primitives;
 mod raw_vc;
+mod raw_vc_set;
 mod read_ref;
 pub mod registry;
 pub mod small_duration;

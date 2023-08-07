@@ -2269,7 +2269,7 @@ impl Task {
                             read_task_id,
                             &*turbo_tasks,
                         );
-                        RawVc::TaskOutput(task).into_read::<AutoSet<RawVc>>()
+                        unsafe { <Vc<AutoSet<RawVc>>>::from_task_id(task) }
                     })
                 })
             })
@@ -2280,7 +2280,9 @@ impl Task {
                 current.add(*v);
             }
         }
-        Ok(Vc::<AutoSet<_>>::cell(current.iter().copied().collect()).node)
+        Ok(Vc::into_raw(Vc::<AutoSet<RawVc>>::cell(
+            current.iter().copied().collect(),
+        )))
     }
 
     pub(crate) fn read_task_collectibles(

@@ -496,7 +496,7 @@ async fn run<B: Backend + 'static, F: Future<Output = ()>>(
                 resolve_options,
             );
 
-            let source = TransientValue::new(output.node);
+            let source = TransientValue::new(Vc::into_raw(output));
             let issues = output
                 .peek_issues_with_path()
                 .await?
@@ -518,7 +518,7 @@ async fn run<B: Backend + 'static, F: Future<Output = ()>>(
                 sender.send(output_iter.collect::<Vec<String>>()).await?;
                 drop(sender);
             }
-            Ok(unit().node)
+            Ok(unit())
         })
     });
     finish(tt, task).await?;

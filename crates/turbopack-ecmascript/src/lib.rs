@@ -49,7 +49,7 @@ pub use transform::{
     CustomTransformer, EcmascriptInputTransform, EcmascriptInputTransforms, OptionTransformPlugin,
     TransformContext, TransformPlugin, UnsupportedServerActionIssue,
 };
-use turbo_tasks::{trace::TraceRawVcs, RawVc, ReadRef, TryJoinIterExt, Value, ValueToString, Vc};
+use turbo_tasks::{trace::TraceRawVcs, ReadRef, TryJoinIterExt, Value, ValueToString, Vc};
 use turbo_tasks_fs::{rope::Rope, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -119,7 +119,7 @@ fn modifier() -> Vc<String> {
 
 #[derive(PartialEq, Eq, Clone, TraceRawVcs)]
 struct MemoizedSuccessfulAnalysis {
-    operation: RawVc,
+    operation: Vc<AnalyzeEcmascriptModuleResult>,
     references: ReadRef<ModuleReferences>,
     exports: ReadRef<EcmascriptExports>,
     async_module: ReadRef<OptionAsyncModule>,
@@ -295,7 +295,7 @@ impl EcmascriptModuleAsset {
         if result_value.successful {
             this.last_successful_analysis
                 .set(Some(MemoizedSuccessfulAnalysis {
-                    operation: result.node,
+                    operation: result,
                     // We need to store the ReadRefs since we want to keep a snapshot.
                     references: result_value.references.await?,
                     exports: result_value.exports.await?,
@@ -310,7 +310,7 @@ impl EcmascriptModuleAsset {
         {
             // It's important to connect to the last operation here to keep it active, so
             // it's potentially recomputed when garbage collected
-            operation.connect();
+            Vc::connect(*operation);
             return Ok(AnalyzeEcmascriptModuleResult {
                 references: ReadRef::cell(references.clone()),
                 exports: ReadRef::cell(exports.clone()),

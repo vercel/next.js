@@ -38,7 +38,7 @@ async fn main() -> Result<()> {
             let input = fs.root().join("demo".to_string());
             let dir_hash = hash_directory(input);
             print_hash(dir_hash).await?;
-            Ok(unit().node)
+            Ok(unit())
         })
     });
     tt.wait_task_completion(task, true).await.unwrap();

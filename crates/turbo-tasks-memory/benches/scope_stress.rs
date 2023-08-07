@@ -47,7 +47,7 @@ pub fn scope_stress(c: &mut Criterion) {
                                 async move {
                                     let task = tt.spawn_once_task(async move {
                                         rectangle(a, b).strongly_consistent().await?;
-                                        Ok(unit().node)
+                                        Ok(unit())
                                     });
                                     tt.wait_task_completion(task, false).await
                                 }
