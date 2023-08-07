@@ -50,7 +50,6 @@ export interface RequestHandler {
   ): Promise<void>
 }
 
-const SYMBOL_SET_STANDALONE_MODE = Symbol('next.set_standalone_mode')
 const SYMBOL_LOAD_CONFIG = Symbol('next.load_config')
 
 export class NextServer {
@@ -74,10 +73,6 @@ export class NextServer {
 
   get port() {
     return this.options.port
-  }
-
-  [SYMBOL_SET_STANDALONE_MODE]() {
-    this.standaloneMode = true
   }
 
   getRequestHandler(): RequestHandler {
@@ -270,10 +265,6 @@ function createServer(options: NextServerOptions): NextServer {
   }
 
   if (options.customServer !== false) {
-    // If the `app` dir exists, we'll need to run the standalone server to have
-    // both types of renderers (pages, app) running in separated processes,
-    // instead of having the Next server only.
-    let shouldUseStandaloneMode = false
     const dir = resolve(options.dir || '.')
     const server = new NextServer(options)
 
@@ -300,9 +291,7 @@ function createServer(options: NextServerOptions): NextServer {
           )
         } else {
           customServer.on('upgrade', async (req, socket, head) => {
-            if (shouldUseStandaloneMode) {
-              upgradeHandler(req, socket, head)
-            }
+            upgradeHandler(req, socket, head)
           })
         }
       }
@@ -314,8 +303,6 @@ function createServer(options: NextServerOptions): NextServer {
           switch (propKey) {
             case 'prepare':
               return async () => {
-                shouldUseStandaloneMode = true
-                server[SYMBOL_SET_STANDALONE_MODE]()
                 const isNodeDebugging = checkIsNodeDebugging()
 
                 const initResult = await getRequestHandlers({
@@ -331,24 +318,19 @@ function createServer(options: NextServerOptions): NextServer {
               }
             case 'getRequestHandler': {
               return () => {
-                let handler: RequestHandler
                 return async (
                   req: IncomingMessage,
                   res: ServerResponse,
                   parsedUrl?: UrlWithParsedQuery
                 ) => {
-                  if (shouldUseStandaloneMode) {
-                    setupWebSocketHandler(options.httpServer, req)
+                  setupWebSocketHandler(options.httpServer, req)
 
-                    if (parsedUrl) {
-                      req.url = formatUrl(parsedUrl)
-                    }
-
-                    requestHandler(req, res)
-                    return
+                  if (parsedUrl) {
+                    req.url = formatUrl(parsedUrl)
                   }
-                  handler = handler || server.getRequestHandler()
-                  return handler(req, res, parsedUrl)
+
+                  requestHandler(req, res)
+                  return
                 }
               }
             }
@@ -360,26 +342,22 @@ function createServer(options: NextServerOptions): NextServer {
                 query?: NextParsedUrlQuery,
                 parsedUrl?: NextUrlWithParsedQuery
               ) => {
-                if (shouldUseStandaloneMode) {
-                  setupWebSocketHandler(options.httpServer, req)
+                setupWebSocketHandler(options.httpServer, req)
 
-                  if (!pathname.startsWith('/')) {
-                    console.error(`Cannot render page with path "${pathname}"`)
-                    pathname = `/${pathname}`
-                  }
-                  pathname = pathname === '/index' ? '/' : pathname
-
-                  req.url = formatUrl({
-                    ...parsedUrl,
-                    pathname,
-                    query,
-                  })
-
-                  requestHandler(req, res)
-                  return
+                if (!pathname.startsWith('/')) {
+                  console.error(`Cannot render page with path "${pathname}"`)
+                  pathname = `/${pathname}`
                 }
+                pathname = pathname === '/index' ? '/' : pathname
 
-                return server.render(req, res, pathname, query, parsedUrl)
+                req.url = formatUrl({
+                  ...parsedUrl,
+                  pathname,
+                  query,
+                })
+
+                requestHandler(req, res)
+                return
               }
             }
             default: {
