@@ -126,7 +126,7 @@ export function getUrlFromAppDirectory(
   })
 }
 
-export function execOnce<TArgs extends any[], TResult extends unknown>(
+export function execOnce<TArgs extends any[], TResult>(
   fn: (...args: TArgs) => TResult
 ): (...args: TArgs) => TResult {
   let used = false

@@ -93,7 +93,7 @@ import { nodeFs } from './lib/node-fs-methods'
 import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { invokeRequest } from './lib/server-ipc/invoke-request'
 import { pipeReadable } from './pipe-readable'
-import { filterReqHeaders } from './lib/server-ipc/utils'
+import { filterReqHeaders, ipcForbiddenHeaders } from './lib/server-ipc/utils'
 import { createRequestResponseMocks } from './lib/mock-request'
 import chalk from 'next/dist/compiled/chalk'
 import { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
@@ -525,7 +525,8 @@ export default class NextNodeServer extends BaseServer {
             }
           )
           const filteredResHeaders = filterReqHeaders(
-            toNodeOutgoingHttpHeaders(invokeRes.headers)
+            toNodeOutgoingHttpHeaders(invokeRes.headers),
+            ipcForbiddenHeaders
           )
 
           for (const key of Object.keys(filteredResHeaders)) {
@@ -715,9 +716,27 @@ export default class NextNodeServer extends BaseServer {
     const params = getPathMatch('/_next/data/:path*')(parsedUrl.pathname)
 
     // ignore for non-next data URLs
-    if (!params || !params.path || params.path[0] !== this.buildId) {
-      return { finished: false }
+    if (!params || !params.path) {
+      return {
+        finished: false,
+      }
     }
+
+    if (params.path[0] !== this.buildId) {
+      // ignore if its a middleware request
+      if (req.headers['x-middleware-invoke']) {
+        return {
+          finished: false,
+        }
+      }
+
+      // Make sure to 404 if the buildId isn't correct
+      await this.render404(req, res, parsedUrl)
+      return {
+        finished: true,
+      }
+    }
+
     // remove buildId from URL
     params.path.shift()
 

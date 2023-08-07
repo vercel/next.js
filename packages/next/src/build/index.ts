@@ -141,11 +141,7 @@ import { createValidFileMatcher } from '../server/lib/find-page-file'
 import { startTypeChecking } from './type-check'
 import { generateInterceptionRoutesRewrites } from '../lib/generate-interception-routes-rewrites'
 import { buildDataRoute } from '../server/lib/router-utils/build-data-route'
-import {
-  baseOverrides,
-  defaultOverrides,
-  experimentalOverrides,
-} from '../server/require-hook'
+import { baseOverrides, experimentalOverrides } from '../server/require-hook'
 import { initialize } from '../server/lib/incremental-cache-server'
 import { nodeFs } from '../server/lib/node-fs-methods'
 
@@ -870,6 +866,19 @@ export default async function build(
           )
         )
 
+      // We need to write a partial prerender manifest to make preview mode settings available in edge middleware
+      const partialManifest: Partial<PrerenderManifest> = {
+        preview: previewProps,
+      }
+
+      await fs.writeFile(
+        path.join(distDir, PRERENDER_MANIFEST).replace(/\.json$/, '.js'),
+        `self.__PRERENDER_MANIFEST=${JSON.stringify(
+          JSON.stringify(partialManifest)
+        )}`,
+        'utf8'
+      )
+
       const outputFileTracingRoot =
         config.experimental.outputFileTracingRoot || dir
 
@@ -904,6 +913,7 @@ export default async function build(
             path.relative(distDir, manifestPath),
             BUILD_MANIFEST,
             PRERENDER_MANIFEST,
+            PRERENDER_MANIFEST.replace(/\.json$/, '.js'),
             path.join(SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
             path.join(SERVER_DIRECTORY, MIDDLEWARE_BUILD_MANIFEST + '.js'),
             path.join(
@@ -2027,11 +2037,6 @@ export default async function build(
               ...Object.values(experimentalOverrides).map((override) =>
                 require.resolve(override)
               ),
-              ...(config.experimental.turbotrace
-                ? []
-                : Object.values(defaultOverrides).map((value) =>
-                    require.resolve(value)
-                  )),
             ]
 
             // ensure we trace any dependencies needed for custom

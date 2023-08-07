@@ -122,6 +122,10 @@ export function GlobalError({ error }: { error: any }) {
   )
 }
 
+// Exported so that the import signature in the loaders can be identical to user
+// supplied custom global error signatures.
+export default GlobalError
+
 /**
  * Handles errors through `getDerivedStateFromError`.
  * Renders the provided error component and provides a way to `reset` the error boundary state.

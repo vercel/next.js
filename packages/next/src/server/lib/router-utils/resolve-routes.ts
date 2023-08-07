@@ -8,7 +8,7 @@ import { Redirect } from '../../../../types'
 import { RenderWorker } from '../router-server'
 import setupDebug from 'next/dist/compiled/debug'
 import { getCloneableBody } from '../../body-streams'
-import { filterReqHeaders } from '../server-ipc/utils'
+import { filterReqHeaders, ipcForbiddenHeaders } from '../server-ipc/utils'
 import { Header } from '../../../lib/load-custom-routes'
 import { stringifyQuery } from '../../server-route-utils'
 import { toNodeOutgoingHttpHeaders } from '../../web/utils'
@@ -530,7 +530,7 @@ export function getResolveRoutes(
             delete middlewareHeaders['x-middleware-next']
 
             for (const [key, value] of Object.entries({
-              ...filterReqHeaders(middlewareHeaders),
+              ...filterReqHeaders(middlewareHeaders, ipcForbiddenHeaders),
             })) {
               if (
                 [
