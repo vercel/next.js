@@ -1549,10 +1549,7 @@ export default async function getBaseWebpackConfig(
     // Early return if the request needs to be bundled, such as in the client layer.
     // Treat react packages and next internals as external for SSR layer,
     // also map react to builtin ones with require-hook.
-    if (
-      layer === WEBPACK_LAYERS.serverSideRendering ||
-      layer === WEBPACK_LAYERS.reactServerComponents
-    ) {
+    if (layer === WEBPACK_LAYERS.serverSideRendering) {
       if (reactPackagesRegex.test(request)) {
         return `commonjs next/dist/compiled/${request.replace(
           /^(react-server-dom-webpack|react-dom|react)/,

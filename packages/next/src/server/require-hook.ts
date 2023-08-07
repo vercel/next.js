@@ -32,7 +32,7 @@ const currentRuntime = `${
   process.env.__NEXT_PRIVATE_RENDER_RUNTIME === 'pages'
     ? 'next/dist/compiled/next-server/pages.runtime'
     : 'next/dist/compiled/next-server/app-page.runtime'
-}.${process.env.NODE_ENV === 'production' ? 'prod' : 'dev'}`
+}.${process.env.NODE_ENV === 'development' ? 'dev' : 'prod'}`
 
 export const baseOverrides = {
   react: 'next/dist/compiled/react',
@@ -129,7 +129,7 @@ mod._resolveFilename = function (
 
 mod.prototype.require = function (request: string) {
   if (
-    process.env.NODE_ENV === 'production' &&
+    process.env.NODE_ENV !== 'development' &&
     process.env.__NEXT_PRIVATE_RENDER_RUNTIME
   ) {
     if (request.endsWith('.shared-runtime')) {
