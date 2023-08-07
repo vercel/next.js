@@ -12,7 +12,7 @@ export default function Root({ children }) {
   }
 
   return (
-    <html>
+    <html className="root-layout-html">
       <body>
         <NotFoundTrigger />
         <button id="trigger-not-found" onClick={() => setClicked(true)}>

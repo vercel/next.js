@@ -926,6 +926,16 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           }
           parsedUrl.pathname = matchedPath
           url.pathname = parsedUrl.pathname
+
+          const normalizeResult = await this.normalizeNextData(
+            req,
+            res,
+            parsedUrl
+          )
+
+          if (normalizeResult.finished) {
+            return
+          }
         } catch (err) {
           if (err instanceof DecodeError || err instanceof NormalizeError) {
             res.statusCode = 400

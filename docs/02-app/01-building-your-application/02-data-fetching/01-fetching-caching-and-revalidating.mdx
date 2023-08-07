@@ -16,7 +16,7 @@ There are three main ways you can fetch data:
 
 Next.js extends the native [`fetch` Web API](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) to allow you to configure the [caching](#caching-data) and [revalidating](#revalidating-data) behavior for each fetch request on the server. React extends `fetch` to automatically [memoize](/docs/app/building-your-application/data-fetching/patterns#fetching-data-where-its-needed) fetch requests while rendering a React component tree.
 
-You can use `fetch` with [`async`/`await` in Server Components](https://github.com/acdlite/rfcs/blob/first-class-promises/text/0000-first-class-support-for-promises), in [Route Handlers](/docs/app/building-your-application/routing/route-handlers), and in [Server Actions](/docs/app/building-your-application/data-fetching/server-actions).
+You can use `fetch` with [`async`/`await` in Server Components](https://github.com/acdlite/rfcs/blob/first-class-promises/text/0000-first-class-support-for-promises.md), in [Route Handlers](/docs/app/building-your-application/routing/route-handlers), and in [Server Actions](/docs/app/building-your-application/data-fetching/server-actions).
 
 For example:
 
@@ -152,16 +152,20 @@ import { NextRequest, NextResponse } from 'next/server'
 import { revalidateTag } from 'next/cache'
 
 // e.g a webhook to `your-website.com/api/revalidate?tag=collection&secret=<token>`
-export async function GET(request: NextRequest) {
-  // Check for secret to confirm this is a valid request
-  if (
-    request.nextUrl.searchParams.get('secret') !== process.env.MY_SECRET_TOKEN
-  ) {
-    return res.status(401).json({ message: 'Invalid token' })
+export async function POST(request: NextRequest) {
+  const secret = request.nextUrl.searchParams.get('secret')
+  const tag = request.nextUrl.searchParams.get('tag')
+
+  if (secret !== process.env.MY_SECRET_TOKEN) {
+    return NextResponse.json({ message: 'Invalid secret' }, { status: 401 })
   }
 
-  const tag = request.nextUrl.searchParams.get('tag')
+  if (!tag) {
+    return NextResponse.json({ message: 'Missing tag param' }, { status: 400 })
+  }
+
   revalidateTag(tag)
+
   return NextResponse.json({ revalidated: true, now: Date.now() })
 }
 ```
@@ -171,16 +175,20 @@ import { NextResponse } from 'next/server'
 import { revalidateTag } from 'next/cache'
 
 // e.g a webhook to `your-website.com/api/revalidate?tag=collection&secret=<token>`
-export async function GET(request) {
-  // Check for secret to confirm this is a valid request
-  if (
-    request.nextUrl.searchParams.get('secret') !== process.env.MY_SECRET_TOKEN
-  ) {
-    return res.status(401).json({ message: 'Invalid token' })
+export async function POST(request) {
+  const secret = request.nextUrl.searchParams.get('secret')
+  const tag = request.nextUrl.searchParams.get('tag')
+
+  if (secret !== process.env.MY_SECRET_TOKEN) {
+    return NextResponse.json({ message: 'Invalid secret' }, { status: 401 })
   }
 
-  const tag = request.nextUrl.searchParams.get('tag')
+  if (!tag) {
+    return NextResponse.json({ message: 'Missing tag param' }, { status: 400 })
+  }
+
   revalidateTag(tag)
+
   return NextResponse.json({ revalidated: true, now: Date.now() })
 }
 ```
@@ -191,9 +199,15 @@ Alternatively, you can use [`revalidatePath`](/docs/app/api-reference/functions/
 import { NextRequest, NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 
-export async function GET(request: NextRequest) {
+export async function POST(request: NextRequest) {
   const path = request.nextUrl.searchParams.get('path')
+
+  if (!path) {
+    return NextResponse.json({ message: 'Missing path param' }, { status: 400 })
+  }
+
   revalidatePath(path)
+
   return NextResponse.json({ revalidated: true, now: Date.now() })
 }
 ```
@@ -202,9 +216,15 @@ export async function GET(request: NextRequest) {
 import { NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 
-export async function GET(request) {
+export async function POST(request) {
   const path = request.nextUrl.searchParams.get('path')
+
+  if (!path) {
+    return NextResponse.json({ message: 'Missing path param' }, { status: 400 })
+  }
+
   revalidatePath(path)
+
   return NextResponse.json({ revalidated: true, now: Date.now() })
 }
 ```

@@ -286,7 +286,7 @@ async function startWatcher(opts: SetupOpts) {
           // TODO better formatting
           if (issue.severity !== 'error' && issue.severity !== 'fatal') continue
           console.error(
-            `⚠ ${issue.severity} - ${issue.context}\n${issue.title}\n${issue.description}\n\n`
+            `⚠ ${issue.severity} - ${issue.filePath}\n${issue.title}\n${issue.description}\n\n`
           )
         }
       }

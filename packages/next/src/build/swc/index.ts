@@ -433,7 +433,7 @@ interface TurboEngineOptions {
 interface Issue {
   severity: string
   category: string
-  context: string
+  filePath: string
   title: string
   description: string
   detail: string
