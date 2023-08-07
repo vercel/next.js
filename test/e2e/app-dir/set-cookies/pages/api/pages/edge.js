@@ -1,4 +1,4 @@
-export const config = { runtime: 'edge' }
+export const runtime = 'edge'
 
 import cookies from '../../../cookies'
 

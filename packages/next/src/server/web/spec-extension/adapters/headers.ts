@@ -8,7 +8,7 @@ import { ReflectAdapter } from './reflect'
 export class ReadonlyHeadersError extends Error {
   constructor() {
     super(
-      'Headers cannot be modified. Read more: https://nextjs.org/docs/api-reference/headers'
+      'Headers cannot be modified. Read more: https://nextjs.org/docs/app/api-reference/functions/headers'
     )
   }
 
@@ -17,8 +17,14 @@ export class ReadonlyHeadersError extends Error {
   }
 }
 
-export type ReadonlyHeaders = Omit<Headers, 'append' | 'delete' | 'set'>
-
+export type ReadonlyHeaders = Headers & {
+  /** @deprecated Method unavailable on `ReadonlyHeaders`. Read more: https://nextjs.org/docs/app/api-reference/functions/headers */
+  append(...args: any[]): void
+  /** @deprecated Method unavailable on `ReadonlyHeaders`. Read more: https://nextjs.org/docs/app/api-reference/functions/headers */
+  set(...args: any[]): void
+  /** @deprecated Method unavailable on `ReadonlyHeaders`. Read more: https://nextjs.org/docs/app/api-reference/functions/headers */
+  delete(...args: any[]): void
+}
 export class HeadersAdapter extends Headers {
   private readonly headers: IncomingHttpHeaders
 

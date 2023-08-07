@@ -1,13 +1,13 @@
-import fs from 'fs'
 import path from 'path'
 import { commands } from './commands'
 import * as Log from '../build/output/log'
 import { detectTypo } from './detect-typo'
+import { realpathSync } from './realpath'
 
 export function getProjectDir(dir?: string) {
   try {
     const resolvedDir = path.resolve(dir || '.')
-    const realDir = fs.realpathSync.native(resolvedDir)
+    const realDir = realpathSync(resolvedDir)
 
     if (
       resolvedDir !== realDir &&

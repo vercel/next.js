@@ -1,6 +1,7 @@
 'use client'
 
 import React from 'react'
+import { usePathname } from './navigation'
 
 const styles = {
   error: {
@@ -14,14 +15,11 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'center',
   },
-  desc: {
-    textAlign: 'left',
-  },
   text: {
     fontSize: '14px',
     fontWeight: 400,
-    lineHeight: '3em',
-    margin: 0,
+    lineHeight: '28px',
+    margin: '0 8px',
   },
 } as const
 
@@ -31,21 +29,53 @@ export type ErrorComponent = React.ComponentType<{
 }>
 
 export interface ErrorBoundaryProps {
+  children?: React.ReactNode
   errorComponent: ErrorComponent
   errorStyles?: React.ReactNode | undefined
 }
 
+interface ErrorBoundaryHandlerProps extends ErrorBoundaryProps {
+  pathname: string
+}
+
+interface ErrorBoundaryHandlerState {
+  error: Error | null
+  previousPathname: string
+}
+
 export class ErrorBoundaryHandler extends React.Component<
-  ErrorBoundaryProps,
-  { error: Error | null }
+  ErrorBoundaryHandlerProps,
+  ErrorBoundaryHandlerState
 > {
-  constructor(props: ErrorBoundaryProps) {
+  constructor(props: ErrorBoundaryHandlerProps) {
     super(props)
-    this.state = { error: null }
+    this.state = { error: null, previousPathname: this.props.pathname }
   }
 
   static getDerivedStateFromError(error: Error) {
     return { error }
+  }
+
+  static getDerivedStateFromProps(
+    props: ErrorBoundaryHandlerProps,
+    state: ErrorBoundaryHandlerState
+  ): ErrorBoundaryHandlerState | null {
+    /**
+     * Handles reset of the error boundary when a navigation happens.
+     * Ensures the error boundary does not stay enabled when navigating to a new page.
+     * Approach of setState in render is safe as it checks the previous pathname and then overrides
+     * it as outlined in https://react.dev/reference/react/useState#storing-information-from-previous-renders
+     */
+    if (props.pathname !== state.previousPathname && state.error) {
+      return {
+        error: null,
+        previousPathname: props.pathname,
+      }
+    }
+    return {
+      error: state.error,
+      previousPathname: props.pathname,
+    }
   }
 
   reset = () => {
@@ -69,26 +99,32 @@ export class ErrorBoundaryHandler extends React.Component<
   }
 }
 
-export default function GlobalError({ error }: { error: any }) {
+export function GlobalError({ error }: { error: any }) {
+  const digest: string | undefined = error?.digest
   return (
-    <html>
+    <html id="__next_error__">
       <head></head>
       <body>
         <div style={styles.error}>
-          <div style={styles.desc}>
+          <div>
             <h2 style={styles.text}>
-              Application error: a client-side exception has occurred (see the
-              browser console for more information).
+              {`Application error: a ${
+                digest ? 'server' : 'client'
+              }-side exception has occurred (see the ${
+                digest ? 'server logs' : 'browser console'
+              } for more information).`}
             </h2>
-            {error?.digest && (
-              <p style={styles.text}>{`Digest: ${error.digest}`}</p>
-            )}
+            {digest ? <p style={styles.text}>{`Digest: ${digest}`}</p> : null}
           </div>
         </div>
       </body>
     </html>
   )
 }
+
+// Exported so that the import signature in the loaders can be identical to user
+// supplied custom global error signatures.
+export default GlobalError
 
 /**
  * Handles errors through `getDerivedStateFromError`.
@@ -104,9 +140,11 @@ export function ErrorBoundary({
   errorStyles,
   children,
 }: ErrorBoundaryProps & { children: React.ReactNode }): JSX.Element {
+  const pathname = usePathname()
   if (errorComponent) {
     return (
       <ErrorBoundaryHandler
+        pathname={pathname}
         errorComponent={errorComponent}
         errorStyles={errorStyles}
       >

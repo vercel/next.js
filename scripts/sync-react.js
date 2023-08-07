@@ -34,7 +34,7 @@ async function sync(channel = 'next') {
     )
     if (stderr) {
       console.error(stderr)
-      throw new Error(`Failed to read latest React canary version from npm.`)
+      throw new Error('Failed to read latest React canary version from npm.')
     }
     newVersionStr = stdout.trim()
   }
@@ -65,8 +65,16 @@ Or, run this command with no arguments to use the most recently published versio
     )
   }
 
-  const { sha: newSha, dateString: newDateString } = newVersionInfo
-  const { sha: baseSha, dateString: baseDateString } = baseVersionInfo
+  const {
+    sha: newSha,
+    releaseLabel: newReleaseLabel,
+    dateString: newDateString,
+  } = newVersionInfo
+  const {
+    sha: baseSha,
+    releaseLabel: baseReleaseLabel,
+    dateString: baseDateString,
+  } = baseVersionInfo
 
   console.log(`Updating "react@${channel}" to ${newSha}...\n`)
   if (newSha === baseSha) {
@@ -75,10 +83,10 @@ Or, run this command with no arguments to use the most recently published versio
   }
 
   for (const [dep, version] of Object.entries(devDependencies)) {
-    if (version.endsWith(`${baseSha}-${baseDateString}`)) {
+    if (version.endsWith(`${baseReleaseLabel}-${baseSha}-${baseDateString}`)) {
       devDependencies[dep] = version.replace(
-        `${baseSha}-${baseDateString}`,
-        `${newSha}-${newDateString}`
+        `${baseReleaseLabel}-${baseSha}-${baseDateString}`,
+        `${newReleaseLabel}-${newSha}-${newDateString}`
       )
     }
   }
@@ -130,7 +138,7 @@ Or, run this command with no arguments to use the most recently published versio
         `GitHub reported no changes between ${baseSha} and ${newSha}.`
       )
     } else {
-      console.log('Includes the following upstream changes:\n\n' + changelog)
+      console.log(`### React upstream changes\n\n${changelog}\n\n`)
     }
   } catch (error) {
     console.error(error)
@@ -164,7 +172,7 @@ function readStringArg(argv, argName) {
 
 function extractInfoFromReactCanaryVersion(reactCanaryVersion) {
   const match = reactCanaryVersion.match(
-    /(?<semverVersion>.*)-(?<releaseChannel>.*)-(?<sha>.*)-(?<dateString>.*)$/
+    /(?<semverVersion>.*)-(?<releaseLabel>.*)-(?<sha>.*)-(?<dateString>.*)$/
   )
   return match ? match.groups : null
 }
@@ -183,11 +191,19 @@ async function getChangelogFromGitHub(baseSha, newSha) {
 
     const { commits } = data
     for (const { commit, sha } of commits) {
-      changelog.push(
-        `-  ${sha.slice(0, 9)} ${commit.message.split('\n')[0]} (${
-          commit.author.name
-        })`
-      )
+      const title = commit.message.split('\n')[0] || ''
+      // The "title" looks like "[Fiber][Float] preinitialized stylesheets should support integrity option (#26881)"
+      const match = /\(#([0-9]+)\)$/.exec(title)
+      const prNum = match ? match[1] : ''
+      if (prNum) {
+        changelog.push(`- https://github.com/facebook/react/pull/${prNum}`)
+      } else {
+        changelog.push(
+          `-  ${sha.slice(0, 9)} ${commit.message.split('\n')[0]} (${
+            commit.author.name
+          })`
+        )
+      }
     }
 
     if (commits.length !== pageSize) {
@@ -202,7 +218,7 @@ async function getChangelogFromGitHub(baseSha, newSha) {
   return changelog.length > 0 ? changelog.join('\n') : null
 }
 
-sync('next')
+sync('canary')
   .then(() => sync('experimental'))
   .catch((error) => {
     console.error(error)

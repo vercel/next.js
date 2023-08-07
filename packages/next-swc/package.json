@@ -1,16 +1,20 @@
 {
   "name": "@next/swc",
-  "version": "13.3.1-canary.4",
+  "version": "13.4.13",
   "private": true,
   "scripts": {
-    "clean": "rm -rf ./native/*",
-    "build-native": "napi build --platform -p next-swc-napi --cargo-name next_swc_napi --features plugin,rustls-tls --js false native",
-    "build-native-woa": "napi build --platform -p next-swc-napi --cargo-name next_swc_napi --cargo-flags=--no-default-features --features plugin,native-tls --js false native",
-    "build-native-no-plugin": "napi build --platform -p next-swc-napi --cargo-name next_swc_napi --js false native",
-    "build-native-no-plugin-woa": "napi build --platform -p next-swc-napi --cargo-name next_swc_napi --cargo-flags=--no-default-features --features native-tls --js false native",
+    "clean": "node ../../scripts/rm.mjs native",
+    "build-native": "napi build --platform -p next-swc-napi --cargo-cwd ../../ --cargo-name next_swc_napi --features plugin,rustls-tls,image-webp --js false native",
+    "build-native-release": "napi build --platform -p next-swc-napi --cargo-cwd ../../ --cargo-name next_swc_napi --release --features plugin,rustls-tls,image-webp,tracing/release_max_level_info --js false native",
+    "build-native-no-plugin": "napi build --platform -p next-swc-napi --cargo-cwd ../../ --cargo-name next_swc_napi --features image-webp --js false native",
+    "build-native-no-plugin-woa": "napi build --platform -p next-swc-napi --cargo-cwd ../../ --cargo-name next_swc_napi --cargo-flags=--no-default-features --features native-tls,image-webp --js false native",
+    "build-native-no-plugin-woa-release": "napi build --platform -p next-swc-napi --cargo-cwd ../../ --cargo-name next_swc_napi --release --cargo-flags=--no-default-features --features native-tls,image-webp,tracing/release_max_level_info --js false native",
     "build-wasm": "wasm-pack build crates/wasm --scope=next",
     "cache-build-native": "echo $(ls native)",
-    "test-pack": "cd ../../ && pnpm test-pack next-swc"
+    "rust-check": "cd ../../; cargo fmt -- --check && cargo clippy --all -- -D warnings -A deprecated && cargo check -p next-dev --no-default-features --features cli,custom_allocator,rustls-tls,serializable && rm -rf target",
+    "test-cargo-unit": "cargo test --workspace --exclude next-dev-tests",
+    "test-cargo-integration": "cross-env CARGO_PROFILE_RELEASE_LTO=false cargo nextest run -p next-dev-tests --release --no-fail-fast",
+    "test-cargo-bench": "cross-env CARGO_PROFILE_RELEASE_LTO=false TURBOPACK_BENCH_COUNTS=10 TURBOPACK_BENCH_CACHED=1 TURBOPACK_BENCH_PROGRESS=1 cargo test --benches -p next-dev --release --no-fail-fast"
   },
   "napi": {
     "name": "next-swc",
@@ -27,6 +31,7 @@
     }
   },
   "devDependencies": {
-    "@napi-rs/cli": "2.14.7"
+    "@napi-rs/cli": "2.14.7",
+    "cross-env": "6.0.3"
   }
 }

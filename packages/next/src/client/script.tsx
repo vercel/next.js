@@ -17,6 +17,7 @@ export interface ScriptProps extends ScriptHTMLAttributes<HTMLScriptElement> {
   onReady?: () => void | null
   onError?: (e: any) => void
   children?: React.ReactNode
+  stylesheets?: string[]
 }
 
 /**
@@ -31,7 +32,41 @@ const ignoreProps = [
   'children',
   'onError',
   'strategy',
+  'stylesheets',
 ]
+
+const insertStylesheets = (stylesheets: string[]) => {
+  // Case 1: Styles for afterInteractive/lazyOnload with appDir injected via handleClientScriptLoad
+  //
+  // Using ReactDOM.preinit to feature detect appDir and inject styles
+  // Stylesheets might have already been loaded if initialized with Script component
+  // Re-inject styles here to handle scripts loaded via handleClientScriptLoad
+  // ReactDOM.preinit handles dedup and ensures the styles are loaded only once
+  if (ReactDOM.preinit) {
+    stylesheets.forEach((stylesheet: string) => {
+      ReactDOM.preinit(stylesheet, { as: 'style' })
+    })
+
+    return
+  }
+
+  // Case 2: Styles for afterInteractive/lazyOnload with pages injected via handleClientScriptLoad
+  //
+  // We use this function to load styles when appdir is not detected
+  // TODO: Use React float APIs to load styles once available for pages dir
+  if (typeof window !== 'undefined') {
+    let head = document.head
+    stylesheets.forEach((stylesheet: string) => {
+      let link = document.createElement('link')
+
+      link.type = 'text/css'
+      link.rel = 'stylesheet'
+      link.href = stylesheet
+
+      head.appendChild(link)
+    })
+  }
+}
 
 const loadScript = (props: ScriptProps): void => {
   const {
@@ -43,6 +78,7 @@ const loadScript = (props: ScriptProps): void => {
     children = '',
     strategy = 'afterInteractive',
     onError,
+    stylesheets,
   } = props
 
   const cacheKey = id || src
@@ -91,7 +127,8 @@ const loadScript = (props: ScriptProps): void => {
   })
 
   if (dangerouslySetInnerHTML) {
-    el.innerHTML = dangerouslySetInnerHTML.__html || ''
+    // Casting since lib.dom.d.ts doesn't have TrustedHTML yet.
+    el.innerHTML = (dangerouslySetInnerHTML.__html as string) || ''
 
     afterLoad()
   } else if (children) {
@@ -125,6 +162,11 @@ const loadScript = (props: ScriptProps): void => {
   }
 
   el.setAttribute('data-nscript', strategy)
+
+  // Load styles associated with this script
+  if (stylesheets) {
+    insertStylesheets(stylesheets)
+  }
 
   document.body.appendChild(el)
 }
@@ -174,6 +216,7 @@ function Script(props: ScriptProps): JSX.Element | null {
     onReady = null,
     strategy = 'afterInteractive',
     onError,
+    stylesheets,
     ...restProps
   } = props
 
@@ -258,13 +301,30 @@ function Script(props: ScriptProps): JSX.Element | null {
 
   // For the app directory, we need React Float to preload these scripts.
   if (appDir) {
+    // Injecting stylesheets here handles beforeInteractive and worker scripts correctly
+    // For other strategies injecting here ensures correct stylesheet order
+    // ReactDOM.preinit handles loading the styles in the correct order,
+    // also ensures the stylesheet is loaded only once and in a consistent manner
+    //
+    // Case 1: Styles for beforeInteractive/worker with appDir - handled here
+    // Case 2: Styles for beforeInteractive/worker with pages dir - Not handled yet
+    // Case 3: Styles for afterInteractive/lazyOnload with appDir - handled here
+    // Case 4: Styles for afterInteractive/lazyOnload with pages dir - handled in insertStylesheets function
+    if (stylesheets) {
+      stylesheets.forEach((styleSrc) => {
+        ReactDOM.preinit(styleSrc, { as: 'style' })
+      })
+    }
+
     // Before interactive scripts need to be loaded by Next.js' runtime instead
     // of native <script> tags, because they no longer have `defer`.
     if (strategy === 'beforeInteractive') {
       if (!src) {
         // For inlined scripts, we put the content in `children`.
         if (restProps.dangerouslySetInnerHTML) {
-          restProps.children = restProps.dangerouslySetInnerHTML.__html
+          // Casting since lib.dom.d.ts doesn't have TrustedHTML yet.
+          restProps.children = restProps.dangerouslySetInnerHTML
+            .__html as string
           delete restProps.dangerouslySetInnerHTML
         }
 
@@ -279,25 +339,25 @@ function Script(props: ScriptProps): JSX.Element | null {
             }}
           />
         )
+      } else {
+        // @ts-ignore
+        ReactDOM.preload(
+          src,
+          restProps.integrity
+            ? { as: 'script', integrity: restProps.integrity }
+            : { as: 'script' }
+        )
+        return (
+          <script
+            nonce={nonce}
+            dangerouslySetInnerHTML={{
+              __html: `(self.__next_s=self.__next_s||[]).push(${JSON.stringify([
+                src,
+              ])})`,
+            }}
+          />
+        )
       }
-
-      // @ts-ignore
-      ReactDOM.preload(
-        src,
-        restProps.integrity
-          ? { as: 'script', integrity: restProps.integrity }
-          : { as: 'script' }
-      )
-      return (
-        <script
-          nonce={nonce}
-          dangerouslySetInnerHTML={{
-            __html: `(self.__next_s=self.__next_s||[]).push(${JSON.stringify([
-              src,
-            ])})`,
-          }}
-        />
-      )
     } else if (strategy === 'afterInteractive') {
       if (src) {
         // @ts-ignore

@@ -1,15 +1,13 @@
-import { useEffect, useRef } from 'react'
+import { useRef } from 'react'
+import { Harness, useTestHarness } from '@turbo/pack-test-harness'
 
 export default function Page() {
   const iframeRef = useRef<HTMLIFrameElement | null>(null)
   const appIframeRef = useRef<HTMLIFrameElement | null>(null)
 
-  useEffect(() => {
-    // Only run on client
-    import('@turbo/pack-test-harness').then((mod) =>
-      runTests(mod, iframeRef.current!, appIframeRef.current)
-    )
-  })
+  useTestHarness((harness) =>
+    runTests(harness, iframeRef.current!, appIframeRef.current)
+  )
 
   return (
     <>
@@ -27,8 +25,6 @@ export default function Page() {
   )
 }
 
-type Harness = typeof import('@turbo/pack-test-harness')
-
 function runTests(
   harness: Harness,
   iframe: HTMLIFrameElement,
@@ -37,10 +33,21 @@ function runTests(
   const TIMEOUT = 40000
 
   it(
-    'returns a 500 status code',
+    'returns a 500 status code for a broken page',
     async () => {
       const res = await fetch('/broken')
       expect(res.status).toBe(500)
+    },
+    TIMEOUT
+  )
+
+  // The existance of this test case fixes the error overlay later.
+  // I think it's related to streaming the result.
+  it(
+    'returns a 200 status code for a broken app page',
+    async () => {
+      const res = await fetch('/broken-app')
+      expect(res.status).toBe(200)
     },
     TIMEOUT
   )

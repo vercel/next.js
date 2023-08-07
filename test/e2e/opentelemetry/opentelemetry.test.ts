@@ -15,7 +15,12 @@ createNextDescribe(
       const traces = await next.readFile(traceFile)
       return traces
         .split('\n')
-        .filter(Boolean)
+        .filter((val) => {
+          if (val.includes('127.0.0.1')) {
+            return false
+          }
+          return !!val
+        })
         .map((line) => JSON.parse(line))
     }
 
@@ -70,7 +75,8 @@ createNextDescribe(
       it('should handle RSC with fetch', async () => {
         await next.fetch('/app/param/rsc-fetch')
 
-        expect(await getSanitizedTraces(1)).toMatchInlineSnapshot(`
+        await check(async () => {
+          expect(await getSanitizedTraces(1)).toMatchInlineSnapshot(`
           Array [
             Object {
               "attributes": Object {
@@ -145,12 +151,15 @@ createNextDescribe(
             },
           ]
         `)
+          return 'success'
+        }, 'success')
       })
 
       it('should handle route handlers in app router', async () => {
         await next.fetch('/api/app/param/data')
 
-        expect(await getSanitizedTraces(1)).toMatchInlineSnapshot(`
+        await check(async () => {
+          expect(await getSanitizedTraces(1)).toMatchInlineSnapshot(`
           Array [
             Object {
               "attributes": Object {
@@ -182,6 +191,8 @@ createNextDescribe(
             },
           ]
         `)
+          return 'success'
+        }, 'success')
       })
     })
 
@@ -189,7 +200,8 @@ createNextDescribe(
       it('should handle getServerSideProps', async () => {
         await next.fetch('/pages/param/getServerSideProps')
 
-        expect(await getSanitizedTraces(1)).toMatchInlineSnapshot(`
+        await check(async () => {
+          expect(await getSanitizedTraces(1)).toMatchInlineSnapshot(`
           Array [
             Object {
               "attributes": Object {
@@ -236,12 +248,15 @@ createNextDescribe(
             },
           ]
         `)
+          return 'success'
+        }, 'success')
       })
 
       it("should handle getStaticProps when fallback: 'blocking'", async () => {
         await next.fetch('/pages/param/getStaticProps')
 
-        expect(await getSanitizedTraces(1)).toMatchInlineSnapshot(`
+        await check(async () => {
+          expect(await getSanitizedTraces(1)).toMatchInlineSnapshot(`
           Array [
             Object {
               "attributes": Object {
@@ -288,12 +303,15 @@ createNextDescribe(
             },
           ]
         `)
+          return 'success'
+        }, 'success')
       })
 
       it('should handle api routes in pages', async () => {
         await next.fetch('/api/pages/param/basic')
 
-        expect(await getSanitizedTraces(1)).toMatchInlineSnapshot(`
+        await check(async () => {
+          expect(await getSanitizedTraces(1)).toMatchInlineSnapshot(`
           Array [
             Object {
               "attributes": Object {
@@ -326,6 +344,8 @@ createNextDescribe(
             },
           ]
         `)
+          return 'success'
+        }, 'success')
       })
     })
   }

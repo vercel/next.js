@@ -79,7 +79,7 @@ To deploy your local project to Vercel, push it to GitHub/GitLab/Bitbucket and [
 
 Alternatively, you can deploy using our template by clicking on the Deploy button below.
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/cms-builder-io&project-name=cms-builder-io&repository-name=cms-builder-io&env=BUILDER_PUBLIC_KEY&envDescription=Required%20to%20connect%20the%20app%20with%20Builder.io&envLink=https://www.builder.io/c/docs/custom-react-components#api-key)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/cms-builder-io&project-name=cms-builder-io&repository-name=cms-builder-io&env=BUILDER_PUBLIC_KEY&envDescription=Required%20to%20connect%20the%20app%20with%20Builder.io&envLink=https://www.builder.io/c/docs/custom-react-components#api-key)
 
 ### Related examples
 

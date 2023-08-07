@@ -12,6 +12,7 @@ import {
   INTERCEPTION_ROUTE_MARKERS,
   isInterceptionRouteAppPath,
 } from '../../../../server/future/helpers/interception-routes'
+import { NEXT_RSC_UNION_QUERY } from '../../../../client/components/app-router-headers'
 
 /**
  * Ensure only a-zA-Z are used for param names for proper interpolating
@@ -163,6 +164,7 @@ export function prepareDestination(args: {
   delete query.__nextDefaultLocale
   delete query.__nextDataReq
   delete query.__nextInferredLocaleFromDefault
+  delete query[NEXT_RSC_UNION_QUERY]
 
   let escapedDestination = args.destination
 
@@ -231,23 +233,16 @@ export function prepareDestination(args: {
 
   let newUrl
 
-  // for interception routes we don't have access to the dynamic segments from the
-  // referrer route so we mark them as noop for the app renderer so that it
-  // can retrieve them from the router state later on. This also allows us to
-  // compile the route properly with path-to-regexp, otherwise it will throw
-  // The compiler also thinks that the interception route marker is an unnamed param, hence '0',
+  // The compiler also that the interception route marker is an unnamed param, hence '0',
   // so we need to add it to the params object.
   if (isInterceptionRouteAppPath(destPath)) {
-    main: for (const segment of destPath.split('/')) {
-      for (const marker of INTERCEPTION_ROUTE_MARKERS) {
-        if (segment.startsWith(marker)) {
-          args.params['0'] = marker
-          break main
-        }
-      }
-      if (segment.startsWith(':')) {
-        const param = segment.slice(1)
-        args.params[param] = '__NEXT_EMPTY_PARAM__'
+    for (const segment of destPath.split('/')) {
+      const marker = INTERCEPTION_ROUTE_MARKERS.find((m) =>
+        segment.startsWith(m)
+      )
+      if (marker) {
+        args.params['0'] = marker
+        break
       }
     }
   }

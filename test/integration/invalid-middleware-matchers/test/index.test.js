@@ -146,9 +146,7 @@ describe('Errors on invalid custom middleware matchers', () => {
             stderr += msg
           },
         })
-        await fetchViaHTTP(port, '/')
-          // suppress error
-          .catch(() => {})
+        await fetchViaHTTP(port, '/').catch(() => {})
         return stderr
       }
     })

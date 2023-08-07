@@ -2,6 +2,7 @@ import * as React from 'react'
 import { CloseIcon } from '../../icons/CloseIcon'
 
 export type LeftRightDialogHeaderProps = {
+  children?: React.ReactNode
   className?: string
   previous: (() => void) | null
   next: (() => void) | null
@@ -113,6 +114,7 @@ const LeftRightDialogHeader: React.FC<LeftRightDialogHeaderProps> =
               fill="none"
               xmlns="http://www.w3.org/2000/svg"
             >
+              <title>previous</title>
               <path
                 d="M6.99996 1.16666L1.16663 6.99999L6.99996 12.8333M12.8333 6.99999H1.99996H12.8333Z"
                 stroke="currentColor"
@@ -134,6 +136,7 @@ const LeftRightDialogHeader: React.FC<LeftRightDialogHeaderProps> =
               fill="none"
               xmlns="http://www.w3.org/2000/svg"
             >
+              <title>next</title>
               <path
                 d="M6.99996 1.16666L12.8333 6.99999L6.99996 12.8333M1.16663 6.99999H12H1.16663Z"
                 stroke="currentColor"

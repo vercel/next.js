@@ -63,10 +63,11 @@ export function runTests(ctx) {
 
     for (const locale of locales) {
       for (const asset of assets) {
+        require('console').log({ locale, asset })
         // _next/static asset
         const res = await fetchViaHTTP(
           ctx.appPort,
-          `${ctx.basePath || ''}/${locale}/_next/static/${asset}`,
+          `${ctx.basePath || ''}/${locale}/_next/static/${encodeURI(asset)}`,
           undefined,
           { redirect: 'manual' }
         )
@@ -1251,7 +1252,12 @@ export function runTests(ctx) {
 
       const parsed = url.parse(res.headers.get('location'), true)
       expect(parsed.pathname).toBe(path)
-      expect(parsed.hostname).toBe(hostname)
+
+      if (hostname === 'localhost') {
+        expect(parsed.hostname).toBeOneOf([hostname, '127.0.0.1'])
+      } else {
+        expect(parsed.hostname).toBe(hostname)
+      }
       expect(parsed.query).toEqual(query)
     }
   })

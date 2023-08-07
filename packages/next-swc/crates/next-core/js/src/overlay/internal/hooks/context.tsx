@@ -14,9 +14,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 // It's been edited for the needs of this project
 // See the LICENSE at the top of the file
 
-import * as React from "react";
+import * as React from 'react'
 
-type ContextProvider<T> = React.FC<React.PropsWithChildren<T>>;
+type ContextProvider<T> = React.FC<React.PropsWithChildren<T>>
 
 export function createContext<ContextValueType extends object | null>(
   rootComponentName: string,
@@ -25,32 +25,32 @@ export function createContext<ContextValueType extends object | null>(
   ContextProvider<ContextValueType>,
   (callerComponentName: string) => ContextValueType
 ] {
-  const Ctx = React.createContext<ContextValueType | undefined>(defaultContext);
+  const Ctx = React.createContext<ContextValueType | undefined>(defaultContext)
 
   function Provider(props: React.PropsWithChildren<ContextValueType>) {
-    const { children, ...context } = props;
+    const { children, ...context } = props
     const value = React.useMemo(
       () => context,
       // eslint-disable-next-line react-hooks/exhaustive-deps
       Object.values(context)
-    ) as ContextValueType;
-    return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+    ) as ContextValueType
+    return <Ctx.Provider value={value}>{children}</Ctx.Provider>
   }
 
   function useContext(callerComponentName: string) {
-    const context = React.useContext(Ctx);
+    const context = React.useContext(Ctx)
     if (context) {
-      return context;
+      return context
     }
     if (defaultContext) {
-      return defaultContext;
+      return defaultContext
     }
     throw Error(
       `${callerComponentName} must be rendered inside of a ${rootComponentName} component.`
-    );
+    )
   }
 
-  Ctx.displayName = `${rootComponentName}Context`;
-  Provider.displayName = `${rootComponentName}Provider`;
-  return [Provider, useContext];
+  Ctx.displayName = `${rootComponentName}Context`
+  Provider.displayName = `${rootComponentName}Provider`
+  return [Provider, useContext]
 }

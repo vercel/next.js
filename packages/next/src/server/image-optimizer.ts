@@ -1,29 +1,32 @@
-import { mediaType } from 'next/dist/compiled/@hapi/accept'
 import { createHash } from 'crypto'
 import { promises } from 'fs'
+import type { IncomingMessage, ServerResponse } from 'http'
+import { mediaType } from 'next/dist/compiled/@hapi/accept'
+import chalk from 'next/dist/compiled/chalk'
+import contentDisposition from 'next/dist/compiled/content-disposition'
 import { getOrientation, Orientation } from 'next/dist/compiled/get-orientation'
 import imageSizeOf from 'next/dist/compiled/image-size'
-import { IncomingMessage, ServerResponse } from 'http'
 import isAnimated from 'next/dist/compiled/is-animated'
-import contentDisposition from 'next/dist/compiled/content-disposition'
 import { join } from 'path'
-import nodeUrl, { UrlWithParsedQuery } from 'url'
-import { NextConfigComplete } from './config-shared'
-import {
-  processBuffer,
-  decodeBuffer,
-  Operation,
-  getMetadata,
-} from './lib/squoosh/main'
+import nodeUrl, { type UrlWithParsedQuery } from 'url'
+
+import { getImageBlurSvg } from '../shared/lib/image-blur-svg'
+import type { ImageConfigComplete } from '../shared/lib/image-config'
+import { hasMatch } from '../shared/lib/match-remote-pattern'
+import type { NextConfigComplete } from './config-shared'
+import { createRequestResponseMocks } from './lib/mock-request'
+// Do not import anything other than types from this module
+// because it will throw an error when using `outputFileTracing`
+// as `jest-worker` is ignored in file tracing. Use `await import`
+// or `require` instead.
+import type { Operation } from './lib/squoosh/main'
+import type { NextUrlWithParsedQuery } from './request-meta'
+import type {
+  IncrementalCacheEntry,
+  IncrementalCacheValue,
+} from './response-cache'
 import { sendEtagResponse } from './send-payload'
 import { getContentType, getExtension } from './serve-static'
-import chalk from 'next/dist/compiled/chalk'
-import { NextUrlWithParsedQuery } from './request-meta'
-import { IncrementalCacheEntry, IncrementalCacheValue } from './response-cache'
-import { createRequestResponseMocks } from './lib/mock-request'
-import { hasMatch } from '../shared/lib/match-remote-pattern'
-import { getImageBlurSvg } from '../shared/lib/image-blur-svg'
-import { ImageConfigComplete } from '../shared/lib/image-config'
 
 type XCacheHeader = 'MISS' | 'HIT' | 'STALE'
 
@@ -437,7 +440,7 @@ export async function optimizeImage({
       } else {
         console.warn(
           chalk.yellow.bold('Warning: ') +
-            `Your installed version of the 'sharp' package does not support AVIF images. Run 'yarn add sharp@latest' to upgrade to the latest version.\n` +
+            `Your installed version of the 'sharp' package does not support AVIF images. Run 'npm i sharp@latest' to upgrade to the latest version.\n` +
             'Read more: https://nextjs.org/docs/messages/sharp-version-avif'
         )
         transformer.webp({ quality })
@@ -454,18 +457,16 @@ export async function optimizeImage({
     // End sharp transformation logic
   } else {
     if (showSharpMissingWarning && nextConfigOutput === 'standalone') {
-      // TODO: should we ensure squoosh also works even though we don't
-      // recommend it be used in production and this is a production feature
       console.error(
         `Error: 'sharp' is required to be installed in standalone mode for the image optimization to function correctly. Read more at: https://nextjs.org/docs/messages/sharp-missing-in-production`
       )
-      throw new ImageError(500, 'internal server error')
+      throw new ImageError(500, 'Internal Server Error')
     }
     // Show sharp warning in production once
     if (showSharpMissingWarning) {
       console.warn(
         chalk.yellow.bold('Warning: ') +
-          `For production Image Optimization with Next.js, the optional 'sharp' package is strongly recommended. Run 'yarn add sharp', and Next.js will use it automatically for Image Optimization.\n` +
+          `For production Image Optimization with Next.js, the optional 'sharp' package is strongly recommended. Run 'npm i sharp', and Next.js will use it automatically for Image Optimization.\n` +
           'Read more: https://nextjs.org/docs/messages/sharp-missing-in-production'
       )
       showSharpMissingWarning = false
@@ -493,6 +494,9 @@ export async function optimizeImage({
     } else {
       operations.push({ type: 'resize', width })
     }
+
+    const { processBuffer } =
+      require('./lib/squoosh/main') as typeof import('./lib/squoosh/main')
 
     if (contentType === AVIF) {
       optimizedBuffer = await processBuffer(buffer, operations, 'avif', quality)
@@ -637,6 +641,8 @@ export async function imageOptimizer(
     })
     if (optimizedBuffer) {
       if (isDev && width <= BLUR_IMG_SIZE && quality === BLUR_QUALITY) {
+        const { getMetadata } =
+          require('./lib/squoosh/main') as typeof import('./lib/squoosh/main')
         // During `next dev`, we don't want to generate blur placeholders with webpack
         // because it can delay starting the dev server. Instead, `next-image-loader.js`
         // will inline a special url to lazily generate the blur placeholder at request time.
@@ -778,6 +784,8 @@ export async function getImageSize(
       const { width, height } = await transformer.metadata()
       return { width, height }
     } else {
+      const { decodeBuffer } =
+        require('./lib/squoosh/main') as typeof import('./lib/squoosh/main')
       const { width, height } = await decodeBuffer(buffer)
       return { width, height }
     }

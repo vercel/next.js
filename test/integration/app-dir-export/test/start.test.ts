@@ -54,7 +54,7 @@ describe('app dir with output export (next start)', () => {
     })
     await check(() => stderr, /warn/i)
     expect(stderr).toContain(
-      `warn  - "next start" does not work with "output: standalone" configuration. Use "node .next/standalone/server.js" instead.`
+      `"next start" does not work with "output: standalone" configuration. Use "node .next/standalone/server.js" instead.`
     )
   })
 })

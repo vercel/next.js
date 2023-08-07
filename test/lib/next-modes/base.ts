@@ -5,12 +5,16 @@ import treeKill from 'tree-kill'
 import type { NextConfig } from 'next'
 import { FileRef } from '../e2e-utils'
 import { ChildProcess } from 'child_process'
-import { createNextInstall } from '../create-next-install'
+import {
+  createNextInstall,
+  setPnpmResolutionMode,
+} from '../create-next-install'
 import { Span } from 'next/src/trace'
 import webdriver from '../next-webdriver'
 import { renderViaHTTP, fetchViaHTTP } from 'next-test-utils'
 import cheerio from 'cheerio'
 import { BrowserInterface } from '../browsers/base'
+import escapeStringRegexp from 'escape-string-regexp'
 
 type Event = 'stdout' | 'stderr' | 'error' | 'destroy'
 export type InstallCommand =
@@ -32,6 +36,7 @@ export interface NextInstanceOpts {
   env?: Record<string, string>
   dirSuffix?: string
   turbo?: boolean
+  forcedPort?: string
 }
 
 /**
@@ -142,6 +147,7 @@ export class NextInstance {
           react: reactVersion,
           'react-dom': reactVersion,
           '@types/react': reactVersion,
+          '@types/react-dom': reactVersion,
           typescript: 'latest',
           '@types/node': 'latest',
           ...this.dependencies,
@@ -176,6 +182,7 @@ export class NextInstance {
               2
             )
           )
+          await setPnpmResolutionMode(this.testDir)
         } else {
           if (
             process.env.NEXT_TEST_STARTER &&
@@ -280,6 +287,30 @@ export class NextInstance {
       })
   }
 
+  // normalize snapshots or stack traces being tested
+  // to a consistent test dir value since it's random
+  public normalizeTestDirContent(content) {
+    content = content.replace(
+      new RegExp(escapeStringRegexp(this.testDir), 'g'),
+      'TEST_DIR'
+    )
+    if (process.env.NEXT_SWC_DEV_BIN) {
+      content = content.replace(/,----/, ',-[1:1]')
+      content = content.replace(/\[\.\/.*?:/, '[')
+    }
+    return content
+  }
+
+  // the dev binary for next-swc is missing file references
+  // so this normalizes to allow snapshots to match
+  public normalizeSnapshot(content) {
+    if (process.env.NEXT_SWC_DEV_BIN) {
+      content = content.replace(/TEST_DIR.*?:/g, '')
+      content = content.replace(/\[\.\/.*?:/, '[')
+    }
+    return content
+  }
+
   public async clean() {
     if (this.childProcess) {
       throw new Error(`stop() must be called before cleaning`)
@@ -335,36 +366,40 @@ export class NextInstance {
   }
 
   public async destroy(): Promise<void> {
-    if (this.isDestroyed) {
-      throw new Error(`next instance already destroyed`)
-    }
-    this.isDestroyed = true
-    this.emit('destroy', [])
-    await this.stop()
+    try {
+      if (this.isDestroyed) {
+        throw new Error(`next instance already destroyed`)
+      }
+      this.isDestroyed = true
+      this.emit('destroy', [])
+      await this.stop().catch(console.error)
 
-    if (process.env.TRACE_PLAYWRIGHT) {
-      await fs
-        .copy(
-          path.join(this.testDir, '.next/trace'),
-          path.join(
-            __dirname,
-            '../../traces',
-            `${path
-              .relative(
-                path.join(__dirname, '../../'),
-                process.env.TEST_FILE_PATH
-              )
-              .replace(/\//g, '-')}`,
-            `next-trace`
+      if (process.env.TRACE_PLAYWRIGHT) {
+        await fs
+          .copy(
+            path.join(this.testDir, '.next/trace'),
+            path.join(
+              __dirname,
+              '../../traces',
+              `${path
+                .relative(
+                  path.join(__dirname, '../../'),
+                  process.env.TEST_FILE_PATH
+                )
+                .replace(/\//g, '-')}`,
+              `next-trace`
+            )
           )
-        )
-        .catch(() => {})
-    }
+          .catch(() => {})
+      }
 
-    if (!process.env.NEXT_TEST_SKIP_CLEANUP) {
-      await fs.remove(this.testDir)
+      if (!process.env.NEXT_TEST_SKIP_CLEANUP) {
+        await fs.remove(this.testDir)
+      }
+      require('console').log(`destroyed next instance`)
+    } catch (err) {
+      require('console').error('Error while destroying', err)
     }
-    require('console').log(`destroyed next instance`)
   }
 
   public get url() {
@@ -384,31 +419,56 @@ export class NextInstance {
   }
 
   // TODO: block these in deploy mode
+  public async hasFile(filename: string) {
+    return fs.pathExists(path.join(this.testDir, filename))
+  }
   public async readFile(filename: string) {
     return fs.readFile(path.join(this.testDir, filename), 'utf8')
   }
   public async readJSON(filename: string) {
     return fs.readJSON(path.join(this.testDir, filename))
   }
+  private async handleDevWatchDelay(filename: string) {
+    // to help alleviate flakiness with tests that create
+    // dynamic routes // and then request it we give a buffer
+    // of 500ms to allow WatchPack to detect the changed files
+    // TODO: replace this with an event directly from WatchPack inside
+    // router-server for better accuracy
+    if (
+      (global as any).isNextDev &&
+      (filename.startsWith('app/') || filename.startsWith('pages/'))
+    ) {
+      require('console').log('fs dev delay', filename)
+      await new Promise((resolve) => setTimeout(resolve, 500))
+    }
+  }
   public async patchFile(filename: string, content: string) {
     const outputPath = path.join(this.testDir, filename)
+    const newFile = !(await fs.pathExists(outputPath))
     await fs.ensureDir(path.dirname(outputPath))
-    return fs.writeFile(outputPath, content)
+    await fs.writeFile(outputPath, content)
+
+    if (newFile) {
+      await this.handleDevWatchDelay(filename)
+    }
   }
   public async renameFile(filename: string, newFilename: string) {
-    return fs.rename(
+    await fs.rename(
       path.join(this.testDir, filename),
       path.join(this.testDir, newFilename)
     )
+    await this.handleDevWatchDelay(filename)
   }
   public async renameFolder(foldername: string, newFoldername: string) {
-    return fs.move(
+    await fs.move(
       path.join(this.testDir, foldername),
       path.join(this.testDir, newFoldername)
     )
+    await this.handleDevWatchDelay(foldername)
   }
   public async deleteFile(filename: string) {
-    return fs.remove(path.join(this.testDir, filename))
+    await fs.remove(path.join(this.testDir, filename))
+    await this.handleDevWatchDelay(filename)
   }
 
   /**

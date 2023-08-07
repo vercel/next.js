@@ -1,9 +1,13 @@
 import type { IncomingMessage } from 'http'
 import type { BaseNextRequest } from '../base-http'
 import type { CookieSerializeOptions } from 'next/dist/compiled/cookie'
-import type { NextApiRequest, NextApiResponse } from '../../shared/lib/utils'
+import type { NextApiResponse } from '../../shared/lib/utils'
 
 import { HeadersAdapter } from '../web/spec-extension/adapters/headers'
+import {
+  PRERENDER_REVALIDATE_HEADER,
+  PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER,
+} from '../../lib/constants'
 
 export type NextApiRequestCookies = Partial<{ [key: string]: string }>
 export type NextApiRequestQuery = Partial<{ [key: string]: string | string[] }>
@@ -71,10 +75,6 @@ export function redirect(
   res.end()
   return res
 }
-
-export const PRERENDER_REVALIDATE_HEADER = 'x-prerender-revalidate'
-export const PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER =
-  'x-prerender-revalidate-if-generated'
 
 export function checkIsOnDemandRevalidate(
   req: Request | IncomingMessage | BaseNextRequest,
@@ -186,7 +186,7 @@ export function sendError(
 }
 
 interface LazyProps {
-  req: NextApiRequest
+  req: IncomingMessage
 }
 
 /**

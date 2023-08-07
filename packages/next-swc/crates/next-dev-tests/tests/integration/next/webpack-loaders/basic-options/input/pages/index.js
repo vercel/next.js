@@ -1,17 +1,14 @@
-import { useEffect } from "react";
-import source from "./hello.replace";
+import { useTestHarness } from '@turbo/pack-test-harness'
+import source from './hello.replace'
 
 export default function Home() {
-  useEffect(() => {
-    // Only run on client
-    import("@turbo/pack-test-harness").then(runTests);
-  });
+  useTestHarness(runTests)
 
-  return null;
+  return null
 }
 
 function runTests() {
-  it("runs a loader with basic options", () => {
-    expect(source).toBe(3);
-  });
+  it('runs a loader with basic options', () => {
+    expect(source).toBe(3)
+  })
 }

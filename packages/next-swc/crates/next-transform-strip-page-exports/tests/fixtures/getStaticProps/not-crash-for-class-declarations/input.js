@@ -1,11 +1,11 @@
 function getStaticPaths() {
-  return [];
+  return []
 }
 
-export { getStaticPaths };
+export { getStaticPaths }
 
 export class MyClass {}
 
 export default function Test() {
-  return <div />;
+  return <div />
 }

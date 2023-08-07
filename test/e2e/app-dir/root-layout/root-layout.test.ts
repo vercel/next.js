@@ -198,6 +198,11 @@ createNextDescribe(
           'Basic route'
         )
         expect(await browser.eval('window.__TEST_NO_RELOAD')).toBeUndefined()
+
+        const res = await next.fetch(
+          `${next.url}/static-mpa-navigation/slug-not-existed`
+        )
+        expect(res.status).toBe(404)
       })
     })
 

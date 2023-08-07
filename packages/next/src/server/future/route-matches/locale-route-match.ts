@@ -1,5 +1,5 @@
-import { LocaleRouteDefinition } from '../route-definitions/locale-route-definition'
-import { RouteMatch } from './route-match'
+import type { LocaleRouteDefinition } from '../route-definitions/locale-route-definition'
+import type { RouteMatch } from './route-match'
 
 export interface LocaleRouteMatch<R extends LocaleRouteDefinition>
   extends RouteMatch<R> {

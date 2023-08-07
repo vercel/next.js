@@ -13,18 +13,14 @@ default = ["rustls-tls"]
 # when build (i.e napi --build --features plugin), same for the wasm as well.
 # this is due to some of transitive dependencies have features cannot be enabled at the same time
 # (i.e wasmer/default vs wasmer/js-default) while cargo merges all the features at once.
-plugin = ["turbo-binding/__swc_core_binding_napi_plugin", "next-swc/plugin"]
+plugin = ["turbopack-binding/__swc_core_binding_napi_plugin", "turbopack-binding/__swc_core_binding_napi_plugin_filesystem_cache", "turbopack-binding/__swc_core_binding_napi_plugin_shared_runtime",  "next-swc/plugin", "next-core/plugin"]
 sentry_native_tls = ["sentry", "sentry/native-tls", "native-tls"]
 sentry_rustls = ["sentry", "sentry/rustls", "rustls-tls"]
 
 native-tls = ["next-dev/native-tls"]
 rustls-tls = ["next-dev/rustls-tls"]
-
-# Internal only. Enabled when building for the Next.js integration test suite.
-__internal_nextjs_integration_test = [
-  "next-dev/__internal_nextjs_integration_test",
-  "next-dev/serializable"
-]
+serializable = ["next-dev/serializable"]
+image-webp = ["next-core/image-webp"]
 
 # Enable dhat profiling allocator for heap profiling.
 __internal_dhat-heap = ["dhat"]
@@ -47,29 +43,32 @@ napi = { version = "2", default-features = false, features = [
 napi-derive = "2"
 next-swc = { version = "0.0.0", path = "../core" }
 next-dev = { workspace = true }
+next-api = { workspace = true }
 next-build = { workspace = true }
 next-core = { workspace = true }
 turbo-tasks = { workspace = true }
 once_cell = { workspace = true }
 serde = "1"
 serde_json = "1"
-tracing = { version = "0.1.37", features = ["release_max_level_info"] }
+shadow-rs = { workspace = true }
+tracing = { workspace = true }
 tracing-futures = "0.2.5"
-tracing-subscriber = "0.3.9"
+tracing-subscriber = { workspace = true }
 tracing-chrome = "0.5.0"
-turbo-binding = { workspace = true, features = [
+turbopack-binding = { workspace = true, features = [
   "__swc_core_binding_napi",
   "__feature_node_file_trace",
   "__feature_mdx_rs",
   "__turbo",
   "__turbo_tasks",
   "__turbo_tasks_memory",
-  "__turbopack"
+  "__turbopack",
+  "__turbopack_ecmascript_hmr_protocol",
 ] }
 
 [target.'cfg(not(all(target_os = "linux", target_env = "musl", target_arch = "aarch64")))'.dependencies]
-turbo-binding = { workspace = true, features = [
-  "__turbo_malloc"
+turbopack-binding = { workspace = true, features = [
+  "__turbo_tasks_malloc"
 ] }
 
 # There are few build targets we can't use native-tls which default features rely on,
@@ -87,6 +86,8 @@ sentry = { version = "0.27.0", default-features = false, features = [
 napi-build = "2"
 serde = "1"
 serde_json = "1"
-turbo-binding = { workspace = true, features = [
+# It is not a mistake this dependency is specified in dep / build-dep both.
+shadow-rs = { workspace = true }
+turbopack-binding = { workspace = true, features = [
   "__turbo_tasks_build"
 ]}

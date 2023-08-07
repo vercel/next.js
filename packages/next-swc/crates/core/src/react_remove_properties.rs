@@ -1,6 +1,6 @@
 use regex::Regex;
 use serde::Deserialize;
-use turbo_binding::swc::core::ecma::{
+use turbopack_binding::swc::core::ecma::{
     ast::*,
     visit::{noop_fold_type, Fold, FoldWith},
 };

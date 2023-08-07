@@ -1,17 +1,14 @@
-import { useEffect } from "react";
-import other from "../other";
+import other from '../other'
+import { useTestHarness } from '@turbo/pack-test-harness'
 
 export default function Home() {
-  useEffect(() => {
-    // Only run on client
-    import("@turbo/pack-test-harness").then(runTests);
-  });
+  useTestHarness(runTests)
 
-  return null;
+  return null
 }
 
 function runTests() {
-  it("automatically runs babel-loader if a babel config is present", () => {
-    expect(other).toBe("foo");
-  });
+  it('automatically runs babel-loader if a babel config is present', () => {
+    expect(other).toBe('foo')
+  })
 }

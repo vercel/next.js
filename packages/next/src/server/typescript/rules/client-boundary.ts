@@ -2,15 +2,16 @@
 
 import { NEXT_TS_ERRORS } from '../constant'
 import { getTs, getTypeChecker } from '../utils'
+import type tsModule from 'typescript/lib/tsserverlibrary'
 
 const clientBoundary = {
   getSemanticDiagnosticsForExportVariableStatement(
-    source: ts.SourceFile,
-    node: ts.VariableStatement
+    source: tsModule.SourceFile,
+    node: tsModule.VariableStatement
   ) {
     const ts = getTs()
 
-    const diagnostics: ts.Diagnostic[] = []
+    const diagnostics: tsModule.Diagnostic[] = []
 
     if (ts.isVariableDeclarationList(node.declarationList)) {
       for (const declaration of node.declarationList.declarations) {
@@ -30,20 +31,21 @@ const clientBoundary = {
   },
 
   getSemanticDiagnosticsForFunctionExport(
-    source: ts.SourceFile,
-    node: ts.FunctionDeclaration | ts.ArrowFunction
+    source: tsModule.SourceFile,
+    node: tsModule.FunctionDeclaration | tsModule.ArrowFunction
   ) {
     const ts = getTs()
     const typeChecker = getTypeChecker()
     if (!typeChecker) return []
 
-    const diagnostics: ts.Diagnostic[] = []
+    const diagnostics: tsModule.Diagnostic[] = []
 
     const isErrorFile = /[\\/]error\.tsx?$/.test(source.fileName)
+    const isGlobalErrorFile = /[\\/]global-error\.tsx?$/.test(source.fileName)
 
     const props = node.parameters?.[0]?.name
     if (props && ts.isObjectBindingPattern(props)) {
-      for (const prop of (props as ts.ObjectBindingPattern).elements) {
+      for (const prop of (props as tsModule.ObjectBindingPattern).elements) {
         const type = typeChecker.getTypeAtLocation(prop)
         const typeDeclarationNode = type.symbol?.getDeclarations()?.[0]
         const propName = (prop.propertyName || prop.name).getText()
@@ -57,7 +59,7 @@ const clientBoundary = {
             // There's a special case for the error file that the `reset` prop is allowed
             // to be a function:
             // https://github.com/vercel/next.js/issues/46573
-            if (!isErrorFile || propName !== 'reset') {
+            if (!(isErrorFile || isGlobalErrorFile) || propName !== 'reset') {
               diagnostics.push({
                 file: source,
                 category: ts.DiagnosticCategory.Warning,

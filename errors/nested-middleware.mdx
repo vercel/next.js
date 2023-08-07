@@ -1,0 +1,31 @@
+---
+title: Nested Middleware
+---
+
+## Why This Error Occurred
+
+You are defining a Middleware file in a location different from `<root>/middleware`, which is not allowed.
+
+While in beta, a Middleware file under specific pages would _only_ be executed when pages below its declaration were matched, allowing nesting Middleware files. Based on customer feedback, we have replaced this API with a single root Middleware.
+
+## Possible Ways to Fix It
+
+Declare your Middleware in the root folder and use `NextRequest` parsed URL to define which path the Middleware should be executed for.
+
+For example, a Middleware at `pages/about/_middleware.ts` can move the logic to `<root>/middleware.ts` in the root of your repository. Then, a conditional statement can be used to only run the Middleware when it matches the `about/*` path:
+
+```ts filename="middleware.ts"
+import type { NextRequest } from 'next/server'
+
+export function middleware(request: NextRequest) {
+  if (request.nextUrl.pathname.startsWith('/about')) {
+    // This logic is only applied to /about
+  }
+
+  if (request.nextUrl.pathname.startsWith('/dashboard')) {
+    // This logic is only applied to /dashboard
+  }
+}
+```
+
+If you have more than one Middleware, you should combine them into a single file and model their execution depending on the incoming request.

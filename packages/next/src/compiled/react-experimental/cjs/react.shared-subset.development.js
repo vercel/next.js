@@ -230,7 +230,10 @@ function generateCacheKey(request) {
         url = resource;
       } else {
         // Normalize the request.
-        var request = new Request(resource, options);
+        // if resource is not a string or a URL (its an instance of Request)
+        // then do not instantiate a new Request but instead
+        // reuse the request as to not disturb the body in the event it's a ReadableStream.
+        var request = typeof resource === 'string' || resource instanceof URL ? new Request(resource, options) : resource;
 
         if (request.method !== 'GET' && request.method !== 'HEAD' || // $FlowFixMe[prop-missing]: keepalive is real
         request.keepalive) {
@@ -301,7 +304,7 @@ function generateCacheKey(request) {
   }
 }
 
-var ReactVersion = '18.3.0-experimental-b14f8da15-20230403';
+var ReactVersion = '18.3.0-experimental-9377e1010-20230712';
 
 // ATTENTION
 // When adding new symbols to this file,
@@ -742,7 +745,6 @@ function getComponentNameFromType(type) {
           return (context2.displayName || context2._globalName) + '.Provider';
         }
 
-      // eslint-disable-next-line no-fallthrough
     }
   }
 
@@ -1797,8 +1799,7 @@ function useId() {
   return dispatcher.useId();
 }
 function use(usable) {
-  var dispatcher = resolveDispatcher(); // $FlowFixMe[not-a-function] This is unstable, thus optional
-
+  var dispatcher = resolveDispatcher();
   return dispatcher.use(usable);
 }
 
@@ -1998,7 +1999,14 @@ function describeNativeComponentFrame(fn, construct) {
       // in simple components too
 
 
-      fn();
+      var maybePromise = fn(); // If the function component returns a promise, it's likely an async
+      // component, which we don't yet support. Attach a noop catch handler to
+      // silence the error.
+      // TODO: Implement component stacks for async client components?
+
+      if (maybePromise && typeof maybePromise.catch === 'function') {
+        maybePromise.catch(function () {});
+      }
     }
   } catch (sample) {
     // This is inlined manually because closure doesn't do it for us.
@@ -2642,7 +2650,6 @@ exports.Fragment = REACT_FRAGMENT_TYPE;
 exports.Profiler = REACT_PROFILER_TYPE;
 exports.StrictMode = REACT_STRICT_MODE_TYPE;
 exports.Suspense = REACT_SUSPENSE_TYPE;
-exports.SuspenseList = REACT_SUSPENSE_LIST_TYPE;
 exports.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED = ReactSharedInternals;
 exports.cache = cache;
 exports.cloneElement = cloneElement;
@@ -2655,6 +2662,7 @@ exports.lazy = lazy;
 exports.memo = memo;
 exports.startTransition = startTransition;
 exports.unstable_DebugTracingMode = REACT_DEBUG_TRACING_MODE_TYPE;
+exports.unstable_SuspenseList = REACT_SUSPENSE_LIST_TYPE;
 exports.unstable_getCacheForType = getCacheForType;
 exports.unstable_getCacheSignal = getCacheSignal;
 exports.use = use;
