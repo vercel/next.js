@@ -102,7 +102,7 @@ function ErrorHtml({
 
 function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
   // Align the segment with parallel-route-default in next-app-loader
-  return ['__PAGE__', {}, loaderTree[2]]
+  return ['', {}, loaderTree[2]]
 }
 
 /* This method is important for intercepted routes to function:
@@ -1643,7 +1643,7 @@ export async function renderToHTMLOrFlight(
 
               const notFoundElement = (
                 <html id="__next_error__">
-                  <head>{head}</head>
+                  <head></head>
                   <body></body>
                 </html>
               )
