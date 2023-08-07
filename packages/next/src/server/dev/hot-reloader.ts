@@ -819,7 +819,6 @@ export default class HotReloader {
                       middlewareConfig: Buffer.from(
                         JSON.stringify(staticInfo.middleware || {})
                       ).toString('base64'),
-                      isEdge: true,
                     }).import
                   : undefined
 

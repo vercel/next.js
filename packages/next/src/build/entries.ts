@@ -647,7 +647,6 @@ export async function createEntrypoints(
               middlewareConfig: Buffer.from(
                 JSON.stringify(staticInfo.middleware || {})
               ).toString('base64'),
-              isEdge: true,
             }).import
           }
           const normalizedServerBundlePath =

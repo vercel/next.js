@@ -38,7 +38,6 @@ export type AppLoaderOptions = {
   basePath: string
   nextConfigOutput?: NextConfig['output']
   middlewareConfig: string
-  isEdge?: boolean
 }
 type AppLoader = webpack.LoaderDefinitionFunction<AppLoaderOptions>
 
@@ -415,7 +414,6 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     preferredRegion,
     basePath,
     middlewareConfig: middlewareConfigBase64,
-    isEdge,
   } = loaderOptions
 
   const buildInfo = getModuleBuildInfo((this as any)._module)
