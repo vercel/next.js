@@ -1,6 +1,7 @@
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import path from 'path'
+import execa from 'execa'
 
 const appDir = path.join(__dirname, 'app')
 
@@ -12,31 +13,27 @@ describe('next/jest', () => {
       skipStart: true,
       files: {
         app: new FileRef(path.join(appDir, 'app')),
-        [`${appDir}/app/index.test.tsx`]: `
+        [`tests/index.test.tsx`]: `
         import { render, screen } from '@testing-library/react'
-        import Page from './page'
+        import Page from '../app/page'
 
         it('<Page /> renders', () => {
           render(<Page />)
-
           const logo = screen.getByRole('img')
-
           expect(logo).toBeVisible()
         })
         `,
         'jest.config.js': new FileRef(path.join(appDir, 'jest.config.js')),
       },
-      dependencies: {
-        jest: '27.4.7',
-        '@testing-library/react': '13.1.1',
-        jsdom: '19.0.0',
-        '@testing-library/jest-dom': '5.16.4',
-      },
       packageJson: {
+        dependencies: {
+          jest: '29.6.2',
+          'jest-environment-jsdom': '29.6.2',
+          '@testing-library/react': '14.0.0',
+          '@testing-library/jest-dom': '5.17.0',
+        },
         scripts: {
-          // Runs jest and bails if jest fails
-          build:
-            'pnpm jest --forceExit tests/index.test.tsx && pnpm next build',
+          build: 'pnpm jest --forceExit tests/index.test.tsx',
         },
       },
     })
@@ -44,8 +41,13 @@ describe('next/jest', () => {
   afterAll(() => next.destroy())
 
   it('Should not throw preload is undefined error', async () => {
-    expect(next.cliOutput).not.toContain(
-      '"Error: Uncaught [TypeError: (0 , _reactdom.preload) is not a function]'
-    )
+    const { stdout } = await execa('pnpm', ['jest', 'tests/index.test.tsx'], {
+      cwd: next.testDir,
+      env: { ...process.env },
+    })
+    //const { cliOutput } = await next.build()
+    //await next.start()
+    await require('timers/promises').setTimeout(1000)
+    expect(stdout).toContain('blarg')
   })
 })
