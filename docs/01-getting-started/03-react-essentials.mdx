@@ -3,35 +3,7 @@ title: React Essentials
 description: An overview of essential React features for building Next.js Applications, including Server Components.
 ---
 
-### Thinking in Server Components
-
-Similar to how React changed the way we think about building UIs, React Server Components introduce a new mental model for building hybrid applications that leverage the server and the client.
-
-Instead of React rendering your whole application client-side (such as in the case of Single-Page Applications), React now gives you the flexibility to choose where to render your components based on their purpose.
-
-For example, consider a [page](/docs/app/building-your-application/routing/pages-and-layouts#pages) in your application:
-
-<Image
-  alt="Thinking in Server Components"
-  srcLight="/docs/light/thinking-in-server-components.png"
-  srcDark="/docs/dark/thinking-in-server-components.png"
-  width="1600"
-  height="652"
-/>
-
 If we were to split the page into smaller components, you'll notice that the majority of components are non-interactive and can be rendered on the server as Server Components. For smaller pieces of interactive UI, we can _sprinkle in_ Client Components. This aligns with Next.js server-first approach.
-
-### Why Server Components?
-
-So, you may be thinking, why Server Components? What are the advantages of using them over Client Components?
-
-Server Components allow developers to better leverage server infrastructure. For example, you can move data fetching to the server, closer to your database, and keep large dependencies that previously would impact the client JavaScript bundle size on the server, leading to improved performance. Server Components make writing a React application feel similar to PHP or Ruby on Rails, but with the power and flexibility of React and the components model for templating UI.
-
-With Server Components, the initial page load is faster, and the client-side JavaScript bundle size is reduced. The base client-side runtime is **cacheable** and **predictable** in size, and does _not_ increase as your application grows. Additional JavaScript is _only added_ as client-side interactivity is used in your application through [Client Components](#client-components).
-
-When a route is loaded with Next.js, the initial HTML is rendered on the server. This HTML is then **progressively enhanced** in the browser, allowing the client to take over the application and add interactivity, by asynchronously loading the Next.js and React client-side runtime.
-
-To make the transition to Server Components easier, all components inside the [App Router](/docs/app/building-your-application/routing#the-app-router) are Server Components by default, including [special files](/docs/app/building-your-application/routing#file-conventions) and [colocated components](/docs/app/building-your-application/routing#colocation). This allows you to automatically adopt them with no extra work, and achieve great performance out of the box. You can also optionally opt-in to Client Components using the ['use client' directive](#the-use-client-directive).
 
 ## Client Components
 
