@@ -20,7 +20,15 @@ export const getDebugPort = () => {
       )
       ?.split('=', 2)[1] ??
     process.env.NODE_OPTIONS?.match?.(/--inspect(-brk)?(=(\S+))?( |$)/)?.[3]
-  return debugPortStr ? parseInt(debugPortStr, 10) : 9229
+  const matched = debugPortStr ? debugPortStr.match(/(?<=:)\d+$/) : undefined
+  let parsedDebugPort =
+    matched && Array.isArray(matched) && matched.length > 0
+      ? parseInt(matched[0], 10)
+      : 9229
+  if (!matched && debugPortStr) {
+    parsedDebugPort = parseInt(debugPortStr, 10)
+  }
+  return parsedDebugPort
 }
 
 const NODE_INSPECT_RE = /--inspect(-brk)?(=\S+)?( |$)/
