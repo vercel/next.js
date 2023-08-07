@@ -112,16 +112,14 @@
         "no-useless-constructor": "off",
         "@typescript-eslint/no-useless-constructor": "warn",
         "@typescript-eslint/prefer-literal-enum-member": "error"
-      },
-      "overrides": [
-        {
-          "files": ["packages/**"],
-          "rules": {
-            "jsdoc/no-types": "error",
-            "jsdoc/no-undefined-types": "error"
-          }
-        }
-      ]
+      }
+    },
+    {
+      "files": ["packages/**/*.tsx?"],
+      "rules": {
+        "jsdoc/no-types": "error",
+        "jsdoc/no-undefined-types": "error"
+      }
     },
     {
       "files": [
