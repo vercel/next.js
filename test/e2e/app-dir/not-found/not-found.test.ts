@@ -37,6 +37,15 @@ createNextDescribe(
         expect(html).toContain("I'm still a valid page")
       })
 
+      it('should match dynamic route not-found boundary correctly', async () => {
+        const $dynamic = await next.render$('/dynamic')
+        const $dynamicId = await next.render$('/dynamic/123')
+        // `/dynamic` display works
+        expect($dynamic('main').text()).toBe('dynamic')
+        // `/dynamic/[id]` calling notFound() will match the same level not-found boundary
+        expect($dynamicId('#not-found').text()).toBe('dynamic/[id] not found')
+      })
+
       if (isNextDev) {
         it('should not reload the page', async () => {
           const browser = await next.browser('/random-content')
