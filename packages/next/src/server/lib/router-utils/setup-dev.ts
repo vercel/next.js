@@ -48,6 +48,7 @@ import {
   COMPILER_NAMES,
   DEV_CLIENT_PAGES_MANIFEST,
   DEV_MIDDLEWARE_MANIFEST,
+  MIDDLEWARE_MANIFEST,
   NEXT_FONT_MANIFEST,
   PAGES_MANIFEST,
   PHASE_DEVELOPMENT_SERVER,
@@ -78,6 +79,7 @@ import { PagesManifest } from '../../../build/webpack/plugins/pages-manifest-plu
 import { AppBuildManifest } from '../../../build/webpack/plugins/app-build-manifest-plugin'
 import { PageNotFoundError } from '../../../shared/lib/utils'
 import { srcEmptySsgManifest } from '../../../build/webpack/plugins/build-manifest-plugin'
+import { MiddlewareManifest } from '../../../build/webpack/plugins/middleware-plugin'
 
 type SetupOpts = {
   dir: string
@@ -203,6 +205,7 @@ async function startWatcher(opts: SetupOpts) {
     const appBuildManifests = new Map<string, AppBuildManifest>()
     const pagesManifests = new Map<string, PagesManifest>()
     const appPathsManifests = new Map<string, PagesManifest>()
+    const middlewareManifests = new Map<string, MiddlewareManifest>()
 
     function mergeBuildManifests(manifests: Iterable<BuildManifest>) {
       const manifest: Partial<BuildManifest> & Pick<BuildManifest, 'pages'> = {
@@ -241,6 +244,21 @@ async function startWatcher(opts: SetupOpts) {
       const manifest: PagesManifest = {}
       for (const m of manifests) {
         Object.assign(manifest, m)
+      }
+      return manifest
+    }
+
+    function mergeMiddlewareManifests(
+      manifests: Iterable<MiddlewareManifest>
+    ): MiddlewareManifest {
+      const manifest: MiddlewareManifest = {
+        version: 2,
+        middleware: {},
+        sortedMiddleware: [],
+        functions: {},
+      }
+      for (const m of manifests) {
+        Object.assign(manifest.functions, m.functions)
       }
       return manifest
     }
@@ -352,6 +370,9 @@ async function startWatcher(opts: SetupOpts) {
     }
 
     async function writeMiddlewareManifest(): Promise<void> {
+      const middlewareManifest = mergeMiddlewareManifests(
+        middlewareManifests.values()
+      )
       const middlewareManifestPath = path.join(
         distDir,
         'server/middleware-manifest.json'
@@ -359,16 +380,7 @@ async function startWatcher(opts: SetupOpts) {
       await clearCache(middlewareManifestPath)
       await writeFile(
         middlewareManifestPath,
-        JSON.stringify(
-          {
-            sortedMiddleware: [],
-            middleware: {},
-            functions: {},
-            version: 2,
-          },
-          null,
-          2
-        ),
+        JSON.stringify(middlewareManifest, null, 2),
         'utf-8'
       )
     }
@@ -499,6 +511,22 @@ async function startWatcher(opts: SetupOpts) {
               )
             }
 
+            async function loadMiddlewareManifest(
+              pageName: string,
+              isApp: boolean = false,
+              isRoute: boolean = false
+            ): Promise<void> {
+              middlewareManifests.set(
+                pageName,
+                await loadPartialManifest(
+                  MIDDLEWARE_MANIFEST,
+                  pageName,
+                  isApp,
+                  isRoute
+                )
+              )
+            }
+
             if (page === '/_error') {
               await processResult(await globalEntries.app?.writeToDisk())
               await loadBuildManifest('_app')
@@ -594,13 +622,18 @@ async function startWatcher(opts: SetupOpts) {
                 break
               }
               case 'app-route': {
-                await processResult(await route.endpoint.writeToDisk())
+                const type = (
+                  await processResult(await route.endpoint.writeToDisk())
+                )?.type
 
                 await loadAppPathManifest(page, true)
+                if (type === 'edge')
+                  await loadMiddlewareManifest(page, true, true)
 
                 await writeAppBuildManifest()
                 await writeAppPathsManifest()
                 await writeMiddlewareManifest()
+                if (type === 'edge') await writeMiddlewareManifest()
                 await writeOtherManifests()
 
                 break
