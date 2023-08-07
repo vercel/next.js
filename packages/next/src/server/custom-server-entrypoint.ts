@@ -12,7 +12,7 @@ import './require-hook'
 import './node-polyfill-fetch'
 import './node-polyfill-crypto'
 
-import type { default as Server } from './next-server'
+import { default as Server } from './next-server'
 import * as log from '../build/output/log'
 import loadConfig from './config'
 import { resolve } from 'path'
@@ -55,18 +55,15 @@ const SYMBOL_LOAD_CONFIG = Symbol('next.load_config')
 class NextServer {
   private serverPromise?: Promise<Server>
   private server?: Server
+  private reqHandler?: NodeRequestHandler
+  private reqHandlerPromise?: Promise<NodeRequestHandler>
   private preparedAssetPrefix?: string
-  private didWebSocketSetup: boolean = false
-  private requestHandler: WorkerRequestHandler
-  private upgradeHandler: WorkerUpgradeHandler
-  private dir: string
 
-  private standaloneMode: boolean = true
+  private standaloneMode?: boolean
 
   public options: NextServerOptions
 
-  constructor(dir: string, options: NextServerOptions) {
-    this.dir = dir
+  constructor(options: NextServerOptions) {
     this.options = options
   }
 
@@ -78,49 +75,25 @@ class NextServer {
     return this.options.port
   }
 
-  private setupWebSocketHandler(
-    customServer?: import('http').Server,
-    _req?: IncomingMessage
-  ) {
-    if (!this.didWebSocketSetup) {
-      this.didWebSocketSetup = true
-      customServer = customServer || (_req?.socket as any)?.server
-
-      if (!customServer) {
-        // this is very unlikely to happen but show an error in case
-        // it does somehow
-        console.error(
-          `Invalid IncomingMessage received, make sure http.createServer is being used to handle requests.`
-        )
-      } else {
-        customServer.on('upgrade', async (req, socket, head) => {
-          this.upgradeHandler(req, socket, head)
-        })
-      }
-    }
-  }
-
   getRequestHandler(): RequestHandler {
     return async (
       req: IncomingMessage,
       res: ServerResponse,
       parsedUrl?: UrlWithParsedQuery
     ) => {
-      this.setupWebSocketHandler(this.options.httpServer, req)
-
-      if (parsedUrl) {
-        req.url = formatUrl(parsedUrl)
-      }
-
       return getTracer().trace(NextServerSpan.getRequestHandler, async () => {
-        return this.requestHandler(req, res)
+        const requestHandler = await this.getServerRequestHandler()
+        return requestHandler(req, res, parsedUrl)
       })
     }
   }
 
   getUpgradeHandler() {
     return async (req: IncomingMessage, socket: any, head: any) => {
-      this.upgradeHandler(req, socket, head)
+      const server = await this.getServer()
+      // @ts-expect-error we mark this as protected so it
+      // causes an error here
+      return server.handleUpgrade.apply(server, [req, socket, head])
     }
   }
 
@@ -138,26 +111,9 @@ class NextServer {
     }
   }
 
-  async render(
-    req: IncomingMessage,
-    res: ServerResponse,
-    pathname: string,
-    query?: NextParsedUrlQuery,
-    parsedUrl?: NextUrlWithParsedQuery
-  ): Promise<void> {
-    if (!pathname.startsWith('/')) {
-      console.error(`Cannot render page with path "${pathname}"`)
-      pathname = `/${pathname}`
-    }
-    pathname = pathname === '/index' ? '/' : pathname
-
-    req.url = formatUrl({
-      ...parsedUrl,
-      pathname,
-      query,
-    })
-
-    await this.requestHandler(req, res)
+  async render(...args: Parameters<Server['render']>) {
+    const server = await this.getServer()
+    return server.render(...args)
   }
 
   async renderToHTML(...args: Parameters<Server['renderToHTML']>) {
@@ -180,22 +136,19 @@ class NextServer {
     return server.render404(...args)
   }
 
-  async prepare() {
-    const { getRouterRequestHandlers } =
-      require('./lib/get-router-request-handlers') as typeof import('./lib/get-router-request-handlers')
+  async prepare(serverFields?: any) {
+    if (this.standaloneMode) return
 
-    const isNodeDebugging = checkIsNodeDebugging()
+    const server = await this.getServer()
 
-    const initResult = await getRouterRequestHandlers({
-      dir: this.dir,
-      port: this.options.port || 3000,
-      isDev: !!this.options.dev,
-      hostname: this.options.hostname || 'localhost',
-      minimalMode: this.options.minimalMode,
-      isNodeDebugging: !!isNodeDebugging,
-    })
-    this.requestHandler = initResult[0]
-    this.upgradeHandler = initResult[1]
+    if (serverFields) {
+      Object.assign(server, serverFields)
+    }
+    // We shouldn't prepare the server in production,
+    // because this code won't be executed when deployed
+    if (this.options.dev) {
+      await server.prepare()
+    }
   }
 
   async close() {
@@ -261,6 +214,23 @@ class NextServer {
     }
     return this.serverPromise
   }
+
+  private async getServerRequestHandler() {
+    if (this.reqHandler) return this.reqHandler
+
+    // Memoize request handler creation
+    if (!this.reqHandlerPromise) {
+      this.reqHandlerPromise = this.getServer().then((server) => {
+        this.reqHandler = getTracer().wrap(
+          NextServerSpan.getServerRequestHandler,
+          server.getRequestHandler().bind(server)
+        )
+        delete this.reqHandlerPromise
+        return this.reqHandler
+      })
+    }
+    return this.reqHandlerPromise
+  }
 }
 
 // This file is used for when users run `require('next')`
@@ -294,10 +264,114 @@ function createServer(options: NextServerOptions): NextServer {
     )
   }
 
-  const dir = resolve(options.dir || '.')
-  const server = new NextServer(dir, options)
+  if (options.customServer !== false) {
+    const dir = resolve(options.dir || '.')
+    const server = new NextServer(options)
 
-  return server as any
+    const { getRequestHandlers } =
+      require('./lib/start-server') as typeof import('./lib/start-server')
+
+    let didWebSocketSetup = false
+    let requestHandler: WorkerRequestHandler
+    let upgradeHandler: WorkerUpgradeHandler
+
+    function setupWebSocketHandler(
+      customServer?: import('http').Server,
+      _req?: IncomingMessage
+    ) {
+      if (!didWebSocketSetup) {
+        didWebSocketSetup = true
+        customServer = customServer || (_req?.socket as any)?.server
+
+        if (!customServer) {
+          // this is very unlikely to happen but show an error in case
+          // it does somehow
+          console.error(
+            `Invalid IncomingMessage received, make sure http.createServer is being used to handle requests.`
+          )
+        } else {
+          customServer.on('upgrade', async (req, socket, head) => {
+            upgradeHandler(req, socket, head)
+          })
+        }
+      }
+    }
+    return new Proxy(
+      {},
+      {
+        get: function (_, propKey) {
+          switch (propKey) {
+            case 'prepare':
+              return async () => {
+                const isNodeDebugging = checkIsNodeDebugging()
+
+                const initResult = await getRequestHandlers({
+                  dir,
+                  port: options.port || 3000,
+                  isDev: !!options.dev,
+                  hostname: options.hostname || 'localhost',
+                  minimalMode: options.minimalMode,
+                  isNodeDebugging: !!isNodeDebugging,
+                })
+                requestHandler = initResult[0]
+                upgradeHandler = initResult[1]
+              }
+            case 'getRequestHandler': {
+              return () => {
+                return async (
+                  req: IncomingMessage,
+                  res: ServerResponse,
+                  parsedUrl?: UrlWithParsedQuery
+                ) => {
+                  setupWebSocketHandler(options.httpServer, req)
+
+                  if (parsedUrl) {
+                    req.url = formatUrl(parsedUrl)
+                  }
+
+                  requestHandler(req, res)
+                  return
+                }
+              }
+            }
+            case 'render': {
+              return async (
+                req: IncomingMessage,
+                res: ServerResponse,
+                pathname: string,
+                query?: NextParsedUrlQuery,
+                parsedUrl?: NextUrlWithParsedQuery
+              ) => {
+                setupWebSocketHandler(options.httpServer, req)
+
+                if (!pathname.startsWith('/')) {
+                  console.error(`Cannot render page with path "${pathname}"`)
+                  pathname = `/${pathname}`
+                }
+                pathname = pathname === '/index' ? '/' : pathname
+
+                req.url = formatUrl({
+                  ...parsedUrl,
+                  pathname,
+                  query,
+                })
+
+                requestHandler(req, res)
+                return
+              }
+            }
+            default: {
+              const method = server[propKey as keyof NextServer]
+              if (typeof method === 'function') {
+                return method.bind(server)
+              }
+            }
+          }
+        },
+      }
+    ) as any
+  }
+  return new NextServer(options)
 }
 
 // Support commonjs `require('next')`

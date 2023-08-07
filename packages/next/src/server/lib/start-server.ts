@@ -7,12 +7,12 @@ import { isIPv6 } from 'net'
 import * as Log from '../../build/output/log'
 import setupDebug from 'next/dist/compiled/debug'
 import { getDebugPort } from './utils'
+import { initialize } from './router-server'
 import {
   WorkerRequestHandler,
   WorkerUpgradeHandler,
 } from './setup-server-worker'
 import { checkIsNodeDebugging } from './is-node-debugging'
-import { getRouterRequestHandlers } from './get-router-request-handlers'
 const debug = setupDebug('next:start-server')
 
 export interface StartServerOptions {
@@ -25,6 +25,35 @@ export interface StartServerOptions {
   customServer?: boolean
   minimalMode?: boolean
   keepAliveTimeout?: number
+}
+
+export async function getRequestHandlers({
+  dir,
+  port,
+  isDev,
+  hostname,
+  minimalMode,
+  isNodeDebugging,
+  keepAliveTimeout,
+}: {
+  dir: string
+  port: number
+  isDev: boolean
+  hostname: string
+  minimalMode?: boolean
+  isNodeDebugging?: boolean
+  keepAliveTimeout?: number
+}): ReturnType<typeof initialize> {
+  return initialize({
+    dir,
+    port,
+    hostname,
+    dev: isDev,
+    minimalMode,
+    workerType: 'router',
+    isNodeDebugging: isNodeDebugging || false,
+    keepAliveTimeout,
+  })
 }
 
 export async function startServer({
@@ -169,7 +198,7 @@ export async function startServer({
         process.on('uncaughtException', cleanup)
         process.on('unhandledRejection', cleanup)
 
-        const initResult = await getRouterRequestHandlers({
+        const initResult = await getRequestHandlers({
           dir,
           port,
           isDev,
