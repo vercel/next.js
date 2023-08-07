@@ -1305,20 +1305,6 @@ export default async function getBaseWebpackConfig(
       resolveRequest: string
     ) => Promise<[string | null, boolean]>
   ) {
-    // if (
-    //   request.includes('dist/compiled/next-server/app-page-render.runtime.js')
-    // ) {
-    //   return `next/dist/compiled/next-server/app-page-render.runtime.js`
-    // }
-
-    // if (request.includes('dist/compiled/next-server/pages-render.runtime.js')) {
-    //   return `next/dist/compiled/next-server/pages-render.runtime.js`
-    // }
-
-    // if (request.includes('dist/compiled/next-server/pages-api.runtime.js')) {
-    //   return `next/dist/compiled/next-server/pages-api.runtime.js`
-    // }
-
     // We need to externalize internal requests for files intended to
     // not be bundled.
     const isLocal: boolean =
@@ -1447,7 +1433,9 @@ export default async function getBaseWebpackConfig(
       const isExternal = externalPattern.test(localRes)
 
       if (isExternal) {
-        return `commonjs ${localRes}`
+        // it's important we return the path that starts with `next/dist/` here instead of the absolute path
+        // otherwise NFT will get tripped up
+        return `commonjs ${localRes.replace(/.*?next[\/\\]dist/, 'next/dist')}`
       }
       if (isSharedRuntime) {
         if (dev) {
