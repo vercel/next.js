@@ -759,7 +759,7 @@ pub async fn handle_issues<T>(
 
     let has_fatal = issue_reporter.report_issues(
         TransientInstance::new(issues.clone()),
-        TransientValue::new(source.node),
+        TransientValue::new(Vc::into_raw(source)),
         min_failing_severity,
     );
 
