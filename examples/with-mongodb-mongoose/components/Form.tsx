@@ -3,7 +3,7 @@ import { useRouter } from 'next/router'
 import { mutate } from 'swr'
 
 
-interface Iform  {
+interface IForm  {
   name: string,
   owner_name: string,
   species: string,
