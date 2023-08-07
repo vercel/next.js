@@ -1,13 +1,13 @@
-import type { PlopTypes } from '@turbo/gen'
+import { type NodePlopAPI } from 'node-plop'
 import path from 'path'
 import * as helpers from './helpers'
 
-interface TestResponse extends Parameters<PlopTypes.DynamicActionsFunction> {
+interface TestResponse {
   appDir: string
   type: 'e2e' | 'production' | 'development' | 'unit'
 }
 
-interface ErrorResponse extends Parameters<PlopTypes.DynamicActionsFunction> {
+interface ErrorResponse {
   name: string
   title: string
   why: string
@@ -23,7 +23,7 @@ function validateNonEmptyString(field: string) {
   }
 }
 
-export default function generator(plop: PlopTypes.NodePlopAPI): void {
+export default function generator(plop: NodePlopAPI): void {
   // make our custom helpers available for use in templates as handlebars helpers
   helpers.init(plop)
 
