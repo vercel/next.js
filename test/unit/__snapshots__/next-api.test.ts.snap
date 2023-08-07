@@ -1,0 +1,505 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`next.rs api should allow to write app Node.js page to disk: diagnostics 1`] = `Array []`;
+
+exports[`next.rs api should allow to write app Node.js page to disk: issues 1`] = `Array []`;
+
+exports[`next.rs api should allow to write app Node.js page to disk: rsc diagnostics 1`] = `Array []`;
+
+exports[`next.rs api should allow to write app Node.js page to disk: rsc issues 1`] = `Array []`;
+
+exports[`next.rs api should allow to write app Node.js route to disk: diagnostics 1`] = `Array []`;
+
+exports[`next.rs api should allow to write app Node.js route to disk: issues 1`] = `Array []`;
+
+exports[`next.rs api should allow to write app edge route to disk: diagnostics 1`] = `Array []`;
+
+exports[`next.rs api should allow to write app edge route to disk: issues 1`] = `Array []`;
+
+exports[`next.rs api should allow to write pages Node.js api to disk: diagnostics 1`] = `Array []`;
+
+exports[`next.rs api should allow to write pages Node.js api to disk: issues 1`] = `Array []`;
+
+exports[`next.rs api should allow to write pages Node.js page to disk: diagnostics 1`] = `Array []`;
+
+exports[`next.rs api should allow to write pages Node.js page to disk: issues 1`] = `Array []`;
+
+exports[`next.rs api should allow to write pages edge api to disk: diagnostics 1`] = `Array []`;
+
+exports[`next.rs api should allow to write pages edge api to disk: issues 1`] = `
+Array [
+  Object {
+    "category": "resolve",
+    "description": "unable to resolve module \\"crypto\\"",
+    "detail": "It was not possible to find the requested file.
+Parsed request as written in source code: module \\"crypto\\"
+Path where resolving has started: [project]/packages/next/dist/compiled/jsonwebtoken/index.js
+Type of request: commonjs request
+Import map: No import map entry
+",
+    "documentationLink": "",
+    "filePath": "[project]/packages/next/dist/compiled/jsonwebtoken/index.js",
+    "severity": "error",
+    "source": Object {
+      "end": Object {
+        "column": 995,
+        "line": 10,
+      },
+      "source": "[project]/packages/next/dist/compiled/jsonwebtoken/index.js",
+      "start": Object {
+        "column": 978,
+        "line": 10,
+      },
+    },
+    "subIssues": Array [],
+    "title": "Error resolving commonjs request",
+  },
+  Object {
+    "category": "resolve",
+    "description": "unable to resolve module \\"crypto\\"",
+    "detail": "It was not possible to find the requested file.
+Parsed request as written in source code: module \\"crypto\\"
+Path where resolving has started: [project]/packages/next/dist/compiled/jsonwebtoken/index.js
+Type of request: commonjs request
+Import map: No import map entry
+",
+    "documentationLink": "",
+    "filePath": "[project]/packages/next/dist/compiled/jsonwebtoken/index.js",
+    "severity": "error",
+    "source": Object {
+      "end": Object {
+        "column": 995,
+        "line": 10,
+      },
+      "source": "[project]/packages/next/dist/compiled/jsonwebtoken/index.js",
+      "start": Object {
+        "column": 978,
+        "line": 10,
+      },
+    },
+    "subIssues": Array [],
+    "title": "Error resolving commonjs request",
+  },
+  Object {
+    "category": "resolve",
+    "description": "unable to resolve module \\"stream\\"",
+    "detail": "It was not possible to find the requested file.
+Parsed request as written in source code: module \\"stream\\"
+Path where resolving has started: [project]/packages/next/dist/compiled/jsonwebtoken/index.js
+Type of request: commonjs request
+Import map: No import map entry
+",
+    "documentationLink": "",
+    "filePath": "[project]/packages/next/dist/compiled/jsonwebtoken/index.js",
+    "severity": "error",
+    "source": Object {
+      "end": Object {
+        "column": 1114,
+        "line": 10,
+      },
+      "source": "[project]/packages/next/dist/compiled/jsonwebtoken/index.js",
+      "start": Object {
+        "column": 1097,
+        "line": 10,
+      },
+    },
+    "subIssues": Array [],
+    "title": "Error resolving commonjs request",
+  },
+  Object {
+    "category": "resolve",
+    "description": "unable to resolve module \\"stream\\"",
+    "detail": "It was not possible to find the requested file.
+Parsed request as written in source code: module \\"stream\\"
+Path where resolving has started: [project]/packages/next/dist/compiled/jsonwebtoken/index.js
+Type of request: commonjs request
+Import map: No import map entry
+",
+    "documentationLink": "",
+    "filePath": "[project]/packages/next/dist/compiled/jsonwebtoken/index.js",
+    "severity": "error",
+    "source": Object {
+      "end": Object {
+        "column": 1114,
+        "line": 10,
+      },
+      "source": "[project]/packages/next/dist/compiled/jsonwebtoken/index.js",
+      "start": Object {
+        "column": 1097,
+        "line": 10,
+      },
+    },
+    "subIssues": Array [],
+    "title": "Error resolving commonjs request",
+  },
+  Object {
+    "category": "resolve",
+    "description": "unable to resolve module \\"path\\"",
+    "detail": "It was not possible to find the requested file.
+Parsed request as written in source code: module \\"path\\"
+Path where resolving has started: [project]/packages/next/dist/compiled/raw-body/index.js
+Type of request: commonjs request
+Import map: No import map entry
+",
+    "documentationLink": "",
+    "filePath": "[project]/packages/next/dist/compiled/raw-body/index.js",
+    "severity": "error",
+    "source": Object {
+      "end": Object {
+        "column": 669,
+        "line": 50,
+      },
+      "source": "[project]/packages/next/dist/compiled/raw-body/index.js",
+      "start": Object {
+        "column": 654,
+        "line": 50,
+      },
+    },
+    "subIssues": Array [],
+    "title": "Error resolving commonjs request",
+  },
+  Object {
+    "category": "resolve",
+    "description": "unable to resolve module \\"path\\"",
+    "detail": "It was not possible to find the requested file.
+Parsed request as written in source code: module \\"path\\"
+Path where resolving has started: [project]/packages/next/dist/compiled/raw-body/index.js
+Type of request: commonjs request
+Import map: No import map entry
+",
+    "documentationLink": "",
+    "filePath": "[project]/packages/next/dist/compiled/raw-body/index.js",
+    "severity": "error",
+    "source": Object {
+      "end": Object {
+        "column": 669,
+        "line": 50,
+      },
+      "source": "[project]/packages/next/dist/compiled/raw-body/index.js",
+      "start": Object {
+        "column": 654,
+        "line": 50,
+      },
+    },
+    "subIssues": Array [],
+    "title": "Error resolving commonjs request",
+  },
+  Object {
+    "category": "resolve",
+    "description": "unable to resolve module \\"stream\\"",
+    "detail": "It was not possible to find the requested file.
+Parsed request as written in source code: module \\"stream\\"
+Path where resolving has started: [project]/packages/next/dist/compiled/raw-body/index.js
+Type of request: commonjs request
+Import map: No import map entry
+",
+    "documentationLink": "",
+    "filePath": "[project]/packages/next/dist/compiled/raw-body/index.js",
+    "severity": "error",
+    "source": Object {
+      "end": Object {
+        "column": 719,
+        "line": 50,
+      },
+      "source": "[project]/packages/next/dist/compiled/raw-body/index.js",
+      "start": Object {
+        "column": 702,
+        "line": 50,
+      },
+    },
+    "subIssues": Array [],
+    "title": "Error resolving commonjs request",
+  },
+  Object {
+    "category": "resolve",
+    "description": "unable to resolve module \\"stream\\"",
+    "detail": "It was not possible to find the requested file.
+Parsed request as written in source code: module \\"stream\\"
+Path where resolving has started: [project]/packages/next/dist/compiled/raw-body/index.js
+Type of request: commonjs request
+Import map: No import map entry
+",
+    "documentationLink": "",
+    "filePath": "[project]/packages/next/dist/compiled/raw-body/index.js",
+    "severity": "error",
+    "source": Object {
+      "end": Object {
+        "column": 719,
+        "line": 50,
+      },
+      "source": "[project]/packages/next/dist/compiled/raw-body/index.js",
+      "start": Object {
+        "column": 702,
+        "line": 50,
+      },
+    },
+    "subIssues": Array [],
+    "title": "Error resolving commonjs request",
+  },
+  Object {
+    "category": "resolve",
+    "description": "unable to resolve module \\"querystring\\"",
+    "detail": "It was not possible to find the requested file.
+Parsed request as written in source code: module \\"querystring\\"
+Path where resolving has started: [project]/packages/next/dist/server/api-utils/node.js
+Type of request: commonjs request
+Import map: No import map entry
+",
+    "documentationLink": "",
+    "filePath": "[project]/packages/next/dist/server/api-utils/node.js",
+    "severity": "error",
+    "source": Object {
+      "end": Object {
+        "column": 42,
+        "line": 154,
+      },
+      "source": "[project]/packages/next/dist/server/api-utils/node.js",
+      "start": Object {
+        "column": 20,
+        "line": 154,
+      },
+    },
+    "subIssues": Array [],
+    "title": "Error resolving commonjs request",
+  },
+  Object {
+    "category": "resolve",
+    "description": "unable to resolve module \\"querystring\\"",
+    "detail": "It was not possible to find the requested file.
+Parsed request as written in source code: module \\"querystring\\"
+Path where resolving has started: [project]/packages/next/dist/server/api-utils/node.js
+Type of request: commonjs request
+Import map: No import map entry
+",
+    "documentationLink": "",
+    "filePath": "[project]/packages/next/dist/server/api-utils/node.js",
+    "severity": "error",
+    "source": Object {
+      "end": Object {
+        "column": 42,
+        "line": 154,
+      },
+      "source": "[project]/packages/next/dist/server/api-utils/node.js",
+      "start": Object {
+        "column": 20,
+        "line": 154,
+      },
+    },
+    "subIssues": Array [],
+    "title": "Error resolving commonjs request",
+  },
+  Object {
+    "category": "resolve",
+    "description": "unable to resolve module \\"stream\\"",
+    "detail": "It was not possible to find the requested file.
+Parsed request as written in source code: module \\"stream\\"
+Path where resolving has started: [project]/packages/next/dist/server/api-utils/node.js
+Type of request: commonjs request
+Import map: No import map entry
+",
+    "documentationLink": "",
+    "filePath": "[project]/packages/next/dist/server/api-utils/node.js",
+    "severity": "error",
+    "source": Object {
+      "end": Object {
+        "column": 34,
+        "line": 30,
+      },
+      "source": "[project]/packages/next/dist/server/api-utils/node.js",
+      "start": Object {
+        "column": 17,
+        "line": 30,
+      },
+    },
+    "subIssues": Array [],
+    "title": "Error resolving commonjs request",
+  },
+  Object {
+    "category": "resolve",
+    "description": "unable to resolve module \\"stream\\"",
+    "detail": "It was not possible to find the requested file.
+Parsed request as written in source code: module \\"stream\\"
+Path where resolving has started: [project]/packages/next/dist/server/api-utils/node.js
+Type of request: commonjs request
+Import map: No import map entry
+",
+    "documentationLink": "",
+    "filePath": "[project]/packages/next/dist/server/api-utils/node.js",
+    "severity": "error",
+    "source": Object {
+      "end": Object {
+        "column": 34,
+        "line": 30,
+      },
+      "source": "[project]/packages/next/dist/server/api-utils/node.js",
+      "start": Object {
+        "column": 17,
+        "line": 30,
+      },
+    },
+    "subIssues": Array [],
+    "title": "Error resolving commonjs request",
+  },
+  Object {
+    "category": "resolve",
+    "description": "unable to resolve module \\"crypto\\"",
+    "detail": "It was not possible to find the requested file.
+Parsed request as written in source code: module \\"crypto\\"
+Path where resolving has started: [project]/packages/next/dist/server/crypto-utils.js
+Type of request: commonjs request
+Import map: No import map entry
+",
+    "documentationLink": "",
+    "filePath": "[project]/packages/next/dist/server/crypto-utils.js",
+    "severity": "error",
+    "source": Object {
+      "end": Object {
+        "column": 73,
+        "line": 22,
+      },
+      "source": "[project]/packages/next/dist/server/crypto-utils.js",
+      "start": Object {
+        "column": 56,
+        "line": 22,
+      },
+    },
+    "subIssues": Array [],
+    "title": "Error resolving commonjs request",
+  },
+  Object {
+    "category": "resolve",
+    "description": "unable to resolve module \\"crypto\\"",
+    "detail": "It was not possible to find the requested file.
+Parsed request as written in source code: module \\"crypto\\"
+Path where resolving has started: [project]/packages/next/dist/server/crypto-utils.js
+Type of request: commonjs request
+Import map: No import map entry
+",
+    "documentationLink": "",
+    "filePath": "[project]/packages/next/dist/server/crypto-utils.js",
+    "severity": "error",
+    "source": Object {
+      "end": Object {
+        "column": 73,
+        "line": 22,
+      },
+      "source": "[project]/packages/next/dist/server/crypto-utils.js",
+      "start": Object {
+        "column": 56,
+        "line": 22,
+      },
+    },
+    "subIssues": Array [],
+    "title": "Error resolving commonjs request",
+  },
+]
+`;
+
+exports[`next.rs api should allow to write pages edge page to disk: diagnostics 1`] = `Array []`;
+
+exports[`next.rs api should allow to write pages edge page to disk: issues 1`] = `Array []`;
+
+exports[`next.rs api should detect the correct routes: diagnostics 1`] = `
+Array [
+  Object {
+    "category": "NextFeatureTelemetry_category_tbd",
+    "name": "EVENT_BUILD_FEATURE_USAGE",
+    "payload": Object {
+      "modularizeImports": "true",
+    },
+  },
+  Object {
+    "category": "NextFeatureTelemetry_category_tbd",
+    "name": "EVENT_BUILD_FEATURE_USAGE",
+    "payload": Object {
+      "skipMiddlewareUrlNormalize": "false",
+    },
+  },
+  Object {
+    "category": "NextFeatureTelemetry_category_tbd",
+    "name": "EVENT_BUILD_FEATURE_USAGE",
+    "payload": Object {
+      "skipTrailingSlashRedirect": "false",
+    },
+  },
+  Object {
+    "category": "NextFeatureTelemetry_category_tbd",
+    "name": "EVENT_BUILD_FEATURE_USAGE",
+    "payload": Object {
+      "swcEmotion": "false",
+    },
+  },
+  Object {
+    "category": "NextFeatureTelemetry_category_tbd",
+    "name": "EVENT_BUILD_FEATURE_USAGE",
+    "payload": Object {
+      "swcExperimentalDecorators": "false",
+    },
+  },
+  Object {
+    "category": "NextFeatureTelemetry_category_tbd",
+    "name": "EVENT_BUILD_FEATURE_USAGE",
+    "payload": Object {
+      "swcImportSource": "false",
+    },
+  },
+  Object {
+    "category": "NextFeatureTelemetry_category_tbd",
+    "name": "EVENT_BUILD_FEATURE_USAGE",
+    "payload": Object {
+      "swcMinify": "true",
+    },
+  },
+  Object {
+    "category": "NextFeatureTelemetry_category_tbd",
+    "name": "EVENT_BUILD_FEATURE_USAGE",
+    "payload": Object {
+      "swcReactRemoveProperties": "false",
+    },
+  },
+  Object {
+    "category": "NextFeatureTelemetry_category_tbd",
+    "name": "EVENT_BUILD_FEATURE_USAGE",
+    "payload": Object {
+      "swcRelay": "false",
+    },
+  },
+  Object {
+    "category": "NextFeatureTelemetry_category_tbd",
+    "name": "EVENT_BUILD_FEATURE_USAGE",
+    "payload": Object {
+      "swcRemoveConsole": "false",
+    },
+  },
+  Object {
+    "category": "NextFeatureTelemetry_category_tbd",
+    "name": "EVENT_BUILD_FEATURE_USAGE",
+    "payload": Object {
+      "swcStyledComponents": "false",
+    },
+  },
+  Object {
+    "category": "NextFeatureTelemetry_category_tbd",
+    "name": "EVENT_BUILD_FEATURE_USAGE",
+    "payload": Object {
+      "transpilePackages": "false",
+    },
+  },
+  Object {
+    "category": "NextFeatureTelemetry_category_tbd",
+    "name": "EVENT_BUILD_FEATURE_USAGE",
+    "payload": Object {
+      "turbotrace": "false",
+    },
+  },
+  Object {
+    "category": "NextFeatureTelemetry_category_tbd",
+    "name": "EVENT_BUILD_FEATURE_USAGE",
+    "payload": Object {
+      "x86_64-unknown-linux-gnu": "true",
+    },
+  },
+]
+`;
+
+exports[`next.rs api should detect the correct routes: issues 1`] = `Array []`;
