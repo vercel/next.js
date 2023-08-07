@@ -1,5 +1,4 @@
 import type arg from 'next/dist/compiled/arg/index.js'
-import * as Log from '../../build/output/log'
 
 export function printAndExit(message: string, code = 1) {
   if (code === 0) {
