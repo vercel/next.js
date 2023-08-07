@@ -1,6 +1,5 @@
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
-import { renderViaHTTP } from 'next-test-utils'
 import path from 'path'
 
 const appDir = path.join(__dirname, 'app')
@@ -10,8 +9,8 @@ describe('next/jest', () => {
 
   beforeAll(async () => {
     next = await createNext({
+      skipStart: true,
       files: {
-        skipStart: true,
         app: new FileRef(path.join(appDir, 'app')),
         [`${appDir}/app/index.test.tsx`]: `
         import { render, screen } from '@testing-library/react'
