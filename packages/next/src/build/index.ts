@@ -143,11 +143,7 @@ import { generateInterceptionRoutesRewrites } from '../lib/generate-interception
 
 import { traceModule } from './utils/trace-module/trace-module'
 import { buildDataRoute } from '../server/lib/router-utils/build-data-route'
-import {
-  baseOverrides,
-  defaultOverrides,
-  experimentalOverrides,
-} from '../server/require-hook'
+import { baseOverrides, experimentalOverrides } from '../server/require-hook'
 import { initialize } from '../server/lib/incremental-cache-server'
 import { nodeFs } from '../server/lib/node-fs-methods'
 
@@ -2073,11 +2069,6 @@ export default async function build(
               require.resolve(
                 'next/dist/compiled/next-server/pages.runtime.prod'
               ),
-              ...(config.experimental.turbotrace
-                ? []
-                : Object.values(defaultOverrides).map((value) =>
-                    require.resolve(value)
-                  )),
             ]
 
             // ensure we trace any dependencies needed for custom

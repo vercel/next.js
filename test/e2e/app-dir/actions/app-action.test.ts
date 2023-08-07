@@ -393,6 +393,16 @@ createNextDescribe(
           return newTestCookie !== currentTestCookie ? 'success' : 'failure'
         }, 'success')
       })
+
+      it('should handle unicode search params', async () => {
+        const browser = await next.browser('/server?name=名')
+
+        const cnt = await browser.elementByCss('h1').text()
+        expect(cnt).toBe('0')
+
+        await browser.elementByCss('#inc').click()
+        await check(() => browser.elementByCss('h1').text(), '1')
+      })
     })
 
     describe('fetch actions', () => {

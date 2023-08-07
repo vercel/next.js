@@ -22,9 +22,10 @@ const resolve = process.env.NEXT_MINIMAL
 const toResolveMap = (map: Record<string, string>): [string, string][] =>
   Object.entries(map).map(([key, value]) => [key, resolve(value)])
 
+// these must use require.resolve to be statically analyzable
 export const defaultOverrides = {
-  'styled-jsx': dirname(resolve('styled-jsx/package.json')),
-  'styled-jsx/style': resolve('styled-jsx/style'),
+  'styled-jsx': dirname(require.resolve('styled-jsx/package.json')),
+  'styled-jsx/style': require.resolve('styled-jsx/style'),
 }
 
 const currentRuntime = `${
