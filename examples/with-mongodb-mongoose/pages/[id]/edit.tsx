@@ -10,7 +10,6 @@ const fetcher = (url: string) =>
 const EditPet = () => {
   const router = useRouter()
   const { id } = router.query
-  console.log(id)
   const {
     data: pet,
     error,
