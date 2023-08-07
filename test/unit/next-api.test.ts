@@ -92,7 +92,7 @@ describe('next.rs api', () => {
   })
 
   it('should detect the correct routes', async () => {
-    const entrypointsSubscribtion = await project.entrypointsSubscribe()
+    const entrypointsSubscribtion = project.entrypointsSubscribe()
     const entrypoints = await entrypointsSubscribtion.next()
     expect(entrypoints.done).toBe(false)
     expect(Array.from(entrypoints.value.routes.keys()).sort()).toEqual([
@@ -174,8 +174,9 @@ describe('next.rs api', () => {
     },
   ]
   for (const { name, path, type, runtime, config } of routes) {
+    // eslint-disable-next-line no-loop-func
     it(`should allow to write ${name} to disk`, async () => {
-      const entrypointsSubscribtion = await project.entrypointsSubscribe()
+      const entrypointsSubscribtion = project.entrypointsSubscribe()
       const entrypoints: TurbopackResult<Entrypoints> = (
         await entrypointsSubscribtion.next()
       ).value
