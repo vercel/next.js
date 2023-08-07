@@ -33,8 +33,11 @@ createNextDescribe(
       })
 
       it('should allow to have a valid /not-found route', async () => {
-        const html = await next.render('/not-found')
-        expect(html).toContain("I'm still a valid page")
+        const browser = await next.browser('/not-found')
+        await check(
+          () => browser.elementByCss('h1').text(),
+          `I'm still a valid page`
+        )
       })
 
       it('should match dynamic route not-found boundary correctly', async () => {

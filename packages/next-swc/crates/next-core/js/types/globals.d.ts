@@ -10,10 +10,10 @@ declare global {
 
   var __next_require__: (id: string) => any
   var __next_chunk_load__: (id: string) => Promise
-  var __next_f: (
-    | [isBootStrap: 0]
-    | [isNotBootstrap: 1, responsePartial: string]
-  )[]
+
+  type isBootStrap = 0
+  type responsePartial = string
+  var __next_f: (isBootStrap | responsePartial)[]
   var next: {
     version: string
     appDir?: boolean
