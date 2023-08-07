@@ -20,7 +20,7 @@ import { findRootDir } from '../lib/find-root'
 import { fileExists, FileType } from '../lib/file-exists'
 import { getNpxCommand } from '../lib/helpers/get-npx-command'
 import Watchpack from 'watchpack'
-import { resetEnv } from '@next/env'
+import { resetEnv, initialEnv } from '@next/env'
 import { getValidatedArgs } from '../lib/get-validated-args'
 import { Worker } from 'next/dist/compiled/jest-worker'
 import type { ChildProcess } from 'child_process'
@@ -123,7 +123,7 @@ async function createRouterWorker(): Promise<{
       ),
       env: {
         FORCE_COLOR: '1',
-        ...process.env,
+        ...(initialEnv as any),
         NODE_OPTIONS: getNodeOptionsWithoutInspect(),
         ...(process.env.NEXT_CPU_PROF
           ? { __NEXT_PRIVATE_CPU_PROFILE: `CPU.router` }
