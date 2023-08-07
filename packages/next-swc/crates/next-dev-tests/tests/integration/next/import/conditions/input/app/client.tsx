@@ -2,6 +2,7 @@
 
 import edgeThenNode from 'edge-then-node'
 import nodeThenEdge from 'node-then-edge'
+import reactServer from 'react-server'
 
 export const runtime = 'edge'
 
@@ -11,6 +12,7 @@ export default function ClientComponent() {
       {JSON.stringify({
         edgeThenNode,
         nodeThenEdge,
+        reactServer,
       })}
     </div>
   )
