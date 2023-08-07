@@ -3,8 +3,9 @@ use std::path::MAIN_SEPARATOR;
 use anyhow::Result;
 use indexmap::{map::Entry, IndexMap};
 use next_core::{
+    all_assets_from_entries,
     app_structure::find_app_dir,
-    get_edge_chunking_context, get_edge_compile_time_info,
+    emit_assets, get_edge_chunking_context, get_edge_compile_time_info,
     mode::NextMode,
     next_client::{get_client_chunking_context, get_client_compile_time_info},
     next_config::{JsConfig, NextConfig},
@@ -14,7 +15,8 @@ use next_core::{
 };
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, unit, State, TaskInput, TransientValue, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs, unit, Completion, IntoTraitRef, State, TaskInput,
+    TransientInstance, Vc,
 };
 use turbopack_binding::{
     turbo::{
@@ -24,8 +26,13 @@ use turbopack_binding::{
     turbopack::{
         build::BuildChunkingContext,
         core::{
-            chunk::ChunkingContext, compile_time_info::CompileTimeInfo, diagnostics::DiagnosticExt,
-            environment::ServerAddr, PROJECT_FILESYSTEM_NAME,
+            chunk::ChunkingContext,
+            compile_time_info::CompileTimeInfo,
+            diagnostics::DiagnosticExt,
+            environment::ServerAddr,
+            output::OutputAssets,
+            version::{Update, Version, VersionState, VersionedContent},
+            PROJECT_FILESYSTEM_NAME,
         },
         dev::DevChunkingContext,
         ecmascript::chunk::EcmascriptChunkingContext,
@@ -40,6 +47,7 @@ use crate::{
     entrypoints::Entrypoints,
     pages::PagesProject,
     route::{Endpoint, Route},
+    versioned_content_map::VersionedContentMap,
 };
 
 #[derive(Debug, Serialize, Deserialize, Clone, TaskInput, PartialEq, Eq, TraceRawVcs)]
@@ -73,7 +81,8 @@ pub struct Middleware {
 
 #[turbo_tasks::value]
 pub struct ProjectContainer {
-    state: State<ProjectOptions>,
+    options_state: State<ProjectOptions>,
+    versioned_content_map: Vc<VersionedContentMap>,
 }
 
 #[turbo_tasks::value_impl]
@@ -81,21 +90,22 @@ impl ProjectContainer {
     #[turbo_tasks::function]
     pub fn new(options: ProjectOptions) -> Vc<Self> {
         ProjectContainer {
-            state: State::new(options),
+            options_state: State::new(options),
+            versioned_content_map: VersionedContentMap::new(),
         }
         .cell()
     }
 
     #[turbo_tasks::function]
     pub async fn update(self: Vc<Self>, options: ProjectOptions) -> Result<Vc<()>> {
-        self.await?.state.set(options);
+        self.await?.options_state.set(options);
         Ok(unit())
     }
 
     #[turbo_tasks::function]
     pub async fn project(self: Vc<Self>) -> Result<Vc<Project>> {
         let this = self.await?;
-        let options = this.state.get();
+        let options = this.options_state.get();
         let next_config = NextConfig::from_string(Vc::cell(options.next_config.clone()));
         let js_config = JsConfig::from_string(Vc::cell(options.js_config.clone()));
         let env: Vc<EnvMap> = Vc::cell(options.env.iter().cloned().collect());
@@ -110,6 +120,7 @@ impl ProjectContainer {
                                  versions, last 1 Edge versions"
                 .to_string(),
             mode: NextMode::Development,
+            versioned_content_map: this.versioned_content_map,
         }
         .cell())
     }
@@ -144,6 +155,8 @@ pub struct Project {
     browserslist_query: String,
 
     mode: NextMode,
+
+    versioned_content_map: Vc<VersionedContentMap>,
 }
 
 #[turbo_tasks::value_impl]
@@ -475,10 +488,73 @@ impl Project {
         .cell())
     }
 
+    #[turbo_tasks::function]
+    pub async fn emit_all_output_assets(
+        self: Vc<Self>,
+        output_assets: Vc<OutputAssets>,
+    ) -> Result<Vc<Completion>> {
+        let all_output_assets = all_assets_from_entries(output_assets);
+
+        self.await?
+            .versioned_content_map
+            .insert_output_assets(all_output_assets)
+            .await?;
+
+        Ok(emit_assets(
+            all_output_assets,
+            self.node_root(),
+            self.client_relative_path(),
+            self.node_root(),
+        ))
+    }
+
+    #[turbo_tasks::function]
+    async fn hmr_content(
+        self: Vc<Self>,
+        identifier: String,
+    ) -> Result<Vc<Box<dyn VersionedContent>>> {
+        Ok(self
+            .await?
+            .versioned_content_map
+            .get(self.client_root().join(identifier)))
+    }
+
+    #[turbo_tasks::function]
+    async fn hmr_version(self: Vc<Self>, identifier: String) -> Result<Vc<Box<dyn Version>>> {
+        let content = self.hmr_content(identifier);
+
+        Ok(content.version())
+    }
+
+    /// Get the version state for a session. Initialized with the first seen
+    /// version in that session.
+    #[turbo_tasks::function]
+    pub async fn hmr_version_state(
+        self: Vc<Self>,
+        identifier: String,
+        session: TransientInstance<()>,
+    ) -> Result<Vc<VersionState>> {
+        let version = self.hmr_version(identifier);
+
+        // The session argument is important to avoid caching this function between
+        // sessions.
+        let _ = session;
+
+        // INVALIDATION: This is intentionally untracked to avoid invalidating this
+        // function completely. We want to initialize the VersionState with the
+        // first seen version of the session.
+        VersionState::new(version.into_trait_ref_untracked().await?).await
+    }
+
     /// Emits opaque HMR events whenever a change is detected in the chunk group
     /// internally known as `identifier`.
     #[turbo_tasks::function]
-    pub fn hmr_events(self: Vc<Self>, _identifier: String, _sender: TransientValue<()>) -> Vc<()> {
-        unit()
+    pub async fn hmr_update(
+        self: Vc<Self>,
+        identifier: String,
+        from: Vc<VersionState>,
+    ) -> Result<Vc<Update>> {
+        let from = from.get();
+        Ok(self.hmr_content(identifier).update(from))
     }
 }
