@@ -96,14 +96,13 @@ pub async fn get_edge_resolve_options_context(
     ];
 
     match ty {
-        ServerContextType::AppRSC { .. }
-        | ServerContextType::AppRoute { .. }
-        | ServerContextType::Middleware { .. } => {
+        ServerContextType::AppRSC { .. } | ServerContextType::AppRoute { .. } => {
             custom_conditions.push("react-server".to_string())
         }
         ServerContextType::Pages { .. }
         | ServerContextType::PagesData { .. }
-        | ServerContextType::AppSSR { .. } => {}
+        | ServerContextType::AppSSR { .. }
+        | ServerContextType::Middleware { .. } => {}
     };
 
     let resolve_options_context = ResolveOptionsContext {
