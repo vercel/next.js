@@ -75,7 +75,7 @@ impl VersionedContentMap {
             bail!("could not find versioned content for path {}", path);
         };
         // NOTE(alexkirsz) This is necessary to mark the task as active again.
-        content.node.connect();
+        Vc::connect(content);
         Ok(content)
     }
 }
