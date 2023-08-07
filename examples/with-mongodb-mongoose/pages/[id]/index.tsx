@@ -5,14 +5,14 @@ import dbConnect from '../../lib/dbConnect'
 import Pet, { IPet } from '../../models/Pet'
 import { GetServerSideProps, GetServerSidePropsContext } from 'next'
 import { ParsedUrlQuery } from 'querystring'
-import { ObjectId } from "mongoose";
+import { ObjectId } from 'mongoose'
 
 interface Params extends ParsedUrlQuery {
-  id: string;
+  id: string
 }
 
 type Props = {
-  pet: IPet;
+  pet: IPet
 }
 
 /* Allows you to view pet card info and delete pet card*/
@@ -75,35 +75,33 @@ const PetPage = ({ pet }: Props) => {
 }
 
 export const getServerSideProps: GetServerSideProps<Props, Params> = async ({
-   params 
-  }: GetServerSidePropsContext) => {
+  params,
+}: GetServerSidePropsContext) => {
   await dbConnect()
 
   if (!params?.id) {
     return {
-      notFound: true
+      notFound: true,
     }
   }
 
   const pet = await Pet.findById(params.id).lean()
-  
-  if(!pet) {
-    return {
 
-    notFound: true
+  if (!pet) {
+    return {
+      notFound: true,
     }
   }
 
   const serializedPet = JSON.parse(JSON.stringify(pet))
 
   serializedPet._id = (serializedPet._id as ObjectId).toString()
-  
 
   return {
-     props: {
-     pet: serializedPet 
-    }
-   }
+    props: {
+      pet: serializedPet,
+    },
+  }
 }
 
 export default PetPage

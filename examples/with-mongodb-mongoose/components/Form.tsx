@@ -2,31 +2,29 @@ import { useState } from 'react'
 import { useRouter } from 'next/router'
 import { mutate } from 'swr'
 
-
-interface IForm  {
-  name: string,
-  owner_name: string,
-  species: string,
-  age: number,
-  poddy_trained: boolean,
-  diet: string[],
-  image_url: string,
-  likes:  string[],
+interface IForm {
+  name: string
+  owner_name: string
+  species: string
+  age: number
+  poddy_trained: boolean
+  diet: string[]
+  image_url: string
+  likes: string[]
   dislikes: string[]
 }
 
 interface Error {
-  name?: string;
-  owner_name?: string;
-  species?: string;
-  image_url?: string;
-
+  name?: string
+  owner_name?: string
+  species?: string
+  image_url?: string
 }
 
 type Props = {
-  formId: string;
-  petForm: Iform;
-  forNewPet?: boolean;
+  formId: string
+  petForm: IForm
+  forNewPet?: boolean
 }
 
 const Form = ({ formId, petForm, forNewPet = true }: Props) => {
@@ -48,7 +46,7 @@ const Form = ({ formId, petForm, forNewPet = true }: Props) => {
   })
 
   /* The PUT method edits an existing entry in the mongodb database. */
-  const putData = async (form: Iform) => {
+  const putData = async (form: IForm) => {
     const { id } = router.query
 
     try {
@@ -76,7 +74,7 @@ const Form = ({ formId, petForm, forNewPet = true }: Props) => {
   }
 
   /* The POST method adds a new entry in the mongodb database. */
-  const postData = async (form: Iform) => {
+  const postData = async (form: IForm) => {
     try {
       const res = await fetch('/api/pets', {
         method: 'POST',
@@ -98,11 +96,14 @@ const Form = ({ formId, petForm, forNewPet = true }: Props) => {
     }
   }
 
-  const handleChange = (e: 
-    | React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
     const target = e.target
     const value =
-      target.name === 'poddy_trained' ? (target as HTMLInputElement).checked : target.value
+      target.name === 'poddy_trained'
+        ? (target as HTMLInputElement).checked
+        : target.value
     const name = target.name
 
     setForm({
@@ -113,15 +114,15 @@ const Form = ({ formId, petForm, forNewPet = true }: Props) => {
 
   /* Makes sure pet info is filled for pet name, owner name, species, and image url*/
   const formValidate = () => {
-    let err:Error = {}
-    if (!form.name)  err.name = 'Name is required'
+    let err: Error = {}
+    if (!form.name) err.name = 'Name is required'
     if (!form.owner_name) err.owner_name = 'Owner is required'
     if (!form.species) err.species = 'Species is required'
     if (!form.image_url) err.image_url = 'Image URL is required'
     return err
   }
 
-  const handleSubmit = (e:  React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const errs = formValidate()
     console.log(errs)

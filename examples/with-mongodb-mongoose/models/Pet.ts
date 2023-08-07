@@ -1,18 +1,15 @@
 import mongoose from 'mongoose'
 
-
 export interface IPet extends mongoose.Document {
-
-  name: string;
-  owner_name: string;
-  species: string;
-  age: number;
-  poddy_trained: boolean;
-  diet: string[];
-  image_url: string;
-  likes: string[];
-  dislikes: string[];
-
+  name: string
+  owner_name: string
+  species: string
+  age: number
+  poddy_trained: boolean
+  diet: string[]
+  image_url: string
+  likes: string[]
+  dislikes: string[]
 }
 
 /* PetSchema will correspond to a collection in your MongoDB database. */
