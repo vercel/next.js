@@ -75,8 +75,6 @@ import { handleAction } from './action-handler'
 import { NEXT_DYNAMIC_NO_SSR_CODE } from '../../shared/lib/lazy-dynamic/no-ssr-error'
 import { warn } from '../../build/output/log'
 import { appendMutableCookies } from '../web/spec-extension/adapters/request-cookies'
-import { ComponentsType } from '../../build/webpack/loaders/next-app-loader'
-import { ModuleReference } from '../../build/webpack/loaders/metadata/types'
 import { createServerInsertedHTML } from './server-inserted-html'
 
 export type GetDynamicParamFromSegment = (
@@ -104,36 +102,7 @@ function ErrorHtml({
 
 function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
   // Align the segment with parallel-route-default in next-app-loader
-  return ['__DEFAULT__', {}, loaderTree[2]]
-}
-
-// Find the closest matched component in the loader tree for a given component type
-function findMatchedComponent(
-  loaderTree: LoaderTree,
-  componentType: Exclude<keyof ComponentsType, 'metadata'>,
-  result?: ModuleReference
-): ModuleReference | undefined {
-  const [segment, parallelRoutes, components] = loaderTree
-  const childKeys = Object.keys(parallelRoutes)
-  result = components[componentType] || result
-
-  // reached the end of the tree
-  if (segment === '__DEFAULT__' || segment === '__PAGE__') {
-    return result
-  }
-
-  for (const key of childKeys) {
-    const childTree = parallelRoutes[key]
-    const matchedComponent = findMatchedComponent(
-      childTree,
-      componentType,
-      result
-    )
-    if (matchedComponent) {
-      return matchedComponent
-    }
-  }
-  return undefined
+  return ['__PAGE__', {}, loaderTree[2]]
 }
 
 /* This method is important for intercepted routes to function:
@@ -962,7 +931,7 @@ export async function renderToHTMLOrFlight(
         asNotFound &&
         // In development, it could hit the parallel-route-default not found, so we only need to check the segment.
         // Or if there's no parallel routes means it reaches the end.
-        ((segment === '__DEFAULT__' && !parallelRouteMap.length) ||
+        (!parallelRouteMap.length ||
           // For production build the original pathname is /_not-found, always render not-found component.
           (!renderOpts.dev && renderOpts.originalPathname === '/_not-found'))
       ) {
@@ -1351,37 +1320,6 @@ export async function renderToHTMLOrFlight(
           },
         }
       : {}
-
-    async function getNotFound(tree: LoaderTree, injectedCSS: Set<string>) {
-      const notFound = findMatchedComponent(tree, 'not-found')
-      const [NotFound, notFoundStyles] = notFound
-        ? await createComponentAndStyles({
-            filePath: notFound[1],
-            getComponent: notFound[0],
-            injectedCSS,
-          })
-        : []
-      return [NotFound, notFoundStyles]
-    }
-
-    async function getRootLayout(
-      tree: LoaderTree,
-      injectedCSS: Set<string>,
-      injectedFontPreloadTags: Set<string>
-    ) {
-      const { layout } = tree[2]
-      const layoutPath = layout?.[1]
-      const styles = getLayerAssets({
-        layoutOrPagePath: layoutPath,
-        injectedCSS: new Set(injectedCSS),
-        injectedFontPreloadTags: new Set(injectedFontPreloadTags),
-      })
-      const rootLayoutModule = layout?.[0]
-      const RootLayout = rootLayoutModule
-        ? interopDefault(await rootLayoutModule())
-        : null
-      return [RootLayout, styles]
-    }
 
     /**
      * A new React Component that renders the provided React Component

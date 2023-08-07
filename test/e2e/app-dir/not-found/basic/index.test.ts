@@ -33,11 +33,12 @@ createNextDescribe(
       })
 
       it('should match dynamic route not-found boundary correctly', async () => {
-        const browserDynamic = await next.browser('/dynamic')
-        const browserDynamicId = await next.browser('/dynamic/123')
         // `/dynamic` display works
+        const browserDynamic = await next.browser('/dynamic')
         expect(await browserDynamic.elementByCss('main').text()).toBe('dynamic')
+
         // `/dynamic/[id]` calling notFound() will match the same level not-found boundary
+        const browserDynamicId = await next.browser('/dynamic/123')
         expect(await browserDynamicId.elementByCss('#not-found').text()).toBe(
           'dynamic/[id] not found'
         )
