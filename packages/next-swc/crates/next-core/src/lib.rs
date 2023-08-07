@@ -27,7 +27,7 @@ mod next_client_component;
 pub mod next_client_reference;
 pub mod next_config;
 pub mod next_dynamic;
-mod next_edge;
+pub mod next_edge;
 mod next_font;
 pub mod next_image;
 mod next_import_map;

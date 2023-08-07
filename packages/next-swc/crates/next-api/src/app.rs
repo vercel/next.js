@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use next_core::{
     all_server_paths,
     app_structure::{
@@ -18,8 +18,10 @@ use next_core::{
         ClientReferenceGraph, ClientReferenceType, NextEcmascriptClientReferenceTransition,
     },
     next_dynamic::{NextDynamicEntries, NextDynamicTransition},
+    next_edge::route_regex::get_named_middleware_regex,
     next_manifests::{
-        AppBuildManifest, AppPathsManifest, BuildManifest, ClientReferenceManifest, PagesManifest,
+        AppBuildManifest, AppPathsManifest, BuildManifest, ClientReferenceManifest,
+        EdgeFunctionDefinition, MiddlewareMatcher, MiddlewaresManifestV2, PagesManifest, Regions,
     },
     next_server::{
         get_server_module_options_context, get_server_resolve_options_context,
@@ -638,37 +640,105 @@ impl AppEndpoint {
 
         let endpoint_output = match app_entry.config.await?.runtime.unwrap_or_default() {
             NextRuntime::Edge => {
+                // create edge chunks
                 let chunking_context = this.app_project.project().edge_rsc_chunking_context();
+                let mut evaluatable_assets = this
+                    .app_project
+                    .edge_rsc_runtime_entries()
+                    .await?
+                    .clone_value();
+                let Some(evaluatable) = Vc::try_resolve_sidecast(app_entry.rsc_entry).await? else {
+                    bail!("Entry module must be evaluatable");
+                };
+                evaluatable_assets.push(evaluatable);
                 let files = chunking_context.evaluated_chunk_group(
                     app_entry
                         .rsc_entry
                         .as_root_chunk(Vc::upcast(chunking_context)),
-                    this.app_project.edge_rsc_runtime_entries(),
+                    Vc::cell(evaluatable_assets),
                 );
-                // TODO concatenation is not good, we should use all files once next.js supports
-                // that output_assets.extend(files.await?.iter().copied());
-                let file = concatenate_output_assets(
-                    server_path.join(format!(
-                        "app/{original_name}.js",
+                output_assets.extend(files.await?.iter().copied());
+
+                let node_root_value = node_root.await?;
+                let files_paths_from_root = files
+                    .await?
+                    .iter()
+                    .map(move |&file| {
+                        let node_root_value = node_root_value.clone();
+                        async move {
+                            Ok(node_root_value
+                                .get_path_to(&*file.ident().path().await?)
+                                .map(|path| path.to_string()))
+                        }
+                    })
+                    .try_flat_join()
+                    .await?;
+
+                let server_path_value = server_path.await?;
+                let files_paths_from_server = files
+                    .await?
+                    .iter()
+                    .map(move |&file| {
+                        let server_path_value = server_path_value.clone();
+                        async move {
+                            Ok(server_path_value
+                                .get_path_to(&*file.ident().path().await?)
+                                .map(|path| path.to_string()))
+                        }
+                    })
+                    .try_flat_join()
+                    .await?;
+                let base_file = files_paths_from_server[0].to_string();
+
+                // create middleware manifest
+                // TODO(alexkirsz) This should be shared with next build.
+                let named_regex = get_named_middleware_regex(&app_entry.pathname);
+                let matchers = MiddlewareMatcher {
+                    regexp: named_regex,
+                    original_source: app_entry.pathname.clone(),
+                    ..Default::default()
+                };
+                let edge_function_definition = EdgeFunctionDefinition {
+                    files: files_paths_from_root,
+                    name: app_entry.original_name.to_string(),
+                    page: app_entry.original_name.clone(),
+                    regions: app_entry
+                        .config
+                        .await?
+                        .preferred_region
+                        .clone()
+                        .map(Regions::Single),
+                    matchers: vec![matchers],
+                    ..Default::default()
+                };
+                let middleware_manifest_v2 = MiddlewaresManifestV2 {
+                    sorted_middleware: vec![app_entry.original_name.clone()],
+                    middleware: Default::default(),
+                    functions: [(app_entry.original_name.clone(), edge_function_definition)]
+                        .into_iter()
+                        .collect(),
+                };
+                let middleware_manifest_v2 = Vc::upcast(VirtualOutputAsset::new(
+                    node_root.join(format!(
+                        "server/app{original_name}/middleware-manifest.json",
                         original_name = app_entry.original_name
                     )),
-                    files,
-                );
-                output_assets.push(file);
+                    AssetContent::file(
+                        FileContent::Content(File::from(serde_json::to_string_pretty(
+                            &middleware_manifest_v2,
+                        )?))
+                        .cell(),
+                    ),
+                ));
+                output_assets.push(middleware_manifest_v2);
 
-                let app_paths_manifest_output = create_app_paths_manifest(
-                    node_root,
-                    &app_entry.original_name,
-                    server_path
-                        .await?
-                        .get_path_to(&*file.ident().path().await?)
-                        .expect("edge bundle path should be within app paths manifest directory")
-                        .to_string(),
-                )?;
+                // create app paths manifest
+                let app_paths_manifest_output =
+                    create_app_paths_manifest(node_root, &app_entry.original_name, base_file)?;
                 output_assets.push(app_paths_manifest_output);
 
                 AppEndpointOutput::Edge {
-                    file,
+                    files,
                     output_assets: Vc::cell(output_assets),
                 }
             }
@@ -772,13 +842,20 @@ impl Endpoint for AppEndpoint {
                 server_paths,
             },
             AppEndpointOutput::Edge {
-                file,
+                files,
                 output_assets: _,
             } => WrittenEndpoint::Edge {
-                files: vec![node_root_ref
-                    .get_path_to(&*file.ident().path().await?)
-                    .context("edge chunk file path must be inside the node root")?
-                    .to_string()],
+                files: files
+                    .await?
+                    .iter()
+                    .map(|&file| async move {
+                        Ok(node_root_ref
+                            .get_path_to(&*file.ident().path().await?)
+                            .context("edge chunk file path must be inside the node root")?
+                            .to_string())
+                    })
+                    .try_join()
+                    .await?,
                 global_var_name: "TODO".to_string(),
                 server_paths,
             },
@@ -800,7 +877,7 @@ enum AppEndpointOutput {
         output_assets: Vc<OutputAssets>,
     },
     Edge {
-        file: Vc<Box<dyn OutputAsset>>,
+        files: Vc<OutputAssets>,
         output_assets: Vc<OutputAssets>,
     },
 }
@@ -815,7 +892,7 @@ impl AppEndpointOutput {
                 output_assets,
             } => output_assets,
             AppEndpointOutput::Edge {
-                file: _,
+                files: _,
                 output_assets,
             } => output_assets,
         }
