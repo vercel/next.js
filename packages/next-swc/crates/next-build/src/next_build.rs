@@ -35,7 +35,7 @@ use turbopack_binding::{
             asset::Asset,
             chunk::ChunkingContext,
             environment::ServerAddr,
-            issue::{IssueContextExt, IssueReporter, IssueSeverity},
+            issue::{IssueDescriptionExt, IssueReporter, IssueSeverity},
             output::{OutputAsset, OutputAssets},
             virtual_fs::VirtualFileSystem,
         },
