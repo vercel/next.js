@@ -2027,7 +2027,7 @@ export default async function getBaseWebpackConfig(
         ...(hasAppDir
           ? [
               {
-                layer: 'app-route-handler',
+                layer: WEBPACK_LAYERS.appRouteHandler,
                 test: /\/route\.(js|ts)x?$/,
               },
               {

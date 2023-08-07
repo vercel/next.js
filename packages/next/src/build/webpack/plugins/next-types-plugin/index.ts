@@ -442,7 +442,7 @@ declare module 'next/link' {
 declare module 'next/navigation' {
   export * from 'next/dist/client/components/navigation.js'
 
-  import type { NavigateOptions, AppRouterInstance as OriginalAppRouterInstance } from 'next/dist/shared/lib/app-router-context.js'
+  import type { NavigateOptions, AppRouterInstance as OriginalAppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime.js'
   interface AppRouterInstance extends OriginalAppRouterInstance {
     /**
      * Navigate to the provided href.
@@ -575,8 +575,11 @@ export class NextTypesPlugin {
         }
         return
       }
-
-      if (mod.layer !== WEBPACK_LAYERS.reactServerComponents) return
+      if (
+        mod.layer !== WEBPACK_LAYERS.reactServerComponents &&
+        mod.layer !== WEBPACK_LAYERS.appRouteHandler
+      )
+        return
 
       const IS_LAYOUT = /[/\\]layout\.[^./\\]+$/.test(mod.resource)
       const IS_PAGE = !IS_LAYOUT && /[/\\]page\.[^.]+$/.test(mod.resource)
