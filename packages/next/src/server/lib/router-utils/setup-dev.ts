@@ -978,7 +978,7 @@ async function startWatcher(opts: SetupOpts) {
           hotReloader.setHmrServerError(new Error(errorMessage))
         } else if (numConflicting === 0) {
           hotReloader.clearHmrServerError()
-          await propagateToWorkers('matchers.reload', undefined)
+          await propagateToWorkers('reloadMatchers', undefined)
         }
       }
 
@@ -1247,7 +1247,7 @@ async function startWatcher(opts: SetupOpts) {
       } finally {
         // Reload the matchers. The filesystem would have been written to,
         // and the matchers need to re-scan it to update the router.
-        await propagateToWorkers('middleware.reload', undefined)
+        await propagateToWorkers('reloadMatchers', undefined)
       }
     })
 

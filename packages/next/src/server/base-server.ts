@@ -468,6 +468,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     this.responseCache = this.getResponseCache({ dev })
   }
 
+  protected reloadMatchers() {
+    return this.matchers.reload()
+  }
+
   protected async normalizeNextData(
     _req: BaseNextRequest,
     _res: BaseNextResponse,

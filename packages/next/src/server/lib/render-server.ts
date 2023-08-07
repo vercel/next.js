@@ -49,18 +49,6 @@ export async function propagateServerField(
   }
   let appField = (app as any).server
 
-  if (field.includes('.')) {
-    const parts = field.split('.')
-
-    for (let i = 0; i < parts.length - 1; i++) {
-      if (appField) {
-        appField = appField[parts[i]]
-      }
-    }
-    // TODO: Fix type.
-    field = parts[parts.length - 1] as any
-  }
-
   if (appField) {
     if (typeof appField[field] === 'function') {
       await appField[field].apply(
