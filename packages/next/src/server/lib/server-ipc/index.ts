@@ -88,6 +88,7 @@ export const createWorker = async (
   type: 'pages' | 'app',
   nextConfig: NextConfigComplete
 ) => {
+  const { initialEnv } = require('@next/env') as typeof import('@next/env')
   const useServerActions = !!nextConfig.experimental.serverActions
   const { Worker } =
     require('next/dist/compiled/jest-worker') as typeof import('next/dist/compiled/jest-worker')
@@ -99,6 +100,7 @@ export const createWorker = async (
     forkOptions: {
       env: {
         FORCE_COLOR: '1',
+        ...initialEnv,
         // we don't pass down NODE_OPTIONS as it can
         // allow more memory usage than expected
         NODE_OPTIONS: getNodeOptionsWithoutInspect()
