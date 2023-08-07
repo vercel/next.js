@@ -12,13 +12,24 @@ import {
 import loadConfig from 'next/src/server/config'
 import path from 'path'
 
+function normalizePath(path: string) {
+  return path
+    .replace(/\[project\].+\/node_modules\//g, '[project]/.../node_modules/')
+    .replace(
+      /\[project\]\/packages\/next\//g,
+      '[project]/.../node_modules/next/'
+    )
+}
+
 function normalizeIssues(issues: Issue[]) {
   return issues
     .map((issue) => ({
       ...issue,
+      detail: issue.detail && normalizePath(issue.detail),
+      filePath: issue.filePath && normalizePath(issue.filePath),
       source: issue.source && {
         ...issue.source,
-        source: issue.source.source.ident,
+        source: normalizePath(issue.source.source.ident),
       },
     }))
     .sort((a, b) => {
