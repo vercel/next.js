@@ -30,6 +30,58 @@ exports[`next.rs api should allow to write pages edge api to disk: issues 1`] = 
 Array [
   Object {
     "category": "resolve",
+    "description": "unable to resolve module \\"buffer\\"",
+    "detail": "It was not possible to find the requested file.
+Parsed request as written in source code: module \\"buffer\\"
+Path where resolving has started: [project]/.../node_modules/next/dist/compiled/jsonwebtoken/index.js
+Type of request: commonjs request
+Import map: No import map entry
+",
+    "documentationLink": "",
+    "filePath": "[project]/.../node_modules/next/dist/compiled/jsonwebtoken/index.js",
+    "severity": "error",
+    "source": Object {
+      "end": Object {
+        "column": 945,
+        "line": 10,
+      },
+      "source": "[project]/.../node_modules/next/dist/compiled/jsonwebtoken/index.js",
+      "start": Object {
+        "column": 928,
+        "line": 10,
+      },
+    },
+    "subIssues": Array [],
+    "title": "Error resolving commonjs request",
+  },
+  Object {
+    "category": "resolve",
+    "description": "unable to resolve module \\"buffer\\"",
+    "detail": "It was not possible to find the requested file.
+Parsed request as written in source code: module \\"buffer\\"
+Path where resolving has started: [project]/.../node_modules/next/dist/compiled/jsonwebtoken/index.js
+Type of request: commonjs request
+Import map: No import map entry
+",
+    "documentationLink": "",
+    "filePath": "[project]/.../node_modules/next/dist/compiled/jsonwebtoken/index.js",
+    "severity": "error",
+    "source": Object {
+      "end": Object {
+        "column": 945,
+        "line": 10,
+      },
+      "source": "[project]/.../node_modules/next/dist/compiled/jsonwebtoken/index.js",
+      "start": Object {
+        "column": 928,
+        "line": 10,
+      },
+    },
+    "subIssues": Array [],
+    "title": "Error resolving commonjs request",
+  },
+  Object {
+    "category": "resolve",
     "description": "unable to resolve module \\"crypto\\"",
     "detail": "It was not possible to find the requested file.
 Parsed request as written in source code: module \\"crypto\\"
@@ -134,6 +186,162 @@ Import map: No import map entry
   },
   Object {
     "category": "resolve",
+    "description": "unable to resolve module \\"util\\"",
+    "detail": "It was not possible to find the requested file.
+Parsed request as written in source code: module \\"util\\"
+Path where resolving has started: [project]/.../node_modules/next/dist/compiled/jsonwebtoken/index.js
+Type of request: commonjs request
+Import map: No import map entry
+",
+    "documentationLink": "",
+    "filePath": "[project]/.../node_modules/next/dist/compiled/jsonwebtoken/index.js",
+    "severity": "error",
+    "source": Object {
+      "end": Object {
+        "column": 1162,
+        "line": 10,
+      },
+      "source": "[project]/.../node_modules/next/dist/compiled/jsonwebtoken/index.js",
+      "start": Object {
+        "column": 1147,
+        "line": 10,
+      },
+    },
+    "subIssues": Array [],
+    "title": "Error resolving commonjs request",
+  },
+  Object {
+    "category": "resolve",
+    "description": "unable to resolve module \\"util\\"",
+    "detail": "It was not possible to find the requested file.
+Parsed request as written in source code: module \\"util\\"
+Path where resolving has started: [project]/.../node_modules/next/dist/compiled/jsonwebtoken/index.js
+Type of request: commonjs request
+Import map: No import map entry
+",
+    "documentationLink": "",
+    "filePath": "[project]/.../node_modules/next/dist/compiled/jsonwebtoken/index.js",
+    "severity": "error",
+    "source": Object {
+      "end": Object {
+        "column": 1162,
+        "line": 10,
+      },
+      "source": "[project]/.../node_modules/next/dist/compiled/jsonwebtoken/index.js",
+      "start": Object {
+        "column": 1147,
+        "line": 10,
+      },
+    },
+    "subIssues": Array [],
+    "title": "Error resolving commonjs request",
+  },
+  Object {
+    "category": "resolve",
+    "description": "unable to resolve module \\"buffer\\"",
+    "detail": "It was not possible to find the requested file.
+Parsed request as written in source code: module \\"buffer\\"
+Path where resolving has started: [project]/.../node_modules/next/dist/compiled/raw-body/index.js
+Type of request: commonjs request
+Import map: No import map entry
+",
+    "documentationLink": "",
+    "filePath": "[project]/.../node_modules/next/dist/compiled/raw-body/index.js",
+    "severity": "error",
+    "source": Object {
+      "end": Object {
+        "column": 504,
+        "line": 50,
+      },
+      "source": "[project]/.../node_modules/next/dist/compiled/raw-body/index.js",
+      "start": Object {
+        "column": 487,
+        "line": 50,
+      },
+    },
+    "subIssues": Array [],
+    "title": "Error resolving commonjs request",
+  },
+  Object {
+    "category": "resolve",
+    "description": "unable to resolve module \\"buffer\\"",
+    "detail": "It was not possible to find the requested file.
+Parsed request as written in source code: module \\"buffer\\"
+Path where resolving has started: [project]/.../node_modules/next/dist/compiled/raw-body/index.js
+Type of request: commonjs request
+Import map: No import map entry
+",
+    "documentationLink": "",
+    "filePath": "[project]/.../node_modules/next/dist/compiled/raw-body/index.js",
+    "severity": "error",
+    "source": Object {
+      "end": Object {
+        "column": 504,
+        "line": 50,
+      },
+      "source": "[project]/.../node_modules/next/dist/compiled/raw-body/index.js",
+      "start": Object {
+        "column": 487,
+        "line": 50,
+      },
+    },
+    "subIssues": Array [],
+    "title": "Error resolving commonjs request",
+  },
+  Object {
+    "category": "resolve",
+    "description": "unable to resolve module \\"events\\"",
+    "detail": "It was not possible to find the requested file.
+Parsed request as written in source code: module \\"events\\"
+Path where resolving has started: [project]/.../node_modules/next/dist/compiled/raw-body/index.js
+Type of request: commonjs request
+Import map: No import map entry
+",
+    "documentationLink": "",
+    "filePath": "[project]/.../node_modules/next/dist/compiled/raw-body/index.js",
+    "severity": "error",
+    "source": Object {
+      "end": Object {
+        "column": 554,
+        "line": 50,
+      },
+      "source": "[project]/.../node_modules/next/dist/compiled/raw-body/index.js",
+      "start": Object {
+        "column": 537,
+        "line": 50,
+      },
+    },
+    "subIssues": Array [],
+    "title": "Error resolving commonjs request",
+  },
+  Object {
+    "category": "resolve",
+    "description": "unable to resolve module \\"events\\"",
+    "detail": "It was not possible to find the requested file.
+Parsed request as written in source code: module \\"events\\"
+Path where resolving has started: [project]/.../node_modules/next/dist/compiled/raw-body/index.js
+Type of request: commonjs request
+Import map: No import map entry
+",
+    "documentationLink": "",
+    "filePath": "[project]/.../node_modules/next/dist/compiled/raw-body/index.js",
+    "severity": "error",
+    "source": Object {
+      "end": Object {
+        "column": 554,
+        "line": 50,
+      },
+      "source": "[project]/.../node_modules/next/dist/compiled/raw-body/index.js",
+      "start": Object {
+        "column": 537,
+        "line": 50,
+      },
+    },
+    "subIssues": Array [],
+    "title": "Error resolving commonjs request",
+  },
+  Object {
+    "category": "resolve",
     "description": "unable to resolve module \\"path\\"",
     "detail": "It was not possible to find the requested file.
 Parsed request as written in source code: module \\"path\\"
@@ -230,6 +438,110 @@ Import map: No import map entry
       "source": "[project]/.../node_modules/next/dist/compiled/raw-body/index.js",
       "start": Object {
         "column": 702,
+        "line": 50,
+      },
+    },
+    "subIssues": Array [],
+    "title": "Error resolving commonjs request",
+  },
+  Object {
+    "category": "resolve",
+    "description": "unable to resolve module \\"string_decoder\\"",
+    "detail": "It was not possible to find the requested file.
+Parsed request as written in source code: module \\"string_decoder\\"
+Path where resolving has started: [project]/.../node_modules/next/dist/compiled/raw-body/index.js
+Type of request: commonjs request
+Import map: No import map entry
+",
+    "documentationLink": "",
+    "filePath": "[project]/.../node_modules/next/dist/compiled/raw-body/index.js",
+    "severity": "error",
+    "source": Object {
+      "end": Object {
+        "column": 777,
+        "line": 50,
+      },
+      "source": "[project]/.../node_modules/next/dist/compiled/raw-body/index.js",
+      "start": Object {
+        "column": 752,
+        "line": 50,
+      },
+    },
+    "subIssues": Array [],
+    "title": "Error resolving commonjs request",
+  },
+  Object {
+    "category": "resolve",
+    "description": "unable to resolve module \\"string_decoder\\"",
+    "detail": "It was not possible to find the requested file.
+Parsed request as written in source code: module \\"string_decoder\\"
+Path where resolving has started: [project]/.../node_modules/next/dist/compiled/raw-body/index.js
+Type of request: commonjs request
+Import map: No import map entry
+",
+    "documentationLink": "",
+    "filePath": "[project]/.../node_modules/next/dist/compiled/raw-body/index.js",
+    "severity": "error",
+    "source": Object {
+      "end": Object {
+        "column": 777,
+        "line": 50,
+      },
+      "source": "[project]/.../node_modules/next/dist/compiled/raw-body/index.js",
+      "start": Object {
+        "column": 752,
+        "line": 50,
+      },
+    },
+    "subIssues": Array [],
+    "title": "Error resolving commonjs request",
+  },
+  Object {
+    "category": "resolve",
+    "description": "unable to resolve module \\"util\\"",
+    "detail": "It was not possible to find the requested file.
+Parsed request as written in source code: module \\"util\\"
+Path where resolving has started: [project]/.../node_modules/next/dist/compiled/raw-body/index.js
+Type of request: commonjs request
+Import map: No import map entry
+",
+    "documentationLink": "",
+    "filePath": "[project]/.../node_modules/next/dist/compiled/raw-body/index.js",
+    "severity": "error",
+    "source": Object {
+      "end": Object {
+        "column": 825,
+        "line": 50,
+      },
+      "source": "[project]/.../node_modules/next/dist/compiled/raw-body/index.js",
+      "start": Object {
+        "column": 810,
+        "line": 50,
+      },
+    },
+    "subIssues": Array [],
+    "title": "Error resolving commonjs request",
+  },
+  Object {
+    "category": "resolve",
+    "description": "unable to resolve module \\"util\\"",
+    "detail": "It was not possible to find the requested file.
+Parsed request as written in source code: module \\"util\\"
+Path where resolving has started: [project]/.../node_modules/next/dist/compiled/raw-body/index.js
+Type of request: commonjs request
+Import map: No import map entry
+",
+    "documentationLink": "",
+    "filePath": "[project]/.../node_modules/next/dist/compiled/raw-body/index.js",
+    "severity": "error",
+    "source": Object {
+      "end": Object {
+        "column": 825,
+        "line": 50,
+      },
+      "source": "[project]/.../node_modules/next/dist/compiled/raw-body/index.js",
+      "start": Object {
+        "column": 810,
         "line": 50,
       },
     },
