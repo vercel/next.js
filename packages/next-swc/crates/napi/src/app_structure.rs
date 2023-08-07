@@ -332,7 +332,7 @@ pub fn stream_entrypoints(
                 func.call(Ok(None), ThreadsafeFunctionCallMode::NonBlocking);
             }
 
-            Ok(unit().node)
+            Ok(unit())
         })
     });
     Ok(())
