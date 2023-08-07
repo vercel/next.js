@@ -29,7 +29,7 @@ async function main() {
     .filter((line) => line.trim())
 
   if (changedFiles.length === 0) {
-    console.log('No files changed skipping..')
+    console.log('No files changed skipping.')
     return
   }
 
