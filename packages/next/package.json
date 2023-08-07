@@ -2,7 +2,7 @@
   "name": "next",
   "version": "13.4.13",
   "description": "The React Framework",
-  "main": "./dist/server/custom-server-entrypoint.js",
+  "main": "./dist/server/next.js",
   "license": "MIT",
   "repository": "vercel/next.js",
   "bugs": "https://github.com/vercel/next.js/issues",

@@ -52,7 +52,7 @@ export interface RequestHandler {
 
 const SYMBOL_LOAD_CONFIG = Symbol('next.load_config')
 
-class NextServer {
+export class NextServer {
   private serverPromise?: Promise<Server>
   private server?: Server
   private reqHandler?: NodeRequestHandler
