@@ -41,12 +41,6 @@ declare module 'next/dist/compiled/node-html-parser' {
   export * from 'node-html-parser'
 }
 
-declare module 'next/dist/compiled/node-fetch' {
-  import m from 'node-fetch'
-  export default m
-  export * from 'node-fetch'
-}
-
 declare module 'next/dist/compiled/undici' {}
 
 declare module 'next/dist/compiled/jest-worker' {

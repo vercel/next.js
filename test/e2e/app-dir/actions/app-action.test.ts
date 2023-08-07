@@ -393,6 +393,16 @@ createNextDescribe(
           return newTestCookie !== currentTestCookie ? 'success' : 'failure'
         }, 'success')
       })
+
+      it('should handle unicode search params', async () => {
+        const browser = await next.browser('/server?name=名')
+
+        const cnt = await browser.elementByCss('h1').text()
+        expect(cnt).toBe('0')
+
+        await browser.elementByCss('#inc').click()
+        await check(() => browser.elementByCss('h1').text(), '1')
+      })
     })
 
     describe('fetch actions', () => {
@@ -533,7 +543,6 @@ createNextDescribe(
         expect(newJustPutIt).toEqual(newJustPutIt2)
       })
 
-      // TODO: investigate flakey behavior with revalidate
       it('should revalidate when cookies.set is called', async () => {
         const browser = await next.browser('/revalidate')
         const randomNumber = await browser.elementByCss('#random-cookie').text()
@@ -547,6 +556,36 @@ createNextDescribe(
 
           return newRandomNumber !== randomNumber ? 'success' : 'failure'
         }, 'success')
+      })
+
+      it('should invalidate client cache on other routes when cookies.set is called', async () => {
+        const browser = await next.browser('/mutate-cookie')
+        await browser.elementByCss('#update-cookie').click()
+
+        let cookie
+        await check(async () => {
+          cookie = await browser.elementByCss('#value').text()
+          return parseInt(cookie) > 0 ? 'success' : 'failure'
+        }, 'success')
+
+        // Make sure the route is cached
+        await browser.elementByCss('#page-2').click()
+        await browser.elementByCss('#back').click()
+
+        // Modify the cookie
+        await browser.elementByCss('#update-cookie').click()
+        let newCookie
+        await check(async () => {
+          newCookie = await browser.elementByCss('#value').text()
+          return newCookie !== cookie && parseInt(newCookie) > 0
+            ? 'success'
+            : 'failure'
+        }, 'success')
+
+        // Navigate to another page and make sure the cookie is not cached
+        await browser.elementByCss('#page-2').click()
+        const otherPageCookie = await browser.elementByCss('#value').text()
+        expect(otherPageCookie).toEqual(newCookie)
       })
 
       // TODO: investigate flakey behavior with revalidate

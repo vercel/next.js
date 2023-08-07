@@ -27,7 +27,7 @@ const infoLog = (...args: any[]) => {
 /**
  * Based on napi-rs's target triples, returns triples that have corresponding next-swc binaries.
  */
-const getSupportedArchTriples: () => Record<string, any> = () => {
+export const getSupportedArchTriples: () => Record<string, any> = () => {
   const { darwin, win32, linux, freebsd, android } = platformArchTriples
 
   return {
@@ -430,10 +430,10 @@ interface TurboEngineOptions {
   memoryLimit?: number
 }
 
-interface Issue {
+export interface Issue {
   severity: string
   category: string
-  context: string
+  filePath: string
   title: string
   description: string
   detail: string
@@ -449,7 +449,7 @@ interface Issue {
   subIssues: Issue[]
 }
 
-interface Diagnostics {}
+export interface Diagnostics {}
 
 export type TurbopackResult<T = {}> = T & {
   issues: Issue[]
@@ -462,7 +462,7 @@ interface Middleware {
   matcher?: string[]
 }
 
-interface Entrypoints {
+export interface Entrypoints {
   routes: Map<string, Route>
   middleware?: Middleware
   pagesDocumentEndpoint: Endpoint
@@ -470,9 +470,14 @@ interface Entrypoints {
   pagesErrorEndpoint: Endpoint
 }
 
-interface Project {
+export interface Update {
+  update: unknown
+}
+
+export interface Project {
   update(options: ProjectOptions): Promise<void>
   entrypointsSubscribe(): AsyncIterableIterator<TurbopackResult<Entrypoints>>
+  hmrEvents(identifier: string): AsyncIterableIterator<TurbopackResult<Update>>
 }
 
 export type Route =
@@ -666,8 +671,6 @@ function bindingToApi(binding: any, _wasm: boolean) {
         pagesDocumentEndpoint: NapiEndpoint
         pagesAppEndpoint: NapiEndpoint
         pagesErrorEndpoint: NapiEndpoint
-        issues: Issue[]
-        diagnostics: Diagnostics[]
       }
 
       type NapiMiddleware = {
@@ -702,8 +705,10 @@ function bindingToApi(binding: any, _wasm: boolean) {
           }
       )
 
-      const subscription = subscribe<NapiEntrypoints>(false, async (callback) =>
-        binding.projectEntrypointsSubscribe(await this._nativeProject, callback)
+      const subscription = subscribe<TurbopackResult<NapiEntrypoints>>(
+        false,
+        async (callback) =>
+          binding.projectEntrypointsSubscribe(this._nativeProject, callback)
       )
       return (async function* () {
         for await (const entrypoints of subscription) {
@@ -774,6 +779,15 @@ function bindingToApi(binding: any, _wasm: boolean) {
           }
         }
       })()
+    }
+
+    hmrEvents(identifier: string) {
+      const subscription = subscribe<TurbopackResult<Update>>(
+        true,
+        async (callback) =>
+          binding.projectHmrEvents(this._nativeProject, identifier, callback)
+      )
+      return subscription
     }
   }
 

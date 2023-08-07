@@ -261,13 +261,13 @@ export async function startServer({
       )
       const cleanup = () => {
         debug('start-server process cleanup')
-
         for (const curWorker of ((routerWorker as any)._workerPool?._workers ||
           []) as {
           _child?: ChildProcess
         }[]) {
-          curWorker._child?.kill('SIGKILL')
+          curWorker._child?.kill('SIGINT')
         }
+        process.exit(0)
       }
       process.on('exit', cleanup)
       process.on('SIGINT', cleanup)
