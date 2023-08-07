@@ -1,10 +1,11 @@
+import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 
 const inter = Inter({ subsets: ['latin'] })
 
-export const metadata = {
-  title: 'Next.js on github pages',
-  description: 'Deploy next.js web application on github pages',
+export const metadata: Metadata = {
+  title: 'Next.js on GitHub Pages',
+  description: 'A Next.js web application on GitHub Pages',
 }
 
 export default function RootLayout({
