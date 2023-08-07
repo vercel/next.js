@@ -7,6 +7,9 @@ on:
   # Allow manual runs
   workflow_dispatch:
 
+env:
+  NODE_LTS_VERSION: 18.16.1
+
 jobs:
   create-pull-request:
     runs-on: ubuntu-latest
@@ -17,6 +20,14 @@ jobs:
           # Commits made with the default `GITHUB_TOKEN` won't trigger workflows.
           # See: https://docs.github.com/en/actions/security-guides/automatic-token-authentication#using-the-github_token-in-a-workflow
           token: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
+
+      - name: Setup node
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_LTS_VERSION }}
+          check-latest: true
+
+      - run: corepack enable
 
       - name: Install dependencies
         shell: bash
