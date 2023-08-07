@@ -55,7 +55,7 @@ pub use app_segment_config::{
     parse_segment_config_from_loader_tree, parse_segment_config_from_source,
 };
 pub use app_source::create_app_source;
-pub use emit::{all_server_paths, emit_all_assets};
+pub use emit::{all_assets_from_entries, all_server_paths, emit_all_assets, emit_assets};
 pub use next_edge::context::{
     get_edge_chunking_context, get_edge_compile_time_info, get_edge_resolve_options_context,
 };
