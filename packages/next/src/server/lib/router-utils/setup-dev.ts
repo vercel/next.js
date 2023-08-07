@@ -78,6 +78,7 @@ import { PagesManifest } from '../../../build/webpack/plugins/pages-manifest-plu
 import { AppBuildManifest } from '../../../build/webpack/plugins/app-build-manifest-plugin'
 import { PageNotFoundError } from '../../../shared/lib/utils'
 import { srcEmptySsgManifest } from '../../../build/webpack/plugins/build-manifest-plugin'
+import { PropagateToWorkersField } from './types'
 
 type SetupOpts = {
   dir: string
@@ -131,7 +132,7 @@ async function startWatcher(opts: SetupOpts) {
     pages?: import('../router-server').RenderWorker
   } = {}
 
-  async function propagateToWorkers(field: string, args: any) {
+  async function propagateToWorkers(field: PropagateToWorkersField, args: any) {
     await renderWorkers.app?.propagateServerField(field, args)
     await renderWorkers.pages?.propagateServerField(field, args)
   }

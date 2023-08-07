@@ -3,6 +3,7 @@ import type { RequestHandler } from '../next'
 // this must come first as it includes require hooks
 import { initializeServerWorker } from './setup-server-worker'
 import next from '../next'
+import { PropagateToWorkersField } from './router-utils/types'
 
 export const WORKER_SELF_EXIT_CODE = 77
 
@@ -39,7 +40,10 @@ export function deleteCache(filePaths: string[]) {
   }
 }
 
-export async function propagateServerField(field: string, value: any) {
+export async function propagateServerField(
+  field: PropagateToWorkersField,
+  value: any
+) {
   if (!app) {
     throw new Error('Invariant cant propagate server field, no app initialized')
   }
@@ -53,7 +57,8 @@ export async function propagateServerField(field: string, value: any) {
         appField = appField[parts[i]]
       }
     }
-    field = parts[parts.length - 1]
+    // TODO: Fix type.
+    field = parts[parts.length - 1] as any
   }
 
   if (appField) {
