@@ -5,6 +5,7 @@ const isNextDev = Boolean((global as any).isNextDev)
 const expectedErr =
   /Webpack config is undefined. You may have forgot to return properly from within the "webpack" method of your next.config.js/
 
+// createNextDescribe doesn't support failing builds currently. This test has a failing build in production.
 if (isNextDev) {
   createNextDescribe(
     'undefined-webpack-config',
