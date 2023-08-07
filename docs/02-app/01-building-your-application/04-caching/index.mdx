@@ -4,7 +4,7 @@ nav_title: Caching
 description: An overview of caching mechanisms in Next.js.
 ---
 
-Next.js improves your application's performance and reduce costs by caching rendering work and data requests. This page provides an in-depth look at Next.js caching mechanisms, the APIs you can use to configure them, and how they interact with each other.
+Next.js improves your application's performance and reduces costs by caching rendering work and data requests. This page provides an in-depth look at Next.js caching mechanisms, the APIs you can use to configure them, and how they interact with each other.
 
 > **Good to know**: This page helps you understand how Next.js works under the hood but is **not** essential knowledge to be productive with Next.js. Most of Next.js' caching heuristics are determined by your API usage and have defaults for the best performance with zero or minimal configuration.
 
@@ -19,17 +19,17 @@ Here's a high-level overview of the different caching mechanisms and their purpo
 | [Full Route Cache](#full-route-cache)       | HTML and RSC payload       | Server | Reduce rendering cost and improve performance   | Persistent (can be revalidated) |
 | [Router Cache](#router-cache)               | RSC Payload                | Client | Reduce server requests on navigation            | User session or time-based      |
 
-By default, Next.js will cache as much as possible to improve performance and reduce cost. This means routes are statically rendered and data requests are cached unless you opt out. The diagram below shows the default caching behavior; at build time and when a route is first visited.
+By default, Next.js will cache as much as possible to improve performance and reduce cost. This means routes are **statically rendered** and data requests are **cached** unless you opt out. The diagram below shows the default caching behavior: when a route is statically rendered at build time and when a static route is first visited.
 
 <Image
   alt="Diagram showing the default caching behavior in Next.js for the four mechanisms, with HIT, MISS and SET at build time and when a route is first visited."
   srcLight="/docs/light/caching-overview.png"
   srcDark="/docs/dark/caching-overview.png"
   width="1600"
-  height="1117"
+  height="1179"
 />
 
-This behavior changes depending on whether the route is statically or dynamically rendered, data is cached or uncached, and whether it's the initial visit or a subsequent navigation. Depending on your use case, you can configure the caching behavior for individual routes and data requests.
+Caching behavior changes depending on whether the route is statically or dynamically rendered, data is cached or uncached, and whether a request is part of an initial visit or a subsequent navigation. Depending on your use case, you can configure the caching behavior for individual routes and data requests.
 
 ## Request Memoization
 
@@ -47,7 +47,8 @@ For example, if you need to use the same data across a route (e.g. in a Layout, 
 
 ```tsx filename="app/example.tsx" switcher
 async function getItem() {
-  // The `fetch` function is automatically memoized and the result is cached
+  // The `fetch` function is automatically memoized and the result
+  // is cached
   const res = await fetch('https://.../item/1')
   return res.json()
 }
@@ -61,7 +62,8 @@ const item = await getItem() // cache HIT
 
 ```jsx filename="app/example.js" switcher
 async function getItem() {
-  // The `fetch` function is automatically memoized and the result is cached
+  // The `fetch` function is automatically memoized and the result
+  // is cached
   const res = await fetch('https://.../item/1')
   return res.json()
 }
@@ -73,6 +75,8 @@ const item = await getItem() // cache MISS
 const item = await getItem() // cache HIT
 ```
 
+**How Request Memoization Works**
+
 <Image
   alt="Diagram showing how fetch memoization works during React rendering."
   srcLight="/docs/light/request-memoization.png"
@@ -81,7 +85,10 @@ const item = await getItem() // cache HIT
   height="742"
 />
 
-The first time the request is called, it'll be a cache `MISS`, the function will be executed, and the data will be fetched from the Next.js [Data Cache](#data-cache) or your data store and the result will be stored in memory. Subsequent function calls will be a cache `HIT`, and the data will be returned from memory without executing the function.
+- While rendering a route, the first time a particular request is called, it's result will not be in memory and it'll be a cache `MISS`.
+- Therefore, the function will be executed, and the data will be fetched from the external source, and the result will be stored in memory.
+- Subsequent function calls of the request in the same render pass will be a cache `HIT`, and the data will be returned from memory without executing the function.
+- Once the route has been rendered and the rendering pass is complete, memory is "reset" and all request memoization entries are cleared.
 
 > **Good to know**:
 >
@@ -90,7 +97,7 @@ The first time the request is called, it'll be a cache `MISS`, the function will
 > - Memoization only applies to the React Component tree, this means:
 >   - It applies to `fetch` requests in `generateMetadata`, `generateStaticParams`, Layouts, Pages, and other Server Components.
 >   - It doesn't apply to `fetch` requests in Route Handlers as they are not a part of the React component tree.
-> - For cases where `fetch` is not suitable (e.g. database clients, CMS clients, or GraphQL), you can use the [React `cache` function](#react-cache-function) to memoize functions.
+> - For cases where `fetch` is not suitable (e.g. some database clients, CMS clients, or GraphQL clients), you can use the [React `cache` function](#react-cache-function) to memoize functions.
 
 ### Duration
 
@@ -104,7 +111,7 @@ Since the memoization is not shared across server requests and only applies duri
 
 To opt out of memoization in `fetch` requests, you can pass an `AbortController` `signal` to the request.
 
-```js
+```js filename="app/example.js"
 const { signal } = new AbortController()
 fetch(url, { signal })
 ```
@@ -113,23 +120,25 @@ fetch(url, { signal })
 
 Next.js has a built-in Data Cache that **persists** the result of data fetches across incoming **server requests** and **deployments**. This is possible because Next.js extends the native `fetch` API to allow each request on the server to set its own persistent caching semantics.
 
+> **Good to know**: In the browser, the `cache` option of `fetch` indicates how a request will interact with the browser's HTTP cache, in Next.js, the `cache` option indicates how a server-side request will interact with the servers Data Cache.
+
 By default, data requests that use `fetch` are **cached**. You can use the [`cache`](#fetch-optionscache) and [`next.revalidate`](#fetch-optionsnextrevalidate) options of `fetch` to configure the caching behavior.
 
-> **Good to know**: In the browser, the `cache` option of `fetch` indicates how a request will interact with the browser's HTTP cache, with Next.js, the `cache` option indicates how a server-side request will interact with the servers Data Cache.
+**How the Data Cache Works**
 
 <Image
   alt="Diagram showing how cached and uncached fetch requests interact with the Data Cache. Cached requests are stored in the Data Cache, and memoized, uncached requests are fetched from the data source, not stored in the Data Cache, and memoized."
   srcLight="/docs/light/data-cache.png"
   srcDark="/docs/dark/data-cache.png"
   width="1600"
-  height="679"
+  height="661"
 />
 
-The first time a `fetch` request is called during rendering, Next.js checks the Data Cache for a cached response. If a cached response is found, it's returned immediately and [memoized](#request-memoization). If not, the request is made to the data source, the result is stored in the Data Cache, and memoized.
-
-For uncached data (e.g. `{ cache: 'no-store' }`), the result is always fetched from the data source, and memoized.
-
-Whether the data is cached or uncached, the requests are always memoized to avoid making duplicate requests for the same data during a React render pass.
+- The first time a `fetch` request is called during rendering, Next.js checks the Data Cache for a cached response.
+- If a cached response is found, it's returned immediately and [memoized](#request-memoization).
+- If a cached response is not found, the request is made to the data source, the result is stored in the Data Cache, and memoized.
+- For uncached data (e.g. `{ cache: 'no-store' }`), the result is always fetched from the data source, and memoized.
+- Whether the data is cached or uncached, the requests are always memoized to avoid making duplicate requests for the same data during a React render pass.
 
 > **Differences between the Data Cache and Request Memoization**
 >
@@ -159,22 +168,22 @@ fetch('https://...', { next: { revalidate: 3600 } })
 
 Alternatively, you can use [Route Segment Config options](#segment-config-options) to configure all `fetch` requests in a segment or for cases where you're not able to use `fetch`.
 
-**How Time-based Revalidation Works**:
+**How Time-based Revalidation Works**
 
 <Image
   alt="Diagram showing how time-based revalidation works, after the revalidation period, stale data is returned for the first request, then data is revalidated."
   srcLight="/docs/light/time-based-revalidation.png"
   srcDark="/docs/dark/time-based-revalidation.png"
   width="1600"
-  height="1192"
+  height="1252"
 />
 
-1.  The first time a fetch request with `revalidate` is called, the data will be fetched from the external data source and stored in the Data Cache.
-2.  Any requests that are called within the specified timeframe (e.g. 60-seconds) will return the cached data.
-3.  After the timeframe, the next request will still return the cached (now stale) data.
-    - Next.js will trigger a revalidation of the data in the background.
-    - Once the data is fetched successfully, Next.js will update the Data Cache with the fresh data.
-    - If the background revalidation fails, the previous data will be kept unaltered.
+- The first time a fetch request with `revalidate` is called, the data will be fetched from the external data source and stored in the Data Cache.
+- Any requests that are called within the specified timeframe (e.g. 60-seconds) will return the cached data.
+- After the timeframe, the next request will still return the cached (now stale) data.
+  - Next.js will trigger a revalidation of the data in the background.
+  - Once the data is fetched successfully, Next.js will update the Data Cache with the fresh data.
+  - If the background revalidation fails, the previous data will be kept unaltered.
 
 This is similar to [**stale-while-revalidate**](https://web.dev/stale-while-revalidate/) behavior.
 
@@ -182,17 +191,20 @@ This is similar to [**stale-while-revalidate**](https://web.dev/stale-while-reva
 
 Data can be revalidated on-demand by path ([`revalidatePath`](#revalidatepath)) or by cache tag ([`revalidateTag`](#fetch-optionsnexttag-and-revalidatetag)).
 
-**How On-Demand Revalidation Works**:
+**How On-Demand Revalidation Works**
 
 <Image
   alt="Diagram showing how on-demand revalidation works, the Data Cache is updated with fresh data after a revalidation request."
   srcLight="/docs/light/on-demand-revalidation.png"
   srcDark="/docs/dark/on-demand-revalidation.png"
   width="1600"
-  height="956"
+  height="1082"
 />
 
-On-demand revalidation purges entries from the Data Cache. When the request is executed again, it'll be a cache `MISS`, and the Data Cache will be populated with fresh data. This is different from time-based revalidation, which keeps the stale data in the cache until the fresh data is fetched.
+- The first time a `fetch` request is called, the data will be fetched from the external data source and stored in the Data Cache.
+- When an on-demand revalidation is triggered, the appropriate cache entries will be purged from the cache.
+  - This is different from time-based revalidation, which keeps the stale data in the cache until the fresh data is fetched.
+- The next time a request is made, it will be a cache `MISS` again, and the data will be fetched from the external data source and stored in the Data Cache.
 
 ### Opting out
 
@@ -216,17 +228,17 @@ export const dynamic = 'force-dynamic'
 
 ## Full Route Cache
 
-Next.js automatically renders and caches routes at build time. This is an optimization that allows you to serve the cached route instead of rendering on the server for every request, resulting in faster page loads.
-
 > **Related terms**:
 >
-> - You may see the terms **Automatic Static Optimization**, **Static Site Generation**, or **Static Rendering** being used interchangeably to refer to the process of rendering and caching routes of your application at build time.
+> You may see the terms **Automatic Static Optimization**, **Static Site Generation**, or **Static Rendering** being used interchangeably to refer to the process of rendering and caching routes of your application at build time.
+
+Next.js automatically renders and caches routes at build time. This is an optimization that allows you to serve the cached route instead of rendering on the server for every request, resulting in faster page loads.
 
 To understand how the Full Route Cache works, it's helpful to look at how React handles rendering, and how Next.js caches the result:
 
 ### 1. React Rendering on the Server
 
-On the server, Next.js uses React's APIs to orchestrate rendering. The rendering work split into chunks, by individual routes segments and Suspense boundaries.
+On the server, Next.js uses React's APIs to orchestrate rendering. The rendering work is split into chunks: by individual routes segments and Suspense boundaries.
 
 Each chunk is rendered in two steps:
 
@@ -252,7 +264,7 @@ This means we don't have to wait for everything to render before caching the wor
   srcLight="/docs/light/full-route-cache.png"
   srcDark="/docs/dark/full-route-cache.png"
   width="1600"
-  height="869"
+  height="888"
 />
 
 The default behavior of Next.js is to cache the rendered result (React Server Component Payload and HTML) of a route on the server. This applies to statically rendered routes at build time, or during revalidation.
@@ -286,7 +298,7 @@ This diagram shows the difference between statically and dynamically rendered ro
   srcLight="/docs/light/static-and-dynamic-routes.png"
   srcDark="/docs/dark/static-and-dynamic-routes.png"
   width="1600"
-  height="770"
+  height="1314"
 />
 
 Learn more about [static and dynamic rendering](/docs/app/building-your-application/rendering/static-and-dynamic).
@@ -307,19 +319,26 @@ There are two ways you can invalidate the Full Route Cache:
 You can opt out of the Full Route Cache, or in other words, dynamically render components for every incoming request, by:
 
 - **Using a [Dynamic Function](#dynamic-functions)**: This will opt the route out from the Full Route Cache and dynamically render it at request time. The Data Cache can still be used.
-- **Using the route segment config options `export const dynamic = 'force-dynamic'` or `export const revalidate = 0`**: This will skip the Full Route Cache and the Data Cache. Meaning components will be rendered and data fetched on every incoming request to the server. The Router Cache will still apply as it's a client-side cache.
+- **Using the `dynamic = 'force-dynamic'` or `revalidate = 0` route segment config options**: This will skip the Full Route Cache and the Data Cache. Meaning components will be rendered and data fetched on every incoming request to the server. The Router Cache will still apply as it's a client-side cache.
 - **Opting out of the [Data Cache](#data-cache)**: If a route has a `fetch` request that is not cached, this will opt the route out of the Full Route Cache. The data for the specific `fetch` request will be fetched for every incoming request. Other `fetch` requests that do not opt out of caching will still be cached in the Data Cache. This allows for a hybrid of cached and uncached data.
 
 ## Router Cache
 
+> **Related Terms:**
+>
+> You may see the Router Cache being referred to as **Client-side Cache** or **Prefetch Cache**. While **Prefetch Cache** refers to the prefetched route segments, **Client-side Cache** refers to the whole Router cache, which includes both visited and prefetched segments.
+> This cache specifically applies to Next.js and Server Components, and is different to the browser's [bfcache](https://web.dev/bfcache/), though it has a similar result.
+
 Next.js has an in-memory client-side cache that stores the React Server Component Payload, split by individual route segments, for the duration of a user session. This is called the Router Cache.
+
+**How the Router Cache Works**
 
 <Image
   alt="How the Router cache works for static and dynamic routes, showing MISS and HIT for initial and subsequent navigations."
   srcLight="/docs/light/router-cache.png"
   srcDark="/docs/dark/router-cache.png"
   width="1600"
-  height="1332"
+  height="1375"
 />
 
 As users navigates between routes, Next.js caches visited route segments and [prefetches](/docs/app/building-your-application/routing/linking-and-navigating#1-prefetching) the routes the user is likely to navigate to (based on `<Link>` components in their viewport).
@@ -332,13 +351,8 @@ This results in an improved navigation experience for the user:
 > **Difference between the Router Cache and Full Route Cache**:
 >
 > The Router Cache temporarily stores the React Server Component Payload in the browser for the duration of a user session, whereas the Full Route Cache persistently stores the React Server Component Payload and HTML on the server across multiple user requests.
-
-> While the Full Route Cache only caches statically rendered routes, the Router Cache applies to both statically and dynamically rendered routes.
-
-> **Related Terms:**
 >
-> You may see the Router Cache being referred to as **Client-side Cache** or **Prefetch Cache**. While **Prefetch Cache** refers to the prefetched route segments, **Client-side Cache** refers to the whole Router cache, which includes both visited and prefetched segments.
-> This cache specifically applies to Next.js and Server Components, and is different to the browser's [bfcache](https://web.dev/bfcache/), though it has a similar result.
+> While the Full Route Cache only caches statically rendered routes, the Router Cache applies to both statically and dynamically rendered routes.
 
 ### Duration
 
@@ -386,24 +400,24 @@ When configuring the different caching mechanisms, it's important to understand 
 
 The following table provides an overview of how different Next.js APIs affect caching:
 
-| API                                                                  | Router Cache | Full Route Cache      | Data Cache            | React Cache |
-| -------------------------------------------------------------------- | ------------ | --------------------- | --------------------- | ----------- |
-| [`<Link prefetch>`](#link)                                           | Cache        |                       |                       |             |
-| [`router.prefetch`](#routerprefetch)                                 | Cache        |                       |                       |             |
-| [`router.refresh`](#routerrefresh)                                   | Revalidate   |                       |                       |             |
-| [`fetch`](#fetch)                                                    |              |                       | Cache                 | Cache       |
-| [`fetch.options.cache`](#fetch-optionscache)                         |              |                       | Cache or Opt out      |             |
-| [`fetch.options.next.revalidate`](#fetch-optionsnextrevalidate)      |              | Revalidate            | Revalidate            |             |
-| [`fetch.options.next.tags`](#fetch-optionsnexttag-and-revalidatetag) |              | Cache                 | Cache                 |             |
-| [`revalidateTag`](#fetch-optionsnexttag-and-revalidatetag)           |              | Revalidate            | Revalidate            |             |
-| [`revalidatePath`](#revalidatepath)                                  |              | Revalidate            | Revalidate            |             |
-| [`const revalidate`](#segment-config-options)                        |              | Revalidate or Opt out | Revalidate or Opt out |             |
-| [`const dynamic`](#segment-config-options)                           |              | Cache or Opt out      | Cache or Opt out      |             |
-| [`cookies`](#cookies)                                                | Revalidate   | Opt out               |                       |             |
-| [`headers`, `useSearchParams`, `searchParams`](#dynamic-functions)   |              | Opt out               |                       |             |
-| [`generateStaticParams`](#generatestaticparams)                      |              | Cache                 |                       |             |
-| [`React.cache`](#react-cache-function)                               |              |                       |                       | Cache       |
-| [`unstable_cache`](#unstable_cache) (Coming Soon)                    |              |                       |                       |             |
+| API                                                                    | Router Cache | Full Route Cache      | Data Cache            | React Cache |
+| ---------------------------------------------------------------------- | ------------ | --------------------- | --------------------- | ----------- |
+| [`<Link prefetch>`](#link)                                             | Cache        |                       |                       |             |
+| [`router.prefetch`](#routerprefetch)                                   | Cache        |                       |                       |             |
+| [`router.refresh`](#routerrefresh)                                     | Revalidate   |                       |                       |             |
+| [`fetch`](#fetch)                                                      |              |                       | Cache                 | Cache       |
+| [`fetch` `options.cache`](#fetch-optionscache)                         |              |                       | Cache or Opt out      |             |
+| [`fetch` `options.next.revalidate`](#fetch-optionsnextrevalidate)      |              | Revalidate            | Revalidate            |             |
+| [`fetch` `options.next.tags`](#fetch-optionsnexttag-and-revalidatetag) |              | Cache                 | Cache                 |             |
+| [`revalidateTag`](#fetch-optionsnexttag-and-revalidatetag)             |              | Revalidate            | Revalidate            |             |
+| [`revalidatePath`](#revalidatepath)                                    |              | Revalidate            | Revalidate            |             |
+| [`const revalidate`](#segment-config-options)                          |              | Revalidate or Opt out | Revalidate or Opt out |             |
+| [`const dynamic`](#segment-config-options)                             |              | Cache or Opt out      | Cache or Opt out      |             |
+| [`cookies`](#cookies)                                                  | Revalidate   | Opt out               |                       |             |
+| [`headers`, `useSearchParams`, `searchParams`](#dynamic-functions)     |              | Opt out               |                       |             |
+| [`generateStaticParams`](#generatestaticparams)                        |              | Cache                 |                       |             |
+| [`React.cache`](#react-cache-function)                                 |              |                       |                       | Cache       |
+| [`unstable_cache`](#unstable_cache) (Coming Soon)                      |              |                       |                       |             |
 
 ### `<Link>`
 
@@ -503,7 +517,7 @@ There are two places you can use `revalidatePath`, depending on what you're tryi
 
 See the [`revalidatePath` API reference](/docs/app/api-reference/functions/revalidatePath) for more information.
 
-> **`revalidatePath` vs. `router.refresh`**:
+> **`revalidatePath`** vs. **`router.refresh`**:
 >
 > Calling `router.refresh` will clear the Router cache, and re-render route segments on the server without invalidating the Data Cache or the Full Route Cache.
 >
@@ -542,7 +556,7 @@ See the [`generateStaticParams` API reference](/docs/app/api-reference/functions
 
 The React `cache` function allows you to memoize the return value of a function, allowing you to call the same function multiple times while only executing it once.
 
-Since `fetch` requests are automatically memoized, you do not need to wrap it in React `cache`. However, you can use `cache` to manually memoize data requests for use cases when the `fetch` API is not suitable. For example, database clients, CMS clients, or GraphQL.
+Since `fetch` requests are automatically memoized, you do not need to wrap it in React `cache`. However, you can use `cache` to manually memoize data requests for use cases when the `fetch` API is not suitable. For example, some database clients, CMS clients, or GraphQL clients.
 
 ```tsx filename="utils/get-item.ts" switcher
 import { cache } from 'react'
