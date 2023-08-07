@@ -3,4 +3,44 @@ title: template.js
 description: API Reference for the template.js file.
 ---
 
-This documentation is still being written. Please check back later.
+A **template** is UI that is shared between routes.
+
+```tsx filename="app/dashboard/template.tsx" switcher
+export default function Template({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return <div>{children}</div>
+}
+```
+
+```jsx filename="app/dashboard/template.js" switcher
+export default function Template({ children }) {
+  return <div>{children}</div>
+}
+```
+
+## Props
+
+### `children` (required)
+
+Template components should accept and use a `children` prop. During rendering, `children` will be populated with the route segments the template is wrapping. These will primarily be the component of a child [Layout](/docs/app/building-your-application/routing/pages-and-layouts#pages) (if it exists) or [Page](/docs/app/building-your-application/routing/pages-and-layouts#pages), but could also be other special files like [Loading](/docs/app/building-your-application/routing/loading-ui-and-streaming) or [Error](/docs/app/building-your-application/routing/error-handling) when applicable.
+
+## Good to know
+
+### Templates do not persist across routes
+
+Unlike [Layouts](/docs/app/api-reference/file-conventions/layout), templates **do not** persist across routes or maintain state. Templates create a new instance of each of their children on navigation. This means that when a user navigates between routes that share a template, a new instance of the component is mounted, DOM elements are recreated, state is **not** preserved, and effects are re-synchronized.
+
+There may be cases where you need those specific behaviors. For example:
+
+- Enter/exit animations using CSS or animation libraries.
+- Features that rely on `useEffect` (e.g. logging page views) and `useState` (e.g. a per page feedback form).
+- To change the default framework behavior. For example, Suspense Bundaries inside layouts only show the fallback for the first time the Layout is loaded and not when switching pages. For templates, the fallback is shown on each navigation.
+
+## Version History
+
+| Version   | Changes                |
+| --------- | ---------------------- |
+| `v13.0.0` | `template` introduced. |
