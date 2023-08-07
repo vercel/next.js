@@ -2030,12 +2030,12 @@ export default async function getBaseWebpackConfig(
                 layer: 'app-route-handler',
                 test: /\/route\.(js|ts)x?$/,
               },
-              // {
-              //   // Make sure that AsyncLocalStorage module instance is shared between server and client
-              //   // layers.
-              //   layer: WEBPACK_LAYERS.shared,
-              //   test: asyncStoragesRegex,
-              // },
+              {
+                // Make sure that AsyncLocalStorage module instance is shared between server and client
+                // layers.
+                layer: WEBPACK_LAYERS.shared,
+                test: asyncStoragesRegex,
+              },
               // Convert metadata routes to separate layer
               {
                 resourceQuery: new RegExp(
@@ -2092,7 +2092,7 @@ export default async function getBaseWebpackConfig(
                   and: [
                     codeCondition.test,
                     {
-                      not: [optOutBundlingPackageRegex],
+                      not: [optOutBundlingPackageRegex, asyncStoragesRegex],
                     },
                   ],
                 },
@@ -2147,7 +2147,7 @@ export default async function getBaseWebpackConfig(
                 // Alias react for switching between default set and share subset.
                 oneOf: [
                   {
-                    // exclude: [asyncStoragesRegex],
+                    exclude: [asyncStoragesRegex],
                     issuerLayer: {
                       or: [isWebpackServerLayer],
                     },
@@ -2156,9 +2156,9 @@ export default async function getBaseWebpackConfig(
                       // opted out of bundling.
                       and: [
                         codeCondition.test,
-                        // {
-                        //   // not: [optOutBundlingPackageRegex],
-                        // },
+                        {
+                          not: [optOutBundlingPackageRegex],
+                        },
                       ],
                     },
                     resolve: {
@@ -2224,7 +2224,7 @@ export default async function getBaseWebpackConfig(
                     issuerLayer: {
                       or: [isWebpackServerLayer],
                     },
-                    // exclude: [asyncStoragesRegex],
+                    exclude: [asyncStoragesRegex],
                     use: swcLoaderForServerLayer,
                   },
                   {
