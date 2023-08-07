@@ -543,7 +543,7 @@ impl Project {
         // INVALIDATION: This is intentionally untracked to avoid invalidating this
         // function completely. We want to initialize the VersionState with the
         // first seen version of the session.
-        Ok(VersionState::new(version.into_trait_ref_untracked().await?).await?)
+        VersionState::new(version.into_trait_ref_untracked().await?).await
     }
 
     /// Emits opaque HMR events whenever a change is detected in the chunk group

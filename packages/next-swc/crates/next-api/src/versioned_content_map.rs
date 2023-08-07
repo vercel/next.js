@@ -11,9 +11,11 @@ use turbopack_binding::{
     },
 };
 
+type VersionedContentMapInner = HashMap<Vc<FileSystemPath>, Vc<Box<dyn VersionedContent>>>;
+
 #[turbo_tasks::value]
 pub struct VersionedContentMap {
-    map: State<HashMap<Vc<FileSystemPath>, Vc<Box<dyn VersionedContent>>>>,
+    map: State<VersionedContentMapInner>,
 }
 
 impl ValueDefault for VersionedContentMap {
