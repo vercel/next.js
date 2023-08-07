@@ -211,7 +211,8 @@ pub async fn get_next_server_import_map(
 
     let ty = ty.into_value();
 
-    insert_next_server_special_aliases(&mut import_map, ty, mode, false).await?;
+    insert_next_server_special_aliases(&mut import_map, ty, mode, NextServerEnvironment::NodeJs)
+        .await?;
     let external = ImportMapping::External(None).cell();
 
     match ty {
@@ -283,7 +284,8 @@ pub async fn get_next_edge_import_map(
 
     let ty = ty.into_value();
 
-    insert_next_server_special_aliases(&mut import_map, ty, mode, true).await?;
+    insert_next_server_special_aliases(&mut import_map, ty, mode, NextServerEnvironment::Edge)
+        .await?;
 
     match ty {
         ServerContextType::Pages { .. } | ServerContextType::PagesData { .. } => {}
@@ -356,18 +358,21 @@ static NEXT_ALIASES: [(&str, &str); 23] = [
     ("setImmediate", "next/dist/compiled/setimmediate"),
 ];
 
-pub async fn insert_next_server_special_aliases(
+#[derive(Debug, Clone, Copy)]
+enum NextServerEnvironment {
+    Edge,
+    NodeJs,
+}
+
+async fn insert_next_server_special_aliases(
     import_map: &mut ImportMap,
     ty: ServerContextType,
     mode: NextMode,
-    is_edge: bool,
+    server_env: NextServerEnvironment,
 ) -> Result<()> {
-    let external_if_node = move |context_dir: Vc<FileSystemPath>, request: &str| {
-        if is_edge {
-            request_to_import_mapping(context_dir, request)
-        } else {
-            external_request_to_import_mapping(request)
-        }
+    let external_if_node = move |context_dir: Vc<FileSystemPath>, request: &str| match server_env {
+        NextServerEnvironment::Edge => request_to_import_mapping(context_dir, request),
+        NextServerEnvironment::NodeJs => external_request_to_import_mapping(request),
     };
     match (mode, ty) {
         (_, ServerContextType::Pages { pages_dir }) => {
