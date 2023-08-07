@@ -18,6 +18,9 @@ import {
 } from '../../client/components/app-router-headers'
 import { NEXT_QUERY_PARAM_PREFIX } from '../../lib/constants'
 import { ensureInstrumentationRegistered } from './globals'
+import { RequestAsyncStorageWrapper } from '../async-storage/request-async-storage-wrapper'
+import { requestAsyncStorage } from '../../client/components/request-async-storage'
+import { PrerenderManifest } from '../../build'
 
 class NextRequestHint extends NextRequest {
   sourcePage: string
@@ -65,6 +68,10 @@ export async function adapter(
 
   // TODO-APP: use explicit marker for this
   const isEdgeRendering = typeof self.__BUILD_MANIFEST !== 'undefined'
+  const prerenderManifest: PrerenderManifest | undefined =
+    typeof self.__PRERENDER_MANIFEST === 'string'
+      ? JSON.parse(self.__PRERENDER_MANIFEST)
+      : undefined
 
   params.request.url = normalizeRscPath(params.request.url, true)
 
@@ -177,11 +184,40 @@ export async function adapter(
   }
 
   const event = new NextFetchEvent({ request, page: params.page })
-  let response = await params.handler(request, event)
+  let response
+  let cookiesFromResponse
+
+  // we only care to make async storage available for middleware
+  if (params.page === '/middleware') {
+    response = await RequestAsyncStorageWrapper.wrap(
+      requestAsyncStorage,
+      {
+        req: request,
+        renderOpts: {
+          onUpdateCookies: (cookies) => {
+            cookiesFromResponse = cookies
+          },
+          // @ts-expect-error: TODO: investigate why previewProps isn't on RenderOpts
+          previewProps: prerenderManifest?.preview || {
+            previewModeId: 'development-id',
+            previewModeEncryptionKey: '',
+            previewModeSigningKey: '',
+          },
+        },
+      },
+      () => params.handler(request, event)
+    )
+  } else {
+    response = await params.handler(request, event)
+  }
 
   // check if response is a Response object
   if (response && !(response instanceof Response)) {
     throw new TypeError('Expected an instance of Response to be returned')
+  }
+
+  if (response && cookiesFromResponse) {
+    response.headers.set('set-cookie', cookiesFromResponse)
   }
 
   /**
