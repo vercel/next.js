@@ -1,21 +1,21 @@
 ---
 title: Font Optimization
 nav_title: Fonts
-description: Optimize your application's web fonts with the built-in `next/font` loaders.
+description: Optimize your application's web fonts with the built-in `@next/font` loaders.
 related:
   title: API Reference
-  description: Learn more about the next/font API.
+  description: Learn more about the @next/font API.
   links:
     - app/api-reference/components/font
 ---
 
 {/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
 
-[**`next/font`**](/docs/app/api-reference/components/font) will automatically optimize your fonts (including custom fonts) and remove external network requests for improved privacy and performance.
+[**`@next/font`**](/docs/app/api-reference/components/font) will automatically optimize your fonts (including custom fonts) and remove external network requests for improved privacy and performance.
 
-> **🎥 Watch:** Learn more about how to use `next/font` → [YouTube (6 minutes)](https://www.youtube.com/watch?v=L8_98i_bMMA).
+> **🎥 Watch:** Learn more about how to use `@next/font` → [YouTube (6 minutes)](https://www.youtube.com/watch?v=L8_98i_bMMA).
 
-`next/font` includes **built-in automatic self-hosting** for _any_ font file. This means you can optimally load web fonts with zero layout shift, thanks to the underlying CSS `size-adjust` property used.
+`@next/font` includes **built-in automatic self-hosting** for _any_ font file. This means you can optimally load web fonts with zero layout shift, thanks to the underlying CSS `size-adjust` property used.
 
 This new font system also allows you to conveniently use all Google Fonts with performance and privacy in mind. CSS and font files are downloaded at build time and self-hosted with the rest of your static assets. **No requests are sent to Google by the browser.**
 
@@ -23,12 +23,12 @@ This new font system also allows you to conveniently use all Google Fonts with p
 
 Automatically self-host any Google Font. Fonts are included in the deployment and served from the same domain as your deployment. **No requests are sent to Google by the browser.**
 
-Get started by importing the font you would like to use from `next/font/google` as a function. We recommend using [variable fonts](https://fonts.google.com/variablefonts) for the best performance and flexibility.
+Get started by importing the font you would like to use from `@next/font/google` as a function. We recommend using [variable fonts](https://fonts.google.com/variablefonts) for the best performance and flexibility.
 
 <AppOnly>
 
 ```tsx filename="app/layout.tsx" switcher
-import { Inter } from 'next/font/google'
+import { Inter } from '@next/font/google'
 
 // If loading a variable font, you don't need to specify the font weight
 const inter = Inter({
@@ -50,7 +50,7 @@ export default function RootLayout({
 ```
 
 ```jsx filename="app/layout.js" switcher
-import { Inter } from 'next/font/google'
+import { Inter } from '@next/font/google'
 
 // If loading a variable font, you don't need to specify the font weight
 const inter = Inter({
@@ -70,7 +70,7 @@ export default function RootLayout({ children }) {
 If you can't use a variable font, you will **need to specify a weight**:
 
 ```tsx filename="app/layout.tsx" switcher
-import { Roboto } from 'next/font/google'
+import { Roboto } from '@next/font/google'
 
 const roboto = Roboto({
   weight: '400',
@@ -92,7 +92,7 @@ export default function RootLayout({
 ```
 
 ```jsx filename="app/layout.js" switcher
-import { Roboto } from 'next/font/google'
+import { Roboto } from '@next/font/google'
 
 const roboto = Roboto({
   weight: '400',
@@ -116,7 +116,7 @@ export default function RootLayout({ children }) {
 To use the font in all your pages, add it to [`_app.js` file](/docs/pages/building-your-application/routing/custom-app) under `/pages` as shown below:
 
 ```jsx filename="pages/_app.js"
-import { Inter } from 'next/font/google'
+import { Inter } from '@next/font/google'
 
 // If loading a variable font, you don't need to specify the font weight
 const inter = Inter({ subsets: ['latin'] })
@@ -133,7 +133,7 @@ export default function MyApp({ Component, pageProps }) {
 If you can't use a variable font, you will **need to specify a weight**:
 
 ```jsx filename="pages/_app.js"
-import { Roboto } from 'next/font/google'
+import { Roboto } from '@next/font/google'
 
 const roboto = Roboto({
   weight: '400',
@@ -171,7 +171,7 @@ const roboto = Roboto({
 You can also use the font without a wrapper and `className` by injecting it inside the `<head>` as follows:
 
 ```jsx filename="pages/_app.js"
-import { Inter } from 'next/font/google'
+import { Inter } from '@next/font/google'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -194,7 +194,7 @@ export default function MyApp({ Component, pageProps }) {
 To use the font on a single page, add it to the specific page as shown below:
 
 ```jsx filename="pages/index.js"
-import { Inter } from 'next/font/google'
+import { Inter } from '@next/font/google'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -244,7 +244,7 @@ You can import and use multiple fonts in your application. There are two approac
 The first approach is to create a utility function that exports a font, imports it, and applies its `className` where needed. This ensures the font is preloaded only when it's rendered:
 
 ```ts filename="app/fonts.ts" switcher
-import { Inter, Roboto_Mono } from 'next/font/google'
+import { Inter, Roboto_Mono } from '@next/font/google'
 
 export const inter = Inter({
   subsets: ['latin'],
@@ -258,7 +258,7 @@ export const roboto_mono = Roboto_Mono({
 ```
 
 ```js filename="app/fonts.js" switcher
-import { Inter, Roboto_Mono } from 'next/font/google'
+import { Inter, Roboto_Mono } from '@next/font/google'
 
 export const inter = Inter({
   subsets: ['latin'],
@@ -334,7 +334,7 @@ Alternatively, you can create a [CSS variable](/docs/app/api-reference/component
 <AppOnly>
 
 ```tsx filename="app/layout.tsx" switcher
-import { Inter, Roboto_Mono } from 'next/font/google'
+import { Inter, Roboto_Mono } from '@next/font/google'
 import styles from './global.css'
 
 const inter = Inter({
@@ -366,7 +366,7 @@ export default function RootLayout({
 ```
 
 ```jsx filename="app/layout.js" switcher
-import { Inter, Roboto_Mono } from 'next/font/google'
+import { Inter, Roboto_Mono } from '@next/font/google'
 
 const inter = Inter({
   subsets: ['latin'],
@@ -410,12 +410,12 @@ In the example above, `Inter` will be applied globally, and any `<h1>` tags will
 
 ## Local Fonts
 
-Import `next/font/local` and specify the `src` of your local font file. We recommend using [variable fonts](https://fonts.google.com/variablefonts) for the best performance and flexibility.
+Import `@next/font/local` and specify the `src` of your local font file. We recommend using [variable fonts](https://fonts.google.com/variablefonts) for the best performance and flexibility.
 
 <AppOnly>
 
 ```tsx filename="app/layout.tsx" switcher
-import localFont from 'next/font/local'
+import localFont from '@next/font/local'
 
 // Font files can be colocated inside of `app`
 const myFont = localFont({
@@ -437,7 +437,7 @@ export default function RootLayout({
 ```
 
 ```jsx filename="app/layout.js" switcher
-import localFont from 'next/font/local'
+import localFont from '@next/font/local'
 
 // Font files can be colocated inside of `app`
 const myFont = localFont({
@@ -459,7 +459,7 @@ export default function RootLayout({ children }) {
 <PagesOnly>
 
 ```jsx filename="pages/_app.js"
-import localFont from 'next/font/local'
+import localFont from '@next/font/local'
 
 // Font files can be colocated inside of `pages`
 const myFont = localFont({ src: './my-font.woff2' })
@@ -508,14 +508,14 @@ View the [Font API Reference](/docs/app/api-reference/components/font) for more 
 
 ## With Tailwind CSS
 
-`next/font` can be used with [Tailwind CSS](https://tailwindcss.com/) through a [CSS variable](/docs/app/api-reference/components/font#css-variables).
+`@next/font` can be used with [Tailwind CSS](https://tailwindcss.com/) through a [CSS variable](/docs/app/api-reference/components/font#css-variables).
 
-In the example below, we use the font `Inter` from `next/font/google` (you can use any font from Google or Local Fonts). Load your font with the `variable` option to define your CSS variable name and assign it to `inter`. Then, use `inter.variable` to add the CSS variable to your HTML document.
+In the example below, we use the font `Inter` from `@next/font/google` (you can use any font from Google or Local Fonts). Load your font with the `variable` option to define your CSS variable name and assign it to `inter`. Then, use `inter.variable` to add the CSS variable to your HTML document.
 
 <AppOnly>
 
 ```tsx filename="app/layout.tsx" switcher
-import { Inter, Roboto_Mono } from 'next/font/google'
+import { Inter, Roboto_Mono } from '@next/font/google'
 
 const inter = Inter({
   subsets: ['latin'],
@@ -543,7 +543,7 @@ export default function RootLayout({
 ```
 
 ```jsx filename="app/layout.js" switcher
-import { Inter, Roboto_Mono } from 'next/font/google'
+import { Inter, Roboto_Mono } from '@next/font/google'
 
 const inter = Inter({
   subsets: ['latin'],
@@ -571,7 +571,7 @@ export default function RootLayout({ children }) {
 <PagesOnly>
 
 ```jsx filename="pages/_app.js"
-import { Inter } from 'next/font/google'
+import { Inter } from '@next/font/google'
 
 const inter = Inter({
   subsets: ['latin'],
