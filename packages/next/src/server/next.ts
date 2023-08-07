@@ -344,8 +344,7 @@ function createServer(options: NextServerOptions): NextServer {
                       req.url = formatUrl(parsedUrl)
                     }
 
-                    requestHandler(req, res)
-                    return
+                    return requestHandler(req, res)
                   }
                   handler = handler || server.getRequestHandler()
                   return handler(req, res, parsedUrl)
