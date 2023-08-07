@@ -4,48 +4,50 @@ import { describeVariants as describe } from 'next-test-utils'
 import { outdent } from 'outdent'
 import path from 'path'
 
-describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
-  const { next } = nextTestSetup({
-    files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
-    skipStart: true,
-  })
+describe.each(['default', 'turbo', 'experimentalTurbo'])(
+  'ReactRefreshLogBox %s',
+  () => {
+    const { next } = nextTestSetup({
+      files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
+      skipStart: true,
+    })
 
-  test('empty _app shows logbox', async () => {
-    const { session, cleanup } = await sandbox(
-      next,
-      new Map([['pages/_app.js', ``]])
-    )
-    expect(await session.hasRedbox(true)).toBe(true)
-    expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
-      `"Error: The default export is not a React Component in page: \\"/_app\\""`
-    )
+    test('empty _app shows logbox', async () => {
+      const { session, cleanup } = await sandbox(
+        next,
+        new Map([['pages/_app.js', ``]])
+      )
+      expect(await session.hasRedbox(true)).toBe(true)
+      expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
+        `"Error: The default export is not a React Component in page: \\"/_app\\""`
+      )
 
-    await session.patch(
-      'pages/_app.js',
-      outdent`
+      await session.patch(
+        'pages/_app.js',
+        outdent`
         function MyApp({ Component, pageProps }) {
           return <Component {...pageProps} />;
         }
         export default MyApp
       `
-    )
-    expect(await session.hasRedbox(false)).toBe(false)
-    await cleanup()
-  })
+      )
+      expect(await session.hasRedbox(false)).toBe(false)
+      await cleanup()
+    })
 
-  test('empty _document shows logbox', async () => {
-    const { session, cleanup } = await sandbox(
-      next,
-      new Map([['pages/_document.js', ``]])
-    )
-    expect(await session.hasRedbox(true)).toBe(true)
-    expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
-      `"Error: The default export is not a React Component in page: \\"/_document\\""`
-    )
+    test('empty _document shows logbox', async () => {
+      const { session, cleanup } = await sandbox(
+        next,
+        new Map([['pages/_document.js', ``]])
+      )
+      expect(await session.hasRedbox(true)).toBe(true)
+      expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
+        `"Error: The default export is not a React Component in page: \\"/_document\\""`
+      )
 
-    await session.patch(
-      'pages/_document.js',
-      outdent`
+      await session.patch(
+        'pages/_document.js',
+        outdent`
         import Document, { Html, Head, Main, NextScript } from 'next/document'
 
         class MyDocument extends Document {
@@ -69,31 +71,31 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
 
         export default MyDocument
       `
-    )
-    expect(await session.hasRedbox(false)).toBe(false)
-    await cleanup()
-  })
+      )
+      expect(await session.hasRedbox(false)).toBe(false)
+      await cleanup()
+    })
 
-  test('_app syntax error shows logbox', async () => {
-    const { session, cleanup } = await sandbox(
-      next,
-      new Map([
-        [
-          'pages/_app.js',
-          outdent`
+    test('_app syntax error shows logbox', async () => {
+      const { session, cleanup } = await sandbox(
+        next,
+        new Map([
+          [
+            'pages/_app.js',
+            outdent`
             function MyApp({ Component, pageProps }) {
               return <<Component {...pageProps} />;
             }
             export default MyApp
           `,
-        ],
-      ])
-    )
-    expect(await session.hasRedbox(true)).toBe(true)
-    expect(
-      next.normalizeTestDirContent(await session.getRedboxSource())
-    ).toMatchInlineSnapshot(
-      next.normalizeSnapshot(`
+          ],
+        ])
+      )
+      expect(await session.hasRedbox(true)).toBe(true)
+      expect(
+        next.normalizeTestDirContent(await session.getRedboxSource())
+      ).toMatchInlineSnapshot(
+        next.normalizeSnapshot(`
         "./pages/_app.js
         Error: 
           x Expression expected
@@ -117,28 +119,28 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
         Caused by:
             Syntax Error"
       `)
-    )
+      )
 
-    await session.patch(
-      'pages/_app.js',
-      outdent`
+      await session.patch(
+        'pages/_app.js',
+        outdent`
         function MyApp({ Component, pageProps }) {
           return <Component {...pageProps} />;
         }
         export default MyApp
       `
-    )
-    expect(await session.hasRedbox(false)).toBe(false)
-    await cleanup()
-  })
+      )
+      expect(await session.hasRedbox(false)).toBe(false)
+      await cleanup()
+    })
 
-  test('_document syntax error shows logbox', async () => {
-    const { session, cleanup } = await sandbox(
-      next,
-      new Map([
-        [
-          'pages/_document.js',
-          outdent`
+    test('_document syntax error shows logbox', async () => {
+      const { session, cleanup } = await sandbox(
+        next,
+        new Map([
+          [
+            'pages/_document.js',
+            outdent`
             import Document, { Html, Head, Main, NextScript } from 'next/document'
 
             class MyDocument extends Document {{
@@ -162,14 +164,14 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
 
             export default MyDocument
           `,
-        ],
-      ])
-    )
-    expect(await session.hasRedbox(true)).toBe(true)
-    expect(
-      next.normalizeTestDirContent(await session.getRedboxSource())
-    ).toMatchInlineSnapshot(
-      next.normalizeSnapshot(`
+          ],
+        ])
+      )
+      expect(await session.hasRedbox(true)).toBe(true)
+      expect(
+        next.normalizeTestDirContent(await session.getRedboxSource())
+      ).toMatchInlineSnapshot(
+        next.normalizeSnapshot(`
         "./pages/_document.js
         Error: 
           x Unexpected token \`{\`. Expected identifier, string literal, numeric literal or [ for the computed key
@@ -186,11 +188,11 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
         Caused by:
             Syntax Error"
       `)
-    )
+      )
 
-    await session.patch(
-      'pages/_document.js',
-      outdent`
+      await session.patch(
+        'pages/_document.js',
+        outdent`
         import Document, { Html, Head, Main, NextScript } from 'next/document'
 
         class MyDocument extends Document {
@@ -214,8 +216,9 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
 
         export default MyDocument
       `
-    )
-    expect(await session.hasRedbox(false)).toBe(false)
-    await cleanup()
-  })
-})
+      )
+      expect(await session.hasRedbox(false)).toBe(false)
+      await cleanup()
+    })
+  }
+)

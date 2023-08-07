@@ -1,6 +1,6 @@
+import type { BrowserInterface } from 'test/lib/browsers/base'
 import { createNextDescribe } from 'e2e-utils'
 import { check } from 'next-test-utils'
-import { BrowserInterface } from 'test/lib/browsers/base'
 import fs from 'fs/promises'
 import path from 'path'
 import cheerio from 'cheerio'
@@ -33,7 +33,11 @@ createNextDescribe(
         } else {
           // If expected is undefined, then it should not exist.
           // Otherwise, it should exist in the matched values.
-          expect(values.includes(expected)).toBe(expected !== undefined)
+          if (expected === undefined) {
+            expect(values).not.toContain(undefined)
+          } else {
+            expect(values).toContain(expected)
+          }
         }
       }
     }
@@ -570,7 +574,7 @@ createNextDescribe(
         let hasRootNotFoundFlight = false
         for (const el of $('script').toArray()) {
           const text = $(el).text()
-          if (text.includes('root not found page')) {
+          if (text.includes('Local found boundary')) {
             hasRootNotFoundFlight = true
           }
         }
@@ -586,7 +590,7 @@ createNextDescribe(
 
         const browser = await next.browser('/async/not-found')
         expect(await browser.elementByCss('h2').text()).toBe(
-          'root not found page'
+          'Local found boundary'
         )
 
         const matchMultiDom = createMultiDomMatcher(browser)
@@ -669,7 +673,7 @@ createNextDescribe(
         const favIcon = $('link[rel="icon"]')
         expect(favIcon.attr('href')).toBe('/favicon.ico')
         expect(favIcon.attr('type')).toBe('image/x-icon')
-        expect(favIcon.attr('sizes')).toBe('any')
+        expect(favIcon.attr('sizes')).toBe('16x16')
 
         const iconSvg = $('link[rel="icon"][type="image/svg+xml"]')
         expect(iconSvg.attr('href')).toBe('/icon.svg?90699bff34adba1f')
@@ -678,7 +682,7 @@ createNextDescribe(
         $ = await next.render$('/basic')
         const icon = $('link[rel="icon"]')
         expect(icon.attr('href')).toBe('/favicon.ico')
-        expect(icon.attr('sizes')).toBe('any')
+        expect(icon.attr('sizes')).toBe('16x16')
 
         if (!isNextDeploy) {
           const faviconFileBuffer = await fs.readFile(

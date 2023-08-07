@@ -32,7 +32,7 @@ DEALINGS IN THE SOFTWARE.
 #![deny(clippy::all)]
 #![feature(box_patterns)]
 
-use std::{cell::RefCell, env::current_dir, path::PathBuf, rc::Rc, sync::Arc};
+use std::{cell::RefCell, path::PathBuf, rc::Rc, sync::Arc};
 
 use auto_cjs::contains_cjs;
 use either::Either;
@@ -158,7 +158,7 @@ where
             Either::Left(turbopack_binding::swc::custom_transform::relay::relay(
                 config,
                 file.name.clone(),
-                current_dir().unwrap(),
+                std::env::current_dir().unwrap(),
                 opts.pages_dir.clone(),
                 None,
             ))
@@ -167,22 +167,12 @@ where
         }
     };
 
-    let mut modularize_imports_config = match &opts.modularize_imports {
+    let modularize_imports_config = match &opts.modularize_imports {
         Some(config) => config.clone(),
         None => modularize_imports::Config {
             packages: std::collections::HashMap::new(),
         },
     };
-    modularize_imports_config.packages.insert(
-        "next/server".to_string(),
-        modularize_imports::PackageConfig {
-            transform: modularize_imports::Transform::String(
-                "next/dist/server/web/exports/{{ kebabCase member }}".to_string(),
-            ),
-            prevent_full_import: false,
-            skip_default_conversion: false,
-        },
-    );
 
     chain!(
         disallow_re_export_all_in_page::disallow_re_export_all_in_page(opts.is_page_file),
