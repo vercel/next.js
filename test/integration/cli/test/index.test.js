@@ -556,6 +556,41 @@ describe('CLI Usage', () => {
       }
     })
 
+    const testAllIPsAndPorts = async (someIp) => {
+      const testIps = [
+        '0.0.0.0',
+        '127.0.0.1',
+        'localhost',
+        '192.168.18.90',
+        'barcos.co',
+        'app.barcos.co',
+      ]
+      for (const someIp of testIps) {
+        const port = await findPort()
+        test(`NODE_OPTIONS='--inspect=${someIp}:${port}'`, async () => {
+          let output = ''
+          const app = await runNextCommandDev(
+            [dirBasic, '--port', port],
+            undefined,
+            {
+              onStdout(msg) {
+                output += stripAnsi(msg)
+              },
+              env: { NODE_OPTIONS: `--inspect=${someIp}:${port}` },
+            }
+          )
+          try {
+            await check(() => output, new RegExp(`on ${someIp}:${port}`))
+            await check(() => output, new RegExp(`http://${someIp}:${port}`))
+          } finally {
+            await killApp(app)
+          }
+        })
+      }
+    }
+
+    testAllIPsAndPorts()
+
     test('-p', async () => {
       const port = await findPort()
       let output = ''
