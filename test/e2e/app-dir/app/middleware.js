@@ -6,28 +6,23 @@ import { NextResponse } from 'next/server'
  * @returns {NextResponse | undefined}
  */
 export function middleware(request) {
+  if (request.nextUrl.pathname === '/searchparams-normalization-bug') {
+    const headers = new Headers(request.headers)
+    headers.set('test', request.nextUrl.searchParams.get('val') || '')
+    const response = NextResponse.next({
+      request: {
+        headers,
+      },
+    })
+
+    return response
+  }
   if (request.nextUrl.pathname === '/exists-but-not-routed') {
     return NextResponse.rewrite(new URL('/dashboard', request.url))
   }
 
   if (request.nextUrl.pathname === '/middleware-to-dashboard') {
     return NextResponse.rewrite(new URL('/dashboard', request.url))
-  }
-
-  if (
-    request.nextUrl.pathname ===
-    '/hooks/use-selected-layout-segment/rewritten-middleware'
-  ) {
-    return NextResponse.rewrite(
-      new URL(
-        '/hooks/use-selected-layout-segment/first/slug3/second/catch/all',
-        request.url
-      )
-    )
-  }
-
-  if (request.nextUrl.pathname === '/redirect-middleware-to-dashboard') {
-    return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
   if (request.nextUrl.pathname.startsWith('/internal/test')) {

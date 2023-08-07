@@ -7,6 +7,7 @@ export const NEXT_TS_ERRORS = {
   INVALID_CONFIG_OPTION: 71006,
   INVALID_CLIENT_ENTRY_PROP: 71007,
   INVALID_METADATA_EXPORT: 71008,
+  INVALID_ERROR_COMPONENT: 71009,
 }
 
 export const ALLOWED_EXPORTS = [
@@ -33,6 +34,8 @@ export const DISALLOWED_SERVER_REACT_APIS: string[] = [
   'PureComponent',
   'createContext',
   'createFactory',
+  'experimental_useOptimistic',
+  'useOptimistic',
 ]
 
 export const ALLOWED_PAGE_PROPS = ['params', 'searchParams']

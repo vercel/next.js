@@ -1,4 +1,5 @@
-import type { IncomingHttpHeaders } from 'http'
+import type { IncomingHttpHeaders, OutgoingHttpHeaders } from 'http'
+import { toNodeOutgoingHttpHeaders } from '../web/utils'
 
 import { BaseNextRequest, BaseNextResponse } from './index'
 
@@ -63,6 +64,11 @@ export class WebNextResponse extends BaseNextResponse<WritableStream> {
     return this
   }
 
+  removeHeader(name: string): this {
+    this.headers.delete(name)
+    return this
+  }
+
   getHeaderValues(name: string): string[] | undefined {
     // https://developer.mozilla.org/en-US/docs/Web/API/Headers/get#example
     return this.getHeader(name)
@@ -72,6 +78,10 @@ export class WebNextResponse extends BaseNextResponse<WritableStream> {
 
   getHeader(name: string): string | undefined {
     return this.headers.get(name) ?? undefined
+  }
+
+  getHeaders(): OutgoingHttpHeaders {
+    return toNodeOutgoingHttpHeaders(this.headers)
   }
 
   hasHeader(name: string): boolean {

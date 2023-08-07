@@ -187,25 +187,27 @@ describe('Switchable runtime', () => {
           expect(manifest).toMatchObject({
             functions: {
               '/api/hello': {
-                env: [],
                 files: [
                   'server/edge-runtime-webpack.js',
                   'server/pages/api/hello.js',
                 ],
                 name: 'pages/api/hello',
                 page: '/api/hello',
-                matchers: [{ regexp: '^/api/hello$' }],
+                matchers: [
+                  { regexp: '^/api/hello$', originalSource: '/api/hello' },
+                ],
                 wasm: [],
               },
               '/api/edge': {
-                env: [],
                 files: [
                   'server/edge-runtime-webpack.js',
                   'server/pages/api/edge.js',
                 ],
                 name: 'pages/api/edge',
                 page: '/api/edge',
-                matchers: [{ regexp: '^/api/edge$' }],
+                matchers: [
+                  { regexp: '^/api/edge$', originalSource: '/api/edge' },
+                ],
                 wasm: [],
               },
             },
@@ -422,7 +424,7 @@ describe('Switchable runtime', () => {
           /Hello from page with invalid type/
         )
         expect(next.cliOutput).toInclude(
-          'error - The `runtime` config must be a string. Please leave it empty or choose one of:'
+          '- error The `runtime` config must be a string. Please leave it empty or choose one of:'
         )
 
         // Invalid runtime
@@ -443,7 +445,7 @@ describe('Switchable runtime', () => {
           /Hello from page with invalid runtime/
         )
         expect(next.cliOutput).toInclude(
-          'error - Provided runtime "asd" is not supported. Please leave it empty or choose one of:'
+          '- error Provided runtime "asd" is not supported. Please leave it empty or choose one of:'
         )
 
         // Fix the runtime
@@ -482,7 +484,7 @@ describe('Switchable runtime', () => {
           /Hello from app/
         )
         expect(next.cliOutput).toInclude(
-          'error - Provided runtime "invalid-runtime" is not supported. Please leave it empty or choose one of:'
+          '- error Provided runtime "invalid-runtime" is not supported. Please leave it empty or choose one of:'
         )
 
         await next.patchFile(
@@ -619,25 +621,29 @@ describe('Switchable runtime', () => {
           expect(manifest).toMatchObject({
             functions: {
               '/api/hello': {
-                env: [],
                 files: [
+                  'prerender-manifest.js',
                   'server/edge-runtime-webpack.js',
                   'server/pages/api/hello.js',
                 ],
                 name: 'pages/api/hello',
                 page: '/api/hello',
-                matchers: [{ regexp: '^/api/hello$' }],
+                matchers: [
+                  { regexp: '^/api/hello$', originalSource: '/api/hello' },
+                ],
                 wasm: [],
               },
               '/api/edge': {
-                env: [],
                 files: [
+                  'prerender-manifest.js',
                   'server/edge-runtime-webpack.js',
                   'server/pages/api/edge.js',
                 ],
                 name: 'pages/api/edge',
                 page: '/api/edge',
-                matchers: [{ regexp: '^/api/edge$' }],
+                matchers: [
+                  { regexp: '^/api/edge$', originalSource: '/api/edge' },
+                ],
                 wasm: [],
               },
             },

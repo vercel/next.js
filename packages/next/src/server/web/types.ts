@@ -1,12 +1,9 @@
 import type { I18NConfig } from '../config-shared'
-import type { NextRequest } from '../web/spec-extension/request'
-import type { NextFetchEvent } from '../web/spec-extension/fetch-event'
+import type { NextRequest } from './spec-extension/request'
+import type { NextFetchEvent } from './spec-extension/fetch-event'
 import type { NextResponse } from './spec-extension/response'
-import type { ClonableBody } from '../body-streams'
-
-export interface NodeHeaders {
-  [header: string]: string | string[] | undefined
-}
+import type { CloneableBody } from '../body-streams'
+import type { OutgoingHttpHeaders } from 'http'
 
 export interface RequestData {
   geo?: {
@@ -16,7 +13,7 @@ export interface RequestData {
     latitude?: string
     longitude?: string
   }
-  headers: NodeHeaders
+  headers: OutgoingHttpHeaders
   ip?: string
   method: string
   nextConfig?: {
@@ -26,14 +23,15 @@ export interface RequestData {
   }
   page?: {
     name?: string
-    params?: { [key: string]: string }
+    params?: { [key: string]: string | string[] }
   }
   url: string
   body?: ReadableStream<Uint8Array>
+  signal: AbortSignal
 }
 
 export type NodejsRequestData = Omit<RequestData, 'body'> & {
-  body?: ClonableBody
+  body?: CloneableBody
 }
 
 export interface FetchEventResult {

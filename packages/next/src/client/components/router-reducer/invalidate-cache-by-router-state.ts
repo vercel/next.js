@@ -1,5 +1,6 @@
-import { CacheNode } from '../../../shared/lib/app-router-context'
-import { FlightRouterState } from '../../../server/app-render'
+import type { CacheNode } from '../../../shared/lib/app-router-context'
+import type { FlightRouterState } from '../../../server/app-render/types'
+import { createRouterCacheKey } from './create-router-cache-key'
 
 /**
  * Invalidate cache one level down from the router state.
@@ -12,9 +13,7 @@ export function invalidateCacheByRouterState(
   // Remove segment that we got data for so that it is filled in during rendering of subTreeData.
   for (const key in routerState[1]) {
     const segmentForParallelRoute = routerState[1][key][0]
-    const cacheKey = Array.isArray(segmentForParallelRoute)
-      ? segmentForParallelRoute[1]
-      : segmentForParallelRoute
+    const cacheKey = createRouterCacheKey(segmentForParallelRoute)
     const existingParallelRoutesCacheNode =
       existingCache.parallelRoutes.get(key)
     if (existingParallelRoutesCacheNode) {

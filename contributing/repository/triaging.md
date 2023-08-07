@@ -2,9 +2,10 @@
 
 Repository maintainers triage every issue and PR opened in the repository.
 
+> Note: Feature requests should be opened as discussions, filling out [this template](https://github.com/vercel/next.js/discussions/new?category=ideas).
+
 Issues are opened with one of these labels:
 
-- `template: story` - a feature request, converted to an [💡 Ideas discussion](https://github.com/vercel/next.js/discussions/categories/ideas)
 - `template: bug` - unverified issue with Next.js itself, or one of the examples in the [`examples`](https://github.com/vercel/next.js/tree/canary/examples) folder
 - `template: documentation` - feedback for improvement or an unverified issue with the Next.js documentation
 

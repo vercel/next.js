@@ -77,11 +77,11 @@ function checkRedirect(route: Redirect): {
   const invalidParts: string[] = []
   let hadInvalidStatus: boolean = false
 
-  if (route.statusCode && !allowedStatusCodes.has(route.statusCode)) {
+  if (route.statusCode && !allowedStatusCodes.has(route['statusCode'])) {
     hadInvalidStatus = true
     invalidParts.push(`\`statusCode\` is not undefined or valid statusCode`)
   }
-  if (typeof route.permanent !== 'boolean' && !route.statusCode) {
+  if (typeof route.permanent !== 'boolean' && !route['statusCode']) {
     invalidParts.push(`\`permanent\` is not set to \`true\` or \`false\``)
   }
 
@@ -525,7 +525,9 @@ function processRoutes<T>(
           newRoutes.push({
             ...r,
             destination,
-            source: `${srcBasePath}/${item.locale}${r.source}`,
+            source: `${srcBasePath}/${item.locale}${
+              r.source === '/' && !config.trailingSlash ? '' : r.source
+            }`,
           })
         })
       }
@@ -565,6 +567,10 @@ async function loadRedirects(config: NextConfig) {
   // they are still valid
   checkCustomRoutes(redirects, 'redirect')
 
+  // save original redirects before transforms
+  if (Array.isArray(redirects)) {
+    ;(config as any)._originalRedirects = redirects.map((r) => ({ ...r }))
+  }
   redirects = processRoutes(redirects, config, 'redirect')
   checkCustomRoutes(redirects, 'redirect')
   return redirects
@@ -602,6 +608,13 @@ async function loadRewrites(config: NextConfig) {
   checkCustomRoutes(beforeFiles, 'rewrite')
   checkCustomRoutes(afterFiles, 'rewrite')
   checkCustomRoutes(fallback, 'rewrite')
+
+  // save original rewrites before transforms
+  ;(config as any)._originalRewrites = {
+    beforeFiles: beforeFiles.map((r) => ({ ...r })),
+    afterFiles: afterFiles.map((r) => ({ ...r })),
+    fallback: fallback.map((r) => ({ ...r })),
+  }
 
   beforeFiles = processRoutes(beforeFiles, config, 'rewrite')
   afterFiles = processRoutes(afterFiles, config, 'rewrite')

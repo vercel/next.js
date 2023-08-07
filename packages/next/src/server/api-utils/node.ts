@@ -1,11 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { NextApiRequest, NextApiResponse } from '../../shared/lib/utils'
 import type { PageConfig, ResponseLimit, SizeLimit } from 'next/types'
-import {
-  checkIsManualRevalidate,
-  PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER,
-  __ApiPreviewProps,
-} from '.'
+import { checkIsOnDemandRevalidate, __ApiPreviewProps } from '.'
 import type { BaseNextRequest, BaseNextResponse } from '../base-http'
 import type { CookieSerializeOptions } from 'next/dist/compiled/cookie'
 import type { PreviewData } from 'next/types'
@@ -26,61 +22,77 @@ import {
   clearPreviewData,
   sendError,
   ApiError,
-  NextApiRequestCookies,
-  PRERENDER_REVALIDATE_HEADER,
   COOKIE_NAME_PRERENDER_BYPASS,
   COOKIE_NAME_PRERENDER_DATA,
   SYMBOL_PREVIEW_DATA,
   RESPONSE_LIMIT_DEFAULT,
 } from './index'
-import { mockRequest } from '../lib/mock-request'
+import { getTracer } from '../lib/trace/tracer'
+import { NodeSpan } from '../lib/trace/constants'
+import { RequestCookies } from '../web/spec-extension/cookies'
+import { HeadersAdapter } from '../web/spec-extension/adapters/headers'
+import {
+  PRERENDER_REVALIDATE_HEADER,
+  PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER,
+} from '../../lib/constants'
+import { invokeRequest } from '../lib/server-ipc/invoke-request'
 
 export function tryGetPreviewData(
-  req: IncomingMessage | BaseNextRequest,
+  req: IncomingMessage | BaseNextRequest | Request,
   res: ServerResponse | BaseNextResponse,
   options: __ApiPreviewProps
 ): PreviewData {
   // if an On-Demand revalidation is being done preview mode
   // is disabled
-  if (options && checkIsManualRevalidate(req, options).isManualRevalidate) {
+  if (options && checkIsOnDemandRevalidate(req, options).isOnDemandRevalidate) {
     return false
   }
 
   // Read cached preview data if present
+  // TODO: use request metadata instead of a symbol
   if (SYMBOL_PREVIEW_DATA in req) {
     return (req as any)[SYMBOL_PREVIEW_DATA] as any
   }
 
-  const getCookies = getCookieParser(req.headers)
-  let cookies: NextApiRequestCookies
-  try {
-    cookies = getCookies()
-  } catch {
-    // TODO: warn
-    return false
+  const headers = HeadersAdapter.from(req.headers)
+  const cookies = new RequestCookies(headers)
+
+  const previewModeId = cookies.get(COOKIE_NAME_PRERENDER_BYPASS)?.value
+  const tokenPreviewData = cookies.get(COOKIE_NAME_PRERENDER_DATA)?.value
+
+  // Case: preview mode cookie set but data cookie is not set
+  if (
+    previewModeId &&
+    !tokenPreviewData &&
+    previewModeId === options.previewModeId
+  ) {
+    // This is "Draft Mode" which doesn't use
+    // previewData, so we return an empty object
+    // for backwards compat with "Preview Mode".
+    const data = {}
+    Object.defineProperty(req, SYMBOL_PREVIEW_DATA, {
+      value: data,
+      enumerable: false,
+    })
+    return data
   }
 
-  const hasBypass = COOKIE_NAME_PRERENDER_BYPASS in cookies
-  const hasData = COOKIE_NAME_PRERENDER_DATA in cookies
-
   // Case: neither cookie is set.
-  if (!(hasBypass || hasData)) {
+  if (!previewModeId && !tokenPreviewData) {
     return false
   }
 
   // Case: one cookie is set, but not the other.
-  if (hasBypass !== hasData) {
+  if (!previewModeId || !tokenPreviewData) {
     clearPreviewData(res as NextApiResponse)
     return false
   }
 
   // Case: preview session is for an old build.
-  if (cookies[COOKIE_NAME_PRERENDER_BYPASS] !== options.previewModeId) {
+  if (previewModeId !== options.previewModeId) {
     clearPreviewData(res as NextApiResponse)
     return false
   }
-
-  const tokenPreviewData = cookies[COOKIE_NAME_PRERENDER_DATA] as string
 
   let encryptedPreviewData: {
     data: string
@@ -179,10 +191,17 @@ export async function parseBody(
   }
 }
 
+type RevalidateFn = (config: {
+  urlPath: string
+  revalidateHeaders: { [key: string]: string | string[] }
+  opts: { unstable_onlyGenerated?: boolean }
+}) => Promise<void>
+
 type ApiContext = __ApiPreviewProps & {
   trustHostHeader?: boolean
   allowedRevalidateHeaderKeys?: string[]
-  revalidate?: (_req: IncomingMessage, _res: ServerResponse) => Promise<any>
+  hostname?: string
+  revalidate?: RevalidateFn
 }
 
 function getMaxContentLength(responseLimit?: ResponseLimit) {
@@ -267,8 +286,42 @@ function sendJson(res: NextApiResponse, jsonBody: any): void {
   res.send(JSON.stringify(jsonBody))
 }
 
-function isNotValidData(str: string): boolean {
-  return typeof str !== 'string' || str.length < 16
+function isValidData(str: any): str is string {
+  return typeof str === 'string' && str.length >= 16
+}
+
+function setDraftMode<T>(
+  res: NextApiResponse<T>,
+  options: {
+    enable: boolean
+    previewModeId?: string
+  }
+): NextApiResponse<T> {
+  if (!isValidData(options.previewModeId)) {
+    throw new Error('invariant: invalid previewModeId')
+  }
+  const expires = options.enable ? undefined : new Date(0)
+  // To delete a cookie, set `expires` to a date in the past:
+  // https://tools.ietf.org/html/rfc6265#section-4.1.1
+  // `Max-Age: 0` is not valid, thus ignored, and the cookie is persisted.
+  const { serialize } =
+    require('next/dist/compiled/cookie') as typeof import('cookie')
+  const previous = res.getHeader('Set-Cookie')
+  res.setHeader(`Set-Cookie`, [
+    ...(typeof previous === 'string'
+      ? [previous]
+      : Array.isArray(previous)
+      ? previous
+      : []),
+    serialize(COOKIE_NAME_PRERENDER_BYPASS, options.previewModeId, {
+      httpOnly: true,
+      sameSite: process.env.NODE_ENV !== 'development' ? 'none' : 'lax',
+      secure: process.env.NODE_ENV !== 'development',
+      path: '/',
+      expires,
+    }),
+  ])
+  return res
 }
 
 function setPreviewData<T>(
@@ -279,13 +332,13 @@ function setPreviewData<T>(
     path?: string
   } & __ApiPreviewProps
 ): NextApiResponse<T> {
-  if (isNotValidData(options.previewModeId)) {
+  if (!isValidData(options.previewModeId)) {
     throw new Error('invariant: invalid previewModeId')
   }
-  if (isNotValidData(options.previewModeEncryptionKey)) {
+  if (!isValidData(options.previewModeEncryptionKey)) {
     throw new Error('invariant: invalid previewModeEncryptionKey')
   }
-  if (isNotValidData(options.previewModeSigningKey)) {
+  if (!isValidData(options.previewModeSigningKey)) {
     throw new Error('invariant: invalid previewModeSigningKey')
   }
 
@@ -407,20 +460,35 @@ async function revalidate(
         throw new Error(`Invalid response ${res.status}`)
       }
     } else if (context.revalidate) {
-      const {
-        req: mockReq,
-        res: mockRes,
-        streamPromise,
-      } = mockRequest(urlPath, revalidateHeaders, 'GET')
-      await context.revalidate(mockReq, mockRes)
-      await streamPromise
+      // We prefer to use the IPC call if running under the workers mode.
+      const ipcPort = process.env.__NEXT_PRIVATE_ROUTER_IPC_PORT
+      if (ipcPort) {
+        const ipcKey = process.env.__NEXT_PRIVATE_ROUTER_IPC_KEY
+        const res = await invokeRequest(
+          `http://${
+            context.hostname
+          }:${ipcPort}?key=${ipcKey}&method=revalidate&args=${encodeURIComponent(
+            JSON.stringify([{ urlPath, revalidateHeaders, opts }])
+          )}`,
+          {
+            method: 'GET',
+            headers: {},
+          }
+        )
+        const result = await res.json()
 
-      if (
-        mockRes.getHeader('x-nextjs-cache') !== 'REVALIDATED' &&
-        !(mockRes.statusCode === 404 && opts.unstable_onlyGenerated)
-      ) {
-        throw new Error(`Invalid response ${mockRes.statusCode}`)
+        if (result.err) {
+          throw new Error(result.err.message)
+        }
+
+        return
       }
+
+      await context.revalidate({
+        urlPath,
+        revalidateHeaders,
+        opts,
+      })
     } else {
       throw new Error(
         `Invariant: required internal revalidate method not passed to api-utils`
@@ -469,6 +537,8 @@ export async function apiResolver(
     setLazyProp({ req: apiReq }, 'preview', () =>
       apiReq.previewData !== false ? true : undefined
     )
+    // Set draftMode to the same value as preview
+    setLazyProp({ req: apiReq }, 'draftMode', () => apiReq.preview)
 
     // Parsing of body
     if (bodyParser && !apiReq.body) {
@@ -501,13 +571,15 @@ export async function apiResolver(
         )
       }
 
-      endResponse.apply(apiRes, args)
+      return endResponse.apply(apiRes, args)
     }
     apiRes.status = (statusCode) => sendStatusCode(apiRes, statusCode)
     apiRes.send = (data) => sendData(apiReq, apiRes, data)
     apiRes.json = (data) => sendJson(apiRes, data)
     apiRes.redirect = (statusOrUrl: number | string, url?: string) =>
       redirect(apiRes, statusOrUrl, url)
+    apiRes.setDraftMode = (options = { enable: true }) =>
+      setDraftMode(apiRes, Object.assign({}, apiContext, options))
     apiRes.setPreviewData = (data, options = {}) =>
       setPreviewData(apiRes, data, Object.assign({}, apiContext, options))
     apiRes.clearPreviewData = (options = {}) =>
@@ -527,18 +599,33 @@ export async function apiResolver(
       res.once('pipe', () => (wasPiped = true))
     }
 
+    getTracer().getRootSpanAttributes()?.set('next.route', page)
     // Call API route method
-    await resolver(req, res)
+    const apiRouteResult = await getTracer().trace(
+      NodeSpan.runHandler,
+      {
+        spanName: `executing api route (pages) ${page}`,
+      },
+      () => resolver(req, res)
+    )
 
-    if (
-      process.env.NODE_ENV !== 'production' &&
-      !externalResolver &&
-      !isResSent(res) &&
-      !wasPiped
-    ) {
-      console.warn(
-        `API resolved without sending a response for ${req.url}, this may result in stalled requests.`
-      )
+    if (process.env.NODE_ENV !== 'production') {
+      if (typeof apiRouteResult !== 'undefined') {
+        if (apiRouteResult instanceof Response) {
+          throw new Error(
+            'API route returned a Response object in the Node.js runtime, this is not supported. Please use `runtime: "edge"` instead: https://nextjs.org/docs/api-routes/edge-api-routes'
+          )
+        }
+        console.warn(
+          `API handler should not return a value, received ${typeof apiRouteResult}.`
+        )
+      }
+
+      if (!externalResolver && !isResSent(res) && !wasPiped) {
+        console.warn(
+          `API resolved without sending a response for ${req.url}, this may result in stalled requests.`
+        )
+      }
     }
   } catch (err) {
     if (err instanceof ApiError) {

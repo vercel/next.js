@@ -10,9 +10,17 @@
     "gzip-size": "^5.1.1",
     "minimatch": "^3.0.4",
     "node-fetch": "^2.6.0",
-    "prettier": "^1.18.2",
+    "prettier": "^2.8.4",
     "pretty-bytes": "^5.3.0",
     "pretty-ms": "^5.0.0",
     "semver": "7.3.4"
-  }
+  },
+  "devDependencies": {
+    "typescript": "5.1.6"
+  },
+  "engines": {
+    "node": ">=16.8.0",
+    "pnpm": "8.6.11"
+  },
+  "packageManager": "pnpm@8.6.11"
 }

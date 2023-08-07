@@ -11,10 +11,18 @@ declare module 'next/dist/compiled/babel/plugin-transform-modules-commonjs'
 declare module 'next/dist/compiled/babel/plugin-syntax-jsx'
 declare module 'next/dist/compiled/loader-utils2'
 declare module 'next/dist/compiled/react-server-dom-webpack/client'
+declare module 'next/dist/compiled/react-server-dom-webpack/client.edge'
+declare module 'next/dist/compiled/react-server-dom-webpack/client.browser'
 declare module 'next/dist/compiled/react-server-dom-webpack/server.browser'
+declare module 'next/dist/compiled/react-server-dom-webpack/server.edge'
+declare module 'next/dist/client/app-call-server'
+declare module 'next/dist/compiled/react-dom/server'
+declare module 'next/dist/compiled/react-dom/server.edge'
 declare module 'next/dist/compiled/react-dom/server.browser'
 declare module 'next/dist/compiled/browserslist'
+declare module 'react-server-dom-webpack/client'
 declare module 'react-dom/server.browser'
+declare module 'react-dom/server.edge'
 
 declare module 'next/dist/compiled/@next/react-dev-overlay/dist/client' {
   export * from '@next/react-dev-overlay/dist/client'
@@ -31,12 +39,6 @@ declare module 'next/dist/compiled/@next/react-refresh-utils/dist/ReactRefreshWe
 
 declare module 'next/dist/compiled/node-html-parser' {
   export * from 'node-html-parser'
-}
-
-declare module 'next/dist/compiled/node-fetch' {
-  import m from 'node-fetch'
-  export default m
-  export * from 'node-fetch'
 }
 
 declare module 'next/dist/compiled/undici' {}
@@ -127,6 +129,13 @@ declare module 'next/dist/compiled/arg/index.js' {
 declare module 'next/dist/compiled/babel/code-frame' {
   export * from '@babel/code-frame'
 }
+
+declare module 'next/dist/compiled/@next/font/dist/google' {
+  export * from '@next/font/google'
+}
+declare module 'next/dist/compiled/@next/font/dist/local' {
+  export * from '@next/font/local'
+}
 declare module 'next/dist/compiled/babel/traverse' {
   import traverse from '@babel/traverse'
   export default traverse
@@ -138,6 +147,10 @@ declare module 'next/dist/compiled/babel/generator' {
   export * from '@babel/generator'
 }
 declare module 'next/dist/compiled/babel/preset-env' {
+  const anyType: any
+  export default anyType
+}
+declare module 'watchpack' {
   const anyType: any
   export default anyType
 }
@@ -340,6 +353,10 @@ declare module 'next/dist/compiled/edge-runtime' {
   export = m
 }
 
+declare module 'next/dist/compiled/@edge-runtime/cookies' {
+  export * from '@edge-runtime/cookies'
+}
+
 declare module 'next/dist/compiled/@edge-runtime/primitives' {
   import * as m from '@edge-runtime/primitives'
   export = m
@@ -388,6 +405,15 @@ declare module 'next/dist/compiled/shell-quote' {
   export = m
 }
 
+declare module 'next/dist/compiled/@vercel/og/satori-types' {
+  export * from 'satori'
+}
+declare module 'next/dist/compiled/@vercel/og' {
+  export * from '@vercel/og'
+}
+declare module 'next/dist/compiled/@vercel/og/index.node'
+declare module 'next/dist/compiled/@vercel/og/index.edge'
+
 declare namespace NodeJS {
   interface ProcessVersions {
     pnp?: string
@@ -422,4 +448,14 @@ declare module 'next/dist/compiled/watchpack' {
 
 declare module 'next/dist/compiled/is-animated' {
   export default function isAnimated(buffer: Buffer): boolean
+}
+
+declare module 'next/dist/compiled/@opentelemetry/api' {
+  import * as m from '@opentelemetry/api'
+  export = m
+}
+
+declare module 'next/dist/compiled/jest-docblock' {
+  import m from 'jest-docblock'
+  export = m
 }

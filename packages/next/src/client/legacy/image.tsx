@@ -39,7 +39,7 @@ if (typeof window === 'undefined') {
 }
 
 const VALID_LOADING_VALUES = ['lazy', 'eager', undefined] as const
-type LoadingValue = typeof VALID_LOADING_VALUES[number]
+type LoadingValue = (typeof VALID_LOADING_VALUES)[number]
 type ImageConfig = ImageConfigComplete & { allSizes: number[] }
 export type ImageLoader = (resolverProps: ImageLoaderProps) => string
 
@@ -148,7 +148,11 @@ function defaultLoader({
         )
       }
 
-      if (process.env.NODE_ENV !== 'test') {
+      if (
+        process.env.NODE_ENV !== 'test' &&
+        // micromatch isn't compatible with edge runtime
+        process.env.NEXT_RUNTIME !== 'edge'
+      ) {
         // We use dynamic require because this should only error in development
         const { hasMatch } = require('../../shared/lib/match-remote-pattern')
         if (!hasMatch(config.domains, config.remotePatterns, parsedSrc)) {
@@ -190,7 +194,7 @@ const VALID_LAYOUT_VALUES = [
   'responsive',
   undefined,
 ] as const
-type LayoutValue = typeof VALID_LAYOUT_VALUES[number]
+type LayoutValue = (typeof VALID_LAYOUT_VALUES)[number]
 
 type PlaceholderValue = 'blur' | 'empty'
 
@@ -559,6 +563,15 @@ const ImageElement = ({
         <noscript>
           <img
             {...rest}
+            // @ts-ignore - TODO: upgrade to `@types/react@17`
+            loading={loading}
+            decoding="async"
+            data-nimg={layout}
+            style={imgStyle}
+            className={className}
+            // It's intended to keep `loading` before `src` because React updates
+            // props in order which causes Safari/Firefox to not lazy load properly.
+            // See https://github.com/facebook/react/issues/25883
             {...generateImgAttrs({
               config,
               src: srcString,
@@ -569,12 +582,6 @@ const ImageElement = ({
               sizes: noscriptSizes,
               loader,
             })}
-            decoding="async"
-            data-nimg={layout}
-            style={imgStyle}
-            className={className}
-            // @ts-ignore - TODO: upgrade to `@types/react@17`
-            loading={loading}
           />
         </noscript>
       )}
@@ -973,10 +980,10 @@ export default function Image({
     React.LinkHTMLAttributes<HTMLLinkElement>,
     HTMLLinkElement
   > = {
-    // @ts-expect-error upgrade react types to react 18
     imageSrcSet: imgAttributes.srcSet,
     imageSizes: imgAttributes.sizes,
     crossOrigin: rest.crossOrigin,
+    referrerPolicy: rest.referrerPolicy,
   }
 
   const useLayoutEffect =
@@ -1020,33 +1027,31 @@ export default function Image({
   }
   return (
     <>
-      {
-        <span style={wrapperStyle}>
-          {hasSizer ? (
-            <span style={sizerStyle}>
-              {sizerSvgUrl ? (
-                <img
-                  style={{
-                    display: 'block',
-                    maxWidth: '100%',
-                    width: 'initial',
-                    height: 'initial',
-                    background: 'none',
-                    opacity: 1,
-                    border: 0,
-                    margin: 0,
-                    padding: 0,
-                  }}
-                  alt=""
-                  aria-hidden={true}
-                  src={sizerSvgUrl}
-                />
-              ) : null}
-            </span>
-          ) : null}
-          <ImageElement {...imgElementArgs} />
-        </span>
-      }
+      <span style={wrapperStyle}>
+        {hasSizer ? (
+          <span style={sizerStyle}>
+            {sizerSvgUrl ? (
+              <img
+                style={{
+                  display: 'block',
+                  maxWidth: '100%',
+                  width: 'initial',
+                  height: 'initial',
+                  background: 'none',
+                  opacity: 1,
+                  border: 0,
+                  margin: 0,
+                  padding: 0,
+                }}
+                alt=""
+                aria-hidden={true}
+                src={sizerSvgUrl}
+              />
+            ) : null}
+          </span>
+        ) : null}
+        <ImageElement {...imgElementArgs} />
+      </span>
       {priority ? (
         // Note how we omit the `href` attribute, as it would only be relevant
         // for browsers that do not support `imagesrcset`, and in those cases

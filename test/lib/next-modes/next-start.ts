@@ -1,13 +1,13 @@
 import path from 'path'
 import fs from 'fs-extra'
 import { NextInstance } from './base'
-import { spawn, SpawnOptions } from 'cross-spawn'
+import spawn from 'cross-spawn'
 import { Span } from 'next/src/trace'
 
 export class NextStartInstance extends NextInstance {
   private _buildId: string
-  private _cliOutput: string
-  private spawnOpts: SpawnOptions
+  private _cliOutput: string = ''
+  private spawnOpts: import('child_process').SpawnOptions
 
   public get buildId() {
     return this._buildId
@@ -48,11 +48,12 @@ export class NextStartInstance extends NextInstance {
       env: {
         ...process.env,
         ...this.env,
-        NODE_ENV: '' as any,
+        NODE_ENV: this.env.NODE_ENV || ('' as any),
         PORT: this.forcedPort || '0',
-        __NEXT_TEST_MODE: '1',
+        __NEXT_TEST_MODE: 'e2e',
       },
     }
+
     let buildArgs = ['yarn', 'next', 'build']
     let startArgs = ['yarn', 'next', 'start']
 
@@ -87,14 +88,16 @@ export class NextStartInstance extends NextInstance {
     })
 
     this._buildId = (
-      await fs.readFile(
-        path.join(
-          this.testDir,
-          this.nextConfig?.distDir || '.next',
-          'BUILD_ID'
-        ),
-        'utf8'
-      )
+      await fs
+        .readFile(
+          path.join(
+            this.testDir,
+            this.nextConfig?.distDir || '.next',
+            'BUILD_ID'
+          ),
+          'utf8'
+        )
+        .catch(() => '')
     ).trim()
 
     console.log('running', startArgs.join(' '))
@@ -120,7 +123,7 @@ export class NextStartInstance extends NextInstance {
 
         const readyCb = (msg) => {
           if (msg.includes('started server on') && msg.includes('url:')) {
-            this._url = msg.split('url: ').pop().trim()
+            this._url = msg.split('url: ').pop().split(/\s/)[0].trim()
             this._parsedUrl = new URL(this._url)
             this.off('stdout', readyCb)
             resolve()
@@ -135,6 +138,18 @@ export class NextStartInstance extends NextInstance {
   }
 
   public async build() {
+    this.spawnOpts = {
+      cwd: this.testDir,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      shell: false,
+      env: {
+        ...process.env,
+        ...this.env,
+        NODE_ENV: '' as any,
+        PORT: this.forcedPort || '0',
+        __NEXT_TEST_MODE: 'e2e',
+      },
+    }
     return new Promise((resolve) => {
       const curOutput = this._cliOutput.length
       const exportArgs = ['pnpm', 'next', 'build']

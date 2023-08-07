@@ -1,9 +1,9 @@
-import { spawn } from 'cross-spawn'
+import spawn from 'cross-spawn'
 import { Span } from 'next/src/trace'
 import { NextInstance } from './base'
 
 export class NextDevInstance extends NextInstance {
-  private _cliOutput: string
+  private _cliOutput: string = ''
 
   public get buildId() {
     return 'development'
@@ -45,9 +45,9 @@ export class NextDevInstance extends NextInstance {
           env: {
             ...process.env,
             ...this.env,
-            NODE_ENV: '' as any,
+            NODE_ENV: this.env.NODE_ENV || ('' as any),
             PORT: this.forcedPort || '0',
-            __NEXT_TEST_MODE: '1',
+            __NEXT_TEST_MODE: 'e2e',
             __NEXT_TEST_WITH_DEVTOOL: '1',
           },
         })
@@ -79,11 +79,7 @@ export class NextDevInstance extends NextInstance {
           if (msg.includes('started server on') && msg.includes('url:')) {
             // turbo devserver emits stdout in rust directly, can contain unexpected chars with color codes
             // strip out again for the safety
-            this._url = msg
-              .split('url: ')
-              .pop()
-              .trim()
-              .split(require('os').EOL)[0]
+            this._url = msg.split('url: ').pop().split(/\s/)[0].trim()
             try {
               this._parsedUrl = new URL(this._url)
             } catch (err) {
@@ -92,7 +88,7 @@ export class NextDevInstance extends NextInstance {
                 msg,
               })
             }
-            this.off('stdout', readyCb)
+            // server might reload so we keep listening
             resolve()
           }
         }

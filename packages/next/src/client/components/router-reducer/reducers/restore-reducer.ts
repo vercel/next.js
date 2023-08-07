@@ -13,6 +13,7 @@ export function restoreReducer(
   const href = createHrefFromUrl(url)
 
   return {
+    buildId: state.buildId,
     // Set canonical url
     canonicalUrl: href,
     pushRef: state.pushRef,
@@ -21,5 +22,6 @@ export function restoreReducer(
     prefetchCache: state.prefetchCache,
     // Restore provided tree
     tree: tree,
+    nextUrl: url.pathname,
   }
 }

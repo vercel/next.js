@@ -72,7 +72,7 @@ const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
     <React.Fragment>
       {firstFrame ? (
         <React.Fragment>
-          <h5>Source</h5>
+          <h2>Source</h2>
           {leadingFrames.map((frame, index) => (
             <CallStackFrame
               key={`leading-frame-${index}-${all}`}
@@ -88,7 +88,7 @@ const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
 
       {error.componentStackFrames ? (
         <>
-          <h5>Component Stack</h5>
+          <h2>Component Stack</h2>
           {error.componentStackFrames.map((componentStackFrame, index) => (
             <ComponentStackFrameRow
               key={index}
@@ -100,7 +100,7 @@ const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
 
       {stackFramesGroupedByFramework.length ? (
         <React.Fragment>
-          <h5>Call Stack</h5>
+          <h2>Call Stack</h2>
           <GroupedStackFrames
             groupedStackFrames={stackFramesGroupedByFramework}
             all={all}
@@ -138,14 +138,15 @@ export const styles = css`
     margin-bottom: var(--size-gap-double);
   }
 
-  [data-nextjs-call-stack-frame] > h6,
-  [data-nextjs-component-stack-frame] > h6 {
+  [data-nextjs-call-stack-frame] > h3,
+  [data-nextjs-component-stack-frame] > h3 {
     margin-top: 0;
     margin-bottom: var(--size-gap);
     font-family: var(--font-stack-monospace);
+    font-size: var(--size-font);
     color: #222;
   }
-  [data-nextjs-call-stack-frame] > h6[data-nextjs-frame-expanded='false'] {
+  [data-nextjs-call-stack-frame] > h3[data-nextjs-frame-expanded='false'] {
     color: #666;
   }
   [data-nextjs-call-stack-frame] > div,
@@ -178,14 +179,6 @@ export const styles = css`
     display: unset;
   }
 
-  [data-nextjs-call-stack-framework-button] {
-    border: none;
-    background: none;
-    display: flex;
-    align-items: center;
-    padding: 0;
-    margin: var(--size-gap-double) 0;
-  }
   [data-nextjs-call-stack-framework-icon] {
     margin-right: var(--size-gap);
   }
@@ -195,9 +188,25 @@ export const styles = css`
   [data-nextjs-call-stack-framework-icon='react'] {
     color: rgb(20, 158, 202);
   }
-  [data-nextjs-call-stack-framework-button][data-state='open']
-    > [data-nextjs-call-stack-chevron-icon] {
+  [data-nextjs-collapsed-call-stack-details][open]
+    [data-nextjs-call-stack-chevron-icon] {
     transform: rotate(90deg);
+  }
+  [data-nextjs-collapsed-call-stack-details] summary {
+    display: flex;
+    align-items: center;
+    margin: var(--size-gap-double) 0;
+    list-style: none;
+  }
+  [data-nextjs-collapsed-call-stack-details] summary::-webkit-details-marker {
+    display: none;
+  }
+
+  [data-nextjs-collapsed-call-stack-details] h3 {
+    color: #666;
+  }
+  [data-nextjs-collapsed-call-stack-details] [data-nextjs-call-stack-frame] {
+    margin-bottom: var(--size-gap-double);
   }
 `
 

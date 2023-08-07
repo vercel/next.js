@@ -1,6 +1,24 @@
 import type { ResolvedMetadata } from '../types/metadata-interface'
 
 import React from 'react'
+import { AlternateLinkDescriptor } from '../types/alternative-urls-types'
+import { MetaFilter } from './meta'
+
+function AlternateLink({
+  descriptor,
+  ...props
+}: {
+  descriptor: AlternateLinkDescriptor
+} & React.LinkHTMLAttributes<HTMLLinkElement>) {
+  if (!descriptor.url) return null
+  return (
+    <link
+      {...props}
+      {...(descriptor.title && { title: descriptor.title })}
+      href={descriptor.url.toString()}
+    />
+  )
+}
 
 export function AlternatesMetadata({
   alternates,
@@ -8,47 +26,33 @@ export function AlternatesMetadata({
   alternates: ResolvedMetadata['alternates']
 }) {
   if (!alternates) return null
-  return (
-    <>
-      {alternates.canonical ? (
-        <link rel="canonical" href={alternates.canonical.toString()} />
-      ) : null}
-      {alternates.languages
-        ? Object.entries(alternates.languages).map(([locale, url]) =>
-            url ? (
-              <link
-                key={locale}
-                rel="alternate"
-                hrefLang={locale}
-                href={url.toString()}
-              />
-            ) : null
+
+  const { canonical, languages, media, types } = alternates
+
+  return MetaFilter([
+    canonical
+      ? AlternateLink({ rel: 'canonical', descriptor: canonical })
+      : null,
+    languages
+      ? Object.entries(languages).flatMap(([locale, descriptors]) =>
+          descriptors?.map((descriptor) =>
+            AlternateLink({ rel: 'alternate', hrefLang: locale, descriptor })
           )
-        : null}
-      {alternates.media
-        ? Object.entries(alternates.media).map(([media, url]) =>
-            url ? (
-              <link
-                key={media}
-                rel="alternate"
-                media={media}
-                href={url.toString()}
-              />
-            ) : null
+        )
+      : null,
+    media
+      ? Object.entries(media).flatMap(([mediaName, descriptors]) =>
+          descriptors?.map((descriptor) =>
+            AlternateLink({ rel: 'alternate', media: mediaName, descriptor })
           )
-        : null}
-      {alternates.types
-        ? Object.entries(alternates.types).map(([type, url]) =>
-            url ? (
-              <link
-                key={type}
-                rel="alternate"
-                type={type}
-                href={url.toString()}
-              />
-            ) : null
+        )
+      : null,
+    types
+      ? Object.entries(types).flatMap(([type, descriptors]) =>
+          descriptors?.map((descriptor) =>
+            AlternateLink({ rel: 'alternate', type, descriptor })
           )
-        : null}
-    </>
-  )
+        )
+      : null,
+  ])
 }

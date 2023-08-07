@@ -41,11 +41,8 @@ import fs from 'fs-extra'
       name: 'dummy-package',
       version: '1.0.0',
       optionalDependencies: {
-        '@next/swc-android-arm64': 'canary',
-        '@next/swc-android-arm-eabi': 'canary',
         '@next/swc-darwin-arm64': 'canary',
         '@next/swc-darwin-x64': 'canary',
-        '@next/swc-linux-arm-gnueabihf': 'canary',
         '@next/swc-linux-arm64-gnu': 'canary',
         '@next/swc-linux-arm64-musl': 'canary',
         '@next/swc-linux-x64-gnu': 'canary',
@@ -59,7 +56,10 @@ import fs from 'fs-extra'
       path.join(tmpdir, 'package.json'),
       JSON.stringify(pkgJson)
     )
-    let { stdout } = await execa('yarn', ['--force'], { cwd: tmpdir })
+    await fs.writeFile(path.join(tmpdir, '.npmrc'), 'node-linker=hoisted')
+    let { stdout } = await execa('pnpm', ['install'], {
+      cwd: tmpdir,
+    })
     console.log(stdout)
     let pkgs = await fs.readdir(path.join(tmpdir, 'node_modules/@next'))
     await fs.ensureDir(path.join(cwd, 'node_modules/@next'))

@@ -1,5 +1,6 @@
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
-import { SupportedErrorEvent } from './container/Errors'
+import type { VersionInfo } from '../../../../server/dev/parse-version-info'
+import type { SupportedErrorEvent } from './container/Errors'
 import { ComponentStackFrame } from './helpers/parse-component-stack'
 
 export const ACTION_BUILD_OK = 'build-ok'
@@ -8,6 +9,15 @@ export const ACTION_BEFORE_REFRESH = 'before-fast-refresh'
 export const ACTION_REFRESH = 'fast-refresh'
 export const ACTION_UNHANDLED_ERROR = 'unhandled-error'
 export const ACTION_UNHANDLED_REJECTION = 'unhandled-rejection'
+export const ACTION_VERSION_INFO = 'version-info'
+export const INITIAL_OVERLAY_STATE: OverlayState = {
+  nextId: 1,
+  buildError: null,
+  errors: [],
+  notFound: false,
+  refreshState: { type: 'idle' },
+  versionInfo: { installed: '0.0.0', staleness: 'unknown' },
+}
 
 interface BuildOkAction {
   type: typeof ACTION_BUILD_OK
@@ -22,6 +32,7 @@ interface BeforeFastRefreshAction {
 interface FastRefreshAction {
   type: typeof ACTION_REFRESH
 }
+
 export interface UnhandledErrorAction {
   type: typeof ACTION_UNHANDLED_ERROR
   reason: Error
@@ -32,6 +43,11 @@ export interface UnhandledRejectionAction {
   type: typeof ACTION_UNHANDLED_REJECTION
   reason: Error
   frames: StackFrame[]
+}
+
+interface VersionInfoAction {
+  type: typeof ACTION_VERSION_INFO
+  versionInfo: VersionInfo
 }
 
 export type FastRefreshState =
@@ -51,6 +67,8 @@ export interface OverlayState {
     missingTags: string[]
   }
   refreshState: FastRefreshState
+  versionInfo: VersionInfo
+  notFound: boolean
 }
 
 function pushErrorFilterDuplicates(
@@ -66,17 +84,18 @@ function pushErrorFilterDuplicates(
   ]
 }
 
-export function errorOverlayReducer(
-  state: Readonly<OverlayState>,
-  action: Readonly<
+export const errorOverlayReducer: React.Reducer<
+  Readonly<OverlayState>,
+  Readonly<
     | BuildOkAction
     | BuildErrorAction
     | BeforeFastRefreshAction
     | FastRefreshAction
     | UnhandledErrorAction
     | UnhandledRejectionAction
+    | VersionInfoAction
   >
-): OverlayState {
+> = (state, action) => {
   switch (action.type) {
     case ACTION_BUILD_OK: {
       return { ...state, buildError: null }
@@ -135,6 +154,9 @@ export function errorOverlayReducer(
           const _: never = state.refreshState
           return state
       }
+    }
+    case ACTION_VERSION_INFO: {
+      return { ...state, versionInfo: action.versionInfo }
     }
     default: {
       return state

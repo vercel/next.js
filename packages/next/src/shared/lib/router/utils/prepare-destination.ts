@@ -8,6 +8,11 @@ import type { BaseNextRequest } from '../../../../server/base-http'
 import { compile, pathToRegexp } from 'next/dist/compiled/path-to-regexp'
 import { escapeStringRegexp } from '../../escape-regexp'
 import { parseUrl } from './parse-url'
+import {
+  INTERCEPTION_ROUTE_MARKERS,
+  isInterceptionRouteAppPath,
+} from '../../../../server/future/helpers/interception-routes'
+import { NEXT_RSC_UNION_QUERY } from '../../../../client/components/app-router-headers'
 
 /**
  * Ensure only a-zA-Z are used for param names for proper interpolating
@@ -158,6 +163,8 @@ export function prepareDestination(args: {
   delete query.__nextLocale
   delete query.__nextDefaultLocale
   delete query.__nextDataReq
+  delete query.__nextInferredLocaleFromDefault
+  delete query[NEXT_RSC_UNION_QUERY]
 
   let escapedDestination = args.destination
 
@@ -225,6 +232,20 @@ export function prepareDestination(args: {
   }
 
   let newUrl
+
+  // The compiler also that the interception route marker is an unnamed param, hence '0',
+  // so we need to add it to the params object.
+  if (isInterceptionRouteAppPath(destPath)) {
+    for (const segment of destPath.split('/')) {
+      const marker = INTERCEPTION_ROUTE_MARKERS.find((m) =>
+        segment.startsWith(m)
+      )
+      if (marker) {
+        args.params['0'] = marker
+        break
+      }
+    }
+  }
 
   try {
     newUrl = destPathCompiler(args.params)

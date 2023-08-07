@@ -1,8 +1,21 @@
 import type { ServerRuntime } from '../../types'
 
+export const NEXT_QUERY_PARAM_PREFIX = 'nxtP'
+
+export const PRERENDER_REVALIDATE_HEADER = 'x-prerender-revalidate'
+export const PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER =
+  'x-prerender-revalidate-if-generated'
+
+// in seconds
+export const CACHE_ONE_YEAR = 31536000
+
 // Patterns to detect middleware files
 export const MIDDLEWARE_FILENAME = 'middleware'
 export const MIDDLEWARE_LOCATION_REGEXP = `(?:src/)?${MIDDLEWARE_FILENAME}`
+
+// Pattern to detect instrumentation hooks file
+export const INSTRUMENTATION_HOOK_FILENAME = 'instrumentation'
+export const INSTRUMENTATION_HOOKS_LOCATION_REGEXP = `(?:src/)?${INSTRUMENTATION_HOOK_FILENAME}`
 
 // Because on Windows absolute paths in the generated code can break because of numbers, eg 1 in the path,
 // we have to use a private alias
@@ -11,6 +24,10 @@ export const DOT_NEXT_ALIAS = 'private-dot-next'
 export const ROOT_DIR_ALIAS = 'private-next-root-dir'
 export const APP_DIR_ALIAS = 'private-next-app-dir'
 export const RSC_MOD_REF_PROXY_ALIAS = 'private-next-rsc-mod-ref-proxy'
+export const RSC_ACTION_VALIDATE_ALIAS = 'private-next-rsc-action-validate'
+export const RSC_ACTION_PROXY_ALIAS = 'private-next-rsc-action-proxy'
+export const RSC_ACTION_CLIENT_WRAPPER_ALIAS =
+  'private-next-rsc-action-client-wrapper'
 
 export const PUBLIC_DIR_MIDDLEWARE_CONFLICT = `You can not have a '_next' folder inside of your public folder. This conflicts with the internal '/_next' route. https://nextjs.org/docs/messages/public-next-folder-conflict`
 
@@ -69,12 +86,63 @@ export const SERVER_RUNTIME: Record<string, ServerRuntime> = {
   nodejs: 'nodejs',
 }
 
-export const WEBPACK_LAYERS = {
-  shared: 'sc_shared',
-  server: 'sc_server',
-  client: 'sc_client',
+/**
+ * The names of the webpack layers. These layers are the primitives for the
+ * webpack chunks.
+ */
+const WEBPACK_LAYERS_NAMES = {
+  /**
+   * The layer for the shared code between the client and server bundles.
+   */
+  shared: 'shared',
+  /**
+   * React Server Components layer (rsc).
+   */
+  reactServerComponents: 'rsc',
+  /**
+   * Server Side Rendering layer (ssr).
+   */
+  serverSideRendering: 'ssr',
+  /**
+   * The browser client bundle layer for actions.
+   */
+  actionBrowser: 'actionBrowser',
+  /**
+   * The layer for the API routes.
+   */
   api: 'api',
+  /**
+   * The layer for the middleware code.
+   */
   middleware: 'middleware',
+  /**
+   * The layer for assets on the edge.
+   */
   edgeAsset: 'edge-asset',
-  appClient: 'app-client',
+  /**
+   * The browser client bundle layer for App directory.
+   */
+  appPagesBrowser: 'app-pages-browser',
+  /**
+   * The server bundle layer for metadata routes.
+   */
+  appMetadataRoute: 'app-metadata-route',
+}
+
+export const WEBPACK_LAYERS = {
+  ...WEBPACK_LAYERS_NAMES,
+  GROUP: {
+    server: [
+      WEBPACK_LAYERS_NAMES.reactServerComponents,
+      WEBPACK_LAYERS_NAMES.actionBrowser,
+      WEBPACK_LAYERS_NAMES.appMetadataRoute,
+    ],
+  },
+}
+
+export const WEBPACK_RESOURCE_QUERIES = {
+  edgeSSREntry: '__next_edge_ssr_entry__',
+  metadata: '__next_metadata__',
+  metadataRoute: '__next_metadata_route__',
+  metadataImageMeta: '__next_metadata_image_meta__',
 }

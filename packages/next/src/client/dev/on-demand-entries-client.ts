@@ -27,7 +27,7 @@ export default async (page?: string) => {
   }
 
   addMessageListener((event) => {
-    if (event.data.indexOf('{') === -1) return
+    if (!event.data.includes('{')) return
     try {
       const payload = JSON.parse(event.data)
       // don't attempt fetching the page if we're already showing

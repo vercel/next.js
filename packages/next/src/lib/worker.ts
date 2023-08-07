@@ -1,5 +1,6 @@
+import { ChildProcess } from 'child_process'
 import { Worker as JestWorker } from 'next/dist/compiled/jest-worker'
-
+import { getNodeOptionsWithoutInspect } from '../server/lib/utils'
 type FarmOptions = ConstructorParameters<typeof JestWorker>[1]
 
 const RESTARTED = Symbol('restarted')
@@ -13,6 +14,7 @@ export class Worker {
       timeout?: number
       onRestart?: (method: string, args: any[], attempts: number) => void
       exposedMethods: ReadonlyArray<string>
+      enableWorkerThreads?: boolean
     }
   ) {
     let { timeout, onRestart, ...farmOptions } = options
@@ -24,10 +26,49 @@ export class Worker {
     this._worker = undefined
 
     const createWorker = () => {
-      this._worker = new JestWorker(workerPath, farmOptions) as JestWorker
+      this._worker = new JestWorker(workerPath, {
+        ...farmOptions,
+        forkOptions: {
+          ...farmOptions.forkOptions,
+          env: {
+            ...((farmOptions.forkOptions?.env || {}) as any),
+            ...process.env,
+            // we don't pass down NODE_OPTIONS as it can
+            // extra memory usage
+            NODE_OPTIONS: getNodeOptionsWithoutInspect()
+              .replace(/--max-old-space-size=[\d]{1,}/, '')
+              .trim(),
+          } as any,
+        },
+      }) as JestWorker
       restartPromise = new Promise(
         (resolve) => (resolveRestartPromise = resolve)
       )
+
+      /**
+       * Jest Worker has two worker types, ChildProcessWorker (uses child_process) and NodeThreadWorker (uses worker_threads)
+       * Next.js uses ChildProcessWorker by default, but it can be switched to NodeThreadWorker with an experimental flag
+       *
+       * We only want to handle ChildProcessWorker's orphan process issue, so we access the private property "_child":
+       * https://github.com/facebook/jest/blob/b38d7d345a81d97d1dc3b68b8458b1837fbf19be/packages/jest-worker/src/workers/ChildProcessWorker.ts
+       *
+       * But this property is not available in NodeThreadWorker, so we need to check if we are using ChildProcessWorker
+       */
+      if (!farmOptions.enableWorkerThreads) {
+        for (const worker of ((this._worker as any)._workerPool?._workers ||
+          []) as {
+          _child?: ChildProcess
+        }[]) {
+          worker._child?.on('exit', (code, signal) => {
+            // log unexpected exit if .end() wasn't called
+            if ((code || signal) && this._worker) {
+              console.error(
+                `Static worker unexpectedly exited with code: ${code} and signal: ${signal}`
+              )
+            }
+          })
+        }
+      }
 
       this._worker.getStdout().pipe(process.stdout)
       this._worker.getStderr().pipe(process.stderr)

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /* eslint-disable import/no-extraneous-dependencies */
-import chalk from 'chalk'
+import { cyan, green, red, yellow, bold, blue } from 'picocolors'
 import Commander from 'commander'
 import Conf from 'conf'
 import path from 'path'
@@ -34,7 +34,7 @@ const onPromptState = (state: any) => {
 const program = new Commander.Command(packageJson.name)
   .version(packageJson.version)
   .arguments('<project-directory>')
-  .usage(`${chalk.green('<project-directory>')} [options]`)
+  .usage(`${green('<project-directory>')} [options]`)
   .action((name) => {
     projectPath = name
   })
@@ -53,6 +53,13 @@ const program = new Commander.Command(packageJson.name)
 `
   )
   .option(
+    '--tailwind',
+    `
+
+  Initialize with Tailwind CSS config. (default)
+`
+  )
+  .option(
     '--eslint',
     `
 
@@ -60,10 +67,10 @@ const program = new Commander.Command(packageJson.name)
 `
   )
   .option(
-    '--experimental-app',
+    '--app',
     `
 
-  Initialize as a \`app/\` directory project.
+  Initialize as an App Router project.
 `
   )
   .option(
@@ -84,14 +91,28 @@ const program = new Commander.Command(packageJson.name)
     '--use-npm',
     `
 
-  Explicitly tell the CLI to bootstrap the app using npm
+  Explicitly tell the CLI to bootstrap the application using npm
 `
   )
   .option(
     '--use-pnpm',
     `
 
-  Explicitly tell the CLI to bootstrap the app using pnpm
+  Explicitly tell the CLI to bootstrap the application using pnpm
+`
+  )
+  .option(
+    '--use-yarn',
+    `
+
+  Explicitly tell the CLI to bootstrap the application using Yarn
+`
+  )
+  .option(
+    '--use-bun',
+    `
+
+  Explicitly tell the CLI to bootstrap the application using Bun
 `
   )
   .option(
@@ -127,6 +148,10 @@ const packageManager = !!program.useNpm
   ? 'npm'
   : !!program.usePnpm
   ? 'pnpm'
+  : !!program.useYarn
+  ? 'yarn'
+  : !!program.useBun
+  ? 'bun'
   : getPkgManager()
 
 async function run(): Promise<void> {
@@ -166,12 +191,10 @@ async function run(): Promise<void> {
   if (!projectPath) {
     console.log(
       '\nPlease specify the project directory:\n' +
-        `  ${chalk.cyan(program.name())} ${chalk.green(
-          '<project-directory>'
-        )}\n` +
+        `  ${cyan(program.name())} ${green('<project-directory>')}\n` +
         'For example:\n' +
-        `  ${chalk.cyan(program.name())} ${chalk.green('my-next-app')}\n\n` +
-        `Run ${chalk.cyan(`${program.name()} --help`)} to see all options.`
+        `  ${cyan(program.name())} ${green('my-next-app')}\n\n` +
+        `Run ${cyan(`${program.name()} --help`)} to see all options.`
     )
     process.exit(1)
   }
@@ -182,12 +205,12 @@ async function run(): Promise<void> {
   const { valid, problems } = validateNpmName(projectName)
   if (!valid) {
     console.error(
-      `Could not create a project called ${chalk.red(
+      `Could not create a project called ${red(
         `"${projectName}"`
       )} because of npm naming restrictions:`
     )
 
-    problems!.forEach((p) => console.error(`    ${chalk.red.bold('*')} ${p}`))
+    problems!.forEach((p) => console.error(`    ${red(bold('*'))} ${p}`))
     process.exit(1)
   }
 
@@ -222,14 +245,13 @@ async function run(): Promise<void> {
     const defaults: typeof preferences = {
       typescript: true,
       eslint: true,
+      tailwind: true,
       srcDir: false,
       importAlias: '@/*',
+      customizeImportAlias: false,
     }
-    const getPrefOrDefault = (field: string) => {
-      return typeof preferences[field] === 'undefined'
-        ? defaults[field]
-        : preferences[field]
-    }
+    const getPrefOrDefault = (field: string) =>
+      preferences[field] ?? defaults[field]
 
     if (!program.typescript && !program.javascript) {
       if (ciInfo.isCI) {
@@ -238,12 +260,12 @@ async function run(): Promise<void> {
         program.typescript = false
         program.javascript = true
       } else {
-        const styledTypeScript = chalk.hex('#007acc')('TypeScript')
+        const styledTypeScript = blue('TypeScript')
         const { typescript } = await prompts(
           {
             type: 'toggle',
             name: 'typescript',
-            message: `Would you like to use ${styledTypeScript} with this project?`,
+            message: `Would you like to use ${styledTypeScript}?`,
             initial: getPrefOrDefault('typescript'),
             active: 'Yes',
             inactive: 'No',
@@ -275,12 +297,12 @@ async function run(): Promise<void> {
       if (ciInfo.isCI) {
         program.eslint = true
       } else {
-        const styledEslint = chalk.hex('#007acc')('ESLint')
+        const styledEslint = blue('ESLint')
         const { eslint } = await prompts({
           onState: onPromptState,
           type: 'toggle',
           name: 'eslint',
-          message: `Would you like to use ${styledEslint} with this project?`,
+          message: `Would you like to use ${styledEslint}?`,
           initial: getPrefOrDefault('eslint'),
           active: 'Yes',
           inactive: 'No',
@@ -291,18 +313,40 @@ async function run(): Promise<void> {
     }
 
     if (
+      !process.argv.includes('--tailwind') &&
+      !process.argv.includes('--no-tailwind')
+    ) {
+      if (ciInfo.isCI) {
+        program.tailwind = false
+      } else {
+        const tw = blue('Tailwind CSS')
+        const { tailwind } = await prompts({
+          onState: onPromptState,
+          type: 'toggle',
+          name: 'tailwind',
+          message: `Would you like to use ${tw}?`,
+          initial: getPrefOrDefault('tailwind'),
+          active: 'Yes',
+          inactive: 'No',
+        })
+        program.tailwind = Boolean(tailwind)
+        preferences.tailwind = Boolean(tailwind)
+      }
+    }
+
+    if (
       !process.argv.includes('--src-dir') &&
       !process.argv.includes('--no-src-dir')
     ) {
       if (ciInfo.isCI) {
         program.srcDir = false
       } else {
-        const styledSrcDir = chalk.hex('#007acc')('`src/` directory')
+        const styledSrcDir = blue('`src/` directory')
         const { srcDir } = await prompts({
           onState: onPromptState,
           type: 'toggle',
           name: 'srcDir',
-          message: `Would you like to use ${styledSrcDir} with this project?`,
+          message: `Would you like to use ${styledSrcDir}?`,
           initial: getPrefOrDefault('srcDir'),
           active: 'Yes',
           inactive: 'No',
@@ -312,26 +356,21 @@ async function run(): Promise<void> {
       }
     }
 
-    if (
-      !process.argv.includes('--experimental-app') &&
-      !process.argv.includes('--no-experimental-app')
-    ) {
+    if (!process.argv.includes('--app') && !process.argv.includes('--no-app')) {
       if (ciInfo.isCI) {
-        program.experimentalApp = false
+        program.app = true
       } else {
-        const styledAppDir = chalk.hex('#007acc')(
-          'experimental `app/` directory'
-        )
-        const { appDir } = await prompts({
+        const styledAppDir = blue('App Router')
+        const { appRouter } = await prompts({
           onState: onPromptState,
           type: 'toggle',
-          name: 'appDir',
-          message: `Would you like to use ${styledAppDir} with this project?`,
-          initial: false,
+          name: 'appRouter',
+          message: `Would you like to use ${styledAppDir}? (recommended)`,
+          initial: true,
           active: 'Yes',
           inactive: 'No',
         })
-        program.experimentalApp = Boolean(appDir)
+        program.app = Boolean(appRouter)
       }
     }
 
@@ -342,20 +381,35 @@ async function run(): Promise<void> {
       if (ciInfo.isCI) {
         program.importAlias = '@/*'
       } else {
-        const styledImportAlias = chalk.hex('#007acc')('import alias')
-        const { importAlias } = await prompts({
+        const styledImportAlias = blue('import alias')
+
+        const { customizeImportAlias } = await prompts({
           onState: onPromptState,
-          type: 'text',
-          name: 'importAlias',
-          message: `What ${styledImportAlias} would you like configured?`,
-          initial: getPrefOrDefault('importAlias'),
-          validate: (value) =>
-            /.+\/\*/.test(value)
-              ? true
-              : 'Import alias must follow the pattern <prefix>/*',
+          type: 'toggle',
+          name: 'customizeImportAlias',
+          message: `Would you like to customize the default ${styledImportAlias}?`,
+          initial: getPrefOrDefault('customizeImportAlias'),
+          active: 'Yes',
+          inactive: 'No',
         })
-        program.importAlias = importAlias
-        preferences.importAlias = importAlias
+
+        if (!customizeImportAlias) {
+          program.importAlias = '@/*'
+        } else {
+          const { importAlias } = await prompts({
+            onState: onPromptState,
+            type: 'text',
+            name: 'importAlias',
+            message: `What ${styledImportAlias} would you like configured?`,
+            initial: getPrefOrDefault('importAlias'),
+            validate: (value) =>
+              /.+\/\*/.test(value)
+                ? true
+                : 'Import alias must follow the pattern <prefix>/*',
+          })
+          program.importAlias = importAlias
+          preferences.importAlias = importAlias
+        }
       }
     }
   }
@@ -367,8 +421,9 @@ async function run(): Promise<void> {
       example: example && example !== 'default' ? example : undefined,
       examplePath: program.examplePath,
       typescript: program.typescript,
+      tailwind: program.tailwind,
       eslint: program.eslint,
-      experimentalApp: program.experimentalApp,
+      appRouter: program.app,
       srcDir: program.srcDir,
       importAlias: program.importAlias,
     })
@@ -395,7 +450,8 @@ async function run(): Promise<void> {
       packageManager,
       typescript: program.typescript,
       eslint: program.eslint,
-      experimentalApp: program.experimentalApp,
+      tailwind: program.tailwind,
+      appRouter: program.app,
       srcDir: program.srcDir,
       importAlias: program.importAlias,
     })
@@ -414,13 +470,15 @@ async function notifyUpdate(): Promise<void> {
           ? 'yarn global add create-next-app'
           : packageManager === 'pnpm'
           ? 'pnpm add -g create-next-app'
+          : packageManager === 'bun'
+          ? 'bun add -g create-next-app'
           : 'npm i -g create-next-app'
 
       console.log(
-        chalk.yellow.bold('A new version of `create-next-app` is available!') +
+        yellow(bold('A new version of `create-next-app` is available!')) +
           '\n' +
           'You can update by running: ' +
-          chalk.cyan(updateMessage) +
+          cyan(updateMessage) +
           '\n'
       )
     }
@@ -436,10 +494,10 @@ run()
     console.log()
     console.log('Aborting installation.')
     if (reason.command) {
-      console.log(`  ${chalk.cyan(reason.command)} has failed.`)
+      console.log(`  ${cyan(reason.command)} has failed.`)
     } else {
       console.log(
-        chalk.red('Unexpected error. Please report it as a bug:') + '\n',
+        red('Unexpected error. Please report it as a bug:') + '\n',
         reason
       )
     }

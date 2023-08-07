@@ -4,7 +4,11 @@ export default function page() {
 
 export const metadata = {
   icons: {
-    icon: [{ url: '/icon.png' }, new URL('/icon.png', 'https://example.com')],
+    icon: [
+      { url: '/icon.png' },
+      new URL('/icon.png', 'https://example.com'),
+      { url: '/icon2.png', rel: 'apple-touch-icon' }, // override icon rel
+    ],
     shortcut: ['/shortcut-icon.png'],
     apple: [
       { url: '/apple-icon.png' },
@@ -12,8 +16,8 @@ export const metadata = {
     ],
     other: [
       {
-        rel: 'apple-touch-icon-precomposed',
-        url: '/apple-touch-icon-precomposed.png',
+        rel: 'other-touch-icon',
+        url: '/other-touch-icon.png',
       },
     ],
   },

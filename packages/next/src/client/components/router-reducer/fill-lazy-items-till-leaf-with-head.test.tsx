@@ -1,7 +1,7 @@
 import React from 'react'
 import { fillLazyItemsTillLeafWithHead } from './fill-lazy-items-till-leaf-with-head'
 import { CacheStates, CacheNode } from '../../../shared/lib/app-router-context'
-import { FlightData } from '../../../server/app-render'
+import type { FlightData } from '../../../server/app-render/types'
 
 const getFlightData = (): FlightData => {
   return [
@@ -137,16 +137,15 @@ describe('fillLazyItemsTillLeafWithHead', () => {
                           status: CacheStates.LAZY_INITIALIZED,
                         },
                       ],
-                      // TODO-APP: this segment should be preserved when creating the new cache
-                      // [
-                      //   '',
-                      //   {
-                      //     data: null,
-                      //     status: CacheStates.READY,
-                      //     subTreeData: <>Page</>,
-                      //     parallelRoutes: new Map(),
-                      //   },
-                      // ],
+                      [
+                        '',
+                        {
+                          data: null,
+                          status: CacheStates.READY,
+                          subTreeData: <>Page</>,
+                          parallelRoutes: new Map(),
+                        },
+                      ],
                     ]),
                   ],
                 ]),

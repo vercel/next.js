@@ -8,7 +8,7 @@ const mockedGoogleFontResponses = require.resolve(
   './google-font-mocked-responses.js'
 )
 
-describe('@next/font/google basepath', () => {
+describe('next/font/google basepath', () => {
   let next: NextInstance
 
   if ((global as any).isNextDeploy) {
@@ -23,9 +23,6 @@ describe('@next/font/google basepath', () => {
         'next.config.js': new FileRef(
           join(__dirname, 'basepath/next.config.js')
         ),
-      },
-      dependencies: {
-        '@next/font': 'canary',
       },
       env: {
         NEXT_FONT_GOOGLE_MOCKED_RESPONSES: mockedGoogleFontResponses,

@@ -1,344 +1,441 @@
-import { createNextDescribe, FileRef } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import { check } from 'next-test-utils'
 import path from 'path'
-import { sandbox } from './helpers'
+import { sandbox } from 'development-sandbox'
+import { outdent } from 'outdent'
 
-createNextDescribe(
-  'Error overlay - RSC build errors',
-  {
+describe('Error overlay - RSC build errors', () => {
+  const { next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'rsc-build-errors')),
     dependencies: {
       react: 'latest',
       'react-dom': 'latest',
     },
     skipStart: true,
-  },
-  ({ next }) => {
-    it('should throw an error when getServerSideProps is used', async () => {
-      const { session, cleanup } = await sandbox(
-        next,
-        undefined,
-        '/client-with-errors/get-server-side-props'
-      )
+  })
 
-      const pageFile = 'app/client-with-errors/get-server-side-props/page.js'
-      const content = await next.readFile(pageFile)
-      const uncomment = content.replace(
-        '// export function getServerSideProps',
-        'export function getServerSideProps'
-      )
-      await session.patch(pageFile, uncomment)
+  it('should throw an error when getServerSideProps is used', async () => {
+    const { session, cleanup } = await sandbox(
+      next,
+      undefined,
+      '/client-with-errors/get-server-side-props'
+    )
 
-      expect(await session.hasRedbox(true)).toBe(true)
-      expect(await session.getRedboxSource()).toInclude(
-        '"getServerSideProps" is not supported in app/'
-      )
+    const pageFile = 'app/client-with-errors/get-server-side-props/page.js'
+    const content = await next.readFile(pageFile)
+    const uncomment = content.replace(
+      '// export function getServerSideProps',
+      'export function getServerSideProps'
+    )
+    await session.patch(pageFile, uncomment)
 
-      await cleanup()
-    })
+    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.getRedboxSource()).toInclude(
+      '"getServerSideProps" is not supported in app/'
+    )
 
-    it('should throw an error when getStaticProps is used', async () => {
-      const { session, cleanup } = await sandbox(
-        next,
-        undefined,
-        '/client-with-errors/get-static-props'
-      )
+    await cleanup()
+  })
 
-      const pageFile = 'app/client-with-errors/get-static-props/page.js'
-      const content = await next.readFile(pageFile)
-      const uncomment = content.replace(
-        '// export function getStaticProps',
-        'export function getStaticProps'
-      )
-      await session.patch(pageFile, uncomment)
-      await next.patchFile(pageFile, content)
+  it('should throw an error when metadata export is used in client components', async () => {
+    const { session, cleanup } = await sandbox(
+      next,
+      undefined,
+      '/client-with-errors/metadata-export'
+    )
 
-      expect(await session.hasRedbox(true)).toBe(true)
-      expect(await session.getRedboxSource()).toInclude(
-        '"getStaticProps" is not supported in app/'
-      )
+    const pageFile = 'app/client-with-errors/metadata-export/page.js'
+    const content = await next.readFile(pageFile)
 
-      await cleanup()
-    })
+    // Add `metadata` error
+    let uncomment = content.replace(
+      '// export const metadata',
+      'export const metadata'
+    )
+    await session.patch(pageFile, uncomment)
+    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.getRedboxSource()).toInclude(
+      'You are attempting to export "metadata" from a component marked with "use client", which is disallowed.'
+    )
 
-    it('should error for styled-jsx imports on server side', async () => {
-      const { session, cleanup } = await sandbox(
-        next,
-        undefined,
-        '/server-with-errors/styled-jsx'
-      )
+    // Restore file
+    await session.patch(pageFile, content)
+    expect(await session.hasRedbox(false)).toBe(false)
 
-      const pageFile = 'app/server-with-errors/styled-jsx/page.js'
-      const content = await next.readFile(pageFile)
-      const withoutUseClient = content.replace("'use client'", '')
-      await session.patch(pageFile, withoutUseClient)
+    // Add `generateMetadata` error
+    uncomment = content.replace(
+      '// export async function generateMetadata',
+      'export async function generateMetadata'
+    )
+    await session.patch(pageFile, uncomment)
+    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.getRedboxSource()).toInclude(
+      'You are attempting to export "generateMetadata" from a component marked with "use client", which is disallowed.'
+    )
 
-      expect(await session.hasRedbox(true)).toBe(true)
-      expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
-        "app/server-with-errors/styled-jsx/comp2.js
-        'client-only' cannot be imported from a Server Component module. It should only be used from a Client Component.
+    await cleanup()
+  })
 
-        The error was caused by importing 'styled-jsx/style.js' in 'app/server-with-errors/styled-jsx/comp2.js'.
+  it('should throw an error when metadata exports are used together in server components', async () => {
+    const { session, cleanup } = await sandbox(
+      next,
+      undefined,
+      '/server-with-errors/metadata-export'
+    )
 
-        Import trace for requested module:
-        app/server-with-errors/styled-jsx/comp2.js
-        app/server-with-errors/styled-jsx/comp1.js
-        app/server-with-errors/styled-jsx/page.js"
-      `)
+    const pageFile = 'app/server-with-errors/metadata-export/page.js'
+    const content = await next.readFile(pageFile)
+    const uncomment = content.replace(
+      '// export async function generateMetadata',
+      'export async function generateMetadata'
+    )
 
-      await cleanup()
-    })
+    await session.patch(pageFile, uncomment)
+    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.getRedboxSource()).toInclude(
+      '"metadata" and "generateMetadata" cannot be exported at the same time, please keep one of them.'
+    )
 
-    it('should error when page component export is not valid', async () => {
-      const { session, cleanup } = await sandbox(
-        next,
-        undefined,
-        '/server-with-errors/page-export'
-      )
+    await cleanup()
+  })
 
-      await next.patchFile(
-        'app/server-with-errors/page-export/page.js',
-        'export const a = 123'
-      )
+  // TODO: investigate flakey test case
+  it.skip('should throw an error when getStaticProps is used', async () => {
+    const { session, cleanup } = await sandbox(
+      next,
+      undefined,
+      '/client-with-errors/get-static-props'
+    )
 
-      expect(await session.hasRedbox(true)).toBe(true)
-      expect(await session.getRedboxDescription()).toInclude(
-        'The default export is not a React Component in page:'
-      )
+    const pageFile = 'app/client-with-errors/get-static-props/page.js'
+    const content = await next.readFile(pageFile)
+    const uncomment = content.replace(
+      '// export function getStaticProps',
+      'export function getStaticProps'
+    )
+    await session.patch(pageFile, uncomment)
+    await next.patchFile(pageFile, content)
 
-      await cleanup()
-    })
+    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.getRedboxSource()).toInclude(
+      '"getStaticProps" is not supported in app/'
+    )
 
-    it('should throw an error when "use client" is on the top level but after other expressions', async () => {
-      const { session, cleanup } = await sandbox(
-        next,
-        undefined,
-        '/swc/use-client'
-      )
+    await cleanup()
+  })
 
-      const pageFile = 'app/swc/use-client/page.js'
-      const content = await next.readFile(pageFile)
-      const uncomment = content.replace("// 'use client'", "'use client'")
-      await next.patchFile(pageFile, uncomment)
+  it('should error when page component export is not valid', async () => {
+    const { session, cleanup } = await sandbox(
+      next,
+      undefined,
+      '/server-with-errors/page-export'
+    )
 
-      expect(await session.hasRedbox(true)).toBe(true)
-      expect(await session.getRedboxSource()).toInclude(
-        'directive must be placed before other expressions'
-      )
+    await next.patchFile(
+      'app/server-with-errors/page-export/page.js',
+      'export const a = 123'
+    )
 
-      await cleanup()
-    })
+    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.getRedboxDescription()).toInclude(
+      'The default export is not a React Component in page: "/server-with-errors/page-export"'
+    )
 
-    it('should throw an error when "Component" is imported in server components', async () => {
-      const { session, cleanup } = await sandbox(
-        next,
-        undefined,
-        '/server-with-errors/class-component'
-      )
+    await cleanup()
+  })
 
-      const pageFile = 'app/server-with-errors/class-component/page.js'
-      const content = await next.readFile(pageFile)
-      const uncomment = content.replace(
-        "// import { Component } from 'react'",
-        "import { Component } from 'react'"
-      )
-      await session.patch(pageFile, uncomment)
+  it('should error when page component export is not valid on initial load', async () => {
+    const { session, cleanup } = await sandbox(
+      next,
+      undefined,
+      '/server-with-errors/page-export-initial-error'
+    )
 
-      expect(await session.hasRedbox(true)).toBe(true)
-      expect(await session.getRedboxSource()).toInclude(
-        `You’re importing a class component. It only works in a Client Component`
-      )
+    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.getRedboxDescription()).toInclude(
+      'The default export is not a React Component in page: "/server-with-errors/page-export-initial-error"'
+    )
 
-      await cleanup()
-    })
+    await cleanup()
+  })
 
-    it('should allow to use and handle rsc poisoning client-only', async () => {
-      const { session, cleanup } = await sandbox(
-        next,
-        undefined,
-        '/server-with-errors/client-only-in-server'
-      )
+  it('should throw an error when "use client" is on the top level but after other expressions', async () => {
+    const { session, cleanup } = await sandbox(
+      next,
+      undefined,
+      '/swc/use-client'
+    )
 
-      const file =
-        'app/server-with-errors/client-only-in-server/client-only-lib.js'
-      const content = await next.readFile(file)
-      const uncomment = content.replace(
-        "// import 'client-only'",
-        "import 'client-only'"
-      )
-      await next.patchFile(file, uncomment)
+    const pageFile = 'app/swc/use-client/page.js'
+    const content = await next.readFile(pageFile)
+    const uncomment = content.replace("// 'use client'", "'use client'")
+    await next.patchFile(pageFile, uncomment)
 
-      expect(await session.hasRedbox(true)).toBe(true)
-      expect(await session.getRedboxSource()).toInclude(
-        `You're importing a component that imports client-only. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.`
-      )
+    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.getRedboxSource()).toInclude(
+      'directive must be placed before other expressions'
+    )
 
-      await cleanup()
-    })
+    await cleanup()
+  })
 
-    it('should allow to use and handle rsc poisoning server-only', async () => {
-      const { session, cleanup } = await sandbox(
-        next,
-        undefined,
-        '/client-with-errors/server-only-in-client'
-      )
+  it('should throw an error when "Component" is imported in server components', async () => {
+    const { session, cleanup } = await sandbox(
+      next,
+      undefined,
+      '/server-with-errors/class-component'
+    )
 
-      const file =
-        'app/client-with-errors/server-only-in-client/server-only-lib.js'
-      const content = await next.readFile(file)
-      const uncomment = content.replace(
-        "// import 'server-only'",
-        "import 'server-only'"
-      )
+    const pageFile = 'app/server-with-errors/class-component/page.js'
+    const content = await next.readFile(pageFile)
+    const uncomment = content.replace(
+      "// import { Component } from 'react'",
+      "import { Component } from 'react'"
+    )
+    await session.patch(pageFile, uncomment)
 
-      await session.patch(file, uncomment)
+    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.getRedboxSource()).toInclude(
+      `You’re importing a class component. It only works in a Client Component`
+    )
 
-      expect(await session.hasRedbox(true)).toBe(true)
-      expect(await session.getRedboxSource()).toInclude(
-        `You're importing a component that needs server-only. That only works in a Server Component but one of its parents is marked with "use client", so it's a Client Component.`
-      )
+    await cleanup()
+  })
 
-      await cleanup()
-    })
+  it('should allow to use and handle rsc poisoning client-only', async () => {
+    const { session, cleanup } = await sandbox(
+      next,
+      undefined,
+      '/server-with-errors/client-only-in-server'
+    )
 
-    it('should error for invalid undefined module retuning from next dynamic', async () => {
-      const { session, cleanup } = await sandbox(
-        next,
-        undefined,
-        '/client-with-errors/dynamic'
-      )
+    const file =
+      'app/server-with-errors/client-only-in-server/client-only-lib.js'
+    const content = await next.readFile(file)
+    const uncomment = content.replace(
+      "// import 'client-only'",
+      "import 'client-only'"
+    )
+    await next.patchFile(file, uncomment)
 
-      const file = 'app/client-with-errors/dynamic/page.js'
-      const content = await next.readFile(file)
-      await session.patch(
-        file,
-        content.replace('() => <p>hello dynamic world</p>', 'undefined')
-      )
+    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.getRedboxSource()).toInclude(
+      `You're importing a component that imports client-only. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.`
+    )
 
-      expect(await session.hasRedbox(true)).toBe(true)
-      expect(await session.getRedboxDescription()).toInclude(
-        `Element type is invalid. Received a promise that resolves to: undefined. Lazy element type must resolve to a class or function.`
-      )
+    await cleanup()
+  })
 
-      await cleanup()
-    })
+  it('should allow to use and handle rsc poisoning server-only', async () => {
+    const { session, cleanup } = await sandbox(
+      next,
+      undefined,
+      '/client-with-errors/server-only-in-client'
+    )
 
-    it('should throw an error when error file is a server component', async () => {
-      const { session, cleanup } = await sandbox(
-        next,
-        undefined,
-        '/server-with-errors/error-file'
-      )
+    const file =
+      'app/client-with-errors/server-only-in-client/server-only-lib.js'
+    const content = await next.readFile(file)
+    const uncomment = content.replace(
+      "// import 'server-only'",
+      "import 'server-only'"
+    )
 
-      // Remove "use client"
-      await session.patch(
-        'app/server-with-errors/error-file/error.js',
-        'export default function Error() {}'
-      )
+    await session.patch(file, uncomment)
 
-      expect(await session.hasRedbox(true)).toBe(true)
-      expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.getRedboxSource()).toInclude(
+      `You're importing a component that needs server-only. That only works in a Server Component but one of its parents is marked with "use client", so it's a Client Component.`
+    )
+
+    await cleanup()
+  })
+
+  it('should error for invalid undefined module retuning from next dynamic', async () => {
+    const { session, cleanup } = await sandbox(
+      next,
+      undefined,
+      '/client-with-errors/dynamic'
+    )
+
+    const file = 'app/client-with-errors/dynamic/page.js'
+    const content = await next.readFile(file)
+    await session.patch(
+      file,
+      content.replace('() => <p>hello dynamic world</p>', 'undefined')
+    )
+
+    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.getRedboxDescription()).toInclude(
+      `Element type is invalid. Received a promise that resolves to: undefined. Lazy element type must resolve to a class or function.`
+    )
+
+    await cleanup()
+  })
+
+  it('should throw an error when error file is a server component', async () => {
+    const { session, cleanup } = await sandbox(
+      next,
+      undefined,
+      '/server-with-errors/error-file'
+    )
+
+    // Remove "use client"
+    await session.patch(
+      'app/server-with-errors/error-file/error.js',
+      'export default function Error() {}'
+    )
+
+    expect(await session.hasRedbox(true)).toBe(true)
+    await check(() => session.getRedboxSource(), /must be a Client Component/)
+    expect(
+      next.normalizeTestDirContent(await session.getRedboxSource())
+    ).toMatchInlineSnapshot(
+      next.normalizeSnapshot(`
         "./app/server-with-errors/error-file/error.js
         ReactServerComponentsError:
 
         ./app/server-with-errors/error-file/error.js must be a Client Component. Add the \\"use client\\" directive the top of the file to resolve this issue.
+        Learn more: https://nextjs.org/docs/getting-started/react-essentials#client-components
 
-           ,----
+           ,-[TEST_DIR/app/server-with-errors/error-file/error.js:1:1]
          1 | export default function Error() {}
            : ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
            \`----
 
         Import path:
-        app/server-with-errors/error-file/error.js"
+        ./app/server-with-errors/error-file/error.js"
       `)
+    )
 
-      // Add "use client"
-      await session.patch(
-        'app/server-with-errors/error-file/error.js',
-        '"use client"'
-      )
-      expect(await session.hasRedbox(false)).toBe(false)
+    await cleanup()
+  })
 
-      // Empty file
-      await session.patch('app/server-with-errors/error-file/error.js', '')
+  it('should throw an error when error file is a server component with empty error file', async () => {
+    const { session, cleanup } = await sandbox(
+      next,
+      undefined,
+      '/server-with-errors/error-file'
+    )
 
-      expect(await session.hasRedbox(true)).toBe(true)
-      expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
-        "./app/server-with-errors/error-file/error.js
-        ReactServerComponentsError:
+    // Empty file
+    await session.patch('app/server-with-errors/error-file/error.js', '')
 
-        ./app/server-with-errors/error-file/error.js must be a Client Component. Add the \\"use client\\" directive the top of the file to resolve this issue.
+    expect(await session.hasRedbox(true)).toBe(true)
+    await check(() => session.getRedboxSource(), /must be a Client Component/)
 
-           ,----
-         1 |  
-           : ^
-           \`----
+    // TODO: investigate flakey snapshot due to spacing below
+    // expect(next.normalizeTestDirContent(await session.getRedboxSource()))
+    //   .toMatchInlineSnapshot(next.normalizeSnapshot(`
+    //   "./app/server-with-errors/error-file/error.js
+    //   ReactServerComponentsError:
 
-        Import path:
-        app/server-with-errors/error-file/error.js"
-      `)
+    //   ./app/server-with-errors/error-file/error.js must be a Client Component. Add the \\"use client\\" directive the top of the file to resolve this issue.
 
-      await cleanup()
-    })
+    //      ,-[TEST_DIR/app/server-with-errors/error-file/error.js:1:1]
+    //    1 |
+    //      : ^
+    //      \`----
 
-    it('should be possible to open the import trace files in your editor', async () => {
-      let editorRequestsCount = 0
-      const { session, browser, cleanup } = await sandbox(
-        next,
-        undefined,
-        '/editor-links',
-        {
-          beforePageLoad(page) {
-            page.route('**/__nextjs_launch-editor**', (route) => {
-              editorRequestsCount += 1
-              route.fulfill()
-            })
-          },
+    //   Import path:
+    //   ./app/server-with-errors/error-file/error.js"
+    // `))
+
+    await cleanup()
+  })
+
+  it('should freeze parent resolved metadata to avoid mutating in generateMetadata', async () => {
+    const pagePath = 'app/metadata/mutate/page.js'
+    const content = outdent`
+      export default function page(props) {
+        return <p>mutate</p>
+      }
+
+      export async function generateMetadata(props, parent) {
+        const parentMetadata = await parent
+        parentMetadata.x = 1
+        return {
+          ...parentMetadata,
         }
-      )
+      }
+    `
 
-      const componentFile = 'app/editor-links/component.js'
-      const fileContent = await next.readFile(componentFile)
+    const { session, cleanup } = await sandbox(
+      next,
+      undefined,
+      '/metadata/mutate'
+    )
 
-      await session.patch(
-        componentFile,
-        fileContent.replace(
-          "// import { useState } from 'react'",
-          "import { useState } from 'react'"
-        )
-      )
+    await session.patch(pagePath, content)
 
-      expect(await session.hasRedbox(true)).toBe(true)
-      expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
-        "./app/editor-links/component.js
+    await check(
+      async () => ((await session.hasRedbox(true)) ? 'success' : 'fail'),
+      /success/
+    )
+
+    expect(await session.getRedboxDescription()).toContain(
+      'Cannot add property x, object is not extensible'
+    )
+
+    await cleanup()
+  })
+
+  it('should show which import caused an error in node_modules', async () => {
+    const { session, cleanup } = await sandbox(
+      next,
+      new Map([
+        [
+          'node_modules/client-package/module2.js',
+          "import { useState } from 'react'",
+        ],
+        ['node_modules/client-package/module1.js', "import './module2.js'"],
+        ['node_modules/client-package/index.js', "import './module1.js'"],
+        [
+          'node_modules/client-package/package.json',
+          outdent`
+            {
+              "name": "client-package",
+              "version": "0.0.1"
+            }
+          `,
+        ],
+        ['app/Component.js', "import 'client-package'"],
+        [
+          'app/page.js',
+          outdent`
+            import './Component.js'
+            export default function Page() {
+              return <p>Hello world</p>
+            }
+          `,
+        ],
+      ])
+    )
+
+    expect(await session.hasRedbox(true)).toBe(true)
+    expect(
+      next.normalizeTestDirContent(await session.getRedboxSource())
+    ).toMatchInlineSnapshot(
+      next.normalizeSnapshot(`
+        "./app/Component.js
         ReactServerComponentsError:
 
         You're importing a component that needs useState. It only works in a Client Component but none of its parents are marked with \\"use client\\", so they're Server Components by default.
+        Learn more: https://nextjs.org/docs/getting-started/react-essentials
 
-           ,-[1:1]
+           ,-[TEST_DIR/node_modules/client-package/module2.js:1:1]
          1 | import { useState } from 'react'
            :          ^^^^^^^^
-         2 | export default function Component() {
-         3 |   return <div>Component</div>
-         4 | }
            \`----
 
+        The error was caused by importing 'client-package/index.js' in './app/Component.js'.
+
         Maybe one of these should be marked as a client entry with \\"use client\\":
-        app/editor-links/component.js
-        app/editor-links/page.js"
+          ./app/Component.js
+          ./app/page.js"
       `)
+    )
 
-      await browser.waitForElementByCss('[data-with-open-in-editor-link]')
-      const collapsedFrameworkGroups = await browser.elementsByCss(
-        '[data-with-open-in-editor-link]'
-      )
-      for (const collapsedFrameworkButton of collapsedFrameworkGroups) {
-        await collapsedFrameworkButton.click()
-      }
-
-      await check(() => editorRequestsCount, /2/)
-
-      await cleanup()
-    })
-  }
-)
+    await cleanup()
+  })
+})

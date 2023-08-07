@@ -34,7 +34,7 @@ type Locale = string
 
 type OpenGraphMetadata = {
   determiner?: 'a' | 'an' | 'the' | 'auto' | ''
-  title?: TemplateString
+  title?: string | TemplateString
   description?: string
   emails?: string | Array<string>
   phoneNumbers?: string | Array<string>
@@ -134,7 +134,7 @@ type OGImageDescriptor = {
 type OGAudio = string | OGAudioDescriptor | URL
 type OGAudioDescriptor = {
   url: string | URL
-  secure_url?: string | URL
+  secureUrl?: string | URL
   type?: string
 }
 type OGVideo = string | OGVideoDescriptor | URL
@@ -163,7 +163,7 @@ export type ResolvedOpenGraph =
 
 type ResolvedOpenGraphMetadata = {
   determiner?: 'a' | 'an' | 'the' | 'auto' | ''
-  title?: AbsoluteTemplateString
+  title: AbsoluteTemplateString
   description?: string
   emails?: Array<string>
   phoneNumbers?: Array<string>
@@ -174,7 +174,7 @@ type ResolvedOpenGraphMetadata = {
   images?: Array<OGImage>
   audio?: Array<OGAudio>
   videos?: Array<OGVideo>
-  url: null | URL
+  url: null | URL | string
   countryName?: string
   ttl?: number
 }

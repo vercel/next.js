@@ -19,10 +19,9 @@ createNextDescribe(
   {
     files: __dirname,
     dependencies: {
-      '@next/font': 'canary',
       react: 'latest',
       'react-dom': 'latest',
-      swr: '2.0.0-rc.0',
+      swr: 'latest',
     },
     packageJson: {
       scripts: {
@@ -37,7 +36,7 @@ createNextDescribe(
     buildCommand: 'yarn build',
     skipDeployment: true,
   },
-  ({ next }) => {
+  ({ next, isNextDev }) => {
     it('should be able to opt-out 3rd party packages being bundled in server components', async () => {
       await next.fetch('/react-server/optout').then(async (response) => {
         const result = await resolveStreamResponse(response)
@@ -143,7 +142,7 @@ createNextDescribe(
       ).toBe('rgb(255, 0, 0)')
     })
 
-    it('should handle external @next/font', async () => {
+    it('should handle external next/font', async () => {
       const browser = await next.browser('/font')
 
       expect(
@@ -160,6 +159,12 @@ createNextDescribe(
         const v1 = html.match(/App React Version: ([^<]+)</)[1]
         const v2 = html.match(/External React Version: ([^<]+)</)[1]
         expect(v1).toBe(v2)
+
+        // Should work with both esm and cjs imports
+        expect(html).toContain(
+          'CJS-ESM Compat package: cjs-esm-compat/index.mjs'
+        )
+        expect(html).toContain('CJS package: cjs-lib')
       })
 
       it('should use the same react in server app', async () => {
@@ -168,6 +173,26 @@ createNextDescribe(
         const v1 = html.match(/App React Version: ([^<]+)</)[1]
         const v2 = html.match(/External React Version: ([^<]+)</)[1]
         expect(v1).toBe(v2)
+
+        // Should work with both esm and cjs imports
+        expect(html).toContain(
+          'CJS-ESM Compat package: cjs-esm-compat/index.mjs'
+        )
+        expect(html).toContain('CJS package: cjs-lib')
+      })
+
+      it('should use the same react in edge server app', async () => {
+        const html = await next.render('/esm/edge-server')
+
+        const v1 = html.match(/App React Version: ([^<]+)</)[1]
+        const v2 = html.match(/External React Version: ([^<]+)</)[1]
+        expect(v1).toBe(v2)
+
+        // Should work with both esm and cjs imports
+        expect(html).toContain(
+          'CJS-ESM Compat package: cjs-esm-compat/index.mjs'
+        )
+        expect(html).toContain('CJS package: cjs-lib')
       })
 
       it('should use the same react in pages', async () => {
@@ -177,6 +202,24 @@ createNextDescribe(
         const v2 = html.match(/External React Version: ([^<]+)</)[1]
         expect(v1).toBe(v2)
       })
+    })
+
+    it('should export client module references in esm', async () => {
+      const html = await next.render('/esm-client-ref')
+      expect(html).toContain('hello')
+    })
+
+    it('should support exporting multiple star re-exports', async () => {
+      const html = await next.render('/wildcard')
+      expect(html).toContain('Foo')
+    })
+
+    it('should have proper tree-shaking for known modules in CJS', async () => {
+      const html = await next.render('/test-middleware')
+      expect(html).toContain('it works')
+
+      const middlewareBundle = await next.readFile('.next/server/middleware.js')
+      expect(middlewareBundle).not.toContain('image-response')
     })
   }
 )

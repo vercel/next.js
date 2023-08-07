@@ -4,13 +4,12 @@ This example shows how to integrate [Jotai](https://github.com/pmndrs/jotai) in 
 
 - Jotai is a primitive and flexible state management library for React.
 - Jotai is TypeScript oriented and aims to expose a minimalistic API for dealing with state in a data-flow graph way.
-- Jotai uses the `useHydrateAtoms` hook to hydrate the value of an atom, for values that come from the server.
 
 ## Deploy your own
 
 Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-jotai)
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-jotai&project-name=with-jotai&repository-name=with-jotai)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-jotai&project-name=with-jotai&repository-name=with-jotai)
 
 ## How to use
 

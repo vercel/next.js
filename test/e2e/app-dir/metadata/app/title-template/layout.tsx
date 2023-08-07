@@ -5,5 +5,6 @@ export default function Layout(props) {
 export const metadata = {
   title: {
     template: '%s | Layout',
+    default: 'title template layout default',
   },
 }

@@ -5,104 +5,32 @@ on:
 name: Generate Pull Request Stats
 
 env:
-  NAPI_CLI_VERSION: 2.13.3
-  TURBO_VERSION: 1.6.3
-  RUST_TOOLCHAIN: nightly-2022-11-04
-  PNPM_VERSION: 7.24.3
+  NAPI_CLI_VERSION: 2.14.7
+  TURBO_VERSION: 1.10.9
+  NODE_MAINTENANCE_VERSION: 16
+  NODE_LTS_VERSION: 18.16.1
+  TEST_CONCURRENCY: 6
+
+  TURBO_TEAM: 'vercel'
+  TURBO_REMOTE_ONLY: 'true'
+  NEXT_TELEMETRY_DISABLED: 1
+  # we build a dev binary for use in CI so skip downloading
+  # canary next-swc binaries in the monorepo
+  NEXT_SKIP_NATIVE_POSTINSTALL: 1
+  TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
+  NEXT_TEST_JOB: 1
+  NEXT_DISABLE_SWC_WASM: 1
 
 jobs:
-  build-native-dev:
-    name: Build dev binary for tests
-    runs-on: ubuntu-latest
-    steps:
-      # https://github.com/actions/virtual-environments/issues/1187
-      - name: tune linux network
-        run: sudo ethtool -K eth0 tx off rx off
-
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 25
-
-      - name: Check non-docs only change
-        run: echo "DOCS_CHANGE<<EOF" >> $GITHUB_OUTPUT; echo "$(node scripts/run-for-change.js --not --type docs --exec echo 'nope')" >> $GITHUB_OUTPUT; echo 'EOF' >> $GITHUB_OUTPUT
-        id: docs-change
-
-      - name: Cache cargo registry
-        uses: actions/cache@v3
-        timeout-minutes: 5
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
-        with:
-          path: ~/.cargo/registry
-          key: stable-ubuntu-latest-node@14-cargo-registry-trimmed-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Cache cargo index
-        uses: actions/cache@v3
-        timeout-minutes: 5
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
-        with:
-          path: ~/.cargo/git
-          key: stable-ubuntu-latest-node@14-cargo-index-trimmed-${{ hashFiles('**/Cargo.lock') }}
-
-      # We use week in the turbo cache key to keep the cache from infinitely growing
-      - id: get-week
-        run: echo "WEEK=$(date +%U)" >> $GITHUB_OUTPUT
-
-      - name: Turbo Cache
-        id: turbo-cache
-        uses: actions/cache@v3
-        timeout-minutes: 5
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
-        with:
-          path: .turbo
-          key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ steps.get-week.outputs.WEEK }}-${{ github.sha }}
-          restore-keys: |
-            turbo-${{ github.job }}-${{ github.ref_name }}-${{ steps.get-week.outputs.WEEK }}-
-            turbo-${{ github.job }}-canary-${{ steps.get-week.outputs.WEEK }}-
-
-      # We use restore-key to pick latest cache.
-      # We will not get exact match, but doc says
-      # "If there are multiple partial matches for a restore key, the action returns the most recently created cache."
-      # So we get latest cache
-      - name: Cache built files
-        uses: actions/cache@v3
-        timeout-minutes: 5
-        with:
-          path: ./packages/next-target
-          key: next-swc-cargo-cache-ubuntu-latest--${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            next-swc-cargo-cache-ubuntu-latest
-
-      - name: Build in docker
-        uses: addnab/docker-run-action@v3
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
-        with:
-          image: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2022-10-24-x64
-          options: -e RUST_TOOLCHAIN=${{ env.RUST_TOOLCHAIN }} -e NAPI_CLI_VERSION=${{ env.NAPI_CLI_VERSION }} -e TURBO_VERSION=${{ env.TURBO_VERSION }} -v ${{ env.HOME }}/.cargo/git:/root/.cargo/git -v ${{ env.HOME }}/.cargo/registry:/root/.cargo/registry -v ${{ github.workspace }}:/build -w /build
-          run: |
-            set -e &&
-            rustup toolchain install "${RUST_TOOLCHAIN}" &&
-            rustup default "${RUST_TOOLCHAIN}" &&
-            rustup target add x86_64-unknown-linux-gnu &&
-            npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi &&
-            unset CC_x86_64_unknown_linux_gnu && unset CC &&
-            turbo run build-native --cache-dir=".turbo" -- --target x86_64-unknown-linux-gnu &&
-            strip packages/next-swc/native/next-swc.*.node
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: next-swc-dev-binary
-          path: packages/next-swc/native/next-swc.linux-x64-gnu.node
-
-      - name: Clear the cargo caches
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
-        run: |
-          cargo install cargo-cache --no-default-features --features ci-autoclean
-          cargo-cache
+  build:
+    uses: ./.github/workflows/build_reusable.yml
+    secrets: inherit
+    with:
+      uploadSwcArtifact: 'yes'
 
   stats:
     name: PR Stats
-    needs: build-native-dev
+    needs: build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -116,7 +44,7 @@ jobs:
       - uses: actions/download-artifact@v3
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
         with:
-          name: next-swc-dev-binary
+          name: next-swc-binary
           path: packages/next-swc/native
 
       - run: cp -r packages/next-swc/native .github/actions/next-stats-action/native

@@ -3,6 +3,23 @@
  * Metadata types
  *
  */
+
+export interface DeprecatedMetadataFields {
+  /**
+   * Deprecated options that have a preferred method
+   * @deprecated Use appWebApp to configure apple-mobile-web-app-capable which provides
+   * @see https://www.appsloveworld.com/coding/iphone/11/difference-between-apple-mobile-web-app-capable-and-apple-touch-fullscreen-ipho
+   */
+  'apple-touch-fullscreen'?: never
+
+  /**
+   * Obsolete since iOS 7.
+   * @see https://web.dev/apple-touch-icon/
+   * @deprecated use icons.apple or instead
+   */
+  'apple-touch-icon-precomposed'?: never
+}
+
 export type TemplateString =
   | DefaultTemplateString
   | AbsoluteTemplateString
@@ -83,17 +100,27 @@ export type IconDescriptor = {
   url: string | URL
   type?: string
   sizes?: string
-  // defaults to rel="icon" unless superceded by Icons map
+  color?: string
+  /** defaults to rel="icon" unless superseded by Icons map */
   rel?: string
+  media?: string
+  /**
+   * @see https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement/fetchPriority
+   */
+  fetchPriority?: 'high' | 'low' | 'auto'
 }
+
 export type Icons = {
-  // rel="icon"
+  /** rel="icon" */
   icon?: Icon | Icon[]
-  // rel="shortcut icon"
+  /** rel="shortcut icon" */
   shortcut?: Icon | Icon[]
-  // rel="apple-touch-icon"
+  /**
+   * @see https://developer.apple.com/library/archive/documentation/AppleApplications/Reference/SafariWebContent/ConfiguringWebApplications/ConfiguringWebApplications.html
+   * rel="apple-touch-icon"
+   */
   apple?: Icon | Icon[]
-  // rel inferred from descriptor, defaults to "icon"
+  /** rel inferred from descriptor, defaults to "icon" */
   other?: IconDescriptor | IconDescriptor[]
 }
 
@@ -119,8 +146,13 @@ export type ResolvedVerification = {
 }
 
 export type ResolvedIcons = {
-  icon?: IconDescriptor[]
+  icon: IconDescriptor[]
+  apple: IconDescriptor[]
   shortcut?: IconDescriptor[]
-  apple?: IconDescriptor[]
   other?: IconDescriptor[]
+}
+
+export type ThemeColorDescriptor = {
+  color: string
+  media?: string
 }

@@ -1,11 +1,13 @@
 import { CacheNode, CacheStates } from '../../../shared/lib/app-router-context'
-import { FlightRouterState } from '../../../server/app-render'
+import type { FlightRouterState } from '../../../server/app-render/types'
+import { createRouterCacheKey } from './create-router-cache-key'
 
 export function fillLazyItemsTillLeafWithHead(
   newCache: CacheNode,
   existingCache: CacheNode | undefined,
   routerState: FlightRouterState,
-  head: React.ReactNode
+  head: React.ReactNode,
+  wasPrefetched?: boolean
 ): void {
   const isLastSegment = Object.keys(routerState[1]).length === 0
   if (isLastSegment) {
@@ -16,27 +18,37 @@ export function fillLazyItemsTillLeafWithHead(
   for (const key in routerState[1]) {
     const parallelRouteState = routerState[1][key]
     const segmentForParallelRoute = parallelRouteState[0]
-    const cacheKey = Array.isArray(segmentForParallelRoute)
-      ? segmentForParallelRoute[1]
-      : segmentForParallelRoute
+    const cacheKey = createRouterCacheKey(segmentForParallelRoute)
+
     if (existingCache) {
       const existingParallelRoutesCacheNode =
         existingCache.parallelRoutes.get(key)
       if (existingParallelRoutesCacheNode) {
         let parallelRouteCacheNode = new Map(existingParallelRoutesCacheNode)
-        parallelRouteCacheNode.delete(cacheKey)
-        const newCacheNode: CacheNode = {
-          status: CacheStates.LAZY_INITIALIZED,
-          data: null,
-          subTreeData: null,
-          parallelRoutes: new Map(),
-        }
+        const existingCacheNode = parallelRouteCacheNode.get(cacheKey)
+        const newCacheNode: CacheNode =
+          wasPrefetched && existingCacheNode
+            ? ({
+                status: existingCacheNode.status,
+                data: existingCacheNode.data,
+                subTreeData: existingCacheNode.subTreeData,
+                parallelRoutes: new Map(existingCacheNode.parallelRoutes),
+              } as CacheNode)
+            : {
+                status: CacheStates.LAZY_INITIALIZED,
+                data: null,
+                subTreeData: null,
+                parallelRoutes: new Map(existingCacheNode?.parallelRoutes),
+              }
+        // Overrides the cache key with the new cache node.
         parallelRouteCacheNode.set(cacheKey, newCacheNode)
+        // Traverse deeper to apply the head / fill lazy items till the head.
         fillLazyItemsTillLeafWithHead(
           newCacheNode,
-          undefined,
+          existingCacheNode,
           parallelRouteState,
-          head
+          head,
+          wasPrefetched
         )
 
         newCache.parallelRoutes.set(key, parallelRouteCacheNode)
@@ -50,12 +62,20 @@ export function fillLazyItemsTillLeafWithHead(
       subTreeData: null,
       parallelRoutes: new Map(),
     }
-    newCache.parallelRoutes.set(key, new Map([[cacheKey, newCacheNode]]))
+
+    const existingParallelRoutes = newCache.parallelRoutes.get(key)
+    if (existingParallelRoutes) {
+      existingParallelRoutes.set(cacheKey, newCacheNode)
+    } else {
+      newCache.parallelRoutes.set(key, new Map([[cacheKey, newCacheNode]]))
+    }
+
     fillLazyItemsTillLeafWithHead(
       newCacheNode,
       undefined,
       parallelRouteState,
-      head
+      head,
+      wasPrefetched
     )
   }
 }

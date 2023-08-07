@@ -3,7 +3,6 @@ import type {
   ClientComponentImports,
   NextFlightClientEntryLoaderOptions,
 } from '../loaders/next-flight-client-entry-loader'
-import type { FlightCSSManifest } from './flight-manifest-plugin'
 
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { stringify } from 'querystring'
@@ -11,55 +10,159 @@ import path from 'path'
 import { sources } from 'next/dist/compiled/webpack/webpack'
 import {
   getInvalidator,
-  entries,
+  getEntries,
   EntryTypes,
+  getEntryKey,
 } from '../../../server/dev/on-demand-entry-handler'
 import { WEBPACK_LAYERS } from '../../../lib/constants'
 import {
   APP_CLIENT_INTERNALS,
   COMPILER_NAMES,
   EDGE_RUNTIME_WEBPACK,
-  ACTIONS_MANIFEST,
-  FLIGHT_SERVER_CSS_MANIFEST,
+  SERVER_REFERENCE_MANIFEST,
 } from '../../../shared/lib/constants'
-import { ASYNC_CLIENT_MODULES } from './flight-manifest-plugin'
 import {
   generateActionId,
   getActions,
-  isClientComponentModule,
-  regexCSS,
+  isClientComponentEntryModule,
+  isCSSMod,
 } from '../loaders/utils'
-import { traverseModules } from '../utils'
+import { traverseModules, forEachEntryModule } from '../utils'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
+import { getProxiedPluginState } from '../../build-context'
+import { SizeLimit } from '../../../../types'
 
 interface Options {
   dev: boolean
   appDir: string
   isEdgeServer: boolean
+  useServerActions: boolean
+  serverActionsBodySizeLimit?: SizeLimit
 }
 
-const PLUGIN_NAME = 'ClientEntryPlugin'
+const PLUGIN_NAME = 'FlightClientEntryPlugin'
 
-export const injectedClientEntries = new Map()
+export type ActionManifest = {
+  [key in 'node' | 'edge']: {
+    [actionId: string]: {
+      workers: {
+        [name: string]: string | number
+      }
+      // Record which layer the action is in (rsc or sc_action), in the specific entry.
+      layer: {
+        [name: string]: string
+      }
+    }
+  }
+}
 
-export const serverModuleIds = new Map<string, string | number>()
-export const edgeServerModuleIds = new Map<string, string | number>()
+const pluginState = getProxiedPluginState({
+  // A map to track "action" -> "list of bundles".
+  serverActions: {} as ActionManifest['node'],
+  edgeServerActions: {} as ActionManifest['edge'],
 
-// A map to track "path:name" -> "hash".
-let serverActions: Record<string, string> = {}
+  actionModServerId: {} as Record<
+    string,
+    {
+      server?: string | number
+      client?: string | number
+    }
+  >,
+  actionModEdgeServerId: {} as Record<
+    string,
+    {
+      server?: string | number
+      client?: string | number
+    }
+  >,
 
-let serverCSSManifest: FlightCSSManifest = {}
-let edgeServerCSSManifest: FlightCSSManifest = {}
+  // Mapping of resource path to module id for server/edge server.
+  serverModuleIds: {} as Record<string, string | number>,
+  edgeServerModuleIds: {} as Record<string, string | number>,
+
+  // Collect modules from server/edge compiler in client layer,
+  // and detect if it's been used, and mark it as `async: true` for react.
+  // So that react could unwrap the async module from promise and render module itself.
+  ASYNC_CLIENT_MODULES: [] as string[],
+
+  injectedClientEntries: {} as Record<string, string>,
+})
+
+function deduplicateCSSImportsForEntry(mergedCSSimports: CssImports) {
+  // If multiple entry module connections are having the same CSS import,
+  // we only need to have one module to keep track of that CSS import.
+  // It is based on the fact that if a page or a layout is rendered in the
+  // given entry, all its parent layouts are always rendered too.
+  // This can avoid duplicate CSS imports in the generated CSS manifest,
+  // for example, if a page and its parent layout are both using the same
+  // CSS import, we only need to have the layout to keep track of that CSS
+  // import.
+  // To achieve this, we need to first collect all the CSS imports from
+  // every connection, and deduplicate them in the order of layers from
+  // top to bottom. The implementation can be generally described as:
+  // - Sort by number of `/` in the request path (the more `/`, the deeper)
+  // - When in the same depth, sort by the filename (template < layout < page and others)
+
+  // Sort the connections as described above.
+  const sortedCSSImports = Object.entries(mergedCSSimports).sort((a, b) => {
+    const [aPath] = a
+    const [bPath] = b
+
+    const aDepth = aPath.split('/').length
+    const bDepth = bPath.split('/').length
+
+    if (aDepth !== bDepth) {
+      return aDepth - bDepth
+    }
+
+    const aName = path.parse(aPath).name
+    const bName = path.parse(bPath).name
+
+    const indexA = ['template', 'layout'].indexOf(aName)
+    const indexB = ['template', 'layout'].indexOf(bName)
+
+    if (indexA === -1) return 1
+    if (indexB === -1) return -1
+    return indexA - indexB
+  })
+
+  const dedupedCSSImports: CssImports = {}
+  const trackedCSSImports = new Set<string>()
+  for (const [entryName, cssImports] of sortedCSSImports) {
+    for (const cssImport of cssImports) {
+      if (trackedCSSImports.has(cssImport)) continue
+
+      // Only track CSS imports that are in files that can inherit CSS.
+      const filename = path.parse(entryName).name
+      if (['template', 'layout'].includes(filename)) {
+        trackedCSSImports.add(cssImport)
+      }
+
+      if (!dedupedCSSImports[entryName]) {
+        dedupedCSSImports[entryName] = []
+      }
+      dedupedCSSImports[entryName].push(cssImport)
+    }
+  }
+
+  return dedupedCSSImports
+}
 
 export class FlightClientEntryPlugin {
   dev: boolean
   appDir: string
   isEdgeServer: boolean
+  useServerActions: boolean
+  serverActionsBodySizeLimit?: SizeLimit
+  assetPrefix: string
 
   constructor(options: Options) {
     this.dev = options.dev
     this.appDir = options.appDir
     this.isEdgeServer = options.isEdgeServer
+    this.useServerActions = options.useServerActions
+    this.serverActionsBodySizeLimit = options.serverActionsBodySizeLimit
+    this.assetPrefix = !this.dev && !this.isEdgeServer ? '../' : ''
   }
 
   apply(compiler: webpack.Compiler) {
@@ -77,26 +180,15 @@ export class FlightClientEntryPlugin {
       }
     )
 
-    compiler.hooks.finishMake.tapPromise(PLUGIN_NAME, (compilation) => {
-      return this.createClientEntries(compiler, compilation)
-    })
+    compiler.hooks.finishMake.tapPromise(PLUGIN_NAME, (compilation) =>
+      this.createClientEntries(compiler, compilation)
+    )
 
     compiler.hooks.afterCompile.tap(PLUGIN_NAME, (compilation) => {
-      traverseModules(compilation, (mod) => {
-        // const modId = compilation.chunkGraph.getModuleId(mod) + ''
-        // The module must has request, and resource so it's not a new entry created with loader.
-        // Using the client layer module, which doesn't have `rsc` tag in buildInfo.
-        if (mod.request && mod.resource && !mod.buildInfo.rsc) {
-          if (compilation.moduleGraph.isAsync(mod)) {
-            ASYNC_CLIENT_MODULES.add(mod.resource)
-          }
-        }
-      })
-
       const recordModule = (modId: string, mod: any) => {
         const modResource = mod.resourceResolveData?.path || mod.resource
 
-        if (mod.layer !== WEBPACK_LAYERS.client) {
+        if (mod.layer !== WEBPACK_LAYERS.serverSideRendering) {
           return
         }
 
@@ -113,17 +205,24 @@ export class FlightClientEntryPlugin {
           }
 
           if (this.isEdgeServer) {
-            edgeServerModuleIds.set(
-              ssrNamedModuleId.replace(/\/next\/dist\/esm\//, '/next/dist/'),
-              modId
-            )
+            pluginState.edgeServerModuleIds[
+              ssrNamedModuleId.replace(/\/next\/dist\/esm\//, '/next/dist/')
+            ] = modId
           } else {
-            serverModuleIds.set(ssrNamedModuleId, modId)
+            pluginState.serverModuleIds[ssrNamedModuleId] = modId
           }
         }
       }
 
       traverseModules(compilation, (mod, _chunk, _chunkGroup, modId) => {
+        // The module must has request, and resource so it's not a new entry created with loader.
+        // Using the client layer module, which doesn't have `rsc` tag in buildInfo.
+        if (mod.request && mod.resource && !mod.buildInfo.rsc) {
+          if (compilation.moduleGraph.isAsync(mod)) {
+            pluginState.ASYNC_CLIENT_MODULES.push(mod.resource)
+          }
+        }
+
         recordModule(String(modId), mod)
       })
     })
@@ -132,88 +231,47 @@ export class FlightClientEntryPlugin {
       compilation.hooks.processAssets.tap(
         {
           name: PLUGIN_NAME,
-          // Have to be in the optimize stage to run after updating the CSS
-          // asset hash via extract mini css plugin.
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_HASH,
         },
-        (assets) => this.createAsset(assets)
+        (assets) => this.createActionAssets(compilation, assets)
       )
     })
   }
 
-  async createClientEntries(compiler: any, compilation: any) {
+  async createClientEntries(compiler: webpack.Compiler, compilation: any) {
     const addClientEntryAndSSRModulesList: Array<
       ReturnType<typeof this.injectClientEntryAndSSRModules>
     > = []
+    const createdSSRDependenciesForEntry: Record<
+      string,
+      ReturnType<typeof this.injectClientEntryAndSSRModules>[2][]
+    > = {}
 
     const addActionEntryList: Array<ReturnType<typeof this.injectActionEntry>> =
       []
-
-    // Loop over all the entry modules.
-    function forEachEntryModule(
-      callback: ({
-        name,
-        entryModule,
-      }: {
-        name: string
-        entryModule: any
-      }) => void
-    ) {
-      for (const [name, entry] of compilation.entries.entries()) {
-        // Skip for entries under pages/
-        if (name.startsWith('pages/')) continue
-
-        // Check if the page entry is a server component or not.
-        const entryDependency: webpack.NormalModule | undefined =
-          entry.dependencies?.[0]
-        // Ensure only next-app-loader entries are handled.
-        if (!entryDependency || !entryDependency.request) continue
-
-        const request = entryDependency.request
-
-        if (
-          !request.startsWith('next-edge-ssr-loader?') &&
-          !request.startsWith('next-app-loader?')
-        )
-          continue
-
-        let entryModule: webpack.NormalModule =
-          compilation.moduleGraph.getResolvedModule(entryDependency)
-
-        if (request.startsWith('next-edge-ssr-loader?')) {
-          entryModule.dependencies.forEach((dependency) => {
-            const modRequest: string | undefined = (dependency as any).request
-            if (modRequest?.includes('next-app-loader')) {
-              entryModule =
-                compilation.moduleGraph.getResolvedModule(dependency)
-            }
-          })
-        }
-
-        callback({ name, entryModule })
-      }
-    }
+    const actionMapsPerEntry: Record<string, Map<string, string[]>> = {}
 
     // For each SC server compilation entry, we need to create its corresponding
     // client component entry.
-    forEachEntryModule(({ name, entryModule }) => {
+    forEachEntryModule(compilation, ({ name, entryModule }) => {
       const internalClientComponentEntryImports = new Set<
         ClientComponentImports[0]
       >()
       const actionEntryImports = new Map<string, string[]>()
+      const clientEntriesToInject = []
+      const mergedCSSimports: CssImports = {}
 
       for (const connection of compilation.moduleGraph.getOutgoingConnections(
         entryModule
       )) {
         // Entry can be any user defined entry files such as layout, page, error, loading, etc.
-        const entryDependency = connection.dependency
         const entryRequest = connection.dependency.request
 
-        const { clientImports, actionImports } =
-          this.collectComponentInfoFromDependencies({
+        const { clientComponentImports, actionImports, cssImports } =
+          this.collectComponentInfoFromServerEntryDependency({
             entryRequest,
             compilation,
-            dependency: entryDependency,
+            resolvedModule: connection.resolvedModule,
           })
 
         actionImports.forEach(([dep, names]) =>
@@ -224,11 +282,17 @@ export class FlightClientEntryPlugin {
 
         // Next.js internals are put into a separate entry.
         if (!isAbsoluteRequest) {
-          clientImports.forEach((value) =>
+          clientComponentImports.forEach((value) =>
             internalClientComponentEntryImports.add(value)
           )
           continue
         }
+
+        // TODO-APP: Enable these lines. This ensures no entrypoint is created for layout/page when there are no client components.
+        // Currently disabled because it causes test failures in CI.
+        // if (clientImports.length === 0 && actionImports.length === 0) {
+        //   continue
+        // }
 
         const relativeRequest = isAbsoluteRequest
           ? path.relative(compilation.options.context, entryRequest)
@@ -236,18 +300,41 @@ export class FlightClientEntryPlugin {
 
         // Replace file suffix as `.js` will be added.
         const bundlePath = normalizePathSep(
-          relativeRequest.replace(/\.(js|ts)x?$/, '').replace(/^src[\\/]/, '')
+          relativeRequest.replace(/\.[^.\\/]+$/, '').replace(/^src[\\/]/, '')
         )
 
-        addClientEntryAndSSRModulesList.push(
-          this.injectClientEntryAndSSRModules({
-            compiler,
-            compilation,
-            entryName: name,
-            clientImports,
-            bundlePath,
-          })
+        Object.assign(mergedCSSimports, cssImports)
+        clientEntriesToInject.push({
+          compiler,
+          compilation,
+          entryName: name,
+          clientComponentImports,
+          bundlePath,
+          absolutePagePath: entryRequest,
+        })
+      }
+
+      // Make sure CSS imports are deduplicated before injecting the client entry
+      // and SSR modules.
+      const dedupedCSSImports = deduplicateCSSImportsForEntry(mergedCSSimports)
+      for (const clientEntryToInject of clientEntriesToInject) {
+        const injected = this.injectClientEntryAndSSRModules({
+          ...clientEntryToInject,
+          clientImports: [
+            ...clientEntryToInject.clientComponentImports,
+            ...(dedupedCSSImports[clientEntryToInject.absolutePagePath] || []),
+          ],
+        })
+
+        // Track all created SSR dependencies for each entry from the server layer.
+        if (!createdSSRDependenciesForEntry[clientEntryToInject.entryName]) {
+          createdSSRDependenciesForEntry[clientEntryToInject.entryName] = []
+        }
+        createdSSRDependenciesForEntry[clientEntryToInject.entryName].push(
+          injected[2]
         )
+
+        addClientEntryAndSSRModulesList.push(injected)
       }
 
       // Create internal app
@@ -261,162 +348,112 @@ export class FlightClientEntryPlugin {
         })
       )
 
-      // Create action entries
-      serverActions = {}
-      actionEntryImports.forEach((actionNames, actionPath) => {
-        for (const actionName of actionNames) {
-          addActionEntryList.push(
-            this.injectActionEntry({
-              compiler,
-              compilation,
-              actionPath,
-              actionName,
-            })
-          )
+      if (actionEntryImports.size > 0) {
+        if (!actionMapsPerEntry[name]) {
+          actionMapsPerEntry[name] = new Map()
         }
-      })
+        actionMapsPerEntry[name] = new Map([
+          ...actionMapsPerEntry[name],
+          ...actionEntryImports,
+        ])
+      }
     })
 
-    // After optimizing all the modules, we collect the CSS that are still used
-    // by the certain chunk.
-    compilation.hooks.afterOptimizeModules.tap(PLUGIN_NAME, () => {
-      const cssImportsForChunk: Record<string, Set<string>> = {}
-      if (this.isEdgeServer) {
-        edgeServerCSSManifest = {}
-      } else {
-        serverCSSManifest = {}
-      }
-
-      let cssManifest = this.isEdgeServer
-        ? edgeServerCSSManifest
-        : serverCSSManifest
-
-      function collectModule(entryName: string, mod: any) {
-        const resource = mod.resource
-        const modId = resource
-        if (modId) {
-          if (regexCSS.test(modId)) {
-            cssImportsForChunk[entryName].add(modId)
-          }
+    const createdActions = new Set<string>()
+    for (const [name, actionEntryImports] of Object.entries(
+      actionMapsPerEntry
+    )) {
+      for (const [dep, actionNames] of actionEntryImports) {
+        for (const actionName of actionNames) {
+          createdActions.add(name + '@' + dep + '@' + actionName)
         }
       }
+      addActionEntryList.push(
+        this.injectActionEntry({
+          compiler,
+          compilation,
+          actions: actionEntryImports,
+          entryName: name,
+          bundlePath: name,
+        })
+      )
+    }
 
-      compilation.chunkGroups.forEach((chunkGroup: any) => {
-        chunkGroup.chunks.forEach((chunk: webpack.Chunk) => {
-          // Here we only track page chunks.
-          if (!chunk.name) return
-          if (!chunk.name.endsWith('/page')) return
+    if (this.useServerActions) {
+      compilation.hooks.finishModules.tapPromise(PLUGIN_NAME, () => {
+        const addedClientActionEntryList: Promise<any>[] = []
+        const actionMapsPerClientEntry: Record<
+          string,
+          Map<string, string[]>
+        > = {}
 
-          const entryName = path.join(this.appDir, '..', chunk.name)
+        // We need to create extra action entries that are created from the
+        // client layer.
+        // Start from each entry's created SSR dependency from our previous step.
+        for (const [name, ssrEntryDepdendencies] of Object.entries(
+          createdSSRDependenciesForEntry
+        )) {
+          // Collect from all entries, e.g. layout.js, page.js, loading.js, ...
+          // add agregate them.
+          const actionEntryImports = this.collectClientActionsFromDependencies({
+            compilation,
+            dependencies: ssrEntryDepdendencies,
+          })
 
-          if (!cssImportsForChunk[entryName]) {
-            cssImportsForChunk[entryName] = new Set()
+          if (actionEntryImports.size > 0) {
+            if (!actionMapsPerClientEntry[name]) {
+              actionMapsPerClientEntry[name] = new Map()
+            }
+            actionMapsPerClientEntry[name] = new Map([
+              ...actionMapsPerClientEntry[name],
+              ...actionEntryImports,
+            ])
           }
+        }
 
-          const chunkModules = compilation.chunkGraph.getChunkModulesIterable(
-            chunk
-          ) as Iterable<webpack.NormalModule>
-          for (const mod of chunkModules) {
-            collectModule(entryName, mod)
-
-            const anyModule = mod as any
-            if (anyModule.modules) {
-              anyModule.modules.forEach((concatenatedMod: any) => {
-                collectModule(entryName, concatenatedMod)
-              })
+        for (const [name, actionEntryImports] of Object.entries(
+          actionMapsPerClientEntry
+        )) {
+          // If an action method is already created in the server layer, we don't
+          // need to create it again in the action layer.
+          // This is to avoid duplicate action instances and make sure the module
+          // state is shared.
+          let remainingClientImportedActions = false
+          const remainingActionEntryImports = new Map<string, string[]>()
+          for (const [dep, actionNames] of actionEntryImports) {
+            const remainingActionNames = []
+            for (const actionName of actionNames) {
+              const id = name + '@' + dep + '@' + actionName
+              if (!createdActions.has(id)) {
+                remainingActionNames.push(actionName)
+              }
+            }
+            if (remainingActionNames.length > 0) {
+              remainingActionEntryImports.set(dep, remainingActionNames)
+              remainingClientImportedActions = true
             }
           }
 
-          const entryCSSInfo: Record<string, string[]> =
-            cssManifest.__entry_css_mods__ || {}
-          entryCSSInfo[entryName] = [...cssImportsForChunk[entryName]]
-
-          Object.assign(cssManifest, {
-            __entry_css_mods__: entryCSSInfo,
-          })
-        })
-      })
-
-      forEachEntryModule(({ name, entryModule }) => {
-        // To collect all CSS imports for a specific entry including the ones
-        // that are in the client graph, we need to store a map for client boundary
-        // dependencies.
-        const clientEntryDependencyMap: Record<string, any> = {}
-        const entry = compilation.entries.get(name)
-        entry.includeDependencies.forEach((dep: any) => {
-          if (
-            dep.request &&
-            dep.request.startsWith('next-flight-client-entry-loader?')
-          ) {
-            const mod: webpack.NormalModule =
-              compilation.moduleGraph.getResolvedModule(dep)
-
-            compilation.moduleGraph
-              .getOutgoingConnections(mod)
-              .forEach((connection: any) => {
-                if (connection.dependency) {
-                  clientEntryDependencyMap[connection.dependency.request] =
-                    connection.dependency
-                }
+          if (remainingClientImportedActions) {
+            addedClientActionEntryList.push(
+              this.injectActionEntry({
+                compiler,
+                compilation,
+                actions: remainingActionEntryImports,
+                entryName: name,
+                bundlePath: name,
+                fromClient: true,
               })
+            )
           }
-        })
-
-        const tracked = new Set<string>()
-        for (const connection of compilation.moduleGraph.getOutgoingConnections(
-          entryModule
-        )) {
-          const entryDependency = connection.dependency
-          const entryRequest = connection.dependency.request
-
-          // It is possible that the same entry is added multiple times in the
-          // connection graph. We can just skip these to speed up the process.
-          if (tracked.has(entryRequest)) continue
-          tracked.add(entryRequest)
-
-          const { cssImports } = this.collectComponentInfoFromDependencies({
-            entryRequest,
-            compilation,
-            dependency: entryDependency,
-            clientEntryDependencyMap,
-          })
-
-          Object.assign(cssManifest, cssImports)
         }
-      })
-    })
 
-    compilation.hooks.processAssets.tap(
-      {
-        name: PLUGIN_NAME,
-        // Have to be in the optimize stage to run after updating the CSS
-        // asset hash via extract mini css plugin.
-        stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_HASH,
-      },
-      (assets: webpack.Compilation['assets']) => {
-        const manifest = JSON.stringify(
-          {
-            ...serverCSSManifest,
-            ...edgeServerCSSManifest,
-            __entry_css_mods__: {
-              ...serverCSSManifest.__entry_css_mods__,
-              ...edgeServerCSSManifest.__entry_css_mods__,
-            },
-          },
-          null,
-          this.dev ? 2 : undefined
-        )
-        assets[FLIGHT_SERVER_CSS_MANIFEST + '.json'] = new sources.RawSource(
-          manifest
-        ) as unknown as webpack.sources.RawSource
-        assets[FLIGHT_SERVER_CSS_MANIFEST + '.js'] = new sources.RawSource(
-          'self.__RSC_CSS_MANIFEST=' + manifest
-        ) as unknown as webpack.sources.RawSource
-      }
-    )
+        return Promise.all(addedClientActionEntryList)
+      })
+    }
 
     // Invalidate in development to trigger recompilation
-    const invalidator = getInvalidator()
+    const invalidator = getInvalidator(compiler.outputPath)
     // Check if any of the entry injections need an invalidation
     if (
       invalidator &&
@@ -434,60 +471,126 @@ export class FlightClientEntryPlugin {
         (addClientEntryAndSSRModules) => addClientEntryAndSSRModules[1]
       )
     )
+
+    // Wait for action entries to be added.
+    await Promise.all(addActionEntryList)
   }
 
-  collectComponentInfoFromDependencies({
+  collectClientActionsFromDependencies({
+    compilation,
+    dependencies,
+  }: {
+    compilation: any
+    dependencies: ReturnType<typeof webpack.EntryPlugin.createDependency>[]
+  }) {
+    // action file path -> action names
+    const collectedActions = new Map<string, string[]>()
+
+    // Keep track of checked modules to avoid infinite loops with recursive imports.
+    const visitedModule = new Set<string>()
+    const visitedEntry = new Set<string>()
+
+    const collectActions = ({
+      entryRequest,
+      resolvedModule,
+    }: {
+      entryRequest: string
+      resolvedModule: any
+    }) => {
+      const collectActionsInDep = (mod: webpack.NormalModule): void => {
+        if (!mod) return
+
+        // We have to always use the resolved request here to make sure the
+        // server and client are using the same module path (required by RSC), as
+        // the server compiler and client compiler have different resolve configs.
+        const modRequest: string | undefined =
+          mod.resourceResolveData?.path + mod.resourceResolveData?.query
+
+        if (!modRequest || visitedModule.has(modRequest)) return
+        visitedModule.add(modRequest)
+
+        const actions = getActions(mod)
+        if (actions) {
+          collectedActions.set(modRequest, actions)
+        }
+
+        compilation.moduleGraph
+          .getOutgoingConnections(mod)
+          .forEach((connection: any) => {
+            collectActionsInDep(connection.resolvedModule)
+          })
+      }
+
+      // Don't traverse the module graph anymore once hitting the action layer.
+      if (!entryRequest.includes('next-flight-action-entry-loader')) {
+        // Traverse the module graph to find all client components.
+        collectActionsInDep(resolvedModule)
+      }
+    }
+
+    for (const entryDependency of dependencies) {
+      const ssrEntryModule =
+        compilation.moduleGraph.getResolvedModule(entryDependency)
+      for (const connection of compilation.moduleGraph.getOutgoingConnections(
+        ssrEntryModule
+      )) {
+        const dependency = connection.dependency
+        const request = dependency.request
+
+        // It is possible that the same entry is added multiple times in the
+        // connection graph. We can just skip these to speed up the process.
+        if (visitedEntry.has(request)) continue
+        visitedEntry.add(request)
+
+        collectActions({
+          entryRequest: request,
+          resolvedModule: connection.resolvedModule,
+        })
+      }
+    }
+
+    return collectedActions
+  }
+
+  collectComponentInfoFromServerEntryDependency({
     entryRequest,
     compilation,
-    dependency,
-    clientEntryDependencyMap,
+    resolvedModule,
   }: {
     entryRequest: string
     compilation: any
-    dependency: any /* Dependency */
-    clientEntryDependencyMap?: Record<string, any>
+    resolvedModule: any /* Dependency */
   }): {
-    clientImports: ClientComponentImports
     cssImports: CssImports
+    clientComponentImports: ClientComponentImports
     actionImports: [string, string[]][]
   } {
-    /**
-     * Keep track of checked modules to avoid infinite loops with recursive imports.
-     */
-    const visitedBySegment: { [segment: string]: Set<string> } = {}
+    // Keep track of checked modules to avoid infinite loops with recursive imports.
+    const visited = new Set()
+
+    // Info to collect.
     const clientComponentImports: ClientComponentImports = []
     const actionImports: [string, string[]][] = []
-    const CSSImports: CssImports = {}
+    const CSSImports = new Set<string>()
 
-    const filterClientComponents = (
-      dependencyToFilter: any,
-      inClientComponentBoundary: boolean
-    ): void => {
-      const mod: webpack.NormalModule =
-        compilation.moduleGraph.getResolvedModule(dependencyToFilter)
+    const filterClientComponents = (mod: webpack.NormalModule): void => {
       if (!mod) return
 
-      const rawRequest = mod.rawRequest
-      const isCSS = regexCSS.test(rawRequest)
+      const isCSS = isCSSMod(mod)
 
       // We have to always use the resolved request here to make sure the
       // server and client are using the same module path (required by RSC), as
       // the server compiler and client compiler have different resolve configs.
-      const modRequest: string | undefined =
+      let modRequest: string | undefined =
         mod.resourceResolveData?.path + mod.resourceResolveData?.query
 
-      // Ensure module is not walked again if it's already been visited
-      if (!visitedBySegment[entryRequest]) {
-        visitedBySegment[entryRequest] = new Set()
+      // Context modules don't have a resource path, we use the identifier instead.
+      if (mod.constructor.name === 'ContextModule') {
+        modRequest = (mod as any)._identifier
       }
-      const storeKey =
-        (inClientComponentBoundary ? '0' : '1') + ':' + modRequest
-      if (!modRequest || visitedBySegment[entryRequest].has(storeKey)) {
-        return
-      }
-      visitedBySegment[entryRequest].add(storeKey)
 
-      const isClientComponent = isClientComponentModule(mod)
+      if (!modRequest || visited.has(modRequest)) return
+      visited.add(modRequest)
 
       const actions = getActions(mod)
       if (actions) {
@@ -505,52 +608,34 @@ export class FlightClientEntryPlugin {
               this.isEdgeServer ? EDGE_RUNTIME_WEBPACK : 'webpack-runtime'
             )
 
-          if (unused) {
-            return
-          }
+          if (unused) return
         }
 
-        CSSImports[entryRequest] = CSSImports[entryRequest] || []
-        CSSImports[entryRequest].push(modRequest)
+        CSSImports.add(modRequest)
       }
 
-      // Check if request is for css file.
-      if ((!inClientComponentBoundary && isClientComponent) || isCSS) {
+      if (isClientComponentEntryModule(mod)) {
         clientComponentImports.push(modRequest)
-
-        // Here we are entering a client boundary, and we need to collect dependencies
-        // in the client graph too.
-        if (isClientComponent && clientEntryDependencyMap) {
-          if (clientEntryDependencyMap[modRequest]) {
-            filterClientComponents(clientEntryDependencyMap[modRequest], true)
-          }
-        }
-
         return
       }
 
       compilation.moduleGraph
         .getOutgoingConnections(mod)
         .forEach((connection: any) => {
-          filterClientComponents(
-            connection.dependency,
-            inClientComponentBoundary || isClientComponent
-          )
+          filterClientComponents(connection.resolvedModule)
         })
     }
 
     // Traverse the module graph to find all client components.
-    filterClientComponents(dependency, false)
-
-    // Don't traverse the module graph for the action loader.
-    if (!/next-flight-action-entry-loader/.test(entryRequest)) {
-      // Traverse the module graph to find all client components.
-      filterClientComponents(dependency, false)
-    }
+    filterClientComponents(resolvedModule)
 
     return {
-      clientImports: clientComponentImports,
-      cssImports: CSSImports,
+      clientComponentImports,
+      cssImports: CSSImports.size
+        ? {
+            [entryRequest]: Array.from(CSSImports),
+          }
+        : {},
       actionImports,
     }
   }
@@ -561,13 +646,19 @@ export class FlightClientEntryPlugin {
     entryName,
     clientImports,
     bundlePath,
+    absolutePagePath,
   }: {
     compiler: webpack.Compiler
     compilation: webpack.Compilation
     entryName: string
     clientImports: ClientComponentImports
     bundlePath: string
-  }): [shouldInvalidate: boolean, addEntryPromise: Promise<void>] {
+    absolutePagePath?: string
+  }): [
+    shouldInvalidate: boolean,
+    addEntryPromise: Promise<void>,
+    ssrDep: ReturnType<typeof webpack.EntryPlugin.createDependency>
+  ] {
     let shouldInvalidate = false
 
     const loaderOptions: NextFlightClientEntryLoaderOptions = {
@@ -580,10 +671,13 @@ export class FlightClientEntryPlugin {
     // replace them.
     const clientLoader = `next-flight-client-entry-loader?${stringify({
       modules: this.isEdgeServer
-        ? clientImports.map((importPath) =>
-            importPath.replace('next/dist/esm/', 'next/dist/')
+        ? loaderOptions.modules.map((importPath) =>
+            importPath.replace(
+              /[\\/]next[\\/]dist[\\/]esm[\\/]/,
+              '/next/dist/'.replace(/\//g, path.sep)
+            )
           )
-        : clientImports,
+        : loaderOptions.modules,
       server: false,
     })}!`
 
@@ -595,11 +689,14 @@ export class FlightClientEntryPlugin {
     // Add for the client compilation
     // Inject the entry to the client compiler.
     if (this.dev) {
-      const pageKey = COMPILER_NAMES.client + bundlePath
+      const entries = getEntries(compiler.outputPath)
+      const pageKey = getEntryKey(COMPILER_NAMES.client, 'app', bundlePath)
+
       if (!entries[pageKey]) {
         entries[pageKey] = {
           type: EntryTypes.CHILD_ENTRY,
           parentEntries: new Set([entryName]),
+          absoluteEntryFilePath: absolutePagePath,
           bundlePath,
           request: clientLoader,
           dispose: false,
@@ -616,12 +713,14 @@ export class FlightClientEntryPlugin {
         if (entryData.type === EntryTypes.CHILD_ENTRY) {
           entryData.parentEntries.add(entryName)
         }
+        entryData.dispose = false
+        entryData.lastActiveTime = Date.now()
       }
     } else {
-      injectedClientEntries.set(bundlePath, clientLoader)
+      pluginState.injectedClientEntries[bundlePath] = clientLoader
     }
 
-    // Inject the entry to the server compiler (__sc_client__).
+    // Inject the entry to the server compiler (__ssr__).
     const clientComponentEntryDep = webpack.EntryPlugin.createDependency(
       clientSSRLoader,
       {
@@ -644,52 +743,70 @@ export class FlightClientEntryPlugin {
           name: entryName,
           // Layer should be client for the SSR modules
           // This ensures the client components are bundled on client layer
-          layer: WEBPACK_LAYERS.client,
+          layer: WEBPACK_LAYERS.serverSideRendering,
         }
       ),
+      clientComponentEntryDep,
     ]
   }
 
   injectActionEntry({
     compiler,
     compilation,
-    actionPath,
-    actionName,
+    actions,
+    entryName,
+    bundlePath,
+    fromClient,
   }: {
     compiler: webpack.Compiler
     compilation: webpack.Compilation
-    actionPath: string
-    actionName: string
+    actions: Map<string, string[]>
+    entryName: string
+    bundlePath: string
+    fromClient?: boolean
   }) {
+    const actionsArray = Array.from(actions.entries())
     const actionLoader = `next-flight-action-entry-loader?${stringify({
-      actionPath,
-      actionName,
+      actions: JSON.stringify(actionsArray),
+      __client_imported__: fromClient,
     })}!`
 
-    const actionHash = generateActionId(actionPath, actionName)
-    serverActions[actionPath + ':' + actionName] = actionHash
-
-    // Inject the entry to the server compiler (__sc_client__).
-    const actionEntryDep = webpack.EntryPlugin.createDependency(actionLoader, {
-      name: 'action/' + actionHash,
-    })
-
-    return new Promise((resolve, reject) => {
-      compilation.addEntry(
-        compiler.context,
-        actionEntryDep,
-        {
-          name: 'action/' + actionHash,
-          layer: WEBPACK_LAYERS.server,
-        },
-        (err?: Error | null, entry?: any) => {
-          if (err) {
-            return reject(err)
+    const currentCompilerServerActions = this.isEdgeServer
+      ? pluginState.edgeServerActions
+      : pluginState.serverActions
+    for (const [p, names] of actionsArray) {
+      for (const name of names) {
+        const id = generateActionId(p, name)
+        if (typeof currentCompilerServerActions[id] === 'undefined') {
+          currentCompilerServerActions[id] = {
+            workers: {},
+            layer: {},
           }
-          resolve(entry)
         }
-      )
+        currentCompilerServerActions[id].workers[bundlePath] = ''
+        currentCompilerServerActions[id].layer[bundlePath] = fromClient
+          ? WEBPACK_LAYERS.actionBrowser
+          : WEBPACK_LAYERS.reactServerComponents
+      }
+    }
+
+    // Inject the entry to the server compiler
+    const actionEntryDep = webpack.EntryPlugin.createDependency(actionLoader, {
+      name: bundlePath,
     })
+
+    return this.addEntry(
+      compilation,
+      // Reuse compilation context.
+      compiler.context,
+      actionEntryDep,
+      {
+        name: entryName,
+        layer: fromClient
+          ? WEBPACK_LAYERS.actionBrowser
+          : WEBPACK_LAYERS.reactServerComponents,
+      }
+    )
   }
 
   addEntry(
@@ -721,11 +838,77 @@ export class FlightClientEntryPlugin {
     })
   }
 
-  createAsset(assets: webpack.Compilation['assets']) {
-    const file = ACTIONS_MANIFEST
-    const json = JSON.stringify(serverActions, null, this.dev ? 2 : undefined)
-    assets[file + '.json'] = new sources.RawSource(
-      json
-    ) as unknown as webpack.sources.RawSource
+  createActionAssets(
+    compilation: webpack.Compilation,
+    assets: webpack.Compilation['assets']
+  ) {
+    const serverActions: ActionManifest['node'] = {}
+    const edgeServerActions: ActionManifest['edge'] = {}
+
+    if (this.useServerActions) {
+      traverseModules(compilation, (mod, _chunk, chunkGroup, modId) => {
+        // Go through all action entries and record the module ID for each entry.
+        if (
+          chunkGroup.name &&
+          mod.request &&
+          /next-flight-action-entry-loader/.test(mod.request)
+        ) {
+          const fromClient = /&__client_imported__=true/.test(mod.request)
+
+          const mapping = this.isEdgeServer
+            ? pluginState.actionModEdgeServerId
+            : pluginState.actionModServerId
+
+          if (!mapping[chunkGroup.name]) {
+            mapping[chunkGroup.name] = {}
+          }
+          mapping[chunkGroup.name][fromClient ? 'client' : 'server'] = modId
+        }
+      })
+
+      for (let id in pluginState.serverActions) {
+        const action = pluginState.serverActions[id]
+        for (let name in action.workers) {
+          const modId =
+            pluginState.actionModServerId[name][
+              action.layer[name] === WEBPACK_LAYERS.actionBrowser
+                ? 'client'
+                : 'server'
+            ]
+          action.workers[name] = modId!
+        }
+        serverActions[id] = action
+      }
+
+      for (let id in pluginState.edgeServerActions) {
+        const action = pluginState.edgeServerActions[id]
+        for (let name in action.workers) {
+          const modId =
+            pluginState.actionModEdgeServerId[name][
+              action.layer[name] === WEBPACK_LAYERS.actionBrowser
+                ? 'client'
+                : 'server'
+            ]
+          action.workers[name] = modId!
+        }
+        edgeServerActions[id] = action
+      }
+    }
+
+    const json = JSON.stringify(
+      {
+        node: serverActions,
+        edge: edgeServerActions,
+      },
+      null,
+      this.dev ? 2 : undefined
+    )
+
+    assets[`${this.assetPrefix}${SERVER_REFERENCE_MANIFEST}.js`] =
+      new sources.RawSource(
+        `self.__RSC_SERVER_MANIFEST=${JSON.stringify(json)}`
+      ) as unknown as webpack.sources.RawSource
+    assets[`${this.assetPrefix}${SERVER_REFERENCE_MANIFEST}.json`] =
+      new sources.RawSource(json) as unknown as webpack.sources.RawSource
   }
 }

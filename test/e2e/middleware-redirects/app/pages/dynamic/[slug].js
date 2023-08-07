@@ -1,13 +1,15 @@
-export default function Account() {
+export default function Account({ slug }) {
   return (
     <p id="dynamic" className="title">
-      Welcome to a /dynamic/[slug]
+      Welcome to a /dynamic/[slug]: {slug}
     </p>
   )
 }
 
-export function getServerSideProps() {
+export function getServerSideProps({ params }) {
   return {
-    props: {},
+    props: {
+      slug: params.slug,
+    },
   }
 }

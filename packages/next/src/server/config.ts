@@ -1,8 +1,6 @@
 import { existsSync } from 'fs'
 import { basename, extname, join, relative, isAbsolute, resolve } from 'path'
 import { pathToFileURL } from 'url'
-import { Agent as HttpAgent } from 'http'
-import { Agent as HttpsAgent } from 'https'
 import findUp from 'next/dist/compiled/find-up'
 import chalk from '../lib/chalk'
 import * as Log from '../build/output/log'
@@ -17,20 +15,13 @@ import {
   NextConfig,
 } from './config-shared'
 import { loadWebpackHook } from './config-utils'
-import {
-  ImageConfig,
-  imageConfigDefault,
-  VALID_LOADERS,
-} from '../shared/lib/image-config'
-import { loadEnvConfig } from '@next/env'
-import { gte as semverGte } from 'next/dist/compiled/semver'
+import { ImageConfig, imageConfigDefault } from '../shared/lib/image-config'
+import { loadEnvConfig, updateInitialEnv } from '@next/env'
+import { flushAndExit } from '../telemetry/flush-and-exit'
+import { findRootDir } from '../lib/find-root'
+import { setHttpClientAndAgentOptions } from './setup-http-agent-env'
 
 export { DomainLocale, NextConfig, normalizeConfig } from './config-shared'
-
-const NODE_16_VERSION = '16.8.0'
-const NODE_18_VERSION = '18.0.0'
-const isAboveNodejs16 = semverGte(process.version, NODE_16_VERSION)
-const isAboveNodejs18 = semverGte(process.version, NODE_18_VERSION)
 
 const experimentalWarning = execOnce(
   (configFileName: string, features: string[]) => {
@@ -46,88 +37,10 @@ const experimentalWarning = execOnce(
       `Experimental features are not covered by semver, and may cause unexpected or broken application behavior. ` +
         `Use at your own risk.`
     )
-    if (features.includes('appDir')) {
-      Log.info(
-        `Thank you for testing \`appDir\` please leave your feedback at https://nextjs.link/app-feedback`
-      )
-    }
 
     console.warn()
   }
 )
-
-export function setHttpClientAndAgentOptions(
-  config: {
-    httpAgentOptions?: NextConfig['httpAgentOptions']
-    experimental?: {
-      enableUndici?: boolean
-    }
-  },
-  silent = false
-) {
-  if (isAboveNodejs16) {
-    // Node.js 18 has undici built-in.
-    if (config.experimental?.enableUndici && !isAboveNodejs18) {
-      // When appDir is enabled undici is the default because of Response.clone() issues in node-fetch
-      ;(globalThis as any).__NEXT_USE_UNDICI = config.experimental?.enableUndici
-    }
-  } else if (config.experimental?.enableUndici && !silent) {
-    Log.warn(
-      `\`enableUndici\` option requires Node.js v${NODE_16_VERSION} or greater. Falling back to \`node-fetch\``
-    )
-  }
-  if ((globalThis as any).__NEXT_HTTP_AGENT) {
-    // We only need to assign once because we want
-    // to reuse the same agent for all requests.
-    return
-  }
-
-  if (!config) {
-    throw new Error('Expected config.httpAgentOptions to be an object')
-  }
-
-  ;(globalThis as any).__NEXT_HTTP_AGENT_OPTIONS = config.httpAgentOptions
-  ;(globalThis as any).__NEXT_HTTP_AGENT = new HttpAgent(
-    config.httpAgentOptions
-  )
-  ;(globalThis as any).__NEXT_HTTPS_AGENT = new HttpsAgent(
-    config.httpAgentOptions
-  )
-}
-
-function setFontLoaderDefaults(config: NextConfigComplete) {
-  try {
-    // eslint-disable-next-line import/no-extraneous-dependencies
-    require('@next/font/package.json')
-
-    const googleFontLoader = {
-      loader: '@next/font/google',
-    }
-    const localFontLoader = {
-      loader: '@next/font/local',
-    }
-    if (!config.experimental) {
-      config.experimental = {}
-    }
-    if (!config.experimental.fontLoaders) {
-      config.experimental.fontLoaders = []
-    }
-    if (
-      !config.experimental.fontLoaders.find(
-        ({ loader }: any) => loader === googleFontLoader.loader
-      )
-    ) {
-      config.experimental.fontLoaders.push(googleFontLoader)
-    }
-    if (
-      !config.experimental.fontLoaders.find(
-        ({ loader }: any) => loader === localFontLoader.loader
-      )
-    ) {
-      config.experimental.fontLoaders.push(localFontLoader)
-    }
-  } catch {}
-}
 
 export function warnOptionHasBeenMovedOutOfExperimental(
   config: NextConfig,
@@ -192,16 +105,6 @@ function assignDefaults(
           for (const featureName of Object.keys(
             value
           ) as (keyof ExperimentalConfig)[]) {
-            const featureValue = value[featureName]
-            if (
-              featureName === 'appDir' &&
-              featureValue === true &&
-              !isAboveNodejs16
-            ) {
-              throw new Error(
-                `experimental.appDir requires Node v${NODE_16_VERSION} or later.`
-              )
-            }
             if (
               value[featureName] !== defaultConfig.experimental[featureName]
             ) {
@@ -283,6 +186,29 @@ function assignDefaults(
 
   const result = { ...defaultConfig, ...config }
 
+  if (result.output === 'export') {
+    if (result.i18n) {
+      throw new Error(
+        'Specified "i18n" cannot be used with "output: export". See more info here: https://nextjs.org/docs/messages/export-no-i18n'
+      )
+    }
+    if (result.rewrites) {
+      throw new Error(
+        'Specified "rewrites" cannot be used with "output: export". See more info here: https://nextjs.org/docs/messages/export-no-custom-routes'
+      )
+    }
+    if (result.redirects) {
+      throw new Error(
+        'Specified "redirects" cannot be used with "output: export". See more info here: https://nextjs.org/docs/messages/export-no-custom-routes'
+      )
+    }
+    if (result.headers) {
+      throw new Error(
+        'Specified "headers" cannot be used with "output: export". See more info here: https://nextjs.org/docs/messages/export-no-custom-routes'
+      )
+    }
+  }
+
   if (typeof result.assetPrefix !== 'string') {
     throw new Error(
       `Specified assetPrefix is not a string, found type "${typeof result.assetPrefix}" https://nextjs.org/docs/messages/invalid-assetprefix`
@@ -295,8 +221,23 @@ function assignDefaults(
     )
   }
 
-  if (result.experimental?.appDir) {
-    result.experimental.enableUndici = true
+  // TODO: remove after next minor (current v13.1.1)
+  if (Array.isArray(result.experimental?.outputFileTracingIgnores)) {
+    if (!result.experimental) {
+      result.experimental = {}
+    }
+    if (!result.experimental.outputFileTracingExcludes) {
+      result.experimental.outputFileTracingExcludes = {}
+    }
+    if (!result.experimental.outputFileTracingExcludes['**/*']) {
+      result.experimental.outputFileTracingExcludes['**/*'] = []
+    }
+    result.experimental.outputFileTracingExcludes['**/*'].push(
+      ...(result.experimental.outputFileTracingIgnores || [])
+    )
+    Log.warn(
+      `\`outputFileTracingIgnores\` has been moved to \`experimental.outputFileTracingExcludes\`. Please update your ${configFileName} file accordingly.`
+    )
   }
 
   if (result.basePath !== '') {
@@ -351,126 +292,10 @@ function assignDefaults(
       if (config.assetPrefix?.startsWith('http')) {
         images.domains.push(new URL(config.assetPrefix).hostname)
       }
-
-      if (images.domains.length > 50) {
-        throw new Error(
-          `Specified images.domains exceeds length of 50, received length (${images.domains.length}), please reduce the length of the array to continue.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
-        )
-      }
-
-      const invalid = images.domains.filter(
-        (d: unknown) => typeof d !== 'string'
-      )
-      if (invalid.length > 0) {
-        throw new Error(
-          `Specified images.domains should be an Array of strings received invalid values (${invalid.join(
-            ', '
-          )}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
-        )
-      }
-    }
-
-    const remotePatterns = result?.images?.remotePatterns
-    if (remotePatterns) {
-      if (!Array.isArray(remotePatterns)) {
-        throw new Error(
-          `Specified images.remotePatterns should be an Array received ${typeof remotePatterns}.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
-        )
-      }
-
-      if (remotePatterns.length > 50) {
-        throw new Error(
-          `Specified images.remotePatterns exceeds length of 50, received length (${remotePatterns.length}), please reduce the length of the array to continue.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
-        )
-      }
-
-      const validProps = new Set(['protocol', 'hostname', 'pathname', 'port'])
-      const requiredProps = ['hostname']
-      const invalidPatterns = remotePatterns.filter(
-        (d: unknown) =>
-          !d ||
-          typeof d !== 'object' ||
-          Object.entries(d).some(
-            ([k, v]) => !validProps.has(k) || typeof v !== 'string'
-          ) ||
-          requiredProps.some((k) => !(k in d))
-      )
-      if (invalidPatterns.length > 0) {
-        throw new Error(
-          `Invalid images.remotePatterns values:\n${invalidPatterns
-            .map((item) => JSON.stringify(item))
-            .join(
-              '\n'
-            )}\n\nremotePatterns value must follow format { protocol: 'https', hostname: 'example.com', port: '', pathname: '/imgs/**' }.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
-        )
-      }
-    }
-
-    if (images.deviceSizes) {
-      const { deviceSizes } = images
-      if (!Array.isArray(deviceSizes)) {
-        throw new Error(
-          `Specified images.deviceSizes should be an Array received ${typeof deviceSizes}.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
-        )
-      }
-
-      if (deviceSizes.length > 25) {
-        throw new Error(
-          `Specified images.deviceSizes exceeds length of 25, received length (${deviceSizes.length}), please reduce the length of the array to continue.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
-        )
-      }
-
-      const invalid = deviceSizes.filter((d: unknown) => {
-        return typeof d !== 'number' || d < 1 || d > 10000
-      })
-
-      if (invalid.length > 0) {
-        throw new Error(
-          `Specified images.deviceSizes should be an Array of numbers that are between 1 and 10000, received invalid values (${invalid.join(
-            ', '
-          )}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
-        )
-      }
-    }
-    if (images.imageSizes) {
-      const { imageSizes } = images
-      if (!Array.isArray(imageSizes)) {
-        throw new Error(
-          `Specified images.imageSizes should be an Array received ${typeof imageSizes}.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
-        )
-      }
-
-      if (imageSizes.length > 25) {
-        throw new Error(
-          `Specified images.imageSizes exceeds length of 25, received length (${imageSizes.length}), please reduce the length of the array to continue.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
-        )
-      }
-
-      const invalid = imageSizes.filter((d: unknown) => {
-        return typeof d !== 'number' || d < 1 || d > 10000
-      })
-
-      if (invalid.length > 0) {
-        throw new Error(
-          `Specified images.imageSizes should be an Array of numbers that are between 1 and 10000, received invalid values (${invalid.join(
-            ', '
-          )}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
-        )
-      }
     }
 
     if (!images.loader) {
       images.loader = 'default'
-    }
-
-    if (!VALID_LOADERS.includes(images.loader)) {
-      throw new Error(
-        `Specified images.loader should be one of (${VALID_LOADERS.join(
-          ', '
-        )}), received invalid value (${
-          images.loader
-        }).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
-      )
     }
 
     if (
@@ -513,69 +338,6 @@ function assignDefaults(
       images.loader = 'custom'
       images.loaderFile = absolutePath
     }
-
-    if (
-      images.minimumCacheTTL &&
-      (!Number.isInteger(images.minimumCacheTTL) || images.minimumCacheTTL < 0)
-    ) {
-      throw new Error(
-        `Specified images.minimumCacheTTL should be an integer 0 or more received (${images.minimumCacheTTL}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
-      )
-    }
-
-    if (images.formats) {
-      const { formats } = images
-      if (!Array.isArray(formats)) {
-        throw new Error(
-          `Specified images.formats should be an Array received ${typeof formats}.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
-        )
-      }
-      if (formats.length < 1 || formats.length > 2) {
-        throw new Error(
-          `Specified images.formats must be length 1 or 2, received length (${formats.length}), please reduce the length of the array to continue.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
-        )
-      }
-
-      const invalid = formats.filter((f) => {
-        return f !== 'image/avif' && f !== 'image/webp'
-      })
-
-      if (invalid.length > 0) {
-        throw new Error(
-          `Specified images.formats should be an Array of mime type strings, received invalid values (${invalid.join(
-            ', '
-          )}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
-        )
-      }
-    }
-
-    if (
-      typeof images.dangerouslyAllowSVG !== 'undefined' &&
-      typeof images.dangerouslyAllowSVG !== 'boolean'
-    ) {
-      throw new Error(
-        `Specified images.dangerouslyAllowSVG should be a boolean received (${images.dangerouslyAllowSVG}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
-      )
-    }
-
-    if (
-      typeof images.contentSecurityPolicy !== 'undefined' &&
-      typeof images.contentSecurityPolicy !== 'string'
-    ) {
-      throw new Error(
-        `Specified images.contentSecurityPolicy should be a string received (${images.contentSecurityPolicy}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
-      )
-    }
-
-    const unoptimized = result?.images?.unoptimized
-    if (
-      typeof unoptimized !== 'undefined' &&
-      typeof unoptimized !== 'boolean'
-    ) {
-      throw new Error(
-        `Specified images.unoptimized should be a boolean, received (${unoptimized}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
-      )
-    }
   }
 
   warnOptionHasBeenMovedOutOfExperimental(
@@ -614,10 +376,10 @@ function assignDefaults(
     silent
   )
 
-  if (result.experimental?.swcMinifyDebugOptions) {
+  if (typeof result.experimental?.swcMinifyDebugOptions !== 'undefined') {
     if (!silent) {
       Log.warn(
-        'SWC minify debug option specified. This option is for debugging minifier issues and will be removed once SWC minifier is stable.'
+        'SWC minify debug option is not supported anymore, please remove it from your config.'
       )
     }
   }
@@ -629,6 +391,17 @@ function assignDefaults(
       )
     }
     result.output = 'standalone'
+  }
+
+  if (typeof result.experimental?.serverActionsBodySizeLimit !== 'undefined') {
+    const value = parseInt(
+      result.experimental.serverActionsBodySizeLimit.toString()
+    )
+    if (isNaN(value) || value < 1) {
+      throw new Error(
+        'Server Actions Size Limit must be a valid number or filesize format lager than 1MB: https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions'
+      )
+    }
   }
 
   warnOptionHasBeenMovedOutOfExperimental(
@@ -654,6 +427,13 @@ function assignDefaults(
   )
 
   if (
+    typeof userConfig.experimental?.clientRouterFilter === 'undefined' &&
+    result.experimental?.appDir
+  ) {
+    result.experimental.clientRouterFilter = true
+  }
+
+  if (
     result.experimental?.outputFileTracingRoot &&
     !isAbsolute(result.experimental.outputFileTracingRoot)
   ) {
@@ -667,6 +447,31 @@ function assignDefaults(
     }
   }
 
+  // only leverage deploymentId
+  if (result.experimental?.useDeploymentId && process.env.NEXT_DEPLOYMENT_ID) {
+    if (!result.experimental) {
+      result.experimental = {}
+    }
+    result.experimental.deploymentId = process.env.NEXT_DEPLOYMENT_ID
+  }
+
+  // use the closest lockfile as tracing root
+  if (!result.experimental?.outputFileTracingRoot) {
+    let rootDir = findRootDir(dir)
+
+    if (rootDir) {
+      if (!result.experimental) {
+        result.experimental = {}
+      }
+      if (!defaultConfig.experimental) {
+        defaultConfig.experimental = {}
+      }
+      result.experimental.outputFileTracingRoot = rootDir
+      defaultConfig.experimental.outputFileTracingRoot =
+        result.experimental.outputFileTracingRoot
+    }
+  }
+
   if (result.output === 'standalone' && !result.outputFileTracing) {
     if (!silent) {
       Log.warn(
@@ -676,7 +481,7 @@ function assignDefaults(
     result.output = undefined
   }
 
-  setHttpClientAndAgentOptions(result || defaultConfig, silent)
+  setHttpClientAndAgentOptions(result || defaultConfig)
 
   if (result.i18n) {
     const { i18n } = result
@@ -719,6 +524,13 @@ function assignDefaults(
         if (!item || typeof item !== 'object') return true
         if (!item.defaultLocale) return true
         if (!item.domain || typeof item.domain !== 'string') return true
+
+        if (item.domain.includes(':')) {
+          console.warn(
+            `i18n domain: "${item.domain}" is invalid it should be a valid domain without protocol (https://) or port (:3000) e.g. example.vercel.sh`
+          )
+          return true
+        }
 
         const defaultLocaleDuplicate = i18n.domains?.find(
           (altItem) =>
@@ -849,6 +661,103 @@ function assignDefaults(
     }
   }
 
+  const userProvidedModularizeImports = result.modularizeImports
+  // Unfortunately these packages end up re-exporting 10600 modules, for example: https://unpkg.com/browse/@mui/icons-material@5.11.16/esm/index.js.
+  // Leveraging modularizeImports tremendously reduces compile times for these.
+  result.modularizeImports = {
+    ...(userProvidedModularizeImports || {}),
+    // This is intentionally added after the user-provided modularizeImports config.
+    '@mui/icons-material': {
+      transform: '@mui/icons-material/{{member}}',
+    },
+    'date-fns': {
+      transform: 'date-fns/{{member}}',
+    },
+    lodash: {
+      transform: 'lodash/{{member}}',
+    },
+    'lodash-es': {
+      transform: 'lodash-es/{{member}}',
+    },
+    'lucide-react': {
+      // Note that we need to first resolve to the base path (`lucide-react`) and join the subpath,
+      // instead of just resolving `lucide-react/esm/icons/{{kebabCase member}}` because this package
+      // doesn't have proper `exports` fields for individual icons in its package.json.
+      transform: {
+        // Special aliases
+        '(SortAsc|LucideSortAsc|SortAscIcon)':
+          'modularize-import-loader?name={{ member }}&from=default&as=default&join=./icons/arrow-up-narrow-wide!lucide-react',
+        '(SortDesc|LucideSortDesc|SortDescIcon)':
+          'modularize-import-loader?name={{ member }}&from=default&as=default&join=./icons/arrow-down-wide-narrow!lucide-react',
+        '(Verified|LucideVerified|VerifiedIcon)':
+          'modularize-import-loader?name={{ member }}&from=default&as=default&join=./icons/badge-check!lucide-react',
+        '(Slash|LucideSlash|SlashIcon)':
+          'modularize-import-loader?name={{ member }}&from=default&as=default&join=./icons/ban!lucide-react',
+        '(CurlyBraces|LucideCurlyBraces|CurlyBracesIcon)':
+          'modularize-import-loader?name={{ member }}&from=default&as=default&join=./icons/braces!lucide-react',
+        '(CircleSlashed|LucideCircleSlashed|CircleSlashedIcon)':
+          'modularize-import-loader?name={{ member }}&from=default&as=default&join=./icons/circle-slash-2!lucide-react',
+        '(SquareGantt|LucideSquareGantt|SquareGanttIcon)':
+          'modularize-import-loader?name={{ member }}&from=default&as=default&join=./icons/gantt-chart-square!lucide-react',
+        '(SquareKanbanDashed|LucideSquareKanbanDashed|SquareKanbanDashedIcon)':
+          'modularize-import-loader?name={{ member }}&from=default&as=default&join=./icons/kanban-square-dashed!lucide-react',
+        '(SquareKanban|LucideSquareKanban|SquareKanbanIcon)':
+          'modularize-import-loader?name={{ member }}&from=default&as=default&join=./icons/kanban-square!lucide-react',
+        '(Edit3|LucideEdit3|Edit3Icon)':
+          'modularize-import-loader?name={{ member }}&from=default&as=default&join=./icons/pen-line!lucide-react',
+        '(Edit|LucideEdit|EditIcon|PenBox|LucidePenBox|PenBoxIcon)':
+          'modularize-import-loader?name={{ member }}&from=default&as=default&join=./icons/pen-square!lucide-react',
+        '(Edit2|LucideEdit2|Edit2Icon)':
+          'modularize-import-loader?name={{ member }}&from=default&as=default&join=./icons/pen!lucide-react',
+        '(Stars|LucideStars|StarsIcon)':
+          'modularize-import-loader?name={{ member }}&from=default&as=default&join=./icons/sparkles!lucide-react',
+        '(TextSelection|LucideTextSelection|TextSelectionIcon)':
+          'modularize-import-loader?name={{ member }}&from=default&as=default&join=./icons/text-select!lucide-react',
+        // General rules
+        'Lucide(.*)':
+          'modularize-import-loader?name={{ member }}&from=default&as=default&join=./icons/{{ kebabCase memberMatches.[1] }}!lucide-react',
+        '(.*)Icon':
+          'modularize-import-loader?name={{ member }}&from=default&as=default&join=./icons/{{ kebabCase memberMatches.[1] }}!lucide-react',
+        '*': 'modularize-import-loader?name={{ member }}&from=default&as=default&join=./icons/{{ kebabCase member }}!lucide-react',
+      },
+    },
+    ramda: {
+      transform: 'ramda/es/{{member}}',
+    },
+    'react-bootstrap': {
+      transform: {
+        useAccordionButton:
+          'modularize-import-loader?name=useAccordionButton&from=named&as=default!react-bootstrap/AccordionButton',
+        '*': 'react-bootstrap/{{member}}',
+      },
+    },
+    antd: {
+      transform: 'antd/lib/{{kebabCase member}}',
+    },
+    ahooks: {
+      transform: {
+        createUpdateEffect:
+          'modularize-import-loader?name=createUpdateEffect&from=named&as=default!ahooks/es/createUpdateEffect',
+        '*': 'ahooks/es/{{member}}',
+      },
+    },
+    '@ant-design/icons': {
+      transform: {
+        IconProvider:
+          'modularize-import-loader?name=IconProvider&from=named&as=default!@ant-design/icons',
+        createFromIconfontCN: '@ant-design/icons/es/components/IconFont',
+        getTwoToneColor:
+          'modularize-import-loader?name=getTwoToneColor&from=named&as=default!@ant-design/icons/es/components/twoTonePrimaryColor',
+        setTwoToneColor:
+          'modularize-import-loader?name=setTwoToneColor&from=named&as=default!@ant-design/icons/es/components/twoTonePrimaryColor',
+        '*': '@ant-design/icons/lib/icons/{{member}}',
+      },
+    },
+    'next/server': {
+      transform: 'next/dist/server/web/exports/{{ kebabCase member }}',
+    },
+  }
+
   return result
 }
 
@@ -859,6 +768,32 @@ export default async function loadConfig(
   rawConfig?: boolean,
   silent?: boolean
 ): Promise<NextConfigComplete> {
+  if (!process.env.__NEXT_PRIVATE_RENDER_WORKER) {
+    try {
+      loadWebpackHook()
+    } catch (err) {
+      // this can fail in standalone mode as the files
+      // aren't traced/included
+      if (!process.env.__NEXT_PRIVATE_STANDALONE_CONFIG) {
+        throw err
+      }
+    }
+  }
+
+  if (process.env.__NEXT_PRIVATE_STANDALONE_CONFIG) {
+    return JSON.parse(process.env.__NEXT_PRIVATE_STANDALONE_CONFIG)
+  }
+
+  // For the render worker, we directly return the serialized config from the
+  // parent worker (router worker) to avoid loading it again.
+  // This is because loading the config might be expensive especiall when people
+  // have Webpack plugins added.
+  // Because of this change, unserializable fields like `.webpack` won't be
+  // existing here but the render worker shouldn't use these as well.
+  if (process.env.__NEXT_PRIVATE_RENDER_WORKER_CONFIG) {
+    return JSON.parse(process.env.__NEXT_PRIVATE_RENDER_WORKER_CONFIG)
+  }
+
   const curLog = silent
     ? {
         warn: () => {},
@@ -867,11 +802,7 @@ export default async function loadConfig(
       }
     : Log
 
-  await loadEnvConfig(dir, phase === PHASE_DEVELOPMENT_SERVER, curLog)
-
-  if (!customConfig) {
-    loadWebpackHook()
-  }
+  loadEnvConfig(dir, phase === PHASE_DEVELOPMENT_SERVER, curLog)
 
   let configFileName = 'next.config.js'
 
@@ -895,6 +826,8 @@ export default async function loadConfig(
     let userConfigModule: any
 
     try {
+      const envBefore = Object.assign({}, process.env)
+
       // `import()` expects url-encoded strings, so the path must be properly
       // escaped and (especially on Windows) absolute paths must pe prefixed
       // with the `file://` protocol
@@ -906,6 +839,14 @@ export default async function loadConfig(
       } else {
         userConfigModule = await import(pathToFileURL(path).href)
       }
+      const newEnv: typeof process.env = {} as any
+
+      for (const key of Object.keys(process.env)) {
+        if (envBefore[key] !== process.env[key]) {
+          newEnv[key] = process.env[key]
+        }
+      }
+      updateInitialEnv(newEnv)
 
       if (rawConfig) {
         return userConfigModule
@@ -924,27 +865,37 @@ export default async function loadConfig(
     const validateResult = validateConfig(userConfig)
 
     if (!silent && validateResult.errors) {
-      curLog.warn(`Invalid next.config.js options detected: `)
-
       // Only load @segment/ajv-human-errors when invalid config is detected
       const { AggregateAjvError } =
         require('next/dist/compiled/@segment/ajv-human-errors') as typeof import('next/dist/compiled/@segment/ajv-human-errors')
       const aggregatedAjvErrors = new AggregateAjvError(validateResult.errors, {
         fieldLabels: 'js',
       })
+
+      let shouldExit = false
+      let messages = [`Invalid ${configFileName} options detected: `]
+
       for (const error of aggregatedAjvErrors) {
-        console.error(`  - ${error.message}`)
+        messages.push(`    ${error.message}`)
+        if (error.message.startsWith('The value at .images.')) {
+          shouldExit = true
+        }
       }
 
-      console.error(
-        '\nSee more info here: https://nextjs.org/docs/messages/invalid-next-config'
+      messages.push(
+        'See more info here: https://nextjs.org/docs/messages/invalid-next-config'
       )
-    }
 
-    if (Object.keys(userConfig).length === 0) {
-      curLog.warn(
-        `Detected ${configFileName}, no exported configuration found. https://nextjs.org/docs/messages/empty-configuration`
-      )
+      if (shouldExit) {
+        for (const message of messages) {
+          curLog.error(message)
+        }
+        await flushAndExit(1)
+      } else {
+        for (const message of messages) {
+          curLog.warn(message)
+        }
+      }
     }
 
     if (userConfig.target && userConfig.target !== 'server') {
@@ -973,7 +924,6 @@ export default async function loadConfig(
       },
       silent
     ) as NextConfigComplete
-    setFontLoaderDefaults(completeConfig)
     return completeConfig
   } else {
     const configBaseName = basename(CONFIG_FILES[0], extname(CONFIG_FILES[0]))
@@ -1003,7 +953,6 @@ export default async function loadConfig(
     silent
   ) as NextConfigComplete
   completeConfig.configFileName = configFileName
-  setHttpClientAndAgentOptions(completeConfig, silent)
-  setFontLoaderDefaults(completeConfig)
+  setHttpClientAndAgentOptions(completeConfig)
   return completeConfig
 }

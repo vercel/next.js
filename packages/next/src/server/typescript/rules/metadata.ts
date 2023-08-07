@@ -1,14 +1,22 @@
 import { NEXT_TS_ERRORS } from '../constant'
-import { getInfo, getSource, getTs, isPositionInsideNode } from '../utils'
+import {
+  getInfo,
+  getSource,
+  getTs,
+  getTypeChecker,
+  isPositionInsideNode,
+} from '../utils'
+
+import type tsModule from 'typescript/lib/tsserverlibrary'
 
 const TYPE_ANOTATION = ': Metadata'
-const TYPE_ANOTATION_ASYNC = ': Promise<Metadata> | Metadata'
-const TYPE_IMPORT = `import type { Metadata } from 'next'`
+const TYPE_ANOTATION_ASYNC = ': Promise<Metadata>'
+const TYPE_IMPORT = `\n\nimport type { Metadata } from 'next'`
 
 // Find the `export const metadata = ...` node.
 function getMetadataExport(fileName: string, position: number) {
   const source = getSource(fileName)
-  let metadataExport: ts.VariableDeclaration | undefined
+  let metadataExport: tsModule.VariableDeclaration | undefined
 
   if (source) {
     const ts = getTs()
@@ -41,14 +49,14 @@ function getMetadataExport(fileName: string, position: number) {
   return metadataExport
 }
 
-let cachedProxiedLanguageService: ts.LanguageService | undefined
-let cachedProxiedLanguageServiceHost: ts.LanguageServiceHost | undefined
+let cachedProxiedLanguageService: tsModule.LanguageService | undefined
+let cachedProxiedLanguageServiceHost: tsModule.LanguageServiceHost | undefined
 function getProxiedLanguageService() {
   if (cachedProxiedLanguageService)
     return {
-      languageService: cachedProxiedLanguageService as ts.LanguageService,
+      languageService: cachedProxiedLanguageService as tsModule.LanguageService,
       languageServiceHost:
-        cachedProxiedLanguageServiceHost as ts.LanguageServiceHost & {
+        cachedProxiedLanguageServiceHost as tsModule.LanguageServiceHost & {
           addFile: (fileName: string, body: string) => void
         },
     }
@@ -56,9 +64,10 @@ function getProxiedLanguageService() {
   const languageServiceHost = getInfo().languageServiceHost
 
   const ts = getTs()
-  class ProxiedLanguageServiceHost implements ts.LanguageServiceHost {
-    files: { [fileName: string]: { file: ts.IScriptSnapshot; ver: number } } =
-      {}
+  class ProxiedLanguageServiceHost implements tsModule.LanguageServiceHost {
+    files: {
+      [fileName: string]: { file: tsModule.IScriptSnapshot; ver: number }
+    } = {}
 
     log = () => {}
     trace = () => {}
@@ -127,9 +136,9 @@ function getProxiedLanguageService() {
     ts.createDocumentRegistry()
   )
   return {
-    languageService: cachedProxiedLanguageService as ts.LanguageService,
+    languageService: cachedProxiedLanguageService as tsModule.LanguageService,
     languageServiceHost:
-      cachedProxiedLanguageServiceHost as ts.LanguageServiceHost & {
+      cachedProxiedLanguageServiceHost as tsModule.LanguageServiceHost & {
         addFile: (fileName: string, body: string) => void
       },
   }
@@ -137,7 +146,7 @@ function getProxiedLanguageService() {
 
 function updateVirtualFileWithType(
   fileName: string,
-  node: ts.VariableDeclaration | ts.FunctionDeclaration,
+  node: tsModule.VariableDeclaration | tsModule.FunctionDeclaration,
   isGenerateMetadata?: boolean
 ) {
   const source = getSource(fileName)
@@ -152,7 +161,10 @@ function updateVirtualFileWithType(
   if (ts.isFunctionDeclaration(node)) {
     if (isGenerateMetadata) {
       nodeEnd = node.body!.getFullStart()
-      annotation = TYPE_ANOTATION_ASYNC
+      const isAsync = node.modifiers?.some(
+        (m) => m.kind === ts.SyntaxKind.AsyncKeyword
+      )
+      annotation = isAsync ? TYPE_ANOTATION_ASYNC : TYPE_ANOTATION
     } else {
       return
     }
@@ -172,8 +184,41 @@ function updateVirtualFileWithType(
   return [nodeEnd, annotation.length]
 }
 
-function isTyped(node: ts.VariableDeclaration | ts.FunctionDeclaration) {
+function isTyped(
+  node: tsModule.VariableDeclaration | tsModule.FunctionDeclaration
+) {
   return node.type !== undefined
+}
+
+function proxyDiagnostics(
+  fileName: string,
+  pos: number[],
+  n: tsModule.VariableDeclaration | tsModule.FunctionDeclaration
+) {
+  // Get diagnostics
+  const { languageService } = getProxiedLanguageService()
+  const diagnostics = languageService.getSemanticDiagnostics(fileName)
+  const source = getSource(fileName)
+
+  // Filter and map the results
+  return diagnostics
+    .filter((d) => {
+      if (d.start === undefined || d.length === undefined) return false
+      if (d.start < n.getFullStart()) return false
+      if (d.start + d.length >= n.getFullStart() + n.getFullWidth() + pos[1])
+        return false
+      return true
+    })
+    .map((d) => {
+      return {
+        file: source,
+        category: d.category,
+        code: d.code,
+        messageText: d.messageText,
+        start: d.start! < pos[0] ? d.start : d.start! - pos[1],
+        length: d.length,
+      }
+    })
 }
 
 const metadata = {
@@ -181,7 +226,7 @@ const metadata = {
     fileName: string,
     position: number,
     _options: any,
-    prior: ts.WithMetadata<ts.CompletionInfo>
+    prior: tsModule.WithMetadata<tsModule.CompletionInfo>
   ) {
     const node = getMetadataExport(fileName, position)
     if (!node) return prior
@@ -241,7 +286,7 @@ const metadata = {
 
   getSemanticDiagnosticsForExportVariableStatementInClientEntry(
     fileName: string,
-    node: ts.VariableStatement | ts.FunctionDeclaration
+    node: tsModule.VariableStatement | tsModule.FunctionDeclaration
   ) {
     const source = getSource(fileName)
     const ts = getTs()
@@ -282,42 +327,9 @@ const metadata = {
 
   getSemanticDiagnosticsForExportVariableStatement(
     fileName: string,
-    node: ts.VariableStatement | ts.FunctionDeclaration
+    node: tsModule.VariableStatement | tsModule.FunctionDeclaration
   ) {
-    const source = getSource(fileName)
     const ts = getTs()
-
-    function proxyDiagnostics(
-      pos: number[],
-      n: ts.VariableDeclaration | ts.FunctionDeclaration
-    ) {
-      // Get diagnostics
-      const { languageService } = getProxiedLanguageService()
-      const diagnostics = languageService.getSemanticDiagnostics(fileName)
-
-      // Filter and map the results
-      return diagnostics
-        .filter((d) => {
-          if (d.start === undefined || d.length === undefined) return false
-          if (d.start < n.getFullStart()) return false
-          if (
-            d.start + d.length >=
-            n.getFullStart() + n.getFullWidth() + pos[1]
-          )
-            return false
-          return true
-        })
-        .map((d) => {
-          return {
-            file: source,
-            category: d.category,
-            code: d.code,
-            messageText: d.messageText,
-            start: d.start! < pos[0] ? d.start : d.start! - pos[1],
-            length: d.length,
-          }
-        })
-    }
 
     if (ts.isFunctionDeclaration(node)) {
       if (node.name?.getText() === 'generateMetadata') {
@@ -327,7 +339,7 @@ const metadata = {
         const pos = updateVirtualFileWithType(fileName, node, true)
         if (!pos) return []
 
-        return proxyDiagnostics(pos, node)
+        return proxyDiagnostics(fileName, pos, node)
       }
     } else {
       for (const declaration of node.declarationList.declarations) {
@@ -338,10 +350,101 @@ const metadata = {
           const pos = updateVirtualFileWithType(fileName, declaration)
           if (!pos) break
 
-          return proxyDiagnostics(pos, declaration)
+          return proxyDiagnostics(fileName, pos, declaration)
         }
       }
     }
+    return []
+  },
+
+  getSemanticDiagnosticsForExportDeclarationInClientEntry(
+    fileName: string,
+    node: tsModule.ExportDeclaration
+  ) {
+    const ts = getTs()
+    const source = getSource(fileName)
+    const diagnostics: tsModule.Diagnostic[] = []
+
+    const exportClause = node.exportClause
+    if (exportClause && ts.isNamedExports(exportClause)) {
+      for (const e of exportClause.elements) {
+        if (['generateMetadata', 'metadata'].includes(e.name.getText())) {
+          diagnostics.push({
+            file: source,
+            category: ts.DiagnosticCategory.Error,
+            code: NEXT_TS_ERRORS.INVALID_METADATA_EXPORT,
+            messageText: `The Next.js '${e.name.getText()}' API is not allowed in a client component.`,
+            start: e.name.getStart(),
+            length: e.name.getWidth(),
+          })
+        }
+      }
+    }
+
+    return diagnostics
+  },
+
+  getSemanticDiagnosticsForExportDeclaration(
+    fileName: string,
+    node: tsModule.ExportDeclaration
+  ) {
+    const ts = getTs()
+
+    const exportClause = node.exportClause
+    if (exportClause && ts.isNamedExports(exportClause)) {
+      for (const e of exportClause.elements) {
+        if (e.name.getText() === 'metadata') {
+          // Get the original declaration node of element
+          const typeChecker = getTypeChecker()
+          if (typeChecker) {
+            const symbol = typeChecker.getSymbolAtLocation(e.name)
+            if (symbol) {
+              const metadataSymbol = typeChecker.getAliasedSymbol(symbol)
+              if (metadataSymbol && metadataSymbol.declarations) {
+                const declaration = metadataSymbol.declarations[0]
+                if (declaration && ts.isVariableDeclaration(declaration)) {
+                  if (isTyped(declaration)) break
+
+                  const declarationFileName =
+                    declaration.getSourceFile().fileName
+                  const isSameFile = declarationFileName === fileName
+
+                  // We annotate with the type in a vritual language service
+                  const pos = updateVirtualFileWithType(
+                    declarationFileName,
+                    declaration
+                  )
+                  if (!pos) break
+
+                  const diagnostics = proxyDiagnostics(
+                    declarationFileName,
+                    pos,
+                    declaration
+                  )
+                  if (diagnostics.length) {
+                    if (isSameFile) {
+                      return diagnostics
+                    } else {
+                      return [
+                        {
+                          file: getSource(fileName),
+                          category: ts.DiagnosticCategory.Error,
+                          code: NEXT_TS_ERRORS.INVALID_METADATA_EXPORT,
+                          messageText: `The 'metadata' export value is not typed correctly, please make sure it is typed as 'Metadata':\nhttps://nextjs.org/docs/app/building-your-application/optimizing/metadata#static-metadata`,
+                          start: e.name.getStart(),
+                          length: e.name.getWidth(),
+                        },
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
     return []
   },
 
@@ -349,10 +452,10 @@ const metadata = {
     fileName: string,
     position: number,
     entryName: string,
-    formatOptions: ts.FormatCodeOptions,
+    formatOptions: tsModule.FormatCodeOptions,
     source: string,
-    preferences: ts.UserPreferences,
-    data: ts.CompletionEntryData
+    preferences: tsModule.UserPreferences,
+    data: tsModule.CompletionEntryData
   ) {
     const node = getMetadataExport(fileName, position)
     if (!node) return
@@ -390,6 +493,29 @@ const metadata = {
     const newPos = position <= pos[0] ? position : position + pos[1]
     const insight = languageService.getQuickInfoAtPosition(fileName, newPos)
     return insight
+  },
+
+  getDefinitionAndBoundSpan(fileName: string, position: number) {
+    const node = getMetadataExport(fileName, position)
+    if (!node) return
+    if (isTyped(node)) return
+    if (!isPositionInsideNode(position, node)) return
+    // We annotate with the type in a vritual language service
+    const pos = updateVirtualFileWithType(fileName, node)
+    if (pos === undefined) return
+    const { languageService } = getProxiedLanguageService()
+    const newPos = position <= pos[0] ? position : position + pos[1]
+
+    const definitionInfoAndBoundSpan =
+      languageService.getDefinitionAndBoundSpan(fileName, newPos)
+
+    if (definitionInfoAndBoundSpan) {
+      // Adjust the start position of the text span
+      if (definitionInfoAndBoundSpan.textSpan.start > pos[0]) {
+        definitionInfoAndBoundSpan.textSpan.start -= pos[1]
+      }
+    }
+    return definitionInfoAndBoundSpan
   },
 }
 

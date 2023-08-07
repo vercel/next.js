@@ -15,6 +15,7 @@ import {
   isDefaultFunctionExport,
   isPositionInsideNode,
   getSource,
+  isInsideApp,
 } from './utils'
 import { NEXT_TS_ERRORS } from './constant'
 
@@ -23,13 +24,13 @@ import serverLayer from './rules/server'
 import entryDefault from './rules/entry'
 import clientBoundary from './rules/client-boundary'
 import metadata from './rules/metadata'
+import errorEntry from './rules/error'
+import type tsModule from 'typescript/lib/tsserverlibrary'
 
-export function createTSPlugin(modules: {
-  typescript: typeof import('typescript/lib/tsserverlibrary')
-}) {
-  const ts = modules.typescript
-
-  function create(info: ts.server.PluginCreateInfo) {
+export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
+  typescript: ts,
+}) => {
+  function create(info: tsModule.server.PluginCreateInfo) {
     init({
       ts,
       info,
@@ -89,7 +90,7 @@ export function createTSPlugin(modules: {
           prior.entries.push(
             ...entryDefault.getCompletionsAtPosition(
               fileName,
-              node as ts.FunctionDeclaration,
+              node as tsModule.FunctionDeclaration,
               position
             )
           )
@@ -104,10 +105,10 @@ export function createTSPlugin(modules: {
       fileName: string,
       position: number,
       entryName: string,
-      formatOptions: ts.FormatCodeOptions,
+      formatOptions: tsModule.FormatCodeOptions,
       source: string,
-      preferences: ts.UserPreferences,
-      data: ts.CompletionEntryData
+      preferences: tsModule.UserPreferences,
+      data: tsModule.CompletionEntryData
     ) => {
       const entryCompletionEntryDetails = entryConfig.getCompletionEntryDetails(
         entryName,
@@ -189,8 +190,17 @@ export function createTSPlugin(modules: {
         isClientEntry = false
       }
 
+      if (isInsideApp(fileName)) {
+        const errorDiagnostic = errorEntry.getSemanticDiagnostics(
+          source!,
+          isClientEntry
+        )
+        prior.push(...errorDiagnostic)
+      }
+
       ts.forEachChild(source!, (node) => {
         if (ts.isImportDeclaration(node)) {
+          // import ...
           if (isAppEntry) {
             if (!isClientEntry) {
               // Check if it has valid imports in the server layer
@@ -257,6 +267,7 @@ export function createTSPlugin(modules: {
           ts.isFunctionDeclaration(node) &&
           node.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)
         ) {
+          // export function ...
           if (isAppEntry) {
             const metadataDiagnostics = isClientEntry
               ? metadata.getSemanticDiagnosticsForExportVariableStatementInClientEntry(
@@ -270,7 +281,6 @@ export function createTSPlugin(modules: {
             prior.push(...metadataDiagnostics)
           }
 
-          // export function ...
           if (isClientEntry) {
             prior.push(
               ...clientBoundary.getSemanticDiagnosticsForFunctionExport(
@@ -279,10 +289,37 @@ export function createTSPlugin(modules: {
               )
             )
           }
+        } else if (ts.isExportDeclaration(node)) {
+          // export { ... }
+          if (isAppEntry) {
+            const metadataDiagnostics = isClientEntry
+              ? metadata.getSemanticDiagnosticsForExportDeclarationInClientEntry(
+                  fileName,
+                  node
+                )
+              : metadata.getSemanticDiagnosticsForExportDeclaration(
+                  fileName,
+                  node
+                )
+            prior.push(...metadataDiagnostics)
+          }
         }
       })
 
       return prior
+    }
+
+    // Get definition and link for specific node
+    proxy.getDefinitionAndBoundSpan = (fileName: string, position: number) => {
+      if (isAppEntryFile(fileName) && !getIsClientEntry(fileName)) {
+        const metadataDefinition = metadata.getDefinitionAndBoundSpan(
+          fileName,
+          position
+        )
+        if (metadataDefinition) return metadataDefinition
+      }
+
+      return info.languageService.getDefinitionAndBoundSpan(fileName, position)
     }
 
     return proxy

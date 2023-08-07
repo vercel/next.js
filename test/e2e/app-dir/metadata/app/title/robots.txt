@@ -1,0 +1,6 @@
+# This robots.txt not in root app dir should never be triggered
+User-Agent: *
+Disallow:
+
+Disallow: /pocket
+Allow: /blog/*

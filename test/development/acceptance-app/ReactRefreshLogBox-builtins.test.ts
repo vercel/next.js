@@ -1,27 +1,21 @@
-import { sandbox } from './helpers'
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { sandbox } from 'development-sandbox'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import path from 'path'
-import { getSnapshotTestDescribe } from 'next-test-utils'
+import { describeVariants as describe } from 'next-test-utils'
+import { outdent } from 'outdent'
 
 // TODO-APP: Investigate snapshot mismatch
-for (const variant of ['default', 'turbo']) {
-  getSnapshotTestDescribe(variant)(`ReactRefreshLogBox app ${variant}`, () => {
-    let next: NextInstance
-
-    beforeAll(async () => {
-      next = await createNext({
-        files: new FileRef(
-          path.join(__dirname, 'fixtures', 'default-template')
-        ),
-        dependencies: {
-          react: 'latest',
-          'react-dom': 'latest',
-        },
-        skipStart: true,
-      })
+describe.each(['default', 'turbo', 'experimentalTurbo'])(
+  'ReactRefreshLogBox app %s',
+  () => {
+    const { next } = nextTestSetup({
+      files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
+      dependencies: {
+        react: 'latest',
+        'react-dom': 'latest',
+      },
+      skipStart: true,
     })
-    afterAll(() => next.destroy())
 
     // Module trace is only available with webpack 5
     test('Node.js builtins', async () => {
@@ -30,32 +24,32 @@ for (const variant of ['default', 'turbo']) {
         new Map([
           [
             'node_modules/my-package/index.js',
-            `
-          const dns = require('dns')
-          module.exports = dns
-        `,
+            outdent`
+            const dns = require('dns')
+            module.exports = dns
+          `,
           ],
           [
             'node_modules/my-package/package.json',
-            `
-          {
-            "name": "my-package",
-            "version": "0.0.1"
-          }
-        `,
+            outdent`
+            {
+              "name": "my-package",
+              "version": "0.0.1"
+            }
+          `,
           ],
         ])
       )
 
       await session.patch(
         'index.js',
-        `
-      import pkg from 'my-package'
+        outdent`
+        import pkg from 'my-package'
 
-      export default function Hello() {
-        return (pkg ? <h1>Package loaded</h1> : <h1>Package did not load</h1>)
-      }
-    `
+        export default function Hello() {
+          return (pkg ? <h1>Package loaded</h1> : <h1>Package did not load</h1>)
+        }
+      `
       )
       expect(await session.hasRedbox(true)).toBe(true)
       expect(await session.getRedboxSource()).toMatchSnapshot()
@@ -68,15 +62,16 @@ for (const variant of ['default', 'turbo']) {
 
       await session.patch(
         'index.js',
-        `import Comp from 'b'
-      export default function Oops() {
-        return (
-          <div>
-            <Comp>lol</Comp>
-          </div>
-        )
-      }
-    `
+        outdent`
+        import Comp from 'b'
+        export default function Oops() {
+          return (
+            <div>
+              <Comp>lol</Comp>
+            </div>
+          )
+        }
+      `
       )
 
       expect(await session.hasRedbox(true)).toBe(true)
@@ -92,16 +87,17 @@ for (const variant of ['default', 'turbo']) {
 
       await session.patch(
         'app/page.js',
-        `'use client'
-      import Comp from 'b'
-      export default function Oops() {
-        return (
-          <div>
-            <Comp>lol</Comp>
-          </div>
-        )
-      }
-    `
+        outdent`
+        'use client'
+        import Comp from 'b'
+        export default function Oops() {
+          return (
+            <div>
+              <Comp>lol</Comp>
+            </div>
+          )
+        }
+      `
       )
 
       expect(await session.hasRedbox(true)).toBe(true)
@@ -118,12 +114,13 @@ for (const variant of ['default', 'turbo']) {
         new Map([
           [
             'app/page.js',
-            `'use client'
-          import './non-existent.css'
-        export default function Page(props) {
-          return <p>index page</p>
-        }
-      `,
+            outdent`
+            'use client'
+            import './non-existent.css'
+            export default function Page(props) {
+              return <p>index page</p>
+            }
+          `,
           ],
         ])
       )
@@ -134,11 +131,12 @@ for (const variant of ['default', 'turbo']) {
 
       await session.patch(
         'app/page.js',
-        `'use client'
-      export default function Page(props) {
-        return <p>index page</p>
-      }
-    `
+        outdent`
+        'use client'
+        export default function Page(props) {
+          return <p>index page</p>
+        }
+      `
       )
       expect(await session.hasRedbox(false)).toBe(false)
       expect(
@@ -147,5 +145,5 @@ for (const variant of ['default', 'turbo']) {
 
       await cleanup()
     })
-  })
-}
+  }
+)

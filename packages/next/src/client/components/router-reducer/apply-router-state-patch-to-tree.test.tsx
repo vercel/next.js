@@ -1,5 +1,8 @@
 import React from 'react'
-import type { FlightData, FlightRouterState } from '../../../server/app-render'
+import type {
+  FlightData,
+  FlightRouterState,
+} from '../../../server/app-render/types'
 import { applyRouterStatePatchToTree } from './apply-router-state-patch-to-tree'
 
 const getInitialRouterStateTree = (): FlightRouterState => [

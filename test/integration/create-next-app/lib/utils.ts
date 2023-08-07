@@ -31,23 +31,24 @@ export const createNextApp = (
   conf.clear()
 
   console.log(`[TEST] $ ${cli} ${args.join(' ')}`, { options })
+
+  const cloneEnv = { ...process.env }
+  // unset CI env as this skips the auto-install behavior
+  // being tested
+  delete cloneEnv.CI
+  delete cloneEnv.CIRCLECI
+  delete cloneEnv.GITHUB_ACTIONS
+  delete cloneEnv.CONTINUOUS_INTEGRATION
+  delete cloneEnv.RUN_ID
+  delete cloneEnv.BUILD_NUMBER
+
+  if (testVersion) {
+    cloneEnv.NEXT_PRIVATE_TEST_VERSION = testVersion
+  }
   return spawn('node', [cli].concat(args), {
     ...options,
     env: {
-      ...process.env,
-      // unset CI env as this skips the auto-install behavior
-      // being tested
-      CI: '',
-      CIRCLECI: '',
-      GITHUB_ACTIONS: '',
-      CONTINUOUS_INTEGRATION: '',
-      RUN_ID: '',
-      BUILD_NUMBER: '',
-      ...(testVersion
-        ? {
-            NEXT_PRIVATE_TEST_VERSION: testVersion,
-          }
-        : {}),
+      ...cloneEnv,
       ...options.env,
     },
   })
@@ -135,14 +136,17 @@ export const shouldBeTemplateProject = ({
     files: getProjectSetting({ template, mode, setting: 'files', srcDir }),
   })
 
-  projectFilesShouldNotExist({
-    cwd,
-    projectName,
-    files: mapSrcFiles(
-      projectSpecification[template][mode === 'js' ? 'ts' : 'js'].files,
-      srcDir
-    ),
-  })
+  // Tailwind templates share the same files (tailwind.config.js, postcss.config.js)
+  if (template !== 'app-tw' && template !== 'default-tw') {
+    projectFilesShouldNotExist({
+      cwd,
+      projectName,
+      files: mapSrcFiles(
+        projectSpecification[template][mode === 'js' ? 'ts' : 'js'].files,
+        srcDir
+      ),
+    })
+  }
 
   projectDepsShouldBe({
     type: 'dependencies',

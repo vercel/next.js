@@ -1,9 +1,8 @@
 use regex::Regex;
 use serde::Deserialize;
-
-use next_binding::swc::core::{
-    ecma::ast::*,
-    ecma::visit::{noop_fold_type, Fold, FoldWith},
+use turbopack_binding::swc::core::ecma::{
+    ast::*,
+    visit::{noop_fold_type, Fold, FoldWith},
 };
 
 #[derive(Clone, Debug, Deserialize)]

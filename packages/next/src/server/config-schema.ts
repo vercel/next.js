@@ -1,7 +1,6 @@
 import { NextConfig } from './config'
 import type { JSONSchemaType } from 'ajv'
 import { VALID_LOADERS } from '../shared/lib/image-config'
-import { SERVER_RUNTIME } from '../lib/constants'
 
 const configSchema = {
   type: 'object',
@@ -11,7 +10,7 @@ const configSchema = {
       additionalProperties: false,
       properties: {
         canonicalBase: {
-          minLength: 1,
+          nullable: true,
           type: 'string',
         },
       },
@@ -21,7 +20,7 @@ const configSchema = {
       type: 'string',
     },
     assetPrefix: {
-      minLength: 1,
+      nullable: true,
       type: 'string',
     },
     basePath: {
@@ -170,6 +169,9 @@ const configSchema = {
     compress: {
       type: 'boolean',
     },
+    configOrigin: {
+      type: 'string',
+    },
     crossOrigin: {
       oneOf: [
         false,
@@ -223,6 +225,9 @@ const configSchema = {
     experimental: {
       additionalProperties: false,
       properties: {
+        appDocumentPreloading: {
+          type: 'boolean',
+        },
         adjustFontFallbacks: {
           type: 'boolean',
         },
@@ -247,11 +252,35 @@ const configSchema = {
           },
           type: 'object',
         },
+        clientRouterFilter: {
+          type: 'boolean',
+        },
+        clientRouterFilterRedirects: {
+          type: 'boolean',
+        },
+        clientRouterFilterAllowedRate: {
+          type: 'number',
+        },
         cpus: {
           type: 'number',
         },
+        memoryBasedWorkersCount: {
+          type: 'boolean',
+        },
         craCompat: {
           type: 'boolean',
+        },
+        caseSensitiveRoutes: {
+          type: 'boolean',
+        },
+        useDeploymentId: {
+          type: 'boolean',
+        },
+        useDeploymentIdServerActions: {
+          type: 'boolean',
+        },
+        deploymentId: {
+          type: 'string',
         },
         disableOptimizedLoading: {
           type: 'boolean',
@@ -272,17 +301,33 @@ const configSchema = {
         appDir: {
           type: 'boolean',
         },
+        serverActions: {
+          type: 'boolean',
+        },
+        serverActionsBodySizeLimit: {
+          oneOf: [
+            {
+              type: 'number',
+            },
+            {
+              type: 'string',
+            },
+          ] as any,
+        },
         extensionAlias: {
           type: 'object',
         },
         externalDir: {
           type: 'boolean',
         },
+        externalMiddlewareRewritesResolve: {
+          type: 'boolean',
+        },
         fallbackNodePolyfills: {
           type: 'boolean',
         },
-        fetchCache: {
-          type: 'boolean',
+        fetchCacheKeyPrefix: {
+          type: 'string',
         },
         forceSwcTransforms: {
           type: 'boolean',
@@ -336,26 +381,24 @@ const configSchema = {
           type: 'boolean',
         },
         outputFileTracingRoot: {
-          minLength: 1,
+          nullable: true,
           type: 'string',
+        },
+        outputFileTracingExcludes: {
+          type: 'object',
         },
         outputFileTracingIgnores: {
           type: 'array',
         },
-        pageEnv: {
-          type: 'boolean',
+        outputFileTracingIncludes: {
+          type: 'object',
         },
-        preCompiledNextServer: {
+        pageEnv: {
           type: 'boolean',
         },
         proxyTimeout: {
           minimum: 0,
           type: 'number',
-        },
-        runtime: {
-          // automatic typing doesn't like enum
-          enum: Object.values(SERVER_RUNTIME) as any,
-          type: 'string',
         },
         serverComponentsExternalPackages: {
           items: {
@@ -378,23 +421,14 @@ const configSchema = {
           },
           type: 'object',
         },
+        strictNextHead: {
+          type: 'boolean',
+        },
         swcFileReading: {
           type: 'boolean',
         },
         swcMinify: {
           type: 'boolean',
-        },
-        swcMinifyDebugOptions: {
-          additionalProperties: false,
-          properties: {
-            compress: {
-              type: 'object',
-            },
-            mangle: {
-              type: 'object',
-            },
-          },
-          type: 'object',
         },
         swcPlugins: {
           type: 'array',
@@ -408,26 +442,9 @@ const configSchema = {
           },
           type: 'array',
         },
-        enableUndici: {
-          type: 'boolean',
-        },
         workerThreads: {
           type: 'boolean',
         },
-        fontLoaders: {
-          items: {
-            additionalProperties: false,
-            properties: {
-              loader: {
-                type: 'string',
-              },
-              options: {},
-            },
-            type: 'object',
-            required: ['loader'],
-          },
-          type: 'array',
-        } as any,
         webVitalsAttribution: {
           type: 'array',
           items: {
@@ -436,6 +453,9 @@ const configSchema = {
           } as any,
         },
         mdxRs: {
+          type: 'boolean',
+        },
+        typedRoutes: {
           type: 'boolean',
         },
         webpackBuildWorker: {
@@ -452,6 +472,9 @@ const configSchema = {
               type: 'object',
             },
           },
+        },
+        instrumentationHook: {
+          type: 'boolean',
         },
         turbotrace: {
           type: 'object',
@@ -481,16 +504,19 @@ const configSchema = {
             processCwd: {
               type: 'string',
             },
-            maxFiles: {
-              type: 'integer',
-            },
             memoryLimit: {
               type: 'integer',
             },
-            skipEntries: {
-              type: 'boolean',
-            },
           },
+        },
+        logging: {
+          type: 'string',
+        },
+        serverMinification: {
+          type: 'boolean',
+        },
+        serverSourceMaps: {
+          type: 'boolean',
         },
       },
       type: 'object',
@@ -521,6 +547,7 @@ const configSchema = {
     },
     i18n: {
       additionalProperties: false,
+      nullable: true,
       properties: {
         defaultLocale: {
           minLength: 1,
@@ -568,20 +595,21 @@ const configSchema = {
     },
     images: {
       additionalProperties: false,
+      nullable: true,
       properties: {
         remotePatterns: {
+          nullable: true,
           items: {
             additionalProperties: false,
             properties: {
               hostname: {
-                minLength: 1,
                 type: 'string',
               },
               pathname: {
-                minLength: 1,
                 type: 'string',
               },
               port: {
+                maxLength: 5,
                 type: 'string',
               },
               protocol: {
@@ -590,65 +618,88 @@ const configSchema = {
                 type: 'string',
               },
             },
+            required: ['hostname'] as any,
             type: 'object',
           },
+          maxItems: 50,
           type: 'array',
         },
         unoptimized: {
           type: 'boolean',
         },
         contentSecurityPolicy: {
-          minLength: 1,
           type: 'string',
+          nullable: true,
+        },
+        contentDispositionType: {
+          enum: ['inline', 'attachment'] as any, // automatic typing does not like enum
+          type: 'string',
+          nullable: true,
         },
         dangerouslyAllowSVG: {
           type: 'boolean',
+          nullable: true,
         },
         deviceSizes: {
           items: {
-            type: 'number',
+            type: 'integer',
+            minimum: 1,
+            maximum: 10000,
           },
-          minItems: 1,
+          maxItems: 25,
           type: 'array',
+          nullable: true,
         },
         disableStaticImages: {
           type: 'boolean',
+          nullable: true,
         },
         domains: {
           items: {
             type: 'string',
           },
+          maxItems: 50,
           type: 'array',
+          nullable: true,
         },
         formats: {
           items: {
             enum: ['image/avif', 'image/webp'], // automatic typing does not like enum
             type: 'string',
           } as any,
+          maxItems: 4,
           type: 'array',
+          nullable: true,
         },
         imageSizes: {
           items: {
-            type: 'number',
+            type: 'integer',
+            minimum: 1,
+            maximum: 10000,
           },
-          minItems: 1,
+          minItems: 0,
+          maxItems: 25,
           type: 'array',
+          nullable: true,
         },
         loader: {
           // automatic typing does not like enum
           enum: VALID_LOADERS as any,
           type: 'string',
+          nullable: true,
         },
         loaderFile: {
-          minLength: 1,
           type: 'string',
+          nullable: true,
         },
         minimumCacheTTL: {
-          type: 'number',
+          type: 'integer',
+          minimum: 0,
+          nullable: true,
         },
         path: {
-          minLength: 1,
           type: 'string',
+          nullable: true,
         },
       },
       type: 'object',
@@ -673,7 +724,7 @@ const configSchema = {
     },
     output: {
       // automatic typing doesn't like enum
-      enum: ['standalone'] as any,
+      enum: ['standalone', 'export'] as any,
       type: 'string',
     },
     outputFileTracing: {
@@ -691,6 +742,9 @@ const configSchema = {
     },
     publicRuntimeConfig: {
       type: 'object',
+    },
+    reactProductionProfiling: {
+      type: 'boolean',
     },
     reactStrictMode: {
       type: 'boolean',
@@ -720,6 +774,9 @@ const configSchema = {
     },
     swcMinify: {
       type: 'boolean',
+    },
+    target: {
+      type: 'string',
     },
     trailingSlash: {
       type: 'boolean',
@@ -752,7 +809,7 @@ const configSchema = {
         'must be a function that returns a webpack configuration object',
     } as any,
   },
-} as JSONSchemaType<NextConfig>
+} as JSONSchemaType<NextConfig & { configOrigin?: any; target?: any }>
 
 // module.exports is used to get around an export bug with TypeScript
 // and the Ajv automatic typing

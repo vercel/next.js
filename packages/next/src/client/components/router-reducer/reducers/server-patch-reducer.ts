@@ -6,11 +6,9 @@ import {
   ReducerState,
   ReadonlyReducerState,
 } from '../router-reducer-types'
-import {
-  handleMutable,
-  applyFlightData,
-  handleExternalUrl,
-} from './navigate-reducer'
+import { handleExternalUrl } from './navigate-reducer'
+import { applyFlightData } from '../apply-flight-data'
+import { handleMutable } from '../handle-mutable'
 
 export function serverPatchReducer(
   state: ReadonlyReducerState,
@@ -45,47 +43,51 @@ export function serverPatchReducer(
     )
   }
 
-  // TODO-APP: Currently the Flight data can only have one item but in the future it can have multiple paths.
-  const flightDataPath = flightData[0]
+  let currentTree = state.tree
+  let currentCache = state.cache
 
-  // Slices off the last segment (which is at -4) as it doesn't exist in the tree yet
-  const flightSegmentPath = flightDataPath.slice(0, -4)
-  const [treePatch] = flightDataPath.slice(-3, -2)
+  for (const flightDataPath of flightData) {
+    // Slices off the last segment (which is at -4) as it doesn't exist in the tree yet
+    const flightSegmentPath = flightDataPath.slice(0, -4)
 
-  const newTree = applyRouterStatePatchToTree(
-    // TODO-APP: remove ''
-    ['', ...flightSegmentPath],
-    state.tree,
-    treePatch
-  )
-
-  if (newTree === null) {
-    throw new Error('SEGMENT MISMATCH')
-  }
-
-  if (isNavigatingToNewRootLayout(state.tree, newTree)) {
-    return handleExternalUrl(
-      state,
-      mutable,
-      state.canonicalUrl,
-      state.pushRef.pendingPush
+    const [treePatch] = flightDataPath.slice(-3, -2)
+    const newTree = applyRouterStatePatchToTree(
+      // TODO-APP: remove ''
+      ['', ...flightSegmentPath],
+      currentTree,
+      treePatch
     )
+
+    if (newTree === null) {
+      throw new Error('SEGMENT MISMATCH')
+    }
+
+    if (isNavigatingToNewRootLayout(currentTree, newTree)) {
+      return handleExternalUrl(
+        state,
+        mutable,
+        state.canonicalUrl,
+        state.pushRef.pendingPush
+      )
+    }
+
+    const canonicalUrlOverrideHref = overrideCanonicalUrl
+      ? createHrefFromUrl(overrideCanonicalUrl)
+      : undefined
+
+    if (canonicalUrlOverrideHref) {
+      mutable.canonicalUrl = canonicalUrlOverrideHref
+    }
+
+    applyFlightData(currentCache, cache, flightDataPath)
+
+    mutable.previousTree = currentTree
+    mutable.patchedTree = newTree
+    mutable.cache = cache
+
+    currentCache = cache
+    currentTree = newTree
   }
-
-  const canonicalUrlOverrideHref = overrideCanonicalUrl
-    ? createHrefFromUrl(overrideCanonicalUrl)
-    : undefined
-
-  if (canonicalUrlOverrideHref) {
-    mutable.canonicalUrl = canonicalUrlOverrideHref
-  }
-
-  applyFlightData(state, cache, flightDataPath)
-
-  mutable.previousTree = state.tree
-  mutable.patchedTree = newTree
-  mutable.cache = cache
-  mutable.applyFocusAndScroll = false
 
   return handleMutable(state, mutable)
 }

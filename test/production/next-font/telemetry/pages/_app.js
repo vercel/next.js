@@ -1,4 +1,4 @@
-import localFont from '@next/font/local'
+import localFont from 'next/font/local'
 
 const myFont = localFont({ src: './my-font.woff2' })
 

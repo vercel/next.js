@@ -4,4 +4,4 @@
 
 This new font system also allows you to conveniently use all Google Fonts with performance and privacy in mind. CSS and font files are downloaded at build time and self-hosted with the rest of your static assets. No requests are sent to Google by the browser.
 
-[Read more](https://beta.nextjs.org/docs/optimizing/fonts)
+[Read more](https://nextjs.org/docs/app/building-your-application/optimizing/fonts)

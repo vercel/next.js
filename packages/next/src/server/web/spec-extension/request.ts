@@ -1,7 +1,7 @@
 import type { I18NConfig } from '../../config-shared'
 import type { RequestData } from '../types'
 import { NextURL } from '../next-url'
-import { toNodeHeaders, validateURL } from '../utils'
+import { toNodeOutgoingHttpHeaders, validateURL } from '../utils'
 import { RemovedUAError, RemovedPageError } from '../error'
 import { RequestCookies } from './cookies'
 
@@ -12,22 +12,28 @@ export class NextRequest extends Request {
     cookies: RequestCookies
     geo: RequestData['geo']
     ip?: string
-    url: NextURL
+    url: string
+    nextUrl: NextURL
   }
 
   constructor(input: URL | RequestInfo, init: RequestInit = {}) {
     const url =
       typeof input !== 'string' && 'url' in input ? input.url : String(input)
     validateURL(url)
-    super(url, init)
+    if (input instanceof Request) super(input)
+    else super(url, init)
+    const nextUrl = new NextURL(url, {
+      headers: toNodeOutgoingHttpHeaders(this.headers),
+      nextConfig: init.nextConfig,
+    })
     this[INTERNALS] = {
       cookies: new RequestCookies(this.headers),
       geo: init.geo || {},
       ip: init.ip,
-      url: new NextURL(url, {
-        headers: toNodeHeaders(this.headers),
-        nextConfig: init.nextConfig,
-      }),
+      nextUrl,
+      url: process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE
+        ? url
+        : nextUrl.toString(),
     }
   }
 
@@ -68,7 +74,7 @@ export class NextRequest extends Request {
   }
 
   public get nextUrl() {
-    return this[INTERNALS].url
+    return this[INTERNALS].nextUrl
   }
 
   /**
@@ -90,7 +96,7 @@ export class NextRequest extends Request {
   }
 
   public get url() {
-    return this[INTERNALS].url.toString()
+    return this[INTERNALS].url
   }
 }
 
@@ -106,4 +112,5 @@ export interface RequestInit extends globalThis.RequestInit {
     i18n?: I18NConfig | null
     trailingSlash?: boolean
   }
+  signal?: AbortSignal
 }

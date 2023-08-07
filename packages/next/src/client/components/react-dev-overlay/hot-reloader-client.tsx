@@ -4,13 +4,16 @@ import React, {
   useEffect,
   useReducer,
   useMemo,
-  // @ts-expect-error TODO-APP: startTransition exists
   startTransition,
 } from 'react'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import formatWebpackMessages from '../../dev/error-overlay/format-webpack-messages'
 import { useRouter } from '../navigation'
-import { errorOverlayReducer } from './internal/error-overlay-reducer'
+import {
+  ACTION_VERSION_INFO,
+  INITIAL_OVERLAY_STATE,
+  errorOverlayReducer,
+} from './internal/error-overlay-reducer'
 import {
   ACTION_BUILD_OK,
   ACTION_BUILD_ERROR,
@@ -31,10 +34,12 @@ import {
   useWebsocketPing,
 } from './internal/helpers/use-websocket'
 import { parseComponentStack } from './internal/helpers/parse-component-stack'
+import type { VersionInfo } from '../../../server/dev/parse-version-info'
 
 interface Dispatcher {
   onBuildOk(): void
   onBuildError(message: string): void
+  onVersionInfo(versionInfo: VersionInfo): void
   onBeforeRefresh(): void
   onRefresh(): void
 }
@@ -44,8 +49,6 @@ type PongEvent = any
 
 let mostRecentCompilationHash: any = null
 let __nextDevClientId = Math.round(Math.random() * 100 + Date.now())
-
-// let startLatency = undefined
 
 function onBeforeFastRefresh(dispatcher: Dispatcher, hasUpdates: boolean) {
   if (hasUpdates) {
@@ -205,7 +208,39 @@ function processMessage(
   router: ReturnType<typeof useRouter>,
   dispatcher: Dispatcher
 ) {
-  const obj = JSON.parse(e.data)
+  let obj
+  try {
+    obj = JSON.parse(e.data)
+  } catch {}
+
+  if (!obj || !('action' in obj)) {
+    return
+  }
+
+  function handleErrors(errors: any[]) {
+    // "Massage" webpack messages.
+    const formatted = formatWebpackMessages({
+      errors: errors,
+      warnings: [],
+    })
+
+    // Only show the first error.
+    dispatcher.onBuildError(formatted.errors[0])
+
+    // Also log them to the console.
+    for (let i = 0; i < formatted.errors.length; i++) {
+      console.error(stripAnsi(formatted.errors[i]))
+    }
+
+    // Do not attempt to reload now.
+    // We will reload on next success instead.
+    if (process.env.__NEXT_TEST_MODE) {
+      if (self.__NEXT_HMR_CB) {
+        self.__NEXT_HMR_CB(formatted.errors[0])
+        self.__NEXT_HMR_CB = null
+      }
+    }
+  }
 
   switch (obj.action) {
     case 'building': {
@@ -218,7 +253,12 @@ function processMessage(
         handleAvailableHash(obj.hash)
       }
 
-      const { errors, warnings } = obj
+      const { errors, warnings, versionInfo } = obj
+
+      // Is undefined when it's a 'built' event
+      if (versionInfo) {
+        dispatcher.onVersionInfo(versionInfo)
+      }
       const hasErrors = Boolean(errors && errors.length)
       // Compilation with errors (e.g. syntax error or missing modules).
       if (hasErrors) {
@@ -230,28 +270,7 @@ function processMessage(
           })
         )
 
-        // "Massage" webpack messages.
-        var formatted = formatWebpackMessages({
-          errors: errors,
-          warnings: [],
-        })
-
-        // Only show the first error.
-        dispatcher.onBuildError(formatted.errors[0])
-
-        // Also log them to the console.
-        for (let i = 0; i < formatted.errors.length; i++) {
-          console.error(stripAnsi(formatted.errors[i]))
-        }
-
-        // Do not attempt to reload now.
-        // We will reload on next success instead.
-        if (process.env.__NEXT_TEST_MODE) {
-          if (self.__NEXT_HMR_CB) {
-            self.__NEXT_HMR_CB(formatted.errors[0])
-            self.__NEXT_HMR_CB = null
-          }
-        }
+        handleErrors(errors)
         return
       }
 
@@ -311,9 +330,9 @@ function processMessage(
       )
 
       const isHotUpdate =
-        obj.action !== 'sync' ||
-        ((!window.__NEXT_DATA__ || window.__NEXT_DATA__.page !== '/_error') &&
-          isUpdateAvailable())
+        obj.action !== 'sync' &&
+        (!window.__NEXT_DATA__ || window.__NEXT_DATA__.page !== '/_error') &&
+        isUpdateAvailable()
 
       // Attempt to apply hot updates or reload.
       if (isHotUpdate) {
@@ -344,7 +363,8 @@ function processMessage(
         return window.location.reload()
       }
       startTransition(() => {
-        router.refresh()
+        // @ts-ignore it exists, it's just hidden
+        router.fastRefresh()
         dispatcher.onRefresh()
       })
 
@@ -368,12 +388,24 @@ function processMessage(
     }
     case 'removedPage': {
       // TODO-APP: potentially only refresh if the currently viewed page was removed.
-      router.refresh()
+      // @ts-ignore it exists, it's just hidden
+      router.fastRefresh()
       return
     }
     case 'addedPage': {
       // TODO-APP: potentially only refresh if the currently viewed page was added.
-      router.refresh()
+      // @ts-ignore it exists, it's just hidden
+      router.fastRefresh()
+      return
+    }
+    case 'serverError': {
+      const { errorJSON } = obj
+      if (errorJSON) {
+        const { message, stack } = JSON.parse(errorJSON)
+        const error = new Error(message)
+        error.stack = stack
+        handleErrors([error])
+      }
       return
     }
     case 'pong': {
@@ -381,8 +413,38 @@ function processMessage(
       if (invalid) {
         // Payload can be invalid even if the page does exist.
         // So, we check if it can be created.
-        router.refresh()
+        fetch(window.location.href, {
+          credentials: 'same-origin',
+        }).then((pageRes) => {
+          let shouldRefresh = pageRes.ok
+          // TODO-APP: investigate why edge runtime needs to reload
+          const isEdgeRuntime = pageRes.headers.get('x-edge-runtime') === '1'
+          if (pageRes.status === 404) {
+            // Check if head present as document.head could be null
+            // We are still on the page,
+            // dispatch an error so it's caught by the NotFound handler
+            const devErrorMetaTag = document.head?.querySelector(
+              'meta[name="next-error"]'
+            )
+            shouldRefresh = !devErrorMetaTag
+          }
+          // Page exists now, reload
+          startTransition(() => {
+            if (shouldRefresh) {
+              if (isEdgeRuntime) {
+                window.location.reload()
+              } else {
+                // @ts-ignore it exists, it's just hidden
+                router.fastRefresh()
+                dispatcher.onRefresh()
+              }
+            }
+          })
+        })
       }
+      return
+    }
+    case 'devPagesManifestUpdate': {
       return
     }
     default: {
@@ -398,31 +460,32 @@ export default function HotReload({
   assetPrefix: string
   children?: ReactNode
 }) {
-  const [state, dispatch] = useReducer(errorOverlayReducer, {
-    nextId: 1,
-    buildError: null,
-    errors: [],
-    refreshState: { type: 'idle' },
-  })
+  const [state, dispatch] = useReducer(
+    errorOverlayReducer,
+    INITIAL_OVERLAY_STATE
+  )
   const dispatcher = useMemo((): Dispatcher => {
     return {
-      onBuildOk(): void {
+      onBuildOk() {
         dispatch({ type: ACTION_BUILD_OK })
       },
-      onBuildError(message: string): void {
+      onBuildError(message) {
         dispatch({ type: ACTION_BUILD_ERROR, message })
       },
-      onBeforeRefresh(): void {
+      onBeforeRefresh() {
         dispatch({ type: ACTION_BEFORE_REFRESH })
       },
-      onRefresh(): void {
+      onRefresh() {
         dispatch({ type: ACTION_REFRESH })
+      },
+      onVersionInfo(versionInfo) {
+        dispatch({ type: ACTION_VERSION_INFO, versionInfo })
       },
     }
   }, [dispatch])
 
   const handleOnUnhandledError = useCallback((error: Error): void => {
-    // Component stack is added to the error in use-error-handler
+    // Component stack is added to the error in use-error-handler in case there was a hydration errror
     const componentStack = (error as any)._componentStack
     dispatch({
       type: ACTION_UNHANDLED_ERROR,
@@ -449,20 +512,15 @@ export default function HotReload({
   const sendMessage = useSendMessage(webSocketRef)
 
   const router = useRouter()
+
   useEffect(() => {
     const handler = (event: MessageEvent<PongEvent>) => {
-      if (
-        event.data.indexOf('action') === -1 &&
-        // TODO-APP: clean this up for consistency
-        event.data.indexOf('pong') === -1
-      ) {
-        return
-      }
-
       try {
         processMessage(event, sendMessage, router, dispatcher)
-      } catch (ex) {
-        console.warn('Invalid HMR message: ' + event.data + '\n', ex)
+      } catch (err: any) {
+        console.warn(
+          '[HMR] Invalid message: ' + event.data + '\n' + (err?.stack ?? '')
+        )
       }
     }
 

@@ -1,5 +1,5 @@
 import React from 'react'
-import { FlightRouterState } from '../../../../server/app-render'
+import type { FlightRouterState } from '../../../../server/app-render/types'
 import {
   CacheNode,
   CacheStates,
@@ -7,6 +7,8 @@ import {
 import { createInitialRouterState } from '../create-initial-router-state'
 import { RestoreAction, ACTION_RESTORE } from '../router-reducer-types'
 import { restoreReducer } from './restore-reducer'
+
+const buildId = 'development'
 
 const getInitialRouterStateTree = (): FlightRouterState => [
   '',
@@ -79,7 +81,9 @@ describe('serverPatchReducer', () => {
     ])
 
     const state = createInitialRouterState({
+      buildId,
       initialTree,
+      initialHead: null,
       initialCanonicalUrl,
       children,
       initialParallelRoutes,
@@ -115,6 +119,7 @@ describe('serverPatchReducer', () => {
     )
 
     const expectedState: ReturnType<typeof restoreReducer> = {
+      buildId,
       prefetchCache: new Map(),
       pushRef: {
         mpaNavigation: false,
@@ -122,8 +127,12 @@ describe('serverPatchReducer', () => {
       },
       focusAndScrollRef: {
         apply: false,
+        onlyHashChange: false,
+        hashFragment: null,
+        segmentPaths: [],
       },
       canonicalUrl: '/linking/about',
+      nextUrl: '/linking/about',
       cache: {
         status: CacheStates.READY,
         data: null,
@@ -226,7 +235,9 @@ describe('serverPatchReducer', () => {
     ])
 
     const state = createInitialRouterState({
+      buildId,
       initialTree,
+      initialHead: null,
       initialCanonicalUrl,
       children,
       initialParallelRoutes,
@@ -234,7 +245,9 @@ describe('serverPatchReducer', () => {
       location: new URL('/linking', 'https://localhost') as any,
     })
     const state2 = createInitialRouterState({
+      buildId,
       initialTree,
+      initialHead: null,
       initialCanonicalUrl,
       children,
       initialParallelRoutes,
@@ -273,6 +286,7 @@ describe('serverPatchReducer', () => {
     )
 
     const expectedState: ReturnType<typeof restoreReducer> = {
+      buildId,
       prefetchCache: new Map(),
       pushRef: {
         mpaNavigation: false,
@@ -280,8 +294,12 @@ describe('serverPatchReducer', () => {
       },
       focusAndScrollRef: {
         apply: false,
+        onlyHashChange: false,
+        hashFragment: null,
+        segmentPaths: [],
       },
       canonicalUrl: '/linking/about',
+      nextUrl: '/linking/about',
       cache: {
         status: CacheStates.READY,
         data: null,

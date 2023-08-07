@@ -62,6 +62,11 @@ if (!foundCommand && args['--help']) {
 }
 
 const command = foundCommand ? args._[0] : defaultCommand
+
+if (['experimental-compile', 'experimental-generate'].includes(command)) {
+  args._.push('--build-mode', command)
+}
+
 const forwardedArgs = foundCommand ? args._.slice(1) : args._
 
 if (args['--inspect'])
@@ -121,7 +126,7 @@ if (!process.env.NEXT_MANUAL_SIG_HANDLE && command !== 'dev') {
 commands[command]()
   .then((exec) => exec(forwardedArgs))
   .then(() => {
-    if (command === 'build') {
+    if (command === 'build' || command === 'experimental-compile') {
       // ensure process exits after build completes so open handles/connections
       // don't cause process to hang
       process.exit(0)

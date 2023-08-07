@@ -1,6 +1,190 @@
 // Reference: https://hreflang.org/what-is-a-valid-hreflang
 
 type LangCode =
+  | 'aa'
+  | 'ab'
+  | 'ae'
+  | 'af'
+  | 'ak'
+  | 'am'
+  | 'an'
+  | 'ar'
+  | 'as'
+  | 'av'
+  | 'ay'
+  | 'az'
+  | 'ba'
+  | 'be'
+  | 'bg'
+  | 'bh'
+  | 'bi'
+  | 'bm'
+  | 'bn'
+  | 'bo'
+  | 'br'
+  | 'bs'
+  | 'ca'
+  | 'ce'
+  | 'ch'
+  | 'co'
+  | 'cr'
+  | 'cs'
+  | 'cu'
+  | 'cv'
+  | 'cy'
+  | 'da'
+  | 'de'
+  | 'dv'
+  | 'dz'
+  | 'ee'
+  | 'el'
+  | 'en'
+  | 'eo'
+  | 'es'
+  | 'et'
+  | 'eu'
+  | 'fa'
+  | 'ff'
+  | 'fi'
+  | 'fj'
+  | 'fo'
+  | 'fr'
+  | 'fy'
+  | 'ga'
+  | 'gd'
+  | 'gl'
+  | 'gn'
+  | 'gu'
+  | 'gv'
+  | 'ha'
+  | 'he'
+  | 'hi'
+  | 'ho'
+  | 'hr'
+  | 'ht'
+  | 'hu'
+  | 'hy'
+  | 'hz'
+  | 'ia'
+  | 'id'
+  | 'ie'
+  | 'ig'
+  | 'ii'
+  | 'ik'
+  | 'io'
+  | 'is'
+  | 'it'
+  | 'iu'
+  | 'ja'
+  | 'jv'
+  | 'ka'
+  | 'kg'
+  | 'ki'
+  | 'kj'
+  | 'kk'
+  | 'kl'
+  | 'km'
+  | 'kn'
+  | 'ko'
+  | 'kr'
+  | 'ks'
+  | 'ku'
+  | 'kv'
+  | 'kw'
+  | 'ky'
+  | 'la'
+  | 'lb'
+  | 'lg'
+  | 'li'
+  | 'ln'
+  | 'lo'
+  | 'lt'
+  | 'lu'
+  | 'lv'
+  | 'mg'
+  | 'mh'
+  | 'mi'
+  | 'mk'
+  | 'ml'
+  | 'mn'
+  | 'mr'
+  | 'ms'
+  | 'mt'
+  | 'my'
+  | 'na'
+  | 'nb'
+  | 'nd'
+  | 'ne'
+  | 'ng'
+  | 'nl'
+  | 'nn'
+  | 'no'
+  | 'nr'
+  | 'nv'
+  | 'ny'
+  | 'oc'
+  | 'oj'
+  | 'om'
+  | 'or'
+  | 'os'
+  | 'pa'
+  | 'pi'
+  | 'pl'
+  | 'ps'
+  | 'pt'
+  | 'qu'
+  | 'rm'
+  | 'rn'
+  | 'ro'
+  | 'ru'
+  | 'rw'
+  | 'sa'
+  | 'sc'
+  | 'sd'
+  | 'se'
+  | 'sg'
+  | 'si'
+  | 'sk'
+  | 'sl'
+  | 'sm'
+  | 'sn'
+  | 'so'
+  | 'sq'
+  | 'sr'
+  | 'ss'
+  | 'st'
+  | 'su'
+  | 'sv'
+  | 'sw'
+  | 'ta'
+  | 'te'
+  | 'tg'
+  | 'th'
+  | 'ti'
+  | 'tk'
+  | 'tl'
+  | 'tn'
+  | 'to'
+  | 'tr'
+  | 'ts'
+  | 'tt'
+  | 'tw'
+  | 'ty'
+  | 'ug'
+  | 'uk'
+  | 'ur'
+  | 'uz'
+  | 've'
+  | 'vi'
+  | 'vo'
+  | 'wa'
+  | 'wo'
+  | 'xh'
+  | 'yi'
+  | 'yo'
+  | 'za'
+  | 'zh'
+  | 'zu'
   | 'af-ZA'
   | 'am-ET'
   | 'ar-AE'
@@ -228,7 +412,15 @@ type LangCode =
   | 'zh-MO'
   | 'zh-SG'
   | 'zh-TW'
+  | 'zh-Hans'
+  | 'zh-Hant'
   | 'zu-ZA'
+  // We can't have all valid combinations of language-region-script listed here
+  // as the list is too long and breaks the TypeScript compiler. So instead we
+  // only add the most common ones with a general string pattern for the rest.
+  // This way autocompletion still works and it is still possible to add custom
+  // lang codes.
+  | `${Lowercase<string>}-${string}`
 
 type UnmatchedLang = 'x-default'
 
@@ -238,24 +430,29 @@ type Languages<T> = {
   [s in HrefLang]?: T
 }
 
+export type AlternateLinkDescriptor = {
+  title?: string
+  url: string | URL
+}
+
 export type AlternateURLs = {
-  canonical?: null | string | URL
-  languages?: Languages<null | string | URL>
+  canonical?: null | string | URL | AlternateLinkDescriptor
+  languages?: Languages<null | string | URL | AlternateLinkDescriptor[]>
   media?: {
-    [media: string]: null | string | URL
+    [media: string]: null | string | URL | AlternateLinkDescriptor[]
   }
   types?: {
-    [types: string]: null | string | URL
+    [types: string]: null | string | URL | AlternateLinkDescriptor[]
   }
 }
 
 export type ResolvedAlternateURLs = {
-  canonical: null | URL
-  languages: null | Languages<null | URL>
+  canonical: null | AlternateLinkDescriptor
+  languages: null | Languages<AlternateLinkDescriptor[]>
   media: null | {
-    [media: string]: null | URL
+    [media: string]: null | AlternateLinkDescriptor[]
   }
   types: null | {
-    [types: string]: null | URL
+    [types: string]: null | AlternateLinkDescriptor[]
   }
 }

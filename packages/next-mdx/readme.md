@@ -51,7 +51,8 @@ module.exports = withMDX({
 })
 ```
 
-Optionally you can match other file extensions for MDX compilation, by default only `.mdx` is supported
+By default MDX will only match and compile MDX files with the `.mdx` extension.
+However, it can also be optionally configured to handle markdown files with the `.md` extension, as shown below:
 
 ```js
 // next.config.js
@@ -60,6 +61,8 @@ const withMDX = require('@next/mdx')({
 })
 module.exports = withMDX()
 ```
+
+In addition, MDX can be customized with compiler options, see the [mdx documentation](https://mdxjs.com/packages/mdx/#compilefile-options) for details on supported options.
 
 ## Top level .mdx pages
 
@@ -99,7 +102,7 @@ yarn add @next/mdx
 
 ## Usage
 
-Create a `mdx-component.js` file at the root of your project with the following contents:
+Create a `mdx-components.js` file at the root of your project with the following contents:
 
 ```js
 // This file is required to use @next/mdx in the `app` directory.
@@ -136,7 +139,6 @@ const nextConfig = {
   pageExtensions: ['ts', 'tsx', 'js', 'jsx', 'md', 'mdx'],
   experimental: {
     appDir: true,
-    mdxRs: true
   }
   // Optionally, add any other Next.js config below
   reactStrictMode: true,

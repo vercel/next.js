@@ -6,7 +6,7 @@ export const VALID_LOADERS = [
   'custom',
 ] as const
 
-export type LoaderValue = typeof VALID_LOADERS[number]
+export type LoaderValue = (typeof VALID_LOADERS)[number]
 
 export type ImageLoaderProps = {
   src: string
@@ -88,6 +88,9 @@ export type ImageConfigComplete = {
   /** @see [Dangerously Allow SVG](https://nextjs.org/docs/api-reference/next/image#dangerously-allow-svg) */
   contentSecurityPolicy: string
 
+  /** @see [Dangerously Allow SVG](https://nextjs.org/docs/api-reference/next/image#dangerously-allow-svg) */
+  contentDispositionType: 'inline' | 'attachment'
+
   /** @see [Remote Patterns](https://nextjs.org/docs/api-reference/next/image#remote-patterns) */
   remotePatterns: RemotePattern[]
 
@@ -109,6 +112,7 @@ export const imageConfigDefault: ImageConfigComplete = {
   formats: ['image/webp'],
   dangerouslyAllowSVG: false,
   contentSecurityPolicy: `script-src 'none'; frame-src 'none'; sandbox;`,
+  contentDispositionType: 'inline',
   remotePatterns: [],
   unoptimized: false,
 }

@@ -2,12 +2,14 @@ export default function Page() {
   return 'opengraph-article'
 }
 
-export const metadata = {
-  openGraph: {
-    title: 'My custom title',
-    description: 'My custom description',
-    type: 'article',
-    publishedTime: '2023-01-01T00:00:00.000Z',
-    authors: ['author1', 'author2', 'author3'],
-  },
+export async function generateMetadata(_props, parentResolvingMetadata) {
+  const parentMetadata = await parentResolvingMetadata
+  return {
+    openGraph: {
+      ...parentMetadata.openGraph,
+      title: `My custom title | ${parentMetadata.openGraph.title.absolute}`,
+      // merging parent images URL instance should work
+      images: [...parentMetadata.openGraph.images],
+    },
+  }
 }

@@ -3,61 +3,33 @@ import '../build/polyfills/polyfill-module'
 // @ts-ignore react-dom/client exists when using React 18
 import ReactDOMClient from 'react-dom/client'
 import React, { use } from 'react'
-import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack/client'
+// @ts-ignore
+// eslint-disable-next-line import/no-extraneous-dependencies
+import { createFromReadableStream } from 'react-server-dom-webpack/client'
 
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import { GlobalLayoutRouterContext } from '../shared/lib/app-router-context'
 import onRecoverableError from './on-recoverable-error'
+import { callServer } from './app-call-server'
+import { isNextRouterError } from './components/is-next-router-error'
+
+// Since React doesn't call onerror for errors caught in error boundaries.
+const origConsoleError = window.console.error
+window.console.error = (...args) => {
+  if (isNextRouterError(args[0])) {
+    return
+  }
+  origConsoleError.apply(window.console, args)
+}
+
+window.addEventListener('error', (ev: WindowEventMap['error']): void => {
+  if (isNextRouterError(ev.error)) {
+    ev.preventDefault()
+    return
+  }
+})
 
 /// <reference types="react-dom/experimental" />
-
-// Override chunk URL mapping in the webpack runtime
-// https://github.com/webpack/webpack/blob/2738eebc7880835d88c727d364ad37f3ec557593/lib/RuntimeGlobals.js#L204
-
-declare global {
-  const __webpack_require__: any
-}
-
-// eslint-disable-next-line no-undef
-const getChunkScriptFilename = __webpack_require__.u
-const chunkFilenameMap: any = {}
-
-// eslint-disable-next-line no-undef
-__webpack_require__.u = (chunkId: any) => {
-  return chunkFilenameMap[chunkId] || getChunkScriptFilename(chunkId)
-}
-
-// Ignore the module ID transform in client.
-// eslint-disable-next-line no-undef
-// @ts-expect-error TODO: fix type
-self.__next_require__ =
-  process.env.NODE_ENV !== 'production'
-    ? (id: string) => {
-        const mod = __webpack_require__(id)
-        if (typeof mod === 'object') {
-          // Return a proxy to flight client to make sure it's always getting
-          // the latest module, instead of being cached.
-          return new Proxy(mod, {
-            get(_target, prop) {
-              return __webpack_require__(id)[prop]
-            },
-          })
-        }
-
-        return mod
-      }
-    : __webpack_require__
-
-// eslint-disable-next-line no-undef
-;(self as any).__next_chunk_load__ = (chunk: string) => {
-  if (!chunk) return Promise.resolve()
-  const [chunkId, chunkFileName] = chunk.split(':')
-  chunkFilenameMap[chunkId] = `static/chunks/${chunkFileName}.js`
-
-  // @ts-ignore
-  // eslint-disable-next-line no-undef
-  return __webpack_chunk_load__(chunkId)
-}
 
 const appElement: HTMLElement | Document | null = document
 
@@ -150,7 +122,9 @@ function useInitialServerResponse(cacheKey: string): Promise<JSX.Element> {
     },
   })
 
-  const newResponse = createFromReadableStream(readable)
+  const newResponse = createFromReadableStream(readable, {
+    callServer,
+  })
 
   rscCache.set(cacheKey, newResponse)
   return newResponse
@@ -170,11 +144,12 @@ const StrictModeIfEnabled = process.env.__NEXT_STRICT_MODE_APP
   : React.Fragment
 
 function Root({ children }: React.PropsWithChildren<{}>): React.ReactElement {
-  React.useEffect(() => {
-    if (process.env.__NEXT_ANALYTICS_ID) {
+  if (process.env.__NEXT_ANALYTICS_ID) {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    React.useEffect(() => {
       require('./performance-relayer-app')()
-    }
-  }, [])
+    }, [])
+  }
 
   if (process.env.__NEXT_TEST_MODE) {
     // eslint-disable-next-line react-hooks/rules-of-hooks
@@ -191,8 +166,7 @@ function Root({ children }: React.PropsWithChildren<{}>): React.ReactElement {
 }
 
 function RSCComponent(props: any): JSX.Element {
-  const cacheKey = getCacheKey()
-  return <ServerRoot {...props} cacheKey={cacheKey} />
+  return <ServerRoot {...props} cacheKey={getCacheKey()} />
 }
 
 export function hydrate() {
@@ -214,11 +188,16 @@ export function hydrate() {
       reactRoot.render(
         <GlobalLayoutRouterContext.Provider
           value={{
+            buildId: 'development',
             tree: rootLayoutMissingTagsError.tree,
             changeByServerResponse: () => {},
             focusAndScrollRef: {
               apply: false,
+              onlyHashChange: false,
+              hashFragment: null,
+              segmentPaths: [],
             },
+            nextUrl: null,
           }}
         >
           <HotReload
@@ -265,12 +244,60 @@ export function hydrate() {
     }
   }
 
-  const reactRoot = isError
-    ? (ReactDOMClient as any).createRoot(appElement, options)
-    : (React as any).startTransition(() =>
-        (ReactDOMClient as any).hydrateRoot(appElement, reactEl, options)
-      )
   if (isError) {
-    reactRoot.render(reactEl)
+    if (process.env.NODE_ENV !== 'production') {
+      // if an error is thrown while rendering an RSC stream, this will catch it in dev
+      // and show the error overlay
+      const ReactDevOverlay: typeof import('./components/react-dev-overlay/internal/ReactDevOverlay').default =
+        require('./components/react-dev-overlay/internal/ReactDevOverlay')
+          .default as typeof import('./components/react-dev-overlay/internal/ReactDevOverlay').default
+
+      const INITIAL_OVERLAY_STATE: typeof import('./components/react-dev-overlay/internal/error-overlay-reducer').INITIAL_OVERLAY_STATE =
+        require('./components/react-dev-overlay/internal/error-overlay-reducer').INITIAL_OVERLAY_STATE
+
+      const getSocketUrl: typeof import('./components/react-dev-overlay/internal/helpers/get-socket-url').getSocketUrl =
+        require('./components/react-dev-overlay/internal/helpers/get-socket-url')
+          .getSocketUrl as typeof import('./components/react-dev-overlay/internal/helpers/get-socket-url').getSocketUrl
+
+      let errorTree = (
+        <ReactDevOverlay state={INITIAL_OVERLAY_STATE} onReactError={() => {}}>
+          {reactEl}
+        </ReactDevOverlay>
+      )
+      const socketUrl = getSocketUrl(process.env.__NEXT_ASSET_PREFIX || '')
+      const socket = new window.WebSocket(`${socketUrl}/_next/webpack-hmr`)
+
+      // add minimal "hot reload" support for RSC errors
+      const handler = (event: MessageEvent) => {
+        let obj
+        try {
+          obj = JSON.parse(event.data)
+        } catch {}
+
+        if (!obj || !('action' in obj)) {
+          return
+        }
+
+        if (obj.action === 'serverComponentChanges') {
+          window.location.reload()
+        }
+      }
+
+      socket.addEventListener('message', handler)
+      ReactDOMClient.createRoot(appElement as any, options).render(errorTree)
+    } else {
+      ReactDOMClient.createRoot(appElement as any, options).render(reactEl)
+    }
+  } else {
+    React.startTransition(() =>
+      (ReactDOMClient as any).hydrateRoot(appElement, reactEl, options)
+    )
+  }
+
+  // TODO-APP: Remove this logic when Float has GC built-in in development.
+  if (process.env.NODE_ENV !== 'production') {
+    const { linkGc } =
+      require('./app-link-gc') as typeof import('./app-link-gc')
+    linkGc()
   }
 }

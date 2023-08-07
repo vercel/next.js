@@ -1,18 +1,18 @@
 // useLayoutSegments() // Only the segments for the current place. ['children', 'dashboard', 'children', 'integrations'] -> /dashboard/integrations (/dashboard/layout.js would get ['children', 'dashboard', 'children', 'integrations'])
 
 import { useContext, useMemo } from 'react'
-import type { FlightRouterState } from '../../server/app-render'
+import type { FlightRouterState } from '../../server/app-render/types'
 import {
   AppRouterContext,
+  GlobalLayoutRouterContext,
   LayoutRouterContext,
 } from '../../shared/lib/app-router-context'
 import {
   SearchParamsContext,
-  // ParamsContext,
   PathnameContext,
-  // LayoutSegmentsContext,
 } from '../../shared/lib/hooks-client-context'
 import { clientHookInServerComponentError } from './client-hook-in-server-component-error'
+import { getSegmentValue } from './router-reducer/reducers/get-segment-value'
 
 const INTERNAL_URLSEARCHPARAMS_INSTANCE = Symbol(
   'internal for urlsearchparams readonly'
@@ -22,7 +22,7 @@ function readonlyURLSearchParamsError() {
   return new Error('ReadonlyURLSearchParams cannot be modified')
 }
 
-class ReadonlyURLSearchParams {
+export class ReadonlyURLSearchParams {
   [INTERNAL_URLSEARCHPARAMS_INSTANCE]: URLSearchParams
 
   entries: URLSearchParams['entries']
@@ -35,7 +35,6 @@ class ReadonlyURLSearchParams {
   toString: URLSearchParams['toString']
 
   constructor(urlSearchParams: URLSearchParams) {
-    // Since `new Headers` uses `this.append()` to fill the headers object ReadonlyHeaders can't extend from Headers directly as it would throw.
     this[INTERNAL_URLSEARCHPARAMS_INSTANCE] = urlSearchParams
 
     this.entries = urlSearchParams.entries.bind(urlSearchParams)
@@ -69,13 +68,22 @@ class ReadonlyURLSearchParams {
  * Get a read-only URLSearchParams object. For example searchParams.get('foo') would return 'bar' when ?foo=bar
  * Learn more about URLSearchParams here: https://developer.mozilla.org/en-US/docs/Web/API/URLSearchParams
  */
-export function useSearchParams() {
+export function useSearchParams(): ReadonlyURLSearchParams {
   clientHookInServerComponentError('useSearchParams')
   const searchParams = useContext(SearchParamsContext)
 
+  // In the case where this is `null`, the compat types added in
+  // `next-env.d.ts` will add a new overload that changes the return type to
+  // include `null`.
   const readonlySearchParams = useMemo(() => {
-    return new ReadonlyURLSearchParams(searchParams || new URLSearchParams())
-  }, [searchParams])
+    if (!searchParams) {
+      // When the router is not ready in pages, we won't have the search params
+      // available.
+      return null
+    }
+
+    return new ReadonlyURLSearchParams(searchParams)
+  }, [searchParams]) as ReadonlyURLSearchParams
 
   if (typeof window === 'undefined') {
     // AsyncLocalStorage should not be included in the client bundle.
@@ -87,26 +95,18 @@ export function useSearchParams() {
     }
   }
 
-  if (!searchParams) {
-    throw new Error('invariant expected search params to be mounted')
-  }
-
   return readonlySearchParams
 }
 
 /**
  * Get the current pathname. For example usePathname() on /dashboard?foo=bar would return "/dashboard"
  */
-export function usePathname(): string | null {
+export function usePathname(): string {
   clientHookInServerComponentError('usePathname')
-  return useContext(PathnameContext)
+  // In the case where this is `null`, the compat types added in `next-env.d.ts`
+  // will add a new overload that changes the return type to include `null`.
+  return useContext(PathnameContext) as string
 }
-
-// TODO-APP: getting all params when client-side navigating is non-trivial as it does not have route matchers so this might have to be a server context instead.
-// export function useParams() {
-//   clientHookInServerComponentError('useParams')
-//   return useContext(ParamsContext)
-// }
 
 export {
   ServerInsertedHTMLContext,
@@ -126,7 +126,58 @@ export function useRouter(): import('../../shared/lib/app-router-context').AppRo
   return router
 }
 
+interface Params {
+  [key: string]: string | string[]
+}
+
+// this function performs a depth-first search of the tree to find the selected
+// params
+function getSelectedParams(
+  tree: FlightRouterState,
+  params: Params = {}
+): Params {
+  const parallelRoutes = tree[1]
+
+  for (const parallelRoute of Object.values(parallelRoutes)) {
+    const segment = parallelRoute[0]
+    const isDynamicParameter = Array.isArray(segment)
+    const segmentValue = isDynamicParameter ? segment[1] : segment
+    if (!segmentValue || segmentValue.startsWith('__PAGE__')) continue
+
+    // Ensure catchAll and optional catchall are turned into an array
+    const isCatchAll =
+      isDynamicParameter && (segment[2] === 'c' || segment[2] === 'oc')
+
+    if (isCatchAll) {
+      params[segment[0]] = segment[1].split('/')
+    } else if (isDynamicParameter) {
+      params[segment[0]] = segment[1]
+    }
+
+    params = getSelectedParams(parallelRoute, params)
+  }
+
+  return params
+}
+
+/**
+ * Get the current parameters. For example useParams() on /dashboard/[team]
+ * where pathname is /dashboard/nextjs would return { team: 'nextjs' }
+ */
+export function useParams(): Params {
+  clientHookInServerComponentError('useParams')
+  const globalLayoutRouterContext = useContext(GlobalLayoutRouterContext)
+  if (!globalLayoutRouterContext) {
+    // This only happens in `pages`. Type is overwritten in navigation.d.ts
+    return null!
+  }
+  return getSelectedParams(globalLayoutRouterContext.tree)
+}
+
 // TODO-APP: handle parallel routes
+/**
+ * Get the canonical parameters from the current level to the leaf node.
+ */
 function getSelectedLayoutSegmentPath(
   tree: FlightRouterState,
   parallelRouteKey: string,
@@ -145,8 +196,9 @@ function getSelectedLayoutSegmentPath(
 
   if (!node) return segmentPath
   const segment = node[0]
-  const segmentValue = Array.isArray(segment) ? segment[1] : segment
-  if (!segmentValue) return segmentPath
+
+  const segmentValue = getSegmentValue(segment)
+  if (!segmentValue || segmentValue.startsWith('__PAGE__')) return segmentPath
 
   segmentPath.push(segmentValue)
 

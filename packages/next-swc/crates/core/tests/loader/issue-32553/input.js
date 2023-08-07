@@ -1,1 +1,1 @@
-<div>children</div>; '<>hello</>';
+<div>children</div>; '<>hello</>'

@@ -3,6 +3,10 @@ module.exports = {
     locales: ['en', 'fr', 'nl', 'es'],
     defaultLocale: 'en',
   },
+  experimental: {
+    clientRouterFilter: true,
+    clientRouterFilterRedirects: true,
+  },
   redirects() {
     return [
       {

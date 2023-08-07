@@ -13,12 +13,17 @@ import { readFileSync, promises as fs } from 'fs'
 import { validateURL } from '../utils'
 import { pick } from '../../../lib/pick'
 import { fetchInlineAsset } from './fetch-inline-assets'
-import type { EdgeFunctionDefinition } from '../../../build/webpack/plugins/middleware-plugin'
+import type {
+  EdgeFunctionDefinition,
+  SUPPORTED_NATIVE_MODULES,
+} from '../../../build/webpack/plugins/middleware-plugin'
 import { UnwrapPromise } from '../../../lib/coalesced-function'
 import { runInContext } from 'vm'
-
-const WEBPACK_HASH_REGEX =
-  /__webpack_require__\.h = function\(\) \{ return "[0-9a-f]+"; \}/g
+import BufferImplementation from 'node:buffer'
+import EventsImplementation from 'node:events'
+import AssertImplementation from 'node:assert'
+import UtilImplementation from 'node:util'
+import AsyncHooksImplementation from 'node:async_hooks'
 
 interface ModuleContext {
   runtime: EdgeRuntime
@@ -33,20 +38,29 @@ interface ModuleContext {
  */
 const moduleContexts = new Map<string, ModuleContext>()
 
+const pendingModuleCaches = new Map<string, Promise<ModuleContext>>()
+
 /**
  * For a given path a context, this function checks if there is any module
  * context that contains the path with an older content and, if that's the
  * case, removes the context from the cache.
  */
-export function clearModuleContext(path: string, content: Buffer | string) {
-  for (const [key, cache] of moduleContexts) {
-    const prev = cache?.paths.get(path)?.replace(WEBPACK_HASH_REGEX, '')
-    if (
-      typeof prev !== 'undefined' &&
-      prev !== content.toString().replace(WEBPACK_HASH_REGEX, '')
-    ) {
-      moduleContexts.delete(key)
+export async function clearModuleContext(path: string) {
+  const handleContext = (
+    key: string,
+    cache: ReturnType<(typeof moduleContexts)['get']>,
+    context: typeof moduleContexts | typeof pendingModuleCaches
+  ) => {
+    if (cache?.paths.has(path)) {
+      context.delete(key)
     }
+  }
+
+  for (const [key, cache] of moduleContexts) {
+    handleContext(key, cache, moduleContexts)
+  }
+  for (const [key, cache] of pendingModuleCaches) {
+    handleContext(key, await cache, pendingModuleCaches)
   }
 }
 
@@ -67,10 +81,8 @@ async function loadWasm(
   return modules
 }
 
-function buildEnvironmentVariablesFrom(
-  keys: string[]
-): Record<string, string | undefined> {
-  const pairs = keys.map((key) => [key, process.env[key]])
+function buildEnvironmentVariablesFrom(): Record<string, string | undefined> {
+  const pairs = Object.keys(process.env).map((key) => [key, process.env[key]])
   const env = Object.fromEntries(pairs)
   env.NEXT_RUNTIME = 'edge'
   return env
@@ -84,16 +96,14 @@ Learn more: https://nextjs.org/docs/api-reference/edge-runtime`)
   throw error
 }
 
-function createProcessPolyfill(options: Pick<ModuleContextOptions, 'env'>) {
-  const env = buildEnvironmentVariablesFrom(options.env)
-
-  const processPolyfill = { env }
+function createProcessPolyfill() {
+  const processPolyfill = { env: buildEnvironmentVariablesFrom() }
   const overridenValue: Record<string, any> = {}
   for (const key of Object.keys(process)) {
     if (key === 'env') continue
     Object.defineProperty(processPolyfill, key, {
       get() {
-        if (overridenValue[key]) {
+        if (overridenValue[key] !== undefined) {
           return overridenValue[key]
         }
         if (typeof (process as any)[key] === 'function') {
@@ -139,6 +149,64 @@ function getDecorateUnhandledRejection(runtime: EdgeRuntime) {
   }
 }
 
+const NativeModuleMap = (() => {
+  const mods: Record<
+    `node:${(typeof SUPPORTED_NATIVE_MODULES)[number]}`,
+    unknown
+  > = {
+    'node:buffer': pick(BufferImplementation, [
+      'constants',
+      'kMaxLength',
+      'kStringMaxLength',
+      'Buffer',
+      'SlowBuffer',
+    ]),
+    'node:events': pick(EventsImplementation, [
+      'EventEmitter',
+      'captureRejectionSymbol',
+      'defaultMaxListeners',
+      'errorMonitor',
+      'listenerCount',
+      'on',
+      'once',
+    ]),
+    'node:async_hooks': pick(AsyncHooksImplementation, [
+      'AsyncLocalStorage',
+      'AsyncResource',
+    ]),
+    'node:assert': pick(AssertImplementation, [
+      'AssertionError',
+      'deepEqual',
+      'deepStrictEqual',
+      'doesNotMatch',
+      'doesNotReject',
+      'doesNotThrow',
+      'equal',
+      'fail',
+      'ifError',
+      'match',
+      'notDeepEqual',
+      'notDeepStrictEqual',
+      'notEqual',
+      'notStrictEqual',
+      'ok',
+      'rejects',
+      'strict',
+      'strictEqual',
+      'throws',
+    ]),
+    'node:util': pick(UtilImplementation, [
+      '_extend' as any,
+      'callbackify',
+      'format',
+      'inherits',
+      'promisify',
+      'types',
+    ]),
+  }
+  return new Map(Object.entries(mods))
+})()
+
 /**
  * Create a module cache specific for the provided parameters. It includes
  * a runtime context, require cache and paths cache.
@@ -153,7 +221,18 @@ async function createModuleContext(options: ModuleContextOptions) {
         ? { strings: true, wasm: true }
         : undefined,
     extend: (context) => {
-      context.process = createProcessPolyfill(options)
+      context.process = createProcessPolyfill()
+
+      Object.defineProperty(context, 'require', {
+        enumerable: false,
+        value: (id: string) => {
+          const value = NativeModuleMap.get(id)
+          if (!value) {
+            throw TypeError('Native module not found: ' + id)
+          }
+          return value
+        },
+      })
 
       context.__next_eval__ = function __next_eval__(fn: Function) {
         const key = fn.toString()
@@ -322,12 +401,9 @@ interface ModuleContextOptions {
   moduleName: string
   onWarning: (warn: Error) => void
   useCache: boolean
-  env: string[]
   distDir: string
   edgeFunctionEntry: Pick<EdgeFunctionDefinition, 'assets' | 'wasm'>
 }
-
-const pendingModuleCaches = new Map<string, Promise<ModuleContext>>()
 
 function getModuleContextShared(options: ModuleContextOptions) {
   let deferredModuleContext = pendingModuleCaches.get(options.moduleName)
@@ -377,7 +453,7 @@ export async function getModuleContext(options: ModuleContextOptions): Promise<{
         moduleContext.paths.set(filepath, content)
       } catch (error) {
         if (options.useCache) {
-          moduleContext?.paths.delete(options.moduleName)
+          moduleContext?.paths.delete(filepath)
         }
         throw error
       }

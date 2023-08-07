@@ -22,6 +22,7 @@ export default function Page() {
   )
 }
 
+// Use config export
 export const config = {
   runtime: 'experimental-edge',
 }

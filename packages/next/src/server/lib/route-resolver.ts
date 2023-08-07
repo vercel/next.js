@@ -1,101 +1,292 @@
+import type { NextConfigComplete } from '../config-shared'
 import type { IncomingMessage, ServerResponse } from 'http'
-import type { UnwrapPromise } from '../../lib/coalesced-function'
-import type { NextConfig } from '../config'
-import type { Route } from '../router'
 
-export async function makeResolver(dir: string, nextConfig: NextConfig) {
-  const url = require('url') as typeof import('url')
-  const { default: Router } = require('../router') as typeof import('../router')
-  const { getPathMatch } =
-    require('../../shared/lib/router/utils/path-match') as typeof import('../../shared/lib/router/utils/path-match')
-  const { default: DevServer } =
-    require('../dev/next-dev-server') as typeof import('../dev/next-dev-server')
+import '../require-hook'
+import '../node-polyfill-fetch'
 
-  const { NodeNextRequest, NodeNextResponse } =
-    require('../base-http/node') as typeof import('../base-http/node')
+import url from 'url'
+import path from 'path'
+import http from 'http'
+import { findPageFile } from './find-page-file'
+import { getRequestMeta } from '../request-meta'
+import setupDebug from 'next/dist/compiled/debug'
+import { getCloneableBody } from '../body-streams'
+import { findPagesDir } from '../../lib/find-pages-dir'
+import { setupFsCheck } from './router-utils/filesystem'
+import { proxyRequest } from './router-utils/proxy-request'
+import { getResolveRoutes } from './router-utils/resolve-routes'
+import { PERMANENT_REDIRECT_STATUS } from '../../shared/lib/constants'
+import { splitCookiesString, toNodeOutgoingHttpHeaders } from '../web/utils'
+import { signalFromNodeResponse } from '../web/spec-extension/adapters/next-request'
+import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
+import { pipeReadable } from '../pipe-readable'
 
-  const { default: loadCustomRoutes } =
-    require('../../lib/load-custom-routes') as typeof import('../../lib/load-custom-routes')
-
-  const devServer = new DevServer({
-    dir,
-    conf: nextConfig,
-  }) as any as {
-    customRoutes: UnwrapPromise<ReturnType<typeof loadCustomRoutes>>
-    router: InstanceType<typeof Router>
-    generateRoutes: any
-  }
-  devServer.customRoutes = await loadCustomRoutes(nextConfig)
-  const routes = devServer.generateRoutes.bind(devServer)()
-  devServer.router = new Router(routes)
-  const routeResults = new Map<string, string>()
-
-  // @ts-expect-error internal field
-  devServer.router.catchAllRoute = {
-    match: getPathMatch('/:path*'),
-    name: 'catchall route',
-    fn: async (req, _res, _params, parsedUrl) => {
-      // clean up internal query values
-      for (const key of Object.keys(parsedUrl.query || {})) {
-        if (key.startsWith('_next')) {
-          delete parsedUrl.query[key]
-        }
+type RouteResult =
+  | {
+      type: 'rewrite'
+      url: string
+      statusCode: number
+      headers: Record<string, undefined | number | string | string[]>
+    }
+  | {
+      type: 'error'
+      error: {
+        name: string
+        message: string
+        stack: any[]
       }
+    }
+  | {
+      type: 'none'
+    }
 
-      routeResults.set(
-        (req as any)._initUrl,
-        url.format({
-          pathname: parsedUrl.pathname,
-          query: parsedUrl.query,
-          hash: parsedUrl.hash,
-        })
+type MiddlewareConfig = {
+  matcher: string[] | null
+  files: string[]
+}
+
+type ServerAddress = {
+  hostname?: string
+  port?: number
+}
+
+const debug = setupDebug('next:router-server')
+
+export async function makeResolver(
+  dir: string,
+  nextConfig: NextConfigComplete,
+  middleware: MiddlewareConfig,
+  serverAddr: Partial<ServerAddress>
+) {
+  const fsChecker = await setupFsCheck({
+    dir,
+    dev: true,
+    minimalMode: false,
+    config: nextConfig,
+  })
+  const { appDir, pagesDir } = findPagesDir(
+    dir,
+    !!nextConfig.experimental.appDir
+  )
+
+  fsChecker.ensureCallback(async (item) => {
+    let result: string | null = null
+
+    if (item.type === 'appFile') {
+      if (!appDir) {
+        throw new Error('no app dir present')
+      }
+      result = await findPageFile(
+        appDir,
+        item.itemPath,
+        nextConfig.pageExtensions,
+        true
       )
-      return { finished: true }
-    },
-  } as Route
-
-  // @ts-expect-error internal field
-  devServer.router.compiledRoutes = devServer.router.compiledRoutes.filter(
-    (route: Route) => {
-      return (
-        route.type === 'rewrite' ||
-        route.type === 'redirect' ||
-        route.type === 'header' ||
-        route.name === 'catchall route' ||
-        route.name?.includes('check')
+    } else if (item.type === 'pageFile') {
+      if (!pagesDir) {
+        throw new Error('no pages dir present')
+      }
+      result = await findPageFile(
+        pagesDir,
+        item.itemPath,
+        nextConfig.pageExtensions,
+        false
       )
     }
+    if (!result) {
+      throw new Error(`failed to find page file ${item.type} ${item.itemPath}`)
+    }
+  })
+
+  const distDir = path.join(dir, nextConfig.distDir)
+  const middlewareInfo = middleware
+    ? {
+        name: 'middleware',
+        paths: middleware.files.map((file) => path.join(process.cwd(), file)),
+        wasm: [],
+        assets: [],
+      }
+    : {}
+
+  const middlewareServerPort = await new Promise((resolve) => {
+    const srv = http.createServer(async (req, res) => {
+      const cloneableBody = getCloneableBody(req)
+      try {
+        const { run } =
+          require('../web/sandbox') as typeof import('../web/sandbox')
+
+        const result = await run({
+          distDir,
+          name: middlewareInfo.name || '/',
+          paths: middlewareInfo.paths || [],
+          edgeFunctionEntry: middlewareInfo,
+          request: {
+            headers: req.headers,
+            method: req.method || 'GET',
+            nextConfig: {
+              i18n: nextConfig.i18n,
+              basePath: nextConfig.basePath,
+              trailingSlash: nextConfig.trailingSlash,
+            },
+            url: `http://${serverAddr.hostname || 'localhost'}:${
+              serverAddr.port || 3000
+            }${req.url}`,
+            body: cloneableBody,
+            signal: signalFromNodeResponse(res),
+          },
+          useCache: true,
+          onWarning: console.warn,
+        })
+
+        for (let [key, value] of result.response.headers) {
+          if (key.toLowerCase() !== 'set-cookie') continue
+
+          // Clear existing header.
+          result.response.headers.delete(key)
+
+          // Append each cookie individually.
+          const cookies = splitCookiesString(value)
+          for (const cookie of cookies) {
+            result.response.headers.append(key, cookie)
+          }
+        }
+
+        for (const [key, value] of Object.entries(
+          toNodeOutgoingHttpHeaders(result.response.headers)
+        )) {
+          if (key !== 'content-encoding' && value !== undefined) {
+            res.setHeader(key, value as string | string[])
+          }
+        }
+        res.statusCode = result.response.status
+
+        if (result.response.body) {
+          await pipeReadable(result.response.body, res)
+        } else {
+          res.end()
+        }
+      } catch (err) {
+        console.error(err)
+        res.statusCode = 500
+        res.end('Internal Server Error')
+      }
+    })
+    srv.on('listening', () => {
+      resolve((srv.address() as any).port)
+    })
+    srv.listen(0)
+  })
+
+  if (middleware?.files.length) {
+    fsChecker.middlewareMatcher = getMiddlewareRouteMatcher(
+      middleware.matcher?.map((item) => ({
+        regexp: item,
+        originalSource: item,
+      })) || [{ regexp: '.*', originalSource: '/:path*' }]
+    )
+  }
+
+  const resolveRoutes = getResolveRoutes(
+    fsChecker,
+    nextConfig,
+    {
+      dir,
+      port: serverAddr.port || 3000,
+      hostname: serverAddr.hostname,
+      isNodeDebugging: false,
+      dev: true,
+      workerType: 'render',
+    },
+    {
+      pages: {
+        async initialize() {
+          return {
+            port: middlewareServerPort,
+            hostname: '127.0.0.1',
+          }
+        },
+        async deleteCache() {},
+        async clearModuleContext() {},
+        async deleteAppClientCache() {},
+        async propagateServerField() {},
+      } as any,
+    },
+    {} as any
   )
 
   return async function resolveRoute(
-    _req: IncomingMessage,
-    _res: ServerResponse
-  ) {
-    const req = new NodeNextRequest(_req)
-    const res = new NodeNextResponse(_res)
-    ;(req as any)._initUrl = req.url
-
-    await devServer.router.execute.bind(devServer.router)(
+    req: IncomingMessage,
+    res: ServerResponse
+  ): Promise<RouteResult | void> {
+    const routeResult = await resolveRoutes(
       req,
-      res,
-      url.parse(req.url!, true)
+      new Set(),
+      false,
+      signalFromNodeResponse(res)
     )
+    const {
+      matchedOutput,
+      bodyStream,
+      statusCode,
+      parsedUrl,
+      resHeaders,
+      finished,
+    } = routeResult
 
-    if (!res.originalResponse.headersSent) {
-      res.setHeader('x-nextjs-route-result', '1')
-      const resolvedUrl = routeResults.get((req as any)._initUrl) || req.url!
-      const routeResult: {
-        url: string
-        statusCode: number
-        headers: Record<string, undefined | number | string | string[]>
-        isRedirect?: boolean
-      } = {
-        url: resolvedUrl,
-        statusCode: 200,
-        headers: {},
+    debug('requestHandler!', req.url, {
+      matchedOutput,
+      statusCode,
+      resHeaders,
+      bodyStream: !!bodyStream,
+      parsedUrl: {
+        pathname: parsedUrl.pathname,
+        query: parsedUrl.query,
+      },
+      finished,
+    })
+
+    for (const key of Object.keys(resHeaders || {})) {
+      res.setHeader(key, resHeaders[key])
+    }
+
+    if (!bodyStream && statusCode && statusCode > 300 && statusCode < 400) {
+      const destination = url.format(parsedUrl)
+      res.statusCode = statusCode
+      res.setHeader('location', destination)
+
+      if (statusCode === PERMANENT_REDIRECT_STATUS) {
+        res.setHeader('Refresh', `0;url=${destination}`)
       }
+      res.end(destination)
+      return
+    }
 
-      res.body(JSON.stringify(routeResult)).send()
+    // handle middleware body response
+    if (bodyStream) {
+      res.statusCode = statusCode || 200
+      return await pipeReadable(bodyStream, res)
+    }
+
+    if (finished && parsedUrl.protocol) {
+      await proxyRequest(
+        req,
+        res,
+        parsedUrl,
+        undefined,
+        getRequestMeta(req, '__NEXT_CLONABLE_BODY')?.cloneBodyStream(),
+        nextConfig.experimental.proxyTimeout
+      )
+      return
+    }
+
+    res.setHeader('x-nextjs-route-result', '1')
+    res.end()
+
+    return {
+      type: 'rewrite',
+      statusCode: 200,
+      headers: resHeaders,
+      url: url.format(parsedUrl),
     }
   }
 }

@@ -2,29 +2,16 @@ import { promises } from 'fs'
 import '../server/node-polyfill-fetch'
 import * as Log from '../build/output/log'
 import findUp from 'next/dist/compiled/find-up'
-import { execSync } from 'child_process'
 // @ts-ignore no-json types
 import nextPkgJson from 'next/package.json'
 import type { UnwrapPromise } from './coalesced-function'
 import { isCI } from '../telemetry/ci-info'
+import { getRegistry } from './helpers/get-registry'
 
 let registry: string | undefined
 
 async function fetchPkgInfo(pkg: string) {
-  if (!registry) {
-    try {
-      const output = execSync('npm config get registry').toString().trim()
-      if (output.startsWith('http')) {
-        registry = output
-
-        if (!registry.endsWith('/')) {
-          registry += '/'
-        }
-      }
-    } catch (_) {
-      registry = `https://registry.npmjs.org/`
-    }
-  }
+  if (!registry) registry = getRegistry()
   const res = await fetch(`${registry}${pkg}`)
 
   if (!res.ok) {
@@ -70,7 +57,7 @@ export async function patchIncorrectLockfile(dir: string) {
 
   const lockfileParsed = JSON.parse(content)
   const lockfileVersion = parseInt(lockfileParsed?.lockfileVersion, 10)
-  const expectedSwcPkgs = Object.keys(nextPkgJson.optionalDependencies || {})
+  const expectedSwcPkgs = Object.keys(nextPkgJson['optionalDependencies'] || {})
 
   const patchDependency = (
     pkg: string,

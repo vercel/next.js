@@ -52,5 +52,10 @@ createNextDescribe(
         await browser.elementByCss('#css-text-dynamic-no-ssr-client').text()
       ).toBe('next-dynamic dynamic no ssr on client:suffix')
     })
+
+    it('should generate correct client manifest for dynamic chunks', async () => {
+      const $ = await next.render$('/chunk-loading/server')
+      expect($('h1').text()).toBe('hello')
+    })
   }
 )

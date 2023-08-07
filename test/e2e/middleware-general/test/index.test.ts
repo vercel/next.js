@@ -70,6 +70,24 @@ describe('Middleware Runtime', () => {
   }
 
   function runTests({ i18n }: { i18n?: boolean }) {
+    it('should work with notFound: true correctly', async () => {
+      const browser = await next.browser('/ssr-page')
+      await browser.eval('window.beforeNav = 1')
+      await browser.eval('window.next.router.push("/ssg/not-found-1")')
+
+      await check(
+        () => browser.eval('document.documentElement.innerHTML'),
+        /This page could not be found/
+      )
+      expect(await browser.eval('window.beforeNav')).toBe(1)
+
+      await browser.refresh()
+      await check(
+        () => browser.eval('document.documentElement.innerHTML'),
+        /This page could not be found/
+      )
+    })
+
     it('should be able to rewrite on _next/static/chunks/pages/ 404', async () => {
       const res = await fetchViaHTTP(
         next.url,
@@ -109,7 +127,7 @@ describe('Middleware Runtime', () => {
           `/_next/static/${next.buildId}/_devMiddlewareManifest.json`
         )
         const matchers = await res.json()
-        expect(matchers).toEqual([{ regexp: '.*' }])
+        expect(matchers).toEqual([{ regexp: '.*', originalSource: '/:path*' }])
       })
     }
 
@@ -120,18 +138,13 @@ describe('Middleware Runtime', () => {
         )
         expect(manifest.middleware).toEqual({
           '/': {
-            env: [
-              'MIDDLEWARE_TEST',
-              'ANOTHER_MIDDLEWARE_TEST',
-              'STRING_ENV_VAR',
-            ],
             files: expect.arrayContaining([
               'server/edge-runtime-webpack.js',
               'server/middleware.js',
             ]),
             name: 'middleware',
             page: '/',
-            matchers: [{ regexp: '^/.*$' }],
+            matchers: [{ regexp: '^/.*$', originalSource: '/:path*' }],
             wasm: [],
             assets: [],
             regions: 'auto',
@@ -146,7 +159,7 @@ describe('Middleware Runtime', () => {
 
         expect(manifest.functions['/api/edge-search-params']).toHaveProperty(
           'regions',
-          'default'
+          'auto'
         )
       })
 
@@ -463,22 +476,22 @@ describe('Middleware Runtime', () => {
       })
     }
 
-    it('should contain process polyfill', async () => {
+    it('allows to access env variables', async () => {
       const res = await fetchViaHTTP(next.url, `/global`)
-      expect(readMiddlewareJSON(res)).toEqual({
-        process: {
-          env: {
-            ANOTHER_MIDDLEWARE_TEST: 'asdf2',
-            STRING_ENV_VAR: 'asdf3',
-            MIDDLEWARE_TEST: 'asdf',
-            ...((global as any).isNextDeploy
-              ? {}
-              : {
-                  NEXT_RUNTIME: 'edge',
-                }),
-          },
-        },
-      })
+      const json = readMiddlewareJSON(res)
+
+      for (const [key, value] of Object.entries({
+        ANOTHER_MIDDLEWARE_TEST: 'asdf2',
+        STRING_ENV_VAR: 'asdf3',
+        MIDDLEWARE_TEST: 'asdf',
+        ...((global as any).isNextDeploy
+          ? {}
+          : {
+              NEXT_RUNTIME: 'edge',
+            }),
+      })) {
+        expect(json.process.env[key]).toBe(value)
+      }
     })
 
     it(`should contain \`globalThis\``, async () => {

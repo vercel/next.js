@@ -9,29 +9,31 @@ import { getModuleBuildInfo } from '../loaders/get-module-build-info'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import { isMatch } from 'next/dist/compiled/micromatch'
+import path from 'path'
 import {
   EDGE_RUNTIME_WEBPACK,
   EDGE_UNSUPPORTED_NODE_APIS,
   MIDDLEWARE_BUILD_MANIFEST,
-  FLIGHT_MANIFEST,
+  CLIENT_REFERENCE_MANIFEST,
   MIDDLEWARE_MANIFEST,
   MIDDLEWARE_REACT_LOADABLE_MANIFEST,
-  NEXT_CLIENT_SSR_ENTRY_SUFFIX,
-  FLIGHT_SERVER_CSS_MANIFEST,
   SUBRESOURCE_INTEGRITY_MANIFEST,
-  FONT_LOADER_MANIFEST,
+  NEXT_FONT_MANIFEST,
+  SERVER_REFERENCE_MANIFEST,
+  PRERENDER_MANIFEST,
 } from '../../../shared/lib/constants'
-import {
-  getPageStaticInfo,
-  MiddlewareConfig,
-} from '../../analysis/get-page-static-info'
+import { MiddlewareConfig } from '../../analysis/get-page-static-info'
 import { Telemetry } from '../../../telemetry/storage'
 import { traceGlobals } from '../../../trace/shared'
 import { EVENT_BUILD_FEATURE_USAGE } from '../../../telemetry/events'
 import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
+import { INSTRUMENTATION_HOOK_FILENAME } from '../../../lib/constants'
+import { NextBuildContext } from '../../build-context'
+
+const KNOWN_SAFE_DYNAMIC_PACKAGES =
+  require('../../../lib/known-edge-safe-packages.json') as string[]
 
 export interface EdgeFunctionDefinition {
-  env: string[]
   files: string[]
   name: string
   page: string
@@ -52,7 +54,6 @@ interface EntryMetadata {
   edgeMiddleware?: EdgeMiddlewareMeta
   edgeApiFunction?: EdgeMiddlewareMeta
   edgeSSR?: EdgeSSRMeta
-  env: Set<string>
   wasmBindings: Map<string, string>
   assetBindings: Map<string, string>
   regions?: string[] | string
@@ -90,13 +91,14 @@ function isUsingIndirectEvalAndUsedByExports(args: {
 function getEntryFiles(
   entryFiles: string[],
   meta: EntryMetadata,
-  opts: { sriEnabled: boolean; hasFontLoaders: boolean }
+  opts: {
+    sriEnabled: boolean
+  }
 ) {
   const files: string[] = []
   if (meta.edgeSSR) {
     if (meta.edgeSSR.isServerComponent) {
-      files.push(`server/${FLIGHT_MANIFEST}.js`)
-      files.push(`server/${FLIGHT_SERVER_CSS_MANIFEST}.js`)
+      files.push(`server/${SERVER_REFERENCE_MANIFEST}.js`)
       if (opts.sriEnabled) {
         files.push(`server/${SUBRESOURCE_INTEGRITY_MANIFEST}.js`)
       }
@@ -104,13 +106,12 @@ function getEntryFiles(
         ...entryFiles
           .filter(
             (file) =>
-              file.startsWith('pages/') && !file.endsWith('.hot-update.js')
+              file.startsWith('app/') && !file.endsWith('.hot-update.js')
           )
           .map(
             (file) =>
               'server/' +
-              // TODO-APP: seems this should be removed.
-              file.replace('.js', NEXT_CLIENT_SSR_ENTRY_SUFFIX + '.js')
+              file.replace('.js', '_' + CLIENT_REFERENCE_MANIFEST + '.js')
           )
       )
     }
@@ -120,9 +121,15 @@ function getEntryFiles(
       `server/${MIDDLEWARE_REACT_LOADABLE_MANIFEST}.js`
     )
 
-    if (opts.hasFontLoaders) {
-      files.push(`server/${FONT_LOADER_MANIFEST}.js`)
-    }
+    files.push(`server/${NEXT_FONT_MANIFEST}.js`)
+  }
+
+  if (NextBuildContext!.hasInstrumentationHook) {
+    files.push(`server/edge-${INSTRUMENTATION_HOOK_FILENAME}.js`)
+  }
+
+  if (process.env.NODE_ENV === 'production') {
+    files.push(PRERENDER_MANIFEST.replace('json', 'js'))
   }
 
   files.push(
@@ -130,13 +137,16 @@ function getEntryFiles(
       .filter((file) => !file.endsWith('.hot-update.js'))
       .map((file) => 'server/' + file)
   )
+
   return files
 }
 
 function getCreateAssets(params: {
   compilation: webpack.Compilation
   metadataByEntry: Map<string, EntryMetadata>
-  opts: { sriEnabled: boolean; hasFontLoaders: boolean }
+  opts: {
+    sriEnabled: boolean
+  }
 }) {
   const { compilation, metadataByEntry, opts } = params
   return (assets: any) => {
@@ -161,18 +171,23 @@ function getCreateAssets(params: {
         continue
       }
 
-      const { namedRegex } = getNamedMiddlewareRegex(
-        metadata.edgeSSR?.isAppDir ? normalizeAppPath(page) : page,
-        {
-          catchAll: !metadata.edgeSSR && !metadata.edgeApiFunction,
-        }
-      )
+      const matcherSource = metadata.edgeSSR?.isAppDir
+        ? normalizeAppPath(page)
+        : page
+
+      const catchAll = !metadata.edgeSSR && !metadata.edgeApiFunction
+
+      const { namedRegex } = getNamedMiddlewareRegex(matcherSource, {
+        catchAll,
+      })
       const matchers = metadata?.edgeMiddleware?.matchers ?? [
-        { regexp: namedRegex },
+        {
+          regexp: namedRegex,
+          originalSource: page === '/' && catchAll ? '/:path*' : matcherSource,
+        },
       ]
 
       const edgeFunctionDefinition: EdgeFunctionDefinition = {
-        env: Array.from(metadata.env),
         files: getEntryFiles(entrypoint.getFiles(), metadata, opts),
         name: entrypoint.name,
         page: page,
@@ -232,28 +247,27 @@ function isInMiddlewareLayer(parser: webpack.javascript.JavascriptParser) {
   return parser.state.module?.layer === 'middleware'
 }
 
-function isProcessEnvMemberExpression(memberExpression: any): boolean {
-  return (
-    memberExpression.object?.type === 'Identifier' &&
-    memberExpression.object.name === 'process' &&
-    ((memberExpression.property?.type === 'Literal' &&
-      memberExpression.property.value === 'env') ||
-      (memberExpression.property?.type === 'Identifier' &&
-        memberExpression.property.name === 'env'))
-  )
-}
-
 function isNodeJsModule(moduleName: string) {
   return require('module').builtinModules.includes(moduleName)
 }
 
 function isDynamicCodeEvaluationAllowed(
   fileName: string,
-  edgeFunctionConfig?: Partial<MiddlewareConfig>,
+  middlewareConfig?: MiddlewareConfig,
   rootDir?: string
 ) {
+  // Some packages are known to use `eval` but are safe to use in the Edge
+  // Runtime because the dynamic code will never be executed.
+  if (
+    KNOWN_SAFE_DYNAMIC_PACKAGES.some((pkg) =>
+      fileName.includes(`/node_modules/${pkg}/`.replace(/\//g, path.sep))
+    )
+  ) {
+    return true
+  }
+
   const name = fileName.replace(rootDir ?? '', '')
-  return isMatch(name, edgeFunctionConfig?.unstable_allowDynamicGlobs ?? [])
+  return isMatch(name, middlewareConfig?.unstable_allowDynamicGlobs ?? [])
 }
 
 function buildUnsupportedApiError({
@@ -446,32 +460,6 @@ function getCodeAnalyzer(params: {
     }
 
     /**
-     * Declares an environment variable that is being used in this module
-     * through this static analysis.
-     */
-    const addUsedEnvVar = (envVarName: string) => {
-      const buildInfo = getModuleBuildInfo(parser.state.module)
-      if (buildInfo.nextUsedEnvVars === undefined) {
-        buildInfo.nextUsedEnvVars = new Set()
-      }
-
-      buildInfo.nextUsedEnvVars.add(envVarName)
-    }
-
-    /**
-     * A handler for calls to `process.env` where we identify the name of the
-     * ENV variable being assigned and store it in the module info.
-     */
-    const handleCallMemberChain = (_: unknown, members: string[]) => {
-      if (members.length >= 2 && members[0] === 'env') {
-        addUsedEnvVar(members[1])
-        if (!isInMiddlewareLayer(parser)) {
-          return true
-        }
-      }
-    }
-
-    /**
      * Handler to store original source location of static and dynamic imports into module's buildInfo.
      */
     const handleImport = (node: any) => {
@@ -482,7 +470,7 @@ function getCodeAnalyzer(params: {
           buildInfo.importLocByPath = new Map()
         }
 
-        const importedModule = node.source.value?.toString()!
+        const importedModule = node.source.value?.toString()
         buildInfo.importLocByPath.set(importedModule, {
           sourcePosition: {
             ...node.loc.start,
@@ -525,73 +513,12 @@ Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime`,
         .tap(NAME, handleWrapWasmInstantiateExpression)
     }
 
-    hooks.callMemberChain.for('process').tap(NAME, handleCallMemberChain)
-    hooks.expressionMemberChain.for('process').tap(NAME, handleCallMemberChain)
     hooks.importCall.tap(NAME, handleImport)
     hooks.import.tap(NAME, handleImport)
 
-    /**
-     * Support static analyzing environment variables through
-     * destructuring `process.env` or `process["env"]`:
-     *
-     * const { MY_ENV, "MY-ENV": myEnv } = process.env
-     *         ^^^^^^   ^^^^^^
-     */
-    hooks.declarator.tap(NAME, (declarator) => {
-      if (
-        declarator.init?.type === 'MemberExpression' &&
-        isProcessEnvMemberExpression(declarator.init) &&
-        declarator.id?.type === 'ObjectPattern'
-      ) {
-        for (const property of declarator.id.properties) {
-          if (property.type === 'RestElement') continue
-          if (
-            property.key.type === 'Literal' &&
-            typeof property.key.value === 'string'
-          ) {
-            addUsedEnvVar(property.key.value)
-          } else if (property.key.type === 'Identifier') {
-            addUsedEnvVar(property.key.name)
-          }
-        }
-
-        if (!isInMiddlewareLayer(parser)) {
-          return true
-        }
-      }
-    })
     if (!dev) {
       // do not issue compilation warning on dev: invoking code will provide details
       registerUnsupportedApiHooks(parser, compilation)
-    }
-  }
-}
-
-async function findEntryEdgeFunctionConfig(
-  entryDependency: any,
-  resolver: webpack.Resolver
-) {
-  if (entryDependency?.request?.startsWith('next-')) {
-    const absolutePagePath =
-      new URL(entryDependency.request, 'http://example.org').searchParams.get(
-        'absolutePagePath'
-      ) ?? ''
-    const pageFilePath = await new Promise((resolve) =>
-      resolver.resolve({}, '/', absolutePagePath, {}, (err, path) =>
-        resolve(err || path)
-      )
-    )
-    if (typeof pageFilePath === 'string') {
-      return {
-        file: pageFilePath,
-        config: (
-          await getPageStaticInfo({
-            nextConfig: {},
-            pageFilePath,
-            isDev: false,
-          })
-        ).middleware,
-      }
     }
   }
 }
@@ -601,12 +528,11 @@ function getExtractMetadata(params: {
   compiler: webpack.Compiler
   dev: boolean
   metadataByEntry: Map<string, EntryMetadata>
-}) {
+}): () => Promise<void> {
   const { dev, compilation, metadataByEntry, compiler } = params
   const { webpack: wp } = compiler
   return async () => {
     metadataByEntry.clear()
-    const resolver = compilation.resolverFactory.get('normal')
     const telemetry: Telemetry | undefined = traceGlobals.get('telemetry')
 
     for (const [entryName, entry] of compilation.entries) {
@@ -615,11 +541,7 @@ function getExtractMetadata(params: {
         continue
       }
       const entryDependency = entry.dependencies?.[0]
-      const edgeFunctionConfig = await findEntryEdgeFunctionConfig(
-        entryDependency,
-        resolver
-      )
-      const { rootDir } = getModuleBuildInfo(
+      const { rootDir, route } = getModuleBuildInfo(
         compilation.moduleGraph.getResolvedModule(entryDependency)
       )
 
@@ -636,10 +558,23 @@ function getExtractMetadata(params: {
       entry.includeDependencies.forEach(addEntriesFromDependency)
 
       const entryMetadata: EntryMetadata = {
-        env: new Set<string>(),
         wasmBindings: new Map(),
         assetBindings: new Map(),
       }
+
+      if (route?.middlewareConfig?.regions) {
+        entryMetadata.regions = route.middlewareConfig.regions
+      }
+
+      if (route?.preferredRegion) {
+        const preferredRegion = route.preferredRegion
+        entryMetadata.regions =
+          // Ensures preferredRegion is always an array in the manifest.
+          typeof preferredRegion === 'string'
+            ? [preferredRegion]
+            : preferredRegion
+      }
+
       let ogImageGenerationCount = 0
 
       for (const module of modules) {
@@ -652,7 +587,7 @@ function getExtractMetadata(params: {
           const resource = module.resource
           const hasOGImageGeneration =
             resource &&
-            /[\\/]node_modules[\\/]@vercel[\\/]og[\\/]dist[\\/]index.js$/.test(
+            /[\\/]node_modules[\\/]@vercel[\\/]og[\\/]dist[\\/]index\.(edge|node)\.js$|[\\/]next[\\/]dist[\\/](esm[\\/])?server[\\/]web[\\/]spec-extension[\\/]image-response\.js$/.test(
               resource
             )
 
@@ -681,13 +616,12 @@ function getExtractMetadata(params: {
           if (/node_modules[\\/]regenerator-runtime[\\/]runtime\.js/.test(id)) {
             continue
           }
-
-          if (edgeFunctionConfig?.config?.unstable_allowDynamicGlobs) {
+          if (route?.middlewareConfig?.unstable_allowDynamicGlobs) {
             telemetry?.record({
               eventName: 'NEXT_EDGE_ALLOW_DYNAMIC_USED',
               payload: {
-                ...edgeFunctionConfig,
-                file: edgeFunctionConfig.file.replace(rootDir ?? '', ''),
+                file: route?.absolutePagePath.replace(rootDir ?? '', ''),
+                config: route?.middlewareConfig,
                 fileWithDynamicCode: module.userRequest.replace(
                   rootDir ?? '',
                   ''
@@ -698,7 +632,7 @@ function getExtractMetadata(params: {
           if (
             !isDynamicCodeEvaluationAllowed(
               module.userRequest,
-              edgeFunctionConfig?.config,
+              route?.middlewareConfig,
               rootDir
             )
           ) {
@@ -718,10 +652,6 @@ function getExtractMetadata(params: {
           }
         }
 
-        if (edgeFunctionConfig?.config?.regions) {
-          entryMetadata.regions = edgeFunctionConfig.config.regions
-        }
-
         /**
          * The entry module has to be either a page or a middleware and hold
          * the corresponding metadata.
@@ -732,16 +662,6 @@ function getExtractMetadata(params: {
           entryMetadata.edgeMiddleware = buildInfo.nextEdgeMiddleware
         } else if (buildInfo?.nextEdgeApiFunction) {
           entryMetadata.edgeApiFunction = buildInfo.nextEdgeApiFunction
-        }
-
-        /**
-         * If there are env vars found in the module, append them to the set
-         * of env vars for the entry.
-         */
-        if (buildInfo?.nextUsedEnvVars !== undefined) {
-          for (const envName of buildInfo.nextUsedEnvVars) {
-            entryMetadata.env.add(envName)
-          }
         }
 
         /**
@@ -787,20 +707,10 @@ function getExtractMetadata(params: {
 export default class MiddlewarePlugin {
   private readonly dev: boolean
   private readonly sriEnabled: boolean
-  private readonly hasFontLoaders: boolean
 
-  constructor({
-    dev,
-    sriEnabled,
-    hasFontLoaders,
-  }: {
-    dev: boolean
-    sriEnabled: boolean
-    hasFontLoaders: boolean
-  }) {
+  constructor({ dev, sriEnabled }: { dev: boolean; sriEnabled: boolean }) {
     this.dev = dev
     this.sriEnabled = sriEnabled
-    this.hasFontLoaders = hasFontLoaders
   }
 
   public apply(compiler: webpack.Compiler) {
@@ -845,12 +755,30 @@ export default class MiddlewarePlugin {
           metadataByEntry,
           opts: {
             sriEnabled: this.sriEnabled,
-            hasFontLoaders: this.hasFontLoaders,
           },
         })
       )
     })
   }
+}
+
+export const SUPPORTED_NATIVE_MODULES = [
+  'buffer',
+  'events',
+  'assert',
+  'util',
+  'async_hooks',
+] as const
+
+const supportedEdgePolyfills = new Set<string>(SUPPORTED_NATIVE_MODULES)
+
+export function getEdgePolyfilledModules() {
+  const records: Record<string, string> = {}
+  for (const mod of SUPPORTED_NATIVE_MODULES) {
+    records[mod] = `commonjs node:${mod}`
+    records[`node:${mod}`] = `commonjs node:${mod}`
+  }
+  return records
 }
 
 export async function handleWebpackExternalForEdgeRuntime({
@@ -864,7 +792,11 @@ export async function handleWebpackExternalForEdgeRuntime({
   contextInfo: any
   getResolve: () => any
 }) {
-  if (contextInfo.issuerLayer === 'middleware' && isNodeJsModule(request)) {
+  if (
+    contextInfo.issuerLayer === 'middleware' &&
+    isNodeJsModule(request) &&
+    !supportedEdgePolyfills.has(request)
+  ) {
     // allows user to provide and use their polyfills, as we do with buffer.
     try {
       await getResolve()(context, request)

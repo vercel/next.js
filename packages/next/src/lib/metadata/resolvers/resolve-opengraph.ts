@@ -1,15 +1,24 @@
-import type { Metadata, ResolvedMetadata } from '../types/metadata-interface'
+import type { ResolvedMetadata } from '../types/metadata-interface'
 import type {
   OpenGraphType,
   OpenGraph,
   ResolvedOpenGraph,
 } from '../types/opengraph-types'
-import type { FieldResolverWithMetadataBase } from '../types/resolvers'
-import type { ResolvedTwitterMetadata } from '../types/twitter-types'
+import type {
+  FieldResolverExtraArgs,
+  MetadataContext,
+} from '../types/resolvers'
+import type { ResolvedTwitterMetadata, Twitter } from '../types/twitter-types'
 import { resolveAsArrayOrUndefined } from '../generate/utils'
-import { isStringOrURL, resolveUrl } from './resolve-url'
+import {
+  getSocialImageFallbackMetadataBase,
+  isStringOrURL,
+  resolveUrl,
+  resolveAbsoluteUrlWithPathname,
+} from './resolve-url'
+import { resolveTitle } from './resolve-title'
 
-const OgTypFields = {
+const OgTypeFields = {
   article: ['authors', 'tags'],
   song: ['albums', 'musicians'],
   playlist: ['albums', 'musicians'],
@@ -20,42 +29,78 @@ const OgTypFields = {
     'phoneNumbers',
     'faxNumbers',
     'alternateLocale',
-    'images',
     'audio',
     'videos',
   ],
 } as const
 
+export function resolveImages(
+  images: Twitter['images'],
+  metadataBase: ResolvedMetadata['metadataBase']
+): NonNullable<ResolvedMetadata['twitter']>['images']
+export function resolveImages(
+  images: OpenGraph['images'],
+  metadataBase: ResolvedMetadata['metadataBase']
+): NonNullable<ResolvedMetadata['openGraph']>['images']
+export function resolveImages(
+  images: OpenGraph['images'] | Twitter['images'],
+  metadataBase: ResolvedMetadata['metadataBase']
+):
+  | NonNullable<ResolvedMetadata['twitter']>['images']
+  | NonNullable<ResolvedMetadata['openGraph']>['images'] {
+  const resolvedImages = resolveAsArrayOrUndefined(images)
+  if (!resolvedImages) return resolvedImages
+
+  const nonNullableImages = []
+  for (const item of resolvedImages) {
+    if (!item) continue
+    const isItemUrl = isStringOrURL(item)
+    const inputUrl = isItemUrl ? item : item.url
+    if (!inputUrl) continue
+
+    nonNullableImages.push(
+      isItemUrl
+        ? {
+            url: resolveUrl(item, metadataBase),
+          }
+        : {
+            ...item,
+            // Update image descriptor url
+            url: resolveUrl(item.url, metadataBase),
+          }
+    )
+  }
+
+  return nonNullableImages
+}
+
 function getFieldsByOgType(ogType: OpenGraphType | undefined) {
   switch (ogType) {
     case 'article':
     case 'book':
-      return OgTypFields.article
+      return OgTypeFields.article
     case 'music.song':
     case 'music.album':
-      return OgTypFields.song
+      return OgTypeFields.song
     case 'music.playlist':
-      return OgTypFields.playlist
+      return OgTypeFields.playlist
     case 'music.radio_station':
-      return OgTypFields.radio
+      return OgTypeFields.radio
     case 'video.movie':
     case 'video.episode':
-      return OgTypFields.video
+      return OgTypeFields.video
     default:
-      return OgTypFields.basic
+      return OgTypeFields.basic
   }
 }
 
-export function resolveOpenGraph(
-  openGraph: Metadata['openGraph'],
-  metadataBase: ResolvedMetadata['metadataBase']
-): ResolvedMetadata['openGraph'] {
+export const resolveOpenGraph: FieldResolverExtraArgs<
+  'openGraph',
+  [ResolvedMetadata['metadataBase'], MetadataContext, string | null]
+> = (openGraph, metadataBase, { pathname }, titleTemplate) => {
   if (!openGraph) return null
 
-  const url = resolveUrl(openGraph.url, metadataBase)
-  const resolved = { ...openGraph } as ResolvedOpenGraph
-
-  function assignProps(og: OpenGraph) {
+  function resolveProps(target: ResolvedOpenGraph, og: OpenGraph) {
     const ogType = og && 'type' in og ? og.type : undefined
     const keys = getFieldsByOgType(ogType)
     for (const k of keys) {
@@ -65,15 +110,24 @@ export function resolveOpenGraph(
         if (value) {
           const arrayValue = resolveAsArrayOrUndefined(value)
           /// TODO: improve typing inferring
-          ;(resolved as any)[key] = arrayValue
+          ;(target as any)[key] = arrayValue
         }
       }
     }
+
+    const imageMetadataBase = getSocialImageFallbackMetadataBase(metadataBase)
+    target.images = resolveImages(og.images, imageMetadataBase)
   }
 
-  assignProps(openGraph)
+  const resolved = {
+    ...openGraph,
+    title: resolveTitle(openGraph.title, titleTemplate),
+  } as ResolvedOpenGraph
+  resolveProps(resolved, openGraph)
 
-  resolved.url = url
+  resolved.url = openGraph.url
+    ? resolveAbsoluteUrlWithPathname(openGraph.url, metadataBase, pathname)
+    : null
 
   return resolved
 }
@@ -86,47 +140,35 @@ const TwitterBasicInfoKeys = [
   'description',
 ] as const
 
-export const resolveTwitter: FieldResolverWithMetadataBase<'twitter'> = (
-  twitter,
-  metadataBase
-) => {
+export const resolveTwitter: FieldResolverExtraArgs<
+  'twitter',
+  [ResolvedMetadata['metadataBase'], string | null]
+> = (twitter, metadataBase, titleTemplate) => {
   if (!twitter) return null
   const resolved = {
-    title: twitter.title,
+    ...twitter,
+    card: 'card' in twitter ? twitter.card : 'summary',
+    title: resolveTitle(twitter.title, titleTemplate),
   } as ResolvedTwitterMetadata
   for (const infoKey of TwitterBasicInfoKeys) {
     resolved[infoKey] = twitter[infoKey] || null
   }
-  resolved.images = resolveAsArrayOrUndefined(twitter.images)?.map((item) => {
-    if (isStringOrURL(item))
-      return {
-        url: resolveUrl(item, metadataBase),
-      }
-    else {
-      return {
-        url: resolveUrl(item.url, metadataBase),
-        alt: item.alt,
-      }
-    }
-  })
-  if ('card' in twitter) {
-    resolved.card = twitter.card
-    switch (twitter.card) {
+  const imageMetadataBase = getSocialImageFallbackMetadataBase(metadataBase)
+  resolved.images = resolveImages(twitter.images, imageMetadataBase)
+
+  if ('card' in resolved) {
+    switch (resolved.card) {
       case 'player': {
-        // @ts-ignore
-        resolved.players = resolveAsArrayOrUndefined(twitter.players) || []
+        resolved.players = resolveAsArrayOrUndefined(resolved.players) || []
         break
       }
       case 'app': {
-        // @ts-ignore
-        resolved.app = twitter.app || {}
+        resolved.app = resolved.app || {}
         break
       }
       default:
         break
     }
-  } else {
-    resolved.card = 'summary'
   }
 
   return resolved

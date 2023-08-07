@@ -1,4 +1,5 @@
 // TODO: Remove use of `any` type.
+import './webpack'
 import { initialize, hydrate, version, router, emitter } from './'
 import initOnDemandEntries from './dev/on-demand-entries-client'
 import initWebpackHMR from './dev/webpack-hot-middleware-client'
@@ -10,30 +11,7 @@ import {
   urlQueryToSearchParams,
 } from '../shared/lib/router/utils/querystring'
 
-declare global {
-  interface Window {
-    _nextSetupHydrationWarning?: boolean
-  }
-}
-
-if (!window._nextSetupHydrationWarning) {
-  const origConsoleError = window.console.error
-  window.console.error = (...args) => {
-    const isHydrateError = args.some(
-      (arg) =>
-        typeof arg === 'string' &&
-        arg.match(/(hydration|content does not match|did not match)/i)
-    )
-    if (isHydrateError) {
-      args = [
-        ...args,
-        `\n\nSee more info here: https://nextjs.org/docs/messages/react-hydration-error`,
-      ]
-    }
-    origConsoleError.apply(window.console, args)
-  }
-  window._nextSetupHydrationWarning = true
-}
+import './setup-hydration-warning'
 
 window.next = {
   version,
@@ -54,8 +32,19 @@ initialize({ webpackHMR })
 
       let buildIndicatorHandler: any = () => {}
 
-      function devPagesManifestListener(event: any) {
-        if (event.data.indexOf('devPagesManifest') !== -1) {
+      function devPagesHmrListener(event: any) {
+        let payload
+        try {
+          payload = JSON.parse(event.data)
+        } catch {}
+        if (payload.event === 'server-error' && payload.errorJSON) {
+          const { stack, message } = JSON.parse(payload.errorJSON)
+          const error = new Error(message)
+          error.stack = stack
+          throw error
+        } else if (payload.action === 'reloadPage') {
+          window.location.reload()
+        } else if (payload.action === 'devPagesManifestUpdate') {
           fetch(
             `${assetPrefix}/_next/static/development/_devPagesManifest.json`
           )
@@ -66,10 +55,10 @@ initialize({ webpackHMR })
             .catch((err) => {
               console.log(`Failed to fetch devPagesManifest`, err)
             })
-        } else if (event.data.indexOf('middlewareChanges') !== -1) {
+        } else if (payload.event === 'middlewareChanges') {
           return window.location.reload()
-        } else if (event.data.indexOf('serverOnlyChanges') !== -1) {
-          const { pages } = JSON.parse(event.data)
+        } else if (payload.event === 'serverOnlyChanges') {
+          const { pages } = payload
 
           // Make sure to reload when the dev-overlay is showing for an
           // API route
@@ -106,7 +95,7 @@ initialize({ webpackHMR })
           }
         }
       }
-      addMessageListener(devPagesManifestListener)
+      addMessageListener(devPagesHmrListener)
 
       if (process.env.__NEXT_BUILD_INDICATOR) {
         initializeBuildWatcher((handler: any) => {

@@ -12,6 +12,7 @@ import type {
   Viewport,
 } from './extra-types'
 import type {
+  DeprecatedMetadataFields,
   AbsoluteTemplateString,
   Author,
   ColorSchemeEnum,
@@ -25,7 +26,9 @@ import type {
   ResolvedRobots,
   TemplateString,
   Verification,
+  ThemeColorDescriptor,
 } from './metadata-types'
+import type { Manifest as ManifestFile } from './manifest-types'
 import type { OpenGraph, ResolvedOpenGraph } from './opengraph-types'
 import type { ResolvedTwitterMetadata, Twitter } from './twitter-types'
 
@@ -33,22 +36,35 @@ import type { ResolvedTwitterMetadata, Twitter } from './twitter-types'
  * Metadata interface to describe all the metadata fields that can be set in a document.
  * @interface
  */
-interface Metadata {
+interface Metadata extends DeprecatedMetadataFields {
   /**
    * The base path and origin for absolute urls for various metadata links such as OpenGraph images.
-   * @type {null | URL}
    */
   metadataBase?: null | URL
 
   /**
    * The document title.
-   * @type {null | string | TemplateString}
+   * @example
+   * ```tsx
+   * "My Blog"
+   * <title>My Blog</title>
+   *
+   * { default: "Dashboard", template: "%s | My Website" }
+   * <title>Dashboard | My Website</title>
+   *
+   * { absolute: "My Blog", template: "%s | My Website" }
+   * <title>My Blog</title>
+   * ```
    */
   title?: null | string | TemplateString
 
   /**
    * The document description, and optionally the OpenGraph and twitter descriptions.
-   * @type {null | string}
+   * @example
+   * ```tsx
+   * "My Blog Description"
+   * <meta name="description" content="My Blog Description" />
+   * ```
    */
   description?: null | string
 
@@ -57,61 +73,121 @@ interface Metadata {
 
   /**
    * The application name.
-   * @type {null | string}
+   * @example
+   * ```tsx
+   * "My Blog"
+   * <meta name="application-name" content="My Blog" />
+   * ```
    */
   applicationName?: null | string
 
   /**
    * The authors of the document.
-   * @type {null | Author | Array<Author>}
+   * @example
+   * ```tsx
+   * [{ name: "Next.js Team", url: "https://nextjs.org" }]
+   *
+   * <meta name="author" content="Next.js Team" />
+   * <link rel="author" href="https://nextjs.org" />
+   * ```
    */
   authors?: null | Author | Array<Author>
 
   /**
    * The generator used for the document.
-   * @type {null | string}
+   * @example
+   * ```tsx
+   * "Next.js"
+   *
+   * <meta name="generator" content="Next.js" />
+   * ```
    */
   generator?: null | string
 
   /**
    * The keywords for the document. If an array is provided, it will be flattened into a single tag with comma separation.
-   * @type {null | string | Array<string>}
+   * @example
+   * ```tsx
+   * "nextjs, react, blog"
+   * <meta name="keywords" content="nextjs, react, blog" />
+   *
+   * ["react", "server components"]
+   * <meta name="keywords" content="react, server components" />
+   * ```
    */
   keywords?: null | string | Array<string>
 
   /**
    * The referrer setting for the document.
-   * @type {null | ReferrerEnum}
+   * @example
+   * ```tsx
+   * "origin"
+   * <meta name="referrer" content="origin" />
+   * ```
    */
   referrer?: null | ReferrerEnum
 
   /**
    * The theme color for the document.
-   * @type {null | string}
+   * @example
+   * ```tsx
+   * "#000000"
+   * <meta name="theme-color" content="#000000" />
+   *
+   * { media: "(prefers-color-scheme: dark)", color: "#000000" }
+   * <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#000000" />
+   *
+   * [
+   *  { media: "(prefers-color-scheme: dark)", color: "#000000" },
+   *  { media: "(prefers-color-scheme: light)", color: "#ffffff" }
+   * ]
+   * <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#000000" />
+   * <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
+   * ```
    */
-  themeColor?: null | string
+  themeColor?: null | string | ThemeColorDescriptor | ThemeColorDescriptor[]
 
   /**
    * The color scheme for the document.
-   * @type {null | ColorSchemeEnum}
+   * @example
+   * ```tsx
+   * "dark"
+   * <meta name="color-scheme" content="dark" />
+   * ```
    */
   colorScheme?: null | ColorSchemeEnum
 
   /**
    * The viewport setting for the document.
-   * @type {null | string | Viewport}
+   * @example
+   * ```tsx
+   * "width=device-width, initial-scale=1"
+   * <meta name="viewport" content="width=device-width, initial-scale=1" />
+   *
+   * { width: "device-width", initialScale: 1 }
+   * <meta name="viewport" content="width=device-width, initial-scale=1" />
+   * ```
    */
   viewport?: null | string | Viewport
 
   /**
    * The creator of the document.
-   * @type {null | string}
+   * @example
+   * ```tsx
+   * "Next.js Team"
+   * <meta name="creator" content="Next.js Team" />
+   * ```
    */
   creator?: null | string
 
   /**
    * The publisher of the document.
-   * @type {null | string}
+   * @example
+   *
+   * ```tsx
+   * "Vercel"
+   * <meta name="publisher" content="Vercel" />
+   * ```
    */
   publisher?: null | string
 
@@ -119,101 +195,231 @@ interface Metadata {
 
   /**
    * The robots setting for the document.
-   * @type {null | string | Robots}
+   *
+   * @see https://developer.mozilla.org/en-US/docs/Glossary/Robots.txt
+   * @example
+   * ```tsx
+   * "index, follow"
+   * <meta name="robots" content="index, follow" />
+   *
+   * { index: false, follow: false }
+   * <meta name="robots" content="noindex, nofollow" />
+   * ```
    */
   robots?: null | string | Robots
 
   /**
    * The canonical and alternate URLs for the document.
-   * @type {null | AlternateURLs}
+   * @example
+   * ```tsx
+   * { canonical: "https://example.com" }
+   * <link rel="canonical" href="https://example.com" />
+   *
+   * { canonical: "https://example.com", hreflang: { "en-US": "https://example.com/en-US" } }
+   * <link rel="canonical" href="https://example.com" />
+   * <link rel="alternate" href="https://example.com/en-US" hreflang="en-US" />
+   * ```
+   *
+   * Multiple titles example for alternate URLs except `canonical`:
+   * ```tsx
+   * {
+   *   canonical: "https://example.com",
+   *   types: {
+   *     'application/rss+xml': [
+   *       { url: 'blog.rss', title: 'rss' },
+   *       { url: 'blog/js.rss', title: 'js title' },
+   *     ],
+   *   },
+   * }
+   * <link rel="canonical" href="https://example.com" />
+   * <link rel="alternate" href="https://example.com/blog.rss" type="application/rss+xml" title="rss" />
+   * <link rel="alternate" href="https://example.com/blog/js.rss" type="application/rss+xml" title="js title" />
+   * ```
    */
   alternates?: null | AlternateURLs
 
   /**
    * The icons for the document. Defaults to rel="icon".
-   * @type {null | IconURL | Array<Icon> | Icons}
+   *
+   * @see https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes/rel#attr-icon
+   * @example
+   * ```tsx
+   * "https://example.com/icon.png"
+   * <link rel="icon" href="https://example.com/icon.png" />
+   *
+   * { icon: "https://example.com/icon.png", apple: "https://example.com/apple-icon.png" }
+   * <link rel="icon" href="https://example.com/icon.png" />
+   * <link rel="apple-touch-icon" href="https://example.com/apple-icon.png" />
+   *
+   * [{ rel: "icon", url: "https://example.com/icon.png" }, { rel: "apple-touch-icon", url: "https://example.com/apple-icon.png" }]
+   * <link rel="icon" href="https://example.com/icon.png" />
+   * <link rel="apple-touch-icon" href="https://example.com/apple-icon.png" />
+   * ```
    */
   icons?: null | IconURL | Array<Icon> | Icons
 
   /**
+   * A web application manifest, as defined in the Web Application Manifest specification.
+   *
+   * @see https://developer.mozilla.org/en-US/docs/Web/Manifest
    * @example
-   * Example of Open Graph field:
+   * ```tsx
+   * "https://example.com/manifest.json"
+   * <link rel="manifest" href="https://example.com/manifest.json" />
    * ```
+   *
+   */
+  manifest?: null | string | URL
+
+  /**
+   * The Open Graph metadata for the document.
+   *
+   * @see https://ogp.me
+   * @example
+   * ```tsx
    * {
    *   type: "website",
    *   url: "https://example.com",
-   *   siteName: "My Website",
    *   title: "My Website",
+   *   description: "My Website Description",
+   *   siteName: "My Website",
    *   images: [{
    *     url: "https://example.com/og.png",
    *   }],
    * }
+   *
+   * <meta property="og:type" content="website" />
+   * <meta property="og:url" content="https://example.com" />
+   * <meta property="og:site_name" content="My Website" />
+   * <meta property="og:title" content="My Website" />
+   * <meta property="og:description" content="My Website Description" />
+   * <meta property="og:image" content="https://example.com/og.png" />
    * ```
    */
   openGraph?: null | OpenGraph
 
   /**
    * The Twitter metadata for the document.
-   * @type {null | Twitter}
+   * @example
+   * ```tsx
+   * { card: "summary_large_image", site: "@site", creator: "@creator", "images": "https://example.com/og.png" }
+   *
+   * <meta name="twitter:card" content="summary_large_image" />
+   * <meta name="twitter:site" content="@site" />
+   * <meta name="twitter:creator" content="@creator" />
+   * <meta name="twitter:title" content="My Website" />
+   * <meta name="twitter:description" content="My Website Description" />
+   * <meta name="twitter:image" content="https://example.com/og.png" />
+   * ```
+   *
    */
   twitter?: null | Twitter
 
   /**
    * The common verification tokens for the document.
-   * @type {Verification}
+   * @example
+   * ```tsx
+   * { verification: { google: "1234567890", yandex: "1234567890", "me": "1234567890" } }
+   * <meta name="google-site-verification" content="1234567890" />
+   * <meta name="yandex-verification" content="1234567890" />
+   * <meta name="me" content="@me" />
+   * ```
    */
   verification?: Verification
 
   /**
    * The Apple web app metadata for the document.
-   * https://developer.apple.com/library/archive/documentation/AppleApplications/Reference/SafariHTMLRef/Articles/MetaTags.html
-   * @type {null | boolean | AppleWebApp}
+   *
+   * @see https://developer.apple.com/library/archive/documentation/AppleApplications/Reference/SafariHTMLRef/Articles/MetaTags.html
+   * @example
+   * ```tsx
+   * { capable: true, title: "My Website", statusBarStyle: "black-translucent" }
+   * <meta name="apple-mobile-web-app-capable" content="yes" />
+   * <meta name="apple-mobile-web-app-title" content="My Website" />
+   * <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+   * ```
+   *
    */
   appleWebApp?: null | boolean | AppleWebApp
 
   /**
    * Indicates if devices should try to interpret various formats and make actionable links out of them. For example it controles
    * if telephone numbers on mobile that can be clicked to dial or not.
-   * @type {null | FormatDetection}
+   * @example
+   * ```tsx
+   * { telephone: false }
+   * <meta name="format-detection" content="telephone=no" />
+   * ```
+   *
    */
   formatDetection?: null | FormatDetection
 
   /**
    * The metadata for the iTunes App.
    * It adds the `name="apple-itunes-app"` meta tag.
-   * @type {null | ItunesApp}
+   *
+   * @example
+   * ```tsx
+   * { app: { id: "123456789", affiliateData: "123456789", appArguments: "123456789" } }
+   * <meta name="apple-itunes-app" content="app-id=123456789, affiliate-data=123456789, app-arguments=123456789" />
+   * ```
    */
   itunes?: null | ItunesApp
 
   /**
-   * A brief description of what this web-page is about. Not recommended, superceded by description.
+   * A brief description of what this web-page is about. Not recommended, superseded by description.
    * It adds the `name="abstract"` meta tag.
-   * https://www.metatags.org/all-meta-tags-overview/meta-name-abstract/
-   * @type {null | string}
+   *
+   * @see https://www.metatags.org/all-meta-tags-overview/meta-name-abstract/
+   * @example
+   * ```tsx
+   * "My Website Description"
+   * <meta name="abstract" content="My Website Description" />
+   * ```
    */
   abstract?: null | string
 
   /**
    * The Facebook AppLinks metadata for the document.
-   * @type {null | AppLinks}
+   * @example
+   * ```tsx
+   * { ios: { appStoreId: "123456789", url: "https://example.com" }, android: { packageName: "com.example", url: "https://example.com" } }
+   *
+   * <meta property="al:ios:app_store_id" content="123456789" />
+   * <meta property="al:ios:url" content="https://example.com" />
+   * <meta property="al:android:package" content="com.example" />
+   * <meta property="al:android:url" content="https://example.com" />
+   * ```
    */
   appLinks?: null | AppLinks
 
   /**
    * The archives link rel property.
-   * @type {null | string | Array<string>}
+   * @example
+   * ```tsx
+   * { archives: "https://example.com/archives" }
+   * <link rel="archives" href="https://example.com/archives" />
+   * ```
    */
   archives?: null | string | Array<string>
 
   /**
    * The assets link rel property.
-   * @type {null | string | Array<string>}
+   * @example
+   * ```tsx
+   * "https://example.com/assets"
+   * <link rel="assets" href="https://example.com/assets" />
+   * ```
    */
   assets?: null | string | Array<string>
 
   /**
    * The bookmarks link rel property.
-   * @type {null | string | Array<string>}
+   * @example
+   * ```tsx
+   * "https://example.com/bookmarks"
+   * <link rel="bookmarks" href="https://example.com/bookmarks" />
+   * ```
    */
   bookmarks?: null | string | Array<string> // This is technically against HTML spec but is used in wild
 
@@ -221,42 +427,33 @@ interface Metadata {
 
   /**
    * The category meta name property.
-   * @type {null | string}
+   * @example
+   * ```tsx
+   * "My Category"
+   * <meta name="category" content="My Category" />
+   * ```
    */
   category?: null | string
 
   /**
    * The classification meta name property.
-   * @type {null | string}
+   * @example
+   * ```tsx
+   * "My Classification"
+   * <meta name="classification" content="My Classification" />
+   * ```
    */
   classification?: null | string
 
   /**
    * Arbitrary name/value pairs for the document.
-   * @type {{ [name: string]: string | number | Array<string | number> }}
    */
   other?: {
     [name: string]: string | number | Array<string | number>
-  }
-
-  /**
-   * Deprecated options that have a preferred method.
-   * Use appWebApp to configure apple-mobile-web-app-capable which provides
-   * https://www.appsloveworld.com/coding/iphone/11/difference-between-apple-mobile-web-app-capable-and-apple-touch-fullscreen-ipho
-   * @deprecated
-   */
-  'apple-touch-fullscreen'?: never
-
-  /**
-   * Deprecated options that have a preferred method.
-   * Obsolete since iOS 7. use icons.apple or "app-touch-icon" instead
-   * https://web.dev/apple-touch-icon/
-   * @deprecated
-   */
-  'apple-touch-icon-precomposed'?: never
+  } & DeprecatedMetadataFields
 }
 
-interface ResolvedMetadata {
+interface ResolvedMetadata extends DeprecatedMetadataFields {
   // origin and base path for absolute urls for various metadata links such as
   // opengraph-image
   metadataBase: null | URL
@@ -275,7 +472,7 @@ interface ResolvedMetadata {
   // if you provide an array it will be flattened into a single tag with comma separation
   keywords: null | Array<string>
   referrer: null | ReferrerEnum
-  themeColor: null | string
+  themeColor: null | ThemeColorDescriptor[]
   colorScheme: null | ColorSchemeEnum
   viewport: null | string
   creator: null | string
@@ -292,6 +489,8 @@ interface ResolvedMetadata {
   icons: null | ResolvedIcons
 
   openGraph: null | ResolvedOpenGraph
+
+  manifest: null | string | URL
 
   twitter: null | ResolvedTwitterMetadata
 
@@ -329,21 +528,44 @@ interface ResolvedMetadata {
   classification: null | string
 
   // Arbitrary name/value pairs
-  other: null | {
-    [name: string]: string | number | Array<string | number>
-  }
-
-  /**
-   *  Deprecated options that have a preferred method
-   * */
-  // Use appWebApp to configure apple-mobile-web-app-capable which provides
-  // https://www.appsloveworld.com/coding/iphone/11/difference-between-apple-mobile-web-app-capable-and-apple-touch-fullscreen-ipho
-  'apple-touch-fullscreen'?: never
-
-  // Obsolete since iOS 7. use icons.apple or "app-touch-icon" instead
-  // https://web.dev/apple-touch-icon/
-  'apple-touch-icon-precomposed'?: never
+  other:
+    | null
+    | ({
+        [name: string]: string | number | Array<string | number>
+      } & DeprecatedMetadataFields)
 }
 
-export type ResolvingMetadata = Promise<ResolvedMetadata>
-export { Metadata, ResolvedMetadata }
+type RobotsFile = {
+  // Apply rules for all
+  rules:
+    | {
+        userAgent?: string | string[]
+        allow?: string | string[]
+        disallow?: string | string[]
+        crawlDelay?: number
+      }
+    // Apply rules for specific user agents
+    | Array<{
+        userAgent: string | string[]
+        allow?: string | string[]
+        disallow?: string | string[]
+        crawlDelay?: number
+      }>
+  sitemap?: string | string[]
+  host?: string
+}
+
+type SitemapFile = Array<{
+  url: string
+  lastModified?: string | Date
+}>
+
+type ResolvingMetadata = Promise<ResolvedMetadata>
+declare namespace MetadataRoute {
+  // eslint-disable-next-line @typescript-eslint/no-shadow
+  export type Robots = RobotsFile
+  export type Sitemap = SitemapFile
+  export type Manifest = ManifestFile
+}
+
+export { Metadata, ResolvedMetadata, ResolvingMetadata, MetadataRoute }

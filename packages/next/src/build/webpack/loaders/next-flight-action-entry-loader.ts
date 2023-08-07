@@ -1,28 +1,47 @@
+import { generateActionId } from './utils'
+
 export type NextFlightActionEntryLoaderOptions = {
-  actionPath: string
-  actionName: string
+  actions: string
 }
 
 function nextFlightActionEntryLoader(this: any) {
-  const { actionPath, actionName }: NextFlightActionEntryLoaderOptions =
-    this.getOptions()
+  const { actions }: NextFlightActionEntryLoaderOptions = this.getOptions()
+
+  const actionList = JSON.parse(actions) as [string, string[]][]
+  const individualActions = actionList
+    .map(([path, names]) => {
+      return names.map((name) => {
+        const id = generateActionId(path, name)
+        return [id, path, name] as [string, string, string]
+      })
+    })
+    .flat()
 
   return `
-import { ${actionName} } from ${JSON.stringify(actionPath)}
-export default async function endpoint(req, res) {
-  try {
-    const result = await ${actionName}()
-    const serializedResult = JSON.stringify(result)
-    res.statusCode = 200
-    res.setHeader('Content-Type', 'text/plain')
-    res.body(serializedResult)
-  } catch (err) {
-    res.statusCode = 500
-    res.setHeader('Content-Type', 'text/plain')
-    res.body(err.message)
-  }
-  res.send()
-}`
+const actions = {
+${individualActions
+  .map(([id, path, name]) => {
+    return `'${id}': () => import(/* webpackMode: "eager" */ ${JSON.stringify(
+      path
+    )}).then(mod => mod[${JSON.stringify(name)}]),`
+  })
+  .join('\n')}
+}
+
+async function endpoint(id, ...args) {
+  const action = await actions[id]()
+  return action.apply(null, args)
+}
+
+// Using CJS to avoid this to be tree-shaken away due to unused exports.
+module.exports = {
+${individualActions
+  .map(([id]) => {
+    return `  '${id}': endpoint.bind(null, '${id}'),`
+  })
+  .join('\n')}
+}
+`
 }
 
 export default nextFlightActionEntryLoader

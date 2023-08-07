@@ -10,7 +10,6 @@ export type FontLoader = (options: {
   functionName: string
   variableName: string
   data: any[]
-  config: any
   emitFontFile: (
     content: Buffer,
     ext: string,

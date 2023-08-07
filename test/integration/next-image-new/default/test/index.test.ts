@@ -17,7 +17,8 @@ import {
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
-import { existsSync } from 'fs'
+import fs from 'fs/promises'
+import { pathExists } from 'fs-extra'
 
 const appDir = join(__dirname, '../')
 
@@ -121,22 +122,64 @@ function runTests(mode) {
       const links = await browser.elementsByCss('link[rel=preload][as=image]')
       const entries = []
       for (const link of links) {
+        const fetchpriority = await link.getAttribute('fetchpriority')
         const imagesrcset = await link.getAttribute('imagesrcset')
         const imagesizes = await link.getAttribute('imagesizes')
-        entries.push({ imagesrcset, imagesizes })
+        const crossorigin = await link.getAttribute('crossorigin')
+        const referrerpolicy = await link.getAttribute('referrerPolicy')
+        entries.push({
+          fetchpriority,
+          imagesrcset,
+          imagesizes,
+          crossorigin,
+          referrerpolicy,
+        })
       }
-      expect(entries).toEqual([
-        {
-          imagesizes: '',
-          imagesrcset:
-            '/_next/image?url=%2Ftest.jpg&w=640&q=75 1x, /_next/image?url=%2Ftest.jpg&w=828&q=75 2x',
-        },
-        {
-          imagesizes: '100vw',
-          imagesrcset:
-            '/_next/image?url=%2Fwide.png&w=640&q=75 640w, /_next/image?url=%2Fwide.png&w=750&q=75 750w, /_next/image?url=%2Fwide.png&w=828&q=75 828w, /_next/image?url=%2Fwide.png&w=1080&q=75 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75 3840w',
-        },
-      ])
+
+      expect(
+        entries.find(
+          (item) =>
+            item.imagesrcset ===
+            '/_next/image?url=%2Ftest.webp&w=640&q=75 1x, /_next/image?url=%2Ftest.webp&w=828&q=75 2x'
+        )
+      ).toEqual({
+        fetchpriority: 'high',
+        imagesizes: '',
+        imagesrcset:
+          '/_next/image?url=%2Ftest.webp&w=640&q=75 1x, /_next/image?url=%2Ftest.webp&w=828&q=75 2x',
+        crossorigin: 'use-credentials',
+        referrerpolicy: '',
+      })
+
+      expect(
+        entries.find(
+          (item) =>
+            item.imagesrcset ===
+            '/_next/image?url=%2Fwide.png&w=640&q=75 640w, /_next/image?url=%2Fwide.png&w=750&q=75 750w, /_next/image?url=%2Fwide.png&w=828&q=75 828w, /_next/image?url=%2Fwide.png&w=1080&q=75 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75 3840w'
+        )
+      ).toEqual({
+        fetchpriority: 'high',
+        imagesizes: '100vw',
+        imagesrcset:
+          '/_next/image?url=%2Fwide.png&w=640&q=75 640w, /_next/image?url=%2Fwide.png&w=750&q=75 750w, /_next/image?url=%2Fwide.png&w=828&q=75 828w, /_next/image?url=%2Fwide.png&w=1080&q=75 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75 3840w',
+        crossorigin: '',
+        referrerpolicy: '',
+      })
+
+      expect(
+        entries.find(
+          (item) =>
+            item.imagesrcset ===
+            '/_next/image?url=%2Ftest.png&w=640&q=75 1x, /_next/image?url=%2Ftest.png&w=828&q=75 2x'
+        )
+      ).toEqual({
+        fetchpriority: 'high',
+        imagesizes: '',
+        imagesrcset:
+          '/_next/image?url=%2Ftest.png&w=640&q=75 1x, /_next/image?url=%2Ftest.png&w=828&q=75 2x',
+        crossorigin: '',
+        referrerpolicy: 'no-referrer',
+      })
 
       // When priority={true}, we should _not_ set loading="lazy"
       expect(
@@ -152,19 +195,35 @@ function runTests(mode) {
         await browser.elementById('responsive2').getAttribute('loading')
       ).toBe(null)
 
+      // When priority={true}, we should set fetchpriority="high"
+      expect(
+        await browser.elementById('basic-image').getAttribute('fetchpriority')
+      ).toBe('high')
+      expect(
+        await browser.elementById('load-eager').getAttribute('fetchpriority')
+      ).toBe(null)
+      expect(
+        await browser.elementById('responsive1').getAttribute('fetchpriority')
+      ).toBe('high')
+      expect(
+        await browser.elementById('responsive2').getAttribute('fetchpriority')
+      ).toBe('high')
+
+      // Setting fetchPriority="low" directly should pass-through to <img>
+      expect(
+        await browser.elementById('pri-low').getAttribute('fetchpriority')
+      ).toBe('low')
+      expect(await browser.elementById('pri-low').getAttribute('loading')).toBe(
+        'lazy'
+      )
+
       const warnings = (await browser.log('browser'))
         .map((log) => log.message)
         .join('\n')
       expect(warnings).not.toMatch(
         /was detected as the Largest Contentful Paint/gm
       )
-
-      // should preload with crossorigin
-      expect(
-        await browser.elementsByCss(
-          'link[rel=preload][as=image][crossorigin=anonymous][imagesrcset*="test.jpg"]'
-        )
-      ).toHaveLength(1)
+      expect(warnings).not.toMatch(/React does not recognize the (.+) prop/gm)
     } finally {
       if (browser) {
         await browser.close()
@@ -728,9 +787,55 @@ function runTests(mode) {
     }
   })
 
+  it('should render picture via getImgProps', async () => {
+    const browser = await webdriver(appPort, '/picture')
+    // Wait for image to load:
+    await check(async () => {
+      const naturalWidth = await browser.eval(
+        `document.querySelector('img').naturalWidth`
+      )
+
+      if (naturalWidth === 0) {
+        throw new Error('Image did not load')
+      }
+
+      return 'ready'
+    }, 'ready')
+    const img = await browser.elementByCss('img')
+    expect(img).toBeDefined()
+    expect(await img.getAttribute('alt')).toBe('Hero')
+    expect(await img.getAttribute('width')).toBe('400')
+    expect(await img.getAttribute('height')).toBe('400')
+    expect(await img.getAttribute('fetchPriority')).toBe('high')
+    expect(await img.getAttribute('sizes')).toBeNull()
+    expect(await img.getAttribute('src')).toBe(
+      '/_next/image?url=%2Ftest_light.png&w=828&q=75'
+    )
+    expect(await img.getAttribute('srcset')).toBe(null)
+    expect(await img.getAttribute('style')).toBe('color:transparent')
+    const source1 = await browser.elementByCss('source:first-of-type')
+    expect(await source1.getAttribute('srcset')).toBe(
+      '/_next/image?url=%2Ftest.png&w=640&q=75 1x, /_next/image?url=%2Ftest.png&w=828&q=75 2x'
+    )
+    const source2 = await browser.elementByCss('source:last-of-type')
+    expect(await source2.getAttribute('srcset')).toBe(
+      '/_next/image?url=%2Ftest_light.png&w=640&q=75 1x, /_next/image?url=%2Ftest_light.png&w=828&q=75 2x'
+    )
+  })
+
   if (mode === 'dev') {
     it('should show missing src error', async () => {
       const browser = await webdriver(appPort, '/missing-src')
+
+      expect(await hasRedbox(browser, false)).toBe(false)
+
+      await check(async () => {
+        return (await browser.log()).map((log) => log.message).join('\n')
+      }, /Image is missing required "src" property/gm)
+    })
+
+    it('should show empty string src error', async () => {
+      const browser = await webdriver(appPort, '/empty-string-src')
 
       expect(await hasRedbox(browser, false)).toBe(false)
 
@@ -772,6 +877,15 @@ function runTests(mode) {
       expect(await hasRedbox(browser, true)).toBe(true)
       expect(await getRedboxHeader(browser)).toContain(
         `Image with src "/test.jpg" has invalid "width" property. Expected a numeric value in pixels but received "100%".`
+      )
+    })
+
+    it('should show error when invalid Infinity width prop', async () => {
+      const browser = await webdriver(appPort, '/invalid-Infinity-width')
+
+      expect(await hasRedbox(browser, true)).toBe(true)
+      expect(await getRedboxHeader(browser)).toContain(
+        `Image with src "/test.jpg" has invalid "width" property. Expected a numeric value in pixels but received "Infinity".`
       )
     })
 
@@ -986,8 +1100,38 @@ function runTests(mode) {
     //server-only tests
     it('should not create an image folder in server/chunks', async () => {
       expect(
-        existsSync(join(appDir, '.next/server/chunks/static/media'))
+        await pathExists(join(appDir, '.next/server/chunks/static/media'))
       ).toBeFalsy()
+    })
+    it('should render as unoptimized with missing src prop', async () => {
+      const browser = await webdriver(appPort, '/missing-src')
+
+      const warnings = (await browser.log()).filter(
+        (log) => log.source === 'error'
+      )
+      expect(warnings.length).toBe(0)
+
+      expect(await browser.elementById('img').getAttribute('src')).toBe('')
+      expect(await browser.elementById('img').getAttribute('srcset')).toBe(null)
+      expect(await browser.elementById('img').getAttribute('width')).toBe('200')
+      expect(await browser.elementById('img').getAttribute('height')).toBe(
+        '300'
+      )
+    })
+    it('should render as unoptimized with empty string src prop', async () => {
+      const browser = await webdriver(appPort, '/empty-string-src')
+
+      const warnings = (await browser.log()).filter(
+        (log) => log.source === 'error'
+      )
+      expect(warnings.length).toBe(0)
+
+      expect(await browser.elementById('img').getAttribute('src')).toBe('')
+      expect(await browser.elementById('img').getAttribute('srcset')).toBe(null)
+      expect(await browser.elementById('img').getAttribute('width')).toBe('200')
+      expect(await browser.elementById('img').getAttribute('height')).toBe(
+        '300'
+      )
     })
   }
 
@@ -1167,6 +1311,16 @@ function runTests(mode) {
           'Image with src "/wide.png" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more:'
         )
       })
+      it('should not log warnings when image unmounts', async () => {
+        browser = await webdriver(appPort, '/should-not-warn-unmount')
+        await waitFor(1000)
+        const warnings = (await browser.log('browser'))
+          .map((log) => log.message)
+          .join('\n')
+        expect(warnings).not.toContain(
+          'Image with src "/test.jpg" has "fill" and parent element'
+        )
+      })
     }
   })
   // Tests that use the `unsized` attribute:
@@ -1195,6 +1349,13 @@ function runTests(mode) {
       const computedHeight = await getComputed(browser, id, 'height')
       expect(getRatio(computedHeight, computedWidth)).toBeCloseTo(0.75, 1)
     })
+
+    it('should create images folder in static/media for edge runtime', async () => {
+      const files = await fs.readdir(join(appDir, '.next/static/media'))
+      expect(files).toEqual(
+        expect.arrayContaining([expect.stringMatching(/small\.\w+\.jpg/)])
+      )
+    })
   }
 
   it('should have blurry placeholder when enabled', async () => {
@@ -1204,11 +1365,11 @@ function runTests(mode) {
     $html('noscript > img').attr('id', 'unused')
 
     expect($html('#blurry-placeholder-raw')[0].attribs.style).toContain(
-      `color:transparent;background-size:cover;background-position:50% 50%;background-repeat:no-repeat;background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 400 400'%3E%3Cfilter id='b' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='20'/%3E%3C/filter%3E%3Cimage preserveAspectRatio='none' filter='url(%23b)' x='0' y='0' height='100%25' width='100%25' href='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8P4nhDwAGuAKPn6cicwAAAABJRU5ErkJggg=='/%3E%3C/svg%3E")`
+      `color:transparent;background-size:cover;background-position:50% 50%;background-repeat:no-repeat;background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 400'%3E%3Cfilter id='b' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='20'/%3E%3CfeColorMatrix values='1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 100 -1' result='s'/%3E%3CfeFlood x='0' y='0' width='100%25' height='100%25'/%3E%3CfeComposite operator='out' in='s'/%3E%3CfeComposite in2='SourceGraphic'/%3E%3CfeGaussianBlur stdDeviation='20'/%3E%3C/filter%3E%3Cimage width='100%25' height='100%25' x='0' y='0' preserveAspectRatio='none' style='filter: url(%23b);' href='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8P4nhDwAGuAKPn6cicwAAAABJRU5ErkJggg=='/%3E%3C/svg%3E")`
     )
 
     expect($html('#blurry-placeholder-with-lazy')[0].attribs.style).toContain(
-      `color:transparent;background-size:cover;background-position:50% 50%;background-repeat:no-repeat;background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 400 400'%3E%3Cfilter id='b' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='20'/%3E%3C/filter%3E%3Cimage preserveAspectRatio='none' filter='url(%23b)' x='0' y='0' height='100%25' width='100%25' href='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mO0/8/wBwAE/wI85bEJ6gAAAABJRU5ErkJggg=='/%3E%3C/svg%3E")`
+      `color:transparent;background-size:cover;background-position:50% 50%;background-repeat:no-repeat;background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 400'%3E%3Cfilter id='b' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='20'/%3E%3CfeColorMatrix values='1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 100 -1' result='s'/%3E%3CfeFlood x='0' y='0' width='100%25' height='100%25'/%3E%3CfeComposite operator='out' in='s'/%3E%3CfeComposite in2='SourceGraphic'/%3E%3CfeGaussianBlur stdDeviation='20'/%3E%3C/filter%3E%3Cimage width='100%25' height='100%25' x='0' y='0' preserveAspectRatio='none' style='filter: url(%23b);' href='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mO0/8/wBwAE/wI85bEJ6gAAAABJRU5ErkJggg=='/%3E%3C/svg%3E")`
     )
   })
 
@@ -1230,7 +1391,7 @@ function runTests(mode) {
         'background-image'
       )
     ).toBe(
-      `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 400 400'%3E%3Cfilter id='b' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='20'/%3E%3C/filter%3E%3Cimage preserveAspectRatio='none' filter='url(%23b)' x='0' y='0' height='100%25' width='100%25' href='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mO0/8/wBwAE/wI85bEJ6gAAAABJRU5ErkJggg=='/%3E%3C/svg%3E")`
+      `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 400'%3E%3Cfilter id='b' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='20'/%3E%3CfeColorMatrix values='1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 100 -1' result='s'/%3E%3CfeFlood x='0' y='0' width='100%25' height='100%25'/%3E%3CfeComposite operator='out' in='s'/%3E%3CfeComposite in2='SourceGraphic'/%3E%3CfeGaussianBlur stdDeviation='20'/%3E%3C/filter%3E%3Cimage width='100%25' height='100%25' x='0' y='0' preserveAspectRatio='none' style='filter: url(%23b);' href='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mO0/8/wBwAE/wI85bEJ6gAAAABJRU5ErkJggg=='/%3E%3C/svg%3E")`
     )
 
     await browser.eval('document.getElementById("spacer").remove()')
@@ -1251,15 +1412,15 @@ function runTests(mode) {
     const $ = cheerio.load(html)
 
     expect($('#fit-cover')[0].attribs.style).toBe(
-      `position:absolute;height:100%;width:100%;left:0;top:0;right:0;bottom:0;object-fit:cover;color:transparent;background-size:cover;background-position:50% 50%;background-repeat:no-repeat;background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http%3A//www.w3.org/2000/svg'%3E%3Cimage style='filter:blur(20px)' preserveAspectRatio='xMidYMid slice' x='0' y='0' height='100%25' width='100%25' href='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAFCAAAAABd+vKJAAAANklEQVR42mNg4GRwdWBgZ2BgUGI4dYhBmYFBgiHy308PBlEGKYbr//9fYJBlYDBYv3nzGkUGANGMDBq2MCnBAAAAAElFTkSuQmCC'/%3E%3C/svg%3E")`
+      `position:absolute;height:100%;width:100%;left:0;top:0;right:0;bottom:0;object-fit:cover;color:transparent;background-size:cover;background-position:50% 50%;background-repeat:no-repeat;background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' %3E%3Cfilter id='b' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='20'/%3E%3CfeColorMatrix values='1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 100 -1' result='s'/%3E%3CfeFlood x='0' y='0' width='100%25' height='100%25'/%3E%3CfeComposite operator='out' in='s'/%3E%3CfeComposite in2='SourceGraphic'/%3E%3CfeGaussianBlur stdDeviation='20'/%3E%3C/filter%3E%3Cimage width='100%25' height='100%25' x='0' y='0' preserveAspectRatio='xMidYMid slice' style='filter: url(%23b);' href='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAFCAAAAABd+vKJAAAANklEQVR42mNg4GRwdWBgZ2BgUGI4dYhBmYFBgiHy308PBlEGKYbr//9fYJBlYDBYv3nzGkUGANGMDBq2MCnBAAAAAElFTkSuQmCC'/%3E%3C/svg%3E")`
     )
 
     expect($('#fit-contain')[0].attribs.style).toBe(
-      `position:absolute;height:100%;width:100%;left:0;top:0;right:0;bottom:0;object-fit:contain;color:transparent;background-size:contain;background-position:50% 50%;background-repeat:no-repeat;background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http%3A//www.w3.org/2000/svg'%3E%3Cimage style='filter:blur(20px)' preserveAspectRatio='xMidYMid' x='0' y='0' height='100%25' width='100%25' href='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAFCAAAAABd+vKJAAAANklEQVR42mNg4GRwdWBgZ2BgUGI4dYhBmYFBgiHy308PBlEGKYbr//9fYJBlYDBYv3nzGkUGANGMDBq2MCnBAAAAAElFTkSuQmCC'/%3E%3C/svg%3E")`
+      `position:absolute;height:100%;width:100%;left:0;top:0;right:0;bottom:0;object-fit:contain;color:transparent;background-size:contain;background-position:50% 50%;background-repeat:no-repeat;background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' %3E%3Cfilter id='b' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='20'/%3E%3CfeColorMatrix values='1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 100 -1' result='s'/%3E%3CfeFlood x='0' y='0' width='100%25' height='100%25'/%3E%3CfeComposite operator='out' in='s'/%3E%3CfeComposite in2='SourceGraphic'/%3E%3CfeGaussianBlur stdDeviation='20'/%3E%3C/filter%3E%3Cimage width='100%25' height='100%25' x='0' y='0' preserveAspectRatio='xMidYMid' style='filter: url(%23b);' href='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAFCAAAAABd+vKJAAAANklEQVR42mNg4GRwdWBgZ2BgUGI4dYhBmYFBgiHy308PBlEGKYbr//9fYJBlYDBYv3nzGkUGANGMDBq2MCnBAAAAAElFTkSuQmCC'/%3E%3C/svg%3E")`
     )
 
     expect($('#fit-fill')[0].attribs.style).toBe(
-      `position:absolute;height:100%;width:100%;left:0;top:0;right:0;bottom:0;object-fit:fill;color:transparent;background-size:fill;background-position:50% 50%;background-repeat:no-repeat;background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http%3A//www.w3.org/2000/svg'%3E%3Cimage style='filter:blur(20px)' preserveAspectRatio='none' x='0' y='0' height='100%25' width='100%25' href='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAFCAAAAABd+vKJAAAANklEQVR42mNg4GRwdWBgZ2BgUGI4dYhBmYFBgiHy308PBlEGKYbr//9fYJBlYDBYv3nzGkUGANGMDBq2MCnBAAAAAElFTkSuQmCC'/%3E%3C/svg%3E")`
+      `position:absolute;height:100%;width:100%;left:0;top:0;right:0;bottom:0;object-fit:fill;color:transparent;background-size:fill;background-position:50% 50%;background-repeat:no-repeat;background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' %3E%3Cfilter id='b' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='20'/%3E%3CfeColorMatrix values='1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 100 -1' result='s'/%3E%3CfeFlood x='0' y='0' width='100%25' height='100%25'/%3E%3CfeComposite operator='out' in='s'/%3E%3CfeComposite in2='SourceGraphic'/%3E%3CfeGaussianBlur stdDeviation='20'/%3E%3C/filter%3E%3Cimage width='100%25' height='100%25' x='0' y='0' preserveAspectRatio='none' style='filter: url(%23b);' href='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAFCAAAAABd+vKJAAAANklEQVR42mNg4GRwdWBgZ2BgUGI4dYhBmYFBgiHy308PBlEGKYbr//9fYJBlYDBYv3nzGkUGANGMDBq2MCnBAAAAAElFTkSuQmCC'/%3E%3C/svg%3E")`
     )
   })
 

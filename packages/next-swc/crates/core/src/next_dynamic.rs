@@ -1,17 +1,18 @@
 use std::path::{Path, PathBuf};
 
 use pathdiff::diff_paths;
-
-use next_binding::swc::core::{
+use turbopack_binding::swc::core::{
     common::{errors::HANDLER, FileName, DUMMY_SP},
-    ecma::ast::{
-        ArrayLit, ArrowExpr, BinExpr, BinaryOp, BlockStmtOrExpr, Bool, CallExpr, Callee, Expr,
-        ExprOrSpread, Id, Ident, ImportDecl, ImportSpecifier, KeyValueProp, Lit, MemberExpr,
-        MemberProp, Null, ObjectLit, Prop, PropName, PropOrSpread, Str, Tpl,
+    ecma::{
+        ast::{
+            ArrayLit, ArrowExpr, BinExpr, BinaryOp, BlockStmtOrExpr, Bool, CallExpr, Callee, Expr,
+            ExprOrSpread, Id, Ident, ImportDecl, ImportSpecifier, KeyValueProp, Lit, MemberExpr,
+            MemberProp, Null, ObjectLit, Prop, PropName, PropOrSpread, Str, Tpl,
+        },
+        atoms::js_word,
+        utils::ExprFactory,
+        visit::{Fold, FoldWith},
     },
-    ecma::atoms::js_word,
-    ecma::utils::ExprFactory,
-    ecma::visit::{Fold, FoldWith},
 };
 
 pub fn next_dynamic(
@@ -179,44 +180,46 @@ impl Fold for NextDynamicPatcher {
                                 key: PropName::Ident(Ident::new("webpack".into(), DUMMY_SP)),
                                 value: Box::new(Expr::Arrow(ArrowExpr {
                                     params: vec![],
-                                    body: BlockStmtOrExpr::Expr(Box::new(Expr::Array(ArrayLit {
-                                        elems: vec![Some(ExprOrSpread {
-                                            expr: Box::new(Expr::Call(CallExpr {
-                                                callee: Callee::Expr(Box::new(Expr::Member(
-                                                    MemberExpr {
-                                                        obj: Box::new(Expr::Ident(Ident {
-                                                            sym: js_word!("require"),
+                                    body: Box::new(BlockStmtOrExpr::Expr(Box::new(Expr::Array(
+                                        ArrayLit {
+                                            elems: vec![Some(ExprOrSpread {
+                                                expr: Box::new(Expr::Call(CallExpr {
+                                                    callee: Callee::Expr(Box::new(Expr::Member(
+                                                        MemberExpr {
+                                                            obj: Box::new(Expr::Ident(Ident {
+                                                                sym: js_word!("require"),
+                                                                span: DUMMY_SP,
+                                                                optional: false,
+                                                            })),
+                                                            prop: MemberProp::Ident(Ident {
+                                                                sym: "resolveWeak".into(),
+                                                                span: DUMMY_SP,
+                                                                optional: false,
+                                                            }),
                                                             span: DUMMY_SP,
-                                                            optional: false,
-                                                        })),
-                                                        prop: MemberProp::Ident(Ident {
-                                                            sym: "resolveWeak".into(),
+                                                        },
+                                                    ))),
+                                                    args: vec![ExprOrSpread {
+                                                        expr: Box::new(Expr::Lit(Lit::Str(Str {
+                                                            value: self
+                                                                .dynamically_imported_specifier
+                                                                .as_ref()
+                                                                .unwrap()
+                                                                .clone()
+                                                                .into(),
                                                             span: DUMMY_SP,
-                                                            optional: false,
-                                                        }),
-                                                        span: DUMMY_SP,
-                                                    },
-                                                ))),
-                                                args: vec![ExprOrSpread {
-                                                    expr: Box::new(Expr::Lit(Lit::Str(Str {
-                                                        value: self
-                                                            .dynamically_imported_specifier
-                                                            .as_ref()
-                                                            .unwrap()
-                                                            .clone()
-                                                            .into(),
-                                                        span: DUMMY_SP,
-                                                        raw: None,
-                                                    }))),
-                                                    spread: None,
-                                                }],
-                                                span: DUMMY_SP,
-                                                type_args: None,
-                                            })),
-                                            spread: None,
-                                        })],
-                                        span: DUMMY_SP,
-                                    }))),
+                                                            raw: None,
+                                                        }))),
+                                                        spread: None,
+                                                    }],
+                                                    span: DUMMY_SP,
+                                                    type_args: None,
+                                                })),
+                                                spread: None,
+                                            })],
+                                            span: DUMMY_SP,
+                                        },
+                                    )))),
                                     is_async: false,
                                     is_generator: false,
                                     span: DUMMY_SP,
