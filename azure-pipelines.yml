@@ -108,6 +108,8 @@ stages:
           - script: node run-tests.js --type unit
             condition: eq(variables['isDocsOnly'], 'No')
             displayName: 'Run tests'
+            env:
+              NEXT_TEST_MODE: 'dev'
 
       # - job: test_e2e_dev
       #   pool:
