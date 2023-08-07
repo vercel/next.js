@@ -19,11 +19,13 @@ export class Span {
   name: string
   id: SpanId
   parentId?: SpanId
+  // Duration of the span in *microseconds*.
   duration: number | null
   attrs: { [key: string]: any }
   status: SpanStatus
   now: number
 
+  // Number of nanoseconds since epoch.
   _start: bigint
 
   constructor({
@@ -81,7 +83,9 @@ export class Span {
 
   manualTraceChild(
     name: string,
+    // Start time in nanoseconds since epoch.
     startTime: bigint,
+    // Stop time in nanoseconds since epoch.
     stopTime: bigint,
     attrs?: Object
   ) {

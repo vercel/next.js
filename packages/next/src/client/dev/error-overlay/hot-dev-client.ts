@@ -188,17 +188,17 @@ function handleErrors(errors: any) {
 
 let startLatency: any = undefined
 
-function onBeforeFastRefresh(hasUpdates: any) {
-  if (hasUpdates) {
+function onBeforeFastRefresh(updatedModules: string[]) {
+  if (updatedModules.length > 0) {
     // Only trigger a pending state if we have updates to apply
     // (cf. onFastRefresh)
     onBeforeRefresh()
   }
 }
 
-function onFastRefresh(hasUpdates: any) {
+function onFastRefresh(updatedModules: string[]) {
   onBuildOk()
-  if (hasUpdates) {
+  if (updatedModules.length > 0) {
     // Only complete a pending state if we applied updates
     // (cf. onBeforeFastRefresh)
     onRefresh()
@@ -214,6 +214,8 @@ function onFastRefresh(hasUpdates: any) {
         id: window.__nextDevClientId,
         startTime: startLatency,
         endTime: endLatency,
+        page: window.location.pathname,
+        updatedModules,
       })
     )
     if (self.__NEXT_HMR_LATENCY_CB) {
@@ -329,7 +331,10 @@ function afterApplyUpdates(fn: () => void) {
 }
 
 // Attempt to update code on the fly, fall back to a hard reload.
-function tryApplyUpdates(onBeforeHotUpdate: any, onHotUpdateSuccess: any) {
+function tryApplyUpdates(
+  onBeforeHotUpdate: ((updatedModules: string[]) => unknown) | undefined,
+  onHotUpdateSuccess: (updatedModules: string[]) => unknown
+) {
   // @ts-expect-error TODO: module.hot exists but type needs to be added. Can't use `as any` here as webpack parses for `module.hot` calls.
   if (!module.hot) {
     // HotModuleReplacementPlugin is not in Webpack configuration.
@@ -343,7 +348,7 @@ function tryApplyUpdates(onBeforeHotUpdate: any, onHotUpdateSuccess: any) {
     return
   }
 
-  function handleApplyUpdates(err: any, updatedModules: any) {
+  function handleApplyUpdates(err: any, updatedModules: string[] | null) {
     if (err || hadRuntimeError || !updatedModules) {
       if (err) {
         console.warn(
@@ -363,18 +368,17 @@ function tryApplyUpdates(onBeforeHotUpdate: any, onHotUpdateSuccess: any) {
       return
     }
 
-    const hasUpdates = Boolean(updatedModules.length)
     if (typeof onHotUpdateSuccess === 'function') {
       // Maybe we want to do something.
-      onHotUpdateSuccess(hasUpdates)
+      onHotUpdateSuccess(updatedModules)
     }
 
     if (isUpdateAvailable()) {
       // While we were updating, there was a new update! Do it again.
       // However, this time, don't trigger a pending refresh state.
       tryApplyUpdates(
-        hasUpdates ? undefined : onBeforeHotUpdate,
-        hasUpdates ? onBuildOk : onHotUpdateSuccess
+        updatedModules.length > 0 ? undefined : onBeforeHotUpdate,
+        updatedModules.length > 0 ? onBuildOk : onHotUpdateSuccess
       )
     } else {
       onBuildOk()
@@ -399,8 +403,7 @@ function tryApplyUpdates(onBeforeHotUpdate: any, onHotUpdateSuccess: any) {
       }
 
       if (typeof onBeforeHotUpdate === 'function') {
-        const hasUpdates = Boolean(updatedModules.length)
-        onBeforeHotUpdate(hasUpdates)
+        onBeforeHotUpdate(updatedModules)
       }
       // @ts-expect-error TODO: module.hot exists but type needs to be added. Can't use `as any` here as webpack parses for `module.hot` calls.
       return module.hot.apply()
