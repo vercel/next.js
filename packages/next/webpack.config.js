@@ -36,8 +36,11 @@ const minimalExternals = [
 ]
 
 const externalsMap = {
-  '/(.*)config$/': 'next/dist/server/config',
   './web/sandbox': 'next/dist/server/web/sandbox',
+}
+
+const externalsRegexMap = {
+  '(.*)trace/tracer$': 'next/dist/server/lib/trace/tracer',
 }
 
 module.exports = ({ dev }) => {
@@ -55,6 +58,12 @@ module.exports = ({ dev }) => {
         )
         callback(null, `commonjs ${relative}`)
       } else {
+        const regexMatch = Object.keys(externalsRegexMap).find((regex) =>
+          new RegExp(regex).test(request)
+        )
+        if (regexMatch) {
+          return callback(null, 'commonjs ' + externalsRegexMap[regexMatch])
+        }
         callback()
       }
     })()

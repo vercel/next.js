@@ -21,6 +21,12 @@ module.exports = function (task) {
             console.error(err || stats.toString())
             reject(err || stats.toString())
           }
+          if (process.env.ANALYZE) {
+            require('fs').writeFileSync(
+              require('path').join(__dirname, options.name + '-stats.json'),
+              JSON.stringify(stats.toJson())
+            )
+          }
           resolve()
         })
       })
