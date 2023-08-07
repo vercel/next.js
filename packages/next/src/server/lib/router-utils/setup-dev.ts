@@ -17,7 +17,7 @@ import findUp from 'next/dist/compiled/find-up'
 import { buildCustomRoute } from './filesystem'
 import * as Log from '../../../build/output/log'
 import HotReloader, { matchNextPageBundleRequest } from '../../dev/hot-reloader'
-import { traceGlobals } from '../../../trace/shared'
+import { setGlobal } from '../../../trace/shared'
 import { Telemetry } from '../../../telemetry/storage'
 import { IncomingMessage, ServerResponse } from 'http'
 import loadJsConfig from '../../../build/load-jsconfig'
@@ -119,8 +119,8 @@ async function startWatcher(opts: SetupOpts) {
 
   const distDir = path.join(opts.dir, opts.nextConfig.distDir)
 
-  traceGlobals.set('distDir', distDir)
-  traceGlobals.set('phase', PHASE_DEVELOPMENT_SERVER)
+  setGlobal('distDir', distDir)
+  setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
 
   const validFileMatcher = createValidFileMatcher(
     nextConfig.pageExtensions,
