@@ -29,6 +29,7 @@ use crate::{
         local::{NextFontLocalCssModuleReplacer, NextFontLocalReplacer},
     },
     next_server::context::ServerContextType,
+    util::NextRuntime,
 };
 
 // Make sure to not add any external requests here.
@@ -211,8 +212,7 @@ pub async fn get_next_server_import_map(
 
     let ty = ty.into_value();
 
-    insert_next_server_special_aliases(&mut import_map, ty, mode, NextServerEnvironment::NodeJs)
-        .await?;
+    insert_next_server_special_aliases(&mut import_map, ty, mode, NextRuntime::NodeJs).await?;
     let external = ImportMapping::External(None).cell();
 
     match ty {
@@ -284,8 +284,7 @@ pub async fn get_next_edge_import_map(
 
     let ty = ty.into_value();
 
-    insert_next_server_special_aliases(&mut import_map, ty, mode, NextServerEnvironment::Edge)
-        .await?;
+    insert_next_server_special_aliases(&mut import_map, ty, mode, NextRuntime::Edge).await?;
 
     match ty {
         ServerContextType::Pages { .. } | ServerContextType::PagesData { .. } => {}
@@ -358,21 +357,15 @@ static NEXT_ALIASES: [(&str, &str); 23] = [
     ("setImmediate", "next/dist/compiled/setimmediate"),
 ];
 
-#[derive(Debug, Clone, Copy)]
-enum NextServerEnvironment {
-    Edge,
-    NodeJs,
-}
-
 async fn insert_next_server_special_aliases(
     import_map: &mut ImportMap,
     ty: ServerContextType,
     mode: NextMode,
-    server_env: NextServerEnvironment,
+    runtime: NextRuntime,
 ) -> Result<()> {
-    let external_if_node = move |context_dir: Vc<FileSystemPath>, request: &str| match server_env {
-        NextServerEnvironment::Edge => request_to_import_mapping(context_dir, request),
-        NextServerEnvironment::NodeJs => external_request_to_import_mapping(request),
+    let external_if_node = move |context_dir: Vc<FileSystemPath>, request: &str| match runtime {
+        NextRuntime::Edge => request_to_import_mapping(context_dir, request),
+        NextRuntime::NodeJs => external_request_to_import_mapping(request),
     };
     match (mode, ty) {
         (_, ServerContextType::Pages { pages_dir }) => {
