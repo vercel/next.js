@@ -1,6 +1,31 @@
-module.exports = function (plop) {
-  const toFileName = (str) => str.toLowerCase().replace(/ /g, '-')
-  plop.setHelper('toFileName', toFileName)
+import type { PlopTypes } from '@turbo/gen'
+import path from 'path'
+import * as helpers from './helpers'
+
+interface TestResponse extends Parameters<PlopTypes.DynamicActionsFunction> {
+  appDir: string
+  type: 'e2e' | 'production' | 'development' | 'unit'
+}
+
+interface ErrorResponse extends Parameters<PlopTypes.DynamicActionsFunction> {
+  name: string
+  title: string
+  why: string
+  fix: string
+}
+
+function validateNonEmptyString(field: string) {
+  return function (value: string) {
+    if (/.+/.test(value)) {
+      return true
+    }
+    return `${field} is required`
+  }
+}
+
+export default function generator(plop: PlopTypes.NodePlopAPI): void {
+  // make our custom helpers available for use in templates as handlebars helpers
+  helpers.init(plop)
 
   plop.setGenerator('test', {
     description: 'Create a new test',
@@ -15,6 +40,7 @@ module.exports = function (plop) {
         type: 'input',
         name: 'name',
         message: 'Test name',
+        validate: validateNonEmptyString('test name'),
       },
       {
         type: 'list',
@@ -34,12 +60,18 @@ module.exports = function (plop) {
         ],
       },
     ],
-    actions: function (data) {
-      const appDirPath = data.appDir ? 'app-dir/' : ''
-      let templatePath = `test/${
-        data.type === 'unit' ? 'unit' : 'e2e'
-      }/${appDirPath}test-template`
-      let targetPath = `test/{{ type }}/${appDirPath}`
+    actions: function (answers) {
+      const { appDir, type } = answers as TestResponse
+      const testRoot = path.join(plop.getDestBasePath(), 'test')
+
+      const appDirPath = appDir ? 'app-dir/' : ''
+      let templatePath = path.join(
+        testRoot,
+        type === 'unit' ? 'unit' : 'e2e',
+        appDirPath,
+        'test-template'
+      )
+      let targetPath = path.join(testRoot, type, appDirPath)
 
       return [
         {
@@ -59,24 +91,30 @@ module.exports = function (plop) {
         name: 'name',
         type: 'input',
         message: 'Url path with dashes. E.g. circular-structure',
+        validate: validateNonEmptyString('path'),
       },
       {
         name: 'title',
         type: 'input',
         message: 'Title for the error. E.g. Circular Structure',
+        validate: validateNonEmptyString('title'),
       },
       {
         name: 'why',
         type: 'input',
         message: 'What caused the error to happen?',
+        validate: validateNonEmptyString('why'),
       },
       {
         name: 'fix',
         type: 'input',
         message: 'What are the possible ways to fix it?',
+        validate: validateNonEmptyString('fix'),
       },
     ],
-    actions: function ({ name }) {
+    actions: function (answers) {
+      const { name } = answers as ErrorResponse
+
       return [
         {
           type: 'add',
@@ -86,16 +124,16 @@ module.exports = function (plop) {
         {
           type: 'modify',
           path: 'errors/manifest.json',
-          transform(fileContents) {
+          transform(fileContents: string) {
             const manifestData = JSON.parse(fileContents)
             manifestData.routes[0].routes.push({
-              title: toFileName(name),
-              path: `/errors/${toFileName(name)}.md`,
+              title: helpers.toFileName(name),
+              path: `/errors/${helpers.toFileName(name)}.md`,
             })
             return JSON.stringify(manifestData, null, 2)
           },
         },
-        `Url for the error: https://nextjs.org/docs/messages/${toFileName(
+        `Url for the error: https://nextjs.org/docs/messages/${helpers.toFileName(
           name
         )}`,
       ]
