@@ -11,7 +11,7 @@ This is a full-stack TypeScript example using:
 
 ## Demo
 
-- [Live demo](https://nextjs-typescript-react-stripe-js.vercel.app)
+- [Live demo](https://nextjs-with-stripe-typescript-demo.vercel.app)
 - [Guide](https://vercel.com/guides/getting-started-with-nextjs-typescript-stripe)
 
 The demo is running in test mode -- use `4242424242424242` as a test card number with any CVC + future expiration date.
