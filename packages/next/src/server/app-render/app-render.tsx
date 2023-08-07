@@ -1657,11 +1657,9 @@ export async function renderToHTMLOrFlight(
             {
               ...serverComponentsRenderOpts,
               rscChunks: [],
-              transformStream: is404
-                ? new TransformStream()
-                : cloneTransformStream(
-                    serverComponentsRenderOpts.transformStream
-                  ),
+              transformStream: cloneTransformStream(
+                serverComponentsRenderOpts.transformStream
+              ),
             }
 
           const errorType = is404
@@ -1682,7 +1680,7 @@ export async function renderToHTMLOrFlight(
           )
           const ErrorPage = createServerComponentRenderer(
             async () => {
-              const [MetadataTree, MetadataOutlet] = createMetadataComponents({
+              const [MetadataTree] = createMetadataComponents({
                 tree, // still use original tree with not-found boundaries to extract metadata
                 pathname,
                 errorType,
@@ -1699,41 +1697,18 @@ export async function renderToHTMLOrFlight(
                 </>
               )
 
-              const notFoundLoaderTree: LoaderTree = is404
-                ? createNotFoundLoaderTree(tree)
-                : tree
               const initialTree = createFlightRouterStateFromLoaderTree(
-                notFoundLoaderTree,
+                tree,
                 getDynamicParamFromSegment,
                 query
               )
 
-              const injectedCSS = new Set<string>()
-              const injectedFontPreloadTags = new Set<string>()
-              const [RootLayout, rootStyles] = await getRootLayout(
-                tree,
-                injectedCSS,
-                injectedFontPreloadTags
-              )
-              const [NotFound, notFoundStyles] = await getNotFound(
-                !renderOpts.dev && renderOpts.originalPathname === '/_not-found'
-                  ? notFoundLoaderTree
-                  : tree,
-                injectedCSS
-              )
-
-              const GlobalNotFound = NotFound || DefaultNotFound
-              const ErrorLayout = RootLayout || ErrorHtml
-
               const notFoundElement = (
-                <ErrorLayout params={{}}>
-                  <MetadataOutlet />
-                  {rootStyles}
-                  {notFoundStyles}
-                  <GlobalNotFound />
-                </ErrorLayout>
+                <html id="__next_error__">
+                  <head>{head}</head>
+                  <body></body>
+                </html>
               )
-
               // For metadata notFound error there's no global not found boundary on top
               // so we create a not found page with AppRouter
               return (
