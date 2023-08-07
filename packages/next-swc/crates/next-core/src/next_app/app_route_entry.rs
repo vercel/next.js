@@ -1,5 +1,8 @@
+use std::io::Write;
+
 use anyhow::{bail, Result};
 use indexmap::indexmap;
+use indoc::writedoc;
 use turbo_tasks::{Value, ValueToString, Vc};
 use turbopack_binding::{
     turbo::tasks_fs::{rope::RopeBuilder, File, FileSystemPath},
@@ -7,9 +10,8 @@ use turbopack_binding::{
         core::{
             asset::AssetContent,
             context::AssetContext,
-            reference_type::{
-                EcmaScriptModulesReferenceSubType, EntryReferenceSubType, ReferenceType,
-            },
+            module::Module,
+            reference_type::{EntryReferenceSubType, ReferenceType},
             source::Source,
             virtual_source::VirtualSource,
         },
@@ -41,7 +43,8 @@ pub async fn get_app_route_entry(
         ),
         source,
     );
-    let context = if matches!(config.await?.runtime, Some(NextRuntime::Edge)) {
+    let is_edge = matches!(config.await?.runtime, Some(NextRuntime::Edge));
+    let context = if is_edge {
         edge_context
     } else {
         nodejs_context
@@ -102,21 +105,23 @@ pub async fn get_app_route_entry(
 
     let virtual_source = VirtualSource::new(template_path, AssetContent::file(file.into()));
 
-    let entry = context.process(
+    let userland_module = context.process(
         source,
-        Value::new(ReferenceType::EcmaScriptModules(
-            EcmaScriptModulesReferenceSubType::Undefined,
-        )),
+        Value::new(ReferenceType::Entry(EntryReferenceSubType::AppRoute)),
     );
 
     let inner_assets = indexmap! {
-        "VAR_USERLAND".to_string() => entry
+        "VAR_USERLAND".to_string() => userland_module
     };
 
-    let rsc_entry = context.process(
+    let mut rsc_entry = context.process(
         Vc::upcast(virtual_source),
         Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
     );
+
+    if is_edge {
+        rsc_entry = wrap_edge_entry(context, project_root, rsc_entry, original_page_name.clone());
+    }
 
     let Some(rsc_entry) =
         Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkPlaceable>>(rsc_entry).await?
@@ -131,6 +136,44 @@ pub async fn get_app_route_entry(
         config,
     }
     .cell())
+}
+
+#[turbo_tasks::function]
+pub async fn wrap_edge_entry(
+    context: Vc<ModuleAssetContext>,
+    project_root: Vc<FileSystemPath>,
+    entry: Vc<Box<dyn Module>>,
+    original_name: String,
+) -> Result<Vc<Box<dyn Module>>> {
+    let mut source = RopeBuilder::default();
+    writedoc!(
+        source,
+        r#"
+            import {{ EdgeRouteModuleWrapper }} from 'next/dist/esm/server/web/edge-route-module-wrapper'
+            import * as module from "MODULE"
+
+            self._ENTRIES ||= {{}}
+            self._ENTRIES[{}] = {{
+                ComponentMod: module,
+                default: EdgeRouteModuleWrapper.wrap(module.routeModule),
+            }}
+        "#,
+        StringifyJs(&format_args!("middleware_{}", original_name))
+    )?;
+    let file = File::from(source.build());
+    // TODO(alexkirsz) Figure out how to name this virtual asset.
+    let virtual_source = VirtualSource::new(
+        project_root.join("edge-wrapper.js".to_string()),
+        AssetContent::file(file.into()),
+    );
+    let inner_assets = indexmap! {
+        "MODULE".to_string() => entry
+    };
+
+    Ok(context.process(
+        Vc::upcast(virtual_source),
+        Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
+    ))
 }
 
 fn get_original_route_name(pathname: &str) -> String {

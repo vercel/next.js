@@ -390,9 +390,7 @@ export function getLoaderSWCOptions({
       },
     }
   } else {
-    // Matches default @babel/preset-env behavior
-    baseOptions.jsc.target = 'es5'
-    return {
+    const options = {
       ...baseOptions,
       // Ensure Next.js internals are output as commonjs modules
       ...(isNextDist
@@ -416,5 +414,10 @@ export function getLoaderSWCOptions({
           }
         : {}),
     }
+    if (!options.env) {
+      // Matches default @babel/preset-env behavior
+      options.jsc.target = 'es5'
+    }
+    return options
   }
 }
