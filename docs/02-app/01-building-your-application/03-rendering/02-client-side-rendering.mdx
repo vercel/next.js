@@ -1,0 +1,78 @@
+---
+title: Client-Side Rendering (CSR)
+nav_title: Client-Side Rendering (CSR)
+description: Learn how Client-side Rendering works and how to use Client Components in Next.js.
+---
+
+Client-side Rendering is a strategy for rendering parts of your web application on the client. In Next.js, this is done with [React Client Components](). Client-side rendering is also **opt-in**, meaning you have to explicitly decide which parts of your application should be rendered on the client.
+
+This page will go through how Client Components work, when you might use them, and how Next.js optimizes them.
+
+## React Client Components
+
+## How are Client Components Rendered?
+
+### Initial Request
+
+### Subsequent Requests
+
+## Using Client Components
+
+### The "use client" directive
+
+### The "use client" directive
+
+The [`"use client"` directive](https://github.com/reactjs/rfcs/pull/227) is a convention to declare a boundary between a Server and Client Component module graph.
+
+```tsx filename="app/counter.tsx" highlight={1} switcher
+'use client'
+
+import { useState } from 'react'
+
+export default function Counter() {
+  const [count, setCount] = useState(0)
+
+  return (
+    <div>
+      <p>You clicked {count} times</p>
+      <button onClick={() => setCount(count + 1)}>Click me</button>
+    </div>
+  )
+}
+```
+
+```jsx filename="app/counter.js" highlight={1} switcher
+'use client'
+
+import { useState } from 'react'
+
+export default function Counter() {
+  const [count, setCount] = useState(0)
+
+  return (
+    <div>
+      <p>You clicked {count} times</p>
+      <button onClick={() => setCount(count + 1)}>Click me</button>
+    </div>
+  )
+}
+```
+
+<Image
+  alt="Use Client Directive and Network Boundary"
+  srcLight="/docs/light/use-client-directive.png"
+  srcDark="/docs/dark/use-client-directive.png"
+  width="1600"
+  height="1320"
+/>
+
+`"use client"` _sits_ between server-only and client code. It's placed at the top of a file, above imports, to define the _cut-off_ point where it crosses the boundary from the server-only to the client part. Once `"use client"` is defined in a file, all other modules imported into it, including child components, are considered part of the client bundle.
+
+Since Server Components are the default, all components are part of the Server Component module graph unless defined or imported in a module that starts with the `"use client"` directive.
+
+> **Good to know**:
+>
+> - Components in the Server Component module graph are guaranteed to be only rendered on the server.
+> - Components in the Client Component module graph are primarily rendered on the client, but with Next.js, they can also be pre-rendered on the server and hydrated on the client.
+> - The `"use client"` directive must be defined at the **top of a file** before any imports.
+> - `"use client"` does **not** need to be defined in every file. The Client module boundary only needs to be defined once, at the "entry point", for all modules imported into it to be considered a Client Component.
