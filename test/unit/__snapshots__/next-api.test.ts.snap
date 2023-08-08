@@ -711,6 +711,10 @@ exports[`next.rs api should allow to write pages edge page to disk: diagnostics 
 
 exports[`next.rs api should allow to write pages edge page to disk: issues 1`] = `Array []`;
 
+exports[`next.rs api should allow to write root page to disk: diagnostics 1`] = `Array []`;
+
+exports[`next.rs api should allow to write root page to disk: issues 1`] = `Array []`;
+
 exports[`next.rs api should detect the correct routes: diagnostics 1`] = `
 Array [
   Object {
@@ -718,6 +722,13 @@ Array [
     "name": "EVENT_BUILD_FEATURE_USAGE",
     "payload": Object {
       "modularizeImports": "true",
+    },
+  },
+  Object {
+    "category": "NextFeatureTelemetry_category_tbd",
+    "name": "EVENT_BUILD_FEATURE_USAGE",
+    "payload": Object {
+      "platform-triplet": "true",
     },
   },
   Object {
@@ -802,13 +813,6 @@ Array [
     "name": "EVENT_BUILD_FEATURE_USAGE",
     "payload": Object {
       "turbotrace": "false",
-    },
-  },
-  Object {
-    "category": "NextFeatureTelemetry_category_tbd",
-    "name": "EVENT_BUILD_FEATURE_USAGE",
-    "payload": Object {
-      "x86_64-unknown-linux-gnu": "true",
     },
   },
 ]

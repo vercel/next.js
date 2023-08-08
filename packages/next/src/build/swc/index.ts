@@ -449,7 +449,11 @@ export interface Issue {
   subIssues: Issue[]
 }
 
-export interface Diagnostics {}
+export interface Diagnostics {
+  category: string
+  name: string
+  payload: unknown
+}
 
 export type TurbopackResult<T = {}> = T & {
   issues: Issue[]
@@ -474,10 +478,23 @@ export interface Update {
   update: unknown
 }
 
+export interface HmrIdentifiers {
+  identifiers: string[]
+}
+
+export interface UpdateInfo {
+  duration: number
+  tasks: number
+}
+
 export interface Project {
   update(options: ProjectOptions): Promise<void>
   entrypointsSubscribe(): AsyncIterableIterator<TurbopackResult<Entrypoints>>
   hmrEvents(identifier: string): AsyncIterableIterator<TurbopackResult<Update>>
+  hmrIdentifiersSubscribe(): AsyncIterableIterator<
+    TurbopackResult<HmrIdentifiers>
+  >
+  updateInfoSubscribe(): AsyncIterableIterator<TurbopackResult<UpdateInfo>>
 }
 
 export type Route =
@@ -786,6 +803,24 @@ function bindingToApi(binding: any, _wasm: boolean) {
         true,
         async (callback) =>
           binding.projectHmrEvents(this._nativeProject, identifier, callback)
+      )
+      return subscription
+    }
+
+    hmrIdentifiersSubscribe() {
+      const subscription = subscribe<TurbopackResult<HmrIdentifiers>>(
+        false,
+        async (callback) =>
+          binding.projectHmrIdentifiersSubscribe(this._nativeProject, callback)
+      )
+      return subscription
+    }
+
+    updateInfoSubscribe() {
+      const subscription = subscribe<TurbopackResult<UpdateInfo>>(
+        true,
+        async (callback) =>
+          binding.projectUpdateInfoSubscribe(this._nativeProject, callback)
       )
       return subscription
     }
