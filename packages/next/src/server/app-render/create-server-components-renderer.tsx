@@ -17,7 +17,6 @@ export function createServerComponentRenderer<Props>(
       require: any
       loadChunk: any
     }
-    createFromReadableStream: any
   },
   {
     transformStream,
