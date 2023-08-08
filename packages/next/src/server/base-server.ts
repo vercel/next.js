@@ -468,6 +468,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     this.responseCache = this.getResponseCache({ dev })
   }
 
+  protected reloadMatchers() {
+    return this.matchers.reload()
+  }
+
   protected async normalizeNextData(
     _req: BaseNextRequest,
     _res: BaseNextResponse,
@@ -1411,7 +1415,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     { req, res, pathname, renderOpts: opts }: RequestContext,
     { components, query }: FindComponentsResult
   ): Promise<ResponsePayload | null> {
-    const is404Page = pathname === '/404'
+    const is404Page =
+      // For edge runtime 404 page, /_not-found needs to be treated as 404 page
+      (process.env.NEXT_RUNTIME === 'edge' && pathname === '/_not-found') ||
+      pathname === '/404'
     const is500Page = pathname === '/500'
     const isAppPath = components.isAppPath
     const hasServerProps = !!components.getServerSideProps
@@ -1920,7 +1927,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           (req as NodeNextRequest).originalRequest ?? (req as WebNextRequest),
           (res as NodeNextResponse).originalResponse ??
             (res as WebNextResponse),
-          { page: pathname, params: opts.params, query, renderOpts }
+          {
+            page: is404Page ? '/404' : pathname,
+            params: opts.params,
+            query,
+            renderOpts,
+          }
         )
       } else {
         // If we didn't match a page, we should fallback to using the legacy
