@@ -10,7 +10,7 @@ related:
 
 > In the beginning, there was the server. - _Copilot_
 
-Server-Side Rendering is a strategy for rendering web applications on the server. In Next.js, this is done with [React Server Components](), and the rendering work is further split by route segments to enable streaming.
+Server-Side Rendering is a strategy for rendering parts of your web application on the server. In Next.js, this is done with [React Server Components](), and the rendering work is split by route segments to enable streaming.
 
 This page will go through how Server Components work, when you might use them, and the three subsets of Server-Side Rendering:
 
@@ -20,24 +20,26 @@ This page will go through how Server Components work, when you might use them, a
 
 ## React Server Components
 
-React Server Components allow us to write UI that can be rendered and cached on the server. There are a couple of benefits to doing the rendering work to the server, including:
+React Server Components allow us to write non-interactive UI that can be rendered and cached on the server. There are a couple of benefits to doing the rendering work to the server, including:
 
-- **Data Fetching Performance**: Server Components allow you to move data fetching to the server, closer to your data source. This can improve performance by reducing the time it takes to fetch data needed for rendering, and the amount of data sent over the [network boundaries](/docs/app/building-your-application/rendering#network-boundaries).
-- **Security**: Server Components allow you to automatically keep sensitive data and logic on the server, without the risk of exposing them to the client, such as environment variables, tokens, and API keys.
-- **Caching**: By rendering on the server, the result can be cached and reused on subsequent requests and across users. This can improve performance by reducing the amount of work required to render a page.
-- **User Experience**: Server Components allow you to keep large dependencies that previously would impact the client JavaScript bundle size on the server. This is beneficial for users with slow internet connections or less powerful devices.
+- **Data Fetching Performance**: Server Components allow you to move data fetching to the server, closer to your data source. This can improve performance by reducing the time it takes to fetch data needed for rendering.
+- **Security**: Server Components allow you to automatically keep sensitive data and logic on the server, without the risk of exposing them to the client, such as tokens and API keys.
+- **Caching**: By rendering on the server, the result can be cached and reused on subsequent requests and across users. This can improve performance and reduce cost by reducing the amount of rendering work.
+- **Smaller Bundle Sizes**: Server Components allow you to keep large dependencies that previously would impact the client JavaScript bundle size on the server. This is beneficial for users with slow internet connections or less powerful devices, as the client does not have to download and parse any JavaScript for Server Components.
 - **Initial Page Load and [First Contentful Paint (FCP)](https://web.dev/fcp/)**: On the server, we can use the RSC Payload to render HTML. This allows the page to be viewed immediately without waiting for JavaScript to download, parse, and execute on the client.
 - **SEO Optimization**: Search engine bots can use the rendered HTML to crawl and index pages, this can improve your application's SEO.
 
 ## Using Server Components in Next.js
 
-By default, the root component of your Next.js application is a Server Component, making its children Server Components. This allows you to automatically implement server-side rendering with no additional configuration.
+By default, the [root layout](/docs/app/building-your-application/routing/pages-and-layouts#root-layout-required) of your Next.js application is a Server Component, making its children Server Components. This allows you automatically implement server-side rendering with no additional configuration.
 
-There are three reasons why Next.js uses Server Components by default:
-
-- Routes can be [statically rendered]() for better performance, this means the rendering work can be done ahead of time and cached.
-- During [dynamic rendering](), the work can be split into chunks and streamed to the client, allowing the user to see a preview of the page before it's fully rendered.
-- During the [request lifecycle](), you can do data fetching and other computational work on the server before sending the response to the client, reducing the number of requests. If the application was client-first, you'd have to make additional requests to the server during client-side rendering.
+> **Why are Server Components the default?**
+>
+> There are three reasons why Next.js uses Server Components:
+>
+> - Routes can be [statically rendered](#static-rendering-default) for better performance, this means the rendering work can be done ahead of time and cached.
+> - During [dynamic rendering](#dynamic-rendering), the work can be split into chunks and streamed to the client, allowing the user to see a preview of the page before it's fully rendered.
+> - During the [request lifecycle](/docs/app/building-your-application/rendering#request-response-lifecycle), you can do data fetching and other computational work on the server before sending the response to the client, reducing the number of requests made to the server from the client.
 
 By default, Next.js statically renders routes to improve performance. At **build time**, Server and Client components are rendered on the server, and the result of the work is [cached](/docs/app/building-your-application/caching#full-route-cache) and reused on subsequent requests.
 
