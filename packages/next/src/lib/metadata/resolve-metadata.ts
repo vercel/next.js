@@ -366,6 +366,46 @@ export async function resolveMetadata({
   parentParams,
   metadataItems,
   errorMetadataItem,
+  getDynamicParamFromSegment,
+  searchParams,
+  errorConvention,
+  metadataContext,
+}: {
+  tree: LoaderTree
+  parentParams: { [key: string]: any }
+  metadataItems: MetadataItems
+  errorMetadataItem: MetadataItems[number]
+  /** Provided tree can be nested subtree, this argument says what is the path of such subtree */
+  treePrefix?: string[]
+  getDynamicParamFromSegment: GetDynamicParamFromSegment
+  searchParams: { [key: string]: any }
+  errorConvention: 'not-found' | undefined
+  metadataContext: MetadataContext
+}): Promise<[ResolvedMetadata, any]> {
+  const resolvedMetadataItems = await resolveMetadataItems({
+    tree,
+    parentParams,
+    metadataItems,
+    errorMetadataItem,
+    getDynamicParamFromSegment,
+    searchParams,
+    errorConvention,
+  })
+  let metadata: ResolvedMetadata = createDefaultMetadata()
+  let error
+  try {
+    metadata = await accumulateMetadata(resolvedMetadataItems, metadataContext)
+  } catch (err: any) {
+    error = err
+  }
+  return [metadata, error]
+}
+
+export async function resolveMetadataItems({
+  tree,
+  parentParams,
+  metadataItems,
+  errorMetadataItem,
   treePrefix = [],
   getDynamicParamFromSegment,
   searchParams,
@@ -419,7 +459,7 @@ export async function resolveMetadata({
 
   for (const key in parallelRoutes) {
     const childTree = parallelRoutes[key]
-    await resolveMetadata({
+    await resolveMetadataItems({
       tree: childTree,
       metadataItems,
       errorMetadataItem,
