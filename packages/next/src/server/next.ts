@@ -60,7 +60,7 @@ export class NextServer {
   private reqHandlerPromise?: Promise<NodeRequestHandler>
   private preparedAssetPrefix?: string
 
-  private standaloneMode?: boolean
+  protected standaloneMode?: boolean
 
   public options: NextServerOptions
 
@@ -74,10 +74,6 @@ export class NextServer {
 
   get port() {
     return this.options.port
-  }
-
-  [SYMBOL_SET_STANDALONE_MODE]() {
-    this.standaloneMode = true
   }
 
   getRequestHandler(): RequestHandler {
@@ -238,6 +234,86 @@ export class NextServer {
   }
 }
 
+class NextCustomServer extends NextServer {
+  protected standaloneMode = true
+  private didWebSocketSetup: boolean = false
+
+  // @ts-expect-error These are initialized in prepare()
+  protected requestHandler: WorkerRequestHandler
+  // @ts-expect-error These are initialized in prepare()
+  protected upgradeHandler: WorkerUpgradeHandler
+
+  async prepare() {
+    const { getRequestHandlers } =
+      require('./lib/start-server') as typeof import('./lib/start-server')
+
+    const isNodeDebugging = checkIsNodeDebugging()
+
+    const initResult = await getRequestHandlers({
+      dir: this.options.dir!,
+      port: this.options.port || 3000,
+      isDev: !!this.options.dev,
+      hostname: this.options.hostname || 'localhost',
+      minimalMode: this.options.minimalMode,
+      isNodeDebugging: !!isNodeDebugging,
+    })
+    this.requestHandler = initResult[0]
+    this.upgradeHandler = initResult[1]
+  }
+
+  private setupWebSocketHandler(
+    customServer?: import('http').Server,
+    _req?: IncomingMessage
+  ) {
+    if (!this.didWebSocketSetup) {
+      this.didWebSocketSetup = true
+      customServer = customServer || (_req?.socket as any)?.server
+
+      if (customServer) {
+        customServer.on('upgrade', async (req, socket, head) => {
+          this.upgradeHandler(req, socket, head)
+        })
+      }
+    }
+  }
+
+  getRequestHandler() {
+    return async (
+      req: IncomingMessage,
+      res: ServerResponse,
+      parsedUrl?: UrlWithParsedQuery
+    ) => {
+      this.setupWebSocketHandler(this.options.httpServer, req)
+
+      if (parsedUrl) {
+        req.url = formatUrl(parsedUrl)
+      }
+
+      return this.requestHandler(req, res)
+    }
+  }
+
+  async render(...args: Parameters<Server['render']>) {
+    let [req, res, pathname, query, parsedUrl] = args
+    this.setupWebSocketHandler(this.options.httpServer, req as any)
+
+    if (!pathname.startsWith('/')) {
+      console.error(`Cannot render page with path "${pathname}"`)
+      pathname = `/${pathname}`
+    }
+    pathname = pathname === '/index' ? '/' : pathname
+
+    req.url = formatUrl({
+      ...parsedUrl,
+      pathname,
+      query,
+    })
+
+    await this.requestHandler(req as any, res as any)
+    return
+  }
+}
+
 // This file is used for when users run `require('next')`
 function createServer(options: NextServerOptions): NextServer {
   // The package is used as a TypeScript plugin.
@@ -269,129 +345,17 @@ function createServer(options: NextServerOptions): NextServer {
     )
   }
 
+  // When the caller is a custom server (using next()).
   if (options.customServer !== false) {
-    // If the `app` dir exists, we'll need to run the standalone server to have
-    // both types of renderers (pages, app) running in separated processes,
-    // instead of having the Next server only.
-    let shouldUseStandaloneMode = false
     const dir = resolve(options.dir || '.')
-    const server = new NextServer(options)
 
-    const { getRequestHandlers } =
-      require('./lib/start-server') as typeof import('./lib/start-server')
-
-    let didWebSocketSetup = false
-    let requestHandler: WorkerRequestHandler
-    let upgradeHandler: WorkerUpgradeHandler
-
-    function setupWebSocketHandler(
-      customServer?: import('http').Server,
-      _req?: IncomingMessage
-    ) {
-      if (!didWebSocketSetup) {
-        didWebSocketSetup = true
-        customServer = customServer || (_req?.socket as any)?.server
-
-        if (!customServer) {
-          // this is very unlikely to happen but show an error in case
-          // it does somehow
-          console.error(
-            `Invalid IncomingMessage received, make sure http.createServer is being used to handle requests.`
-          )
-        } else {
-          customServer.on('upgrade', async (req, socket, head) => {
-            if (shouldUseStandaloneMode) {
-              upgradeHandler(req, socket, head)
-            }
-          })
-        }
-      }
-    }
-    return new Proxy(
-      {},
-      {
-        get: function (_, propKey) {
-          switch (propKey) {
-            case 'prepare':
-              return async () => {
-                shouldUseStandaloneMode = true
-                server[SYMBOL_SET_STANDALONE_MODE]()
-                const isNodeDebugging = checkIsNodeDebugging()
-
-                const initResult = await getRequestHandlers({
-                  dir,
-                  port: options.port || 3000,
-                  isDev: !!options.dev,
-                  hostname: options.hostname || 'localhost',
-                  minimalMode: options.minimalMode,
-                  isNodeDebugging: !!isNodeDebugging,
-                })
-                requestHandler = initResult[0]
-                upgradeHandler = initResult[1]
-              }
-            case 'getRequestHandler': {
-              return () => {
-                let handler: RequestHandler
-                return async (
-                  req: IncomingMessage,
-                  res: ServerResponse,
-                  parsedUrl?: UrlWithParsedQuery
-                ) => {
-                  if (shouldUseStandaloneMode) {
-                    setupWebSocketHandler(options.httpServer, req)
-
-                    if (parsedUrl) {
-                      req.url = formatUrl(parsedUrl)
-                    }
-
-                    return requestHandler(req, res)
-                  }
-                  handler = handler || server.getRequestHandler()
-                  return handler(req, res, parsedUrl)
-                }
-              }
-            }
-            case 'render': {
-              return async (
-                req: IncomingMessage,
-                res: ServerResponse,
-                pathname: string,
-                query?: NextParsedUrlQuery,
-                parsedUrl?: NextUrlWithParsedQuery
-              ) => {
-                if (shouldUseStandaloneMode) {
-                  setupWebSocketHandler(options.httpServer, req)
-
-                  if (!pathname.startsWith('/')) {
-                    console.error(`Cannot render page with path "${pathname}"`)
-                    pathname = `/${pathname}`
-                  }
-                  pathname = pathname === '/index' ? '/' : pathname
-
-                  req.url = formatUrl({
-                    ...parsedUrl,
-                    pathname,
-                    query,
-                  })
-
-                  requestHandler(req, res)
-                  return
-                }
-
-                return server.render(req, res, pathname, query, parsedUrl)
-              }
-            }
-            default: {
-              const method = server[propKey as keyof NextServer]
-              if (typeof method === 'function') {
-                return method.bind(server)
-              }
-            }
-          }
-        },
-      }
-    ) as any
+    return new NextCustomServer({
+      ...options,
+      dir,
+    })
   }
+
+  // When the caller is Next.js internals (i.e. render worker, start server, etc)
   return new NextServer(options)
 }
 
