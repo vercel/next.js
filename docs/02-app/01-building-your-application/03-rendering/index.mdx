@@ -32,7 +32,7 @@ Historically, developers had to use different languages (e.g. JavaScript, PHP) a
 
 However, each environment has its own set of roles, capabilities, and constraints. Therefore, the code you write for the server and the client cannot be the same. There are certain operations (e.g. data fetching), that are better suited for one environment over the other.
 
-Understanding these differences is key to effectively using React and Next.js. We'll cover the differences and use cases in more detail on the [Server](/docs/app/building-your-application/rendering/server-environment) and [Client](/docs/app/building-your-application/rendering/server-environment) environments pages, for now, let's continue building on our foundation.
+Understanding these differences is key to effectively using React and Next.js. We'll cover the differences and use cases in more detail on the [Server](/docs/app/building-your-application/rendering/server-environment) and [Client](/docs/app/building-your-application/rendering/server-environment) rendering pages, for now, let's continue building on our foundation.
 
 ### Request-Response Lifecycle
 
@@ -67,11 +67,9 @@ In web development, the **Network Boundary** is a conceptual line that separates
   height=""
 />
 
-In React, you choose where to place the network boundary that separates the client and server wherever it makes the most sense.
+In React, you choose where to place the client-server network boundary wherever it makes the most sense.
 
 Behind the scenes, the work is split into two parts: the **client module graph** and the **server module graph**. The client module graph contains all components that are executed on the client, and the server module graph contains all the components that are executed on the server.
-
-It may be helpful to think about module graphs as a visual representation of how files in your application depend on each other. For example, if you have a file called `Page.jsx` that imports a file called `Button.jsx` on the server, the module graph would look something like this:
 
 <Image
   alt="Module Graph"
@@ -81,4 +79,40 @@ It may be helpful to think about module graphs as a visual representation of how
   height=""
 />
 
+It may be helpful to think about module graphs as a visual representation of how files in your application depend on each other. For example, if you have a file called `Page.jsx` that imports a file called `Button.jsx` on the server, the module graph would look something like this:
+
+<Image
+  alt="Module Graph"
+  srcLight="/docs/light/module-graph-example.png"
+  srcDark="/docs/dark/module-graph-examples.png"
+  width=""
+  height=""
+/>
+
 The Network Boundary is defined with a React convention called ["use client"](). There's also a ["use server"]() convention, which tells React to do some computational work on the server.
+
+## Building Hybrid Applications
+
+When building hybrid applications, it's helpful to think of the flow of the code in your application as **unidirectional**. In other words, your application code flows in one direction: from the server to the client.
+
+<Image
+  alt="One way data flow"
+  srcLight="/docs/light/one-way-data-flow.png"
+  srcDark="/docs/dark/one-way-data-flow.png"
+  width=""
+  height=""
+/>
+
+If you need to access the server from the client, you send a **new** request to the server rather than re-use the same request. This makes it easier to architect hybrid applications, and understand where you should place the Network Boundary.
+
+<Image
+  alt="Unidirectional Flow"
+  srcLight="/docs/light/unidirectional-flow.png"
+  srcDark="/docs/dark/unidirectional-flow.png"
+  width=""
+  height=""
+/>
+
+In practice, this model encourages developers to think about what they want to execute on the server first, before sending the result to the client and making the application interactive.
+
+This concept will become clearer when we look at how you can [interleave client and server components]() in the same component tree.
