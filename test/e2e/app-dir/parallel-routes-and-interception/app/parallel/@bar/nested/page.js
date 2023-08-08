@@ -1,3 +1,3 @@
 export default function Page() {
-  return <div>parallel/@bar/nested/page</div>
+  return <div>parallel/@foo/nested/page</div>
 }
