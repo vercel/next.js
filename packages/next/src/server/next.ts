@@ -3,10 +3,7 @@ import type { NodeRequestHandler } from './next-server'
 import type { UrlWithParsedQuery } from 'url'
 import type { NextConfigComplete } from './config-shared'
 import type { IncomingMessage, ServerResponse } from 'http'
-import {
-  type NextParsedUrlQuery,
-  type NextUrlWithParsedQuery,
-} from './request-meta'
+import type { NextUrlWithParsedQuery } from './request-meta'
 
 import './require-hook'
 import './node-polyfill-fetch'
@@ -50,7 +47,6 @@ export interface RequestHandler {
   ): Promise<void>
 }
 
-const SYMBOL_SET_STANDALONE_MODE = Symbol('next.set_standalone_mode')
 const SYMBOL_LOAD_CONFIG = Symbol('next.load_config')
 
 export class NextServer {
