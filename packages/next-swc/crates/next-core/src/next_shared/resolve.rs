@@ -136,7 +136,7 @@ impl ResolvePlugin for NextExternalResolvePlugin {
         _request: Vc<Request>,
     ) -> Result<Vc<ResolveResultOption>> {
         let raw_fs_path = &*fs_path.await?;
-        let path = (&raw_fs_path.path).to_string();
+        let path = raw_fs_path.path.to_string();
         Ok(Vc::cell(Some(
             ResolveResult::primary(ResolveResultItem::OriginalReferenceTypeExternal(path)).into(),
         )))
