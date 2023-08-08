@@ -1401,21 +1401,14 @@ export default async function getBaseWebpackConfig(
     // Also disable esm request when appDir is enabled
     const isEsmRequested = dependencyType === 'esm'
 
+    /**
+     * @param {string} localRes the full path to the file
+     * @returns {string | undefined} the externalized path
+     * @description returns an externalized path if the file is a Next.js file and ends with either `.shared-runtime.js` or `.external.js`
+     * This is used to ensure that files used across the rendering runtime(s) and the user code are one and the same. The logic in this function
+     * will rewrite the require to the correct bundle location depending on the layer at which the file is being used.
+     */
     const isLocalCallback = (localRes: string) => {
-      // Makes sure dist/shared and dist/server are not bundled
-      // we need to process shared `router/router`, `head` and `dynamic`,
-      // so that the DefinePlugin can inject process.env values.
-
-      // // Treat next internals as non-external for server layer
-      // if (isWebpackServerLayer(layer)) {
-      //   return
-      // }
-
-      // const isNextExternal =
-      //   /next[/\\]dist[/\\](esm[\\/])?(shared|server)[/\\](?!lib[/\\](router[/\\]router|dynamic|app-dynamic|image-external|lazy-dynamic|head[^-]))/.test(
-      //     localRes
-      //   )
-
       const pathSeparators = '[/\\\\]'
       const optionalEsmPart = `((${pathSeparators}esm)?${pathSeparators})`
       const sharedRuntimeFileEnd = '(\\.shared-runtime(\\.js)?)$'
@@ -1432,11 +1425,16 @@ export default async function getBaseWebpackConfig(
       const isSharedRuntime = sharedRuntimePattern.test(localRes)
       const isExternal = externalPattern.test(localRes)
 
+      // if the file ends with .external, we need to make it a commonjs require in all cases
+      // this is used mainly to share the async local storage across the routing, rendering and user layers.
       if (isExternal) {
         // it's important we return the path that starts with `next/dist/` here instead of the absolute path
         // otherwise NFT will get tripped up
         return `commonjs ${localRes.replace(/.*?next[/\\]dist/, 'next/dist')}`
       }
+      // if the file ends with .shared-runtime, we need to make it point to the correct bundle depending on the layer
+      // this is because each shared-runtime files are unique per bundle, so if you use app-router context in pages,
+      // it'll be a different instance than the one used in the app-router runtime.
       if (isSharedRuntime) {
         if (dev) {
           return `commonjs ${localRes}`
@@ -1447,30 +1445,9 @@ export default async function getBaseWebpackConfig(
         const camelCaseName = name.replace(/-([a-z])/g, (_, w) =>
           w.toUpperCase()
         )
-        // // Generate Next.js external import
-        // const externalRequest = path.posix.join(
-        //   'next',
-        //   'dist',
-        //   path
-        //     .relative(
-        //       // Root of Next.js package:
-        //       path.join(__dirname, '..'),
-        //       localRes
-        //     )
-        //     // Windows path normalization
-        //     .replace(/\\/g, '/')
-        // )
-        // return `commonjs ${externalRequest}`
 
-        // if (isAppLayer) {
-        //   // todo
-        // } else {
-
-        // app vs pages
-        // - app
-        // - pages
-        // - api
-        // - app route
+        // there's no externals for API routes but if need be, they'll need to be added here and have
+        // their own layer
         const runtime =
           layer === 'app-route-handler'
             ? 'app-route'
@@ -1484,14 +1461,12 @@ export default async function getBaseWebpackConfig(
               'dist',
               'compiled',
               'next-server',
-              // TODO: check if externals can happen for app routes or API routes
               `${runtime}.runtime.${dev ? 'dev' : 'prod'}`
             ),
           'default',
           'externals',
           camelCaseName,
         ]
-        // }
       }
     }
 
