@@ -41,9 +41,32 @@ By default, the [root layout](/docs/app/building-your-application/routing/pages-
 > - During [dynamic rendering](#dynamic-rendering), the work can be split into chunks and streamed to the client, allowing the user to see a preview of the page before it's fully rendered.
 > - During the [request lifecycle](/docs/app/building-your-application/rendering#request-response-lifecycle), you can do data fetching and other computational work on the server before sending the response to the client, reducing the number of requests made to the server from the client.
 
-By default, Next.js statically renders routes to improve performance. At **build time**, Server and Client components are rendered on the server, and the result of the work is [cached](/docs/app/building-your-application/caching#full-route-cache) and reused on subsequent requests.
+## How Server Components are Rendered
 
-> To understand how Client and Server Components are rendered, see the [Rendering Client and Server Components](/docs/app/building-your-application/rendering/server-and-client-components) page.
+On the server, Next.js uses React's APIs to orchestrate rendering. The rendering work is split into chunks: by individual routes segments and [Suspense Boundaries](https://react.dev/reference/react/Suspense).
+
+Each chunk is rendered in two steps:
+
+1. React renders Server Components into a special data format called the [React Server Component Payload (RSC)]().
+2. Next.js uses the RSC Payload and Client Component JavaScript instructions to render **HTML** on the server.
+
+{/* Rendering Diagram */}
+
+> **What is the React Server Component Payload (RSC)?**
+>
+> The RSC Payload is a compact binary representation of the rendered React Server Components tree. It's used by React on the client to update the browser's DOM. The RSC Payload contains:
+>
+> - The rendered result of Server Components
+> - Placeholders for where Client Components should be rendered and references to their JavaScript files
+> - Any props passed from a Server Component to a Client Component
+
+The default behavior of Next.js is to cache the rendered result (RSC Payload and HTML) of a route on the server. However, since the rendering work is split, we don't have to wait for everything to render before caching or sending a response to the client. We can also [stream](#streaming) the chunks as soon as the work is completed.
+
+Then, at request time, on the client:
+
+1. The HTML is used to immediately show a fast non-interactive initial preview of the Client and Server Components.
+2. The React Server Components Payload is used to reconcile the Client and rendered Server Component trees, and update the DOM.
+3. The JavaScript instructions are used to [hydrate](https://react.dev/reference/react-dom/client/hydrateRoot) Client Components and make the application interactive.
 
 ### Dynamic Rendering
 
