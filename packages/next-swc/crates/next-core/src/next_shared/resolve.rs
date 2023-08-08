@@ -13,7 +13,7 @@ use turbopack_binding::{
             parse::Request,
             pattern::Pattern,
             plugin::{ResolvePlugin, ResolvePluginCondition},
-            ResolveResultOption,
+            ResolveResult, ResolveResultItem, ResolveResultOption,
         },
     },
 };
@@ -99,6 +99,45 @@ impl ResolvePlugin for UnsupportedModulesResolvePlugin {
         }
 
         Ok(ResolveResultOption::none())
+    }
+}
+
+#[turbo_tasks::value]
+pub(crate) struct NextExternalResolvePlugin {
+    root: Vc<FileSystemPath>,
+}
+
+#[turbo_tasks::value_impl]
+impl NextExternalResolvePlugin {
+    #[turbo_tasks::function]
+    pub fn new(root: Vc<FileSystemPath>) -> Vc<Self> {
+        NextExternalResolvePlugin { root }.cell()
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ResolvePlugin for NextExternalResolvePlugin {
+    #[turbo_tasks::function]
+    fn after_resolve_condition(&self) -> Vc<ResolvePluginCondition> {
+        ResolvePluginCondition::new(
+            self.root.root(),
+            Glob::new(
+                "**/next/dist/**/*.{external,shared-runtime,runtime.dev,runtime.prod}.js"
+                    .to_string(),
+            ),
+        )
+    }
+
+    #[turbo_tasks::function]
+    async fn after_resolve(
+        &self,
+        _fs_path: Vc<FileSystemPath>,
+        _context: Vc<FileSystemPath>,
+        _request: Vc<Request>,
+    ) -> Result<Vc<ResolveResultOption>> {
+        Ok(Vc::cell(Some(
+            ResolveResult::primary(ResolveResultItem::OriginalReferenceExternal).into(),
+        )))
     }
 }
 

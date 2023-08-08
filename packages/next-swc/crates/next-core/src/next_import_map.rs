@@ -217,8 +217,6 @@ pub async fn get_next_server_import_map(
 
     match ty {
         ServerContextType::Pages { .. } | ServerContextType::PagesData { .. } => {
-            import_map.insert_exact_alias("next", external);
-            import_map.insert_wildcard_alias("next/", external);
             import_map.insert_exact_alias("react", external);
             import_map.insert_wildcard_alias("react/", external);
             import_map.insert_exact_alias("react-dom", external);
@@ -231,7 +229,7 @@ pub async fn get_next_server_import_map(
         | ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. } => {
             match mode {
-                NextMode::Development | NextMode::Build => {
+                NextMode::Build => {
                     import_map.insert_wildcard_alias("next/dist/server/", external);
                     import_map.insert_wildcard_alias("next/dist/shared/", external);
                 }
@@ -239,6 +237,7 @@ pub async fn get_next_server_import_map(
                     // The sandbox can't be bundled and needs to be external
                     import_map.insert_exact_alias("next/dist/server/web/sandbox", external);
                 }
+                NextMode::Development => {}
             }
             import_map.insert_exact_alias(
                 "next/head",
