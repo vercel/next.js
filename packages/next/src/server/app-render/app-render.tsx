@@ -16,7 +16,7 @@ import type { StaticGenerationBailout } from '../../client/components/static-gen
 import type { RequestAsyncStorage } from '../../client/components/request-async-storage'
 
 import React from 'react'
-import { NotFound as DefaultNotFound } from '../../client/components/error'
+// import DefaultNotFound from '../../client/components/error'
 import { createServerComponentRenderer } from './create-server-components-renderer'
 
 import { ParsedUrlQuery } from 'querystring'
@@ -86,19 +86,6 @@ export type GetDynamicParamFromSegment = (
   treeSegment: Segment
   type: DynamicParamTypesShort
 } | null
-
-function ErrorHtml({
-  children,
-}: {
-  head?: React.ReactNode
-  children?: React.ReactNode
-}) {
-  return (
-    <html id="__next_error__">
-      <body>{children}</body>
-    </html>
-  )
-}
 
 function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
   // Align the segment with parallel-route-default in next-app-loader
@@ -666,7 +653,7 @@ export async function renderToHTMLOrFlight(
             getComponent: notFound[0],
             injectedCSS: injectedCSSWithCurrentLayout,
           })
-        : [rootLayoutIncluded ? undefined : DefaultNotFound]
+        : []
 
       let dynamic = layoutOrPageMod?.dynamic
 
@@ -1589,8 +1576,7 @@ export async function renderToHTMLOrFlight(
           const is404 = res.statusCode === 404
 
           // Preserve the existing RSC inline chunks from the page rendering.
-          // For 404 errors: the metadata from layout can be skipped with the error page.
-          // For other errors (such as redirection): it can still be re-thrown on client.
+          // To avoid the same stream being operated twice, clone the origin stream for error rendering.
           const serverErrorComponentsRenderOpts: typeof serverComponentsRenderOpts =
             {
               ...serverComponentsRenderOpts,
@@ -1619,7 +1605,7 @@ export async function renderToHTMLOrFlight(
           const ErrorPage = createServerComponentRenderer(
             async () => {
               const [MetadataTree] = createMetadataComponents({
-                tree, // still use original tree with not-found boundaries to extract metadata
+                tree,
                 pathname,
                 errorType,
                 searchParams: providedSearchParams,
@@ -1641,12 +1627,6 @@ export async function renderToHTMLOrFlight(
                 query
               )
 
-              const notFoundElement = (
-                <html id="__next_error__">
-                  <head></head>
-                  <body></body>
-                </html>
-              )
               // For metadata notFound error there's no global not found boundary on top
               // so we create a not found page with AppRouter
               return (
@@ -1658,7 +1638,10 @@ export async function renderToHTMLOrFlight(
                   initialHead={head}
                   globalErrorComponent={GlobalError}
                 >
-                  {is404 ? notFoundElement : <ErrorHtml head={head} />}
+                  <html id="__next_error__">
+                    <head></head>
+                    <body></body>
+                  </html>
                 </AppRouter>
               )
             },
