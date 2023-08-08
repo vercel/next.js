@@ -663,8 +663,8 @@ importers:
         specifier: ^7.31.7
         version: 7.31.8(eslint@8.31.0)
       eslint-plugin-react-hooks:
-        specifier: 5.0.0-canary-7118f5dd7-20230705
-        version: 5.0.0-canary-7118f5dd7-20230705(eslint@8.31.0)
+        specifier: ^4.5.0 || 5.0.0-canary-7118f5dd7-20230705
+        version: 4.5.0(eslint@8.31.0)
       typescript:
         specifier: '>=3.3.1'
         version: 4.8.2
@@ -12946,8 +12946,8 @@ packages:
       eslint: 7.24.0
     dev: true
 
-  /eslint-plugin-react-hooks@5.0.0-canary-7118f5dd7-20230705(eslint@8.31.0):
-    resolution: {integrity: sha512-AZYbMo/NW9chdL7vk6HQzQhT+PvTAEVqWk9ziruUoW2kAOcN5qNyelv70e0F1VNQAbvutOC9oc+xfWycI9FxDw==}
+  /eslint-plugin-react-hooks@4.5.0(eslint@8.31.0):
+    resolution: {integrity: sha512-8k1gRt7D7h03kd+SAAlzXkQwWK22BnK6GKZG+FJA6BAGy22CFvl8kCIXKpVux0cCxMWDQUPqSok0LKaZ0aOcCw==}
     engines: {node: '>=10'}
     peerDependencies:
       eslint: ^3.0.0 || ^4.0.0 || ^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0-0
