@@ -141,7 +141,6 @@ import { createValidFileMatcher } from '../server/lib/find-page-file'
 import { startTypeChecking } from './type-check'
 import { generateInterceptionRoutesRewrites } from '../lib/generate-interception-routes-rewrites'
 
-import { traceModule } from './utils/trace-module/trace-module'
 import { buildDataRoute } from '../server/lib/router-utils/build-data-route'
 import { baseOverrides, experimentalOverrides } from '../server/require-hook'
 import { initialize } from '../server/lib/incremental-cache-server'
@@ -1748,26 +1747,6 @@ export default async function build(
                       serverAppPagesCount++
                     }
                   }
-                }
-
-                if (
-                  process.env.NEXT_TRACE_MODULES &&
-                  !isEdgeRuntime(pageRuntime) &&
-                  !isStatic &&
-                  !isSsg &&
-                  !isReservedPage(page) &&
-                  pageInfos.get(page) === undefined
-                ) {
-                  const pagePathNormal = path.join(
-                    path.dirname(pagePath),
-                    path.parse(pagePath).name
-                  )
-                  await traceModule(
-                    path.resolve(
-                      path.join(distDir, 'server', pageType, pagePathNormal)
-                    ),
-                    distDir
-                  )
                 }
 
                 pageInfos.set(page, {
