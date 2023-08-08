@@ -1464,7 +1464,7 @@ export default async function getBaseWebpackConfig(
               `${runtime}.runtime.${dev ? 'dev' : 'prod'}`
             ),
           'default',
-          'externals',
+          'sharedModules',
           camelCaseName,
         ]
       }

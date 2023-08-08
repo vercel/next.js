@@ -140,7 +140,7 @@ if (
       const base = path.basename(request, '.shared-runtime')
       const camelized = base.replace(/-([a-z])/g, (g) => g[1].toUpperCase())
       const instance = originalRequire.call(this, currentRuntime)
-      return instance.default.externals[camelized]
+      return instance.default.sharedModules[camelized]
     }
     return originalRequire.call(this, request)
   }
