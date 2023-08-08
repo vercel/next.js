@@ -4,7 +4,7 @@ import { RouteKind } from '../../../route-kind'
 
 import * as moduleError from '../../../../../pages/_error'
 
-import PagesRouteModule from '../module'
+import PagesRouteModule from '../module.external'
 
 export const routeModule = new PagesRouteModule({
   // TODO: add descriptor for internal error page

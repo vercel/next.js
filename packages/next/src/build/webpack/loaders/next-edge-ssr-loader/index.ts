@@ -1,6 +1,6 @@
 import type webpack from 'webpack'
 import type { SizeLimit } from '../../../../../types'
-import type { PagesRouteModuleOptions } from '../../../../server/future/route-modules/pages/module'
+import type { PagesRouteModuleOptions } from '../../../../server/future/route-modules/pages/module.external'
 import type { MiddlewareConfig } from '../../../analysis/get-page-static-info'
 
 import { getModuleBuildInfo } from '../get-module-build-info'

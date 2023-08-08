@@ -1,5 +1,5 @@
 // @ts-ignore this need to be imported from next/dist to be external
-import * as module from 'next/dist/server/future/route-modules/pages/module'
+import * as module from 'next/dist/server/future/route-modules/pages/module.external'
 import { RouteKind } from '../../../../../server/future/route-kind'
 import { hoist } from '../helpers'
 
@@ -14,7 +14,7 @@ import App from 'VAR_MODULE_APP'
 import * as userland from 'VAR_USERLAND'
 
 const PagesRouteModule =
-  module.PagesRouteModule as unknown as typeof import('../../../../../server/future/route-modules/pages/module').PagesRouteModule
+  module.PagesRouteModule as unknown as typeof import('../../../../../server/future/route-modules/pages/module.external').PagesRouteModule
 
 // Re-export the component (should be the default export).
 export default hoist(userland, 'default')

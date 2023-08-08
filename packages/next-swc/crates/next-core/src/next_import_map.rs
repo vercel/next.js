@@ -217,8 +217,8 @@ pub async fn get_next_server_import_map(
 
     match ty {
         ServerContextType::Pages { .. } | ServerContextType::PagesData { .. } => {
-            import_map.insert_exact_alias("next", external);
-            import_map.insert_wildcard_alias("next/", external);
+            // import_map.insert_exact_alias("next", external);
+            // import_map.insert_wildcard_alias("next/", external);
             import_map.insert_exact_alias("react", external);
             import_map.insert_wildcard_alias("react/", external);
             import_map.insert_exact_alias("react-dom", external);

@@ -46,7 +46,10 @@ use crate::{
     next_import_map::{get_next_server_import_map, mdx_import_source_file},
     next_server::resolve::ExternalPredicate,
     next_shared::{
-        resolve::{ModuleFeatureReportResolvePlugin, UnsupportedModulesResolvePlugin},
+        resolve::{
+            ModuleFeatureReportResolvePlugin, NextExternalResolvePlugin,
+            UnsupportedModulesResolvePlugin,
+        },
         transforms::{
             emotion::get_emotion_transform_plugin, get_relay_transform_plugin,
             styled_components::get_styled_components_transform_plugin,
@@ -120,6 +123,7 @@ pub async fn get_server_resolve_options_context(
         project_path,
         ExternalPredicate::AllExcept(next_config.transpile_packages()).cell(),
     );
+    let next_external_plugin = NextExternalResolvePlugin::new(project_path);
 
     let plugins = match ty {
         ServerContextType::Pages { .. } | ServerContextType::PagesData { .. } => {
@@ -127,6 +131,7 @@ pub async fn get_server_resolve_options_context(
                 Vc::upcast(module_feature_report_resolve_plugin),
                 Vc::upcast(external_cjs_modules_plugin),
                 Vc::upcast(unsupported_modules_resolve_plugin),
+                Vc::upcast(next_external_plugin),
             ]
         }
         ServerContextType::AppSSR { .. }
@@ -137,6 +142,7 @@ pub async fn get_server_resolve_options_context(
                 Vc::upcast(module_feature_report_resolve_plugin),
                 Vc::upcast(server_component_externals_plugin),
                 Vc::upcast(unsupported_modules_resolve_plugin),
+                Vc::upcast(next_external_plugin),
             ]
         }
     };
