@@ -129,6 +129,11 @@ impl ProjectContainer {
     pub fn entrypoints(self: Vc<Self>) -> Vc<Entrypoints> {
         self.project().entrypoints()
     }
+
+    #[turbo_tasks::function]
+    pub fn hmr_identifiers(self: Vc<Self>) -> Vc<Vec<String>> {
+        self.project().hmr_identifiers()
+    }
 }
 
 #[turbo_tasks::value]
@@ -556,5 +561,12 @@ impl Project {
     ) -> Result<Vc<Update>> {
         let from = from.get();
         Ok(self.hmr_content(identifier).update(from))
+    }
+
+    /// Gets a list of all HMR identifiers that can be subscribed to. This is
+    /// only needed for testing purposes and isn't used in real apps.
+    #[turbo_tasks::function]
+    pub async fn hmr_identifiers(self: Vc<Self>) -> Result<Vc<Vec<String>>> {
+        Ok(self.await?.versioned_content_map.keys(self.client_root()))
     }
 }

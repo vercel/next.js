@@ -3578,6 +3578,7 @@ dependencies = [
  "serde",
  "serde_json",
  "shadow-rs",
+ "tokio",
  "tracing",
  "tracing-chrome",
  "tracing-futures",

@@ -711,6 +711,10 @@ exports[`next.rs api should allow to write pages edge page to disk: diagnostics 
 
 exports[`next.rs api should allow to write pages edge page to disk: issues 1`] = `Array []`;
 
+exports[`next.rs api should allow to write root page to disk: diagnostics 1`] = `Array []`;
+
+exports[`next.rs api should allow to write root page to disk: issues 1`] = `Array []`;
+
 exports[`next.rs api should detect the correct routes: diagnostics 1`] = `
 Array [
   Object {

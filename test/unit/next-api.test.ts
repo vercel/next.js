@@ -68,6 +68,25 @@ function normalizeDiagnostics(diagnostics: Diagnostics[]) {
     })
 }
 
+function raceIterators<T>(iterators: AsyncIterableIterator<T>[]) {
+  const nexts = iterators.map((iterator, i) =>
+    iterator.next().then((next) => ({ next, i }))
+  )
+  return (async function* () {
+    while (true) {
+      const remaining = nexts.filter((x) => x)
+      if (remaining.length === 0) return
+      const { next, i } = await Promise.race(remaining)
+      if (!next.done) {
+        yield next.value
+        nexts[i] = iterators[i].next().then((next) => ({ next, i }))
+      } else {
+        nexts[i] = undefined
+      }
+    }
+  })()
+}
+
 describe('next.rs api', () => {
   let next: NextInstance
   beforeAll(async () => {
@@ -143,6 +162,13 @@ describe('next.rs api', () => {
   })
 
   const routes = [
+    {
+      name: 'root page',
+      path: '/',
+      type: 'page',
+      runtime: 'nodejs',
+      config: {},
+    },
     {
       name: 'pages edge api',
       path: '/api/edge',
@@ -270,4 +296,65 @@ describe('next.rs api', () => {
       }
     })
   }
+
+  it('has hmr identifiers', async () => {
+    const result = await project.hmrIdentifiersSubscribe().next()
+    expect(result.done).toBe(false)
+    const identifiers = result.value.identifiers
+    expect(identifiers).toHaveProperty('length', expect.toBePositive())
+    const subscriptions = identifiers.map((identifier) =>
+      project.hmrEvents(identifier)
+    )
+    await Promise.all(
+      subscriptions.map(async (subscription) => {
+        const result = await subscription.next()
+        expect(result.done).toBe(false)
+        expect(result.value).toHaveProperty('resource', expect.toBeObject())
+        expect(result.value).toHaveProperty('type', 'issues')
+        expect(result.value).toHaveProperty('issues', expect.toBeEmpty())
+        expect(result.value).toHaveProperty('diagnostics', expect.toBeEmpty())
+      })
+    )
+    console.log('waiting for events')
+    let updateComplete = project.updateInfoSubscribe().next()
+    next.patchFile(
+      'pages/index.js',
+      'export default () => <div>hello world2</div>'
+    )
+    let foundUpdate = false
+    const result2 = await Promise.race([
+      (async () => {
+        const merged = raceIterators(subscriptions)
+        for await (const item of merged) {
+          if (item.type === 'partial') {
+            // there should only be a single partial update
+            expect(foundUpdate).toBe(false)
+            expect(item.instruction).toEqual({
+              type: 'ChunkListUpdate',
+              merged: [
+                expect.objectContaining({
+                  chunks: expect.toBeObject(),
+                  entries: expect.toBeObject(),
+                }),
+              ],
+            })
+            expect(
+              Object.keys(item.instruction.merged[0].entries)
+            ).toContainEqual(expect.stringContaining('/pages/index.js'))
+            foundUpdate = true
+          }
+        }
+      })(),
+      updateComplete,
+      new Promise((r) => setTimeout(() => r('timeout'), 30000)),
+    ])
+    expect(result2).toMatchObject({
+      done: false,
+      value: {
+        duration: expect.toBePositive(),
+        tasks: expect.toBePositive(),
+      },
+    })
+    expect(foundUpdate).toBe(true)
+  })
 })

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use anyhow::{bail, Result};
-use turbo_tasks::{State, TryJoinIterExt, ValueDefault, ValueToString, Vc};
+use turbo_tasks::{State, TryFlatJoinIterExt, TryJoinIterExt, ValueDefault, ValueToString, Vc};
 use turbopack_binding::{
     turbo::tasks_fs::FileSystemPath,
     turbopack::core::{
@@ -77,5 +77,20 @@ impl VersionedContentMap {
         // NOTE(alexkirsz) This is necessary to mark the task as active again.
         Vc::connect(content);
         Ok(content)
+    }
+
+    #[turbo_tasks::function]
+    pub async fn keys(&self, root: Vc<FileSystemPath>) -> Result<Vc<Vec<String>>> {
+        let keys = {
+            let map = self.map.get();
+            map.keys().copied().collect::<Vec<_>>()
+        };
+        let root = &root.await?;
+        let keys = keys
+            .into_iter()
+            .map(|path| async move { Ok(root.get_path_to(&*path.await?).map(|p| p.to_string())) })
+            .try_flat_join()
+            .await?;
+        Ok(Vc::cell(keys))
     }
 }
