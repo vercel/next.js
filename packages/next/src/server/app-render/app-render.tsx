@@ -788,38 +788,9 @@ export async function renderToHTMLOrFlight(
               : [actualSegment, parallelRouteKey]
 
             const parallelRoute = parallelRoutes[parallelRouteKey]
+
             const childSegment = parallelRoute[0]
             const childSegmentParam = getDynamicParamFromSegment(childSegment)
-            const notFound = NotFound ? <NotFound /> : undefined
-
-            function createParallelRouteMapItem(
-              childProp: ChildProp,
-              segmentPath: FlightDataPath,
-              styles?: React.ReactNode
-            ): [string, React.ReactNode] {
-              return [
-                parallelRouteKey,
-                <LayoutRouter
-                  parallelRouterKey={parallelRouteKey}
-                  segmentPath={segmentPath}
-                  loading={Loading ? <Loading /> : undefined}
-                  loadingStyles={loadingStyles}
-                  hasLoading={Boolean(Loading)}
-                  error={ErrorComponent}
-                  errorStyles={errorStyles}
-                  template={
-                    <Template>
-                      <RenderFromTemplateContext />
-                    </Template>
-                  }
-                  templateStyles={templateStyles}
-                  notFound={notFound}
-                  notFoundStyles={notFoundStyles}
-                  childProp={childProp}
-                  styles={styles}
-                />,
-              ]
-            }
 
             // if we're prefetching and that there's a Loading component, we bail out
             // otherwise we keep rendering for the prefetch.
@@ -839,10 +810,28 @@ export async function renderToHTMLOrFlight(
                 ),
               }
 
-              return createParallelRouteMapItem(
-                childProp,
-                createSegmentPath(currentSegmentPath)
-              )
+              // This is turned back into an object below.
+              return [
+                parallelRouteKey,
+                <LayoutRouter
+                  parallelRouterKey={parallelRouteKey}
+                  segmentPath={createSegmentPath(currentSegmentPath)}
+                  loading={Loading ? <Loading /> : undefined}
+                  loadingStyles={loadingStyles}
+                  hasLoading={Boolean(Loading)}
+                  error={ErrorComponent}
+                  errorStyles={errorStyles}
+                  template={
+                    <Template>
+                      <RenderFromTemplateContext />
+                    </Template>
+                  }
+                  templateStyles={templateStyles}
+                  notFound={NotFound ? <NotFound /> : undefined}
+                  notFoundStyles={notFoundStyles}
+                  childProp={childProp}
+                />,
+              ]
             }
 
             // Create the child component
@@ -871,11 +860,32 @@ export async function renderToHTMLOrFlight(
               ),
             }
 
-            return createParallelRouteMapItem(
-              childProp,
-              createSegmentPath(currentSegmentPath),
-              childStyles
-            )
+            const segmentPath = createSegmentPath(currentSegmentPath)
+
+            // This is turned back into an object below.
+            return [
+              parallelRouteKey,
+              <LayoutRouter
+                parallelRouterKey={parallelRouteKey}
+                segmentPath={segmentPath}
+                error={ErrorComponent}
+                errorStyles={errorStyles}
+                loading={Loading ? <Loading /> : undefined}
+                loadingStyles={loadingStyles}
+                // TODO-APP: Add test for loading returning `undefined`. This currently can't be tested as the `webdriver()` tab will wait for the full page to load before returning.
+                hasLoading={Boolean(Loading)}
+                template={
+                  <Template>
+                    <RenderFromTemplateContext />
+                  </Template>
+                }
+                templateStyles={templateStyles}
+                notFound={NotFound ? <NotFound /> : undefined}
+                notFoundStyles={notFoundStyles}
+                childProp={childProp}
+                styles={childStyles}
+              />,
+            ]
           }
         )
       )
