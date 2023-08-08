@@ -378,7 +378,41 @@ There are two ways you can invalidate the Router Cache:
 
 ### Opting out
 
-It's not possible to opt out of the Router Cache.
+It's not possible to opt out of the Router Cache inside a Server Component. A possible work around is to wrap your route inside a Client Component using the ['use client' directive](/docs/getting-started/react-essentials#the-use-client-directive):
+
+```tsx filename="app/page.tsx" highlight={1} switcher
+'use client'
+
+import Link from 'next/link'
+
+// Shows a new random number every time the user navigates to this page
+export default function Page() {
+  
+  return (
+    <div>
+      <p>{Math.random()}</p> 
+      <Link href='/another-page'>To another page</Link>
+    </div>
+  )
+}
+```  
+
+```jsx filename="app/page.js" highlight={1} switcher
+'use client'
+
+import Link from 'next/link'
+
+// Shows a new random number every time the user navigates to this page
+export default function Page() {
+  
+  return (
+    <div>
+      <p>{Math.random()}</p> 
+      <Link href='/another-page'>To another page</Link>
+    </div>
+  )
+}
+```
 
 You can opt out of **prefetching** by setting the `prefetch` prop of the `<Link>` component to `false`. However, this will still temporarily store the route segments for 30s to allow instant navigation between nested segments, such as tab bars, or back and forward navigation. Visited routes will still be cached.
 
