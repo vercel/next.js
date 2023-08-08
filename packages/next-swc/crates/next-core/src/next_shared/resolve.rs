@@ -131,12 +131,14 @@ impl ResolvePlugin for NextExternalResolvePlugin {
     #[turbo_tasks::function]
     async fn after_resolve(
         &self,
-        _fs_path: Vc<FileSystemPath>,
+        fs_path: Vc<FileSystemPath>,
         _context: Vc<FileSystemPath>,
         _request: Vc<Request>,
     ) -> Result<Vc<ResolveResultOption>> {
+        let raw_fs_path = &*fs_path.await?;
+        let path = (&raw_fs_path.path).to_string();
         Ok(Vc::cell(Some(
-            ResolveResult::primary(ResolveResultItem::OriginalReferenceExternal).into(),
+            ResolveResult::primary(ResolveResultItem::OriginalReferenceTypeExternal(path)).into(),
         )))
     }
 }
