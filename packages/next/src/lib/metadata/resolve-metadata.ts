@@ -361,46 +361,6 @@ export async function collectMetadata({
   }
 }
 
-export async function resolveMetadata({
-  tree,
-  parentParams,
-  metadataItems,
-  errorMetadataItem,
-  getDynamicParamFromSegment,
-  searchParams,
-  errorConvention,
-  metadataContext,
-}: {
-  tree: LoaderTree
-  parentParams: { [key: string]: any }
-  metadataItems: MetadataItems
-  errorMetadataItem: MetadataItems[number]
-  /** Provided tree can be nested subtree, this argument says what is the path of such subtree */
-  treePrefix?: string[]
-  getDynamicParamFromSegment: GetDynamicParamFromSegment
-  searchParams: { [key: string]: any }
-  errorConvention: 'not-found' | undefined
-  metadataContext: MetadataContext
-}): Promise<[ResolvedMetadata, any]> {
-  const resolvedMetadataItems = await resolveMetadataItems({
-    tree,
-    parentParams,
-    metadataItems,
-    errorMetadataItem,
-    getDynamicParamFromSegment,
-    searchParams,
-    errorConvention,
-  })
-  let metadata: ResolvedMetadata = createDefaultMetadata()
-  let error
-  try {
-    metadata = await accumulateMetadata(resolvedMetadataItems, metadataContext)
-  } catch (err: any) {
-    error = err
-  }
-  return [metadata, error]
-}
-
 export async function resolveMetadataItems({
   tree,
   parentParams,
@@ -606,4 +566,44 @@ export async function accumulateMetadata(
   }
 
   return postProcessMetadata(resolvedMetadata, titleTemplates)
+}
+
+export async function resolveMetadata({
+  tree,
+  parentParams,
+  metadataItems,
+  errorMetadataItem,
+  getDynamicParamFromSegment,
+  searchParams,
+  errorConvention,
+  metadataContext,
+}: {
+  tree: LoaderTree
+  parentParams: { [key: string]: any }
+  metadataItems: MetadataItems
+  errorMetadataItem: MetadataItems[number]
+  /** Provided tree can be nested subtree, this argument says what is the path of such subtree */
+  treePrefix?: string[]
+  getDynamicParamFromSegment: GetDynamicParamFromSegment
+  searchParams: { [key: string]: any }
+  errorConvention: 'not-found' | undefined
+  metadataContext: MetadataContext
+}): Promise<[ResolvedMetadata, any]> {
+  const resolvedMetadataItems = await resolveMetadataItems({
+    tree,
+    parentParams,
+    metadataItems,
+    errorMetadataItem,
+    getDynamicParamFromSegment,
+    searchParams,
+    errorConvention,
+  })
+  let metadata: ResolvedMetadata = createDefaultMetadata()
+  let error
+  try {
+    metadata = await accumulateMetadata(resolvedMetadataItems, metadataContext)
+  } catch (err: any) {
+    error = err
+  }
+  return [metadata, error]
 }
