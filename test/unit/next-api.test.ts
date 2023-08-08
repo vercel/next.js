@@ -42,13 +42,30 @@ function normalizeIssues(issues: Issue[]) {
 }
 
 function normalizeDiagnostics(diagnostics: Diagnostics[]) {
-  return diagnostics.sort((a, b) => {
-    const a_ = JSON.stringify(a)
-    const b_ = JSON.stringify(b)
-    if (a_ < b_) return -1
-    if (a_ > b_) return 1
-    return 0
-  })
+  return diagnostics
+    .map((diagnostic) => {
+      if (diagnostic.name === 'EVENT_BUILD_FEATURE_USAGE') {
+        diagnostic.payload = Object.fromEntries(
+          Object.entries(diagnostic.payload).map(([key, value]) => {
+            return [
+              key.replace(
+                /^(x86_64|i686|aarch64)-(apple-darwin|unknown-linux-(gnu|musl)|pc-windows-msvc)$/g,
+                'platform-triplet'
+              ),
+              value,
+            ]
+          })
+        )
+      }
+      return diagnostic
+    })
+    .sort((a, b) => {
+      const a_ = JSON.stringify(a)
+      const b_ = JSON.stringify(b)
+      if (a_ < b_) return -1
+      if (a_ > b_) return 1
+      return 0
+    })
 }
 
 describe('next.rs api', () => {

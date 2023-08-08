@@ -724,6 +724,13 @@ Array [
     "category": "NextFeatureTelemetry_category_tbd",
     "name": "EVENT_BUILD_FEATURE_USAGE",
     "payload": Object {
+      "platform-triplet": "true",
+    },
+  },
+  Object {
+    "category": "NextFeatureTelemetry_category_tbd",
+    "name": "EVENT_BUILD_FEATURE_USAGE",
+    "payload": Object {
       "skipMiddlewareUrlNormalize": "false",
     },
   },
@@ -802,13 +809,6 @@ Array [
     "name": "EVENT_BUILD_FEATURE_USAGE",
     "payload": Object {
       "turbotrace": "false",
-    },
-  },
-  Object {
-    "category": "NextFeatureTelemetry_category_tbd",
-    "name": "EVENT_BUILD_FEATURE_USAGE",
-    "payload": Object {
-      "x86_64-unknown-linux-gnu": "true",
     },
   },
 ]
