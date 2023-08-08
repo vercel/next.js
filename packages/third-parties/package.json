@@ -1,18 +1,22 @@
 {
   "name": "@next/third-parties",
-  "version": "13.4.13-canary.2",
+  "version": "13.4.14-canary.1",
   "private": true,
   "repository": {
     "url": "vercel/next.js",
     "directory": "packages/third-parties"
   },
-  "main": "dist/index.js",
+  "exports": {
+    "./google": "./dist/google/index.js"
+  },
   "files": [
     "dist"
   ],
   "license": "MIT",
   "scripts": {
-    "manual-build": "rm -rf dist && tsc -d -p tsconfig.json && node scripts/update-third-parties",
+    "build": "rm -rf dist && tsc -d -p tsconfig.json",
+    "prepublishOnly": "cd ../../ && turbo run build",
+    "updateThirdParties": "rm -rf src/**/index.tsx && node scripts/update-third-parties",
     "dev": "tsc -d -w -p tsconfig.json",
     "typescript": "tsec --noEmit -p tsconfig.json"
   },

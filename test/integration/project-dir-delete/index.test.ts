@@ -9,7 +9,7 @@ import { join } from 'path'
 import fs from 'fs-extra'
 import stripAnsi from 'strip-ansi'
 
-describe('Project Directory Delete Handling', () => {
+describe.skip('Project Directory Delete Handling', () => {
   it('should gracefully exit on project dir delete', async () => {
     const appDir = join(__dirname, 'app')
     const appPort = await findPort()

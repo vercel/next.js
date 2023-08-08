@@ -1,16 +1,10 @@
 /* eslint-env jest */
 
-import http from 'http'
 import fs from 'fs-extra'
 import { join } from 'path'
 import cheerio from 'cheerio'
-import { nextServer, waitFor } from 'next-test-utils'
-import {
-  fetchViaHTTP,
-  findPort,
-  nextBuild,
-  renderViaHTTP,
-} from 'next-test-utils'
+import { nextServer, startApp, waitFor } from 'next-test-utils'
+import { fetchViaHTTP, nextBuild, renderViaHTTP } from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
 let server
@@ -18,7 +12,6 @@ let nextApp
 let appPort
 let buildId
 let requiredFilesManifest
-let errors = []
 
 describe('Required Server Files', () => {
   beforeAll(async () => {
@@ -55,22 +48,10 @@ describe('Required Server Files', () => {
       quiet: false,
       minimalMode: true,
     })
-    await nextApp.prepare()
-    appPort = await findPort()
 
-    server = http.createServer(async (req, res) => {
-      try {
-        await nextApp.getRequestHandler()(req, res)
-      } catch (err) {
-        console.error('top-level', err)
-        errors.push(err)
-        res.statusCode = 500
-        res.end('error')
-      }
-    })
-    await new Promise((res, rej) => {
-      server.listen(appPort, (err) => (err ? rej(err) : res()))
-    })
+    server = await startApp(nextApp)
+    appPort = server.address().port
+
     console.log(`Listening at ::${appPort}`)
   })
   afterAll(async () => {
@@ -440,21 +421,18 @@ describe('Required Server Files', () => {
   })
 
   it('should bubble error correctly for gip page', async () => {
-    errors = []
     const res = await fetchViaHTTP(appPort, '/errors/gip', { crash: '1' })
     expect(res.status).toBe(500)
     expect(await res.text()).toBe('Internal Server Error')
   })
 
   it('should bubble error correctly for gssp page', async () => {
-    errors = []
     const res = await fetchViaHTTP(appPort, '/errors/gssp', { crash: '1' })
     expect(res.status).toBe(500)
     expect(await res.text()).toBe('Internal Server Error')
   })
 
   it('should bubble error correctly for gsp page', async () => {
-    errors = []
     const res = await fetchViaHTTP(appPort, '/errors/gsp/crash')
     expect(res.status).toBe(500)
     expect(await res.text()).toBe('Internal Server Error')

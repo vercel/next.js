@@ -1,8 +1,8 @@
 use anyhow::{bail, Context, Result};
 use indexmap::IndexMap;
 use next_core::{
-    all_server_paths, create_page_loader_entry_module, emit_all_assets,
-    get_asset_path_from_pathname, get_edge_resolve_options_context,
+    all_server_paths, create_page_loader_entry_module, get_asset_path_from_pathname,
+    get_edge_resolve_options_context,
     mode::NextMode,
     next_client::{
         get_client_module_options_context, get_client_resolve_options_context,
@@ -10,6 +10,7 @@ use next_core::{
     },
     next_dynamic::NextDynamicTransition,
     next_manifests::{BuildManifest, PagesManifest},
+    next_pages::create_page_ssr_entry_module,
     next_server::{
         get_server_module_options_context, get_server_resolve_options_context,
         get_server_runtime_entries, ServerContextType,
@@ -17,7 +18,8 @@ use next_core::{
     pages_structure::{
         find_pages_structure, PagesDirectoryStructure, PagesStructure, PagesStructureItem,
     },
-    util::{parse_config_from_source, NextRuntime},
+    util::{get_asset_prefix_from_pathname, parse_config_from_source, NextRuntime},
+    PageLoaderAsset,
 };
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{trace::TraceRawVcs, Completion, TaskInput, TryJoinIterExt, Value, Vc};
@@ -31,12 +33,18 @@ use turbopack_binding::{
             chunk::{ChunkableModule, ChunkingContext, EvaluatableAssets},
             context::AssetContext,
             file_source::FileSource,
+            issue::{IssueSeverity, OptionIssueSource},
             output::{OutputAsset, OutputAssets},
-            reference_type::{EntryReferenceSubType, ReferenceType},
+            reference_type::{
+                EcmaScriptModulesReferenceSubType, EntryReferenceSubType, ReferenceType,
+            },
+            resolve::{origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
             source::Source,
             virtual_output::VirtualOutputAsset,
         },
-        ecmascript::{chunk::EcmascriptChunkingContext, EcmascriptModuleAsset},
+        ecmascript::{
+            chunk::EcmascriptChunkingContext, resolve::esm_resolve, EcmascriptModuleAsset,
+        },
         turbopack::{
             module_options::ModuleOptionsContext,
             resolve_options_context::ResolveOptionsContext,
@@ -501,14 +509,39 @@ impl PageEndpoint {
     async fn client_chunks(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
         let this = self.await?;
 
-        let client_module = create_page_loader_entry_module(
-            this.pages_project.client_module_context(),
-            self.source(),
-            this.pathname,
-        );
+        let client_module_context = this.pages_project.client_module_context();
+        let client_module =
+            create_page_loader_entry_module(client_module_context, self.source(), this.pathname);
 
         let Some(client_module) =
             Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(client_module).await?
+        else {
+            bail!("expected an ECMAScript module asset");
+        };
+
+        let Some(client_main_module) = *esm_resolve(
+            Vc::upcast(PlainResolveOrigin::new(
+                client_module_context,
+                this.pages_project
+                    .project()
+                    .project_path()
+                    .join("_".to_string()),
+            )),
+            Request::parse(Value::new(Pattern::Constant(
+                "next/dist/client/next-dev-turbopack.js".to_string(),
+            ))),
+            Value::new(EcmaScriptModulesReferenceSubType::Undefined),
+            OptionIssueSource::none(),
+            IssueSeverity::Error.cell(),
+        )
+        .first_module()
+        .await?
+        else {
+            bail!("expected next/dist/client/next-dev-turbopack.js to resolve to a module");
+        };
+
+        let Some(client_main_module) =
+            Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(client_main_module).await?
         else {
             bail!("expected an ECMAScript module asset");
         };
@@ -517,14 +550,26 @@ impl PageEndpoint {
 
         let client_entry_chunk = client_module.as_root_chunk(Vc::upcast(client_chunking_context));
 
-        let client_chunks = client_chunking_context.evaluated_chunk_group(
-            client_entry_chunk,
-            this.pages_project
-                .client_runtime_entries()
-                .with_entry(Vc::upcast(client_module)),
-        );
+        let mut client_chunks = client_chunking_context
+            .evaluated_chunk_group(
+                client_entry_chunk,
+                this.pages_project
+                    .client_runtime_entries()
+                    .with_entry(Vc::upcast(client_main_module))
+                    .with_entry(Vc::upcast(client_module)),
+            )
+            .await?
+            .clone_value();
 
-        Ok(client_chunks)
+        client_chunks.push(Vc::upcast(PageLoaderAsset::new(
+            this.pages_project.project().client_root(),
+            client_module_context,
+            Vc::upcast(client_chunking_context),
+            self.source(),
+            this.pathname,
+        )));
+
+        Ok(Vc::cell(client_chunks))
     }
 
     #[turbo_tasks::function]
@@ -532,6 +577,7 @@ impl PageEndpoint {
         self: Vc<Self>,
         reference_type: Value<ReferenceType>,
         node_path: Vc<FileSystemPath>,
+        project_root: Vc<FileSystemPath>,
         module_context: Vc<ModuleAssetContext>,
         edge_module_context: Vc<ModuleAssetContext>,
         chunking_context: Vc<BuildChunkingContext>,
@@ -547,13 +593,14 @@ impl PageEndpoint {
         let is_edge = matches!(config.runtime, NextRuntime::Edge);
 
         if is_edge {
-            let ssr_module = edge_module_context.process(self.source(), reference_type.clone());
-
-            let Some(ssr_module) =
-                Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(ssr_module).await?
-            else {
-                bail!("expected an ECMAScript module asset");
-            };
+            let ssr_module = create_page_ssr_entry_module(
+                this.pathname,
+                reference_type,
+                project_root,
+                Vc::upcast(edge_module_context),
+                self.source(),
+                this.original_name,
+            );
 
             let edge_files = edge_chunking_context.evaluated_chunk_group(
                 ssr_module.as_root_chunk(Vc::upcast(edge_chunking_context)),
@@ -562,21 +609,21 @@ impl PageEndpoint {
 
             Ok(SsrChunk::Edge { files: edge_files }.cell())
         } else {
-            let Some(ssr_module) =
-                Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(ssr_module).await?
-            else {
-                bail!("expected an ECMAScript module asset");
-            };
+            let ssr_module = create_page_ssr_entry_module(
+                this.pathname,
+                reference_type,
+                project_root,
+                Vc::upcast(module_context),
+                self.source(),
+                this.original_name,
+            );
 
             let asset_path = get_asset_path_from_pathname(&this.pathname.await?, ".js");
 
             let ssr_entry_chunk_path_string = format!("pages{asset_path}");
             let ssr_entry_chunk_path = node_path.join(ssr_entry_chunk_path_string);
-            let ssr_entry_chunk = chunking_context.entry_chunk(
-                ssr_entry_chunk_path,
-                Vc::upcast(ssr_module),
-                runtime_entries,
-            );
+            let ssr_entry_chunk =
+                chunking_context.entry_chunk(ssr_entry_chunk_path, ssr_module, runtime_entries);
 
             Ok(SsrChunk::NodeJs {
                 entry: ssr_entry_chunk,
@@ -594,6 +641,7 @@ impl PageEndpoint {
                 .project()
                 .node_root()
                 .join("server".to_string()),
+            this.pages_project.project().project_path(),
             this.pages_project.ssr_module_context(),
             this.pages_project.edge_ssr_module_context(),
             this.pages_project.project().ssr_chunking_context(),
@@ -612,6 +660,7 @@ impl PageEndpoint {
                 .project()
                 .node_root()
                 .join("server-data".to_string()),
+            this.pages_project.project().project_path(),
             this.pages_project.ssr_data_module_context(),
             this.pages_project.edge_ssr_data_module_context(),
             this.pages_project.project().ssr_data_chunking_context(),
@@ -632,6 +681,7 @@ impl PageEndpoint {
                 .project()
                 .node_root()
                 .join("server".to_string()),
+            this.pages_project.project().project_path(),
             this.pages_project.ssr_module_context(),
             this.pages_project.edge_ssr_module_context(),
             this.pages_project.project().ssr_chunking_context(),
@@ -661,10 +711,10 @@ impl PageEndpoint {
                 .into_iter()
                 .collect(),
         };
+        let manifest_path_prefix = get_asset_prefix_from_pathname(&this.pathname.await?);
         Ok(Vc::upcast(VirtualOutputAsset::new(
             node_root.join(format!(
-                "server/pages{original_name}/pages-manifest.json",
-                original_name = this.original_name.await?
+                "server/pages{manifest_path_prefix}/pages-manifest.json",
             )),
             AssetContent::file(File::from(serde_json::to_string_pretty(&pages_manifest)?).into()),
         )))
@@ -703,10 +753,10 @@ impl PageEndpoint {
             .collect(),
             ..Default::default()
         };
+        let manifest_path_prefix = get_asset_prefix_from_pathname(&this.pathname.await?);
         Ok(Vc::upcast(VirtualOutputAsset::new(
             node_root.join(format!(
-                "server/pages{original_name}/build-manifest.json",
-                original_name = this.original_name.await?
+                "server/pages{manifest_path_prefix}/build-manifest.json",
             )),
             AssetContent::file(File::from(serde_json::to_string_pretty(&build_manifest)?).into()),
         )))
@@ -763,20 +813,17 @@ impl Endpoint for PageEndpoint {
 
         let this = self.await?;
 
-        let node_root = this.pages_project.project().node_root();
-        emit_all_assets(
-            output_assets,
-            node_root,
-            this.pages_project.project().client_relative_path(),
-            this.pages_project.project().node_root(),
-        )
-        .await?;
+        this.pages_project
+            .project()
+            .emit_all_output_assets(output_assets)
+            .await?;
 
+        let node_root = this.pages_project.project().node_root();
         let server_paths = all_server_paths(output_assets, node_root)
             .await?
             .clone_value();
 
-        let node_root = &this.pages_project.project().node_root().await?;
+        let node_root = &node_root.await?;
         let written_endpoint = match *output.await? {
             PageEndpointOutput::NodeJs {
                 entry_chunk,

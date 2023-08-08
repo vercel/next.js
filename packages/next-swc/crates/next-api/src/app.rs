@@ -1,10 +1,10 @@
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use next_core::{
     all_server_paths,
     app_structure::{
         get_entrypoints, Entrypoint as AppEntrypoint, Entrypoints as AppEntrypoints, LoaderTree,
     },
-    emit_all_assets, get_edge_resolve_options_context,
+    get_edge_resolve_options_context,
     mode::NextMode,
     next_app::{
         get_app_client_references_chunks, get_app_client_shared_chunks, get_app_page_entry,
@@ -18,8 +18,10 @@ use next_core::{
         ClientReferenceGraph, ClientReferenceType, NextEcmascriptClientReferenceTransition,
     },
     next_dynamic::{NextDynamicEntries, NextDynamicTransition},
+    next_edge::route_regex::get_named_middleware_regex,
     next_manifests::{
-        AppBuildManifest, AppPathsManifest, BuildManifest, ClientReferenceManifest, PagesManifest,
+        AppBuildManifest, AppPathsManifest, BuildManifest, ClientReferenceManifest,
+        EdgeFunctionDefinition, MiddlewareMatcher, MiddlewaresManifestV2, PagesManifest, Regions,
     },
     next_server::{
         get_server_module_options_context, get_server_resolve_options_context,
@@ -28,15 +30,15 @@ use next_core::{
     util::NextRuntime,
 };
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, Completion, TryJoinIterExt, Value, Vc};
+use turbo_tasks::{trace::TraceRawVcs, Completion, TryFlatJoinIterExt, TryJoinIterExt, Value, Vc};
 use turbopack_binding::{
     turbo::{
         tasks_env::{CustomProcessEnv, ProcessEnv},
-        tasks_fs::{File, FileSystemPath},
+        tasks_fs::{rope::RopeBuilder, File, FileContent, FileSystemPath},
     },
     turbopack::{
         core::{
-            asset::AssetContent,
+            asset::{Asset, AssetContent},
             changed::any_content_changed_of_output_assets,
             chunk::{ChunkableModule, ChunkingContext, EvaluatableAssets},
             file_source::FileSource,
@@ -342,7 +344,8 @@ impl AppProject {
                 .map(|(pathname, app_entrypoint)| async {
                     Ok((
                         pathname.clone(),
-                        *app_entry_point_to_route(self, *app_entrypoint, pathname.clone()).await?,
+                        *app_entry_point_to_route(self, app_entrypoint.clone(), pathname.clone())
+                            .await?,
                     ))
                 })
                 .try_join()
@@ -360,7 +363,10 @@ pub async fn app_entry_point_to_route(
     pathname: String,
 ) -> Vc<Route> {
     match entrypoint {
-        AppEntrypoint::AppPage { loader_tree } => Route::AppPage {
+        AppEntrypoint::AppPage {
+            original_name,
+            loader_tree,
+        } => Route::AppPage {
             html_endpoint: Vc::upcast(
                 AppEndpoint {
                     ty: AppEndpointType::Page {
@@ -369,6 +375,7 @@ pub async fn app_entry_point_to_route(
                     },
                     app_project,
                     pathname: pathname.clone(),
+                    original_name: original_name.clone(),
                 }
                 .cell(),
             ),
@@ -380,16 +387,21 @@ pub async fn app_entry_point_to_route(
                     },
                     app_project,
                     pathname,
+                    original_name,
                 }
                 .cell(),
             ),
         },
-        AppEntrypoint::AppRoute { path } => Route::AppRoute {
+        AppEntrypoint::AppRoute {
+            original_name,
+            path,
+        } => Route::AppRoute {
             endpoint: Vc::upcast(
                 AppEndpoint {
                     ty: AppEndpointType::Route { path },
                     app_project,
-                    pathname: pathname.clone(),
+                    pathname,
+                    original_name,
                 }
                 .cell(),
             ),
@@ -420,18 +432,11 @@ struct AppEndpoint {
     ty: AppEndpointType,
     app_project: Vc<AppProject>,
     pathname: String,
+    original_name: String,
 }
 
 #[turbo_tasks::value_impl]
 impl AppEndpoint {
-    #[turbo_tasks::function]
-    fn client_relative_path(&self) -> Vc<FileSystemPath> {
-        self.app_project
-            .project()
-            .client_root()
-            .join("_next".to_string())
-    }
-
     #[turbo_tasks::function]
     fn app_page_entry(&self, loader_tree: Vc<LoaderTree>) -> Vc<AppEntry> {
         get_app_page_entry(
@@ -440,6 +445,7 @@ impl AppEndpoint {
             loader_tree,
             self.app_project.app_dir(),
             self.pathname.clone(),
+            self.original_name.clone(),
             self.app_project.project().project_path(),
         )
     }
@@ -451,6 +457,7 @@ impl AppEndpoint {
             self.app_project.edge_rsc_module_context(),
             Vc::upcast(FileSource::new(path)),
             self.pathname.clone(),
+            self.original_name.clone(),
             self.app_project.project().project_path(),
         )
     }
@@ -469,7 +476,7 @@ impl AppEndpoint {
 
         let node_root = this.app_project.project().node_root();
 
-        let client_relative_path = self.client_relative_path();
+        let client_relative_path = this.app_project.project().client_relative_path();
         let client_relative_path_ref = client_relative_path.await?;
 
         let server_path = node_root.join("server".to_string());
@@ -608,16 +615,127 @@ impl AppEndpoint {
         );
         output_assets.push(entry_manifest);
 
+        fn create_app_paths_manifest(
+            node_root: Vc<FileSystemPath>,
+            original_name: &str,
+            filename: String,
+        ) -> Result<Vc<Box<dyn OutputAsset>>> {
+            let path =
+                node_root.join(format!("server/app{original_name}/app-paths-manifest.json",));
+            let app_paths_manifest = AppPathsManifest {
+                node_server_app_paths: PagesManifest {
+                    pages: [(original_name.to_string(), filename)]
+                        .into_iter()
+                        .collect(),
+                },
+                ..Default::default()
+            };
+            Ok(Vc::upcast(VirtualOutputAsset::new(
+                path,
+                AssetContent::file(
+                    File::from(serde_json::to_string_pretty(&app_paths_manifest)?).into(),
+                ),
+            )))
+        }
+
         let endpoint_output = match app_entry.config.await?.runtime.unwrap_or_default() {
             NextRuntime::Edge => {
+                // create edge chunks
                 let chunking_context = this.app_project.project().edge_rsc_chunking_context();
+                let mut evaluatable_assets = this
+                    .app_project
+                    .edge_rsc_runtime_entries()
+                    .await?
+                    .clone_value();
+                let Some(evaluatable) = Vc::try_resolve_sidecast(app_entry.rsc_entry).await? else {
+                    bail!("Entry module must be evaluatable");
+                };
+                evaluatable_assets.push(evaluatable);
                 let files = chunking_context.evaluated_chunk_group(
                     app_entry
                         .rsc_entry
                         .as_root_chunk(Vc::upcast(chunking_context)),
-                    this.app_project.edge_rsc_runtime_entries(),
+                    Vc::cell(evaluatable_assets),
                 );
                 output_assets.extend(files.await?.iter().copied());
+
+                let node_root_value = node_root.await?;
+                let files_paths_from_root = files
+                    .await?
+                    .iter()
+                    .map(move |&file| {
+                        let node_root_value = node_root_value.clone();
+                        async move {
+                            Ok(node_root_value
+                                .get_path_to(&*file.ident().path().await?)
+                                .map(|path| path.to_string()))
+                        }
+                    })
+                    .try_flat_join()
+                    .await?;
+
+                let server_path_value = server_path.await?;
+                let files_paths_from_server = files
+                    .await?
+                    .iter()
+                    .map(move |&file| {
+                        let server_path_value = server_path_value.clone();
+                        async move {
+                            Ok(server_path_value
+                                .get_path_to(&*file.ident().path().await?)
+                                .map(|path| path.to_string()))
+                        }
+                    })
+                    .try_flat_join()
+                    .await?;
+                let base_file = files_paths_from_server[0].to_string();
+
+                // create middleware manifest
+                // TODO(alexkirsz) This should be shared with next build.
+                let named_regex = get_named_middleware_regex(&app_entry.pathname);
+                let matchers = MiddlewareMatcher {
+                    regexp: named_regex,
+                    original_source: app_entry.pathname.clone(),
+                    ..Default::default()
+                };
+                let edge_function_definition = EdgeFunctionDefinition {
+                    files: files_paths_from_root,
+                    name: app_entry.original_name.to_string(),
+                    page: app_entry.original_name.clone(),
+                    regions: app_entry
+                        .config
+                        .await?
+                        .preferred_region
+                        .clone()
+                        .map(Regions::Single),
+                    matchers: vec![matchers],
+                    ..Default::default()
+                };
+                let middleware_manifest_v2 = MiddlewaresManifestV2 {
+                    sorted_middleware: vec![app_entry.original_name.clone()],
+                    middleware: Default::default(),
+                    functions: [(app_entry.original_name.clone(), edge_function_definition)]
+                        .into_iter()
+                        .collect(),
+                };
+                let middleware_manifest_v2 = Vc::upcast(VirtualOutputAsset::new(
+                    node_root.join(format!(
+                        "server/app{original_name}/middleware-manifest.json",
+                        original_name = app_entry.original_name
+                    )),
+                    AssetContent::file(
+                        FileContent::Content(File::from(serde_json::to_string_pretty(
+                            &middleware_manifest_v2,
+                        )?))
+                        .cell(),
+                    ),
+                ));
+                output_assets.push(middleware_manifest_v2);
+
+                // create app paths manifest
+                let app_paths_manifest_output =
+                    create_app_paths_manifest(node_root, &app_entry.original_name, base_file)?;
+                output_assets.push(app_paths_manifest_output);
 
                 AppEndpointOutput::Edge {
                     files,
@@ -639,32 +757,15 @@ impl AppEndpoint {
                     );
                 output_assets.push(rsc_chunk);
 
-                let app_paths_manifest = AppPathsManifest {
-                    node_server_app_paths: PagesManifest {
-                        pages: [(
-                            app_entry.original_name.clone(),
-                            server_path
-                                .await?
-                                .get_path_to(&*rsc_chunk.ident().path().await?)
-                                .expect(
-                                    "RSC chunk path should be within app paths manifest directory",
-                                )
-                                .to_string(),
-                        )]
-                        .into_iter()
-                        .collect(),
-                    },
-                    ..Default::default()
-                };
-                let app_paths_manifest_output = Vc::upcast(VirtualOutputAsset::new(
-                    node_root.join(format!(
-                        "server/app{original_name}/app-paths-manifest.json",
-                        original_name = app_entry.original_name
-                    )),
-                    AssetContent::file(
-                        File::from(serde_json::to_string_pretty(&app_paths_manifest)?).into(),
-                    ),
-                ));
+                let app_paths_manifest_output = create_app_paths_manifest(
+                    node_root,
+                    &app_entry.original_name,
+                    server_path
+                        .await?
+                        .get_path_to(&*rsc_chunk.ident().path().await?)
+                        .expect("RSC chunk path should be within app paths manifest directory")
+                        .to_string(),
+                )?;
                 output_assets.push(app_paths_manifest_output);
 
                 AppEndpointOutput::NodeJs {
@@ -675,6 +776,36 @@ impl AppEndpoint {
         };
         Ok(endpoint_output.cell())
     }
+}
+
+#[turbo_tasks::function]
+async fn concatenate_output_assets(
+    path: Vc<FileSystemPath>,
+    files: Vc<OutputAssets>,
+) -> Result<Vc<Box<dyn OutputAsset>>> {
+    let mut concatenated_content = RopeBuilder::default();
+    let contents = files
+        .await?
+        .iter()
+        .map(|&file| async move {
+            Ok(
+                if let AssetContent::File(content) = *file.content().await? {
+                    Some(content.await?)
+                } else {
+                    None
+                },
+            )
+        })
+        .try_flat_join()
+        .await?;
+    for file in contents.iter().flat_map(|content| content.as_content()) {
+        concatenated_content.concat(file.content());
+        concatenated_content.push_static_bytes(b"\n\n");
+    }
+    Ok(Vc::upcast(VirtualOutputAsset::new(
+        path,
+        AssetContent::file(FileContent::Content(concatenated_content.build().into()).cell()),
+    )))
 }
 
 #[turbo_tasks::value_impl]
@@ -690,13 +821,10 @@ impl Endpoint for AppEndpoint {
         let node_root_ref = &node_root.await?;
 
         let node_root = this.app_project.project().node_root();
-        emit_all_assets(
-            output_assets,
-            node_root,
-            self.client_relative_path(),
-            this.app_project.project().node_root(),
-        )
-        .await?;
+        this.app_project
+            .project()
+            .emit_all_output_assets(output_assets)
+            .await?;
 
         let server_paths = all_server_paths(output_assets, node_root)
             .await?
@@ -709,7 +837,7 @@ impl Endpoint for AppEndpoint {
             } => WrittenEndpoint::NodeJs {
                 server_entry_path: node_root_ref
                     .get_path_to(&*rsc_chunk.ident().path().await?)
-                    .context("rsc chunk entry path must be inside the node root")?
+                    .context("Node.js chunk entry path must be inside the node root")?
                     .to_string(),
                 server_paths,
             },
@@ -723,7 +851,7 @@ impl Endpoint for AppEndpoint {
                     .map(|&file| async move {
                         Ok(node_root_ref
                             .get_path_to(&*file.ident().path().await?)
-                            .context("ssr chunk file path must be inside the node root")?
+                            .context("edge chunk file path must be inside the node root")?
                             .to_string())
                     })
                     .try_join()

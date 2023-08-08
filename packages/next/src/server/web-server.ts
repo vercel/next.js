@@ -60,7 +60,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     requestHeaders: IncrementalCache['requestHeaders']
   }) {
     const dev = !!this.renderOpts.dev
-    // incremental-cache is request specific with a shared
+    // incremental-cache is request specific
     // although can have shared caches in module scope
     // per-cache handler
     return new IncrementalCache({
@@ -330,6 +330,11 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
       )
     }
 
+    // For edge runtime if the pathname hit as /_not-found entrypoint,
+    // override the pathname to /404 for rendering
+    if (pathname === (renderOpts.dev ? '/not-found' : '/_not-found')) {
+      pathname = '/404'
+    }
     return renderToHTML(
       req as any,
       res as any,
@@ -374,14 +379,27 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
 
     if (options.result.isDynamic) {
       const writer = res.transformStream.writable.getWriter()
-      options.result.pipe({
+
+      let innerClose: undefined | (() => void)
+      const target = {
         write: (chunk: Uint8Array) => writer.write(chunk),
         end: () => writer.close(),
-        destroy: (err: Error) => writer.abort(err),
-        cork: () => {},
-        uncork: () => {},
-        // Not implemented: on/removeListener
-      } as any)
+
+        on(_event: 'close', cb: () => void) {
+          innerClose = cb
+        },
+        off(_event: 'close', _cb: () => void) {
+          innerClose = undefined
+        },
+      }
+      const onClose = () => {
+        innerClose?.()
+      }
+      // No, this cannot be replaced with `finally`, because early cancelling
+      // the stream will create a rejected promise, and finally will create an
+      // unhandled rejection.
+      writer.closed.then(onClose, onClose)
+      options.result.pipe(target)
     } else {
       const payload = await options.result.toUnchunkedString()
       res.setHeader('Content-Length', String(byteLength(payload)))

@@ -27,11 +27,12 @@ mod next_client_component;
 pub mod next_client_reference;
 pub mod next_config;
 pub mod next_dynamic;
-mod next_edge;
+pub mod next_edge;
 mod next_font;
 pub mod next_image;
 mod next_import_map;
 pub mod next_manifests;
+pub mod next_pages;
 mod next_route_matcher;
 pub mod next_server;
 pub mod next_server_component;
@@ -44,6 +45,7 @@ pub mod router;
 pub mod router_source;
 mod runtime;
 mod sass;
+pub mod tracing_presets;
 mod transform_options;
 pub mod url_node;
 pub mod util;
@@ -53,11 +55,11 @@ pub use app_segment_config::{
     parse_segment_config_from_loader_tree, parse_segment_config_from_source,
 };
 pub use app_source::create_app_source;
-pub use emit::{all_server_paths, emit_all_assets};
+pub use emit::{all_assets_from_entries, all_server_paths, emit_all_assets, emit_assets};
 pub use next_edge::context::{
     get_edge_chunking_context, get_edge_compile_time_info, get_edge_resolve_options_context,
 };
-pub use page_loader::create_page_loader_entry_module;
+pub use page_loader::{create_page_loader_entry_module, PageLoaderAsset};
 pub use page_source::create_page_source;
 pub use turbopack_binding::{turbopack::node::source_map, *};
 pub use util::{get_asset_path_from_pathname, pathname_for_path, PathType};
