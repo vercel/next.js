@@ -381,7 +381,9 @@ export async function runLintCheck(
           // Check for /pages and src/pages is to make sure this happens in Next.js folder
           if (
             existsSync(path.join(baseDir, 'pages')) ||
-            existsSync(path.join(baseDir, 'src/pages'))
+            existsSync(path.join(baseDir, 'src/pages')) ||
+            existsSync(path.join(baseDir, 'app')) ||
+            existsSync(path.join(baseDir, 'src/app'))
           ) {
             await writeDefaultConfig(
               baseDir,
