@@ -1,3 +1,3 @@
 export default function Page() {
-  return <p>hello world</p>
+  return <h1>My page</h1>
 }

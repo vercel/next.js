@@ -141,11 +141,7 @@ import { createValidFileMatcher } from '../server/lib/find-page-file'
 import { startTypeChecking } from './type-check'
 import { generateInterceptionRoutesRewrites } from '../lib/generate-interception-routes-rewrites'
 import { buildDataRoute } from '../server/lib/router-utils/build-data-route'
-import {
-  baseOverrides,
-  defaultOverrides,
-  experimentalOverrides,
-} from '../server/require-hook'
+import { baseOverrides, experimentalOverrides } from '../server/require-hook'
 import { initialize } from '../server/lib/incremental-cache-server'
 import { nodeFs } from '../server/lib/node-fs-methods'
 
@@ -2041,11 +2037,6 @@ export default async function build(
               ...Object.values(experimentalOverrides).map((override) =>
                 require.resolve(override)
               ),
-              ...(config.experimental.turbotrace
-                ? []
-                : Object.values(defaultOverrides).map((value) =>
-                    require.resolve(value)
-                  )),
             ]
 
             // ensure we trace any dependencies needed for custom

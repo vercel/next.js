@@ -2,7 +2,7 @@ import { createNextDescribe } from 'e2e-utils'
 import { check, getRedboxDescription, hasRedbox } from 'next-test-utils'
 
 createNextDescribe(
-  'app dir - root layout not found',
+  'app dir - not found with default 404 page',
   {
     files: __dirname,
     skipDeployment: true,
@@ -47,6 +47,30 @@ createNextDescribe(
           'Digest: NEXT_NOT_FOUND'
         )
       }
+    })
+
+    it('should be able to navigate to page calling not-found', async () => {
+      const browser = await next.browser('/')
+
+      await browser.elementByCss('#navigate-not-found').click()
+      await browser.waitForElementByCss('.next-error-h1')
+
+      expect(await browser.elementByCss('h1').text()).toBe('404')
+      expect(await browser.elementByCss('h2').text()).toBe(
+        'This page could not be found.'
+      )
+    })
+
+    it('should be able to navigate to page with calling not-found in metadata', async () => {
+      const browser = await next.browser('/')
+
+      await browser.elementByCss('#metadata-layout-not-found').click()
+      await browser.waitForElementByCss('.next-error-h1')
+
+      expect(await browser.elementByCss('h1').text()).toBe('404')
+      expect(await browser.elementByCss('h2').text()).toBe(
+        'This page could not be found.'
+      )
     })
   }
 )
