@@ -97,7 +97,6 @@ describe('prerender native module', () => {
         )
         const { version, files } = JSON.parse(contents)
         expect(version).toBe(1)
-        console.log(files, check.page)
         expect(
           check.tests.every((item) => files.some((file) => item.test(file)))
         ).toBe(true)
