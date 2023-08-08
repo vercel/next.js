@@ -105,7 +105,6 @@ describe('basePath', () => {
       let requests = []
 
       browser.on('request', (req: Request) => {
-        console.log('YEAH', req.url())
         requests.push(new URL(req.url()).pathname)
       })
 
