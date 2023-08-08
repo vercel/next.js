@@ -15,7 +15,7 @@ import { resolveTitle } from './resolvers/resolve-title'
 import { resolveAsArrayOrUndefined } from './generate/utils'
 import { isClientReference } from '../client-reference'
 import {
-  getErrorOrLayoutModule,
+  getComponentTypeModule,
   getLayoutOrPageModule,
   LoaderTree,
 } from '../../server/lib/app-dir-module'
@@ -315,21 +315,26 @@ async function resolveStaticMetadata(components: ComponentsType, props: any) {
 // [layout.metadata, static files metadata] -> ... -> [page.metadata, static files metadata]
 export async function collectMetadata({
   tree,
-  metadataItems: array,
+  metadataItems,
+  errorMetadataItem,
   props,
   route,
   errorConvention,
 }: {
   tree: LoaderTree
   metadataItems: MetadataItems
+  errorMetadataItem: MetadataItems[number]
   props: any
   route: string
   errorConvention?: 'not-found'
 }) {
   let mod
   let modType
+  const hasErrorConventionComponent = Boolean(
+    errorConvention && tree[2][errorConvention]
+  )
   if (errorConvention) {
-    mod = await getErrorOrLayoutModule(tree, errorConvention)
+    mod = await getComponentTypeModule(tree, 'layout')
     modType = errorConvention
   } else {
     ;[mod, modType] = await getLayoutOrPageModule(tree)
@@ -344,13 +349,23 @@ export async function collectMetadata({
     ? await getDefinedMetadata(mod, props, { route })
     : null
 
-  array.push([metadataExport, staticFilesMetadata])
+  metadataItems.push([metadataExport, staticFilesMetadata])
+
+  if (hasErrorConventionComponent && errorConvention) {
+    const errorMod = await getComponentTypeModule(tree, errorConvention)
+    const errorMetadataExport = errorMod
+      ? await getDefinedMetadata(errorMod, props, { route })
+      : null
+    errorMetadataItem[0] = errorMetadataExport
+    errorMetadataItem[1] = staticFilesMetadata
+  }
 }
 
 export async function resolveMetadata({
   tree,
   parentParams,
   metadataItems,
+  errorMetadataItem,
   treePrefix = [],
   getDynamicParamFromSegment,
   searchParams,
@@ -359,6 +374,7 @@ export async function resolveMetadata({
   tree: LoaderTree
   parentParams: { [key: string]: any }
   metadataItems: MetadataItems
+  errorMetadataItem: MetadataItems[number]
   /** Provided tree can be nested subtree, this argument says what is the path of such subtree */
   treePrefix?: string[]
   getDynamicParamFromSegment: GetDynamicParamFromSegment
@@ -392,6 +408,7 @@ export async function resolveMetadata({
   await collectMetadata({
     tree,
     metadataItems,
+    errorMetadataItem,
     errorConvention,
     props: layerProps,
     route: currentTreePrefix
@@ -405,12 +422,19 @@ export async function resolveMetadata({
     await resolveMetadata({
       tree: childTree,
       metadataItems,
+      errorMetadataItem,
       parentParams: currentParams,
       treePrefix: currentTreePrefix,
       searchParams,
       getDynamicParamFromSegment,
       errorConvention,
     })
+  }
+
+  if (Object.keys(parallelRoutes).length === 0 && errorConvention) {
+    // If there are no parallel routes, place error metadata as the last item.
+    // e.g. layout -> layout -> not-found
+    metadataItems.push(errorMetadataItem)
   }
 
   return metadataItems

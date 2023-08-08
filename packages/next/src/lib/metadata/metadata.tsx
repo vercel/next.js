@@ -20,6 +20,7 @@ import { accumulateMetadata, resolveMetadata } from './resolve-metadata'
 import { MetaFilter } from './generate/meta'
 import { ResolvedMetadata } from './types/metadata-interface'
 import { createDefaultMetadata } from './default-metadata'
+import { isNotFoundError } from '../../client/components/not-found'
 
 // Use a promise to share the status of the metadata resolving,
 // returning two components `MetadataTree` and `MetadataOutlet`
@@ -55,14 +56,17 @@ export function createMetadataComponents({
   async function MetadataTree() {
     const defaultMetadata = createDefaultMetadata()
     let metadata: ResolvedMetadata | undefined = defaultMetadata
+    const errorMetadataItem: [null, null] = [null, null]
+    const errorConvention = errorType === 'redirect' ? undefined : errorType
     try {
       const resolvedMetadata = await resolveMetadata({
         tree,
         parentParams: {},
         metadataItems: [],
+        errorMetadataItem,
         searchParams,
         getDynamicParamFromSegment,
-        errorConvention: errorType === 'redirect' ? undefined : errorType,
+        errorConvention,
       })
 
       // Skip for redirect case as for the temporary redirect case we don't need the metadata on client
@@ -73,6 +77,25 @@ export function createMetadataComponents({
       }
       resolve(undefined)
     } catch (error: any) {
+      // If the error triggers in initial metadata resolving, re-resolve with proper error type.
+      // They'll be saved for flight data, when hydrates, it will replaces the SSR'd metadata with this.
+      // for not-found error: resolve not-found metadata
+      if (!errorType && isNotFoundError(error)) {
+        const errorResolvedMetadata = await resolveMetadata({
+          tree,
+          parentParams: {},
+          metadataItems: [],
+          errorMetadataItem,
+          searchParams,
+          getDynamicParamFromSegment,
+          errorConvention: 'not-found',
+        })
+
+        metadata = await accumulateMetadata(
+          errorResolvedMetadata,
+          metadataContext
+        )
+      }
       resolve(error)
     }
 

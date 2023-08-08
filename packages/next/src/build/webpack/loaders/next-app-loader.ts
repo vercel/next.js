@@ -323,8 +323,9 @@ async function createTreeCodeFromPath(
           const hasNotFound = definedFilePaths.some(
             ([type]) => type === 'not-found'
           )
+          // Add default not found error as root not found if not present
           if (!hasNotFound) {
-            const notFoundPath = 'next/dist/client/components/error'
+            const notFoundPath = 'next/dist/client/components/not-found-error'
             if (notFoundPath) {
               definedFilePaths.push(['not-found', notFoundPath])
             }
