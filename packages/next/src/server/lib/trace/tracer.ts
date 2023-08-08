@@ -1,3 +1,4 @@
+import { HrTime, TimeInput } from '@opentelemetry/api'
 import { NextVanillaSpanAllowlist, SpanTypes } from './constants'
 
 import type {
@@ -7,6 +8,7 @@ import type {
   Tracer,
   AttributeValue,
 } from 'next/dist/compiled/@opentelemetry/api'
+import { relayOtelToDebugTracing } from './otel-to-debug-tracing'
 
 let api: typeof import('next/dist/compiled/@opentelemetry/api')
 
@@ -33,12 +35,12 @@ const isPromise = <T>(p: any): p is Promise<T> => {
   return p !== null && typeof p === 'object' && typeof p.then === 'function'
 }
 
-const closeSpanWithError = (span: Span, error?: Error) => {
+const closeSpanWithError = (span: Span, error?: Error, end?: HrTime) => {
   if (error) {
     span.recordException(error)
   }
   span.setStatus({ code: SpanStatusCode.ERROR, message: error?.message })
-  span.end()
+  span.end(end)
 }
 
 type TracerSpanOptions = Omit<SpanOptions, 'attributes'> & {
@@ -50,6 +52,9 @@ type TracerSpanOptions = Omit<SpanOptions, 'attributes'> & {
 
 interface NextTracer {
   getContext(): ContextAPI
+  onSpanEnd(
+    cb: (options: TracerSpanOptions, stopTime: TimeInput) => void
+  ): () => void
 
   /**
    * Instruments a function by automatically creating a span activated on its
@@ -147,6 +152,10 @@ let lastSpanId = 0
 const getSpanId = () => lastSpanId++
 
 class NextTracerImpl implements NextTracer {
+  private onSpanEndCb: Set<
+    (options: TracerSpanOptions, stop: HrTime) => unknown
+  > = new Set([])
+
   /**
    * Returns an instance to the trace with configured name.
    * Since wrap / trace can be defined in any place prior to actual trace subscriber initialization,
@@ -162,6 +171,22 @@ class NextTracerImpl implements NextTracer {
 
   public getActiveScopeSpan(): Span | undefined {
     return trace.getSpan(context?.active())
+  }
+
+  public onSpanEnd(
+    cb: (options: TracerSpanOptions, stop: HrTime) => unknown
+  ): () => void {
+    this.onSpanEndCb.add(cb)
+
+    return () => {
+      this.onSpanEndCb.delete(cb)
+    }
+  }
+
+  private handleSpanEnd(options: TracerSpanOptions, stop: HrTime) {
+    for (const cb of this.onSpanEndCb) {
+      cb(options, stop)
+    }
   }
 
   // Trace, wrap implementation is inspired by datadog trace implementation
@@ -228,6 +253,7 @@ class NextTracerImpl implements NextTracer {
 
     const spanId = getSpanId()
 
+    options.startTime = options.startTime ?? process.hrtime()
     options.attributes = {
       'next.span_name': spanName,
       'next.span_type': type,
@@ -263,18 +289,30 @@ class NextTracerImpl implements NextTracer {
             if (isPromise(result)) {
               result
                 .then(
-                  () => span.end(),
-                  (err) => closeSpanWithError(span, err)
+                  () => {
+                    const end = process.hrtime()
+                    span.end(end)
+                    this.handleSpanEnd(options, end)
+                  },
+                  (err) => {
+                    const end = process.hrtime()
+                    closeSpanWithError(span, err, end)
+                    this.handleSpanEnd(options, end)
+                  }
                 )
                 .finally(onCleanup)
             } else {
-              span.end()
+              const end = process.hrtime()
+              span.end(end)
+              this.handleSpanEnd(options, end)
               onCleanup()
             }
 
             return result
           } catch (err: any) {
-            closeSpanWithError(span, err)
+            const end = process.hrtime()
+            closeSpanWithError(span, err, end)
+            this.handleSpanEnd(options, end)
             onCleanup()
             throw err
           }
@@ -358,6 +396,7 @@ class NextTracerImpl implements NextTracer {
 
 const getTracer = (() => {
   const tracer = new NextTracerImpl()
+  relayOtelToDebugTracing(tracer)
 
   return () => tracer
 })()
