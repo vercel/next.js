@@ -10,9 +10,7 @@ use turbopack_core::{
     code_builder::{Code, CodeBuilder},
     output::OutputAsset,
     source_map::{GenerateSourceMap, OptionSourceMap},
-    version::{
-        MergeableVersionedContent, Update, Version, VersionedContent, VersionedContentMerger,
-    },
+    version::{MergeableVersionedContent, Version, VersionedContent, VersionedContentMerger},
 };
 use turbopack_ecmascript::{chunk::EcmascriptChunkContent, utils::StringifyJs};
 
@@ -122,11 +120,6 @@ impl VersionedContent for EcmascriptDevChunkContent {
     #[turbo_tasks::function]
     fn version(self: Vc<Self>) -> Vc<Box<dyn Version>> {
         Vc::upcast(self.own_version())
-    }
-
-    #[turbo_tasks::function]
-    fn update(self: Vc<Self>, _from_version: Vc<Box<dyn Version>>) -> Result<Vc<Update>> {
-        bail!("EcmascriptDevChunkContent is not updateable")
     }
 }
 
