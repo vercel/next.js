@@ -11,7 +11,7 @@ const GetPostBySlugDocument = graphql(/* GraphQL */ `
   }
 `)
 
-const Page = async ({ params }: { params: { slug: string } }) => {
+export default async function Page({ params }: { params: { slug: string } }) {
   const { post } = await grafbase.request(GetPostBySlugDocument, {
     slug: params.slug,
   })
@@ -28,5 +28,3 @@ const Page = async ({ params }: { params: { slug: string } }) => {
     </>
   )
 }
-
-export default Page

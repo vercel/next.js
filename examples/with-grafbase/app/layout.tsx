@@ -2,12 +2,9 @@ import './globals.css'
 import Link from 'next/link'
 import { graphql } from '../gql'
 import { grafbase } from '../lib/grafbase'
+import type { Metadata } from 'next'
 
 export const revalidate = 0
-
-export const metadata = {
-  title: 'Grafbase + Next.js',
-}
 
 const GetAllPostsDocument = graphql(/* GraphQL */ `
   query GetAllPosts($first: Int!) {
@@ -23,7 +20,7 @@ const GetAllPostsDocument = graphql(/* GraphQL */ `
   }
 `)
 
-export const metadata = {
+export const metadata: Metadata = {
   title: 'Grafbase + Next.js',
   description: 'Grafbase + Next.js',
 }
