@@ -320,7 +320,7 @@ function ImagePreload({
     ...getDynamicProps(imgAttributes.fetchPriority),
   }
 
-  if (isAppRouter) {
+  if (isAppRouter && preload) {
     // See https://github.com/facebook/react/pull/26940
     preload(
       imgAttributes.src,
