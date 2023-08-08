@@ -4,7 +4,7 @@ import http from 'http'
 import fs from 'fs-extra'
 import { join } from 'path'
 import cheerio from 'cheerio'
-import { nextServer, waitFor } from 'next-test-utils'
+import { nextServer, startApp, waitFor } from 'next-test-utils'
 import {
   fetchViaHTTP,
   findPort,
@@ -55,22 +55,10 @@ describe('Required Server Files', () => {
       quiet: false,
       minimalMode: true,
     })
-    await nextApp.prepare()
-    appPort = await findPort()
 
-    server = http.createServer(async (req, res) => {
-      try {
-        await nextApp.getRequestHandler()(req, res)
-      } catch (err) {
-        console.error('top-level', err)
-        errors.push(err)
-        res.statusCode = 500
-        res.end('error')
-      }
-    })
-    await new Promise((res, rej) => {
-      server.listen(appPort, (err) => (err ? rej(err) : res()))
-    })
+    server = await startApp(nextApp)
+    appPort = server.address().port
+
     console.log(`Listening at ::${appPort}`)
   })
   afterAll(async () => {
