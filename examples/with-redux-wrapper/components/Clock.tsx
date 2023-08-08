@@ -1,8 +1,13 @@
-const pad = (n) => (n < 10 ? `0${n}` : n)
-const format = (t) =>
+const pad = (n: number) => (n < 10 ? `0${n}` : n)
+const format = (t: Date) =>
   `${pad(t.getUTCHours())}:${pad(t.getUTCMinutes())}:${pad(t.getUTCSeconds())}`
 
-export default function Clock({ lastUpdate, light }) {
+interface Props {
+  lastUpdate: number
+  light: boolean
+}
+
+export default function Clock({ lastUpdate, light }: Props) {
   return (
     <div className={light ? 'light' : ''}>
       {format(new Date(lastUpdate))}
