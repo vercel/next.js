@@ -28,12 +28,6 @@ export const defaultOverrides = {
   'styled-jsx/style': require.resolve('styled-jsx/style'),
 }
 
-const currentRuntime = `${
-  process.env.__NEXT_PRIVATE_RENDER_RUNTIME === 'pages'
-    ? 'next/dist/compiled/next-server/pages.runtime'
-    : 'next/dist/compiled/next-server/app-page.runtime'
-}.${process.env.NODE_ENV === 'development' ? 'dev' : 'prod'}`
-
 export const baseOverrides = {
   react: 'next/dist/compiled/react',
   'react/package.json': 'next/dist/compiled/react/package.json',
@@ -127,18 +121,27 @@ mod._resolveFilename = function (
   // We use `bind` here to avoid referencing outside variables to create potential memory leaks.
 }.bind(null, resolveFilename, hookPropertyMap)
 
-mod.prototype.require = function (request: string) {
-  if (
-    process.env.NODE_ENV !== 'development' &&
-    process.env.__NEXT_PRIVATE_RENDER_RUNTIME
-  ) {
+// This is a hack to make sure that if a user requires a Next.js module that wasn't bundled
+// that needs to point to the rendering runtime version, it will point to the correct one.
+// This can happen on `pages` when a user requires a dependency that uses next/image for example.
+// This is only needed in production as in development we fallback to the external version.
+if (
+  process.env.NODE_ENV !== 'development' &&
+  process.env.__NEXT_PRIVATE_RENDER_RUNTIME
+) {
+  const currentRuntime = `${
+    process.env.__NEXT_PRIVATE_RENDER_RUNTIME === 'pages'
+      ? 'next/dist/compiled/next-server/pages.runtime'
+      : 'next/dist/compiled/next-server/app-page.runtime'
+  }.prod`
+
+  mod.prototype.require = function (request: string) {
     if (request.endsWith('.shared-runtime')) {
       const base = path.basename(request, '.shared-runtime')
       const camelized = base.replace(/-([a-z])/g, (g) => g[1].toUpperCase())
       const instance = originalRequire.call(this, currentRuntime)
       return instance.default.externals[camelized]
     }
+    return originalRequire.call(this, request)
   }
-
-  return originalRequire.call(this, request)
 }
