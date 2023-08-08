@@ -80,7 +80,7 @@ impl VersionedContentMap {
     }
 
     #[turbo_tasks::function]
-    pub async fn keys(&self, root: Vc<FileSystemPath>) -> Result<Vc<Vec<String>>> {
+    pub async fn keys_in_path(&self, root: Vc<FileSystemPath>) -> Result<Vc<Vec<String>>> {
         let keys = {
             let map = self.map.get();
             map.keys().copied().collect::<Vec<_>>()
