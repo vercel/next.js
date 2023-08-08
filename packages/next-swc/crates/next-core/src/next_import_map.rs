@@ -224,6 +224,8 @@ pub async fn get_next_server_import_map(
             import_map.insert_exact_alias("styled-jsx", external);
             import_map.insert_wildcard_alias("styled-jsx/", external);
             import_map.insert_exact_alias("react-server-dom-webpack/", external);
+            // TODO: we should not bundle next/dist/build/utils in the pages renderer at all
+            import_map.insert_wildcard_alias("next/dist/build/utils", external);
         }
         ServerContextType::AppSSR { .. }
         | ServerContextType::AppRSC { .. }
