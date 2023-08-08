@@ -52,7 +52,7 @@
     "clean-trace-jaeger": "node scripts/rm.mjs test/integration/basic/.next && TRACE_TARGET=JAEGER pnpm next build test/integration/basic",
     "debug": "cross-env NEXT_TELEMETRY_DISABLED=1 node --inspect packages/next/dist/bin/next",
     "postinstall": "git config index.skipHash false && node scripts/install-native.mjs",
-    "version": "npx pnpm@7.24.3 install --no-frozen-lockfile && IS_PUBLISH=yes ./scripts/check-pre-compiled.sh && git add .",
+    "version": "pnpm install --no-frozen-lockfile && IS_PUBLISH=yes ./scripts/check-pre-compiled.sh && git add .",
     "prepare": "husky install",
     "sync-react": "node ./scripts/sync-react.js",
     "update-google-fonts": "node ./scripts/update-google-fonts.js"
@@ -171,6 +171,7 @@
     "node-fetch": "2.6.7",
     "npm-run-all": "4.1.5",
     "nprogress": "0.2.0",
+    "octokit": "3.1.0",
     "open": "9.0.0",
     "outdent": "0.8.0",
     "pixrem": "5.0.0",
@@ -242,7 +243,8 @@
     "@types/react-dom": "18.2.4"
   },
   "engines": {
-    "node": ">=16.8.0"
+    "node": ">=16.14.0",
+    "pnpm": "8.6.11"
   },
-  "packageManager": "pnpm@7.24.3"
+  "packageManager": "pnpm@8.6.11"
 }
