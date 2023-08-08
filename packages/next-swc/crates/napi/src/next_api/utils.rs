@@ -266,7 +266,7 @@ pub fn subscribe<T: 'static + Send + Sync, F: Future<Output = Result<T>> + Send,
                 eprintln!("{}", error);
                 return Err(error);
             }
-            Ok(unit().node)
+            Ok(unit())
         })
     });
     Ok(External::new(RootTask {
