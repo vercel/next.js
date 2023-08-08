@@ -51,6 +51,7 @@ once_cell = { workspace = true }
 serde = "1"
 serde_json = "1"
 shadow-rs = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
 tracing = { workspace = true }
 tracing-futures = "0.2.5"
 tracing-subscriber = { workspace = true }
