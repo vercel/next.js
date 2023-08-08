@@ -3,6 +3,7 @@ import { join } from 'path'
 import assert from 'assert'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
+import { Request } from 'playwright-chromium'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import {
@@ -20,6 +21,7 @@ describe('basePath', () => {
   beforeAll(async () => {
     next = await createNext({
       files: {
+        app: new FileRef(join(__dirname, 'basepath/app')),
         pages: new FileRef(join(__dirname, 'basepath/pages')),
         public: new FileRef(join(__dirname, 'basepath/public')),
         external: new FileRef(join(__dirname, 'basepath/external')),
@@ -97,6 +99,29 @@ describe('basePath', () => {
   afterAll(() => next.destroy())
 
   const runTests = (isDev = false, isDeploy = false) => {
+    it('should redirect to /component-redirect/to correctly with the redirect function', async () => {
+      const browser = await next.browser(`${basePath}/component-redirect`)
+
+      let requests = []
+
+      browser.on('request', (req: Request) => {
+        console.log('YEAH', req.url())
+        requests.push(new URL(req.url()).pathname)
+      })
+
+      await new Promise((resolve) => {
+        setTimeout(resolve, 3000)
+      })
+
+      expect(requests).toContain(`${basePath}/component-redirect/to`)
+
+      await browser.elementByCss('#go-back-with-link').click()
+
+      expect(await browser.eval('location.pathname')).toBe(
+        `${basePath}/component-redirect/to`
+      )
+    })
+
     it('should navigate to /404 correctly client-side', async () => {
       const browser = await webdriver(next.url, `${basePath}/slug-1`)
       await check(
