@@ -62,7 +62,8 @@ turbopack-binding = { workspace = true, features = [
   "__turbo",
   "__turbo_tasks",
   "__turbo_tasks_memory",
-  "__turbopack"
+  "__turbopack",
+  "__turbopack_ecmascript_hmr_protocol",
 ] }
 
 [target.'cfg(not(all(target_os = "linux", target_env = "musl", target_arch = "aarch64")))'.dependencies]
