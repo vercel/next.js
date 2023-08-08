@@ -20,34 +20,31 @@ describe('next/jest', () => {
         it('<Page /> renders', () => {
           render(<Page />)
           const logo = screen.getByRole('img')
-          expect(logo).toBeVisible()
+          expect(logo).toBeDefined()
         })
         `,
         'jest.config.js': new FileRef(path.join(appDir, 'jest.config.js')),
       },
-      packageJson: {
-        dependencies: {
-          jest: '29.6.2',
-          'jest-environment-jsdom': '29.6.2',
-          '@testing-library/react': '14.0.0',
-          '@testing-library/jest-dom': '5.17.0',
-        },
-        scripts: {
-          build: 'pnpm jest --forceExit tests/index.test.tsx',
-        },
+      dependencies: {
+        jest: '29.6.2',
+        'jest-environment-jsdom': '29.6.2',
+        '@testing-library/react': '14.0.0',
+        '@testing-library/jest-dom': '5.17.0',
       },
     })
   })
   afterAll(() => next.destroy())
 
   it('Should not throw preload is undefined error', async () => {
-    const { stdout } = await execa('pnpm', ['jest', 'tests/index.test.tsx'], {
-      cwd: next.testDir,
-      env: { ...process.env },
-    })
-    //const { cliOutput } = await next.build()
-    //await next.start()
-    await require('timers/promises').setTimeout(1000)
-    expect(stdout).toContain('blarg')
+    const { stdout, stderr } = await execa(
+      'pnpm',
+      ['jest', 'tests/index.test.tsx'],
+      {
+        cwd: next.testDir,
+        reject: false,
+      }
+    )
+    // Uncaught [TypeError: (0 , _reactdom.preload) is not a function]
+    expect(stdout + stderr).not.toContain('is not a function')
   })
 })
