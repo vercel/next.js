@@ -69,9 +69,15 @@ export function createTestFetch(originalFetch: Fetch): Fetch {
     input: FetchInputArg,
     init?: FetchInitArg
   ): Promise<Response> {
+    // Passthrough internal requests.
+    // @ts-ignore
+    if (init?.next?.internal) {
+      return originalFetch(input, init)
+    }
+
     const testInfo = testStorage.getStore()
     if (!testInfo) {
-      return Promise.reject(new Error('No test info'))
+      throw new Error('No test info')
     }
 
     const { testData, proxyPort } = testInfo
