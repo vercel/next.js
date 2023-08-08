@@ -68,6 +68,18 @@ Then, at request time, on the client:
 2. The React Server Components Payload is used to reconcile the Client and rendered Server Component trees, and update the DOM.
 3. The JavaScript instructions are used to [hydrate](https://react.dev/reference/react-dom/client/hydrateRoot) Client Components and make the application interactive.
 
+## Static and Dynamic Rendering
+
+There are two subsets of Server-Side Rendering: Static and Dynamic Rendering. By default, Next.js statically renders routes to improve performance. However, depending on the features and APIs used, a route can be dynamically rendered. As a developer, you don't need to choose between static and dynamic rendering, Next.js will automatically choose the best rendering strategy for each route.
+
+### Static Rendering (Default)
+
+With Static Rendering, routes are rendered and cached at build time or after [revalidation](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#revalidating-data). This is an optimization that allows you to serve the cached route instead of rendering on the server for every request, resulting in faster page loads.
+
+> **Static Rendering vs. Data Caching**
+>
+> In Next.js, Static Rendering separate from Data Caching. A route can be statically or dynamically rendered, and still use cached data. Learn more about the different [Caching](/docs/app/building-your-application/caching).
+
 ### Dynamic Rendering
 
 With Dynamic Rendering, both Server _and_ Client Components for a route are rendered on the server at **request time**.
