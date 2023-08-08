@@ -2,7 +2,6 @@
 // the other imports
 import startOperationStreamHandler from '../internal/operation-stream'
 
-import 'next/dist/server/require-hook.js'
 import '../polyfill/app-polyfills.ts'
 
 import type { IncomingMessage } from 'node:http'
