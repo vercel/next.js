@@ -42,7 +42,7 @@ import { staticGenerationBailout } from '../../../../client/components/static-ge
 import { requestAsyncStorage } from '../../../../client/components/request-async-storage.external'
 import { staticGenerationAsyncStorage } from '../../../../client/components/static-generation-async-storage.external'
 import { actionAsyncStorage } from '../../../../client/components/action-async-storage.external'
-import * as externals from './externals'
+import * as sharedModules from './shared-modules'
 
 /**
  * AppRouteRouteHandlerContext is the context that is passed to the route
@@ -139,7 +139,7 @@ export class AppRouteRouteModule extends RouteModule<
    */
   public readonly staticGenerationBailout = staticGenerationBailout
 
-  public static readonly externals = externals
+  public static readonly sharedModules = sharedModules
 
   /**
    * A reference to the mutation related async storage, such as mutations of

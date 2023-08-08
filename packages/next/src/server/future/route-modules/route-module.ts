@@ -45,9 +45,9 @@ export abstract class RouteModule<
   public readonly definition: Readonly<D>
 
   /**
-   * The externals that are required for the route module.
+   * The shared modules that are exposed and required for the route module.
    */
-  public static readonly externals: any
+  public static readonly sharedModules: any
 
   constructor({ userland, definition }: RouteModuleOptions<D, U>) {
     this.userland = userland

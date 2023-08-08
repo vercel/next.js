@@ -11,7 +11,7 @@ import {
   type RouteModuleOptions,
   type RouteModuleHandleContext,
 } from '../route-module'
-import * as externals from './externals'
+import * as sharedModules from './shared-modules'
 
 type AppPageUserlandModule = {
   /**
@@ -35,7 +35,7 @@ export class AppPageRouteModule extends RouteModule<
   AppPageRouteDefinition,
   AppPageUserlandModule
 > {
-  static readonly externals = externals
+  static readonly sharedModules = sharedModules
 
   public render(
     req: IncomingMessage,
