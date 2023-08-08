@@ -1,16 +1,20 @@
 import React from 'react'
 
-export default function Base({
-  content,
-  height = null,
-  width = null,
-  children,
-}: {
+export type ScriptEmbed = {
   content?: string
   height?: number | null
   width?: number | null
   children?: React.ReactElement | React.ReactElement[]
-}) {
+  dataNtpc?: string
+}
+
+export default function ThirdPartyScriptEmbed({
+  content,
+  height = null,
+  width = null,
+  children,
+  dataNtpc = '',
+}: ScriptEmbed) {
   return (
     <>
       {/* insert script children */}
@@ -22,6 +26,7 @@ export default function Base({
             height: height != null ? `${height}px` : 'auto',
             width: width != null ? `${width}px` : 'auto',
           }}
+          data-ntpc={dataNtpc}
           dangerouslySetInnerHTML={{ __html: content }}
         />
       )}

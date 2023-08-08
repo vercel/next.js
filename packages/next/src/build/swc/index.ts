@@ -430,7 +430,7 @@ interface TurboEngineOptions {
   memoryLimit?: number
 }
 
-interface Issue {
+export interface Issue {
   severity: string
   category: string
   filePath: string
@@ -449,7 +449,7 @@ interface Issue {
   subIssues: Issue[]
 }
 
-interface Diagnostics {}
+export interface Diagnostics {}
 
 export type TurbopackResult<T = {}> = T & {
   issues: Issue[]
@@ -462,7 +462,7 @@ interface Middleware {
   matcher?: string[]
 }
 
-interface Entrypoints {
+export interface Entrypoints {
   routes: Map<string, Route>
   middleware?: Middleware
   pagesDocumentEndpoint: Endpoint
@@ -470,11 +470,11 @@ interface Entrypoints {
   pagesErrorEndpoint: Endpoint
 }
 
-interface Update {
+export interface Update {
   update: unknown
 }
 
-interface Project {
+export interface Project {
   update(options: ProjectOptions): Promise<void>
   entrypointsSubscribe(): AsyncIterableIterator<TurbopackResult<Entrypoints>>
   hmrEvents(identifier: string): AsyncIterableIterator<TurbopackResult<Update>>
