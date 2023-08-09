@@ -13,7 +13,7 @@ import type { LoadedEnvFiles } from '@next/env'
 import type { AppLoaderOptions } from './webpack/loaders/next-app-loader'
 
 import chalk from 'next/dist/compiled/chalk'
-import { posix, join, dirname } from 'path'
+import { posix, join, dirname, extname } from 'path'
 import { stringify } from 'querystring'
 import {
   PAGES_DIR_ALIAS,
@@ -57,6 +57,28 @@ import { isInternalComponent } from '../lib/is-internal-component'
 import { isStaticMetadataRouteFile } from '../lib/metadata/is-metadata-route'
 import { RouteKind } from '../server/future/route-kind'
 import { encodeToBase64 } from './webpack/loaders/utils'
+
+export function sortByPageExts(pageExtensions: string[]) {
+  return (a: string, b: string) => {
+    // prioritize entries according to pageExtensions order
+    // for consistency as fs order can differ across systems
+    // NOTE: this is reversed so preferred comes last and
+    // overrides prior
+    const aExt = extname(a)
+    const bExt = extname(b)
+
+    const aNoExt = a.substring(0, a.length - aExt.length)
+    const bNoExt = a.substring(0, b.length - bExt.length)
+
+    if (aNoExt !== bNoExt) return 0
+
+    // find extension index (skip '.' as pageExtensions doesn't have it)
+    const aExtIndex = pageExtensions.indexOf(aExt.substring(1))
+    const bExtIndex = pageExtensions.indexOf(bExt.substring(1))
+
+    return bExtIndex - aExtIndex
+  }
+}
 
 export async function getStaticInfoIncludingLayouts({
   isInsideAppDir,
