@@ -1,4 +1,4 @@
-export const forbiddenHeaders = [
+export const ipcForbiddenHeaders = [
   'accept-encoding',
   'keepalive',
   'keep-alive',
@@ -8,8 +8,14 @@ export const forbiddenHeaders = [
   'connection',
 ]
 
+export const actionsForbiddenHeaders = [
+  ...ipcForbiddenHeaders,
+  'content-length',
+]
+
 export const filterReqHeaders = (
-  headers: Record<string, undefined | string | number | string[]>
+  headers: Record<string, undefined | string | number | string[]>,
+  forbiddenHeaders: string[]
 ) => {
   for (const [key, value] of Object.entries(headers)) {
     if (

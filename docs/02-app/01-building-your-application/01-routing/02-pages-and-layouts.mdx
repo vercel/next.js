@@ -111,7 +111,7 @@ export default function DashboardLayout({
 > - You can use [Route Groups](/docs/app/building-your-application/routing/route-groups) to opt specific route segments in and out of shared layouts.
 > - Layouts are [Server Components](/docs/getting-started/react-essentials) by default but can be set to a [Client Component](/docs/getting-started/react-essentials#client-components).
 > - Layouts can fetch data. View the [Data Fetching](/docs/app/building-your-application/data-fetching) section for more information.
-> - Passing data between a parent layout and its children is not possible. However, you can fetch the same data in a route more than once, and React will [automatically dedupe the requests](/docs/app/building-your-application/data-fetching#automatic-fetch-request-deduping) without affecting performance.
+> - Passing data between a parent layout and its children is not possible. However, you can fetch the same data in a route more than once, and React will [automatically dedupe the requests](/docs/app/building-your-application/caching#request-memoization) without affecting performance.
 > - Layouts do not have access to the route segments below itself. To access all route segments, you can use [`useSelectedLayoutSegment`](/docs/app/api-reference/functions/use-selected-layout-segment) or [`useSelectedLayoutSegments`](/docs/app/api-reference/functions/use-selected-layout-segments) in a Client Component.
 > - `.js`, `.jsx`, or `.tsx` file extensions can be used for Layouts.
 > - A `layout.js` and `page.js` file can be defined in the same folder. The layout will wrap the page.

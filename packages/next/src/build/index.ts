@@ -141,11 +141,7 @@ import { createValidFileMatcher } from '../server/lib/find-page-file'
 import { startTypeChecking } from './type-check'
 import { generateInterceptionRoutesRewrites } from '../lib/generate-interception-routes-rewrites'
 import { buildDataRoute } from '../server/lib/router-utils/build-data-route'
-import {
-  baseOverrides,
-  defaultOverrides,
-  experimentalOverrides,
-} from '../server/require-hook'
+import { baseOverrides, experimentalOverrides } from '../server/require-hook'
 import { initialize } from '../server/lib/incremental-cache-server'
 import { nodeFs } from '../server/lib/node-fs-methods'
 
@@ -870,6 +866,19 @@ export default async function build(
           )
         )
 
+      // We need to write a partial prerender manifest to make preview mode settings available in edge middleware
+      const partialManifest: Partial<PrerenderManifest> = {
+        preview: previewProps,
+      }
+
+      await fs.writeFile(
+        path.join(distDir, PRERENDER_MANIFEST).replace(/\.json$/, '.js'),
+        `self.__PRERENDER_MANIFEST=${JSON.stringify(
+          JSON.stringify(partialManifest)
+        )}`,
+        'utf8'
+      )
+
       const outputFileTracingRoot =
         config.experimental.outputFileTracingRoot || dir
 
@@ -904,6 +913,7 @@ export default async function build(
             path.relative(distDir, manifestPath),
             BUILD_MANIFEST,
             PRERENDER_MANIFEST,
+            PRERENDER_MANIFEST.replace(/\.json$/, '.js'),
             path.join(SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
             path.join(SERVER_DIRECTORY, MIDDLEWARE_BUILD_MANIFEST + '.js'),
             path.join(
@@ -1560,6 +1570,10 @@ export default async function build(
                         if (isEdgeRuntime(pageRuntime)) {
                           isStatic = false
                           isSsg = false
+
+                          Log.warnOnce(
+                            `Using edge runtime on a page currently disables static generation for that page`
+                          )
                         } else {
                           // If a page has action and it is static, we need to
                           // change it to SSG to keep the worker created.
@@ -1586,30 +1600,38 @@ export default async function build(
                           }
 
                           const appConfig = workerResult.appConfig || {}
-                          if (appConfig.revalidate !== 0 && !hasAction) {
-                            const isDynamic = isDynamicRoute(page)
-                            const hasGenerateStaticParams =
-                              !!workerResult.prerenderRoutes?.length
+                          if (appConfig.revalidate !== 0) {
+                            if (hasAction) {
+                              Log.warnOnce(
+                                `Using server actions on a page currently disables static generation for that page`
+                              )
+                            } else {
+                              const isDynamic = isDynamicRoute(page)
+                              const hasGenerateStaticParams =
+                                !!workerResult.prerenderRoutes?.length
 
-                            if (
-                              // Mark the app as static if:
-                              // - It has no dynamic param
-                              // - It doesn't have generateStaticParams but `dynamic` is set to
-                              //   `error` or `force-static`
-                              !isDynamic
-                            ) {
-                              appStaticPaths.set(originalAppPath, [page])
-                              appStaticPathsEncoded.set(originalAppPath, [page])
-                              isStatic = true
-                            } else if (
-                              isDynamic &&
-                              !hasGenerateStaticParams &&
-                              (appConfig.dynamic === 'error' ||
-                                appConfig.dynamic === 'force-static')
-                            ) {
-                              appStaticPaths.set(originalAppPath, [])
-                              appStaticPathsEncoded.set(originalAppPath, [])
-                              isStatic = true
+                              if (
+                                // Mark the app as static if:
+                                // - It has no dynamic param
+                                // - It doesn't have generateStaticParams but `dynamic` is set to
+                                //   `error` or `force-static`
+                                !isDynamic
+                              ) {
+                                appStaticPaths.set(originalAppPath, [page])
+                                appStaticPathsEncoded.set(originalAppPath, [
+                                  page,
+                                ])
+                                isStatic = true
+                              } else if (
+                                isDynamic &&
+                                !hasGenerateStaticParams &&
+                                (appConfig.dynamic === 'error' ||
+                                  appConfig.dynamic === 'force-static')
+                              ) {
+                                appStaticPaths.set(originalAppPath, [])
+                                appStaticPathsEncoded.set(originalAppPath, [])
+                                isStatic = true
+                              }
                             }
                           }
 
@@ -2027,11 +2049,6 @@ export default async function build(
               ...Object.values(experimentalOverrides).map((override) =>
                 require.resolve(override)
               ),
-              ...(config.experimental.turbotrace
-                ? []
-                : Object.values(defaultOverrides).map((value) =>
-                    require.resolve(value)
-                  )),
             ]
 
             // ensure we trace any dependencies needed for custom

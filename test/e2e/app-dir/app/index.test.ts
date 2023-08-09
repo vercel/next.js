@@ -1859,5 +1859,16 @@ createNextDescribe(
         expect(await browser.elementByCss('p').text()).toBe('item count 128000')
       })
     })
+
+    describe('bootstrap scripts', () => {
+      it('should only bootstrap with one script, prinitializing the rest', async () => {
+        const html = await next.render('/bootstrap')
+        const $ = cheerio.load(html)
+
+        // We assume a minimum of 2 scripts, webpack runtime + main-app
+        expect($('script[async]').length).toBeGreaterThan(1)
+        expect($('body').find('script[async]').length).toBe(1)
+      })
+    })
   }
 )

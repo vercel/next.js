@@ -57,6 +57,8 @@ import { RedirectBoundary } from './redirect-boundary'
 import { findHeadInCache } from './router-reducer/reducers/find-head-in-cache'
 import { createInfinitePromise } from './infinite-promise'
 import { NEXT_RSC_UNION_QUERY } from './app-router-headers'
+import { removeBasePath } from '../remove-base-path'
+import { hasBasePath } from '../has-base-path'
 
 const isServer = typeof window === 'undefined'
 
@@ -132,11 +134,7 @@ const createEmptyCacheNode = () => ({
   parallelRoutes: new Map(),
 })
 
-function useServerActionDispatcher(
-  changeByServerResponse: RouterChangeByServerResponse,
-  dispatch: React.Dispatch<ReducerActions>,
-  navigate: RouterNavigate
-) {
+function useServerActionDispatcher(dispatch: React.Dispatch<ReducerActions>) {
   const serverActionDispatcher: ServerActionDispatcher = useCallback(
     (actionPayload) => {
       startTransition(() => {
@@ -144,12 +142,11 @@ function useServerActionDispatcher(
           ...actionPayload,
           type: ACTION_SERVER_ACTION,
           mutable: {},
-          navigate,
-          changeByServerResponse,
+          cache: createEmptyCacheNode(),
         })
       })
     },
-    [changeByServerResponse, dispatch, navigate]
+    [dispatch]
   )
   globalServerActionDispatcher = serverActionDispatcher
 }
@@ -256,13 +253,15 @@ function Router({
     return {
       // This is turned into a readonly class in `useSearchParams`
       searchParams: url.searchParams,
-      pathname: url.pathname,
+      pathname: hasBasePath(url.pathname)
+        ? removeBasePath(url.pathname)
+        : url.pathname,
     }
   }, [canonicalUrl])
 
   const changeByServerResponse = useChangeByServerResponse(dispatch)
   const navigate = useNavigate(dispatch)
-  useServerActionDispatcher(changeByServerResponse, dispatch, navigate)
+  useServerActionDispatcher(dispatch)
 
   /**
    * The app router that is exposed through `useRouter`. It's only concerned with dispatching actions to the reducer, does not hold state.
@@ -272,8 +271,12 @@ function Router({
       back: () => window.history.back(),
       forward: () => window.history.forward(),
       prefetch: (href, options) => {
-        // If prefetch has already been triggered, don't trigger it again.
-        if (isBot(window.navigator.userAgent)) {
+        // Don't prefetch for bots as they don't navigate.
+        // Don't prefetch during development (improves compilation performance)
+        if (
+          isBot(window.navigator.userAgent) ||
+          process.env.NODE_ENV === 'development'
+        ) {
           return
         }
         const url = new URL(addBasePath(href), location.href)

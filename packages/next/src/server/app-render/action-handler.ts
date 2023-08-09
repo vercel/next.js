@@ -23,7 +23,10 @@ import { StaticGenerationStore } from '../../client/components/static-generation
 import { FlightRenderResult } from './flight-render-result'
 import { ActionResult } from './types'
 import { ActionAsyncStorage } from '../../client/components/action-async-storage'
-import { filterReqHeaders, forbiddenHeaders } from '../lib/server-ipc/utils'
+import {
+  filterReqHeaders,
+  actionsForbiddenHeaders,
+} from '../lib/server-ipc/utils'
 import {
   appendMutableCookies,
   getModifiedCookieValues,
@@ -98,10 +101,13 @@ function getForwardedHeaders(
   })
 
   // Merge request and response headers
-  const mergedHeaders = filterReqHeaders({
-    ...nodeHeadersToRecord(requestHeaders),
-    ...nodeHeadersToRecord(responseHeaders),
-  }) as Record<string, string>
+  const mergedHeaders = filterReqHeaders(
+    {
+      ...nodeHeadersToRecord(requestHeaders),
+      ...nodeHeadersToRecord(responseHeaders),
+    },
+    actionsForbiddenHeaders
+  ) as Record<string, string>
 
   // Merge cookies
   const mergedCookies = requestCookies.split('; ').concat(setCookies).join('; ')
@@ -200,6 +206,11 @@ async function createRedirectRenderResult(
       )
     }
 
+    // Ensures that when the path was revalidated we don't return a partial response on redirects
+    // if (staticGenerationStore.pathWasRevalidated) {
+    forwardedHeaders.delete('next-router-state-tree')
+    // }
+
     try {
       const headResponse = await fetchIPv4v6(fetchUrl, {
         method: 'HEAD',
@@ -223,7 +234,7 @@ async function createRedirectRenderResult(
         })
         // copy the headers from the redirect response to the response we're sending
         for (const [key, value] of response.headers) {
-          if (!forbiddenHeaders.includes(key)) {
+          if (!actionsForbiddenHeaders.includes(key)) {
             res.setHeader(key, value)
           }
         }

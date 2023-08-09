@@ -1,6 +1,6 @@
 import type { IncomingMessage } from 'http'
 import type { Readable } from 'stream'
-import { filterReqHeaders } from './utils'
+import { filterReqHeaders, ipcForbiddenHeaders } from './utils'
 
 export const invokeRequest = async (
   targetUrl: string,
@@ -16,10 +16,13 @@ export const invokeRequest = async (
   const parsedTargetUrl = new URL(targetUrl)
   parsedTargetUrl.hostname = '127.0.0.1'
 
-  const invokeHeaders = filterReqHeaders({
-    'cache-control': '',
-    ...requestInit.headers,
-  }) as IncomingMessage['headers']
+  const invokeHeaders = filterReqHeaders(
+    {
+      'cache-control': '',
+      ...requestInit.headers,
+    },
+    ipcForbiddenHeaders
+  ) as IncomingMessage['headers']
 
   return await fetch(parsedTargetUrl.toString(), {
     headers: invokeHeaders as any as Headers,
