@@ -85,7 +85,6 @@ export const createWorker = async (
   ipcPort: number,
   ipcValidationKey: string,
   isNodeDebugging: boolean | 'brk' | undefined,
-  type: 'pages' | 'app',
   nextConfig: NextConfigComplete
 ) => {
   const { initialEnv } = require('@next/env') as typeof import('@next/env')
@@ -106,25 +105,22 @@ export const createWorker = async (
         NODE_OPTIONS: getNodeOptionsWithoutInspect()
           .replace(/--max-old-space-size=[\d]{1,}/, '')
           .trim(),
-        __NEXT_PRIVATE_RENDER_WORKER: type,
+        __NEXT_PRIVATE_RENDER_WORKER: 'true',
         __NEXT_PRIVATE_RENDER_WORKER_CONFIG: JSON.stringify(nextConfig),
         __NEXT_PRIVATE_ROUTER_IPC_PORT: ipcPort + '',
         __NEXT_PRIVATE_ROUTER_IPC_KEY: ipcValidationKey,
         __NEXT_PRIVATE_STANDALONE_CONFIG:
           process.env.__NEXT_PRIVATE_STANDALONE_CONFIG,
         NODE_ENV: process.env.NODE_ENV,
-        ...(type === 'app'
-          ? {
-              __NEXT_PRIVATE_PREBUNDLED_REACT: useServerActions
-                ? 'experimental'
-                : 'next',
-            }
-          : {}),
+
+        __NEXT_PRIVATE_PREBUNDLED_REACT: useServerActions
+          ? 'experimental'
+          : 'next',
         ...(process.env.NEXT_CPU_PROF
-          ? { __NEXT_PRIVATE_CPU_PROFILE: `CPU.${type}-renderer` }
+          ? { __NEXT_PRIVATE_CPU_PROFILE: `CPU.renderer` }
           : {}),
       },
-      execArgv: await genRenderExecArgv(isNodeDebugging, type),
+      execArgv: await genRenderExecArgv(isNodeDebugging),
     },
     exposedMethods: [
       'initialize',

@@ -19,8 +19,7 @@ export const getFreePort = async (): Promise<number> => {
 }
 
 export const genRenderExecArgv = async (
-  isNodeDebugging: string | boolean | undefined,
-  type: 'pages' | 'app'
+  isNodeDebugging: string | boolean | undefined
 ) => {
   const execArgv = process.execArgv.filter((localArg) => {
     return (
@@ -41,14 +40,12 @@ export const genRenderExecArgv = async (
     if (isDebugging || isDebuggingWithBrk) {
       let debugPort = getDebugPort()
 
-      debugPort += type === 'pages' ? 1 : 2
+      debugPort += 1
 
       Log.info(
         `the --inspect${
           isDebuggingWithBrk ? '-brk' : ''
-        } option was detected, the Next.js server${
-          type === 'pages' ? ' for pages' : type === 'app' ? ' for app' : ''
-        } should be inspected at port ${debugPort}.`
+        } option was detected, the Next.js server should be inspected at port ${debugPort}.`
       )
 
       execArgv.push(`--inspect${isDebuggingWithBrk ? '-brk' : ''}=${debugPort}`)

@@ -78,8 +78,7 @@ export async function initialize(opts: {
     return result
   }
 
-  const type = process.env.__NEXT_PRIVATE_RENDER_WORKER!
-  process.title = 'next-render-worker-' + type
+  process.title = 'next-render-worker'
 
   let requestHandler: RequestHandler
   let upgradeHandler: any

@@ -5,7 +5,7 @@ import type { NextConfigComplete } from '../../config-shared'
 
 import url from 'url'
 import { Redirect } from '../../../../types'
-import { RenderWorker } from '../router-server'
+import { RenderWorker, type RenderWorkers } from '../router-server'
 import setupDebug from 'next/dist/compiled/debug'
 import { getCloneableBody } from '../../body-streams'
 import { filterReqHeaders, ipcForbiddenHeaders } from '../server-ipc/utils'
@@ -46,10 +46,7 @@ export function getResolveRoutes(
   >,
   config: NextConfigComplete,
   opts: Parameters<typeof import('../router-server').initialize>[0],
-  renderWorkers: {
-    app?: RenderWorker
-    pages?: RenderWorker
-  },
+  renderWorkers: RenderWorkers,
   renderWorkerOpts: Parameters<RenderWorker['initialize']>[0],
   ensureMiddleware?: () => Promise<void>
 ) {
@@ -421,9 +418,9 @@ export function getResolveRoutes(
                 .then(() => true)
                 .catch(() => false)))
           ) {
-            const workerResult = await (
-              renderWorkers.app || renderWorkers.pages
-            )?.initialize(renderWorkerOpts)
+            const workerResult = await renderWorkers.all?.initialize(
+              renderWorkerOpts
+            )
 
             if (!workerResult) {
               throw new Error(`Failed to initialize render worker "middleware"`)

@@ -55,6 +55,10 @@ const nextClearModuleContextCallbacks: Array<
   (targetPath: string) => Promise<any>
 > = []
 
+export type RenderWorkers = {
+  all?: RenderWorker
+}
+
 export async function initialize(opts: {
   dir: string
   port: number
@@ -132,10 +136,8 @@ export async function initialize(opts: {
     isNodeDebugging: !!opts.isNodeDebugging,
     serverFields: devInstance?.serverFields || {},
   }
-  const renderWorkers: {
-    app?: RenderWorker
-    pages?: RenderWorker
-  } = {}
+
+  const renderWorkers: RenderWorkers = {}
 
   const { ipcPort, ipcValidationKey } = await createIpcServer({
     async ensurePage(
@@ -196,49 +198,29 @@ export async function initialize(opts: {
     },
   } as any)
 
-  if (!!config.experimental.appDir) {
-    renderWorkers.app = await createWorker(
-      ipcPort,
-      ipcValidationKey,
-      opts.isNodeDebugging,
-      'app',
-      config
-    )
-  }
-  renderWorkers.pages = await createWorker(
+  renderWorkers.all = await createWorker(
     ipcPort,
     ipcValidationKey,
     opts.isNodeDebugging,
-    'pages',
     config
   )
 
   // pre-initialize workers
   const initialized = {
-    app: await renderWorkers.app?.initialize(renderWorkerOpts),
-    pages: await renderWorkers.pages?.initialize(renderWorkerOpts),
+    all: await renderWorkers.all?.initialize(renderWorkerOpts),
   }
 
   if (devInstance) {
     Object.assign(devInstance.renderWorkers, renderWorkers)
 
     nextDeleteCacheCallbacks.push((filePaths: string[]) =>
-      Promise.all([
-        renderWorkers.pages?.deleteCache(filePaths),
-        renderWorkers.app?.deleteCache(filePaths),
-      ])
+      Promise.all([renderWorkers.all?.deleteCache(filePaths)])
     )
     nextDeleteAppClientCacheCallbacks.push(() =>
-      Promise.all([
-        renderWorkers.pages?.deleteAppClientCache(),
-        renderWorkers.app?.deleteAppClientCache(),
-      ])
+      Promise.all([renderWorkers.all?.deleteAppClientCache()])
     )
     nextClearModuleContextCallbacks.push((targetPath: string) =>
-      Promise.all([
-        renderWorkers.pages?.clearModuleContext(targetPath),
-        renderWorkers.app?.clearModuleContext(targetPath),
-      ])
+      Promise.all([renderWorkers.all?.clearModuleContext(targetPath)])
     )
     ;(global as any)._nextDeleteCache = async (filePaths: string[]) => {
       for (const cb of nextDeleteCacheCallbacks) {
@@ -271,10 +253,8 @@ export async function initialize(opts: {
 
   const cleanup = () => {
     debug('router-server process cleanup')
-    for (const curWorker of [
-      ...((renderWorkers.app as any)?._workerPool?._workers || []),
-      ...((renderWorkers.pages as any)?._workerPool?._workers || []),
-    ] as {
+    for (const curWorker of ((renderWorkers.all as any)?._workerPool
+      ?._workers || []) as {
       _child?: import('child_process').ChildProcess
     }[]) {
       curWorker._child?.kill('SIGINT')
@@ -546,7 +526,7 @@ export async function initialize(opts: {
           (fsChecker.appFiles.has(matchedOutput.itemPath) ||
             fsChecker.pageFiles.has(matchedOutput.itemPath))
         ) {
-          await invokeRender(parsedUrl, 'pages', handleIndex, '/_error', {
+          await invokeRender(parsedUrl, 'all', handleIndex, '/_error', {
             'x-invoke-status': '500',
             'x-invoke-error': JSON.stringify({
               message: `A conflicting public file and page file was found for path ${matchedOutput.itemPath} https://nextjs.org/docs/messages/conflicting-public-file-page`,
@@ -572,7 +552,7 @@ export async function initialize(opts: {
           res.setHeader('Allow', ['GET', 'HEAD'])
           return await invokeRender(
             url.parse('/405', true),
-            'pages',
+            'all',
             handleIndex,
             '/405',
             {
@@ -635,7 +615,7 @@ export async function initialize(opts: {
             const invokeStatus = `${err.statusCode}`
             return await invokeRender(
               url.parse(invokePath, true),
-              'pages',
+              'all',
               handleIndex,
               invokePath,
               {
@@ -650,7 +630,7 @@ export async function initialize(opts: {
       if (matchedOutput) {
         return await invokeRender(
           parsedUrl,
-          matchedOutput.type === 'appFile' ? 'app' : 'pages',
+          'all',
           handleIndex,
           parsedUrl.pathname || '/',
           {
@@ -672,7 +652,7 @@ export async function initialize(opts: {
       if (appNotFound) {
         return await invokeRender(
           parsedUrl,
-          'app',
+          'all',
           handleIndex,
           '/_not-found',
           {
@@ -680,7 +660,7 @@ export async function initialize(opts: {
           }
         )
       }
-      await invokeRender(parsedUrl, 'pages', handleIndex, '/404', {
+      await invokeRender(parsedUrl, 'all', handleIndex, '/404', {
         'x-invoke-status': '404',
       })
     }
@@ -700,7 +680,7 @@ export async function initialize(opts: {
         }
         return await invokeRender(
           url.parse(invokePath, true),
-          'pages',
+          'all',
           0,
           invokePath,
           {
