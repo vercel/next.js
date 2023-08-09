@@ -22,7 +22,6 @@ export function updateInitialEnv(newEnv: Env) {
 type Log = {
   info: (...args: any[]) => void
   error: (...args: any[]) => void
-  bootstrap?: (...args: any[]) => void
 }
 
 function replaceProcessEnv(sourceEnv: Env) {
@@ -62,7 +61,6 @@ export function processEnv(
 
   const origEnv = Object.assign({}, initialEnv)
   const parsed: dotenv.DotenvParseOutput = {}
-  // const hasEnvFileNameLogged = new Map(loadedEnvFiles.map((f) => [f.path, false]))
 
   for (const envFile of loadedEnvFiles) {
     try {
@@ -78,11 +76,6 @@ export function processEnv(
             item.contents === envFile.contents && item.path === envFile.path
         )
       ) {
-        // const infoLog = log.bootstrap || log.info
-        // if (!hasEnvFileNameLogged.get(envFile.path)) {
-        // hasEnvFileNameLogged.set(envFile.path, true)
-        // infoLog(`Environment: ${envFile.path}`)
-        // }
       }
 
       for (const key of Object.keys(result.parsed || {})) {
@@ -168,8 +161,4 @@ export function loadEnvConfig(
   }
   combinedEnv = processEnv(cachedLoadedEnvFiles, dir, log, forceReload)
   return { combinedEnv, loadedEnvFiles: cachedLoadedEnvFiles }
-}
-
-export function getLoadedEnvFiles(): LoadedEnvFiles {
-  return cachedLoadedEnvFiles
 }

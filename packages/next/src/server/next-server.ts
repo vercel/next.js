@@ -1129,9 +1129,9 @@ export default class NextNodeServer extends BaseServer {
             if (enabledVerboseLogging) {
               process.stdout.write('\n')
               process.stdout.write(
-                `${Log.now()} ${chalk.cyan(req.method || 'GET')} ${req.url} ${
-                  res.statusCode
-                } in ${getDurationStr(reqDuration)}\n`
+                `${Log.now()} ${chalk.white.bold(req.method || 'GET')} ${
+                  req.url
+                } ${res.statusCode} in ${getDurationStr(reqDuration)}\n`
               )
             }
 
@@ -1152,7 +1152,7 @@ export default class NextNodeServer extends BaseServer {
                   nestedLevel += 1
                 }
               }
-              return `${' '.repeat(nestedLevel)}${'│'.repeat(nestedLevel)}`
+              return `${'───'.repeat(nestedLevel + 1)}`
             }
 
             for (let i = 0; i < fetchMetrics.length; i++) {
@@ -1199,11 +1199,11 @@ export default class NextNodeServer extends BaseServer {
               if (enabledVerboseLogging) {
                 process.stdout.write(
                   `${' '.repeat(12)} ${chalk.grey(
-                    `${lastItem ? '└' : '│'}${calcNestedLevel(
+                    `${lastItem ? '└' : '├'}${calcNestedLevel(
                       fetchMetrics.slice(0, i),
                       metric.start
                     )}`
-                  )} ${chalk.cyan(metric.method)} ${url} ${
+                  )} ${chalk.white.bold(metric.method)} ${url} ${
                     metric.status
                   } in ${getDurationStr(duration)} (cache: ${cacheStatus})\n`
                 )
@@ -1212,9 +1212,9 @@ export default class NextNodeServer extends BaseServer {
           } else {
             if (enabledVerboseLogging) {
               process.stdout.write(
-                `${Log.now()} ${chalk.cyan(req.method || 'GET')} ${req.url} ${
-                  res.statusCode
-                } in ${getDurationStr(reqDuration)}\n`
+                `${Log.now()} ${chalk.white.bold(req.method || 'GET')} ${
+                  req.url
+                } ${res.statusCode} in ${getDurationStr(reqDuration)}\n`
               )
             }
           }

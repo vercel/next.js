@@ -23,21 +23,13 @@ import { setHttpClientAndAgentOptions } from './setup-http-agent-env'
 
 export { DomainLocale, NextConfig, normalizeConfig } from './config-shared'
 
-const experimentalWarning = execOnce(
-  (configFileName: string, features: string[]) => {
-    const s = features.length > 1 ? 's' : ''
-    Log.bootstrap(
-      `- Experimental feature${s} (use at your own risk): ` +
-        chalk.bold(`${features.join(', ')}`)
-      //  +
-      // ` - ${configFileName}`
-    )
-    // Log.warn(
-    //   `Experimental features are not covered by semver, and may cause unexpected or broken application behavior. ` +
-    //     `Use at your own risk.`
-    // )
-  }
-)
+const experimentalWarning = execOnce((features: string[]) => {
+  const s = features.length > 1 ? 's' : ''
+  Log.bootstrap(
+    `- Experimental feature${s} (use at your own risk): ` +
+      chalk.bold(`${features.join(', ')}`)
+  )
+})
 
 export function warnOptionHasBeenMovedOutOfExperimental(
   config: NextConfig,
@@ -111,7 +103,7 @@ function assignDefaults(
         }
 
         if (!silent && enabledExperiments.length > 0) {
-          experimentalWarning(configFileName, enabledExperiments)
+          experimentalWarning(enabledExperiments)
         }
       }
 
