@@ -1753,7 +1753,9 @@ describe('Client Navigation', () => {
     async (bool) => {
       const browser = await webdriver(context.appPort, '/head')
       const value = await browser.eval(
-        `document.querySelector('script[src="/test-async-${bool}.js"]').async`
+        `document.querySelector('script[src="/test-async-${JSON.stringify(
+          bool
+        )}.js"]').async`
       )
 
       expect(value).toBe(bool)
@@ -1765,7 +1767,9 @@ describe('Client Navigation', () => {
     async (bool) => {
       const browser = await webdriver(context.appPort, '/script')
       const value = await browser.eval(
-        `document.querySelector('script[src="/test-async-${bool}.js"]').async`
+        `document.querySelector('script[src="/test-async-${JSON.stringify(
+          bool
+        )}.js"]').async`
       )
 
       expect(value).toBe(bool)
