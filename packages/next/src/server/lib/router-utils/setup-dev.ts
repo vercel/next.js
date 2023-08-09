@@ -27,7 +27,10 @@ import { getDefineEnv } from '../../../build/webpack-config'
 import { logAppDirError } from '../../dev/log-app-dir-error'
 import { UnwrapPromise } from '../../../lib/coalesced-function'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
-import { getStaticInfoIncludingLayouts } from '../../../build/entries'
+import {
+  getStaticInfoIncludingLayouts,
+  sortByPageExts,
+} from '../../../build/entries'
 import { verifyTypeScriptSetup } from '../../../lib/verifyTypeScriptSetup'
 import { verifyPartytownSetup } from '../../../lib/verify-partytown-setup'
 import { getRouteRegex } from '../../../shared/lib/router/utils/route-regex'
@@ -813,13 +816,18 @@ async function startWatcher(opts: SetupOpts) {
       appFiles.clear()
       pageFiles.clear()
 
-      for (const [fileName, meta] of knownFiles) {
+      const sortedKnownFiles: string[] = [...knownFiles.keys()].sort(
+        sortByPageExts(nextConfig.pageExtensions)
+      )
+
+      for (const fileName of sortedKnownFiles) {
         if (
           !files.includes(fileName) &&
           !directories.some((d) => fileName.startsWith(d))
         ) {
           continue
         }
+        const meta = knownFiles.get(fileName)
 
         const watchTime = fileWatchTimes.get(fileName)
         const watchTimeChange = watchTime && watchTime !== meta?.timestamp

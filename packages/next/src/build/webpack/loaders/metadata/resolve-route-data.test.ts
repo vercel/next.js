@@ -82,6 +82,8 @@ describe('resolveRouteData', () => {
           {
             url: 'https://example.com',
             lastModified: '2021-01-01',
+            changeFrequency: 'weekly',
+            priority: 0.5,
           },
         ])
       ).toMatchInlineSnapshot(`
@@ -90,6 +92,8 @@ describe('resolveRouteData', () => {
         <url>
         <loc>https://example.com</loc>
         <lastmod>2021-01-01</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>0.5</priority>
         </url>
         </urlset>
         "
