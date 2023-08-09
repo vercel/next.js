@@ -198,7 +198,7 @@ export async function makeResolver(
       workerType: 'render',
     },
     {
-      pages: {
+      all: {
         async initialize() {
           return {
             port: middlewareServerPort,
