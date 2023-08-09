@@ -17,7 +17,7 @@ if (process.env.NODE_ENV !== "production") {
 var React = require("next/dist/compiled/react-experimental");
 var ReactDOM = require('react-dom');
 
-var ReactVersion = '18.3.0-experimental-9377e1010-20230712';
+var ReactVersion = '18.3.0-experimental-cb3404a0c-20230807';
 
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
@@ -3415,6 +3415,9 @@ function pushMeta(target, props, responseState, textEmbedded, insertionMode, nos
 
       if (typeof props.charSet === 'string') {
         return pushSelfClosing(responseState.charsetChunks, props, 'meta');
+      } else if (props.name === 'viewport') {
+        // "viewport" isn't related to preconnect but it has the right priority
+        return pushSelfClosing(responseState.preconnectChunks, props, 'meta');
       } else {
         return pushSelfClosing(responseState.hoistableChunks, props, 'meta');
       }
@@ -5245,14 +5248,11 @@ function writePreamble(destination, resources, responseState, willFlushAllSegmen
   resources.fontPreloads.clear(); // Flush unblocked stylesheets by precedence
 
   resources.precedences.forEach(flushAllStylesInPreamble, destination);
+  resources.bootstrapScripts.forEach(flushResourceInPreamble, destination);
   resources.scripts.forEach(flushResourceInPreamble, destination);
   resources.scripts.clear();
-  resources.explicitStylesheetPreloads.forEach(flushResourceInPreamble, destination);
-  resources.explicitStylesheetPreloads.clear();
-  resources.explicitScriptPreloads.forEach(flushResourceInPreamble, destination);
-  resources.explicitScriptPreloads.clear();
-  resources.explicitOtherPreloads.forEach(flushResourceInPreamble, destination);
-  resources.explicitOtherPreloads.clear(); // Write embedding preloadChunks
+  resources.explicitPreloads.forEach(flushResourceInPreamble, destination);
+  resources.explicitPreloads.clear(); // Write embedding preloadChunks
 
   var preloadChunks = responseState.preloadChunks;
 
@@ -5303,15 +5303,13 @@ function writeHoistables(destination, resources, responseState) {
   resources.fontPreloads.clear(); // Preload any stylesheets. these will emit in a render instruction that follows this
   // but we want to kick off preloading as soon as possible
 
-  resources.precedences.forEach(preloadLateStyles, destination);
+  resources.precedences.forEach(preloadLateStyles, destination); // bootstrap scripts should flush above script priority but these can only flush in the preamble
+  // so we elide the code here for performance
+
   resources.scripts.forEach(flushResourceLate, destination);
   resources.scripts.clear();
-  resources.explicitStylesheetPreloads.forEach(flushResourceLate, destination);
-  resources.explicitStylesheetPreloads.clear();
-  resources.explicitScriptPreloads.forEach(flushResourceLate, destination);
-  resources.explicitScriptPreloads.clear();
-  resources.explicitOtherPreloads.forEach(flushResourceLate, destination);
-  resources.explicitOtherPreloads.clear(); // Write embedding preloadChunks
+  resources.explicitPreloads.forEach(flushResourceLate, destination);
+  resources.explicitPreloads.clear(); // Write embedding preloadChunks
 
   var preloadChunks = responseState.preloadChunks;
 
@@ -5731,11 +5729,9 @@ function createResources() {
     // usedImagePreloads: new Set(),
     precedences: new Map(),
     stylePrecedences: new Map(),
+    bootstrapScripts: new Set(),
     scripts: new Set(),
-    explicitStylesheetPreloads: new Set(),
-    // explicitImagePreloads: new Set(),
-    explicitScriptPreloads: new Set(),
-    explicitOtherPreloads: new Set(),
+    explicitPreloads: new Set(),
     // like a module global for currently rendering boundary
     boundaryResources: null
   };
@@ -5961,29 +5957,10 @@ function preload(href, options) {
       pushLinkImpl(resource.chunks, resource.props);
     }
 
-    switch (as) {
-      case 'font':
-        {
-          resources.fontPreloads.add(resource);
-          break;
-        }
-
-      case 'style':
-        {
-          resources.explicitStylesheetPreloads.add(resource);
-          break;
-        }
-
-      case 'script':
-        {
-          resources.explicitScriptPreloads.add(resource);
-          break;
-        }
-
-      default:
-        {
-          resources.explicitOtherPreloads.add(resource);
-        }
+    if (as === 'font') {
+      resources.fontPreloads.add(resource);
+    } else {
+      resources.explicitPreloads.add(resource);
     }
 
     flushResources(request);
@@ -6205,6 +6182,7 @@ function preloadBootstrapScript(resources, src, nonce, integrity, crossOrigin) {
     rel: 'preload',
     href: src,
     as: 'script',
+    fetchPriority: 'low',
     nonce: nonce,
     integrity: integrity,
     crossOrigin: crossOrigin
@@ -6216,7 +6194,7 @@ function preloadBootstrapScript(resources, src, nonce, integrity, crossOrigin) {
     props: props
   };
   resources.preloadsMap.set(key, resource);
-  resources.explicitScriptPreloads.add(resource);
+  resources.bootstrapScripts.add(resource);
   pushLinkImpl(resource.chunks, props);
 } // This function is only safe to call at Request start time since it assumes
 // that each module has not already been preloaded. If we find a need to preload
@@ -6239,6 +6217,7 @@ function preloadBootstrapModule(resources, src, nonce, integrity, crossOrigin) {
   var props = {
     rel: 'modulepreload',
     href: src,
+    fetchPriority: 'low',
     nonce: nonce,
     integrity: integrity,
     crossOrigin: crossOrigin
@@ -6250,7 +6229,7 @@ function preloadBootstrapModule(resources, src, nonce, integrity, crossOrigin) {
     props: props
   };
   resources.preloadsMap.set(key, resource);
-  resources.explicitScriptPreloads.add(resource);
+  resources.bootstrapScripts.add(resource);
   pushLinkImpl(resource.chunks, props);
   return;
 }

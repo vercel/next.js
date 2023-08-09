@@ -17,7 +17,7 @@ import findUp from 'next/dist/compiled/find-up'
 import { buildCustomRoute } from './filesystem'
 import * as Log from '../../../build/output/log'
 import HotReloader, { matchNextPageBundleRequest } from '../../dev/hot-reloader'
-import { traceGlobals } from '../../../trace/shared'
+import { setGlobal } from '../../../trace/shared'
 import { Telemetry } from '../../../telemetry/storage'
 import { IncomingMessage, ServerResponse } from 'http'
 import loadJsConfig from '../../../build/load-jsconfig'
@@ -27,7 +27,10 @@ import { getDefineEnv } from '../../../build/webpack-config'
 import { logAppDirError } from '../../dev/log-app-dir-error'
 import { UnwrapPromise } from '../../../lib/coalesced-function'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
-import { getStaticInfoIncludingLayouts } from '../../../build/entries'
+import {
+  getStaticInfoIncludingLayouts,
+  sortByPageExts,
+} from '../../../build/entries'
 import { verifyTypeScriptSetup } from '../../../lib/verifyTypeScriptSetup'
 import { verifyPartytownSetup } from '../../../lib/verify-partytown-setup'
 import { getRouteRegex } from '../../../shared/lib/router/utils/route-regex'
@@ -79,6 +82,7 @@ import { PagesManifest } from '../../../build/webpack/plugins/pages-manifest-plu
 import { AppBuildManifest } from '../../../build/webpack/plugins/app-build-manifest-plugin'
 import { PageNotFoundError } from '../../../shared/lib/utils'
 import { srcEmptySsgManifest } from '../../../build/webpack/plugins/build-manifest-plugin'
+import { PropagateToWorkersField } from './types'
 import { MiddlewareManifest } from '../../../build/webpack/plugins/middleware-plugin'
 
 type SetupOpts = {
@@ -120,8 +124,8 @@ async function startWatcher(opts: SetupOpts) {
 
   const distDir = path.join(opts.dir, opts.nextConfig.distDir)
 
-  traceGlobals.set('distDir', distDir)
-  traceGlobals.set('phase', PHASE_DEVELOPMENT_SERVER)
+  setGlobal('distDir', distDir)
+  setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
 
   const validFileMatcher = createValidFileMatcher(
     nextConfig.pageExtensions,
@@ -133,7 +137,7 @@ async function startWatcher(opts: SetupOpts) {
     pages?: import('../router-server').RenderWorker
   } = {}
 
-  async function propagateToWorkers(field: string, args: any) {
+  async function propagateToWorkers(field: PropagateToWorkersField, args: any) {
     await renderWorkers.app?.propagateServerField(field, args)
     await renderWorkers.pages?.propagateServerField(field, args)
   }
@@ -812,13 +816,18 @@ async function startWatcher(opts: SetupOpts) {
       appFiles.clear()
       pageFiles.clear()
 
-      for (const [fileName, meta] of knownFiles) {
+      const sortedKnownFiles: string[] = [...knownFiles.keys()].sort(
+        sortByPageExts(nextConfig.pageExtensions)
+      )
+
+      for (const fileName of sortedKnownFiles) {
         if (
           !files.includes(fileName) &&
           !directories.some((d) => fileName.startsWith(d))
         ) {
           continue
         }
+        const meta = knownFiles.get(fileName)
 
         const watchTime = fileWatchTimes.get(fileName)
         const watchTimeChange = watchTime && watchTime !== meta?.timestamp
@@ -1010,7 +1019,7 @@ async function startWatcher(opts: SetupOpts) {
           hotReloader.setHmrServerError(new Error(errorMessage))
         } else if (numConflicting === 0) {
           hotReloader.clearHmrServerError()
-          await propagateToWorkers('matchers.reload', undefined)
+          await propagateToWorkers('reloadMatchers', undefined)
         }
       }
 
@@ -1279,7 +1288,7 @@ async function startWatcher(opts: SetupOpts) {
       } finally {
         // Reload the matchers. The filesystem would have been written to,
         // and the matchers need to re-scan it to update the router.
-        await propagateToWorkers('middleware.reload', undefined)
+        await propagateToWorkers('reloadMatchers', undefined)
       }
     })
 

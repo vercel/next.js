@@ -457,7 +457,7 @@ jobs:
         continue-on-error: true
         run: |
           ls -al ./test
-          npm install -g junit-report-merger@6.0.2 @datadog/datadog-ci@2.14.0
+          npm install -g junit-report-merger@6.0.2 @datadog/datadog-ci@2.14.0 @aws-sdk/property-provider@3
           jrm ./nextjs-test-result-junit.xml "test/test-junit-report/**/*.xml"
           DD_ENV=ci datadog-ci junit upload --tags test.type:nextjs_deploy_e2e --service nextjs ./nextjs-test-result-junit.xml
 
@@ -506,7 +506,7 @@ jobs:
       - name: Upload to Datadog
         run: |
           ls -al turbopack-bin-size
-          npm install -g @datadog/datadog-ci
+          npm install -g @datadog/datadog-ci@2.14.0 @aws-sdk/property-provider@3
           for filename in turbopack-bin-size/*; do
             export BYTESIZE+=" --metrics $(cat $filename)"
           done
