@@ -81,6 +81,7 @@ import { PageNotFoundError } from '../../../shared/lib/utils'
 import { srcEmptySsgManifest } from '../../../build/webpack/plugins/build-manifest-plugin'
 import { PropagateToWorkersField } from './types'
 import { MiddlewareManifest } from '../../../build/webpack/plugins/middleware-plugin'
+import type { RenderWorkers } from '../router-server'
 
 type SetupOpts = {
   dir: string
@@ -129,14 +130,10 @@ async function startWatcher(opts: SetupOpts) {
     appDir
   )
 
-  const renderWorkers: {
-    app?: import('../router-server').RenderWorker
-    pages?: import('../router-server').RenderWorker
-  } = {}
+  const renderWorkers: RenderWorkers = {}
 
   async function propagateToWorkers(field: PropagateToWorkersField, args: any) {
-    await renderWorkers.app?.propagateServerField(field, args)
-    await renderWorkers.pages?.propagateServerField(field, args)
+    await renderWorkers.all?.propagateServerField(field, args)
   }
 
   let hotReloader: InstanceType<typeof HotReloader>
