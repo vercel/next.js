@@ -1,7 +1,10 @@
 import type { IncomingMessage } from 'http'
 
 // this must come first as it includes require hooks
-import { initializeServerWorker } from './setup-server-worker'
+import type {
+  WorkerRequestHandler,
+  WorkerUpgradeHandler,
+} from './setup-server-worker'
 
 import url from 'url'
 import path from 'path'
@@ -24,6 +27,7 @@ import { getResolveRoutes } from './router-utils/resolve-routes'
 import { NextUrlWithParsedQuery, getRequestMeta } from '../request-meta'
 import { pathHasPrefix } from '../../shared/lib/router/utils/path-has-prefix'
 import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
+import setupCompression from 'next/dist/compiled/compression'
 
 import {
   PHASE_PRODUCTION_SERVER,
@@ -31,13 +35,6 @@ import {
   PERMANENT_REDIRECT_STATUS,
 } from '../../shared/lib/constants'
 import { signalFromNodeResponse } from '../web/spec-extension/adapters/next-request'
-
-let initializeResult:
-  | undefined
-  | {
-      port: number
-      hostname: string
-    }
 
 const debug = setupDebug('next:router-server:main')
 
@@ -51,6 +48,13 @@ export type RenderWorker = InstanceType<
   propagateServerField: typeof import('./render-server').propagateServerField
 }
 
+const nextDeleteCacheCallbacks: Array<(filePaths: string[]) => Promise<any>> =
+  []
+const nextDeleteAppClientCacheCallbacks: Array<() => Promise<any>> = []
+const nextClearModuleContextCallbacks: Array<
+  (targetPath: string) => Promise<any>
+> = []
+
 export async function initialize(opts: {
   dir: string
   port: number
@@ -61,10 +65,7 @@ export async function initialize(opts: {
   isNodeDebugging: boolean
   keepAliveTimeout?: number
   customServer?: boolean
-}): Promise<NonNullable<typeof initializeResult>> {
-  if (initializeResult) {
-    return initializeResult
-  }
+}): Promise<[WorkerRequestHandler, WorkerUpgradeHandler]> {
   process.title = 'next-router-worker'
 
   if (!process.env.NODE_ENV) {
@@ -79,6 +80,12 @@ export async function initialize(opts: {
     undefined,
     true
   )
+
+  let compress: ReturnType<typeof setupCompression> | undefined
+
+  if (config?.compress !== false) {
+    compress = setupCompression()
+  }
 
   const fsChecker = await setupFsCheck({
     dev: opts.dev,
@@ -207,39 +214,57 @@ export async function initialize(opts: {
   )
 
   // pre-initialize workers
-  await renderWorkers.app?.initialize(renderWorkerOpts)
-  await renderWorkers.pages?.initialize(renderWorkerOpts)
+  const initialized = {
+    app: await renderWorkers.app?.initialize(renderWorkerOpts),
+    pages: await renderWorkers.pages?.initialize(renderWorkerOpts),
+  }
 
   if (devInstance) {
     Object.assign(devInstance.renderWorkers, renderWorkers)
+
+    nextDeleteCacheCallbacks.push((filePaths: string[]) =>
+      Promise.all([
+        renderWorkers.pages?.deleteCache(filePaths),
+        renderWorkers.app?.deleteCache(filePaths),
+      ])
+    )
+    nextDeleteAppClientCacheCallbacks.push(() =>
+      Promise.all([
+        renderWorkers.pages?.deleteAppClientCache(),
+        renderWorkers.app?.deleteAppClientCache(),
+      ])
+    )
+    nextClearModuleContextCallbacks.push((targetPath: string) =>
+      Promise.all([
+        renderWorkers.pages?.clearModuleContext(targetPath),
+        renderWorkers.app?.clearModuleContext(targetPath),
+      ])
+    )
     ;(global as any)._nextDeleteCache = async (filePaths: string[]) => {
-      try {
-        await Promise.all([
-          renderWorkers.pages?.deleteCache(filePaths),
-          renderWorkers.app?.deleteCache(filePaths),
-        ])
-      } catch (err) {
-        console.error(err)
+      for (const cb of nextDeleteCacheCallbacks) {
+        try {
+          await cb(filePaths)
+        } catch (err) {
+          console.error(err)
+        }
       }
     }
     ;(global as any)._nextDeleteAppClientCache = async () => {
-      try {
-        await Promise.all([
-          renderWorkers.pages?.deleteAppClientCache(),
-          renderWorkers.app?.deleteAppClientCache(),
-        ])
-      } catch (err) {
-        console.error(err)
+      for (const cb of nextDeleteAppClientCacheCallbacks) {
+        try {
+          await cb()
+        } catch (err) {
+          console.error(err)
+        }
       }
     }
     ;(global as any)._nextClearModuleContext = async (targetPath: string) => {
-      try {
-        await Promise.all([
-          renderWorkers.pages?.clearModuleContext(targetPath),
-          renderWorkers.app?.clearModuleContext(targetPath),
-        ])
-      } catch (err) {
-        console.error(err)
+      for (const cb of nextClearModuleContextCallbacks) {
+        try {
+          await cb(targetPath)
+        } catch (err) {
+          console.error(err)
+        }
       }
     }
   }
@@ -274,10 +299,11 @@ export async function initialize(opts: {
     devInstance?.ensureMiddleware
   )
 
-  const requestHandler: Parameters<typeof initializeServerWorker>[0] = async (
-    req,
-    res
-  ) => {
+  const requestHandler: WorkerRequestHandler = async (req, res) => {
+    if (compress) {
+      // @ts-expect-error not express req/res
+      compress(req, res, () => {})
+    }
     req.on('error', (_err) => {
       // TODO: log socket errors?
     })
@@ -319,8 +345,7 @@ export async function initialize(opts: {
         return null
       }
 
-      const curWorker = renderWorkers[type]
-      const workerResult = await curWorker?.initialize(renderWorkerOpts)
+      const workerResult = initialized[type]
 
       if (!workerResult) {
         throw new Error(`Failed to initialize render worker ${type}`)
@@ -690,11 +715,7 @@ export async function initialize(opts: {
     }
   }
 
-  const upgradeHandler: Parameters<typeof initializeServerWorker>[1] = async (
-    req,
-    socket,
-    head
-  ) => {
+  const upgradeHandler: WorkerUpgradeHandler = async (req, socket, head) => {
     try {
       req.on('error', (_err) => {
         // TODO: log socket errors?
@@ -735,16 +756,5 @@ export async function initialize(opts: {
     }
   }
 
-  const { port, hostname } = await initializeServerWorker(
-    requestHandler,
-    upgradeHandler,
-    opts
-  )
-
-  initializeResult = {
-    port,
-    hostname: hostname === '0.0.0.0' ? '127.0.0.1' : hostname,
-  }
-
-  return initializeResult
+  return [requestHandler, upgradeHandler]
 }

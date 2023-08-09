@@ -462,6 +462,14 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
           continue
         }
 
+        // avoid clobbering existing page segments
+        // if it's a valid parallel segment, the `children` property will be set appropriately
+        if (matched.children && matched.children !== rest[0]) {
+          throw new Error(
+            `/You cannot have two parallel pages that resolve to the same path. Please check ${appPath}.`
+          )
+        }
+
         matched.children = rest[0]
       }
     }
