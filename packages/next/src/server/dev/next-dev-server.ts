@@ -87,7 +87,6 @@ export interface Options extends ServerOptions {
 export default class DevServer extends Server {
   private devReady: Promise<void>
   private setDevReady?: Function
-  private webpackWatcher?: any | null
   protected sortedRoutes?: string[]
   private pagesDir?: string
   private appDir?: string
@@ -245,15 +244,6 @@ export default class DevServer extends Server {
 
   protected getBuildId(): string {
     return 'development'
-  }
-
-  async stopWatcher(): Promise<void> {
-    if (!this.webpackWatcher) {
-      return
-    }
-
-    this.webpackWatcher.close()
-    this.webpackWatcher = null
   }
 
   protected async prepareImpl(): Promise<void> {
