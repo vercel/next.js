@@ -469,7 +469,7 @@ async fn handle_issues<T>(source: Vc<T>, issue_reporter: Vc<Box<dyn IssueReporte
 
     let has_fatal = issue_reporter.report_issues(
         TransientInstance::new(issues.clone()),
-        TransientValue::new(source.node),
+        TransientValue::new(Vc::into_raw(source)),
         // TODO this should be Error, but we need to fix the errors happing first
         IssueSeverity::Fatal.cell(),
     );
