@@ -50,3 +50,13 @@ export function shouldRunExperimentalTurboDevTest(): boolean {
 
   return shouldRunExperimentalTurboDev
 }
+
+export function getTurbopackFlag(): string {
+  if (!!process.env.TURBOPACK) {
+    return '--turbo'
+  } else if (!!process.env.EXPERIMENTAL_TURBOPACK) {
+    return '--experimental-turbo'
+  } else {
+    throw Error(`Cannot get the flag for running turbopack`)
+  }
+}
