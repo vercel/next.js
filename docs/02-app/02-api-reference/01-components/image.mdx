@@ -725,6 +725,42 @@ Try it out:
 
 - [Demo the `fill` prop](https://image-component.nextjs.gallery/fill)
 
+## Theme Detection
+
+If you want to display a different image for light mode vs dark mode, you can create a new component that wraps two `<Image>` components and reveals the correct one based on a CSS media query.
+
+```css filename="components/theme-image.module.css"
+.imgDark {
+  display: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  .imgLight {
+    display: none;
+  }
+  .imgDark {
+    display: unset;
+  }
+}
+```
+
+```jsx filename="components/theme-image.js"
+import styles from './theme-image.module.css'
+const ThemeImage = (props) => {
+  const { srcLight, srcDark, ...rest } = props
+  return (
+    <>
+      <Image {...rest} src={srcLight} className={styles.imgLight} />
+      <Image {...rest} src={srcDark} className={styles.imgDark} />
+    </>
+  )
+}
+```
+
+> **Good to know**: This depends on the default behavior of `loading="lazy"` so that only the correct image is loaded. You cannot use `priority` or `loading="eager"` because it could cause both images to load.
+
+- [Demo light/Dark mode theme detection](https://image-component.nextjs.gallery/theme)
+
 ## Known Browser Bugs
 
 This `next/image` component uses browser native [lazy loading](https://caniuse.com/loading-lazy-attr), which may fallback to eager loading for older browsers before Safari 15.4. When using the blur-up placeholder, older browsers before Safari 12 will fallback to empty placeholder. When using styles with `width`/`height` of `auto`, it is possible to cause [Layout Shift](https://web.dev/cls/) on older browsers before Safari 15 that don't [preserve the aspect ratio](https://caniuse.com/mdn-html_elements_img_aspect_ratio_computed_from_attributes). For more details, see [this MDN video](https://www.youtube.com/watch?v=4-d_SoCHeWE).
