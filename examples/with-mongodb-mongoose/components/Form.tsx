@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/router'
 import { mutate } from 'swr'
 
-interface IForm {
+interface FormData {
   name: string
   owner_name: string
   species: string
@@ -23,7 +23,7 @@ interface Error {
 
 type Props = {
   formId: string
-  petForm: IForm
+  petForm: FormData
   forNewPet?: boolean
 }
 
@@ -46,7 +46,7 @@ const Form = ({ formId, petForm, forNewPet = true }: Props) => {
   })
 
   /* The PUT method edits an existing entry in the mongodb database. */
-  const putData = async (form: IForm) => {
+  const putData = async (form: FormData) => {
     const { id } = router.query
 
     try {
@@ -74,7 +74,7 @@ const Form = ({ formId, petForm, forNewPet = true }: Props) => {
   }
 
   /* The POST method adds a new entry in the mongodb database. */
-  const postData = async (form: IForm) => {
+  const postData = async (form: FormData) => {
     try {
       const res = await fetch('/api/pets', {
         method: 'POST',
