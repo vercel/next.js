@@ -211,7 +211,7 @@ createNextDescribe(
 
           await check(
             () => next.cliOutput,
-            /You cannot have two parallel pages that resolve to the same path\. Please check \/parallel\/\(new\)\/@baz\/nested-2\/page\ and \/parallel\/nested-2\/page./i
+            /You cannot have two parallel pages that resolve to the same path\. Please check \/parallel\/\(new\)\/@baz\/nested-2\/page and \/parallel\/nested-2\/page\./i
           )
         }
         await next.stop()
