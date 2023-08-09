@@ -253,6 +253,14 @@ export default class DevServer extends Server {
         this.nextConfig.pageExtensions,
         true
       )
+      if (!appFile) {
+        appFile = await findPageFile(
+          this.appDir,
+          normalizedPath + '/route',
+          this.nextConfig.pageExtensions,
+          false
+        )
+      }
     }
 
     if (this.pagesDir) {
@@ -676,7 +684,6 @@ export default class DevServer extends Server {
     page: string
     clientOnly: boolean
     appPaths?: string[] | null
-    match?: RouteMatch
   }) {
     if (this.isRenderWorker) {
       await invokeIpcMethod({
@@ -712,14 +719,13 @@ export default class DevServer extends Server {
       // Wrap build errors so that they don't get logged again
       throw new WrappedBuildError(compilationErr)
     }
+
     try {
-      if (shouldEnsure || this.renderOpts.customServer) {
-        await this.ensurePage({
-          page: pathname,
-          appPaths,
-          clientOnly: false,
-        })
-      }
+      await this.ensurePage({
+        page: pathname,
+        appPaths,
+        clientOnly: false,
+      })
 
       this.nextFontManifest = super.getNextFontManifest()
       // before we re-evaluate a route module, we want to restore globals that might

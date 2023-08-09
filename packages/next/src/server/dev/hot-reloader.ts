@@ -1425,7 +1425,6 @@ export default class HotReloader {
     clientOnly: boolean
     appPaths?: string[] | null
     isApp?: boolean
-    match?: RouteMatch
   }): Promise<void> {
     // Make sure we don't re-build or dispose prebuilt pages
     if (page !== '/_error' && BLOCKED_PAGES.indexOf(page) !== -1) {

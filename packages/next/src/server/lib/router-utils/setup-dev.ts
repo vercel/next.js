@@ -433,7 +433,7 @@ async function startWatcher(opts: SetupOpts) {
           return async (
             ensureOpts: Parameters<(typeof hotReloader)['ensurePage']>[0]
           ) => {
-            let page = ensureOpts.match?.definition?.pathname ?? ensureOpts.page
+            let { page } = ensureOpts
 
             async function loadPartialManifest<T>(
               name: string,

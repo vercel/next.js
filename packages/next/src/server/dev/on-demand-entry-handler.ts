@@ -364,7 +364,6 @@ function tryToNormalizePagePath(page: string) {
  *
  * @param rootDir Absolute path to the project root.
  * @param pagesDir Absolute path to the pages folder with trailing `/pages`.
- * @param normalizedPagePath The page normalized (it will be denormalized).
  * @param pageExtensions Array of page extensions.
  */
 async function findPagePathData(
@@ -413,7 +412,20 @@ async function findPagePathData(
 
   // Check appDir first falling back to pagesDir
   if (appDir) {
-    pagePath = await findPageFile(appDir, normalizedPagePath, extensions, true)
+    pagePath = await findPageFile(
+      appDir,
+      normalizedPagePath + '/page',
+      extensions,
+      true
+    )
+    if (!pagePath) {
+      pagePath = await findPageFile(
+        appDir,
+        normalizedPagePath + '/route',
+        extensions,
+        true
+      )
+    }
     if (pagePath) {
       const pageUrl = ensureLeadingSlash(
         removePagePathTail(normalizePathSep(pagePath), {
@@ -459,9 +471,9 @@ async function findPagePathData(
       bundlePath: page,
       page: normalizePathSep(page),
     }
-  } else {
-    throw new PageNotFoundError(normalizedPagePath)
   }
+
+  throw new PageNotFoundError(normalizedPagePath)
 }
 
 async function findRoutePathData(

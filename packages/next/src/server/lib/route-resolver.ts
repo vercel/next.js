@@ -78,10 +78,18 @@ export async function makeResolver(
       }
       result = await findPageFile(
         appDir,
-        item.itemPath,
+        item.itemPath + '/page',
         nextConfig.pageExtensions,
         true
       )
+      if (!result) {
+        result = await findPageFile(
+          appDir,
+          item.itemPath + '/route',
+          nextConfig.pageExtensions,
+          true
+        )
+      }
     } else if (item.type === 'pageFile') {
       if (!pagesDir) {
         throw new Error('no pages dir present')
