@@ -684,35 +684,6 @@ function assignDefaults(
       // instead of just resolving `lucide-react/esm/icons/{{kebabCase member}}` because this package
       // doesn't have proper `exports` fields for individual icons in its package.json.
       transform: {
-        // Special aliases
-        '(SortAsc|LucideSortAsc|SortAscIcon)':
-          'modularize-import-loader?name={{ member }}&from=default&as=default&join=../esm/icons/arrow-up-narrow-wide!lucide-react',
-        '(SortDesc|LucideSortDesc|SortDescIcon)':
-          'modularize-import-loader?name={{ member }}&from=default&as=default&join=../esm/icons/arrow-down-wide-narrow!lucide-react',
-        '(Verified|LucideVerified|VerifiedIcon)':
-          'modularize-import-loader?name={{ member }}&from=default&as=default&join=../esm/icons/badge-check!lucide-react',
-        '(Slash|LucideSlash|SlashIcon)':
-          'modularize-import-loader?name={{ member }}&from=default&as=default&join=../esm/icons/ban!lucide-react',
-        '(CurlyBraces|LucideCurlyBraces|CurlyBracesIcon)':
-          'modularize-import-loader?name={{ member }}&from=default&as=default&join=../esm/icons/braces!lucide-react',
-        '(CircleSlashed|LucideCircleSlashed|CircleSlashedIcon)':
-          'modularize-import-loader?name={{ member }}&from=default&as=default&join=../esm/icons/circle-slash-2!lucide-react',
-        '(SquareGantt|LucideSquareGantt|SquareGanttIcon)':
-          'modularize-import-loader?name={{ member }}&from=default&as=default&join=../esm/icons/gantt-chart-square!lucide-react',
-        '(SquareKanbanDashed|LucideSquareKanbanDashed|SquareKanbanDashedIcon)':
-          'modularize-import-loader?name={{ member }}&from=default&as=default&join=../esm/icons/kanban-square-dashed!lucide-react',
-        '(SquareKanban|LucideSquareKanban|SquareKanbanIcon)':
-          'modularize-import-loader?name={{ member }}&from=default&as=default&join=../esm/icons/kanban-square!lucide-react',
-        '(Edit3|LucideEdit3|Edit3Icon)':
-          'modularize-import-loader?name={{ member }}&from=default&as=default&join=../esm/icons/pen-line!lucide-react',
-        '(Edit|LucideEdit|EditIcon|PenBox|LucidePenBox|PenBoxIcon)':
-          'modularize-import-loader?name={{ member }}&from=default&as=default&join=../esm/icons/pen-square!lucide-react',
-        '(Edit2|LucideEdit2|Edit2Icon)':
-          'modularize-import-loader?name={{ member }}&from=default&as=default&join=../esm/icons/pen!lucide-react',
-        '(Stars|LucideStars|StarsIcon)':
-          'modularize-import-loader?name={{ member }}&from=default&as=default&join=../esm/icons/sparkles!lucide-react',
-        '(TextSelection|LucideTextSelection|TextSelectionIcon)':
-          'modularize-import-loader?name={{ member }}&from=default&as=default&join=../esm/icons/text-select!lucide-react',
         // General rules
         'Lucide(.*)':
           'modularize-import-loader?name={{ member }}&from=default&as=default&join=../esm/icons/{{ kebabCase memberMatches.[1] }}!lucide-react',
