@@ -75,6 +75,7 @@ import { NEXT_DYNAMIC_NO_SSR_CODE } from '../../shared/lib/lazy-dynamic/no-ssr-e
 import { warn } from '../../build/output/log'
 import { appendMutableCookies } from '../web/spec-extension/adapters/request-cookies'
 import { createServerInsertedHTML } from './server-inserted-html'
+import { getRequiredScripts } from './required-scripts'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -1311,11 +1312,15 @@ export async function renderToHTMLOrFlight(
      * A new React Component that renders the provided React Component
      * using Flight which can then be rendered to HTML.
      */
-    const createServerComponentsRenderer = (loaderTreeToRender: LoaderTree) =>
+    const createServerComponentsRenderer = (
+      loaderTreeToRender: LoaderTree,
+      preinitScripts: () => void
+    ) =>
       createServerComponentRenderer<{
         asNotFound: boolean
       }>(
         async (props) => {
+          preinitScripts()
           // Create full component tree from root to leaf.
           const injectedCSS = new Set<string>()
           const injectedFontPreloadTags = new Set<string>()
@@ -1414,7 +1419,16 @@ export async function renderToHTMLOrFlight(
             integrity: subresourceIntegrityManifest?.[polyfill],
           }))
 
-        const ServerComponentsRenderer = createServerComponentsRenderer(tree)
+        const [preinitScripts, bootstrapScript] = getRequiredScripts(
+          buildManifest,
+          assetPrefix,
+          subresourceIntegrityManifest,
+          getAssetQueryString(true)
+        )
+        const ServerComponentsRenderer = createServerComponentsRenderer(
+          tree,
+          preinitScripts
+        )
         const content = (
           <HeadManagerContext.Provider
             value={{
@@ -1500,28 +1514,7 @@ export async function renderToHTMLOrFlight(
               onError: htmlRendererErrorHandler,
               nonce,
               // Include hydration scripts in the HTML
-              bootstrapScripts: [
-                ...(subresourceIntegrityManifest
-                  ? buildManifest.rootMainFiles.map((src) => ({
-                      src:
-                        `${assetPrefix}/_next/` +
-                        src +
-                        // Always include the timestamp query in development
-                        // as Safari caches them during the same session, no
-                        // matter what cache headers are set.
-                        getAssetQueryString(true),
-                      integrity: subresourceIntegrityManifest[src],
-                    }))
-                  : buildManifest.rootMainFiles.map(
-                      (src) =>
-                        `${assetPrefix}/_next/` +
-                        src +
-                        // Always include the timestamp query in development
-                        // as Safari caches them during the same session, no
-                        // matter what cache headers are set.
-                        getAssetQueryString(true)
-                    )),
-              ],
+              bootstrapScripts: [bootstrapScript],
             },
           })
 
@@ -1601,8 +1594,18 @@ export async function renderToHTMLOrFlight(
               )}
             </>
           )
+
+          const [errorPreinitScripts, errorBootstrapScript] =
+            getRequiredScripts(
+              buildManifest,
+              assetPrefix,
+              subresourceIntegrityManifest,
+              getAssetQueryString(false)
+            )
+
           const ErrorPage = createServerComponentRenderer(
             async () => {
+              errorPreinitScripts()
               const [MetadataTree] = createMetadataComponents({
                 tree,
                 pathname,
@@ -1657,20 +1660,7 @@ export async function renderToHTMLOrFlight(
               streamOptions: {
                 nonce,
                 // Include hydration scripts in the HTML
-                bootstrapScripts: subresourceIntegrityManifest
-                  ? buildManifest.rootMainFiles.map((src) => ({
-                      src:
-                        `${assetPrefix}/_next/` +
-                        src +
-                        getAssetQueryString(false),
-                      integrity: subresourceIntegrityManifest[src],
-                    }))
-                  : buildManifest.rootMainFiles.map(
-                      (src) =>
-                        `${assetPrefix}/_next/` +
-                        src +
-                        getAssetQueryString(false)
-                    ),
+                bootstrapScripts: [errorBootstrapScript],
               },
             })
 
