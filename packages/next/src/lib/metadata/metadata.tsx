@@ -89,7 +89,7 @@ export function createMetadataComponents({
           errorConvention: 'not-found',
           metadataContext,
         })
-        metadata = metadataResult[0]
+        metadata = errorMetadataResult[0]
         error = errorMetadataResult[1] || error
       }
       resolve(error)
