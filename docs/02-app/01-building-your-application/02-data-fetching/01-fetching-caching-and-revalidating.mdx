@@ -6,11 +6,12 @@ description: Learn how to fetch, cache, and revalidate data in your Next.js appl
 
 Data fetching is a core part of any application. This page goes through how you can fetch, cache, and revalidate data in React and Next.js.
 
-There are three main ways you can fetch data:
+There are four ways you can fetch data:
 
-1. On the server, with the `fetch` API.
-2. On the server, with third-party libraries.
-3. On the client, with third-party libraries.
+1. [On the server, with `fetch`](#fetching-data-on-the-server-with-fetch)
+2. [On the server, with third-party libraries](#fetching-data-on-the-server-with-third-party-libraries)
+3. [On the client, via a Route Handler](#fetching-data-on-the-client-with-route-handlers)
+4. [On the client, with third-party libraries](#fetching-data-on-the-client-with-route-handlers).
 
 ## Fetching Data on the Server with `fetch`
 
@@ -355,9 +356,19 @@ export default async function Page({ params: { id } }) {
 }
 ```
 
-## Fetching Data on the Client
+## Fetching Data on the Client with Route Handlers
 
-If you need to fetch data on the client, we recommend using a third-party library such as [SWR](https://swr.vercel.app/) or [React Query](https://tanstack.com/query/latest). These libraries provide their own APIs for memoizing requests, caching, revalidating, and mutating data.
+If you need to fetch data in a client component, you can call a [Route Handler](/docs/app/building-your-application/routing/route-handlers) from the client. Route handlers execute on the server and return the data to the client. This is useful when you don't want to expose sensitive information to the client, such as API tokens.
+
+See the [Route Handler](/docs/app/building-your-application/routing/route-handlers) documentation for examples.
+
+> **Server Components and Route Handlers**
+>
+> Since Server Components render on the server, you don't need to call a Route Handler from a Server Component to fetch data. Instead, you can fetch the data directly inside the Server Component.
+
+## Fetching Data on the Client with third-party libraries
+
+You can also fetch data on the client using a third-party library such as [SWR](https://swr.vercel.app/) or [React Query](https://tanstack.com/query/latest). These libraries provide their own APIs for memoizing requests, caching, revalidating, and mutating data.
 
 > **Future APIs**:
 >
