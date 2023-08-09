@@ -1,6 +1,7 @@
 import spawn from 'cross-spawn'
 import { Span } from 'next/src/trace'
 import { NextInstance } from './base'
+import { getTurbopackFlag } from '../turbo'
 
 export class NextDevInstance extends NextInstance {
   private _cliOutput: string = ''
@@ -22,12 +23,14 @@ export class NextDevInstance extends NextInstance {
       throw new Error('next already started')
     }
 
-    const useTurbo = !process.env.TEST_WASM && (this as any).turbo
+    const useTurbo =
+      !process.env.TEST_WASM &&
+      ((this as any).turbo || (this as any).experimentalTurbo)
 
     let startArgs = [
       'yarn',
       'next',
-      useTurbo ? '--turbo' : undefined,
+      useTurbo ? getTurbopackFlag() : undefined,
       useDirArg && this.testDir,
     ].filter(Boolean) as string[]
 
