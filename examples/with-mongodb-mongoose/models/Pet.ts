@@ -1,6 +1,6 @@
 import mongoose from 'mongoose'
 
-export interface IPet extends mongoose.Document {
+export interface Pets extends mongoose.Document {
   name: string
   owner_name: string
   species: string
@@ -13,7 +13,7 @@ export interface IPet extends mongoose.Document {
 }
 
 /* PetSchema will correspond to a collection in your MongoDB database. */
-const PetSchema = new mongoose.Schema<IPet>({
+const PetSchema = new mongoose.Schema<Pets>({
   name: {
     /* The name of this pet */
 
@@ -68,4 +68,4 @@ const PetSchema = new mongoose.Schema<IPet>({
   },
 })
 
-export default mongoose.models.Pet || mongoose.model<IPet>('Pet', PetSchema)
+export default mongoose.models.Pet || mongoose.model<Pets>('Pet', PetSchema)

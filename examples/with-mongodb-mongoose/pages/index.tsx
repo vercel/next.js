@@ -1,10 +1,10 @@
 import Link from 'next/link'
 import dbConnect from '../lib/dbConnect'
-import Pet, { IPet } from '../models/Pet'
+import Pet, { Pets } from '../models/Pet'
 import { GetServerSideProps } from 'next'
 
 type Props = {
-  pets: IPet[]
+  pets: Pets[]
 }
 
 const Index = ({ pets }: Props) => {

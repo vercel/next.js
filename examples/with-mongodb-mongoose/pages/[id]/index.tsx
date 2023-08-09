@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/router'
 import Link from 'next/link'
 import dbConnect from '../../lib/dbConnect'
-import Pet, { IPet } from '../../models/Pet'
+import Pet, { Pets } from '../../models/Pet'
 import { GetServerSideProps, GetServerSidePropsContext } from 'next'
 import { ParsedUrlQuery } from 'querystring'
 import { ObjectId } from 'mongoose'
@@ -12,7 +12,7 @@ interface Params extends ParsedUrlQuery {
 }
 
 type Props = {
-  pet: IPet
+  pet: Pets
 }
 
 /* Allows you to view pet card info and delete pet card*/
