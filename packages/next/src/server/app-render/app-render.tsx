@@ -784,6 +784,7 @@ export async function renderToHTMLOrFlight(
       const parallelRouteMap = await Promise.all(
         Object.keys(parallelRoutes).map(
           async (parallelRouteKey): Promise<[string, React.ReactNode]> => {
+            const isChildrenRouteKey = parallelRouteKey === 'children'
             const currentSegmentPath: FlightSegmentPath = firstItem
               ? [parallelRouteKey]
               : [actualSegment, parallelRouteKey]
@@ -792,6 +793,9 @@ export async function renderToHTMLOrFlight(
 
             const childSegment = parallelRoute[0]
             const childSegmentParam = getDynamicParamFromSegment(childSegment)
+
+            const notFoundComponent =
+              isChildrenRouteKey && NotFound ? <NotFound /> : undefined
 
             // if we're prefetching and that there's a Loading component, we bail out
             // otherwise we keep rendering for the prefetch.
@@ -828,7 +832,7 @@ export async function renderToHTMLOrFlight(
                     </Template>
                   }
                   templateStyles={templateStyles}
-                  notFound={NotFound ? <NotFound /> : undefined}
+                  notFound={notFoundComponent}
                   notFoundStyles={notFoundStyles}
                   childProp={childProp}
                 />,
@@ -881,7 +885,7 @@ export async function renderToHTMLOrFlight(
                   </Template>
                 }
                 templateStyles={templateStyles}
-                notFound={NotFound ? <NotFound /> : undefined}
+                notFound={notFoundComponent}
                 notFoundStyles={notFoundStyles}
                 childProp={childProp}
                 styles={childStyles}
