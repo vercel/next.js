@@ -3,7 +3,7 @@
 import { IPC } from '@vercel/turbopack-node/ipc/index'
 
 import 'next/dist/server/node-polyfill-fetch.js'
-import 'next/dist/server/require-hook.js'
+import 'next/dist/server/require-hook'
 import './shims'
 
 import type { IncomingMessage, ServerResponse } from 'node:http'
