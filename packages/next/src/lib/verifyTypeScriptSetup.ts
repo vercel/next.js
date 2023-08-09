@@ -130,6 +130,7 @@ export async function verifyTypeScriptSetup({
     // Next.js' types:
     await writeAppTypeDeclarations({
       baseDir: dir,
+      distDir,
       imageImportsEnabled: !disableStaticImages,
       hasPagesDir,
       isAppDirEnabled: hasAppDir,

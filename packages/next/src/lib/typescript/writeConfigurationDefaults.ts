@@ -182,14 +182,14 @@ export async function writeConfigurationDefaults(
 
   if (!('include' in rawConfig)) {
     userTsConfig.include = isAppDirEnabled
-      ? ['next-env.d.ts', nextAppTypes, '**/*.ts', '**/*.tsx']
+      ? [nextAppTypes, '**/*.ts', '**/*.tsx']
       : ['next-env.d.ts', '**/*.ts', '**/*.tsx']
     suggestedActions.push(
       chalk.cyan('include') +
         ' was set to ' +
         chalk.bold(
           isAppDirEnabled
-            ? `['next-env.d.ts', '${nextAppTypes}', '**/*.ts', '**/*.tsx']`
+            ? `['${nextAppTypes}', '**/*.ts', '**/*.tsx']`
             : `['next-env.d.ts', '**/*.ts', '**/*.tsx']`
         )
     )
