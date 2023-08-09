@@ -169,3 +169,7 @@ export function loadEnvConfig(
   combinedEnv = processEnv(cachedLoadedEnvFiles, dir, log, forceReload)
   return { combinedEnv, loadedEnvFiles: cachedLoadedEnvFiles }
 }
+
+export function getLoadedEnvFiles(): LoadedEnvFiles {
+  return cachedLoadedEnvFiles
+}

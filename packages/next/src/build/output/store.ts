@@ -71,7 +71,7 @@ store.subscribe((state) => {
         Log.wait(`compiling ${state.trigger}...`)
       }
     } else {
-      if (Date.now() - lastTime > 3 * 1000) {
+      if (Date.now() - lastTime > 10 * 1000) {
         Log.wait('compiling...')
       }
     }

@@ -218,7 +218,7 @@ export async function startServer({
         )
         // expose the main port to render workers
         process.env.PORT = port + ''
-
+        console.log('')
       }
 
       try {

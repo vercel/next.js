@@ -27,6 +27,7 @@ import type { ChildProcess } from 'child_process'
 import { checkIsNodeDebugging } from '../server/lib/is-node-debugging'
 import { createSelfSignedCertificate } from '../lib/mkcert'
 import uploadTrace from '../trace/upload-trace'
+import { loadEnvConfig } from '@next/env'
 import { version } from '../../package.json'
 
 let dir: string
@@ -304,6 +305,14 @@ const nextDev: CliCommand = async (argv) => {
   const host = args['--hostname']
 
   Log.bootstrap(Log.prefixes.ready, `Next.js ${version}`)
+
+  const { loadedEnvFiles } = loadEnvConfig(dir, true, console, false)
+  if (loadedEnvFiles.length > 0) {
+    Log.bootstrap(
+      '- Environments:',
+      loadedEnvFiles.map((f) => f.path).join(', ')
+    )
+  }
 
   config = await loadConfig(PHASE_DEVELOPMENT_SERVER, dir)
   const isExperimentalTestProxy = args['--experimental-test-proxy']
