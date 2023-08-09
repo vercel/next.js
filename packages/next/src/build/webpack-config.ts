@@ -1049,7 +1049,7 @@ export default async function getBaseWebpackConfig(
   const customRootAliases: { [key: string]: string[] } = {}
 
   if (dev) {
-    const nextDist = 'next/dist/' + (isEdgeServer ? 'esm/' : '')
+    const nextDistPath = 'next/dist/' + (isEdgeServer ? 'esm/' : '')
     customAppAliases[`${PAGES_DIR_ALIAS}/_app`] = [
       ...(pagesDir
         ? pageExtensions.reduce((prev, ext) => {
@@ -1057,7 +1057,7 @@ export default async function getBaseWebpackConfig(
             return prev
           }, [] as string[])
         : []),
-      `${nextDist}pages/_app.js`,
+      `${nextDistPath}pages/_app.js`,
     ]
     customAppAliases[`${PAGES_DIR_ALIAS}/_error`] = [
       ...(pagesDir
@@ -1066,7 +1066,7 @@ export default async function getBaseWebpackConfig(
             return prev
           }, [] as string[])
         : []),
-      `${nextDist}pages/_error.js`,
+      `${nextDistPath}pages/_error.js`,
     ]
     customDocumentAliases[`${PAGES_DIR_ALIAS}/_document`] = [
       ...(pagesDir
@@ -1075,7 +1075,7 @@ export default async function getBaseWebpackConfig(
             return prev
           }, [] as string[])
         : []),
-      `${nextDist}pages/_document.js`,
+      `${nextDistPath}pages/_document.js`,
     ]
   }
 
