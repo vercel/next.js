@@ -30,7 +30,8 @@ export default function () {
       // @ts-ignore __webpack_module__ is global
       var currentExports = __webpack_module__.exports
       // @ts-ignore __webpack_module__ is global
-      var prevExports = __webpack_module__.hot.data?.prevExports ?? null
+      var prevSignature: unknown[] | null =
+        __webpack_module__.hot.data?.prevSignature ?? null
 
       // This cannot happen in MainTemplate because the exports mismatch between
       // templating and execution.
@@ -45,7 +46,8 @@ export default function () {
         // Save the previous exports on update so we can compare the boundary
         // signatures.
         __webpack_module__.hot.dispose(function (data) {
-          data.prevExports = currentExports
+          data.prevSignature =
+            self.$RefreshHelpers$.getRefreshBoundarySignature(currentExports)
         })
         // Unconditionally accept an update to this module, we'll check if it's
         // still a Refresh Boundary later.
@@ -55,7 +57,7 @@ export default function () {
         // This field is set when the previous version of this module was a
         // Refresh Boundary, letting us know we need to check for invalidation or
         // enqueue an update.
-        if (prevExports !== null) {
+        if (prevSignature !== null) {
           // A boundary can become ineligible if its exports are incompatible
           // with the previous exports.
           //
@@ -65,8 +67,8 @@ export default function () {
           // function, we want to invalidate the boundary.
           if (
             self.$RefreshHelpers$.shouldInvalidateReactRefreshBoundary(
-              prevExports,
-              currentExports
+              prevSignature,
+              self.$RefreshHelpers$.getRefreshBoundarySignature(currentExports)
             )
           ) {
             __webpack_module__.hot.invalidate()
@@ -79,7 +81,7 @@ export default function () {
         // new exports made it ineligible for being a boundary.
         // We only care about the case when we were _previously_ a boundary,
         // because we already accepted this update (accidental side effect).
-        var isNoLongerABoundary = prevExports !== null
+        var isNoLongerABoundary = prevSignature !== null
         if (isNoLongerABoundary) {
           __webpack_module__.hot.invalidate()
         }
