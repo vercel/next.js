@@ -94,13 +94,11 @@ pub async fn endpoint_write_to_disk(
 
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
 pub fn endpoint_changed_subscribe(
-    #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: External<
-        VcArc<Vc<Box<dyn Endpoint>>>,
-    >,
+    #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: External<ExternalEndpoint>,
     func: JsFunction,
 ) -> napi::Result<External<RootTask>> {
     let turbo_tasks = endpoint.turbo_tasks().clone();
-    let endpoint = **endpoint;
+    let endpoint = ***endpoint;
     subscribe(
         turbo_tasks,
         func,

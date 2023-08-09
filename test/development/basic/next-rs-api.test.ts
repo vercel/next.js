@@ -260,14 +260,13 @@ describe('next.rs api', () => {
             'diagnostics'
           )
 
-          // TODO This crashes
-          // const result2 = await route.dataEndpoint.writeToDisk()
-          // expect(result2.type).toBe(runtime)
-          // expect(result2.config).toEqual(config)
-          // expect(normalizeIssues(result2.issues)).toMatchSnapshot('data issues')
-          // expect(normalizeDiagnostics(result2.diagnostics)).toMatchSnapshot(
-          //   'data diagnostics'
-          // )
+          const result2 = await route.dataEndpoint.writeToDisk()
+          expect(result2.type).toBe(runtime)
+          expect(result2.config).toEqual(config)
+          expect(normalizeIssues(result2.issues)).toMatchSnapshot('data issues')
+          expect(normalizeDiagnostics(result2.diagnostics)).toMatchSnapshot(
+            'data diagnostics'
+          )
           break
         }
         case 'app-page': {
@@ -297,64 +296,134 @@ describe('next.rs api', () => {
     })
   }
 
-  it('has hmr identifiers', async () => {
-    const result = await project.hmrIdentifiersSubscribe().next()
-    expect(result.done).toBe(false)
-    const identifiers = result.value.identifiers
-    expect(identifiers).toHaveProperty('length', expect.toBePositive())
-    const subscriptions = identifiers.map((identifier) =>
-      project.hmrEvents(identifier)
-    )
-    await Promise.all(
-      subscriptions.map(async (subscription) => {
-        const result = await subscription.next()
-        expect(result.done).toBe(false)
-        expect(result.value).toHaveProperty('resource', expect.toBeObject())
-        expect(result.value).toHaveProperty('type', 'issues')
-        expect(result.value).toHaveProperty('issues', expect.toBeEmpty())
-        expect(result.value).toHaveProperty('diagnostics', expect.toBeEmpty())
+  const hmrCases: {
+    name: string
+    path: string
+    type: string
+    file: string
+    content: string
+    expectedUpdate: string | false
+    expectedServerSideChange: boolean
+  }[] = [
+    {
+      name: 'client-side files on a page',
+      path: '/',
+      type: 'page',
+      file: 'pages/index.tsx',
+      content: 'export default () => <div>hello world2</div>',
+      expectedUpdate: '/pages/index.js',
+      expectedServerSideChange: false,
+    },
+  ]
+
+  for (const {
+    name,
+    path,
+    type,
+    file,
+    content,
+    expectedUpdate,
+    expectedServerSideChange,
+  } of hmrCases) {
+    it(`should have working HMR on ${name}`, async () => {
+      // const entrypointsSubscribtion = project.entrypointsSubscribe()
+      // const entrypoints: TurbopackResult<Entrypoints> = (
+      //   await entrypointsSubscribtion.next()
+      // ).value
+      // const route = entrypoints.routes.get(path)
+      // entrypointsSubscribtion.return()
+
+      // expect(route.type).toBe(type)
+
+      let serverSideSubscription:
+        | AsyncIterableIterator<TurbopackResult>
+        | undefined
+      // switch (route.type) {
+      //   case 'page': {
+      //     // serverSideSubscription = await route.dataEndpoint.changed()
+      //     break
+      //   }
+      //   default: {
+      //     throw new Error('unknown route type')
+      //   }
+      // }
+
+      const result = await project.hmrIdentifiersSubscribe().next()
+      expect(result.done).toBe(false)
+      const identifiers = result.value.identifiers
+      expect(identifiers).toHaveProperty('length', expect.toBePositive())
+      const subscriptions = identifiers.map((identifier) =>
+        project.hmrEvents(identifier)
+      )
+      await Promise.all(
+        subscriptions.map(async (subscription) => {
+          const result = await subscription.next()
+          expect(result.done).toBe(false)
+          expect(result.value).toHaveProperty('resource', expect.toBeObject())
+          expect(result.value).toHaveProperty('type', 'issues')
+          expect(result.value).toHaveProperty('issues', expect.toBeEmpty())
+          expect(result.value).toHaveProperty('diagnostics', expect.toBeEmpty())
+        })
+      )
+      console.log('waiting for events')
+      let updateComplete = project.updateInfoSubscribe().next()
+      next.patchFile(file, content)
+      let foundUpdates: string[] | false = false
+      let foundServerSideChange = false
+      const result2 = await Promise.race(
+        [
+          (async () => {
+            const merged = raceIterators(subscriptions)
+            for await (const item of merged) {
+              if (item.type === 'partial') {
+                expect(item.instruction).toEqual({
+                  type: 'ChunkListUpdate',
+                  merged: [
+                    expect.objectContaining({
+                      chunks: expect.toBeObject(),
+                      entries: expect.toBeObject(),
+                    }),
+                  ],
+                })
+                const updates = Object.keys(item.instruction.merged[0].entries)
+                expect(updates).not.toBeEmpty()
+
+                foundUpdates = foundUpdates || []
+                foundUpdates.push(
+                  ...Object.keys(item.instruction.merged[0].entries)
+                )
+              }
+            }
+          })(),
+          serverSideSubscription &&
+            (async () => {
+              for await (const {
+                issues,
+                diagnostics,
+              } of serverSideSubscription) {
+                expect(foundServerSideChange).toBe(false)
+                expect(issues).toBeArray()
+                expect(diagnostics).toBeArray()
+                foundServerSideChange = true
+              }
+            })(),
+          updateComplete,
+          new Promise((r) => setTimeout(() => r('timeout'), 30000)),
+        ].filter((x) => x)
+      )
+      expect(result2).toMatchObject({
+        done: false,
+        value: {
+          duration: expect.toBePositive(),
+          tasks: expect.toBePositive(),
+        },
       })
-    )
-    console.log('waiting for events')
-    let updateComplete = project.updateInfoSubscribe().next()
-    next.patchFile(
-      'pages/index.js',
-      'export default () => <div>hello world2</div>'
-    )
-    let foundUpdate = false
-    const result2 = await Promise.race([
-      (async () => {
-        const merged = raceIterators(subscriptions)
-        for await (const item of merged) {
-          if (item.type === 'partial') {
-            // there should only be a single partial update
-            expect(foundUpdate).toBe(false)
-            expect(item.instruction).toEqual({
-              type: 'ChunkListUpdate',
-              merged: [
-                expect.objectContaining({
-                  chunks: expect.toBeObject(),
-                  entries: expect.toBeObject(),
-                }),
-              ],
-            })
-            expect(
-              Object.keys(item.instruction.merged[0].entries)
-            ).toContainEqual(expect.stringContaining('/pages/index.js'))
-            foundUpdate = true
-          }
-        }
-      })(),
-      updateComplete,
-      new Promise((r) => setTimeout(() => r('timeout'), 30000)),
-    ])
-    expect(result2).toMatchObject({
-      done: false,
-      value: {
-        duration: expect.toBePositive(),
-        tasks: expect.toBePositive(),
-      },
+      if (expectedUpdate === false) {
+        expect(foundUpdates).toBe(false)
+      } else {
+        expect(foundUpdates).toEqual([expect.stringContaining(expectedUpdate)])
+      }
+      expect(foundServerSideChange).toBe(expectedServerSideChange)
     })
-    expect(foundUpdate).toBe(true)
-  })
+  }
 })

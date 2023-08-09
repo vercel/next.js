@@ -20,6 +20,10 @@ exports[`next.rs api should allow to write pages Node.js api to disk: diagnostic
 
 exports[`next.rs api should allow to write pages Node.js api to disk: issues 1`] = `Array []`;
 
+exports[`next.rs api should allow to write pages Node.js page to disk: data diagnostics 1`] = `Array []`;
+
+exports[`next.rs api should allow to write pages Node.js page to disk: data issues 1`] = `Array []`;
+
 exports[`next.rs api should allow to write pages Node.js page to disk: diagnostics 1`] = `Array []`;
 
 exports[`next.rs api should allow to write pages Node.js page to disk: issues 1`] = `Array []`;
@@ -707,9 +711,17 @@ Import map: No import map entry
 ]
 `;
 
+exports[`next.rs api should allow to write pages edge page to disk: data diagnostics 1`] = `Array []`;
+
+exports[`next.rs api should allow to write pages edge page to disk: data issues 1`] = `Array []`;
+
 exports[`next.rs api should allow to write pages edge page to disk: diagnostics 1`] = `Array []`;
 
 exports[`next.rs api should allow to write pages edge page to disk: issues 1`] = `Array []`;
+
+exports[`next.rs api should allow to write root page to disk: data diagnostics 1`] = `Array []`;
+
+exports[`next.rs api should allow to write root page to disk: data issues 1`] = `Array []`;
 
 exports[`next.rs api should allow to write root page to disk: diagnostics 1`] = `Array []`;
 
