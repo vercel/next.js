@@ -11,7 +11,7 @@ describe('modularize-imports', () => {
         app: new FileRef(join(__dirname, 'modularize-imports/app')),
       },
       dependencies: {
-        'lucide-react': '0.263.1',
+        'lucide-react': '0.264.0',
       },
     })
   })
