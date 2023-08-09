@@ -1572,6 +1572,10 @@ export default async function build(
                         if (isEdgeRuntime(pageRuntime)) {
                           isStatic = false
                           isSsg = false
+
+                          Log.warnOnce(
+                            `Using edge runtime on a page currently disables static generation for that page`
+                          )
                         } else {
                           // If a page has action and it is static, we need to
                           // change it to SSG to keep the worker created.
@@ -1598,30 +1602,38 @@ export default async function build(
                           }
 
                           const appConfig = workerResult.appConfig || {}
-                          if (appConfig.revalidate !== 0 && !hasAction) {
-                            const isDynamic = isDynamicRoute(page)
-                            const hasGenerateStaticParams =
-                              !!workerResult.prerenderRoutes?.length
+                          if (appConfig.revalidate !== 0) {
+                            if (hasAction) {
+                              Log.warnOnce(
+                                `Using server actions on a page currently disables static generation for that page`
+                              )
+                            } else {
+                              const isDynamic = isDynamicRoute(page)
+                              const hasGenerateStaticParams =
+                                !!workerResult.prerenderRoutes?.length
 
-                            if (
-                              // Mark the app as static if:
-                              // - It has no dynamic param
-                              // - It doesn't have generateStaticParams but `dynamic` is set to
-                              //   `error` or `force-static`
-                              !isDynamic
-                            ) {
-                              appStaticPaths.set(originalAppPath, [page])
-                              appStaticPathsEncoded.set(originalAppPath, [page])
-                              isStatic = true
-                            } else if (
-                              isDynamic &&
-                              !hasGenerateStaticParams &&
-                              (appConfig.dynamic === 'error' ||
-                                appConfig.dynamic === 'force-static')
-                            ) {
-                              appStaticPaths.set(originalAppPath, [])
-                              appStaticPathsEncoded.set(originalAppPath, [])
-                              isStatic = true
+                              if (
+                                // Mark the app as static if:
+                                // - It has no dynamic param
+                                // - It doesn't have generateStaticParams but `dynamic` is set to
+                                //   `error` or `force-static`
+                                !isDynamic
+                              ) {
+                                appStaticPaths.set(originalAppPath, [page])
+                                appStaticPathsEncoded.set(originalAppPath, [
+                                  page,
+                                ])
+                                isStatic = true
+                              } else if (
+                                isDynamic &&
+                                !hasGenerateStaticParams &&
+                                (appConfig.dynamic === 'error' ||
+                                  appConfig.dynamic === 'force-static')
+                              ) {
+                                appStaticPaths.set(originalAppPath, [])
+                                appStaticPathsEncoded.set(originalAppPath, [])
+                                isStatic = true
+                              }
                             }
                           }
 
