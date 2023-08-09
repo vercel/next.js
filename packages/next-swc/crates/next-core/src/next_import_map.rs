@@ -215,6 +215,7 @@ pub async fn get_next_server_import_map(
     insert_next_server_special_aliases(&mut import_map, ty, mode, NextRuntime::NodeJs).await?;
     let external: Vc<ImportMapping> = ImportMapping::External(None).cell();
 
+    import_map.insert_exact_alias("next/dist/server/require-hook", external);
     match ty {
         ServerContextType::Pages { .. } | ServerContextType::PagesData { .. } => {
             import_map.insert_exact_alias("react", external);
@@ -249,7 +250,6 @@ pub async fn get_next_server_import_map(
                 "next/dynamic",
                 request_to_import_mapping(project_path, "next/dist/shared/lib/app-dynamic"),
             );
-            import_map.insert_exact_alias("next/dist/server/require-hook", external);
         }
         ServerContextType::Middleware => {}
     }
