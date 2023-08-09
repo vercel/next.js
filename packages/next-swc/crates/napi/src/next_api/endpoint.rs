@@ -106,7 +106,7 @@ pub fn endpoint_changed_subscribe(
             let changed = endpoint.changed();
             let issues = get_issues(changed).await?;
             let diags = get_diagnostics(changed).await?;
-            changed.await?;
+            changed.strongly_consistent().await?;
             Ok((issues, diags))
         },
         |ctx| {
