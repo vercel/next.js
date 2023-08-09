@@ -364,22 +364,37 @@ async function createTreeCodeFromPath(
 
     for (const adjacentParallelSegment of adjacentParallelSegments) {
       if (!props[normalizeParallelKey(adjacentParallelSegment)]) {
-        const actualSegment =
-          adjacentParallelSegment === 'children' ? '' : adjacentParallelSegment
-        const defaultPath =
-          (await resolver(
-            `${appDirPrefix}${segmentPath}/${actualSegment}/default`
-          )) ?? 'next/dist/client/components/parallel-route-default'
+        const isChildrenRoute = adjacentParallelSegment === 'children'
+        const actualSegment = isChildrenRoute ? '' : adjacentParallelSegment
 
-        props[normalizeParallelKey(adjacentParallelSegment)] = `[
-          '__DEFAULT__',
-          {},
-          {
-            defaultPage: [() => import(/* webpackMode: "eager" */ ${JSON.stringify(
-              defaultPath
-            )}), ${JSON.stringify(defaultPath)}],
-          }
-        ]`
+        const normalizedKey = normalizeParallelKey(adjacentParallelSegment)
+        if (isChildrenRoute) {
+          const defaultPath =
+            'next/dist/client/components/parallel-route-default-not-found'
+          props[normalizedKey] = `[
+            '__DEFAULT__',
+            {},
+            {
+              defaultPage: [() => import(/* webpackMode: "eager" */ ${JSON.stringify(
+                defaultPath
+              )}), ${JSON.stringify(defaultPath)}],
+            }
+          ]`
+        } else {
+          const defaultPath =
+            (await resolver(
+              `${appDirPrefix}${segmentPath}/${actualSegment}/default`
+            )) ?? 'next/dist/client/components/parallel-route-default-slot'
+          props[normalizedKey] = `[
+            '__DEFAULT__',
+            {},
+            {
+              defaultPage: [() => import(/* webpackMode: "eager" */ ${JSON.stringify(
+                defaultPath
+              )}), ${JSON.stringify(defaultPath)}],
+            }
+          ]`
+        }
       }
     }
     return {
