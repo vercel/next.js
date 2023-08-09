@@ -20,6 +20,14 @@ createNextDescribe(
     },
   },
   ({ next, isNextDev, isNextStart, isNextDeploy }) => {
+    if (isNextStart) {
+      it('should warn for server actions + ISR incompat', async () => {
+        expect(next.cliOutput).toContain(
+          'using server actions on a page causes static generation to be disabled for that page currently'
+        )
+      })
+    }
+
     it('should handle basic actions correctly', async () => {
       const browser = await next.browser('/server')
 
