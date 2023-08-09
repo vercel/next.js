@@ -102,6 +102,19 @@ const reactPackagesRegex = /^(react|react-dom|react-server-dom-webpack)($|\/)/
 const asyncStoragesRegex =
   /next[\\/]dist[\\/](esm[\\/])?client[\\/]components[\\/](static-generation-async-storage|action-async-storage|request-async-storage)/
 
+const pathSeparators = '[/\\\\]'
+const optionalEsmPart = `((${pathSeparators}esm)?${pathSeparators})`
+const sharedRuntimeFileEnd = '(\\.shared-runtime(\\.js)?)$'
+const externalFileEnd = '(\\.external(\\.js)?)$'
+const nextDist = `next${pathSeparators}dist`
+
+const sharedRuntimePattern = new RegExp(
+  `${nextDist}${optionalEsmPart}.*${sharedRuntimeFileEnd}`
+)
+const externalPattern = new RegExp(
+  `${nextDist}${optionalEsmPart}.*${externalFileEnd}`
+)
+
 // exports.<conditionName>
 const edgeConditionNames = [
   'edge-light',
@@ -1327,7 +1340,7 @@ export default async function getBaseWebpackConfig(
       WEBPACK_LAYERS.serverSideRendering,
       WEBPACK_LAYERS.appPagesBrowser,
       WEBPACK_LAYERS.actionBrowser,
-      'app-route-handler',
+      WEBPACK_LAYERS.appRouteHandler,
     ].includes(layer!)
 
     if (
@@ -1409,19 +1422,6 @@ export default async function getBaseWebpackConfig(
      * will rewrite the require to the correct bundle location depending on the layer at which the file is being used.
      */
     const isLocalCallback = (localRes: string) => {
-      const pathSeparators = '[/\\\\]'
-      const optionalEsmPart = `((${pathSeparators}esm)?${pathSeparators})`
-      const sharedRuntimeFileEnd = '(\\.shared-runtime(\\.js)?)$'
-      const externalFileEnd = '(\\.external(\\.js)?)$'
-      const nextDist = `next${pathSeparators}dist`
-
-      const sharedRuntimePattern = new RegExp(
-        `${nextDist}${optionalEsmPart}.*${sharedRuntimeFileEnd}`
-      )
-      const externalPattern = new RegExp(
-        `${nextDist}${optionalEsmPart}.*${externalFileEnd}`
-      )
-
       const isSharedRuntime = sharedRuntimePattern.test(localRes)
       const isExternal = externalPattern.test(localRes)
 
@@ -1988,7 +1988,7 @@ export default async function getBaseWebpackConfig(
           ? [
               {
                 layer: WEBPACK_LAYERS.appRouteHandler,
-                test: /\/route\.(js|ts)x?$/,
+                test: /private-next-app-dir\/.*\/route\.js$/,
               },
               {
                 // Make sure that AsyncLocalStorage module instance is shared between server and client
