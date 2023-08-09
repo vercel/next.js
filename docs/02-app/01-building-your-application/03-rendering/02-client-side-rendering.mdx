@@ -4,23 +4,22 @@ nav_title: Client-Side Rendering (CSR)
 description: Learn how Client-side Rendering works and how to use Client Components in Next.js.
 ---
 
-Client-side Rendering is a strategy for rendering parts of your web application on the client. In Next.js, this is done with [React Client Components](). Client-side rendering is also **opt-in**, meaning you have to explicitly decide which parts of your application should be rendered on the client.
+Client-side Rendering is a strategy for rendering parts of your web application on the client. In Next.js, this is done with [React Client Components](). Client-side rendering is also **opt-in**, meaning you have to explicitly decide what components React should render on the client.
 
 This page will go through how Client Components work, when you might use them, and how Next.js optimizes them.
 
 ## React Client Components
 
-## How are Client Components Rendered?
+React Server Components allow us to interactive UI that can be rendered on the client. There are a couple of benefits to doing the rendering work on the client, including:
 
-### Initial Request
+- **Interactivity**: Client Components can use state, effects, and event listeners, meaning they can provide immediate feedback to the user and update the UI without making a network request.
+- **Browser APIs**: Client Components have access to browser APIs, like [geolocation](https://developer.mozilla.org/en-US/docs/Web/API/Geolocation_API) or [localStorage](https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage).
 
-### Subsequent Requests
+## Using Client Components in Next.js
 
-## Using Client Components
+You can use the React `"use client"` directive to tell React which components should be rendered on the client.
 
-### The "use client" directive
-
-### The "use client" directive
+### The `"use client"` directive
 
 The [`"use client"` directive](https://github.com/reactjs/rfcs/pull/227) is a convention to declare a boundary between a Server and Client Component module graph.
 
@@ -76,3 +75,11 @@ Since Server Components are the default, all components are part of the Server C
 > - Components in the Client Component module graph are primarily rendered on the client, but with Next.js, they can also be pre-rendered on the server and hydrated on the client.
 > - The `"use client"` directive must be defined at the **top of a file** before any imports.
 > - `"use client"` does **not** need to be defined in every file. The Client module boundary only needs to be defined once, at the "entry point", for all modules imported into it to be considered a Client Component.
+
+## How are Client Components Rendered?
+
+### Initial Request
+
+### Subsequent Requests
+
+## Using Client Components
