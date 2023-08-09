@@ -56,7 +56,7 @@ createNextDescribe(
           <loc>https://example.com</loc>
           <lastmod>2021-01-01</lastmod>
           <changefreq>weekly</changefreq>
-          <priority>0.5</lastmod>
+          <priority>0.5</priority>
           </url>
           <url>
           <loc>https://example.com/about</loc>
