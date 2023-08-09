@@ -213,7 +213,7 @@ pub async fn get_next_server_import_map(
     let ty = ty.into_value();
 
     insert_next_server_special_aliases(&mut import_map, ty, mode, NextRuntime::NodeJs).await?;
-    let external = ImportMapping::External(None).cell();
+    let external: Vc<ImportMapping> = ImportMapping::External(None).cell();
 
     match ty {
         ServerContextType::Pages { .. } | ServerContextType::PagesData { .. } => {
@@ -223,7 +223,7 @@ pub async fn get_next_server_import_map(
             import_map.insert_wildcard_alias("react-dom/", external);
             import_map.insert_exact_alias("styled-jsx", external);
             import_map.insert_wildcard_alias("styled-jsx/", external);
-            import_map.insert_exact_alias("react-server-dom-webpack/", external);
+            import_map.insert_wildcard_alias("react-server-dom-webpack/", external);
             // TODO: we should not bundle next/dist/build/utils in the pages renderer at all
             import_map.insert_wildcard_alias("next/dist/build/utils", external);
         }
@@ -249,6 +249,7 @@ pub async fn get_next_server_import_map(
                 "next/dynamic",
                 request_to_import_mapping(project_path, "next/dist/shared/lib/app-dynamic"),
             );
+            import_map.insert_exact_alias("next/dist/server/require-hook", external);
         }
         ServerContextType::Middleware => {}
     }
@@ -406,40 +407,24 @@ async fn insert_next_server_special_aliases(
         // SSR, since we're bundling Next.js alongside it.
         (
             NextMode::DevServer,
-            ServerContextType::AppSSR { app_dir }
-            | ServerContextType::AppRSC { app_dir, .. }
-            | ServerContextType::AppRoute { app_dir },
+            ServerContextType::AppSSR { app_dir } | ServerContextType::AppRoute { app_dir },
         ) => {
+            let external: Vc<ImportMapping> = ImportMapping::External(None).cell();
             import_map.insert_exact_alias(
                 "@opentelemetry/api",
                 // TODO(WEB-625) this actually need to prefer the local version of
                 // @opentelemetry/api
                 request_to_import_mapping(app_dir, "next/dist/compiled/@opentelemetry/api"),
             );
-            import_map.insert_exact_alias(
-                "react",
-                request_to_import_mapping(app_dir, "next/dist/compiled/react"),
-            );
-            import_map.insert_wildcard_alias(
-                "react/",
-                request_to_import_mapping(app_dir, "next/dist/compiled/react/*"),
-            );
-            import_map.insert_exact_alias(
-                "react-dom",
-                request_to_import_mapping(
-                    app_dir,
-                    "next/dist/compiled/react-dom/server-rendering-stub.js",
-                ),
-            );
-            import_map.insert_wildcard_alias(
-                "react-dom/",
-                request_to_import_mapping(app_dir, "next/dist/compiled/react-dom/*"),
-            );
-            import_map.insert_wildcard_alias(
-                "react-server-dom-webpack/",
-                request_to_import_mapping(app_dir, "next/dist/compiled/react-server-dom-webpack/*"),
-            );
+            import_map.insert_exact_alias("react", external);
+            import_map.insert_wildcard_alias("react/", external);
+            import_map.insert_exact_alias("react-dom", external);
+            import_map.insert_wildcard_alias("react-dom/", external);
+            import_map.insert_exact_alias("styled-jsx", external);
+            import_map.insert_wildcard_alias("styled-jsx/", external);
+            import_map.insert_wildcard_alias("react-server-dom-webpack/", external);
         }
+
         // NOTE(alexkirsz) This logic maps loosely to
         // `next.js/packages/next/src/build/webpack-config.ts`, where:
         //
@@ -451,7 +436,7 @@ async fn insert_next_server_special_aliases(
         // * passes through (react|react-dom|react-server-dom-webpack)/(.*) to
         //   next/dist/compiled/$1/$2
         (
-            NextMode::Build | NextMode::Development,
+            NextMode::Build | NextMode::Development | NextMode::DevServer,
             ServerContextType::AppRSC { app_dir, .. } | ServerContextType::AppRoute { app_dir },
         ) => {
             import_map.insert_exact_alias(

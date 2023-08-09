@@ -140,7 +140,8 @@ impl ResolvePlugin for NextExternalResolvePlugin {
         // Find the starting index of 'next/dist' and slice from that point. It should
         // always be found since the glob pattern above is specific enough.
         let starting_index = path.find("next/dist").unwrap();
-        let modified_path = &path[starting_index..];
+        // Replace '/esm/' with '/' to match the CJS version of the file.
+        let modified_path = &path[starting_index..].replace("/esm/", "/");
         Ok(Vc::cell(Some(
             ResolveResult::primary(ResolveResultItem::OriginalReferenceTypeExternal(
                 modified_path.to_string(),
