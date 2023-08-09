@@ -1,8 +1,10 @@
 use anyhow::{bail, Result};
 use indexmap::IndexSet;
+use serde::{Deserialize, Serialize};
 use turbo_tasks::{
     graph::{AdjacencyMap, GraphTraversal},
-    TryJoinIterExt, Value, Vc,
+    trace::TraceRawVcs,
+    TaskInput, TryJoinIterExt, Value, Vc,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -22,8 +24,21 @@ use crate::ecmascript::node::{
     chunk::EcmascriptBuildNodeChunk, entry::chunk::EcmascriptBuildNodeEntryChunk,
 };
 
-#[derive(Debug, Default)]
-#[turbo_tasks::value(shared)]
+#[derive(
+    Debug,
+    Default,
+    TaskInput,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+)]
 pub enum MinifyType {
     #[default]
     Minify,
@@ -36,7 +51,7 @@ pub struct BuildChunkingContextBuilder {
 }
 
 impl BuildChunkingContextBuilder {
-    pub fn minify_type(mut self, minify_type: Vc<MinifyType>) -> Self {
+    pub fn minify_type(mut self, minify_type: MinifyType) -> Self {
         self.chunking_context.minify_type = minify_type;
         self
     }
@@ -77,7 +92,7 @@ pub struct BuildChunkingContext {
     /// The kind of runtime to include in the output.
     runtime_type: RuntimeType,
     /// Whether to minify resulting chunks
-    minify_type: Vc<MinifyType>,
+    minify_type: MinifyType,
 }
 
 impl BuildChunkingContext {
@@ -98,7 +113,7 @@ impl BuildChunkingContext {
                 layer: None,
                 environment,
                 runtime_type: Default::default(),
-                minify_type: MinifyType::Minify.cell(),
+                minify_type: MinifyType::Minify,
             },
         }
     }
@@ -113,7 +128,7 @@ impl BuildChunkingContext {
         self.runtime_type
     }
 
-    pub fn minify_type(&self) -> Vc<MinifyType> {
+    pub fn minify_type(&self) -> MinifyType {
         self.minify_type
     }
 }

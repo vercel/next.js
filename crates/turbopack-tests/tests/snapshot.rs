@@ -299,7 +299,7 @@ async fn run_test(resource: String) -> Result<Vc<FileSystemPath>> {
                 static_root_path,
                 env,
             )
-            .minify_type(options.minify_type.into())
+            .minify_type(options.minify_type)
             .runtime_type(options.runtime_type)
             .build(),
         ),
