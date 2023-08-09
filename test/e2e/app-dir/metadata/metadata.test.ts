@@ -594,18 +594,14 @@ createNextDescribe(
         )
 
         const matchMultiDom = createMultiDomMatcher(browser)
-        // wait for hydration to recover error from flight to trigger error boundary
-        await check(async () => {
-          await matchMultiDom('meta', 'name', 'content', {
-            viewport: 'width=device-width, initial-scale=1',
-            keywords: 'parent',
-            robots: 'noindex',
-            // not found metadata
-            description: 'Local not found description',
-          })
-          expect(await getTitle(browser)).toBe('Local not found')
-          return 'success'
-        }, 'success')
+        await matchMultiDom('meta', 'name', 'content', {
+          viewport: 'width=device-width, initial-scale=1',
+          keywords: 'parent',
+          robots: 'noindex',
+          // not found metadata
+          description: 'Local not found description',
+        })
+        expect(await getTitle(browser)).toBe('Local not found')
       })
 
       it('should support redirect in generateMetadata', async () => {
