@@ -316,7 +316,9 @@ function getFreshConfig(
 
     // Support the compact option
     // https://github.com/vercel/next.js/issues/53807
-    ...(customConfig?.compact !== undefined ? { compact: customConfig.compact } : {}),
+    ...(customConfig?.compact !== undefined
+      ? { compact: customConfig.compact }
+      : {}),
 
     caller: {
       name: 'next-babel-turbo-loader',
