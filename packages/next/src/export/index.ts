@@ -547,9 +547,10 @@ export default async function exportApp(
 
     const filteredPaths = exportPaths.filter(
       // Remove API routes
-      (route) =>
-        (exportPathMap[route] as any)._isAppDir ||
-        !isAPIRoute(exportPathMap[route].page)
+      (route) => {
+        const { _isAppDir, page } = exportPathMap[route] || {}
+        return _isAppDir || !isAPIRoute(page)
+      }
     )
 
     if (filteredPaths.length !== exportPaths.length) {
@@ -699,7 +700,9 @@ export default async function exportApp(
 
         return pageExportSpan.traceAsyncFn(async () => {
           const pathMap = exportPathMap[path]
-          const exportPageOrApp = pathMap._isAppDir ? exportAppPage : exportPage
+          const exportPageOrApp = pathMap?._isAppDir
+            ? exportAppPage
+            : exportPage
           if (!exportPageOrApp) {
             throw new Error(
               'invariant: Undefined export worker for app dir, this is a bug in Next.js.'

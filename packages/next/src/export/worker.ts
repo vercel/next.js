@@ -163,8 +163,8 @@ export default async function exportPage({
       const { query: originalQuery = {} } = pathMap
       const { page } = pathMap
       const pathname = normalizeAppPath(page)
-      const isAppDir = (pathMap as any)._isAppDir
-      const isDynamicError = (pathMap as any)._isDynamicError
+      const isAppDir = pathMap._isAppDir
+      const isDynamicError = pathMap._isDynamicError
       const filePath = normalizePagePath(path)
       const isDynamic = isDynamicRoute(page)
       const ampPath = `${filePath}.amp`
