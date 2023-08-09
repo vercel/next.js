@@ -133,7 +133,8 @@ if (!Object.fromEntries) {
 if (!Array.prototype.at) {
   Array.prototype.at = function at(n) {
 	let i = Math.trunc(n) || 0
-    i = i < 0 ? this.length + i : i
+
+	if (i < 0) i += this.length
 
 	if (i < 0 || i >= this.length) return undefined
 
