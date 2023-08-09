@@ -186,7 +186,9 @@ export class FlightClientEntryPlugin {
 
     compiler.hooks.afterCompile.tap(PLUGIN_NAME, (compilation) => {
       const recordModule = (modId: string, mod: any) => {
-        const modResource = mod.resourceResolveData?.path || mod.resource
+        const modResource =
+          mod.resourceResolveData?.path + mod.resourceResolveData?.query ||
+          mod.resource
 
         if (mod.layer !== WEBPACK_LAYERS.serverSideRendering) {
           return
