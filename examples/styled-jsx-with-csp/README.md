@@ -12,7 +12,7 @@ Checkout the [demo](https://styled-jsx-with-csp.vercel.app/) and notice the foll
 
 Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/styled-jsx-with-csp)
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/styled-jsx-with-csp&project-name=styled-jsx-with-csp&repository-name=styled-jsx-with-csp)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/styled-jsx-with-csp&project-name=styled-jsx-with-csp&repository-name=styled-jsx-with-csp)
 
 ## How to use
 

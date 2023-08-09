@@ -3,14 +3,14 @@ module.exports = {
   async headers() {
     return [
       {
-        source: "/foo",
+        source: '/foo',
         headers: [
           {
-            key: "x-foo",
-            value: "bar",
+            key: 'x-foo',
+            value: 'bar',
           },
         ],
       },
-    ];
+    ]
   },
-};
+}

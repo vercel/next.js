@@ -36,7 +36,7 @@ createNextDescribe(
     buildCommand: 'yarn build',
     skipDeployment: true,
   },
-  ({ next }) => {
+  ({ next, isNextDev }) => {
     it('should be able to opt-out 3rd party packages being bundled in server components', async () => {
       await next.fetch('/react-server/optout').then(async (response) => {
         const result = await resolveStreamResponse(response)
@@ -159,6 +159,12 @@ createNextDescribe(
         const v1 = html.match(/App React Version: ([^<]+)</)[1]
         const v2 = html.match(/External React Version: ([^<]+)</)[1]
         expect(v1).toBe(v2)
+
+        // Should work with both esm and cjs imports
+        expect(html).toContain(
+          'CJS-ESM Compat package: cjs-esm-compat/index.mjs'
+        )
+        expect(html).toContain('CJS package: cjs-lib')
       })
 
       it('should use the same react in server app', async () => {
@@ -167,6 +173,26 @@ createNextDescribe(
         const v1 = html.match(/App React Version: ([^<]+)</)[1]
         const v2 = html.match(/External React Version: ([^<]+)</)[1]
         expect(v1).toBe(v2)
+
+        // Should work with both esm and cjs imports
+        expect(html).toContain(
+          'CJS-ESM Compat package: cjs-esm-compat/index.mjs'
+        )
+        expect(html).toContain('CJS package: cjs-lib')
+      })
+
+      it('should use the same react in edge server app', async () => {
+        const html = await next.render('/esm/edge-server')
+
+        const v1 = html.match(/App React Version: ([^<]+)</)[1]
+        const v2 = html.match(/External React Version: ([^<]+)</)[1]
+        expect(v1).toBe(v2)
+
+        // Should work with both esm and cjs imports
+        expect(html).toContain(
+          'CJS-ESM Compat package: cjs-esm-compat/index.mjs'
+        )
+        expect(html).toContain('CJS package: cjs-lib')
       })
 
       it('should use the same react in pages', async () => {
@@ -183,28 +209,17 @@ createNextDescribe(
       expect(html).toContain('hello')
     })
 
-    if ((global as any).isNextDev) {
-      it('should error for wildcard exports of client module references in esm', async () => {
-        const page = 'app/esm-client-ref/page.js'
-        const pageSource = await next.readFile(page)
+    it('should support exporting multiple star re-exports', async () => {
+      const html = await next.render('/wildcard')
+      expect(html).toContain('Foo')
+    })
 
-        try {
-          await next.patchFile(
-            page,
-            pageSource.replace(
-              "'client-esm-module'",
-              "'client-esm-module-wildcard'"
-            )
-          )
-          await next.render('/esm-client-ref')
-        } finally {
-          await next.patchFile(page, pageSource)
-        }
+    it('should have proper tree-shaking for known modules in CJS', async () => {
+      const html = await next.render('/test-middleware')
+      expect(html).toContain('it works')
 
-        expect(next.cliOutput).toInclude(
-          `It's currently unsupport to use "export *" in a client boundary. Please use named exports instead.`
-        )
-      })
-    }
+      const middlewareBundle = await next.readFile('.next/server/middleware.js')
+      expect(middlewareBundle).not.toContain('image-response')
+    })
   }
 )

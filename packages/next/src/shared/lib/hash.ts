@@ -7,3 +7,7 @@ export function djb2Hash(str: string) {
   }
   return Math.abs(hash)
 }
+
+export function hexHash(str: string) {
+  return djb2Hash(str).toString(36).slice(0, 5)
+}

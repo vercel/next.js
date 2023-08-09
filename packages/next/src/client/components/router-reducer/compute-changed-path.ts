@@ -11,13 +11,18 @@ const segmentToPathname = (segment: Segment): string => {
 }
 
 function normalizePathname(pathname: string): string {
-  return pathname.split('/').reduce((acc, segment) => {
-    if (segment === '' || (segment.startsWith('(') && segment.endsWith(')'))) {
-      return acc
-    }
+  return (
+    pathname.split('/').reduce((acc, segment) => {
+      if (
+        segment === '' ||
+        (segment.startsWith('(') && segment.endsWith(')'))
+      ) {
+        return acc
+      }
 
-    return `${acc}/${segment}`
-  }, '')
+      return `${acc}/${segment}`
+    }, '') || '/'
+  )
 }
 
 export function extractPathFromFlightRouterState(
@@ -33,7 +38,7 @@ export function extractPathFromFlightRouterState(
   )
     return undefined
 
-  if (segment === '__PAGE__') return ''
+  if (segment.startsWith('__PAGE__')) return ''
 
   const path = [segment]
 

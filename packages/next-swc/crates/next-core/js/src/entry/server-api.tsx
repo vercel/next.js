@@ -4,22 +4,30 @@ import startHandler from '../internal/api-server-handler'
 
 import 'next/dist/server/node-polyfill-fetch.js'
 
-import * as allExports from 'INNER'
+import { parse as parseQuery } from 'node:querystring'
+import { parse as parseUrl } from 'node:url'
+
 import { apiResolver } from 'next/dist/server/api-utils/node'
 import {
   NodeNextRequest,
   NodeNextResponse,
 } from 'next/dist/server/base-http/node'
-import { parse } from 'node:querystring'
+
+import { attachRequestMeta } from '../internal/next-request-helpers'
+
+import * as allExports from 'INNER'
 
 startHandler(({ request, response, query, params, path }) => {
-  const parsedQuery = parse(query)
+  const parsedQuery = parseQuery(query)
 
   const mergedQuery = { ...parsedQuery, ...params }
 
   // This enables `req.cookies` in API routes.
   const req = new NodeNextRequest(request)
   const res = new NodeNextResponse(response)
+
+  const parsedUrl = parseUrl(req.url!, true)
+  attachRequestMeta(req, parsedUrl, request.headers.host!)
 
   return apiResolver(
     req.originalRequest,

@@ -1,7 +1,6 @@
 import { NextConfig } from './config'
 import type { JSONSchemaType } from 'ajv'
 import { VALID_LOADERS } from '../shared/lib/image-config'
-import { SERVER_RUNTIME } from '../lib/constants'
 
 const configSchema = {
   type: 'object',
@@ -265,8 +264,23 @@ const configSchema = {
         cpus: {
           type: 'number',
         },
+        memoryBasedWorkersCount: {
+          type: 'boolean',
+        },
         craCompat: {
           type: 'boolean',
+        },
+        caseSensitiveRoutes: {
+          type: 'boolean',
+        },
+        useDeploymentId: {
+          type: 'boolean',
+        },
+        useDeploymentIdServerActions: {
+          type: 'boolean',
+        },
+        deploymentId: {
+          type: 'string',
         },
         disableOptimizedLoading: {
           type: 'boolean',
@@ -286,6 +300,19 @@ const configSchema = {
         },
         appDir: {
           type: 'boolean',
+        },
+        serverActions: {
+          type: 'boolean',
+        },
+        serverActionsBodySizeLimit: {
+          oneOf: [
+            {
+              type: 'number',
+            },
+            {
+              type: 'string',
+            },
+          ] as any,
         },
         extensionAlias: {
           type: 'object',
@@ -373,11 +400,6 @@ const configSchema = {
           minimum: 0,
           type: 'number',
         },
-        runtime: {
-          // automatic typing doesn't like enum
-          enum: Object.values(SERVER_RUNTIME) as any,
-          type: 'string',
-        },
         serverComponentsExternalPackages: {
           items: {
             type: 'string',
@@ -419,9 +441,6 @@ const configSchema = {
             type: 'string',
           },
           type: 'array',
-        },
-        enableUndici: {
-          type: 'boolean',
         },
         workerThreads: {
           type: 'boolean',
@@ -489,6 +508,15 @@ const configSchema = {
               type: 'integer',
             },
           },
+        },
+        logging: {
+          type: 'string',
+        },
+        serverMinification: {
+          type: 'boolean',
+        },
+        serverSourceMaps: {
+          type: 'boolean',
         },
       },
       type: 'object',
@@ -714,6 +742,9 @@ const configSchema = {
     },
     publicRuntimeConfig: {
       type: 'object',
+    },
+    reactProductionProfiling: {
+      type: 'boolean',
     },
     reactStrictMode: {
       type: 'boolean',

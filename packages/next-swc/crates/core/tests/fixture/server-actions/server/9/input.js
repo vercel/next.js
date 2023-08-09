@@ -1,7 +1,7 @@
 // app/send.ts
-"use server";
+'use server'
 
-async function foo () {}
+async function foo() {}
 export { foo }
 
 async function bar() {}

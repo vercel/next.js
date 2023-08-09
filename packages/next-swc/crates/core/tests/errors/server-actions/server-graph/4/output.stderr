@@ -1,0 +1,10 @@
+
+  x Only async functions are allowed to be exported in a "use server" file.
+   ,-[input.js:2:1]
+ 2 |     
+ 3 | ,-> export default class Component {
+ 4 | |     render() {
+ 5 | |       return null
+ 6 | |     }
+ 7 | `-> }
+   `----

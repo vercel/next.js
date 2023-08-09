@@ -1,1 +1,1 @@
-export { getStaticPaths, a as getStaticProps } from ".";
+export { getStaticPaths, a as getStaticProps } from '.';

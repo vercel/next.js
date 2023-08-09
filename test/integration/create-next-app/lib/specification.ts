@@ -76,7 +76,7 @@ export const projectSpecification: ProjectSpecification = {
         'pages/api/hello.ts',
         'pages/index.tsx',
         'postcss.config.js',
-        'tailwind.config.js',
+        'tailwind.config.ts',
         'tsconfig.json',
       ],
       deps: [
@@ -95,12 +95,7 @@ export const projectSpecification: ProjectSpecification = {
     js: {
       deps: [],
       devDeps: [],
-      files: [
-        'app/page.js',
-        'app/layout.js',
-        'app/api/hello/route.js',
-        'jsconfig.json',
-      ],
+      files: ['app/page.js', 'app/layout.js', 'jsconfig.json'],
     },
     ts: {
       deps: ['@types/node', '@types/react', '@types/react-dom', 'typescript'],
@@ -108,7 +103,6 @@ export const projectSpecification: ProjectSpecification = {
       files: [
         'app/page.tsx',
         'app/layout.tsx',
-        'app/api/hello/route.ts',
         'tsconfig.json',
         'next-env.d.ts',
       ],
@@ -119,7 +113,6 @@ export const projectSpecification: ProjectSpecification = {
       deps: ['autoprefixer', 'postcss', 'tailwindcss'],
       devDeps: [],
       files: [
-        'app/api/hello/route.js',
         'app/layout.js',
         'app/page.js',
         'jsconfig.json',
@@ -139,12 +132,11 @@ export const projectSpecification: ProjectSpecification = {
       ],
       devDeps: [],
       files: [
-        'app/api/hello/route.ts',
         'app/layout.tsx',
         'app/page.tsx',
         'next-env.d.ts',
         'postcss.config.js',
-        'tailwind.config.js',
+        'tailwind.config.ts',
         'tsconfig.json',
       ],
     },

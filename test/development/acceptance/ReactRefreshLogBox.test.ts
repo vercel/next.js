@@ -1,27 +1,24 @@
 /* eslint-env jest */
-import { sandbox } from './helpers'
-import { createNext } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
-import { getSnapshotTestDescribe } from 'next-test-utils'
+import { sandbox } from 'development-sandbox'
+import { FileRef, nextTestSetup } from 'e2e-utils'
+import { describeVariants as describe } from 'next-test-utils'
+import path from 'path'
+import { outdent } from 'outdent'
 
-for (const variant of ['default', 'turbo']) {
-  getSnapshotTestDescribe(variant)(`ReactRefreshLogBox ${variant}`, () => {
-    let next: NextInstance
-
-    beforeAll(async () => {
-      next = await createNext({
-        files: {},
-        skipStart: true,
-      })
+describe.each(['default', 'turbo', 'experimentalTurbo'])(
+  'ReactRefreshLogBox %s',
+  () => {
+    const { next } = nextTestSetup({
+      files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
+      skipStart: true,
     })
-    afterAll(() => next.destroy())
 
     test('should strip whitespace correctly with newline', async () => {
       const { session, cleanup } = await sandbox(next)
 
       await session.patch(
         'index.js',
-        `
+        outdent`
         export default function Page() {
           return (
             <>
@@ -54,7 +51,7 @@ for (const variant of ['default', 'turbo']) {
       // We start here.
       await session.patch(
         'index.js',
-        `
+        outdent`
         import * as React from 'react';
         class ClassDefault extends React.Component {
           render() {
@@ -72,7 +69,7 @@ for (const variant of ['default', 'turbo']) {
       // Add a throw in module init phase:
       await session.patch(
         'index.js',
-        `
+        outdent`
         // top offset for snapshot
         import * as React from 'react';
         throw new Error('no')
@@ -97,7 +94,7 @@ for (const variant of ['default', 'turbo']) {
 
       await session.write(
         'FunctionDefault.js',
-        `
+        outdent`
         export default function FunctionDefault() {
           return <h2>hello</h2>
         }
@@ -105,7 +102,7 @@ for (const variant of ['default', 'turbo']) {
       )
       await session.patch(
         'index.js',
-        `
+        outdent`
         import FunctionDefault from './FunctionDefault.js'
         import * as React from 'react'
         class ErrorBoundary extends React.Component {
@@ -164,7 +161,7 @@ for (const variant of ['default', 'turbo']) {
       // Make a react build-time error.
       await session.patch(
         'index.js',
-        `
+        outdent`
         export default function FunctionNamed() {
           return <div>{{}}</div>
         }`
@@ -186,7 +183,7 @@ for (const variant of ['default', 'turbo']) {
 
       await session.patch(
         'index.js',
-        `
+        outdent`
         export default () => {
           return (
             <div>
@@ -201,7 +198,7 @@ for (const variant of ['default', 'turbo']) {
 
       await session.patch(
         'index.js',
-        `
+        outdent`
         export default () => {
           return (
             <div>
@@ -215,7 +212,35 @@ for (const variant of ['default', 'turbo']) {
       expect(await session.hasRedbox(true)).toBe(true)
 
       const source = await session.getRedboxSource()
-      expect(source).toMatchSnapshot()
+      expect(next.normalizeTestDirContent(source)).toMatchInlineSnapshot(
+        next.normalizeSnapshot(`
+        "./index.js
+        Error: 
+          x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
+           ,-[TEST_DIR/index.js:4:1]
+         4 |       <p>lol</p>
+         5 |     div
+         6 |   )
+         7 | }
+           : ^
+           \`----
+
+          x Unexpected eof
+           ,-[TEST_DIR/index.js:4:1]
+         4 |       <p>lol</p>
+         5 |     div
+         6 |   )
+         7 | }
+           \`----
+
+        Caused by:
+            Syntax Error
+
+        Import trace for requested module:
+        ./index.js
+        ./pages/index.js"
+      `)
+      )
 
       await cleanup()
     })
@@ -226,7 +251,7 @@ for (const variant of ['default', 'turbo']) {
 
       await session.write(
         'Child.js',
-        `
+        outdent`
         export default function ClickCount() {
           return <p>hello</p>
         }
@@ -235,7 +260,7 @@ for (const variant of ['default', 'turbo']) {
 
       await session.patch(
         'index.js',
-        `
+        outdent`
         import Child from './Child';
 
         export default function Home() {
@@ -255,7 +280,7 @@ for (const variant of ['default', 'turbo']) {
 
       await session.patch(
         'Child.js',
-        `
+        outdent`
         import { Component } from 'react';
         export default class ClickCount extends Component {
           render() {
@@ -270,7 +295,7 @@ for (const variant of ['default', 'turbo']) {
 
       await session.patch(
         'Child.js',
-        `
+        outdent`
       import { Component } from 'react';
         export default class ClickCount extends Component {
           render() {
@@ -294,7 +319,7 @@ for (const variant of ['default', 'turbo']) {
       await session.write('index.module.css', `.button {}`)
       await session.patch(
         'index.js',
-        `
+        outdent`
         import './index.module.css';
         export default () => {
           return (
@@ -332,7 +357,7 @@ for (const variant of ['default', 'turbo']) {
 
       await session.patch(
         'index.js',
-        `
+        outdent`
         import { useCallback } from 'react'
 
         export default function Index() {
@@ -378,7 +403,7 @@ for (const variant of ['default', 'turbo']) {
 
       await session.patch(
         'index.js',
-        `
+        outdent`
         import { useCallback } from 'react'
 
         export default function Index() {
@@ -424,7 +449,7 @@ for (const variant of ['default', 'turbo']) {
 
       await session.patch(
         'index.js',
-        `
+        outdent`
         import { useCallback } from 'react'
 
         export default function Index() {
@@ -470,7 +495,7 @@ for (const variant of ['default', 'turbo']) {
 
       await session.patch(
         'index.js',
-        `
+        outdent`
         import { useCallback } from 'react'
 
         export default function Index() {
@@ -530,7 +555,7 @@ for (const variant of ['default', 'turbo']) {
 
       await session.patch(
         'index.js',
-        `
+        outdent`
         import { useCallback } from 'react'
 
         export default function Index() {
@@ -596,7 +621,7 @@ for (const variant of ['default', 'turbo']) {
 
       await session.patch(
         'index.js',
-        `
+        outdent`
         export default () => {
           throw {'a': 1, 'b': 'x'};
           return (
@@ -614,7 +639,7 @@ for (const variant of ['default', 'turbo']) {
       // fix previous error
       await session.patch(
         'index.js',
-        `
+        outdent`
         export default () => {
           return (
             <div>hello</div>
@@ -625,7 +650,7 @@ for (const variant of ['default', 'turbo']) {
       expect(await session.hasRedbox(false)).toBe(false)
       await session.patch(
         'index.js',
-        `
+        outdent`
         class Hello {}
 
         export default () => {
@@ -644,7 +669,7 @@ for (const variant of ['default', 'turbo']) {
       // fix previous error
       await session.patch(
         'index.js',
-        `
+        outdent`
         export default () => {
           return (
             <div>hello</div>
@@ -655,7 +680,7 @@ for (const variant of ['default', 'turbo']) {
       expect(await session.hasRedbox(false)).toBe(false)
       await session.patch(
         'index.js',
-        `
+        outdent`
         export default () => {
           throw "string error"
           return (
@@ -672,7 +697,7 @@ for (const variant of ['default', 'turbo']) {
       // fix previous error
       await session.patch(
         'index.js',
-        `
+        outdent`
         export default () => {
           return (
             <div>hello</div>
@@ -683,7 +708,7 @@ for (const variant of ['default', 'turbo']) {
       expect(await session.hasRedbox(false)).toBe(false)
       await session.patch(
         'index.js',
-        `
+        outdent`
         export default () => {
           throw null
           return (
@@ -699,5 +724,5 @@ for (const variant of ['default', 'turbo']) {
 
       await cleanup()
     })
-  })
-}
+  }
+)

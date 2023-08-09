@@ -1,4 +1,3 @@
-import type webpack from 'webpack'
 import type {
   CollectingMetadata,
   PossibleStaticMetadataFileNameConvention,
@@ -6,11 +5,10 @@ import type {
 import path from 'path'
 import { stringify } from 'querystring'
 import { STATIC_METADATA_IMAGES } from '../../../../lib/metadata/is-metadata-route'
-import { normalizeAppPath } from '../../../../shared/lib/router/utils/app-paths'
+import { WEBPACK_RESOURCE_QUERIES } from '../../../../lib/constants'
+import { MetadataResolver } from '../next-app-loader'
 
 const METADATA_TYPE = 'metadata'
-
-export const METADATA_RESOURCE_QUERY = '?__next_metadata'
 
 // Produce all compositions with filename (icon, apple-icon, etc.) with extensions (png, jpg, etc.)
 async function enumMetadataFiles(
@@ -18,16 +16,14 @@ async function enumMetadataFiles(
   filename: string,
   extensions: readonly string[],
   {
-    resolvePath,
-    loaderContext,
+    metadataResolver,
     // When set to true, possible filename without extension could: icon, icon0, ..., icon9
     numericSuffix,
   }: {
-    resolvePath: (pathname: string) => Promise<string>
-    loaderContext: webpack.LoaderContext<any>
+    metadataResolver: MetadataResolver
     numericSuffix: boolean
   }
-) {
+): Promise<string[]> {
   const collectedFiles: string[] = []
 
   const possibleFileNames = [filename].concat(
@@ -38,19 +34,9 @@ async function enumMetadataFiles(
       : []
   )
   for (const name of possibleFileNames) {
-    for (const ext of extensions) {
-      const pathname = path.join(dir, `${name}.${ext}`)
-      try {
-        const resolved = await resolvePath(pathname)
-        loaderContext.addDependency(resolved)
-
-        collectedFiles.push(resolved)
-      } catch (err: any) {
-        if (!err.message.includes("Can't resolve")) {
-          throw err
-        }
-        loaderContext.addMissingDependency(pathname)
-      }
+    const resolved = await metadataResolver(dir, name, extensions)
+    if (resolved) {
+      collectedFiles.push(resolved)
     }
   }
 
@@ -61,16 +47,16 @@ export async function createStaticMetadataFromRoute(
   resolvedDir: string,
   {
     segment,
-    resolvePath,
+    metadataResolver,
     isRootLayoutOrRootPage,
-    loaderContext,
     pageExtensions,
+    basePath,
   }: {
     segment: string
-    resolvePath: (pathname: string) => Promise<string>
+    metadataResolver: MetadataResolver
     isRootLayoutOrRootPage: boolean
-    loaderContext: webpack.LoaderContext<any>
     pageExtensions: string[]
+    basePath: string
   }
 ) {
   let hasStaticMetadataFiles = false
@@ -82,11 +68,6 @@ export async function createStaticMetadataFromRoute(
     manifest: undefined,
   }
 
-  const opts = {
-    resolvePath,
-    loaderContext,
-  }
-
   async function collectIconModuleIfExists(
     type: PossibleStaticMetadataFileNameConvention
   ) {
@@ -96,7 +77,7 @@ export async function createStaticMetadataFromRoute(
         resolvedDir,
         'manifest',
         staticManifestExtension.concat(pageExtensions),
-        { ...opts, numericSuffix: false }
+        { metadataResolver, numericSuffix: false }
       )
       if (manifestFile.length > 0) {
         hasStaticMetadataFiles = true
@@ -116,7 +97,7 @@ export async function createStaticMetadataFromRoute(
         ...STATIC_METADATA_IMAGES[type].extensions,
         ...(type === 'favicon' ? [] : pageExtensions),
       ],
-      { ...opts, numericSuffix: true }
+      { metadataResolver, numericSuffix: true }
     )
     resolvedMetadataFiles
       .sort((a, b) => a.localeCompare(b))
@@ -125,10 +106,11 @@ export async function createStaticMetadataFromRoute(
           {
             type,
             segment,
-            route: normalizeAppPath(segment),
+            basePath,
             pageExtensions,
           }
-        )}!${filepath}${METADATA_RESOURCE_QUERY}`
+          // WEBPACK_RESOURCE_QUERIES.metadata query here only for filtering out applying to image loader
+        )}!${filepath}?${WEBPACK_RESOURCE_QUERIES.metadata}`
 
         const imageModule = `(async (props) => (await import(/* webpackMode: "eager" */ ${JSON.stringify(
           imageModuleImportSource
@@ -142,14 +124,15 @@ export async function createStaticMetadataFromRoute(
       })
   }
 
-  await Promise.all([
-    collectIconModuleIfExists('icon'),
-    collectIconModuleIfExists('apple'),
-    collectIconModuleIfExists('openGraph'),
-    collectIconModuleIfExists('twitter'),
-    isRootLayoutOrRootPage && collectIconModuleIfExists('favicon'),
-    isRootLayoutOrRootPage && collectIconModuleIfExists('manifest'),
-  ])
+  // Intentially make these serial to reuse directory access cache.
+  await collectIconModuleIfExists('icon')
+  await collectIconModuleIfExists('apple')
+  await collectIconModuleIfExists('openGraph')
+  await collectIconModuleIfExists('twitter')
+  if (isRootLayoutOrRootPage) {
+    await collectIconModuleIfExists('favicon')
+    await collectIconModuleIfExists('manifest')
+  }
 
   return hasStaticMetadataFiles ? staticImagesMetadata : null
 }

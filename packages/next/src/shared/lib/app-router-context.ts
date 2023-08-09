@@ -1,6 +1,9 @@
 'use client'
 
-import { FocusAndScrollRef } from '../../client/components/router-reducer/router-reducer-types'
+import {
+  FocusAndScrollRef,
+  PrefetchKind,
+} from '../../client/components/router-reducer/router-reducer-types'
 import type { fetchServerResponse } from '../../client/components/router-reducer/fetch-server-response'
 import type {
   FlightRouterState,
@@ -65,7 +68,13 @@ export type CacheNode =
     }
 
 export interface NavigateOptions {
+  /** @internal */
   forceOptimisticNavigation?: boolean
+  scroll?: boolean
+}
+
+export interface PrefetchOptions {
+  kind: PrefetchKind
 }
 
 export interface AppRouterInstance {
@@ -94,7 +103,7 @@ export interface AppRouterInstance {
   /**
    * Prefetch the provided href.
    */
-  prefetch(href: string): void
+  prefetch(href: string, options?: PrefetchOptions): void
 }
 
 export const AppRouterContext = React.createContext<AppRouterInstance | null>(
@@ -106,6 +115,7 @@ export const LayoutRouterContext = React.createContext<{
   url: string
 }>(null as any)
 export const GlobalLayoutRouterContext = React.createContext<{
+  buildId: string
   tree: FlightRouterState
   changeByServerResponse: (
     previousTree: FlightRouterState,

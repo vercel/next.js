@@ -5,12 +5,13 @@ export async function keep() {
 
 let shouldBeRemoved = 'should be removed'
 export function removeFunction() {
-  console.log(shouldBeRemoved);
+  console.log(shouldBeRemoved)
 }
 
 export let removeVarDeclaration = 'should be removed'
 export let removeVarDeclarationUndefined // should also be removed
-export let multipleDecl = 'should be removed', keep1 = 'should be kept'
+export let multipleDecl = 'should be removed',
+  keep1 = 'should be kept'
 export let keep2 = 'should be kept'
 
 export class RemoveClass {
@@ -23,13 +24,13 @@ let x = 'x'
 let y = 'y'
 
 // This should be removed
-export {x, y as z}
+export { x, y as z }
 
 let keep3 = 'should be kept'
 let asKeep = 'should be kept'
 let removeNamed = 'should be removed'
 
-export {keep3, asKeep as keep4, removeNamed}
+export { keep3, asKeep as keep4, removeNamed }
 
 export default function removeDefault() {
   console.log('should be removed')

@@ -25,9 +25,6 @@ import AssertImplementation from 'node:assert'
 import UtilImplementation from 'node:util'
 import AsyncHooksImplementation from 'node:async_hooks'
 
-const WEBPACK_HASH_REGEX =
-  /__webpack_require__\.h = function\(\) \{ return "[0-9a-f]+"; \}/g
-
 interface ModuleContext {
   runtime: EdgeRuntime
   paths: Map<string, string>
@@ -48,20 +45,13 @@ const pendingModuleCaches = new Map<string, Promise<ModuleContext>>()
  * context that contains the path with an older content and, if that's the
  * case, removes the context from the cache.
  */
-export async function clearModuleContext(
-  path: string,
-  content: Buffer | string
-) {
+export async function clearModuleContext(path: string) {
   const handleContext = (
     key: string,
-    cache: ReturnType<typeof moduleContexts['get']>,
+    cache: ReturnType<(typeof moduleContexts)['get']>,
     context: typeof moduleContexts | typeof pendingModuleCaches
   ) => {
-    const prev = cache?.paths.get(path)?.replace(WEBPACK_HASH_REGEX, '')
-    if (
-      typeof prev !== 'undefined' &&
-      prev !== content.toString().replace(WEBPACK_HASH_REGEX, '')
-    ) {
+    if (cache?.paths.has(path)) {
       context.delete(key)
     }
   }
@@ -91,10 +81,8 @@ async function loadWasm(
   return modules
 }
 
-function buildEnvironmentVariablesFrom(
-  keys: string[]
-): Record<string, string | undefined> {
-  const pairs = keys.map((key) => [key, process.env[key]])
+function buildEnvironmentVariablesFrom(): Record<string, string | undefined> {
+  const pairs = Object.keys(process.env).map((key) => [key, process.env[key]])
   const env = Object.fromEntries(pairs)
   env.NEXT_RUNTIME = 'edge'
   return env
@@ -108,16 +96,14 @@ Learn more: https://nextjs.org/docs/api-reference/edge-runtime`)
   throw error
 }
 
-function createProcessPolyfill(options: Pick<ModuleContextOptions, 'env'>) {
-  const env = buildEnvironmentVariablesFrom(options.env)
-
-  const processPolyfill = { env }
+function createProcessPolyfill() {
+  const processPolyfill = { env: buildEnvironmentVariablesFrom() }
   const overridenValue: Record<string, any> = {}
   for (const key of Object.keys(process)) {
     if (key === 'env') continue
     Object.defineProperty(processPolyfill, key, {
       get() {
-        if (overridenValue[key]) {
+        if (overridenValue[key] !== undefined) {
           return overridenValue[key]
         }
         if (typeof (process as any)[key] === 'function') {
@@ -165,7 +151,7 @@ function getDecorateUnhandledRejection(runtime: EdgeRuntime) {
 
 const NativeModuleMap = (() => {
   const mods: Record<
-    `node:${typeof SUPPORTED_NATIVE_MODULES[number]}`,
+    `node:${(typeof SUPPORTED_NATIVE_MODULES)[number]}`,
     unknown
   > = {
     'node:buffer': pick(BufferImplementation, [
@@ -235,7 +221,7 @@ async function createModuleContext(options: ModuleContextOptions) {
         ? { strings: true, wasm: true }
         : undefined,
     extend: (context) => {
-      context.process = createProcessPolyfill(options)
+      context.process = createProcessPolyfill()
 
       Object.defineProperty(context, 'require', {
         enumerable: false,
@@ -415,7 +401,6 @@ interface ModuleContextOptions {
   moduleName: string
   onWarning: (warn: Error) => void
   useCache: boolean
-  env: string[]
   distDir: string
   edgeFunctionEntry: Pick<EdgeFunctionDefinition, 'assets' | 'wasm'>
 }
@@ -468,7 +453,7 @@ export async function getModuleContext(options: ModuleContextOptions): Promise<{
         moduleContext.paths.set(filepath, content)
       } catch (error) {
         if (options.useCache) {
-          moduleContext?.paths.delete(options.moduleName)
+          moduleContext?.paths.delete(filepath)
         }
         throw error
       }

@@ -1,10 +1,12 @@
 import Counter from './counter'
 import Form from './form'
+import ClientForm from './client-form'
 
 import dec, { inc } from './actions'
+import { log } from './actions-2'
 
 export default function Page() {
-  const two = 2
+  const two = { value: 2 }
   return (
     <>
       <Counter
@@ -12,10 +14,16 @@ export default function Page() {
         dec={dec}
         double={async (x) => {
           'use server'
-          return x * two
+          return x * two.value
         }}
       />
       <Form />
+      <ClientForm />
+      <form>
+        <button id="log" formAction={log}>
+          log
+        </button>
+      </form>
     </>
   )
 }

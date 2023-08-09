@@ -1232,6 +1232,7 @@ function runTests({ dev }) {
       expect(manifest).toEqual({
         version: 3,
         pages404: true,
+        caseSensitive: false,
         basePath: '',
         headers: [],
         rewrites: [],
@@ -1461,7 +1462,8 @@ function runTests({ dev }) {
         rsc: {
           header: 'RSC',
           contentTypeHeader: 'text/x-component',
-          varyHeader: 'RSC, Next-Router-State-Tree, Next-Router-Prefetch',
+          varyHeader:
+            'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Url',
         },
       })
     })

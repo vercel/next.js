@@ -1,17 +1,15 @@
 import { install } from '../helpers/install'
+import { makeDir } from '../helpers/make-dir'
+import { copy } from '../helpers/copy'
 
-import cpy from 'cpy'
-import globOrig from 'glob'
+import { async as glob } from 'fast-glob'
 import os from 'os'
 import fs from 'fs'
 import path from 'path'
-import chalk from 'chalk'
-import util from 'util'
+import { cyan, bold } from 'picocolors'
 import { Sema } from 'async-sema'
 
 import { GetTemplateFileArgs, InstallTemplateArgs } from './types'
-
-const glob = util.promisify(globOrig)
 
 /**
  * Get the file path for a given file in a template, e.g. "next.config.js".
@@ -41,7 +39,7 @@ export const installTemplate = async ({
   srcDir,
   importAlias,
 }: InstallTemplateArgs) => {
-  console.log(chalk.bold(`Using ${packageManager}.`))
+  console.log(bold(`Using ${packageManager}.`))
 
   /**
    * Copy the template files to the target directory.
@@ -50,16 +48,20 @@ export const installTemplate = async ({
   const templatePath = path.join(__dirname, template, mode)
   const copySource = ['**']
   if (!eslint) copySource.push('!eslintrc.json')
-  if (!tailwind) copySource.push('!tailwind.config.js', '!postcss.config.js')
+  if (!tailwind)
+    copySource.push(
+      mode == 'ts' ? 'tailwind.config.ts' : '!tailwind.config.js',
+      '!postcss.config.js'
+    )
 
-  await cpy(copySource, root, {
+  await copy(copySource, root, {
     parents: true,
     cwd: templatePath,
-    rename: (name) => {
+    rename(name) {
       switch (name) {
         case 'gitignore':
         case 'eslintrc.json': {
-          return '.'.concat(name)
+          return `.${name}`
         }
         // README.md is ignored by webpack-asset-relocator-loader used by ncc:
         // https://github.com/vercel/webpack-asset-relocator-loader/blob/e9308683d47ff507253e37c9bcbb99474603192b/src/asset-relocator.js#L227
@@ -89,7 +91,11 @@ export const installTemplate = async ({
 
   // update import alias in any files if not using the default
   if (importAlias !== '@/*') {
-    const files = await glob('**/*', { cwd: root, dot: true })
+    const files = await glob('**/*', {
+      cwd: root,
+      dot: true,
+      stats: false,
+    })
     const writeSema = new Sema(8, { capacity: files.length })
     await Promise.all(
       files.map(async (file) => {
@@ -111,7 +117,7 @@ export const installTemplate = async ({
   }
 
   if (srcDir) {
-    await fs.promises.mkdir(path.join(root, 'src'), { recursive: true })
+    await makeDir(path.join(root, 'src'))
     await Promise.all(
       SRC_DIR_NAMES.map(async (file) => {
         await fs.promises
@@ -144,7 +150,10 @@ export const installTemplate = async ({
     )
 
     if (tailwind) {
-      const tailwindConfigFile = path.join(root, 'tailwind.config.js')
+      const tailwindConfigFile = path.join(
+        root,
+        mode === 'ts' ? 'tailwind.config.ts' : 'tailwind.config.js'
+      )
       await fs.promises.writeFile(
         tailwindConfigFile,
         (
@@ -158,7 +167,7 @@ export const installTemplate = async ({
   }
 
   /**
-   * Create a package.json for the new project.
+   * Create a package.json for the new project and write it to disk.
    */
   const packageJson = {
     name: appName,
@@ -171,11 +180,7 @@ export const installTemplate = async ({
       lint: 'next lint',
     },
   }
-
-  /**
-   * Write it to disk.
-   */
-  fs.writeFileSync(
+  await fs.promises.writeFile(
     path.join(root, 'package.json'),
     JSON.stringify(packageJson, null, 2) + os.EOL
   )
@@ -231,7 +236,7 @@ export const installTemplate = async ({
     console.log()
     console.log('Installing dependencies:')
     for (const dependency of dependencies) {
-      console.log(`- ${chalk.cyan(dependency)}`)
+      console.log(`- ${cyan(dependency)}`)
     }
     console.log()
 

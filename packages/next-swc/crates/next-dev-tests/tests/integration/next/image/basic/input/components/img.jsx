@@ -1,3 +1,3 @@
-import img from "../public/triangle-black.png";
+import img from '../public/triangle-black.png'
 
-export { img };
+export { img }

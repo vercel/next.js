@@ -1,4 +1,4 @@
-import { noop as css } from "../../helpers/noop-template";
+import { noop as css } from '../../helpers/noop-template'
 
 const styles = css`
   .codeframe {
@@ -47,6 +47,6 @@ const styles = css`
     overflow: hidden;
     display: inline-block;
   }
-`;
+`
 
-export { styles };
+export { styles }

@@ -329,11 +329,12 @@ export const styles = css`
     color: var(--color-ansi-red);
   }
 
-  .nextjs-container-errors-body > h5:not(:first-child) {
+  .nextjs-container-errors-body > h2:not(:first-child) {
     margin-top: calc(var(--size-gap-double) + var(--size-gap));
   }
-  .nextjs-container-errors-body > h5 {
+  .nextjs-container-errors-body > h2 {
     margin-bottom: var(--size-gap);
+    font-size: var(--size-font-big);
   }
 
   .nextjs-toast-errors-parent {

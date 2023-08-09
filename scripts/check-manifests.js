@@ -19,41 +19,37 @@ function collectPaths(routes, paths = []) {
 }
 
 async function main() {
-  const manifests = ['errors/manifest.json', 'docs/manifest.json']
+  const manifest = 'errors/manifest.json'
   let hadError = false
 
-  for (const manifest of manifests) {
-    const dir = path.dirname(manifest)
-    const files = await glob(path.join(dir, '**/*.md'))
+  const dir = path.dirname(manifest)
+  const files = await glob(path.join(dir, '**/*.md'))
 
-    const manifestData = JSON.parse(
-      await fs.promises.readFile(manifest, 'utf8')
-    )
+  const manifestData = JSON.parse(await fs.promises.readFile(manifest, 'utf8'))
 
-    const paths = []
-    collectPaths(manifestData.routes, paths)
+  const paths = []
+  collectPaths(manifestData.routes, paths)
 
-    const missingFiles = files.filter(
-      (file) => !paths.includes(`/${file}`) && file !== 'errors/template.md'
-    )
+  const missingFiles = files.filter(
+    (file) => !paths.includes(`/${file}`) && file !== 'errors/template.md'
+  )
 
-    if (missingFiles.length) {
+  if (missingFiles.length) {
+    hadError = true
+    console.log(`Missing paths in ${manifest}:\n${missingFiles.join('\n')}`)
+  } else {
+    console.log(`No missing paths in ${manifest}`)
+  }
+
+  for (const filePath of paths) {
+    if (
+      !(await fs.promises
+        .access(path.join(process.cwd(), filePath), fs.constants.F_OK)
+        .then(() => true)
+        .catch(() => false))
+    ) {
+      console.log('Could not find path:', filePath)
       hadError = true
-      console.log(`Missing paths in ${manifest}:\n${missingFiles.join('\n')}`)
-    } else {
-      console.log(`No missing paths in ${manifest}`)
-    }
-
-    for (const filePath of paths) {
-      if (
-        !(await fs.promises
-          .access(path.join(process.cwd(), filePath), fs.constants.F_OK)
-          .then(() => true)
-          .catch(() => false))
-      ) {
-        console.log('Could not find path:', filePath)
-        hadError = true
-      }
     }
   }
 

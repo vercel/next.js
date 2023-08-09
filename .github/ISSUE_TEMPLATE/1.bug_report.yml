@@ -27,7 +27,7 @@ body:
       label: Which area(s) of Next.js are affected? (leave empty if unsure)
       multiple: true
       options:
-        - 'App directory (appDir: true)'
+        - 'App Router'
         - 'CLI (create-next-app)'
         - 'Data fetching (gS(S)P, getInitialProps)'
         - 'Dynamic imports (next/dynamic)'
@@ -37,7 +37,7 @@ body:
         - 'Internationalization (i18n)'
         - 'Jest (next/jest)'
         - 'MDX (@next/mdx)'
-        - 'Metadata (metadata, generateMetadata, next/head, head.js)'
+        - 'Metadata (metadata, generateMetadata, next/head)'
         - 'Middleware / Edge (API routes, runtime)'
         - 'Operating System (Windows, MacOS, Linux)'
         - 'Package manager (npm, pnpm, Yarn)'
@@ -51,10 +51,11 @@ body:
         - 'TypeScript (plugin, built-in types)'
   - type: input
     attributes:
-      label: Link to the code that reproduces this issue
+      label: Link to the code that reproduces this issue or a replay of the bug
       description: |
-        A link to a GitHub repository, a [CodeSandbox](https://codesandbox.io/p/sandbox/github/vercel/next.js/tree/canary/examples/reproduction-template) or a [StackBlitz](https://stackblitz.com/fork/github/vercel/next.js/tree/canary/examples/reproduction-template) minimal reproduction. Minimal reproductions should be created from our [bug report template with `npx create-next-app -e reproduction-template`](https://github.com/vercel/next.js/tree/canary/examples/reproduction-template) and should include only changes that contribute to the issue.
-        To report an App Router related issue, you can use these templates: [CodeSandbox](https://codesandbox.io/p/sandbox/github/vercel/next.js/tree/canary/examples/reproduction-template-app-dir), [StackBlitz](https://stackblitz.com/fork/github/vercel/next.js/tree/canary/examples/reproduction-template-app-dir) or [`npx create-next-app -e reproduction-template-app-dir`](https://github.com/vercel/next.js/tree/canary/examples/reproduction-template-app-dir)
+        A link to a [GitHub repository](https://github.com/vercel/next.js/tree/canary/examples/reproduction-template) or a [CodeSandbox](https://codesandbox.io/p/sandbox/github/vercel/next.js/tree/canary/examples/reproduction-template) minimal reproduction. Minimal reproductions should be created from our [bug report template with `npx create-next-app -e reproduction-template`](https://github.com/vercel/next.js/tree/canary/examples/reproduction-template) and should include only changes that contribute to the issue.
+        If a minimal reproduction can't be created please share a [replay](https://www.replay.io/) of the bug which doesn't require sharing a private repo.
+        To report a Pages Router related issue, you can use these templates: [CodeSandbox](https://codesandbox.io/p/sandbox/github/vercel/next.js/tree/canary/examples/reproduction-template-pages) or [`npx create-next-app -e reproduction-template-pages`](https://github.com/vercel/next.js/tree/canary/examples/reproduction-template-pages)
     validations:
       required: true
   - type: textarea

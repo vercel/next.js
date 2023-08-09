@@ -3,7 +3,7 @@ when:
   path: /css2
   query_param:
     - name: family
-      value: "Inter:wght@100..900"
+      value: 'Inter:wght@100..900'
     - name: display
       value: swap
 then:

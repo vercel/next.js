@@ -1,7 +1,5 @@
 import * as React from 'react'
 
-import type { Issue } from '@vercel/turbopack-dev/types/protocol'
-
 import * as Bus from './bus'
 import { ShadowPortal } from './components/ShadowPortal'
 import { Errors, SupportedErrorEvent } from './container/Errors'
@@ -35,6 +33,8 @@ type OverlayState = {
   refreshState: RefreshState
 
   reactError: Error | null
+
+  notFound?: boolean
 }
 
 function pushErrorFilterDuplicates(
@@ -53,7 +53,7 @@ function pushErrorFilterDuplicates(
 function reducer(state: OverlayState, ev: Bus.BusEvent): OverlayState {
   switch (ev.type) {
     case Bus.TYPE_BUILD_OK: {
-      return { ...state }
+      return { ...state, notFound: false }
     }
     case Bus.TYPE_TURBOPACK_ISSUES: {
       return { ...state, issues: ev.issues }
@@ -67,6 +67,7 @@ function reducer(state: OverlayState, ev: Bus.BusEvent): OverlayState {
     case Bus.TYPE_REFRESH: {
       return {
         ...state,
+        notFound: false,
         errors:
           // Errors can come in during updates. In this case, UNHANDLED_ERROR
           // and UNHANDLED_REJECTION events might be dispatched between the
@@ -113,6 +114,9 @@ function reducer(state: OverlayState, ev: Bus.BusEvent): OverlayState {
         default:
           return state
       }
+    }
+    case Bus.TYPE_NOT_FOUND: {
+      return { ...state, notFound: true }
     }
     case Bus.TYPE_REACT_ERROR: {
       switch (state.refreshState.type) {
@@ -223,7 +227,12 @@ export default function ReactDevOverlay({
         {children ?? null}
       </ErrorBoundary>
       {isMounted ? (
-        <ShadowPortal globalOverlay={globalOverlay}>
+        <ShadowPortal
+          // setting key ensures that ShadowPortal is re-mounted when the error changes
+          // this is necessary as nextjs-portal need to be reinjected when we re-render <body>
+          key={'' + !state.reactError}
+          globalOverlay={globalOverlay}
+        >
           <CssReset />
           <Base />
           <ComponentStyles />

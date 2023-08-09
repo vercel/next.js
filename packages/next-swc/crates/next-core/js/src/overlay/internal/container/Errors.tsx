@@ -1,7 +1,5 @@
 import * as React from 'react'
 
-import { Issue } from '@vercel/turbopack-dev/types/protocol'
-
 import {
   TYPE_UNHANDLED_ERROR,
   TYPE_UNHANDLED_REJECTION,
@@ -157,6 +155,7 @@ function isRuntimeWarning(error: ReadyRuntimeError) {
     'This Suspense boundary received an update before it finished hydrating.',
     'Hydration failed because the initial UI does not match what was rendered on the server.',
     'There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.',
+    'There was an error while hydrating this Suspense boundary. Switched to client rendering.',
   ].some((message) => error.error.message.includes(message))
 }
 

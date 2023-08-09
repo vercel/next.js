@@ -1,16 +1,6 @@
 import { existsSync } from 'fs'
-import {
-  basename,
-  extname,
-  join,
-  relative,
-  isAbsolute,
-  resolve,
-  dirname,
-} from 'path'
+import { basename, extname, join, relative, isAbsolute, resolve } from 'path'
 import { pathToFileURL } from 'url'
-import { Agent as HttpAgent } from 'http'
-import { Agent as HttpsAgent } from 'https'
 import findUp from 'next/dist/compiled/find-up'
 import chalk from '../lib/chalk'
 import * as Log from '../build/output/log'
@@ -26,16 +16,12 @@ import {
 } from './config-shared'
 import { loadWebpackHook } from './config-utils'
 import { ImageConfig, imageConfigDefault } from '../shared/lib/image-config'
-import { loadEnvConfig } from '@next/env'
-import { gte as semverGte } from 'next/dist/compiled/semver'
+import { loadEnvConfig, updateInitialEnv } from '@next/env'
 import { flushAndExit } from '../telemetry/flush-and-exit'
+import { findRootDir } from '../lib/find-root'
+import { setHttpClientAndAgentOptions } from './setup-http-agent-env'
 
 export { DomainLocale, NextConfig, normalizeConfig } from './config-shared'
-
-const NODE_16_VERSION = '16.8.0'
-const NODE_18_VERSION = '18.0.0'
-const isAboveNodejs16 = semverGte(process.version, NODE_16_VERSION)
-const isAboveNodejs18 = semverGte(process.version, NODE_18_VERSION)
 
 const experimentalWarning = execOnce(
   (configFileName: string, features: string[]) => {
@@ -51,54 +37,10 @@ const experimentalWarning = execOnce(
       `Experimental features are not covered by semver, and may cause unexpected or broken application behavior. ` +
         `Use at your own risk.`
     )
-    if (features.includes('appDir')) {
-      Log.info(
-        `Thank you for testing \`appDir\` please leave your feedback at https://nextjs.link/app-feedback`
-      )
-    }
 
     console.warn()
   }
 )
-
-export function setHttpClientAndAgentOptions(
-  config: {
-    httpAgentOptions?: NextConfig['httpAgentOptions']
-    experimental?: {
-      enableUndici?: boolean
-    }
-  },
-  silent = false
-) {
-  if (isAboveNodejs16) {
-    // Node.js 18 has undici built-in.
-    if (config.experimental?.enableUndici && !isAboveNodejs18) {
-      // When appDir is enabled undici is the default because of Response.clone() issues in node-fetch
-      ;(globalThis as any).__NEXT_USE_UNDICI = config.experimental?.enableUndici
-    }
-  } else if (config.experimental?.enableUndici && !silent) {
-    Log.warn(
-      `\`enableUndici\` option requires Node.js v${NODE_16_VERSION} or greater. Falling back to \`node-fetch\``
-    )
-  }
-  if ((globalThis as any).__NEXT_HTTP_AGENT) {
-    // We only need to assign once because we want
-    // to reuse the same agent for all requests.
-    return
-  }
-
-  if (!config) {
-    throw new Error('Expected config.httpAgentOptions to be an object')
-  }
-
-  ;(globalThis as any).__NEXT_HTTP_AGENT_OPTIONS = config.httpAgentOptions
-  ;(globalThis as any).__NEXT_HTTP_AGENT = new HttpAgent(
-    config.httpAgentOptions
-  )
-  ;(globalThis as any).__NEXT_HTTPS_AGENT = new HttpsAgent(
-    config.httpAgentOptions
-  )
-}
 
 export function warnOptionHasBeenMovedOutOfExperimental(
   config: NextConfig,
@@ -163,22 +105,6 @@ function assignDefaults(
           for (const featureName of Object.keys(
             value
           ) as (keyof ExperimentalConfig)[]) {
-            const featureValue = value[featureName]
-            if (featureName === 'appDir' && featureValue === true) {
-              if (!isAboveNodejs16) {
-                throw new Error(
-                  `experimental.appDir requires Node v${NODE_16_VERSION} or later.`
-                )
-              }
-              // auto enable clientRouterFilter if not manually set
-              // when appDir is enabled
-              if (
-                typeof userConfig.experimental.clientRouterFilter ===
-                'undefined'
-              ) {
-                userConfig.experimental.clientRouterFilter = true
-              }
-            }
             if (
               value[featureName] !== defaultConfig.experimental[featureName]
             ) {
@@ -312,10 +238,6 @@ function assignDefaults(
     Log.warn(
       `\`outputFileTracingIgnores\` has been moved to \`experimental.outputFileTracingExcludes\`. Please update your ${configFileName} file accordingly.`
     )
-  }
-
-  if (result.experimental?.appDir) {
-    result.experimental.enableUndici = true
   }
 
   if (result.basePath !== '') {
@@ -471,6 +393,17 @@ function assignDefaults(
     result.output = 'standalone'
   }
 
+  if (typeof result.experimental?.serverActionsBodySizeLimit !== 'undefined') {
+    const value = parseInt(
+      result.experimental.serverActionsBodySizeLimit.toString()
+    )
+    if (isNaN(value) || value < 1) {
+      throw new Error(
+        'Server Actions Size Limit must be a valid number or filesize format lager than 1MB: https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions'
+      )
+    }
+  }
+
   warnOptionHasBeenMovedOutOfExperimental(
     result,
     'transpilePackages',
@@ -494,6 +427,13 @@ function assignDefaults(
   )
 
   if (
+    typeof userConfig.experimental?.clientRouterFilter === 'undefined' &&
+    result.experimental?.appDir
+  ) {
+    result.experimental.clientRouterFilter = true
+  }
+
+  if (
     result.experimental?.outputFileTracingRoot &&
     !isAbsolute(result.experimental.outputFileTracingRoot)
   ) {
@@ -507,23 +447,26 @@ function assignDefaults(
     }
   }
 
+  // only leverage deploymentId
+  if (result.experimental?.useDeploymentId && process.env.NEXT_DEPLOYMENT_ID) {
+    if (!result.experimental) {
+      result.experimental = {}
+    }
+    result.experimental.deploymentId = process.env.NEXT_DEPLOYMENT_ID
+  }
+
   // use the closest lockfile as tracing root
   if (!result.experimental?.outputFileTracingRoot) {
-    const lockFiles: string[] = [
-      'package-lock.json',
-      'yarn.lock',
-      'pnpm-lock.yaml',
-    ]
-    const foundLockfile = findUp.sync(lockFiles, { cwd: dir })
+    let rootDir = findRootDir(dir)
 
-    if (foundLockfile) {
+    if (rootDir) {
       if (!result.experimental) {
         result.experimental = {}
       }
       if (!defaultConfig.experimental) {
         defaultConfig.experimental = {}
       }
-      result.experimental.outputFileTracingRoot = dirname(foundLockfile)
+      result.experimental.outputFileTracingRoot = rootDir
       defaultConfig.experimental.outputFileTracingRoot =
         result.experimental.outputFileTracingRoot
     }
@@ -538,7 +481,7 @@ function assignDefaults(
     result.output = undefined
   }
 
-  setHttpClientAndAgentOptions(result || defaultConfig, silent)
+  setHttpClientAndAgentOptions(result || defaultConfig)
 
   if (result.i18n) {
     const { i18n } = result
@@ -581,6 +524,13 @@ function assignDefaults(
         if (!item || typeof item !== 'object') return true
         if (!item.defaultLocale) return true
         if (!item.domain || typeof item.domain !== 'string') return true
+
+        if (item.domain.includes(':')) {
+          console.warn(
+            `i18n domain: "${item.domain}" is invalid it should be a valid domain without protocol (https://) or port (:3000) e.g. example.vercel.sh`
+          )
+          return true
+        }
 
         const defaultLocaleDuplicate = i18n.domains?.find(
           (altItem) =>
@@ -711,6 +661,103 @@ function assignDefaults(
     }
   }
 
+  const userProvidedModularizeImports = result.modularizeImports
+  // Unfortunately these packages end up re-exporting 10600 modules, for example: https://unpkg.com/browse/@mui/icons-material@5.11.16/esm/index.js.
+  // Leveraging modularizeImports tremendously reduces compile times for these.
+  result.modularizeImports = {
+    ...(userProvidedModularizeImports || {}),
+    // This is intentionally added after the user-provided modularizeImports config.
+    '@mui/icons-material': {
+      transform: '@mui/icons-material/{{member}}',
+    },
+    'date-fns': {
+      transform: 'date-fns/{{member}}',
+    },
+    lodash: {
+      transform: 'lodash/{{member}}',
+    },
+    'lodash-es': {
+      transform: 'lodash-es/{{member}}',
+    },
+    'lucide-react': {
+      // Note that we need to first resolve to the base path (`lucide-react`) and join the subpath,
+      // instead of just resolving `lucide-react/esm/icons/{{kebabCase member}}` because this package
+      // doesn't have proper `exports` fields for individual icons in its package.json.
+      transform: {
+        // Special aliases
+        '(SortAsc|LucideSortAsc|SortAscIcon)':
+          'modularize-import-loader?name={{ member }}&from=default&as=default&join=../esm/icons/arrow-up-narrow-wide!lucide-react',
+        '(SortDesc|LucideSortDesc|SortDescIcon)':
+          'modularize-import-loader?name={{ member }}&from=default&as=default&join=../esm/icons/arrow-down-wide-narrow!lucide-react',
+        '(Verified|LucideVerified|VerifiedIcon)':
+          'modularize-import-loader?name={{ member }}&from=default&as=default&join=../esm/icons/badge-check!lucide-react',
+        '(Slash|LucideSlash|SlashIcon)':
+          'modularize-import-loader?name={{ member }}&from=default&as=default&join=../esm/icons/ban!lucide-react',
+        '(CurlyBraces|LucideCurlyBraces|CurlyBracesIcon)':
+          'modularize-import-loader?name={{ member }}&from=default&as=default&join=../esm/icons/braces!lucide-react',
+        '(CircleSlashed|LucideCircleSlashed|CircleSlashedIcon)':
+          'modularize-import-loader?name={{ member }}&from=default&as=default&join=../esm/icons/circle-slash-2!lucide-react',
+        '(SquareGantt|LucideSquareGantt|SquareGanttIcon)':
+          'modularize-import-loader?name={{ member }}&from=default&as=default&join=../esm/icons/gantt-chart-square!lucide-react',
+        '(SquareKanbanDashed|LucideSquareKanbanDashed|SquareKanbanDashedIcon)':
+          'modularize-import-loader?name={{ member }}&from=default&as=default&join=../esm/icons/kanban-square-dashed!lucide-react',
+        '(SquareKanban|LucideSquareKanban|SquareKanbanIcon)':
+          'modularize-import-loader?name={{ member }}&from=default&as=default&join=../esm/icons/kanban-square!lucide-react',
+        '(Edit3|LucideEdit3|Edit3Icon)':
+          'modularize-import-loader?name={{ member }}&from=default&as=default&join=../esm/icons/pen-line!lucide-react',
+        '(Edit|LucideEdit|EditIcon|PenBox|LucidePenBox|PenBoxIcon)':
+          'modularize-import-loader?name={{ member }}&from=default&as=default&join=../esm/icons/pen-square!lucide-react',
+        '(Edit2|LucideEdit2|Edit2Icon)':
+          'modularize-import-loader?name={{ member }}&from=default&as=default&join=../esm/icons/pen!lucide-react',
+        '(Stars|LucideStars|StarsIcon)':
+          'modularize-import-loader?name={{ member }}&from=default&as=default&join=../esm/icons/sparkles!lucide-react',
+        '(TextSelection|LucideTextSelection|TextSelectionIcon)':
+          'modularize-import-loader?name={{ member }}&from=default&as=default&join=../esm/icons/text-select!lucide-react',
+        // General rules
+        'Lucide(.*)':
+          'modularize-import-loader?name={{ member }}&from=default&as=default&join=../esm/icons/{{ kebabCase memberMatches.[1] }}!lucide-react',
+        '(.*)Icon':
+          'modularize-import-loader?name={{ member }}&from=default&as=default&join=../esm/icons/{{ kebabCase memberMatches.[1] }}!lucide-react',
+        '*': 'modularize-import-loader?name={{ member }}&from=default&as=default&join=../esm/icons/{{ kebabCase member }}!lucide-react',
+      },
+    },
+    ramda: {
+      transform: 'ramda/es/{{member}}',
+    },
+    'react-bootstrap': {
+      transform: {
+        useAccordionButton:
+          'modularize-import-loader?name=useAccordionButton&from=named&as=default!react-bootstrap/AccordionButton',
+        '*': 'react-bootstrap/{{member}}',
+      },
+    },
+    antd: {
+      transform: 'antd/lib/{{kebabCase member}}',
+    },
+    ahooks: {
+      transform: {
+        createUpdateEffect:
+          'modularize-import-loader?name=createUpdateEffect&from=named&as=default!ahooks/es/createUpdateEffect',
+        '*': 'ahooks/es/{{member}}',
+      },
+    },
+    '@ant-design/icons': {
+      transform: {
+        IconProvider:
+          'modularize-import-loader?name=IconProvider&from=named&as=default!@ant-design/icons',
+        createFromIconfontCN: '@ant-design/icons/es/components/IconFont',
+        getTwoToneColor:
+          'modularize-import-loader?name=getTwoToneColor&from=named&as=default!@ant-design/icons/es/components/twoTonePrimaryColor',
+        setTwoToneColor:
+          'modularize-import-loader?name=setTwoToneColor&from=named&as=default!@ant-design/icons/es/components/twoTonePrimaryColor',
+        '*': '@ant-design/icons/lib/icons/{{member}}',
+      },
+    },
+    'next/server': {
+      transform: 'next/dist/server/web/exports/{{ kebabCase member }}',
+    },
+  }
+
   return result
 }
 
@@ -721,6 +768,32 @@ export default async function loadConfig(
   rawConfig?: boolean,
   silent?: boolean
 ): Promise<NextConfigComplete> {
+  if (!process.env.__NEXT_PRIVATE_RENDER_WORKER) {
+    try {
+      loadWebpackHook()
+    } catch (err) {
+      // this can fail in standalone mode as the files
+      // aren't traced/included
+      if (!process.env.__NEXT_PRIVATE_STANDALONE_CONFIG) {
+        throw err
+      }
+    }
+  }
+
+  if (process.env.__NEXT_PRIVATE_STANDALONE_CONFIG) {
+    return JSON.parse(process.env.__NEXT_PRIVATE_STANDALONE_CONFIG)
+  }
+
+  // For the render worker, we directly return the serialized config from the
+  // parent worker (router worker) to avoid loading it again.
+  // This is because loading the config might be expensive especiall when people
+  // have Webpack plugins added.
+  // Because of this change, unserializable fields like `.webpack` won't be
+  // existing here but the render worker shouldn't use these as well.
+  if (process.env.__NEXT_PRIVATE_RENDER_WORKER_CONFIG) {
+    return JSON.parse(process.env.__NEXT_PRIVATE_RENDER_WORKER_CONFIG)
+  }
+
   const curLog = silent
     ? {
         warn: () => {},
@@ -729,8 +802,7 @@ export default async function loadConfig(
       }
     : Log
 
-  await loadEnvConfig(dir, phase === PHASE_DEVELOPMENT_SERVER, curLog)
-  loadWebpackHook()
+  loadEnvConfig(dir, phase === PHASE_DEVELOPMENT_SERVER, curLog)
 
   let configFileName = 'next.config.js'
 
@@ -754,6 +826,8 @@ export default async function loadConfig(
     let userConfigModule: any
 
     try {
+      const envBefore = Object.assign({}, process.env)
+
       // `import()` expects url-encoded strings, so the path must be properly
       // escaped and (especially on Windows) absolute paths must pe prefixed
       // with the `file://` protocol
@@ -765,6 +839,14 @@ export default async function loadConfig(
       } else {
         userConfigModule = await import(pathToFileURL(path).href)
       }
+      const newEnv: typeof process.env = {} as any
+
+      for (const key of Object.keys(process.env)) {
+        if (envBefore[key] !== process.env[key]) {
+          newEnv[key] = process.env[key]
+        }
+      }
+      updateInitialEnv(newEnv)
 
       if (rawConfig) {
         return userConfigModule
@@ -814,12 +896,6 @@ export default async function loadConfig(
           curLog.warn(message)
         }
       }
-    }
-
-    if (Object.keys(userConfig).length === 0) {
-      curLog.warn(
-        `Detected ${configFileName}, no exported configuration found. https://nextjs.org/docs/messages/empty-configuration`
-      )
     }
 
     if (userConfig.target && userConfig.target !== 'server') {
@@ -877,6 +953,6 @@ export default async function loadConfig(
     silent
   ) as NextConfigComplete
   completeConfig.configFileName = configFileName
-  setHttpClientAndAgentOptions(completeConfig, silent)
+  setHttpClientAndAgentOptions(completeConfig)
   return completeConfig
 }

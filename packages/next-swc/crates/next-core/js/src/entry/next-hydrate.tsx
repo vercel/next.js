@@ -8,15 +8,22 @@ import {
 } from 'next/dist/shared/lib/router/utils/querystring'
 import { formatWithValidation } from 'next/dist/shared/lib/router/utils/format-url'
 import { initializeHMR } from '../dev/client'
-import { subscribeToUpdate } from '@vercel/turbopack-dev/client/hmr-client'
+import { subscribeToUpdate } from '@vercel/turbopack-ecmascript-runtime/dev/client/hmr-client'
+;(self as any).__next_set_public_path__ = () => {}
 
-import * as _app from '@vercel/turbopack-next/pages/_app'
-import * as page from 'PAGE'
+async function loadPageChunk(assetPrefix: string, chunkData: ChunkData) {
+  if (typeof chunkData === 'string') {
+    const fullPath = assetPrefix + chunkData
 
-async function loadPageChunk(assetPrefix: string, chunkPath: string) {
-  const fullPath = assetPrefix + chunkPath
+    await __turbopack_load__(fullPath)
+  } else {
+    let fullChunkData = {
+      ...chunkData,
+      path: assetPrefix + chunkData.path,
+    }
 
-  await __turbopack_load__(fullPath)
+    await __turbopack_load__(fullChunkData)
+  }
 }
 
 ;(async () => {
@@ -24,7 +31,6 @@ async function loadPageChunk(assetPrefix: string, chunkPath: string) {
 
   window.next = {
     version: version || '',
-    // @ts-expect-error
     get router() {
       return router
     },
@@ -43,8 +49,8 @@ async function loadPageChunk(assetPrefix: string, chunkPath: string) {
   })
 
   // for the page loader
-  window.__turbopack_load_page_chunks__ = (page, paths) => {
-    const chunkPromises = paths.map(loadPageChunk.bind(null, assetPrefix))
+  window.__turbopack_load_page_chunks__ = (page, chunksData) => {
+    const chunkPromises = chunksData.map(loadPageChunk.bind(null, assetPrefix))
 
     Promise.all(chunkPromises).catch((err) =>
       console.error('failed to load chunks for page ' + page, err)
@@ -52,8 +58,11 @@ async function loadPageChunk(assetPrefix: string, chunkPath: string) {
   }
 
   const pagePath = window.__NEXT_DATA__.page
-  window.__NEXT_P.push(['/_app', () => _app])
-  window.__NEXT_P.push([pagePath, () => page])
+  window.__NEXT_P.push([
+    '/_app',
+    () => require('@vercel/turbopack-next/pages/_app'),
+  ])
+  window.__NEXT_P.push([pagePath, () => require('PAGE')])
 
   console.debug('Hydrating the page')
 

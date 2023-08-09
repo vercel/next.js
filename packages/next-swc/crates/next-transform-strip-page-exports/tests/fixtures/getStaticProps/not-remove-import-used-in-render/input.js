@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect } from 'react'
 import {
   Root,
   Children,
@@ -8,13 +8,13 @@ import {
   ValueInRender,
   ValueInEffect,
   UnusedInRender,
-} from "../";
+} from '../'
 
 export default function Test() {
-  const [x, setX] = useState(ValueInRender.value);
+  const [x, setX] = useState(ValueInRender.value)
   useEffect(() => {
-    setX(ValueInEffect.value);
-  }, []);
+    setX(ValueInEffect.value)
+  }, [])
 
   return (
     <Root x={x}>
@@ -23,7 +23,7 @@ export default function Test() {
         <JSXMemberExpression.Deep.Property />
       </div>
     </Root>
-  );
+  )
 }
 
 export async function getStaticProps() {
@@ -43,5 +43,5 @@ export async function getStaticProps() {
         UnusedInRender.value,
       ],
     },
-  };
+  }
 }

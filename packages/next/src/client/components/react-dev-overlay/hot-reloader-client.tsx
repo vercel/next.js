@@ -4,7 +4,6 @@ import React, {
   useEffect,
   useReducer,
   useMemo,
-  // @ts-expect-error TODO-APP: startTransition exists
   startTransition,
 } from 'react'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
@@ -12,6 +11,7 @@ import formatWebpackMessages from '../../dev/error-overlay/format-webpack-messag
 import { useRouter } from '../navigation'
 import {
   ACTION_VERSION_INFO,
+  INITIAL_OVERLAY_STATE,
   errorOverlayReducer,
 } from './internal/error-overlay-reducer'
 import {
@@ -49,8 +49,6 @@ type PongEvent = any
 
 let mostRecentCompilationHash: any = null
 let __nextDevClientId = Math.round(Math.random() * 100 + Date.now())
-
-// let startLatency = undefined
 
 function onBeforeFastRefresh(dispatcher: Dispatcher, hasUpdates: boolean) {
   if (hasUpdates) {
@@ -210,7 +208,39 @@ function processMessage(
   router: ReturnType<typeof useRouter>,
   dispatcher: Dispatcher
 ) {
-  const obj = JSON.parse(e.data)
+  let obj
+  try {
+    obj = JSON.parse(e.data)
+  } catch {}
+
+  if (!obj || !('action' in obj)) {
+    return
+  }
+
+  function handleErrors(errors: any[]) {
+    // "Massage" webpack messages.
+    const formatted = formatWebpackMessages({
+      errors: errors,
+      warnings: [],
+    })
+
+    // Only show the first error.
+    dispatcher.onBuildError(formatted.errors[0])
+
+    // Also log them to the console.
+    for (let i = 0; i < formatted.errors.length; i++) {
+      console.error(stripAnsi(formatted.errors[i]))
+    }
+
+    // Do not attempt to reload now.
+    // We will reload on next success instead.
+    if (process.env.__NEXT_TEST_MODE) {
+      if (self.__NEXT_HMR_CB) {
+        self.__NEXT_HMR_CB(formatted.errors[0])
+        self.__NEXT_HMR_CB = null
+      }
+    }
+  }
 
   switch (obj.action) {
     case 'building': {
@@ -240,28 +270,7 @@ function processMessage(
           })
         )
 
-        // "Massage" webpack messages.
-        let formatted = formatWebpackMessages({
-          errors: errors,
-          warnings: [],
-        })
-
-        // Only show the first error.
-        dispatcher.onBuildError(formatted.errors[0])
-
-        // Also log them to the console.
-        for (let i = 0; i < formatted.errors.length; i++) {
-          console.error(stripAnsi(formatted.errors[i]))
-        }
-
-        // Do not attempt to reload now.
-        // We will reload on next success instead.
-        if (process.env.__NEXT_TEST_MODE) {
-          if (self.__NEXT_HMR_CB) {
-            self.__NEXT_HMR_CB(formatted.errors[0])
-            self.__NEXT_HMR_CB = null
-          }
-        }
+        handleErrors(errors)
         return
       }
 
@@ -321,9 +330,9 @@ function processMessage(
       )
 
       const isHotUpdate =
-        obj.action !== 'sync' ||
-        ((!window.__NEXT_DATA__ || window.__NEXT_DATA__.page !== '/_error') &&
-          isUpdateAvailable())
+        obj.action !== 'sync' &&
+        (!window.__NEXT_DATA__ || window.__NEXT_DATA__.page !== '/_error') &&
+        isUpdateAvailable()
 
       // Attempt to apply hot updates or reload.
       if (isHotUpdate) {
@@ -389,14 +398,53 @@ function processMessage(
       router.fastRefresh()
       return
     }
+    case 'serverError': {
+      const { errorJSON } = obj
+      if (errorJSON) {
+        const { message, stack } = JSON.parse(errorJSON)
+        const error = new Error(message)
+        error.stack = stack
+        handleErrors([error])
+      }
+      return
+    }
     case 'pong': {
       const { invalid } = obj
       if (invalid) {
         // Payload can be invalid even if the page does exist.
         // So, we check if it can be created.
-        // @ts-ignore it exists, it's just hidden
-        router.fastRefresh()
+        fetch(window.location.href, {
+          credentials: 'same-origin',
+        }).then((pageRes) => {
+          let shouldRefresh = pageRes.ok
+          // TODO-APP: investigate why edge runtime needs to reload
+          const isEdgeRuntime = pageRes.headers.get('x-edge-runtime') === '1'
+          if (pageRes.status === 404) {
+            // Check if head present as document.head could be null
+            // We are still on the page,
+            // dispatch an error so it's caught by the NotFound handler
+            const devErrorMetaTag = document.head?.querySelector(
+              'meta[name="next-error"]'
+            )
+            shouldRefresh = !devErrorMetaTag
+          }
+          // Page exists now, reload
+          startTransition(() => {
+            if (shouldRefresh) {
+              if (isEdgeRuntime) {
+                window.location.reload()
+              } else {
+                // @ts-ignore it exists, it's just hidden
+                router.fastRefresh()
+                dispatcher.onRefresh()
+              }
+            }
+          })
+        })
       }
+      return
+    }
+    case 'devPagesManifestUpdate': {
       return
     }
     default: {
@@ -412,13 +460,10 @@ export default function HotReload({
   assetPrefix: string
   children?: ReactNode
 }) {
-  const [state, dispatch] = useReducer(errorOverlayReducer, {
-    nextId: 1,
-    buildError: null,
-    errors: [],
-    refreshState: { type: 'idle' },
-    versionInfo: { installed: '0.0.0', staleness: 'unknown' },
-  })
+  const [state, dispatch] = useReducer(
+    errorOverlayReducer,
+    INITIAL_OVERLAY_STATE
+  )
   const dispatcher = useMemo((): Dispatcher => {
     return {
       onBuildOk() {
@@ -467,20 +512,15 @@ export default function HotReload({
   const sendMessage = useSendMessage(webSocketRef)
 
   const router = useRouter()
+
   useEffect(() => {
     const handler = (event: MessageEvent<PongEvent>) => {
-      if (
-        event.data.indexOf('action') === -1 &&
-        // TODO-APP: clean this up for consistency
-        event.data.indexOf('pong') === -1
-      ) {
-        return
-      }
-
       try {
         processMessage(event, sendMessage, router, dispatcher)
-      } catch (ex) {
-        console.warn('Invalid HMR message: ' + event.data + '\n', ex)
+      } catch (err: any) {
+        console.warn(
+          '[HMR] Invalid message: ' + event.data + '\n' + (err?.stack ?? '')
+        )
       }
     }
 

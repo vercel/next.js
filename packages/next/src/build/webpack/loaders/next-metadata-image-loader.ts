@@ -2,6 +2,7 @@
  * This loader is responsible for extracting the metadata image info for rendering in html
  */
 
+import type webpack from 'webpack'
 import type {
   MetadataImageModule,
   PossibleImageFileNameConvention,
@@ -12,20 +13,22 @@ import loaderUtils from 'next/dist/compiled/loader-utils3'
 import { getImageSize } from '../../../server/image-optimizer'
 import { imageExtMimeTypeMap } from '../../../lib/mime-type'
 import { fileExists } from '../../../lib/file-exists'
+import { WEBPACK_RESOURCE_QUERIES } from '../../../lib/constants'
+import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 
 interface Options {
-  route: string
   segment: string
   type: PossibleImageFileNameConvention
   pageExtensions: string[]
+  basePath: string
 }
 
 async function nextMetadataImageLoader(this: any, content: Buffer) {
   const options: Options = this.getOptions()
-  const { type, route, segment, pageExtensions } = options
-  const numericSizes = type === 'twitter' || type === 'openGraph'
+  const { type, segment, pageExtensions, basePath } = options
   const { resourcePath, rootContext: context } = this
   const { name: fileNameBase, ext } = path.parse(resourcePath)
+  const useNumericSizes = type === 'twitter' || type === 'openGraph'
 
   let extension = ext.slice(1)
   if (extension === 'jpg') {
@@ -47,36 +50,76 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
   )
 
   const isDynamicResource = pageExtensions.includes(extension)
-  const pageRoute = isDynamicResource ? fileNameBase : interpolatedName
+  const pageSegment = isDynamicResource ? fileNameBase : interpolatedName
   const hashQuery = contentHash ? '?' + contentHash : ''
+  const pathnamePrefix = normalizePathSep(path.join(basePath, segment))
 
   if (isDynamicResource) {
+    const mod = await new Promise<webpack.NormalModule>((res, rej) => {
+      this.loadModule(
+        resourcePath,
+        (err: null | Error, _source: any, _sourceMap: any, module: any) => {
+          if (err) {
+            return rej(err)
+          }
+          res(module)
+        }
+      )
+    })
+
+    const exportedFieldsExcludingDefault =
+      mod.dependencies
+        ?.filter((dep) => {
+          return (
+            [
+              'HarmonyExportImportedSpecifierDependency',
+              'HarmonyExportSpecifierDependency',
+            ].includes(dep.constructor.name) &&
+            'name' in dep &&
+            dep.name !== 'default'
+          )
+        })
+        .map((dep: any) => {
+          return dep.name
+        }) || []
+
     // re-export and spread as `exportedImageData` to avoid non-exported error
     return `\
-    import path from 'next/dist/shared/lib/isomorphic/path'
-    import * as exported from ${JSON.stringify(resourcePath)}
-    import { interpolateDynamicPath } from 'next/dist/server/server-utils'
-    import { getNamedRouteRegex } from 'next/dist/shared/lib/router/utils/route-regex'
-    import { getMetadataRouteSuffix } from 'next/dist/lib/metadata/get-metadata-route'
+    import {
+      ${exportedFieldsExcludingDefault
+        .map((field) => `${field} as _${field}`)
+        .join(',')}
+    } from ${JSON.stringify(
+      // This is an arbitrary resource query to ensure it's a new request, instead
+      // of sharing the same module with next-metadata-route-loader.
+      // Since here we only need export fields such as `size`, `alt` and
+      // `generateImageMetadata`, avoid sharing the same module can make this entry
+      // smaller.
+      resourcePath + '?' + WEBPACK_RESOURCE_QUERIES.metadataImageMeta
+    )}
+    import { fillMetadataSegment } from 'next/dist/lib/metadata/get-metadata-route'
 
-    const imageModule = { ...exported }
+    const imageModule = {
+      ${exportedFieldsExcludingDefault
+        .map((field) => `${field}: _${field}`)
+        .join(',')}
+    }
+
     export default async function (props) {
-      const pathname = ${JSON.stringify(route)}
-      const routeRegex = getNamedRouteRegex(pathname, false)
-      const segment = ${JSON.stringify(segment)}
       const { __metadata_id__: _, ...params } = props.params
-      const route = interpolateDynamicPath(pathname, params, routeRegex)
-      const suffix = getMetadataRouteSuffix(segment)
-      const routeSuffix = suffix ? \`-\${suffix}\` : ''
-      const imageRoute = ${JSON.stringify(pageRoute)} + routeSuffix
+      const imageUrl = fillMetadataSegment(${JSON.stringify(
+        pathnamePrefix
+      )}, params, ${JSON.stringify(pageSegment)})
 
       const { generateImageMetadata } = imageModule
 
-      function getImageMetadata(imageMetadata, segment) {
+      function getImageMetadata(imageMetadata, idParam) {
         const data = {
           alt: imageMetadata.alt,
           type: imageMetadata.contentType || 'image/png',
-          url: path.join(route, segment + ${JSON.stringify(hashQuery)}),
+          url: imageUrl + (idParam ? ('/' + idParam) : '') + ${JSON.stringify(
+            hashQuery
+          )},
         }
         const { size } = imageMetadata
         if (size) {
@@ -92,16 +135,16 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
       if (generateImageMetadata) {
         const imageMetadataArray = await generateImageMetadata({ params })
         return imageMetadataArray.map((imageMetadata, index) => {
-          const segment = path.join(imageRoute, (imageMetadata.id || index) + '')
-          return getImageMetadata(imageMetadata, segment)
+          const idParam = (imageMetadata.id || index) + ''
+          return getImageMetadata(imageMetadata, idParam)
         })
       } else {
-        return [getImageMetadata(imageModule, imageRoute)]
+        return [getImageMetadata(imageModule, '')]
       }
     }`
   }
 
-  const imageSize = await getImageSize(
+  const imageSize: { width?: number; height?: number } = await getImageSize(
     content,
     extension as 'avif' | 'webp' | 'png' | 'jpeg'
   ).catch((err) => err)
@@ -116,13 +159,18 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
     ...(extension in imageExtMimeTypeMap && {
       type: imageExtMimeTypeMap[extension as keyof typeof imageExtMimeTypeMap],
     }),
-    ...(numericSizes
-      ? { width: imageSize.width as number, height: imageSize.height as number }
+    ...(useNumericSizes && imageSize.width != null && imageSize.height != null
+      ? imageSize
       : {
           sizes:
-            extension === 'ico'
-              ? 'any'
-              : `${imageSize.width}x${imageSize.height}`,
+            // For SVGs, skip sizes and use "any" to let it scale automatically based on viewport,
+            // For the images doesn't provide the size properly, use "any" as well.
+            // If the size is presented, use the actual size for the image.
+            extension !== 'svg' &&
+            imageSize.width != null &&
+            imageSize.height != null
+              ? `${imageSize.width}x${imageSize.height}`
+              : 'any',
         }),
   }
   if (type === 'openGraph' || type === 'twitter') {
@@ -137,27 +185,17 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
   }
 
   return `\
-  import path from 'next/dist/shared/lib/isomorphic/path'
-  import { interpolateDynamicPath } from 'next/dist/server/server-utils'
-  import { getNamedRouteRegex } from 'next/dist/shared/lib/router/utils/route-regex'
-  import { getMetadataRouteSuffix } from 'next/dist/lib/metadata/get-metadata-route'
+  import { fillMetadataSegment } from 'next/dist/lib/metadata/get-metadata-route'
 
   export default (props) => {
-    const pathname = ${JSON.stringify(route)}
-    const routeRegex = getNamedRouteRegex(pathname, false)
-    const segment = ${JSON.stringify(segment)}
-    const route = interpolateDynamicPath(pathname, props.params, routeRegex)
-    const suffix = getMetadataRouteSuffix(segment)
-    const routeSuffix = suffix ? \`-\${suffix}\` : ''
-    const { name, ext } = path.parse(${JSON.stringify(pageRoute)})
-
-    const imageData = ${JSON.stringify(imageData)};
+    const imageData = ${JSON.stringify(imageData)}
+    const imageUrl = fillMetadataSegment(${JSON.stringify(
+      pathnamePrefix
+    )}, props.params, ${JSON.stringify(pageSegment)})
 
     return [{
       ...imageData,
-      url: path.join(route, name + routeSuffix + ext + ${JSON.stringify(
-        type === 'favicon' ? '' : hashQuery
-      )}),
+      url: imageUrl + ${JSON.stringify(type === 'favicon' ? '' : hashQuery)},
     }]
   }`
 }

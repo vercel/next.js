@@ -1,27 +1,24 @@
 /* eslint-env jest */
-import { sandbox } from './helpers'
-import { createNext } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
-import { check, getSnapshotTestDescribe } from 'next-test-utils'
+import { sandbox } from 'development-sandbox'
+import { FileRef, nextTestSetup } from 'e2e-utils'
+import { check, describeVariants as describe } from 'next-test-utils'
+import { outdent } from 'outdent'
+import path from 'path'
 
-for (const variant of ['default', 'turbo']) {
-  getSnapshotTestDescribe(variant)(`ReactRefreshLogBox ${variant}`, () => {
-    let next: NextInstance
-
-    beforeAll(async () => {
-      next = await createNext({
-        files: {},
-        skipStart: true,
-      })
+describe.each(['default', 'turbo', 'experimentalTurbo'])(
+  'ReactRefreshLogBox %s',
+  () => {
+    const { next } = nextTestSetup({
+      files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
+      skipStart: true,
     })
-    afterAll(() => next.destroy())
 
     test('logbox: can recover from a syntax error without losing state', async () => {
       const { session, cleanup } = await sandbox(next)
 
       await session.patch(
         'index.js',
-        `
+        outdent`
         import { useCallback, useState } from 'react'
 
         export default function Index() {
@@ -51,7 +48,7 @@ for (const variant of ['default', 'turbo']) {
 
       await session.patch(
         'index.js',
-        `
+        outdent`
         import { useCallback, useState } from 'react'
 
         export default function Index() {
@@ -82,7 +79,7 @@ for (const variant of ['default', 'turbo']) {
 
       await session.patch(
         'index.js',
-        `
+        outdent`
         import { useCallback, useState } from 'react'
 
         export default function Index() {
@@ -111,20 +108,20 @@ for (const variant of ['default', 'turbo']) {
 
       expect(await session.hasRedbox(true)).toBe(true)
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
-        "index.js (8:18) @ eval
+      "index.js (7:10) @ eval
 
-           6 | const increment = useCallback(() => {
-           7 |   setCount(c => c + 1)
-        >  8 |   throw new Error('oops')
-             |        ^
-           9 | }, [setCount])
-          10 | return (
-          11 |   <main>"
-      `)
+         5 | const increment = useCallback(() => {
+         6 |   setCount(c => c + 1)
+      >  7 |   throw new Error('oops')
+           |        ^
+         8 | }, [setCount])
+         9 | return (
+        10 |   <main>"
+    `)
 
       await session.patch(
         'index.js',
-        `
+        outdent`
         import { useCallback, useState } from 'react'
 
         export default function Index() {
@@ -160,7 +157,7 @@ for (const variant of ['default', 'turbo']) {
 
       await session.write(
         'child.js',
-        `
+        outdent`
         export default function Child() {
           return <p>Hello</p>;
         }
@@ -169,7 +166,7 @@ for (const variant of ['default', 'turbo']) {
 
       await session.patch(
         'index.js',
-        `
+        outdent`
         import Child from './child'
 
         export default function Index() {
@@ -188,7 +185,7 @@ for (const variant of ['default', 'turbo']) {
 
       await session.patch(
         'child.js',
-        `
+        outdent`
         // hello
         export default function Child() {
           throw new Error('oops')
@@ -203,7 +200,7 @@ for (const variant of ['default', 'turbo']) {
 
       const didNotReload = await session.patch(
         'child.js',
-        `
+        outdent`
         export default function Child() {
           return <p>Hello</p>;
         }
@@ -226,7 +223,7 @@ for (const variant of ['default', 'turbo']) {
       // Starting here:
       await session.patch(
         'index.js',
-        `
+        outdent`
         import * as React from 'react';
         class ClassDefault extends React.Component {
           render() {
@@ -245,7 +242,7 @@ for (const variant of ['default', 'turbo']) {
       // Break it with a syntax error:
       await session.patch(
         'index.js',
-        `
+        outdent`
         import * as React from 'react';
 
         class ClassDefault extends React.Component {
@@ -262,7 +259,7 @@ for (const variant of ['default', 'turbo']) {
       // Now change the code to introduce a runtime error without fixing the syntax error:
       await session.patch(
         'index.js',
-        `
+        outdent`
         import * as React from 'react';
 
         class ClassDefault extends React.Component {
@@ -280,7 +277,7 @@ for (const variant of ['default', 'turbo']) {
       // Now fix the syntax error:
       await session.patch(
         'index.js',
-        `
+        outdent`
         import * as React from 'react';
 
         class ClassDefault extends React.Component {
@@ -314,7 +311,7 @@ for (const variant of ['default', 'turbo']) {
       // We start here.
       await session.patch(
         'index.js',
-        `
+        outdent`
         import * as React from 'react';
 
         function FunctionDefault() {
@@ -328,7 +325,7 @@ for (const variant of ['default', 'turbo']) {
       // We add a new file. Let's call it Foo.js.
       await session.write(
         'Foo.js',
-        `
+        outdent`
         // intentionally skips export
         export default function Foo() {
           return React.createElement('h1', null, 'Foo');
@@ -339,7 +336,7 @@ for (const variant of ['default', 'turbo']) {
       // We edit our first file to use it.
       await session.patch(
         'index.js',
-        `
+        outdent`
         import * as React from 'react';
         import Foo from './Foo';
         function FunctionDefault() {
@@ -358,7 +355,7 @@ for (const variant of ['default', 'turbo']) {
       // Let's add that to Foo.
       await session.patch(
         'Foo.js',
-        `
+        outdent`
         import * as React from 'react';
         export default function Foo() {
           return React.createElement('h1', null, 'Foo');
@@ -379,7 +376,7 @@ for (const variant of ['default', 'turbo']) {
       // Start here.
       await session.patch(
         'index.js',
-        `
+        outdent`
         import * as React from 'react';
 
         export default function FunctionNamed() {
@@ -390,7 +387,7 @@ for (const variant of ['default', 'turbo']) {
       // TODO: this acts weird without above step
       await session.patch(
         'index.js',
-        `
+        outdent`
         import * as React from 'react';
         let i = 0
         setInterval(() => {
@@ -414,7 +411,7 @@ for (const variant of ['default', 'turbo']) {
       // Make a syntax error.
       await session.patch(
         'index.js',
-        `
+        outdent`
         import * as React from 'react';
         let i = 0
         setInterval(() => {
@@ -426,14 +423,58 @@ for (const variant of ['default', 'turbo']) {
 
       await new Promise((resolve) => setTimeout(resolve, 1000))
       expect(await session.hasRedbox(true)).toBe(true)
-      expect(await session.getRedboxSource()).toMatchSnapshot()
+      expect(
+        next.normalizeTestDirContent(await session.getRedboxSource())
+      ).toMatchInlineSnapshot(
+        next.normalizeSnapshot(`
+        "./index.js
+        Error: 
+          x Expected '}', got '<eof>'
+           ,-[TEST_DIR/index.js:4:1]
+         4 |   i++
+         5 |   throw Error('no ' + i)
+         6 | }, 1000)
+         7 | export default function FunctionNamed() {
+           :                                         ^
+           \`----
+
+        Caused by:
+            Syntax Error
+
+        Import trace for requested module:
+        ./index.js
+        ./pages/index.js"
+      `)
+      )
 
       // Test that runtime error does not take over:
       await new Promise((resolve) => setTimeout(resolve, 2000))
       expect(await session.hasRedbox(true)).toBe(true)
-      expect(await session.getRedboxSource()).toMatchSnapshot()
+      expect(
+        next.normalizeTestDirContent(await session.getRedboxSource())
+      ).toMatchInlineSnapshot(
+        next.normalizeSnapshot(`
+        "./index.js
+        Error: 
+          x Expected '}', got '<eof>'
+           ,-[TEST_DIR/index.js:4:1]
+         4 |   i++
+         5 |   throw Error('no ' + i)
+         6 | }, 1000)
+         7 | export default function FunctionNamed() {
+           :                                         ^
+           \`----
+
+        Caused by:
+            Syntax Error
+
+        Import trace for requested module:
+        ./index.js
+        ./pages/index.js"
+      `)
+      )
 
       await cleanup()
     })
-  })
-}
+  }
+)

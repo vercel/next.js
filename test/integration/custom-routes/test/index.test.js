@@ -39,6 +39,44 @@ let appPort
 let app
 
 const runTests = (isDev = false, isTurbo = false) => {
+  it.each([
+    {
+      path: '/to-ANOTHER',
+      content: /could not be found/,
+      status: 404,
+    },
+    {
+      path: '/HELLO-world',
+      content: /could not be found/,
+      status: 404,
+    },
+    {
+      path: '/docs/GITHUB',
+      content: /could not be found/,
+      status: 404,
+    },
+    {
+      path: '/add-HEADER',
+      content: /could not be found/,
+      status: 404,
+    },
+  ])(
+    'should honor caseSensitiveRoutes config for $path',
+    async ({ path, status, content }) => {
+      const res = await fetchViaHTTP(appPort, path, undefined, {
+        redirect: 'manual',
+      })
+
+      if (status) {
+        expect(res.status).toBe(status)
+      }
+
+      if (content) {
+        expect(await res.text()).toMatch(content)
+      }
+    }
+  )
+
   it('should successfully rewrite a WebSocket request', async () => {
     // TODO: remove once test failure has been fixed
     if (isTurbo) return
@@ -63,6 +101,33 @@ const runTests = (isDev = false, isTurbo = false) => {
     )
     ws.close()
     expect([...externalServerHits]).toEqual(['/_next/webpack-hmr?page=/about'])
+  })
+
+  it('should successfully rewrite a WebSocket request to a page', async () => {
+    // TODO: remove once test failure has been fixed
+    if (isTurbo) return
+
+    const messages = []
+    try {
+      const ws = await new Promise((resolve, reject) => {
+        let socket = new WebSocket(
+          `ws://localhost:${appPort}/websocket-to-page`
+        )
+        socket.on('message', (data) => {
+          messages.push(data.toString())
+        })
+        socket.on('open', () => resolve(socket))
+        socket.on('error', (err) => {
+          console.error(err)
+          socket.close()
+          reject()
+        })
+      })
+      ws.close()
+    } catch (err) {
+      messages.push(err)
+    }
+    expect(stderr).not.toContain('unhandledRejection')
   })
 
   it('should not rewrite for _next/data route when a match is found', async () => {
@@ -1534,6 +1599,7 @@ const runTests = (isDev = false, isTurbo = false) => {
       expect(manifest).toEqual({
         version: 3,
         pages404: true,
+        caseSensitive: true,
         basePath: '',
         dataRoutes: [
           {
@@ -2172,6 +2238,11 @@ const runTests = (isDev = false, isTurbo = false) => {
               source: '/to-websocket',
             },
             {
+              destination: '/hello',
+              regex: normalizeRegEx('^\\/websocket-to-page(?:\\/)?$'),
+              source: '/websocket-to-page',
+            },
+            {
               destination: 'http://localhost:12233',
               regex: normalizeRegEx('^\\/to-nowhere(?:\\/)?$'),
               source: '/to-nowhere',
@@ -2587,7 +2658,8 @@ const runTests = (isDev = false, isTurbo = false) => {
         rsc: {
           header: 'RSC',
           contentTypeHeader: 'text/x-component',
-          varyHeader: 'RSC, Next-Router-State-Tree, Next-Router-Prefetch',
+          varyHeader:
+            'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Url',
         },
       })
     })
@@ -2691,38 +2763,6 @@ describe('Custom routes', () => {
       await killApp(app)
     })
     runTests(true)
-  })
-
-  // enable once https://github.com/vercel/turbo/pull/3894 is landed
-  describe.skip('dev mode (turbo)', () => {
-    let nextConfigContent
-
-    beforeAll(async () => {
-      // ensure cache with rewrites disabled doesn't persist
-      // after enabling rewrites
-      await fs.remove(join(appDir, '.next'))
-      nextConfigContent = await fs.readFile(nextConfigPath, 'utf8')
-      await fs.writeFile(
-        nextConfigPath,
-        nextConfigContent.replace('// no-rewrites comment', 'return []')
-      )
-
-      const tempPort = await findPort()
-      const tempApp = await launchApp(appDir, tempPort, { turbo: true })
-      await renderViaHTTP(tempPort, '/')
-
-      await killApp(tempApp)
-      await fs.writeFile(nextConfigPath, nextConfigContent)
-
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort, { turbo: true })
-      buildId = 'development'
-    })
-    afterAll(async () => {
-      await fs.writeFile(nextConfigPath, nextConfigContent)
-      await killApp(app)
-    })
-    runTests(true, true)
   })
 
   describe('no-op rewrite', () => {

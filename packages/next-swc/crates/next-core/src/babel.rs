@@ -1,21 +1,19 @@
 use anyhow::Result;
-use turbo_binding::{
-    turbo::tasks_fs::{FileSystemEntryType, FileSystemPathVc},
+use turbo_tasks::{Value, Vc};
+use turbopack_binding::{
+    turbo::tasks_fs::{FileSystemEntryType, FileSystemPath},
     turbopack::{
         core::{
-            issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc},
-            resolve::{parse::RequestVc, pattern::Pattern, resolve},
+            issue::{Issue, IssueExt, IssueSeverity},
+            resolve::{parse::Request, pattern::Pattern, resolve},
         },
-        node::transforms::webpack::{WebpackLoaderConfigItem, WebpackLoaderConfigItemsVc},
+        node::transforms::webpack::WebpackLoaderItem,
         turbopack::{
-            module_options::WebpackLoadersOptionsVc, resolve_options,
+            module_options::{LoaderRuleItem, OptionWebpackRules, WebpackRules},
+            resolve_options,
             resolve_options_context::ResolveOptionsContext,
         },
     },
-};
-use turbo_tasks::{
-    primitives::{BoolVc, StringVc},
-    Value,
 };
 
 const BABEL_CONFIG_FILES: &[&str] = &[
@@ -35,13 +33,13 @@ const BABEL_CONFIG_FILES: &[&str] = &[
 /// webpack loader for each eligible file type if it doesn't already exist.
 #[turbo_tasks::function]
 pub async fn maybe_add_babel_loader(
-    project_root: FileSystemPathVc,
-    webpack_options: WebpackLoadersOptionsVc,
-) -> Result<WebpackLoadersOptionsVc> {
+    project_root: Vc<FileSystemPath>,
+    webpack_rules: Option<Vc<WebpackRules>>,
+) -> Result<Vc<OptionWebpackRules>> {
     let has_babel_config = {
         let mut has_babel_config = false;
         for filename in BABEL_CONFIG_FILES {
-            let filetype = *project_root.join(filename).get_type().await?;
+            let filetype = *project_root.join(filename.to_string()).get_type().await?;
             if matches!(filetype, FileSystemEntryType::File) {
                 has_babel_config = true;
                 break;
@@ -51,30 +49,22 @@ pub async fn maybe_add_babel_loader(
     };
 
     if has_babel_config {
-        let mut options = (*webpack_options.await?).clone();
+        let mut rules = if let Some(webpack_rules) = webpack_rules {
+            webpack_rules.await?.clone_value()
+        } else {
+            Default::default()
+        };
         let mut has_emitted_babel_resolve_issue = false;
-        for ext in [".js", ".jsx", ".ts", ".tsx", ".cjs", ".mjs"] {
-            let configs = options.extension_to_loaders.get(ext);
-            let has_babel_loader = match configs {
-                None => false,
-                Some(configs) => {
-                    let mut has_babel_loader = false;
-                    for config in &*configs.await? {
-                        let name = match config {
-                            WebpackLoaderConfigItem::LoaderName(name) => name,
-                            WebpackLoaderConfigItem::LoaderNameWithOptions {
-                                loader: name,
-                                options: _,
-                            } => name,
-                        };
-
-                        if name == "babel-loader" {
-                            has_babel_loader = true;
-                            break;
-                        }
-                    }
-                    has_babel_loader
-                }
+        let mut has_changed = false;
+        for pattern in ["*.js", "*.jsx", "*.ts", "*.tsx", "*.cjs", "*.mjs"] {
+            let rule = rules.get_mut(pattern);
+            let has_babel_loader = if let Some(rule) = rule.as_ref() {
+                rule.loaders
+                    .await?
+                    .iter()
+                    .any(|c| c.loader == "babel-loader")
+            } else {
+                false
             };
 
             if !has_babel_loader {
@@ -83,48 +73,55 @@ pub async fn maybe_add_babel_loader(
                 {
                     BabelIssue {
                         path: project_root,
-                        title: StringVc::cell(
+                        title: Vc::cell(
                             "Unable to resolve babel-loader, but a babel config is present"
                                 .to_owned(),
                         ),
-                        description: StringVc::cell(
+                        description: Vc::cell(
                             "Make sure babel-loader is installed via your package manager."
                                 .to_owned(),
                         ),
                         severity: IssueSeverity::Fatal.cell(),
                     }
                     .cell()
-                    .as_issue()
                     .emit();
 
                     has_emitted_babel_resolve_issue = true;
                 }
 
-                let loader = WebpackLoaderConfigItem::LoaderName("babel-loader".to_owned());
-                options.extension_to_loaders.insert(
-                    ext.to_owned(),
-                    if options.extension_to_loaders.contains_key(ext) {
-                        let mut new_configs = (*(options.extension_to_loaders[ext].await?)).clone();
-                        new_configs.push(loader);
-                        WebpackLoaderConfigItemsVc::cell(new_configs)
-                    } else {
-                        WebpackLoaderConfigItemsVc::cell(vec![loader])
-                    },
-                );
+                let loader = WebpackLoaderItem {
+                    loader: "babel-loader".to_string(),
+                    options: Default::default(),
+                };
+                if let Some(rule) = rule {
+                    let mut loaders = rule.loaders.await?.clone_value();
+                    loaders.push(loader);
+                    rule.loaders = Vc::cell(loaders);
+                } else {
+                    rules.insert(
+                        pattern.to_string(),
+                        LoaderRuleItem {
+                            loaders: Vc::cell(vec![loader]),
+                            rename_as: Some("*".to_string()),
+                        },
+                    );
+                }
+                has_changed = true;
             }
         }
 
-        Ok(options.cell())
-    } else {
-        Ok(webpack_options)
+        if has_changed {
+            return Ok(Vc::cell(Some(Vc::cell(rules))));
+        }
     }
+    Ok(Vc::cell(webpack_rules))
 }
 
 #[turbo_tasks::function]
-pub async fn is_babel_loader_available(project_path: FileSystemPathVc) -> Result<BoolVc> {
+pub async fn is_babel_loader_available(project_path: Vc<FileSystemPath>) -> Result<Vc<bool>> {
     let result = resolve(
         project_path,
-        RequestVc::parse(Value::new(Pattern::Constant(
+        Request::parse(Value::new(Pattern::Constant(
             "babel-loader/package.json".to_string(),
         ))),
         resolve_options(
@@ -138,42 +135,42 @@ pub async fn is_babel_loader_available(project_path: FileSystemPathVc) -> Result
             .cell(),
         ),
     );
-    let assets = result.primary_assets().await?;
-    Ok(BoolVc::cell(!assets.is_empty()))
+    let assets = result.primary_sources().await?;
+    Ok(Vc::cell(!assets.is_empty()))
 }
 
 #[turbo_tasks::value]
 struct BabelIssue {
-    path: FileSystemPathVc,
-    title: StringVc,
-    description: StringVc,
-    severity: IssueSeverityVc,
+    path: Vc<FileSystemPath>,
+    title: Vc<String>,
+    description: Vc<String>,
+    severity: Vc<IssueSeverity>,
 }
 
 #[turbo_tasks::value_impl]
 impl Issue for BabelIssue {
     #[turbo_tasks::function]
-    fn category(&self) -> StringVc {
-        StringVc::cell("other".to_string())
+    fn category(&self) -> Vc<String> {
+        Vc::cell("other".to_string())
     }
 
     #[turbo_tasks::function]
-    fn severity(&self) -> IssueSeverityVc {
+    fn severity(&self) -> Vc<IssueSeverity> {
         self.severity
     }
 
     #[turbo_tasks::function]
-    fn context(&self) -> FileSystemPathVc {
+    fn file_path(&self) -> Vc<FileSystemPath> {
         self.path
     }
 
     #[turbo_tasks::function]
-    fn title(&self) -> StringVc {
+    fn title(&self) -> Vc<String> {
         self.title
     }
 
     #[turbo_tasks::function]
-    fn description(&self) -> StringVc {
+    fn description(&self) -> Vc<String> {
         self.description
     }
 }

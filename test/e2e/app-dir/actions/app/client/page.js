@@ -2,17 +2,18 @@
 
 import { useState } from 'react'
 
-import double, { inc, dec } from './actions'
+import double, { inc, dec, redirectAction, getHeaders } from './actions'
+import { test } from './actions-lib'
 
 export default function Counter() {
   const [count, setCount] = useState(0)
-
   return (
     <div>
       <h1>{count}</h1>
       <button
         id="inc"
         onClick={async () => {
+          console.log(inc)
           const newCount = await inc(count)
           setCount(newCount)
         }}
@@ -37,6 +38,34 @@ export default function Counter() {
       >
         *2
       </button>
+      <form>
+        <button
+          id="redirect"
+          formAction={() => redirectAction('/redirect-target')}
+        >
+          redirect
+        </button>
+      </form>
+      <form>
+        <button
+          id="redirect-external"
+          formAction={() =>
+            redirectAction(
+              'https://next-data-api-endpoint.vercel.app/api/random?page'
+            )
+          }
+        >
+          redirect external
+        </button>
+      </form>
+      <form action={getHeaders}>
+        <button type="submit" id="get-header">
+          submit
+        </button>
+      </form>
+      <form action={test}>
+        <button>test</button>
+      </form>
     </div>
   )
 }

@@ -1,4 +1,4 @@
-use turbo_binding::swc::core::{
+use turbopack_binding::swc::core::{
     common::errors::HANDLER,
     ecma::{
         ast::ExportAll,

@@ -1,9 +1,18 @@
 module.exports = {
   experimental: {
     turbo: {
-      loaders: {
-        ".raw": ["raw-loader"],
+      rules: {
+        '*.raw.*': {
+          loaders: ['raw-loader'],
+          as: '*',
+        },
+        '*.raw': ['raw-loader'],
+        '*.jraw': {
+          loaders: ['raw-as-json-loader'],
+          as: '*.json',
+        },
+        './raw/**': ['raw-loader'],
       },
     },
   },
-};
+}

@@ -1,29 +1,20 @@
 #!/usr/bin/env node
 import chalk from 'next/dist/compiled/chalk'
 import arg from 'next/dist/compiled/arg/index.js'
-import { printAndExit } from '../server/lib/utils'
 import { CliCommand } from '../lib/commands'
 import { Telemetry } from '../telemetry/storage'
-import isError from '../lib/is-error'
+import { getValidatedArgs } from '../lib/get-validated-args'
 
 const nextTelemetry: CliCommand = (argv) => {
   const validArgs: arg.Spec = {
     // Types
-    '--help': Boolean,
     '--enable': Boolean,
     '--disable': Boolean,
+    '--help': Boolean,
     // Aliases
     '-h': '--help',
   }
-  let args: arg.Result<arg.Spec>
-  try {
-    args = arg(validArgs, { argv })
-  } catch (error) {
-    if (isError(error) && error.code === 'ARG_UNKNOWN_OPTION') {
-      return printAndExit(error.message, 1)
-    }
-    throw error
-  }
+  const args = getValidatedArgs(validArgs, argv)
 
   if (args['--help']) {
     console.log(
@@ -35,6 +26,11 @@ const nextTelemetry: CliCommand = (argv) => {
         $ next telemetry [enable/disable]
 
       You may pass the 'enable' or 'disable' argument to turn Next.js' telemetry collection on or off.
+
+      Options
+       --enable    Enables Next.js' telemetry collection
+       --disable   Disables Next.js' telemetry collection
+       --help, -h  Displays this message
 
       Learn more: ${chalk.cyan('https://nextjs.org/telemetry')}
     `

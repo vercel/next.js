@@ -7,6 +7,10 @@ const helloHandler = async (
 ): Promise<Response> => {
   const { pathname } = request.nextUrl
 
+  if (typeof WebSocket === 'undefined') {
+    throw new Error('missing WebSocket constructor!!')
+  }
+
   return new Response('hello, world', {
     headers: withRequestMeta({
       method: request.method,

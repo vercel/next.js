@@ -1,11 +1,9 @@
-import { createContext } from "react";
-
+import { createContext } from 'react';
 export const context = createContext();
-
 export function getStaticProps() {
-  return {
-    props: {},
-  };
+    return {
+        props: {}
+    };
 }
 const a = 5;
 export { a };

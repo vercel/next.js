@@ -1,0 +1,34 @@
+{
+  "name": "@next/third-parties",
+  "version": "13.4.14-canary.1",
+  "private": true,
+  "repository": {
+    "url": "vercel/next.js",
+    "directory": "packages/third-parties"
+  },
+  "exports": {
+    "./google": "./dist/google/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "license": "MIT",
+  "scripts": {
+    "build": "rm -rf dist && tsc -d -p tsconfig.json",
+    "prepublishOnly": "cd ../../ && turbo run build",
+    "updateThirdParties": "rm -rf src/**/index.tsx && node scripts/update-third-parties",
+    "dev": "tsc -d -w -p tsconfig.json",
+    "typescript": "tsec --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "third-party-capital": "1.0.17"
+  },
+  "devDependencies": {
+    "outdent": "0.8.0",
+    "prettier": "2.5.1"
+  },
+  "peerDependencies": {
+    "next": "^13.0.0",
+    "react": "^18.2.0"
+  }
+}

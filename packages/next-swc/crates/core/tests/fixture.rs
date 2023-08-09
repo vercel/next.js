@@ -2,20 +2,23 @@ use std::{env::current_dir, path::PathBuf};
 
 use next_swc::{
     amp_attributes::amp_attributes,
+    cjs_optimizer::cjs_optimizer,
     next_dynamic::next_dynamic,
     next_ssg::next_ssg,
     page_config::page_config_test,
     react_remove_properties::remove_properties,
     react_server_components::server_components,
     remove_console::remove_console,
-    server_actions::{self, server_actions},
+    server_actions::{
+        server_actions, {self},
+    },
     shake_exports::{shake_exports, Config as ShakeExportsConfig},
 };
 use next_transform_font::{next_font_loaders, Config as FontLoaderConfig};
-use swc_relay::{relay, RelayLanguageConfig};
-use turbo_binding::swc::{
+use serde::de::DeserializeOwned;
+use turbopack_binding::swc::{
     core::{
-        common::{chain, comments::SingleThreadedComments, FileName, Mark},
+        common::{chain, comments::SingleThreadedComments, FileName, Mark, SyntaxContext},
         ecma::{
             parser::{EsConfig, Syntax},
             transforms::{
@@ -25,6 +28,7 @@ use turbo_binding::swc::{
             },
         },
     },
+    custom_transform::relay::{relay, RelayLanguageConfig},
     testing::fixture,
 };
 
@@ -106,10 +110,11 @@ fn next_ssg_fixture(input: PathBuf) {
         syntax(),
         &|tr| {
             let top_level_mark = Mark::fresh(Mark::root());
+            let unresolved_mark = Mark::fresh(Mark::root());
             let jsx = jsx::<SingleThreadedComments>(
                 tr.cm.clone(),
                 None,
-                turbo_binding::swc::core::ecma::transforms::react::Options {
+                turbopack_binding::swc::core::ecma::transforms::react::Options {
                     next: false.into(),
                     runtime: None,
                     import_source: Some("".into()),
@@ -121,8 +126,13 @@ fn next_ssg_fixture(input: PathBuf) {
                     ..Default::default()
                 },
                 top_level_mark,
+                unresolved_mark,
             );
-            chain!(next_ssg(Default::default()), jsx)
+            chain!(
+                resolver(unresolved_mark, top_level_mark, true),
+                next_ssg(Default::default()),
+                jsx
+            )
         },
         &input,
         &output,
@@ -145,7 +155,7 @@ fn page_config_fixture(input: PathBuf) {
 #[fixture("tests/fixture/relay/**/input.ts*")]
 fn relay_no_artifact_dir_fixture(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");
-    let config = swc_relay::Config {
+    let config = turbopack_binding::swc::custom_transform::relay::Config {
         language: RelayLanguageConfig::TypeScript,
         artifact_directory: Some(PathBuf::from("__generated__")),
         ..Default::default()
@@ -158,6 +168,7 @@ fn relay_no_artifact_dir_fixture(input: PathBuf) {
                 FileName::Real(PathBuf::from("input.tsx")),
                 current_dir().unwrap(),
                 Some(PathBuf::from("src/pages")),
+                None,
             )
         },
         &input,
@@ -316,7 +327,10 @@ fn server_actions_server_fixture(input: PathBuf) {
                 resolver(Mark::new(), Mark::new(), false),
                 server_actions(
                     &FileName::Real("/app/item.js".into()),
-                    server_actions::Config { is_server: true },
+                    server_actions::Config {
+                        is_server: true,
+                        enabled: true
+                    },
                     _tr.comments.as_ref().clone(),
                 )
             )
@@ -337,7 +351,10 @@ fn server_actions_client_fixture(input: PathBuf) {
                 resolver(Mark::new(), Mark::new(), false),
                 server_actions(
                     &FileName::Real("/app/item.js".into()),
-                    server_actions::Config { is_server: false },
+                    server_actions::Config {
+                        is_server: false,
+                        enabled: true
+                    },
                     _tr.comments.as_ref().clone(),
                 )
             )
@@ -346,4 +363,48 @@ fn server_actions_client_fixture(input: PathBuf) {
         &output,
         Default::default(),
     );
+}
+
+#[fixture("tests/fixture/cjs-optimize/**/input.js")]
+fn cjs_optimize_fixture(input: PathBuf) {
+    let output = input.parent().unwrap().join("output.js");
+    test_fixture(
+        syntax(),
+        &|_tr| {
+            let unresolved_mark = Mark::new();
+            let top_level_mark = Mark::new();
+
+            let unresolved_ctxt = SyntaxContext::empty().apply_mark(unresolved_mark);
+
+            chain!(
+                resolver(unresolved_mark, top_level_mark, false),
+                cjs_optimizer(
+                    json(
+                        r#"
+                        {
+                            "packages": {
+                                "next/server": {
+                                    "transforms": {
+                                        "Response": "next/server/response"
+                                    }
+                                }
+                            }
+                        }
+                        "#
+                    ),
+                    unresolved_ctxt
+                )
+            )
+        },
+        &input,
+        &output,
+        Default::default(),
+    );
+}
+
+fn json<T>(s: &str) -> T
+where
+    T: DeserializeOwned,
+{
+    serde_json::from_str(s).expect("failed to deserialize")
 }

@@ -571,6 +571,7 @@ type SitemapFile = Array<{
 
 type ResolvingMetadata = Promise<ResolvedMetadata>
 declare namespace MetadataRoute {
+  // eslint-disable-next-line @typescript-eslint/no-shadow
   export type Robots = RobotsFile
   export type Sitemap = SitemapFile
   export type Manifest = ManifestFile
