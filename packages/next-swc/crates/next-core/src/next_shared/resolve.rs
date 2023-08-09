@@ -137,8 +137,15 @@ impl ResolvePlugin for NextExternalResolvePlugin {
     ) -> Result<Vc<ResolveResultOption>> {
         let raw_fs_path = &*fs_path.await?;
         let path = raw_fs_path.path.to_string();
+        // Find the starting index of 'next/dist' and slice from that point. It should
+        // always be found since the glob pattern above is specific enough.
+        let starting_index = path.find("next/dist").unwrap();
+        let modified_path = &path[starting_index..];
         Ok(Vc::cell(Some(
-            ResolveResult::primary(ResolveResultItem::OriginalReferenceTypeExternal(path)).into(),
+            ResolveResult::primary(ResolveResultItem::OriginalReferenceTypeExternal(
+                modified_path.to_string(),
+            ))
+            .into(),
         )))
     }
 }
