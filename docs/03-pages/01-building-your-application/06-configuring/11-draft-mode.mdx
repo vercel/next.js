@@ -156,7 +156,9 @@ Then, send a request to `/api/disable-draft` to invoke the API Route. If calling
 
 ### Works with `getServerSideProps`
 
-Draft Mode works with `getServerSideProps` as well. It will also be available on the `context` object containing `draftMode`
+Draft Mode works with `getServerSideProps` as well. It will also be available on the `context` object containing `draftMode`.
+
+> **Good to know**: Avoid setting the `Cache-Control` header because it cannot be bypassed. Instead, use [ISR](/docs/pages/building-your-application/data-fetching/incremental-static-regeneration).
 
 ### Works with API Routes
 

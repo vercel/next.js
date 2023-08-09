@@ -219,6 +219,8 @@ You can pass an object to `setPreviewData` and have it be available in `getStati
 
 The preview mode works on `getServerSideProps` as well. It will also be available on the `context` object containing `preview` and `previewData`.
 
+> **Good to know**: Avoid setting the `Cache-Control` header because it cannot be bypassed. Instead, use [ISR](/docs/pages/building-your-application/data-fetching/incremental-static-regeneration).
+
 ### Works with API Routes
 
 API Routes will have access to `preview` and `previewData` under the request object. For example:
