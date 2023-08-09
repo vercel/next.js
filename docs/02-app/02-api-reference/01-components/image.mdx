@@ -781,7 +781,7 @@ const ThemeImage = (props) => {
 }
 ```
 
-> **Good to know**: The default behavior of `loading="lazy"` ensures that only the correct image is loaded. You cannot use `priority` or `loading="eager"` because that would cause both images to load.
+> **Good to know**: The default behavior of `loading="lazy"` ensures that only the correct image is loaded. You cannot use `priority` or `loading="eager"` because that would cause both images to load. Instead, you can use [`fetchPriority="high"`](https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement/fetchPriority).
 
 - [Demo light/dark mode theme detection](https://image-component.nextjs.gallery/theme)
 
