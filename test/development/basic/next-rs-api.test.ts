@@ -400,6 +400,7 @@ describe('next.rs api', () => {
     expectedServerSideChange,
   } of hmrCases) {
     for (let i = 0; i < 3; i++)
+      // eslint-disable-next-line no-loop-func
       it(`should have working HMR on ${name} ${i}`, async () => {
         console.log('start')
         await new Promise((r) => setTimeout(r, 1000))
