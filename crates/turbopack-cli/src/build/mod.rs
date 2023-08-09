@@ -119,7 +119,7 @@ impl TurbopackBuildBuilder {
                 )
                 .cell(),
                 self.browserslist_query,
-                self.minify_type.cell(),
+                self.minify_type,
             );
 
             // Await the result to propagate any errors.
@@ -158,7 +158,7 @@ async fn build_internal(
     root_dir: String,
     entry_requests: Vc<EntryRequests>,
     browserslist_query: String,
-    minify_type: Vc<MinifyType>,
+    minify_type: MinifyType,
 ) -> Result<Vc<()>> {
     let env = Environment::new(Value::new(ExecutionEnvironment::Browser(
         BrowserEnvironment {

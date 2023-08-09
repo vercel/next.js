@@ -1,6 +1,6 @@
 use std::{io::Write, sync::Arc};
 
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use swc_core::{
     base::{try_with_handler, Compiler},
     common::{
@@ -62,9 +62,16 @@ async fn perform_minify(path: Vc<FileSystemPath>, code_vc: Vc<Code>) -> Result<V
         None,
     );
     let mut parser = Parser::new_from(lexer);
+    // TODO should use our own handler that emits issues instead.
     let program = try_with_handler(cm.clone(), Default::default(), |handler| {
         GLOBALS.set(&Default::default(), || {
-            let program = parser.parse_program().unwrap();
+            let program = match parser.parse_program() {
+                Ok(program) => program,
+                Err(_error) => {
+                    // TODO should emit an issue
+                    bail!("failed to parse source code")
+                }
+            };
             let comments = SingleThreadedComments::default();
             let unresolved_mark = Mark::new();
             let top_level_mark = Mark::new();

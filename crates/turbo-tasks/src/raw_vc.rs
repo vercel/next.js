@@ -102,6 +102,14 @@ impl RawVc {
         ReadRawVcFuture::new_untracked(self)
     }
 
+    /// INVALIDATION: Be careful with this, it will not track dependencies, so
+    /// using it could break cache invalidation.
+    pub(crate) fn into_strongly_consistent_trait_read_untracked<T: VcValueTrait + ?Sized>(
+        self,
+    ) -> ReadRawVcFuture<T, VcValueTraitCast<T>> {
+        ReadRawVcFuture::new_strongly_consistent_untracked(self)
+    }
+
     pub(crate) async fn resolve_trait(
         self,
         trait_type: TraitTypeId,
@@ -320,6 +328,19 @@ impl<T: ?Sized, Cast: VcCast> ReadRawVcFuture<T, Cast> {
             strongly_consistent: true,
             current: vc,
             untracked: false,
+            listener: None,
+            phantom_data: PhantomData,
+            _cast: PhantomData,
+        }
+    }
+
+    fn new_strongly_consistent_untracked(vc: RawVc) -> Self {
+        let tt = turbo_tasks();
+        ReadRawVcFuture {
+            turbo_tasks: tt,
+            strongly_consistent: true,
+            current: vc,
+            untracked: true,
             listener: None,
             phantom_data: PhantomData,
             _cast: PhantomData,
