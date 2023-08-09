@@ -62,11 +62,11 @@ export function resolveSitemap(data: MetadataRoute.Sitemap): string {
     }
 
     if (item.changeFrequency) {
-      content += `<changefreq>${item.changeFrequency}</changefreq>`
+      content += `<changefreq>${item.changeFrequency}</changefreq>\n`
     }
 
     if (typeof item.priority === 'number') {
-      content += `<priority>${item.priority}</priority>`
+      content += `<priority>${item.priority}</priority>\n`
     }
 
     content += '</url>\n'
