@@ -1572,7 +1572,7 @@ export default async function build(
                           isSsg = false
 
                           Log.warnOnce(
-                            `using edge runtime on a page causes static generation to be disabled for that page currently`
+                            `Using edge runtime on a page currently disables static generation for that page`
                           )
                         } else {
                           // If a page has action and it is static, we need to
@@ -1603,7 +1603,7 @@ export default async function build(
                           if (appConfig.revalidate !== 0) {
                             if (hasAction) {
                               Log.warnOnce(
-                                `using server actions on a page causes static generation to be disabled for that page currently`
+                                `Using server actions on a page currently disables static generation for that page`
                               )
                             } else {
                               const isDynamic = isDynamicRoute(page)

@@ -23,7 +23,7 @@ createNextDescribe(
     if (isNextStart) {
       it('should warn for server actions + ISR incompat', async () => {
         expect(next.cliOutput).toContain(
-          'using server actions on a page causes static generation to be disabled for that page currently'
+          'Using server actions on a page currently disables static generation for that page'
         )
       })
     }
