@@ -22,9 +22,20 @@ export const WORKER_SELF_EXIT_CODE = 77
 const MAXIMUM_HEAP_SIZE_ALLOWED =
   (v8.getHeapStatistics().heap_size_limit / 1024 / 1024) * 0.9
 
+export type WorkerRequestHandler = (
+  req: IncomingMessage,
+  res: ServerResponse
+) => Promise<any>
+
+export type WorkerUpgradeHandler = (
+  req: IncomingMessage,
+  socket: Duplex,
+  head: Buffer
+) => any
+
 export async function initializeServerWorker(
-  requestHandler: (req: IncomingMessage, res: ServerResponse) => Promise<any>,
-  upgradeHandler: (req: IncomingMessage, socket: Duplex, head: Buffer) => any,
+  requestHandler: WorkerRequestHandler,
+  upgradeHandler: WorkerUpgradeHandler,
   opts: {
     dir: string
     port: number
