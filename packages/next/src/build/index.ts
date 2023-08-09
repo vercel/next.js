@@ -275,7 +275,7 @@ export default async function build(
   appDirOnly = false,
   turboNextBuild = false,
   turboNextBuildRoot = null,
-  buildMode: 'default' | 'experimental-compile' | 'experimental-generate'
+  buildMode: 'default' | 'experimental-compile' | 'experimental-generate' = 'default'
 ): Promise<void> {
   const isCompile = buildMode === 'experimental-compile'
   const isGenerate = buildMode === 'experimental-generate'
