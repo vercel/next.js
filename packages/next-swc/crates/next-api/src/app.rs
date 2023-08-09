@@ -463,6 +463,11 @@ impl AppEndpoint {
     }
 
     #[turbo_tasks::function]
+    fn output_assets(self: Vc<Self>) -> Vc<OutputAssets> {
+        self.output().output_assets()
+    }
+
+    #[turbo_tasks::function]
     async fn output(self: Vc<Self>) -> Result<Vc<AppEndpointOutput>> {
         let this = self.await?;
 
@@ -813,7 +818,9 @@ impl Endpoint for AppEndpoint {
     #[turbo_tasks::function]
     async fn write_to_disk(self: Vc<Self>) -> Result<Vc<WrittenEndpoint>> {
         let output = self.output();
-        let output_assets = output.output_assets();
+        // Must use self.output_assets() instead of output.output_assets() to make it a
+        // single operation
+        let output_assets = self.output_assets();
 
         let this = self.await?;
         let node_root = this.app_project.project().node_root();
@@ -823,7 +830,7 @@ impl Endpoint for AppEndpoint {
         let node_root = this.app_project.project().node_root();
         this.app_project
             .project()
-            .emit_all_output_assets(output_assets)
+            .emit_all_output_assets(Vc::cell(output_assets))
             .await?;
 
         let server_paths = all_server_paths(output_assets, node_root)
