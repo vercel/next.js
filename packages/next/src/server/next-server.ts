@@ -466,7 +466,7 @@ export default class NextNodeServer extends BaseServer {
 
       if (this.hasAppDir && renderOpts.isAppPath) {
         const { renderToHTMLOrFlight: appRenderToHTMLOrFlight } =
-          require('./app-render/app-render') as typeof import('./app-render/app-render')
+          require('./future/route-modules/app-page/module.compiled') as typeof import('./app-render/app-render')
         return appRenderToHTMLOrFlight(
           req.originalRequest,
           res.originalResponse,
@@ -479,7 +479,7 @@ export default class NextNodeServer extends BaseServer {
       // TODO: re-enable this once we've refactored to use implicit matches
       // throw new Error('Invariant: render should have used routeModule')
 
-      return require('./render').renderToHTML(
+      return require('./future/route-modules/pages/module.compiled').renderToHTML(
         req.originalRequest,
         res.originalResponse,
         pathname,

@@ -127,7 +127,8 @@ mod._resolveFilename = function (
 // This is only needed in production as in development we fallback to the external version.
 if (
   process.env.NODE_ENV !== 'development' &&
-  process.env.__NEXT_PRIVATE_RENDER_RUNTIME
+  process.env.__NEXT_PRIVATE_RENDER_RUNTIME &&
+  !process.env.TURBOPACK
 ) {
   const currentRuntime = `${
     process.env.__NEXT_PRIVATE_RENDER_RUNTIME === 'pages'

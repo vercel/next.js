@@ -2667,6 +2667,18 @@ export async function next_bundle_dev(task, opts) {
   })
 }
 
+export async function next_bundle_turbo_prod(task, opts) {
+  await task.source('dist').webpack({
+    watch: opts.dev,
+    config: require('./webpack.config')({
+      turbo: true,
+    }),
+    name: 'next-bundle-prod-turbo',
+  })
+}
 export async function next_bundle(task, opts) {
-  await task.parallel(['next_bundle_prod', 'next_bundle_dev'], opts)
+  await task.parallel(
+    ['next_bundle_prod', 'next_bundle_dev', 'next_bundle_turbo_prod'],
+    opts
+  )
 }

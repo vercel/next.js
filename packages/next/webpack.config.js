@@ -43,11 +43,11 @@ const externalsRegexMap = {
   '(.*)trace/tracer$': 'next/dist/server/lib/trace/tracer',
 }
 
-module.exports = ({ dev }) => {
+module.exports = ({ dev, turbo }) => {
   const externalHandler = ({ context, request, getResolve }, callback) => {
     ;(async () => {
       if (
-        (dev && request.endsWith('.shared-runtime')) ||
+        ((dev || turbo) && request.endsWith('.shared-runtime')) ||
         request.endsWith('.external')
       ) {
         const resolve = getResolve()
@@ -94,7 +94,9 @@ module.exports = ({ dev }) => {
     mode: 'production',
     output: {
       path: path.join(__dirname, 'dist/compiled/next-server'),
-      filename: `[name].runtime.${dev ? 'dev' : 'prod'}.js`,
+      filename: `[name]${turbo ? '-turbo' : ''}.runtime.${
+        dev ? 'dev' : 'prod'
+      }.js`,
       libraryTarget: 'commonjs2',
     },
     optimization: {
