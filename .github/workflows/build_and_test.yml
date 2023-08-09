@@ -28,6 +28,20 @@ env:
   NEXT_TEST_JOB: 1
 
 jobs:
+  forceDeployExamples:
+    name: Force deploy examples
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 25
+      - name: Install Vercel CLI
+        run: npm i -g vercel@28.16.15
+      - name: Deploy production examples
+        run: ./scripts/deploy-examples.sh
+        env:
+          VERCEL_API_TOKEN: ${{ secrets.VERCEL_API_TOKEN }}
+          DEPLOY_ENVIRONMENT: production
   build-native:
     name: build-native
     uses: ./.github/workflows/build_reusable.yml
