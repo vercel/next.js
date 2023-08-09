@@ -1,4 +1,5 @@
 import type { MetadataRoute } from '../../../../lib/metadata/types/metadata-interface'
+import type { Languages } from '../../../../lib/metadata/types/alternative-urls-types'
 import { resolveArray } from '../../../../lib/metadata/generate/utils'
 
 // convert robots data to txt string
@@ -44,14 +45,31 @@ export function resolveRobots(data: MetadataRoute.Robots): string {
 // TODO-METADATA: support multi sitemap files
 // convert sitemap data to xml string
 export function resolveSitemap(data: MetadataRoute.Sitemap): string {
+  const hasAlternates = data.some(
+    (item) => Object.keys(item.alternates ?? {}).length > 0
+  )
+
   let content = ''
   content += '<?xml version="1.0" encoding="UTF-8"?>\n'
-  content += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
-
+  content += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"'
+  if (hasAlternates) {
+    content += ' xmlns:xhtml="http://www.w3.org/1999/xhtml">\n'
+  } else {
+    content += '>\n'
+  }
   for (const item of data) {
     content += '<url>\n'
     content += `<loc>${item.url}</loc>\n`
-
+    if (
+      item.alternates?.languages &&
+      Object.keys(item.alternates.languages).length
+    ) {
+      for (const language in item.alternates.languages) {
+        content += `<xhtml:link rel="alternate" hreflang="${language}" href="${
+          item.alternates.languages[language as keyof Languages<string>]
+        }" />\n`
+      }
+    }
     if (item.lastModified) {
       const serializedDate =
         item.lastModified instanceof Date
