@@ -469,10 +469,10 @@ export function getImgProps(
       )
     }
 
-    if (placeholder === 'blur') {
+    if (placeholder !== 'empty') {
       if (widthInt && heightInt && widthInt * heightInt < 1600) {
         warnOnce(
-          `Image with src "${src}" is smaller than 40x40. Consider removing the "placeholder='blur'" property to improve performance.`
+          `Image with src "${src}" is smaller than 40x40. Consider removing the "placeholder" property to improve performance.`
         )
       }
 
@@ -587,18 +587,16 @@ export function getImgProps(
 
   const backgroundImage =
     !blurComplete && placeholder !== 'empty'
-      ? placeholder === 'blur' && blurDataURL
+      ? placeholder === 'blur'
         ? `url("data:image/svg+xml;charset=utf-8,${getImageBlurSvg({
             widthInt,
             heightInt,
             blurWidth,
             blurHeight,
-            blurDataURL,
+            blurDataURL: blurDataURL || '', // assume not undefined
             objectFit: imgStyle.objectFit,
           })}")`
-        : placeholder === 'blur'
-        ? null
-        : `url("${placeholder}")`
+        : `url("${placeholder}")` // assume `data:image/`
       : null
 
   let placeholderStyle = backgroundImage
