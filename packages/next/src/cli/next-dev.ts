@@ -195,7 +195,7 @@ const nextDev: CliCommand = async (argv) => {
     '--hostname': String,
     '--turbo': Boolean,
     '--experimental-turbo': Boolean,
-    '--upload-trace': String,
+    '--experimental-upload-trace': String,
 
     // To align current messages with native binary.
     // Will need to adjust subcommand later.
@@ -223,7 +223,7 @@ const nextDev: CliCommand = async (argv) => {
       Options
         --port, -p      A port number on which to start the application
         --hostname, -H  Hostname on which to start the application (default: 0.0.0.0)
-        --upload-trace=<trace-url>  [EXPERIMENTAL] Report a subset of the debugging trace to a remote http url. Includes sensitive data. Disabled by default and url must be provided.
+        --experimental-upload-trace=<trace-url>  [EXPERIMENTAL] Report a subset of the debugging trace to a remote http url. Includes sensitive data. Disabled by default and url must be provided.
         --help, -h      Displays this message
     `)
     process.exit(0)
@@ -283,8 +283,8 @@ const nextDev: CliCommand = async (argv) => {
   const host = args['--hostname']
   config = await loadConfig(PHASE_DEVELOPMENT_SERVER, dir)
 
-  if (args['--upload-trace']) {
-    traceUploadUrl = args['--upload-trace']
+  if (args['--experimental-upload-trace']) {
+    traceUploadUrl = args['--experimental-upload-trace']
   }
 
   const devServerOptions: StartServerOptions = {
