@@ -9,21 +9,28 @@ export enum RedirectType {
 }
 
 type RedirectError<U extends string> = Error & {
-  digest: `${typeof REDIRECT_ERROR_CODE};${RedirectType};${U}`
+  digest: `${typeof REDIRECT_ERROR_CODE};${RedirectType};${U};${boolean}`
   mutableCookies: ResponseCookies
 }
 
 export function getRedirectError(
   url: string,
-  type: RedirectType
+  type: RedirectType,
+  permanent: boolean = false
 ): RedirectError<typeof url> {
   const error = new Error(REDIRECT_ERROR_CODE) as RedirectError<typeof url>
-  error.digest = `${REDIRECT_ERROR_CODE};${type};${url}`
+  error.digest = `${REDIRECT_ERROR_CODE};${type};${url};${permanent}`
   const requestStore = requestAsyncStorage.getStore()
   if (requestStore) {
     error.mutableCookies = requestStore.mutableCookies
   }
   return error
+}
+
+type RedirectOptions = {
+  url: string
+  type?: RedirectType
+  permanent?: boolean
 }
 
 /**
@@ -34,10 +41,19 @@ export function getRedirectError(
  * @param url the url to redirect to
  */
 export function redirect(
-  url: string,
-  type: RedirectType = RedirectType.replace
+  urlOrOptions: string | RedirectOptions,
+  type: RedirectType = RedirectType.replace,
+  permanent: boolean = false
 ): never {
-  throw getRedirectError(url, type)
+  if (typeof urlOrOptions === 'string') {
+    throw getRedirectError(urlOrOptions, type, permanent)
+  } else {
+    throw getRedirectError(
+      urlOrOptions.url,
+      urlOrOptions.type ?? RedirectType.replace,
+      urlOrOptions.permanent ?? false
+    )
+  }
 }
 
 /**
@@ -52,12 +68,15 @@ export function isRedirectError<U extends string>(
 ): error is RedirectError<U> {
   if (typeof error?.digest !== 'string') return false
 
-  const [errorCode, type, destination] = (error.digest as string).split(';', 3)
+  const [errorCode, type, destination, permanent] = (
+    error.digest as string
+  ).split(';', 4)
 
   return (
     errorCode === REDIRECT_ERROR_CODE &&
     (type === 'replace' || type === 'push') &&
-    typeof destination === 'string'
+    typeof destination === 'string' &&
+    (permanent === 'true' || permanent === 'false')
   )
 }
 
@@ -87,4 +106,14 @@ export function getRedirectTypeFromError<U extends string>(
   }
 
   return error.digest.split(';', 3)[1] as RedirectType
+}
+
+export function getRedirectStatusCodeFromError<U extends string>(
+  error: RedirectError<U>
+): number {
+  if (!isRedirectError(error)) {
+    throw new Error('Not a redirect error')
+  }
+
+  return error.digest.split(';', 4)[3] === 'true' ? 308 : 307
 }

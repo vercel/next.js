@@ -47,6 +47,7 @@ import { getLayoutOrPageModule, LoaderTree } from '../lib/app-dir-module'
 import { isNotFoundError } from '../../client/components/not-found'
 import {
   getURLFromRedirectError,
+  getRedirectStatusCodeFromError,
   isRedirectError,
 } from '../../client/components/redirect'
 import { addImplicitTags, patchFetch } from '../lib/patch-fetch'
@@ -1628,7 +1629,7 @@ export async function renderToHTMLOrFlight(
           let hasRedirectError = false
           if (isRedirectError(err)) {
             hasRedirectError = true
-            res.statusCode = 307
+            res.statusCode = getRedirectStatusCodeFromError(err)
             if (err.mutableCookies) {
               const headers = new Headers()
 
