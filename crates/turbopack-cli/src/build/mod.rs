@@ -24,7 +24,6 @@ use turbopack_core::{
     resolve::{
         origin::{PlainResolveOrigin, ResolveOriginExt},
         parse::Request,
-        pattern::QueryMap,
     },
 };
 use turbopack_env::dotenv::load_env;
@@ -204,10 +203,14 @@ async fn build_internal(
         .cloned()
         .map(|r| async move {
             Ok(match &*r.await? {
-                EntryRequest::Relative(p) => Request::relative(Value::new(p.clone().into()), false),
-                EntryRequest::Module(m, p) => {
-                    Request::module(m.clone(), Value::new(p.clone().into()), QueryMap::none())
+                EntryRequest::Relative(p) => {
+                    Request::relative(Value::new(p.clone().into()), Vc::<String>::empty(), false)
                 }
+                EntryRequest::Module(m, p) => Request::module(
+                    m.clone(),
+                    Value::new(p.clone().into()),
+                    Vc::<String>::empty(),
+                ),
             })
         })
         .try_join()

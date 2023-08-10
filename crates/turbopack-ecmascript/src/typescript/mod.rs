@@ -15,7 +15,6 @@ use turbopack_core::{
     resolve::{
         origin::{ResolveOrigin, ResolveOriginExt},
         parse::Request,
-        pattern::QueryMap,
         ModuleResolveResult,
     },
     source::Source,
@@ -142,7 +141,11 @@ impl Module for TsConfigModuleAsset {
             for (_, name) in types {
                 references.push(Vc::upcast(TsConfigTypesReference::new(
                     self.origin,
-                    Request::module(name, Value::new("".to_string().into()), QueryMap::none()),
+                    Request::module(
+                        name,
+                        Value::new("".to_string().into()),
+                        Vc::<String>::empty(),
+                    ),
                 )));
             }
         }
