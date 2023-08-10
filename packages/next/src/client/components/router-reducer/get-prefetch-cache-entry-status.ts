@@ -16,7 +16,7 @@ export function getPrefetchEntryCacheStatus({
   lastUsedTime,
 }: PrefetchCacheEntry): PrefetchCacheEntryStatus {
   // if the cache entry was prefetched or read less than 30s ago, then we want to re-use it
-  if (Date.now() < (lastUsedTime ?? prefetchTime) + THIRTY_SECONDS) {
+  if (Date.now() < prefetchTime + THIRTY_SECONDS) {
     return lastUsedTime
       ? PrefetchCacheEntryStatus.reusable
       : PrefetchCacheEntryStatus.fresh

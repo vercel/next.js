@@ -304,7 +304,7 @@ createNextDescribe(
 
           expect(number).toBe(randomNumber)
 
-          await browser.eval(fastForwardTo, 30 * 1000)
+          await browser.eval(fastForwardTo, 5 * 1000)
 
           await browser.elementByCss('[href="/"]').click()
 
@@ -314,7 +314,7 @@ createNextDescribe(
             .waitForElementByCss('#random-number')
             .text()
 
-          expect(newNumber).not.toBe(randomNumber)
+          expect(newNumber).toBe(randomNumber)
 
           await browser.eval(fastForwardTo, 30 * 1000)
 
