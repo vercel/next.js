@@ -451,7 +451,7 @@ createNextDescribe(
     })
 
     it('should use canary react for pages', async () => {
-      const ssrPaths = ['/pages-react', '/pages-react-edge']
+      const ssrPaths = ['/pages-react', '/edge-pages-react']
       const promises = ssrPaths.map(async (pathname) => {
         const resPages$ = await next.render$(pathname)
         const ssrPagesReactVersions = [
