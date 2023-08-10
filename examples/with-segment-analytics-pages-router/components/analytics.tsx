@@ -8,14 +8,10 @@ export default function Analytics() {
   useEffect(() => {
     analytics.page()
 
-    const handleRouteChange = () => {
-      analytics.page()
-    }
-
-    router.events.on('routeChangeComplete', handleRouteChange)
+    router.events.on('routeChangeComplete', () => analytics.page())
 
     return () => {
-      router.events.off('routeChangeComplete', handleRouteChange)
+      router.events.off('routeChangeComplete', () => analytics.page())
     }
   }, [])
 
