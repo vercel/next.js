@@ -487,6 +487,15 @@ export interface UpdateInfo {
   tasks: number
 }
 
+enum ServerClientChangeType {
+  Server = 'Server',
+  Client = 'Client',
+  Both = 'Both',
+}
+export interface ServerClientChange {
+  change: ServerClientChangeType
+}
+
 export interface Project {
   update(options: ProjectOptions): Promise<void>
   entrypointsSubscribe(): AsyncIterableIterator<TurbopackResult<Entrypoints>>
@@ -839,12 +848,56 @@ function bindingToApi(binding: any, _wasm: boolean) {
       )
     }
 
-    async changed(): Promise<AsyncIterableIterator<TurbopackResult>> {
-      const iter = subscribe<TurbopackResult>(false, async (callback) =>
-        binding.endpointChangedSubscribe(await this._nativeEndpoint, callback)
-      )
-      await iter.next()
-      return iter
+    async changed(): Promise<
+      AsyncIterableIterator<TurbopackResult<ServerClientChange>>
+    > {
+      const nativeEndpoint = this._nativeEndpoint
+      return (async function* () {
+        const endpoint = await nativeEndpoint
+        let server: TurbopackResult | undefined
+        let client: TurbopackResult | undefined
+
+        const serverPromise = subscribe<TurbopackResult>(
+          false,
+          async (callback) =>
+            binding.endpointServerChangedSubscribe(endpoint, callback)
+        )
+          .next()
+          .then((result) => {
+            server = result.value
+          })
+        const clientPromise = subscribe<TurbopackResult>(
+          false,
+          async (callback) =>
+            binding.endpointClientChangedSubscribe(endpoint, callback)
+        )
+          .next()
+          .then((result) => {
+            client = result.value
+          })
+        await Promise.race([serverPromise, clientPromise]).then(() => {
+          // Include an artificial delay to see if both will invalidate
+          return new Promise((resolve) => setTimeout(resolve, 1))
+        })
+
+        if (server && client) {
+          yield {
+            issues: server.issues.concat(client.issues),
+            diagnostics: server.diagnostics.concat(client.diagnostics),
+            change: ServerClientChangeType.Both,
+          }
+        } else if (server) {
+          yield {
+            ...server,
+            change: ServerClientChangeType.Server,
+          }
+        } else {
+          yield {
+            ...client!,
+            change: ServerClientChangeType.Client,
+          }
+        }
+      })()
     }
   }
 
