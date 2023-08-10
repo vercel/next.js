@@ -125,7 +125,6 @@ const Form = ({ formId, petForm, forNewPet = true }: Props) => {
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const errs = formValidate()
-    console.log(errs)
 
     if (Object.keys(errs).length === 0) {
       forNewPet ? postData(form) : putData(form)
