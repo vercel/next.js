@@ -59,9 +59,10 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
 
   /* find all the data in our database */
   const result = await Pet.find({})
+
+  /* Ensures all objectIds and nested objectIds are serialized as JSON data */
   const pets = result.map((doc) => {
-    const pet = doc.toObject()
-    pet._id = pet._id.toString()
+    const pet = JSON.parse(JSON.stringify(doc))
     return pet
   })
 

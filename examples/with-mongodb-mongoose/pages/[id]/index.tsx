@@ -5,7 +5,6 @@ import dbConnect from '../../lib/dbConnect'
 import Pet, { Pets } from '../../models/Pet'
 import { GetServerSideProps, GetServerSidePropsContext } from 'next'
 import { ParsedUrlQuery } from 'querystring'
-import { ObjectId } from 'mongoose'
 
 interface Params extends ParsedUrlQuery {
   id: string
@@ -93,9 +92,8 @@ export const getServerSideProps: GetServerSideProps<Props, Params> = async ({
     }
   }
 
+  /* Ensures all objectIds and nested objectIds are serialized as JSON data */
   const serializedPet = JSON.parse(JSON.stringify(pet))
-
-  serializedPet._id = (serializedPet._id as ObjectId).toString()
 
   return {
     props: {
