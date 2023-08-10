@@ -18,6 +18,8 @@ export const filterReqHeaders = (
   forbiddenHeaders: string[]
 ) => {
 
+  // Some browsers are not matching spec and sending Content-Length: 0. This causes issues in undici
+  // https://github.com/nodejs/undici/issues/2046
   if (headers['content-length'] && headers['content-length'] === '0') {
     delete headers['content-length']
   }
