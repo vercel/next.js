@@ -64,8 +64,9 @@ function buildResponse(proxyResponse: ProxyFetchResponse): Response {
   })
 }
 
-export function createTestFetch(originalFetch: Fetch): Fetch {
-  return async function testFetch(
+function interceptFetch() {
+  const originalFetch = global.fetch
+  global.fetch = async function testFetch(
     input: FetchInputArg,
     init?: FetchInitArg
   ): Promise<Response> {
@@ -104,6 +105,16 @@ export function createTestFetch(originalFetch: Fetch): Fetch {
         break
     }
     return buildResponse(proxyResponse)
+  }
+}
+
+export function interceptTestApis(): () => void {
+  const originalFetch = global.fetch
+  interceptFetch()
+
+  // Cleanup.
+  return () => {
+    global.fetch = originalFetch
   }
 }
 

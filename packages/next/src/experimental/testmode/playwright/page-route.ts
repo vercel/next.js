@@ -8,7 +8,7 @@ export async function handleRoute(
 ) {
   const request = route.request()
 
-  // COntinue the navigation and non-fetch requests.
+  // Continue the navigation and non-fetch requests.
   if (request.isNavigationRequest() || request.resourceType() !== 'fetch') {
     return route.continue()
   }

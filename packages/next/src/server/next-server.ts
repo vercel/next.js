@@ -222,10 +222,10 @@ export default class NextNodeServer extends BaseServer {
     // ensure options are set when loadConfig isn't called
     setHttpClientAndAgentOptions(this.nextConfig)
 
-    // Intercept fetch
+    // Intercept fetch and other testmode apis.
     if (this.serverOptions.experimentalTestProxy) {
-      const { createTestFetch } = require('../experimental/testmode/server')
-      global.fetch = createTestFetch(global.fetch)
+      const { interceptTestApis } = require('../experimental/testmode/server')
+      interceptTestApis()
     }
   }
 
