@@ -31,9 +31,13 @@ describe('should set-up next', () => {
       return head.innerHTML
     })
 
+    expect(html).toContain(`<meta charset="utf-8"><meta`)
+    expect(html).toContain(`<meta name="next-head" content="1">`)
     expect(html).toContain(
-      `<meta charset="utf-8"><meta name="next-head" content="1"><meta name="viewport" content="width=device-width"><meta name="next-head" content="1"><meta name="test-head-1" content="hello">`
+      `<meta name="viewport" content="width=device-width">`
     )
+    expect(html).toContain(`<meta name="next-head" content="1">`)
+    expect(html).toContain(`<meta name="test-head-1" content="hello">`)
   })
 
   it('should have correct head tags in initial document', async () => {
