@@ -88,6 +88,9 @@ function raceIterators<T>(iterators: AsyncIterableIterator<T>[]) {
   })()
 }
 
+/**
+ * Drains the stream until no value is available for 100ms, then returns the next value.
+ */
 async function drainAndGetNext<T>(
   stream: AsyncIterableIterator<TurbopackResult<T>>
 ) {
