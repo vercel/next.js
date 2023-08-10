@@ -39,6 +39,7 @@ function runTests() {
       server: {
         edgeThenNode: 'node',
         nodeThenEdge: 'node',
+        reactServer: 'default',
       },
     })
   })
@@ -51,6 +52,7 @@ function runTests() {
       server: {
         edgeThenNode: 'edge',
         nodeThenEdge: 'edge',
+        reactServer: 'default',
       },
     })
     // TODO: delete this.
@@ -58,6 +60,7 @@ function runTests() {
       server: {
         edgeThenNode: 'node',
         nodeThenEdge: 'node',
+        reactServer: 'default',
       },
     })
   })
@@ -67,6 +70,7 @@ function runTests() {
     expect(json).toMatchObject({
       edgeThenNode: 'node',
       nodeThenEdge: 'node',
+      reactServer: 'default',
     })
   })
 
@@ -75,6 +79,7 @@ function runTests() {
     expect(json).toMatchObject({
       edgeThenNode: 'edge',
       nodeThenEdge: 'edge',
+      reactServer: 'default',
     })
   })
 
@@ -84,10 +89,12 @@ function runTests() {
       server: {
         edgeThenNode: 'node',
         nodeThenEdge: 'node',
+        reactServer: 'react-server',
       },
       client: {
         edgeThenNode: 'node',
         nodeThenEdge: 'node',
+        reactServer: 'default',
       },
     })
   })
@@ -98,10 +105,12 @@ function runTests() {
       server: {
         edgeThenNode: 'edge',
         nodeThenEdge: 'edge',
+        reactServer: 'react-server',
       },
       client: {
         edgeThenNode: 'edge',
         nodeThenEdge: 'edge',
+        reactServer: 'default',
       },
     })
   })
@@ -111,6 +120,7 @@ function runTests() {
     expect(json).toMatchObject({
       edgeThenNode: 'node',
       nodeThenEdge: 'node',
+      reactServer: 'react-server',
     })
   })
 
@@ -119,6 +129,7 @@ function runTests() {
     expect(json).toMatchObject({
       edgeThenNode: 'edge',
       nodeThenEdge: 'edge',
+      reactServer: 'react-server',
     })
   })
 
@@ -127,6 +138,7 @@ function runTests() {
     expect(json).toMatchObject({
       edgeThenNode: 'edge',
       nodeThenEdge: 'edge',
+      reactServer: 'default',
     })
   })
 }

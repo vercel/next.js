@@ -53,7 +53,6 @@ on:
 env:
   NAPI_CLI_VERSION: 2.14.7
   TURBO_VERSION: 1.10.9
-  PNPM_VERSION: 7.24.3
   NODE_MAINTENANCE_VERSION: 16
   NODE_LTS_VERSION: 18.16.1
   TEST_CONCURRENCY: 6
@@ -85,6 +84,7 @@ jobs:
       - run: fnm install ${{ inputs.nodeVersion || env.NODE_LTS_VERSION }}
       - run: fnm use ${{ inputs.nodeVersion || env.NODE_LTS_VERSION }}
       - run: node -v
+      - run: corepack enable
       - run: pwd
 
       - uses: actions/checkout@v3
@@ -112,7 +112,7 @@ jobs:
       - run: rustc --version
         if: ${{ inputs.skipNativeBuild != 'yes' || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes' }}
 
-      - run: npm i -g yarn "pnpm@${PNPM_VERSION}" "turbo@${TURBO_VERSION}" "@napi-rs/cli@${NAPI_CLI_VERSION}"
+      - run: corepack prepare --activate yarn@1.22.19 && npm i -g "turbo@${TURBO_VERSION}" "@napi-rs/cli@${NAPI_CLI_VERSION}"
 
       # clean up any previous artifacts to avoid hitting disk space limits
       - run: git clean -xdf && rm -rf /tmp/next-repo-*; rm -rf /tmp/next-install-* /tmp/yarn-* /tmp/ncc-cache target
@@ -200,7 +200,7 @@ jobs:
         continue-on-error: true
         run: |
           ls -al ./test
-          npm install -g junit-report-merger@6.0.2 @datadog/datadog-ci@2.14.0
+          npm install -g junit-report-merger@6.0.2 @datadog/datadog-ci@2.14.0 @aws-sdk/property-provider@3
           jrm ./nextjs-test-result-junit.xml "test/test-junit-report/**/*.xml"
           jrm ./turbopack-test-result-junit.xml "test/turbopack-test-junit-report/**/*.xml"
           # Put a separate tag for the tests with turbopack to distinguish between same test names

@@ -59,11 +59,15 @@ export default function AddToCart({ productId }) {
 }
 ```
 
+Rather than needing to manually create an API endpoint, Server Actions automatically create an endpoint for Next.js to use behind the scenes. When calling a Server Action, Next.js sends a `POST` request to the page you're on with metadata for which action to run.
+
+Server Actions inherit the same runtime (either [Node.js or Edge](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes)) defined by the `page` or `layout` they're used on. Currently, if a route uses a Server Action, it is required to [render dynamically](/docs/app/building-your-application/rendering/static-and-dynamic).
+
 > **Good to know:**
 >
 > - Using Server Actions will opt into running the React `experimental` channel.
-> - React Actions, `useOptimistic`, and `useFormStatus` are not a Next.js or React Server Components specific features.
-> - Next.js integrates React Actions into the Next.js router, bundler, and caching system, including adding data mutation APIs like `revalidateTag` and `revalidatePath`.
+> - React Actions, `useOptimistic`, and `useFormStatus` are not Next.js or React Server Components specific features.
+> - Next.js integrates React Actions into the Next.js App Router, bundler, and caching system, including adding data mutation APIs like `revalidateTag` and `revalidatePath`.
 
 ## Convention
 
@@ -480,6 +484,8 @@ async function revalidate() {
   revalidateTag('blog-posts')
 }
 ```
+
+Learn more about [caching and revalidating](/docs/app/building-your-application/caching).
 
 ### Validation
 

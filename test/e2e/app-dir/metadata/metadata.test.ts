@@ -33,7 +33,11 @@ createNextDescribe(
         } else {
           // If expected is undefined, then it should not exist.
           // Otherwise, it should exist in the matched values.
-          expect(values.includes(expected)).toBe(expected !== undefined)
+          if (expected === undefined) {
+            expect(values).not.toContain(undefined)
+          } else {
+            expect(values).toContain(expected)
+          }
         }
       }
     }
@@ -570,7 +574,7 @@ createNextDescribe(
         let hasRootNotFoundFlight = false
         for (const el of $('script').toArray()) {
           const text = $(el).text()
-          if (text.includes('root not found page')) {
+          if (text.includes('Local found boundary')) {
             hasRootNotFoundFlight = true
           }
         }
@@ -586,7 +590,7 @@ createNextDescribe(
 
         const browser = await next.browser('/async/not-found')
         expect(await browser.elementByCss('h2').text()).toBe(
-          'root not found page'
+          'Local found boundary'
         )
 
         const matchMultiDom = createMultiDomMatcher(browser)

@@ -1,8 +1,8 @@
 use anyhow::{bail, Context, Result};
 use indexmap::IndexMap;
 use next_core::{
-    all_server_paths, create_page_loader_entry_module, emit_all_assets,
-    get_asset_path_from_pathname, get_edge_resolve_options_context,
+    all_server_paths, create_page_loader_entry_module, get_asset_path_from_pathname,
+    get_edge_resolve_options_context,
     mode::NextMode,
     next_client::{
         get_client_module_options_context, get_client_resolve_options_context,
@@ -813,20 +813,17 @@ impl Endpoint for PageEndpoint {
 
         let this = self.await?;
 
-        let node_root = this.pages_project.project().node_root();
-        emit_all_assets(
-            output_assets,
-            node_root,
-            this.pages_project.project().client_relative_path(),
-            this.pages_project.project().node_root(),
-        )
-        .await?;
+        this.pages_project
+            .project()
+            .emit_all_output_assets(output_assets)
+            .await?;
 
+        let node_root = this.pages_project.project().node_root();
         let server_paths = all_server_paths(output_assets, node_root)
             .await?
             .clone_value();
 
-        let node_root = &this.pages_project.project().node_root().await?;
+        let node_root = &node_root.await?;
         let written_endpoint = match *output.await? {
             PageEndpointOutput::NodeJs {
                 entry_chunk,

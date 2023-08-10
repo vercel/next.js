@@ -85,12 +85,12 @@ async fn next_client_free_vars(mode: NextMode) -> Result<Vc<FreeVarReferences>> 
         ..defines(mode).into_iter(),
         Buffer = FreeVarReference::EcmaScriptModule {
             request: "node:buffer".to_string(),
-            context: None,
+            lookup_path: None,
             export: Some("Buffer".to_string()),
         },
         process = FreeVarReference::EcmaScriptModule {
             request: "node:process".to_string(),
-            context: None,
+            lookup_path: None,
             export: Some("default".to_string()),
         }
     )
