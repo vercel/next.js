@@ -793,9 +793,18 @@ export async function renderToHTMLOrFlight(
 
             const childSegment = parallelRoute[0]
             const childSegmentParam = getDynamicParamFromSegment(childSegment)
-
-            const notFoundComponent =
-              isChildrenRouteKey && NotFound ? <NotFound /> : undefined
+            function Throw() {
+              throw new Error(
+                `Parallel route @${parallelRouteKey} page is missing`
+              )
+            }
+            const notFoundComponent = NotFound ? (
+              isChildrenRouteKey ? (
+                <NotFound />
+              ) : (
+                <Throw />
+              )
+            ) : undefined
 
             // if we're prefetching and that there's a Loading component, we bail out
             // otherwise we keep rendering for the prefetch.
