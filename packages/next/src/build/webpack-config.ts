@@ -1970,6 +1970,27 @@ export default async function getBaseWebpackConfig(
                 test: /next[\\/]dist[\\/](esm[\\/])?server[\\/]future[\\/]route-modules[\\/]app-page[\\/]module/,
               },
               {
+                // `pages` layers should use the aliased React
+                issuerLayer: {
+                  not: [
+                    WEBPACK_LAYERS.reactServerComponents,
+                    WEBPACK_LAYERS.serverSideRendering,
+                    WEBPACK_LAYERS.appPagesBrowser,
+                    WEBPACK_LAYERS.actionBrowser,
+                    WEBPACK_LAYERS.shared,
+                  ],
+                },
+                resolve: {
+                  alias: {
+                    ...createRSCAliases(bundledReactChannel, {
+                      reactSharedSubset: false,
+                      reactDomServerRenderingStub: false,
+                      reactProductionProfiling,
+                    }),
+                  },
+                },
+              },
+              {
                 // All app dir layers need to use this configured resolution logic
                 issuerLayer: {
                   or: [

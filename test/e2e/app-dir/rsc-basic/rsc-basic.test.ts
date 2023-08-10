@@ -450,7 +450,7 @@ createNextDescribe(
       expect(await res.text()).toBe('Hello from import-test.js')
     })
 
-    it('should use stable react for pages', async () => {
+    it('should use canary react for pages', async () => {
       const ssrPaths = ['/pages-react', '/pages-react-edge']
       const promises = ssrPaths.map(async (pathname) => {
         const resPages$ = await next.render$(pathname)
@@ -461,7 +461,7 @@ createNextDescribe(
         ]
 
         ssrPagesReactVersions.forEach((version) => {
-          expect(version).not.toMatch('-canary-')
+          expect(version).toMatch('-canary-')
         })
       })
       await Promise.all(promises)
@@ -496,10 +496,10 @@ createNextDescribe(
       `)
 
       browserPagesReactVersions.forEach((version) =>
-        expect(version).not.toMatch('-canary-')
+        expect(version).toMatch('-canary-')
       )
       browserEdgePagesReactVersions.forEach((version) =>
-        expect(version).not.toMatch('-canary-')
+        expect(version).toMatch('-canary-')
       )
     })
 
