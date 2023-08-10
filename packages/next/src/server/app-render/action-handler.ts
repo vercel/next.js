@@ -287,6 +287,11 @@ export async function handleAction({
     req.method === 'POST'
 
   if (isFetchAction || isURLEncodedAction || isMultipartAction) {
+    // ensure we avoid caching server actions unexpectedly
+    res.setHeader(
+      'Cache-Control',
+      'no-cache, no-store, max-age=0, must-revalidate'
+    )
     let bound = []
 
     const workerName = 'app' + pathname
