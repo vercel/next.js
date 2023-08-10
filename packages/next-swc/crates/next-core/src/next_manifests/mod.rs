@@ -41,11 +41,74 @@ impl Default for MiddlewaresManifest {
     }
 }
 
+#[derive(Serialize, Debug)]
+#[serde(tag = "type", rename_all = "kebab-case")]
+pub enum RouteHas {
+    Header {
+        key: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        value: Option<String>,
+    },
+    Cookie {
+        key: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        value: Option<String>,
+    },
+    Query {
+        key: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        value: Option<String>,
+    },
+    Host {
+        value: String,
+    },
+}
+
+#[derive(Serialize, Default, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct MiddlewareMatcher {
+    pub regexp: String,
+    #[serde(skip_serializing_if = "bool_is_true")]
+    pub locale: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub has: Option<Vec<RouteHas>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub missing: Option<Vec<RouteHas>>,
+    pub original_source: String,
+}
+
+fn bool_is_true(b: &bool) -> bool {
+    *b
+}
+
+#[derive(Serialize, Default, Debug)]
+pub struct EdgeFunctionDefinition {
+    pub files: Vec<String>,
+    pub name: String,
+    pub page: String,
+    pub matchers: Vec<MiddlewareMatcher>,
+    // TODO: AssetBinding[]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub wasm: Option<Vec<()>>,
+    // TODO: AssetBinding[]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub assets: Option<Vec<()>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub regions: Option<Regions>,
+}
+
+#[derive(Serialize, Debug)]
+#[serde(untagged)]
+pub enum Regions {
+    Multiple(Vec<String>),
+    Single(String),
+}
+
 #[derive(Serialize, Default, Debug)]
 pub struct MiddlewaresManifestV2 {
-    pub sorted_middleware: Vec<()>,
+    pub sorted_middleware: Vec<String>,
     pub middleware: HashMap<String, ()>,
-    pub functions: HashMap<String, ()>,
+    pub functions: HashMap<String, EdgeFunctionDefinition>,
 }
 
 #[derive(Serialize, Default, Debug)]
