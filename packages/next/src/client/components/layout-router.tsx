@@ -204,10 +204,10 @@ class InnerScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerPr
         return
       }
 
-      // Verify if the element is a HTMLElement and if it's visible on screen (e.g. not display: none).
-      // If the element is not a HTMLElement or not visible we try to select the next sibling and try again.
+      // Verify if the element is a HTMLElement and if we want to consider it for scroll behavior.
+      // If the element is skipped, try to select the next sibling and try again.
       while (!(domNode instanceof HTMLElement) || shouldSkipElement(domNode)) {
-        // No siblings found that are visible so we handle scroll higher up in the tree instead.
+        // No siblings found that match the criteria are found, so handle scroll higher up in the tree instead.
         if (domNode.nextElementSibling === null) {
           return
         }
