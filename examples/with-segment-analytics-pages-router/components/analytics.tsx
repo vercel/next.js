@@ -3,11 +3,21 @@ import { useRouter } from 'next/router'
 import { analytics } from '@/lib/segment'
 
 export default function Analytics() {
-  const { asPath } = useRouter()
+  const router = useRouter()
 
   useEffect(() => {
     analytics.page()
-  }, [asPath])
+
+    const handleRouteChange = () => {
+      analytics.page()
+    }
+
+    router.events.on('routeChangeComplete', handleRouteChange)
+
+    return () => {
+      router.events.off('routeChangeComplete', handleRouteChange)
+    }
+  }, [])
 
   return null
 }
