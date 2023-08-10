@@ -723,12 +723,38 @@ export async function renderToHTMLOrFlight(
         throw staticGenerationStore.dynamicUsageErr
       }
 
+      const LayoutOrPage = layoutOrPageMod
+        ? interopDefault(layoutOrPageMod)
+        : undefined
+
       /**
        * The React Component to render.
        */
-      let Component = layoutOrPageMod
-        ? interopDefault(layoutOrPageMod)
-        : undefined
+      let Component = LayoutOrPage
+      const parallelKeys = Object.keys(parallelRoutes)
+      const hasSlotKey = parallelKeys.length > 1
+
+      if (hasSlotKey && rootLayoutAtThisLevel) {
+        const NotFoundBoundary =
+          ComponentMod.NotFoundBoundary as typeof import('../../client/components/not-found-boundary').NotFoundBoundary
+        Component = (componentProps: any) => {
+          return (
+            <NotFoundBoundary
+              notFound={
+                <>
+                  {styles}
+                  <LayoutOrPage>
+                    {notFoundStyles}
+                    <NotFound />
+                  </LayoutOrPage>
+                </>
+              }
+            >
+              <LayoutOrPage {...componentProps} />
+            </NotFoundBoundary>
+          )
+        }
+      }
 
       if (dev) {
         const { isValidElementType } = require('next/dist/compiled/react-is')
@@ -793,18 +819,8 @@ export async function renderToHTMLOrFlight(
 
             const childSegment = parallelRoute[0]
             const childSegmentParam = getDynamicParamFromSegment(childSegment)
-            function Throw() {
-              throw new Error(
-                `Parallel route @${parallelRouteKey} page is missing`
-              )
-            }
-            const notFoundComponent = NotFound ? (
-              isChildrenRouteKey ? (
-                <NotFound />
-              ) : (
-                <Throw />
-              )
-            ) : undefined
+            const notFoundComponent =
+              NotFound && isChildrenRouteKey ? <NotFound /> : undefined
 
             // if we're prefetching and that there's a Loading component, we bail out
             // otherwise we keep rendering for the prefetch.
