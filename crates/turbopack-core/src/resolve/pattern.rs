@@ -1,7 +1,6 @@
 use std::{collections::HashSet, fmt::Display, mem::take};
 
 use anyhow::Result;
-use indexmap::IndexMap;
 use lazy_static::lazy_static;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -9,17 +8,6 @@ use turbo_tasks::{trace::TraceRawVcs, Value, ValueToString, Vc};
 use turbo_tasks_fs::{
     DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath, LinkContent, LinkType,
 };
-
-#[turbo_tasks::value(transparent)]
-pub struct QueryMap(#[turbo_tasks(trace_ignore)] Option<IndexMap<String, String>>);
-
-#[turbo_tasks::value_impl]
-impl QueryMap {
-    #[turbo_tasks::function]
-    pub fn none() -> Vc<Self> {
-        Vc::cell(None)
-    }
-}
 
 #[turbo_tasks::value(shared, serialization = "auto_for_input")]
 #[derive(PartialOrd, Ord, Hash, Clone, Debug, Default)]
@@ -746,6 +734,7 @@ pub async fn read_matches(
     } else {
         true
     };
+
     if slow_path {
         // Slow path: There are infinite matches for the pattern
         // We will enumerate the filesystem to find matches

@@ -23,7 +23,7 @@ use turbopack_cli_utils::issue::{ConsoleUi, LogOptions};
 use turbopack_core::{
     environment::ServerAddr,
     issue::{IssueReporter, IssueSeverity},
-    resolve::{parse::Request, pattern::QueryMap},
+    resolve::parse::Request,
     server_fs::ServerFileSystem,
 };
 use turbopack_dev::DevChunkingContext;
@@ -268,10 +268,14 @@ async fn source(
     let entry_requests = entry_requests
         .iter()
         .map(|r| match r {
-            EntryRequest::Relative(p) => Request::relative(Value::new(p.clone().into()), false),
-            EntryRequest::Module(m, p) => {
-                Request::module(m.clone(), Value::new(p.clone().into()), QueryMap::none())
+            EntryRequest::Relative(p) => {
+                Request::relative(Value::new(p.clone().into()), Vc::<String>::empty(), false)
             }
+            EntryRequest::Module(m, p) => Request::module(
+                m.clone(),
+                Value::new(p.clone().into()),
+                Vc::<String>::empty(),
+            ),
         })
         .collect();
 

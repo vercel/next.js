@@ -21,7 +21,7 @@ use turbopack_core::{
         },
         origin::{ResolveOrigin, ResolveOriginExt},
         parse::Request,
-        pattern::{Pattern, QueryMap},
+        pattern::Pattern,
         resolve, AliasPattern, ModuleResolveResult,
     },
     source::{OptionSource, Source},
@@ -117,9 +117,9 @@ async fn resolve_extends(
     match &*request.await? {
         // TS has special behavior for "rooted" paths (absolute paths):
         // https://github.com/microsoft/TypeScript/blob/611a912d/src/compiler/commandLineParser.ts#L3303-L3313
-        Request::Windows { path: Pattern::Constant(path) } |
+        Request::Windows { path: Pattern::Constant(path), .. } |
         // Server relative is treated as absolute
-        Request::ServerRelative { path: Pattern::Constant(path) } => {
+        Request::ServerRelative { path: Pattern::Constant(path), .. } => {
             resolve_extends_rooted_or_relative(parent_dir, request, resolve_options, path).await
         }
 
@@ -347,7 +347,7 @@ pub async fn type_resolve(
         Some(Request::module(
             format!("@types/{m}"),
             Value::new(p.clone()),
-            QueryMap::none(),
+            Vc::<String>::empty(),
         ))
     } else {
         None

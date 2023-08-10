@@ -6,6 +6,7 @@
 #![feature(lint_reasons)]
 #![feature(async_fn_in_trait)]
 #![feature(arbitrary_self_types)]
+#![feature(iter_intersperse)]
 
 pub mod asset;
 pub mod changed;

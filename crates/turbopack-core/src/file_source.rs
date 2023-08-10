@@ -13,13 +13,22 @@ use crate::{
 #[turbo_tasks::value]
 pub struct FileSource {
     pub path: Vc<FileSystemPath>,
+    pub query: Vc<String>,
 }
 
 #[turbo_tasks::value_impl]
 impl FileSource {
     #[turbo_tasks::function]
     pub fn new(path: Vc<FileSystemPath>) -> Vc<Self> {
-        Self::cell(FileSource { path })
+        Self::cell(FileSource {
+            path,
+            query: Vc::<String>::empty(),
+        })
+    }
+
+    #[turbo_tasks::function]
+    pub fn new_with_query(path: Vc<FileSystemPath>, query: Vc<String>) -> Vc<Self> {
+        Self::cell(FileSource { path, query })
     }
 }
 
@@ -27,7 +36,7 @@ impl FileSource {
 impl Source for FileSource {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
-        AssetIdent::from_path(self.path)
+        AssetIdent::from_path(self.path).with_query(self.query)
     }
 }
 

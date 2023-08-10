@@ -6,7 +6,7 @@ use turbopack_core::{
     file_source::FileSource,
     reference::ModuleReference,
     reference_type::{ReferenceType, TypeScriptReferenceSubType},
-    resolve::{origin::ResolveOrigin, parse::Request, pattern::QueryMap, ModuleResolveResult},
+    resolve::{origin::ResolveOrigin, parse::Request, ModuleResolveResult},
 };
 
 use crate::typescript::{resolve::type_resolve, TsConfigModuleAsset};
@@ -125,7 +125,7 @@ impl ModuleReference for TsReferenceTypeAssetReference {
             Request::module(
                 self.module.clone(),
                 Value::new("".to_string().into()),
-                QueryMap::none(),
+                Vc::<String>::empty(),
             ),
         )
     }

@@ -385,7 +385,7 @@ impl OutputAsset for CssChunk {
             let (_, ident) = assets[0];
             AssetIdent::new(Value::new(AssetIdent {
                 path: ident.path(),
-                query: None,
+                query: Vc::<String>::empty(),
                 fragment: None,
                 assets,
                 modifiers: Vec::new(),

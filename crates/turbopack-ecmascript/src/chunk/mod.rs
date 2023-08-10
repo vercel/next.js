@@ -285,7 +285,7 @@ impl Chunk for EcmascriptChunk {
         } else {
             AssetIdent::new(Value::new(AssetIdent {
                 path,
-                query: None,
+                query: Vc::<String>::empty(),
                 fragment: None,
                 assets,
                 modifiers,
