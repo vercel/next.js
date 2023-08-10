@@ -93,7 +93,7 @@ import {
   isDynamicMetadataRoute,
   getPageStaticInfo,
 } from './analysis/get-page-static-info'
-import { createPagesMapping, getPageFilePath } from './entries'
+import { createPagesMapping, getPageFilePath, sortByPageExts } from './entries'
 import { generateBuildId } from './generate-build-id'
 import { isWriteable } from './is-writeable'
 import * as Log from './output/log'
@@ -474,7 +474,9 @@ export default async function build(
             ? [instrumentationHookDetectionRegExp]
             : []),
         ])
-      ).map((absoluteFile) => absoluteFile.replace(dir, ''))
+      )
+        .sort(sortByPageExts(config.pageExtensions))
+        .map((absoluteFile) => absoluteFile.replace(dir, ''))
 
       const hasInstrumentationHook = rootPaths.some((p) =>
         p.includes(INSTRUMENTATION_HOOK_FILENAME)

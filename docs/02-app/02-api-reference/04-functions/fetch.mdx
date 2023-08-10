@@ -94,6 +94,14 @@ Set the cache lifetime of a resource (in seconds).
 > - As a convenience, it is not necessary to set the `cache` option if `revalidate` is set to a number since `0` implies `cache: 'no-store'` and a positive value implies `cache: 'force-cache'`.
 > - Conflicting options such as `{ revalidate: 0, cache: 'force-cache' }` or `{ revalidate: 10, cache: 'no-store' }` will cause an error.
 
+### `options.next.tags`
+
+```ts
+fetch(`https://...`, { next: { tags: ['collection'] } })
+```
+
+Set the cache tags of a resource. Data can then be revalidated on-demand using [`revalidateTag`](https://nextjs.org/docs/app/api-reference/functions/revalidateTag).
+
 ## Version History
 
 | Version   | Changes             |
