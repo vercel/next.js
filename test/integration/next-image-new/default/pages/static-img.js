@@ -28,7 +28,7 @@ const Page = ({ testImgProp }) => {
   return (
     <div>
       <h1 id="page-header">Static Image</h1>
-      <Image id="basic-static" src={testImg} placeholder="blur" />
+      <Image id="basic-static" src={testImg} placeholder="blur" priority />
       <Image id="basic-staticprop" src={testImgProp} placeholder="blur" />
       <TallImage />
       <Image

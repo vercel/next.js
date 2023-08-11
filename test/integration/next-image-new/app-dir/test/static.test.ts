@@ -69,6 +69,30 @@ const runTests = (isDev) => {
       )
     })
   }
+  it('should have <head> containing <meta name="viewport"> followed by <link rel="preload"> for priority image', async () => {
+    let metaViewport = { index: 0, attribs: {} as any }
+    let linkPreload = { index: 0, attribs: {} as any }
+    $('head')
+      .children()
+      .toArray()
+      .forEach((child, index) => {
+        const { tagName, attribs } = child
+        if (tagName === 'meta' && attribs.name === 'viewport') {
+          metaViewport = { index, attribs }
+        } else if (
+          tagName === 'link' &&
+          attribs.rel === 'preload' &&
+          attribs.as === 'image'
+        ) {
+          linkPreload = { index, attribs }
+        }
+      })
+    expect(metaViewport.attribs.content).toContain('width=device-width')
+    expect(linkPreload.attribs.imagesrcset).toContain(
+      '%2F_next%2Fstatic%2Fmedia%2Ftest-rect.f323a148.jpg'
+    )
+    expect(metaViewport.index).toBeLessThan(linkPreload.index)
+  })
   it('Should automatically provide an image height and width', async () => {
     const img = $('#basic-non-static')
     expect(img.attr('width')).toBe('400')
