@@ -713,6 +713,9 @@ function assignDefaults(
           'modularize-import-loader?name={{ member }}&from=default&as=default&join=../esm/icons/sparkles!lucide-react',
         '(TextSelection|LucideTextSelection|TextSelectionIcon)':
           'modularize-import-loader?name={{ member }}&from=default&as=default&join=../esm/icons/text-select!lucide-react',
+        // Alias for createLucideIcon
+        '(createLucideIcon)':
+          'modularize-import-loader?name={{ member }}&from=default&as=default&join=../esm/createLucideIcon!lucide-react',
         // General rules
         'Lucide(.*)':
           'modularize-import-loader?name={{ member }}&from=default&as=default&join=../esm/icons/{{ kebabCase memberMatches.[1] }}!lucide-react',
