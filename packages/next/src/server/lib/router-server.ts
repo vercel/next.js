@@ -265,11 +265,14 @@ export async function initialize(opts: {
     }
   }
 
-  const cleanup = () => {
+  const cleanup = async (err: Error | undefined) => {
+    if (err) {
+      await devInstance?.logErrorWithOriginalStack(err)
+    }
+
     debug('router-server process cleanup')
     for (const curWorker of [
       ...((renderWorkers.app as any)?._workerPool?._workers || []),
-      ...((renderWorkers.pages as any)?._workerPool?._workers || []),
     ] as {
       _child?: import('child_process').ChildProcess
     }[]) {

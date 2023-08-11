@@ -79,7 +79,10 @@ export async function initialize(opts: {
   }
 
   const type = process.env.__NEXT_PRIVATE_RENDER_WORKER || 'pages'
-  process.title = 'next-render-worker-' + type
+
+  if (type === 'app') {
+    process.title = 'next-render-worker-' + type
+  }
 
   let requestHandler: RequestHandler
   let upgradeHandler: any

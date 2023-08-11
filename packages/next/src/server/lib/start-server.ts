@@ -187,17 +187,6 @@ export async function startServer({
       }
 
       try {
-        const cleanup = () => {
-          debug('start-server process cleanup')
-          server.close()
-          process.exit(0)
-        }
-        process.on('exit', cleanup)
-        process.on('SIGINT', cleanup)
-        process.on('SIGTERM', cleanup)
-        process.on('uncaughtException', cleanup)
-        process.on('unhandledRejection', cleanup)
-
         const initResult = await getRequestHandlers({
           dir,
           port,
@@ -216,6 +205,16 @@ export async function startServer({
         console.error(err)
         process.exit(1)
       }
+
+      const cleanup = () => {
+        debug('start-server process cleanup')
+        server.close()
+      }
+      process.on('exit', cleanup)
+      process.on('SIGINT', cleanup)
+      process.on('SIGTERM', cleanup)
+      process.on('uncaughtException', cleanup)
+      process.on('unhandledRejection', cleanup)
 
       resolve()
     })
