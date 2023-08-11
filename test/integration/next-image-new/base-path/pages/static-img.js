@@ -18,7 +18,7 @@ const Page = () => {
   return (
     <div>
       <h1 id="page-header">Static Image</h1>
-      <Image id="basic-static" src={testImg} placeholder="blur" />
+      <Image id="basic-static" src={testImg} placeholder="blur" priority />
       <TallImage />
       <Image
         id="defined-width-and-height"

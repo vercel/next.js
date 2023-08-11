@@ -9,9 +9,8 @@ packages/next-codemod/transforms/__testfixtures__/**/*
 packages/next-codemod/transforms/__tests__/**/*
 test/development/basic/hmr/components/parse-error.js
 pnpm-lock.yaml
-.github/actions/issue-validator/index.mjs
 .github/actions/issue-labeler/lib/index.js
 .github/actions/validate-docs-links/lib/index.js
 .github/actions/needs-triage/index.js
-.github/actions/minus-one/index.mjs
+.github/actions/*/index.mjs
 **/convex/_generated/**

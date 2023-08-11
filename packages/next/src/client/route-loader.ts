@@ -16,6 +16,7 @@ declare global {
     __BUILD_MANIFEST_CB?: Function
     __MIDDLEWARE_MATCHERS?: MiddlewareMatcher[]
     __MIDDLEWARE_MANIFEST_CB?: Function
+    __PRERENDER_MANIFEST?: string
   }
 }
 

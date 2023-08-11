@@ -52,7 +52,7 @@
     "clean-trace-jaeger": "node scripts/rm.mjs test/integration/basic/.next && TRACE_TARGET=JAEGER pnpm next build test/integration/basic",
     "debug": "cross-env NEXT_TELEMETRY_DISABLED=1 node --inspect packages/next/dist/bin/next",
     "postinstall": "git config index.skipHash false && node scripts/install-native.mjs",
-    "version": "npx pnpm@7.24.3 install --no-frozen-lockfile && IS_PUBLISH=yes ./scripts/check-pre-compiled.sh && git add .",
+    "version": "pnpm install --no-frozen-lockfile && IS_PUBLISH=yes ./scripts/check-pre-compiled.sh && git add .",
     "prepare": "husky install",
     "sync-react": "node ./scripts/sync-react.js",
     "update-google-fonts": "node ./scripts/update-google-fonts.js"
@@ -102,8 +102,8 @@
     "@types/sharp": "0.29.3",
     "@types/string-hash": "1.1.1",
     "@types/trusted-types": "2.0.3",
-    "@typescript-eslint/eslint-plugin": "4.29.1",
-    "@typescript-eslint/parser": "4.29.1",
+    "@typescript-eslint/eslint-plugin": "6.1.0",
+    "@typescript-eslint/parser": "6.1.0",
     "@vercel/fetch": "6.1.1",
     "@vercel/og": "0.5.9",
     "@zeit/next-typescript": "1.1.2-canary.0",
@@ -169,9 +169,9 @@
     "nanoid": "3.1.30",
     "next": "workspace:*",
     "node-fetch": "2.6.7",
-    "node-pty": "0.10.1",
     "npm-run-all": "4.1.5",
     "nprogress": "0.2.0",
+    "octokit": "3.1.0",
     "open": "9.0.0",
     "outdent": "0.8.0",
     "pixrem": "5.0.0",
@@ -189,14 +189,14 @@
     "random-seed": "0.3.0",
     "react": "18.2.0",
     "react-17": "npm:react@17.0.2",
-    "react-builtin": "npm:react@18.3.0-canary-9377e1010-20230712",
+    "react-builtin": "npm:react@18.3.0-canary-cb3404a0c-20230807",
     "react-dom": "18.2.0",
     "react-dom-17": "npm:react-dom@17.0.2",
-    "react-dom-builtin": "npm:react-dom@18.3.0-canary-9377e1010-20230712",
-    "react-dom-experimental-builtin": "npm:react-dom@0.0.0-experimental-9377e1010-20230712",
-    "react-experimental-builtin": "npm:react@0.0.0-experimental-9377e1010-20230712",
-    "react-server-dom-webpack": "18.3.0-canary-9377e1010-20230712",
-    "react-server-dom-webpack-experimental": "npm:react-server-dom-webpack@0.0.0-experimental-9377e1010-20230712",
+    "react-dom-builtin": "npm:react-dom@18.3.0-canary-cb3404a0c-20230807",
+    "react-dom-experimental-builtin": "npm:react-dom@0.0.0-experimental-cb3404a0c-20230807",
+    "react-experimental-builtin": "npm:react@0.0.0-experimental-cb3404a0c-20230807",
+    "react-server-dom-webpack": "18.3.0-canary-cb3404a0c-20230807",
+    "react-server-dom-webpack-experimental": "npm:react-server-dom-webpack@0.0.0-experimental-cb3404a0c-20230807",
     "react-ssr-prepass": "1.0.8",
     "react-virtualized": "9.22.3",
     "relay-compiler": "13.0.2",
@@ -206,8 +206,8 @@
     "resolve-from": "5.0.0",
     "sass": "1.54.0",
     "satori": "0.10.1",
-    "scheduler-builtin": "npm:scheduler@0.24.0-canary-9377e1010-20230712",
-    "scheduler-experimental-builtin": "npm:scheduler@0.0.0-experimental-9377e1010-20230712",
+    "scheduler-builtin": "npm:scheduler@0.24.0-canary-cb3404a0c-20230807",
+    "scheduler-experimental-builtin": "npm:scheduler@0.0.0-experimental-cb3404a0c-20230807",
     "seedrandom": "3.0.5",
     "selenium-webdriver": "4.0.0-beta.4",
     "semver": "7.3.7",
@@ -243,7 +243,8 @@
     "@types/react-dom": "18.2.4"
   },
   "engines": {
-    "node": ">=16.8.0"
+    "node": ">=16.14.0",
+    "pnpm": "8.6.11"
   },
-  "packageManager": "pnpm@7.24.3"
+  "packageManager": "pnpm@8.6.11"
 }

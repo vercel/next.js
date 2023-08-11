@@ -17,5 +17,10 @@
   },
   "devDependencies": {
     "typescript": "5.1.6"
-  }
+  },
+  "engines": {
+    "node": ">=16.8.0",
+    "pnpm": "8.6.11"
+  },
+  "packageManager": "pnpm@8.6.11"
 }

@@ -65,7 +65,7 @@ impl ResolvePlugin for UnsupportedModulesResolvePlugin {
     async fn after_resolve(
         &self,
         _fs_path: Vc<FileSystemPath>,
-        context: Vc<FileSystemPath>,
+        file_path: Vc<FileSystemPath>,
         request: Vc<Request>,
     ) -> Result<Vc<ResolveResultOption>> {
         if let Request::Module {
@@ -77,7 +77,7 @@ impl ResolvePlugin for UnsupportedModulesResolvePlugin {
             // Warn if the package is known not to be supported by Turbopack at the moment.
             if UNSUPPORTED_PACKAGES.contains(module.as_str()) {
                 UnsupportedModuleIssue {
-                    context,
+                    file_path,
                     package: module.into(),
                     package_path: None,
                 }
@@ -88,7 +88,7 @@ impl ResolvePlugin for UnsupportedModulesResolvePlugin {
             if let Pattern::Constant(path) = path {
                 if UNSUPPORTED_PACKAGE_PATHS.contains(&(module, path)) {
                     UnsupportedModuleIssue {
-                        context,
+                        file_path,
                         package: module.into(),
                         package_path: Some(path.to_owned()),
                     }
