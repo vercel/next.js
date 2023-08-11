@@ -18,7 +18,9 @@ const EVENT_FILTER = new Set([
 
 const { NEXT_TRACE_UPLOAD_DEBUG } = process.env
 
-const [, , traceUploadUrl, mode, projectDir, distDir] = process.argv
+const [, , traceUploadUrl, mode, _isTurboSession, projectDir, distDir] =
+  process.argv
+const isTurboSession = _isTurboSession === 'true'
 
 type TraceRequestBody = {
   metadata: TraceMetadata
@@ -43,6 +45,7 @@ interface TraceMetadata {
   mode: string
   pkgName: string
   platform: string
+  isTurboSession: boolean
 }
 
 ;(async function upload() {
@@ -103,6 +106,7 @@ interface TraceMetadata {
       commit,
       mode,
       pkgName,
+      isTurboSession,
       arch: os.arch(),
       cpus: os.cpus().length,
       platform: os.platform(),

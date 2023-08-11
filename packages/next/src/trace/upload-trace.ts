@@ -1,9 +1,16 @@
-export default function uploadTrace(
-  traceUploadUrl: string,
-  mode: 'dev',
-  projectDir: string,
+export default function uploadTrace({
+  traceUploadUrl,
+  mode,
+  isTurboSession,
+  projectDir,
+  distDir,
+}: {
+  traceUploadUrl: string
+  mode: 'dev'
+  isTurboSession: boolean
+  projectDir: string
   distDir: string
-) {
+}) {
   const { NEXT_TRACE_UPLOAD_DEBUG } = process.env
 
   // Note: cross-spawn is not used here as it causes
@@ -23,6 +30,7 @@ export default function uploadTrace(
       require.resolve('./trace-uploader'),
       traceUploadUrl,
       mode,
+      String(isTurboSession),
       projectDir,
       distDir,
     ],

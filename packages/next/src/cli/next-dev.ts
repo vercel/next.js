@@ -89,7 +89,13 @@ const handleSessionStop = async () => {
   }
 
   if (traceUploadUrl) {
-    uploadTrace(traceUploadUrl, 'dev', dir, config.distDir)
+    uploadTrace({
+      traceUploadUrl,
+      mode: 'dev',
+      isTurboSession,
+      projectDir: dir,
+      distDir: config.distDir,
+    })
   }
 
   // ensure we re-enable the terminal cursor before exiting
