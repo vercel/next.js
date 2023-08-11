@@ -459,12 +459,8 @@ function ExampleServerComponent({ id }) {
 'use client'
 
 function ExampleClientComponent({ updateItem }) {
-  async function action(formData) {
-    await updateItem(formData)
-  }
-
   return (
-    <form action={action}>
+    <form action={updateItem}>
       <input type="text" name="name" />
       <button type="submit">Update Item</button>
     </form>
