@@ -1,3 +1,3 @@
 export default function Page() {
-  return <div>Not found!</div>
+  return <div id="not-found">Not found!</div>
 }

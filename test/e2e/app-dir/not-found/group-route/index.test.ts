@@ -13,6 +13,9 @@ createNextDescribe(
         expect(await browser.elementByCss('h1').text()).toContain(
           'Group Layout'
         )
+        expect(await browser.elementByCss('#not-found').text()).toContain(
+          'Not found!'
+        )
       })
     }
 

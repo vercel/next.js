@@ -60,7 +60,7 @@ export function createMetadataComponents({
     const errorMetadataItem: [null, null] = [null, null]
     const errorConvention = errorType === 'redirect' ? undefined : errorType
 
-    const metadataResult = await resolveMetadata({
+    const [resolvedMetadata, resolvedError] = await resolveMetadata({
       tree,
       parentParams: {},
       metadataItems: [],
@@ -70,27 +70,29 @@ export function createMetadataComponents({
       errorConvention,
       metadataContext,
     })
-    if (!metadataResult[1]) {
-      metadata = metadataResult[0]
+    if (!resolvedError) {
+      metadata = resolvedMetadata
       resolve(undefined)
     } else {
-      error = metadataResult[1]
+      error = resolvedError
       // If the error triggers in initial metadata resolving, re-resolve with proper error type.
       // They'll be saved for flight data, when hydrates, it will replaces the SSR'd metadata with this.
       // for not-found error: resolve not-found metadata
-      if (!errorType && isNotFoundError(metadataResult[1])) {
-        const errorMetadataResult = await resolveMetadata({
-          tree,
-          parentParams: {},
-          metadataItems: [],
-          errorMetadataItem,
-          searchParams,
-          getDynamicParamFromSegment,
-          errorConvention: 'not-found',
-          metadataContext,
-        })
-        metadata = errorMetadataResult[0]
-        error = errorMetadataResult[1] || error
+      if (!errorType && isNotFoundError(resolvedError)) {
+        const [notFoundMetadata, notFoundMetadataError] = await resolveMetadata(
+          {
+            tree,
+            parentParams: {},
+            metadataItems: [],
+            errorMetadataItem,
+            searchParams,
+            getDynamicParamFromSegment,
+            errorConvention: 'not-found',
+            metadataContext,
+          }
+        )
+        metadata = notFoundMetadata
+        error = notFoundMetadataError || error
       }
       resolve(error)
     }

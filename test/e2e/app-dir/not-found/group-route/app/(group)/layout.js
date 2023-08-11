@@ -1,4 +1,4 @@
-export default function layout({ children }) {
+export default function Layout({ children }) {
   return (
     <html>
       <body>
