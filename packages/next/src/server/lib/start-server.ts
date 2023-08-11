@@ -2,8 +2,12 @@ import '../node-polyfill-fetch'
 
 import type { IncomingMessage, ServerResponse } from 'http'
 
+import fs from 'fs/promises'
 import http from 'http'
+import https from 'https'
 import { isIPv6 } from 'net'
+import os from 'os'
+import path from 'path'
 import * as Log from '../../build/output/log'
 import setupDebug from 'next/dist/compiled/debug'
 import { getDebugPort } from './utils'
@@ -15,16 +19,65 @@ import {
 import { checkIsNodeDebugging } from './is-node-debugging'
 const debug = setupDebug('next:start-server')
 
+export interface TlsCerts {
+  key: string
+  cert: string
+}
+
 export interface StartServerOptions {
   dir: string
   port: number
   logReady?: boolean
   isDev: boolean
   hostname: string
+  https?: boolean
+  cert?: string
+  key?: string
   allowRetry?: boolean
   customServer?: boolean
   minimalMode?: boolean
   keepAliveTimeout?: number
+}
+
+function resolve(filePath: string) {
+  // '~/folder/path' or '~' not '~alias/folder/path'
+  if (filePath.startsWith('~/') || filePath === '~') {
+    filePath = filePath.replace('~', os.homedir())
+  }
+
+  return path.resolve(filePath)
+}
+
+export async function loadTlsCerts(
+  cert: string | undefined,
+  key: string | undefined
+): Promise<TlsCerts | undefined> {
+  const _cert = cert || process.env.NEXT_TLS_CERT
+  const _key = key || process.env.NEXT_TLS_KEY
+  if (!_cert || !_key) {
+    return undefined
+  }
+
+  const publicCertPath = resolve(_cert)
+  const privateKeyPath = resolve(_key)
+
+  Log.info(
+    `Loading TLS certs:\n\tPublic Cert: ${publicCertPath}\n\tPrivate Key: ${privateKeyPath}`
+  )
+
+  try {
+    const [cert, key] = await Promise.all([
+      fs.readFile(publicCertPath, { encoding: 'utf-8' }),
+      fs.readFile(privateKeyPath, { encoding: 'utf-8' }),
+    ])
+
+    return { cert, key }
+  } catch (err) {
+    Log.error(`Failed to load TLS certificates`)
+    Log.error(err)
+  }
+
+  return undefined
 }
 
 export async function getRequestHandlers({
@@ -60,6 +113,9 @@ export async function startServer({
   dir,
   port,
   isDev,
+  https: useHttps,
+  cert,
+  key,
   hostname,
   minimalMode,
   allowRetry,
@@ -97,8 +153,13 @@ export async function startServer({
     throw new Error('Invariant upgrade handler was not setup')
   }
 
-  // setup server listener as fast as possible
-  const server = http.createServer(async (req, res) => {
+  if (useHttps && !isDev) {
+    throw new Error(
+      'HTTPS option is only available in development mode, please use a reverse proxy for production.'
+    )
+  }
+
+  const requestListener: http.RequestListener = async (req, res) => {
     try {
       if (handlersPromise) {
         await handlersPromise
@@ -111,7 +172,17 @@ export async function startServer({
       Log.error(`Failed to handle request for ${req.url}`)
       console.error(err)
     }
-  })
+  }
+
+  const certs = useHttps && isDev ? await loadTlsCerts(cert, key) : undefined
+
+  // setup server listener as fast as possible
+  let server: http.Server
+  if (useHttps && certs) {
+    server = https.createServer({ ...certs }, requestListener)
+  } else {
+    server = http.createServer(requestListener)
+  }
 
   if (keepAliveTimeout) {
     server.keepAliveTimeout = keepAliveTimeout

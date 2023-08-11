@@ -189,6 +189,9 @@ const nextDev: CliCommand = async (argv) => {
     '--hostname': String,
     '--turbo': Boolean,
     '--experimental-turbo': Boolean,
+    '--https': Boolean,
+    '--https-cert': String,
+    '--https-key': String,
 
     // To align current messages with native binary.
     // Will need to adjust subcommand later.
@@ -216,6 +219,9 @@ const nextDev: CliCommand = async (argv) => {
       Options
         --port, -p      A port number on which to start the application
         --hostname, -H  Hostname on which to start the application (default: 0.0.0.0)
+        --https         HTTPS enabled (default: false)
+        --https-cert    Path to TLS certificate
+        --https-key     Path to TLS key
         --help, -h      Displays this message
     `)
     process.exit(0)
@@ -275,11 +281,18 @@ const nextDev: CliCommand = async (argv) => {
   const host = args['--hostname']
   config = await loadConfig(PHASE_DEVELOPMENT_SERVER, dir)
 
+  const https = args['--https']
+  const cert = args['--https-cert']
+  const key = args['--https-key']
+
   const devServerOptions: StartServerOptions = {
     dir,
     port,
     allowRetry,
     isDev: true,
+    https,
+    cert,
+    key,
     hostname: host,
   }
 
