@@ -1,7 +1,7 @@
 use std::fmt::Write;
 
 use anyhow::Result;
-use indoc::writedoc;
+use indoc::{formatdoc, writedoc};
 use turbo_tasks::Vc;
 use turbo_tasks_fs::File;
 use turbopack_core::{asset::AssetContent, source::Source, virtual_source::VirtualSource};
@@ -9,10 +9,12 @@ use turbopack_ecmascript::utils::StringifyJs;
 
 use crate::{analysis::analyze, source::WebAssemblySource};
 
-/// Create a javascript loader to instantiate the WebAssembly mode and has the
+/// Create a javascript loader to instantiate the WebAssembly module with the
 /// necessary imports and exports to be processed by [turbopack_ecmascript].
 #[turbo_tasks::function]
-pub(crate) async fn loader_source(source: Vc<WebAssemblySource>) -> Result<Vc<Box<dyn Source>>> {
+pub(crate) async fn instantiating_loader_source(
+    source: Vc<WebAssemblySource>,
+) -> Result<Vc<Box<dyn Source>>> {
     let analysis = analyze(source).await?;
 
     let mut code = String::new();
@@ -48,6 +50,28 @@ pub(crate) async fn loader_source(source: Vc<WebAssemblySource>) -> Result<Vc<Bo
         imports = imports_obj,
         exports = analysis.exports.join(", "),
     )?;
+
+    Ok(Vc::upcast(VirtualSource::new(
+        source.ident().path().append("_.loader.mjs".to_string()),
+        AssetContent::file(File::from(code).into()),
+    )))
+}
+
+/// Create a javascript loader to compile the WebAssembly module and export it
+/// without instantiating.
+#[turbo_tasks::function]
+pub(crate) async fn compiling_loader_source(
+    source: Vc<WebAssemblySource>,
+) -> Result<Vc<Box<dyn Source>>> {
+    let code = formatdoc! {
+        r#"
+            import wasmPath from "WASM_PATH";
+
+            const mod = await __turbopack_wasm_module__(wasmPath);
+
+            export default mod;
+        "#
+    };
 
     Ok(Vc::upcast(VirtualSource::new(
         source.ident().path().append("_.loader.mjs".to_string()),

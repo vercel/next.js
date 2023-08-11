@@ -42,7 +42,10 @@ function resolveChunkPath(chunkPath: ChunkPath, source: SourceInfo) {
   }
 
   const path = require("node:path");
-  return path.resolve(__dirname, path.posix.relative(path.dirname(fromChunkPath), chunkPath));
+  return path.resolve(
+    __dirname,
+    path.posix.relative(path.dirname(fromChunkPath), chunkPath)
+  );
 }
 
 function loadWebAssembly(
@@ -52,7 +55,13 @@ function loadWebAssembly(
 ) {
   const resolved = resolveChunkPath(chunkPath, source);
 
-  return loadWebAssemblyFromPath(resolved, imports);
+  return instantiateWebAssemblyFromPath(resolved, imports);
+}
+
+function loadWebAssemblyModule(source: SourceInfo, chunkPath: ChunkPath) {
+  const resolved = resolveChunkPath(chunkPath, source);
+
+  return compileWebAssemblyFromPath(resolved);
 }
 
 let BACKEND: RuntimeBackend;

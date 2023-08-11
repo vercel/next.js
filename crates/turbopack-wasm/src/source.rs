@@ -52,9 +52,10 @@ impl Source for WebAssemblySource {
     fn ident(&self) -> Vc<AssetIdent> {
         match self.source_ty {
             WebAssemblySourceType::Binary => self.source.ident(),
-            WebAssemblySourceType::Text => {
-                AssetIdent::from_path(self.source.ident().path().append("_.wasm".to_string()))
-            }
+            WebAssemblySourceType::Text => self
+                .source
+                .ident()
+                .with_path(self.source.ident().path().append("_.wasm".to_string())),
         }
     }
 }

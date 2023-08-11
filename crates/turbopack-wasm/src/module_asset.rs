@@ -26,7 +26,9 @@ use turbopack_ecmascript::{
 };
 
 use crate::{
-    loader::loader_source, output_asset::WebAssemblyAsset, raw::RawWebAssemblyModuleAsset,
+    loader::{compiling_loader_source, instantiating_loader_source},
+    output_asset::WebAssemblyAsset,
+    raw::RawWebAssemblyModuleAsset,
     source::WebAssemblySource,
 };
 
@@ -63,13 +65,19 @@ impl WebAssemblyModuleAsset {
     }
 
     #[turbo_tasks::function]
-    async fn loader(self: Vc<Self>) -> Result<Vc<EcmascriptModuleAsset>> {
-        let this = self.await?;
+    async fn loader(&self) -> Result<Vc<EcmascriptModuleAsset>> {
+        let query = &*self.source.ident().query().await?;
 
-        let module = this.asset_context.process(
-            loader_source(this.source),
+        let loader_source = if query == "?module" {
+            compiling_loader_source(self.source)
+        } else {
+            instantiating_loader_source(self.source)
+        };
+
+        let module = self.asset_context.process(
+            loader_source,
             Value::new(ReferenceType::Internal(Vc::cell(indexmap! {
-                "WASM_PATH".to_string() => Vc::upcast(RawWebAssemblyModuleAsset::new(this.source, this.asset_context)),
+                "WASM_PATH".to_string() => Vc::upcast(RawWebAssemblyModuleAsset::new(self.source, self.asset_context)),
             }))),
         );
 
