@@ -113,7 +113,9 @@ export function patchFetch({
         },
       },
       async () => {
-        const staticGenerationStore = staticGenerationAsyncStorage.getStore()
+        const staticGenerationStore =
+          staticGenerationAsyncStorage.getStore() ||
+          (fetch as any).__nextGetStaticStore?.()
         const isRequestInput =
           input &&
           typeof input === 'object' &&

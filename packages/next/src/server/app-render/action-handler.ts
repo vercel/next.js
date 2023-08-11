@@ -206,6 +206,11 @@ async function createRedirectRenderResult(
       )
     }
 
+    // Ensures that when the path was revalidated we don't return a partial response on redirects
+    // if (staticGenerationStore.pathWasRevalidated) {
+    forwardedHeaders.delete('next-router-state-tree')
+    // }
+
     try {
       const headResponse = await fetchIPv4v6(fetchUrl, {
         method: 'HEAD',
@@ -282,6 +287,11 @@ export async function handleAction({
     req.method === 'POST'
 
   if (isFetchAction || isURLEncodedAction || isMultipartAction) {
+    // ensure we avoid caching server actions unexpectedly
+    res.setHeader(
+      'Cache-Control',
+      'no-cache, no-store, max-age=0, must-revalidate'
+    )
     let bound = []
 
     const workerName = 'app' + pathname

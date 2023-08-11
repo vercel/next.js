@@ -313,7 +313,7 @@ async fn run_test(resource: PathBuf) -> JsResult {
             )
             .await?;
 
-            Ok(unit().node)
+            Ok(unit())
         });
         tt.wait_task_completion(task, true).await.unwrap();
     }
@@ -712,8 +712,8 @@ impl Issue for NormalizedIssue {
     }
 
     #[turbo_tasks::function]
-    fn context(&self) -> Vc<FileSystemPath> {
-        self.0.context()
+    fn file_path(&self) -> Vc<FileSystemPath> {
+        self.0.file_path()
     }
 
     #[turbo_tasks::function]
