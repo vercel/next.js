@@ -255,10 +255,23 @@ function externalRequire(id, esm = false) {
 externalRequire.resolve = (id, options)=>{
     return require.resolve(id, options);
 };
-async function loadWebAssemblyFromPath(path, importsObj) {
-    const { readFile } = require("fs/promises");
-    const buffer = await readFile(path);
-    const { instance } = await WebAssembly.instantiate(buffer, importsObj);
+function readWebAssemblyAsResponse(path) {
+    const { createReadStream } = require("fs");
+    const { Readable } = require("stream");
+    const stream = createReadStream(path);
+    return new Response(Readable.toWeb(stream), {
+        headers: {
+            "content-type": "application/wasm"
+        }
+    });
+}
+async function compileWebAssemblyFromPath(path) {
+    const response = readWebAssemblyAsResponse(path);
+    return await WebAssembly.compileStreaming(response);
+}
+async function instantiateWebAssemblyFromPath(path, importsObj) {
+    const response = readWebAssemblyAsResponse(path);
+    const { instance } = await WebAssembly.instantiateStreaming(response, importsObj);
     return instance.exports;
 }
 ;
@@ -298,7 +311,11 @@ function loadChunkAsync(source, chunkPath) {
 }
 function loadWebAssembly(chunkPath, imports) {
     const resolved = path.resolve(RUNTIME_ROOT, chunkPath);
-    return loadWebAssemblyFromPath(resolved, imports);
+    return instantiateWebAssemblyFromPath(resolved, imports);
+}
+function loadWebAssemblyModule(chunkPath) {
+    const resolved = path.resolve(RUNTIME_ROOT, chunkPath);
+    return compileWebAssemblyFromPath(resolved);
 }
 function instantiateModule(id, source) {
     const moduleFactory = moduleFactories[id];
@@ -355,6 +372,7 @@ function instantiateModule(id, source) {
                 parentId: id
             }),
             w: loadWebAssembly,
+            u: loadWebAssemblyModule,
             g: globalThis,
             __dirname: module1.id.replace(/(^|\/)[\/]+$/, "")
         });

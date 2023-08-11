@@ -77,7 +77,13 @@ function loadChunkAsync(source: SourceInfo, chunkPath: string): Promise<void> {
 function loadWebAssembly(chunkPath: ChunkPath, imports: WebAssembly.Imports) {
   const resolved = path.resolve(RUNTIME_ROOT, chunkPath);
 
-  return loadWebAssemblyFromPath(resolved, imports);
+  return instantiateWebAssemblyFromPath(resolved, imports);
+}
+
+function loadWebAssemblyModule(chunkPath: ChunkPath) {
+  const resolved = path.resolve(RUNTIME_ROOT, chunkPath);
+
+  return compileWebAssemblyFromPath(resolved);
 }
 
 function instantiateModule(id: ModuleId, source: SourceInfo): Module {
@@ -141,6 +147,7 @@ function instantiateModule(id: ModuleId, source: SourceInfo): Module {
       c: moduleCache,
       l: loadChunkAsync.bind(null, { type: SourceType.Parent, parentId: id }),
       w: loadWebAssembly,
+      u: loadWebAssemblyModule,
       g: globalThis,
       __dirname: module.id.replace(/(^|\/)[\/]+$/, ""),
     });

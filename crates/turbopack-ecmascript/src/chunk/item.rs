@@ -107,6 +107,7 @@ impl EcmascriptChunkItemContent {
         }
         if this.options.wasm {
             args.push("w: __turbopack_wasm__");
+            args.push("u: __turbopack_wasm_module__");
         }
         let mut code = CodeBuilder::default();
         let args = FormatIter(|| args.iter().copied().intersperse(", "));
