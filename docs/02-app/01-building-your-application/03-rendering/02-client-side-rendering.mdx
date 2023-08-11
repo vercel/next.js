@@ -10,18 +10,17 @@ This page will go through how Client Components work, when you might use them, a
 
 ## React Client Components
 
-React Server Components allow us to interactive UI that can be rendered on the client. There are a couple of benefits to doing the rendering work on the client, including:
+React Server Components allow us to create interactive UI that is rendered on the client. There are a couple of benefits to doing the rendering work on the client, including:
 
-- **Interactivity**: Client Components can use state, effects, and event listeners, meaning they can provide immediate feedback to the user and update the UI without making a network request.
+- **Interactivity**: Client Components can use state, effects, and event listeners, meaning they can provide immediate feedback to the user and update the UI.
 - **Browser APIs**: Client Components have access to browser APIs, like [geolocation](https://developer.mozilla.org/en-US/docs/Web/API/Geolocation_API) or [localStorage](https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage).
 
 ## Using Client Components in Next.js
 
-You can use the React `"use client"` directive to tell React which components should be rendered on the client.
+To use Client Components, you can add the React [`"use client"` directive](https://react.dev/reference/react/use-client) at the top of a file, above your imports.
 
-### The `"use client"` directive
-
-The [`"use client"` directive](https://github.com/reactjs/rfcs/pull/227) is a convention to declare a boundary between a Server and Client Component module graph.
+`"use client` is used to declare a boundary between a Server and Client Component module graph. This means
+that by defining a `"use client"` in a file, all other modules imported into it, including child components, are considered part of the client bundle - and will be rendered by React on the client.
 
 ```tsx filename="app/counter.tsx" highlight={1} switcher
 'use client'
@@ -65,18 +64,13 @@ export default function Counter() {
   height="1320"
 />
 
-`"use client"` _sits_ between server-only and client code. It's placed at the top of a file, above imports, to define the _cut-off_ point where it crosses the boundary from the server-only to the client part. Once `"use client"` is defined in a file, all other modules imported into it, including child components, are considered part of the client bundle.
-
-Since Server Components are the default, all components are part of the Server Component module graph unless defined or imported in a module that starts with the `"use client"` directive.
-
-> **Good to know**:
+> **Multiple `use client` boundaries**:
 >
-> - Components in the Server Component module graph are guaranteed to be only rendered on the server.
-> - Components in the Client Component module graph are primarily rendered on the client, but with Next.js, they can also be pre-rendered on the server and hydrated on the client.
-> - The `"use client"` directive must be defined at the **top of a file** before any imports.
-> - `"use client"` does **not** need to be defined in every file. The Client module boundary only needs to be defined once, at the "entry point", for all modules imported into it to be considered a Client Component.
+> You can define multile "use client" boundaries in your React Component tree. This allows you to split your application into multiple bundles (or branches), and only render the components that are needed for a route at runtime.
+>
+> However, `"use client"` doesn't need to be defined in every component that needs to be rendered on the client. Once you define the boundary, all components and modules imported into it, or in other words, the branch in the tree is considered part of the client bundle.
 
-## How are Client Components Rendered?
+>
 
 ### Initial Request
 
