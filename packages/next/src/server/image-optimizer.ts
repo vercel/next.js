@@ -49,19 +49,12 @@ let sharp: typeof import('sharp') | undefined
 try {
   sharp = require(process.env.NEXT_SHARP_PATH || 'sharp')
   if (sharp) {
-    // During development, there's no need to create a large thread pool to
-    // process images. This helps to reduce the memory usage of the dev server.
-    // For production, we set a larger number here.
+    // This helps to reduce the memory usage of the dev server.
     // https://sharp.pixelplumbing.com/api-utility#concurrency
-    sharp.concurrency(
-      Math.min(
-        process.env.NODE_ENV === 'development' ? 2 : 8,
-        cpus().length,
-        // The current concurrency value from Sharp. This varies based on the
-        // system the server is running on.
-        sharp.concurrency()
-      )
-    )
+    if (sharp.concurrency() > 1) {
+      const divisor = process.env.NODE_ENV === 'development' ? 4 : 2
+      sharp.concurrency(Math.floor(Math.max(cpus().length / divisor, 1)))
+    }
   }
 } catch (e) {
   // Sharp not present on the server, Squoosh fallback will be used
