@@ -76,22 +76,26 @@ How Client Components are rendered depends on whether the user is visiting your 
 
 ### Initial Visit
 
-To optimize the initial page load, Next.js will use React's APIs to render an HTML preview on the server for Client and Server Components. This means, when the user first visits your application, they will see the content of the page immediately, without having to wait for the client to download and parse the Client Component JavaScript bundle.
+To optimize the initial page load, Next.js will use React's APIs to render a static HTML preview on the server for both Client and Server Components. This means, when the user first visits your application, they will see the content of the page immediately, without having to wait for the client to download and parse the Client Component JavaScript bundle.
 
-On the client, React does two things:
+On the client, React does three things:
 
 1. Reconciles the Client and Server Component trees.
 2. Updates the DOM.
-3. Use the Client Components JavaScript bundle to [hydrate](https://react.dev/reference/react-dom/client/hydrateRoot) Client Components - this makes the UI interactive.
+3. Use the Client Components JavaScript bundle to hydrate Client Components - this makes the UI interactive.
 
 {/* Diagram */}
 
 > **What is hydration?**
 
-> Hydration is process of attaching event listeners to the DOM, to make the static HTML interactive.
+> Hydration is process of attaching event listeners to the DOM, to make the static HTML interactive. In React, hydration is done with the [`hydrateRoot`](https://react.dev/reference/react-dom/client/hydrateRoot) API.
 
-### Initial Request
+### Subsequent Navigations
 
-### Subsequent Requests
+On subsequent navigations, Client Components are rendered entirely on the client, without the server-rendered HTML preview.
 
-## Using Client Components
+## Switching back to the Server Environment
+
+Sometimes, after you've declared the ``"use client"` directive, you may want to switch back to the server environment. For example, you may want to reduce the client bundle size, fetch data on the server, or use an API that is only available on the server.
+
+In cases like this, you can interleave Client and Server Components in the same branch, see the [Composition Patterns](/docs/app/building-your-application/rendering#composition-patterns) documentation for implementation details.
