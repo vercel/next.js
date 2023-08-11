@@ -54,7 +54,6 @@ describe('Image Component Trailing Slash Tests', () => {
     afterAll(() => killApp(app))
 
     it('should include trailing slash when trailingSlash is set on config file during next start', async () => {
-      expect.assertions(1)
       let browser
       try {
         browser = await webdriver(appPort, '/')
