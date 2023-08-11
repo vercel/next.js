@@ -468,6 +468,15 @@ export function getImgProps(
         `Image with src "${src}" has both "priority" and "loading='lazy'" properties. Only one should be used.`
       )
     }
+    if (
+      placeholder !== 'empty' &&
+      placeholder !== 'blur' &&
+      !placeholder.startsWith('data:image/')
+    ) {
+      throw new Error(
+        `Image with src "${src}" has invalid "placeholder" property "${placeholder}".`
+      )
+    }
     if (placeholder !== 'empty') {
       if (widthInt && heightInt && widthInt * heightInt < 1600) {
         warnOnce(
