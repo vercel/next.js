@@ -47,7 +47,7 @@ use crate::{
     entrypoints::Entrypoints,
     pages::PagesProject,
     route::{Endpoint, Route},
-    versioned_content_map::VersionedContentMap,
+    versioned_content_map::{OutputAssetsOperation, VersionedContentMap},
 };
 
 #[derive(Debug, Serialize, Deserialize, Clone, TaskInput, PartialEq, Eq, TraceRawVcs)]
@@ -498,9 +498,9 @@ impl Project {
     #[turbo_tasks::function]
     pub async fn emit_all_output_assets(
         self: Vc<Self>,
-        output_assets: Vc<OutputAssets>,
+        output_assets: Vc<OutputAssetsOperation>,
     ) -> Result<Vc<Completion>> {
-        let all_output_assets = all_assets_from_entries(output_assets);
+        let all_output_assets = all_assets_from_entries_operation(output_assets);
 
         self.await?
             .versioned_content_map
@@ -508,7 +508,7 @@ impl Project {
             .await?;
 
         Ok(emit_assets(
-            all_output_assets,
+            *all_output_assets.await?,
             self.node_root(),
             self.client_relative_path(),
             self.node_root(),
@@ -574,4 +574,19 @@ impl Project {
             .versioned_content_map
             .keys_in_path(self.client_root()))
     }
+}
+
+#[turbo_tasks::function]
+async fn all_assets_from_entries_operation_inner(
+    operation: Vc<OutputAssetsOperation>,
+) -> Result<Vc<OutputAssets>> {
+    let assets = *operation.await?;
+    Vc::connect(assets);
+    Ok(all_assets_from_entries(assets))
+}
+
+fn all_assets_from_entries_operation(
+    operation: Vc<OutputAssetsOperation>,
+) -> Vc<OutputAssetsOperation> {
+    Vc::cell(all_assets_from_entries_operation_inner(operation))
 }
