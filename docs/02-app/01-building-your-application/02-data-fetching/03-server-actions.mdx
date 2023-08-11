@@ -454,17 +454,22 @@ function ExampleServerComponent({ id }) {
   return <ExampleClientComponent updateItem={updateItem} />
 }
 ```
+```jsx filename="app/actions.js"
+'use server'
+
+  export async function action(propAction){
+    await propAction
+  }
+```
 
 ```jsx filename="app/components/example-client-component.js"
 'use client'
+import {action} from '../actions.js
 
 function ExampleClientComponent({ updateItem }) {
-  async function action(formData) {
-    await updateItem(formData)
-  }
 
   return (
-    <form action={action}>
+    <form action={action(updateItem)}>
       <input type="text" name="name" />
       <button type="submit">Update Item</button>
     </form>
