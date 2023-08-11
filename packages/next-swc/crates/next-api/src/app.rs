@@ -486,7 +486,8 @@ impl AppEndpoint {
 
         let server_path = node_root.join("server".to_string());
 
-        let mut output_assets = vec![];
+        let mut server_assets = vec![];
+        let mut client_assets = vec![];
 
         let client_shared_chunks = get_app_client_shared_chunks(
             this.app_project.client_runtime_entries(),
@@ -495,7 +496,7 @@ impl AppEndpoint {
 
         let mut client_shared_chunks_paths = vec![];
         for chunk in client_shared_chunks.await?.iter().copied() {
-            output_assets.push(chunk);
+            client_assets.push(chunk);
 
             let chunk_path = chunk.ident().path().await?;
             if chunk_path.extension_ref() == Some("js") {
@@ -561,8 +562,8 @@ impl AppEndpoint {
             entry_ssr_chunks.extend(client_reference_chunks.ssr_chunks.await?.iter().copied());
         }
 
-        output_assets.extend(entry_client_chunks.iter().copied());
-        output_assets.extend(entry_ssr_chunks.iter().copied());
+        client_assets.extend(entry_client_chunks.iter().copied());
+        server_assets.extend(entry_ssr_chunks.iter().copied());
 
         let entry_client_chunks_paths = entry_client_chunks
             .iter()
@@ -594,7 +595,7 @@ impl AppEndpoint {
                 File::from(serde_json::to_string_pretty(&app_build_manifest)?).into(),
             ),
         ));
-        output_assets.push(app_build_manifest_output);
+        server_assets.push(app_build_manifest_output);
 
         let build_manifest = BuildManifest {
             root_main_files: client_shared_chunks_paths,
@@ -607,7 +608,7 @@ impl AppEndpoint {
             )),
             AssetContent::file(File::from(serde_json::to_string_pretty(&build_manifest)?).into()),
         ));
-        output_assets.push(build_manifest_output);
+        server_assets.push(build_manifest_output);
 
         let entry_manifest = ClientReferenceManifest::build_output(
             node_root,
@@ -618,7 +619,7 @@ impl AppEndpoint {
             this.app_project.project().client_chunking_context(),
             Vc::upcast(this.app_project.project().ssr_chunking_context()),
         );
-        output_assets.push(entry_manifest);
+        server_assets.push(entry_manifest);
 
         fn create_app_paths_manifest(
             node_root: Vc<FileSystemPath>,
@@ -662,7 +663,7 @@ impl AppEndpoint {
                         .as_root_chunk(Vc::upcast(chunking_context)),
                     Vc::cell(evaluatable_assets),
                 );
-                output_assets.extend(files.await?.iter().copied());
+                server_assets.extend(files.await?.iter().copied());
 
                 let node_root_value = node_root.await?;
                 let files_paths_from_root = files
@@ -735,16 +736,17 @@ impl AppEndpoint {
                         .cell(),
                     ),
                 ));
-                output_assets.push(middleware_manifest_v2);
+                server_assets.push(middleware_manifest_v2);
 
                 // create app paths manifest
                 let app_paths_manifest_output =
                     create_app_paths_manifest(node_root, &app_entry.original_name, base_file)?;
-                output_assets.push(app_paths_manifest_output);
+                server_assets.push(app_paths_manifest_output);
 
                 AppEndpointOutput::Edge {
                     files,
-                    output_assets: Vc::cell(output_assets),
+                    server_assets: Vc::cell(server_assets),
+                    client_assets: Vc::cell(client_assets),
                 }
             }
             NextRuntime::NodeJs => {
@@ -760,7 +762,7 @@ impl AppEndpoint {
                         app_entry.rsc_entry,
                         this.app_project.rsc_runtime_entries(),
                     );
-                output_assets.push(rsc_chunk);
+                server_assets.push(rsc_chunk);
 
                 let app_paths_manifest_output = create_app_paths_manifest(
                     node_root,
@@ -771,11 +773,12 @@ impl AppEndpoint {
                         .expect("RSC chunk path should be within app paths manifest directory")
                         .to_string(),
                 )?;
-                output_assets.push(app_paths_manifest_output);
+                server_assets.push(app_paths_manifest_output);
 
                 AppEndpointOutput::NodeJs {
                     rsc_chunk,
-                    output_assets: Vc::cell(output_assets),
+                    server_assets: Vc::cell(server_assets),
+                    client_assets: Vc::cell(client_assets),
                 }
             }
         };
@@ -838,20 +841,14 @@ impl Endpoint for AppEndpoint {
             .clone_value();
 
         let written_endpoint = match *output.await? {
-            AppEndpointOutput::NodeJs {
-                rsc_chunk,
-                output_assets: _,
-            } => WrittenEndpoint::NodeJs {
+            AppEndpointOutput::NodeJs { rsc_chunk, .. } => WrittenEndpoint::NodeJs {
                 server_entry_path: node_root_ref
                     .get_path_to(&*rsc_chunk.ident().path().await?)
                     .context("Node.js chunk entry path must be inside the node root")?
                     .to_string(),
                 server_paths,
             },
-            AppEndpointOutput::Edge {
-                files,
-                output_assets: _,
-            } => WrittenEndpoint::Edge {
+            AppEndpointOutput::Edge { files, .. } => WrittenEndpoint::Edge {
                 files: files
                     .await?
                     .iter()
@@ -871,9 +868,13 @@ impl Endpoint for AppEndpoint {
     }
 
     #[turbo_tasks::function]
-    async fn changed(self: Vc<Self>) -> Result<Vc<Completion>> {
-        let output_assets = self.output().output_assets();
-        Ok(any_content_changed_of_output_assets(output_assets))
+    fn server_changed(self: Vc<Self>) -> Vc<Completion> {
+        any_content_changed_of_output_assets(self.output().server_assets())
+    }
+
+    #[turbo_tasks::function]
+    fn client_changed(self: Vc<Self>) -> Vc<Completion> {
+        any_content_changed_of_output_assets(self.output().client_assets())
     }
 }
 
@@ -881,27 +882,44 @@ impl Endpoint for AppEndpoint {
 enum AppEndpointOutput {
     NodeJs {
         rsc_chunk: Vc<Box<dyn OutputAsset>>,
-        output_assets: Vc<OutputAssets>,
+        server_assets: Vc<OutputAssets>,
+        client_assets: Vc<OutputAssets>,
     },
     Edge {
         files: Vc<OutputAssets>,
-        output_assets: Vc<OutputAssets>,
+        server_assets: Vc<OutputAssets>,
+        client_assets: Vc<OutputAssets>,
     },
 }
 
 #[turbo_tasks::value_impl]
 impl AppEndpointOutput {
     #[turbo_tasks::function]
-    pub fn output_assets(&self) -> Vc<OutputAssets> {
+    pub async fn output_assets(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
+        let server_assets = self.server_assets().await?;
+        let client_assets = self.client_assets().await?;
+        Ok(Vc::cell(
+            server_assets
+                .iter()
+                .cloned()
+                .chain(client_assets.iter().cloned())
+                .collect(),
+        ))
+    }
+
+    #[turbo_tasks::function]
+    pub fn server_assets(&self) -> Vc<OutputAssets> {
         match *self {
-            AppEndpointOutput::NodeJs {
-                rsc_chunk: _,
-                output_assets,
-            } => output_assets,
-            AppEndpointOutput::Edge {
-                files: _,
-                output_assets,
-            } => output_assets,
+            AppEndpointOutput::NodeJs { server_assets, .. }
+            | AppEndpointOutput::Edge { server_assets, .. } => server_assets,
+        }
+    }
+
+    #[turbo_tasks::function]
+    pub fn client_assets(&self) -> Vc<OutputAssets> {
+        match *self {
+            AppEndpointOutput::NodeJs { client_assets, .. }
+            | AppEndpointOutput::Edge { client_assets, .. } => client_assets,
         }
     }
 }
