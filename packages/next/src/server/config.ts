@@ -716,6 +716,9 @@ function assignDefaults(
         // Alias for createLucideIcon
         '(createLucideIcon)':
           'modularize-import-loader?name={{ member }}&from=default&as=default&join=../esm/createLucideIcon!lucide-react',
+        // Alias for icons
+        '(icons)':
+          'modularize-import-loader?name={{ member }}&from=default&as=default&join=../esm/index!lucide-react',
         // General rules
         'Lucide(.*)':
           'modularize-import-loader?name={{ member }}&from=default&as=default&join=../esm/icons/{{ kebabCase memberMatches.[1] }}!lucide-react',
