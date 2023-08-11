@@ -3241,6 +3241,28 @@ export declare function Bree_Serif<
   adjustFontFallback?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
+export declare function Bricolage_Grotesque<
+  T extends CssVariable | undefined = undefined
+>(options?: {
+  weight?:
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | 'variable'
+    | Array<'200' | '300' | '400' | '500' | '600' | '700' | '800'>
+  style?: 'normal' | Array<'normal'>
+  display?: Display
+  variable?: T
+  preload?: boolean
+  fallback?: string[]
+  adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'>
+  axes?: ('opsz' | 'wdth')[]
+}): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Bruno_Ace<
   T extends CssVariable | undefined = undefined
 >(options: {
@@ -14001,7 +14023,7 @@ export declare function Noto_Sans_Imperial_Aramaic<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  subsets?: Array<'imperial-aramaic'>
+  subsets?: Array<'imperial-aramaic' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Indic_Siyaq_Numbers<
   T extends CssVariable | undefined = undefined
@@ -14409,7 +14431,7 @@ export declare function Noto_Sans_Mandaic<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  subsets?: Array<'mandaic'>
+  subsets?: Array<'latin' | 'latin-ext' | 'mandaic'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Manichaean<
   T extends CssVariable | undefined = undefined
@@ -19640,6 +19662,18 @@ export declare function Ruthie<
   fallback?: string[]
   adjustFontFallback?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
+}): T extends undefined ? NextFont : NextFontWithVariable
+export declare function Ruwudu<
+  T extends CssVariable | undefined = undefined
+>(options: {
+  weight: '400' | '500' | '600' | '700' | Array<'400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
+  display?: Display
+  variable?: T
+  preload?: boolean
+  fallback?: string[]
+  adjustFontFallback?: boolean
+  subsets?: Array<'arabic' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Rye<
   T extends CssVariable | undefined = undefined
