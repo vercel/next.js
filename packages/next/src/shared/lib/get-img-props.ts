@@ -468,28 +468,26 @@ export function getImgProps(
         `Image with src "${src}" has both "priority" and "loading='lazy'" properties. Only one should be used.`
       )
     }
-
     if (placeholder !== 'empty') {
       if (widthInt && heightInt && widthInt * heightInt < 1600) {
         warnOnce(
           `Image with src "${src}" is smaller than 40x40. Consider removing the "placeholder" property to improve performance.`
         )
       }
+    }
+    if (placeholder === 'blur' && !blurDataURL) {
+      const VALID_BLUR_EXT = ['jpeg', 'png', 'webp', 'avif'] // should match next-image-loader
 
-      if (!blurDataURL) {
-        const VALID_BLUR_EXT = ['jpeg', 'png', 'webp', 'avif'] // should match next-image-loader
-
-        throw new Error(
-          `Image with src "${src}" has "placeholder='blur'" property but is missing the "blurDataURL" property.
-          Possible solutions:
-            - Add a "blurDataURL" property, the contents should be a small Data URL to represent the image
-            - Change the "src" property to a static import with one of the supported file types: ${VALID_BLUR_EXT.join(
-              ','
-            )}
-            - Remove the "placeholder" property, effectively no blur effect
-          Read more: https://nextjs.org/docs/messages/placeholder-blur-data-url`
-        )
-      }
+      throw new Error(
+        `Image with src "${src}" has "placeholder='blur'" property but is missing the "blurDataURL" property.
+        Possible solutions:
+          - Add a "blurDataURL" property, the contents should be a small Data URL to represent the image
+          - Change the "src" property to a static import with one of the supported file types: ${VALID_BLUR_EXT.join(
+            ','
+          )}
+          - Remove the "placeholder" property, effectively no blur effect
+        Read more: https://nextjs.org/docs/messages/placeholder-blur-data-url`
+      )
     }
     if ('ref' in rest) {
       warnOnce(
