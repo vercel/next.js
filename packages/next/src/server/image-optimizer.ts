@@ -48,13 +48,12 @@ let sharp: typeof import('sharp') | undefined
 
 try {
   sharp = require(process.env.NEXT_SHARP_PATH || 'sharp')
-  if (sharp) {
-    // This helps to reduce the memory usage of the dev server.
+  if (sharp && sharp.concurrency() > 1) {
+    // Reducing concurrency should reduce the memory usage too.
+    // We more aggressively reduce in dev but also reduce in prod.
     // https://sharp.pixelplumbing.com/api-utility#concurrency
-    if (sharp.concurrency() > 1) {
-      const divisor = process.env.NODE_ENV === 'development' ? 4 : 2
-      sharp.concurrency(Math.floor(Math.max(cpus().length / divisor, 1)))
-    }
+    const divisor = process.env.NODE_ENV === 'development' ? 4 : 2
+    sharp.concurrency(Math.floor(Math.max(cpus().length / divisor, 1)))
   }
 } catch (e) {
   // Sharp not present on the server, Squoosh fallback will be used
