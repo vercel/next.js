@@ -660,6 +660,32 @@ function bindingToApi(binding: any, _wasm: boolean) {
     })()
   }
 
+  /**
+   * Like Promise.race, except that we return an array of results so that you
+   * know which promise won. This also allows multiple promises to resolve
+   * before the awaiter finally continues execution, making multiple values
+   * available.
+   */
+  function race<T extends unknown[]>(
+    promises: T
+  ): Promise<{ [P in keyof T]: Awaited<T[P]> | undefined }> {
+    return new Promise((resolve, reject) => {
+      const results: any[] = []
+      for (let i = 0; i < promises.length; i++) {
+        const value = promises[i]
+        Promise.resolve(value).then(
+          (v) => {
+            results[i] = v
+            resolve(results as any)
+          },
+          (e) => {
+            reject(e)
+          }
+        )
+      }
+    })
+  }
+
   async function rustifyProjectOptions(options: ProjectOptions): Promise<any> {
     return {
       ...options,
@@ -851,51 +877,59 @@ function bindingToApi(binding: any, _wasm: boolean) {
     async changed(): Promise<
       AsyncIterableIterator<TurbopackResult<ServerClientChange>>
     > {
-      const nativeEndpoint = this._nativeEndpoint
+      const serverSubscription = subscribe<TurbopackResult>(
+        false,
+        async (callback) =>
+          binding.endpointServerChangedSubscribe(
+            await this._nativeEndpoint,
+            callback
+          )
+      )
+      const clientSubscription = subscribe<TurbopackResult>(
+        false,
+        async (callback) =>
+          binding.endpointClientChangedSubscribe(
+            await this._nativeEndpoint,
+            callback
+          )
+      )
+
       return (async function* () {
-        const endpoint = await nativeEndpoint
-        let server: TurbopackResult | undefined
-        let client: TurbopackResult | undefined
+        try {
+          while (true) {
+            const [server, client] = await race([
+              serverSubscription.next(),
+              clientSubscription.next(),
+            ])
 
-        const serverPromise = subscribe<TurbopackResult>(
-          false,
-          async (callback) =>
-            binding.endpointServerChangedSubscribe(endpoint, callback)
-        )
-          .next()
-          .then((result) => {
-            server = result.value
-          })
-        const clientPromise = subscribe<TurbopackResult>(
-          false,
-          async (callback) =>
-            binding.endpointClientChangedSubscribe(endpoint, callback)
-        )
-          .next()
-          .then((result) => {
-            client = result.value
-          })
-        await Promise.race([serverPromise, clientPromise]).then(() => {
-          // Include an artificial delay to see if both will invalidate
-          return new Promise((resolve) => setTimeout(resolve, 1))
-        })
+            const done = server?.done || client?.done
+            if (done) {
+              break
+            }
 
-        if (server && client) {
-          yield {
-            issues: server.issues.concat(client.issues),
-            diagnostics: server.diagnostics.concat(client.diagnostics),
-            change: ServerClientChangeType.Both,
+            if (server && client) {
+              yield {
+                issues: server.value.issues.concat(client.value.issues),
+                diagnostics: server.value.diagnostics.concat(
+                  client.value.diagnostics
+                ),
+                change: ServerClientChangeType.Both,
+              }
+            } else if (server) {
+              yield {
+                ...server.value,
+                change: ServerClientChangeType.Server,
+              }
+            } else {
+              yield {
+                ...client!.value,
+                change: ServerClientChangeType.Client,
+              }
+            }
           }
-        } else if (server) {
-          yield {
-            ...server,
-            change: ServerClientChangeType.Server,
-          }
-        } else {
-          yield {
-            ...client!,
-            change: ServerClientChangeType.Client,
-          }
+        } finally {
+          serverSubscription.return?.()
+          clientSubscription.return?.()
         }
       })()
     }
