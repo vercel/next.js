@@ -33,7 +33,11 @@ createNextDescribe(
         } else {
           // If expected is undefined, then it should not exist.
           // Otherwise, it should exist in the matched values.
-          expect(values.includes(expected)).toBe(expected !== undefined)
+          if (expected === undefined) {
+            expect(values).not.toContain(undefined)
+          } else {
+            expect(values).toContain(expected)
+          }
         }
       }
     }
@@ -454,7 +458,7 @@ createNextDescribe(
         })
 
         await matchMultiDom('meta', 'name', 'content', {
-          'twitter:card': 'summary',
+          'twitter:card': 'summary_large_image',
           'twitter:title': 'My custom title',
           'twitter:description': 'My custom description',
           'twitter:image': [
@@ -570,7 +574,7 @@ createNextDescribe(
         let hasRootNotFoundFlight = false
         for (const el of $('script').toArray()) {
           const text = $(el).text()
-          if (text.includes('root not found page')) {
+          if (text.includes('Local found boundary')) {
             hasRootNotFoundFlight = true
           }
         }
@@ -586,7 +590,7 @@ createNextDescribe(
 
         const browser = await next.browser('/async/not-found')
         expect(await browser.elementByCss('h2').text()).toBe(
-          'root not found page'
+          'Local found boundary'
         )
 
         const matchMultiDom = createMultiDomMatcher(browser)
@@ -759,7 +763,7 @@ createNextDescribe(
     })
 
     describe('twitter', () => {
-      it('should support default twitter summary card', async () => {
+      it('should support twitter card summary_large_image when image present', async () => {
         const browser = await next.browser('/twitter')
         const matchMultiDom = createMultiDomMatcher(browser)
 
@@ -771,12 +775,12 @@ createNextDescribe(
           'twitter:creator:id': 'creatorId',
           'twitter:image': 'https://twitter.com/image.png',
           'twitter:image:secure_url': 'https://twitter.com/secure.png',
-          'twitter:card': 'summary',
+          'twitter:card': 'summary_large_image',
         })
       })
 
-      it('should support default twitter summary_large_image card', async () => {
-        const browser = await next.browser('/twitter/large-image')
+      it('should render twitter card summary when image is not present', async () => {
+        const browser = await next.browser('/twitter/no-image')
         const matchMultiDom = createMultiDomMatcher(browser)
 
         await matchMultiDom('meta', 'name', 'content', {
@@ -785,9 +789,7 @@ createNextDescribe(
           'twitter:site:id': 'siteId',
           'twitter:creator': 'creator',
           'twitter:creator:id': 'creatorId',
-          'twitter:image': 'https://twitter.com/large-image.png',
-          'twitter:image:alt': 'image-alt',
-          'twitter:card': 'summary_large_image',
+          'twitter:card': 'summary',
         })
       })
 

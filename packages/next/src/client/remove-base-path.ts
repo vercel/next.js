@@ -9,6 +9,9 @@ export function removeBasePath(path: string): string {
     }
   }
 
+  // Can't trim the basePath if it has zero length!
+  if (basePath.length === 0) return path
+
   path = path.slice(basePath.length)
   if (!path.startsWith('/')) path = `/${path}`
   return path
