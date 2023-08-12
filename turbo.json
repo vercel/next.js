@@ -6,7 +6,8 @@
         "../../.cargo/**",
         "../../packages/next-swc/crates/**",
         "../../**/Cargo.toml",
-        "../../**/Cargo.lock"
+        "../../**/Cargo.lock",
+        "../../.github/workflows/build_and_deploy.yml"
       ],
       "dependsOn": ["^build-native"],
       "outputs": ["native/*.node"]
@@ -16,7 +17,8 @@
         "../../.cargo/**",
         "../../packages/next-swc/crates/**",
         "../../**/Cargo.toml",
-        "../../**/Cargo.lock"
+        "../../**/Cargo.lock",
+        "../../.github/workflows/build_and_deploy.yml"
       ],
       "dependsOn": ["^build-native-release"],
       "outputs": ["native/*.node"]
@@ -26,7 +28,8 @@
         "../../.cargo/**",
         "../../packages/next-swc/crates/**",
         "../../**/Cargo.toml",
-        "../../**/Cargo.lock"
+        "../../**/Cargo.lock",
+        "../../.github/workflows/build_and_deploy.yml"
       ],
       "dependsOn": ["^build-native-no-plugin"],
       "outputs": ["native/*.node"]
@@ -36,7 +39,8 @@
         "../../.cargo/**",
         "../../packages/next-swc/crates/**",
         "../../**/Cargo.toml",
-        "../../**/Cargo.lock"
+        "../../**/Cargo.lock",
+        "../../.github/workflows/build_and_deploy.yml"
       ],
       "dependsOn": ["^build-native-no-plugin-woa"],
       "outputs": ["native/*.node"]
@@ -46,7 +50,8 @@
         "../../.cargo/**",
         "../../packages/next-swc/crates/**",
         "../../**/Cargo.toml",
-        "../../**/Cargo.lock"
+        "../../**/Cargo.lock",
+        "../../.github/workflows/build_and_deploy.yml"
       ],
       "dependsOn": ["^build-native-no-plugin-woa-release"],
       "outputs": ["native/*.node"]
@@ -56,7 +61,8 @@
         "../../.cargo/**",
         "../../packages/next-swc/crates/**",
         "../../**/Cargo.toml",
-        "../../**/Cargo.lock"
+        "../../**/Cargo.lock",
+        "../../.github/workflows/build_and_deploy.yml"
       ],
       "dependsOn": ["^build-wasm"],
       "outputs": ["crates/wasm/pkg/*"]
