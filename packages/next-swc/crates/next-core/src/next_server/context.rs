@@ -4,7 +4,7 @@ use turbo_tasks_fs::FileSystem;
 use turbopack_binding::{
     turbo::{tasks_env::ProcessEnv, tasks_fs::FileSystemPath},
     turbopack::{
-        build::BuildChunkingContext,
+        build::{BuildChunkingContext, MinifyType},
         core::{
             compile_time_defines,
             compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReferences},
@@ -601,5 +601,6 @@ pub fn get_server_chunking_context(
         client_root.join("static/media".to_string()),
         environment,
     )
+    .minify_type(MinifyType::NoMinify)
     .build()
 }
