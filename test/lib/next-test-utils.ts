@@ -8,7 +8,6 @@ import {
 } from 'fs'
 import { promisify } from 'util'
 import http from 'http'
-import https from 'https'
 import path from 'path'
 
 import spawn from 'cross-spawn'

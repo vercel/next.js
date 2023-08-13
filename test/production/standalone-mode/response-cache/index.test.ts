@@ -144,7 +144,7 @@ describe('minimal-mode-response-cache', () => {
   it('should have correct "Started server on" log', async () => {
     expect(output).toContain(`started server on`)
     let pattern = new RegExp(
-      `url: http://localhost:${appPort}|url: http://\\[::1\\]:${appPort}`
+      `url: http://localhost:${appPort}|url: http://127.0.0.1:${appPort}|url: http://\\[::1\\]:${appPort}`
     )
     expect(output).toMatch(pattern)
   })
