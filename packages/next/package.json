@@ -65,7 +65,9 @@
     "experimental/testmode/playwright.js",
     "experimental/testmode/playwright.d.ts",
     "experimental/testmode/playwright/msw.js",
-    "experimental/testmode/playwright/msw.d.ts"
+    "experimental/testmode/playwright/msw.d.ts",
+    "experimental/testmode/proxy.js",
+    "experimental/testmode/proxy.d.ts"
   ],
   "bin": {
     "next": "./dist/bin/next"
