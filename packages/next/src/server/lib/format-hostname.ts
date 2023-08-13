@@ -1,4 +1,4 @@
-import { isIPv6 } from 'net'
+import { isIPv6 } from './is-ipv6'
 
 /**
  * Formats a hostname so that it is a valid host that can be fetched by wrapping
