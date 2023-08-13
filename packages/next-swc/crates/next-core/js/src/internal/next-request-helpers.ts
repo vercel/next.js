@@ -1,5 +1,4 @@
 import { TLSSocket } from 'tls'
-import { isIPv6 } from 'net'
 import {
   addRequestMeta,
   NextUrlWithParsedQuery,
