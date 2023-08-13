@@ -2,26 +2,62 @@
   "$schema": "https://turborepo.org/schema.json",
   "pipeline": {
     "build-native": {
+      "inputs": [
+        "../../.cargo/**",
+        "../../packages/next-swc/crates/**",
+        "../../**/Cargo.toml",
+        "../../**/Cargo.lock"
+      ],
       "dependsOn": ["^build-native"],
       "outputs": ["native/*.node"]
     },
     "build-native-release": {
+      "inputs": [
+        "../../.cargo/**",
+        "../../packages/next-swc/crates/**",
+        "../../**/Cargo.toml",
+        "../../**/Cargo.lock"
+      ],
       "dependsOn": ["^build-native-release"],
       "outputs": ["native/*.node"]
     },
     "build-native-no-plugin": {
+      "inputs": [
+        "../../.cargo/**",
+        "../../packages/next-swc/crates/**",
+        "../../**/Cargo.toml",
+        "../../**/Cargo.lock"
+      ],
       "dependsOn": ["^build-native-no-plugin"],
       "outputs": ["native/*.node"]
     },
     "build-native-no-plugin-woa": {
+      "inputs": [
+        "../../.cargo/**",
+        "../../packages/next-swc/crates/**",
+        "../../**/Cargo.toml",
+        "../../**/Cargo.lock"
+      ],
       "dependsOn": ["^build-native-no-plugin-woa"],
       "outputs": ["native/*.node"]
     },
     "build-native-no-plugin-woa-release": {
+      "inputs": [
+        "../../.cargo/**",
+        "../../packages/next-swc/crates/**",
+        "../../**/Cargo.toml",
+        "../../**/Cargo.lock"
+      ],
       "dependsOn": ["^build-native-no-plugin-woa-release"],
       "outputs": ["native/*.node"]
     },
     "build-wasm": {
+      "inputs": [
+        "../../.cargo/**",
+        "../../packages/next-swc/crates/**",
+        "../../**/Cargo.toml",
+        "../../**/Cargo.lock"
+      ],
       "dependsOn": ["^build-wasm"],
       "outputs": ["crates/wasm/pkg/*"]
     },

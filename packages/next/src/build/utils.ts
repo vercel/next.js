@@ -1035,6 +1035,7 @@ export async function buildStaticPaths({
                   .join('/')
               : escapePathDelimiters(paramValue as string, true)
           )
+          .replace(/\\/g, '/')
           .replace(/(?!^)\/$/, '')
 
         encodedBuiltPage = encodedBuiltPage
@@ -1044,6 +1045,7 @@ export async function buildStaticPaths({
               ? (paramValue as string[]).map(encodeURIComponent).join('/')
               : encodeURIComponent(paramValue as string)
           )
+          .replace(/\\/g, '/')
           .replace(/(?!^)\/$/, '')
       })
 

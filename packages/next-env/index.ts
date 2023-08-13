@@ -80,6 +80,8 @@ export function processEnv(
           typeof parsed[key] === 'undefined' &&
           typeof origEnv[key] === 'undefined'
         ) {
+          // We're being imprecise in the type system - assume parsed[key] can be undefined
+          // eslint-disable-next-line @typescript-eslint/no-non-null-asserted-optional-chain
           parsed[key] = result.parsed?.[key]!
         }
       }

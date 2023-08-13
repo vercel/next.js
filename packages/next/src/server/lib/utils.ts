@@ -1,6 +1,5 @@
 import { isIPv6 } from 'net'
 import type arg from 'next/dist/compiled/arg/index.js'
-import * as Log from '../../build/output/log'
 
 export function printAndExit(message: string, code = 1) {
   if (code === 0) {
@@ -35,15 +34,9 @@ export const genRouterWorkerExecArgv = async (
   })
 
   if (isNodeDebugging) {
-    const isDebuggingWithBrk = isNodeDebugging === 'brk'
-
     let debugPort = getDebugPort() + 1
 
-    Log.info(
-      `the --inspect${
-        isDebuggingWithBrk ? '-brk' : ''
-      } option was detected, the Next.js routing server should be inspected at port ${debugPort}.`
-    )
+    // Process will log it's own debugger port
 
     execArgv.push(
       `--inspect${isNodeDebugging === 'brk' ? '-brk' : ''}=${debugPort}`
