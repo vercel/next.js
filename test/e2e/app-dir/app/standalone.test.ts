@@ -91,7 +91,7 @@ if (!(globalThis as any).isNextStart) {
             '/dashboard/project/123',
             '/catch-all/first',
           ]) {
-            const res = await fetchViaHTTP(appPort, testPath, {}, {})
+            const res = await fetchViaHTTP(appPort, testPath)
             expect(res.status).toBe(200)
           }
         } finally {
