@@ -35,7 +35,6 @@ import {
   PERMANENT_REDIRECT_STATUS,
 } from '../../shared/lib/constants'
 import { signalFromNodeResponse } from '../web/spec-extension/adapters/next-request'
-import { formatHostname } from './format-hostname'
 
 const debug = setupDebug('next:router-server:main')
 
