@@ -267,7 +267,7 @@ export async function initialize(opts: {
 
   const cleanup = async (err: Error | undefined) => {
     if (err) {
-      await devInstance?.logErrorWithOriginalStack(err)
+      await devInstance?.logErrorWithOriginalStack(err, 'uncaughtException')
     }
 
     debug('router-server process cleanup')

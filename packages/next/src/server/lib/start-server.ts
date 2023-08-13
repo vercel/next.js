@@ -206,9 +206,11 @@ export async function startServer({
         process.exit(1)
       }
 
+      console.log(process.env.__NEXT_PRIVATE_RENDER_WORKER)
       const cleanup = () => {
         debug('start-server process cleanup')
         server.close()
+        // process.exit(1)
       }
       process.on('exit', cleanup)
       process.on('SIGINT', cleanup)

@@ -9,16 +9,13 @@ import '../node-polyfill-fetch'
 import { warn } from '../../build/output/log'
 import { Duplex } from 'stream'
 
-// `pages` will be in the same process as the router
-if (process.env.__NEXT_PRIVATE_RENDER_WORKER === 'app') {
-  process.on('unhandledRejection', (err) => {
-    console.error(err)
-  })
+process.on('unhandledRejection', (err) => {
+  console.error(err)
+})
 
-  process.on('uncaughtException', (err) => {
-    console.error(err)
-  })
-}
+process.on('uncaughtException', (err) => {
+  console.error(err)
+})
 
 export const WORKER_SELF_EXIT_CODE = 77
 
