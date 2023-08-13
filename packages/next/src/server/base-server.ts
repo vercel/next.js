@@ -36,7 +36,7 @@ import type {
 } from './future/route-modules/app-route/module'
 
 import { format as formatUrl, parse as parseUrl } from 'url'
-import { formatHostname } from './lib/utils'
+import { formatHostname } from './lib/format-hostname'
 import { getRedirectStatus } from '../lib/redirect-status'
 import { isEdgeRuntime } from '../lib/is-edge-runtime'
 import {

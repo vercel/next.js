@@ -5,7 +5,8 @@ import type { IncomingMessage, ServerResponse } from 'http'
 import http from 'http'
 import * as Log from '../../build/output/log'
 import setupDebug from 'next/dist/compiled/debug'
-import { formatHostname, getDebugPort } from './utils'
+import { getDebugPort } from './utils'
+import { formatHostname } from './format-hostname'
 import { initialize } from './router-server'
 import {
   WorkerRequestHandler,

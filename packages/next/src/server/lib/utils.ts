@@ -1,4 +1,3 @@
-import { isIPv6 } from 'net'
 import type arg from 'next/dist/compiled/arg/index.js'
 
 export function printAndExit(message: string, code = 1) {
@@ -62,14 +61,4 @@ export function getPort(args: arg.Result<arg.Spec>): number {
   }
 
   return 3000
-}
-
-/**
- * Formats a hostname so that it is a valid host that can be fetched by wrapping
- * IPv6 hosts with brackets.
- * @param hostname
- * @returns
- */
-export function formatHostname(hostname: string): string {
-  return isIPv6(hostname) ? `[${hostname}]` : hostname
 }

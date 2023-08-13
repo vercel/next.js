@@ -2,7 +2,7 @@ import type { RequestHandler } from '../next'
 
 // this must come first as it includes require hooks
 import { initializeServerWorker } from './setup-server-worker'
-import { formatHostname } from './utils'
+import { formatHostname } from './format-hostname'
 import next from '../next'
 import { PropagateToWorkersField } from './router-utils/types'
 
