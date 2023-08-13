@@ -1,3 +1,13 @@
+export interface ProxyServer {
+  readonly port: number
+  fetchWith(
+    input: string | URL,
+    init?: RequestInit,
+    testData?: string
+  ): Promise<Response>
+  close(): void
+}
+
 interface ProxyRequestBase {
   testData: string
   api: string

@@ -1,9 +1,11 @@
+// eslint-disable-next-line import/no-extraneous-dependencies
 import { test as base } from '@playwright/test'
 import type { NextFixture } from './next-fixture'
 import type { NextWorkerFixture } from './next-worker-fixture'
 import { applyNextWorkerFixture } from './next-worker-fixture'
 import { applyNextFixture } from './next-fixture'
 
+// eslint-disable-next-line import/no-extraneous-dependencies
 export * from '@playwright/test'
 
 export type { NextFixture }

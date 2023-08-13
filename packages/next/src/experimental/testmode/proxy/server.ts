@@ -1,6 +1,6 @@
 import http from 'http'
-import type { IncomingMessage, Server } from 'http'
-import type { ProxyRequest, ProxyResponse } from './types'
+import type { IncomingMessage } from 'http'
+import type { ProxyRequest, ProxyResponse, ProxyServer } from './types'
 import { UNHANDLED } from './types'
 import type { FetchHandler } from './fetch-api'
 import { handleFetch } from './fetch-api'
@@ -22,7 +22,7 @@ export async function createProxyServer({
   onFetch,
 }: {
   onFetch?: FetchHandler
-}): Promise<Server> {
+}): Promise<ProxyServer> {
   const server = http.createServer(async (req, res) => {
     if (req.url !== '/') {
       res.writeHead(404)
@@ -66,5 +66,19 @@ export async function createProxyServer({
     })
   })
 
-  return server
+  const address = server.address()
+  if (!address || typeof address !== 'object') {
+    server.close()
+    throw new Error('Failed to create a proxy server')
+  }
+  const port = address.port
+
+  const fetchWith: ProxyServer['fetchWith'] = (input, init, testData) => {
+    const request = new Request(input, init)
+    request.headers.set('Next-Test-Proxy-Port', String(port))
+    request.headers.set('Next-Test-Data', testData ?? '')
+    return fetch(request)
+  }
+
+  return { port, close: () => server.close(), fetchWith }
 }

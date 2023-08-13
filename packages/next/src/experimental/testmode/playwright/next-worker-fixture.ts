@@ -1,5 +1,5 @@
-import type { Server } from 'http'
-import { type FetchHandlerResult, createProxyServer } from '../proxy'
+import type { FetchHandlerResult, ProxyServer } from '../proxy'
+import { createProxyServer } from '../proxy'
 
 export type FetchHandler = (
   request: Request
@@ -13,7 +13,7 @@ export interface NextWorkerFixture {
 
 class NextWorkerFixtureImpl implements NextWorkerFixture {
   public proxyPort: number = 0
-  private proxyServer: Server | null = null
+  private proxyServer: ProxyServer | null = null
   private proxyFetchMap = new Map<string, FetchHandler>()
 
   async setup(): Promise<void> {
@@ -21,12 +21,7 @@ class NextWorkerFixtureImpl implements NextWorkerFixture {
       onFetch: this.handleProxyFetch.bind(this),
     })
 
-    const address = server.address()
-    if (!address || typeof address !== 'object') {
-      server.close()
-      throw new Error('Failed to create a proxy server')
-    }
-    this.proxyPort = address.port
+    this.proxyPort = server.port
     this.proxyServer = server
   }
 

@@ -5,10 +5,14 @@ import {
   type MockedResponse,
   MockedRequest,
   handleRequest,
+  // eslint-disable-next-line import/no-extraneous-dependencies
 } from 'msw'
+// eslint-disable-next-line import/no-extraneous-dependencies
 import { Emitter } from 'strict-event-emitter'
 
+// eslint-disable-next-line import/no-extraneous-dependencies
 export * from 'msw'
+// eslint-disable-next-line import/no-extraneous-dependencies
 export * from '@playwright/test'
 export type { NextFixture }
 
