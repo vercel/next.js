@@ -7,11 +7,12 @@ import {
 import { NodeNextRequest } from 'next/dist/server/base-http/node'
 import { BaseNextRequest } from 'next/dist/server/base-http'
 import { getCloneableBody } from 'next/dist/server/body-streams'
+import { formatHostname } from 'next/dist/server/lib/format-hostname'
 
 export function attachRequestMeta(
   req: BaseNextRequest,
   parsedUrl: NextUrlWithParsedQuery,
-  host: string
+  hostname: string
 ) {
   const protocol = (
     (req as NodeNextRequest).originalRequest?.socket as TLSSocket
@@ -19,7 +20,7 @@ export function attachRequestMeta(
     ? 'https'
     : 'http'
 
-  const initUrl = `${protocol}://${isIPv6(host) ? `[${host}]` : host}${req.url}`
+  const initUrl = `${protocol}://${formatHostname(hostname)}${req.url}`
 
   addRequestMeta(req, '__NEXT_INIT_URL', initUrl)
   addRequestMeta(req, '__NEXT_INIT_QUERY', { ...parsedUrl.query })
