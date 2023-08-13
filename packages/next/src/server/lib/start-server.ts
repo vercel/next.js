@@ -157,7 +157,16 @@ export async function startServer({
           ? addr?.address || hostname || 'localhost'
           : addr
       )
-      const formattedHostname = formatHostname(hostname || 'localhost')
+
+      const formattedHostname =
+        !hostname || hostname === '0.0.0.0'
+          ? 'localhost'
+          : actualHostname === '[::]'
+          ? '[::1]'
+          : actualHostname
+
+      const appUrl = `http://${formattedHostname}:${port}`
+
       port = typeof addr === 'object' ? addr?.port || port : port
 
       if (isNodeDebugging) {
@@ -170,9 +179,7 @@ export async function startServer({
       }
 
       if (logReady) {
-        Log.ready(
-          `started server on ${actualHostname}:${port}, url: http://${formattedHostname}:${port}`
-        )
+        Log.ready(`started server on ${actualHostname}:${port}, url: ${appUrl}`)
         // expose the main port to render workers
         process.env.PORT = port + ''
       }

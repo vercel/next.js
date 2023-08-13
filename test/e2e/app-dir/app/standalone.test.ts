@@ -67,7 +67,7 @@ if (!(globalThis as any).isNextStart) {
           const appPort = await findPort()
           server = await initNextServerScript(
             testServer,
-            /Listening on/,
+            /ready started server on/,
             {
               ...process.env,
               PORT: appPort.toString(),
@@ -91,7 +91,10 @@ if (!(globalThis as any).isNextStart) {
             '/dashboard/project/123',
             '/catch-all/first',
           ]) {
-            const res = await fetchViaHTTP(appPort, testPath)
+            const res = await fetchViaHTTP(appPort, testPath, undefined, {
+              // fetchViaHTTP forces IPv4
+              agent: null,
+            })
             expect(res.status).toBe(200)
           }
         } finally {
