@@ -651,7 +651,6 @@ export async function renderToHTMLOrFlight(
 
       const [NotFound, notFoundStyles] = notFound
         ? await createComponentAndStyles({
-            shouldPreload: true,
             filePath: notFound[1],
             getComponent: notFound[0],
             injectedCSS: injectedCSSWithCurrentLayout,
