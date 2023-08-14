@@ -1,7 +1,11 @@
-use std::{path::PathBuf, sync::Arc};
+use std::{path::PathBuf, sync::Arc, time::Duration};
 
-use anyhow::{Context, Result};
-use napi::{bindgen_prelude::External, JsFunction};
+use anyhow::{anyhow, Context, Result};
+use napi::{
+    bindgen_prelude::External,
+    threadsafe_function::{ThreadsafeFunction, ThreadsafeFunctionCallMode},
+    JsFunction, Status,
+};
 use next_api::{
     project::{Middleware, ProjectContainer, ProjectOptions},
     route::{Endpoint, Route},
@@ -12,7 +16,7 @@ use next_core::tracing_presets::{
 use tracing_subscriber::{
     prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry,
 };
-use turbo_tasks::{TransientInstance, TurboTasks, Vc};
+use turbo_tasks::{TransientInstance, TurboTasks, UpdateInfo, Vc};
 use turbopack_binding::{
     turbo::tasks_memory::MemoryBackend,
     turbopack::{
@@ -304,7 +308,6 @@ pub fn project_entrypoints_subscribe(
 
             let entrypoints = entrypoints.strongly_consistent().await?;
 
-            // TODO peek_issues and diagnostics
             Ok((entrypoints, issues, diags))
         },
         move |ctx| {
@@ -349,14 +352,12 @@ pub fn project_entrypoints_subscribe(
 
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
 pub fn project_hmr_events(
-    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<
-        VcArc<Vc<ProjectContainer>>,
-    >,
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
     identifier: String,
     func: JsFunction,
 ) -> napi::Result<External<RootTask>> {
-    let turbo_tasks = project.turbo_tasks().clone();
-    let project = **project;
+    let turbo_tasks = project.turbo_tasks.clone();
+    let project = project.container;
     let session = TransientInstance::new(());
     subscribe(
         turbo_tasks.clone(),
@@ -421,4 +422,90 @@ pub fn project_hmr_events(
             }])
         },
     )
+}
+
+#[napi(object)]
+struct HmrIdentifiers {
+    pub identifiers: Vec<String>,
+}
+
+#[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
+pub fn project_hmr_identifiers_subscribe(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+    func: JsFunction,
+) -> napi::Result<External<RootTask>> {
+    let turbo_tasks = project.turbo_tasks.clone();
+    let container = project.container;
+    subscribe(
+        turbo_tasks.clone(),
+        func,
+        move || async move {
+            let hmr_identifiers = container.hmr_identifiers();
+            let issues = get_issues(hmr_identifiers).await?;
+            let diags = get_diagnostics(hmr_identifiers).await?;
+
+            let hmr_identifiers = hmr_identifiers.strongly_consistent().await?;
+
+            Ok((hmr_identifiers, issues, diags))
+        },
+        move |ctx| {
+            let (hmr_identifiers, issues, diags) = ctx.value;
+
+            Ok(vec![TurbopackResult {
+                result: HmrIdentifiers {
+                    identifiers: hmr_identifiers
+                        .iter()
+                        .map(|ident| ident.to_string())
+                        .collect::<Vec<_>>(),
+                },
+                issues: issues
+                    .iter()
+                    .map(|issue| NapiIssue::from(&**issue))
+                    .collect(),
+                diagnostics: diags.iter().map(|d| NapiDiagnostic::from(d)).collect(),
+            }])
+        },
+    )
+}
+
+#[napi(object)]
+struct NapiUpdateInfo {
+    pub duration: u32,
+    pub tasks: u32,
+}
+
+impl From<UpdateInfo> for NapiUpdateInfo {
+    fn from(update_info: UpdateInfo) -> Self {
+        Self {
+            duration: update_info.duration.as_millis() as u32,
+            tasks: update_info.tasks as u32,
+        }
+    }
+}
+
+#[napi]
+pub fn project_update_info_subscribe(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+    func: JsFunction,
+) -> napi::Result<()> {
+    let func: ThreadsafeFunction<UpdateInfo> = func.create_threadsafe_function(0, |ctx| {
+        let update_info = ctx.value;
+        Ok(vec![NapiUpdateInfo::from(update_info)])
+    })?;
+    let turbo_tasks = project.turbo_tasks.clone();
+    tokio::spawn(async move {
+        loop {
+            let update_info = turbo_tasks
+                .get_or_wait_aggregated_update_info(Duration::from_secs(1))
+                .await;
+
+            let status = func.call(Ok(update_info), ThreadsafeFunctionCallMode::NonBlocking);
+            if !matches!(status, Status::Ok) {
+                let error = anyhow!("Error calling JS function: {}", status);
+                eprintln!("{}", error);
+                break;
+            }
+        }
+    });
+    Ok(())
 }
