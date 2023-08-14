@@ -16,7 +16,6 @@ import type { StaticGenerationBailout } from '../../client/components/static-gen
 import type { RequestAsyncStorage } from '../../client/components/request-async-storage'
 
 import React from 'react'
-import { NotFound as DefaultNotFound } from '../../client/components/error'
 import { createServerComponentRenderer } from './create-server-components-renderer'
 
 import { ParsedUrlQuery } from 'querystring'
@@ -29,6 +28,7 @@ import {
   streamToBufferedResult,
   cloneTransformStream,
 } from '../stream-utils/node-web-streams-helper'
+import DefaultNotFound from '../../client/components/not-found-error'
 import {
   canSegmentBeOverridden,
   matchSegment,
@@ -75,8 +75,6 @@ import { handleAction } from './action-handler'
 import { NEXT_DYNAMIC_NO_SSR_CODE } from '../../shared/lib/lazy-dynamic/no-ssr-error'
 import { warn } from '../../build/output/log'
 import { appendMutableCookies } from '../web/spec-extension/adapters/request-cookies'
-import { ComponentsType } from '../../build/webpack/loaders/next-app-loader'
-import { ModuleReference } from '../../build/webpack/loaders/metadata/types'
 import { createServerInsertedHTML } from './server-inserted-html'
 import { getRequiredScripts } from './required-scripts'
 
@@ -90,51 +88,9 @@ export type GetDynamicParamFromSegment = (
   type: DynamicParamTypesShort
 } | null
 
-function ErrorHtml({
-  children,
-}: {
-  head?: React.ReactNode
-  children?: React.ReactNode
-}) {
-  return (
-    <html id="__next_error__">
-      <body>{children}</body>
-    </html>
-  )
-}
-
 function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
   // Align the segment with parallel-route-default in next-app-loader
-  return ['__DEFAULT__', {}, loaderTree[2]]
-}
-
-// Find the closest matched component in the loader tree for a given component type
-function findMatchedComponent(
-  loaderTree: LoaderTree,
-  componentType: Exclude<keyof ComponentsType, 'metadata'>,
-  result?: ModuleReference
-): ModuleReference | undefined {
-  const [segment, parallelRoutes, components] = loaderTree
-  const childKeys = Object.keys(parallelRoutes)
-  result = components[componentType] || result
-
-  // reached the end of the tree
-  if (segment === '__DEFAULT__' || segment === '__PAGE__') {
-    return result
-  }
-
-  for (const key of childKeys) {
-    const childTree = parallelRoutes[key]
-    const matchedComponent = findMatchedComponent(
-      childTree,
-      componentType,
-      result
-    )
-    if (matchedComponent) {
-      return matchedComponent
-    }
-  }
-  return undefined
+  return ['', {}, loaderTree[2]]
 }
 
 /* This method is important for intercepted routes to function:
@@ -698,7 +654,7 @@ export async function renderToHTMLOrFlight(
             getComponent: notFound[0],
             injectedCSS: injectedCSSWithCurrentLayout,
           })
-        : [rootLayoutIncluded ? undefined : DefaultNotFound]
+        : []
 
       let dynamic = layoutOrPageMod?.dynamic
 
@@ -768,12 +724,40 @@ export async function renderToHTMLOrFlight(
         throw staticGenerationStore.dynamicUsageErr
       }
 
+      const LayoutOrPage = layoutOrPageMod
+        ? interopDefault(layoutOrPageMod)
+        : undefined
+
       /**
        * The React Component to render.
        */
-      let Component = layoutOrPageMod
-        ? interopDefault(layoutOrPageMod)
-        : undefined
+      let Component = LayoutOrPage
+      const parallelKeys = Object.keys(parallelRoutes)
+      const hasSlotKey = parallelKeys.length > 1
+
+      if (hasSlotKey && rootLayoutAtThisLevel) {
+        const NotFoundBoundary =
+          ComponentMod.NotFoundBoundary as typeof import('../../client/components/not-found-boundary').NotFoundBoundary
+        Component = (componentProps: any) => {
+          const NotFoundComponent = NotFound || DefaultNotFound
+          const RootLayoutComponent = LayoutOrPage
+          return (
+            <NotFoundBoundary
+              notFound={
+                <>
+                  {styles}
+                  <RootLayoutComponent>
+                    {notFoundStyles}
+                    <NotFoundComponent />
+                  </RootLayoutComponent>
+                </>
+              }
+            >
+              <RootLayoutComponent {...componentProps} />
+            </NotFoundBoundary>
+          )
+        }
+      }
 
       if (dev) {
         const { isValidElementType } = require('next/dist/compiled/react-is')
@@ -829,6 +813,7 @@ export async function renderToHTMLOrFlight(
       const parallelRouteMap = await Promise.all(
         Object.keys(parallelRoutes).map(
           async (parallelRouteKey): Promise<[string, React.ReactNode]> => {
+            const isChildrenRouteKey = parallelRouteKey === 'children'
             const currentSegmentPath: FlightSegmentPath = firstItem
               ? [parallelRouteKey]
               : [actualSegment, parallelRouteKey]
@@ -837,6 +822,8 @@ export async function renderToHTMLOrFlight(
 
             const childSegment = parallelRoute[0]
             const childSegmentParam = getDynamicParamFromSegment(childSegment)
+            const notFoundComponent =
+              NotFound && isChildrenRouteKey ? <NotFound /> : undefined
 
             // if we're prefetching and that there's a Loading component, we bail out
             // otherwise we keep rendering for the prefetch.
@@ -873,7 +860,7 @@ export async function renderToHTMLOrFlight(
                     </Template>
                   }
                   templateStyles={templateStyles}
-                  notFound={NotFound ? <NotFound /> : undefined}
+                  notFound={notFoundComponent}
                   notFoundStyles={notFoundStyles}
                   childProp={childProp}
                 />,
@@ -926,7 +913,7 @@ export async function renderToHTMLOrFlight(
                   </Template>
                 }
                 templateStyles={templateStyles}
-                notFound={NotFound ? <NotFound /> : undefined}
+                notFound={notFoundComponent}
                 notFoundStyles={notFoundStyles}
                 childProp={childProp}
                 styles={childStyles}
@@ -963,7 +950,7 @@ export async function renderToHTMLOrFlight(
         asNotFound &&
         // In development, it could hit the parallel-route-default not found, so we only need to check the segment.
         // Or if there's no parallel routes means it reaches the end.
-        ((segment === '__DEFAULT__' && !parallelRouteMap.length) ||
+        (!parallelRouteMap.length ||
           // For production build the original pathname is /_not-found, always render not-found component.
           (!renderOpts.dev && renderOpts.originalPathname === '/_not-found'))
       ) {
@@ -1353,37 +1340,6 @@ export async function renderToHTMLOrFlight(
         }
       : {}
 
-    async function getNotFound(tree: LoaderTree, injectedCSS: Set<string>) {
-      const notFound = findMatchedComponent(tree, 'not-found')
-      const [NotFound, notFoundStyles] = notFound
-        ? await createComponentAndStyles({
-            filePath: notFound[1],
-            getComponent: notFound[0],
-            injectedCSS,
-          })
-        : []
-      return [NotFound, notFoundStyles]
-    }
-
-    async function getRootLayout(
-      tree: LoaderTree,
-      injectedCSS: Set<string>,
-      injectedFontPreloadTags: Set<string>
-    ) {
-      const { layout } = tree[2]
-      const layoutPath = layout?.[1]
-      const styles = getLayerAssets({
-        layoutOrPagePath: layoutPath,
-        injectedCSS: new Set(injectedCSS),
-        injectedFontPreloadTags: new Set(injectedFontPreloadTags),
-      })
-      const rootLayoutModule = layout?.[0]
-      const RootLayout = rootLayoutModule
-        ? interopDefault(await rootLayoutModule())
-        : null
-      return [RootLayout, styles]
-    }
-
     /**
      * A new React Component that renders the provided React Component
      * using Flight which can then be rendered to HTML.
@@ -1644,17 +1600,14 @@ export async function renderToHTMLOrFlight(
           const is404 = res.statusCode === 404
 
           // Preserve the existing RSC inline chunks from the page rendering.
-          // For 404 errors: the metadata from layout can be skipped with the error page.
-          // For other errors (such as redirection): it can still be re-thrown on client.
+          // To avoid the same stream being operated twice, clone the origin stream for error rendering.
           const serverErrorComponentsRenderOpts: typeof serverComponentsRenderOpts =
             {
               ...serverComponentsRenderOpts,
               rscChunks: [],
-              transformStream: is404
-                ? new TransformStream()
-                : cloneTransformStream(
-                    serverComponentsRenderOpts.transformStream
-                  ),
+              transformStream: cloneTransformStream(
+                serverComponentsRenderOpts.transformStream
+              ),
             }
 
           const errorType = is404
@@ -1685,8 +1638,8 @@ export async function renderToHTMLOrFlight(
           const ErrorPage = createServerComponentRenderer(
             async () => {
               errorPreinitScripts()
-              const [MetadataTree, MetadataOutlet] = createMetadataComponents({
-                tree, // still use original tree with not-found boundaries to extract metadata
+              const [MetadataTree] = createMetadataComponents({
+                tree,
                 pathname,
                 errorType,
                 searchParams: providedSearchParams,
@@ -1702,39 +1655,10 @@ export async function renderToHTMLOrFlight(
                 </>
               )
 
-              const notFoundLoaderTree: LoaderTree = is404
-                ? createNotFoundLoaderTree(tree)
-                : tree
               const initialTree = createFlightRouterStateFromLoaderTree(
-                notFoundLoaderTree,
+                tree,
                 getDynamicParamFromSegment,
                 query
-              )
-
-              const injectedCSS = new Set<string>()
-              const injectedFontPreloadTags = new Set<string>()
-              const [RootLayout, rootStyles] = await getRootLayout(
-                tree,
-                injectedCSS,
-                injectedFontPreloadTags
-              )
-              const [NotFound, notFoundStyles] = await getNotFound(
-                !renderOpts.dev && renderOpts.originalPathname === '/_not-found'
-                  ? notFoundLoaderTree
-                  : tree,
-                injectedCSS
-              )
-
-              const GlobalNotFound = NotFound || DefaultNotFound
-              const ErrorLayout = RootLayout || ErrorHtml
-
-              const notFoundElement = (
-                <ErrorLayout params={{}}>
-                  <MetadataOutlet />
-                  {rootStyles}
-                  {notFoundStyles}
-                  <GlobalNotFound />
-                </ErrorLayout>
               )
 
               // For metadata notFound error there's no global not found boundary on top
@@ -1748,7 +1672,10 @@ export async function renderToHTMLOrFlight(
                   initialHead={head}
                   globalErrorComponent={GlobalError}
                 >
-                  {is404 ? notFoundElement : <ErrorHtml head={head} />}
+                  <html id="__next_error__">
+                    <head></head>
+                    <body></body>
+                  </html>
                 </AppRouter>
               )
             },
