@@ -93,7 +93,7 @@ import {
   isDynamicMetadataRoute,
   getPageStaticInfo,
 } from './analysis/get-page-static-info'
-import { createPagesMapping, getPageFilePath } from './entries'
+import { createPagesMapping, getPageFilePath, sortByPageExts } from './entries'
 import { generateBuildId } from './generate-build-id'
 import { isWriteable } from './is-writeable'
 import * as Log from './output/log'
@@ -141,7 +141,7 @@ import { createValidFileMatcher } from '../server/lib/find-page-file'
 import { startTypeChecking } from './type-check'
 import { generateInterceptionRoutesRewrites } from '../lib/generate-interception-routes-rewrites'
 import { buildDataRoute } from '../server/lib/router-utils/build-data-route'
-import { globalOverrides } from '../server/require-hook'
+import { baseOverrides, experimentalOverrides } from '../server/require-hook'
 import { initialize } from '../server/lib/incremental-cache-server'
 import { nodeFs } from '../server/lib/node-fs-methods'
 
@@ -474,7 +474,9 @@ export default async function build(
             ? [instrumentationHookDetectionRegExp]
             : []),
         ])
-      ).map((absoluteFile) => absoluteFile.replace(dir, ''))
+      )
+        .sort(sortByPageExts(config.pageExtensions))
+        .map((absoluteFile) => absoluteFile.replace(dir, ''))
 
       const hasInstrumentationHook = rootPaths.some((p) =>
         p.includes(INSTRUMENTATION_HOOK_FILENAME)
@@ -1570,6 +1572,10 @@ export default async function build(
                         if (isEdgeRuntime(pageRuntime)) {
                           isStatic = false
                           isSsg = false
+
+                          Log.warnOnce(
+                            `Using edge runtime on a page currently disables static generation for that page`
+                          )
                         } else {
                           // If a page has action and it is static, we need to
                           // change it to SSG to keep the worker created.
@@ -1596,30 +1602,38 @@ export default async function build(
                           }
 
                           const appConfig = workerResult.appConfig || {}
-                          if (appConfig.revalidate !== 0 && !hasAction) {
-                            const isDynamic = isDynamicRoute(page)
-                            const hasGenerateStaticParams =
-                              !!workerResult.prerenderRoutes?.length
+                          if (appConfig.revalidate !== 0) {
+                            if (hasAction) {
+                              Log.warnOnce(
+                                `Using server actions on a page currently disables static generation for that page`
+                              )
+                            } else {
+                              const isDynamic = isDynamicRoute(page)
+                              const hasGenerateStaticParams =
+                                !!workerResult.prerenderRoutes?.length
 
-                            if (
-                              // Mark the app as static if:
-                              // - It has no dynamic param
-                              // - It doesn't have generateStaticParams but `dynamic` is set to
-                              //   `error` or `force-static`
-                              !isDynamic
-                            ) {
-                              appStaticPaths.set(originalAppPath, [page])
-                              appStaticPathsEncoded.set(originalAppPath, [page])
-                              isStatic = true
-                            } else if (
-                              isDynamic &&
-                              !hasGenerateStaticParams &&
-                              (appConfig.dynamic === 'error' ||
-                                appConfig.dynamic === 'force-static')
-                            ) {
-                              appStaticPaths.set(originalAppPath, [])
-                              appStaticPathsEncoded.set(originalAppPath, [])
-                              isStatic = true
+                              if (
+                                // Mark the app as static if:
+                                // - It has no dynamic param
+                                // - It doesn't have generateStaticParams but `dynamic` is set to
+                                //   `error` or `force-static`
+                                !isDynamic
+                              ) {
+                                appStaticPaths.set(originalAppPath, [page])
+                                appStaticPathsEncoded.set(originalAppPath, [
+                                  page,
+                                ])
+                                isStatic = true
+                              } else if (
+                                isDynamic &&
+                                !hasGenerateStaticParams &&
+                                (appConfig.dynamic === 'error' ||
+                                  appConfig.dynamic === 'force-static')
+                              ) {
+                                appStaticPaths.set(originalAppPath, [])
+                                appStaticPathsEncoded.set(originalAppPath, [])
+                                isStatic = true
+                              }
                             }
                           }
 
@@ -1840,11 +1854,6 @@ export default async function build(
 
       if (!isGenerate && config.outputFileTracing) {
         let nodeFileTrace: any
-        let nftResolve: any
-        let resolveHook: any
-        const packageBase = require.resolve('next/package.json')
-        const vendorDir = path.join(packageBase, '../vendored/node_modules')
-
         if (config.experimental.turbotrace) {
           if (!binding?.isWasm) {
             nodeFileTrace = binding.turbo.startTrace
@@ -1854,70 +1863,6 @@ export default async function build(
         if (!nodeFileTrace) {
           nodeFileTrace =
             require('next/dist/compiled/@vercel/nft').nodeFileTrace
-          nftResolve = require('next/dist/compiled/@vercel/nft').resolve
-          resolveHook = async (
-            id: string,
-            parent: string,
-            job: any,
-            isCjs: boolean
-          ) => {
-            if (id[0] !== '.' && id[0] !== '/' && id[0] !== '\\') {
-              // We have a bare specifier and might need to resolve this to a vendored package
-              const slash = id.indexOf('/')
-              const requestBase = slash === -1 ? id : id.slice(0, slash)
-              switch (requestBase) {
-                case 'react':
-                case 'react-dom':
-                case 'react-server-dom-webpack':
-                case 'scheduler': {
-                  let vendoredPath: string
-                  if (id === 'react-dom') {
-                    vendoredPath = '/server-rendering-stub'
-                  } else {
-                    vendoredPath = slash === -1 ? '' : id.slice(slash)
-                  }
-
-                  const nodeModulesPackage = nftResolve(id, parent, job, isCjs)
-                  const vendoredPackage = nftResolve(
-                    requestBase + '-vendored' + vendoredPath,
-                    vendorDir,
-                    job,
-                    isCjs
-                  )
-                  const vendoredExperimentalPackage = nftResolve(
-                    requestBase + '-experimental-vendored' + vendoredPath,
-                    vendorDir,
-                    job,
-                    isCjs
-                  )
-
-                  const asyncResults = Promise.all([
-                    nodeModulesPackage,
-                    vendoredPackage,
-                    vendoredExperimentalPackage,
-                  ])
-
-                  return asyncResults
-                }
-                case 'server-only':
-                case 'client-only': {
-                  const asyncResults = Promise.all([
-                    nftResolve(id, parent, job, isCjs),
-                    nftResolve(
-                      requestBase + '-vendored' + id.slice(requestBase.length),
-                      vendorDir,
-                      job,
-                      isCjs
-                    ),
-                  ])
-                  return asyncResults
-                }
-                default:
-              }
-            }
-
-            return nftResolve(id, parent, job, isCjs)
-          }
         }
 
         const includeExcludeSpan = nextBuildSpan.traceChild(
@@ -2100,11 +2045,12 @@ export default async function build(
             )
 
             const sharedEntriesSet = [
-              ...(config.experimental.turbotrace
-                ? []
-                : Object.values(globalOverrides).map((value) =>
-                    require.resolve(value)
-                  )),
+              ...Object.values(baseOverrides).map((override) =>
+                require.resolve(override)
+              ),
+              ...Object.values(experimentalOverrides).map((override) =>
+                require.resolve(override)
+              ),
             ]
 
             // ensure we trace any dependencies needed for custom
@@ -2219,7 +2165,6 @@ export default async function build(
                     processCwd: config.experimental.turbotrace?.processCwd,
                     logDetail: config.experimental.turbotrace?.logDetail,
                     showAll: config.experimental.turbotrace?.logAll,
-                    resolve: resolveHook,
                   },
                   turboTasksForTrace
                 )
@@ -2244,7 +2189,6 @@ export default async function build(
                   base: root,
                   processCwd: dir,
                   ignore: ignoreFn,
-                  resolve: resolveHook,
                 })
 
               const [vanillaFiles, minimalFiles]: NodeFileTraceResult[] =

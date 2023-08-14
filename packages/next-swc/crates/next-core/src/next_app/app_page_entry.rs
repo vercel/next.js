@@ -37,7 +37,8 @@ pub async fn get_app_page_entry(
     project_root: Vc<FileSystemPath>,
 ) -> Result<Vc<AppEntry>> {
     let config = parse_segment_config_from_loader_tree(loader_tree, Vc::upcast(nodejs_context));
-    let context = if matches!(config.await?.runtime, Some(NextRuntime::Edge)) {
+    let is_edge = matches!(config.await?.runtime, Some(NextRuntime::Edge));
+    let context = if is_edge {
         edge_context
     } else {
         nodejs_context
@@ -138,6 +139,10 @@ pub async fn get_app_page_entry(
         Vc::upcast(source),
         Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
     );
+
+    if is_edge {
+        todo!("edge pages are not supported yet")
+    }
 
     let Some(rsc_entry) =
         Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkPlaceable>>(rsc_entry).await?

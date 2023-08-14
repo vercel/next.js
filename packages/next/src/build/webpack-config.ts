@@ -66,10 +66,6 @@ import { loadBindings } from './swc'
 import { AppBuildManifestPlugin } from './webpack/plugins/app-build-manifest-plugin'
 import { SubresourceIntegrityPlugin } from './webpack/plugins/subresource-integrity-plugin'
 import { NextFontManifestPlugin } from './webpack/plugins/next-font-manifest-plugin'
-import {
-  NextResolvePlugin,
-  NextAppResolvePlugin,
-} from './webpack/resolve-plugins/next-resolve-plugin'
 import { getSupportedBrowsers } from './utils'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
@@ -87,9 +83,6 @@ const NEXT_PROJECT_ROOT_DIST_CLIENT = path.join(
   'client'
 )
 
-const isAppRouterLayer = (layer: string | null) =>
-  Boolean(layer && WEBPACK_LAYERS.GROUP.app.includes(layer))
-
 const isWebpackServerLayer = (layer: string | null) =>
   Boolean(layer && WEBPACK_LAYERS.GROUP.server.includes(layer))
 
@@ -106,10 +99,6 @@ const babelIncludeRegexes: RegExp[] = [
 
 const reactPackagesRegex = /^(react|react-dom|react-server-dom-webpack)($|\/)/
 
-const ssrLayerRegex =
-  /next[\\/]dist[\\/](esm[\\/])?(client|server)[\\/].*?(?:\.|[\\/])clientlayer(?:$|(?:\.(tsx|ts|js|cjs|mjs|jsx))|\\|\/)/
-const serverComponentsLayerRegex =
-  /next[\\/]dist[\\/](esm[\\/])?(client|server)[\\/].*?(?:\.|[\\/])serverlayer(?:$|(?:\.(tsx|ts|js|cjs|mjs|jsx))|\\|\/)/
 const asyncStoragesRegex =
   /next[\\/]dist[\\/](esm[\\/])?client[\\/]components[\\/](static-generation-async-storage|action-async-storage|request-async-storage)/
 
@@ -421,6 +410,75 @@ export function getDefineEnv({
         }
       : {}),
   }
+}
+
+function getReactProfilingInProduction() {
+  return {
+    'react-dom$': 'react-dom/profiling',
+    'scheduler/tracing': 'scheduler/tracing-profiling',
+  }
+}
+
+function createRSCAliases(
+  bundledReactChannel: string,
+  opts: {
+    reactProductionProfiling: boolean
+    reactSharedSubset: boolean
+    reactDomServerRenderingStub: boolean
+    reactServerCondition?: boolean
+  }
+) {
+  const alias: Record<string, string> = {
+    react$: `next/dist/compiled/react${bundledReactChannel}`,
+    'react-dom$': `next/dist/compiled/react-dom${bundledReactChannel}`,
+    'react/jsx-runtime$': `next/dist/compiled/react${bundledReactChannel}/jsx-runtime`,
+    'react/jsx-dev-runtime$': `next/dist/compiled/react${bundledReactChannel}/jsx-dev-runtime`,
+    'react-dom/client$': `next/dist/compiled/react-dom${bundledReactChannel}/client`,
+    'react-dom/server$': `next/dist/compiled/react-dom${bundledReactChannel}/server`,
+    'react-dom/server.edge$': `next/dist/compiled/react-dom${bundledReactChannel}/server.edge`,
+    'react-dom/server.browser$': `next/dist/compiled/react-dom${bundledReactChannel}/server.browser`,
+    'react-server-dom-webpack/client$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client`,
+    'react-server-dom-webpack/client.edge$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client.edge`,
+    'react-server-dom-webpack/server.edge$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.edge`,
+    'react-server-dom-webpack/server.node$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.node`,
+  }
+
+  if (opts.reactSharedSubset) {
+    alias[
+      'react$'
+    ] = `next/dist/compiled/react${bundledReactChannel}/react.shared-subset`
+  }
+  // Use server rendering stub for RSC
+  // x-ref: https://github.com/facebook/react/pull/25436
+  if (opts.reactDomServerRenderingStub) {
+    alias[
+      'react-dom$'
+    ] = `next/dist/compiled/react-dom${bundledReactChannel}/server-rendering-stub`
+  }
+
+  // Alias `server-only` and `client-only` modules to their server/client only, vendored versions.
+  // These aliases are necessary if the user doesn't have those two packages installed manually.
+  if (typeof opts.reactServerCondition !== 'undefined') {
+    if (opts.reactServerCondition) {
+      // Alias to the `react-server` exports.
+      alias['server-only$'] = 'next/dist/compiled/server-only/empty'
+      alias['client-only$'] = 'next/dist/compiled/client-only/error'
+    } else {
+      alias['server-only$'] = 'next/dist/compiled/server-only/index'
+      alias['client-only$'] = 'next/dist/compiled/client-only/index'
+    }
+  }
+
+  if (opts.reactProductionProfiling) {
+    alias[
+      'react-dom$'
+    ] = `next/dist/compiled/react-dom${bundledReactChannel}/profiling`
+    alias[
+      'scheduler/tracing'
+    ] = `next/dist/compiled/scheduler${bundledReactChannel}/tracing-profiling`
+  }
+
+  return alias
 }
 
 const devtoolRevertWarning = execOnce(
@@ -1103,6 +1161,7 @@ export default async function getBaseWebpackConfig(
       [ROOT_DIR_ALIAS]: dir,
       [DOT_NEXT_ALIAS]: distDir,
       ...(isClient || isEdgeServer ? getOptimizedAliases() : {}),
+      ...(reactProductionProfiling ? getReactProfilingInProduction() : {}),
 
       [RSC_ACTION_VALIDATE_ALIAS]:
         'next/dist/build/webpack/loaders/next-flight-loader/action-validate',
@@ -1140,12 +1199,7 @@ export default async function getBaseWebpackConfig(
     ...(isEdgeServer && {
       conditionNames: edgeConditionNames,
     }),
-    plugins: [
-      new NextResolvePlugin({
-        serverRuntime: !isClient,
-        profilingReact: reactProductionProfiling,
-      }),
-    ],
+    plugins: [],
   }
 
   const terserOptions: any = {
@@ -1280,18 +1334,20 @@ export default async function getBaseWebpackConfig(
       request === 'react/jsx-runtime'
     ) {
       if (isAppLayer) {
-        return `commonjs ${request}`
+        return `commonjs next/dist/compiled/${request.replace(
+          'react',
+          'react' + bundledReactChannel
+        )}`
       }
       return
     }
 
-    if (reactPackagesRegex.test(request)) {
-      if (layer === WEBPACK_LAYERS.reactServerComponents) {
-        // We bundle all react packages in RSC
+    // Special internal modules that must be bundled for Server Components.
+    if (layer === WEBPACK_LAYERS.reactServerComponents) {
+      // React needs to be bundled for Server Components so the special
+      // `react-server` export condition can be used.
+      if (reactPackagesRegex.test(request)) {
         return
-      } else {
-        // we external all react packages in SSR
-        return `commonjs ${request}`
       }
     }
 
@@ -1305,6 +1361,24 @@ export default async function getBaseWebpackConfig(
       }
 
       if (reactPackagesRegex.test(request)) {
+        // override react-dom to server-rendering-stub for server
+        if (
+          request === 'react-dom' &&
+          (layer === WEBPACK_LAYERS.serverSideRendering ||
+            layer === WEBPACK_LAYERS.reactServerComponents ||
+            layer === WEBPACK_LAYERS.actionBrowser)
+        ) {
+          request = `next/dist/compiled/react-dom${bundledReactChannel}/server-rendering-stub`
+        } else if (isAppLayer) {
+          request =
+            'next/dist/compiled/' +
+            request.replace(
+              /^(react-server-dom-webpack|react-dom|react)/,
+              (name) => {
+                return name + bundledReactChannel
+              }
+            )
+        }
         return `commonjs ${request}`
       }
 
@@ -1876,69 +1950,52 @@ export default async function getBaseWebpackConfig(
       rules: [
         ...(hasAppDir
           ? [
-              // First we instantiate our NextAppResolverPlugin if the request has any layer information. This
-              // works because App Router entrypoints begin with a layer and Page Router entrypoints do not
               {
-                issuerLayer: isAppRouterLayer,
-                resolve: {
-                  plugins: [
-                    '...',
-                    new NextAppResolvePlugin({
-                      experimentalReact: useServerActions,
-                      serverRuntime: !isClient,
-                    }),
-                  ],
-                },
+                // Make sure that AsyncLocalStorage module instance is shared between server and client
+                // layers.
+                layer: WEBPACK_LAYERS.shared,
+                test: asyncStoragesRegex,
               },
-              // Next we set layers when crossing boundaries
-              ...(isEdgeServer
-                ? [
-                    // The Edge bundle includes the server in its entrypoint, so it has to
-                    // be in the SSR layer — here we convert the actual page request to
-                    // the RSC layer via a webpack rule.
-                    {
-                      resourceQuery: new RegExp(
-                        WEBPACK_RESOURCE_QUERIES.edgeRSCEntry
-                      ),
-                      layer: WEBPACK_LAYERS.reactServerComponents,
-                      resolve: {
-                        conditionNames: reactServerCondition,
-                      },
-                    },
-                  ]
-                : []),
+              // Convert metadata routes to separate layer
               {
                 resourceQuery: new RegExp(
                   WEBPACK_RESOURCE_QUERIES.metadataRoute
                 ),
                 layer: WEBPACK_LAYERS.appMetadataRoute,
-                resolve: {
-                  conditionNames: reactServerCondition,
-                },
               },
               {
-                include: [
-                  ssrLayerRegex,
-                  // TODO refactor the client layer regex to work for this path and then rename the files to module.clientlayer
-                  /next[\\/]dist[\\/](esm[\\/])?server[\\/]future[\\/]route-modules[\\/]app-page[\\/]module/,
-                ],
+                // Ensure that the app page module is in the client layers, this
+                // enables React to work correctly for RSC.
                 layer: WEBPACK_LAYERS.serverSideRendering,
+                test: /next[\\/]dist[\\/](esm[\\/])?server[\\/]future[\\/]route-modules[\\/]app-page[\\/]module/,
               },
               {
-                include: serverComponentsLayerRegex,
-                layer: WEBPACK_LAYERS.reactServerComponents,
-                resolve: {
-                  conditionNames: reactServerCondition,
+                // All app dir layers need to use this configured resolution logic
+                issuerLayer: {
+                  or: [
+                    WEBPACK_LAYERS.reactServerComponents,
+                    WEBPACK_LAYERS.serverSideRendering,
+                    WEBPACK_LAYERS.appPagesBrowser,
+                    WEBPACK_LAYERS.actionBrowser,
+                    WEBPACK_LAYERS.shared,
+                  ],
                 },
-              },
-              {
-                include: asyncStoragesRegex,
-                layer: WEBPACK_LAYERS.shared,
-              },
-              {
-                issuerLayer: isWebpackServerLayer,
                 resolve: {
-                  conditionNames: reactServerCondition,
+                  alias: {
+                    // Alias next/head component to noop for RSC
+                    [require.resolve('next/head')]: require.resolve(
+                      'next/dist/client/components/noop-head'
+                    ),
+                    // Alias next/dynamic
+                    [require.resolve('next/dynamic')]: require.resolve(
+                      'next/dist/shared/lib/app-dynamic'
+                    ),
+                    ...createRSCAliases(bundledReactChannel, {
+                      reactSharedSubset: false,
+                      reactDomServerRenderingStub: false,
+                      reactProductionProfiling,
+                    }),
+                  },
                 },
               },
             ]
@@ -1946,7 +2003,9 @@ export default async function getBaseWebpackConfig(
         ...(hasAppDir && !isClient
           ? [
               {
-                issuerLayer: isWebpackServerLayer,
+                issuerLayer: {
+                  or: [isWebpackServerLayer],
+                },
                 test: {
                   // Resolve it if it is a source code file, and it has NOT been
                   // opted out of bundling.
@@ -1956,6 +2015,19 @@ export default async function getBaseWebpackConfig(
                       not: [optOutBundlingPackageRegex, asyncStoragesRegex],
                     },
                   ],
+                },
+                resolve: {
+                  conditionNames: reactServerCondition,
+                  // If missing the alias override here, the default alias will be used which aliases
+                  // react to the direct file path, not the package name. In that case the condition
+                  // will be ignored completely.
+                  alias: createRSCAliases(bundledReactChannel, {
+                    reactSharedSubset: true,
+                    reactDomServerRenderingStub: true,
+                    reactServerCondition: true,
+                    // No server components profiling
+                    reactProductionProfiling,
+                  }),
                 },
                 use: {
                   loader: 'next-flight-loader',
@@ -1973,6 +2045,80 @@ export default async function getBaseWebpackConfig(
                   fullySpecified: false,
                 },
               } as any,
+            ]
+          : []),
+        ...(hasAppDir && isEdgeServer
+          ? [
+              // The Edge bundle includes the server in its entrypoint, so it has to
+              // be in the SSR layer — here we convert the actual page request to
+              // the RSC layer via a webpack rule.
+              {
+                resourceQuery: new RegExp(
+                  WEBPACK_RESOURCE_QUERIES.edgeSSREntry
+                ),
+                layer: WEBPACK_LAYERS.reactServerComponents,
+              },
+            ]
+          : []),
+        ...(hasServerComponents
+          ? [
+              {
+                // Alias react-dom for ReactDOM.preload usage.
+                // Alias react for switching between default set and share subset.
+                oneOf: [
+                  {
+                    exclude: [asyncStoragesRegex],
+                    issuerLayer: {
+                      or: [isWebpackServerLayer],
+                    },
+                    test: {
+                      // Resolve it if it is a source code file, and it has NOT been
+                      // opted out of bundling.
+                      and: [
+                        codeCondition.test,
+                        {
+                          not: [optOutBundlingPackageRegex],
+                        },
+                      ],
+                    },
+                    resolve: {
+                      // It needs `conditionNames` here to require the proper asset,
+                      // when react is acting as dependency of compiled/react-dom.
+                      alias: createRSCAliases(bundledReactChannel, {
+                        reactSharedSubset: true,
+                        reactDomServerRenderingStub: true,
+                        reactServerCondition: true,
+                        reactProductionProfiling,
+                      }),
+                    },
+                  },
+                  {
+                    test: codeCondition.test,
+                    issuerLayer: WEBPACK_LAYERS.serverSideRendering,
+                    resolve: {
+                      alias: createRSCAliases(bundledReactChannel, {
+                        reactSharedSubset: false,
+                        reactDomServerRenderingStub: true,
+                        reactServerCondition: false,
+                        reactProductionProfiling,
+                      }),
+                    },
+                  },
+                ],
+              },
+              {
+                test: codeCondition.test,
+                issuerLayer: WEBPACK_LAYERS.appPagesBrowser,
+                resolve: {
+                  alias: createRSCAliases(bundledReactChannel, {
+                    // Only alias server rendering stub in client SSR layer.
+                    reactSharedSubset: false,
+                    reactDomServerRenderingStub: false,
+                    reactServerCondition: false,
+                    reactProductionProfiling,
+                  }),
+                },
+              },
             ]
           : []),
         {
@@ -2004,7 +2150,7 @@ export default async function getBaseWebpackConfig(
                   {
                     test: codeCondition.test,
                     resourceQuery: new RegExp(
-                      WEBPACK_RESOURCE_QUERIES.edgeRSCEntry
+                      WEBPACK_RESOURCE_QUERIES.edgeSSREntry
                     ),
                     use: swcLoaderForServerLayer,
                   },
@@ -2176,7 +2322,7 @@ export default async function getBaseWebpackConfig(
             ]
           : []),
         {
-          test: /(node_modules|next[/\\]vendored[/\\]node_modules)[/\\]client-only(-vendored)?[/\\]error.js/,
+          test: /(node_modules|next[/\\]dist[/\\]compiled)[/\\]client-only[/\\]error.js/,
           loader: 'next-invalid-import-error-loader',
           issuerLayer: {
             or: [isWebpackServerLayer],
@@ -2187,7 +2333,7 @@ export default async function getBaseWebpackConfig(
           },
         },
         {
-          test: /(node_modules|next[/\\]vendored[/\\]node_modules)[/\\]server-only(-vendored)?[/\\]index.js/,
+          test: /(node_modules|next[/\\]dist[/\\]compiled)[/\\]server-only[/\\]index.js/,
           loader: 'next-invalid-import-error-loader',
           issuerLayer: WEBPACK_LAYERS.serverSideRendering,
           options: {
@@ -2251,7 +2397,6 @@ export default async function getBaseWebpackConfig(
             appDirEnabled: hasAppDir,
             turbotrace: config.experimental.turbotrace,
             traceIgnores: config.experimental.outputFileTracingIgnores || [],
-            experimentalReact: useServerActions,
           }
         ),
       // Moment.js is an extremely popular library that bundles large locale files

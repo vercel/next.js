@@ -85,9 +85,12 @@ use crate::{
         route_transition::NextEdgeRouteTransition,
     },
     next_route_matcher::{NextFallbackMatcher, NextParamsMatcher},
-    next_server::context::{
-        get_server_compile_time_info, get_server_module_options_context,
-        get_server_resolve_options_context, ServerContextType,
+    next_server::{
+        context::{
+            get_server_compile_time_info, get_server_module_options_context,
+            get_server_resolve_options_context, ServerContextType,
+        },
+        route_transition::NextRouteTransition,
     },
     util::{render_data, NextRuntime},
 };
@@ -231,12 +234,12 @@ fn next_server_component_transition(
     execution_context: Vc<ExecutionContext>,
     app_dir: Vc<FileSystemPath>,
     server_root: Vc<FileSystemPath>,
-    mode: NextMode,
     process_env: Vc<Box<dyn ProcessEnv>>,
     next_config: Vc<NextConfig>,
     server_addr: Vc<ServerAddr>,
     ecmascript_client_reference_transition_name: Vc<String>,
 ) -> Vc<Box<dyn Transition>> {
+    let mode = NextMode::DevServer;
     let ty = Value::new(ServerContextType::AppRSC {
         app_dir,
         client_transition: None,
@@ -256,6 +259,37 @@ fn next_server_component_transition(
             rsc_module_options_context,
             rsc_resolve_options_context,
             server_root,
+        }
+        .cell(),
+    )
+}
+
+#[turbo_tasks::function]
+fn next_route_transition(
+    project_path: Vc<FileSystemPath>,
+    app_dir: Vc<FileSystemPath>,
+    process_env: Vc<Box<dyn ProcessEnv>>,
+    next_config: Vc<NextConfig>,
+    server_addr: Vc<ServerAddr>,
+    execution_context: Vc<ExecutionContext>,
+) -> Vc<Box<dyn Transition>> {
+    let mode = NextMode::DevServer;
+    let server_ty = Value::new(ServerContextType::AppRoute { app_dir });
+
+    let server_compile_time_info = get_server_compile_time_info(mode, process_env, server_addr);
+
+    let server_resolve_options_context = get_server_resolve_options_context(
+        project_path,
+        server_ty,
+        mode,
+        next_config,
+        execution_context,
+    );
+
+    Vc::upcast(
+        NextRouteTransition {
+            server_compile_time_info,
+            server_resolve_options_context,
         }
         .cell(),
     )
@@ -423,6 +457,17 @@ fn app_context(
         ),
     );
     transitions.insert(
+        "next-route".to_string(),
+        next_route_transition(
+            project_path,
+            app_dir,
+            env,
+            next_config,
+            server_addr,
+            execution_context,
+        ),
+    );
+    transitions.insert(
         "next-edge-page".to_string(),
         next_edge_page_transition(
             project_path,
@@ -443,7 +488,6 @@ fn app_context(
             execution_context,
             app_dir,
             server_root,
-            mode,
             env,
             next_config,
             server_addr,
@@ -1079,6 +1123,14 @@ impl AppRoute {
         let module = match config.await?.runtime {
             Some(NextRuntime::NodeJs) | None => {
                 let bootstrap_asset = next_asset("entry/app/route.ts".to_string());
+
+                let entry_asset = this
+                    .context
+                    .with_transition("next-route".to_string())
+                    .process(
+                        Vc::upcast(entry_file_source),
+                        Value::new(ReferenceType::Entry(EntryReferenceSubType::AppRoute)),
+                    );
 
                 route_bootstrap(
                     entry_asset,

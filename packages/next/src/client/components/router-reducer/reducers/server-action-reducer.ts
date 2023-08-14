@@ -11,13 +11,10 @@ import {
 } from '../../app-router-headers'
 import { createRecordFromThenable } from '../create-record-from-thenable'
 import { readRecordValue } from '../read-record-value'
-
-// Marking this as a namespace import to avoid erroring on the server where the node version is loaded
-// This code is only actually called on the client so it's fine for the node package to be
-// used on the server as long as no methods are actually called from it.
-// @TODO-APP Refactor this to use forking so the SSR variant doesn't load any code
 // eslint-disable-next-line import/no-extraneous-dependencies
-import * as ReactServerDOMClient from 'react-server-dom-webpack/client'
+import { createFromFetch } from 'react-server-dom-webpack/client'
+// eslint-disable-next-line import/no-extraneous-dependencies
+import { encodeReply } from 'react-server-dom-webpack/client'
 
 import {
   ReadonlyReducerState,
@@ -48,21 +45,14 @@ async function fetchServerAction(
   state: ReadonlyReducerState,
   { actionId, actionArgs }: ServerActionAction
 ): Promise<FetchServerActionResult> {
-  // We access encodeReply in this way to avoid validation of ESM imports in webpack bundling.
-  // We expect this function to only be called from the browser where encodeReply will exist.
-  // Whereas it does not exist on the server but we will never call this function on the server.
-  // @TODO-APP use forking to provide a server / browser implementation of fetchServerAction
-  let body
-  if (typeof window !== 'undefined') {
-    body = await ReactServerDOMClient.encodeReply(actionArgs)
-  }
+  const body = await encodeReply(actionArgs)
 
   const res = await fetch('', {
     method: 'POST',
     headers: {
       Accept: RSC_CONTENT_TYPE_HEADER,
       'Next-Action': actionId,
-      [NEXT_ROUTER_STATE_TREE]: JSON.stringify(state.tree),
+      [NEXT_ROUTER_STATE_TREE]: encodeURIComponent(JSON.stringify(state.tree)),
       ...(process.env.__NEXT_ACTIONS_DEPLOYMENT_ID &&
       process.env.NEXT_DEPLOYMENT_ID
         ? {
@@ -105,10 +95,12 @@ async function fetchServerAction(
     res.headers.get('content-type') === RSC_CONTENT_TYPE_HEADER
 
   if (isFlightResponse) {
-    const response: ActionFlightResponse =
-      await ReactServerDOMClient.createFromFetch(Promise.resolve(res), {
+    const response: ActionFlightResponse = await createFromFetch(
+      Promise.resolve(res),
+      {
         callServer,
-      })
+      }
+    )
 
     if (location) {
       // if it was a redirection, then result is just a regular RSC payload

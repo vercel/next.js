@@ -1,0 +1,12 @@
+/**
+ * @license React
+ * react-dom-server-rendering-stub.production.min.js
+ *
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
+'use strict';var d=require("next/dist/compiled/react-experimental"),e={usingClientEntryPoint:!1,Events:null,Dispatcher:{current:null}};function f(b){for(var a="https://reactjs.org/docs/error-decoder.html?invariant="+b,c=1;c<arguments.length;c++)a+="&args[]="+encodeURIComponent(arguments[c]);return"Minified React error #"+b+"; visit "+a+" for the full message or use the non-minified dev environment for full errors and additional helpful warnings."}var g=e.Dispatcher,h=d.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED.ReactCurrentDispatcher;
+exports.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED=e;exports.createPortal=function(){throw Error(f(448));};exports.experimental_useFormStatus=function(){return h.current.useHostTransitionStatus()};exports.flushSync=function(){throw Error(f(449));};exports.preconnect=function(b,a){var c=g.current;c&&c.preconnect(b,a)};exports.prefetchDNS=function(b){var a=g.current;a&&a.prefetchDNS(b)};exports.preinit=function(b,a){var c=g.current;c&&c.preinit(b,a)};
+exports.preload=function(b,a){var c=g.current;c&&c.preload(b,a)};exports.unstable_batchedUpdates=function(b,a){return b(a)};exports.version="18.3.0-experimental-1a001dac6-20230812";

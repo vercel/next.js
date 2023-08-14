@@ -80,7 +80,7 @@ function handleLoading(
       // - decode() completes
       return
     }
-    if (placeholder === 'blur') {
+    if (placeholder !== 'empty') {
       setBlurComplete(true)
     }
     if (onLoadRef?.current) {
@@ -291,7 +291,7 @@ const ImageElement = forwardRef<HTMLImageElement | null, ImageElementProps>(
         onError={(event) => {
           // if the real image fails to load, this will ensure "alt" is visible
           setShowAltText(true)
-          if (placeholder === 'blur') {
+          if (placeholder !== 'empty') {
             // If the real image fails to load, this will still remove the placeholder.
             setBlurComplete(true)
           }
@@ -320,7 +320,7 @@ function ImagePreload({
     ...getDynamicProps(imgAttributes.fetchPriority),
   }
 
-  if (isAppRouter) {
+  if (isAppRouter && preload) {
     // See https://github.com/facebook/react/pull/26940
     preload(
       imgAttributes.src,

@@ -1,5 +1,8 @@
 'use client'
 
+// @ts-ignore
+// eslint-disable-next-line import/no-extraneous-dependencies
+import { createFromFetch } from 'react-server-dom-webpack/client'
 import type {
   FlightRouterState,
   FlightData,
@@ -17,13 +20,6 @@ import { urlToUrlWithoutFlightMarker } from '../app-router'
 import { callServer } from '../../app-call-server'
 import { PrefetchKind } from './router-reducer-types'
 import { hexHash } from '../../../shared/lib/hash'
-
-// Marking this as a namespace import to avoid erroring on the server where the node version is loaded
-// This code is only actually called on the client so it's fine for the node package to be
-// used on the server as long as no methods are actually called from it.
-// @TODO-APP Refactor this to use forking so the SSR variant doesn't load any code
-// eslint-disable-next-line import/no-extraneous-dependencies
-import * as ReactServerDOMClient from 'react-server-dom-webpack/client'
 
 type FetchServerResponseResult = [
   flightData: FlightData,
@@ -122,10 +118,12 @@ export async function fetchServerResponse(
     }
 
     // Handle the `fetch` readable stream that can be unwrapped by `React.use`.
-    const [buildId, flightData]: NextFlightResponse =
-      await ReactServerDOMClient.createFromFetch(Promise.resolve(res), {
+    const [buildId, flightData]: NextFlightResponse = await createFromFetch(
+      Promise.resolve(res),
+      {
         callServer,
-      })
+      }
+    )
 
     if (currentBuildId !== buildId) {
       return doMpaNavigation(res.url)
