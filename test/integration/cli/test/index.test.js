@@ -531,26 +531,29 @@ describe('CLI Usage', () => {
       }
     })
 
-    test('--experimental-https', async () => {
-      const port = await findPort()
-      let output = ''
-      const app = await runNextCommandDev(
-        [dirBasic, '--experimental-https', '--port', port],
-        undefined,
-        {
-          onStdout(msg) {
-            output += stripAnsi(msg)
-          },
+    if (process.env.CI) {
+      // only runs on CI as it requires administrator privileges
+      test('--experimental-https', async () => {
+        const port = await findPort()
+        let output = ''
+        const app = await runNextCommandDev(
+          [dirBasic, '--experimental-https', '--port', port],
+          undefined,
+          {
+            onStdout(msg) {
+              output += stripAnsi(msg)
+            },
+          }
+        )
+        try {
+          await check(() => output, /on \[::\]:(\d+)/)
+          await check(() => output, /https:\/\/localhost:(\d+)/)
+          await check(() => output, /Certificates created in/)
+        } finally {
+          await killApp(app)
         }
-      )
-      try {
-        await check(() => output, /on \[::\]:(\d+)/)
-        await check(() => output, /https:\/\/localhost:(\d+)/)
-        await check(() => output, /Certificates created in/)
-      } finally {
-        await killApp(app)
-      }
-    })
+      })
+    }
 
     test('should format IPv6 addresses correctly', async () => {
       const port = await findPort()

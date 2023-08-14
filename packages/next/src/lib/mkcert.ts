@@ -34,7 +34,6 @@ async function downloadBinary() {
     const binaryPath = path.join(cacheDirectory, binaryName)
 
     if (fs.existsSync(binaryPath)) {
-      Log.info('Binary exists, using cached version', binaryPath)
       return binaryPath
     }
 
@@ -58,8 +57,6 @@ async function downloadBinary() {
 
     await fs.promises.writeFile(binaryPath, buffer)
     await fs.promises.chmod(binaryPath, 0o755)
-
-    Log.info('Binary path', binaryPath)
 
     return binaryPath
   } catch (err) {
@@ -88,7 +85,7 @@ export async function createSelfSignedCertificate(
     )
 
     execSync(
-      `${binaryPath} -install -key-file ${keyPath} -cert-file ${certPath} localhost`,
+      `${binaryPath} -install -key-file ${keyPath} -cert-file ${certPath} localhost 127.0.0.1 ::1`,
       { stdio: 'ignore' }
     )
 

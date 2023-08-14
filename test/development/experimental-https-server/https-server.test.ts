@@ -7,8 +7,14 @@ createNextDescribe(
   {
     files: __dirname,
     startCommand: 'yarn next dev --experimental-https',
+    skipStart: !process.env.CI,
   },
   ({ next }) => {
+    if (!process.env.CI) {
+      it('only runs on CI as it requires administrator privileges', () => {})
+      return
+    }
+
     const agent = new https.Agent({
       rejectUnauthorized: false,
     })
