@@ -6,6 +6,8 @@ export const ipcForbiddenHeaders = [
   'transfer-encoding',
   // https://github.com/nodejs/undici/issues/1470
   'connection',
+  // marked as unsupported by undici: https://github.com/nodejs/undici/blob/c83b084879fa0bb8e0469d31ec61428ac68160d5/lib/core/request.js#L354
+  'expect',
 ]
 
 export const actionsForbiddenHeaders = [

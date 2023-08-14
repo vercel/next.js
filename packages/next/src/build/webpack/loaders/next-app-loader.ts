@@ -319,6 +319,17 @@ async function createTreeCodeFromPath(
           globalError = await resolver(
             `${path.dirname(layoutPath)}/${GLOBAL_ERROR_FILE_TYPE}`
           )
+
+          const hasNotFound = definedFilePaths.some(
+            ([type]) => type === 'not-found'
+          )
+          // Add default not found error as root not found if not present
+          if (!hasNotFound) {
+            const notFoundPath = 'next/dist/client/components/not-found-error'
+            if (notFoundPath) {
+              definedFilePaths.push(['not-found', notFoundPath])
+            }
+          }
         }
       }
 
