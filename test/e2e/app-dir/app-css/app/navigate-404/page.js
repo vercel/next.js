@@ -1,20 +1,20 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { Button as NotFoundButton } from './button/not-found-button'
+import { Button } from '../../components/button/button'
 
 export default function Page() {
   const router = useRouter()
   return (
     <>
-      <NotFoundButton
+      <Button
         id="nav-button"
         onClick={() => {
-          router.push('/navigate/404')
+          router.push('/404')
         }}
       >
         Not Found
-      </NotFoundButton>
+      </Button>
     </>
   )
 }
