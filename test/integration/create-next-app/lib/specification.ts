@@ -76,7 +76,7 @@ export const projectSpecification: ProjectSpecification = {
         'pages/api/hello.ts',
         'pages/index.tsx',
         'postcss.config.js',
-        'tailwind.config.js',
+        'tailwind.config.ts',
         'tsconfig.json',
       ],
       deps: [
@@ -136,7 +136,7 @@ export const projectSpecification: ProjectSpecification = {
         'app/page.tsx',
         'next-env.d.ts',
         'postcss.config.js',
-        'tailwind.config.js',
+        'tailwind.config.ts',
         'tsconfig.json',
       ],
     },

@@ -90,8 +90,14 @@ async function extractBinary(
 
     const registry = getRegistry()
 
-    await fetch(`${registry}${pkgName}/-/${tarFileName}`).then((res) => {
+    const downloadUrl = `${registry}${pkgName}/-/${tarFileName}`
+
+    await fetch(downloadUrl).then((res) => {
       const { ok, body } = res
+      if (!ok || !body) {
+        Log.error(`Failed to download swc package from ${downloadUrl}`)
+      }
+
       if (!ok) {
         throw new Error(`request failed with status ${res.status}`)
       }

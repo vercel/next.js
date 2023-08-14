@@ -241,14 +241,14 @@ async fn prepare_entrypoints_for_js(
     let entrypoints = entrypoints
         .await?
         .iter()
-        .map(|(key, &value)| {
+        .map(|(key, value)| {
             let key = key.to_string();
             async move {
-                let value = match value {
-                    Entrypoint::AppPage { loader_tree } => EntrypointForJs::AppPage {
+                let value = match *value {
+                    Entrypoint::AppPage { loader_tree, .. } => EntrypointForJs::AppPage {
                         loader_tree: prepare_loader_tree_for_js(project_path, loader_tree).await?,
                     },
-                    Entrypoint::AppRoute { path } => EntrypointForJs::AppRoute {
+                    Entrypoint::AppRoute { path, .. } => EntrypointForJs::AppRoute {
                         path: fs_path_to_path(project_path, path).await?,
                     },
                 };
@@ -332,7 +332,7 @@ pub fn stream_entrypoints(
                 func.call(Ok(None), ThreadsafeFunctionCallMode::NonBlocking);
             }
 
-            Ok(unit().node)
+            Ok(unit())
         })
     });
     Ok(())

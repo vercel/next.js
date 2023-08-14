@@ -1,32 +1,19 @@
 import { useCallback, useContext, useEffect, useRef } from 'react'
 import { GlobalLayoutRouterContext } from '../../../../../shared/lib/app-router-context'
-import { getSocketProtocol } from './get-socket-protocol'
+import { getSocketUrl } from './get-socket-url'
 
-export function useWebsocket(
-  assetPrefix: string,
-  shouldSubscribe: boolean = true
-) {
+export function useWebsocket(assetPrefix: string) {
   const webSocketRef = useRef<WebSocket>()
 
   useEffect(() => {
-    if (webSocketRef.current || !shouldSubscribe) {
+    if (webSocketRef.current) {
       return
     }
 
-    const { hostname, port } = window.location
-    const protocol = getSocketProtocol(assetPrefix)
-    const normalizedAssetPrefix = assetPrefix.replace(/^\/+/, '')
-
-    let url = `${protocol}://${hostname}:${port}${
-      normalizedAssetPrefix ? `/${normalizedAssetPrefix}` : ''
-    }`
-
-    if (normalizedAssetPrefix.startsWith('http')) {
-      url = `${protocol}://${normalizedAssetPrefix.split('://')[1]}`
-    }
+    const url = getSocketUrl(assetPrefix)
 
     webSocketRef.current = new window.WebSocket(`${url}/_next/webpack-hmr`)
-  }, [assetPrefix, shouldSubscribe])
+  }, [assetPrefix])
 
   return webSocketRef
 }

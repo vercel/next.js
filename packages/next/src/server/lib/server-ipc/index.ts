@@ -2,10 +2,12 @@ import type NextServer from '../../next-server'
 import type { NextConfigComplete } from '../../config-shared'
 
 import { getNodeOptionsWithoutInspect } from '../utils'
-import { deserializeErr, errorToJSON } from '../../render'
+import { errorToJSON } from '../../render'
 import crypto from 'crypto'
 import isError from '../../../lib/is-error'
 import { genRenderExecArgv } from '../worker-utils'
+import { deserializeErr } from './request-utils'
+import { RenderWorker } from '../router-server'
 
 // we can't use process.send as jest-worker relies on
 // it already and can cause unexpected message errors
@@ -64,7 +66,7 @@ export async function createIpcServer(
   )
 
   const ipcPort = await new Promise<number>((resolveIpc) => {
-    ipcServer.listen(0, '0.0.0.0', () => {
+    ipcServer.listen(0, server.hostname, () => {
       const addr = ipcServer.address()
 
       if (addr && typeof addr === 'object') {
@@ -86,7 +88,7 @@ export const createWorker = async (
   isNodeDebugging: boolean | 'brk' | undefined,
   type: 'pages' | 'app',
   nextConfig: NextConfigComplete
-) => {
+): Promise<RenderWorker> => {
   const { initialEnv } = require('@next/env') as typeof import('@next/env')
   const useServerActions = !!nextConfig.experimental.serverActions
   const { Worker } =
@@ -132,13 +134,7 @@ export const createWorker = async (
       'clearModuleContext',
       'propagateServerField',
     ],
-  }) as any as InstanceType<typeof Worker> & {
-    initialize: typeof import('../render-server').initialize
-    deleteCache: typeof import('../render-server').deleteCache
-    deleteAppClientCache: typeof import('../render-server').deleteAppClientCache
-    clearModuleContext: typeof import('../render-server').clearModuleContext
-    propagateServerField: typeof import('../render-server').propagateServerField
-  }
+  }) as any as RenderWorker
 
   worker.getStderr().pipe(process.stderr)
   worker.getStdout().pipe(process.stdout)

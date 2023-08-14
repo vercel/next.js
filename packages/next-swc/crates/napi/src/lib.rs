@@ -58,6 +58,9 @@ pub mod turbopack;
 pub mod turbotrace;
 pub mod util;
 
+// Declare build-time information variables generated in build.rs
+shadow_rs::shadow!(build);
+
 // don't use turbo malloc (`mimalloc`) on linux-musl-aarch64 because of the
 // compile error
 #[cfg(not(any(

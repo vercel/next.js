@@ -16,7 +16,6 @@ const nextVersion = process.env.__NEXT_VERSION as string
 
 const ArchName = arch()
 const PlatformName = platform()
-const triples = platformArchTriples[PlatformName]?.[ArchName] || []
 
 const infoLog = (...args: any[]) => {
   if (process.env.NEXT_PRIVATE_BUILD_WORKER) {
@@ -24,6 +23,67 @@ const infoLog = (...args: any[]) => {
   }
   Log.info(...args)
 }
+
+/**
+ * Based on napi-rs's target triples, returns triples that have corresponding next-swc binaries.
+ */
+export const getSupportedArchTriples: () => Record<string, any> = () => {
+  const { darwin, win32, linux, freebsd, android } = platformArchTriples
+
+  return {
+    darwin,
+    win32: {
+      arm64: win32.arm64,
+      ia32: win32.ia32.filter(
+        (triple: { abi: string }) => triple.abi === 'msvc'
+      ),
+      x64: win32.x64.filter((triple: { abi: string }) => triple.abi === 'msvc'),
+    },
+    linux: {
+      // linux[x64] includes `gnux32` abi, with x64 arch.
+      x64: linux.x64.filter(
+        (triple: { abi: string }) => triple.abi !== 'gnux32'
+      ),
+      arm64: linux.arm64,
+      // This target is being deprecated, however we keep it in `knownDefaultWasmFallbackTriples` for now
+      arm: linux.arm,
+    },
+    // Below targets are being deprecated, however we keep it in `knownDefaultWasmFallbackTriples` for now
+    freebsd: {
+      x64: freebsd.x64,
+    },
+    android: {
+      arm64: android.arm64,
+      arm: android.arm,
+    },
+  }
+}
+
+const triples = (() => {
+  const supportedArchTriples = getSupportedArchTriples()
+  const targetTriple = supportedArchTriples[PlatformName]?.[ArchName]
+
+  // If we have supported triple, return it right away
+  if (targetTriple) {
+    return targetTriple
+  }
+
+  // If there isn't corresponding target triple in `supportedArchTriples`, check if it's excluded from original raw triples
+  // Otherwise, it is completely unsupported platforms.
+  let rawTargetTriple = platformArchTriples[PlatformName]?.[ArchName]
+
+  if (rawTargetTriple) {
+    Log.warn(
+      `Trying to load next-swc for target triple ${rawTargetTriple}, but there next-swc does not have native bindings support`
+    )
+  } else {
+    Log.warn(
+      `Trying to load next-swc for unsupported platforms ${PlatformName}/${ArchName}`
+    )
+  }
+
+  return []
+})()
 
 // Allow to specify an absolute path to the custom turbopack binary to load.
 // If one of env variables is set, `loadNative` will try to use any turbo-* interfaces from specified
@@ -65,12 +125,13 @@ function checkVersionMismatch(pkgData: any) {
 // once we can verify loading-wasm-first won't cause visible regressions,
 // we'll not include native bindings for these platform at all.
 const knownDefaultWasmFallbackTriples = [
-  'aarch64-linux-android',
   'x86_64-unknown-freebsd',
-  'aarch64-pc-windows-msvc',
+  'aarch64-linux-android',
   'arm-linux-androideabi',
   'armv7-unknown-linux-gnueabihf',
   'i686-pc-windows-msvc',
+  // WOA targets are TBD, while current userbase is small we may support it in the future
+  //'aarch64-pc-windows-msvc',
 ]
 
 // The last attempt's error code returned when cjs require to native bindings fails.
@@ -130,6 +191,21 @@ export async function loadBindings(): Promise<Binding> {
   if (pendingBindings) {
     return pendingBindings
   }
+
+  if (process.platform === 'darwin') {
+    // rust needs stdout to be blocking, otherwise it will throw an error (on macOS at least) when writing a lot of data (logs) to it
+    // see https://github.com/napi-rs/napi-rs/issues/1630
+    // and https://github.com/nodejs/node/blob/main/doc/api/process.md#a-note-on-process-io
+    if (process.stdout._handle != null) {
+      // @ts-ignore
+      process.stdout._handle.setBlocking(true)
+    }
+    if (process.stderr._handle != null) {
+      // @ts-ignore
+      process.stderr._handle.setBlocking(true)
+    }
+  }
+
   const isCustomTurbopack = await __isCustomTurbopackBinary()
   pendingBindings = new Promise(async (resolve, _reject) => {
     if (!lockfilePatchPromise.cur) {
@@ -341,6 +417,17 @@ interface ProjectOptions {
   nextConfig: NextConfigComplete
 
   /**
+   * Jsconfig, or tsconfig contents.
+   *
+   * Next.js implicitly requires to read it to support few options
+   * https://nextjs.org/docs/architecture/nextjs-compiler#legacy-decorators
+   * https://nextjs.org/docs/architecture/nextjs-compiler#importsource
+   */
+  jsConfig: {
+    compilerOptions: object
+  }
+
+  /**
    * A map of environment variables to use when compiling code.
    */
   env: Record<string, string>
@@ -358,10 +445,10 @@ interface TurboEngineOptions {
   memoryLimit?: number
 }
 
-interface Issue {
+export interface Issue {
   severity: string
   category: string
-  context: string
+  filePath: string
   title: string
   description: string
   detail: string
@@ -377,9 +464,13 @@ interface Issue {
   subIssues: Issue[]
 }
 
-interface Diagnostics {}
+export interface Diagnostics {
+  category: string
+  name: string
+  payload: unknown
+}
 
-type TurbopackResult<T = {}> = T & {
+export type TurbopackResult<T = {}> = T & {
   issues: Issue[]
   diagnostics: Diagnostics[]
 }
@@ -390,7 +481,7 @@ interface Middleware {
   matcher?: string[]
 }
 
-interface Entrypoints {
+export interface Entrypoints {
   routes: Map<string, Route>
   middleware?: Middleware
   pagesDocumentEndpoint: Endpoint
@@ -398,12 +489,39 @@ interface Entrypoints {
   pagesErrorEndpoint: Endpoint
 }
 
-interface Project {
-  update(options: ProjectOptions): Promise<void>
-  entrypointsSubscribe(): AsyncIterableIterator<TurbopackResult<Entrypoints>>
+export interface Update {
+  update: unknown
 }
 
-type Route =
+export interface HmrIdentifiers {
+  identifiers: string[]
+}
+
+export interface UpdateInfo {
+  duration: number
+  tasks: number
+}
+
+enum ServerClientChangeType {
+  Server = 'Server',
+  Client = 'Client',
+  Both = 'Both',
+}
+export interface ServerClientChange {
+  change: ServerClientChangeType
+}
+
+export interface Project {
+  update(options: ProjectOptions): Promise<void>
+  entrypointsSubscribe(): AsyncIterableIterator<TurbopackResult<Entrypoints>>
+  hmrEvents(identifier: string): AsyncIterableIterator<TurbopackResult<Update>>
+  hmrIdentifiersSubscribe(): AsyncIterableIterator<
+    TurbopackResult<HmrIdentifiers>
+  >
+  updateInfoSubscribe(): AsyncIterableIterator<TurbopackResult<UpdateInfo>>
+}
+
+export type Route =
   | {
       type: 'conflict'
     }
@@ -426,7 +544,7 @@ type Route =
       endpoint: Endpoint
     }
 
-interface Endpoint {
+export interface Endpoint {
   /** Write files for the endpoint to disk. */
   writeToDisk(): Promise<TurbopackResult<WrittenEndpoint>>
   /**
@@ -453,7 +571,7 @@ interface EndpointConfig {
   preferredRegion?: string
 }
 
-type WrittenEndpoint =
+export type WrittenEndpoint =
   | {
       type: 'nodejs'
       /** The entry path for the endpoint. */
@@ -557,10 +675,37 @@ function bindingToApi(binding: any, _wasm: boolean) {
     })()
   }
 
+  /**
+   * Like Promise.race, except that we return an array of results so that you
+   * know which promise won. This also allows multiple promises to resolve
+   * before the awaiter finally continues execution, making multiple values
+   * available.
+   */
+  function race<T extends unknown[]>(
+    promises: T
+  ): Promise<{ [P in keyof T]: Awaited<T[P]> | undefined }> {
+    return new Promise((resolve, reject) => {
+      const results: any[] = []
+      for (let i = 0; i < promises.length; i++) {
+        const value = promises[i]
+        Promise.resolve(value).then(
+          (v) => {
+            results[i] = v
+            resolve(results as any)
+          },
+          (e) => {
+            reject(e)
+          }
+        )
+      }
+    })
+  }
+
   async function rustifyProjectOptions(options: ProjectOptions): Promise<any> {
     return {
       ...options,
       nextConfig: await serializeNextConfig(options.nextConfig),
+      jsConfig: JSON.stringify(options.jsConfig ?? {}),
       env: Object.entries(options.env).map(([name, value]) => ({
         name,
         value,
@@ -593,8 +738,6 @@ function bindingToApi(binding: any, _wasm: boolean) {
         pagesDocumentEndpoint: NapiEndpoint
         pagesAppEndpoint: NapiEndpoint
         pagesErrorEndpoint: NapiEndpoint
-        issues: Issue[]
-        diagnostics: Diagnostics[]
       }
 
       type NapiMiddleware = {
@@ -629,8 +772,10 @@ function bindingToApi(binding: any, _wasm: boolean) {
           }
       )
 
-      const subscription = subscribe<NapiEntrypoints>(false, async (callback) =>
-        binding.projectEntrypointsSubscribe(await this._nativeProject, callback)
+      const subscription = subscribe<TurbopackResult<NapiEntrypoints>>(
+        false,
+        async (callback) =>
+          binding.projectEntrypointsSubscribe(this._nativeProject, callback)
       )
       return (async function* () {
         for await (const entrypoints of subscription) {
@@ -702,6 +847,33 @@ function bindingToApi(binding: any, _wasm: boolean) {
         }
       })()
     }
+
+    hmrEvents(identifier: string) {
+      const subscription = subscribe<TurbopackResult<Update>>(
+        true,
+        async (callback) =>
+          binding.projectHmrEvents(this._nativeProject, identifier, callback)
+      )
+      return subscription
+    }
+
+    hmrIdentifiersSubscribe() {
+      const subscription = subscribe<TurbopackResult<HmrIdentifiers>>(
+        false,
+        async (callback) =>
+          binding.projectHmrIdentifiersSubscribe(this._nativeProject, callback)
+      )
+      return subscription
+    }
+
+    updateInfoSubscribe() {
+      const subscription = subscribe<TurbopackResult<UpdateInfo>>(
+        true,
+        async (callback) =>
+          binding.projectUpdateInfoSubscribe(this._nativeProject, callback)
+      )
+      return subscription
+    }
   }
 
   class EndpointImpl implements Endpoint {
@@ -717,12 +889,64 @@ function bindingToApi(binding: any, _wasm: boolean) {
       )
     }
 
-    async changed(): Promise<AsyncIterableIterator<TurbopackResult>> {
-      const iter = subscribe<TurbopackResult>(false, async (callback) =>
-        binding.endpointChangedSubscribe(await this._nativeEndpoint, callback)
+    async changed(): Promise<
+      AsyncIterableIterator<TurbopackResult<ServerClientChange>>
+    > {
+      const serverSubscription = subscribe<TurbopackResult>(
+        false,
+        async (callback) =>
+          binding.endpointServerChangedSubscribe(
+            await this._nativeEndpoint,
+            callback
+          )
       )
-      await iter.next()
-      return iter
+      const clientSubscription = subscribe<TurbopackResult>(
+        false,
+        async (callback) =>
+          binding.endpointClientChangedSubscribe(
+            await this._nativeEndpoint,
+            callback
+          )
+      )
+
+      return (async function* () {
+        try {
+          while (true) {
+            const [server, client] = await race([
+              serverSubscription.next(),
+              clientSubscription.next(),
+            ])
+
+            const done = server?.done || client?.done
+            if (done) {
+              break
+            }
+
+            if (server && client) {
+              yield {
+                issues: server.value.issues.concat(client.value.issues),
+                diagnostics: server.value.diagnostics.concat(
+                  client.value.diagnostics
+                ),
+                change: ServerClientChangeType.Both,
+              }
+            } else if (server) {
+              yield {
+                ...server.value,
+                change: ServerClientChangeType.Server,
+              }
+            } else {
+              yield {
+                ...client!.value,
+                change: ServerClientChangeType.Client,
+              }
+            }
+          }
+        } finally {
+          serverSubscription.return?.()
+          clientSubscription.return?.()
+        }
+      })()
     }
   }
 
@@ -744,7 +968,28 @@ function bindingToApi(binding: any, _wasm: boolean) {
       )
     }
 
-    return JSON.stringify(nextConfigSerializable)
+    nextConfigSerializable.modularizeImports =
+      nextConfigSerializable.modularizeImports
+        ? Object.fromEntries(
+            Object.entries<any>(nextConfigSerializable.modularizeImports).map(
+              ([mod, config]) => [
+                mod,
+                {
+                  ...config,
+                  transform:
+                    typeof config.transform === 'string'
+                      ? config.transform
+                      : Object.entries(config.transform).map(([key, value]) => [
+                          key,
+                          value,
+                        ]),
+                },
+              ]
+            )
+          )
+        : undefined
+
+    return JSON.stringify(nextConfigSerializable, null, 2)
   }
 
   function ensureLoadersHaveSerializableOptions(

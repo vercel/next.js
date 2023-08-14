@@ -32,17 +32,18 @@ use next_core::{
     pages_structure::find_pages_structure,
     router_source::NextRouterContentSource,
     source_map::NextSourceMapTraceContentSource,
+    tracing_presets::{
+        TRACING_NEXT_TARGETS, TRACING_NEXT_TURBOPACK_TARGETS, TRACING_NEXT_TURBO_TASKS_TARGETS,
+    },
 };
-use once_cell::sync::Lazy;
 use owo_colors::OwoColorize;
 use tracing_subscriber::{prelude::*, EnvFilter, Registry};
 use turbo_tasks::{
-    util::{FormatBytes, FormatDuration},
-    StatsType, TransientInstance, TurboTasks, TurboTasksBackendApi, UpdateInfo, Value, Vc,
+    util::FormatDuration, StatsType, TransientInstance, TurboTasks, TurboTasksBackendApi,
+    UpdateInfo, Value, Vc,
 };
 use turbopack_binding::{
     turbo::{
-        malloc::TurboMalloc,
         tasks_env::{CustomProcessEnv, ProcessEnv},
         tasks_fs::{DiskFileSystem, FileSystem},
         tasks_memory::MemoryBackend,
@@ -53,14 +54,12 @@ use turbopack_binding::{
             issue::{ConsoleUi, LogOptions},
             raw_trace::RawTraceLayer,
             trace_writer::TraceWriter,
-            tracing_presets::{
-                TRACING_OVERVIEW_TARGETS, TRACING_TURBOPACK_TARGETS, TRACING_TURBO_TASKS_TARGETS,
-            },
+            tracing_presets::TRACING_OVERVIEW_TARGETS,
         },
         core::{
             environment::ServerAddr,
             issue::{IssueReporter, IssueSeverity},
-            resolve::{parse::Request, pattern::QueryMap},
+            resolve::parse::Request,
             server_fs::ServerFileSystem,
             PROJECT_FILESYSTEM_NAME,
         },
@@ -337,7 +336,7 @@ async fn source(
     let execution_context =
         ExecutionContext::new(project_path, Vc::upcast(build_chunking_context), env);
 
-    let mode = NextMode::Development;
+    let mode = NextMode::DevServer;
     let next_config_execution_context = execution_context.with_layer("next_config".to_string());
     let next_config = load_next_config(next_config_execution_context);
     let rewrites = load_rewrites(next_config_execution_context);
@@ -349,10 +348,14 @@ async fn source(
     let entry_requests = entry_requests
         .iter()
         .map(|r| match r {
-            EntryRequest::Relative(p) => Request::relative(Value::new(p.clone().into()), false),
-            EntryRequest::Module(m, p) => {
-                Request::module(m.clone(), Value::new(p.clone().into()), QueryMap::none())
+            EntryRequest::Relative(p) => {
+                Request::relative(Value::new(p.clone().into()), Vc::<String>::empty(), false)
             }
+            EntryRequest::Module(m, p) => Request::module(
+                m.clone(),
+                Value::new(p.clone().into()),
+                Vc::<String>::empty(),
+            ),
         })
         .collect();
 
@@ -462,28 +465,6 @@ pub fn register() {
     next_core::register();
     include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }
-
-static TRACING_NEXT_TARGETS: Lazy<Vec<&str>> = Lazy::new(|| {
-    [
-        &TRACING_OVERVIEW_TARGETS[..],
-        &[
-            "next_dev=trace",
-            "next_core=trace",
-            "next_font=trace",
-            "turbopack_node=trace",
-        ],
-    ]
-    .concat()
-});
-static TRACING_NEXT_TURBOPACK_TARGETS: Lazy<Vec<&str>> =
-    Lazy::new(|| [&TRACING_NEXT_TARGETS[..], &TRACING_TURBOPACK_TARGETS[..]].concat());
-static TRACING_NEXT_TURBO_TASKS_TARGETS: Lazy<Vec<&str>> = Lazy::new(|| {
-    [
-        &TRACING_TURBOPACK_TARGETS[..],
-        &TRACING_TURBO_TASKS_TARGETS[..],
-    ]
-    .concat()
-});
 
 /// Start a devserver with the given options.
 pub async fn start_server(options: &DevServerOptions) -> Result<()> {
@@ -609,10 +590,9 @@ pub async fn start_server(options: &DevServerOptions) -> Result<()> {
     let stats_future = async move {
         if options.log_detail {
             println!(
-                "{event_type} - startup {start} ({memory})",
+                "{event_type} - startup {start}",
                 event_type = "event".purple(),
                 start = FormatDuration(start.elapsed()),
-                memory = FormatBytes(TurboMalloc::memory_usage())
             );
         }
 
@@ -634,20 +614,18 @@ pub async fn start_server(options: &DevServerOptions) -> Result<()> {
                 match (options.log_detail, !reasons.is_empty()) {
                     (true, true) => {
                         println!(
-                            "\x1b[2K{event_type} - {reasons} {elapsed} ({tasks} tasks, {memory})",
+                            "\x1b[2K{event_type} - {reasons} {elapsed} ({tasks} tasks)",
                             event_type = "event".purple(),
                             elapsed = FormatDuration(elapsed),
                             tasks = count,
-                            memory = FormatBytes(TurboMalloc::memory_usage())
                         );
                     }
                     (true, false) => {
                         println!(
-                            "\x1b[2K{event_type} - compilation {elapsed} ({tasks} tasks, {memory})",
+                            "\x1b[2K{event_type} - compilation {elapsed} ({tasks} tasks)",
                             event_type = "event".purple(),
                             elapsed = FormatDuration(elapsed),
                             tasks = count,
-                            memory = FormatBytes(TurboMalloc::memory_usage())
                         );
                     }
                     (false, true) => {
@@ -669,18 +647,10 @@ pub async fn start_server(options: &DevServerOptions) -> Result<()> {
                 }
             } else {
                 progress_counter += 1;
-                if options.log_detail {
-                    print!(
-                        "\x1b[2K{event_type} - {progress_counter}s... ({memory})\r",
-                        event_type = "event".purple(),
-                        memory = FormatBytes(TurboMalloc::memory_usage())
-                    );
-                } else {
-                    print!(
-                        "\x1b[2K{event_type} - {progress_counter}s...\r",
-                        event_type = "event".purple(),
-                    );
-                }
+                print!(
+                    "\x1b[2K{event_type} - {progress_counter}s...\r",
+                    event_type = "event".purple(),
+                );
                 let _ = stdout().lock().flush();
             }
         }

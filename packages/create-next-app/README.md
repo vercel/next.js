@@ -12,6 +12,8 @@ npx create-next-app@latest
 yarn create next-app
 # or
 pnpm create next-app
+# or
+bunx create-next-app
 ```
 
 You will be asked for the name of your project, and then whether you want to
@@ -52,6 +54,10 @@ Options:
   --use-yarn
 
     Explicitly tell the CLI to bootstrap the app using Yarn
+
+  --use-bun
+
+    Explicitly tell the CLI to bootstrap the app using Bun
 
   -e, --example [name]|[github-url]
 
