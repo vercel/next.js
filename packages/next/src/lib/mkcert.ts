@@ -65,7 +65,7 @@ async function downloadBinary() {
 }
 
 export async function createSelfSignedCertificate(
-  host: string,
+  host?: string,
   certDir: string = 'certificates'
 ) {
   try {
@@ -88,7 +88,12 @@ export async function createSelfSignedCertificate(
       'Attempting to generate self signed certificate. This may prompt for your password'
     )
 
-    const hosts = Array.from(new Set(['localhost', '127.0.0.1', '::1', host]))
+    const defaultHosts = ['localhost', '127.0.0.1', '::1']
+
+    const hosts =
+      host && !defaultHosts.includes(host)
+        ? [...defaultHosts, host]
+        : defaultHosts
 
     execSync(
       `${binaryPath} -install -key-file ${keyPath} -cert-file ${certPath} ${hosts.join(
