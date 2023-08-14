@@ -39,13 +39,20 @@ if (shouldEnableTestTrace) {
     customJestConfig.reporters = ['default']
   }
 
-  const outputDirectory = process.env.TURBOPACK
-    ? '<rootDir>/turbopack-test-junit-report'
-    : '<rootDir>/test-junit-report'
+  const outputDirectory =
+    process.env.TURBOPACK || process.env.EXPERIMENTAL_TURBOPACK
+      ? '<rootDir>/turbopack-test-junit-report'
+      : '<rootDir>/test-junit-report'
+
   customJestConfig.reporters.push([
     'jest-junit',
     {
       outputDirectory,
+      // note: {filename} is not a full path, since putting full path
+      // makes suite name too long and truncates and not able to read the suite name
+      suiteNameTemplate: `{title} [${process.env.NEXT_TEST_MODE ?? 'default'}${
+        process.env.TURBOPACK ? '/t' : ''
+      }${process.env.EXPERIMENTAL_TURBOPACK ? '/et' : ''}/{filename}]`,
       reportTestSuiteErrors: 'true',
       uniqueOutputName: 'true',
       outputName: 'nextjs-test-junit',

@@ -85,7 +85,7 @@ const item = await getItem() // cache HIT
   height="742"
 />
 
-- While rendering a route, the first time a particular request is called, it's result will not be in memory and it'll be a cache `MISS`.
+- While rendering a route, the first time a particular request is called, its result will not be in memory and it'll be a cache `MISS`.
 - Therefore, the function will be executed, and the data will be fetched from the external source, and the result will be stored in memory.
 - Subsequent function calls of the request in the same render pass will be a cache `HIT`, and the data will be returned from memory without executing the function.
 - Once the route has been rendered and the rendering pass is complete, memory is "reset" and all request memoization entries are cleared.
@@ -341,7 +341,7 @@ Next.js has an in-memory client-side cache that stores the React Server Componen
   height="1375"
 />
 
-As users navigates between routes, Next.js caches visited route segments and [prefetches](/docs/app/building-your-application/routing/linking-and-navigating#1-prefetching) the routes the user is likely to navigate to (based on `<Link>` components in their viewport).
+As users navigate between routes, Next.js caches visited route segments and [prefetches](/docs/app/building-your-application/routing/linking-and-navigating#1-prefetching) the routes the user is likely to navigate to (based on `<Link>` components in their viewport).
 
 This results in an improved navigation experience for the user:
 

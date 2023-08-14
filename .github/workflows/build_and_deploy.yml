@@ -10,6 +10,7 @@ env:
   TURBO_VERSION: 1.10.9
   NODE_MAINTENANCE_VERSION: 16
   NODE_LTS_VERSION: 18.16.1
+  CARGO_PROFILE_RELEASE_LTO: 'true'
 
 jobs:
   build:
@@ -231,6 +232,7 @@ jobs:
           options: >-
             -e RUST_TOOLCHAIN=${{ env.RUST_TOOLCHAIN }}
             -e CARGO_INCREMENTAL=${{ env.CARGO_INCREMENTAL }}
+            -e CARGO_PROFILE_RELEASE_LTO=${{ env.CARGO_PROFILE_RELEASE_LTO }}
             -e CARGO_TERM_COLOR=${{ env.CARGO_TERM_COLOR }}
             -e RUST_BACKTRACE=${{ env.RUST_BACKTRACE }}
             -e CARGO_REGISTRIES_CRATES_IO_PROTOCOL=${{ env.CARGO_REGISTRIES_CRATES_IO_PROTOCOL }}
@@ -440,7 +442,7 @@ jobs:
       - run: RESET_VC_PROJECT=true node scripts/reset-vercel-project.mjs
         name: Reset test project
 
-      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-jammy /bin/bash -c "cd /work && NODE_VERSION=${{ env.NODE_LTS_VERSION }} ./scripts/setup-node.sh && corepack enable > /dev/null && DATADOG_TRACE_NEXTJS_TEST=TRUE DATADOG_API_KEY=${DATADOG_API_KEY} DD_ENV=ci VERCEL_TEST_TOKEN=${{ secrets.VERCEL_TEST_TOKEN }} VERCEL_TEST_TEAM=vtest314-next-e2e-tests NEXT_TEST_JOB=1 NEXT_TEST_MODE=deploy TEST_TIMINGS_TOKEN=${{ secrets.TEST_TIMINGS_TOKEN }} NEXT_TEST_CONTINUE_ON_ERROR=1 xvfb-run node run-tests.js --type e2e >> /proc/1/fd/1"
+      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.35.1-jammy /bin/bash -c "cd /work && NODE_VERSION=${{ env.NODE_LTS_VERSION }} ./scripts/setup-node.sh && corepack enable > /dev/null && DATADOG_TRACE_NEXTJS_TEST=TRUE DATADOG_API_KEY=${DATADOG_API_KEY} DD_ENV=ci VERCEL_TEST_TOKEN=${{ secrets.VERCEL_TEST_TOKEN }} VERCEL_TEST_TEAM=vtest314-next-e2e-tests NEXT_TEST_JOB=1 NEXT_TEST_MODE=deploy TEST_TIMINGS_TOKEN=${{ secrets.TEST_TIMINGS_TOKEN }} NEXT_TEST_CONTINUE_ON_ERROR=1 xvfb-run node run-tests.js --type e2e >> /proc/1/fd/1"
         name: Run test/e2e (deploy)
 
       - name: Upload test trace
@@ -457,7 +459,7 @@ jobs:
         continue-on-error: true
         run: |
           ls -al ./test
-          npm install -g junit-report-merger@6.0.2 @datadog/datadog-ci@2.14.0
+          npm install -g junit-report-merger@6.0.2 @datadog/datadog-ci@2.14.0 @aws-sdk/property-provider@3
           jrm ./nextjs-test-result-junit.xml "test/test-junit-report/**/*.xml"
           DD_ENV=ci datadog-ci junit upload --tags test.type:nextjs_deploy_e2e --service nextjs ./nextjs-test-result-junit.xml
 
@@ -506,7 +508,7 @@ jobs:
       - name: Upload to Datadog
         run: |
           ls -al turbopack-bin-size
-          npm install -g @datadog/datadog-ci
+          npm install -g @datadog/datadog-ci@2.14.0 @aws-sdk/property-provider@3
           for filename in turbopack-bin-size/*; do
             export BYTESIZE+=" --metrics $(cat $filename)"
           done
