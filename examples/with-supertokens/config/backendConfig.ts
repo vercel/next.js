@@ -22,7 +22,7 @@ export let backendConfig = (): AuthConfig => {
           // IMPORTANT: Please replace them with your own OAuth keys for production use.
           {
             config: {
-              thirdPartyId: "google",
+              thirdPartyId: 'google',
               clients: [
                 {
                   clientId: process.env.GOOGLE_CLIENT_ID,
@@ -33,7 +33,7 @@ export let backendConfig = (): AuthConfig => {
           },
           {
             config: {
-              thirdPartyId: "github",
+              thirdPartyId: 'github',
               clients: [
                 {
                   clientId: process.env.GITHUB_CLIENT_ID,
@@ -44,13 +44,16 @@ export let backendConfig = (): AuthConfig => {
           },
           {
             config: {
-              thirdPartyId: "apple",
+              thirdPartyId: 'apple',
               clients: [
                 {
                   clientId: process.env.APPLE_CLIENT_ID,
                   additionalConfig: {
                     keyId: process.env.APPLE_KEY_ID,
-                    privateKey: process.env.APPLE_PRIVATE_KEY.replace(/\\n/g, "\n"),
+                    privateKey: process.env.APPLE_PRIVATE_KEY.replace(
+                      /\\n/g,
+                      '\n'
+                    ),
                     teamId: process.env.APPLE_TEAM_ID,
                   },
                 },
