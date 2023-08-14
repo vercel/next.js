@@ -198,7 +198,7 @@ jobs:
               - 'docker'
 
             target: 'aarch64-unknown-linux-musl'
-            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
+            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine-zig
             build: >-
               set -e &&
               apk add --no-cache libc6-compat pkgconfig &&
