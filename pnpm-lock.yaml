@@ -636,7 +636,7 @@ importers:
   packages/eslint-config-next:
     dependencies:
       '@next/eslint-plugin-next':
-        specifier: 13.4.14-canary.3
+        specifier: 13.4.14-canary.4
         version: link:../eslint-plugin-next
       '@rushstack/eslint-patch':
         specifier: ^1.1.3
@@ -697,7 +697,7 @@ importers:
   packages/next:
     dependencies:
       '@next/env':
-        specifier: 13.4.14-canary.3
+        specifier: 13.4.14-canary.4
         version: link:../next-env
       '@swc/helpers':
         specifier: 0.5.1
@@ -815,25 +815,25 @@ importers:
         specifier: 29.5.0
         version: 29.5.0
       '@napi-rs/cli':
-        specifier: 2.14.7
-        version: 2.14.7
+        specifier: 2.16.2
+        version: 2.16.2
       '@napi-rs/triples':
         specifier: 1.1.0
         version: 1.1.0
       '@next/polyfill-module':
-        specifier: 13.4.14-canary.3
+        specifier: 13.4.14-canary.4
         version: link:../next-polyfill-module
       '@next/polyfill-nomodule':
-        specifier: 13.4.14-canary.3
+        specifier: 13.4.14-canary.4
         version: link:../next-polyfill-nomodule
       '@next/react-dev-overlay':
-        specifier: 13.4.14-canary.3
+        specifier: 13.4.14-canary.4
         version: link:../react-dev-overlay
       '@next/react-refresh-utils':
-        specifier: 13.4.14-canary.3
+        specifier: 13.4.14-canary.4
         version: link:../react-refresh-utils
       '@next/swc':
-        specifier: 13.4.14-canary.3
+        specifier: 13.4.14-canary.4
         version: link:../next-swc
       '@opentelemetry/api':
         specifier: 1.4.1
@@ -1410,8 +1410,8 @@ importers:
   packages/next-swc:
     devDependencies:
       '@napi-rs/cli':
-        specifier: 2.14.7
-        version: 2.14.7
+        specifier: 2.16.2
+        version: 2.16.2
       cross-env:
         specifier: 6.0.3
         version: 6.0.3
@@ -6649,8 +6649,8 @@ packages:
       '@types/react': 18.2.7
       react: 18.2.0
 
-  /@napi-rs/cli@2.14.7:
-    resolution: {integrity: sha512-H+YCgdbBNMWn8c878C3RsRYcMxamWI7rB0H+1TqOy9n6u31isikcRyW1VDyoNHp7ApfmzV0+tpPopVi0W7WHAA==}
+  /@napi-rs/cli@2.16.2:
+    resolution: {integrity: sha512-U2aZfnr0s9KkXpZlYC0l5WxWCXL7vJUNpCnWMwq3T9GG9rhYAAUM9CTZsi1Z+0iR2LcHbfq9EfMgoqnuTyUjfg==}
     engines: {node: '>= 10'}
     hasBin: true
     dev: true
