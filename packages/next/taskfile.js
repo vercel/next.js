@@ -2374,6 +2374,7 @@ export async function compile(task, opts) {
       'shared_re_exported',
       'shared_re_exported_esm',
       'server_wasm',
+      'experimental_testmode',
       // we compile this each time so that fresh runtime data is pulled
       // before each publish
       'ncc_amp_optimizer',
@@ -2637,6 +2638,13 @@ export async function shared_re_exported_esm(task, opts) {
 
 export async function server_wasm(task, opts) {
   await task.source('src/server/**/*.+(wasm)').target('dist/server')
+}
+
+export async function experimental_testmode(task, opts) {
+  await task
+    .source('src/experimental/testmode/**/!(*.test).+(js|ts|tsx)')
+    .swc('server', {})
+    .target('dist/experimental/testmode')
 }
 
 export async function release(task) {
