@@ -278,6 +278,7 @@ async function main() {
   console.log(`${GROUP}Running tests:
 ${testNames.join('\n')}
 ${ENDGROUP}`)
+  console.log(`total: ${testNames.length}`)
 
   const hasIsolatedTests = testNames.some((test) => {
     return configuredTestTypes.some(
@@ -365,6 +366,22 @@ ${ENDGROUP}`)
             CONTINUOUS_INTEGRATION: '',
             RUN_ID: '',
             BUILD_NUMBER: '',
+            // Format the output of junit report to include the test name
+            // For the debugging purpose to compare actual run list to the generated reports
+            // [NOTE]: This won't affect if junit reporter is not enabled
+            JEST_JUNIT_OUTPUT_NAME:
+              test && test.length > 0 ? test.replaceAll('/', '_') : undefined,
+            // Specify suite name for the test to avoid unexpected merging across different env / grouped tests
+            // This is not individual suites name (corresponding 'describe'), top level suite name which have redundant names by default
+            // [NOTE]: This won't affect if junit reporter is not enabled
+            JEST_SUITE_NAME: [
+              `${process.env.NEXT_TEST_MODE ?? 'default'}`,
+              groupArg,
+              testType,
+              test,
+            ]
+              .filter(Boolean)
+              .join(':'),
             ...(isFinalRun
               ? {
                   // Events can be finicky in CI. This switches to a more
