@@ -2340,7 +2340,6 @@ export async function ncc(task, opts) {
         'ncc_https_proxy_agent',
         'ncc_jest_docblock',
         'ncc_mini_css_extract_plugin',
-        'ncc_mswjs_interceptors',
       ],
       opts
     )
@@ -2362,6 +2361,7 @@ export async function ncc(task, opts) {
       'ncc_edge_runtime_primitives',
       'ncc_edge_runtime_ponyfill',
       'ncc_edge_runtime',
+      'ncc_mswjs_interceptors',
     ],
     opts
   )
