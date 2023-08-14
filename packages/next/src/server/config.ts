@@ -714,10 +714,10 @@ function assignDefaults(
         '(TextSelection|LucideTextSelection|TextSelectionIcon)':
           'modularize-import-loader?name={{ member }}&from=default&as=default&join=../esm/icons/text-select!lucide-react',
         // Alias for createLucideIcon
-        'createLucideIcon':
+        createLucideIcon:
           'modularize-import-loader?name={{ member }}&from=default&as=default&join=../esm/createLucideIcon!lucide-react',
         // Alias for icons
-        'icons':
+        icons:
           'modularize-import-loader?name={{ member }}&from=default&as=default&join=../esm/index!lucide-react',
         // General rules
         'Lucide(.*)':
