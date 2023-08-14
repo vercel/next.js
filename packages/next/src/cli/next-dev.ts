@@ -189,6 +189,7 @@ const nextDev: CliCommand = async (argv) => {
     '--hostname': String,
     '--turbo': Boolean,
     '--experimental-turbo': Boolean,
+    '--experimental-test-proxy': Boolean,
     '--https': Boolean,
     '--https-cert': String,
     '--https-key': String,
@@ -280,6 +281,7 @@ const nextDev: CliCommand = async (argv) => {
   // some set-ups that rely on listening on other interfaces
   const host = args['--hostname']
   config = await loadConfig(PHASE_DEVELOPMENT_SERVER, dir)
+  const isExperimentalTestProxy = args['--experimental-test-proxy']
 
   const https = args['--https']
   const cert = args['--https-cert']
@@ -294,6 +296,7 @@ const nextDev: CliCommand = async (argv) => {
     cert,
     key,
     hostname: host,
+    isExperimentalTestProxy,
   }
 
   if (args['--turbo']) {

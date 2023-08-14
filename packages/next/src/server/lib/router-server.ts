@@ -65,6 +65,7 @@ export async function initialize(opts: {
   isNodeDebugging: boolean
   keepAliveTimeout?: number
   customServer?: boolean
+  experimentalTestProxy?: boolean
 }): Promise<[WorkerRequestHandler, WorkerUpgradeHandler]> {
   process.title = 'next-router-worker'
 
@@ -131,6 +132,7 @@ export async function initialize(opts: {
     dev: !!opts.dev,
     isNodeDebugging: !!opts.isNodeDebugging,
     serverFields: devInstance?.serverFields || {},
+    experimentalTestProxy: !!opts.experimentalTestProxy,
   }
   const renderWorkers: {
     app?: RenderWorker
