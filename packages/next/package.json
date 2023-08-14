@@ -142,6 +142,7 @@
     "@hapi/accept": "5.0.2",
     "@jest/transform": "29.5.0",
     "@jest/types": "29.5.0",
+    "@mswjs/interceptors": "0.23.0",
     "@napi-rs/cli": "2.16.2",
     "@napi-rs/triples": "1.1.0",
     "@next/polyfill-module": "13.4.16-canary.0",

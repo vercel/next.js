@@ -5,7 +5,7 @@ import type {
   ProxyFetchResponse,
   ProxyResponse,
 } from './proxy'
-import { ClientRequestInterceptor } from '@mswjs/interceptors/ClientRequest'
+import { ClientRequestInterceptor } from 'next/dist/compiled/@mswjs/interceptors/ClientRequest'
 
 interface TestReqInfo {
   url: string
