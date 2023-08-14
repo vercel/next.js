@@ -224,6 +224,7 @@ jobs:
     name: stable - ${{ matrix.settings.target }} - node@16
     runs-on: ${{ matrix.settings.host }}
     env:
+      TURBO_API: ''
       TURBO_TEAM: 'vercel'
       TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
       TURBO_REMOTE_ONLY: 'true'
@@ -280,6 +281,7 @@ jobs:
             -e NAPI_CLI_VERSION=${{ env.NAPI_CLI_VERSION }}
             -e TURBO_VERSION=${{ env.TURBO_VERSION }}
             -e TURBO_TEAM=vercel
+            -e TURBO_API=''
             -e TURBO_TOKEN=${{ secrets.TURBO_TOKEN }}
             -e TURBO_REMOTE_ONLY=true
             -v ${{ env.HOME }}/.cargo/git:/root/.cargo/git
