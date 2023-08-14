@@ -5,7 +5,6 @@ import {
   genRouterWorkerExecArgv,
   getNodeOptionsWithoutInspect,
 } from '../server/lib/utils'
-import fs from 'fs'
 import { getPort, printAndExit } from '../server/lib/utils'
 import * as Log from '../build/output/log'
 import { CliCommand } from '../lib/commands'
@@ -26,8 +25,7 @@ import { getValidatedArgs } from '../lib/get-validated-args'
 import { Worker } from 'next/dist/compiled/jest-worker'
 import type { ChildProcess } from 'child_process'
 import { checkIsNodeDebugging } from '../server/lib/is-node-debugging'
-import { downloadMkcertBinary } from '../lib/download-mkcert'
-import execa from 'execa'
+import { createSelfSignedCertificate } from '../lib/mkcert'
 
 let dir: string
 let config: NextConfigComplete
@@ -106,34 +104,6 @@ function watchConfigFiles(
   const wp = new Watchpack()
   wp.watch({ files: CONFIG_FILES.map((file) => path.join(dirToWatch, file)) })
   wp.on('change', onChange)
-}
-
-async function createSelfSignedCertificate() {
-  const binaryPath = await downloadMkcertBinary()
-  if (!binaryPath) throw new Error('missing mkcert binary')
-
-  Log.info(
-    'Attempting to generate root certificate. This may prompt for your password.'
-  )
-  let result = await execa(binaryPath, ['-install'])
-
-  Log.info('Generating certificate for localhost')
-
-  result = await execa(binaryPath, ['localhost'])
-
-  const key = join(process.cwd(), 'localhost-key.pem')
-  const cert = join(process.cwd(), 'localhost.pem')
-
-  if (!fs.existsSync(key) || !fs.existsSync(cert)) {
-    throw new Error('Failed to generate self-signed certificate')
-  }
-
-  Log.ready(`Successfully created self-signed certificate in ${process.cwd()}`)
-
-  return {
-    key,
-    cert,
-  }
 }
 
 type StartServerWorker = Worker &

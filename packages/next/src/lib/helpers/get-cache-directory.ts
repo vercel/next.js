@@ -4,7 +4,10 @@ import { fileExists } from '../file-exists'
 
 // get platform specific cache directory adapted from playwright's handling
 // https://github.com/microsoft/playwright/blob/7d924470d397975a74a19184c136b3573a974e13/packages/playwright-core/src/utils/registry.ts#L141
-export async function getCacheDirectory(envPath?: string) {
+export async function getCacheDirectory(
+  fileDirectory: string,
+  envPath?: string
+) {
   let result
 
   if (envPath) {
@@ -38,7 +41,7 @@ export async function getCacheDirectory(envPath?: string) {
         process.exit(0)
       }
     }
-    result = path.join(systemCacheDirectory, 'next-swc')
+    result = path.join(systemCacheDirectory, fileDirectory)
   }
 
   if (!path.isAbsolute(result)) {

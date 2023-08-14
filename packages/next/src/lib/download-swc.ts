@@ -19,7 +19,10 @@ async function extractBinary(
   pkgName: string,
   tarFileName: string
 ) {
-  const cacheDirectory = await getCacheDirectory(process.env['NEXT_SWC_PATH'])
+  const cacheDirectory = await getCacheDirectory(
+    'next-swc',
+    process.env['NEXT_SWC_PATH']
+  )
 
   const extractFromTar = async () => {
     await tar.x({
