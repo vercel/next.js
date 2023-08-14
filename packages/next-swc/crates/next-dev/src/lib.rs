@@ -39,12 +39,11 @@ use next_core::{
 use owo_colors::OwoColorize;
 use tracing_subscriber::{prelude::*, EnvFilter, Registry};
 use turbo_tasks::{
-    util::{FormatBytes, FormatDuration},
-    StatsType, TransientInstance, TurboTasks, TurboTasksBackendApi, UpdateInfo, Value, Vc,
+    util::FormatDuration, StatsType, TransientInstance, TurboTasks, TurboTasksBackendApi,
+    UpdateInfo, Value, Vc,
 };
 use turbopack_binding::{
     turbo::{
-        malloc::TurboMalloc,
         tasks_env::{CustomProcessEnv, ProcessEnv},
         tasks_fs::{DiskFileSystem, FileSystem},
         tasks_memory::MemoryBackend,
@@ -591,10 +590,9 @@ pub async fn start_server(options: &DevServerOptions) -> Result<()> {
     let stats_future = async move {
         if options.log_detail {
             println!(
-                "{event_type} - startup {start} ({memory})",
+                "{event_type} - startup {start}",
                 event_type = "event".purple(),
                 start = FormatDuration(start.elapsed()),
-                memory = FormatBytes(TurboMalloc::memory_usage())
             );
         }
 
@@ -616,20 +614,18 @@ pub async fn start_server(options: &DevServerOptions) -> Result<()> {
                 match (options.log_detail, !reasons.is_empty()) {
                     (true, true) => {
                         println!(
-                            "\x1b[2K{event_type} - {reasons} {elapsed} ({tasks} tasks, {memory})",
+                            "\x1b[2K{event_type} - {reasons} {elapsed} ({tasks} tasks)",
                             event_type = "event".purple(),
                             elapsed = FormatDuration(elapsed),
                             tasks = count,
-                            memory = FormatBytes(TurboMalloc::memory_usage())
                         );
                     }
                     (true, false) => {
                         println!(
-                            "\x1b[2K{event_type} - compilation {elapsed} ({tasks} tasks, {memory})",
+                            "\x1b[2K{event_type} - compilation {elapsed} ({tasks} tasks)",
                             event_type = "event".purple(),
                             elapsed = FormatDuration(elapsed),
                             tasks = count,
-                            memory = FormatBytes(TurboMalloc::memory_usage())
                         );
                     }
                     (false, true) => {
@@ -651,18 +647,10 @@ pub async fn start_server(options: &DevServerOptions) -> Result<()> {
                 }
             } else {
                 progress_counter += 1;
-                if options.log_detail {
-                    print!(
-                        "\x1b[2K{event_type} - {progress_counter}s... ({memory})\r",
-                        event_type = "event".purple(),
-                        memory = FormatBytes(TurboMalloc::memory_usage())
-                    );
-                } else {
-                    print!(
-                        "\x1b[2K{event_type} - {progress_counter}s...\r",
-                        event_type = "event".purple(),
-                    );
-                }
+                print!(
+                    "\x1b[2K{event_type} - {progress_counter}s...\r",
+                    event_type = "event".purple(),
+                );
                 let _ = stdout().lock().flush();
             }
         }
