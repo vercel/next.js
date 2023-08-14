@@ -17,6 +17,7 @@ async function main() {
     }))
     .sort((a, b) => a.created_at.localeCompare(b.created_at))
 
+  // targetVersion format is `13.4.15-`, generating changes for all 13.4.15-* canary releases
   const targetVersion = /v(.*?-)/
     .exec(allReleases.filter((e) => /v.*?-/.exec(e.tag_name)).pop().tag_name)
     .pop()
