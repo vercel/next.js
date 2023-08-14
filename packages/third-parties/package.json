@@ -11,14 +11,14 @@
   ],
   "license": "MIT",
   "scripts": {
-    "release": "rm -rf dist && tsc -d -p tsconfig.json",
-    "build": "pnpm release",
+    "build": "rm -rf dist && tsc -d -p tsconfig.json",
     "prepublishOnly": "cd ../../ && turbo run build",
     "update-third-parties": "rm -rf src/**/index.tsx && node scripts/update-third-parties",
     "dev": "tsc -d -w -p tsconfig.json",
     "typescript": "tsec --noEmit -p tsconfig.json"
   },
   "dependencies": {
+    "next": "^13.0.0",
     "third-party-capital": "1.0.17"
   },
   "devDependencies": {
@@ -26,7 +26,6 @@
     "prettier": "2.5.1"
   },
   "peerDependencies": {
-    "next": "^13.0.0",
     "react": "^18.2.0"
   }
 }
