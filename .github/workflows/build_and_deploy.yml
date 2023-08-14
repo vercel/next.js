@@ -150,15 +150,12 @@ jobs:
               set -e &&
               apt update &&
               apt install -y pkg-config xz-utils &&
-              wget https://nodejs.org/dist/v18.12.0/node-v18.12.0-linux-x64.tar.xz -O node.tar.xz &&
-              tar -xf node.tar.xz &&
-              cd node-* && cp -r ./{bin,include,lib,share} /usr/local/ && cd .. &&
               rustup toolchain install "${RUST_TOOLCHAIN}" &&
               rustup default "${RUST_TOOLCHAIN}" &&
               rustup target add x86_64-unknown-linux-gnu &&
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && corepack enable && pnpm -v && node -v &&
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" &&
               unset CC_x86_64_unknown_linux_gnu && unset CC &&
-              turbo run build-native-release --remote-cache-timeout 90 --summarize -- --target x86_64-unknown-linux-gnu &&
+              npm run build-native-release -- --target x86_64-unknown-linux-gnu &&
               strip packages/next-swc/native/next-swc.*.node &&
               objdump -T packages/next-swc/native/next-swc.*.node | grep GLIBC_
 
@@ -172,15 +169,13 @@ jobs:
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2022-10-24-alpine
             build: >-
               set -e &&
-              rm -rfv /usr/local/bin/{node,nodejs,npm,npx,corepack} &&
-              apk update && apk upgrade &&
-              apk add --no-cache libc6-compat pkgconfig nodejs-current npm &&
-              rm -rfv /usr/local/bin/{node,nodejs,npm,npx} &&
+              apk update &&
+              apk add --no-cache libc6-compat pkgconfig &&
               rustup toolchain install "${RUST_TOOLCHAIN}" &&
               rustup default "${RUST_TOOLCHAIN}" &&
               rustup target add x86_64-unknown-linux-musl &&
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && corepack enable && pnpm -v && node -v &&
-              turbo run build-native-release --remote-cache-timeout 90 --summarize -- --target x86_64-unknown-linux-musl &&
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" &&
+              npm run build-native-release -- --target x86_64-unknown-linux-musl &&
               strip packages/next-swc/native/next-swc.*.node
 
           - host:
@@ -195,16 +190,13 @@ jobs:
               set -e &&
               apt update &&
               apt install -y pkg-config xz-utils &&
-              wget https://nodejs.org/dist/v18.12.0/node-v18.12.0-linux-x64.tar.xz -O node.tar.xz &&
-              tar -xf node.tar.xz &&
-              cd node-* && cp -r ./{bin,include,lib,share} /usr/local/ && cd .. &&
               export JEMALLOC_SYS_WITH_LG_PAGE=16 &&
               rustup toolchain install "${RUST_TOOLCHAIN}" &&
               rustup default "${RUST_TOOLCHAIN}" &&
               rustup target add aarch64-unknown-linux-gnu &&
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && corepack enable &&
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" &&
               export CC_aarch64_unknown_linux_gnu=/usr/aarch64-unknown-linux-gnu/bin/aarch64-unknown-linux-gnu-gcc &&
-              turbo run build-native-release --remote-cache-timeout 90 --summarize -- --target aarch64-unknown-linux-gnu --features plugin,rustls-tls,tracing/release_max_level_info &&
+              npm run build-native-release -- --target aarch64-unknown-linux-gnu --features plugin,rustls-tls,tracing/release_max_level_info &&
               llvm-strip -x packages/next-swc/native/next-swc.*.node &&
               objdump -T packages/next-swc/native/next-swc.*.node | grep GLIBC_
 
@@ -218,15 +210,14 @@ jobs:
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2022-10-24-alpine
             build: >-
               set -e &&
-              rm -rfv /usr/local/bin/{node,nodejs,npm,npx,corepack} &&
-              apk update && apk upgrade &&
-              apk add --no-cache libc6-compat pkgconfig nodejs-current npm &&
+              apk update &&
+              apk add --no-cache libc6-compat pkgconfig &&
               export JEMALLOC_SYS_WITH_LG_PAGE=16 &&
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && corepack enable &&
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" &&
               rustup toolchain install "${RUST_TOOLCHAIN}" &&
               rustup default "${RUST_TOOLCHAIN}" &&
               rustup target add aarch64-unknown-linux-musl &&
-              turbo run build-native-release --remote-cache-timeout 90 --summarize -- --target aarch64-unknown-linux-musl &&
+              npm run build-native-release -- --target aarch64-unknown-linux-musl &&
               llvm-strip -x packages/next-swc/native/next-swc.*.node
 
     name: stable - ${{ matrix.settings.target }} - node@16
