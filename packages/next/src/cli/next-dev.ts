@@ -191,6 +191,8 @@ const nextDev: CliCommand = async (argv) => {
     '--turbo': Boolean,
     '--experimental-turbo': Boolean,
     '--experimental-https': Boolean,
+    '--experimental-https-key': String,
+    '--experimental-https-cert': String,
     '--experimental-test-proxy': Boolean,
 
     // To align current messages with native binary.
@@ -376,9 +378,23 @@ const nextDev: CliCommand = async (argv) => {
       try {
         const workerInit = await createRouterWorker()
         if (!!args['--experimental-https']) {
+          let certificate: { key: string; cert: string } | undefined
+
+          if (
+            args['--experimental-https-key'] &&
+            args['--experimental-https-cert']
+          ) {
+            certificate = {
+              key: path.resolve(args['--experimental-https-key']),
+              cert: path.resolve(args['--experimental-https-cert']),
+            }
+          } else {
+            certificate = await createSelfSignedCertificate(host)
+          }
+
           await workerInit.worker.startServer({
             ...devServerOptions,
-            selfSignedCertificate: await createSelfSignedCertificate(host),
+            selfSignedCertificate: certificate,
           })
         } else {
           await workerInit.worker.startServer(devServerOptions)

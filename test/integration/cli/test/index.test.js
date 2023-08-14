@@ -10,7 +10,7 @@ import {
   runNextCommandDev,
 } from 'next-test-utils'
 import fs from 'fs-extra'
-import { join } from 'path'
+import path, { join } from 'path'
 import pkg from 'next/package'
 import http from 'http'
 import stripAnsi from 'strip-ansi'
@@ -556,6 +556,40 @@ describe('CLI Usage', () => {
         await check(() => output, /on \[::\]:(\d+)/)
         await check(() => output, /https:\/\/localhost:(\d+)/)
         await check(() => output, /Certificates created in/)
+      } finally {
+        await killApp(app)
+      }
+    })
+
+    test('--experimental-https with provided key/cert', async () => {
+      const keyFile = path.resolve(
+        __dirname,
+        '../certificates/localhost-key.pem'
+      )
+      const certFile = path.resolve(__dirname, '../certificates/localhost.pem')
+      const port = await findPort()
+      let output = ''
+      const app = await runNextCommandDev(
+        [
+          dirBasic,
+          '--experimental-https',
+          '--experimental-https-key',
+          keyFile,
+          '--experimental-https-cert',
+          certFile,
+          '--port',
+          port,
+        ],
+        undefined,
+        {
+          onStdout(msg) {
+            output += stripAnsi(msg)
+          },
+        }
+      )
+      try {
+        await check(() => output, /on \[::\]:(\d+)/)
+        await check(() => output, /https:\/\/localhost:(\d+)/)
       } finally {
         await killApp(app)
       }

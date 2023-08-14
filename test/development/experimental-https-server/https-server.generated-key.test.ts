@@ -3,7 +3,7 @@ import https from 'https'
 import { renderViaHTTP } from 'next-test-utils'
 
 createNextDescribe(
-  'experimental-https-server',
+  'experimental-https-server (generated certificate)',
   {
     files: __dirname,
     startCommand: 'yarn next dev --experimental-https',
