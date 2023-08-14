@@ -1,4 +1,4 @@
-export default function createActionProxy(
+export function createActionProxy(
   id: string,
   bound: null | any[],
   action: any,
