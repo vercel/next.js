@@ -89,7 +89,6 @@
     ]
   },
   "dependencies": {
-    "@mswjs/interceptors": "0.23.0",
     "@next/env": "13.4.16-canary.0",
     "@swc/helpers": "0.5.1",
     "busboy": "1.6.0",
