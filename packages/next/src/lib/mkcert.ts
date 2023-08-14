@@ -1,5 +1,5 @@
 import os from 'os'
-import fs from 'fs-extra'
+import fs from 'fs'
 import path from 'path'
 import { getCacheDirectory } from './helpers/get-cache-directory'
 import * as Log from '../build/output/log'
@@ -34,7 +34,7 @@ async function downloadBinary() {
     const cacheDirectory = await getCacheDirectory('mkcert')
     const binaryPath = path.join(cacheDirectory, binaryName)
 
-    if (await fs.pathExists(binaryPath)) {
+    if (fs.existsSync(binaryPath)) {
       return binaryPath
     }
 
@@ -75,7 +75,7 @@ async function downloadBinary() {
     })
 
     await fs.promises.rename(tempFile, path.join(cacheDirectory, binaryName))
-    await fs.chmod(binaryPath, 0o755)
+    await fs.promises.chmod(binaryPath, 0o755)
 
     return binaryPath
   } catch (err) {
