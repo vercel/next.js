@@ -65,10 +65,13 @@ async function downloadBinary() {
 }
 
 export async function createSelfSignedCertificate(
+  host: string,
   certDir: string = 'certificates'
 ) {
   try {
-    Log.warn('Self-signed certificates are currently an experimental feature')
+    Log.warn(
+      'Self-signed certificates are currently an experimental feature, use at your own risk.'
+    )
     const binaryPath = await downloadBinary()
     if (!binaryPath) throw new Error('missing mkcert binary')
 
@@ -85,8 +88,12 @@ export async function createSelfSignedCertificate(
       'Attempting to generate self signed certificate. This may prompt for your password'
     )
 
+    const hosts = Array.from(new Set(['localhost', '127.0.0.1', '::1', host]))
+
     execSync(
-      `${binaryPath} -install -key-file ${keyPath} -cert-file ${certPath} localhost 127.0.0.1 ::1`,
+      `${binaryPath} -install -key-file ${keyPath} -cert-file ${certPath} ${hosts.join(
+        ' '
+      )}`,
       { stdio: 'ignore' }
     )
 

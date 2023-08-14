@@ -378,7 +378,7 @@ const nextDev: CliCommand = async (argv) => {
         if (!!args['--experimental-https']) {
           await workerInit.worker.startServer({
             ...devServerOptions,
-            selfSignedCertificate: await createSelfSignedCertificate(),
+            selfSignedCertificate: await createSelfSignedCertificate(host),
           })
         } else {
           await workerInit.worker.startServer(devServerOptions)
