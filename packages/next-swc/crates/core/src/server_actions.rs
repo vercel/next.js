@@ -1061,6 +1061,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     span: DUMMY_SP,
                     local: quote_ident!("createActionProxy"),
                     imported: None,
+                    is_type_only: false,
                 })],
                 src: Box::new(Str {
                     span: DUMMY_SP,
