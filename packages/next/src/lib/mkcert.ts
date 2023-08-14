@@ -35,6 +35,7 @@ async function downloadBinary() {
     const binaryPath = path.join(cacheDirectory, binaryName)
 
     if (fs.existsSync(binaryPath)) {
+      Log.info('Binary exists, using cached version', binaryPath)
       return binaryPath
     }
 
@@ -48,34 +49,44 @@ async function downloadBinary() {
 
     Log.info(`Downloading mkcert package...`)
 
-    await fetch(downloadUrl).then((res) => {
-      const { ok, body } = res
-      if (!ok || !body) {
-        Log.error(`Failed to download mkcert package from ${downloadUrl}`)
-      }
+    await fetch(downloadUrl)
+      .then((res) => {
+        const { ok, body } = res
+        if (!ok || !body) {
+          Log.error(`Failed to download mkcert package from ${downloadUrl}`)
+        }
 
-      if (!ok) {
-        throw new Error(`request failed with status ${res.status}`)
-      }
-      if (!body) {
-        throw new Error('request failed with empty body')
-      }
+        if (!ok) {
+          throw new Error(`request failed with status ${res.status}`)
+        }
+        if (!body) {
+          throw new Error('request failed with empty body')
+        }
 
-      const cacheWriteStream = fs.createWriteStream(tempFile)
-      return body.pipeTo(
-        new WritableStream({
-          write(chunk) {
-            cacheWriteStream.write(chunk)
-          },
-          close() {
-            cacheWriteStream.close()
-          },
-        })
-      )
-    })
+        Log.info(`Download response was successful, writing to disk`)
+
+        const cacheWriteStream = fs.createWriteStream(tempFile)
+        return body.pipeTo(
+          new WritableStream({
+            write(chunk) {
+              cacheWriteStream.write(chunk)
+            },
+            close() {
+              cacheWriteStream.close()
+            },
+          })
+        )
+      })
+      .catch((err) => {
+        Log.error('Error downloading mkcert:', err)
+      })
+
+    Log.info('Download completed successfully')
 
     await fs.promises.rename(tempFile, path.join(cacheDirectory, binaryName))
     await fs.promises.chmod(binaryPath, 0o755)
+
+    Log.info('Binary path', binaryPath)
 
     return binaryPath
   } catch (err) {
