@@ -127,7 +127,7 @@ type IssueSource = {
 
 type Issue = {
   severity: IssueSeverity;
-  context: string;
+  file_path: string;
   category: string;
 
   title: string;
