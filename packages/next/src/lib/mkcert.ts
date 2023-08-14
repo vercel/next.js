@@ -68,6 +68,7 @@ export async function createSelfSignedCertificate(
   certDir: string = 'certificates'
 ) {
   try {
+    Log.warn('Self-signed certificates are currently an experimental feature')
     const binaryPath = await downloadBinary()
     if (!binaryPath) throw new Error('missing mkcert binary')
 
@@ -81,7 +82,7 @@ export async function createSelfSignedCertificate(
     const certPath = path.resolve(resolvedCertDir, 'localhost.pem')
 
     Log.info(
-      'Attempting to generate self signed certificate. This may prompt for your password.'
+      'Attempting to generate self signed certificate. This may prompt for your password'
     )
 
     execSync(

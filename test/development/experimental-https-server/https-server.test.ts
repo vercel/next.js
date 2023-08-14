@@ -11,6 +11,7 @@ createNextDescribe(
   },
   ({ next }) => {
     if (!process.env.CI) {
+      console.warn('only runs on CI as it requires administrator privileges')
       it('only runs on CI as it requires administrator privileges', () => {})
       return
     }
