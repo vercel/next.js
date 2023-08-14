@@ -1,8 +1,6 @@
-import Link from 'next/link'
 import './globals.css'
 import { ThemeSwitcher } from 'nextjs-themes'
 import { SSCWrapper } from 'nextjs-themes/server/nextjs'
-import PageNavigator from './pageNavigator'
 
 export default function RootLayout({
   children,
