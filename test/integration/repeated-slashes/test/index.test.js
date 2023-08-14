@@ -340,6 +340,10 @@ function runTests({ isDev = false, isExport = false, isPages404 = false }) {
           item.as ? `, "${item.as}"` : ''
         })`
       )
+      await check(
+        () => browser.eval('document.readyState'),
+        /interactive|complete/
+      )
       expect(await browser.eval('window.location.pathname')).toBe(item.pathname)
       expect(await browser.eval('window.location.search')).toBe(
         item.search || ''

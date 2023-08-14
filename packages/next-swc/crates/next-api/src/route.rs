@@ -24,7 +24,8 @@ pub enum Route {
 #[turbo_tasks::value_trait]
 pub trait Endpoint {
     fn write_to_disk(self: Vc<Self>) -> Vc<WrittenEndpoint>;
-    fn changed(self: Vc<Self>) -> Vc<Completion>;
+    fn server_changed(self: Vc<Self>) -> Vc<Completion>;
+    fn client_changed(self: Vc<Self>) -> Vc<Completion>;
 }
 
 #[turbo_tasks::value(shared)]

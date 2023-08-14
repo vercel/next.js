@@ -186,7 +186,13 @@ export class FlightClientEntryPlugin {
 
     compiler.hooks.afterCompile.tap(PLUGIN_NAME, (compilation) => {
       const recordModule = (modId: string, mod: any) => {
-        const modResource = mod.resourceResolveData?.path || mod.resource
+        // Match Resource is undefined unless an import is using the inline match resource syntax
+        // https://webpack.js.org/api/loaders/#inline-matchresource
+        const modPath = mod.matchResource || mod.resourceResolveData?.path
+        const modQuery = mod.resourceResolveData?.query || ''
+        // query is already part of mod.resource
+        // so it's only neccessary to add it for matchResource or mod.resourceResolveData
+        const modResource = modPath ? modPath + modQuery : mod.resource
 
         if (mod.layer !== WEBPACK_LAYERS.serverSideRendering) {
           return
