@@ -76,7 +76,7 @@ describe('should set-up next', () => {
     appPort = await findPort()
     server = await initNextServerScript(
       testServer,
-      /Listening on/,
+      /ready started server on/,
       {
         ...process.env,
         PORT: appPort,

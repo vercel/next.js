@@ -3,10 +3,10 @@ import '../node-polyfill-fetch'
 import type { IncomingMessage, ServerResponse } from 'http'
 
 import http from 'http'
-import { isIPv6 } from 'net'
 import * as Log from '../../build/output/log'
 import setupDebug from 'next/dist/compiled/debug'
 import { getDebugPort } from './utils'
+import { formatHostname } from './format-hostname'
 import { initialize } from './router-server'
 import {
   WorkerRequestHandler,
@@ -147,25 +147,26 @@ export async function startServer({
     }
   })
 
-  let targetHost = hostname
   const isNodeDebugging = checkIsNodeDebugging()
 
   await new Promise<void>((resolve) => {
     server.on('listening', async () => {
       const addr = server.address()
+      const actualHostname = formatHostname(
+        typeof addr === 'object'
+          ? addr?.address || hostname || 'localhost'
+          : addr
+      )
+
+      const formattedHostname =
+        !hostname || hostname === '0.0.0.0'
+          ? 'localhost'
+          : actualHostname === '[::]'
+          ? '[::1]'
+          : actualHostname
+
       port = typeof addr === 'object' ? addr?.port || port : port
-
-      let host = !hostname || hostname === '0.0.0.0' ? 'localhost' : hostname
-
-      let normalizedHostname = hostname || '0.0.0.0'
-
-      if (isIPv6(hostname)) {
-        host = host === '::' ? '[::1]' : `[${host}]`
-        normalizedHostname = `[${hostname}]`
-      }
-      targetHost = host
-
-      const appUrl = `http://${host}:${port}`
+      const appUrl = `http://${formattedHostname}:${port}`
 
       if (isNodeDebugging) {
         const debugPort = getDebugPort()
@@ -177,11 +178,7 @@ export async function startServer({
       }
 
       if (logReady) {
-        Log.ready(
-          `started server on ${normalizedHostname}${
-            (port + '').startsWith(':') ? '' : ':'
-          }${port}, url: ${appUrl}`
-        )
+        Log.ready(`started server on ${actualHostname}:${port}, url: ${appUrl}`)
         // expose the main port to render workers
         process.env.PORT = port + ''
       }
@@ -202,7 +199,7 @@ export async function startServer({
           dir,
           port,
           isDev,
-          hostname: targetHost,
+          hostname,
           minimalMode,
           isNodeDebugging: Boolean(isNodeDebugging),
           keepAliveTimeout,
@@ -219,6 +216,6 @@ export async function startServer({
 
       resolve()
     })
-    server.listen(port, hostname === 'localhost' ? '0.0.0.0' : hostname)
+    server.listen(port, hostname)
   })
 }
