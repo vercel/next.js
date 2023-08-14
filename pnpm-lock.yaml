@@ -1572,9 +1572,6 @@ importers:
 
   packages/third-parties:
     dependencies:
-      next:
-        specifier: ^13.0.0
-        version: link:../next
       react:
         specifier: ^18.2.0
         version: 18.2.0
@@ -1582,6 +1579,9 @@ importers:
         specifier: 1.0.17
         version: 1.0.17
     devDependencies:
+      next:
+        specifier: 13.4.14
+        version: link:../next
       outdent:
         specifier: 0.8.0
         version: 0.8.0
