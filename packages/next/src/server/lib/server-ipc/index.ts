@@ -134,7 +134,8 @@ export const createWorker = async (
       'clearModuleContext',
       'propagateServerField',
     ],
-  }) as any as RenderWorker
+  }) as any as RenderWorker &
+    InstanceType<typeof import('next/dist/compiled/jest-worker').Worker>
 
   worker.getStderr().pipe(process.stderr)
   worker.getStdout().pipe(process.stdout)
