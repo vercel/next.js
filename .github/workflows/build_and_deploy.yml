@@ -119,7 +119,6 @@ jobs:
               - 'linux'
               - 'x64'
               - 'metal'
-              - 'docker'
 
             target: 'x86_64-unknown-linux-gnu'
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian
@@ -140,7 +139,6 @@ jobs:
               - 'linux'
               - 'x64'
               - 'metal'
-              - 'docker'
 
             target: 'x86_64-unknown-linux-musl'
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
@@ -174,7 +172,6 @@ jobs:
               - 'linux'
               - 'x64'
               - 'metal'
-              - 'docker'
 
             target: 'aarch64-unknown-linux-gnu'
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian-aarch64
@@ -196,7 +193,6 @@ jobs:
               - 'linux'
               - 'x64'
               - 'metal'
-              - 'docker'
 
             target: 'aarch64-unknown-linux-musl'
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
