@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { darkThemes, lightThemes } from './themes'
 import Link from 'next/link'
+import styles from './page.module.css'
 
 export default function PageNavigator() {
   const [exampleType, _setExampleType] = useState('themed-page')
@@ -19,19 +20,26 @@ export default function PageNavigator() {
     _setExampleType(exampleType)
   }
   return (
-    <div className="page-navigator">
-      <hr />
-      <h3>Example Page Navigator</h3>
+    <div className={styles.card}>
+      <h2>
+        Pages Navigator
+        <Link href={`/${exampleType}/${exampleOption}`}>
+          {' '}
+          <span>-&gt;</span>
+        </Link>
+      </h2>
+      <p>
+        Pages with forced <code>theme</code>/<code>colorScheme</code>
+      </p>
+      <br />
       <nav>
         <select
           value={exampleType}
           onChange={(e) => setExampleType(e.target.value)}
         >
           <option value="themed-page">Themed Page</option>
-          <option value="forced-color-scheme">
-            Force Color Scheme on page
-          </option>
-        </select>
+          <option value="forced-color-scheme">Forced ColorScheme</option>
+        </select>{' '}
         <select
           value={exampleOption}
           onChange={(e) => setExampleOption(e.target.value)}
@@ -42,9 +50,6 @@ export default function PageNavigator() {
             </option>
           ))}
         </select>
-        {exampleType && exampleOption ? (
-          <Link href={`/${exampleType}/${exampleOption}`}>Go</Link>
-        ) : null}
       </nav>
     </div>
   )

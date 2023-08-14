@@ -10,35 +10,21 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
+    <SSCWrapper tag="html" lang="en">
       <body>
-        <SSCWrapper className="ssc-wrapper">
-          <ThemeSwitcher />
-          <div className="container">
-            <header>
-              <Link href="/">
-                <h1>🏡</h1>
-              </Link>{' '}
-              <h1>Nextjs Themes Example</h1>
-            </header>
-            <p>
-              Example showing how to use <code>nextjs-themes</code> to implement
-              multi theme switching. More examples available at package's{' '}
-              <a
-                href="https://github.com/mayank1513/nextjs-themes"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                GitHub repo
-              </a>
-              .
-            </p>
-            <PageNavigator />
-            <hr />
-            {children}
-          </div>
-        </SSCWrapper>
+        <ThemeSwitcher />
+        <div className="container">{children}</div>
+        <footer>
+          with 💖 by{' '}
+          <a
+            href="https://mayank-chaudhari.vercel.app"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Mayank Chaudhari
+          </a>
+        </footer>
       </body>
-    </html>
+    </SSCWrapper>
   )
 }
