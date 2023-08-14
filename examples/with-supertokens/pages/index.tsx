@@ -136,7 +136,7 @@ function ProtectedPage({ userId }) {
             {JSON.stringify(session.accessTokenPayload, null, 2)}
           </pre>
         </p>
-        
+
         <div className={styles.grid}>
           <a href="https://nextjs.org/docs" className={styles.card}>
             <h3>Documentation &rarr;</h3>
