@@ -35,7 +35,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
 }
 
-export function NotFound() {
+export default function NotFound() {
   return (
     <>
       {/* <head> */}
