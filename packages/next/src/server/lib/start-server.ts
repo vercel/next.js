@@ -117,16 +117,6 @@ export async function startServer({
     )
   }
 
-  const server = selfSignedCertificate
-    ? https.createServer(
-        {
-          key: fs.readFileSync(selfSignedCertificate.key),
-          cert: fs.readFileSync(selfSignedCertificate.cert),
-        },
-        requestListener
-      )
-    : http.createServer(requestListener)
-
   async function requestListener(req: IncomingMessage, res: ServerResponse) {
     try {
       if (handlersPromise) {
@@ -141,6 +131,16 @@ export async function startServer({
       console.error(err)
     }
   }
+
+  const server = selfSignedCertificate
+    ? https.createServer(
+        {
+          key: fs.readFileSync(selfSignedCertificate.key),
+          cert: fs.readFileSync(selfSignedCertificate.cert),
+        },
+        requestListener
+      )
+    : http.createServer(requestListener)
 
   if (keepAliveTimeout) {
     server.keepAliveTimeout = keepAliveTimeout

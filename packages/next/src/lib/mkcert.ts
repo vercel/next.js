@@ -1,4 +1,3 @@
-import os from 'os'
 import fs from 'fs'
 import path from 'path'
 import { getCacheDirectory } from './helpers/get-cache-directory'
@@ -12,8 +11,8 @@ const { fetch } = require('next/dist/compiled/undici') as {
 const MKCERT_VERSION = 'v1.4.4'
 
 function getBinaryName() {
-  const platform = os.platform()
-  const arch = os.arch()
+  const platform = process.platform
+  const arch = process.arch === 'x64' ? 'amd64' : process.arch
 
   if (platform === 'win32') {
     return `mkcert-${MKCERT_VERSION}-windows-${arch}.exe`
