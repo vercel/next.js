@@ -20,7 +20,6 @@ jobs:
       # we build a dev binary for use in CI so skip downloading
       # canary next-swc binaries in the monorepo
       NEXT_SKIP_NATIVE_POSTINSTALL: 1
-      TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
     outputs:
       isRelease: ${{ github.event_name != 'workflow_dispatch' && steps.check-release.outputs.IS_RELEASE }}
     steps:
@@ -224,9 +223,7 @@ jobs:
     name: stable - ${{ matrix.settings.target }} - node@16
     runs-on: ${{ matrix.settings.host }}
     env:
-      TURBO_API: ''
       TURBO_TEAM: 'vercel'
-      TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
       TURBO_REMOTE_ONLY: 'true'
     steps:
       # https://github.com/actions/virtual-environments/issues/1187
@@ -272,18 +269,18 @@ jobs:
         with:
           image: ${{ matrix.settings.docker }}
           options: >-
-            -e RUST_TOOLCHAIN=${{ env.RUST_TOOLCHAIN }}
-            -e CARGO_INCREMENTAL=${{ env.CARGO_INCREMENTAL }}
-            -e CARGO_PROFILE_RELEASE_LTO=${{ env.CARGO_PROFILE_RELEASE_LTO }}
-            -e CARGO_TERM_COLOR=${{ env.CARGO_TERM_COLOR }}
-            -e RUST_BACKTRACE=${{ env.RUST_BACKTRACE }}
-            -e CARGO_REGISTRIES_CRATES_IO_PROTOCOL=${{ env.CARGO_REGISTRIES_CRATES_IO_PROTOCOL }}
-            -e NAPI_CLI_VERSION=${{ env.NAPI_CLI_VERSION }}
-            -e TURBO_VERSION=${{ env.TURBO_VERSION }}
-            -e TURBO_TEAM=vercel
-            -e TURBO_API=''
-            -e TURBO_TOKEN=${{ secrets.TURBO_TOKEN }}
-            -e TURBO_REMOTE_ONLY=true
+            -e RUST_TOOLCHAIN
+            -e RUST_BACKTRACE
+            -e NAPI_CLI_VERSION
+            -e CARGO_TERM_COLOR
+            -e CARGO_INCREMENTAL
+            -e CARGO_PROFILE_RELEASE_LTO
+            -e CARGO_REGISTRIES_CRATES_IO_PROTOCOL
+            -e TURBO_API
+            -e TURBO_TEAM
+            -e TURBO_TOKEN
+            -e TURBO_VERSION
+            -e TURBO_REMOTE_ONLY
             -v ${{ env.HOME }}/.cargo/git:/root/.cargo/git
             -v ${{ env.HOME }}/.cargo/registry:/root/.cargo/registry
             -v ${{ github.workspace }}:/build
@@ -348,7 +345,6 @@ jobs:
 
     env:
       TURBO_TEAM: 'vercel'
-      TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
       TURBO_REMOTE_ONLY: 'true'
     steps:
       - uses: actions/checkout@v3
