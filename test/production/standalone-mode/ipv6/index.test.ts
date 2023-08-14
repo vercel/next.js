@@ -1,9 +1,4 @@
-import {
-  FileRef,
-  NextInstance,
-  createNext,
-  createNextDescribe,
-} from 'e2e-utils'
+import { NextInstance, createNext } from 'e2e-utils'
 import fs from 'fs-extra'
 import glob from 'glob'
 import {
