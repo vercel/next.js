@@ -363,7 +363,7 @@ describe('CLI Usage', () => {
         }
       )
       try {
-        await check(() => output, new RegExp(`on 0.0.0.0:${port}`))
+        await check(() => output, new RegExp(`on \\[::\\]:${port}`))
         await check(() => output, new RegExp(`http://localhost:${port}`))
       } finally {
         await killApp(app)
@@ -383,12 +383,12 @@ describe('CLI Usage', () => {
         }
       )
       try {
-        await check(() => output, new RegExp(`on 0.0.0.0:${port}`))
+        await check(() => output, new RegExp(`on \\[::\\]:${port}`))
         await check(() => output, new RegExp(`http://localhost:${port}`))
       } finally {
         await killApp(app)
       }
-      const matches = /on 0.0.0.0:(\d+)/.exec(output)
+      const matches = /on \[::\]:(\d+)/.exec(output)
       expect(matches).not.toBe(null)
 
       const _port = parseInt(matches[1])
@@ -408,8 +408,8 @@ describe('CLI Usage', () => {
         },
       })
       try {
-        await check(() => output, /on 0.0.0.0:(\d+)/)
-        const matches = /on 0.0.0.0:(\d+)/.exec(output)
+        await check(() => output, /on \[::\]:(\d+)/)
+        const matches = /on \[::\]:(\d+)/.exec(output)
         const _port = parseInt(matches[1])
         expect(matches).not.toBe(null)
         // Regression test: port 0 was interpreted as if no port had been
@@ -434,7 +434,7 @@ describe('CLI Usage', () => {
         }
       )
       try {
-        await check(() => output, new RegExp(`on 0.0.0.0:${port}`))
+        await check(() => output, new RegExp(`on \\[::\\]:${port}`))
         await check(() => output, new RegExp(`http://localhost:${port}`))
       } finally {
         await killApp(app)
@@ -451,7 +451,7 @@ describe('CLI Usage', () => {
         env: { NODE_OPTIONS: '--inspect' },
       })
       try {
-        await check(() => output, new RegExp(`on 0.0.0.0:${port}`))
+        await check(() => output, new RegExp(`on \\[::\\]:${port}`))
         await check(() => output, new RegExp(`http://localhost:${port}`))
       } finally {
         await killApp(app)

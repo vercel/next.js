@@ -1,7 +1,5 @@
 {
-  "extends": "../../tsconfig-tsec.json",
   "compilerOptions": {
-    "sourceMap": true,
     "strict": true,
     "esModuleInterop": true,
     "target": "es2019",

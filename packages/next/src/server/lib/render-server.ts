@@ -2,6 +2,7 @@ import type { RequestHandler } from '../next'
 
 // this must come first as it includes require hooks
 import { initializeServerWorker } from './setup-server-worker'
+import { formatHostname } from './format-hostname'
 import next from '../next'
 import { PropagateToWorkersField } from './router-utils/types'
 
@@ -98,7 +99,7 @@ export async function initialize(opts: {
     ...opts,
     _routerWorker: opts.workerType === 'router',
     _renderWorker: opts.workerType === 'render',
-    hostname: hostname === '0.0.0.0' ? 'localhost' : hostname,
+    hostname,
     customServer: false,
     httpServer: server,
     port: opts.port,
@@ -111,7 +112,8 @@ export async function initialize(opts: {
 
   result = {
     port,
-    hostname: hostname === '0.0.0.0' ? '127.0.0.1' : hostname,
+    hostname: formatHostname(hostname),
   }
+
   return result
 }

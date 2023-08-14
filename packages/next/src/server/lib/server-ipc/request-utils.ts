@@ -29,13 +29,13 @@ export const deserializeErr = (serializedErr: any) => {
 }
 
 export async function invokeIpcMethod({
-  hostname = '127.0.0.1',
+  fetchHostname = 'localhost',
   method,
   args,
   ipcPort,
   ipcKey,
 }: {
-  hostname?: string
+  fetchHostname?: string
   method: string
   args: any[]
   ipcPort?: string
@@ -43,7 +43,7 @@ export async function invokeIpcMethod({
 }): Promise<any> {
   if (ipcPort) {
     const res = await invokeRequest(
-      `http://${hostname}:${ipcPort}?key=${ipcKey}&method=${
+      `http://${fetchHostname}:${ipcPort}?key=${ipcKey}&method=${
         method as string
       }&args=${encodeURIComponent(JSON.stringify(args))}`,
       {
