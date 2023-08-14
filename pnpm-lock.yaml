@@ -815,8 +815,8 @@ importers:
         specifier: 29.5.0
         version: 29.5.0
       '@napi-rs/cli':
-        specifier: 2.14.7
-        version: 2.14.7
+        specifier: 2.16.2
+        version: 2.16.2
       '@napi-rs/triples':
         specifier: 1.1.0
         version: 1.1.0
@@ -1410,8 +1410,8 @@ importers:
   packages/next-swc:
     devDependencies:
       '@napi-rs/cli':
-        specifier: 2.14.7
-        version: 2.14.7
+        specifier: 2.16.2
+        version: 2.16.2
       cross-env:
         specifier: 6.0.3
         version: 6.0.3
@@ -6649,8 +6649,8 @@ packages:
       '@types/react': 18.2.7
       react: 18.2.0
 
-  /@napi-rs/cli@2.14.7:
-    resolution: {integrity: sha512-H+YCgdbBNMWn8c878C3RsRYcMxamWI7rB0H+1TqOy9n6u31isikcRyW1VDyoNHp7ApfmzV0+tpPopVi0W7WHAA==}
+  /@napi-rs/cli@2.16.2:
+    resolution: {integrity: sha512-U2aZfnr0s9KkXpZlYC0l5WxWCXL7vJUNpCnWMwq3T9GG9rhYAAUM9CTZsi1Z+0iR2LcHbfq9EfMgoqnuTyUjfg==}
     engines: {node: '>= 10'}
     hasBin: true
     dev: true
