@@ -6,9 +6,6 @@
     "url": "vercel/next.js",
     "directory": "packages/third-parties"
   },
-  "exports": {
-    "./google": "./dist/google/index.js"
-  },
   "files": [
     "dist"
   ],
