@@ -39,50 +39,24 @@ async function downloadBinary() {
     }
 
     const downloadUrl = `https://github.com/FiloSottile/mkcert/releases/download/${MKCERT_VERSION}/${binaryName}`
-    const tempFile = path.join(
-      cacheDirectory,
-      `${binaryName}.temp-${Date.now()}`
-    )
 
     await fs.promises.mkdir(cacheDirectory, { recursive: true })
 
     Log.info(`Downloading mkcert package...`)
 
-    await fetch(downloadUrl)
-      .then((res) => {
-        const { ok, body } = res
-        if (!ok || !body) {
-          Log.error(`Failed to download mkcert package from ${downloadUrl}`)
-        }
+    const response = await fetch(downloadUrl)
 
-        if (!ok) {
-          throw new Error(`request failed with status ${res.status}`)
-        }
-        if (!body) {
-          throw new Error('request failed with empty body')
-        }
+    if (!response.ok || !response.body) {
+      Log.error(`Failed to download mkcert package from ${downloadUrl}`)
+      throw new Error(`request failed with status ${response.status}`)
+    }
 
-        Log.info(`Download response was successful, writing to disk`)
+    Log.info(`Download response was successful, writing to disk`)
 
-        const cacheWriteStream = fs.createWriteStream(tempFile)
-        return body.pipeTo(
-          new WritableStream({
-            write(chunk) {
-              cacheWriteStream.write(chunk)
-            },
-            close() {
-              cacheWriteStream.close()
-            },
-          })
-        )
-      })
-      .catch((err) => {
-        Log.error('Error downloading mkcert:', err)
-      })
+    const arrayBuffer = await response.arrayBuffer()
+    const buffer = Buffer.from(arrayBuffer)
 
-    Log.info('Download completed successfully')
-
-    await fs.promises.rename(tempFile, path.join(cacheDirectory, binaryName))
+    await fs.promises.writeFile(binaryPath, buffer)
     await fs.promises.chmod(binaryPath, 0o755)
 
     Log.info('Binary path', binaryPath)
@@ -124,8 +98,8 @@ export async function createSelfSignedCertificate(
       throw new Error('Failed to generate self-signed certificate')
     }
 
-    Log.info(`CA Root certificate located at ${caLocation}`)
-    Log.info(`Certificates created at ${resolvedCertDir}`)
+    Log.info(`CA Root certificate created in ${caLocation}`)
+    Log.info(`Certificates created in ${resolvedCertDir}`)
 
     const gitignorePath = path.resolve(process.cwd(), './.gitignore')
 

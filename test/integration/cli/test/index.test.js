@@ -546,6 +546,7 @@ describe('CLI Usage', () => {
       try {
         await check(() => output, /on \[::\]:(\d+)/)
         await check(() => output, /https:\/\/localhost:(\d+)/)
+        await check(() => output, /Certificates created in/)
       } finally {
         await killApp(app)
       }

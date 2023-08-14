@@ -1,4 +1,6 @@
 import { createNextDescribe } from 'e2e-utils'
+import https from 'https'
+import { renderViaHTTP } from 'next-test-utils'
 
 createNextDescribe(
   'experimental-https-server',
@@ -7,22 +9,20 @@ createNextDescribe(
     startCommand: 'yarn next dev --experimental-https',
   },
   ({ next }) => {
-    it('should successfully load the app in app dir', async () => {
-      const browser = await next.browser('/1')
-      expect(await browser.url()).toInclude('https://')
+    const agent = new https.Agent({
+      rejectUnauthorized: false,
+    })
 
-      expect(await browser.waitForElementByCss('#app').text()).toBe(
-        'Hello from App'
-      )
+    it('should successfully load the app in app dir', async () => {
+      expect(next.url).toInclude('https://')
+      const html = await renderViaHTTP(next.url, '/1', undefined, { agent })
+      expect(html).toContain('Hello from App')
     })
 
     it('should successfully load the app in pages dir', async () => {
-      const browser = await next.browser('/2')
-      expect(await browser.url()).toInclude('https://')
-
-      expect(await browser.waitForElementByCss('#app').text()).toBe(
-        'Hello from Pages'
-      )
+      expect(next.url).toInclude('https://')
+      const html = await renderViaHTTP(next.url, '/2', undefined, { agent })
+      expect(html).toContain('Hello from Pages')
     })
   }
 )
