@@ -11,7 +11,7 @@ Check out our Blog page example:
 
 ## How to use
 
-Execute one of the following [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) commands using [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to create a new Next.js app and connect it to Prepr:
+Run one of the following [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) commands using [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to create a new Next.js app and connect it to Prepr:
 
 ```bash
 npx create-next-app --example cms-prepr cms-prepr-app
