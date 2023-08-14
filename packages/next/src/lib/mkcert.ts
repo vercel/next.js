@@ -3,7 +3,7 @@ import fs from 'fs'
 import path from 'path'
 import { getCacheDirectory } from './helpers/get-cache-directory'
 import * as Log from '../build/output/log'
-import execa from 'execa'
+import { execSync } from 'child_process'
 
 const { fetch } = require('next/dist/compiled/undici') as {
   fetch: typeof global.fetch
@@ -103,23 +103,19 @@ export async function createSelfSignedCertificate(
       'Attempting to generate self signed certificate. This may prompt for your password.'
     )
 
-    await execa(binaryPath, [
-      '-install',
-      '-key-file',
-      keyPath,
-      '-cert-file',
-      certPath,
-      'localhost',
-    ])
+    execSync(
+      `${binaryPath} -install -key-file ${keyPath} -cert-file ${certPath} localhost`,
+      { stdio: 'ignore' }
+    )
 
-    const { stdout: caLocation } = await execa(binaryPath, ['-CAROOT'])
+    const caLocation = execSync(`${binaryPath} -CAROOT`).toString()
 
     if (!fs.existsSync(keyPath) || !fs.existsSync(certPath)) {
       throw new Error('Failed to generate self-signed certificate')
     }
 
-    Log.info(`CA Root certificate located at ${caLocation}.`)
-    Log.info(`Certificates created at ${resolvedCertDir}.`)
+    Log.info(`CA Root certificate located at ${caLocation}`)
+    Log.info(`Certificates created at ${resolvedCertDir}`)
 
     const gitignorePath = path.resolve(process.cwd(), './.gitignore')
 
