@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 env:
-  NAPI_CLI_VERSION: 2.14.7
+  NAPI_CLI_VERSION: 2.16.2
   TURBO_VERSION: 1.10.9
   NODE_MAINTENANCE_VERSION: 16
   NODE_LTS_VERSION: 18.16.1
@@ -198,7 +198,7 @@ jobs:
               - 'docker'
 
             target: 'aarch64-unknown-linux-musl'
-            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine-zig
+            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
             build: >-
               set -e &&
               apk add --no-cache libc6-compat pkgconfig &&
