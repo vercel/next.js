@@ -5,6 +5,7 @@ import DarkThemeSelector from './DarkThemeSelector'
 import ThemeSelector from './ThemeSelector'
 import LightThemeSelector from './LightThemeSelector'
 import PageNavigator from './pageNavigator'
+import Image from 'next/image'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -56,6 +57,26 @@ export default function Home() {
             More Examples <span>-&gt;</span>
           </h2>
           <p>Explore more examples on official GitHub Repo.</p>
+        </a>
+        <a
+          href="https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/app-dir-nextjs-themes&project-name=app-dir-nextjs-themes&repository-name=app-dir-nextjs-themes"
+          className={styles.card}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <h2>
+            Deploy with{' '}
+            <Image
+              src="/vercel.svg"
+              alt="Vercel Logo"
+              className={styles.vercelLogo}
+              width={87.5}
+              height={21}
+              priority
+            />{' '}
+            <span>-&gt;</span>
+          </h2>
+          <p>Instantly deploy this example with Vercel.</p>
         </a>
       </div>
     </main>
