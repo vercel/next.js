@@ -146,6 +146,10 @@ export interface Options {
    */
   dev?: boolean
   /**
+   * Enables the experimental testing mode.
+   */
+  experimentalTestProxy?: boolean
+  /**
    * Where the Next project is located
    */
   dir?: string

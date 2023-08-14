@@ -79,8 +79,6 @@ jobs:
       fail-fast: false
       matrix:
         settings:
-          # pnpm is aliased here temporarily until the build docker
-          # image is updated past Node.js v14.19 (current 14.18.1)
           - host:
               - 'self-hosted'
               - 'macos'
@@ -90,6 +88,21 @@ jobs:
             build: |
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && corepack enable
               turbo run build-native-release --remote-cache-timeout 90 --summarize -- --target x86_64-apple-darwin --release
+              strip -x packages/next-swc/native/next-swc.*.node
+
+          - host:
+              - 'self-hosted'
+              - 'macos'
+              - 'arm64'
+
+            target: 'aarch64-apple-darwin'
+            build: |
+              export CC=$(xcrun -f clang);
+              export CXX=$(xcrun -f clang++);
+              SYSROOT=$(xcrun --sdk macosx --show-sdk-path);
+              export CFLAGS="-isysroot $SYSROOT -isystem $SYSROOT";
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && corepack enable
+              turbo run build-native-release --remote-cache-timeout 90 --summarize -- --target aarch64-apple-darwin
               strip -x packages/next-swc/native/next-swc.*.node
 
           - host:
@@ -116,17 +129,30 @@ jobs:
 
           - host:
               - 'self-hosted'
+              - 'windows'
+              - 'x64'
+
+            target: 'aarch64-pc-windows-msvc'
+            build: |
+              corepack enable
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}"
+              turbo run build-native-no-plugin-woa-release --remote-cache-timeout 90 --summarize -- --target aarch64-pc-windows-msvc
+
+          - host:
+              - 'self-hosted'
               - 'linux'
               - 'x64'
               - 'metal'
-              - 'docker'
 
             target: 'x86_64-unknown-linux-gnu'
-            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian
+            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2022-10-24-x64
             build: >-
               set -e &&
               apt update &&
-              apt install -y pkg-config &&
+              apt install -y pkg-config xz-utils &&
+              wget https://nodejs.org/dist/v18.12.0/node-v18.12.0-linux-x64.tar.xz -O node.tar.xz &&
+              tar -xf node.tar.xz &&
+              cd node-* && cp -r ./{bin,include,lib,share} /usr/local/ && cd .. &&
               rustup toolchain install "${RUST_TOOLCHAIN}" &&
               rustup default "${RUST_TOOLCHAIN}" &&
               rustup target add x86_64-unknown-linux-gnu &&
@@ -140,13 +166,15 @@ jobs:
               - 'linux'
               - 'x64'
               - 'metal'
-              - 'docker'
 
             target: 'x86_64-unknown-linux-musl'
-            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
+            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2022-10-24-alpine
             build: >-
               set -e &&
-              apk add --no-cache libc6-compat pkgconfig &&
+              rm -rfv /usr/local/bin/{node,nodejs,npm,npx,corepack} &&
+              apk update && apk upgrade &&
+              apk add --no-cache libc6-compat pkgconfig nodejs-current npm &&
+              rm -rfv /usr/local/bin/{node,nodejs,npm,npx} &&
               rustup toolchain install "${RUST_TOOLCHAIN}" &&
               rustup default "${RUST_TOOLCHAIN}" &&
               rustup target add x86_64-unknown-linux-musl &&
@@ -156,32 +184,19 @@ jobs:
 
           - host:
               - 'self-hosted'
-              - 'macos'
-              - 'arm64'
-
-            target: 'aarch64-apple-darwin'
-            build: |
-              export CC=$(xcrun -f clang);
-              export CXX=$(xcrun -f clang++);
-              SYSROOT=$(xcrun --sdk macosx --show-sdk-path);
-              export CFLAGS="-isysroot $SYSROOT -isystem $SYSROOT";
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && corepack enable
-              turbo run build-native-release --remote-cache-timeout 90 --summarize -- --target aarch64-apple-darwin
-              strip -x packages/next-swc/native/next-swc.*.node
-
-          - host:
-              - 'self-hosted'
               - 'linux'
               - 'x64'
               - 'metal'
-              - 'docker'
 
             target: 'aarch64-unknown-linux-gnu'
-            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian-aarch64
+            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2022-10-24-aarch64
             build: >-
               set -e &&
               apt update &&
-              apt install -y pkg-config &&
+              apt install -y pkg-config xz-utils &&
+              wget https://nodejs.org/dist/v18.12.0/node-v18.12.0-linux-x64.tar.xz -O node.tar.xz &&
+              tar -xf node.tar.xz &&
+              cd node-* && cp -r ./{bin,include,lib,share} /usr/local/ && cd .. &&
               export JEMALLOC_SYS_WITH_LG_PAGE=16 &&
               rustup toolchain install "${RUST_TOOLCHAIN}" &&
               rustup default "${RUST_TOOLCHAIN}" &&
@@ -196,13 +211,14 @@ jobs:
               - 'linux'
               - 'x64'
               - 'metal'
-              - 'docker'
 
             target: 'aarch64-unknown-linux-musl'
-            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
+            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2022-10-24-alpine
             build: >-
               set -e &&
-              apk add --no-cache libc6-compat pkgconfig &&
+              rm -rfv /usr/local/bin/{node,nodejs,npm,npx,corepack} &&
+              apk update && apk upgrade &&
+              apk add --no-cache libc6-compat pkgconfig nodejs-current npm &&
               export JEMALLOC_SYS_WITH_LG_PAGE=16 &&
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && corepack enable &&
               rustup toolchain install "${RUST_TOOLCHAIN}" &&
@@ -210,17 +226,6 @@ jobs:
               rustup target add aarch64-unknown-linux-musl &&
               turbo run build-native-release --remote-cache-timeout 90 --summarize -- --target aarch64-unknown-linux-musl &&
               llvm-strip -x packages/next-swc/native/next-swc.*.node
-
-          - host:
-              - 'self-hosted'
-              - 'windows'
-              - 'x64'
-
-            target: 'aarch64-pc-windows-msvc'
-            build: |
-              corepack enable
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}"
-              turbo run build-native-no-plugin-woa-release --remote-cache-timeout 90 --summarize -- --target aarch64-pc-windows-msvc
 
     name: stable - ${{ matrix.settings.target }} - node@16
     runs-on: ${{ matrix.settings.host }}

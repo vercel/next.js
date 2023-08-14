@@ -72,6 +72,7 @@ export async function initialize(opts: {
   isNodeDebugging: boolean
   keepAliveTimeout?: number
   serverFields?: any
+  experimentalTestProxy: boolean
 }): Promise<NonNullable<typeof result>> {
   // if we already setup the server return as we only need to do
   // this on first worker boot
