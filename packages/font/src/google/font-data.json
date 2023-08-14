@@ -1869,6 +1869,31 @@
     "styles": ["normal"],
     "subsets": ["latin", "latin-ext"]
   },
+  "Bricolage Grotesque": {
+    "weights": ["200", "300", "400", "500", "600", "700", "800", "variable"],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "opsz",
+        "min": 10,
+        "max": 48,
+        "defaultValue": 14
+      },
+      {
+        "tag": "wdth",
+        "min": 75,
+        "max": 100,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 200,
+        "max": 800,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["cyrillic-ext", "latin", "latin-ext", "vietnamese"]
+  },
   "Bruno Ace": {
     "weights": ["400"],
     "styles": ["normal"],
@@ -7804,7 +7829,7 @@
   "Noto Sans Imperial Aramaic": {
     "weights": ["400"],
     "styles": ["normal"],
-    "subsets": ["imperial-aramaic"]
+    "subsets": ["imperial-aramaic", "latin", "latin-ext"]
   },
   "Noto Sans Indic Siyaq Numbers": {
     "weights": ["400"],
@@ -8097,7 +8122,7 @@
   "Noto Sans Mandaic": {
     "weights": ["400"],
     "styles": ["normal"],
-    "subsets": ["mandaic"]
+    "subsets": ["latin", "latin-ext", "mandaic"]
   },
   "Noto Sans Manichaean": {
     "weights": ["400"],
@@ -11366,6 +11391,11 @@
     "weights": ["400"],
     "styles": ["normal"],
     "subsets": ["latin", "latin-ext", "vietnamese"]
+  },
+  "Ruwudu": {
+    "weights": ["400", "500", "600", "700"],
+    "styles": ["normal"],
+    "subsets": ["arabic", "latin", "latin-ext"]
   },
   "Rye": {
     "weights": ["400"],
