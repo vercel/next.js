@@ -13,7 +13,7 @@ export default function Analytics() {
     return () => {
       router.events.off('routeChangeComplete', () => analytics.page())
     }
-  }, [])
+  }, [router.events])
 
   return null
 }
