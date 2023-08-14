@@ -237,7 +237,9 @@ export async function startServer({
           : actualHostname
 
       port = typeof addr === 'object' ? addr?.port || port : port
-      const appUrl = `http://${formattedHostname}:${port}`
+      const appUrl = `${
+        https ? 'https' : 'http'
+      }://${formattedHostname}:${port}`
 
       if (isNodeDebugging) {
         const debugPort = getDebugPort()
