@@ -37,4 +37,4 @@ jobs:
         shell: bash
         run: node scripts/update-fonts-data-workflow.js
         env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN_PULL_REQUESTS_TMP }}
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN_PULL_REQUESTS }}

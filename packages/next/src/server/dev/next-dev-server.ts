@@ -87,7 +87,6 @@ export interface Options extends ServerOptions {
 export default class DevServer extends Server {
   private devReady: Promise<void>
   private setDevReady?: Function
-  private webpackWatcher?: any | null
   protected sortedRoutes?: string[]
   private pagesDir?: string
   private appDir?: string
@@ -245,15 +244,6 @@ export default class DevServer extends Server {
 
   protected getBuildId(): string {
     return 'development'
-  }
-
-  async stopWatcher(): Promise<void> {
-    if (!this.webpackWatcher) {
-      return
-    }
-
-    this.webpackWatcher.close()
-    this.webpackWatcher = null
   }
 
   protected async prepareImpl(): Promise<void> {
@@ -486,7 +476,7 @@ export default class DevServer extends Server {
   ) {
     if (this.isRenderWorker) {
       await invokeIpcMethod({
-        hostname: this.hostname,
+        fetchHostname: this.fetchHostname,
         method: 'logErrorWithOriginalStack',
         args: [errorToJSON(err as Error), type],
         ipcPort: process.env.__NEXT_PRIVATE_ROUTER_IPC_PORT,
@@ -742,7 +732,7 @@ export default class DevServer extends Server {
   }) {
     if (this.isRenderWorker) {
       await invokeIpcMethod({
-        hostname: this.hostname,
+        fetchHostname: this.fetchHostname,
         method: 'ensurePage',
         args: [opts],
         ipcPort: process.env.__NEXT_PRIVATE_ROUTER_IPC_PORT,
@@ -807,7 +797,7 @@ export default class DevServer extends Server {
   protected async getFallbackErrorComponents(): Promise<LoadComponentsReturnType | null> {
     if (this.isRenderWorker) {
       await invokeIpcMethod({
-        hostname: this.hostname,
+        fetchHostname: this.fetchHostname,
         method: 'getFallbackErrorComponents',
         args: [],
         ipcPort: process.env.__NEXT_PRIVATE_ROUTER_IPC_PORT,
@@ -823,7 +813,7 @@ export default class DevServer extends Server {
   async getCompilationError(page: string): Promise<any> {
     if (this.isRenderWorker) {
       const err = await invokeIpcMethod({
-        hostname: this.hostname,
+        fetchHostname: this.fetchHostname,
         method: 'getCompilationError',
         args: [page],
         ipcPort: process.env.__NEXT_PRIVATE_ROUTER_IPC_PORT,

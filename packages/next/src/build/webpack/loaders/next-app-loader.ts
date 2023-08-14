@@ -319,6 +319,17 @@ async function createTreeCodeFromPath(
           globalError = await resolver(
             `${path.dirname(layoutPath)}/${GLOBAL_ERROR_FILE_TYPE}`
           )
+
+          const hasNotFound = definedFilePaths.some(
+            ([type]) => type === 'not-found'
+          )
+          // Add default not found error as root not found if not present
+          if (!hasNotFound) {
+            const notFoundPath = 'next/dist/client/components/not-found-error'
+            if (notFoundPath) {
+              definedFilePaths.push(['not-found', notFoundPath])
+            }
+          }
         }
       }
 
@@ -437,12 +448,14 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     pathname: string
   ): [string, string | string[]][] => {
     const matched: Record<string, string | string[]> = {}
+    let existingChildrenPath: string | undefined
     for (const appPath of normalizedAppPaths) {
       if (appPath.startsWith(pathname + '/')) {
         const rest = appPath.slice(pathname.length + 1).split('/')
 
         // It is the actual page, mark it specially.
         if (rest.length === 1 && rest[0] === 'page') {
+          existingChildrenPath = appPath
           matched.children = PAGE_SEGMENT
           continue
         }
@@ -462,6 +475,15 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
           continue
         }
 
+        // avoid clobbering existing page segments
+        // if it's a valid parallel segment, the `children` property will be set appropriately
+        if (existingChildrenPath && matched.children !== rest[0]) {
+          throw new Error(
+            `You cannot have two parallel pages that resolve to the same path. Please check ${existingChildrenPath} and ${appPath}. Refer to the route group docs for more information: https://nextjs.org/docs/app/building-your-application/routing/route-groups`
+          )
+        }
+
+        existingChildrenPath = appPath
         matched.children = rest[0]
       }
     }
