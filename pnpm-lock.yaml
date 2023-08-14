@@ -4,18 +4,6 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
-overrides:
-  webpack: 5.86.0
-  browserslist: 4.20.2
-  caniuse-lite: 1.0.30001406
-  '@types/node': 20.2.5
-  '@babel/core': 7.18.0
-  '@babel/parser': 7.18.0
-  '@babel/types': 7.18.0
-  '@babel/traverse': 7.18.0
-  '@types/react': 18.2.7
-  '@types/react-dom': 18.2.4
-
 importers:
 
   .:
@@ -566,6 +554,34 @@ importers:
       webpack-stats-plugin:
         specifier: ^1.1.0
         version: 1.1.0
+
+  examples/app-dir-nextjs-themes:
+    dependencies:
+      next:
+        specifier: latest
+        version: link:../../packages/next
+      nextjs-themes:
+        specifier: 0.3.0
+        version: 0.3.0(@types/react@18.0.27)(next@packages+next)(react@18.2.0)
+      react:
+        specifier: 18.2.0
+        version: 18.2.0
+      react-dom:
+        specifier: 18.2.0
+        version: 18.2.0(react@18.2.0)
+    devDependencies:
+      '@types/node':
+        specifier: 18.11.18
+        version: 18.11.18
+      '@types/react':
+        specifier: 18.0.27
+        version: 18.0.27
+      '@types/react-dom':
+        specifier: 18.0.10
+        version: 18.0.10
+      typescript:
+        specifier: 4.9.5
+        version: 4.9.5
 
   packages/create-next-app:
     devDependencies:
@@ -8208,6 +8224,10 @@ packages:
       form-data: 3.0.1
     dev: true
 
+  /@types/node@18.11.18:
+    resolution: {integrity: sha512-DHQpWGjyQKSHj3ebjFI/wRKcqQcdR+MoFBygntYOZytCqNfkd2ZC4ARDJ2DQqhjH5p85Nnd3jhUJIXrszFX/JA==}
+    dev: true
+
   /@types/node@20.2.5:
     resolution: {integrity: sha512-JJulVEQXmiY9Px5axXHeYGLSjhkZEnD+MDPDGbCbIAbMslkKwmygtZFy1X6s/075Yo94sf8GuSlFfPzysQrWZQ==}
 
@@ -8255,6 +8275,12 @@ packages:
     resolution: {integrity: sha512-ewFXqrQHlFsgc09MK5jP5iR7vumV/BYayNC6PgJO2LPe8vrnNFyjQjSppfEngITi0qvfKtzFvgKymGheFM9UOA==}
     dev: true
 
+  /@types/react-dom@18.0.10:
+    resolution: {integrity: sha512-E42GW/JA4Qv15wQdqJq8DL4JhNpB3prJgjgapN3qJT9K2zO5IIAQh4VXvCEDupoqAwnz0cY4RlXeC/ajX5SFHg==}
+    dependencies:
+      '@types/react': 18.0.27
+    dev: true
+
   /@types/react-dom@18.2.4:
     resolution: {integrity: sha512-G2mHoTMTL4yoydITgOGwWdWMVd8sNgyEP85xVmMKAPUBwQWm9wBPQUmvbeF4V3WBY1P7mmL4BkjQ0SqUpf1snw==}
     dependencies:
@@ -8266,6 +8292,13 @@ packages:
     dependencies:
       '@types/react': 18.2.7
     dev: true
+
+  /@types/react@18.0.27:
+    resolution: {integrity: sha512-3vtRKHgVxu3Jp9t718R9BuzoD4NcQ8YJ5XRzsSKxNDiDonD2MXIT1TmSkenxuCycZJoQT5d2vE8LwWJxBC1gmA==}
+    dependencies:
+      '@types/prop-types': 15.7.3
+      '@types/scheduler': 0.16.2
+      csstype: 3.0.10
 
   /@types/react@18.2.7:
     resolution: {integrity: sha512-ojrXpSH2XFCmHm7Jy3q44nXDyN54+EYKP2lBhJ2bqfyPj6cIUW/FZW/Csdia34NQgq7KYcAlHi5184m4X88+yw==}
@@ -19053,6 +19086,21 @@ packages:
       - babel-plugin-macros
     dev: false
 
+  /nextjs-themes@0.3.0(@types/react@18.0.27)(next@packages+next)(react@18.2.0):
+    resolution: {integrity: sha512-odKgzvpbugVE+ENAEcVeVzubtesfGCYW/PyZVJ6tZ8CHXPQaVJHB6XeHCHrwTL7ahQoTEGh7A4fgFyRACCveiw==}
+    peerDependencies:
+      '@types/react': ^16.8 || ^17 || ^18
+      next: ^13
+      react: ^16.8 || ^17 || ^18
+    peerDependenciesMeta:
+      next:
+        optional: true
+    dependencies:
+      '@types/react': 18.0.27
+      next: link:packages/next
+      react: 18.2.0
+    dev: false
+
   /nice-try@1.0.5:
     resolution: {integrity: sha512-1nh45deeb5olNY7eX82BkPO7SSxR5SSYJiPTrTdFUVYwAl8CKMA5N9PjTYkHiRjisVcxcQ1HXdLhx2qxxJzLNQ==}
     dev: true
@@ -25206,6 +25254,12 @@ packages:
     resolution: {integrity: sha512-C0I1UsrrDHo2fYI5oaCGbSejwX4ch+9Y5jTQELvovfmFkK3HHSZJB8MSJcWLmCUBzQBchCrZ9rMRV6GuNrvGtw==}
     engines: {node: '>=4.2.0'}
     hasBin: true
+
+  /typescript@4.9.5:
+    resolution: {integrity: sha512-1FXk9E2Hm+QzZQ7z+McJiHL4NW1F2EzMu9Nq9i3zAaGqibafqYwCVU6WyWAuyQRRzOlxou8xZSyXLEN8oKj24g==}
+    engines: {node: '>=4.2.0'}
+    hasBin: true
+    dev: true
 
   /typescript@5.1.3:
     resolution: {integrity: sha512-XH627E9vkeqhlZFQuL+UsyAXEnibT0kWR2FWONlr4sTjvxyJYnyefgrkyECLzM5NenmKzRAy2rR/OlYLA1HkZw==}
