@@ -354,8 +354,7 @@ function getAmpPath(ampPath: string, asPath: string): string {
 function getNextFontLinkTags(
   nextFontManifest: NextFontManifest | undefined,
   dangerousAsPath: string,
-  assetPrefix: string = '',
-  assetQueryString: string = ''
+  assetPrefix: string = ''
 ) {
   if (!nextFontManifest) {
     return {
@@ -378,11 +377,6 @@ function getNextFontLinkTags(
     (appFontsEntry || pageFontsEntry)
   )
 
-  // we only add if the dpl query is present for fonts
-  if (!assetQueryString.includes('dpl=')) {
-    assetQueryString = ''
-  }
-
   return {
     preconnect: preconnectToSelf ? (
       <link
@@ -401,9 +395,7 @@ function getNextFontLinkTags(
             <link
               key={fontFile}
               rel="preload"
-              href={`${assetPrefix}/_next/${encodeURI(
-                fontFile
-              )}${assetQueryString}`}
+              href={`${assetPrefix}/_next/${encodeURI(fontFile)}`}
               as="font"
               type={`font/${ext}`}
               crossOrigin="anonymous"
@@ -800,8 +792,7 @@ export class Head extends React.Component<HeadProps> {
     const nextFontLinkTags = getNextFontLinkTags(
       nextFontManifest,
       dangerousAsPath,
-      assetPrefix,
-      this.context.assetQueryString
+      assetPrefix
     )
 
     return (

@@ -437,17 +437,6 @@ If you're deploying to [Vercel](https://vercel.com/docs/concepts/edge-network/he
 }
 ```
 
-### X-XSS-Protection
-
-This header stops pages from loading when they detect reflected cross-site scripting (XSS) attacks. Although this protection is not necessary when sites implement a strong [`Content-Security-Policy`](#content-security-policy) disabling the use of inline JavaScript (`'unsafe-inline'`), it can still provide protection for older web browsers that don't support CSP.
-
-```js
-{
-  key: 'X-XSS-Protection',
-  value: '1; mode=block'
-}
-```
-
 ### X-Frame-Options
 
 This header indicates whether the site should be allowed to be displayed within an `iframe`. This can prevent against clickjacking attacks. This header has been superseded by CSP's `frame-ancestors` option, which has better support in modern browsers.

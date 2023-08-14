@@ -2,7 +2,7 @@
 # https://help.github.com/en/articles/about-code-owners
 
 
-*                                             @timneutkens @ijjk @shuding @huozhi @feedthejim
+*                                             @timneutkens @ijjk @shuding @huozhi @feedthejim @ztanner
 /.git*                                        @vercel/next-js @vercel/devex
 /docs/                                        @vercel/next-js @vercel/devex
 /errors/                                      @vercel/next-js @vercel/devex

@@ -9,7 +9,7 @@ createNextDescribe(
   ({ next, isNextStart }) => {
     if (isNextStart) {
       it('should have correct size in build output', async () => {
-        const regex = /(\S+)\s+(\d+\s\w+)\s+(\d+\.\d+\s\w+)/g
+        const regex = /(\S+)\s+([\d.]+\s\w+)\s+([\d.]+\s\w+)/g
         const matches = [...next.cliOutput.matchAll(regex)]
 
         const result = matches.reduce((acc, match) => {

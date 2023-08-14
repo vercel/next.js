@@ -38,10 +38,10 @@ function getCookies(
 
 function getMutableCookies(
   headers: Headers | IncomingHttpHeaders,
-  res: ServerResponse | BaseNextResponse | undefined
+  onUpdateCookies?: (cookies: string[]) => void
 ): ResponseCookies {
   const cookies = new RequestCookies(HeadersAdapter.from(headers))
-  return MutableRequestCookiesAdapter.wrap(cookies, res)
+  return MutableRequestCookiesAdapter.wrap(cookies, onUpdateCookies)
 }
 
 export type RequestContext = {
@@ -75,6 +75,12 @@ export const RequestAsyncStorageWrapper: AsyncStorageWrapper<
       previewProps = (renderOpts as any).previewProps
     }
 
+    function defaultOnUpdateCookies(cookies: string[]) {
+      if (res) {
+        res.setHeader('Set-Cookie', cookies)
+      }
+    }
+
     const cache: {
       headers?: ReadonlyHeaders
       cookies?: ReadonlyRequestCookies
@@ -103,7 +109,11 @@ export const RequestAsyncStorageWrapper: AsyncStorageWrapper<
       },
       get mutableCookies() {
         if (!cache.mutableCookies) {
-          cache.mutableCookies = getMutableCookies(req.headers, res)
+          cache.mutableCookies = getMutableCookies(
+            req.headers,
+            renderOpts?.onUpdateCookies ||
+              (res ? defaultOnUpdateCookies : undefined)
+          )
         }
         return cache.mutableCookies
       },

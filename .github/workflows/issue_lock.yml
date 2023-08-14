@@ -21,6 +21,8 @@ jobs:
       - uses: dessant/lock-threads@v3
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          add-issue-labels: 'locked'
+          add-pr-labels: 'locked'
           issue-inactive-days: 30
           issue-comment: 'This closed issue has been automatically locked because it had no new activity for a month. If you are running into a similar issue, please create a new issue with the steps to reproduce. Thank you.'
           pr-inactive-days: 30

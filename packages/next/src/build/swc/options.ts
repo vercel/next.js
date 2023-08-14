@@ -140,7 +140,24 @@ function getBaseSWCOptions({
     reactRemoveProperties: jest
       ? false
       : compilerOptions?.reactRemoveProperties,
-    modularizeImports,
+    // Map the k-v map to an array of pairs.
+    modularizeImports: modularizeImports
+      ? Object.fromEntries(
+          Object.entries(modularizeImports).map(([mod, config]) => [
+            mod,
+            {
+              ...config,
+              transform:
+                typeof config.transform === 'string'
+                  ? config.transform
+                  : Object.entries(config.transform).map(([key, value]) => [
+                      key,
+                      value,
+                    ]),
+            },
+          ])
+        )
+      : undefined,
     relay: compilerOptions?.relay,
     // Always transform styled-jsx and error when `client-only` condition is triggered
     styledJsx: true,
@@ -251,6 +268,7 @@ export function getJestSWCOptions({
     jsConfig,
     hasServerComponents,
     resolvedBaseUrl,
+    isServerLayer: isServer,
   })
 
   const isNextDist = nextDistPath.test(filename)
@@ -372,9 +390,7 @@ export function getLoaderSWCOptions({
       },
     }
   } else {
-    // Matches default @babel/preset-env behavior
-    baseOptions.jsc.target = 'es5'
-    return {
+    const options = {
       ...baseOptions,
       // Ensure Next.js internals are output as commonjs modules
       ...(isNextDist
@@ -398,5 +414,10 @@ export function getLoaderSWCOptions({
           }
         : {}),
     }
+    if (!options.env) {
+      // Matches default @babel/preset-env behavior
+      options.jsc.target = 'es5'
+    }
+    return options
   }
 }

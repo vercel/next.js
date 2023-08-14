@@ -33,7 +33,7 @@ export function getSocialImageFallbackMetadataBase(
 
   if (isMetadataBaseMissing) {
     Log.warnOnce(
-      `\nmetadata.metadataBase is not set for resolving social open graph or twitter images, fallbacks to "${fallbackMetadata.origin}". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase`
+      `\nmetadata.metadataBase is not set for resolving social open graph or twitter images, using "${fallbackMetadata.origin}". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase`
     )
   }
 

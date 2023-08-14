@@ -21,3 +21,15 @@ it('should allow the 2nd parameter to be undefined', () => {
     '/'
   )
 })
+
+it('should clone Request with headers', () => {
+  const request = new Request('https://example.com', {
+    headers: { 'x-foo': 'bar' },
+  })
+
+  const nextRequest = new NextRequest(request)
+
+  expect(Object.fromEntries(nextRequest.headers)).toEqual(
+    Object.fromEntries(request.headers)
+  )
+})

@@ -256,8 +256,8 @@ createNextDescribe(
       expect(res.headers.get('x-edge-runtime')).toBe('1')
       expect(res.headers.get('vary')).toBe(
         isNextDeploy
-          ? 'RSC, Next-Router-State-Tree, Next-Router-Prefetch'
-          : 'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Accept-Encoding'
+          ? 'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Url'
+          : 'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Url, Accept-Encoding'
       )
     })
 
@@ -269,8 +269,8 @@ createNextDescribe(
       })
       expect(res.headers.get('vary')).toBe(
         isNextDeploy
-          ? 'RSC, Next-Router-State-Tree, Next-Router-Prefetch'
-          : 'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Accept-Encoding'
+          ? 'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Url'
+          : 'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Url, Accept-Encoding'
       )
     })
 
@@ -1839,6 +1839,15 @@ createNextDescribe(
           '<script rel="preload" as="script" src="/test4.js"/>'
         )
       })
+
+      it('should load stylesheets for next/scripts', async () => {
+        const html = await next.render('/script')
+        const $ = cheerio.load(html)
+
+        expect($('link[href="/style3.css"]').length).toBe(1)
+        expect($('link[href="/style1a.css"]').length).toBe(1)
+        expect($('link[href="/style1b.css"]').length).toBe(1)
+      })
     })
 
     describe('data fetch with response over 16KB with chunked encoding', () => {
@@ -1848,6 +1857,17 @@ createNextDescribe(
           'Hello world'
         )
         expect(await browser.elementByCss('p').text()).toBe('item count 128000')
+      })
+    })
+
+    describe('bootstrap scripts', () => {
+      it('should only bootstrap with one script, prinitializing the rest', async () => {
+        const html = await next.render('/bootstrap')
+        const $ = cheerio.load(html)
+
+        // We assume a minimum of 2 scripts, webpack runtime + main-app
+        expect($('script[async]').length).toBeGreaterThan(1)
+        expect($('body').find('script[async]').length).toBe(1)
       })
     })
   }

@@ -1,7 +1,10 @@
+import path from 'path'
 import { PagesAPIRouteDefinition } from '../../route-definitions/pages-api-route-definition'
 import { RouteKind } from '../../route-kind'
 import { DevPagesAPIRouteMatcherProvider } from './dev-pages-api-route-matcher-provider'
 import { FileReader } from './helpers/file-reader/file-reader'
+
+const normalizeSlashes = (p: string) => p.replace(/\//g, path.sep)
 
 describe('DevPagesAPIRouteMatcherProvider', () => {
   const dir = '<root>'
@@ -21,41 +24,41 @@ describe('DevPagesAPIRouteMatcherProvider', () => {
       route: PagesAPIRouteDefinition
     }>([
       {
-        files: [`${dir}/api/other/route.ts`],
+        files: [normalizeSlashes(`${dir}/api/other/route.ts`)],
         route: {
           kind: RouteKind.PAGES_API,
           pathname: '/api/other/route',
-          filename: `${dir}/api/other/route.ts`,
+          filename: normalizeSlashes(`${dir}/api/other/route.ts`),
           page: '/api/other/route',
           bundlePath: 'pages/api/other/route',
         },
       },
       {
-        files: [`${dir}/api/other/index.ts`],
+        files: [normalizeSlashes(`${dir}/api/other/index.ts`)],
         route: {
           kind: RouteKind.PAGES_API,
           pathname: '/api/other',
-          filename: `${dir}/api/other/index.ts`,
+          filename: normalizeSlashes(`${dir}/api/other/index.ts`),
           page: '/api/other',
           bundlePath: 'pages/api/other',
         },
       },
       {
-        files: [`${dir}/api.ts`],
+        files: [normalizeSlashes(`${dir}/api.ts`)],
         route: {
           kind: RouteKind.PAGES_API,
           pathname: '/api',
-          filename: `${dir}/api.ts`,
+          filename: normalizeSlashes(`${dir}/api.ts`),
           page: '/api',
           bundlePath: 'pages/api',
         },
       },
       {
-        files: [`${dir}/api/index.ts`],
+        files: [normalizeSlashes(`${dir}/api/index.ts`)],
         route: {
           kind: RouteKind.PAGES_API,
           pathname: '/api',
-          filename: `${dir}/api/index.ts`,
+          filename: normalizeSlashes(`${dir}/api/index.ts`),
           page: '/api',
           bundlePath: 'pages/api',
         },

@@ -54,10 +54,11 @@ import { isBot } from '../../shared/lib/router/utils/is-bot'
 import { addBasePath } from '../add-base-path'
 import { AppRouterAnnouncer } from './app-router-announcer'
 import { RedirectBoundary } from './redirect-boundary'
-import { NotFoundBoundary } from './not-found-boundary'
 import { findHeadInCache } from './router-reducer/reducers/find-head-in-cache'
 import { createInfinitePromise } from './infinite-promise'
 import { NEXT_RSC_UNION_QUERY } from './app-router-headers'
+import { removeBasePath } from '../remove-base-path'
+import { hasBasePath } from '../has-base-path'
 
 const isServer = typeof window === 'undefined'
 
@@ -76,28 +77,18 @@ export function urlToUrlWithoutFlightMarker(url: string): URL {
   const urlWithoutFlightParameters = new URL(url, location.origin)
   urlWithoutFlightParameters.searchParams.delete(NEXT_RSC_UNION_QUERY)
   if (process.env.NODE_ENV === 'production') {
-    if (process.env.__NEXT_CONFIG_OUTPUT === 'export') {
-      if (urlWithoutFlightParameters.pathname.endsWith('/index.txt')) {
-        // Slice off `/index.txt` from the end of the pathname
-        urlWithoutFlightParameters.pathname =
-          urlWithoutFlightParameters.pathname.slice(0, -`/index.txt`.length)
-      } else {
-        // Slice off `.txt` from the end of the pathname
-        urlWithoutFlightParameters.pathname =
-          urlWithoutFlightParameters.pathname.slice(0, -`.txt`.length)
-      }
+    if (
+      process.env.__NEXT_CONFIG_OUTPUT === 'export' &&
+      urlWithoutFlightParameters.pathname.endsWith('.txt')
+    ) {
+      const { pathname } = urlWithoutFlightParameters
+      const length = pathname.endsWith('/index.txt') ? 10 : 4
+      // Slice off `/index.txt` or `.txt` from the end of the pathname
+      urlWithoutFlightParameters.pathname = pathname.slice(0, -length)
     }
   }
   return urlWithoutFlightParameters
 }
-
-const HotReloader:
-  | typeof import('./react-dev-overlay/hot-reloader-client').default
-  | null =
-  process.env.NODE_ENV === 'production'
-    ? null
-    : (require('./react-dev-overlay/hot-reloader-client')
-        .default as typeof import('./react-dev-overlay/hot-reloader-client').default)
 
 type AppRouterProps = Omit<
   Omit<InitialRouterStateParameters, 'isServer' | 'location'>,
@@ -106,10 +97,6 @@ type AppRouterProps = Omit<
   buildId: string
   initialHead: ReactNode
   assetPrefix: string
-  // Top level boundaries props
-  notFound: React.ReactNode | undefined
-  notFoundStyles?: React.ReactNode | undefined
-  asNotFound?: boolean
 }
 
 function isExternalURL(url: URL) {
@@ -147,11 +134,7 @@ const createEmptyCacheNode = () => ({
   parallelRoutes: new Map(),
 })
 
-function useServerActionDispatcher(
-  changeByServerResponse: RouterChangeByServerResponse,
-  dispatch: React.Dispatch<ReducerActions>,
-  navigate: RouterNavigate
-) {
+function useServerActionDispatcher(dispatch: React.Dispatch<ReducerActions>) {
   const serverActionDispatcher: ServerActionDispatcher = useCallback(
     (actionPayload) => {
       startTransition(() => {
@@ -159,12 +142,11 @@ function useServerActionDispatcher(
           ...actionPayload,
           type: ACTION_SERVER_ACTION,
           mutable: {},
-          navigate,
-          changeByServerResponse,
+          cache: createEmptyCacheNode(),
         })
       })
     },
-    [changeByServerResponse, dispatch, navigate]
+    [dispatch]
   )
   globalServerActionDispatcher = serverActionDispatcher
 }
@@ -227,9 +209,6 @@ function Router({
   initialCanonicalUrl,
   children,
   assetPrefix,
-  notFound,
-  notFoundStyles,
-  asNotFound,
 }: AppRouterProps) {
   const initialState = useMemo(
     () =>
@@ -274,13 +253,15 @@ function Router({
     return {
       // This is turned into a readonly class in `useSearchParams`
       searchParams: url.searchParams,
-      pathname: url.pathname,
+      pathname: hasBasePath(url.pathname)
+        ? removeBasePath(url.pathname)
+        : url.pathname,
     }
   }, [canonicalUrl])
 
   const changeByServerResponse = useChangeByServerResponse(dispatch)
   const navigate = useNavigate(dispatch)
-  useServerActionDispatcher(changeByServerResponse, dispatch, navigate)
+  useServerActionDispatcher(dispatch)
 
   /**
    * The app router that is exposed through `useRouter`. It's only concerned with dispatching actions to the reducer, does not hold state.
@@ -290,8 +271,12 @@ function Router({
       back: () => window.history.back(),
       forward: () => window.history.forward(),
       prefetch: (href, options) => {
-        // If prefetch has already been triggered, don't trigger it again.
-        if (isBot(window.navigator.userAgent)) {
+        // Don't prefetch for bots as they don't navigate.
+        // Don't prefetch during development (improves compilation performance)
+        if (
+          isBot(window.navigator.userAgent) ||
+          process.env.NODE_ENV === 'development'
+        ) {
           return
         }
         const url = new URL(addBasePath(href), location.href)
@@ -449,15 +434,25 @@ function Router({
     return findHeadInCache(cache, tree[1])
   }, [cache, tree])
 
-  const notFoundProps = { notFound, notFoundStyles, asNotFound }
-
-  const content = (
+  let content = (
     <RedirectBoundary>
       {head}
       {cache.subTreeData}
       <AppRouterAnnouncer tree={tree} />
     </RedirectBoundary>
   )
+
+  if (process.env.NODE_ENV !== 'production') {
+    if (typeof window !== 'undefined') {
+      const DevRootNotFoundBoundary: typeof import('./dev-root-not-found-boundary').DevRootNotFoundBoundary =
+        require('./dev-root-not-found-boundary').DevRootNotFoundBoundary
+      content = <DevRootNotFoundBoundary>{content}</DevRootNotFoundBoundary>
+    }
+    const HotReloader: typeof import('./react-dev-overlay/hot-reloader-client').default =
+      require('./react-dev-overlay/hot-reloader-client').default
+
+    content = <HotReloader assetPrefix={assetPrefix}>{content}</HotReloader>
+  }
 
   return (
     <>
@@ -488,16 +483,7 @@ function Router({
                   url: canonicalUrl,
                 }}
               >
-                {HotReloader ? (
-                  // HotReloader implements a separate NotFoundBoundary to maintain the HMR ping interval
-                  <HotReloader assetPrefix={assetPrefix} {...notFoundProps}>
-                    {content}
-                  </HotReloader>
-                ) : (
-                  <NotFoundBoundary {...notFoundProps}>
-                    {content}
-                  </NotFoundBoundary>
-                )}
+                {content}
               </LayoutRouterContext.Provider>
             </AppRouterContext.Provider>
           </GlobalLayoutRouterContext.Provider>

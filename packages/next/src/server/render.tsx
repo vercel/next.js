@@ -91,7 +91,6 @@ import { AppRouterContext } from '../shared/lib/app-router-context'
 import { SearchParamsContext } from '../shared/lib/hooks-client-context'
 import { getTracer } from './lib/trace/tracer'
 import { RenderSpan } from './lib/trace/constants'
-import { PageNotFoundError } from '../shared/lib/utils'
 import { ReflectAdapter } from './web/spec-extension/adapters/reflect'
 
 let tryGetPreviewData: typeof import('./api-utils/node').tryGetPreviewData
@@ -341,33 +340,6 @@ function checkRedirectValues(
   }
 }
 
-export const deserializeErr = (serializedErr: any) => {
-  if (
-    !serializedErr ||
-    typeof serializedErr !== 'object' ||
-    !serializedErr.stack
-  ) {
-    return serializedErr
-  }
-  let ErrorType: any = Error
-
-  if (serializedErr.name === 'PageNotFoundError') {
-    ErrorType = PageNotFoundError
-  }
-
-  const err = new ErrorType(serializedErr.message)
-  err.stack = serializedErr.stack
-  err.name = serializedErr.name
-  ;(err as any).digest = serializedErr.digest
-
-  if (process.env.NEXT_RUNTIME !== 'edge') {
-    const { decorateServerError } =
-      require('next/dist/compiled/@next/react-dev-overlay/dist/middleware') as typeof import('next/dist/compiled/@next/react-dev-overlay/dist/middleware')
-    decorateServerError(err, serializedErr.source || 'server')
-  }
-  return err
-}
-
 export function errorToJSON(err: Error) {
   let source: typeof COMPILER_NAMES.server | typeof COMPILER_NAMES.edgeServer =
     'server'
@@ -457,7 +429,6 @@ export async function renderToHTMLImpl(
 
   let Document = extra.Document
 
-  // Component will be wrapped by ServerComponentWrapper for RSC
   let Component: React.ComponentType<{}> | ((props: any) => JSX.Element) =
     renderOpts.Component
   const OriginComponent = Component

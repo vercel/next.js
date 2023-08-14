@@ -5,7 +5,9 @@ use next_swc::{
     next_dynamic::next_dynamic,
     next_ssg::next_ssg,
     react_server_components::server_components,
-    server_actions::{self, server_actions},
+    server_actions::{
+        server_actions, {self},
+    },
 };
 use next_transform_font::{next_font_loaders, Config as FontLoaderConfig};
 use turbopack_binding::swc::{

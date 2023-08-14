@@ -10,8 +10,8 @@ import stripAnsi from 'next/dist/compiled/strip-ansi'
 import formatWebpackMessages from '../../dev/error-overlay/format-webpack-messages'
 import { useRouter } from '../navigation'
 import {
-  ACTION_NOT_FOUND,
   ACTION_VERSION_INFO,
+  INITIAL_OVERLAY_STATE,
   errorOverlayReducer,
 } from './internal/error-overlay-reducer'
 import {
@@ -35,8 +35,6 @@ import {
 } from './internal/helpers/use-websocket'
 import { parseComponentStack } from './internal/helpers/parse-component-stack'
 import type { VersionInfo } from '../../../server/dev/parse-version-info'
-import { isNotFoundError } from '../not-found'
-import { NotFoundBoundary } from '../not-found-boundary'
 
 interface Dispatcher {
   onBuildOk(): void
@@ -44,7 +42,6 @@ interface Dispatcher {
   onVersionInfo(versionInfo: VersionInfo): void
   onBeforeRefresh(): void
   onRefresh(): void
-  onNotFound(): void
 }
 
 // TODO-APP: add actual type
@@ -52,8 +49,6 @@ type PongEvent = any
 
 let mostRecentCompilationHash: any = null
 let __nextDevClientId = Math.round(Math.random() * 100 + Date.now())
-
-// let startLatency = undefined
 
 function onBeforeFastRefresh(dispatcher: Dispatcher, hasUpdates: boolean) {
   if (hasUpdates) {
@@ -421,18 +416,30 @@ function processMessage(
         fetch(window.location.href, {
           credentials: 'same-origin',
         }).then((pageRes) => {
-          if (pageRes.status === 200) {
-            // Page exists now, reload
-            startTransition(() => {
-              // @ts-ignore it exists, it's just hidden
-              router.fastRefresh()
-              dispatcher.onRefresh()
-            })
-          } else if (pageRes.status === 404) {
+          let shouldRefresh = pageRes.ok
+          // TODO-APP: investigate why edge runtime needs to reload
+          const isEdgeRuntime = pageRes.headers.get('x-edge-runtime') === '1'
+          if (pageRes.status === 404) {
+            // Check if head present as document.head could be null
             // We are still on the page,
             // dispatch an error so it's caught by the NotFound handler
-            dispatcher.onNotFound()
+            const devErrorMetaTag = document.head?.querySelector(
+              'meta[name="next-error"]'
+            )
+            shouldRefresh = !devErrorMetaTag
           }
+          // Page exists now, reload
+          startTransition(() => {
+            if (shouldRefresh) {
+              if (isEdgeRuntime) {
+                window.location.reload()
+              } else {
+                // @ts-ignore it exists, it's just hidden
+                router.fastRefresh()
+                dispatcher.onRefresh()
+              }
+            }
+          })
         })
       }
       return
@@ -449,24 +456,14 @@ function processMessage(
 export default function HotReload({
   assetPrefix,
   children,
-  notFound,
-  notFoundStyles,
-  asNotFound,
 }: {
   assetPrefix: string
   children?: ReactNode
-  notFound?: React.ReactNode
-  notFoundStyles?: React.ReactNode
-  asNotFound?: boolean
 }) {
-  const [state, dispatch] = useReducer(errorOverlayReducer, {
-    nextId: 1,
-    buildError: null,
-    errors: [],
-    notFound: false,
-    refreshState: { type: 'idle' },
-    versionInfo: { installed: '0.0.0', staleness: 'unknown' },
-  })
+  const [state, dispatch] = useReducer(
+    errorOverlayReducer,
+    INITIAL_OVERLAY_STATE
+  )
   const dispatcher = useMemo((): Dispatcher => {
     return {
       onBuildOk() {
@@ -483,9 +480,6 @@ export default function HotReload({
       },
       onVersionInfo(versionInfo) {
         dispatch({ type: ACTION_VERSION_INFO, versionInfo })
-      },
-      onNotFound() {
-        dispatch({ type: ACTION_NOT_FOUND })
       },
     }
   }, [dispatch])
@@ -508,9 +502,7 @@ export default function HotReload({
       frames: parseStack(reason.stack!),
     })
   }, [])
-  const handleOnReactError = useCallback((error: Error) => {
-    // not found errors are handled by the parent boundary, not the dev overlay
-    if (isNotFoundError(error)) throw error
+  const handleOnReactError = useCallback(() => {
     RuntimeErrorHandler.hadRuntimeError = true
   }, [])
   useErrorHandler(handleOnUnhandledError, handleOnUnhandledRejection)
@@ -541,15 +533,8 @@ export default function HotReload({
   }, [sendMessage, router, webSocketRef, dispatcher])
 
   return (
-    <NotFoundBoundary
-      key={`${state.notFound}`}
-      notFound={notFound}
-      notFoundStyles={notFoundStyles}
-      asNotFound={asNotFound}
-    >
-      <ReactDevOverlay onReactError={handleOnReactError} state={state}>
-        {children}
-      </ReactDevOverlay>
-    </NotFoundBoundary>
+    <ReactDevOverlay onReactError={handleOnReactError} state={state}>
+      {children}
+    </ReactDevOverlay>
   )
 }

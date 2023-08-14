@@ -123,7 +123,7 @@ export default async function nextFontLoader(this: any) {
       // Generate a hash from the CSS content. Used to generate classnames and font families
       const fontFamilyHash = loaderUtils.getHashDigest(
         Buffer.from(css),
-        'md5',
+        'sha1',
         'hex',
         6
       )

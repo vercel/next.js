@@ -24,7 +24,6 @@ import {
   CLIENT_STATIC_FILES_PATH,
   EXPORT_DETAIL,
   EXPORT_MARKER,
-  CLIENT_REFERENCE_MANIFEST,
   NEXT_FONT_MANIFEST,
   MIDDLEWARE_MANIFEST,
   PAGES_MANIFEST,
@@ -482,11 +481,6 @@ export default async function exportApp(
       images: nextConfig.images,
       ...(options.hasAppDir
         ? {
-            clientReferenceManifest: require(join(
-              distDir,
-              SERVER_DIRECTORY,
-              CLIENT_REFERENCE_MANIFEST + '.json'
-            )),
             serverActionsManifest: require(join(
               distDir,
               SERVER_DIRECTORY,
@@ -727,7 +721,6 @@ export default async function exportApp(
               nextConfig.experimental.disableOptimizedLoading,
             parentSpanId: pageExportSpan.id,
             httpAgentOptions: nextConfig.httpAgentOptions,
-            serverComponents: options.hasAppDir,
             debugOutput: options.debugOutput,
             isrMemoryCacheSize: nextConfig.experimental.isrMemoryCacheSize,
             fetchCache: nextConfig.experimental.appDir,

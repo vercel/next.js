@@ -16,10 +16,10 @@ import loadConfig from '../server/config'
 import { PHASE_PRODUCTION_BUILD } from '../shared/lib/constants'
 import { eventLintCheckCompleted } from '../telemetry/events'
 import { CompileError } from '../lib/compile-error'
-import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
 import { findPagesDir } from '../lib/find-pages-dir'
 import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
+import { getValidatedArgs } from '../lib/get-validated-args'
 
 const eslintOptions = (args: arg.Spec, defaultCacheLocation: string) => ({
   overrideConfigFile: args['--config'] || null,
@@ -93,15 +93,8 @@ const nextLint: CliCommand = async (argv) => {
     '-o': '--output-file',
   }
 
-  let args: arg.Result<arg.Spec>
-  try {
-    args = arg({ ...validArgs, ...validEslintArgs }, { argv })
-  } catch (error) {
-    if (isError(error) && error.code === 'ARG_UNKNOWN_OPTION') {
-      return printAndExit(error.message, 1)
-    }
-    throw error
-  }
+  const args = getValidatedArgs({ ...validArgs, ...validEslintArgs }, argv)
+
   if (args['--help']) {
     printAndExit(
       `

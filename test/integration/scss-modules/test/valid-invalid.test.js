@@ -89,7 +89,7 @@ describe('Valid CSS Module Usage from within node_modules', () => {
 
     const cssPreload = $('#nm-div')
     expect(cssPreload.text()).toMatchInlineSnapshot(
-      `"{\\"message\\":\\"Why hello there\\"} {\\"redText\\":\\"example_redText__8_1ap\\"}"`
+      `"{\\"message\\":\\"Why hello there\\"} {\\"redText\\":\\"example_redText__jsP_3\\"}"`
     )
   })
 
@@ -103,7 +103,7 @@ describe('Valid CSS Module Usage from within node_modules', () => {
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
 
     expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
-      `".example_redText__8_1ap{color:red}"`
+      `".example_redText__jsP_3{color:red}"`
     )
   })
 })
@@ -142,7 +142,7 @@ describe('Valid Nested CSS Module Usage from within node_modules', () => {
 
     const cssPreload = $('#nm-div')
     expect(cssPreload.text()).toMatchInlineSnapshot(
-      `"{\\"message\\":\\"Why hello there\\"} {\\"other2\\":\\"example_other2__pD1TP\\",\\"subClass\\":\\"example_subClass___Qywg other_className__jR2X2\\"}"`
+      `"{\\"message\\":\\"Why hello there\\"} {\\"other2\\":\\"example_other2__HNcoQ\\",\\"subClass\\":\\"example_subClass__SxkPt other_className___l2o_\\"}"`
     )
   })
 
@@ -156,7 +156,7 @@ describe('Valid Nested CSS Module Usage from within node_modules', () => {
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
 
     expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
-      `".other_other3__QRKUk{color:violet}.other_className__jR2X2{background:red;color:#ff0}.example_other2__pD1TP{color:red}.example_subClass___Qywg{background:blue}"`
+      `".other_other3__DvhyB{color:violet}.other_className___l2o_{background:red;color:#ff0}.example_other2__HNcoQ{color:red}.example_subClass__SxkPt{background:blue}"`
     )
   })
 })
