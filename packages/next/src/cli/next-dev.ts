@@ -201,6 +201,7 @@ const nextDev: CliCommand = async (argv) => {
     '--hostname': String,
     '--turbo': Boolean,
     '--experimental-turbo': Boolean,
+    '--experimental-test-proxy': Boolean,
     '--experimental-upload-trace': String,
 
     // To align current messages with native binary.
@@ -288,6 +289,7 @@ const nextDev: CliCommand = async (argv) => {
   // some set-ups that rely on listening on other interfaces
   const host = args['--hostname']
   config = await loadConfig(PHASE_DEVELOPMENT_SERVER, dir)
+  const isExperimentalTestProxy = args['--experimental-test-proxy']
 
   if (args['--experimental-upload-trace']) {
     traceUploadUrl = args['--experimental-upload-trace']
@@ -299,6 +301,7 @@ const nextDev: CliCommand = async (argv) => {
     allowRetry,
     isDev: true,
     hostname: host,
+    isExperimentalTestProxy,
   }
 
   if (args['--turbo']) {
