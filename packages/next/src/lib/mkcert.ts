@@ -46,7 +46,6 @@ async function downloadBinary() {
     const response = await fetch(downloadUrl)
 
     if (!response.ok || !response.body) {
-      Log.error(`Failed to download mkcert package from ${downloadUrl}`)
       throw new Error(`request failed with status ${response.status}`)
     }
 
@@ -105,7 +104,7 @@ export async function createSelfSignedCertificate(
     const caLocation = execSync(`${binaryPath} -CAROOT`).toString()
 
     if (!fs.existsSync(keyPath) || !fs.existsSync(certPath)) {
-      throw new Error('Failed to generate self-signed certificate')
+      throw new Error('Certificate files not found')
     }
 
     Log.info(`CA Root certificate created in ${caLocation}`)
