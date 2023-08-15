@@ -721,13 +721,13 @@ export function onDemandEntryHandler({
         match
       )
 
-      const isInsideAppDir =
-        !!appDir && pagePathData.absolutePagePath.startsWith(appDir)
-
-      if (typeof isApp === 'boolean' && !(isApp === isInsideAppDir)) {
-        throw new Error(
-          'Ensure bailed, found path does not match ensure type (pages/app)'
-        )
+      const isInsideAppDir = (()=>{
+        const isAppDir = appDir && pagePathData.absolutePagePath.startsWith(appDir);
+        const isApiDir = pagePathData.absolutePagePath.startsWith(`${pagesDir}/api`);
+        return isAppDir || isApiDir;
+      })()
+      if (isApp && !isInsideAppDir) {
+        throw new Error("Ensure bailed, found path does not match ensure type (pages/app) or (pages/api)");
       }
 
       const pageBundleType = getPageBundleType(pagePathData.bundlePath)
