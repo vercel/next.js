@@ -189,6 +189,7 @@ const nextDev: CliCommand = async (argv) => {
     '--hostname': String,
     '--turbo': Boolean,
     '--experimental-turbo': Boolean,
+    '--experimental-test-proxy': Boolean,
 
     // To align current messages with native binary.
     // Will need to adjust subcommand later.
@@ -274,6 +275,7 @@ const nextDev: CliCommand = async (argv) => {
   // some set-ups that rely on listening on other interfaces
   const host = args['--hostname']
   config = await loadConfig(PHASE_DEVELOPMENT_SERVER, dir)
+  const isExperimentalTestProxy = args['--experimental-test-proxy']
 
   const devServerOptions: StartServerOptions = {
     dir,
@@ -281,6 +283,7 @@ const nextDev: CliCommand = async (argv) => {
     allowRetry,
     isDev: true,
     hostname: host,
+    isExperimentalTestProxy,
   }
 
   if (args['--turbo']) {

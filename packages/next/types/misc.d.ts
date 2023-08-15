@@ -41,6 +41,10 @@ declare module 'next/dist/compiled/node-html-parser' {
   export * from 'node-html-parser'
 }
 
+declare module 'next/dist/compiled/@mswjs/interceptors/ClientRequest' {
+  export * from '@mswjs/interceptors/ClientRequest'
+}
+
 declare module 'next/dist/compiled/undici' {}
 
 declare module 'next/dist/compiled/jest-worker' {
