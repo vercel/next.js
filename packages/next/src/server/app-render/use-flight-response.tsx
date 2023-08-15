@@ -25,7 +25,7 @@ export function useFlightResponse(
     createFromReadableStream,
   } = require(`react-server-dom-webpack/client.edge`)
 
-  const [renderStream, forwardStream] = readableStreamTee(req)
+  const [renderStream, forwardStream] = req.tee()
   const res = createFromReadableStream(renderStream, {
     moduleMap: isEdgeRuntime
       ? clientReferenceManifest.edgeSSRModuleMapping
