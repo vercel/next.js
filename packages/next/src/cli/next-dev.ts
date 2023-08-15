@@ -378,6 +378,10 @@ const nextDev: CliCommand = async (argv) => {
       try {
         const workerInit = await createRouterWorker()
         if (!!args['--experimental-https']) {
+          Log.warn(
+            'Self-signed certificates are currently an experimental feature, use at your own risk.'
+          )
+
           let certificate: { key: string; cert: string } | undefined
 
           if (

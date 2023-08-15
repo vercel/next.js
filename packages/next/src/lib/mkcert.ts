@@ -68,9 +68,6 @@ export async function createSelfSignedCertificate(
   certDir: string = 'certificates'
 ) {
   try {
-    Log.warn(
-      'Self-signed certificates are currently an experimental feature, use at your own risk.'
-    )
     const binaryPath = await downloadBinary()
     if (!binaryPath) throw new Error('missing mkcert binary')
 
