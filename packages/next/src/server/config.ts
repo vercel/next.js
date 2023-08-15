@@ -721,6 +721,15 @@ function assignDefaults(
         '*': 'modularize-import-loader?name={{ member }}&from=default&as=default&join=../esm/icons/{{ kebabCase member }}!lucide-react',
       },
     },
+    '@heroicons/react/20/solid': {
+      transform: '@heroicons/react/20/solid/esm/{{member}}',
+    },
+    '@heroicons/react/24/solid': {
+      transform: '@heroicons/react/24/solid/esm/{{member}}',
+    },
+    '@heroicons/react/24/outline': {
+      transform: '@heroicons/react/24/outline/esm/{{member}}',
+    },
     ramda: {
       transform: 'ramda/es/{{member}}',
     },
