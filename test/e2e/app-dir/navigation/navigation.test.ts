@@ -421,6 +421,12 @@ createNextDescribe(
           })
           expect(res.status).toBe(307)
         })
+        it('should respond with 308 status code if permanent flag is set', async () => {
+          const res = await next.fetch('/redirect/servercomponent-2', {
+            redirect: 'manual',
+          })
+          expect(res.status).toBe(308)
+        })
       })
     })
 
