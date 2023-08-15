@@ -2258,8 +2258,7 @@ export default async function build(
       // Since custom _app.js can wrap the 404 page we have to opt-out of static optimization if it has getInitialProps
       // Only export the static 404 when there is no /_error present
       const useStatic404 =
-        !customAppGetInitialProps &&
-        (!hasNonStaticErrorPage || hasPages404 || hasApp404)
+        !customAppGetInitialProps && (!hasNonStaticErrorPage || hasPages404)
 
       if (invalidPages.size > 0) {
         const err = new Error(
@@ -2379,6 +2378,8 @@ export default async function build(
         !hasPages500 && !hasNonStaticErrorPage && !customAppGetInitialProps
 
       const combinedPages = [...staticPages, ...ssgPages]
+      const isApp404Static = appStaticPaths.has('/_not-found')
+      const hasStaticApp404 = hasApp404 && isApp404Static
 
       // we need to trigger automatic exporting when we have
       // - static 404/500
@@ -2831,12 +2832,12 @@ export default async function build(
           }
 
           // If there's /not-found inside app, we prefer it over the pages 404
-          if (hasApp404 && useStatic404) {
+          if (hasStaticApp404) {
             // await moveExportedPage('/_error', '/404', '/404', false, 'html')
             await moveExportedAppNotFoundTo404()
           } else {
             // Only move /404 to /404 when there is no custom 404 as in that case we don't know about the 404 page
-            if (!hasPages404 && useStatic404) {
+            if (!hasPages404 && !hasApp404 && useStatic404) {
               await moveExportedPage('/_error', '/404', '/404', false, 'html')
             }
           }
@@ -3216,6 +3217,7 @@ export default async function build(
           buildId: buildId,
           pagesDir,
           useStatic404,
+          hasStaticApp404,
           pageExtensions: config.pageExtensions,
           appBuildManifest,
           buildManifest,

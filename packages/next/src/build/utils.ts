@@ -70,6 +70,9 @@ import { AppRouteRouteModule } from '../server/future/route-modules/app-route/mo
 
 export type ROUTER_TYPE = 'pages' | 'app'
 
+// Use `print()` for expected console output
+const print = console.log
+
 const RESERVED_PAGE = /^\/(_app|_error|_document|api(\/|$))/
 const fileGzipStats: { [k: string]: Promise<number> | undefined } = {}
 const fsStatGzip = (file: string) => {
@@ -321,6 +324,7 @@ export async function printTreeView(
     appBuildManifest,
     middlewareManifest,
     useStatic404,
+    hasStaticApp404,
     gzipSize = true,
   }: {
     distPath: string
@@ -331,6 +335,7 @@ export async function printTreeView(
     appBuildManifest?: AppBuildManifest
     middlewareManifest: MiddlewareManifest
     useStatic404: boolean
+    hasStaticApp404: boolean
     gzipSize?: boolean
   }
 ) {
@@ -606,7 +611,10 @@ export async function printTreeView(
   } as any)
 
   if (!lists.pages.includes('/404')) {
-    lists.pages = [...lists.pages, '/404']
+    // If there's no static app /_notFound page present, then the 404 is still using the pages/404
+    if (!hasStaticApp404) {
+      lists.pages = [...lists.pages, '/404']
+    }
   }
 
   // Print the tree view for the pages directory.
@@ -627,15 +635,15 @@ export async function printTreeView(
     messages.push(['ƒ Middleware', getPrettySize(sum(middlewareSizes)), ''])
   }
 
-  console.log(
+  print(
     textTable(messages, {
       align: ['l', 'l', 'r'],
       stringLength: (str) => stripAnsi(str).length,
     })
   )
 
-  console.log()
-  console.log(
+  print()
+  print(
     textTable(
       [
         usedSymbols.has('ℇ') && [
@@ -677,7 +685,7 @@ export async function printTreeView(
     )
   )
 
-  console.log()
+  print()
 }
 
 export function printCustomRoutes({
@@ -691,8 +699,8 @@ export function printCustomRoutes({
   ) => {
     const isRedirects = type === 'Redirects'
     const isHeaders = type === 'Headers'
-    console.log(chalk.underline(type))
-    console.log()
+    print(chalk.underline(type))
+    print()
 
     /*
         ┌ source
@@ -734,7 +742,7 @@ export function printCustomRoutes({
       })
       .join('\n')
 
-    console.log(routesStr, '\n')
+    print(routesStr, '\n')
   }
 
   if (redirects.length) {
