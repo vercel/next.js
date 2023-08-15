@@ -106,6 +106,7 @@ export class Playwright extends BrowserInterface {
       return await chromium.launch({
         devtools: !launchOptions.headless,
         ...launchOptions,
+        ignoreDefaultArgs: ['--disable-back-forward-cache'],
       })
     }
   }
