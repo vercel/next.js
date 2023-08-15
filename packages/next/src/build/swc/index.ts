@@ -1135,9 +1135,9 @@ async function loadWasm(importPath = '', isCustomTurbopack: boolean) {
         },
         mdx: {
           compile: (src: string, options: any) =>
-            bindings.mdxCompile(src, options),
+            bindings.mdxCompile(src, getMdxOptions(options)),
           compileSync: (src: string, options: any) =>
-            bindings.mdxCompileSync(src, options),
+            bindings.mdxCompileSync(src, getMdxOptions(options)),
         },
       }
       return wasmBindings
@@ -1409,15 +1409,31 @@ function loadNative(isCustomTurbopack = false, importPath?: string) {
       },
       mdx: {
         compile: (src: string, options: any) =>
-          bindings.mdxCompile(src, toBuffer(options ?? {})),
+          bindings.mdxCompile(src, toBuffer(getMdxOptions(options))),
         compileSync: (src: string, options: any) =>
-          bindings.mdxCompileSync(src, toBuffer(options ?? {})),
+          bindings.mdxCompileSync(src, toBuffer(getMdxOptions(options))),
       },
     }
     return nativeBindings
   }
 
   throw attempts
+}
+
+/// Build a mdx options object contains default values that
+/// can be parsed with serde_wasm_bindgen.
+function getMdxOptions(options: any = {}) {
+  const ret = {
+    ...options,
+    development: options.development ?? false,
+    jsx: options.jsx ?? false,
+    parse: options.parse ?? {
+      gfmStrikethroughSingleTilde: true,
+      mathTextSingleDollar: true,
+    },
+  }
+
+  return ret
 }
 
 function toBuffer(t: any) {
