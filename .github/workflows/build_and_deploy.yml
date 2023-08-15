@@ -145,12 +145,12 @@ jobs:
               - 'metal'
 
             target: 'x86_64-unknown-linux-gnu'
-            # [NOTE]: If you want to update / modify build steps, check these things
-            # - We do use docker images to pin glibc version to link against,
+            # [NOTE] If you want to update / modify build steps, check these things:
+            # - We use docker images to pin the glibc version to link against,
             #   even if host target is identical to the container image (i.e host: x64-linux, image: x64-linux)
             # - After build `objdump -T` prints out the glibc version next-swc is linked against,
-            #   ensure if it does not change unexpectedly if docker image, or other dependency has changed
-            # - zig linker with portable glibc is avoided as it have known issues with static tls + node.js + multi threaded
+            #   to ensure it did not change unexpectedly if docker image, or other dependency changed
+            # - zig linker with portable glibc is avoided as it has known issues with static tls + node.js + multi threaded
             #   environment.
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2022-10-24-x64
             build: >-
