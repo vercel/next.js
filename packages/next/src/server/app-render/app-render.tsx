@@ -950,9 +950,7 @@ export async function renderToHTMLOrFlight(
         asNotFound &&
         // In development, it could hit the parallel-route-default not found, so we only need to check the segment.
         // Or if there's no parallel routes means it reaches the end.
-        (!parallelRouteMap.length ||
-          // For production build the original pathname is /_not-found, always render not-found component.
-          (!renderOpts.dev && renderOpts.originalPathname === '/_not-found'))
+        !parallelRouteMap.length
       ) {
         notFoundComponent = {
           children: (
