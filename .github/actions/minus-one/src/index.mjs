@@ -16,15 +16,18 @@ The above copyright notice and this permission notice shall be included in all c
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
+// Borrowed from Refined GitHub:
+// https://github.com/refined-github/refined-github/blob/c864a20b57bb433aaf3952f88d83c9fc481ae6ff/source/helpers/is-low-quality-comment.ts#L2-L3
+const unhelpfulRe =
+  /[\s,.!?👍👎👌🙏]+|[\u{1F3FB}-\u{1F3FF}]|[+-]\d+|⬆️|ditt?o|me|too|t?here|on|same|this|issues?|please|pl[sz]|any|updates?|bump|question|solution|following/giu
 function isUnhelpfulComment(text) {
-  // Borrowed from Refined GitHub:
-  // https://github.com/refined-github/refined-github/blob/c864a20b57bb433aaf3952f88d83c9fc481ae6ff/source/helpers/is-low-quality-comment.ts#L2-L3
-  return (
-    text.replace(
-      /[\s,.!?👍👎👌🙏]+|[\u{1F3FB}-\u{1F3FF}]|[+-]\d+|⬆️|ditt?o|me|too|t?here|on|same|this|issues?|please|pl[sz]|any|updates?|bump|question|solution|following/giu,
-      ''
-    ) === ''
-  )
+  return text.replace(unhelpfulRe, '') === ''
+}
+
+const stillRe = /(still\s(same|happen(ing|s))|same\son)/gi
+const linkRe = /https?:\/\/[^\s/$.?#].[^\s]*/g
+function isStillHappeningWithoutLink(text) {
+  return stillRe.test(text) && !linkRe.test(text)
 }
 
 async function run() {
@@ -34,7 +37,7 @@ async function run() {
 
     const { node_id: subjectId, body } = comment
 
-    if (isUnhelpfulComment(body)) {
+    if (isUnhelpfulComment(body) || isStillHappeningWithoutLink(body)) {
       await graphql(
         `
           mutation minimize($subjectId: ID!) {
