@@ -215,35 +215,6 @@ createNextDescribe(
           )
         })
 
-        it('should load css while navigation between not-found and page', async () => {
-          const browser = await next.browser('/navigate')
-          await check(
-            async () =>
-              await browser.eval(
-                `window.getComputedStyle(document.querySelector('#nav-button')).backgroundColor`
-              ),
-            'rgb(0, 128, 0)'
-          )
-          await browser.elementByCss('#nav-button').click()
-          await browser.waitForElementByCss('#back')
-          await check(
-            async () =>
-              await browser.eval(
-                `window.getComputedStyle(document.querySelector('#back')).backgroundColor`
-              ),
-            'rgb(0, 128, 0)'
-          )
-          await browser.elementByCss('#back').click()
-          await browser.waitForElementByCss('#nav-button')
-          await check(
-            async () =>
-              await browser.eval(
-                `window.getComputedStyle(document.querySelector('#nav-button')).backgroundColor`
-              ),
-            'rgb(0, 128, 0)'
-          )
-        })
-
         it('should include css imported in server not-found.js', async () => {
           const browser = await next.browser('/not-found/servercomponent')
           await check(

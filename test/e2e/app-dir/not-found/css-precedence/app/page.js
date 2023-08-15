@@ -8,7 +8,7 @@ export default function Page() {
   return (
     <>
       <Button
-        id="nav-button"
+        id="go-to-404"
         onClick={() => {
           router.push('/404')
         }}
