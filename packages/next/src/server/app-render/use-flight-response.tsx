@@ -1,5 +1,6 @@
 import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
 import type { FlightResponseRef } from './flight-response-ref'
+import { readableStreamTee } from '../stream-utils/node-web-streams-helper'
 import { encodeText, decodeText } from '../stream-utils/encode-decode'
 import { htmlEscapeJsonString } from '../htmlescape'
 
