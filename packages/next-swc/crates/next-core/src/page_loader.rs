@@ -50,15 +50,6 @@ pub async fn create_page_loader(
     )))
 }
 
-#[turbo_tasks::value(shared)]
-pub struct PageLoaderAsset {
-    pub server_root: Vc<FileSystemPath>,
-    pub client_context: Vc<Box<dyn AssetContext>>,
-    pub client_chunking_context: Vc<Box<dyn ChunkingContext>>,
-    pub entry_asset: Vc<Box<dyn Source>>,
-    pub pathname: Vc<String>,
-}
-
 #[turbo_tasks::function]
 pub async fn create_page_loader_entry_module(
     client_context: Vc<Box<dyn AssetContext>>,
@@ -98,8 +89,35 @@ pub async fn create_page_loader_entry_module(
     ))
 }
 
+#[turbo_tasks::value(shared)]
+pub struct PageLoaderAsset {
+    pub server_root: Vc<FileSystemPath>,
+    pub client_context: Vc<Box<dyn AssetContext>>,
+    pub client_chunking_context: Vc<Box<dyn ChunkingContext>>,
+    pub entry_asset: Vc<Box<dyn Source>>,
+    pub pathname: Vc<String>,
+}
+
 #[turbo_tasks::value_impl]
 impl PageLoaderAsset {
+    #[turbo_tasks::function]
+    pub fn new(
+        server_root: Vc<FileSystemPath>,
+        client_context: Vc<Box<dyn AssetContext>>,
+        client_chunking_context: Vc<Box<dyn ChunkingContext>>,
+        entry_asset: Vc<Box<dyn Source>>,
+        pathname: Vc<String>,
+    ) -> Vc<Self> {
+        Self {
+            server_root,
+            client_context,
+            client_chunking_context,
+            entry_asset,
+            pathname,
+        }
+        .cell()
+    }
+
     #[turbo_tasks::function]
     async fn get_page_chunks(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
         let this = &*self.await?;

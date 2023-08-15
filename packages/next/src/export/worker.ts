@@ -45,7 +45,10 @@ import { NodeNextRequest } from '../server/base-http/node'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
 import { toNodeOutgoingHttpHeaders } from '../server/web/utils'
 import { RouteModuleLoader } from '../server/future/helpers/module-loader/route-module-loader'
-import { NextRequestAdapter } from '../server/web/spec-extension/adapters/next-request'
+import {
+  NextRequestAdapter,
+  signalFromNodeResponse,
+} from '../server/web/spec-extension/adapters/next-request'
 import * as ciEnvironment from '../telemetry/ci-info'
 
 const envConfig = require('../shared/lib/runtime-config')
@@ -388,7 +391,8 @@ export default async function exportPage({
           // Ensure that the url for the page is absolute.
           req.url = `http://localhost:3000${req.url}`
           const request = NextRequestAdapter.fromNodeNextRequest(
-            new NodeNextRequest(req)
+            new NodeNextRequest(req),
+            signalFromNodeResponse(res)
           )
 
           // Create the context for the handler. This contains the params from

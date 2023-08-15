@@ -3,4 +3,10 @@
  */
 
 import '../shims'
-import 'next/dist/client/app-next'
+import { appBootstrap } from 'next/dist/client/app-bootstrap'
+
+appBootstrap(() => {
+  require('./app-turbopack')
+  const { hydrate } = require('./app-index')
+  hydrate()
+})

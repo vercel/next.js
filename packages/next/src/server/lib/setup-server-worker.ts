@@ -22,9 +22,20 @@ export const WORKER_SELF_EXIT_CODE = 77
 const MAXIMUM_HEAP_SIZE_ALLOWED =
   (v8.getHeapStatistics().heap_size_limit / 1024 / 1024) * 0.9
 
+export type WorkerRequestHandler = (
+  req: IncomingMessage,
+  res: ServerResponse
+) => Promise<any>
+
+export type WorkerUpgradeHandler = (
+  req: IncomingMessage,
+  socket: Duplex,
+  head: Buffer
+) => any
+
 export async function initializeServerWorker(
-  requestHandler: (req: IncomingMessage, res: ServerResponse) => Promise<any>,
-  upgradeHandler: (req: IncomingMessage, socket: Duplex, head: Buffer) => any,
+  requestHandler: WorkerRequestHandler,
+  upgradeHandler: WorkerUpgradeHandler,
   opts: {
     dir: string
     port: number
@@ -76,25 +87,30 @@ export async function initializeServerWorker(
         upgradeHandler(req, socket, upgrade)
       })
     }
-    const hostname =
-      !opts.hostname || opts.hostname === 'localhost'
-        ? '0.0.0.0'
-        : opts.hostname
+    let hostname = opts.hostname || 'localhost'
 
     server.on('listening', async () => {
       try {
         const addr = server.address()
+        const host = addr
+          ? typeof addr === 'object'
+            ? addr.address
+            : addr
+          : undefined
         const port = addr && typeof addr === 'object' ? addr.port : 0
 
-        if (!port) {
-          console.error(`Invariant failed to detect render worker port`, addr)
+        if (!port || !host) {
+          console.error(
+            `Invariant failed to detect render worker host/port`,
+            addr
+          )
           process.exit(1)
         }
 
         resolve({
           server,
           port,
-          hostname,
+          hostname: host,
         })
       } catch (err) {
         return reject(err)

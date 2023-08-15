@@ -29,7 +29,7 @@ describe('resolveImages', () => {
       undefined,
     ]
 
-    // @ts-expect-error
+    // @ts-expect-error - intentionally passing invalid images
     expect(resolveImages(images, null)).toEqual([
       { url: new URL(image1) },
       { url: new URL(image2), alt: 'Image2' },

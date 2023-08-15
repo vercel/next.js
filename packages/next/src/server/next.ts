@@ -3,17 +3,12 @@ import type { NodeRequestHandler } from './next-server'
 import type { UrlWithParsedQuery } from 'url'
 import type { NextConfigComplete } from './config-shared'
 import type { IncomingMessage, ServerResponse } from 'http'
-import {
-  addRequestMeta,
-  type NextParsedUrlQuery,
-  type NextUrlWithParsedQuery,
-} from './request-meta'
+import type { NextUrlWithParsedQuery } from './request-meta'
 
 import './require-hook'
 import './node-polyfill-fetch'
 import './node-polyfill-crypto'
 
-import url from 'url'
 import { default as Server } from './next-server'
 import * as log from '../build/output/log'
 import loadConfig from './config'
@@ -24,8 +19,11 @@ import { PHASE_PRODUCTION_SERVER } from '../shared/lib/constants'
 import { getTracer } from './lib/trace/tracer'
 import { NextServerSpan } from './lib/trace/constants'
 import { formatUrl } from '../shared/lib/router/utils/format-url'
-import { proxyRequest } from './lib/router-utils/proxy-request'
-import { TLSSocket } from 'tls'
+import {
+  WorkerRequestHandler,
+  WorkerUpgradeHandler,
+} from './lib/setup-server-worker'
+import { checkIsNodeDebugging } from './lib/is-node-debugging'
 
 let ServerImpl: typeof Server
 
@@ -49,7 +47,6 @@ export interface RequestHandler {
   ): Promise<void>
 }
 
-const SYMBOL_SET_STANDALONE_MODE = Symbol('next.set_standalone_mode')
 const SYMBOL_LOAD_CONFIG = Symbol('next.load_config')
 
 export class NextServer {
@@ -59,7 +56,7 @@ export class NextServer {
   private reqHandlerPromise?: Promise<NodeRequestHandler>
   private preparedAssetPrefix?: string
 
-  private standaloneMode?: boolean
+  protected standaloneMode?: boolean
 
   public options: NextServerOptions
 
@@ -73,10 +70,6 @@ export class NextServer {
 
   get port() {
     return this.options.port
-  }
-
-  [SYMBOL_SET_STANDALONE_MODE]() {
-    this.standaloneMode = true
   }
 
   getRequestHandler(): RequestHandler {
@@ -237,6 +230,86 @@ export class NextServer {
   }
 }
 
+class NextCustomServer extends NextServer {
+  protected standaloneMode = true
+  private didWebSocketSetup: boolean = false
+
+  // @ts-expect-error These are initialized in prepare()
+  protected requestHandler: WorkerRequestHandler
+  // @ts-expect-error These are initialized in prepare()
+  protected upgradeHandler: WorkerUpgradeHandler
+
+  async prepare() {
+    const { getRequestHandlers } =
+      require('./lib/start-server') as typeof import('./lib/start-server')
+
+    const isNodeDebugging = checkIsNodeDebugging()
+
+    const initResult = await getRequestHandlers({
+      dir: this.options.dir!,
+      port: this.options.port || 3000,
+      isDev: !!this.options.dev,
+      hostname: this.options.hostname || 'localhost',
+      minimalMode: this.options.minimalMode,
+      isNodeDebugging: !!isNodeDebugging,
+    })
+    this.requestHandler = initResult[0]
+    this.upgradeHandler = initResult[1]
+  }
+
+  private setupWebSocketHandler(
+    customServer?: import('http').Server,
+    _req?: IncomingMessage
+  ) {
+    if (!this.didWebSocketSetup) {
+      this.didWebSocketSetup = true
+      customServer = customServer || (_req?.socket as any)?.server
+
+      if (customServer) {
+        customServer.on('upgrade', async (req, socket, head) => {
+          this.upgradeHandler(req, socket, head)
+        })
+      }
+    }
+  }
+
+  getRequestHandler() {
+    return async (
+      req: IncomingMessage,
+      res: ServerResponse,
+      parsedUrl?: UrlWithParsedQuery
+    ) => {
+      this.setupWebSocketHandler(this.options.httpServer, req)
+
+      if (parsedUrl) {
+        req.url = formatUrl(parsedUrl)
+      }
+
+      return this.requestHandler(req, res)
+    }
+  }
+
+  async render(...args: Parameters<Server['render']>) {
+    let [req, res, pathname, query, parsedUrl] = args
+    this.setupWebSocketHandler(this.options.httpServer, req as any)
+
+    if (!pathname.startsWith('/')) {
+      console.error(`Cannot render page with path "${pathname}"`)
+      pathname = `/${pathname}`
+    }
+    pathname = pathname === '/index' ? '/' : pathname
+
+    req.url = formatUrl({
+      ...parsedUrl,
+      pathname,
+      query,
+    })
+
+    await this.requestHandler(req as any, res as any)
+    return
+  }
+}
+
 // This file is used for when users run `require('next')`
 function createServer(options: NextServerOptions): NextServer {
   // The package is used as a TypeScript plugin.
@@ -268,153 +341,17 @@ function createServer(options: NextServerOptions): NextServer {
     )
   }
 
+  // When the caller is a custom server (using next()).
   if (options.customServer !== false) {
-    // If the `app` dir exists, we'll need to run the standalone server to have
-    // both types of renderers (pages, app) running in separated processes,
-    // instead of having the Next server only.
-    let shouldUseStandaloneMode = false
     const dir = resolve(options.dir || '.')
-    const server = new NextServer(options)
 
-    const { createRouterWorker, checkIsNodeDebugging } =
-      require('./lib/start-server') as typeof import('./lib/start-server')
-
-    let didWebSocketSetup = false
-    let serverPort: number = 0
-
-    function setupWebSocketHandler(
-      customServer?: import('http').Server,
-      _req?: IncomingMessage
-    ) {
-      if (!didWebSocketSetup) {
-        didWebSocketSetup = true
-        customServer = customServer || (_req?.socket as any)?.server
-
-        if (!customServer) {
-          // this is very unlikely to happen but show an error in case
-          // it does somehow
-          console.error(
-            `Invalid IncomingMessage received, make sure http.createServer is being used to handle requests.`
-          )
-        } else {
-          customServer.on('upgrade', async (req, socket, head) => {
-            if (shouldUseStandaloneMode) {
-              await proxyRequest(
-                req,
-                socket as any,
-                url.parse(`http://127.0.0.1:${serverPort}${req.url}`, true),
-                head
-              )
-            }
-          })
-        }
-      }
-    }
-    return new Proxy(
-      {},
-      {
-        get: function (_, propKey) {
-          switch (propKey) {
-            case 'prepare':
-              return async () => {
-                shouldUseStandaloneMode = true
-                server[SYMBOL_SET_STANDALONE_MODE]()
-                const isNodeDebugging = checkIsNodeDebugging()
-                const routerWorker = await createRouterWorker(
-                  require.resolve('./lib/router-server'),
-                  isNodeDebugging
-                )
-
-                const initResult = await routerWorker.initialize({
-                  dir,
-                  port: options.port || 3000,
-                  hostname: options.hostname || 'localhost',
-                  isNodeDebugging: !!isNodeDebugging,
-                  workerType: 'router',
-                  dev: !!options.dev,
-                  minimalMode: options.minimalMode,
-                })
-                serverPort = initResult.port
-              }
-            case 'getRequestHandler': {
-              return () => {
-                let handler: RequestHandler
-                return async (req: IncomingMessage, res: ServerResponse) => {
-                  if (shouldUseStandaloneMode) {
-                    setupWebSocketHandler(options.httpServer, req)
-                    const parsedUrl = url.parse(
-                      `http://127.0.0.1:${serverPort}${req.url}`,
-                      true
-                    )
-                    if ((req?.socket as TLSSocket)?.encrypted) {
-                      req.headers['x-forwarded-proto'] = 'https'
-                    }
-                    addRequestMeta(req, '__NEXT_INIT_QUERY', parsedUrl.query)
-
-                    await proxyRequest(req, res, parsedUrl, undefined, req)
-                    return
-                  }
-                  handler = handler || server.getRequestHandler()
-                  return handler(req, res)
-                }
-              }
-            }
-            case 'render': {
-              return async (
-                req: IncomingMessage,
-                res: ServerResponse,
-                pathname: string,
-                query?: NextParsedUrlQuery,
-                parsedUrl?: NextUrlWithParsedQuery
-              ) => {
-                if (shouldUseStandaloneMode) {
-                  setupWebSocketHandler(options.httpServer, req)
-
-                  if (!pathname.startsWith('/')) {
-                    console.error(`Cannot render page with path "${pathname}"`)
-                    pathname = `/${pathname}`
-                  }
-                  pathname = pathname === '/index' ? '/' : pathname
-
-                  req.url = formatUrl({
-                    ...parsedUrl,
-                    pathname,
-                    query,
-                  })
-
-                  if ((req?.socket as TLSSocket)?.encrypted) {
-                    req.headers['x-forwarded-proto'] = 'https'
-                  }
-                  addRequestMeta(
-                    req,
-                    '__NEXT_INIT_QUERY',
-                    parsedUrl?.query || query || {}
-                  )
-
-                  await proxyRequest(
-                    req,
-                    res,
-                    url.parse(`http://127.0.0.1:${serverPort}${req.url}`, true),
-                    undefined,
-                    req
-                  )
-                  return
-                }
-
-                return server.render(req, res, pathname, query, parsedUrl)
-              }
-            }
-            default: {
-              const method = server[propKey as keyof NextServer]
-              if (typeof method === 'function') {
-                return method.bind(server)
-              }
-            }
-          }
-        },
-      }
-    ) as any
+    return new NextCustomServer({
+      ...options,
+      dir,
+    })
   }
+
+  // When the caller is Next.js internals (i.e. render worker, start server, etc)
   return new NextServer(options)
 }
 

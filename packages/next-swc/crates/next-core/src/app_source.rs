@@ -85,9 +85,12 @@ use crate::{
         route_transition::NextEdgeRouteTransition,
     },
     next_route_matcher::{NextFallbackMatcher, NextParamsMatcher},
-    next_server::context::{
-        get_server_compile_time_info, get_server_module_options_context,
-        get_server_resolve_options_context, ServerContextType,
+    next_server::{
+        context::{
+            get_server_compile_time_info, get_server_module_options_context,
+            get_server_resolve_options_context, ServerContextType,
+        },
+        route_transition::NextRouteTransition,
     },
     util::{render_data, NextRuntime},
 };
@@ -133,7 +136,7 @@ async fn next_client_transition(
     next_config: Vc<NextConfig>,
 ) -> Result<Vc<Box<dyn Transition>>> {
     let ty: Value<ClientContextType> = Value::new(ClientContextType::App { app_dir });
-    let mode = NextMode::Development;
+    let mode = NextMode::DevServer;
     let client_module_options_context = get_client_module_options_context(
         project_path,
         execution_context,
@@ -170,7 +173,7 @@ fn next_ssr_client_module_transition(
     server_addr: Vc<ServerAddr>,
 ) -> Vc<Box<dyn Transition>> {
     let ty = Value::new(ServerContextType::AppSSR { app_dir });
-    let mode = NextMode::Development;
+    let mode = NextMode::DevServer;
     Vc::upcast(
         NextSSRClientModuleTransition {
             ssr_module_options_context: get_server_module_options_context(
@@ -202,7 +205,7 @@ fn next_edge_ssr_client_module_transition(
     server_addr: Vc<ServerAddr>,
 ) -> Vc<Box<dyn Transition>> {
     let ty = Value::new(ServerContextType::AppSSR { app_dir });
-    let mode = NextMode::Development;
+    let mode = NextMode::DevServer;
     Vc::upcast(
         NextSSRClientModuleTransition {
             ssr_module_options_context: get_server_module_options_context(
@@ -231,12 +234,12 @@ fn next_server_component_transition(
     execution_context: Vc<ExecutionContext>,
     app_dir: Vc<FileSystemPath>,
     server_root: Vc<FileSystemPath>,
-    mode: NextMode,
     process_env: Vc<Box<dyn ProcessEnv>>,
     next_config: Vc<NextConfig>,
     server_addr: Vc<ServerAddr>,
     ecmascript_client_reference_transition_name: Vc<String>,
 ) -> Vc<Box<dyn Transition>> {
+    let mode = NextMode::DevServer;
     let ty = Value::new(ServerContextType::AppRSC {
         app_dir,
         client_transition: None,
@@ -256,6 +259,37 @@ fn next_server_component_transition(
             rsc_module_options_context,
             rsc_resolve_options_context,
             server_root,
+        }
+        .cell(),
+    )
+}
+
+#[turbo_tasks::function]
+fn next_route_transition(
+    project_path: Vc<FileSystemPath>,
+    app_dir: Vc<FileSystemPath>,
+    process_env: Vc<Box<dyn ProcessEnv>>,
+    next_config: Vc<NextConfig>,
+    server_addr: Vc<ServerAddr>,
+    execution_context: Vc<ExecutionContext>,
+) -> Vc<Box<dyn Transition>> {
+    let mode = NextMode::DevServer;
+    let server_ty = Value::new(ServerContextType::AppRoute { app_dir });
+
+    let server_compile_time_info = get_server_compile_time_info(mode, process_env, server_addr);
+
+    let server_resolve_options_context = get_server_resolve_options_context(
+        project_path,
+        server_ty,
+        mode,
+        next_config,
+        execution_context,
+    );
+
+    Vc::upcast(
+        NextRouteTransition {
+            server_compile_time_info,
+            server_resolve_options_context,
         }
         .cell(),
     )
@@ -306,7 +340,7 @@ fn next_edge_route_transition(
     output_path: Vc<FileSystemPath>,
     execution_context: Vc<ExecutionContext>,
 ) -> Vc<Box<dyn Transition>> {
-    let mode = NextMode::Development;
+    let mode = NextMode::DevServer;
     let server_ty = Value::new(ServerContextType::AppRoute { app_dir });
 
     let edge_compile_time_info = get_edge_compile_time_info(project_path, server_addr);
@@ -356,7 +390,7 @@ fn next_edge_page_transition(
     output_path: Vc<FileSystemPath>,
     execution_context: Vc<ExecutionContext>,
 ) -> Vc<Box<dyn Transition>> {
-    let server_ty = Value::new(ServerContextType::AppRoute { app_dir });
+    let server_ty = Value::new(ServerContextType::AppSSR { app_dir });
 
     let edge_compile_time_info = get_edge_compile_time_info(project_path, server_addr);
 
@@ -423,6 +457,17 @@ fn app_context(
         ),
     );
     transitions.insert(
+        "next-route".to_string(),
+        next_route_transition(
+            project_path,
+            app_dir,
+            env,
+            next_config,
+            server_addr,
+            execution_context,
+        ),
+    );
+    transitions.insert(
         "next-edge-page".to_string(),
         next_edge_page_transition(
             project_path,
@@ -443,7 +488,6 @@ fn app_context(
             execution_context,
             app_dir,
             server_root,
-            mode,
             env,
             next_config,
             server_addr,
@@ -570,7 +614,7 @@ pub async fn create_app_source(
         client_chunking_context,
         client_compile_time_info,
         true,
-        NextMode::Development,
+        NextMode::DevServer,
         next_config,
         server_addr,
         output_path,
@@ -584,7 +628,7 @@ pub async fn create_app_source(
         client_chunking_context,
         client_compile_time_info,
         false,
-        NextMode::Development,
+        NextMode::DevServer,
         next_config,
         server_addr,
         output_path,
@@ -611,8 +655,11 @@ pub async fn create_app_source(
     let entrypoints = entrypoints.await?;
     let mut sources: Vec<_> = entrypoints
         .iter()
-        .map(|(pathname, &loader_tree)| match loader_tree {
-            Entrypoint::AppPage { loader_tree } => create_app_page_source_for_route(
+        .map(|(pathname, entrypoint)| match *entrypoint {
+            Entrypoint::AppPage {
+                original_name: _,
+                loader_tree,
+            } => create_app_page_source_for_route(
                 pathname.clone(),
                 loader_tree,
                 context_ssr,
@@ -626,7 +673,10 @@ pub async fn create_app_source(
                 output_path,
                 render_data,
             ),
-            Entrypoint::AppRoute { path } => create_app_route_source_for_route(
+            Entrypoint::AppRoute {
+                original_name: _,
+                path,
+            } => create_app_route_source_for_route(
                 pathname.clone(),
                 path,
                 context_ssr,
@@ -646,7 +696,11 @@ pub async fn create_app_source(
         )))
         .collect();
 
-    if let Some(&Entrypoint::AppPage { loader_tree }) = entrypoints.get("/_not-found") {
+    if let Some(&Entrypoint::AppPage {
+        original_name: _,
+        loader_tree,
+    }) = entrypoints.get("/_not-found")
+    {
         if loader_tree.await?.components.await?.not_found.is_some() {
             // Only add a source for the app 404 page if a top-level not-found page is
             // defined. Otherwise, the 404 page is handled by the pages logic.
@@ -762,7 +816,7 @@ async fn create_app_page_source_for_route(
         should_debug("app_source"),
     );
 
-    Ok(source.issue_context(app_dir, format!("Next.js App Page Route {pathname}")))
+    Ok(source.issue_file_path(app_dir, format!("Next.js App Page Route {pathname}")))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -808,7 +862,7 @@ async fn create_app_not_found_page_source(
         should_debug("app_source"),
     );
 
-    Ok(source.issue_context(app_dir, "Next.js App Page Route /404".to_string()))
+    Ok(source.issue_file_path(app_dir, "Next.js App Page Route /404".to_string()))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -856,7 +910,7 @@ async fn create_app_route_source_for_route(
         should_debug("app_source"),
     );
 
-    Ok(source.issue_context(app_dir, format!("Next.js App Route {pathname}")))
+    Ok(source.issue_file_path(app_dir, format!("Next.js App Route {pathname}")))
 }
 
 /// The renderer for pages in app directory
@@ -875,7 +929,7 @@ struct AppRenderer {
 #[turbo_tasks::value_impl]
 impl AppRenderer {
     #[turbo_tasks::function]
-    async fn entry(self: Vc<Self>, is_rsc: bool) -> Result<Vc<NodeRenderingEntry>> {
+    async fn entry(self: Vc<Self>, with_ssr: bool) -> Result<Vc<NodeRenderingEntry>> {
         let AppRenderer {
             runtime_entries,
             app_dir,
@@ -887,10 +941,10 @@ impl AppRenderer {
             loader_tree,
         } = *self.await?;
 
-        let (context, intermediate_output_path) = if is_rsc {
-            (context, intermediate_output_path.join("rsc".to_string()))
-        } else {
+        let (context, intermediate_output_path) = if with_ssr {
             (context_ssr, intermediate_output_path)
+        } else {
+            (context, intermediate_output_path.join("rsc".to_string()))
         };
 
         let config = parse_segment_config_from_loader_tree(loader_tree, Vc::upcast(context));
@@ -905,7 +959,7 @@ impl AppRenderer {
             loader_tree,
             context,
             ServerComponentTransition::TransitionName(rsc_transition.to_string()),
-            NextMode::Development,
+            NextMode::DevServer,
         )
         .await?;
 
@@ -1017,13 +1071,13 @@ impl NodeEntry for AppRenderer {
     #[turbo_tasks::function]
     fn entry(self: Vc<Self>, data: Value<ContentSourceData>) -> Vc<NodeRenderingEntry> {
         let data = data.into_value();
-        let is_rsc = if let Some(headers) = data.headers {
-            headers.contains_key("rsc")
+        let with_ssr = if let Some(headers) = data.headers {
+            !headers.contains_key("rsc")
         } else {
-            false
+            true
         };
-        // Call with only is_rsc as key
-        self.entry(is_rsc)
+        // Call with only with_ssr as key
+        self.entry(with_ssr)
     }
 }
 
@@ -1069,6 +1123,14 @@ impl AppRoute {
         let module = match config.await?.runtime {
             Some(NextRuntime::NodeJs) | None => {
                 let bootstrap_asset = next_asset("entry/app/route.ts".to_string());
+
+                let entry_asset = this
+                    .context
+                    .with_transition("next-route".to_string())
+                    .process(
+                        Vc::upcast(entry_file_source),
+                        Value::new(ReferenceType::Entry(EntryReferenceSubType::AppRoute)),
+                    );
 
                 route_bootstrap(
                     entry_asset,

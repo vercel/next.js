@@ -20,6 +20,7 @@ import {
   SUBRESOURCE_INTEGRITY_MANIFEST,
   NEXT_FONT_MANIFEST,
   SERVER_REFERENCE_MANIFEST,
+  PRERENDER_MANIFEST,
 } from '../../../shared/lib/constants'
 import { MiddlewareConfig } from '../../analysis/get-page-static-info'
 import { Telemetry } from '../../../telemetry/storage'
@@ -125,6 +126,10 @@ function getEntryFiles(
 
   if (NextBuildContext!.hasInstrumentationHook) {
     files.push(`server/edge-${INSTRUMENTATION_HOOK_FILENAME}.js`)
+  }
+
+  if (process.env.NODE_ENV === 'production') {
+    files.push(PRERENDER_MANIFEST.replace('json', 'js'))
   }
 
   files.push(
@@ -465,7 +470,7 @@ function getCodeAnalyzer(params: {
           buildInfo.importLocByPath = new Map()
         }
 
-        const importedModule = node.source.value?.toString()!
+        const importedModule = node.source.value?.toString()
         buildInfo.importLocByPath.set(importedModule, {
           sourcePosition: {
             ...node.loc.start,
