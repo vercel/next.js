@@ -24,7 +24,7 @@ use next_core::{
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{trace::TraceRawVcs, Completion, TaskInput, TryJoinIterExt, Value, Vc};
 use turbopack_binding::{
-    turbo::tasks_fs::{File, FileSystem, FileSystemPath, VirtualFileSystem},
+    turbo::tasks_fs::{File, FileSystem, FileSystemPath, FileSystemPathOption, VirtualFileSystem},
     turbopack::{
         build::BuildChunkingContext,
         core::{
@@ -567,6 +567,7 @@ impl PageEndpoint {
             Vc::upcast(client_chunking_context),
             self.source(),
             this.pathname,
+            self.client_relative_path(),
         )));
 
         Ok(Vc::cell(client_chunks))
@@ -810,6 +811,11 @@ impl PageEndpoint {
         };
 
         Ok(page_output.cell())
+    }
+
+    #[turbo_task::function]
+    fn client_relative_path() -> Vc<FileSystemPathOption> {
+        Vc::cell(Some(this.pages_project.project().client_relative_path()))
     }
 }
 
