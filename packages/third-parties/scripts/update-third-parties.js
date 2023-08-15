@@ -85,7 +85,7 @@ function generateComponent(thirdParty) {
     .filter((dirent) => dirent.isDirectory())
     .map((dirent) => dirent.name)
 
-  for (let dir of dirs) {
+  await Promise.all(dirs.map(async(dir) => {
     // Fetch the list of third-parties from tpc-config.json
     // Then retrieve its loading instructions from Third Party Capital
     const dirPath = path.join(SRC, dir)
@@ -111,11 +111,11 @@ function generateComponent(thirdParty) {
       thirdPartyFunctions += generateComponent(thirdParty)
     }
 
-    await Promise.all([
+    return Promise.all([
       fs.writeFile(
         path.join(dirPath, 'index.tsx'),
         prettier.format(thirdPartyFunctions, { semi: false, parser: 'babel' })
       ),
     ])
-  }
+  }))
 })()
