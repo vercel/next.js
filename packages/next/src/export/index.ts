@@ -354,7 +354,7 @@ export default async function exportApp(
       )
     }
 
-    await recursiveDelete(join(outDir))
+    await promises.rm(outDir, { recursive: true, force: true })
     await promises.mkdir(join(outDir, '_next', buildId), { recursive: true })
 
     writeFileSync(
