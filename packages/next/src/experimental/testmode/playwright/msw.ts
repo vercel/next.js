@@ -1,4 +1,4 @@
-import { test as base } from './index'
+import { test as base, defineConfig } from './index'
 import type { NextFixture } from './next-fixture'
 import {
   type RequestHandler,
@@ -15,6 +15,7 @@ export * from 'msw'
 // eslint-disable-next-line import/no-extraneous-dependencies
 export * from '@playwright/test'
 export type { NextFixture }
+export { defineConfig }
 
 export interface MswFixture {
   use: (...handlers: RequestHandler[]) => void
@@ -24,7 +25,7 @@ export const test = base.extend<{
   msw: MswFixture
   mswHandlers: RequestHandler[]
 }>({
-  mswHandlers: [],
+  mswHandlers: [[], { option: true }],
 
   msw: [
     async ({ next, mswHandlers }, use) => {
