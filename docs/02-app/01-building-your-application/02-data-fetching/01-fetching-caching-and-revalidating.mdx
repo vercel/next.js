@@ -15,7 +15,7 @@ There are four ways you can fetch data:
 
 ## Fetching Data on the Server with `fetch`
 
-Next.js extends the native [`fetch` Web API](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) to allow you to configure the [caching](#caching-data) and [revalidating](#revalidating-data) behavior for each fetch request on the server. React extends `fetch` to automatically [memoize](/docs/app/building-your-application/data-fetching/patterns#fetching-data-where-its-needed) fetch requests while rendering a React component tree.
+Next.js extends the native [`fetch` Web API](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) to allow you to configure the [caching](#caching-data) and [revalidating](#revalidating-data) behavior for each fetch request on the server. React extends `fetch` to automatically [memorize](/docs/app/building-your-application/data-fetching/patterns#fetching-data-where-its-needed) fetch requests while rendering a React component tree.
 
 You can use `fetch` with [`async`/`await` in Server Components](https://github.com/acdlite/rfcs/blob/first-class-promises/text/0000-first-class-support-for-promises.md), in [Route Handlers](/docs/app/building-your-application/routing/route-handlers), and in [Server Actions](/docs/app/building-your-application/data-fetching/server-actions).
 
@@ -66,7 +66,7 @@ export default async function Page() {
 > **Good to know**:
 >
 > - Next.js provides helpful functions you may need when fetching data in Server Components such as [`cookies`](/docs/app/api-reference/functions/cookies) and [`headers`](/docs/app/api-reference/functions/headers). These will cause the route to be dynamically rendered as they rely on request time information.
-> - In Route handlers, `fetch` requests are not memoized as Route Handlers are not part of the React component tree.
+> - In Route handlers, `fetch` requests are not memorized as Route Handlers are not part of the React component tree.
 > - To use `async`/`await` in a Server Component with TypeScript, you'll need to use TypeScript `5.1.3` or higher and `@types/react` `18.2.8` or higher.
 
 ### Caching Data
@@ -286,7 +286,7 @@ Whether the data is cached or not will depend on whether the route segment is [s
 In the example below:
 
 - The `revalidate` option is set to `3600`, meaning the data will be cached and revalidated at most every hour.
-- The React `cache` function is used to [memoize](/docs/app/building-your-application/caching#request-memoization) data requests.
+- The React `cache` function is used to [memorize](/docs/app/building-your-application/caching#request-memoization) data requests.
 
 ```ts filename="utils/get-item.ts" switcher
 import { cache } from 'react'
