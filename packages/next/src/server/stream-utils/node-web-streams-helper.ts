@@ -6,9 +6,6 @@ import { getTracer } from '../lib/trace/tracer'
 import { AppRenderSpan } from '../lib/trace/constants'
 import { decodeText, encodeText } from './encode-decode'
 
-const queueTask =
-  process.env.NEXT_RUNTIME === 'edge' ? globalThis.setTimeout : setImmediate
-
 export type ReactReadableStream = ReadableStream<Uint8Array> & {
   allReady?: Promise<void> | undefined
 }
@@ -107,12 +104,12 @@ export function createBufferedTransformStream(): TransformStream<
   const flushBuffer = (controller: TransformStreamDefaultController) => {
     if (!pendingFlush) {
       pendingFlush = new Promise((resolve) => {
-        setTimeout(async () => {
+        setImmediate(async () => {
           controller.enqueue(bufferedBytes)
           bufferedBytes = new Uint8Array()
           pendingFlush = null
           resolve()
-        }, 0)
+        })
       })
     }
     return pendingFlush
@@ -198,7 +195,7 @@ function createHeadInsertionTransformStream(
       if (!inserted) {
         controller.enqueue(chunk)
       } else {
-        queueTask(() => {
+        setImmediate(() => {
           freezing = false
         })
       }
@@ -230,7 +227,7 @@ function createDeferredSuffixStream(
           // NOTE: streaming flush
           // Enqueue suffix part before the major chunks are enqueued so that
           // suffix won't be flushed too early to interrupt the data stream
-          setTimeout(() => {
+          setImmediate(() => {
             controller.enqueue(encodeText(suffix))
             res()
           })
@@ -265,13 +262,10 @@ export function createInlineDataStream(
         // the safe timing to pipe the data stream, this extra tick is
         // necessary.
         dataStreamFinished = new Promise((res) =>
-          // We use `setTimeout` here to ensure that it's inserted after flushing
+          // We use `setImmediate` here to ensure that it's inserted after flushing
           // the shell. Note that this implementation might get stale if impl
           // details of Fizz change in the future.
-          // Also we are not using `setImmediate` here because it's not available
-          // broadly in all runtimes, for example some edge workers might not
-          // have it.
-          setTimeout(async () => {
+          setImmediate(async () => {
             try {
               while (true) {
                 const { done, value } = await dataStreamReader.read()
@@ -284,7 +278,7 @@ export function createInlineDataStream(
               controller.error(err)
             }
             res()
-          }, 0)
+          })
         )
       }
     },
