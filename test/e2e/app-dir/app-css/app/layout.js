@@ -1,7 +1,7 @@
-// import '../styles/global.css'
-// import './style.css'
+import '../styles/global.css'
+import './style.css'
 
-// export const revalidate = 0
+export const revalidate = 0
 
 export default function Root({ children }) {
   return (
