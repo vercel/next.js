@@ -46,6 +46,8 @@ import {
 } from '../shared/lib/router/adapters'
 import { SearchParamsContext } from '../shared/lib/hooks-client-context'
 import onRecoverableError from './on-recoverable-error'
+import tracer from './tracing/tracer'
+import reportToSocket from './tracing/report-to-socket'
 
 /// <reference types="react-dom/experimental" />
 
@@ -186,6 +188,8 @@ class Container extends React.Component<{
 export async function initialize(opts: { webpackHMR?: any } = {}): Promise<{
   assetPrefix: string
 }> {
+  tracer.onSpanEnd(reportToSocket)
+
   // This makes sure this specific lines are removed in production
   if (process.env.NODE_ENV === 'development') {
     webpackHMR = opts.webpackHMR
@@ -450,12 +454,31 @@ function markHydrateComplete(): void {
 
   performance.mark('afterHydrate') // mark end of hydration
 
-  performance.measure(
+  const beforeHydrationMeasure = performance.measure(
     'Next.js-before-hydration',
     'navigationStart',
     'beforeRender'
   )
-  performance.measure('Next.js-hydration', 'beforeRender', 'afterHydrate')
+
+  const hydrationMeasure = performance.measure(
+    'Next.js-hydration',
+    'beforeRender',
+    'afterHydrate'
+  )
+
+  tracer
+    .startSpan('navigation-to-hydration', {
+      startTime: performance.timeOrigin + beforeHydrationMeasure.startTime,
+      attributes: {
+        pathname: location.pathname,
+        query: location.search,
+      },
+    })
+    .end(
+      performance.timeOrigin +
+        hydrationMeasure.startTime +
+        hydrationMeasure.duration
+    )
 
   if (onPerfEntry) {
     performance.getEntriesByName('Next.js-hydration').forEach(onPerfEntry)
