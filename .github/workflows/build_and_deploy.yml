@@ -278,7 +278,7 @@ jobs:
 
       - name: cache build
         if: ${{ matrix.settings.docker && steps.build-exists.outputs.BUILD_EXISTS == 'no' }}
-        run: pnpm turbo run --force cache-build-native -- ${{ matrix.settings.target }}
+        run: pnpm turbo run cache-build-native --force -- ${{ matrix.settings.target }}
 
       - name: 'Build'
         run: ${{ matrix.settings.build }}
