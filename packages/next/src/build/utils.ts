@@ -323,8 +323,7 @@ export async function printTreeView(
     buildManifest,
     appBuildManifest,
     middlewareManifest,
-    useStatic404,
-    hasStaticApp404,
+    useStaticPages404,
     gzipSize = true,
   }: {
     distPath: string
@@ -334,8 +333,7 @@ export async function printTreeView(
     buildManifest: BuildManifest
     appBuildManifest?: AppBuildManifest
     middlewareManifest: MiddlewareManifest
-    useStatic404: boolean
-    hasStaticApp404: boolean
+    useStaticPages404: boolean
     gzipSize?: boolean
   }
 ) {
@@ -607,14 +605,12 @@ export async function printTreeView(
 
   pageInfos.set('/404', {
     ...(pageInfos.get('/404') || pageInfos.get('/_error')),
-    static: useStatic404,
+    static: useStaticPages404,
   } as any)
 
-  if (!lists.pages.includes('/404')) {
-    // If there's no static app /_notFound page present, then the 404 is still using the pages/404
-    if (!hasStaticApp404) {
-      lists.pages = [...lists.pages, '/404']
-    }
+  // If there's no app /_notFound page present, then the 404 is still using the pages/404
+  if (!lists.pages.includes('/404') && !lists.app?.includes('/_not-found')) {
+    lists.pages = [...lists.pages, '/404']
   }
 
   // Print the tree view for the pages directory.
