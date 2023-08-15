@@ -217,8 +217,8 @@ export async function startServer({
       process.on('exit', cleanup)
       process.on('SIGINT', cleanup)
       process.on('SIGTERM', cleanup)
-      process.on('uncaughtException', cleanup)
-      process.on('unhandledRejection', cleanup)
+      // process.on('uncaughtException', cleanup)
+      // process.on('unhandledRejection', cleanup)
 
       resolve()
     })
