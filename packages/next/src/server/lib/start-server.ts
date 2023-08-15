@@ -25,6 +25,7 @@ export interface StartServerOptions {
   customServer?: boolean
   minimalMode?: boolean
   keepAliveTimeout?: number
+  isExperimentalTestProxy?: boolean
 }
 
 export async function getRequestHandlers({
@@ -35,6 +36,7 @@ export async function getRequestHandlers({
   minimalMode,
   isNodeDebugging,
   keepAliveTimeout,
+  experimentalTestProxy,
 }: {
   dir: string
   port: number
@@ -43,6 +45,7 @@ export async function getRequestHandlers({
   minimalMode?: boolean
   isNodeDebugging?: boolean
   keepAliveTimeout?: number
+  experimentalTestProxy?: boolean
 }): ReturnType<typeof initialize> {
   return initialize({
     dir,
@@ -53,6 +56,7 @@ export async function getRequestHandlers({
     workerType: 'router',
     isNodeDebugging: isNodeDebugging || false,
     keepAliveTimeout,
+    experimentalTestProxy,
   })
 }
 
@@ -64,6 +68,7 @@ export async function startServer({
   minimalMode,
   allowRetry,
   keepAliveTimeout,
+  isExperimentalTestProxy,
   logReady = true,
 }: StartServerOptions): Promise<void> {
   let handlersReady = () => {}
@@ -203,6 +208,7 @@ export async function startServer({
           minimalMode,
           isNodeDebugging: Boolean(isNodeDebugging),
           keepAliveTimeout,
+          experimentalTestProxy: !!isExperimentalTestProxy,
         })
         requestHandler = initResult[0]
         upgradeHandler = initResult[1]
