@@ -260,9 +260,25 @@ jobs:
         run: ${{ matrix.settings.setup }}
         if: ${{ matrix.settings.setup }}
 
-      - name: Build in docker
+      # we only need custom caching for docker builds
+      # as they are on an older Node.js version and have
+      # issues with turbo caching
+      - name: pull build cache
         if: ${{ matrix.settings.docker }}
+        run: node ./scripts/pull-turbo-cache.js ${{ matrix.settings.target }}
+
+      - name: check build exists
+        if: ${{ matrix.settings.docker }}
+        run: if [ -f packages/next-swc/native/next-swc.*.node ]; then echo "BUILD_EXISTS=yes" >> $GITHUB_OUTPUT; else echo "BUILD_EXISTS=no" >> $GITHUB_OUTPUT; fi
+        id: build-exists
+
+      - name: Build in docker
+        if: ${{ matrix.settings.docker && steps.build-exists.outputs.BUILD_EXISTS == 'no' }}
         run: docker run -v "/var/run/docker.sock":"/var/run/docker.sock"  -e RUST_TOOLCHAIN -e RUST_BACKTRACE -e NAPI_CLI_VERSION -e CARGO_TERM_COLOR -e CARGO_INCREMENTAL -e CARGO_PROFILE_RELEASE_LTO -e CARGO_REGISTRIES_CRATES_IO_PROTOCOL -e TURBO_API -e TURBO_TEAM -e TURBO_TOKEN -e TURBO_VERSION -e TURBO_REMOTE_ONLY -v ${{ env.HOME }}/.cargo/git:/root/.cargo/git -v ${{ env.HOME }}/.cargo/registry:/root/.cargo/registry -v ${{ github.workspace }}:/build -w /build --entrypoint=bash ${{ matrix.settings.docker }} -c "${{ matrix.settings.build }}"
+
+      - name: cache build
+        if: ${{ matrix.settings.docker && steps.build-exists.outputs.BUILD_EXISTS == 'no' }}
+        run: pnpm turbo run --force cache-build-native -- ${{ matrix.settings.target }}
 
       - name: 'Build'
         run: ${{ matrix.settings.build }}
@@ -270,7 +286,7 @@ jobs:
 
       - name: 'check build cache status'
         id: check-did-build
-        run: if [[ ! -z $(ls .turbo/runs) ]]; then echo "DID_BUILD=yup" >> $GITHUB_OUTPUT; fi
+        run: if [[ ! -z $(ls packages/next-swc/native) ]]; then echo "DID_BUILD=yup" >> $GITHUB_OUTPUT; fi
 
       # Trying to upload metrics for the Turbopack to datadog's CI pipeline execution
       - name: 'Collect turbopack build metrics'
