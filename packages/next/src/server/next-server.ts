@@ -221,6 +221,12 @@ export default class NextNodeServer extends BaseServer {
 
     // ensure options are set when loadConfig isn't called
     setHttpClientAndAgentOptions(this.nextConfig)
+
+    // Intercept fetch and other testmode apis.
+    if (this.serverOptions.experimentalTestProxy) {
+      const { interceptTestApis } = require('../experimental/testmode/server')
+      interceptTestApis()
+    }
   }
 
   protected async prepareImpl() {
@@ -1065,11 +1071,20 @@ export default class NextNodeServer extends BaseServer {
   }
 
   public getRequestHandler(): NodeRequestHandler {
+    const handler = this.makeRequestHandler()
+    if (this.serverOptions.experimentalTestProxy) {
+      const { wrapRequestHandler } = require('../experimental/testmode/server')
+      return wrapRequestHandler(handler)
+    }
+    return handler
+  }
+
+  private makeRequestHandler(): NodeRequestHandler {
     // This is just optimization to fire prepare as soon as possible
     // It will be properly awaited later
     void this.prepare()
     const handler = super.getRequestHandler()
-    return async (req, res, parsedUrl) => {
+    return (req, res, parsedUrl) => {
       const normalizedReq = this.normalizeReq(req)
       const normalizedRes = this.normalizeRes(res)
 

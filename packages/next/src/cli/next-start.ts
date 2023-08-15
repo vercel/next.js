@@ -14,6 +14,7 @@ const nextStart: CliCommand = async (argv) => {
     '--port': Number,
     '--hostname': String,
     '--keepAliveTimeout': Number,
+    '--experimental-test-proxy': Boolean,
 
     // Aliases
     '-h': '--help',
@@ -46,6 +47,8 @@ const nextStart: CliCommand = async (argv) => {
   const host = args['--hostname']
   const port = getPort(args)
 
+  const isExperimentalTestProxy = args['--experimental-test-proxy']
+
   const keepAliveTimeoutArg: number | undefined = args['--keepAliveTimeout']
   if (
     typeof keepAliveTimeoutArg !== 'undefined' &&
@@ -66,6 +69,7 @@ const nextStart: CliCommand = async (argv) => {
   await startServer({
     dir,
     isDev: false,
+    isExperimentalTestProxy,
     hostname: host,
     port,
     keepAliveTimeout,
