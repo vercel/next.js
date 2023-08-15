@@ -20,6 +20,17 @@ createNextDescribe(
 
         expect(isTraced).toBe(true)
       })
+
+      it('should not output /404 in tree view logs', async () => {
+        const output = await next.cliOutput
+        expect(output).not.toContain('/404')
+      })
+
+      it('should use root not-found content for 404 html', async () => {
+        // static /404 page will use /_not-found content
+        const page404 = await next.readFile('.next/server/pages/404.html')
+        expect(page404).toContain('This Is The Not Found Page')
+      })
     }
 
     const runTests = ({ isEdge }: { isEdge: boolean }) => {
