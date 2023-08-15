@@ -57,10 +57,12 @@ class Span implements ISpan {
 class Tracer {
   _emitter: MittEmitter<string> = mitt()
 
+  private handleSpanEnd = (span: Span) => {
+    this._emitter.emit('spanend', span)
+  }
+
   startSpan(name: string, options: SpanOptions) {
-    return new Span(name, options, (span) =>
-      this._emitter.emit('spanend', span)
-    )
+    return new Span(name, options, this.handleSpanEnd)
   }
 
   onSpanEnd(cb: (span: ISpan) => void): () => void {
