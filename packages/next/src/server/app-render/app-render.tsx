@@ -1391,8 +1391,13 @@ export async function renderToHTMLOrFlight(
                 initialCanonicalUrl={pathname}
                 initialTree={initialTree}
                 initialHead={
-                  // Adding requestId as react key to make metadata remount for each render
-                  <MetadataTree key={requestId} />
+                  <>
+                    {res.statusCode > 400 && (
+                      <meta name="robots" content="noindex" />
+                    )}
+                    {/* Adding requestId as react key to make metadata remount for each render */}
+                    <MetadataTree key={requestId} />
+                  </>
                 }
                 globalErrorComponent={GlobalError}
               >
