@@ -90,7 +90,7 @@ impl CssChunk {
             while !*path.is_inside(current).await? {
                 let parent = current.parent().resolve().await?;
                 if parent == current {
-                    return Ok(Vc::cell(None));
+                    return Ok(FileSystemPathOption::none());
                 }
                 current = parent;
             }
