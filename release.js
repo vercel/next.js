@@ -14,23 +14,26 @@ const prNumberRegex = /\(#([-0-9]+)\)$/
 const getCommitPullRequest = async (commit, github) => {
   const match = prNumberRegex.exec(commit.title)
 
-  if (!match) {
-    return null
-  }
+  if (!match) return null
 
   const number = parseInt(match[1], 10)
 
-  if (!number) {
+  if (!number) return null
+
+  if(!github.connection) return null
+
+  try {
+    const { data } = await github.connection.pullRequests.get({
+      owner: github.repoDetails.user,
+      repo: github.repoDetails.repo,
+      number,
+    })
+  
+    return data
+  } catch (error) {
+    console.error(error)
     return null
   }
-
-  const { data } = await github.connection.pullRequests.get({
-    owner: github.repoDetails.user,
-    repo: github.repoDetails.repo,
-    number,
-  })
-
-  return data
 }
 
 const getSectionForPullRequest = (pullRequest) => {
@@ -38,8 +41,10 @@ const getSectionForPullRequest = (pullRequest) => {
 
   // sections defined first will take priority
   for (const [section, label] of Object.entries(sectionLabelMap)) {
-    if (labels.some((prLabel) => prLabel.name === label)) {
-      return section
+    const labelExists = labels.some((prLabel) => prLabel.name === label);
+
+    if (labelExists) {
+      return section;
     }
   }
 
@@ -49,112 +54,113 @@ const getSectionForPullRequest = (pullRequest) => {
 const groupByLabels = async (commits, github) => {
   // Initialize the sections object with empty arrays
   const sections = Object.keys(sectionLabelMap).reduce((sections, section) => {
-    sections[section] = []
-    return sections
-  }, {})
-  sections.__fallback = []
+    sections[section] = [];
+    return sections;
+  }, {});
+  sections.__fallback = [];
 
   for (const commit of commits) {
-    const pullRequest = await getCommitPullRequest(commit, github)
+    const pullRequest = await getCommitPullRequest(commit, github);
 
-    if (pullRequest) {
-      const section = getSectionForPullRequest(pullRequest)
+     // No Pull Request found, add it to the fallback section but without the number
+    if (!pullRequest) {
+      sections.__fallback.push({
+        title: commit.title,
+      });
+      continue;
+    }
 
-      if (section) {
-        // Add the change to the respective section
-        sections[section].push({
-          title: pullRequest.title,
-          number: pullRequest.number,
-        })
+    const section = getSectionForPullRequest(pullRequest);
 
-        continue
-      }
-
-      // No section found, add it to the fallback section
+    // No section found, add it to the fallback section
+    if (!section) {
       sections.__fallback.push({
         title: pullRequest.title,
         number: pullRequest.number,
-      })
-
-      continue
+      });
+      continue;
     }
 
-    // No Pull Request found, add it to the fallback section but without the number
-    sections.__fallback.push({
-      title: commit.title,
-    })
+    // Add the change to the respective section
+    sections[section].push({
+      title: pullRequest.title,
+      number: pullRequest.number,
+    });
   }
 
-  return sections
-}
+  return sections;
+};
 
 function cleanupPRTitle(title) {
-  if (title.startsWith('[Docs] ')) {
-    return title.replace('[Docs] ', '')
-  }
-
-  return title
+  return title.replace(/^\[(Docs|docs)\] /, '');
 }
 
-const buildChangelog = (sections, authors) => {
+const buildChangelog = (sectionChanges, authors) => {
   let text = ''
 
-  for (const section in sections) {
-    const changes = sections[section]
+   // Iterate over each section
+  for (const section in sectionChanges) {
+    const changes = sectionChanges[section]
 
-    // No changes in this section? Don't render it
+    // Skip this section if there are no changes
     if (changes.length === 0) {
       continue
     }
 
-    const title = section === '__fallback' ? fallbackSection : section
-    text += `### ${title}\n\n`
+    // Determine the little for the section
+    const sectionTitle = section === '__fallback' ? fallbackSection : section
+    text += `### ${sectionTitle}\n\n`
 
+     // Iterate over arch change in the section
     for (const change of changes) {
-      const numberText = change.number != null ? `: #${change.number}` : ''
-
-      text += `- ${cleanupPRTitle(change.title)}${numberText}\n`
+      const changeNumberText = change.number ? `: #${change.number}` : ''
+      text += `- ${cleanupPRTitle(change.title)}${changeNumberText}\n`
     }
 
     text += '\n'
   }
 
-  if (authors.size > 0) {
-    text += '### Credits \n\n'
-    text += 'Huge thanks to '
-
-    let index = 1
-    authors.forEach((author) => {
-      // GitHub links usernames if prefixed with @
-      text += `@${author}`
-
-      const penultimate = index === authors.size - 1
-      const notLast = index !== authors.size
-
-      if (penultimate) {
-        // Oxford comma is applied when list is bigger than 2 names
-        if (authors.size > 2) {
-          text += ','
-        }
-
-        text += ' and '
-      } else if (notLast) {
-        text += ', '
-      }
-
-      index += 1
-    })
-
-    text += ' for helping!'
-    text += '\n'
-  }
-
+  text += buildCreditsSection(authors)
   return text
 }
 
-module.exports = async (markdown, metadata) => {
-  const { commits, authors, githubConnection, repoDetails } = metadata
+const buildCreditsSection = (authors) => {
+  if (authors.size === 0) {
+    return ''
+  }
 
+  let creditsText = '### Credits \n\n'
+  creditsText += 'Huge thanks to '
+
+  let index = 1
+  authors.forEach((author) => {
+    // GitHub links usernames if prefixed with @
+    creditsText += `@${author}`
+
+    const penultimate = index === authors.size - 1
+    const notLast = index !== authors.size
+
+    if (penultimate) {
+      // Oxford comma is applied when list is bigger than 2 names
+      if (authors.size > 2) {
+        creditsText += ','
+      }
+
+      creditsText += ' and '
+    } else if (notLast) {
+      creditsText += ', '
+    }
+
+    index += 1
+  })
+
+  creditsText += ' for helping!'
+  creditsText += '\n'
+
+  return creditsText
+}
+
+module.exports = async (markdown, { commits, authors, githubConnection, repoDetails }) => {
   const github = { connection: githubConnection, repoDetails }
 
   const sections = await groupByLabels(commits.all, github)
