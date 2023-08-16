@@ -387,7 +387,7 @@ function Router({
     return () => {
       window.removeEventListener('pageshow', handlePageShow)
     }
-  }, [dispatch, initialTree])
+  }, [dispatch])
 
   // When mpaNavigation flag is set do a hard navigation to the new url.
   // Infinitely suspend because we don't actually want to rerender any child
