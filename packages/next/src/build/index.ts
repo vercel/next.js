@@ -2989,8 +2989,7 @@ export default async function build(
           }
 
           // remove temporary export folder
-          await recursiveDelete(exportOptions.outdir)
-          await fs.rmdir(exportOptions.outdir)
+          await fs.rm(exportOptions.outdir, { recursive: true, force: true })
           await fs.writeFile(
             manifestPath,
             JSON.stringify(pagesManifest, null, 2),
