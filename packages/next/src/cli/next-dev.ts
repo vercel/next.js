@@ -108,7 +108,7 @@ function watchConfigFiles(
 type StartServerWorker = Worker &
   Pick<typeof import('../server/lib/start-server'), 'startServer'>
 
-async function createRouterWorker(): Promise<{
+async function createRouterWorker(config: NextConfigComplete): Promise<{
   worker: StartServerWorker
   cleanup: () => Promise<void>
 }> {
@@ -130,7 +130,9 @@ async function createRouterWorker(): Promise<{
           : {}),
         WATCHPACK_WATCHER_LIMIT: '20',
         EXPERIMENTAL_TURBOPACK: process.env.EXPERIMENTAL_TURBOPACK,
-        __NEXT_PRIVATE_PREBUNDLED_REACT: 'next',
+        __NEXT_PRIVATE_PREBUNDLED_REACT: !!config.experimental.serverActions
+          ? 'experimental'
+          : 'next',
       },
     },
     exposedMethods: ['startServer'],
@@ -373,7 +375,7 @@ const nextDev: CliCommand = async (argv) => {
   } else {
     const runDevServer = async (reboot: boolean) => {
       try {
-        const workerInit = await createRouterWorker()
+        const workerInit = await createRouterWorker(config)
         await workerInit.worker.startServer(devServerOptions)
         await preflight(reboot)
         return {

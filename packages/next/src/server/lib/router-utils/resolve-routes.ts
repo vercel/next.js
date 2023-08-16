@@ -425,7 +425,7 @@ export function getResolveRoutes(
                 .catch(() => false)))
           ) {
             const workerResult = await (
-              renderWorkers.app || renderWorkers.pages
+              renderWorkers.pages || renderWorkers.app
             )?.initialize(renderWorkerOpts)
 
             if (!workerResult) {
