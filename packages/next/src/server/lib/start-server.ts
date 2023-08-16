@@ -1,4 +1,5 @@
 import '../node-polyfill-fetch'
+import '../require-hook'
 
 import type { IncomingMessage, ServerResponse } from 'http'
 

@@ -5,6 +5,7 @@ import type {
   TurbopackResult,
   WrittenEndpoint,
 } from '../../../build/swc'
+import type { RenderWorker } from '../router-server'
 
 import fs from 'fs'
 import url from 'url'
@@ -133,8 +134,8 @@ async function startWatcher(opts: SetupOpts) {
   )
 
   const renderWorkers: {
-    app?: import('../router-server').RenderWorker
-    pages?: import('../router-server').RenderWorker
+    app?: RenderWorker
+    pages?: RenderWorker
   } = {}
 
   async function propagateToWorkers(field: PropagateToWorkersField, args: any) {

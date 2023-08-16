@@ -130,6 +130,7 @@ async function createRouterWorker(): Promise<{
           : {}),
         WATCHPACK_WATCHER_LIMIT: '20',
         EXPERIMENTAL_TURBOPACK: process.env.EXPERIMENTAL_TURBOPACK,
+        __NEXT_PRIVATE_PREBUNDLED_REACT: 'next',
       },
     },
     exposedMethods: ['startServer'],

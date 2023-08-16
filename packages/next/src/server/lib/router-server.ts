@@ -38,15 +38,14 @@ import { signalFromNodeResponse } from '../web/spec-extension/adapters/next-requ
 
 const debug = setupDebug('next:router-server:main')
 
-export type RenderWorker = InstanceType<
-  typeof import('next/dist/compiled/jest-worker').Worker
-> & {
-  initialize: typeof import('./render-server').initialize
-  deleteCache: typeof import('./render-server').deleteCache
-  deleteAppClientCache: typeof import('./render-server').deleteAppClientCache
-  clearModuleContext: typeof import('./render-server').clearModuleContext
-  propagateServerField: typeof import('./render-server').propagateServerField
-}
+export type RenderWorker = Pick<
+  typeof import('./render-server'),
+  | 'initialize'
+  | 'deleteCache'
+  | 'clearModuleContext'
+  | 'deleteAppClientCache'
+  | 'propagateServerField'
+>
 
 const nextDeleteCacheCallbacks: Array<(filePaths: string[]) => Promise<any>> =
   []
@@ -199,14 +198,17 @@ export async function initialize(opts: {
   } as any)
 
   if (!!config.experimental.appDir) {
-    renderWorkers.app = await createWorker(
-      ipcPort,
-      ipcValidationKey,
-      opts.isNodeDebugging,
-      'app',
-      config
-    )
+    process.env.__NEXT_PRIVATE_ROUTER_IPC_PORT = ipcPort + ''
+    process.env.__NEXT_PRIVATE_ROUTER_IPC_KEY = ipcValidationKey
+    process.env.__NEXT_PRIVATE_PREBUNDLED_REACT = config.experimental
+      .serverActions
+      ? 'experimental'
+      : 'next'
+
+    renderWorkers.app =
+      require('./render-server') as typeof import('./render-server')
   }
+
   renderWorkers.pages = await createWorker(
     ipcPort,
     ipcValidationKey,

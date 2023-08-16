@@ -31,7 +31,6 @@ import type { ClientReferenceManifest } from '../build/webpack/plugins/flight-ma
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
 
 import React from 'react'
-import ReactDOMServer from 'react-dom/server.browser'
 import { StyleRegistry, createStyleRegistry } from 'styled-jsx'
 import {
   GSP_NO_RETURNED_VALUE,
@@ -115,8 +114,14 @@ function noRouter() {
   throw new Error(message)
 }
 
+function getReactDOMServer() {
+  // Instead of a top-level import, we need to require() here to ensure that
+  // the global require hook is applied.
+  return require('react-dom/server.browser') as typeof import('react-dom/server.browser')
+}
+
 async function renderToString(element: React.ReactElement) {
-  const renderStream = await ReactDOMServer.renderToReadableStream(element)
+  const renderStream = await getReactDOMServer().renderToReadableStream(element)
   await renderStream.allReady
   return streamToString(renderStream)
 }
@@ -1274,7 +1279,7 @@ export async function renderToHTMLImpl(
     ) => {
       const content = renderContent(EnhancedApp, EnhancedComponent)
       return await renderToInitialStream({
-        ReactDOMServer,
+        ReactDOMServer: getReactDOMServer(),
         element: content,
       })
     }
