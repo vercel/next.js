@@ -100,6 +100,13 @@ export function patchFetch({
     const fetchStart = Date.now()
     const method = init?.method?.toUpperCase() || 'GET'
 
+    // Do create a new span trace for internal fetches in the
+    // non-verbose mode.
+    const isInternal = (init?.next as any)?.internal === true
+    if (isInternal && process.env.NEXT_OTEL_VERBOSE !== '1') {
+      return originFetch(input, init)
+    }
+
     return await getTracer().trace(
       AppRenderSpan.fetch,
       {
@@ -131,7 +138,7 @@ export function patchFetch({
         // fetch implementation.
         if (
           !staticGenerationStore ||
-          (init?.next as any)?.internal ||
+          isInternal ||
           staticGenerationStore.isDraftMode
         ) {
           return originFetch(input, init)
