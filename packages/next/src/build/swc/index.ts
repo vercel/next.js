@@ -782,7 +782,8 @@ function bindingToApi(binding: any, _wasm: boolean) {
           const routes = new Map()
           for (const { pathname, ...nativeRoute } of entrypoints.routes) {
             let route: Route
-            switch (nativeRoute.type) {
+            const routeType = nativeRoute.type
+            switch (routeType) {
               case 'page':
                 route = {
                   type: 'page',
@@ -815,11 +816,11 @@ function bindingToApi(binding: any, _wasm: boolean) {
                 }
                 break
               default:
+                const _exhaustiveCheck: never = routeType
                 invariant(
                   nativeRoute,
-                  () => `Unknown route type: ${(nativeRoute as any).type}`
+                  () => `Unknown route type: ${_exhaustiveCheck}`
                 )
-                break
             }
             routes.set(pathname, route)
           }
