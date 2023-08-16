@@ -33,7 +33,7 @@ export class ReadonlyURLSearchParams {
   keys: URLSearchParams['keys']
   values: URLSearchParams['values']
   toString: URLSearchParams['toString']
-  size: URLSearchParams['size']
+  size: any | URLSearchParams['size']
 
   constructor(urlSearchParams: URLSearchParams) {
     this[INTERNAL_URLSEARCHPARAMS_INSTANCE] = urlSearchParams
