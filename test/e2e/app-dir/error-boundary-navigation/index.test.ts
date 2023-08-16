@@ -95,6 +95,34 @@ export function runTest({ next }) {
 
     expect(await browser.elementByCss('#homepage').text()).toBe('Home')
   })
+
+  it('should be able to navigate to other page from root not-found page', async () => {
+    const browser = await next.browser('/')
+
+    await browser
+      .elementByCss('#go-to-404')
+      .click()
+      .waitForElementByCss('#not-found-component')
+
+    await browser
+      .elementByCss('#go-to-dynamic')
+      .click()
+      .waitForElementByCss('#dynamic')
+
+    expect(await browser.elementByCss('#dynamic').text()).toBe(
+      'Dynamic page: foo'
+    )
+
+    await browser
+      .elementByCss('#go-to-dynamic-404')
+      .click()
+      .waitForElementByCss('#not-found-component')
+
+    await browser
+      .elementByCss('#go-to-index')
+      .click()
+      .waitForElementByCss('#homepage')
+  })
 }
 
 createNextDescribe(
