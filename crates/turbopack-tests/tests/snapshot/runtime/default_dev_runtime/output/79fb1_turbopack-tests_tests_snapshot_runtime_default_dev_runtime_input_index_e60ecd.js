@@ -9,6 +9,12 @@ if (!Array.isArray(globalThis.TURBOPACK)) {
 }
 
 const CHUNK_BASE_PATH = "";
+/**
+ * This file contains runtime types and functions that are shared between all
+ * TurboPack ECMAScript runtimes.
+ *
+ * It will be prepended to the runtime code of each runtime.
+ */ /* eslint-disable @next/next/no-assign-module-variable */ /// <reference path="./runtime-types.d.ts" />
 ;
 const REEXPORTED_OBJECTS = Symbol("reexported objects");
 ;
@@ -20,7 +26,9 @@ const toStringTag = typeof Symbol !== "undefined" && Symbol.toStringTag;
 function defineProp(obj, name, options) {
     if (!hasOwnProperty.call(obj, name)) Object.defineProperty(obj, name, options);
 }
-function esm(exports, getters) {
+/**
+ * Adds the getters to the exports object.
+ */ function esm(exports, getters) {
     defineProp(exports, "__esModule", {
         value: true
     });
@@ -34,7 +42,9 @@ function esm(exports, getters) {
         });
     }
 }
-function esmExport(module, exports, getters) {
+/**
+ * Makes the module an ESM with exports
+ */ function esmExport(module, exports, getters) {
     module.namespaceObject = module.exports;
     esm(exports, getters);
 }
@@ -65,7 +75,9 @@ function ensureDynamicExports(module, exports) {
         });
     }
 }
-function dynamicExport(module, exports, object) {
+/**
+ * Dynamically exports properties from an object
+ */ function dynamicExport(module, exports, object) {
     ensureDynamicExports(module, exports);
     module[REEXPORTED_OBJECTS].push(object);
 }
@@ -78,20 +90,30 @@ function exportNamespace(module, namespace) {
 function createGetter(obj, key) {
     return ()=>obj[key];
 }
-const getProto = Object.getPrototypeOf ? (obj)=>Object.getPrototypeOf(obj) : (obj)=>obj.__proto__;
-const LEAF_PROTOTYPES = [
+/**
+ * @returns prototype of the object
+ */ const getProto = Object.getPrototypeOf ? (obj)=>Object.getPrototypeOf(obj) : (obj)=>obj.__proto__;
+/** Prototypes that are not expanded for exports */ const LEAF_PROTOTYPES = [
     null,
     getProto({}),
     getProto([]),
     getProto(getProto)
 ];
-function interopEsm(raw, ns, allowExportDefault) {
+/**
+ * @param raw
+ * @param ns
+ * @param allowExportDefault
+ *   * `false`: will have the raw module as default export
+ *   * `true`: will have the default property as default export
+ */ function interopEsm(raw, ns, allowExportDefault) {
     const getters = Object.create(null);
     for(let current = raw; (typeof current === "object" || typeof current === "function") && !LEAF_PROTOTYPES.includes(current); current = getProto(current)){
         for (const key of Object.getOwnPropertyNames(current)){
             getters[key] = createGetter(raw, key);
         }
     }
+    // this is not really correct
+    // we should set the `default` getter if the imported module is a `.cjs file`
     if (!(allowExportDefault && "default" in getters)) {
         getters["default"] = ()=>raw;
     }
@@ -101,7 +123,9 @@ function interopEsm(raw, ns, allowExportDefault) {
 function esmImport(sourceModule, id) {
     const module = getOrInstantiateModuleFromParent(id, sourceModule);
     if (module.error) throw module.error;
+    // any ES module has to have `module.namespaceObject` defined.
     if (module.namespaceObject) return module.namespaceObject;
+    // only ESM can be an async module, so we don't need to worry about exports being a promise here.
     const raw = module.exports;
     return module.namespaceObject = interopEsm(raw, {}, raw.__esModule);
 }
@@ -130,7 +154,9 @@ function requireContext(sourceModule, map) {
     };
     return requireContext;
 }
-function getChunkPath(chunkData) {
+/**
+ * Returns the path of a chunk defined by its data.
+ */ function getChunkPath(chunkData) {
     return typeof chunkData === "string" ? chunkData : chunkData.path;
 }
 function isPromise(maybePromise) {
@@ -152,6 +178,8 @@ function createPromise() {
         reject: reject
     };
 }
+// everything below is adapted from webpack
+// https://github.com/webpack/webpack/blob/6be4065ade1e252c1d8dcba4af0f43e32af1bdc1/lib/runtime/AsyncModuleRuntimeModule.js#L13
 const turbopackQueues = Symbol("turbopack queues");
 const turbopackExports = Symbol("turbopack exports");
 const turbopackError = Symbol("turbopack error");
@@ -243,6 +271,19 @@ function asyncModule(module, body, hasAwait) {
         queue.resolved = false;
     }
 }
+/**
+ * This file contains runtime types and functions that are shared between all
+ * Turbopack *development* ECMAScript runtimes.
+ *
+ * It will be appended to the runtime code of each runtime right after the
+ * shared runtime utils.
+ */ /* eslint-disable @next/next/no-assign-module-variable */ /// <reference path="../../../shared/runtime-utils.ts" />
+/// <reference path="./globals.d.ts" />
+/// <reference path="./protocol.d.ts" />
+/// <reference path="./extensions.d.ts" />
+// This file must not use `import` and `export` statements. Otherwise, it
+// becomes impossible to augment interfaces declared in `<reference>`d files
+// (e.g. `Module`). Hence, the need for `import()` here.
 ;
 ;
 ;
@@ -252,22 +293,55 @@ function asyncModule(module, body, hasAwait) {
 ;
 var SourceType;
 (function(SourceType) {
-    SourceType[SourceType["Runtime"] = 0] = "Runtime";
-    SourceType[SourceType["Parent"] = 1] = "Parent";
-    SourceType[SourceType["Update"] = 2] = "Update";
+    SourceType[SourceType[/**
+   * The module was instantiated because it was included in an evaluated chunk's
+   * runtime.
+   */ "Runtime"] = 0] = "Runtime";
+    SourceType[SourceType[/**
+   * The module was instantiated because a parent module imported it.
+   */ "Parent"] = 1] = "Parent";
+    SourceType[SourceType[/**
+   * The module was instantiated because it was included in a chunk's hot module
+   * update.
+   */ "Update"] = 2] = "Update";
 })(SourceType || (SourceType = {}));
 ;
 const moduleFactories = Object.create(null);
 const moduleCache = Object.create(null);
-const moduleHotData = new Map();
-const moduleHotState = new Map();
-const queuedInvalidatedModules = new Set();
-const runtimeModules = new Set();
-const moduleChunksMap = new Map();
-const chunkModulesMap = new Map();
-const runtimeChunkLists = new Set();
-const chunkListChunksMap = new Map();
-const chunkChunkListsMap = new Map();
+/**
+ * Maps module IDs to persisted data between executions of their hot module
+ * implementation (`hot.data`).
+ */ const moduleHotData = new Map();
+/**
+ * Maps module instances to their hot module state.
+ */ const moduleHotState = new Map();
+/**
+ * Modules that call `module.hot.invalidate()` (while being updated).
+ */ const queuedInvalidatedModules = new Set();
+/**
+ * Module IDs that are instantiated as part of the runtime of a chunk.
+ */ const runtimeModules = new Set();
+/**
+ * Map from module ID to the chunks that contain this module.
+ *
+ * In HMR, we need to keep track of which modules are contained in which so
+ * chunks. This is so we don't eagerly dispose of a module when it is removed
+ * from chunk A, but still exists in chunk B.
+ */ const moduleChunksMap = new Map();
+/**
+ * Map from a chunk path to all modules it contains.
+ */ const chunkModulesMap = new Map();
+/**
+ * Chunk lists that contain a runtime. When these chunk lists receive an update
+ * that can't be reconciled with the current state of the page, we need to
+ * reload the runtime entirely.
+ */ const runtimeChunkLists = new Set();
+/**
+ * Map from a chunk list to the chunk paths it contains.
+ */ const chunkListChunksMap = new Map();
+/**
+ * Map from a chunk path to the chunk lists it belongs to.
+ */ const chunkChunkListsMap = new Map();
 const availableModules = new Map();
 const availableModuleChunks = new Map();
 async function loadChunk(source, chunkData) {
@@ -280,15 +354,20 @@ async function loadChunk(source, chunkData) {
         return availableModules.get(included);
     });
     if (modulesPromises.length > 0 && modulesPromises.every((p)=>p)) {
+        // When all included items are already loaded or loading, we can skip loading ourselves
         return Promise.all(modulesPromises);
     }
     const includedModuleChunksList = chunkData.moduleChunks || [];
     const moduleChunksPromises = includedModuleChunksList.map((included)=>{
+        // TODO(alexkirsz) Do we need this check?
+        // if (moduleFactories[included]) return true;
         return availableModuleChunks.get(included);
     }).filter((p)=>p);
     let promise;
     if (moduleChunksPromises.length > 0) {
+        // Some module chunks are already loaded or loading.
         if (moduleChunksPromises.length == includedModuleChunksList.length) {
+            // When all included module chunks are already loaded or loading, we can skip loading ourselves
             return Promise.all(moduleChunksPromises);
         }
         const moduleChunksToLoad = new Set();
@@ -305,6 +384,7 @@ async function loadChunk(source, chunkData) {
         promise = Promise.all(moduleChunksPromises);
     } else {
         promise = loadChunkPath(source, chunkData.path);
+        // Mark all included module chunks as loading if they are not already loaded or loading.
         for (const includedModuleChunk of includedModuleChunksList){
             if (!availableModuleChunks.has(includedModuleChunk)) {
                 availableModuleChunks.set(includedModuleChunk, promise);
@@ -313,6 +393,8 @@ async function loadChunk(source, chunkData) {
     }
     for (const included of includedList){
         if (!availableModules.has(included)) {
+            // It might be better to race old and new promises, but it's rare that the new promise will be faster than a request started earlier.
+            // In production it's even more rare, because the chunk optimization tries to deduplicate modules anyway.
             availableModules.set(included, promise);
         }
     }
@@ -342,6 +424,9 @@ async function loadChunkPath(source, chunkPath) {
 function instantiateModule(id, source) {
     const moduleFactory = moduleFactories[id];
     if (typeof moduleFactory !== "function") {
+        // This can happen if modules incorrectly handle HMR disposes/updates,
+        // e.g. when they keep a `setTimeout` around which still executes old code
+        // and contains e.g. a `require("something")` call.
         let instantiationReason;
         switch(source.type){
             case SourceType.Runtime:
@@ -365,6 +450,8 @@ function instantiateModule(id, source) {
             parents = [];
             break;
         case SourceType.Parent:
+            // No need to add this module as a child of the parent module here, this
+            // has already been taken care of in `getOrInstantiateModuleFromParent`.
             parents = [
                 source.parentId
             ];
@@ -385,6 +472,7 @@ function instantiateModule(id, source) {
     };
     moduleCache[id] = module;
     moduleHotState.set(module, hotState);
+    // NOTE(alexkirsz) This can fail when the module encounters a runtime error.
     try {
         const sourceInfo = {
             type: SourceType.Parent,
@@ -417,11 +505,16 @@ function instantiateModule(id, source) {
     }
     module.loaded = true;
     if (module.namespaceObject && module.exports !== module.namespaceObject) {
+        // in case of a circular dependency: cjs1 -> esm2 -> cjs1
         interopEsm(module.exports, module.namespaceObject);
     }
     return module;
 }
-function runModuleExecutionHooks(module, executeModule) {
+/**
+ * NOTE(alexkirsz) Webpack has a "module execution" interception hook that
+ * Next.js' React Refresh runtime hooks into to add module context to the
+ * refresh registry.
+ */ function runModuleExecutionHooks(module, executeModule) {
     const cleanupReactRefreshIntercept = typeof globalThis.$RefreshInterceptModuleExecution$ === "function" ? globalThis.$RefreshInterceptModuleExecution$(module.id) : ()=>{};
     try {
         executeModule({
@@ -429,15 +522,20 @@ function runModuleExecutionHooks(module, executeModule) {
             signature: globalThis.$RefreshSig$
         });
         if ("$RefreshHelpers$" in globalThis) {
+            // This pattern can also be used to register the exports of
+            // a module with the React Refresh runtime.
             registerExportsAndSetupBoundaryForReactRefresh(module, globalThis.$RefreshHelpers$);
         }
     } catch (e) {
         throw e;
     } finally{
+        // Always cleanup the intercept, even if module execution failed.
         cleanupReactRefreshIntercept();
     }
 }
-const getOrInstantiateModuleFromParent = (id, sourceModule)=>{
+/**
+ * Retrieves a module from the cache, or instantiate it if it is not cached.
+ */ const getOrInstantiateModuleFromParent = (id, sourceModule)=>{
     if (!sourceModule.hot.active) {
         console.warn(`Unexpected import of module ${id} from module ${sourceModule.id}, which was deleted by an HMR update`);
     }
@@ -456,16 +554,34 @@ const getOrInstantiateModuleFromParent = (id, sourceModule)=>{
         parentId: sourceModule.id
     });
 };
-function registerExportsAndSetupBoundaryForReactRefresh(module, helpers) {
+/**
+ * This is adapted from https://github.com/vercel/next.js/blob/3466862d9dc9c8bb3131712134d38757b918d1c0/packages/react-refresh-utils/internal/ReactRefreshModule.runtime.ts
+ */ function registerExportsAndSetupBoundaryForReactRefresh(module, helpers) {
     const currentExports = module.exports;
     const prevExports = module.hot.data.prevExports ?? null;
     helpers.registerExportsForReactRefresh(currentExports, module.id);
+    // A module can be accepted automatically based on its exports, e.g. when
+    // it is a Refresh Boundary.
     if (helpers.isReactRefreshBoundary(currentExports)) {
+        // Save the previous exports on update, so we can compare the boundary
+        // signatures.
         module.hot.dispose((data)=>{
             data.prevExports = currentExports;
         });
+        // Unconditionally accept an update to this module, we'll check if it's
+        // still a Refresh Boundary later.
         module.hot.accept();
+        // This field is set when the previous version of this module was a
+        // Refresh Boundary, letting us know we need to check for invalidation or
+        // enqueue an update.
         if (prevExports !== null) {
+            // A boundary can become ineligible if its exports are incompatible
+            // with the previous exports.
+            //
+            // For example, if you add/remove/change exports, we'll want to
+            // re-execute the importing modules, and force those components to
+            // re-render. Similarly, if you convert a class component to a
+            // function, we want to invalidate the boundary.
             if (helpers.shouldInvalidateReactRefreshBoundary(prevExports, currentExports)) {
                 module.hot.invalidate();
             } else {
@@ -473,6 +589,10 @@ function registerExportsAndSetupBoundaryForReactRefresh(module, helpers) {
             }
         }
     } else {
+        // Since we just executed the code for the module, it's possible that the
+        // new exports made it ineligible for being a boundary.
+        // We only care about the case when we were _previously_ a boundary,
+        // because we already accepted this update (accidental side effect).
         const isNoLongerABoundary = prevExports !== null;
         if (isNoLongerABoundary) {
             module.hot.invalidate();
@@ -530,7 +650,11 @@ function computeOutdatedSelfAcceptedModules(outdatedModules) {
     }
     return outdatedSelfAcceptedModules;
 }
-function updateChunksPhase(chunksAddedModules, chunksDeletedModules) {
+/**
+ * Adds, deletes, and moves modules between chunks. This must happen before the
+ * dispose phase as it needs to know which modules were removed from all chunks,
+ * which we can only compute *after* taking care of added and moved modules.
+ */ function updateChunksPhase(chunksAddedModules, chunksDeletedModules) {
     for (const [chunkPath, addedModuleIds] of chunksAddedModules){
         for (const moduleId of addedModuleIds){
             addModuleToChunk(moduleId, chunkPath);
@@ -555,28 +679,52 @@ function disposePhase(outdatedModules, disposedModules) {
     for (const moduleId of disposedModules){
         disposeModule(moduleId, "clear");
     }
+    // Removing modules from the module cache is a separate step.
+    // We also want to keep track of previous parents of the outdated modules.
     const outdatedModuleParents = new Map();
     for (const moduleId of outdatedModules){
         const oldModule = moduleCache[moduleId];
         outdatedModuleParents.set(moduleId, oldModule?.parents);
         delete moduleCache[moduleId];
     }
+    // TODO(alexkirsz) Dependencies: remove outdated dependency from module
+    // children.
     return {
         outdatedModuleParents
     };
 }
-function disposeModule(moduleId, mode) {
+/**
+ * Disposes of an instance of a module.
+ *
+ * Returns the persistent hot data that should be kept for the next module
+ * instance.
+ *
+ * NOTE: mode = "replace" will not remove modules from the moduleCache.
+ * This must be done in a separate step afterwards.
+ * This is important because all modules need to be disposed to update the
+ * parent/child relationships before they are actually removed from the moduleCache.
+ * If this was done in this method, the following disposeModule calls won't find
+ * the module from the module id in the cache.
+ */ function disposeModule(moduleId, mode) {
     const module = moduleCache[moduleId];
     if (!module) {
         return;
     }
     const hotState = moduleHotState.get(module);
     const data = {};
+    // Run the `hot.dispose` handler, if any, passing in the persistent
+    // `hot.data` object.
     for (const disposeHandler of hotState.disposeHandlers){
         disposeHandler(data);
     }
+    // This used to warn in `getOrInstantiateModuleFromParent` when a disposed
+    // module is still importing other modules.
     module.hot.active = false;
     moduleHotState.delete(module);
+    // TODO(alexkirsz) Dependencies: delete the module from outdated deps.
+    // Remove the disposed module from its children's parent list.
+    // It will be added back once the module re-instantiates and imports its
+    // children again.
     for (const childId of module.children){
         const child = moduleCache[childId];
         if (!child) {
@@ -600,9 +748,13 @@ function disposeModule(moduleId, mode) {
     }
 }
 function applyPhase(outdatedSelfAcceptedModules, newModuleFactories, outdatedModuleParents, reportError) {
+    // Update module factories.
     for (const [moduleId, factory] of newModuleFactories.entries()){
         moduleFactories[moduleId] = factory;
     }
+    // TODO(alexkirsz) Run new runtime entries here.
+    // TODO(alexkirsz) Dependencies: call accept handlers for outdated deps.
+    // Re-instantiate all outdated self-accepted modules.
     for (const { moduleId, errorHandler } of outdatedSelfAcceptedModules){
         try {
             instantiateModule(moduleId, {
@@ -626,7 +778,9 @@ function applyPhase(outdatedSelfAcceptedModules, newModuleFactories, outdatedMod
         }
     }
 }
-function invariant(never, computeMessage) {
+/**
+ * Utility function to ensure all variants of an enum are handled.
+ */ function invariant(never, computeMessage) {
     throw new Error(`Invariant: ${computeMessage(never)}`);
 }
 function applyUpdate(chunkListPath, update) {
@@ -692,6 +846,7 @@ function applyInternal(outdatedModules, disposedModules, newModuleFactories) {
     outdatedModules = applyInvalidatedModules(outdatedModules);
     const outdatedSelfAcceptedModules = computeOutdatedSelfAcceptedModules(outdatedModules);
     const { outdatedModuleParents } = disposePhase(outdatedModules, disposedModules);
+    // we want to continue on error and only throw the error after we tried applying all updates
     let error;
     function reportError(err) {
         if (!error) error = err;
@@ -723,6 +878,7 @@ function computeChangedModules(entries, updates) {
                 }
             case "deleted":
                 {
+                    // We could also use `mergedChunkUpdate.modules` here.
                     const updateDeleted = new Set(chunkModulesMap.get(chunkPath));
                     for (const moduleId of updateDeleted){
                         deleted.add(moduleId);
@@ -748,6 +904,9 @@ function computeChangedModules(entries, updates) {
                 invariant(mergedChunkUpdate, (mergedChunkUpdate)=>`Unknown merged chunk update type: ${mergedChunkUpdate.type}`);
         }
     }
+    // If a module was added from one chunk and deleted from another in the same update,
+    // consider it to be modified, as it means the module was moved from one chunk to another
+    // AND has new code in a single update.
     for (const moduleId of added.keys()){
         if (deleted.has(moduleId)) {
             added.delete(moduleId);
@@ -755,6 +914,10 @@ function computeChangedModules(entries, updates) {
         }
     }
     for (const [moduleId, entry] of Object.entries(entries)){
+        // Modules that haven't been added to any chunk but have new code are considered
+        // to be modified.
+        // This needs to be under the previous loop, as we need it to get rid of modules
+        // that were added and deleted in the same update.
         if (!added.has(moduleId)) {
             modified.set(moduleId, entry);
         }
@@ -781,6 +944,8 @@ function getAffectedModuleEffects(moduleId) {
         if (moduleId != null) {
             outdatedModules.add(moduleId);
         }
+        // We've arrived at the runtime of the chunk, which means that nothing
+        // else above can accept this update.
         if (moduleId === undefined) {
             return {
                 type: "unaccepted",
@@ -789,7 +954,9 @@ function getAffectedModuleEffects(moduleId) {
         }
         const module = moduleCache[moduleId];
         const hotState = moduleHotState.get(module);
-        if (!module || hotState.selfAccepted && !hotState.selfInvalidated) {
+        if (// The module is not in the cache. Since this is a "modified" update,
+        // it means that the module was never instantiated before.
+        !module || hotState.selfAccepted && !hotState.selfInvalidated) {
             continue;
         }
         if (hotState.selfDeclined) {
@@ -814,6 +981,8 @@ function getAffectedModuleEffects(moduleId) {
             if (!parent) {
                 continue;
             }
+            // TODO(alexkirsz) Dependencies: check accepted and declined
+            // dependencies here.
             queue.push({
                 moduleId: parentId,
                 dependencyChain: [
@@ -833,16 +1002,24 @@ function handleApply(chunkListPath, update) {
     switch(update.type){
         case "partial":
             {
+                // This indicates that the update is can be applied to the current state of the application.
                 applyUpdate(chunkListPath, update.instruction);
                 break;
             }
         case "restart":
             {
+                // This indicates that there is no way to apply the update to the
+                // current state of the application, and that the application must be
+                // restarted.
                 BACKEND.restart();
                 break;
             }
         case "notFound":
             {
+                // This indicates that the chunk list no longer exists: either the dynamic import which created it was removed,
+                // or the page itself was deleted.
+                // If it is a dynamic import, we simply discard all modules that the chunk has exclusive access to.
+                // If it is a runtime chunk list, we restart the application.
                 if (runtimeChunkLists.has(chunkListPath)) {
                     BACKEND.restart();
                 } else {
@@ -862,8 +1039,12 @@ function createModuleHot(moduleId, hotData) {
         disposeHandlers: []
     };
     const hot = {
+        // TODO(alexkirsz) This is not defined in the HMR API. It was used to
+        // decide whether to warn whenever an HMR-disposed module required other
+        // modules. We might want to remove it.
         active: true,
         data: hotData ?? {},
+        // TODO(alexkirsz) Support full (dep, callback, errorHandler) form.
         accept: (modules, _callback, _errorHandler)=>{
             if (modules === undefined) {
                 hotState.selfAccepted = true;
@@ -896,7 +1077,11 @@ function createModuleHot(moduleId, hotData) {
             hotState.selfInvalidated = true;
             queuedInvalidatedModules.add(moduleId);
         },
+        // NOTE(alexkirsz) This is part of the management API, which we don't
+        // implement, but the Next.js React Refresh runtime uses this to decide
+        // whether to schedule an update.
         status: ()=>"idle",
+        // NOTE(alexkirsz) Since we always return "idle" for now, these are no-ops.
         addStatusHandler: (_handler)=>{},
         removeStatusHandler: (_handler)=>{}
     };
@@ -905,7 +1090,9 @@ function createModuleHot(moduleId, hotData) {
         hotState
     };
 }
-function addModuleToChunk(moduleId, chunkPath) {
+/**
+ * Adds a module to a chunk.
+ */ function addModuleToChunk(moduleId, chunkPath) {
     let moduleChunks = moduleChunksMap.get(moduleId);
     if (!moduleChunks) {
         moduleChunks = new Set([
@@ -925,14 +1112,21 @@ function addModuleToChunk(moduleId, chunkPath) {
         chunkModules.add(moduleId);
     }
 }
-function getFirstModuleChunk(moduleId) {
+/**
+ * Returns the first chunk that included a module.
+ * This is used by the Node.js backend, hence why it's marked as unused in this
+ * file.
+ */ function getFirstModuleChunk(moduleId) {
     const moduleChunkPaths = moduleChunksMap.get(moduleId);
     if (moduleChunkPaths == null) {
         return null;
     }
     return moduleChunkPaths.values().next().value;
 }
-function removeModuleFromChunk(moduleId, chunkPath) {
+/**
+ * Removes a module from a chunk.
+ * Returns `true` if there are no remaining chunks including this module.
+ */ function removeModuleFromChunk(moduleId, chunkPath) {
     const moduleChunks = moduleChunksMap.get(moduleId);
     moduleChunks.delete(chunkPath);
     const chunkModules = chunkModulesMap.get(chunkPath);
@@ -947,7 +1141,9 @@ function removeModuleFromChunk(moduleId, chunkPath) {
     }
     return noRemainingChunks;
 }
-function disposeChunkList(chunkListPath) {
+/**
+ * Disposes of a chunk list and its corresponding exclusive chunks.
+ */ function disposeChunkList(chunkListPath) {
     const chunkPaths = chunkListChunksMap.get(chunkListPath);
     if (chunkPaths == null) {
         return false;
@@ -961,10 +1157,18 @@ function disposeChunkList(chunkListPath) {
             disposeChunk(chunkPath);
         }
     }
+    // We must also dispose of the chunk list's chunk itself to ensure it may
+    // be reloaded properly in the future.
     BACKEND.unloadChunk?.(chunkListPath);
     return true;
 }
-function disposeChunk(chunkPath) {
+/**
+ * Disposes of a chunk and its corresponding exclusive modules.
+ *
+ * @returns Whether the chunk was disposed of.
+ */ function disposeChunk(chunkPath) {
+    // This should happen whether the chunk has any modules in it or not.
+    // For instance, CSS chunks have no modules in them, but they still need to be unloaded.
     BACKEND.unloadChunk?.(chunkPath);
     const chunkModules = chunkModulesMap.get(chunkPath);
     if (chunkModules == null) {
@@ -983,13 +1187,17 @@ function disposeChunk(chunkPath) {
     }
     return true;
 }
-function instantiateRuntimeModule(moduleId, chunkPath) {
+/**
+ * Instantiates a runtime module.
+ */ function instantiateRuntimeModule(moduleId, chunkPath) {
     return instantiateModule(moduleId, {
         type: SourceType.Runtime,
         chunkPath
     });
 }
-function getOrInstantiateRuntimeModule(moduleId, chunkPath) {
+/**
+ * Gets or instantiates a runtime module.
+ */ function getOrInstantiateRuntimeModule(moduleId, chunkPath) {
     const module = moduleCache[moduleId];
     if (module) {
         if (module.error) {
@@ -1002,14 +1210,19 @@ function getOrInstantiateRuntimeModule(moduleId, chunkPath) {
         chunkPath
     });
 }
-function getChunkRelativeUrl(chunkPath) {
+/**
+ * Returns the URL relative to the origin where a chunk can be fetched from.
+ */ function getChunkRelativeUrl(chunkPath) {
     return `${CHUNK_BASE_PATH}${chunkPath}`;
 }
-function registerChunkList(chunkUpdateProvider, chunkList) {
+/**
+ * Subscribes to chunk list updates from the update server and applies them.
+ */ function registerChunkList(chunkUpdateProvider, chunkList) {
     chunkUpdateProvider.push([
         chunkList.path,
         handleApply.bind(null, chunkList.path)
     ]);
+    // Adding chunks to chunk lists and vice versa.
     const chunks = new Set(chunkList.chunks.map(getChunkPath));
     chunkListChunksMap.set(chunkList.path, chunks);
     for (const chunkPath of chunks){
@@ -1027,7 +1240,11 @@ function registerChunkList(chunkUpdateProvider, chunkList) {
         markChunkListAsRuntime(chunkList.path);
     }
 }
-function markChunkListAsRuntime(chunkListPath) {
+/**
+ * Marks a chunk list as a runtime chunk list. There can be more than one
+ * runtime chunk list. For instance, integration tests can have multiple chunk
+ * groups loaded at runtime, each with its own chunk list.
+ */ function markChunkListAsRuntime(chunkListPath) {
     runtimeChunkLists.add(chunkListPath);
 }
 function registerChunk([chunkPath, chunkModules, runtimeParams]) {
@@ -1051,6 +1268,12 @@ globalThis.TURBOPACK_CHUNK_LISTS = {
         registerChunkList(globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS, chunkList);
     }
 };
+/**
+ * This file contains the runtime code specific to the Turbopack development
+ * ECMAScript DOM runtime.
+ *
+ * It will be appended to the base development runtime code.
+ */ /// <reference path="../base/runtime-base.ts" />
 let BACKEND;
 function augmentContext(context1) {
     return context1;
@@ -1081,8 +1304,10 @@ async function loadWebAssemblyModule(_source1, wasmChunkPath1) {
             }
             for (const otherChunkData1 of params1.otherChunks){
                 const otherChunkPath1 = getChunkPath(otherChunkData1);
+                // Chunk might have started loading, so we want to avoid triggering another load.
                 getOrCreateResolver1(otherChunkPath1);
             }
+            // This waits for chunks to be loaded, but also marks included items as available.
             await Promise.all(params1.otherChunks.map((otherChunkData1)=>loadChunk({
                     type: SourceType.Runtime,
                     chunkPath: chunkPath1
@@ -1105,6 +1330,10 @@ async function loadWebAssemblyModule(_source1, wasmChunkPath1) {
                     link1.remove();
                 }
             } else if (chunkPath1.endsWith(".js")) {
+                // Unloading a JS chunk would have no effect, as it lives in the JS
+                // runtime once evaluated.
+                // However, we still want to remove the script tag from the DOM to keep
+                // the HTML somewhat consistent from the user's perspective.
                 const scripts1 = document.querySelectorAll(`script[src="${chunkUrl1}"]`);
                 for (const script1 of Array.from(scripts1)){
                     script1.remove();
@@ -1133,15 +1362,24 @@ async function loadWebAssemblyModule(_source1, wasmChunkPath1) {
                     reject1();
                 };
                 link1.onload = ()=>{
+                    // First load the new CSS, then remove the old one. This prevents visible
+                    // flickering that would happen in-between removing the previous CSS and
+                    // loading the new one.
                     previousLink1.remove();
+                    // CSS chunks do not register themselves, and as such must be marked as
+                    // loaded instantly.
                     resolve1();
                 };
+                // Make sure to insert the new CSS right after the previous one, so that
+                // its precedence is higher.
                 previousLink1.parentElement.insertBefore(link1, previousLink1.nextSibling);
             });
         },
         restart: ()=>self.location.reload()
     };
-    const chunkResolvers1 = new Map();
+    /**
+   * Maps chunk paths to the corresponding resolver.
+   */ const chunkResolvers1 = new Map();
     function getOrCreateResolver1(chunkPath1) {
         let resolver1 = chunkResolvers1.get(chunkPath1);
         if (!resolver1) {
@@ -1167,15 +1405,25 @@ async function loadWebAssemblyModule(_source1, wasmChunkPath1) {
     function deleteResolver1(chunkPath1) {
         chunkResolvers1.delete(chunkPath1);
     }
-    async function doLoadChunk1(chunkPath1, source1) {
+    /**
+   * Loads the given chunk, and returns a promise that resolves once the chunk
+   * has been loaded.
+   */ async function doLoadChunk1(chunkPath1, source1) {
         const resolver1 = getOrCreateResolver1(chunkPath1);
         if (resolver1.resolved) {
             return resolver1.promise;
         }
         if (source1.type === SourceType.Runtime) {
+            // We don't need to load chunks references from runtime code, as they're already
+            // present in the DOM.
             if (chunkPath1.endsWith(".css")) {
+                // CSS chunks do not register themselves, and as such must be marked as
+                // loaded instantly.
                 resolver1.resolve();
             }
+            // We need to wait for JS chunks to register themselves within `registerChunk`
+            // before we can start instantiating runtime modules, hence the absence of
+            // `resolver.resolve()` in this branch.
             return resolver1.promise;
         }
         const chunkUrl1 = `/${getChunkRelativeUrl(chunkPath1)}`;
@@ -1187,12 +1435,17 @@ async function loadWebAssemblyModule(_source1, wasmChunkPath1) {
                 resolver1.reject();
             };
             link1.onload = ()=>{
+                // CSS chunks do not register themselves, and as such must be marked as
+                // loaded instantly.
                 resolver1.resolve();
             };
             document.body.appendChild(link1);
         } else if (chunkPath1.endsWith(".js")) {
             const script1 = document.createElement("script");
             script1.src = chunkUrl1;
+            // We'll only mark the chunk as loaded once the script has been executed,
+            // which happens in `registerChunk`. Hence the absence of `resolve()` in
+            // this branch.
             script1.onerror = ()=>{
                 resolver1.reject();
             };
