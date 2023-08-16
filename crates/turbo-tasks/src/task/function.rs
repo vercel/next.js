@@ -1,3 +1,26 @@
+//! # Function tasks
+//!
+//! This module contains the trait definitions and implementations that are
+//! necessary for accepting functions as tasks when using the
+//! `turbo_tasks::function` macro.
+//!
+//! This system is inspired by Bevy's Systems and Axum's Handlers.
+//!
+//! The original principle is somewhat simple: a function is accepted if all
+//! of its arguments implement `TaskInput` and its return type implements
+//! `TaskOutput`. There are a few hoops one needs to jump through to make this
+//! work, but they are described in this blog post:
+//! https://blog.logrocket.com/rust-bevy-entity-component-system/
+//!
+//! However, there are is an additional complication in our case: async methods
+//! that accept a reference to the receiver as their first argument.
+//!
+//! This complication handled through our own version of the `async_trait`
+//! crate, which allows us to target `async fn` as trait bounds. The naive
+//! approach runs into many issues with lifetimes, hence the need for an
+//! intermediate trait. However, this implementation doesn't support all async
+//! methods (see commented out tests).
+
 use std::{future::Future, marker::PhantomData, pin::Pin};
 
 use anyhow::{bail, Context, Result};
@@ -56,9 +79,14 @@ trait TaskFnInputFunction<Mode: TaskFnMode, Inputs: TaskInputs>: Send + Sync + C
     fn functor(&self, name: &'static str, inputs: &[ConcreteTaskInput]) -> Result<NativeTaskFn>;
 }
 
-pub trait TaskFnMode: Send + Sync + 'static {}
-
 pub trait TaskInputs: Send + Sync + 'static {}
+
+/// Modes to allow multiple `TaskFnInputFunction` blanket implementations on
+/// `Fn`s. Even though the implementations are non-conflicting in practice, they
+/// could be in theory (at least from with the compiler's current limitations).
+/// Despite this, the compiler is still able to infer the correct mode from a
+/// function.
+pub trait TaskFnMode: Send + Sync + 'static {}
 
 pub struct FunctionMode;
 impl TaskFnMode for FunctionMode {}

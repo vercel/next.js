@@ -4,6 +4,8 @@ use anyhow::Result;
 
 use crate::{unit, RawVc, Vc};
 
+/// Trait to implement in order for a type to be accepted as a
+/// `turbo_tasks::function` return type.
 pub trait TaskOutput {
     type Return;
 
