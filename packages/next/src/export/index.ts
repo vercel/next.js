@@ -17,7 +17,6 @@ import * as Log from '../build/output/log'
 import createSpinner from '../build/spinner'
 import { SSG_FALLBACK_EXPORT_ERROR } from '../lib/constants'
 import { recursiveCopy } from '../lib/recursive-copy'
-import { recursiveDelete } from '../lib/recursive-delete'
 import {
   BUILD_ID_FILE,
   CLIENT_PUBLIC_FILES_PATH,
@@ -354,7 +353,7 @@ export default async function exportApp(
       )
     }
 
-    await recursiveDelete(join(outDir))
+    await promises.rm(outDir, { recursive: true, force: true })
     await promises.mkdir(join(outDir, '_next', buildId), { recursive: true })
 
     writeFileSync(
