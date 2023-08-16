@@ -553,6 +553,16 @@ createNextDescribe(
       ).toBe('count: 1')
     })
 
+    it('should support webpack loader rules', async () => {
+      const browser = await next.browser('/loader-rule')
+
+      expect(
+        await browser.eval(
+          `window.getComputedStyle(document.querySelector('#red')).color`
+        )
+      ).toBe('rgb(255, 0, 0)')
+    })
+
     if (isNextStart) {
       it('should generate edge SSR manifests for Node.js', async () => {
         const requiredServerFiles = JSON.parse(

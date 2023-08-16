@@ -245,6 +245,11 @@ createNextDescribe(
             const newRes = await next.fetch(
               '/variable-revalidate/revalidate-360'
             )
+            const cacheHeader = newRes.headers.get('x-nextjs-cache')
+
+            if ((global as any).isNextStart && cacheHeader) {
+              expect(cacheHeader).toBe('MISS')
+            }
             const newHtml = await newRes.text()
             const new$ = cheerio.load(newHtml)
             const newLayoutData = new$('#layout-data').text()

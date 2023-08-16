@@ -8,9 +8,10 @@ import { Redirect } from '../../../../types'
 import { RenderWorker } from '../router-server'
 import setupDebug from 'next/dist/compiled/debug'
 import { getCloneableBody } from '../../body-streams'
-import { filterReqHeaders } from '../server-ipc/utils'
+import { filterReqHeaders, ipcForbiddenHeaders } from '../server-ipc/utils'
 import { Header } from '../../../lib/load-custom-routes'
 import { stringifyQuery } from '../../server-route-utils'
+import { formatHostname } from '../format-hostname'
 import { toNodeOutgoingHttpHeaders } from '../../web/utils'
 import { invokeRequest } from '../server-ipc/invoke-request'
 import { isAbortError } from '../../pipe-readable'
@@ -137,7 +138,9 @@ export function getResolveRoutes(
     const initUrl = (config.experimental as any).trustHostHeader
       ? `https://${req.headers.host || 'localhost'}${req.url}`
       : opts.port
-      ? `${protocol}://${opts.hostname || 'localhost'}:${opts.port}${req.url}`
+      ? `${protocol}://${formatHostname(opts.hostname || 'localhost')}:${
+          opts.port
+        }${req.url}`
       : req.url || ''
 
     addRequestMeta(req, '__NEXT_INIT_URL', initUrl)
@@ -530,7 +533,7 @@ export function getResolveRoutes(
             delete middlewareHeaders['x-middleware-next']
 
             for (const [key, value] of Object.entries({
-              ...filterReqHeaders(middlewareHeaders),
+              ...filterReqHeaders(middlewareHeaders, ipcForbiddenHeaders),
             })) {
               if (
                 [

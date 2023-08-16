@@ -13,7 +13,7 @@ use turbopack_binding::{
     turbopack::core::{
         diagnostics::{Diagnostic, DiagnosticContextExt, PlainDiagnostic},
         error::PrettyPrintError,
-        issue::{IssueContextExt, PlainIssue, PlainIssueSource, PlainSource},
+        issue::{IssueDescriptionExt, PlainIssue, PlainIssueSource, PlainSource},
         source_pos::SourcePos,
     },
 };
@@ -107,7 +107,7 @@ pub async fn get_diagnostics<T>(source: Vc<T>) -> Result<Vec<ReadRef<PlainDiagno
 pub struct NapiIssue {
     pub severity: String,
     pub category: String,
-    pub context: String,
+    pub file_path: String,
     pub title: String,
     pub description: String,
     pub detail: String,
@@ -121,7 +121,7 @@ impl From<&PlainIssue> for NapiIssue {
         Self {
             description: issue.description.clone(),
             category: issue.category.clone(),
-            context: issue.context.clone(),
+            file_path: issue.file_path.clone(),
             detail: issue.detail.clone(),
             documentation_link: issue.documentation_link.clone(),
             severity: issue.severity.as_str().to_string(),
@@ -266,7 +266,7 @@ pub fn subscribe<T: 'static + Send + Sync, F: Future<Output = Result<T>> + Send,
                 eprintln!("{}", error);
                 return Err(error);
             }
-            Ok(unit().node)
+            Ok(unit())
         })
     });
     Ok(External::new(RootTask {

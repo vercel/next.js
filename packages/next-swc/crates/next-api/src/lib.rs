@@ -7,6 +7,7 @@ mod entrypoints;
 mod pages;
 pub mod project;
 pub mod route;
+mod versioned_content_map;
 
 // Declare build-time information variables generated in build.rs
 shadow_rs::shadow!(build);

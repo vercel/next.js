@@ -2,6 +2,7 @@ import glob from 'glob'
 import fs from 'fs-extra'
 import cheerio from 'cheerio'
 import { join } from 'path'
+import { nanoid } from 'nanoid'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import {
@@ -118,7 +119,7 @@ describe('should set-up next', () => {
     appPort = await findPort()
     server = await initNextServerScript(
       testServer,
-      /Listening on/,
+      /ready started server on/,
       {
         ...process.env,
         PORT: appPort,
@@ -1288,7 +1289,7 @@ describe('should set-up next', () => {
     appPort = await findPort()
     server = await initNextServerScript(
       testServer,
-      /Listening on/,
+      /ready started server on/,
       {
         ...process.env,
         PORT: appPort,
@@ -1318,5 +1319,20 @@ describe('should set-up next', () => {
 
     expect(resImageResponse.status).toBe(200)
     expect(resImageResponse.headers.get('content-type')).toBe('image/png')
+  })
+
+  it('should correctly handle a mismatch in buildIds when normalizing next data', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      `/_next/data/${nanoid()}/index.json`,
+      undefined,
+      {
+        headers: {
+          'x-matched-path': '/[teamSlug]/[project]/[id]/[suffix]',
+        },
+      }
+    )
+
+    expect(res.status).toBe(404)
   })
 })

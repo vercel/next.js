@@ -1,6 +1,30 @@
 import path from 'path'
-import { createNextDescribe, FileRef } from 'e2e-utils'
 import stripAnsi from 'strip-ansi'
+import { check } from 'next-test-utils'
+import { createNextDescribe, FileRef } from 'e2e-utils'
+
+function parseLogsFromCli(cliOutput: string) {
+  return stripAnsi(cliOutput)
+    .split('\n')
+    .filter((log) => log.includes('ms (cache:'))
+    .map((log) => {
+      const trimmedLog = log.replace(/^[^a-zA-Z]+/, '')
+      const parts = trimmedLog.split(' ')
+      const method = parts[0]
+      const url = parts[1]
+      const statusCode = parseInt(parts[2])
+      const responseTime = parseInt(parts[4])
+      const cache = parts.slice(5).join(' ')
+
+      return {
+        method,
+        url,
+        statusCode,
+        responseTime,
+        cache,
+      }
+    })
+}
 
 createNextDescribe(
   'app-dir - data fetching with cache logging',
@@ -15,21 +39,80 @@ createNextDescribe(
     },
   },
   ({ next, isNextDev }) => {
-    function runTests({ isVerbose }: { isVerbose: boolean }) {
-      it('should not log fetching hits in dev mode by default', async () => {
+    describe('with verbose logging', () => {
+      it('should only log requests in dev mode', async () => {
+        const outputIndex = next.cliOutput.length
         await next.fetch('/default-cache')
 
-        const logs = stripAnsi(next.cliOutput)
-        if (isVerbose && isNextDev) {
-          expect(logs).toContain('GET /default-cache 200')
-        } else {
-          expect(logs).not.toContain('GET /default-cache 200')
-        }
-      })
-    }
+        await check(() => {
+          const logs = stripAnsi(next.cliOutput.slice(outputIndex))
+          const hasLogs = logs.includes('GET /default-cache 200')
 
-    describe('with logging verbose', () => {
-      runTests({ isVerbose: true })
+          if (isNextDev && hasLogs) {
+            return 'success'
+          }
+
+          if (!isNextDev && !hasLogs) {
+            return 'success'
+          }
+        }, 'success')
+      })
+
+      if (isNextDev) {
+        it("should log 'skip' cache status with a reason when cache: 'no-cache' is used", async () => {
+          const outputIndex = next.cliOutput.length
+          await next.fetch('/default-cache')
+
+          await check(() => {
+            const logs = parseLogsFromCli(next.cliOutput.slice(outputIndex))
+
+            const logEntry = logs.find((log) =>
+              log.url.includes('api/random?no-cache')
+            )
+
+            if (logEntry?.cache === '(cache: SKIP, reason: cache: no-cache)') {
+              return 'success'
+            }
+          }, 'success')
+        })
+
+        it("should log 'skip' cache status with a reason when revalidate: 0 is used", async () => {
+          const outputIndex = next.cliOutput.length
+          await next.fetch('/default-cache')
+          await check(() => {
+            const logs = parseLogsFromCli(next.cliOutput.slice(outputIndex))
+
+            const logEntry = logs.find((log) =>
+              log.url.includes('api/random?revalidate-0')
+            )
+
+            if (logEntry?.cache === '(cache: SKIP, reason: revalidate: 0)') {
+              return 'success'
+            }
+          }, 'success')
+        })
+
+        it("should log 'skip' cache status with a reason when the browser indicates caching should be ignored", async () => {
+          const outputIndex = next.cliOutput.length
+          await next.fetch('/default-cache', {
+            headers: { 'Cache-Control': 'no-cache' },
+          })
+          await check(() => {
+            const logs = parseLogsFromCli(next.cliOutput.slice(outputIndex))
+
+            const logEntry = logs.find((log) =>
+              log.url.includes('api/random?auto-cache')
+            )
+
+            if (
+              logEntry?.cache ===
+              '(cache: SKIP, reason: cache-control: no-cache (hard refresh))'
+            ) {
+              return 'success'
+            }
+          }, 'success')
+        })
+      }
     })
 
     describe('with default logging', () => {
@@ -38,7 +121,20 @@ createNextDescribe(
         await next.deleteFile('next.config.js')
         await next.start()
       })
-      runTests({ isVerbose: false })
+
+      it('should not log fetch requests at all', async () => {
+        const outputIndex = next.cliOutput.length
+        await next.fetch('/default-cache')
+
+        await check(() => {
+          const logs = stripAnsi(next.cliOutput.slice(outputIndex))
+          if (logs.includes('GET /default-cache 200')) {
+            return 'fail'
+          }
+
+          return 'success'
+        }, 'success')
+      })
     })
   }
 )

@@ -90,7 +90,18 @@ export class Playwright extends BrowserInterface {
     if (browserName === 'safari') {
       return await webkit.launch(launchOptions)
     } else if (browserName === 'firefox') {
-      return await firefox.launch(launchOptions)
+      return await firefox.launch({
+        ...launchOptions,
+        firefoxUserPrefs: {
+          ...launchOptions.firefoxUserPrefs,
+          // The "fission.webContentIsolationStrategy" pref must be
+          // set to 1 on Firefox due to the bug where a new history
+          // state is pushed on a page reload.
+          // See https://github.com/microsoft/playwright/issues/22640
+          // See https://bugzilla.mozilla.org/show_bug.cgi?id=1832341
+          'fission.webContentIsolationStrategy': 1,
+        },
+      })
     } else {
       return await chromium.launch({
         devtools: !launchOptions.headless,
