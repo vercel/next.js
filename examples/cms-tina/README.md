@@ -26,17 +26,23 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 - [Umbraco Heartcore](/examples/cms-umbraco-heartcore)
 - [Blog Starter](/examples/blog-starter)
 - [Builder.io](/examples/cms-builder-io)
+- [DotCMS](/examples/cms-dotcms)
+- [Enterspeed](/examples/cms-enterspeed)
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
 
 ```bash
 npx create-next-app --example cms-tina cms-tina-app
-# or
+```
+
+```bash
 yarn create next-app --example cms-tina cms-tina-app
-# or
-pnpm create next-app -- --example cms-tina cms-tina-app
+```
+
+```bash
+pnpm create next-app --example cms-tina cms-tina-app
 ```
 
 ### Setp 1. Run Next.js in development mode

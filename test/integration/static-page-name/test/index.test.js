@@ -1,7 +1,6 @@
 /* eslint-env jest */
 
 import path from 'path'
-import fs from 'fs-extra'
 import webdriver from 'next-webdriver'
 import {
   launchApp,
@@ -13,7 +12,6 @@ import {
 } from 'next-test-utils'
 
 const appDir = path.join(__dirname, '..')
-const nextConfigPath = path.join(appDir, 'next.config.js')
 let app
 let appPort
 
@@ -49,23 +47,6 @@ describe('Static Page Name', () => {
       app = await nextStart(appDir, appPort)
     })
     afterAll(() => killApp(app))
-    runTests()
-  })
-
-  describe('serverless mode', () => {
-    beforeAll(async () => {
-      appPort = await findPort()
-      await fs.writeFile(
-        nextConfigPath,
-        'module.exports = { target: "serverless" }'
-      )
-      await nextBuild(appDir)
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(async () => {
-      await killApp(app)
-      await fs.remove(nextConfigPath)
-    })
     runTests()
   })
 })

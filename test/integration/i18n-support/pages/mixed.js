@@ -15,23 +15,23 @@ export default function Page(props) {
       <p id="router-pathname">{router.pathname}</p>
       <p id="router-as-path">{router.asPath}</p>
 
-      <Link href="/gsp" locale="en-US">
-        <a id="to-gsp-en-us">to /gsp</a>
+      <Link href="/gsp" locale="en-US" id="to-gsp-en-us">
+        to /gsp
       </Link>
       <br />
 
-      <Link href="/gsp" locale="nl-NL">
-        <a id="to-gsp-nl-nl">to /gsp</a>
+      <Link href="/gsp" locale="nl-NL" id="to-gsp-nl-nl">
+        to /gsp
       </Link>
       <br />
 
-      <Link href="/gsp" locale="fr">
-        <a id="to-gsp-fr">to /gsp</a>
+      <Link href="/gsp" locale="fr" id="to-gsp-fr">
+        to /gsp
       </Link>
       <br />
 
-      <Link href="/" locale="fr">
-        <a id="to-index-fr">to /</a>
+      <Link href="/" locale="fr" id="to-index-fr">
+        to /
       </Link>
     </>
   )

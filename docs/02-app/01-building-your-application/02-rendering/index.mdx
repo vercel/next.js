@@ -1,0 +1,73 @@
+---
+title: Rendering
+description: Learn the differences between Next.js rendering environments, strategies, and runtimes.
+---
+
+Rendering converts the code you write into user interfaces.
+
+React 18 and Next.js 13 introduced new ways to render your application. This page will help you understand the differences between rendering environments, strategies, runtimes, and how to opt into them.
+
+## Rendering Environments
+
+There are two environments where your application code can be rendered: the client and the server.
+
+<Image
+  alt="Client and Server Environments"
+  srcLight="/docs/light/client-and-server-environments.png"
+  srcDark="/docs/dark/client-and-server-environments.png"
+  width="1600"
+  height="672"
+/>
+
+- The **client** refers to the browser on a user's device that sends a request to a server for your application code. It then turns the response from the server into an interface the user can interact with.
+- The **server** refers to the computer in a data center that stores your application code, receives requests from a client, does some computation, and sends back an appropriate response.
+
+> **Good to know**: Server can refer to computers in regions where your application is deployed to, the [Edge Network](https://vercel.com/docs/concepts/edge-network/overview) where your application code is distributed, or [Content Delivery Networks (CDNs)](https://developer.mozilla.org/en-US/docs/Glossary/CDN) where the result of the rendering work can be cached.
+
+## Component-level Client and Server Rendering
+
+Before React 18, the primary way to render your application **using React** was entirely on the client.
+
+Next.js provided an easier way to break down your application into **pages** and prerender on the server by generating HTML and sending it to the client to be [hydrated](https://react.dev/reference/react-dom/hydrate#hydrating-server-rendered-html) by React. However, this led to additional JavaScript needed on the client to make the initial HTML interactive.
+
+Now, with [Server and Client Components](/docs/getting-started/react-essentials), React can render on the client **and** the server meaning you can choose the rendering environment at the component level.
+
+By default, the [`app` router uses **Server Components**](/docs/getting-started/react-essentials#server-components), allowing you to easily render components on the server and reducing the amount of JavaScript sent to the client.
+
+## Static and Dynamic Rendering on the Server
+
+In addition to client-side and server-side rendering with React components, Next.js gives you the option to optimize rendering on the server with **Static** and **Dynamic** Rendering.
+
+### Static Rendering
+
+With **Static Rendering**, both Server _and_ Client Components can be prerendered on the server at **build time**. The result of the work is [cached](/docs/app/building-your-application/data-fetching/caching) and reused on subsequent requests. The cached result can also be [revalidated](/docs/app/building-your-application/data-fetching#revalidating-data).
+
+> **Good to know**: This is equivalent to [Static Site Generation (SSG)](/docs/pages/building-your-application/rendering/static-site-generation) and [Incremental Static Regeneration (ISR)](/docs/pages/building-your-application/rendering/incremental-static-regeneration) in the [Pages Router](/docs/pages/building-your-application/rendering).
+
+Server and Client Components are rendered differently during Static Rendering:
+
+- Client Components have their HTML and JSON prerendered and cached on the server. The cached result is then sent to the client for hydration.
+- Server Components are rendered on the server by React, and their payload is used to generate HTML. The same rendered payload is also used to hydrate the components on the client, resulting in no JavaScript needed on the client.
+
+### Dynamic Rendering
+
+With Dynamic Rendering, both Server _and_ Client Components are rendered on the server at **request time**. The result of the work is not cached.
+
+> **Good to know**: This is equivalent to [Server-Side Rendering (`getServerSideProps()`)](/docs/pages/building-your-application/rendering/server-side-rendering) in the [Pages Router](/docs/pages/building-your-application/rendering).
+
+To learn more about static and dynamic behavior, see the [Static and Dynamic Rendering](/docs/app/building-your-application/rendering/static-and-dynamic-rendering) page. To learn more about caching, see the [Caching](/docs/app/building-your-application/data-fetching/caching) sections.
+
+## Edge and Node.js Runtimes
+
+On the server, there are two runtimes where your pages can be rendered:
+
+- The **Node.js Runtime** (default) has access to all Node.js APIs and compatible packages from the ecosystem.
+- The **Edge Runtime** is based on [Web APIs](/docs/app/api-reference/edge).
+
+Both runtimes support [streaming](/docs/app/building-your-application/routing/loading-ui-and-streaming) from the server, depending on your deployment infrastructure.
+
+To learn how to switch between runtimes, see the [Edge and Node.js Runtimes](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes) page.
+
+## Next Steps
+
+Now that you understand the fundamentals of rendering, you can learn more about implementing the different rendering strategies and runtimes:

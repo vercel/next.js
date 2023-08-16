@@ -14,8 +14,8 @@ export default class SelfReload extends Component {
   render() {
     return (
       <div id="self-reload-page">
-        <Link href="/nav/self-reload">
-          <a id="self-reload-link">Self Reload</a>
+        <Link href="/nav/self-reload" id="self-reload-link">
+          Self Reload
         </Link>
         <p>COUNT: {this.props.count}</p>
       </div>

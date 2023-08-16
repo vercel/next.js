@@ -7,8 +7,8 @@ const Page = () => {
       Hi!
       <br />
       <br />
-      <Link href="/with-font">
-        <a id="with-font">With font</a>
+      <Link href="/with-font" id="with-font">
+        With font
       </Link>
     </div>
   )

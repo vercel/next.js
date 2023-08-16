@@ -1,3 +1,3 @@
 export default function Index() {
-  return <div id="page">index > user</div>
+  return <div id="page">index &gt; user</div>
 }

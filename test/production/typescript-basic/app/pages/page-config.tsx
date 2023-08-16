@@ -9,9 +9,7 @@ export default function Page() {
   return (
     <>
       <p>hello world</p>
-      <Link href="/another">
-        <a>to /another</a>
-      </Link>
+      <Link href="/another">to /another</Link>
     </>
   )
 }

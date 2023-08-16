@@ -40,9 +40,9 @@ const CallStackFrame: React.FC<{
 
   return (
     <div data-nextjs-call-stack-frame>
-      <h6 data-nextjs-frame-expanded={Boolean(frame.expanded)}>
+      <h3 data-nextjs-frame-expanded={Boolean(frame.expanded)}>
         {f.methodName}
-      </h6>
+      </h3>
       <div
         data-has-source={hasSource ? 'true' : undefined}
         tabIndex={hasSource ? 10 : undefined}
@@ -126,7 +126,7 @@ const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
     <React.Fragment>
       {firstFrame ? (
         <React.Fragment>
-          <h5>Source</h5>
+          <h2>Source</h2>
           {leadingFrames.map((frame, index) => (
             <CallStackFrame
               key={`leading-frame-${index}-${all}`}
@@ -139,14 +139,27 @@ const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
           />
         </React.Fragment>
       ) : undefined}
+
+      {error.componentStack ? (
+        <>
+          <h2>Component Stack</h2>
+          {error.componentStack.map((component, index) => (
+            <div key={index} data-nextjs-component-stack-frame>
+              <h3>{component}</h3>
+            </div>
+          ))}
+        </>
+      ) : null}
+
       {visibleCallStackFrames.length ? (
         <React.Fragment>
-          <h5>Call Stack</h5>
+          <h2>Call Stack</h2>
           {visibleCallStackFrames.map((frame, index) => (
             <CallStackFrame key={`call-stack-${index}-${all}`} frame={frame} />
           ))}
         </React.Fragment>
       ) : undefined}
+
       {canShowMore ? (
         <React.Fragment>
           <button
@@ -173,25 +186,27 @@ export const styles = css`
     color: var(--color-accents-3);
   }
 
-  [data-nextjs-call-stack-frame]:not(:last-child) {
+  [data-nextjs-call-stack-frame]:not(:last-child),
+  [data-nextjs-component-stack-frame]:not(:last-child) {
     margin-bottom: var(--size-gap-double);
   }
 
-  [data-nextjs-call-stack-frame] > h6 {
+  [data-nextjs-call-stack-frame] > h3,
+  [data-nextjs-component-stack-frame] > h3 {
     margin-top: 0;
     margin-bottom: var(--size-gap);
     font-family: var(--font-stack-monospace);
-    color: #222;
+    color: var(--color-stack-h6);
   }
-  [data-nextjs-call-stack-frame] > h6[data-nextjs-frame-expanded='false'] {
-    color: #666;
+  [data-nextjs-call-stack-frame] > h3[data-nextjs-frame-expanded='false'] {
+    color: var(--color-stack-headline);
   }
   [data-nextjs-call-stack-frame] > div {
     display: flex;
     align-items: center;
     padding-left: calc(var(--size-gap) + var(--size-gap-half));
     font-size: var(--size-font-small);
-    color: #999;
+    color: var(--color-stack-subline);
   }
   [data-nextjs-call-stack-frame] > div > svg {
     width: auto;

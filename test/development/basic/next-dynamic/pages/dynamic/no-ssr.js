@@ -1,5 +1,7 @@
 import dynamic from 'next/dynamic'
 
-const Hello = dynamic(import('../../components/hello1'), { ssr: false })
+const PureClient = dynamic(import('../../components/pure-client'), {
+  ssr: false,
+})
 
-export default Hello
+export default PureClient

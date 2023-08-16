@@ -13,7 +13,7 @@ This may be by accident, so if you're unaware where the value is coming from, ch
 The greater React ecosystem treats `NODE_ENV` as a convention, only permitting three (3) values:
 
 - `production`: When your application is built with `next build`
-- `development`: When your application is ran with `next dev`
+- `development`: When your application is run with `next dev`
 - `test`: When your application is being tested (e.g. `jest`)
 
 Setting a non-standard `NODE_ENV` value may cause dependencies to behave unexpectedly, or worse, **break dead code elimination**.

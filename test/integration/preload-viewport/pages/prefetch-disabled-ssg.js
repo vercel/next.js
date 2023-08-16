@@ -4,8 +4,8 @@ export default () => {
   return (
     <div>
       <br />
-      <Link href="/ssg/basic" prefetch={false}>
-        <a id="link-ssg">to /ssg/basic</a>
+      <Link href="/ssg/basic" prefetch={false} id="link-ssg">
+        to /ssg/basic
       </Link>
     </div>
   )

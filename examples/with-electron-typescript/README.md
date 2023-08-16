@@ -8,18 +8,22 @@ This example show how you can use Next.js inside an Electron application to avoi
 | Electron   | `/electron-src`          | `/main`             |
 | Production |                          | `/dist`             |
 
-For development it's going to run a HTTP server and let Next.js handle routing. In production it use `next export` to pre-generate HTML static files and use them in your app instead of running an HTTP server.
+For development it's going to run a HTTP server and let Next.js handle routing. In production it use `output: 'export'` to pre-generate HTML static files and use them in your app instead of running an HTTP server.
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-electron-typescript with-electron-typescript-app
-# or
+```
+
+```bash
 yarn create next-app --example with-electron-typescript with-electron-typescript-app
-# or
-pnpm create next-app -- --example with-electron-typescript with-electron-typescript-app
+```
+
+```bash
+pnpm create next-app --example with-electron-typescript with-electron-typescript-app
 ```
 
 Available commands:

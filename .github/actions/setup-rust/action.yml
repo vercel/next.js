@@ -1,0 +1,65 @@
+name: 'Rust Setup'
+description: 'Sets up the Rust toolchain for CI'
+inputs:
+  targets:
+    description: 'Comma-separated list of target triples to install for this toolchain'
+    required: false
+  components:
+    description: 'Comma-separated list of components to be additionally installed'
+    required: false
+  skip-install:
+    description: 'Sets environment variables without installing the rust toolchain'
+    required: false
+
+runs:
+  using: 'composite'
+  steps:
+    - name: 'Get toolchain version from file'
+      id: file
+      shell: bash
+      run: echo "toolchain=$(cat ./rust-toolchain)" >> $GITHUB_OUTPUT
+
+    - shell: bash
+      run: |
+        : force toolchain version
+        echo "RUST_TOOLCHAIN=${{ steps.file.outputs.toolchain }}" >> $GITHUB_ENV
+
+    - shell: bash
+      run: |
+        : disable incremental compilation
+        if [ -z "${CARGO_INCREMENTAL+set}" ]; then
+          echo CARGO_INCREMENTAL=0 >> $GITHUB_ENV
+        fi
+
+    - shell: bash
+      run: |
+        : enable colors in Cargo output
+        if [ -z "${CARGO_TERM_COLOR+set}" ]; then
+          echo CARGO_TERM_COLOR=always >> $GITHUB_ENV
+        fi
+
+    - shell: bash
+      run: |
+        : enable rust backtrace
+        if [ -z "${RUST_BACKTRACE+set}" ]; then
+          echo RUST_BACKTRACE=short >> $GITHUB_ENV
+        fi
+
+    - shell: bash
+      run: |
+        : enable faster cargo sparse registry
+        if [ -z "${CARGO_REGISTRIES_CRATES_IO_PROTOCOL+set}" ]; then
+          echo CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse >> $GITHUB_ENV
+        fi
+
+    - name: 'Setup Rust toolchain'
+      uses: dtolnay/rust-toolchain@master
+      if: ${{ !inputs.skip-install }}
+      with:
+        toolchain: ${{ steps.file.outputs.toolchain }}
+        targets: ${{ inputs.targets }}
+        components: ${{ inputs.components }}
+
+    - name: 'Add cargo problem matchers'
+      shell: bash
+      run: echo "::add-matcher::${{ github.action_path }}/matchers.json"

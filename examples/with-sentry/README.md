@@ -1,13 +1,10 @@
 # Sentry
 
-_Note: Currently, the minimum Next.js supported version of `@sentry/nextjs` is 10.0.8._
-
 This is an example showing how to use [Sentry](https://sentry.io) to catch and report errors and monitor the performance of both the front and back ends, using the [official Sentry SDK for Next.js](https://docs.sentry.io/platforms/javascript/guides/nextjs/). This example contains the following:
 
 - `sentry.server.config.js` and `sentry.client.config.js` are used to configure and initialize Sentry
 - `next.config.js` automatically injects Sentry into your app using `withSentryConfig`
 - `_error.js` (which is rendered by Next.js when handling certain types of exceptions) is overridden so those exceptions can be passed along to Sentry
-- Each API route is handled with `withSentry`
 
 ## Preview
 
@@ -17,13 +14,13 @@ Preview the example live on [StackBlitz](http://stackblitz.com/):
 
 ## Deploy your own
 
-It only takes a few steps to create and deploy your own version of this example app. Before you begin, make sure you have [linked your Vercel account to GitHub](https://vercel.com/docs/personal-accounts/login-connections), and [set up a project in Sentry](https://docs.sentry.io/product/sentry-basics/guides/integrate-frontend/create-new-project/).
+It only takes a few steps to create and deploy your own version of this example app. Before you begin, make sure you have [linked your Vercel account to GitHub](https://vercel.com/docs/teams-and-accounts#existing-login-connection), and [set up a project in Sentry](https://docs.sentry.io/product/sentry-basics/guides/integrate-frontend/create-new-project/).
 
 ### Option 1: Deploy directly to Vercel
 
 You can deploy a copy of this project directly to [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example).
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-sentry&project-name=nextjs-sentry-example&repository-name=nextjs-sentry-example&integration-ids=oac_5lUsiANun1DEzgLg0NZx5Es3)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-sentry&project-name=nextjs-sentry-example&repository-name=nextjs-sentry-example&integration-ids=oac_5lUsiANun1DEzgLg0NZx5Es3)
 
 This will clone this example to your GitHub org, create a linked project in Vercel, and prompt you to install the Vercel Sentry Integration. (You can read more about the integration [on Vercel](https://vercel.com/integrations/sentry) and in [the Sentry docs](https://docs.sentry.io/product/integrations/deployment/vercel/).)
 
@@ -40,7 +37,7 @@ npx create-next-app --example with-sentry nextjs-sentry-example
 # or
 yarn create next-app --example with-sentry nextjs-sentry-example
 # or
-pnpm create next-app -- --example with-sentry nextjs-sentry-example
+pnpm create next-app --example with-sentry nextjs-sentry-example
 ```
 
 Next, run [`sentry-wizard`](https://docs.sentry.io/platforms/javascript/guides/nextjs/#configure), which will create and populate the settings files needed by `@sentry/nextjs` to initialize the SDK and upload source maps to Sentry:
@@ -49,7 +46,7 @@ Next, run [`sentry-wizard`](https://docs.sentry.io/platforms/javascript/guides/n
 npx @sentry/wizard -i nextjs
 ```
 
-_Beware that above command creates files extended with `.wizardcopy.js` as the example already contains the config files._
+_Beware that above command creates files extended with `.wizardcopy.js` as the example already contains the config files. Thus after running the wizard, replace example files with those newly created._
 
 Once the files are created, you can further configure your app by adding [SDK settings](https://docs.sentry.io/platforms/javascript/guides/nextjs/configuration/) to `sentry.server.config.js` and `sentry.client.config.js`, and [`SentryWebpackPlugin` settings](https://github.com/getsentry/sentry-webpack-plugin#options) to `next.config.js`.
 
@@ -78,3 +75,5 @@ git push
 ```
 
 This will trigger a deployment in Vercel. Head over to your [Vercel dashboard](https://vercel.com/dashboard), click on your project, and then click "Visit" to see the results!
+
+_Note: The `@sentry/nextjs` SDK is only intended to be used with Next.js versions 10.0.8 and higher_

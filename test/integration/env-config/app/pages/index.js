@@ -21,6 +21,10 @@ const variables = [
   'ENV_FILE_EXPANDED_CONCAT',
   'ENV_FILE_EXPANDED_ESCAPED',
   'ENV_FILE_KEY_EXCLAMATION',
+  'NEW_ENV_KEY',
+  'NEW_ENV_LOCAL_KEY',
+  'NEW_ENV_DEV_KEY',
+  'NEXT_PUBLIC_HELLO_WORLD',
 ]
 
 export async function getStaticProps() {
@@ -40,10 +44,15 @@ export async function getStaticProps() {
   }
 }
 
-export default ({ env }) => (
-  <>
-    <p>{JSON.stringify(env)}</p>
-    <div id="nextConfigEnv">{process.env.nextConfigEnv}</div>
-    <div id="nextConfigPublicEnv">{process.env.nextConfigPublicEnv}</div>
-  </>
-)
+export default function Page({ env }) {
+  return (
+    <>
+      <p>{JSON.stringify(env)}</p>
+      <div id="nextConfigEnv">{process.env.nextConfigEnv}</div>
+      <div id="nextConfigPublicEnv">{process.env.nextConfigPublicEnv}</div>
+      <div id="nextConfigNewPublicEnv">
+        {process.env.NEXT_PUBLIC_NEW_NEXT_CONFIG_VALUE}
+      </div>
+    </>
+  )
+}

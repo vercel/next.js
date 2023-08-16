@@ -1,4 +1,4 @@
-import rule from '@next/eslint-plugin-next/lib/rules/no-typos'
+import rule from '@next/eslint-plugin-next/dist/rules/no-typos'
 import { RuleTester } from 'eslint'
 ;(RuleTester as any).setDefaultConfig({
   parserOptions: {

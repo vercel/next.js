@@ -6,7 +6,11 @@ import { NextInstance } from 'test/lib/next-modes/base'
 
 jest.setTimeout(2 * 60 * 1000)
 
-export function runTests(example = '') {
+export function runTests(
+  example = '',
+  testPath = '/',
+  expectedContent = ['index page']
+) {
   const versionParts = process.versions.node.split('.').map((i) => Number(i))
 
   if ((global as any).isNextDeploy) {
@@ -55,9 +59,14 @@ export function runTests(example = '') {
     afterAll(() => next?.destroy())
 
     it(`should compile and serve the index page correctly ${example}`, async () => {
-      const res = await fetchViaHTTP(next.url, '/')
+      const res = await fetchViaHTTP(next.url, testPath)
       expect(res.status).toBe(200)
-      expect(await res.text()).toContain('<html')
+
+      const text = await res.text()
+
+      for (const content of expectedContent) {
+        expect(text).toContain(content)
+      }
     })
   } else {
     it('should not run PnP test for older node versions', () => {})

@@ -11,7 +11,7 @@ describe('acceptLanguage', () => {
     expect(language).toEqual('en-gb')
   })
 
-  it('returns empty string with header is empty', () => {
+  it('returns an empty string with header is empty', () => {
     const language = acceptLanguage('')
     expect(language).toEqual('')
   })

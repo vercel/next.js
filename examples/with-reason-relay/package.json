@@ -6,7 +6,9 @@
     "next": "next",
     "start": "next start",
     "relay": "reason-relay-compiler",
-    "schema": "graphql get-schema -e dev"
+    "schema": "graphql get-schema -e dev",
+    "prepublish": "npm run snyk-protect",
+    "snyk-protect": "snyk-protect"
   },
   "dependencies": {
     "bs-fetch": "0.5.2",
@@ -22,7 +24,8 @@
     "reason-react": "0.7.0",
     "reason-relay": "0.8.2",
     "relay-config": "9.0.0",
-    "relay-runtime": "9.0.0"
+    "relay-runtime": "9.0.0",
+    "@snyk/protect": "latest"
   },
   "devDependencies": {
     "babel-plugin-relay": "^9.0.0",
@@ -33,5 +36,6 @@
     "graphql": "15.0.0",
     "react": "0.0.0-experimental-e5d06e34b",
     "react-dom": "0.0.0-experimental-e5d06e34b"
-  }
+  },
+  "snyk": true
 }

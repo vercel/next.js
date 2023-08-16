@@ -32,17 +32,26 @@ export const Page: React.FC<PageProps> = ({
         <p>This example combines the following other examples:</p>
         <ul>
           <li>
-            <Link href="https://github.com/vercel/next.js/tree/canary/examples/with-storybook">
+            <Link
+              href="https://github.com/vercel/next.js/tree/canary/examples/with-storybook"
+              legacyBehavior
+            >
               <a>with-storybook</a>
             </Link>
           </li>
           <li>
-            <Link href="https://github.com/next.js/tree/canary/examples/with-styled-jsx-scss">
+            <Link
+              href="https://github.com/next.js/tree/canary/examples/with-styled-jsx-scss"
+              legacyBehavior
+            >
               <a>with-styled-jsx-scss</a>
             </Link>
           </li>
           <li>
-            <Link href="https://github.com/next.js/tree/canary/examples/with-styled-jsx-scss">
+            <Link
+              href="https://github.com/next.js/tree/canary/examples/with-styled-jsx-scss"
+              legacyBehavior
+            >
               <a>with-typescript</a>
             </Link>
           </li>
@@ -62,7 +71,10 @@ export const Page: React.FC<PageProps> = ({
         </p>
         <p>
           You might also want to check out the{' '}
-          <Link href="https://github.com/vercel/styled-jsx#styles-outside-of-components">
+          <Link
+            href="https://github.com/vercel/styled-jsx#styles-outside-of-components"
+            legacyBehavior
+          >
             <a>Styled JSX documentation</a>
           </Link>
         </p>

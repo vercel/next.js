@@ -29,7 +29,7 @@ export default function Home() {
         {todos &&
           todos.map((todo) => {
             return (
-              <p className="todos-item">
+              <p className="todos-item" key={todo.id}>
                 {todo.text} {todo.done && '(complete)'}
               </p>
             )
@@ -60,6 +60,8 @@ export default function Home() {
 
           <a
             href="https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
+            target="_blank"
+            rel="noopener noreferrer"
             className="card"
           >
             <h3>Deploy &rarr;</h3>

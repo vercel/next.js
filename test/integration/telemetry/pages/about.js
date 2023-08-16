@@ -1,4 +1,5 @@
 import Image from 'next/image'
+import LegacyImage from 'next/legacy/image'
 import profilePic from '../public/small.jpg'
 
 function About() {
@@ -12,3 +13,7 @@ function About() {
 }
 
 export default About
+
+export function AboutFutureImage() {
+  return <LegacyImage src={profilePic} alt="Picture of the author" />
+}

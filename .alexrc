@@ -17,6 +17,8 @@
     "hooks",
     "host-hostess",
     "invalid",
-    "remains"
+    "remains",
+    "special",
+    "white"
   ]
 }

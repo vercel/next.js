@@ -101,6 +101,32 @@ describe('reading request body in middleware', () => {
     expect(response.headers.has('data')).toBe(false)
   })
 
+  it('passes the body greater than 64KiB to the api endpoint', async () => {
+    const response = await fetchViaHTTP(
+      next.url,
+      '/api/hi',
+      {
+        next: '1',
+      },
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          foo: 'bar'.repeat(22 * 1024),
+        }),
+      }
+    )
+    const data = await response.json()
+    expect(response.status).toEqual(200)
+    expect(data.foo.length).toBe(22 * 1024 * 3)
+    expect(data.foo.split('bar').length).toBe(22 * 1024 + 1)
+    expect(data.api).toBeTrue()
+    expect(response.headers.get('x-from-root-middleware')).toEqual('1')
+    expect(response.headers.has('data')).toBe(false)
+  })
+
   it('passes the body to the api endpoint when no body is consumed on middleware', async () => {
     const response = await fetchViaHTTP(
       next.url,
@@ -124,6 +150,33 @@ describe('reading request body in middleware', () => {
       foo: 'bar',
       api: true,
     })
+    expect(response.headers.get('x-from-root-middleware')).toEqual('1')
+    expect(response.headers.has('data')).toBe(false)
+  })
+
+  it('passes the body greater than 64KiB to the api endpoint when no body is consumed on middleware', async () => {
+    const response = await fetchViaHTTP(
+      next.url,
+      '/api/hi',
+      {
+        next: '1',
+        no_reading: '1',
+      },
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          foo: 'bar'.repeat(22 * 1024),
+        }),
+      }
+    )
+    const data = await response.json()
+    expect(response.status).toEqual(200)
+    expect(data.foo.length).toBe(22 * 1024 * 3)
+    expect(data.foo.split('bar').length).toBe(22 * 1024 + 1)
+    expect(data.api).toBeTrue()
     expect(response.headers.get('x-from-root-middleware')).toEqual('1')
     expect(response.headers.has('data')).toBe(false)
   })

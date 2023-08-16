@@ -4,8 +4,8 @@ export default function Page() {
   return (
     <>
       <p id="another">hi from another</p>
-      <Link href="/">
-        <a id="to-index">to index</a>
+      <Link href="/" id="to-index">
+        to index
       </Link>
     </>
   )

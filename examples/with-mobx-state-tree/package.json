@@ -6,15 +6,17 @@
     "start": "next start"
   },
   "dependencies": {
-    "mobx": "3.3.1",
-    "mobx-react": "^4.0.4",
-    "mobx-state-tree": "1.0.1",
+    "mobx": "^6.6.1",
+    "mobx-react": "^7.5.2",
+    "mobx-react-lite": "^3.4.0",
+    "mobx-state-tree": "^5.1.6",
     "next": "latest",
-    "react": "^17.0.2",
-    "react-dom": "^17.0.2"
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
   },
   "devDependencies": {
-    "@babel/core": "7.14.5",
-    "@babel/plugin-proposal-decorators": "^7.1.2"
+    "@types/node": "^18.7.15",
+    "@types/react": "^18.0.18",
+    "typescript": "^4.8.2"
   }
 }

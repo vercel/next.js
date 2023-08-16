@@ -1,0 +1,27 @@
+{
+  "name": "@next/font",
+  "version": "13.4.7",
+  "repository": {
+    "url": "vercel/next.js",
+    "directory": "packages/font"
+  },
+  "types": "dist/types.d.ts",
+  "files": [
+    "dist",
+    "google",
+    "local"
+  ],
+  "license": "MIT",
+  "scripts": {
+    "build": "node ../../scripts/rm.mjs dist && pnpm ncc-fontkit && tsc -d -p tsconfig.json",
+    "prepublishOnly": "cd ../../ && turbo run build",
+    "dev": "pnpm ncc-fontkit && tsc -d -w -p tsconfig.json",
+    "typescript": "tsec --noEmit -p tsconfig.json",
+    "ncc-fontkit": "ncc build ./fontkit.js -o dist/fontkit"
+  },
+  "devDependencies": {
+    "@types/fontkit": "2.0.0",
+    "@vercel/ncc": "0.34.0",
+    "fontkit": "2.0.2"
+  }
+}

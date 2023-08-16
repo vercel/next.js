@@ -16,5 +16,5 @@ export default {
         }
       `}</style>
     </footer>
-  )
+  ),
 }

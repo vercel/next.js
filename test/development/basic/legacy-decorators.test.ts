@@ -26,7 +26,7 @@ describe('Legacy decorators SWC option', () => {
   it('should compile with legacy decorators enabled', async () => {
     let browser
     try {
-      browser = await webdriver(next.appPort, '/')
+      browser = await webdriver(next.url, '/')
       const text = await browser.elementByCss('#count').text()
       expect(text).toBe('Current number: 0')
       await browser.elementByCss('#increase').click()

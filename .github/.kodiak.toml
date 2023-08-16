@@ -6,7 +6,7 @@ automerge_label = "ready to land"
 require_automerge_label = false
 method = "squash"
 delete_branch_on_merge = true
-optimistic_updates = true
+optimistic_updates = false
 prioritize_ready_to_merge = true
 notify_on_conflict = false
 

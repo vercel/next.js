@@ -10,18 +10,22 @@ This started life as a copy of the `with-apollo` example. We then stripped out A
 
 Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-graphql-hooks&project-name=with-graphql-hooks&repository-name=with-graphql-hooks)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-graphql-hooks&project-name=with-graphql-hooks&repository-name=with-graphql-hooks)
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-graphql-hooks with-graphql-hooks-app
-# or
+```
+
+```bash
 yarn create next-app --example with-graphql-hooks with-graphql-hooks-app
-# or
-pnpm create next-app -- --example with-graphql-hooks with-graphql-hooks-app
+```
+
+```bash
+pnpm create next-app --example with-graphql-hooks with-graphql-hooks-app
 ```
 
 Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

@@ -15,7 +15,6 @@ import {
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
-const nextConfig = join(appDir, 'next.config.js')
 let builtServerPagesDir
 let appPort
 let app
@@ -99,27 +98,6 @@ const runTests = (isDev = false) => {
 }
 
 describe('AMP SSG Support', () => {
-  describe('serverless mode', () => {
-    beforeAll(async () => {
-      await fs.writeFile(
-        nextConfig,
-        `
-        module.exports = {
-          target: 'experimental-serverless-trace'
-        }
-      `
-      )
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-      builtServerPagesDir = join(appDir, '.next/serverless/pages')
-    })
-    afterAll(async () => {
-      await fs.remove(nextConfig)
-      await killApp(app)
-    })
-    runTests()
-  })
   describe('server mode', () => {
     beforeAll(async () => {
       await nextBuild(appDir)

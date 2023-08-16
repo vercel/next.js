@@ -4,8 +4,8 @@ import css from './index.module.css'
 export default function Home() {
   return (
     <main>
-      <Link href="/other">
-        <a id="link-other">other</a>
+      <Link href="/other" id="link-other">
+        other
       </Link>
       <br />
       <h1 id="black-title" className={css.header}>

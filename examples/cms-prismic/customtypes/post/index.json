@@ -1,0 +1,70 @@
+{
+  "id": "post",
+  "label": "Post",
+  "repeatable": true,
+  "status": true,
+  "json": {
+    "Main": {
+      "title": {
+        "type": "StructuredText",
+        "config": {
+          "label": "Title",
+          "placeholder": "Title of the post",
+          "allowTargetBlank": false,
+          "single": "heading1"
+        }
+      },
+      "uid": {
+        "type": "UID",
+        "config": {
+          "label": "UID",
+          "placeholder": "URL slug for the post"
+        }
+      },
+      "date": {
+        "type": "Date",
+        "config": {
+          "label": "Date",
+          "placeholder": "Date of publication"
+        }
+      },
+      "author": {
+        "type": "Link",
+        "config": {
+          "label": "Author",
+          "select": "document",
+          "customtypes": ["author"]
+        }
+      },
+      "excerpt": {
+        "type": "Text",
+        "config": {
+          "label": "Excerpt",
+          "placeholder": "Short summary of the post"
+        }
+      },
+      "cover_image": {
+        "type": "Image",
+        "config": {
+          "label": "Cover Image",
+          "constraint": {},
+          "thumbnails": []
+        }
+      },
+      "slices": {
+        "type": "Slices",
+        "fieldset": "Slice Zone",
+        "config": {
+          "choices": {
+            "text": {
+              "type": "SharedSlice"
+            },
+            "image": {
+              "type": "SharedSlice"
+            }
+          }
+        }
+      }
+    }
+  }
+}

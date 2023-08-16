@@ -6,14 +6,12 @@ export default (req, res) => {
       return res.status(500).end('too big')
     }
   } else {
-    res.setPreviewData(
-      req.query,
-      req.query.cookieMaxAge
-        ? {
-            maxAge: req.query.cookieMaxAge,
-          }
-        : undefined
-    )
+    res.setPreviewData(req.query, {
+      ...(req.query.cookieMaxAge
+        ? { maxAge: req.query.cookieMaxAge }
+        : undefined),
+      ...(req.query.cookiePath ? { path: req.query.cookiePath } : undefined),
+    })
   }
 
   res.status(200).end()

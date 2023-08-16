@@ -3,9 +3,7 @@ export default function Home() {
   return (
     <div>
       <h3>Hello World.</h3>
-      <Link href="/about">
-        <a>About</a>
-      </Link>
+      <Link href="/about">About</Link>
     </div>
   )
 }
