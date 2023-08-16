@@ -302,15 +302,14 @@ When a Server Action is invoked, the UI is updated immediately to reflect the ex
 ```jsx filename="app/thread.js"
 'use client'
 
-import { experimental_useOptimistic as useOptimistic, useRef } from 'react'
-import { send } from './actions.js'
+import { experimental_useOptimistic as useOptimistic } from 'react'
+import { sendMessage } from './actions.js'
 
 export function Thread({ messages }) {
   const [optimisticMessages, addOptimisticMessage] = useOptimistic(
     messages,
     (state, newMessage) => [...state, { message: newMessage, sending: true }]
   )
-  const formRef = useRef()
 
   return (
     <div>
@@ -321,18 +320,34 @@ export function Thread({ messages }) {
         </div>
       ))}
       <form
-        action={async (formData) => {
-          const message = formData.get('message')
-          formRef.current.reset()
+        action={sendMessage}
+        onSubmit={async (e) => {
+          e.preventDefault()
+
+          const form = e.currentTarget
+          const formData = new FormData(form)
+
+          form.current.reset()
           addOptimisticMessage(message)
-          await send(message)
+          await sendMessage(formData)
         }}
-        ref={formRef}
       >
         <input type="text" name="message" />
       </form>
     </div>
   )
+}
+```
+
+```js filename="app/actions.js"
+'use server'
+import { sql } from '@vercel/postgres'
+import { revalidatePath } from 'next/cache'
+
+export async function sendMessage(formData: FormData) {
+  const message = formData.get('message').toString()
+  await sql`INSERT INTO messages(message) VALUES(${message});`
+  revalidatePath('/chat-screen')
 }
 ```
 
@@ -368,19 +383,38 @@ Both Server Form Actions and Client Form Actions support Progressive Enhancement
 
 - If a **Server Action** is passed directly to a `<form>`, the form is interactive **even if JavaScript is disabled**.
 - If a **Client Action** is passed to a `<form>`, the form is still interactive, but the action will be placed in a queue until the form has hydrated. The `<form>` is prioritized with Selective Hydration, so it happens quickly.
+- To maintain form functionality without JavaScript, while also leveraging enhancements like `useOptimistic`, assign both the server action to the `action` prop of the `<form>` and define a custom `onSubmit` prop. Notably, the `onSubmit` is triggered prior to the `action`, and developers have the flexibility to halt the action's execution using `event.preventDefault()`. In scenarios where JavaScript is disabled, the form will revert to the behavior defined by the `action` prop.
 
 ```jsx filename="app/components/example-client-component.js"
 'use client'
 
-import { useState } from 'react'
-import { handleSubmit } from './actions.js'
+import { useTransition } from 'react'
+import { deletePost } from './actions.js'
 
-export default function ExampleClientComponent({ myAction }) {
-  const [input, setInput] = useState()
+export default function ExampleClientComponent({ postId }) {
+  const [isPending, startTransition] = useTransition()
 
   return (
-    <form action={handleSubmit} onChange={(e) => setInput(e.target.value)}>
-      {/* ... */}
+    <form
+      action={deletePost}
+      onSubmit={async (e) => {
+        // prevent the automatic execution of the action
+        e.preventDefault()
+
+        if (
+          confirm(
+            'Do you really want to delete this post ? all the comments will also be deleted'
+          )
+        ) {
+          // `e.currentTarget` is automatically typed as a HTMLFormElement
+          startTransition(() => deletePost(new FormData(e.currentTarget)))
+        }
+      }}
+    >
+      <input type="hidden" name="id" value={postId} />
+      <button disabled={isPending}>
+        {isPending ? 'Deleting the post...' : 'Delete this post'}
+      </button>
     </form>
   )
 }
