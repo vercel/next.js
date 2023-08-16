@@ -41,6 +41,10 @@ declare module 'next/dist/compiled/node-html-parser' {
   export * from 'node-html-parser'
 }
 
+declare module 'next/dist/compiled/@mswjs/interceptors/ClientRequest' {
+  export * from '@mswjs/interceptors/ClientRequest'
+}
+
 declare module 'next/dist/compiled/undici' {}
 
 declare module 'next/dist/compiled/jest-worker' {
@@ -452,10 +456,5 @@ declare module 'next/dist/compiled/is-animated' {
 
 declare module 'next/dist/compiled/@opentelemetry/api' {
   import * as m from '@opentelemetry/api'
-  export = m
-}
-
-declare module 'next/dist/compiled/jest-docblock' {
-  import m from 'jest-docblock'
   export = m
 }

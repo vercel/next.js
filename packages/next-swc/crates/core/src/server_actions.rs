@@ -1053,13 +1053,15 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 },
             );
 
-            // import __createActionProxy__ from 'private-next-rsc-action-proxy'
+            // import { createActionProxy } from 'private-next-rsc-action-proxy'
             // createServerReference("action_id")
             new.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                 span: DUMMY_SP,
-                specifiers: vec![ImportSpecifier::Default(ImportDefaultSpecifier {
+                specifiers: vec![ImportSpecifier::Named(ImportNamedSpecifier {
                     span: DUMMY_SP,
-                    local: quote_ident!("__create_action_proxy__"),
+                    local: quote_ident!("createActionProxy"),
+                    imported: None,
+                    is_type_only: false,
                 })],
                 src: Box::new(Str {
                     span: DUMMY_SP,
@@ -1173,7 +1175,7 @@ fn annotate_ident_as_action(
     export_name: String,
     maybe_orig_action_ident: Option<Ident>,
 ) {
-    // Add the proxy wrapper call `__create_action_proxy__($$id, $$bound, myAction,
+    // Add the proxy wrapper call `createActionProxy($$id, $$bound, myAction,
     // maybe_orig_action)`.
     let mut args = vec![
         // $$id
@@ -1205,7 +1207,7 @@ fn annotate_ident_as_action(
         span: DUMMY_SP,
         expr: Box::new(Expr::Call(CallExpr {
             span: DUMMY_SP,
-            callee: quote_ident!("__create_action_proxy__").as_callee(),
+            callee: quote_ident!("createActionProxy").as_callee(),
             args: if let Some(orig_action_ident) = maybe_orig_action_ident {
                 args.push(ExprOrSpread {
                     spread: None,

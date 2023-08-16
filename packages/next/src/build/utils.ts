@@ -70,6 +70,9 @@ import { AppRouteRouteModule } from '../server/future/route-modules/app-route/mo
 
 export type ROUTER_TYPE = 'pages' | 'app'
 
+// Use `print()` for expected console output
+const print = console.log
+
 const RESERVED_PAGE = /^\/(_app|_error|_document|api(\/|$))/
 const fileGzipStats: { [k: string]: Promise<number> | undefined } = {}
 const fsStatGzip = (file: string) => {
@@ -320,7 +323,7 @@ export async function printTreeView(
     buildManifest,
     appBuildManifest,
     middlewareManifest,
-    useStatic404,
+    useStaticPages404,
     gzipSize = true,
   }: {
     distPath: string
@@ -330,7 +333,7 @@ export async function printTreeView(
     buildManifest: BuildManifest
     appBuildManifest?: AppBuildManifest
     middlewareManifest: MiddlewareManifest
-    useStatic404: boolean
+    useStaticPages404: boolean
     gzipSize?: boolean
   }
 ) {
@@ -602,10 +605,11 @@ export async function printTreeView(
 
   pageInfos.set('/404', {
     ...(pageInfos.get('/404') || pageInfos.get('/_error')),
-    static: useStatic404,
+    static: useStaticPages404,
   } as any)
 
-  if (!lists.pages.includes('/404')) {
+  // If there's no app /_notFound page present, then the 404 is still using the pages/404
+  if (!lists.pages.includes('/404') && !lists.app?.includes('/_not-found')) {
     lists.pages = [...lists.pages, '/404']
   }
 
@@ -627,15 +631,15 @@ export async function printTreeView(
     messages.push(['ƒ Middleware', getPrettySize(sum(middlewareSizes)), ''])
   }
 
-  console.log(
+  print(
     textTable(messages, {
       align: ['l', 'l', 'r'],
       stringLength: (str) => stripAnsi(str).length,
     })
   )
 
-  console.log()
-  console.log(
+  print()
+  print(
     textTable(
       [
         usedSymbols.has('ℇ') && [
@@ -677,7 +681,7 @@ export async function printTreeView(
     )
   )
 
-  console.log()
+  print()
 }
 
 export function printCustomRoutes({
@@ -691,8 +695,8 @@ export function printCustomRoutes({
   ) => {
     const isRedirects = type === 'Redirects'
     const isHeaders = type === 'Headers'
-    console.log(chalk.underline(type))
-    console.log()
+    print(chalk.underline(type))
+    print()
 
     /*
         ┌ source
@@ -734,7 +738,7 @@ export function printCustomRoutes({
       })
       .join('\n')
 
-    console.log(routesStr, '\n')
+    print(routesStr, '\n')
   }
 
   if (redirects.length) {
@@ -1972,17 +1976,11 @@ startServer({
   dir,
   isDev: false,
   config: nextConfig,
-  hostname: hostname === 'localhost' ? '0.0.0.0' : hostname,
+  hostname,
   port: currentPort,
   allowRetry: false,
   keepAliveTimeout,
   useWorkers: !!nextConfig.experimental?.appDir,
-}).then(() => {
-  console.log(
-    'Listening on port',
-    currentPort,
-    'url: http://' + hostname + ':' + currentPort
-  )
 }).catch((err) => {
   console.error(err);
   process.exit(1);

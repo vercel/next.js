@@ -91,6 +91,22 @@ export async function ncc_node_html_parser(task, opts) {
     .target('src/compiled/node-html-parser')
 }
 
+// eslint-disable-next-line camelcase
+externals['@mswjs/interceptors/ClientRequest'] =
+  'next/dist/compiled/@mswjs/interceptors/ClientRequest'
+export async function ncc_mswjs_interceptors(task, opts) {
+  await task
+    .source(
+      relative(__dirname, require.resolve('@mswjs/interceptors/ClientRequest'))
+    )
+    .ncc({
+      packageName: '@mswjs/interceptors/ClientRequest',
+      externals,
+      target: 'es5',
+    })
+    .target('src/compiled/@mswjs/interceptors/ClientRequest')
+}
+
 export async function capsize_metrics() {
   const {
     entireMetricsCollection,
@@ -2179,15 +2195,6 @@ export async function ncc_https_proxy_agent(task, opts) {
     .target('src/compiled/https-proxy-agent')
 }
 
-// eslint-disable-next-line camelcase
-externals['jest-docblock'] = 'next/dist/compiled/jest-docblock'
-export async function ncc_jest_docblock(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('jest-docblock')))
-    .ncc({ packageName: 'jest-docblock', externals })
-    .target('src/compiled/jest-docblock')
-}
-
 export async function precompile(task, opts) {
   await task.parallel(
     [
@@ -2322,7 +2329,6 @@ export async function ncc(task, opts) {
         'ncc_opentelemetry_api',
         'ncc_http_proxy_agent',
         'ncc_https_proxy_agent',
-        'ncc_jest_docblock',
         'ncc_mini_css_extract_plugin',
       ],
       opts
@@ -2345,6 +2351,7 @@ export async function ncc(task, opts) {
       'ncc_edge_runtime_primitives',
       'ncc_edge_runtime_ponyfill',
       'ncc_edge_runtime',
+      'ncc_mswjs_interceptors',
     ],
     opts
   )
@@ -2374,6 +2381,7 @@ export async function compile(task, opts) {
       'shared_re_exported',
       'shared_re_exported_esm',
       'server_wasm',
+      'experimental_testmode',
       // we compile this each time so that fresh runtime data is pulled
       // before each publish
       'ncc_amp_optimizer',
@@ -2639,6 +2647,13 @@ export async function server_wasm(task, opts) {
   await task.source('src/server/**/*.+(wasm)').target('dist/server')
 }
 
+export async function experimental_testmode(task, opts) {
+  await task
+    .source('src/experimental/testmode/**/!(*.test).+(js|ts|tsx)')
+    .swc('server', {})
+    .target('dist/experimental/testmode')
+}
+
 export async function release(task) {
   await task.clear('dist').start('build')
 }
@@ -2676,6 +2691,7 @@ export async function minimal_next_server(task) {
     'next/dist/compiled/node-html-parser',
     'next/dist/compiled/compression',
     'next/dist/compiled/jsonwebtoken',
+    'next/dist/compiled/@mswjs/interceptors/ClientRequest',
   ].reduce((acc, pkg) => {
     acc[pkg] = pkg
     return acc
