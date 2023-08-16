@@ -23,7 +23,7 @@ describe('Dotenv default expansion', () => {
   afterAll(() => next.destroy())
 
   it('should work', async () => {
-    const browser = await webdriver(next.appPort, '/')
+    const browser = await webdriver(next.url, '/')
     const text = await browser.elementByCss('p').text()
     expect(text).toBe('default')
 

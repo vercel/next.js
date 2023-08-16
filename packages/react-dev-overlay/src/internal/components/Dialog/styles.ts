@@ -8,7 +8,7 @@ const styles = css`
     margin-right: auto;
     margin-left: auto;
     outline: none;
-    background: white;
+    background: var(--color-background);
     border-radius: var(--size-gap);
     box-shadow: 0 var(--size-gap-half) var(--size-gap-double)
       rgba(0, 0, 0, 0.25);

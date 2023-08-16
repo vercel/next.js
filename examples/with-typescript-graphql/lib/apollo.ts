@@ -5,6 +5,8 @@ import {
   InMemoryCache,
   NormalizedCacheObject,
 } from '@apollo/client'
+import resolvers from './resolvers'
+import typeDefs from './schema'
 
 let apolloClient: ApolloClient<NormalizedCacheObject> | undefined
 
@@ -16,7 +18,12 @@ export type ResolverContext = {
 function createIsomorphLink(context: ResolverContext = {}) {
   if (typeof window === 'undefined') {
     const { SchemaLink } = require('@apollo/client/link/schema')
-    const { schema } = require('./schema')
+    const { makeExecutableSchema } = require('@graphql-tools/schema')
+
+    const schema = makeExecutableSchema({
+      typeDefs,
+      resolvers,
+    })
     return new SchemaLink({ schema, context })
   } else {
     const { HttpLink } = require('@apollo/client')

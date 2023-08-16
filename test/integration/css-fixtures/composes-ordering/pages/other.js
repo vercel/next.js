@@ -4,8 +4,8 @@ import css from './other.module.css'
 export default function Other() {
   return (
     <main>
-      <Link href="/">
-        <a id="link-index">index page</a>
+      <Link href="/" id="link-index">
+        index page
       </Link>
       <br />
       <h1 id="red-title" className={css.root}>

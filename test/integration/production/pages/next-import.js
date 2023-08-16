@@ -6,9 +6,7 @@ import next from 'next'
 
 export default () => (
   <div>
-    <Link href="/about">
-      <a>About Page</a>
-    </Link>
+    <Link href="/about">About Page</Link>
     <p className="index-page">Hello World</p>
   </div>
 )

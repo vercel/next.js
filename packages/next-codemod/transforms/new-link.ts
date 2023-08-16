@@ -1,7 +1,7 @@
 import { API, FileInfo } from 'jscodeshift'
 
 export default function transformer(file: FileInfo, api: API) {
-  const j = api.jscodeshift
+  const j = api.jscodeshift.withParser('tsx')
 
   const $j = j(file.source)
 
@@ -86,13 +86,24 @@ export default function transformer(file: FileInfo, api: API) {
         const hasProps = props.length > 0
 
         if (hasProps) {
-          // Add props to <Link>
-          $link.get('attributes').value.push(...props)
+          // Add only unique props to <Link> (skip duplicate props)
+          const linkPropNames = $link
+            .get('attributes')
+            .value.map((linkProp) => linkProp?.name?.name)
+          const uniqueProps = []
+
+          props.forEach((anchorProp) => {
+            if (!linkPropNames.includes(anchorProp?.name?.name)) {
+              uniqueProps.push(anchorProp)
+            }
+          })
+
+          $link.get('attributes').value.push(...uniqueProps)
+
           // Remove props from <a>
           props.length = 0
         }
 
-        //
         const childrenProps = $childrenWithA.get('children')
         $childrenWithA.replaceWith(childrenProps.value)
       })

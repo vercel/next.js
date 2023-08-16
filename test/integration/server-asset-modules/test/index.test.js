@@ -1,6 +1,5 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
 import {
   fetchViaHTTP,
   findPort,
@@ -26,8 +25,6 @@ function runTests() {
   })
 }
 
-const nextConfig = join(appDir, 'next.config.js')
-
 describe('serverside asset modules', () => {
   describe('dev mode', () => {
     beforeAll(async () => {
@@ -41,11 +38,6 @@ describe('serverside asset modules', () => {
 
   describe('production mode', () => {
     beforeAll(async () => {
-      const curConfig = await fs.readFile(nextConfig, 'utf8')
-
-      if (curConfig.includes('target')) {
-        await fs.writeFile(nextConfig, `module.exports = {}`)
-      }
       await nextBuild(appDir)
 
       appPort = await findPort()
@@ -53,28 +45,6 @@ describe('serverside asset modules', () => {
     })
     afterAll(() => killApp(app))
 
-    runTests()
-  })
-
-  describe('serverless mode', () => {
-    let origNextConfig
-
-    beforeAll(async () => {
-      origNextConfig = await fs.readFile(nextConfig, 'utf8')
-      await fs.writeFile(
-        nextConfig,
-        `module.exports = { target: 'serverless' }`
-      )
-
-      await nextBuild(appDir)
-
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(async () => {
-      await fs.writeFile(nextConfig, origNextConfig)
-      await killApp(app)
-    })
     runTests()
   })
 })

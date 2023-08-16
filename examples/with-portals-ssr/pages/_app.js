@@ -1,4 +1,3 @@
-import App from 'next/app'
 import { prepareClientPortals } from '@jesstelford/react-portal-universal'
 
 if (typeof window !== 'undefined') {
@@ -8,17 +7,12 @@ if (typeof window !== 'undefined') {
   prepareClientPortals()
 }
 
-class MyApp extends App {
-  render() {
-    const { Component, pageProps } = this.props
-    return (
-      /* This is where we'll render one of our universal portals */
-      <>
-        <div id="modal" />
-        <Component {...pageProps} />
-      </>
-    )
-  }
+export default function App({ Component, pageProps }) {
+  return (
+    /* This is where we'll render one of our universal portals */
+    <>
+      <div id="modal" />
+      <Component {...pageProps} />
+    </>
+  )
 }
-
-export default MyApp

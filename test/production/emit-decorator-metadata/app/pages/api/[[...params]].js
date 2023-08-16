@@ -1,4 +1,4 @@
-import { createHandler, Get, Param } from '@storyofams/next-api-decorators'
+import { createHandler, Get, Param } from 'next-api-decorators'
 
 class HelloHandler {
   @Get('/:myParam')

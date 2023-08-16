@@ -14,9 +14,10 @@ describe('should set-up next', () => {
         pages: new FileRef(join(__dirname, 'app/pages')),
         components: new FileRef(join(__dirname, 'app/components')),
       },
-      dependencies: {
-        react: '17',
-        'react-dom': '17',
+      nextConfig: {
+        experimental: {
+          strictNextHead: true,
+        },
       },
     })
   })
@@ -31,7 +32,7 @@ describe('should set-up next', () => {
     })
 
     expect(html).toContain(
-      `<meta charset="utf-8"><meta name="viewport" content="width=device-width"><meta name="test-head-1" content="hello">`
+      `<meta charset="utf-8"><meta name="next-head" content="1"><meta name="viewport" content="width=device-width"><meta name="next-head" content="1"><meta name="test-head-1" content="hello">`
     )
   })
 
@@ -44,6 +45,13 @@ describe('should set-up next', () => {
     }
   })
 
+  it('should have correct head tags from a fragment', async () => {
+    const html = await renderViaHTTP(next.url, '/')
+    const $ = cheerio.load(html)
+
+    expect($(`meta[name="test-in-fragment"]`).attr()['content']).toBe('hello')
+  })
+
   it('should have correct head tags after hydration', async () => {
     const browser = await webdriver(next.url, '/')
 
@@ -54,5 +62,14 @@ describe('should set-up next', () => {
           .getAttribute('content')
       ).toBe('hello')
     }
+  })
+
+  it('should have current head tags from a _document getInitialProps', async () => {
+    const html = await renderViaHTTP(next.url, '/')
+    const $ = cheerio.load(html)
+
+    expect($(`meta[name="test-head-initial-props"]`).attr()['content']).toBe(
+      'hello'
+    )
   })
 })

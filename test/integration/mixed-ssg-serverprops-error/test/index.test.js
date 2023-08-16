@@ -10,6 +10,32 @@ const indexPage = join(appDir, 'pages/index.js')
 const indexPageBak = `${indexPage}.bak`
 
 describe('Mixed getStaticProps and getServerSideProps error', () => {
+  it('should error with getStaticProps but no default export', async () => {
+    // TODO: remove after investigating why dev swc build fails here
+    await fs.writeFile(
+      join(appDir, '.babelrc'),
+      '{ "presets": ["next/babel"] }'
+    )
+    await fs.move(indexPage, indexPageBak)
+    await fs.writeFile(
+      indexPage,
+      `
+      export function getStaticProps() {
+        return {
+          props: {}
+        }
+      }
+    `
+    )
+    const { stderr } = await nextBuild(appDir, [], { stderr: true })
+    await fs.remove(join(appDir, '.babelrc'))
+    await fs.remove(indexPage)
+    await fs.move(indexPageBak, indexPage)
+    expect(stderr).toContain(
+      'found page without a React Component as default export in'
+    )
+  })
+
   it('should error when exporting both getStaticProps and getServerSideProps', async () => {
     // TODO: remove after investigating why dev swc build fails here
     await fs.writeFile(

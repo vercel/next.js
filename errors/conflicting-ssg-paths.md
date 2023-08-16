@@ -11,12 +11,12 @@ Remove any conflicting paths shown in the error message and only return them fro
 Example conflicting paths:
 
 ```jsx
-// pages/hello/world.js
+// pages/hello/world.jsx
 export default function Hello() {
   return 'hello world!'
 }
 
-// pages/[...catchAll].js
+// pages/[...catchAll].jsx
 export const getStaticProps = () => ({ props: {} })
 
 export const getStaticPaths = () => ({
@@ -36,7 +36,7 @@ export default function CatchAll() {
 Example conflicting paths:
 
 ```jsx
-// pages/blog/[slug].js
+// pages/blog/[slug].jsx
 export const getStaticPaths = () => ({
   paths: ['/blog/conflicting', '/blog/another'],
   fallback: false,
@@ -46,7 +46,7 @@ export default function Blog() {
   return 'Blog!'
 }
 
-// pages/[...catchAll].js
+// pages/[...catchAll].jsx
 export const getStaticProps = () => ({ props: {} })
 
 export const getStaticPaths = () => ({

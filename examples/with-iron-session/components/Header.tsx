@@ -13,13 +13,13 @@ export default function Header() {
       <nav>
         <ul>
           <li>
-            <Link href="/">
+            <Link href="/" legacyBehavior>
               <a>Home</a>
             </Link>
           </li>
           {user?.isLoggedIn === false && (
             <li>
-              <Link href="/login">
+              <Link href="/login" legacyBehavior>
                 <a>Login</a>
               </Link>
             </li>
@@ -27,7 +27,7 @@ export default function Header() {
           {user?.isLoggedIn === true && (
             <>
               <li>
-                <Link href="/profile-sg">
+                <Link href="/profile-sg" legacyBehavior>
                   <a>
                     <span
                       style={{
@@ -49,7 +49,7 @@ export default function Header() {
                 </Link>
               </li>
               <li>
-                <Link href="/profile-ssr">
+                <Link href="/profile-ssr" legacyBehavior>
                   <a>Profile (Server-side Rendering)</a>
                 </Link>
               </li>

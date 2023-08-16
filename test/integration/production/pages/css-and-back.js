@@ -3,9 +3,7 @@ import Link from 'next/link'
 const Page = ({ from }) => (
   <div>
     <p>{from}</p>
-    <Link href="/css-modules">
-      <a>Page with CSS</a>
-    </Link>
+    <Link href="/css-modules">Page with CSS</Link>
   </div>
 )
 

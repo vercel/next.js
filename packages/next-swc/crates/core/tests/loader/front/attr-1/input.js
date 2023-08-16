@@ -1,12 +1,13 @@
-
-
 export default function Foo() {
-    return <div render={(v) => (<form></form>)}>
-        <style jsx>{`
-            span {
-                color: red;
-            }
+  return (
+    <div render={(v) => <form></form>}>
+      <style jsx>
+        {`
+          span {
+            color: red;
+          }
         `}
-        </style>
+      </style>
     </div>
+  )
 }

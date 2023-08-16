@@ -1,0 +1,66 @@
+@use '../../../css/common.scss' as *;
+
+.hero {
+  padding-top: calc(var(--base) * 3);
+
+  @include mid-break {
+    padding-top: var(--base);
+  }
+}
+
+.richText {
+  position: relative;
+
+  h1 {
+    @extend %h2;
+  }
+
+  &::after {
+    content: '';
+    display: block;
+    position: absolute;
+    width: 100vw;
+    left: calc(var(--gutter-h) * -1);
+    height: 200px;
+    background: linear-gradient(to bottom, var(--color-base-100), transparent);
+    top: calc(100% + (var(--base) * 2));
+    right: 0;
+
+    @include mid-break {
+      display: none;
+    }
+  }
+}
+
+.links {
+  position: relative;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  margin-top: calc(var(--base) * 4);
+
+  li {
+    margin-right: 12px;
+  }
+
+  @include mid-break {
+    display: block;
+    margin-top: var(--base);
+
+    li {
+      margin-right: 0;
+    }
+  }
+}
+
+.link {
+  @include mid-break {
+    width: 100%;
+  }
+}
+
+.media {
+  position: relative;
+  width: calc(100% + var(--gutter-h));
+}

@@ -4,16 +4,16 @@ export default function Index() {
   return (
     <>
       <p id="index">index</p>
-      <Link href="/gsp">
-        <a id="to-gsp">to gsp</a>
+      <Link href="/gsp" id="to-gsp">
+        to gsp
       </Link>
       <br />
-      <Link href="/gssp">
-        <a id="to-gssp">to gssp</a>
+      <Link href="/gssp" id="to-gssp">
+        to gssp
       </Link>
       <br />
-      <Link href="/non-existent">
-        <a id="to-404">to non-existent</a>
+      <Link href="/non-existent" id="to-404">
+        to non-existent
       </Link>
       <br />
     </>

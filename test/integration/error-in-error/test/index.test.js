@@ -25,7 +25,7 @@ describe('Handles an Error in _error', () => {
 
   it('Handles error during SSR', async () => {
     const html = await renderViaHTTP(port, '/some-404-page')
-    expect(html).toMatch(/internal server error/i)
+    expect(html).toMatch(/Internal Server Error/i)
   })
 
   it('Handles error during client transition', async () => {
@@ -33,6 +33,6 @@ describe('Handles an Error in _error', () => {
     await browser.waitForElementByCss('a').click()
     await waitFor(1000)
     const html = await browser.eval('document.body.innerHTML')
-    expect(html).toMatch(/internal server error/i)
+    expect(html).toMatch(/Internal Server Error/i)
   })
 })

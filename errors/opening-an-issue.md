@@ -2,7 +2,7 @@
 
 #### Why This Message Occurred
 
-When `next info` was run, Next.js detected that it's was not on the latest canary release.
+When `next info` was run, Next.js detected that it was not on the newest canary release.
 
 `next@canary` is the canary version of Next.js that ships daily. It includes all features and fixes that have not been released to the stable version yet. Think of canary as a public beta.
 
@@ -26,3 +26,6 @@ And go through the prepared reproduction steps once again, and check if the issu
 
 - [Video: How to Contribute to Open Source (Next.js)](https://www.youtube.com/watch?v=cuoNzXFLitc)
 - [Contributing to Next.js](https://github.com/vercel/next.js/blob/canary/contributing.md)
+- [Triaging issues](https://github.com/vercel/next.js/blob/canary/contributing/repository/triaging.md)
+- [Verifiying canary](https://github.com/vercel/next.js/blob/canary/.github/actions/issue-validator/canary.md)
+- [Adding a reproduction](https://github.com/vercel/next.js/blob/canary/.github/actions/issue-validator/repro.md)

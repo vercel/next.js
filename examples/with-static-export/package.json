@@ -1,17 +1,18 @@
 {
   "private": true,
-  "dependencies": {
-    "next": "latest",
-    "react": "^17.0.2",
-    "react-dom": "^17.0.2",
-    "serve": "11.2.0"
-  },
   "scripts": {
     "dev": "next",
     "build": "next build",
-    "preexport": "npm run build",
-    "export": "next export",
-    "prestart": "npm run export",
     "start": "serve out"
+  },
+  "dependencies": {
+    "@types/node": "^18.11.5",
+    "@types/react-dom": "^18.0.7",
+    "@types/react": "^18.0.23",
+    "next": "latest",
+    "react-dom": "^18.2.0",
+    "react": "^18.2.0",
+    "serve": "^14.2.0",
+    "typescript": "^4.8.4"
   }
 }

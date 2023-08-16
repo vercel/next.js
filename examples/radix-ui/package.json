@@ -1,0 +1,23 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@radix-ui/react-dropdown-menu": "1.0.0",
+    "@radix-ui/react-icons": "1.1.1",
+    "next": "latest",
+    "react": "latest",
+    "react-dom": "latest"
+  },
+  "devDependencies": {
+    "@types/node": "18.8.0",
+    "@types/react": "18.0.21",
+    "autoprefixer": "10.4.12",
+    "postcss": "8.4.17",
+    "tailwindcss": "3.1.8",
+    "typescript": "4.8.4"
+  }
+}

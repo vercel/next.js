@@ -6,10 +6,11 @@ import Header from '../components/header'
 import Footer from '../components/footer'
 
 export default function Home() {
-  const { data, error } = useSWR('/api/movies', fetcher)
+  const { data, error, isLoading } = useSWR('/api/movies', fetcher)
 
   if (error) return <div>failed to load</div>
-  if (!data) return <div>loading...</div>
+  if (isLoading) return <div>loading...</div>
+  if (!data) return null
 
   return (
     <div className="container">
@@ -42,7 +43,10 @@ export default function Home() {
                 <tr className="movie" key={movie.title}>
                   <th>{index + 1}</th>
                   <td>
-                    <Link href={`/movie/${encodeURIComponent(movie.title)}`}>
+                    <Link
+                      href={`/movie/${encodeURIComponent(movie.title)}`}
+                      legacyBehavior
+                    >
                       <a className="link">{movie.title}</a>
                     </Link>
                   </td>
@@ -59,7 +63,10 @@ export default function Home() {
                     <ul>
                       {movie.actors.map((actor) => (
                         <li key={actor}>
-                          <Link href={`/actor/${encodeURIComponent(actor)}`}>
+                          <Link
+                            href={`/actor/${encodeURIComponent(actor)}`}
+                            legacyBehavior
+                          >
                             <a className="link">{actor}</a>
                           </Link>
                         </li>

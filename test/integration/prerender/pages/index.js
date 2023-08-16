@@ -15,76 +15,91 @@ const Page = ({ world, time }) => {
       {/* <div id='after-change'>idk</div> */}
       <p>hello {world}</p>
       <span>time: {time}</span>
-      <Link href="/non-json/[p]" as="/non-json/1">
-        <a id="non-json">to non-json</a>
+      <Link href="/non-json/[p]" as="/non-json/1" id="non-json">
+        to non-json
       </Link>
       <br />
-      <Link href="/another?hello=world" as="/another/?hello=world">
-        <a id="another">to another</a>
+      <Link href="/another?hello=world" as="/another/?hello=world" id="another">
+        to another
       </Link>
       <br />
-      <Link href="/something">
-        <a id="something">to something</a>
+      <Link href="/something" id="something">
+        to something
       </Link>
       <br />
-      <Link href="/normal">
-        <a id="normal">to normal</a>
+      <Link href="/normal" id="normal">
+        to normal
       </Link>
       <br />
-      <Link href="/blog/[post]" as="/blog/post-1">
-        <a id="post-1">to dynamic</a>
+      <Link href="/blog/[post]" as="/blog/post-1" id="post-1">
+        to dynamic
       </Link>
-      <Link href="/blog/[post]" as="/blog/post-100">
-        <a id="broken-post">to broken</a>
+      <Link href="/blog/[post]" as="/blog/post-100" id="broken-post">
+        to broken
       </Link>
-      <Link href="/blog/[post]" as="/blog/post-999" prefetch={false}>
-        <a id="broken-at-first-post">to broken at first</a>
-      </Link>
-      <br />
-      <Link href="/blog/[post]/[comment]" as="/blog/post-1/comment-1">
-        <a id="comment-1">to another dynamic</a>
-      </Link>
-      <Link href="/catchall/[...slug]" as="/catchall/first">
-        <a id="to-catchall">to catchall</a>
+      <Link
+        href="/blog/[post]"
+        as="/blog/post-999"
+        prefetch={false}
+        id="broken-at-first-post"
+      >
+        to broken at first
       </Link>
       <br />
-      <Link href="/index">
-        <a id="to-nested-index">to nested index</a>
+      <Link
+        href="/blog/[post]/[comment]"
+        as="/blog/post-1/comment-1"
+        id="comment-1"
+      >
+        to another dynamic
+      </Link>
+      <Link href="/catchall/[...slug]" as="/catchall/first" id="to-catchall">
+        to catchall
       </Link>
       <br />
-      <Link href="/lang/[lang]/about?lang=en" as="/about">
-        <a id="to-rewritten-ssg">to rewritten static path page</a>
+      <Link href="/index" id="to-nested-index">
+        to nested index
       </Link>
       <br />
-      <Link href="/catchall-optional/[[...slug]]" as="/catchall-optional">
-        <a id="catchall-optional-root">to optional catchall root</a>
-      </Link>
-      <Link href="/catchall-optional/[[...slug]]" as="/catchall-optional/value">
-        <a id="catchall-optional-value">to optional catchall page /value</a>
+      <Link href="/lang/[lang]/about?lang=en" as="/about" id="to-rewritten-ssg">
+        to rewritten static path page
       </Link>
       <br />
-      <Link href="/dynamic/[slug]" as="/dynamic/[first]">
-        <a id="dynamic-first">to dynamic [first] page</a>
+      <Link
+        href="/catchall-optional/[[...slug]]"
+        as="/catchall-optional"
+        id="catchall-optional-root"
+      >
+        to optional catchall root
       </Link>
-      <Link href="/dynamic/[slug]" as="/dynamic/[second]">
-        <a id="dynamic-second">to dynamic [second] page</a>
+      <Link
+        href="/catchall-optional/[[...slug]]"
+        as="/catchall-optional/value"
+        id="catchall-optional-value"
+      >
+        to optional catchall page /value
+      </Link>
+      <br />
+      <Link href="/dynamic/[slug]" as="/dynamic/[first]" id="dynamic-first">
+        to dynamic [first] page
+      </Link>
+      <Link href="/dynamic/[slug]" as="/dynamic/[second]" id="dynamic-second">
+        to dynamic [second] page
       </Link>
       <br />
       <Link
         href="/catchall-explicit/[...slug]"
         as="/catchall-explicit/[first]/[second]"
+        id="catchall-explicit-string"
       >
-        <a id="catchall-explicit-string">
-          to catchall-explicit [first]/[second] page
-        </a>
+        to catchall-explicit [first]/[second] page
       </Link>
       <Link
         href="/catchall-explicit/[...slug]"
         as="/catchall-explicit/[third]/[fourth]"
+        id="catchall-explicit-object"
       >
-        <a id="catchall-explicit-object">
-          to catchall-explicit [third]/[fourth] page
-        </a>
+        to catchall-explicit [third]/[fourth] page
       </Link>
     </>
   )

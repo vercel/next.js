@@ -1,0 +1,56 @@
+---
+title: Static and Dynamic Rendering
+nav_title: Static and Dynamic
+description: Learn about static and dynamic rendering in Next.js.
+---
+
+In Next.js, a route can be statically or dynamically rendered.
+
+- In a **static** route, components are rendered on the server at build time. The result of the work is cached and reused on subsequent requests.
+- In a **dynamic** route, components are rendered on the server at request time.
+
+## Static Rendering (Default)
+
+By default, Next.js statically renders routes to improve performance. This means all the rendering work is done ahead of time and can be served from a Content Delivery Network (CDN) geographically closer to the user.
+
+## Static Data Fetching (Default)
+
+By default, Next.js will cache the result of `fetch()` requests that do not specifically opt out of caching behavior. This means that fetch requests that do not set a `cache` option will use the `force-cache` option.
+
+If any fetch requests in the route use the `revalidate` option, the route will be re-rendered statically during revalidation.
+
+To learn more about caching data fetching requests, see the [Caching and Revalidating](/docs/app/building-your-application/data-fetching/caching) page.
+
+## Dynamic Rendering
+
+During static rendering, if a dynamic function or a dynamic `fetch()` request (no caching) is discovered, Next.js will switch to dynamically rendering the whole route at request time. Any cached data requests can still be re-used during dynamic rendering.
+
+This table summarizes how [dynamic functions](#dynamic-functions) and [caching](#static-data-fetching-default) affect the rendering behavior of a route:
+
+| Data Fetching   | Dynamic Functions | Rendering |
+| --------------- | ----------------- | --------- |
+| Static (Cached) | No                | Static    |
+| Static (Cached) | Yes               | Dynamic   |
+| Not Cached      | No                | Dynamic   |
+| Not Cached      | Yes               | Dynamic   |
+
+Note how dynamic functions always opt the route into dynamic rendering, regardless of whether the data fetching is cached or not. In other words, static rendering is dependent not only on the data fetching behavior, but also on the dynamic functions used in the route.
+
+> **Good to know**: In the future, Next.js will introduce hybrid server-side rendering where layouts and pages in a route can be independently statically or dynamically rendered, instead of the whole route.
+
+### Dynamic Functions
+
+Dynamic functions rely on information that can only be known at request time such as a user's cookies, current requests headers, or the URL's search params. In Next.js, these dynamic functions are:
+
+- Using [`cookies()`](/docs/app/api-reference/functions/cookies) or [`headers()`](/docs/app/api-reference/functions/headers) in a Server Component will opt the whole route into dynamic rendering at request time.
+- Using [`useSearchParams()`](/docs/app/api-reference/functions/use-search-params) in Client Components will skip static rendering and instead render all Client Components up to the nearest parent Suspense boundary on the client.
+  - We recommend wrapping the Client Component that uses `useSearchParams()` in a `<Suspense/>` boundary. This will allow any Client Components above it to be statically rendered. [Example](/docs/app/api-reference/functions/use-search-params#static-rendering).
+- Using the [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) [Pages](/docs/app/api-reference/file-conventions/page) prop will opt the page into dynamic rendering at request time.
+
+## Dynamic Data Fetching
+
+Dynamic data fetches are `fetch()` requests that specifically opt out of caching behavior by setting the `cache` option to `'no-store'` or `revalidate` to `0`.
+
+The caching options for all `fetch` requests in a layout or page can also be set using the [segment config](/docs/app/api-reference/file-conventions/route-segment-config) object.
+
+To learn more about Dynamic Data Fetching, see the [Data Fetching](/docs/app/building-your-application/data-fetching/fetching) page.

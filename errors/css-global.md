@@ -16,8 +16,8 @@ Or, [update your component to use local CSS (Component-Level CSS) via CSS Module
 
 Consider the stylesheet named [`styles.css`](https://nextjs.org/docs/basic-features/built-in-css-support#adding-a-global-stylesheet)
 
-```jsx
-//styles.css
+```css
+/* styles.css */
 body {
   font-family: 'SF Pro Text', 'SF Pro Icons', 'Helvetica Neue', 'Helvetica',
     'Arial', sans-serif;

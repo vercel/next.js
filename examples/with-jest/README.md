@@ -12,10 +12,14 @@ In your terminal, run the following command:
 
 ```bash
 npx create-next-app --example with-jest with-jest-app
-# or
+```
+
+```bash
 yarn create next-app --example with-jest with-jest-app
-# or
-pnpm create next-app -- --example with-jest with-jest-app
+```
+
+```bash
+pnpm create next-app --example with-jest with-jest-app
 ```
 
 ## Run Jest Tests

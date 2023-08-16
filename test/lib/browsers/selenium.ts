@@ -42,11 +42,11 @@ export async function quit() {
   seleniumServer = undefined
 }
 
-class Selenium extends BrowserInterface {
+export class Selenium extends BrowserInterface {
   private browserName: string
 
   // TODO: support setting locale
-  async setup(browserName: string, locale?: string) {
+  async setup(browserName: string, locale: string, javaScriptEnabled: boolean) {
     if (browser) return
     this.browserName = browserName
 
@@ -300,8 +300,8 @@ class Selenium extends BrowserInterface {
     }) as any
   }
 
-  async getAttribute(attr) {
-    return this.chain((el) => el.getAttribute(attr))
+  async getAttribute<T = any>(attr) {
+    return this.chain((el) => el.getAttribute(attr)) as T
   }
 
   async hasElementByCssSelector(selector: string) {
@@ -334,18 +334,18 @@ class Selenium extends BrowserInterface {
     )
   }
 
-  async eval(snippet) {
+  async eval<T = any>(snippet) {
     if (typeof snippet === 'string' && !snippet.startsWith('return')) {
       snippet = `return ${snippet}`
     }
-    return browser.executeScript(snippet)
+    return browser.executeScript<T>(snippet)
   }
 
-  async evalAsync(snippet) {
+  async evalAsync<T = any>(snippet) {
     if (typeof snippet === 'string' && !snippet.startsWith('return')) {
       snippet = `return ${snippet}`
     }
-    return browser.executeAsyncScript(snippet)
+    return browser.executeAsyncScript<T>(snippet)
   }
 
   async log() {
@@ -356,5 +356,3 @@ class Selenium extends BrowserInterface {
     return this.chain(() => browser.getCurrentUrl()) as any
   }
 }
-
-export default Selenium

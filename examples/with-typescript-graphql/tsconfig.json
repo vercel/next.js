@@ -14,11 +14,6 @@
     "isolatedModules": true,
     "jsx": "preserve",
     "baseUrl": ".",
-    "paths": {
-      "@graphql-types@": [
-        "node_modules/@types/graphql-let/__generated__/__types__"
-      ]
-    },
     "incremental": true
   },
   "include": ["next-env.d.ts", "graphql.d.ts", "**/*.ts", "**/*.tsx"],

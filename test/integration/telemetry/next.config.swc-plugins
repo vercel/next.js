@@ -1,0 +1,9 @@
+module.exports = {
+  experimental: {
+    swcPlugins: [
+      ["swc-plugin-coverage-instrument", {}],
+      ["@swc/plugin-relay", {}],
+      ["/test/absolute_path/plugin.wasm", {}]
+    ]
+  }
+}

@@ -6,14 +6,15 @@
     "start": "next start"
   },
   "dependencies": {
-    "@material-ui/core": "^3.9.2",
-    "@material-ui/icons": "^3.0.2",
-    "jss": "^9.8.7",
-    "mobile-detect": "^1.4.3",
-    "next": "^9.3.0",
-    "react": "^17.0.2",
-    "react-dom": "^17.0.2",
-    "react-jss": "^8.6.1",
-    "react-multi-carousel": "^1.2.5"
+    "next": "latest",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-multi-carousel": "^2.8.2"
+  },
+  "devDependencies": {
+    "@types/node": "^18.0.0",
+    "@types/react": "^18.0.14",
+    "@types/react-dom": "^18.0.5",
+    "typescript": "^4.7.4"
   }
 }

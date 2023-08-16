@@ -14,11 +14,11 @@ const FakeA = UnexpectedNestedA()
 
 export default () => (
   <div className="nav-pass-href-prop">
-    <Link href="/nav" passHref>
+    <Link href="/nav" passHref legacyBehavior>
       <FakeA id="with-href">Will redirect as an `a` tag</FakeA>
     </Link>
 
-    <Link href="/nav">
+    <Link href="/nav" legacyBehavior>
       <FakeA id="without-href">Will not redirect as an `a` tag</FakeA>
     </Link>
 

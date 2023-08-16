@@ -9,7 +9,7 @@ class Button extends React.Component {
 
 export default () => (
   <div>
-    <Link href="/another" passHref>
+    <Link href="/another" passHref legacyBehavior>
       <Button id="btn-link" />
     </Link>
   </div>

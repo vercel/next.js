@@ -1,0 +1,1 @@
+export { getStaticProps } from 'a';

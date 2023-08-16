@@ -6,4 +6,4 @@ Next.js configures internal variables for replacement itself. `NEXT_RUNTIME` alo
 
 #### Possible Ways to Fix It
 
-Rename the specified key so that it does not start with `__` or `NODE_`, or pick other another name for `NEXT_RUNTIME`.
+Rename the specified key so that it does not start with `__` or `NODE_`, or pick another name for `NEXT_RUNTIME`.

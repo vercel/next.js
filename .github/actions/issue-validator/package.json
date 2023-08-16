@@ -1,0 +1,14 @@
+{
+  "private": true,
+  "exports": "./index.mjs",
+  "scripts": {
+    "build": "ncc -m -o . build src/index.mjs --license licenses.txt"
+  },
+  "devDependencies": {
+    "@vercel/ncc": "0.34.0"
+  },
+  "dependencies": {
+    "@actions/core": "1.10.0",
+    "@actions/github": "5.1.1"
+  }
+}

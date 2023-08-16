@@ -1,6 +1,6 @@
 let shouldBeRemoved = 'should be removed'
 export function removeFunction() {
-  console.log(shouldBeRemoved);
+  console.log(shouldBeRemoved)
 }
 
 let shouldBeKept = 'should be kept'

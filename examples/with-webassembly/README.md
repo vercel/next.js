@@ -10,14 +10,18 @@ Preview the example live on [StackBlitz](http://stackblitz.com/):
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-webassembly with-webassembly-app
-# or
+```
+
+```bash
 yarn create next-app --example with-webassembly with-webassembly-app
-# or
-pnpm create next-app -- --example with-webassembly with-webassembly-app
+```
+
+```bash
+pnpm create next-app --example with-webassembly with-webassembly-app
 ```
 
 This example uses Rust compiled to wasm, the wasm file is included in the example, but to compile your own Rust code you'll have to [install](https://www.rust-lang.org/learn/get-started) Rust.
@@ -28,4 +32,6 @@ To compile `src/add.rs` to `add.wasm` run:
 npm run build-rust
 # or
 yarn build-rust
+# or
+pnpm build-rust
 ```
