@@ -367,6 +367,28 @@ function Router({
     }, [appRouter, cache, prefetchCache, tree])
   }
 
+  useEffect(() => {
+    // If the app is restored from bfcache, it's possible that
+    // pushRef.mpaNavigation is true, which would mean that any re-render of this component
+    // would trigger the mpa navigation logic again from the lines below.
+    // This will restore the router to the initial state in the event that the app is restored from bfcache.
+    function handlePageShow(event: PageTransitionEvent) {
+      if (!event.persisted) return
+
+      dispatch({
+        type: ACTION_RESTORE,
+        url: new URL(window.location.href),
+        tree: window.history.state,
+      })
+    }
+
+    window.addEventListener('pageshow', handlePageShow)
+
+    return () => {
+      window.removeEventListener('pageshow', handlePageShow)
+    }
+  }, [dispatch, initialTree])
+
   // When mpaNavigation flag is set do a hard navigation to the new url.
   // Infinitely suspend because we don't actually want to rerender any child
   // components with the new URL and any entangled state updates shouldn't
