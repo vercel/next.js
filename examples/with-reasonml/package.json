@@ -10,13 +10,13 @@
   "dependencies": {
     "next": "latest",
     "next-transpile-modules": "^9.0.0",
-    "react": "^17.0.2",
-    "react-dom": "^17.0.2",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
     "reason-react": "^0.7.0"
   },
   "devDependencies": {
     "@babel/core": "^7.8.4",
     "bs-platform": "^7.1.0",
-    "concurrently": "^5.1.0"
+    "concurrently": "^6.2.2"
   }
 }

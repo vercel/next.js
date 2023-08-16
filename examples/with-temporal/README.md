@@ -42,7 +42,7 @@ There are three parts of this starter project that are left unimplemented:
 
 The Next.js server can be deployed using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-temporal&project-name=with-temporal&repository-name=with-temporal)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-temporal&project-name=with-temporal&repository-name=with-temporal)
 
 ### Worker
 
@@ -54,14 +54,14 @@ Temporal Server is a cluster of internal services, a database of record, and a s
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-temporal next-temporal-app
 # or
 yarn create next-app --example with-temporal next-temporal-app
 # or
-pnpm create next-app -- --example with-temporal next-temporal-app
+pnpm create next-app --example with-temporal next-temporal-app
 ```
 
 The Temporal Node SDK requires [Node `>= 14`, `node-gyp`, and Temporal Server](https://docs.temporal.io/docs/node/getting-started#step-0-prerequisites). Once you have everything installed, you can develop locally with the below commands in four different shells:
@@ -69,7 +69,7 @@ The Temporal Node SDK requires [Node `>= 14`, `node-gyp`, and Temporal Server](h
 In the Temporal Server docker directory:
 
 ```bash
-docker-compose up
+docker compose up
 ```
 
 In the `next-temporal-app/` directory:

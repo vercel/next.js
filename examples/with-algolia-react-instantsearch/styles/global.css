@@ -1,0 +1,53 @@
+html {
+  font-family: sans-serif;
+}
+
+header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+main {
+  display: flex;
+  margin: 25px 0;
+}
+
+.menu {
+  flex: 2;
+}
+
+footer {
+  text-align: center;
+}
+
+.ais-Pagination {
+  margin-bottom: 25px;
+}
+
+.results {
+  flex: 9;
+}
+
+.hit {
+  display: flex;
+  align-items: center;
+}
+
+.hit-actions {
+  display: flex;
+}
+
+.hit-content {
+  padding: 0px 10px;
+}
+
+.hit-picture img {
+  width: 80px;
+  height: 80px;
+}
+
+.hit-type {
+  color: #888888;
+  font-size: 13px;
+}

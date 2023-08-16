@@ -50,9 +50,7 @@ export default function LoginPage() {
           </label>
           <div className="submit">
             <button type="submit">Login</button>
-            <Link href="/signup">
-              <a>I don't have an account</a>
-            </Link>
+            <Link href="/signup">I don't have an account</Link>
           </div>
         </form>
       </div>

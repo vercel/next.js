@@ -1,0 +1,28 @@
+PlainIssue {
+    severity: Error,
+    context: "[project]/packages/next-swc/crates/next-dev-tests/tests/temp/webpack/chunks/__skipped__/context-weak/input/index.js",
+    category: "parse",
+    title: "error TP1007 require.context(\".\", true, /.+/, \"weak\") is not statically analyze-able: require.context() only supports 1-3 arguments (mode is not supported)",
+    description: "",
+    detail: "",
+    documentation_link: "",
+    source: Some(
+        PlainIssueSource {
+            asset: PlainAsset {
+                ident: "[project]/packages/next-swc/crates/next-dev-tests/tests/temp/webpack/chunks/__skipped__/context-weak/input/index.js",
+            },
+            start: SourcePos {
+                line: 25,
+                column: 23,
+            },
+            end: SourcePos {
+                line: 25,
+                column: 23,
+            },
+        },
+    ),
+    sub_issues: [],
+    processing_path: Some(
+        [],
+    ),
+}

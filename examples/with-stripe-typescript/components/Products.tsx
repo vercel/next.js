@@ -1,6 +1,6 @@
 import products from '../data/products'
 import { formatCurrencyString } from 'use-shopping-cart'
-import { useShoppingCart } from 'use-shopping-cart/react'
+import { useShoppingCart } from 'use-shopping-cart'
 
 const Products = () => {
   const { addItem, removeItem } = useShoppingCart()

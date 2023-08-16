@@ -20,7 +20,7 @@ class App extends React.Component {
     const { refHeight } = this.state
 
     return (
-      <div ref={this.divRef}>
+      <div ref={this.divRef} style={{ height: 76, overflow: 'hidden' }}>
         <h1>DOM Ref test using 9.2.0</h1>
         <code id="ref-val">{`this component is ${refHeight}px tall`}</code>
       </div>

@@ -1,0 +1,27 @@
+{
+  "private": true,
+  "scripts": {
+    "start": "sanity dev",
+    "dev": "sanity dev",
+    "build": "sanity build",
+    "cors:add": "npx sanity cors add",
+    "deploy": "sanity deploy",
+    "prestart": "npm run env",
+    "predeploy": "npm run env",
+    "env": "node copyEnv.js"
+  },
+  "dependencies": {
+    "sanity": "^3.2.6",
+    "@sanity/vision": "^3.2.6",
+    "prop-types": "^15.7",
+    "react": "^18",
+    "react-dom": "^18",
+    "sanity-plugin-asset-source-unsplash": "^1.0.6",
+    "styled-components": "^5.2.0"
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.4.13",
+    "postcss": "^8.4.21",
+    "tailwindcss": "^3.2.4"
+  }
+}

@@ -4,23 +4,23 @@ export default function Links() {
   return (
     <>
       <p id="links">Links</p>
-      <Link href="/">
-        <a id="to-index">to /</a>
+      <Link href="/" id="to-index">
+        to /
       </Link>
       <br />
 
-      <Link href="/about">
-        <a id="to-about">to /about</a>
+      <Link href="/about" id="to-about">
+        to /about
       </Link>
       <br />
 
-      <Link href="/catch-all/hello">
-        <a id="to-catch-all">to /catch-all/hello</a>
+      <Link href="/catch-all/hello" id="to-catch-all">
+        to /catch-all/hello
       </Link>
       <br />
 
-      <Link href="/links">
-        <a id="to-links">to /links</a>
+      <Link href="/links" id="to-links">
+        to /links
       </Link>
     </>
   )

@@ -1,0 +1,27 @@
+PlainIssue {
+    severity: Error,
+    context: "[project]/packages/next-swc/crates/next-dev-tests/tests/temp/next/app/use-server/input/app/action.tsx",
+    category: "unsupported",
+    title: "Server actions (\"use server\") are not yet supported in Turbopack",
+    description: "",
+    detail: "",
+    documentation_link: "",
+    source: None,
+    sub_issues: [],
+    processing_path: Some(
+        [
+            PlainIssueProcessingPathItem {
+                context: Some(
+                    "[project]/packages/next-swc/crates/next-dev-tests/tests/temp/next/app/use-server/input/app",
+                ),
+                description: "Next.js App Page Route /",
+            },
+            PlainIssueProcessingPathItem {
+                context: Some(
+                    "[next]/entry/app-renderer.tsx",
+                ),
+                description: "server-side rendering /",
+            },
+        ],
+    ),
+}

@@ -1,0 +1,401 @@
+---
+title: Data Fetching
+nav_title: Fetching
+description: Learn how to fetch data in your Next.js application.
+---
+
+The Next.js App Router allows you to fetch data directly in your React components by marking the function as `async` and using `await` for the [Promise](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise).
+
+Data fetching is built on top of the [`fetch()` Web API](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) and React Server Components. When using `fetch()`, requests are [automatically deduped](/docs/app/building-your-application/data-fetching#automatic-fetch-request-deduping) by default.
+
+Next.js extends the `fetch` options object to allow each request to set its own [caching and revalidating](/docs/app/building-your-application/data-fetching/caching).
+
+## `async` and `await` in Server Components
+
+You can use `async` and `await` to fetch data in Server Components.
+
+```tsx filename="app/page.tsx" switcher
+async function getData() {
+  const res = await fetch('https://api.example.com/...')
+  // The return value is *not* serialized
+  // You can return Date, Map, Set, etc.
+
+  // Recommendation: handle errors
+  if (!res.ok) {
+    // This will activate the closest `error.js` Error Boundary
+    throw new Error('Failed to fetch data')
+  }
+
+  return res.json()
+}
+
+export default async function Page() {
+  const data = await getData()
+
+  return <main></main>
+}
+```
+
+```jsx filename="app/page.js" switcher
+async function getData() {
+  const res = await fetch('https://api.example.com/...')
+  // The return value is *not* serialized
+  // You can return Date, Map, Set, etc.
+
+  // Recommendation: handle errors
+  if (!res.ok) {
+    // This will activate the closest `error.js` Error Boundary
+    throw new Error('Failed to fetch data')
+  }
+
+  return res.json()
+}
+
+export default async function Page() {
+  const data = await getData()
+
+  return <main></main>
+}
+```
+
+> **Good to know**:
+>
+> To use an `async` Server Component with TypeScript, ensure you are using TypeScript `5.1.3` or higher and `@types/react` `18.2.8` or higher.
+
+### Server Component Functions
+
+Next.js provides helpful server functions you may need when fetching data in Server Components:
+
+- [`cookies()`](/docs/app/api-reference/functions/cookies)
+- [`headers()`](/docs/app/api-reference/functions/headers)
+
+## `use` in Client Components
+
+`use` is a new React function that **accepts a promise** conceptually similar to `await`. `use` **handles the promise** returned by a function in a way that is compatible with components, hooks, and Suspense. Learn more about `use` in the [React RFC](https://github.com/acdlite/rfcs/blob/first-class-promises/text/0000-first-class-support-for-promises.md#usepromise).
+
+Wrapping `fetch` in `use` is currently **not** recommended in Client Components and may trigger multiple re-renders. For now, if you need to fetch data in a Client Component, we recommend using a third-party library such as [SWR](https://swr.vercel.app/) or [React Query](https://tanstack.com/query/v4).
+
+> **Good to know**: We'll be adding more examples once `fetch` and `use` work in Client Components.
+
+## Static Data Fetching
+
+By default, `fetch` will automatically fetch and [cache data](/docs/app/building-your-application/data-fetching/caching) indefinitely.
+
+```ts
+fetch('https://...') // cache: 'force-cache' is the default
+```
+
+### Revalidating Data
+
+To revalidate [cached data](/docs/app/building-your-application/data-fetching/caching) at a timed interval, you can use the `next.revalidate` option in `fetch()` to set the `cache` lifetime of a resource (in seconds).
+
+```ts
+fetch('https://...', { next: { revalidate: 10 } })
+```
+
+See [Revalidating Data](/docs/app/building-your-application/data-fetching/revalidating) for more information.
+
+> **Good to know**:
+>
+> Caching at the fetch level with `revalidate` or `cache: 'force-cache'` stores the data across requests in a shared cache. You should avoid using it for user-specific data (i.e. requests that derive data from `cookies()` or `headers()`)
+
+## Dynamic Data Fetching
+
+To fetch fresh data on every `fetch` request, use the `cache: 'no-store'` option.
+
+```ts
+fetch('https://...', { cache: 'no-store' })
+```
+
+## Data Fetching Patterns
+
+### Parallel Data Fetching
+
+To minimize client-server waterfalls, we recommend this pattern to fetch data in parallel:
+
+```tsx filename="app/artist/[username]/page.tsx" switcher
+import Albums from './albums'
+
+async function getArtist(username: string) {
+  const res = await fetch(`https://api.example.com/artist/${username}`)
+  return res.json()
+}
+
+async function getArtistAlbums(username: string) {
+  const res = await fetch(`https://api.example.com/artist/${username}/albums`)
+  return res.json()
+}
+
+export default async function Page({
+  params: { username },
+}: {
+  params: { username: string }
+}) {
+  // Initiate both requests in parallel
+  const artistData = getArtist(username)
+  const albumsData = getArtistAlbums(username)
+
+  // Wait for the promises to resolve
+  const [artist, albums] = await Promise.all([artistData, albumsData])
+
+  return (
+    <>
+      <h1>{artist.name}</h1>
+      <Albums list={albums}></Albums>
+    </>
+  )
+}
+```
+
+```jsx filename="app/artist/[username]/page.js" switcher
+import Albums from './albums'
+
+async function getArtist(username) {
+  const res = await fetch(`https://api.example.com/artist/${username}`)
+  return res.json()
+}
+
+async function getArtistAlbums(username) {
+  const res = await fetch(`https://api.example.com/artist/${username}/albums`)
+  return res.json()
+}
+
+export default async function Page({ params: { username } }) {
+  // Initiate both requests in parallel
+  const artistData = getArtist(username)
+  const albumsData = getArtistAlbums(username)
+
+  // Wait for the promises to resolve
+  const [artist, albums] = await Promise.all([artistData, albumsData])
+
+  return (
+    <>
+      <h1>{artist.name}</h1>
+      <Albums list={albums}></Albums>
+    </>
+  )
+}
+```
+
+By starting the fetch prior to calling `await` in the Server Component, each request can eagerly start to fetch requests at the same time. This sets the components up so you can avoid waterfalls.
+
+We can save time by initiating both requests in parallel, however, the user won't see the rendered result until both promises are resolved.
+
+To improve the user experience, you can add a [suspense boundary](/docs/app/building-your-application/routing/loading-ui-and-streaming) to break up the rendering work and show part of the result as soon as possible:
+
+```tsx filename="artist/[username]/page.tsx" switcher
+import { getArtist, getArtistAlbums, type Album } from './api'
+
+export default async function Page({
+  params: { username },
+}: {
+  params: { username: string }
+}) {
+  // Initiate both requests in parallel
+  const artistData = getArtist(username)
+  const albumData = getArtistAlbums(username)
+
+  // Wait for the artist's promise to resolve first
+  const artist = await artistData
+
+  return (
+    <>
+      <h1>{artist.name}</h1>
+      {/* Send the artist information first,
+          and wrap albums in a suspense boundary */}
+      <Suspense fallback={<div>Loading...</div>}>
+        <Albums promise={albumData} />
+      </Suspense>
+    </>
+  )
+}
+
+// Albums Component
+async function Albums({ promise }: { promise: Promise<Album[]> }) {
+  // Wait for the albums promise to resolve
+  const albums = await promise
+
+  return (
+    <ul>
+      {albums.map((album) => (
+        <li key={album.id}>{album.name}</li>
+      ))}
+    </ul>
+  )
+}
+```
+
+```jsx filename="artist/[username]/page.js" switcher
+import { getArtist, getArtistAlbums } from './api'
+
+export default async function Page({ params: { username } }) {
+  // Initiate both requests in parallel
+  const artistData = getArtist(username)
+  const albumData = getArtistAlbums(username)
+
+  // Wait for the artist's promise to resolve first
+  const artist = await artistData
+
+  return (
+    <>
+      <h1>{artist.name}</h1>
+      {/* Send the artist information first,
+      and wrap albums in a suspense boundary */}
+      <Suspense fallback={<div>Loading...</div>}>
+        <Albums promise={albumData} />
+      </Suspense>
+    </>
+  )
+}
+
+// Albums Component
+async function Albums({ promise }) {
+  // Wait for the albums promise to resolve
+  const albums = await promise
+
+  return (
+    <ul>
+      {albums.map((album) => (
+        <li key={album.id}>{album.name}</li>
+      ))}
+    </ul>
+  )
+}
+```
+
+Take a look at the [preloading pattern](/docs/app/building-your-application/data-fetching/caching#preload-pattern-with-cache) for more information on improving components structure.
+
+### Sequential Data Fetching
+
+To fetch data sequentially, you can `fetch` directly inside the component that needs it, or you can `await` the result of `fetch` inside the component that needs it:
+
+```tsx filename="app/artist/page.tsx" switcher
+// ...
+
+async function Playlists({ artistID }: { artistID: string }) {
+  // Wait for the playlists
+  const playlists = await getArtistPlaylists(artistID)
+
+  return (
+    <ul>
+      {playlists.map((playlist) => (
+        <li key={playlist.id}>{playlist.name}</li>
+      ))}
+    </ul>
+  )
+}
+
+export default async function Page({
+  params: { username },
+}: {
+  params: { username: string }
+}) {
+  // Wait for the artist
+  const artist = await getArtist(username)
+
+  return (
+    <>
+      <h1>{artist.name}</h1>
+      <Suspense fallback={<div>Loading...</div>}>
+        <Playlists artistID={artist.id} />
+      </Suspense>
+    </>
+  )
+}
+```
+
+```jsx filename="app/artist/page.js" switcher
+// ...
+
+async function Playlists({ artistID }) {
+  // Wait for the playlists
+  const playlists = await getArtistPlaylists(artistID)
+
+  return (
+    <ul>
+      {playlists.map((playlist) => (
+        <li key={playlist.id}>{playlist.name}</li>
+      ))}
+    </ul>
+  )
+}
+
+export default async function Page({ params: { username } }) {
+  // Wait for the artist
+  const artist = await getArtist(username)
+
+  return (
+    <>
+      <h1>{artist.name}</h1>
+      <Suspense fallback={<div>Loading...</div>}>
+        <Playlists artistID={artist.id} />
+      </Suspense>
+    </>
+  )
+}
+```
+
+By fetching data inside the component, each fetch request and nested segment in the route cannot start fetching data and rendering until the previous request or segment has completed.
+
+### Blocking Rendering in a Route
+
+By fetching data in a [layout](/docs/app/building-your-application/routing/pages-and-layouts), rendering for all route segments beneath it can only start once the data has finished loading.
+
+In the `pages` directory, pages using server-rendering would show the browser loading spinner until `getServerSideProps` had finished, then render the React component for that page. This can be described as "all or nothing" data fetching. Either you had the entire data for your page, or none.
+
+In the `app` directory, you have additional options to explore:
+
+1. First, you can use `loading.js` to show an instant loading state from the server while streaming in the result from your data fetching function.
+2. Second, you can move data fetching _lower_ in the component tree to only block rendering for the parts of the page that need it. For example, moving data fetching to a specific component rather than fetching it at the root layout.
+
+Whenever possible, it's best to fetch data in the segment that uses it. This also allows you to show a loading state for only the part of the page that is loading, and not the entire page.
+
+## Data Fetching without `fetch()`
+
+You might not always have the ability to use and configure `fetch` requests directly if you're using a third-party library such as an ORM or database client.
+
+In cases where you cannot use `fetch` but still want to control the caching or revalidating behavior of a layout or page, you can rely on the [default caching behavior](#default-caching-behavior) of the segment or use the [segment cache configuration](#segment-cache-configuration).
+
+### Default Caching Behavior
+
+Any data fetching libraries that do not use `fetch` directly **will not** affect caching of a route, and will be static or dynamic depending on the route segment.
+
+If the segment is static (default), the output of the request will be cached and revalidated (if configured) alongside the rest of the segment. If the segment is dynamic, the output of the request will _not_ be cached and will be re-fetched on every request when the segment is rendered.
+
+> **Good to know**: Dynamic functions like [`cookies()`](/docs/app/api-reference/functions/cookies) and [`headers()`](/docs/app/api-reference/functions/headers) will make the route segment dynamic.
+
+### Segment Cache Configuration
+
+As a temporary solution, until the caching behavior of third-party queries can be configured, you can use [segment configuration](/docs/app/api-reference/file-conventions/route-segment-config#revalidate) to customize the cache behavior of the entire segment.
+
+```tsx filename="app/page.tsx" switcher
+import prisma from './lib/prisma'
+
+export const revalidate = 3600 // revalidate every hour
+
+async function getPosts() {
+  const posts = await prisma.post.findMany()
+  return posts
+}
+
+export default async function Page() {
+  const posts = await getPosts()
+  // ...
+}
+```
+
+```jsx filename="app/page.js" switcher
+import prisma from './lib/prisma'
+
+export const revalidate = 3600 // revalidate every hour
+
+async function getPosts() {
+  const posts = await prisma.post.findMany()
+  return posts
+}
+
+export default async function Page() {
+  const posts = await getPosts()
+  // ...
+}
+```

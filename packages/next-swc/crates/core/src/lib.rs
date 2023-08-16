@@ -28,34 +28,36 @@ DEALINGS IN THE SOFTWARE.
 
 #![recursion_limit = "2048"]
 #![deny(clippy::all)]
+#![feature(box_patterns)]
+
+use std::{cell::RefCell, env::current_dir, path::PathBuf, rc::Rc, sync::Arc};
 
 use auto_cjs::contains_cjs;
 use either::Either;
 use fxhash::FxHashSet;
+use next_transform_font::next_font_loaders;
 use serde::Deserialize;
-use std::cell::RefCell;
-use std::rc::Rc;
-use std::{path::PathBuf, sync::Arc};
-use swc::config::ModuleConfig;
-use swc_common::comments::Comments;
-use swc_common::{self, chain, pass::Optional};
-use swc_common::{FileName, SourceFile, SourceMap};
-use swc_ecmascript::ast::EsVersion;
-use swc_ecmascript::parser::parse_file_as_module;
-use swc_ecmascript::transforms::pass::noop;
-use swc_ecmascript::visit::Fold;
+use turbopack_binding::swc::core::{
+    common::{
+        chain, comments::Comments, pass::Optional, FileName, Mark, SourceFile, SourceMap,
+        SyntaxContext,
+    },
+    ecma::{
+        ast::EsVersion, parser::parse_file_as_module, transforms::base::pass::noop, visit::Fold,
+    },
+};
 
 pub mod amp_attributes;
 mod auto_cjs;
+pub mod cjs_optimizer;
 pub mod disallow_re_export_all_in_page;
-pub mod hook_optimizer;
 pub mod next_dynamic;
 pub mod next_ssg;
 pub mod page_config;
 pub mod react_remove_properties;
-#[cfg(not(target_arch = "wasm32"))]
-pub mod relay;
+pub mod react_server_components;
 pub mod remove_console;
+pub mod server_actions;
 pub mod shake_exports;
 mod top_level_binding_collector;
 
@@ -63,7 +65,7 @@ mod top_level_binding_collector;
 #[serde(rename_all = "camelCase")]
 pub struct TransformOptions {
     #[serde(flatten)]
-    pub swc: swc::config::Options,
+    pub swc: turbopack_binding::swc::core::base::config::Options,
 
     #[serde(default)]
     pub disable_next_ssg: bool,
@@ -75,6 +77,9 @@ pub struct TransformOptions {
     pub pages_dir: Option<PathBuf>,
 
     #[serde(default)]
+    pub app_dir: Option<PathBuf>,
+
+    #[serde(default)]
     pub is_page_file: bool,
 
     #[serde(default)]
@@ -84,7 +89,14 @@ pub struct TransformOptions {
     pub is_server: bool,
 
     #[serde(default)]
-    pub styled_components: Option<styled_components::Config>,
+    pub server_components: Option<react_server_components::Config>,
+
+    #[serde(default)]
+    pub styled_jsx: bool,
+
+    #[serde(default)]
+    pub styled_components:
+        Option<turbopack_binding::swc::custom_transform::styled_components::Config>,
 
     #[serde(default)]
     pub remove_console: Option<remove_console::Config>,
@@ -94,16 +106,32 @@ pub struct TransformOptions {
 
     #[serde(default)]
     #[cfg(not(target_arch = "wasm32"))]
-    pub relay: Option<relay::Config>,
+    pub relay: Option<turbopack_binding::swc::custom_transform::relay::Config>,
+
+    #[allow(unused)]
+    #[serde(default)]
+    #[cfg(target_arch = "wasm32")]
+    /// Accept any value
+    pub relay: Option<serde_json::Value>,
 
     #[serde(default)]
     pub shake_exports: Option<shake_exports::Config>,
 
     #[serde(default)]
-    pub emotion: Option<swc_emotion::EmotionOptions>,
+    pub emotion: Option<turbopack_binding::swc::custom_transform::emotion::EmotionOptions>,
 
     #[serde(default)]
-    pub modularize_imports: Option<modularize_imports::Config>,
+    pub modularize_imports:
+        Option<turbopack_binding::swc::custom_transform::modularize_imports::Config>,
+
+    #[serde(default)]
+    pub font_loaders: Option<next_transform_font::Config>,
+
+    #[serde(default)]
+    pub server_actions: Option<server_actions::Config>,
+
+    #[serde(default)]
+    pub cjs_require_optimizer: Option<cjs_optimizer::Config>,
 }
 
 pub fn custom_before_pass<'a, C: Comments + 'a>(
@@ -112,45 +140,75 @@ pub fn custom_before_pass<'a, C: Comments + 'a>(
     opts: &'a TransformOptions,
     comments: C,
     eliminated_packages: Rc<RefCell<FxHashSet<String>>>,
-) -> impl Fold + 'a {
+    unresolved_mark: Mark,
+) -> impl Fold + 'a
+where
+    C: Clone,
+{
     #[cfg(target_arch = "wasm32")]
     let relay_plugin = noop();
 
     #[cfg(not(target_arch = "wasm32"))]
     let relay_plugin = {
         if let Some(config) = &opts.relay {
-            Either::Left(relay::relay(
+            Either::Left(turbopack_binding::swc::custom_transform::relay::relay(
                 config,
                 file.name.clone(),
+                current_dir().unwrap(),
                 opts.pages_dir.clone(),
+                None,
             ))
         } else {
             Either::Right(noop())
         }
     };
 
+    let mut modularize_imports_config = match &opts.modularize_imports {
+        Some(config) => config.clone(),
+        None => turbopack_binding::swc::custom_transform::modularize_imports::Config {
+            packages: std::collections::HashMap::new(),
+        },
+    };
+    modularize_imports_config.packages.insert(
+        "next/server".to_string(),
+        turbopack_binding::swc::custom_transform::modularize_imports::PackageConfig {
+            transform: "next/dist/server/web/exports/{{ kebabCase member }}".to_string(),
+            prevent_full_import: false,
+            skip_default_conversion: false,
+        },
+    );
+
     chain!(
         disallow_re_export_all_in_page::disallow_re_export_all_in_page(opts.is_page_file),
-        styled_jsx::styled_jsx(cm.clone(), file.name.clone()),
-        hook_optimizer::hook_optimizer(),
+        match &opts.server_components {
+            Some(config) if config.truthy() =>
+                Either::Left(react_server_components::server_components(
+                    file.name.clone(),
+                    config.clone(),
+                    comments.clone(),
+                    opts.app_dir.clone()
+                )),
+            _ => Either::Right(noop()),
+        },
+        if opts.styled_jsx {
+            Either::Left(
+                turbopack_binding::swc::custom_transform::styled_jsx::visitor::styled_jsx(
+                    cm.clone(),
+                    file.name.clone(),
+                ),
+            )
+        } else {
+            Either::Right(noop())
+        },
         match &opts.styled_components {
-            Some(config) => {
-                let config = Rc::new(config.clone());
-                let state: Rc<RefCell<styled_components::State>> = Default::default();
-
-                Either::Left(chain!(
-                    styled_components::analyzer(config.clone(), state.clone()),
-                    styled_components::display_name_and_id(
-                        file.name.clone(),
-                        file.src_hash,
-                        config,
-                        state
-                    )
-                ))
-            }
-            None => {
-                Either::Right(noop())
-            }
+            Some(config) => Either::Left(
+                turbopack_binding::swc::custom_transform::styled_components::styled_components(
+                    file.name.clone(),
+                    file.src_hash,
+                    config.clone(),
+                )
+            ),
+            None => Either::Right(noop()),
         },
         Optional::new(
             next_ssg::next_ssg(eliminated_packages),
@@ -160,6 +218,13 @@ pub fn custom_before_pass<'a, C: Comments + 'a>(
         next_dynamic::next_dynamic(
             opts.is_development,
             opts.is_server,
+            match &opts.server_components {
+                Some(config) if config.truthy() => match config {
+                    react_server_components::Config::WithOptions(x) => x.is_server,
+                    _ => false,
+                },
+                _ => false,
+            },
             file.name.clone(),
             opts.pages_dir.clone()
         ),
@@ -190,22 +255,42 @@ pub fn custom_before_pass<'a, C: Comments + 'a>(
                 }
                 if let FileName::Real(path) = &file.name {
                     path.to_str().map(|_| {
-                        Either::Left(swc_emotion::EmotionTransformer::new(
-                            config.clone(),
-                            path,
-                            cm,
-                            comments,
-                        ))
+                        Either::Left(
+                            turbopack_binding::swc::custom_transform::emotion::EmotionTransformer::new(
+                                config.clone(),
+                                path,
+                                file.src_hash as u32,
+                                cm,
+                                comments.clone(),
+                            ),
+                        )
                     })
                 } else {
                     None
                 }
             })
             .unwrap_or_else(|| Either::Right(noop())),
-        match &opts.modularize_imports {
-            Some(config) => Either::Left(modularize_imports::modularize_imports(config.clone())),
+        turbopack_binding::swc::custom_transform::modularize_imports::modularize_imports(
+            modularize_imports_config
+        ),
+        match &opts.font_loaders {
+            Some(config) => Either::Left(next_font_loaders(config.clone())),
             None => Either::Right(noop()),
-        }
+        },
+        match &opts.server_actions {
+            Some(config) => Either::Left(server_actions::server_actions(
+                &file.name,
+                config.clone(),
+                comments,
+            )),
+            None => Either::Right(noop()),
+        },
+        match &opts.cjs_require_optimizer {
+            Some(config) => {
+                Either::Left(cjs_optimizer::cjs_optimizer(config.clone(), SyntaxContext::empty().apply_mark(unresolved_mark)))
+            },
+            None => Either::Right(noop()),
+        },
     )
 }
 
@@ -213,8 +298,9 @@ impl TransformOptions {
     pub fn patch(mut self, fm: &SourceFile) -> Self {
         self.swc.swcrc = false;
 
-        let should_enable_commonjs =
-            self.swc.config.module.is_none() && fm.src.contains("module.exports") && {
+        let should_enable_commonjs = self.swc.config.module.is_none()
+            && (fm.src.contains("module.exports") || fm.src.contains("__esModule"))
+            && {
                 let syntax = self.swc.config.jsc.syntax.unwrap_or_default();
                 let target = self.swc.config.jsc.target.unwrap_or_else(EsVersion::latest);
 
@@ -224,7 +310,9 @@ impl TransformOptions {
             };
 
         if should_enable_commonjs {
-            self.swc.config.module = Some(ModuleConfig::CommonJs(Default::default()));
+            self.swc.config.module = Some(
+                serde_json::from_str(r##"{ "type": "commonjs", "ignoreDynamic": true }"##).unwrap(),
+            );
         }
 
         self

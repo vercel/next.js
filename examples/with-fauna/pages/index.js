@@ -2,17 +2,17 @@ import Head from 'next/head'
 import { useState } from 'react'
 import cn from 'classnames'
 import formatDate from 'date-fns/format'
-import useSWR, { mutate } from 'swr'
+import useSWR, { mutate, SWRConfig } from 'swr'
 import 'tailwindcss/tailwind.css'
 import { listGuestbookEntries } from '@/lib/fauna'
 import SuccessMessage from '@/components/SuccessMessage'
 import ErrorMessage from '@/components/ErrorMessage'
 import LoadingSpinner from '@/components/LoadingSpinner'
 
-const ENTRIES_PATH = '/api/entries'
+const fetcher = (url) => fetch(url).then((res) => res.json())
 
 const putEntry = (payload) =>
-  fetch(ENTRIES_PATH, {
+  fetch('/api/entries', {
     method: 'POST',
     body: JSON.stringify(payload),
     headers: {
@@ -20,14 +20,13 @@ const putEntry = (payload) =>
     },
   }).then((res) => (res.ok ? res.json() : Promise.reject(res)))
 
-const useEntriesFlow = ({ initialEntries }) => {
-  const { data: entries } = useSWR(ENTRIES_PATH, {
-    initialData: initialEntries,
+const useEntriesFlow = ({ fallback }) => {
+  const { data: entries } = useSWR('/api/entries', fetcher, {
+    fallbackData: fallback.entries,
   })
-
   const onSubmit = async (payload) => {
     await putEntry(payload)
-    await mutate(ENTRIES_PATH)
+    await mutate('/api/entries')
   }
 
   return {
@@ -38,8 +37,8 @@ const useEntriesFlow = ({ initialEntries }) => {
 
 const AppHead = () => (
   <Head>
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta charSet="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="shortcut icon" type="image/x-icon" href="/static/favicon.png" />
   </Head>
 )
@@ -137,48 +136,46 @@ const EntryForm = ({ onSubmit: onSubmitProp }) => {
   )
 }
 
-const Guestbook = ({ initialEntries }) => {
-  const { entries, onSubmit } = useEntriesFlow({
-    initialEntries,
-  })
-
+const Guestbook = ({ fallback }) => {
+  const { entries, onSubmit } = useEntriesFlow({ fallback })
   return (
-    <main className="max-w-4xl mx-auto p-4">
-      <AppHead />
-      <div
-        className={cn(
-          'border border-blue-200 rounded p-6',
-          'my-4 w-full dark:border-gray-800 bg-blue-50',
-          'dark:bg-blue-opaque'
-        )}
-      >
-        <h5
+    <SWRConfig value={{ fallback }}>
+      <main className="max-w-4xl mx-auto p-4">
+        <AppHead />
+        <div
           className={cn(
-            'text-lg md:text-xl font-bold',
-            'text-gray-900 dark:text-gray-100'
+            'border border-blue-200 rounded p-6',
+            'my-4 w-full dark:border-gray-800 bg-blue-50',
+            'dark:bg-blue-opaque'
           )}
         >
-          Sign the Guestbook
-        </h5>
-        <p className="my-1 text-gray-800 dark:text-gray-200">
-          Share a message for a future visitor.
-        </p>
-        <EntryForm onSubmit={onSubmit} />
-      </div>
-      <div className="mt-4 space-y-8 px-2">
-        {entries?.map((entry) => (
-          <EntryItem key={entry._id} entry={entry} />
-        ))}
-      </div>
-    </main>
+          <h5 className={cn('text-lg md:text-xl font-bold', 'text-gray-900')}>
+            Sign the Guestbook
+          </h5>
+          <p className="my-1 text-gray-800">
+            Share a message for a future visitor.
+          </p>
+          <EntryForm onSubmit={onSubmit} />
+        </div>
+        <div className="mt-4 space-y-8 px-2">
+          {entries?.map((entry) => (
+            <EntryItem key={entry._id} entry={entry} />
+          ))}
+        </div>
+      </main>
+    </SWRConfig>
   )
 }
 
-export const getStaticProps = async () => ({
-  props: {
-    initialEntries: await listGuestbookEntries(),
-  },
-  revalidate: 1,
-})
+export async function getStaticProps() {
+  const entries = await listGuestbookEntries()
+  return {
+    props: {
+      fallback: {
+        entries,
+      },
+    },
+  }
+}
 
 export default Guestbook

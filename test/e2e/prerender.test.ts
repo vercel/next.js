@@ -1,4 +1,5 @@
 import fs from 'fs-extra'
+import cookie from 'cookie'
 import cheerio from 'cheerio'
 import { join, sep } from 'path'
 import escapeRegex from 'escape-string-regexp'
@@ -15,6 +16,7 @@ import {
   waitFor,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
+import stripAnsi from 'strip-ansi'
 
 describe('Prerender', () => {
   let next: NextInstance
@@ -178,6 +180,11 @@ describe('Prerender', () => {
       initialRevalidateSeconds: 1,
       srcRoute: null,
     },
+    '/preview': {
+      dataRoute: `/_next/data/${next.buildId}/preview.json`,
+      initialRevalidateSeconds: false,
+      srcRoute: null,
+    },
     '/api-docs/first': {
       dataRoute: `/_next/data/${next.buildId}/api-docs/first.json`,
       initialRevalidateSeconds: false,
@@ -197,6 +204,11 @@ describe('Prerender', () => {
       dataRoute: `/_next/data/${next.buildId}/blocking-fallback-some/b.json`,
       initialRevalidateSeconds: 1,
       srcRoute: '/blocking-fallback-some/[slug]',
+    },
+    '/blocking-fallback/lots-of-data': {
+      dataRoute: `/_next/data/${next.buildId}/blocking-fallback/lots-of-data.json`,
+      initialRevalidateSeconds: false,
+      srcRoute: '/blocking-fallback/[slug]',
     },
     '/blocking-fallback/test-errors-1': {
       dataRoute: `/_next/data/${next.buildId}/blocking-fallback/test-errors-1.json`,
@@ -336,12 +348,12 @@ describe('Prerender', () => {
         await goFromHomeToAnother()
 
         const nextTime = await browser.elementByCss('#anotherTime').text()
+        // in dev the time should always differ as we don't cache
+        // in production the time may differ or may not depending
+        // on if fresh content beat the stale content
         if (isDev) {
           expect(snapTime).not.toMatch(nextTime)
-        } else {
-          expect(snapTime).toMatch(nextTime)
         }
-
         // Reset to Home for next test
         await goFromAnotherToHome()
       }
@@ -942,15 +954,53 @@ describe('Prerender', () => {
       })
     })
 
+    it('should show warning when large amount of page data is returned', async () => {
+      await renderViaHTTP(next.url, '/large-page-data')
+      await check(
+        () => next.cliOutput,
+        /Warning: data for page "\/large-page-data" is 256 kB which exceeds the threshold of 128 kB, this amount of data can reduce performance/
+      )
+      await renderViaHTTP(next.url, '/blocking-fallback/lots-of-data')
+      await check(
+        () => next.cliOutput,
+        /Warning: data for page "\/blocking-fallback\/\[slug\]" \(path "\/blocking-fallback\/lots-of-data"\) is 256 kB which exceeds the threshold of 128 kB, this amount of data can reduce performance/
+      )
+    })
+
     if ((global as any).isNextDev) {
-      it('should show warning when large amount of page data is returned', async () => {
-        await renderViaHTTP(next.url, '/large-page-data')
+      it('should show warning every time page with large amount of page data is returned', async () => {
+        await renderViaHTTP(next.url, '/large-page-data-ssr')
         await check(
           () => next.cliOutput,
-          /Warning: data for page "\/large-page-data" is 128 kB, this amount of data can reduce performance/
+          /Warning: data for page "\/large-page-data-ssr" is 256 kB which exceeds the threshold of 128 kB, this amount of data can reduce performance/
+        )
+
+        const outputIndex = next.cliOutput.length
+        await renderViaHTTP(next.url, '/large-page-data-ssr')
+        await check(
+          () => next.cliOutput.slice(outputIndex),
+          /Warning: data for page "\/large-page-data-ssr" is 256 kB which exceeds the threshold of 128 kB, this amount of data can reduce performance/
         )
       })
+    }
 
+    if ((global as any).isNextStart) {
+      it('should only show warning once per page when large amount of page data is returned', async () => {
+        await renderViaHTTP(next.url, '/large-page-data-ssr')
+        await check(
+          () => next.cliOutput,
+          /Warning: data for page "\/large-page-data-ssr" is 256 kB which exceeds the threshold of 128 kB, this amount of data can reduce performance/
+        )
+
+        const outputIndex = next.cliOutput.length
+        await renderViaHTTP(next.url, '/large-page-data-ssr')
+        expect(next.cliOutput.slice(outputIndex)).not.toInclude(
+          'Warning: data for page'
+        )
+      })
+    }
+
+    if ((global as any).isNextDev) {
       it('should not show warning from url prop being returned', async () => {
         const urlPropPage = 'pages/url-prop.js'
         await next.patchFile(
@@ -1044,7 +1094,7 @@ describe('Prerender', () => {
         // we need to reload the page to trigger getStaticProps
         await browser.refresh()
 
-        expect(await hasRedbox(browser)).toBe(true)
+        expect(await hasRedbox(browser, true)).toBe(true)
         const errOverlayContent = await getRedboxHeader(browser)
 
         await next.patchFile(indexPage, origContent)
@@ -1183,7 +1233,7 @@ describe('Prerender', () => {
         // )
 
         // FIXME: disable this
-        expect(await hasRedbox(browser)).toBe(true)
+        expect(await hasRedbox(browser, true)).toBe(true)
         expect(await getRedboxHeader(browser)).toMatch(
           /Failed to load static props/
         )
@@ -1199,7 +1249,7 @@ describe('Prerender', () => {
         // )
 
         // FIXME: disable this
-        expect(await hasRedbox(browser)).toBe(true)
+        expect(await hasRedbox(browser, true)).toBe(true)
         expect(await getRedboxHeader(browser)).toMatch(
           /Failed to load static props/
         )
@@ -1266,10 +1316,10 @@ describe('Prerender', () => {
               ),
               namedDataRouteRegex: `^/_next/data/${escapeRegex(
                 next.buildId
-              )}/api\\-docs/(?<slug>.+?)\\.json$`,
+              )}/api\\-docs/(?<nxtPslug>.+?)\\.json$`,
               page: '/api-docs/[...slug]',
               routeKeys: {
-                slug: 'slug',
+                nxtPslug: 'nxtPslug',
               },
             },
             {
@@ -1296,9 +1346,9 @@ describe('Prerender', () => {
               ),
               namedDataRouteRegex: `^/_next/data/${escapeRegex(
                 next.buildId
-              )}/blocking\\-fallback/(?<slug>[^/]+?)\\.json$`,
+              )}/blocking\\-fallback/(?<nxtPslug>[^/]+?)\\.json$`,
               page: '/blocking-fallback/[slug]',
-              routeKeys: { slug: 'slug' },
+              routeKeys: { nxtPslug: 'nxtPslug' },
             },
             {
               dataRouteRegex: normalizeRegEx(
@@ -1308,9 +1358,9 @@ describe('Prerender', () => {
               ),
               namedDataRouteRegex: `^/_next/data/${escapeRegex(
                 next.buildId
-              )}/blocking\\-fallback\\-once/(?<slug>[^/]+?)\\.json$`,
+              )}/blocking\\-fallback\\-once/(?<nxtPslug>[^/]+?)\\.json$`,
               page: '/blocking-fallback-once/[slug]',
-              routeKeys: { slug: 'slug' },
+              routeKeys: { nxtPslug: 'nxtPslug' },
             },
             {
               dataRouteRegex: normalizeRegEx(
@@ -1320,9 +1370,9 @@ describe('Prerender', () => {
               ),
               namedDataRouteRegex: `^/_next/data/${escapeRegex(
                 next.buildId
-              )}/blocking\\-fallback\\-some/(?<slug>[^/]+?)\\.json$`,
+              )}/blocking\\-fallback\\-some/(?<nxtPslug>[^/]+?)\\.json$`,
               page: '/blocking-fallback-some/[slug]',
-              routeKeys: { slug: 'slug' },
+              routeKeys: { nxtPslug: 'nxtPslug' },
             },
             {
               dataRouteRegex: normalizeRegEx(
@@ -1333,7 +1383,7 @@ describe('Prerender', () => {
             {
               namedDataRouteRegex: `^/_next/data/${escapeRegex(
                 next.buildId
-              )}/blog/(?<post>[^/]+?)\\.json$`,
+              )}/blog/(?<nxtPpost>[^/]+?)\\.json$`,
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapeRegex(
                   next.buildId
@@ -1341,13 +1391,13 @@ describe('Prerender', () => {
               ),
               page: '/blog/[post]',
               routeKeys: {
-                post: 'post',
+                nxtPpost: 'nxtPpost',
               },
             },
             {
               namedDataRouteRegex: `^/_next/data/${escapeRegex(
                 next.buildId
-              )}/blog/(?<post>[^/]+?)/(?<comment>[^/]+?)\\.json$`,
+              )}/blog/(?<nxtPpost>[^/]+?)/(?<nxtPcomment>[^/]+?)\\.json$`,
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapeRegex(
                   next.buildId
@@ -1355,14 +1405,14 @@ describe('Prerender', () => {
               ),
               page: '/blog/[post]/[comment]',
               routeKeys: {
-                post: 'post',
-                comment: 'comment',
+                nxtPpost: 'nxtPpost',
+                nxtPcomment: 'nxtPcomment',
               },
             },
             {
               namedDataRouteRegex: `^/_next/data/${escapeRegex(
                 next.buildId
-              )}/catchall/(?<slug>.+?)\\.json$`,
+              )}/catchall/(?<nxtPslug>.+?)\\.json$`,
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapeRegex(
                   next.buildId
@@ -1370,13 +1420,13 @@ describe('Prerender', () => {
               ),
               page: '/catchall/[...slug]',
               routeKeys: {
-                slug: 'slug',
+                nxtPslug: 'nxtPslug',
               },
             },
             {
               namedDataRouteRegex: `^/_next/data/${escapeRegex(
                 next.buildId
-              )}/catchall\\-explicit/(?<slug>.+?)\\.json$`,
+              )}/catchall\\-explicit/(?<nxtPslug>.+?)\\.json$`,
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapeRegex(
                   next.buildId
@@ -1384,13 +1434,13 @@ describe('Prerender', () => {
               ),
               page: '/catchall-explicit/[...slug]',
               routeKeys: {
-                slug: 'slug',
+                nxtPslug: 'nxtPslug',
               },
             },
             {
               namedDataRouteRegex: `^/_next/data/${escapeRegex(
                 next.buildId
-              )}/catchall\\-optional(?:/(?<slug>.+?))?\\.json$`,
+              )}/catchall\\-optional(?:/(?<nxtPslug>.+?))?\\.json$`,
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapeRegex(
                   next.buildId
@@ -1398,7 +1448,7 @@ describe('Prerender', () => {
               ),
               page: '/catchall-optional/[[...slug]]',
               routeKeys: {
-                slug: 'slug',
+                nxtPslug: 'nxtPslug',
               },
             },
             {
@@ -1417,10 +1467,10 @@ describe('Prerender', () => {
               ),
               namedDataRouteRegex: `^/_next/data/${escapeRegex(
                 next.buildId
-              )}/dynamic/(?<slug>[^/]+?)\\.json$`,
+              )}/dynamic/(?<nxtPslug>[^/]+?)\\.json$`,
               page: '/dynamic/[slug]',
               routeKeys: {
-                slug: 'slug',
+                nxtPslug: 'nxtPslug',
               },
             },
             {
@@ -1431,10 +1481,10 @@ describe('Prerender', () => {
               ),
               namedDataRouteRegex: `^/_next/data/${escapeRegex(
                 next.buildId
-              )}/fallback\\-only/(?<slug>[^/]+?)\\.json$`,
+              )}/fallback\\-only/(?<nxtPslug>[^/]+?)\\.json$`,
               page: '/fallback-only/[slug]',
               routeKeys: {
-                slug: 'slug',
+                nxtPslug: 'nxtPslug',
               },
             },
             // TODO: investigate index/index
@@ -1449,7 +1499,7 @@ describe('Prerender', () => {
             {
               namedDataRouteRegex: `^/_next/data/${escapeRegex(
                 next.buildId
-              )}/lang/(?<lang>[^/]+?)/about\\.json$`,
+              )}/lang/(?<nxtPlang>[^/]+?)/about\\.json$`,
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapeRegex(
                   next.buildId
@@ -1457,7 +1507,7 @@ describe('Prerender', () => {
               ),
               page: '/lang/[lang]/about',
               routeKeys: {
-                lang: 'lang',
+                nxtPlang: 'nxtPlang',
               },
             },
             {
@@ -1467,9 +1517,15 @@ describe('Prerender', () => {
               page: '/large-page-data',
             },
             {
+              dataRouteRegex: `^\\/_next\\/data\\/${escapeRegex(
+                next.buildId
+              )}\\/large-page-data-ssr.json$`,
+              page: '/large-page-data-ssr',
+            },
+            {
               namedDataRouteRegex: `^/_next/data/${escapeRegex(
                 next.buildId
-              )}/non\\-json/(?<p>[^/]+?)\\.json$`,
+              )}/non\\-json/(?<nxtPp>[^/]+?)\\.json$`,
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapeRegex(
                   next.buildId
@@ -1477,13 +1533,13 @@ describe('Prerender', () => {
               ),
               page: '/non-json/[p]',
               routeKeys: {
-                p: 'p',
+                nxtPp: 'nxtPp',
               },
             },
             {
               namedDataRouteRegex: `^/_next/data/${escapeRegex(
                 next.buildId
-              )}/non\\-json\\-blocking/(?<p>[^/]+?)\\.json$`,
+              )}/non\\-json\\-blocking/(?<nxtPp>[^/]+?)\\.json$`,
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapeRegex(
                   next.buildId
@@ -1491,8 +1547,16 @@ describe('Prerender', () => {
               ),
               page: '/non-json-blocking/[p]',
               routeKeys: {
-                p: 'p',
+                nxtPp: 'nxtPp',
               },
+            },
+            {
+              dataRouteRegex: normalizeRegEx(
+                `^\\/_next\\/data\\/${escapeRegex(
+                  next.buildId
+                )}\\/preview.json$`
+              ),
+              page: '/preview',
             },
             {
               dataRouteRegex: normalizeRegEx(
@@ -1503,9 +1567,15 @@ describe('Prerender', () => {
               page: '/something',
             },
             {
+              dataRouteRegex: normalizeRegEx(
+                `^\\/_next\\/data\\/${escapeRegex(next.buildId)}\\/ssr.json$`
+              ),
+              page: '/ssr',
+            },
+            {
               namedDataRouteRegex: `^/_next/data/${escapeRegex(
                 next.buildId
-              )}/user/(?<user>[^/]+?)/profile\\.json$`,
+              )}/user/(?<nxtPuser>[^/]+?)/profile\\.json$`,
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapeRegex(
                   next.buildId
@@ -1513,7 +1583,7 @@ describe('Prerender', () => {
               ),
               page: '/user/[user]/profile',
               routeKeys: {
-                user: 'user',
+                nxtPuser: 'nxtPuser',
               },
             },
           ])
@@ -1536,7 +1606,7 @@ describe('Prerender', () => {
             }
           })
 
-          expect(manifest.version).toBe(3)
+          expect(manifest.version).toBe(4)
           expect(manifest.routes).toEqual(expectedManifestRoutes())
           expect(manifest.dynamicRoutes).toEqual({
             '/api-docs/[...slug]': {
@@ -1748,6 +1818,77 @@ describe('Prerender', () => {
         })
       }
 
+      it('should not throw error for on-demand revalidate for SSR path', async () => {
+        const res = await fetchViaHTTP(next.url, '/api/manual-revalidate', {
+          pathname: '/ssr',
+        })
+
+        expect(res.status).toBe(200)
+        expect(await res.json()).toEqual({ revalidated: false })
+        expect(stripAnsi(next.cliOutput)).not.toContain('hasHeader')
+      })
+
+      it('should revalidate on-demand revalidate with preview cookie', async () => {
+        const initialRes = await fetchViaHTTP(next.url, '/preview')
+        expect(initialRes.status).toBe(200)
+
+        const initial$ = cheerio.load(await initialRes.text())
+        const initialProps = JSON.parse(initial$('#props').text())
+
+        expect(initialProps).toEqual({
+          preview: false,
+          previewData: null,
+        })
+
+        const previewRes = await fetchViaHTTP(next.url, '/api/enable')
+        let previewCookie = ''
+
+        expect(previewRes.headers.get('set-cookie')).toMatch(
+          /(__prerender_bypass|__next_preview_data)/
+        )
+
+        previewRes.headers
+          .get('set-cookie')
+          .split(',')
+          .forEach((c) => {
+            c = cookie.parse(c)
+            const isBypass = c.__prerender_bypass
+
+            if (isBypass || c.__next_preview_data) {
+              if (previewCookie) previewCookie += '; '
+
+              previewCookie += `${
+                isBypass ? '__prerender_bypass' : '__next_preview_data'
+              }=${c[isBypass ? '__prerender_bypass' : '__next_preview_data']}`
+            }
+          })
+
+        const apiRes = await fetchViaHTTP(
+          next.url,
+          '/api/manual-revalidate',
+          { pathname: '/preview' },
+          {
+            headers: {
+              cookie: previewCookie,
+            },
+          }
+        )
+
+        expect(apiRes.status).toBe(200)
+        expect(await apiRes.json()).toEqual({ revalidated: true })
+
+        const postRevalidateRes = await fetchViaHTTP(next.url, '/preview')
+        expect(initialRes.status).toBe(200)
+
+        const postRevalidate$ = cheerio.load(await postRevalidateRes.text())
+        const postRevalidateProps = JSON.parse(postRevalidate$('#props').text())
+
+        expect(postRevalidateProps).toEqual({
+          preview: false,
+          previewData: null,
+        })
+      })
+
       it('should handle revalidating HTML correctly', async () => {
         const route = '/blog/post-2/comment-2'
         const initialHtml = await renderViaHTTP(next.url, route)
@@ -1913,11 +2054,6 @@ describe('Prerender', () => {
       })
     }
 
-    // this should come very last
-    it('should not have attempted sending invalid payload', async () => {
-      expect(next.cliOutput).not.toContain('argument entity must be string')
-    })
-
     if ((global as any).isNextStart) {
       it('should of formatted build output correctly', () => {
         expect(next.cliOutput).toMatch(/○ \/normal/)
@@ -1978,6 +2114,9 @@ describe('Prerender', () => {
           const { version, files } = JSON.parse(contents)
           expect(version).toBe(1)
 
+          console.log(
+            check.tests.map((item) => files.some((file) => item.test(file)))
+          )
           expect(
             check.tests.every((item) => files.some((file) => item.test(file)))
           ).toBe(true)
@@ -1990,6 +2129,67 @@ describe('Prerender', () => {
             ).toBe(false)
           }
         }
+      })
+    }
+
+    if (!isDev) {
+      it('should handle on-demand revalidate for fallback: blocking', async () => {
+        const beforeRevalidate = Date.now()
+        const res = await fetchViaHTTP(
+          next.url,
+          '/blocking-fallback/test-manual-1'
+        )
+
+        if (!isDeploy) {
+          await waitForCacheWrite(
+            '/blocking-fallback/test-manual-1',
+            beforeRevalidate
+          )
+        }
+        const html = await res.text()
+        const $ = cheerio.load(html)
+        const initialTime = $('#time').text()
+        const cacheHeader = isDeploy ? 'x-vercel-cache' : 'x-nextjs-cache'
+
+        expect(res.headers.get(cacheHeader)).toMatch(/MISS/)
+        expect($('p').text()).toMatch(/Post:.*?test-manual-1/)
+
+        if (!isDeploy) {
+          const res2 = await fetchViaHTTP(
+            next.url,
+            '/blocking-fallback/test-manual-1'
+          )
+          const html2 = await res2.text()
+          const $2 = cheerio.load(html2)
+
+          expect(res2.headers.get(cacheHeader)).toMatch(/(HIT|STALE)/)
+          expect(initialTime).toBe($2('#time').text())
+        }
+
+        const res3 = await fetchViaHTTP(
+          next.url,
+          '/api/manual-revalidate',
+          {
+            pathname: '/blocking-fallback/test-manual-1',
+          },
+          { redirect: 'manual' }
+        )
+
+        expect(res3.status).toBe(200)
+        const revalidateData = await res3.json()
+        expect(revalidateData.revalidated).toBe(true)
+
+        await check(async () => {
+          const res4 = await fetchViaHTTP(
+            next.url,
+            '/blocking-fallback/test-manual-1'
+          )
+          const html4 = await res4.text()
+          const $4 = cheerio.load(html4)
+          expect($4('#time').text()).not.toBe(initialTime)
+          expect(res4.headers.get(cacheHeader)).toMatch(/(HIT|STALE)/)
+          return 'success'
+        }, 'success')
       })
     }
 
@@ -2047,57 +2247,7 @@ describe('Prerender', () => {
         )
       })
 
-      it('should handle manual revalidate for fallback: blocking', async () => {
-        const beforeRevalidate = Date.now()
-        const res = await fetchViaHTTP(
-          next.url,
-          '/blocking-fallback/test-manual-1'
-        )
-        await waitForCacheWrite(
-          '/blocking-fallback/test-manual-1',
-          beforeRevalidate
-        )
-        const html = await res.text()
-        const $ = cheerio.load(html)
-        const initialTime = $('#time').text()
-
-        expect(res.headers.get('x-nextjs-cache')).toMatch(/MISS/)
-        expect($('p').text()).toMatch(/Post:.*?test-manual-1/)
-
-        const res2 = await fetchViaHTTP(
-          next.url,
-          '/blocking-fallback/test-manual-1'
-        )
-        const html2 = await res2.text()
-        const $2 = cheerio.load(html2)
-
-        expect(res2.headers.get('x-nextjs-cache')).toMatch(/(HIT|STALE)/)
-        expect(initialTime).toBe($2('#time').text())
-
-        const res3 = await fetchViaHTTP(
-          next.url,
-          '/api/manual-revalidate',
-          {
-            pathname: '/blocking-fallback/test-manual-1',
-          },
-          { redirect: 'manual' }
-        )
-
-        expect(res3.status).toBe(200)
-        const revalidateData = await res3.json()
-        expect(revalidateData.revalidated).toBe(true)
-
-        const res4 = await fetchViaHTTP(
-          next.url,
-          '/blocking-fallback/test-manual-1'
-        )
-        const html4 = await res4.text()
-        const $4 = cheerio.load(html4)
-        expect($4('#time').text()).not.toBe(initialTime)
-        expect(res4.headers.get('x-nextjs-cache')).toMatch(/(HIT|STALE)/)
-      })
-
-      it('should not manual revalidate for fallback: blocking with onlyGenerated if not generated', async () => {
+      it('should not on-demand revalidate for fallback: blocking with onlyGenerated if not generated', async () => {
         const res = await fetchViaHTTP(
           next.url,
           '/api/manual-revalidate',
@@ -2124,7 +2274,7 @@ describe('Prerender', () => {
         expect(next.cliOutput).toContain(`getStaticProps test-if-generated-1`)
       })
 
-      it('should manual revalidate for fallback: blocking with onlyGenerated if generated', async () => {
+      it('should on-demand revalidate for fallback: blocking with onlyGenerated if generated', async () => {
         const beforeRevalidate = Date.now()
         const res = await fetchViaHTTP(
           next.url,
@@ -2137,8 +2287,8 @@ describe('Prerender', () => {
         const html = await res.text()
         const $ = cheerio.load(html)
         const initialTime = $('#time').text()
-        expect(res.headers.get('x-nextjs-cache')).toMatch(/MISS/)
         expect($('p').text()).toMatch(/Post:.*?test-if-generated-2/)
+        expect(res.headers.get('x-nextjs-cache')).toMatch(/MISS/)
 
         const res2 = await fetchViaHTTP(
           next.url,
@@ -2146,9 +2296,9 @@ describe('Prerender', () => {
         )
         const html2 = await res2.text()
         const $2 = cheerio.load(html2)
-        expect(res2.headers.get('x-nextjs-cache')).toMatch(/(HIT|STALE)/)
 
         expect(initialTime).toBe($2('#time').text())
+        expect(res2.headers.get('x-nextjs-cache')).toMatch(/(HIT|STALE)/)
 
         const res3 = await fetchViaHTTP(
           next.url,
@@ -2174,7 +2324,7 @@ describe('Prerender', () => {
         expect(res4.headers.get('x-nextjs-cache')).toMatch(/(HIT|STALE)/)
       })
 
-      it('should manual revalidate for revalidate: false', async () => {
+      it('should on-demand revalidate for revalidate: false', async () => {
         const html = await renderViaHTTP(
           next.url,
           '/blocking-fallback-once/test-manual-1'
@@ -2213,7 +2363,7 @@ describe('Prerender', () => {
         expect($4('#time').text()).not.toBe(initialTime)
       })
 
-      it('should manual revalidate that returns notFound: true', async () => {
+      it('should on-demand revalidate that returns notFound: true', async () => {
         const res = await fetchViaHTTP(
           next.url,
           '/blocking-fallback-once/404-on-manual-revalidate'
@@ -2254,7 +2404,7 @@ describe('Prerender', () => {
         expect(res3.headers.get('x-nextjs-cache')).toBe('HIT')
       })
 
-      it('should handle manual revalidate for fallback: false', async () => {
+      it('should handle on-demand revalidate for fallback: false', async () => {
         const res = await fetchViaHTTP(
           next.url,
           '/catchall-explicit/test-manual-1'
@@ -2307,6 +2457,30 @@ describe('Prerender', () => {
         expect(initialTime).not.toBe($2('#time').text())
       })
     }
+
+    it('should respond for catch-all deep folder', async () => {
+      const res = await fetchViaHTTP(
+        next.url,
+        `/_next/data/${next.buildId}/catchall/first/second/third.json`
+      )
+      expect(res.status).toBe(200)
+      expect(await res.text()).toContain('["first","second","third"]')
+    })
+
+    // this should come very last
+    it('should not fail to update incremental cache', async () => {
+      await waitFor(1000)
+      expect(next.cliOutput).not.toContain('Failed to update prerender cache')
+    })
+
+    it('should not have experimental undici warning', async () => {
+      await waitFor(1000)
+      expect(next.cliOutput).not.toContain('option is unnecessary in Node.js')
+    })
+
+    it('should not have attempted sending invalid payload', async () => {
+      expect(next.cliOutput).not.toContain('argument entity must be string')
+    })
   }
   runTests((global as any).isNextDev, (global as any).isNextDeploy)
 })

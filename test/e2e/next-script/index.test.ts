@@ -2,9 +2,9 @@ import webdriver from 'next-webdriver'
 import { createNext } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { BrowserInterface } from 'test/lib/browsers/base'
-import { waitFor } from 'next-test-utils'
+import { check } from 'next-test-utils'
 
-describe('beforeInteractive', () => {
+describe('beforeInteractive in document Head', () => {
   let next: NextInstance
 
   beforeAll(async () => {
@@ -13,7 +13,7 @@ describe('beforeInteractive', () => {
         'pages/_document.js': `
           import { Html, Head, Main, NextScript } from 'next/document'
           import Script from 'next/script'
-          
+
           export default function Document() {
             return (
               <Html>
@@ -32,8 +32,6 @@ describe('beforeInteractive', () => {
           }
         `,
         'pages/index.js': `
-          import Script from 'next/script'
-        
           export default function Home() {
             return (
               <>
@@ -44,8 +42,8 @@ describe('beforeInteractive', () => {
         `,
       },
       dependencies: {
-        react: '17.0.2',
-        'react-dom': '17.0.2',
+        react: 'latest',
+        'react-dom': 'latest',
       },
     })
   })
@@ -60,6 +58,67 @@ describe('beforeInteractive', () => {
       const script = await browser.eval(
         `document.querySelector('script[data-nscript="beforeInteractive"]')`
       )
+      expect(script).not.toBeNull()
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+})
+
+describe('beforeInteractive in document body', () => {
+  let next: NextInstance
+
+  beforeAll(async () => {
+    next = await createNext({
+      files: {
+        'pages/_document.js': `
+          import { Html, Head, Main, NextScript } from 'next/document'
+          import Script from 'next/script'
+
+          export default function Document() {
+            return (
+              <Html>
+                <Head />
+                <body>
+                  <Main />
+                  <NextScript />
+                  <Script
+                    src="https://www.google-analytics.com/analytics.js"
+                    strategy="beforeInteractive"
+                  />
+                </body>
+              </Html>
+            )
+          }
+        `,
+        'pages/index.js': `
+          export default function Home() {
+            return (
+              <>
+                <p>Home page</p>
+              </>
+            )
+          }
+        `,
+      },
+      dependencies: {
+        react: 'latest',
+        'react-dom': 'latest',
+      },
+    })
+  })
+  afterAll(() => next.destroy())
+
+  it('Script is injected server-side', async () => {
+    let browser: BrowserInterface
+
+    try {
+      browser = await webdriver(next.url, '/')
+
+      const script = await browser.eval(
+        `document.querySelector('script[data-nscript="beforeInteractive"]')`
+      )
+
       expect(script).not.toBeNull()
     } finally {
       if (browser) await browser.close()
@@ -90,8 +149,8 @@ describe('experimental.nextScriptWorkers: false with no Partytown dependency', (
       },
       // TODO: @housseindjirdeh: verify React 18 functionality
       dependencies: {
-        react: '17.0.2',
-        'react-dom': '17.0.2',
+        react: 'latest',
+        'react-dom': 'latest',
       },
     })
   })
@@ -123,10 +182,6 @@ describe('experimental.nextScriptWorkers: true with required Partytown dependenc
         experimental: {
           nextScriptWorkers: true,
         },
-        dependencies: {
-          react: '17',
-          'react-dom': '17',
-        },
       },
       files: {
         'pages/index.js': `
@@ -145,6 +200,8 @@ describe('experimental.nextScriptWorkers: true with required Partytown dependenc
         `,
       },
       dependencies: {
+        react: 'latest',
+        'react-dom': 'latest',
         '@builder.io/partytown': '0.4.2',
       },
     })
@@ -182,20 +239,13 @@ describe('experimental.nextScriptWorkers: true with required Partytown dependenc
     try {
       browser = await webdriver(next.url, '/')
 
-      const predefinedWorkerScripts = await browser.eval(
-        `document.querySelectorAll('script[type="text/partytown"]').length`
-      )
-
-      expect(predefinedWorkerScripts).toBeGreaterThan(0)
-
-      await waitFor(1000)
-
-      // Partytown modifes type to "text/partytown-x" after it has been executed in the web worker
-      const processedWorkerScripts = await browser.eval(
-        `document.querySelectorAll('script[type="text/partytown-x"]').length`
-      )
-
-      expect(processedWorkerScripts).toBeGreaterThan(0)
+      // Partytown modifies type to "text/partytown-x" after it has been executed in the web worker
+      await check(async () => {
+        const processedWorkerScripts = await browser.eval(
+          `document.querySelectorAll('script[type="text/partytown-x"]').length`
+        )
+        return processedWorkerScripts > 0 ? 'success' : processedWorkerScripts
+      }, 'success')
     } finally {
       if (browser) await browser.close()
     }
@@ -203,21 +253,29 @@ describe('experimental.nextScriptWorkers: true with required Partytown dependenc
 })
 
 describe('experimental.nextScriptWorkers: true with required Partytown dependency for inline script', () => {
+  let next: NextInstance
+
+  // Note: previously we were using `finally` cluase inside of test assertion. However, if the test times out
+  // exceeding jest.setTimeout() value, the finally clause is not executed and subsequent tests will fail due to
+  // hanging next instance.
+  afterEach(async () => {
+    if (next) {
+      await next.destroy()
+      next = undefined
+    }
+  })
+
   const createNextApp = async (script) =>
     await createNext({
       nextConfig: {
         experimental: {
           nextScriptWorkers: true,
         },
-        dependencies: {
-          react: '17',
-          'react-dom': '17',
-        },
       },
       files: {
         'pages/index.js': `
         import Script from 'next/script'
-      
+
         export default function Page() {
           return (
             <>
@@ -229,12 +287,13 @@ describe('experimental.nextScriptWorkers: true with required Partytown dependenc
       `,
       },
       dependencies: {
+        react: 'latest',
+        'react-dom': 'latest',
         '@builder.io/partytown': '0.4.2',
       },
     })
 
   it('Inline worker script through children is modified by Partytown to execute on a worker thread', async () => {
-    let next: NextInstance
     let browser: BrowserInterface
 
     next = await createNextApp(
@@ -244,29 +303,22 @@ describe('experimental.nextScriptWorkers: true with required Partytown dependenc
     try {
       browser = await webdriver(next.url, '/')
 
-      const predefinedWorkerScripts = await browser.eval(
-        `document.querySelectorAll('script[type="text/partytown"]').length`
-      )
-      expect(predefinedWorkerScripts).toEqual(1)
-
-      await waitFor(1000)
-
-      // Partytown modifes type to "text/partytown-x" after it has been executed in the web worker
-      const processedWorkerScripts = await browser.eval(
-        `document.querySelectorAll('script[type="text/partytown-x"]').length`
-      )
-      expect(processedWorkerScripts).toEqual(1)
+      // Partytown modifies type to "text/partytown-x" after it has been executed in the web worker
+      await check(async () => {
+        const processedWorkerScripts = await browser.eval(
+          `document.querySelectorAll('script[type="text/partytown-x"]').length`
+        )
+        return processedWorkerScripts + ''
+      }, '1')
 
       const text = await browser.elementById('text').text()
       expect(text).toBe('abc')
     } finally {
       if (browser) await browser.close()
-      await next.destroy()
     }
   })
 
   it('Inline worker script through dangerouslySetInnerHtml is modified by Partytown to execute on a worker thread', async () => {
-    let next: NextInstance
     let browser: BrowserInterface
 
     next = await createNextApp(
@@ -276,24 +328,18 @@ describe('experimental.nextScriptWorkers: true with required Partytown dependenc
     try {
       browser = await webdriver(next.url, '/')
 
-      const predefinedWorkerScripts = await browser.eval(
-        `document.querySelectorAll('script[type="text/partytown"]').length`
-      )
-      expect(predefinedWorkerScripts).toEqual(1)
-
-      await waitFor(1000)
-
-      // Partytown modifes type to "text/partytown-x" after it has been executed in the web worker
-      const processedWorkerScripts = await browser.eval(
-        `document.querySelectorAll('script[type="text/partytown-x"]').length`
-      )
-      expect(processedWorkerScripts).toEqual(1)
+      // Partytown modifies type to "text/partytown-x" after it has been executed in the web worker
+      await check(async () => {
+        const processedWorkerScripts = await browser.eval(
+          `document.querySelectorAll('script[type="text/partytown-x"]').length`
+        )
+        return processedWorkerScripts + ''
+      }, '1')
 
       const text = await browser.elementById('text').text()
       expect(text).toBe('abcd')
     } finally {
       if (browser) await browser.close()
-      await next.destroy()
     }
   })
 })
@@ -357,8 +403,8 @@ describe('experimental.nextScriptWorkers: true with config override', () => {
       },
       dependencies: {
         '@builder.io/partytown': '0.4.2',
-        react: '17',
-        'react-dom': '17',
+        react: 'latest',
+        'react-dom': 'latest',
       },
     })
   })

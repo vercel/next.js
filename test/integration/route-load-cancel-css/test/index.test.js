@@ -1,11 +1,10 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
 import {
-  findPort,
-  initNextServerScript,
-  killApp,
-  nextBuild,
+  nextServer,
+  runNextCommand,
+  startApp,
+  stopApp,
   waitFor,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
@@ -13,6 +12,7 @@ import { join } from 'path'
 
 let app
 let appPort
+let server
 const appDir = join(__dirname, '../')
 
 function runTests() {
@@ -34,27 +34,19 @@ function runTests() {
 
 describe('route cancel via CSS', () => {
   beforeAll(async () => {
-    const startServerlessEmulator = async (dir, port, buildId) => {
-      const scriptPath = join(dir, 'server.js')
-      const env = Object.assign(
-        {},
-        { ...process.env },
-        { PORT: port, BUILD_ID: buildId }
-      )
-      return initNextServerScript(scriptPath, /ready on/i, env, false, {})
-    }
+    await runNextCommand(['build', appDir])
 
-    await fs.remove(join(appDir, '.next'))
-    await nextBuild(appDir)
+    app = nextServer({
+      dir: appDir,
+      dev: false,
+      quiet: true,
+    })
 
-    const buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
-    appPort = await findPort()
-    app = await startServerlessEmulator(appDir, appPort, buildId)
+    server = await startApp(app)
+    appPort = server.address().port
   })
 
-  afterAll(async () => {
-    await killApp(app)
-  })
+  afterAll(() => stopApp(server))
 
   runTests()
 })

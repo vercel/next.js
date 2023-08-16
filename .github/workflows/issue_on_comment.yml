@@ -1,0 +1,14 @@
+name: On issue comment
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  issue-on-comment:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/issue-on-comment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

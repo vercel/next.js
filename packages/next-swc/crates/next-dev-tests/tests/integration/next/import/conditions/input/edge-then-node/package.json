@@ -1,0 +1,10 @@
+{
+  "main": "main.js",
+  "exports": {
+    ".": {
+      "edge-light": "./edge.js",
+      "node": "./node.js",
+      "default": "./default.js"
+    }
+  }
+}

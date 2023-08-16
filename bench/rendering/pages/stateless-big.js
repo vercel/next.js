@@ -5,7 +5,7 @@ export default () => {
 }
 
 const items = () => {
-  var out = new Array(10000)
+  const out = new Array(10000)
   for (let i = 0; i < out.length; i++) {
     out[i] = <li key={i}>This is row {i + 1}</li>
   }

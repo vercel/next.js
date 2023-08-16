@@ -15,8 +15,8 @@ export default function Page({ port }) {
 
   return (
     <>
-      <Link href="https://vercel.com/">
-        <a id="absolute-link">https://vercel.com/</a>
+      <Link href="https://vercel.com/" id="absolute-link">
+        https://vercel.com/
       </Link>
       <br />
       <button
@@ -33,17 +33,19 @@ export default function Page({ port }) {
         replace https://vercel.com/
       </button>
       <br />
-      <Link href={`http://localhost:${port}/nav/about`}>
-        <a id="absolute-local-link">http://localhost:{port}/nav/about</a>
+      <Link
+        href={`http://localhost:${port}/nav/about`}
+        id="absolute-local-link"
+      >
+        http://localhost:{port}/nav/about
       </Link>
       <br />
       <Link
         href={`http://localhost:${port}/dynamic/[slug]/route`}
         as={`http://localhost:${port}/dynamic/hello/route`}
+        id="absolute-local-dynamic-link"
       >
-        <a id="absolute-local-dynamic-link">
-          http://localhost:{port}/dynamic/hello/route
-        </a>
+        http://localhost:{port}/dynamic/hello/route
       </Link>
       <br />
       <button
@@ -60,19 +62,18 @@ export default function Page({ port }) {
         replace http://localhost:{port}/nav/about
       </button>
       <br />
-      <Link href="mailto:idk@idk.com">
-        <a id="mailto-link">mailto:idk@idk.com</a>
+      <Link href="mailto:idk@idk.com" id="mailto-link">
+        mailto:idk@idk.com
       </Link>
       <br />
-      <Link href="https://vercel.com/">
-        <a
-          id="absolute-link-mouse-events"
-          data-hover={hover}
-          onMouseEnter={() => setHover(true)}
-          onMouseLeave={() => setHover(false)}
-        >
-          https://vercel.com/
-        </a>
+      <Link
+        href="https://vercel.com/"
+        id="absolute-link-mouse-events"
+        data-hover={hover}
+        onMouseEnter={() => setHover(true)}
+        onMouseLeave={() => setHover(false)}
+      >
+        https://vercel.com/
       </Link>
     </>
   )

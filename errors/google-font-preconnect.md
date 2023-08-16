@@ -1,5 +1,9 @@
 # Google Font Preconnect
 
+> Next.js automatically adds `<link rel="preconnect" />` after version `12.0.1`.
+
+> Ensure `preconnect` is used with Google Fonts.
+
 ### Why This Error Occurred
 
 A preconnect resource hint was not used with a request to the Google Fonts domain. Adding `preconnect` is recommended to initiate an early connection to the origin.
@@ -18,3 +22,4 @@ Note: a **separate** link with `dns-prefetch` can be used as a fallback for brow
 
 - [Preconnect to required origins](https://web.dev/uses-rel-preconnect/)
 - [Preconnect and dns-prefetch](https://web.dev/preconnect-and-dns-prefetch/#resolve-domain-name-early-with-reldns-prefetch)
+- [Next.js Font Optimization](https://nextjs.org/docs/pages/building-your-application/optimizing/fonts)

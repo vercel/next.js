@@ -1,0 +1,35 @@
+---
+title: redirect
+description: API Reference for the redirect function.
+---
+
+The `redirect` function allows you to redirect the user to another URL. If you need to redirect to a 404, you can use the [`notFound` function](/docs/app/api-reference/functions/not-found).
+
+## `redirect()`
+
+Invoking the `redirect()` function throws a `NEXT_REDIRECT` error and terminates rendering of the route segment in which it was thrown. `redirect()` can be called with a relative or an absolute URL.
+
+```jsx filename="app/team/[id]/page.js"
+import { redirect } from 'next/navigation'
+
+async function fetchTeam(id) {
+  const res = await fetch('https://...')
+  if (!res.ok) return undefined
+  return res.json()
+}
+
+export default async function Profile({ params }) {
+  const team = await fetchTeam(params.id)
+  if (!team) {
+    redirect('/login')
+  }
+
+  // ...
+}
+```
+
+> **Good to know**: `redirect()` does not require you to use `return redirect()` due to using the TypeScript [`never`](https://www.typescriptlang.org/docs/handbook/2/functions.html#never) type.
+
+| Version   | Changes                |
+| --------- | ---------------------- |
+| `v13.0.0` | `notFound` introduced. |

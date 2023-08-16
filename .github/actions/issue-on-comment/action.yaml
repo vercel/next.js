@@ -1,0 +1,6 @@
+name: 'Issue auto label'
+description: 'vercel/next.js specific auto-labeling action'
+author: 'Next.js team'
+runs:
+  using: 'node16'
+  main: 'index.js'

@@ -1,11 +1,9 @@
 /* eslint-env jest */
 
 import path from 'path'
-import fs from 'fs-extra'
 import { nextBuild } from 'next-test-utils'
 
 const appDir = path.join(__dirname, '..')
-const nextConfig = path.join(appDir, 'next.config.js')
 
 const runTests = () => {
   it('should not opt-out of auto static optimization from invalid _error', async () => {
@@ -33,22 +31,6 @@ const runTests = () => {
 
 describe('Auto Export _error bail', () => {
   describe('server mode', () => {
-    runTests()
-  })
-
-  describe('serverless mode', () => {
-    beforeAll(() =>
-      fs.writeFile(
-        nextConfig,
-        `
-      module.exports = {
-        target: 'experimental-serverless-trace'
-      }
-    `
-      )
-    )
-    afterAll(() => fs.remove(nextConfig))
-
     runTests()
   })
 })

@@ -3,12 +3,12 @@ import Link from 'next/link'
 const Page = () => (
   <>
     <h3 id="nav">Nav</h3>
-    <Link href="/hello" as="/first">
-      <a id="to-hello">to hello</a>
+    <Link href="/hello" as="/first" id="to-hello">
+      to hello
     </Link>
     <br />
-    <Link href="/hello-again" as="/second">
-      <a id="to-hello-again">to hello-again</a>
+    <Link href="/hello-again" as="/second" id="to-hello-again">
+      to hello-again
     </Link>
     <br />
     <Link
@@ -20,36 +20,37 @@ const Page = () => (
         },
       }}
       as="/params/1?another=value"
+      id="to-params-manual"
     >
-      <a id="to-params-manual">to params (manual)</a>
+      to params (manual)
     </Link>
     <br />
-    <Link href="/params/1?another=value">
-      <a id="to-params">to params</a>
+    <Link href="/params/1?another=value" id="to-params">
+      to params
     </Link>
     <br />
-    <Link href="/rewriting-to-auto-export">
-      <a id="to-rewritten-dynamic">to rewritten dynamic</a>
+    <Link href="/rewriting-to-auto-export" id="to-rewritten-dynamic">
+      to rewritten dynamic
     </Link>
     <br />
-    <Link href="/hello?overrideMe=1">
-      <a id="to-overridden">to /hello?overrideMe=1</a>
+    <Link href="/hello?overrideMe=1" id="to-overridden">
+      to /hello?overrideMe=1
     </Link>
     <br />
-    <Link href="/old-blog/about">
-      <a id="to-old-blog">to /old-blog/post-1</a>
+    <Link href="/old-blog/about" id="to-old-blog">
+      to /old-blog/post-1
     </Link>
     <br />
-    <Link href="/overridden">
-      <a id="to-before-files-overridden">to /overridden</a>
+    <Link href="/overridden" id="to-before-files-overridden">
+      to /overridden
     </Link>
     <br />
-    <Link href="/nfl">
-      <a id="to-before-files-dynamic">to /nfl</a>
+    <Link href="/nfl" id="to-before-files-dynamic">
+      to /nfl
     </Link>
     <br />
-    <Link href="/nfl/test">
-      <a id="to-before-files-dynamic-again">to /nfl/test</a>
+    <Link href="/nfl/test" id="to-before-files-dynamic-again">
+      to /nfl/test
     </Link>
     <br />
   </>

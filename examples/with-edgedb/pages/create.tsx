@@ -54,7 +54,7 @@ const Draft: React.FC = () => {
             type="submit"
             value="Create"
           />
-          <Link href="/">
+          <Link href="/" legacyBehavior>
             <a className="back">Cancel</a>
           </Link>
         </form>

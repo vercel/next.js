@@ -1,5 +1,5 @@
 import React from 'react'
-export default () => {
+export default function Style() {
   return (
     <React.Fragment>
       <div className="hmr-style-page">

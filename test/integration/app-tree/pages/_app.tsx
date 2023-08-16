@@ -5,9 +5,9 @@ import { render } from 'react-dom'
 import App, { AppContext } from 'next/app'
 import { renderToString } from 'react-dom/server'
 
-export const DummyContext = createContext(null)
+export const DummyContext = createContext(null) as React.Context<string | null>
 
-class MyApp<P = {}> extends App<P & { html: string }> {
+export default class MyApp extends App<{ html: string }> {
   static async getInitialProps({ Component, AppTree, ctx }: AppContext) {
     let pageProps = {}
 
@@ -20,7 +20,7 @@ class MyApp<P = {}> extends App<P & { html: string }> {
 
     if (typeof window !== 'undefined') {
       const el = document.createElement('div')
-      document.querySelector('body').appendChild(el)
+      document.querySelector('body')?.appendChild(el)
       render(toRender, el)
       html = el.innerHTML
       el.remove()
@@ -34,13 +34,12 @@ class MyApp<P = {}> extends App<P & { html: string }> {
   render() {
     const { Component, pageProps, html, router } = this.props
     const href = router.pathname === '/' ? '/another' : '/'
-
     const child =
       html && router.pathname !== '/hello' ? (
         <>
           <div dangerouslySetInnerHTML={{ __html: html }} />
-          <Link href={href}>
-            <a id={href === '/' ? 'home' : 'another'}>to {href}</a>
+          <Link href={href} id={href === '/' ? 'home' : 'another'}>
+            to{href}
           </Link>
         </>
       ) : (
@@ -52,5 +51,3 @@ class MyApp<P = {}> extends App<P & { html: string }> {
     )
   }
 }
-
-export default MyApp

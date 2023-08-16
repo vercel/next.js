@@ -5,8 +5,8 @@ const Home = () => {
     <div>
       <h1>Foo!</h1>
       <h2>bar!</h2>
-      <Link href="/other">
-        <a id="to-other">Other</a>
+      <Link href="/other" id="to-other">
+        Other
       </Link>
     </div>
   )

@@ -17,7 +17,6 @@
 
 # misc
 .DS_Store
-.vscode
 *.pem
 
 # debug
@@ -26,13 +25,11 @@ yarn-debug.log*
 yarn-error.log*
 
 # local env files
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+.env*.local
 
 # vercel
 .vercel
 
-# query builder
-dbschema/edgeql-js
+# typescript
+*.tsbuildinfo
+next-env.d.ts

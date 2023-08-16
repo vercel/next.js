@@ -1,0 +1,40 @@
+.adminBar {
+  z-index: 10;
+  width: 100%;
+  background-color: var(--color-base-1000);
+  color: var(--color-white);
+  padding: 5px 0;
+  font-size: calc(#{var(--html-font-size)} * 1px);
+  display: none;
+}
+
+.show {
+  display: block;
+}
+
+.controls {
+  & > *:not(:last-child) {
+    margin-right: 10px !important;
+  }
+}
+
+.user {
+  margin-right: 10px !important;
+}
+
+.logo {
+  margin-right: 10px !important;
+}
+
+.blockContainer {
+  position: relative;
+}
+
+.hr {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background-color: var(--light-gray);
+  height: 2px;
+}

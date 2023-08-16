@@ -2,17 +2,16 @@ import Link from 'next/link'
 
 const Page = ({ loaded }) => {
   const link = (
-    <Link href="/another">
-      <a
-        id="to-another"
-        style={{
-          marginLeft: 5000,
-          width: 95000,
-          display: 'block',
-        }}
-      >
-        to another
-      </a>
+    <Link
+      href="/another"
+      id="to-another"
+      style={{
+        marginLeft: 5000,
+        width: 95000,
+        display: 'block',
+      }}
+    >
+      to another
     </Link>
   )
 

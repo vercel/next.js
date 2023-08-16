@@ -23,7 +23,12 @@ const Button = styled.a`
 export default function Home() {
   console.log('__render__')
   return (
-    <div>
+    <div
+      id="wrap-div"
+      css={`
+        background: black;
+      `}
+    >
       <Button
         href="https://github.com/styled-components/styled-components"
         target="_blank"
