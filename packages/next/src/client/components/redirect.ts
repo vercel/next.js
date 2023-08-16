@@ -41,17 +41,20 @@ type RedirectOptions = {
  * @param url the url to redirect to
  */
 export function redirect(
-  urlOrOptions: string | RedirectOptions,
-  type: RedirectType = RedirectType.replace,
-  permanent: boolean = false
+  ...args: [url: string, type?: RedirectType, permanent?: boolean]
 ): never {
-  if (typeof urlOrOptions === 'string') {
-    throw getRedirectError(urlOrOptions, type, permanent)
-  } else {
+  if (typeof args[0] === 'string') {
     throw getRedirectError(
-      urlOrOptions.url,
-      urlOrOptions.type ?? RedirectType.replace,
-      urlOrOptions.permanent ?? false
+      args[0],
+      args[1] ?? RedirectType.replace,
+      args[2] ?? false
+    )
+  } else {
+    const options = args[0] as RedirectOptions
+    throw getRedirectError(
+      options.url,
+      options.type ?? RedirectType.replace,
+      options.permanent ?? false
     )
   }
 }
