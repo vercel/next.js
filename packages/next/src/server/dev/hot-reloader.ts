@@ -364,7 +364,7 @@ export default class HotReloader {
                 name: string
                 startTime?: bigint
                 endTime?: bigint
-                attrs?: Record<string, number | string>
+                attrs?: Record<string, number | string | undefined | string[]>
               }
             | undefined
 
@@ -374,6 +374,10 @@ export default class HotReloader {
                 name: payload.event,
                 startTime: BigInt(payload.startTime) * BigInt(1000 * 1000),
                 endTime: BigInt(payload.endTime) * BigInt(1000 * 1000),
+                attrs: {
+                  updatedModules: payload.updatedModules,
+                  page: payload.page,
+                },
               }
               break
             }
