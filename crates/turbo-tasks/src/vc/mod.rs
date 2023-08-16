@@ -46,14 +46,15 @@ where
     pub(crate) _t: PhantomData<T>,
 }
 
+/// This only exists to satisfy the Rust type system. However, this struct can
+/// never actually be instantiated, as dereferencing a `Vc<T>` will result in a
+/// linker error. See the implementation of `Deref` for `Vc<T>`.
 pub struct VcDeref<T>
 where
     T: ?Sized,
 {
     _t: PhantomData<T>,
 }
-
-trait Impossible {}
 
 macro_rules! do_not_use_or_you_will_be_fired {
     ($($name:ident)*) => {

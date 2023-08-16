@@ -12,6 +12,10 @@ use crate::{
     TypedForInput, Value, Vc, VcValueType,
 };
 
+/// Trait to implement in order for a type to be accepted as a
+/// `turbo_tasks::function` argument.
+///
+/// See also [`ConcreteTaskInput`].
 pub trait TaskInput: Send + Sync + Clone {
     fn try_from_concrete(input: &ConcreteTaskInput) -> Result<Self>;
     fn into_concrete(self) -> ConcreteTaskInput;
@@ -306,6 +310,7 @@ macro_rules! tuple_impls {
     };
 }
 
+// Implement `TaskInput` for all tuples of 1 to 12 elements.
 tuple_impls! { A }
 tuple_impls! { A B }
 tuple_impls! { A B C }
