@@ -1,4 +1,4 @@
-// import React from 'react'
+import React from 'react'
 import ReactRefreshWebpackPlugin from 'next/dist/compiled/@next/react-refresh-utils/dist/ReactRefreshWebpackPlugin'
 import chalk from 'next/dist/compiled/chalk'
 import crypto from 'crypto'
@@ -86,9 +86,9 @@ const NEXT_PROJECT_ROOT_DIST_CLIENT = path.join(
 const isWebpackServerLayer = (layer: string | null) =>
   Boolean(layer && WEBPACK_LAYERS.GROUP.server.includes(layer))
 
-// if (parseInt(React.version) < 18) {
-//   throw new Error('Next.js requires react >= 18.2.0 to be installed.')
-// }
+if (parseInt(React.version) < 18) {
+  throw new Error('Next.js requires react >= 18.2.0 to be installed.')
+}
 
 const babelIncludeRegexes: RegExp[] = [
   /next[\\/]dist[\\/](esm[\\/])?shared[\\/]lib/,
