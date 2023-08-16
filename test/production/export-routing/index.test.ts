@@ -26,9 +26,14 @@ describe('export-routing', () => {
   })
 
   it('should not suspend indefinitely when page is restored from bfcache after an mpa navigation', async () => {
-    const browser = await webdriver(port, '/index.html', {
-      waitHydration: false,
-    })
+    // bfcache is not currently supported by CDP, so we need to run this particular test in headed mode
+    // https://bugs.chromium.org/p/chromium/issues/detail?id=1317959
+    if (!process.env.CI && process.env.HEADLESS) {
+      console.warn('This test can only run in headed mode. Skipping...')
+      return
+    }
+
+    const browser = await webdriver(port, '/index.html', { headless: false })
 
     await browser.elementByCss('a[href="https://example.vercel.sh"]').click()
     await browser.waitForCondition(

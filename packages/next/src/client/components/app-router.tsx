@@ -378,7 +378,7 @@ function Router({
       dispatch({
         type: ACTION_RESTORE,
         url: new URL(window.location.href),
-        tree: initialTree,
+        tree: window.history.state,
       })
     }
 
