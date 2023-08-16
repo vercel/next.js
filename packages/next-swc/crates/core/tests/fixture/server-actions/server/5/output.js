@@ -1,4 +1,4 @@
-/* __next_internal_action_entry_do_not_use__ $$ACTION_0 */ import __create_action_proxy__ from "private-next-rsc-action-proxy";
+/* __next_internal_action_entry_do_not_use__ $$ACTION_0 */ import { createActionProxy } from "private-next-rsc-action-proxy";
 import deleteFromDb from 'db';
 const v1 = 'v1';
 export function Item({ id1 , id2 , id3 , id4  }) {
@@ -6,7 +6,7 @@ export function Item({ id1 , id2 , id3 , id4  }) {
     async function deleteItem(...args) {
         return $$ACTION_0.apply(null, (deleteItem.$$bound || []).concat(args));
     }
-    __create_action_proxy__("6d53ce510b2e36499b8f56038817b9bad86cabb4", [
+    createActionProxy("6d53ce510b2e36499b8f56038817b9bad86cabb4", [
         id1,
         v2,
         id3,

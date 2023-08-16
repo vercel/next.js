@@ -12,7 +12,6 @@ const {
   BROWSERSTACK,
   BROWSERSTACK_USERNAME,
   BROWSERSTACK_ACCESS_KEY,
-  HEADLESS,
   CHROME_BIN,
   LEGACY_SAFARI,
   SKIP_LOCAL_SELENIUM_SERVER,
@@ -46,7 +45,12 @@ export class Selenium extends BrowserInterface {
   private browserName: string
 
   // TODO: support setting locale
-  async setup(browserName: string, locale: string, javaScriptEnabled: boolean) {
+  async setup(
+    browserName: string,
+    locale: string,
+    javaScriptEnabled: boolean,
+    headless: boolean
+  ) {
     if (browser) return
     this.browserName = browserName
 
@@ -155,7 +159,7 @@ export class Selenium extends BrowserInterface {
     let firefoxOptions = new FireFoxOptions()
     let safariOptions = new SafariOptions()
 
-    if (HEADLESS) {
+    if (headless) {
       const screenSize = { width: 1280, height: 720 }
       chromeOptions = chromeOptions.headless().windowSize(screenSize) as any
       firefoxOptions = firefoxOptions.headless().windowSize(screenSize)

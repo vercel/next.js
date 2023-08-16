@@ -36,6 +36,7 @@ import type {
 } from './future/route-modules/app-route/module'
 
 import { format as formatUrl, parse as parseUrl } from 'url'
+import { formatHostname } from './lib/format-hostname'
 import { getRedirectStatus } from '../lib/redirect-status'
 import { isEdgeRuntime } from '../lib/is-edge-runtime'
 import {
@@ -144,6 +145,10 @@ export interface Options {
    * Tells if Next.js is running in dev mode
    */
   dev?: boolean
+  /**
+   * Enables the experimental testing mode.
+   */
+  experimentalTestProxy?: boolean
   /**
    * Where the Next project is located
    */
@@ -268,6 +273,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected clientReferenceManifest?: ClientReferenceManifest
   protected nextFontManifest?: NextFontManifest
   public readonly hostname?: string
+  public readonly fetchHostname?: string
   public readonly port?: number
 
   protected abstract getPublicDir(): string
@@ -367,6 +373,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     // values from causing issues as this can be user provided
     this.nextConfig = conf as NextConfigComplete
     this.hostname = hostname
+    if (this.hostname) {
+      // we format the hostname so that it can be fetched
+      this.fetchHostname = formatHostname(this.hostname)
+    }
     this.port = port
     this.distDir =
       process.env.NEXT_RUNTIME === 'edge'
@@ -466,6 +476,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     matchers.reload()
     this.setAssetPrefix(assetPrefix)
     this.responseCache = this.getResponseCache({ dev })
+  }
+
+  protected reloadMatchers() {
+    return this.matchers.reload()
   }
 
   protected async normalizeNextData(
@@ -926,6 +940,16 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           }
           parsedUrl.pathname = matchedPath
           url.pathname = parsedUrl.pathname
+
+          const normalizeResult = await this.normalizeNextData(
+            req,
+            res,
+            parsedUrl
+          )
+
+          if (normalizeResult.finished) {
+            return
+          }
         } catch (err) {
           if (err instanceof DecodeError || err instanceof NormalizeError) {
             res.statusCode = 400
@@ -1401,7 +1425,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     { req, res, pathname, renderOpts: opts }: RequestContext,
     { components, query }: FindComponentsResult
   ): Promise<ResponsePayload | null> {
-    const is404Page = pathname === '/404'
+    const is404Page =
+      // For edge runtime 404 page, /_not-found needs to be treated as 404 page
+      (process.env.NEXT_RUNTIME === 'edge' && pathname === '/_not-found') ||
+      pathname === '/404'
     const is500Page = pathname === '/500'
     const isAppPath = components.isAppPath
     const hasServerProps = !!components.getServerSideProps
@@ -1910,7 +1937,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           (req as NodeNextRequest).originalRequest ?? (req as WebNextRequest),
           (res as NodeNextResponse).originalResponse ??
             (res as WebNextResponse),
-          { page: pathname, params: opts.params, query, renderOpts }
+          {
+            page: is404Page ? '/404' : pathname,
+            params: opts.params,
+            query,
+            renderOpts,
+          }
         )
       } else {
         // If we didn't match a page, we should fallback to using the legacy

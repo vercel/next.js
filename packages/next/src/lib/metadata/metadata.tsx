@@ -16,10 +16,11 @@ import {
   AppLinksMeta,
 } from './generate/opengraph'
 import { IconsMetadata } from './generate/icons'
-import { accumulateMetadata, resolveMetadata } from './resolve-metadata'
+import { resolveMetadata } from './resolve-metadata'
 import { MetaFilter } from './generate/meta'
 import { ResolvedMetadata } from './types/metadata-interface'
 import { createDefaultMetadata } from './default-metadata'
+import { isNotFoundError } from '../../client/components/not-found'
 
 // Use a promise to share the status of the metadata resolving,
 // returning two components `MetadataTree` and `MetadataOutlet`
@@ -55,24 +56,44 @@ export function createMetadataComponents({
   async function MetadataTree() {
     const defaultMetadata = createDefaultMetadata()
     let metadata: ResolvedMetadata | undefined = defaultMetadata
-    try {
-      const resolvedMetadata = await resolveMetadata({
-        tree,
-        parentParams: {},
-        metadataItems: [],
-        searchParams,
-        getDynamicParamFromSegment,
-        errorConvention: errorType === 'redirect' ? undefined : errorType,
-      })
+    let error: any
+    const errorMetadataItem: [null, null] = [null, null]
+    const errorConvention = errorType === 'redirect' ? undefined : errorType
 
-      // Skip for redirect case as for the temporary redirect case we don't need the metadata on client
-      if (errorType === 'redirect') {
-        metadata = defaultMetadata
-      } else {
-        metadata = await accumulateMetadata(resolvedMetadata, metadataContext)
-      }
+    const [resolvedMetadata, resolvedError] = await resolveMetadata({
+      tree,
+      parentParams: {},
+      metadataItems: [],
+      errorMetadataItem,
+      searchParams,
+      getDynamicParamFromSegment,
+      errorConvention,
+      metadataContext,
+    })
+    if (!resolvedError) {
+      metadata = resolvedMetadata
       resolve(undefined)
-    } catch (error: any) {
+    } else {
+      error = resolvedError
+      // If the error triggers in initial metadata resolving, re-resolve with proper error type.
+      // They'll be saved for flight data, when hydrates, it will replaces the SSR'd metadata with this.
+      // for not-found error: resolve not-found metadata
+      if (!errorType && isNotFoundError(resolvedError)) {
+        const [notFoundMetadata, notFoundMetadataError] = await resolveMetadata(
+          {
+            tree,
+            parentParams: {},
+            metadataItems: [],
+            errorMetadataItem,
+            searchParams,
+            getDynamicParamFromSegment,
+            errorConvention: 'not-found',
+            metadataContext,
+          }
+        )
+        metadata = notFoundMetadata
+        error = notFoundMetadataError || error
+      }
       resolve(error)
     }
 

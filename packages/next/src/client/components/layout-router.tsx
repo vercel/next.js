@@ -116,9 +116,22 @@ const rectProperties = [
   'y',
 ] as const
 /**
- * Check if a HTMLElement is hidden.
+ * Check if a HTMLElement is hidden or fixed/sticky position
  */
-function elementCanScroll(element: HTMLElement) {
+function shouldSkipElement(element: HTMLElement) {
+  // we ignore fixed or sticky positioned elements since they'll likely pass the "in-viewport" check
+  // and will result in a situation we bail on scroll because of something like a fixed nav,
+  // even though the actual page content is offscreen
+  if (['sticky', 'fixed'].includes(getComputedStyle(element).position)) {
+    if (process.env.NODE_ENV === 'development') {
+      console.warn(
+        'Skipping auto-scroll behavior due to `position: sticky` or `position: fixed` on element:',
+        element
+      )
+    }
+    return true
+  }
+
   // Uses `getBoundingClientRect` to check if the element is hidden instead of `offsetParent`
   // because `offsetParent` doesn't consider document/body
   const rect = element.getBoundingClientRect()
@@ -192,17 +205,15 @@ class InnerScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerPr
         domNode = findDOMNode(this)
       }
 
-      // TODO-APP: Handle the case where we couldn't select any DOM node, even higher up in the layout-router above the current segmentPath.
       // If there is no DOM node this layout-router level is skipped. It'll be handled higher-up in the tree.
       if (!(domNode instanceof Element)) {
         return
       }
 
-      // Verify if the element is a HTMLElement and if it's visible on screen (e.g. not display: none).
-      // If the element is not a HTMLElement or not visible we try to select the next sibling and try again.
-      while (!(domNode instanceof HTMLElement) || elementCanScroll(domNode)) {
-        // TODO-APP: Handle the case where we couldn't select any DOM node, even higher up in the layout-router above the current segmentPath.
-        // No siblings found that are visible so we handle scroll higher up in the tree instead.
+      // Verify if the element is a HTMLElement and if we want to consider it for scroll behavior.
+      // If the element is skipped, try to select the next sibling and try again.
+      while (!(domNode instanceof HTMLElement) || shouldSkipElement(domNode)) {
+        // No siblings found that match the criteria are found, so handle scroll higher up in the tree instead.
         if (domNode.nextElementSibling === null) {
           return
         }

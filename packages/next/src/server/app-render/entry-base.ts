@@ -30,7 +30,10 @@ const {
   // eslint-disable-next-line import/no-extraneous-dependencies
 } = require('react-server-dom-webpack/server.edge')
 const { preloadStyle, preloadFont, preconnect } =
-  require('next/dist/server/app-render/preloads.serverlayer') as typeof import('../../server/app-render/preloads.serverlayer')
+  require('next/dist/server/app-render/rsc/preloads') as typeof import('../../server/app-render/rsc/preloads')
+
+const { NotFoundBoundary } =
+  require('next/dist/client/components/not-found-boundary') as typeof import('../../client/components/not-found-boundary')
 
 export {
   AppRouter,
@@ -49,4 +52,5 @@ export {
   preloadFont,
   preconnect,
   StaticGenerationSearchParamsBailoutProvider,
+  NotFoundBoundary,
 }
