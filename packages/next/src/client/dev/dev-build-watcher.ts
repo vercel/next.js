@@ -1,14 +1,12 @@
-// TODO: Remove use of `any` type. Fix no-use-before-define violations.
 /* eslint-disable @typescript-eslint/no-use-before-define */
 import { addMessageListener } from './error-overlay/websocket'
 
 type VerticalPosition = 'top' | 'bottom'
 type HorizonalPosition = 'left' | 'right'
-type Position = `${VerticalPosition}-${HorizonalPosition}`
 
 export default function initializeBuildWatcher(
-  toggleCallback: any,
-  position: Position = 'bottom-right'
+  toggleCallback: (cb: (event: string | { data: string }) => void) => void,
+  position = 'bottom-right'
 ) {
   const type = 'div' as string
   const shadowHost = document.createElement(type)
@@ -67,7 +65,7 @@ export default function initializeBuildWatcher(
     } catch {}
   })
 
-  function handleMessage(event: any) {
+  function handleMessage(event: string | { data: string }) {
     const obj =
       typeof event === 'string' ? { action: event } : JSON.parse(event.data)
 
