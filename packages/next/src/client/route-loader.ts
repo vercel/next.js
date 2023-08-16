@@ -8,7 +8,7 @@ import { requestIdleCallback } from './request-idle-callback'
 // considers as "Good" time-to-interactive. We must assume something went
 // wrong beyond this point, and then fall-back to a full page transition to
 // show the user something of value.
-const MS_MAX_IDLE_DELAY = 3800
+const MS_MAX_IDLE_DELAY = Number(process.env.NEXT_MS_MAX_IDLE_DELAY) || 3800
 
 declare global {
   interface Window {
