@@ -1,0 +1,43 @@
+---
+title: 'No children were passed to `<Link>`'
+---
+
+## Why This Error Occurred
+
+In your application code, `next/link` was used without passing a child:
+
+For example:
+
+```jsx filename="pages/index.js"
+import Link from 'next/link'
+
+export default function Home() {
+  return (
+    <>
+      <Link href="/about" legacyBehavior></Link>
+      // or
+      <Link href="/about" legacyBehavior />
+    </>
+  )
+}
+```
+
+## Possible Ways to Fix It
+
+Make sure one child is used when using `<Link>`:
+
+```jsx filename="pages/index.js"
+import Link from 'next/link'
+
+export default function Home() {
+  return (
+    <>
+      <Link href="/about">To About</Link>
+      // or
+      <Link href="/about" legacyBehavior>
+        <a>To About</a>
+      </Link>
+    </>
+  )
+}
+```

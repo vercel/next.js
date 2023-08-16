@@ -1,0 +1,17 @@
+---
+title: 'Missing `loader` Prop on `next/image`'
+---
+
+## Why This Error Occurred
+
+When using the `next/image` component with [`loader="custom"`](/docs/app/api-reference/next-config-js/images) in `next.config.js`, you must provide the [`loader`](/docs/pages/api-reference/components/image#loader) prop to the component with your custom implementation.
+
+## Possible Ways to Fix It
+
+- Add the [`loader`](/docs/pages/api-reference/components/image#loader) prop to all usages of the `next/image` component.
+- Change the [`loader`](/docs/app/api-reference/next-config-js/images) configuration in `next.config.js`.
+
+## Useful Links
+
+- [Image Optimization Documentation](/docs/pages/building-your-application/optimizing/images)
+- [`next/image` Documentation](/docs/pages/api-reference/components/image)

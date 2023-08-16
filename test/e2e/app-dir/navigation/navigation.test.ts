@@ -85,6 +85,17 @@ createNextDescribe(
         await checkLink('top', 0)
         await checkLink('non-existent', 0)
       })
+
+      it('should not scroll to hash when scroll={false} is set', async () => {
+        const browser = await next.browser('/hash-changes')
+        const curScroll = await browser.eval(
+          'document.documentElement.scrollTop'
+        )
+        await browser.elementByCss('#scroll-to-name-item-400-no-scroll').click()
+        expect(curScroll).toBe(
+          await browser.eval('document.documentElement.scrollTop')
+        )
+      })
     })
 
     describe('hash-with-scroll-offset', () => {
@@ -524,11 +535,18 @@ createNextDescribe(
         const noIndexTag = '<meta name="robots" content="noindex"/>'
         const defaultViewportTag =
           '<meta name="viewport" content="width=device-width, initial-scale=1"/>'
+        const devErrorMetadataTag =
+          '<meta name="next-error" content="not-found"/>'
         const html = await next.render('/not-found/suspense')
+
         expect(html).toContain(noIndexTag)
         // only contain once
         expect(html.split(noIndexTag).length).toBe(2)
         expect(html.split(defaultViewportTag).length).toBe(2)
+        if (isNextDev) {
+          // only contain dev error tag once
+          expect(html.split(devErrorMetadataTag).length).toBe(2)
+        }
       })
 
       it('should emit refresh meta tag for redirect page when streaming', async () => {

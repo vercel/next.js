@@ -1,0 +1,32 @@
+---
+title: 'Invalid `next.config.js`'
+---
+
+## Why This Error Occurred
+
+In your `next.config.js` file you passed invalid options that either are the incorrect type or an unknown field. This warning is shown to help catch typos that cause expected configs to not be applied.
+
+## Possible Ways to Fix It
+
+Fixing the listed config errors will remove this warning. You can also leverage the `NextConfig` type by importing from `next` to help ensure your config is correct.
+
+```js filename="next.config.js"
+/**
+ * @type {import('next').NextConfig}
+ */
+const nextConfig = {
+  /* config options here */
+}
+
+module.exports = nextConfig
+```
+
+For example for the below warning, there is a typo and `rewritess` needs to be renamed to `rewrites` to resolve the issue.
+
+```bash filename="Terminal"
+The root value has an unexpected property, rewritess, which is not in the list of allowed properties
+```
+
+## Useful Links
+
+- [`next.config.js`](/docs/pages/api-reference/next-config-js)

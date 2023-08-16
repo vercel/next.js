@@ -8,13 +8,11 @@ use swc_core::{
         visit::FoldWith,
     },
 };
+use turbo_tasks::Vc;
 use turbopack_binding::{
-    turbo::tasks_fs::FileSystemPathVc,
+    turbo::tasks_fs::FileSystemPath,
     turbopack::{
-        ecmascript::{
-            CustomTransformer, EcmascriptInputTransform, EcmascriptInputTransformsVc,
-            TransformContext, TransformPluginVc,
-        },
+        ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext},
         turbopack::module_options::{ModuleRule, ModuleRuleCondition, ModuleRuleEffect},
     },
 };
@@ -23,34 +21,41 @@ use super::module_rule_match_js_no_url;
 
 /// Returns a rule which applies the Next.js page export stripping transform.
 pub async fn get_next_pages_transforms_rule(
-    pages_dir: FileSystemPathVc,
+    pages_dir: Vc<FileSystemPath>,
     export_filter: ExportFilter,
 ) -> Result<ModuleRule> {
     // Apply the Next SSG transform to all pages.
-    let strip_transform =
-        EcmascriptInputTransform::Plugin(TransformPluginVc::cell(box NextJsStripPageExports {
-            export_filter,
-        }));
+    let strip_transform = EcmascriptInputTransform::Plugin(Vc::cell(Box::new(
+        NextJsStripPageExports { export_filter },
+    ) as _));
     Ok(ModuleRule::new(
         ModuleRuleCondition::all(vec![
             ModuleRuleCondition::all(vec![
                 ModuleRuleCondition::ResourcePathInExactDirectory(pages_dir.await?),
                 ModuleRuleCondition::not(ModuleRuleCondition::ResourcePathInExactDirectory(
-                    pages_dir.join("api").await?,
+                    pages_dir.join("api".to_string()).await?,
                 )),
                 ModuleRuleCondition::not(ModuleRuleCondition::any(vec![
                     // TODO(alexkirsz): Possibly ignore _app as well?
-                    ModuleRuleCondition::ResourcePathEquals(pages_dir.join("_document.js").await?),
-                    ModuleRuleCondition::ResourcePathEquals(pages_dir.join("_document.jsx").await?),
-                    ModuleRuleCondition::ResourcePathEquals(pages_dir.join("_document.ts").await?),
-                    ModuleRuleCondition::ResourcePathEquals(pages_dir.join("_document.tsx").await?),
+                    ModuleRuleCondition::ResourcePathEquals(
+                        pages_dir.join("_document.js".to_string()).await?,
+                    ),
+                    ModuleRuleCondition::ResourcePathEquals(
+                        pages_dir.join("_document.jsx".to_string()).await?,
+                    ),
+                    ModuleRuleCondition::ResourcePathEquals(
+                        pages_dir.join("_document.ts".to_string()).await?,
+                    ),
+                    ModuleRuleCondition::ResourcePathEquals(
+                        pages_dir.join("_document.tsx".to_string()).await?,
+                    ),
                 ])),
             ]),
             module_rule_match_js_no_url(),
         ]),
-        vec![ModuleRuleEffect::AddEcmascriptTransforms(
-            EcmascriptInputTransformsVc::cell(vec![strip_transform]),
-        )],
+        vec![ModuleRuleEffect::AddEcmascriptTransforms(Vc::cell(vec![
+            strip_transform,
+        ]))],
     ))
 }
 

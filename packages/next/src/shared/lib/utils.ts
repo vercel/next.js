@@ -452,3 +452,7 @@ export interface CacheFs {
   mkdir(dir: string): Promise<void | string>
   stat(f: string): Promise<{ mtime: Date }>
 }
+
+export function stringifyError(error: Error) {
+  return JSON.stringify({ message: error.message, stack: error.stack })
+}

@@ -1,25 +1,20 @@
 use anyhow::{bail, Result};
 use indexmap::indexmap;
-use turbo_tasks::Value;
+use turbo_tasks::{Value, Vc};
 use turbopack_binding::turbopack::{
     core::{
-        asset::AssetVc,
-        chunk::{ChunkingContext, ChunkingContextVc},
-        compile_time_info::CompileTimeInfoVc,
-        context::AssetContext,
-        reference_type::{InnerAssetsVc, ReferenceType},
+        chunk::ChunkingContext, compile_time_info::CompileTimeInfo, context::AssetContext,
+        module::Module, reference_type::ReferenceType,
     },
-    ecmascript::chunk::EcmascriptChunkPlaceableVc,
+    ecmascript::chunk::EcmascriptChunkPlaceable,
     turbopack::{
         ecmascript::chunk_group_files_asset::ChunkGroupFilesAsset,
-        module_options::ModuleOptionsContextVc,
-        resolve_options_context::ResolveOptionsContextVc,
-        transition::{Transition, TransitionVc},
-        ModuleAssetContextVc,
+        module_options::ModuleOptionsContext, resolve_options_context::ResolveOptionsContext,
+        transition::Transition, ModuleAssetContext,
     },
 };
 
-use super::runtime_entry::RuntimeEntriesVc;
+use super::runtime_entry::RuntimeEntries;
 use crate::embed_js::next_asset;
 
 /// Makes a transition into a next.js client context.
@@ -30,11 +25,11 @@ use crate::embed_js::next_asset;
 #[turbo_tasks::value(shared)]
 pub struct NextClientTransition {
     pub is_app: bool,
-    pub client_compile_time_info: CompileTimeInfoVc,
-    pub client_module_options_context: ModuleOptionsContextVc,
-    pub client_resolve_options_context: ResolveOptionsContextVc,
-    pub client_chunking_context: ChunkingContextVc,
-    pub runtime_entries: RuntimeEntriesVc,
+    pub client_compile_time_info: Vc<CompileTimeInfo>,
+    pub client_module_options_context: Vc<ModuleOptionsContext>,
+    pub client_resolve_options_context: Vc<ResolveOptionsContext>,
+    pub client_chunking_context: Vc<Box<dyn ChunkingContext>>,
+    pub runtime_entries: Vc<RuntimeEntries>,
 }
 
 #[turbo_tasks::value_impl]
@@ -42,60 +37,65 @@ impl Transition for NextClientTransition {
     #[turbo_tasks::function]
     fn process_compile_time_info(
         &self,
-        _compile_time_info: CompileTimeInfoVc,
-    ) -> CompileTimeInfoVc {
+        _compile_time_info: Vc<CompileTimeInfo>,
+    ) -> Vc<CompileTimeInfo> {
         self.client_compile_time_info
     }
 
     #[turbo_tasks::function]
     fn process_module_options_context(
         &self,
-        _context: ModuleOptionsContextVc,
-    ) -> ModuleOptionsContextVc {
+        _context: Vc<ModuleOptionsContext>,
+    ) -> Vc<ModuleOptionsContext> {
         self.client_module_options_context
     }
 
     #[turbo_tasks::function]
     fn process_resolve_options_context(
         &self,
-        _context: ResolveOptionsContextVc,
-    ) -> ResolveOptionsContextVc {
+        _context: Vc<ResolveOptionsContext>,
+    ) -> Vc<ResolveOptionsContext> {
         self.client_resolve_options_context
     }
 
     #[turbo_tasks::function]
     async fn process_module(
         &self,
-        asset: AssetVc,
-        context: ModuleAssetContextVc,
-    ) -> Result<AssetVc> {
+        asset: Vc<Box<dyn Module>>,
+        context: Vc<ModuleAssetContext>,
+    ) -> Result<Vc<Box<dyn Module>>> {
         let asset = if !self.is_app {
-            let internal_asset = next_asset("entry/next-hydrate.tsx");
+            let internal_asset = next_asset("entry/next-hydrate.tsx".to_string());
 
             context.process(
                 internal_asset,
-                Value::new(ReferenceType::Internal(InnerAssetsVc::cell(indexmap! {
+                Value::new(ReferenceType::Internal(Vc::cell(indexmap! {
                     "PAGE".to_string() => asset
                 }))),
             )
         } else {
             asset
         };
-        let Some(asset) = EcmascriptChunkPlaceableVc::resolve_from(asset).await? else {
+        let Some(asset) =
+            Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(asset).await?
+        else {
             bail!("not an ecmascript placeable module");
         };
 
-        let runtime_entries = self.runtime_entries.resolve_entries(context.into());
+        let runtime_entries = self.runtime_entries.resolve_entries(Vc::upcast(context));
 
         let asset = ChunkGroupFilesAsset {
-            asset: asset.into(),
+            module: Vc::upcast(asset),
             // This ensures that the chunk group files asset will strip out the _next prefix from
             // all chunk paths, which is what the Next.js renderer code expects.
-            client_root: self.client_chunking_context.output_root().join("_next"),
+            client_root: self
+                .client_chunking_context
+                .output_root()
+                .join("_next".to_string()),
             chunking_context: self.client_chunking_context,
             runtime_entries: Some(runtime_entries),
         };
 
-        Ok(asset.cell().into())
+        Ok(Vc::upcast(asset.cell()))
     }
 }

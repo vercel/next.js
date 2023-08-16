@@ -20,7 +20,8 @@ export class NextRequest extends Request {
     const url =
       typeof input !== 'string' && 'url' in input ? input.url : String(input)
     validateURL(url)
-    super(url, init)
+    if (input instanceof Request) super(input)
+    else super(url, init)
     const nextUrl = new NextURL(url, {
       headers: toNodeOutgoingHttpHeaders(this.headers),
       nextConfig: init.nextConfig,
@@ -111,4 +112,5 @@ export interface RequestInit extends globalThis.RequestInit {
     i18n?: I18NConfig | null
     trailingSlash?: boolean
   }
+  signal?: AbortSignal
 }

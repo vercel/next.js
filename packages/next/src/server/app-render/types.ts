@@ -1,5 +1,6 @@
 import type { LoadComponentsReturnType } from '../load-components'
-import type { ServerRuntime } from '../../../types'
+import type { ServerRuntime, SizeLimit } from '../../../types'
+import { NextConfigComplete } from '../../server/config-shared'
 import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../../build/webpack/plugins/next-font-manifest-plugin'
 
@@ -103,10 +104,10 @@ export type ActionResult = Promise<any>
 export type NextFlightResponse = [buildId: string, flightData: FlightData]
 
 // Response from `createFromFetch` for server actions. Action's flight data can be null
-export type ActionFlightResponse = [
-  ActionResult,
-  [buildId: NextFlightResponse[0], flightData: NextFlightResponse[1] | null]
-]
+export type ActionFlightResponse =
+  | [ActionResult, [buildId: string, flightData: FlightData | null]]
+  // This case happens when `redirect()` is called in a server action.
+  | NextFlightResponse
 
 /**
  * Property holding the current subTreeData.
@@ -138,6 +139,15 @@ export type RenderOptsPartial = {
   originalPathname?: string
   isDraftMode?: boolean
   deploymentId?: string
+  onUpdateCookies?: (cookies: string[]) => void
+  loadConfig?: (
+    phase: string,
+    dir: string,
+    customConfig?: object | null,
+    rawConfig?: boolean,
+    silent?: boolean
+  ) => Promise<NextConfigComplete>
+  serverActionsBodySizeLimit?: SizeLimit
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial

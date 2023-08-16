@@ -43,7 +43,7 @@ const requiredPackages = [
   },
 ]
 
-async function cliPrompt() {
+async function cliPrompt(): Promise<{ config?: any }> {
   console.log(
     chalk.bold(
       `${chalk.cyan(
@@ -72,7 +72,7 @@ async function cliPrompt() {
       unselected: '  ',
     })
 
-    return { config: value?.config }
+    return { config: value?.config ?? null }
   } catch {
     return { config: null }
   }
@@ -131,7 +131,7 @@ async function lint(
     const mod = await Promise.resolve(require(deps.resolved.get('eslint')!))
 
     const { ESLint } = mod
-    let eslintVersion = ESLint?.version ?? mod?.CLIEngine?.version
+    let eslintVersion = ESLint?.version ?? mod.CLIEngine?.version
 
     if (!eslintVersion || semver.lt(eslintVersion, '7.0.0')) {
       return `${chalk.red(

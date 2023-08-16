@@ -22,6 +22,7 @@ use turbopack_binding::swc::core::{
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct Config {
     pub is_server: bool,
+    pub enabled: bool,
 }
 
 pub fn server_actions<C: Comments>(
@@ -101,6 +102,7 @@ impl<C: Comments> ServerActions<C> {
                     &mut body.stmts,
                     remove_directive,
                     &mut is_action_fn,
+                    self.config.enabled,
                 );
 
                 if is_action_fn && !self.config.is_server {
@@ -108,8 +110,7 @@ impl<C: Comments> ServerActions<C> {
                         handler
                             .struct_span_err(
                                 body.span,
-                                "\"use server\" functions are not allowed in client components. \
-                                 You can import them from a \"use server\" file instead.",
+                                "It is not allowed to define inline \"use server\" annotated Server Actions in Client Components.\nTo use Server Actions in a Client Component, you can either export them from a separate file with \"use server\" at the top, or pass them down through props from a Server Component.\n\nRead more: https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions#with-client-components\n",
                             )
                             .emit()
                     });
@@ -721,6 +722,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             stmts,
             &mut self.in_action_file,
             &mut self.has_action,
+            self.config.enabled,
         );
 
         let old_annotations = self.annotations.take();
@@ -1051,13 +1053,15 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 },
             );
 
-            // import __createActionProxy__ from 'private-next-rsc-action-proxy'
+            // import { createActionProxy } from 'private-next-rsc-action-proxy'
             // createServerReference("action_id")
             new.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                 span: DUMMY_SP,
-                specifiers: vec![ImportSpecifier::Default(ImportDefaultSpecifier {
+                specifiers: vec![ImportSpecifier::Named(ImportNamedSpecifier {
                     span: DUMMY_SP,
-                    local: quote_ident!("__create_action_proxy__"),
+                    local: quote_ident!("createActionProxy"),
+                    imported: None,
+                    is_type_only: false,
                 })],
                 src: Box::new(Str {
                     span: DUMMY_SP,
@@ -1171,7 +1175,7 @@ fn annotate_ident_as_action(
     export_name: String,
     maybe_orig_action_ident: Option<Ident>,
 ) {
-    // Add the proxy wrapper call `__create_action_proxy__($$id, $$bound, myAction,
+    // Add the proxy wrapper call `createActionProxy($$id, $$bound, myAction,
     // maybe_orig_action)`.
     let mut args = vec![
         // $$id
@@ -1203,7 +1207,7 @@ fn annotate_ident_as_action(
         span: DUMMY_SP,
         expr: Box::new(Expr::Call(CallExpr {
             span: DUMMY_SP,
-            callee: quote_ident!("__create_action_proxy__").as_callee(),
+            callee: quote_ident!("createActionProxy").as_callee(),
             args: if let Some(orig_action_ident) = maybe_orig_action_ident {
                 args.push(ExprOrSpread {
                     spread: None,
@@ -1231,6 +1235,7 @@ fn remove_server_directive_index_in_module(
     stmts: &mut Vec<ModuleItem>,
     in_action_file: &mut bool,
     has_action: &mut bool,
+    enabled: bool,
 ) {
     let mut is_directive = true;
 
@@ -1244,6 +1249,16 @@ fn remove_server_directive_index_in_module(
                     if is_directive {
                         *in_action_file = true;
                         *has_action = true;
+                        if !enabled {
+                            HANDLER.with(|handler| {
+                                handler
+                                    .struct_span_err(
+                                        *span,
+                                        "To use Server Actions, please enable the feature flag in your Next.js config. Read more: https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions#convention",
+                                    )
+                                    .emit()
+                            });
+                        }
                         return false;
                     } else {
                         HANDLER.with(|handler| {
@@ -1320,6 +1335,7 @@ fn remove_server_directive_index_in_fn(
     stmts: &mut Vec<Stmt>,
     remove_directive: bool,
     is_action_fn: &mut bool,
+    enabled: bool,
 ) {
     let mut is_directive = true;
 
@@ -1332,6 +1348,16 @@ fn remove_server_directive_index_in_fn(
             if value == "use server" {
                 if is_directive {
                     *is_action_fn = true;
+                    if !enabled {
+                        HANDLER.with(|handler| {
+                            handler
+                                .struct_span_err(
+                                    *span,
+                                    "To use Server Actions, please enable the feature flag in your Next.js config. Read more: https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions#convention",
+                                )
+                                .emit()
+                        });
+                    }
                     if remove_directive {
                         return false;
                     }
@@ -1511,7 +1537,14 @@ impl VisitMut for ClosureReplacer<'_> {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct Name(Id, Vec<(JsWord, bool)>);
+struct NamePart {
+    prop: JsWord,
+    is_member: bool,
+    optional: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct Name(Id, Vec<NamePart>);
 
 impl From<&'_ Ident> for Name {
     fn from(value: &Ident) -> Self {
@@ -1539,7 +1572,11 @@ impl TryFrom<&'_ MemberExpr> for Name {
         match &value.prop {
             MemberProp::Ident(prop) => {
                 let mut obj: Name = value.obj.as_ref().try_into()?;
-                obj.1.push((prop.sym.clone(), true));
+                obj.1.push(NamePart {
+                    prop: prop.sym.clone(),
+                    is_member: true,
+                    optional: false,
+                });
                 Ok(obj)
             }
             _ => Err(()),
@@ -1552,10 +1589,14 @@ impl TryFrom<&'_ OptChainExpr> for Name {
 
     fn try_from(value: &OptChainExpr) -> Result<Self, Self::Error> {
         match &*value.base {
-            OptChainBase::Member(value) => match &value.prop {
+            OptChainBase::Member(m) => match &m.prop {
                 MemberProp::Ident(prop) => {
-                    let mut obj: Name = value.obj.as_ref().try_into()?;
-                    obj.1.push((prop.sym.clone(), false));
+                    let mut obj: Name = m.obj.as_ref().try_into()?;
+                    obj.1.push(NamePart {
+                        prop: prop.sym.clone(),
+                        is_member: false,
+                        optional: value.optional,
+                    });
                     Ok(obj)
                 }
                 _ => Err(()),
@@ -1569,7 +1610,12 @@ impl From<Name> for Expr {
     fn from(value: Name) -> Self {
         let mut expr = Expr::Ident(value.0.into());
 
-        for (prop, is_member) in value.1.into_iter() {
+        for NamePart {
+            prop,
+            is_member,
+            optional,
+        } in value.1.into_iter()
+        {
             if is_member {
                 expr = Expr::Member(MemberExpr {
                     span: DUMMY_SP,
@@ -1579,12 +1625,12 @@ impl From<Name> for Expr {
             } else {
                 expr = Expr::OptChain(OptChainExpr {
                     span: DUMMY_SP,
-                    question_dot_token: DUMMY_SP,
                     base: Box::new(OptChainBase::Member(MemberExpr {
                         span: DUMMY_SP,
                         obj: expr.into(),
                         prop: MemberProp::Ident(Ident::new(prop, DUMMY_SP)),
                     })),
+                    optional,
                 });
             }
         }

@@ -3,6 +3,8 @@ title: webVitalsAttribution
 description: Learn how to use the webVitalsAttribution option to pinpoint the source of Web Vitals issues.
 ---
 
+{/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
+
 When debugging issues related to Web Vitals, it is often helpful if we can pinpoint the source of the problem.
 For example, in the case of Cumulative Layout Shift (CLS), we might want to know the first element that shifted when the single largest layout shift occurred.
 Or, in the case of Largest Contentful Paint (LCP), we might want to identify the element corresponding to the LCP for the page.

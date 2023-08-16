@@ -28,12 +28,12 @@ export function normalizeAppPath(route: string) {
       }
 
       // Groups are ignored.
-      if (segment.startsWith('(') && segment.endsWith(')')) {
+      if (segment[0] === '(' && segment.endsWith(')')) {
         return pathname
       }
 
       // Parallel segments are ignored.
-      if (segment.startsWith('@')) {
+      if (segment[0] === '@') {
         return pathname
       }
 

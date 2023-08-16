@@ -9,7 +9,13 @@ import { Rewrite } from './load-custom-routes'
 
 // a function that converts normalised paths (e.g. /foo/[bar]/[baz]) to the format expected by pathToRegexp (e.g. /foo/:bar/:baz)
 function toPathToRegexpPath(path: string): string {
-  return path.replace(/\[([^\]]+)\]/g, ':$1')
+  return path.replace(/\[\[?([^\]]+)\]\]?/g, (_, capture) => {
+    // handle catch-all segments (e.g. /foo/bar/[...baz] or /foo/bar/[[...baz]])
+    if (capture.startsWith('...')) {
+      return `:${capture.slice(3)}*`
+    }
+    return ':' + capture
+  })
 }
 
 // for interception routes we don't have access to the dynamic segments from the

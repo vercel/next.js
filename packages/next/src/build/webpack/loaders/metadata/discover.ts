@@ -34,7 +34,7 @@ async function enumMetadataFiles(
       : []
   )
   for (const name of possibleFileNames) {
-    const resolved = await metadataResolver(path.join(dir, name), extensions)
+    const resolved = await metadataResolver(dir, name, extensions)
     if (resolved) {
       collectedFiles.push(resolved)
     }
@@ -109,6 +109,7 @@ export async function createStaticMetadataFromRoute(
             basePath,
             pageExtensions,
           }
+          // WEBPACK_RESOURCE_QUERIES.metadata query here only for filtering out applying to image loader
         )}!${filepath}?${WEBPACK_RESOURCE_QUERIES.metadata}`
 
         const imageModule = `(async (props) => (await import(/* webpackMode: "eager" */ ${JSON.stringify(
@@ -123,14 +124,15 @@ export async function createStaticMetadataFromRoute(
       })
   }
 
-  await Promise.all([
-    collectIconModuleIfExists('icon'),
-    collectIconModuleIfExists('apple'),
-    collectIconModuleIfExists('openGraph'),
-    collectIconModuleIfExists('twitter'),
-    isRootLayoutOrRootPage && collectIconModuleIfExists('favicon'),
-    isRootLayoutOrRootPage && collectIconModuleIfExists('manifest'),
-  ])
+  // Intentially make these serial to reuse directory access cache.
+  await collectIconModuleIfExists('icon')
+  await collectIconModuleIfExists('apple')
+  await collectIconModuleIfExists('openGraph')
+  await collectIconModuleIfExists('twitter')
+  if (isRootLayoutOrRootPage) {
+    await collectIconModuleIfExists('favicon')
+    await collectIconModuleIfExists('manifest')
+  }
 
   return hasStaticMetadataFiles ? staticImagesMetadata : null
 }

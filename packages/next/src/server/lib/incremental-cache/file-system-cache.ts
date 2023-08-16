@@ -71,7 +71,7 @@ export default class FileSystemCache implements CacheHandler {
   }
 
   private loadTagsManifest() {
-    if (!this.tagsManifestPath || !this.fs) return
+    if (!this.tagsManifestPath || !this.fs || tagsManifest) return
     try {
       tagsManifest = JSON.parse(
         this.fs.readFileSync(this.tagsManifestPath).toString('utf8')
@@ -255,8 +255,12 @@ export default class FileSystemCache implements CacheHandler {
             (data?.lastModified || Date.now())
         )
       })
+
+      // we trigger a blocking validation if an ISR page
+      // had a tag revalidated, if we want to be a background
+      // revalidation instead we return data.lastModified = -1
       if (isStale) {
-        data.lastModified = -1
+        data = undefined
       }
     }
 

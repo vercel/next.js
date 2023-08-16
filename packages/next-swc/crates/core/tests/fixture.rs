@@ -9,7 +9,9 @@ use next_swc::{
     react_remove_properties::remove_properties,
     react_server_components::server_components,
     remove_console::remove_console,
-    server_actions::{self, server_actions},
+    server_actions::{
+        server_actions, {self},
+    },
     shake_exports::{shake_exports, Config as ShakeExportsConfig},
 };
 use next_transform_font::{next_font_loaders, Config as FontLoaderConfig};
@@ -325,7 +327,10 @@ fn server_actions_server_fixture(input: PathBuf) {
                 resolver(Mark::new(), Mark::new(), false),
                 server_actions(
                     &FileName::Real("/app/item.js".into()),
-                    server_actions::Config { is_server: true },
+                    server_actions::Config {
+                        is_server: true,
+                        enabled: true
+                    },
                     _tr.comments.as_ref().clone(),
                 )
             )
@@ -346,7 +351,10 @@ fn server_actions_client_fixture(input: PathBuf) {
                 resolver(Mark::new(), Mark::new(), false),
                 server_actions(
                     &FileName::Real("/app/item.js".into()),
-                    server_actions::Config { is_server: false },
+                    server_actions::Config {
+                        is_server: false,
+                        enabled: true
+                    },
                     _tr.comments.as_ref().clone(),
                 )
             )
@@ -372,7 +380,7 @@ fn cjs_optimize_fixture(input: PathBuf) {
                 resolver(unresolved_mark, top_level_mark, false),
                 cjs_optimizer(
                     json(
-                        r###"
+                        r#"
                         {
                             "packages": {
                                 "next/server": {
@@ -382,7 +390,7 @@ fn cjs_optimize_fixture(input: PathBuf) {
                                 }
                             }
                         }
-                        "###
+                        "#
                     ),
                     unresolved_ctxt
                 )

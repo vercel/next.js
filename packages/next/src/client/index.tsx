@@ -49,8 +49,6 @@ import onRecoverableError from './on-recoverable-error'
 
 /// <reference types="react-dom/experimental" />
 
-declare let __webpack_public_path__: string
-
 declare global {
   interface Window {
     /* test fns */
@@ -62,34 +60,6 @@ declare global {
     __NEXT_P: any[]
   }
 }
-
-const addChunkSuffix =
-  (getOriginalChunk: (chunkId: any) => string) => (chunkId: any) => {
-    return (
-      getOriginalChunk(chunkId) +
-      `${
-        process.env.NEXT_DEPLOYMENT_ID
-          ? `?dpl=${process.env.NEXT_DEPLOYMENT_ID}`
-          : ''
-      }`
-    )
-  }
-
-// ensure dynamic imports have deployment id added if enabled
-const getChunkScriptFilename = __webpack_require__.u
-// eslint-disable-next-line no-undef
-__webpack_require__.u = addChunkSuffix(getChunkScriptFilename)
-
-// eslint-disable-next-line no-undef
-const getChunkCssFilename = __webpack_require__.k
-// eslint-disable-next-line no-undef
-__webpack_require__.k = addChunkSuffix(getChunkCssFilename)
-
-// eslint-disable-next-line no-undef
-const getMiniCssFilename = __webpack_require__.miniCssF
-// eslint-disable-next-line no-undef
-__webpack_require__.miniCssF = addChunkSuffix(getMiniCssFilename)
-
 type RenderRouteInfo = PrivateRouteInfo & {
   App: AppComponent
   scroll?: { x: number; y: number } | null
@@ -121,10 +91,6 @@ let webpackHMR: any
 
 let CachedApp: AppComponent, onPerfEntry: (metric: any) => void
 let CachedComponent: React.ComponentType
-
-  // Ignore the module ID transform in client.
-  // @ts-ignore
-;(self as any).__next_require__ = __webpack_require__
 
 class Container extends React.Component<{
   children?: React.ReactNode
@@ -234,7 +200,7 @@ export async function initialize(opts: { webpackHMR?: any } = {}): Promise<{
   const prefix: string = initialData.assetPrefix || ''
   // With dynamic assetPrefix it's no longer possible to set assetPrefix at the build time
   // So, this is how we do it in the client side at runtime
-  __webpack_public_path__ = `${prefix}/_next/` //eslint-disable-line
+  ;(self as any).__next_set_public_path__(`${prefix}/_next/`) //eslint-disable-line
 
   // Initialize next/config with the environment configuration
   setConfig({
@@ -326,6 +292,10 @@ function renderApp(App: AppComponent, appProps: AppProps) {
 function AppContainer({
   children,
 }: React.PropsWithChildren<{}>): React.ReactElement {
+  // Create a memoized value for next/navigation router context.
+  const adaptedForAppRouter = React.useMemo(() => {
+    return adaptForAppRouterInstance(router)
+  }, [])
   return (
     <Container
       fn={(error) =>
@@ -336,7 +306,7 @@ function AppContainer({
         )
       }
     >
-      <AppRouterContext.Provider value={adaptForAppRouterInstance(router)}>
+      <AppRouterContext.Provider value={adaptedForAppRouter}>
         <SearchParamsContext.Provider value={adaptForSearchParams(router)}>
           <PathnameContextProviderAdapter
             router={router}

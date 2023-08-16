@@ -1,4 +1,4 @@
-import React, { ReactElement, ReactNode, useContext } from 'react'
+import React, { ReactElement, ReactNode } from 'react'
 import {
   OPTIMIZED_FONT_PROVIDERS,
   NEXT_BUILTIN_DOCUMENT,
@@ -17,7 +17,7 @@ import { BuildManifest, getPageFiles } from '../server/get-page-files'
 import { htmlEscapeJsonString } from '../server/htmlescape'
 import isError from '../lib/is-error'
 
-import { HtmlContext } from '../shared/lib/html-context'
+import { HtmlContext, useHtmlContext } from '../shared/lib/html-context'
 import type { HtmlProps } from '../shared/lib/html-context'
 
 export { DocumentContext, DocumentInitialProps, DocumentProps }
@@ -354,8 +354,7 @@ function getAmpPath(ampPath: string, asPath: string): string {
 function getNextFontLinkTags(
   nextFontManifest: NextFontManifest | undefined,
   dangerousAsPath: string,
-  assetPrefix: string = '',
-  assetQueryString: string = ''
+  assetPrefix: string = ''
 ) {
   if (!nextFontManifest) {
     return {
@@ -378,11 +377,6 @@ function getNextFontLinkTags(
     (appFontsEntry || pageFontsEntry)
   )
 
-  // we only add if the dpl query is present for fonts
-  if (!assetQueryString.includes('dpl=')) {
-    assetQueryString = ''
-  }
-
   return {
     preconnect: preconnectToSelf ? (
       <link
@@ -401,9 +395,7 @@ function getNextFontLinkTags(
             <link
               key={fontFile}
               rel="preload"
-              href={`${assetPrefix}/_next/${encodeURI(
-                fontFile
-              )}${assetQueryString}`}
+              href={`${assetPrefix}/_next/${encodeURI(fontFile)}`}
               as="font"
               type={`font/${ext}`}
               crossOrigin="anonymous"
@@ -424,7 +416,7 @@ function getNextFontLinkTags(
 export class Head extends React.Component<HeadProps> {
   static contextType = HtmlContext
 
-  context!: React.ContextType<typeof HtmlContext>
+  context!: HtmlProps
 
   getCssLinks(files: DocumentFiles): JSX.Element[] | null {
     const {
@@ -800,8 +792,7 @@ export class Head extends React.Component<HeadProps> {
     const nextFontLinkTags = getNextFontLinkTags(
       nextFontManifest,
       dangerousAsPath,
-      assetPrefix,
-      this.context.assetQueryString
+      assetPrefix
     )
 
     return (
@@ -995,7 +986,7 @@ function handleDocumentScriptLoaderItems(
 export class NextScript extends React.Component<OriginProps> {
   static contextType = HtmlContext
 
-  context!: React.ContextType<typeof HtmlContext>
+  context!: HtmlProps
 
   getDynamicChunks(files: DocumentFiles) {
     return getDynamicChunks(this.context, this.props, files)
@@ -1174,7 +1165,7 @@ export function Html(
     locale,
     scriptLoader,
     __NEXT_DATA__,
-  } = useContext(HtmlContext)
+  } = useHtmlContext()
 
   docComponentsRendered.Html = true
   handleDocumentScriptLoaderItems(scriptLoader, __NEXT_DATA__, props)
@@ -1196,7 +1187,7 @@ export function Html(
 }
 
 export function Main() {
-  const { docComponentsRendered } = useContext(HtmlContext)
+  const { docComponentsRendered } = useHtmlContext()
   docComponentsRendered.Main = true
   // @ts-ignore
   return <next-js-internal-body-render-target />

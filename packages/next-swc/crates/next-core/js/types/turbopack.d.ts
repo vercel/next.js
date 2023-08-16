@@ -12,5 +12,8 @@ export type RenderData = {
   data?: {
     nextConfigOutput?: RenderOptsPartial['nextConfigOutput']
     serverInfo?: ServerInfo
+    allowedRevalidateHeaderKeys?: string[]
+    fetchCacheKeyPrefix?: string
+    isrMemoryCacheSize?: number
   }
 }

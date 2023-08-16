@@ -345,7 +345,6 @@ describe('ReactRefreshRegression app', () => {
         });
         module.exports = withMDX({
           pageExtensions: ["js", "mdx"],
-          experimental: { appDir: true },
         });
       `
     )

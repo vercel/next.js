@@ -51,7 +51,7 @@ describe('Basic SCSS Module Support', () => {
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
 
     expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
-      `".index_redText__WduQk{color:red}"`
+      `".index_redText__zXafh{color:red}"`
     )
   })
 
@@ -68,7 +68,7 @@ describe('Basic SCSS Module Support', () => {
     expect(cssSheet.attr('href')).toMatch(/^\/_next\/static\/css\/.*\.css$/)
 
     expect($('#verify-red').attr('class')).toMatchInlineSnapshot(
-      `"index_redText__WduQk"`
+      `"index_redText__zXafh"`
     )
   })
 })
@@ -107,7 +107,7 @@ describe('3rd Party CSS Module Support', () => {
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
 
     expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
-      `".index_foo__gL0ty{position:relative}.index_foo__gL0ty .bar,.index_foo__gL0ty .baz{height:100%;overflow:hidden}.index_foo__gL0ty .lol,.index_foo__gL0ty>.lel{width:80%}"`
+      `".index_foo__72b4D{position:relative}.index_foo__72b4D .bar,.index_foo__72b4D .baz{height:100%;overflow:hidden}.index_foo__72b4D .lol,.index_foo__72b4D>.lel{width:80%}"`
     )
   })
 
@@ -124,7 +124,7 @@ describe('3rd Party CSS Module Support', () => {
     expect(cssSheet.attr('href')).toMatch(/^\/_next\/static\/css\/.*\.css$/)
 
     expect($('#verify-div').attr('class')).toMatchInlineSnapshot(
-      `"index_foo__gL0ty"`
+      `"index_foo__72b4D"`
     )
   })
 })
@@ -261,7 +261,7 @@ describe('CSS Module Composes Usage (Basic)', () => {
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
 
     expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
-      `".index_className__phGSl{background:red;color:#ff0}.index_subClass__fPp6w{background:blue}"`
+      `".index_className__OLWEh{background:red;color:#ff0}.index_subClass__Z_IFg{background:blue}"`
     )
   })
 })
@@ -294,7 +294,7 @@ describe('CSS Module Composes Usage (External)', () => {
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
 
     expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
-      `".other_className__e_JDW{background:red;color:#ff0}.index_subClass__fPp6w{background:blue}"`
+      `".other_className__A8aN2{background:red;color:#ff0}.index_subClass__Z_IFg{background:blue}"`
     )
   })
 })

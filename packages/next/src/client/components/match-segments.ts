@@ -5,19 +5,19 @@ export const matchSegment = (
   existingSegment: Segment,
   segment: Segment
 ): boolean => {
-  // Common case: segment is just a string
-  if (typeof existingSegment === 'string' && typeof segment === 'string') {
-    return existingSegment === segment
+  // segment is either Array or string
+  if (typeof existingSegment === 'string') {
+    if (typeof segment === 'string') {
+      // Common case: segment is just a string
+      return existingSegment === segment
+    }
+    return false
   }
 
-  // Dynamic parameter case: segment is an array with param/value. Both param and value are compared.
-  if (Array.isArray(existingSegment) && Array.isArray(segment)) {
-    return (
-      existingSegment[0] === segment[0] && existingSegment[1] === segment[1]
-    )
+  if (typeof segment === 'string') {
+    return false
   }
-
-  return false
+  return existingSegment[0] === segment[0] && existingSegment[1] === segment[1]
 }
 
 /*

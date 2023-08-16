@@ -6,7 +6,7 @@ import { getModuleBuildInfo } from '../get-module-build-info'
 
 const noopHeadPath = require.resolve('next/dist/client/components/noop-head')
 
-export default async function transformSource(
+export default function transformSource(
   this: any,
   source: string,
   sourceMap: any
@@ -20,8 +20,6 @@ export default async function transformSource(
     this._compiler.name === 'edge-server'
       ? 'next/dist/esm/build/webpack/loaders/next-flight-loader/module-proxy'
       : 'next/dist/build/webpack/loaders/next-flight-loader/module-proxy'
-
-  const callback = this.async()
 
   // Assign the RSC meta information to buildInfo.
   // Exclude next internal files which are not marked as client files
@@ -55,11 +53,12 @@ export default async function transformSource(
 
     if (assumedSourceType === 'module') {
       if (clientRefs.includes('*')) {
-        return callback(
+        this.callback(
           new Error(
             `It's currently unsupported to use "export *" in a client boundary. Please use named exports instead.`
           )
         )
+        return
       }
 
       let esmSource = `\
@@ -88,7 +87,8 @@ export { e${cnt++} as ${ref} };`
         }
       }
 
-      return callback(null, esmSource, sourceMap)
+      this.callback(null, esmSource, sourceMap)
+      return
     }
   }
 
@@ -100,7 +100,7 @@ export { e${cnt++} as ${ref} };`
     }
   }
 
-  return callback(
+  this.callback(
     null,
     source.replace(RSC_MOD_REF_PROXY_ALIAS, moduleProxy),
     sourceMap

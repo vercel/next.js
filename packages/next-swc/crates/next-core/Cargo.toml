@@ -10,8 +10,10 @@ bench = false
 
 [dependencies]
 anyhow = { workspace = true }
-async-recursion = "1.0.2"
+async-recursion = { workspace = true }
 async-trait = { workspace = true }
+base64 = "0.21.0"
+const_format = "0.2.30"
 once_cell = { workspace = true }
 qstring = { workspace = true }
 regex = { workspace = true }
@@ -19,6 +21,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
 mime = { workspace = true }
+mime_guess = "2.0.4"
 indoc = { workspace = true }
 allsorts = { workspace = true }
 futures = { workspace = true }
@@ -35,6 +38,7 @@ turbopack-binding = { workspace = true, features = [
   "__turbo_tasks_fs",
   "__turbo_tasks_hash",
   "__turbopack",
+  "__turbopack_build",
   "__turbopack_core",
   "__turbopack_dev",
   "__turbopack_dev_server",
@@ -65,6 +69,9 @@ turbopack-binding = { workspace = true, features = ["__turbo_tasks_build"] }
 next-font-local = []
 native-tls = ["turbopack-binding/__turbo_tasks_fetch_native-tls"]
 rustls-tls = ["turbopack-binding/__turbo_tasks_fetch_rustls-tls"]
+plugin = ["turbopack-binding/__swc_core_binding_napi_plugin"]
+image-webp = ["turbopack-binding/__turbopack_image_webp"]
+
 # enable "HMR" for embedded assets
 dynamic_embed_contents = [
   "turbopack-binding/__turbo_tasks_fs_dynamic_embed_contents",
