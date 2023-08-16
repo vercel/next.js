@@ -6,10 +6,8 @@ import { getTracer } from '../lib/trace/tracer'
 import { AppRenderSpan } from '../lib/trace/constants'
 import { decodeText, encodeText } from './encode-decode'
 
-const queueTask: (fn: () => void) => void =
-  process.env.NEXT_RUNTIME === 'edge'
-    ? (fn: () => void) => Promise.resolve().then(fn)
-    : setImmediate
+const queueTask =
+  process.env.NEXT_RUNTIME === 'edge' ? globalThis.setTimeout : setImmediate
 
 export type ReactReadableStream = ReadableStream<Uint8Array> & {
   allReady?: Promise<void> | undefined
@@ -132,12 +130,12 @@ export function createBufferedTransformStream(): TransformStream<
   const flushBuffer = (controller: TransformStreamDefaultController) => {
     if (!pendingFlush) {
       pendingFlush = new Promise((resolve) => {
-        queueTask(async () => {
+        setTimeout(async () => {
           controller.enqueue(bufferedBytes)
           bufferedBytes = new Uint8Array()
           pendingFlush = null
           resolve()
-        })
+        }, 0)
       })
     }
     return pendingFlush
@@ -255,7 +253,7 @@ function createDeferredSuffixStream(
           // NOTE: streaming flush
           // Enqueue suffix part before the major chunks are enqueued so that
           // suffix won't be flushed too early to interrupt the data stream
-          queueTask(() => {
+          setTimeout(() => {
             controller.enqueue(encodeText(suffix))
             res()
           })
@@ -290,10 +288,13 @@ export function createInlineDataStream(
         // the safe timing to pipe the data stream, this extra tick is
         // necessary.
         dataStreamFinished = new Promise((res) =>
-          // We use `queueTask` here to ensure that it's inserted after flushing
+          // We use `setTimeout` here to ensure that it's inserted after flushing
           // the shell. Note that this implementation might get stale if impl
           // details of Fizz change in the future.
-          queueTask(async () => {
+          // Also we are not using `setImmediate` here because it's not available
+          // broadly in all runtimes, for example some edge workers might not
+          // have it.
+          setTimeout(async () => {
             try {
               while (true) {
                 const { done, value } = await dataStreamReader.read()
@@ -306,7 +307,7 @@ export function createInlineDataStream(
               controller.error(err)
             }
             res()
-          })
+          }, 0)
         )
       }
     },
