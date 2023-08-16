@@ -120,12 +120,6 @@ export type FindComponentsResult = {
   query: NextParsedUrlQuery
 }
 
-export interface RoutingItem {
-  page: string
-  match: RouteMatchFn
-  re?: RegExp
-}
-
 export interface MiddlewareRoutingItem {
   page: string
   match: MiddlewareRouteMatch
