@@ -1,4 +1,3 @@
-import semver from 'next/dist/compiled/semver'
 import { codecs as supportedFormats, preprocessors } from './codecs'
 import ImageData from './image_data'
 
