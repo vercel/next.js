@@ -4,7 +4,7 @@
     "noEmit": true,
     "allowJs": true,
     "resolveJsonModule": true,
-    "jsx": "react",
+    "jsx": "react-jsx",
     "module": "esnext",
     "target": "ESNext",
     "esModuleInterop": true,
