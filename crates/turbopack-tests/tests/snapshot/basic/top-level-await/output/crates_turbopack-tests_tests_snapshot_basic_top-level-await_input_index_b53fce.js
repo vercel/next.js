@@ -15,6 +15,7 @@ __turbopack_export_value__((__turbopack_import__) => {
 })()),
 "[project]/crates/turbopack-tests/tests/snapshot/basic/top-level-await/input/Actions.js (ecmascript)": (({ r: __turbopack_require__, f: __turbopack_require_context__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, n: __turbopack_export_namespace__, c: __turbopack_cache__, l: __turbopack_load__, j: __turbopack_dynamic__, g: global, __dirname, k: __turbopack_refresh__ }) => (() => {
 
+// import() doesn't care about whether a module is an async module or not
 __turbopack_esm__({
     "AlternativeCreateUserAction": ()=>AlternativeCreateUserAction,
     "CreateUserAction": ()=>CreateUserAction
@@ -22,13 +23,15 @@ __turbopack_esm__({
 const UserApi = __turbopack_require__("[project]/crates/turbopack-tests/tests/snapshot/basic/top-level-await/input/UserAPI.js (ecmascript, manifest chunk, loader)")(__turbopack_import__);
 const CreateUserAction = async (name)=>{
     console.log("Creating user", name);
+    // These are normal awaits, because they are in an async function
     const { createUser } = await UserApi;
     await createUser(name);
 };
 const AlternativeCreateUserAction = async (name)=>{
     const { createUser } = await __turbopack_require__("[project]/crates/turbopack-tests/tests/snapshot/basic/top-level-await/input/UserAPI.js (ecmascript, manifest chunk, loader)")(__turbopack_import__);
     await createUser(name);
-};
+}; // Note: Using await import() at top-level doesn't make much sense
+ //       except in rare cases. It will import modules sequentially.
 
 })()),
 "[project]/crates/turbopack-tests/tests/snapshot/basic/top-level-await/input/index.js (ecmascript)": (({ r: __turbopack_require__, f: __turbopack_require_context__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, n: __turbopack_export_namespace__, c: __turbopack_cache__, l: __turbopack_load__, j: __turbopack_dynamic__, g: global, __dirname, k: __turbopack_refresh__ }) => (() => {

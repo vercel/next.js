@@ -616,6 +616,7 @@ async fn gen_content_with_visitors(
         source_map,
         globals,
         eval_context,
+        comments,
         ..
     } = &*parsed
     {
@@ -650,7 +651,7 @@ async fn gen_content_with_visitors(
                 ..Default::default()
             },
             cm: source_map.clone(),
-            comments: None,
+            comments: Some(&comments),
             wr: JsWriter::new(source_map.clone(), "\n", &mut bytes, Some(&mut srcmap)),
         };
 

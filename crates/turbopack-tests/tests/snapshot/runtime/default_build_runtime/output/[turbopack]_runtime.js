@@ -1,4 +1,10 @@
 const RUNTIME_PUBLIC_PATH = "output/[turbopack]_runtime.js";
+/**
+ * This file contains runtime types and functions that are shared between all
+ * TurboPack ECMAScript runtimes.
+ *
+ * It will be prepended to the runtime code of each runtime.
+ */ /* eslint-disable @next/next/no-assign-module-variable */ /// <reference path="./runtime-types.d.ts" />
 ;
 const REEXPORTED_OBJECTS = Symbol("reexported objects");
 ;
@@ -10,7 +16,9 @@ const toStringTag = typeof Symbol !== "undefined" && Symbol.toStringTag;
 function defineProp(obj, name, options) {
     if (!hasOwnProperty.call(obj, name)) Object.defineProperty(obj, name, options);
 }
-function esm(exports, getters) {
+/**
+ * Adds the getters to the exports object.
+ */ function esm(exports, getters) {
     defineProp(exports, "__esModule", {
         value: true
     });
@@ -24,7 +32,9 @@ function esm(exports, getters) {
         });
     }
 }
-function esmExport(module, exports, getters) {
+/**
+ * Makes the module an ESM with exports
+ */ function esmExport(module, exports, getters) {
     module.namespaceObject = module.exports;
     esm(exports, getters);
 }
@@ -55,7 +65,9 @@ function ensureDynamicExports(module, exports) {
         });
     }
 }
-function dynamicExport(module, exports, object) {
+/**
+ * Dynamically exports properties from an object
+ */ function dynamicExport(module, exports, object) {
     ensureDynamicExports(module, exports);
     module[REEXPORTED_OBJECTS].push(object);
 }
@@ -68,20 +80,30 @@ function exportNamespace(module, namespace) {
 function createGetter(obj, key) {
     return ()=>obj[key];
 }
-const getProto = Object.getPrototypeOf ? (obj)=>Object.getPrototypeOf(obj) : (obj)=>obj.__proto__;
-const LEAF_PROTOTYPES = [
+/**
+ * @returns prototype of the object
+ */ const getProto = Object.getPrototypeOf ? (obj)=>Object.getPrototypeOf(obj) : (obj)=>obj.__proto__;
+/** Prototypes that are not expanded for exports */ const LEAF_PROTOTYPES = [
     null,
     getProto({}),
     getProto([]),
     getProto(getProto)
 ];
-function interopEsm(raw, ns, allowExportDefault) {
+/**
+ * @param raw
+ * @param ns
+ * @param allowExportDefault
+ *   * `false`: will have the raw module as default export
+ *   * `true`: will have the default property as default export
+ */ function interopEsm(raw, ns, allowExportDefault) {
     const getters = Object.create(null);
     for(let current = raw; (typeof current === "object" || typeof current === "function") && !LEAF_PROTOTYPES.includes(current); current = getProto(current)){
         for (const key of Object.getOwnPropertyNames(current)){
             getters[key] = createGetter(raw, key);
         }
     }
+    // this is not really correct
+    // we should set the `default` getter if the imported module is a `.cjs file`
     if (!(allowExportDefault && "default" in getters)) {
         getters["default"] = ()=>raw;
     }
@@ -91,7 +113,9 @@ function interopEsm(raw, ns, allowExportDefault) {
 function esmImport(sourceModule, id) {
     const module = getOrInstantiateModuleFromParent(id, sourceModule);
     if (module.error) throw module.error;
+    // any ES module has to have `module.namespaceObject` defined.
     if (module.namespaceObject) return module.namespaceObject;
+    // only ESM can be an async module, so we don't need to worry about exports being a promise here.
     const raw = module.exports;
     return module.namespaceObject = interopEsm(raw, {}, raw.__esModule);
 }
@@ -120,7 +144,9 @@ function requireContext(sourceModule, map) {
     };
     return requireContext;
 }
-function getChunkPath(chunkData) {
+/**
+ * Returns the path of a chunk defined by its data.
+ */ function getChunkPath(chunkData) {
     return typeof chunkData === "string" ? chunkData : chunkData.path;
 }
 function isPromise(maybePromise) {
@@ -142,6 +168,8 @@ function createPromise() {
         reject: reject
     };
 }
+// everything below is adapted from webpack
+// https://github.com/webpack/webpack/blob/6be4065ade1e252c1d8dcba4af0f43e32af1bdc1/lib/runtime/AsyncModuleRuntimeModule.js#L13
 const turbopackQueues = Symbol("turbopack queues");
 const turbopackExports = Symbol("turbopack exports");
 const turbopackError = Symbol("turbopack error");
@@ -233,6 +261,7 @@ function asyncModule(module, body, hasAwait) {
         queue.resolved = false;
     }
 }
+/// <reference path="../shared/runtime-utils.ts" />
 ;
 function commonJsRequireContext(entry, sourceModule) {
     return entry.external ? externalRequire(entry.id(), false) : commonJsRequire(sourceModule, entry.id());
@@ -245,6 +274,10 @@ function externalRequire(id, esm = false) {
     try {
         raw = require(id);
     } catch (err) {
+        // TODO(alexkirsz) This can happen when a client-side module tries to load
+        // an external module we don't provide a shim for (e.g. querystring, url).
+        // For now, we fail semi-silently, but in the future this should be a
+        // compilation error.
         throw new Error(`Failed to load external module ${id}: ${err}`);
     }
     if (!esm || raw.__esModule) {
@@ -259,6 +292,7 @@ function readWebAssemblyAsResponse(path) {
     const { createReadStream } = require("fs");
     const { Readable } = require("stream");
     const stream = createReadStream(path);
+    // @ts-ignore unfortunately there's a slight type mismatch with the stream.
     return new Response(Readable.toWeb(stream), {
         headers: {
             "content-type": "application/wasm"
@@ -274,11 +308,18 @@ async function instantiateWebAssemblyFromPath(path, importsObj) {
     const { instance } = await WebAssembly.instantiateStreaming(response, importsObj);
     return instance.exports;
 }
+/// <reference path="../shared/runtime-utils.ts" />
+/// <reference path="../shared-node/node-utils.ts" />
 ;
 var SourceType;
 (function(SourceType) {
-    SourceType[SourceType["Runtime"] = 0] = "Runtime";
-    SourceType[SourceType["Parent"] = 1] = "Parent";
+    SourceType[SourceType[/**
+   * The module was instantiated because it was included in an evaluated chunk's
+   * runtime.
+   */ "Runtime"] = 0] = "Runtime";
+    SourceType[SourceType[/**
+   * The module was instantiated because a parent module imported it.
+   */ "Parent"] = 1] = "Parent";
 })(SourceType || (SourceType = {}));
 ;
 const path = require("path");
@@ -288,6 +329,8 @@ const moduleFactories = Object.create(null);
 const moduleCache = Object.create(null);
 function loadChunk(chunkPath) {
     if (!chunkPath.endsWith(".js")) {
+        // We only support loading JS chunks in Node.js.
+        // This branch can be hit when trying to load a CSS chunk.
         return;
     }
     const resolved = path.resolve(RUNTIME_ROOT, chunkPath);
@@ -320,6 +363,9 @@ function loadWebAssemblyModule(chunkPath) {
 function instantiateModule(id, source) {
     const moduleFactory = moduleFactories[id];
     if (typeof moduleFactory !== "function") {
+        // This can happen if modules incorrectly handle HMR disposes/updates,
+        // e.g. when they keep a `setTimeout` around which still executes old code
+        // and contains e.g. a `require("something")` call.
         let instantiationReason;
         switch(source.type){
             case SourceType.Runtime:
@@ -337,6 +383,8 @@ function instantiateModule(id, source) {
             parents = [];
             break;
         case SourceType.Parent:
+            // No need to add this module as a child of the parent module here, this
+            // has already been taken care of in `getOrInstantiateModuleFromParent`.
             parents = [
                 source.parentId
             ];
@@ -352,6 +400,7 @@ function instantiateModule(id, source) {
         namespaceObject: undefined
     };
     moduleCache[id] = module1;
+    // NOTE(alexkirsz) This can fail when the module encounters a runtime error.
     try {
         moduleFactory.call(module1.exports, {
             a: asyncModule.bind(null, module1),
@@ -382,11 +431,14 @@ function instantiateModule(id, source) {
     }
     module1.loaded = true;
     if (module1.namespaceObject && module1.exports !== module1.namespaceObject) {
+        // in case of a circular dependency: cjs1 -> esm2 -> cjs1
         interopEsm(module1.exports, module1.namespaceObject);
     }
     return module1;
 }
-function getOrInstantiateModuleFromParent(id, sourceModule) {
+/**
+ * Retrieves a module from the cache, or instantiate it if it is not cached.
+ */ function getOrInstantiateModuleFromParent(id, sourceModule) {
     const module1 = moduleCache[id];
     if (sourceModule.children.indexOf(id) === -1) {
         sourceModule.children.push(id);
@@ -402,13 +454,17 @@ function getOrInstantiateModuleFromParent(id, sourceModule) {
         parentId: sourceModule.id
     });
 }
-function instantiateRuntimeModule(moduleId, chunkPath) {
+/**
+ * Instantiates a runtime module.
+ */ function instantiateRuntimeModule(moduleId, chunkPath) {
     return instantiateModule(moduleId, {
         type: SourceType.Runtime,
         chunkPath
     });
 }
-function getOrInstantiateRuntimeModule(moduleId, chunkPath) {
+/**
+ * Retrieves a module from the cache, or instantiate it as a runtime module if it is not cached.
+ */ function getOrInstantiateRuntimeModule(moduleId, chunkPath) {
     const module1 = moduleCache[moduleId];
     if (module1) {
         if (module1.error) {
