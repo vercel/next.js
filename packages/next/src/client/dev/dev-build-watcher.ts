@@ -2,20 +2,27 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
 import { addMessageListener } from './error-overlay/websocket'
 
+type VerticalPosition = 'top' | 'bottom'
+type HorizonalPosition = 'left' | 'right'
+type Position = `${VerticalPosition}-${HorizonalPosition}`
+
 export default function initializeBuildWatcher(
   toggleCallback: any,
-  position = 'bottom-right'
+  position: Position = 'bottom-right'
 ) {
   const type = 'div' as string
   const shadowHost = document.createElement(type)
-  const [verticalProperty, horizontalProperty] = position.split('-')
+  const [verticalProperty, horizontalProperty] = position.split('-') as [
+    VerticalPosition,
+    HorizonalPosition
+  ]
   shadowHost.id = '__next-build-watcher'
   // Make sure container is fixed and on a high zIndex so it shows
   shadowHost.style.position = 'fixed'
   // Ensure container's position to be top or bottom (default)
-  shadowHost.style[verticalProperty as any] = '10px'
+  shadowHost.style[verticalProperty] = '10px'
   // Ensure container's position to be left or right (default)
-  shadowHost.style[horizontalProperty as any] = '20px'
+  shadowHost.style[horizontalProperty] = '20px'
   shadowHost.style.width = '0'
   shadowHost.style.height = '0'
   shadowHost.style.zIndex = '99999'
