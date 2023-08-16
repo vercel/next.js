@@ -1,66 +1,35 @@
 use turbopack_binding::turbo::{
-    tasks::{run_once, TransientInstance, TurboTasks},
+    tasks::{NothingVc, StatsType, TurboTasks, TurboTasksBackendApi},
     tasks_memory::MemoryBackend,
 };
 
-pub mod build_options;
-pub mod manifests;
-pub(crate) mod next_build;
-pub(crate) mod next_pages;
+pub fn register() {
+    turbopack_binding::turbo::tasks::register();
+    include!(concat!(env!("OUT_DIR"), "/register.rs"));
+}
 
-use anyhow::Result;
-use turbo_tasks::{StatsType, TurboTasksBackendApi};
+pub struct NextBuildOptions {
+    pub dir: Option<String>,
+    pub memory_limit: Option<usize>,
+    pub full_stats: Option<bool>,
+}
 
-pub use self::build_options::BuildOptions;
-
-pub async fn build(options: BuildOptions) -> Result<()> {
-    #[cfg(feature = "tokio_console")]
-    console_subscriber::init();
+pub async fn next_build(options: NextBuildOptions) -> anyhow::Result<()> {
     register();
-
-    setup_tracing();
-
     let tt = TurboTasks::new(MemoryBackend::new(
         options.memory_limit.map_or(usize::MAX, |l| l * 1024 * 1024),
     ));
-
     let stats_type = match options.full_stats {
-        true => StatsType::Full,
-        false => StatsType::Essential,
+        Some(true) => StatsType::Full,
+        _ => StatsType::Essential,
     };
     tt.set_stats_type(stats_type);
-
-    run_once(tt, async move {
-        next_build::next_build(TransientInstance::new(options)).await?;
-
-        Ok(())
-    })
-    .await?;
-
+    let task = tt.spawn_root_task(move || {
+        Box::pin(async move {
+            // run next build here
+            Ok(NothingVc::new().into())
+        })
+    });
+    tt.wait_task_completion(task, true).await?;
     Ok(())
-}
-
-fn setup_tracing() {
-    use tracing_subscriber::{prelude::*, EnvFilter, Registry};
-
-    let subscriber = Registry::default();
-
-    let stdout_log = tracing_subscriber::fmt::layer().pretty();
-    let subscriber = subscriber.with(stdout_log);
-
-    let subscriber = subscriber.with(EnvFilter::from_default_env());
-
-    subscriber.init();
-}
-
-pub fn register() {
-    turbopack_binding::turbo::tasks::register();
-    turbopack_binding::turbo::tasks_fs::register();
-    turbopack_binding::turbopack::turbopack::register();
-    turbopack_binding::turbopack::core::register();
-    turbopack_binding::turbopack::node::register();
-    turbopack_binding::turbopack::dev::register();
-    turbopack_binding::turbopack::build::register();
-    next_core::register();
-    include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }

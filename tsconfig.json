@@ -12,6 +12,7 @@
     "baseUrl": ".",
     "types": ["react", "jest", "node", "trusted-types"],
     "paths": {
+      "development-sandbox": ["test/lib/development-sandbox"],
       "next-test-utils": ["test/lib/next-test-utils"],
       "amp-test-utils": ["test/lib/amp-test-utils"],
       "next-webdriver": ["test/lib/next-webdriver"],

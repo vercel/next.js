@@ -47,7 +47,7 @@ use crate::{
     next_config::NextConfigVc,
     next_edge::{
         context::{get_edge_compile_time_info, get_edge_resolve_options_context},
-        route_transition::NextEdgeRouteTransition,
+        transition::NextEdgeTransition,
     },
     next_import_map::get_next_build_import_map,
     next_server::context::{get_server_module_options_context, ServerContextType},
@@ -250,7 +250,7 @@ fn edge_transition_map(
         output_path.join("edge/assets"),
         edge_compile_time_info.environment(),
     )
-    .reference_chunk_source_maps(should_debug("router"))
+    .reference_chunk_source_maps(false)
     .build();
 
     let edge_resolve_options_context = get_edge_resolve_options_context(
@@ -268,7 +268,7 @@ fn edge_transition_map(
         next_config,
     );
 
-    let next_edge_transition = NextEdgeRouteTransition {
+    let next_edge_transition = NextEdgeTransition {
         edge_compile_time_info,
         edge_chunking_context,
         edge_module_options_context: Some(server_module_options_context),

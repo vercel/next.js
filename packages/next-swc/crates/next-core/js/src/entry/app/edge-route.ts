@@ -12,7 +12,7 @@ import {
   NodeNextResponse,
 } from 'next/dist/server/base-http/node'
 
-import { runEdgeFunction, updateResponse } from '../../internal/edge'
+import { runEdgeFunction } from '../../internal/edge'
 import { attachRequestMeta } from '../../internal/next-request-helpers'
 
 import chunkGroup from 'ROUTE_CHUNK_GROUP'
@@ -34,10 +34,11 @@ startHandler(async ({ request, response, query, params, path }) => {
     assets: [],
   }
 
-  const result = await runEdgeFunction({
+  await runEdgeFunction({
     edgeInfo,
     outputDir: 'app',
     req,
+    res,
     query,
     params,
     path,
@@ -45,6 +46,4 @@ startHandler(async ({ request, response, query, params, path }) => {
       console.warn(warning)
     },
   })
-
-  updateResponse(res, result)
 })

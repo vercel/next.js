@@ -400,7 +400,7 @@ export async function handleAction({
             process.env.NEXT_RUNTIME === 'edge' ? 'edge' : 'node'
           ][actionId].workers[workerName]
         const actionHandler =
-          ComponentMod.__next_app__.require(actionModId)[actionId]
+          ComponentMod.__next_app_webpack_require__(actionModId)[actionId]
 
         const returnVal = await actionHandler.apply(null, bound)
 

@@ -46,13 +46,6 @@ export abstract class RouteModule<
   public readonly definition: Readonly<D>
 
   /**
-   * Setup will setup the route handler. This could patch any globals or perform
-   * validation of the userland module. It is the responsibility of the module
-   * to ensure that this is only called once.
-   */
-  public abstract setup(): Promise<void>
-
-  /**
    * Handle will handle the request and return a response.
    */
   public abstract handle(

@@ -22,15 +22,15 @@ Import trace for requested module:
 `;
 
 exports[`ReactRefreshLogBox app default Should not show __webpack_exports__ when exporting anonymous arrow function 1`] = `
-"index.js (4:16) @ default
+"index.js (3:10) @ default
 
-  2 | export default () => {
-  3 |  if (typeof window !== 'undefined') {
-> 4 |    throw new Error('test')
-    |         ^
-  5 |  }
-  6 | 
-  7 |  return null"
+  1 | export default () => {
+  2 | if (typeof window !== 'undefined') {
+> 3 |   throw new Error('test')
+    |        ^
+  4 | }
+  5 | 
+  6 | return null"
 `;
 
 exports[`ReactRefreshLogBox app default boundaries 1`] = `
@@ -41,15 +41,14 @@ exports[`ReactRefreshLogBox app default boundaries 1`] = `
 `;
 
 exports[`ReactRefreshLogBox app default conversion to class component (1) 1`] = `
-"Child.js (5:18) @ ClickCount.render
+"Child.js (4:10) @ ClickCount.render
 
-  3 |   export default class ClickCount extends Component {
-  4 |     render() {
-> 5 |       throw new Error()
-    |            ^
-  6 |     }
-  7 |   }
-  8 | "
+  2 | export default class ClickCount extends Component {
+  3 | render() {
+> 4 |   throw new Error()
+    |        ^
+  5 | }
+  6 | }"
 `;
 
 exports[`ReactRefreshLogBox app default css syntax errors 1`] = `
@@ -77,25 +76,25 @@ exports[`ReactRefreshLogBox app default logbox: anchors links in error messages 
 exports[`ReactRefreshLogBox app default logbox: anchors links in error messages 9`] = `"http://example.com/"`;
 
 exports[`ReactRefreshLogBox app default module init error not shown 1`] = `
-"index.js (4:14) @ eval
+"index.js (3:6) @ eval
 
-  2 | // top offset for snapshot
-  3 | import * as React from 'react';
-> 4 | throw new Error('no')
-    |      ^
-  5 | class ClassDefault extends React.Component {
-  6 |   render() {
-  7 |     return <h1>Default Export</h1>;"
+  1 | // top offset for snapshot
+  2 | import * as React from 'react';
+> 3 | throw new Error('no')
+    |    ^
+  4 | class ClassDefault extends React.Component {
+  5 | render() {
+  6 |   return <h1>Default Export</h1>;"
 `;
 
 exports[`ReactRefreshLogBox app default should strip whitespace correctly with newline 1`] = `
-"index.js (9:34) @ onClick
+"index.js (8:26) @ onClick
 
-   7 | 
-   8 | <a onClick={() => {
->  9 |   throw new Error('idk')
+   6 | 
+   7 | <a onClick={() => {
+>  8 |   throw new Error('idk')
      |        ^
-  10 | }}>
-  11 |   click me
-  12 | </a>"
+   9 | }}>
+  10 |   click me
+  11 | </a>"
 `;

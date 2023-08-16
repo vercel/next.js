@@ -7,7 +7,7 @@
   },
   "dependencies": {
     "@compiled/react": "^0.6.7",
-    "@compiled/webpack-loader": "^0.6.7",
+    "@compiled/webpack-loader": "^0.7.5",
     "next": "latest",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"

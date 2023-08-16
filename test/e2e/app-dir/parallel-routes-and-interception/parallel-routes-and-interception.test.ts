@@ -248,6 +248,17 @@ createNextDescribe(
           () => browser.waitForElementByCss('#parallel-layout').text(),
           'parallel layout'
         )
+
+        // navigate to /parallel-layout/subroute
+        await browser.elementByCss('[href="/parallel-layout/subroute"]').click()
+        await check(
+          () => browser.waitForElementByCss('#parallel-layout').text(),
+          'parallel layout'
+        )
+        await check(
+          () => browser.waitForElementByCss('#parallel-subroute').text(),
+          'parallel subroute layout'
+        )
       })
 
       it('should only scroll to the parallel route that was navigated to', async () => {

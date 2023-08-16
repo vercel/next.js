@@ -1,15 +1,14 @@
-use std::{collections::HashMap, io::Write as _, iter::once};
+use std::{collections::HashMap, io::Write, iter::once};
 
 use anyhow::{bail, Result};
 use async_recursion::async_recursion;
 use indexmap::{indexmap, IndexMap};
-use indoc::indoc;
 use turbo_tasks::{primitives::JsonValueVc, TryJoinIterExt, ValueToString};
 use turbopack_binding::{
     turbo::{
         tasks::{primitives::StringVc, Value},
         tasks_env::{CustomProcessEnvVc, EnvMapVc, ProcessEnvVc},
-        tasks_fs::{rope::RopeBuilder, File, FileSystemPathVc},
+        tasks_fs::{rope::RopeBuilder, File, FileContent, FileSystemPathVc},
     },
     turbopack::{
         core::{
@@ -60,14 +59,14 @@ use turbopack_binding::{
 };
 
 use crate::{
-    app_render::next_server_component_transition::NextServerComponentTransition,
-    app_segment_config::{parse_segment_config_from_loader_tree, parse_segment_config_from_source},
+    app_render::next_layout_entry_transition::NextServerComponentTransition,
+    app_segment_config::parse_segment_config_from_source,
     app_structure::{
         get_entrypoints, get_global_metadata, Components, Entrypoint, GlobalMetadataVc, LoaderTree,
         LoaderTreeVc, Metadata, MetadataItem, MetadataWithAltItem, OptionAppDirVc,
     },
     bootstrap::{route_bootstrap, BootstrapConfigVc},
-    embed_js::{next_asset, next_js_file_path},
+    embed_js::{next_asset, next_js_file, next_js_file_path},
     env::env_for_js,
     fallback::get_fallback_page,
     mode::NextMode,
@@ -87,8 +86,7 @@ use crate::{
     next_config::NextConfigVc,
     next_edge::{
         context::{get_edge_compile_time_info, get_edge_resolve_options_context},
-        page_transition::NextEdgePageTransition,
-        route_transition::NextEdgeRouteTransition,
+        transition::NextEdgeTransition,
     },
     next_image::module::{BlurPlaceholderMode, StructuredImageModuleType},
     next_route_matcher::{NextFallbackMatcherVc, NextParamsMatcherVc},
@@ -202,7 +200,7 @@ fn next_ssr_client_module_transition(
 }
 
 #[turbo_tasks::function]
-fn next_server_component_transition(
+fn next_layout_entry_transition(
     project_path: FileSystemPathVc,
     execution_context: ExecutionContextVc,
     app_dir: FileSystemPathVc,
@@ -216,37 +214,6 @@ fn next_server_component_transition(
     let rsc_compile_time_info = get_server_compile_time_info(ty, mode, process_env, server_addr);
     let rsc_resolve_options_context =
         get_server_resolve_options_context(project_path, ty, mode, next_config, execution_context);
-    let rsc_module_options_context =
-        get_server_module_options_context(project_path, execution_context, ty, mode, next_config);
-
-    NextServerComponentTransition {
-        rsc_compile_time_info,
-        rsc_module_options_context,
-        rsc_resolve_options_context,
-        server_root,
-    }
-    .cell()
-    .into()
-}
-
-#[turbo_tasks::function]
-fn next_edge_server_component_transition(
-    project_path: FileSystemPathVc,
-    execution_context: ExecutionContextVc,
-    app_dir: FileSystemPathVc,
-    server_root: FileSystemPathVc,
-    next_config: NextConfigVc,
-    server_addr: ServerAddrVc,
-) -> TransitionVc {
-    let ty = Value::new(ServerContextType::AppRSC { app_dir });
-    let mode = NextMode::Development;
-    let rsc_compile_time_info = get_edge_compile_time_info(
-        project_path,
-        server_addr,
-        Value::new(EnvironmentIntention::ServerRendering),
-    );
-    let rsc_resolve_options_context =
-        get_edge_resolve_options_context(project_path, ty, next_config, execution_context);
     let rsc_module_options_context =
         get_server_module_options_context(project_path, execution_context, ty, mode, next_config);
 
@@ -285,12 +252,12 @@ fn next_edge_route_transition(
         get_client_assets_path(server_root, Value::new(ClientContextType::App { app_dir })),
         edge_compile_time_info.environment(),
     )
-    .reference_chunk_source_maps(should_debug("app_source"))
+    .reference_chunk_source_maps(false)
     .build();
     let edge_resolve_options_context =
         get_edge_resolve_options_context(project_path, server_ty, next_config, execution_context);
 
-    NextEdgeRouteTransition {
+    NextEdgeTransition {
         edge_compile_time_info,
         edge_chunking_context,
         edge_module_options_context: None,
@@ -299,49 +266,6 @@ fn next_edge_route_transition(
         base_path: app_dir,
         bootstrap_asset: next_asset("entry/app/edge-route-bootstrap.ts"),
         entry_name: "edge".to_string(),
-    }
-    .cell()
-    .into()
-}
-
-#[turbo_tasks::function]
-fn next_edge_page_transition(
-    project_path: FileSystemPathVc,
-    app_dir: FileSystemPathVc,
-    server_root: FileSystemPathVc,
-    next_config: NextConfigVc,
-    server_addr: ServerAddrVc,
-    output_path: FileSystemPathVc,
-    execution_context: ExecutionContextVc,
-) -> TransitionVc {
-    let server_ty = Value::new(ServerContextType::AppRoute { app_dir });
-
-    let edge_compile_time_info = get_edge_compile_time_info(
-        project_path,
-        server_addr,
-        Value::new(EnvironmentIntention::ServerRendering),
-    );
-
-    let edge_chunking_context = DevChunkingContextVc::builder(
-        project_path,
-        output_path.join("edge-pages"),
-        output_path.join("edge-pages/chunks"),
-        get_client_assets_path(server_root, Value::new(ClientContextType::App { app_dir })),
-        edge_compile_time_info.environment(),
-    )
-    .layer("ssr")
-    .reference_chunk_source_maps(should_debug("app_source"))
-    .build();
-    let edge_resolve_options_context =
-        get_edge_resolve_options_context(project_path, server_ty, next_config, execution_context);
-
-    NextEdgePageTransition {
-        edge_compile_time_info,
-        edge_chunking_context,
-        edge_module_options_context: None,
-        edge_resolve_options_context,
-        output_path,
-        bootstrap_asset: next_asset("entry/app/edge-page-bootstrap.ts"),
     }
     .cell()
     .into()
@@ -378,36 +302,13 @@ fn app_context(
         ),
     );
     transitions.insert(
-        "next-edge-page".to_string(),
-        next_edge_page_transition(
-            project_path,
-            app_dir,
-            server_root,
-            next_config,
-            server_addr,
-            output_path,
-            execution_context,
-        ),
-    );
-    transitions.insert(
-        "next-server-component".to_string(),
-        next_server_component_transition(
+        "next-layout-entry".to_string(),
+        next_layout_entry_transition(
             project_path,
             execution_context,
             app_dir,
             server_root,
             env,
-            next_config,
-            server_addr,
-        ),
-    );
-    transitions.insert(
-        "next-edge-server-component".to_string(),
-        next_edge_server_component_transition(
-            project_path,
-            execution_context,
-            app_dir,
-            server_root,
             next_config,
             server_addr,
         ),
@@ -815,14 +716,6 @@ impl AppRendererVc {
             (context_ssr, intermediate_output_path)
         };
 
-        let config = parse_segment_config_from_loader_tree(loader_tree, context);
-
-        let runtime = config.await?.runtime;
-        let rsc_transition = match runtime {
-            Some(NextRuntime::NodeJs) | None => "next-server-component",
-            Some(NextRuntime::Edge) => "next-edge-server-component",
-        };
-
         struct State {
             inner_assets: IndexMap<String, AssetVc>,
             counter: usize,
@@ -830,7 +723,6 @@ impl AppRendererVc {
             loader_tree_code: String,
             context: AssetContextVc,
             unsupported_metadata: Vec<FileSystemPathVc>,
-            rsc_transition: &'static str,
         }
 
         impl State {
@@ -848,7 +740,6 @@ impl AppRendererVc {
             loader_tree_code: String::new(),
             context,
             unsupported_metadata: Vec::new(),
-            rsc_transition,
         };
 
         fn write_component(
@@ -876,7 +767,7 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
 
                 state.inner_assets.insert(
                     format!("COMPONENT_{i}"),
-                    state.context.with_transition(state.rsc_transition).process(
+                    state.context.with_transition("next-layout-entry").process(
                         SourceAssetVc::new(component).into(),
                         Value::new(ReferenceType::EcmaScriptModules(
                             EcmaScriptModulesReferenceSubType::Undefined,
@@ -1067,7 +958,7 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
         walk_tree(&mut state, loader_tree).await?;
 
         let State {
-            inner_assets,
+            mut inner_assets,
             imports,
             loader_tree_code,
             unsupported_metadata,
@@ -1084,29 +975,41 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
             .emit();
         }
 
-        let mut result = RopeBuilder::from(indoc! {"
-                \"TURBOPACK { chunking-type: isolatedParallel; transition: next-edge-server-component }\";
-                import GlobalErrorMod from \"next/dist/client/components/error-boundary\"
-                const { GlobalError } = GlobalErrorMod;
-                \"TURBOPACK { chunking-type: isolatedParallel; transition: next-edge-server-component }\";
-                import base from \"next/dist/server/app-render/entry-base\"\n
-            "});
+        // IPC need to be the first import to allow it to catch errors happening during
+        // the other imports
+        let mut result =
+            RopeBuilder::from("import { IPC } from \"@vercel/turbopack-node/ipc/index\";\n");
+
+        let import_path = next_js_file_path("entry")
+            .await?
+            .get_relative_path_to(&*next_js_file_path("polyfill/app-polyfills.ts").await?)
+            .unwrap();
+        writeln!(result, "import \"{import_path}\";\n",)?;
 
         for import in imports {
             writeln!(result, "{import}")?;
         }
 
-        writeln!(result, "const tree = {loader_tree_code};\n")?;
-        writeln!(result, "const pathname = '';\n")?;
-        writeln!(
-            result,
-            // Need this hack because "export *" from CommonJS will trigger a warning
-            // otherwise
-            "__turbopack_export_value__({{ tree, GlobalError, pathname, ...base }});\n"
-        )?;
+        writeln!(result, "const LOADER_TREE = {loader_tree_code};\n")?;
+        writeln!(result, "import BOOTSTRAP from \"BOOTSTRAP\";\n")?;
+
+        inner_assets.insert(
+            "BOOTSTRAP".to_string(),
+            context.with_transition("next-client").process(
+                SourceAssetVc::new(next_js_file_path("entry/app/hydrate.tsx")).into(),
+                Value::new(ReferenceType::EcmaScriptModules(
+                    EcmaScriptModulesReferenceSubType::Undefined,
+                )),
+            ),
+        );
+
+        let base_code = next_js_file("entry/app-renderer.tsx");
+        if let FileContent::Content(base_file) = &*base_code.await? {
+            result += base_file.content()
+        }
 
         let file = File::from(result.build());
-        let asset = VirtualAssetVc::new(next_js_file_path("entry/app-entry.tsx"), file.into());
+        let asset = VirtualAssetVc::new(next_js_file_path("entry/app-renderer.tsx"), file.into());
 
         let chunking_context = DevChunkingContextVc::builder(
             project_path,
@@ -1116,38 +1019,15 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
             context.compile_time_info().environment(),
         )
         .layer("ssr")
-        .reference_chunk_source_maps(should_debug("app_source"))
+        .reference_chunk_source_maps(false)
         .build();
 
-        let renderer_module = match runtime {
-            Some(NextRuntime::NodeJs) | None => context.process(
-                SourceAssetVc::new(next_js_file_path("entry/app-renderer.tsx")).into(),
-                Value::new(ReferenceType::Internal(InnerAssetsVc::cell(indexmap! {
-                    "APP_ENTRY".to_string() => context.with_transition(rsc_transition).process(
-                        asset.into(),
-                        Value::new(ReferenceType::Internal(InnerAssetsVc::cell(inner_assets))),
-                    ),
-                    "APP_BOOTSTRAP".to_string() => context.with_transition("next-client").process(
-                        SourceAssetVc::new(next_js_file_path("entry/app/hydrate.tsx")).into(),
-                        Value::new(ReferenceType::EcmaScriptModules(
-                            EcmaScriptModulesReferenceSubType::Undefined,
-                        )),
-                    ),
-                }))),
-            ),
-            Some(NextRuntime::Edge) =>
-                context.process(
-                    SourceAssetVc::new(next_js_file_path("entry/app-edge-renderer.tsx")).into(),
-                    Value::new(ReferenceType::Internal(InnerAssetsVc::cell(indexmap! {
-                        "INNER_EDGE_CHUNK_GROUP".to_string() => context.with_transition("next-edge-page").process(
-                            asset.into(),
-                            Value::new(ReferenceType::Internal(InnerAssetsVc::cell(inner_assets))),
-                        ),
-                    }))),
-                )
-        };
+        let module = context.process(
+            asset.into(),
+            Value::new(ReferenceType::Internal(InnerAssetsVc::cell(inner_assets))),
+        );
 
-        let Some(module) = EvaluatableAssetVc::resolve_from(renderer_module).await? else {
+        let Some(module) = EvaluatableAssetVc::resolve_from(module).await? else {
             bail!("internal module must be evaluatable");
         };
 
@@ -1216,7 +1096,7 @@ impl AppRouteVc {
             this.context.compile_time_info().environment(),
         )
         .layer("ssr")
-        .reference_chunk_source_maps(should_debug("app_source"))
+        .reference_chunk_source_maps(false)
         .build();
 
         let entry_source_asset = SourceAssetVc::new(this.entry_path);
@@ -1227,7 +1107,7 @@ impl AppRouteVc {
 
         let config = parse_segment_config_from_source(entry_asset);
         let module = match config.await?.runtime {
-            Some(NextRuntime::NodeJs) | None => {
+            NextRuntime::NodeJs => {
                 let bootstrap_asset = next_asset("entry/app/route.ts");
 
                 route_bootstrap(
@@ -1238,7 +1118,7 @@ impl AppRouteVc {
                     BootstrapConfigVc::empty(),
                 )
             }
-            Some(NextRuntime::Edge) => {
+            NextRuntime::Edge => {
                 let internal_asset = next_asset("entry/app/edge-route.ts");
 
                 let entry = this.context.with_transition("next-edge-route").process(

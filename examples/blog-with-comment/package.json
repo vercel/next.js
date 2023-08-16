@@ -10,14 +10,14 @@
     "@tailwindcss/typography": "^0.5.7",
     "date-fns": "^2.29.3",
     "gray-matter": "4.0.3",
-    "ioredis": "^5.2.4",
-    "nanoid": "^4.0.0",
-    "next": "latest",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "remark": "^14.0.2",
-    "remark-html": "^15.0.1",
-    "swr": "^2.0.0"
+    "ioredis": "^4.27.1",
+    "nanoid": "^3.1.22",
+    "next": "^10.2.3",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
+    "remark": "13.0.0",
+    "remark-html": "13.0.2",
+    "swr": "^0.5.5"
   },
   "devDependencies": {
     "@types/node": "^18.11.5",

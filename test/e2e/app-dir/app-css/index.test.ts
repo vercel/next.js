@@ -17,7 +17,7 @@ createNextDescribe(
   ({ next, isNextDev: isDev }) => {
     describe('css support', () => {
       describe('server layouts', () => {
-        it('should support global css inside server layouts', async () => {
+        it.skip('should support global css inside server layouts', async () => {
           const browser = await next.browser('/dashboard')
 
           // Should body text in red

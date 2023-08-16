@@ -44,8 +44,8 @@ const addChunkSuffix =
     return (
       getOriginalChunk(chunkId) +
       `${
-        process.env.__NEXT_DEPLOYMENT_ID
-          ? `?dpl=${process.env.__NEXT_DEPLOYMENT_ID}`
+        process.env.NEXT_DEPLOYMENT_ID
+          ? `?dpl=${process.env.NEXT_DEPLOYMENT_ID}`
           : ''
       }`
     )

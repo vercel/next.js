@@ -32,11 +32,6 @@ export class RouteHandlerManager {
       this.moduleLoader
     )
 
-    // Setup the handler. It is the responsibility of the module to ensure that
-    // this is only called once. If this is in development mode, the require
-    // cache will be cleared and the module will be re-created.
-    module.setup()
-
     // Convert the BaseNextRequest to a NextRequest.
     const request = NextRequestAdapter.fromBaseNextRequest(req)
 

@@ -1928,21 +1928,20 @@ export async function copyTracedFiles(
     serverOutputPath,
     `${
       moduleType
-        ? `\
-import http from 'http'
+        ? `import http from 'http'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import { createServerHandler } from 'next/dist/server/lib/render-server-standalone.js'
-
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
+import { createServerHandler } from 'next/dist/server/lib/render-server-standalone.js'
 `
-        : `\
+        : `
 const http = require('http')
 const path = require('path')
 const { createServerHandler } = require('next/dist/server/lib/render-server-standalone')`
     }
 
 const dir = path.join(__dirname)
+
 process.env.NODE_ENV = 'production'
 process.chdir(__dirname)
 
@@ -1962,7 +1961,6 @@ const nextConfig = ${JSON.stringify({
     })}
 
 process.env.__NEXT_PRIVATE_STANDALONE_CONFIG = JSON.stringify(nextConfig)
-
 
 createServerHandler({
   port: currentPort,

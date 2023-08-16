@@ -127,12 +127,4 @@ describe('should set-up next', () => {
       expect(res.headers.get('x-next-cache-tags')).toBeFalsy()
     }
   })
-
-  it('should handle correctly not-found.js', async () => {
-    const res = await fetchViaHTTP(appPort, '/not-found/does-not-exist')
-    expect(res.status).toBe(404)
-    const html = await res.text()
-    expect(html).toContain('not-found-page-404')
-    expect(html).not.toContain('not-found-page-200')
-  })
 })

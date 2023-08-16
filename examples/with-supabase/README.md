@@ -11,32 +11,30 @@ The Vercel deployment will guide you through creating a Supabase account and pro
 ## How to use
 
 1. Create a [new Supabase project](https://database.new)
-1. Run `npx create-next-app -e with-supabase myapp` to create a Next.js app using the Supabase Starter template
-1. Run `cd myapp` to change into the app's directory
+1. Run `npx create-next-app -e with-supabase` to create a Next.js app using the Supabase Starter template
+1. Use `cd` to change into the app's directory
 1. Run `npm install` to install dependencies
 1. Rename `.env.local.example` to `.env.local` and update the values for `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` from [your Supabase project's API settings](https://app.supabase.com/project/_/settings/api)
 1. Run `npm run dev` to start the local development server
 
 > Check out [the docs for Local Development](https://supabase.com/docs/guides/getting-started/local-development) to also run Supabase locally.
 
-### Create Table and seed with data (optional)
+### Create a Supabase client
 
-Navigate to [your project's SQL Editor](https://app.supabase.com/project/_/sql), click `New query`, paste the following SQL 👇 and click `RUN`.
+Check out the [`/app/_examples`](./app/_examples/) folder for an example of creating a Supabase client in:
 
-```sql
-create table if not exists todos (
-  id uuid default gen_random_uuid() primary key,
-  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
-  title text,
-  is_complete boolean default false
-);
+- [Client Components](./app/_examples/client-component/page.tsx)
+- [Server Components](./app/_examples/server-component/page.tsx)
+- [Route Handlers](./app/_examples/route-handler/route.ts)
+- [Server Actions](./app/_examples/server-action/page.tsx)
 
-insert into todos(title)
-values
-  ('Create Supabase project'),
-  ('Create Next.js app from Supabase Starter template'),
-  ('Keeping building cool stuff!');
-```
+### Create `todo` table and seed with data (optional)
+
+Navigate to [your project's SQL Editor](https://app.supabase.com/project/_/sql), click `New query`, paste the contents of the [init.sql](./supabase/migrations/20230618024722_init.sql) file and click `RUN`.
+
+This will create a basic `todos` table, enable Row Level Security (RLS), and write RLS policies enabling `select` and `insert` actions for `authenticated` users.
+
+To seed your `todos` table with some dummy data, run the contents of the [seed.sql](./supabase/seed.sql) file.
 
 ## Feedback and issues
 

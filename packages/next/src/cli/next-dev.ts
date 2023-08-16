@@ -221,6 +221,10 @@ const nextDev: CliCommand = async (argv) => {
   }
 
   if (args['--turbo']) {
+    process.env.TURBOPACK = '1'
+  }
+
+  if (process.env.TURBOPACK) {
     isTurboSession = true
 
     const { validateTurboNextConfig } =

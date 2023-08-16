@@ -1,13 +1,13 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`ReactRefreshLogBox default syntax > runtime error 1`] = `
-"index.js (6:16) @ Error
+"index.js (5:8) @ Error
 
-  4 | setInterval(() => {
-  5 |   i++
-> 6 |   throw Error('no ' + i)
-    |        ^
-  7 | }, 1000)
-  8 | export default function FunctionNamed() {
-  9 |   return <div />"
+  3 | setInterval(() => {
+  4 | i++
+> 5 | throw Error('no ' + i)
+    |      ^
+  6 | }, 1000)
+  7 | export default function FunctionNamed() {
+  8 | return <div />"
 `;

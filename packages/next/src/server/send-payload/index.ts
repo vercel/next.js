@@ -67,7 +67,7 @@ export async function sendRenderResult({
     setRevalidateHeaders(res, options)
   }
 
-  const payload = result.isDynamic() ? null : await result.toUnchunkedString()
+  const payload = result.isDynamic ? null : await result.toUnchunkedString()
 
   if (payload !== null) {
     const etag = generateEtags ? generateETag(payload) : undefined
@@ -76,13 +76,11 @@ export async function sendRenderResult({
     }
   }
 
-  const resultContentType = result.contentType()
-
   if (!res.getHeader('Content-Type')) {
     res.setHeader(
       'Content-Type',
-      resultContentType
-        ? resultContentType
+      result.contentType
+        ? result.contentType
         : type === 'rsc'
         ? RSC_CONTENT_TYPE_HEADER
         : type === 'json'

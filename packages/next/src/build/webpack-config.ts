@@ -264,7 +264,7 @@ export function getDefineEnv({
     'process.env.__NEXT_ACTIONS_DEPLOYMENT_ID': JSON.stringify(
       config.experimental.useDeploymentIdServerActions
     ),
-    'process.env.__NEXT_DEPLOYMENT_ID': JSON.stringify(
+    'process.env.NEXT_DEPLOYMENT_ID': JSON.stringify(
       config.experimental.deploymentId
     ),
     'process.env.__NEXT_FETCH_CACHE_KEY_PREFIX':

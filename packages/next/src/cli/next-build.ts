@@ -18,7 +18,6 @@ const nextBuild: CliCommand = (argv) => {
     '--no-mangling': Boolean,
     '--experimental-app-only': Boolean,
     '--experimental-turbo': Boolean,
-    '--experimental-turbo-root': String,
     '--build-mode': String,
     // Aliases
     '-h': '--help',
@@ -75,6 +74,10 @@ const nextBuild: CliCommand = (argv) => {
     printAndExit(`> No such directory exists as the project root: ${dir}`)
   }
 
+  if (args['--experimental-turbo']) {
+    process.env.TURBOPACK = '1'
+  }
+
   return build(
     dir,
     args['--profile'],
@@ -82,8 +85,7 @@ const nextBuild: CliCommand = (argv) => {
     !args['--no-lint'],
     args['--no-mangling'],
     args['--experimental-app-only'],
-    args['--experimental-turbo'],
-    args['--experimental-turbo-root'],
+    !!process.env.TURBOPACK,
     args['--build-mode'] || 'default'
   ).catch((err) => {
     console.error('')

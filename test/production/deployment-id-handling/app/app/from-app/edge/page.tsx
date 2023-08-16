@@ -7,6 +7,7 @@ export default function Page() {
     <>
       <p>hello app edge</p>
       <Image src={testImage} alt="test" />
+      <p id="deploymentId">{process.env.NEXT_DEPLOYMENT_ID}</p>
 
       <button
         onClick={() => {

@@ -38,18 +38,10 @@
       "outputs": ["dist/**"]
     },
     "typescript": {},
-    "rust-check": {
-      "inputs": [".cargo/**", "**/*.rs", "**/Cargo.toml"]
-    },
-    "test-cargo-unit": {
-      "inputs": [".cargo/**", "**/*.rs", "**/Cargo.toml"]
-    },
-    "test-cargo-integration": {
-      "inputs": [".cargo/**", "**/*.rs", "**/Cargo.toml"]
-    },
-    "test-cargo-bench": {
-      "inputs": [".cargo/**", "**/*.rs", "**/Cargo.toml"]
-    },
+    "rust-check": {},
+    "test-cargo-unit": {},
+    "test-cargo-integration": {},
+    "test-cargo-bench": {},
     "//#get-test-timings": {
       "inputs": ["run-tests.js"],
       "outputs": ["test-timings.json"]
