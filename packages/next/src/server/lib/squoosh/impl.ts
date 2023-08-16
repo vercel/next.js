@@ -59,7 +59,6 @@ export async function encodeJpeg(
 
   const e = supportedFormats['mozjpeg']
   const m = await e.enc()
-  await maybeDelay()
   const r = await m.encode(image.data, image.width, image.height, {
     ...e.defaultEncoderOptions,
     quality,
@@ -75,7 +74,6 @@ export async function encodeWebp(
 
   const e = supportedFormats['webp']
   const m = await e.enc()
-  await maybeDelay()
   const r = await m.encode(image.data, image.width, image.height, {
     ...e.defaultEncoderOptions,
     quality,
@@ -91,7 +89,6 @@ export async function encodeAvif(
 
   const e = supportedFormats['avif']
   const m = await e.enc()
-  await maybeDelay()
   const val = e.autoOptimize.min || 62
   const r = await m.encode(image.data, image.width, image.height, {
     ...e.defaultEncoderOptions,
@@ -109,7 +106,6 @@ export async function encodePng(
 
   const e = supportedFormats['oxipng']
   const m = await e.enc()
-  await maybeDelay()
   const r = await m.encode(image.data, image.width, image.height, {
     ...e.defaultEncoderOptions,
   })
