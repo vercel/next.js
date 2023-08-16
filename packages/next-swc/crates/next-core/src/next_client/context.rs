@@ -85,12 +85,12 @@ async fn next_client_free_vars(mode: NextMode) -> Result<Vc<FreeVarReferences>> 
         ..defines(mode).into_iter(),
         Buffer = FreeVarReference::EcmaScriptModule {
             request: "node:buffer".to_string(),
-            context: None,
+            lookup_path: None,
             export: Some("Buffer".to_string()),
         },
         process = FreeVarReference::EcmaScriptModule {
             request: "node:process".to_string(),
-            context: None,
+            lookup_path: None,
             export: Some("default".to_string()),
         }
     )
@@ -282,9 +282,13 @@ pub fn get_client_chunking_context(
     environment: Vc<Environment>,
     mode: NextMode,
 ) -> Vc<Box<dyn EcmascriptChunkingContext>> {
+    let output_root = match mode {
+        NextMode::DevServer => client_root,
+        NextMode::Development | NextMode::Build => client_root.join("_next".to_string()),
+    };
     let builder = DevChunkingContext::builder(
         project_path,
-        client_root,
+        output_root,
         client_root.join("_next/static/chunks".to_string()),
         get_client_assets_path(client_root),
         environment,

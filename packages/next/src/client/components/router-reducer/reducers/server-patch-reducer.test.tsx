@@ -100,6 +100,15 @@ async function runPromiseThrowChain(fn: any): Promise<any> {
 }
 
 describe('serverPatchReducer', () => {
+  beforeAll(() => {
+    jest.useFakeTimers()
+    jest.setSystemTime(new Date('2023-07-26'))
+  })
+
+  afterAll(() => {
+    jest.useRealTimers()
+  })
+
   it('should apply server patch', async () => {
     const initialTree = getInitialRouterStateTree()
     const initialCanonicalUrl = '/linking'
@@ -182,108 +191,101 @@ describe('serverPatchReducer', () => {
       serverPatchReducer(state, action)
     )
 
-    const expectedState: ReturnType<typeof serverPatchReducer> = {
-      buildId,
-      prefetchCache: new Map(),
-      pushRef: {
-        mpaNavigation: false,
-        pendingPush: false,
-      },
-      focusAndScrollRef: {
-        apply: false,
-        onlyHashChange: false,
-        hashFragment: null,
-        segmentPaths: [],
-      },
-      canonicalUrl: '/linking/about',
-      nextUrl: '/linking/somewhere-else',
-      cache: {
-        status: CacheStates.READY,
-        data: null,
-        subTreeData: (
-          <html>
-            <head></head>
-            <body>Root layout</body>
-          </html>
-        ),
-        parallelRoutes: new Map([
-          [
-            'children',
-            new Map([
-              [
-                'linking',
-                {
-                  status: CacheStates.READY,
-                  parallelRoutes: new Map([
-                    [
-                      'children',
-                      new Map([
-                        [
-                          '',
-                          {
-                            status: CacheStates.READY,
-                            data: null,
-                            subTreeData: <>Linking page</>,
-                            parallelRoutes: new Map(),
+    expect(newState).toMatchInlineSnapshot(`
+      Object {
+        "buildId": "development",
+        "cache": Object {
+          "data": null,
+          "parallelRoutes": Map {
+            "children" => Map {
+              "linking" => Object {
+                "data": null,
+                "parallelRoutes": Map {
+                  "children" => Map {
+                    "" => Object {
+                      "data": null,
+                      "parallelRoutes": Map {},
+                      "status": "READY",
+                      "subTreeData": <React.Fragment>
+                        Linking page
+                      </React.Fragment>,
+                    },
+                    "somewhere-else" => Object {
+                      "data": null,
+                      "parallelRoutes": Map {
+                        "children" => Map {
+                          "" => Object {
+                            "data": null,
+                            "head": <React.Fragment>
+                              <title>
+                                Somewhere page!
+                              </title>
+                            </React.Fragment>,
+                            "parallelRoutes": Map {},
+                            "status": "LAZYINITIALIZED",
+                            "subTreeData": null,
                           },
-                        ],
-                        [
-                          'somewhere-else',
-                          {
-                            status: CacheStates.READY,
-                            data: null,
-                            subTreeData: <h1>Somewhere Page!</h1>,
-                            parallelRoutes: new Map([
-                              [
-                                'children',
-                                new Map([
-                                  [
-                                    '',
-                                    {
-                                      status: CacheStates.LAZY_INITIALIZED,
-                                      data: null,
-                                      head: (
-                                        <>
-                                          <title>Somewhere page!</title>
-                                        </>
-                                      ),
-                                      parallelRoutes: new Map(),
-                                      subTreeData: null,
-                                    },
-                                  ],
-                                ]),
-                              ],
-                            ]),
-                          },
-                        ],
-                      ]),
-                    ],
-                  ]),
-                  data: null,
-                  subTreeData: <>Linking layout level</>,
+                        },
+                      },
+                      "status": "READY",
+                      "subTreeData": <h1>
+                        Somewhere Page!
+                      </h1>,
+                    },
+                  },
                 },
-              ],
-            ]),
-          ],
-        ]),
-      },
-      tree: [
-        '',
-        {
-          children: [
-            'linking',
-            {
-              children: ['somewhere-else', { children: ['', {}] }],
+                "status": "READY",
+                "subTreeData": <React.Fragment>
+                  Linking layout level
+                </React.Fragment>,
+              },
             },
-          ],
+          },
+          "status": "READY",
+          "subTreeData": <html>
+            <head />
+            <body>
+              Root layout
+            </body>
+          </html>,
         },
-        undefined,
-        undefined,
-        true,
-      ],
-    }
-
-    expect(newState).toMatchObject(expectedState)
+        "canonicalUrl": "/linking/about",
+        "focusAndScrollRef": Object {
+          "apply": false,
+          "hashFragment": null,
+          "onlyHashChange": false,
+          "segmentPaths": Array [],
+        },
+        "nextUrl": "/linking/somewhere-else",
+        "prefetchCache": Map {},
+        "pushRef": Object {
+          "mpaNavigation": false,
+          "pendingPush": false,
+        },
+        "tree": Array [
+          "",
+          Object {
+            "children": Array [
+              "linking",
+              Object {
+                "children": Array [
+                  "somewhere-else",
+                  Object {
+                    "children": Array [
+                      "",
+                      Object {},
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+          ,
+          ,
+          true,
+        ],
+      }
+    `)
   })
 
   it('should apply server patch (concurrent)', async () => {
@@ -382,79 +384,79 @@ describe('serverPatchReducer', () => {
       serverPatchReducer(state2, action)
     )
 
-    const expectedState: ReturnType<typeof serverPatchReducer> = {
-      buildId,
-      prefetchCache: new Map(),
-      pushRef: {
-        mpaNavigation: false,
-        pendingPush: false,
-      },
-      focusAndScrollRef: {
-        apply: false,
-        onlyHashChange: false,
-        hashFragment: null,
-        segmentPaths: [],
-      },
-      canonicalUrl: '/linking/about',
-      nextUrl: '/linking/about',
-      cache: {
-        status: CacheStates.READY,
-        data: null,
-        subTreeData: (
-          <html>
-            <head></head>
-            <body>Root layout</body>
-          </html>
-        ),
-        parallelRoutes: new Map([
-          [
-            'children',
-            new Map([
-              [
-                'linking',
-                {
-                  status: CacheStates.READY,
-                  parallelRoutes: new Map([
-                    [
-                      'children',
-                      new Map([
-                        [
-                          '',
-                          {
-                            status: CacheStates.READY,
-                            data: null,
-                            subTreeData: <>Linking page</>,
-                            parallelRoutes: new Map(),
-                          },
-                        ],
-                      ]),
-                    ],
-                  ]),
-                  data: null,
-                  subTreeData: <>Linking layout level</>,
+    expect(newState).toMatchInlineSnapshot(`
+      Object {
+        "buildId": "development",
+        "cache": Object {
+          "data": null,
+          "parallelRoutes": Map {
+            "children" => Map {
+              "linking" => Object {
+                "data": null,
+                "parallelRoutes": Map {
+                  "children" => Map {
+                    "" => Object {
+                      "data": null,
+                      "parallelRoutes": Map {},
+                      "status": "READY",
+                      "subTreeData": <React.Fragment>
+                        Linking page
+                      </React.Fragment>,
+                    },
+                  },
                 },
-              ],
-            ]),
-          ],
-        ]),
-      },
-      tree: [
-        '',
-        {
-          children: [
-            'linking',
-            {
-              children: ['about', { children: ['', {}] }],
+                "status": "READY",
+                "subTreeData": <React.Fragment>
+                  Linking layout level
+                </React.Fragment>,
+              },
             },
-          ],
+          },
+          "status": "READY",
+          "subTreeData": <html>
+            <head />
+            <body>
+              Root layout
+            </body>
+          </html>,
         },
-        undefined,
-        undefined,
-        true,
-      ],
-    }
-
-    expect(newState).toMatchObject(expectedState)
+        "canonicalUrl": "/linking/about",
+        "focusAndScrollRef": Object {
+          "apply": false,
+          "hashFragment": null,
+          "onlyHashChange": false,
+          "segmentPaths": Array [],
+        },
+        "nextUrl": "/linking/about",
+        "prefetchCache": Map {},
+        "pushRef": Object {
+          "mpaNavigation": false,
+          "pendingPush": false,
+        },
+        "tree": Array [
+          "",
+          Object {
+            "children": Array [
+              "linking",
+              Object {
+                "children": Array [
+                  "about",
+                  Object {
+                    "children": Array [
+                      "",
+                      Object {},
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+          undefined,
+          undefined,
+          true,
+        ],
+      }
+    `)
   })
 
   it('should apply server patch without affecting focusAndScrollRef', async () => {
@@ -561,138 +563,190 @@ describe('serverPatchReducer', () => {
       serverPatchReducer(stateAfterNavigate, action)
     )
 
-    const expectedState: ReturnType<typeof serverPatchReducer> = {
-      buildId,
-      prefetchCache: new Map(),
-      pushRef: {
-        mpaNavigation: false,
-        pendingPush: true,
-      },
-      focusAndScrollRef: {
-        apply: true,
-        onlyHashChange: false,
-        hashFragment: null,
-        segmentPaths: [
-          ['children', 'linking', 'children', 'about', 'children', ''],
-        ],
-      },
-      canonicalUrl: '/linking/about',
-      nextUrl: '/linking/somewhere-else',
-      cache: {
-        status: CacheStates.READY,
-        data: null,
-        subTreeData: (
-          <html>
-            <head></head>
-            <body>Root layout</body>
-          </html>
-        ),
-        parallelRoutes: new Map([
-          [
-            'children',
-            new Map([
-              [
-                'linking',
-                {
-                  status: CacheStates.READY,
-                  parallelRoutes: new Map([
-                    [
-                      'children',
-                      new Map([
-                        [
-                          '',
-                          {
-                            status: CacheStates.READY,
-                            data: null,
-                            subTreeData: <>Linking page</>,
-                            parallelRoutes: new Map(),
+    expect(newState).toMatchInlineSnapshot(`
+      Object {
+        "buildId": "development",
+        "cache": Object {
+          "data": null,
+          "parallelRoutes": Map {
+            "children" => Map {
+              "linking" => Object {
+                "data": null,
+                "parallelRoutes": Map {
+                  "children" => Map {
+                    "" => Object {
+                      "data": null,
+                      "parallelRoutes": Map {},
+                      "status": "READY",
+                      "subTreeData": <React.Fragment>
+                        Linking page
+                      </React.Fragment>,
+                    },
+                    "about" => Object {
+                      "data": null,
+                      "parallelRoutes": Map {
+                        "children" => Map {
+                          "" => Object {
+                            "data": null,
+                            "head": <React.Fragment>
+                              <title>
+                                About page!
+                              </title>
+                            </React.Fragment>,
+                            "parallelRoutes": Map {},
+                            "status": "LAZYINITIALIZED",
+                            "subTreeData": null,
                           },
-                        ],
-                        [
-                          'about',
-                          {
-                            status: CacheStates.READY,
-                            data: null,
-                            subTreeData: <h1>About Page!</h1>,
-                            parallelRoutes: new Map([
-                              [
-                                'children',
-                                new Map([
-                                  [
-                                    '',
-                                    {
-                                      status: CacheStates.LAZY_INITIALIZED,
-                                      data: null,
-                                      head: (
-                                        <>
-                                          <title>About page!</title>
-                                        </>
-                                      ),
-                                      parallelRoutes: new Map(),
-                                      subTreeData: null,
-                                    },
-                                  ],
-                                ]),
-                              ],
-                            ]),
+                        },
+                      },
+                      "status": "READY",
+                      "subTreeData": <h1>
+                        About Page!
+                      </h1>,
+                    },
+                    "somewhere-else" => Object {
+                      "data": null,
+                      "parallelRoutes": Map {
+                        "children" => Map {
+                          "" => Object {
+                            "data": null,
+                            "head": <React.Fragment>
+                              <title>
+                                Somewhere page!
+                              </title>
+                            </React.Fragment>,
+                            "parallelRoutes": Map {},
+                            "status": "LAZYINITIALIZED",
+                            "subTreeData": null,
                           },
-                        ],
-                        [
-                          'somewhere-else',
-                          {
-                            status: CacheStates.READY,
-                            data: null,
-                            subTreeData: <h1>Somewhere Page!</h1>,
-                            parallelRoutes: new Map([
-                              [
-                                'children',
-                                new Map([
-                                  [
-                                    '',
-                                    {
-                                      status: CacheStates.LAZY_INITIALIZED,
-                                      data: null,
-                                      head: (
-                                        <>
-                                          <title>Somewhere page!</title>
-                                        </>
-                                      ),
-                                      parallelRoutes: new Map(),
-                                      subTreeData: null,
-                                    },
-                                  ],
-                                ]),
-                              ],
-                            ]),
-                          },
-                        ],
-                      ]),
-                    ],
-                  ]),
-                  data: null,
-                  subTreeData: <>Linking layout level</>,
+                        },
+                      },
+                      "status": "READY",
+                      "subTreeData": <h1>
+                        Somewhere Page!
+                      </h1>,
+                    },
+                  },
                 },
-              ],
-            ]),
-          ],
-        ]),
-      },
-      tree: [
-        '',
-        {
-          children: [
-            'linking',
-            {
-              children: ['somewhere-else', { children: ['', {}] }],
+                "status": "READY",
+                "subTreeData": <React.Fragment>
+                  Linking layout level
+                </React.Fragment>,
+              },
             },
+          },
+          "status": "READY",
+          "subTreeData": <html>
+            <head />
+            <body>
+              Root layout
+            </body>
+          </html>,
+        },
+        "canonicalUrl": "/linking/about",
+        "focusAndScrollRef": Object {
+          "apply": true,
+          "hashFragment": null,
+          "onlyHashChange": false,
+          "segmentPaths": Array [
+            Array [
+              "children",
+              "linking",
+              "children",
+              "about",
+              "children",
+              "",
+            ],
           ],
         },
-        undefined,
-        undefined,
-        true,
-      ],
-    }
-
-    expect(newState).toMatchObject(expectedState)
+        "nextUrl": "/linking/somewhere-else",
+        "prefetchCache": Map {
+          "/linking/about" => Object {
+            "data": Promise {
+              "status": "fulfilled",
+              "value": Array [
+                Array [
+                  Array [
+                    "children",
+                    "linking",
+                    "children",
+                    "about",
+                    Array [
+                      "about",
+                      Object {
+                        "children": Array [
+                          "",
+                          Object {},
+                        ],
+                      },
+                    ],
+                    <h1>
+                      About Page!
+                    </h1>,
+                    <React.Fragment>
+                      <title>
+                        About page!
+                      </title>
+                    </React.Fragment>,
+                  ],
+                ],
+                undefined,
+              ],
+            },
+            "kind": "temporary",
+            "lastUsedTime": 1690329600000,
+            "prefetchTime": 1690329600000,
+            "treeAtTimeOfPrefetch": Array [
+              "",
+              Object {
+                "children": Array [
+                  "linking",
+                  Object {
+                    "children": Array [
+                      "about",
+                      Object {
+                        "children": Array [
+                          "",
+                          Object {},
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+              undefined,
+              undefined,
+              true,
+            ],
+          },
+        },
+        "pushRef": Object {
+          "mpaNavigation": false,
+          "pendingPush": true,
+        },
+        "tree": Array [
+          "",
+          Object {
+            "children": Array [
+              "linking",
+              Object {
+                "children": Array [
+                  "somewhere-else",
+                  Object {
+                    "children": Array [
+                      "",
+                      Object {},
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+          ,
+          ,
+          true,
+        ],
+      }
+    `)
   })
 })

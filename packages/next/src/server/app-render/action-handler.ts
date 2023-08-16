@@ -23,7 +23,10 @@ import { StaticGenerationStore } from '../../client/components/static-generation
 import { FlightRenderResult } from './flight-render-result'
 import { ActionResult } from './types'
 import { ActionAsyncStorage } from '../../client/components/action-async-storage'
-import { filterReqHeaders, forbiddenHeaders } from '../lib/server-ipc/utils'
+import {
+  filterReqHeaders,
+  actionsForbiddenHeaders,
+} from '../lib/server-ipc/utils'
 import {
   appendMutableCookies,
   getModifiedCookieValues,
@@ -98,10 +101,13 @@ function getForwardedHeaders(
   })
 
   // Merge request and response headers
-  const mergedHeaders = filterReqHeaders({
-    ...nodeHeadersToRecord(requestHeaders),
-    ...nodeHeadersToRecord(responseHeaders),
-  }) as Record<string, string>
+  const mergedHeaders = filterReqHeaders(
+    {
+      ...nodeHeadersToRecord(requestHeaders),
+      ...nodeHeadersToRecord(responseHeaders),
+    },
+    actionsForbiddenHeaders
+  ) as Record<string, string>
 
   // Merge cookies
   const mergedCookies = requestCookies.split('; ').concat(setCookies).join('; ')
@@ -113,24 +119,6 @@ function getForwardedHeaders(
   delete mergedHeaders['transfer-encoding']
 
   return new Headers(mergedHeaders)
-}
-
-function fetchIPv4v6(
-  url: URL,
-  init: RequestInit,
-  v6 = false
-): Promise<Response> {
-  const hostname = url.hostname
-
-  if (!v6 && hostname === 'localhost') {
-    url.hostname = '127.0.0.1'
-  }
-  return fetch(url, init).catch((err) => {
-    if (err.code === 'ECONNREFUSED' && !v6) {
-      return fetchIPv4v6(url, init, true)
-    }
-    throw err
-  })
 }
 
 async function addRevalidationHeader(
@@ -200,8 +188,13 @@ async function createRedirectRenderResult(
       )
     }
 
+    // Ensures that when the path was revalidated we don't return a partial response on redirects
+    // if (staticGenerationStore.pathWasRevalidated) {
+    forwardedHeaders.delete('next-router-state-tree')
+    // }
+
     try {
-      const headResponse = await fetchIPv4v6(fetchUrl, {
+      const headResponse = await fetch(fetchUrl, {
         method: 'HEAD',
         headers: forwardedHeaders,
         next: {
@@ -213,7 +206,7 @@ async function createRedirectRenderResult(
       if (
         headResponse.headers.get('content-type') === RSC_CONTENT_TYPE_HEADER
       ) {
-        const response = await fetchIPv4v6(fetchUrl, {
+        const response = await fetch(fetchUrl, {
           method: 'GET',
           headers: forwardedHeaders,
           next: {
@@ -223,7 +216,7 @@ async function createRedirectRenderResult(
         })
         // copy the headers from the redirect response to the response we're sending
         for (const [key, value] of response.headers) {
-          if (!forbiddenHeaders.includes(key)) {
+          if (!actionsForbiddenHeaders.includes(key)) {
             res.setHeader(key, value)
           }
         }
@@ -276,6 +269,11 @@ export async function handleAction({
     req.method === 'POST'
 
   if (isFetchAction || isURLEncodedAction || isMultipartAction) {
+    // ensure we avoid caching server actions unexpectedly
+    res.setHeader(
+      'Cache-Control',
+      'no-cache, no-store, max-age=0, must-revalidate'
+    )
     let bound = []
 
     const workerName = 'app' + pathname

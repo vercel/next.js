@@ -558,10 +558,20 @@ type RobotsFile = {
 type SitemapFile = Array<{
   url: string
   lastModified?: string | Date
+  changeFrequency?:
+    | 'always'
+    | 'hourly'
+    | 'daily'
+    | 'weekly'
+    | 'monthly'
+    | 'yearly'
+    | 'never'
+  priority?: number
 }>
 
 type ResolvingMetadata = Promise<ResolvedMetadata>
 declare namespace MetadataRoute {
+  // eslint-disable-next-line @typescript-eslint/no-shadow
   export type Robots = RobotsFile
   export type Sitemap = SitemapFile
   export type Manifest = ManifestFile

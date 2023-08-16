@@ -104,10 +104,10 @@ export type ActionResult = Promise<any>
 export type NextFlightResponse = [buildId: string, flightData: FlightData]
 
 // Response from `createFromFetch` for server actions. Action's flight data can be null
-export type ActionFlightResponse = [
-  ActionResult,
-  [buildId: NextFlightResponse[0], flightData: NextFlightResponse[1] | null]
-]
+export type ActionFlightResponse =
+  | [ActionResult, [buildId: string, flightData: FlightData | null]]
+  // This case happens when `redirect()` is called in a server action.
+  | NextFlightResponse
 
 /**
  * Property holding the current subTreeData.
@@ -139,6 +139,7 @@ export type RenderOptsPartial = {
   originalPathname?: string
   isDraftMode?: boolean
   deploymentId?: string
+  onUpdateCookies?: (cookies: string[]) => void
   loadConfig?: (
     phase: string,
     dir: string,

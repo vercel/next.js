@@ -15,13 +15,15 @@ import {
   NextRequestAdapter,
   signalFromNodeResponse,
 } from 'next/dist/server/web/spec-extension/adapters/next-request'
-import { RouteHandlerManagerContext } from 'next/dist/server/future/route-handler-managers/route-handler-manager'
 
 import { attachRequestMeta } from './next-request-helpers'
 
-import type { RouteModule } from 'next/dist/server/future/route-modules/route-module'
+import type {
+  AppRouteRouteHandlerContext,
+  AppRouteRouteModule,
+} from 'next/dist/server/future/route-modules/app-route/module'
 
-export default (routeModule: RouteModule) => {
+export default (routeModule: AppRouteRouteModule) => {
   startHandler(async ({ request, response, params }) => {
     const req = new NodeNextRequest(request)
     const res = new NodeNextResponse(response)
@@ -29,7 +31,7 @@ export default (routeModule: RouteModule) => {
     const parsedUrl = parseUrl(req.url!, true)
     attachRequestMeta(req, parsedUrl, request.headers.host!)
 
-    const context: RouteHandlerManagerContext = {
+    const context: AppRouteRouteHandlerContext = {
       params,
       prerenderManifest: {
         version: -1 as any, // letting us know this doesn't conform to spec
