@@ -813,9 +813,9 @@ impl PageEndpoint {
         Ok(page_output.cell())
     }
 
-    #[turbo_task::function]
-    fn client_relative_path() -> Vc<FileSystemPathOption> {
-        Vc::cell(Some(this.pages_project.project().client_relative_path()))
+    #[turbo_tasks::function]
+    fn client_relative_path(&self) -> Vc<FileSystemPathOption> {
+        Vc::cell(Some(self.pages_project.project().client_relative_path()))
     }
 }
 
