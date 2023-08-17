@@ -273,6 +273,13 @@ export async function initialize(opts: {
     }
   }
 
+  const logError = async (
+    type: 'uncaughtException' | 'unhandledRejection',
+    err: Error | undefined
+  ) => {
+    await devInstance?.logErrorWithOriginalStack(err, type)
+  }
+
   const cleanup = () => {
     debug('router-server process cleanup')
     for (const curWorker of [
@@ -290,8 +297,8 @@ export async function initialize(opts: {
   process.on('exit', cleanup)
   process.on('SIGINT', cleanup)
   process.on('SIGTERM', cleanup)
-  process.on('uncaughtException', cleanup)
-  process.on('unhandledRejection', cleanup)
+  process.on('uncaughtException', logError.bind(null, 'uncaughtException'))
+  process.on('unhandledRejection', logError.bind(null, 'unhandledRejection'))
 
   const resolveRoutes = getResolveRoutes(
     fsChecker,

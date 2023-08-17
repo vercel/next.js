@@ -196,12 +196,8 @@ export async function startServer({
           process.exit(0)
         }
         const exception = (err: Error) => {
-          // If it's the render worker, we keep the process alive
-          if (process.env.__NEXT_PRIVATE_RENDER_WORKER) {
-            console.error(err)
-          } else {
-            cleanup()
-          }
+          // This is the render worker, we keep the process alive
+          console.error(err)
         }
         process.on('exit', cleanup)
         process.on('SIGINT', cleanup)
