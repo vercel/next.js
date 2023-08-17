@@ -93,7 +93,7 @@ import {
   isDynamicMetadataRoute,
   getPageStaticInfo,
 } from './analysis/get-page-static-info'
-import { createPagesMapping, getPageFilePath } from './entries'
+import { createPagesMapping, getPageFilePath, sortByPageExts } from './entries'
 import { generateBuildId } from './generate-build-id'
 import { isWriteable } from './is-writeable'
 import * as Log from './output/log'
@@ -474,7 +474,9 @@ export default async function build(
             ? [instrumentationHookDetectionRegExp]
             : []),
         ])
-      ).map((absoluteFile) => absoluteFile.replace(dir, ''))
+      )
+        .sort(sortByPageExts(config.pageExtensions))
+        .map((absoluteFile) => absoluteFile.replace(dir, ''))
 
       const hasInstrumentationHook = rootPaths.some((p) =>
         p.includes(INSTRUMENTATION_HOOK_FILENAME)
@@ -1570,6 +1572,10 @@ export default async function build(
                         if (isEdgeRuntime(pageRuntime)) {
                           isStatic = false
                           isSsg = false
+
+                          Log.warnOnce(
+                            `Using edge runtime on a page currently disables static generation for that page`
+                          )
                         } else {
                           // If a page has action and it is static, we need to
                           // change it to SSG to keep the worker created.
@@ -1596,30 +1602,38 @@ export default async function build(
                           }
 
                           const appConfig = workerResult.appConfig || {}
-                          if (appConfig.revalidate !== 0 && !hasAction) {
-                            const isDynamic = isDynamicRoute(page)
-                            const hasGenerateStaticParams =
-                              !!workerResult.prerenderRoutes?.length
+                          if (appConfig.revalidate !== 0) {
+                            if (hasAction) {
+                              Log.warnOnce(
+                                `Using server actions on a page currently disables static generation for that page`
+                              )
+                            } else {
+                              const isDynamic = isDynamicRoute(page)
+                              const hasGenerateStaticParams =
+                                !!workerResult.prerenderRoutes?.length
 
-                            if (
-                              // Mark the app as static if:
-                              // - It has no dynamic param
-                              // - It doesn't have generateStaticParams but `dynamic` is set to
-                              //   `error` or `force-static`
-                              !isDynamic
-                            ) {
-                              appStaticPaths.set(originalAppPath, [page])
-                              appStaticPathsEncoded.set(originalAppPath, [page])
-                              isStatic = true
-                            } else if (
-                              isDynamic &&
-                              !hasGenerateStaticParams &&
-                              (appConfig.dynamic === 'error' ||
-                                appConfig.dynamic === 'force-static')
-                            ) {
-                              appStaticPaths.set(originalAppPath, [])
-                              appStaticPathsEncoded.set(originalAppPath, [])
-                              isStatic = true
+                              if (
+                                // Mark the app as static if:
+                                // - It has no dynamic param
+                                // - It doesn't have generateStaticParams but `dynamic` is set to
+                                //   `error` or `force-static`
+                                !isDynamic
+                              ) {
+                                appStaticPaths.set(originalAppPath, [page])
+                                appStaticPathsEncoded.set(originalAppPath, [
+                                  page,
+                                ])
+                                isStatic = true
+                              } else if (
+                                isDynamic &&
+                                !hasGenerateStaticParams &&
+                                (appConfig.dynamic === 'error' ||
+                                  appConfig.dynamic === 'force-static')
+                              ) {
+                                appStaticPaths.set(originalAppPath, [])
+                                appStaticPathsEncoded.set(originalAppPath, [])
+                                isStatic = true
+                              }
                             }
                           }
 
@@ -2243,9 +2257,8 @@ export default async function build(
 
       // Since custom _app.js can wrap the 404 page we have to opt-out of static optimization if it has getInitialProps
       // Only export the static 404 when there is no /_error present
-      const useStatic404 =
-        !customAppGetInitialProps &&
-        (!hasNonStaticErrorPage || hasPages404 || hasApp404)
+      const useStaticPages404 =
+        !customAppGetInitialProps && (!hasNonStaticErrorPage || hasPages404)
 
       if (invalidPages.size > 0) {
         const err = new Error(
@@ -2365,6 +2378,8 @@ export default async function build(
         !hasPages500 && !hasNonStaticErrorPage && !customAppGetInitialProps
 
       const combinedPages = [...staticPages, ...ssgPages]
+      const isApp404Static = appStaticPaths.has('/_not-found')
+      const hasStaticApp404 = hasApp404 && isApp404Static
 
       // we need to trigger automatic exporting when we have
       // - static 404/500
@@ -2373,7 +2388,7 @@ export default async function build(
       if (
         !isCompile &&
         (combinedPages.length > 0 ||
-          useStatic404 ||
+          useStaticPages404 ||
           useDefaultStatic500 ||
           isAppDirEnabled)
       ) {
@@ -2446,7 +2461,7 @@ export default async function build(
                 })
               })
 
-              if (useStatic404) {
+              if (useStaticPages404) {
                 defaultMap['/404'] = {
                   page: hasPages404 ? '/404' : '/_error',
                 }
@@ -2478,7 +2493,7 @@ export default async function build(
                 for (const page of [
                   ...staticPages,
                   ...ssgPages,
-                  ...(useStatic404 ? ['/404'] : []),
+                  ...(useStaticPages404 ? ['/404'] : []),
                   ...(useDefaultStatic500 ? ['/500'] : []),
                 ]) {
                   const isSsg = ssgPages.has(page)
@@ -2817,12 +2832,12 @@ export default async function build(
           }
 
           // If there's /not-found inside app, we prefer it over the pages 404
-          if (hasApp404 && useStatic404) {
+          if (hasStaticApp404) {
             // await moveExportedPage('/_error', '/404', '/404', false, 'html')
             await moveExportedAppNotFoundTo404()
           } else {
             // Only move /404 to /404 when there is no custom 404 as in that case we don't know about the 404 page
-            if (!hasPages404 && useStatic404) {
+            if (!hasPages404 && !hasApp404 && useStaticPages404) {
               await moveExportedPage('/_error', '/404', '/404', false, 'html')
             }
           }
@@ -2974,8 +2989,7 @@ export default async function build(
           }
 
           // remove temporary export folder
-          await recursiveDelete(exportOptions.outdir)
-          await fs.rmdir(exportOptions.outdir)
+          await fs.rm(exportOptions.outdir, { recursive: true, force: true })
           await fs.writeFile(
             manifestPath,
             JSON.stringify(pagesManifest, null, 2),
@@ -3001,7 +3015,7 @@ export default async function build(
           ssrPageCount:
             pagesPaths.length -
             (staticPages.size + ssgPages.size + serverPropsPages.size),
-          hasStatic404: useStatic404,
+          hasStatic404: useStaticPages404,
           hasReportWebVitals:
             namedExports?.includes('reportWebVitals') ?? false,
           rewritesCount: combinedRewrites.length,
@@ -3110,15 +3124,15 @@ export default async function build(
       const images = { ...config.images }
       const { deviceSizes, imageSizes } = images
       ;(images as any).sizes = [...deviceSizes, ...imageSizes]
-      ;(images as any).remotePatterns = (
-        config?.images?.remotePatterns || []
-      ).map((p: RemotePattern) => ({
-        // Should be the same as matchRemotePattern()
-        protocol: p.protocol,
-        hostname: makeRe(p.hostname).source,
-        port: p.port,
-        pathname: makeRe(p.pathname ?? '**').source,
-      }))
+      images.remotePatterns = (config?.images?.remotePatterns || []).map(
+        (p: RemotePattern) => ({
+          // Should be the same as matchRemotePattern()
+          protocol: p.protocol,
+          hostname: makeRe(p.hostname).source,
+          port: p.port,
+          pathname: makeRe(p.pathname ?? '**').source,
+        })
+      )
 
       await fs.writeFile(
         path.join(distDir, IMAGES_MANIFEST),
@@ -3201,7 +3215,7 @@ export default async function build(
           distPath: distDir,
           buildId: buildId,
           pagesDir,
-          useStatic404,
+          useStaticPages404,
           pageExtensions: config.pageExtensions,
           appBuildManifest,
           buildManifest,

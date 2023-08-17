@@ -47,7 +47,7 @@ use crate::{
     entrypoints::Entrypoints,
     pages::PagesProject,
     route::{Endpoint, Route},
-    versioned_content_map::VersionedContentMap,
+    versioned_content_map::{OutputAssetsOperation, VersionedContentMap},
 };
 
 #[derive(Debug, Serialize, Deserialize, Clone, TaskInput, PartialEq, Eq, TraceRawVcs)]
@@ -125,9 +125,16 @@ impl ProjectContainer {
         .cell())
     }
 
+    /// See [Project::entrypoints].
     #[turbo_tasks::function]
     pub fn entrypoints(self: Vc<Self>) -> Vc<Entrypoints> {
         self.project().entrypoints()
+    }
+
+    /// See [Project::hmr_identifiers].
+    #[turbo_tasks::function]
+    pub fn hmr_identifiers(self: Vc<Self>) -> Vc<Vec<String>> {
+        self.project().hmr_identifiers()
     }
 }
 
@@ -491,9 +498,9 @@ impl Project {
     #[turbo_tasks::function]
     pub async fn emit_all_output_assets(
         self: Vc<Self>,
-        output_assets: Vc<OutputAssets>,
+        output_assets: Vc<OutputAssetsOperation>,
     ) -> Result<Vc<Completion>> {
-        let all_output_assets = all_assets_from_entries(output_assets);
+        let all_output_assets = all_assets_from_entries_operation(output_assets);
 
         self.await?
             .versioned_content_map
@@ -501,7 +508,7 @@ impl Project {
             .await?;
 
         Ok(emit_assets(
-            all_output_assets,
+            *all_output_assets.await?,
             self.node_root(),
             self.client_relative_path(),
             self.node_root(),
@@ -557,4 +564,29 @@ impl Project {
         let from = from.get();
         Ok(self.hmr_content(identifier).update(from))
     }
+
+    /// Gets a list of all HMR identifiers that can be subscribed to. This is
+    /// only needed for testing purposes and isn't used in real apps.
+    #[turbo_tasks::function]
+    pub async fn hmr_identifiers(self: Vc<Self>) -> Result<Vc<Vec<String>>> {
+        Ok(self
+            .await?
+            .versioned_content_map
+            .keys_in_path(self.client_root()))
+    }
+}
+
+#[turbo_tasks::function]
+async fn all_assets_from_entries_operation_inner(
+    operation: Vc<OutputAssetsOperation>,
+) -> Result<Vc<OutputAssets>> {
+    let assets = *operation.await?;
+    Vc::connect(assets);
+    Ok(all_assets_from_entries(assets))
+}
+
+fn all_assets_from_entries_operation(
+    operation: Vc<OutputAssetsOperation>,
+) -> Vc<OutputAssetsOperation> {
+    Vc::cell(all_assets_from_entries_operation_inner(operation))
 }

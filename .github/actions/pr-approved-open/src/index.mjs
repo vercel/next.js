@@ -13,7 +13,7 @@ async function run() {
 
     const { owner, repo } = context.repo
     const prs = await octoClient.rest.search.issuesAndPullRequests({
-      q: `repo:${owner}/${repo}+is:pr+is:open+review:approved`,
+      q: `repo:${owner}/${repo}+is:pr+is:open+review:approved -is:draft`,
     })
 
     const pendingPRs = prs.data.total_count
@@ -21,7 +21,7 @@ async function run() {
     if (pendingPRs) {
       await slackClient.chat.postMessage({
         channel: '#coord-next-turbopack',
-        text: `🤖 Pending PRs for Next.js: There are <https://github.com/vercel/next.js/pulls?q=is%3Apr+is%3Aopen+review%3Aapproved|${prs.data.items.length} PRs> awaiting merge.`,
+        text: `🤖 Pending PRs for Next.js: There are <https://github.com/vercel/next.js/pulls?q=is%3Apr+is%3Aopen+review%3Aapproved+-is%3Adraft|${prs.data.items.length} PRs> awaiting merge.`,
         username: 'GitHub Notifier',
         icon_emoji: ':github:',
       })
