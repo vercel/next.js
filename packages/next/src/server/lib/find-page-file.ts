@@ -132,8 +132,7 @@ export function createValidFileMatcher(
     if (!appDirPath) {
       return false
     }
-    if (/next[\\/]dist[\\/]client[\\/]components[\\/]not-found-error\./)
-      return true
+
     if (!filePath.startsWith(appDirPath + sep)) {
       return false
     }

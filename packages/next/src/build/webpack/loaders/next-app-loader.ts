@@ -467,7 +467,6 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
   const middlewareConfig: MiddlewareConfig = JSON.parse(
     Buffer.from(middlewareConfigBase64, 'base64').toString()
   )
-
   buildInfo.route = {
     page,
     absolutePagePath: createAbsolutePath(appDir, pagePath),
