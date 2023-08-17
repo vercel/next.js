@@ -313,6 +313,14 @@ async function createTreeCodeFromPath(
         ([, filePath]) => filePath !== undefined
       )
 
+      // Add default not found error as root not found if not present
+      const hasNotFound = definedFilePaths.some(
+        ([type]) => type === 'not-found'
+      )
+      if (isRootLayer && !hasNotFound) {
+        definedFilePaths.push(['not-found', defaultNotFoundPath])
+      }
+
       if (!rootLayout) {
         const layoutPath = definedFilePaths.find(
           ([type]) => type === 'layout'
@@ -323,14 +331,6 @@ async function createTreeCodeFromPath(
           globalError = await resolver(
             `${path.dirname(layoutPath)}/${GLOBAL_ERROR_FILE_TYPE}`
           )
-
-          const hasNotFound = definedFilePaths.some(
-            ([type]) => type === 'not-found'
-          )
-          // Add default not found error as root not found if not present
-          if (!hasNotFound && isRootLayer) {
-            definedFilePaths.push(['not-found', defaultNotFoundPath])
-          }
         }
       }
 
