@@ -255,7 +255,7 @@ This means we don't have to wait for everything to render before caching the wor
 > - Placeholders for where Client Components should be rendered and references to their JavaScript files
 > - Any props passed from a Server Component to a Client Component
 >
-> To learn more, see the [React Rendering](/docs/app/building-your-application/rendering/server-and-client-components) documentation.
+> To learn more, see the [Server Components](/docs/app/building-your-application/rendering/server-components) documentation.
 
 ### 2. Next.js Caching on the Server (Full Route Cache)
 
@@ -301,7 +301,7 @@ This diagram shows the difference between statically and dynamically rendered ro
   height="1314"
 />
 
-Learn more about [static and dynamic rendering](/docs/app/building-your-application/rendering/static-and-dynamic).
+Learn more about [static and dynamic rendering](/docs/app/building-your-application/rendering/server-components#server-rendering-strategies).
 
 ### Duration
 
@@ -359,7 +359,7 @@ This results in an improved navigation experience for the user:
 The cache is stored in the browser's temporary memory. Two factors determine how long the router cache lasts:
 
 - **Session**: The cache persists across navigation. However, it's cleared on page refresh.
-- **Automatic Invalidation Period**: The cache of an individual segment is automatically invalidated after a specific time. The duration depends on whether the route is [statically](/docs/app/building-your-application/rendering/static-and-dynamic#static-rendering-default) or [dynamically](/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering) rendered:
+- **Automatic Invalidation Period**: The cache of an individual segment is automatically invalidated after a specific time. The duration depends on whether the route is [statically](/docs/app/building-your-application/rendering/server-components#static-rendering-default) or [dynamically](/docs/app/building-your-application/rendering/server-components#dynamic-rendering) rendered:
   - **Dynamically Rendered**: 30 seconds
   - **Statically Rendered**: 5 minutes
 

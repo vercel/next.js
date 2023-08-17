@@ -72,7 +72,7 @@ fetch(`https://...`, { cache: 'force-cache' | 'no-store' })
 
 > **Good to know**:
 >
-> - If you don't provide a `cache` option, Next.js will default to `force-cache`, unless a [dynamic function](/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-functions) such as `cookies()` is used, in which case it will default to `no-store`.
+> - If you don't provide a `cache` option, Next.js will default to `force-cache`, unless a [dynamic function](/docs/app/building-your-application/rendering/server-components#server-rendering-strategies#dynamic-functions) such as `cookies()` is used, in which case it will default to `no-store`.
 > - The `no-cache` option behaves the same way as `no-store` in Next.js.
 
 ### `options.next.revalidate`

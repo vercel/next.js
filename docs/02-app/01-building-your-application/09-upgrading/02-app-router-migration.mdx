@@ -472,7 +472,7 @@ In addition, the new `useRouter` hook has the following changes:
 - The `locale`, `locales`, `defaultLocales`, `domainLocales` values have been removed because built-in i18n Next.js features are no longer necessary in the `app` directory. [Learn more about i18n](/docs/pages/building-your-application/routing/internationalization).
 - `basePath` has been removed. The alternative will not be part of `useRouter`. It has not yet been implemented.
 - `asPath` has been removed because the concept of `as` has been removed from the new router.
-- `isReady` has been removed because it is no longer necessary. During [static rendering](/docs/app/building-your-application/rendering/static-and-dynamic#static-rendering-default), any component that uses the [`useSearchParams()`](/docs/app/api-reference/functions/use-params) hook will skip the prerendering step and instead be rendered on the client at runtime.
+- `isReady` has been removed because it is no longer necessary. During [static rendering](/docs/app/building-your-application/rendering/server-components#static-rendering-default), any component that uses the [`useSearchParams()`](/docs/app/api-reference/functions/use-params) hook will skip the prerendering step and instead be rendered on the client at runtime.
 
 [View the `useRouter()` API reference](/docs/app/api-reference/functions/use-router).
 
@@ -547,7 +547,7 @@ export default function Dashboard({ projects }) {
 }
 ```
 
-In the `app` directory, we can colocate our data fetching inside our React components using [Server Components](/docs/getting-started/react-essentials#server-components). This allows us to send less JavaScript to the client, while maintaining the rendered HTML from the server.
+In the `app` directory, we can colocate our data fetching inside our React components using [Server Components](/docs/app/building-your-application/rendering/server-components). This allows us to send less JavaScript to the client, while maintaining the rendered HTML from the server.
 
 By setting the `cache` option to `no-store`, we can indicate that the fetched data should [never be cached](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating). This is similar to `getServerSideProps` in the `pages` directory.
 
@@ -869,7 +869,7 @@ export async function GET(request: Request) {}
 export async function GET(request) {}
 ```
 
-> **Good to know**: If you previously used API routes to call an external API from the client, you can now use [Server Components](/docs/getting-started/react-essentials#server-components) instead to securely fetch data. Learn more about [data fetching](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating).
+> **Good to know**: If you previously used API routes to call an external API from the client, you can now use [Server Components](/docs/app/building-your-application/rendering/server-components) instead to securely fetch data. Learn more about [data fetching](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating).
 
 ### Step 7: Styling
 
