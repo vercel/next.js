@@ -636,7 +636,7 @@ importers:
   packages/eslint-config-next:
     dependencies:
       '@next/eslint-plugin-next':
-        specifier: 13.4.16
+        specifier: 13.4.17
         version: link:../eslint-plugin-next
       '@rushstack/eslint-patch':
         specifier: ^1.1.3
@@ -697,7 +697,7 @@ importers:
   packages/next:
     dependencies:
       '@next/env':
-        specifier: 13.4.16
+        specifier: 13.4.17
         version: link:../next-env
       '@swc/helpers':
         specifier: 0.5.1
@@ -824,19 +824,19 @@ importers:
         specifier: 1.1.0
         version: 1.1.0
       '@next/polyfill-module':
-        specifier: 13.4.16
+        specifier: 13.4.17
         version: link:../next-polyfill-module
       '@next/polyfill-nomodule':
-        specifier: 13.4.16
+        specifier: 13.4.17
         version: link:../next-polyfill-nomodule
       '@next/react-dev-overlay':
-        specifier: 13.4.16
+        specifier: 13.4.17
         version: link:../react-dev-overlay
       '@next/react-refresh-utils':
-        specifier: 13.4.16
+        specifier: 13.4.17
         version: link:../react-refresh-utils
       '@next/swc':
-        specifier: 13.4.16
+        specifier: 13.4.17
         version: link:../next-swc
       '@opentelemetry/api':
         specifier: 1.4.1
@@ -1117,6 +1117,9 @@ importers:
       is-wsl:
         specifier: 2.2.0
         version: 2.2.0
+      jest-docblock:
+        specifier: 29.4.3
+        version: 29.4.3
       jest-worker:
         specifier: 27.0.0-next.5
         version: 27.0.0-next.5
@@ -1589,7 +1592,7 @@ importers:
         version: 1.0.17
     devDependencies:
       next:
-        specifier: 13.4.16
+        specifier: 13.4.17
         version: link:../next
       outdent:
         specifier: 0.8.0
@@ -16263,6 +16266,13 @@ packages:
   /jest-docblock@27.0.6:
     resolution: {integrity: sha512-Fid6dPcjwepTFraz0YxIMCi7dejjJ/KL9FBjPYhBp4Sv1Y9PdhImlKZqYU555BlN4TQKaTc+F2Av1z+anVyGkA==}
     engines: {node: ^10.13.0 || ^12.13.0 || ^14.15.0 || >=15.0.0}
+    dependencies:
+      detect-newline: 3.1.0
+    dev: true
+
+  /jest-docblock@29.4.3:
+    resolution: {integrity: sha512-fzdTftThczeSD9nZ3fzA/4KkHtnmllawWrXO69vtI+L9WjEIuXWs4AmyME7lN5hU7dB0sHhuPfcKofRsUb/2Fg==}
+    engines: {node: ^14.15.0 || ^16.10.0 || >=18.0.0}
     dependencies:
       detect-newline: 3.1.0
     dev: true
