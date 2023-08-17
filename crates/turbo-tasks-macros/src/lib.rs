@@ -1,7 +1,6 @@
 #![feature(proc_macro_diagnostic)]
 #![feature(allow_internal_unstable)]
 #![feature(box_patterns)]
-#![allow(clippy::too_many_arguments)]
 
 mod derive;
 mod func;
