@@ -185,7 +185,9 @@ async function createTreeCodeFromPath(
   const splittedPath = pagePath.split(/[\\/]/)
   const pages: string[] = []
   const isNotFoundRoute = page === '/_not-found'
-  const appDirPrefix = pagePath.startsWith(appDir) ? splittedPath[0] : appDir
+  const appDirPrefix = pagePath.startsWith('private-next-app-dir')
+    ? splittedPath[0]
+    : appDir
 
   let rootLayout: string | undefined
   let globalError: string | undefined
