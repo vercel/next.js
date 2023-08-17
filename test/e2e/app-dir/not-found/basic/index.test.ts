@@ -20,6 +20,17 @@ createNextDescribe(
 
         expect(isTraced).toBe(true)
       })
+
+      it('should not output /404 in tree view logs', async () => {
+        const output = await next.cliOutput
+        expect(output).not.toContain('/404')
+      })
+
+      it('should use root not-found content for 404 html', async () => {
+        // static /404 page will use /_not-found content
+        const page404 = await next.readFile('.next/server/pages/404.html')
+        expect(page404).toContain('This Is The Not Found Page')
+      })
     }
 
     const runTests = ({ isEdge }: { isEdge: boolean }) => {
@@ -33,12 +44,15 @@ createNextDescribe(
       })
 
       it('should match dynamic route not-found boundary correctly', async () => {
-        const $dynamic = await next.render$('/dynamic')
-        const $dynamicId = await next.render$('/dynamic/123')
         // `/dynamic` display works
-        expect($dynamic('main').text()).toBe('dynamic')
+        const browserDynamic = await next.browser('/dynamic')
+        expect(await browserDynamic.elementByCss('main').text()).toBe('dynamic')
+
         // `/dynamic/[id]` calling notFound() will match the same level not-found boundary
-        expect($dynamicId('#not-found').text()).toBe('dynamic/[id] not found')
+        const browserDynamicId = await next.browser('/dynamic/123')
+        expect(await browserDynamicId.elementByCss('#not-found').text()).toBe(
+          'dynamic/[id] not found'
+        )
       })
 
       if (isNextDev) {

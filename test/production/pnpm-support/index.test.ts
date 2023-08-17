@@ -103,7 +103,7 @@ describe('pnpm support', () => {
       )
       server = await initNextServerScript(
         path.join(standaloneDir, 'server.js'),
-        /Listening/,
+        /ready started server on/,
         {
           ...process.env,
           PORT: appPort,
