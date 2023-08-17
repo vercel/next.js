@@ -1,10 +1,10 @@
-/* __next_internal_action_entry_do_not_use__ $$ACTION_0,$$ACTION_2 */ import __create_action_proxy__ from "private-next-rsc-action-proxy";
+/* __next_internal_action_entry_do_not_use__ $$ACTION_0,$$ACTION_2 */ import { createActionProxy } from "private-next-rsc-action-proxy";
 import deleteFromDb from 'db';
 export function Item({ id1 , id2  }) {
     async function deleteItem(...args) {
         return $$ACTION_0.apply(null, (deleteItem.$$bound || []).concat(args));
     }
-    __create_action_proxy__("6d53ce510b2e36499b8f56038817b9bad86cabb4", [
+    createActionProxy("6d53ce510b2e36499b8f56038817b9bad86cabb4", [
         id1,
         id2
     ], deleteItem, $$ACTION_0);
@@ -19,7 +19,7 @@ export default function Home() {
         name: 'John',
         test: 'test'
     };
-    const action = ($$ACTION_1 = async (...args)=>$$ACTION_2.apply(null, ($$ACTION_1.$$bound || []).concat(args)), __create_action_proxy__("9878bfa39811ca7650992850a8751f9591b6a557", [
+    const action = ($$ACTION_1 = async (...args)=>$$ACTION_2.apply(null, ($$ACTION_1.$$bound || []).concat(args)), createActionProxy("9878bfa39811ca7650992850a8751f9591b6a557", [
         info.name,
         info.test
     ], $$ACTION_1, $$ACTION_2), $$ACTION_1);
