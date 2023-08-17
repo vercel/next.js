@@ -1026,13 +1026,6 @@ export default class NextNodeServer extends BaseServer {
         }
       } catch {}
 
-      // if (this.isRenderWorker && !this.minimalMode) {
-      //   console.error(err)
-      //   return {
-      //     finished: true,
-      //   }
-      // }
-
       throw err
     }
   }
