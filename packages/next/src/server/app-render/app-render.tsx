@@ -275,7 +275,7 @@ export async function renderToHTMLOrFlight(
      * The tree created in next-app-loader that holds component segments and modules
      */
     const loaderTree: LoaderTree = ComponentMod.tree
-
+    console.log('loaderTree', JSON.stringify(loaderTree, null, 2))
     /**
      * The metadata items array created in next-app-loader with all relevant information
      * that we need to resolve the final metadata.

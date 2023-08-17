@@ -305,6 +305,10 @@ export default class DevServer extends Server {
         this.nextConfig.pageExtensions,
         true
       )
+      if (normalizedPath === '/404') {
+        appFile = require.resolve('next/dist/client/components/not-found-error')
+      }
+      console.log('appFile', appFile, 'normalizedPath', normalizedPath)
     }
 
     if (this.pagesDir) {
@@ -765,6 +769,7 @@ export default class DevServer extends Server {
       throw new WrappedBuildError(compilationErr)
     }
     try {
+      console.log('should ensure', shouldEnsure, 'appPaths', appPaths)
       if (shouldEnsure || this.renderOpts.customServer) {
         await this.ensurePage({
           page: pathname,

@@ -449,6 +449,8 @@ async function startWatcher(opts: SetupOpts) {
           ) => {
             let page = ensureOpts.match?.definition?.pathname ?? ensureOpts.page
 
+            console.log('ensure Page', page)
+
             async function loadPartialManifest<T>(
               name: string,
               pageName: string,
@@ -807,7 +809,7 @@ async function startWatcher(opts: SetupOpts) {
       let envChange = false
       let tsconfigChange = false
       let conflictingPageChange = 0
-      let hasRootAppNotFound = false
+      let hasRootAppNotFound = true // false
 
       const { appFiles, pageFiles } = opts.fsChecker
 
