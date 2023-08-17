@@ -79,8 +79,6 @@ jobs:
       fail-fast: false
       matrix:
         settings:
-          # pnpm is aliased here temporarily until the build docker
-          # image is updated past Node.js v14.19 (current 14.18.1)
           - host:
               - 'self-hosted'
               - 'macos'
@@ -90,6 +88,21 @@ jobs:
             build: |
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && corepack enable
               turbo run build-native-release --remote-cache-timeout 90 --summarize -- --target x86_64-apple-darwin --release
+              strip -x packages/next-swc/native/next-swc.*.node
+
+          - host:
+              - 'self-hosted'
+              - 'macos'
+              - 'arm64'
+
+            target: 'aarch64-apple-darwin'
+            build: |
+              export CC=$(xcrun -f clang);
+              export CXX=$(xcrun -f clang++);
+              SYSROOT=$(xcrun --sdk macosx --show-sdk-path);
+              export CFLAGS="-isysroot $SYSROOT -isystem $SYSROOT";
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && corepack enable
+              turbo run build-native-release --remote-cache-timeout 90 --summarize -- --target aarch64-apple-darwin
               strip -x packages/next-swc/native/next-swc.*.node
 
           - host:
@@ -116,103 +129,6 @@ jobs:
 
           - host:
               - 'self-hosted'
-              - 'linux'
-              - 'x64'
-              - 'metal'
-              - 'docker'
-
-            target: 'x86_64-unknown-linux-gnu'
-            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian
-            build: >-
-              set -e &&
-              apt update &&
-              apt install -y pkg-config &&
-              rustup toolchain install "${RUST_TOOLCHAIN}" &&
-              rustup default "${RUST_TOOLCHAIN}" &&
-              rustup target add x86_64-unknown-linux-gnu &&
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && corepack enable && pnpm -v && node -v &&
-              unset CC_x86_64_unknown_linux_gnu && unset CC &&
-              turbo run build-native-release --remote-cache-timeout 90 --summarize -- --target x86_64-unknown-linux-gnu &&
-              strip packages/next-swc/native/next-swc.*.node
-
-          - host:
-              - 'self-hosted'
-              - 'linux'
-              - 'x64'
-              - 'metal'
-              - 'docker'
-
-            target: 'x86_64-unknown-linux-musl'
-            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
-            build: >-
-              set -e &&
-              apk add --no-cache libc6-compat pkgconfig &&
-              rustup toolchain install "${RUST_TOOLCHAIN}" &&
-              rustup default "${RUST_TOOLCHAIN}" &&
-              rustup target add x86_64-unknown-linux-musl &&
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && corepack enable && pnpm -v && node -v &&
-              turbo run build-native-release --remote-cache-timeout 90 --summarize -- --target x86_64-unknown-linux-musl &&
-              strip packages/next-swc/native/next-swc.*.node
-
-          - host:
-              - 'self-hosted'
-              - 'macos'
-              - 'arm64'
-
-            target: 'aarch64-apple-darwin'
-            build: |
-              export CC=$(xcrun -f clang);
-              export CXX=$(xcrun -f clang++);
-              SYSROOT=$(xcrun --sdk macosx --show-sdk-path);
-              export CFLAGS="-isysroot $SYSROOT -isystem $SYSROOT";
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && corepack enable
-              turbo run build-native-release --remote-cache-timeout 90 --summarize -- --target aarch64-apple-darwin
-              strip -x packages/next-swc/native/next-swc.*.node
-
-          - host:
-              - 'self-hosted'
-              - 'linux'
-              - 'x64'
-              - 'metal'
-              - 'docker'
-
-            target: 'aarch64-unknown-linux-gnu'
-            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian-aarch64
-            build: >-
-              set -e &&
-              apt update &&
-              apt install -y pkg-config &&
-              export JEMALLOC_SYS_WITH_LG_PAGE=16 &&
-              rustup toolchain install "${RUST_TOOLCHAIN}" &&
-              rustup default "${RUST_TOOLCHAIN}" &&
-              rustup target add aarch64-unknown-linux-gnu &&
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && corepack enable &&
-              export CC_aarch64_unknown_linux_gnu=/usr/aarch64-unknown-linux-gnu/bin/aarch64-unknown-linux-gnu-gcc &&
-              turbo run build-native-release --remote-cache-timeout 90 --summarize -- --target aarch64-unknown-linux-gnu --features plugin,rustls-tls,tracing/release_max_level_info &&
-              llvm-strip -x packages/next-swc/native/next-swc.*.node
-
-          - host:
-              - 'self-hosted'
-              - 'linux'
-              - 'x64'
-              - 'metal'
-              - 'docker'
-
-            target: 'aarch64-unknown-linux-musl'
-            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
-            build: >-
-              set -e &&
-              apk add --no-cache libc6-compat pkgconfig &&
-              export JEMALLOC_SYS_WITH_LG_PAGE=16 &&
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && corepack enable &&
-              rustup toolchain install "${RUST_TOOLCHAIN}" &&
-              rustup default "${RUST_TOOLCHAIN}" &&
-              rustup target add aarch64-unknown-linux-musl &&
-              turbo run build-native-release --remote-cache-timeout 90 --summarize -- --target aarch64-unknown-linux-musl &&
-              llvm-strip -x packages/next-swc/native/next-swc.*.node
-
-          - host:
-              - 'self-hosted'
               - 'windows'
               - 'x64'
 
@@ -221,6 +137,95 @@ jobs:
               corepack enable
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}"
               turbo run build-native-no-plugin-woa-release --remote-cache-timeout 90 --summarize -- --target aarch64-pc-windows-msvc
+
+          - host:
+              - 'self-hosted'
+              - 'linux'
+              - 'x64'
+              - 'metal'
+
+            target: 'x86_64-unknown-linux-gnu'
+            # [NOTE] If you want to update / modify build steps, check these things:
+            # - We use docker images to pin the glibc version to link against,
+            #   even if host target is identical to the container image (i.e host: x64-linux, image: x64-linux)
+            # - After build `objdump -T` prints out the glibc version next-swc is linked against,
+            #   to ensure it did not change unexpectedly if docker image, or other dependency changed
+            # - zig linker with portable glibc is avoided as it has known issues with static tls + node.js + multi threaded
+            #   environment.
+            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2022-10-24-x64
+            build: >-
+              set -e &&
+              apt update &&
+              apt install -y pkg-config xz-utils &&
+              rustup toolchain install "${RUST_TOOLCHAIN}" &&
+              rustup default "${RUST_TOOLCHAIN}" &&
+              rustup target add x86_64-unknown-linux-gnu &&
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" &&
+              unset CC_x86_64_unknown_linux_gnu && unset CC &&
+              cd packages/next-swc && npm run build-native-release -- --target x86_64-unknown-linux-gnu &&
+              strip native/next-swc.*.node &&
+              objdump -T native/next-swc.*.node | grep GLIBC_
+
+          - host:
+              - 'self-hosted'
+              - 'linux'
+              - 'x64'
+              - 'metal'
+
+            target: 'x86_64-unknown-linux-musl'
+            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2022-10-24-alpine
+            build: >-
+              set -e &&
+              apk update &&
+              apk add --no-cache libc6-compat pkgconfig &&
+              rustup toolchain install "${RUST_TOOLCHAIN}" &&
+              rustup default "${RUST_TOOLCHAIN}" &&
+              rustup target add x86_64-unknown-linux-musl &&
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" &&
+              cd packages/next-swc && npm run build-native-release -- --target x86_64-unknown-linux-musl &&
+              strip native/next-swc.*.node
+
+          - host:
+              - 'self-hosted'
+              - 'linux'
+              - 'x64'
+              - 'metal'
+
+            target: 'aarch64-unknown-linux-gnu'
+            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2022-10-24-aarch64
+            build: >-
+              set -e &&
+              apt update &&
+              apt install -y pkg-config xz-utils &&
+              export JEMALLOC_SYS_WITH_LG_PAGE=16 &&
+              rustup toolchain install "${RUST_TOOLCHAIN}" &&
+              rustup default "${RUST_TOOLCHAIN}" &&
+              rustup target add aarch64-unknown-linux-gnu &&
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" &&
+              export CC_aarch64_unknown_linux_gnu=/usr/aarch64-unknown-linux-gnu/bin/aarch64-unknown-linux-gnu-gcc &&
+              cd packages/next-swc && npm run build-native-release -- --target aarch64-unknown-linux-gnu --features plugin,rustls-tls,tracing/release_max_level_info &&
+              llvm-strip -x native/next-swc.*.node &&
+              objdump -T native/next-swc.*.node | grep GLIBC_
+
+          - host:
+              - 'self-hosted'
+              - 'linux'
+              - 'x64'
+              - 'metal'
+
+            target: 'aarch64-unknown-linux-musl'
+            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2022-10-24-alpine
+            build: >-
+              set -e &&
+              apk update &&
+              apk add --no-cache libc6-compat pkgconfig &&
+              export JEMALLOC_SYS_WITH_LG_PAGE=16 &&
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" &&
+              rustup toolchain install "${RUST_TOOLCHAIN}" &&
+              rustup default "${RUST_TOOLCHAIN}" &&
+              rustup target add aarch64-unknown-linux-musl &&
+              cd packages/next-swc && npm run build-native-release -- --target aarch64-unknown-linux-musl &&
+              llvm-strip -x native/next-swc.*.node
 
     name: stable - ${{ matrix.settings.target }} - node@16
     runs-on: ${{ matrix.settings.host }}
@@ -262,9 +267,25 @@ jobs:
         run: ${{ matrix.settings.setup }}
         if: ${{ matrix.settings.setup }}
 
-      - name: Build in docker
+      # we only need custom caching for docker builds
+      # as they are on an older Node.js version and have
+      # issues with turbo caching
+      - name: pull build cache
         if: ${{ matrix.settings.docker }}
+        run: node ./scripts/pull-turbo-cache.js ${{ matrix.settings.target }}
+
+      - name: check build exists
+        if: ${{ matrix.settings.docker }}
+        run: if [ -f packages/next-swc/native/next-swc.*.node ]; then echo "BUILD_EXISTS=yes" >> $GITHUB_OUTPUT; else echo "BUILD_EXISTS=no" >> $GITHUB_OUTPUT; fi
+        id: build-exists
+
+      - name: Build in docker
+        if: ${{ matrix.settings.docker && steps.build-exists.outputs.BUILD_EXISTS == 'no' }}
         run: docker run -v "/var/run/docker.sock":"/var/run/docker.sock"  -e RUST_TOOLCHAIN -e RUST_BACKTRACE -e NAPI_CLI_VERSION -e CARGO_TERM_COLOR -e CARGO_INCREMENTAL -e CARGO_PROFILE_RELEASE_LTO -e CARGO_REGISTRIES_CRATES_IO_PROTOCOL -e TURBO_API -e TURBO_TEAM -e TURBO_TOKEN -e TURBO_VERSION -e TURBO_REMOTE_ONLY -v ${{ env.HOME }}/.cargo/git:/root/.cargo/git -v ${{ env.HOME }}/.cargo/registry:/root/.cargo/registry -v ${{ github.workspace }}:/build -w /build --entrypoint=bash ${{ matrix.settings.docker }} -c "${{ matrix.settings.build }}"
+
+      - name: cache build
+        if: ${{ matrix.settings.docker && steps.build-exists.outputs.BUILD_EXISTS == 'no' }}
+        run: pnpm turbo run cache-build-native --force -- ${{ matrix.settings.target }}
 
       - name: 'Build'
         run: ${{ matrix.settings.build }}
@@ -272,7 +293,7 @@ jobs:
 
       - name: 'check build cache status'
         id: check-did-build
-        run: if [[ ! -z $(ls .turbo/runs) ]]; then echo "DID_BUILD=yup" >> $GITHUB_OUTPUT; fi
+        run: if [[ ! -z $(ls packages/next-swc/native) ]]; then echo "DID_BUILD=yup" >> $GITHUB_OUTPUT; fi
 
       # Trying to upload metrics for the Turbopack to datadog's CI pipeline execution
       - name: 'Collect turbopack build metrics'
