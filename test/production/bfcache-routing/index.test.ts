@@ -8,7 +8,7 @@ import {
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
-describe('export-routing', () => {
+describe('bfcache-routing', () => {
   let port: number
   let app: Server
 
@@ -35,20 +35,39 @@ describe('export-routing', () => {
 
     const browser = await webdriver(port, '/index.html', { headless: false })
 
+    // we overwrite the typical waitUntil: 'load' option here as the event is never being triggered if we hit the bfcache
+    const bfOptions = { waitUntil: 'commit' }
+
     await browser.elementByCss('a[href="https://example.vercel.sh"]').click()
     await browser.waitForCondition(
       'window.location.origin === "https://example.vercel.sh"'
     )
 
-    // this will never resolve in the failure case, as the page will be suspended indefinitely
-    await browser.back()
+    await browser.back(bfOptions)
 
-    expect(await browser.elementByCss('#counter').text()).toBe('0')
+    await browser.waitForCondition(
+      'window.location.origin.includes("localhost")'
+    )
 
-    // click the button
-    await browser.elementByCss('button').click()
+    let html = await browser.evalAsync('document.documentElement.innerHTML')
 
-    // counter should be 1
-    expect(await browser.elementByCss('#counter').text()).toBe('1')
+    expect(html).toContain('BFCache Test')
+
+    await browser.evalAsync(`document.querySelector('button').click()`)
+
+    // we should still be on the test page
+    html = await browser.evalAsync('document.documentElement.innerHTML')
+    expect(html).toContain('BFCache Test')
+
+    await browser.forward(bfOptions)
+    await browser.back(bfOptions)
+
+    await browser.waitForCondition(
+      'window.location.origin.includes("localhost")'
+    )
+
+    // we should be back on the test page with no errors
+    html = await browser.evalAsync('document.documentElement.innerHTML')
+    expect(html).toContain('BFCache Test')
   })
 })
