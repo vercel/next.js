@@ -184,10 +184,7 @@ async function createTreeCodeFromPath(
 }> {
   const splittedPath = pagePath.split(/[\\/]/)
   const pages: string[] = []
-  const isNotFoundRoute =
-    process.env.NODE_ENV === 'development'
-      ? page === '/not-found'
-      : page === '/_not-found'
+  const isNotFoundRoute = page === '/_not-found'
   const appDirPrefix = pagePath.startsWith(appDir) ? splittedPath[0] : appDir
 
   let rootLayout: string | undefined
@@ -251,7 +248,7 @@ async function createTreeCodeFromPath(
     const routerDirPath = `${appDirPrefix}${segmentPath}`
     const resolvedRouteDir = await resolveDir(routerDirPath)
 
-    if (resolvedRouteDir && !isNotFoundRoute) {
+    if (resolvedRouteDir) {
       metadata = await createStaticMetadataFromRoute(resolvedRouteDir, {
         basePath,
         segment: segmentPath,
