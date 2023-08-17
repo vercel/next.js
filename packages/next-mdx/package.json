@@ -1,6 +1,6 @@
 {
   "name": "@next/mdx",
-  "version": "13.4.17",
+  "version": "13.4.18-canary.0",
   "main": "index.js",
   "license": "MIT",
   "repository": {
