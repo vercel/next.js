@@ -2989,8 +2989,7 @@ export default async function build(
           }
 
           // remove temporary export folder
-          await recursiveDelete(exportOptions.outdir)
-          await fs.rmdir(exportOptions.outdir)
+          await fs.rm(exportOptions.outdir, { recursive: true, force: true })
           await fs.writeFile(
             manifestPath,
             JSON.stringify(pagesManifest, null, 2),
@@ -3125,15 +3124,15 @@ export default async function build(
       const images = { ...config.images }
       const { deviceSizes, imageSizes } = images
       ;(images as any).sizes = [...deviceSizes, ...imageSizes]
-      ;(images as any).remotePatterns = (
-        config?.images?.remotePatterns || []
-      ).map((p: RemotePattern) => ({
-        // Should be the same as matchRemotePattern()
-        protocol: p.protocol,
-        hostname: makeRe(p.hostname).source,
-        port: p.port,
-        pathname: makeRe(p.pathname ?? '**').source,
-      }))
+      images.remotePatterns = (config?.images?.remotePatterns || []).map(
+        (p: RemotePattern) => ({
+          // Should be the same as matchRemotePattern()
+          protocol: p.protocol,
+          hostname: makeRe(p.hostname).source,
+          port: p.port,
+          pathname: makeRe(p.pathname ?? '**').source,
+        })
+      )
 
       await fs.writeFile(
         path.join(distDir, IMAGES_MANIFEST),
