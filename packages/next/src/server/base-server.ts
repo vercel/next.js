@@ -2668,11 +2668,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             pathname: '/404',
             query,
             params: {},
-            isAppPath: true,
+            isAppPath: false,
             // Ensuring can't be done here because you never "match" a 404 route.
             shouldEnsure: true,
           })
-          console.log('findPageComponents:result', result)
           using404Page = result !== null
         }
       }

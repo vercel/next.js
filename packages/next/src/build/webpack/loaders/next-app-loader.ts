@@ -231,7 +231,6 @@ async function createTreeCodeFromPath(
     treeCode: string
   }> {
     const segmentPath = segments.join('/')
-    console.log('segmentPath', segmentPath)
 
     // Existing tree are the children of the current segment
     const props: Record<string, string> = {}
@@ -405,8 +404,7 @@ async function createTreeCodeFromPath(
           adjacentParallelSegment === 'children' ? '' : adjacentParallelSegment
         const defaultPath =
           (await resolver(
-            path.join(`${appDirPrefix}${segmentPath}`, actualSegment, 'default')
-            // `${appDirPrefix}${segmentPath}/${actualSegment}/default`
+            `${appDirPrefix}${segmentPath}/${actualSegment}/default`
           )) ?? 'next/dist/client/components/parallel-route-default'
 
         props[normalizeParallelKey(adjacentParallelSegment)] = `[
@@ -471,13 +469,6 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
 
   const isDefaultNotFoundPagePath = pagePath === defaultNotFoundPath
   const buildInfo = getModuleBuildInfo((this as any)._module)
-  console.log(
-    'nextAppLoader',
-    appPaths,
-    pagePath,
-    appDir,
-    isDefaultNotFoundPagePath
-  )
   const page = name.replace(/^app/, '')
   const middlewareConfig: MiddlewareConfig = JSON.parse(
     Buffer.from(middlewareConfigBase64, 'base64').toString()

@@ -556,7 +556,6 @@ export async function initialize(opts: {
           (fsChecker.appFiles.has(matchedOutput.itemPath) ||
             fsChecker.pageFiles.has(matchedOutput.itemPath))
         ) {
-          console.log('caught', matchedOutput.itemPath)
           await invokeRender(parsedUrl, 'pages', handleIndex, '/_error', {
             'x-invoke-status': '500',
             'x-invoke-error': JSON.stringify({

@@ -305,10 +305,6 @@ export default class DevServer extends Server {
         this.nextConfig.pageExtensions,
         true
       )
-      if (normalizedPath === '/404') {
-        appFile = require.resolve('next/dist/client/components/not-found-error')
-      }
-      console.log('appFile', appFile, 'normalizedPath', normalizedPath)
     }
 
     if (this.pagesDir) {
