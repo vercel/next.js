@@ -6,6 +6,7 @@ export default function Page() {
   const [counter, setCounter] = React.useState(0)
   return (
     <div>
+      <h1>BFCache Test</h1>
       <button onClick={() => setCounter((c) => c + 1)}>
         Trigger Re-Render
       </button>

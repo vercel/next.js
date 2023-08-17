@@ -212,14 +212,14 @@ export class Playwright extends BrowserInterface {
     await page.goto(url, { waitUntil: 'load' })
   }
 
-  back(): BrowserInterface {
+  back(options): BrowserInterface {
     return this.chain(async () => {
-      await page.goBack()
+      await page.goBack(options)
     })
   }
-  forward(): BrowserInterface {
+  forward(options): BrowserInterface {
     return this.chain(async () => {
-      await page.goForward()
+      await page.goForward(options)
     })
   }
   refresh(): BrowserInterface {

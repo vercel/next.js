@@ -373,12 +373,12 @@ function Router({
     // would trigger the mpa navigation logic again from the lines below.
     // This will restore the router to the initial state in the event that the app is restored from bfcache.
     function handlePageShow(event: PageTransitionEvent) {
-      if (!event.persisted) return
+      if (!event.persisted || !window.history.state?.tree) return
 
       dispatch({
         type: ACTION_RESTORE,
         url: new URL(window.location.href),
-        tree: window.history.state,
+        tree: window.history.state.tree,
       })
     }
 
