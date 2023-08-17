@@ -1,22 +1,21 @@
 ---
-title: Server-Side Rendering
-nav_title: Server-Side Rendering
-description: Learn how Server-side Rendering works and its subsets - static and dynamic rendering.
+title: Server Components
+description: Learn how you can use React Server Components to render parts of your application on the server.
 related:
   description: Learn how Next.js caches data and the result of static rendering.
   links:
     - app/building-your-application/caching
 ---
 
-> In the beginning, there was the server. - _Copilot_
+[React Server Components]() can be used to render parts of your application on the server. In Next.js, the rendering is split by route segments to enable streaming.
 
-Server-Side Rendering is a strategy for rendering parts of your web application on the server. In Next.js, this is done with [React Server Components](), and the rendering work is split by route segments to enable streaming.
-
-This page will go through how Server Components work, when you might use them, and the three subsets of Server-Side Rendering:
+There are three ways you can render Server Components with Next.js:
 
 - [Static Rendering](#static-rendering-default)
 - [Dynamic Rendering](#dynamic-rendering)
 - [Streaming](#streaming)
+
+This page will go through how Server Components work, how they are rendered, and when you might use them.
 
 ## React Server Components
 
