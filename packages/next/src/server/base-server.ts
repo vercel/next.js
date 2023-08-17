@@ -1045,7 +1045,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       const useInvokePath =
         !useMatchedPathHeader &&
         process.env.NEXT_RUNTIME !== 'edge' &&
-        process.env.__NEXT_PRIVATE_RENDER_WORKER &&
         invokePath
 
       if (useInvokePath) {
@@ -1136,7 +1135,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
       if (
         process.env.NEXT_RUNTIME !== 'edge' &&
-        process.env.__NEXT_PRIVATE_RENDER_WORKER &&
         req.headers['x-middleware-invoke']
       ) {
         const nextDataResult = await this.normalizeNextData(req, res, parsedUrl)
