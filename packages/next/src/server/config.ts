@@ -721,6 +721,11 @@ function assignDefaults(
         '*': 'modularize-import-loader?name={{ member }}&from=default&as=default&join=../esm/icons/{{ kebabCase member }}!lucide-react',
       },
     },
+    '@headlessui/react': {
+      transform:
+        'modularize-import-loader?name={{member}}&join=./components/{{lowerCase member}}/{{lowerCase member}}!@headlessui/react',
+      skipDefaultConversion: true,
+    },
     '@heroicons/react/20/solid': {
       transform: '@heroicons/react/20/solid/esm/{{member}}',
     },
