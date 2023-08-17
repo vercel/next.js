@@ -458,3 +458,8 @@ declare module 'next/dist/compiled/@opentelemetry/api' {
   import * as m from '@opentelemetry/api'
   export = m
 }
+
+declare module 'next/dist/compiled/jest-docblock' {
+  import m from 'jest-docblock'
+  export = m
+}
