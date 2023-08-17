@@ -8,5 +8,5 @@ export default function Page({ params: { id } }) {
     notFound()
   }
 
-  return <p id="page">{`dynamic [id]`}</p>
+  return <p id="page">{`dynamic-layout-without-not-found [id]`}</p>
 }
