@@ -7,7 +7,7 @@ related:
     - app/building-your-application/caching
 ---
 
-React Server Components allow us to write UI that can be rendered and cached on the server. In Next.js, the rendering work is further split by route segments to enable streaming, and there are three different server rendering strategies:
+React Server Components allow us to write UI that can be rendered and optionally cached on the server. In Next.js, the rendering work is further split by route segments to enable streaming and partial rendering, and there are three different server rendering strategies:
 
 - [Static Rendering](#static-rendering-default)
 - [Dynamic Rendering](#dynamic-rendering)
@@ -21,20 +21,15 @@ There are a couple of benefits to doing the rendering work on the server, includ
 
 - **Data Fetching**: Server Components allow you to move data fetching to the server, closer to your data source. This can improve performance by reducing the time it takes to fetch data needed for rendering.
 - **Security**: Server Components allow you to keep sensitive data and logic on the server, such as tokens and API keys, without the risk of exposing them to the client.
-- **Caching**: By rendering on the server, the result can be cached and reused on subsequent requests and across users. This can improve performance and reduce cost by reducing the amount of rendering done on each request.
-- **Bundle Sizes**: Server Components allow you to keep large dependencies that previously would impact the client JavaScript bundle size on the server. This is beneficial for users with slow internet or less powerful devices, as the client does not have to download and parse any JavaScript for Server Components.
-- **Initial Page Load and [First Contentful Paint (FCP)](https://web.dev/fcp/)**: On the server, we can generate HTML to allow users to view the page immediately, without waiting for the client to download and parse JavaScript.
-- **SEO**: Search engine bots can use the rendered HTML to crawl and index pages, this can improve your application's SEO.
-- **Streaming**: Server Components allow you to split the rendering work into chunks and stream them to the client as they become ready. This allows the user to see a preview of the page without waiting for the entire page to render.
+- **Caching**: By rendering on the server, the result can be cached and reused on subsequent requests and across users. This can improve performance and reduce cost by reducing the amount of rendering and data fetching done on each request.
+- **Bundle Sizes**: Server Components allow you to keep large dependencies that previously would impact the client JavaScript bundle size on the server. This is beneficial for users with slower internet or less powerful devices, as the client does not have to download, parse and execute any JavaScript for Server Components.
+- **Initial Page Load and [First Contentful Paint (FCP)](https://web.dev/fcp/)**: On the server, we can generate HTML to allow users to view the page immediately, without waiting for the client to download, parse and execute the JavaScript needed to render the page.
+- **Search Engine Optimization and Social Network Shareability**: The rendered HTML can be used by search engine bots to index your pages and social network bots to generate social card previews for your pages.
+- **Streaming**: Server Components allow you to split the rendering work into chunks and stream them to the client as they become ready. This allows the user to see parts of the page earlier without having to wait for the entire page to be rendered on the server.
 
 ## Using Server Components in Next.js
 
-By default, the [root layout](/docs/app/building-your-application/routing/pages-and-layouts#root-layout-required) of your Next.js application is a Server Component, making its children Server Components as well. This allows you automatically implement server rendering with no additional configuration.
-
-> **Why are Server Components the default?**
->
-> - On the server, routes can be rendered ahead of time and cached for better performance.
-> - During the [request lifecycle](/docs/app/building-your-application/rendering#request-response-lifecycle), you can do data fetching and other computational work on the server before sending the response to the client, reducing the number of requests made to the server from the client during rendering.
+By default, Next.js uses Server Components. This allows you automatically implement server rendering with no additional configuration, and you can opt into using Client Components when you needed, see [Client Components](/docs/app/building-your-app/rendering/client-components).
 
 ## How are Server Components rendered?
 
@@ -47,11 +42,9 @@ Each chunk is rendered in two steps:
 
 {/* Rendering Diagram */}
 
-After rendering, Next.js caches the rendered RSC Payload and HTML on the server - this is called [static rendering](#static-rendering-default).
+Then, on the client:
 
-Finally, on the client:
-
-1. The HTML is used to immediately show a fast non-interactive initial preview of the route.
+1. The HTML is used to immediately show a fast non-interactive preview of the route - this is for the initial page load only.
 2. The React Server Components Payload is used to reconcile the Client and Server Component trees, and update the DOM.
 3. The JavaScript instructions are used to [hydrate](https://react.dev/reference/react-dom/client/hydrateRoot) Client Components and make the application interactive.
 
@@ -71,7 +64,7 @@ There are three subsets of server rendering: Static, Dynamic, and Streaming.
 
 {/* Dynamic Rendering Diagram */}
 
-With Static Rendering, routes are rendered into RSC Payload and HTML. The result is cached at **build time** or after [data revalidation](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#revalidating-data). This is an optimization that allows you to share the result of the rendering work between users and server requests, resulting in faster page loads.
+With Static Rendering, routes are rendered at **build time**, or in the background after [data revalidation](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#revalidating-data). The result is cached and can be pushed to a [Content Delivery Network (CDN)](https://developer.mozilla.org/en-US/docs/Glossary/CDN). This optimization allows you to share the result of the rendering work between users and server requests.
 
 Static rendering is useful when a route has data that is not personalized to the user and can be known at build time, such as a static blog post or a product page.
 
@@ -79,9 +72,9 @@ Static rendering is useful when a route has data that is not personalized to the
 
 {/* Dynamic Rendering Diagram */}
 
-With Dynamic Rendering, routes are rendered into the RSC Payload for each user at **request time**.
+With Dynamic Rendering, routes are rendered for each user at **request time**.
 
-Dynamic rendering is useful when a route has data that is personalized to the user or has information that can only be known at request time, such as a cookies or the URL's search params.
+Dynamic rendering is useful when a route has data that is personalized to the user or has information that can only be known at request time, such as cookies or the URL's search params.
 
 > **Dynamic Routes with Cached Data**
 >
@@ -95,21 +88,16 @@ Dynamic rendering is useful when a route has data that is personalized to the us
 
 During rendering, if a [dynamic function](#dynamic-functions) or [uncached data request](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#opting-out-of-data-caching) is discovered, Next.js will switch to dynamically rendering the whole route. This table summarizes how dynamic functions and data caching affect whether a route is statically or dynamically rendered:
 
-| Route                | Dynamic Functions | Data       |
-| -------------------- | ----------------- | ---------- |
-| Statically Rendered  | No                | Cached     |
-| Dynamically Rendered | Yes               | Cached     |
-| Dynamic Rendered     | No                | Not Cached |
-| Dynamic Rendered     | Yes               | Not Cached |
+| Dynamic Functions | Data       | Route                |
+| ----------------- | ---------- | -------------------- |
+| No                | Cached     | Statically Rendered  |
+| Yes               | Cached     | Dynamically Rendered |
+| No                | Not Cached | Dynamically Rendered |
+| Yes               | Not Cached | Dynamically Rendered |
 
-From the table above, for a route to be fully static, all data must be cached. However, you can have a dynamically rendered route that uses both cached and uncached data fetches.
+In the table above, for a route to be fully static, all data must be cached. However, you can have a dynamically rendered route that uses both cached and uncached data fetches.
 
-> **Hybrid Server Rendering**:
->
-> The Next.js team is working towards a hybrid server rendering model where routes can be both: static and dynamic.
->
-> As a developer, you will not need to choose between static and dynamic rendering as Next.js will automatically choose the best rendering strategy for each route based on the features and APIs used.
-> Instead, you will need to choose when to [cache or revalidate specific data](/docs/app/building-your-application/data-fetching/fetchin-caching-and-revalidating), and you may choose to [stream](#streaming) parts of your UI.
+As a developer, you do not need to choose between static and dynamic rendering as Next.js will automatically choose the best rendering strategy for each route based on the features and APIs used. Instead, you choose when to [cache or revalidate specific data](/docs/app/building-your-application/data-fetching/fetchin-caching-and-revalidating), and you may choose to [stream](#streaming) parts of your UI.
 
 #### Dynamic Functions
 
