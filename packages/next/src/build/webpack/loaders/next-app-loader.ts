@@ -443,10 +443,6 @@ function createAbsolutePath(appDir: string, pathToTurnAbsolute: string) {
   )
 }
 
-const defaultNotFoundAbsolutePath = require.resolve(
-  'next/dist/client/components/not-found-error'
-)
-
 const nextAppLoader: AppLoader = async function nextAppLoader() {
   const loaderOptions = this.getOptions()
   const {
@@ -464,7 +460,6 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     middlewareConfig: middlewareConfigBase64,
   } = loaderOptions
 
-  const isDefaultNotFoundPagePath = pagePath === defaultNotFoundPath
   const buildInfo = getModuleBuildInfo((this as any)._module)
   const page = name.replace(/^app/, '')
   const middlewareConfig: MiddlewareConfig = JSON.parse(
@@ -473,9 +468,9 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
 
   buildInfo.route = {
     page,
-    absolutePagePath: isDefaultNotFoundPagePath
-      ? pagePath
-      : createAbsolutePath(appDir, pagePath),
+    absolutePagePath: pagePath.startsWith('private-next-app-dir')
+      ? createAbsolutePath(appDir, pagePath)
+      : pagePath,
     preferredRegion,
     middlewareConfig,
   }
