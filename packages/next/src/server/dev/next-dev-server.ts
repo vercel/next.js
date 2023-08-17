@@ -735,8 +735,14 @@ export default class DevServer extends Server {
         fetchHostname: this.fetchHostname,
         method: 'ensurePage',
         args: [opts],
-        ipcPort: process.env.__NEXT_PRIVATE_ROUTER_IPC_PORT,
-        ipcKey: process.env.__NEXT_PRIVATE_ROUTER_IPC_KEY,
+        ipcPort:
+          // @ts-ignore
+          globalThis.__NEXT_PRIVATE_ROUTER_IPC_PORT ||
+          process.env.__NEXT_PRIVATE_ROUTER_IPC_PORT,
+        ipcKey:
+          // @ts-ignore
+          globalThis.__NEXT_PRIVATE_ROUTER_IPC_KEY ||
+          process.env.__NEXT_PRIVATE_ROUTER_IPC_KEY,
       })
       return
     }
