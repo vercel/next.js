@@ -24,18 +24,18 @@ Here's a quick summary of the different use cases for Server and Client Componen
 
 ## Interleaving Server and Client Components
 
-When architecting your application, you can interleave Client and Server Components. It may be helpful to vizualise your UI as a tree of components. Starting with the [root layout](/docs/app/building-your-application/pages-and-layouts#root-layout-required), which is a Server Component, you can then render certain branches on the client by adding the [`"use client"`]() directive.
+When architecting your application, you can interleave Client and Server Components. It may be helpful to vizualise your UI as a tree of components. Starting with the [root layout](/docs/app/building-your-application/routing/pages-and-layouts#root-layout-required), which is a Server Component, you can then render certain branches on the client by adding the [`"use client"`]() directive.
 
 {/* Diagram - interleaving */}
 
 Within those client branches, you can nest Server Components or access resources on the server, however there are some things to keep in mind:
 
-- During a [request-response lifecycle](/docs/app/building-your-application/rendering#requet-response-lifecyle), your code moves from the server to the client. If you need to access data or resources on the server while on the client, you'll be making a **new** request to the server - not switching back.
+- During a [request-response lifecycle](/docs/app/building-your-application/rendering#request-response-lifecyle), your code moves from the server to the client. If you need to access data or resources on the server while on the client, you'll be making a **new** request to the server - not switching back.
 - Since code moves from the server to the client, Server Components are rendered first, regardless of where they are in your component tree. The rendering result (RSC Payload) will contain references to the locations of Client Components. Then, on the client, React uses the RSC Payload to reconcile Server and Client Components into a single tree.
 
 {/* Diagram */}
 
-- Since Client Components don't have any knowledge of Server Components during client rendering, you cannot import a Server Component into a Client Component module. Instead, you can can pass a Server Component as props of Client Component. See the [unsupported pattern](#unsupported-pattern-importing-server-components-into-client-components) and [supported pattern](#recommended-pattern-passing-server-components-to-client-components-as-props) sections below.
+- Since Client Components don't have any knowledge of Server Components during client rendering, you cannot import a Server Component into a Client Component module. Instead, you can can pass a Server Component as props of Client Component. See the [unsupported pattern](#unsupported-pattern-importing-server-components-into-client-components) and [supported pattern](#supported-pattern-passing-server-components-to-client-components-as-props) sections below.
 
 ### Unsupported Pattern: Importing Server Components into Client Components
 
@@ -391,7 +391,7 @@ export default function Page() {
 }
 ```
 
-We don't expect you to need to wrap most third-party components since it's likely you'll be using them within Client Components. However, one exception is providers, since they rely on React state and context, and are typically needed at the root of an application. [Learn more about third-party context providers below](#rendering-third-party-context-providers-in-server-components).
+We don't expect you to need to wrap most third-party components since it's likely you'll be using them within Client Components. However, one exception is providers, since they rely on React state and context, and are typically needed at the root of an application. [Learn more about third-party context providers below](#using-context-providers).
 
 <details>
   <summary>Advice for Library Authors</summary>
