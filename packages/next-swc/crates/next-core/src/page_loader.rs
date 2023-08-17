@@ -3,6 +3,7 @@ use std::io::Write;
 use anyhow::{bail, Result};
 use indexmap::indexmap;
 use turbo_tasks::{TryJoinIterExt, Value, Vc};
+use turbo_tasks_fs::FileSystemPathOption;
 use turbopack_binding::{
     turbo::tasks_fs::{rope::RopeBuilder, File, FileContent, FileSystemPath},
     turbopack::{
@@ -16,6 +17,7 @@ use turbopack_binding::{
             ident::AssetIdent,
             module::Module,
             output::{OutputAsset, OutputAssets},
+            proxied_asset::ProxiedAsset,
             reference_type::{EntryReferenceSubType, ReferenceType},
             source::Source,
             virtual_source::VirtualSource,
@@ -34,6 +36,7 @@ pub async fn create_page_loader(
     client_chunking_context: Vc<Box<dyn ChunkingContext>>,
     entry_asset: Vc<Box<dyn Source>>,
     pathname: Vc<String>,
+    rebase_prefix_path: Vc<FileSystemPathOption>,
 ) -> Result<Vc<Box<dyn ContentSource>>> {
     let asset = PageLoaderAsset {
         server_root,
@@ -41,6 +44,7 @@ pub async fn create_page_loader(
         client_chunking_context,
         entry_asset,
         pathname,
+        rebase_prefix_path,
     }
     .cell();
 
@@ -96,6 +100,7 @@ pub struct PageLoaderAsset {
     pub client_chunking_context: Vc<Box<dyn ChunkingContext>>,
     pub entry_asset: Vc<Box<dyn Source>>,
     pub pathname: Vc<String>,
+    pub rebase_prefix_path: Vc<FileSystemPathOption>,
 }
 
 #[turbo_tasks::value_impl]
@@ -107,6 +112,7 @@ impl PageLoaderAsset {
         client_chunking_context: Vc<Box<dyn ChunkingContext>>,
         entry_asset: Vc<Box<dyn Source>>,
         pathname: Vc<String>,
+        rebase_prefix_path: Vc<FileSystemPathOption>,
     ) -> Vc<Self> {
         Self {
             server_root,
@@ -114,6 +120,7 @@ impl PageLoaderAsset {
             client_chunking_context,
             entry_asset,
             pathname,
+            rebase_prefix_path,
         }
         .cell()
     }
@@ -138,12 +145,31 @@ impl PageLoaderAsset {
     }
 
     #[turbo_tasks::function]
-    async fn chunks_data(self: Vc<Self>) -> Result<Vc<ChunksData>> {
+    async fn chunks_data(
+        self: Vc<Self>,
+        rebase_prefix_path: Vc<FileSystemPathOption>,
+    ) -> Result<Vc<ChunksData>> {
         let this = self.await?;
-        Ok(ChunkData::from_assets(
-            this.server_root,
-            self.get_page_chunks(),
-        ))
+        let mut chunks = self.get_page_chunks();
+
+        // If we are provided a prefix path, we need to rewrite our chunk paths to
+        // remove that prefix.
+        if let Some(rebase_path) = &*rebase_prefix_path.await? {
+            let root_path = rebase_path.root();
+            let rebased = chunks
+                .await?
+                .iter()
+                .map(|chunk| {
+                    Vc::upcast(ProxiedAsset::new(
+                        *chunk,
+                        FileSystemPath::rebase(chunk.ident().path(), *rebase_path, root_path),
+                    ))
+                })
+                .collect();
+            chunks = Vc::cell(rebased);
+        };
+
+        Ok(ChunkData::from_assets(this.server_root, chunks))
     }
 }
 
@@ -171,7 +197,9 @@ impl OutputAsset for PageLoaderAsset {
             references.push(chunk);
         }
 
-        for chunk_data in &*self.chunks_data().await? {
+        // We don't need to strip the client relative prefix, because we won't be using
+        // these reference paths with `__turbopack_load__`.
+        for chunk_data in &*self.chunks_data(FileSystemPathOption::none()).await? {
             references.extend(chunk_data.references().await?.iter().copied());
         }
 
@@ -185,7 +213,11 @@ impl Asset for PageLoaderAsset {
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
         let this = &*self.await?;
 
-        let chunks_data = self.chunks_data().await?;
+        // The asset emits `__turbopack_load_page_chunks__`, which is implemented using
+        // `__turbopack_load__`. `__turbopack_load__` will prefix the path with the
+        // relative client path (`_next/`), so we need to remove that when we emit the
+        // chunk paths.
+        let chunks_data = self.chunks_data(this.rebase_prefix_path).await?;
         let chunks_data = chunks_data.iter().try_join().await?;
         let chunks_data: Vec<_> = chunks_data
             .iter()

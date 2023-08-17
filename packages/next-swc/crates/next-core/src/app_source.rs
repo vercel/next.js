@@ -427,7 +427,6 @@ fn next_edge_page_transition(
     )
 }
 
-#[allow(clippy::too_many_arguments)]
 #[turbo_tasks::function]
 fn app_context(
     project_path: Vc<FileSystemPath>,
@@ -768,7 +767,6 @@ async fn create_global_metadata_source(
     Ok(Vc::upcast(CombinedContentSource { sources }.cell()))
 }
 
-#[allow(clippy::too_many_arguments)]
 #[turbo_tasks::function]
 async fn create_app_page_source_for_route(
     pathname: String,
@@ -819,7 +817,6 @@ async fn create_app_page_source_for_route(
     Ok(source.issue_file_path(app_dir, format!("Next.js App Page Route {pathname}")))
 }
 
-#[allow(clippy::too_many_arguments)]
 #[turbo_tasks::function]
 async fn create_app_not_found_page_source(
     loader_tree: Vc<LoaderTree>,
@@ -865,7 +862,6 @@ async fn create_app_not_found_page_source(
     Ok(source.issue_file_path(app_dir, "Next.js App Page Route /404".to_string()))
 }
 
-#[allow(clippy::too_many_arguments)]
 #[turbo_tasks::function]
 async fn create_app_route_source_for_route(
     pathname: String,
