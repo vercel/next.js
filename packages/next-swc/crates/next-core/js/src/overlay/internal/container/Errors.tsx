@@ -147,7 +147,7 @@ function isWarning(issue: Issue) {
 }
 
 function isUserCode(issue: Issue) {
-  return !issue.context || !issue.context.includes('node_modules')
+  return !issue.file_path || !issue.file_path.includes('node_modules')
 }
 
 function isRuntimeWarning(error: ReadyRuntimeError) {
