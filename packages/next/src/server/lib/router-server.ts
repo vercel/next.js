@@ -676,7 +676,7 @@ export async function initialize(opts: {
       )
 
       const appNotFound = opts.dev
-        ? devInstance?.serverFields.hasAppNotFound
+        ? true // always have dev /not-found for app router
         : await fsChecker.getItem('/_not-found')
 
       if (appNotFound) {
