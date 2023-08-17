@@ -53,8 +53,12 @@ export class Playwright extends BrowserInterface {
     this.eventCallbacks[event]?.delete(cb)
   }
 
-  async setup(browserName: string, locale: string, javaScriptEnabled: boolean) {
-    const headless = !!process.env.HEADLESS
+  async setup(
+    browserName: string,
+    locale: string,
+    javaScriptEnabled: boolean,
+    headless: boolean
+  ) {
     let device
 
     if (process.env.DEVICE_NAME) {
@@ -106,6 +110,7 @@ export class Playwright extends BrowserInterface {
       return await chromium.launch({
         devtools: !launchOptions.headless,
         ...launchOptions,
+        ignoreDefaultArgs: ['--disable-back-forward-cache'],
       })
     }
   }
