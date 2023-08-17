@@ -424,9 +424,11 @@ export function getResolveRoutes(
                 .then(() => true)
                 .catch(() => false)))
           ) {
-            const workerResult = await (
-              renderWorkers.app || renderWorkers.pages
-            )?.initialize(renderWorkerOpts)
+            // Always prefer to run the middleware in the pages render worker
+            // instead of the main router worker.
+            const workerResult = await renderWorkers.pages?.initialize(
+              renderWorkerOpts
+            )
 
             if (!workerResult) {
               throw new Error(`Failed to initialize render worker "middleware"`)
