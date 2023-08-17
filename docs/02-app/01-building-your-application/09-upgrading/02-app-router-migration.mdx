@@ -86,7 +86,7 @@ The behavior of [`next/script`](/docs/app/api-reference/components/script) has b
 
 - Move any `beforeInteractive` scripts you previously included in `_document.js` to the root layout file (`app/layout.tsx`).
 - The experimental `worker` strategy does not yet work in `app` and scripts denoted with this strategy will either have to be removed or modified to use a different strategy (e.g. `lazyOnload`).
-- `onLoad`, `onReady`, and `onError` handlers will not work in Server Components so make sure to move them to a [Client Component](/docs/getting-started/react-essentials) or remove them altogether.
+- `onLoad`, `onReady`, and `onError` handlers will not work in Server Components so make sure to move them to a [Client Component](/docs/app/building-your-application/rendering/server-components) or remove them altogether.
 
 ### Font Optimization
 
@@ -188,7 +188,7 @@ export const metadata = {
 
 If you have an existing `_app` or `_document` file, you can copy the contents (e.g. global styles) to the root layout (`app/layout.tsx`). Styles in `app/layout.tsx` will _not_ apply to `pages/*`. You should keep `_app`/`_document` while migrating to prevent your `pages/*` routes from breaking. Once fully migrated, you can then safely delete them.
 
-If you are using any React Context providers, they will need to be moved to a [Client Component](/docs/getting-started/react-essentials).
+If you are using any React Context providers, they will need to be moved to a [Client Component](/docs/app/building-your-application/rendering/client-components).
 
 #### Migrating the `getLayout()` pattern to Layouts (Optional)
 
@@ -232,7 +232,7 @@ Page.getLayout = function getLayout(page) {
   }
   ```
 
-- Move the contents of `DashboardLayout` into a new [Client Component](/docs/getting-started/react-essentials#client-components) to retain `pages` directory behavior.
+- Move the contents of `DashboardLayout` into a new [Client Component](/docs/app/building-your-application/rendering/client-components) to retain `pages` directory behavior.
 
   ```jsx filename="app/dashboard/DashboardLayout.js"
   'use client' // this directive should be at top of the file, before any imports.
@@ -325,7 +325,7 @@ export default function Page() {
 
 ### Step 4: Migrating Pages
 
-- Pages in the [`app` directory](/docs/app/building-your-application/routing) are [Server Components](/docs/getting-started/react-essentials) by default. This is different from the `pages` directory where pages are [Client Components](/docs/getting-started/react-essentials).
+- Pages in the [`app` directory](/docs/app/building-your-application/routing) are [Server Components](/docs/app/building-your-application/rendering/server-components) by default. This is different from the `pages` directory where pages are [Client Components](/docs/app/building-your-application/rendering/client-components).
 - [Data fetching](/docs/app/building-your-application/data-fetching) has changed in `app`. `getServerSideProps`, `getStaticProps` and `getInitialProps` have been replaced with a simpler API.
 - The `app` directory uses nested folders to [define routes](/docs/app/building-your-application/routing/defining-routes) and a special `page.js` file to make a route segment publicly accessible.
 - | `pages` Directory | `app` Directory       | Route          |
@@ -622,8 +622,8 @@ export default function Page(props) {
 
 The `app` directory exposes new read-only functions to retrieve request data:
 
-- [`headers()`](/docs/app/api-reference/functions/headers): Based on the Web Headers API, and can be used inside [Server Components](/docs/getting-started/react-essentials) to retrieve request headers.
-- [`cookies()`](/docs/app/api-reference/functions/cookies): Based on the Web Cookies API, and can be used inside [Server Components](/docs/getting-started/react-essentials) to retrieve cookies.
+- [`headers()`](/docs/app/api-reference/functions/headers): Based on the Web Headers API, and can be used inside [Server Components](/docs/app/building-your-application/rendering/server-components) to retrieve request headers.
+- [`cookies()`](/docs/app/api-reference/functions/cookies): Based on the Web Cookies API, and can be used inside [Server Components](/docs/app/building-your-application/rendering/server-components) to retrieve cookies.
 
 ```tsx filename="app/page.tsx" switcher
 // `app` directory
