@@ -198,11 +198,6 @@ export async function initialize(opts: {
   } as any)
 
   if (!!config.experimental.appDir) {
-    // @ts-ignore
-    globalThis.__NEXT_PRIVATE_ROUTER_IPC_PORT = ipcPort + ''
-    // @ts-ignore
-    globalThis.__NEXT_PRIVATE_ROUTER_IPC_KEY = ipcValidationKey
-
     process.env.__NEXT_PRIVATE_ROUTER_IPC_PORT = ipcPort + ''
     process.env.__NEXT_PRIVATE_ROUTER_IPC_KEY = ipcValidationKey
     process.env.__NEXT_PRIVATE_PREBUNDLED_REACT = config.experimental
