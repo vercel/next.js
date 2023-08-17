@@ -195,11 +195,19 @@ export async function startServer({
           server.close()
           process.exit(0)
         }
+        const exception = (err: Error) => {
+          // If it's the render worker, we keep the process alive
+          if (process.env.__NEXT_PRIVATE_RENDER_WORKER) {
+            console.error(err)
+          } else {
+            cleanup()
+          }
+        }
         process.on('exit', cleanup)
         process.on('SIGINT', cleanup)
         process.on('SIGTERM', cleanup)
-        process.on('uncaughtException', cleanup)
-        process.on('unhandledRejection', cleanup)
+        process.on('uncaughtException', exception)
+        process.on('unhandledRejection', exception)
 
         const initResult = await getRequestHandlers({
           dir,
