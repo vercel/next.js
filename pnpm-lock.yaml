@@ -42,8 +42,8 @@ importers:
         specifier: 7.14.5
         version: 7.14.5(@babel/core@7.18.0)
       '@edge-runtime/jest-environment':
-        specifier: 2.2.1
-        version: 2.2.1
+        specifier: 2.2.5
+        version: 2.2.5
       '@fullhuman/postcss-purgecss':
         specifier: 1.3.0
         version: 1.3.0
@@ -636,7 +636,7 @@ importers:
   packages/eslint-config-next:
     dependencies:
       '@next/eslint-plugin-next':
-        specifier: 13.4.16
+        specifier: 13.4.17-canary.1
         version: link:../eslint-plugin-next
       '@rushstack/eslint-patch':
         specifier: ^1.1.3
@@ -697,7 +697,7 @@ importers:
   packages/next:
     dependencies:
       '@next/env':
-        specifier: 13.4.16
+        specifier: 13.4.17-canary.1
         version: link:../next-env
       '@swc/helpers':
         specifier: 0.5.1
@@ -797,14 +797,14 @@ importers:
         specifier: 1.1.0
         version: 1.1.0
       '@edge-runtime/cookies':
-        specifier: 3.2.1
-        version: 3.2.1
+        specifier: 3.3.0
+        version: 3.3.0
       '@edge-runtime/ponyfill':
         specifier: 2.3.0
         version: 2.3.0
       '@edge-runtime/primitives':
-        specifier: 3.0.1
-        version: 3.0.1
+        specifier: 3.0.4
+        version: 3.0.4
       '@hapi/accept':
         specifier: 5.0.2
         version: 5.0.2
@@ -824,19 +824,19 @@ importers:
         specifier: 1.1.0
         version: 1.1.0
       '@next/polyfill-module':
-        specifier: 13.4.16
+        specifier: 13.4.17-canary.1
         version: link:../next-polyfill-module
       '@next/polyfill-nomodule':
-        specifier: 13.4.16
+        specifier: 13.4.17-canary.1
         version: link:../next-polyfill-nomodule
       '@next/react-dev-overlay':
-        specifier: 13.4.16
+        specifier: 13.4.17-canary.1
         version: link:../react-dev-overlay
       '@next/react-refresh-utils':
-        specifier: 13.4.16
+        specifier: 13.4.17-canary.1
         version: link:../react-refresh-utils
       '@next/swc':
-        specifier: 13.4.16
+        specifier: 13.4.17-canary.1
         version: link:../next-swc
       '@opentelemetry/api':
         specifier: 1.4.1
@@ -1067,8 +1067,8 @@ importers:
         specifier: 4.19.0
         version: 4.19.0
       edge-runtime:
-        specifier: 2.4.4
-        version: 2.4.4
+        specifier: 2.4.5
+        version: 2.4.5
       events:
         specifier: 3.3.0
         version: 3.3.0
@@ -1230,7 +1230,7 @@ importers:
         version: 0.13.4
       sass-loader:
         specifier: 12.4.0
-        version: 12.4.0(webpack@5.86.0)
+        version: 12.4.0(sass@1.54.0)(webpack@5.86.0)
       schema-utils2:
         specifier: npm:schema-utils@2.7.1
         version: /schema-utils@2.7.1
@@ -1589,7 +1589,7 @@ importers:
         version: 1.0.17
     devDependencies:
       next:
-        specifier: 13.4.16
+        specifier: 13.4.17-canary.1
         version: link:../next
       outdent:
         specifier: 0.8.0
@@ -5077,8 +5077,8 @@ packages:
     resolution: {integrity: sha512-smLocSfrt3s53H/XSVP3/1kP42oqvrkjUPtyaFd1F79ux24oE31BKt+q0c6lsa6hOYrFzsIwyc5GXAI5JmfOew==}
     dev: true
 
-  /@edge-runtime/cookies@3.2.1:
-    resolution: {integrity: sha512-Grbe1sxqbTe5Qj8ttM0fEv5n9x+me4X+R7AoDstVRLxSlrC8ecZv86I8J/9swj3iiQxw1QqMTDXyRh+0d2xrnw==}
+  /@edge-runtime/cookies@3.3.0:
+    resolution: {integrity: sha512-3yTL34qahvZfrGdpYwKVvJMRYyBc510pQLSo4kMtkmlRH136S5cy+27vq+Z5h3eNFhANLxitTZ16Oz0XUayWhw==}
     engines: {node: '>=14'}
     dev: true
 
@@ -5087,14 +5087,13 @@ packages:
     engines: {node: '>=14'}
     dev: true
 
-  /@edge-runtime/jest-environment@2.2.1:
-    resolution: {integrity: sha512-CW/yJfQtxkkIeiRR/XSQgbMBpC3ZXiunxdovTmDx4RNvBdNN0PUmjcnNuYzXJ0QfHstSZbtW2sRv7GgfG4KvAA==}
+  /@edge-runtime/jest-environment@2.2.5:
+    resolution: {integrity: sha512-I9JYvOrWhsso/C/OmSxaawEEw7mUpjNVIwNJncBODVhLoFkn6gkHGZVTPR0e4g4yH9yq4gwXnSdC4BS/iwTSqw==}
     engines: {node: '>=14'}
     dependencies:
-      '@edge-runtime/vm': 3.0.1
+      '@edge-runtime/vm': 3.0.4
       '@jest/environment': 29.5.0
       '@jest/fake-timers': 29.5.0
-      '@jest/types': 29.5.0
       jest-mock: 29.5.0
       jest-util: 29.5.0
     dev: true
@@ -5104,28 +5103,16 @@ packages:
     engines: {node: '>=14'}
     dev: true
 
-  /@edge-runtime/primitives@3.0.1:
-    resolution: {integrity: sha512-l5NNDcPkKW4N6qRmB8zzpCF6uRW1S808V/zm72z7b/aWwZUYbmEPPkzyhGAW0aQxLU1pGdZ8u2gNjamdaU6RXw==}
+  /@edge-runtime/primitives@3.0.4:
+    resolution: {integrity: sha512-ZisWDavCpjroNbXZ1FZ2qHqlNfTXjIcQx+7aRdC+n6DVsTShUW7S+urGj2Wags5CH0oICWRoksYX5GngW7SZzw==}
     engines: {node: '>=14'}
     dev: true
 
-  /@edge-runtime/primitives@3.0.3:
-    resolution: {integrity: sha512-YnfMWMRQABAH8IsnFMJWMW+SyB4ZeYBPnR7V0aqdnew7Pq60cbH5DyFjS/FhiLwvHQk9wBREmXD7PP0HooEQ1A==}
-    engines: {node: '>=14'}
-    dev: true
-
-  /@edge-runtime/vm@3.0.1:
-    resolution: {integrity: sha512-69twXLIcqVx0iNlc1vFqnXgka2CZi2c/QBAmMzXBk0M6mPG+ICCBh2dd+cv1K+HW2pfLuSW+EskkFXWGeCf1Vw==}
+  /@edge-runtime/vm@3.0.4:
+    resolution: {integrity: sha512-/QvVIn2+nO48dO3cl5tD3cjoF/xJ7WfTKBIs/oKgfmmWbEQ4EixKlOTJEpcBdOni0E8FCHIc7yxoJGq1qcLdCg==}
     engines: {node: '>=14'}
     dependencies:
-      '@edge-runtime/primitives': 3.0.1
-    dev: true
-
-  /@edge-runtime/vm@3.0.3:
-    resolution: {integrity: sha512-SPfI1JeIRNs/4EEE2Oc0X6gG3RqjD1TnKu2lwmwFXq0435xgZGKhc3UiKkYAdoMn2dNFD73nlabMKHBRoMRpxg==}
-    engines: {node: '>=14'}
-    dependencies:
-      '@edge-runtime/primitives': 3.0.3
+      '@edge-runtime/primitives': 3.0.4
     dev: true
 
   /@emotion/unitless@0.8.1:
@@ -6704,8 +6691,8 @@ packages:
     resolution: {integrity: sha512-XQr74QaLeMiqhStEhLn1im9EOMnkypp7MZOwQhGzqp2Weu5eQJbpPxWxixxlYRKWPOmJjsk6qYfYH9kq43yc2w==}
     dev: true
 
-  /@next/react-refresh-utils@13.4.15(react-refresh@0.12.0)(webpack@5.86.0):
-    resolution: {integrity: sha512-CRPdown3t4eO5R2r0CkXSwil2hw3FjR7P7HfJYxIAjrDBlAl6lvTrCCdGSOx5X8qwjY2HWPvARaSSMc4LIcX3Q==}
+  /@next/react-refresh-utils@13.4.16(react-refresh@0.12.0)(webpack@5.86.0):
+    resolution: {integrity: sha512-kYXo3CMap1+vs6dsnynxu8iIh+o+iE0aSf4kCFH1WZw3u0+QaGJS4s6J8eRLMxo4Dpq/hYmuNB/oMCZmxVHi0Q==}
     peerDependencies:
       react-refresh: 0.12.0
       webpack: ^4 || ^5
@@ -7437,6 +7424,7 @@ packages:
 
   /@sinonjs/fake-timers@10.2.0:
     resolution: {integrity: sha512-OPwQlEdg40HAj5KNF8WW6q2KG4Z+cBCZb3m4ninfTZKaBmbIJodviQsDBoYMPHkOyJJMHnOJo5j2+LKDOhOACg==}
+    deprecated: Use version 10.1.0. Version 10.2.0 has potential breaking issues
     dependencies:
       '@sinonjs/commons': 3.0.0
     dev: true
@@ -12408,13 +12396,13 @@ packages:
       safe-buffer: 5.2.1
     dev: true
 
-  /edge-runtime@2.4.4:
-    resolution: {integrity: sha512-uq1YdIxkMDsBYLdSSp/w62PciCL46ic4m1Z/2G6N8RcAPI8p35O8u6hJQT83j28Dnt4U5iyvmwFMYouHMK51uA==}
+  /edge-runtime@2.4.5:
+    resolution: {integrity: sha512-SavsXBll1aPBbD1wu1bHVdk2hxbmRhWe0GfeShwjrdKmFu/TUBWo1712Yk68YVhAfsaBSAqtcAF1ei7qLDKzPA==}
     engines: {node: '>=14'}
     hasBin: true
     dependencies:
       '@edge-runtime/format': 2.1.0
-      '@edge-runtime/vm': 3.0.3
+      '@edge-runtime/vm': 3.0.4
       async-listen: 3.0.0
       mri: 1.2.0
       picocolors: 1.0.0
@@ -16513,7 +16501,7 @@ packages:
       '@types/stack-utils': 2.0.1
       chalk: 4.0.0
       graceful-fs: 4.2.11
-      micromatch: 4.0.5
+      micromatch: 4.0.4
       pretty-format: 29.5.0
       slash: 3.0.0
       stack-utils: 2.0.6
@@ -23235,7 +23223,7 @@ packages:
   /safer-buffer@2.1.2:
     resolution: {integrity: sha512-YZo3K82SD7Riyi0E1EQPojLz7kpepnSQI9IyPbHHg1XXXevb5dJI7tpyN2ADxGcQbHG7vcyRHk0cbwqcQriUtg==}
 
-  /sass-loader@12.4.0(webpack@5.86.0):
+  /sass-loader@12.4.0(sass@1.54.0)(webpack@5.86.0):
     resolution: {integrity: sha512-7xN+8khDIzym1oL9XyS6zP6Ges+Bo2B2xbPrjdMHEYyV3AQYhd/wXeru++3ODHF0zMjYmVadblSKrPrjEkL8mg==}
     engines: {node: '>= 12.13.0'}
     peerDependencies:
@@ -23253,6 +23241,7 @@ packages:
     dependencies:
       klona: 2.0.4
       neo-async: 2.6.2
+      sass: 1.54.0
       webpack: 5.86.0(@swc/core@1.3.55)
     dev: true
 
@@ -26413,7 +26402,7 @@ packages:
     name: '@vercel/turbopack-ecmascript-runtime'
     version: 0.0.0
     dependencies:
-      '@next/react-refresh-utils': 13.4.15(react-refresh@0.12.0)(webpack@5.86.0)
+      '@next/react-refresh-utils': 13.4.16(react-refresh@0.12.0)(webpack@5.86.0)
       '@types/node': 20.2.5
     transitivePeerDependencies:
       - react-refresh
