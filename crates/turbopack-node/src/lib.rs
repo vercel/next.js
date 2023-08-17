@@ -3,7 +3,6 @@
 #![feature(lint_reasons)]
 #![feature(arbitrary_self_types)]
 #![feature(async_fn_in_trait)]
-#![allow(clippy::too_many_arguments)]
 
 use std::{collections::HashMap, iter::once, thread::available_parallelism};
 

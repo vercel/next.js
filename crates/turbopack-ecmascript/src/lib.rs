@@ -6,7 +6,6 @@
 #![feature(async_fn_in_trait)]
 #![feature(arbitrary_self_types)]
 #![recursion_limit = "256"]
-#![allow(clippy::too_many_arguments)]
 
 pub mod analyzer;
 pub mod chunk;
