@@ -139,7 +139,6 @@ async function loadComponentsImpl({
       pathname === '/not-found' ||
       pathname === '/_not-found')
 
-  console.log('loadComponents', pathname)
   const [
     buildManifest,
     reactLoadableManifest,

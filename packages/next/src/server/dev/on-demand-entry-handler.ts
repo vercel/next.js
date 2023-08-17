@@ -36,6 +36,7 @@ import {
 import { RouteMatch } from '../future/route-matches/route-match'
 import { RouteKind } from '../future/route-kind'
 import { AppPageRouteMatch } from '../future/route-matches/app-page-route-match'
+import { DOT_NEXT_ALIAS } from '../../lib/constants'
 
 const debug = origDebug('next:on-demand-entry-handler')
 
@@ -744,7 +745,6 @@ export function onDemandEntryHandler({
       }
 
       const pageBundleType = getPageBundleType(pagePathData.bundlePath)
-      console.log('pageBundleType', pageBundleType)
       const addEntry = (
         compilerType: CompilerNameValues
       ): {

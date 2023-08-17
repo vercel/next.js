@@ -769,7 +769,6 @@ export default class DevServer extends Server {
       throw new WrappedBuildError(compilationErr)
     }
     try {
-      console.log('should ensure', shouldEnsure, 'appPaths', appPaths)
       if (shouldEnsure || this.renderOpts.customServer) {
         await this.ensurePage({
           page: pathname,

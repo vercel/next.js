@@ -162,6 +162,7 @@ async function createTreeCodeFromPath(
     metadataResolver,
     pageExtensions,
     basePath,
+    appDir,
   }: {
     page: string
     resolveDir: DirResolver
@@ -173,6 +174,7 @@ async function createTreeCodeFromPath(
     loaderContext: webpack.LoaderContext<AppLoaderOptions>
     pageExtensions: string[]
     basePath: string
+    appDir: string
   }
 ): Promise<{
   treeCode: string
@@ -181,10 +183,12 @@ async function createTreeCodeFromPath(
   globalError: string | undefined
 }> {
   const splittedPath = pagePath.split(/[\\/]/)
-  const appDirPrefix = splittedPath[0]
   const pages: string[] = []
-  const isNotFoundRoute = page === '/_not-found' || page === '/not-found'
-  console.log('appDirPrefix', appDirPrefix)
+  const isNotFoundRoute =
+    process.env.NODE_ENV === 'development'
+      ? page === '/not-found'
+      : page === '/_not-found'
+  const appDirPrefix = pagePath.startsWith(appDir) ? splittedPath[0] : appDir
 
   let rootLayout: string | undefined
   let globalError: string | undefined
@@ -227,6 +231,7 @@ async function createTreeCodeFromPath(
     treeCode: string
   }> {
     const segmentPath = segments.join('/')
+    console.log('segmentPath', segmentPath)
 
     // Existing tree are the children of the current segment
     const props: Record<string, string> = {}
@@ -247,7 +252,7 @@ async function createTreeCodeFromPath(
     const routerDirPath = `${appDirPrefix}${segmentPath}`
     const resolvedRouteDir = await resolveDir(routerDirPath)
 
-    if (resolvedRouteDir) {
+    if (resolvedRouteDir && !isNotFoundRoute) {
       metadata = await createStaticMetadataFromRoute(resolvedRouteDir, {
         basePath,
         segment: segmentPath,
@@ -464,18 +469,25 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     middlewareConfig: middlewareConfigBase64,
   } = loaderOptions
 
-  console.log('nextAppLoader', appPaths, pagePath)
+  const isDefaultNotFoundPagePath = pagePath === defaultNotFoundPath
   const buildInfo = getModuleBuildInfo((this as any)._module)
+  console.log(
+    'nextAppLoader',
+    appPaths,
+    pagePath,
+    appDir,
+    isDefaultNotFoundPagePath
+  )
   const page = name.replace(/^app/, '')
   const middlewareConfig: MiddlewareConfig = JSON.parse(
     Buffer.from(middlewareConfigBase64, 'base64').toString()
   )
+
   buildInfo.route = {
     page,
-    absolutePagePath:
-      pagePath === defaultNotFoundAbsolutePath
-        ? defaultNotFoundAbsolutePath
-        : createAbsolutePath(appDir, pagePath),
+    absolutePagePath: isDefaultNotFoundPagePath
+      ? pagePath
+      : createAbsolutePath(appDir, pagePath),
     preferredRegion,
     middlewareConfig,
   }
@@ -634,6 +646,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     loaderContext: this,
     pageExtensions,
     basePath,
+    appDir,
   })
 
   if (!treeCodeResult.rootLayout) {
@@ -654,7 +667,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
         pagePath,
         pageExtensions,
       })
-      console.log('verifyRootLayout:pagePath', pagePath, appDir)
+      // console.log('verifyRootLayout:pagePath', pagePath, appDir)
       if (!createdRootLayout) {
         let message = `${chalk.bold(
           pagePath.replace(`${APP_DIR_ALIAS}/`, '')
@@ -683,6 +696,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
         loaderContext: this,
         pageExtensions,
         basePath,
+        appDir,
       })
     }
   }

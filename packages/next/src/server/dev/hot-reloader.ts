@@ -1458,7 +1458,6 @@ export default class HotReloader {
     isApp?: boolean
     match?: RouteMatch
   }): Promise<void> {
-    console.log('hot-reloader:ensurePage', page, appPaths)
     // Make sure we don't re-build or dispose prebuilt pages
     if (page !== '/_error' && BLOCKED_PAGES.indexOf(page) !== -1) {
       return

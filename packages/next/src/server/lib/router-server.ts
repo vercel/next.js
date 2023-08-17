@@ -131,7 +131,6 @@ export async function initialize(opts: {
         InstanceType<typeof import('../dev/hot-reloader').default>['ensurePage']
       >[0]
     ) {
-      console.log('router-server: ensurePage')
       // TODO: remove after ensure is pulled out of server
       return await devInstance?.hotReloader.ensurePage(match)
     },
@@ -143,7 +142,6 @@ export async function initialize(opts: {
       await devInstance?.hotReloader?.buildFallbackError()
       // Build the error page to ensure the fallback is built too.
       // TODO: See if this can be moved into hotReloader or removed.
-      console.log('fallback err')
       await devInstance?.hotReloader.ensurePage({
         page: '/_error',
         clientOnly: false,
