@@ -4,7 +4,7 @@ nav_title: Patterns
 description: Recommended patterns for using Server and Client Components.
 ---
 
-When building React applications, you will need to consider what parts of your application should be rendered on the server or the client. This page covers some recommended composition patterns for writing code for the server and the client.
+When building React applications, you will need to consider what parts of your application should be rendered on the server or the client. This page covers some recommended composition patterns when using Server and Client Components.
 
 ## When to use Server and Client Components?
 
@@ -22,9 +22,168 @@ Here's a quick summary of the different use cases for Server and Client Componen
 | Use custom hooks that depend on state, effects, or browser-only APIs               | <Cross size={18} /> | <Check size={18} /> |
 | Use [React Class components](https://react.dev/reference/react/Component)          | <Cross size={18} /> | <Check size={18} /> |
 
-## 1. Starting on the server
+## Interleaving Server and Client Components
 
-Before opting into client-side rendering, you may wish to do some work on the server like fetching data, or accessing your database or backend services. To improve the performance of your applications, Next.js will also [statically render](/docs/building-your-application/rendering/server-side-rendering#static-dynamic-and-streaming-server-side-rendering) and cache your application on the server. Learn more about [Server-Side Rendering](/docs/building-your-application/rendering/server-side-rendering).
+When architecting your application, you can interleave Client and Server Components. It may be helpful to vizualise your UI as a tree of components. Starting with the [root layout](/docs/app/building-your-application/layout), which is a Server Component, you can then render certain branches on the client by adding the [`"use client"`]() directive.
+
+{/* Diagram - interleaving */}
+
+Within those client branches, you can nest Server Components or access resources on the server, however there are some things to keep in mind:
+
+- During a [request-response lifecycle](/docs/app/building-your-application/rendering#requet-response-lifecyle), your code moves from the server to the client. If you need to access data or resources on the server while on the client, you'll be making a **new** request to the server - not switching back.
+- Since code moves from the server to the client, Server Components are rendered first, regardless of where they are in your component tree. The rendering result (RSC Payload) will contain references to the locations of Client Components. Then, on the client, React uses the RSC Payload to reconcile Server and Client Components into a single tree.
+
+{/* Diagram */}
+
+- Since Client Components don't have any knowledge of Server Components during client rendering, you cannot import a Server Component into a Client Component module. Instead, you can can pass a Server Component as props of Client Component. See the [unsupported pattern](#unsupported-pattern-importing-server-components-into-client-components) and [supported pattern](#recommended-pattern-passing-server-components-to-client-components-as-props) sections below.
+
+### Unsupported Pattern: Importing Server Components into Client Components
+
+The following pattern is not supported. You cannot import a Server Component into a Client Component:
+
+```tsx filename="app/client-component.tsx" switcher highlight={4,17}
+'use client'
+
+// You cannot import a Server Component into a Client Component.
+import ServerComponent from './Server-Component'
+
+export default function ClientComponent({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  const [count, setCount] = useState(0)
+
+  return (
+    <>
+      <button onClick={() => setCount(count + 1)}>{count}</button>
+
+      <ServerComponent />
+    </>
+  )
+}
+```
+
+```jsx filename="app/client-component.js" switcher highlight={3,13}
+'use client'
+
+// You cannot import a Server Component into a Client Component.
+import ServerComponent from './Server-Component'
+
+export default function ClientComponent({ children }) {
+  const [count, setCount] = useState(0)
+
+  return (
+    <>
+      <button onClick={() => setCount(count + 1)}>{count}</button>
+
+      <ServerComponent />
+    </>
+  )
+}
+```
+
+#### Supported Pattern: Passing Server Components to Client Components as Props
+
+If you need to nest Server Components within Client Components, you can pass Server Components as props to Client Components.
+
+A common pattern is to use the React `children` prop to create a _"slot"_ in your Client Component.
+
+In the example below, `<ClientComponent>` to accept a generic `children` prop:
+
+```tsx filename="app/client-component.tsx" switcher highlight={6,15}
+'use client'
+
+import { useState } from 'react'
+
+export default function ClientComponent({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  const [count, setCount] = useState(0)
+
+  return (
+    <>
+      <button onClick={() => setCount(count + 1)}>{count}</button>
+      {children}
+    </>
+  )
+}
+```
+
+```jsx filename="app/client-component.js" switcher highlight={5,12}
+'use client'
+
+import { useState } from 'react'
+
+export default function ClientComponent({ children }) {
+  const [count, setCount] = useState(0)
+
+  return (
+    <>
+      <button onClick={() => setCount(count + 1)}>{count}</button>
+
+      {children}
+    </>
+  )
+}
+```
+
+Now, `<ClientComponent>` has no knowledge of what `children` is. It doesn't know that `children` will eventually be filled in by the result of a Server Component.
+
+The only responsibility `<ClientComponent>` has is to decide **where** `children` will eventually be placed.
+
+In a parent Server Component, you can import both the `<ClientComponent>` and `<ServerComponent>` and pass `<ServerComponent>` as a child of `<ClientComponent>`:
+
+```tsx filename="app/page.tsx"  highlight={11} switcher
+// This pattern works:
+// You can pass a Server Component as a child or prop of a
+// Client Component.
+import ClientComponent from './client-component'
+import ServerComponent from './server-component'
+
+// Pages in Next.js are Server Components by default
+export default function Page() {
+  return (
+    <ClientComponent>
+      <ServerComponent />
+    </ClientComponent>
+  )
+}
+```
+
+```jsx filename="app/page.js" highlight={11} switcher
+// This pattern works:
+// You can pass a Server Component as a child or prop of a
+// Client Component.
+import ClientComponent from './client-component'
+import ServerComponent from './server-component'
+
+// Pages in Next.js are Server Components by default
+export default function Page() {
+  return (
+    <ClientComponent>
+      <ServerComponent />
+    </ClientComponent>
+  )
+}
+```
+
+With this approach, `<ClientComponent>` and `<ServerComponent>` are decoupled and can be rendered independently.
+
+This composition patterns works across Server and Client Components because the component that receives the prop has no knowledge of **what** the prop is. The Client Component is only responsible for where the prop should be placed. This allows the passed prop to be rendered independently, in this case, on the server, well before the Client Component is rendered on the client.
+
+> **Good to know:**
+>
+> - The very same pattern of "lifting content up" has been used to avoid state changes in a parent component re-rendering an imported nested child component.
+> - You're not limited to the `children` prop. You can use any prop to pass JSX.
+
+## Server Component Patterns
+
+Before opting into client-side rendering, you may wish to do some work on the server like fetching data, or accessing your database or backend services.
+
+Here are some common patterns when working with Server Components:
 
 ### Sharing data between components
 
@@ -32,11 +191,11 @@ When fetching data on the server, there may be cases where you need to share dat
 
 Instead of using [React Context](https://react.dev/learn/passing-data-deeply-with-context) (which is not available on the server) or passing data as props, you can use [`fetch`](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#fetching-data-on-the-server-with-fetch) or React's [`cache`]() function to fetch the same data in the components that need it, without worrying about making duplicate requests for the same data. This is because React extends `fetch` to automatically memoize data requests, and the `cache` function can be used when `fetch` is not available.
 
-Learn more about [request memoization](/docs/app/building-your-application/caching#request-memoization) in React.
+Learn more about [memoization](/docs/app/building-your-application/caching#request-memoization) in React.
 
-### Keeping server-only code out of Client Components (Poisoning)
+### Keeping Server-only Code out of the Client Environment
 
-Since JavaScript modules can be shared between both Server and Client Components, it's possible for code that was only ever intended to be run on the server to sneak its way into the client.
+Since JavaScript modules can be shared between both Server and Client Components modules, it's possible for code that was only ever intended to be run on the server to sneak its way into the client.
 
 For example, take the following data-fetching function:
 
@@ -70,11 +229,39 @@ Since the environment variable `API_KEY` is not prefixed with `NEXT_PUBLIC`, it'
 
 As a result, even though `getData()` can be imported and executed on the client, it won't work as expected. And while making the variable public would make the function work on the client, you may not want to expose sensitive information to the client.
 
-### Using Third-party packages with Server Components
+To prevent this sort of unintended client usage of server code, we can use the `server-only` package to give other developers a build-time error if they ever accidentally import one of these modules into a Client Component.
 
-Since Server Components are a new React feature, third-party packages in the ecosystem are just beginning to add the `"use client"` directive to components that use client-only features like `useState`, `useEffect`, and `createContext`.
+To use `server-only`, first install the package:
 
-Today, many components from `npm` packages that use client-only features do not yet have the directive. These third-party components will work as expected within your own [Client Components](#the-use-client-directive) since they have the `"use client"` directive, but they won't work within Server Components.
+```bash filename="Terminal"
+npm install server-only
+```
+
+Then import the package into any module that contains server-only code:
+
+```js filename="lib/data.js"
+import 'server-only'
+
+export async function getData() {
+  const res = await fetch('https://external-service.com/data', {
+    headers: {
+      authorization: process.env.API_KEY,
+    },
+  })
+
+  return res.json()
+}
+```
+
+Now, any Client Component that imports `getData()` will receive a build-time error explaining that this module can only be used on the server.
+
+The corresponding package `client-only` can be used to mark modules that contain client-only code – for example, code that accesses the `window` object.
+
+### Using Third-party Packages and Providers
+
+Since Server Components are a new React feature, third-party packages and providers in the ecosystem are just beginning to add the `"use client"` directive to components that use client-only features like `useState`, `useEffect`, and `createContext`.
+
+Today, many components from `npm` packages that use client-only features do not yet have the directive. These third-party components will work as expected within Client Components since they have the `"use client"` directive, but they won't work within Server Components.
 
 For example, let's say you've installed the hypothetical `acme-carousel` package which has a `<Carousel />` component. This component uses `useState`, but it doesn't yet have the `"use client"` directive.
 
@@ -206,363 +393,18 @@ export default function Page() {
 
 We don't expect you to need to wrap most third-party components since it's likely you'll be using them within Client Components. However, one exception is providers, since they rely on React state and context, and are typically needed at the root of an application. [Learn more about third-party context providers below](#rendering-third-party-context-providers-in-server-components).
 
-### Providers
-
-Third-party npm packages often include providers that need to be rendered near the root of your application. If these providers include the `"use client"` directive, they can be imported inside of your Server Components. However, since Server Components are so new, many third-party providers won't have added the directive yet.
-
-If you try to render a third-party provider that doesn't have `"use client"`, it will cause an error:
-
-```tsx filename="app/layout.tsx" switcher
-import { ThemeProvider } from 'acme-theme'
-
-export default function RootLayout({ children }) {
-  return (
-    <html>
-      <body>
-        {/*  Error: `createContext` can't be used in Server Components */}
-        <ThemeProvider>{children}</ThemeProvider>
-      </body>
-    </html>
-  )
-}
-```
-
-```jsx filename="app/layout.js" switcher
-import { ThemeProvider } from 'acme-theme'
-
-export default function RootLayout({ children }) {
-  return (
-    <html>
-      <body>
-        {/*  Error: `createContext` can't be used in Server Components */}
-        <ThemeProvider>{children}</ThemeProvider>
-      </body>
-    </html>
-  )
-}
-```
-
-To fix this, you will need to wrap the third-party provider in your own Client Component:
-
-```jsx filename="app/providers.js"
-'use client'
-
-import { ThemeProvider } from 'acme-theme'
-import { AuthProvider } from 'acme-auth'
-
-export function Providers({ children }) {
-  return (
-    <ThemeProvider>
-      <AuthProvider>{children}</AuthProvider>
-    </ThemeProvider>
-  )
-}
-```
-
-Now, you can import and render `<Providers />` directly within your Server Components.
-
-```jsx filename="app/layout.js"
-import { Providers } from './providers'
-
-export default function RootLayout({ children }) {
-  return (
-    <html>
-      <body>
-        <Providers>{children}</Providers>
-      </body>
-    </html>
-  )
-}
-```
-
-With the providers rendered at the root, all the components and hooks from these libraries will work as expected within your own Client Components.
-
-Once a third-party library has added `"use client"` to its client code, you'll be able to remove the wrapper Client Component.
-
-#### Library Authors
+<details>
+  <summary>Advice for Library Authors</summary>
 
 - In a similar fashion, library authors creating packages to be consumed by other developers can use the `"use client"` directive to mark client entry points of their package. This allows users of the package to import package components directly into their Server Components without having to create a wrapping boundary.
 - You can optimize your package by using ['use client' deeper in the tree](#moving-client-components-to-the-leaves), allowing the imported modules to be part of the Server Component module graph.
 - It's worth noting some bundlers might strip out `"use client"` directives. You can find an example of how to configure esbuild to include the `"use client"` directive in the [React Wrap Balancer](https://github.com/shuding/react-wrap-balancer/blob/main/tsup.config.ts#L10-L13) and [Vercel Analytics](https://github.com/vercel/analytics/blob/main/packages/web/tsup.config.js#L26-L30) repositories.
 
-### 2. Moving to the client
+</details>
 
-### Moving Client Components
+#### Using Context Providers
 
-To reduce the Client JavaScript bundle size, we recommend moving Client Components down your component tree.
-
-For example, you may have a Layout that has static elements (e.g. logo, links, etc) and an interactive search bar that uses state.
-
-Instead of making the whole layout a Client Component, move the interactive logic to a Client Component (e.g. `<SearchBar />`) and keep your layout as a Server Component. This means you don't have to send all the component Javascript of the layout to the client.
-
-```tsx filename="app/layout.tsx" switcher
-// SearchBar is a Client Component
-import SearchBar from './searchbar'
-// Logo is a Server Component
-import Logo from './logo'
-
-// Layout is a Server Component by default
-export default function Layout({ children }: { children: React.ReactNode }) {
-  return (
-    <>
-      <nav>
-        <Logo />
-        <SearchBar />
-      </nav>
-      <main>{children}</main>
-    </>
-  )
-}
-```
-
-```jsx filename="app/layout.js" switcher
-// SearchBar is a Client Component
-import SearchBar from './searchbar'
-// Logo is a Server Component
-import Logo from './logo'
-
-// Layout is a Server Component by default
-export default function Layout({ children }) {
-  return (
-    <>
-      <nav>
-        <Logo />
-        <SearchBar />
-      </nav>
-      <main>{children}</main>
-    </>
-  )
-}
-```
-
-### Passing props from Server to Client Components (Serialization)
-
-If you fetch data in a Server Component, you may want to pass data down as props to Client Components. Props passed from the Server to Client Components need to be [serializable](https://developer.mozilla.org/en-US/docs/Glossary/Serialization). This means that values such as functions, Dates, etc, cannot be passed directly to Client Components.
-
-If your Client Components depend on data that is not serializable, you can [fetch data on the client with a third party library](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#fetching-data-on-the-client-with-third-party-libraries) or via a [Route Handler](/docs/app/building-your-application/routing/route-handlers).
-
-### 3. Switching back to the server
-
-After you have defined the boundary between Server and Client Components, you may want to switch back to rendering on the server.
-
-#### Unsupported Pattern: Importing Server Components into Client Components
-
-The following pattern is not supported. You cannot import a Server Component into a Client Component:
-
-```tsx filename="app/example-client-component.tsx" switcher highlight={5,18}
-'use client'
-
-// This pattern will **not** work!
-// You cannot import a Server Component into a Client Component.
-import ExampleServerComponent from './example-server-component'
-
-export default function ExampleClientComponent({
-  children,
-}: {
-  children: React.ReactNode
-}) {
-  const [count, setCount] = useState(0)
-
-  return (
-    <>
-      <button onClick={() => setCount(count + 1)}>{count}</button>
-
-      <ExampleServerComponent />
-    </>
-  )
-}
-```
-
-```jsx filename="app/example-client-component.js" switcher highlight={5,14}
-'use client'
-
-// This pattern will **not** work!
-// You cannot import a Server Component into a Client Component.
-import ExampleServerComponent from './example-server-component'
-
-export default function ExampleClientComponent({ children }) {
-  const [count, setCount] = useState(0)
-
-  return (
-    <>
-      <button onClick={() => setCount(count + 1)}>{count}</button>
-
-      <ExampleServerComponent />
-    </>
-  )
-}
-```
-
-#### Recommended Pattern: Passing Server Components to Client Components as Props
-
-Instead, when designing Client Components you can use React props to mark _"slots"_ for Server Components.
-
-The Server Component will be rendered on the server, and when the Client Component is rendered on the client, the _"slot"_ will be filled in with the rendered result of the Server Component.
-
-A common pattern is to use the React `children` prop to create the _"slot"_. We can refactor `<ExampleClientComponent>` to accept a generic `children` prop and move the import and explicit nesting of `<ExampleClientComponent>` up to a parent component.
-
-```tsx filename="app/example-client-component.tsx" switcher highlight={6,16}
-'use client'
-
-import { useState } from 'react'
-
-export default function ExampleClientComponent({
-  children,
-}: {
-  children: React.ReactNode
-}) {
-  const [count, setCount] = useState(0)
-
-  return (
-    <>
-      <button onClick={() => setCount(count + 1)}>{count}</button>
-
-      {children}
-    </>
-  )
-}
-```
-
-```jsx filename="app/example-client-component.js" switcher highlight={5,12}
-'use client'
-
-import { useState } from 'react'
-
-export default function ExampleClientComponent({ children }) {
-  const [count, setCount] = useState(0)
-
-  return (
-    <>
-      <button onClick={() => setCount(count + 1)}>{count}</button>
-
-      {children}
-    </>
-  )
-}
-```
-
-Now, `<ExampleClientComponent>` has no knowledge of what `children` is. It doesn't know that `children` will eventually be filled in by the result of a Server Component.
-
-The only responsibility `ExampleClientComponent` has is to decide where whatever `children` will eventually be placed.
-
-In a parent Server Component, you can import both the `<ExampleClientComponent>` and `<ExampleServerComponent>` and pass `<ExampleServerComponent>` as a child of `<ExampleClientComponent>`:
-
-```tsx filename="app/page.tsx"  highlight={11} switcher
-// This pattern works:
-// You can pass a Server Component as a child or prop of a
-// Client Component.
-import ExampleClientComponent from './example-client-component'
-import ExampleServerComponent from './example-server-component'
-
-// Pages in Next.js are Server Components by default
-export default function Page() {
-  return (
-    <ExampleClientComponent>
-      <ExampleServerComponent />
-    </ExampleClientComponent>
-  )
-}
-```
-
-```jsx filename="app/page.js" highlight={11} switcher
-// This pattern works:
-// You can pass a Server Component as a child or prop of a
-// Client Component.
-import ExampleClientComponent from './example-client-component'
-import ExampleServerComponent from './example-server-component'
-
-// Pages in Next.js are Server Components by default
-export default function Page() {
-  return (
-    <ExampleClientComponent>
-      <ExampleServerComponent />
-    </ExampleClientComponent>
-  )
-}
-```
-
-With this approach, the rendering of `<ExampleClientComponent>` and `<ExampleServerComponent>` are decoupled and can be rendered independently - aligning with Server Components, which are rendered on the server before Client Components.
-
-> **Good to know**
->
-> - This pattern is **already applied** in [layouts and pages](/docs/app/building-your-application/routing/pages-and-layouts) with the `children` prop so you don't have to create an additional wrapper component.
-> - Passing React components (JSX) to other components is not a new concept and has always been part of the React composition model.
-> - This composition strategy works across Server and Client Components because the component that receives the prop has no knowledge of **what** the prop is. It is only responsible for where the thing that it is passed should be placed.
->   - This allows the passed prop to be rendered independently, in this case, on the server, well before the Client Component is rendered on the client.
->   - The very same strategy of "lifting content up" has been used to avoid state changes in a parent component re-rendering an imported nested child component.
-> - You're not limited to the `children` prop. You can use any prop to pass JSX.
-
-## Passing Context to Server Components
-
-Most React applications rely on React [Context](https://react.dev/reference/react/useContext) to share data between components, either directly via [`createContext`](https://react.dev/reference/react/useContext), or indirectly via provider components imported from third-party libraries.
-
-In Next.js 13, context is fully supported within Client Components, but it **cannot** be created or consumed directly within Server Components. This is because Server Components have no React state (since they're not interactive), and context is primarily used for rerendering interactive components deep in the tree after some React state has been updated.
-
-We'll discuss alternatives for sharing data between Server Components, but first, let's take a look at how to use context within Client Components.
-
-All of the context APIs are fully supported within Client Components:
-
-```tsx filename="app/sidebar.tsx" switcher
-'use client'
-
-import { createContext, useContext, useState } from 'react'
-
-const SidebarContext = createContext()
-
-export function Sidebar() {
-  const [isOpen, setIsOpen] = useState()
-
-  return (
-    <SidebarContext.Provider value={{ isOpen }}>
-      <SidebarNav />
-    </SidebarContext.Provider>
-  )
-}
-
-function SidebarNav() {
-  let { isOpen } = useContext(SidebarContext)
-
-  return (
-    <div>
-      <p>Home</p>
-
-      {isOpen && <Subnav />}
-    </div>
-  )
-}
-```
-
-```jsx filename="app/sidebar.js" switcher
-'use client'
-
-import { createContext, useContext, useState } from 'react'
-
-const SidebarContext = createContext()
-
-export function Sidebar() {
-  const [isOpen, setIsOpen] = useState()
-
-  return (
-    <SidebarContext.Provider value={{ isOpen }}>
-      <SidebarNav />
-    </SidebarContext.Provider>
-  )
-}
-
-function SidebarNav() {
-  let { isOpen } = useContext(SidebarContext)
-
-  return (
-    <div>
-      <p>Home</p>
-
-      {isOpen && <Subnav />}
-    </div>
-  )
-}
-```
-
-However, context providers are typically rendered near the root of an application to share global concerns, like the current theme. Because context is not supported in Server Components, trying to create a context at the root of your application will cause an error:
+Context providers are typically rendered near the root of an application to share global concerns, like the current theme. Since [React context](https://react.dev/learn/passing-data-deeply-with-context) is not supported in Server Components, trying to create a context at the root of your application will cause an error:
 
 ```tsx filename="app/layout.tsx" switcher
 import { createContext } from 'react'
@@ -662,32 +504,58 @@ With the provider rendered at the root, all other Client Components throughout y
 
 > **Good to know**: You should render providers as deep as possible in the tree – notice how `ThemeProvider` only wraps `{children}` instead of the entire `<html>` document. This makes it easier for Next.js to optimize the static parts of your Server Components.
 
-### The "server only" package
+### Client Components
 
-To prevent this sort of unintended client usage of server code, we can use the `server-only` package to give other developers a build-time error if they ever accidentally import one of these modules into a Client Component.
+#### Moving Client Components Down the Tree
 
-To use `server-only`, first install the package:
+To reduce the Client JavaScript bundle size, we recommend moving Client Components down your component tree.
 
-```bash filename="Terminal"
-npm install server-only
-```
+For example, you may have a Layout that has static elements (e.g. logo, links, etc) and an interactive search bar that uses state.
 
-Then import the package into any module that contains server-only code:
+Instead of making the whole layout a Client Component, move the interactive logic to a Client Component (e.g. `<SearchBar />`) and keep your layout as a Server Component. This means you don't have to send all the component Javascript of the layout to the client.
 
-```js filename="lib/data.js"
-import 'server-only'
+```tsx filename="app/layout.tsx" switcher
+// SearchBar is a Client Component
+import SearchBar from './searchbar'
+// Logo is a Server Component
+import Logo from './logo'
 
-export async function getData() {
-  const res = await fetch('https://external-service.com/data', {
-    headers: {
-      authorization: process.env.API_KEY,
-    },
-  })
-
-  return res.json()
+// Layout is a Server Component by default
+export default function Layout({ children }: { children: React.ReactNode }) {
+  return (
+    <>
+      <nav>
+        <Logo />
+        <SearchBar />
+      </nav>
+      <main>{children}</main>
+    </>
+  )
 }
 ```
 
-Now, any Client Component that imports `getData()` will receive a build-time error explaining that this module can only be used on the server.
+```jsx filename="app/layout.js" switcher
+// SearchBar is a Client Component
+import SearchBar from './searchbar'
+// Logo is a Server Component
+import Logo from './logo'
 
-The corresponding package `client-only` can be used to mark modules that contain client-only code – for example, code that accesses the `window` object.
+// Layout is a Server Component by default
+export default function Layout({ children }) {
+  return (
+    <>
+      <nav>
+        <Logo />
+        <SearchBar />
+      </nav>
+      <main>{children}</main>
+    </>
+  )
+}
+```
+
+### Passing props from Server to Client Components (Serialization)
+
+If you fetch data in a Server Component, you may want to pass data down as props to Client Components. Props passed from the Server to Client Components need to be [serializable](https://developer.mozilla.org/en-US/docs/Glossary/Serialization). This means that values such as functions, Dates, etc, cannot be passed directly to Client Components.
+
+If your Client Components depend on data that is not serializable, you can [fetch data on the client with a third party library](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#fetching-data-on-the-client-with-third-party-libraries) or on the server via a [Route Handler](/docs/app/building-your-application/routing/route-handlers).
