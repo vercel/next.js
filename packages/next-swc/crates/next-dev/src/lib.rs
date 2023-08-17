@@ -294,7 +294,6 @@ async fn server_env(
     Ok(Vc::upcast(CustomProcessEnv::new(env, Vc::cell(map))))
 }
 
-#[allow(clippy::too_many_arguments)]
 #[turbo_tasks::function]
 async fn source(
     root_dir: String,
