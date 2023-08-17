@@ -1930,14 +1930,12 @@ export async function copyTracedFiles(
     serverOutputPath,
     `${
       moduleType
-        ? `import http from 'http'
-import path from 'path'
+        ? `import path from 'path'
 import { fileURLToPath } from 'url'
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
 import { startServer } from 'next/dist/server/lib/start-server.js'
 `
         : `
-const http = require('http')
 const path = require('path')
 const { startServer } = require('next/dist/server/lib/start-server')`
     }
@@ -1956,13 +1954,17 @@ if (!process.env.NEXT_MANUAL_SIG_HANDLE) {
 
 const currentPort = parseInt(process.env.PORT, 10) || 3000
 const hostname = process.env.HOSTNAME || 'localhost'
-let keepAliveTimeout = parseInt(process.env.KEEP_ALIVE_TIMEOUT, 10);
+
+let keepAliveTimeout = parseInt(process.env.KEEP_ALIVE_TIMEOUT, 10)
 const nextConfig = ${JSON.stringify({
       ...serverConfig,
       distDir: `./${path.relative(dir, distDir)}`,
     })}
 
 process.env.__NEXT_PRIVATE_STANDALONE_CONFIG = JSON.stringify(nextConfig)
+process.env.__NEXT_PRIVATE_PREBUNDLED_REACT = nextConfig.experimental && nextConfig.experimental.serverActions
+  ? 'experimental'
+  : 'next'
 
 if (
   Number.isNaN(keepAliveTimeout) ||
