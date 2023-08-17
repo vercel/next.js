@@ -658,7 +658,6 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
         pagePath,
         pageExtensions,
       })
-      // console.log('verifyRootLayout:pagePath', pagePath, appDir)
       if (!createdRootLayout) {
         let message = `${chalk.bold(
           pagePath.replace(`${APP_DIR_ALIAS}/`, '')
@@ -673,7 +672,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
             'To fix this error, make sure every page has a root layout.'
         }
 
-        // throw new Error(message)
+        throw new Error(message)
       }
 
       // Clear fs cache, get the new result with the created root layout.
