@@ -87,12 +87,14 @@ export async function runTests({
   trailingSlash = true,
   dynamicPage,
   dynamicApiRoute,
+  generateStaticParamsEnabled = true,
   expectedErrMsg,
 }: {
   isDev?: boolean
   trailingSlash?: boolean
   dynamicPage?: string
   dynamicApiRoute?: string
+  generateStaticParamsEnabled?: boolean
   expectedErrMsg?: string
 }) {
   if (trailingSlash !== undefined) {
@@ -112,6 +114,9 @@ export async function runTests({
       `const dynamic = 'force-static'`,
       `const dynamic = ${dynamicApiRoute}`
     )
+  }
+  if (!generateStaticParamsEnabled) {
+    slugPage.replace('export function generateStaticParams', 'function noop')
   }
   await fs.remove(distDir)
   await fs.remove(exportDir)
