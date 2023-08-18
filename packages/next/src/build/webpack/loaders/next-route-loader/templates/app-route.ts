@@ -1,13 +1,15 @@
 import '../../../../../server/node-polyfill-headers'
 
-import {
-  AppRouteRouteModule,
-  type AppRouteRouteModuleOptions,
-} from '../../../../../server/future/route-modules/app-route/module'
+// @ts-ignore this need to be imported from next/dist to be external
+import * as module from 'next/dist/server/future/route-modules/app-route/module'
+import type { AppRouteRouteModuleOptions } from '../../../../../server/future/route-modules/app-route/module'
 import { RouteKind } from '../../../../../server/future/route-kind'
 
 // @ts-expect-error - replaced by webpack/turbopack loader
 import * as userland from 'VAR_USERLAND'
+
+const AppRouteRouteModule =
+  module.AppRouteRouteModule as unknown as typeof import('../../../../../server/future/route-modules/app-route/module').AppRouteRouteModule
 
 // These are injected by the loader afterwards. This is injected as a variable
 // instead of a replacement because this could also be `undefined` instead of

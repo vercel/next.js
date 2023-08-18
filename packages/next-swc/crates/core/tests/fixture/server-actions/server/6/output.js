@@ -1,4 +1,4 @@
-/* __next_internal_action_entry_do_not_use__ $$ACTION_0 */ import __create_action_proxy__ from "private-next-rsc-action-proxy";
+/* __next_internal_action_entry_do_not_use__ $$ACTION_0 */ import { createActionProxy } from "private-next-rsc-action-proxy";
 import f, { f1, f2 } from 'foo';
 const f3 = 1;
 var f4;
@@ -8,11 +8,11 @@ if (true) {
     const g191 = 1;
 }
 function x() {
-    const f21 = 1;
+    const f2 = 1;
     const g201 = 1;
 }
 export function y(p, [p1, { p2 }], ...p3) {
-    const f21 = 1;
+    const f2 = 1;
     const f11 = 1;
     const f19 = 1;
     if (true) {
@@ -21,8 +21,8 @@ export function y(p, [p1, { p2 }], ...p3) {
     async function action(...args) {
         return $$ACTION_0.apply(null, (action.$$bound || []).concat(args));
     }
-    __create_action_proxy__("6d53ce510b2e36499b8f56038817b9bad86cabb4", [
-        f21,
+    createActionProxy("6d53ce510b2e36499b8f56038817b9bad86cabb4", [
+        f2,
         f11,
         p,
         p1,

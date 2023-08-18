@@ -32,7 +32,7 @@ DEALINGS IN THE SOFTWARE.
 #![deny(clippy::all)]
 #![feature(box_patterns)]
 
-use std::{cell::RefCell, env::current_dir, path::PathBuf, rc::Rc, sync::Arc};
+use std::{cell::RefCell, path::PathBuf, rc::Rc, sync::Arc};
 
 use auto_cjs::contains_cjs;
 use either::Either;
@@ -158,7 +158,7 @@ where
             Either::Left(turbopack_binding::swc::custom_transform::relay::relay(
                 config,
                 file.name.clone(),
-                current_dir().unwrap(),
+                std::env::current_dir().unwrap(),
                 opts.pages_dir.clone(),
                 None,
             ))

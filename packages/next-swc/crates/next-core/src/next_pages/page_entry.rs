@@ -13,7 +13,6 @@ use turbopack_binding::{
         core::{
             asset::AssetContent,
             context::AssetContext,
-            module::Module,
             reference_type::{EntryReferenceSubType, ReferenceType},
             source::Source,
             virtual_source::VirtualSource,
@@ -22,7 +21,7 @@ use turbopack_binding::{
     },
 };
 
-use crate::util::{load_next_js, resolve_next_module};
+use crate::util::{load_next_js_template, virtual_next_js_template_path};
 
 #[turbo_tasks::function]
 pub async fn create_page_ssr_entry_module(
@@ -43,17 +42,17 @@ pub async fn create_page_ssr_entry_module(
     let template_file = match reference_type {
         ReferenceType::Entry(EntryReferenceSubType::Page) => {
             // Load the Page entry file.
-            "/dist/esm/build/webpack/loaders/next-route-loader/templates/pages.js"
+            "build/webpack/loaders/next-route-loader/templates/pages.js"
         }
         ReferenceType::Entry(EntryReferenceSubType::PagesApi) => {
             // Load the Pages API entry file.
-            "/dist/esm/build/webpack/loaders/next-route-loader/templates/pages-api.js"
+            "build/webpack/loaders/next-route-loader/templates/pages-api.js"
         }
         _ => bail!("Invalid path type"),
     };
 
     // Load the file from the next.js codebase.
-    let file = load_next_js(project_root, template_file).await?.await?;
+    let file = load_next_js_template(project_root, template_file.to_string()).await?;
 
     let mut file = file
         .to_str()?
@@ -103,13 +102,7 @@ pub async fn create_page_ssr_entry_module(
 
     let file = File::from(result.build());
 
-    let resolve_result = resolve_next_module(project_root, template_file).await?;
-
-    let Some(template_path) = *resolve_result.first_module().await? else {
-        bail!("Expected to find module");
-    };
-
-    let template_path = template_path.ident().path();
+    let template_path = virtual_next_js_template_path(project_root, template_file.to_string());
 
     let source = VirtualSource::new(template_path, AssetContent::file(file.into()));
 

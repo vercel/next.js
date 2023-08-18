@@ -190,7 +190,7 @@ pub async fn get_app_entries(
         .map(|(pathname, entrypoint)| async move {
             Ok(match entrypoint {
                 Entrypoint::AppPage {
-                    original_name: _,
+                    original_name,
                     loader_tree,
                 } => get_app_page_entry(
                     rsc_context,
@@ -199,10 +199,11 @@ pub async fn get_app_entries(
                     *loader_tree,
                     app_dir,
                     pathname.clone(),
+                    original_name.clone(),
                     project_root,
                 ),
                 Entrypoint::AppRoute {
-                    original_name: _,
+                    original_name,
                     path,
                 } => get_app_route_entry(
                     rsc_context,
@@ -210,6 +211,7 @@ pub async fn get_app_entries(
                     rsc_context,
                     Vc::upcast(FileSource::new(*path)),
                     pathname.clone(),
+                    original_name.clone(),
                     project_root,
                 ),
             })

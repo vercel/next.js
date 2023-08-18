@@ -12,6 +12,9 @@ const { createNextInstall } = require('./test/lib/create-next-install')
 const glob = promisify(_glob)
 const exec = promisify(execOrig)
 
+const GROUP = process.env.CI ? '##[group]' : ''
+const ENDGROUP = process.env.CI ? '##[endgroup]' : ''
+
 // Try to read an external array-based json to filter tests to be allowed / or disallowed.
 // If process.argv contains a test to be executed, this'll append it to the list.
 const externalTestsFilterLists = process.env.NEXT_EXTERNAL_TESTS_FILTERS
@@ -272,7 +275,10 @@ async function main() {
     return cleanUpAndExit(1)
   }
 
-  console.log('Running tests:', '\n', ...testNames.map((name) => `${name}\n`))
+  console.log(`${GROUP}Running tests:
+${testNames.join('\n')}
+${ENDGROUP}`)
+  console.log(`total: ${testNames.length}`)
 
   const hasIsolatedTests = testNames.some((test) => {
     return configuredTestTypes.some(
@@ -288,7 +294,7 @@ async function main() {
     // for isolated next tests: e2e, dev, prod we create
     // a starter Next.js install to re-use to speed up tests
     // to avoid having to run yarn each time
-    console.log('Creating Next.js install for isolated tests')
+    console.log(`${GROUP}Creating Next.js install for isolated tests`)
     const reactVersion = process.env.NEXT_TEST_REACT_VERSION || 'latest'
     const { installDir, pkgPaths, tmpRepoDir } = await createNextInstall({
       parentSpan: mockTrace(),
@@ -307,9 +313,11 @@ async function main() {
     process.env.NEXT_TEST_PKG_PATHS = JSON.stringify(serializedPkgPaths)
     process.env.NEXT_TEST_TEMP_REPO = tmpRepoDir
     process.env.NEXT_TEST_STARTER = installDir
+    console.log(`${ENDGROUP}`)
   }
 
   const sema = new Sema(concurrency, { capacity: testNames.length })
+  const outputSema = new Sema(1, { capacity: testNames.length })
   const children = new Set()
   const jestPath = path.join(
     __dirname,
@@ -358,6 +366,22 @@ async function main() {
             CONTINUOUS_INTEGRATION: '',
             RUN_ID: '',
             BUILD_NUMBER: '',
+            // Format the output of junit report to include the test name
+            // For the debugging purpose to compare actual run list to the generated reports
+            // [NOTE]: This won't affect if junit reporter is not enabled
+            JEST_JUNIT_OUTPUT_NAME:
+              test && test.length > 0 ? test.replaceAll('/', '_') : undefined,
+            // Specify suite name for the test to avoid unexpected merging across different env / grouped tests
+            // This is not individual suites name (corresponding 'describe'), top level suite name which have redundant names by default
+            // [NOTE]: This won't affect if junit reporter is not enabled
+            JEST_SUITE_NAME: [
+              `${process.env.NEXT_TEST_MODE ?? 'default'}`,
+              groupArg,
+              testType,
+              test,
+            ]
+              .filter(Boolean)
+              .join(':'),
             ...(isFinalRun
               ? {
                   // Events can be finicky in CI. This switches to a more
@@ -374,7 +398,7 @@ async function main() {
         if (hideOutput) {
           outputChunks.push({ type, chunk })
         } else {
-          process.stderr.write(chunk)
+          process.stdout.write(chunk)
         }
       }
       child.stdout.on('data', handleOutput('stdout'))
@@ -386,20 +410,22 @@ async function main() {
         children.delete(child)
         if (code !== 0 || signal !== null) {
           if (hideOutput) {
+            await outputSema.acquire()
+            process.stdout.write(`${GROUP}${test} output\n`)
             // limit out to last 64kb so that we don't
             // run out of log room in CI
-            outputChunks.forEach(({ type, chunk }) => {
-              if (type === 'stdout') {
-                process.stdout.write(chunk)
-              } else {
-                process.stderr.write(chunk)
-              }
-            })
+            for (const { chunk } of outputChunks) {
+              process.stdout.write(chunk)
+            }
+            process.stdout.write(`end of ${test} output\n${ENDGROUP}\n`)
+            outputSema.release()
           }
           const err = new Error(
             code ? `failed with code: ${code}` : `failed with signal: ${signal}`
           )
-          err.output = outputChunks.map((chunk) => chunk.toString()).join('')
+          err.output = outputChunks
+            .map(({ chunk }) => chunk.toString())
+            .join('')
 
           return reject(err)
         }
@@ -498,11 +524,15 @@ async function main() {
       if ((!passed || shouldContinueTestsOnError) && isTestJob) {
         try {
           const testsOutput = await fs.readFile(`${test}${RESULTS_EXT}`, 'utf8')
+          await outputSema.acquire()
+          if (GROUP) console.log(`${GROUP}Result as JSON for tooling`)
           console.log(
             `--test output start--`,
             testsOutput,
             `--test output end--`
           )
+          if (ENDGROUP) console.log(ENDGROUP)
+          outputSema.release()
         } catch (err) {
           console.log(`Failed to load test output`, err)
         }

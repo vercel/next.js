@@ -1,4 +1,5 @@
-import { PagesRouteModule } from '../../../../../server/future/route-modules/pages/module'
+// @ts-ignore this need to be imported from next/dist to be external
+import * as module from 'next/dist/server/future/route-modules/pages/module'
 import { RouteKind } from '../../../../../server/future/route-kind'
 import { hoist } from '../helpers'
 
@@ -11,6 +12,9 @@ import App from 'VAR_MODULE_APP'
 // Import the userland code.
 // @ts-expect-error - replaced by webpack/turbopack loader
 import * as userland from 'VAR_USERLAND'
+
+const PagesRouteModule =
+  module.PagesRouteModule as unknown as typeof import('../../../../../server/future/route-modules/pages/module').PagesRouteModule
 
 // Re-export the component (should be the default export).
 export default hoist(userland, 'default')

@@ -1,7 +1,11 @@
 import type { LoaderTree } from '../../../../../server/lib/app-dir-module'
 
+// @ts-ignore this need to be imported from next/dist to be external
+import * as module from 'next/dist/server/future/route-modules/app-page/module'
 import { RouteKind } from '../../../../../server/future/route-kind'
-import { AppPageRouteModule } from '../../../../../server/future/route-modules/app-page/module'
+
+const AppPageRouteModule =
+  module.AppPageRouteModule as unknown as typeof import('../../../../../server/future/route-modules/app-page/module').AppPageRouteModule
 
 // These are injected by the loader afterwards.
 declare const tree: LoaderTree

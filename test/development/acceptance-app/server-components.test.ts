@@ -205,6 +205,76 @@ describe('Error Overlay for server components', () => {
       await cleanup()
     })
 
+    it('should show error when React.experiment_useOptimistic is called', async () => {
+      const { browser, cleanup } = await sandbox(
+        next,
+        new Map([
+          [
+            'app/page.js',
+            outdent`
+              import React from 'react'
+              export default function Page() {
+                const optimistic = React.experimental_useOptimistic()
+                return "Hello world"
+              }
+            `,
+          ],
+        ])
+      )
+
+      await check(async () => {
+        expect(
+          await browser
+            .waitForElementByCss('#nextjs__container_errors_desc')
+            .text()
+        ).toContain(
+          'experimental_useOptimistic only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/react-client-hook-in-server-component'
+        )
+        return 'success'
+      }, 'success')
+
+      expect(next.cliOutput).toContain(
+        'experimental_useOptimistic only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/react-client-hook-in-server-component'
+      )
+
+      await cleanup()
+    })
+
+    it('should show error when React.experiment_useOptimistic is renamed in destructuring', async () => {
+      const { browser, cleanup } = await sandbox(
+        next,
+        new Map([
+          [
+            'app/page.js',
+            outdent`
+              import { experimental_useOptimistic as useOptimistic } from 'react'
+              export default function Page() {
+                const optimistic = useOptimistic()
+                return "Hello world"
+              }
+            `,
+          ],
+        ])
+      )
+
+      await check(async () => {
+        expect(
+          await browser
+            .waitForElementByCss('#nextjs__container_errors_desc')
+            .text()
+        ).toContain(
+          'experimental_useOptimistic only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/react-client-hook-in-server-component'
+        )
+        return 'success'
+      }, 'success')
+
+      expect(next.cliOutput).toContain(
+        'experimental_useOptimistic only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/react-client-hook-in-server-component'
+      )
+
+      await cleanup()
+    })
+
     it('should show error when React.<client-hook> is called in external package', async () => {
       const { browser, cleanup } = await sandbox(
         next,

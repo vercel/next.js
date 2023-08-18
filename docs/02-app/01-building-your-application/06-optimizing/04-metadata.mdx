@@ -22,7 +22,7 @@ With both these options, Next.js will automatically generate the relevant `<head
 To define static metadata, export a [`Metadata` object](/docs/app/api-reference/functions/generate-metadata#metadata-object) from a `layout.js` or static `page.js` file.
 
 ```tsx filename="layout.tsx / page.tsx" switcher
-import { Metadata } from 'next'
+import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
   title: '...',
@@ -48,7 +48,7 @@ For all the available options, see the [API Reference](/docs/app/api-reference/f
 You can use `generateMetadata` function to `fetch` metadata that requires dynamic values.
 
 ```tsx filename="app/products/[id]/page.tsx" switcher
-import { Metadata, ResolvingMetadata } from 'next'
+import type { Metadata, ResolvingMetadata } from 'next'
 
 type Props = {
   params: { id: string }
