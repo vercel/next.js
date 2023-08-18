@@ -126,3 +126,12 @@ Using Azure Pipelines' [Cache task](https://docs.microsoft.com/en-us/azure/devop
     key: next | $(Agent.OS) | yarn.lock
     path: '$(System.DefaultWorkingDirectory)/.next/cache'
 ```
+
+### Monorepos
+
+In a monorepo, you might have multiple Next.js apps in subdirectories. To ensure caching works for all these apps, modify your cache path as follows
+
+`path: ${{ github.workspace }}/.next/cache`
+
+to:
+`path: ${{ github.workspace }}/apps/*/.next/cache`
