@@ -898,7 +898,8 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             // wrapped by a reference creation call.
             let create_ref_ident = private_ident!("createServerReference");
             if !self.config.is_server {
-                // import { createServerReference } from 'private-next-rsc-action-client-wrapper'
+                // import { createServerReference } from
+                // 'private-next-rsc-action-client-wrapper'
                 // createServerReference("action_id")
                 new.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                     span: DUMMY_SP,
