@@ -47,7 +47,10 @@ export type {
  * router.push(returnToPath as Route)
  * ```
  */
-export type Route = string & {}
+
+// `RouteInferType` is a stub here to avoid breaking `typedRoutes` when the type
+// isn't generated yet. It will be replaced when the webpack plugin runs.
+export type Route<RouteInferType = any> = string & {}
 
 // Extend the React types with missing properties
 declare module 'react' {
