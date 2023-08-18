@@ -35,7 +35,7 @@ createNextDescribe(
       const browser = await next.browser('/non-existent')
       await browser.waitForElementByCss('.next-error-h1')
       expect(await browser.elementByCss('.next-error-h1').text()).toBe('404')
-      expect(await browser.elementByCss('html').attr('class')).toBe(
+      expect(await browser.elementByCss('html').getAttribute('class')).toBe(
         'root-layout-html'
       )
     })
