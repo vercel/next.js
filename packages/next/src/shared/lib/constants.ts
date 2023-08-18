@@ -51,10 +51,8 @@ export const BUILD_ID_FILE = 'BUILD_ID'
 export const BLOCKED_PAGES = ['/_document', '/_app', '/_error']
 export const CLIENT_PUBLIC_FILES_PATH = 'public'
 export const CLIENT_STATIC_FILES_PATH = 'static'
-export const CLIENT_STATIC_FILES_RUNTIME = 'runtime'
 export const STRING_LITERAL_DROP_BUNDLE = '__NEXT_DROP_CLIENT_FILE__'
 export const NEXT_BUILTIN_DOCUMENT = '__NEXT_BUILTIN_DOCUMENT__'
-export const NEXT_CLIENT_SSR_ENTRY_SUFFIX = '.__ssr__'
 
 // server/[entry]/page_client-reference-manifest.js
 export const CLIENT_REFERENCE_MANIFEST = 'client-reference-manifest'

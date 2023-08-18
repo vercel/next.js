@@ -96,14 +96,13 @@ pub async fn get_edge_resolve_options_context(
     ];
 
     match ty {
-        ServerContextType::AppRSC { .. }
-        | ServerContextType::AppRoute { .. }
-        | ServerContextType::Middleware { .. } => {
+        ServerContextType::AppRSC { .. } | ServerContextType::AppRoute { .. } => {
             custom_conditions.push("react-server".to_string())
         }
         ServerContextType::Pages { .. }
         | ServerContextType::PagesData { .. }
-        | ServerContextType::AppSSR { .. } => {}
+        | ServerContextType::AppSSR { .. }
+        | ServerContextType::Middleware { .. } => {}
     };
 
     let resolve_options_context = ResolveOptionsContext {
@@ -141,8 +140,8 @@ pub fn get_edge_chunking_context(
     Vc::upcast(
         DevChunkingContext::builder(
             project_path,
-            node_root.join("edge".to_string()),
-            node_root.join("edge/chunks".to_string()),
+            node_root.join("server/edge".to_string()),
+            node_root.join("server/edge/chunks".to_string()),
             get_client_assets_path(client_root),
             environment,
         )

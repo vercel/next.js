@@ -5,6 +5,9 @@ import { getRSCModuleInformation } from '../../../analysis/get-page-static-info'
 import { getModuleBuildInfo } from '../get-module-build-info'
 
 const noopHeadPath = require.resolve('next/dist/client/components/noop-head')
+// For edge runtime it will be aliased to esm version by webpack
+const MODULE_PROXY_PATH =
+  'next/dist/build/webpack/loaders/next-flight-loader/module-proxy'
 
 export default function transformSource(
   this: any,
@@ -15,11 +18,6 @@ export default function transformSource(
   if (typeof source !== 'string') {
     throw new Error('Expected source to have been transformed to a string.')
   }
-
-  const moduleProxy =
-    this._compiler.name === 'edge-server'
-      ? 'next/dist/esm/build/webpack/loaders/next-flight-loader/module-proxy'
-      : 'next/dist/build/webpack/loaders/next-flight-loader/module-proxy'
 
   // Assign the RSC meta information to buildInfo.
   // Exclude next internal files which are not marked as client files
@@ -62,7 +60,7 @@ export default function transformSource(
       }
 
       let esmSource = `\
-import { createProxy } from "${moduleProxy}"
+import { createProxy } from "${MODULE_PROXY_PATH}"
 const proxy = createProxy(String.raw\`${this.resourcePath}\`)
 
 // Accessing the __esModule property and exporting $$typeof are required here.
@@ -102,7 +100,7 @@ export { e${cnt++} as ${ref} };`
 
   this.callback(
     null,
-    source.replace(RSC_MOD_REF_PROXY_ALIAS, moduleProxy),
+    source.replace(RSC_MOD_REF_PROXY_ALIAS, MODULE_PROXY_PATH),
     sourceMap
   )
 }

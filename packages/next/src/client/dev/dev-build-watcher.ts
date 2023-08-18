@@ -1,23 +1,29 @@
-// TODO: Remove use of `any` type. Fix no-use-before-define violations.
 /* eslint-disable @typescript-eslint/no-use-before-define */
 import { addMessageListener } from './error-overlay/websocket'
 
+type VerticalPosition = 'top' | 'bottom'
+type HorizonalPosition = 'left' | 'right'
+
 export default function initializeBuildWatcher(
-  toggleCallback: any,
+  toggleCallback: (cb: (event: string | { data: string }) => void) => void,
   position = 'bottom-right'
 ) {
-  const shadowHost = document.createElement('div')
-  const [verticalProperty, horizontalProperty] = position.split('-')
+  const type = 'div' as string
+  const shadowHost = document.createElement(type)
+  const [verticalProperty, horizontalProperty] = position.split('-') as [
+    VerticalPosition,
+    HorizonalPosition
+  ]
   shadowHost.id = '__next-build-watcher'
   // Make sure container is fixed and on a high zIndex so it shows
   shadowHost.style.position = 'fixed'
   // Ensure container's position to be top or bottom (default)
-  ;(shadowHost as any).style[verticalProperty] = '10px'
+  shadowHost.style[verticalProperty] = '10px'
   // Ensure container's position to be left or right (default)
-  ;(shadowHost as any).style[horizontalProperty] = '20px'
-  ;(shadowHost as any).style.width = 0
-  ;(shadowHost as any).style.height = 0
-  ;(shadowHost as any).style.zIndex = 99999
+  shadowHost.style[horizontalProperty] = '20px'
+  shadowHost.style.width = '0'
+  shadowHost.style.height = '0'
+  shadowHost.style.zIndex = '99999'
   document.body.appendChild(shadowHost)
 
   let shadowRoot
@@ -59,7 +65,7 @@ export default function initializeBuildWatcher(
     } catch {}
   })
 
-  function handleMessage(event: any) {
+  function handleMessage(event: string | { data: string }) {
     const obj =
       typeof event === 'string' ? { action: event } : JSON.parse(event.data)
 
