@@ -314,10 +314,10 @@ async function createTreeCodeFromPath(
       )
 
       // Add default not found error as root not found if not present
-      const hasNotFound = definedFilePaths.some(
+      const hasRootNotFound = definedFilePaths.some(
         ([type]) => type === 'not-found'
       )
-      if (isRootLayer && !hasNotFound) {
+      if (isRootLayer && !hasRootNotFound) {
         definedFilePaths.push(['not-found', defaultNotFoundPath])
       }
 
@@ -331,6 +331,16 @@ async function createTreeCodeFromPath(
           globalError = await resolver(
             `${path.dirname(layoutPath)}/${GLOBAL_ERROR_FILE_TYPE}`
           )
+
+          // For group root layout, add default not-found error if not present
+          if (!isRootLayer) {
+            const hasGroupRootNotFound = definedFilePaths.some(
+              ([type]) => type === 'not-found'
+            )
+            if (!hasGroupRootNotFound) {
+              definedFilePaths.push(['not-found', defaultNotFoundPath])
+            }
+          }
         }
       }
 

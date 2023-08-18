@@ -72,5 +72,21 @@ createNextDescribe(
         'This page could not be found.'
       )
     })
+
+    it('should render default not found for group routes if not found is not defined', async () => {
+      const groupDynamicBrowser = await next.browser('/group-dynamic/123')
+      const groupDynamic404Browser = await next.browser('/group-dynamic/404')
+
+      expect(await groupDynamicBrowser.elementByCss('#page').text()).toBe(
+        'group-dynamic [id]'
+      )
+
+      expect(
+        await groupDynamic404Browser.elementByCss('#next-error-h1').text()
+      ).toBe('404')
+      expect(
+        await groupDynamic404Browser.elementByCss('html').attr('class')
+      ).toBe('group-root-layout')
+    })
   }
 )
