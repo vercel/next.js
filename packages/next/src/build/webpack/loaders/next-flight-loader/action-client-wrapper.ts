@@ -5,7 +5,7 @@ import { callServer } from 'next/dist/client/app-call-server'
 
 // A noop wrapper to let the Flight client create the server reference.
 // See also: https://github.com/facebook/react/pull/26632
-export default function (id: string) {
+export function createServerReference(id: string) {
   // Since we're using the Edge build of Flight client for SSR [1], here we need to
   // also use the same Edge build to create the reference. For the client bundle,
   // we use the default and let Webpack to resolve it to the correct version.
