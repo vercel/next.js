@@ -75,16 +75,12 @@ createNextDescribe(
 
     it('should render default not found for group routes if not found is not defined', async () => {
       const browser = await next.browser('/group-dynamic/123')
-      console.group('0')
       expect(await browser.elementByCss('#page').text()).toBe(
         'group-dynamic [id]'
       )
 
-      console.group('1')
       await browser.loadPage(next.url + '/group-dynamic/404')
-      console.group('2')
       expect(await browser.elementByCss('.next-error-h1').text()).toBe('404')
-      console.group('3')
       expect(await browser.elementByCss('html').getAttribute('class')).toBe(
         'group-root-layout'
       )
