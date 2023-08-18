@@ -636,7 +636,7 @@ importers:
   packages/eslint-config-next:
     dependencies:
       '@next/eslint-plugin-next':
-        specifier: 13.4.17-canary.0
+        specifier: 13.4.18
         version: link:../eslint-plugin-next
       '@rushstack/eslint-patch':
         specifier: ^1.1.3
@@ -663,8 +663,8 @@ importers:
         specifier: ^7.31.7
         version: 7.31.8(eslint@8.31.0)
       eslint-plugin-react-hooks:
-        specifier: 5.0.0-canary-7118f5dd7-20230705
-        version: 5.0.0-canary-7118f5dd7-20230705(eslint@8.31.0)
+        specifier: ^4.5.0 || 5.0.0-canary-7118f5dd7-20230705
+        version: 4.5.0(eslint@8.31.0)
       typescript:
         specifier: '>=3.3.1'
         version: 4.8.2
@@ -697,7 +697,7 @@ importers:
   packages/next:
     dependencies:
       '@next/env':
-        specifier: 13.4.17-canary.0
+        specifier: 13.4.18
         version: link:../next-env
       '@swc/helpers':
         specifier: 0.5.1
@@ -824,19 +824,19 @@ importers:
         specifier: 1.1.0
         version: 1.1.0
       '@next/polyfill-module':
-        specifier: 13.4.17-canary.0
+        specifier: 13.4.18
         version: link:../next-polyfill-module
       '@next/polyfill-nomodule':
-        specifier: 13.4.17-canary.0
+        specifier: 13.4.18
         version: link:../next-polyfill-nomodule
       '@next/react-dev-overlay':
-        specifier: 13.4.17-canary.0
+        specifier: 13.4.18
         version: link:../react-dev-overlay
       '@next/react-refresh-utils':
-        specifier: 13.4.17-canary.0
+        specifier: 13.4.18
         version: link:../react-refresh-utils
       '@next/swc':
-        specifier: 13.4.17-canary.0
+        specifier: 13.4.18
         version: link:../next-swc
       '@opentelemetry/api':
         specifier: 1.4.1
@@ -1117,6 +1117,9 @@ importers:
       is-wsl:
         specifier: 2.2.0
         version: 2.2.0
+      jest-docblock:
+        specifier: 29.4.3
+        version: 29.4.3
       jest-worker:
         specifier: 27.0.0-next.5
         version: 27.0.0-next.5
@@ -1428,11 +1431,11 @@ importers:
   packages/next-swc/crates/next-core/js:
     dependencies:
       '@vercel/turbopack-ecmascript-runtime':
-        specifier: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230814.2
-        version: '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230814.2(react-refresh@0.12.0)(webpack@5.86.0)'
+        specifier: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230816.1
+        version: '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230816.1(react-refresh@0.12.0)(webpack@5.86.0)'
       '@vercel/turbopack-node':
-        specifier: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-node/js?turbopack-230814.2
-        version: '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-node/js?turbopack-230814.2'
+        specifier: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-node/js?turbopack-230816.1
+        version: '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-node/js?turbopack-230816.1'
       anser:
         specifier: ^2.1.1
         version: 2.1.1
@@ -1589,7 +1592,7 @@ importers:
         version: 1.0.17
     devDependencies:
       next:
-        specifier: 13.4.17-canary.0
+        specifier: 13.4.18
         version: link:../next
       outdent:
         specifier: 0.8.0
@@ -12913,8 +12916,8 @@ packages:
       eslint: 7.24.0
     dev: true
 
-  /eslint-plugin-react-hooks@5.0.0-canary-7118f5dd7-20230705(eslint@8.31.0):
-    resolution: {integrity: sha512-AZYbMo/NW9chdL7vk6HQzQhT+PvTAEVqWk9ziruUoW2kAOcN5qNyelv70e0F1VNQAbvutOC9oc+xfWycI9FxDw==}
+  /eslint-plugin-react-hooks@4.5.0(eslint@8.31.0):
+    resolution: {integrity: sha512-8k1gRt7D7h03kd+SAAlzXkQwWK22BnK6GKZG+FJA6BAGy22CFvl8kCIXKpVux0cCxMWDQUPqSok0LKaZ0aOcCw==}
     engines: {node: '>=10'}
     peerDependencies:
       eslint: ^3.0.0 || ^4.0.0 || ^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0-0
@@ -16263,6 +16266,13 @@ packages:
   /jest-docblock@27.0.6:
     resolution: {integrity: sha512-Fid6dPcjwepTFraz0YxIMCi7dejjJ/KL9FBjPYhBp4Sv1Y9PdhImlKZqYU555BlN4TQKaTc+F2Av1z+anVyGkA==}
     engines: {node: ^10.13.0 || ^12.13.0 || ^14.15.0 || >=15.0.0}
+    dependencies:
+      detect-newline: 3.1.0
+    dev: true
+
+  /jest-docblock@29.4.3:
+    resolution: {integrity: sha512-fzdTftThczeSD9nZ3fzA/4KkHtnmllawWrXO69vtI+L9WjEIuXWs4AmyME7lN5hU7dB0sHhuPfcKofRsUb/2Fg==}
+    engines: {node: ^14.15.0 || ^16.10.0 || >=18.0.0}
     dependencies:
       detect-newline: 3.1.0
     dev: true
@@ -26396,9 +26406,9 @@ packages:
   /zwitch@2.0.4:
     resolution: {integrity: sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A==}
 
-  '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230814.2(react-refresh@0.12.0)(webpack@5.86.0)':
-    resolution: {tarball: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230814.2}
-    id: '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230814.2'
+  '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230816.1(react-refresh@0.12.0)(webpack@5.86.0)':
+    resolution: {tarball: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230816.1}
+    id: '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230816.1'
     name: '@vercel/turbopack-ecmascript-runtime'
     version: 0.0.0
     dependencies:
@@ -26409,8 +26419,8 @@ packages:
       - webpack
     dev: false
 
-  '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-node/js?turbopack-230814.2':
-    resolution: {tarball: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-node/js?turbopack-230814.2}
+  '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-node/js?turbopack-230816.1':
+    resolution: {tarball: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-node/js?turbopack-230816.1}
     name: '@vercel/turbopack-node'
     version: 0.0.0
     dependencies:
