@@ -50,6 +50,7 @@ export type {
 
 // `RouteInferType` is a stub here to avoid breaking `typedRoutes` when the type
 // isn't generated yet. It will be replaced when the webpack plugin runs.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export type Route<RouteInferType = any> = string & {}
 
 // Extend the React types with missing properties
