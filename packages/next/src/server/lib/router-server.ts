@@ -198,13 +198,16 @@ export async function initialize(opts: {
     },
   } as any)
 
+  const { initialEnv } = require('@next/env') as typeof import('@next/env')
+
   if (!!config.experimental.appDir) {
     renderWorkers.app = await createWorker(
       ipcPort,
       ipcValidationKey,
       opts.isNodeDebugging,
       'app',
-      config
+      config,
+      initialEnv
     )
   }
   renderWorkers.pages = await createWorker(
@@ -212,7 +215,8 @@ export async function initialize(opts: {
     ipcValidationKey,
     opts.isNodeDebugging,
     'pages',
-    config
+    config,
+    initialEnv
   )
 
   // pre-initialize workers

@@ -721,6 +721,15 @@ function assignDefaults(
         '*': 'modularize-import-loader?name={{ member }}&from=default&as=default&join=../esm/icons/{{ kebabCase member }}!lucide-react',
       },
     },
+    '@headlessui/react': {
+      transform: {
+        Transition:
+          'modularize-import-loader?name={{member}}&join=./components/transitions/transition!@headlessui/react',
+        Tab: 'modularize-import-loader?name={{member}}&join=./components/tabs/tabs!@headlessui/react',
+        '*': 'modularize-import-loader?name={{member}}&join=./components/{{ kebabCase member }}/{{ kebabCase member }}!@headlessui/react',
+      },
+      skipDefaultConversion: true,
+    },
     '@heroicons/react/20/solid': {
       transform: '@heroicons/react/20/solid/esm/{{member}}',
     },

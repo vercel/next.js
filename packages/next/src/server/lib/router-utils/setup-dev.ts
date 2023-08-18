@@ -84,6 +84,7 @@ import { PageNotFoundError } from '../../../shared/lib/utils'
 import { srcEmptySsgManifest } from '../../../build/webpack/plugins/build-manifest-plugin'
 import { PropagateToWorkersField } from './types'
 import { MiddlewareManifest } from '../../../build/webpack/plugins/middleware-plugin'
+import { devPageFiles } from '../../../build/webpack/plugins/next-types-plugin/shared'
 
 type SetupOpts = {
   dir: string
@@ -815,6 +816,7 @@ async function startWatcher(opts: SetupOpts) {
 
       appFiles.clear()
       pageFiles.clear()
+      devPageFiles.clear()
 
       const sortedKnownFiles: string[] = [...knownFiles.keys()].sort(
         sortByPageExts(nextConfig.pageExtensions)
@@ -923,6 +925,9 @@ async function startWatcher(opts: SetupOpts) {
         if (!(isAppPath || isPagePath)) {
           continue
         }
+
+        // Collect all current filenames for the TS plugin to use
+        devPageFiles.add(fileName)
 
         let pageName = absolutePathToPage(fileName, {
           dir: isAppPath ? appDir! : pagesDir!,

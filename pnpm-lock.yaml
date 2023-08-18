@@ -216,8 +216,8 @@ importers:
         specifier: 6.0.5
         version: 6.0.5
       dd-trace:
-        specifier: 4.1.0
-        version: 4.1.0
+        specifier: 4.12.0
+        version: 4.12.0
       es5-ext:
         specifier: 0.10.53
         version: 0.10.53
@@ -636,7 +636,7 @@ importers:
   packages/eslint-config-next:
     dependencies:
       '@next/eslint-plugin-next':
-        specifier: 13.4.17
+        specifier: 13.4.18
         version: link:../eslint-plugin-next
       '@rushstack/eslint-patch':
         specifier: ^1.1.3
@@ -663,8 +663,8 @@ importers:
         specifier: ^7.31.7
         version: 7.31.8(eslint@8.31.0)
       eslint-plugin-react-hooks:
-        specifier: 5.0.0-canary-7118f5dd7-20230705
-        version: 5.0.0-canary-7118f5dd7-20230705(eslint@8.31.0)
+        specifier: ^4.5.0 || 5.0.0-canary-7118f5dd7-20230705
+        version: 4.5.0(eslint@8.31.0)
       typescript:
         specifier: '>=3.3.1'
         version: 4.8.2
@@ -697,7 +697,7 @@ importers:
   packages/next:
     dependencies:
       '@next/env':
-        specifier: 13.4.17
+        specifier: 13.4.18
         version: link:../next-env
       '@swc/helpers':
         specifier: 0.5.1
@@ -824,19 +824,19 @@ importers:
         specifier: 1.1.0
         version: 1.1.0
       '@next/polyfill-module':
-        specifier: 13.4.17
+        specifier: 13.4.18
         version: link:../next-polyfill-module
       '@next/polyfill-nomodule':
-        specifier: 13.4.17
+        specifier: 13.4.18
         version: link:../next-polyfill-nomodule
       '@next/react-dev-overlay':
-        specifier: 13.4.17
+        specifier: 13.4.18
         version: link:../react-dev-overlay
       '@next/react-refresh-utils':
-        specifier: 13.4.17
+        specifier: 13.4.18
         version: link:../react-refresh-utils
       '@next/swc':
-        specifier: 13.4.17
+        specifier: 13.4.18
         version: link:../next-swc
       '@opentelemetry/api':
         specifier: 1.4.1
@@ -1431,11 +1431,11 @@ importers:
   packages/next-swc/crates/next-core/js:
     dependencies:
       '@vercel/turbopack-ecmascript-runtime':
-        specifier: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230814.2
-        version: '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230814.2(react-refresh@0.12.0)(webpack@5.86.0)'
+        specifier: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230816.1
+        version: '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230816.1(react-refresh@0.12.0)(webpack@5.86.0)'
       '@vercel/turbopack-node':
-        specifier: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-node/js?turbopack-230814.2
-        version: '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-node/js?turbopack-230814.2'
+        specifier: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-node/js?turbopack-230816.1
+        version: '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-node/js?turbopack-230816.1'
       anser:
         specifier: ^2.1.1
         version: 2.1.1
@@ -1592,7 +1592,7 @@ importers:
         version: 1.0.17
     devDependencies:
       next:
-        specifier: 13.4.17
+        specifier: 13.4.18
         version: link:../next
       outdent:
         specifier: 0.8.0
@@ -5047,8 +5047,8 @@ packages:
       node-gyp-build: 4.6.0
     dev: true
 
-  /@datadog/native-iast-taint-tracking@1.4.1:
-    resolution: {integrity: sha512-wWJebnK5fADXGGwmoHi9ElMsvR/M4IZpRxBxzAfKU2WI1GRkCvSxQBhbIFUTQEuO7l6ZOpASWQ9yUXK3cx8n+w==}
+  /@datadog/native-iast-taint-tracking@1.5.0:
+    resolution: {integrity: sha512-SOWIk1M6PZH0osNB191Voz2rKBPoF5hISWVSK9GiJPrD40+xjib1Z/bFDV7EkDn3kjOyordSBdNPG5zOqZJdyg==}
     dependencies:
       node-gyp-build: 3.9.0
     dev: true
@@ -5062,18 +5062,16 @@ packages:
       node-gyp-build: 3.9.0
     dev: true
 
-  /@datadog/pprof@2.2.1:
-    resolution: {integrity: sha512-kPxN9ADjajUEU1zRtVqLT/q5AP8Ge7S1R1UkpUlKOzNgBznFXmNzhTtQqGhB8ew6LPssfIQTDVd/rBIcJvuMOw==}
+  /@datadog/pprof@3.1.0:
+    resolution: {integrity: sha512-Bg8O8yrHeL2KKHXhLoAAT33ZfzLnZ6rWfOjy8PkcNhUJy3UwNVLbUoApf+99EyLjqpzpk/kZXrIAMBzMMB8ilg==}
     engines: {node: '>=12'}
     requiresBuild: true
     dependencies:
       delay: 5.0.0
       node-gyp-build: 3.9.0
       p-limit: 3.1.0
-      pify: 5.0.0
       pprof-format: 2.0.7
       source-map: 0.7.4
-      split: 1.0.1
     dev: true
 
   /@datadog/sketches-js@2.1.0:
@@ -6694,8 +6692,8 @@ packages:
     resolution: {integrity: sha512-XQr74QaLeMiqhStEhLn1im9EOMnkypp7MZOwQhGzqp2Weu5eQJbpPxWxixxlYRKWPOmJjsk6qYfYH9kq43yc2w==}
     dev: true
 
-  /@next/react-refresh-utils@13.4.16(react-refresh@0.12.0)(webpack@5.86.0):
-    resolution: {integrity: sha512-kYXo3CMap1+vs6dsnynxu8iIh+o+iE0aSf4kCFH1WZw3u0+QaGJS4s6J8eRLMxo4Dpq/hYmuNB/oMCZmxVHi0Q==}
+  /@next/react-refresh-utils@13.4.18(react-refresh@0.12.0)(webpack@5.86.0):
+    resolution: {integrity: sha512-CfLRf5pK/IMsah4E3J3wHDZlev/GgZyhELD01QNINgsuHcQMopPT/e1Dk7wsQ3128SgMXTqkpyXaSsESdIp5tQ==}
     peerDependencies:
       react-refresh: 0.12.0
       webpack: ^4 || ^5
@@ -7186,6 +7184,21 @@ packages:
   /@opentelemetry/api@1.4.1:
     resolution: {integrity: sha512-O2yRJce1GOc6PAy3QxFM4NzFiWzvScDC1/5ihYBL6BUEVdq0XMWN01sppE+H6bBXbaFYipjwFLEWLg5PaSOThA==}
     engines: {node: '>=8.0.0'}
+    dev: true
+
+  /@opentelemetry/core@1.15.2(@opentelemetry/api@1.4.1):
+    resolution: {integrity: sha512-+gBv15ta96WqkHZaPpcDHiaz0utiiHZVfm2YOYSqFGrUaJpPkMoSuLBB58YFQGi6Rsb9EHos84X6X5+9JspmLw==}
+    engines: {node: '>=14'}
+    peerDependencies:
+      '@opentelemetry/api': '>=1.0.0 <1.5.0'
+    dependencies:
+      '@opentelemetry/api': 1.4.1
+      '@opentelemetry/semantic-conventions': 1.15.2
+    dev: true
+
+  /@opentelemetry/semantic-conventions@1.15.2:
+    resolution: {integrity: sha512-CjbOKwk2s+3xPIMcd5UNYQzsf+v94RczbdNix9/kQh38WiQkM90sUOi3if8eyHFgiBjBjhwXrA7W3ydiSQP9mw==}
+    engines: {node: '>=14'}
     dev: true
 
   /@pkgr/utils@2.3.1:
@@ -11788,21 +11801,24 @@ packages:
     resolution: {integrity: sha512-jyCETtSl3VMZMWeRo7iY1FL19ges1t55hMo5yaam4Jrsm5EPL89UQkoQRyiI+Yf4k8r2ZpdngkV8hr1lIdjb3Q==}
     dev: true
 
-  /dd-trace@4.1.0:
-    resolution: {integrity: sha512-00REqoM8a+51zjB5PxNL9xOZa+pto6Fnf0viZ7ZcQmQvvjM9oPsZ9U71zrJGGjASwJGBj7rPCYuhHUHp3YcFJQ==}
+  /dd-trace@4.12.0:
+    resolution: {integrity: sha512-QAvlKWUn8Tx75hbos7d7hk/9iCo3tKShd3vGg4mMtl3YWYZd7wsYUtX1PJUS+CjQgOPh2XJuBLAGYoamYYTeBg==}
     engines: {node: '>=16'}
     requiresBuild: true
     dependencies:
       '@datadog/native-appsec': 3.2.0
       '@datadog/native-iast-rewriter': 2.0.1
-      '@datadog/native-iast-taint-tracking': 1.4.1
+      '@datadog/native-iast-taint-tracking': 1.5.0
       '@datadog/native-metrics': 2.0.0
-      '@datadog/pprof': 2.2.1
+      '@datadog/pprof': 3.1.0
       '@datadog/sketches-js': 2.1.0
+      '@opentelemetry/api': 1.4.1
+      '@opentelemetry/core': 1.15.2(@opentelemetry/api@1.4.1)
       crypto-randomuuid: 1.0.0
       diagnostics_channel: 1.1.0
       ignore: 5.2.4
-      import-in-the-middle: 1.4.0
+      import-in-the-middle: 1.4.2
+      int64-buffer: 0.1.10
       ipaddr.js: 2.1.0
       istanbul-lib-coverage: 3.2.0
       koalas: 1.0.2
@@ -11814,12 +11830,13 @@ packages:
       lru-cache: 7.18.3
       methods: 1.1.2
       module-details-from-path: 1.0.3
+      msgpack-lite: 0.1.26
       node-abort-controller: 3.1.1
       opentracing: 0.14.7
       path-to-regexp: 0.1.7
-      protobufjs: 7.2.3
-      retry: 0.10.1
-      semver: 7.3.8
+      protobufjs: 7.2.4
+      retry: 0.13.1
+      semver: 7.5.4
     dev: true
 
   /debounce-fn@4.0.0:
@@ -12916,8 +12933,8 @@ packages:
       eslint: 7.24.0
     dev: true
 
-  /eslint-plugin-react-hooks@5.0.0-canary-7118f5dd7-20230705(eslint@8.31.0):
-    resolution: {integrity: sha512-AZYbMo/NW9chdL7vk6HQzQhT+PvTAEVqWk9ziruUoW2kAOcN5qNyelv70e0F1VNQAbvutOC9oc+xfWycI9FxDw==}
+  /eslint-plugin-react-hooks@4.5.0(eslint@8.31.0):
+    resolution: {integrity: sha512-8k1gRt7D7h03kd+SAAlzXkQwWK22BnK6GKZG+FJA6BAGy22CFvl8kCIXKpVux0cCxMWDQUPqSok0LKaZ0aOcCw==}
     engines: {node: '>=10'}
     peerDependencies:
       eslint: ^3.0.0 || ^4.0.0 || ^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0-0
@@ -13271,6 +13288,10 @@ packages:
   /etag@1.8.1:
     resolution: {integrity: sha1-Qa4u62XvpiJorr/qg6x9eSmbCIc=}
     engines: {node: '>= 0.6'}
+    dev: true
+
+  /event-lite@0.1.3:
+    resolution: {integrity: sha512-8qz9nOz5VeD2z96elrEKD2U433+L3DWdUdDkOINLGOJvx1GsMBbMn0aCeu28y8/e85A6mCigBiFlYMnTBEGlSw==}
     dev: true
 
   /event-stream@3.1.7:
@@ -15259,8 +15280,8 @@ packages:
       resolve-from: 5.0.0
     dev: true
 
-  /import-in-the-middle@1.4.0:
-    resolution: {integrity: sha512-ZW7MlnQSh/Z6eTaRVTzTO29obLoqiWN5kojA1N64S76dzStMXimGKcyjjRlnOAL14URUpoU0YZ/b21ByXpsmOA==}
+  /import-in-the-middle@1.4.2:
+    resolution: {integrity: sha512-9WOz1Yh/cvO/p69sxRmhyQwrIGGSp7EIdcb+fFNVi7CzQGQB8U1/1XrKVSbEd/GNOAeM0peJtmi7+qphe7NvAw==}
     dependencies:
       acorn: 8.8.2
       acorn-import-assertions: 1.9.0(acorn@8.8.2)
@@ -15403,6 +15424,10 @@ packages:
       string-width: 4.2.3
       strip-ansi: 6.0.1
       through: 2.3.8
+    dev: true
+
+  /int64-buffer@0.1.10:
+    resolution: {integrity: sha512-v7cSY1J8ydZ0GyjUHqF+1bshJ6cnEVLo9EnjB8p+4HDRPZc9N5jjmvUV7NvEsqQOKyH0pmIBFWXVQbiS0+OBbA==}
     dev: true
 
   /internal-slot@1.0.3:
@@ -18896,6 +18921,16 @@ packages:
   /ms@2.1.3:
     resolution: {integrity: sha512-6FlzubTLZG3J2a/NVCAleEhjzq5oxgHyaCU9yYXvcLsvoVaHJq/s5xXI6/XXP6tz7R9xAOtHnSO/tXtF3WRTlA==}
 
+  /msgpack-lite@0.1.26:
+    resolution: {integrity: sha512-SZ2IxeqZ1oRFGo0xFGbvBJWMp3yLIY9rlIJyxy8CGrwZn1f0ZK4r6jV/AM1r0FZMDUkWkglOk/eeKIL9g77Nxw==}
+    hasBin: true
+    dependencies:
+      event-lite: 0.1.3
+      ieee754: 1.2.1
+      int64-buffer: 0.1.10
+      isarray: 1.0.0
+    dev: true
+
   /msw@1.2.2(typescript@5.1.3):
     resolution: {integrity: sha512-GsW3PE/Es/a1tYThXcM8YHOZ1S1MtivcS3He/LQbbTCx3rbWJYCtWD5XXyJ53KlNPT7O1VI9sCW3xMtgFe8XpQ==}
     engines: {node: '>=14'}
@@ -21909,8 +21944,8 @@ packages:
       long: 4.0.0
     dev: true
 
-  /protobufjs@7.2.3:
-    resolution: {integrity: sha512-TtpvOqwB5Gdz/PQmOjgsrGH1nHjAQVCN7JG4A6r1sXRWESL5rNMAiRcBQlCAdKxZcAbstExQePYG8xof/JVRgg==}
+  /protobufjs@7.2.4:
+    resolution: {integrity: sha512-AT+RJgD2sH8phPmCf7OUZR8xGdcJRga4+1cOaXJ64hvcSkVhNcRHOwIxUatPH15+nj59WAGTDv3LSGZPEQbJaQ==}
     engines: {node: '>=12.0.0'}
     requiresBuild: true
     dependencies:
@@ -23032,6 +23067,11 @@ packages:
 
   /retry@0.12.0:
     resolution: {integrity: sha1-G0KmJmoh8HQh0bC1S33BZ7AcATs=}
+    engines: {node: '>= 4'}
+    dev: true
+
+  /retry@0.13.1:
+    resolution: {integrity: sha512-XQBQ3I8W1Cge0Seh+6gjj03LbmRFWuoszgK9ooCpwYIrhhoO80pfq4cUkU5DkknwfOfFteRwlZ56PYOGYyFWdg==}
     engines: {node: '>= 4'}
     dev: true
 
@@ -26406,21 +26446,21 @@ packages:
   /zwitch@2.0.4:
     resolution: {integrity: sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A==}
 
-  '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230814.2(react-refresh@0.12.0)(webpack@5.86.0)':
-    resolution: {tarball: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230814.2}
-    id: '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230814.2'
+  '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230816.1(react-refresh@0.12.0)(webpack@5.86.0)':
+    resolution: {tarball: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230816.1}
+    id: '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230816.1'
     name: '@vercel/turbopack-ecmascript-runtime'
     version: 0.0.0
     dependencies:
-      '@next/react-refresh-utils': 13.4.16(react-refresh@0.12.0)(webpack@5.86.0)
+      '@next/react-refresh-utils': 13.4.18(react-refresh@0.12.0)(webpack@5.86.0)
       '@types/node': 20.2.5
     transitivePeerDependencies:
       - react-refresh
       - webpack
     dev: false
 
-  '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-node/js?turbopack-230814.2':
-    resolution: {tarball: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-node/js?turbopack-230814.2}
+  '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-node/js?turbopack-230816.1':
+    resolution: {tarball: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-node/js?turbopack-230816.1}
     name: '@vercel/turbopack-node'
     version: 0.0.0
     dependencies:
