@@ -123,3 +123,5 @@ export const trace = (
 }
 
 export const flushAllTraces = () => reporter.flushAll()
+
+setInterval(() => flushAllTraces(), 10000)

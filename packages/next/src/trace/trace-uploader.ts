@@ -2,8 +2,6 @@ import findUp from 'next/dist/compiled/find-up'
 import fsPromise from 'fs/promises'
 import child_process from 'child_process'
 import assert from 'assert'
-// @ts-ignore
-import fetch from 'next/dist/compiled/node-fetch'
 import os from 'os'
 import { createInterface } from 'readline'
 import { createReadStream } from 'fs'
@@ -24,11 +22,17 @@ import {
   Tracer,
   trace as ttt,
 } from '@opentelemetry/api'
-diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.DEBUG)
+
+const { NEXT_TRACE_UPLOAD_DEBUG } = process.env
+
+if (NEXT_TRACE_UPLOAD_DEBUG) {
+  diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.DEBUG)
+}
 
 const EVENT_FILTER = new Set([
   'client-hmr-latency',
   'hot-reloader',
+  'navigation-to-hydration',
   'webpack-invalidated-client',
   'webpack-invalidated-server',
 ])
@@ -82,32 +86,9 @@ class NonRecordingSpan implements Span {
   recordException(_exception: any, _time?: any): void {}
 }
 
-const { NEXT_TRACE_UPLOAD_DEBUG } = process.env
-
 const [, , traceUploadUrl, mode, _isTurboSession, projectDir, distDir] =
   process.argv
 const isTurboSession = _isTurboSession === 'true'
-
-interface TraceEvent {
-  traceId: string
-  parentId?: number
-  name: string
-  id: number
-  startTime: number
-  timestamp: number
-  duration: number
-  tags: Record<string, unknown>
-}
-
-interface TraceMetadata {
-  arch: string
-  commit: string
-  cpus: number
-  mode: string
-  pkgName: string
-  platform: string
-  isTurboSession: boolean
-}
 
 ;(async function upload() {
   const projectPkgJsonPath = await findUp('package.json')
@@ -133,7 +114,7 @@ interface TraceMetadata {
   })
 
   const traceExporter = new OTLPTraceExporter({
-    url: 'https://api.honeycomb.io/v1/traces',
+    url: traceUploadUrl,
     headers: {
       'x-honeycomb-team': process.env.HONEYCOMB_TEAM,
       'x-honeycomb-dataset': 'program-next-dx-perf-poc',
@@ -239,15 +220,18 @@ interface TraceMetadata {
     }, undefined),
   })
 
-  console.log('0000000000', {
-    commit,
-    mode,
-    pkgName,
-    isTurboSession,
-    arch: os.arch(),
-    cpus: os.cpus().length,
-    platform: os.platform(),
-  })
+  if (NEXT_TRACE_UPLOAD_DEBUG) {
+    console.log('trace metadata attributes', {
+      commit,
+      mode,
+      pkgName,
+      isTurboSession,
+      arch: os.arch(),
+      cpus: os.cpus().length,
+      platform: os.platform(),
+    })
+  }
+
   pseudoRootSpan.setAttributes({
     commit,
     mode,

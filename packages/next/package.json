@@ -90,6 +90,9 @@
   },
   "dependencies": {
     "@next/env": "13.4.17",
+    "@opentelemetry/exporter-trace-otlp-http": "0.41.2",
+    "@opentelemetry/resources": "1.15.2",
+    "@opentelemetry/sdk-trace-base": "1.15.2",
     "@swc/helpers": "0.5.1",
     "busboy": "1.6.0",
     "caniuse-lite": "^1.0.30001406",
