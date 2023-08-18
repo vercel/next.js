@@ -946,9 +946,9 @@ async function startWatcher(opts: SetupOpts) {
 
         if (isAppPath) {
           const isRootNotFound = validFileMatcher.isRootNotFound(fileName)
+          hasRootAppNotFound = true
 
           if (isRootNotFound) {
-            hasRootAppNotFound = true
             continue
           }
           if (!isRootNotFound && !validFileMatcher.isAppRouterPage(fileName)) {
