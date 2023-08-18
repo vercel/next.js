@@ -262,7 +262,7 @@ class InnerScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerPr
         }
       )
 
-      // State is mutated to ensure that the focus and scroll is applied only once.
+      // Mutate after scrolling so that it can be read by `handleSmoothScroll`
       focusAndScrollRef.onlyHashChange = false
 
       // Set focus on the element
