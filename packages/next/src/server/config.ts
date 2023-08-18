@@ -722,8 +722,12 @@ function assignDefaults(
       },
     },
     '@headlessui/react': {
-      transform:
-        'modularize-import-loader?name={{member}}&join=./components/{{lowerCase member}}/{{lowerCase member}}!@headlessui/react',
+      transform: {
+        Transition:
+          'modularize-import-loader?name={{member}}&join=./components/transitions/transition!@headlessui/react',
+        Tab: 'modularize-import-loader?name={{member}}&join=./components/tabs/tabs!@headlessui/react',
+        '*': 'modularize-import-loader?name={{member}}&join=./components/{{ kebabCase member }}/{{ kebabCase member }}!@headlessui/react',
+      },
       skipDefaultConversion: true,
     },
     '@heroicons/react/20/solid': {
