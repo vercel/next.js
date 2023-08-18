@@ -950,7 +950,9 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                     declare: false,
                                     decls: vec![VarDeclarator {
                                         span: DUMMY_SP,
-                                        name: Pat::Ident(ident.into()),
+                                        name: Pat::Ident(
+                                            Ident::new(export_name.clone().into(), DUMMY_SP).into(),
+                                        ),
                                         init: Some(Box::new(Expr::Call(CallExpr {
                                             span: DUMMY_SP,
                                             callee: Callee::Expr(Box::new(Expr::Ident(
