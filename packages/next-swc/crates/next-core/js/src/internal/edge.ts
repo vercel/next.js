@@ -10,7 +10,7 @@ import type {
 } from 'next/dist/server/base-http/node'
 import { parse, ParsedUrlQuery } from 'querystring'
 import type { Params } from 'next/dist/shared/lib/router/utils/route-matcher'
-import { FetchEventResult } from 'next/dist/server/web/types'
+import type { FetchEventResult } from 'next/dist/server/web/types'
 import { getCloneableBody } from 'next/dist/server/body-streams'
 
 // This is an adapted version of a similar function in next-dev-server.
@@ -19,7 +19,6 @@ export async function runEdgeFunction({
   edgeInfo,
   outputDir,
   req,
-  res,
   query,
   params,
   path,
@@ -34,12 +33,11 @@ export async function runEdgeFunction({
   }
   outputDir: string
   req: BaseNextRequest | NodeNextRequest
-  res: BaseNextResponse | NodeNextResponse
   query: string
   path: string
   params: Params | undefined
   onWarning?: (warning: Error) => void
-}): Promise<FetchEventResult | null> {
+}): Promise<FetchEventResult> {
   // For edge to "fetch" we must always provide an absolute URL
   const initialUrl = new URL(path, 'http://n')
   const parsedQuery = parse(query)
@@ -83,21 +81,28 @@ export async function runEdgeFunction({
     onWarning,
   })) as FetchEventResult
 
-  res.statusCode = result.response.status
-  res.statusMessage = result.response.statusText
+  return result
+}
+
+export async function updateResponse(
+  response: BaseNextResponse<any> | NodeNextResponse,
+  result: FetchEventResult
+) {
+  response.statusCode = result.response.status
+  response.statusMessage = result.response.statusText
 
   result.response.headers.forEach((value: string, key) => {
     // the append handling is special cased for `set-cookie`
     if (key.toLowerCase() === 'set-cookie') {
-      res.setHeader(key, value)
+      response.setHeader(key, value)
     } else {
-      res.appendHeader(key, value)
+      response.appendHeader(key, value)
     }
   })
 
   if (result.response.body) {
     // TODO(gal): not sure that we always need to stream
-    const nodeResStream = (res as NodeNextResponse).originalResponse
+    const nodeResStream = (response as NodeNextResponse).originalResponse
     const {
       consumeUint8ArrayReadableStream,
     } = require('next/dist/compiled/edge-runtime')
@@ -111,10 +116,8 @@ export async function runEdgeFunction({
       nodeResStream.end()
     }
   } else {
-    ;(res as NodeNextResponse).originalResponse.end()
+    ;(response as NodeNextResponse).originalResponse.end()
   }
-
-  return result
 }
 
 function stringifyUrlQueryParam(param: unknown): string {

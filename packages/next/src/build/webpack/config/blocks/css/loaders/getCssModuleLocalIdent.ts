@@ -23,7 +23,7 @@ export function getCssModuleLocalIdent(
   // Generate a hash to make the class name unique.
   const hash = loaderUtils.getHashDigest(
     Buffer.from(`filePath:${relativePath}#className:${exportName}`),
-    'md5',
+    'sha1',
     'base64',
     5
   )

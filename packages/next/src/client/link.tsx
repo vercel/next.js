@@ -103,7 +103,11 @@ type InternalLinkProps = {
 
 // TODO-APP: Include the full set of Anchor props
 // adding this to the publicly exported type currently breaks existing apps
-export type LinkProps = InternalLinkProps
+
+// `RouteInferType` is a stub here to avoid breaking `typedRoutes` when the type
+// isn't generated yet. It will be replaced when the webpack plugin runs.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export type LinkProps<RouteInferType = any> = InternalLinkProps
 type LinkPropsRequired = RequiredKeys<LinkProps>
 type LinkPropsOptional = OptionalKeys<InternalLinkProps>
 
@@ -217,15 +221,17 @@ function linkClicked(
 
   const navigate = () => {
     // If the router is an NextRouter instance it will have `beforePopState`
+    const routerScroll = scroll ?? true
     if ('beforePopState' in router) {
       router[replace ? 'replace' : 'push'](href, as, {
         shallow,
         locale,
-        scroll,
+        scroll: routerScroll,
       })
     } else {
       router[replace ? 'replace' : 'push'](as || href, {
         forceOptimisticNavigation: !prefetchEnabled,
+        scroll: routerScroll,
       })
     }
   }
@@ -284,6 +290,13 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       children = <a>{children}</a>
     }
 
+    const pagesRouter = React.useContext(RouterContext)
+    const appRouter = React.useContext(AppRouterContext)
+    const router = pagesRouter ?? appRouter
+
+    // We're in the app directory if there is no pages router.
+    const isAppRouter = !pagesRouter
+
     const prefetchEnabled = prefetchProp !== false
     /**
      * The possible states for prefetch are:
@@ -294,12 +307,6 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
     const appPrefetchKind =
       prefetchProp === null ? PrefetchKind.AUTO : PrefetchKind.FULL
 
-    const pagesRouter = React.useContext(RouterContext)
-    const appRouter = React.useContext(AppRouterContext)
-    const router = pagesRouter ?? appRouter
-
-    // We're in the app directory if there is no pages router.
-    const isAppRouter = !pagesRouter
     if (process.env.NODE_ENV !== 'production') {
       function createPropError(args: {
         key: string
@@ -649,7 +656,10 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           return
         }
 
-        if (!prefetchEnabled && isAppRouter) {
+        if (
+          (!prefetchEnabled || process.env.NODE_ENV === 'development') &&
+          isAppRouter
+        ) {
           return
         }
 

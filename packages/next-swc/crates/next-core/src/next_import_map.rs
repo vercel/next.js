@@ -1,46 +1,46 @@
 use std::collections::{BTreeMap, HashMap};
 
 use anyhow::{Context, Result};
-use turbo_tasks::Value;
+use turbo_tasks::{Value, Vc};
 use turbopack_binding::{
-    turbo::tasks_fs::{glob::GlobVc, FileSystem, FileSystemPathVc},
+    turbo::tasks_fs::{glob::Glob, FileSystem, FileSystemPath},
     turbopack::{
         core::{
-            asset::Asset,
             resolve::{
-                options::{
-                    ConditionValue, ImportMap, ImportMapVc, ImportMapping, ImportMappingVc,
-                    ResolveOptionsVc, ResolvedMap, ResolvedMapVc,
-                },
-                parse::RequestVc,
+                options::{ConditionValue, ImportMap, ImportMapping, ResolveOptions, ResolvedMap},
+                parse::Request,
                 pattern::Pattern,
-                resolve, AliasPattern, ResolveAliasMapVc, SubpathValue,
+                resolve, AliasPattern, ResolveAliasMap, SubpathValue,
             },
+            source::Source,
         },
-        node::execution_context::ExecutionContextVc,
+        node::execution_context::ExecutionContext,
         turbopack::{resolve_options, resolve_options_context::ResolveOptionsContext},
     },
 };
 
 use crate::{
     embed_js::{next_js_fs, VIRTUAL_PACKAGE_NAME},
+    mode::NextMode,
     next_client::context::ClientContextType,
-    next_config::NextConfigVc,
+    next_config::NextConfig,
     next_font::{
-        google::{NextFontGoogleCssModuleReplacerVc, NextFontGoogleReplacerVc},
-        local::{NextFontLocalCssModuleReplacerVc, NextFontLocalReplacerVc},
+        google::{NextFontGoogleCssModuleReplacer, NextFontGoogleReplacer},
+        local::{NextFontLocalCssModuleReplacer, NextFontLocalReplacer},
     },
     next_server::context::ServerContextType,
+    util::NextRuntime,
 };
 
+// Make sure to not add any external requests here.
 /// Computes the Next-specific client import map.
 #[turbo_tasks::function]
 pub async fn get_next_client_import_map(
-    project_path: FileSystemPathVc,
+    project_path: Vc<FileSystemPath>,
     ty: Value<ClientContextType>,
-    next_config: NextConfigVc,
-    execution_context: ExecutionContextVc,
-) -> Result<ImportMapVc> {
+    next_config: Vc<NextConfig>,
+    execution_context: Vc<ExecutionContext>,
+) -> Result<Vc<ImportMap>> {
     let mut import_map = ImportMap::empty();
 
     insert_next_shared_aliases(
@@ -137,7 +137,7 @@ pub async fn get_next_client_import_map(
 
 /// Computes the Next-specific client import map.
 #[turbo_tasks::function]
-pub fn get_next_build_import_map() -> ImportMapVc {
+pub fn get_next_build_import_map() -> Vc<ImportMap> {
     let mut import_map = ImportMap::empty();
 
     insert_package_alias(
@@ -159,7 +159,7 @@ pub fn get_next_build_import_map() -> ImportMapVc {
 /// Computes the Next-specific client fallback import map, which provides
 /// polyfills to Node.js externals.
 #[turbo_tasks::function]
-pub fn get_next_client_fallback_import_map(ty: Value<ClientContextType>) -> ImportMapVc {
+pub fn get_next_client_fallback_import_map(ty: Value<ClientContextType>) -> Vc<ImportMap> {
     let mut import_map = ImportMap::empty();
 
     match ty.into_value() {
@@ -186,11 +186,12 @@ pub fn get_next_client_fallback_import_map(ty: Value<ClientContextType>) -> Impo
 /// Computes the Next-specific server-side import map.
 #[turbo_tasks::function]
 pub async fn get_next_server_import_map(
-    project_path: FileSystemPathVc,
+    project_path: Vc<FileSystemPath>,
     ty: Value<ServerContextType>,
-    next_config: NextConfigVc,
-    execution_context: ExecutionContextVc,
-) -> Result<ImportMapVc> {
+    mode: NextMode,
+    next_config: Vc<NextConfig>,
+    execution_context: Vc<ExecutionContext>,
+) -> Result<Vc<ImportMap>> {
     let mut import_map = ImportMap::empty();
 
     insert_next_shared_aliases(
@@ -209,15 +210,9 @@ pub async fn get_next_server_import_map(
     )
     .await?;
 
-    import_map.insert_exact_alias(
-        "@opentelemetry/api",
-        // TODO(WEB-625) this actually need to prefer the local version of @opentelemetry/api
-        ImportMapping::External(Some("next/dist/compiled/@opentelemetry/api".to_string())).into(),
-    );
-
     let ty = ty.into_value();
 
-    insert_next_server_special_aliases(&mut import_map, ty).await?;
+    insert_next_server_special_aliases(&mut import_map, ty, mode, NextRuntime::NodeJs).await?;
     let external = ImportMapping::External(None).cell();
 
     match ty {
@@ -235,6 +230,16 @@ pub async fn get_next_server_import_map(
         ServerContextType::AppSSR { .. }
         | ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. } => {
+            match mode {
+                NextMode::Development | NextMode::Build => {
+                    import_map.insert_wildcard_alias("next/dist/server/", external);
+                    import_map.insert_wildcard_alias("next/dist/shared/", external);
+                }
+                NextMode::DevServer => {
+                    // The sandbox can't be bundled and needs to be external
+                    import_map.insert_exact_alias("next/dist/server/web/sandbox", external);
+                }
+            }
             import_map.insert_exact_alias(
                 "next/head",
                 request_to_import_mapping(project_path, "next/dist/client/components/noop-head"),
@@ -243,9 +248,6 @@ pub async fn get_next_server_import_map(
                 "next/dynamic",
                 request_to_import_mapping(project_path, "next/dist/shared/lib/app-dynamic"),
             );
-
-            // The sandbox can't be bundled and needs to be external
-            import_map.insert_exact_alias("next/dist/server/web/sandbox", external);
         }
         ServerContextType::Middleware => {}
     }
@@ -256,11 +258,12 @@ pub async fn get_next_server_import_map(
 /// Computes the Next-specific edge-side import map.
 #[turbo_tasks::function]
 pub async fn get_next_edge_import_map(
-    project_path: FileSystemPathVc,
+    project_path: Vc<FileSystemPath>,
     ty: Value<ServerContextType>,
-    next_config: NextConfigVc,
-    execution_context: ExecutionContextVc,
-) -> Result<ImportMapVc> {
+    mode: NextMode,
+    next_config: Vc<NextConfig>,
+    execution_context: Vc<ExecutionContext>,
+) -> Result<Vc<ImportMap>> {
     let mut import_map = ImportMap::empty();
 
     insert_next_shared_aliases(
@@ -281,7 +284,7 @@ pub async fn get_next_edge_import_map(
 
     let ty = ty.into_value();
 
-    insert_next_server_special_aliases(&mut import_map, ty).await?;
+    insert_next_server_special_aliases(&mut import_map, ty, mode, NextRuntime::Edge).await?;
 
     match ty {
         ServerContextType::Pages { .. } | ServerContextType::PagesData { .. } => {}
@@ -304,14 +307,17 @@ pub async fn get_next_edge_import_map(
 }
 
 pub fn get_next_client_resolved_map(
-    context: FileSystemPathVc,
-    root: FileSystemPathVc,
-) -> ResolvedMapVc {
+    context: Vc<FileSystemPath>,
+    root: Vc<FileSystemPath>,
+) -> Vc<ResolvedMap> {
     let glob_mappings = vec![
         // Temporary hack to replace the hot reloader until this is passable by props in next.js
         (
             context.root(),
-            GlobVc::new("**/next/dist/client/components/react-dev-overlay/hot-reloader-client.js"),
+            Glob::new(
+                "**/next/dist/client/components/react-dev-overlay/hot-reloader-client.js"
+                    .to_string(),
+            ),
             ImportMapping::PrimaryAlternative(
                 "@vercel/turbopack-next/dev/hot-reloader.tsx".to_string(),
                 Some(root),
@@ -351,18 +357,30 @@ static NEXT_ALIASES: [(&str, &str); 23] = [
     ("setImmediate", "next/dist/compiled/setimmediate"),
 ];
 
-pub async fn insert_next_server_special_aliases(
+async fn insert_next_server_special_aliases(
     import_map: &mut ImportMap,
     ty: ServerContextType,
+    mode: NextMode,
+    runtime: NextRuntime,
 ) -> Result<()> {
-    match ty {
-        ServerContextType::Pages { pages_dir } => {
+    let external_if_node = move |context_dir: Vc<FileSystemPath>, request: &str| match runtime {
+        NextRuntime::Edge => request_to_import_mapping(context_dir, request),
+        NextRuntime::NodeJs => external_request_to_import_mapping(request),
+    };
+    match (mode, ty) {
+        (_, ServerContextType::Pages { pages_dir }) => {
+            import_map.insert_exact_alias(
+                "@opentelemetry/api",
+                // TODO(WEB-625) this actually need to prefer the local version of
+                // @opentelemetry/api
+                external_if_node(pages_dir, "next/dist/compiled/@opentelemetry/api"),
+            );
             insert_alias_to_alternatives(
                 import_map,
                 format!("{VIRTUAL_PACKAGE_NAME}/pages/_app"),
                 vec![
                     request_to_import_mapping(pages_dir, "./_app"),
-                    external_request_to_import_mapping("next/app"),
+                    external_if_node(pages_dir, "next/app"),
                 ],
             );
             insert_alias_to_alternatives(
@@ -370,7 +388,7 @@ pub async fn insert_next_server_special_aliases(
                 format!("{VIRTUAL_PACKAGE_NAME}/pages/_document"),
                 vec![
                     request_to_import_mapping(pages_dir, "./_document"),
-                    external_request_to_import_mapping("next/document"),
+                    external_if_node(pages_dir, "next/document"),
                 ],
             );
             insert_alias_to_alternatives(
@@ -378,14 +396,25 @@ pub async fn insert_next_server_special_aliases(
                 format!("{VIRTUAL_PACKAGE_NAME}/pages/_error"),
                 vec![
                     request_to_import_mapping(pages_dir, "./_error"),
-                    external_request_to_import_mapping("next/error"),
+                    external_if_node(pages_dir, "next/error"),
                 ],
             );
         }
-        ServerContextType::PagesData { .. } => {}
-        ServerContextType::AppSSR { app_dir }
-        | ServerContextType::AppRSC { app_dir }
-        | ServerContextType::AppRoute { app_dir } => {
+        (_, ServerContextType::PagesData { .. }) => {}
+        // In development, we *always* use the bundled version of React, even in
+        // SSR, since we're bundling Next.js alongside it.
+        (
+            NextMode::DevServer,
+            ServerContextType::AppSSR { app_dir }
+            | ServerContextType::AppRSC { app_dir, .. }
+            | ServerContextType::AppRoute { app_dir },
+        ) => {
+            import_map.insert_exact_alias(
+                "@opentelemetry/api",
+                // TODO(WEB-625) this actually need to prefer the local version of
+                // @opentelemetry/api
+                request_to_import_mapping(app_dir, "next/dist/compiled/@opentelemetry/api"),
+            );
             import_map.insert_exact_alias(
                 "react",
                 request_to_import_mapping(app_dir, "next/dist/compiled/react"),
@@ -410,7 +439,84 @@ pub async fn insert_next_server_special_aliases(
                 request_to_import_mapping(app_dir, "next/dist/compiled/react-server-dom-webpack/*"),
             );
         }
-        ServerContextType::Middleware => {}
+        // NOTE(alexkirsz) This logic maps loosely to
+        // `next.js/packages/next/src/build/webpack-config.ts`, where:
+        //
+        // ## RSC
+        //
+        // * always bundles
+        // * maps react -> react/shared-subset (through the "react-server" exports condition)
+        // * maps react-dom -> react-dom/server-rendering-stub
+        // * passes through (react|react-dom|react-server-dom-webpack)/(.*) to
+        //   next/dist/compiled/$1/$2
+        (
+            NextMode::Build | NextMode::Development,
+            ServerContextType::AppRSC { app_dir, .. } | ServerContextType::AppRoute { app_dir },
+        ) => {
+            import_map.insert_exact_alias(
+                "@opentelemetry/api",
+                // TODO(WEB-625) this actually need to prefer the local version of
+                // @opentelemetry/api
+                request_to_import_mapping(app_dir, "next/dist/compiled/@opentelemetry/api"),
+            );
+            import_map.insert_exact_alias(
+                "react",
+                request_to_import_mapping(app_dir, "next/dist/compiled/react/react.shared-subset"),
+            );
+            import_map.insert_exact_alias(
+                "react-dom",
+                request_to_import_mapping(
+                    app_dir,
+                    "next/dist/compiled/react-dom/server-rendering-stub",
+                ),
+            );
+            for (wildcard_alias, request) in [
+                ("react/", "next/dist/compiled/react/*"),
+                ("react-dom/", "next/dist/compiled/react-dom/*"),
+                (
+                    "react-server-dom-webpack/",
+                    "next/dist/compiled/react-server-dom-webpack/*",
+                ),
+            ] {
+                import_map.insert_wildcard_alias(
+                    wildcard_alias,
+                    request_to_import_mapping(app_dir, request),
+                );
+            }
+        }
+        // ## SSR
+        //
+        // * always uses externals, to ensure we're using the same React instance as the Next.js
+        //   runtime
+        // * maps react-dom -> react-dom/server-rendering-stub
+        // * passes through react and (react|react-dom|react-server-dom-webpack)/(.*) to
+        //   next/dist/compiled/react and next/dist/compiled/$1/$2 resp.
+        (NextMode::Build | NextMode::Development, ServerContextType::AppSSR { app_dir }) => {
+            import_map.insert_exact_alias(
+                "react",
+                external_if_node(app_dir, "next/dist/compiled/react"),
+            );
+            import_map.insert_exact_alias(
+                "react-dom",
+                external_if_node(
+                    app_dir,
+                    "next/dist/compiled/react-dom/server-rendering-stub",
+                ),
+            );
+
+            for (wildcard_alias, request) in [
+                ("react/", "next/dist/compiled/react/*"),
+                ("react-dom/", "next/dist/compiled/react-dom/*"),
+                (
+                    "react-server-dom-webpack/",
+                    "next/dist/compiled/react-server-dom-webpack/*",
+                ),
+            ] {
+                let import_mapping = external_if_node(app_dir, request);
+                import_map.insert_wildcard_alias(wildcard_alias, import_mapping);
+            }
+        }
+        (_, ServerContextType::Middleware) => {}
     }
 
     Ok(())
@@ -420,11 +526,12 @@ pub fn mdx_import_source_file() -> String {
     format!("{VIRTUAL_PACKAGE_NAME}/mdx-import-source")
 }
 
+// Make sure to not add any external requests here.
 pub async fn insert_next_shared_aliases(
     import_map: &mut ImportMap,
-    project_path: FileSystemPathVc,
-    execution_context: ExecutionContextVc,
-    next_config: NextConfigVc,
+    project_path: Vc<FileSystemPath>,
+    execution_context: Vc<ExecutionContext>,
+    next_config: Vc<NextConfig>,
 ) -> Result<()> {
     let package_root = next_js_fs().root();
 
@@ -435,7 +542,7 @@ pub async fn insert_next_shared_aliases(
             vec![
                 request_to_import_mapping(project_path, "./mdx-components"),
                 request_to_import_mapping(project_path, "./src/mdx-components"),
-                external_request_to_import_mapping("@mdx-js/react"),
+                request_to_import_mapping(project_path, "@mdx-js/react"),
             ],
         );
     }
@@ -456,38 +563,42 @@ pub async fn insert_next_shared_aliases(
     import_map.insert_alias(
         // Request path from js via next-font swc transform
         AliasPattern::exact("next/font/google/target.css"),
-        ImportMapping::Dynamic(NextFontGoogleReplacerVc::new(project_path).into()).into(),
+        ImportMapping::Dynamic(Vc::upcast(NextFontGoogleReplacer::new(project_path))).into(),
     );
 
     import_map.insert_alias(
         // Request path from js via next-font swc transform
         AliasPattern::exact("@next/font/google/target.css"),
-        ImportMapping::Dynamic(NextFontGoogleReplacerVc::new(project_path).into()).into(),
+        ImportMapping::Dynamic(Vc::upcast(NextFontGoogleReplacer::new(project_path))).into(),
     );
 
     import_map.insert_alias(
         AliasPattern::exact("@vercel/turbopack-next/internal/font/google/cssmodule.module.css"),
-        ImportMapping::Dynamic(
-            NextFontGoogleCssModuleReplacerVc::new(project_path, execution_context).into(),
-        )
+        ImportMapping::Dynamic(Vc::upcast(NextFontGoogleCssModuleReplacer::new(
+            project_path,
+            execution_context,
+        )))
         .into(),
     );
 
     import_map.insert_alias(
         // Request path from js via next-font swc transform
         AliasPattern::exact("next/font/local/target.css"),
-        ImportMapping::Dynamic(NextFontLocalReplacerVc::new(project_path).into()).into(),
+        ImportMapping::Dynamic(Vc::upcast(NextFontLocalReplacer::new(project_path))).into(),
     );
 
     import_map.insert_alias(
         // Request path from js via next-font swc transform
         AliasPattern::exact("@next/font/local/target.css"),
-        ImportMapping::Dynamic(NextFontLocalReplacerVc::new(project_path).into()).into(),
+        ImportMapping::Dynamic(Vc::upcast(NextFontLocalReplacer::new(project_path))).into(),
     );
 
     import_map.insert_alias(
         AliasPattern::exact("@vercel/turbopack-next/internal/font/local/cssmodule.module.css"),
-        ImportMapping::Dynamic(NextFontLocalCssModuleReplacerVc::new(project_path).into()).into(),
+        ImportMapping::Dynamic(Vc::upcast(NextFontLocalCssModuleReplacer::new(
+            project_path,
+        )))
+        .into(),
     );
 
     import_map.insert_singleton_alias("@swc/helpers", get_next_package(project_path));
@@ -508,8 +619,8 @@ pub async fn insert_next_shared_aliases(
 
 #[turbo_tasks::function]
 async fn package_lookup_resolve_options(
-    project_path: FileSystemPathVc,
-) -> Result<ResolveOptionsVc> {
+    project_path: Vc<FileSystemPath>,
+) -> Result<Vc<ResolveOptions>> {
     Ok(resolve_options(
         project_path,
         ResolveOptionsContext {
@@ -523,23 +634,25 @@ async fn package_lookup_resolve_options(
 }
 
 #[turbo_tasks::function]
-pub async fn get_next_package(project_path: FileSystemPathVc) -> Result<FileSystemPathVc> {
+pub async fn get_next_package(context_directory: Vc<FileSystemPath>) -> Result<Vc<FileSystemPath>> {
     let result = resolve(
-        project_path,
-        RequestVc::parse(Value::new(Pattern::Constant(
+        context_directory,
+        Request::parse(Value::new(Pattern::Constant(
             "next/package.json".to_string(),
         ))),
-        package_lookup_resolve_options(project_path),
+        package_lookup_resolve_options(context_directory),
     );
-    let assets = result.primary_assets().await?;
-    let asset = assets.first().context("Next.js package not found")?;
-    Ok(asset.ident().path().parent())
+    let source = result
+        .first_source()
+        .await?
+        .context("Next.js package not found")?;
+    Ok(source.ident().path().parent())
 }
 
 pub async fn insert_alias_option<const N: usize>(
     import_map: &mut ImportMap,
-    project_path: FileSystemPathVc,
-    alias_options: ResolveAliasMapVc,
+    project_path: Vc<FileSystemPath>,
+    alias_options: Vc<ResolveAliasMap>,
     conditions: [&'static str; N],
 ) -> Result<()> {
     let conditions = BTreeMap::from(conditions.map(|c| (c.to_string(), ConditionValue::Set)));
@@ -554,8 +667,8 @@ pub async fn insert_alias_option<const N: usize>(
 fn export_value_to_import_mapping(
     value: &SubpathValue,
     conditions: &BTreeMap<String, ConditionValue>,
-    project_path: FileSystemPathVc,
-) -> Option<ImportMappingVc> {
+    project_path: Vc<FileSystemPath>,
+) -> Option<Vc<ImportMapping>> {
     let mut result = Vec::new();
     value.add_results(
         conditions,
@@ -586,13 +699,17 @@ fn export_value_to_import_mapping(
 fn insert_alias_to_alternatives<'a>(
     import_map: &mut ImportMap,
     alias: impl Into<String> + 'a,
-    alternatives: Vec<ImportMappingVc>,
+    alternatives: Vec<Vc<ImportMapping>>,
 ) {
     import_map.insert_exact_alias(alias, ImportMapping::Alternatives(alternatives).into());
 }
 
 /// Inserts an alias to an import mapping into an import map.
-fn insert_package_alias(import_map: &mut ImportMap, prefix: &str, package_root: FileSystemPathVc) {
+fn insert_package_alias(
+    import_map: &mut ImportMap,
+    prefix: &str,
+    package_root: Vc<FileSystemPath>,
+) {
     import_map.insert_wildcard_alias(
         prefix,
         ImportMapping::PrimaryAlternative("./*".to_string(), Some(package_root)).cell(),
@@ -610,12 +727,12 @@ fn insert_turbopack_dev_alias(import_map: &mut ImportMap) {
 
 /// Creates a direct import mapping to the result of resolving a request
 /// in a context.
-fn request_to_import_mapping(context_path: FileSystemPathVc, request: &str) -> ImportMappingVc {
+fn request_to_import_mapping(context_path: Vc<FileSystemPath>, request: &str) -> Vc<ImportMapping> {
     ImportMapping::PrimaryAlternative(request.to_string(), Some(context_path)).cell()
 }
 
 /// Creates a direct import mapping to the result of resolving an external
 /// request.
-fn external_request_to_import_mapping(request: &str) -> ImportMappingVc {
+fn external_request_to_import_mapping(request: &str) -> Vc<ImportMapping> {
     ImportMapping::External(Some(request.to_string())).into()
 }

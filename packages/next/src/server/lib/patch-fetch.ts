@@ -1,7 +1,7 @@
 import type { StaticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage'
 import type * as ServerHooks from '../../client/components/hooks-server-context'
 
-import { AppRenderSpan } from './trace/constants'
+import { AppRenderSpan, NextNodeServerSpan } from './trace/constants'
 import { getTracer, SpanKind } from './trace/tracer'
 import { CACHE_ONE_YEAR } from '../../lib/constants'
 
@@ -33,7 +33,7 @@ function trackFetchMetric(
     status: number
     method: string
     cacheReason: string
-    cacheStatus: 'hit' | 'miss'
+    cacheStatus: 'hit' | 'miss' | 'skip'
     start: number
   }
 ) {
@@ -56,6 +56,7 @@ function trackFetchMetric(
   staticGenerationStore.fetchMetrics.push({
     url: ctx.url,
     cacheStatus: ctx.cacheStatus,
+    cacheReason: ctx.cacheReason,
     status: ctx.status,
     method: ctx.method,
     start: ctx.start,
@@ -99,8 +100,12 @@ export function patchFetch({
     const fetchStart = Date.now()
     const method = init?.method?.toUpperCase() || 'GET'
 
+    // Do create a new span trace for internal fetches in the
+    // non-verbose mode.
+    const isInternal = (init?.next as any)?.internal === true
+
     return await getTracer().trace(
-      AppRenderSpan.fetch,
+      isInternal ? NextNodeServerSpan.internalFetch : AppRenderSpan.fetch,
       {
         kind: SpanKind.CLIENT,
         spanName: ['fetch', method, fetchUrl].filter(Boolean).join(' '),
@@ -112,7 +117,9 @@ export function patchFetch({
         },
       },
       async () => {
-        const staticGenerationStore = staticGenerationAsyncStorage.getStore()
+        const staticGenerationStore =
+          staticGenerationAsyncStorage.getStore() ||
+          (fetch as any).__nextGetStaticStore?.()
         const isRequestInput =
           input &&
           typeof input === 'object' &&
@@ -126,7 +133,11 @@ export function patchFetch({
         // If the staticGenerationStore is not available, we can't do any
         // special treatment of fetch, therefore fallback to the original
         // fetch implementation.
-        if (!staticGenerationStore || (init?.next as any)?.internal) {
+        if (
+          !staticGenerationStore ||
+          isInternal ||
+          staticGenerationStore.isDraftMode
+        ) {
           return originFetch(input, init)
         }
 
@@ -172,6 +183,7 @@ export function patchFetch({
           staticGenerationStore.fetchCache === 'force-no-store'
 
         let _cache = getRequestMeta('cache')
+        let cacheReason = ''
 
         if (
           typeof _cache === 'string' &&
@@ -188,12 +200,12 @@ export function patchFetch({
         }
         if (['no-cache', 'no-store'].includes(_cache || '')) {
           curRevalidate = 0
+          cacheReason = `cache: ${_cache}`
         }
         if (typeof curRevalidate === 'number' || curRevalidate === false) {
           revalidate = curRevalidate
         }
 
-        let cacheReason = ''
         const _headers = getRequestMeta('headers')
         const initHeaders: Headers =
           typeof _headers?.get === 'function'
@@ -338,7 +350,10 @@ export function patchFetch({
         const normalizedRevalidate =
           typeof revalidate !== 'number' ? CACHE_ONE_YEAR : revalidate
 
-        const doOriginalFetch = async (isStale?: boolean) => {
+        const doOriginalFetch = async (
+          isStale?: boolean,
+          cacheReasonOverride?: string
+        ) => {
           // add metadata to init without editing the original
           const clonedInit = {
             ...init,
@@ -350,8 +365,9 @@ export function patchFetch({
               trackFetchMetric(staticGenerationStore, {
                 start: fetchStart,
                 url: fetchUrl,
-                cacheReason,
-                cacheStatus: 'miss',
+                cacheReason: cacheReasonOverride || cacheReason,
+                cacheStatus:
+                  revalidate === 0 || cacheReasonOverride ? 'skip' : 'miss',
                 status: res.status,
                 method: clonedInit.method || 'GET',
               })
@@ -374,6 +390,7 @@ export function patchFetch({
                       body: bodyBuffer.toString('base64'),
                       status: res.status,
                       tags,
+                      url: res.url,
                     },
                     revalidate: normalizedRevalidate,
                   },
@@ -386,16 +403,25 @@ export function patchFetch({
                 console.warn(`Failed to set fetch cache`, input, err)
               }
 
-              return new Response(bodyBuffer, {
+              const response = new Response(bodyBuffer, {
                 headers: new Headers(res.headers),
                 status: res.status,
               })
+              Object.defineProperty(response, 'url', { value: res.url })
+              return response
             }
             return res
           })
         }
 
-        if (cacheKey && staticGenerationStore?.incrementalCache) {
+        let handleUnlock = () => Promise.resolve()
+        let cacheReasonOverride
+
+        if (cacheKey && staticGenerationStore.incrementalCache) {
+          handleUnlock = await staticGenerationStore.incrementalCache.lock(
+            cacheKey
+          )
+
           const entry = staticGenerationStore.isOnDemandRevalidate
             ? null
             : await staticGenerationStore.incrementalCache.get(
@@ -405,6 +431,13 @@ export function patchFetch({
                 fetchUrl,
                 fetchIdx
               )
+
+          if (entry) {
+            await handleUnlock()
+          } else {
+            // in dev, incremental cache response will be null in case the browser adds `cache-control: no-cache` in the request headers
+            cacheReasonOverride = 'cache-control: no-cache (hard refresh)'
+          }
 
           if (entry?.value && entry.value.kind === 'FETCH') {
             const currentTags = entry.value.data.tags
@@ -463,10 +496,14 @@ export function patchFetch({
                 method: init?.method || 'GET',
               })
 
-              return new Response(decodedBody, {
+              const response = new Response(decodedBody, {
                 headers: resData.headers,
                 status: resData.status,
               })
+              Object.defineProperty(response, 'url', {
+                value: entry.value.data.url,
+              })
+              return response
             }
           }
         }
@@ -524,7 +561,7 @@ export function patchFetch({
           }
         }
 
-        return doOriginalFetch()
+        return doOriginalFetch(false, cacheReasonOverride).finally(handleUnlock)
       }
     )
   }

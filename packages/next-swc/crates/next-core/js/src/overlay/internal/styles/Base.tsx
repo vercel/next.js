@@ -94,30 +94,6 @@ export function Base() {
           font-weight: 500;
           line-height: 1.5;
         }
-
-        h1 {
-          font-size: 26px;
-        }
-
-        h2 {
-          font-size: 24px;
-        }
-
-        h3 {
-          font-size: 22px;
-        }
-
-        h4 {
-          font-size: 20px;
-        }
-
-        h5 {
-          font-size: 18px;
-        }
-
-        h6 {
-          font-size: 16px;
-        }
       `}
     </style>
   )

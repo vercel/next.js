@@ -1,5 +1,5 @@
 import _fs from 'fs'
-import { CacheFs } from '../../shared/lib/utils'
+import type { CacheFs } from '../../shared/lib/utils'
 
 export const nodeFs: CacheFs = {
   readFile: (f) => _fs.promises.readFile(f),

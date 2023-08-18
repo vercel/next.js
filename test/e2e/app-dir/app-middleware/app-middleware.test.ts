@@ -3,6 +3,7 @@ import path from 'path'
 import cheerio from 'cheerio'
 import { check, withQuery } from 'next-test-utils'
 import { createNextDescribe, FileRef } from 'e2e-utils'
+import type { Response } from 'node-fetch'
 
 createNextDescribe(
   'app-dir with middleware',
@@ -122,6 +123,15 @@ createNextDescribe(
         expect(
           res.headers.get('x-middleware-request-x-from-client3')
         ).toBeNull()
+      })
+
+      it(`Supports draft mode`, async () => {
+        const res = await next.fetch(`${path}?draft=true`)
+        const headers: string = res.headers.get('set-cookie') || ''
+        const bypassCookie = headers
+          .split(';')
+          .find((c) => c.startsWith('__prerender_bypass'))
+        expect(bypassCookie).toBeDefined()
       })
     })
   }

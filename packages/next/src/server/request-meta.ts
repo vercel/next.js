@@ -42,6 +42,14 @@ export interface RequestMeta {
   _nextMinimalMode?: boolean
 }
 
+/**
+ * Gets the request metadata. If no key is provided, the entire metadata object
+ * is returned.
+ *
+ * @param req the request to get the metadata from
+ * @param key the key to get from the metadata (optional)
+ * @returns the value for the key or the entire metadata object
+ */
 export function getRequestMeta(
   req: NextIncomingMessage,
   key?: undefined
@@ -58,11 +66,26 @@ export function getRequestMeta<K extends keyof RequestMeta>(
   return typeof key === 'string' ? meta[key] : meta
 }
 
+/**
+ * Sets the request metadata.
+ *
+ * @param req the request to set the metadata on
+ * @param meta the metadata to set
+ * @returns the mutated request metadata
+ */
 export function setRequestMeta(req: NextIncomingMessage, meta: RequestMeta) {
   req[NEXT_REQUEST_META] = meta
-  return getRequestMeta(req)
+  return meta
 }
 
+/**
+ * Adds a value to the request metadata.
+ *
+ * @param request the request to mutate
+ * @param key the key to set
+ * @param value the value to set
+ * @returns the mutated request metadata
+ */
 export function addRequestMeta<K extends keyof RequestMeta>(
   request: NextIncomingMessage,
   key: K,
@@ -70,6 +93,22 @@ export function addRequestMeta<K extends keyof RequestMeta>(
 ) {
   const meta = getRequestMeta(request)
   meta[key] = value
+  return setRequestMeta(request, meta)
+}
+
+/**
+ * Removes a key from the request metadata.
+ *
+ * @param request the request to mutate
+ * @param key the key to remove
+ * @returns the mutated request metadata
+ */
+export function removeRequestMeta<K extends keyof RequestMeta>(
+  request: NextIncomingMessage,
+  key: K
+) {
+  const meta = getRequestMeta(request)
+  delete meta[key]
   return setRequestMeta(request, meta)
 }
 

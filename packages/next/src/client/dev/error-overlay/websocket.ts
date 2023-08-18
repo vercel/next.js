@@ -17,7 +17,7 @@ export function addMessageListener(cb: (event: any) => void) {
   eventCallbacks.push(cb)
 }
 
-export function sendMessage(data: any) {
+export function sendMessage(data: string) {
   if (!source || source.readyState !== source.OPEN) return
   return source.send(data)
 }
@@ -26,7 +26,6 @@ export function connectHMR(options: {
   path: string
   assetPrefix: string
   timeout?: number
-  log?: boolean
 }) {
   if (!options.timeout) {
     options.timeout = 5 * 1000
@@ -36,7 +35,7 @@ export function connectHMR(options: {
     if (source) source.close()
 
     function handleOnline() {
-      if (options.log) console.log('[HMR] connected')
+      window.console.log('[HMR] connected')
       lastActivity = Date.now()
     }
 

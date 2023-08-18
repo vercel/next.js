@@ -23,7 +23,8 @@ export type RouterChangeByServerResponse = (
 export type RouterNavigate = (
   href: string,
   navigateType: 'push' | 'replace',
-  forceOptimisticNavigation: boolean
+  forceOptimisticNavigation: boolean,
+  shouldScroll: boolean
 ) => void
 
 export interface Mutable {
@@ -36,14 +37,12 @@ export interface Mutable {
   cache?: CacheNode
   prefetchCache?: AppRouterState['prefetchCache']
   hashFragment?: string
+  shouldScroll?: boolean
 }
 
-export interface ServerActionMutable {
+export interface ServerActionMutable extends Mutable {
   inFlightServerAction?: Promise<any> | null
-  serverActionApplied?: boolean
-  previousTree?: FlightRouterState
-  previousUrl?: string
-  prefetchCache?: AppRouterState['prefetchCache']
+  actionResultResolved?: boolean
 }
 
 /**
@@ -68,7 +67,7 @@ export interface FastRefreshAction {
 export type ServerActionDispatcher = (
   args: Omit<
     ServerActionAction,
-    'type' | 'mutable' | 'navigate' | 'changeByServerResponse'
+    'type' | 'mutable' | 'navigate' | 'changeByServerResponse' | 'cache'
   >
 ) => void
 
@@ -78,9 +77,8 @@ export interface ServerActionAction {
   actionArgs: any[]
   resolve: (value: any) => void
   reject: (reason?: any) => void
+  cache: CacheNode
   mutable: ServerActionMutable
-  navigate: RouterNavigate
-  changeByServerResponse: RouterChangeByServerResponse
 }
 
 /**
@@ -125,6 +123,7 @@ export interface NavigateAction {
   locationSearch: Location['search']
   navigateType: 'push' | 'replace'
   forceOptimisticNavigation: boolean
+  shouldScroll: boolean
   cache: CacheNode
   mutable: Mutable
 }
@@ -205,6 +204,10 @@ export type FocusAndScrollRef = {
    * The paths of the segments that should be focused.
    */
   segmentPaths: FlightSegmentPath[]
+  /**
+   * If only the URLs hash fragment changed
+   */
+  onlyHashChange: boolean
 }
 
 export type PrefetchCacheEntry = {

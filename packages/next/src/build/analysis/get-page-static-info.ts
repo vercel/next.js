@@ -19,6 +19,10 @@ import { isEdgeRuntime } from '../../lib/is-edge-runtime'
 import { RSC_MODULE_TYPES } from '../../shared/lib/constants'
 import type { RSCMeta } from '../webpack/loaders/get-module-build-info'
 
+// TODO: migrate preferredRegion here
+// Don't forget to update the next-types-plugin file as well
+const AUTHORIZED_EXTRA_PROPS = ['maxDuration']
+
 export interface MiddlewareConfig {
   matchers?: MiddlewareMatcher[]
   unstable_allowDynamicGlobs?: string[]
@@ -41,6 +45,7 @@ export interface PageStaticInfo {
   rsc?: RSCModuleType
   middleware?: MiddlewareConfig
   amp?: boolean | 'hybrid'
+  extraConfig?: Record<string, any>
 }
 
 const CLIENT_MODULE_LABEL =
@@ -72,6 +77,25 @@ export function getRSCModuleInformation(
   return { type, actions, clientRefs, clientEntryType, isClientRef }
 }
 
+const warnedInvalidValueMap = {
+  runtime: new Map<string, boolean>(),
+  preferredRegion: new Map<string, boolean>(),
+} as const
+function warnInvalidValue(
+  pageFilePath: string,
+  key: keyof typeof warnedInvalidValueMap,
+  message: string
+): void {
+  if (warnedInvalidValueMap[key].has(pageFilePath)) return
+
+  Log.warn(
+    `Next.js can't recognize the exported \`${key}\` field in "${pageFilePath}" as ${message}.` +
+      '\n' +
+      'The default runtime will be used instead.'
+  )
+
+  warnedInvalidValueMap[key].set(pageFilePath, true)
+}
 /**
  * Receives a parsed AST from SWC and checks if it belongs to a module that
  * requires a runtime to be specified. Those are:
@@ -79,13 +103,17 @@ export function getRSCModuleInformation(
  *   - Modules with `export { getStaticProps | getServerSideProps } <from ...>`
  *   - Modules with `export const runtime = ...`
  */
-function checkExports(swcAST: any): {
+function checkExports(
+  swcAST: any,
+  pageFilePath: string
+): {
   ssr: boolean
   ssg: boolean
   runtime?: string
   preferredRegion?: string | string[]
   generateImageMetadata?: boolean
   generateSitemaps?: boolean
+  extraProperties?: Set<string>
 } {
   const exportsSet = new Set<string>([
     'getStaticProps',
@@ -101,6 +129,7 @@ function checkExports(swcAST: any): {
       let ssg: boolean = false
       let generateImageMetadata: boolean = false
       let generateSitemaps: boolean = false
+      let extraProperties = new Set<string>()
 
       for (const node of swcAST.body) {
         if (
@@ -110,9 +139,7 @@ function checkExports(swcAST: any): {
           for (const declaration of node.declaration?.declarations) {
             if (declaration.id.value === 'runtime') {
               runtime = declaration.init.value
-            }
-
-            if (declaration.id.value === 'preferredRegion') {
+            } else if (declaration.id.value === 'preferredRegion') {
               if (declaration.init.type === 'ArrayExpression') {
                 const elements: string[] = []
                 for (const element of declaration.init.elements) {
@@ -126,6 +153,8 @@ function checkExports(swcAST: any): {
               } else {
                 preferredRegion = declaration.init.value
               }
+            } else {
+              extraProperties.add(declaration.id.value)
             }
           }
         }
@@ -170,6 +199,18 @@ function checkExports(swcAST: any): {
               generateImageMetadata = true
             if (!generateSitemaps && value === 'generateSitemaps')
               generateSitemaps = true
+            if (!runtime && value === 'runtime')
+              warnInvalidValue(
+                pageFilePath,
+                'runtime',
+                'it was not assigned to a string literal'
+              )
+            if (!preferredRegion && value === 'preferredRegion')
+              warnInvalidValue(
+                pageFilePath,
+                'preferredRegion',
+                'it was not assigned to a string literal or an array of string literals'
+              )
           }
         }
       }
@@ -181,6 +222,7 @@ function checkExports(swcAST: any): {
         preferredRegion,
         generateImageMetadata,
         generateSitemaps,
+        extraProperties,
       }
     } catch (err) {}
   }
@@ -192,6 +234,7 @@ function checkExports(swcAST: any): {
     preferredRegion: undefined,
     generateImageMetadata: false,
     generateSitemaps: false,
+    extraProperties: undefined,
   }
 }
 
@@ -337,7 +380,8 @@ function warnAboutExperimentalEdge(apiRoute: string | null) {
   apiRouteWarnings.set(apiRoute, 1)
 }
 
-const warnedUnsupportedValueMap = new Map<string, boolean>()
+const warnedUnsupportedValueMap = new LRUCache<string, boolean>({ max: 250 })
+
 function warnAboutUnsupportedValue(
   pageFilePath: string,
   page: string | undefined,
@@ -370,7 +414,7 @@ export async function isDynamicMetadataRoute(
   if (!/generateImageMetadata|generateSitemaps/.test(fileContent)) return false
 
   const swcAST = await parseModule(pageFilePath, fileContent)
-  const exportsInfo = checkExports(swcAST)
+  const exportsInfo = checkExports(swcAST, pageFilePath)
 
   return !exportsInfo.generateImageMetadata || !exportsInfo.generateSitemaps
 }
@@ -393,12 +437,13 @@ export async function getPageStaticInfo(params: {
 
   const fileContent = (await tryToReadFile(pageFilePath, !isDev)) || ''
   if (
-    /runtime|preferredRegion|getStaticProps|getServerSideProps|export const config/.test(
+    /runtime|preferredRegion|getStaticProps|getServerSideProps|export const/.test(
       fileContent
     )
   ) {
     const swcAST = await parseModule(pageFilePath, fileContent)
-    const { ssg, ssr, runtime, preferredRegion } = checkExports(swcAST)
+    const { ssg, ssr, runtime, preferredRegion, extraProperties } =
+      checkExports(swcAST, pageFilePath)
     const rsc = getRSCModuleInformation(fileContent).type
 
     // default / failsafe value for config
@@ -411,6 +456,24 @@ export async function getPageStaticInfo(params: {
       }
       // `export config` doesn't exist, or other unknown error throw by swc, silence them
     }
+
+    let extraConfig: Record<string, any> | undefined
+
+    if (extraProperties) {
+      extraConfig = {}
+
+      for (const prop of extraProperties) {
+        if (!AUTHORIZED_EXTRA_PROPS.includes(prop)) continue
+        try {
+          extraConfig[prop] = extractExportedConstValue(swcAST, prop)
+        } catch (e) {
+          if (e instanceof UnsupportedValueError) {
+            warnAboutUnsupportedValue(pageFilePath, page, e)
+          }
+        }
+      }
+    }
+
     if (pageType === 'app') {
       if (config) {
         const message = `\`export const config\` in ${pageFilePath} is deprecated. Please change \`runtime\` property to segment export config. See https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config`
@@ -493,6 +556,7 @@ export async function getPageStaticInfo(params: {
       ...(middlewareConfig && { middleware: middlewareConfig }),
       ...(resolvedRuntime && { runtime: resolvedRuntime }),
       preferredRegion,
+      extraConfig,
     }
   }
 

@@ -3,25 +3,27 @@ import type { NodeRequestHandler } from './next-server'
 import type { UrlWithParsedQuery } from 'url'
 import type { NextConfigComplete } from './config-shared'
 import type { IncomingMessage, ServerResponse } from 'http'
-import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
+import type { NextUrlWithParsedQuery } from './request-meta'
 
 import './require-hook'
 import './node-polyfill-fetch'
 import './node-polyfill-crypto'
+
 import { default as Server } from './next-server'
 import * as log from '../build/output/log'
 import loadConfig from './config'
-import { join, resolve } from 'path'
+import { resolve } from 'path'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
-import {
-  PHASE_DEVELOPMENT_SERVER,
-  SERVER_DIRECTORY,
-} from '../shared/lib/constants'
+import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import { PHASE_PRODUCTION_SERVER } from '../shared/lib/constants'
 import { getTracer } from './lib/trace/tracer'
 import { NextServerSpan } from './lib/trace/constants'
 import { formatUrl } from '../shared/lib/router/utils/format-url'
-import { findDir } from '../lib/find-pages-dir'
+import {
+  WorkerRequestHandler,
+  WorkerUpgradeHandler,
+} from './lib/setup-server-worker'
+import { checkIsNodeDebugging } from './lib/is-node-debugging'
 
 let ServerImpl: typeof Server
 
@@ -45,16 +47,16 @@ export interface RequestHandler {
   ): Promise<void>
 }
 
-const SYMBOL_SET_STANDALONE_MODE = Symbol('next.set_standalone_mode')
 const SYMBOL_LOAD_CONFIG = Symbol('next.load_config')
 
 export class NextServer {
   private serverPromise?: Promise<Server>
   private server?: Server
+  private reqHandler?: NodeRequestHandler
   private reqHandlerPromise?: Promise<NodeRequestHandler>
   private preparedAssetPrefix?: string
 
-  private standaloneMode?: boolean
+  protected standaloneMode?: boolean
 
   public options: NextServerOptions
 
@@ -68,10 +70,6 @@ export class NextServer {
 
   get port() {
     return this.options.port
-  }
-
-  [SYMBOL_SET_STANDALONE_MODE]() {
-    this.standaloneMode = true
   }
 
   getRequestHandler(): RequestHandler {
@@ -135,16 +133,14 @@ export class NextServer {
     return server.render404(...args)
   }
 
-  async serveStatic(...args: Parameters<Server['serveStatic']>) {
-    const server = await this.getServer()
-    return server.serveStatic(...args)
-  }
-
-  async prepare() {
-    const server = await this.getServer()
-
+  async prepare(serverFields?: any) {
     if (this.standaloneMode) return
 
+    const server = await this.getServer()
+
+    if (serverFields) {
+      Object.assign(server, serverFields)
+    }
     // We shouldn't prepare the server in production,
     // because this code won't be executed when deployed
     if (this.options.dev) {
@@ -217,16 +213,100 @@ export class NextServer {
   }
 
   private async getServerRequestHandler() {
+    if (this.reqHandler) return this.reqHandler
+
     // Memoize request handler creation
     if (!this.reqHandlerPromise) {
-      this.reqHandlerPromise = this.getServer().then((server) =>
-        getTracer().wrap(
+      this.reqHandlerPromise = this.getServer().then((server) => {
+        this.reqHandler = getTracer().wrap(
           NextServerSpan.getServerRequestHandler,
           server.getRequestHandler().bind(server)
         )
-      )
+        delete this.reqHandlerPromise
+        return this.reqHandler
+      })
     }
     return this.reqHandlerPromise
+  }
+}
+
+class NextCustomServer extends NextServer {
+  protected standaloneMode = true
+  private didWebSocketSetup: boolean = false
+
+  // @ts-expect-error These are initialized in prepare()
+  protected requestHandler: WorkerRequestHandler
+  // @ts-expect-error These are initialized in prepare()
+  protected upgradeHandler: WorkerUpgradeHandler
+
+  async prepare() {
+    const { getRequestHandlers } =
+      require('./lib/start-server') as typeof import('./lib/start-server')
+
+    const isNodeDebugging = checkIsNodeDebugging()
+
+    const initResult = await getRequestHandlers({
+      dir: this.options.dir!,
+      port: this.options.port || 3000,
+      isDev: !!this.options.dev,
+      hostname: this.options.hostname || 'localhost',
+      minimalMode: this.options.minimalMode,
+      isNodeDebugging: !!isNodeDebugging,
+    })
+    this.requestHandler = initResult[0]
+    this.upgradeHandler = initResult[1]
+  }
+
+  private setupWebSocketHandler(
+    customServer?: import('http').Server,
+    _req?: IncomingMessage
+  ) {
+    if (!this.didWebSocketSetup) {
+      this.didWebSocketSetup = true
+      customServer = customServer || (_req?.socket as any)?.server
+
+      if (customServer) {
+        customServer.on('upgrade', async (req, socket, head) => {
+          this.upgradeHandler(req, socket, head)
+        })
+      }
+    }
+  }
+
+  getRequestHandler() {
+    return async (
+      req: IncomingMessage,
+      res: ServerResponse,
+      parsedUrl?: UrlWithParsedQuery
+    ) => {
+      this.setupWebSocketHandler(this.options.httpServer, req)
+
+      if (parsedUrl) {
+        req.url = formatUrl(parsedUrl)
+      }
+
+      return this.requestHandler(req, res)
+    }
+  }
+
+  async render(...args: Parameters<Server['render']>) {
+    let [req, res, pathname, query, parsedUrl] = args
+    this.setupWebSocketHandler(this.options.httpServer, req as any)
+
+    if (!pathname.startsWith('/')) {
+      console.error(`Cannot render page with path "${pathname}"`)
+      pathname = `/${pathname}`
+    }
+    pathname = pathname === '/index' ? '/' : pathname
+
+    req.url = formatUrl({
+      ...parsedUrl,
+      pathname,
+      query,
+    })
+
+    await this.requestHandler(req as any, res as any)
+    return
   }
 }
 
@@ -261,107 +341,17 @@ function createServer(options: NextServerOptions): NextServer {
     )
   }
 
+  // When the caller is a custom server (using next()).
   if (options.customServer !== false) {
-    // If the `app` dir exists, we'll need to run the standalone server to have
-    // both types of renderers (pages, app) running in separated processes,
-    // instead of having the Next server only.
-    let shouldUseStandaloneMode = false
-
     const dir = resolve(options.dir || '.')
-    const server = new NextServer(options)
 
-    const { createServerHandler } =
-      require('./lib/render-server-standalone') as typeof import('./lib/render-server-standalone')
-
-    let handlerPromise: Promise<ReturnType<typeof createServerHandler>>
-
-    return new Proxy(
-      {},
-      {
-        get: function (_, propKey) {
-          switch (propKey) {
-            case 'prepare':
-              return async () => {
-                // Instead of running Next Server's `prepare`, we'll run the loadConfig first to determine
-                // if we should run the standalone server or not.
-                const config = await server[SYMBOL_LOAD_CONFIG]()
-
-                // Check if the application has app dir or not. This depends on the mode (dev or prod).
-                // For dev, `app` should be existing in the sources and for prod it should be existing
-                // in the dist folder.
-                const distDir =
-                  process.env.NEXT_RUNTIME === 'edge'
-                    ? config.distDir
-                    : join(dir, config.distDir)
-                const serverDistDir = join(distDir, SERVER_DIRECTORY)
-                const hasAppDir = !!findDir(
-                  options.dev ? dir : serverDistDir,
-                  'app'
-                )
-
-                if (hasAppDir) {
-                  shouldUseStandaloneMode = true
-                  server[SYMBOL_SET_STANDALONE_MODE]()
-
-                  handlerPromise =
-                    handlerPromise ||
-                    createServerHandler({
-                      port: options.port || 3000,
-                      dev: options.dev,
-                      dir,
-                      hostname: options.hostname || 'localhost',
-                      minimalMode: false,
-                    })
-                } else {
-                  return server.prepare()
-                }
-              }
-            case 'getRequestHandler': {
-              return () => {
-                let handler: RequestHandler
-                return async (req: IncomingMessage, res: ServerResponse) => {
-                  if (shouldUseStandaloneMode) {
-                    const standaloneHandler = await handlerPromise
-                    return standaloneHandler(req, res)
-                  }
-                  handler = handler || server.getRequestHandler()
-                  return handler(req, res)
-                }
-              }
-            }
-            case 'render': {
-              return async (
-                req: IncomingMessage,
-                res: ServerResponse,
-                pathname: string,
-                query?: NextParsedUrlQuery,
-                parsedUrl?: NextUrlWithParsedQuery
-              ) => {
-                if (shouldUseStandaloneMode) {
-                  const handler = await handlerPromise
-                  req.url = formatUrl({
-                    ...parsedUrl,
-                    pathname,
-                    query,
-                  })
-                  return handler(req, res)
-                }
-
-                return server.render(req, res, pathname, query, parsedUrl)
-              }
-            }
-            default: {
-              const method = server[propKey as keyof NextServer]
-              if (typeof method === 'function') {
-                return method.bind(server)
-              }
-            }
-          }
-        },
-      }
-    ) as any
+    return new NextCustomServer({
+      ...options,
+      dir,
+    })
   }
 
+  // When the caller is Next.js internals (i.e. render worker, start server, etc)
   return new NextServer(options)
 }
 

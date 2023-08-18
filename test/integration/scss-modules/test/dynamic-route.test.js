@@ -40,7 +40,7 @@ describe('Dynamic Route CSS Module Usage', () => {
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
 
     expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
-      `"._post__home__a9vTy{background:red}"`
+      `"._post__home__ZI5mq{background:red}"`
     )
   })
 
@@ -98,7 +98,7 @@ describe('Catch-all Route CSS Module Usage', () => {
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
 
     expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
-      `".___post__home__w1yuY{background:red}"`
+      `".___post__home__bZNj1{background:red}"`
     )
   })
 })

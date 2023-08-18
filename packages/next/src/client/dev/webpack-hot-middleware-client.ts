@@ -45,6 +45,12 @@ export default () => {
       }
       return
     }
+    if (
+      obj.action === 'serverError' ||
+      obj.action === 'devPagesManifestUpdate'
+    ) {
+      return
+    }
     throw new Error('Unexpected action ' + obj.action)
   })
 

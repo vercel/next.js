@@ -14,11 +14,22 @@ let app
 describe('React Profiling Mode', () => {
   describe('without config enabled', () => {
     beforeAll(async () => {
+      await fs.remove(nextConfig)
       await nextBuild(appDir)
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
     })
-    afterAll(() => killApp(app))
+    afterAll(async () => {
+      await fs.writeFile(
+        nextConfig,
+        `
+        module.exports = {
+          reactProductionProfiling: true
+        }
+      `
+      )
+      await killApp(app)
+    })
 
     it('should not have used the react-dom profiling bundle', async () => {
       const browser = await webdriver(appPort, '/')
@@ -30,29 +41,37 @@ describe('React Profiling Mode', () => {
 
   describe('with config enabled', () => {
     beforeAll(async () => {
-      await fs.writeFile(
-        nextConfig,
-        `
-        module.exports = {
-          reactProductionProfiling: true
-        }
-      `
-      )
       await nextBuild(appDir, ['--profile'])
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
     })
     afterAll(async () => {
-      await fs.remove(nextConfig)
       await killApp(app)
     })
 
-    it('should have used the react-dom profiling bundle', async () => {
+    it('should have used the react-dom profiling bundle for pages', async () => {
       const browser = await webdriver(appPort, '/')
       const results = await browser.eval('window.profileResults')
 
       expect(results.length).toBe(1)
       expect(results[0] && results[0][0]).toBe('hello')
+    })
+
+    it('should have used the react-dom profiling bundle for client component', async () => {
+      const browser = await webdriver(appPort, '/client')
+      const results = await browser.eval('window.profileResults')
+
+      expect(results.length).toBe(1)
+      expect(results[0] && results[0][0]).toBe('hello-app-client')
+    })
+
+    it('should have used the react-dom profiling bundle for server component', async () => {
+      // Can't test react Profiler API in server components but make sure rendering works
+      const browser = await webdriver(appPort, '/server')
+
+      expect(await browser.waitForElementByCss('p').text()).toBe(
+        'hello app server'
+      )
     })
   })
 })

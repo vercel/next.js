@@ -1,8 +1,9 @@
 import { createNextDescribe } from 'e2e-utils'
+import type { Response } from 'node-fetch'
 
 import cookies, { nextConfigHeaders } from './cookies.mjs'
 
-function getSetCookieHeaders(res: globalThis.Response): ReadonlyArray<string> {
+function getSetCookieHeaders(res: Response): ReadonlyArray<string> {
   return (
     (res.headers as any).getSetCookie?.() ??
     (res.headers as any).raw()['set-cookie']

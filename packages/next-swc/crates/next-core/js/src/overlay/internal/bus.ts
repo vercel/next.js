@@ -7,6 +7,7 @@ export const TYPE_REFRESH = 'fast-refresh'
 export const TYPE_UNHANDLED_ERROR = 'unhandled-error'
 export const TYPE_UNHANDLED_REJECTION = 'unhandled-rejection'
 export const TYPE_REACT_ERROR = 'react-error'
+export const TYPE_NOT_FOUND = 'not-found'
 
 export type BuildOk = { type: typeof TYPE_BUILD_OK }
 export type TurbopackIssues = {
@@ -31,6 +32,10 @@ export type ReactError = {
   componentStack: string | null
 }
 
+export type NotFoundAction = {
+  type: typeof TYPE_NOT_FOUND
+}
+
 export type BusEvent =
   | BuildOk
   | TurbopackIssues
@@ -39,6 +44,7 @@ export type BusEvent =
   | UnhandledError
   | UnhandledRejection
   | ReactError
+  | NotFoundAction
 
 export type BusEventHandler = (ev: BusEvent) => void
 

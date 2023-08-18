@@ -33,6 +33,7 @@ export class ReadonlyURLSearchParams {
   keys: URLSearchParams['keys']
   values: URLSearchParams['values']
   toString: URLSearchParams['toString']
+  size: any | URLSearchParams['size']
 
   constructor(urlSearchParams: URLSearchParams) {
     this[INTERNAL_URLSEARCHPARAMS_INSTANCE] = urlSearchParams
@@ -45,6 +46,7 @@ export class ReadonlyURLSearchParams {
     this.keys = urlSearchParams.keys.bind(urlSearchParams)
     this.values = urlSearchParams.values.bind(urlSearchParams)
     this.toString = urlSearchParams.toString.bind(urlSearchParams)
+    this.size = urlSearchParams.size
   }
   [Symbol.iterator]() {
     return this[INTERNAL_URLSEARCHPARAMS_INSTANCE][Symbol.iterator]()
@@ -127,7 +129,7 @@ export function useRouter(): import('../../shared/lib/app-router-context').AppRo
 }
 
 interface Params {
-  [key: string]: string
+  [key: string]: string | string[]
 }
 
 // this function performs a depth-first search of the tree to find the selected
@@ -144,7 +146,13 @@ function getSelectedParams(
     const segmentValue = isDynamicParameter ? segment[1] : segment
     if (!segmentValue || segmentValue.startsWith('__PAGE__')) continue
 
-    if (isDynamicParameter) {
+    // Ensure catchAll and optional catchall are turned into an array
+    const isCatchAll =
+      isDynamicParameter && (segment[2] === 'c' || segment[2] === 'oc')
+
+    if (isCatchAll) {
+      params[segment[0]] = segment[1].split('/')
+    } else if (isDynamicParameter) {
       params[segment[0]] = segment[1]
     }
 

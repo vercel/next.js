@@ -7,21 +7,22 @@ import isError from '../../lib/is-error'
  * Check if a given file path is a directory or not.
  * Returns `true` if the path is a directory.
  */
-async function isDirectory(
+function isDirectory(
   /**  The path to a file to check. */
   filePath: string
 ): Promise<boolean> {
-  try {
-    return (await fs.stat(filePath)).isDirectory()
-  } catch (error) {
-    if (
-      isError(error) &&
-      (error.code === 'ENOENT' || error.code === 'ENOTDIR')
-    ) {
-      return false
-    }
-    throw error
-  }
+  return fs
+    .stat(filePath)
+    .then((stat) => stat.isDirectory())
+    .catch((error) => {
+      if (
+        isError(error) &&
+        (error.code === 'ENOENT' || error.code === 'ENOTDIR')
+      ) {
+        return false
+      }
+      throw error
+    })
 }
 /**
  * Create a file with eslint output data

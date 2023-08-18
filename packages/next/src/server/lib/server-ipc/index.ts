@@ -1,10 +1,14 @@
 import type NextServer from '../../next-server'
+import type { NextConfigComplete } from '../../config-shared'
 
 import { getNodeOptionsWithoutInspect } from '../utils'
-import { deserializeErr, errorToJSON } from '../../render'
+import { errorToJSON } from '../../render'
 import crypto from 'crypto'
 import isError from '../../../lib/is-error'
 import { genRenderExecArgv } from '../worker-utils'
+import { deserializeErr } from './request-utils'
+import { RenderWorker } from '../router-server'
+import type { Env } from '@next/env'
 
 // we can't use process.send as jest-worker relies on
 // it already and can cause unexpected message errors
@@ -84,15 +88,17 @@ export const createWorker = async (
   ipcValidationKey: string,
   isNodeDebugging: boolean | 'brk' | undefined,
   type: 'pages' | 'app',
-  useServerActions?: boolean
-) => {
-  const { initialEnv } = require('@next/env') as typeof import('@next/env')
-  const { Worker } = require('next/dist/compiled/jest-worker')
+  nextConfig: NextConfigComplete,
+  initialEnv: NodeJS.ProcessEnv | Env = process.env
+): Promise<RenderWorker> => {
+  const useServerActions = !!nextConfig.experimental.serverActions
+  const { Worker } =
+    require('next/dist/compiled/jest-worker') as typeof import('next/dist/compiled/jest-worker')
 
   const worker = new Worker(require.resolve('../render-server'), {
     numWorkers: 1,
-    // TODO: do we want to allow more than 10 OOM restarts?
-    maxRetries: 10,
+    // TODO: do we want to allow more than 8 OOM restarts?
+    maxRetries: 8,
     forkOptions: {
       env: {
         FORCE_COLOR: '1',
@@ -103,6 +109,7 @@ export const createWorker = async (
           .replace(/--max-old-space-size=[\d]{1,}/, '')
           .trim(),
         __NEXT_PRIVATE_RENDER_WORKER: type,
+        __NEXT_PRIVATE_RENDER_WORKER_CONFIG: JSON.stringify(nextConfig),
         __NEXT_PRIVATE_ROUTER_IPC_PORT: ipcPort + '',
         __NEXT_PRIVATE_ROUTER_IPC_KEY: ipcValidationKey,
         __NEXT_PRIVATE_STANDALONE_CONFIG:
@@ -126,12 +133,9 @@ export const createWorker = async (
       'deleteCache',
       'deleteAppClientCache',
       'clearModuleContext',
+      'propagateServerField',
     ],
-  }) as any as InstanceType<typeof Worker> & {
-    initialize: typeof import('../render-server').initialize
-    deleteCache: typeof import('../render-server').deleteCache
-    deleteAppClientCache: typeof import('../render-server').deleteAppClientCache
-  }
+  }) as any as RenderWorker
 
   worker.getStderr().pipe(process.stderr)
   worker.getStdout().pipe(process.stdout)

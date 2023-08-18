@@ -4,23 +4,23 @@ use anyhow::{Context, Result};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{
-    primitives::{StringVc, StringsVc, U32Vc},
-    trace::TraceRawVcs,
+use turbo_tasks::{trace::TraceRawVcs, Vc};
+use turbopack_binding::{
+    turbo::tasks_fs::FileSystemPath,
+    turbopack::core::issue::{IssueExt, IssueSeverity},
 };
-use turbopack_binding::{turbo::tasks_fs::FileSystemPathVc, turbopack::core::issue::IssueSeverity};
 
-use super::options::NextFontGoogleOptionsVc;
+use super::options::NextFontGoogleOptions;
 use crate::{
     next_font::{
         font_fallback::{
-            AutomaticFontFallback, FontAdjustment, FontFallback, FontFallbackVc,
-            DEFAULT_SANS_SERIF_FONT, DEFAULT_SERIF_FONT,
+            AutomaticFontFallback, FontAdjustment, FontFallback, DEFAULT_SANS_SERIF_FONT,
+            DEFAULT_SERIF_FONT,
         },
         issue::NextFontIssue,
         util::{get_scoped_font_family, FontFamilyType},
     },
-    util::load_next_json,
+    util::load_next_js_templateon,
 };
 
 /// An entry in the Google fonts metrics map
@@ -46,16 +46,19 @@ struct Fallback {
 
 #[turbo_tasks::function]
 pub(super) async fn get_font_fallback(
-    context: FileSystemPathVc,
-    options_vc: NextFontGoogleOptionsVc,
-    request_hash: U32Vc,
-) -> Result<FontFallbackVc> {
+    context: Vc<FileSystemPath>,
+    options_vc: Vc<NextFontGoogleOptions>,
+    request_hash: Vc<u32>,
+) -> Result<Vc<FontFallback>> {
     let options = options_vc.await?;
     Ok(match &options.fallback {
-        Some(fallback) => FontFallback::Manual(StringsVc::cell(fallback.clone())).cell(),
+        Some(fallback) => FontFallback::Manual(Vc::cell(fallback.clone())).cell(),
         None => {
-            let metrics_json =
-                load_next_json(context, "/dist/server/capsize-font-metrics.json").await?;
+            let metrics_json = load_next_js_templateon(
+                context,
+                "dist/server/capsize-font-metrics.json".to_string(),
+            )
+            .await?;
             let fallback = lookup_fallback(
                 &options.font_family,
                 metrics_json,
@@ -70,7 +73,7 @@ pub(super) async fn get_font_fallback(
                             options_vc.font_family(),
                             request_hash,
                         ),
-                        local_font_family: StringVc::cell(fallback.font_family),
+                        local_font_family: Vc::cell(fallback.font_family),
                         adjustment: fallback.adjustment,
                     }
                     .cell(),
@@ -79,17 +82,14 @@ pub(super) async fn get_font_fallback(
                 Err(_) => {
                     NextFontIssue {
                         path: context,
-                        title: StringVc::cell(format!(
+                        title: Vc::cell(format!(
                             "Failed to find font override values for font `{}`",
                             &options.font_family,
                         )),
-                        description: StringVc::cell(
-                            "Skipping generating a fallback font.".to_owned(),
-                        ),
+                        description: Vc::cell("Skipping generating a fallback font.".to_owned()),
                         severity: IssueSeverity::Warning.cell(),
                     }
                     .cell()
-                    .as_issue()
                     .emit();
                     FontFallback::Error.cell()
                 }

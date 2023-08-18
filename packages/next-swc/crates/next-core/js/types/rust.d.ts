@@ -56,37 +56,19 @@ declare module 'ENTRY' {
   export = module
 }
 
-declare module 'ROUTE_MODULE' {
-  import {
-    RouteModule,
-    type RouteModuleOptions,
-  } from 'next/dist/server/future/route-modules/route-module'
-
-  /**
-   * This is the implementation class for the route module. This provides base
-   * typing for the options and context.
-   */
-  export default class<O extends RouteModuleOptions> extends RouteModule {
-    constructor(options: O)
-  }
-}
-
 declare module 'BOOTSTRAP_CONFIG' {
-  import type { RouteKind } from 'next/dist/server/future/route-kind'
-
   export const NAME: string
   export const PAGE: string
   export const PATHNAME: string
-  export const KIND: RouteKind
 }
 
-declare module 'CLIENT_MODULE' {
-  export const __turbopack_module_id__: string
+declare module 'APP_BOOTSTRAP' {
+  const chunks: Array<string>
+  export default chunks
 }
 
-declare module 'CLIENT_CHUNKS' {
-  const moduleId: string
-  export default moduleId
-
-  export const chunks: any[]
+declare module 'APP_ENTRY' {
+  export const tree: any
+  export const pathname: string
+  // and more...
 }

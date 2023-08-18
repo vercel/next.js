@@ -1,24 +1,19 @@
 /* eslint-env jest */
-import { sandbox } from './helpers'
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { sandbox } from 'development-sandbox'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import path from 'path'
+import { outdent } from 'outdent'
 
 describe('ReactRefreshLogBox app', () => {
-  let next: NextInstance
-
-  beforeAll(async () => {
-    next = await createNext({
-      files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
-      skipStart: true,
-      dependencies: {
-        sass: 'latest',
-        react: 'latest',
-        'react-dom': 'latest',
-      },
-    })
+  const { next } = nextTestSetup({
+    files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
+    dependencies: {
+      sass: 'latest',
+      react: 'latest',
+      'react-dom': 'latest',
+    },
+    skipStart: true,
   })
-  afterAll(() => next.destroy())
 
   test('scss syntax errors', async () => {
     const { session, cleanup } = await sandbox(next)
@@ -26,7 +21,7 @@ describe('ReactRefreshLogBox app', () => {
     await session.write('index.module.scss', `.button { font-size: 5px; }`)
     await session.patch(
       'index.js',
-      `
+      outdent`
         import './index.module.scss';
         export default () => {
           return (

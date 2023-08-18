@@ -46,10 +46,10 @@ import {
 } from '../shared/lib/router/adapters'
 import { SearchParamsContext } from '../shared/lib/hooks-client-context'
 import onRecoverableError from './on-recoverable-error'
+import tracer from './tracing/tracer'
+import reportToSocket from './tracing/report-to-socket'
 
 /// <reference types="react-dom/experimental" />
-
-declare let __webpack_public_path__: string
 
 declare global {
   interface Window {
@@ -62,34 +62,6 @@ declare global {
     __NEXT_P: any[]
   }
 }
-
-const addChunkSuffix =
-  (getOriginalChunk: (chunkId: any) => string) => (chunkId: any) => {
-    return (
-      getOriginalChunk(chunkId) +
-      `${
-        process.env.__NEXT_DEPLOYMENT_ID
-          ? `?dpl=${process.env.__NEXT_DEPLOYMENT_ID}`
-          : ''
-      }`
-    )
-  }
-
-// ensure dynamic imports have deployment id added if enabled
-const getChunkScriptFilename = __webpack_require__.u
-// eslint-disable-next-line no-undef
-__webpack_require__.u = addChunkSuffix(getChunkScriptFilename)
-
-// eslint-disable-next-line no-undef
-const getChunkCssFilename = __webpack_require__.k
-// eslint-disable-next-line no-undef
-__webpack_require__.k = addChunkSuffix(getChunkCssFilename)
-
-// eslint-disable-next-line no-undef
-const getMiniCssFilename = __webpack_require__.miniCssF
-// eslint-disable-next-line no-undef
-__webpack_require__.miniCssF = addChunkSuffix(getMiniCssFilename)
-
 type RenderRouteInfo = PrivateRouteInfo & {
   App: AppComponent
   scroll?: { x: number; y: number } | null
@@ -122,10 +94,6 @@ let webpackHMR: any
 
 let CachedApp: AppComponent, onPerfEntry: (metric: any) => void
 let CachedComponent: React.ComponentType
-
-  // Ignore the module ID transform in client.
-  // @ts-ignore
-;(self as any).__next_require__ = __webpack_require__
 
 class Container extends React.Component<{
   children?: React.ReactNode
@@ -221,6 +189,8 @@ class Container extends React.Component<{
 export async function initialize(opts: { webpackHMR?: any } = {}): Promise<{
   assetPrefix: string
 }> {
+  tracer.onSpanEnd(reportToSocket)
+
   // This makes sure this specific lines are removed in production
   if (process.env.NODE_ENV === 'development') {
     webpackHMR = opts.webpackHMR
@@ -235,7 +205,7 @@ export async function initialize(opts: { webpackHMR?: any } = {}): Promise<{
   const prefix: string = initialData.assetPrefix || ''
   // With dynamic assetPrefix it's no longer possible to set assetPrefix at the build time
   // So, this is how we do it in the client side at runtime
-  __webpack_public_path__ = `${prefix}/_next/` //eslint-disable-line
+  ;(self as any).__next_set_public_path__(`${prefix}/_next/`) //eslint-disable-line
 
   // Initialize next/config with the environment configuration
   setConfig({
@@ -327,6 +297,10 @@ function renderApp(App: AppComponent, appProps: AppProps) {
 function AppContainer({
   children,
 }: React.PropsWithChildren<{}>): React.ReactElement {
+  // Create a memoized value for next/navigation router context.
+  const adaptedForAppRouter = React.useMemo(() => {
+    return adaptForAppRouterInstance(router)
+  }, [])
   return (
     <Container
       fn={(error) =>
@@ -337,7 +311,7 @@ function AppContainer({
         )
       }
     >
-      <AppRouterContext.Provider value={adaptForAppRouterInstance(router)}>
+      <AppRouterContext.Provider value={adaptedForAppRouter}>
         <SearchParamsContext.Provider value={adaptForSearchParams(router)}>
           <PathnameContextProviderAdapter
             router={router}
@@ -481,12 +455,31 @@ function markHydrateComplete(): void {
 
   performance.mark('afterHydrate') // mark end of hydration
 
-  performance.measure(
+  const beforeHydrationMeasure = performance.measure(
     'Next.js-before-hydration',
     'navigationStart',
     'beforeRender'
   )
-  performance.measure('Next.js-hydration', 'beforeRender', 'afterHydrate')
+
+  const hydrationMeasure = performance.measure(
+    'Next.js-hydration',
+    'beforeRender',
+    'afterHydrate'
+  )
+
+  tracer
+    .startSpan('navigation-to-hydration', {
+      startTime: performance.timeOrigin + beforeHydrationMeasure.startTime,
+      attributes: {
+        pathname: location.pathname,
+        query: location.search,
+      },
+    })
+    .end(
+      performance.timeOrigin +
+        hydrationMeasure.startTime +
+        hydrationMeasure.duration
+    )
 
   if (onPerfEntry) {
     performance.getEntriesByName('Next.js-hydration').forEach(onPerfEntry)

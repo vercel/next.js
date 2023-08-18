@@ -1,3 +1,4 @@
+import { INTERCEPTION_ROUTE_MARKERS } from '../future/helpers/interception-routes'
 import { DynamicParamTypes } from './types'
 
 /**
@@ -7,6 +8,16 @@ export function getSegmentParam(segment: string): {
   param: string
   type: DynamicParamTypes
 } | null {
+  const interceptionMarker = INTERCEPTION_ROUTE_MARKERS.find((marker) =>
+    segment.startsWith(marker)
+  )
+
+  // if an interception marker is part of the path segment, we need to jump ahead
+  // to the relevant portion for param parsing
+  if (interceptionMarker) {
+    segment = segment.slice(interceptionMarker.length)
+  }
+
   if (segment.startsWith('[[...') && segment.endsWith(']]')) {
     return {
       type: 'optional-catchall',

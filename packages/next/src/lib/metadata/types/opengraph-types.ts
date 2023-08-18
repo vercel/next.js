@@ -163,7 +163,7 @@ export type ResolvedOpenGraph =
 
 type ResolvedOpenGraphMetadata = {
   determiner?: 'a' | 'an' | 'the' | 'auto' | ''
-  title?: AbsoluteTemplateString
+  title: AbsoluteTemplateString
   description?: string
   emails?: Array<string>
   phoneNumbers?: Array<string>

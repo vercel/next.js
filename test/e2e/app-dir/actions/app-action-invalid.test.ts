@@ -34,7 +34,7 @@ createNextDescribe(
 
     it('should error if serverActions is not enabled', async () => {
       expect(next.cliOutput).toContain(
-        'Server Actions require `experimental.serverActions` option'
+        'To use Server Actions, please enable the feature flag in your Next.js config.'
       )
     })
   }

@@ -11,6 +11,7 @@ import {
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 import fs from 'fs'
+import type { Response } from 'node-fetch'
 
 const appDir = join(__dirname, '../')
 const nextConfig = new File(join(appDir, 'next.config.js'))

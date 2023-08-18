@@ -1,9 +1,15 @@
 ---
 title: error.js
 description: API reference for the error.js special file.
+related:
+  title: Learn more about error handling
+  links:
+    - app/building-your-application/routing/error-handling
 ---
 
 An **error** file defines an error UI boundary for a route segment.
+
+It is useful for catching **unexpected** errors that occur in Server Components and Client Components and displaying a fallback UI.
 
 ```tsx filename="app/dashboard/error.tsx" switcher
 'use client' // Error components must be Client Components
@@ -14,7 +20,7 @@ export default function Error({
   error,
   reset,
 }: {
-  error: Error
+  error: Error & { digest?: string }
   reset: () => void
 }) {
   useEffect(() => {
@@ -69,15 +75,29 @@ export default function Error({ error, reset }) {
 
 ### `error`
 
-An instance of an [`Error`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error) object. This error can happen on the server or the client.
+An instance of an [`Error`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error) object forwarded to the `error.js` Client Component.
+
+#### `error.message`
+
+The error message.
+
+- For errors forwarded from Client Components, this will be the original Error's message.
+- For errors forwarded from Server Components, this will be a generic error message to avoid leaking sensitive details. `errors.digest` can be used to match the corresponding error in server-side logs.
+
+#### `error.digest`
+
+An automatically generated hash of the error thrown in a Server Component. It can be used to match the corresponding error in server-side logs.
 
 ### `reset`
 
-A function to reset the error boundary, which does not return a response.
+A function to reset the error boundary. When executed, the function will try to re-render the Error boundary's contents. If successful, the fallback error component is replaced with the result of the re-render.
+
+Can be used to prompt the user to attempt to recover from the error.
 
 > **Good to know**:
 >
 > - `error.js` boundaries must be **[Client Components](/docs/getting-started/react-essentials)**.
+> - In Production builds, errors forwarded from Server Components will be stripped of specific error details to avoid leaking sensitive information.
 > - An `error.js` boundary will **not** handle errors thrown in a `layout.js` component in the **same** segment because the error boundary is nested **inside** that layouts component.
 >   - To handle errors for a specific layout, place an `error.js` file in the layouts parent segment.
 >   - To handle errors within the root layout or template, use a variation of `error.js` called `app/global-error.js`.
@@ -93,7 +113,7 @@ export default function GlobalError({
   error,
   reset,
 }: {
-  error: Error
+  error: Error & { digest?: string }
   reset: () => void
 }) {
   return (

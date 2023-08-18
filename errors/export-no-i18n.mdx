@@ -1,0 +1,18 @@
+---
+title: Export Internationalization (i18n)
+---
+
+## Why This Error Occurred
+
+In your `next.config.js` you defined `i18n`, along with `output: 'export'` (or you ran `next export`).
+
+## Possible Ways to Fix It
+
+- Remove `i18n` from your `next.config.js` to disable Internationalization or
+- Remove `output: 'export'` (or `next export`) in favor of [`next start`](/docs/pages/api-reference/next-cli#production) to run a production server
+
+## Useful Links
+
+- [Deployment Documentation](/docs/pages/building-your-application/deploying)
+- [`output: 'export'` Documentation](/docs/pages/building-your-application/deploying/static-exports)
+- [Internationalized Routing](/docs/pages/building-your-application/routing/internationalization)

@@ -1,5 +1,6 @@
 import * as Log from '../../build/output/log'
 import http from 'http'
+import { getDebugPort } from './utils'
 
 export const getFreePort = async (): Promise<number> => {
   return new Promise((resolve, reject) => {
@@ -28,7 +29,6 @@ export const genRenderExecArgv = async (
   })
 
   if (isNodeDebugging) {
-    const debugPort = await getFreePort()
     const isDebugging =
       process.execArgv.some((localArg) => localArg.startsWith('--inspect')) ||
       process.env.NODE_OPTIONS?.match?.(/--inspect(=\S+)?( |$)/)
@@ -39,6 +39,10 @@ export const genRenderExecArgv = async (
       ) || process.env.NODE_OPTIONS?.match?.(/--inspect-brk(=\S+)?( |$)/)
 
     if (isDebugging || isDebuggingWithBrk) {
+      let debugPort = getDebugPort()
+
+      debugPort += type === 'pages' ? 1 : 2
+
       Log.info(
         `the --inspect${
           isDebuggingWithBrk ? '-brk' : ''
@@ -46,9 +50,7 @@ export const genRenderExecArgv = async (
           type === 'pages' ? ' for pages' : type === 'app' ? ' for app' : ''
         } should be inspected at port ${debugPort}.`
       )
-    }
 
-    if (isDebugging || isDebuggingWithBrk) {
       execArgv.push(`--inspect${isDebuggingWithBrk ? '-brk' : ''}=${debugPort}`)
     }
   }

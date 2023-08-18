@@ -22,7 +22,7 @@ function test(context: ReturnType<typeof createContext>) {
     await waitFor(200)
     await check(
       () => stripAnsi(context.output),
-      new RegExp(`This ReadableStream did not return bytes.`, 'm')
+      new RegExp(`The first argument must be of type string`, 'm')
     )
     expect(stripAnsi(context.output)).not.toContain('webpack-internal:')
   }
@@ -54,7 +54,7 @@ describe('dev mode', () => {
     context.appPort = await findPort()
     context.app = await launchApp(appDir, context.appPort, {
       ...context.handler,
-      env: { __NEXT_TEST_WITH_DEVTOOL: 1 },
+      env: { __NEXT_TEST_WITH_DEVTOOL: '1' },
     })
   })
 
