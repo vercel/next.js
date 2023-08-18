@@ -82,7 +82,7 @@ createNextDescribe(
       )
 
       expect(
-        await groupDynamic404Browser.elementByCss('#next-error-h1').text()
+        await groupDynamic404Browser.elementByCss('.next-error-h1').text()
       ).toBe('404')
       expect(
         await groupDynamic404Browser.elementByCss('html').attr('class')
