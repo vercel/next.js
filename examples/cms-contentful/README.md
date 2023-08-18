@@ -4,7 +4,7 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 
 ## Demo
 
-### [https://next-blog-contentful.vercel.app/](https://next-blog-contentful.vercel.app/)
+### [https://app-router-contentful.vercel.app/](https://app-router-contentful.vercel.app/)
 
 ## Deploy your own
 
