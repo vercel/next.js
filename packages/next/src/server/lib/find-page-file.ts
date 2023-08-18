@@ -132,7 +132,6 @@ export function createValidFileMatcher(
     if (!appDirPath) {
       return false
     }
-
     if (!filePath.startsWith(appDirPath + sep)) {
       return false
     }

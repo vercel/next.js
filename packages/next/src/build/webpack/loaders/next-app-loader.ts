@@ -640,7 +640,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
         )} doesn't have a root layout. To fix this error, make sure every page has a root layout.`
       )
       process.exit(1)
-    } else if (pagePath.startsWith(appDir)) {
+    } else {
       // In dev we'll try to create a root layout
       const [createdRootLayout, rootLayoutPath] = await verifyRootLayout({
         appDir: appDir,

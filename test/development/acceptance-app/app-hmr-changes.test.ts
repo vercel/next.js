@@ -53,9 +53,9 @@ describe('Error overlay - RSC build errors', () => {
       expect(await session.hasRedbox(false)).toBe(false)
     }
 
-    expect(await session.evaluate('document.body.innerText')).toContain(
-      'A few years ago I tweeted'
-    )
+    expect(
+      await session.evaluate('document.documentElement.innerHTML')
+    ).toContain('A few years ago I tweeted')
 
     await cleanup()
   })
