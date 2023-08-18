@@ -9,30 +9,6 @@ import MoreStories from './more-stories'
 import { getAllPosts } from '@/lib/api'
 import { CMS_NAME, CMS_URL } from '@/lib/constants'
 
-export default async function Page() {
-  const { isEnabled } = draftMode()
-  const allPosts = await getAllPosts(isEnabled)
-  const heroPost = allPosts[0]
-  const morePosts = allPosts.slice(1)
-
-  return (
-    <div className="container mx-auto px-5">
-      <Intro />
-      {heroPost && (
-        <HeroPost
-          title={heroPost.title}
-          coverImage={heroPost.coverImage}
-          date={heroPost.date}
-          author={heroPost.author}
-          slug={heroPost.slug}
-          excerpt={heroPost.excerpt}
-        />
-      )}
-      <MoreStories morePosts={morePosts} />
-    </div>
-  )
-}
-
 function Intro() {
   return (
     <section className="flex-col md:flex-row flex items-center md:justify-between mt-16 mb-16 md:mb-12">
@@ -97,5 +73,29 @@ function HeroPost({
         </div>
       </div>
     </section>
+  )
+}
+
+export default async function Page() {
+  const { isEnabled } = draftMode()
+  const allPosts = await getAllPosts(isEnabled)
+  const heroPost = allPosts[0]
+  const morePosts = allPosts.slice(1)
+
+  return (
+    <div className="container mx-auto px-5">
+      <Intro />
+      {heroPost && (
+        <HeroPost
+          title={heroPost.title}
+          coverImage={heroPost.coverImage}
+          date={heroPost.date}
+          author={heroPost.author}
+          slug={heroPost.slug}
+          excerpt={heroPost.excerpt}
+        />
+      )}
+      <MoreStories morePosts={morePosts} />
+    </div>
   )
 }
