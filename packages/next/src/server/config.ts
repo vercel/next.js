@@ -335,7 +335,6 @@ function assignDefaults(
           `Specified images.loaderFile does not exist at "${absolutePath}".`
         )
       }
-      
       images.loaderFile = absolutePath
     }
   }
