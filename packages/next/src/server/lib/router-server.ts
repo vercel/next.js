@@ -113,6 +113,7 @@ export async function initialize(opts: {
     const { setupDev } =
       (await require('./router-utils/setup-dev')) as typeof import('./router-utils/setup-dev')
     devInstance = await setupDev({
+      // Passed here but the initialization of this object happens below, doing the initialization before the setupDev call breaks.
       renderWorkers,
       appDir,
       pagesDir,
