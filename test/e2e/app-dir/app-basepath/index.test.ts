@@ -37,6 +37,7 @@ createNextDescribe(
 
     it('should prefix redirect() with basePath', async () => {
       const browser = await next.browser('/base/redirect')
+      await browser.waitForElementByCss('#page-2')
       expect(await browser.url()).toBe(`${next.url}/base/another`)
     })
   }
