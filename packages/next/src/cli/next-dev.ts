@@ -25,6 +25,7 @@ import { getValidatedArgs } from '../lib/get-validated-args'
 import { Worker } from 'next/dist/compiled/jest-worker'
 import type { ChildProcess } from 'child_process'
 import { checkIsNodeDebugging } from '../server/lib/is-node-debugging'
+import { createSelfSignedCertificate } from '../lib/mkcert'
 import uploadTrace from '../trace/upload-trace'
 
 let dir: string
@@ -201,6 +202,9 @@ const nextDev: CliCommand = async (argv) => {
     '--hostname': String,
     '--turbo': Boolean,
     '--experimental-turbo': Boolean,
+    '--experimental-https': Boolean,
+    '--experimental-https-key': String,
+    '--experimental-https-cert': String,
     '--experimental-test-proxy': Boolean,
     '--experimental-upload-trace': String,
 
@@ -391,7 +395,33 @@ const nextDev: CliCommand = async (argv) => {
     const runDevServer = async (reboot: boolean) => {
       try {
         const workerInit = await createRouterWorker()
-        await workerInit.worker.startServer(devServerOptions)
+        if (!!args['--experimental-https']) {
+          Log.warn(
+            'Self-signed certificates are currently an experimental feature, use at your own risk.'
+          )
+
+          let certificate: { key: string; cert: string } | undefined
+
+          if (
+            args['--experimental-https-key'] &&
+            args['--experimental-https-cert']
+          ) {
+            certificate = {
+              key: path.resolve(args['--experimental-https-key']),
+              cert: path.resolve(args['--experimental-https-cert']),
+            }
+          } else {
+            certificate = await createSelfSignedCertificate(host)
+          }
+
+          await workerInit.worker.startServer({
+            ...devServerOptions,
+            selfSignedCertificate: certificate,
+          })
+        } else {
+          await workerInit.worker.startServer(devServerOptions)
+        }
+
         await preflight(reboot)
         return {
           cleanup: workerInit.cleanup,
