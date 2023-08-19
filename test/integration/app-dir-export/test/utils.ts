@@ -41,6 +41,8 @@ export const expectedWhenTrailingSlashTrue = [
   'another/second/index.txt',
   'api/json',
   'api/txt',
+  'client/index.html',
+  'client/index.txt',
   'favicon.ico',
   'image-import/index.html',
   'image-import/index.txt',
