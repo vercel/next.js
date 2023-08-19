@@ -412,9 +412,11 @@ const nextDev: CliCommand = async (argv) => {
           let certificate: { key: string; cert: string } | undefined
 
           const keyPath =
-            args['--experimental-https-key'] ?? 'EXPERIMENTAL_HTTPS_KEY'
+            args['--experimental-https-key'] ??
+            process.env.EXPERIMENTAL_HTTPS_KEY
           const certPath =
-            args['--experimental-https-cert'] ?? 'EXPERIMENTAL_HTTPS_CERT'
+            args['--experimental-https-cert'] ??
+            process.env.EXPERIMENTAL_HTTPS_CERT
 
           if (keyPath && certPath) {
             certificate = {
