@@ -1,11 +1,12 @@
 import { AsyncLocalStorage } from 'async_hooks'
-import { NodeRequestHandler } from '../../server/next-server'
 import type {
   ProxyFetchRequest,
   ProxyFetchResponse,
   ProxyResponse,
 } from './proxy'
 import { ClientRequestInterceptor } from 'next/dist/compiled/@mswjs/interceptors/ClientRequest'
+import { WorkerRequestHandler } from '../../server/lib/setup-server-worker'
+import { NodeRequestHandler } from '../../server/next-server'
 
 interface TestReqInfo {
   url: string
@@ -92,7 +93,9 @@ async function handleFetch(
       return originalFetch(request)
     case 'abort':
     case 'unhandled':
-      throw new Error('Proxy request aborted')
+      throw new Error(
+        `Proxy request aborted [${request.method} ${request.url}]`
+      )
     default:
       break
   }
@@ -132,7 +135,29 @@ export function interceptTestApis(): () => void {
   }
 }
 
-export function wrapRequestHandler(
+export function wrapRequestHandlerWorker(
+  handler: WorkerRequestHandler
+): WorkerRequestHandler {
+  return async (req, res) => {
+    const proxyPortHeader = req.headers['next-test-proxy-port']
+    if (!proxyPortHeader) {
+      await handler(req, res)
+      return
+    }
+
+    const url = req.url ?? ''
+    const proxyPort = Number(proxyPortHeader)
+    const testData = (req.headers['next-test-data'] as string | undefined) ?? ''
+    const testReqInfo: TestReqInfo = {
+      url,
+      proxyPort,
+      testData,
+    }
+    await testStorage.run(testReqInfo, () => handler(req, res))
+  }
+}
+
+export function wrapRequestHandlerNode(
   handler: NodeRequestHandler
 ): NodeRequestHandler {
   return async (req, res, parsedUrl) => {
@@ -150,6 +175,6 @@ export function wrapRequestHandler(
       proxyPort,
       testData,
     }
-    await testStorage.run(testReqInfo, () => handler(req, res, parsedUrl))
+    await testStorage.run(testReqInfo, () => handler(req, res))
   }
 }
