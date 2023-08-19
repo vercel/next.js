@@ -188,8 +188,7 @@ export async function initialize(opts: {
       !!config.experimental.appDir
     )
 
-    const { setupDev } =
-      require('./router-utils/setup-dev') as typeof import('./router-utils/setup-dev')
+    const { setupDev } = await require('./router-utils/setup-dev')
     devInstance = await setupDev({
       renderWorkers,
       appDir,
