@@ -38,8 +38,7 @@ export function redirect(
   url: string,
   type: RedirectType = RedirectType.replace
 ): never {
-  const targetUrl = addBasePath(url)
-  throw getRedirectError(targetUrl, type)
+  throw getRedirectError(url, type)
 }
 
 /**
