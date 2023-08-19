@@ -220,7 +220,12 @@ export async function initialize(opts: {
 
   if (devInstance) {
     Object.assign(devInstance.renderWorkers, renderWorkers)
+    const originalNextDeleteCache = (global as any)._nextDeleteCache
     ;(global as any)._nextDeleteCache = async (filePaths: string[]) => {
+      // Multiple instances of Next.js can be instantiated, since this is a global we have to call the original if it exists.
+      if (originalNextDeleteCache) {
+        await originalNextDeleteCache(filePaths)
+      }
       try {
         await Promise.all([
           renderWorkers.pages?.deleteCache(filePaths),
@@ -230,7 +235,13 @@ export async function initialize(opts: {
         console.error(err)
       }
     }
+    const originalNextDeleteAppClientCache = (global as any)
+      ._nextDeleteAppClientCache
     ;(global as any)._nextDeleteAppClientCache = async () => {
+      // Multiple instances of Next.js can be instantiated, since this is a global we have to call the original if it exists.
+      if (originalNextDeleteAppClientCache) {
+        await originalNextDeleteAppClientCache()
+      }
       try {
         await Promise.all([
           renderWorkers.pages?.deleteAppClientCache(),
@@ -240,7 +251,13 @@ export async function initialize(opts: {
         console.error(err)
       }
     }
+    const originalNextClearModuleContext = (global as any)
+      ._nextClearModuleContext
     ;(global as any)._nextClearModuleContext = async (targetPath: string) => {
+      // Multiple instances of Next.js can be instantiated, since this is a global we have to call the original if it exists.
+      if (originalNextClearModuleContext) {
+        await originalNextClearModuleContext()
+      }
       try {
         await Promise.all([
           renderWorkers.pages?.clearModuleContext(targetPath),
