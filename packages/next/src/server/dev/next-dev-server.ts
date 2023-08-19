@@ -7,7 +7,7 @@ import type { ParsedUrl } from '../../shared/lib/router/utils/parse-url'
 import type { ParsedUrlQuery } from 'querystring'
 import type { UrlWithParsedQuery } from 'url'
 import type { BaseNextRequest, BaseNextResponse } from '../base-http'
-import type { MiddlewareRoutingItem } from '../base-server'
+import type { FallbackMode, MiddlewareRoutingItem } from '../base-server'
 import type { FunctionComponent } from 'react'
 import type { RouteMatch } from '../future/route-matches/route-match'
 
@@ -694,7 +694,7 @@ export default class DevServer extends Server {
         }
         const value: {
           staticPaths: string[]
-          fallbackMode: 'blocking' | 'static' | false | undefined
+          fallbackMode: FallbackMode
         } = {
           staticPaths,
           fallbackMode:
