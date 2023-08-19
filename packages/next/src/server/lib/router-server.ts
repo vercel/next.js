@@ -190,7 +190,6 @@ export async function initialize(opts: {
 
     const { setupDev } = await require('./router-utils/setup-dev')
     devInstance = await setupDev({
-      renderWorkers,
       appDir,
       pagesDir,
       telemetry,
