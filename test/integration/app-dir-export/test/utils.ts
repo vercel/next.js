@@ -64,6 +64,8 @@ const expectedWhenTrailingSlashFalse = [
   'another/second.txt',
   'api/json',
   'api/txt',
+  'client.html',
+  'client.txt',
   'favicon.ico',
   'image-import.html',
   'image-import.txt',
