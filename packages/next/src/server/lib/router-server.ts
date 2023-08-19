@@ -48,13 +48,6 @@ export type RenderWorker = InstanceType<
   propagateServerField: typeof import('./render-server').propagateServerField
 }
 
-const nextDeleteCacheCallbacks: Array<(filePaths: string[]) => Promise<any>> =
-  []
-const nextDeleteAppClientCacheCallbacks: Array<() => Promise<any>> = []
-const nextClearModuleContextCallbacks: Array<
-  (targetPath: string) => Promise<any>
-> = []
-
 export async function initialize(opts: {
   dir: string
   port: number
@@ -227,50 +220,34 @@ export async function initialize(opts: {
 
   if (devInstance) {
     Object.assign(devInstance.renderWorkers, renderWorkers)
-
-    nextDeleteCacheCallbacks.push((filePaths: string[]) =>
-      Promise.all([
-        renderWorkers.pages?.deleteCache(filePaths),
-        renderWorkers.app?.deleteCache(filePaths),
-      ])
-    )
-    nextDeleteAppClientCacheCallbacks.push(() =>
-      Promise.all([
-        renderWorkers.pages?.deleteAppClientCache(),
-        renderWorkers.app?.deleteAppClientCache(),
-      ])
-    )
-    nextClearModuleContextCallbacks.push((targetPath: string) =>
-      Promise.all([
-        renderWorkers.pages?.clearModuleContext(targetPath),
-        renderWorkers.app?.clearModuleContext(targetPath),
-      ])
-    )
     ;(global as any)._nextDeleteCache = async (filePaths: string[]) => {
-      for (const cb of nextDeleteCacheCallbacks) {
-        try {
-          await cb(filePaths)
-        } catch (err) {
-          console.error(err)
-        }
+      try {
+        await Promise.all([
+          renderWorkers.pages?.deleteCache(filePaths),
+          renderWorkers.app?.deleteCache(filePaths),
+        ])
+      } catch (err) {
+        console.error(err)
       }
     }
     ;(global as any)._nextDeleteAppClientCache = async () => {
-      for (const cb of nextDeleteAppClientCacheCallbacks) {
-        try {
-          await cb()
-        } catch (err) {
-          console.error(err)
-        }
+      try {
+        await Promise.all([
+          renderWorkers.pages?.deleteAppClientCache(),
+          renderWorkers.app?.deleteAppClientCache(),
+        ])
+      } catch (err) {
+        console.error(err)
       }
     }
     ;(global as any)._nextClearModuleContext = async (targetPath: string) => {
-      for (const cb of nextClearModuleContextCallbacks) {
-        try {
-          await cb(targetPath)
-        } catch (err) {
-          console.error(err)
-        }
+      try {
+        await Promise.all([
+          renderWorkers.pages?.clearModuleContext(targetPath),
+          renderWorkers.app?.clearModuleContext(targetPath),
+        ])
+      } catch (err) {
+        console.error(err)
       }
     }
   }
