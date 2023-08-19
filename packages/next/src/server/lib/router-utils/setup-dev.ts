@@ -5,6 +5,8 @@ import type {
   TurbopackResult,
   WrittenEndpoint,
 } from '../../../build/swc'
+import type { Socket } from 'net'
+import ws from 'next/dist/compiled/ws'
 
 import fs from 'fs'
 import url from 'url'
@@ -90,6 +92,8 @@ import { devPageFiles } from '../../../build/webpack/plugins/next-types-plugin/s
 import type { RenderWorkers } from '../router-server'
 import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
 import { NextJsHotReloaderInterface } from '../../dev/hot-reloader-types'
+
+const wsServer = new ws.Server({ noServer: true })
 
 type SetupOpts = {
   renderWorkers: RenderWorkers
@@ -635,6 +639,32 @@ async function startWatcher(opts: SetupOpts) {
         return { finished: undefined }
       },
 
+      onHMR(req: IncomingMessage, socket: Socket, head: Buffer) {
+        console.log({ req, socket, head })
+        wsServer.handleUpgrade(req, socket, head, (client) => {
+          client.addEventListener('message', ({ data }) => {
+            const parsedData = JSON.parse(
+              typeof data !== 'string' ? data.toString() : data
+            )
+
+            if (parsedData.event === 'ping') {
+              // const result = parsedData.appDirRoute
+              // ? handleAppDirPing(parsedData.tree)
+              // : handlePing(parsedData.page)
+              const result = { success: true }
+              client.send(
+                JSON.stringify({
+                  ...result,
+                  [parsedData.appDirRoute ? 'action' : 'event']: 'pong',
+                })
+              )
+            } else {
+              console.log({ parsedData })
+            }
+          })
+        })
+      },
+
       setHmrServerError(_error) {
         // Not implemented yet.
       },
@@ -652,9 +682,6 @@ async function startWatcher(opts: SetupOpts) {
       },
       async getCompilationErrors(_page) {
         return []
-      },
-      onHMR(_req, _socket, _head) {
-        // Not implemented yet.
       },
       invalidate(/* Unused parameter: { reloadAfterInvalidation } */) {
         // Not implemented yet.

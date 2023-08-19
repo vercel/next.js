@@ -1,6 +1,9 @@
 // TODO: Remove use of `any` type.
 import { initialize, hydrate, version, router, emitter } from './'
+import initOnDemandEntries from './dev/on-demand-entries-client'
+import { connectHMR, addMessageListener } from './dev/error-overlay/websocket'
 import { displayContent } from './dev/fouc'
+import initWebpackHMR from './dev/webpack-hot-middleware-client'
 
 import './setup-hydration-warning'
 
@@ -19,11 +22,11 @@ declare let __turbopack_load__: any
 
 initialize({
   // TODO the prop name is confusing as related to webpack
-  webpackHMR: {
-    onUnrecoverableError() {},
-  },
+  webpackHMR: initWebpackHMR(),
 })
   .then(({ assetPrefix }) => {
+    connectHMR({ assetPrefix, path: '/_next/webpack-hmr' })
+
     // for the page loader
     async function loadPageChunk(chunkData: any) {
       if (typeof chunkData === 'string') {
@@ -51,7 +54,28 @@ initialize({
       )
     }
 
-    return hydrate({ beforeRender: displayContent }).then(() => {})
+    return hydrate({ beforeRender: displayContent }).then(() => {
+      initOnDemandEntries()
+
+      function devPagesHmrListener(event: { data: string }) {
+        let payload
+        try {
+          payload = JSON.parse(event.data)
+        } catch {}
+        if (payload.event === 'server-error' && payload.errorJSON) {
+          const { stack, message } = JSON.parse(payload.errorJSON)
+          const error = new Error(message)
+          error.stack = stack
+          throw error
+        } else if (payload.action === 'reloadPage') {
+          window.location.reload()
+        } else if (payload.action === 'devPagesManifestUpdate') {
+        } else if (payload.event === 'middlewareChanges') {
+        } else if (payload.event === 'serverOnlyChanges') {
+        }
+      }
+      addMessageListener(devPagesHmrListener)
+    })
   })
   .catch((err) => {
     console.error('Error was not caught', err)
