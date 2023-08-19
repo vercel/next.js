@@ -34,5 +34,10 @@ createNextDescribe(
 
       expect(ogImageHref).toContain('/base/another/opengraph-image.png')
     })
+
+    it('should prefix redirect() with basePath', async () => {
+      const browser = await next.browser('/base/redirect')
+      expect(await browser.url()).toBe(`${next.url}/base/another`)
+    })
   }
 )
