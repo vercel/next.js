@@ -129,7 +129,7 @@ buildStore.subscribe((state) => {
 
   buildWasDone = true
 
-  let partialState: Partial<OutputState> = {
+  const partialState: Partial<OutputState> = {
     bootstrap: false,
     appUrl: appUrl!,
     loading: false,

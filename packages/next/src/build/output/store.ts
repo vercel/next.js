@@ -55,10 +55,12 @@ store.subscribe((state) => {
     return
   }
 
+  // This condition is always false because
+  // 1. `.subscribe()` listener is only fired when `.setState()` happens, not on `createStore()` initialization
+  // 2. `.setState()` is always called with `bootstrap: false` explicitly.
+  //
+  // This `if` block only acts as a type guard
   if (state.bootstrap) {
-    if (state.appUrl) {
-      Log.ready(`started server on ${state.bindAddr}, url: ${state.appUrl}`)
-    }
     return
   }
 
