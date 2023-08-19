@@ -11,6 +11,7 @@ import { CliCommand } from '../lib/commands'
 import { getProjectDir } from '../lib/get-project-dir'
 import { CONFIG_FILES, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import path from 'path'
+import os from 'os'
 import { defaultConfig, NextConfigComplete } from '../server/config-shared'
 import { traceGlobals } from '../trace/shared'
 import { Telemetry } from '../telemetry/storage'
@@ -392,6 +393,14 @@ const nextDev: CliCommand = async (argv) => {
 
     return server
   } else {
+    const resolve = (filePath: string) => {
+      // '~/folder/path' or '~' not '~alias/folder/path'
+      if (filePath.startsWith('~/') || filePath === '~') {
+        filePath = filePath.replace('~', os.homedir())
+      }
+      return path.resolve(filePath)
+    }
+
     const runDevServer = async (reboot: boolean) => {
       try {
         const workerInit = await createRouterWorker()
@@ -402,13 +411,15 @@ const nextDev: CliCommand = async (argv) => {
 
           let certificate: { key: string; cert: string } | undefined
 
-          if (
-            args['--experimental-https-key'] &&
-            args['--experimental-https-cert']
-          ) {
+          const keyPath =
+            args['--experimental-https-key'] ?? 'EXPERIMENTAL_HTTPS_KEY'
+          const certPath =
+            args['--experimental-https-cert'] ?? 'EXPERIMENTAL_HTTPS_CERT'
+
+          if (keyPath && certPath) {
             certificate = {
-              key: path.resolve(args['--experimental-https-key']),
-              cert: path.resolve(args['--experimental-https-cert']),
+              key: resolve(keyPath),
+              cert: resolve(certPath),
             }
           } else {
             certificate = await createSelfSignedCertificate(host)
