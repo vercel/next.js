@@ -48,11 +48,6 @@ export type RenderWorker = InstanceType<
   propagateServerField: typeof import('./render-server').propagateServerField
 }
 
-export interface RenderWorkers {
-  app: Awaited<ReturnType<typeof createWorker>>
-  pages: Awaited<ReturnType<typeof createWorker>>
-}
-
 export async function initialize(opts: {
   dir: string
   port: number
@@ -98,6 +93,44 @@ export async function initialize(opts: {
         ReturnType<typeof import('./router-utils/setup-dev').setupDev>
       >
     | undefined
+
+  if (opts.dev) {
+    const telemetry = new Telemetry({
+      distDir: path.join(opts.dir, config.distDir),
+    })
+    const { pagesDir, appDir } = findPagesDir(
+      opts.dir,
+      !!config.experimental.appDir
+    )
+
+    const { setupDev } = await require('./router-utils/setup-dev')
+    devInstance = await setupDev({
+      appDir,
+      pagesDir,
+      telemetry,
+      fsChecker,
+      dir: opts.dir,
+      nextConfig: config,
+      isCustomServer: opts.customServer,
+      turbo: !!process.env.EXPERIMENTAL_TURBOPACK,
+    })
+  }
+
+  const renderWorkerOpts: Parameters<RenderWorker['initialize']>[0] = {
+    port: opts.port,
+    dir: opts.dir,
+    workerType: 'render',
+    hostname: opts.hostname,
+    minimalMode: opts.minimalMode,
+    dev: !!opts.dev,
+    isNodeDebugging: !!opts.isNodeDebugging,
+    serverFields: devInstance?.serverFields || {},
+    experimentalTestProxy: !!opts.experimentalTestProxy,
+  }
+  const renderWorkers: {
+    app?: RenderWorker
+    pages?: RenderWorker
+  } = {}
 
   const { ipcPort, ipcValidationKey } = await createIpcServer({
     async ensurePage(
@@ -160,58 +193,24 @@ export async function initialize(opts: {
 
   const { initialEnv } = require('@next/env') as typeof import('@next/env')
 
-  const renderWorkers: RenderWorkers = {
-    app: await createWorker(
+  if (!!config.experimental.appDir) {
+    renderWorkers.app = await createWorker(
       ipcPort,
       ipcValidationKey,
       opts.isNodeDebugging,
       'app',
       config,
       initialEnv
-    ),
-    pages: await createWorker(
-      ipcPort,
-      ipcValidationKey,
-      opts.isNodeDebugging,
-      'pages',
-      config,
-      initialEnv
-    ),
-  }
-
-  if (opts.dev) {
-    const telemetry = new Telemetry({
-      distDir: path.join(opts.dir, config.distDir),
-    })
-    const { pagesDir, appDir } = findPagesDir(
-      opts.dir,
-      !!config.experimental.appDir
     )
-
-    const { setupDev } = await require('./router-utils/setup-dev')
-    devInstance = await setupDev({
-      appDir,
-      pagesDir,
-      telemetry,
-      fsChecker,
-      dir: opts.dir,
-      nextConfig: config,
-      isCustomServer: opts.customServer,
-      turbo: !!process.env.EXPERIMENTAL_TURBOPACK,
-    })
   }
-
-  const renderWorkerOpts: Parameters<RenderWorker['initialize']>[0] = {
-    port: opts.port,
-    dir: opts.dir,
-    workerType: 'render',
-    hostname: opts.hostname,
-    minimalMode: opts.minimalMode,
-    dev: !!opts.dev,
-    isNodeDebugging: !!opts.isNodeDebugging,
-    serverFields: devInstance?.serverFields || {},
-    experimentalTestProxy: !!opts.experimentalTestProxy,
-  }
+  renderWorkers.pages = await createWorker(
+    ipcPort,
+    ipcValidationKey,
+    opts.isNodeDebugging,
+    'pages',
+    config,
+    initialEnv
+  )
 
   // pre-initialize workers
   const initialized = {
@@ -220,6 +219,7 @@ export async function initialize(opts: {
   }
 
   if (devInstance) {
+    Object.assign(devInstance.renderWorkers, renderWorkers)
     const originalNextDeleteCache = (global as any)._nextDeleteCache
     ;(global as any)._nextDeleteCache = async (filePaths: string[]) => {
       // Multiple instances of Next.js can be instantiated, since this is a global we have to call the original if it exists.
