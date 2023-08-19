@@ -85,6 +85,7 @@ import { srcEmptySsgManifest } from '../../../build/webpack/plugins/build-manife
 import { PropagateToWorkersField } from './types'
 import { MiddlewareManifest } from '../../../build/webpack/plugins/middleware-plugin'
 import { devPageFiles } from '../../../build/webpack/plugins/next-types-plugin/shared'
+import { RenderWorkers } from '../router-server'
 
 type SetupOpts = {
   dir: string
@@ -133,10 +134,7 @@ async function startWatcher(opts: SetupOpts) {
     appDir
   )
 
-  const renderWorkers: {
-    app?: import('../router-server').RenderWorker
-    pages?: import('../router-server').RenderWorker
-  } = {}
+  const renderWorkers: RenderWorkers = {} as any
 
   async function propagateToWorkers(field: PropagateToWorkersField, args: any) {
     await renderWorkers.app?.propagateServerField(field, args)
@@ -1438,6 +1436,7 @@ async function startWatcher(opts: SetupOpts) {
   return {
     serverFields,
     hotReloader,
+    renderWorkers,
     requestHandler,
     logErrorWithOriginalStack,
 

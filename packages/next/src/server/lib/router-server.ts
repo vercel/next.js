@@ -48,6 +48,11 @@ export type RenderWorker = InstanceType<
   propagateServerField: typeof import('./render-server').propagateServerField
 }
 
+export interface RenderWorkers {
+  app: Awaited<ReturnType<typeof createWorker>>
+  pages: Awaited<ReturnType<typeof createWorker>>
+}
+
 export async function initialize(opts: {
   dir: string
   port: number
@@ -103,7 +108,8 @@ export async function initialize(opts: {
       !!config.experimental.appDir
     )
 
-    const { setupDev } = await require('./router-utils/setup-dev')
+    const { setupDev } =
+      (await require('./router-utils/setup-dev')) as typeof import('./router-utils/setup-dev')
     devInstance = await setupDev({
       appDir,
       pagesDir,
@@ -127,10 +133,6 @@ export async function initialize(opts: {
     serverFields: devInstance?.serverFields || {},
     experimentalTestProxy: !!opts.experimentalTestProxy,
   }
-  const renderWorkers: {
-    app?: RenderWorker
-    pages?: RenderWorker
-  } = {}
 
   const { ipcPort, ipcValidationKey } = await createIpcServer({
     async ensurePage(
@@ -193,24 +195,24 @@ export async function initialize(opts: {
 
   const { initialEnv } = require('@next/env') as typeof import('@next/env')
 
-  if (!!config.experimental.appDir) {
-    renderWorkers.app = await createWorker(
+  const renderWorkers: RenderWorkers = {
+    app: await createWorker(
       ipcPort,
       ipcValidationKey,
       opts.isNodeDebugging,
       'app',
       config,
       initialEnv
-    )
+    ),
+    pages: await createWorker(
+      ipcPort,
+      ipcValidationKey,
+      opts.isNodeDebugging,
+      'pages',
+      config,
+      initialEnv
+    ),
   }
-  renderWorkers.pages = await createWorker(
-    ipcPort,
-    ipcValidationKey,
-    opts.isNodeDebugging,
-    'pages',
-    config,
-    initialEnv
-  )
 
   // pre-initialize workers
   const initialized = {
