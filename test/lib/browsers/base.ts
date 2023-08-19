@@ -99,13 +99,13 @@ export abstract class BrowserInterface implements PromiseLike<any> {
   /**
    * Use browsers `go back` functionality.
    */
-  back(): BrowserInterface {
+  back(options?: any): BrowserInterface {
     return this
   }
   /**
    * Use browsers `go forward` functionality. Inverse of back.
    */
-  forward(): BrowserInterface {
+  forward(options?: any): BrowserInterface {
     return this
   }
   refresh(): BrowserInterface {

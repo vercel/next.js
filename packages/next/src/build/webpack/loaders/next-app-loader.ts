@@ -53,6 +53,8 @@ const GLOBAL_ERROR_FILE_TYPE = 'global-error'
 const PAGE_SEGMENT = 'page$'
 const PARALLEL_CHILDREN_SEGMENT = 'children$'
 
+const defaultNotFoundPath = 'next/dist/client/components/not-found-error'
+
 type DirResolver = (pathToResolve: string) => string
 type PathResolver = (
   pathname: string
@@ -71,6 +73,10 @@ export type ComponentsType = {
   readonly metadata?: CollectedMetadata
 } & {
   readonly defaultPage?: ModuleReference
+}
+
+function isGroupSegment(segment: string) {
+  return segment.startsWith('(') && segment.endsWith(')')
 }
 
 async function createAppRouteCode({
@@ -223,6 +229,7 @@ async function createTreeCodeFromPath(
 
     // Existing tree are the children of the current segment
     const props: Record<string, string> = {}
+    // Root layer could be 1st layer of normal routes
     const isRootLayer = segments.length === 0
     const isRootLayoutOrRootPage = segments.length <= 1
 
@@ -311,6 +318,18 @@ async function createTreeCodeFromPath(
         ([, filePath]) => filePath !== undefined
       )
 
+      // Add default not found error as root not found if not present
+      const hasRootNotFound = definedFilePaths.some(
+        ([type]) => type === 'not-found'
+      )
+      // If the first layer is a group route, we treat it as root layer
+      const isFirstLayerGroupRoute =
+        segments.length === 1 &&
+        subSegmentPath.filter((seg) => isGroupSegment(seg)).length === 1
+      if ((isRootLayer || isFirstLayerGroupRoute) && !hasRootNotFound) {
+        definedFilePaths.push(['not-found', defaultNotFoundPath])
+      }
+
       if (!rootLayout) {
         const layoutPath = definedFilePaths.find(
           ([type]) => type === 'layout'
@@ -321,17 +340,6 @@ async function createTreeCodeFromPath(
           globalError = await resolver(
             `${path.dirname(layoutPath)}/${GLOBAL_ERROR_FILE_TYPE}`
           )
-
-          const hasNotFound = definedFilePaths.some(
-            ([type]) => type === 'not-found'
-          )
-          // Add default not found error as root not found if not present
-          if (!hasNotFound) {
-            const notFoundPath = 'next/dist/client/components/not-found-error'
-            if (notFoundPath) {
-              definedFilePaths.push(['not-found', notFoundPath])
-            }
-          }
         }
       }
 
@@ -350,7 +358,7 @@ async function createTreeCodeFromPath(
       if (isNotFoundRoute && normalizedParallelKey === 'children') {
         const notFoundPath =
           definedFilePaths.find(([type]) => type === 'not-found')?.[1] ??
-          'next/dist/client/components/not-found-error'
+          defaultNotFoundPath
         subtreeCode = `{
           children: ['__PAGE__', {}, {
             page: [
