@@ -107,13 +107,10 @@ let edgeServerWasLoading = false
 buildStore.subscribe((state) => {
   const { amp, client, server, edgeServer, trigger } = state
 
-  const { appUrl } = consoleStore.getState()
-
   if (client.loading || server.loading || edgeServer?.loading) {
     consoleStore.setState(
       {
         bootstrap: false,
-        appUrl: appUrl!,
         loading: true,
         trigger,
       } as OutputState,
@@ -131,7 +128,6 @@ buildStore.subscribe((state) => {
 
   const partialState: Partial<OutputState> = {
     bootstrap: false,
-    appUrl: appUrl!,
     loading: false,
     typeChecking: false,
     partial:

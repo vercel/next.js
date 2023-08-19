@@ -9,8 +9,8 @@ import {
 import * as Log from './log'
 
 export type OutputState =
-  | { bootstrap: true; appUrl: string | null }
-  | ({ bootstrap: false; appUrl: string | null } & (
+  | { bootstrap: true }
+  | ({ bootstrap: false } & (
       | {
           loading: true
           trigger: string | undefined
@@ -27,11 +27,10 @@ export type OutputState =
     ))
 
 export const store = createStore<OutputState>({
-  appUrl: null,
   bootstrap: true,
 })
 
-let lastStore: OutputState = { appUrl: null, bootstrap: true }
+let lastStore: OutputState = { bootstrap: true }
 function hasStoreChanged(nextStore: OutputState) {
   if (
     (
