@@ -1,4 +1,5 @@
 import { createNextDescribe } from 'e2e-utils'
+import { check } from 'next-test-utils'
 
 createNextDescribe(
   'app dir basepath',
@@ -37,8 +38,10 @@ createNextDescribe(
 
     it('should prefix redirect() with basePath', async () => {
       const browser = await next.browser('/base/redirect')
-      await browser.waitForElementByCss('#page-2')
-      expect(await browser.url()).toBe(`${next.url}/base/another`)
+      await check(async () => {
+        expect(await browser.url()).toBe(`${next.url}/base/another`)
+        return 'success'
+      }, 'success')
     })
   }
 )

@@ -1,6 +1,5 @@
 import { requestAsyncStorage } from './request-async-storage'
 import type { ResponseCookies } from '../../server/web/spec-extension/cookies'
-import { addBasePath } from '../add-base-path'
 
 const REDIRECT_ERROR_CODE = 'NEXT_REDIRECT'
 

@@ -1578,8 +1578,8 @@ export async function renderToHTMLOrFlight(
               }
             }
             const redirectUrl = addPathPrefix(
-              renderOpts.basePath,
-              getURLFromRedirectError(err)
+              getURLFromRedirectError(err),
+              renderOpts.basePath
             )
             res.setHeader('Location', redirectUrl)
           }
