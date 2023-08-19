@@ -1434,9 +1434,7 @@ async function startWatcher(opts: SetupOpts) {
 
   return {
     serverFields,
-
     hotReloader,
-    renderWorkers,
     requestHandler,
     logErrorWithOriginalStack,
 
