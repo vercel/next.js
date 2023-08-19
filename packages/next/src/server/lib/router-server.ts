@@ -49,8 +49,8 @@ export type RenderWorker = InstanceType<
 }
 
 export interface RenderWorkers {
-  app: Awaited<ReturnType<typeof createWorker>>
-  pages: Awaited<ReturnType<typeof createWorker>>
+  app?: Awaited<ReturnType<typeof createWorker>>
+  pages?: Awaited<ReturnType<typeof createWorker>>
 }
 
 export async function initialize(opts: {
@@ -93,6 +93,8 @@ export async function initialize(opts: {
     minimalMode: opts.minimalMode,
   })
 
+  const renderWorkers: RenderWorkers = {}
+
   let devInstance:
     | UnwrapPromise<
         ReturnType<typeof import('./router-utils/setup-dev').setupDev>
@@ -111,6 +113,7 @@ export async function initialize(opts: {
     const { setupDev } =
       (await require('./router-utils/setup-dev')) as typeof import('./router-utils/setup-dev')
     devInstance = await setupDev({
+      renderWorkers,
       appDir,
       pagesDir,
       telemetry,
@@ -183,24 +186,22 @@ export async function initialize(opts: {
 
   const { initialEnv } = require('@next/env') as typeof import('@next/env')
 
-  const renderWorkers: RenderWorkers = {
-    app: await createWorker(
-      ipcPort,
-      ipcValidationKey,
-      opts.isNodeDebugging,
-      'app',
-      config,
-      initialEnv
-    ),
-    pages: await createWorker(
-      ipcPort,
-      ipcValidationKey,
-      opts.isNodeDebugging,
-      'pages',
-      config,
-      initialEnv
-    ),
-  }
+  renderWorkers.app = await createWorker(
+    ipcPort,
+    ipcValidationKey,
+    opts.isNodeDebugging,
+    'app',
+    config,
+    initialEnv
+  )
+  renderWorkers.pages = await createWorker(
+    ipcPort,
+    ipcValidationKey,
+    opts.isNodeDebugging,
+    'pages',
+    config,
+    initialEnv
+  )
 
   const renderWorkerOpts: Parameters<RenderWorker['initialize']>[0] = {
     port: opts.port,
@@ -221,7 +222,6 @@ export async function initialize(opts: {
   }
 
   if (devInstance) {
-    Object.assign(devInstance.renderWorkers, renderWorkers)
     const originalNextDeleteCache = (global as any)._nextDeleteCache
     ;(global as any)._nextDeleteCache = async (filePaths: string[]) => {
       // Multiple instances of Next.js can be instantiated, since this is a global we have to call the original if it exists.
