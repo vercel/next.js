@@ -7,10 +7,6 @@ import { OutputState, store as consoleStore } from './store'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import { CompilerNameValues, COMPILER_NAMES } from '../../shared/lib/constants'
 
-export function startedDevelopmentServer(appUrl: string, bindAddr: string) {
-  consoleStore.setState({ appUrl, bindAddr })
-}
-
 type CompilerDiagnostics = {
   modules: number
   errors: string[] | null
