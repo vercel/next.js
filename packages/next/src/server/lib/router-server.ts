@@ -122,18 +122,6 @@ export async function initialize(opts: {
     })
   }
 
-  const renderWorkerOpts: Parameters<RenderWorker['initialize']>[0] = {
-    port: opts.port,
-    dir: opts.dir,
-    workerType: 'render',
-    hostname: opts.hostname,
-    minimalMode: opts.minimalMode,
-    dev: !!opts.dev,
-    isNodeDebugging: !!opts.isNodeDebugging,
-    serverFields: devInstance?.serverFields || {},
-    experimentalTestProxy: !!opts.experimentalTestProxy,
-  }
-
   const { ipcPort, ipcValidationKey } = await createIpcServer({
     async ensurePage(
       match: Parameters<
@@ -212,6 +200,18 @@ export async function initialize(opts: {
       config,
       initialEnv
     ),
+  }
+
+  const renderWorkerOpts: Parameters<RenderWorker['initialize']>[0] = {
+    port: opts.port,
+    dir: opts.dir,
+    workerType: 'render',
+    hostname: opts.hostname,
+    minimalMode: opts.minimalMode,
+    dev: !!opts.dev,
+    isNodeDebugging: !!opts.isNodeDebugging,
+    serverFields: devInstance?.serverFields || {},
+    experimentalTestProxy: !!opts.experimentalTestProxy,
   }
 
   // pre-initialize workers
