@@ -175,6 +175,6 @@ export function wrapRequestHandlerNode(
       proxyPort,
       testData,
     }
-    await testStorage.run(testReqInfo, () => handler(req, res))
+    await testStorage.run(testReqInfo, () => handler(req, res, parsedUrl))
   }
 }
