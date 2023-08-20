@@ -105,6 +105,8 @@ export async function verifyRootLayout({
           }
         }
       }
+    } else {
+      availableDir = ''
     }
 
     if (typeof availableDir === 'string') {
