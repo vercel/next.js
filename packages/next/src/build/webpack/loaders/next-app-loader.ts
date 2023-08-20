@@ -54,6 +54,8 @@ const PAGE_SEGMENT = 'page$'
 const PARALLEL_CHILDREN_SEGMENT = 'children$'
 
 const defaultNotFoundPath = 'next/dist/client/components/not-found-error'
+const defaultNotFoundPathRegex =
+  /next[\\/]dist[\\/]client[\\/]components[\\/]not-found-error/
 
 type DirResolver = (pathToResolve: string) => string
 type PathResolver = (
@@ -185,9 +187,13 @@ async function createTreeCodeFromPath(
   const splittedPath = pagePath.split(/[\\/]/)
   const pages: string[] = []
   const isNotFoundRoute = page === '/_not-found'
-  const appDirPrefix = pagePath.startsWith(APP_DIR_ALIAS)
-    ? splittedPath[0]
-    : appDir
+  // For internal default dev not-found page, since the page is located in next dist files instead of prefixed with APP_DIR_ALIAS,
+  // we use actual appDir disk path as prefix to resolve the page.
+  const appDirPrefix =
+    process.env.NODE_ENV === 'development' &&
+    defaultNotFoundPathRegex.test(pagePath)
+      ? appDir
+      : splittedPath[0]
 
   let rootLayout: string | undefined
   let globalError: string | undefined
