@@ -240,7 +240,7 @@ If an error is thrown while attempting to revalidate data, the last successfully
 
 `fetch` requests are **not** cached if:
 
-- The `cache: 'no-store` is added to `fetch` requests.
+- The `cache: 'no-store'` is added to `fetch` requests.
 - The `revalidate: 0` option is added to individual `fetch` requests.
 - The `fetch` request is inside a Router Handler that uses the `POST` method.
 - The `fetch` request comes after the usage of `headers` or `cookies`.

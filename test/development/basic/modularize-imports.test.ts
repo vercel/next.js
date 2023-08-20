@@ -12,6 +12,7 @@ describe('modularize-imports', () => {
       },
       dependencies: {
         'lucide-react': '0.264.0',
+        '@headlessui/react': '1.7.17',
       },
     })
   })
