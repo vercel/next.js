@@ -1,6 +1,6 @@
 {
   "name": "@next/font",
-  "version": "13.4.18",
+  "version": "13.4.19",
   "repository": {
     "url": "vercel/next.js",
     "directory": "packages/font"
