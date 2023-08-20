@@ -141,7 +141,7 @@ To protect your application from malicious users, you must define a list of remo
 
 ### Loaders
 
-Note that in the [example earlier](#remote-images), a partial URL (`"/me.png"`) is provided for a remote image. This is possible because of the loader architecture.
+Note that in the [example earlier](#local-images), a partial URL (`"/me.png"`) is provided for a local image. This is possible because of the loader architecture.
 
 A loader is a function that generates the URLs for your image. It modifies the provided `src`, and generates multiple URLs to request the image at different sizes. These multiple URLs are used in the automatic [srcset](https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement/srcset) generation, so that visitors to your site will be served an image that is the right size for their viewport.
 
