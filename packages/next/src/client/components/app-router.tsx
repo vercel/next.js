@@ -38,6 +38,7 @@ import {
   RouterChangeByServerResponse,
   RouterNavigate,
   ServerActionDispatcher,
+  ServerActionMutable,
 } from './router-reducer/router-reducer-types'
 import { createHrefFromUrl } from './router-reducer/create-href-from-url'
 import {
@@ -59,7 +60,6 @@ import { createInfinitePromise } from './infinite-promise'
 import { NEXT_RSC_UNION_QUERY } from './app-router-headers'
 import { removeBasePath } from '../remove-base-path'
 import { hasBasePath } from '../has-base-path'
-
 const isServer = typeof window === 'undefined'
 
 // Ensure the initialParallelRoutes are not combined because of double-rendering in the browser with Strict Mode.
@@ -72,6 +72,8 @@ let globalServerActionDispatcher = null as ServerActionDispatcher | null
 export function getServerActionDispatcher() {
   return globalServerActionDispatcher
 }
+
+let globalServerActionMutable: ServerActionMutable['globalMutable'] = {}
 
 export function urlToUrlWithoutFlightMarker(url: string): URL {
   const urlWithoutFlightParameters = new URL(url, location.origin)
@@ -141,7 +143,7 @@ function useServerActionDispatcher(dispatch: React.Dispatch<ReducerActions>) {
         dispatch({
           ...actionPayload,
           type: ACTION_SERVER_ACTION,
-          mutable: {},
+          mutable: { globalMutable: globalServerActionMutable },
           cache: createEmptyCacheNode(),
         })
       })
@@ -182,6 +184,7 @@ function useNavigate(dispatch: React.Dispatch<ReducerActions>): RouterNavigate {
   return useCallback(
     (href, navigateType, forceOptimisticNavigation, shouldScroll) => {
       const url = new URL(addBasePath(href), location.href)
+      globalServerActionMutable.pendingNavigatePath = href
 
       return dispatch({
         type: ACTION_NAVIGATE,

@@ -5,6 +5,7 @@ import {
 } from '../../../../server/app-render/types'
 import { callServer } from '../../../app-call-server'
 import {
+  ACTION,
   NEXT_ROUTER_STATE_TREE,
   NEXT_URL,
   RSC_CONTENT_TYPE_HEADER,
@@ -51,7 +52,7 @@ async function fetchServerAction(
     method: 'POST',
     headers: {
       Accept: RSC_CONTENT_TYPE_HEADER,
-      'Next-Action': actionId,
+      [ACTION]: actionId,
       [NEXT_ROUTER_STATE_TREE]: encodeURIComponent(JSON.stringify(state.tree)),
       ...(process.env.__NEXT_ACTIONS_DEPLOYMENT_ID &&
       process.env.NEXT_DEPLOYMENT_ID
@@ -147,133 +148,145 @@ export function serverActionReducer(
     return handleMutable(state, mutable)
   }
 
-  if (!action.mutable.inFlightServerAction) {
-    action.mutable.inFlightServerAction = createRecordFromThenable(
-      fetchServerAction(state, action)
-    )
-  }
+  function handleResult({
+    actionResult,
+    actionFlightData: flightData,
+    redirectLocation,
+  }: FetchServerActionResult) {
+    // TODO-APP: Make try/catch wrap only readRecordValue so that other errors bubble up through the reducer instead.
+    try {
+      mutable.previousTree = state.tree
 
-  // TODO-APP: Make try/catch wrap only readRecordValue so that other errors bubble up through the reducer instead.
-  try {
-    // suspends until the server action is resolved.
-    const {
-      actionResult,
-      actionFlightData: flightData,
-      redirectLocation,
-      // revalidatedParts,
-    } = readRecordValue(
-      action.mutable.inFlightServerAction!
-    ) as Awaited<FetchServerActionResult>
+      if (!flightData) {
+        if (!mutable.actionResultResolved) {
+          resolve(actionResult)
+          mutable.actionResultResolved = true
+        }
 
-    mutable.previousTree = state.tree
+        // If there is a redirect but no flight data we need to do a mpaNavigation.
+        if (redirectLocation) {
+          return handleExternalUrl(
+            state,
+            mutable,
+            redirectLocation.href,
+            state.pushRef.pendingPush
+          )
+        }
+        return state
+      }
 
-    if (!flightData) {
+      if (typeof flightData === 'string') {
+        // Handle case when navigating to page in `pages` from `app`
+        return handleExternalUrl(
+          state,
+          mutable,
+          flightData,
+          state.pushRef.pendingPush
+        )
+      }
+
+      // Remove cache.data as it has been resolved at this point.
+      mutable.inFlightServerAction = null
+
+      for (const flightDataPath of flightData) {
+        // FlightDataPath with more than two items means unexpected Flight data was returned
+        if (flightDataPath.length !== 3) {
+          // TODO-APP: handle this case better
+          console.log('SERVER ACTION APPLY FAILED')
+          return state
+        }
+
+        // Given the path can only have two items the items are only the router state and subTreeData for the root.
+        const [treePatch] = flightDataPath
+        const newTree = applyRouterStatePatchToTree(
+          // TODO-APP: remove ''
+          [''],
+          currentTree,
+          treePatch
+        )
+
+        if (newTree === null) {
+          throw new Error('SEGMENT MISMATCH')
+        }
+
+        if (isNavigatingToNewRootLayout(currentTree, newTree)) {
+          return handleExternalUrl(
+            state,
+            mutable,
+            href,
+            state.pushRef.pendingPush
+          )
+        }
+
+        // The one before last item is the router state tree patch
+        const [subTreeData, head] = flightDataPath.slice(-2)
+
+        // Handles case where prefetch only returns the router tree patch without rendered components.
+        if (subTreeData !== null) {
+          cache.status = CacheStates.READY
+          cache.subTreeData = subTreeData
+          fillLazyItemsTillLeafWithHead(
+            cache,
+            // Existing cache is not passed in as `router.refresh()` has to invalidate the entire cache.
+            undefined,
+            treePatch,
+            head
+          )
+          mutable.cache = cache
+          mutable.prefetchCache = new Map()
+        }
+
+        mutable.previousTree = currentTree
+        mutable.patchedTree = newTree
+        mutable.canonicalUrl = href
+
+        currentTree = newTree
+      }
+
+      if (redirectLocation) {
+        const newHref = createHrefFromUrl(redirectLocation, false)
+        mutable.canonicalUrl = newHref
+      }
+
       if (!mutable.actionResultResolved) {
         resolve(actionResult)
         mutable.actionResultResolved = true
       }
+      return handleMutable(state, mutable)
+    } catch (e: any) {
+      if (e.status === 'rejected') {
+        if (!mutable.actionResultResolved) {
+          reject(e.value)
+          mutable.actionResultResolved = true
+        }
 
-      // If there is a redirect but no flight data we need to do a mpaNavigation.
-      if (redirectLocation) {
-        return handleExternalUrl(
-          state,
-          mutable,
-          redirectLocation.href,
-          state.pushRef.pendingPush
-        )
-      }
-      return state
-    }
-
-    if (typeof flightData === 'string') {
-      // Handle case when navigating to page in `pages` from `app`
-      return handleExternalUrl(
-        state,
-        mutable,
-        flightData,
-        state.pushRef.pendingPush
-      )
-    }
-
-    // Remove cache.data as it has been resolved at this point.
-    mutable.inFlightServerAction = null
-
-    for (const flightDataPath of flightData) {
-      // FlightDataPath with more than two items means unexpected Flight data was returned
-      if (flightDataPath.length !== 3) {
-        // TODO-APP: handle this case better
-        console.log('SERVER ACTION APPLY FAILED')
+        // When the server action is rejected we don't update the state and instead call the reject handler of the promise.
         return state
       }
 
-      // Given the path can only have two items the items are only the router state and subTreeData for the root.
-      const [treePatch] = flightDataPath
-      const newTree = applyRouterStatePatchToTree(
-        // TODO-APP: remove ''
-        [''],
-        currentTree,
-        treePatch
-      )
-
-      if (newTree === null) {
-        throw new Error('SEGMENT MISMATCH')
-      }
-
-      if (isNavigatingToNewRootLayout(currentTree, newTree)) {
-        return handleExternalUrl(
-          state,
-          mutable,
-          href,
-          state.pushRef.pendingPush
-        )
-      }
-
-      // The one before last item is the router state tree patch
-      const [subTreeData, head] = flightDataPath.slice(-2)
-
-      // Handles case where prefetch only returns the router tree patch without rendered components.
-      if (subTreeData !== null) {
-        cache.status = CacheStates.READY
-        cache.subTreeData = subTreeData
-        fillLazyItemsTillLeafWithHead(
-          cache,
-          // Existing cache is not passed in as `router.refresh()` has to invalidate the entire cache.
-          undefined,
-          treePatch,
-          head
-        )
-        mutable.cache = cache
-        mutable.prefetchCache = new Map()
-      }
-
-      mutable.previousTree = currentTree
-      mutable.patchedTree = newTree
-      mutable.canonicalUrl = href
-
-      currentTree = newTree
+      throw e
     }
+  }
 
-    if (redirectLocation) {
-      const newHref = createHrefFromUrl(redirectLocation, false)
-      mutable.canonicalUrl = newHref
-    }
-
-    if (!mutable.actionResultResolved) {
-      resolve(actionResult)
-      mutable.actionResultResolved = true
-    }
-    return handleMutable(state, mutable)
-  } catch (e: any) {
-    if (e.status === 'rejected') {
-      if (!mutable.actionResultResolved) {
-        reject(e.value)
-        mutable.actionResultResolved = true
-      }
-
-      // When the server action is rejected we don't update the state and instead call the reject handler of the promise.
+  if (mutable.inFlightServerAction) {
+    // unblock if a navigation event comes through
+    // while we've suspended on an action
+    if (
+      mutable.globalMutable.pendingNavigatePath &&
+      mutable.globalMutable.pendingNavigatePath !== href
+    ) {
       return state
     }
-
-    throw e
+  } else {
+    mutable.inFlightServerAction = createRecordFromThenable(
+      fetchServerAction(state, action).then(handleResult)
+    )
   }
+
+  // suspends until the server action is resolved.
+  return handleResult(
+    readRecordValue(
+      action.mutable.inFlightServerAction!
+    ) as Awaited<FetchServerActionResult>
+  )
 }
