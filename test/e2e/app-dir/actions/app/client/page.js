@@ -2,7 +2,13 @@
 
 import { useState } from 'react'
 
-import double, { inc, dec, redirectAction, getHeaders } from './actions'
+import double, {
+  inc,
+  dec,
+  redirectAction,
+  getHeaders,
+  renamed,
+} from './actions'
 import { test } from './actions-lib'
 
 export default function Counter() {
@@ -16,6 +22,9 @@ export default function Counter() {
           console.log(inc)
           const newCount = await inc(count)
           setCount(newCount)
+
+          // test renamed action
+          renamed()
         }}
       >
         +1

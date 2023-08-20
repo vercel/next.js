@@ -66,7 +66,7 @@ stages:
             condition: eq(variables['isDocsOnly'], 'No')
             displayName: 'Install and build'
 
-          - script: npx playwright@1.28.1 install chromium
+          - script: npx playwright@1.35.1 install chromium
             condition: eq(variables['isDocsOnly'], 'No')
 
           - script: |
@@ -138,7 +138,7 @@ stages:
       #       condition: eq(variables['isDocsOnly'], 'No')
       #       displayName: 'Install and build'
 
-      #     - script: npx playwright@1.28.1 install chromium
+      #     - script: npx playwright@1.35.1 install chromium
       #       condition: eq(variables['isDocsOnly'], 'No')
 
       #     - script: |
@@ -175,7 +175,7 @@ stages:
       #       condition: eq(variables['isDocsOnly'], 'No')
       #       displayName: 'Install and build'
 
-      #     - script: npx playwright@1.28.1 install chromium
+      #     - script: npx playwright@1.35.1 install chromium
       #       condition: eq(variables['isDocsOnly'], 'No')
 
       #     - script: |

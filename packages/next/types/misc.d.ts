@@ -21,6 +21,7 @@ declare module 'next/dist/compiled/react-dom/server.edge'
 declare module 'next/dist/compiled/react-dom/server.browser'
 declare module 'next/dist/compiled/browserslist'
 declare module 'react-server-dom-webpack/client'
+declare module 'react-server-dom-webpack/server.edge'
 declare module 'react-dom/server.browser'
 declare module 'react-dom/server.edge'
 
@@ -39,6 +40,10 @@ declare module 'next/dist/compiled/@next/react-refresh-utils/dist/ReactRefreshWe
 
 declare module 'next/dist/compiled/node-html-parser' {
   export * from 'node-html-parser'
+}
+
+declare module 'next/dist/compiled/@mswjs/interceptors/ClientRequest' {
+  export * from '@mswjs/interceptors/ClientRequest'
 }
 
 declare module 'next/dist/compiled/undici' {}

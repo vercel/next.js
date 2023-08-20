@@ -8,6 +8,7 @@ import isError from '../../../lib/is-error'
 import { genRenderExecArgv } from '../worker-utils'
 import { deserializeErr } from './request-utils'
 import { RenderWorker } from '../router-server'
+import type { Env } from '@next/env'
 
 // we can't use process.send as jest-worker relies on
 // it already and can cause unexpected message errors
@@ -66,7 +67,7 @@ export async function createIpcServer(
   )
 
   const ipcPort = await new Promise<number>((resolveIpc) => {
-    ipcServer.listen(0, '0.0.0.0', () => {
+    ipcServer.listen(0, server.hostname, () => {
       const addr = ipcServer.address()
 
       if (addr && typeof addr === 'object') {
@@ -87,9 +88,9 @@ export const createWorker = async (
   ipcValidationKey: string,
   isNodeDebugging: boolean | 'brk' | undefined,
   type: 'pages' | 'app',
-  nextConfig: NextConfigComplete
+  nextConfig: NextConfigComplete,
+  initialEnv: NodeJS.ProcessEnv | Env = process.env
 ): Promise<RenderWorker> => {
-  const { initialEnv } = require('@next/env') as typeof import('@next/env')
   const useServerActions = !!nextConfig.experimental.serverActions
   const { Worker } =
     require('next/dist/compiled/jest-worker') as typeof import('next/dist/compiled/jest-worker')

@@ -21,7 +21,7 @@ use turbopack_binding::{
 use crate::next_telemetry::ModuleFeatureTelemetry;
 
 lazy_static! {
-    static ref UNSUPPORTED_PACKAGES: HashSet<&'static str> = ["@vercel/og"].into();
+    static ref UNSUPPORTED_PACKAGES: HashSet<&'static str> = [].into();
     static ref UNSUPPORTED_PACKAGE_PATHS: HashSet<(&'static str, &'static str)> = [].into();
     // Set of the features we want to track, following existing references in webpack/plugins/telemetry-plugin.
     static ref FEATURE_MODULES: HashMap<&'static str, Vec<&'static str>> = HashMap::from([
