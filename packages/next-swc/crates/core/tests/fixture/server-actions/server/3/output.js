@@ -3,7 +3,7 @@
 export async function myAction(a, b, c) {
     console.log('a');
 }
-import ensureServerEntryExports from "private-next-rsc-action-validate";
+import { ensureServerEntryExports } from "private-next-rsc-action-validate";
 ensureServerEntryExports([
     myAction
 ]);
