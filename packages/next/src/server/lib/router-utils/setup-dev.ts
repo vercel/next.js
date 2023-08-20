@@ -85,8 +85,10 @@ import { srcEmptySsgManifest } from '../../../build/webpack/plugins/build-manife
 import { PropagateToWorkersField } from './types'
 import { MiddlewareManifest } from '../../../build/webpack/plugins/middleware-plugin'
 import { devPageFiles } from '../../../build/webpack/plugins/next-types-plugin/shared'
+import type { RenderWorkers } from '../router-server'
 
 type SetupOpts = {
+  renderWorkers: RenderWorkers
   dir: string
   turbo?: boolean
   appDir?: string
@@ -133,14 +135,9 @@ async function startWatcher(opts: SetupOpts) {
     appDir
   )
 
-  const renderWorkers: {
-    app?: import('../router-server').RenderWorker
-    pages?: import('../router-server').RenderWorker
-  } = {}
-
   async function propagateToWorkers(field: PropagateToWorkersField, args: any) {
-    await renderWorkers.app?.propagateServerField(field, args)
-    await renderWorkers.pages?.propagateServerField(field, args)
+    await opts.renderWorkers.app?.propagateServerField(field, args)
+    await opts.renderWorkers.pages?.propagateServerField(field, args)
   }
 
   let hotReloader: InstanceType<typeof HotReloader>
@@ -1437,9 +1434,7 @@ async function startWatcher(opts: SetupOpts) {
 
   return {
     serverFields,
-
     hotReloader,
-    renderWorkers,
     requestHandler,
     logErrorWithOriginalStack,
 
