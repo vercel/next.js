@@ -10,7 +10,7 @@ export function createServerReference(id: string) {
   // also use the same Edge build to create the reference. For the client bundle,
   // we use the default and let Webpack to resolve it to the correct version.
   // 1: https://github.com/vercel/next.js/blob/16eb80b0b0be13f04a6407943664b5efd8f3d7d0/packages/next/src/server/app-render/use-flight-response.tsx#L24-L26
-  const { createServerReference } = (
+  const { createServerReference: createServerReferenceImpl } = (
     typeof window === 'undefined'
       ? // eslint-disable-next-line import/no-extraneous-dependencies
         require('react-server-dom-webpack/client.edge')
@@ -18,5 +18,5 @@ export function createServerReference(id: string) {
         require('react-server-dom-webpack/client')
   ) as typeof import('react-server-dom-webpack/client')
 
-  return createServerReference(id, callServer)
+  return createServerReferenceImpl(id, callServer)
 }
