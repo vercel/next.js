@@ -898,13 +898,16 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             // wrapped by a reference creation call.
             let create_ref_ident = private_ident!("createServerReference");
             if !self.config.is_server {
-                // import createServerReference from 'private-next-rsc-action-client-wrapper'
+                // import { createServerReference } from
+                // 'private-next-rsc-action-client-wrapper'
                 // createServerReference("action_id")
                 new.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                     span: DUMMY_SP,
-                    specifiers: vec![ImportSpecifier::Default(ImportDefaultSpecifier {
+                    specifiers: vec![ImportSpecifier::Named(ImportNamedSpecifier {
                         span: DUMMY_SP,
                         local: create_ref_ident.clone(),
+                        imported: None,
+                        is_type_only: false,
                     })],
                     src: Box::new(Str {
                         span: DUMMY_SP,
@@ -986,9 +989,11 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 let ensure_ident = private_ident!("ensureServerEntryExports");
                 new.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                     span: DUMMY_SP,
-                    specifiers: vec![ImportSpecifier::Default(ImportDefaultSpecifier {
+                    specifiers: vec![ImportSpecifier::Named(ImportNamedSpecifier {
                         span: DUMMY_SP,
                         local: ensure_ident.clone(),
+                        imported: None,
+                        is_type_only: false,
                     })],
                     src: Box::new(Str {
                         span: DUMMY_SP,
@@ -1056,7 +1061,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             );
 
             // import { createActionProxy } from 'private-next-rsc-action-proxy'
-            // createServerReference("action_id")
+            // createActionProxy("action_id")
             new.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                 span: DUMMY_SP,
                 specifiers: vec![ImportSpecifier::Named(ImportNamedSpecifier {
