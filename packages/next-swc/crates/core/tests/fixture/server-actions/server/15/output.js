@@ -3,7 +3,7 @@ export default $$ACTION_0 = async (a, b)=>{
   console.log(a, b);
 };
 var $$ACTION_0;
-import ensureServerEntryExports from "private-next-rsc-action-validate";
+import { ensureServerEntryExports } from "private-next-rsc-action-validate";
 ensureServerEntryExports([
   $$ACTION_0
 ]);

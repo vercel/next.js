@@ -1,7 +1,7 @@
 /* __next_internal_action_entry_do_not_use__ default */ import { createActionProxy } from "private-next-rsc-action-proxy";
 async function foo() {}
 export default foo;
-import ensureServerEntryExports from "private-next-rsc-action-validate";
+import { ensureServerEntryExports } from "private-next-rsc-action-validate";
 ensureServerEntryExports([
     foo
 ]);

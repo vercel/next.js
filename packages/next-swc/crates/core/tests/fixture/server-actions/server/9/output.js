@@ -6,7 +6,7 @@ async function bar() {}
 export { bar as baz };
 async function qux() {}
 export { qux as default };
-import ensureServerEntryExports from "private-next-rsc-action-validate";
+import { ensureServerEntryExports } from "private-next-rsc-action-validate";
 ensureServerEntryExports([
     foo,
     bar,
