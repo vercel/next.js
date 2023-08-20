@@ -75,6 +75,10 @@ export type ComponentsType = {
   readonly defaultPage?: ModuleReference
 }
 
+function isGroupSegment(segment: string) {
+  return segment.startsWith('(') && segment.endsWith(')')
+}
+
 async function createAppRouteCode({
   name,
   page,
@@ -225,6 +229,7 @@ async function createTreeCodeFromPath(
 
     // Existing tree are the children of the current segment
     const props: Record<string, string> = {}
+    // Root layer could be 1st layer of normal routes
     const isRootLayer = segments.length === 0
     const isRootLayoutOrRootPage = segments.length <= 1
 
@@ -314,10 +319,14 @@ async function createTreeCodeFromPath(
       )
 
       // Add default not found error as root not found if not present
-      const hasNotFound = definedFilePaths.some(
+      const hasRootNotFound = definedFilePaths.some(
         ([type]) => type === 'not-found'
       )
-      if (isRootLayer && !hasNotFound) {
+      // If the first layer is a group route, we treat it as root layer
+      const isFirstLayerGroupRoute =
+        segments.length === 1 &&
+        subSegmentPath.filter((seg) => isGroupSegment(seg)).length === 1
+      if ((isRootLayer || isFirstLayerGroupRoute) && !hasRootNotFound) {
         definedFilePaths.push(['not-found', defaultNotFoundPath])
       }
 
