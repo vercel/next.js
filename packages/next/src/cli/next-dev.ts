@@ -305,6 +305,7 @@ const nextDev: CliCommand = async (argv) => {
     allowRetry,
     isDev: true,
     hostname: host,
+    basePath: config.basePath,
     isExperimentalTestProxy,
   }
 

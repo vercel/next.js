@@ -6,6 +6,8 @@ import { getPort, printAndExit } from '../server/lib/utils'
 import { getProjectDir } from '../lib/get-project-dir'
 import { CliCommand } from '../lib/commands'
 import { getValidatedArgs } from '../lib/get-validated-args'
+import loadConfig from '../server/config'
+import { PHASE_PRODUCTION_SERVER } from '../shared/lib/constants'
 
 const nextStart: CliCommand = async (argv) => {
   const validArgs: arg.Spec = {
@@ -66,12 +68,15 @@ const nextStart: CliCommand = async (argv) => {
     ? Math.ceil(keepAliveTimeoutArg)
     : undefined
 
+  const config = await loadConfig(PHASE_PRODUCTION_SERVER, dir)
+
   await startServer({
     dir,
     isDev: false,
     isExperimentalTestProxy,
     hostname: host,
     port,
+    basePath: config.basePath,
     keepAliveTimeout,
   })
 }

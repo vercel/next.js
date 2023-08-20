@@ -15,6 +15,8 @@ import {
   WorkerUpgradeHandler,
 } from './setup-server-worker'
 import { checkIsNodeDebugging } from './is-node-debugging'
+import type { NextConfigComplete } from '../config-shared'
+
 const debug = setupDebug('next:start-server')
 
 export interface StartServerOptions {
@@ -23,6 +25,7 @@ export interface StartServerOptions {
   logReady?: boolean
   isDev: boolean
   hostname: string
+  basePath: NextConfigComplete['basePath']
   allowRetry?: boolean
   customServer?: boolean
   minimalMode?: boolean
@@ -72,6 +75,7 @@ export async function startServer({
   port,
   isDev,
   hostname,
+  basePath,
   minimalMode,
   allowRetry,
   keepAliveTimeout,
@@ -197,7 +201,7 @@ export async function startServer({
       port = typeof addr === 'object' ? addr?.port || port : port
       const appUrl = `${
         selfSignedCertificate ? 'https' : 'http'
-      }://${formattedHostname}:${port}`
+      }://${formattedHostname}:${port}${basePath}`
 
       if (isNodeDebugging) {
         const debugPort = getDebugPort()
