@@ -1456,6 +1456,24 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
       const hasFallback = typeof fallbackMode !== 'undefined'
 
+      if (this.nextConfig.output === 'export') {
+        const page = components.pathname
+        const isDynamic = isDynamicRoute(page)
+        if (isDynamic) {
+          if (fallbackMode !== 'static') {
+            throw new Error(
+              `Page "${page}" is missing exported function "generateStaticParams()", which is required with "output: export" config.`
+            )
+          }
+          const resolvedWithoutSlash = removeTrailingSlash(resolvedUrlPathname)
+          if (!staticPaths?.includes(resolvedWithoutSlash)) {
+            throw new Error(
+              `Page "${page}" is missing param "${resolvedWithoutSlash}" in "generateStaticParams()", which is required with "output: export" config.`
+            )
+          }
+        }
+      }
+
       if (hasFallback) {
         hasStaticPaths = true
       }
