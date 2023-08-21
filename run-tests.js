@@ -342,7 +342,7 @@ ${ENDGROUP}`)
           '--runInBand',
           '--forceExit',
           '--verbose',
-          '--silent',
+          '--debug',
           ...(isTestJob
             ? ['--json', `--outputFile=${test}${RESULTS_EXT}`]
             : []),
@@ -351,7 +351,6 @@ ${ENDGROUP}`)
         {
           stdio: ['ignore', 'pipe', 'pipe'],
           env: {
-            __NEXT_TEST_MODE: 'true',
             ...process.env,
             IS_RETRY: isRetry ? 'true' : undefined,
             RECORD_REPLAY: shouldRecordTestWithReplay,

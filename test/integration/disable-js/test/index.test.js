@@ -20,6 +20,10 @@ let app
 
 const context = {}
 
+// force require usage instead of dynamic import in jest
+// x-ref: https://github.com/nodejs/node/issues/35889
+process.env.__NEXT_TEST_MODE = 'jest'
+
 describe('disabled runtime JS', () => {
   describe('production mode', () => {
     beforeAll(async () => {

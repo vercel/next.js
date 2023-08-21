@@ -14,6 +14,10 @@ let appDir = join(__dirname, '../')
 let server
 let appPort
 
+// force require usage instead of dynamic import in jest
+// x-ref: https://github.com/nodejs/node/issues/35889
+process.env.__NEXT_TEST_MODE = 'jest'
+
 describe('excludeDefaultMomentLocales', () => {
   beforeAll(async () => {
     await nextBuild(appDir)

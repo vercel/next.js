@@ -5,7 +5,6 @@ import type {
   TurbopackResult,
   WrittenEndpoint,
 } from '../../../build/swc'
-import type { RenderWorker } from '../router-server'
 
 import fs from 'fs'
 import url from 'url'
