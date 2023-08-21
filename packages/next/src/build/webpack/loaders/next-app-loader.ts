@@ -164,7 +164,6 @@ async function createTreeCodeFromPath(
     metadataResolver,
     pageExtensions,
     basePath,
-    appDir,
   }: {
     page: string
     resolveDir: DirResolver
@@ -176,7 +175,6 @@ async function createTreeCodeFromPath(
     loaderContext: webpack.LoaderContext<AppLoaderOptions>
     pageExtensions: string[]
     basePath: string
-    appDir: string
   }
 ): Promise<{
   treeCode: string
@@ -184,17 +182,10 @@ async function createTreeCodeFromPath(
   rootLayout: string | undefined
   globalError: string | undefined
 }> {
-  const isDefaultNotFound = defaultNotFoundPathRegex.test(pagePath)
-  const splittedPath = pagePath.split(/[\\/]/)
-  const pages: string[] = []
-  const isNotFoundRoute = page === '/_not-found'
-  // For internal default dev not-found page, since the page is located in next dist files instead of prefixed with APP_DIR_ALIAS,
-  // we use actual appDir disk path as prefix to resolve the page.
   const appDirPrefix = APP_DIR_ALIAS
-  // splittedPath[0]
-  // isDevDefaultNotFound
-  //   ? appDir
-  //   :
+  const isNotFoundRoute = page === '/_not-found'
+  const isDefaultNotFound = defaultNotFoundPathRegex.test(pagePath)
+  const pages: string[] = []
 
   let rootLayout: string | undefined
   let globalError: string | undefined
@@ -638,7 +629,6 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     loaderContext: this,
     pageExtensions,
     basePath,
-    appDir,
   })
 
   if (!treeCodeResult.rootLayout) {
@@ -687,7 +677,6 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
         loaderContext: this,
         pageExtensions,
         basePath,
-        appDir,
       })
     }
   }

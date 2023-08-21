@@ -265,7 +265,9 @@ export function createPagesMapping({
   )
 
   if (pagesType === 'app') {
-    const hasAppPages = Object.keys(pages).length > 0
+    const hasAppPages = Object.keys(pages).some((page) =>
+      page.endsWith('/page')
+    )
     return {
       ...(hasAppPages && {
         '/_not-found': 'next/dist/client/components/not-found-error',
