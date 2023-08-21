@@ -688,6 +688,11 @@ export class File {
     this.write(newContent)
   }
 
+  prepend(str: string) {
+    const content = readFileSync(this.path, 'utf8')
+    this.write(str + content)
+  }
+
   delete() {
     unlinkSync(this.path)
   }

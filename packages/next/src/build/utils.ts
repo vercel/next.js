@@ -1138,25 +1138,31 @@ export const collectGenerateParams = async (
     ? segment[2]?.layout?.[0]?.()
     : segment[2]?.page?.[0]?.())
   const config = collectAppConfig(mod)
-
+  const page: string | undefined = segment[0]
   const isClientComponent = isClientReference(mod)
-  const isDynamicSegment = segment[0] && /^\[.+\]$/.test(segment[0])
+  const isDynamicSegment = /^\[.+\]$/.test(page || '')
+  const { generateStaticParams, getStaticPaths } = mod || {}
+
+  //console.log({parentSegments, page, isDynamicSegment, isClientComponent, generateStaticParams})
+  if (isDynamicSegment && isClientComponent && generateStaticParams) {
+    throw new Error(
+      `Page "${page}" cannot export "generateStaticParams()" because it is a client component`
+    )
+  }
 
   const result = {
     isLayout,
     isDynamicSegment,
     segmentPath: `/${parentSegments.join('/')}${
-      segment[0] && parentSegments.length > 0 ? '/' : ''
-    }${segment[0]}`,
+      page && parentSegments.length > 0 ? '/' : ''
+    }${page}`,
     config,
-    getStaticPaths: isClientComponent ? undefined : mod?.getStaticPaths,
-    generateStaticParams: isClientComponent
-      ? undefined
-      : mod?.generateStaticParams,
+    getStaticPaths: isClientComponent ? undefined : getStaticPaths,
+    generateStaticParams: isClientComponent ? undefined : generateStaticParams,
   }
 
-  if (segment[0]) {
-    parentSegments.push(segment[0])
+  if (page) {
+    parentSegments.push(page)
   }
 
   if (result.config || result.generateStaticParams || result.getStaticPaths) {
