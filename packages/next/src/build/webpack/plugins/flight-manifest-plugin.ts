@@ -367,7 +367,9 @@ export class ClientReferenceManifestPlugin {
       }
 
       // Special case for the root not-found page.
-      if (/^app\/not-found(\.[^.]+)?$/.test(entryName)) {
+      // dev: app/not-found
+      // prod: app/_not-found
+      if (/^app\/_?not-found(\.[^.]+)?$/.test(entryName)) {
         manifestEntryFiles.push('app/not-found')
       }
 

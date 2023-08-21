@@ -184,16 +184,17 @@ async function createTreeCodeFromPath(
   rootLayout: string | undefined
   globalError: string | undefined
 }> {
+  const isDefaultNotFound = defaultNotFoundPathRegex.test(pagePath)
   const splittedPath = pagePath.split(/[\\/]/)
   const pages: string[] = []
   const isNotFoundRoute = page === '/_not-found'
   // For internal default dev not-found page, since the page is located in next dist files instead of prefixed with APP_DIR_ALIAS,
   // we use actual appDir disk path as prefix to resolve the page.
-  const appDirPrefix =
-    process.env.NODE_ENV === 'development' &&
-    defaultNotFoundPathRegex.test(pagePath)
-      ? appDir
-      : splittedPath[0]
+  const appDirPrefix = APP_DIR_ALIAS
+  // splittedPath[0]
+  // isDevDefaultNotFound
+  //   ? appDir
+  //   :
 
   let rootLayout: string | undefined
   let globalError: string | undefined
@@ -254,7 +255,10 @@ async function createTreeCodeFromPath(
     let metadata: Awaited<ReturnType<typeof createStaticMetadataFromRoute>> =
       null
     const routerDirPath = `${appDirPrefix}${segmentPath}`
-    const resolvedRouteDir = await resolveDir(routerDirPath)
+    // For default not-found, don't traverse the directory to find metadata.
+    const resolvedRouteDir = isDefaultNotFound
+      ? ''
+      : await resolveDir(routerDirPath)
 
     if (resolvedRouteDir) {
       metadata = await createStaticMetadataFromRoute(resolvedRouteDir, {

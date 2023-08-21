@@ -264,7 +264,12 @@ export function createPagesMapping({
     {}
   )
 
-  if (pagesType !== 'pages') {
+  if (pagesType === 'app') {
+    return {
+      '/_not-found': 'next/dist/client/components/not-found-error',
+      ...pages,
+    }
+  } else if (pagesType === 'root') {
     return pages
   }
 

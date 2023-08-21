@@ -71,7 +71,7 @@ export async function verifyRootLayout({
       appDir,
       `**/layout.{${pageExtensions.join(',')}}`
     )
-    const isFileUnderAppDir = pagePath.startsWith(APP_DIR_ALIAS)
+    const isFileUnderAppDir = pagePath.startsWith(`${APP_DIR_ALIAS}/`)
     const normalizedPagePath = pagePath.replace(`${APP_DIR_ALIAS}/`, '')
     const pagePathSegments = normalizedPagePath.split('/')
 
