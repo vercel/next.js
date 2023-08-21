@@ -61,12 +61,17 @@ export const test = base.extend<{
           referrer,
           referrerPolicy,
         })
+        let isUnhandled = false
         let isPassthrough = false
         let mockedResponse: MockedResponse | undefined
         await handleRequest(
           mockedRequest,
           handlers.slice(0),
-          { onUnhandledRequest: 'error' },
+          {
+            onUnhandledRequest: () => {
+              isUnhandled = true
+            },
+          },
           emitter as any,
           {
             onPassthroughResponse: () => {
@@ -78,6 +83,9 @@ export const test = base.extend<{
           }
         )
 
+        if (isUnhandled) {
+          return undefined
+        }
         if (isPassthrough) {
           return 'continue'
         }
