@@ -1443,8 +1443,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     let staticPaths: string[] | undefined
 
     let fallbackMode: FallbackMode
+    let hasFallback = false
+    const isDynamic = isDynamicRoute(components.pathname)
 
-    if (isAppPath) {
+    if (isAppPath && isDynamic) {
       const pathsResult = await this.getStaticPaths({
         pathname,
         originalAppPath: components.pathname,
@@ -1453,44 +1455,40 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
       staticPaths = pathsResult.staticPaths
       fallbackMode = pathsResult.fallbackMode
-
-      const hasFallback = typeof fallbackMode !== 'undefined'
+      hasFallback = typeof fallbackMode !== 'undefined'
 
       if (this.nextConfig.output === 'export') {
         const page = components.pathname
-        const isDynamic = isDynamicRoute(page)
-        if (isDynamic) {
-          if (fallbackMode !== 'static') {
-            throw new Error(
-              `Page "${page}" is missing exported function "generateStaticParams()", which is required with "output: export" config.`
-            )
-          }
-          const resolvedWithoutSlash = removeTrailingSlash(resolvedUrlPathname)
-          if (!staticPaths?.includes(resolvedWithoutSlash)) {
-            throw new Error(
-              `Page "${page}" is missing param "${resolvedWithoutSlash}" in "generateStaticParams()", which is required with "output: export" config.`
-            )
-          }
+
+        if (fallbackMode !== 'static') {
+          throw new Error(
+            `Page "${page}" is missing exported function "generateStaticParams()", which is required with "output: export" config.`
+          )
+        }
+        const resolvedWithoutSlash = removeTrailingSlash(resolvedUrlPathname)
+        if (!staticPaths?.includes(resolvedWithoutSlash)) {
+          throw new Error(
+            `Page "${page}" is missing param "${resolvedWithoutSlash}" in "generateStaticParams()", which is required with "output: export" config.`
+          )
         }
       }
 
       if (hasFallback) {
         hasStaticPaths = true
       }
+    }
 
-      if (
-        hasFallback ||
-        staticPaths?.includes(resolvedUrlPathname) ||
-        // this signals revalidation in deploy environments
-        // TODO: make this more generic
-        req.headers['x-now-route-matches']
-      ) {
-        isSSG = true
-      } else if (!this.renderOpts.dev) {
-        const manifest = this.getPrerenderManifest()
-        isSSG =
-          isSSG || !!manifest.routes[pathname === '/index' ? '/' : pathname]
-      }
+    if (
+      hasFallback ||
+      staticPaths?.includes(resolvedUrlPathname) ||
+      // this signals revalidation in deploy environments
+      // TODO: make this more generic
+      req.headers['x-now-route-matches']
+    ) {
+      isSSG = true
+    } else if (!this.renderOpts.dev) {
+      const manifest = this.getPrerenderManifest()
+      isSSG = isSSG || !!manifest.routes[pathname === '/index' ? '/' : pathname]
     }
 
     // Toggle whether or not this is a Data request
