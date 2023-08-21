@@ -1479,7 +1479,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     }
 
     if (
-      typeof fallbackMode !== 'undefined' ||
+      hasFallback ||
       staticPaths?.includes(resolvedUrlPathname) ||
       // this signals revalidation in deploy environments
       // TODO: make this more generic
