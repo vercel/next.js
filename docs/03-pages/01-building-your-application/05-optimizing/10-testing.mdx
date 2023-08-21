@@ -430,10 +430,15 @@ setupFilesAfterEnv: ['<rootDir>/jest.setup.js']
 ```
 
 Then, inside `jest.setup.js`, add the following import:
-
 ```js filename="jest.setup.js"
 import '@testing-library/jest-dom/extend-expect'
 ```
+
+If you are using `@testing-library/jest-dom` release 6 and later, use the code below instead. As per the latest `@testing-library/jest-dom` [release (v6.0)](https://github.com/testing-library/jest-dom/releases/tag/v6.0.0) the `extend-expect` was removed.
+```js filename="jest.setup.js"
+import '@testing-library/jest-dom
+```
+
 
 If you need to add more setup options before each test, it's common to add them to the `jest.setup.js` file above.
 
