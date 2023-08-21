@@ -118,3 +118,17 @@ if (!Object.fromEntries) {
     }, {})
   }
 }
+
+/**
+ * Available in:
+ * Edge: 79
+ * Firefox: 65
+ * Chrome: 71
+ * Safari: 12.1
+ *
+ * https://caniuse.com/mdn-javascript_builtins_globalthis
+ */
+// Assume this polyfill module only running in browser environment.
+if (typeof globalThis === 'undefined' && typeof window !== 'undefined') {
+  window.globalThis = window
+}
