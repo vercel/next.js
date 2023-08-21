@@ -30,7 +30,7 @@ When architecting your application, you can interleave Client and Server Compone
 
 Within those client branches, you can nest Server Components or access resources on the server, however there are some things to keep in mind:
 
-- During a [request-response lifecycle](/docs/app/building-your-application/rendering#request-response-lifecyle), your code moves from the server to the client. If you need to access data or resources on the server while on the client, you'll be making a **new** request to the server - not switching back.
+- During a [request-response lifecycle](/docs/app/building-your-application/rendering#requestresponse-lifecyle), your code moves from the server to the client. If you need to access data or resources on the server while on the client, you'll be making a **new** request to the server - not switching back.
 - Since code moves from the server to the client, Server Components are rendered first, regardless of where they are in your component tree. The rendering result (RSC Payload) will contain references to the locations of Client Components. Then, on the client, React uses the RSC Payload to reconcile Server and Client Components into a single tree.
 
 {/* Diagram */}
