@@ -1444,7 +1444,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
     let fallbackMode: FallbackMode
 
-    if (isAppPath) {
+    if (isAppPath && isDynamicRoute(pathname)) {
       const pathsResult = await this.getStaticPaths({
         pathname,
         originalAppPath: components.pathname,
