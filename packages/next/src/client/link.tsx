@@ -103,7 +103,11 @@ type InternalLinkProps = {
 
 // TODO-APP: Include the full set of Anchor props
 // adding this to the publicly exported type currently breaks existing apps
-export type LinkProps = InternalLinkProps
+
+// `RouteInferType` is a stub here to avoid breaking `typedRoutes` when the type
+// isn't generated yet. It will be replaced when the webpack plugin runs.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export type LinkProps<RouteInferType = any> = InternalLinkProps
 type LinkPropsRequired = RequiredKeys<LinkProps>
 type LinkPropsOptional = OptionalKeys<InternalLinkProps>
 
