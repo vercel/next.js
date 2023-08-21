@@ -2,7 +2,6 @@ import type { __ApiPreviewProps } from './api-utils'
 import type { DomainLocale } from './config'
 import type { FontManifest, FontConfig } from './font-utils'
 import type { LoadComponentsReturnType } from './load-components'
-import type { RouteMatchFn } from '../shared/lib/router/utils/route-matcher'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
 import type { Params } from '../shared/lib/router/utils/route-matcher'
 import type { NextConfig, NextConfigComplete } from './config-shared'
@@ -120,12 +119,6 @@ export type FindComponentsResult = {
   query: NextParsedUrlQuery
 }
 
-export interface RoutingItem {
-  page: string
-  match: RouteMatchFn
-  re?: RegExp
-}
-
 export interface MiddlewareRoutingItem {
   page: string
   match: MiddlewareRouteMatch
@@ -145,6 +138,10 @@ export interface Options {
    * Tells if Next.js is running in dev mode
    */
   dev?: boolean
+  /**
+   * Enables the experimental testing mode.
+   */
+  experimentalTestProxy?: boolean
   /**
    * Where the Next project is located
    */
@@ -191,6 +188,8 @@ export type RequestContext = {
   query: NextParsedUrlQuery
   renderOpts: RenderOptsPartial
 }
+
+export type FallbackMode = false | undefined | 'blocking' | 'static'
 
 export class NoFallbackError extends Error {}
 
@@ -1442,7 +1441,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       getRequestMeta(req, '_nextRewroteUrl') || urlPathname
 
     let staticPaths: string[] | undefined
-    let fallbackMode: false | undefined | 'blocking' | 'static'
+
+    let fallbackMode: FallbackMode
 
     if (isAppPath) {
       const pathsResult = await this.getStaticPaths({
