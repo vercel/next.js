@@ -11,11 +11,12 @@ createNextDescribe(
     it('should work using browser', async () => {
       const browser: BrowserInterface = await next.browser('/')
       const logs = await browser.log()
-      expect(logs.length).toBe(2)
-      logs.forEach((log, i) => {
-        if (log.source === 'log') {
-          expect(log.message).toBe(`logged ${i + 1}`)
-        }
+      const userLogs = logs.filter(
+        (log) => log.source === 'log' && log.message.match(/logged \d times/)
+      )
+      expect(userLogs.length).toBe(2)
+      userLogs.forEach((log, i) => {
+        expect(log.message).toBe(`logged ${i + 1} times`)
       })
     })
   }
