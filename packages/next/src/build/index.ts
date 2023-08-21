@@ -2391,7 +2391,7 @@ export default async function build(
 
       const combinedPages = [...staticPages, ...ssgPages]
       const isApp404Static = appStaticPaths.has('/_not-found')
-      const hasStaticApp404 = hasApp404 // && isApp404Static
+      const hasStaticApp404 = hasApp404 && isApp404Static
 
       // we need to trigger automatic exporting when we have
       // - static 404/500

@@ -265,8 +265,11 @@ export function createPagesMapping({
   )
 
   if (pagesType === 'app') {
+    const hasAppPages = Object.keys(pages).length > 0
     return {
-      '/_not-found': 'next/dist/client/components/not-found-error',
+      ...(hasAppPages && {
+        '/_not-found': 'next/dist/client/components/not-found-error',
+      }),
       ...pages,
     }
   } else if (pagesType === 'root') {

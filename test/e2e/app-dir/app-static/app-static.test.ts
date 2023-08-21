@@ -484,6 +484,10 @@ createNextDescribe(
           })
 
         expect(files).toEqual([
+          '_not-found_client-reference-manifest.js',
+          '_not-found.html',
+          '_not-found.js',
+          '_not-found.rsc',
           '(new)/custom/page_client-reference-manifest.js',
           '(new)/custom/page.js',
           'api/draft-mode/route.js',
@@ -565,6 +569,7 @@ createNextDescribe(
           'hooks/use-search-params/with-suspense/page.js',
           'index.html',
           'index.rsc',
+          'not-found_client-reference-manifest.js',
           'page_client-reference-manifest.js',
           'page.js',
           'partial-gen-params-no-additional-lang/[lang]/[slug]/page_client-reference-manifest.js',
