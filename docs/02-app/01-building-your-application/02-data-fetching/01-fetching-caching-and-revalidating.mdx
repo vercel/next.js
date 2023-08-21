@@ -115,6 +115,8 @@ If you have multiple fetch requests in a statically rendered route, and each has
 
 Learn more about [time-based revalidation](/docs/app/building-your-application/caching#time-based-revalidation).
 
+> **Good to know:** Revalidation only works with the [Node.js runtime](docs/app/building-your-application/rendering/edge-and-nodejs-runtimes#nodejs-runtime) (default).
+
 #### On-demand Revalidation
 
 Data can be revalidated on-demand by path ([`revalidatePath`](/docs/app/api-reference/functions/revalidatePath)) or by cache tag ([`revalidateTag`](/docs/app/api-reference/functions/revalidateTag)) inside a Route Handler or a Server Action.

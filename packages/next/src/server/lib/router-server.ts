@@ -302,7 +302,7 @@ export async function initialize(opts: {
     devInstance?.ensureMiddleware
   )
 
-  const requestHandler: WorkerRequestHandler = async (req, res) => {
+  const requestHandlerImpl: WorkerRequestHandler = async (req, res) => {
     if (compress) {
       // @ts-expect-error not express req/res
       compress(req, res, () => {})
@@ -716,6 +716,17 @@ export async function initialize(opts: {
       res.statusCode = 500
       res.end('Internal Server Error')
     }
+  }
+
+  let requestHandler: WorkerRequestHandler = requestHandlerImpl
+  if (opts.experimentalTestProxy) {
+    // Intercept fetch and other testmode apis.
+    const {
+      wrapRequestHandlerWorker,
+      interceptTestApis,
+    } = require('../../experimental/testmode/server')
+    requestHandler = wrapRequestHandlerWorker(requestHandler)
+    interceptTestApis()
   }
 
   const upgradeHandler: WorkerUpgradeHandler = async (req, socket, head) => {

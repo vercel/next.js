@@ -43,6 +43,7 @@ export interface PageStaticInfo {
   ssg?: boolean
   ssr?: boolean
   rsc?: RSCModuleType
+  generateStaticParams?: boolean
   middleware?: MiddlewareConfig
   amp?: boolean | 'hybrid'
   extraConfig?: Record<string, any>
@@ -74,7 +75,15 @@ export function getRSCModuleInformation(
   const clientEntryType = clientInfoMatch?.[2] as 'cjs' | 'auto'
 
   const type = clientRefs ? RSC_MODULE_TYPES.client : RSC_MODULE_TYPES.server
-  return { type, actions, clientRefs, clientEntryType, isClientRef }
+  const hasUseClientDirective = /^\s*['"]use client['"]/.test(source)
+  return {
+    type,
+    actions,
+    clientRefs,
+    clientEntryType,
+    isClientRef,
+    hasUseClientDirective,
+  }
 }
 
 const warnedInvalidValueMap = {
@@ -113,6 +122,7 @@ function checkExports(
   preferredRegion?: string | string[]
   generateImageMetadata?: boolean
   generateSitemaps?: boolean
+  generateStaticParams: boolean
   extraProperties?: Set<string>
 } {
   const exportsSet = new Set<string>([
@@ -120,6 +130,7 @@ function checkExports(
     'getServerSideProps',
     'generateImageMetadata',
     'generateSitemaps',
+    'generateStaticParams',
   ])
   if (Array.isArray(swcAST?.body)) {
     try {
@@ -129,6 +140,7 @@ function checkExports(
       let ssg: boolean = false
       let generateImageMetadata: boolean = false
       let generateSitemaps: boolean = false
+      let generateStaticParams = false
       let extraProperties = new Set<string>()
 
       for (const node of swcAST.body) {
@@ -169,6 +181,7 @@ function checkExports(
           ssr = id === 'getServerSideProps'
           generateImageMetadata = id === 'generateImageMetadata'
           generateSitemaps = id === 'generateSitemaps'
+          generateStaticParams = id === 'generateStaticParams'
         }
 
         if (
@@ -181,6 +194,7 @@ function checkExports(
             ssr = id === 'getServerSideProps'
             generateImageMetadata = id === 'generateImageMetadata'
             generateSitemaps = id === 'generateSitemaps'
+            generateStaticParams = id === 'generateStaticParams'
           }
         }
 
@@ -199,6 +213,8 @@ function checkExports(
               generateImageMetadata = true
             if (!generateSitemaps && value === 'generateSitemaps')
               generateSitemaps = true
+            if (!generateStaticParams && value === 'generateStaticParams')
+              generateStaticParams = true
             if (!runtime && value === 'runtime')
               warnInvalidValue(
                 pageFilePath,
@@ -222,6 +238,7 @@ function checkExports(
         preferredRegion,
         generateImageMetadata,
         generateSitemaps,
+        generateStaticParams,
         extraProperties,
       }
     } catch (err) {}
@@ -234,6 +251,7 @@ function checkExports(
     preferredRegion: undefined,
     generateImageMetadata: false,
     generateSitemaps: false,
+    generateStaticParams: false,
     extraProperties: undefined,
   }
 }
@@ -437,14 +455,21 @@ export async function getPageStaticInfo(params: {
 
   const fileContent = (await tryToReadFile(pageFilePath, !isDev)) || ''
   if (
-    /runtime|preferredRegion|getStaticProps|getServerSideProps|export const/.test(
+    /runtime|preferredRegion|getStaticProps|getServerSideProps|generateStaticParams|export const/.test(
       fileContent
     )
   ) {
     const swcAST = await parseModule(pageFilePath, fileContent)
-    const { ssg, ssr, runtime, preferredRegion, extraProperties } =
-      checkExports(swcAST, pageFilePath)
-    const rsc = getRSCModuleInformation(fileContent).type
+    const {
+      ssg,
+      ssr,
+      runtime,
+      preferredRegion,
+      generateStaticParams,
+      extraProperties,
+    } = checkExports(swcAST, pageFilePath)
+    const rscInfo = getRSCModuleInformation(fileContent)
+    const rsc = rscInfo.type
 
     // default / failsafe value for config
     let config: any
@@ -548,10 +573,21 @@ export async function getPageStaticInfo(params: {
       nextConfig
     )
 
+    if (
+      pageType === 'app' &&
+      rscInfo.hasUseClientDirective &&
+      generateStaticParams
+    ) {
+      throw new Error(
+        `Page "${page}" cannot use both "use client" and export function "generateStaticParams()".`
+      )
+    }
+
     return {
       ssr,
       ssg,
       rsc,
+      generateStaticParams,
       amp: config.amp || false,
       ...(middlewareConfig && { middleware: middlewareConfig }),
       ...(resolvedRuntime && { runtime: resolvedRuntime }),
@@ -564,6 +600,7 @@ export async function getPageStaticInfo(params: {
     ssr: false,
     ssg: false,
     rsc: RSC_MODULE_TYPES.server,
+    generateStaticParams: false,
     amp: false,
     runtime: undefined,
   }
