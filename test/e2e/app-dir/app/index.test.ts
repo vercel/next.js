@@ -1353,6 +1353,36 @@ createNextDescribe(
           }
         })
 
+        it('includes a nonce value with bootstrap scripts when Content-Security-Policy header is defined', async () => {
+          // A random nonce value, base64 encoded.
+          const nonce = 'cmFuZG9tCg=='
+
+          // Validate all the cases where we could parse the nonce.
+          const policies = [
+            `script-src 'nonce-${nonce}'`, // base case
+            `   script-src   'nonce-${nonce}' `, // extra space added around sources and directive
+            `style-src 'self'; script-src 'nonce-${nonce}'`, // extra directives
+            `script-src 'self' 'nonce-${nonce}' 'nonce-othernonce'`, // extra nonces
+            `default-src 'nonce-othernonce'; script-src 'nonce-${nonce}';`, // script and then fallback case
+            `default-src 'nonce-${nonce}'`, // fallback case
+          ]
+
+          for (const policy of policies) {
+            const $ = await renderWithPolicy(policy)
+
+            // Find all the script tags without src attributes.
+            const elements = $('script[src]')
+
+            // Expect there to be at least 1 script tag without a src attribute.
+            expect(elements.length).toBeGreaterThan(0)
+
+            // Expect all inline scripts to have the nonce value.
+            elements.each((i, el) => {
+              expect(el.attribs['nonce']).toBe(nonce)
+            })
+          }
+        })
+
         it('includes an integrity attribute on scripts', async () => {
           const $ = await next.render$('/dashboard')
 
@@ -1857,6 +1887,17 @@ createNextDescribe(
           'Hello world'
         )
         expect(await browser.elementByCss('p').text()).toBe('item count 128000')
+      })
+    })
+
+    describe('bootstrap scripts', () => {
+      it('should only bootstrap with one script, prinitializing the rest', async () => {
+        const html = await next.render('/bootstrap')
+        const $ = cheerio.load(html)
+
+        // We assume a minimum of 2 scripts, webpack runtime + main-app
+        expect($('script[async]').length).toBeGreaterThan(1)
+        expect($('body').find('script[async]').length).toBe(1)
       })
     })
   }

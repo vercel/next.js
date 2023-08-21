@@ -898,13 +898,16 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             // wrapped by a reference creation call.
             let create_ref_ident = private_ident!("createServerReference");
             if !self.config.is_server {
-                // import createServerReference from 'private-next-rsc-action-client-wrapper'
+                // import { createServerReference } from
+                // 'private-next-rsc-action-client-wrapper'
                 // createServerReference("action_id")
                 new.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                     span: DUMMY_SP,
-                    specifiers: vec![ImportSpecifier::Default(ImportDefaultSpecifier {
+                    specifiers: vec![ImportSpecifier::Named(ImportNamedSpecifier {
                         span: DUMMY_SP,
                         local: create_ref_ident.clone(),
+                        imported: None,
+                        is_type_only: false,
                     })],
                     src: Box::new(Str {
                         span: DUMMY_SP,
@@ -948,7 +951,9 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                     declare: false,
                                     decls: vec![VarDeclarator {
                                         span: DUMMY_SP,
-                                        name: Pat::Ident(ident.into()),
+                                        name: Pat::Ident(
+                                            Ident::new(export_name.clone().into(), DUMMY_SP).into(),
+                                        ),
                                         init: Some(Box::new(Expr::Call(CallExpr {
                                             span: DUMMY_SP,
                                             callee: Callee::Expr(Box::new(Expr::Ident(
@@ -984,9 +989,11 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 let ensure_ident = private_ident!("ensureServerEntryExports");
                 new.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                     span: DUMMY_SP,
-                    specifiers: vec![ImportSpecifier::Default(ImportDefaultSpecifier {
+                    specifiers: vec![ImportSpecifier::Named(ImportNamedSpecifier {
                         span: DUMMY_SP,
                         local: ensure_ident.clone(),
+                        imported: None,
+                        is_type_only: false,
                     })],
                     src: Box::new(Str {
                         span: DUMMY_SP,
@@ -1053,13 +1060,15 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 },
             );
 
-            // import __createActionProxy__ from 'private-next-rsc-action-proxy'
-            // createServerReference("action_id")
+            // import { createActionProxy } from 'private-next-rsc-action-proxy'
+            // createActionProxy("action_id")
             new.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                 span: DUMMY_SP,
-                specifiers: vec![ImportSpecifier::Default(ImportDefaultSpecifier {
+                specifiers: vec![ImportSpecifier::Named(ImportNamedSpecifier {
                     span: DUMMY_SP,
-                    local: quote_ident!("__create_action_proxy__"),
+                    local: quote_ident!("createActionProxy"),
+                    imported: None,
+                    is_type_only: false,
                 })],
                 src: Box::new(Str {
                     span: DUMMY_SP,
@@ -1173,7 +1182,7 @@ fn annotate_ident_as_action(
     export_name: String,
     maybe_orig_action_ident: Option<Ident>,
 ) {
-    // Add the proxy wrapper call `__create_action_proxy__($$id, $$bound, myAction,
+    // Add the proxy wrapper call `createActionProxy($$id, $$bound, myAction,
     // maybe_orig_action)`.
     let mut args = vec![
         // $$id
@@ -1205,7 +1214,7 @@ fn annotate_ident_as_action(
         span: DUMMY_SP,
         expr: Box::new(Expr::Call(CallExpr {
             span: DUMMY_SP,
-            callee: quote_ident!("__create_action_proxy__").as_callee(),
+            callee: quote_ident!("createActionProxy").as_callee(),
             args: if let Some(orig_action_ident) = maybe_orig_action_ident {
                 args.push(ExprOrSpread {
                     spread: None,

@@ -1,5 +1,6 @@
 import { createHash } from 'crypto'
 import { promises } from 'fs'
+import { cpus } from 'os'
 import type { IncomingMessage, ServerResponse } from 'http'
 import { mediaType } from 'next/dist/compiled/@hapi/accept'
 import chalk from 'next/dist/compiled/chalk'
@@ -43,15 +44,17 @@ const VECTOR_TYPES = [SVG]
 const BLUR_IMG_SIZE = 8 // should match `next-image-loader`
 const BLUR_QUALITY = 70 // should match `next-image-loader`
 
-let sharp:
-  | ((
-      input?: string | Buffer,
-      options?: import('sharp').SharpOptions
-    ) => import('sharp').Sharp)
-  | undefined
+let sharp: typeof import('sharp') | undefined
 
 try {
   sharp = require(process.env.NEXT_SHARP_PATH || 'sharp')
+  if (sharp && sharp.concurrency() > 1) {
+    // Reducing concurrency should reduce the memory usage too.
+    // We more aggressively reduce in dev but also reduce in prod.
+    // https://sharp.pixelplumbing.com/api-utility#concurrency
+    const divisor = process.env.NODE_ENV === 'development' ? 4 : 2
+    sharp.concurrency(Math.floor(Math.max(cpus().length / divisor, 1)))
+  }
 } catch (e) {
   // Sharp not present on the server, Squoosh fallback will be used
 }
@@ -96,15 +99,8 @@ async function writeToCacheDir(
 ) {
   const filename = join(dir, `${maxAge}.${expireAt}.${etag}.${extension}`)
 
-  // Added in: v14.14.0 https://nodejs.org/api/fs.html#fspromisesrmpath-options
-  // attempt cleaning up existing stale cache
-  if ((promises as any).rm) {
-    await (promises as any)
-      .rm(dir, { force: true, recursive: true })
-      .catch(() => {})
-  } else {
-    await promises.rmdir(dir, { recursive: true }).catch(() => {})
-  }
+  await promises.rm(dir, { recursive: true, force: true }).catch(() => {})
+
   await promises.mkdir(dir, { recursive: true })
   await promises.writeFile(filename, buffer)
 }

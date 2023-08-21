@@ -1,3 +1,5 @@
+'use client'
+
 import {
   IceCream,
   BackpackIcon,
@@ -20,6 +22,8 @@ import {
   LucideEdit3,
   TextSelection,
 } from 'lucide-react'
+
+import { Tab, RadioGroup, Transition } from '@headlessui/react'
 
 export default function Page() {
   return (
@@ -44,6 +48,28 @@ export default function Page() {
       <Edit2 />
       <LucideEdit3 />
       <TextSelection />
+      <Tab.Group>
+        <Tab.List>
+          <Tab>Tab 1</Tab>
+          <Tab>Tab 2</Tab>
+          <Tab>Tab 3</Tab>
+        </Tab.List>
+        <Tab.Panels>
+          <Tab.Panel>Content 1</Tab.Panel>
+          <Tab.Panel>Content 2</Tab.Panel>
+          <Tab.Panel>Content 3</Tab.Panel>
+        </Tab.Panels>
+      </Tab.Group>
+      <RadioGroup>
+        <RadioGroup.Label>Plan</RadioGroup.Label>
+        <RadioGroup.Option value="startup">
+          {({ checked }) => <span>{checked ? 'checked' : ''} Startup</span>}
+        </RadioGroup.Option>
+        <RadioGroup.Option value="business">
+          {({ checked }) => <span>{checked ? 'checked' : ''} Business</span>}
+        </RadioGroup.Option>
+      </RadioGroup>
+      <Transition show>I will fade in and out</Transition>
     </>
   )
 }

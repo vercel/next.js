@@ -55,6 +55,8 @@ createNextDescribe(
           <url>
           <loc>https://example.com</loc>
           <lastmod>2021-01-01</lastmod>
+          <changefreq>weekly</changefreq>
+          <priority>0.5</priority>
           </url>
           <url>
           <loc>https://example.com/about</loc>
@@ -221,6 +223,16 @@ createNextDescribe(
         expect(ogImageUrl).toMatch('/static/opengraph-image')
         // should already normalize the parallel routes segment to url
         expect(ogImageUrl).not.toContain('(group)')
+      })
+
+      it('should handle custom fonts in both edge and nodejs runtime', async () => {
+        const resOgEdge = await next.fetch('/font/opengraph-image')
+        const resOgNodejs = await next.fetch('/font/opengraph-image2')
+
+        expect(resOgEdge.status).toBe(200)
+        expect(resOgEdge.headers.get('content-type')).toBe('image/png')
+        expect(resOgNodejs.status).toBe(200)
+        expect(resOgNodejs.headers.get('content-type')).toBe('image/png')
       })
     })
 

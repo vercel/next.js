@@ -124,6 +124,7 @@ export type RenderOptsPartial = {
   err?: Error | null
   dev?: boolean
   buildId: string
+  basePath: string
   clientReferenceManifest?: ClientReferenceManifest
   supportsDynamicHTML: boolean
   runtime?: ServerRuntime
