@@ -73,7 +73,9 @@ export function getServerActionDispatcher() {
   return globalServerActionDispatcher
 }
 
-let globalServerActionMutable: ServerActionMutable['globalMutable'] = {}
+let globalServerActionMutable: ServerActionMutable['globalMutable'] = {
+  refresh: () => {}, // noop until the router is initialized
+}
 
 export function urlToUrlWithoutFlightMarker(url: string): URL {
   const urlWithoutFlightParameters = new URL(url, location.origin)
@@ -353,6 +355,10 @@ function Router({
       window.next.router = appRouter
     }
   }, [appRouter])
+
+  useEffect(() => {
+    globalServerActionMutable.refresh = appRouter.refresh
+  }, [appRouter.refresh])
 
   if (process.env.NODE_ENV !== 'production') {
     // This hook is in a conditional but that is ok because `process.env.NODE_ENV` never changes

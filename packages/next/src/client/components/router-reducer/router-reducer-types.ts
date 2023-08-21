@@ -42,7 +42,7 @@ export interface Mutable {
 
 export interface ServerActionMutable extends Mutable {
   inFlightServerAction?: Promise<any> | null
-  globalMutable: { pendingNavigatePath?: string }
+  globalMutable: { pendingNavigatePath?: string; refresh: () => void }
   actionResultResolved?: boolean
 }
 
