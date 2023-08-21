@@ -72,6 +72,12 @@ To upgrade your links to Next.js 13, you can use the [`new-link` codemod](/docs/
 
 The behavior of [`next/script`](/docs/pages/api-reference/components/script) has been updated to support both `pages` and `app`. If incrementally adopting `app`, read the [upgrade guide](/docs/pages/building-your-application/upgrading).
 
+### `useRouter` Hook
+
+If upgrading to Next.js 13 generates errors related to `useRouter`, refer to the upgrade guide with the new export of the router, [`next/compat/router`](/docs/pages/api-reference/functions/use-router#the-next/compat/router-export).
+
+This allows developers to have components that access router information in both `pages` and `app` directories.
+
 ### Font Optimization
 
 Previously, Next.js helped you optimize fonts by inlining font CSS. Version 13 introduces the new [`next/font`](/docs/pages/building-your-application/optimizing/fonts) module which gives you the ability to customize your font loading experience while still ensuring great performance and privacy.
