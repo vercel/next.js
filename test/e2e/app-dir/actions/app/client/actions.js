@@ -26,3 +26,8 @@ export default async function (value) {
 export async function redirectAction(path) {
   redirect(path)
 }
+
+const original = async () => {
+  console.log('action')
+}
+export { original as renamed }

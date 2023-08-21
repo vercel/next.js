@@ -17,7 +17,7 @@ export function addMessageListener(cb: (event: any) => void) {
   eventCallbacks.push(cb)
 }
 
-export function sendMessage(data: any) {
+export function sendMessage(data: string) {
   if (!source || source.readyState !== source.OPEN) return
   return source.send(data)
 }
