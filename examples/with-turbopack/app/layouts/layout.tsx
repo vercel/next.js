@@ -1,18 +1,41 @@
-import { fetchCategories } from '@/lib/getCategories';
-import ClickCounter from '@/ui/ClickCounter';
-import React, { use } from 'react';
-import CategoryNav from './CategoryNav';
+import { getCategories } from '#/app/api/categories/getCategories'
+import { ClickCounter } from '#/ui/click-counter'
+import { TabGroup } from '#/ui/tab-group'
+import React from 'react'
 
-export default function Layout({ children }: { children: React.ReactNode }) {
-  const categories = use(fetchCategories());
+export const metadata = {
+  title: 'Nested Layouts',
+}
+
+export default async function Layout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  const categories = await getCategories()
+
   return (
     <div className="space-y-9">
-      <div className="flex items-center justify-between">
-        <CategoryNav categories={categories} />
-        <ClickCounter />
+      <div className="flex justify-between">
+        <TabGroup
+          path="/layouts"
+          items={[
+            {
+              text: 'Home',
+            },
+            ...categories.map((x) => ({
+              text: x.name,
+              slug: x.slug,
+            })),
+          ]}
+        />
+
+        <div className="self-start">
+          <ClickCounter />
+        </div>
       </div>
 
       <div>{children}</div>
     </div>
-  );
+  )
 }

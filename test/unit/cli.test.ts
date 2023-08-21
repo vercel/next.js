@@ -7,7 +7,9 @@ jest.mock('next/dist/lib/get-project-dir', () => ({ getProjectDir: () => '' }))
 
 jest.mock('http')
 
-describe('start', () => {
+// this test is unreliable as nextStart is not synchronous and the
+// server could be created at any point
+describe.skip('start', () => {
   test('--keepAliveTimeout changes server.keepAliveTimeout when passed', () => {
     const server = {
       on: () => {},

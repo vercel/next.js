@@ -3,11 +3,11 @@ export default function Foo() {
     return /*#__PURE__*/ React.createElement("div", {
         render: function(v) {
             return /*#__PURE__*/ React.createElement("form", {
-                className: "jsx-eb368961fd3b0a99"
+                className: "jsx-3d44fb7892a1f38b"
             });
         },
-        className: "jsx-eb368961fd3b0a99"
+        className: "jsx-3d44fb7892a1f38b"
     }, React.createElement(_JSXStyle, {
-        id: "eb368961fd3b0a99"
-    }, "span.jsx-eb368961fd3b0a99{color:red}"));
+        id: "3d44fb7892a1f38b"
+    }, "span.jsx-3d44fb7892a1f38b{color:red}"));
 }

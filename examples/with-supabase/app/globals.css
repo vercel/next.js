@@ -1,0 +1,42 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 200 20% 98%;
+    --btn-background: 200 10% 91%;
+    --btn-background-hover: 200 10% 89%;
+    --foreground: 200 50% 3%;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --background: 200 50% 3%;
+      --btn-background: 200 10% 9%;
+      --btn-background-hover: 200 10% 12%;
+      --foreground: 200 20% 96%;
+    }
+  }
+}
+
+@layer base {
+  * {
+    @apply border-foreground/20;
+  }
+}
+
+.animate-in {
+  animation: animateIn 0.3s ease 0.15s both;
+}
+
+@keyframes animateIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

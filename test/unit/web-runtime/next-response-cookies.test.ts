@@ -2,11 +2,9 @@
  * @jest-environment @edge-runtime/jest-environment
  */
 
-it('reflect .set into `set-cookie`', async () => {
-  const { NextResponse } = await import(
-    'next/dist/server/web/spec-extension/response'
-  )
+import { NextResponse } from 'next/src/server/web/spec-extension/response'
 
+it('reflect .set into `set-cookie`', async () => {
   const response = new NextResponse()
   expect(response.cookies.get('foo')?.value).toBe(undefined)
   expect(response.cookies.get('foo')).toEqual(undefined)

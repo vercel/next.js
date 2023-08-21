@@ -11,8 +11,8 @@ export default function Index() {
   return (
     <div>
       <h1>{`component:index.server`}</h1>
-      <div>{'env:' + envVar}</div>
-      <div>{'header:' + header}</div>
+      <div id="env">{'env:' + envVar}</div>
+      <div id="header">{'header:' + header}</div>
       <Nav />
     </div>
   )

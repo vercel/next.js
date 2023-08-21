@@ -1,6 +1,4 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-# KeystoneJS
-.keystone
 
 # dependencies
 /node_modules
@@ -31,4 +29,7 @@ yarn-error.log*
 
 # vercel
 .vercel
+
+# typescript
+*.tsbuildinfo
 next-env.d.ts

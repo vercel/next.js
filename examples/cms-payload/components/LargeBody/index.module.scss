@@ -1,0 +1,5 @@
+@import '../../css/type.scss';
+
+.largeBody {
+  @extend %large-body;
+}

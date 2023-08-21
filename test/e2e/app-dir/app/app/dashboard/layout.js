@@ -9,3 +9,5 @@ export default function DashboardLayout(props) {
     </div>
   )
 }
+
+export const preferredRegion = 'iad1'

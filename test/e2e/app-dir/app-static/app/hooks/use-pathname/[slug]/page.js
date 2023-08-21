@@ -1,9 +1,7 @@
 'use client'
 import { usePathname } from 'next/navigation'
 
-export const config = {
-  dynamicParams: false,
-}
+export const dynamicParams = false
 
 export default function Page() {
   const pathname = usePathname()

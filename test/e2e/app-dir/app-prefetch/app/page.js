@@ -5,6 +5,9 @@ export default function HomePage() {
       <Link href="/dashboard" id="to-dashboard">
         To Dashboard
       </Link>
+      <Link href="/static-page" id="to-static-page">
+        To Static Page
+      </Link>
     </>
   )
 }

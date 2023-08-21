@@ -1,15 +1,33 @@
 import path from 'path'
 import assert from 'assert'
-import { flushAllTraces, setGlobal, trace } from 'next/trace'
+import { flushAllTraces, setGlobal, trace } from 'next/src/trace'
 import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
 import { NextInstance, NextInstanceOpts } from './next-modes/base'
 import { NextDevInstance } from './next-modes/next-dev'
 import { NextStartInstance } from './next-modes/next-start'
 import { NextDeployInstance } from './next-modes/next-deploy'
 import { shouldRunTurboDevTest } from './next-test-utils'
+import { shouldRunExperimentalTurboDevTest } from './turbo'
+
+export type { NextInstance }
 
 // increase timeout to account for yarn install time
-jest.setTimeout(240 * 1000)
+// if either test runs for the --turbo or have a custom timeout, set reduced timeout instead.
+// this is due to current --turbo test have a lot of tests fails with timeouts, ends up the whole
+// test job exceeds the 6 hours limit.
+let testTimeout =
+  shouldRunTurboDevTest() || shouldRunExperimentalTurboDevTest()
+    ? (240 * 1000) / 4
+    : 240 * 1000
+if (process.env.NEXT_E2E_TEST_TIMEOUT) {
+  try {
+    testTimeout = parseInt(process.env.NEXT_E2E_TEST_TIMEOUT, 10)
+  } catch (_) {
+    // ignore
+  }
+}
+
+jest.setTimeout(testTimeout)
 
 const testsFolder = path.join(__dirname, '..')
 
@@ -133,7 +151,8 @@ export async function createNext(
     return await trace('createNext').traceAsyncFn(async (rootSpan) => {
       const useTurbo = !!process.env.TEST_WASM
         ? false
-        : opts?.turbo ?? shouldRunTurboDevTest()
+        : opts?.turbo ??
+          (shouldRunTurboDevTest() || shouldRunExperimentalTurboDevTest())
 
       if (testMode === 'dev') {
         // next dev
@@ -188,6 +207,73 @@ export async function createNext(
   }
 }
 
+export function nextTestSetup(
+  options: Parameters<typeof createNext>[0] & {
+    skipDeployment?: boolean
+    dir?: string
+  }
+): {
+  isNextDev: boolean
+  isNextDeploy: boolean
+  isNextStart: boolean
+  isTurbopack: boolean
+  next: NextInstance
+  skipped: boolean
+} {
+  let skipped = false
+
+  if (options.skipDeployment) {
+    // When the environment is running for deployment tests.
+    if ((global as any).isNextDeploy) {
+      // eslint-disable-next-line jest/no-focused-tests
+      it.only('should skip next deploy', () => {})
+      // No tests are run.
+      skipped = true
+    }
+  }
+
+  let next: NextInstance
+  if (!skipped) {
+    beforeAll(async () => {
+      next = await createNext(options)
+    })
+    afterAll(async () => {
+      await next.destroy()
+    })
+  }
+
+  const nextProxy = new Proxy<NextInstance>({} as NextInstance, {
+    get: function (_target, property) {
+      const prop = next[property]
+      return typeof prop === 'function' ? prop.bind(next) : prop
+    },
+  })
+
+  return {
+    get isNextDev(): boolean {
+      return Boolean((global as any).isNextDev)
+    },
+    get isTurbopack(): boolean {
+      return Boolean(
+        (global as any).isNextDev &&
+          !process.env.TEST_WASM &&
+          (options.turbo ?? shouldRunTurboDevTest())
+      )
+    },
+
+    get isNextDeploy(): boolean {
+      return Boolean((global as any).isNextDeploy)
+    },
+    get isNextStart(): boolean {
+      return Boolean((global as any).isNextStart)
+    },
+    get next() {
+      return nextProxy
+    },
+    skipped,
+  }
+}
+
 export function createNextDescribe(
   name: string,
   options: Parameters<typeof createNext>[0] & {
@@ -198,47 +284,17 @@ export function createNextDescribe(
     isNextDev: boolean
     isNextDeploy: boolean
     isNextStart: boolean
+    isTurbopack: boolean
     next: NextInstance
   }) => void
 ): void {
   describe(name, () => {
-    if (options.skipDeployment) {
-      // When the environment is running for deployment tests.
-      if ((global as any).isNextDeploy) {
-        it('should skip next deploy', () => {})
-        // No tests are run.
-        return
-      }
+    const context = nextTestSetup(options)
+
+    if (context.skipped) {
+      return
     }
 
-    let next: NextInstance
-    beforeAll(async () => {
-      next = await createNext(options)
-    })
-    afterAll(async () => {
-      await next.destroy()
-    })
-
-    const nextProxy = new Proxy<NextInstance>({} as NextInstance, {
-      get: function (_target, property) {
-        const prop = next[property]
-        return typeof prop === 'function' ? prop.bind(next) : prop
-      },
-    })
-    fn({
-      get isNextDev(): boolean {
-        return Boolean((global as any).isNextDev)
-      },
-
-      get isNextDeploy(): boolean {
-        return Boolean((global as any).isNextDeploy)
-      },
-      get isNextStart(): boolean {
-        return Boolean((global as any).isNextStart)
-      },
-      get next() {
-        return nextProxy
-      },
-    })
+    fn(context)
   })
 }

@@ -1,10 +1,11 @@
 use serde::Deserialize;
-
-use next_binding::swc::core::{
+use turbopack_binding::swc::core::{
     common::{collections::AHashSet, DUMMY_SP},
-    ecma::ast::*,
-    ecma::atoms::JsWord,
-    ecma::visit::{noop_fold_type, Fold, FoldWith},
+    ecma::{
+        ast::*,
+        atoms::JsWord,
+        visit::{noop_fold_type, Fold, FoldWith},
+    },
 };
 
 use crate::top_level_binding_collector::collect_top_level_decls;

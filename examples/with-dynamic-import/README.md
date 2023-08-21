@@ -1,12 +1,12 @@
 # Example app with dynamic-imports
 
-This examples shows how to dynamically import modules via [`import()`](https://github.com/tc39/proposal-dynamic-import) API
+This example shows how to dynamically import modules via [`import()`](https://github.com/tc39/proposal-dynamic-import) API
 
 ## Deploy your own
 
 Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-dynamic-import)
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-dynamic-import&project-name=with-dynamic-import&repository-name=with-dynamic-import)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-dynamic-import&project-name=with-dynamic-import&repository-name=with-dynamic-import)
 
 ## How to use
 

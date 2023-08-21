@@ -16,10 +16,8 @@
     "module": "ESNext",
     "moduleResolution": "Node",
     "isolatedModules": true,
-    "noEmit": true,
-    /* Prevents node_modules from adding additional global types e.g. node types */
-    "types": []
+    "noEmit": true
   },
   "include": ["./**/*"],
-  "exclude": ["./_generated", "./actions"]
+  "exclude": ["./_generated"]
 }

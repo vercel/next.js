@@ -19,6 +19,15 @@ const writeJson = async (filePath, data) =>
 
 ;(async function () {
   const packages = await fs.readdir(path.join(cwd, 'packages'))
+
+  await fs.unlink(
+    path.join(
+      cwd,
+      'packages',
+      'next-swc/crates/next-dev-tests/tests-manifest.js'
+    )
+  )
+
   const pkgJsonData = new Map()
   const pkgNames = []
   await Promise.all(

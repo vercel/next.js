@@ -1,39 +1,35 @@
+import { ExternalLink } from '#/ui/external-link'
+
 export default function Page() {
   return (
-    <div className="space-y-4">
-      <div className="text-xl font-medium text-zinc-500">
-        Instant Loading States
-      </div>
+    <div className="prose prose-sm prose-invert max-w-none">
+      <h1 className="text-xl font-bold">Instant Loading States</h1>
 
-      <div className="space-y-4">
-        <ul className="list-disc space-y-2 pl-4 text-sm text-zinc-300">
-          <li>
-            This example has an artificial delay when "fetching" data for each
-            category page.{' '}
-            <span className="font-medium text-white">`loading.js`</span> is used
-            to show a loading skeleton immediately while the category page
-            loads.
-          </li>
-          <li>
-            Shared layouts remain interactive while nested layouts or pages
-            load. Try clicking the counter while{' '}
-            <span className="font-medium text-white">children</span> load.
-          </li>
-          <li>
-            Navigation is interruptible. Try navigating to one category, then
-            clicking a second category before the first one has loaded.
-          </li>
-        </ul>
-      </div>
+      <ul>
+        <li>
+          This example has an artificial delay when &quot;fetching&quot; data
+          for each category page. <code>loading.js</code> is used to show a
+          loading skeleton immediately while data for category page loads before
+          being streamed in.
+        </li>
+        <li>
+          Shared layouts remain interactive while nested layouts or pages load.
+          Try clicking the counter while the children load.
+        </li>
+        <li>
+          Navigation is interruptible. Try navigating to one category, then
+          clicking a second category before the first one has loaded.
+        </li>
+      </ul>
 
-      <div>
-        <a
-          className="font-medium text-zinc-300 hover:text-white"
-          href="https://beta.nextjs.org/docs/routing/loading-ui"
-        >
-          Learn more
-        </a>
+      <div className="flex gap-2">
+        <ExternalLink href="https://beta.nextjs.org/docs/routing/loading-ui">
+          Docs
+        </ExternalLink>
+        <ExternalLink href="https://github.com/vercel/app-playground/tree/main/app/loading">
+          Code
+        </ExternalLink>
       </div>
     </div>
-  );
+  )
 }

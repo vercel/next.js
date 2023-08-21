@@ -9,6 +9,7 @@ import {
   renderViaHTTP,
   waitFor,
   getPageFileFromPagesManifest,
+  fetchViaHTTP,
 } from 'next-test-utils'
 import { join } from 'path'
 
@@ -79,6 +80,18 @@ describe('SSG Prerender Revalidate', () => {
     runTests('/named', '/named')
     runTests('/nested', '/nested')
     runTests('/nested/named', '/nested/named')
+
+    it('should return cache-control header on 304 status', async () => {
+      const url = `http://localhost:${appPort}`
+      const res1 = await fetchViaHTTP(url, '/static')
+      const cacheControl200 = res1.headers.get('Cache-Control')
+      const etag = res1.headers.get('ETag')
+
+      const headers = { 'If-None-Match': etag }
+      const res2 = await fetchViaHTTP(url, '/static', undefined, { headers })
+      const cacheControl304 = res2.headers.get('Cache-Control')
+      expect(cacheControl304).toEqual(cacheControl200)
+    })
   })
 
   // Regression test for https://github.com/vercel/next.js/issues/24806

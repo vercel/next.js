@@ -1,7 +1,9 @@
 /* eslint-env jest */
-import { createNextDescribe, FileRef } from 'e2e-utils'
-import cheerio from 'cheerio'
 import path from 'path'
+import cheerio from 'cheerio'
+import { check, withQuery } from 'next-test-utils'
+import { createNextDescribe, FileRef } from 'e2e-utils'
+import type { Response } from 'node-fetch'
 
 createNextDescribe(
   'app-dir with middleware',
@@ -10,6 +12,17 @@ createNextDescribe(
     skipDeployment: true,
   },
   ({ next }) => {
+    it('should filter correctly after middleware rewrite', async () => {
+      const browser = await next.browser('/start')
+
+      await browser.eval('window.beforeNav = 1')
+      await browser.eval('window.next.router.push("/rewrite-to-app")')
+
+      await check(async () => {
+        return browser.eval('document.documentElement.innerHTML')
+      }, /app-dir/)
+    })
+
     describe.each([
       {
         title: 'Serverless Functions',
@@ -31,7 +44,7 @@ createNextDescribe(
       },
     ])('Mutate request headers for $title', ({ path, toJson }) => {
       it(`Adds new headers`, async () => {
-        const res = await next.fetch(path, null, {
+        const res = await next.fetch(path, {
           headers: {
             'x-from-client': 'hello-from-client',
           },
@@ -44,10 +57,9 @@ createNextDescribe(
 
       it(`Deletes headers`, async () => {
         const res = await next.fetch(
-          path,
-          {
+          withQuery(path, {
             'remove-headers': 'x-from-client1,x-from-client2',
-          },
+          }),
           {
             headers: {
               'x-from-client1': 'hello-from-client',
@@ -78,11 +90,10 @@ createNextDescribe(
 
       it(`Updates headers`, async () => {
         const res = await next.fetch(
-          path,
-          {
+          withQuery(path, {
             'update-headers':
               'x-from-client1=new-value1,x-from-client2=new-value2',
-          },
+          }),
           {
             headers: {
               'x-from-client1': 'old-value1',
@@ -112,6 +123,15 @@ createNextDescribe(
         expect(
           res.headers.get('x-middleware-request-x-from-client3')
         ).toBeNull()
+      })
+
+      it(`Supports draft mode`, async () => {
+        const res = await next.fetch(`${path}?draft=true`)
+        const headers: string = res.headers.get('set-cookie') || ''
+        const bypassCookie = headers
+          .split(';')
+          .find((c) => c.startsWith('__prerender_bypass'))
+        expect(bypassCookie).toBeDefined()
       })
     })
   }

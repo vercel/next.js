@@ -17,7 +17,7 @@
     "react-dom": "^18.2.0",
     "remark": "^14.0.2",
     "remark-html": "^15.0.1",
-    "swr": "^1.3.0"
+    "swr": "^2.0.0"
   },
   "devDependencies": {
     "@types/node": "^18.11.5",

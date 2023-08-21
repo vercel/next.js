@@ -1,12 +1,20 @@
-import { fetchCategories } from '@/lib/getCategories';
-import { Boundary } from '@/ui/Boundary';
-import { CounterProvider } from 'app/context/CounterContext';
-import React, { use } from 'react';
-import CategoryNav from './CategoryNav';
-import ClickCounter from './ClickCounter';
+import { getCategories } from '#/app/api/categories/getCategories'
+import { Boundary } from '#/ui/boundary'
+import { TabGroup } from '#/ui/tab-group'
+import { CounterProvider } from 'app/context/counter-context'
+import React from 'react'
+import ContextClickCounter from './context-click-counter'
 
-export default function Layout({ children }: { children: React.ReactNode }) {
-  const categories = use(fetchCategories());
+export const metadata = {
+  title: 'Client Context',
+}
+
+export default async function Layout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  const categories = await getCategories()
   return (
     <Boundary
       labels={['Server Component Boundary']}
@@ -26,16 +34,27 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             animateRerendering={false}
           >
             <div className="space-y-9">
-              <div className="flex items-center justify-between">
-                <CategoryNav categories={categories} />
+              <div className="flex justify-between">
+                <TabGroup
+                  path="/context"
+                  items={[
+                    {
+                      text: 'Home',
+                    },
+                    ...categories.map((x) => ({
+                      text: x.name,
+                      slug: x.slug,
+                    })),
+                  ]}
+                />
               </div>
 
-              <ClickCounter />
+              <ContextClickCounter />
               <div>{children}</div>
             </div>
           </Boundary>
         </CounterProvider>
       </Boundary>
     </Boundary>
-  );
+  )
 }

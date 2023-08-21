@@ -1,7 +1,4 @@
 module.exports = {
-  experimental: {
-    appDir: true,
-  },
   assetPrefix: '/assets',
   rewrites() {
     return {

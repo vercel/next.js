@@ -11,7 +11,7 @@
     "octokit": "^1.7.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "swr": "^1.0.1"
+    "swr": "^2.0.0"
   },
   "devDependencies": {
     "@octokit/types": "^6.34.0",

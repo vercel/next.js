@@ -10,7 +10,7 @@ function runTests() {
   it('includes sourcemaps for all browser files', async () => {
     const browserFiles = await recursiveReadDir(
       join(appDir, '.next', 'static'),
-      /.*/
+      (f) => /.*/.test(f)
     )
     const jsFiles = browserFiles.filter(
       (file) => file.endsWith('.js') && file.includes('/pages/')

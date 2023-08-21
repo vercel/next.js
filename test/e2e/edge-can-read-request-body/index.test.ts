@@ -3,6 +3,7 @@ import { NextInstance } from 'test/lib/next-modes/base'
 import { fetchViaHTTP, renderViaHTTP } from 'next-test-utils'
 import FormData from 'form-data'
 import path from 'path'
+import type { Response } from 'node-fetch'
 
 async function serialize(response: Response) {
   return {

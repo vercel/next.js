@@ -9,9 +9,6 @@ describe('@next/fon babel unsupported', () => {
     next = await createNext({
       skipStart: true,
       files: new FileRef(join(__dirname, 'babel-unsupported')),
-      dependencies: {
-        '@next/font': 'canary',
-      },
     })
   })
   afterAll(() => next.destroy())
@@ -21,7 +18,7 @@ describe('@next/fon babel unsupported', () => {
       'next build failed with code/signal 1'
     )
     expect(next.cliOutput).toMatch(
-      /"@next\/font" requires SWC although Babel is being used due to a custom babel config being present./
+      /"next\/font" requires SWC although Babel is being used due to a custom babel config being present./
     )
   })
 })

@@ -83,7 +83,7 @@ describe('i18n Support', () => {
           'utf8'
         )
         expect(content).toContain('500')
-        expect(content).toMatch(/internal server error/i)
+        expect(content).toMatch(/Internal Server Error/i)
       }
     })
   })
@@ -240,6 +240,28 @@ describe('i18n Support', () => {
             return 'yes'
           }, 'yes')
         })
+
+        it('should have correct locale domain hrefs', async () => {
+          const res = await fetchViaHTTP(
+            curCtx.appPort,
+            '/do-BE/frank/',
+            undefined,
+            {
+              redirect: 'manual',
+            }
+          )
+          expect(res.status).toBe(200)
+
+          const html = await res.text()
+          const $ = cheerio.load(html)
+
+          expect($('#to-fallback-hello')[0].attribs.href).toBe(
+            'http://example.do/do-BE/gsp/fallback/hello/'
+          )
+          expect($('#to-no-fallback-first')[0].attribs.href).toBe(
+            'http://example.do/do-BE/gsp/no-fallback/first/'
+          )
+        })
       }
 
       it('should redirect correctly', async () => {
@@ -257,7 +279,7 @@ describe('i18n Support', () => {
             expect(res.status).toBe(307)
 
             const parsed = url.parse(res.headers.get('location'), true)
-            expect(parsed.pathname).toBe(`/${locale}`)
+            expect(parsed.pathname).toBe(`/${locale}/`)
             expect(parsed.query).toEqual({})
           }
         }
@@ -433,6 +455,69 @@ describe('i18n Support', () => {
     })
   })
 
+  describe('with trailingSlash: false', () => {
+    const runSlashTests = (curCtx) => {
+      it('should redirect correctly', async () => {
+        for (const locale of nonDomainLocales) {
+          const res = await fetchViaHTTP(curCtx.appPort, '/', undefined, {
+            redirect: 'manual',
+            headers: {
+              'accept-language': locale,
+            },
+          })
+
+          if (locale === 'en-US') {
+            expect(res.status).toBe(200)
+          } else {
+            expect(res.status).toBe(307)
+
+            const parsed = url.parse(res.headers.get('location'), true)
+            expect(parsed.pathname).toBe(`/${locale}`)
+            expect(parsed.query).toEqual({})
+          }
+        }
+      })
+    }
+
+    describe('dev mode', () => {
+      const curCtx = {
+        ...ctx,
+        isDev: true,
+      }
+      beforeAll(async () => {
+        await fs.remove(join(appDir, '.next'))
+        nextConfig.replace('// trailingSlash: true', 'trailingSlash: false')
+
+        curCtx.appPort = await findPort()
+        curCtx.app = await launchApp(appDir, curCtx.appPort)
+      })
+      afterAll(async () => {
+        nextConfig.restore()
+        await killApp(curCtx.app)
+      })
+
+      runSlashTests(curCtx)
+    })
+
+    describe('production mode', () => {
+      const curCtx = { ...ctx }
+      beforeAll(async () => {
+        await fs.remove(join(appDir, '.next'))
+        nextConfig.replace('// trailingSlash: true', 'trailingSlash: false')
+
+        await nextBuild(appDir)
+        curCtx.appPort = await findPort()
+        curCtx.app = await nextStart(appDir, curCtx.appPort)
+      })
+      afterAll(async () => {
+        nextConfig.restore()
+        await killApp(curCtx.app)
+      })
+
+      runSlashTests(curCtx)
+    })
+  })
+
   it('should show proper error for duplicate defaultLocales', async () => {
     nextConfig.write(`
       module.exports = {
@@ -486,5 +571,31 @@ describe('i18n Support', () => {
       'Specified i18n.locales contains the following duplicate locales:'
     )
     expect(stderr).toContain(`eN, fr`)
+  })
+
+  it('should show proper error for invalid locale domain', async () => {
+    nextConfig.write(`
+      module.exports = {
+        i18n: {
+          locales: ['en', 'fr', 'nl', 'eN', 'fr'],
+          domains: [
+            {
+              domain: 'hello:3000',
+              defaultLocale: 'en',
+            }
+          ],
+          defaultLocale: 'en',
+        }
+      }
+    `)
+
+    const { code, stderr } = await nextBuild(appDir, undefined, {
+      stderr: true,
+    })
+    nextConfig.restore()
+    expect(code).toBe(1)
+    expect(stderr).toContain(
+      `i18n domain: "hello:3000" is invalid it should be a valid domain without protocol (https://) or port (:3000) e.g. example.vercel.sh`
+    )
   })
 })

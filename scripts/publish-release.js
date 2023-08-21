@@ -51,6 +51,7 @@ const cwd = process.cwd()
           `${path.join(packagesDir, pkg)}`,
           '--access',
           'public',
+          '--ignore-scripts',
           ...(isCanary ? ['--tag', 'canary'] : []),
         ],
         { stdio: 'inherit' }

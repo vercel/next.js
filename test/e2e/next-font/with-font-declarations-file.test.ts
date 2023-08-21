@@ -10,7 +10,7 @@ const mockedGoogleFontResponses = require.resolve(
 
 const isDev = (global as any).isNextDev
 
-describe('@next/font/google with-font-declarations-file', () => {
+describe('next/font/google with-font-declarations-file', () => {
   let next: NextInstance
 
   if ((global as any).isNextDeploy) {
@@ -33,12 +33,6 @@ describe('@next/font/google with-font-declarations-file', () => {
         'my-font.woff2': new FileRef(
           join(__dirname, 'with-font-declarations-file/my-font.woff2')
         ),
-        'next.config.js': new FileRef(
-          join(__dirname, 'with-font-declarations-file/next.config.js')
-        ),
-      },
-      dependencies: {
-        '@next/font': 'canary',
       },
       env: {
         NEXT_FONT_GOOGLE_MOCKED_RESPONSES: mockedGoogleFontResponses,
@@ -64,17 +58,19 @@ describe('@next/font/google with-font-declarations-file', () => {
       expect($('link[as="font"]').get(0).attribs).toEqual({
         as: 'font',
         crossorigin: 'anonymous',
-        href: '/_next/static/media/0812efcfaefec5ea.p.woff2',
+        href: '/_next/static/media/0812efcfaefec5ea-s.p.woff2',
         rel: 'preload',
         type: 'font/woff2',
+        'data-next-font': 'size-adjust',
       })
       // From /inter
       expect($('link[as="font"]').get(1).attribs).toEqual({
         as: 'font',
         crossorigin: 'anonymous',
-        href: '/_next/static/media/4a7f86e553ee7e51.p.woff2',
+        href: '/_next/static/media/4a7f86e553ee7e51-s.p.woff2',
         rel: 'preload',
         type: 'font/woff2',
+        'data-next-font': 'size-adjust',
       })
     }
   })
@@ -96,17 +92,19 @@ describe('@next/font/google with-font-declarations-file', () => {
       expect($('link[as="font"]').get(0).attribs).toEqual({
         as: 'font',
         crossorigin: 'anonymous',
-        href: '/_next/static/media/0812efcfaefec5ea.p.woff2',
+        href: '/_next/static/media/0812efcfaefec5ea-s.p.woff2',
         rel: 'preload',
         type: 'font/woff2',
+        'data-next-font': 'size-adjust',
       })
       // From /roboto
       expect($('link[as="font"]').get(1).attribs).toEqual({
         as: 'font',
         crossorigin: 'anonymous',
-        href: '/_next/static/media/9a7e84b4dd095b33.p.woff2',
+        href: '/_next/static/media/9a7e84b4dd095b33-s.p.woff2',
         rel: 'preload',
         type: 'font/woff2',
+        'data-next-font': 'size-adjust',
       })
     }
   })
@@ -128,17 +126,19 @@ describe('@next/font/google with-font-declarations-file', () => {
       expect($('link[as="font"]').get(0).attribs).toEqual({
         as: 'font',
         crossorigin: 'anonymous',
-        href: '/_next/static/media/0812efcfaefec5ea.p.woff2',
+        href: '/_next/static/media/0812efcfaefec5ea-s.p.woff2',
         rel: 'preload',
         type: 'font/woff2',
+        'data-next-font': 'size-adjust',
       })
       // From /local-font
       expect($('link[as="font"]').get(1).attribs).toEqual({
         as: 'font',
         crossorigin: 'anonymous',
-        href: '/_next/static/media/2a931eed088772c9.p.woff2',
+        href: '/_next/static/media/2a931eed088772c9-s.p.woff2',
         rel: 'preload',
         type: 'font/woff2',
+        'data-next-font': 'size-adjust',
       })
     }
   })

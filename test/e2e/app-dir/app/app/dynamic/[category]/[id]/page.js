@@ -1,4 +1,4 @@
-export default function IdPage({ children, params }) {
+export default function IdPage({ children, params, searchParams }) {
   return (
     <>
       <p>
@@ -6,6 +6,8 @@ export default function IdPage({ children, params }) {
         <span id="id-page-params">{JSON.stringify(params)}</span>
       </p>
       {children}
+
+      <p id="search-params">{JSON.stringify(searchParams)}</p>
     </>
   )
 }

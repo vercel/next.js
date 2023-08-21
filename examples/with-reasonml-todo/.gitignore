@@ -18,17 +18,11 @@
 # misc
 .DS_Store
 *.pem
-bs
-.merlin
-lib/
-*.bs.js
-.bsb.lock
 
 # debug
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-.pnpm-debug.log*
 
 # local env files
 .env*.local

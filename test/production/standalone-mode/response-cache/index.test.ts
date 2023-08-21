@@ -9,12 +9,14 @@ import {
   findPort,
   renderViaHTTP,
   initNextServerScript,
+  fetchViaHTTP,
 } from 'next-test-utils'
 
 describe('minimal-mode-response-cache', () => {
   let next: NextInstance
   let server
   let appPort
+  let output = ''
 
   beforeAll(async () => {
     // test build against environment with next support
@@ -36,13 +38,18 @@ describe('minimal-mode-response-cache', () => {
       }
     }
     const files = glob.sync('**/*', {
-      cwd: join(next.testDir, 'standalone/.next/server/pages'),
+      cwd: join(next.testDir, 'standalone/.next/server'),
+      nodir: true,
       dot: true,
     })
 
     for (const file of files) {
-      if (file.endsWith('.json') || file.endsWith('.html')) {
-        await fs.remove(join(next.testDir, '.next/server', file))
+      if (file.match(/(pages|app)[/\\]/) && !file.endsWith('.js')) {
+        await fs.remove(join(next.testDir, 'standalone/.next/server', file))
+        console.log(
+          'removing',
+          join(next.testDir, 'standalone/.next/server', file)
+        )
       }
     }
 
@@ -51,25 +58,95 @@ describe('minimal-mode-response-cache', () => {
       testServer,
       (await fs.readFile(testServer, 'utf8'))
         .replace('console.error(err)', `console.error('top-level', err)`)
-        .replace('conf:', 'minimalMode: true,conf:')
+        .replace('port:', 'minimalMode: true,port:')
     )
     appPort = await findPort()
     server = await initNextServerScript(
       testServer,
-      /Listening on/,
+      /ready started server on/,
       {
         ...process.env,
+        HOSTNAME: '',
         PORT: appPort,
       },
       undefined,
       {
         cwd: next.testDir,
+        onStdout(msg) {
+          output += msg
+        },
+        onStderr(msg) {
+          output += msg
+        },
       }
     )
   })
   afterAll(async () => {
     await next.destroy()
     if (server) await killApp(server)
+  })
+
+  it('app router revalidate should work with previous response cache dynamic', async () => {
+    const headers = {
+      vary: 'RSC, Next-Router-State-Tree, Next-Router-Prefetch',
+      'x-now-route-matches': '1=compare&rsc=1',
+      'x-matched-path': '/app-blog/compare.rsc',
+      'x-vercel-id': '1',
+      rsc: '1',
+    }
+    const res1 = await fetchViaHTTP(
+      appPort,
+      '/app-blog/compare.rsc',
+      undefined,
+      {
+        headers,
+      }
+    )
+    const content1 = await res1.text()
+    expect(content1).not.toContain('<html')
+    expect(content1).toContain('app-blog')
+    expect(res1.headers.get('content-type')).toContain('text/x-component')
+
+    const res2 = await fetchViaHTTP(appPort, '/app-blog/compare', undefined, {
+      headers,
+    })
+    const content2 = await res2.text()
+    expect(content2).toContain('<html')
+    expect(content2).toContain('app-blog')
+    expect(res2.headers.get('content-type')).toContain('text/html')
+  })
+
+  it('app router revalidate should work with previous response cache', async () => {
+    const headers = {
+      vary: 'RSC, Next-Router-State-Tree, Next-Router-Prefetch',
+      'x-now-route-matches': '1=app-another&rsc=1',
+      'x-matched-path': '/app-another.rsc',
+      'x-vercel-id': '1',
+      rsc: '1',
+    }
+    const res1 = await fetchViaHTTP(appPort, '/app-another.rsc', undefined, {
+      headers,
+    })
+    const content1 = await res1.text()
+    expect(content1).not.toContain('<html')
+    expect(content1).toContain('app-another')
+    expect(res1.headers.get('content-type')).toContain('text/x-component')
+
+    const res2 = await fetchViaHTTP(appPort, '/app-another', undefined, {
+      headers,
+    })
+    const content2 = await res2.text()
+    expect(content2).toContain('<html')
+    expect(content2).toContain('app-another')
+    expect(res2.headers.get('content-type')).toContain('text/html')
+  })
+
+  it('should have correct "Started server on" log', async () => {
+    expect(output).toContain(`started server on`)
+    let pattern = new RegExp(
+      `url: http://localhost:${appPort}|url: http://127.0.0.1:${appPort}|url: http://\\[::1\\]:${appPort}`
+    )
+    expect(output).toMatch(pattern)
   })
 
   it('should have correct responses', async () => {

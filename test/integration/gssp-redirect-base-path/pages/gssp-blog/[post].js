@@ -23,7 +23,7 @@ export const getServerSideProps = ({ params }) => {
     let destination = '/404'
 
     if (params.post.includes('dest-external')) {
-      destination = 'https://example.com'
+      destination = 'https://example.vercel.sh'
     } else if (params.post.includes('dest-')) {
       destination = params.post.split('dest-').pop().replace(/_/g, '/')
     }

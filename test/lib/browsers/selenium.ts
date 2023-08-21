@@ -12,7 +12,6 @@ const {
   BROWSERSTACK,
   BROWSERSTACK_USERNAME,
   BROWSERSTACK_ACCESS_KEY,
-  HEADLESS,
   CHROME_BIN,
   LEGACY_SAFARI,
   SKIP_LOCAL_SELENIUM_SERVER,
@@ -46,7 +45,12 @@ export class Selenium extends BrowserInterface {
   private browserName: string
 
   // TODO: support setting locale
-  async setup(browserName: string, locale?: string) {
+  async setup(
+    browserName: string,
+    locale: string,
+    javaScriptEnabled: boolean,
+    headless: boolean
+  ) {
     if (browser) return
     this.browserName = browserName
 
@@ -155,7 +159,7 @@ export class Selenium extends BrowserInterface {
     let firefoxOptions = new FireFoxOptions()
     let safariOptions = new SafariOptions()
 
-    if (HEADLESS) {
+    if (headless) {
       const screenSize = { width: 1280, height: 720 }
       chromeOptions = chromeOptions.headless().windowSize(screenSize) as any
       firefoxOptions = firefoxOptions.headless().windowSize(screenSize)
@@ -300,8 +304,8 @@ export class Selenium extends BrowserInterface {
     }) as any
   }
 
-  async getAttribute(attr) {
-    return this.chain((el) => el.getAttribute(attr))
+  async getAttribute<T = any>(attr) {
+    return this.chain((el) => el.getAttribute(attr)) as T
   }
 
   async hasElementByCssSelector(selector: string) {
@@ -334,18 +338,18 @@ export class Selenium extends BrowserInterface {
     )
   }
 
-  async eval(snippet) {
+  async eval<T = any>(snippet) {
     if (typeof snippet === 'string' && !snippet.startsWith('return')) {
       snippet = `return ${snippet}`
     }
-    return browser.executeScript(snippet)
+    return browser.executeScript<T>(snippet)
   }
 
-  async evalAsync(snippet) {
+  async evalAsync<T = any>(snippet) {
     if (typeof snippet === 'string' && !snippet.startsWith('return')) {
       snippet = `return ${snippet}`
     }
-    return browser.executeAsyncScript(snippet)
+    return browser.executeAsyncScript<T>(snippet)
   }
 
   async log() {

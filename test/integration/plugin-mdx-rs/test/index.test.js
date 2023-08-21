@@ -24,5 +24,11 @@ describe('Configuration', () => {
         /Look, a button!/
       )
     })
+
+    it('should render an MDX page with globally provided components (from `mdx-components.js`) correctly', async () => {
+      expect(await renderViaHTTP(context.appPort, '/provider')).toMatch(
+        /Marker was rendered!/
+      )
+    })
   })
 })

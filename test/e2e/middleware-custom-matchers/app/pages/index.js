@@ -5,10 +5,15 @@ export default (props) => (
   </>
 )
 
-export async function getServerSideProps({ res }) {
+export async function getServerSideProps({ req, res }) {
   return {
     props: {
-      fromMiddleware: res.getHeader('x-from-middleware') || null,
+      fromMiddleware:
+        // TODO: this should only use request header once
+        // start is using the separate renders as well
+        req.headers['x-from-middleware'] ||
+        res.getHeader('x-from-middleware') ||
+        null,
     },
   }
 }

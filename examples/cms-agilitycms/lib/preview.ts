@@ -88,7 +88,7 @@ export async function validatePreview({ agilityPreviewKey, slug, contentID }) {
   }
 
   //sanitize incoming key (replace spaces with '+')
-  if (agilityPreviewKey.indexOf(` `) > -1) {
+  if (agilityPreviewKey.includes(` `)) {
     agilityPreviewKey = agilityPreviewKey.split(` `).join(`+`)
   }
 

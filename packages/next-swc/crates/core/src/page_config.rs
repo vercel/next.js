@@ -1,9 +1,10 @@
 use chrono::Utc;
-
-use next_binding::swc::core::{
+use turbopack_binding::swc::core::{
     common::{errors::HANDLER, Span, DUMMY_SP},
-    ecma::ast::*,
-    ecma::visit::{Fold, FoldWith},
+    ecma::{
+        ast::*,
+        visit::{Fold, FoldWith},
+    },
 };
 
 pub fn page_config(is_development: bool, is_page_file: bool) -> impl Fold {

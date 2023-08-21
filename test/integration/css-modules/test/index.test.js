@@ -52,7 +52,7 @@ describe('Basic CSS Module Support', () => {
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
 
     expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
-      `".index_redText__KCBQp{color:red}"`
+      `".index_redText__honUV{color:red}"`
     )
   })
 
@@ -69,7 +69,7 @@ describe('Basic CSS Module Support', () => {
     expect(cssSheet.attr('href')).toMatch(/^\/_next\/static\/css\/.*\.css$/)
 
     expect($('#verify-red').attr('class')).toMatchInlineSnapshot(
-      `"index_redText__KCBQp"`
+      `"index_redText__honUV"`
     )
   })
 })
@@ -108,7 +108,7 @@ describe('3rd Party CSS Module Support', () => {
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
 
     expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
-      `".index_foo__2K5pY{position:relative}.index_foo__2K5pY .bar,.index_foo__2K5pY .baz{height:100%;overflow:hidden}.index_foo__2K5pY .lol,.index_foo__2K5pY>.lel{width:80%}"`
+      `".index_foo__6TgnK{position:relative}.index_foo__6TgnK .bar,.index_foo__6TgnK .baz{height:100%;overflow:hidden}.index_foo__6TgnK .lol,.index_foo__6TgnK>.lel{width:80%}"`
     )
   })
 
@@ -125,7 +125,7 @@ describe('3rd Party CSS Module Support', () => {
     expect(cssSheet.attr('href')).toMatch(/^\/_next\/static\/css\/.*\.css$/)
 
     expect($('#verify-div').attr('class')).toMatchInlineSnapshot(
-      `"index_foo__2K5pY"`
+      `"index_foo__6TgnK"`
     )
   })
 })
@@ -310,7 +310,7 @@ describe('Valid CSS Module Usage from within node_modules', () => {
 
     const cssPreload = $('#nm-div')
     expect(cssPreload.text()).toMatchInlineSnapshot(
-      `"{\\"message\\":\\"Why hello there\\"} {\\"redText\\":\\"example_redText__lIU4W\\"}"`
+      `"{\\"message\\":\\"Why hello there\\"} {\\"redText\\":\\"example_redText__0ctGB\\"}"`
     )
   })
 
@@ -324,7 +324,7 @@ describe('Valid CSS Module Usage from within node_modules', () => {
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
 
     expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
-      `".example_redText__lIU4W{color:red}"`
+      `".example_redText__0ctGB{color:red}"`
     )
   })
 })
@@ -363,7 +363,7 @@ describe('Valid Nested CSS Module Usage from within node_modules', () => {
 
     const cssPreload = $('#nm-div')
     expect(cssPreload.text()).toMatchInlineSnapshot(
-      `"{\\"message\\":\\"Why hello there\\"} {\\"subClass\\":\\"example_subClass__ak_R4 other_className__hfPre\\"}"`
+      `"{\\"message\\":\\"Why hello there\\"} {\\"subClass\\":\\"example_subClass__m6Tyy other_className__OA8dV\\"}"`
     )
   })
 
@@ -377,7 +377,7 @@ describe('Valid Nested CSS Module Usage from within node_modules', () => {
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
 
     expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
-      `".other2_other2__n0niK{color:red}.other3_other3__5PqwU{color:violet}.other_className__hfPre{background:red;color:#ff0}.example_subClass__ak_R4{background:blue}"`
+      `".other2_other2__dYPgz{color:red}.other3_other3__7hgUE{color:violet}.other_className__OA8dV{background:red;color:#ff0}.example_subClass__m6Tyy{background:blue}"`
     )
   })
 })
@@ -410,7 +410,7 @@ describe('CSS Module Composes Usage (Basic)', () => {
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
 
     expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
-      `".index_className___fnCf{background:red;color:#ff0}.index_subClass__3ZQHz{background:blue}"`
+      `".index_className__jjcZ1{background:red;color:#ff0}.index_subClass__eDzaW{background:blue}"`
     )
   })
 })
@@ -443,7 +443,7 @@ describe('CSS Module Composes Usage (External)', () => {
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
 
     expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
-      `".other_className__3Kqmr{background:red;color:#ff0}.index_subClass__3ZQHz{background:blue}"`
+      `".other_className__eZV4M{background:red;color:#ff0}.index_subClass__eDzaW{background:blue}"`
     )
   })
 })
@@ -491,7 +491,7 @@ describe('Dynamic Route CSS Module Usage', () => {
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
 
     expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
-      `"._post__home__BTqh4{background:red}"`
+      `"._post__home__yRmHz{background:red}"`
     )
   })
 })
@@ -541,7 +541,7 @@ describe('Catch-all Route CSS Module Usage', () => {
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
 
     expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
-      `".___post__home__G40mx{background:red}.__55css_home__OvQYk{color:green}"`
+      `".___post__home__e4zfx{background:red}.__55css_home__r8Rnq{color:green}"`
     )
   })
 })

@@ -1,6 +1,7 @@
 /* eslint-env jest */
 
 import {
+  check,
   findPort,
   killApp,
   nextBuild,
@@ -94,17 +95,21 @@ describe('Prefetching Links in viewport', () => {
     let browser
     try {
       browser = await webdriver(appPort, '/')
-      const links = await browser.elementsByCss('link[rel=prefetch]')
-      let found = false
 
-      for (const link of links) {
-        const href = await link.getAttribute('href')
-        if (href.includes('first')) {
-          found = true
-          break
+      await check(async () => {
+        const links = await browser.elementsByCss('link[rel=prefetch]')
+        let found = false
+
+        for (const link of links) {
+          const href = await link.getAttribute('href')
+          if (href.includes('first')) {
+            found = true
+            break
+          }
         }
-      }
-      expect(found).toBe(true)
+        expect(found).toBe(true)
+        return 'success'
+      }, 'success')
     } finally {
       if (browser) await browser.close()
     }
@@ -146,17 +151,21 @@ describe('Prefetching Links in viewport', () => {
     let browser
     try {
       browser = await webdriver(appPort, '/rewrite-prefetch')
-      const links = await browser.elementsByCss('link[rel=prefetch]')
-      let found = false
 
-      for (const link of links) {
-        const href = await link.getAttribute('href')
-        if (href.includes('%5Bslug%5D')) {
-          found = true
-          break
+      await check(async () => {
+        const links = await browser.elementsByCss('link[rel=prefetch]')
+        let found = false
+
+        for (const link of links) {
+          const href = await link.getAttribute('href')
+          if (href.includes('%5Bslug%5D')) {
+            found = true
+            break
+          }
         }
-      }
-      expect(found).toBe(true)
+        expect(found).toBe(true)
+        return 'success'
+      }, 'success')
 
       const hrefs = await browser.eval(`Object.keys(window.next.router.sdc)`)
       expect(hrefs.map((href) => new URL(href).pathname)).toEqual([
@@ -433,10 +442,26 @@ describe('Prefetching Links in viewport', () => {
     expect(hrefs.some((e) => e.includes(`%5Bhello%5D-`))).toBe(true)
   })
 
-  it('should not add an another observer for a prefetched page', async () => {
+  it('should not re-prefetch for an already prefetched page', async () => {
     // info: both `/` and `/de-duped` ref the `/first` page, which we don't
     // want to be re-fetched/re-observed.
     const browser = await webdriver(appPort, '/')
+
+    await check(async () => {
+      const links = await browser.elementsByCss('link[rel=prefetch]')
+      let found = false
+
+      for (const link of links) {
+        const href = await link.getAttribute('href')
+        if (href.includes('first')) {
+          found = true
+          break
+        }
+      }
+      expect(found).toBe(true)
+      return 'success'
+    }, 'success')
+
     await browser.eval(`(function() {
       window.calledPrefetch = false
       window.next.router.prefetch = function() {
@@ -445,7 +470,10 @@ describe('Prefetching Links in viewport', () => {
       }
       window.next.router.push('/de-duped')
     })()`)
-    await waitFor(2 * 1000)
+    await check(
+      () => browser.eval('document.documentElement.innerHTML'),
+      /to \/first/
+    )
     const calledPrefetch = await browser.eval(`window.calledPrefetch`)
     expect(calledPrefetch).toBe(false)
   })

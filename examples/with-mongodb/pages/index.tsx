@@ -1,8 +1,14 @@
 import Head from 'next/head'
 import clientPromise from '../lib/mongodb'
-import { InferGetServerSidePropsType } from 'next'
+import type { InferGetServerSidePropsType, GetServerSideProps } from 'next'
 
-export async function getServerSideProps(context) {
+type ConnectionStatus = {
+  isConnected: boolean
+}
+
+export const getServerSideProps: GetServerSideProps<
+  ConnectionStatus
+> = async () => {
   try {
     await clientPromise
     // `await clientPromise` will use the default database passed in the MONGODB_URI

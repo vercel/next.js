@@ -1,7 +1,8 @@
-import "react"
+import 'react'
 
-"use client"
+// prettier-ignore
+'use client'
 
 export default function () {
-  return null;
+  return null
 }

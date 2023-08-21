@@ -1,0 +1,31 @@
+{
+  "compilerOptions": {
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": false,
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true,
+    "incremental": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "baseUrl": "../../..",
+    "paths": {
+      "development-sandbox": ["test/lib/development-sandbox"],
+      "next-test-utils": ["test/lib/next-test-utils"],
+      "amp-test-utils": ["test/lib/amp-test-utils"],
+      "next-webdriver": ["test/lib/next-webdriver"],
+      "e2e-utils": ["test/lib/e2e-utils"]
+    }
+  },
+  "include": [
+    "test/integration/draft-mode/next-env.d.ts",
+    "test/integration/draft-mode/**/*.ts",
+    "test/integration/draft-mode/**/*.tsx"
+  ],
+  "exclude": ["node_modules"]
+}

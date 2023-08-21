@@ -1,0 +1,8 @@
+
+  x next/dynamic only accepts 2 arguments
+   ,-[input.js:2:1]
+ 2 | 
+ 3 | const DynamicComponentWithCustomLoading = dynamic(
+   :                                           ^^^^^^^
+ 4 |   () => import('../components/hello'),
+   `----

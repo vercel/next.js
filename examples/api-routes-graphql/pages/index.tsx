@@ -11,18 +11,25 @@ const fetcher = (query: string) =>
     .then((res) => res.json())
     .then((json) => json.data)
 
+type Data = {
+  users: {
+    name: string
+  }[]
+}
+
 export default function Index() {
-  const { data, error } = useSWR('{ users { name } }', fetcher)
+  const { data, error, isLoading } = useSWR<Data>('{ users { name } }', fetcher)
 
   if (error) return <div>Failed to load</div>
-  if (!data) return <div>Loading...</div>
+  if (isLoading) return <div>Loading...</div>
+  if (!data) return null
 
   const { users } = data
 
   return (
     <div>
-      {users.map((user: any, i: number) => (
-        <div key={i}>{user.name}</div>
+      {users.map((user, index) => (
+        <div key={index}>{user.name}</div>
       ))}
     </div>
   )

@@ -6,10 +6,10 @@
     "start": "next start"
   },
   "dependencies": {
-    "mongoose": "^6.0.11",
+    "mongoose": "^7.0.2",
     "next": "latest",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "swr": "^1.0.1"
+    "swr": "^2.0.0"
   }
 }

@@ -21,7 +21,7 @@ export default function Index({ preview, allPosts }: IndexProps) {
     <>
       <Layout preview={preview}>
         <Head>
-          <title>Next.js Blog Example with {CMS_NAME}</title>
+          <title>{`Next.js Blog Example with ${CMS_NAME}`}</title>
         </Head>
         <Container>
           <Intro />

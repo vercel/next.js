@@ -67,7 +67,11 @@ export default function Playback({
       loadTwitterWidget
     >
       <div className="flash-message">This video is ready for playback</div>
-      <MuxPlayer style={{ width: '100%' }} playbackId={playbackId} />
+      <MuxPlayer
+        style={{ width: '100%' }}
+        playbackId={playbackId}
+        metadata={{ player_name: 'with-mux-video' }}
+      />
       <p>
         Go{' '}
         <Link href="/" legacyBehavior>

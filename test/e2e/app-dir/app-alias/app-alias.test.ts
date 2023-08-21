@@ -1,8 +1,7 @@
 import { createNextDescribe } from 'e2e-utils'
-import path from 'path'
 
 createNextDescribe(
-  'app-dir alias handling',
+  'app-dir alias',
   {
     files: __dirname,
     packageJson: {
@@ -10,7 +9,7 @@ createNextDescribe(
     },
     skipDeployment: true,
   },
-  ({ next, isNextDev }) => {
+  ({ next, isNextStart }) => {
     it('should handle typescript paths alias correctly', async () => {
       const html = await next.render('/button')
       expect(html).toContain('click</button>')
@@ -24,12 +23,24 @@ createNextDescribe(
       expect(fontSize).toBe('50px')
     })
 
-    if (!isNextDev) {
+    if (isNextStart) {
+      it('should not contain installed react/react-dom version in client chunks', async () => {
+        const appBuildManifest = await next.readJSON(
+          '.next/app-build-manifest.json'
+        )
+        Object.keys(appBuildManifest.pages).forEach((page) => {
+          const containFrameworkChunk = appBuildManifest.pages[page].some(
+            (chunk) => {
+              return chunk.includes('framework')
+            }
+          )
+          expect(containFrameworkChunk).toBe(false)
+        })
+      })
+
       it('should generate app-build-manifest correctly', async () => {
         // Remove other page CSS files:
-        const manifest = await next.readJSON(
-          path.join('.next', 'app-build-manifest.json')
-        )
+        const manifest = await next.readJSON('.next/app-build-manifest.json')
 
         expect(manifest.pages).not.toBeEmptyObject()
       })

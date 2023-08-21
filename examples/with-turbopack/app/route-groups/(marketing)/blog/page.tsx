@@ -1,3 +1,3 @@
 export default function Page() {
-  return <div className="text-xl font-medium text-zinc-500">Blog</div>;
+  return <h1 className="text-xl font-medium text-gray-400/80">Blog</h1>
 }

@@ -7,10 +7,10 @@ const { join } = require('path')
 const fixtureDir = 'next-image-to-legacy-image'
 const fixtureDirPath = join(__dirname, '..', '__testfixtures__', fixtureDir)
 const fixtures = readdirSync(fixtureDirPath)
-  .filter(file => file.endsWith('.input.js'))
-  .map(file => file.replace('.input.js', ''))
+  .filter(file => file.endsWith('.input.tsx'))
+  .map(file => file.replace('.input.tsx', ''))
 
 for (const fixture of fixtures) {
   const prefix = `${fixtureDir}/${fixture}`;
-  defineTest(__dirname, fixtureDir,  null, prefix)
+  defineTest(__dirname, fixtureDir,  null, prefix, { parser: 'tsx' });
 }

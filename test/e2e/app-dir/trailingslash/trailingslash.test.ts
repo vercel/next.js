@@ -8,15 +8,13 @@ createNextDescribe(
   },
   ({ next }) => {
     it('should redirect route when requesting it directly', async () => {
-      const res = await next.fetch(
-        '/a',
-        {},
-        {
-          redirect: 'manual',
-        }
-      )
+      const res = await next.fetch('/a', {
+        redirect: 'manual',
+      })
       expect(res.status).toBe(308)
-      expect(res.headers.get('location')).toBe(next.url + '/a/')
+      expect(new URL(res.headers.get('location'), next.url).pathname).toBe(
+        '/a/'
+      )
     })
 
     it('should render link with trailing slash', async () => {

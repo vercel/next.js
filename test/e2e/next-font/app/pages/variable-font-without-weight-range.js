@@ -1,6 +1,6 @@
-import { Nabla } from '@next/font/google'
+import { Nabla } from 'next/font/google'
 
-const nabla = Nabla()
+const nabla = Nabla({ subsets: ['latin'] })
 
 export default function VariableFontWithoutWeightRange() {
   return (

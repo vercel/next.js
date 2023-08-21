@@ -8,6 +8,11 @@ export default function Page(props) {
     router.isReady ? router.asPath : router.href
   )
 
+  if (!props.params) {
+    console.error('props', props)
+    throw new Error('missing props!!!')
+  }
+
   useEffect(() => {
     if (router.isReady) {
       setAsPath(router.asPath)
@@ -26,6 +31,12 @@ export default function Page(props) {
 }
 
 export function getStaticProps({ params }) {
+  if (params.slug.includes('not-found')) {
+    return {
+      notFound: true,
+    }
+  }
+
   return {
     props: {
       now: Date.now(),

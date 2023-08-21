@@ -6,7 +6,7 @@ Next.js ships with [API routes](https://github.com/vercel/next.js#api-routes), w
 
 Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/api-routes-middleware)
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/api-routes-middleware&project-name=api-routes-middleware&repository-name=api-routes-middleware)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/api-routes-middleware&project-name=api-routes-middleware&repository-name=api-routes-middleware)
 
 ## How to use
 

@@ -16,7 +16,7 @@ View the docs on [`next.config.js`](https://nextjs.org/docs/api-reference/next.c
 
 Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-env-from-next-config-js)
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-env-from-next-config-js&project-name=with-env-from-next-config-js&repository-name=with-env-from-next-config-js)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-env-from-next-config-js&project-name=with-env-from-next-config-js&repository-name=with-env-from-next-config-js)
 
 ## How to use
 

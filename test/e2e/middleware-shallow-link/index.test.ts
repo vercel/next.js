@@ -2,6 +2,7 @@ import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
+import { check } from 'next-test-utils'
 
 describe('browser-shallow-navigation', () => {
   let next: NextInstance
@@ -36,7 +37,6 @@ describe('browser-shallow-navigation', () => {
     await browser.elementByCss('[data-go-back]').click()
 
     // get page h1
-    let title = await browser.elementByCss('h1').text()
-    expect(title).toContain('Content for page 1')
+    await check(() => browser.elementByCss('h1').text(), /Content for page 1/)
   })
 })

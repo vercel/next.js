@@ -8,9 +8,7 @@ async function getData() {
   }
 }
 
-export const config = {
-  runtime: 'nodejs',
-}
+export const runtime = 'nodejs'
 
 export default function Page(props) {
   const { type } = use(getData())

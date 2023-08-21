@@ -8,7 +8,7 @@ For actual use, you probably also want to add Roboto Font, and Material Design I
 
 Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-react-toolbox)
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-react-toolbox&project-name=with-react-toolbox&repository-name=with-react-toolbox)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-react-toolbox&project-name=with-react-toolbox&repository-name=with-react-toolbox)
 
 ## How to use
 

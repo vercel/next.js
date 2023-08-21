@@ -1,13 +1,13 @@
 // This is a comment.
 
-"use strict";
+'use strict'
 
 /**
  * This is a comment.
  */
 
-import "server-only"
+import 'server-only'
 
 export default function () {
-  return null;
+  return null
 }

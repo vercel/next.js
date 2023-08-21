@@ -81,7 +81,7 @@ describe('TypeScript Image Component', () => {
       nextConfig,
       content.replace('// disableStaticImages', 'disableStaticImages')
     )
-    const app = await launchApp(appDir, await findPort(), [])
+    const app = await launchApp(appDir, await findPort())
     await killApp(app)
     await fs.writeFile(nextConfig, content)
     const envTypes = await fs.readFile(join(appDir, 'next-env.d.ts'), 'utf8')

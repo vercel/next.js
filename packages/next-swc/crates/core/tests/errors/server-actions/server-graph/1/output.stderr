@@ -1,0 +1,7 @@
+
+  x Server actions must be async functions
+   ,-[input.js:2:1]
+ 2 | 
+ 3 | export function foo() {}
+   :                 ^^^
+   `----

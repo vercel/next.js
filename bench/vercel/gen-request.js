@@ -4,12 +4,11 @@ import timer from '@szmarczak/http-timer'
 // a wrapper around genAsyncRequest that will retry the request 5 times if it fails
 export async function genRetryableRequest(url) {
   let retries = 0
-  while (retries < 5) {
+  while (retries < 10) {
     try {
       return await genAsyncRequest(url)
     } catch (err) {}
     retries++
-    await new Promise((r) => setTimeout(r, 1000))
   }
   throw new Error(`Failed to fetch ${url}, too many retries`)
 }
@@ -25,6 +24,9 @@ async function genAsyncRequest(url) {
         body += data
       })
       response.on('end', () => {
+        if (response.statusCode !== 200) {
+          reject(new Error(`Failed to fetch ${url}`))
+        }
         resolve({
           ...response.timings.phases,
           cold: !body.includes('HOT'),

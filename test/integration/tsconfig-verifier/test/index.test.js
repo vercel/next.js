@@ -26,7 +26,6 @@ describe('tsconfig.json verifier', () => {
     expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
       "{
         \\"compilerOptions\\": {
-          \\"target\\": \\"es5\\",
           \\"lib\\": [
             \\"dom\\",
             \\"dom.iterable\\",
@@ -35,7 +34,6 @@ describe('tsconfig.json verifier', () => {
           \\"allowJs\\": true,
           \\"skipLibCheck\\": true,
           \\"strict\\": false,
-          \\"forceConsistentCasingInFileNames\\": true,
           \\"noEmit\\": true,
           \\"incremental\\": true,
           \\"esModuleInterop\\": true,
@@ -43,10 +41,17 @@ describe('tsconfig.json verifier', () => {
           \\"moduleResolution\\": \\"node\\",
           \\"resolveJsonModule\\": true,
           \\"isolatedModules\\": true,
-          \\"jsx\\": \\"preserve\\"
+          \\"jsx\\": \\"preserve\\",
+          \\"plugins\\": [
+            {
+              \\"name\\": \\"next\\"
+            }
+          ],
+          \\"strictNullChecks\\": true
         },
         \\"include\\": [
           \\"next-env.d.ts\\",
+          \\".next/types/**/*.ts\\",
           \\"**/*.ts\\",
           \\"**/*.tsx\\"
         ],
@@ -75,7 +80,6 @@ describe('tsconfig.json verifier', () => {
     expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
       "{
         \\"compilerOptions\\": {
-          \\"target\\": \\"es5\\",
           \\"lib\\": [
             \\"dom\\",
             \\"dom.iterable\\",
@@ -84,7 +88,6 @@ describe('tsconfig.json verifier', () => {
           \\"allowJs\\": true,
           \\"skipLibCheck\\": true,
           \\"strict\\": false,
-          \\"forceConsistentCasingInFileNames\\": true,
           \\"noEmit\\": true,
           \\"incremental\\": true,
           \\"esModuleInterop\\": true,
@@ -92,10 +95,17 @@ describe('tsconfig.json verifier', () => {
           \\"moduleResolution\\": \\"node\\",
           \\"resolveJsonModule\\": true,
           \\"isolatedModules\\": true,
-          \\"jsx\\": \\"preserve\\"
+          \\"jsx\\": \\"preserve\\",
+          \\"plugins\\": [
+            {
+              \\"name\\": \\"next\\"
+            }
+          ],
+          \\"strictNullChecks\\": true
         },
         \\"include\\": [
           \\"next-env.d.ts\\",
+          \\".next/types/**/*.ts\\",
           \\"**/*.ts\\",
           \\"**/*.tsx\\"
         ],
@@ -143,7 +153,6 @@ describe('tsconfig.json verifier', () => {
           \\"module\\": \\"esnext\\" // should not be umd
           // end-object comment
           ,
-          \\"target\\": \\"es5\\",
           \\"lib\\": [
             \\"dom\\",
             \\"dom.iterable\\",
@@ -152,18 +161,24 @@ describe('tsconfig.json verifier', () => {
           \\"allowJs\\": true,
           \\"skipLibCheck\\": true,
           \\"strict\\": false,
-          \\"forceConsistentCasingInFileNames\\": true,
           \\"noEmit\\": true,
           \\"incremental\\": true,
           \\"moduleResolution\\": \\"node\\",
           \\"resolveJsonModule\\": true,
           \\"isolatedModules\\": true,
-          \\"jsx\\": \\"preserve\\"
+          \\"jsx\\": \\"preserve\\",
+          \\"plugins\\": [
+            {
+              \\"name\\": \\"next\\"
+            }
+          ],
+          \\"strictNullChecks\\": true
         }
         // in-object comment 2
         ,
         \\"include\\": [
           \\"next-env.d.ts\\",
+          \\".next/types/**/*.ts\\",
           \\"**/*.ts\\",
           \\"**/*.tsx\\"
         ],
@@ -192,7 +207,6 @@ describe('tsconfig.json verifier', () => {
         \\"compilerOptions\\": {
           \\"esModuleInterop\\": true,
           \\"module\\": \\"commonjs\\",
-          \\"target\\": \\"es5\\",
           \\"lib\\": [
             \\"dom\\",
             \\"dom.iterable\\",
@@ -201,16 +215,22 @@ describe('tsconfig.json verifier', () => {
           \\"allowJs\\": true,
           \\"skipLibCheck\\": true,
           \\"strict\\": false,
-          \\"forceConsistentCasingInFileNames\\": true,
           \\"noEmit\\": true,
           \\"incremental\\": true,
           \\"moduleResolution\\": \\"node\\",
           \\"resolveJsonModule\\": true,
           \\"isolatedModules\\": true,
-          \\"jsx\\": \\"preserve\\"
+          \\"jsx\\": \\"preserve\\",
+          \\"plugins\\": [
+            {
+              \\"name\\": \\"next\\"
+            }
+          ],
+          \\"strictNullChecks\\": true
         },
         \\"include\\": [
           \\"next-env.d.ts\\",
+          \\".next/types/**/*.ts\\",
           \\"**/*.ts\\",
           \\"**/*.tsx\\"
         ],
@@ -238,7 +258,6 @@ describe('tsconfig.json verifier', () => {
         \\"compilerOptions\\": {
           \\"esModuleInterop\\": true,
           \\"module\\": \\"es2020\\",
-          \\"target\\": \\"es5\\",
           \\"lib\\": [
             \\"dom\\",
             \\"dom.iterable\\",
@@ -247,16 +266,22 @@ describe('tsconfig.json verifier', () => {
           \\"allowJs\\": true,
           \\"skipLibCheck\\": true,
           \\"strict\\": false,
-          \\"forceConsistentCasingInFileNames\\": true,
           \\"noEmit\\": true,
           \\"incremental\\": true,
           \\"moduleResolution\\": \\"node\\",
           \\"resolveJsonModule\\": true,
           \\"isolatedModules\\": true,
-          \\"jsx\\": \\"preserve\\"
+          \\"jsx\\": \\"preserve\\",
+          \\"plugins\\": [
+            {
+              \\"name\\": \\"next\\"
+            }
+          ],
+          \\"strictNullChecks\\": true
         },
         \\"include\\": [
           \\"next-env.d.ts\\",
+          \\".next/types/**/*.ts\\",
           \\"**/*.ts\\",
           \\"**/*.tsx\\"
         ],
@@ -288,7 +313,6 @@ describe('tsconfig.json verifier', () => {
         \\"compilerOptions\\": {
           \\"esModuleInterop\\": true,
           \\"moduleResolution\\": \\"node16\\",
-          \\"target\\": \\"es5\\",
           \\"lib\\": [
             \\"dom\\",
             \\"dom.iterable\\",
@@ -297,16 +321,240 @@ describe('tsconfig.json verifier', () => {
           \\"allowJs\\": true,
           \\"skipLibCheck\\": true,
           \\"strict\\": false,
-          \\"forceConsistentCasingInFileNames\\": true,
           \\"noEmit\\": true,
           \\"incremental\\": true,
           \\"module\\": \\"esnext\\",
           \\"resolveJsonModule\\": true,
           \\"isolatedModules\\": true,
-          \\"jsx\\": \\"preserve\\"
+          \\"jsx\\": \\"preserve\\",
+          \\"plugins\\": [
+            {
+              \\"name\\": \\"next\\"
+            }
+          ],
+          \\"strictNullChecks\\": true
         },
         \\"include\\": [
           \\"next-env.d.ts\\",
+          \\".next/types/**/*.ts\\",
+          \\"**/*.ts\\",
+          \\"**/*.tsx\\"
+        ],
+        \\"exclude\\": [
+          \\"node_modules\\"
+        ]
+      }
+      "
+    `)
+  })
+
+  it('allows you to set bundler moduleResolution mode', async () => {
+    expect(await exists(tsConfig)).toBe(false)
+
+    await writeFile(
+      tsConfig,
+      `{ "compilerOptions": { "esModuleInterop": false, "moduleResolution": "bundler" } }`
+    )
+    await new Promise((resolve) => setTimeout(resolve, 500))
+    const { code, stderr, stdout } = await nextBuild(appDir, undefined, {
+      stderr: true,
+      stdout: true,
+    })
+    expect(stderr + stdout).not.toContain('moduleResolution')
+    expect(code).toBe(0)
+
+    expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
+      "{
+        \\"compilerOptions\\": {
+          \\"esModuleInterop\\": true,
+          \\"moduleResolution\\": \\"bundler\\",
+          \\"lib\\": [
+            \\"dom\\",
+            \\"dom.iterable\\",
+            \\"esnext\\"
+          ],
+          \\"allowJs\\": true,
+          \\"skipLibCheck\\": true,
+          \\"strict\\": false,
+          \\"noEmit\\": true,
+          \\"incremental\\": true,
+          \\"module\\": \\"esnext\\",
+          \\"resolveJsonModule\\": true,
+          \\"isolatedModules\\": true,
+          \\"jsx\\": \\"preserve\\",
+          \\"plugins\\": [
+            {
+              \\"name\\": \\"next\\"
+            }
+          ],
+          \\"strictNullChecks\\": true
+        },
+        \\"include\\": [
+          \\"next-env.d.ts\\",
+          \\".next/types/**/*.ts\\",
+          \\"**/*.ts\\",
+          \\"**/*.tsx\\"
+        ],
+        \\"exclude\\": [
+          \\"node_modules\\"
+        ]
+      }
+      "
+    `)
+  })
+
+  it('allows you to set target mode', async () => {
+    expect(await exists(tsConfig)).toBe(false)
+
+    await writeFile(tsConfig, `{ "compilerOptions": { "target": "es2022" } }`)
+    await new Promise((resolve) => setTimeout(resolve, 500))
+    const { code, stderr, stdout } = await nextBuild(appDir, undefined, {
+      stderr: true,
+      stdout: true,
+    })
+    expect(stderr + stdout).not.toContain('target')
+    expect(code).toBe(0)
+
+    expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
+      "{
+        \\"compilerOptions\\": {
+          \\"target\\": \\"es2022\\",
+          \\"lib\\": [
+            \\"dom\\",
+            \\"dom.iterable\\",
+            \\"esnext\\"
+          ],
+          \\"allowJs\\": true,
+          \\"skipLibCheck\\": true,
+          \\"strict\\": false,
+          \\"noEmit\\": true,
+          \\"incremental\\": true,
+          \\"esModuleInterop\\": true,
+          \\"module\\": \\"esnext\\",
+          \\"moduleResolution\\": \\"node\\",
+          \\"resolveJsonModule\\": true,
+          \\"isolatedModules\\": true,
+          \\"jsx\\": \\"preserve\\",
+          \\"plugins\\": [
+            {
+              \\"name\\": \\"next\\"
+            }
+          ],
+          \\"strictNullChecks\\": true
+        },
+        \\"include\\": [
+          \\"next-env.d.ts\\",
+          \\".next/types/**/*.ts\\",
+          \\"**/*.ts\\",
+          \\"**/*.tsx\\"
+        ],
+        \\"exclude\\": [
+          \\"node_modules\\"
+        ]
+      }
+      "
+    `)
+  })
+
+  it('allows you to set node16 module mode', async () => {
+    expect(await exists(tsConfig)).toBe(false)
+
+    await writeFile(
+      tsConfig,
+      `{ "compilerOptions": { "esModuleInterop": false, "module": "node16", "moduleResolution": "node16" } }`
+    )
+    await new Promise((resolve) => setTimeout(resolve, 500))
+    const { code, stderr, stdout } = await nextBuild(appDir, undefined, {
+      stderr: true,
+      stdout: true,
+    })
+    expect(stderr + stdout).not.toContain('moduleResolution')
+    expect(code).toBe(0)
+
+    expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
+      "{
+        \\"compilerOptions\\": {
+          \\"esModuleInterop\\": true,
+          \\"module\\": \\"node16\\",
+          \\"moduleResolution\\": \\"node16\\",
+          \\"lib\\": [
+            \\"dom\\",
+            \\"dom.iterable\\",
+            \\"esnext\\"
+          ],
+          \\"allowJs\\": true,
+          \\"skipLibCheck\\": true,
+          \\"strict\\": false,
+          \\"noEmit\\": true,
+          \\"incremental\\": true,
+          \\"resolveJsonModule\\": true,
+          \\"isolatedModules\\": true,
+          \\"jsx\\": \\"preserve\\",
+          \\"plugins\\": [
+            {
+              \\"name\\": \\"next\\"
+            }
+          ],
+          \\"strictNullChecks\\": true
+        },
+        \\"include\\": [
+          \\"next-env.d.ts\\",
+          \\".next/types/**/*.ts\\",
+          \\"**/*.ts\\",
+          \\"**/*.tsx\\"
+        ],
+        \\"exclude\\": [
+          \\"node_modules\\"
+        ]
+      }
+      "
+    `)
+  })
+
+  it('allows you to set verbatimModuleSyntax true without adding isolatedModules', async () => {
+    expect(await exists(tsConfig)).toBe(false)
+
+    await writeFile(
+      tsConfig,
+      `{ "compilerOptions": { "verbatimModuleSyntax": true } }`
+    )
+    await new Promise((resolve) => setTimeout(resolve, 500))
+    const { code, stderr, stdout } = await nextBuild(appDir, undefined, {
+      stderr: true,
+      stdout: true,
+    })
+    expect(stderr + stdout).not.toContain('isolatedModules')
+    expect(code).toBe(0)
+
+    expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
+      "{
+        \\"compilerOptions\\": {
+          \\"verbatimModuleSyntax\\": true,
+          \\"lib\\": [
+            \\"dom\\",
+            \\"dom.iterable\\",
+            \\"esnext\\"
+          ],
+          \\"allowJs\\": true,
+          \\"skipLibCheck\\": true,
+          \\"strict\\": false,
+          \\"noEmit\\": true,
+          \\"incremental\\": true,
+          \\"esModuleInterop\\": true,
+          \\"module\\": \\"esnext\\",
+          \\"moduleResolution\\": \\"node\\",
+          \\"resolveJsonModule\\": true,
+          \\"jsx\\": \\"preserve\\",
+          \\"plugins\\": [
+            {
+              \\"name\\": \\"next\\"
+            }
+          ],
+          \\"strictNullChecks\\": true
+        },
+        \\"include\\": [
+          \\"next-env.d.ts\\",
+          \\".next/types/**/*.ts\\",
           \\"**/*.ts\\",
           \\"**/*.tsx\\"
         ],
@@ -327,7 +575,6 @@ describe('tsconfig.json verifier', () => {
       `
       {
         "compilerOptions": {
-          "target": "es5",
           "lib": [
             "dom",
             "dom.iterable",
@@ -341,13 +588,20 @@ describe('tsconfig.json verifier', () => {
           "incremental": true,
           "esModuleInterop": true,
           "module": "esnext",
-          "moduleResolution": "node",
+          "moduleResolution": "bundler",
           "resolveJsonModule": true,
           "isolatedModules": true,
-          "jsx": "preserve"
+          "jsx": "preserve",
+          "plugins": [
+            {
+              "name": "next"
+            }
+          ],
+          "strictNullChecks": true
         },
         "include": [
           "next-env.d.ts",
+          ".next/types/**/*.ts",
           "**/*.ts",
           "**/*.tsx"
         ],
@@ -383,7 +637,6 @@ describe('tsconfig.json verifier', () => {
       `
       {
         "compilerOptions": {
-          "target": "es5",
           "lib": [
             "dom",
             "dom.iterable",
@@ -396,13 +649,20 @@ describe('tsconfig.json verifier', () => {
           "noEmit": true,
           "esModuleInterop": true,
           "module": "esnext",
-          "moduleResolution": "node",
+          "moduleResolution": "bundler",
           "resolveJsonModule": true,
           "isolatedModules": true,
-          "jsx": "preserve"
+          "jsx": "preserve",
+          "plugins": [
+            {
+              "name": "next"
+            }
+          ],
+          "strictNullChecks": true
         },
         "include": [
           "next-env.d.ts",
+          ".next/types/**/*.ts",
           "**/*.ts",
           "**/*.tsx"
         ],
@@ -428,7 +688,8 @@ describe('tsconfig.json verifier', () => {
       "{
         \\"extends\\": \\"./tsconfig.base.json\\",
         \\"compilerOptions\\": {
-          \\"incremental\\": true
+          \\"incremental\\": true,
+          \\"strictNullChecks\\": true
         }
       }
       "
