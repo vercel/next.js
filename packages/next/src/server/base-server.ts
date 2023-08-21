@@ -189,6 +189,8 @@ export type RequestContext = {
   renderOpts: RenderOptsPartial
 }
 
+export type FallbackMode = false | undefined | 'blocking' | 'static'
+
 export class NoFallbackError extends Error {}
 
 // Internal wrapper around build errors at development
@@ -1439,7 +1441,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       getRequestMeta(req, '_nextRewroteUrl') || urlPathname
 
     let staticPaths: string[] | undefined
-    let fallbackMode: false | undefined | 'blocking' | 'static'
+
+    let fallbackMode: FallbackMode
 
     if (isAppPath) {
       const pathsResult = await this.getStaticPaths({

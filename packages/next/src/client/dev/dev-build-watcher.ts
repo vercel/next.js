@@ -8,8 +8,7 @@ export default function initializeBuildWatcher(
   toggleCallback: (cb: (event: string | { data: string }) => void) => void,
   position = 'bottom-right'
 ) {
-  const type = 'div' as string
-  const shadowHost = document.createElement(type)
+  const shadowHost = document.createElement('div')
   const [verticalProperty, horizontalProperty] = position.split('-') as [
     VerticalPosition,
     HorizonalPosition
