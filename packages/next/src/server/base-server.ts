@@ -1443,6 +1443,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     let staticPaths: string[] | undefined
 
     let fallbackMode: FallbackMode
+    let hasFallback = false
     const isDynamic = isDynamicRoute(components.pathname)
 
     if (isAppPath && isDynamic) {
@@ -1454,8 +1455,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
       staticPaths = pathsResult.staticPaths
       fallbackMode = pathsResult.fallbackMode
-
-      const hasFallback = typeof fallbackMode !== 'undefined'
+      hasFallback = typeof fallbackMode !== 'undefined'
 
       if (this.nextConfig.output === 'export') {
         const page = components.pathname
