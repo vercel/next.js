@@ -272,7 +272,7 @@ createNextDescribe(
 
       await browser.elementByCss('#slow-inc').click()
 
-      // navigate to server
+      // navigate to client
       await browser.elementByCss('#navigate-client').click()
       // intentionally bailing after 2 retries so we don't retry to the point where the async function resolves
       await check(() => browser.url(), `${next.url}/client`, true, 2)
