@@ -208,7 +208,7 @@ export function runNextCommand(
   const env = {
     ...process.env,
     NODE_ENV: undefined,
-    __NEXT_TEST_MODE: 'true',
+    __NEXT_TEST_MODE: 'jest',
     ...options.env,
   }
 
