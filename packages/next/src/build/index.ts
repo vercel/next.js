@@ -1613,6 +1613,16 @@ export default async function build(
                                 !!workerResult.prerenderRoutes?.length
 
                               if (
+                                config.output === 'export' &&
+                                isDynamic &&
+                                !hasGenerateStaticParams
+                              ) {
+                                throw new Error(
+                                  `Page "${page}" is missing "generateStaticParams()" so it cannot be used with "output: export" config.`
+                                )
+                              }
+
+                              if (
                                 // Mark the app as static if:
                                 // - It has no dynamic param
                                 // - It doesn't have generateStaticParams but `dynamic` is set to
