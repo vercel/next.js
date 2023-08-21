@@ -24,13 +24,13 @@ Here's a quick summary of the different use cases for Server and Client Componen
 
 ## Interleaving Server and Client Components
 
-When architecting your application, you can interleave Client and Server Components. It may be helpful to vizualise your UI as a tree of components. Starting with the [root layout](/docs/app/building-your-application/routing/pages-and-layouts#root-layout-required), which is a Server Component, you can then render certain branches on the client by adding the [`"use client"`]() directive.
+When architecting your application, you can interleave Client and Server Components. It may be helpful to vizualise your UI as a tree of components. Starting with the [root layout](/docs/app/building-your-application/routing/pages-and-layouts#root-layout-required), which is a Server Component, you can then render certain branches on the client by adding the `"use client"` directive.
 
 {/* Diagram - interleaving */}
 
 Within those client branches, you can nest Server Components or access resources on the server, however there are some things to keep in mind:
 
-- During a [request-response lifecycle](/docs/app/building-your-application/rendering#requestresponse-lifecyle), your code moves from the server to the client. If you need to access data or resources on the server while on the client, you'll be making a **new** request to the server - not switching back.
+- During a request-response lifecycle, your code moves from the server to the client. If you need to access data or resources on the server while on the client, you'll be making a **new** request to the server - not switching back.
 - Since code moves from the server to the client, Server Components are rendered first, regardless of where they are in your component tree. The rendering result (RSC Payload) will contain references to the locations of Client Components. Then, on the client, React uses the RSC Payload to reconcile Server and Client Components into a single tree.
 
 {/* Diagram */}
@@ -189,7 +189,7 @@ Here are some common patterns when working with Server Components:
 
 When fetching data on the server, there may be cases where you need to share data across different components. For example, you may have a layout and a page that depend on the same user data.
 
-Instead of using [React Context](https://react.dev/learn/passing-data-deeply-with-context) (which is not available on the server) or passing data as props, you can use [`fetch`](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#fetching-data-on-the-server-with-fetch) or React's [`cache`]() function to fetch the same data in the components that need it, without worrying about making duplicate requests for the same data. This is because React extends `fetch` to automatically memoize data requests, and the `cache` function can be used when `fetch` is not available.
+Instead of using [React Context](https://react.dev/learn/passing-data-deeply-with-context) (which is not available on the server) or passing data as props, you can use [`fetch`](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#fetching-data-on-the-server-with-fetch) or React's `cache` function to fetch the same data in the components that need it, without worrying about making duplicate requests for the same data. This is because React extends `fetch` to automatically memoize data requests, and the `cache` function can be used when `fetch` is not available.
 
 Learn more about [memoization](/docs/app/building-your-application/caching#request-memoization) in React.
 
