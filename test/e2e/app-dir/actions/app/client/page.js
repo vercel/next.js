@@ -8,6 +8,7 @@ import double, {
   redirectAction,
   getHeaders,
   renamed,
+  slowInc,
 } from './actions'
 import { test } from './actions-lib'
 
@@ -19,7 +20,6 @@ export default function Counter() {
       <button
         id="inc"
         onClick={async () => {
-          console.log(inc)
           const newCount = await inc(count)
           setCount(newCount)
 
@@ -28,6 +28,15 @@ export default function Counter() {
         }}
       >
         +1
+      </button>
+      <button
+        id="slow-inc"
+        onClick={async () => {
+          const newCount = await slowInc(count)
+          setCount(newCount)
+        }}
+      >
+        +1 (Slow)
       </button>
       <button
         id="dec"
