@@ -56,6 +56,7 @@ In the same folder, `loading.js` will be nested inside `layout.js`. It will auto
 > - Navigation is immediate, even with [server-centric routing](/docs/app/building-your-application/routing/linking-and-navigating#how-routing-and-navigation-works).
 > - Navigation is interruptible, meaning changing routes does not need to wait for the content of the route to fully load before navigating to another route.
 > - Shared layouts remain interactive while new route segments load.
+> - Instant Loading States will override HTTP status codes set by other functions in server components (e.g. [`redirect`](https://nextjs.org/docs/app/api-reference/functions/redirect) and [`notFound`](https://nextjs.org/docs/app/api-reference/functions/not-found)) and return a HTTP 200 status code immediately
 
 > **Recommendation:** Use the `loading.js` convention for route segments (layouts and pages) as Next.js optimizes this functionality.
 
