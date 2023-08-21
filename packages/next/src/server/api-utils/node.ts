@@ -466,7 +466,7 @@ async function revalidate(
         const ipcKey = process.env.__NEXT_PRIVATE_ROUTER_IPC_KEY
         const res = await invokeRequest(
           `http://${
-            context.hostname
+            context.hostname || 'localhost'
           }:${ipcPort}?key=${ipcKey}&method=revalidate&args=${encodeURIComponent(
             JSON.stringify([{ urlPath, revalidateHeaders, opts }])
           )}`,

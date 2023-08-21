@@ -52,29 +52,6 @@ export function cloneTransformStream(source: TransformStream) {
   return clone
 }
 
-export function readableStreamTee<T = any>(
-  readable: ReadableStream<T>
-): [ReadableStream<T>, ReadableStream<T>] {
-  const transformStream = new TransformStream()
-  const transformStream2 = new TransformStream()
-  const writer = transformStream.writable.getWriter()
-  const writer2 = transformStream2.writable.getWriter()
-
-  const reader = readable.getReader()
-  async function read() {
-    const { done, value } = await reader.read()
-    if (done) {
-      await Promise.all([writer.close(), writer2.close()])
-      return
-    }
-    await Promise.all([writer.write(value), writer2.write(value)])
-    await read()
-  }
-  read()
-
-  return [transformStream.readable, transformStream2.readable]
-}
-
 export function chainStreams<T>(
   streams: ReadableStream<T>[]
 ): ReadableStream<T> {

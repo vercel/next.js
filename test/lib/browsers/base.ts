@@ -53,7 +53,8 @@ export abstract class BrowserInterface implements PromiseLike<any> {
   async setup(
     browserName: string,
     locale: string,
-    javaScriptEnabled: boolean
+    javaScriptEnabled: boolean,
+    headless: boolean
   ): Promise<void> {}
   async close(): Promise<void> {}
   async quit(): Promise<void> {}
@@ -98,13 +99,13 @@ export abstract class BrowserInterface implements PromiseLike<any> {
   /**
    * Use browsers `go back` functionality.
    */
-  back(): BrowserInterface {
+  back(options?: any): BrowserInterface {
     return this
   }
   /**
    * Use browsers `go forward` functionality. Inverse of back.
    */
-  forward(): BrowserInterface {
+  forward(options?: any): BrowserInterface {
     return this
   }
   refresh(): BrowserInterface {
