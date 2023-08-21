@@ -146,8 +146,26 @@ function checkExports(
       let generateStaticParams = false
       let extraProperties = new Set<string>()
       let directives = new Set<string>()
+      let hasNonExpressionStatementNode = false
 
       for (const node of swcAST.body) {
+        // There should be no non-string literals nodes before directives
+        if (
+          node.type === 'ExpressionStatement' &&
+          node.expression.type === 'StringLiteral'
+        ) {
+          if (!hasNonExpressionStatementNode) {
+            const directive = node.expression.value
+            if (CLIENT_DIRECTIVE === directive) {
+              directives.add('client')
+            }
+            if (SERVER_ACTION_DIRECTIVE === directive) {
+              directives.add('server')
+            }
+          }
+        } else {
+          hasNonExpressionStatementNode = true
+        }
         if (
           node.type === 'ExportDeclaration' &&
           node.declaration?.type === 'VariableDeclaration'
@@ -231,18 +249,6 @@ function checkExports(
                 'preferredRegion',
                 'it was not assigned to a string literal or an array of string literals'
               )
-          }
-        }
-
-        if (node.type === 'ExpressionStatement') {
-          if (node.expression.type === 'StringLiteral') {
-            const directive = node.expression.value
-            if (CLIENT_DIRECTIVE === directive) {
-              directives.add('client')
-            }
-            if (SERVER_ACTION_DIRECTIVE === directive) {
-              directives.add('server')
-            }
           }
         }
       }
