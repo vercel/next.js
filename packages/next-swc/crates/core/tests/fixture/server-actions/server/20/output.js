@@ -3,7 +3,7 @@ const [foo] = [
     null
 ];
 export default foo;
-import ensureServerEntryExports from "private-next-rsc-action-validate";
+import { ensureServerEntryExports } from "private-next-rsc-action-validate";
 ensureServerEntryExports([
     foo
 ]);

@@ -25,10 +25,13 @@ import { getValidatedArgs } from '../lib/get-validated-args'
 import { Worker } from 'next/dist/compiled/jest-worker'
 import type { ChildProcess } from 'child_process'
 import { checkIsNodeDebugging } from '../server/lib/is-node-debugging'
+import { createSelfSignedCertificate } from '../lib/mkcert'
+import uploadTrace from '../trace/upload-trace'
 
 let dir: string
 let config: NextConfigComplete
 let isTurboSession = false
+let traceUploadUrl: string
 let sessionStopHandled = false
 let sessionStarted = Date.now()
 
@@ -84,6 +87,16 @@ const handleSessionStop = async () => {
   } catch (_) {
     // errors here aren't actionable so don't add
     // noise to the output
+  }
+
+  if (traceUploadUrl) {
+    uploadTrace({
+      traceUploadUrl,
+      mode: 'dev',
+      isTurboSession,
+      projectDir: dir,
+      distDir: config.distDir,
+    })
   }
 
   // ensure we re-enable the terminal cursor before exiting
@@ -189,7 +202,11 @@ const nextDev: CliCommand = async (argv) => {
     '--hostname': String,
     '--turbo': Boolean,
     '--experimental-turbo': Boolean,
+    '--experimental-https': Boolean,
+    '--experimental-https-key': String,
+    '--experimental-https-cert': String,
     '--experimental-test-proxy': Boolean,
+    '--experimental-upload-trace': String,
 
     // To align current messages with native binary.
     // Will need to adjust subcommand later.
@@ -217,6 +234,7 @@ const nextDev: CliCommand = async (argv) => {
       Options
         --port, -p      A port number on which to start the application
         --hostname, -H  Hostname on which to start the application (default: 0.0.0.0)
+        --experimental-upload-trace=<trace-url>  [EXPERIMENTAL] Report a subset of the debugging trace to a remote http url. Includes sensitive data. Disabled by default and url must be provided.
         --help, -h      Displays this message
     `)
     process.exit(0)
@@ -276,6 +294,10 @@ const nextDev: CliCommand = async (argv) => {
   const host = args['--hostname']
   config = await loadConfig(PHASE_DEVELOPMENT_SERVER, dir)
   const isExperimentalTestProxy = args['--experimental-test-proxy']
+
+  if (args['--experimental-upload-trace']) {
+    traceUploadUrl = args['--experimental-upload-trace']
+  }
 
   const devServerOptions: StartServerOptions = {
     dir,
@@ -373,7 +395,33 @@ const nextDev: CliCommand = async (argv) => {
     const runDevServer = async (reboot: boolean) => {
       try {
         const workerInit = await createRouterWorker()
-        await workerInit.worker.startServer(devServerOptions)
+        if (!!args['--experimental-https']) {
+          Log.warn(
+            'Self-signed certificates are currently an experimental feature, use at your own risk.'
+          )
+
+          let certificate: { key: string; cert: string } | undefined
+
+          if (
+            args['--experimental-https-key'] &&
+            args['--experimental-https-cert']
+          ) {
+            certificate = {
+              key: path.resolve(args['--experimental-https-key']),
+              cert: path.resolve(args['--experimental-https-cert']),
+            }
+          } else {
+            certificate = await createSelfSignedCertificate(host)
+          }
+
+          await workerInit.worker.startServer({
+            ...devServerOptions,
+            selfSignedCertificate: certificate,
+          })
+        } else {
+          await workerInit.worker.startServer(devServerOptions)
+        }
+
         await preflight(reboot)
         return {
           cleanup: workerInit.cleanup,

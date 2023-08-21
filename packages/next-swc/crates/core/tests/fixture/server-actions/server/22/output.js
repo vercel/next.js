@@ -3,7 +3,7 @@ import { validator } from 'auth';
 export const action = validator(async ()=>{});
 export default $$ACTION_0 = validator(async ()=>{});
 var $$ACTION_0;
-import ensureServerEntryExports from "private-next-rsc-action-validate";
+import { ensureServerEntryExports } from "private-next-rsc-action-validate";
 ensureServerEntryExports([
     action,
     $$ACTION_0

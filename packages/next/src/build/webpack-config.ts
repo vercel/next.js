@@ -1100,6 +1100,7 @@ export default async function getBaseWebpackConfig(
       // let this alias hit before `next` alias.
       ...(isEdgeServer
         ? {
+            'next/dist/build': 'next/dist/esm/build',
             'next/dist/client': 'next/dist/esm/client',
             'next/dist/shared': 'next/dist/esm/shared',
             'next/dist/pages': 'next/dist/esm/pages',

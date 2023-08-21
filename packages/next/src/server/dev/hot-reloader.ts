@@ -64,6 +64,8 @@ import { getRouteLoaderEntry } from '../../build/webpack/loaders/next-route-load
 import { isInternalComponent } from '../../lib/is-internal-component'
 import { RouteKind } from '../future/route-kind'
 
+const MILLISECONDS_IN_NANOSECOND = 1_000_000
+
 function diff(a: Set<any>, b: Set<any>) {
   return new Set([...a].filter((v) => !b.has(v)))
 }
@@ -369,11 +371,27 @@ export default class HotReloader {
             | undefined
 
           switch (payload.event) {
+            case 'span-end': {
+              new Span({
+                name: payload.spanName,
+                startTime:
+                  BigInt(Math.floor(payload.startTime)) *
+                  BigInt(MILLISECONDS_IN_NANOSECOND),
+                attrs: payload.attributes,
+              }).stop(
+                BigInt(Math.floor(payload.endTime)) *
+                  BigInt(MILLISECONDS_IN_NANOSECOND)
+              )
+              break
+            }
             case 'client-hmr-latency': {
               traceChild = {
                 name: payload.event,
-                startTime: BigInt(payload.startTime) * BigInt(1000 * 1000),
-                endTime: BigInt(payload.endTime) * BigInt(1000 * 1000),
+                startTime:
+                  BigInt(payload.startTime) *
+                  BigInt(MILLISECONDS_IN_NANOSECOND),
+                endTime:
+                  BigInt(payload.endTime) * BigInt(MILLISECONDS_IN_NANOSECOND),
                 attrs: {
                   updatedModules: payload.updatedModules,
                   page: payload.page,
