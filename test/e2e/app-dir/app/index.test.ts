@@ -1373,8 +1373,9 @@ createNextDescribe(
             // Find all the script tags without src attributes.
             const elements = $('script[src]')
 
-            // Expect there to be at least 1 script tag without a src attribute.
-            expect(elements.length).toBeGreaterThan(0)
+            // Expect there to be at least 2 script tag with a src attribute.
+            // The main chunk and the webpack runtime.
+            expect(elements.length).toBeGreaterThan(1)
 
             // Expect all inline scripts to have the nonce value.
             elements.each((i, el) => {
@@ -1899,6 +1900,39 @@ createNextDescribe(
         expect($('script[async]').length).toBeGreaterThan(1)
         expect($('body').find('script[async]').length).toBe(1)
       })
+
+      if (!isDev) {
+        it('should successfully bootstrap even when using CSP', async () => {
+          // This path has a nonce applied in middleware
+          const browser = await next.browser('/bootstrap/with-nonce')
+          const response = await next.fetch('/bootstrap/with-nonce')
+          // We expect this page to response with CSP headers requiring a nonce for scripts
+          expect(response.headers.get('content-security-policy')).toContain(
+            "script-src 'nonce"
+          )
+          // We expect to find the updated text which demonstrates our app
+          // was able to bootstrap successfully (scripts run)
+          expect(
+            await browser.eval('document.getElementById("val").textContent')
+          ).toBe('[[updated]]')
+        })
+      } else {
+        it('should fail to bootstrap when using CSP in Dev due to eval', async () => {
+          // This test is here to ensure that we don't accidentally turn CSP off
+          // for the prod version.
+          const browser = await next.browser('/bootstrap/with-nonce')
+          const response = await next.fetch('/bootstrap/with-nonce')
+          // We expect this page to response with CSP headers requiring a nonce for scripts
+          expect(response.headers.get('content-security-policy')).toContain(
+            "script-src 'nonce"
+          )
+          // We expect our app to fail to bootstrap due to invalid eval use in Dev.
+          // We assert the html is in it's SSR'd state.
+          expect(
+            await browser.eval('document.getElementById("val").textContent')
+          ).toBe('initial')
+        })
+      }
     })
   }
 )
