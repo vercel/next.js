@@ -307,10 +307,30 @@ pub async fn get_next_edge_import_map(
 }
 
 pub fn get_next_client_resolved_map(
-    _context: Vc<FileSystemPath>,
-    _root: Vc<FileSystemPath>,
+    context: Vc<FileSystemPath>,
+    root: Vc<FileSystemPath>,
+    mode: NextMode,
 ) -> Vc<ResolvedMap> {
-    let glob_mappings = vec![];
+    let glob_mappings = if mode == NextMode::Development {
+        vec![]
+    } else {
+        vec![
+            // Temporary hack to replace the hot reloader until this is passable by props in
+            // next.js
+            (
+                context.root(),
+                Glob::new(
+                    "**/next/dist/client/components/react-dev-overlay/hot-reloader-client.js"
+                        .to_string(),
+                ),
+                ImportMapping::PrimaryAlternative(
+                    "@vercel/turbopack-next/dev/hot-reloader.tsx".to_string(),
+                    Some(root),
+                )
+                .into(),
+            ),
+        ]
+    };
     ResolvedMap {
         by_glob: glob_mappings,
     }
