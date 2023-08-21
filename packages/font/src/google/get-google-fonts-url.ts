@@ -40,7 +40,7 @@ export function getGoogleFontsUrl(
         if (aIsLowercase && !bIsLowercase) return -1
         if (bIsLowercase && !aIsLowercase) return 1
 
-        return a > b ? 1 : -1
+        return parseInt(a) - parseInt(b)
       })
     })
   }
