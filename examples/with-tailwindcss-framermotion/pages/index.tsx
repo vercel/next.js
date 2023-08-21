@@ -1,8 +1,9 @@
 import Modal from '../components/Modal'
 import Button from '../components/Button'
 import { useState } from 'react';
+import type { NextPage } from 'next'
 
-export default function Test() {
+const Home: NextPage = () => {
   const [modalOpen, setModalOpen] = useState(false);
 
   const handleModalToggle = () => {
@@ -20,3 +21,4 @@ export default function Test() {
     </>
   );
 }
+export default Home;
