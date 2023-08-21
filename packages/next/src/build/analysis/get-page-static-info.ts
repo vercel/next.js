@@ -55,8 +55,8 @@ const CLIENT_MODULE_LABEL =
 const ACTION_MODULE_LABEL =
   /\/\* __next_internal_action_entry_do_not_use__ ([^ ]+) \*\//
 
-const CLIENT_DIRECTIVE_REGEX = /^use client$/
-const SERVER_ACTION_DIRECTIVE_REGEX = /^use server$/
+const CLIENT_DIRECTIVE = 'use client'
+const SERVER_ACTION_DIRECTIVE = 'use server'
 
 export type RSCModuleType = 'server' | 'client'
 export function getRSCModuleInformation(
@@ -237,10 +237,10 @@ function checkExports(
         if (node.type === 'ExpressionStatement') {
           if (node.expression.type === 'StringLiteral') {
             const directive = node.expression.value
-            if (CLIENT_DIRECTIVE_REGEX.test(directive)) {
+            if (CLIENT_DIRECTIVE === directive) {
               directives.add('client')
             }
-            if (SERVER_ACTION_DIRECTIVE_REGEX.test(directive)) {
+            if (SERVER_ACTION_DIRECTIVE === directive) {
               directives.add('server')
             }
           }
