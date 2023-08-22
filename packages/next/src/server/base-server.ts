@@ -85,6 +85,8 @@ import {
   RSC_VARY_HEADER,
   FLIGHT_PARAMETERS,
   NEXT_RSC_UNION_QUERY,
+  NEXT_ROUTER_PREFETCH,
+  RSC_CONTENT_TYPE_HEADER,
 } from '../client/components/app-router-headers'
 import {
   MatchOptions,
@@ -323,6 +325,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     query: NextParsedUrlQuery,
     renderOpts: RenderOpts
   ): Promise<RenderResult>
+
+  protected async getPrefetchRsc(pathname: string): Promise<string | null> {
+    return null
+  }
 
   protected abstract getIncrementalCache(options: {
     requestHeaders: Record<string, undefined | string | string[]>
@@ -1935,6 +1941,22 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       } else if (
         components.routeModule?.definition.kind === RouteKind.APP_PAGE
       ) {
+        const isAppPrefetch = req.headers[NEXT_ROUTER_PREFETCH.toLowerCase()]
+
+        if (isAppPrefetch && process.env.NODE_ENV === 'production') {
+          try {
+            const prefetchRsc = await this.getPrefetchRsc(pathname)
+
+            if (prefetchRsc) {
+              res.setHeader('content-type', RSC_CONTENT_TYPE_HEADER)
+              res.body(prefetchRsc).send()
+              return null
+            }
+          } catch (err) {
+            console.error(`Failed to get prefetch RSC`, err)
+          }
+        }
+
         const module = components.routeModule as AppPageRouteModule
 
         // Due to the way we pass data by mutating `renderOpts`, we can't extend the
