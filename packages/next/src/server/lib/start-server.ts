@@ -15,6 +15,7 @@ import {
   WorkerUpgradeHandler,
 } from './setup-server-worker'
 import { checkIsNodeDebugging } from './is-node-debugging'
+import { NextConfig } from '../config-shared'
 const debug = setupDebug('next:start-server')
 
 export interface StartServerOptions {
@@ -44,6 +45,7 @@ export async function getRequestHandlers({
   isNodeDebugging,
   keepAliveTimeout,
   experimentalTestProxy,
+  conf,
 }: {
   dir: string
   port: number
@@ -53,6 +55,7 @@ export async function getRequestHandlers({
   isNodeDebugging?: boolean
   keepAliveTimeout?: number
   experimentalTestProxy?: boolean
+  conf?: NextConfig
 }): ReturnType<typeof initialize> {
   return initialize({
     dir,
@@ -64,6 +67,7 @@ export async function getRequestHandlers({
     isNodeDebugging: isNodeDebugging || false,
     keepAliveTimeout,
     experimentalTestProxy,
+    conf,
   })
 }
 

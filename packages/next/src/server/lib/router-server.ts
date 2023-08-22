@@ -8,7 +8,7 @@ import type {
 
 import url from 'url'
 import path from 'path'
-import loadConfig from '../config'
+import loadConfig, { NextConfig } from '../config'
 import { serveStatic } from '../serve-static'
 import setupDebug from 'next/dist/compiled/debug'
 import { splitCookiesString, toNodeOutgoingHttpHeaders } from '../web/utils'
@@ -64,6 +64,7 @@ export async function initialize(opts: {
   keepAliveTimeout?: number
   customServer?: boolean
   experimentalTestProxy?: boolean
+  conf?: NextConfig
 }): Promise<[WorkerRequestHandler, WorkerUpgradeHandler]> {
   process.title = 'next-router-worker'
 
@@ -75,7 +76,7 @@ export async function initialize(opts: {
   const config = await loadConfig(
     opts.dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER,
     opts.dir,
-    undefined,
+    opts.conf,
     undefined,
     true
   )
