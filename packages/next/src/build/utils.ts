@@ -53,7 +53,6 @@ import {
 } from '../server/load-components'
 import { trace } from '../trace'
 import { setHttpClientAndAgentOptions } from '../server/setup-http-agent-env'
-import { recursiveDelete } from '../lib/recursive-delete'
 import { Sema } from 'next/dist/compiled/async-sema'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
@@ -1139,25 +1138,31 @@ export const collectGenerateParams = async (
     ? segment[2]?.layout?.[0]?.()
     : segment[2]?.page?.[0]?.())
   const config = collectAppConfig(mod)
-
+  const page: string | undefined = segment[0]
   const isClientComponent = isClientReference(mod)
-  const isDynamicSegment = segment[0] && /^\[.+\]$/.test(segment[0])
+  const isDynamicSegment = /^\[.+\]$/.test(page || '')
+  const { generateStaticParams, getStaticPaths } = mod || {}
+
+  //console.log({parentSegments, page, isDynamicSegment, isClientComponent, generateStaticParams})
+  if (isDynamicSegment && isClientComponent && generateStaticParams) {
+    throw new Error(
+      `Page "${page}" cannot export "generateStaticParams()" because it is a client component`
+    )
+  }
 
   const result = {
     isLayout,
     isDynamicSegment,
     segmentPath: `/${parentSegments.join('/')}${
-      segment[0] && parentSegments.length > 0 ? '/' : ''
-    }${segment[0]}`,
+      page && parentSegments.length > 0 ? '/' : ''
+    }${page}`,
     config,
-    getStaticPaths: isClientComponent ? undefined : mod?.getStaticPaths,
-    generateStaticParams: isClientComponent
-      ? undefined
-      : mod?.generateStaticParams,
+    getStaticPaths: isClientComponent ? undefined : getStaticPaths,
+    generateStaticParams: isClientComponent ? undefined : generateStaticParams,
   }
 
-  if (segment[0]) {
-    parentSegments.push(segment[0])
+  if (page) {
+    parentSegments.push(page)
   }
 
   if (result.config || result.generateStaticParams || result.getStaticPaths) {
@@ -1809,7 +1814,7 @@ export async function copyTracedFiles(
     moduleType = packageJson.type === 'module'
   } catch {}
   const copiedFiles = new Set()
-  await recursiveDelete(outputPath)
+  await fs.rm(outputPath, { recursive: true, force: true })
 
   async function handleTraceFiles(traceFilePath: string) {
     const traceData = JSON.parse(await fs.readFile(traceFilePath, 'utf8')) as {

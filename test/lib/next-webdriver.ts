@@ -65,6 +65,7 @@ export default async function webdriver(
     beforePageLoad?: (page: any) => void
     locale?: string
     disableJavaScript?: boolean
+    headless?: boolean
   }
 ): Promise<BrowserInterface> {
   let CurrentInterface: new () => BrowserInterface
@@ -82,6 +83,7 @@ export default async function webdriver(
     beforePageLoad,
     locale,
     disableJavaScript,
+    headless,
   } = options
 
   // we import only the needed interface
@@ -101,7 +103,13 @@ export default async function webdriver(
 
   const browser = new CurrentInterface()
   const browserName = process.env.BROWSER_NAME || 'chrome'
-  await browser.setup(browserName, locale, !disableJavaScript)
+  await browser.setup(
+    browserName,
+    locale,
+    !disableJavaScript,
+    // allow headless to be overwritten for a particular test
+    typeof headless !== 'undefined' ? headless : !!process.env.HEADLESS
+  )
   ;(global as any).browserName = browserName
 
   const fullUrl = getFullUrl(
