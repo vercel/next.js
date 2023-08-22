@@ -37,6 +37,7 @@ const supportedTurbopackNextConfigOptions = [
   'experimental.workerThreads',
   'experimenatl.pageEnv',
   'experimental.caseSensitiveRoutes',
+  'experimental.scrollRestoration',
 ]
 
 // The following will need to be supported by `next build --turbo`
