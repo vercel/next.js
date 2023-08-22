@@ -1,4 +1,5 @@
 import '../node-polyfill-fetch'
+import '../require-hook'
 
 import type { IncomingMessage, ServerResponse } from 'http'
 
@@ -220,11 +221,15 @@ export async function startServer({
           server.close()
           process.exit(0)
         }
+        const exception = (err: Error) => {
+          // This is the render worker, we keep the process alive
+          console.error(err)
+        }
         process.on('exit', cleanup)
         process.on('SIGINT', cleanup)
         process.on('SIGTERM', cleanup)
-        process.on('uncaughtException', cleanup)
-        process.on('unhandledRejection', cleanup)
+        process.on('uncaughtException', exception)
+        process.on('unhandledRejection', exception)
 
         const initResult = await getRequestHandlers({
           dir,

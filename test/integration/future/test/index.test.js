@@ -4,30 +4,24 @@ import webdriver from 'next-webdriver'
 import { join } from 'path'
 import {
   nextBuild,
-  nextServer,
-  startApp,
-  stopApp,
+  nextStart,
+  killApp,
+  findPort,
   renderViaHTTP,
 } from 'next-test-utils'
 
 let appDir = join(__dirname, '../')
-let server
 let appPort
+let app
 
 describe('excludeDefaultMomentLocales', () => {
   beforeAll(async () => {
+    appPort = await findPort()
     await nextBuild(appDir)
-    const app = nextServer({
-      dir: appDir,
-      dev: false,
-      quiet: true,
-    })
-    server = await startApp(app)
-    appPort = server.address().port
-    // wait for it to start up:
+    app = await nextStart(appDir, appPort)
     await renderViaHTTP(appPort, '/')
   })
-  afterAll(() => stopApp(server))
+  afterAll(() => killApp(app))
 
   it('should load momentjs', async () => {
     const browser = await webdriver(appPort, '/')
