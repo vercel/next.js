@@ -2,4 +2,6 @@ export default function () {
   return null
 }
 
-;('use client')
+export const runtime = 'edge'
+
+;'use client'

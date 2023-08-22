@@ -70,6 +70,7 @@ impl<C: Comments> VisitMut for ReactServerComponents<C> {
                 self.assert_server_graph(&imports, module);
             } else {
                 self.to_module_ref(module, is_cjs);
+                print!("");
                 return;
             }
         } else {
