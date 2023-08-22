@@ -176,8 +176,8 @@ createNextDescribe(
       describe('special entries', () => {
         it('should include css imported in loading.js', async () => {
           const $ = await next.render$('/loading-bug/hi')
-          // The link tag should be included together with loading with "next" precedence
-          expect($('link[data-precedence="next"]').length).toBe(2)
+          // The link tag should be hoist into head with precedence properties
+          expect($('head link[data-precedence]').length).toBe(2)
 
           expect($('body h2').text()).toBe('Loading...')
         })
