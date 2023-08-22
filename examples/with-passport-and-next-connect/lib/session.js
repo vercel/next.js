@@ -29,13 +29,13 @@ export default function session({ name, secret, cookie: cookieOpts }) {
 
     // We are proxying res.end to commit the session cookie
     const oldEnd = res.end
-    res.end = async function resEndProxy(...args) {
+    res.end = function resEndProxy(...args) {
       if (res.finished || res.writableEnded || res.headersSent) return
       if (cookieOpts.maxAge) {
         req.session.maxAge = cookieOpts.maxAge
       }
 
-      const token = await createLoginSession(req.session, secret)
+      const token = createLoginSession(req.session, secret)
 
       res.setHeader('Set-Cookie', serialize(name, token, cookieOpts))
       oldEnd.apply(this, args)
