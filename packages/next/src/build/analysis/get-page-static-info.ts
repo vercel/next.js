@@ -50,10 +50,10 @@ export interface PageStaticInfo {
 }
 
 const CLIENT_MODULE_LABEL =
-  /\/\* __next_internal_client_entry_do_not_use__ ([^ ]*) (cjs|auto) \*\//
+  /^\/\* __next_internal_client_entry_do_not_use__ ([^ ]*) (cjs|auto) \*\//
 
 const ACTION_MODULE_LABEL =
-  /\/\* __next_internal_action_entry_do_not_use__ ([^ ]+) \*\//
+  /^\/\* __next_internal_action_entry_do_not_use__ ([^ ]+) \*\//
 
 const CLIENT_DIRECTIVE = 'use client'
 const SERVER_ACTION_DIRECTIVE = 'use server'
@@ -61,7 +61,7 @@ const SERVER_ACTION_DIRECTIVE = 'use server'
 export type RSCModuleType = 'server' | 'client'
 export function getRSCModuleInformation(
   source: string,
-  isServerLayer = true
+  isServerLayer: boolean
 ): RSCMeta {
   const actions = source.match(ACTION_MODULE_LABEL)?.[1]?.split(',')
   const clientInfoMatch = source.match(CLIENT_MODULE_LABEL)
@@ -79,6 +79,7 @@ export function getRSCModuleInformation(
   const clientEntryType = clientInfoMatch?.[2] as 'cjs' | 'auto'
 
   const type = clientRefs ? RSC_MODULE_TYPES.client : RSC_MODULE_TYPES.server
+
   return {
     type,
     actions,
@@ -493,7 +494,7 @@ export async function getPageStaticInfo(params: {
       extraProperties,
       directives,
     } = checkExports(swcAST, pageFilePath)
-    const rscInfo = getRSCModuleInformation(fileContent)
+    const rscInfo = getRSCModuleInformation(fileContent, true)
     const rsc = rscInfo.type
 
     // default / failsafe value for config
