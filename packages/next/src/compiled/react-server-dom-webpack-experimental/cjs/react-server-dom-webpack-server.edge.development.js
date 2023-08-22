@@ -2235,6 +2235,10 @@ function logRecoverableError(request, error) {
 }
 
 function getErrorMessageAndStackDev(error) {
+  if (error?._bypassSerialization === true) {
+    return error;
+  }
+
   {
     var message;
     var stack = '';
