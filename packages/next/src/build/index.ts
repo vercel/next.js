@@ -1658,7 +1658,11 @@ export default async function build(
                           }
                           appDefaultConfigs.set(originalAppPath, appConfig)
 
-                          if (!isStatic && !isAppRouteRoute(originalAppPath)) {
+                          if (
+                            !isStatic &&
+                            !isAppRouteRoute(originalAppPath) &&
+                            !isDynamicRoute(originalAppPath)
+                          ) {
                             appPrefetchPaths.set(originalAppPath, page)
                           }
                         }

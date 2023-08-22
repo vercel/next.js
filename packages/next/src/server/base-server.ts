@@ -326,7 +326,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     renderOpts: RenderOpts
   ): Promise<RenderResult>
 
-  protected async getPrefetchRsc(pathname: string): Promise<string | null> {
+  protected async getPrefetchRsc(_pathname: string): Promise<string | null> {
     return null
   }
 
@@ -1943,17 +1943,26 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       ) {
         const isAppPrefetch = req.headers[NEXT_ROUTER_PREFETCH.toLowerCase()]
 
-        if (isAppPrefetch && process.env.NODE_ENV === 'production') {
+        if (
+          isAppPrefetch &&
+          ssgCacheKey &&
+          process.env.NODE_ENV === 'production'
+        ) {
           try {
-            const prefetchRsc = await this.getPrefetchRsc(pathname)
+            const prefetchRsc = await this.getPrefetchRsc(ssgCacheKey)
 
             if (prefetchRsc) {
+              res.setHeader(
+                'cache-control',
+                'private, no-cache, no-store, max-age=0, must-revalidate'
+              )
               res.setHeader('content-type', RSC_CONTENT_TYPE_HEADER)
               res.body(prefetchRsc).send()
               return null
             }
-          } catch (err) {
-            console.error(`Failed to get prefetch RSC`, err)
+          } catch (_) {
+            // we fallback to invoking the function if prefetch
+            // data is not available
           }
         }
 
