@@ -175,11 +175,12 @@ createNextDescribe(
 
       describe('special entries', () => {
         it('should include css imported in loading.js', async () => {
-          const html = await next.render('/loading-bug/hi')
-          // The link tag should be included together with loading
-          expect(html).toMatch(
-            /<link rel="stylesheet" href="(.+)\.css(\?v=\d+)?"\/><h2>Loading...<\/h2>/
-          )
+          const $ = await next.render$('/loading-bug/hi')
+          // The link tag should be included together with loading with "next" precedence
+
+          expect($('link[data-precedence="next"]').length).toBe(1)
+
+          expect($('body h2').text()).toBe('Loading...')
         })
 
         it('should include css imported in client template.js', async () => {

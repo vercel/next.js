@@ -401,12 +401,10 @@ export async function renderToHTMLOrFlight(
     const createComponentAndStyles = async ({
       filePath,
       getComponent,
-      shouldPreload,
       injectedCSS,
     }: {
       filePath: string
       getComponent: () => any
-      shouldPreload: boolean
       injectedCSS: Set<string>
     }): Promise<any> => {
       const cssHrefs = getCssInlinedLinkTags(
@@ -433,11 +431,7 @@ export async function renderToHTMLOrFlight(
             // During HMR, it's critical to use different `precedence` values
             // for different stylesheets, so their order will be kept.
             // https://github.com/facebook/react/pull/25060
-            const precedence = shouldPreload
-              ? process.env.NODE_ENV === 'development'
-                ? 'next_' + href
-                : 'next'
-              : undefined
+            const precedence = 'next'
 
             return (
               <link
@@ -614,7 +608,6 @@ export async function renderToHTMLOrFlight(
         ? await createComponentAndStyles({
             filePath: template[1],
             getComponent: template[0],
-            shouldPreload: true,
             injectedCSS: injectedCSSWithCurrentLayout,
           })
         : [React.Fragment]
@@ -622,7 +615,6 @@ export async function renderToHTMLOrFlight(
       const [ErrorComponent, errorStyles] = error
         ? await createComponentAndStyles({
             filePath: error[1],
-            shouldPreload: true,
             getComponent: error[0],
             injectedCSS: injectedCSSWithCurrentLayout,
           })
@@ -631,7 +623,6 @@ export async function renderToHTMLOrFlight(
       const [Loading, loadingStyles] = loading
         ? await createComponentAndStyles({
             filePath: loading[1],
-            shouldPreload: true,
             getComponent: loading[0],
             injectedCSS: injectedCSSWithCurrentLayout,
           })
@@ -654,7 +645,6 @@ export async function renderToHTMLOrFlight(
       const [NotFound, notFoundStyles] = notFound
         ? await createComponentAndStyles({
             filePath: notFound[1],
-            shouldPreload: true,
             getComponent: notFound[0],
             injectedCSS: injectedCSSWithCurrentLayout,
           })
