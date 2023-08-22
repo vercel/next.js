@@ -29,11 +29,11 @@ There are a couple of benefits to doing the rendering work on the server, includ
 
 ## Using Server Components in Next.js
 
-By default, Next.js uses Server Components. This allows you automatically implement server rendering with no additional configuration, and you can opt into using Client Components when you needed, see [Client Components](/docs/app/building-your-application/rendering/client-components).
+By default, Next.js uses Server Components. This allows you to automatically implement server rendering with no additional configuration, and you can opt into using Client Components when you needed, see [Client Components](/docs/app/building-your-application/rendering/client-components).
 
 ## How are Server Components rendered?
 
-On the server, Next.js uses React's APIs to orchestrate rendering. The rendering work is split into chunks: by individual routes segments and [Suspense Boundaries](https://react.dev/reference/react/Suspense).
+On the server, Next.js uses React's APIs to orchestrate rendering. The rendering work is split into chunks: by individual route segments and [Suspense Boundaries](https://react.dev/reference/react/Suspense).
 
 Each chunk is rendered in two steps:
 
