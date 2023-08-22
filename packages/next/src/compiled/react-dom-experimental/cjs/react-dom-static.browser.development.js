@@ -17,7 +17,7 @@ if (process.env.NODE_ENV !== "production") {
 var React = require("next/dist/compiled/react-experimental");
 var ReactDOM = require('react-dom');
 
-var ReactVersion = '18.3.0-experimental-1a001dac6-20230812';
+var ReactVersion = '18.3.0-experimental-dd480ef92-20230822';
 
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
@@ -180,21 +180,6 @@ function closeWithError(destination, error) {
     // to a global callback in addition to this anyway. So it's fine just to close this.
     destination.close();
   }
-}
-
-function _defineProperty(obj, key, value) {
-  if (key in obj) {
-    Object.defineProperty(obj, key, {
-      value: value,
-      enumerable: true,
-      configurable: true,
-      writable: true
-    });
-  } else {
-    obj[key] = value;
-  }
-
-  return obj;
 }
 
 var assign = Object.assign;
@@ -1610,303 +1595,6 @@ function getValueDescriptorExpectingEnumForWarning(thing) {
   return thing === null ? '`null`' : thing === undefined ? '`undefined`' : thing === '' ? 'an empty string' : typeof thing === 'string' ? JSON.stringify(thing) : "something with type \"" + typeof thing + "\"";
 }
 
-function compareResourcePropsForWarning(newProps, currentProps) {
-  {
-    var propDiffs = null;
-    var allProps = Array.from(new Set(Object.keys(currentProps).concat(Object.keys(newProps))));
-
-    for (var i = 0; i < allProps.length; i++) {
-      var propName = allProps[i];
-      var newValue = newProps[propName];
-      var currentValue = currentProps[propName];
-
-      if (newValue !== currentValue && !(newValue == null && currentValue == null)) {
-        if (newValue == null) {
-          if (propDiffs === null) {
-            propDiffs = {
-              missing: {},
-              extra: {},
-              different: {}
-            };
-          }
-
-          propDiffs.missing[propName] = currentValue;
-        } else if (currentValue == null) {
-          if (propDiffs === null) {
-            propDiffs = {
-              missing: {},
-              extra: {},
-              different: {}
-            };
-          }
-
-          propDiffs.extra[propName] = newValue;
-        } else {
-          if (propDiffs === null) {
-            propDiffs = {
-              missing: {},
-              extra: {},
-              different: {}
-            };
-          }
-
-          propDiffs.different[propName] = {
-            original: currentValue,
-            latest: newValue
-          };
-        }
-      }
-    }
-
-    return propDiffs;
-  }
-}
-
-function describeDifferencesForStylesheets(newProps, currentProps) {
-  var diff = compareResourcePropsForWarning(newProps, currentProps);
-  if (!diff) return '';
-  var description = '';
-
-  for (var propName in diff.missing) {
-    var propValue = diff.missing[propName];
-
-    if (propName === 'media') {
-      description += "\n  \"" + propName + "\" missing for props, original value: " + getValueDescriptorExpectingEnumForWarning(propValue);
-    }
-  }
-
-  for (var _propName in diff.extra) {
-    var _propValue = diff.extra[_propName];
-    description += "\n  \"" + _propName + "\" prop value: " + getValueDescriptorExpectingEnumForWarning(_propValue) + ", missing from original props";
-  }
-
-  for (var _propName2 in diff.different) {
-    var latestValue = diff.different[_propName2].latest;
-    var originalValue = diff.different[_propName2].original;
-    description += "\n  \"" + _propName2 + "\" prop value: " + getValueDescriptorExpectingEnumForWarning(latestValue) + ", original value: " + getValueDescriptorExpectingEnumForWarning(originalValue);
-  }
-
-  return description;
-}
-function describeDifferencesForStylesheetOverPreinit(newProps, currentProps) {
-  var diff = compareResourcePropsForWarning(newProps, currentProps);
-  if (!diff) return '';
-  var description = '';
-
-  for (var propName in diff.extra) {
-    var propValue = diff.extra[propName];
-
-    if (propName === 'precedence' || propName === 'crossOrigin' || propName === 'integrity') {
-      description += "\n  \"" + propName + "\" prop value: " + getValueDescriptorExpectingEnumForWarning(propValue) + ", option missing";
-    } else {
-      description += "\n  \"" + propName + "\" prop value: " + getValueDescriptorExpectingEnumForWarning(propValue) + ", option not available with ReactDOM.preinit()";
-    }
-  }
-
-  for (var _propName3 in diff.different) {
-    var latestValue = diff.different[_propName3].latest;
-    var originalValue = diff.different[_propName3].original;
-
-    if (_propName3 === 'precedence' && originalValue === 'default') {
-      description += "\n  \"" + _propName3 + "\" prop value: " + getValueDescriptorExpectingEnumForWarning(latestValue) + ", missing from options";
-    } else {
-      description += "\n  \"" + _propName3 + "\" prop value: " + getValueDescriptorExpectingEnumForWarning(latestValue) + ", option value: " + getValueDescriptorExpectingEnumForWarning(originalValue);
-    }
-  }
-
-  return description;
-}
-function describeDifferencesForPreinitOverStylesheet(newProps, currentProps) {
-  var diff = compareResourcePropsForWarning(newProps, currentProps);
-  if (!diff) return '';
-  var description = '';
-
-  for (var propName in diff.missing) {
-    var propValue = diff.missing[propName];
-
-    if (propName === 'precedence' && propValue !== 'default') {
-      description += "\n  \"" + propName + "\" missing from options, prop value: " + getValueDescriptorExpectingEnumForWarning(propValue);
-    }
-  }
-
-  for (var _propName4 in diff.extra) {
-    var _propValue2 = diff.extra[_propName4];
-
-    if (_propName4 === 'precedence' || _propName4 === 'crossOrigin' || _propName4 === 'integrity') {
-      description += "\n  \"" + _propName4 + "\" option value: " + getValueDescriptorExpectingEnumForWarning(_propValue2) + ", missing from props";
-    }
-  }
-
-  for (var _propName5 in diff.different) {
-    var latestValue = diff.different[_propName5].latest;
-    var originalValue = diff.different[_propName5].original;
-    description += "\n  \"" + _propName5 + "\" option value: " + getValueDescriptorExpectingEnumForWarning(latestValue) + ", prop value: " + getValueDescriptorExpectingEnumForWarning(originalValue);
-  }
-
-  return description;
-}
-function describeDifferencesForPreinits(newProps, currentProps) {
-  var diff = compareResourcePropsForWarning(newProps, currentProps);
-  if (!diff) return '';
-  var description = '';
-
-  for (var propName in diff.missing) {
-    var propValue = diff.missing[propName];
-
-    if (propName === 'precedence' && propValue !== 'default') {
-      description += "\n  \"" + propName + "\" missing from options, original option value: " + getValueDescriptorExpectingEnumForWarning(propValue);
-    }
-  }
-
-  for (var _propName6 in diff.extra) {
-    var _propValue3 = diff.extra[_propName6];
-
-    if (_propName6 === 'precedence' && _propValue3 !== 'default' || _propName6 === 'crossOrigin' || _propName6 === 'integrity') {
-      description += "\n  \"" + _propName6 + "\" option value: " + getValueDescriptorExpectingEnumForWarning(_propValue3) + ", missing from original options";
-    }
-  }
-
-  for (var _propName7 in diff.different) {
-    var latestValue = diff.different[_propName7].latest;
-    var originalValue = diff.different[_propName7].original;
-    description += "\n  \"" + _propName7 + "\" option value: " + getValueDescriptorExpectingEnumForWarning(latestValue) + ", original option value: " + getValueDescriptorExpectingEnumForWarning(originalValue);
-  }
-
-  return description;
-}
-var preloadOptionsForComparison = ['as', 'crossOrigin', 'integrity', 'media'];
-function describeDifferencesForPreloads(newProps, currentProps) {
-  var diff = compareResourcePropsForWarning(newProps, currentProps);
-  if (!diff) return '';
-  var description = '';
-
-  for (var propName in diff.missing) {
-    var propValue = diff.missing[propName];
-
-    if (preloadOptionsForComparison.includes(propName)) {
-      description += "\n  \"" + propName + "\" missing from options, original option value: " + getValueDescriptorExpectingEnumForWarning(propValue);
-    }
-  }
-
-  for (var _propName8 in diff.extra) {
-    var _propValue4 = diff.extra[_propName8];
-
-    if (preloadOptionsForComparison.includes(_propName8)) {
-      description += "\n  \"" + _propName8 + "\" option value: " + getValueDescriptorExpectingEnumForWarning(_propValue4) + ", missing from original options";
-    }
-  }
-
-  for (var _propName9 in diff.different) {
-    var latestValue = diff.different[_propName9].latest;
-    var originalValue = diff.different[_propName9].original;
-
-    if (preloadOptionsForComparison.includes(_propName9)) {
-      description += "\n  \"" + _propName9 + "\" option value: " + getValueDescriptorExpectingEnumForWarning(latestValue) + ", original option value: " + getValueDescriptorExpectingEnumForWarning(originalValue);
-    }
-  }
-
-  return description;
-}
-function describeDifferencesForPreloadOverImplicitPreload(newProps, currentProps) {
-  var diff = compareResourcePropsForWarning(newProps, currentProps);
-  if (!diff) return '';
-  var description = '';
-
-  for (var propName in diff.missing) {
-    var propValue = diff.missing[propName];
-
-    if (preloadOptionsForComparison.includes(propName)) {
-      description += "\n  \"" + propName + "\" missing from options, underlying prop value: " + getValueDescriptorExpectingEnumForWarning(propValue);
-    }
-  }
-
-  for (var _propName10 in diff.extra) {
-    var _propValue5 = diff.extra[_propName10];
-
-    if (preloadOptionsForComparison.includes(_propName10)) {
-      description += "\n  \"" + _propName10 + "\" option value: " + getValueDescriptorExpectingEnumForWarning(_propValue5) + ", missing from underlying props";
-    }
-  }
-
-  for (var _propName11 in diff.different) {
-    var latestValue = diff.different[_propName11].latest;
-    var originalValue = diff.different[_propName11].original;
-
-    if (preloadOptionsForComparison.includes(_propName11)) {
-      description += "\n  \"" + _propName11 + "\" option value: " + getValueDescriptorExpectingEnumForWarning(latestValue) + ", underlying prop value: " + getValueDescriptorExpectingEnumForWarning(originalValue);
-    }
-  }
-
-  return description;
-}
-function describeDifferencesForScripts(newProps, currentProps) {
-  var diff = compareResourcePropsForWarning(newProps, currentProps);
-  if (!diff) return '';
-  var description = '';
-
-  for (var propName in diff.missing) {
-    var propValue = diff.missing[propName];
-    description += "\n  \"" + propName + "\" missing for props, original value: " + getValueDescriptorExpectingEnumForWarning(propValue);
-  }
-
-  for (var _propName12 in diff.extra) {
-    var _propValue6 = diff.extra[_propName12];
-    description += "\n  \"" + _propName12 + "\" prop value: " + getValueDescriptorExpectingEnumForWarning(_propValue6) + ", missing from original props";
-  }
-
-  for (var _propName13 in diff.different) {
-    var latestValue = diff.different[_propName13].latest;
-    var originalValue = diff.different[_propName13].original;
-    description += "\n  \"" + _propName13 + "\" prop value: " + getValueDescriptorExpectingEnumForWarning(latestValue) + ", original value: " + getValueDescriptorExpectingEnumForWarning(originalValue);
-  }
-
-  return description;
-}
-function describeDifferencesForScriptOverPreinit(newProps, currentProps) {
-  var diff = compareResourcePropsForWarning(newProps, currentProps);
-  if (!diff) return '';
-  var description = '';
-
-  for (var propName in diff.extra) {
-    var propValue = diff.extra[propName];
-
-    if (propName === 'crossOrigin' || propName === 'integrity') {
-      description += "\n  \"" + propName + "\" prop value: " + getValueDescriptorExpectingEnumForWarning(propValue) + ", option missing";
-    } else {
-      description += "\n  \"" + propName + "\" prop value: " + getValueDescriptorExpectingEnumForWarning(propValue) + ", option not available with ReactDOM.preinit()";
-    }
-  }
-
-  for (var _propName14 in diff.different) {
-    var latestValue = diff.different[_propName14].latest;
-    var originalValue = diff.different[_propName14].original;
-    description += "\n  \"" + _propName14 + "\" prop value: " + getValueDescriptorExpectingEnumForWarning(latestValue) + ", option value: " + getValueDescriptorExpectingEnumForWarning(originalValue);
-  }
-
-  return description;
-}
-function describeDifferencesForPreinitOverScript(newProps, currentProps) {
-  var diff = compareResourcePropsForWarning(newProps, currentProps);
-  if (!diff) return '';
-  var description = '';
-
-  for (var propName in diff.extra) {
-    var propValue = diff.extra[propName];
-
-    if (propName === 'crossOrigin' || propName === 'integrity') {
-      description += "\n  \"" + propName + "\" option value: " + getValueDescriptorExpectingEnumForWarning(propValue) + ", missing from props";
-    }
-  }
-
-  for (var _propName15 in diff.different) {
-    var latestValue = diff.different[_propName15].latest;
-    var originalValue = diff.different[_propName15].original;
-    description += "\n  \"" + _propName15 + "\" option value: " + getValueDescriptorExpectingEnumForWarning(latestValue) + ", prop value: " + getValueDescriptorExpectingEnumForWarning(originalValue);
-  }
-
-  return description;
-}
-
 // same object across all transitions.
 
 var sharedNotPendingObject = {
@@ -1924,7 +1612,9 @@ var ReactDOMServerDispatcher = {
   prefetchDNS: prefetchDNS,
   preconnect: preconnect,
   preload: preload,
-  preinit: preinit
+  preloadModule: preloadModule,
+  preinit: preinit,
+  preinitModule: preinitModule
 };
 function prepareHostDispatcher() {
   ReactDOMCurrentDispatcher.current = ReactDOMServerDispatcher;
@@ -3469,38 +3159,6 @@ function pushLink(target, props, responseState, resources, textEmbedded, inserti
         // This stylesheet refers to a Resource and we create a new one if necessary
         var resource = resources.stylesMap.get(key);
 
-        {
-          var devResource = getAsResourceDEV(resource);
-
-          if (devResource) {
-            switch (devResource.__provenance) {
-              case 'rendered':
-                {
-                  var differenceDescription = describeDifferencesForStylesheets( // Diff the props from the JSX element, not the derived resource props
-                  props, devResource.__originalProps);
-
-                  if (differenceDescription) {
-                    error('React encountered a <link rel="stylesheet" href="%s" .../> with a `precedence` prop that has props that conflict' + ' with another hoistable stylesheet with the same `href`. When using `precedence` with <link rel="stylsheet" .../>' + ' the props from the first encountered instance will be used and props from later instances will be ignored.' + ' Update the props on either <link rel="stylesheet" .../> instance so they agree.%s', href, differenceDescription);
-                  }
-
-                  break;
-                }
-
-              case 'preinit':
-                {
-                  var _differenceDescription = describeDifferencesForStylesheetOverPreinit( // Diff the props from the JSX element, not the derived resource props
-                  props, devResource.__propsEquivalent);
-
-                  if (_differenceDescription) {
-                    error('React encountered a <link rel="stylesheet" precedence="%s" href="%s" .../> with props that conflict' + ' with the options provided to `ReactDOM.preinit("%s", { as: "style", ... })`. React will use the first props or preinitialization' + ' options encountered when rendering a hoistable stylesheet with a particular `href` and will ignore any newer props or' + ' options. The first instance of this stylesheet resource was created using the `ReactDOM.preinit()` function.' + ' Please note, `ReactDOM.preinit()` is modeled off of module import assertions capabilities and does not support' + ' arbitrary props. If you need to have props not included with the preinit options you will need to rely on rendering' + ' <link> tags only.%s', precedence, href, href, _differenceDescription);
-                  }
-
-                  break;
-                }
-            }
-          }
-        }
-
         if (!resource) {
           var resourceProps = stylesheetPropsFromRawProps(props);
           var preloadResource = resources.preloadsMap.get(key);
@@ -3524,11 +3182,6 @@ function pushLink(target, props, responseState, resources, textEmbedded, inserti
             props: resourceProps
           };
           resources.stylesMap.set(key, resource);
-
-          {
-            markAsRenderedResourceDEV(resource, props);
-          }
-
           var precedenceSet = resources.precedences.get(precedence);
 
           if (!precedenceSet) {
@@ -3829,11 +3482,6 @@ function pushImg(target, props, resources) {
         }
       };
       resources.preloadsMap.set(key, resource);
-
-      {
-        markAsRenderedResourceDEV(resource, props);
-      }
-
       pushLinkImpl(resource.chunks, resource.props);
     }
 
@@ -4017,38 +3665,6 @@ function pushScript(target, props, resources, textEmbedded, insertionMode, noscr
 
     var resource = resources.scriptsMap.get(key);
 
-    {
-      var devResource = getAsResourceDEV(resource);
-
-      if (devResource) {
-        switch (devResource.__provenance) {
-          case 'rendered':
-            {
-              var differenceDescription = describeDifferencesForScripts( // Diff the props from the JSX element, not the derived resource props
-              props, devResource.__originalProps);
-
-              if (differenceDescription) {
-                error('React encountered a <script async={true} src="%s" .../> that has props that conflict' + ' with another hoistable script with the same `src`. When rendering hoistable scripts (async scripts without any loading handlers)' + ' the props from the first encountered instance will be used and props from later instances will be ignored.' + ' Update the props on both <script async={true} .../> instance so they agree.%s', src, differenceDescription);
-              }
-
-              break;
-            }
-
-          case 'preinit':
-            {
-              var _differenceDescription2 = describeDifferencesForScriptOverPreinit( // Diff the props from the JSX element, not the derived resource props
-              props, devResource.__propsEquivalent);
-
-              if (_differenceDescription2) {
-                error('React encountered a <script async={true} src="%s" .../> with props that conflict' + ' with the options provided to `ReactDOM.preinit("%s", { as: "script", ... })`. React will use the first props or preinitialization' + ' options encountered when rendering a hoistable script with a particular `src` and will ignore any newer props or' + ' options. The first instance of this script resource was created using the `ReactDOM.preinit()` function.' + ' Please note, `ReactDOM.preinit()` is modeled off of module import assertions capabilities and does not support' + ' arbitrary props. If you need to have props not included with the preinit options you will need to rely on rendering' + ' <script> tags only.%s', src, src, _differenceDescription2);
-              }
-
-              break;
-            }
-        }
-      }
-    }
-
     if (!resource) {
       resource = {
         type: 'script',
@@ -4056,12 +3672,7 @@ function pushScript(target, props, resources, textEmbedded, insertionMode, noscr
         state: NoState,
         props: null
       };
-      resources.scriptsMap.set(key, resource);
-
-      {
-        markAsRenderedResourceDEV(resource, props);
-      } // Add to the script flushing queue
-
+      resources.scriptsMap.set(key, resource); // Add to the script flushing queue
 
       resources.scripts.add(resource);
       var scriptProps = props;
@@ -5786,12 +5397,7 @@ var Blocked
 
 var PreloadFlushed
 /*     */
-= 8; // Dev extensions.
-// Stylesheets and Scripts rendered with jsx
-// Preloads, Stylesheets, and Scripts from ReactDOM.preload or ReactDOM.preinit
-// Preloads created for normal components we rendered but know we can preload early such as
-// sync Scripts and stylesheets without precedence or with onLoad/onError handlers
-// @TODO add bootstrap script to implicit preloads
+= 8; // @TODO add bootstrap script to implicit preloads
 
 function createResources() {
   return {
@@ -5874,6 +5480,7 @@ function prefetchDNS(href, options) {
     flushResources(request);
   }
 }
+
 function preconnect(href, options) {
 
   var request = resolveRequest();
@@ -5923,6 +5530,7 @@ function preconnect(href, options) {
     flushResources(request);
   }
 }
+
 function preload(href, options) {
 
   var request = resolveRequest();
@@ -5973,40 +5581,6 @@ function preload(href, options) {
 
     var resource = resources.preloadsMap.get(key);
 
-    {
-      var devResource = getAsResourceDEV(resource);
-
-      if (devResource) {
-        switch (devResource.__provenance) {
-          case 'preload':
-            {
-              var differenceDescription = describeDifferencesForPreloads(options, devResource.__originalOptions);
-
-              if (differenceDescription) {
-                error('ReactDOM.preload(): The options provided conflict with another call to `ReactDOM.preload("%s", { as: "%s", ...})`.' + ' React will always use the options it first encounters when preloading a resource for a given `href` and `as` type, and any later options will be ignored if different.' + ' Try updating all calls to `ReactDOM.preload()` with the same `href` and `as` type to use the same options, or eliminate one of the calls.%s', href, as, differenceDescription);
-              }
-
-              break;
-            }
-
-          case 'implicit':
-            {
-              var _differenceDescription3 = describeDifferencesForPreloadOverImplicitPreload(options, devResource.__impliedProps);
-
-              if (_differenceDescription3) {
-                var elementDescription = as === 'style' ? '<link rel="stylesheet" ... />' : as === 'script' ? '<script ... />' : null;
-
-                if (elementDescription) {
-                  error('ReactDOM.preload(): For `href` "%s", The options provided conflict with props on a matching %s element. When the preload' + ' options disagree with the underlying resource it usually means the browser will not be able to use the preload when the resource' + ' is fetched, negating any benefit the preload would provide. React will preload the resource using props derived from the resource instead' + ' and ignore the options provided to the `ReactDOM.preload()` call. In general, preloading is useful when you expect to' + ' render a resource soon but have not yet done so. In this case since the underlying resource was already rendered the preload call' + ' may be extraneous. Try removing the call, otherwise try adjusting both the props on the %s and the options' + ' passed to `ReactDOM.preload()` to agree.%s', href, elementDescription, elementDescription, _differenceDescription3);
-                }
-              }
-
-              break;
-            }
-        }
-      }
-    }
-
     if (!resource) {
       resource = {
         type: 'preload',
@@ -6015,11 +5589,6 @@ function preload(href, options) {
         props: preloadPropsFromPreloadOptions(href, as, options)
       };
       resources.preloadsMap.set(key, resource);
-
-      {
-        markAsImperativeResourceDEV(resource, 'preload', href, options, resource.props);
-      }
-
       pushLinkImpl(resource.chunks, resource.props);
     }
 
@@ -6031,6 +5600,60 @@ function preload(href, options) {
       resources.bulkPreloads.add(resource);
     }
 
+    flushResources(request);
+  }
+}
+
+function preloadModule(href, options) {
+
+  var request = resolveRequest();
+
+  if (!request) {
+    // In async contexts we can sometimes resolve resources from AsyncLocalStorage. If we can't we can also
+    // possibly get them from the stack if we are not in an async context. Since we were not able to resolve
+    // the resources for this call in either case we opt to do nothing. We can consider making this a warning
+    // but there may be times where calling a function outside of render is intentional (i.e. to warm up data
+    // fetching) and we don't want to warn in those cases.
+    return;
+  }
+
+  var resources = getResources(request);
+
+  {
+    var encountered = '';
+
+    if (typeof href !== 'string' || !href) {
+      encountered += " The `href` argument encountered was " + getValueDescriptorExpectingObjectForWarning(href) + ".";
+    }
+
+    if (options !== undefined && typeof options !== 'object') {
+      encountered += " The `options` argument encountered was " + getValueDescriptorExpectingObjectForWarning(options) + ".";
+    } else if (options && 'as' in options && typeof options.as !== 'string') {
+      encountered += " The `as` option encountered was " + getValueDescriptorExpectingObjectForWarning(options.as) + ".";
+    }
+
+    if (encountered) {
+      error('ReactDOM.preloadModule(): Expected two arguments, a non-empty `href` string and, optionally, an `options` object with an `as` property valid for a `<link rel="modulepreload" as="..." />` tag.%s', encountered);
+    }
+  }
+
+  if (typeof href === 'string' && href) {
+    var as = options && typeof options.as === 'string' ? options.as : 'script';
+    var key = getResourceKey(as, href);
+    var resource = resources.preloadsMap.get(key);
+
+    if (!resource) {
+      resource = {
+        type: 'preload',
+        chunks: [],
+        state: NoState,
+        props: preloadModulePropsFromPreloadModuleOptions(href, as, options)
+      };
+      resources.preloadsMap.set(key, resource);
+      pushLinkImpl(resource.chunks, resource.props);
+    }
+
+    resources.bulkPreloads.add(resource);
     flushResources(request);
   }
 }
@@ -6070,44 +5693,6 @@ function preinit(href, options) {
           var resource = resources.stylesMap.get(key);
           var precedence = options.precedence || 'default';
 
-          {
-            var devResource = getAsResourceDEV(resource);
-
-            if (devResource) {
-              var resourceProps = stylesheetPropsFromPreinitOptions(href, precedence, options);
-
-              var propsEquivalent = assign({}, resourceProps, _defineProperty({
-                precedence: options.precedence
-              }, 'data-precedence', null));
-
-              switch (devResource.__provenance) {
-                case 'rendered':
-                  {
-                    var differenceDescription = describeDifferencesForPreinitOverStylesheet( // Diff the props from the JSX element, not the derived resource props
-                    propsEquivalent, devResource.__originalProps);
-
-                    if (differenceDescription) {
-                      error('ReactDOM.preinit(): For `href` "%s", the options provided conflict with props found on a <link rel="stylesheet" precedence="%s" href="%s" .../> that was already rendered.' + ' React will always use the props or options it first encounters for a hoistable stylesheet for a given `href` and any later props or options will be ignored if different.' + ' Generally, ReactDOM.preinit() is useful when you are not yet rendering a stylesheet but you anticipate it will be used soon.' + ' In this case the stylesheet was already rendered so preinitializing it does not provide any additional benefit.' + ' To resolve, try making the props and options agree between the <link rel="stylesheet" .../> and the `ReactDOM.preinit()` call or' + ' remove the `ReactDOM.preinit()` call.%s', href, devResource.__originalProps.precedence, href, differenceDescription);
-                    }
-
-                    break;
-                  }
-
-                case 'preinit':
-                  {
-                    var _differenceDescription4 = describeDifferencesForPreinits( // Diff the props from the JSX element, not the derived resource props
-                    propsEquivalent, devResource.__propsEquivalent);
-
-                    if (_differenceDescription4) {
-                      error('ReactDOM.preinit(): For `href` "%s", the options provided conflict with another call to `ReactDOM.preinit("%s", { as: "style", ... })`.' + ' React will always use the options it first encounters when preinitializing a hoistable stylesheet for a given `href` and any later options will be ignored if different.' + ' Try updating all calls to `ReactDOM.preinit()` for a given `href` to use the same options, or only call `ReactDOM.preinit()` once per `href`.%s', href, href, _differenceDescription4);
-                    }
-
-                    break;
-                  }
-              }
-            }
-          }
-
           if (!resource) {
             var state = NoState;
             var preloadResource = resources.preloadsMap.get(key);
@@ -6123,13 +5708,6 @@ function preinit(href, options) {
               props: stylesheetPropsFromPreinitOptions(href, precedence, options)
             };
             resources.stylesMap.set(key, resource);
-
-            {
-              markAsImperativeResourceDEV(resource, 'preinit', href, options, assign({}, resource.props, _defineProperty({
-                precedence: precedence
-              }, 'data-precedence', undefined)));
-            }
-
             var precedenceSet = resources.precedences.get(precedence);
 
             if (!precedenceSet) {
@@ -6170,40 +5748,6 @@ function preinit(href, options) {
 
           var _resource = resources.scriptsMap.get(_key);
 
-          {
-            var _devResource = getAsResourceDEV(_resource);
-
-            if (_devResource) {
-              var _propsEquivalent = scriptPropsFromPreinitOptions(src, options);
-
-              switch (_devResource.__provenance) {
-                case 'rendered':
-                  {
-                    var _differenceDescription5 = describeDifferencesForPreinitOverScript( // Diff the props from the JSX element, not the derived resource props
-                    _propsEquivalent, _devResource.__originalProps);
-
-                    if (_differenceDescription5) {
-                      error('ReactDOM.preinit(): For `href` "%s", the options provided conflict with props found on a <script async={true} src="%s" .../> that was already rendered.' + ' React will always use the props or options it first encounters for a hoistable script for a given `href` and any later props or options will be ignored if different.' + ' Generally, ReactDOM.preinit() is useful when you are not yet rendering a script but you anticipate it will be used soon and want to go beyond preloading it and have it' + ' execute early. In this case the script was already rendered so preinitializing it does not provide any additional benefit.' + ' To resolve, try making the props and options agree between the <script .../> and the `ReactDOM.preinit()` call or remove the `ReactDOM.preinit()` call.%s', href, href, _differenceDescription5);
-                    }
-
-                    break;
-                  }
-
-                case 'preinit':
-                  {
-                    var _differenceDescription6 = describeDifferencesForPreinits( // Diff the props from the JSX element, not the derived resource props
-                    _propsEquivalent, _devResource.__propsEquivalent);
-
-                    if (_differenceDescription6) {
-                      error('ReactDOM.preinit(): For `href` "%s", the options provided conflict with another call to `ReactDOM.preinit("%s", { as: "script", ... })`.' + ' React will always use the options it first encounters when preinitializing a hoistable script for a given `href` and any later options will be ignored if different.' + ' Try updating all calls to `ReactDOM.preinit()` for a given `href` to use the same options, or only call `ReactDOM.preinit()` once per `href`.%s', href, href, _differenceDescription6);
-                    }
-
-                    break;
-                  }
-              }
-            }
-          }
-
           if (!_resource) {
             _resource = {
               type: 'script',
@@ -6212,15 +5756,89 @@ function preinit(href, options) {
               props: null
             };
             resources.scriptsMap.set(_key, _resource);
-
-            var _resourceProps = scriptPropsFromPreinitOptions(src, options);
-
-            {
-              markAsImperativeResourceDEV(_resource, 'preinit', href, options, _resourceProps);
-            }
-
+            var resourceProps = scriptPropsFromPreinitOptions(src, options);
             resources.scripts.add(_resource);
-            pushScriptImpl(_resource.chunks, _resourceProps);
+            pushScriptImpl(_resource.chunks, resourceProps);
+            flushResources(request);
+          }
+
+          return;
+        }
+    }
+  }
+}
+
+function preinitModule(href, options) {
+
+  var request = resolveRequest();
+
+  if (!request) {
+    // In async contexts we can sometimes resolve resources from AsyncLocalStorage. If we can't we can also
+    // possibly get them from the stack if we are not in an async context. Since we were not able to resolve
+    // the resources for this call in either case we opt to do nothing. We can consider making this a warning
+    // but there may be times where calling a function outside of render is intentional (i.e. to warm up data
+    // fetching) and we don't want to warn in those cases.
+    return;
+  }
+
+  var resources = getResources(request);
+
+  {
+    var encountered = '';
+
+    if (typeof href !== 'string' || !href) {
+      encountered += " The `href` argument encountered was " + getValueDescriptorExpectingObjectForWarning(href) + ".";
+    }
+
+    if (options !== undefined && typeof options !== 'object') {
+      encountered += " The `options` argument encountered was " + getValueDescriptorExpectingObjectForWarning(options) + ".";
+    } else if (options && 'as' in options && options.as !== 'script') {
+      encountered += " The `as` option encountered was " + getValueDescriptorExpectingEnumForWarning(options.as) + ".";
+    }
+
+    if (encountered) {
+      error('ReactDOM.preinitModule(): Expected up to two arguments, a non-empty `href` string and, optionally, an `options` object with a valid `as` property.%s', encountered);
+    } else {
+      var as = options && typeof options.as === 'string' ? options.as : 'script';
+
+      switch (as) {
+        case 'script':
+          {
+            break;
+          }
+        // We have an invalid as type and need to warn
+
+        default:
+          {
+            var typeOfAs = getValueDescriptorExpectingEnumForWarning(as);
+
+            error('ReactDOM.preinitModule(): Currently the only supported "as" type for this function is "script"' + ' but received "%s" instead. This warning was generated for `href` "%s". In the future other' + ' module types will be supported, aligning with the import-attributes proposal. Learn more here:' + ' (https://github.com/tc39/proposal-import-attributes)', typeOfAs, href);
+          }
+      }
+    }
+  }
+
+  if (typeof href === 'string' && href) {
+    var _as = options && typeof options.as === 'string' ? options.as : 'script';
+
+    switch (_as) {
+      case 'script':
+        {
+          var src = href;
+          var key = getResourceKey(_as, src);
+          var resource = resources.scriptsMap.get(key);
+
+          if (!resource) {
+            resource = {
+              type: 'script',
+              chunks: [],
+              state: NoState,
+              props: null
+            };
+            resources.scriptsMap.set(key, resource);
+            var resourceProps = modulePropsFromPreinitModuleOptions(src, options);
+            resources.scripts.add(resource);
+            pushScriptImpl(resource.chunks, resourceProps);
             flushResources(request);
           }
 
@@ -6340,6 +5958,16 @@ function preloadPropsFromPreloadOptions(href, as, options) {
   };
 }
 
+function preloadModulePropsFromPreloadModuleOptions(href, as, options) {
+  return {
+    rel: 'modulepreload',
+    as: as !== 'script' ? as : undefined,
+    href: href,
+    crossOrigin: options ? options.crossOrigin : undefined,
+    integrity: options ? options.integrity : undefined
+  };
+}
+
 function preloadAsStylePropsFromProps(href, props) {
   return {
     rel: 'preload',
@@ -6388,6 +6016,16 @@ function scriptPropsFromPreinitOptions(src, options) {
   };
 }
 
+function modulePropsFromPreinitModuleOptions(src, options) {
+  return {
+    src: src,
+    type: 'module',
+    async: true,
+    crossOrigin: options ? options.crossOrigin : undefined,
+    integrity: options ? options.integrity : undefined
+  };
+}
+
 function adoptPreloadPropsForScriptProps(resourceProps, preloadProps) {
   if (resourceProps.crossOrigin == null) resourceProps.crossOrigin = preloadProps.crossOrigin;
   if (resourceProps.integrity == null) resourceProps.integrity = preloadProps.integrity;
@@ -6404,49 +6042,6 @@ function hoistResources(resources, source) {
     source.forEach(hoistStyleResource, currentBoundaryResources);
   }
 }
-
-function markAsRenderedResourceDEV(resource, originalProps) {
-  {
-    var devResource = resource;
-
-    if (typeof devResource.__provenance === 'string') {
-      error('Resource already marked for DEV type. This is a bug in React.');
-    }
-
-    devResource.__provenance = 'rendered';
-    devResource.__originalProps = originalProps;
-  }
-}
-
-function markAsImperativeResourceDEV(resource, provenance, originalHref, originalOptions, propsEquivalent) {
-  {
-    var devResource = resource;
-
-    if (typeof devResource.__provenance === 'string') {
-      error('Resource already marked for DEV type. This is a bug in React.');
-    }
-
-    devResource.__provenance = provenance;
-    devResource.__originalHref = originalHref;
-    devResource.__originalOptions = originalOptions;
-    devResource.__propsEquivalent = propsEquivalent;
-  }
-}
-
-function getAsResourceDEV(resource) {
-  {
-    if (resource) {
-      if (typeof resource.__provenance === 'string') {
-        return resource;
-      }
-
-      error('Resource was not marked for DEV type. This is a bug in React.');
-    }
-
-    return null;
-  }
-}
-
 var NotPendingTransition = NotPending;
 
 // ATTENTION
@@ -6473,6 +6068,7 @@ var REACT_LEGACY_HIDDEN_TYPE = Symbol.for('react.legacy_hidden');
 var REACT_CACHE_TYPE = Symbol.for('react.cache');
 var REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED = Symbol.for('react.default_value');
 var REACT_MEMO_CACHE_SENTINEL = Symbol.for('react.memo_cache_sentinel');
+var REACT_POSTPONE_TYPE = Symbol.for('react.postpone');
 var MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
 var FAUX_ITERATOR_SYMBOL = '@@iterator';
 function getIteratorFn(maybeIterable) {
@@ -8615,7 +8211,10 @@ function getStackByComponentStackNode(componentStack) {
 
 var ReactCurrentDispatcher = ReactSharedInternals.ReactCurrentDispatcher;
 var ReactCurrentCache = ReactSharedInternals.ReactCurrentCache;
-var ReactDebugCurrentFrame = ReactSharedInternals.ReactDebugCurrentFrame;
+var ReactDebugCurrentFrame = ReactSharedInternals.ReactDebugCurrentFrame; // Linked list representing the identity of a component given the component/tag name and key.
+// The name might be minified but we assume that it's going to be the same generated name. Typically
+// because it's just the same compiled output in practice.
+
 var PENDING = 0;
 var COMPLETED = 1;
 var FLUSHED = 2;
@@ -8649,7 +8248,7 @@ function defaultErrorHandler(error) {
 
 function noop() {}
 
-function createRequest(children, resources, responseState, rootFormatContext, progressiveChunkSize, onError, onAllReady, onShellReady, onShellError, onFatalError) {
+function createRequest(children, resources, responseState, rootFormatContext, progressiveChunkSize, onError, onAllReady, onShellReady, onShellError, onFatalError, onPostpone) {
   prepareHostDispatcher();
   var pingedTasks = [];
   var abortSet = new Set();
@@ -8671,6 +8270,7 @@ function createRequest(children, resources, responseState, rootFormatContext, pr
     completedBoundaries: [],
     partialBoundaries: [],
     onError: onError === undefined ? defaultErrorHandler : onError,
+    onPostpone: onPostpone === undefined ? noop : onPostpone,
     onAllReady: onAllReady === undefined ? noop : onAllReady,
     onShellReady: onShellReady === undefined ? noop : onShellReady,
     onShellError: onShellError === undefined ? noop : onShellError,
@@ -8681,7 +8281,7 @@ function createRequest(children, resources, responseState, rootFormatContext, pr
   false, false); // There is no parent so conceptually, we're unblocked to flush this segment.
 
   rootSegment.parentFlushed = true;
-  var rootTask = createTask(request, null, children, null, rootSegment, abortSet, emptyContextObject, rootContextSnapshot, emptyTreeContext);
+  var rootTask = createTask(request, null, children, null, rootSegment, abortSet, null, emptyContextObject, rootContextSnapshot, emptyTreeContext);
   pingedTasks.push(rootTask);
   return request;
 }
@@ -8719,7 +8319,7 @@ function createSuspenseBoundary(request, fallbackAbortableTasks) {
   };
 }
 
-function createTask(request, thenableState, node, blockedBoundary, blockedSegment, abortSet, legacyContext, context, treeContext) {
+function createTask(request, thenableState, node, blockedBoundary, blockedSegment, abortSet, keyPath, legacyContext, context, treeContext) {
   request.allPendingTasks++;
 
   if (blockedBoundary === null) {
@@ -8736,6 +8336,7 @@ function createTask(request, thenableState, node, blockedBoundary, blockedSegmen
     blockedBoundary: blockedBoundary,
     blockedSegment: blockedSegment,
     abortSet: abortSet,
+    keyPath: keyPath,
     legacyContext: legacyContext,
     context: context,
     treeContext: treeContext,
@@ -8842,6 +8443,12 @@ function captureBoundaryErrorDetailsDev(boundary, error) {
   }
 }
 
+function logPostpone(request, reason) {
+  // If this callback errors, we intentionally let that error bubble up to become a fatal error
+  // so that someone fixes the error reporting instead of hiding it.
+  request.onPostpone(reason);
+}
+
 function logRecoverableError(request, error) {
   // If this callback errors, we intentionally let that error bubble up to become a fatal error
   // so that someone fixes the error reporting instead of hiding it.
@@ -8914,7 +8521,7 @@ function renderSuspenseBoundary(request, task, props) {
 
   try {
     // We use the safe form because we don't handle suspending here. Only error handling.
-    renderNode(request, task, content);
+    renderNode(request, task, content, 0);
     pushSegmentFinale(contentRootSegment.chunks, request.responseState, contentRootSegment.lastPushedText, contentRootSegment.textEmbedded);
     contentRootSegment.status = COMPLETED;
     queueCompletedSegment(newBoundary, contentRootSegment);
@@ -8929,7 +8536,18 @@ function renderSuspenseBoundary(request, task, props) {
   } catch (error) {
     contentRootSegment.status = ERRORED;
     newBoundary.forceClientRender = true;
-    newBoundary.errorDigest = logRecoverableError(request, error);
+    var errorDigest;
+
+    if (typeof error === 'object' && error !== null && error.$$typeof === REACT_POSTPONE_TYPE) {
+      var postponeInstance = error;
+      logPostpone(request, postponeInstance.message); // TODO: Figure out a better signal than a magic digest value.
+
+      errorDigest = 'POSTPONE';
+    } else {
+      errorDigest = logRecoverableError(request, error);
+    }
+
+    newBoundary.errorDigest = errorDigest;
 
     {
       captureBoundaryErrorDetailsDev(newBoundary, error);
@@ -8948,7 +8566,7 @@ function renderSuspenseBoundary(request, task, props) {
   // on it yet in case we finish the main content, so we queue for later.
 
 
-  var suspendedFallbackTask = createTask(request, null, fallback, parentBoundary, boundarySegment, fallbackAbortSet, task.legacyContext, task.context, task.treeContext);
+  var suspendedFallbackTask = createTask(request, null, fallback, parentBoundary, boundarySegment, fallbackAbortSet, task.keyPath, task.legacyContext, task.context, task.treeContext);
 
   {
     suspendedFallbackTask.componentStack = task.componentStack;
@@ -8969,7 +8587,7 @@ function renderHostElement(request, task, type, props) {
   segment.formatContext = getChildFormatContext(prevContext, type, props); // We use the non-destructive form because if something suspends, we still
   // need to pop back up and finish this subtree of HTML.
 
-  renderNode(request, task, children); // We expect that errors will fatal the whole task and that we don't need
+  renderNode(request, task, children, 0); // We expect that errors will fatal the whole task and that we don't need
   // the correct context. Therefore this is not in a finally.
 
   segment.formatContext = prevContext;
@@ -9009,13 +8627,13 @@ function finishClassComponent(request, task, instance, Component, props) {
       var previousContext = task.legacyContext;
       var mergedContext = processChildContext(instance, Component, previousContext, childContextTypes);
       task.legacyContext = mergedContext;
-      renderNodeDestructive(request, task, null, nextChildren);
+      renderNodeDestructive(request, task, null, nextChildren, 0);
       task.legacyContext = previousContext;
       return;
     }
   }
 
-  renderNodeDestructive(request, task, null, nextChildren);
+  renderNodeDestructive(request, task, null, nextChildren, 0);
 }
 
 function renderClassComponent(request, task, Component, props) {
@@ -9108,12 +8726,12 @@ function renderIndeterminateComponent(request, task, prevThenableState, Componen
       task.treeContext = pushTreeContext(prevTreeContext, totalChildren, index);
 
       try {
-        renderNodeDestructive(request, task, null, value);
+        renderNodeDestructive(request, task, null, value, 0);
       } finally {
         task.treeContext = prevTreeContext;
       }
     } else {
-      renderNodeDestructive(request, task, null, value);
+      renderNodeDestructive(request, task, null, value, 0);
     }
   }
 
@@ -9192,12 +8810,12 @@ function renderForwardRef(request, task, prevThenableState, type, props, ref) {
     task.treeContext = pushTreeContext(prevTreeContext, totalChildren, index);
 
     try {
-      renderNodeDestructive(request, task, null, children);
+      renderNodeDestructive(request, task, null, children, 0);
     } finally {
       task.treeContext = prevTreeContext;
     }
   } else {
-    renderNodeDestructive(request, task, null, children);
+    renderNodeDestructive(request, task, null, children, 0);
   }
 
   popComponentStackInDEV(task);
@@ -9244,7 +8862,7 @@ function renderContextConsumer(request, task, context, props) {
 
   var newValue = readContext$1(context);
   var newChildren = render(newValue);
-  renderNodeDestructive(request, task, null, newChildren);
+  renderNodeDestructive(request, task, null, newChildren, 0);
 }
 
 function renderContextProvider(request, task, type, props) {
@@ -9258,7 +8876,7 @@ function renderContextProvider(request, task, type, props) {
   }
 
   task.context = pushProvider(context, value);
-  renderNodeDestructive(request, task, null, children);
+  renderNodeDestructive(request, task, null, children, 0);
   task.context = popProvider(context);
 
   {
@@ -9284,7 +8902,7 @@ function renderOffscreen(request, task, props) {
   if (mode === 'hidden') ; else {
     // A visible Offscreen boundary is treated exactly like a fragment: a
     // pure indirection.
-    renderNodeDestructive(request, task, null, props.children);
+    renderNodeDestructive(request, task, null, props.children, 0);
   }
 }
 
@@ -9320,7 +8938,7 @@ function renderElement(request, task, prevThenableState, type, props, ref) {
     case REACT_PROFILER_TYPE:
     case REACT_FRAGMENT_TYPE:
       {
-        renderNodeDestructive(request, task, null, props.children);
+        renderNodeDestructive(request, task, null, props.children, 0);
         return;
       }
 
@@ -9334,7 +8952,7 @@ function renderElement(request, task, prevThenableState, type, props, ref) {
       {
         pushBuiltInComponentStackInDEV(task, 'SuspenseList'); // TODO: SuspenseList should control the boundaries.
 
-        renderNodeDestructive(request, task, null, props.children);
+        renderNodeDestructive(request, task, null, props.children, 0);
         popComponentStackInDEV(task);
         return;
       }
@@ -9426,13 +9044,13 @@ function validateIterable(iterable, iteratorFn) {
 
 function renderNodeDestructive(request, task, // The thenable state reused from the previous attempt, if any. This is almost
 // always null, except when called by retryTask.
-prevThenableState, node) {
+prevThenableState, node, childIndex) {
   {
     // In Dev we wrap renderNodeDestructiveImpl in a try / catch so we can capture
     // a component stack at the right place in the tree. We don't do this in renderNode
     // becuase it is not called at every layer of the tree and we may lose frames
     try {
-      return renderNodeDestructiveImpl(request, task, prevThenableState, node);
+      return renderNodeDestructiveImpl(request, task, prevThenableState, node, childIndex);
     } catch (x) {
       if (typeof x === 'object' && x !== null && typeof x.then === 'function') ; else {
         // This is an error, stash the component stack if it is null.
@@ -9447,7 +9065,7 @@ prevThenableState, node) {
 // to update the current execution state.
 
 
-function renderNodeDestructiveImpl(request, task, prevThenableState, node) {
+function renderNodeDestructiveImpl(request, task, prevThenableState, node, childIndex) {
   // Stash the node we're working on. We'll pick up from this task in case
   // something suspends.
   task.node = node; // Handle object types
@@ -9458,9 +9076,14 @@ function renderNodeDestructiveImpl(request, task, prevThenableState, node) {
         {
           var element = node;
           var type = element.type;
+          var key = element.key;
           var props = element.props;
           var ref = element.ref;
+          var name = getComponentNameFromType(type);
+          var prevKeyPath = task.keyPath;
+          task.keyPath = [task.keyPath, name, key == null ? childIndex : key];
           renderElement(request, task, prevThenableState, type, props, ref);
+          task.keyPath = prevKeyPath;
           return;
         }
 
@@ -9490,13 +9113,13 @@ function renderNodeDestructiveImpl(request, task, prevThenableState, node) {
             }
           }
 
-          renderNodeDestructive(request, task, null, resolvedNode);
+          renderNodeDestructive(request, task, null, resolvedNode, childIndex);
           return;
         }
     }
 
     if (isArray(node)) {
-      renderChildrenArray(request, task, node);
+      renderChildrenArray(request, task, node, childIndex);
       return;
     }
 
@@ -9525,7 +9148,7 @@ function renderNodeDestructiveImpl(request, task, prevThenableState, node) {
             step = iterator.next();
           } while (!step.done);
 
-          renderChildrenArray(request, task, children);
+          renderChildrenArray(request, task, children, childIndex);
           return;
         }
 
@@ -9546,12 +9169,12 @@ function renderNodeDestructiveImpl(request, task, prevThenableState, node) {
 
     if (typeof maybeUsable.then === 'function') {
       var thenable = maybeUsable;
-      return renderNodeDestructiveImpl(request, task, null, unwrapThenable(thenable));
+      return renderNodeDestructiveImpl(request, task, null, unwrapThenable(thenable), childIndex);
     }
 
     if (maybeUsable.$$typeof === REACT_CONTEXT_TYPE || maybeUsable.$$typeof === REACT_SERVER_CONTEXT_TYPE) {
       var context = maybeUsable;
-      return renderNodeDestructiveImpl(request, task, null, readContext$1(context));
+      return renderNodeDestructiveImpl(request, task, null, readContext$1(context), childIndex);
     } // $FlowFixMe[method-unbinding]
 
 
@@ -9578,7 +9201,8 @@ function renderNodeDestructiveImpl(request, task, prevThenableState, node) {
   }
 }
 
-function renderChildrenArray(request, task, children) {
+function renderChildrenArray(request, task, children, childIndex) {
+  var prevKeyPath = task.keyPath;
   var totalChildren = children.length;
 
   for (var i = 0; i < totalChildren; i++) {
@@ -9586,11 +9210,20 @@ function renderChildrenArray(request, task, children) {
     task.treeContext = pushTreeContext(prevTreeContext, totalChildren, i);
 
     try {
-      // We need to use the non-destructive form so that we can safely pop back
+      var node = children[i];
+
+      if (isArray(node) || getIteratorFn(node)) {
+        // Nested arrays behave like a "fragment node" which is keyed.
+        // Therefore we need to add the current index as a parent key.
+        task.keyPath = [task.keyPath, '', childIndex];
+      } // We need to use the non-destructive form so that we can safely pop back
       // up and render the sibling if something suspends.
-      renderNode(request, task, children[i]);
+
+
+      renderNode(request, task, node, i);
     } finally {
       task.treeContext = prevTreeContext;
+      task.keyPath = prevKeyPath;
     }
   }
 }
@@ -9605,7 +9238,7 @@ function spawnNewSuspendedTask(request, task, thenableState, x) {
   segment.children.push(newSegment); // Reset lastPushedText for current Segment since the new Segment "consumed" it
 
   segment.lastPushedText = false;
-  var newTask = createTask(request, thenableState, task.node, task.blockedBoundary, newSegment, task.abortSet, task.legacyContext, task.context, task.treeContext);
+  var newTask = createTask(request, thenableState, task.node, task.blockedBoundary, newSegment, task.abortSet, task.keyPath, task.legacyContext, task.context, task.treeContext);
 
   {
     if (task.componentStack !== null) {
@@ -9621,7 +9254,7 @@ function spawnNewSuspendedTask(request, task, thenableState, x) {
 // a new task and restores the context of this task to what it was before.
 
 
-function renderNode(request, task, node) {
+function renderNode(request, task, node, childIndex) {
   // Store how much we've pushed at this point so we can reset it in case something
   // suspended partially through writing something.
   var segment = task.blockedSegment;
@@ -9632,6 +9265,7 @@ function renderNode(request, task, node) {
   var previousFormatContext = task.blockedSegment.formatContext;
   var previousLegacyContext = task.legacyContext;
   var previousContext = task.context;
+  var previousKeyPath = task.keyPath;
   var previousComponentStack = null;
 
   {
@@ -9639,7 +9273,7 @@ function renderNode(request, task, node) {
   }
 
   try {
-    return renderNodeDestructive(request, task, null, node);
+    return renderNodeDestructive(request, task, null, node, childIndex);
   } catch (thrownValue) {
     resetHooksState(); // Reset the write pointers to where we started.
 
@@ -9660,7 +9294,8 @@ function renderNode(request, task, node) {
 
       task.blockedSegment.formatContext = previousFormatContext;
       task.legacyContext = previousLegacyContext;
-      task.context = previousContext; // Restore all active ReactContexts to what they were before.
+      task.context = previousContext;
+      task.keyPath = previousKeyPath; // Restore all active ReactContexts to what they were before.
 
       switchContext(previousContext);
 
@@ -9674,7 +9309,8 @@ function renderNode(request, task, node) {
       // functions in case nothing throws so we don't use "finally" here.
       task.blockedSegment.formatContext = previousFormatContext;
       task.legacyContext = previousLegacyContext;
-      task.context = previousContext; // Restore all active ReactContexts to what they were before.
+      task.context = previousContext;
+      task.keyPath = previousKeyPath; // Restore all active ReactContexts to what they were before.
 
       switchContext(previousContext);
 
@@ -9691,7 +9327,16 @@ function renderNode(request, task, node) {
 
 function erroredTask(request, boundary, segment, error) {
   // Report the error to a global handler.
-  var errorDigest = logRecoverableError(request, error);
+  var errorDigest;
+
+  if (typeof error === 'object' && error !== null && error.$$typeof === REACT_POSTPONE_TYPE) {
+    var postponeInstance = error;
+    logPostpone(request, postponeInstance.message); // TODO: Figure out a better signal than a magic digest value.
+
+    errorDigest = 'POSTPONE';
+  } else {
+    errorDigest = logRecoverableError(request, error);
+  }
 
   if (boundary === null) {
     fatalError(request, error);
@@ -9927,7 +9572,7 @@ function retryTask(request, task) {
     // component suspends again, the thenable state will be restored.
     var prevThenableState = task.thenableState;
     task.thenableState = null;
-    renderNodeDestructive(request, task, prevThenableState, task.node);
+    renderNodeDestructive(request, task, prevThenableState, task.node, 0);
     pushSegmentFinale(segment.chunks, request.responseState, segment.lastPushedText, segment.textEmbedded);
     task.abortSet.delete(task);
     segment.status = COMPLETED;
@@ -10470,7 +10115,7 @@ function prerender(children, options) {
     }
 
     var resources = createResources();
-    var request = createRequest(children, resources, createResponseState(resources, options ? options.identifierPrefix : undefined, undefined, options ? options.bootstrapScriptContent : undefined, options ? options.bootstrapScripts : undefined, options ? options.bootstrapModules : undefined, options ? options.unstable_externalRuntimeSrc : undefined), createRootFormatContext(options ? options.namespaceURI : undefined), options ? options.progressiveChunkSize : undefined, options ? options.onError : undefined, onAllReady, undefined, undefined, onFatalError);
+    var request = createRequest(children, resources, createResponseState(resources, options ? options.identifierPrefix : undefined, undefined, options ? options.bootstrapScriptContent : undefined, options ? options.bootstrapScripts : undefined, options ? options.bootstrapModules : undefined, options ? options.unstable_externalRuntimeSrc : undefined), createRootFormatContext(options ? options.namespaceURI : undefined), options ? options.progressiveChunkSize : undefined, options ? options.onError : undefined, onAllReady, undefined, undefined, onFatalError, options ? options.onPostpone : undefined);
 
     if (options && options.signal) {
       var signal = options.signal;
