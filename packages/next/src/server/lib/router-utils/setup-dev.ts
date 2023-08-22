@@ -1269,9 +1269,24 @@ async function startWatcher(opts: SetupOpts) {
         }
 
         if (!prevSortedRoutes?.every((val, idx) => val === sortedRoutes[idx])) {
+          let addedRoutes = sortedRoutes.filter(
+            (x) => !prevSortedRoutes.includes(x)
+          )
+          let removedRoutes = prevSortedRoutes.filter(
+            (x) => !sortedRoutes.includes(x)
+          )
+
           // emit the change so clients fetch the update
           hotReloader.send('devPagesManifestUpdate', {
             devPagesManifest: true,
+          })
+
+          addedRoutes.forEach((route) => {
+            hotReloader.send('addedPage', route)
+          })
+
+          removedRoutes.forEach((route) => {
+            hotReloader.send('removedPage', route)
           })
         }
         prevSortedRoutes = sortedRoutes
