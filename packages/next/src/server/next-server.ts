@@ -1064,8 +1064,10 @@ export default class NextNodeServer extends BaseServer {
   public getRequestHandler(): NodeRequestHandler {
     const handler = this.makeRequestHandler()
     if (this.serverOptions.experimentalTestProxy) {
-      const { wrapRequestHandler } = require('../experimental/testmode/server')
-      return wrapRequestHandler(handler)
+      const {
+        wrapRequestHandlerNode,
+      } = require('../experimental/testmode/server')
+      return wrapRequestHandlerNode(handler)
     }
     return handler
   }
