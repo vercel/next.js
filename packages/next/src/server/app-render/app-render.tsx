@@ -77,6 +77,7 @@ import { warn } from '../../build/output/log'
 import { appendMutableCookies } from '../web/spec-extension/adapters/request-cookies'
 import { createServerInsertedHTML } from './server-inserted-html'
 import { getRequiredScripts } from './required-scripts'
+import { addPathPrefix } from '../../shared/lib/router/utils/add-path-prefix'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -1437,7 +1438,8 @@ export async function renderToHTMLOrFlight(
           buildManifest,
           assetPrefix,
           subresourceIntegrityManifest,
-          getAssetQueryString(true)
+          getAssetQueryString(true),
+          nonce
         )
         const ServerComponentsRenderer = createServerComponentsRenderer(
           tree,
@@ -1576,7 +1578,11 @@ export async function renderToHTMLOrFlight(
                 res.setHeader('set-cookie', Array.from(headers.values()))
               }
             }
-            res.setHeader('Location', getURLFromRedirectError(err))
+            const redirectUrl = addPathPrefix(
+              getURLFromRedirectError(err),
+              renderOpts.basePath
+            )
+            res.setHeader('Location', redirectUrl)
           }
 
           const is404 = res.statusCode === 404
@@ -1614,7 +1620,8 @@ export async function renderToHTMLOrFlight(
               buildManifest,
               assetPrefix,
               subresourceIntegrityManifest,
-              getAssetQueryString(false)
+              getAssetQueryString(false),
+              nonce
             )
 
           const ErrorPage = createServerComponentRenderer(

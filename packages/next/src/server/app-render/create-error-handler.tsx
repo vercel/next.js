@@ -4,6 +4,7 @@ import { formatServerError } from '../../lib/format-server-error'
 import { isNotFoundError } from '../../client/components/not-found'
 import { isRedirectError } from '../../client/components/redirect'
 import { NEXT_DYNAMIC_NO_SSR_CODE } from '../../shared/lib/lazy-dynamic/no-ssr-error'
+import { SpanStatusCode, getTracer } from '../lib/trace/tracer'
 
 /**
  * Create error handler for renderers.
@@ -56,6 +57,16 @@ export function createErrorHandler({
         )
       )
     ) {
+      // Record exception in an active span, if available.
+      const span = getTracer().getActiveScopeSpan()
+      if (span) {
+        span.recordException(err)
+        span.setStatus({
+          code: SpanStatusCode.ERROR,
+          message: err.message,
+        })
+      }
+
       if (errorLogger) {
         errorLogger(err).catch(() => {})
       } else {
