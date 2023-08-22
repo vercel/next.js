@@ -2,6 +2,6 @@
   x NEXT_RSC_ERR_CLIENT_DIRECTIVE
    ,-[input.js:5:1]
  5 | // prettier-ignore
- 6 | ;'use client'
-   :  ^^^^^^^^^^^^
+ 6 | 'use client'
+   : ^^^^^^^^^^^^
    `----
