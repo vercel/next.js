@@ -2,4 +2,5 @@ export default function () {
   return null
 }
 
-;('use client')
+// prettier-ignore
+'use client'
