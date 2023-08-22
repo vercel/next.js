@@ -147,7 +147,7 @@ function checkExports(
       let generateStaticParams = false
       let extraProperties = new Set<string>()
       let directives = new Set<string>()
-      let hasNonExpressionStatementNode = false
+      let hasLeadingNonDirectiveNode = false
 
       for (const node of swcAST.body) {
         // There should be no non-string literals nodes before directives
@@ -155,7 +155,7 @@ function checkExports(
           node.type === 'ExpressionStatement' &&
           node.expression.type === 'StringLiteral'
         ) {
-          if (!hasNonExpressionStatementNode) {
+          if (!hasLeadingNonDirectiveNode) {
             const directive = node.expression.value
             if (CLIENT_DIRECTIVE === directive) {
               directives.add('client')
@@ -165,7 +165,7 @@ function checkExports(
             }
           }
         } else {
-          hasNonExpressionStatementNode = true
+          hasLeadingNonDirectiveNode = true
         }
         if (
           node.type === 'ExportDeclaration' &&
