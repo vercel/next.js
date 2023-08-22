@@ -1,0 +1,173 @@
+---
+title: manifest.json
+description: API Reference for manifest.json file.
+---
+
+Add or generate a `manifest.(json|webmanifest)` file that matches the [Web Manifest Specification](https://developer.mozilla.org/en-US/docs/Web/Manifest) in the **root** of `app` directory to provide information about your web application for the browser.
+
+## Static Manifest file
+
+```json filename="app/manifest.json | app/manifest.webmanifest"
+{
+  "name": "My Next.js Application",
+  "short_name": "Next.js App",
+  "description": "An application built with Next.js",
+  "start_url": "/"
+  // ...
+}
+```
+
+## Generate a Manifest file
+
+Add a `manifest.js` or `manifest.ts` file that returns a [`Manifest` object](#manifest-object).
+
+```ts filename="app/manifest.ts" switcher
+import { MetadataRoute } from 'next'
+
+export default function manifest(): MetadataRoute.Manifest {
+  return {
+    name: 'Next.js App',
+    short_name: 'Next.js App',
+    description: 'Next.js App',
+    start_url: '/',
+    display: 'standalone',
+    background_color: '#fff',
+    theme_color: '#fff',
+    icons: [
+      {
+        src: '/favicon.ico',
+        sizes: 'any',
+        type: 'image/x-icon',
+      },
+    ],
+  }
+}
+```
+
+```js filename="app/manifest.js" switcher
+export default function manifest() {
+  return {
+    name: 'Next.js App',
+    short_name: 'Next.js App',
+    description: 'Next.js App',
+    start_url: '/',
+    display: 'standalone',
+    background_color: '#fff',
+    theme_color: '#fff',
+    icons: [
+      {
+        src: '/favicon.ico',
+        sizes: 'any',
+        type: 'image/x-icon',
+      },
+    ],
+  }
+}
+```
+
+### Manifest Object
+
+```tsx
+type Manifest = {
+  background_color?: string
+  categories?: string[]
+  description?: string
+  dir?: 'ltr' | 'rtl' | 'auto'
+  display?: 'fullscreen' | 'standalone' | 'minimal-ui' | 'browser'
+  display_override?: (
+    | 'fullscreen'
+    | 'standalone'
+    | 'minimal-ui'
+    | 'browser'
+    | 'window-controls-overlay'
+  )[]
+  file_handlers?: {
+    action: string
+    accept: {
+      [mimeType: string]: string[]
+    }[]
+  }[]
+  icons?: {
+    src: string
+    type?: string
+    sizes?: string
+    purpose?: 'any' | 'maskable' | 'monochrome' | 'badge'
+  }[]
+  id?: string
+  lang?: string
+  launch_handler?: {
+    platform?: 'windows' | 'macos' | 'linux'
+    url?: string
+  }
+  name?: string
+  orientation?:
+    | 'any'
+    | 'natural'
+    | 'landscape'
+    | 'portrait'
+    | 'portrait-primary'
+    | 'portrait-secondary'
+    | 'landscape-primary'
+    | 'landscape-secondary'
+  prefer_related_applications?: boolean
+  protocol_handlers?: {
+    protocol: string
+    url: string
+    title?: string
+  }[]
+  related_applications?: {
+    platform: string
+    url: string
+    id?: string
+  }[]
+  scope?: string
+  screenshots?: {
+    src: string
+    type?: string
+    sizes?: string
+  }[]
+  serviceworker?: {
+    src?: string
+    scope?: string
+    type?: string
+    update_via_cache?: 'import' | 'none' | 'all'
+  }
+  share_target?: {
+    action?: string
+    method?: 'get' | 'post'
+    enctype?:
+      | 'application/x-www-form-urlencoded'
+      | 'multipart/form-data'
+      | 'text/plain'
+    params?: {
+      name: string
+      value: string
+      required?: boolean
+    }[]
+    url?: string
+    title?: string
+    text?: string
+    files?: {
+      accept?: string[]
+      name?: string
+    }[]
+  }
+  short_name?: string
+  shortcuts?: {
+    name: string
+    short_name?: string
+    description?: string
+    url: string
+    icons?: {
+      src: string
+      type?: string
+      sizes?: string
+      purpose?: 'any' | 'maskable' | 'monochrome' | 'badge'
+    }[]
+  }[]
+  start_url?: string
+  theme_color?: string
+}
+```
+
+For more information on individual options, see [MDN](https://developer.mozilla.org/en-US/docs/Web/Manifest).
