@@ -28,6 +28,10 @@ import { APP_DIR_ALIAS, WEBPACK_LAYERS } from '../../lib/constants'
 import { recursiveDelete } from '../../lib/recursive-delete'
 import {
   BLOCKED_PAGES,
+  CLIENT_STATIC_FILES_RUNTIME_AMP,
+  CLIENT_STATIC_FILES_RUNTIME_MAIN,
+  CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
+  CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
   COMPILER_NAMES,
   RSC_MODULE_TYPES,
 } from '../../shared/lib/constants'
@@ -966,17 +970,21 @@ export default class HotReloader {
         )
 
         if (!this.hasAmpEntrypoints) {
-          delete entrypoints.amp
+          delete entrypoints[CLIENT_STATIC_FILES_RUNTIME_AMP]
         }
         if (!this.hasPagesRouterEntrypoints) {
-          delete entrypoints.main
+          delete entrypoints[CLIENT_STATIC_FILES_RUNTIME_MAIN]
           delete entrypoints['pages/_app']
           delete entrypoints['pages/_error']
           delete entrypoints['/_error']
           delete entrypoints['pages/_document']
         }
+        // Remove React Refresh entrypoint chunk as `app` doesn't require it.
+        if (!this.hasAmpEntrypoints && !this.hasPagesRouterEntrypoints) {
+          delete entrypoints[CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH]
+        }
         if (!this.hasAppRouterEntrypoints) {
-          delete entrypoints['main-app']
+          delete entrypoints[CLIENT_STATIC_FILES_RUNTIME_MAIN_APP]
         }
 
         return entrypoints
