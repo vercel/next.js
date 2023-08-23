@@ -1,5 +1,5 @@
 import React from 'react'
-import Script from 'next/script'
+import Script, { ScriptProps } from 'next/script'
 import { YouTubeEmbed as TPCYouTubeEmbed } from 'third-party-capital'
 
 import ThirdPartyScriptEmbed from '../ThirdPartyScriptEmbed'
@@ -20,13 +20,12 @@ export default function YouTubeEmbed(props: YouTubeEmbed) {
       height={props.height || null}
       width={props.width || null}
       html={html}
-      dataNtpc="YoutubeEmbed"
+      dataNtpc="YouTubeEmbed"
     >
       {scripts?.map((script) => (
         <Script
           src={script.url}
-          strategy={scriptStrategy[script.strategy]}
-          // @ts-ignore
+          strategy={scriptStrategy[script.strategy] as ScriptProps['strategy']}
           stylesheets={stylesheets}
         />
       ))}
