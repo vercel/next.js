@@ -56,7 +56,7 @@ interface CacheEntry {
 }
 
 // Used to hook into the memory stage of the webpack caching
-const CACHE_STAGE_MEMORY = webpack.Cache.STAGE_MEMORY
+const CACHE_STAGE_MEMORY = -10 // TODO: Somehow webpack.Cache.STAGE_MEMORY doesn't work.
 
 const PLUGIN_NAME = 'NextJsMemoryWithGcCachePlugin'
 
