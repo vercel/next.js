@@ -74,6 +74,24 @@ createNextDescribe(
       }, 'same')
     })
 
+    it('should push new route when redirecting', async () => {
+      const browser = await next.browser('/header')
+
+      await browser.elementByCss('#setCookieAndRedirect').click()
+      await check(async () => {
+        return (await browser.elementByCss('#redirected').text()) || ''
+      }, 'redirected')
+
+      // Ensure we can navigate back
+      await browser.back()
+
+      await check(async () => {
+        return (
+          (await browser.elementByCss('#setCookieAndRedirect').text()) || ''
+        )
+      }, 'setCookieAndRedirect')
+    })
+
     it('should support headers in client imported actions', async () => {
       const logs: string[] = []
       next.on('stdout', (log) => {
@@ -276,6 +294,20 @@ createNextDescribe(
       await browser.elementByCss('#navigate-client').click()
       // intentionally bailing after 2 retries so we don't retry to the point where the async function resolves
       await check(() => browser.url(), `${next.url}/client`, true, 2)
+    })
+
+    it('should support next/dynamic with ssr: false', async () => {
+      const browser = await next.browser('/dynamic-csr')
+
+      await check(() => {
+        return browser.elementByCss('button').text()
+      }, '0')
+
+      await browser.elementByCss('button').click()
+
+      await check(() => {
+        return browser.elementByCss('button').text()
+      }, '1')
     })
 
     if (isNextStart) {

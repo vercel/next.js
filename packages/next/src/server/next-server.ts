@@ -491,15 +491,6 @@ export default class NextNodeServer extends BaseServer {
     )
   }
 
-  private streamResponseChunk(res: ServerResponse, chunk: any) {
-    res.write(chunk)
-    // When streaming is enabled, we need to explicitly
-    // flush the response to avoid it being buffered.
-    if ('flush' in res) {
-      ;(res as any).flush()
-    }
-  }
-
   protected async imageOptimizer(
     req: NodeNextRequest,
     res: NodeNextResponse,
@@ -1033,7 +1024,7 @@ export default class NextNodeServer extends BaseServer {
         return {
           finished: true,
         }
-      } catch (_) {}
+      } catch {}
 
       throw err
     }
@@ -1052,6 +1043,12 @@ export default class NextNodeServer extends BaseServer {
     match: PagesAPIRouteMatch
   ): Promise<boolean> {
     return this.runApi(req, res, query, match)
+  }
+
+  protected async getPrefetchRsc(pathname: string) {
+    return this.getCacheFilesystem()
+      .readFile(join(this.serverDistDir, 'app', `${pathname}.prefetch.rsc`))
+      .then((res) => res.toString())
   }
 
   protected getCacheFilesystem(): CacheFs {
@@ -1859,8 +1856,10 @@ export default class NextNodeServer extends BaseServer {
         getRequestMeta(params.req, '_nextIncrementalCache'),
     })
 
-    params.res.statusCode = result.response.status
-    params.res.statusMessage = result.response.statusText
+    if (!params.res.statusCode || params.res.statusCode < 400) {
+      params.res.statusCode = result.response.status
+      params.res.statusMessage = result.response.statusText
+    }
 
     // TODO: (wyattjoh) investigate improving this
 
