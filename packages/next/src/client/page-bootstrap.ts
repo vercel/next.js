@@ -14,13 +14,9 @@ export function pageBootrap(assetPrefix: string) {
   return hydrate({ beforeRender: displayContent }).then(() => {
     initOnDemandEntries()
 
-    let buildIndicatorHandler: any = () => {}
+    let buildIndicatorHandler: (obj: Record<string, any>) => void = () => {}
 
-    function devPagesHmrListener(event: any) {
-      let payload
-      try {
-        payload = JSON.parse(event.data)
-      } catch {}
+    function devPagesHmrListener(payload: any) {
       if (payload.event === 'server-error' && payload.errorJSON) {
         const { stack, message } = JSON.parse(payload.errorJSON)
         const error = new Error(message)
@@ -51,9 +47,10 @@ export function pageBootrap(assetPrefix: string) {
         if (!router.clc && pages.includes(router.pathname)) {
           console.log('Refreshing page data due to server-side change')
 
-          buildIndicatorHandler('building')
+          buildIndicatorHandler({ action: 'building' })
 
-          const clearIndicator = () => buildIndicatorHandler('built')
+          const clearIndicator = () =>
+            buildIndicatorHandler({ action: 'built' })
 
           router
             .replace(
