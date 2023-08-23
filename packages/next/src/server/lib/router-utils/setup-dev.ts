@@ -1269,11 +1269,11 @@ async function startWatcher(opts: SetupOpts) {
         }
 
         if (!prevSortedRoutes?.every((val, idx) => val === sortedRoutes[idx])) {
-          let addedRoutes = sortedRoutes.filter(
-            (x) => !prevSortedRoutes.includes(x)
+          const addedRoutes = sortedRoutes.filter(
+            (route) => !prevSortedRoutes.includes(route)
           )
-          let removedRoutes = prevSortedRoutes.filter(
-            (x) => !sortedRoutes.includes(x)
+          const removedRoutes = prevSortedRoutes.filter(
+            (route) => !sortedRoutes.includes(route)
           )
 
           // emit the change so clients fetch the update
