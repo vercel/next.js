@@ -1,5 +1,5 @@
 {
-  "name": "next-bench",
+  "name": "bench-rendering",
   "scripts": {
     "build": "next build",
     "start": "NODE_ENV=production npm run build && NODE_ENV=production next start",

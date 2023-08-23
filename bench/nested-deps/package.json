@@ -1,4 +1,5 @@
 {
+  "name": "bench-nested-deps",
   "scripts": {
     "prepare-bench": "rimraf components && fuzzponent -d 2 -s 206 -o components",
     "dev": "cross-env NEXT_PRIVATE_LOCAL_WEBPACK=1 next dev",
