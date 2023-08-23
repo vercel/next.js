@@ -1,0 +1,12 @@
+# top level version field is required
+version: 2
+
+projectIgnorePaths:
+  - .github/
+  - bench/
+  - contributing/
+  - docs/
+  - errors/
+  - examples/
+  - scripts/
+  - test/
