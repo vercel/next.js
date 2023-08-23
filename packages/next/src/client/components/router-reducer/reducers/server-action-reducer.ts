@@ -185,6 +185,13 @@ export function serverActionReducer(
       action.mutable.inFlightServerAction!
     ) as Awaited<FetchServerActionResult>
 
+    // Make sure the redirection is a push instead of a replace.
+    // Issue: https://github.com/vercel/next.js/issues/53911
+    if (redirectLocation) {
+      state.pushRef.pendingPush = true
+      mutable.pendingPush = true
+    }
+
     mutable.previousTree = state.tree
 
     if (!flightData) {
