@@ -222,6 +222,7 @@ impl<C: Comments> ReactServerComponents<C> {
                             },
                         })
                     }
+                    finished_directives = true;
                 }
                 ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl { decl, .. })) => {
                     match decl {
@@ -240,18 +241,21 @@ impl<C: Comments> ReactServerComponents<C> {
                         }
                         _ => {}
                     }
+                    finished_directives = true;
                 }
                 ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultDecl(ExportDefaultDecl {
                     decl: _,
                     ..
                 })) => {
                     self.export_names.push("default".to_string());
+                    finished_directives = true;
                 }
                 ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultExpr(ExportDefaultExpr {
                     expr: _,
                     ..
                 })) => {
                     self.export_names.push("default".to_string());
+                    finished_directives = true;
                 }
                 ModuleItem::ModuleDecl(ModuleDecl::ExportAll(_)) => {
                     self.export_names.push("*".to_string());
