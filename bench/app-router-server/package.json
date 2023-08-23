@@ -9,7 +9,7 @@
     "next-minimal-server": "workspace:*"
   },
   "scripts": {
-    "build": "next build",
+    "build-application": "next build",
     "start": "next-minimal-server"
   }
 }
