@@ -491,15 +491,6 @@ export default class NextNodeServer extends BaseServer {
     )
   }
 
-  private streamResponseChunk(res: ServerResponse, chunk: any) {
-    res.write(chunk)
-    // When streaming is enabled, we need to explicitly
-    // flush the response to avoid it being buffered.
-    if ('flush' in res) {
-      ;(res as any).flush()
-    }
-  }
-
   protected async imageOptimizer(
     req: NodeNextRequest,
     res: NodeNextResponse,
@@ -1033,7 +1024,7 @@ export default class NextNodeServer extends BaseServer {
         return {
           finished: true,
         }
-      } catch (_) {}
+      } catch {}
 
       throw err
     }
@@ -1073,8 +1064,10 @@ export default class NextNodeServer extends BaseServer {
   public getRequestHandler(): NodeRequestHandler {
     const handler = this.makeRequestHandler()
     if (this.serverOptions.experimentalTestProxy) {
-      const { wrapRequestHandler } = require('../experimental/testmode/server')
-      return wrapRequestHandler(handler)
+      const {
+        wrapRequestHandlerNode,
+      } = require('../experimental/testmode/server')
+      return wrapRequestHandlerNode(handler)
     }
     return handler
   }
