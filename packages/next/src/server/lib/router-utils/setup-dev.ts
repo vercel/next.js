@@ -91,15 +91,8 @@ import type { RenderWorkers } from '../router-server'
  * This is the timeout for which the watchpack will emit the `aggregate` event
  * after file changes are made. This is to prevent unnecessary rebuilds when
  * multiple files are changed at once.
- *
- * This defaults to a value, but can be overridden by setting the
- * `NEXT_DEV_WATCHPACK_AGGREGATE_TIMEOUT` environment variable to a value in
- * milliseconds. For example, to set the timeout to 100 milliseconds: `100`.
  */
-const WATCHPACK_AGGREGATE_TIMEOUT = process.env
-  .NEXT_DEV_WATCHPACK_AGGREGATE_TIMEOUT
-  ? parseInt(process.env.NEXT_DEV_WATCHPACK_AGGREGATE_TIMEOUT, 10)
-  : 50
+const WATCHPACK_AGGREGATE_TIMEOUT = 5
 
 type SetupOpts = {
   renderWorkers: RenderWorkers
