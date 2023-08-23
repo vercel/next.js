@@ -2,10 +2,10 @@ import type { TLSSocket } from 'tls'
 import type { FsOutput } from './filesystem'
 import type { IncomingMessage } from 'http'
 import type { NextConfigComplete } from '../../config-shared'
+import type { RenderWorker, initialize } from '../router-server'
 
 import url from 'url'
 import { Redirect } from '../../../../types'
-import { RenderWorker } from '../router-server'
 import setupDebug from 'next/dist/compiled/debug'
 import { getCloneableBody } from '../../body-streams'
 import { filterReqHeaders, ipcForbiddenHeaders } from '../server-ipc/utils'
@@ -46,7 +46,7 @@ export function getResolveRoutes(
     ReturnType<typeof import('./filesystem').setupFsCheck>
   >,
   config: NextConfigComplete,
-  opts: Parameters<typeof import('../router-server').initialize>[0],
+  opts: Parameters<typeof initialize>[0],
   renderWorkers: {
     app?: RenderWorker
     pages?: RenderWorker

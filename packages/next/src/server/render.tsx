@@ -73,7 +73,7 @@ import { allowedStatusCodes, getRedirectStatus } from '../lib/redirect-status'
 import RenderResult, { type RenderResultMetadata } from './render-result'
 import isError from '../lib/is-error'
 import {
-  streamFromArray,
+  streamFromString,
   streamToString,
   chainStreams,
   renderToInitialStream,
@@ -1315,7 +1315,7 @@ export async function renderToHTMLImpl(
       const { docProps } = documentInitialPropsRes as any
       // includes suffix in initial html stream
       bodyResult = (suffix: string) =>
-        createBodyResult(streamFromArray([docProps.html, suffix]))
+        createBodyResult(streamFromString(docProps.html + suffix))
     } else {
       const stream = await renderShell(App, Component)
       bodyResult = (suffix: string) => createBodyResult(stream, suffix)
@@ -1497,17 +1497,17 @@ export async function renderToHTMLImpl(
     '<next-js-internal-body-render-target></next-js-internal-body-render-target>'
   )
 
-  const prefix: Array<string> = []
+  let prefix = ''
   if (!documentHTML.startsWith(DOCTYPE)) {
-    prefix.push(DOCTYPE)
+    prefix += DOCTYPE
   }
-  prefix.push(renderTargetPrefix)
+  prefix += renderTargetPrefix
   if (inAmpMode) {
-    prefix.push('<!-- __NEXT_DATA__ -->')
+    prefix += '<!-- __NEXT_DATA__ -->'
   }
 
   const streams = [
-    streamFromArray(prefix),
+    streamFromString(prefix),
     await documentResult.bodyResult(renderTargetSuffix),
   ]
 
