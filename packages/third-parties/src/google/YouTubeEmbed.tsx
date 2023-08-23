@@ -3,7 +3,7 @@ import Script, { ScriptProps } from 'next/script'
 import { YouTubeEmbed as TPCYouTubeEmbed } from 'third-party-capital'
 
 import ThirdPartyScriptEmbed from '../ThirdPartyScriptEmbed'
-import { YouTubeEmbed } from '../types/google'
+import { YouTubeEmbed as YouTubeEmbedTypes } from '../types/google'
 
 const scriptStrategy = {
   server: 'beforeInteractive',
@@ -12,7 +12,7 @@ const scriptStrategy = {
   worker: 'worker',
 }
 
-export default function YouTubeEmbed(props: YouTubeEmbed) {
+export default function YouTubeEmbed(props: YouTubeEmbedTypes) {
   const { html, scripts, stylesheets } = TPCYouTubeEmbed(props)
 
   return (
