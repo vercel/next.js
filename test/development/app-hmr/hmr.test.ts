@@ -1,5 +1,5 @@
 import { createNextDescribe } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { check, waitFor } from 'next-test-utils'
 
 const envFile = '.env.development.local'
 
@@ -69,6 +69,26 @@ createNextDescribe(
 
       it('should have no unexpected action error for hmr', async () => {
         expect(next.cliOutput).not.toContain('Unexpected action')
+      })
+
+      it('should not continously poll when hitting a not found page', async () => {
+        let requestCount = 0
+        const browser = await next.browser('/does-not-exist', {
+          beforePageLoad(page) {
+            page.on('request', (request) => {
+              const url = new URL(request.url())
+              if (url.pathname === '/does-not-exist') {
+                requestCount++
+              }
+            })
+          },
+        })
+        const body = await browser.elementByCss('body').text()
+        expect(body).toContain('404')
+
+        await waitFor(3000)
+
+        expect(requestCount).toBe(1)
       })
     })
   }

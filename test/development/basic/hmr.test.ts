@@ -455,10 +455,10 @@ describe.each([[''], ['/docs']])(
       })
 
       it('should not continously poll a custom error page', async () => {
-        const newPage = join('pages', '_error.js')
+        const errorPage = join('pages', '_error.js')
 
         await next.patchFile(
-          newPage,
+          errorPage,
           outdent`
           function Error({ statusCode, message, count }) {
             return (
@@ -481,17 +481,26 @@ describe.each([[''], ['/docs']])(
         `
         )
 
-        // navigate to a 404 page
-        await webdriver(next.url, basePath + '/does-not-exist')
+        const outputIndex = next.cliOutput.length
+        try {
+          // navigate to a 404 page
+          await webdriver(next.url, basePath + '/does-not-exist')
 
-        await check(() => next.cliOutput, /getInitialProps called/)
+          await check(
+            () => next.cliOutput.slice(outputIndex),
+            /getInitialProps called/
+          )
 
-        // wait a few seconds to ensure polling didn't happen
-        await waitFor(3000)
+          // wait a few seconds to ensure polling didn't happen
+          await waitFor(3000)
 
-        const logOccurrences =
-          next.cliOutput.split('getInitialProps called').length - 1
-        expect(logOccurrences).toBe(1)
+          const logOccurrences =
+            next.cliOutput.slice(outputIndex).split('getInitialProps called')
+              .length - 1
+          expect(logOccurrences).toBe(1)
+        } finally {
+          await next.deleteFile(errorPage)
+        }
       })
 
       it('should detect syntax errors and recover', async () => {
