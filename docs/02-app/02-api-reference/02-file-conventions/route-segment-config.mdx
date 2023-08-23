@@ -118,6 +118,8 @@ export const revalidate = false
 - **`0`**: Ensure a layout or page is always [dynamically rendered](/docs/app/building-your-application/rendering/server-components#dynamic-rendering) even if no dynamic functions or uncached data fetches are discovered. This option changes the default of `fetch` requests that do not set a `cache` option to `'no-store'` but leaves `fetch` requests that opt into `'force-cache'` or use a positive `revalidate` as is.
 - **`number`**: (in seconds) Set the default revalidation frequency of a layout or page to `n` seconds.
 
+> **Good to know**: The `revalidate` option is only available when using the [Node.js Runtime](/https://nextjs.org/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes#nodejs-runtime). This means using the `revalidate` option with `runtime = 'edge'` will not work.
+
 #### Revalidation Frequency
 
 - The lowest `revalidate` across each layout and page of a single route will determine the revalidation frequency of the _entire_ route. This ensures that child pages are revalidated as frequently as their parent layouts.

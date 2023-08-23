@@ -258,6 +258,26 @@ createNextDescribe(
       await check(() => browser.elementByCss('#value').text(), 'Value = 2')
     })
 
+    it('should not block navigation events while a server action is in flight', async () => {
+      let browser = await next.browser('/client')
+
+      await browser.elementByCss('#slow-inc').click()
+
+      // navigate to server
+      await browser.elementByCss('#navigate-server').click()
+      // intentionally bailing after 2 retries so we don't retry to the point where the async function resolves
+      await check(() => browser.url(), `${next.url}/server`, true, 2)
+
+      browser = await next.browser('/server')
+
+      await browser.elementByCss('#slow-inc').click()
+
+      // navigate to client
+      await browser.elementByCss('#navigate-client').click()
+      // intentionally bailing after 2 retries so we don't retry to the point where the async function resolves
+      await check(() => browser.url(), `${next.url}/client`, true, 2)
+    })
+
     if (isNextStart) {
       it('should not expose action content in sourcemaps', async () => {
         const sourcemap = (
