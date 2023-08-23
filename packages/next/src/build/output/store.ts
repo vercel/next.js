@@ -19,7 +19,7 @@ export type OutputState =
           loading: false
           typeChecking: boolean
           partial: 'client and server' | undefined
-          modules: number
+          totalModulesCount: number
           errors: string[] | null
           warnings: string[] | null
           hasEdgeServer: boolean
@@ -111,8 +111,8 @@ store.subscribe((state) => {
   }
 
   let modulesMessage = ''
-  if (state.modules) {
-    modulesMessage = ` (${state.modules} modules)`
+  if (state.totalModulesCount) {
+    modulesMessage = ` (${state.totalModulesCount} modules)`
   }
 
   let partialMessage = ''
