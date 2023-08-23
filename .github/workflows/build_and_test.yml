@@ -186,12 +186,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [1, 2, 3]
+        group: [1, 2, 3, 4, 5]
 
     uses: ./.github/workflows/build_reusable.yml
     with:
       skipForDocsOnly: 'yes'
-      afterBuild: NEXT_TEST_MODE=dev node run-tests.js --timings -g ${{ matrix.group }}/3 -c ${TEST_CONCURRENCY} --type development
+      afterBuild: NEXT_TEST_MODE=dev node run-tests.js --timings -g ${{ matrix.group }}/5 -c ${TEST_CONCURRENCY} --type development
 
     secrets: inherit
 
@@ -201,12 +201,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [1, 2, 3, 4, 5]
+        group: [1, 2, 3, 4, 5, 6]
 
     uses: ./.github/workflows/build_reusable.yml
     with:
       skipForDocsOnly: 'yes'
-      afterBuild: NEXT_TEST_MODE=start node run-tests.js --timings -g ${{ matrix.group }}/5 -c ${TEST_CONCURRENCY} --type production
+      afterBuild: NEXT_TEST_MODE=start node run-tests.js --timings -g ${{ matrix.group }}/6 -c ${TEST_CONCURRENCY} --type production
     secrets: inherit
 
   test-integration:
@@ -215,13 +215,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+        group: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
 
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: 16
       skipForDocsOnly: 'yes'
-      afterBuild: node run-tests.js --timings -g ${{ matrix.group }}/12 -c ${TEST_CONCURRENCY} --type integration
+      afterBuild: node run-tests.js --timings -g ${{ matrix.group }}/13 -c ${TEST_CONCURRENCY} --type integration
     secrets: inherit
 
   test-firefox-safari:
