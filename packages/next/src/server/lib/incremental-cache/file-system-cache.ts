@@ -109,11 +109,13 @@ export default class FileSystemCache implements CacheHandler {
   public async get(
     key: string,
     {
-      fetchCache,
       tags,
+      softTags,
+      fetchCache,
     }: {
-      fetchCache?: boolean
       tags?: string[]
+      softTags?: string[]
+      fetchCache?: boolean
     } = {}
   ) {
     let data = memoryCache?.get(key)
@@ -162,6 +164,17 @@ export default class FileSystemCache implements CacheHandler {
           data = {
             lastModified,
             value: parsedData,
+          }
+
+          if (data.value?.kind === 'FETCH') {
+            const storedTags = data.value?.data?.tags
+
+            // update stored tags if a new one is being added
+            // TODO: remove this when we can send the tags
+            // via header on GET same as SET
+            if (!tags?.every((tag) => storedTags?.includes(tag))) {
+              await this.set(key, data.value, { tags })
+            }
           }
         } else {
           const pageData = isAppPath
@@ -251,7 +264,9 @@ export default class FileSystemCache implements CacheHandler {
     if (data && data?.value?.kind === 'FETCH') {
       this.loadTagsManifest()
 
-      const wasRevalidated = tags?.some((tag) => {
+      const combinedTags = [...(tags || []), ...(softTags || [])]
+
+      const wasRevalidated = combinedTags.some((tag) => {
         if (this.revalidatedTags.includes(tag)) {
           return true
         }
@@ -272,7 +287,13 @@ export default class FileSystemCache implements CacheHandler {
     return data || null
   }
 
-  public async set(key: string, data: CacheHandlerValue['value']) {
+  public async set(
+    key: string,
+    data: CacheHandlerValue['value'],
+    ctx: {
+      tags?: string[]
+    }
+  ) {
     memoryCache?.set(key, {
       value: data,
       lastModified: Date.now(),
@@ -327,7 +348,13 @@ export default class FileSystemCache implements CacheHandler {
         fetchCache: true,
       })
       await this.fs.mkdir(path.dirname(filePath))
-      await this.fs.writeFile(filePath, JSON.stringify(data))
+      await this.fs.writeFile(
+        filePath,
+        JSON.stringify({
+          ...data,
+          tags: ctx.tags,
+        })
+      )
     }
   }
 

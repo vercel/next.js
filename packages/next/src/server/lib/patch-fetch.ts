@@ -207,11 +207,6 @@ export function patchFetch({
         }
         const implicitTags = addImplicitTags(staticGenerationStore)
 
-        for (const tag of implicitTags || []) {
-          if (!tags.includes(tag)) {
-            tags.push(tag)
-          }
-        }
         const isOnlyCache = staticGenerationStore.fetchCache === 'only-cache'
         const isForceCache = staticGenerationStore.fetchCache === 'force-cache'
         const isDefaultCache =
@@ -442,6 +437,7 @@ export function patchFetch({
                     revalidate,
                     fetchUrl,
                     fetchIdx,
+                    tags,
                   }
                 )
               } catch (err) {
@@ -475,6 +471,7 @@ export function patchFetch({
                 fetchUrl,
                 fetchIdx,
                 tags,
+                softTags: implicitTags,
               })
 
           if (entry) {

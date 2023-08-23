@@ -397,6 +397,7 @@ export class IncrementalCache {
       fetchUrl?: string
       fetchIdx?: number
       tags?: string[]
+      softTags?: string[]
     } = {}
   ): Promise<IncrementalCacheEntry | null> {
     if (
@@ -431,9 +432,10 @@ export class IncrementalCache {
     const cacheData = await this.cacheHandler?.get(cacheKey, ctx)
 
     if (cacheData?.value?.kind === 'FETCH') {
+      const combinedTags = [...(ctx.tags || []), ...(ctx.softTags || [])]
       // if a tag was revalidated we don't return stale data
       if (
-        ctx.tags?.some((tag) => {
+        combinedTags.some((tag) => {
           return this.revalidatedTags?.includes(tag)
         })
       ) {
@@ -518,6 +520,7 @@ export class IncrementalCache {
       fetchCache?: boolean
       fetchUrl?: string
       fetchIdx?: number
+      tags?: string[]
     }
   ) {
     if (

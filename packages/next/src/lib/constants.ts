@@ -7,6 +7,7 @@ export const PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER =
   'x-prerender-revalidate-if-generated'
 
 export const NEXT_CACHE_TAGS_HEADER = 'x-next-cache-tags'
+export const NEXT_CACHE_SOFT_TAGS_HEADER = 'x-next-cache-soft-tags'
 export const NEXT_CACHE_REVALIDATED_TAGS_HEADER = 'x-next-revalidated-tags'
 export const NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER =
   'x-next-revalidate-tag-token'

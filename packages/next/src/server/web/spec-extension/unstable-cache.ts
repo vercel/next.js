@@ -19,19 +19,6 @@ export function unstable_cache<T extends Callback>(
   const staticGenerationAsyncStorage: StaticGenerationAsyncStorage =
     (fetch as any).__nextGetStaticStore?.() || _staticGenerationAsyncStorage
 
-  const store: undefined | StaticGenerationStore =
-    staticGenerationAsyncStorage?.getStore()
-
-  const incrementalCache:
-    | import('../../lib/incremental-cache').IncrementalCache
-    | undefined =
-    store?.incrementalCache || (globalThis as any).__incrementalCache
-
-  if (!incrementalCache) {
-    throw new Error(
-      `Invariant: incrementalCache missing in unstable_cache ${cb.toString()}`
-    )
-  }
   if (options.revalidate === 0) {
     throw new Error(
       `Invariant revalidate: 0 can not be passed to unstable_cache(), must be "false" or "> 0" ${cb.toString()}`
@@ -39,6 +26,20 @@ export function unstable_cache<T extends Callback>(
   }
 
   const cachedCb = async (...args: any[]) => {
+    const store: undefined | StaticGenerationStore =
+      staticGenerationAsyncStorage?.getStore()
+
+    const incrementalCache:
+      | import('../../lib/incremental-cache').IncrementalCache
+      | undefined =
+      store?.incrementalCache || (globalThis as any).__incrementalCache
+
+    if (!incrementalCache) {
+      throw new Error(
+        `Invariant: incrementalCache missing in unstable_cache ${cb.toString()}`
+      )
+    }
+
     const joinedKey = `${cb.toString()}-${
       Array.isArray(keyParts) && keyParts.join(',')
     }-${JSON.stringify(args)}`
@@ -69,12 +70,6 @@ export function unstable_cache<T extends Callback>(
         }
         const implicitTags = addImplicitTags(store)
 
-        for (const tag of implicitTags) {
-          if (!tags.includes(tag)) {
-            tags.push(tag)
-          }
-        }
-
         const cacheKey = await incrementalCache?.fetchCacheKey(joinedKey)
         const cacheEntry =
           cacheKey &&
@@ -85,6 +80,7 @@ export function unstable_cache<T extends Callback>(
             fetchCache: true,
             revalidate: options.revalidate,
             tags,
+            softTags: implicitTags,
           }))
 
         const invokeCallback = async () => {
@@ -110,6 +106,7 @@ export function unstable_cache<T extends Callback>(
               {
                 revalidate: options.revalidate,
                 fetchCache: true,
+                tags,
               }
             )
           }

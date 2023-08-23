@@ -1,7 +1,10 @@
 import type { CacheHandler, CacheHandlerContext, CacheHandlerValue } from './'
 
 import LRUCache from 'next/dist/compiled/lru-cache'
-import { CACHE_ONE_YEAR, NEXT_CACHE_TAGS_HEADER } from '../../../lib/constants'
+import {
+  CACHE_ONE_YEAR,
+  NEXT_CACHE_SOFT_TAGS_HEADER,
+} from '../../../lib/constants'
 
 let rateLimitedUntil = 0
 let memoryCache: LRUCache<string, CacheHandlerValue> | undefined
@@ -13,6 +16,7 @@ interface NextFetchCacheParams {
   fetchUrl?: string
 }
 
+const CACHE_TAGS_HEADER = 'x-vercel-cache-tags' as const
 const CACHE_HEADERS_HEADER = 'x-vercel-sc-headers' as const
 const CACHE_STATE_HEADER = 'x-vercel-cache-state' as const
 const CACHE_VERSION_HEADER = 'x-data-cache-version' as const
@@ -24,7 +28,6 @@ export default class FetchCache implements CacheHandler {
   private headers: Record<string, string>
   private cacheEndpoint?: string
   private debug: boolean
-  private revalidatedTags: string[]
 
   static isAvailable(ctx: {
     _requestHeaders: CacheHandlerContext['_requestHeaders']
@@ -37,7 +40,6 @@ export default class FetchCache implements CacheHandler {
   constructor(ctx: CacheHandlerContext) {
     this.debug = !!process.env.NEXT_PRIVATE_DEBUG_CACHE
     this.headers = {}
-    this.revalidatedTags = ctx.revalidatedTags
     this.headers[CACHE_VERSION_HEADER] = '2'
     this.headers['Content-Type'] = 'application/json'
 
@@ -144,18 +146,16 @@ export default class FetchCache implements CacheHandler {
 
   public async get(
     key: string,
-    {
-      fetchCache,
-      fetchIdx,
-      fetchUrl,
-      tags,
-    }: {
+    ctx: {
+      tags?: string[]
+      softTags?: string[]
       fetchCache?: boolean
       fetchUrl?: string
       fetchIdx?: number
-      tags?: string[]
     }
   ) {
+    const { tags, softTags, fetchCache, fetchIdx, fetchUrl } = ctx
+
     if (!fetchCache) return null
 
     if (Date.now() < rateLimitedUntil) {
@@ -189,8 +189,9 @@ export default class FetchCache implements CacheHandler {
             method: 'GET',
             headers: {
               ...this.headers,
-              [NEXT_CACHE_TAGS_HEADER]: tags?.join(','),
               [CACHE_FETCH_URL_HEADER]: fetchUrl,
+              [CACHE_TAGS_HEADER]: tags?.join(',') || '',
+              [NEXT_CACHE_SOFT_TAGS_HEADER]: softTags?.join(',') || '',
             } as any,
             next: fetchParams as NextFetchRequestConfig,
           }
@@ -236,13 +237,16 @@ export default class FetchCache implements CacheHandler {
               ? Date.now() - CACHE_ONE_YEAR
               : Date.now() - parseInt(age || '0', 10) * 1000,
         }
+
         if (this.debug) {
           console.log(
             `got fetch cache entry for ${key}, duration: ${
               Date.now() - start
             }ms, size: ${
               Object.keys(cached).length
-            }, cache-state: ${cacheState}`
+            }, cache-state: ${cacheState} tags: ${tags?.join(
+              ','
+            )} softTags: ${softTags?.join(',')}`
           )
         }
 
@@ -267,7 +271,9 @@ export default class FetchCache implements CacheHandler {
       fetchCache,
       fetchIdx,
       fetchUrl,
+      tags,
     }: {
+      tags?: string[]
       fetchCache?: boolean
       fetchUrl?: string
       fetchIdx?: number
@@ -301,7 +307,12 @@ export default class FetchCache implements CacheHandler {
           this.headers[CACHE_CONTROL_VALUE_HEADER] =
             data.data.headers['cache-control']
         }
-        const body = JSON.stringify(data)
+        const body = JSON.stringify({
+          ...data,
+          // we send the tags in the header instead
+          // of in the body here
+          tags: undefined,
+        })
 
         if (this.debug) {
           console.log('set cache', key)
@@ -318,7 +329,8 @@ export default class FetchCache implements CacheHandler {
             method: 'POST',
             headers: {
               ...this.headers,
-              '': fetchUrl || '',
+              [CACHE_FETCH_URL_HEADER]: fetchUrl || '',
+              [CACHE_TAGS_HEADER]: tags?.join(',') || '',
             },
             body: body,
             next: fetchParams as NextFetchRequestConfig,
