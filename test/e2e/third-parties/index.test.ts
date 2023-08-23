@@ -12,7 +12,7 @@ createNextDescribe(
     it('renders YoutubeEmbed', async () => {
       const $ = await next.render$('/youtube-embed')
 
-      const baseContainer = $('[data-ntpc="YoutubeEmbed"]')
+      const baseContainer = $('[data-ntpc="YouTubeEmbed"]')
       const youtubeContainer = $('lite-youtube')
       expect(baseContainer.length).toBe(1)
       expect(youtubeContainer.length).toBe(1)
