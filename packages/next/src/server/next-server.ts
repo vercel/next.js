@@ -137,7 +137,6 @@ function getMiddlewareMatcher(
 
 export default class NextNodeServer extends BaseServer {
   private imageResponseCache?: ResponseCache
-  protected renderWorkersPromises?: Promise<void>
   protected renderWorkerOpts?: Parameters<
     typeof import('./lib/render-server').initialize
   >[0]

@@ -93,6 +93,7 @@ export async function initialize(opts: {
   })
 
   const renderWorkers: RenderWorkers = {}
+  let initializePagesWorker = true
 
   let devInstance:
     | UnwrapPromise<
@@ -108,6 +109,11 @@ export async function initialize(opts: {
       opts.dir,
       !!config.experimental.appDir
     )
+
+    // No need to initialize pages worker if pagesDir is undefined.
+    if (pagesDir === undefined) {
+      initializePagesWorker = false
+    }
 
     const { setupDev } =
       (await require('./router-utils/setup-dev')) as typeof import('./router-utils/setup-dev')
@@ -195,15 +201,20 @@ export async function initialize(opts: {
   renderWorkers.app =
     require('./render-server') as typeof import('./render-server')
 
-  const { initialEnv } = require('@next/env') as typeof import('@next/env')
-  renderWorkers.pages = await createWorker(
-    ipcPort,
-    ipcValidationKey,
-    opts.isNodeDebugging,
-    'pages',
-    config,
-    initialEnv
-  )
+  async function createPagesWorker() {
+    const { initialEnv } = require('@next/env') as typeof import('@next/env')
+    renderWorkers.pages = await createWorker(
+      ipcPort,
+      ipcValidationKey,
+      opts.isNodeDebugging,
+      'pages',
+      config,
+      initialEnv
+    )
+  }
+  if (initializePagesWorker) {
+    await createPagesWorker()
+  }
 
   const renderWorkerOpts: Parameters<RenderWorker['initialize']>[0] = {
     port: opts.port,
@@ -218,9 +229,29 @@ export async function initialize(opts: {
   }
 
   // pre-initialize workers
-  const initialized = {
-    app: await renderWorkers.app?.initialize(renderWorkerOpts),
+  const initializedWorkers = {
+    app: await renderWorkers.app.initialize(renderWorkerOpts),
     pages: await renderWorkers.pages?.initialize(renderWorkerOpts),
+  }
+  // Get the worker for the given type. If the pages worker is not created yet,
+  // create it and return it.
+  async function getWorker(type: keyof typeof renderWorkers) {
+    if (type === 'app') {
+      return initializedWorkers.app
+    }
+
+    if (type === 'pages') {
+      if (initializedWorkers.pages) {
+        return initializedWorkers.pages
+      }
+      await createPagesWorker()
+      initializedWorkers.pages = await renderWorkers.pages?.initialize(
+        renderWorkerOpts
+      )
+      return initializedWorkers.pages
+    }
+
+    throw new Error(`Failed to initialize render worker ${type}`)
   }
 
   if (devInstance) {
@@ -355,12 +386,7 @@ export async function initialize(opts: {
         return null
       }
 
-      const workerResult = initialized[type]
-
-      if (!workerResult) {
-        throw new Error(`Failed to initialize render worker ${type}`)
-      }
-
+      const workerResult = await getWorker(type)
       const renderUrl = `http://${workerResult.hostname}:${workerResult.port}${req.url}`
 
       const invokeHeaders: typeof req.headers = {
