@@ -25,10 +25,13 @@ import { getValidatedArgs } from '../lib/get-validated-args'
 import { Worker } from 'next/dist/compiled/jest-worker'
 import type { ChildProcess } from 'child_process'
 import { checkIsNodeDebugging } from '../server/lib/is-node-debugging'
+import { createSelfSignedCertificate } from '../lib/mkcert'
+import uploadTrace from '../trace/upload-trace'
 
 let dir: string
 let config: NextConfigComplete
 let isTurboSession = false
+let traceUploadUrl: string
 let sessionStopHandled = false
 let sessionStarted = Date.now()
 
@@ -86,6 +89,16 @@ const handleSessionStop = async () => {
     // noise to the output
   }
 
+  if (traceUploadUrl) {
+    uploadTrace({
+      traceUploadUrl,
+      mode: 'dev',
+      isTurboSession,
+      projectDir: dir,
+      distDir: config.distDir,
+    })
+  }
+
   // ensure we re-enable the terminal cursor before exiting
   // the program, or the cursor could remain hidden
   process.stdout.write('\x1B[?25h')
@@ -108,7 +121,7 @@ function watchConfigFiles(
 type StartServerWorker = Worker &
   Pick<typeof import('../server/lib/start-server'), 'startServer'>
 
-async function createRouterWorker(): Promise<{
+async function createRouterWorker(fullConfig: NextConfigComplete): Promise<{
   worker: StartServerWorker
   cleanup: () => Promise<void>
 }> {
@@ -130,6 +143,9 @@ async function createRouterWorker(): Promise<{
           : {}),
         WATCHPACK_WATCHER_LIMIT: '20',
         EXPERIMENTAL_TURBOPACK: process.env.EXPERIMENTAL_TURBOPACK,
+        __NEXT_PRIVATE_PREBUNDLED_REACT: !!fullConfig.experimental.serverActions
+          ? 'experimental'
+          : 'next',
       },
     },
     exposedMethods: ['startServer'],
@@ -189,6 +205,11 @@ const nextDev: CliCommand = async (argv) => {
     '--hostname': String,
     '--turbo': Boolean,
     '--experimental-turbo': Boolean,
+    '--experimental-https': Boolean,
+    '--experimental-https-key': String,
+    '--experimental-https-cert': String,
+    '--experimental-test-proxy': Boolean,
+    '--experimental-upload-trace': String,
 
     // To align current messages with native binary.
     // Will need to adjust subcommand later.
@@ -216,6 +237,7 @@ const nextDev: CliCommand = async (argv) => {
       Options
         --port, -p      A port number on which to start the application
         --hostname, -H  Hostname on which to start the application (default: 0.0.0.0)
+        --experimental-upload-trace=<trace-url>  [EXPERIMENTAL] Report a subset of the debugging trace to a remote http url. Includes sensitive data. Disabled by default and url must be provided.
         --help, -h      Displays this message
     `)
     process.exit(0)
@@ -274,6 +296,11 @@ const nextDev: CliCommand = async (argv) => {
   // some set-ups that rely on listening on other interfaces
   const host = args['--hostname']
   config = await loadConfig(PHASE_DEVELOPMENT_SERVER, dir)
+  const isExperimentalTestProxy = args['--experimental-test-proxy']
+
+  if (args['--experimental-upload-trace']) {
+    traceUploadUrl = args['--experimental-upload-trace']
+  }
 
   const devServerOptions: StartServerOptions = {
     dir,
@@ -281,6 +308,7 @@ const nextDev: CliCommand = async (argv) => {
     allowRetry,
     isDev: true,
     hostname: host,
+    isExperimentalTestProxy,
   }
 
   if (args['--turbo']) {
@@ -369,8 +397,34 @@ const nextDev: CliCommand = async (argv) => {
   } else {
     const runDevServer = async (reboot: boolean) => {
       try {
-        const workerInit = await createRouterWorker()
-        await workerInit.worker.startServer(devServerOptions)
+        const workerInit = await createRouterWorker(config)
+        if (!!args['--experimental-https']) {
+          Log.warn(
+            'Self-signed certificates are currently an experimental feature, use at your own risk.'
+          )
+
+          let certificate: { key: string; cert: string } | undefined
+
+          if (
+            args['--experimental-https-key'] &&
+            args['--experimental-https-cert']
+          ) {
+            certificate = {
+              key: path.resolve(args['--experimental-https-key']),
+              cert: path.resolve(args['--experimental-https-cert']),
+            }
+          } else {
+            certificate = await createSelfSignedCertificate(host)
+          }
+
+          await workerInit.worker.startServer({
+            ...devServerOptions,
+            selfSignedCertificate: certificate,
+          })
+        } else {
+          await workerInit.worker.startServer(devServerOptions)
+        }
+
         await preflight(reboot)
         return {
           cleanup: workerInit.cleanup,

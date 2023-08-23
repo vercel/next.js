@@ -45,34 +45,11 @@ export function cloneTransformStream(source: TransformStream) {
         controller.enqueue(value)
       }
     },
-    // skip the its own written chunks
+    // skip all piped chunks
     transform() {},
   })
 
   return clone
-}
-
-export function readableStreamTee<T = any>(
-  readable: ReadableStream<T>
-): [ReadableStream<T>, ReadableStream<T>] {
-  const transformStream = new TransformStream()
-  const transformStream2 = new TransformStream()
-  const writer = transformStream.writable.getWriter()
-  const writer2 = transformStream2.writable.getWriter()
-
-  const reader = readable.getReader()
-  async function read() {
-    const { done, value } = await reader.read()
-    if (done) {
-      await Promise.all([writer.close(), writer2.close()])
-      return
-    }
-    await Promise.all([writer.write(value), writer2.write(value)])
-    await read()
-  }
-  read()
-
-  return [transformStream.readable, transformStream2.readable]
 }
 
 export function chainStreams<T>(
@@ -90,12 +67,10 @@ export function chainStreams<T>(
   return readable
 }
 
-export function streamFromArray(strings: string[]): ReadableStream<Uint8Array> {
+export function streamFromString(str: string): ReadableStream<Uint8Array> {
   return new ReadableStream({
     start(controller) {
-      for (const str of strings) {
-        controller.enqueue(encodeText(str))
-      }
+      controller.enqueue(encodeText(str))
       controller.close()
     },
   })
@@ -130,7 +105,7 @@ export function createBufferedTransformStream(): TransformStream<
   const flushBuffer = (controller: TransformStreamDefaultController) => {
     if (!pendingFlush) {
       pendingFlush = new Promise((resolve) => {
-        setTimeout(async () => {
+        setTimeout(() => {
           controller.enqueue(bufferedBytes)
           bufferedBytes = new Uint8Array()
           pendingFlush = null
@@ -138,7 +113,6 @@ export function createBufferedTransformStream(): TransformStream<
         }, 0)
       })
     }
-    return pendingFlush
   }
 
   return new TransformStream({

@@ -2,7 +2,6 @@ import type { __ApiPreviewProps } from './api-utils'
 import type { DomainLocale } from './config'
 import type { FontManifest, FontConfig } from './font-utils'
 import type { LoadComponentsReturnType } from './load-components'
-import type { RouteMatchFn } from '../shared/lib/router/utils/route-matcher'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
 import type { Params } from '../shared/lib/router/utils/route-matcher'
 import type { NextConfig, NextConfigComplete } from './config-shared'
@@ -36,6 +35,7 @@ import type {
 } from './future/route-modules/app-route/module'
 
 import { format as formatUrl, parse as parseUrl } from 'url'
+import { formatHostname } from './lib/format-hostname'
 import { getRedirectStatus } from '../lib/redirect-status'
 import { isEdgeRuntime } from '../lib/is-edge-runtime'
 import {
@@ -119,12 +119,6 @@ export type FindComponentsResult = {
   query: NextParsedUrlQuery
 }
 
-export interface RoutingItem {
-  page: string
-  match: RouteMatchFn
-  re?: RegExp
-}
-
 export interface MiddlewareRoutingItem {
   page: string
   match: MiddlewareRouteMatch
@@ -144,6 +138,10 @@ export interface Options {
    * Tells if Next.js is running in dev mode
    */
   dev?: boolean
+  /**
+   * Enables the experimental testing mode.
+   */
+  experimentalTestProxy?: boolean
   /**
    * Where the Next project is located
    */
@@ -190,6 +188,8 @@ export type RequestContext = {
   query: NextParsedUrlQuery
   renderOpts: RenderOptsPartial
 }
+
+export type FallbackMode = false | undefined | 'blocking' | 'static'
 
 export class NoFallbackError extends Error {}
 
@@ -268,6 +268,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected clientReferenceManifest?: ClientReferenceManifest
   protected nextFontManifest?: NextFontManifest
   public readonly hostname?: string
+  public readonly fetchHostname?: string
   public readonly port?: number
 
   protected abstract getPublicDir(): string
@@ -367,6 +368,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     // values from causing issues as this can be user provided
     this.nextConfig = conf as NextConfigComplete
     this.hostname = hostname
+    if (this.hostname) {
+      // we format the hostname so that it can be fetched
+      this.fetchHostname = formatHostname(this.hostname)
+    }
     this.port = port
     this.distDir =
       process.env.NEXT_RUNTIME === 'edge'
@@ -1035,7 +1040,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       const useInvokePath =
         !useMatchedPathHeader &&
         process.env.NEXT_RUNTIME !== 'edge' &&
-        process.env.__NEXT_PRIVATE_RENDER_WORKER &&
         invokePath
 
       if (useInvokePath) {
@@ -1126,7 +1130,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
       if (
         process.env.NEXT_RUNTIME !== 'edge' &&
-        process.env.__NEXT_PRIVATE_RENDER_WORKER &&
         req.headers['x-middleware-invoke']
       ) {
         const nextDataResult = await this.normalizeNextData(req, res, parsedUrl)
@@ -1436,9 +1439,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       getRequestMeta(req, '_nextRewroteUrl') || urlPathname
 
     let staticPaths: string[] | undefined
-    let fallbackMode: false | undefined | 'blocking' | 'static'
 
-    if (isAppPath) {
+    let fallbackMode: FallbackMode
+    let hasFallback = false
+    const isDynamic = isDynamicRoute(components.pathname)
+
+    if (isAppPath && isDynamic) {
       const pathsResult = await this.getStaticPaths({
         pathname,
         originalAppPath: components.pathname,
@@ -1447,26 +1453,40 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
       staticPaths = pathsResult.staticPaths
       fallbackMode = pathsResult.fallbackMode
+      hasFallback = typeof fallbackMode !== 'undefined'
 
-      const hasFallback = typeof fallbackMode !== 'undefined'
+      if (this.nextConfig.output === 'export') {
+        const page = components.pathname
+
+        if (fallbackMode !== 'static') {
+          throw new Error(
+            `Page "${page}" is missing exported function "generateStaticParams()", which is required with "output: export" config.`
+          )
+        }
+        const resolvedWithoutSlash = removeTrailingSlash(resolvedUrlPathname)
+        if (!staticPaths?.includes(resolvedWithoutSlash)) {
+          throw new Error(
+            `Page "${page}" is missing param "${resolvedWithoutSlash}" in "generateStaticParams()", which is required with "output: export" config.`
+          )
+        }
+      }
 
       if (hasFallback) {
         hasStaticPaths = true
       }
+    }
 
-      if (
-        hasFallback ||
-        staticPaths?.includes(resolvedUrlPathname) ||
-        // this signals revalidation in deploy environments
-        // TODO: make this more generic
-        req.headers['x-now-route-matches']
-      ) {
-        isSSG = true
-      } else if (!this.renderOpts.dev) {
-        const manifest = this.getPrerenderManifest()
-        isSSG =
-          isSSG || !!manifest.routes[pathname === '/index' ? '/' : pathname]
-      }
+    if (
+      hasFallback ||
+      staticPaths?.includes(resolvedUrlPathname) ||
+      // this signals revalidation in deploy environments
+      // TODO: make this more generic
+      req.headers['x-now-route-matches']
+    ) {
+      isSSG = true
+    } else if (!this.renderOpts.dev) {
+      const manifest = this.getPrerenderManifest()
+      isSSG = isSSG || !!manifest.routes[pathname === '/index' ? '/' : pathname]
     }
 
     // Toggle whether or not this is a Data request

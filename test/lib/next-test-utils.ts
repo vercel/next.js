@@ -8,7 +8,6 @@ import {
 } from 'fs'
 import { promisify } from 'util'
 import http from 'http'
-import https from 'https'
 import path from 'path'
 
 import spawn from 'cross-spawn'
@@ -162,19 +161,7 @@ export function fetchViaHTTP(
   opts?: RequestInit
 ): Promise<Response> {
   const url = query ? withQuery(pathname, query) : pathname
-  return fetch(getFullUrl(appPort, url), {
-    // in node.js v17 fetch favors IPv6 but Next.js is
-    // listening on IPv4 by default so force IPv4 DNS resolving
-    agent: (parsedUrl) => {
-      if (parsedUrl.protocol === 'https:') {
-        return new https.Agent({ family: 4 })
-      }
-      if (parsedUrl.protocol === 'http:') {
-        return new http.Agent({ family: 4 })
-      }
-    },
-    ...opts,
-  })
+  return fetch(getFullUrl(appPort, url), opts)
 }
 
 export function renderViaHTTP(
@@ -699,6 +686,11 @@ export class File {
 
     const newContent = currentContent.replace(pattern, newValue)
     this.write(newContent)
+  }
+
+  prepend(str: string) {
+    const content = readFileSync(this.path, 'utf8')
+    this.write(str + content)
   }
 
   delete() {

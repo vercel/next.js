@@ -224,6 +224,16 @@ createNextDescribe(
         // should already normalize the parallel routes segment to url
         expect(ogImageUrl).not.toContain('(group)')
       })
+
+      it('should handle custom fonts in both edge and nodejs runtime', async () => {
+        const resOgEdge = await next.fetch('/font/opengraph-image')
+        const resOgNodejs = await next.fetch('/font/opengraph-image2')
+
+        expect(resOgEdge.status).toBe(200)
+        expect(resOgEdge.headers.get('content-type')).toBe('image/png')
+        expect(resOgNodejs.status).toBe(200)
+        expect(resOgNodejs.headers.get('content-type')).toBe('image/png')
+      })
     })
 
     describe('icon image routes', () => {
