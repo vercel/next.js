@@ -5,5 +5,4 @@ module.exports = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-  swcMinify: true,
 }
