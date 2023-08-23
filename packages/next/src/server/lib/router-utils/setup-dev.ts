@@ -1280,9 +1280,24 @@ async function startWatcher(opts: SetupOpts) {
         opts.fsChecker.dynamicRoutes.unshift(...dataRoutes)
 
         if (!prevSortedRoutes?.every((val, idx) => val === sortedRoutes[idx])) {
+          const addedRoutes = sortedRoutes.filter(
+            (route) => !prevSortedRoutes.includes(route)
+          )
+          const removedRoutes = prevSortedRoutes.filter(
+            (route) => !sortedRoutes.includes(route)
+          )
+
           // emit the change so clients fetch the update
           hotReloader.send('devPagesManifestUpdate', {
             devPagesManifest: true,
+          })
+
+          addedRoutes.forEach((route) => {
+            hotReloader.send('addedPage', route)
+          })
+
+          removedRoutes.forEach((route) => {
+            hotReloader.send('removedPage', route)
           })
         }
         prevSortedRoutes = sortedRoutes
