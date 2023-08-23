@@ -1246,10 +1246,12 @@ async function startWatcher(opts: SetupOpts) {
           })
           .filter(Boolean) as any
 
+        const dataRoutes: typeof opts.fsChecker.dynamicRoutes = []
+
         for (const page of sortedRoutes) {
           const route = buildDataRoute(page, 'development')
           const routeRegex = getRouteRegex(route.page)
-          opts.fsChecker.dynamicRoutes.push({
+          dataRoutes.push({
             ...route,
             regex: routeRegex.re.toString(),
             match: getRouteMatcher({
@@ -1267,6 +1269,7 @@ async function startWatcher(opts: SetupOpts) {
             }),
           })
         }
+        opts.fsChecker.dynamicRoutes.unshift(...dataRoutes)
 
         if (!prevSortedRoutes?.every((val, idx) => val === sortedRoutes[idx])) {
           // emit the change so clients fetch the update
