@@ -278,6 +278,20 @@ createNextDescribe(
       await check(() => browser.url(), `${next.url}/client`, true, 2)
     })
 
+    it('should support next/dynamic with ssr: false', async () => {
+      const browser = await next.browser('/dynamic-csr')
+
+      await check(() => {
+        return browser.elementByCss('button').text()
+      }, '0')
+
+      await browser.elementByCss('button').click()
+
+      await check(() => {
+        return browser.elementByCss('button').text()
+      }, '1')
+    })
+
     if (isNextStart) {
       it('should not expose action content in sourcemaps', async () => {
         const sourcemap = (
