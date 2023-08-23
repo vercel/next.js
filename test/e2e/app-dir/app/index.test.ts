@@ -26,10 +26,12 @@ createNextDescribe(
           )
         ).toBeTruthy()
         expect(
-          await next.readFile(
-            '.next/server/app/dashboard/deployments/[id].prefetch.rsc'
-          )
-        ).toBeTruthy()
+          await next
+            .readFile(
+              '.next/server/app/dashboard/deployments/[id].prefetch.rsc'
+            )
+            .catch(() => false)
+        ).toBeFalsy()
 
         const outputStart = next.cliOutput.length
         const browser: BrowserInterface = await next.browser('/')
