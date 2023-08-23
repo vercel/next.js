@@ -1,3 +1,3 @@
 module.exports = {
-  extends: ["@turbo/eslint-config/library"]
+  extends: ["@turbo/eslint-config/library"],
 };

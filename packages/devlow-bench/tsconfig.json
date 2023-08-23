@@ -6,9 +6,7 @@
     "types": ["node"],
     "outDir": "dist",
     "declaration": true,
-    "declarationDir": "dist",
+    "declarationDir": "dist"
   },
-  "include": [
-    "src/**/*"
-  ],
+  "include": ["src/**/*"]
 }
