@@ -540,6 +540,33 @@ importers:
         specifier: 8.2.3
         version: 8.2.3
 
+  bench/nested-deps:
+    devDependencies:
+      '@babel/generator':
+        specifier: 7.18.0
+        version: 7.18.0
+      '@babel/types':
+        specifier: 7.18.0
+        version: 7.18.0
+      cross-env:
+        specifier: ^7.0.3
+        version: 7.0.3
+      next:
+        specifier: workspace:*
+        version: link:../../packages/next
+      pretty-ms:
+        specifier: ^7.0.1
+        version: 7.0.1
+      random-seed:
+        specifier: 0.3.0
+        version: 0.3.0
+      rimraf:
+        specifier: ^3.0.2
+        version: 3.0.2
+      yargs:
+        specifier: 16.2.0
+        version: 16.2.0
+
   bench/vercel:
     dependencies:
       '@szmarczak/http-timer':
@@ -2217,10 +2244,6 @@ packages:
     engines: {node: '>=6.9.0'}
     dependencies:
       '@babel/types': 7.18.0
-
-  /@babel/helper-validator-identifier@7.16.7:
-    resolution: {integrity: sha512-hsEnFemeiW4D08A5gUAZxLBTXpZ39P+a+DGDsHw1yxqyQ/jzFEnxf5uTEGp+3bzAbNOxU1paTgYS4ECU/IgfDw==}
-    engines: {node: '>=6.9.0'}
 
   /@babel/helper-validator-identifier@7.19.1:
     resolution: {integrity: sha512-awrNfaMtnHUr653GgGEs++LlAvW6w+DcPrOliSMXWCKo597CwL5Acf/wWdNkf/tfEQE3mjkeD1YOVZOUV/od1w==}
@@ -4939,7 +4962,7 @@ packages:
     resolution: {integrity: sha512-vhAmLPAiC8j9K2GnsnLPCIH5wCrPpYIVBCWRBFDCB7Y/BXLqi/O+1RSTTM2bsmg6U/551+FCf9PNPxjABmxHTw==}
     engines: {node: '>=6.9.0'}
     dependencies:
-      '@babel/helper-validator-identifier': 7.16.7
+      '@babel/helper-validator-identifier': 7.19.1
       to-fast-properties: 2.0.0
 
   /@bazel/bazelisk@1.12.1:
@@ -5246,7 +5269,7 @@ packages:
       ignore: 4.0.6
       import-fresh: 3.3.0
       js-yaml: 3.14.1
-      minimatch: 3.1.2
+      minimatch: 3.0.4
       strip-json-comments: 3.1.1
     transitivePeerDependencies:
       - supports-color
@@ -5603,7 +5626,7 @@ packages:
     dependencies:
       '@humanwhocodes/object-schema': 1.2.1
       debug: 4.1.1
-      minimatch: 3.1.2
+      minimatch: 3.0.4
     transitivePeerDependencies:
       - supports-color
     dev: true
@@ -5774,7 +5797,7 @@ packages:
       chalk: 4.0.0
       collect-v8-coverage: 1.0.1
       exit: 0.1.2
-      glob: 7.2.0
+      glob: 7.1.7
       graceful-fs: 4.2.11
       istanbul-lib-coverage: 3.2.0
       istanbul-lib-instrument: 4.0.3
@@ -6097,7 +6120,7 @@ packages:
     dependencies:
       '@lerna/child-process': 4.0.0
       '@lerna/describe-ref': 4.0.0
-      minimatch: 3.1.2
+      minimatch: 3.0.4
       npmlog: 4.1.2
       slash: 3.0.0
     dev: true
@@ -6654,7 +6677,7 @@ packages:
       chalk: 4.1.2
       dedent: 0.7.0
       load-json-file: 6.2.0
-      minimatch: 3.1.2
+      minimatch: 3.0.4
       npmlog: 4.1.2
       p-map: 4.0.0
       p-pipe: 3.1.0
@@ -7402,7 +7425,7 @@ packages:
       '@rollup/pluginutils': 3.1.0(rollup@2.35.1)
       commondir: 1.0.1
       estree-walker: 2.0.2
-      glob: 7.2.0
+      glob: 7.1.7
       is-reference: 1.2.1
       magic-string: 0.25.7
       resolve: 1.22.2
@@ -10295,7 +10318,7 @@ packages:
       '@npmcli/move-file': 1.0.1
       chownr: 2.0.0
       fs-minipass: 2.1.0
-      glob: 7.2.0
+      glob: 7.1.7
       infer-owner: 1.0.4
       lru-cache: 6.0.0
       minipass: 3.1.3
@@ -11412,6 +11435,14 @@ packages:
   /cross-env@6.0.3:
     resolution: {integrity: sha512-+KqxF6LCvfhWvADcDPqo64yVIB31gv/jQulX2NGzKS/g3GEVz6/pt4wjHFtFWsHMddebWD/sDthJemzM4MaAag==}
     engines: {node: '>=8.0'}
+    hasBin: true
+    dependencies:
+      cross-spawn: 7.0.3
+    dev: true
+
+  /cross-env@7.0.3:
+    resolution: {integrity: sha512-+/HKd6EgcQCJGh2PSjZuUitQBQynKor4wrFbRg4DtAgS1aWO+gU52xpH7M9ScGgXSYmAVS9bIJ8EzuaGw0oNAw==}
+    engines: {node: '>=10.14', npm: '>=6', yarn: '>=1'}
     hasBin: true
     dependencies:
       cross-spawn: 7.0.3
@@ -13226,7 +13257,7 @@ packages:
       json-stable-stringify-without-jsonify: 1.0.1
       levn: 0.4.1
       lodash.merge: 4.6.2
-      minimatch: 3.1.2
+      minimatch: 3.0.4
       natural-compare: 1.4.0
       optionator: 0.9.1
       progress: 2.0.3
@@ -14502,9 +14533,10 @@ packages:
       fs.realpath: 1.0.0
       inflight: 1.0.6
       inherits: 2.0.4
-      minimatch: 3.1.2
+      minimatch: 3.0.4
       once: 1.4.0
       path-is-absolute: 1.0.1
+    dev: true
 
   /global-dirs@2.1.0:
     resolution: {integrity: sha512-MG6kdOUh/xBnyo9cJFeIKkLEc1AyFq42QTU4XiX51i2NEdxLxLWXIjEjmqKeSuKR7pAZjTqUVoT2b2huxVLgYQ==}
@@ -15078,7 +15110,7 @@ packages:
       deepmerge: 4.2.2
       eslint: 7.32.0
       espree: 7.3.1
-      glob: 7.2.0
+      glob: 7.1.7
       inquirer: 7.3.3
       json-merge-patch: 1.0.2
       minimist: 1.2.6
@@ -15313,7 +15345,7 @@ packages:
   /ignore-walk@3.0.4:
     resolution: {integrity: sha512-PY6Ii8o1jMRA1z4F2hRkH/xN59ox43DavKvD3oDpfurRlOJyAHpifIwpbdv1n4jt4ov0jSpw3kQ4GhJnpBL6WQ==}
     dependencies:
-      minimatch: 3.1.2
+      minimatch: 3.0.4
     dev: true
 
   /ignore@4.0.6:
@@ -15466,7 +15498,7 @@ packages:
     resolution: {integrity: sha512-PO64kVeArePvhX7Ff0jVWkpnE1DfGRvaWcStYrPugcJz9twQGYibagKJuIMHCX7ENcp0M6LJlcjLBuLD5KeJMg==}
     engines: {node: '>=10'}
     dependencies:
-      glob: 7.2.0
+      glob: 7.1.7
       npm-package-arg: 8.1.0
       promzard: 0.3.0
       read: 1.0.7
@@ -16260,7 +16292,7 @@ packages:
       async: 3.2.4
       chalk: 4.1.2
       filelist: 1.0.4
-      minimatch: 3.1.2
+      minimatch: 3.0.4
     dev: true
 
   /jest-changed-files@27.0.6:
@@ -16347,7 +16379,7 @@ packages:
       babel-jest: 27.0.6(@babel/core@7.18.0)
       chalk: 4.0.0
       deepmerge: 4.2.2
-      glob: 7.2.0
+      glob: 7.1.7
       graceful-fs: 4.2.11
       is-ci: 3.0.0
       jest-circus: 27.5.1
@@ -16801,7 +16833,7 @@ packages:
       cjs-module-lexer: 1.2.2
       collect-v8-coverage: 1.0.1
       exit: 0.1.2
-      glob: 7.2.0
+      glob: 7.1.7
       graceful-fs: 4.2.11
       jest-haste-map: 27.5.1
       jest-message-util: 27.5.1
@@ -16833,7 +16865,7 @@ packages:
       cjs-module-lexer: 1.2.2
       collect-v8-coverage: 1.0.1
       execa: 5.0.0
-      glob: 7.2.0
+      glob: 7.1.7
       graceful-fs: 4.2.11
       jest-haste-map: 27.5.1
       jest-message-util: 27.5.1
@@ -18846,7 +18878,6 @@ packages:
     resolution: {integrity: sha512-yJHVQEhyqPLUTgt9B83PXu6W3rx4MvvHvSUvToogpwoGDOUQ+yDrR0HRot+yOCdCO7u4hX3pWft6kWBBcqh0UA==}
     dependencies:
       brace-expansion: 1.1.11
-    dev: true
 
   /minimatch@3.1.2:
     resolution: {integrity: sha512-J7p63hRiAjw1NDEww1W7i37+ByIrOWO5XQQAzZ3VOcL0PNybwpfmV/N05zFAzwQ9USyEcX6t3UO+K5aqBQOIHw==}
@@ -19084,7 +19115,7 @@ packages:
       array-differ: 1.0.0
       array-union: 1.0.2
       arrify: 1.0.1
-      minimatch: 3.1.2
+      minimatch: 3.0.4
     dev: false
 
   /multimatch@5.0.0:
@@ -19095,7 +19126,7 @@ packages:
       array-differ: 3.0.0
       array-union: 2.1.0
       arrify: 2.0.1
-      minimatch: 3.1.2
+      minimatch: 3.0.4
     dev: true
 
   /mute-stream@0.0.7:
@@ -19223,7 +19254,7 @@ packages:
     resolution: {integrity: sha1-X1Zl2TNRM1yqvvjxxVRRbPXx5OU=}
     engines: {node: '>= 0.10.5'}
     dependencies:
-      minimatch: 3.1.2
+      minimatch: 3.0.4
     dev: false
 
   /node-emoji@1.10.0:
@@ -19277,7 +19308,7 @@ packages:
     hasBin: true
     dependencies:
       env-paths: 2.2.1
-      glob: 7.2.0
+      glob: 7.1.7
       graceful-fs: 4.2.11
       mkdirp: 0.5.5
       nopt: 4.0.3
@@ -19295,7 +19326,7 @@ packages:
     hasBin: true
     dependencies:
       env-paths: 2.2.1
-      glob: 7.2.0
+      glob: 7.1.7
       graceful-fs: 4.2.11
       nopt: 5.0.0
       npmlog: 4.1.2
@@ -19459,7 +19490,7 @@ packages:
     engines: {node: '>=10'}
     hasBin: true
     dependencies:
-      glob: 7.2.0
+      glob: 7.1.7
       ignore-walk: 3.0.4
       npm-bundled: 1.1.2
       npm-normalize-package-bin: 1.0.1
@@ -20820,7 +20851,7 @@ packages:
   /postcss-functions@3.0.0:
     resolution: {integrity: sha1-DpTQFERwCkgd4g3k1V+yZAVkJQ4=}
     dependencies:
-      glob: 7.2.0
+      glob: 7.1.7
       object-assign: 4.1.1
       postcss: 6.0.23
       postcss-value-parser: 3.3.1
@@ -22145,7 +22176,7 @@ packages:
     engines: {node: '>=4.4.0', npm: '>=5.2.0'}
     hasBin: true
     dependencies:
-      glob: 7.2.0
+      glob: 7.1.7
       postcss: 7.0.32
       postcss-selector-parser: 6.0.11
       yargs: 14.2.2
@@ -22213,7 +22244,7 @@ packages:
     dev: true
 
   /random-seed@0.3.0:
-    resolution: {integrity: sha1-2UXy4fOPSejViRNDG4v2u5N1Vs0=}
+    resolution: {integrity: sha512-y13xtn3kcTlLub3HKWXxJNeC2qK4mB59evwZ5EkeRlolx+Bp2ztF7LbcZmyCnOqlHQrLnfuNbi1sVmm9lPDlDA==}
     engines: {node: '>= 0.6.0'}
     dependencies:
       json-stringify-safe: 5.0.1
@@ -22468,7 +22499,7 @@ packages:
   /read-package-json@2.1.1:
     resolution: {integrity: sha512-dAiqGtVc/q5doFz6096CcnXhpYk0ZN8dEKVkGLU0CsASt8SrgF6SF7OTKAYubfvFhWaqofl+Y8HK19GR8jwW+A==}
     dependencies:
-      glob: 7.2.0
+      glob: 7.1.7
       json-parse-better-errors: 1.0.2
       normalize-package-data: 2.5.0
       npm-normalize-package-bin: 1.0.1
@@ -22480,7 +22511,7 @@ packages:
     resolution: {integrity: sha512-4TnJZ5fnDs+/3deg1AuMExL4R1SFNRLQeOhV9c8oDKm3eoG6u8xU0r0mNNRJHi3K6B+jXmT7JOhwhAklWw9SSQ==}
     engines: {node: '>=10'}
     dependencies:
-      glob: 7.2.0
+      glob: 7.1.7
       json-parse-even-better-errors: 2.3.1
       normalize-package-data: 3.0.0
       npm-normalize-package-bin: 1.0.1
@@ -23211,21 +23242,21 @@ packages:
     resolution: {integrity: sha512-mwqeW5XsA2qAejG46gYdENaxXjx9onRNCfn7L0duuP4hCuTIi/QO7PDK07KJfp1d+izWPrzEJDcSqBa0OZQriA==}
     hasBin: true
     dependencies:
-      glob: 7.2.0
+      glob: 7.1.7
     dev: false
 
   /rimraf@2.7.1:
     resolution: {integrity: sha512-uWjbaKIK3T1OSVptzX7Nl6PvQ3qAGtKEtVRjRuazjfL3Bx5eI409VZSqgND+4UNnmzLVdPj9FqFJNPqBZFve4w==}
     hasBin: true
     dependencies:
-      glob: 7.2.0
+      glob: 7.1.7
     dev: true
 
   /rimraf@3.0.2:
     resolution: {integrity: sha512-JZkJMZkAGFFPP2YqXZXPbMlMBgsxzE8ILs4lMIX/2o0L9UBw9O/Y3o6wFw/i9YLapcUJWwqbi3kdxIPdC62TIA==}
     hasBin: true
     dependencies:
-      glob: 7.2.0
+      glob: 7.1.7
 
   /ripemd160@2.0.2:
     resolution: {integrity: sha512-ii4iagi25WusVoiC4B4lq7pbXfAp3D9v5CwfkY33vffw2+pkDjY1D8GaN7spsxvCSx8dkPqOZCEZyfxcmJG2IA==}
@@ -23719,7 +23750,7 @@ packages:
     engines: {node: '>=4'}
     hasBin: true
     dependencies:
-      glob: 7.2.0
+      glob: 7.1.7
       interpret: 1.4.0
       rechoir: 0.6.2
     dev: true
@@ -24851,8 +24882,8 @@ packages:
     engines: {node: '>=8'}
     dependencies:
       '@istanbuljs/schema': 0.1.2
-      glob: 7.2.0
-      minimatch: 3.1.2
+      glob: 7.1.7
+      minimatch: 3.0.4
 
   /text-extensions@1.9.0:
     resolution: {integrity: sha512-wiBrwC1EhBelW12Zy26JeOUkQ5mRu+5o8rpsJk5+2t+Y5vE7e842qtZDQ2g1NpX/29HdyFeJ4nSIhI47ENSxlQ==}
@@ -24973,7 +25004,7 @@ packages:
     resolution: {integrity: sha512-3f0uOEAQwIqGuWW2MVzYg8fV/QNnc/IpuJNG837rLuczAaLVHslWHZQj4IGiEl5Hs3kkbhwL9Ab7Hrsmuj+Smw==}
 
   /to-fast-properties@2.0.0:
-    resolution: {integrity: sha1-3F5pjL0HkmW8c+A3doGk5Og/YW4=}
+    resolution: {integrity: sha512-/OaKK0xYrs3DmxRYqL/yDc+FxFUVYhDlXMhRmv3z915w2HF1tnN1omB354j8VUGO/hbRzyD6Y3sA7v7GS/ceog==}
     engines: {node: '>=4'}
 
   /to-object-path@0.3.0:
@@ -25452,7 +25483,7 @@ packages:
       debug: 4.1.1
       fault: 1.0.4
       figures: 3.1.0
-      glob: 7.2.0
+      glob: 7.1.7
       ignore: 5.2.4
       is-buffer: 2.0.4
       is-empty: 1.2.0

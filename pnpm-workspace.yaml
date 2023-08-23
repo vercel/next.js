@@ -1,6 +1,7 @@
 packages:
   - 'packages/*'
   - 'bench/vercel/'
+  - 'bench/nested-deps'
   - 'packages/next-swc/crates/next-dev-tests/test-harness'
   - 'packages/next-swc/crates/next-dev-tests/tests'
   - 'packages/next-swc/crates/next-core/js'
