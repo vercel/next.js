@@ -4,11 +4,12 @@
   "license": "MIT",
   "dependencies": {
     "webpack-bundle-analyzer": "^4.6.1",
-    "webpack-stats-plugin": "^1.1.0"
+    "webpack-stats-plugin": "^1.1.0",
+    "next": "workspace:*",
+    "next-minimal-server": "workspace:*"
   },
   "scripts": {
-    "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next-minimal-server"
   }
 }
