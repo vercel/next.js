@@ -176,6 +176,7 @@ if (require.main === module) {
       type: 'string',
     }).argv
 
+  fs.mkdirSync(outdir, { recursive: true })
   generateFuzzponents(outdir, seed, depth, opts)
 }
 
