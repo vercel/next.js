@@ -34,7 +34,6 @@ declare module 'next/dist/compiled/webpack/webpack' {
   export let sources: typeof webpackSources
   export let StringXor: any
   export {
-    Cache,
     Compiler,
     Compilation,
     Module,
