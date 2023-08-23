@@ -22,7 +22,7 @@ export default function transformSource(
   // Assign the RSC meta information to buildInfo.
   // Exclude next internal files which are not marked as client files
   const buildInfo = getModuleBuildInfo(this._module)
-  buildInfo.rsc = getRSCModuleInformation(source)
+  buildInfo.rsc = getRSCModuleInformation(source, true)
 
   // A client boundary.
   if (buildInfo.rsc?.type === RSC_MODULE_TYPES.client) {
