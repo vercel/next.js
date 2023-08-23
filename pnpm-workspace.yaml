@@ -1,5 +1,6 @@
 packages:
   - 'packages/*'
+  - 'bench/fuzzponent/'
   - 'bench/vercel/'
   - 'bench/nested-deps'
   - 'packages/next-swc/crates/next-dev-tests/test-harness'
