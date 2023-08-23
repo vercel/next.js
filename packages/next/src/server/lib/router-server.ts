@@ -184,17 +184,16 @@ export async function initialize(opts: {
     },
   } as any)
 
-  if (!!config.experimental.appDir) {
-    process.env.__NEXT_PRIVATE_ROUTER_IPC_PORT = ipcPort + ''
-    process.env.__NEXT_PRIVATE_ROUTER_IPC_KEY = ipcValidationKey
-    process.env.__NEXT_PRIVATE_PREBUNDLED_REACT = config.experimental
-      .serverActions
-      ? 'experimental'
-      : 'next'
+  // Set global environment variables for the app render server to use.
+  process.env.__NEXT_PRIVATE_ROUTER_IPC_PORT = ipcPort + ''
+  process.env.__NEXT_PRIVATE_ROUTER_IPC_KEY = ipcValidationKey
+  process.env.__NEXT_PRIVATE_PREBUNDLED_REACT = config.experimental
+    .serverActions
+    ? 'experimental'
+    : 'next'
 
-    renderWorkers.app =
-      require('./render-server') as typeof import('./render-server')
-  }
+  renderWorkers.app =
+    require('./render-server') as typeof import('./render-server')
 
   const { initialEnv } = require('@next/env') as typeof import('@next/env')
   renderWorkers.pages = await createWorker(
