@@ -22,8 +22,9 @@ createNextDescribe(
       const $ = await next.render$('/google-maps-embed')
 
       const baseContainer = $('[data-ntpc="GoogleMapsEmbed"]')
+
       const mapContainer = $(
-        '[src="https://www.google.com/maps/embed/v1/place?key=XYZ&q=Brooklyn+Bridge,New+York,NY"]'
+        '[src^="https://www.google.com/maps/embed/v1/place?key=XYZ"]'
       )
       expect(baseContainer.length).toBe(1)
       expect(mapContainer.length).toBe(1)

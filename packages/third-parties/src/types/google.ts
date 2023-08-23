@@ -9,7 +9,7 @@ export type GoogleMapsEmbed = {
   loading: 'eager' | 'lazy'
 }
 
-export type YoutubeEmbed = {
+export type YouTubeEmbed = {
   height?: number
   width?: number
   videoid: string

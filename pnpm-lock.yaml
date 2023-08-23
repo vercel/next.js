@@ -1594,8 +1594,8 @@ importers:
         specifier: ^18.2.0
         version: 18.2.0
       third-party-capital:
-        specifier: 1.0.17
-        version: 1.0.17
+        specifier: 1.0.20
+        version: 1.0.20
     devDependencies:
       next:
         specifier: 13.4.20-canary.2
@@ -24862,8 +24862,8 @@ packages:
   /text-table@0.2.0:
     resolution: {integrity: sha512-N+8UisAXDGk8PFXP4HAzVR9nbfmVJ3zYLAWiTIoqC5v5isinhr+r5uaO8+7r3BMfuNIufIsA7RdpVgacC2cSpw==}
 
-  /third-party-capital@1.0.17:
-    resolution: {integrity: sha512-TOoAmaUg1sYZNErMrsEdEp8BSgtnnJL9nhHwisv3kZ2d1Ze0Cjj4zdv/qgwhVPqMvecTI3ZNxhrKSvkYEY2qtg==}
+  /third-party-capital@1.0.20:
+    resolution: {integrity: sha512-oB7yIimd8SuGptespDAZnNkzIz+NWaJCu2RMsbs4Wmp9zSDUM8Nhi3s2OOcqYuv3mN4hitXc8DVx+LyUmbUDiA==}
     dev: false
 
   /throat@6.0.1:
