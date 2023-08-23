@@ -448,7 +448,7 @@ function postProcessMetadata(
   const { openGraph, twitter } = metadata
   if (openGraph) {
     let autoFillProps: Partial<{
-      [Key in (typeof commonOgKeys)[number]]: NonNullable<
+      [Key in typeof commonOgKeys[number]]: NonNullable<
         ResolvedMetadata['openGraph']
       >[Key]
     }> = {}

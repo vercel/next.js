@@ -445,7 +445,7 @@ async function startWatcher(opts: SetupOpts) {
       get(_target, prop, _receiver) {
         if (prop === 'ensurePage') {
           return async (
-            ensureOpts: Parameters<(typeof hotReloader)['ensurePage']>[0]
+            ensureOpts: Parameters<typeof hotReloader['ensurePage']>[0]
           ) => {
             let page = ensureOpts.match?.definition?.pathname ?? ensureOpts.page
 

@@ -234,7 +234,7 @@ export interface ExperimentalConfig {
    */
   serverComponentsExternalPackages?: string[]
 
-  webVitalsAttribution?: Array<(typeof WEB_VITALS)[number]>
+  webVitalsAttribution?: Array<typeof WEB_VITALS[number]>
 
   turbo?: ExperimentalTurboOptions
   turbotrace?: {

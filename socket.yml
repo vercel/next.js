@@ -2,4 +2,4 @@
 version: 2
 
 projectIgnorePaths:
-  - "examples/"
+  - 'examples/'
