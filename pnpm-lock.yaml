@@ -92,6 +92,9 @@ importers:
       '@opentelemetry/api':
         specifier: 1.4.1
         version: 1.4.1
+      '@picocss/pico':
+        specifier: 1.5.10
+        version: 1.5.10
       '@svgr/webpack':
         specifier: 5.5.0
         version: 5.5.0
@@ -7290,6 +7293,10 @@ packages:
   /@opentelemetry/semantic-conventions@1.15.2:
     resolution: {integrity: sha512-CjbOKwk2s+3xPIMcd5UNYQzsf+v94RczbdNix9/kQh38WiQkM90sUOi3if8eyHFgiBjBjhwXrA7W3ydiSQP9mw==}
     engines: {node: '>=14'}
+    dev: true
+
+  /@picocss/pico@1.5.10:
+    resolution: {integrity: sha512-+LafMsrwPxXQMk6sI///TmSInCwwZmq+K7SikyL3N/4GhhwzyPC+TQLUEqmrLyjluR+uIpFFcqjty30Rtr6GxQ==}
     dev: true
 
   /@pkgr/utils@2.3.1:
