@@ -25,44 +25,88 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-import { Compiler } from 'next/dist/compiled/webpack/webpack'
+/*
+The change in this plugin compared to the built-in one in webpack is that this plugin always cleans up after 5 compilations.
+The built-in plugin only cleans up "total modules / max generations".
+The default for max generations is 5, so 1/5th of the modules would be marked for deletion.
+This plugin instead always checks the cache and decreases the time to live of all entries. That way memory is cleaned up earlier.
+*/
 
-const CACHE_STAGE_MEMORY = -10
+import { type Compiler, Cache } from 'next/dist/compiled/webpack/webpack'
+
+// Webpack doesn't expose Etag as a type so get it this way instead.
+type Etag = Parameters<typeof Cache.prototype.get>[1]
+
+/**
+ * Entry in the memory cache
+ */
+interface CacheEntry {
+  /**
+   * Webpack provided etag
+   */
+  etag: Etag
+  /**
+   * Webpack provided data
+   */
+  data: unknown | null
+  /**
+   * Number of compilations left before the cache item is evicted.
+   */
+  ttl: number
+}
+
+// Used to hook into the memory stage of the webpack caching
+const CACHE_STAGE_MEMORY = Cache.STAGE_MEMORY
+
+const PLUGIN_NAME = 'NextJsMemoryWithGcCachePlugin'
 
 export class MemoryWithGcCachePlugin {
+  /**
+   * Maximum number of compilations to keep the cache entry around for when it's not used.
+   * We keep the modules for a few more compilations so that if you comment out a package and bring it back it doesn't need a full compile again.
+   */
   private maxGenerations: number
   constructor({ maxGenerations }: { maxGenerations: number }) {
     this.maxGenerations = maxGenerations
   }
   apply(compiler: Compiler) {
     const maxGenerations = this.maxGenerations
-    // TODO: Potentially optimize this to a data structure that sorts by lowest ttl so that we don't have to traverse all items on afterDone.
-    const cache = new Map()
-    compiler.hooks.afterDone.tap('MemoryWithGcCachePlugin', () => {
+
+    /**
+     * The memory cache
+     */
+    const cache = new Map<string, CacheEntry>()
+
+    /**
+     * Cache cleanup implementation
+     */
+    function decreaseTTLAndEvict() {
       for (const [identifier, entry] of cache) {
-        // decrease ttl
+        // Decrease item time to live
         entry.ttl--
-        // if ttl is 0, delete entry
+
+        // if ttl is 0 or below, evict entry from the cache
         if (entry.ttl <= 0) {
           cache.delete(identifier)
         }
       }
-    })
+    }
+    compiler.hooks.afterDone.tap(PLUGIN_NAME, decreaseTTLAndEvict)
     compiler.cache.hooks.store.tap(
-      { name: 'MemoryWithGcCachePlugin', stage: CACHE_STAGE_MEMORY },
+      { name: PLUGIN_NAME, stage: CACHE_STAGE_MEMORY },
       (identifier, etag, data) => {
         cache.set(identifier, { etag, data, ttl: maxGenerations })
       }
     )
     compiler.cache.hooks.get.tap(
-      { name: 'MemoryWithGcCachePlugin', stage: CACHE_STAGE_MEMORY },
+      { name: PLUGIN_NAME, stage: CACHE_STAGE_MEMORY },
       (identifier, etag, gotHandlers) => {
         const cacheEntry = cache.get(identifier)
         // Item found
         if (cacheEntry !== undefined) {
           // When cache entry is hit we reset the counter.
           cacheEntry.ttl = maxGenerations
-          // Null is special-cased as it doesn't have an etag.
+          // Handles `null` separately as it doesn't have an etag.
           if (cacheEntry.data === null) {
             return null
           }
@@ -73,6 +117,7 @@ export class MemoryWithGcCachePlugin {
         // Handle case where other cache does have the identifier, puts it into the memory cache
         gotHandlers.push((result, callback) => {
           cache.set(identifier, {
+            // Handles `null` separately as it doesn't have an etag.
             etag: result === null ? null : etag,
             data: result,
             ttl: maxGenerations,
@@ -85,7 +130,7 @@ export class MemoryWithGcCachePlugin {
       }
     )
     compiler.cache.hooks.shutdown.tap(
-      { name: 'MemoryWithGcCachePlugin', stage: CACHE_STAGE_MEMORY },
+      { name: PLUGIN_NAME, stage: CACHE_STAGE_MEMORY },
       () => {
         cache.clear()
       }
