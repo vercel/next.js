@@ -236,15 +236,6 @@ export default function Page() {
 
 We don't expect you to need to wrap most third-party components since it's likely you'll be using them within Client Components. However, one exception is providers, since they rely on React state and context, and are typically needed at the root of an application. [Learn more about third-party context providers below](#using-context-providers).
 
-<details>
-  <summary>Advice for Library Authors</summary>
-
-- In a similar fashion, library authors creating packages to be consumed by other developers can use the `"use client"` directive to mark client entry points of their package. This allows users of the package to import package components directly into their Server Components without having to create a wrapping boundary.
-- You can optimize your package by using ['use client' deeper in the tree](#moving-client-components-down-the-tree), allowing the imported modules to be part of the Server Component module graph.
-- It's worth noting some bundlers might strip out `"use client"` directives. You can find an example of how to configure esbuild to include the `"use client"` directive in the [React Wrap Balancer](https://github.com/shuding/react-wrap-balancer/blob/main/tsup.config.ts#L10-L13) and [Vercel Analytics](https://github.com/vercel/analytics/blob/main/packages/web/tsup.config.js#L26-L30) repositories.
-
-</details>
-
 #### Using Context Providers
 
 Context providers are typically rendered near the root of an application to share global concerns, like the current theme. Since [React context](https://react.dev/learn/passing-data-deeply-with-context) is not supported in Server Components, trying to create a context at the root of your application will cause an error:
@@ -346,6 +337,14 @@ export default function RootLayout({ children }) {
 With the provider rendered at the root, all other Client Components throughout your app will be able to consume this context.
 
 > **Good to know**: You should render providers as deep as possible in the tree – notice how `ThemeProvider` only wraps `{children}` instead of the entire `<html>` document. This makes it easier for Next.js to optimize the static parts of your Server Components.
+
+#### Advice for Library Authors
+
+In a similar fashion, library authors creating packages to be consumed by other developers can use the `"use client"` directive to mark client entry points of their package. This allows users of the package to import package components directly into their Server Components without having to create a wrapping boundary.
+
+You can optimize your package by using ['use client' deeper in the tree](#moving-client-components-down-the-tree), allowing the imported modules to be part of the Server Component module graph.
+
+It's worth noting some bundlers might strip out `"use client"` directives. You can find an example of how to configure esbuild to include the `"use client"` directive in the [React Wrap Balancer](https://github.com/shuding/react-wrap-balancer/blob/main/tsup.config.ts#L10-L13) and [Vercel Analytics](https://github.com/vercel/analytics/blob/main/packages/web/tsup.config.js#L26-L30) repositories.
 
 ### Client Components
 
