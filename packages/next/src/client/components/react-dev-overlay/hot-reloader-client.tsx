@@ -387,17 +387,15 @@ function processMessage(
       return window.location.reload()
     }
     case 'removedPage': {
-      if (location.pathname === obj.data[0]) {
-        // @ts-ignore it exists, it's just hidden
-        router.fastRefresh()
-      }
+      // TODO-APP: potentially only refresh if the currently viewed page was removed.
+      // @ts-ignore it exists, it's just hidden
+      router.fastRefresh()
       return
     }
     case 'addedPage': {
-      if (location.pathname === obj.data[0]) {
-        // @ts-ignore it exists, it's just hidden
-        router.fastRefresh()
-      }
+      // TODO-APP: potentially only refresh if the currently viewed page was added.
+      // @ts-ignore it exists, it's just hidden
+      router.fastRefresh()
       return
     }
     case 'serverError': {
