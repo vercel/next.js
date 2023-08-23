@@ -32,7 +32,6 @@ export interface RSCMeta {
   clientRefs?: string[]
   clientEntryType?: 'cjs' | 'auto'
   isClientRef?: boolean
-  hasUseClientDirective?: boolean
   requests?: string[] // client requests in flight client entry
 }
 

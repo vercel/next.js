@@ -1307,8 +1307,8 @@ importers:
         specifier: 0.0.1
         version: 0.0.1
       ua-parser-js:
-        specifier: 0.7.28
-        version: 0.7.28
+        specifier: 1.0.35
+        version: 1.0.35
       undici:
         specifier: 5.22.0
         version: 5.22.0
@@ -25355,12 +25355,12 @@ packages:
     hasBin: true
     dev: true
 
-  /ua-parser-js@0.7.28:
-    resolution: {integrity: sha512-6Gurc1n//gjp9eQNXjD9O3M/sMwVtN5S8Lv9bvOYBfKfDNiIIhqiyi01vMBO45u4zkDE420w/e0se7Vs+sIg+g==}
-    dev: true
-
   /ua-parser-js@0.7.31:
     resolution: {integrity: sha512-qLK/Xe9E2uzmYI3qLeOmI0tEOt+TBBQyUIAh4aAgU05FVYzeZrKUdkAZfBNVGRaHVgV0TDkdEngJSw/SyQchkQ==}
+    dev: true
+
+  /ua-parser-js@1.0.35:
+    resolution: {integrity: sha512-fKnGuqmTBnIE+/KXSzCn4db8RTigUzw1AN0DmdU6hJovUTbYJKyqj+8Mt1c4VfRDnOVJnENmfYkIPZ946UrSAA==}
     dev: true
 
   /uglify-js@3.17.4:
