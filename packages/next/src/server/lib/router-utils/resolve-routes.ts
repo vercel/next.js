@@ -591,7 +591,10 @@ export function getResolveRoutes(
 
             if (middlewareHeaders['location']) {
               const value = middlewareHeaders['location'] as string
-              const rel = relativizeURL(value, initUrl)
+              // initUrl -> trustToHost ? externalURL : hostnameURL
+              // value -> internalURL
+              // const rel = relativizeURL(value, initUrl)
+              const rel = '/' + value.split('/').slice(3).join('/')
               resHeaders['location'] = rel
               parsedUrl = url.parse(rel, true)
 
