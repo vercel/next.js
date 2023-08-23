@@ -1,4 +1,4 @@
-import Comp from '../components/index.jsx'
+import Comp from '../../components/index.jsx'
 import ClientComponent from './client-component'
 
 export default function Home() {
