@@ -6,8 +6,8 @@ use syn::{
     parse_macro_input,
     punctuated::Punctuated,
     spanned::Spanned,
-    Error, Fields, FieldsUnnamed, Item, ItemEnum, ItemStruct, Lit, LitStr, Meta, MetaNameValue,
-    Result, Token,
+    Error, Fields, FieldsUnnamed, Generics, Item, ItemEnum, ItemStruct, Lit, LitStr, Meta,
+    MetaNameValue, Result, Token,
 };
 use turbo_tasks_macros_shared::{
     get_register_value_type_ident, get_value_type_id_ident, get_value_type_ident,
@@ -241,7 +241,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
                 content.0
             },
             quote! {
-                turbo_tasks::VcTransparentRead::<#ident, #inner_type>
+                turbo_tasks::VcTransparentRead::<#ident, #inner_type, #ident>
             },
         )
     } else {
@@ -354,8 +354,14 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         quote! {}
     };
 
-    let value_type_and_register_code =
-        value_type_and_register(ident, quote! { #ident }, read, cell_mode, new_value_type);
+    let value_type_and_register_code = value_type_and_register(
+        ident,
+        quote! { #ident },
+        None,
+        read,
+        cell_mode,
+        new_value_type,
+    );
 
     let expanded = quote! {
         #derive
@@ -382,6 +388,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
 pub fn value_type_and_register(
     ident: &Ident,
     ty: proc_macro2::TokenStream,
+    generics: Option<&Generics>,
     read: proc_macro2::TokenStream,
     cell_mode: proc_macro2::TokenStream,
     new_value_type: proc_macro2::TokenStream,
@@ -390,6 +397,13 @@ pub fn value_type_and_register(
     let value_type_ident = get_value_type_ident(ident);
     let value_type_id_ident = get_value_type_id_ident(ident);
     let register_value_type_ident = get_register_value_type_ident(ident);
+
+    let (impl_generics, where_clause) = if let Some(generics) = generics {
+        let (impl_generics, _, where_clause) = generics.split_for_impl();
+        (quote! { #impl_generics }, quote! { #where_clause })
+    } else {
+        (quote!(), quote!())
+    };
 
     quote! {
         #[doc(hidden)]
@@ -428,7 +442,7 @@ pub fn value_type_and_register(
             }).register(global_name);
         }
 
-        unsafe impl turbo_tasks::VcValueType for #ty {
+        unsafe impl #impl_generics turbo_tasks::VcValueType for #ty #where_clause {
             type Read = #read;
             type CellMode = #cell_mode;
 

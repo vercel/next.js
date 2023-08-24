@@ -5,6 +5,7 @@
 mod derive;
 mod func;
 mod function_macro;
+mod generic_type_macro;
 mod primitive_macro;
 mod value_impl_macro;
 mod value_macro;
@@ -146,4 +147,29 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn primitive(input: TokenStream) -> TokenStream {
     primitive_macro::primitive(input)
+}
+
+/// Registers a value type that is generic over the `Vc` it contains.
+///
+/// # Example
+///
+/// ```
+/// use crate::generic_type as __turbo_tasks_internal_generic_type;
+///
+/// __turbo_tasks_internal_generic_type!(<A, B>, GenericType<Vc<A>, Vc<B>>);
+///
+/// // Now you can do the following, for any `A` and `B` value types:
+///
+/// let vc: Vc<GenericType<Vc<u32>, Vc<String>>> = Vc::cell(
+///     GenericType::new(
+///         Vc::cell(42),
+///         Vc::cell("hello".to_string())
+///     )
+/// );
+/// ```
+#[allow_internal_unstable(min_specialization, into_future, trivial_bounds)]
+#[proc_macro_error]
+#[proc_macro]
+pub fn generic_type(input: TokenStream) -> TokenStream {
+    generic_type_macro::generic_type(input)
 }

@@ -28,6 +28,7 @@ turbo-tasks-malloc = { workspace = true, default-features = false }
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }
+indexmap = { workspace = true }
 lazy_static = { workspace = true }
 serde = { workspace = true }
 tokio = { workspace = true, features = ["full"] }

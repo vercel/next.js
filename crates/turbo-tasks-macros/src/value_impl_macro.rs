@@ -6,7 +6,7 @@ use syn::{
     parse_macro_input, parse_quote,
     punctuated::Punctuated,
     spanned::Spanned,
-    Attribute, Error, ExprPath, ImplItem, ImplItemMethod, ItemImpl, Lit, LitStr, Meta,
+    Attribute, Error, ExprPath, Generics, ImplItem, ImplItemMethod, ItemImpl, Lit, LitStr, Meta,
     MetaNameValue, Path, Result, Token, Type,
 };
 use turbo_tasks_macros_shared::{
@@ -158,9 +158,9 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                     }
 
                     #[doc(hidden)]
-                    pub(crate) static #native_function_ident: #native_function_ty = #ty::#native_function_ident;
+                    pub(crate) static #native_function_ident: #native_function_ty = <#ty>::#native_function_ident;
                     #[doc(hidden)]
-                    pub(crate) static #native_function_id_ident: #native_function_id_ty = #ty::#native_function_id_ident;
+                    pub(crate) static #native_function_id_ident: #native_function_id_ty = <#ty>::#native_function_id_ident;
                 })
             }
         }
@@ -176,11 +176,14 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
 
     fn trait_value_impl(
         ty: &Type,
+        generics: &Generics,
         ty_ident: &Ident,
         trait_path: &Path,
         items: &[ImplItem],
     ) -> TokenStream2 {
         let trait_ident = get_path_ident(trait_path);
+
+        let (impl_generics, _, where_clause) = generics.split_for_impl();
 
         let register = get_register_trait_methods_ident(&trait_ident, ty_ident);
 
@@ -263,7 +266,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
 
                     #[doc(hidden)]
                     // #[turbo_tasks::async_trait]
-                    impl #inline_extension_trait_ident for #ty {
+                    impl #impl_generics #inline_extension_trait_ident for #ty #where_clause  {
                         #[allow(declare_interior_mutable_const)]
                         #[doc(hidden)]
                         const #native_function_ident: #native_function_ty = #native_function_def;
@@ -300,9 +303,9 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
             // NOTE(alexkirsz) We can't have a general `turbo_tasks::Upcast<Box<dyn Trait>> for T where T: Trait` because
             // rustc complains: error[E0210]: type parameter `T` must be covered by another type when it appears before
             // the first local type (`dyn Trait`).
-            unsafe impl turbo_tasks::Upcast<Box<dyn #trait_path>> for #ty {}
+            unsafe impl #impl_generics turbo_tasks::Upcast<Box<dyn #trait_path>> for #ty #where_clause {}
 
-            impl #trait_path for #ty {
+            impl #impl_generics #trait_path for #ty #where_clause {
                 #(#trait_functions)*
             }
 
@@ -324,8 +327,13 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
 
     match &item.trait_ {
         None => inherent_value_impl(&item.self_ty, &ty_ident, &item.items).into(),
-        Some((_, trait_path, _)) => {
-            trait_value_impl(&item.self_ty, &ty_ident, trait_path, &item.items).into()
-        }
+        Some((_, trait_path, _)) => trait_value_impl(
+            &item.self_ty,
+            &item.generics,
+            &ty_ident,
+            trait_path,
+            &item.items,
+        )
+        .into(),
     }
 }

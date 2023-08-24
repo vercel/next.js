@@ -281,10 +281,11 @@ where
     }
 }
 
-impl<T, Inner> Vc<T>
+impl<T, Inner, Repr> Vc<T>
 where
-    T: VcValueType<Read = VcTransparentRead<T, Inner>>,
+    T: VcValueType<Read = VcTransparentRead<T, Inner, Repr>>,
     Inner: Any + Send + Sync,
+    Repr: VcValueType,
 {
     pub fn cell(inner: Inner) -> Self {
         <T::CellMode as VcCellMode<T>>::cell(inner)
@@ -315,6 +316,18 @@ where
     /// Returns the `RawVc` corresponding to this `Vc`.
     pub fn into_raw(vc: Self) -> RawVc {
         vc.node
+    }
+
+    /// Creates a `Vc` from a `RawVc`.
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure that `RawVc` points to a value of type `T`.
+    pub(crate) unsafe fn from_raw(vc: RawVc) -> Self {
+        Vc {
+            node: vc,
+            _t: std::marker::PhantomData,
+        }
     }
 
     /// Upcasts the given `Vc<T>` to a `Vc<Box<dyn K>>`.
