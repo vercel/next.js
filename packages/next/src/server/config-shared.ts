@@ -309,6 +309,7 @@ export type ExportPathMap = {
     page: string
     query?: NextParsedUrlQuery
     _isAppDir?: boolean
+    _isAppPrefetch?: boolean
     _isDynamicError?: boolean
   }
 }
@@ -682,7 +683,7 @@ export const defaultConfig: NextConfig = {
   serverRuntimeConfig: {},
   publicRuntimeConfig: {},
   reactProductionProfiling: false,
-  reactStrictMode: false,
+  reactStrictMode: null,
   httpAgentOptions: {
     keepAlive: true,
   },

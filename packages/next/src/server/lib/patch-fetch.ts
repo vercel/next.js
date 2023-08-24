@@ -1,7 +1,7 @@
 import type { StaticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage'
 import type * as ServerHooks from '../../client/components/hooks-server-context'
 
-import { AppRenderSpan } from './trace/constants'
+import { AppRenderSpan, NextNodeServerSpan } from './trace/constants'
 import { getTracer, SpanKind } from './trace/tracer'
 import { CACHE_ONE_YEAR } from '../../lib/constants'
 
@@ -100,8 +100,12 @@ export function patchFetch({
     const fetchStart = Date.now()
     const method = init?.method?.toUpperCase() || 'GET'
 
+    // Do create a new span trace for internal fetches in the
+    // non-verbose mode.
+    const isInternal = (init?.next as any)?.internal === true
+
     return await getTracer().trace(
-      AppRenderSpan.fetch,
+      isInternal ? NextNodeServerSpan.internalFetch : AppRenderSpan.fetch,
       {
         kind: SpanKind.CLIENT,
         spanName: ['fetch', method, fetchUrl].filter(Boolean).join(' '),
@@ -131,7 +135,7 @@ export function patchFetch({
         // fetch implementation.
         if (
           !staticGenerationStore ||
-          (init?.next as any)?.internal ||
+          isInternal ||
           staticGenerationStore.isDraftMode
         ) {
           return originFetch(input, init)
