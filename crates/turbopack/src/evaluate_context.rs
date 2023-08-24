@@ -12,8 +12,9 @@ use turbopack_core::{
 use turbopack_node::execution_context::ExecutionContext;
 
 use crate::{
-    module_options::ModuleOptionsContext, resolve_options_context::ResolveOptionsContext,
-    transition::TransitionsByName, ModuleAssetContext,
+    condition::ContextCondition, module_options::ModuleOptionsContext,
+    resolve_options_context::ResolveOptionsContext, transition::TransitionsByName,
+    ModuleAssetContext,
 };
 
 #[turbo_tasks::function]
@@ -49,15 +50,34 @@ pub async fn node_evaluate_asset_context(
         } else {
             "development".to_string()
         };
+
+    // base context used for node_modules (and context for app code will be derived
+    // from this)
+    let resolve_options_context = ResolveOptionsContext {
+        enable_node_modules: Some(execution_context.project_path().root().resolve().await?),
+        enable_node_externals: true,
+        enable_node_native_modules: true,
+        custom_conditions: vec![node_env.clone(), "node".to_string()],
+        ..Default::default()
+    };
+    // app code context, includes a rule to switch to the node_modules context
+    let resolve_options_context = ResolveOptionsContext {
+        enable_typescript: true,
+        import_map: Some(import_map),
+        rules: vec![(
+            ContextCondition::InDirectory("node_modules".to_string()),
+            resolve_options_context.clone().cell(),
+        )],
+        ..resolve_options_context
+    }
+    .cell();
+
     Ok(Vc::upcast(ModuleAssetContext::new(
         transitions.unwrap_or_else(|| Vc::cell(Default::default())),
         CompileTimeInfo::builder(node_build_environment())
             .defines(
-                compile_time_defines!(
-                    process.turbopack = true,
-                    process.env.NODE_ENV = node_env.clone(),
-                )
-                .cell(),
+                compile_time_defines!(process.turbopack = true, process.env.NODE_ENV = node_env,)
+                    .cell(),
             )
             .cell(),
         ModuleOptionsContext {
@@ -65,15 +85,6 @@ pub async fn node_evaluate_asset_context(
             ..Default::default()
         }
         .cell(),
-        ResolveOptionsContext {
-            enable_typescript: true,
-            enable_node_modules: Some(execution_context.project_path().root().resolve().await?),
-            enable_node_externals: true,
-            enable_node_native_modules: true,
-            custom_conditions: vec![node_env, "node".to_string()],
-            import_map: Some(import_map),
-            ..Default::default()
-        }
-        .cell(),
+        resolve_options_context,
     )))
 }
