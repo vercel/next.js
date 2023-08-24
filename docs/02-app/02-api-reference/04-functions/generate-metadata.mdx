@@ -631,6 +631,25 @@ export const metadata = {
 />
 ```
 
+**With media attribute**
+
+```jsx filename="layout.js / page.js"
+export const metadata = {
+  icons: {
+    icon: [
+      {
+        url: '/light-icon.png',
+        media: '(prefers-color-scheme: light)',
+      },
+      {
+        url: '/dark-icon.png',
+        media: '(prefers-color-scheme: dark)',
+      },
+    ],
+  },
+}
+```
+
 > **Good to know**: The `msapplication-*` meta tags are no longer supported in Chromium builds of Microsoft Edge, and thus no longer needed.
 
 ### `themeColor`
