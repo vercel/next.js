@@ -16,8 +16,14 @@
 //! - `--merged`: Shows all cpu time scaled by the concurrency.
 //! - `--threads`: Shows cpu time distributed on infinite virtual cpus/threads.
 //! - `--idle`: Adds extra info spans when cpus are idle.
+//! - `--graph`: Collapse spans with the same name into a single span per
+//!   parent.
+//! - `--collapse-names`: Collapse spans with the same type into a single span
+//!   per parent.
 //!
 //! Default is `--merged`.
+
+#![feature(iter_intersperse)]
 
 use std::{
     borrow::Cow,
@@ -163,7 +169,7 @@ fn main() {
                 values,
             } => {
                 let values = values.into_iter().collect();
-                let name = get_name(name, &values, collapse_names);
+                let name = get_name(name, &values, collapse_names && parent.is_some());
                 let internal_id = ensure_span(&mut active_ids, &mut spans, id);
                 spans[internal_id].name = name.clone();
                 spans[internal_id].target = target.into();
@@ -252,6 +258,51 @@ fn main() {
         spans.len(),
         start.elapsed().as_secs_f64()
     );
+
+    if !active_ids.is_empty() {
+        let active_spans = active_ids
+            .into_values()
+            .map(|id| &spans[id])
+            .filter(|span| span.end == span.start)
+            .filter(|span| {
+                !span.items.iter().any(|item| {
+                    if let &SpanItem::Child(c) = item {
+                        spans[c].end == spans[c].start
+                    } else {
+                        false
+                    }
+                })
+            })
+            .collect::<Vec<_>>();
+        if !active_spans.is_empty() {
+            eprintln!("{} spans still active:", active_spans.len());
+            for span in active_spans {
+                let mut parents = Vec::new();
+                let mut current = span;
+                loop {
+                    parents.push(current);
+                    if current.parent == 0 {
+                        break;
+                    }
+                    current = &spans[current.parent];
+                }
+                let mut parents = parents
+                    .iter()
+                    .rev()
+                    .map(|span| &*span.name)
+                    .collect::<Vec<_>>();
+                if parents.len() > 10 {
+                    parents.drain(10..parents.len() - 10);
+                    parents.insert(10, "...")
+                }
+                let message = parents
+                    .into_iter()
+                    .intersperse("\n  > ")
+                    .collect::<String>();
+                eprintln!("- {}", message);
+            }
+        }
+    }
 
     let mut name_counts: Vec<(Cow<'_, str>, usize)> = name_counts.into_iter().collect();
     name_counts.sort_by_key(|(_, count)| Reverse(*count));
@@ -391,6 +442,7 @@ fn main() {
     if single || merged {
         eprint!("Emitting span tree...");
         let start = Instant::now();
+        let mut span_counter = 0;
 
         const CONCURRENCY_FIXED_POINT_FACTOR: u64 = 100;
         const CONCURRENCY_FIXED_POINT_FACTOR_F: f32 = 100.0;
@@ -438,6 +490,7 @@ fn main() {
             .rev()
             .filter_map(|(id, span)| {
                 if span.parent == 0 {
+                    span_counter += 1;
                     Some(Task::Enter { id, root: true })
                 } else {
                     None
@@ -603,6 +656,14 @@ fn main() {
                                 }
                             }
                             SpanItem::Child(id) => {
+                                span_counter += 1;
+                                if span_counter % 12543 == 0 {
+                                    eprint!(
+                                        "\rEmitting span tree... {} / {}",
+                                        span_counter,
+                                        spans.len()
+                                    );
+                                }
                                 stack.push(Task::Enter {
                                     id: *id,
                                     root: false,
@@ -690,7 +751,12 @@ fn main() {
                 }
             }
         }
-        eprintln!(" done ({:.3}s)", start.elapsed().as_secs_f64());
+        eprintln!(
+            "\rEmitting span tree... {} / {} done ({:.3}s)",
+            spans.len(),
+            spans.len(),
+            start.elapsed().as_secs_f64()
+        );
     }
     println!();
     println!("]");
