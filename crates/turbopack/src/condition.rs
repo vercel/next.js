@@ -48,7 +48,7 @@ impl ContextCondition {
                 // False positive.
                 #[allow(clippy::manual_try_fold)]
                 stream::iter(conditions)
-                    .fold(Ok(true), |acc, c| async move {
+                    .fold(Ok(false), |acc, c| async move {
                         Ok(acc? || c.matches(path).await?)
                     })
                     .await
