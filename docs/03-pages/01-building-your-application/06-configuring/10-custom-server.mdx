@@ -30,10 +30,12 @@ const hostname = 'localhost'
 const port = 3000
 // when using middleware `hostname` and `port` must be provided below
 const app = next({ dev, hostname, port })
-const handle = app.getRequestHandler()
+// Enable when you add a custom socket handler, as Next.js uses websockets in development.
+const upgradeHandler = app.getUpgradeHandler()
+const handler = app.getRequestHandler()
 
 app.prepare().then(() => {
-  createServer(async (req, res) => {
+  const server = createServer(async (req, res) => {
     try {
       // Be sure to pass `true` as the second argument to `url.parse`.
       // This tells it to parse the query portion of the URL.
@@ -45,7 +47,7 @@ app.prepare().then(() => {
       } else if (pathname === '/b') {
         await app.render(req, res, '/b', query)
       } else {
-        await handle(req, res, parsedUrl)
+        await handler(req, res, parsedUrl)
       }
     } catch (err) {
       console.error('Error occurred handling', req.url, err)
@@ -60,6 +62,12 @@ app.prepare().then(() => {
     .listen(port, () => {
       console.log(`> Ready on http://${hostname}:${port}`)
     })
+
+  // Enable when you add a custom socket handler as Next.js will set up
+  server.on('upgrade', (req, socket, head) => {
+    // Enable when you add a custom socket handler, as Next.js uses websockets in development.
+    upgradeHandler(req, socket, head)
+  })
 })
 ```
 
