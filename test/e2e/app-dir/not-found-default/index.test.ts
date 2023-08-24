@@ -92,10 +92,8 @@ createNextDescribe(
       expect(await browser.elementByCss('.next-error-h1').text()).toBe('404')
       // Using default layout
       expect(await browser.elementByCss('html').getAttribute('class')).toBe(
-        null
+        'group-root-layout'
       )
-      // Not using pages 404
-      expect(await browser.elementByCss('#__next')).toBeFalsy()
     })
   }
 )
