@@ -1,13 +1,13 @@
 import chalk from '../../lib/chalk'
 
 export const prefixes = {
-  wait: chalk.bold(/*.cyan*/ '⧖'),
-  error: chalk.bold(/*.red*/ '𐄂'),
-  warn: chalk.bold(/*.yellow*/ '⚠'),
-  ready: chalk.bold(/*.green*/ '▲'),
-  info: chalk.bold(/*.cyan*/ ' '),
-  event: chalk.bold(/*.magenta*/ '✓'),
-  trace: chalk.bold(/*.magenta*/ ' '),
+  wait: chalk.white(chalk.bold(/*.cyan*/ '⧖')),
+  error: chalk.red(chalk.bold(/*.red*/ '𐄂')),
+  warn: chalk.yellow(chalk.bold(/*.yellow*/ '⚠')),
+  ready: chalk.bold(/*.green*/ '▲'), // no color
+  info: chalk.white(chalk.bold(/*.cyan*/ ' ')),
+  event: chalk.green(chalk.bold(/*.magenta*/ '✓')),
+  trace: chalk.magenta(chalk.bold(/*.magenta*/ ' ')),
 }
 
 export function now() {

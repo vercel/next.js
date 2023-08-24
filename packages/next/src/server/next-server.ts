@@ -103,6 +103,22 @@ import { loadManifest } from './load-manifest'
 
 export * from './base-server'
 
+function writeStdoutDiv(text: string) {
+  const indent = ' '.repeat(4)
+  // const maxLength = process.stdout.columns || 120
+  // let output = ''
+  // let remainingText = text
+
+  // while (remainingText.length > maxLength) {
+  //   output += indent + remainingText.substr(0, maxLength) + '\n'
+  //   remainingText = remainingText.substr(maxLength)
+  // }
+
+  // if (!output) output += indent
+  // output += remainingText
+  process.stdout.write(Log.now() + indent + text)
+}
+
 export interface NodeRequestHandler {
   (
     req: IncomingMessage | BaseNextRequest,
@@ -1128,10 +1144,11 @@ export default class NextNodeServer extends BaseServer {
           if (Array.isArray(fetchMetrics) && fetchMetrics.length) {
             if (enabledVerboseLogging) {
               process.stdout.write('\n')
-              process.stdout.write(
-                `${Log.now()} ${chalk.white.bold(req.method || 'GET')} ${
-                  req.url
-                } ${res.statusCode} in ${getDurationStr(reqDuration)}\n`
+              // process.stdout.write
+              writeStdoutDiv(
+                `${chalk.white.bold(req.method || 'GET')} ${req.url} ${
+                  res.statusCode
+                } in ${getDurationStr(reqDuration)}\n`
               )
             }
 
@@ -1152,7 +1169,8 @@ export default class NextNodeServer extends BaseServer {
                   nestedLevel += 1
                 }
               }
-              return `${'───'.repeat(nestedLevel + 1)}`
+              // return `${'───'.repeat(nestedLevel + 1)}`
+              return `${' │ '.repeat(nestedLevel)}`
             }
 
             for (let i = 0; i < fetchMetrics.length; i++) {
@@ -1197,9 +1215,12 @@ export default class NextNodeServer extends BaseServer {
               }
 
               if (enabledVerboseLogging) {
-                process.stdout.write(
-                  `${' '.repeat(12)} ${chalk.grey(
-                    `${lastItem ? '└' : '├'}${calcNestedLevel(
+                // const newLineLeadingChar = lastItem ? '└' : '├'
+                const newLineLeadingChar = '│'
+                // process.stdout.write
+                writeStdoutDiv(
+                  ` ${chalk.grey(
+                    `${newLineLeadingChar}${calcNestedLevel(
                       fetchMetrics.slice(0, i),
                       metric.start
                     )}`
@@ -1211,10 +1232,11 @@ export default class NextNodeServer extends BaseServer {
             }
           } else {
             if (enabledVerboseLogging) {
-              process.stdout.write(
-                `${Log.now()} ${chalk.white.bold(req.method || 'GET')} ${
-                  req.url
-                } ${res.statusCode} in ${getDurationStr(reqDuration)}\n`
+              // process.stdout.write
+              writeStdoutDiv(
+                `${chalk.white.bold(req.method || 'GET')} ${req.url} ${
+                  res.statusCode
+                } in ${getDurationStr(reqDuration)}\n`
               )
             }
           }
