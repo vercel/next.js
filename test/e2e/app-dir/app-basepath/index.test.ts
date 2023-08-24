@@ -1,4 +1,5 @@
 import { createNextDescribe } from 'e2e-utils'
+import { check } from 'next-test-utils'
 
 createNextDescribe(
   'app dir basepath',
@@ -33,6 +34,14 @@ createNextDescribe(
       const ogImageHref = $('meta[property="og:image"]').attr('content')
 
       expect(ogImageHref).toContain('/base/another/opengraph-image.png')
+    })
+
+    it('should prefix redirect() with basePath', async () => {
+      const browser = await next.browser('/base/redirect')
+      await check(async () => {
+        expect(await browser.url()).toBe(`${next.url}/base/another`)
+        return 'success'
+      }, 'success')
     })
   }
 )

@@ -23,7 +23,6 @@ export function runTests(
     (versionParts[0] === 16 && versionParts[1] >= 14)
   ) {
     let next: NextInstance
-    jest.setTimeout(8 * 60 * 1000)
 
     beforeAll(async () => {
       const srcDir = join(__dirname, '../../../../examples', example)

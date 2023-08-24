@@ -2,15 +2,16 @@ import type { TLSSocket } from 'tls'
 import type { FsOutput } from './filesystem'
 import type { IncomingMessage } from 'http'
 import type { NextConfigComplete } from '../../config-shared'
+import type { RenderWorker, initialize } from '../router-server'
 
 import url from 'url'
 import { Redirect } from '../../../../types'
-import { RenderWorker } from '../router-server'
 import setupDebug from 'next/dist/compiled/debug'
 import { getCloneableBody } from '../../body-streams'
 import { filterReqHeaders, ipcForbiddenHeaders } from '../server-ipc/utils'
 import { Header } from '../../../lib/load-custom-routes'
 import { stringifyQuery } from '../../server-route-utils'
+import { formatHostname } from '../format-hostname'
 import { toNodeOutgoingHttpHeaders } from '../../web/utils'
 import { invokeRequest } from '../server-ipc/invoke-request'
 import { isAbortError } from '../../pipe-readable'
@@ -45,7 +46,7 @@ export function getResolveRoutes(
     ReturnType<typeof import('./filesystem').setupFsCheck>
   >,
   config: NextConfigComplete,
-  opts: Parameters<typeof import('../router-server').initialize>[0],
+  opts: Parameters<typeof initialize>[0],
   renderWorkers: {
     app?: RenderWorker
     pages?: RenderWorker
@@ -137,7 +138,9 @@ export function getResolveRoutes(
     const initUrl = (config.experimental as any).trustHostHeader
       ? `https://${req.headers.host || 'localhost'}${req.url}`
       : opts.port
-      ? `${protocol}://${opts.hostname || 'localhost'}:${opts.port}${req.url}`
+      ? `${protocol}://${formatHostname(opts.hostname || 'localhost')}:${
+          opts.port
+        }${req.url}`
       : req.url || ''
 
     addRequestMeta(req, '__NEXT_INIT_URL', initUrl)

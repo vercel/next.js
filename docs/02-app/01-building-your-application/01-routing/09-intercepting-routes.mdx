@@ -8,9 +8,9 @@ related:
     - app/building-your-application/routing/parallel-routes
 ---
 
-Intercepting routes allows you to load a route within the current layout while keeping the context for the current page. This routing paradigm can be useful when you want to "intercept" a certain route to show a different route.
+Intercepting routes allows you to load a route from another part of your application within the current layout. This routing paradigm can be useful when you want to display the content of a route without the user switching to a different context.
 
-For example, when clicking on a photo from within a feed, a modal overlaying the feed should show up with the photo. In this case, Next.js intercepts the `/feed` route and "masks" this URL to show `/photo/123` instead.
+For example, when clicking on a photo in a feed, you can display the photo in a modal, overlaying the feed. In this case, Next.js intercepts the `/photo/123` route, masks the URL, and overlays it over `/feed`.
 
 <Image
   alt="Intercepting routes soft navigation"
