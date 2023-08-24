@@ -2312,10 +2312,38 @@ createNextDescribe(
     })
 
     if (process.env.CUSTOM_CACHE_HANDLER && !isNextDeploy) {
-      it('should have logs from cache-handler', () => {
-        expect(next.cliOutput).toContain('initialized custom cache-handler')
-        expect(next.cliOutput).toContain('cache-handler get')
-        expect(next.cliOutput).toContain('cache-handler set')
+      let nextConfig
+      describe('custom cache handler initialization check', () => {
+        beforeAll(async () => {
+          await next.stop()
+          nextConfig = await next.readFile('./next.config.js')
+          await next.patchFile(
+            './next.config.js',
+            nextConfig.replace(
+              'cache-handler.js',
+              'cache-handler-default-export.js'
+            )
+          )
+          await next.start()
+        })
+
+        afterAll(async () => {
+          await next.stop()
+          await next.patchFile(
+            './next.config.js',
+            nextConfig.replace(
+              'cache-handler-default-export.js',
+              'cache-handler.js'
+            )
+          )
+          await next.start()
+        })
+
+        it('should have logs from cache-handler', () => {
+          expect(next.cliOutput).toContain('initialized custom cache-handler')
+          expect(next.cliOutput).toContain('cache-handler get')
+          expect(next.cliOutput).toContain('cache-handler set')
+        })
       })
     }
   }
