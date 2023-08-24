@@ -1044,6 +1044,12 @@ export default class NextNodeServer extends BaseServer {
     return this.runApi(req, res, query, match)
   }
 
+  protected async getPrefetchRsc(pathname: string) {
+    return this.getCacheFilesystem()
+      .readFile(join(this.serverDistDir, 'app', `${pathname}.prefetch.rsc`))
+      .then((res) => res.toString())
+  }
+
   protected getCacheFilesystem(): CacheFs {
     return nodeFs
   }
@@ -1849,8 +1855,10 @@ export default class NextNodeServer extends BaseServer {
         getRequestMeta(params.req, '_nextIncrementalCache'),
     })
 
-    params.res.statusCode = result.response.status
-    params.res.statusMessage = result.response.statusText
+    if (!params.res.statusCode || params.res.statusCode < 400) {
+      params.res.statusCode = result.response.status
+      params.res.statusMessage = result.response.statusText
+    }
 
     // TODO: (wyattjoh) investigate improving this
 
