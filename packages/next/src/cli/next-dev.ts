@@ -28,7 +28,6 @@ import { checkIsNodeDebugging } from '../server/lib/is-node-debugging'
 import { createSelfSignedCertificate } from '../lib/mkcert'
 import uploadTrace from '../trace/upload-trace'
 import { loadEnvConfig } from '@next/env'
-import { version } from '../../package.json'
 
 let dir: string
 let config: NextConfigComplete
@@ -304,17 +303,26 @@ const nextDev: CliCommand = async (argv) => {
   // some set-ups that rely on listening on other interfaces
   const host = args['--hostname']
 
-  Log.bootstrap(Log.prefixes.ready, `Next.js ${version}`)
-
   const { loadedEnvFiles } = loadEnvConfig(dir, true, console, false)
+
+  let envInfo: string[] = []
+  let expFeatureInfo: string[] = []
+  config = await loadConfig(
+    PHASE_DEVELOPMENT_SERVER,
+    dir,
+    undefined,
+    undefined,
+    undefined,
+    (userConfig) => {
+      expFeatureInfo = Object.keys(userConfig.experimental || {})
+    }
+  )
   if (loadedEnvFiles.length > 0) {
-    Log.bootstrap(
-      '- Environments:',
-      loadedEnvFiles.map((f) => f.path).join(', ')
-    )
+    envInfo = loadedEnvFiles
+      .map((f) => f.path)
+      .sort((a, b) => b.length - a.length)
   }
 
-  config = await loadConfig(PHASE_DEVELOPMENT_SERVER, dir)
   const isExperimentalTestProxy = args['--experimental-test-proxy']
 
   if (args['--experimental-upload-trace']) {
@@ -328,6 +336,8 @@ const nextDev: CliCommand = async (argv) => {
     isDev: true,
     hostname: host,
     isExperimentalTestProxy,
+    envInfo,
+    expFeatureInfo,
   }
 
   if (args['--turbo']) {
@@ -417,6 +427,7 @@ const nextDev: CliCommand = async (argv) => {
     const runDevServer = async (reboot: boolean) => {
       try {
         const workerInit = await createRouterWorker(config)
+
         if (!!args['--experimental-https']) {
           Log.warn(
             'Self-signed certificates are currently an experimental feature, use at your own risk.'

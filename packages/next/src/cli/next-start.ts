@@ -6,8 +6,6 @@ import { getPort, printAndExit } from '../server/lib/utils'
 import { getProjectDir } from '../lib/get-project-dir'
 import { CliCommand } from '../lib/commands'
 import { getValidatedArgs } from '../lib/get-validated-args'
-import * as Log from '../build/output/log'
-import { version } from '../../package.json'
 
 const nextStart: CliCommand = async (argv) => {
   const validArgs: arg.Spec = {

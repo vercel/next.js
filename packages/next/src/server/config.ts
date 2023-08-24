@@ -5,7 +5,7 @@ import findUp from 'next/dist/compiled/find-up'
 import chalk from '../lib/chalk'
 import * as Log from '../build/output/log'
 import { CONFIG_FILES, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
-import { execOnce } from '../shared/lib/utils'
+// import { execOnce } from '../shared/lib/utils'
 import {
   defaultConfig,
   normalizeConfig,
@@ -23,13 +23,13 @@ import { setHttpClientAndAgentOptions } from './setup-http-agent-env'
 
 export { DomainLocale, NextConfig, normalizeConfig } from './config-shared'
 
-const experimentalWarning = execOnce((features: string[]) => {
-  const s = features.length > 1 ? 's' : ''
-  Log.bootstrap(
-    `- Experimental feature${s} (use at your own risk): ` +
-      chalk.bold(`${features.join(', ')}`)
-  )
-})
+// const experimentalWarning = execOnce((features: string[]) => {
+//   const s = features.length > 1 ? 's' : ''
+//   Log.bootstrap(
+//     `- Experimental feature${s} (use at your own risk): ` +
+//       chalk.bold(`${features.join(', ')}`)
+//   )
+// })
 
 export function warnOptionHasBeenMovedOutOfExperimental(
   config: NextConfig,
@@ -102,9 +102,9 @@ function assignDefaults(
           }
         }
 
-        if (!silent && enabledExperiments.length > 0) {
-          experimentalWarning(enabledExperiments)
-        }
+        // if (!silent && enabledExperiments.length > 0) {
+        //   experimentalWarning(enabledExperiments)
+        // }
       }
 
       if (key === 'distDir') {
@@ -772,7 +772,8 @@ export default async function loadConfig(
   dir: string,
   customConfig?: object | null,
   rawConfig?: boolean,
-  silent?: boolean
+  silent?: boolean,
+  onLoadUserConfig?: (conf: NextConfig) => void
 ): Promise<NextConfigComplete> {
   if (!process.env.__NEXT_PRIVATE_RENDER_WORKER) {
     try {
@@ -920,6 +921,7 @@ export default async function loadConfig(
           : canonicalBase) || ''
     }
 
+    onLoadUserConfig?.(userConfig)
     const completeConfig = assignDefaults(
       dir,
       {

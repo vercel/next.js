@@ -16,6 +16,9 @@ import {
   WorkerUpgradeHandler,
 } from './setup-server-worker'
 import { checkIsNodeDebugging } from './is-node-debugging'
+import chalk from '../../lib/chalk'
+import { version } from '../../../package.json'
+
 const debug = setupDebug('next:start-server')
 
 export interface StartServerOptions {
@@ -28,6 +31,9 @@ export interface StartServerOptions {
   customServer?: boolean
   minimalMode?: boolean
   keepAliveTimeout?: number
+  // logging info
+  envInfo: string[]
+  expFeatureInfo: string[]
   // this is dev-server only
   selfSignedCertificate?: {
     key: string
@@ -79,6 +85,8 @@ export async function startServer({
   isExperimentalTestProxy,
   logReady = true,
   selfSignedCertificate,
+  envInfo,
+  expFeatureInfo,
 }: StartServerOptions): Promise<void> {
   let handlersReady = () => {}
   let handlersError = () => {}
@@ -210,12 +218,29 @@ export async function startServer({
       }
 
       if (logReady) {
-        Log.bootstrap(`- Local: ${appUrl}`)
         Log.bootstrap(
-          `- Network: ${actualHostname}${
+          chalk.hex('#ad7fa8').bold(` ${Log.prefixes.ready} Next.js ${version}`)
+        )
+        Log.bootstrap(` - Local:        ${appUrl}`)
+        Log.bootstrap(
+          ` - Network:      ${actualHostname}${
             (port + '').startsWith(':') ? '' : ':'
           }${port}`
         )
+        if (envInfo.length)
+          Log.bootstrap(` - Environments: ${envInfo.join(', ')}`)
+
+        if (expFeatureInfo.length) {
+          Log.bootstrap(` - Experiments (use at your own risk):`)
+          // only show maximum 3 flags
+          for (const exp of expFeatureInfo.slice(0, 3)) {
+            Log.bootstrap(`    · ${exp}`)
+          }
+          /* ${expFeatureInfo.length - 3} more */
+          if (expFeatureInfo.length > 3) {
+            Log.bootstrap(`    · ...`)
+          }
+        }
         // expose the main port to render workers
         process.env.PORT = port + ''
         console.log('')
