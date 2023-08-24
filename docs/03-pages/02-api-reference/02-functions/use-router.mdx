@@ -445,11 +445,10 @@ export default function MyApp({ Component, pageProps }) {
 
 ## The `next/compat/router` export
 
-After Next.js 13, a new export `next/compat/router` is exposed to maintain compatibility with the old `next/router` API.
-This is the same `useRouter` hook but can be used in both `app` and `pages` directories.
+This is the same `useRouter` hook, but can be used in both `app` and `pages` directories.
 
 It differs from `next/router` in that it does not throw an error when the pages router is not mounted, and instead has a return type of `NextRouter | null`.
-This allows developers to convert components to support running in both `app` and `pages` as they update to Next.js 13 or transition to the `app` router.
+This allows developers to convert components to support running in both `app` and `pages` as they transition to the `app` router.
 
 A component that previously looked like this:
 
