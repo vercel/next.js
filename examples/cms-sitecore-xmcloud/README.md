@@ -1,0 +1,60 @@
+# A Next.js Example Using Sitecore JSS and Sitecore XM Cloud
+
+This example connects to a Sitecore XM Cloud site using the Sitecore JavaScript Rendering SDK (JSS) for Next.js and includes example components and configuration for headless SXA (Sitecore Experience Accelerator). For more information on creating and deploying a headless Sitecore solution to XM Cloud please refer to [Vercel's Sitecore XM Cloud Integration Guide](https://vercel.com/docs/integrations/sitecore) or official [Sitecore documentation](https://doc.sitecore.com/xmc/en/developers/xm-cloud/create-an-xm-cloud-project-from-a-starter-template-in-the-xm-cloud-deploy-app.html).
+
+## Deploy your own
+
+Using the Deploy Button below, you'll deploy the Next.js project as well as connect it to your XM Cloud project with the required environment variables.
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fcms-sitecore&env=GRAPH_QL_ENDPOINT,SITECORE_API_KEY,SITECORE_API_HOST,JSS_APP_NAME,FETCH_WITH&envDescription=Enviroment%20variables%20required%20for%20connecting%20to%20Sitecore%20XM%20Cloud&project-name=sitecore-xmcloud-example&repository-name=sitecore-xmcloud-example-repository)
+
+- `JSS_APP_NAME`: The name of the JSS app that is configured in XM Cloud.
+- `GRAPH_QL_ENDPOINT`: The GraphQL Edge endpoint. This is required for Sitecore Experience Edge.
+- `SITECORE_API_KEY`: The Sitecore API key is required to build the app.
+- `SITECORE_API_HOST`: The host of the Sitecore API.
+- `FETCH_WITH`: The fetch method to the Sitecore API. This can be either `GraphQL` or `REST`.
+
+### Related examples
+
+- [AgilityCMS](/examples/cms-agilitycms)
+- [Builder.io](/examples/cms-builder-io)
+- [ButterCMS](/examples/cms-buttercms)
+- [Contentful](/examples/cms-contentful)
+- [Cosmic](/examples/cms-cosmic)
+- [DatoCMS](/examples/cms-datocms)
+- [DotCMS](/examples/cms-dotcms)
+- [Drupal](/examples/cms-drupal)
+- [Enterspeed](/examples/cms-enterspeed)
+- [Ghost](/examples/cms-ghost)
+- [GraphCMS](/examples/cms-graphcms)
+- [Kontent](/examples/cms-kontent-ai)
+- [Prepr](/examples/cms-prepr)
+- [Prismic](/examples/cms-prismic)
+- [Sanity](/examples/cms-sanity)
+- [Sitefinity](/examples/cms-sitefinity)
+- [Storyblok](/examples/cms-storyblok)
+- [TakeShape](/examples/cms-takeshape)
+- [Umbraco heartcore](/examples/cms-umbraco-heartcore)
+- [Webiny](/examples/cms-webiny)
+- [Blog Starter](/examples/blog-starter)
+- [WordPress](/examples/cms-wordpress)
+
+## How to use
+
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
+
+```bash
+npx create-next-app --example cms-sitecore-xmcloud cms-sitecore-xmcloud-app
+```
+
+```bash
+yarn create-next-app --example cms-sitecore-xmcloud cms-sitecore-xmcloud-app
+```
+
+```bash
+pnpm create-next-app --example cms-sitecore-xmcloud cms-sitecore-xmcloud-app
+```
+
+## Configuration
+
+To configure and run this example you can follow our [Sitecore XM Cloud Integration Guide](https://vercel.com/docs/integrations/sitecore)
