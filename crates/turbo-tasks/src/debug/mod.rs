@@ -1,6 +1,7 @@
 use std::fmt::{Debug, Display};
 
 use auto_hash_map::{AutoMap, AutoSet};
+use indexmap::{IndexMap, IndexSet};
 use turbo_tasks::Vc;
 pub use turbo_tasks_macros::ValueDebugFormat;
 
@@ -243,6 +244,75 @@ where
                         values_string.insert(key, PassthroughDebug::new_string(future.await?));
                     }
                 }
+            }
+            Ok(format!("{:#?}", values_string))
+        }))
+    }
+}
+
+impl<T> ValueDebugFormat for IndexSet<T>
+where
+    T: ValueDebugFormat,
+{
+    fn value_debug_format(&self, depth: usize) -> ValueDebugFormatString {
+        if depth == 0 {
+            return ValueDebugFormatString::Sync(std::any::type_name::<Self>().to_string());
+        }
+
+        let values = self
+            .iter()
+            .map(|value| value.value_debug_format(depth.saturating_sub(1)))
+            .collect::<Vec<_>>();
+
+        ValueDebugFormatString::Async(Box::pin(async move {
+            let mut values_string = IndexSet::new();
+            for value in values {
+                let value = match value {
+                    ValueDebugFormatString::Sync(string) => string,
+                    ValueDebugFormatString::Async(future) => future.await?,
+                };
+                values_string.insert(PassthroughDebug::new_string(value));
+            }
+            Ok(format!("{:#?}", values_string))
+        }))
+    }
+}
+
+impl<K, V> ValueDebugFormat for IndexMap<K, V>
+where
+    K: ValueDebugFormat,
+    V: ValueDebugFormat,
+{
+    fn value_debug_format(&self, depth: usize) -> ValueDebugFormatString {
+        if depth == 0 {
+            return ValueDebugFormatString::Sync(std::any::type_name::<Self>().to_string());
+        }
+
+        let values = self
+            .iter()
+            .map(|(key, value)| {
+                (
+                    key.value_debug_format(depth.saturating_sub(1)),
+                    value.value_debug_format(depth.saturating_sub(1)),
+                )
+            })
+            .collect::<Vec<_>>();
+
+        ValueDebugFormatString::Async(Box::pin(async move {
+            let mut values_string = IndexMap::new();
+            for (key, value) in values {
+                let key = match key {
+                    ValueDebugFormatString::Sync(string) => string,
+                    ValueDebugFormatString::Async(future) => future.await?,
+                };
+                let value = match value {
+                    ValueDebugFormatString::Sync(string) => string,
+                    ValueDebugFormatString::Async(future) => future.await?,
+                };
+                values_string.insert(
+                    PassthroughDebug::new_string(key),
+                    PassthroughDebug::new_string(value),
+                );
             }
             Ok(format!("{:#?}", values_string))
         }))

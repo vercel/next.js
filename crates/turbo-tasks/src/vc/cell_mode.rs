@@ -24,7 +24,7 @@ where
 {
     fn cell(inner: <T::Read as VcRead<T>>::Target) -> Vc<T> {
         let cell = find_cell_by_type(T::get_value_type_id());
-        cell.update_shared(<T::Read as VcRead<T>>::target_to_value(inner));
+        cell.update_shared(<T::Read as VcRead<T>>::target_to_repr(inner));
         Vc {
             node: cell.into(),
             _t: PhantomData,
@@ -40,11 +40,12 @@ pub struct VcCellSharedMode<T> {
 
 impl<T> VcCellMode<T> for VcCellSharedMode<T>
 where
-    T: VcValueType + PartialEq,
+    T: VcValueType,
+    <<T as VcValueType>::Read as VcRead<T>>::Repr: PartialEq,
 {
     fn cell(inner: <T::Read as VcRead<T>>::Target) -> Vc<T> {
         let cell = find_cell_by_type(T::get_value_type_id());
-        cell.compare_and_update_shared(<T::Read as VcRead<T>>::target_to_value(inner));
+        cell.compare_and_update_shared(<T::Read as VcRead<T>>::target_to_repr(inner));
         Vc {
             node: cell.into(),
             _t: PhantomData,

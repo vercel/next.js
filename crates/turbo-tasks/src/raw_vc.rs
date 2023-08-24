@@ -282,7 +282,7 @@ pub struct ReadRawVcFuture<T: ?Sized, Cast = VcValueTypeCast<T>> {
 }
 
 impl<T: ?Sized, Cast: VcCast> ReadRawVcFuture<T, Cast> {
-    fn new(vc: RawVc) -> Self {
+    pub(crate) fn new(vc: RawVc) -> Self {
         let tt = turbo_tasks();
         ReadRawVcFuture {
             turbo_tasks: tt,

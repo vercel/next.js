@@ -36,8 +36,9 @@ pub fn primitive(input: TokenStream) -> TokenStream {
     let value_type_and_register = value_type_and_register(
         &ident,
         quote! { #ty },
+        None,
         quote! {
-            turbo_tasks::VcTransparentRead<#ty, #ty>
+            turbo_tasks::VcTransparentRead<#ty, #ty, #ty>
         },
         quote! {
             turbo_tasks::VcCellSharedMode<#ty>

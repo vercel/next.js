@@ -60,6 +60,7 @@ impl<'a> std::fmt::Debug for FormattingStruct<'a> {
 }
 
 /// Debug implementation that prints an unquoted, unescaped string.
+#[derive(PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct PassthroughDebug<'a>(Cow<'a, str>);
 
 impl<'a> PassthroughDebug<'a> {
