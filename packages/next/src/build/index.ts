@@ -1278,6 +1278,7 @@ export default async function build(
         CacheHandler = require(path.isAbsolute(incrementalCacheHandlerPath)
           ? incrementalCacheHandlerPath
           : path.join(dir, incrementalCacheHandlerPath))
+        CacheHandler = CacheHandler.default || CacheHandler
       }
 
       const { ipcPort, ipcValidationKey } = await initialize({
