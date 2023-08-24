@@ -221,6 +221,12 @@ export default class NextNodeServer extends BaseServer {
 
     // ensure options are set when loadConfig isn't called
     setHttpClientAndAgentOptions(this.nextConfig)
+
+    // Intercept fetch and other testmode apis.
+    if (this.serverOptions.experimentalTestProxy) {
+      const { interceptTestApis } = require('../experimental/testmode/server')
+      interceptTestApis()
+    }
   }
 
   protected async prepareImpl() {
@@ -425,7 +431,7 @@ export default class NextNodeServer extends BaseServer {
         trustHostHeader: this.nextConfig.experimental.trustHostHeader,
         allowedRevalidateHeaderKeys:
           this.nextConfig.experimental.allowedRevalidateHeaderKeys,
-        hostname: this.hostname,
+        hostname: this.fetchHostname,
         minimalMode: this.minimalMode,
         dev: this.renderOpts.dev === true,
         query,
@@ -485,15 +491,6 @@ export default class NextNodeServer extends BaseServer {
     )
   }
 
-  private streamResponseChunk(res: ServerResponse, chunk: any) {
-    res.write(chunk)
-    // When streaming is enabled, we need to explicitly
-    // flush the response to avoid it being buffered.
-    if ('flush' in res) {
-      ;(res as any).flush()
-    }
-  }
-
   protected async imageOptimizer(
     req: NodeNextRequest,
     res: NodeNextResponse,
@@ -515,7 +512,7 @@ export default class NextNodeServer extends BaseServer {
 
         if (this.isRenderWorker) {
           const invokeRes = await invokeRequest(
-            `http://${this.hostname || '127.0.0.1'}:${this.port}${
+            `http://${this.fetchHostname || 'localhost'}:${this.port}${
               newReq.url || ''
             }`,
             {
@@ -1027,7 +1024,7 @@ export default class NextNodeServer extends BaseServer {
         return {
           finished: true,
         }
-      } catch (_) {}
+      } catch {}
 
       throw err
     }
@@ -1048,6 +1045,12 @@ export default class NextNodeServer extends BaseServer {
     return this.runApi(req, res, query, match)
   }
 
+  protected async getPrefetchRsc(pathname: string) {
+    return this.getCacheFilesystem()
+      .readFile(join(this.serverDistDir, 'app', `${pathname}.prefetch.rsc`))
+      .then((res) => res.toString())
+  }
+
   protected getCacheFilesystem(): CacheFs {
     return nodeFs
   }
@@ -1065,11 +1068,22 @@ export default class NextNodeServer extends BaseServer {
   }
 
   public getRequestHandler(): NodeRequestHandler {
+    const handler = this.makeRequestHandler()
+    if (this.serverOptions.experimentalTestProxy) {
+      const {
+        wrapRequestHandlerNode,
+      } = require('../experimental/testmode/server')
+      return wrapRequestHandlerNode(handler)
+    }
+    return handler
+  }
+
+  private makeRequestHandler(): NodeRequestHandler {
     // This is just optimization to fire prepare as soon as possible
     // It will be properly awaited later
     void this.prepare()
     const handler = super.getRequestHandler()
-    return async (req, res, parsedUrl) => {
+    return (req, res, parsedUrl) => {
       const normalizedReq = this.normalizeReq(req)
       const normalizedRes = this.normalizeRes(res)
 
@@ -1496,7 +1510,7 @@ export default class NextNodeServer extends BaseServer {
       const locale = params.parsed.query.__nextLocale
 
       url = `${getRequestMeta(params.request, '_protocol')}://${
-        this.hostname
+        this.fetchHostname
       }:${this.port}${locale ? `/${locale}` : ''}${params.parsed.pathname}${
         query ? `?${query}` : ''
       }`
@@ -1747,9 +1761,9 @@ export default class NextNodeServer extends BaseServer {
 
     // When there are hostname and port we build an absolute URL
     const initUrl =
-      this.hostname && this.port
-        ? `${protocol}://${this.hostname}:${this.port}${req.url}`
-        : (this.nextConfig.experimental as any).trustHostHeader
+      this.fetchHostname && this.port
+        ? `${protocol}://${this.fetchHostname}:${this.port}${req.url}`
+        : this.nextConfig.experimental.trustHostHeader
         ? `https://${req.headers.host || 'localhost'}${req.url}`
         : req.url
 
@@ -1842,8 +1856,10 @@ export default class NextNodeServer extends BaseServer {
         getRequestMeta(params.req, '_nextIncrementalCache'),
     })
 
-    params.res.statusCode = result.response.status
-    params.res.statusMessage = result.response.statusText
+    if (!params.res.statusCode || params.res.statusCode < 400) {
+      params.res.statusCode = result.response.status
+      params.res.statusMessage = result.response.statusText
+    }
 
     // TODO: (wyattjoh) investigate improving this
 

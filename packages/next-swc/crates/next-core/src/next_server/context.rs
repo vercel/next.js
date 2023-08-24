@@ -4,7 +4,7 @@ use turbo_tasks_fs::FileSystem;
 use turbopack_binding::{
     turbo::{tasks_env::ProcessEnv, tasks_fs::FileSystemPath},
     turbopack::{
-        build::BuildChunkingContext,
+        build::{BuildChunkingContext, MinifyType},
         core::{
             compile_time_defines,
             compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReferences},
@@ -108,14 +108,13 @@ pub async fn get_server_resolve_options_context(
     let mut custom_conditions = vec![mode.node_env().to_string(), "node".to_string()];
 
     match ty {
-        ServerContextType::AppRSC { .. }
-        | ServerContextType::AppRoute { .. }
-        | ServerContextType::Middleware { .. } => {
+        ServerContextType::AppRSC { .. } | ServerContextType::AppRoute { .. } => {
             custom_conditions.push("react-server".to_string())
         }
         ServerContextType::Pages { .. }
         | ServerContextType::PagesData { .. }
-        | ServerContextType::AppSSR { .. } => {}
+        | ServerContextType::AppSSR { .. }
+        | ServerContextType::Middleware { .. } => {}
     };
     let external_cjs_modules_plugin = ExternalCjsModulesResolvePlugin::new(
         project_path,
@@ -602,5 +601,6 @@ pub fn get_server_chunking_context(
         client_root.join("static/media".to_string()),
         environment,
     )
+    .minify_type(MinifyType::NoMinify)
     .build()
 }

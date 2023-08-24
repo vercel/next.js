@@ -20,6 +20,14 @@ createNextDescribe(
     },
   },
   ({ next, isNextDev, isNextStart, isNextDeploy }) => {
+    if (isNextStart) {
+      it('should warn for server actions + ISR incompat', async () => {
+        expect(next.cliOutput).toContain(
+          'Using server actions on a page currently disables static generation for that page'
+        )
+      })
+    }
+
     it('should handle basic actions correctly', async () => {
       const browser = await next.browser('/server')
 
@@ -64,6 +72,24 @@ createNextDescribe(
           ? 'same'
           : 'different'
       }, 'same')
+    })
+
+    it('should push new route when redirecting', async () => {
+      const browser = await next.browser('/header')
+
+      await browser.elementByCss('#setCookieAndRedirect').click()
+      await check(async () => {
+        return (await browser.elementByCss('#redirected').text()) || ''
+      }, 'redirected')
+
+      // Ensure we can navigate back
+      await browser.back()
+
+      await check(async () => {
+        return (
+          (await browser.elementByCss('#setCookieAndRedirect').text()) || ''
+        )
+      }, 'setCookieAndRedirect')
     })
 
     it('should support headers in client imported actions', async () => {
@@ -250,6 +276,40 @@ createNextDescribe(
       await check(() => browser.elementByCss('#value').text(), 'Value = 2')
     })
 
+    it('should not block navigation events while a server action is in flight', async () => {
+      let browser = await next.browser('/client')
+
+      await browser.elementByCss('#slow-inc').click()
+
+      // navigate to server
+      await browser.elementByCss('#navigate-server').click()
+      // intentionally bailing after 2 retries so we don't retry to the point where the async function resolves
+      await check(() => browser.url(), `${next.url}/server`, true, 2)
+
+      browser = await next.browser('/server')
+
+      await browser.elementByCss('#slow-inc').click()
+
+      // navigate to client
+      await browser.elementByCss('#navigate-client').click()
+      // intentionally bailing after 2 retries so we don't retry to the point where the async function resolves
+      await check(() => browser.url(), `${next.url}/client`, true, 2)
+    })
+
+    it('should support next/dynamic with ssr: false', async () => {
+      const browser = await next.browser('/dynamic-csr')
+
+      await check(() => {
+        return browser.elementByCss('button').text()
+      }, '0')
+
+      await browser.elementByCss('button').click()
+
+      await check(() => {
+        return browser.elementByCss('button').text()
+      }, '1')
+    })
+
     if (isNextStart) {
       it('should not expose action content in sourcemaps', async () => {
         const sourcemap = (
@@ -392,6 +452,16 @@ createNextDescribe(
           )
           return newTestCookie !== currentTestCookie ? 'success' : 'failure'
         }, 'success')
+      })
+
+      it('should handle unicode search params', async () => {
+        const browser = await next.browser('/server?name=名')
+
+        const cnt = await browser.elementByCss('h1').text()
+        expect(cnt).toBe('0')
+
+        await browser.elementByCss('#inc').click()
+        await check(() => browser.elementByCss('h1').text(), '1')
       })
     })
 

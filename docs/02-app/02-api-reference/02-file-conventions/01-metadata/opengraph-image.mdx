@@ -68,7 +68,7 @@ About Acme
 ```
 
 ```html filename="<head> output"
-<meta property="og:image:alt" content="About Acme" />
+<meta property="twitter:image:alt" content="About Acme" />
 ```
 
 ## Generate images using code (.js, .ts, .tsx)
@@ -104,13 +104,13 @@ export const size = {
 
 export const contentType = 'image/png'
 
-// Font
-const interSemiBold = fetch(
-  new URL('./Inter-SemiBold.ttf', import.meta.url)
-).then((res) => res.arrayBuffer())
-
 // Image generation
 export default async function Image() {
+  // Font
+  const interSemiBold = fetch(
+    new URL('./Inter-SemiBold.ttf', import.meta.url)
+  ).then((res) => res.arrayBuffer())
+
   return new ImageResponse(
     (
       // ImageResponse JSX element
@@ -159,15 +159,15 @@ export const size = {
   height: 630,
 }
 
-// Font
-const interSemiBold = fetch(
-  new URL('./Inter-SemiBold.ttf', import.meta.url)
-).then((res) => res.arrayBuffer())
-
 export const contentType = 'image/png'
 
 // Image generation
 export default function Image() {
+  // Font
+  const interSemiBold = fetch(
+    new URL('./Inter-SemiBold.ttf', import.meta.url)
+  ).then((res) => res.arrayBuffer())
+
   return new ImageResponse(
     (
       // ImageResponse JSX element

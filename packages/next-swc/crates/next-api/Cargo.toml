@@ -24,7 +24,7 @@ once_cell = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 shadow-rs = { workspace = true }
-tokio = { workspace = true, features = ["full"] }
+tokio = { workspace = true }
 turbopack-binding = { workspace = true, features = [
   "__turbo_tasks_memory",
   "__turbo_tasks_env",

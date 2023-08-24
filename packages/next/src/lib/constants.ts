@@ -15,7 +15,6 @@ export const MIDDLEWARE_LOCATION_REGEXP = `(?:src/)?${MIDDLEWARE_FILENAME}`
 
 // Pattern to detect instrumentation hooks file
 export const INSTRUMENTATION_HOOK_FILENAME = 'instrumentation'
-export const INSTRUMENTATION_HOOKS_LOCATION_REGEXP = `(?:src/)?${INSTRUMENTATION_HOOK_FILENAME}`
 
 // Because on Windows absolute paths in the generated code can break because of numbers, eg 1 in the path,
 // we have to use a private alias
@@ -132,14 +131,6 @@ const WEBPACK_LAYERS_NAMES = {
 export const WEBPACK_LAYERS = {
   ...WEBPACK_LAYERS_NAMES,
   GROUP: {
-    app: [
-      WEBPACK_LAYERS_NAMES.shared,
-      WEBPACK_LAYERS_NAMES.reactServerComponents,
-      WEBPACK_LAYERS_NAMES.serverSideRendering,
-      WEBPACK_LAYERS_NAMES.actionBrowser,
-      WEBPACK_LAYERS_NAMES.appPagesBrowser,
-      WEBPACK_LAYERS_NAMES.appMetadataRoute,
-    ],
     server: [
       WEBPACK_LAYERS_NAMES.reactServerComponents,
       WEBPACK_LAYERS_NAMES.actionBrowser,
@@ -149,7 +140,7 @@ export const WEBPACK_LAYERS = {
 }
 
 export const WEBPACK_RESOURCE_QUERIES = {
-  edgeRSCEntry: '__next_edge_rsc_entry__',
+  edgeSSREntry: '__next_edge_ssr_entry__',
   metadata: '__next_metadata__',
   metadataRoute: '__next_metadata_route__',
   metadataImageMeta: '__next_metadata_image_meta__',

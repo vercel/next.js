@@ -53,7 +53,6 @@ import {
 } from '../server/load-components'
 import { trace } from '../trace'
 import { setHttpClientAndAgentOptions } from '../server/setup-http-agent-env'
-import { recursiveDelete } from '../lib/recursive-delete'
 import { Sema } from 'next/dist/compiled/async-sema'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
@@ -69,6 +68,9 @@ import { denormalizeAppPagePath } from '../shared/lib/page-path/denormalize-app-
 import { AppRouteRouteModule } from '../server/future/route-modules/app-route/module'
 
 export type ROUTER_TYPE = 'pages' | 'app'
+
+// Use `print()` for expected console output
+const print = console.log
 
 const RESERVED_PAGE = /^\/(_app|_error|_document|api(\/|$))/
 const fileGzipStats: { [k: string]: Promise<number> | undefined } = {}
@@ -320,7 +322,7 @@ export async function printTreeView(
     buildManifest,
     appBuildManifest,
     middlewareManifest,
-    useStatic404,
+    useStaticPages404,
     gzipSize = true,
   }: {
     distPath: string
@@ -330,7 +332,7 @@ export async function printTreeView(
     buildManifest: BuildManifest
     appBuildManifest?: AppBuildManifest
     middlewareManifest: MiddlewareManifest
-    useStatic404: boolean
+    useStaticPages404: boolean
     gzipSize?: boolean
   }
 ) {
@@ -602,10 +604,11 @@ export async function printTreeView(
 
   pageInfos.set('/404', {
     ...(pageInfos.get('/404') || pageInfos.get('/_error')),
-    static: useStatic404,
+    static: useStaticPages404,
   } as any)
 
-  if (!lists.pages.includes('/404')) {
+  // If there's no app /_notFound page present, then the 404 is still using the pages/404
+  if (!lists.pages.includes('/404') && !lists.app?.includes('/_not-found')) {
     lists.pages = [...lists.pages, '/404']
   }
 
@@ -627,15 +630,15 @@ export async function printTreeView(
     messages.push(['ƒ Middleware', getPrettySize(sum(middlewareSizes)), ''])
   }
 
-  console.log(
+  print(
     textTable(messages, {
       align: ['l', 'l', 'r'],
       stringLength: (str) => stripAnsi(str).length,
     })
   )
 
-  console.log()
-  console.log(
+  print()
+  print(
     textTable(
       [
         usedSymbols.has('ℇ') && [
@@ -677,7 +680,7 @@ export async function printTreeView(
     )
   )
 
-  console.log()
+  print()
 }
 
 export function printCustomRoutes({
@@ -691,8 +694,8 @@ export function printCustomRoutes({
   ) => {
     const isRedirects = type === 'Redirects'
     const isHeaders = type === 'Headers'
-    console.log(chalk.underline(type))
-    console.log()
+    print(chalk.underline(type))
+    print()
 
     /*
         ┌ source
@@ -734,7 +737,7 @@ export function printCustomRoutes({
       })
       .join('\n')
 
-    console.log(routesStr, '\n')
+    print(routesStr, '\n')
   }
 
   if (redirects.length) {
@@ -1035,6 +1038,7 @@ export async function buildStaticPaths({
                   .join('/')
               : escapePathDelimiters(paramValue as string, true)
           )
+          .replace(/\\/g, '/')
           .replace(/(?!^)\/$/, '')
 
         encodedBuiltPage = encodedBuiltPage
@@ -1044,6 +1048,7 @@ export async function buildStaticPaths({
               ? (paramValue as string[]).map(encodeURIComponent).join('/')
               : encodeURIComponent(paramValue as string)
           )
+          .replace(/\\/g, '/')
           .replace(/(?!^)\/$/, '')
       })
 
@@ -1133,25 +1138,31 @@ export const collectGenerateParams = async (
     ? segment[2]?.layout?.[0]?.()
     : segment[2]?.page?.[0]?.())
   const config = collectAppConfig(mod)
-
+  const page: string | undefined = segment[0]
   const isClientComponent = isClientReference(mod)
-  const isDynamicSegment = segment[0] && /^\[.+\]$/.test(segment[0])
+  const isDynamicSegment = /^\[.+\]$/.test(page || '')
+  const { generateStaticParams, getStaticPaths } = mod || {}
+
+  //console.log({parentSegments, page, isDynamicSegment, isClientComponent, generateStaticParams})
+  if (isDynamicSegment && isClientComponent && generateStaticParams) {
+    throw new Error(
+      `Page "${page}" cannot export "generateStaticParams()" because it is a client component`
+    )
+  }
 
   const result = {
     isLayout,
     isDynamicSegment,
     segmentPath: `/${parentSegments.join('/')}${
-      segment[0] && parentSegments.length > 0 ? '/' : ''
-    }${segment[0]}`,
+      page && parentSegments.length > 0 ? '/' : ''
+    }${page}`,
     config,
-    getStaticPaths: isClientComponent ? undefined : mod?.getStaticPaths,
-    generateStaticParams: isClientComponent
-      ? undefined
-      : mod?.generateStaticParams,
+    getStaticPaths: isClientComponent ? undefined : getStaticPaths,
+    generateStaticParams: isClientComponent ? undefined : generateStaticParams,
   }
 
-  if (segment[0]) {
-    parentSegments.push(segment[0])
+  if (page) {
+    parentSegments.push(page)
   }
 
   if (result.config || result.generateStaticParams || result.getStaticPaths) {
@@ -1803,7 +1814,7 @@ export async function copyTracedFiles(
     moduleType = packageJson.type === 'module'
   } catch {}
   const copiedFiles = new Set()
-  await recursiveDelete(outputPath)
+  await fs.rm(outputPath, { recursive: true, force: true })
 
   async function handleTraceFiles(traceFilePath: string) {
     const traceData = JSON.parse(await fs.readFile(traceFilePath, 'utf8')) as {
@@ -1924,14 +1935,12 @@ export async function copyTracedFiles(
     serverOutputPath,
     `${
       moduleType
-        ? `import http from 'http'
-import path from 'path'
+        ? `import path from 'path'
 import { fileURLToPath } from 'url'
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
 import { startServer } from 'next/dist/server/lib/start-server.js'
 `
         : `
-const http = require('http')
 const path = require('path')
 const { startServer } = require('next/dist/server/lib/start-server')`
     }
@@ -1950,13 +1959,17 @@ if (!process.env.NEXT_MANUAL_SIG_HANDLE) {
 
 const currentPort = parseInt(process.env.PORT, 10) || 3000
 const hostname = process.env.HOSTNAME || 'localhost'
-let keepAliveTimeout = parseInt(process.env.KEEP_ALIVE_TIMEOUT, 10);
+
+let keepAliveTimeout = parseInt(process.env.KEEP_ALIVE_TIMEOUT, 10)
 const nextConfig = ${JSON.stringify({
       ...serverConfig,
       distDir: `./${path.relative(dir, distDir)}`,
     })}
 
 process.env.__NEXT_PRIVATE_STANDALONE_CONFIG = JSON.stringify(nextConfig)
+process.env.__NEXT_PRIVATE_PREBUNDLED_REACT = nextConfig.experimental && nextConfig.experimental.serverActions
+  ? 'experimental'
+  : 'next'
 
 if (
   Number.isNaN(keepAliveTimeout) ||
@@ -1970,17 +1983,11 @@ startServer({
   dir,
   isDev: false,
   config: nextConfig,
-  hostname: hostname === 'localhost' ? '0.0.0.0' : hostname,
+  hostname,
   port: currentPort,
   allowRetry: false,
   keepAliveTimeout,
   useWorkers: !!nextConfig.experimental?.appDir,
-}).then(() => {
-  console.log(
-    'Listening on port',
-    currentPort,
-    'url: http://' + hostname + ':' + currentPort
-  )
 }).catch((err) => {
   console.error(err);
   process.exit(1);

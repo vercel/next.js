@@ -458,7 +458,7 @@ createNextDescribe(
         })
 
         await matchMultiDom('meta', 'name', 'content', {
-          'twitter:card': 'summary',
+          'twitter:card': 'summary_large_image',
           'twitter:title': 'My custom title',
           'twitter:description': 'My custom description',
           'twitter:image': [
@@ -763,7 +763,7 @@ createNextDescribe(
     })
 
     describe('twitter', () => {
-      it('should support default twitter summary card', async () => {
+      it('should support twitter card summary_large_image when image present', async () => {
         const browser = await next.browser('/twitter')
         const matchMultiDom = createMultiDomMatcher(browser)
 
@@ -775,12 +775,12 @@ createNextDescribe(
           'twitter:creator:id': 'creatorId',
           'twitter:image': 'https://twitter.com/image.png',
           'twitter:image:secure_url': 'https://twitter.com/secure.png',
-          'twitter:card': 'summary',
+          'twitter:card': 'summary_large_image',
         })
       })
 
-      it('should support default twitter summary_large_image card', async () => {
-        const browser = await next.browser('/twitter/large-image')
+      it('should render twitter card summary when image is not present', async () => {
+        const browser = await next.browser('/twitter/no-image')
         const matchMultiDom = createMultiDomMatcher(browser)
 
         await matchMultiDom('meta', 'name', 'content', {
@@ -789,9 +789,7 @@ createNextDescribe(
           'twitter:site:id': 'siteId',
           'twitter:creator': 'creator',
           'twitter:creator:id': 'creatorId',
-          'twitter:image': 'https://twitter.com/large-image.png',
-          'twitter:image:alt': 'image-alt',
-          'twitter:card': 'summary_large_image',
+          'twitter:card': 'summary',
         })
       })
 
