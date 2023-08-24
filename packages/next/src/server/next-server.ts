@@ -1170,21 +1170,26 @@ export default class NextNodeServer extends BaseServer {
                   nestedLevel += 1
                 }
               }
+
               // return `${'───'.repeat(nestedLevel + 1)}`
-              return `${' │ '.repeat(nestedLevel)}`
+              return `${'  │ '.repeat(nestedLevel)}`
             }
 
             for (let i = 0; i < fetchMetrics.length; i++) {
               const metric = fetchMetrics[i]
               const lastItem = i === fetchMetrics.length - 1
               let { cacheStatus, cacheReason } = metric
+              let cacheReasonStr = ''
 
               const duration = metric.end - metric.start
 
               if (cacheStatus === 'hit') {
                 cacheStatus = chalk.green('HIT')
               } else if (cacheStatus === 'skip') {
-                cacheStatus = `${chalk.yellow('SKIP')}, reason: ${cacheReason}`
+                cacheStatus = `${chalk.yellow('SKIP')}`
+                cacheReasonStr = `Cache miss reason: (${chalk.white(
+                  cacheReason
+                )})`
               } else {
                 cacheStatus = chalk.yellow('MISS')
               }
@@ -1219,16 +1224,33 @@ export default class NextNodeServer extends BaseServer {
                 // const newLineLeadingChar = lastItem ? '└' : '├'
                 const newLineLeadingChar = '│'
                 // process.stdout.write
-                writeStdout(
-                  ` ${chalk.grey(
-                    `${newLineLeadingChar}${calcNestedLevel(
-                      fetchMetrics.slice(0, i),
-                      metric.start
-                    )}`
-                  )} ${chalk.white.bold(metric.method)} ${url} ${
-                    metric.status
-                  } in ${getDurationStr(duration)} (cache: ${cacheStatus})\n`
+                const nestedIndent = calcNestedLevel(
+                  fetchMetrics.slice(0, i),
+                  metric.start
                 )
+
+                writeStdout(
+                  `${`${newLineLeadingChar}${nestedIndent}${
+                    i === 0 ? ' ' : ''
+                  }${chalk.white.bold(metric.method)} ${chalk.grey(url)} ${
+                    metric.status
+                  } in ${getDurationStr(duration)} (cache: ${cacheStatus})\n`}`
+                )
+                if (cacheReasonStr) {
+                  const nextNestedIndent = calcNestedLevel(
+                    fetchMetrics.slice(0, i + 1),
+                    metric.start
+                  )
+                  writeStdout(
+                    newLineLeadingChar +
+                      nextNestedIndent +
+                      (i > 1 ? ' ' : '  ') +
+                      newLineLeadingChar +
+                      ' ' +
+                      cacheReasonStr +
+                      '\n'
+                  )
+                }
               }
             }
           } else {
