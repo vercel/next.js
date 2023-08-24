@@ -164,11 +164,27 @@ function dispatchHint(code, model) {
           return;
         }
 
+      case 'm':
+        {
+          // $FlowFixMe[prop-missing] options are not refined to their types by code
+          // $FlowFixMe[incompatible-call] options are not refined to their types by code
+          dispatcher.preloadModule(href, options);
+          return;
+        }
+
       case 'I':
         {
           // $FlowFixMe[prop-missing] options are not refined to their types by code
           // $FlowFixMe[incompatible-call] options are not refined to their types by code
           dispatcher.preinit(href, options);
+          return;
+        }
+
+      case 'M':
+        {
+          // $FlowFixMe[prop-missing] options are not refined to their types by code
+          // $FlowFixMe[incompatible-call] options are not refined to their types by code
+          dispatcher.preinitModule(href, options);
           return;
         }
     }
@@ -1715,6 +1731,11 @@ function processFullRow(response, id, tag, buffer, chunk) {
         resolveText(response, id, row);
         return;
       }
+
+    case 80
+    /* "P" */
+    :
+    // Fallthrough
 
     default:
       /* """ "{" "[" "t" "f" "n" "0" - "9" */
