@@ -5,7 +5,7 @@ mod util;
 use std::{
     collections::{HashMap, HashSet, VecDeque},
     fs,
-    path::{Path, PathBuf},
+    path::PathBuf,
 };
 
 use anyhow::{bail, Context, Result};
@@ -165,7 +165,7 @@ async fn run(resource: PathBuf) -> Result<()> {
 
 #[turbo_tasks::function]
 async fn run_test(resource: String) -> Result<Vc<FileSystemPath>> {
-    let test_path = canonicalize(Path::new(&resource))?;
+    let test_path = canonicalize(&resource)?;
     assert!(test_path.exists(), "{} does not exist", resource);
     assert!(
         test_path.is_dir(),

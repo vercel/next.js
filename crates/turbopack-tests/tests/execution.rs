@@ -4,12 +4,10 @@
 
 mod util;
 
-use std::{
-    collections::HashMap,
-    path::{Path, PathBuf},
-};
+use std::{collections::HashMap, path::PathBuf};
 
 use anyhow::{Context, Result};
+use dunce::canonicalize;
 use turbo_tasks::{unit, Completion, TryJoinIterExt, TurboTasks, Value, Vc};
 use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_env::CommandLineProcessEnv;
@@ -164,7 +162,7 @@ async fn run(resource: PathBuf, snapshot_mode: IssueSnapshotMode) -> Result<JsRe
 
 #[turbo_tasks::function]
 async fn run_test(resource: String) -> Result<Vc<RunTestResult>> {
-    let resource_path = Path::new(&resource);
+    let resource_path = canonicalize(&resource)?;
     assert!(resource_path.exists(), "{} does not exist", resource);
     assert!(
         resource_path.is_dir(),
@@ -176,7 +174,11 @@ async fn run_test(resource: String) -> Result<Vc<RunTestResult>> {
     let project_fs = DiskFileSystem::new("project".to_string(), REPO_ROOT.clone());
     let project_root = project_fs.root();
 
-    let relative_path = resource_path.strip_prefix(&*REPO_ROOT)?;
+    let relative_path = resource_path.strip_prefix(&*REPO_ROOT).context(format!(
+        "stripping repo root {:?} from resource path {:?}",
+        &*REPO_ROOT,
+        resource_path.display()
+    ))?;
     let relative_path = sys_to_unix(relative_path.to_str().unwrap());
     let path = root_fs.root().join(relative_path.to_string());
     let project_path = project_root.join(relative_path.to_string());
