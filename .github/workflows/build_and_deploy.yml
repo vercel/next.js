@@ -511,6 +511,10 @@ jobs:
       - 'metal'
     needs: [publishRelease]
     steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 25
+
       - uses: actions/download-artifact@v3
         with:
           name: next-swc-binaries
