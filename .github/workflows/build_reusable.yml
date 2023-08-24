@@ -137,7 +137,7 @@ jobs:
       - run: node scripts/normalize-version-bump.js
         name: normalize versions
 
-      - run: turbo run build-native-release --remote-cache-timeout 90 --summarize -- --target x86_64-unknown-linux-gnu
+      - run: turbo run build-native-release -vvv --remote-cache-timeout 90 --summarize -- --target x86_64-unknown-linux-gnu
         if: ${{ inputs.skipNativeBuild != 'yes' && steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
 
       - name: Upload next-swc artifact
