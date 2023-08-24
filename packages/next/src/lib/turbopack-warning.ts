@@ -2,7 +2,6 @@ import path from 'path'
 import loadConfig from '../server/config'
 import { NextConfig } from '../server/config-shared'
 import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
-import * as Log from '../build/output/log'
 
 const supportedTurbopackNextConfigOptions = [
   'configFileName',
@@ -91,9 +90,7 @@ export async function validateTurboNextConfig({
   // To regenerate the TURBOPACK gradient require('gradient-string')('blue', 'red')('>>> TURBOPACK')
   const isTTY = process.stdout.isTTY
 
-  const indent = ' '.repeat(15)
-
-  const turbopackGradient = `${indent}${chalk.bold(
+  const turbopackGradient = `${chalk.bold(
     isTTY
       ? '\x1B[38;2;0;0;255m>\x1B[39m\x1B[38;2;23;0;232m>\x1B[39m\x1B[38;2;46;0;209m>\x1B[39m \x1B[38;2;70;0;185mT\x1B[39m\x1B[38;2;93;0;162mU\x1B[39m\x1B[38;2;116;0;139mR\x1B[39m\x1B[38;2;139;0;116mB\x1B[39m\x1B[38;2;162;0;93mO\x1B[39m\x1B[38;2;185;0;70mP\x1B[39m\x1B[38;2;209;0;46mA\x1B[39m\x1B[38;2;232;0;23mC\x1B[39m\x1B[38;2;255;0;0mK\x1B[39m'
       : '>>> TURBOPACK'
@@ -106,7 +103,7 @@ export async function validateTurboNextConfig({
       `We appreciate your ongoing support as we work to make it ready`,
       `for everyone.`,
     ]
-      .map((line, index) => `${index === 0 ? ' ' : indent}${line}`)
+      .map((line, index) => `${line}`)
       .join('\n') + '\n\n'
 
   let unsupportedParts = ''
@@ -197,13 +194,12 @@ export async function validateTurboNextConfig({
     thankYouMsg = chalk.dim(thankYouMsg)
   }
   if (!isCustomTurbopack) {
-    // console.log(turbopackGradient + thankYouMsg)
-    Log.bootstrap(thankYouMsg)
+    console.log(turbopackGradient + thankYouMsg)
   }
 
   let feedbackMessage = `Learn more about Next.js v13 and Turbopack: ${chalk.underline(
     'https://nextjs.link/with-turbopack'
-  )}\n${indent}Please direct feedback to: ${chalk.underline(
+  )}\nPlease direct feedback to: ${chalk.underline(
     'https://nextjs.link/turbopack-feedback'
   )}\n`
 
@@ -242,7 +238,7 @@ export async function validateTurboNextConfig({
   if (unsupportedParts && !isCustomTurbopack) {
     const pkgManager = getPkgManager(dir)
 
-    Log.error(
+    console.error(
       `${'Error:'} You are using configuration and/or tools that are not yet\nsupported by Next.js v13 with Turbopack:\n${unsupportedParts}\n
 If you cannot make the changes above, but still want to try out\nNext.js v13 with Turbopack, create the Next.js v13 playground app\nby running the following commands:
 
@@ -257,12 +253,12 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
     )
 
     if (!isCustomTurbopack) {
-      Log.warn(feedbackMessage)
+      console.warn(feedbackMessage)
 
       process.exit(1)
     } else {
-      Log.warn('\n')
-      Log.warn(
+      console.warn('\n')
+      console.warn(
         `${chalk.bold.yellow(
           'Warning:'
         )} Unsupported config found; but continuing with custom Turbopack binary.\n`
@@ -271,7 +267,7 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
   }
 
   if (!isCustomTurbopack) {
-    Log.info(feedbackMessage)
+    console.info(feedbackMessage)
   }
 
   return rawNextConfig
