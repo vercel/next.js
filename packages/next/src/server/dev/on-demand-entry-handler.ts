@@ -666,9 +666,6 @@ export function onDemandEntryHandler({
         continue
       }
 
-      // 404 is an on demand entry but when a new page is added we have to refresh the page
-      toSend = page === '/_error' ? { invalid: true } : { success: true }
-
       // We don't need to maintain active state of anything other than BUILT entries
       if (entryInfo.status !== BUILT) continue
 
@@ -683,6 +680,7 @@ export function onDemandEntryHandler({
       }
       entryInfo.lastActiveTime = Date.now()
       entryInfo.dispose = false
+      toSend = { success: true }
     }
     return toSend
   }
