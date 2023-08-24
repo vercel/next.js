@@ -3,8 +3,9 @@ use serde::Serialize;
 use turbo_tasks::{Value, ValueToString, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{Chunk, ChunkingContext},
+    chunk::{Chunk, ChunkingContext, EvaluatableAssets},
     ident::AssetIdent,
+    module::Module,
     output::{OutputAsset, OutputAssets},
     version::VersionedContent,
 };
@@ -27,6 +28,7 @@ use crate::DevChunkingContext;
 pub(crate) struct EcmascriptDevChunkList {
     pub(super) chunking_context: Vc<DevChunkingContext>,
     pub(super) entry_chunk: Vc<Box<dyn Chunk>>,
+    pub(super) evaluatable_assets: Vc<EvaluatableAssets>,
     pub(super) chunks: Vc<OutputAssets>,
     pub(super) source: EcmascriptDevChunkListSource,
 }
@@ -38,12 +40,14 @@ impl EcmascriptDevChunkList {
     pub fn new(
         chunking_context: Vc<DevChunkingContext>,
         entry_chunk: Vc<Box<dyn Chunk>>,
+        evaluatable_assets: Vc<EvaluatableAssets>,
         chunks: Vc<OutputAssets>,
         source: Value<EcmascriptDevChunkListSource>,
     ) -> Vc<Self> {
         EcmascriptDevChunkList {
             chunking_context,
             entry_chunk,
+            evaluatable_assets,
             chunks,
             source: source.into_value(),
         }
@@ -79,6 +83,9 @@ impl OutputAsset for EcmascriptDevChunkList {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
         let mut ident = self.entry_chunk.ident().await?.clone_value();
+        for evaluatable_asset in self.evaluatable_assets.await?.iter() {
+            ident.add_asset(Vc::<String>::empty(), evaluatable_asset.ident());
+        }
 
         ident.add_modifier(modifier());
 
