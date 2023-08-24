@@ -476,6 +476,12 @@ In addition, the new `useRouter` hook has the following changes:
 
 [View the `useRouter()` API reference](/docs/app/api-reference/functions/use-router).
 
+#### Sharing components between `pages` and `app`
+
+To keep components compatible between the `pages` and `app` routers, refer to the [`useRouter` hook from `next/compat/router`](/docs/pages/api-reference/functions/use-router#the-nextcompatrouter-export).
+
+This is the `useRouter` hook from the `pages` directory, but intented to be used while sharing components between routers. Once you are ready to use it only on the `app` router, update to the new [`useRouter` from `next/navigation`](/docs/app/api-reference/functions/use-router).
+
 ### Step 6: Migrating Data Fetching Methods
 
 The `pages` directory uses `getServerSideProps` and `getStaticProps` to fetch data for pages. Inside the `app` directory, these previous data fetching functions are replaced with a [simpler API](/docs/app/building-your-application/data-fetching) built on top of `fetch()` and `async` React Server Components.
