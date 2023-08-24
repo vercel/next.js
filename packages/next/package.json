@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "13.4.17",
+  "version": "13.4.20-canary.4",
   "description": "The React Framework",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -89,7 +89,7 @@
     ]
   },
   "dependencies": {
-    "@next/env": "13.4.17",
+    "@next/env": "13.4.20-canary.4",
     "@swc/helpers": "0.5.1",
     "busboy": "1.6.0",
     "caniuse-lite": "^1.0.30001406",
@@ -135,20 +135,20 @@
     "@babel/traverse": "7.18.0",
     "@babel/types": "7.18.0",
     "@capsizecss/metrics": "1.1.0",
-    "@edge-runtime/cookies": "3.3.0",
-    "@edge-runtime/ponyfill": "2.3.0",
-    "@edge-runtime/primitives": "3.0.4",
+    "@edge-runtime/cookies": "3.4.0",
+    "@edge-runtime/ponyfill": "2.4.0",
+    "@edge-runtime/primitives": "3.1.0",
     "@hapi/accept": "5.0.2",
     "@jest/transform": "29.5.0",
     "@jest/types": "29.5.0",
     "@mswjs/interceptors": "0.23.0",
     "@napi-rs/cli": "2.16.2",
     "@napi-rs/triples": "1.1.0",
-    "@next/polyfill-module": "13.4.17",
-    "@next/polyfill-nomodule": "13.4.17",
-    "@next/react-dev-overlay": "13.4.17",
-    "@next/react-refresh-utils": "13.4.17",
-    "@next/swc": "13.4.17",
+    "@next/polyfill-module": "13.4.20-canary.4",
+    "@next/polyfill-nomodule": "13.4.20-canary.4",
+    "@next/react-dev-overlay": "13.4.20-canary.4",
+    "@next/react-refresh-utils": "13.4.20-canary.4",
+    "@next/swc": "13.4.20-canary.4",
     "@opentelemetry/api": "1.4.1",
     "@playwright/test": "^1.35.1",
     "@segment/ajv-human-errors": "2.1.2",
@@ -225,7 +225,7 @@
     "debug": "4.1.1",
     "devalue": "2.0.1",
     "domain-browser": "4.19.0",
-    "edge-runtime": "2.4.5",
+    "edge-runtime": "2.5.0",
     "events": "3.3.0",
     "find-cache-dir": "3.3.1",
     "find-up": "4.1.0",
@@ -302,7 +302,7 @@
     "text-table": "0.2.0",
     "timers-browserify": "2.0.12",
     "tty-browserify": "0.0.1",
-    "ua-parser-js": "0.7.28",
+    "ua-parser-js": "1.0.35",
     "undici": "5.22.0",
     "unistore": "3.4.1",
     "util": "0.12.4",
@@ -316,6 +316,6 @@
     "ws": "8.2.3"
   },
   "engines": {
-    "node": ">=16.8.0"
+    "node": ">=16.14.0"
   }
 }

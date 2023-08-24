@@ -216,7 +216,9 @@ where
             opts.is_server,
             match &opts.server_components {
                 Some(config) if config.truthy() => match config {
-                    react_server_components::Config::WithOptions(x) => x.is_server,
+                    // Always enable the Server Components mode for both
+                    // server and client layers.
+                    react_server_components::Config::WithOptions(_) => true,
                     _ => false,
                 },
                 _ => false,

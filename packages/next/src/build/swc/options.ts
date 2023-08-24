@@ -105,7 +105,9 @@ function getBaseSWCOptions({
         react: {
           importSource:
             jsConfig?.compilerOptions?.jsxImportSource ??
-            (compilerOptions?.emotion ? '@emotion/react' : 'react'),
+            (compilerOptions?.emotion && !isServerLayer
+              ? '@emotion/react'
+              : 'react'),
           runtime: 'automatic',
           pragma: 'React.createElement',
           pragmaFrag: 'React.Fragment',

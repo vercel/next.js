@@ -84,8 +84,18 @@ import { PageNotFoundError } from '../../../shared/lib/utils'
 import { srcEmptySsgManifest } from '../../../build/webpack/plugins/build-manifest-plugin'
 import { PropagateToWorkersField } from './types'
 import { MiddlewareManifest } from '../../../build/webpack/plugins/middleware-plugin'
+import { devPageFiles } from '../../../build/webpack/plugins/next-types-plugin/shared'
+import type { RenderWorkers } from '../router-server'
+
+/**
+ * This is the timeout for which the watchpack will emit the `aggregate` event
+ * after file changes are made. This is to prevent unnecessary rebuilds when
+ * multiple files are changed at once.
+ */
+const WATCHPACK_AGGREGATE_TIMEOUT = 5
 
 type SetupOpts = {
+  renderWorkers: RenderWorkers
   dir: string
   turbo?: boolean
   appDir?: string
@@ -132,14 +142,9 @@ async function startWatcher(opts: SetupOpts) {
     appDir
   )
 
-  const renderWorkers: {
-    app?: import('../router-server').RenderWorker
-    pages?: import('../router-server').RenderWorker
-  } = {}
-
   async function propagateToWorkers(field: PropagateToWorkersField, args: any) {
-    await renderWorkers.app?.propagateServerField(field, args)
-    await renderWorkers.pages?.propagateServerField(field, args)
+    await opts.renderWorkers.app?.propagateServerField(field, args)
+    await opts.renderWorkers.pages?.propagateServerField(field, args)
   }
 
   let hotReloader: InstanceType<typeof HotReloader>
@@ -782,6 +787,7 @@ async function startWatcher(opts: SetupOpts) {
     files.push(...tsconfigPaths)
 
     const wp = new Watchpack({
+      aggregateTimeout: WATCHPACK_AGGREGATE_TIMEOUT,
       ignored: (pathname: string) => {
         return (
           !files.some((file) => file.startsWith(pathname)) &&
@@ -815,6 +821,7 @@ async function startWatcher(opts: SetupOpts) {
 
       appFiles.clear()
       pageFiles.clear()
+      devPageFiles.clear()
 
       const sortedKnownFiles: string[] = [...knownFiles.keys()].sort(
         sortByPageExts(nextConfig.pageExtensions)
@@ -923,6 +930,9 @@ async function startWatcher(opts: SetupOpts) {
         if (!(isAppPath || isPagePath)) {
           continue
         }
+
+        // Collect all current filenames for the TS plugin to use
+        devPageFiles.add(fileName)
 
         let pageName = absolutePathToPage(fileName, {
           dir: isAppPath ? appDir! : pagesDir!,
@@ -1244,10 +1254,12 @@ async function startWatcher(opts: SetupOpts) {
           })
           .filter(Boolean) as any
 
+        const dataRoutes: typeof opts.fsChecker.dynamicRoutes = []
+
         for (const page of sortedRoutes) {
           const route = buildDataRoute(page, 'development')
           const routeRegex = getRouteRegex(route.page)
-          opts.fsChecker.dynamicRoutes.push({
+          dataRoutes.push({
             ...route,
             regex: routeRegex.re.toString(),
             match: getRouteMatcher({
@@ -1265,11 +1277,27 @@ async function startWatcher(opts: SetupOpts) {
             }),
           })
         }
+        opts.fsChecker.dynamicRoutes.unshift(...dataRoutes)
 
         if (!prevSortedRoutes?.every((val, idx) => val === sortedRoutes[idx])) {
+          const addedRoutes = sortedRoutes.filter(
+            (route) => !prevSortedRoutes.includes(route)
+          )
+          const removedRoutes = prevSortedRoutes.filter(
+            (route) => !sortedRoutes.includes(route)
+          )
+
           // emit the change so clients fetch the update
           hotReloader.send('devPagesManifestUpdate', {
             devPagesManifest: true,
+          })
+
+          addedRoutes.forEach((route) => {
+            hotReloader.send('addedPage', route)
+          })
+
+          removedRoutes.forEach((route) => {
+            hotReloader.send('removedPage', route)
           })
         }
         prevSortedRoutes = sortedRoutes
@@ -1432,9 +1460,7 @@ async function startWatcher(opts: SetupOpts) {
 
   return {
     serverFields,
-
     hotReloader,
-    renderWorkers,
     requestHandler,
     logErrorWithOriginalStack,
 
