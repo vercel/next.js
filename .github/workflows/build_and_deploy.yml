@@ -504,22 +504,13 @@ jobs:
 
   releaseStats:
     name: Release Stats
-    runs-on: ubuntu-latest
+    runs-on:
+      - 'self-hosted'
+      - 'linux'
+      - 'x64'
+      - 'metal'
     needs: [publishRelease]
     steps:
-      - name: Setup node
-        uses: actions/setup-node@v3
-        with:
-          node-version: ${{ env.NODE_LTS_VERSION }}
-          check-latest: true
-
-      - uses: actions/cache@v3
-        timeout-minutes: 5
-        id: restore-build
-        with:
-          path: ./*
-          key: ${{ github.sha }}-${{ github.run_number }}
-
       - uses: actions/download-artifact@v3
         with:
           name: next-swc-binaries
