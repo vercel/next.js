@@ -72,6 +72,8 @@ pub enum TypeScriptReferenceSubType {
     Undefined,
 }
 
+// TODO(sokra) this was next.js specific values. We want to solve this in a
+// different way.
 #[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(Debug, Clone, PartialOrd, Ord, Hash)]
 pub enum EntryReferenceSubType {
@@ -81,6 +83,7 @@ pub enum EntryReferenceSubType {
     AppPage,
     AppRoute,
     AppClientComponent,
+    Middleware,
     Runtime,
     Custom(u8),
     Undefined,
