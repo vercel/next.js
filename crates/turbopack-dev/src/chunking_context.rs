@@ -167,12 +167,14 @@ impl DevChunkingContext {
     fn generate_chunk_list_register_chunk(
         self: Vc<Self>,
         entry_chunk: Vc<Box<dyn Chunk>>,
+        evaluatable_assets: Vc<EvaluatableAssets>,
         other_chunks: Vc<OutputAssets>,
         source: Value<EcmascriptDevChunkListSource>,
     ) -> Vc<Box<dyn OutputAsset>> {
         Vc::upcast(EcmascriptDevChunkList::new(
             self,
             entry_chunk,
+            evaluatable_assets,
             other_chunks,
             source,
         ))
@@ -324,6 +326,7 @@ impl ChunkingContext for DevChunkingContext {
 
         assets.push(self.generate_chunk_list_register_chunk(
             entry_chunk,
+            EvaluatableAssets::empty(),
             Vc::cell(assets.clone()),
             Value::new(EcmascriptDevChunkListSource::Dynamic),
         ));
@@ -370,6 +373,7 @@ impl ChunkingContext for DevChunkingContext {
 
         assets.push(self.generate_chunk_list_register_chunk(
             entry_chunk,
+            evaluatable_assets,
             other_assets,
             Value::new(EcmascriptDevChunkListSource::Entry),
         ));
