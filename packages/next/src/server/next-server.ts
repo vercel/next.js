@@ -1143,7 +1143,7 @@ export default class NextNodeServer extends BaseServer {
 
           if (Array.isArray(fetchMetrics) && fetchMetrics.length) {
             if (enabledVerboseLogging) {
-              process.stdout.write('\n')
+              // process.stdout.write('\n')
               // process.stdout.write
               writeStdoutDiv(
                 `${chalk.white.bold(req.method || 'GET')} ${req.url} ${

@@ -51,12 +51,14 @@ function hasStoreChanged(nextStore: OutputState) {
 
 let startTime = 0
 let lastTime = Date.now()
+let lastTrigger = ''
 
 store.subscribe((state) => {
   if (!hasStoreChanged(state)) {
     return
   }
 
+  // console.log('state', state)
   if (state.bootstrap) {
     if (state.appUrl) {
       Log.bootstrap(`- Local: ${chalk.bold(state.appUrl)}`)
@@ -68,12 +70,15 @@ store.subscribe((state) => {
   if (state.loading) {
     if (state.trigger) {
       if (state.trigger !== 'initial') {
-        Log.wait(`compiling ${state.trigger}...`)
+        lastTrigger = state.trigger
+        // Log.wait(`compiling ${state.trigger}...`)
       }
     } else {
-      if (Date.now() - lastTime > 10 * 1000) {
+      // not aware of the original trigger, just saying compiling
+      if (Date.now() - lastTime > 3 * 1000) {
         Log.wait('compiling...')
       }
+      lastTrigger = ''
     }
     if (startTime === 0) {
       startTime = Date.now()
@@ -142,9 +147,8 @@ store.subscribe((state) => {
     return
   }
 
-  if (partialMessage !== ' client and server') {
-    Log.event(`compiled${partialMessage} ${timeMessage}${modulesMessage}`)
-  }
+  if (lastTrigger)
+    Log.event(`compiled ${lastTrigger} ${timeMessage}${modulesMessage}`)
   // Ensure traces are flushed after each compile in development mode
   flushAllTraces()
   teardownTraceSubscriber()
