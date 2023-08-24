@@ -309,6 +309,7 @@ export type ExportPathMap = {
     page: string
     query?: NextParsedUrlQuery
     _isAppDir?: boolean
+    _isAppPrefetch?: boolean
     _isDynamicError?: boolean
   }
 }

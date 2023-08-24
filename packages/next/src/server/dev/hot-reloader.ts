@@ -397,7 +397,9 @@ export default class HotReloader {
                 endTime:
                   BigInt(payload.endTime) * BigInt(MILLISECONDS_IN_NANOSECOND),
                 attrs: {
-                  updatedModules: payload.updatedModules,
+                  updatedModules: payload.updatedModules.map((m: string) =>
+                    m.replace(/^\.\//, '[project]/')
+                  ),
                   page: payload.page,
                 },
               }
