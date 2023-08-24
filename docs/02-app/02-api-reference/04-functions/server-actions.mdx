@@ -27,12 +27,14 @@ module.exports = {
 
 Server Actions can be defined in two places:
 
-- Inside the component that uses it (Server Components only)
+- Inside the component that uses it (Server Components only).
 - In a separate file (Client and Server Components), for reusability. You can define multiple Server Actions in a single file.
 
 ### With Server Components
 
-Create a Server Action by defining an asynchronous function with the `"use server"` directive at the top of the function body. This function should have **serializable arguments** and a **serializable return value**.
+Create a Server Action by defining an asynchronous function with the [`"use server"`](https://react.dev/reference/react/use-server) directive at the top of the function body. `"use server"` ensures this function is only ever executed on the server.
+
+This function should have **serializable arguments** and a **serializable return value**.
 
 ```jsx filename="app/page.js" highlight={2}
 export default function ServerComponent() {
@@ -106,10 +108,10 @@ You can invoke Server Actions using the following methods:
 
 Progressive enhancement allows a `<form>` to function properly without JavaScript, or with JavaScript disabled. This allows users to interact with the form and submit data even if the JavaScript for the form hasn't been loaded yet or if it fails to load.
 
-Both Server and Client Actions support progressive enhancement, using one of two strategies:
+React Actions (both server and client) support progressive enhancement, using one of two strategies:
 
 - If a **Server Action** is passed directly to a `<form>`, the form is interactive **even if JavaScript is disabled**.
-- If a **Client Action** is passed to a `<form>`, the form is still interactive, but the action will be placed in a queue until the form has hydrated. The `<form>` is prioritized with Selective Hydration, so it happens quickly.
+- If a **Client Action** is passed to a `<form>`, the form is still interactive, but the action will be placed in a queue until the form has hydrated. React prioritizes the action, so it still happens quickly.
 
 In both cases, the form is interactive before hydration occurs. Although Server Actions have the additional benefit of not relying on client JavaScript, you can still compose additional behavior with Client Actions where desired without sacrificing interactivity.
 
