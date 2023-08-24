@@ -1,7 +1,7 @@
 import chalk from '../../lib/chalk'
 
 export const prefixes = {
-  wait: chalk.white(chalk.bold(/*.cyan*/ '●')),
+  wait: chalk.white(chalk.bold(/*.cyan*/ '○')), // ●
   error: chalk.red(chalk.bold(/*.red*/ 'X')),
   warn: chalk.yellow(chalk.bold(/*.yellow*/ '⚠')),
   ready: chalk.bold(/*.green*/ '▲'), // no color

@@ -103,20 +103,21 @@ import { loadManifest } from './load-manifest'
 
 export * from './base-server'
 
-function writeStdoutDiv(text: string) {
-  const indent = ' '.repeat(4)
-  // const maxLength = process.stdout.columns || 120
+function writeStdout(text: string) {
+  // const maxLength = 160
   // let output = ''
   // let remainingText = text
-
+  // let index = 0
+  // const indent = (' '.repeat(13))
   // while (remainingText.length > maxLength) {
-  //   output += indent + remainingText.substr(0, maxLength) + '\n'
-  //   remainingText = remainingText.substr(maxLength)
+  //   output += ((index === 0 ? '' : indent) + remainingText.slice(0, maxLength - 1) + '\n')
+  //   remainingText = remainingText.slice(maxLength)
+  //   index++
   // }
 
-  // if (!output) output += indent
+  // if (text.length > maxLength) output += indent
   // output += remainingText
-  process.stdout.write(Log.now() + indent + text)
+  process.stdout.write(Log.now() + ' ' + text)
 }
 
 export interface NodeRequestHandler {
@@ -1145,7 +1146,7 @@ export default class NextNodeServer extends BaseServer {
             if (enabledVerboseLogging) {
               // process.stdout.write('\n')
               // process.stdout.write
-              writeStdoutDiv(
+              writeStdout(
                 `${chalk.white.bold(req.method || 'GET')} ${req.url} ${
                   res.statusCode
                 } in ${getDurationStr(reqDuration)}\n`
@@ -1218,7 +1219,7 @@ export default class NextNodeServer extends BaseServer {
                 // const newLineLeadingChar = lastItem ? '└' : '├'
                 const newLineLeadingChar = '│'
                 // process.stdout.write
-                writeStdoutDiv(
+                writeStdout(
                   ` ${chalk.grey(
                     `${newLineLeadingChar}${calcNestedLevel(
                       fetchMetrics.slice(0, i),
@@ -1233,7 +1234,7 @@ export default class NextNodeServer extends BaseServer {
           } else {
             if (enabledVerboseLogging) {
               // process.stdout.write
-              writeStdoutDiv(
+              writeStdout(
                 `${chalk.white.bold(req.method || 'GET')} ${req.url} ${
                   res.statusCode
                 } in ${getDurationStr(reqDuration)}\n`
