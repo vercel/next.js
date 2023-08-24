@@ -1,6 +1,6 @@
 ---
 title: Server and Client Composition Patterns
-nav_title: Patterns
+nav_title: Composition Patterns
 description: Recommended patterns for using Server and Client Components.
 ---
 
@@ -346,9 +346,9 @@ You can optimize your package by using ['use client' deeper in the tree](#moving
 
 It's worth noting some bundlers might strip out `"use client"` directives. You can find an example of how to configure esbuild to include the `"use client"` directive in the [React Wrap Balancer](https://github.com/shuding/react-wrap-balancer/blob/main/tsup.config.ts#L10-L13) and [Vercel Analytics](https://github.com/vercel/analytics/blob/main/packages/web/tsup.config.js#L26-L30) repositories.
 
-### Client Components
+## Client Components
 
-#### Moving Client Components Down the Tree
+### Moving Client Components Down the Tree
 
 To reduce the Client JavaScript bundle size, we recommend moving Client Components down your component tree.
 
@@ -463,7 +463,7 @@ export default function ClientComponent({ children }) {
 }
 ```
 
-#### Supported Pattern: Passing Server Components to Client Components as Props
+### Supported Pattern: Passing Server Components to Client Components as Props
 
 The following pattern is supported. You can pass Server Components as a prop to a Client Component.
 
