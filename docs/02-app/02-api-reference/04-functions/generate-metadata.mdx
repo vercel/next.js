@@ -650,6 +650,11 @@ export const metadata = {
 }
 ```
 
+```html filename="<head> output" hideLineNumbers
+<link rel="icon" href="/light-icon.png" media="(prefers-color-scheme: light)" />
+<link rel="icon" href="/dark-icon.png" media="(prefers-color-scheme: dark)" />
+```
+
 > **Good to know**: The `msapplication-*` meta tags are no longer supported in Chromium builds of Microsoft Edge, and thus no longer needed.
 
 ### `themeColor`
