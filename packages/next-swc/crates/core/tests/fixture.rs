@@ -9,7 +9,9 @@ use next_swc::{
     react_remove_properties::remove_properties,
     react_server_components::server_components,
     remove_console::remove_console,
-    server_actions::{self, server_actions},
+    server_actions::{
+        server_actions, {self},
+    },
     shake_exports::{shake_exports, Config as ShakeExportsConfig},
 };
 use next_transform_font::{next_font_loaders, Config as FontLoaderConfig};
@@ -91,6 +93,58 @@ fn next_dynamic_fixture(input: PathBuf) {
                 false,
                 true,
                 false,
+                FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
+                Some("/some-project/src".into()),
+            )
+        },
+        &input,
+        &output_server,
+        Default::default(),
+    );
+}
+
+#[fixture("tests/fixture/next-dynamic-app-dir/**/input.js")]
+fn app_dir_next_dynamic_fixture(input: PathBuf) {
+    let output_dev = input.parent().unwrap().join("output-dev.js");
+    let output_prod = input.parent().unwrap().join("output-prod.js");
+    let output_server = input.parent().unwrap().join("output-server.js");
+    test_fixture(
+        syntax(),
+        &|_tr| {
+            next_dynamic(
+                true,
+                false,
+                true,
+                FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
+                Some("/some-project/src".into()),
+            )
+        },
+        &input,
+        &output_dev,
+        Default::default(),
+    );
+    test_fixture(
+        syntax(),
+        &|_tr| {
+            next_dynamic(
+                false,
+                false,
+                true,
+                FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
+                Some("/some-project/src".into()),
+            )
+        },
+        &input,
+        &output_prod,
+        Default::default(),
+    );
+    test_fixture(
+        syntax(),
+        &|_tr| {
+            next_dynamic(
+                false,
+                true,
+                true,
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
                 Some("/some-project/src".into()),
             )
@@ -378,7 +432,7 @@ fn cjs_optimize_fixture(input: PathBuf) {
                 resolver(unresolved_mark, top_level_mark, false),
                 cjs_optimizer(
                     json(
-                        r###"
+                        r#"
                         {
                             "packages": {
                                 "next/server": {
@@ -388,7 +442,7 @@ fn cjs_optimize_fixture(input: PathBuf) {
                                 }
                             }
                         }
-                        "###
+                        "#
                     ),
                     unresolved_ctxt
                 )

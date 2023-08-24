@@ -17,14 +17,12 @@ import * as Log from '../build/output/log'
 import createSpinner from '../build/spinner'
 import { SSG_FALLBACK_EXPORT_ERROR } from '../lib/constants'
 import { recursiveCopy } from '../lib/recursive-copy'
-import { recursiveDelete } from '../lib/recursive-delete'
 import {
   BUILD_ID_FILE,
   CLIENT_PUBLIC_FILES_PATH,
   CLIENT_STATIC_FILES_PATH,
   EXPORT_DETAIL,
   EXPORT_MARKER,
-  CLIENT_REFERENCE_MANIFEST,
   NEXT_FONT_MANIFEST,
   MIDDLEWARE_MANIFEST,
   PAGES_MANIFEST,
@@ -355,7 +353,7 @@ export default async function exportApp(
       )
     }
 
-    await recursiveDelete(join(outDir))
+    await promises.rm(outDir, { recursive: true, force: true })
     await promises.mkdir(join(outDir, '_next', buildId), { recursive: true })
 
     writeFileSync(
@@ -482,11 +480,6 @@ export default async function exportApp(
       images: nextConfig.images,
       ...(options.hasAppDir
         ? {
-            clientReferenceManifest: require(join(
-              distDir,
-              SERVER_DIRECTORY,
-              CLIENT_REFERENCE_MANIFEST + '.json'
-            )),
             serverActionsManifest: require(join(
               distDir,
               SERVER_DIRECTORY,
@@ -554,8 +547,7 @@ export default async function exportApp(
     const filteredPaths = exportPaths.filter(
       // Remove API routes
       (route) =>
-        (exportPathMap[route] as any)._isAppDir ||
-        !isAPIRoute(exportPathMap[route].page)
+        exportPathMap[route]._isAppDir || !isAPIRoute(exportPathMap[route].page)
     )
 
     if (filteredPaths.length !== exportPaths.length) {
@@ -727,7 +719,6 @@ export default async function exportApp(
               nextConfig.experimental.disableOptimizedLoading,
             parentSpanId: pageExportSpan.id,
             httpAgentOptions: nextConfig.httpAgentOptions,
-            serverComponents: options.hasAppDir,
             debugOutput: options.debugOutput,
             isrMemoryCacheSize: nextConfig.experimental.isrMemoryCacheSize,
             fetchCache: nextConfig.experimental.appDir,

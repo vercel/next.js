@@ -21,7 +21,35 @@ createNextDescribe(
       expect(await res.text()).toInclude('Hello')
     })
 
+    it('should handle /index routes correctly', async () => {
+      const appHtml = await next.render('/index')
+      expect(appHtml).toContain('the /index route')
+    })
+
     if ((globalThis as any).isNextDev) {
+      it('should warn about the re-export of a pages runtime/preferredRegion config', async () => {
+        const logs = []
+        next.on('stderr', (log) => {
+          logs.push(log)
+        })
+        const appHtml = await next.render('/export/inherit')
+        expect(appHtml).toContain('<p>Node!</p>')
+        expect(
+          logs.some((log) =>
+            log.includes(
+              `Next.js can't recognize the exported \`runtime\` field in`
+            )
+          )
+        ).toBe(true)
+        expect(
+          logs.some((log) =>
+            log.includes(
+              `Next.js can't recognize the exported \`preferredRegion\` field in`
+            )
+          )
+        ).toBe(true)
+      })
+
       it('should resolve module without error in edge runtime', async () => {
         const logs = []
         next.on('stderr', (log) => {

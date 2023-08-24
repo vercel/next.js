@@ -7,6 +7,27 @@ const { randomBytes } = require('crypto')
 const { linkPackages } =
   require('../../.github/actions/next-stats-action/src/prepare/repo-setup')()
 
+/**
+ * Sets the `resolution-mode` for pnpm in the specified directory.
+ *
+ * See [pnpm/.npmrc#resolution-mode]{@link https://pnpm.io/npmrc#resolution-mode} and
+ * [GitHub Issue]{@link https://github.com/pnpm/pnpm/issues/6463}
+ *
+ * @param {string} cwd - The project directory where pnpm configuration is set.
+ * @returns {Promise<void>}
+ */
+async function setPnpmResolutionMode(cwd) {
+  await execa(
+    'pnpm',
+    ['config', 'set', '--location=project', 'resolution-mode', 'highest'],
+    {
+      cwd: cwd,
+      stdio: ['ignore', 'inherit', 'inherit'],
+      env: process.env,
+    }
+  )
+}
+
 async function createNextInstall({
   parentSpan = null,
   dependencies = null,
@@ -132,6 +153,7 @@ async function createNextInstall({
           2
         )
       )
+      await setPnpmResolutionMode(installDir)
 
       if (installCommand) {
         const installString =
@@ -183,6 +205,7 @@ async function createNextInstall({
 }
 
 module.exports = {
+  setPnpmResolutionMode,
   createNextInstall,
   getPkgPaths: linkPackages,
 }

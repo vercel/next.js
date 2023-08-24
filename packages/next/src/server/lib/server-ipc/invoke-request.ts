@@ -1,57 +1,42 @@
-import { IncomingMessage } from 'http'
-import { filterReqHeaders } from './utils'
+import type { IncomingMessage } from 'http'
+import type { Readable } from 'stream'
+import { filterReqHeaders, ipcForbiddenHeaders } from './utils'
 
 export const invokeRequest = async (
   targetUrl: string,
   requestInit: {
     headers: IncomingMessage['headers']
     method: IncomingMessage['method']
+    signal?: AbortSignal
   },
-  readableBody?: import('stream').Readable
+  readableBody?: Readable | ReadableStream
 ) => {
-  const invokeHeaders = filterReqHeaders({
-    ...requestInit.headers,
-  }) as IncomingMessage['headers']
+  const invokeHeaders = filterReqHeaders(
+    {
+      'cache-control': '',
+      ...requestInit.headers,
+    },
+    ipcForbiddenHeaders
+  ) as IncomingMessage['headers']
 
-  const invokeRes = await new Promise<IncomingMessage>(
-    (resolveInvoke, rejectInvoke) => {
-      const http = require('http') as typeof import('http')
+  return await fetch(targetUrl, {
+    headers: invokeHeaders as any as Headers,
+    method: requestInit.method,
+    redirect: 'manual',
+    signal: requestInit.signal,
 
-      try {
-        // force to 127.0.0.1 as IPC always runs on this hostname
-        // to avoid localhost issues
-        const parsedTargetUrl = new URL(targetUrl)
-        parsedTargetUrl.hostname = '127.0.0.1'
-
-        const invokeReq = http.request(
-          parsedTargetUrl.toString(),
-          {
-            headers: invokeHeaders,
-            method: requestInit.method,
-          },
-          (res) => {
-            resolveInvoke(res)
-          }
-        )
-        invokeReq.on('error', (err) => {
-          rejectInvoke(err)
-        })
-
-        if (requestInit.method !== 'GET' && requestInit.method !== 'HEAD') {
-          if (readableBody) {
-            readableBody.pipe(invokeReq)
-            readableBody.on('close', () => {
-              invokeReq.end()
-            })
-          }
-        } else {
-          invokeReq.end()
+    ...(requestInit.method !== 'GET' &&
+    requestInit.method !== 'HEAD' &&
+    readableBody
+      ? {
+          body: readableBody as BodyInit,
+          duplex: 'half',
         }
-      } catch (err) {
-        rejectInvoke(err)
-      }
-    }
-  )
+      : {}),
 
-  return invokeRes
+    next: {
+      // @ts-ignore
+      internal: true,
+    },
+  })
 }

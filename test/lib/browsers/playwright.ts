@@ -53,8 +53,12 @@ export class Playwright extends BrowserInterface {
     this.eventCallbacks[event]?.delete(cb)
   }
 
-  async setup(browserName: string, locale: string, javaScriptEnabled: boolean) {
-    const headless = !!process.env.HEADLESS
+  async setup(
+    browserName: string,
+    locale: string,
+    javaScriptEnabled: boolean,
+    headless: boolean
+  ) {
     let device
 
     if (process.env.DEVICE_NAME) {
@@ -90,11 +94,23 @@ export class Playwright extends BrowserInterface {
     if (browserName === 'safari') {
       return await webkit.launch(launchOptions)
     } else if (browserName === 'firefox') {
-      return await firefox.launch(launchOptions)
+      return await firefox.launch({
+        ...launchOptions,
+        firefoxUserPrefs: {
+          ...launchOptions.firefoxUserPrefs,
+          // The "fission.webContentIsolationStrategy" pref must be
+          // set to 1 on Firefox due to the bug where a new history
+          // state is pushed on a page reload.
+          // See https://github.com/microsoft/playwright/issues/22640
+          // See https://bugzilla.mozilla.org/show_bug.cgi?id=1832341
+          'fission.webContentIsolationStrategy': 1,
+        },
+      })
     } else {
       return await chromium.launch({
         devtools: !launchOptions.headless,
         ...launchOptions,
+        ignoreDefaultArgs: ['--disable-back-forward-cache'],
       })
     }
   }
@@ -196,14 +212,14 @@ export class Playwright extends BrowserInterface {
     await page.goto(url, { waitUntil: 'load' })
   }
 
-  back(): BrowserInterface {
+  back(options): BrowserInterface {
     return this.chain(async () => {
-      await page.goBack()
+      await page.goBack(options)
     })
   }
-  forward(): BrowserInterface {
+  forward(options): BrowserInterface {
     return this.chain(async () => {
-      await page.goForward()
+      await page.goForward(options)
     })
   }
   refresh(): BrowserInterface {

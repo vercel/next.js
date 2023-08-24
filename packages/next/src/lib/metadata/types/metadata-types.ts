@@ -100,6 +100,7 @@ export type IconDescriptor = {
   url: string | URL
   type?: string
   sizes?: string
+  color?: string
   /** defaults to rel="icon" unless superseded by Icons map */
   rel?: string
   media?: string

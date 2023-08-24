@@ -1,6 +1,7 @@
 import { Normalizers } from '../../normalizers'
 import { Normalizer } from '../../normalizer'
 import { PrefixingNormalizer } from '../../prefixing-normalizer'
+import { normalizePagePath } from '../../../../../shared/lib/page-path/normalize-page-path'
 
 export class AppBundlePathNormalizer extends PrefixingNormalizer {
   constructor() {
@@ -8,7 +9,7 @@ export class AppBundlePathNormalizer extends PrefixingNormalizer {
   }
 
   public normalize(page: string): string {
-    return super.normalize(page)
+    return super.normalize(normalizePagePath(page))
   }
 }
 

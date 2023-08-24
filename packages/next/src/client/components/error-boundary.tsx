@@ -99,10 +99,10 @@ export class ErrorBoundaryHandler extends React.Component<
   }
 }
 
-export default function GlobalError({ error }: { error: any }) {
+export function GlobalError({ error }: { error: any }) {
   const digest: string | undefined = error?.digest
   return (
-    <html>
+    <html id="__next_error__">
       <head></head>
       <body>
         <div style={styles.error}>
@@ -121,6 +121,10 @@ export default function GlobalError({ error }: { error: any }) {
     </html>
   )
 }
+
+// Exported so that the import signature in the loaders can be identical to user
+// supplied custom global error signatures.
+export default GlobalError
 
 /**
  * Handles errors through `getDerivedStateFromError`.

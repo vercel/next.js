@@ -1,7 +1,8 @@
 use anyhow::{anyhow, Context, Result};
 use indexmap::{indexset, IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
-use turbopack_binding::turbo::tasks::{primitives::StringVc, trace::TraceRawVcs, Value};
+use turbo_tasks::Vc;
+use turbopack_binding::turbo::tasks::{trace::TraceRawVcs, Value};
 
 use super::request::{NextFontRequest, OneOrManyStrings};
 
@@ -28,15 +29,15 @@ pub(super) struct NextFontGoogleOptions {
 }
 
 #[turbo_tasks::value_impl]
-impl NextFontGoogleOptionsVc {
+impl NextFontGoogleOptions {
     #[turbo_tasks::function]
-    pub fn new(options: Value<NextFontGoogleOptions>) -> NextFontGoogleOptionsVc {
+    pub fn new(options: Value<NextFontGoogleOptions>) -> Vc<NextFontGoogleOptions> {
         Self::cell(options.into_value())
     }
 
     #[turbo_tasks::function]
-    pub async fn font_family(self) -> Result<StringVc> {
-        Ok(StringVc::cell((*self.await?.font_family).to_owned()))
+    pub async fn font_family(self: Vc<Self>) -> Result<Vc<String>> {
+        Ok(Vc::cell((*self.await?.font_family).to_owned()))
     }
 }
 

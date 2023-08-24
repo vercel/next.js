@@ -72,12 +72,12 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
       let mainRef = statsConfig.mainBranch
 
       if (actionInfo.isRelease) {
-        logger('Release detected, using last stable tag')
+        logger(`Release detected, using last stable tag: "${actionInfo.prRef}"`)
         const lastStableTag = await getLastStable(diffRepoDir, actionInfo.prRef)
         mainRef = lastStableTag
         mainNextSwcVersion = lastStableTag
         if (!lastStableTag) throw new Error('failed to get last stable tag')
-        console.log('using latestStable', lastStableTag)
+        logger(`using latestStable: "${lastStableTag}"`)
 
         /* eslint-disable-next-line */
         actionInfo.lastStableTag = lastStableTag
@@ -121,9 +121,9 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
         if (statsConfig.initialBuildCommand) {
           buildCommand += ` && ${statsConfig.initialBuildCommand}`
         }
-        // allow 5 minutes node_modules install + building all packages
+        // allow high timeout for install + building all packages
         // in case of noisy environment slowing down initial repo build
-        await exec(buildCommand, false, { timeout: 5 * 60 * 1000 })
+        await exec(buildCommand, false, { timeout: 10 * 60 * 1000 })
       }
 
       await fs

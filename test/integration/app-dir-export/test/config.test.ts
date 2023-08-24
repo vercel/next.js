@@ -4,7 +4,7 @@ import { join } from 'path'
 import {
   appDir,
   distDir,
-  expectedFiles,
+  expectedWhenTrailingSlashTrue,
   exportDir,
   getFiles,
   nextConfig,
@@ -36,7 +36,7 @@ describe('app dir with output export (next dev / next build)', () => {
     await fs.remove(distDir)
     await fs.remove(exportDir)
     await nextBuild(appDir)
-    expect(await getFiles()).toEqual(expectedFiles)
+    expect(await getFiles()).toEqual(expectedWhenTrailingSlashTrue)
     let stdout = ''
     let stderr = ''
     await nextExportDefault(appDir, {
@@ -51,13 +51,13 @@ describe('app dir with output export (next dev / next build)', () => {
       '- warn "next export" is no longer needed when "output: export" is configured in next.config.js'
     )
     expect(stdout).toContain('Export successful. Files written to')
-    expect(await getFiles()).toEqual(expectedFiles)
+    expect(await getFiles()).toEqual(expectedWhenTrailingSlashTrue)
   })
   it('should error when "next export -o <dir>" is used with config', async () => {
     await fs.remove(distDir)
     await fs.remove(exportDir)
     await nextBuild(appDir)
-    expect(await getFiles()).toEqual(expectedFiles)
+    expect(await getFiles()).toEqual(expectedWhenTrailingSlashTrue)
     let stdout = ''
     let stderr = ''
     let error = undefined
@@ -132,7 +132,7 @@ describe('app dir with output export (next dev / next build)', () => {
     )
     try {
       await nextBuild(appDir)
-      expect(await getFiles(outputDir)).toEqual(expectedFiles)
+      expect(await getFiles(outputDir)).toEqual(expectedWhenTrailingSlashTrue)
     } finally {
       nextConfig.restore()
       await fs.remove(distDir)

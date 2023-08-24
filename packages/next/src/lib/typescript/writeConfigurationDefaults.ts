@@ -28,7 +28,9 @@ function getDesiredCompilerOptions(
     allowJs: { suggested: true },
     skipLibCheck: { suggested: true },
     strict: { suggested: false },
-    forceConsistentCasingInFileNames: { suggested: true },
+    ...(semver.lt(ts.version, '5.0.0')
+      ? { forceConsistentCasingInFileNames: { suggested: true } }
+      : undefined),
     noEmit: { suggested: true },
     ...(semver.gte(ts.version, '4.4.2')
       ? { incremental: { suggested: true } }
@@ -58,6 +60,8 @@ function getDesiredCompilerOptions(
     moduleResolution: {
       // In TypeScript 5.0, `NodeJs` has renamed to `Node10`
       parsedValue:
+        ts.ModuleResolutionKind.Bundler ??
+        ts.ModuleResolutionKind.NodeNext ??
         (ts.ModuleResolutionKind as any).Node10 ??
         ts.ModuleResolutionKind.NodeJs,
       // All of these values work:

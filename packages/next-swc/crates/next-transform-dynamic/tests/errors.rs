@@ -21,7 +21,13 @@ fn syntax() -> Syntax {
 fn next_dynamic_errors(input: PathBuf) {
     next_dynamic_errors_run(&input, "output-webpack.js", NextDynamicMode::Webpack);
 
-    next_dynamic_errors_run(&input, "output-turbo.js", NextDynamicMode::Turbo);
+    next_dynamic_errors_run(
+        &input,
+        "output-turbo.js",
+        NextDynamicMode::Turbopack {
+            dynamic_transition_name: "next-client-chunks".into(),
+        },
+    );
 }
 
 fn next_dynamic_errors_run(input: &Path, output: &str, mode: NextDynamicMode) {
@@ -33,7 +39,7 @@ fn next_dynamic_errors_run(input: &Path, output: &str, mode: NextDynamicMode) {
                 true,
                 false,
                 false,
-                mode,
+                mode.clone(),
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
                 Some("/some-project/src".into()),
             )

@@ -85,7 +85,7 @@ type JSONValue =
   | JSONValue[]
   | { [k: string]: JSONValue }
 
-type TurboLoaderItem =
+export type TurboLoaderItem =
   | string
   | {
       loader: string
@@ -93,7 +93,7 @@ type TurboLoaderItem =
       options: Record<string, JSONValue>
     }
 
-interface ExperimentalTurboOptions {
+export interface ExperimentalTurboOptions {
   /**
    * (`next --turbo` only) A mapping of aliased imports to modules to load in their place.
    *
@@ -297,6 +297,11 @@ export interface ExperimentalConfig {
    * Enables source maps generation for the server production bundle.
    */
   serverSourceMaps?: boolean
+
+  /**
+   * @internal Used by the Next.js internals only.
+   */
+  trustHostHeader?: boolean
 }
 
 export type ExportPathMap = {
@@ -304,6 +309,7 @@ export type ExportPathMap = {
     page: string
     query?: NextParsedUrlQuery
     _isAppDir?: boolean
+    _isAppPrefetch?: boolean
     _isDynamicError?: boolean
   }
 }
@@ -535,10 +541,10 @@ export interface NextConfig extends Record<string, any> {
   serverRuntimeConfig?: { [key: string]: any }
 
   /**
-   * Next.js automatically polyfills node-fetch and enables HTTP Keep-Alive by default.
+   * Next.js enables HTTP Keep-Alive by default.
    * You may want to disable HTTP Keep-Alive for certain `fetch()` calls or globally.
    *
-   * @see [Disabling HTTP Keep-Alive](https://nextjs.org/docs/api-reference/next.config.js/disabling-http-keep-alive)
+   * @see [Disabling HTTP Keep-Alive](https://nextjs.org/docs/app/api-reference/next-config-js/httpAgentOptions)
    */
   httpAgentOptions?: { keepAlive?: boolean }
 
@@ -622,7 +628,7 @@ export interface NextConfig extends Record<string, any> {
   modularizeImports?: Record<
     string,
     {
-      transform: string
+      transform: string | Record<string, string>
       preventFullImport?: boolean
       skipDefaultConversion?: boolean
     }
@@ -677,7 +683,7 @@ export const defaultConfig: NextConfig = {
   serverRuntimeConfig: {},
   publicRuntimeConfig: {},
   reactProductionProfiling: false,
-  reactStrictMode: false,
+  reactStrictMode: null,
   httpAgentOptions: {
     keepAlive: true,
   },
@@ -755,9 +761,15 @@ export async function normalizeConfig(phase: string, config: any) {
 export function validateConfig(userConfig: NextConfig): {
   errors?: Array<any> | null
 } {
-  const configValidator = require('next/dist/next-config-validate.js')
-  configValidator(userConfig)
-  return {
-    errors: configValidator.errors,
+  if (process.env.NEXT_MINIMAL) {
+    return {
+      errors: [],
+    }
+  } else {
+    const configValidator = require('next/dist/next-config-validate.js')
+    configValidator(userConfig)
+    return {
+      errors: configValidator.errors,
+    }
   }
 }
