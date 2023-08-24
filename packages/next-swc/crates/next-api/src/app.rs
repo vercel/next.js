@@ -700,7 +700,7 @@ impl AppEndpoint {
                 // TODO(alexkirsz) This should be shared with next build.
                 let named_regex = get_named_middleware_regex(&app_entry.pathname);
                 let matchers = MiddlewareMatcher {
-                    regexp: named_regex,
+                    regexp: Some(named_regex),
                     original_source: app_entry.pathname.clone(),
                     ..Default::default()
                 };

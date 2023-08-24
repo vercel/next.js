@@ -86,6 +86,7 @@ import { PropagateToWorkersField } from './types'
 import { MiddlewareManifest } from '../../../build/webpack/plugins/middleware-plugin'
 import { devPageFiles } from '../../../build/webpack/plugins/next-types-plugin/shared'
 import type { RenderWorkers } from '../router-server'
+import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
 
 /**
  * This is the timeout for which the watchpack will emit the `aggregate` event
@@ -147,6 +148,23 @@ async function startWatcher(opts: SetupOpts) {
     await opts.renderWorkers.pages?.propagateServerField(field, args)
   }
 
+  const serverFields: {
+    actualMiddlewareFile?: string | undefined
+    actualInstrumentationHookFile?: string | undefined
+    appPathRoutes?: Record<string, string | string[]>
+    middleware?:
+      | {
+          page: string
+          match: MiddlewareRouteMatch
+          matchers?: MiddlewareMatcher[]
+        }
+      | undefined
+    hasAppNotFound?: boolean
+    interceptionRoutes?: ReturnType<
+      typeof import('./filesystem').buildCustomRoute
+    >[]
+  } = {}
+
   let hotReloader: InstanceType<typeof HotReloader>
 
   if (opts.turbo) {
@@ -176,103 +194,12 @@ async function startWatcher(opts: SetupOpts) {
       document: undefined,
       error: undefined,
     }
-
-    try {
-      async function handleEntries() {
-        for await (const entrypoints of iter) {
-          globalEntries.app = entrypoints.pagesAppEndpoint
-          globalEntries.document = entrypoints.pagesDocumentEndpoint
-          globalEntries.error = entrypoints.pagesErrorEndpoint
-
-          curEntries.clear()
-
-          for (const [pathname, route] of entrypoints.routes) {
-            switch (route.type) {
-              case 'page':
-              case 'page-api':
-              case 'app-page':
-              case 'app-route': {
-                curEntries.set(pathname, route)
-                break
-              }
-              default:
-                Log.info(`skipping ${pathname} (${route.type})`)
-                break
-            }
-          }
-        }
-      }
-      handleEntries().catch((err) => {
-        console.error(err)
-        process.exit(1)
-      })
-    } catch (e) {
-      console.error(e)
-    }
-
-    const buildManifests = new Map<string, BuildManifest>()
-    const appBuildManifests = new Map<string, AppBuildManifest>()
-    const pagesManifests = new Map<string, PagesManifest>()
-    const appPathsManifests = new Map<string, PagesManifest>()
-    const middlewareManifests = new Map<string, MiddlewareManifest>()
+    let currentEntriesHandlingResolve: ((value?: unknown) => void) | undefined
+    let currentEntriesHandling = new Promise(
+      (resolve) => (currentEntriesHandlingResolve = resolve)
+    )
 
     const issues = new Map<string, Set<string>>()
-
-    function mergeBuildManifests(manifests: Iterable<BuildManifest>) {
-      const manifest: Partial<BuildManifest> & Pick<BuildManifest, 'pages'> = {
-        pages: {
-          '/_app': [],
-        },
-        // Something in next.js depends on these to exist even for app dir rendering
-        devFiles: [],
-        ampDevFiles: [],
-        polyfillFiles: [],
-        lowPriorityFiles: [
-          'static/development/_ssgManifest.js',
-          'static/development/_buildManifest.js',
-        ],
-        rootMainFiles: [],
-        ampFirstPages: [],
-      }
-      for (const m of manifests) {
-        Object.assign(manifest.pages, m.pages)
-        if (m.rootMainFiles.length) manifest.rootMainFiles = m.rootMainFiles
-      }
-      return manifest
-    }
-
-    function mergeAppBuildManifests(manifests: Iterable<AppBuildManifest>) {
-      const manifest: AppBuildManifest = {
-        pages: {},
-      }
-      for (const m of manifests) {
-        Object.assign(manifest.pages, m.pages)
-      }
-      return manifest
-    }
-
-    function mergePagesManifests(manifests: Iterable<PagesManifest>) {
-      const manifest: PagesManifest = {}
-      for (const m of manifests) {
-        Object.assign(manifest, m)
-      }
-      return manifest
-    }
-
-    function mergeMiddlewareManifests(
-      manifests: Iterable<MiddlewareManifest>
-    ): MiddlewareManifest {
-      const manifest: MiddlewareManifest = {
-        version: 2,
-        middleware: {},
-        sortedMiddleware: [],
-        functions: {},
-      }
-      for (const m of manifests) {
-        Object.assign(manifest.functions, m.functions)
-      }
-      return manifest
-    }
 
     async function processResult(
       key: string,
@@ -326,6 +253,221 @@ async function startWatcher(opts: SetupOpts) {
 
     const clearCache = (filePath: string) =>
       (global as any)._nextDeleteCache?.([filePath])
+
+    async function loadPartialManifest<T>(
+      name: string,
+      pageName: string,
+      type: 'pages' | 'app' | 'app-route' | 'middleware' = 'pages'
+    ): Promise<T> {
+      const manifestPath = path.posix.join(
+        distDir,
+        `server`,
+        type === 'app-route' ? 'app' : type,
+        type === 'middleware'
+          ? ''
+          : pageName === '/' && type === 'pages'
+          ? 'index'
+          : pageName,
+        pageName === '/_not-found' || pageName === '/not-found'
+          ? ''
+          : type === 'app'
+          ? 'page'
+          : type === 'app-route'
+          ? 'route'
+          : '',
+        name
+      )
+      return JSON.parse(
+        await readFile(path.posix.join(manifestPath), 'utf-8')
+      ) as T
+    }
+
+    const buildManifests = new Map<string, BuildManifest>()
+    const appBuildManifests = new Map<string, AppBuildManifest>()
+    const pagesManifests = new Map<string, PagesManifest>()
+    const appPathsManifests = new Map<string, PagesManifest>()
+    const middlewareManifests = new Map<string, MiddlewareManifest>()
+
+    async function loadMiddlewareManifest(
+      pageName: string,
+      type: 'pages' | 'app' | 'app-route' | 'middleware'
+    ): Promise<void> {
+      middlewareManifests.set(
+        pageName,
+        await loadPartialManifest(MIDDLEWARE_MANIFEST, pageName, type)
+      )
+    }
+
+    async function loadBuildManifest(
+      pageName: string,
+      type: 'app' | 'pages' = 'pages'
+    ): Promise<void> {
+      buildManifests.set(
+        pageName,
+        await loadPartialManifest(BUILD_MANIFEST, pageName, type)
+      )
+    }
+
+    async function loadAppBuildManifest(pageName: string): Promise<void> {
+      appBuildManifests.set(
+        pageName,
+        await loadPartialManifest(APP_BUILD_MANIFEST, pageName, 'app')
+      )
+    }
+
+    async function loadPagesManifest(pageName: string): Promise<void> {
+      pagesManifests.set(
+        pageName,
+        await loadPartialManifest(PAGES_MANIFEST, pageName)
+      )
+    }
+
+    async function loadAppPathManifest(
+      pageName: string,
+      type: 'app' | 'app-route' = 'app'
+    ): Promise<void> {
+      appPathsManifests.set(
+        pageName,
+        await loadPartialManifest(APP_PATHS_MANIFEST, pageName, type)
+      )
+    }
+
+    try {
+      async function handleEntries() {
+        for await (const entrypoints of iter) {
+          if (!currentEntriesHandlingResolve) {
+            currentEntriesHandling = new Promise(
+              // eslint-disable-next-line no-loop-func
+              (resolve) => (currentEntriesHandlingResolve = resolve)
+            )
+          }
+          globalEntries.app = entrypoints.pagesAppEndpoint
+          globalEntries.document = entrypoints.pagesDocumentEndpoint
+          globalEntries.error = entrypoints.pagesErrorEndpoint
+
+          curEntries.clear()
+
+          for (const [pathname, route] of entrypoints.routes) {
+            switch (route.type) {
+              case 'page':
+              case 'page-api':
+              case 'app-page':
+              case 'app-route': {
+                curEntries.set(pathname, route)
+                break
+              }
+              default:
+                Log.info(`skipping ${pathname} (${route.type})`)
+                break
+            }
+          }
+
+          if (entrypoints.middleware) {
+            await processResult(
+              'middleware',
+              await entrypoints.middleware.endpoint.writeToDisk()
+            )
+            await loadMiddlewareManifest('middleware', 'middleware')
+            serverFields.actualMiddlewareFile = 'middleware'
+            serverFields.middleware = {
+              match: null as any,
+              page: '/',
+              matchers:
+                middlewareManifests.get('middleware')?.middleware['/'].matchers,
+            }
+          } else {
+            middlewareManifests.delete('middleware')
+            serverFields.actualMiddlewareFile = undefined
+            serverFields.middleware = undefined
+          }
+          await propagateToWorkers(
+            'actualMiddlewareFile',
+            serverFields.actualMiddlewareFile
+          )
+          await propagateToWorkers('middleware', serverFields.middleware)
+
+          currentEntriesHandlingResolve!()
+          currentEntriesHandlingResolve = undefined
+        }
+      }
+      handleEntries().catch((err) => {
+        console.error(err)
+        process.exit(1)
+      })
+    } catch (e) {
+      console.error(e)
+    }
+
+    function mergeBuildManifests(manifests: Iterable<BuildManifest>) {
+      const manifest: Partial<BuildManifest> & Pick<BuildManifest, 'pages'> = {
+        pages: {
+          '/_app': [],
+        },
+        // Something in next.js depends on these to exist even for app dir rendering
+        devFiles: [],
+        ampDevFiles: [],
+        polyfillFiles: [],
+        lowPriorityFiles: [
+          'static/development/_ssgManifest.js',
+          'static/development/_buildManifest.js',
+        ],
+        rootMainFiles: [],
+        ampFirstPages: [],
+      }
+      for (const m of manifests) {
+        Object.assign(manifest.pages, m.pages)
+        if (m.rootMainFiles.length) manifest.rootMainFiles = m.rootMainFiles
+      }
+      return manifest
+    }
+
+    function mergeAppBuildManifests(manifests: Iterable<AppBuildManifest>) {
+      const manifest: AppBuildManifest = {
+        pages: {},
+      }
+      for (const m of manifests) {
+        Object.assign(manifest.pages, m.pages)
+      }
+      return manifest
+    }
+
+    function mergePagesManifests(manifests: Iterable<PagesManifest>) {
+      const manifest: PagesManifest = {}
+      for (const m of manifests) {
+        Object.assign(manifest, m)
+      }
+      return manifest
+    }
+
+    function mergeMiddlewareManifests(
+      manifests: Iterable<MiddlewareManifest>
+    ): MiddlewareManifest {
+      const manifest: MiddlewareManifest = {
+        version: 2,
+        middleware: {},
+        sortedMiddleware: [],
+        functions: {},
+      }
+      for (const m of manifests) {
+        Object.assign(manifest.functions, m.functions)
+        Object.assign(manifest.middleware, m.middleware)
+      }
+      for (const fun of Object.values(manifest.functions).concat(
+        Object.values(manifest.middleware)
+      )) {
+        for (const matcher of fun.matchers) {
+          if (!matcher.regexp) {
+            matcher.regexp = pathToRegexp(matcher.originalSource, [], {
+              delimiter: '/',
+              sensitive: false,
+              strict: true,
+            }).source.replaceAll('\\/', '/')
+          }
+        }
+      }
+      manifest.sortedMiddleware = Object.keys(manifest.middleware)
+      return manifest
+    }
 
     async function writeBuildManifest(): Promise<void> {
       const buildManifest = mergeBuildManifests(buildManifests.values())
@@ -463,6 +605,7 @@ async function startWatcher(opts: SetupOpts) {
         2
       )
     )
+    await currentEntriesHandling
     await writeBuildManifest()
     await writeAppBuildManifest()
     await writePagesManifest()
@@ -477,86 +620,6 @@ async function startWatcher(opts: SetupOpts) {
             ensureOpts: Parameters<(typeof hotReloader)['ensurePage']>[0]
           ) => {
             let page = ensureOpts.match?.definition?.pathname ?? ensureOpts.page
-
-            async function loadPartialManifest<T>(
-              name: string,
-              pageName: string,
-              isApp: boolean = false,
-              isRoute: boolean = false
-            ): Promise<T> {
-              const manifestPath = path.posix.join(
-                distDir,
-                `server`,
-                isApp ? 'app' : 'pages',
-                pageName === '/' && !isApp ? 'index' : pageName,
-                isApp && pageName !== '/_not-found' && pageName !== '/not-found'
-                  ? isRoute
-                    ? 'route'
-                    : 'page'
-                  : '',
-                name
-              )
-              return JSON.parse(
-                await readFile(path.posix.join(manifestPath), 'utf-8')
-              ) as T
-            }
-
-            async function loadBuildManifest(
-              pageName: string,
-              isApp: boolean = false
-            ): Promise<void> {
-              buildManifests.set(
-                pageName,
-                await loadPartialManifest(BUILD_MANIFEST, pageName, isApp)
-              )
-            }
-
-            async function loadAppBuildManifest(
-              pageName: string
-            ): Promise<void> {
-              appBuildManifests.set(
-                pageName,
-                await loadPartialManifest(APP_BUILD_MANIFEST, pageName, true)
-              )
-            }
-
-            async function loadPagesManifest(pageName: string): Promise<void> {
-              pagesManifests.set(
-                pageName,
-                await loadPartialManifest(PAGES_MANIFEST, pageName)
-              )
-            }
-
-            async function loadAppPathManifest(
-              pageName: string,
-              routeHandler: boolean
-            ): Promise<void> {
-              appPathsManifests.set(
-                pageName,
-                await loadPartialManifest(
-                  APP_PATHS_MANIFEST,
-                  pageName,
-                  true,
-                  routeHandler
-                )
-              )
-            }
-
-            async function loadMiddlewareManifest(
-              pageName: string,
-              isApp: boolean = false,
-              isRoute: boolean = false
-            ): Promise<void> {
-              middlewareManifests.set(
-                pageName,
-                await loadPartialManifest(
-                  MIDDLEWARE_MANIFEST,
-                  pageName,
-                  isApp,
-                  isRoute
-                )
-              )
-            }
 
             if (page === '/_error') {
               await processResult(
@@ -587,12 +650,14 @@ async function startWatcher(opts: SetupOpts) {
               return
             }
 
+            await currentEntriesHandling
             const route = curEntries.get(page)
 
             if (!route) {
               // TODO: why is this entry missing in turbopack?
               if (page === '/_app') return
               if (page === '/_document') return
+              if (page === '/middleware') return
 
               throw new PageNotFoundError(`route not found ${page}`)
             }
@@ -627,11 +692,15 @@ async function startWatcher(opts: SetupOpts) {
 
                 await loadBuildManifest(page)
                 await loadPagesManifest(page)
-                if (type === 'edge') await loadMiddlewareManifest(page, false)
+                if (type === 'edge') {
+                  await loadMiddlewareManifest(page, 'pages')
+                } else {
+                  middlewareManifests.delete(page)
+                }
 
                 await writeBuildManifest()
                 await writePagesManifest()
-                if (type === 'edge') await writeMiddlewareManifest()
+                await writeMiddlewareManifest()
                 await writeOtherManifests()
 
                 break
@@ -651,10 +720,14 @@ async function startWatcher(opts: SetupOpts) {
                 const type = writtenEndpoint?.type
 
                 await loadPagesManifest(page)
-                if (type === 'edge') await loadMiddlewareManifest(page, false)
+                if (type === 'edge') {
+                  await loadMiddlewareManifest(page, 'pages')
+                } else {
+                  middlewareManifests.delete(page)
+                }
 
                 await writePagesManifest()
-                if (type === 'edge') await writeMiddlewareManifest()
+                await writeMiddlewareManifest()
                 await writeOtherManifests()
 
                 break
@@ -666,8 +739,8 @@ async function startWatcher(opts: SetupOpts) {
                 )
 
                 await loadAppBuildManifest(page)
-                await loadBuildManifest(page, true)
-                await loadAppPathManifest(page, false)
+                await loadBuildManifest(page, 'app')
+                await loadAppPathManifest(page, 'app')
 
                 await writeAppBuildManifest()
                 await writeBuildManifest()
@@ -682,14 +755,17 @@ async function startWatcher(opts: SetupOpts) {
                   await processResult(page, await route.endpoint.writeToDisk())
                 )?.type
 
-                await loadAppPathManifest(page, true)
-                if (type === 'edge')
-                  await loadMiddlewareManifest(page, true, true)
+                await loadAppPathManifest(page, 'app-route')
+                if (type === 'edge') {
+                  await loadMiddlewareManifest(page, 'app-route')
+                } else {
+                  middlewareManifests.delete(page)
+                }
 
                 await writeAppBuildManifest()
                 await writeAppPathsManifest()
                 await writeMiddlewareManifest()
-                if (type === 'edge') await writeMiddlewareManifest()
+                await writeMiddlewareManifest()
                 await writeOtherManifests()
 
                 break
@@ -767,23 +843,6 @@ async function startWatcher(opts: SetupOpts) {
 
   let resolved = false
   let prevSortedRoutes: string[] = []
-
-  const serverFields: {
-    actualMiddlewareFile?: string | undefined
-    actualInstrumentationHookFile?: string | undefined
-    appPathRoutes?: Record<string, string | string[]>
-    middleware?:
-      | {
-          page: string
-          match: MiddlewareRouteMatch
-          matchers?: MiddlewareMatcher[]
-        }
-      | undefined
-    hasAppNotFound?: boolean
-    interceptionRoutes?: ReturnType<
-      typeof import('./filesystem').buildCustomRoute
-    >[]
-  } = {}
 
   await new Promise<void>(async (resolve, reject) => {
     if (pagesDir) {

@@ -45,15 +45,15 @@ pub async fn create_page_ssr_entry_module(
     let template_file = match (&reference_type, runtime) {
         (ReferenceType::Entry(EntryReferenceSubType::Page), _) => {
             // Load the Page entry file.
-            "build/webpack/loaders/next-route-loader/templates/pages.js"
+            "build/templates/pages.js"
         }
         (ReferenceType::Entry(EntryReferenceSubType::PagesApi), NextRuntime::NodeJs) => {
             // Load the Pages API entry file.
-            "build/webpack/loaders/next-route-loader/templates/pages-api.js"
+            "build/templates/pages-api.js"
         }
         (ReferenceType::Entry(EntryReferenceSubType::PagesApi), NextRuntime::Edge) => {
             // Load the Pages API entry file.
-            "build/webpack/loaders/next-route-loader/templates/pages-edge-api.js"
+            "build/templates/pages-edge-api.js"
         }
         _ => bail!("Invalid path type"),
     };
