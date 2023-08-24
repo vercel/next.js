@@ -370,7 +370,7 @@ export class ClientReferenceManifestPlugin {
       // dev: app/not-found
       // prod: app/_not-found
       if (/^app\/_?not-found(\.[^.]+)?$/.test(entryName)) {
-        manifestEntryFiles.push('app/not-found')
+        manifestEntryFiles.push(this.dev ? 'app/not-found' : 'app/_not-found')
       }
 
       const groupName = entryNameToGroupName(entryName)
