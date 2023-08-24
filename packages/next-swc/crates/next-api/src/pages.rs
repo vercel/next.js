@@ -840,7 +840,7 @@ impl PageEndpoint {
                     .await?;
 
                 let pathname = this.pathname.await?;
-                let named_regex = get_named_middleware_regex(&*pathname);
+                let named_regex = get_named_middleware_regex(&pathname);
                 let matchers = MiddlewareMatcher {
                     regexp: named_regex,
                     original_source: pathname.to_string(),
