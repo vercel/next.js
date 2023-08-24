@@ -5,13 +5,21 @@ import next from 'next'
 const port = parseInt(process.env.PORT || '3000', 10)
 const dev = process.env.NODE_ENV !== 'production'
 const app = next({ dev })
-const handle = app.getRequestHandler()
+// Enable when you add a custom socket handler, as Next.js uses websockets in development.
+const upgradeHandler = app.getUpgradeHandler()
+const handler = app.getRequestHandler()
 
 app.prepare().then(() => {
-  createServer((req, res) => {
+  const server = createServer((req, res) => {
     const parsedUrl = parse(req.url!, true)
-    handle(req, res, parsedUrl)
+    handler(req, res, parsedUrl)
   }).listen(port)
+
+  // Enable when you add a custom socket handler as Next.js will set up
+  server.on('upgrade', (req, socket, head) => {
+    // Enable when you add a custom socket handler, as Next.js uses websockets in development.
+    upgradeHandler(req, socket, head)
+  })
 
   console.log(
     `> Server listening at http://localhost:${port} as ${

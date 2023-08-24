@@ -273,6 +273,13 @@ class NextCustomServer extends NextServer {
     }
   }
 
+  getUpgradeHandler() {
+    this.didWebSocketSetup = true
+    return async (req: IncomingMessage, socket: any, head: any) => {
+      this.upgradeHandler(req, socket, head)
+    }
+  }
+
   getRequestHandler() {
     return async (
       req: IncomingMessage,
