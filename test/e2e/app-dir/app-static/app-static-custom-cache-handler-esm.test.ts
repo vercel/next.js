@@ -1,11 +1,15 @@
 import { createNextDescribe } from 'e2e-utils'
+import { join } from 'path'
 
 createNextDescribe(
   'app-static-custom-cache-handler-esm',
   {
     files: __dirname,
     env: {
-      CUSTOM_CACHE_HANDLER: '1',
+      CUSTOM_CACHE_HANDLER: join(
+        __dirname,
+        './cache-handler-default-export.js'
+      ),
     },
   },
   ({ next, isNextStart }) => {
@@ -14,24 +18,10 @@ createNextDescribe(
       return
     }
 
-    beforeAll(async () => {
-      await next.stop()
-      const nextConfig = await next.readFile('./next.config.js')
-      await next.patchFile(
-        './next.config.js',
-        nextConfig.replace(
-          'cache-handler.js',
-          'cache-handler-default-export.js'
-        )
-      )
-    })
-
     it('should have logs from cache-handler', async () => {
-      const { cliOutput } = await next.build()
-
-      expect(cliOutput).toContain('initialized custom cache-handler')
-      expect(cliOutput).toContain('cache-handler get')
-      expect(cliOutput).toContain('cache-handler set')
+      expect(next.cliOutput).toContain('initialized custom cache-handler')
+      expect(next.cliOutput).toContain('cache-handler get')
+      expect(next.cliOutput).toContain('cache-handler set')
     })
   }
 )
