@@ -66,6 +66,20 @@ For example:
 | `app/shop/[tag]/[item]/page.js` | `/shop/1/2` | `{ tag: '1', item: '2' }` |
 | `app/shop/[...slug]/page.js`    | `/shop/1/2` | `{ slug: ['1', '2'] }`    |
 
+## Fetching Params from a Server Side Component
+In certain scenarios it may be optimal to fetch params from a server side component. 
+
+```jsx filename="app/[tag]/[item]/page.tsx"
+export default async function CoffeeShopDetails({params}){
+
+    console.log(`tag: ${params.tag}`);
+    console.log(`item: ${params.item}`)
+
+    return (<h1>test</h1>)
+}
+```
+
+
 ## Version History
 
 | Version   | Changes                 |
