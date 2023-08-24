@@ -314,13 +314,13 @@ const nextDev: CliCommand = async (argv) => {
     undefined,
     undefined,
     (userConfig) => {
-      expFeatureInfo = Object.keys(userConfig.experimental || {})
+      expFeatureInfo = Object.keys(userConfig.experimental || {}).sort(
+        (a, b) => a.length - b.length
+      )
     }
   )
   if (loadedEnvFiles.length > 0) {
-    envInfo = loadedEnvFiles
-      .map((f) => f.path)
-      .sort((a, b) => b.length - a.length)
+    envInfo = loadedEnvFiles.map((f) => f.path)
   }
 
   const isExperimentalTestProxy = args['--experimental-test-proxy']
