@@ -87,13 +87,6 @@ import { MiddlewareManifest } from '../../../build/webpack/plugins/middleware-pl
 import { devPageFiles } from '../../../build/webpack/plugins/next-types-plugin/shared'
 import type { RenderWorkers } from '../router-server'
 
-/**
- * This is the timeout for which the watchpack will emit the `aggregate` event
- * after file changes are made. This is to prevent unnecessary rebuilds when
- * multiple files are changed at once.
- */
-const WATCHPACK_AGGREGATE_TIMEOUT = 5
-
 type SetupOpts = {
   renderWorkers: RenderWorkers
   dir: string
@@ -787,7 +780,6 @@ async function startWatcher(opts: SetupOpts) {
     files.push(...tsconfigPaths)
 
     const wp = new Watchpack({
-      aggregateTimeout: WATCHPACK_AGGREGATE_TIMEOUT,
       ignored: (pathname: string) => {
         return (
           !files.some((file) => file.startsWith(pathname)) &&
