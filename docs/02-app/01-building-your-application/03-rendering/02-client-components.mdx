@@ -54,6 +54,8 @@ export default function Counter() {
 }
 ```
 
+The diagram below shows nested components, using `onClick` and `useState` in `toggle.js` will cause an error if the `"use client"` directive is not defined. This is because, by default, the components are rendered on the server where these APIs are not available. By defining the `"use client"` directive to `toggle.js`, you can tell React to render the component and its on the client, where the APIs are available.
+
 <Image
   alt="Use Client Directive and Network Boundary"
   srcLight="/docs/light/use-client-directive.png"
@@ -66,7 +68,7 @@ export default function Counter() {
 >
 > You can define multiple "use client" entry points in your React Component tree. This allows you to split your application into multiple client bundles (or branches).
 >
-> However, `"use client"` doesn't need to be defined in every component that needs to be rendered on the client. Once you define the boundary, all components and modules imported into it are considered part of the client bundle.
+> However, `"use client"` doesn't need to be defined in every component that needs to be rendered on the client. Once you define the boundary, all child components and modules imported into it are considered part of the client bundle.
 
 ## How are Client Components Rendered?
 

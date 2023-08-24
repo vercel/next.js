@@ -62,7 +62,7 @@ There are three subsets of server rendering: Static, Dynamic, and Streaming.
 
 ### Static Rendering (Default)
 
-{/* Dynamic Rendering Diagram */}
+{/* Static Rendering Diagram */}
 
 With Static Rendering, routes are rendered at **build time**, or in the background after [data revalidation](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#revalidating-data). The result is cached and can be pushed to a [Content Delivery Network (CDN)](https://developer.mozilla.org/en-US/docs/Glossary/CDN). This optimization allows you to share the result of the rendering work between users and server requests.
 
@@ -113,9 +113,23 @@ Using any of these functions will opt the whole route into dynamic rendering at 
 
 ### Streaming
 
-{/* Streaming Diagram */}
+<Image
+  alt="Diagram showing parallelization of route segments during streaming, showing data fetching, rendering, and hydration of invidiual chunks."
+  srcLight="/docs/light/sequential-parallel-data-fetching.png"
+  srcDark="/docs/dark/sequential-parallel-data-fetching.png"
+  width="1600"
+  height="525"
+/>
 
-With Streaming, routes are rendered on the server at **request time**, and the work is split into chunks and streamed to the client as it becomes ready. This allows the user to see a preview of the page before it's fully rendered.
+With Streaming, routes are rendered on the server at **request time**. The work is split into chunks and streamed to the client as it becomes ready. This allows the user to see a preview of the page before it's fully rendered.
+
+<Image
+  alt="Diagram showing partially rendered page on the client, with loading UI for chunks that are being streamed."
+  srcLight="/docs/light/server-rendering-with-streaming.png"
+  srcDark="/docs/dark/server-rendering-with-streaming.png"
+  width="1600"
+  height="785"
+/>
 
 Streaming is useful for lower-priority UI, or UI that depends on slower data fetches that would block rendering for the whole route. For example, reviews on a product page.
 
