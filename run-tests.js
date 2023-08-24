@@ -524,6 +524,10 @@ ${ENDGROUP}`)
       if ((!passed || shouldContinueTestsOnError) && isTestJob) {
         try {
           const testsOutput = await fs.readFile(`${test}${RESULTS_EXT}`, 'utf8')
+          testsOutput.processEnv = {
+            NEXT_TEST_MODE = process.env.NEXT_TEST_MODE,
+            HEADLESS = process.env.HEADLESS,
+          }
           await outputSema.acquire()
           if (GROUP) console.log(`${GROUP}Result as JSON for tooling`)
           console.log(
