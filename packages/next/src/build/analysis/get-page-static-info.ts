@@ -527,7 +527,22 @@ export async function getPageStaticInfo(params: {
 
     if (pageType === 'app') {
       if (config) {
-        const message = `\`export const config\` in ${pageFilePath} is deprecated. Please change \`runtime\` property to segment export config. See https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config`
+        let message = `\`export const config\` in ${pageFilePath} is deprecated:`
+
+        if (config.runtime) {
+          message += `\n  - Change \`config.runtime…\` to \`export const runtime = ${JSON.stringify(
+            config.runtime
+          )}\``
+        }
+
+        if (config.regions) {
+          message += `\n  - Change \`config.regions…\` to \`export const preferredRegion = ${JSON.stringify(
+            config.regions
+          )}\``
+        }
+
+        message += `\nVisit https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config for more information.`
+
         if (isDev) {
           Log.warnOnce(message)
         } else {
