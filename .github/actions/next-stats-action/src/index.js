@@ -110,20 +110,20 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
 
         await exec(
           `cd ${dir}${
-            !statsConfig.skipInitialInstall
-              ? usePnpm
-                ? // --no-frozen-lockfile is used here to tolerate lockfile
-                  // changes from merging latest changes
-                  ` && pnpm install --no-frozen-lockfile`
-                : ' && yarn install --network-timeout 1000000'
-              : ''
+            usePnpm
+              ? // --no-frozen-lockfile is used here to tolerate lockfile
+                // changes from merging latest changes
+                ` && pnpm install --no-frozen-lockfile`
+              : ' && yarn install --network-timeout 1000000'
           }`,
           false
         )
 
-        if (statsConfig.initialBuildCommand) {
-          await exec(`cd ${dir}${statsConfig.initialBuildCommand}`, false)
-        }
+        await exec(
+          statsConfig.initialBuildCommand ||
+            `cd ${dir} && ${usePnpm ? 'pnpm build' : 'echo built'}`,
+          false
+        )
       }
 
       await fs
