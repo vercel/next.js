@@ -51,13 +51,17 @@ export interface PageStaticInfo {
 
 const CLIENT_MODULE_LABEL =
   /\/\* __next_internal_client_entry_do_not_use__ ([^ ]*) (cjs|auto) \*\//
+
 const ACTION_MODULE_LABEL =
   /\/\* __next_internal_action_entry_do_not_use__ ([^ ]+) \*\//
+
+const CLIENT_DIRECTIVE = 'use client'
+const SERVER_ACTION_DIRECTIVE = 'use server'
 
 export type RSCModuleType = 'server' | 'client'
 export function getRSCModuleInformation(
   source: string,
-  isServerLayer = true
+  isServerLayer: boolean
 ): RSCMeta {
   const actions = source.match(ACTION_MODULE_LABEL)?.[1]?.split(',')
   const clientInfoMatch = source.match(CLIENT_MODULE_LABEL)
@@ -75,14 +79,13 @@ export function getRSCModuleInformation(
   const clientEntryType = clientInfoMatch?.[2] as 'cjs' | 'auto'
 
   const type = clientRefs ? RSC_MODULE_TYPES.client : RSC_MODULE_TYPES.server
-  const hasUseClientDirective = /^\s*['"]use client['"]/.test(source)
+
   return {
     type,
     actions,
     clientRefs,
     clientEntryType,
     isClientRef,
-    hasUseClientDirective,
   }
 }
 
@@ -124,6 +127,7 @@ function checkExports(
   generateSitemaps?: boolean
   generateStaticParams: boolean
   extraProperties?: Set<string>
+  directives?: Set<string>
 } {
   const exportsSet = new Set<string>([
     'getStaticProps',
@@ -142,8 +146,27 @@ function checkExports(
       let generateSitemaps: boolean = false
       let generateStaticParams = false
       let extraProperties = new Set<string>()
+      let directives = new Set<string>()
+      let hasLeadingNonDirectiveNode = false
 
       for (const node of swcAST.body) {
+        // There should be no non-string literals nodes before directives
+        if (
+          node.type === 'ExpressionStatement' &&
+          node.expression.type === 'StringLiteral'
+        ) {
+          if (!hasLeadingNonDirectiveNode) {
+            const directive = node.expression.value
+            if (CLIENT_DIRECTIVE === directive) {
+              directives.add('client')
+            }
+            if (SERVER_ACTION_DIRECTIVE === directive) {
+              directives.add('server')
+            }
+          }
+        } else {
+          hasLeadingNonDirectiveNode = true
+        }
         if (
           node.type === 'ExportDeclaration' &&
           node.declaration?.type === 'VariableDeclaration'
@@ -240,6 +263,7 @@ function checkExports(
         generateSitemaps,
         generateStaticParams,
         extraProperties,
+        directives,
       }
     } catch (err) {}
   }
@@ -253,6 +277,7 @@ function checkExports(
     generateSitemaps: false,
     generateStaticParams: false,
     extraProperties: undefined,
+    directives: undefined,
   }
 }
 
@@ -467,8 +492,9 @@ export async function getPageStaticInfo(params: {
       preferredRegion,
       generateStaticParams,
       extraProperties,
+      directives,
     } = checkExports(swcAST, pageFilePath)
-    const rscInfo = getRSCModuleInformation(fileContent)
+    const rscInfo = getRSCModuleInformation(fileContent, true)
     const rsc = rscInfo.type
 
     // default / failsafe value for config
@@ -575,7 +601,7 @@ export async function getPageStaticInfo(params: {
 
     if (
       pageType === 'app' &&
-      rscInfo.hasUseClientDirective &&
+      directives?.has('client') &&
       generateStaticParams
     ) {
       throw new Error(
