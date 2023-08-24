@@ -103,7 +103,7 @@ import { loadManifest } from './load-manifest'
 
 export * from './base-server'
 
-function writeStdout(text: string) {
+function writeStdoutLine(text: string) {
   // const maxLength = 160
   // let output = ''
   // let remainingText = text
@@ -117,7 +117,7 @@ function writeStdout(text: string) {
 
   // if (text.length > maxLength) output += indent
   // output += remainingText
-  process.stdout.write(Log.now() + ' ' + text)
+  process.stdout.write(Log.now() + ' ' + text + '\n')
 }
 
 export interface NodeRequestHandler {
@@ -1144,12 +1144,10 @@ export default class NextNodeServer extends BaseServer {
 
           if (Array.isArray(fetchMetrics) && fetchMetrics.length) {
             if (enabledVerboseLogging) {
-              // process.stdout.write('\n')
-              // process.stdout.write
-              writeStdout(
+              writeStdoutLine(
                 `${chalk.white.bold(req.method || 'GET')} ${req.url} ${
                   res.statusCode
-                } in ${getDurationStr(reqDuration)}\n`
+                } in ${getDurationStr(reqDuration)}`
               )
             }
 
@@ -1177,7 +1175,7 @@ export default class NextNodeServer extends BaseServer {
 
             for (let i = 0; i < fetchMetrics.length; i++) {
               const metric = fetchMetrics[i]
-              const lastItem = i === fetchMetrics.length - 1
+              // const lastItem = i === fetchMetrics.length - 1
               let { cacheStatus, cacheReason } = metric
               let cacheReasonStr = ''
 
@@ -1187,9 +1185,9 @@ export default class NextNodeServer extends BaseServer {
                 cacheStatus = chalk.green('HIT')
               } else if (cacheStatus === 'skip') {
                 cacheStatus = `${chalk.yellow('SKIP')}`
-                cacheReasonStr = `Cache miss reason: (${chalk.white(
-                  cacheReason
-                )})`
+                cacheReasonStr = `${chalk.grey(
+                  `Cache miss reason: (${chalk.white(cacheReason)})`
+                )}`
               } else {
                 cacheStatus = chalk.yellow('MISS')
               }
@@ -1229,37 +1227,35 @@ export default class NextNodeServer extends BaseServer {
                   metric.start
                 )
 
-                writeStdout(
+                writeStdoutLine(
                   `${`${newLineLeadingChar}${nestedIndent}${
                     i === 0 ? ' ' : ''
                   }${chalk.white.bold(metric.method)} ${chalk.grey(url)} ${
                     metric.status
-                  } in ${getDurationStr(duration)} (cache: ${cacheStatus})\n`}`
+                  } in ${getDurationStr(duration)} (cache: ${cacheStatus})`}`
                 )
                 if (cacheReasonStr) {
                   const nextNestedIndent = calcNestedLevel(
                     fetchMetrics.slice(0, i + 1),
                     metric.start
                   )
-                  writeStdout(
+                  writeStdoutLine(
                     newLineLeadingChar +
                       nextNestedIndent +
                       (i > 1 ? ' ' : '  ') +
                       newLineLeadingChar +
-                      ' ' +
-                      cacheReasonStr +
-                      '\n'
+                      ' '.repeat(2) +
+                      cacheReasonStr
                   )
                 }
               }
             }
           } else {
             if (enabledVerboseLogging) {
-              // process.stdout.write
-              writeStdout(
+              writeStdoutLine(
                 `${chalk.white.bold(req.method || 'GET')} ${req.url} ${
                   res.statusCode
-                } in ${getDurationStr(reqDuration)}\n`
+                } in ${getDurationStr(reqDuration)}`
               )
             }
           }
