@@ -31,7 +31,11 @@ jobs:
   stats:
     name: PR Stats
     needs: build
-    runs-on: ubuntu-latest
+    runs-on:
+      - 'self-hosted'
+      - 'linux'
+      - 'x64'
+      - 'metal'
     steps:
       - uses: actions/checkout@v3
         with:

@@ -87,7 +87,7 @@ jobs:
             target: 'x86_64-apple-darwin'
             build: |
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && corepack enable
-              turbo run build-native-release --remote-cache-timeout 90 --summarize -- --target x86_64-apple-darwin --release
+              turbo run build-native-release -vvv --remote-cache-timeout 90 --summarize -- --target x86_64-apple-darwin --release
               strip -x packages/next-swc/native/next-swc.*.node
 
           - host:
@@ -102,7 +102,7 @@ jobs:
               SYSROOT=$(xcrun --sdk macosx --show-sdk-path);
               export CFLAGS="-isysroot $SYSROOT -isystem $SYSROOT";
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && corepack enable
-              turbo run build-native-release --remote-cache-timeout 90 --summarize -- --target aarch64-apple-darwin
+              turbo run build-native-release -vvv --remote-cache-timeout 90 --summarize -- --target aarch64-apple-darwin
               strip -x packages/next-swc/native/next-swc.*.node
 
           - host:
@@ -113,7 +113,7 @@ jobs:
             build: |
               corepack enable
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}"
-              turbo run build-native-release --remote-cache-timeout 90 --summarize -- --target x86_64-pc-windows-msvc
+              turbo run build-native-release -vvv --remote-cache-timeout 90 --summarize -- --target x86_64-pc-windows-msvc
             target: 'x86_64-pc-windows-msvc'
 
           - host:
@@ -124,7 +124,7 @@ jobs:
             build: |
               corepack enable
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}"
-              turbo run build-native-no-plugin --remote-cache-timeout 90 --summarize -- --release --target i686-pc-windows-msvc
+              turbo run build-native-no-plugin -vvv --remote-cache-timeout 90 --summarize -- --release --target i686-pc-windows-msvc
             target: 'i686-pc-windows-msvc'
 
           - host:
@@ -136,7 +136,7 @@ jobs:
             build: |
               corepack enable
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}"
-              turbo run build-native-no-plugin-woa-release --remote-cache-timeout 90 --summarize -- --target aarch64-pc-windows-msvc
+              turbo run build-native-no-plugin-woa-release -vvv --remote-cache-timeout 90 --summarize -- --target aarch64-pc-windows-msvc
 
           - host:
               - 'self-hosted'
@@ -367,7 +367,7 @@ jobs:
         run: node scripts/normalize-version-bump.js
 
       - name: Build
-        run: turbo run build-wasm --remote-cache-timeout 90 --summarize -- --target ${{ matrix.target }} --features tracing/release_max_level_info
+        run: turbo run build-wasm -vvv --remote-cache-timeout 90 --summarize -- --target ${{ matrix.target }} --features tracing/release_max_level_info
 
       - name: Add target to folder name
         run: '[[ -d "packages/next-swc/crates/wasm/pkg" ]] && mv packages/next-swc/crates/wasm/pkg packages/next-swc/crates/wasm/pkg-${{ matrix.target }} || ls packages/next-swc/crates/wasm'
@@ -504,21 +504,16 @@ jobs:
 
   releaseStats:
     name: Release Stats
-    runs-on: ubuntu-latest
+    runs-on:
+      - 'self-hosted'
+      - 'linux'
+      - 'x64'
+      - 'metal'
     needs: [publishRelease]
     steps:
-      - name: Setup node
-        uses: actions/setup-node@v3
+      - uses: actions/checkout@v3
         with:
-          node-version: ${{ env.NODE_LTS_VERSION }}
-          check-latest: true
-
-      - uses: actions/cache@v3
-        timeout-minutes: 5
-        id: restore-build
-        with:
-          path: ./*
-          key: ${{ github.sha }}-${{ github.run_number }}
+          fetch-depth: 25
 
       - uses: actions/download-artifact@v3
         with:
