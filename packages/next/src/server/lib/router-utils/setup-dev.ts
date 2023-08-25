@@ -209,6 +209,8 @@ async function startWatcher(opts: SetupOpts) {
     const appPathsManifests = new Map<string, PagesManifest>()
     const middlewareManifests = new Map<string, MiddlewareManifest>()
 
+    const issues = new Map<string, Set<string>>()
+
     function mergeBuildManifests(manifests: Iterable<BuildManifest>) {
       const manifest: Partial<BuildManifest> & Pick<BuildManifest, 'pages'> = {
         pages: {
@@ -266,6 +268,7 @@ async function startWatcher(opts: SetupOpts) {
     }
 
     async function processResult(
+      key: string,
       result: TurbopackResult<WrittenEndpoint> | undefined
     ): Promise<TurbopackResult<WrittenEndpoint> | undefined> {
       if (result) {
@@ -284,13 +287,32 @@ async function startWatcher(opts: SetupOpts) {
             ])
         )
 
+        const oldSet = issues.get(key) ?? new Set()
+        const newSet = new Set<string>()
+
         for (const issue of result.issues) {
           // TODO better formatting
           if (issue.severity !== 'error' && issue.severity !== 'fatal') continue
-          console.error(
-            `⚠ ${issue.severity} - ${issue.filePath}\n${issue.title}\n${issue.description}\n\n`
-          )
+          const issueKey = `${issue.severity} - ${issue.filePath} - ${issue.title}\n${issue.description}\n\n`
+          if (!oldSet.has(issueKey)) {
+            console.error(
+              `  ⚠ ${key} ${issue.severity} - ${
+                issue.filePath
+              }\n    ${issue.title.replace(
+                /\n/g,
+                '\n    '
+              )}\n    ${issue.description.replace(/\n/g, '\n    ')}\n\n`
+            )
+          }
+          newSet.add(issueKey)
         }
+        for (const issue of oldSet) {
+          if (!newSet.has(issue)) {
+            console.error(`✅ ${key} fixed ${issue}`)
+          }
+        }
+
+        issues.set(key, newSet)
       }
       return result
     }
@@ -530,14 +552,23 @@ async function startWatcher(opts: SetupOpts) {
             }
 
             if (page === '/_error') {
-              await processResult(await globalEntries.app?.writeToDisk())
+              await processResult(
+                '_app',
+                await globalEntries.app?.writeToDisk()
+              )
               await loadBuildManifest('_app')
               await loadPagesManifest('_app')
 
-              await processResult(await globalEntries.document?.writeToDisk())
+              await processResult(
+                '_document',
+                await globalEntries.document?.writeToDisk()
+              )
               await loadPagesManifest('_document')
 
-              await processResult(await globalEntries.error?.writeToDisk())
+              await processResult(
+                page,
+                await globalEntries.error?.writeToDisk()
+              )
               await loadBuildManifest('_error')
               await loadPagesManifest('_error')
 
@@ -560,7 +591,44 @@ async function startWatcher(opts: SetupOpts) {
             }
 
             switch (route.type) {
-              case 'page':
+              case 'page': {
+                if (ensureOpts.isApp) {
+                  throw new Error(
+                    `mis-matched route type: isApp && page for ${page}`
+                  )
+                }
+
+                await processResult(
+                  '_app',
+                  await globalEntries.app?.writeToDisk()
+                )
+                await loadBuildManifest('_app')
+                await loadPagesManifest('_app')
+
+                await processResult(
+                  '_document',
+                  await globalEntries.document?.writeToDisk()
+                )
+                await loadPagesManifest('_document')
+
+                const writtenEndpoint = await processResult(
+                  page,
+                  await route.htmlEndpoint.writeToDisk()
+                )
+
+                const type = writtenEndpoint?.type
+
+                await loadBuildManifest(page)
+                await loadPagesManifest(page)
+                if (type === 'edge') await loadMiddlewareManifest(page, false)
+
+                await writeBuildManifest()
+                await writePagesManifest()
+                if (type === 'edge') await writeMiddlewareManifest()
+                await writeOtherManifests()
+
+                break
+              }
               case 'page-api': {
                 if (ensureOpts.isApp) {
                   throw new Error(
@@ -568,48 +636,27 @@ async function startWatcher(opts: SetupOpts) {
                   )
                 }
 
-                await processResult(await globalEntries.app?.writeToDisk())
-                await loadBuildManifest('_app')
-                await loadPagesManifest('_app')
+                const writtenEndpoint = await processResult(
+                  page,
+                  await route.endpoint.writeToDisk()
+                )
 
-                await processResult(await globalEntries.document?.writeToDisk())
-                await loadPagesManifest('_document')
+                const type = writtenEndpoint?.type
 
-                const writtenEndpoint =
-                  route.type === 'page-api'
-                    ? await processResult(await route.endpoint.writeToDisk())
-                    : await processResult(
-                        await route.htmlEndpoint.writeToDisk()
-                      )
-
-                if (route.type === 'page') {
-                  await loadBuildManifest(page)
-                }
                 await loadPagesManifest(page)
+                if (type === 'edge') await loadMiddlewareManifest(page, false)
 
-                switch (writtenEndpoint!.type) {
-                  case 'nodejs': {
-                    break
-                  }
-                  case 'edge': {
-                    throw new Error('edge is not implemented yet')
-                  }
-                  default: {
-                    throw new Error(
-                      `unknown endpoint type ${(writtenEndpoint as any).type}`
-                    )
-                  }
-                }
-
-                await writeBuildManifest()
                 await writePagesManifest()
-                await writeMiddlewareManifest()
+                if (type === 'edge') await writeMiddlewareManifest()
                 await writeOtherManifests()
 
                 break
               }
               case 'app-page': {
-                await processResult(await route.htmlEndpoint.writeToDisk())
+                await processResult(
+                  page,
+                  await route.htmlEndpoint.writeToDisk()
+                )
 
                 await loadAppBuildManifest(page)
                 await loadBuildManifest(page, true)
@@ -625,7 +672,7 @@ async function startWatcher(opts: SetupOpts) {
               }
               case 'app-route': {
                 const type = (
-                  await processResult(await route.endpoint.writeToDisk())
+                  await processResult(page, await route.endpoint.writeToDisk())
                 )?.type
 
                 await loadAppPathManifest(page, true)
