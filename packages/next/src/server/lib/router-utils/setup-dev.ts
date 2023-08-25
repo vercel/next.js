@@ -291,6 +291,7 @@ async function startWatcher(opts: SetupOpts) {
       ws,
       Map<string, AsyncIterator<any>>
     >()
+    const clients = new Set<ws>()
 
     async function loadMiddlewareManifest(
       pageName: string,
@@ -607,7 +608,7 @@ async function startWatcher(opts: SetupOpts) {
       const subscription = project.hmrEvents(id)
       mapping.set(id, subscription)
       for await (const data of subscription) {
-        send(client, { type: 'turbopack-message', data })
+        hotReloader.send({ type: 'turbopack-message', data })
       }
     }
 
@@ -615,11 +616,6 @@ async function startWatcher(opts: SetupOpts) {
       const mapping = clientToHmrSubscription.get(client)
       const subscription = mapping?.get(id)
       subscription?.return!()
-    }
-
-    function send(client: ws, payload: unknown) {
-      console.log({ payload })
-      client.send(JSON.stringify(payload))
     }
 
     // Write empty manifests
@@ -671,6 +667,9 @@ async function startWatcher(opts: SetupOpts) {
 
       onHMR(req: IncomingMessage, socket: Socket, head: Buffer) {
         wsServer.handleUpgrade(req, socket, head, (client) => {
+          clients.add(client)
+          client.on('close', () => clients.delete(client))
+
           // client send:
           //   - Middleware HMR:
           //     - { action: 'building' }
@@ -697,7 +696,7 @@ async function startWatcher(opts: SetupOpts) {
                 // ? handleAppDirPing(parsedData.tree)
                 // : handlePing(parsedData.page)
                 const result = { success: true }
-                send(client, {
+                hotReloader.send({
                   ...result,
                   [parsedData.appDirRoute ? 'action' : 'event']: 'pong',
                 })
@@ -726,8 +725,17 @@ async function startWatcher(opts: SetupOpts) {
             }
           })
 
-          send(client, { type: 'turbopack-connected' })
+          hotReloader.send({ type: 'turbopack-connected' })
         })
+      },
+
+      send(action: string | object, ...data: any[]) {
+        const payload = JSON.stringify(
+          typeof action === 'string' ? { action, data } : action
+        )
+        for (const client of clients) {
+          client.send(payload)
+        }
       },
 
       setHmrServerError(_error) {
@@ -740,9 +748,6 @@ async function startWatcher(opts: SetupOpts) {
         // Not implemented yet.
       },
       async stop() {
-        // Not implemented yet.
-      },
-      send(_action, ..._args) {
         // Not implemented yet.
       },
       async getCompilationErrors(_page) {
