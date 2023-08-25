@@ -2,6 +2,10 @@
 
 This example connects to a Sitecore XM Cloud site using the Sitecore JavaScript Rendering SDK (JSS) for Next.js and includes example components and configuration for headless SXA (Sitecore Experience Accelerator). For more information on creating and deploying a headless Sitecore solution to XM Cloud please refer to [Vercel's Sitecore XM Cloud Integration Guide](https://vercel.com/docs/integrations/sitecore) or official [Sitecore documentation](https://doc.sitecore.com/xmc/en/developers/xm-cloud/create-an-xm-cloud-project-from-a-starter-template-in-the-xm-cloud-deploy-app.html).
 
+## Demo
+
+### [https://vercel-sitecore-xmcloud-demo.vercel.app](https://vercel-sitecore-xmcloud-demo.vercel.app)
+
 ## Deploy your own
 
 Using the Deploy Button below, you'll deploy the Next.js project as well as connect it to your XM Cloud project with the required environment variables.
