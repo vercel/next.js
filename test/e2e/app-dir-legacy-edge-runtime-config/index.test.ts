@@ -19,16 +19,15 @@ createNextDescribe(
       } else {
         expect(error).toBeDefined()
       }
-      expect(next.cliOutput).toContain('`export const config` in')
+
+      expect(next.cliOutput).toContain('Page config in ')
       expect(next.cliOutput).toContain(
         // the full path is more complex, we only care about this part
-        'app/legacy-runtime-config/page.js is deprecated'
+        'app/legacy-runtime-config/page.js is deprecated. Replace `export const config=…` with the following:'
       )
+      expect(next.cliOutput).toContain('- `export const runtime = "edge"`')
       expect(next.cliOutput).toContain(
-        '- Change `config.runtime…` to `export const runtime = "edge"'
-      )
-      expect(next.cliOutput).toContain(
-        '- Change `config.regions…` to `export const preferredRegion = ["us-east-1"]`'
+        '- `export const preferredRegion = ["us-east-1"]`'
       )
     })
   }
