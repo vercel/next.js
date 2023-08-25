@@ -527,7 +527,7 @@ export async function getPageStaticInfo(params: {
 
     if (pageType === 'app') {
       if (config) {
-        let message = `\`export const config\` in ${pageFilePath} is deprecated:`
+        let message = `Page config in ${pageFilePath} is deprecated. Replace \`export const config=…\` with the following:`
 
         if (config.runtime) {
           message += `\n  - Change \`config.runtime…\` to \`export const runtime = ${JSON.stringify(
