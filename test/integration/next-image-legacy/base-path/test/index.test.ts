@@ -216,9 +216,13 @@ function runTests(mode) {
       const height = 700
       const delta = 250
       const id = 'responsive1'
-      expect(await getSrc(browser, id)).toBe(
-        '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75'
-      )
+
+      await check(async () => {
+        expect(await getSrc(browser, id)).toBe(
+          '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75'
+        )
+        return 'success'
+      }, 'success')
       expect(await browser.elementById(id).getAttribute('srcset')).toBe(
         '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=640&q=75 640w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=750&q=75 750w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=828&q=75 828w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1080&q=75 1080w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1200&q=75 1200w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1920&q=75 1920w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=2048&q=75 2048w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75 3840w'
       )

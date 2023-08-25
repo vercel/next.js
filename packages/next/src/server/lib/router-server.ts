@@ -321,7 +321,7 @@ export async function initialize(opts: {
       // TODO: log socket errors?
     })
 
-    const matchedDynamicRoutes = new Set<string>()
+    const invokedOutputs = new Set<string>()
 
     async function invokeRender(
       parsedUrl: NextUrlWithParsedQuery,
@@ -476,12 +476,12 @@ export async function initialize(opts: {
         resHeaders,
         bodyStream,
         matchedOutput,
-      } = await resolveRoutes(
+      } = await resolveRoutes({
         req,
-        matchedDynamicRoutes,
-        false,
-        signalFromNodeResponse(res)
-      )
+        isUpgradeReq: false,
+        signal: signalFromNodeResponse(res),
+        invokedOutputs,
+      })
 
       if (devInstance && matchedOutput?.type === 'devVirtualFsItem') {
         const origUrl = req.url || '/'
@@ -658,6 +658,8 @@ export async function initialize(opts: {
       }
 
       if (matchedOutput) {
+        invokedOutputs.add(matchedOutput.itemPath)
+
         return await invokeRender(
           parsedUrl,
           matchedOutput.type === 'appFile' ? 'app' : 'pages',
@@ -753,12 +755,11 @@ export async function initialize(opts: {
         }
       }
 
-      const { matchedOutput, parsedUrl } = await resolveRoutes(
+      const { matchedOutput, parsedUrl } = await resolveRoutes({
         req,
-        new Set(),
-        true,
-        signalFromNodeResponse(socket)
-      )
+        isUpgradeReq: true,
+        signal: signalFromNodeResponse(socket),
+      })
 
       // TODO: allow upgrade requests to pages/app paths?
       // this was not previously supported

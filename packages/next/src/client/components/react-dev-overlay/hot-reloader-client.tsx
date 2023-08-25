@@ -409,39 +409,6 @@ function processMessage(
       return
     }
     case 'pong': {
-      const { invalid } = obj
-      if (invalid) {
-        // Payload can be invalid even if the page does exist.
-        // So, we check if it can be created.
-        fetch(window.location.href, {
-          credentials: 'same-origin',
-        }).then((pageRes) => {
-          let shouldRefresh = pageRes.ok
-          // TODO-APP: investigate why edge runtime needs to reload
-          const isEdgeRuntime = pageRes.headers.get('x-edge-runtime') === '1'
-          if (pageRes.status === 404) {
-            // Check if head present as document.head could be null
-            // We are still on the page,
-            // dispatch an error so it's caught by the NotFound handler
-            const devErrorMetaTag = document.head?.querySelector(
-              'meta[name="next-error"]'
-            )
-            shouldRefresh = !devErrorMetaTag
-          }
-          // Page exists now, reload
-          startTransition(() => {
-            if (shouldRefresh) {
-              if (isEdgeRuntime) {
-                window.location.reload()
-              } else {
-                // @ts-ignore it exists, it's just hidden
-                router.fastRefresh()
-                dispatcher.onRefresh()
-              }
-            }
-          })
-        })
-      }
       return
     }
     case 'devPagesManifestUpdate': {
