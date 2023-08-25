@@ -48,10 +48,22 @@ pub fn primitive(input: TokenStream) -> TokenStream {
         },
     );
 
+    let value_default_impl = quote! {
+        #[turbo_tasks::value_impl]
+        impl turbo_tasks::ValueDefault for #ty {
+            #[turbo_tasks::function]
+            fn value_default() -> Vc<Self> {
+                Vc::cell(Default::default())
+            }
+        }
+    };
+
     quote! {
         #value_type_and_register
 
         #value_debug_impl
+
+        #value_default_impl
     }
     .into()
 }
