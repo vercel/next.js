@@ -754,7 +754,7 @@ async fn directory_tree_to_entrypoints_internal(
         // Next.js has this logic in "collect-app-paths", where the root not-found page
         // is considered as its own entry point.
         if let Some(_not_found) = components.not_found {
-            let devNotFoundTree = LoaderTree {
+            let dev_not_found_tree = LoaderTree {
                 segment: directory_name.to_string(),
                 parallel_routes: indexmap! {
                     "children".to_string() => LoaderTree {
@@ -772,7 +772,7 @@ async fn directory_tree_to_entrypoints_internal(
             }
             .cell();
 
-            let prodNotFoundTree = LoaderTree {
+            let prod_not_found_tree = LoaderTree {
                 segment: directory_name.to_string(),
                 parallel_routes: indexmap! {
                     "children".to_string() => LoaderTree {
@@ -790,13 +790,12 @@ async fn directory_tree_to_entrypoints_internal(
             }
             .cell();
 
-
             add_app_page(
                 app_dir,
                 &mut result,
                 "/not-found".to_string(),
                 "/not-found".to_string(),
-                prodNotFoundTree,
+                dev_not_found_tree,
             )
             .await?;
             add_app_page(
@@ -804,7 +803,7 @@ async fn directory_tree_to_entrypoints_internal(
                 &mut result,
                 "/_not-found".to_string(),
                 "/_not-found".to_string(),
-                devNotFoundTree,
+                prod_not_found_tree,
             )
             .await?;
         }
