@@ -67,6 +67,7 @@ async function loaderTransform(
     development: this.mode === 'development',
     hasReactRefresh,
     modularizeImports: nextConfig?.modularizeImports,
+    optimizePackageImports: nextConfig?.experimental?.optimizePackageImports,
     swcPlugins: nextConfig?.experimental?.swcPlugins,
     compilerOptions: nextConfig?.compiler,
     jsConfig,

@@ -257,6 +257,11 @@ where
             Some(config) => Either::Left(named_import_transform::named_import_transform(config.clone())),
             None => Either::Right(noop()),
         },
+        match &opts.optimize_barrel_exports {
+            Some(config) => Either::Left(optimize_barrel::optimize_barrel(
+                file.name.clone(),config.clone())),
+            None => Either::Right(noop()),
+        },
         opts.emotion
             .as_ref()
             .and_then(|config| {

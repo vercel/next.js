@@ -31,29 +31,27 @@ impl Fold for OptimizeBarrel {
         // One pre-pass to find all the local idents that we are referencing.
         let mut local_idents = vec![];
         for item in &items {
-            if let ModuleItem::ModuleDecl(decl) = item {
-                if let ModuleDecl::ExportNamed(export_named) = decl {
-                    if export_named.src.is_none() {
-                        for spec in &export_named.specifiers {
-                            if let ExportSpecifier::Named(s) = spec {
-                                let str_name;
-                                if let Some(name) = &s.exported {
-                                    str_name = match &name {
-                                        ModuleExportName::Ident(n) => n.sym.to_string(),
-                                        ModuleExportName::Str(n) => n.value.to_string(),
-                                    };
-                                } else {
-                                    str_name = match &s.orig {
-                                        ModuleExportName::Ident(n) => n.sym.to_string(),
-                                        ModuleExportName::Str(n) => n.value.to_string(),
-                                    };
-                                }
+            if let ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(export_named)) = item {
+                if export_named.src.is_none() {
+                    for spec in &export_named.specifiers {
+                        if let ExportSpecifier::Named(s) = spec {
+                            let str_name;
+                            if let Some(name) = &s.exported {
+                                str_name = match &name {
+                                    ModuleExportName::Ident(n) => n.sym.to_string(),
+                                    ModuleExportName::Str(n) => n.value.to_string(),
+                                };
+                            } else {
+                                str_name = match &s.orig {
+                                    ModuleExportName::Ident(n) => n.sym.to_string(),
+                                    ModuleExportName::Str(n) => n.value.to_string(),
+                                };
+                            }
 
-                                // If the exported name needs to be kept, track the local ident.
-                                if self.names.contains(&str_name) {
-                                    if let ModuleExportName::Ident(i) = &s.orig {
-                                        local_idents.push(i.sym.clone());
-                                    }
+                            // If the exported name needs to be kept, track the local ident.
+                            if self.names.contains(&str_name) {
+                                if let ModuleExportName::Ident(i) = &s.orig {
+                                    local_idents.push(i.sym.clone());
                                 }
                             }
                         }
@@ -194,8 +192,7 @@ impl Fold for OptimizeBarrel {
                                         }
                                     }
                                     ImportSpecifier::Namespace(s) => {
-                                        let name_str = &s.local.sym.to_string();
-                                        if self.names.contains(&name_str) {
+                                        if local_idents.contains(&s.local.sym) {
                                             new_items.push(ModuleItem::ModuleDecl(
                                                 ModuleDecl::Import(ImportDecl {
                                                     span: DUMMY_SP,

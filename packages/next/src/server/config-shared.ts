@@ -236,6 +236,11 @@ export interface ExperimentalConfig {
 
   webVitalsAttribution?: Array<(typeof WEB_VITALS)[number]>
 
+  /**
+   * Automatically apply the "modularizeImports" optimization to imports of the specified packages.
+   */
+  optimizePackageImports?: string[]
+
   turbo?: ExperimentalTurboOptions
   turbotrace?: {
     logLevel?:
