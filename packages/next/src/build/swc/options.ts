@@ -370,6 +370,11 @@ export function getLoaderSWCOptions({
       },
     },
   }
+  baseOptions.autoModularizeImports = {
+    packages: [
+      // TODO: Add a list of packages that should be optimized by default
+    ],
+  }
 
   const isNextDist = nextDistPath.test(filename)
 
