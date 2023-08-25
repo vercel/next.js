@@ -287,6 +287,10 @@ async function startWatcher(opts: SetupOpts) {
     const pagesManifests = new Map<string, PagesManifest>()
     const appPathsManifests = new Map<string, PagesManifest>()
     const middlewareManifests = new Map<string, MiddlewareManifest>()
+    const clientToHmrSubscription = new WeakMap<
+      ws,
+      Map<string, AsyncIterator<any>>
+    >()
 
     async function loadMiddlewareManifest(
       pageName: string,
@@ -592,6 +596,32 @@ async function startWatcher(opts: SetupOpts) {
       )
     }
 
+    async function subscribeToHmrEvents(id: string, client: ws) {
+      let mapping = clientToHmrSubscription.get(client)
+      if (mapping === undefined) {
+        mapping = new Map()
+        clientToHmrSubscription.set(client, mapping)
+      }
+      if (mapping.has(id)) return
+
+      const subscription = project.hmrEvents(id)
+      mapping.set(id, subscription)
+      for await (const data of subscription) {
+        send(client, { type: 'turbopack-message', data })
+      }
+    }
+
+    function unsubscribeToHmrEvents(id: string, client: ws) {
+      const mapping = clientToHmrSubscription.get(client)
+      const subscription = mapping?.get(id)
+      subscription?.return!()
+    }
+
+    function send(client: ws, payload: unknown) {
+      console.log({ payload })
+      client.send(JSON.stringify(payload))
+    }
+
     // Write empty manifests
     await mkdir(path.join(distDir, 'server'), { recursive: true })
     await mkdir(path.join(distDir, 'static/development'), { recursive: true })
@@ -640,28 +670,63 @@ async function startWatcher(opts: SetupOpts) {
       },
 
       onHMR(req: IncomingMessage, socket: Socket, head: Buffer) {
-        console.log({ req, socket, head })
         wsServer.handleUpgrade(req, socket, head, (client) => {
+          // client send:
+          //   - Middleware HMR:
+          //     - { action: 'building' }
+          //     - { action: 'sync', hash, errors, warnings, versionInfo }
+          //     - { action: 'built', hash }
+          //   - HMR
+          //      - { action: 'reloadPage' }
+          //      - { action: 'serverComponentChanges' }
+          //      - { event: 'middlewareChanges' }
+          //      - { event: 'serverOnlyChanges', pages }
+          //      - { action: 'addedPage', data: [page] }
+          //      - { action: 'removedPage', data: [page] }
+          //      - { action: 'devPagesManifestUpdate', data: [{ devPagesManifest: true }] }
+
           client.addEventListener('message', ({ data }) => {
             const parsedData = JSON.parse(
               typeof data !== 'string' ? data.toString() : data
             )
 
-            if (parsedData.event === 'ping') {
-              // const result = parsedData.appDirRoute
-              // ? handleAppDirPing(parsedData.tree)
-              // : handlePing(parsedData.page)
-              const result = { success: true }
-              client.send(
-                JSON.stringify({
+            // Next.js messages
+            switch (parsedData.event) {
+              case 'ping': {
+                // const result = parsedData.appDirRoute
+                // ? handleAppDirPing(parsedData.tree)
+                // : handlePing(parsedData.page)
+                const result = { success: true }
+                send(client, {
                   ...result,
                   [parsedData.appDirRoute ? 'action' : 'event']: 'pong',
                 })
-              )
-            } else {
-              console.log({ parsedData })
+                break
+              }
+
+              case 'client-error': // { errorCount, clientId }
+              case 'client-warning': // { warningCount, clientId }
+              case 'client-success': // { clientId }
+              case 'server-component-reload-page': // { clientId }
+              case 'client-reload-page': // { clientId }
+              case 'client-full-reload': // { stackTrace, hadRuntimeError }
+            }
+
+            // Turbopack messages
+            switch (parsedData.type) {
+              case 'turbopack-subscribe':
+                console.log(parsedData)
+                subscribeToHmrEvents(parsedData.path, client)
+                break
+
+              case 'turbopack-unsubscribe':
+                console.log(parsedData)
+                unsubscribeToHmrEvents(parsedData.path, client)
+                break
             }
           })
+
+          send(client, { type: 'turbopack-connected' })
         })
       },
 

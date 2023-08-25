@@ -8,7 +8,6 @@ import { register, ReactDevOverlay } from '../overlay/client'
 
 export function initializeHMR(options: { assetPrefix: string }) {
   connect({
-    assetPrefix: options.assetPrefix,
     addEventListener,
     sendMessage,
   })

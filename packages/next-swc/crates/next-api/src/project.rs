@@ -586,7 +586,7 @@ impl Project {
         Ok(self
             .await?
             .versioned_content_map
-            .get(self.client_root().join(identifier)))
+            .get(self.client_relative_path().join(identifier)))
     }
 
     #[turbo_tasks::function]
