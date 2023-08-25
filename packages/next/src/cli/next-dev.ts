@@ -470,7 +470,6 @@ const nextDev: CliCommand = async (argv) => {
 
     trace('start-dev-server').traceAsyncFn(async (_) => {
       runningServer = await runDevServer(false)
-      console.log('set')
     })
   }
 }
