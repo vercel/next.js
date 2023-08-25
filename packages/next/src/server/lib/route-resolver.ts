@@ -230,12 +230,13 @@ export async function makeResolver(
     req: IncomingMessage,
     res: ServerResponse
   ): Promise<RouteResult | void> {
-    const routeResult = await resolveRoutes(
+    const routeResult = await resolveRoutes({
       req,
-      new Set(),
-      false,
-      signalFromNodeResponse(res)
-    )
+      matchedDynamicRoutes: new Set(),
+      isUpgradeReq: false,
+      signal: signalFromNodeResponse(res),
+    })
+
     const {
       matchedOutput,
       bodyStream,

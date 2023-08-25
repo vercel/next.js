@@ -92,12 +92,19 @@ export function getResolveRoutes(
     ...(opts.minimalMode ? [] : fsChecker.rewrites.fallback),
   ]
 
-  async function resolveRoutes(
-    req: IncomingMessage,
-    matchedDynamicRoutes: Set<string>,
-    isUpgradeReq: boolean,
+  async function resolveRoutes({
+    req,
+    matchedDynamicRoutes,
+    isUpgradeReq,
+    signal,
+    invokedOutputs,
+  }: {
+    req: IncomingMessage
+    matchedDynamicRoutes: Set<string>
+    isUpgradeReq: boolean
     signal: AbortSignal
-  ): Promise<{
+    invokedOutputs?: Set<string>
+  }): Promise<{
     finished: boolean
     statusCode?: number
     bodyStream?: ReadableStream | null
@@ -223,12 +230,14 @@ export function getResolveRoutes(
     }
 
     async function checkTrue() {
-      if (checkLocaleApi(parsedUrl.pathname || '')) {
+      const pathname = parsedUrl.pathname || ''
+
+      if (checkLocaleApi(pathname)) {
         return
       }
-      const output = await fsChecker.getItem(parsedUrl.pathname || '')
+      const output = await fsChecker.getItem(pathname)
 
-      if (output) {
+      if (output && !invokedOutputs?.has(pathname)) {
         if (
           config.useFileSystemPublicRoutes ||
           didRewrite ||
@@ -381,17 +390,22 @@ export function getResolveRoutes(
         }
 
         if (route.name === 'check_fs') {
-          if (checkLocaleApi(parsedUrl.pathname || '')) {
+          const pathname = parsedUrl.pathname || ''
+          if (invokedOutputs?.has(pathname)) {
             return
           }
-          const output = await fsChecker.getItem(parsedUrl.pathname || '')
+
+          if (checkLocaleApi(pathname)) {
+            return
+          }
+          const output = await fsChecker.getItem(pathname)
 
           if (
             output &&
             !(
               config.i18n &&
               initialLocaleResult?.detectedLocale &&
-              pathHasPrefix(parsedUrl.pathname || '', '/api')
+              pathHasPrefix(pathname, '/api')
             )
           ) {
             if (
