@@ -6,8 +6,7 @@ name: Generate Pull Request Stats
 
 env:
   NAPI_CLI_VERSION: 2.14.7
-  TURBO_VERSION: 1.9.6
-  PNPM_VERSION: 7.24.3
+  TURBO_VERSION: 1.10.9
   NODE_MAINTENANCE_VERSION: 16
   NODE_LTS_VERSION: 18.16.1
   TEST_CONCURRENCY: 6
@@ -32,7 +31,11 @@ jobs:
   stats:
     name: PR Stats
     needs: build
-    runs-on: ubuntu-latest
+    runs-on:
+      - 'self-hosted'
+      - 'linux'
+      - 'x64'
+      - 'metal'
     steps:
       - uses: actions/checkout@v3
         with:

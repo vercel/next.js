@@ -43,6 +43,7 @@ export interface PageStaticInfo {
   ssg?: boolean
   ssr?: boolean
   rsc?: RSCModuleType
+  generateStaticParams?: boolean
   middleware?: MiddlewareConfig
   amp?: boolean | 'hybrid'
   extraConfig?: Record<string, any>
@@ -50,13 +51,17 @@ export interface PageStaticInfo {
 
 const CLIENT_MODULE_LABEL =
   /\/\* __next_internal_client_entry_do_not_use__ ([^ ]*) (cjs|auto) \*\//
+
 const ACTION_MODULE_LABEL =
   /\/\* __next_internal_action_entry_do_not_use__ ([^ ]+) \*\//
+
+const CLIENT_DIRECTIVE = 'use client'
+const SERVER_ACTION_DIRECTIVE = 'use server'
 
 export type RSCModuleType = 'server' | 'client'
 export function getRSCModuleInformation(
   source: string,
-  isServerLayer = true
+  isServerLayer: boolean
 ): RSCMeta {
   const actions = source.match(ACTION_MODULE_LABEL)?.[1]?.split(',')
   const clientInfoMatch = source.match(CLIENT_MODULE_LABEL)
@@ -74,9 +79,35 @@ export function getRSCModuleInformation(
   const clientEntryType = clientInfoMatch?.[2] as 'cjs' | 'auto'
 
   const type = clientRefs ? RSC_MODULE_TYPES.client : RSC_MODULE_TYPES.server
-  return { type, actions, clientRefs, clientEntryType, isClientRef }
+
+  return {
+    type,
+    actions,
+    clientRefs,
+    clientEntryType,
+    isClientRef,
+  }
 }
 
+const warnedInvalidValueMap = {
+  runtime: new Map<string, boolean>(),
+  preferredRegion: new Map<string, boolean>(),
+} as const
+function warnInvalidValue(
+  pageFilePath: string,
+  key: keyof typeof warnedInvalidValueMap,
+  message: string
+): void {
+  if (warnedInvalidValueMap[key].has(pageFilePath)) return
+
+  Log.warn(
+    `Next.js can't recognize the exported \`${key}\` field in "${pageFilePath}" as ${message}.` +
+      '\n' +
+      'The default runtime will be used instead.'
+  )
+
+  warnedInvalidValueMap[key].set(pageFilePath, true)
+}
 /**
  * Receives a parsed AST from SWC and checks if it belongs to a module that
  * requires a runtime to be specified. Those are:
@@ -84,20 +115,26 @@ export function getRSCModuleInformation(
  *   - Modules with `export { getStaticProps | getServerSideProps } <from ...>`
  *   - Modules with `export const runtime = ...`
  */
-function checkExports(swcAST: any): {
+function checkExports(
+  swcAST: any,
+  pageFilePath: string
+): {
   ssr: boolean
   ssg: boolean
   runtime?: string
   preferredRegion?: string | string[]
   generateImageMetadata?: boolean
   generateSitemaps?: boolean
+  generateStaticParams: boolean
   extraProperties?: Set<string>
+  directives?: Set<string>
 } {
   const exportsSet = new Set<string>([
     'getStaticProps',
     'getServerSideProps',
     'generateImageMetadata',
     'generateSitemaps',
+    'generateStaticParams',
   ])
   if (Array.isArray(swcAST?.body)) {
     try {
@@ -107,9 +144,29 @@ function checkExports(swcAST: any): {
       let ssg: boolean = false
       let generateImageMetadata: boolean = false
       let generateSitemaps: boolean = false
+      let generateStaticParams = false
       let extraProperties = new Set<string>()
+      let directives = new Set<string>()
+      let hasLeadingNonDirectiveNode = false
 
       for (const node of swcAST.body) {
+        // There should be no non-string literals nodes before directives
+        if (
+          node.type === 'ExpressionStatement' &&
+          node.expression.type === 'StringLiteral'
+        ) {
+          if (!hasLeadingNonDirectiveNode) {
+            const directive = node.expression.value
+            if (CLIENT_DIRECTIVE === directive) {
+              directives.add('client')
+            }
+            if (SERVER_ACTION_DIRECTIVE === directive) {
+              directives.add('server')
+            }
+          }
+        } else {
+          hasLeadingNonDirectiveNode = true
+        }
         if (
           node.type === 'ExportDeclaration' &&
           node.declaration?.type === 'VariableDeclaration'
@@ -147,6 +204,7 @@ function checkExports(swcAST: any): {
           ssr = id === 'getServerSideProps'
           generateImageMetadata = id === 'generateImageMetadata'
           generateSitemaps = id === 'generateSitemaps'
+          generateStaticParams = id === 'generateStaticParams'
         }
 
         if (
@@ -159,6 +217,7 @@ function checkExports(swcAST: any): {
             ssr = id === 'getServerSideProps'
             generateImageMetadata = id === 'generateImageMetadata'
             generateSitemaps = id === 'generateSitemaps'
+            generateStaticParams = id === 'generateStaticParams'
           }
         }
 
@@ -177,6 +236,20 @@ function checkExports(swcAST: any): {
               generateImageMetadata = true
             if (!generateSitemaps && value === 'generateSitemaps')
               generateSitemaps = true
+            if (!generateStaticParams && value === 'generateStaticParams')
+              generateStaticParams = true
+            if (!runtime && value === 'runtime')
+              warnInvalidValue(
+                pageFilePath,
+                'runtime',
+                'it was not assigned to a string literal'
+              )
+            if (!preferredRegion && value === 'preferredRegion')
+              warnInvalidValue(
+                pageFilePath,
+                'preferredRegion',
+                'it was not assigned to a string literal or an array of string literals'
+              )
           }
         }
       }
@@ -188,7 +261,9 @@ function checkExports(swcAST: any): {
         preferredRegion,
         generateImageMetadata,
         generateSitemaps,
+        generateStaticParams,
         extraProperties,
+        directives,
       }
     } catch (err) {}
   }
@@ -200,7 +275,9 @@ function checkExports(swcAST: any): {
     preferredRegion: undefined,
     generateImageMetadata: false,
     generateSitemaps: false,
+    generateStaticParams: false,
     extraProperties: undefined,
+    directives: undefined,
   }
 }
 
@@ -346,7 +423,8 @@ function warnAboutExperimentalEdge(apiRoute: string | null) {
   apiRouteWarnings.set(apiRoute, 1)
 }
 
-const warnedUnsupportedValueMap = new Map<string, boolean>()
+const warnedUnsupportedValueMap = new LRUCache<string, boolean>({ max: 250 })
+
 function warnAboutUnsupportedValue(
   pageFilePath: string,
   page: string | undefined,
@@ -379,7 +457,7 @@ export async function isDynamicMetadataRoute(
   if (!/generateImageMetadata|generateSitemaps/.test(fileContent)) return false
 
   const swcAST = await parseModule(pageFilePath, fileContent)
-  const exportsInfo = checkExports(swcAST)
+  const exportsInfo = checkExports(swcAST, pageFilePath)
 
   return !exportsInfo.generateImageMetadata || !exportsInfo.generateSitemaps
 }
@@ -402,14 +480,22 @@ export async function getPageStaticInfo(params: {
 
   const fileContent = (await tryToReadFile(pageFilePath, !isDev)) || ''
   if (
-    /runtime|preferredRegion|getStaticProps|getServerSideProps|export const/.test(
+    /runtime|preferredRegion|getStaticProps|getServerSideProps|generateStaticParams|export const/.test(
       fileContent
     )
   ) {
     const swcAST = await parseModule(pageFilePath, fileContent)
-    const { ssg, ssr, runtime, preferredRegion, extraProperties } =
-      checkExports(swcAST)
-    const rsc = getRSCModuleInformation(fileContent).type
+    const {
+      ssg,
+      ssr,
+      runtime,
+      preferredRegion,
+      generateStaticParams,
+      extraProperties,
+      directives,
+    } = checkExports(swcAST, pageFilePath)
+    const rscInfo = getRSCModuleInformation(fileContent, true)
+    const rsc = rscInfo.type
 
     // default / failsafe value for config
     let config: any
@@ -513,10 +599,21 @@ export async function getPageStaticInfo(params: {
       nextConfig
     )
 
+    if (
+      pageType === 'app' &&
+      directives?.has('client') &&
+      generateStaticParams
+    ) {
+      throw new Error(
+        `Page "${page}" cannot use both "use client" and export function "generateStaticParams()".`
+      )
+    }
+
     return {
       ssr,
       ssg,
       rsc,
+      generateStaticParams,
       amp: config.amp || false,
       ...(middlewareConfig && { middleware: middlewareConfig }),
       ...(resolvedRuntime && { runtime: resolvedRuntime }),
@@ -529,6 +626,7 @@ export async function getPageStaticInfo(params: {
     ssr: false,
     ssg: false,
     rsc: RSC_MODULE_TYPES.server,
+    generateStaticParams: false,
     amp: false,
     runtime: undefined,
   }

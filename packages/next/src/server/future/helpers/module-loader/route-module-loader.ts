@@ -12,12 +12,11 @@ export class RouteModuleLoader {
     id: string,
     loader: ModuleLoader = new NodeModuleLoader()
   ): Promise<M> {
-    if (process.env.NEXT_RUNTIME !== 'edge') {
-      const { routeModule }: AppLoaderModule<M> = await loader.load(id)
-
-      return routeModule
+    const module: AppLoaderModule<M> = await loader.load(id)
+    if ('routeModule' in module) {
+      return module.routeModule
     }
 
-    throw new Error('RouteModuleLoader is not supported in edge runtime.')
+    throw new Error(`Module "${id}" does not export a routeModule.`)
   }
 }

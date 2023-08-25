@@ -5,23 +5,25 @@ import type {
 } from '../../analysis/get-page-static-info'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 
+export type ModuleBuildInfo = {
+  nextEdgeMiddleware?: EdgeMiddlewareMeta
+  nextEdgeApiFunction?: EdgeMiddlewareMeta
+  nextEdgeSSR?: EdgeSSRMeta
+  nextWasmMiddlewareBinding?: AssetBinding
+  nextAssetMiddlewareBinding?: AssetBinding
+  usingIndirectEval?: boolean | Set<string>
+  route?: RouteMeta
+  importLocByPath?: Map<string, any>
+  rootDir?: string
+  rsc?: RSCMeta
+}
+
 /**
  * A getter for module build info that casts to the type it should have.
  * We also expose here types to make easier to use it.
  */
 export function getModuleBuildInfo(webpackModule: webpack.Module) {
-  return webpackModule.buildInfo as {
-    nextEdgeMiddleware?: EdgeMiddlewareMeta
-    nextEdgeApiFunction?: EdgeMiddlewareMeta
-    nextEdgeSSR?: EdgeSSRMeta
-    nextWasmMiddlewareBinding?: AssetBinding
-    nextAssetMiddlewareBinding?: AssetBinding
-    usingIndirectEval?: boolean | Set<string>
-    route?: RouteMeta
-    importLocByPath?: Map<string, any>
-    rootDir?: string
-    rsc?: RSCMeta
-  }
+  return webpackModule.buildInfo as ModuleBuildInfo
 }
 
 export interface RSCMeta {

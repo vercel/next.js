@@ -96,6 +96,33 @@ function getAppPathRequiredChunks(chunkGroup: webpack.ChunkGroup) {
     .filter(nonNullable)
 }
 
+// Normalize the entry names to their "group names" so a page can easily track
+// all the manifest items it needs from parent groups by looking up the group
+// segments:
+// - app/foo/loading -> app/foo
+// - app/foo/page -> app/foo
+// - app/(group)/@named/foo/page -> app/foo
+// - app/(.)foo/(..)bar/loading -> app/bar
+function entryNameToGroupName(entryName: string) {
+  let groupName = entryName
+    .slice(0, entryName.lastIndexOf('/'))
+    .replace(/\/@[^/]+/g, '')
+    // Remove the group with lookahead to make sure it's not interception route
+    .replace(/\/\([^/]+\)(?=(\/|$))/g, '')
+
+  // Interception routes
+  groupName = groupName
+    .replace(/^.+\/\(\.\.\.\)/g, 'app/')
+    .replace(/\/\(\.\)/g, '/')
+
+  // Interception routes (recursive)
+  while (/\/[^/]+\/\(\.\.\)/.test(groupName)) {
+    groupName = groupName.replace(/\/[^/]+\/\(\.\.\)/g, '/')
+  }
+
+  return groupName
+}
+
 function mergeManifest(
   manifest: ClientReferenceManifest,
   manifestToMerge: ClientReferenceManifest
@@ -344,23 +371,12 @@ export class ClientReferenceManifestPlugin {
         manifestEntryFiles.push('app/not-found')
       }
 
-      // Group the entry by their route path, so the page has all manifest items
-      // it needs:
-      // - app/foo/loading -> app/foo
-      // - app/foo/page -> app/foo
-      // - app/(group)/@named/foo/page -> app/foo
-      const groupName = entryName
-        .slice(0, entryName.lastIndexOf('/'))
-        .replace(/\/@[^/]+/g, '')
-        .replace(/\/\([^/]+\)/g, '')
-
+      const groupName = entryNameToGroupName(entryName)
       if (!manifestsPerGroup.has(groupName)) {
         manifestsPerGroup.set(groupName, [])
       }
       manifestsPerGroup.get(groupName)!.push(manifest)
     })
-
-    // console.log(manifestEntryFiles, manifestsPerGroup)
 
     // Generate per-page manifests.
     for (const pageName of manifestEntryFiles) {
@@ -371,12 +387,9 @@ export class ClientReferenceManifestPlugin {
         entryCSSFiles: {},
       }
 
-      const segments = pageName.split('/')
+      const segments = [...entryNameToGroupName(pageName).split('/'), 'page']
       let group = ''
       for (const segment of segments) {
-        if (segment.startsWith('@')) continue
-        if (segment.startsWith('(') && segment.endsWith(')')) continue
-
         for (const manifest of manifestsPerGroup.get(group) || []) {
           mergeManifest(mergedManifest, manifest)
         }

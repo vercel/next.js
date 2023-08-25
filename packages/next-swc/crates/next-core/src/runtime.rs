@@ -24,7 +24,7 @@ pub async fn resolve_runtime_request(
         OptionIssueSource::none(),
         IssueSeverity::Error.cell(),
     )
-    .first_asset()
+    .first_module()
     .await?
     {
         if let Some(placeable) =

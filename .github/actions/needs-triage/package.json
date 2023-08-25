@@ -5,18 +5,16 @@
     "src"
   ],
   "scripts": {
-    "types": "tsc",
-    "pack": "ncc -m -o . build lib/index.js --license licenses.txt",
-    "build": "npm run types && npm run pack"
+    "build": "pnpm types && ncc -m -o . build lib/index.js --license licenses.txt",
+    "types": "tsc"
   },
   "devDependencies": {
     "@types/node": "^18.11.0",
     "@vercel/ncc": "0.34.0",
-    "typescript": "^4.4.4"
+    "typescript": "5.1.6"
   },
   "dependencies": {
     "@actions/core": "1.10.0",
     "@actions/github": "5.1.1"
-  },
-  "packageManager": "npm@9.2.0"
+  }
 }

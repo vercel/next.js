@@ -72,6 +72,7 @@ export async function fetchServerResponse(
     [
       headers[NEXT_ROUTER_PREFETCH] || '0',
       headers[NEXT_ROUTER_STATE_TREE],
+      headers[NEXT_URL],
     ].join(',')
   )
 

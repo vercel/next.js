@@ -1,41 +1,15 @@
-PlainIssue {
-    severity: Warning,
-    context: "[project]/node_modules/.pnpm/postcss@8.4.14/node_modules/postcss/lib/previous-map.js",
-    category: "parse",
-    title: "lint TP1004 fs.readFileSync(???*0*, \"utf-8\") is very dynamic",
-    description: "- *0* arguments[0]\n  ⚠\u{fe0f}  function calls are not analysed yet",
-    detail: "",
-    documentation_link: "",
-    source: Some(
-        PlainIssueSource {
-            asset: PlainSource {
-                ident: "[project]/node_modules/.pnpm/postcss@8.4.14/node_modules/postcss/lib/previous-map.js",
-            },
-            start: SourcePos {
-                line: 89,
-                column: 13,
-            },
-            end: SourcePos {
-                line: 89,
-                column: 13,
-            },
-        },
-    ),
-    sub_issues: [],
-    processing_path: Some(
-        [
-            PlainIssueProcessingPathItem {
-                context: Some(
-                    "[project]/packages/next-swc/crates/next-dev-tests/tests/temp/next/tailwind/basic/input/pages/index.jsx",
-                ),
-                description: "Next.js page file",
-            },
-            PlainIssueProcessingPathItem {
-                context: Some(
-                    "[project]/packages/next-swc/crates/next-dev-tests/tests/temp/next/tailwind/basic/input/styles/globals.css",
-                ),
-                description: "PostCSS processing",
-            },
-        ],
-    ),
-}
+warning - [parse] [project]/node_modules/.pnpm/postcss@8.4.14/node_modules/postcss/lib/previous-map.js  /node_modules/.pnpm/postcss@8.4.14/node_modules/postcss/lib/previous-map.js:90:13  lint TP1004 fs.readFileSync(???*0*, "utf-8") is very dynamic
+      86 |   loadFile(path) {
+      87 |     this.root = dirname(path)
+      88 |     if (existsSync(path)) {
+      89 |       this.mapFile = path
+         +              v
+      90 +       return readFileSync(path, 'utf-8').toString().trim()
+         +              ^
+      91 |     }
+      92 |   }
+      93 | 
+      94 |   loadMap(file, prev) {
+  
+  - *0* arguments[0]
+    ⚠️  function calls are not analysed yet

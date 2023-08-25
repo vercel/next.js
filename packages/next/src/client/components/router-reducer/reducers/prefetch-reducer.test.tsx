@@ -182,6 +182,7 @@ describe('prefetchReducer', () => {
       },
       focusAndScrollRef: {
         apply: false,
+        onlyHashChange: false,
         hashFragment: null,
         segmentPaths: [],
       },
@@ -337,6 +338,7 @@ describe('prefetchReducer', () => {
       },
       focusAndScrollRef: {
         apply: false,
+        onlyHashChange: false,
         hashFragment: null,
         segmentPaths: [],
       },

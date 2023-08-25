@@ -6,7 +6,7 @@ use turbopack_binding::turbopack::core::{
     ident::AssetIdent,
     module::Module,
     output::OutputAssets,
-    reference::AssetReferences,
+    reference::ModuleReferences,
 };
 
 /// A [`NextDynamicEntryModule`] is a marker asset used to indicate which
@@ -61,8 +61,8 @@ impl Module for NextDynamicEntryModule {
     }
 
     #[turbo_tasks::function]
-    fn references(self: Vc<Self>) -> Vc<AssetReferences> {
-        AssetReferences::empty()
+    fn references(self: Vc<Self>) -> Vc<ModuleReferences> {
+        ModuleReferences::empty()
     }
 }
 

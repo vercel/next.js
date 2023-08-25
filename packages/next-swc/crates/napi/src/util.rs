@@ -41,13 +41,12 @@ use sentry::ClientOptions;
 use tracing_chrome::{ChromeLayerBuilder, FlushGuard};
 use tracing_subscriber::{filter, prelude::*, util::SubscriberInitExt, Layer};
 
-static TARGET_TRIPLE: &str = include_str!(concat!(env!("OUT_DIR"), "/triple.txt"));
 #[allow(unused)]
 static PACKAGE_VERSION: &str = include_str!(concat!(env!("OUT_DIR"), "/package.txt"));
 
 #[napi]
 pub fn get_target_triple() -> String {
-    TARGET_TRIPLE.to_owned()
+    crate::build::BUILD_TARGET.to_string()
 }
 
 pub trait MapErr<T>: Into<Result<T, anyhow::Error>> {

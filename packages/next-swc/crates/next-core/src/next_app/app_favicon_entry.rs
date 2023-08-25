@@ -77,13 +77,14 @@ pub async fn get_app_route_favicon_entry(
     let file = File::from(code.build());
     let source =
         // TODO(alexkirsz) Figure out how to name this virtual source.
-        VirtualSource::new(project_root.join("todo.tsx".to_string()), AssetContent::file(file.into()));
+        VirtualSource::new(project_root.join("favicon-entry.tsx".to_string()), AssetContent::file(file.into()));
 
     Ok(get_app_route_entry(
         nodejs_context,
         edge_context,
         Vc::upcast(source),
         // TODO(alexkirsz) Get this from the metadata?
+        "/favicon.ico".to_string(),
         "/favicon.ico".to_string(),
         project_root,
     ))

@@ -18,7 +18,7 @@ use turbopack_binding::{
             ident::AssetIdent,
             module::Module,
             output::OutputAssets,
-            reference::{AssetReferences, SingleAssetReference},
+            reference::{ModuleReferences, SingleOutputAssetReference},
         },
         ecmascript::{
             chunk::{
@@ -82,7 +82,7 @@ impl Module for WithChunksAsset {
     }
 
     #[turbo_tasks::function]
-    async fn references(self: Vc<Self>) -> Result<Vc<AssetReferences>> {
+    async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
         let this = self.await?;
         let entry_chunk = self.entry_chunk();
 
@@ -215,14 +215,14 @@ impl ChunkItem for WithChunksChunkItem {
     }
 
     #[turbo_tasks::function]
-    async fn references(self: Vc<Self>) -> Result<Vc<AssetReferences>> {
+    async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
         let mut references = self.await?.inner.references().await?.clone_value();
 
         let chunk_data_key = Vc::cell("chunk data".to_string());
         for chunk_data in &*self.chunks_data().await? {
             references.extend(chunk_data.references().await?.iter().map(|&output_asset| {
-                Vc::upcast(SingleAssetReference::new(
-                    Vc::upcast(output_asset),
+                Vc::upcast(SingleOutputAssetReference::new(
+                    output_asset,
                     chunk_data_key,
                 ))
             }));

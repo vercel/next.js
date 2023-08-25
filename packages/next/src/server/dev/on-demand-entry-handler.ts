@@ -100,7 +100,10 @@ export function getEntryKey(
 ) {
   // TODO: handle the /children slot better
   // this is a quick hack to handle when children is provided as children/page instead of /page
-  return `${compilerType}@${pageBundleType}@${page.replace(/\/children/g, '')}`
+  return `${compilerType}@${pageBundleType}@${page.replace(
+    /(@[^/]+)\/children/g,
+    '$1'
+  )}`
 }
 
 function getPageBundleType(pageBundlePath: string) {
@@ -663,9 +666,6 @@ export function onDemandEntryHandler({
         continue
       }
 
-      // 404 is an on demand entry but when a new page is added we have to refresh the page
-      toSend = page === '/_error' ? { invalid: true } : { success: true }
-
       // We don't need to maintain active state of anything other than BUILT entries
       if (entryInfo.status !== BUILT) continue
 
@@ -680,6 +680,7 @@ export function onDemandEntryHandler({
       }
       entryInfo.lastActiveTime = Date.now()
       entryInfo.dispose = false
+      toSend = { success: true }
     }
     return toSend
   }
@@ -689,11 +690,13 @@ export function onDemandEntryHandler({
     clientOnly,
     appPaths = null,
     match,
+    isApp,
   }: {
     page: string
     clientOnly: boolean
     appPaths?: ReadonlyArray<string> | null
     match?: RouteMatch
+    isApp?: boolean
   }): Promise<void> {
     const stalledTime = 60
     const stalledEnsureTimeout = setTimeout(() => {
@@ -721,6 +724,12 @@ export function onDemandEntryHandler({
 
       const isInsideAppDir =
         !!appDir && pagePathData.absolutePagePath.startsWith(appDir)
+
+      if (typeof isApp === 'boolean' && !(isApp === isInsideAppDir)) {
+        throw new Error(
+          'Ensure bailed, found path does not match ensure type (pages/app)'
+        )
+      }
 
       const pageBundleType = getPageBundleType(pagePathData.bundlePath)
       const addEntry = (
@@ -894,11 +903,13 @@ export function onDemandEntryHandler({
       clientOnly,
       appPaths = null,
       match,
+      isApp,
     }: {
       page: string
       clientOnly: boolean
       appPaths?: ReadonlyArray<string> | null
       match?: RouteMatch
+      isApp?: boolean
     }) {
       if (curEnsurePage.has(page)) {
         return curEnsurePage.get(page)
@@ -908,6 +919,7 @@ export function onDemandEntryHandler({
         clientOnly,
         appPaths,
         match,
+        isApp,
       }).finally(() => {
         curEnsurePage.delete(page)
       })

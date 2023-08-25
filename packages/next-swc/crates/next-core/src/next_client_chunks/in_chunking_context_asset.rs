@@ -6,7 +6,7 @@ use turbopack_binding::turbopack::{
         chunk::{availability_info::AvailabilityInfo, Chunk, ChunkableModule, ChunkingContext},
         ident::AssetIdent,
         module::Module,
-        reference::AssetReferences,
+        reference::ModuleReferences,
     },
     ecmascript::chunk::EcmascriptChunkingContext,
     turbopack::ecmascript::chunk::{
@@ -33,7 +33,7 @@ impl Module for InChunkingContextAsset {
     }
 
     #[turbo_tasks::function]
-    fn references(&self) -> Vc<AssetReferences> {
+    fn references(&self) -> Vc<ModuleReferences> {
         self.asset.references()
     }
 }

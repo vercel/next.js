@@ -6,12 +6,13 @@
     "src"
   ],
   "scripts": {
-    "build": "npm run types && ncc -m -o ./lib build src/index.ts --license licenses.txt",
+    "build": "pnpm types && ncc -m -o ./lib build src/index.ts --license licenses.txt",
     "types": "tsc"
   },
   "devDependencies": {
     "@types/github-slugger": "^1.3.0",
-    "@vercel/ncc": "0.34.0"
+    "@vercel/ncc": "0.34.0",
+    "typescript": "5.1.6"
   },
   "dependencies": {
     "@actions/core": "^1.10.0",

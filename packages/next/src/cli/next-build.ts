@@ -7,6 +7,7 @@ import build from '../build'
 import { printAndExit } from '../server/lib/utils'
 import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
+import { getValidatedArgs } from '../lib/get-validated-args'
 
 const nextBuild: CliCommand = (argv) => {
   const validArgs: arg.Spec = {
@@ -25,15 +26,8 @@ const nextBuild: CliCommand = (argv) => {
     '-d': '--debug',
   }
 
-  let args: arg.Result<arg.Spec>
-  try {
-    args = arg(validArgs, { argv })
-  } catch (error) {
-    if (isError(error) && error.code === 'ARG_UNKNOWN_OPTION') {
-      return printAndExit(error.message, 1)
-    }
-    throw error
-  }
+  const args = getValidatedArgs(validArgs, argv)
+
   if (args['--help']) {
     printAndExit(
       `
@@ -75,7 +69,7 @@ const nextBuild: CliCommand = (argv) => {
     printAndExit(`> No such directory exists as the project root: ${dir}`)
   }
 
-  if (args['--experimental-turbo']) {
+  if (args['--experimental-turbo'] || process.env.EXPERIMENTAL_TURBOPACK) {
     process.env.TURBOPACK = '1'
   }
 

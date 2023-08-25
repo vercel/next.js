@@ -10,7 +10,7 @@ use turbopack_binding::turbopack::{
         },
         ident::AssetIdent,
         module::Module,
-        reference::{AssetReference, AssetReferences},
+        reference::ModuleReferences,
     },
     ecmascript::chunk::EcmascriptChunkItemExt,
     turbopack::ecmascript::{
@@ -56,11 +56,10 @@ impl Module for NextServerComponentModule {
     }
 
     #[turbo_tasks::function]
-    fn references(&self) -> Vc<AssetReferences> {
-        let references: Vec<Vc<Box<dyn AssetReference>>> = vec![Vc::upcast(
-            NextServerComponentModuleReference::new(Vc::upcast(self.module)),
-        )];
-        Vc::cell(references)
+    fn references(&self) -> Vc<ModuleReferences> {
+        Vc::cell(vec![Vc::upcast(NextServerComponentModuleReference::new(
+            Vc::upcast(self.module),
+        ))])
     }
 }
 
@@ -154,7 +153,7 @@ impl ChunkItem for BuildServerComponentChunkItem {
     }
 
     #[turbo_tasks::function]
-    fn references(&self) -> Vc<AssetReferences> {
+    fn references(&self) -> Vc<ModuleReferences> {
         self.inner.references()
     }
 }

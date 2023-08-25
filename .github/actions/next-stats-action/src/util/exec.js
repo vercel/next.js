@@ -12,7 +12,6 @@ const env = {
 function exec(command, noLog = false, opts = {}) {
   if (!noLog) logger(`exec: ${command}`)
   return execP(command, {
-    timeout: 180 * 1000,
     ...opts,
     env: { ...env, ...opts.env },
   })

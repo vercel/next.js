@@ -175,6 +175,7 @@ declare class ResponseCookies {
      * {@link https://wicg.github.io/cookie-store/#CookieStore-getAll CookieStore#getAll} without the Promise.
      */
     getAll(...args: [key: string] | [options: ResponseCookie] | []): ResponseCookie[];
+    has(name: string): boolean;
     /**
      * {@link https://wicg.github.io/cookie-store/#CookieStore-set CookieStore#set} without the Promise.
      */
@@ -182,8 +183,27 @@ declare class ResponseCookies {
     /**
      * {@link https://wicg.github.io/cookie-store/#CookieStore-delete CookieStore#delete} without the Promise.
      */
-    delete(...args: [key: string] | [options: ResponseCookie]): this;
+    delete(...args: [key: string] | [options: Omit<ResponseCookie, 'value' | 'expires'>]): this;
     toString(): string;
 }
 
-export { CookieListItem, RequestCookie, RequestCookies, ResponseCookie, ResponseCookies };
+declare function stringifyCookie(c: ResponseCookie | RequestCookie): string;
+/** Parse a `Cookie` header value */
+declare function parseCookie(cookie: string): Map<string, string>;
+/** Parse a `Set-Cookie` header value */
+declare function parseSetCookie(setCookie: string): undefined | ResponseCookie;
+/**
+ * @source https://github.com/nfriedly/set-cookie-parser/blob/master/lib/set-cookie.js
+ *
+ * Set-Cookie header field-values are sometimes comma joined in one string. This splits them without choking on commas
+ * that are within a single set-cookie field-value, such as in the Expires portion.
+ * This is uncommon, but explicitly allowed - see https://tools.ietf.org/html/rfc2616#section-4.2
+ * Node.js does this for every header *except* set-cookie - see https://github.com/nodejs/node/blob/d5e363b77ebaf1caf67cd7528224b651c86815c1/lib/_http_incoming.js#L128
+ * React Native's fetch does this for *every* header, including set-cookie.
+ *
+ * Based on: https://github.com/google/j2objc/commit/16820fdbc8f76ca0c33472810ce0cb03d20efe25
+ * Credits to: https://github.com/tomball for original and https://github.com/chrusart for JavaScript implementation
+ */
+declare function splitCookiesString(cookiesString: string): string[];
+
+export { CookieListItem, RequestCookie, RequestCookies, ResponseCookie, ResponseCookies, parseCookie, parseSetCookie, splitCookiesString, stringifyCookie };
