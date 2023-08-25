@@ -82,7 +82,21 @@ npm install server-only
 
 Then import the package into any module that contains server-only code:
 
-```js filename="lib/data.js"
+```ts filename="lib/data.ts" switcher
+import 'server-only'
+
+export async function getData() {
+  const res = await fetch('https://external-service.com/data', {
+    headers: {
+      authorization: process.env.API_KEY!,
+    },
+  })
+
+  return res.json()
+}
+```
+
+```js filename="lib/data.js" switcher
 import 'server-only'
 
 export async function getData() {
