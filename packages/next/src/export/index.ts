@@ -67,9 +67,7 @@ function divideSegments(number: number, segments: number): number[] {
 }
 
 const createProgress = (total: number, label: string) => {
-  const leadingSpace = ' '.repeat(
-    Log.createPrefix('info').length - '[    ]'.length - label.length + 3
-  )
+  const leadingPrefix = Log.createPrefix('info')
   const segments = divideSegments(total, 4)
 
   if (total === 0) {
@@ -80,7 +78,8 @@ const createProgress = (total: number, label: string) => {
   let lastProgressOutput = Date.now()
   let curProgress = 0
   let progressSpinner = createSpinner(
-    `${leadingSpace} ${label} (${curProgress}/${total})\n`,
+    // Leave a trailing space between prefix and spinner
+    { prefixText: `${leadingPrefix} ${label} (${curProgress}/${total}) ` },
     {
       spinner: {
         frames: [
@@ -100,7 +99,7 @@ const createProgress = (total: number, label: string) => {
           '[==  ]',
           '[=   ]',
         ],
-        interval: 500,
+        interval: 200,
       },
     }
   )
@@ -125,7 +124,8 @@ const createProgress = (total: number, label: string) => {
       lastProgressOutput = Date.now()
     }
 
-    const newText = `${leadingSpace} ${label} (${curProgress}/${total})\n`
+    // Use \r to reset current line with spinner
+    const newText = `\r${leadingPrefix} ${label} (${curProgress}/${total})\n`
     if (progressSpinner) {
       progressSpinner.text = newText
     } else {
