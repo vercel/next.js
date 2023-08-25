@@ -115,7 +115,7 @@ If you have multiple fetch requests in a statically rendered route, and each has
 
 Learn more about [time-based revalidation](/docs/app/building-your-application/caching#time-based-revalidation).
 
-> **Good to know:** Revalidation only works with the [Node.js runtime](docs/app/building-your-application/rendering/edge-and-nodejs-runtimes#nodejs-runtime) (default).
+> **Good to know:** Revalidation only works with the [Node.js runtime](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes#nodejs-runtime) (default).
 
 #### On-demand Revalidation
 
@@ -277,7 +277,7 @@ There's an extensive list of Segment Config options, giving you fine-grained con
 
 In cases where you're using a third-party library that doesn't support or expose `fetch` (for example, a database, CMS, or ORM client), you can configure the caching and revalidating behavior of those requests using the [Route Segment Config Option](/docs/app/api-reference/file-conventions/route-segment-config) and React's `cache` function.
 
-Whether the data is cached or not will depend on whether the route segment is [statically or dynamically rendered](/docs/app/building-your-application/rendering/static-and-dynamic). If the segment is static (default), the output of the request will be cached and revalidated as part of the route segment. If the segment is dynamic, the output of the request will _not_ be cached and will be re-fetched on every request when the segment is rendered.
+Whether the data is cached or not will depend on whether the route segment is [statically or dynamically rendered](/docs/app/building-your-application/rendering/server-components#server-rendering-strategies). If the segment is static (default), the output of the request will be cached and revalidated as part of the route segment. If the segment is dynamic, the output of the request will _not_ be cached and will be re-fetched on every request when the segment is rendered.
 
 > **Good to know:**
 >

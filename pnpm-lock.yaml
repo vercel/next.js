@@ -42,8 +42,8 @@ importers:
         specifier: 7.14.5
         version: 7.14.5(@babel/core@7.18.0)
       '@edge-runtime/jest-environment':
-        specifier: 2.2.5
-        version: 2.2.5
+        specifier: 2.3.0
+        version: 2.3.0
       '@emotion/cache':
         specifier: 11.11.0
         version: 11.11.0
@@ -726,7 +726,7 @@ importers:
   packages/eslint-config-next:
     dependencies:
       '@next/eslint-plugin-next':
-        specifier: 13.4.20-canary.4
+        specifier: 13.4.20-canary.6
         version: link:../eslint-plugin-next
       '@rushstack/eslint-patch':
         specifier: ^1.1.3
@@ -787,7 +787,7 @@ importers:
   packages/next:
     dependencies:
       '@next/env':
-        specifier: 13.4.20-canary.4
+        specifier: 13.4.20-canary.6
         version: link:../next-env
       '@swc/helpers':
         specifier: 0.5.1
@@ -887,14 +887,14 @@ importers:
         specifier: 1.1.0
         version: 1.1.0
       '@edge-runtime/cookies':
-        specifier: 3.3.0
-        version: 3.3.0
+        specifier: 3.4.0
+        version: 3.4.0
       '@edge-runtime/ponyfill':
-        specifier: 2.3.0
-        version: 2.3.0
+        specifier: 2.4.0
+        version: 2.4.0
       '@edge-runtime/primitives':
-        specifier: 3.0.4
-        version: 3.0.4
+        specifier: 3.1.0
+        version: 3.1.0
       '@hapi/accept':
         specifier: 5.0.2
         version: 5.0.2
@@ -914,19 +914,19 @@ importers:
         specifier: 1.1.0
         version: 1.1.0
       '@next/polyfill-module':
-        specifier: 13.4.20-canary.4
+        specifier: 13.4.20-canary.6
         version: link:../next-polyfill-module
       '@next/polyfill-nomodule':
-        specifier: 13.4.20-canary.4
+        specifier: 13.4.20-canary.6
         version: link:../next-polyfill-nomodule
       '@next/react-dev-overlay':
-        specifier: 13.4.20-canary.4
+        specifier: 13.4.20-canary.6
         version: link:../react-dev-overlay
       '@next/react-refresh-utils':
-        specifier: 13.4.20-canary.4
+        specifier: 13.4.20-canary.6
         version: link:../react-refresh-utils
       '@next/swc':
-        specifier: 13.4.20-canary.4
+        specifier: 13.4.20-canary.6
         version: link:../next-swc
       '@opentelemetry/api':
         specifier: 1.4.1
@@ -1157,8 +1157,8 @@ importers:
         specifier: 4.19.0
         version: 4.19.0
       edge-runtime:
-        specifier: 2.4.5
-        version: 2.4.5
+        specifier: 2.5.0
+        version: 2.5.0
       events:
         specifier: 3.3.0
         version: 3.3.0
@@ -1682,7 +1682,7 @@ importers:
         version: 1.0.17
     devDependencies:
       next:
-        specifier: 13.4.20-canary.4
+        specifier: 13.4.20-canary.6
         version: link:../next
       outdent:
         specifier: 0.8.0
@@ -5164,42 +5164,42 @@ packages:
     resolution: {integrity: sha512-smLocSfrt3s53H/XSVP3/1kP42oqvrkjUPtyaFd1F79ux24oE31BKt+q0c6lsa6hOYrFzsIwyc5GXAI5JmfOew==}
     dev: true
 
-  /@edge-runtime/cookies@3.3.0:
-    resolution: {integrity: sha512-3yTL34qahvZfrGdpYwKVvJMRYyBc510pQLSo4kMtkmlRH136S5cy+27vq+Z5h3eNFhANLxitTZ16Oz0XUayWhw==}
-    engines: {node: '>=14'}
+  /@edge-runtime/cookies@3.4.0:
+    resolution: {integrity: sha512-rhkTN7D8YO78lf76gdmK4FYc4Z5zQMGPABFLCWiJzeHmHgaCievF/lHEf1WO1OGZVxe1V34NYxsNTZsXwLht3Q==}
+    engines: {node: '>=16'}
     dev: true
 
-  /@edge-runtime/format@2.1.0:
-    resolution: {integrity: sha512-gc2qbYEIIJRczBApBPznVI1c5vZgzrZQOsFZnAxxFiYah9qldHiu1YEitzSvXI8X8ZgvAguuIiyIbpWz17nlXA==}
-    engines: {node: '>=14'}
+  /@edge-runtime/format@2.2.0:
+    resolution: {integrity: sha512-gPrS6AVw/qJJL0vcxMXv4kFXCU3ZTCD1uuJpwX15YxHV8BgU9OG5v9LrkkXcr96PBT/9epypfNJMhlWADuEziw==}
+    engines: {node: '>=16'}
     dev: true
 
-  /@edge-runtime/jest-environment@2.2.5:
-    resolution: {integrity: sha512-I9JYvOrWhsso/C/OmSxaawEEw7mUpjNVIwNJncBODVhLoFkn6gkHGZVTPR0e4g4yH9yq4gwXnSdC4BS/iwTSqw==}
-    engines: {node: '>=14'}
+  /@edge-runtime/jest-environment@2.3.0:
+    resolution: {integrity: sha512-ecjoJ6Ai/Cr/QOFpLC9nu5WC8LHnyFrnbkd8/L53q7sSmeWPKkzvjeFnaS1GLbYHPKZ1GidTsCquw6IPL1xlxA==}
+    engines: {node: '>=16'}
     dependencies:
-      '@edge-runtime/vm': 3.0.4
+      '@edge-runtime/vm': 3.1.0
       '@jest/environment': 29.5.0
       '@jest/fake-timers': 29.5.0
       jest-mock: 29.5.0
       jest-util: 29.5.0
     dev: true
 
-  /@edge-runtime/ponyfill@2.3.0:
-    resolution: {integrity: sha512-vg59/jBV+geBqAs1hPgHk7R8VtXvR4zjlcJaQSKvh0Zt/PBFOZyqpsIqCKgNMDJlgF1BXUrusQSSNr212cXIhg==}
-    engines: {node: '>=14'}
+  /@edge-runtime/ponyfill@2.4.0:
+    resolution: {integrity: sha512-xMthmStGQiQE4zV/0Ee1qR3WThO1ZTShZO3z1ZbR7uRukw2+t1i1jHspQFmOcuLSL/xvWJZfki5arE3g9jl0WA==}
+    engines: {node: '>=16'}
     dev: true
 
-  /@edge-runtime/primitives@3.0.4:
-    resolution: {integrity: sha512-ZisWDavCpjroNbXZ1FZ2qHqlNfTXjIcQx+7aRdC+n6DVsTShUW7S+urGj2Wags5CH0oICWRoksYX5GngW7SZzw==}
-    engines: {node: '>=14'}
+  /@edge-runtime/primitives@3.1.0:
+    resolution: {integrity: sha512-yxr1QM/lC8nrU38zxePeDqVeIjwsJ83gKGTH8YJ4CoHTv3q+6xEeqRIT+/9IPX/FApWYtnxHauhNqr6CHRj5YA==}
+    engines: {node: '>=16'}
     dev: true
 
-  /@edge-runtime/vm@3.0.4:
-    resolution: {integrity: sha512-/QvVIn2+nO48dO3cl5tD3cjoF/xJ7WfTKBIs/oKgfmmWbEQ4EixKlOTJEpcBdOni0E8FCHIc7yxoJGq1qcLdCg==}
-    engines: {node: '>=14'}
+  /@edge-runtime/vm@3.1.0:
+    resolution: {integrity: sha512-Y2JZgJP+4byI17SiDeEZhvBUvJ+om7E5ll/jrS7aGRpet5qKnJSsGep6xxhMjqT/j8ulFvTMN/kdlMMy5pEKBQ==}
+    engines: {node: '>=16'}
     dependencies:
-      '@edge-runtime/primitives': 3.0.4
+      '@edge-runtime/primitives': 3.1.0
     dev: true
 
   /@emotion/babel-plugin@11.11.0:
@@ -5774,7 +5774,7 @@ packages:
       jest-util: 27.5.1
       jest-validate: 27.0.6
       jest-watcher: 27.0.6
-      micromatch: 4.0.5
+      micromatch: 4.0.4
       p-each-series: 2.2.0
       rimraf: 3.0.2
       slash: 3.0.0
@@ -5952,7 +5952,7 @@ packages:
       jest-haste-map: 27.5.1
       jest-regex-util: 27.5.1
       jest-util: 27.5.1
-      micromatch: 4.0.5
+      micromatch: 4.0.4
       pirates: 4.0.5
       slash: 3.0.0
       source-map: 0.6.1
@@ -7915,7 +7915,7 @@ packages:
     resolution: {integrity: sha512-d9ULIT+a4EXLX3UU8FBjauG9NnsZHkHztXoIcTsOKoOw030fyjheN9svkTULjJxtYag9DZz5Jz5qkWZDPxTFwA==}
     engines: {node: '>=12'}
     dependencies:
-      '@babel/code-frame': 7.21.4
+      '@babel/code-frame': 7.12.11
       '@babel/runtime': 7.16.7
       '@types/aria-query': 5.0.1
       aria-query: 5.0.0
@@ -9624,8 +9624,8 @@ packages:
     resolution: {integrity: sha512-97a+l2LBU3Op3bBQEff79i/E4jMD2ZLFD8rHx9B6mXyB2uQwhJQYfiDqUwtfjF4QA1F2qs//N6Cw8LetMbQjcw==}
     hasBin: true
 
-  /async-listen@3.0.0:
-    resolution: {integrity: sha512-V+SsTpDqkrWTimiotsyl33ePSjA5/KrithwupuvJ6ztsqPvGv6ge4OredFhPffVXiLN/QUWvE0XcqJaYgt6fOg==}
+  /async-listen@3.0.1:
+    resolution: {integrity: sha512-cWMaNwUJnf37C/S5TfCkk/15MwbPRwVYALA2jtjkbHjCmAPiDXyNJy2q3p1KAZzDLHAWyarUWSujUoHR4pEgrA==}
     engines: {node: '>= 14'}
     dev: true
 
@@ -12620,14 +12620,14 @@ packages:
       safe-buffer: 5.2.1
     dev: true
 
-  /edge-runtime@2.4.5:
-    resolution: {integrity: sha512-SavsXBll1aPBbD1wu1bHVdk2hxbmRhWe0GfeShwjrdKmFu/TUBWo1712Yk68YVhAfsaBSAqtcAF1ei7qLDKzPA==}
-    engines: {node: '>=14'}
+  /edge-runtime@2.5.0:
+    resolution: {integrity: sha512-QgDNX6R+RPwhY3+vqHpvYE4XUoB/cFG60nGBKu9pmPOJxQleeTCj2F5CHimIpNqex9h1Cy2Y3tuQ+Vq2GzmZIA==}
+    engines: {node: '>=16'}
     hasBin: true
     dependencies:
-      '@edge-runtime/format': 2.1.0
-      '@edge-runtime/vm': 3.0.4
-      async-listen: 3.0.0
+      '@edge-runtime/format': 2.2.0
+      '@edge-runtime/vm': 3.1.0
+      async-listen: 3.0.1
       mri: 1.2.0
       picocolors: 1.0.0
       pretty-bytes: 5.6.0
@@ -14054,7 +14054,7 @@ packages:
     dependencies:
       detect-file: 1.0.0
       is-glob: 4.0.3
-      micromatch: 4.0.5
+      micromatch: 4.0.4
       resolve-dir: 1.0.1
     dev: true
 
@@ -15205,7 +15205,7 @@ packages:
     engines: {node: '>= 8.5'}
     hasBin: true
     dependencies:
-      '@babel/code-frame': 7.21.4
+      '@babel/code-frame': 7.12.11
       '@sidvind/better-ajv-errors': 0.6.10(ajv@6.12.6)
       acorn-walk: 8.2.0
       ajv: 6.12.6
@@ -16513,7 +16513,7 @@ packages:
       jest-runner: 27.0.6
       jest-util: 27.5.1
       jest-validate: 27.5.1
-      micromatch: 4.0.5
+      micromatch: 4.0.4
       pretty-format: 27.5.1
     transitivePeerDependencies:
       - bufferutil
@@ -16648,7 +16648,7 @@ packages:
       jest-serializer: 27.5.1
       jest-util: 27.5.1
       jest-worker: 27.5.1
-      micromatch: 4.0.5
+      micromatch: 4.0.4
       walker: 1.0.8
     optionalDependencies:
       fsevents: 2.3.2
@@ -16770,7 +16770,7 @@ packages:
       '@types/stack-utils': 2.0.1
       chalk: 4.0.0
       graceful-fs: 4.2.11
-      micromatch: 4.0.5
+      micromatch: 4.0.4
       pretty-format: 26.6.2
       slash: 3.0.0
       stack-utils: 2.0.6
@@ -16785,10 +16785,10 @@ packages:
       '@types/stack-utils': 2.0.1
       chalk: 4.0.0
       graceful-fs: 4.2.11
-      micromatch: 4.0.5
+      micromatch: 4.0.4
       pretty-format: 27.5.1
       slash: 3.0.0
-      stack-utils: 2.0.5
+      stack-utils: 2.0.6
 
   /jest-message-util@29.5.0:
     resolution: {integrity: sha512-Kijeg9Dag6CKtIDA7O21zNTACqD5MD/8HfIV8pdD94vFyFuer52SigdC3IQMhab3vACxXMiFk+yMHNdbqtyTGA==}
@@ -18923,7 +18923,6 @@ packages:
     dependencies:
       braces: 3.0.2
       picomatch: 2.2.3
-    dev: true
 
   /micromatch@4.0.5:
     resolution: {integrity: sha512-DMy+ERcEW2q8Z2Po+WNXuw3c5YaUSFjAO5GsJqfEl7UjvtIuFKO6ZrKvcItdy98dwFI2N1tg3zNIdKaQT+aNdA==}
@@ -20587,7 +20586,6 @@ packages:
   /picomatch@2.2.3:
     resolution: {integrity: sha512-KpELjfwcCDUb9PeigTs2mBJzXUPzAuP2oPcA989He8Rte0+YUAjw1JVedDhuTKPkHjSYzMN3npC9luThGYEKdg==}
     engines: {node: '>=8.6'}
-    dev: true
 
   /picomatch@2.3.1:
     resolution: {integrity: sha512-JU3teHTNjmE2VCGFzuY8EXzCDVwEqB2a8fsIvwaStHhAWJEeVd1o1QD80CU6+ZdEXXSLbSsuLwJjkCBWqRQUVA==}
@@ -24254,7 +24252,6 @@ packages:
     engines: {node: '>=10'}
     dependencies:
       escape-string-regexp: 2.0.0
-    dev: true
 
   /stacktrace-parser@0.1.10:
     resolution: {integrity: sha512-KJP1OCML99+8fhOHxwwzyWrlUuVX5GQ0ZpJTd1DFXhdkrvg1szxfHhawXUZ3g9TkXORQd4/WG68jMlQZ2p8wlg==}
