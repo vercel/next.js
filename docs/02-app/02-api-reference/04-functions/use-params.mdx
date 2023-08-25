@@ -67,7 +67,7 @@ For example:
 | `app/shop/[...slug]/page.js`    | `/shop/1/2` | `{ slug: ['1', '2'] }`    |
 
 ## Fetching Params from a Server Side Component
-In certain scenarios it may be optimal to fetch params from a server side component. 
+In certain scenarios it may be optimal to fetch params from a Server Side Component rather than using `useParams` in a Client Component. 
 
 ```jsx filename="app/[tag]/[item]/page.tsx"
 export default async function CoffeeShopDetails({params}){
@@ -78,7 +78,19 @@ export default async function CoffeeShopDetails({params}){
     return (<h1>test</h1>)
 }
 ```
+## Parameters
+The parameters passed in your dynamic routes
 
+## Returns
+You can use fetch any parameter from your dynamic parameters through the params object. 
+
+For example:
+
+| Route                           | URL         | `Params`             |
+| ------------------------------- | ----------- | ------------------------- |
+| `app/tag/page.js`              | `/tag`     | `null`                    |
+| `app/[tag]/page.js`       | `/1`   | `{ tag: '1' }`           |
+| `app/[tag]/[item]/page.js` | `/1/2` | `{ tag: '1', item: '2' }` |
 
 ## Version History
 
