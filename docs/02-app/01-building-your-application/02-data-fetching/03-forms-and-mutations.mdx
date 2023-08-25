@@ -775,7 +775,7 @@ You can set cookies inside a Server Action using the [`cookies`](/docs/app/api-r
 import { cookies } from 'next/headers'
 
 export async function create() {
-  const cart = await createCart():
+  const cart = await createCart()
   cookies().set('cartId', cart.id)
 }
 ```
@@ -786,7 +786,7 @@ export async function create() {
 import { cookies } from 'next/headers'
 
 export async function create() {
-  const cart = await createCart():
+  const cart = await createCart()
   cookies().set('cartId', cart.id)
 }
 ```
