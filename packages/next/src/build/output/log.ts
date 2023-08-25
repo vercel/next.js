@@ -8,6 +8,31 @@ export const prefixes = {
   info: chalk.white(chalk.bold(/*.cyan*/ ' ')),
   event: chalk.green(chalk.bold(/*.magenta*/ '✓')),
   trace: chalk.magenta(chalk.bold(/*.magenta*/ ' ')),
+} as const
+
+const LOGGING_METHOD = {
+  log: 'log',
+  warn: 'warn',
+  error: 'error',
+} as const
+
+function prefixedLog(prefixType: keyof typeof prefixes, ...message: any[]) {
+  if ((message[0] === '' || message[0] === undefined) && message.length === 1) {
+    message.shift()
+  }
+
+  const consoleMethod: keyof typeof LOGGING_METHOD =
+    prefixType in LOGGING_METHOD
+      ? LOGGING_METHOD[prefixType as keyof typeof LOGGING_METHOD]
+      : 'log'
+
+  const prefix = prefixes[prefixType]
+  // If there's no message, don't print the prefix but a new line
+  if (message.length === 0) {
+    console[consoleMethod]('')
+  } else {
+    console[consoleMethod](now() + ' ' + prefix, ...message)
+  }
 }
 
 export function now() {
@@ -34,31 +59,31 @@ export function bootstrap(...message: any[]) {
 }
 
 export function wait(...message: any[]) {
-  console.log(now() + ' ' + prefixes.wait, ...message)
+  prefixedLog('wait', ...message)
 }
 
 export function error(...message: any[]) {
-  console.error(now() + ' ' + prefixes.error, ...message)
+  prefixedLog('error', ...message)
 }
 
 export function warn(...message: any[]) {
-  console.warn(now() + ' ' + prefixes.warn, ...message)
+  prefixedLog('warn', ...message)
 }
 
 export function ready(...message: any[]) {
-  console.log(now() + ' ' + prefixes.ready, ...message)
+  prefixedLog('ready', ...message)
 }
 
 export function info(...message: any[]) {
-  console.log(now() + ' ' + prefixes.info, ...message)
+  prefixedLog('info', ...message)
 }
 
 export function event(...message: any[]) {
-  console.log(now() + ' ' + prefixes.event, ...message)
+  prefixedLog('event', ...message)
 }
 
 export function trace(...message: any[]) {
-  console.log(now() + ' ' + prefixes.trace, ...message)
+  prefixedLog('trace', ...message)
 }
 
 const warnOnceMessages = new Set()

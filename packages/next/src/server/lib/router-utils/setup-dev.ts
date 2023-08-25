@@ -1069,7 +1069,10 @@ async function startWatcher(opts: SetupOpts) {
 
       if (envChange || tsconfigChange) {
         if (envChange) {
-          loadEnvConfig(dir, true, Log, true)
+          // only log changes in router server
+          loadEnvConfig(dir, true, Log, true, (envFilePath) => {
+            Log.info(`Reload env: ${envFilePath}`)
+          })
           await propagateToWorkers('loadEnvConfig', [
             { dev: true, forceReload: true, silent: true },
           ])

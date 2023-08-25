@@ -32,8 +32,8 @@ export interface StartServerOptions {
   minimalMode?: boolean
   keepAliveTimeout?: number
   // logging info
-  envInfo: string[]
-  expFeatureInfo: string[]
+  envInfo?: string[]
+  expFeatureInfo?: string[]
   // this is dev-server only
   selfSignedCertificate?: {
     key: string
@@ -227,10 +227,10 @@ export async function startServer({
             (port + '').startsWith(':') ? '' : ':'
           }${port}`
         )
-        if (envInfo.length)
+        if (envInfo?.length)
           Log.bootstrap(` - Environments: ${envInfo.join(', ')}`)
 
-        if (expFeatureInfo.length) {
+        if (expFeatureInfo?.length) {
           Log.bootstrap(` - Experiments (use at your own risk):`)
           // only show maximum 3 flags
           for (const exp of expFeatureInfo.slice(0, 3)) {

@@ -1,4 +1,4 @@
-/**@type import('next').NextConfig */
+/** @type {import('next').NextConfig} */
 module.exports = {
   experimental: {
     logging: 'verbose',
@@ -6,7 +6,7 @@ module.exports = {
     gzipSize: true,
     sharedPool: true,
   },
-  // assetPrefix: '/assets',
+
   rewrites: async () => {
     return {
       // beforeFiles: [ { source: '/assets/:path*', destination: '/:path*' } ],
