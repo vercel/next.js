@@ -97,7 +97,7 @@ async function webpackBuildWithWorker() {
     }
   }
   buildSpinner?.stopAndPersist()
-  Log.info('Compiled')
+  Log.event('Compiled')
 
   return combinedResult
 }

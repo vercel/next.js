@@ -309,12 +309,12 @@ export async function webpackBuildImpl(
     throw err
   } else {
     if (result.warnings.length > 0) {
-      Log.warn('Compiled with warnings\n')
+      Log.event('Compiled with warnings\n')
       console.warn(result.warnings.filter(Boolean).join('\n\n'))
       console.warn()
     } else if (!compilerName) {
       NextBuildContext.buildSpinner?.stopAndPersist()
-      Log.info('Compiled')
+      Log.event('Compiled')
     }
 
     return {
