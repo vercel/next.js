@@ -105,12 +105,12 @@ export function createBufferedTransformStream(): TransformStream<
   const flushBuffer = (controller: TransformStreamDefaultController) => {
     if (!pendingFlush) {
       pendingFlush = new Promise((resolve) => {
-        setTimeout(() => {
+        queueTask(() => {
           controller.enqueue(bufferedBytes)
           bufferedBytes = new Uint8Array()
           pendingFlush = null
           resolve()
-        }, 0)
+        })
       })
     }
   }
