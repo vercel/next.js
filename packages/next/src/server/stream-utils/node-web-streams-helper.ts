@@ -195,7 +195,7 @@ function createHeadInsertionTransformStream(
       if (!inserted) {
         controller.enqueue(chunk)
       } else {
-        Promise.resolve().then(() => {
+        queueTask(() => {
           freezing = false
         })
       }
