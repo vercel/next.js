@@ -296,7 +296,9 @@ const schema = z.object({
 })
 
 export default async function submit(formData: FormData) {
-  const parsed = schema.parse(formData)
+  const parsed = schema.parse({
+    id: formData.get('id'),
+  })
   // ...
 }
 ```
@@ -309,7 +311,9 @@ const schema = z.object({
 })
 
 export default async function submit(formData) {
-  const parsed = schema.parse(formData)
+  const parsed = schema.parse({
+    id: formData.get('id'),
+  })
   // ...
 }
 ```
