@@ -465,7 +465,7 @@ const configSchema = {
           type: 'object',
           additionalProperties: false,
           properties: {
-            loaders: {
+            rules: {
               type: 'object',
             },
             resolveAlias: {
