@@ -31,9 +31,13 @@ export function useFlightResponse(
 
   const [renderStream, forwardStream] = flightStream.tee()
   const res = createFromReadableStream(renderStream, {
-    moduleMap: isEdgeRuntime
-      ? clientReferenceManifest.edgeSSRModuleMapping
-      : clientReferenceManifest.ssrModuleMapping,
+    ssrManifest: {
+      moduleLoading: clientReferenceManifest.moduleLoading,
+      moduleMap: isEdgeRuntime
+        ? clientReferenceManifest.edgeSSRModuleMapping
+        : clientReferenceManifest.ssrModuleMapping,
+    },
+    nonce,
   })
   flightResponseRef.current = res
 

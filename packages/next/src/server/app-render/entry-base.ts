@@ -6,6 +6,13 @@ const {
   // eslint-disable-next-line import/no-extraneous-dependencies
 } = require('react-server-dom-webpack/server.edge')
 
+let decodeReplyFromBusboy
+if (process.env.NEXT_RUNTIME !== 'edge') {
+  decodeReplyFromBusboy =
+    // eslint-disable-next-line import/no-extraneous-dependencies
+    require('react-server-dom-webpack/server.node').decodeReplyFromBusboy
+}
+
 import AppRouter from '../../client/components/app-router'
 import LayoutRouter from '../../client/components/layout-router'
 import RenderFromTemplateContext from '../../client/components/render-from-template-context'
@@ -40,6 +47,7 @@ export {
   decodeReply,
   decodeAction,
   decodeFormState,
+  decodeReplyFromBusboy,
   preloadStyle,
   preloadFont,
   preconnect,

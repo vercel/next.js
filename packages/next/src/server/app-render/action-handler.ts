@@ -360,13 +360,15 @@ export async function handleAction({
             }
           }
         } else {
-          // Use react-server-dom-webpack/server.node which supports streaming
+          // Use react-server-dom-webpack/server.node for decodeReplyFromBusboy and react-server-dom-webpack/server.edge
+          // for decodeAction and decodeReply. We could actually use just server.node for all the action handling because
+          // the but these packages don't actually have any direct platform primitives so either works in this context
           const {
-            decodeReply,
             decodeReplyFromBusboy,
             decodeAction,
+            decodeReply,
             decodeFormState,
-          } = require(`react-server-dom-webpack/server.node`)
+          } = ComponentMod
 
           if (isMultipartAction) {
             if (isFetchAction) {
