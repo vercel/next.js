@@ -536,7 +536,7 @@ export async function getPageStaticInfo(params: {
         }
 
         if (config.regions) {
-          message += `\n  - Change \`config.regions…\` to \`export const preferredRegion = ${JSON.stringify(
+          message += `\n  - \`export const preferredRegion = ${JSON.stringify(
             config.regions
           )}\``
         }
