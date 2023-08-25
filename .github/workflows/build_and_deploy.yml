@@ -273,6 +273,7 @@ jobs:
         with:
           shared-key: build-${{ matrix.settings.target }}
           save-if: 'true'
+          cache-provider: 'turbo'
 
       # we only need custom caching for docker builds
       # as they are on an older Node.js version and have
