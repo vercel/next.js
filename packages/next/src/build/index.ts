@@ -435,7 +435,9 @@ export default async function build(
 
       if (!isGenerate) {
         buildSpinner = createSpinner({
-          prefixText: `${Log.prefixes.info} Creating an optimized production build`,
+          prefixText: `${Log.createPrefix(
+            'info'
+          )} Creating an optimized production build`,
         })
       }
 

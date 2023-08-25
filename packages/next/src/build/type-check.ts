@@ -115,7 +115,9 @@ export async function startTypeChecking({
   // enabled, but we will still verifying project's tsconfig and dependencies.
   if (typeCheckingAndLintingSpinnerPrefixText) {
     typeCheckingAndLintingSpinner = createSpinner({
-      prefixText: `${Log.prefixes.info} ${typeCheckingAndLintingSpinnerPrefixText}`,
+      prefixText: `${Log.createPrefix(
+        'info'
+      )} ${typeCheckingAndLintingSpinnerPrefixText}`,
     })
   }
 

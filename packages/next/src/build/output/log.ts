@@ -35,6 +35,10 @@ function prefixedLog(prefixType: keyof typeof prefixes, ...message: any[]) {
   }
 }
 
+export function createPrefix(prefixType: keyof typeof prefixes) {
+  return now() + ' ' + prefixes[prefixType]
+}
+
 export function now() {
   let date = new Date()
   let hour = date.getHours()

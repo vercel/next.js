@@ -61,8 +61,8 @@ store.subscribe((state) => {
   // console.log('state', state)
   if (state.bootstrap) {
     if (state.appUrl) {
-      Log.bootstrap(`- Local: ${chalk.bold(state.appUrl)}`)
-      Log.bootstrap(`- Network: ${chalk.bold(state.bindAddr)}`)
+      // Log.bootstrap(`- Local: ${chalk.bold(state.appUrl)} ${state.bindAddr}`)
+      // Log.bootstrap(`- Network: ${chalk.bold()}`)
     }
     return
   }
