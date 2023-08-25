@@ -4,6 +4,7 @@ import type {
   Route,
   TurbopackResult,
   WrittenEndpoint,
+  Middleware,
 } from '../../../build/swc'
 import type { Socket } from 'net'
 import ws from 'next/dist/compiled/ws'
@@ -185,6 +186,7 @@ async function startWatcher(opts: SetupOpts) {
     })
     const iter = project.entrypointsSubscribe()
     const curEntries: Map<string, Route> = new Map()
+    let prevMiddleware: boolean | undefined = undefined
     const globalEntries: {
       app: Endpoint | undefined
       document: Endpoint | undefined
@@ -287,7 +289,7 @@ async function startWatcher(opts: SetupOpts) {
     const pagesManifests = new Map<string, PagesManifest>()
     const appPathsManifests = new Map<string, PagesManifest>()
     const middlewareManifests = new Map<string, MiddlewareManifest>()
-    const clientToHmrSubscription = new WeakMap<
+    const clientToHmrSubscription = new Map<
       ws,
       Map<string, AsyncIterator<any>>
     >()
@@ -339,6 +341,7 @@ async function startWatcher(opts: SetupOpts) {
 
     try {
       async function handleEntries() {
+        let subscriptions: AsyncIterator<any>[] = []
         for await (const entrypoints of iter) {
           if (!currentEntriesHandlingResolve) {
             currentEntriesHandling = new Promise(
@@ -350,6 +353,7 @@ async function startWatcher(opts: SetupOpts) {
           globalEntries.document = entrypoints.pagesDocumentEndpoint
           globalEntries.error = entrypoints.pagesErrorEndpoint
 
+          subscriptions.forEach((s) => s.return?.())
           curEntries.clear()
 
           for (const [pathname, route] of entrypoints.routes) {
@@ -367,10 +371,21 @@ async function startWatcher(opts: SetupOpts) {
             }
           }
 
-          if (entrypoints.middleware) {
+          const { middleware } = entrypoints
+          // We check for explicit true/false, since it's initialized to
+          // undefined during the first loop (middlewareChanges event is
+          // unnecessary during the first serve)
+          if (prevMiddleware === true && !middleware) {
+            // Went from middleware to no middleware
+            hotReloader.send({ event: 'middlewareChanges' })
+          } else if (prevMiddleware === false && middleware) {
+            // Went from no middleware to middleware
+            hotReloader.send({ event: 'middlewareChanges' })
+          }
+          if (middleware) {
             await processResult(
               'middleware',
-              await entrypoints.middleware.endpoint.writeToDisk()
+              await middleware.endpoint.writeToDisk()
             )
             await loadMiddlewareManifest('middleware', 'middleware')
             serverFields.actualMiddlewareFile = 'middleware'
@@ -380,10 +395,23 @@ async function startWatcher(opts: SetupOpts) {
               matchers:
                 middlewareManifests.get('middleware')?.middleware['/'].matchers,
             }
+            ;(async () => {
+              const changed = middleware.endpoint.changed()
+              subscriptions.push(changed)
+
+              const { done } = await changed.next()
+              // If we're done, then the subscription was exited because of a
+              // change in the app structure, not a rewrite of the middleware.
+              if (!done) {
+                hotReloader.send({ event: 'middlewareChanges' })
+              }
+            })()
+            prevMiddleware = true
           } else {
             middlewareManifests.delete('middleware')
             serverFields.actualMiddlewareFile = undefined
             serverFields.middleware = undefined
+            prevMiddleware = false
           }
           await propagateToWorkers(
             'actualMiddlewareFile',
@@ -670,19 +698,15 @@ async function startWatcher(opts: SetupOpts) {
           clients.add(client)
           client.on('close', () => clients.delete(client))
 
-          // client send:
+          // server sends:
           //   - Middleware HMR:
           //     - { action: 'building' }
           //     - { action: 'sync', hash, errors, warnings, versionInfo }
           //     - { action: 'built', hash }
           //   - HMR
           //      - { action: 'reloadPage' }
-          //      - { action: 'serverComponentChanges' }
-          //      - { event: 'middlewareChanges' }
           //      - { event: 'serverOnlyChanges', pages }
-          //      - { action: 'addedPage', data: [page] }
-          //      - { action: 'removedPage', data: [page] }
-          //      - { action: 'devPagesManifestUpdate', data: [{ devPagesManifest: true }] }
+          //      - { action: 'serverComponentChanges' }
 
           client.addEventListener('message', ({ data }) => {
             const parsedData = JSON.parse(
@@ -723,7 +747,7 @@ async function startWatcher(opts: SetupOpts) {
             }
           })
 
-          hotReloader.send({ type: 'turbopack-connected' })
+          client.send(JSON.stringify({ type: 'turbopack-connected' }))
         })
       },
 

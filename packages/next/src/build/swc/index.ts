@@ -475,7 +475,7 @@ export type TurbopackResult<T = {}> = T & {
   diagnostics: Diagnostics[]
 }
 
-interface Middleware {
+export interface Middleware {
   endpoint: Endpoint
 }
 
@@ -547,10 +547,9 @@ export interface Endpoint {
   writeToDisk(): Promise<TurbopackResult<WrittenEndpoint>>
   /**
    * Listen to changes to the endpoint.
-   * After changed() has been awaited it will listen to changes.
    * The async iterator will yield for each change.
    */
-  changed(): Promise<AsyncIterableIterator<TurbopackResult>>
+  changed(): AsyncIterableIterator<TurbopackResult>
 }
 
 interface EndpointConfig {
@@ -900,9 +899,7 @@ function bindingToApi(binding: any, _wasm: boolean) {
       )
     }
 
-    async changed(): Promise<
-      AsyncIterableIterator<TurbopackResult<ServerClientChange>>
-    > {
+    changed(): AsyncIterableIterator<TurbopackResult<ServerClientChange>> {
       const serverSubscription = subscribe<TurbopackResult>(
         false,
         async (callback) =>
