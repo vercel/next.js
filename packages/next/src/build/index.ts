@@ -348,7 +348,9 @@ export default async function build(
           // Intentionally not piping to stderr in case people fail in CI when
           // stderr is detected.
           console.log(
-            `${Log.prefixes.warn} No build cache found. Please configure build caching for faster rebuilds. Read more: https://nextjs.org/docs/messages/no-cache`
+            `${Log.createPrefix(
+              'warn'
+            )} No build cache found. Please configure build caching for faster rebuilds. Read more: https://nextjs.org/docs/messages/no-cache`
           )
         }
       }
@@ -1120,7 +1122,7 @@ export default async function build(
       }
 
       const postCompileSpinner = createSpinner({
-        prefixText: `${Log.prefixes.info} Collecting page data`,
+        prefixText: `${Log.createPrefix('info')} Collecting page data`,
       })
 
       const buildManifestPath = path.join(distDir, BUILD_MANIFEST)
@@ -2586,7 +2588,9 @@ export default async function build(
           await exportApp(dir, exportOptions, nextBuildSpan)
 
           const postBuildSpinner = createSpinner({
-            prefixText: `${Log.prefixes.info} Finalizing page optimization`,
+            prefixText: `${Log.createPrefix(
+              'info'
+            )} Finalizing page optimization`,
           })
           ssgNotFoundPaths = exportConfig.ssgNotFoundPaths
 

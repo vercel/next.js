@@ -474,7 +474,7 @@ const nextDev: CliCommand = async (argv) => {
         )
         return
       }
-      Log.warn('\n')
+      Log.warn('')
       Log.warn(
         `Found a change in ${path.basename(
           filename

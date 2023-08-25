@@ -67,6 +67,9 @@ function divideSegments(number: number, segments: number): number[] {
 }
 
 const createProgress = (total: number, label: string) => {
+  const leadingSpace = ' '.repeat(
+    Log.createPrefix('info').length - '[    ]'.length - label.length + 3
+  )
   const segments = divideSegments(total, 4)
 
   if (total === 0) {
@@ -76,28 +79,31 @@ const createProgress = (total: number, label: string) => {
   let currentSegmentCount = 0
   let lastProgressOutput = Date.now()
   let curProgress = 0
-  let progressSpinner = createSpinner(`${label} (${curProgress}/${total})`, {
-    spinner: {
-      frames: [
-        '[    ]',
-        '[=   ]',
-        '[==  ]',
-        '[=== ]',
-        '[ ===]',
-        '[  ==]',
-        '[   =]',
-        '[    ]',
-        '[   =]',
-        '[  ==]',
-        '[ ===]',
-        '[====]',
-        '[=== ]',
-        '[==  ]',
-        '[=   ]',
-      ],
-      interval: 500,
-    },
-  })
+  let progressSpinner = createSpinner(
+    `${leadingSpace} ${label} (${curProgress}/${total})\n`,
+    {
+      spinner: {
+        frames: [
+          '[    ]',
+          '[=   ]',
+          '[==  ]',
+          '[=== ]',
+          '[ ===]',
+          '[  ==]',
+          '[   =]',
+          '[    ]',
+          '[   =]',
+          '[  ==]',
+          '[ ===]',
+          '[====]',
+          '[=== ]',
+          '[==  ]',
+          '[=   ]',
+        ],
+        interval: 500,
+      },
+    }
+  )
 
   return () => {
     curProgress++
@@ -119,7 +125,7 @@ const createProgress = (total: number, label: string) => {
       lastProgressOutput = Date.now()
     }
 
-    const newText = `${label} (${curProgress}/${total})`
+    const newText = `${leadingSpace} ${label} (${curProgress}/${total})\n`
     if (progressSpinner) {
       progressSpinner.text = newText
     } else {
@@ -621,7 +627,7 @@ export default async function exportApp(
       !options.silent &&
       createProgress(
         filteredPaths.length,
-        `${Log.prefixes.info} ${options.statusMessage || 'Exporting'}`
+        `${options.statusMessage || 'Exporting'}`
       )
     const pagesDataDir = options.buildExport
       ? outDir
