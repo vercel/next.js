@@ -27,7 +27,7 @@ use next_core::{
         get_server_module_options_context, get_server_resolve_options_context,
         get_server_runtime_entries, ServerContextType,
     },
-    util::NextRuntime,
+    util::{get_asset_prefix_from_pathname, NextRuntime},
 };
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{trace::TraceRawVcs, Completion, TryFlatJoinIterExt, TryJoinIterExt, Value, Vc};
@@ -706,7 +706,7 @@ impl AppEndpoint {
                 };
                 let edge_function_definition = EdgeFunctionDefinition {
                     files: files_paths_from_root,
-                    name: app_entry.original_name.to_string(),
+                    name: app_entry.pathname.to_string(),
                     page: app_entry.original_name.clone(),
                     regions: app_entry
                         .config
@@ -718,16 +718,16 @@ impl AppEndpoint {
                     ..Default::default()
                 };
                 let middleware_manifest_v2 = MiddlewaresManifestV2 {
-                    sorted_middleware: vec![app_entry.original_name.clone()],
+                    sorted_middleware: vec![app_entry.pathname.clone()],
                     middleware: Default::default(),
-                    functions: [(app_entry.original_name.clone(), edge_function_definition)]
+                    functions: [(app_entry.pathname.clone(), edge_function_definition)]
                         .into_iter()
                         .collect(),
                 };
+                let manifest_path_prefix = get_asset_prefix_from_pathname(&app_entry.pathname);
                 let middleware_manifest_v2 = Vc::upcast(VirtualOutputAsset::new(
                     node_root.join(format!(
-                        "server/app{original_name}/middleware-manifest.json",
-                        original_name = app_entry.original_name
+                        "server/app{manifest_path_prefix}/middleware-manifest.json",
                     )),
                     AssetContent::file(
                         FileContent::Content(File::from(serde_json::to_string_pretty(

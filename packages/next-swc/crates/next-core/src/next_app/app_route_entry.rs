@@ -143,7 +143,7 @@ pub async fn wrap_edge_entry(
     context: Vc<ModuleAssetContext>,
     project_root: Vc<FileSystemPath>,
     entry: Vc<Box<dyn Module>>,
-    original_name: String,
+    pathname: String,
 ) -> Result<Vc<Box<dyn Module>>> {
     let mut source = RopeBuilder::default();
     writedoc!(
@@ -158,7 +158,7 @@ pub async fn wrap_edge_entry(
                 default: EdgeRouteModuleWrapper.wrap(module.routeModule),
             }}
         "#,
-        StringifyJs(&format_args!("middleware_{}", original_name))
+        StringifyJs(&format_args!("middleware_{}", pathname))
     )?;
     let file = File::from(source.build());
     // TODO(alexkirsz) Figure out how to name this virtual asset.
