@@ -5,10 +5,10 @@ use tokio::task::spawn_blocking;
 
 const MAX_RETRY_ATTEMPTS: usize = 10;
 
-pub(crate) async fn retry_future<R, F, Fut>(func: F) -> io::Result<R>
+pub(crate) async fn retry_future<'a, R, F, Fut>(func: F) -> io::Result<R>
 where
     F: FnMut() -> Fut + Unpin,
-    Fut: Future<Output = io::Result<R>>,
+    Fut: Future<Output = io::Result<R>> + 'a,
 {
     match FutureRetry::new(
         func,
