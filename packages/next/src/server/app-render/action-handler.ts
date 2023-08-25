@@ -385,7 +385,7 @@ export async function handleAction({
                 // Exceeded the size limit
                 e.message =
                   e.message +
-                  '\nTo configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions#size-limitation'
+                  '\nTo configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/api-reference/server-actions#size-limitation'
               }
               throw e
             }
