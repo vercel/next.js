@@ -6,7 +6,7 @@
   "main": "dist/index.js",
   "bin": "dist/cli.js",
   "scripts": {
-    "lint": "eslint src/**/*",
+    "lint": "eslint src/",
     "prerelease": "pnpm run build:ts",
     "build:ts": "tsc"
   },
