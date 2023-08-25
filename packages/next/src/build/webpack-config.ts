@@ -67,6 +67,7 @@ import { AppBuildManifestPlugin } from './webpack/plugins/app-build-manifest-plu
 import { SubresourceIntegrityPlugin } from './webpack/plugins/subresource-integrity-plugin'
 import { NextFontManifestPlugin } from './webpack/plugins/next-font-manifest-plugin'
 import { getSupportedBrowsers } from './utils'
+import { MemoryWithGcCachePlugin } from './webpack/plugins/memory-with-gc-cache-plugin'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 type ClientEntries = {
@@ -1100,6 +1101,7 @@ export default async function getBaseWebpackConfig(
       // let this alias hit before `next` alias.
       ...(isEdgeServer
         ? {
+            'next/dist/build': 'next/dist/esm/build',
             'next/dist/client': 'next/dist/esm/client',
             'next/dist/shared': 'next/dist/esm/shared',
             'next/dist/pages': 'next/dist/esm/pages',
@@ -1934,6 +1936,7 @@ export default async function getBaseWebpackConfig(
         'next-invalid-import-error-loader',
         'next-metadata-route-loader',
         'modularize-import-loader',
+        'barrel-optimize-loader',
       ].reduce((alias, loader) => {
         // using multiple aliases to replace `resolveLoader.modules`
         alias[loader] = path.join(__dirname, 'webpack', 'loaders', loader)
@@ -2350,6 +2353,7 @@ export default async function getBaseWebpackConfig(
       ].filter(Boolean),
     },
     plugins: [
+      dev && new MemoryWithGcCachePlugin({ maxGenerations: 5 }),
       dev && isClient && new ReactRefreshWebpackPlugin(webpack),
       // Makes sure `Buffer` and `process` are polyfilled in client and flight bundles (same behavior as webpack 4)
       (isClient || isEdgeServer) &&
@@ -2694,6 +2698,8 @@ export default async function getBaseWebpackConfig(
 
   const cache: any = {
     type: 'filesystem',
+    // Disable memory cache in development in favor of our own MemoryWithGcCachePlugin.
+    maxMemoryGenerations: dev ? 0 : Infinity, // Infinity is default value for production in webpack currently.
     // Includes:
     //  - Next.js version
     //  - next.config.js keys that affect compilation
