@@ -321,7 +321,6 @@ export async function initialize(opts: {
       // TODO: log socket errors?
     })
 
-    const matchedDynamicRoutes = new Set<string>()
     const invokedOutputs = new Set<string>()
 
     async function invokeRender(
@@ -479,7 +478,6 @@ export async function initialize(opts: {
         matchedOutput,
       } = await resolveRoutes({
         req,
-        matchedDynamicRoutes,
         isUpgradeReq: false,
         signal: signalFromNodeResponse(res),
         invokedOutputs,
@@ -759,7 +757,6 @@ export async function initialize(opts: {
 
       const { matchedOutput, parsedUrl } = await resolveRoutes({
         req,
-        matchedDynamicRoutes: new Set(),
         isUpgradeReq: true,
         signal: signalFromNodeResponse(socket),
       })

@@ -94,13 +94,11 @@ export function getResolveRoutes(
 
   async function resolveRoutes({
     req,
-    matchedDynamicRoutes,
     isUpgradeReq,
     signal,
     invokedOutputs,
   }: {
     req: IncomingMessage
-    matchedDynamicRoutes: Set<string>
     isUpgradeReq: boolean
     signal: AbortSignal
     invokedOutputs?: Set<string>
@@ -258,12 +256,12 @@ export function getResolveRoutes(
       const localeResult = fsChecker.handleLocale(curPathname || '')
 
       for (const route of dynamicRoutes) {
-        // when resolving fallback: false we attempt to
+        // when resolving fallback: false the
         // render worker may return a no-fallback response
         // which signals we need to continue resolving.
         // TODO: optimize this to collect static paths
         // to use at the routing layer
-        if (matchedDynamicRoutes.has(route.page)) {
+        if (invokedOutputs?.has(route.page)) {
           continue
         }
         const params = route.match(localeResult.pathname)
@@ -284,7 +282,6 @@ export function getResolveRoutes(
           if (pageOutput && curPathname?.startsWith('/_next/data')) {
             parsedUrl.query.__nextDataReq = '1'
           }
-          matchedDynamicRoutes.add(route.page)
 
           if (config.useFileSystemPublicRoutes || didRewrite) {
             return pageOutput

@@ -232,7 +232,6 @@ export async function makeResolver(
   ): Promise<RouteResult | void> {
     const routeResult = await resolveRoutes({
       req,
-      matchedDynamicRoutes: new Set(),
       isUpgradeReq: false,
       signal: signalFromNodeResponse(res),
     })
