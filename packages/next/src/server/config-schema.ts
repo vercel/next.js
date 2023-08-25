@@ -748,6 +748,7 @@ const configSchema = {
     },
     reactStrictMode: {
       type: 'boolean',
+      nullable: true,
     },
     redirects: {
       isFunction: true,

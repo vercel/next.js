@@ -105,7 +105,9 @@ function getBaseSWCOptions({
         react: {
           importSource:
             jsConfig?.compilerOptions?.jsxImportSource ??
-            (compilerOptions?.emotion ? '@emotion/react' : 'react'),
+            (compilerOptions?.emotion && !isServerLayer
+              ? '@emotion/react'
+              : 'react'),
           runtime: 'automatic',
           pragma: 'React.createElement',
           pragmaFrag: 'React.Fragment',
@@ -367,6 +369,11 @@ export function getLoaderSWCOptions({
         },
       },
     },
+  }
+  baseOptions.autoModularizeImports = {
+    packages: [
+      // TODO: Add a list of packages that should be optimized by default
+    ],
   }
 
   const isNextDist = nextDistPath.test(filename)

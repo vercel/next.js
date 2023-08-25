@@ -2,7 +2,7 @@
 export async function foo() {
   async function bar() {}
 }
-import ensureServerEntryExports from "private-next-rsc-action-validate";
+import { ensureServerEntryExports } from "private-next-rsc-action-validate";
 ensureServerEntryExports([
   foo
 ]);
