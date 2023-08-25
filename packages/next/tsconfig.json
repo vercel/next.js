@@ -7,7 +7,6 @@
     "esModuleInterop": true,
     "moduleResolution": "node",
     "jsx": "react",
-    "resolveJsonModule": true,
     "stripInternal": true
   },
   "exclude": [

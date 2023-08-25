@@ -17,7 +17,6 @@ import {
 } from './setup-server-worker'
 import { checkIsNodeDebugging } from './is-node-debugging'
 import chalk from '../../lib/chalk'
-import { version } from '../../../package.json'
 
 const debug = setupDebug('next:start-server')
 
@@ -219,7 +218,11 @@ export async function startServer({
 
       if (logReady) {
         Log.bootstrap(
-          chalk.hex('#ad7fa8').bold(` ${Log.prefixes.ready} Next.js ${version}`)
+          chalk
+            .hex('#ad7fa8')
+            .bold(
+              ` ${Log.prefixes.ready} Next.js ${process.env.__NEXT_VERSION}`
+            )
         )
         Log.bootstrap(` - Local:        ${appUrl}`)
         Log.bootstrap(
