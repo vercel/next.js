@@ -204,7 +204,7 @@ export default async function submit() {
 
 <PagesOnly>
 
-If you would like to redirect the user to a different route after the completion of a mutation, you can [`redirect`](/docs/pages/building-your-application/routing/api-routes#response-helpers) and any absolute or relative URL:
+If you would like to redirect the user to a different route after a mutation, you can [`redirect`](/docs/pages/building-your-application/routing/api-routes#response-helpers) to any absolute or relative URL:
 
 ```ts filename="pages/api/submit.ts" switcher
 import type { NextApiRequest, NextApiResponse } from 'next'
@@ -250,7 +250,7 @@ export default async function submit() {
 
 We recommend using HTML validation like `required` and `type="email"` for basic form validation.
 
-For more advanced server-side validation, use a schema validation library like zod to validate the structure of the parsed form data:
+For more advanced server-side validation, use a schema validation library like [zod](https://zod.dev/) to validate the structure of the parsed form data:
 
 <PagesOnly>
 
@@ -430,7 +430,7 @@ export default function Page() {
 
 <AppOnly>
 
-Server Actions can also return serializable objects. For example, your Server Action might handle errors from creating a new item, returning either a success or error message:
+Server Actions can also return [serializable objects](https://developer.mozilla.org/en-US/docs/Glossary/Serialization). For example, your Server Action might handle errors from creating a new item, returning either a success or error message:
 
 ```ts filename="app/actions.ts" switcher
 'use server'
