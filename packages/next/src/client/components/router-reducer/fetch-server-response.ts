@@ -113,7 +113,7 @@ export async function fetchServerResponse(
 
     // If the wrong content type is returned, print a warning
     // and fall back to mpa navigation
-    if (contentType==='text/html' && res.ok) {
+    if (contentType.startsWith('text/html') && res.ok) {
       console.warn(`Failed to load nextjs component data: The server must return text/x-component as a Content-Type header. Falling back to full page navigation`)
       return doMpaNavigation(responseUrl.toString())
     }
