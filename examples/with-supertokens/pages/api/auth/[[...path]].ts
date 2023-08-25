@@ -11,9 +11,9 @@ export default async function superTokens(req, res) {
     async (next) => {
       // This is needed for production deployments with Vercel
       res.setHeader(
-          "Cache-Control",
-          "no-cache, no-store, max-age=0, must-revalidate"
-      );
+        'Cache-Control',
+        'no-cache, no-store, max-age=0, must-revalidate'
+      )
       await middleware()(req, res, next)
     },
     req,
