@@ -714,12 +714,10 @@ async function startWatcher(opts: SetupOpts) {
             // Turbopack messages
             switch (parsedData.type) {
               case 'turbopack-subscribe':
-                console.log(parsedData)
                 subscribeToHmrEvents(parsedData.path, client)
                 break
 
               case 'turbopack-unsubscribe':
-                console.log(parsedData)
                 unsubscribeToHmrEvents(parsedData.path, client)
                 break
             }
