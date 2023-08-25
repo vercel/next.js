@@ -18,6 +18,7 @@ fn empty_string() -> Vc<String> {
 }
 
 impl Vc<String> {
+    #[deprecated(note = "use Default::default() instead")]
     #[inline(always)]
     pub fn empty() -> Vc<String> {
         empty_string()
@@ -33,6 +34,7 @@ fn empty_string_vec() -> Vc<Vec<String>> {
 }
 
 impl Vc<Vec<String>> {
+    #[deprecated(note = "use Default::default() instead")]
     #[inline(always)]
     pub fn empty() -> Vc<Vec<String>> {
         empty_string_vec()
@@ -47,14 +49,9 @@ fn option_string_none() -> Vc<Option<String>> {
 }
 
 impl Vc<Option<String>> {
+    #[deprecated(note = "use Default::default() instead")]
     pub fn none() -> Self {
         option_string_none()
-    }
-}
-
-impl Default for Vc<Option<String>> {
-    fn default() -> Self {
-        Self::none()
     }
 }
 
