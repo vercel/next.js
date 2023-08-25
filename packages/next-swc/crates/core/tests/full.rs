@@ -78,6 +78,7 @@ fn test(input: &Path, minify: bool) {
                 app_dir: None,
                 server_actions: None,
                 cjs_require_optimizer: None,
+                auto_modularize_imports: None,
             };
 
             let unresolved_mark = Mark::new();
