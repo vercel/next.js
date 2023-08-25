@@ -3,7 +3,6 @@
 import { revalidatePath } from 'next/cache'
 import { sql } from '@vercel/postgres'
 import { z } from 'zod'
-import { redirect } from 'next/navigation'
 
 // CREATE TABLE todos (
 //   id SERIAL PRIMARY KEY,
