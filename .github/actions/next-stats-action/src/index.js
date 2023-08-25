@@ -108,22 +108,24 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
       if (!actionInfo.skipClone) {
         const usePnpm = await fs.pathExists(path.join(dir, 'pnpm-lock.yaml'))
 
-        await exec(
-          `cd ${dir}${
-            usePnpm
-              ? // --no-frozen-lockfile is used here to tolerate lockfile
-                // changes from merging latest changes
-                ` && pnpm install --no-frozen-lockfile`
-              : ' && yarn install --network-timeout 1000000'
-          }`,
-          false
-        )
+        if (!statsConfig.skipInitialInstall) {
+          await exec(
+            `cd ${dir}${
+              usePnpm
+                ? // --no-frozen-lockfile is used here to tolerate lockfile
+                  // changes from merging latest changes
+                  ` && pnpm install --no-frozen-lockfile`
+                : ' && yarn install --network-timeout 1000000'
+            }`,
+            false
+          )
 
-        await exec(
-          statsConfig.initialBuildCommand ||
-            `cd ${dir} && ${usePnpm ? 'pnpm build' : 'echo built'}`,
-          false
-        )
+          await exec(
+            statsConfig.initialBuildCommand ||
+              `cd ${dir} && ${usePnpm ? 'pnpm build' : 'echo built'}`,
+            false
+          )
+        }
       }
 
       await fs
