@@ -233,15 +233,17 @@ export function getResolveRoutes(
       if (checkLocaleApi(pathname)) {
         return
       }
-      const output = await fsChecker.getItem(pathname)
+      if (!invokedOutputs?.has(pathname)) {
+        const output = await fsChecker.getItem(pathname)
 
-      if (output && !invokedOutputs?.has(pathname)) {
-        if (
-          config.useFileSystemPublicRoutes ||
-          didRewrite ||
-          (output.type !== 'appFile' && output.type !== 'pageFile')
-        ) {
-          return output
+        if (output) {
+          if (
+            config.useFileSystemPublicRoutes ||
+            didRewrite ||
+            (output.type !== 'appFile' && output.type !== 'pageFile')
+          ) {
+            return output
+          }
         }
       }
       const dynamicRoutes = fsChecker.getDynamicRoutes()
@@ -388,11 +390,8 @@ export function getResolveRoutes(
 
         if (route.name === 'check_fs') {
           const pathname = parsedUrl.pathname || ''
-          if (invokedOutputs?.has(pathname)) {
-            return
-          }
 
-          if (checkLocaleApi(pathname)) {
+          if (invokedOutputs?.has(pathname) || checkLocaleApi(pathname)) {
             return
           }
           const output = await fsChecker.getItem(pathname)
