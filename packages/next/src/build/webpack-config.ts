@@ -1936,7 +1936,6 @@ export default async function getBaseWebpackConfig(
         'next-invalid-import-error-loader',
         'next-metadata-route-loader',
         'modularize-import-loader',
-        'barrel-optimize-loader',
       ].reduce((alias, loader) => {
         // using multiple aliases to replace `resolveLoader.modules`
         alias[loader] = path.join(__dirname, 'webpack', 'loaders', loader)
@@ -2125,6 +2124,25 @@ export default async function getBaseWebpackConfig(
             ]
           : []),
         {
+          test: /__barrel_optimize__/,
+          use: ({
+            resourceQuery,
+            issuerLayer,
+          }: {
+            resourceQuery: string
+            issuerLayer: string
+          }) => {
+            const names = resourceQuery.slice('?names='.length).split(',')
+            return [
+              getSwcLoader({
+                isServerLayer:
+                  issuerLayer === WEBPACK_LAYERS.reactServerComponents,
+                optimizeBarrelExports: names,
+              }),
+            ]
+          },
+        },
+        {
           oneOf: [
             {
               ...codeCondition,
@@ -2144,9 +2162,7 @@ export default async function getBaseWebpackConfig(
               ? [
                   {
                     test: codeCondition.test,
-                    issuerLayer: {
-                      or: [isWebpackServerLayer],
-                    },
+                    issuerLayer: isWebpackServerLayer,
                     exclude: [asyncStoragesRegex],
                     use: swcLoaderForServerLayer,
                   },

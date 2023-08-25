@@ -59,6 +59,7 @@ pub mod disallow_re_export_all_in_page;
 pub mod named_import_transform;
 pub mod next_dynamic;
 pub mod next_ssg;
+pub mod optimize_barrel;
 pub mod page_config;
 pub mod react_remove_properties;
 pub mod react_server_components;
@@ -131,6 +132,9 @@ pub struct TransformOptions {
 
     #[serde(default)]
     pub auto_modularize_imports: Option<named_import_transform::Config>,
+
+    #[serde(default)]
+    pub optimize_barrel_exports: Option<optimize_barrel::Config>,
 
     #[serde(default)]
     pub font_loaders: Option<next_transform_font::Config>,

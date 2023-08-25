@@ -310,6 +310,7 @@ export function getLoaderSWCOptions({
   hasServerComponents,
   isServerLayer,
   isServerActionsEnabled,
+  optimizeBarrelExports,
 }: // This is not passed yet as "paths" resolving is handled by webpack currently.
 // resolvedBaseUrl,
 {
@@ -330,6 +331,7 @@ export function getLoaderSWCOptions({
   hasServerComponents?: boolean
   isServerLayer: boolean
   isServerActionsEnabled?: boolean
+  optimizeBarrelExports?: string[]
 }) {
   let baseOptions: any = getBaseSWCOptions({
     filename,
@@ -372,8 +374,15 @@ export function getLoaderSWCOptions({
   }
   baseOptions.autoModularizeImports = {
     packages: [
+      'lucide-react',
       // TODO: Add a list of packages that should be optimized by default
     ],
+  }
+
+  if (optimizeBarrelExports) {
+    baseOptions.optimizeBarrelExports = {
+      names: optimizeBarrelExports,
+    }
   }
 
   const isNextDist = nextDistPath.test(filename)

@@ -61,7 +61,7 @@ impl Fold for NamedImportTransform {
 
             if !skip_transform {
                 let new_src = format!(
-                    "barrel-optimize-loader?names={}!{}",
+                    "__barrel_optimize__?names={}!=!!{}",
                     specifier_names.join(","),
                     src_value
                 );
