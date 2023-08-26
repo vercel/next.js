@@ -60,10 +60,10 @@ impl Fold for NamedImportTransform {
             }
 
             if !skip_transform {
+                let names = specifier_names.join(",");
                 let new_src = format!(
-                    "barrel-optimize-loader?names={}!{}",
-                    specifier_names.join(","),
-                    src_value
+                    "__barrel_optimize__?names={}!=!{}?__barrel_optimize_noop__={}",
+                    names, src_value, names,
                 );
 
                 // Create a new import declaration, keep everything the same except the source

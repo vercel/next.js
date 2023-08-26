@@ -532,6 +532,27 @@ function getOptimizedAliases(): { [pkg: string]: string } {
   )
 }
 
+// Alias these modules to be resolved with "module" if possible.
+function getModularizeImportAliases(packages: string[]) {
+  const aliases: { [pkg: string]: string } = {}
+  const mainFields = ['module', 'main']
+
+  for (const pkg of packages) {
+    try {
+      const descriptionFileData = require(`${pkg}/package.json`)
+
+      for (const field of mainFields) {
+        if (descriptionFileData.hasOwnProperty(field)) {
+          aliases[pkg] = `${pkg}/${descriptionFileData[field]}`
+          break
+        }
+      }
+    } catch {}
+  }
+
+  return aliases
+}
+
 export function attachReactRefresh(
   webpackConfig: webpack.Configuration,
   targetLoader: webpack.RuleSetUseItem
@@ -1165,6 +1186,14 @@ export default async function getBaseWebpackConfig(
       ...(isClient || isEdgeServer ? getOptimizedAliases() : {}),
       ...(reactProductionProfiling ? getReactProfilingInProduction() : {}),
 
+      // For Node server, we need to re-alias the package imports to prefer to
+      // resolve to the module export.
+      ...(isNodeServer
+        ? getModularizeImportAliases(
+            config.experimental.optimizePackageImports || []
+          )
+        : {}),
+
       [RSC_ACTION_VALIDATE_ALIAS]:
         'next/dist/build/webpack/loaders/next-flight-loader/action-validate',
 
@@ -1394,6 +1423,12 @@ export default async function getBaseWebpackConfig(
     // @swc/helpers should not be external as it would
     // require hoisting the package which we can't rely on
     if (request.includes('@swc/helpers')) {
+      return
+    }
+
+    // __barrel_optimize__ is a special marker that tells Next.js to
+    // optimize the import by removing unused exports. This has to be compiled.
+    if (request.startsWith('__barrel_optimize__')) {
       return
     }
 
@@ -1936,7 +1971,6 @@ export default async function getBaseWebpackConfig(
         'next-invalid-import-error-loader',
         'next-metadata-route-loader',
         'modularize-import-loader',
-        'barrel-optimize-loader',
       ].reduce((alias, loader) => {
         // using multiple aliases to replace `resolveLoader.modules`
         alias[loader] = path.join(__dirname, 'webpack', 'loaders', loader)
@@ -1951,6 +1985,25 @@ export default async function getBaseWebpackConfig(
     },
     module: {
       rules: [
+        {
+          test: /__barrel_optimize__/,
+          use: ({
+            resourceQuery,
+            issuerLayer,
+          }: {
+            resourceQuery: string
+            issuerLayer: string
+          }) => {
+            const names = resourceQuery.slice('?names='.length).split(',')
+            return [
+              getSwcLoader({
+                isServerLayer:
+                  issuerLayer === WEBPACK_LAYERS.reactServerComponents,
+                optimizeBarrelExports: names,
+              }),
+            ]
+          },
+        },
         ...(hasAppDir
           ? [
               {
@@ -2006,9 +2059,7 @@ export default async function getBaseWebpackConfig(
         ...(hasAppDir && !isClient
           ? [
               {
-                issuerLayer: {
-                  or: [isWebpackServerLayer],
-                },
+                issuerLayer: isWebpackServerLayer,
                 test: {
                   // Resolve it if it is a source code file, and it has NOT been
                   // opted out of bundling.
@@ -2144,9 +2195,7 @@ export default async function getBaseWebpackConfig(
               ? [
                   {
                     test: codeCondition.test,
-                    issuerLayer: {
-                      or: [isWebpackServerLayer],
-                    },
+                    issuerLayer: isWebpackServerLayer,
                     exclude: [asyncStoragesRegex],
                     use: swcLoaderForServerLayer,
                   },
