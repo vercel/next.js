@@ -215,16 +215,12 @@ export function patchFetch({
         const hasUnCacheableHeader =
           initHeaders.get('authorization') || initHeaders.get('cookie')
 
-        const isUnCacheableMethod = !['get', 'head'].includes(
+        const isUnCacheableMethod = !['get', 'head', 'post'].includes(
           getRequestMeta('method')?.toLowerCase() || 'get'
         )
 
-        // if there are authorized headers or a POST method and
-        // dynamic data usage was present above the tree we bail
-        // e.g. if cookies() is used before an authed/POST fetch
-        const autoNoCache =
-          (hasUnCacheableHeader || isUnCacheableMethod) &&
-          staticGenerationStore.revalidate === 0
+        // if there are authorized headers or a POST method we bail
+        const autoNoCache = hasUnCacheableHeader || isUnCacheableMethod
 
         if (isForceNoStore) {
           revalidate = 0
