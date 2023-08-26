@@ -466,19 +466,22 @@ function markHydrateComplete(): void {
     'afterHydrate'
   )
 
-  tracer
-    .startSpan('navigation-to-hydration', {
-      startTime: performance.timeOrigin + beforeHydrationMeasure.startTime,
-      attributes: {
-        pathname: location.pathname,
-        query: location.search,
-      },
-    })
-    .end(
-      performance.timeOrigin +
-        hydrationMeasure.startTime +
-        hydrationMeasure.duration
-    )
+  // beforeHydrationMeasure & hydrationMeasure will be undefined on older browsers
+  if(beforeHydrationMeasure && hydrationMeasure) {
+    tracer
+      .startSpan('navigation-to-hydration', {
+        startTime: performance.timeOrigin + beforeHydrationMeasure.startTime,
+        attributes: {
+          pathname: location.pathname,
+          query: location.search,
+        },
+      })
+      .end(
+        performance.timeOrigin +
+          hydrationMeasure.startTime +
+          hydrationMeasure.duration
+      )
+  }
 
   if (onPerfEntry) {
     performance.getEntriesByName('Next.js-hydration').forEach(onPerfEntry)
