@@ -96,7 +96,7 @@ Can be used to prompt the user to attempt to recover from the error.
 
 > **Good to know**:
 >
-> - `error.js` boundaries must be **[Client Components](/docs/getting-started/react-essentials)**.
+> - `error.js` boundaries must be **[Client Components](/docs/app/building-your-application/rendering/client-components)**.
 > - In Production builds, errors forwarded from Server Components will be stripped of specific error details to avoid leaking sensitive information.
 > - An `error.js` boundary will **not** handle errors thrown in a `layout.js` component in the **same** segment because the error boundary is nested **inside** that layouts component.
 >   - To handle errors for a specific layout, place an `error.js` file in the layouts parent segment.

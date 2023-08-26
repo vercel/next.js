@@ -473,6 +473,9 @@ const configSchema = {
             },
           },
         },
+        optimizePackageImports: {
+          type: 'array',
+        },
         instrumentationHook: {
           type: 'boolean',
         },
