@@ -69,7 +69,7 @@ jobs:
           path: ./*
           key: ${{ github.sha }}-${{ github.run_number }}
 
-  # Build binaries for publishing
+  # Build next-swc binaries for publishing
   build-native:
     defaults:
       run:
