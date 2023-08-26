@@ -5,8 +5,8 @@ type FarmOptions = ConstructorParameters<typeof JestWorker>[1]
 
 const RESTARTED = Symbol('restarted')
 
-const cleanupWorkers = (worker: any) => {
-  for (const curWorker of (worker._workerPool?._workers || []) as {
+const cleanupWorkers = (worker: JestWorker) => {
+  for (const curWorker of ((worker as any)._workerPool?._workers || []) as {
     _child?: ChildProcess
   }[]) {
     curWorker._child?.kill('SIGINT')
@@ -131,8 +131,8 @@ export class Worker {
     if (!worker) {
       throw new Error('Farm is ended, no more calls can be done to it')
     }
+    cleanupWorkers(worker)
     this._worker = undefined
-    cleanupWorkers(this._worker)
     return worker.end()
   }
 
