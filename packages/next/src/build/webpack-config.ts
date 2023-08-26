@@ -115,12 +115,7 @@ const edgeConditionNames = [
 const mainFieldsPerCompiler: Record<CompilerNameValues, string[]> = {
   [COMPILER_NAMES.server]: ['main', 'module'],
   [COMPILER_NAMES.client]: ['browser', 'module', 'main'],
-  [COMPILER_NAMES.edgeServer]: [
-    'edge-light',
-    'worker',
-    // inherits the default conditions
-    '...',
-  ],
+  [COMPILER_NAMES.edgeServer]: edgeConditionNames,
 }
 
 const BABEL_CONFIG_FILES = [
