@@ -500,7 +500,7 @@ export interface UpdateInfo {
   tasks: number
 }
 
-enum ServerClientChangeType {
+export enum ServerClientChangeType {
   Server = 'Server',
   Client = 'Client',
   Both = 'Both',
@@ -549,7 +549,7 @@ export interface Endpoint {
    * Listen to changes to the endpoint.
    * The async iterator will yield for each change.
    */
-  changed(): AsyncIterableIterator<TurbopackResult>
+  changed(): AsyncIterableIterator<TurbopackResult<ServerClientChange>>
 }
 
 interface EndpointConfig {

@@ -1,10 +1,10 @@
 import type { NextConfigComplete } from '../../config-shared'
-import type {
+import {
   Endpoint,
   Route,
   TurbopackResult,
   WrittenEndpoint,
-  Middleware,
+  ServerClientChangeType,
 } from '../../../build/swc'
 import type { Socket } from 'net'
 import ws from 'next/dist/compiled/ws'
@@ -186,6 +186,7 @@ async function startWatcher(opts: SetupOpts) {
     })
     const iter = project.entrypointsSubscribe()
     const curEntries: Map<string, Route> = new Map()
+    let changeSubscriptions: Map<string, AsyncIterator<any>> = new Map()
     let prevMiddleware: boolean | undefined = undefined
     const globalEntries: {
       app: Endpoint | undefined
@@ -341,7 +342,6 @@ async function startWatcher(opts: SetupOpts) {
 
     try {
       async function handleEntries() {
-        let subscriptions: AsyncIterator<any>[] = []
         for await (const entrypoints of iter) {
           if (!currentEntriesHandlingResolve) {
             currentEntriesHandling = new Promise(
@@ -353,7 +353,6 @@ async function startWatcher(opts: SetupOpts) {
           globalEntries.document = entrypoints.pagesDocumentEndpoint
           globalEntries.error = entrypoints.pagesErrorEndpoint
 
-          subscriptions.forEach((s) => s.return?.())
           curEntries.clear()
 
           for (const [pathname, route] of entrypoints.routes) {
@@ -371,6 +370,18 @@ async function startWatcher(opts: SetupOpts) {
             }
           }
 
+          for (const [pathname, subscription] of changeSubscriptions) {
+            if (pathname === '') {
+              // middleware is handled below
+              continue
+            }
+
+            if (!curEntries.has(pathname)) {
+              subscription.return?.()
+              changeSubscriptions.delete(pathname)
+            }
+          }
+
           const { middleware } = entrypoints
           // We check for explicit true/false, since it's initialized to
           // undefined during the first loop (middlewareChanges event is
@@ -378,6 +389,8 @@ async function startWatcher(opts: SetupOpts) {
           if (prevMiddleware === true && !middleware) {
             // Went from middleware to no middleware
             hotReloader.send({ event: 'middlewareChanges' })
+            changeSubscriptions.get('')?.return?.()
+            changeSubscriptions.delete('')
           } else if (prevMiddleware === false && middleware) {
             // Went from no middleware to middleware
             hotReloader.send({ event: 'middlewareChanges' })
@@ -395,17 +408,10 @@ async function startWatcher(opts: SetupOpts) {
               matchers:
                 middlewareManifests.get('middleware')?.middleware['/'].matchers,
             }
-            ;(async () => {
-              const changed = middleware.endpoint.changed()
-              subscriptions.push(changed)
 
-              const { done } = await changed.next()
-              // If we're done, then the subscription was exited because of a
-              // change in the app structure, not a rewrite of the middleware.
-              if (!done) {
-                hotReloader.send({ event: 'middlewareChanges' })
-              }
-            })()
+            changeSubscription('', middleware.endpoint, () => {
+              return { event: 'middlewareChanges' }
+            })
             prevMiddleware = true
           } else {
             middlewareManifests.delete('middleware')
@@ -646,6 +652,26 @@ async function startWatcher(opts: SetupOpts) {
       subscription?.return!()
     }
 
+    function changeSubscription(
+      page: string,
+      endpoint: Endpoint,
+      makePayload: (
+        page: string,
+        change: ServerClientChangeType
+      ) => object | void
+    ) {
+      if (changeSubscriptions.has(page)) return
+      ;(async () => {
+        const changed = endpoint.changed()
+        changeSubscriptions.set(page, changed)
+
+        for await (const change of changed) {
+          const payload = makePayload(page, change.change)
+          if (payload) hotReloader.send(payload)
+        }
+      })()
+    }
+
     // Write empty manifests
     await mkdir(path.join(distDir, 'server'), { recursive: true })
     await mkdir(path.join(distDir, 'static/development'), { recursive: true })
@@ -705,8 +731,6 @@ async function startWatcher(opts: SetupOpts) {
           //     - { action: 'built', hash }
           //   - HMR
           //      - { action: 'reloadPage' }
-          //      - { event: 'serverOnlyChanges', pages }
-          //      - { action: 'serverComponentChanges' }
 
           client.addEventListener('message', ({ data }) => {
             const parsedData = JSON.parse(
@@ -848,6 +872,14 @@ async function startWatcher(opts: SetupOpts) {
               page,
               await route.htmlEndpoint.writeToDisk()
             )
+            changeSubscription(page, route.htmlEndpoint, (page, change) => {
+              switch (change) {
+                case ServerClientChangeType.Server:
+                case ServerClientChangeType.Both:
+                  return { event: 'serverOnlyChanges', pages: [page] }
+                case ServerClientChangeType.Client:
+              }
+            })
 
             const type = writtenEndpoint?.type
 
@@ -893,6 +925,14 @@ async function startWatcher(opts: SetupOpts) {
           }
           case 'app-page': {
             await processResult(page, await route.htmlEndpoint.writeToDisk())
+            changeSubscription(page, route.htmlEndpoint, (_page, change) => {
+              switch (change) {
+                case ServerClientChangeType.Server:
+                case ServerClientChangeType.Both:
+                  return { action: 'serverComponentChanges' }
+                case ServerClientChangeType.Client:
+              }
+            })
 
             await loadAppBuildManifest(page)
             await loadBuildManifest(page, 'app')
