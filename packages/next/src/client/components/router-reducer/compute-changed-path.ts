@@ -2,6 +2,10 @@ import { FlightRouterState, Segment } from '../../../server/app-render/types'
 import { INTERCEPTION_ROUTE_MARKERS } from '../../../server/future/helpers/interception-routes'
 import { isGroupSegment, matchSegment } from '../match-segments'
 
+const removeLeadingSlash = (segment: string): string => {
+  return segment[0] === '/' ? segment.slice(1) : segment
+}
+
 const segmentToPathname = (segment: Segment): string => {
   if (typeof segment === 'string') {
     return segment
@@ -17,7 +21,7 @@ function normalizeSegments(segments: string[]): string {
         return acc
       }
 
-      return `${acc}/${segment}`
+      return `${acc}/${removeLeadingSlash(segment)}`
     }, '') || '/'
   )
 }
@@ -52,7 +56,7 @@ export function extractPathFromFlightRouterState(
 
       const childPath = extractPathFromFlightRouterState(value)
 
-      if (childPath !== undefined) {
+      if (childPath !== undefined && childPath !== '') {
         segments.push(childPath)
       }
     }

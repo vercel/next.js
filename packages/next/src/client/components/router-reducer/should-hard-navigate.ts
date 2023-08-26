@@ -1,7 +1,6 @@
 import type {
   FlightRouterState,
   FlightDataPath,
-  Segment,
 } from '../../../server/app-render/types'
 import { matchSegment } from '../match-segments'
 
@@ -11,11 +10,7 @@ export function shouldHardNavigate(
   flightRouterState: FlightRouterState
 ): boolean {
   const [segment, parallelRoutes] = flightRouterState
-  // TODO-APP: Check if `as` can be replaced.
-  const [currentSegment, parallelRouteKey] = flightSegmentPath as [
-    Segment,
-    string
-  ]
+  const [currentSegment, parallelRouteKey] = flightSegmentPath
 
   // Check if current segment matches the existing segment.
   if (!matchSegment(currentSegment, segment)) {

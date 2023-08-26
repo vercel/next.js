@@ -35,5 +35,6 @@ export const canSegmentBeOverridden = (
 }
 
 export function isGroupSegment(segment: string) {
-  return segment.startsWith('(') && segment.endsWith(')')
+  // Use array[0] for performant purpose
+  return segment[0] === '(' && segment.endsWith(')')
 }

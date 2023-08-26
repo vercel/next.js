@@ -1,3 +1,4 @@
+import { isGroupSegment } from '../../../../client/components/match-segments'
 import { ensureLeadingSlash } from '../../page-path/ensure-leading-slash'
 
 /**
@@ -28,7 +29,7 @@ export function normalizeAppPath(route: string) {
       }
 
       // Groups are ignored.
-      if (segment[0] === '(' && segment.endsWith(')')) {
+      if (isGroupSegment(segment)) {
         return pathname
       }
 
