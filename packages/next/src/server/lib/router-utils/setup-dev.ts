@@ -652,24 +652,23 @@ async function startWatcher(opts: SetupOpts) {
       subscription?.return!()
     }
 
-    function changeSubscription(
+    async function changeSubscription(
       page: string,
-      endpoint: Endpoint,
+      endpoint: Endpoint | undefined,
       makePayload: (
         page: string,
         change: ServerClientChangeType
       ) => object | void
     ) {
-      if (changeSubscriptions.has(page)) return
-      ;(async () => {
-        const changed = endpoint.changed()
-        changeSubscriptions.set(page, changed)
+      if (!endpoint || changeSubscriptions.has(page)) return
 
-        for await (const change of changed) {
-          const payload = makePayload(page, change.change)
-          if (payload) hotReloader.send(payload)
-        }
-      })()
+      const changed = endpoint.changed()
+      changeSubscriptions.set(page, changed)
+
+      for await (const change of changed) {
+        const payload = makePayload(page, change.change)
+        if (payload) hotReloader.send(payload)
+      }
     }
 
     // Write empty manifests
@@ -729,8 +728,6 @@ async function startWatcher(opts: SetupOpts) {
           //     - { action: 'building' }
           //     - { action: 'sync', hash, errors, warnings, versionInfo }
           //     - { action: 'built', hash }
-          //   - HMR
-          //      - { action: 'reloadPage' }
 
           client.addEventListener('message', ({ data }) => {
             const parsedData = JSON.parse(
@@ -824,6 +821,9 @@ async function startWatcher(opts: SetupOpts) {
             '_document',
             await globalEntries.document?.writeToDisk()
           )
+          changeSubscription('_document', globalEntries?.document, () => {
+            return { action: 'reloadPage' }
+          })
           await loadPagesManifest('_document')
 
           await processResult(page, await globalEntries.error?.writeToDisk())
@@ -866,6 +866,9 @@ async function startWatcher(opts: SetupOpts) {
               '_document',
               await globalEntries.document?.writeToDisk()
             )
+            changeSubscription('_document', globalEntries?.document, () => {
+              return { action: 'reloadPage' }
+            })
             await loadPagesManifest('_document')
 
             const writtenEndpoint = await processResult(
