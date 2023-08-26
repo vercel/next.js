@@ -1498,17 +1498,22 @@ export default async function build(
                   }
                 }
 
-                const staticInfo =
-                  pagePath && !isAppBuiltinNotFoundPage(pagePath)
-                    ? await getPageStaticInfo({
-                        pageFilePath: path.join(
-                          (pageType === 'pages' ? pagesDir : appDir) || '',
-                          pagePath
-                        ),
-                        nextConfig: config,
-                        pageType,
-                      })
-                    : undefined
+                const pageFilePath = isAppBuiltinNotFoundPage(pagePath)
+                  ? require.resolve(
+                      'next/dist/client/components/not-found-error'
+                    )
+                  : path.join(
+                      (pageType === 'pages' ? pagesDir : appDir) || '',
+                      pagePath
+                    )
+
+                const staticInfo = pagePath
+                  ? await getPageStaticInfo({
+                      pageFilePath,
+                      nextConfig: config,
+                      pageType,
+                    })
+                  : undefined
 
                 if (staticInfo?.extraConfig) {
                   functionsConfigManifest[page] = staticInfo.extraConfig
