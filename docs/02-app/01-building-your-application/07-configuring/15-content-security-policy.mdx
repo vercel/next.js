@@ -22,7 +22,7 @@ By using CSP, developers can specify which origins are permissible for content s
 
 ## Nonces
 
-A [nonce](https://developer.mozilla.org/en-US/docs/Web/HTML/Global_attributes/nonce) is a unique, random string of characters created for a one-time-use. It is used in conjunction with CSP to selectively allow certain inline scripts or styles to execute, bypassing strict CSP directives.
+A [nonce](https://developer.mozilla.org/en-US/docs/Web/HTML/Global_attributes/nonce) is a unique, random string of characters created for a one-time use. It is used in conjunction with CSP to selectively allow certain inline scripts or styles to execute, bypassing strict CSP directives.
 
 ### Why use a nonce?
 
@@ -30,7 +30,7 @@ Even though CSPs are designed to block malicious scripts, there are legitimate s
 
 ### Adding a nonce with Middleware
 
-[Middleware](/docs/app/building-your-application/routing/middleware) enables you to headers and generate nonces before the the page renders.
+[Middleware](/docs/app/building-your-application/routing/middleware) enables you to headers and generate nonces before the page renders.
 
 Every time a page is viewed, a fresh nonce should be generated. This means that you **must use dynamic rendering to add nonces**.
 
