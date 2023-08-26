@@ -182,6 +182,7 @@ describe('next.rs api', () => {
     expect(entrypoints.done).toBe(false)
     expect(Array.from(entrypoints.value.routes.keys()).sort()).toEqual([
       '/',
+      '_/not-found',
       '/api/edge',
       '/api/nodejs',
       '/app',
