@@ -7,14 +7,8 @@ const addComment = require('./add-comment')
 const actionInfo = require('./prepare/action-info')()
 const { mainRepoDir, diffRepoDir } = require('./constants')
 const loadStatsConfig = require('./prepare/load-stats-config')
-const {
-  cloneRepo,
-  checkoutRef,
-  mergeBranch,
-  getCommitId,
-  linkPackages,
-  getLastStable,
-} = require('./prepare/repo-setup')(actionInfo)
+const { cloneRepo, mergeBranch, getCommitId, linkPackages, getLastStable } =
+  require('./prepare/repo-setup')(actionInfo)
 
 const allowedActions = new Set(['synchronize', 'opened'])
 
@@ -109,21 +103,19 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
         const usePnpm = await fs.pathExists(path.join(dir, 'pnpm-lock.yaml'))
 
         if (!statsConfig.skipInitialInstall) {
-          await exec(
+          await exec.spawnPromise(
             `cd ${dir}${
               usePnpm
                 ? // --no-frozen-lockfile is used here to tolerate lockfile
                   // changes from merging latest changes
                   ` && pnpm install --no-frozen-lockfile`
                 : ' && yarn install --network-timeout 1000000'
-            }`,
-            false
+            }`
           )
 
-          await exec(
+          await exec.spawnPromise(
             statsConfig.initialBuildCommand ||
-              `cd ${dir} && ${usePnpm ? 'pnpm build' : 'echo built'}`,
-            false
+              `cd ${dir} && ${usePnpm ? 'pnpm build' : 'echo built'}`
           )
         }
       }
