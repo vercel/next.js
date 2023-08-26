@@ -790,7 +790,8 @@ async fn directory_tree_to_entrypoints_internal(
             .await?;
         }
     } else {
-        // Create default not-found page for production if there's no customized not-found
+        // Create default not-found page for production if there's no customized
+        // not-found
         let prod_not_found_tree = LoaderTree {
             segment: directory_name.to_string(),
             parallel_routes: indexmap! {
