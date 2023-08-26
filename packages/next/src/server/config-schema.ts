@@ -473,6 +473,9 @@ const configSchema = {
             },
           },
         },
+        optimizePackageImports: {
+          type: 'array',
+        },
         instrumentationHook: {
           type: 'boolean',
         },
@@ -748,6 +751,7 @@ const configSchema = {
     },
     reactStrictMode: {
       type: 'boolean',
+      nullable: true,
     },
     redirects: {
       isFunction: true,

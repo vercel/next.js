@@ -17,8 +17,10 @@ import { proxyRequest } from './router-utils/proxy-request'
 import { getResolveRoutes } from './router-utils/resolve-routes'
 import { PERMANENT_REDIRECT_STATUS } from '../../shared/lib/constants'
 import { splitCookiesString, toNodeOutgoingHttpHeaders } from '../web/utils'
+import { formatHostname } from './format-hostname'
 import { signalFromNodeResponse } from '../web/spec-extension/adapters/next-request'
 import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
+import type { RenderWorker } from './router-server'
 import { pipeReadable } from '../pipe-readable'
 
 type RouteResult =
@@ -56,7 +58,7 @@ export async function makeResolver(
   dir: string,
   nextConfig: NextConfigComplete,
   middleware: MiddlewareConfig,
-  serverAddr: Partial<ServerAddress>
+  { hostname = 'localhost', port = 3000 }: Partial<ServerAddress>
 ) {
   const fsChecker = await setupFsCheck({
     dir,
@@ -68,6 +70,8 @@ export async function makeResolver(
     dir,
     !!nextConfig.experimental.appDir
   )
+  // we format the hostname so that it can be fetched
+  const fetchHostname = formatHostname(hostname)
 
   fsChecker.ensureCallback(async (item) => {
     let result: string | null = null
@@ -108,7 +112,10 @@ export async function makeResolver(
       }
     : {}
 
-  const middlewareServerPort = await new Promise((resolve) => {
+  const middlewareServerAddr = await new Promise<{
+    hostname: string
+    port: number
+  }>((resolve) => {
     const srv = http.createServer(async (req, res) => {
       const cloneableBody = getCloneableBody(req)
       try {
@@ -128,9 +135,7 @@ export async function makeResolver(
               basePath: nextConfig.basePath,
               trailingSlash: nextConfig.trailingSlash,
             },
-            url: `http://${serverAddr.hostname || 'localhost'}:${
-              serverAddr.port || 3000
-            }${req.url}`,
+            url: `http://${fetchHostname}:${port}${req.url}`,
             body: cloneableBody,
             signal: signalFromNodeResponse(res),
           },
@@ -172,7 +177,14 @@ export async function makeResolver(
       }
     })
     srv.on('listening', () => {
-      resolve((srv.address() as any).port)
+      const srvAddr = srv.address()
+      if (!srvAddr || typeof srvAddr === 'string') {
+        throw new Error("Failed to determine middleware's host/port.")
+      }
+      resolve({
+        hostname: srvAddr.address,
+        port: srvAddr.port,
+      })
     })
     srv.listen(0)
   })
@@ -191,8 +203,8 @@ export async function makeResolver(
     nextConfig,
     {
       dir,
-      port: serverAddr.port || 3000,
-      hostname: serverAddr.hostname,
+      port,
+      hostname,
       isNodeDebugging: false,
       dev: true,
       workerType: 'render',
@@ -201,15 +213,15 @@ export async function makeResolver(
       pages: {
         async initialize() {
           return {
-            port: middlewareServerPort,
-            hostname: '127.0.0.1',
+            port: middlewareServerAddr.port,
+            hostname: formatHostname(middlewareServerAddr.hostname),
           }
         },
         async deleteCache() {},
         async clearModuleContext() {},
         async deleteAppClientCache() {},
         async propagateServerField() {},
-      } as any,
+      } as Partial<RenderWorker> as any,
     },
     {} as any
   )
@@ -218,12 +230,12 @@ export async function makeResolver(
     req: IncomingMessage,
     res: ServerResponse
   ): Promise<RouteResult | void> {
-    const routeResult = await resolveRoutes(
+    const routeResult = await resolveRoutes({
       req,
-      new Set(),
-      false,
-      signalFromNodeResponse(res)
-    )
+      isUpgradeReq: false,
+      signal: signalFromNodeResponse(res),
+    })
+
     const {
       matchedOutput,
       bodyStream,

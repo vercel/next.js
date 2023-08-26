@@ -29,6 +29,13 @@ export const getCategories = () => [
       { name: 'Education', slug: 'education', count: 3 },
     ],
   },
+  {
+    name: 'Shoes',
+    slug: 'shoes',
+    count: 5,
+    items: [],
+    prefetch: false,
+  },
 ]
 
 export async function fetchCategoryBySlug(slug) {

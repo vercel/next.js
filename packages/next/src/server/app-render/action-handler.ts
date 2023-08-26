@@ -121,24 +121,6 @@ function getForwardedHeaders(
   return new Headers(mergedHeaders)
 }
 
-function fetchIPv4v6(
-  url: URL,
-  init: RequestInit,
-  v6 = false
-): Promise<Response> {
-  const hostname = url.hostname
-
-  if (!v6 && hostname === 'localhost') {
-    url.hostname = '127.0.0.1'
-  }
-  return fetch(url, init).catch((err) => {
-    if (err.code === 'ECONNREFUSED' && !v6) {
-      return fetchIPv4v6(url, init, true)
-    }
-    throw err
-  })
-}
-
 async function addRevalidationHeader(
   res: ServerResponse,
   {
@@ -212,7 +194,7 @@ async function createRedirectRenderResult(
     // }
 
     try {
-      const headResponse = await fetchIPv4v6(fetchUrl, {
+      const headResponse = await fetch(fetchUrl, {
         method: 'HEAD',
         headers: forwardedHeaders,
         next: {
@@ -224,7 +206,7 @@ async function createRedirectRenderResult(
       if (
         headResponse.headers.get('content-type') === RSC_CONTENT_TYPE_HEADER
       ) {
-        const response = await fetchIPv4v6(fetchUrl, {
+        const response = await fetch(fetchUrl, {
           method: 'GET',
           headers: forwardedHeaders,
           next: {
@@ -287,6 +269,11 @@ export async function handleAction({
     req.method === 'POST'
 
   if (isFetchAction || isURLEncodedAction || isMultipartAction) {
+    // ensure we avoid caching server actions unexpectedly
+    res.setHeader(
+      'Cache-Control',
+      'no-cache, no-store, max-age=0, must-revalidate'
+    )
     let bound = []
 
     const workerName = 'app' + pathname
@@ -398,7 +385,7 @@ export async function handleAction({
                 // Exceeded the size limit
                 e.message =
                   e.message +
-                  '\nTo configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions#size-limitation'
+                  '\nTo configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/api-reference/server-actions#size-limitation'
               }
               throw e
             }

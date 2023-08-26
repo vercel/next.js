@@ -11,7 +11,8 @@ describe('modularize-imports', () => {
         app: new FileRef(join(__dirname, 'modularize-imports/app')),
       },
       dependencies: {
-        'lucide-react': '0.263.1',
+        'lucide-react': '0.264.0',
+        '@headlessui/react': '1.7.17',
       },
     })
   })
@@ -34,7 +35,7 @@ describe('modularize-imports', () => {
       ),
     ]
 
-    expect(modules.length).toBeGreaterThan(1)
+    expect(modules.length).toBeGreaterThanOrEqual(1)
     for (const [, , , moduleCount] of modules) {
       // Ensure that the number of modules is less than 1000 - otherwise we're
       // importing the entire library.

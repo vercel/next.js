@@ -29,6 +29,7 @@ async function render(request: NextRequest, event: NextFetchEvent) {
     supportsDynamicHTML: true,
     dev: true,
     buildId: 'development',
+    basePath: '',
     buildManifest: {
       polyfillFiles: [],
       rootMainFiles: BOOTSTRAP.filter((path) => path.endsWith('.js')),

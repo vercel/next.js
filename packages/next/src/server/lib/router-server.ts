@@ -1,7 +1,10 @@
 import type { IncomingMessage } from 'http'
 
 // this must come first as it includes require hooks
-import { initializeServerWorker } from './setup-server-worker'
+import type {
+  WorkerRequestHandler,
+  WorkerUpgradeHandler,
+} from './setup-server-worker'
 
 import url from 'url'
 import path from 'path'
@@ -24,6 +27,7 @@ import { getResolveRoutes } from './router-utils/resolve-routes'
 import { NextUrlWithParsedQuery, getRequestMeta } from '../request-meta'
 import { pathHasPrefix } from '../../shared/lib/router/utils/path-has-prefix'
 import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
+import setupCompression from 'next/dist/compiled/compression'
 
 import {
   PHASE_PRODUCTION_SERVER,
@@ -32,23 +36,20 @@ import {
 } from '../../shared/lib/constants'
 import { signalFromNodeResponse } from '../web/spec-extension/adapters/next-request'
 
-let initializeResult:
-  | undefined
-  | {
-      port: number
-      hostname: string
-    }
-
 const debug = setupDebug('next:router-server:main')
 
-export type RenderWorker = InstanceType<
-  typeof import('next/dist/compiled/jest-worker').Worker
-> & {
-  initialize: typeof import('./render-server').initialize
-  deleteCache: typeof import('./render-server').deleteCache
-  deleteAppClientCache: typeof import('./render-server').deleteAppClientCache
-  clearModuleContext: typeof import('./render-server').clearModuleContext
-  propagateServerField: typeof import('./render-server').propagateServerField
+export type RenderWorker = Pick<
+  typeof import('./render-server'),
+  | 'initialize'
+  | 'deleteCache'
+  | 'clearModuleContext'
+  | 'deleteAppClientCache'
+  | 'propagateServerField'
+>
+
+export interface RenderWorkers {
+  app?: Awaited<ReturnType<typeof createWorker>>
+  pages?: Awaited<ReturnType<typeof createWorker>>
 }
 
 export async function initialize(opts: {
@@ -61,10 +62,8 @@ export async function initialize(opts: {
   isNodeDebugging: boolean
   keepAliveTimeout?: number
   customServer?: boolean
-}): Promise<NonNullable<typeof initializeResult>> {
-  if (initializeResult) {
-    return initializeResult
-  }
+  experimentalTestProxy?: boolean
+}): Promise<[WorkerRequestHandler, WorkerUpgradeHandler]> {
   process.title = 'next-router-worker'
 
   if (!process.env.NODE_ENV) {
@@ -80,12 +79,20 @@ export async function initialize(opts: {
     true
   )
 
+  let compress: ReturnType<typeof setupCompression> | undefined
+
+  if (config?.compress !== false) {
+    compress = setupCompression()
+  }
+
   const fsChecker = await setupFsCheck({
     dev: opts.dev,
     dir: opts.dir,
     config,
     minimalMode: opts.minimalMode,
   })
+
+  const renderWorkers: RenderWorkers = {}
 
   let devInstance:
     | UnwrapPromise<
@@ -102,8 +109,11 @@ export async function initialize(opts: {
       !!config.experimental.appDir
     )
 
-    const { setupDev } = await require('./router-utils/setup-dev')
+    const { setupDev } =
+      (await require('./router-utils/setup-dev')) as typeof import('./router-utils/setup-dev')
     devInstance = await setupDev({
+      // Passed here but the initialization of this object happens below, doing the initialization before the setupDev call breaks.
+      renderWorkers,
       appDir,
       pagesDir,
       telemetry,
@@ -114,21 +124,6 @@ export async function initialize(opts: {
       turbo: !!process.env.EXPERIMENTAL_TURBOPACK,
     })
   }
-
-  const renderWorkerOpts: Parameters<RenderWorker['initialize']>[0] = {
-    port: opts.port,
-    dir: opts.dir,
-    workerType: 'render',
-    hostname: opts.hostname,
-    minimalMode: opts.minimalMode,
-    dev: !!opts.dev,
-    isNodeDebugging: !!opts.isNodeDebugging,
-    serverFields: devInstance?.serverFields || {},
-  }
-  const renderWorkers: {
-    app?: RenderWorker
-    pages?: RenderWorker
-  } = {}
 
   const { ipcPort, ipcValidationKey } = await createIpcServer({
     async ensurePage(
@@ -189,30 +184,52 @@ export async function initialize(opts: {
     },
   } as any)
 
-  if (!!config.experimental.appDir) {
-    renderWorkers.app = await createWorker(
-      ipcPort,
-      ipcValidationKey,
-      opts.isNodeDebugging,
-      'app',
-      config
-    )
-  }
+  // Set global environment variables for the app render server to use.
+  process.env.__NEXT_PRIVATE_ROUTER_IPC_PORT = ipcPort + ''
+  process.env.__NEXT_PRIVATE_ROUTER_IPC_KEY = ipcValidationKey
+  process.env.__NEXT_PRIVATE_PREBUNDLED_REACT = config.experimental
+    .serverActions
+    ? 'experimental'
+    : 'next'
+
+  renderWorkers.app =
+    require('./render-server') as typeof import('./render-server')
+
+  const { initialEnv } = require('@next/env') as typeof import('@next/env')
   renderWorkers.pages = await createWorker(
     ipcPort,
     ipcValidationKey,
     opts.isNodeDebugging,
     'pages',
-    config
+    config,
+    initialEnv
   )
 
+  const renderWorkerOpts: Parameters<RenderWorker['initialize']>[0] = {
+    port: opts.port,
+    dir: opts.dir,
+    workerType: 'render',
+    hostname: opts.hostname,
+    minimalMode: opts.minimalMode,
+    dev: !!opts.dev,
+    isNodeDebugging: !!opts.isNodeDebugging,
+    serverFields: devInstance?.serverFields || {},
+    experimentalTestProxy: !!opts.experimentalTestProxy,
+  }
+
   // pre-initialize workers
-  await renderWorkers.app?.initialize(renderWorkerOpts)
-  await renderWorkers.pages?.initialize(renderWorkerOpts)
+  const initialized = {
+    app: await renderWorkers.app?.initialize(renderWorkerOpts),
+    pages: await renderWorkers.pages?.initialize(renderWorkerOpts),
+  }
 
   if (devInstance) {
-    Object.assign(devInstance.renderWorkers, renderWorkers)
+    const originalNextDeleteCache = (global as any)._nextDeleteCache
     ;(global as any)._nextDeleteCache = async (filePaths: string[]) => {
+      // Multiple instances of Next.js can be instantiated, since this is a global we have to call the original if it exists.
+      if (originalNextDeleteCache) {
+        await originalNextDeleteCache(filePaths)
+      }
       try {
         await Promise.all([
           renderWorkers.pages?.deleteCache(filePaths),
@@ -222,7 +239,13 @@ export async function initialize(opts: {
         console.error(err)
       }
     }
+    const originalNextDeleteAppClientCache = (global as any)
+      ._nextDeleteAppClientCache
     ;(global as any)._nextDeleteAppClientCache = async () => {
+      // Multiple instances of Next.js can be instantiated, since this is a global we have to call the original if it exists.
+      if (originalNextDeleteAppClientCache) {
+        await originalNextDeleteAppClientCache()
+      }
       try {
         await Promise.all([
           renderWorkers.pages?.deleteAppClientCache(),
@@ -232,7 +255,13 @@ export async function initialize(opts: {
         console.error(err)
       }
     }
+    const originalNextClearModuleContext = (global as any)
+      ._nextClearModuleContext
     ;(global as any)._nextClearModuleContext = async (targetPath: string) => {
+      // Multiple instances of Next.js can be instantiated, since this is a global we have to call the original if it exists.
+      if (originalNextClearModuleContext) {
+        await originalNextClearModuleContext()
+      }
       try {
         await Promise.all([
           renderWorkers.pages?.clearModuleContext(targetPath),
@@ -244,10 +273,16 @@ export async function initialize(opts: {
     }
   }
 
+  const logError = async (
+    type: 'uncaughtException' | 'unhandledRejection',
+    err: Error | undefined
+  ) => {
+    await devInstance?.logErrorWithOriginalStack(err, type)
+  }
+
   const cleanup = () => {
     debug('router-server process cleanup')
     for (const curWorker of [
-      ...((renderWorkers.app as any)?._workerPool?._workers || []),
       ...((renderWorkers.pages as any)?._workerPool?._workers || []),
     ] as {
       _child?: import('child_process').ChildProcess
@@ -262,8 +297,8 @@ export async function initialize(opts: {
   process.on('exit', cleanup)
   process.on('SIGINT', cleanup)
   process.on('SIGTERM', cleanup)
-  process.on('uncaughtException', cleanup)
-  process.on('unhandledRejection', cleanup)
+  process.on('uncaughtException', logError.bind(null, 'uncaughtException'))
+  process.on('unhandledRejection', logError.bind(null, 'unhandledRejection'))
 
   const resolveRoutes = getResolveRoutes(
     fsChecker,
@@ -274,10 +309,11 @@ export async function initialize(opts: {
     devInstance?.ensureMiddleware
   )
 
-  const requestHandler: Parameters<typeof initializeServerWorker>[0] = async (
-    req,
-    res
-  ) => {
+  const requestHandlerImpl: WorkerRequestHandler = async (req, res) => {
+    if (compress) {
+      // @ts-expect-error not express req/res
+      compress(req, res, () => {})
+    }
     req.on('error', (_err) => {
       // TODO: log socket errors?
     })
@@ -285,7 +321,7 @@ export async function initialize(opts: {
       // TODO: log socket errors?
     })
 
-    const matchedDynamicRoutes = new Set<string>()
+    const invokedOutputs = new Set<string>()
 
     async function invokeRender(
       parsedUrl: NextUrlWithParsedQuery,
@@ -319,8 +355,7 @@ export async function initialize(opts: {
         return null
       }
 
-      const curWorker = renderWorkers[type]
-      const workerResult = await curWorker?.initialize(renderWorkerOpts)
+      const workerResult = initialized[type]
 
       if (!workerResult) {
         throw new Error(`Failed to initialize render worker ${type}`)
@@ -441,12 +476,12 @@ export async function initialize(opts: {
         resHeaders,
         bodyStream,
         matchedOutput,
-      } = await resolveRoutes(
+      } = await resolveRoutes({
         req,
-        matchedDynamicRoutes,
-        false,
-        signalFromNodeResponse(res)
-      )
+        isUpgradeReq: false,
+        signal: signalFromNodeResponse(res),
+        invokedOutputs,
+      })
 
       if (devInstance && matchedOutput?.type === 'devVirtualFsItem') {
         const origUrl = req.url || '/'
@@ -623,6 +658,8 @@ export async function initialize(opts: {
       }
 
       if (matchedOutput) {
+        invokedOutputs.add(matchedOutput.itemPath)
+
         return await invokeRender(
           parsedUrl,
           matchedOutput.type === 'appFile' ? 'app' : 'pages',
@@ -690,11 +727,18 @@ export async function initialize(opts: {
     }
   }
 
-  const upgradeHandler: Parameters<typeof initializeServerWorker>[1] = async (
-    req,
-    socket,
-    head
-  ) => {
+  let requestHandler: WorkerRequestHandler = requestHandlerImpl
+  if (opts.experimentalTestProxy) {
+    // Intercept fetch and other testmode apis.
+    const {
+      wrapRequestHandlerWorker,
+      interceptTestApis,
+    } = require('../../experimental/testmode/server')
+    requestHandler = wrapRequestHandlerWorker(requestHandler)
+    interceptTestApis()
+  }
+
+  const upgradeHandler: WorkerUpgradeHandler = async (req, socket, head) => {
     try {
       req.on('error', (_err) => {
         // TODO: log socket errors?
@@ -711,12 +755,11 @@ export async function initialize(opts: {
         }
       }
 
-      const { matchedOutput, parsedUrl } = await resolveRoutes(
+      const { matchedOutput, parsedUrl } = await resolveRoutes({
         req,
-        new Set(),
-        true,
-        signalFromNodeResponse(socket)
-      )
+        isUpgradeReq: true,
+        signal: signalFromNodeResponse(socket),
+      })
 
       // TODO: allow upgrade requests to pages/app paths?
       // this was not previously supported
@@ -735,16 +778,5 @@ export async function initialize(opts: {
     }
   }
 
-  const { port, hostname } = await initializeServerWorker(
-    requestHandler,
-    upgradeHandler,
-    opts
-  )
-
-  initializeResult = {
-    port,
-    hostname: hostname === '0.0.0.0' ? '127.0.0.1' : hostname,
-  }
-
-  return initializeResult
+  return [requestHandler, upgradeHandler]
 }
