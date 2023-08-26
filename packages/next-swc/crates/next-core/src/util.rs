@@ -113,6 +113,7 @@ pub async fn foreign_code_context_condition(
     Hash,
     PartialOrd,
     Ord,
+    TaskInput,
 )]
 #[serde(rename_all = "lowercase")]
 pub enum NextRuntime {
