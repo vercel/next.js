@@ -1,6 +1,6 @@
 import { FlightRouterState, Segment } from '../../../server/app-render/types'
 import { INTERCEPTION_ROUTE_MARKERS } from '../../../server/future/helpers/interception-routes'
-import { matchSegment } from '../match-segments'
+import { isGroupSegment, matchSegment } from '../match-segments'
 
 const segmentToPathname = (segment: Segment): string => {
   if (typeof segment === 'string') {
@@ -10,13 +10,10 @@ const segmentToPathname = (segment: Segment): string => {
   return segment[1]
 }
 
-function normalizePathname(pathname: string): string {
+function normalizeSegments(segments: string[]): string {
   return (
-    pathname.split('/').reduce((acc, segment) => {
-      if (
-        segment === '' ||
-        (segment.startsWith('(') && segment.endsWith(')'))
-      ) {
+    segments.reduce((acc, segment) => {
+      if (segment === '' || isGroupSegment(segment)) {
         return acc
       }
 
@@ -40,8 +37,7 @@ export function extractPathFromFlightRouterState(
 
   if (segment.startsWith('__PAGE__')) return ''
 
-  const path = [segment]
-
+  const segments = [segment]
   const parallelRoutes = flightRouterState[1] ?? {}
 
   const childrenPath = parallelRoutes.children
@@ -49,7 +45,7 @@ export function extractPathFromFlightRouterState(
     : undefined
 
   if (childrenPath !== undefined) {
-    path.push(childrenPath)
+    segments.push(childrenPath)
   } else {
     for (const [key, value] of Object.entries(parallelRoutes)) {
       if (key === 'children') continue
@@ -57,13 +53,12 @@ export function extractPathFromFlightRouterState(
       const childPath = extractPathFromFlightRouterState(value)
 
       if (childPath !== undefined) {
-        path.push(childPath)
+        segments.push(childPath)
       }
     }
   }
 
-  // TODO-APP: optimise this, it's not ideal to join and split
-  return normalizePathname(path.join('/'))
+  return normalizeSegments(segments)
 }
 
 function computeChangedPathImpl(
@@ -116,5 +111,5 @@ export function computeChangedPath(
   }
 
   // lightweight normalization to remove route groups
-  return normalizePathname(changedPath)
+  return normalizeSegments(changedPath.split('/'))
 }

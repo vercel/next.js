@@ -22,6 +22,7 @@ import { AppBundlePathNormalizer } from '../../../server/future/normalizers/buil
 import { MiddlewareConfig } from '../../analysis/get-page-static-info'
 import { getFilenameAndExtension } from './next-metadata-route-loader'
 import { loadEntrypoint } from './next-route-loader/load-entrypoint'
+import { isGroupSegment } from '../../../client/components/match-segments'
 
 export type AppLoaderOptions = {
   name: string
@@ -73,10 +74,6 @@ export type ComponentsType = {
   readonly metadata?: CollectedMetadata
 } & {
   readonly defaultPage?: ModuleReference
-}
-
-function isGroupSegment(segment: string) {
-  return segment.startsWith('(') && segment.endsWith(')')
 }
 
 async function createAppRouteCode({
