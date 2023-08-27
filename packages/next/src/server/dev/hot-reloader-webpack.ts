@@ -2,13 +2,13 @@ import type { NextConfigComplete } from '../config-shared'
 import type { CustomRoutes } from '../../lib/load-custom-routes'
 import type { Duplex } from 'stream'
 import type { Telemetry } from '../../telemetry/storage'
+import type { IncomingMessage, ServerResponse } from 'http'
+import type { UrlObject } from 'url'
 
 import { webpack, StringXor } from 'next/dist/compiled/webpack/webpack'
 import { getOverlayMiddleware } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
-import { IncomingMessage, ServerResponse } from 'http'
 import { WebpackHotMiddleware } from './hot-middleware'
 import { join, relative, isAbsolute, posix } from 'path'
-import { UrlObject } from 'url'
 import {
   createEntrypoints,
   createPagesMapping,
@@ -67,6 +67,7 @@ import { isAPIRoute } from '../../lib/is-api-route'
 import { getRouteLoaderEntry } from '../../build/webpack/loaders/next-route-loader'
 import { isInternalComponent } from '../../lib/is-internal-component'
 import { RouteKind } from '../future/route-kind'
+import { NextJsHotReloaderInterface } from './hot-reloader-types'
 
 const MILLISECONDS_IN_NANOSECOND = 1_000_000
 
@@ -174,7 +175,7 @@ function erroredPages(compilation: webpack.Compilation) {
   return failedPages
 }
 
-export default class HotReloader {
+export default class HotReloader implements NextJsHotReloaderInterface {
   private hasAmpEntrypoints: boolean
   private hasAppRouterEntrypoints: boolean
   private hasPagesRouterEntrypoints: boolean
@@ -185,10 +186,7 @@ export default class HotReloader {
   private distDir: string
   private webpackHotMiddleware?: WebpackHotMiddleware
   private config: NextConfigComplete
-  public hasServerComponents: boolean
-  public clientStats: webpack.Stats | null
-  public serverStats: webpack.Stats | null
-  public edgeServerStats: webpack.Stats | null
+  private clientStats: webpack.Stats | null
   private clientError: Error | null = null
   private serverError: Error | null = null
   private hmrServerError: Error | null = null
@@ -209,6 +207,9 @@ export default class HotReloader {
     installed: '0.0.0',
   }
   private reloadAfterInvalidation: boolean = false
+
+  public serverStats: webpack.Stats | null
+  public edgeServerStats: webpack.Stats | null
   public multiCompiler?: webpack.MultiCompiler
   public activeConfigs?: Array<
     UnwrapPromise<ReturnType<typeof getBaseWebpackConfig>>
@@ -252,7 +253,6 @@ export default class HotReloader {
     this.telemetry = telemetry
 
     this.config = config
-    this.hasServerComponents = !!this.appDir
     this.previewProps = previewProps
     this.rewrites = rewrites
     this.hotReloaderSpan = trace('hot-reloader', undefined, {
@@ -346,7 +346,7 @@ export default class HotReloader {
     }
   }
 
-  public async refreshServerComponents(): Promise<void> {
+  protected async refreshServerComponents(): Promise<void> {
     this.send({
       action: 'serverComponentChanges',
       // TODO: granular reloading of changes

@@ -473,7 +473,7 @@ export default class DevServer extends Server {
   protected async logErrorWithOriginalStack(
     err?: unknown,
     type?: 'unhandledRejection' | 'uncaughtException' | 'warning' | 'app-dir'
-  ) {
+  ): Promise<void> {
     if (this.isRenderWorker) {
       await invokeIpcMethod({
         fetchHostname: this.fetchHostname,
@@ -729,7 +729,7 @@ export default class DevServer extends Server {
     clientOnly: boolean
     appPaths?: string[] | null
     match?: RouteMatch
-  }) {
+  }): Promise<void> {
     if (this.isRenderWorker) {
       await invokeIpcMethod({
         fetchHostname: this.fetchHostname,

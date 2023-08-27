@@ -1015,7 +1015,7 @@ export default class NextNodeServer extends BaseServer {
           const { formatServerError } =
             require('../lib/format-server-error') as typeof import('../lib/format-server-error')
           formatServerError(err)
-          await (this as any).logErrorWithOriginalStack(err)
+          await this.logErrorWithOriginalStack(err)
         } else {
           this.logError(err)
         }
@@ -1028,6 +1028,22 @@ export default class NextNodeServer extends BaseServer {
 
       throw err
     }
+  }
+
+  // Used in development only, overloaded in next-dev-server
+  protected async logErrorWithOriginalStack(..._args: any[]): Promise<void> {
+    throw new Error(
+      'logErrorWithOriginalStack can only be called on the development server'
+    )
+  }
+  // Used in development only, overloaded in next-dev-server
+  protected async ensurePage(_opts: {
+    page: string
+    clientOnly: boolean
+    appPaths?: string[] | null
+    match?: RouteMatch
+  }): Promise<void> {
+    throw new Error('ensurePage can only be called on the development server')
   }
 
   /**
@@ -1300,12 +1316,10 @@ export default class NextNodeServer extends BaseServer {
         : '/_not-found'
 
       if (this.renderOpts.dev) {
-        await (this as any)
-          .ensurePage({
-            page: notFoundPathname,
-            clientOnly: false,
-          })
-          .catch(() => {})
+        await this.ensurePage({
+          page: notFoundPathname,
+          clientOnly: false,
+        }).catch(() => {})
       }
 
       if (this.getEdgeFunctionsPages().includes(notFoundPathname)) {

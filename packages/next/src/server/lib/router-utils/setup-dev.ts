@@ -16,7 +16,9 @@ import isError from '../../../lib/is-error'
 import findUp from 'next/dist/compiled/find-up'
 import { buildCustomRoute } from './filesystem'
 import * as Log from '../../../build/output/log'
-import HotReloader, { matchNextPageBundleRequest } from '../../dev/hot-reloader'
+import HotReloader, {
+  matchNextPageBundleRequest,
+} from '../../dev/hot-reloader-webpack'
 import { setGlobal } from '../../../trace/shared'
 import { Telemetry } from '../../../telemetry/storage'
 import { IncomingMessage, ServerResponse } from 'http'
@@ -87,6 +89,7 @@ import { MiddlewareManifest } from '../../../build/webpack/plugins/middleware-pl
 import { devPageFiles } from '../../../build/webpack/plugins/next-types-plugin/shared'
 import type { RenderWorkers } from '../router-server'
 import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
+import { NextJsHotReloaderInterface } from '../../dev/hot-reloader-types'
 
 type SetupOpts = {
   renderWorkers: RenderWorkers
@@ -158,7 +161,7 @@ async function startWatcher(opts: SetupOpts) {
     >[]
   } = {}
 
-  let hotReloader: InstanceType<typeof HotReloader>
+  let hotReloader: NextJsHotReloaderInterface
 
   if (opts.turbo) {
     const { loadBindings } =
