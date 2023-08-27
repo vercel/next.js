@@ -1,6 +1,7 @@
 import { FlightRouterState, Segment } from '../../../server/app-render/types'
 import { INTERCEPTION_ROUTE_MARKERS } from '../../../server/future/helpers/interception-routes'
-import { isGroupSegment, matchSegment } from '../match-segments'
+import { isGroupSegment } from '../../../shared/lib/segment'
+import { matchSegment } from '../match-segments'
 
 const removeLeadingSlash = (segment: string): string => {
   return segment[0] === '/' ? segment.slice(1) : segment

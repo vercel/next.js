@@ -1,5 +1,5 @@
-import { isGroupSegment } from '../../../../client/components/match-segments'
 import { ensureLeadingSlash } from '../../page-path/ensure-leading-slash'
+import { isGroupSegment } from '../../segment'
 
 /**
  * Normalizes an app route so it represents the actual request path. Essentially

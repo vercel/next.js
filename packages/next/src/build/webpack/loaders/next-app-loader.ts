@@ -21,8 +21,8 @@ import { AppPathnameNormalizer } from '../../../server/future/normalizers/built/
 import { AppBundlePathNormalizer } from '../../../server/future/normalizers/built/app/app-bundle-path-normalizer'
 import { MiddlewareConfig } from '../../analysis/get-page-static-info'
 import { getFilenameAndExtension } from './next-metadata-route-loader'
-import { isGroupSegment } from '../../../client/components/match-segments'
 import { loadEntrypoint } from '../../load-entrypoint'
+import { isGroupSegment } from '../../../shared/lib/segment'
 
 export type AppLoaderOptions = {
   name: string
