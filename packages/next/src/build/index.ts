@@ -2865,7 +2865,6 @@ export default async function build(
 
           // If there's /not-found inside app, we prefer it over the pages 404
           if (hasStaticApp404) {
-            // await moveExportedPage('/_error', '/404', '/404', false, 'html')
             await moveExportedAppNotFoundTo404()
           } else {
             // Only move /404 to /404 when there is no custom 404 as in that case we don't know about the 404 page
