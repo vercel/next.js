@@ -16,7 +16,9 @@ import isError from '../../../lib/is-error'
 import findUp from 'next/dist/compiled/find-up'
 import { buildCustomRoute } from './filesystem'
 import * as Log from '../../../build/output/log'
-import HotReloader, { matchNextPageBundleRequest } from '../../dev/hot-reloader'
+import HotReloader, {
+  matchNextPageBundleRequest,
+} from '../../dev/hot-reloader-webpack'
 import { setGlobal } from '../../../trace/shared'
 import { Telemetry } from '../../../telemetry/storage'
 import { IncomingMessage, ServerResponse } from 'http'
