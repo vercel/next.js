@@ -155,7 +155,7 @@ impl MiddlewareEndpoint {
             functions: Default::default(),
         };
         let middleware_manifest_v2 = Vc::upcast(VirtualOutputAsset::new(
-            node_root.join(format!("server/middleware/middleware-manifest.json")),
+            node_root.join("server/middleware/middleware-manifest.json".to_string()),
             AssetContent::file(
                 FileContent::Content(File::from(serde_json::to_string_pretty(
                     &middleware_manifest_v2,

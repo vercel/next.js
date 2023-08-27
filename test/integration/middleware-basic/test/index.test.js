@@ -1,6 +1,5 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
 import { join } from 'path'
 import {
   fetchViaHTTP,
@@ -34,17 +33,17 @@ describe('dev mode', () => {
 })
 
 // TODO enable that once turbopack supports middleware in dev mode
-// describe('production mode', () => {
-//   beforeAll(async () => {
-//     await nextBuild(appDir)
+describe.skip('production mode', () => {
+  beforeAll(async () => {
+    await nextBuild(appDir)
 
-//     const outdir = join(__dirname, '..', 'out')
-//     await fs.remove(outdir).catch(() => {})
+    const outdir = join(__dirname, '..', 'out')
+    await fs.remove(outdir).catch(() => {})
 
-//     appPort = await findPort()
-//     app = await nextStart(appDir, appPort)
-//   })
-//   afterAll(() => killApp(app))
+    appPort = await findPort()
+    app = await nextStart(appDir, appPort)
+  })
+  afterAll(() => killApp(app))
 
-//   runTest()
-// })
+  runTest()
+})
