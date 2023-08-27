@@ -57,7 +57,7 @@ type Props = {
 
 export async function generateMetadata(
   { params, searchParams }: Props,
-  parent?: ResolvingMetadata
+  parent: ResolvingMetadata
 ): Promise<Metadata> {
   // read route params
   const id = params.id
@@ -66,7 +66,7 @@ export async function generateMetadata(
   const product = await fetch(`https://.../${id}`).then((res) => res.json())
 
   // optionally access and extend (rather than replace) parent metadata
-  const previousImages = (await parent)?.openGraph?.images || []
+  const previousImages = (await parent).openGraph?.images || []
 
   return {
     title: product.title,
@@ -88,7 +88,7 @@ export async function generateMetadata({ params, searchParams }, parent) {
   const product = await fetch(`https://.../${id}`).then((res) => res.json())
 
   // optionally access and extend (rather than replace) parent metadata
-  const previousImages = (await parent)?.openGraph?.images || []
+  const previousImages = (await parent).openGraph?.images || []
 
   return {
     title: product.title,
