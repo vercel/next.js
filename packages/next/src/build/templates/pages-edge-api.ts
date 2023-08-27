@@ -1,7 +1,7 @@
-import '../../../../../server/web/globals'
-import type { AdapterOptions } from '../../../../../server/web/adapter'
-import { adapter } from '../../../../../server/web/adapter'
-import { IncrementalCache } from '../../../../..//server/lib/incremental-cache'
+import '../../server/web/globals'
+import type { AdapterOptions } from '../../server/web/adapter'
+import { adapter } from '../../server/web/adapter'
+import { IncrementalCache } from '../../server/lib/incremental-cache'
 
 // Import the userland code.
 // @ts-expect-error - replaced by webpack/turbopack loader
