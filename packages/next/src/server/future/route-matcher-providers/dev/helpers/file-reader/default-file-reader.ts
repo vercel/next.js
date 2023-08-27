@@ -1,7 +1,8 @@
-import { type Dirent } from 'fs'
+import type { FileReader } from './file-reader'
+import type { Dirent } from 'fs'
+
 import fs from 'fs/promises'
 import path from 'path'
-import { FileReader } from './file-reader'
 
 export class DefaultFileReader implements FileReader {
   public async read(dir: string): Promise<ReadonlyArray<string>> {
@@ -33,6 +34,9 @@ export class DefaultFileReader implements FileReader {
       // directories.
       directories = []
 
+      // Keep track of any symbolic links we find, we'll resolve them later.
+      const links = []
+
       // For each result of directory scans...
       for (const { files, directory } of results) {
         // And for each file in it...
@@ -43,6 +47,29 @@ export class DefaultFileReader implements FileReader {
           // If the file is a directory, then add it to the list of directories,
           // they'll be scanned on a later pass.
           if (file.isDirectory()) {
+            directories.push(pathname)
+          } else if (file.isSymbolicLink()) {
+            links.push(pathname)
+          } else {
+            pathnames.push(pathname)
+          }
+        }
+      }
+
+      // Resolve all the symbolic links we found if any.
+      if (links.length > 0) {
+        const resolved = await Promise.all(
+          links.map(async (pathname) => {
+            const stats = await fs.stat(pathname)
+            return stats
+          })
+        )
+
+        for (let i = 0; i < links.length; i++) {
+          const pathname = links[i]
+          const stats = resolved[i]
+
+          if (stats.isDirectory()) {
             directories.push(pathname)
           } else {
             pathnames.push(pathname)
