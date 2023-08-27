@@ -17,11 +17,12 @@ const segmentToPathname = (segment: Segment): string => {
 function normalizeSegments(segments: string[]): string {
   return (
     segments.reduce((acc, segment) => {
+      segment = removeLeadingSlash(segment)
       if (segment === '' || isGroupSegment(segment)) {
         return acc
       }
 
-      return `${acc}/${removeLeadingSlash(segment)}`
+      return `${acc}/${segment}`
     }, '') || '/'
   )
 }
