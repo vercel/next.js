@@ -1,7 +1,4 @@
 {
-  "name": "xmcloud-nextjs-starter",
-  "description": "Application utilizing Sitecore JavaScript Services and Next.js",
-  "version": "21.1.6",
   "private": true,
   "config": {
     "appName": "xmcloud-nextjs-starter",
@@ -20,10 +17,6 @@
     "node": ">=12",
     "npm": ">=6"
   },
-  "author": {
-    "name": "Sitecore Corporation",
-    "url": "https://jss.sitecore.com"
-  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/sitecore/jss.git"
@@ -31,7 +24,6 @@
   "bugs": {
     "url": "https://github.com/sitecore/jss/issues"
   },
-  "license": "Apache-2.0",
   "dependencies": {
     "@sitecore-jss/sitecore-jss-nextjs": "~21.1.6",
     "bootstrap": "^5.1.3",
