@@ -105,7 +105,7 @@ export function createBufferedTransformStream(): TransformStream<
   const flushBuffer = (controller: TransformStreamDefaultController) => {
     if (!pendingFlush) {
       pendingFlush = new Promise((resolve) => {
-        ;(async () => {
+        (async () => {
           controller.enqueue(bufferedBytes)
           bufferedBytes = new Uint8Array()
           pendingFlush = null
