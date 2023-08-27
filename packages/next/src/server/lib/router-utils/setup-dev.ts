@@ -610,7 +610,7 @@ async function startWatcher(opts: SetupOpts) {
     await writeOtherManifests()
 
     const turbopackHotReloader: NextJsHotReloaderInterface = {
-      activeConfigs: undefined,
+      activeWebpackConfigs: undefined,
       serverStats: null,
       edgeServerStats: null,
       async run(req, _res, _parsedUrl) {
@@ -1199,7 +1199,7 @@ async function startWatcher(opts: SetupOpts) {
           }
         }
 
-        hotReloader.activeConfigs?.forEach((config, idx) => {
+        hotReloader.activeWebpackConfigs?.forEach((config, idx) => {
           const isClient = idx === 0
           const isNodeServer = idx === 1
           const isEdgeServer = idx === 2
