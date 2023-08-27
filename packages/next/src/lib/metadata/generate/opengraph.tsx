@@ -247,7 +247,7 @@ export function TwitterMetadata({
 
   return MetaFilter([
     Meta({ name: 'twitter:card', content: card }),
-    Meta({ name: 'twitter:site', content: twitter.site }),
+    Meta({ name: 'twitter:site', content: twitter.site?.toString() }),
     Meta({ name: 'twitter:site:id', content: twitter.siteId }),
     Meta({ name: 'twitter:creator', content: twitter.creator }),
     Meta({ name: 'twitter:creator:id', content: twitter.creatorId }),
