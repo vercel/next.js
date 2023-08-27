@@ -41,24 +41,6 @@ const componentPath = regExResult[1]
 const componentName = regExResult[2]
 const filename = `${componentName}.tsx`
 
-const componentOutputPath = scaffoldFile(
-  componentRootPath,
-  generateComponentSrc(componentName),
-  filename
-)
-
-console.log(
-  chalk.green(`
-Scaffolding of ${componentName} complete.
-Next steps:`)
-)
-
-if (componentOutputPath) {
-  console.log(
-    `* Implement the React component in ${chalk.green(componentOutputPath)}`
-  )
-}
-
 /**
  * Force to use `crlf` line endings, we are using `crlf` across the project.
  * Replace: `lf` (\n), `cr` (\r)
@@ -92,4 +74,22 @@ function scaffoldFile(
   fs.writeFileSync(outputFile, editLineEndings(fileContent), 'utf8')
   console.log(chalk.green(`File ${outputFile} has been scaffolded.`))
   return outputFile
+}
+
+const componentOutputPath = scaffoldFile(
+  componentRootPath,
+  generateComponentSrc(componentName),
+  filename
+)
+
+console.log(
+  chalk.green(`
+Scaffolding of ${componentName} complete.
+Next steps:`)
+)
+
+if (componentOutputPath) {
+  console.log(
+    `* Implement the React component in ${chalk.green(componentOutputPath)}`
+  )
 }

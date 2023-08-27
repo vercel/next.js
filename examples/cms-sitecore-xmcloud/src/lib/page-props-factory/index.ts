@@ -9,7 +9,7 @@ import * as plugins from 'temp/page-props-factory-plugins'
 export const isServerSidePropsContext = function (
   context: GetServerSidePropsContext | GetStaticPropsContext
 ): context is GetServerSidePropsContext {
-  return (<GetServerSidePropsContext>context).req !== undefined
+  return (context as GetServerSidePropsContext).req !== undefined
 }
 
 export interface Plugin {

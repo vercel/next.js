@@ -32,19 +32,18 @@ const componentRootPath = 'src/components'
 
 const isWatch = process.argv.some((arg) => arg === '--watch')
 
-;(isWatch ? watchComponentFactory : writeComponentFactory)()
+function getComponentList(path: string): (PackageDefinition | ComponentFile)[] {
+  const components = getItems<PackageDefinition | ComponentFile>({
+    path,
+    resolveItem: (path, name) => ({
+      path: `${path}/${name}`,
+      componentName: name,
+      moduleName: name.replace(/[^\w]+/g, ''),
+    }),
+    cb: (name) => console.debug(`Registering JSS component ${name}`),
+  })
 
-/**
- * Watches component directory for changes. When files are added or deleted, the component factory
- * file (componentFactory.ts) is regenerated. This is used during `jss start` to pick up new or
- * removed components at runtime.
- */
-function watchComponentFactory() {
-  console.log(
-    `Watching for changes to component factory sources in ${componentRootPath}...`
-  )
-
-  watchItems(componentRootPath, writeComponentFactory)
+  return components
 }
 
 /**
@@ -82,16 +81,17 @@ function writeComponentFactory() {
   })
 }
 
-function getComponentList(path: string): (PackageDefinition | ComponentFile)[] {
-  const components = getItems<PackageDefinition | ComponentFile>({
-    path,
-    resolveItem: (path, name) => ({
-      path: `${path}/${name}`,
-      componentName: name,
-      moduleName: name.replace(/[^\w]+/g, ''),
-    }),
-    cb: (name) => console.debug(`Registering JSS component ${name}`),
-  })
+/**
+ * Watches component directory for changes. When files are added or deleted, the component factory
+ * file (componentFactory.ts) is regenerated. This is used during `jss start` to pick up new or
+ * removed components at runtime.
+ */
+function watchComponentFactory() {
+  console.log(
+    `Watching for changes to component factory sources in ${componentRootPath}...`
+  )
 
-  return components
+  watchItems(componentRootPath, writeComponentFactory)
 }
+
+;(isWatch ? watchComponentFactory : writeComponentFactory)()

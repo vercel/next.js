@@ -68,16 +68,17 @@ const pluginDefinitions = [
   },
 ]
 
-run(pluginDefinitions)
-
-function run(definitions: PluginDefinition[]) {
-  definitions.forEach((definition) => {
-    writePlugins(
-      definition.listPath,
-      definition.rootPath,
-      definition.moduleType
-    )
+function getPluginList(path: string, pluginName: string): PluginFile[] {
+  const plugins = getItems<PluginFile>({
+    path,
+    resolveItem: (path, name) => ({
+      path: `${path}/${name}`,
+      name: `${name.replace(/-./g, (x) => x[1].toUpperCase())}Plugin`,
+    }),
+    cb: (name) => console.debug(`Registering ${pluginName} plugin ${name}`),
   })
+
+  return plugins
 }
 
 /**
@@ -124,15 +125,14 @@ function writePlugins(
   })
 }
 
-function getPluginList(path: string, pluginName: string): PluginFile[] {
-  const plugins = getItems<PluginFile>({
-    path,
-    resolveItem: (path, name) => ({
-      path: `${path}/${name}`,
-      name: `${name.replace(/-./g, (x) => x[1].toUpperCase())}Plugin`,
-    }),
-    cb: (name) => console.debug(`Registering ${pluginName} plugin ${name}`),
+function run(definitions: PluginDefinition[]) {
+  definitions.forEach((definition) => {
+    writePlugins(
+      definition.listPath,
+      definition.rootPath,
+      definition.moduleType
+    )
   })
-
-  return plugins
 }
+
+run(pluginDefinitions)

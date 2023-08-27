@@ -19,26 +19,6 @@ const defaultConfig: JssConfig = {
   graphQLEndpoint: process.env[`${constantCase('graphQLEndpoint')}`],
 }
 
-generateConfig(defaultConfig)
-
-/**
- * Generates the JSS config based on config plugins (under ./config/plugins)
- * and then writes the config to disk.
- * @param {JssConfig} defaultConfig Default configuration.
- */
-function generateConfig(defaultConfig: JssConfig): void {
-  jssConfigFactory
-    .create(defaultConfig)
-    .then((config) => {
-      writeConfig(config)
-    })
-    .catch((e) => {
-      console.error('Error generating config')
-      console.error(e)
-      process.exit(1)
-    })
-}
-
 /**
  * Writes the config object to disk with support for environment variables.
  * @param {JssConfig} config JSS configuration to write.
@@ -61,3 +41,23 @@ const config = {};\n`
   console.log(`Writing runtime config to ${configPath}`)
   fs.writeFileSync(configPath, configText, { encoding: 'utf8' })
 }
+
+/**
+ * Generates the JSS config based on config plugins (under ./config/plugins)
+ * and then writes the config to disk.
+ * @param {JssConfig} defaultConfig Default configuration.
+ */
+function generateConfig(defaultConfig: JssConfig): void {
+  jssConfigFactory
+    .create(defaultConfig)
+    .then((config) => {
+      writeConfig(config)
+    })
+    .catch((e) => {
+      console.error('Error generating config')
+      console.error(e)
+      process.exit(1)
+    })
+}
+
+generateConfig(defaultConfig)

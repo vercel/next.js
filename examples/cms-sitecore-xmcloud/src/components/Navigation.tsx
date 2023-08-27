@@ -41,6 +41,19 @@ const getNavigationText = function (
   return text
 }
 
+const getLinkTitle = (props: NavigationProps): string | undefined => {
+  let title
+  if (props.fields.NavigationTitle?.value) {
+    title = props.fields.NavigationTitle.value.toString()
+  } else if (props.fields.Title?.value) {
+    title = props.fields.Title.value.toString()
+  } else {
+    title = props.fields.DisplayName
+  }
+
+  return title
+}
+
 const getLinkField = (props: NavigationProps): LinkField => ({
   value: {
     href: props.fields.Href,
@@ -48,6 +61,43 @@ const getLinkField = (props: NavigationProps): LinkField => ({
     querystring: props.fields.Querystring,
   },
 })
+
+const NavigationList = (props: NavigationProps) => {
+  const { sitecoreContext } = useSitecoreContext()
+
+  let children: JSX.Element[] = []
+  if (props.fields.Children && props.fields.Children.length) {
+    children = props.fields.Children.map((element: Fields, index: number) => (
+      <NavigationList
+        key={`${index}${element.Id}`}
+        fields={element}
+        handleClick={props.handleClick}
+        relativeLevel={props.relativeLevel + 1}
+      />
+    ))
+  }
+
+  return (
+    <li
+      className={props.fields.Styles.concat(
+        'rel-level' + props.relativeLevel
+      ).join(' ')}
+      key={props.fields.Id}
+      tabIndex={0}
+    >
+      <div className="navigation-title">
+        <Link
+          field={getLinkField(props)}
+          editable={sitecoreContext.pageEditing}
+          onClick={props.handleClick}
+        >
+          {getNavigationText(props)}
+        </Link>
+      </div>
+      {children.length > 0 ? <ul className="clearfix">{children}</ul> : null}
+    </li>
+  )
+}
 
 export const Default = (props: NavigationProps): JSX.Element => {
   const [isOpenMenu, openMenu] = useState(false)
@@ -117,54 +167,4 @@ export const Default = (props: NavigationProps): JSX.Element => {
       </label>
     </div>
   )
-}
-
-const NavigationList = (props: NavigationProps) => {
-  const { sitecoreContext } = useSitecoreContext()
-
-  let children: JSX.Element[] = []
-  if (props.fields.Children && props.fields.Children.length) {
-    children = props.fields.Children.map((element: Fields, index: number) => (
-      <NavigationList
-        key={`${index}${element.Id}`}
-        fields={element}
-        handleClick={props.handleClick}
-        relativeLevel={props.relativeLevel + 1}
-      />
-    ))
-  }
-
-  return (
-    <li
-      className={props.fields.Styles.concat(
-        'rel-level' + props.relativeLevel
-      ).join(' ')}
-      key={props.fields.Id}
-      tabIndex={0}
-    >
-      <div className="navigation-title">
-        <Link
-          field={getLinkField(props)}
-          editable={sitecoreContext.pageEditing}
-          onClick={props.handleClick}
-        >
-          {getNavigationText(props)}
-        </Link>
-      </div>
-      {children.length > 0 ? <ul className="clearfix">{children}</ul> : null}
-    </li>
-  )
-}
-
-const getLinkTitle = (props: NavigationProps): string | undefined => {
-  let title
-  if (props.fields.NavigationTitle?.value) {
-    title = props.fields.NavigationTitle.value.toString()
-  } else if (props.fields.Title?.value) {
-    title = props.fields.Title.value.toString()
-  } else {
-    title = props.fields.DisplayName
-  }
-
-  return title
 }

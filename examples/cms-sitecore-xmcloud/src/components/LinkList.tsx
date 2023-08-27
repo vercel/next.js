@@ -39,11 +39,11 @@ type LinkListItemProps = {
 
 const LinkListItem = (props: LinkListItemProps) => {
   let className = `item${props.index}`
-  className += (props.index + 1) % 2 == 0 ? ' even' : ' odd'
-  if (props.index == 0) {
+  className += (props.index + 1) % 2 === 0 ? ' even' : ' odd'
+  if (props.index === 0) {
     className += ' first'
   }
-  if (props.index + 1 == props.total) {
+  if (props.index + 1 === props.total) {
     className += ' last'
   }
   return (
