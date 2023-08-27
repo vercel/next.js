@@ -74,7 +74,8 @@ Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&ut
      - `author picture`: URL or path to author's picture
      - `ogImage`: Open Graph image for social sharing
    - **Drafts**:
-     - Add `draft: true` if the post should not yet be published.
+     - Add `draft: true` if the post should not yet be published. This is useful when you
+     - **Use Case**: Useful when you want to continue writing a post on the main branch without needing to create different branches.
 2. **Markdown Area**
    - **Purpose**: For writing the content of the post.
    - **Syntax**: Uses Markdown for text formatting.
