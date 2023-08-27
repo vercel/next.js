@@ -170,6 +170,8 @@ export default function Page() {
 }
 ```
 
+> **Good to know**: actions take the [FormData](https://developer.mozilla.org/en-US/docs/Web/API/FormData/FormData) data type. The data submitted via the HTML [`form`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/form) is accessible in the server action `create`. 
+
 ### Revalidating Data
 
 Server Actions allow you to invalidate the [Next.js Cache](/docs/app/building-your-application/caching) on demand. You can invalidate an entire route segment with [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath):
