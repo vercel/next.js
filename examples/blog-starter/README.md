@@ -58,11 +58,11 @@ Your blog should be up and running on [http://localhost:3000](http://localhost:3
 
 Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
-### Publishing Posts
+# Publishing Posts
 
 - Posts are published by adding an `.md` file to the `_posts` folder.
 
-### Post Structure
+# Post Structure
 
 1. **Metadata**
    - **Purpose**: To specify various details about the post.
