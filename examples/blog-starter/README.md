@@ -58,6 +58,30 @@ Your blog should be up and running on [http://localhost:3000](http://localhost:3
 
 Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
+### Publishing Posts
+
+- Posts are published by adding an `.md` file to the `_posts` folder.
+
+---
+
+### Post Structure
+
+1. **Metadata**
+   - **Purpose**: To specify various details about the post.
+   - **Fields**:
+     - `title`: Title of the post
+     - `excerpt`: Short summary
+     - `date`: Publishing date
+     - `author name`: Name of the author
+     - `author picture`: URL or path to author's picture
+     - `ogImage`: Open Graph image for social sharing
+   - **Drafts**:
+     - Add `draft: true` if the post should not yet be published.
+2. **Markdown Area**
+   - **Purpose**: For writing the content of the post.
+   - **Syntax**: Uses Markdown for text formatting.
+
 # Notes
 
-`blog-starter` uses [Tailwind CSS](https://tailwindcss.com) [(v3.0)](https://tailwindcss.com/blog/tailwindcss-v3).
+- It is possible to create "draft" post by adding `draft: true` in the meta data of each post. This is convenient when you want to work on a posts without branching.
+- `blog-starter` uses [Tailwind CSS](https://tailwindcss.com) [(v3.0)](https://tailwindcss.com/blog/tailwindcss-v3).
