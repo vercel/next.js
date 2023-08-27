@@ -653,10 +653,10 @@ async function startWatcher(opts: SetupOpts) {
       async getCompilationErrors(_page) {
         return []
       },
-      onHMR(req, _socket, head) {
+      onHMR(_req, _socket, _head) {
         // Not implemented yet.
       },
-      invalidate({ reloadAfterInvalidation }) {
+      invalidate(/* Unused parameter: { reloadAfterInvalidation } */) {
         // Not implemented yet.
       },
       async buildFallbackError() {
@@ -664,8 +664,9 @@ async function startWatcher(opts: SetupOpts) {
       },
       async ensurePage({
         page: inputPage,
-        clientOnly,
-        appPaths,
+        // Unused parameters
+        // clientOnly,
+        // appPaths,
         match,
         isApp,
       }) {
