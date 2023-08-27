@@ -57,7 +57,7 @@ export function extractPathFromFlightRouterState(
 
       const childPath = extractPathFromFlightRouterState(value)
 
-      if (childPath !== undefined && childPath !== '') {
+      if (childPath !== undefined) {
         segments.push(childPath)
       }
     }
