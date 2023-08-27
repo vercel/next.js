@@ -89,6 +89,7 @@ import { MiddlewareManifest } from '../../../build/webpack/plugins/middleware-pl
 import { devPageFiles } from '../../../build/webpack/plugins/next-types-plugin/shared'
 import type { RenderWorkers } from '../router-server'
 import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
+import { NextJsHotReloaderInterface } from '../../dev/hot-reloader-types'
 
 type SetupOpts = {
   renderWorkers: RenderWorkers
@@ -160,7 +161,7 @@ async function startWatcher(opts: SetupOpts) {
     >[]
   } = {}
 
-  let hotReloader: InstanceType<typeof HotReloader>
+  let hotReloader: NextJsHotReloaderInterface
 
   if (opts.turbo) {
     const { loadBindings } =
