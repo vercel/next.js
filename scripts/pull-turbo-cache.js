@@ -1,14 +1,35 @@
 #!/usr/bin/env node
 // @ts-check
 
-const { execSync } = require('child_process')
+const { spawn } = require('child_process')
 
 ;(async function () {
   const target = process.argv[process.argv.length - 1]
 
-  const turboResult = execSync(
-    `pnpm turbo run cache-build-native --dry=json -- ${target}`
-  ).toString()
+  let turboResult = ''
+
+  await new Promise((resolve, reject) => {
+    const child = spawn(
+      '/bin/bash',
+      ['-c', `pnpm turbo run cache-build-native --dry=json -- ${target}`],
+      {
+        stdio: 'pipe',
+      }
+    )
+
+    child.stdout.on('data', (data) => {
+      turboResult += data.toString()
+    })
+
+    child.on('exit', (code, signal) => {
+      if (code || signal) {
+        return reject(
+          new Error(`invalid exit code ${code} or signal ${signal}`)
+        )
+      }
+      resolve(0)
+    })
+  })
 
   const turboData = JSON.parse(turboResult)
 
@@ -21,10 +42,23 @@ const { execSync } = require('child_process')
 
   // pull cache if it was available
   if (task.cache.local || task.cache.remote) {
-    const pullResult = execSync(
-      `pnpm turbo run cache-build-native -- ${target}`
-    ).toString()
-    console.log(pullResult)
+    await new Promise((resolve, reject) => {
+      const child = spawn(
+        '/bin/bash',
+        ['-c', `pnpm turbo run cache-build-native -- ${target}`],
+        {
+          stdio: 'inherit',
+        }
+      )
+      child.on('exit', (code, signal) => {
+        if (code || signal) {
+          return reject(
+            new Error(`invalid exit code ${code} or signal ${signal}`)
+          )
+        }
+        resolve(0)
+      })
+    })
   } else {
     console.warn(`No turbo cache was available, continuing...`)
     console.warn(task)

@@ -124,7 +124,7 @@ pub enum NextRuntime {
 }
 
 #[turbo_tasks::value]
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct NextSourceConfig {
     pub runtime: NextRuntime,
 
