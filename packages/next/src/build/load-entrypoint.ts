@@ -2,13 +2,10 @@ import fs from 'fs/promises'
 import path from 'path'
 
 // NOTE: this should be updated if this loader file is moved.
-const PACKAGE_ROOT = path.normalize(path.join(__dirname, '../../../../../..'))
+const PACKAGE_ROOT = path.normalize(path.join(__dirname, '../../..'))
 const TEMPLATE_FOLDER = path.join(__dirname, 'templates')
 const TEMPLATES_ESM_FOLDER = path.normalize(
-  path.join(
-    __dirname,
-    '../../../../../dist/esm/build/webpack/loaders/next-route-loader/templates'
-  )
+  path.join(__dirname, '../../dist/esm/build/templates')
 )
 
 /**

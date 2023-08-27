@@ -38,6 +38,7 @@ use turbopack_binding::{
 
 use crate::{
     embed_js::next_asset,
+    middleware::middleware_files,
     mode::NextMode,
     next_config::NextConfig,
     next_edge::{
@@ -57,20 +58,6 @@ fn next_configs() -> Vc<Vec<String>> {
             .map(ToOwned::to_owned)
             .collect(),
     )
-}
-
-#[turbo_tasks::function]
-async fn middleware_files(page_extensions: Vc<Vec<String>>) -> Result<Vc<Vec<String>>> {
-    let extensions = page_extensions.await?;
-    let files = ["middleware.", "src/middleware."]
-        .into_iter()
-        .flat_map(|f| {
-            extensions
-                .iter()
-                .map(move |ext| String::from(f) + ext.as_str())
-        })
-        .collect();
-    Ok(Vc::cell(files))
 }
 
 #[turbo_tasks::value(shared)]
