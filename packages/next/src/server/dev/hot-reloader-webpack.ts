@@ -211,7 +211,7 @@ export default class HotReloader implements NextJsHotReloaderInterface {
   public serverStats: webpack.Stats | null
   public edgeServerStats: webpack.Stats | null
   public multiCompiler?: webpack.MultiCompiler
-  public activeConfigs?: Array<
+  public activeWebpackConfigs?: Array<
     UnwrapPromise<ReturnType<typeof getBaseWebpackConfig>>
   >
 
@@ -721,9 +721,9 @@ export default class HotReloader implements NextJsHotReloaderInterface {
     // Files outside of the distDir can be "type": "module"
     await fs.writeFile(distPackageJsonPath, '{"type": "commonjs"}')
 
-    this.activeConfigs = await this.getWebpackConfig(startSpan)
+    this.activeWebpackConfigs = await this.getWebpackConfig(startSpan)
 
-    for (const config of this.activeConfigs) {
+    for (const config of this.activeWebpackConfigs) {
       const defaultEntry = config.entry
       config.entry = async (...args) => {
         const outputPath = this.multiCompiler?.outputPath || ''
@@ -995,10 +995,10 @@ export default class HotReloader implements NextJsHotReloaderInterface {
 
     // Enable building of client compilation before server compilation in development
     // @ts-ignore webpack 5
-    this.activeConfigs.parallelism = 1
+    this.activeWebpackConfigs.parallelism = 1
 
     this.multiCompiler = webpack(
-      this.activeConfigs
+      this.activeWebpackConfigs
     ) as unknown as webpack.MultiCompiler
 
     // Copy over the filesystem so that it is shared between all compilers.
@@ -1359,7 +1359,7 @@ export default class HotReloader implements NextJsHotReloaderInterface {
     this.watcher = await new Promise((resolve) => {
       const watcher = this.multiCompiler?.watch(
         // @ts-ignore webpack supports an array of watchOptions when using a multiCompiler
-        this.activeConfigs.map((config) => config.watchOptions!),
+        this.activeWebpackConfigs.map((config) => config.watchOptions!),
         // Errors are handled separately
         (_err: any) => {
           if (!booted) {
