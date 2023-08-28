@@ -4,24 +4,21 @@ import type { IncomingMessage, ServerResponse } from 'http'
 import '../require-hook'
 import '../node-polyfill-fetch'
 
+import fs from 'fs'
 import url from 'url'
 import path from 'path'
-import http from 'http'
-import { findPageFile } from './find-page-file'
 import { getRequestMeta } from '../request-meta'
 import setupDebug from 'next/dist/compiled/debug'
-import { getCloneableBody } from '../body-streams'
-import { findPagesDir } from '../../lib/find-pages-dir'
 import { setupFsCheck } from './router-utils/filesystem'
 import { proxyRequest } from './router-utils/proxy-request'
 import { getResolveRoutes } from './router-utils/resolve-routes'
-import { PERMANENT_REDIRECT_STATUS } from '../../shared/lib/constants'
-import { splitCookiesString, toNodeOutgoingHttpHeaders } from '../web/utils'
-import { formatHostname } from './format-hostname'
-import { signalFromNodeResponse } from '../web/spec-extension/adapters/next-request'
+import {
+  MIDDLEWARE_MANIFEST,
+  PERMANENT_REDIRECT_STATUS,
+} from '../../shared/lib/constants'
 import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
-import type { RenderWorker } from './router-server'
 import { pipeReadable } from '../pipe-readable'
+import ResponseCache from '../response-cache'
 
 type RouteResult =
   | {
@@ -66,42 +63,6 @@ export async function makeResolver(
     minimalMode: false,
     config: nextConfig,
   })
-  const { appDir, pagesDir } = findPagesDir(
-    dir,
-    !!nextConfig.experimental.appDir
-  )
-  // we format the hostname so that it can be fetched
-  const fetchHostname = formatHostname(hostname)
-
-  fsChecker.ensureCallback(async (item) => {
-    let result: string | null = null
-
-    if (item.type === 'appFile') {
-      if (!appDir) {
-        throw new Error('no app dir present')
-      }
-      result = await findPageFile(
-        appDir,
-        item.itemPath,
-        nextConfig.pageExtensions,
-        true
-      )
-    } else if (item.type === 'pageFile') {
-      if (!pagesDir) {
-        throw new Error('no pages dir present')
-      }
-      result = await findPageFile(
-        pagesDir,
-        item.itemPath,
-        nextConfig.pageExtensions,
-        false
-      )
-    }
-    if (!result) {
-      throw new Error(`failed to find page file ${item.type} ${item.itemPath}`)
-    }
-  })
-
   const distDir = path.join(dir, nextConfig.distDir)
   const middlewareInfo = middleware
     ? {
@@ -112,82 +73,12 @@ export async function makeResolver(
       }
     : {}
 
-  const middlewareServerAddr = await new Promise<{
-    hostname: string
-    port: number
-  }>((resolve) => {
-    const srv = http.createServer(async (req, res) => {
-      const cloneableBody = getCloneableBody(req)
-      try {
-        const { run } =
-          require('../web/sandbox') as typeof import('../web/sandbox')
-
-        const result = await run({
-          distDir,
-          name: middlewareInfo.name || '/',
-          paths: middlewareInfo.paths || [],
-          edgeFunctionEntry: middlewareInfo,
-          request: {
-            headers: req.headers,
-            method: req.method || 'GET',
-            nextConfig: {
-              i18n: nextConfig.i18n,
-              basePath: nextConfig.basePath,
-              trailingSlash: nextConfig.trailingSlash,
-            },
-            url: `http://${fetchHostname}:${port}${req.url}`,
-            body: cloneableBody,
-            signal: signalFromNodeResponse(res),
-          },
-          useCache: true,
-          onWarning: console.warn,
-        })
-
-        for (let [key, value] of result.response.headers) {
-          if (key.toLowerCase() !== 'set-cookie') continue
-
-          // Clear existing header.
-          result.response.headers.delete(key)
-
-          // Append each cookie individually.
-          const cookies = splitCookiesString(value)
-          for (const cookie of cookies) {
-            result.response.headers.append(key, cookie)
-          }
-        }
-
-        for (const [key, value] of Object.entries(
-          toNodeOutgoingHttpHeaders(result.response.headers)
-        )) {
-          if (key !== 'content-encoding' && value !== undefined) {
-            res.setHeader(key, value as string | string[])
-          }
-        }
-        res.statusCode = result.response.status
-
-        if (result.response.body) {
-          await pipeReadable(result.response.body, res)
-        } else {
-          res.end()
-        }
-      } catch (err) {
-        console.error(err)
-        res.statusCode = 500
-        res.end('Internal Server Error')
-      }
+  await fs.promises.writeFile(
+    path.join(distDir, 'server', MIDDLEWARE_MANIFEST + '.json'),
+    JSON.stringify({
+      middleware: middlewareInfo,
     })
-    srv.on('listening', () => {
-      const srvAddr = srv.address()
-      if (!srvAddr || typeof srvAddr === 'string') {
-        throw new Error("Failed to determine middleware's host/port.")
-      }
-      resolve({
-        hostname: srvAddr.address,
-        port: srvAddr.port,
-      })
-    })
-    srv.listen(0)
-  })
+  )
 
   if (middleware?.files.length) {
     fsChecker.middlewareMatcher = getMiddlewareRouteMatcher(
@@ -198,10 +89,10 @@ export async function makeResolver(
     )
   }
 
-  const resolveRoutes = getResolveRoutes(
+  const resolveRoutes = getResolveRoutes({
     fsChecker,
-    nextConfig,
-    {
+    config: nextConfig,
+    opts: {
       dir,
       port,
       hostname,
@@ -209,22 +100,12 @@ export async function makeResolver(
       dev: true,
       workerType: 'render',
     },
-    {
-      pages: {
-        async initialize() {
-          return {
-            port: middlewareServerAddr.port,
-            hostname: formatHostname(middlewareServerAddr.hostname),
-          }
-        },
-        async deleteCache() {},
-        async clearModuleContext() {},
-        async deleteAppClientCache() {},
-        async propagateServerField() {},
-      } as Partial<RenderWorker> as any,
-    },
-    {} as any
-  )
+    ensureMiddleware: async () => {},
+    requestHandler: () => {},
+    ipcMethods: {},
+    distDir,
+    responseCache: new ResponseCache(false),
+  })
 
   return async function resolveRoute(
     req: IncomingMessage,
@@ -232,8 +113,8 @@ export async function makeResolver(
   ): Promise<RouteResult | void> {
     const routeResult = await resolveRoutes({
       req,
+      res,
       isUpgradeReq: false,
-      signal: signalFromNodeResponse(res),
     })
 
     const {
@@ -276,6 +157,11 @@ export async function makeResolver(
     // handle middleware body response
     if (bodyStream) {
       res.statusCode = statusCode || 200
+
+      if (Buffer.isBuffer(bodyStream)) {
+        res.end(bodyStream)
+        return
+      }
       return await pipeReadable(bodyStream, res)
     }
 

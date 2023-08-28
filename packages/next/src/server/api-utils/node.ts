@@ -191,17 +191,10 @@ export async function parseBody(
   }
 }
 
-type RevalidateFn = (config: {
-  urlPath: string
-  revalidateHeaders: { [key: string]: string | string[] }
-  opts: { unstable_onlyGenerated?: boolean }
-}) => Promise<void>
-
 type ApiContext = __ApiPreviewProps & {
   trustHostHeader?: boolean
   allowedRevalidateHeaderKeys?: string[]
   hostname?: string
-  revalidate?: RevalidateFn
 }
 
 function getMaxContentLength(responseLimit?: ResponseLimit) {
@@ -459,7 +452,7 @@ async function revalidate(
       ) {
         throw new Error(`Invalid response ${res.status}`)
       }
-    } else if (context.revalidate) {
+    } else {
       // We prefer to use the IPC call if running under the workers mode.
       const ipcPort = process.env.__NEXT_PRIVATE_ROUTER_IPC_PORT
       if (ipcPort) {
@@ -483,16 +476,7 @@ async function revalidate(
 
         return
       }
-
-      await context.revalidate({
-        urlPath,
-        revalidateHeaders,
-        opts,
-      })
-    } else {
-      throw new Error(
-        `Invariant: required internal revalidate method not passed to api-utils`
-      )
+      throw new Error(`Invariant: attempted to revalidated inside same request`)
     }
   } catch (err: unknown) {
     throw new Error(

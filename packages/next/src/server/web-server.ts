@@ -9,11 +9,10 @@ import type { BaseNextRequest, BaseNextResponse } from './base-http'
 import type { UrlWithParsedQuery } from 'url'
 
 import { byteLength } from './api-utils/web'
-import BaseServer, { NoFallbackError, Options } from './base-server'
+import BaseServer, { Options } from './base-server'
 import { generateETag } from './lib/etag'
 import { addRequestMeta } from './request-meta'
 import WebResponseCache from './response-cache/web'
-import { isAPIRoute } from '../lib/is-api-route'
 import { getPathMatch } from '../shared/lib/router/utils/path-match'
 import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-asset-path'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
@@ -174,7 +173,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     res: BaseNextResponse,
     parsedUrl: NextUrlWithParsedQuery
   ): Promise<{ finished: boolean }> {
-    const middleware = this.getMiddleware()
+    const middleware = this.hasMiddleware()
     const params = getPathMatch('/_next/data/:path*')(parsedUrl.pathname)
 
     // Make sure to 404 for /_next/data/ itself and
@@ -289,24 +288,13 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
       }
     }
 
-    const bubbleNoFallback = !!query._nextBubbleNoFallback
-
-    if (isAPIRoute(pathname)) {
-      delete query._nextBubbleNoFallback
-    }
-
     try {
-      await this.render(req, res, pathname, query, parsedUrl, true)
+      await this.render(req, res, pathname, query, parsedUrl)
 
       return {
         finished: true,
       }
     } catch (err) {
-      if (err instanceof NoFallbackError && bubbleNoFallback) {
-        return {
-          finished: false,
-        }
-      }
       throw err
     }
   }

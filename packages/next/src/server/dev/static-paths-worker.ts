@@ -68,6 +68,10 @@ export async function loadStaticPaths({
   })
 
   if (!components.getStaticPaths && !isAppPath) {
+    return {
+      paths: [],
+      fallback: true,
+    }
     // we shouldn't get to this point since the worker should
     // only be called for SSG pages with getStaticPaths
     throw new Error(

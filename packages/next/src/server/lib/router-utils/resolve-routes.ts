@@ -1,8 +1,9 @@
 import type { TLSSocket } from 'tls'
 import type { FsOutput } from './filesystem'
-import type { IncomingMessage } from 'http'
+import type { IncomingMessage, ServerResponse } from 'http'
 import type { NextConfigComplete } from '../../config-shared'
-import type { RenderWorker, initialize } from '../router-server'
+import type { initialize } from '../router-server'
+import type ResponseCache from '../../response-cache'
 
 import url from 'url'
 import { Redirect } from '../../../../types'
@@ -13,7 +14,6 @@ import { Header } from '../../../lib/load-custom-routes'
 import { stringifyQuery } from '../../server-route-utils'
 import { formatHostname } from '../format-hostname'
 import { toNodeOutgoingHttpHeaders } from '../../web/utils'
-import { invokeRequest } from '../server-ipc/invoke-request'
 import { isAbortError } from '../../pipe-readable'
 import { getCookieParser, setLazyProp } from '../../api-utils'
 import { getHostname } from '../../../shared/lib/get-hostname'
@@ -27,12 +27,9 @@ import { pathHasPrefix } from '../../../shared/lib/router/utils/path-has-prefix'
 import { detectDomainLocale } from '../../../shared/lib/i18n/detect-domain-locale'
 import { normalizeLocalePath } from '../../../shared/lib/i18n/normalize-locale-path'
 import { removePathPrefix } from '../../../shared/lib/router/utils/remove-path-prefix'
+import { handleMiddleware } from './output-handlers/middleware'
 
-import {
-  NextUrlWithParsedQuery,
-  addRequestMeta,
-  getRequestMeta,
-} from '../../request-meta'
+import { NextUrlWithParsedQuery, addRequestMeta } from '../../request-meta'
 import {
   compileNonPath,
   matchHas,
@@ -41,19 +38,27 @@ import {
 
 const debug = setupDebug('next:router-server:resolve-routes')
 
-export function getResolveRoutes(
+export function getResolveRoutes({
+  opts,
+  config,
+  distDir,
+  fsChecker,
+  ipcMethods,
+  responseCache,
+  requestHandler,
+  ensureMiddleware,
+}: {
+  ipcMethods: any
+  requestHandler: any
   fsChecker: UnwrapPromise<
     ReturnType<typeof import('./filesystem').setupFsCheck>
-  >,
-  config: NextConfigComplete,
-  opts: Parameters<typeof initialize>[0],
-  renderWorkers: {
-    app?: RenderWorker
-    pages?: RenderWorker
-  },
-  renderWorkerOpts: Parameters<RenderWorker['initialize']>[0],
+  >
+  distDir: string
+  config: NextConfigComplete
+  responseCache: ResponseCache
+  opts: Parameters<typeof initialize>[0]
   ensureMiddleware?: () => Promise<void>
-) {
+}) {
   const routes: ({
     match: ReturnType<typeof getPathMatch>
     check?: boolean
@@ -94,18 +99,18 @@ export function getResolveRoutes(
 
   async function resolveRoutes({
     req,
+    res,
     isUpgradeReq,
-    signal,
     invokedOutputs,
   }: {
     req: IncomingMessage
+    res: ServerResponse
     isUpgradeReq: boolean
-    signal: AbortSignal
     invokedOutputs?: Set<string>
   }): Promise<{
     finished: boolean
     statusCode?: number
-    bodyStream?: ReadableStream | null
+    bodyStream?: ReadableStream | Buffer | null
     resHeaders: Record<string, string | string[]>
     parsedUrl: NextUrlWithParsedQuery
     matchedOutput?: FsOutput | null
@@ -270,8 +275,13 @@ export function getResolveRoutes(
 
         if (params) {
           const pageOutput = await fsChecker.getItem(
-            addPathPrefix(route.page, config.basePath || '')
+            addPathPrefix(route.page, config.basePath || ''),
+            curPathname || ''
           )
+
+          if (!pageOutput) {
+            continue
+          }
 
           // i18n locales aren't matched for app dir
           if (
@@ -434,51 +444,30 @@ export function getResolveRoutes(
                 .then(() => true)
                 .catch(() => false)))
           ) {
-            const workerResult = await (
-              renderWorkers.app || renderWorkers.pages
-            )?.initialize(renderWorkerOpts)
-
-            if (!workerResult) {
-              throw new Error(`Failed to initialize render worker "middleware"`)
-            }
-            const stringifiedQuery = stringifyQuery(
-              req as any,
-              getRequestMeta(req, '__NEXT_INIT_QUERY') || {}
-            )
-            const parsedInitUrl = new URL(
-              getRequestMeta(req, '__NEXT_INIT_URL') || '/',
-              'http://n'
-            )
-
-            const curUrl = config.skipMiddlewareUrlNormalize
-              ? `${parsedInitUrl.pathname}${parsedInitUrl.search}`
-              : `${parsedUrl.pathname}${stringifiedQuery ? '?' : ''}${
-                  stringifiedQuery || ''
-                }`
-
-            const renderUrl = `http://${workerResult.hostname}:${workerResult.port}${curUrl}`
-
-            const invokeHeaders: typeof req.headers = {
-              ...req.headers,
-              'x-invoke-path': '',
-              'x-invoke-query': '',
-              'x-invoke-output': '',
-              'x-middleware-invoke': '1',
-            }
-
-            debug('invoking middleware', renderUrl, invokeHeaders)
+            debug('invoking middleware', req.url)
 
             let middlewareRes
             try {
-              middlewareRes = await invokeRequest(
-                renderUrl,
-                {
-                  headers: invokeHeaders,
-                  method: req.method,
-                  signal,
+              const result = await handleMiddleware({
+                output: {
+                  type: 'middleware',
+                  itemPath: '/',
                 },
-                getRequestMeta(req, '__NEXT_CLONABLE_BODY')?.cloneBodyStream()
-              )
+                distDir,
+                nextConfig: config,
+                hostname: opts.hostname || 'localhost',
+                port: opts.port + '',
+                req,
+                res,
+                fsChecker,
+                dev: opts.dev,
+                responseCache,
+                parsedUrl,
+                ipcMethods,
+                requestHandler,
+                minimalMode: !!opts.minimalMode,
+              })
+              middlewareRes = result.response
             } catch (e) {
               // If the client aborts before we can receive a response object
               // (when the headers are flushed), then we can early exit without
@@ -618,7 +607,7 @@ export function getResolveRoutes(
                 parsedUrl,
                 resHeaders,
                 finished: true,
-                bodyStream: middlewareRes.body,
+                bodyStream: middlewareRes.body || Buffer.from(''),
                 statusCode: middlewareRes.status,
               }
             }
