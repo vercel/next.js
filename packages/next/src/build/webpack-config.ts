@@ -2035,7 +2035,7 @@ export default async function getBaseWebpackConfig(
                   alias: {
                     // Alias next/head component to noop for RSC
                     [require.resolve('next/head')]: require.resolve(
-                      'next/dist/client/components/noop-head'
+                      'next/dist/client/components/noop'
                     ),
                     // Alias next/dynamic
                     [require.resolve('next/dynamic')]: require.resolve(

@@ -1222,29 +1222,9 @@ export default class HotReloader implements NextJsHotReloaderInterface {
           return
         }
 
-        // If _document.js didn't change we don't trigger a reload
+        // If _document.js didn't change we don't trigger a reload.
         if (documentChunk.hash === this.serverPrevDocumentHash) {
           return
-        }
-
-        // As document chunk will change if new app pages are joined,
-        // since react bundle is different it will effect the chunk hash.
-        // So we diff the chunk changes, if there's only new app page chunk joins,
-        // then we don't trigger a reload by checking pages/_document chunk change.
-        if (this.appDir) {
-          const chunkNames = new Set(compilation.namedChunks.keys())
-          const diffChunkNames = difference<string>(
-            this.serverChunkNames || new Set(),
-            chunkNames
-          )
-
-          if (
-            diffChunkNames.length === 0 ||
-            diffChunkNames.every((chunkName) => chunkName.startsWith('app/'))
-          ) {
-            return
-          }
-          this.serverChunkNames = chunkNames
         }
 
         // Notify reload to reload the page, as _document.js was changed (different hash)
