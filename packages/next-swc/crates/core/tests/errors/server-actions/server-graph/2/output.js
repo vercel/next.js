@@ -1,7 +1,7 @@
 /* __next_internal_action_entry_do_not_use__ bar */ import { createActionProxy } from "private-next-rsc-action-proxy";
 'use strict';
 export function bar() {}
-import ensureServerEntryExports from "private-next-rsc-action-validate";
+import { ensureServerEntryExports } from "private-next-rsc-action-validate";
 ensureServerEntryExports([
     bar
 ]);

@@ -1,19 +1,27 @@
 import '../node-polyfill-fetch'
+import '../require-hook'
 
 import type { IncomingMessage, ServerResponse } from 'http'
 
 import http from 'http'
+import https from 'https'
 import * as Log from '../../build/output/log'
 import setupDebug from 'next/dist/compiled/debug'
 import { getDebugPort } from './utils'
 import { formatHostname } from './format-hostname'
 import { initialize } from './router-server'
+import fs from 'fs'
 import {
   WorkerRequestHandler,
   WorkerUpgradeHandler,
 } from './setup-server-worker'
 import { checkIsNodeDebugging } from './is-node-debugging'
 const debug = setupDebug('next:start-server')
+
+if (process.env.NEXT_CPU_PROF) {
+  process.env.__NEXT_PRIVATE_CPU_PROFILE = `CPU.router`
+  require('./cpu-profile')
+}
 
 export interface StartServerOptions {
   dir: string
@@ -25,6 +33,11 @@ export interface StartServerOptions {
   customServer?: boolean
   minimalMode?: boolean
   keepAliveTimeout?: number
+  // this is dev-server only
+  selfSignedCertificate?: {
+    key: string
+    cert: string
+  }
   isExperimentalTestProxy?: boolean
 }
 
@@ -70,6 +83,7 @@ export async function startServer({
   keepAliveTimeout,
   isExperimentalTestProxy,
   logReady = true,
+  selfSignedCertificate,
 }: StartServerOptions): Promise<void> {
   let handlersReady = () => {}
   let handlersError = () => {}
@@ -103,7 +117,13 @@ export async function startServer({
   }
 
   // setup server listener as fast as possible
-  const server = http.createServer(async (req, res) => {
+  if (selfSignedCertificate && !isDev) {
+    throw new Error(
+      'Using a self signed certificate is only supported with `next dev`.'
+    )
+  }
+
+  async function requestListener(req: IncomingMessage, res: ServerResponse) {
     try {
       if (handlersPromise) {
         await handlersPromise
@@ -116,7 +136,17 @@ export async function startServer({
       Log.error(`Failed to handle request for ${req.url}`)
       console.error(err)
     }
-  })
+  }
+
+  const server = selfSignedCertificate
+    ? https.createServer(
+        {
+          key: fs.readFileSync(selfSignedCertificate.key),
+          cert: fs.readFileSync(selfSignedCertificate.cert),
+        },
+        requestListener
+      )
+    : http.createServer(requestListener)
 
   if (keepAliveTimeout) {
     server.keepAliveTimeout = keepAliveTimeout
@@ -171,7 +201,9 @@ export async function startServer({
           : actualHostname
 
       port = typeof addr === 'object' ? addr?.port || port : port
-      const appUrl = `http://${formattedHostname}:${port}`
+      const appUrl = `${
+        selfSignedCertificate ? 'https' : 'http'
+      }://${formattedHostname}:${port}`
 
       if (isNodeDebugging) {
         const debugPort = getDebugPort()
@@ -194,11 +226,15 @@ export async function startServer({
           server.close()
           process.exit(0)
         }
+        const exception = (err: Error) => {
+          // This is the render worker, we keep the process alive
+          console.error(err)
+        }
         process.on('exit', cleanup)
         process.on('SIGINT', cleanup)
         process.on('SIGTERM', cleanup)
-        process.on('uncaughtException', cleanup)
-        process.on('unhandledRejection', cleanup)
+        process.on('uncaughtException', exception)
+        process.on('unhandledRejection', exception)
 
         const initResult = await getRequestHandlers({
           dir,

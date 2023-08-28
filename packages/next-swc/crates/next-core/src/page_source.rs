@@ -3,6 +3,7 @@ use indexmap::{indexmap, IndexMap};
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use turbo_tasks::{trace::TraceRawVcs, Value, Vc};
+use turbo_tasks_fs::FileSystemPathOption;
 use turbopack_binding::{
     turbo::{
         tasks_env::{CustomProcessEnv, EnvMap, ProcessEnv},
@@ -482,6 +483,7 @@ async fn create_page_source_for_file(
                 Vc::upcast(client_chunking_context),
                 page_asset,
                 pathname,
+                FileSystemPathOption::none(),
             ),
         ]))
     })
@@ -566,6 +568,7 @@ async fn create_not_found_page_source(
         client_chunking_context,
         page_asset,
         pathname,
+        FileSystemPathOption::none(),
     );
 
     Ok(Vc::upcast(CombinedContentSource::new(vec![

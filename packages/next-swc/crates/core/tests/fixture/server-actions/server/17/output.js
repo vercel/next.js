@@ -2,7 +2,7 @@
 export const foo = async ()=>{};
 const bar = async ()=>{};
 export { bar };
-import ensureServerEntryExports from "private-next-rsc-action-validate";
+import { ensureServerEntryExports } from "private-next-rsc-action-validate";
 ensureServerEntryExports([
     foo,
     bar

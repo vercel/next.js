@@ -3,8 +3,10 @@ use std::{env::current_dir, path::PathBuf};
 use next_swc::{
     amp_attributes::amp_attributes,
     cjs_optimizer::cjs_optimizer,
+    named_import_transform::named_import_transform,
     next_dynamic::next_dynamic,
     next_ssg::next_ssg,
+    optimize_barrel::optimize_barrel,
     page_config::page_config_test,
     react_remove_properties::remove_properties,
     react_server_components::server_components,
@@ -93,6 +95,58 @@ fn next_dynamic_fixture(input: PathBuf) {
                 false,
                 true,
                 false,
+                FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
+                Some("/some-project/src".into()),
+            )
+        },
+        &input,
+        &output_server,
+        Default::default(),
+    );
+}
+
+#[fixture("tests/fixture/next-dynamic-app-dir/**/input.js")]
+fn app_dir_next_dynamic_fixture(input: PathBuf) {
+    let output_dev = input.parent().unwrap().join("output-dev.js");
+    let output_prod = input.parent().unwrap().join("output-prod.js");
+    let output_server = input.parent().unwrap().join("output-server.js");
+    test_fixture(
+        syntax(),
+        &|_tr| {
+            next_dynamic(
+                true,
+                false,
+                true,
+                FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
+                Some("/some-project/src".into()),
+            )
+        },
+        &input,
+        &output_dev,
+        Default::default(),
+    );
+    test_fixture(
+        syntax(),
+        &|_tr| {
+            next_dynamic(
+                false,
+                false,
+                true,
+                FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
+                Some("/some-project/src".into()),
+            )
+        },
+        &input,
+        &output_prod,
+        Default::default(),
+    );
+    test_fixture(
+        syntax(),
+        &|_tr| {
+            next_dynamic(
+                false,
+                true,
+                true,
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
                 Some("/some-project/src".into()),
             )
@@ -393,6 +447,61 @@ fn cjs_optimize_fixture(input: PathBuf) {
                         "#
                     ),
                     unresolved_ctxt
+                )
+            )
+        },
+        &input,
+        &output,
+        Default::default(),
+    );
+}
+
+#[fixture("tests/fixture/named-import-transform/**/input.js")]
+fn named_import_transform_fixture(input: PathBuf) {
+    let output = input.parent().unwrap().join("output.js");
+    test_fixture(
+        syntax(),
+        &|_tr| {
+            let unresolved_mark = Mark::new();
+            let top_level_mark = Mark::new();
+
+            chain!(
+                resolver(unresolved_mark, top_level_mark, false),
+                named_import_transform(json(
+                    r#"
+                    {
+                        "packages": ["foo", "bar"]
+                    }
+                    "#
+                ))
+            )
+        },
+        &input,
+        &output,
+        Default::default(),
+    );
+}
+
+#[fixture("tests/fixture/optimize-barrel/**/input.js")]
+fn optimize_barrel_fixture(input: PathBuf) {
+    let output = input.parent().unwrap().join("output.js");
+    test_fixture(
+        syntax(),
+        &|_tr| {
+            let unresolved_mark = Mark::new();
+            let top_level_mark = Mark::new();
+
+            chain!(
+                resolver(unresolved_mark, top_level_mark, false),
+                optimize_barrel(
+                    FileName::Real(PathBuf::from("/some-project/node_modules/foo/file.js")),
+                    json(
+                        r#"
+                        {
+                            "names": ["x", "y", "z"]
+                        }
+                        "#
+                    )
                 )
             )
         },
