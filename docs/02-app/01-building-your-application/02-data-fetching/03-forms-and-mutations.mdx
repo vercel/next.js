@@ -187,9 +187,31 @@ export default async function submit() {
 }
 ```
 
+```js filename="app/actions.js" switcher
+'use server'
+
+import { revalidatePath } from 'next/cache'
+
+export default async function submit() {
+  await submitForm()
+  revalidatePath('/')
+}
+```
+
 Or invalidate a specific data fetch with a cache tag using [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag):
 
 ```ts filename="app/actions.ts" switcher
+'use server'
+
+import { revalidateTag } from 'next/cache'
+
+export default async function submit() {
+  await addPost()
+  revalidateTag('posts')
+}
+```
+
+```js filename="app/actions.js" switcher
 'use server'
 
 import { revalidateTag } from 'next/cache'
@@ -234,6 +256,19 @@ export default async function handler(req, res) {
 If you would like to redirect the user to a different route after the completion of a Server Action, you can use [`redirect`](/docs/app/api-reference/functions/redirect) and any absolute or relative URL:
 
 ```ts filename="app/actions.ts" switcher
+'use server'
+
+import { redirect } from 'next/navigation'
+import { revalidateTag } from 'next/cache'
+
+export default async function submit() {
+  const id = await addPost()
+  revalidateTag('posts') // Update cached posts
+  redirect(`/post/${id}`) // Navigate to new route
+}
+```
+
+```js filename="app/actions.js" switcher
 'use server'
 
 import { redirect } from 'next/navigation'
@@ -742,7 +777,18 @@ You can set cookies inside a Server Action using the [`cookies`](/docs/app/api-r
 import { cookies } from 'next/headers'
 
 export async function create() {
-  const cart = await createCart():
+  const cart = await createCart()
+  cookies().set('cartId', cart.id)
+}
+```
+
+```js filename="app/actions.js" switcher
+'use server'
+
+import { cookies } from 'next/headers'
+
+export async function create() {
+  const cart = await createCart()
   cookies().set('cartId', cart.id)
 }
 ```
@@ -791,6 +837,17 @@ export async function create() {
 }
 ```
 
+```js filename="app/actions.js" switcher
+'use server'
+
+import { cookies } from 'next/headers'
+
+export async function create() {
+  const auth = cookies().get('authorization')?.value
+  // ...
+}
+```
+
 </AppOnly>
 
 ### Deleting Cookies
@@ -825,6 +882,17 @@ export default async function handler(req, res) {
 You can delete cookies inside a Server Action using the [`cookies`](/docs/app/api-reference/functions/cookies) function:
 
 ```ts filename="app/actions.ts" switcher
+'use server'
+
+import { cookies } from 'next/headers'
+
+export async function create() {
+  cookies().delete('name')
+  // ...
+}
+```
+
+```js filename="app/actions.js" switcher
 'use server'
 
 import { cookies } from 'next/headers'
