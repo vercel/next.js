@@ -79,6 +79,7 @@ fn test(input: &Path, minify: bool) {
                 server_actions: None,
                 cjs_require_optimizer: None,
                 auto_modularize_imports: None,
+                optimize_barrel_exports: None,
             };
 
             let unresolved_mark = Mark::new();

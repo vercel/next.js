@@ -229,6 +229,7 @@ jobs:
 
     name: stable - ${{ matrix.settings.target }} - node@16
     runs-on: ${{ matrix.settings.host }}
+    timeout-minutes: 30
     steps:
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
@@ -266,6 +267,13 @@ jobs:
       - name: Setup toolchain
         run: ${{ matrix.settings.setup }}
         if: ${{ matrix.settings.setup }}
+
+      - name: Cache on ${{ github.ref_name }}
+        uses: ijjk/rust-cache@turbo-cache-v1.0.7
+        with:
+          shared-key: build-${{ matrix.settings.target }}
+          save-if: 'true'
+          cache-provider: 'turbo'
 
       # we only need custom caching for docker builds
       # as they are on an older Node.js version and have
@@ -509,6 +517,7 @@ jobs:
       - 'linux'
       - 'x64'
       - 'metal'
+    timeout-minutes: 25
     needs: [publishRelease]
     steps:
       - uses: actions/checkout@v3
@@ -526,6 +535,7 @@ jobs:
       - uses: ./.github/actions/next-stats-action
         env:
           PR_STATS_COMMENT_TOKEN: ${{ secrets.PR_STATS_COMMENT_TOKEN }}
+          NEXT_SKIP_NATIVE_POSTINSTALL: 1
 
   upload_turbopack_bytesize:
     name: Upload Turbopack Bytesize trace to Datadog
