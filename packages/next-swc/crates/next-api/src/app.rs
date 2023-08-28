@@ -212,6 +212,7 @@ impl AppProject {
                 "next-dynamic".to_string(),
                 Vc::upcast(NextDynamicTransition::new(self.client_transition())),
             ),
+            ("next-ssr".to_string(), Vc::upcast(self.ssr_transition())),
         ]
         .into_iter()
         .collect();
