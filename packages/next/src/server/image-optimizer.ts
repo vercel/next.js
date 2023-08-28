@@ -47,7 +47,7 @@ const BLUR_QUALITY = 70 // should match `next-image-loader`
 let sharp: typeof import('sharp') | undefined
 
 try {
-  sharp = require(process.env.NEXT_SHARP_PATH || 'sharp')
+  sharp = require('/Users/styfle/Code/foo/sharp-wasm/node_modules/sharp')
   if (sharp && sharp.concurrency() > 1) {
     // Reducing concurrency should reduce the memory usage too.
     // We more aggressively reduce in dev but also reduce in prod.
