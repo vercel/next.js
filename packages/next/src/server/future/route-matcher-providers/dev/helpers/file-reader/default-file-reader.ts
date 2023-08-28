@@ -89,7 +89,10 @@ export class DefaultFileReader implements FileReader {
       dir,
       this.pathnameFilter,
       this.ignoreFilter,
-      this.ignorePartFilter
+      this.ignorePartFilter,
+      // We don't need to sort the results because we're not depending on the
+      // order of the results.
+      false
     )
   }
 }

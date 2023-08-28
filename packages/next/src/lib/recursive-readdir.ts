@@ -9,13 +9,15 @@ import path from 'path'
  * @param pathnameFilter filter to ignore files with absolute pathnames, false to ignore
  * @param ignoreFilter filter to ignore files and directories with absolute pathnames, false to ignore
  * @param ignorePartFilter filter to ignore files and directories with the pathname part, false to ignore
+ * @param sortPathnames whether to sort the results, true by default
  * @returns
  */
 export async function recursiveReadDir(
   dir: string,
   pathnameFilter?: (absoluteFilePath: string) => boolean,
   ignoreFilter?: (absoluteFilePath: string) => boolean,
-  ignorePartFilter?: (partName: string) => boolean
+  ignorePartFilter?: (partName: string) => boolean,
+  sortPathnames: boolean = true
 ): Promise<string[]> {
   const pathnames: string[] = []
 
@@ -94,6 +96,11 @@ export async function recursiveReadDir(
         }
       }
     }
+  }
+
+  // Sort the pathnames in place if requested.
+  if (sortPathnames) {
+    pathnames.sort()
   }
 
   return pathnames
