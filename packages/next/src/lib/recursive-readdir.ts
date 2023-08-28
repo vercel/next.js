@@ -3,6 +3,8 @@ import type { Dirent } from 'fs'
 import fs from 'fs/promises'
 import path from 'path'
 
+type Filter = (pathname: string) => boolean
+
 /**
  *
  * @param dir the directory to read
@@ -10,17 +12,33 @@ import path from 'path'
  * @param ignoreFilter filter to ignore files and directories with absolute pathnames, false to ignore
  * @param ignorePartFilter filter to ignore files and directories with the pathname part, false to ignore
  * @param sortPathnames whether to sort the results, true by default
+ * @param relativePathnames whether to return relative pathnames, true by default
  * @returns
  */
 export async function recursiveReadDir(
   dir: string,
-  pathnameFilter?: (absoluteFilePath: string) => boolean,
-  ignoreFilter?: (absoluteFilePath: string) => boolean,
-  ignorePartFilter?: (partName: string) => boolean,
-  sortPathnames: boolean = true
+  pathnameFilter?: Filter,
+  ignoreFilter?: Filter,
+  ignorePartFilter?: Filter,
+  sortPathnames: boolean = true,
+  relativePathnames: boolean = true
 ): Promise<string[]> {
+  // The list of pathnames to return.
   const pathnames: string[] = []
 
+  /**
+   * Pushes the pathname to the list of pathnames and coerces it to be relative
+   * if requested.
+   */
+  const push = relativePathnames
+    ? (pathname: string) => {
+        pathnames.push(pathname.replace(dir, ''))
+      }
+    : (pathname: string) => {
+        pathnames.push(pathname)
+      }
+
+  // The queue of directories to scan.
   let directories: string[] = [dir]
 
   while (directories.length > 0) {
@@ -60,21 +78,21 @@ export async function recursiveReadDir(
         }
 
         // Handle each file.
-        const pathname = path.join(directory, file.name)
+        const absolutePathname = path.join(directory, file.name)
 
         // If enabled, ignore the file if it matches the ignore filter.
-        if (ignoreFilter && ignoreFilter(pathname)) {
+        if (ignoreFilter && ignoreFilter(absolutePathname)) {
           continue
         }
 
         // If the file is a directory, then add it to the list of directories,
         // they'll be scanned on a later pass.
         if (file.isDirectory()) {
-          directories.push(pathname)
+          directories.push(absolutePathname)
         } else if (file.isSymbolicLink()) {
-          links.push(pathname)
-        } else if (!pathnameFilter || pathnameFilter(pathname)) {
-          pathnames.push(pathname)
+          links.push(absolutePathname)
+        } else if (!pathnameFilter || pathnameFilter(absolutePathname)) {
+          push(absolutePathname)
         }
       }
     }
@@ -82,17 +100,34 @@ export async function recursiveReadDir(
     // Resolve all the symbolic links we found if any.
     if (links.length > 0) {
       const resolved = await Promise.all(
-        links.map(async (pathname) => fs.stat(pathname))
+        links.map(async (absolutePathname) => {
+          try {
+            return await fs.stat(absolutePathname)
+          } catch (err: any) {
+            // This can only happen when the underlying link was removed. If
+            // anything other than this error occurs, re-throw it.
+            if (err.code !== 'ENOENT') throw err
+
+            // The error occurred, so abandon reading this directory.
+            return null
+          }
+        })
       )
 
       for (let i = 0; i < links.length; i++) {
-        const pathname = links[i]
         const stats = resolved[i]
 
+        // If the link was removed, then skip it.
+        if (!stats) continue
+
+        // We would have already ignored the file if it matched the ignore
+        // filter, so we don't need to check it again.
+        const absolutePathname = links[i]
+
         if (stats.isDirectory()) {
-          directories.push(pathname)
-        } else if (!pathnameFilter || pathnameFilter(pathname)) {
-          pathnames.push(pathname)
+          directories.push(absolutePathname)
+        } else if (!pathnameFilter || pathnameFilter(absolutePathname)) {
+          push(absolutePathname)
         }
       }
     }

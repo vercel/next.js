@@ -59,6 +59,9 @@ export class DefaultFileReader implements FileReader {
       this.ignorePartFilter,
       // We don't need to sort the results because we're not depending on the
       // order of the results.
+      false,
+      // We want absolute pathnames because we're going to be comparing them
+      // with other absolute pathnames.
       false
     )
   }
