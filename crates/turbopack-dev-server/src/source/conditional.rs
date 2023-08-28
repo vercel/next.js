@@ -126,7 +126,7 @@ impl Introspectable for ConditionalContentSource {
         {
             Ok(activator.title())
         } else {
-            Ok(Vc::<String>::empty())
+            Ok(Vc::<String>::default())
         }
     }
 

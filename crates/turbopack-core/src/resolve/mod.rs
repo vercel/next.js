@@ -1802,7 +1802,7 @@ async fn resolve_package_internal_with_imports_field(
         specifier,
         conditions,
         unspecified_conditions,
-        Vc::<String>::empty(),
+        Vc::<String>::default(),
     )
     .await
 }

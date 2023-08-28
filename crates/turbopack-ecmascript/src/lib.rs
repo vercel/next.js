@@ -20,6 +20,7 @@ pub mod references;
 pub mod resolve;
 pub(crate) mod special_cases;
 pub(crate) mod static_code;
+mod swc_comments;
 pub mod text;
 pub(crate) mod transform;
 pub mod tree_shake;
@@ -644,6 +645,8 @@ async fn gen_content_with_visitors(
         // = format!("/* {} */\n", self.module.path().to_string().await?).into_bytes();
 
         let mut srcmap = vec![];
+
+        let comments = comments.consumable();
 
         let mut emitter = Emitter {
             cfg: swc_core::ecma::codegen::Config {

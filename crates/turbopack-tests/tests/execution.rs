@@ -8,7 +8,7 @@ use std::{collections::HashMap, path::PathBuf};
 
 use anyhow::{Context, Result};
 use dunce::canonicalize;
-use turbo_tasks::{unit, Completion, TryJoinIterExt, TurboTasks, Value, Vc};
+use turbo_tasks::{Completion, TryJoinIterExt, TurboTasks, Value, Vc};
 use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_env::CommandLineProcessEnv;
 use turbo_tasks_fs::{
@@ -320,7 +320,7 @@ async fn snapshot_issues(run_result: Vc<RunTestResult>) -> Result<Vc<()>> {
     .await
     .context("Unable to handle issues")?;
 
-    Ok(unit())
+    Ok(Default::default())
 }
 
 #[turbo_tasks::function]

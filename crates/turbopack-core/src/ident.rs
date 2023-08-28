@@ -93,7 +93,7 @@ impl AssetIdent {
     pub fn from_path(path: Vc<FileSystemPath>) -> Vc<Self> {
         Self::new(Value::new(AssetIdent {
             path,
-            query: Vc::<String>::empty(),
+            query: Vc::<String>::default(),
             fragment: None,
             assets: Vec::new(),
             modifiers: Vec::new(),

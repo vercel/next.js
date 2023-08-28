@@ -347,7 +347,7 @@ pub async fn type_resolve(
         Some(Request::module(
             format!("@types/{m}"),
             Value::new(p.clone()),
-            Vc::<String>::empty(),
+            Vc::<String>::default(),
         ))
     } else {
         None

@@ -5,9 +5,7 @@ use futures::{
     pin_mut, SinkExt, StreamExt, TryStreamExt,
 };
 use parking_lot::Mutex;
-use turbo_tasks::{
-    duration_span, mark_finished, unit, util::SharedError, RawVc, ValueToString, Vc,
-};
+use turbo_tasks::{duration_span, mark_finished, util::SharedError, RawVc, ValueToString, Vc};
 use turbo_tasks_bytes::{Bytes, Stream};
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::FileSystemPath;
@@ -227,7 +225,7 @@ async fn render_stream_internal(
     mark_finished();
     let Ok(sender) = sender.await else {
         // Impossible to handle the error in a good way.
-        return Ok(unit());
+        return Ok(Default::default());
     };
 
     let stream = generator! {
@@ -329,12 +327,12 @@ async fn render_stream_internal(
     pin_mut!(stream);
     while let Some(value) = stream.next().await {
         if sender.send(value).await.is_err() {
-            return Ok(unit());
+            return Ok(Default::default());
         }
         if sender.flush().await.is_err() {
-            return Ok(unit());
+            return Ok(Default::default());
         }
     }
 
-    Ok(unit())
+    Ok(Default::default())
 }

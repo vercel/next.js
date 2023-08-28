@@ -102,6 +102,7 @@ pub use task::{
 };
 pub use trait_ref::{IntoTraitRef, TraitRef};
 pub use turbo_tasks_macros::{function, value, value_impl, value_trait, TaskInput};
+#[allow(deprecated)]
 pub use unit::unit;
 pub use value::{TransientInstance, TransientValue, Value};
 pub use value_type::{TraitMethod, TraitType, ValueType};

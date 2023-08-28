@@ -88,7 +88,7 @@ pub trait Issue {
     /// A short identifier of the type of error (eg "parse", "analyze", or
     /// "evaluate") displayed to the user as part of the message header.
     fn category(self: Vc<Self>) -> Vc<String> {
-        Vc::<String>::empty()
+        Vc::<String>::default()
     }
 
     /// The issue title should be descriptive of the issue, but should be a
@@ -106,13 +106,13 @@ pub trait Issue {
     /// information. Only displayed if the user explicitly asks for detailed
     /// messages (not to be confused with severity).
     fn detail(self: Vc<Self>) -> Vc<String> {
-        Vc::<String>::empty()
+        Vc::<String>::default()
     }
 
     /// A link to relevant documentation of the issue. Only displayed in console
     /// if the user explicitly asks for detailed messages.
     fn documentation_link(self: Vc<Self>) -> Vc<String> {
-        Vc::<String>::empty()
+        Vc::<String>::default()
     }
 
     /// The source location that caused the issue. Eg, for a parsing error it

@@ -235,7 +235,7 @@ impl Environment {
                 ])
             }
             ExecutionEnvironment::EdgeWorker(_) | ExecutionEnvironment::Browser(_) => {
-                Vc::<Vec<String>>::empty()
+                Vc::<Vec<String>>::default()
             }
             ExecutionEnvironment::Custom(_) => todo!(),
         })
@@ -262,7 +262,7 @@ impl Environment {
             ExecutionEnvironment::NodeJsBuildTime(..) | ExecutionEnvironment::NodeJsLambda(_) => {
                 Vc::cell(vec!["node".to_string()])
             }
-            ExecutionEnvironment::Browser(_) => Vc::<Vec<String>>::empty(),
+            ExecutionEnvironment::Browser(_) => Vc::<Vec<String>>::default(),
             ExecutionEnvironment::EdgeWorker(_) => Vc::cell(vec!["edge-worker".to_string()]),
             ExecutionEnvironment::Custom(_) => todo!(),
         })

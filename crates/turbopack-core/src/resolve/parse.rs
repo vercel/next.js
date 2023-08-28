@@ -50,7 +50,7 @@ pub enum Request {
 
 fn split_off_query(raw: String) -> (Pattern, Vc<String>) {
     let Some((raw, query)) = raw.split_once('?') else {
-        return (Pattern::Constant(raw), Vc::<String>::empty());
+        return (Pattern::Constant(raw), Vc::<String>::default());
     };
 
     (
@@ -363,13 +363,13 @@ impl Request {
             Request::Module { query, .. } => *query,
             Request::ServerRelative { query, .. } => *query,
             Request::Windows { query, .. } => *query,
-            Request::Empty => Vc::<String>::empty(),
-            Request::PackageInternal { .. } => Vc::<String>::empty(),
-            Request::Uri { .. } => Vc::<String>::empty(),
-            Request::Unknown { .. } => Vc::<String>::empty(),
-            Request::Dynamic => Vc::<String>::empty(),
+            Request::Empty => Vc::<String>::default(),
+            Request::PackageInternal { .. } => Vc::<String>::default(),
+            Request::Uri { .. } => Vc::<String>::default(),
+            Request::Unknown { .. } => Vc::<String>::default(),
+            Request::Dynamic => Vc::<String>::default(),
             // TODO: is this correct, should we return the first one instead?
-            Request::Alternatives { .. } => Vc::<String>::empty(),
+            Request::Alternatives { .. } => Vc::<String>::default(),
         }
     }
 }

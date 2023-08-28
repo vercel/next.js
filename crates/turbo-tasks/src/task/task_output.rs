@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use anyhow::Result;
 
-use crate::{unit, RawVc, Vc};
+use crate::{RawVc, Vc};
 
 /// Trait to implement in order for a type to be accepted as a
 /// `turbo_tasks::function` return type.
@@ -39,7 +39,8 @@ impl TaskOutput for () {
     }
 
     fn try_into_raw_vc(self) -> Result<RawVc> {
-        Ok(unit().node)
+        let unit = Vc::<()>::default();
+        Ok(unit.node)
     }
 }
 
