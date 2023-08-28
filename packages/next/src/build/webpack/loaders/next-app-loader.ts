@@ -22,6 +22,7 @@ import { AppBundlePathNormalizer } from '../../../server/future/normalizers/buil
 import { MiddlewareConfig } from '../../analysis/get-page-static-info'
 import { getFilenameAndExtension } from './next-metadata-route-loader'
 import { loadEntrypoint } from './next-route-loader/load-entrypoint'
+import { isAppBuiltinNotFoundPage } from '../../utils'
 
 export type AppLoaderOptions = {
   name: string
@@ -54,8 +55,6 @@ const PAGE_SEGMENT = 'page$'
 const PARALLEL_CHILDREN_SEGMENT = 'children$'
 
 const defaultNotFoundPath = 'next/dist/client/components/not-found-error'
-const defaultNotFoundPathRegex =
-  /next[\\/]dist[\\/]client[\\/]components[\\/]not-found-error/
 
 type DirResolver = (pathToResolve: string) => string
 type PathResolver = (
@@ -184,7 +183,7 @@ async function createTreeCodeFromPath(
 }> {
   const splittedPath = pagePath.split(/[\\/]/)
   const isNotFoundRoute = page === '/_not-found'
-  const isDefaultNotFound = defaultNotFoundPathRegex.test(pagePath)
+  const isDefaultNotFound = isAppBuiltinNotFoundPage(pagePath)
   const appDirPrefix = isDefaultNotFound ? APP_DIR_ALIAS : splittedPath[0]
   const pages: string[] = []
 
