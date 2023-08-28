@@ -238,5 +238,5 @@ export function useSelectedLayoutSegment(
   return selectedLayoutSegments[0]
 }
 
-export { redirect } from './redirect'
+export { redirect, permanentRedirect } from './redirect'
 export { notFound } from './not-found'

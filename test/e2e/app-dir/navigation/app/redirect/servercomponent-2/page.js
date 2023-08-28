@@ -1,9 +1,6 @@
-import { redirect } from 'next/navigation'
+import { permanentRedirect } from 'next/navigation'
 
 export default function Page() {
-  redirect({
-    url: '/redirect/result',
-    permanent: true,
-  })
+  permanentRedirect('/redirect/result')
   return <></>
 }

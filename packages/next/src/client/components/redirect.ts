@@ -27,36 +27,32 @@ export function getRedirectError(
   return error
 }
 
-type RedirectOptions = {
-  url: string
-  type?: RedirectType
-  permanent?: boolean
+/**
+ * When used in a React server component, this will insert a meta tag to
+ * redirect the user to the target page. When used in a custom app route, it
+ * will serve a 307 to the caller.
+ *
+ * @param url the url to redirect to
+ */
+export function redirect(
+  url: string,
+  type: RedirectType = RedirectType.replace
+): never {
+  throw getRedirectError(url, type, false)
 }
 
 /**
  * When used in a React server component, this will insert a meta tag to
  * redirect the user to the target page. When used in a custom app route, it
- * will serve a 302 to the caller.
+ * will serve a 308 to the caller.
  *
  * @param url the url to redirect to
  */
-export function redirect(
-  ...args: [url: string, type?: RedirectType, permanent?: boolean]
+export function permanentRedirect(
+  url: string,
+  type: RedirectType = RedirectType.replace
 ): never {
-  if (typeof args[0] === 'string') {
-    throw getRedirectError(
-      args[0],
-      args[1] ?? RedirectType.replace,
-      args[2] ?? false
-    )
-  } else {
-    const options = args[0] as RedirectOptions
-    throw getRedirectError(
-      options.url,
-      options.type ?? RedirectType.replace,
-      options.permanent ?? false
-    )
-  }
+  throw getRedirectError(url, type, true)
 }
 
 /**
