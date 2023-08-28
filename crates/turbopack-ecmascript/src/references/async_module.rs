@@ -9,6 +9,7 @@ use swc_core::{
 use turbo_tasks::{primitives::Bools, trace::TraceRawVcs, TryFlatJoinIterExt, Value, Vc};
 use turbopack_core::chunk::availability_info::AvailabilityInfo;
 
+use super::esm::base::ReferencedAsset;
 use crate::{
     chunk::{
         esm_scope::{EsmScope, EsmScopeScc},
@@ -156,12 +157,24 @@ impl AsyncModule {
             .iter()
             .map(|r| async {
                 let referenced_asset = r.get_referenced_asset().await?;
-                let ident = if *r.is_async(availability_info).await? {
-                    referenced_asset.get_ident().await?
-                } else {
-                    None
-                };
-                anyhow::Ok(ident)
+                Ok(match &*referenced_asset {
+                    ReferencedAsset::OriginalReferenceTypeExternal(_) => {
+                        // TODO(WEB-1259): we need to detect if external modules are esm
+                        None
+                    }
+                    ReferencedAsset::Some(placeable) => {
+                        if *placeable
+                            .get_async_module()
+                            .is_async(availability_info)
+                            .await?
+                        {
+                            referenced_asset.get_ident().await?
+                        } else {
+                            None
+                        }
+                    }
+                    ReferencedAsset::None => None,
+                })
             })
             .try_flat_join()
             .await?;
@@ -170,26 +183,8 @@ impl AsyncModule {
     }
 
     #[turbo_tasks::function]
-    async fn has_top_level_await(self: Vc<Self>) -> Result<Vc<bool>> {
-        Ok(Vc::cell(self.await?.has_top_level_await))
-    }
-
-    #[turbo_tasks::function]
-    async fn is_self_async(self: Vc<Self>) -> Result<Vc<bool>> {
-        let this = self.await?;
-
-        if this.has_top_level_await {
-            return Ok(Vc::cell(true));
-        }
-
-        let bools = Vc::<Bools>::cell(
-            this.references
-                .iter()
-                .map(|r| r.is_external_esm())
-                .collect(),
-        );
-
-        Ok(bools.any())
+    pub(crate) fn is_self_async(&self) -> Vc<bool> {
+        Vc::cell(self.has_top_level_await)
     }
 
     #[turbo_tasks::function]
