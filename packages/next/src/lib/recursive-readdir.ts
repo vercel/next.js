@@ -9,33 +9,33 @@ type Result = {
   links: string[]
 }
 
-type RecursiveReadDirOptions = {
+export type RecursiveReadDirOptions = {
   /**
    * Filter to ignore files with absolute pathnames, false to ignore.
    */
-  pathnameFilter: Filter
+  pathnameFilter?: Filter
 
   /**
    * Filter to ignore files and directories with absolute pathnames, false to
    * ignore.
    */
-  ignoreFilter: Filter
+  ignoreFilter?: Filter
 
   /**
    * Filter to ignore files and directories with the pathname part, false to
    * ignore.
    */
-  ignorePartFilter: Filter
+  ignorePartFilter?: Filter
 
   /**
    * Whether to sort the results, true by default.
    */
-  sortPathnames: boolean
+  sortPathnames?: boolean
 
   /**
    * Whether to return relative pathnames, true by default.
    */
-  relativePathnames: boolean
+  relativePathnames?: boolean
 }
 
 /**
@@ -47,7 +47,7 @@ type RecursiveReadDirOptions = {
  */
 export async function recursiveReadDir(
   rootDirectory: string,
-  options: Partial<RecursiveReadDirOptions> = {}
+  options: RecursiveReadDirOptions = {}
 ): Promise<string[]> {
   // Grab our options.
   const {
@@ -110,7 +110,7 @@ export async function recursiveReadDir(
           if (err.code !== 'ENOENT' || directory === rootDirectory) throw err
 
           // The error occurred, so abandon reading this directory.
-          return { directories: [], pathnames: [], links: [] }
+          return null
         }
 
         return result
@@ -126,6 +126,9 @@ export async function recursiveReadDir(
 
     // For each result of directory scans...
     for (const result of results) {
+      // If the directory was removed, then skip it.
+      if (!result) continue
+
       // Add any directories to the list of directories to scan.
       directories.push(...result.directories)
 

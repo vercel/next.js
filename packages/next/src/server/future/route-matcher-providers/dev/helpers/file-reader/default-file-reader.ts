@@ -1,8 +1,14 @@
 import type { FileReader } from './file-reader'
 
-import { recursiveReadDir } from '../../../../../../lib/recursive-readdir'
+import {
+  RecursiveReadDirOptions,
+  recursiveReadDir,
+} from '../../../../../../lib/recursive-readdir'
 
-type Filter = (pathname: string) => boolean
+export type DefaultFileReaderOptions = Pick<
+  RecursiveReadDirOptions,
+  'pathnameFilter' | 'ignoreFilter' | 'ignorePartFilter'
+>
 
 /**
  * Reads all the files in the directory and its subdirectories following any
@@ -13,19 +19,7 @@ export class DefaultFileReader implements FileReader {
    * Filter to ignore files with absolute pathnames. If undefined, no files are
    * ignored.
    */
-  private readonly pathnameFilter: Filter | undefined
-
-  /**
-   * Filter to ignore files and directories with absolute pathnames. If
-   * undefined, no files are ignored.
-   */
-  private readonly ignoreFilter: Filter | undefined
-
-  /**
-   * Filter to ignore files and directories with the pathname part. If
-   * undefined, no files are ignored.
-   */
-  private readonly ignorePartFilter: Filter | undefined
+  private readonly options: Readonly<DefaultFileReaderOptions>
 
   /**
    * Creates a new file reader.
@@ -34,14 +28,8 @@ export class DefaultFileReader implements FileReader {
    * @param ignoreFilter filter to ignore files and directories with absolute pathnames, false to ignore
    * @param ignorePartFilter filter to ignore files and directories with the pathname part, false to ignore
    */
-  constructor(
-    pathnameFilter?: Filter,
-    ignoreFilter?: Filter,
-    ignorePartFilter?: Filter
-  ) {
-    this.pathnameFilter = pathnameFilter
-    this.ignoreFilter = ignoreFilter
-    this.ignorePartFilter = ignorePartFilter
+  constructor(options: Readonly<DefaultFileReaderOptions>) {
+    this.options = options
   }
 
   /**
@@ -53,9 +41,9 @@ export class DefaultFileReader implements FileReader {
    */
   public async read(dir: string): Promise<ReadonlyArray<string>> {
     return recursiveReadDir(dir, {
-      pathnameFilter: this.pathnameFilter,
-      ignoreFilter: this.ignoreFilter,
-      ignorePartFilter: this.ignorePartFilter,
+      pathnameFilter: this.options.pathnameFilter,
+      ignoreFilter: this.options.ignoreFilter,
+      ignorePartFilter: this.options.ignorePartFilter,
 
       // We don't need to sort the results because we're not depending on the
       // order of the results.
