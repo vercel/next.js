@@ -8,7 +8,7 @@ export enum RedirectType {
   replace = 'replace',
 }
 
-type RedirectError<U extends string> = Error & {
+export type RedirectError<U extends string> = Error & {
   digest: `${typeof REDIRECT_ERROR_CODE};${RedirectType};${U};${boolean}`
   mutableCookies: ResponseCookies
 }
@@ -28,7 +28,7 @@ export function getRedirectError(
 }
 
 /**
- * When used in a React server component, this will insert a meta tag to
+ * When used in a streaming context, this will insert a meta tag to
  * redirect the user to the target page. When used in a custom app route, it
  * will serve a 307 to the caller.
  *
@@ -42,7 +42,7 @@ export function redirect(
 }
 
 /**
- * When used in a React server component, this will insert a meta tag to
+ * When used in a streaming context, this will insert a meta tag to
  * redirect the user to the target page. When used in a custom app route, it
  * will serve a 308 to the caller.
  *
@@ -105,14 +105,4 @@ export function getRedirectTypeFromError<U extends string>(
   }
 
   return error.digest.split(';', 3)[1] as RedirectType
-}
-
-export function getRedirectStatusCodeFromError<U extends string>(
-  error: RedirectError<U>
-): number {
-  if (!isRedirectError(error)) {
-    throw new Error('Not a redirect error')
-  }
-
-  return error.digest.split(';', 4)[3] === 'true' ? 308 : 307
 }
