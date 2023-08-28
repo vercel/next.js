@@ -236,6 +236,11 @@ export interface ExperimentalConfig {
 
   webVitalsAttribution?: Array<(typeof WEB_VITALS)[number]>
 
+  /**
+   * Automatically apply the "modularizeImports" optimization to imports of the specified packages.
+   */
+  optimizePackageImports?: string[]
+
   turbo?: ExperimentalTurboOptions
   turbotrace?: {
     logLevel?:
@@ -309,6 +314,7 @@ export type ExportPathMap = {
     page: string
     query?: NextParsedUrlQuery
     _isAppDir?: boolean
+    _isAppPrefetch?: boolean
     _isDynamicError?: boolean
   }
 }
@@ -682,7 +688,7 @@ export const defaultConfig: NextConfig = {
   serverRuntimeConfig: {},
   publicRuntimeConfig: {},
   reactProductionProfiling: false,
-  reactStrictMode: false,
+  reactStrictMode: null,
   httpAgentOptions: {
     keepAlive: true,
   },

@@ -91,7 +91,7 @@ export function createValidFileMatcher(
       pageExtensions
     )}$`
   )
-  const leafOnlyNotFoundFileRegex = new RegExp(
+  const rootNotFoundFileRegex = new RegExp(
     `^not-found\\.${getExtensionRegexString(pageExtensions)}$`
   )
   /** TODO-METADATA: support other metadata routes
@@ -136,7 +136,7 @@ export function createValidFileMatcher(
       return false
     }
     const rest = filePath.slice(appDirPath.length + 1)
-    return leafOnlyNotFoundFileRegex.test(rest)
+    return rootNotFoundFileRegex.test(rest)
   }
 
   return {

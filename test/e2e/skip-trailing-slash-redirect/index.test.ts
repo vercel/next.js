@@ -16,6 +16,16 @@ describe('skip-trailing-slash-redirect', () => {
   })
   afterAll(() => next.destroy())
 
+  it('should parse locale info for data request correctly', async () => {
+    const pathname = `/_next/data/${next.buildId}/ja-jp/locale-test.json`
+    const res = await next.fetch(pathname)
+
+    expect(await res.json()).toEqual({
+      locale: 'ja-jp',
+      pathname,
+    })
+  })
+
   it.each(['EN', 'JA-JP'])(
     'should be able to redirect locale casing $1',
     async (locale) => {
