@@ -748,11 +748,9 @@ async function startWatcher(opts: SetupOpts) {
             break
           }
           case 'page-api': {
-            if (isApp) {
-              throw new Error(
-                `mis-matched route type: isApp && page for ${page}`
-              )
-            }
+            // We don't throw on ensureOpts.isApp === true here
+            // since this can happen when app pages make
+            // api requests to page API routes.
 
             const writtenEndpoint = await processResult(
               page,
