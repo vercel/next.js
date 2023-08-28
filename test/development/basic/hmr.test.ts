@@ -12,6 +12,7 @@ import {
 } from 'next-test-utils'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
+import { outdent } from 'outdent'
 
 describe.each([[''], ['/docs']])(
   'basic HMR, basePath: %p',
@@ -407,6 +408,98 @@ describe.each([[''], ['/docs']])(
           if (browser) {
             await browser.close()
           }
+        }
+      })
+
+      it('should recover from 404 after a page has been added with dynamic segments', async () => {
+        let browser
+        const newPage = join('pages', 'hmr', '[foo]', 'page.js')
+
+        try {
+          const start = next.cliOutput.length
+          browser = await webdriver(next.url, basePath + '/hmr/foo/page')
+
+          expect(await browser.elementByCss('body').text()).toMatch(
+            /This page could not be found/
+          )
+
+          // Add the page
+          await next.patchFile(
+            newPage,
+            'export default () => (<div id="new-page">the-new-page</div>)'
+          )
+
+          await check(() => getBrowserBodyText(browser), /the-new-page/)
+
+          await next.deleteFile(newPage)
+
+          await check(
+            () => getBrowserBodyText(browser),
+            /This page could not be found/
+          )
+
+          expect(next.cliOutput.slice(start)).toContain(
+            'compiling /hmr/[foo]/page (client and server)...'
+          )
+          expect(next.cliOutput).toContain(
+            'compiling /_error (client and server)...'
+          )
+        } catch (err) {
+          await next.deleteFile(newPage)
+          throw err
+        } finally {
+          if (browser) {
+            await browser.close()
+          }
+        }
+      })
+
+      it('should not continously poll a custom error page', async () => {
+        const errorPage = join('pages', '_error.js')
+
+        await next.patchFile(
+          errorPage,
+          outdent`
+          function Error({ statusCode, message, count }) {
+            return (
+              <div>
+                Error Message: {message}
+              </div>
+            )
+          }
+          
+          Error.getInitialProps = async ({ res, err }) => {
+            const statusCode = res ? res.statusCode : err ? err.statusCode : 404
+            console.log('getInitialProps called');
+            return {
+              statusCode,
+              message: err ? err.message : 'Oops...',
+            }
+          }
+          
+          export default Error          
+        `
+        )
+
+        const outputIndex = next.cliOutput.length
+        try {
+          // navigate to a 404 page
+          await webdriver(next.url, basePath + '/does-not-exist')
+
+          await check(
+            () => next.cliOutput.slice(outputIndex),
+            /getInitialProps called/
+          )
+
+          // wait a few seconds to ensure polling didn't happen
+          await waitFor(3000)
+
+          const logOccurrences =
+            next.cliOutput.slice(outputIndex).split('getInitialProps called')
+              .length - 1
+          expect(logOccurrences).toBe(1)
+        } finally {
+          await next.deleteFile(errorPage)
         }
       })
 

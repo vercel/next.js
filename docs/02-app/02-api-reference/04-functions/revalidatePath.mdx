@@ -3,49 +3,13 @@ title: revalidatePath
 description: API Reference for the revalidatePath function.
 ---
 
-`revalidatePath` allows you to revalidate data associated with a specific path. This is useful for scenarios where you want to update your cached data without waiting for a revalidation period to expire.
-
-```ts filename="app/api/revalidate/route.ts" switcher
-import { NextRequest, NextResponse } from 'next/server'
-import { revalidatePath } from 'next/cache'
-
-export async function GET(request: NextRequest) {
-  const path = request.nextUrl.searchParams.get('path')
-  revalidatePath(path)
-  return NextResponse.json({ revalidated: true, now: Date.now() })
-}
-```
-
-```js filename="app/api/revalidate/route.js" switcher
-import { NextResponse } from 'next/server'
-import { revalidatePath } from 'next/cache'
-
-export async function GET(request) {
-  const path = request.nextUrl.searchParams.get('path')
-  revalidatePath(path)
-  return NextResponse.json({ revalidated: true, now: Date.now() })
-}
-```
-
-<AppOnly>
+`revalidatePath` allows you to purge [cached data](/docs/app/building-your-application/caching) on-demand for a specific path.
 
 > **Good to know**:
 >
 > - `revalidatePath` is available in both [Node.js and Edge runtimes](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes).
 > - `revalidatePath` will revalidate _all segments_ under a dynamic route segment. For example, if you have a dynamic segment `/product/[id]` and you call `revalidatePath('/product/[id]')`, then all segments under `/product/[id]` will be revalidated as requested.
 > - `revalidatePath` only invalidates the cache when the path is next visited. This means calling `revalidatePath` with a dynamic route segment will not immediately trigger many revalidations at once. The invalidation only happens when the path is next visited.
-
-</AppOnly>
-
-<PagesOnly>
-
-> **Good to know**:
->
-> - `revalidatePath` is available in both [Node.js and Edge runtimes](/docs/pages/building-your-application/rendering/edge-and-nodejs-runtimes).
-> - `revalidatePath` will revalidate _all segments_ under a dynamic route segment. For example, if you have a dynamic segment `/product/[id]` and you call `revalidatePath('/product/[id]')`, then all segments under `/product/[id]` will be revalidated as requested.
-> - `revalidatePath` only invalidates the cache when the path is next visited. This means calling `revalidatePath` with a dynamic route segment will not immediately trigger many revalidations at once. The invalidation only happens when the path is next visited.
-
-</PagesOnly>
 
 ## Parameters
 
@@ -61,14 +25,27 @@ revalidatePath(path: string): void;
 
 ## Examples
 
-### Node.js Runtime
+### Server Action
+
+```ts filename="app/actions.ts" switcher
+'use server'
+
+import { revalidatePath } from 'next/cache'
+
+export default async function submit() {
+  await submitForm()
+  revalidatePath('/')
+}
+```
+
+### Route Handler
 
 ```ts filename="app/api/revalidate/route.ts" switcher
 import { NextRequest, NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 
 export async function GET(request: NextRequest) {
-  const path = request.nextUrl.searchParams.get('path') || '/'
+  const path = request.nextUrl.searchParams.get('path')
   revalidatePath(path)
   return NextResponse.json({ revalidated: true, now: Date.now() })
 }
@@ -79,35 +56,7 @@ import { NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 
 export async function GET(request) {
-  const path = request.nextUrl.searchParams.get('path') || '/'
-  revalidatePath(path)
-  return NextResponse.json({ revalidated: true, now: Date.now() })
-}
-```
-
-### Edge Runtime
-
-```ts filename="app/api/revalidate/route.ts" switcher
-import { NextRequest, NextResponse } from 'next/server'
-import { revalidatePath } from 'next/cache'
-
-export const runtime = 'edge'
-
-export async function GET(request: NextRequest) {
-  const path = request.nextUrl.searchParams.get('path') || '/'
-  revalidatePath(path)
-  return NextResponse.json({ revalidated: true, now: Date.now() })
-}
-```
-
-```js filename="app/api/revalidate/route.js" switcher
-import { NextResponse } from 'next/server'
-import { revalidatePath } from 'next/cache'
-
-export const runtime = 'edge'
-
-export async function GET(request) {
-  const path = request.nextUrl.searchParams.get('path') || '/'
+  const path = request.nextUrl.searchParams.get('path')
   revalidatePath(path)
   return NextResponse.json({ revalidated: true, now: Date.now() })
 }

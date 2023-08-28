@@ -38,15 +38,14 @@ import { signalFromNodeResponse } from '../web/spec-extension/adapters/next-requ
 
 const debug = setupDebug('next:router-server:main')
 
-export type RenderWorker = InstanceType<
-  typeof import('next/dist/compiled/jest-worker').Worker
-> & {
-  initialize: typeof import('./render-server').initialize
-  deleteCache: typeof import('./render-server').deleteCache
-  deleteAppClientCache: typeof import('./render-server').deleteAppClientCache
-  clearModuleContext: typeof import('./render-server').clearModuleContext
-  propagateServerField: typeof import('./render-server').propagateServerField
-}
+export type RenderWorker = Pick<
+  typeof import('./render-server'),
+  | 'initialize'
+  | 'deleteCache'
+  | 'clearModuleContext'
+  | 'deleteAppClientCache'
+  | 'propagateServerField'
+>
 
 export interface RenderWorkers {
   app?: Awaited<ReturnType<typeof createWorker>>
@@ -129,7 +128,9 @@ export async function initialize(opts: {
   const { ipcPort, ipcValidationKey } = await createIpcServer({
     async ensurePage(
       match: Parameters<
-        InstanceType<typeof import('../dev/hot-reloader').default>['ensurePage']
+        InstanceType<
+          typeof import('../dev/hot-reloader-webpack').default
+        >['ensurePage']
       >[0]
     ) {
       // TODO: remove after ensure is pulled out of server
@@ -185,16 +186,18 @@ export async function initialize(opts: {
     },
   } as any)
 
-  const { initialEnv } = require('@next/env') as typeof import('@next/env')
+  // Set global environment variables for the app render server to use.
+  process.env.__NEXT_PRIVATE_ROUTER_IPC_PORT = ipcPort + ''
+  process.env.__NEXT_PRIVATE_ROUTER_IPC_KEY = ipcValidationKey
+  process.env.__NEXT_PRIVATE_PREBUNDLED_REACT = config.experimental
+    .serverActions
+    ? 'experimental'
+    : 'next'
 
-  renderWorkers.app = await createWorker(
-    ipcPort,
-    ipcValidationKey,
-    opts.isNodeDebugging,
-    'app',
-    config,
-    initialEnv
-  )
+  renderWorkers.app =
+    require('./render-server') as typeof import('./render-server')
+
+  const { initialEnv } = require('@next/env') as typeof import('@next/env')
   renderWorkers.pages = await createWorker(
     ipcPort,
     ipcValidationKey,
@@ -272,10 +275,16 @@ export async function initialize(opts: {
     }
   }
 
+  const logError = async (
+    type: 'uncaughtException' | 'unhandledRejection',
+    err: Error | undefined
+  ) => {
+    await devInstance?.logErrorWithOriginalStack(err, type)
+  }
+
   const cleanup = () => {
     debug('router-server process cleanup')
     for (const curWorker of [
-      ...((renderWorkers.app as any)?._workerPool?._workers || []),
       ...((renderWorkers.pages as any)?._workerPool?._workers || []),
     ] as {
       _child?: import('child_process').ChildProcess
@@ -290,8 +299,8 @@ export async function initialize(opts: {
   process.on('exit', cleanup)
   process.on('SIGINT', cleanup)
   process.on('SIGTERM', cleanup)
-  process.on('uncaughtException', cleanup)
-  process.on('unhandledRejection', cleanup)
+  process.on('uncaughtException', logError.bind(null, 'uncaughtException'))
+  process.on('unhandledRejection', logError.bind(null, 'unhandledRejection'))
 
   const resolveRoutes = getResolveRoutes(
     fsChecker,
@@ -302,7 +311,7 @@ export async function initialize(opts: {
     devInstance?.ensureMiddleware
   )
 
-  const requestHandler: WorkerRequestHandler = async (req, res) => {
+  const requestHandlerImpl: WorkerRequestHandler = async (req, res) => {
     if (compress) {
       // @ts-expect-error not express req/res
       compress(req, res, () => {})
@@ -314,7 +323,7 @@ export async function initialize(opts: {
       // TODO: log socket errors?
     })
 
-    const matchedDynamicRoutes = new Set<string>()
+    const invokedOutputs = new Set<string>()
 
     async function invokeRender(
       parsedUrl: NextUrlWithParsedQuery,
@@ -469,12 +478,12 @@ export async function initialize(opts: {
         resHeaders,
         bodyStream,
         matchedOutput,
-      } = await resolveRoutes(
+      } = await resolveRoutes({
         req,
-        matchedDynamicRoutes,
-        false,
-        signalFromNodeResponse(res)
-      )
+        isUpgradeReq: false,
+        signal: signalFromNodeResponse(res),
+        invokedOutputs,
+      })
 
       if (devInstance && matchedOutput?.type === 'devVirtualFsItem') {
         const origUrl = req.url || '/'
@@ -651,6 +660,8 @@ export async function initialize(opts: {
       }
 
       if (matchedOutput) {
+        invokedOutputs.add(matchedOutput.itemPath)
+
         return await invokeRender(
           parsedUrl,
           matchedOutput.type === 'appFile' ? 'app' : 'pages',
@@ -718,6 +729,17 @@ export async function initialize(opts: {
     }
   }
 
+  let requestHandler: WorkerRequestHandler = requestHandlerImpl
+  if (opts.experimentalTestProxy) {
+    // Intercept fetch and other testmode apis.
+    const {
+      wrapRequestHandlerWorker,
+      interceptTestApis,
+    } = require('../../experimental/testmode/server')
+    requestHandler = wrapRequestHandlerWorker(requestHandler)
+    interceptTestApis()
+  }
+
   const upgradeHandler: WorkerUpgradeHandler = async (req, socket, head) => {
     try {
       req.on('error', (_err) => {
@@ -735,12 +757,11 @@ export async function initialize(opts: {
         }
       }
 
-      const { matchedOutput, parsedUrl } = await resolveRoutes(
+      const { matchedOutput, parsedUrl } = await resolveRoutes({
         req,
-        new Set(),
-        true,
-        signalFromNodeResponse(socket)
-      )
+        isUpgradeReq: true,
+        signal: signalFromNodeResponse(socket),
+      })
 
       // TODO: allow upgrade requests to pages/app paths?
       // this was not previously supported
