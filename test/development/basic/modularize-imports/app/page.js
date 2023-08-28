@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect } from 'react'
 import {
   IceCream,
   BackpackIcon,
@@ -22,10 +23,21 @@ import {
   LucideEdit3,
   TextSelection,
 } from 'lucide-react'
-
 import { Tab, RadioGroup, Transition } from '@headlessui/react'
+import {
+  createUpdateEffect,
+  clearCache,
+  useResponsive,
+  configResponsive,
+} from 'ahooks'
+
+clearCache()
+configResponsive({})
 
 export default function Page() {
+  createUpdateEffect(useEffect)
+  useResponsive()
+
   return (
     <>
       <IceCream />

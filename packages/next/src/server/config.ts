@@ -713,6 +713,12 @@ function assignDefaults(
       transform: {
         createUpdateEffect:
           'modularize-import-loader?name=createUpdateEffect&from=named&as=default!ahooks/es/createUpdateEffect',
+        clearCache:
+          'modularize-import-loader?name=clearCache&from=named&as=default!ahooks/es/useRequest',
+        useResponsive:
+          'modularize-import-loader?name=useResponsive&from=named&as=default!ahooks/es/useResponsive',
+        configResponsive:
+          'modularize-import-loader?name=configResponsive&from=named&as=default!ahooks/es/useResponsive',
         '*': 'ahooks/es/{{member}}',
       },
     },
