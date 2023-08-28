@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     revalidated: false,
     now: Date.now(),
-    message: "Missing 'path'",
+    message: 'Missing path to revalidate',
   });
 }
 ```
