@@ -92,12 +92,17 @@ export function getResolveRoutes(
     ...(opts.minimalMode ? [] : fsChecker.rewrites.fallback),
   ]
 
-  async function resolveRoutes(
-    req: IncomingMessage,
-    matchedDynamicRoutes: Set<string>,
-    isUpgradeReq: boolean,
+  async function resolveRoutes({
+    req,
+    isUpgradeReq,
+    signal,
+    invokedOutputs,
+  }: {
+    req: IncomingMessage
+    isUpgradeReq: boolean
     signal: AbortSignal
-  ): Promise<{
+    invokedOutputs?: Set<string>
+  }): Promise<{
     finished: boolean
     statusCode?: number
     bodyStream?: ReadableStream | null
@@ -223,18 +228,22 @@ export function getResolveRoutes(
     }
 
     async function checkTrue() {
-      if (checkLocaleApi(parsedUrl.pathname || '')) {
+      const pathname = parsedUrl.pathname || ''
+
+      if (checkLocaleApi(pathname)) {
         return
       }
-      const output = await fsChecker.getItem(parsedUrl.pathname || '')
+      if (!invokedOutputs?.has(pathname)) {
+        const output = await fsChecker.getItem(pathname)
 
-      if (output) {
-        if (
-          config.useFileSystemPublicRoutes ||
-          didRewrite ||
-          (output.type !== 'appFile' && output.type !== 'pageFile')
-        ) {
-          return output
+        if (output) {
+          if (
+            config.useFileSystemPublicRoutes ||
+            didRewrite ||
+            (output.type !== 'appFile' && output.type !== 'pageFile')
+          ) {
+            return output
+          }
         }
       }
       const dynamicRoutes = fsChecker.getDynamicRoutes()
@@ -249,12 +258,12 @@ export function getResolveRoutes(
       const localeResult = fsChecker.handleLocale(curPathname || '')
 
       for (const route of dynamicRoutes) {
-        // when resolving fallback: false we attempt to
+        // when resolving fallback: false the
         // render worker may return a no-fallback response
         // which signals we need to continue resolving.
         // TODO: optimize this to collect static paths
         // to use at the routing layer
-        if (matchedDynamicRoutes.has(route.page)) {
+        if (invokedOutputs?.has(route.page)) {
           continue
         }
         const params = route.match(localeResult.pathname)
@@ -275,7 +284,6 @@ export function getResolveRoutes(
           if (pageOutput && curPathname?.startsWith('/_next/data')) {
             parsedUrl.query.__nextDataReq = '1'
           }
-          matchedDynamicRoutes.add(route.page)
 
           if (config.useFileSystemPublicRoutes || didRewrite) {
             return pageOutput
@@ -381,17 +389,19 @@ export function getResolveRoutes(
         }
 
         if (route.name === 'check_fs') {
-          if (checkLocaleApi(parsedUrl.pathname || '')) {
+          const pathname = parsedUrl.pathname || ''
+
+          if (invokedOutputs?.has(pathname) || checkLocaleApi(pathname)) {
             return
           }
-          const output = await fsChecker.getItem(parsedUrl.pathname || '')
+          const output = await fsChecker.getItem(pathname)
 
           if (
             output &&
             !(
               config.i18n &&
               initialLocaleResult?.detectedLocale &&
-              pathHasPrefix(parsedUrl.pathname || '', '/api')
+              pathHasPrefix(pathname, '/api')
             )
           ) {
             if (

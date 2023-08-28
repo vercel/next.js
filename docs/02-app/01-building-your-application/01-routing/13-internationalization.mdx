@@ -127,7 +127,7 @@ export default async function Page({ params: { lang } }) {
 }
 ```
 
-Because all layouts and pages in the `app/` directory default to [Server Components](/docs/getting-started/react-essentials#server-components), we do not need to worry about the size of the translation files affecting our client-side JavaScript bundle size. This code will **only run on the server**, and only the resulting HTML will be sent to the browser.
+Because all layouts and pages in the `app/` directory default to [Server Components](/docs/app/building-your-application/rendering/server-components), we do not need to worry about the size of the translation files affecting our client-side JavaScript bundle size. This code will **only run on the server**, and only the resulting HTML will be sent to the browser.
 
 ## Static Generation
 
@@ -147,8 +147,9 @@ export default function Root({ children, params }) {
 }
 ```
 
-## Examples
+## Resources
 
 - [Minimal i18n routing and translations](https://github.com/vercel/next.js/tree/canary/examples/app-dir-i18n-routing)
-- [next-intl](https://next-intl-docs.vercel.app/docs/next-13)
-- [next-international](https://github.com/QuiiBz/next-international)
+- [`next-intl`](https://next-intl-docs.vercel.app/docs/next-13)
+- [`next-international`](https://github.com/QuiiBz/next-international)
+- [`next-i18n-router`](https://github.com/i18nexus/next-i18n-router)

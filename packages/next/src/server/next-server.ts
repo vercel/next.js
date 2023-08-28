@@ -1015,7 +1015,7 @@ export default class NextNodeServer extends BaseServer {
           const { formatServerError } =
             require('../lib/format-server-error') as typeof import('../lib/format-server-error')
           formatServerError(err)
-          await (this as any).logErrorWithOriginalStack(err)
+          await this.logErrorWithOriginalStack(err)
         } else {
           this.logError(err)
         }
@@ -1028,6 +1028,22 @@ export default class NextNodeServer extends BaseServer {
 
       throw err
     }
+  }
+
+  // Used in development only, overloaded in next-dev-server
+  protected async logErrorWithOriginalStack(..._args: any[]): Promise<void> {
+    throw new Error(
+      'logErrorWithOriginalStack can only be called on the development server'
+    )
+  }
+  // Used in development only, overloaded in next-dev-server
+  protected async ensurePage(_opts: {
+    page: string
+    clientOnly: boolean
+    appPaths?: string[] | null
+    match?: RouteMatch
+  }): Promise<void> {
+    throw new Error('ensurePage can only be called on the development server')
   }
 
   /**
@@ -1043,6 +1059,12 @@ export default class NextNodeServer extends BaseServer {
     match: PagesAPIRouteMatch
   ): Promise<boolean> {
     return this.runApi(req, res, query, match)
+  }
+
+  protected async getPrefetchRsc(pathname: string) {
+    return this.getCacheFilesystem()
+      .readFile(join(this.serverDistDir, 'app', `${pathname}.prefetch.rsc`))
+      .then((res) => res.toString())
   }
 
   protected getCacheFilesystem(): CacheFs {
@@ -1294,12 +1316,10 @@ export default class NextNodeServer extends BaseServer {
         : '/_not-found'
 
       if (this.renderOpts.dev) {
-        await (this as any)
-          .ensurePage({
-            page: notFoundPathname,
-            clientOnly: false,
-          })
-          .catch(() => {})
+        await this.ensurePage({
+          page: notFoundPathname,
+          clientOnly: false,
+        }).catch(() => {})
       }
 
       if (this.getEdgeFunctionsPages().includes(notFoundPathname)) {
@@ -1850,8 +1870,10 @@ export default class NextNodeServer extends BaseServer {
         getRequestMeta(params.req, '_nextIncrementalCache'),
     })
 
-    params.res.statusCode = result.response.status
-    params.res.statusMessage = result.response.statusText
+    if (!params.res.statusCode || params.res.statusCode < 400) {
+      params.res.statusCode = result.response.status
+      params.res.statusMessage = result.response.statusText
+    }
 
     // TODO: (wyattjoh) investigate improving this
 

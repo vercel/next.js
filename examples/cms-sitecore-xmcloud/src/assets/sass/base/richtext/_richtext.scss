@@ -1,0 +1,101 @@
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  color: $text-heading-color;
+}
+h1,
+h2 {
+  margin: $small-margin 0;
+}
+h3,
+h4,
+p {
+  margin: $extrasmall-margin 0;
+}
+h5,
+h6 {
+  margin: $extrasmall-margin 0 0;
+}
+strong {
+  font-weight: 700;
+}
+ul,
+ol {
+  padding-bottom: $extrasmall-margin;
+  padding-top: $extrasmall-margin;
+  margin-left: $small-margin;
+}
+li {
+  font-size: $font-normal;
+  margin-left: 15px;
+}
+ul {
+  li {
+    list-style: disc;
+    list-style-position: inside;
+  }
+}
+ol {
+  li {
+    list-style: decimal;
+    list-style-position: inside;
+  }
+}
+a {
+  color: $rich-content-link-color;
+  text-decoration: underline;
+  font-size: 1em;
+  &:hover {
+    color: $rich-content-link-color-active;
+  }
+}
+table {
+  height: auto !important;
+  border: 2px solid $border-gray;
+  &,
+  tr,
+  th,
+  td {
+    border: solid 2px $border-gray;
+    background: $bg-basic-color;
+    border-collapse: collapse;
+    vertical-align: middle;
+  }
+  tr,
+  th,
+  td {
+    padding: 5px;
+  }
+  caption {
+    background-color: $bg-light-gray;
+    overflow: hidden;
+    padding: 10px;
+    font-size: $font-big;
+    font-weight: bold;
+    margin-left: 0;
+  }
+  tr {
+    border: none;
+  }
+  th,
+  td {
+    border-width: 2px 0 0 2px;
+  }
+  th {
+    background-color: lighten($bg-light-gray, 5%);
+    font-size: $font-normal;
+    font-weight: bold;
+    padding: 7px;
+    &:first-child {
+      border-left: 0;
+    }
+  }
+  td {
+    &:first-child {
+      border-left: 0;
+    }
+  }
+}
