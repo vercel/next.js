@@ -244,9 +244,6 @@ export default class DevServer extends Server {
       // don't care about.
       const fileReader = new BatchedFileReader(
         new DefaultFileReader({
-          // Only allow files that have the correct extensions.
-          pathnameFilter: (pathname) => extensionsExpression.test(pathname),
-
           // Ignore any directory prefixed with an underscore.
           ignorePartFilter: (part) => part.startsWith('_'),
         })
