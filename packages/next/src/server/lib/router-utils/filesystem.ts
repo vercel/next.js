@@ -5,7 +5,6 @@ import type { MiddlewareManifest } from '../../../build/webpack/plugins/middlewa
 import path from 'path'
 import fs from 'fs/promises'
 import * as Log from '../../../build/output/log'
-import setupDebug from 'next/dist/compiled/debug'
 import LRUCache from 'next/dist/compiled/lru-cache'
 import loadCustomRoutes from '../../../lib/load-custom-routes'
 import { modifyRouteRegex } from '../../../lib/redirect-status'
@@ -35,24 +34,36 @@ import {
   ROUTES_MANIFEST,
 } from '../../../shared/lib/constants'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
+import { findPagesDir } from '../../../lib/find-pages-dir'
+import { collectRoutesFromFiles } from './setup-dev'
+import { FallbackMode } from '../../base-server'
+import { isEdgeRuntime } from '../../../lib/is-edge-runtime'
+import { removeTrailingSlash } from '../../../shared/lib/router/utils/remove-trailing-slash'
+import {
+  getPageFromPath,
+  getStaticInfoIncludingLayouts,
+} from '../../../build/entries'
 
 export type FsOutput = {
   type:
     | 'appFile'
     | 'pageFile'
     | 'nextImage'
+    | 'middleware'
     | 'publicFolder'
     | 'nextStaticFolder'
     | 'legacyStaticFolder'
     | 'devVirtualFsItem'
 
-  itemPath: string
   fsPath?: string
-  itemsRoot?: string
   locale?: string
+  itemPath: string
+  itemsRoot?: string
+  appPaths?: string[]
+  fromStaticPaths?: boolean
+  runtime?: 'edge' | 'nodejs'
+  fallbackMode?: 'blocking' | 'static'
 }
-
-const debug = setupDebug('next:router-server:filesystem')
 
 export const buildCustomRoute = <T>(
   type: 'redirect' | 'header' | 'rewrite' | 'before_files_rewrite',
@@ -91,18 +102,20 @@ export async function setupFsCheck(opts: {
     arg: (files: Map<string, { timestamp: number }>) => void
   ) => void
 }) {
-  const getItemsLru = new LRUCache<string, FsOutput | null>({
-    max: 1024 * 1024,
-    length(value, key) {
-      if (!value) return key?.length || 0
-      return (
-        (key || '').length +
-        (value.fsPath || '').length +
-        value.itemPath.length +
-        value.type.length
-      )
-    },
-  })
+  const getItemsLru = opts.dev
+    ? undefined
+    : new LRUCache<string, FsOutput | null>({
+        max: 1024 * 1024,
+        length(value, key) {
+          if (!value) return key?.length || 0
+          return (
+            (key || '').length +
+            (value.fsPath || '').length +
+            value.itemPath.length +
+            value.type.length
+          )
+        },
+      })
 
   // routes that have _next/data endpoints (SSG/SSP)
   const nextDataRoutes = new Set<string>()
@@ -112,6 +125,13 @@ export async function setupFsCheck(opts: {
 
   const appFiles = new Set<string>()
   const pageFiles = new Set<string>()
+  const staticPathsMap = new Map<
+    string,
+    {
+      paths: string[]
+      fallback: FallbackMode
+    }
+  >()
   let dynamicRoutes: (RoutesManifest['dynamicRoutes'][0] & {
     match: ReturnType<typeof getPathMatch>
   })[] = []
@@ -135,6 +155,7 @@ export async function setupFsCheck(opts: {
   }
   let buildId = 'development'
   let prerenderManifest: PrerenderManifest
+  let middlewareManifest: MiddlewareManifest | undefined
 
   if (!opts.dev) {
     const buildIdPath = path.join(opts.dir, opts.config.distDir, BUILD_ID_FILE)
@@ -203,7 +224,7 @@ export async function setupFsCheck(opts: {
       await fs.readFile(prerenderManifestPath, 'utf8')
     ) as PrerenderManifest
 
-    const middlewareManifest = JSON.parse(
+    middlewareManifest = JSON.parse(
       await fs.readFile(middlewareManifestPath, 'utf8').catch(() => '{}')
     ) as MiddlewareManifest
 
@@ -213,6 +234,39 @@ export async function setupFsCheck(opts: {
     const appRoutesManifest = JSON.parse(
       await fs.readFile(appRoutesManifestPath, 'utf8').catch(() => '{}')
     )
+
+    const normalizedFallback = (fallback: string | boolean | null) =>
+      typeof fallback === 'string'
+        ? 'static'
+        : fallback === false
+        ? false
+        : 'blocking'
+
+    for (const route of Object.keys(prerenderManifest.routes)) {
+      const entry = prerenderManifest.routes[route]
+
+      if (!entry.srcRoute) continue
+      const paths = staticPathsMap.get(entry.srcRoute)?.paths || []
+      paths.push(route)
+
+      const fallback = prerenderManifest.dynamicRoutes[entry.srcRoute]?.fallback
+
+      staticPathsMap.set(entry.srcRoute, {
+        fallback: normalizedFallback(fallback),
+        paths,
+      })
+    }
+
+    for (const route of Object.keys(prerenderManifest.dynamicRoutes)) {
+      if (!staticPathsMap.has(route)) {
+        staticPathsMap.set(route, {
+          fallback: normalizedFallback(
+            prerenderManifest.dynamicRoutes[route].fallback
+          ),
+          paths: [],
+        })
+      }
+    }
 
     for (const key of Object.keys(pagesManifest)) {
       // ensure the non-locale version is in the set
@@ -355,13 +409,6 @@ export async function setupFsCheck(opts: {
     return { locale, pathname }
   }
 
-  debug('nextDataRoutes', nextDataRoutes)
-  debug('dynamicRoutes', dynamicRoutes)
-  debug('pageFiles', pageFiles)
-  debug('appFiles', appFiles)
-
-  let ensureFn: (item: FsOutput) => Promise<void> | undefined
-
   return {
     headers,
     rewrites,
@@ -384,14 +431,21 @@ export async function setupFsCheck(opts: {
     prerenderManifest,
     middlewareMatcher: middlewareMatcher as MiddlewareRouteMatch | undefined,
 
-    ensureCallback(fn: typeof ensureFn) {
-      ensureFn = fn
-    },
+    ensurePage(
+      ..._args: Parameters<
+        InstanceType<
+          typeof import('../../dev/hot-reloader-webpack').default
+        >['ensurePage']
+      >
+    ) {},
 
-    async getItem(itemPath: string): Promise<FsOutput | null> {
+    async getItem(
+      itemPath: string,
+      urlPathname?: string
+    ): Promise<FsOutput | null> {
       const originalItemPath = itemPath
-      const itemKey = originalItemPath
-      const lruResult = getItemsLru.get(itemKey)
+      const itemKey = originalItemPath + urlPathname
+      const lruResult = getItemsLru?.get(itemKey)
 
       if (lruResult) {
         return lruResult
@@ -436,12 +490,83 @@ export async function setupFsCheck(opts: {
         [pageFiles, 'pageFile'],
       ]
 
+      let collectedRoutePaths = false
+      let appDir: string | undefined = undefined
+      let pagesDir: string | undefined = undefined
+      let appPaths: Record<string, string[]> = {}
+      let filepathsMap = new Map<string, string>()
+
       for (let [items, type] of itemsToCheck) {
         let locale: string | undefined
         let curItemPath = itemPath
         let curDecodedItemPath = decodedItemPath
 
         const isDynamicOutput = type === 'pageFile' || type === 'appFile'
+
+        if (opts.dev && !collectedRoutePaths && isDynamicOutput) {
+          const dirsResult = findPagesDir(
+            opts.dir,
+            !!opts.config.experimental.appDir
+          )
+          appDir = dirsResult.appDir
+          pagesDir = dirsResult.pagesDir
+          const combinedFilepaths: string[] = []
+
+          if (dirsResult.pagesDir) {
+            const pageFilepaths = await recursiveReadDir(
+              dirsResult.pagesDir,
+              (filepath: string) => {
+                return opts.config.pageExtensions.includes(
+                  path.extname(filepath).substring(1)
+                )
+              }
+            )
+            combinedFilepaths.push(
+              ...pageFilepaths.map((item) =>
+                path.join(dirsResult.pagesDir || '', item)
+              )
+            )
+          }
+
+          if (dirsResult.appDir) {
+            const appFilepaths = await recursiveReadDir(
+              dirsResult.appDir,
+              (filepath: string) => {
+                const ext = path.extname(filepath)
+                const base = path.basename(filepath)
+
+                return (
+                  opts.config.pageExtensions.includes(ext.substring(1)) &&
+                  (base === `route${ext}` || base === `page${ext}`)
+                )
+              }
+            )
+            combinedFilepaths.push(
+              ...appFilepaths.map((item) =>
+                path.join(dirsResult.appDir || '', item)
+              )
+            )
+          }
+          appFiles.clear()
+          pageFiles.clear()
+          const routesResult = collectRoutesFromFiles({
+            appDir: dirsResult.appDir,
+            pagesDir: dirsResult.pagesDir,
+            filepaths: combinedFilepaths,
+            nextConfig: opts.config,
+            fsChecker: this,
+          })
+          appPaths = routesResult.appPaths
+
+          for (const [route, filepath] of routesResult.appFiles) {
+            appFiles.add(route)
+            filepathsMap.set(route, filepath)
+          }
+          for (const [route, filepath] of routesResult.pageFiles) {
+            pageFiles.add(route)
+            filepathsMap.set(route, filepath)
+          }
+        }
 
         if (i18n) {
           const localeResult = handleLocale(
@@ -569,16 +694,6 @@ export async function setupFsCheck(opts: {
                   continue
                 }
               }
-            } else if (type === 'pageFile' || type === 'appFile') {
-              if (
-                ensureFn &&
-                (await ensureFn({
-                  type,
-                  itemPath: curItemPath,
-                })?.catch(() => 'ENSURE_FAILED')) === 'ENSURE_FAILED'
-              ) {
-                continue
-              }
             } else {
               continue
             }
@@ -588,25 +703,132 @@ export async function setupFsCheck(opts: {
           if (type === 'appFile' && locale && locale !== i18n?.defaultLocale) {
             continue
           }
+          let fromStaticPaths = false
+          let matchedItemPath = curItemPath
+          let runtime: 'edge' | 'nodejs' | undefined = undefined
+          let fallbackMode: 'blocking' | 'static' | undefined = undefined
+          let staticInfo:
+            | UnwrapPromise<ReturnType<typeof getStaticInfoIncludingLayouts>>
+            | undefined = undefined
+
+          if (opts.dev) {
+            const pageFilePath = filepathsMap.get(curItemPath)
+
+            if (pageFilePath) {
+              matchedItemPath = path.relative(
+                (type === 'pageFile' ? pagesDir : appDir) || '',
+                pageFilePath
+              )
+              matchedItemPath = getPageFromPath(
+                matchedItemPath,
+                opts.config.pageExtensions
+              )
+
+              staticInfo = await getStaticInfoIncludingLayouts({
+                isInsideAppDir: type === 'appFile',
+                pageExtensions: opts.config.pageExtensions,
+                pageFilePath,
+                appDir,
+                config: opts.config,
+                isDev: opts.dev,
+                page: curItemPath,
+              })
+            }
+          }
+
+          if (isDynamicRoute(curItemPath)) {
+            if (urlPathname) {
+              let pathsResult: ReturnType<(typeof staticPathsMap)['get']>
+
+              if (
+                opts.dev &&
+                ((type === 'pageFile' && staticInfo?.ssg) ||
+                  (type === 'appFile' && staticInfo?.generateStaticParams))
+              ) {
+                const { getStaticPaths } =
+                  require('./dev-static-paths') as typeof import('./dev-static-paths')
+
+                await this.ensurePage({
+                  page: matchedItemPath,
+                  clientOnly: false,
+                  appPaths: appPaths[curItemPath],
+                })
+                pathsResult = await getStaticPaths({
+                  staticPathsCache: staticPathsMap,
+                  nextConfig: opts.config,
+                  pathname: curItemPath,
+                  distDir: path.join(opts.dir, opts.config.distDir),
+                })
+              } else {
+                pathsResult = staticPathsMap.get(curItemPath)
+              }
+              if (urlPathname.startsWith(nextDataPrefix)) {
+                // remove _next/data/<build-id> prefix
+                urlPathname = urlPathname.substring(nextDataPrefix.length - 1)
+
+                // remove .json postfix
+                urlPathname = urlPathname.substring(
+                  0,
+                  urlPathname.length - '.json'.length
+                )
+              }
+              urlPathname = removeTrailingSlash(urlPathname)
+              fromStaticPaths =
+                !!pathsResult?.paths.includes(urlPathname) ||
+                !!pathsResult?.paths.includes(decodeURI(urlPathname))
+
+              if (pathsResult?.fallback === false && !fromStaticPaths) {
+                continue
+              }
+
+              if (pathsResult?.fallback !== false) {
+                fallbackMode = pathsResult?.fallback
+              }
+            } else {
+              // we only match dynamic output while checking
+              // dynamic routes
+              continue
+            }
+          }
+
+          if (isDynamicOutput) {
+            if (opts.dev) {
+              runtime = isEdgeRuntime(staticInfo?.runtime) ? 'edge' : 'nodejs'
+            } else if (middlewareManifest) {
+              const entries =
+                type === 'pageFile'
+                  ? [curItemPath]
+                  : ['page', 'route'].map((item) =>
+                      path.posix.join(curItemPath, item)
+                    )
+
+              for (const item of entries) {
+                if (middlewareManifest.functions[item]) {
+                  runtime = 'edge'
+                  break
+                }
+              }
+            }
+          }
 
           const itemResult = {
             type,
             fsPath,
             locale,
+            runtime,
             itemsRoot,
-            itemPath: curItemPath,
+            fallbackMode,
+            fromStaticPaths,
+            itemPath: matchedItemPath,
+            appPaths: appPaths[curItemPath],
           }
 
-          if (!opts.dev) {
-            getItemsLru.set(itemKey, itemResult)
-          }
+          getItemsLru?.set(itemKey, itemResult)
           return itemResult
         }
       }
 
-      if (!opts.dev) {
-        getItemsLru.set(itemKey, null)
-      }
+      getItemsLru?.set(itemKey, null)
       return null
     },
     getDynamicRoutes() {

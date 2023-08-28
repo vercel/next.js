@@ -40,17 +40,6 @@ type PagesAPIRouteHandlerContext = RouteModuleHandleContext & {
   res?: ServerResponse
 
   /**
-   * The revalidate method used by the `revalidate` API.
-   *
-   * @param config the configuration for the revalidation
-   */
-  revalidate: (config: {
-    urlPath: string
-    revalidateHeaders: { [key: string]: string | string[] }
-    opts: { unstable_onlyGenerated?: boolean }
-  }) => Promise<void>
-
-  /**
    * The hostname for the request.
    */
   hostname?: string
@@ -118,7 +107,6 @@ export class PagesAPIRouteModule extends RouteModule<
       this.userland,
       {
         ...context.previewProps,
-        revalidate: context.revalidate,
         trustHostHeader: context.trustHostHeader,
         allowedRevalidateHeaderKeys: context.allowedRevalidateHeaderKeys,
         hostname: context.hostname,

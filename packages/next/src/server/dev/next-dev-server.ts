@@ -3,22 +3,16 @@ import type { FindComponentsResult } from '../next-server'
 import type { LoadComponentsReturnType } from '../load-components'
 import type { Options as ServerOptions } from '../next-server'
 import type { Params } from '../../shared/lib/router/utils/route-matcher'
-import type { ParsedUrl } from '../../shared/lib/router/utils/parse-url'
 import type { ParsedUrlQuery } from 'querystring'
 import type { UrlWithParsedQuery } from 'url'
 import type { BaseNextRequest, BaseNextResponse } from '../base-http'
-import type { FallbackMode, MiddlewareRoutingItem } from '../base-server'
+import type { MiddlewareRoutingItem } from '../base-server'
 import type { FunctionComponent } from 'react'
 import type { RouteMatch } from '../future/route-matches/route-match'
 
-import { Worker } from 'next/dist/compiled/jest-worker'
 import { join as pathJoin } from 'path'
 import { ampValidation } from '../../build/output'
-import {
-  INSTRUMENTATION_HOOK_FILENAME,
-  PUBLIC_DIR_MIDDLEWARE_CONFLICT,
-} from '../../lib/constants'
-import { fileExists } from '../../lib/file-exists'
+import { INSTRUMENTATION_HOOK_FILENAME } from '../../lib/constants'
 import { findPagesDir } from '../../lib/find-pages-dir'
 import {
   PHASE_DEVELOPMENT_SERVER,
@@ -32,14 +26,7 @@ import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-pref
 import { Telemetry } from '../../telemetry/storage'
 import { setGlobal } from '../../trace'
 import { findPageFile } from '../lib/find-page-file'
-import { getNodeOptionsWithoutInspect } from '../lib/utils'
-import {
-  UnwrapPromise,
-  withCoalescedInvoke,
-} from '../../lib/coalesced-function'
 import { loadDefaultErrorComponents } from '../load-components'
-import { DecodeError, MiddlewareNotFoundError } from '../../shared/lib/utils'
-import * as Log from '../../build/output/log'
 import isError, { getProperError } from '../../lib/is-error'
 import { NodeNextResponse, NodeNextRequest } from '../base-http/node'
 import { isMiddlewareFile } from '../../build/utils'
@@ -57,8 +44,6 @@ import { NodeManifestLoader } from '../future/route-matcher-providers/helpers/ma
 import { CachedFileReader } from '../future/route-matcher-providers/dev/helpers/file-reader/cached-file-reader'
 import { DefaultFileReader } from '../future/route-matcher-providers/dev/helpers/file-reader/default-file-reader'
 import { NextBuildContext } from '../../build/build-context'
-import { IncrementalCache } from '../lib/incremental-cache'
-import LRUCache from 'next/dist/compiled/lru-cache'
 import { NextUrlWithParsedQuery } from '../request-meta'
 import { errorToJSON } from '../render'
 import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
@@ -90,47 +75,9 @@ export default class DevServer extends Server {
   protected sortedRoutes?: string[]
   private pagesDir?: string
   private appDir?: string
-  private actualMiddlewareFile?: string
   private actualInstrumentationHookFile?: string
   private middleware?: MiddlewareRoutingItem
   private originalFetch: typeof fetch
-  private staticPathsCache: LRUCache<
-    string,
-    UnwrapPromise<ReturnType<DevServer['getStaticPaths']>>
-  >
-
-  protected staticPathsWorker?: { [key: string]: any } & {
-    loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
-  }
-
-  private getStaticPathsWorker(): { [key: string]: any } & {
-    loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
-  } {
-    const worker = new Worker(require.resolve('./static-paths-worker'), {
-      maxRetries: 1,
-      // For dev server, it's not necessary to spin up too many workers as long as you are not doing a load test.
-      // This helps reusing the memory a lot.
-      numWorkers: 1,
-      enableWorkerThreads: this.nextConfig.experimental.workerThreads,
-      forkOptions: {
-        env: {
-          ...process.env,
-          // discard --inspect/--inspect-brk flags from process.env.NODE_OPTIONS. Otherwise multiple Node.js debuggers
-          // would be started if user launch Next.js in debugging mode. The number of debuggers is linked to
-          // the number of workers Next.js tries to launch. The only worker users are interested in debugging
-          // is the main Next.js one
-          NODE_OPTIONS: getNodeOptionsWithoutInspect(),
-        },
-      },
-    }) as Worker & {
-      loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
-    }
-
-    worker.getStdout().pipe(process.stdout)
-    worker.getStderr().pipe(process.stderr)
-
-    return worker
-  }
 
   constructor(options: Options) {
     try {
@@ -145,13 +92,6 @@ export default class DevServer extends Server {
     ;(this.renderOpts as any).ErrorDebug = ReactDevOverlay
     this.devReady = new Promise((resolve) => {
       this.setDevReady = resolve
-    })
-    this.staticPathsCache = new LRUCache({
-      // 5MB
-      max: 5 * 1024 * 1024,
-      length(value) {
-        return JSON.stringify(value.staticPaths).length
-      },
     })
     ;(this.renderOpts as any).ampSkipValidation =
       this.nextConfig.experimental?.amp?.skipValidation ?? false
@@ -322,94 +262,6 @@ export default class DevServer extends Server {
     return Boolean(appFile || pagesFile)
   }
 
-  async runMiddleware(params: {
-    request: BaseNextRequest
-    response: BaseNextResponse
-    parsedUrl: ParsedUrl
-    parsed: UrlWithParsedQuery
-    middlewareList: MiddlewareRoutingItem[]
-  }) {
-    try {
-      const result = await super.runMiddleware({
-        ...params,
-        onWarning: (warn) => {
-          this.logErrorWithOriginalStack(warn, 'warning')
-        },
-      })
-
-      if ('finished' in result) {
-        return result
-      }
-
-      result.waitUntil.catch((error) => {
-        this.logErrorWithOriginalStack(error, 'unhandledRejection')
-      })
-      return result
-    } catch (error) {
-      if (error instanceof DecodeError) {
-        throw error
-      }
-
-      /**
-       * We only log the error when it is not a MiddlewareNotFound error as
-       * in that case we should be already displaying a compilation error
-       * which is what makes the module not found.
-       */
-      if (!(error instanceof MiddlewareNotFoundError)) {
-        this.logErrorWithOriginalStack(error)
-      }
-
-      const err = getProperError(error)
-      ;(err as any).middleware = true
-      const { request, response, parsedUrl } = params
-
-      /**
-       * When there is a failure for an internal Next.js request from
-       * middleware we bypass the error without finishing the request
-       * so we can serve the required chunks to render the error.
-       */
-      if (
-        request.url.includes('/_next/static') ||
-        request.url.includes('/__nextjs_original-stack-frame')
-      ) {
-        return { finished: false }
-      }
-
-      response.statusCode = 500
-      this.renderError(err, request, response, parsedUrl.pathname)
-      return { finished: true }
-    }
-  }
-
-  async runEdgeFunction(params: {
-    req: BaseNextRequest
-    res: BaseNextResponse
-    query: ParsedUrlQuery
-    params: Params | undefined
-    page: string
-    appPaths: string[] | null
-    isAppPath: boolean
-  }) {
-    try {
-      return super.runEdgeFunction({
-        ...params,
-        onWarning: (warn) => {
-          this.logErrorWithOriginalStack(warn, 'warning')
-        },
-      })
-    } catch (error) {
-      if (error instanceof DecodeError) {
-        throw error
-      }
-      this.logErrorWithOriginalStack(error, 'warning')
-      const err = getProperError(error)
-      const { req, res, page } = params
-      res.statusCode = 500
-      this.renderError(err, req, res, page)
-      return null
-    }
-  }
-
   public async handleRequest(
     req: BaseNextRequest,
     res: BaseNextResponse,
@@ -438,12 +290,6 @@ export default class DevServer extends Server {
     }
 
     const { pathname } = parsedUrl
-
-    if (pathname!.startsWith('/_next')) {
-      if (await fileExists(pathJoin(this.publicDir, '_next'))) {
-        throw new Error(PUBLIC_DIR_MIDDLEWARE_CONFLICT)
-      }
-    }
 
     if (originalPathname) {
       // restore the path before continuing so that custom-routes can accurately determine
@@ -532,17 +378,6 @@ export default class DevServer extends Server {
     return undefined
   }
 
-  protected async hasMiddleware(): Promise<boolean> {
-    return this.hasPage(this.actualMiddlewareFile!)
-  }
-
-  protected async ensureMiddleware() {
-    return this.ensurePage({
-      page: this.actualMiddlewareFile!,
-      clientOnly: false,
-    })
-  }
-
   private async runInstrumentationHookIfAvailable() {
     if (
       this.actualInstrumentationHookFile &&
@@ -569,33 +404,6 @@ export default class DevServer extends Server {
     }
   }
 
-  protected async ensureEdgeFunction({
-    page,
-    appPaths,
-  }: {
-    page: string
-    appPaths: string[] | null
-  }) {
-    return this.ensurePage({ page, appPaths, clientOnly: false })
-  }
-
-  generateRoutes(_dev?: boolean) {
-    // In development we expose all compiled files for react-error-overlay's line show feature
-    // We use unshift so that we're sure the routes is defined before Next's default routes
-    // routes.unshift({
-    //   match: getPathMatch('/_next/development/:path*'),
-    //   type: 'route',
-    //   name: '_next/development catchall',
-    //   fn: async (req, res, params) => {
-    //     const p = pathJoin(this.distDir, ...(params.path || []))
-    //     await this.serveStatic(req, res, p)
-    //     return {
-    //       finished: true,
-    //     }
-    //   },
-    // })
-  }
-
   _filterAmpDevelopmentScript(
     html: string,
     event: { line: number; col: number; code: string }
@@ -618,106 +426,6 @@ export default class DevServer extends Server {
     snippet = snippet.substring(0, snippet.indexOf('</script>'))
 
     return !snippet.includes('data-amp-development-mode-only')
-  }
-
-  protected async getStaticPaths({
-    pathname,
-    originalAppPath,
-    requestHeaders,
-  }: {
-    pathname: string
-    originalAppPath?: string
-    requestHeaders: IncrementalCache['requestHeaders']
-  }): Promise<{
-    staticPaths?: string[]
-    fallbackMode?: false | 'static' | 'blocking'
-  }> {
-    const isAppPath = Boolean(originalAppPath)
-    // we lazy load the staticPaths to prevent the user
-    // from waiting on them for the page to load in dev mode
-
-    const __getStaticPaths = async () => {
-      const {
-        configFileName,
-        publicRuntimeConfig,
-        serverRuntimeConfig,
-        httpAgentOptions,
-      } = this.nextConfig
-      const { locales, defaultLocale } = this.nextConfig.i18n || {}
-      const staticPathsWorker = this.getStaticPathsWorker()
-
-      try {
-        const pathsResult = await staticPathsWorker.loadStaticPaths({
-          distDir: this.distDir,
-          pathname,
-          config: {
-            configFileName,
-            publicRuntimeConfig,
-            serverRuntimeConfig,
-          },
-          httpAgentOptions,
-          locales,
-          defaultLocale,
-          originalAppPath,
-          isAppPath,
-          requestHeaders,
-          incrementalCacheHandlerPath:
-            this.nextConfig.experimental.incrementalCacheHandlerPath,
-          fetchCacheKeyPrefix: this.nextConfig.experimental.fetchCacheKeyPrefix,
-          isrFlushToDisk: this.nextConfig.experimental.isrFlushToDisk,
-          maxMemoryCacheSize: this.nextConfig.experimental.isrMemoryCacheSize,
-        })
-        return pathsResult
-      } finally {
-        // we don't re-use workers so destroy the used one
-        staticPathsWorker.end()
-      }
-    }
-    const result = this.staticPathsCache.get(pathname)
-
-    const nextInvoke = withCoalescedInvoke(__getStaticPaths)(
-      `staticPaths-${pathname}`,
-      []
-    )
-      .then((res) => {
-        const { paths: staticPaths = [], fallback } = res.value
-        if (!isAppPath && this.nextConfig.output === 'export') {
-          if (fallback === 'blocking') {
-            throw new Error(
-              'getStaticPaths with "fallback: blocking" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
-            )
-          } else if (fallback === true) {
-            throw new Error(
-              'getStaticPaths with "fallback: true" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
-            )
-          }
-        }
-        const value: {
-          staticPaths: string[]
-          fallbackMode: FallbackMode
-        } = {
-          staticPaths,
-          fallbackMode:
-            fallback === 'blocking'
-              ? 'blocking'
-              : fallback === true
-              ? 'static'
-              : fallback,
-        }
-        this.staticPathsCache.set(pathname, value)
-        return value
-      })
-      .catch((err) => {
-        this.staticPathsCache.del(pathname)
-        if (!result) throw err
-        Log.error(`Failed to generate static paths for ${pathname}:`)
-        console.error(err)
-      })
-
-    if (result) {
-      return result
-    }
-    return nextInvoke as NonNullable<typeof result>
   }
 
   private restorePatchedGlobals(): void {
@@ -749,14 +457,12 @@ export default class DevServer extends Server {
     params,
     isAppPath,
     appPaths = null,
-    shouldEnsure,
   }: {
     pathname: string
     query: ParsedUrlQuery
     params: Params
     isAppPath: boolean
     appPaths?: string[] | null
-    shouldEnsure: boolean
   }): Promise<FindComponentsResult | null> {
     await this.devReady
     const compilationErr = await this.getCompilationError(pathname)
@@ -765,13 +471,11 @@ export default class DevServer extends Server {
       throw new WrappedBuildError(compilationErr)
     }
     try {
-      if (shouldEnsure || this.renderOpts.customServer) {
-        await this.ensurePage({
-          page: pathname,
-          appPaths,
-          clientOnly: false,
-        })
-      }
+      await this.ensurePage({
+        page: pathname,
+        appPaths,
+        clientOnly: false,
+      })
 
       this.nextFontManifest = super.getNextFontManifest()
       // before we re-evaluate a route module, we want to restore globals that might

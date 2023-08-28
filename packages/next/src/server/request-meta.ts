@@ -134,7 +134,6 @@ type NextQueryMetadata = {
   __nextInferredLocaleFromDefault?: '1'
 
   __nextSsgPath?: string
-  _nextBubbleNoFallback?: '1'
   __nextDataReq?: '1'
   __nextCustomErrorRender?: '1'
   [NEXT_RSC_UNION_QUERY]?: string
@@ -149,21 +148,24 @@ export interface NextUrlWithParsedQuery extends UrlWithParsedQuery {
   query: NextParsedUrlQuery
 }
 
+export const NEXT_INTERNAL_QUERY: (keyof NextQueryMetadata)[] = [
+  '__nextNotFoundSrcPage',
+  '__nextDefaultLocale',
+  '__nextFallback',
+  '__nextLocale',
+  '__nextInferredLocaleFromDefault',
+  '__nextSsgPath',
+  '__nextDataReq',
+  '__nextCustomErrorRender',
+  NEXT_RSC_UNION_QUERY,
+]
+
 export function getNextInternalQuery(
   query: NextParsedUrlQuery
 ): NextQueryMetadata {
-  const keysToInclude: (keyof NextQueryMetadata)[] = [
-    '__nextDefaultLocale',
-    '__nextFallback',
-    '__nextLocale',
-    '__nextSsgPath',
-    '_nextBubbleNoFallback',
-    '__nextDataReq',
-    '__nextInferredLocaleFromDefault',
-  ]
   const nextInternalQuery: NextQueryMetadata = {}
 
-  for (const key of keysToInclude) {
+  for (const key of NEXT_INTERNAL_QUERY) {
     if (key in query) {
       // @ts-ignore this can't be typed correctly
       nextInternalQuery[key] = query[key]

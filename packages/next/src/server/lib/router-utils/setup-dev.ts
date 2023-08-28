@@ -124,6 +124,130 @@ async function verifyTypeScript(opts: SetupOpts) {
   return usingTypeScript
 }
 
+export function collectRoutesFromFiles({
+  appDir,
+  pagesDir,
+  filepaths,
+  nextConfig,
+  fsChecker,
+}: {
+  appDir?: string
+  pagesDir?: string
+  filepaths: string[]
+  fsChecker: UnwrapPromise<
+    ReturnType<typeof import('./filesystem').setupFsCheck>
+  >
+  nextConfig: NextConfigComplete
+}) {
+  const appPaths: Record<string, string[]> = {}
+  const appFiles = new Map<string, string>()
+  const pageFiles = new Map<string, string>()
+  devPageFiles.clear()
+
+  const validFileMatcher = createValidFileMatcher(
+    nextConfig.pageExtensions,
+    appDir
+  )
+
+  for (const filepath of filepaths) {
+    if (!validFileMatcher.isPageFile(filepath)) {
+      continue
+    }
+
+    const isAppPath = Boolean(
+      appDir &&
+        normalizePathSep(filepath).startsWith(normalizePathSep(appDir) + '/')
+    )
+    const isPagePath = Boolean(
+      pagesDir &&
+        normalizePathSep(filepath).startsWith(normalizePathSep(pagesDir) + '/')
+    )
+
+    if (!(isAppPath || isPagePath)) {
+      continue
+    }
+    // Collect all current filenames for the TS plugin to use
+    devPageFiles.add(filepath)
+
+    let pageName = absolutePathToPage(filepath, {
+      dir: isAppPath ? appDir! : pagesDir!,
+      extensions: nextConfig.pageExtensions,
+      keepIndex: isAppPath,
+      pagesType: isAppPath ? 'app' : 'pages',
+    })
+
+    if (isAppPath) {
+      if (!validFileMatcher.isAppRouterPage(filepath)) {
+        continue
+      }
+
+      // Ignore files/directories starting with `_` in the app directory
+      if (normalizePathSep(pageName).includes('/_')) {
+        continue
+      }
+      const originalPageName = pageName
+      pageName = normalizeAppPath(pageName).replace(/%5F/g, '_')
+
+      if (!appPaths[pageName]) {
+        appPaths[pageName] = []
+      }
+      appPaths[pageName].push(originalPageName)
+      appFiles.set(pageName, filepath)
+    } else {
+      pageFiles.set(pageName, filepath)
+    }
+  }
+
+  const sortedRoutes = getSortedRoutes([
+    ...appFiles.keys(),
+    ...pageFiles.keys(),
+  ])
+
+  fsChecker.dynamicRoutes = sortedRoutes
+    .map((page) => {
+      const regex = getRouteRegex(page)
+      return {
+        match: getRouteMatcher(regex),
+        page,
+        re: regex.re,
+        groups: regex.groups,
+      }
+    })
+    .filter(Boolean) as any
+
+  const dataRoutes: typeof fsChecker.dynamicRoutes = []
+
+  for (const page of sortedRoutes) {
+    const route = buildDataRoute(page, 'development')
+    const routeRegex = getRouteRegex(route.page)
+    dataRoutes.push({
+      ...route,
+      regex: routeRegex.re.toString(),
+      match: getRouteMatcher({
+        // TODO: fix this in the manifest itself, must also be fixed in
+        // upstream builder that relies on this
+        re: nextConfig.i18n
+          ? new RegExp(
+              route.dataRouteRegex.replace(
+                `/development/`,
+                `/development/(?<nextLocale>.+?)/`
+              )
+            )
+          : new RegExp(route.dataRouteRegex),
+        groups: routeRegex.groups,
+      }),
+    })
+  }
+  fsChecker.dynamicRoutes.unshift(...dataRoutes)
+
+  return {
+    appPaths,
+    appFiles,
+    pageFiles,
+    sortedRoutes,
+  }
+}
+
 async function startWatcher(opts: SetupOpts) {
   const { nextConfig, appDir, pagesDir, dir } = opts
   const { useFileSystemPublicRoutes } = nextConfig
@@ -826,6 +950,7 @@ async function startWatcher(opts: SetupOpts) {
       rewrites: opts.fsChecker.rewrites,
       previewProps: opts.fsChecker.prerenderManifest.preview,
     })
+    opts.fsChecker.ensurePage = hotReloader.ensurePage.bind(hotReloader)
   }
 
   await hotReloader.start()
@@ -836,16 +961,6 @@ async function startWatcher(opts: SetupOpts) {
       path.join(distDir, CLIENT_STATIC_FILES_PATH)
     )
   }
-
-  opts.fsChecker.ensureCallback(async function ensure(item) {
-    if (item.type === 'appFile' || item.type === 'pageFile') {
-      await hotReloader.ensurePage({
-        clientOnly: false,
-        page: item.itemPath,
-        isApp: item.type === 'appFile',
-      })
-    }
-  })
 
   let resolved = false
   let prevSortedRoutes: string[] = []
@@ -928,12 +1043,6 @@ async function startWatcher(opts: SetupOpts) {
       let conflictingPageChange = 0
       let hasRootAppNotFound = false
 
-      const { appFiles, pageFiles } = opts.fsChecker
-
-      appFiles.clear()
-      pageFiles.clear()
-      devPageFiles.clear()
-
       const sortedKnownFiles: string[] = [...knownFiles.keys()].sort(
         sortByPageExts(nextConfig.pageExtensions)
       )
@@ -975,19 +1084,6 @@ async function startWatcher(opts: SetupOpts) {
           continue
         }
 
-        const isAppPath = Boolean(
-          appDir &&
-            normalizePathSep(fileName).startsWith(
-              normalizePathSep(appDir) + '/'
-            )
-        )
-        const isPagePath = Boolean(
-          pagesDir &&
-            normalizePathSep(fileName).startsWith(
-              normalizePathSep(pagesDir) + '/'
-            )
-        )
-
         const rootFile = absolutePathToPage(fileName, {
           dir: dir,
           extensions: nextConfig.pageExtensions,
@@ -1002,7 +1098,7 @@ async function startWatcher(opts: SetupOpts) {
             appDir: appDir,
             page: rootFile,
             isDev: true,
-            isInsideAppDir: isAppPath,
+            isInsideAppDir: false,
             pageExtensions: nextConfig.pageExtensions,
           })
           if (nextConfig.output === 'export') {
@@ -1037,21 +1133,13 @@ async function startWatcher(opts: SetupOpts) {
         if (fileName.endsWith('.ts') || fileName.endsWith('.tsx')) {
           enabledTypeScript = true
         }
+      }
 
-        if (!(isAppPath || isPagePath)) {
-          continue
-        }
-
-        // Collect all current filenames for the TS plugin to use
-        devPageFiles.add(fileName)
-
-        let pageName = absolutePathToPage(fileName, {
-          dir: isAppPath ? appDir! : pagesDir!,
-          extensions: nextConfig.pageExtensions,
-          keepIndex: isAppPath,
-          pagesType: isAppPath ? 'app' : 'pages',
-        })
-
+      const handlePageName = (
+        pageName: string,
+        fileName: string,
+        isAppPath: boolean
+      ) => {
         if (
           !isAppPath &&
           pageName.startsWith('/api/') &&
@@ -1060,7 +1148,7 @@ async function startWatcher(opts: SetupOpts) {
           Log.error(
             'API Routes cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
           )
-          continue
+          return
         }
 
         if (isAppPath) {
@@ -1068,33 +1156,14 @@ async function startWatcher(opts: SetupOpts) {
 
           if (isRootNotFound) {
             hasRootAppNotFound = true
-            continue
-          }
-          if (!isRootNotFound && !validFileMatcher.isAppRouterPage(fileName)) {
-            continue
-          }
-          // Ignore files/directories starting with `_` in the app directory
-          if (normalizePathSep(pageName).includes('/_')) {
-            continue
-          }
-
-          const originalPageName = pageName
-          pageName = normalizeAppPath(pageName).replace(/%5F/g, '_')
-          if (!appPaths[pageName]) {
-            appPaths[pageName] = []
-          }
-          appPaths[pageName].push(originalPageName)
-
-          if (useFileSystemPublicRoutes) {
-            appFiles.add(pageName)
+            return
           }
 
           if (routedPages.includes(pageName)) {
-            continue
+            return
           }
         } else {
           if (useFileSystemPublicRoutes) {
-            pageFiles.add(pageName)
             // always add to nextDataRoutes for now but in future only add
             // entries that actually use getStaticProps/getServerSideProps
             opts.fsChecker.nextDataRoutes.add(pageName)
@@ -1117,11 +1186,27 @@ async function startWatcher(opts: SetupOpts) {
          */
         if (/[\\\\/]_middleware$/.test(pageName)) {
           nestedMiddleware.push(pageName)
-          continue
+          return
         }
 
         routedPages.push(pageName)
       }
+      const routesResult = collectRoutesFromFiles({
+        appDir: opts.appDir,
+        pagesDir: opts.pagesDir,
+        filepaths: sortedKnownFiles,
+        nextConfig: opts.nextConfig,
+        fsChecker: opts.fsChecker,
+      })
+      Object.assign(appPaths, routesResult.appPaths)
+
+      for (const [route, fileName] of routesResult.appFiles) {
+        handlePageName(route, fileName, true)
+      }
+      for (const [route, fileName] of routesResult.pageFiles) {
+        handlePageName(route, fileName, false)
+      }
+      const sortedRoutes = routesResult.sortedRoutes
 
       const numConflicting = conflictingAppPagePaths.size
       conflictingPageChange = numConflicting - previousConflictingPagePaths.size
@@ -1351,44 +1436,6 @@ async function startWatcher(opts: SetupOpts) {
         // we serve a separate manifest with all pages for the client in
         // dev mode so that we can match a page after a rewrite on the client
         // before it has been built and is populated in the _buildManifest
-        const sortedRoutes = getSortedRoutes(routedPages)
-
-        opts.fsChecker.dynamicRoutes = sortedRoutes
-          .map((page) => {
-            const regex = getRouteRegex(page)
-            return {
-              match: getRouteMatcher(regex),
-              page,
-              re: regex.re,
-              groups: regex.groups,
-            }
-          })
-          .filter(Boolean) as any
-
-        const dataRoutes: typeof opts.fsChecker.dynamicRoutes = []
-
-        for (const page of sortedRoutes) {
-          const route = buildDataRoute(page, 'development')
-          const routeRegex = getRouteRegex(route.page)
-          dataRoutes.push({
-            ...route,
-            regex: routeRegex.re.toString(),
-            match: getRouteMatcher({
-              // TODO: fix this in the manifest itself, must also be fixed in
-              // upstream builder that relies on this
-              re: opts.nextConfig.i18n
-                ? new RegExp(
-                    route.dataRouteRegex.replace(
-                      `/development/`,
-                      `/development/(?<nextLocale>.+?)/`
-                    )
-                  )
-                : new RegExp(route.dataRouteRegex),
-              groups: routeRegex.groups,
-            }),
-          })
-        }
-        opts.fsChecker.dynamicRoutes.unshift(...dataRoutes)
 
         if (!prevSortedRoutes?.every((val, idx) => val === sortedRoutes[idx])) {
           const addedRoutes = sortedRoutes.filter(

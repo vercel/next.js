@@ -9,7 +9,6 @@ import type {
 import url from 'url'
 import path from 'path'
 import loadConfig from '../config'
-import { serveStatic } from '../serve-static'
 import setupDebug from 'next/dist/compiled/debug'
 import { splitCookiesString, toNodeOutgoingHttpHeaders } from '../web/utils'
 import { Telemetry } from '../../telemetry/storage'
@@ -24,17 +23,23 @@ import { createRequestResponseMocks } from './mock-request'
 import { createIpcServer, createWorker } from './server-ipc'
 import { UnwrapPromise } from '../../lib/coalesced-function'
 import { getResolveRoutes } from './router-utils/resolve-routes'
-import { NextUrlWithParsedQuery, getRequestMeta } from '../request-meta'
+import {
+  NEXT_INTERNAL_QUERY,
+  NextUrlWithParsedQuery,
+  getRequestMeta,
+} from '../request-meta'
 import { pathHasPrefix } from '../../shared/lib/router/utils/path-has-prefix'
 import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
 import setupCompression from 'next/dist/compiled/compression'
+import { signalFromNodeResponse } from '../web/spec-extension/adapters/next-request'
+import { handleOutput } from './router-utils/handle-output'
+import ResponseCache from '../response-cache'
 
 import {
   PHASE_PRODUCTION_SERVER,
   PHASE_DEVELOPMENT_SERVER,
   PERMANENT_REDIRECT_STATUS,
 } from '../../shared/lib/constants'
-import { signalFromNodeResponse } from '../web/spec-extension/adapters/next-request'
 
 const debug = setupDebug('next:router-server:main')
 
@@ -93,6 +98,8 @@ export async function initialize(opts: {
   })
 
   const renderWorkers: RenderWorkers = {}
+  const distDir = path.join(opts.dir, config.distDir)
+  const responseCache = new ResponseCache(!!opts.minimalMode)
 
   let devInstance:
     | UnwrapPromise<
@@ -102,7 +109,7 @@ export async function initialize(opts: {
 
   if (opts.dev) {
     const telemetry = new Telemetry({
-      distDir: path.join(opts.dir, config.distDir),
+      distDir,
     })
     const { pagesDir, appDir } = findPagesDir(
       opts.dir,
@@ -125,7 +132,7 @@ export async function initialize(opts: {
     })
   }
 
-  const { ipcPort, ipcValidationKey } = await createIpcServer({
+  const ipcMethods = {
     async ensurePage(
       match: Parameters<
         InstanceType<
@@ -184,7 +191,10 @@ export async function initialize(opts: {
       }
       return {}
     },
-  } as any)
+  }
+
+  // TODO: update param type
+  const { ipcPort, ipcValidationKey } = await createIpcServer(ipcMethods as any)
 
   // Set global environment variables for the app render server to use.
   process.env.__NEXT_PRIVATE_ROUTER_IPC_PORT = ipcPort + ''
@@ -302,16 +312,26 @@ export async function initialize(opts: {
   process.on('uncaughtException', logError.bind(null, 'uncaughtException'))
   process.on('unhandledRejection', logError.bind(null, 'unhandledRejection'))
 
-  const resolveRoutes = getResolveRoutes(
-    fsChecker,
-    config,
+  let requestHandler: WorkerRequestHandler
+
+  const resolveRoutes = getResolveRoutes({
     opts,
-    renderWorkers,
-    renderWorkerOpts,
-    devInstance?.ensureMiddleware
-  )
+    config,
+    distDir,
+    fsChecker,
+    ipcMethods,
+    // @ts-ignore
+    requestHandler,
+    responseCache,
+    ensureMiddleware: devInstance?.ensureMiddleware,
+  })
 
   const requestHandlerImpl: WorkerRequestHandler = async (req, res) => {
+    // these fields can not be inserted from initial request so we filter them
+    for (const key of NEXT_INTERNAL_QUERY) {
+      delete req.headers[key]
+    }
+
     if (compress) {
       // @ts-expect-error not express req/res
       compress(req, res, () => {})
@@ -322,13 +342,11 @@ export async function initialize(opts: {
     res.on('error', (_err) => {
       // TODO: log socket errors?
     })
-
     const invokedOutputs = new Set<string>()
 
     async function invokeRender(
       parsedUrl: NextUrlWithParsedQuery,
       type: keyof typeof renderWorkers,
-      handleIndex: number,
       invokePath: string,
       additionalInvokeHeaders: Record<string, string> = {}
     ) {
@@ -398,13 +416,6 @@ export async function initialize(opts: {
 
       debug('invokeRender res', invokeRes.status, invokeRes.headers)
 
-      // when we receive x-no-fallback we restart
-      if (invokeRes.headers.get('x-no-fallback')) {
-        // eslint-disable-next-line
-        await handleRequest(handleIndex + 1)
-        return
-      }
-
       for (const [key, value] of Object.entries(
         filterReqHeaders(
           toNodeOutgoingHttpHeaders(invokeRes.headers),
@@ -445,11 +456,7 @@ export async function initialize(opts: {
       return
     }
 
-    const handleRequest = async (handleIndex: number) => {
-      if (handleIndex > 5) {
-        throw new Error(`Attempted to handle request too many times ${req.url}`)
-      }
-
+    try {
       // handle hot-reloader first
       if (devInstance) {
         const origUrl = req.url || '/'
@@ -480,8 +487,8 @@ export async function initialize(opts: {
         matchedOutput,
       } = await resolveRoutes({
         req,
+        res,
         isUpgradeReq: false,
-        signal: signalFromNodeResponse(res),
         invokedOutputs,
       })
 
@@ -538,6 +545,11 @@ export async function initialize(opts: {
       // handle middleware body response
       if (bodyStream) {
         res.statusCode = statusCode || 200
+
+        if (Buffer.isBuffer(bodyStream)) {
+          res.end(bodyStream)
+          return
+        }
         return await pipeReadable(bodyStream, res)
       }
 
@@ -552,184 +564,99 @@ export async function initialize(opts: {
         )
       }
 
-      if (matchedOutput?.fsPath && matchedOutput.itemPath) {
-        if (
-          opts.dev &&
-          (fsChecker.appFiles.has(matchedOutput.itemPath) ||
-            fsChecker.pageFiles.has(matchedOutput.itemPath))
-        ) {
-          await invokeRender(parsedUrl, 'pages', handleIndex, '/_error', {
-            'x-invoke-status': '500',
-            'x-invoke-error': JSON.stringify({
-              message: `A conflicting public file and page file was found for path ${matchedOutput.itemPath} https://nextjs.org/docs/messages/conflicting-public-file-page`,
-            }),
-          })
-          return
-        }
-
-        if (
-          !res.getHeader('cache-control') &&
-          matchedOutput.type === 'nextStaticFolder'
-        ) {
-          if (opts.dev) {
-            res.setHeader('Cache-Control', 'no-store, must-revalidate')
-          } else {
-            res.setHeader(
-              'Cache-Control',
-              'public, max-age=31536000, immutable'
-            )
-          }
-        }
-        if (!(req.method === 'GET' || req.method === 'HEAD')) {
-          res.setHeader('Allow', ['GET', 'HEAD'])
-          return await invokeRender(
-            url.parse('/405', true),
-            'pages',
-            handleIndex,
-            '/405',
-            {
-              'x-invoke-status': '405',
-            }
-          )
-        }
-
-        try {
-          return await serveStatic(req, res, matchedOutput.itemPath, {
-            root: matchedOutput.itemsRoot,
-          })
-        } catch (err: any) {
-          /**
-           * Hardcoded every possible error status code that could be thrown by "serveStatic" method
-           * This is done by searching "this.error" inside "send" module's source code:
-           * https://github.com/pillarjs/send/blob/master/index.js
-           * https://github.com/pillarjs/send/blob/develop/index.js
-           */
-          const POSSIBLE_ERROR_CODE_FROM_SERVE_STATIC = new Set([
-            // send module will throw 500 when header is already sent or fs.stat error happens
-            // https://github.com/pillarjs/send/blob/53f0ab476145670a9bdd3dc722ab2fdc8d358fc6/index.js#L392
-            // Note: we will use Next.js built-in 500 page to handle 500 errors
-            // 500,
-
-            // send module will throw 404 when file is missing
-            // https://github.com/pillarjs/send/blob/53f0ab476145670a9bdd3dc722ab2fdc8d358fc6/index.js#L421
-            // Note: we will use Next.js built-in 404 page to handle 404 errors
-            // 404,
-
-            // send module will throw 403 when redirecting to a directory without enabling directory listing
-            // https://github.com/pillarjs/send/blob/53f0ab476145670a9bdd3dc722ab2fdc8d358fc6/index.js#L484
-            // Note: Next.js throws a different error (without status code) for directory listing
-            // 403,
-
-            // send module will throw 400 when fails to normalize the path
-            // https://github.com/pillarjs/send/blob/53f0ab476145670a9bdd3dc722ab2fdc8d358fc6/index.js#L520
-            400,
-
-            // send module will throw 412 with conditional GET request
-            // https://github.com/pillarjs/send/blob/53f0ab476145670a9bdd3dc722ab2fdc8d358fc6/index.js#L632
-            412,
-
-            // send module will throw 416 when range is not satisfiable
-            // https://github.com/pillarjs/send/blob/53f0ab476145670a9bdd3dc722ab2fdc8d358fc6/index.js#L669
-            416,
-          ])
-
-          let validErrorStatus = POSSIBLE_ERROR_CODE_FROM_SERVE_STATIC.has(
-            err.statusCode
-          )
-
-          // normalize non-allowed status codes
-          if (!validErrorStatus) {
-            ;(err as any).statusCode = 400
-          }
-
-          if (typeof err.statusCode === 'number') {
-            const invokePath = `/${err.statusCode}`
-            const invokeStatus = `${err.statusCode}`
-            return await invokeRender(
-              url.parse(invokePath, true),
-              'pages',
-              handleIndex,
-              invokePath,
-              {
-                'x-invoke-status': invokeStatus,
-              }
-            )
-          }
-          throw err
-        }
-      }
-
       if (matchedOutput) {
-        invokedOutputs.add(matchedOutput.itemPath)
-
-        return await invokeRender(
-          parsedUrl,
-          matchedOutput.type === 'appFile' ? 'app' : 'pages',
-          handleIndex,
-          parsedUrl.pathname || '/',
-          {
-            'x-invoke-output': matchedOutput.itemPath,
-          }
-        )
-      }
-
-      // 404 case
-      res.setHeader(
-        'Cache-Control',
-        'no-cache, no-store, max-age=0, must-revalidate'
-      )
-
-      const appNotFound = opts.dev
-        ? devInstance?.serverFields.hasAppNotFound
-        : await fsChecker.getItem('/_not-found')
-
-      if (appNotFound) {
-        return await invokeRender(
-          parsedUrl,
-          'app',
-          handleIndex,
-          '/_not-found',
-          {
-            'x-invoke-status': '404',
-          }
-        )
-      }
-      await invokeRender(parsedUrl, 'pages', handleIndex, '/404', {
-        'x-invoke-status': '404',
-      })
-    }
-
-    try {
-      await handleRequest(0)
-    } catch (err) {
-      try {
-        let invokePath = '/500'
-        let invokeStatus = '500'
-
-        if (err instanceof DecodeError) {
-          invokePath = '/400'
-          invokeStatus = '400'
-        } else {
-          console.error(err)
+        if (
+          (matchedOutput.type === 'appFile' ||
+            matchedOutput.type === 'pageFile') &&
+          devInstance?.hotReloader.ensurePage
+        ) {
+          await devInstance.hotReloader.ensurePage({
+            page: matchedOutput.itemPath,
+            clientOnly: false,
+            appPaths: matchedOutput.appPaths,
+          })
         }
+        return await handleOutput({
+          req,
+          res,
+          distDir,
+          parsedUrl,
+          fsChecker,
+          ipcMethods,
+          responseCache,
+          dev: opts.dev,
+          port: opts.port + '',
+          hostname: opts.hostname || 'localhost',
+          // eslint-disable-next-line @typescript-eslint/no-use-before-define
+          requestHandler,
+          nextConfig: config,
+          output: matchedOutput,
+          invokeRender,
+          minimalMode: !!opts.minimalMode,
+        })
+      }
+    } catch (err: any) {
+      if (typeof err.statusCode === 'number') {
+        const invokePath = `/${err.statusCode}`
+        const invokeStatus = `${err.statusCode}`
         return await invokeRender(
           url.parse(invokePath, true),
           'pages',
-          0,
           invokePath,
           {
             'x-invoke-status': invokeStatus,
           }
         )
-      } catch (err2) {
-        console.error(err2)
       }
-      res.statusCode = 500
-      res.end('Internal Server Error')
+
+      let invokePath = `/500`
+      let invokeStatus = `500`
+
+      if (err instanceof DecodeError) {
+        invokePath = '/400'
+        invokeStatus = '400'
+      }
+
+      return await invokeRender(
+        url.parse(invokePath, true),
+        'pages',
+        invokePath,
+        {
+          'x-invoke-status': invokeStatus,
+          'x-invoke-error': JSON.stringify({
+            message: err.message,
+            stack: err.stack,
+          }),
+        }
+      )
     }
+
+    // 404 case
+    res.setHeader(
+      'Cache-Control',
+      'no-cache, no-store, max-age=0, must-revalidate'
+    )
+
+    const appNotFound = opts.dev
+      ? devInstance?.serverFields.hasAppNotFound
+      : await fsChecker.getItem('/_not-found')
+
+    if (appNotFound) {
+      return await invokeRender(
+        url.parse(req.url || '/', true),
+        'app',
+        '/_not-found',
+        {
+          'x-invoke-status': '404',
+        }
+      )
+    }
+    await invokeRender(url.parse(req.url || '/', true), 'pages', '/404', {
+      'x-invoke-status': '404',
+    })
   }
 
-  let requestHandler: WorkerRequestHandler = requestHandlerImpl
+  requestHandler = requestHandlerImpl
   if (opts.experimentalTestProxy) {
     // Intercept fetch and other testmode apis.
     const {
@@ -759,8 +686,8 @@ export async function initialize(opts: {
 
       const { matchedOutput, parsedUrl } = await resolveRoutes({
         req,
+        res: socket as any,
         isUpgradeReq: true,
-        signal: signalFromNodeResponse(socket),
       })
 
       // TODO: allow upgrade requests to pages/app paths?

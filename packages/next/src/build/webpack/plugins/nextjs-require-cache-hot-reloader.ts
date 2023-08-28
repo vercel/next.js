@@ -28,7 +28,7 @@ const nextDeleteCacheRpc = async (filePaths: string[]) => {
 
 export function deleteAppClientCache() {
   if ((global as any)._nextDeleteAppClientCache) {
-    return (global as any)._nextDeleteAppClientCache()
+    ;(global as any)._nextDeleteAppClientCache()
   }
   // ensure we reset the cache for rsc components
   // loaded via react-server-dom-webpack
