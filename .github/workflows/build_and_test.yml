@@ -26,6 +26,8 @@ env:
   DD_ENV: 'ci'
   TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
   NEXT_TEST_JOB: 1
+  # TODO: remove after debugging
+  NEXT_TEST_CONTINUE_ON_ERROR: 1
 
 jobs:
   build-native:
