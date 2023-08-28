@@ -6,7 +6,7 @@ import type getBaseWebpackConfig from '../../build/webpack-config'
 import type { RouteMatch } from '../future/route-matches/route-match'
 
 export interface NextJsHotReloaderInterface {
-  activeConfigs?: Array<Awaited<ReturnType<typeof getBaseWebpackConfig>>>
+  activeWebpackConfigs?: Array<Awaited<ReturnType<typeof getBaseWebpackConfig>>>
   serverStats: webpack.Stats | null
   edgeServerStats: webpack.Stats | null
   run(
