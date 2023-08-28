@@ -1,6 +1,6 @@
 import { FileReader } from './file-reader'
 
-interface CachedFileReaderBatch {
+interface FileReaderBatch {
   completed: boolean
   directories: Array<string>
   callbacks: Array<{
@@ -13,8 +13,8 @@ interface CachedFileReaderBatch {
  * CachedFileReader will deduplicate requests made to the same folder structure
  * to scan for files.
  */
-export class CachedFileReader implements FileReader {
-  private batch?: CachedFileReaderBatch
+export class BatchedFileReader implements FileReader {
+  private batch?: FileReaderBatch
 
   constructor(private readonly reader: FileReader) {}
 
@@ -30,13 +30,13 @@ export class CachedFileReader implements FileReader {
     })
   }
 
-  private getOrCreateBatch(): CachedFileReaderBatch {
+  private getOrCreateBatch(): FileReaderBatch {
     // If there is an existing batch and it's not completed, then reuse it.
     if (this.batch && !this.batch.completed) {
       return this.batch
     }
 
-    const batch: CachedFileReaderBatch = {
+    const batch: FileReaderBatch = {
       completed: false,
       directories: [],
       callbacks: [],
