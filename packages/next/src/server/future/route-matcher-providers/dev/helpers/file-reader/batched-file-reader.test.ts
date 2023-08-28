@@ -1,4 +1,4 @@
-import { CachedFileReader } from './cached-file-reader'
+import { BatchedFileReader } from './batched-file-reader'
 import { FileReader } from './file-reader'
 
 describe('CachedFileReader', () => {
@@ -18,7 +18,7 @@ describe('CachedFileReader', () => {
         }
       }),
     }
-    const cached = new CachedFileReader(reader)
+    const cached = new BatchedFileReader(reader)
 
     const results = await Promise.all([
       cached.read('<root>/pages'),
@@ -49,7 +49,7 @@ describe('CachedFileReader', () => {
         }
       }),
     }
-    const cached = new CachedFileReader(reader)
+    const cached = new BatchedFileReader(reader)
 
     await Promise.all(
       ['reject', 'resolve', 'reject', 'resolve'].map(async (directory) => {
