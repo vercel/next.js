@@ -2,16 +2,7 @@ import type { FileReader } from './file-reader'
 
 import { recursiveReadDir } from '../../../../../../lib/recursive-readdir'
 
-type FilterInput = ((pathname: string) => boolean) | RegExp
-
 type Filter = (pathname: string) => boolean
-
-function createFilter(input?: FilterInput): Filter | undefined {
-  if (typeof input === 'undefined') return
-  if (typeof input === 'function') return input
-
-  return (pathname) => input.test(pathname)
-}
 
 /**
  * Reads all the files in the directory and its subdirectories following any
@@ -44,37 +35,13 @@ export class DefaultFileReader implements FileReader {
    * @param ignorePartFilter filter to ignore files and directories with the pathname part, false to ignore
    */
   constructor(
-    pathnameFilter?: FilterInput,
-    ignoreFilter?: FilterInput,
-    ignorePartFilter?: FilterInput
+    pathnameFilter?: Filter,
+    ignoreFilter?: Filter,
+    ignorePartFilter?: Filter
   ) {
-    this.pathnameFilter = createFilter(pathnameFilter)
-    this.ignoreFilter = createFilter(ignoreFilter)
-    this.ignorePartFilter = createFilter(ignorePartFilter)
-  }
-
-  /**
-   * Reads all the files in the directory and its subdirectories following any
-   * symbolic links.
-   *
-   * @param dir directory to read
-   * @param pathnameFilter filter to ignore files with absolute pathnames, false to ignore
-   * @param ignoreFilter filter to ignore files and directories with absolute pathnames, false to ignore
-   * @param ignorePartFilter filter to ignore files and directories with the pathname part, false to ignore
-   */
-  public static read(
-    dir: string,
-    pathnameFilter?: FilterInput,
-    ignoreFilter?: FilterInput,
-    ignorePartFilter?: FilterInput
-  ): Promise<ReadonlyArray<string>> {
-    const reader = new DefaultFileReader(
-      pathnameFilter,
-      ignoreFilter,
-      ignorePartFilter
-    )
-
-    return reader.read(dir)
+    this.pathnameFilter = pathnameFilter
+    this.ignoreFilter = ignoreFilter
+    this.ignorePartFilter = ignorePartFilter
   }
 
   /**
