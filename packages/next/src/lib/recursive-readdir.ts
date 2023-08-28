@@ -1,59 +1,100 @@
-import { Dirent, promises } from 'fs'
-import { join } from 'path'
+import type { Dirent } from 'fs'
+
+import fs from 'fs/promises'
+import path from 'path'
 
 /**
- * Recursively read directory
- * Returns array holding all relative paths
+ *
+ * @param dir the directory to read
+ * @param pathnameFilter filter to ignore files with absolute pathnames, false to ignore
+ * @param ignoreFilter filter to ignore files and directories with absolute pathnames, false to ignore
+ * @param ignorePartFilter filter to ignore files and directories with the pathname part, false to ignore
+ * @returns
  */
 export async function recursiveReadDir(
-  /** Directory to read */
   dir: string,
-  /** Filter for the file path */
-  filter: (absoluteFilePath: string) => boolean,
-  /** Filter for the file path */
-  ignore?: (absoluteFilePath: string) => boolean,
-  ignorePart?: (partName: string) => boolean,
-  /** This doesn't have to be provided, it's used for the recursion */
-  arr: string[] = [],
-  /** Used to replace the initial path, only the relative path is left, it's faster than path.relative. */
-  rootDir: string = dir
+  pathnameFilter?: (absoluteFilePath: string) => boolean,
+  ignoreFilter?: (absoluteFilePath: string) => boolean,
+  ignorePartFilter?: (partName: string) => boolean
 ): Promise<string[]> {
-  const result = await promises.readdir(dir, { withFileTypes: true })
+  const pathnames: string[] = []
 
-  await Promise.all(
-    result.map(async (part: Dirent) => {
-      const absolutePath = join(dir, part.name)
-      const relativePath = absolutePath.replace(rootDir, '')
-      if (ignore && ignore(absolutePath)) return
-      if (ignorePart && ignorePart(part.name)) return
+  let directories: string[] = [dir]
 
-      // readdir does not follow symbolic links
-      // if part is a symbolic link, follow it using stat
-      let isDirectory = part.isDirectory()
-      if (part.isSymbolicLink()) {
-        const stats = await promises.stat(absolutePath)
-        isDirectory = stats.isDirectory()
+  while (directories.length > 0) {
+    // Load all the files in each directory at the same time.
+    const results = await Promise.all(
+      directories.map(async (directory) => {
+        let files: Dirent[]
+        try {
+          files = await fs.readdir(directory, { withFileTypes: true })
+        } catch (err: any) {
+          // This can only happen when the underlying directory was removed. If
+          // anything other than this error occurs, re-throw it.
+          if (err.code !== 'ENOENT') throw err
+
+          // The error occurred, so abandon reading this directory.
+          files = []
+        }
+
+        return { directory, files }
+      })
+    )
+
+    // Empty the directories, we'll fill it later if some of the files are
+    // directories.
+    directories = []
+
+    // Keep track of any symbolic links we find, we'll resolve them later.
+    const links = []
+
+    // For each result of directory scans...
+    for (const { files, directory } of results) {
+      // And for each file in it...
+      for (const file of files) {
+        // If enabled, ignore the file if it matches the ignore filter.
+        if (ignorePartFilter && ignorePartFilter(file.name)) {
+          continue
+        }
+
+        // Handle each file.
+        const pathname = path.join(directory, file.name)
+
+        // If enabled, ignore the file if it matches the ignore filter.
+        if (ignoreFilter && ignoreFilter(pathname)) {
+          continue
+        }
+
+        // If the file is a directory, then add it to the list of directories,
+        // they'll be scanned on a later pass.
+        if (file.isDirectory()) {
+          directories.push(pathname)
+        } else if (file.isSymbolicLink()) {
+          links.push(pathname)
+        } else if (!pathnameFilter || pathnameFilter(pathname)) {
+          pathnames.push(pathname)
+        }
       }
+    }
 
-      if (isDirectory) {
-        await recursiveReadDir(
-          absolutePath,
-          filter,
-          ignore,
-          ignorePart,
-          arr,
-          rootDir
-        )
-        return
+    // Resolve all the symbolic links we found if any.
+    if (links.length > 0) {
+      const resolved = await Promise.all(
+        links.map(async (pathname) => fs.stat(pathname))
+      )
+
+      for (let i = 0; i < links.length; i++) {
+        const pathname = links[i]
+        const stats = resolved[i]
+
+        if (stats.isDirectory()) {
+          directories.push(pathname)
+        } else if (!pathnameFilter || pathnameFilter(pathname)) {
+          pathnames.push(pathname)
+        }
       }
+    }
+  }
 
-      if (!filter(absolutePath)) {
-        return
-      }
-
-      arr.push(relativePath)
-    })
-  )
-
-  return arr.sort()
+  return pathnames
 }

@@ -141,7 +141,7 @@ export async function setupFsCheck(opts: {
     buildId = await fs.readFile(buildIdPath, 'utf8')
 
     try {
-      for (let file of await recursiveReadDir(publicFolderPath, () => true)) {
+      for (let file of await recursiveReadDir(publicFolderPath)) {
         file = normalizePathSep(file)
         // ensure filename is encoded
         publicFolderItems.add(encodeURI(file))
@@ -153,10 +153,7 @@ export async function setupFsCheck(opts: {
     }
 
     try {
-      for (let file of await recursiveReadDir(
-        legacyStaticFolderPath,
-        () => true
-      )) {
+      for (let file of await recursiveReadDir(legacyStaticFolderPath)) {
         file = normalizePathSep(file)
         // ensure filename is encoded
         legacyStaticFolderItems.add(encodeURI(file))
@@ -171,10 +168,7 @@ export async function setupFsCheck(opts: {
     }
 
     try {
-      for (let file of await recursiveReadDir(
-        nextStaticFolderPath,
-        () => true
-      )) {
+      for (let file of await recursiveReadDir(nextStaticFolderPath)) {
         file = normalizePathSep(file)
         // ensure filename is encoded
         nextStaticFolderItems.add(
