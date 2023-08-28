@@ -477,8 +477,6 @@ export type TurbopackResult<T = {}> = T & {
 
 interface Middleware {
   endpoint: Endpoint
-  runtime: 'nodejs' | 'edge'
-  matcher?: string[]
 }
 
 export interface Entrypoints {

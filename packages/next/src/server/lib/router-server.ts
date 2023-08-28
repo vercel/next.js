@@ -128,7 +128,9 @@ export async function initialize(opts: {
   const { ipcPort, ipcValidationKey } = await createIpcServer({
     async ensurePage(
       match: Parameters<
-        InstanceType<typeof import('../dev/hot-reloader').default>['ensurePage']
+        InstanceType<
+          typeof import('../dev/hot-reloader-webpack').default
+        >['ensurePage']
       >[0]
     ) {
       // TODO: remove after ensure is pulled out of server

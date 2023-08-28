@@ -834,12 +834,12 @@ async fn directory_tree_to_entrypoints_internal(
             } else {
                 format!("{path_prefix}/{subdir_name}")
             },
-            if is_route_group || parallel_route_key.is_some() {
-                path_prefix.clone()
-            } else if path_prefix == "/" {
+            if parallel_route_key.is_some() {
+                original_name_prefix.clone()
+            } else if original_name_prefix == "/" {
                 format!("/{subdir_name}")
             } else {
-                format!("{path_prefix}/{subdir_name}")
+                format!("{original_name_prefix}/{subdir_name}")
             },
         )
         .await?;

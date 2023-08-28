@@ -27,7 +27,7 @@ use next_core::{
         get_server_module_options_context, get_server_resolve_options_context,
         get_server_runtime_entries, ServerContextType,
     },
-    util::NextRuntime,
+    util::{get_asset_prefix_from_pathname, NextRuntime},
 };
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{trace::TraceRawVcs, Completion, TryFlatJoinIterExt, TryJoinIterExt, Value, Vc};
@@ -586,10 +586,10 @@ impl AppEndpoint {
                 .into_iter()
                 .collect(),
         };
+        let manifest_path_prefix = get_asset_prefix_from_pathname(&app_entry.pathname);
         let app_build_manifest_output = Vc::upcast(VirtualOutputAsset::new(
             node_root.join(format!(
-                "server/app{original_name}/app-build-manifest.json",
-                original_name = app_entry.original_name
+                "server/app{manifest_path_prefix}/page/app-build-manifest.json",
             )),
             AssetContent::file(
                 File::from(serde_json::to_string_pretty(&app_build_manifest)?).into(),
@@ -603,8 +603,7 @@ impl AppEndpoint {
         };
         let build_manifest_output = Vc::upcast(VirtualOutputAsset::new(
             node_root.join(format!(
-                "server/app{original_name}/build-manifest.json",
-                original_name = app_entry.original_name
+                "server/app{manifest_path_prefix}/page/build-manifest.json",
             )),
             AssetContent::file(File::from(serde_json::to_string_pretty(&build_manifest)?).into()),
         ));
@@ -623,11 +622,14 @@ impl AppEndpoint {
 
         fn create_app_paths_manifest(
             node_root: Vc<FileSystemPath>,
+            pathname: &str,
             original_name: &str,
             filename: String,
         ) -> Result<Vc<Box<dyn OutputAsset>>> {
-            let path =
-                node_root.join(format!("server/app{original_name}/app-paths-manifest.json",));
+            let manifest_path_prefix = get_asset_prefix_from_pathname(pathname);
+            let path = node_root.join(format!(
+                "server/app{manifest_path_prefix}/page/app-paths-manifest.json",
+            ));
             let app_paths_manifest = AppPathsManifest {
                 node_server_app_paths: PagesManifest {
                     pages: [(original_name.to_string(), filename)]
@@ -700,13 +702,13 @@ impl AppEndpoint {
                 // TODO(alexkirsz) This should be shared with next build.
                 let named_regex = get_named_middleware_regex(&app_entry.pathname);
                 let matchers = MiddlewareMatcher {
-                    regexp: named_regex,
+                    regexp: Some(named_regex),
                     original_source: app_entry.pathname.clone(),
                     ..Default::default()
                 };
                 let edge_function_definition = EdgeFunctionDefinition {
                     files: files_paths_from_root,
-                    name: app_entry.original_name.to_string(),
+                    name: app_entry.pathname.to_string(),
                     page: app_entry.original_name.clone(),
                     regions: app_entry
                         .config
@@ -718,16 +720,16 @@ impl AppEndpoint {
                     ..Default::default()
                 };
                 let middleware_manifest_v2 = MiddlewaresManifestV2 {
-                    sorted_middleware: vec![app_entry.original_name.clone()],
+                    sorted_middleware: vec![app_entry.pathname.clone()],
                     middleware: Default::default(),
-                    functions: [(app_entry.original_name.clone(), edge_function_definition)]
+                    functions: [(app_entry.pathname.clone(), edge_function_definition)]
                         .into_iter()
                         .collect(),
                 };
+                let manifest_path_prefix = get_asset_prefix_from_pathname(&app_entry.pathname);
                 let middleware_manifest_v2 = Vc::upcast(VirtualOutputAsset::new(
                     node_root.join(format!(
-                        "server/app{original_name}/middleware-manifest.json",
-                        original_name = app_entry.original_name
+                        "server/app{manifest_path_prefix}/page/middleware-manifest.json",
                     )),
                     AssetContent::file(
                         FileContent::Content(File::from(serde_json::to_string_pretty(
@@ -739,8 +741,12 @@ impl AppEndpoint {
                 server_assets.push(middleware_manifest_v2);
 
                 // create app paths manifest
-                let app_paths_manifest_output =
-                    create_app_paths_manifest(node_root, &app_entry.original_name, base_file)?;
+                let app_paths_manifest_output = create_app_paths_manifest(
+                    node_root,
+                    &app_entry.pathname,
+                    &app_entry.original_name,
+                    base_file,
+                )?;
                 server_assets.push(app_paths_manifest_output);
 
                 AppEndpointOutput::Edge {
@@ -756,7 +762,7 @@ impl AppEndpoint {
                     .rsc_chunking_context()
                     .entry_chunk(
                         server_path.join(format!(
-                            "app/{original_name}.js",
+                            "app{original_name}.js",
                             original_name = app_entry.original_name
                         )),
                         app_entry.rsc_entry,
@@ -766,6 +772,7 @@ impl AppEndpoint {
 
                 let app_paths_manifest_output = create_app_paths_manifest(
                     node_root,
+                    &app_entry.pathname,
                     &app_entry.original_name,
                     server_path
                         .await?

@@ -81,7 +81,7 @@ pub async fn get_app_page_entry(
 
     let original_page_name = get_original_page_name(&original_name);
 
-    let template_file = "build/webpack/loaders/next-route-loader/templates/app-page.js";
+    let template_file = "build/templates/app-page.js";
 
     // Load the file from the next.js codebase.
     let file = load_next_js_template(project_root, template_file.to_string()).await?;
