@@ -165,7 +165,13 @@ import Script from 'next/script'
 export default function Page() {
   const nonce = headers().get('x-nonce')
 
-  return <Script src="https://..." strategy="afterInteractive" nonce={nonce} />
+  return (
+    <Script
+      src="https://www.googletagmanager.com/gtag/js"
+      strategy="afterInteractive"
+      nonce={nonce}
+    />
+  )
 }
 ```
 
@@ -176,6 +182,16 @@ import Script from 'next/script'
 export default function Page() {
   const nonce = headers().get('x-nonce')
 
-  return <Script src="https://..." strategy="afterInteractive" nonce={nonce} />
+  return (
+    <Script
+      src="https://www.googletagmanager.com/gtag/js"
+      strategy="afterInteractive"
+      nonce={nonce}
+    />
+  )
 }
 ```
+
+## Version History
+
+We recommend using `v13.4.20+` of Next.js to properly handle and apply nonces.
