@@ -9,24 +9,55 @@ type Result = {
   links: string[]
 }
 
+type RecursiveReadDirOptions = {
+  /**
+   * Filter to ignore files with absolute pathnames, false to ignore.
+   */
+  pathnameFilter: Filter
+
+  /**
+   * Filter to ignore files and directories with absolute pathnames, false to
+   * ignore.
+   */
+  ignoreFilter: Filter
+
+  /**
+   * Filter to ignore files and directories with the pathname part, false to
+   * ignore.
+   */
+  ignorePartFilter: Filter
+
+  /**
+   * Whether to sort the results, true by default.
+   */
+  sortPathnames: boolean
+
+  /**
+   * Whether to return relative pathnames, true by default.
+   */
+  relativePathnames: boolean
+}
+
 /**
+ * Recursively reads a directory and returns the list of pathnames.
  *
  * @param rootDirectory the directory to read
- * @param pathnameFilter filter to ignore files with absolute pathnames, false to ignore
- * @param ignoreFilter filter to ignore files and directories with absolute pathnames, false to ignore
- * @param ignorePartFilter filter to ignore files and directories with the pathname part, false to ignore
- * @param sortPathnames whether to sort the results, true by default
- * @param relativePathnames whether to return relative pathnames, true by default
- * @returns
+ * @param options options to control the behavior of the recursive read
+ * @returns the list of pathnames
  */
 export async function recursiveReadDir(
   rootDirectory: string,
-  pathnameFilter?: Filter,
-  ignoreFilter?: Filter,
-  ignorePartFilter?: Filter,
-  sortPathnames: boolean = true,
-  relativePathnames: boolean = true
+  options: Partial<RecursiveReadDirOptions> = {}
 ): Promise<string[]> {
+  // Grab our options.
+  const {
+    pathnameFilter,
+    ignoreFilter,
+    ignorePartFilter,
+    sortPathnames = true,
+    relativePathnames = true,
+  } = options
+
   // The list of pathnames to return.
   const pathnames: string[] = []
 

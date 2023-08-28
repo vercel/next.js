@@ -52,17 +52,18 @@ export class DefaultFileReader implements FileReader {
    * @returns a promise that resolves to the list of files
    */
   public async read(dir: string): Promise<ReadonlyArray<string>> {
-    return recursiveReadDir(
-      dir,
-      this.pathnameFilter,
-      this.ignoreFilter,
-      this.ignorePartFilter,
+    return recursiveReadDir(dir, {
+      pathnameFilter: this.pathnameFilter,
+      ignoreFilter: this.ignoreFilter,
+      ignorePartFilter: this.ignorePartFilter,
+
       // We don't need to sort the results because we're not depending on the
       // order of the results.
-      false,
+      sortPathnames: false,
+
       // We want absolute pathnames because we're going to be comparing them
       // with other absolute pathnames.
-      false
-    )
+      relativePathnames: false,
+    })
   }
 }
