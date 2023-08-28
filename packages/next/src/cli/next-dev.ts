@@ -468,7 +468,7 @@ const nextDev: CliCommand = async (argv) => {
       }
     })
 
-    trace('start-dev-server').traceAsyncFn(async (_) => {
+    await trace('start-dev-server').traceAsyncFn(async (_) => {
       runningServer = await runDevServer(false)
     })
   }
