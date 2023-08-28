@@ -1,7 +1,7 @@
 import type { StaticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage'
 import type * as ServerHooks from '../../client/components/hooks-server-context'
 
-import { AppRenderSpan } from './trace/constants'
+import { AppRenderSpan, NextNodeServerSpan } from './trace/constants'
 import { getTracer, SpanKind } from './trace/tracer'
 import { CACHE_ONE_YEAR } from '../../lib/constants'
 
@@ -100,8 +100,12 @@ export function patchFetch({
     const fetchStart = Date.now()
     const method = init?.method?.toUpperCase() || 'GET'
 
+    // Do create a new span trace for internal fetches in the
+    // non-verbose mode.
+    const isInternal = (init?.next as any)?.internal === true
+
     return await getTracer().trace(
-      AppRenderSpan.fetch,
+      isInternal ? NextNodeServerSpan.internalFetch : AppRenderSpan.fetch,
       {
         kind: SpanKind.CLIENT,
         spanName: ['fetch', method, fetchUrl].filter(Boolean).join(' '),
@@ -131,7 +135,7 @@ export function patchFetch({
         // fetch implementation.
         if (
           !staticGenerationStore ||
-          (init?.next as any)?.internal ||
+          isInternal ||
           staticGenerationStore.isDraftMode
         ) {
           return originFetch(input, init)
@@ -302,43 +306,6 @@ export function patchFetch({
             console.error(`Failed to generate cache key for`, input)
           }
         }
-        const requestInputFields = [
-          'cache',
-          'credentials',
-          'headers',
-          'integrity',
-          'keepalive',
-          'method',
-          'mode',
-          'redirect',
-          'referrer',
-          'referrerPolicy',
-          'signal',
-          'window',
-          'duplex',
-        ]
-
-        if (isRequestInput) {
-          const reqInput: Request = input as any
-          const reqOptions: RequestInit = {
-            body: (reqInput as any)._ogBody || reqInput.body,
-          }
-
-          for (const field of requestInputFields) {
-            // @ts-expect-error custom fields
-            reqOptions[field] = reqInput[field]
-          }
-          input = new Request(reqInput.url, reqOptions)
-        } else if (init) {
-          const initialInit = init
-          init = {
-            body: (init as any)._ogBody || init.body,
-          }
-          for (const field of requestInputFields) {
-            // @ts-expect-error custom fields
-            init[field] = initialInit[field]
-          }
-        }
 
         const fetchIdx = staticGenerationStore.nextFetchId ?? 1
         staticGenerationStore.nextFetchId = fetchIdx + 1
@@ -350,6 +317,46 @@ export function patchFetch({
           isStale?: boolean,
           cacheReasonOverride?: string
         ) => {
+          const requestInputFields = [
+            'cache',
+            'credentials',
+            'headers',
+            'integrity',
+            'keepalive',
+            'method',
+            'mode',
+            'redirect',
+            'referrer',
+            'referrerPolicy',
+            'window',
+            'duplex',
+
+            // don't pass through signal when revalidating
+            ...(isStale ? [] : ['signal']),
+          ]
+
+          if (isRequestInput) {
+            const reqInput: Request = input as any
+            const reqOptions: RequestInit = {
+              body: (reqInput as any)._ogBody || reqInput.body,
+            }
+
+            for (const field of requestInputFields) {
+              // @ts-expect-error custom fields
+              reqOptions[field] = reqInput[field]
+            }
+            input = new Request(reqInput.url, reqOptions)
+          } else if (init) {
+            const initialInit = init
+            init = {
+              body: (init as any)._ogBody || init.body,
+            }
+            for (const field of requestInputFields) {
+              // @ts-expect-error custom fields
+              init[field] = initialInit[field]
+            }
+          }
+
           // add metadata to init without editing the original
           const clonedInit = {
             ...init,

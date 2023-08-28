@@ -95,7 +95,7 @@ export function Navigation({ navLinks }) {
 
 #### Scrolling to an `id`
 
-The default behavior of `<Link>` is to scroll to the top of a new route or to maintain the scroll position for backwards and forwards navigation.
+The default behavior of the Next.js App Router is to scroll to the top of a new route or to maintain the scroll position for backwards and forwards navigation.
 
 If you'd like to scroll to a specific `id` on navigation, you can append your URL with a `#` hash link or just pass a hash link to the `href` prop. This is possible since `<Link>` renders to an `<a>` element.
 
@@ -104,6 +104,24 @@ If you'd like to scroll to a specific `id` on navigation, you can append your UR
 
 // Output
 <a href="/dashboard#settings">Settings</a>
+```
+
+#### Disabling scroll restoration
+
+The default behavior of the Next.js App Router is to scroll to the top of a new route or to maintain the scroll position for backwards and forwards navigation. If you'd like to disable this behavior, you can pass `scroll={false}` to the `<Link>` component, or `scroll: false` to `router.push()` or `router.replace()`.
+
+```jsx
+// next/link
+<Link href="/dashboard" scroll={false}>
+  Dashboard
+</Link>
+```
+
+```jsx
+// useRouter
+import { useRouter } from 'next/navigation'
+
+router.push('/dashboard', { scroll: false })
 ```
 
 ## `useRouter()` Hook
@@ -147,8 +165,8 @@ There are two ways routes are prefetched in Next.js:
 
 The`<Link>`'s prefetching behavior is different for static and dynamic routes:
 
-- [**Static Routes**](/docs/app/building-your-application/rendering/static-and-dynamic#static-rendering-default): `prefetch` defaults to `true`. The entire route is prefetched and cached.
-- [**Dynamic Routes**](/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering): `prefetch` default to automatic. Only the shared layout down until the first `loading.js` file is prefetched and cached for `30s`. This reduces the cost of fetching an entire dynamic route, and it means you can show an [instant loading state](/docs/app/building-your-application/routing/loading-ui-and-streaming#instant-loading-states) for better visual feedback to users.
+- [**Static Routes**](/docs/app/building-your-application/rendering/server-components#static-rendering-default): `prefetch` defaults to `true`. The entire route is prefetched and cached.
+- [**Dynamic Routes**](/docs/app/building-your-application/rendering/server-components#dynamic-rendering): `prefetch` default to automatic. Only the shared layout down until the first `loading.js` file is prefetched and cached for `30s`. This reduces the cost of fetching an entire dynamic route, and it means you can show an [instant loading state](/docs/app/building-your-application/routing/loading-ui-and-streaming#instant-loading-states) for better visual feedback to users.
 
 You can disable prefetching by setting the `prefetch` prop to `false`.
 
@@ -170,7 +188,7 @@ Learn more about how the [Router Cache](/docs/app/building-your-application/data
 
 Partial rendering means only the route segments that change on navigation re-render on the client, and any shared segments are preserved.
 
-For example, when navigating between two sibling routes, `/dashboard/settings` and `/dashboard/analytics`, the `settings` and `analytics` pages will be rendered, and the shared `dashboard` layout will be preseved.
+For example, when navigating between two sibling routes, `/dashboard/settings` and `/dashboard/analytics`, the `settings` and `analytics` pages will be rendered, and the shared `dashboard` layout will be preserved.
 
 <Image
   alt="How partial rendering works"

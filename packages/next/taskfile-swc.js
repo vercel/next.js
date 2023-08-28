@@ -70,8 +70,9 @@ module.exports = function (task) {
         },
         env: {
           targets: {
-            // Same version defined in packages/next/package.json#engines
+            // Ideally, should be same version defined in packages/next/package.json#engines
             // Currently a few minors behind due to babel class transpiling
+            // which fails "test/integration/mixed-ssg-serverprops-error/test/index.test.js"
             node: '16.8.0',
           },
         },

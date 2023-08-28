@@ -4,6 +4,7 @@
 
 mod app;
 mod entrypoints;
+mod middleware;
 mod pages;
 pub mod project;
 pub mod route;

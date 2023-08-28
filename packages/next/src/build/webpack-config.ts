@@ -67,6 +67,7 @@ import { AppBuildManifestPlugin } from './webpack/plugins/app-build-manifest-plu
 import { SubresourceIntegrityPlugin } from './webpack/plugins/subresource-integrity-plugin'
 import { NextFontManifestPlugin } from './webpack/plugins/next-font-manifest-plugin'
 import { getSupportedBrowsers } from './utils'
+import { MemoryWithGcCachePlugin } from './webpack/plugins/memory-with-gc-cache-plugin'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 type ClientEntries = {
@@ -114,12 +115,7 @@ const edgeConditionNames = [
 const mainFieldsPerCompiler: Record<CompilerNameValues, string[]> = {
   [COMPILER_NAMES.server]: ['main', 'module'],
   [COMPILER_NAMES.client]: ['browser', 'module', 'main'],
-  [COMPILER_NAMES.edgeServer]: [
-    'edge-light',
-    'worker',
-    // inherits the default conditions
-    '...',
-  ],
+  [COMPILER_NAMES.edgeServer]: edgeConditionNames,
 }
 
 const BABEL_CONFIG_FILES = [
@@ -529,6 +525,27 @@ function getOptimizedAliases(): { [pkg: string]: string } {
       url: require.resolve('next/dist/compiled/native-url'),
     }
   )
+}
+
+// Alias these modules to be resolved with "module" if possible.
+function getModularizeImportAliases(packages: string[]) {
+  const aliases: { [pkg: string]: string } = {}
+  const mainFields = ['module', 'main']
+
+  for (const pkg of packages) {
+    try {
+      const descriptionFileData = require(`${pkg}/package.json`)
+
+      for (const field of mainFields) {
+        if (descriptionFileData.hasOwnProperty(field)) {
+          aliases[pkg] = `${pkg}/${descriptionFileData[field]}`
+          break
+        }
+      }
+    } catch {}
+  }
+
+  return aliases
 }
 
 export function attachReactRefresh(
@@ -1100,6 +1117,7 @@ export default async function getBaseWebpackConfig(
       // let this alias hit before `next` alias.
       ...(isEdgeServer
         ? {
+            'next/dist/build': 'next/dist/esm/build',
             'next/dist/client': 'next/dist/esm/client',
             'next/dist/shared': 'next/dist/esm/shared',
             'next/dist/pages': 'next/dist/esm/pages',
@@ -1162,6 +1180,14 @@ export default async function getBaseWebpackConfig(
       [DOT_NEXT_ALIAS]: distDir,
       ...(isClient || isEdgeServer ? getOptimizedAliases() : {}),
       ...(reactProductionProfiling ? getReactProfilingInProduction() : {}),
+
+      // For Node server, we need to re-alias the package imports to prefer to
+      // resolve to the module export.
+      ...(isNodeServer
+        ? getModularizeImportAliases(
+            config.experimental.optimizePackageImports || []
+          )
+        : {}),
 
       [RSC_ACTION_VALIDATE_ALIAS]:
         'next/dist/build/webpack/loaders/next-flight-loader/action-validate',
@@ -1392,6 +1418,12 @@ export default async function getBaseWebpackConfig(
     // @swc/helpers should not be external as it would
     // require hoisting the package which we can't rely on
     if (request.includes('@swc/helpers')) {
+      return
+    }
+
+    // __barrel_optimize__ is a special marker that tells Next.js to
+    // optimize the import by removing unused exports. This has to be compiled.
+    if (request.startsWith('__barrel_optimize__')) {
       return
     }
 
@@ -1948,6 +1980,25 @@ export default async function getBaseWebpackConfig(
     },
     module: {
       rules: [
+        {
+          test: /__barrel_optimize__/,
+          use: ({
+            resourceQuery,
+            issuerLayer,
+          }: {
+            resourceQuery: string
+            issuerLayer: string
+          }) => {
+            const names = resourceQuery.slice('?names='.length).split(',')
+            return [
+              getSwcLoader({
+                isServerLayer:
+                  issuerLayer === WEBPACK_LAYERS.reactServerComponents,
+                optimizeBarrelExports: names,
+              }),
+            ]
+          },
+        },
         ...(hasAppDir
           ? [
               {
@@ -2003,9 +2054,7 @@ export default async function getBaseWebpackConfig(
         ...(hasAppDir && !isClient
           ? [
               {
-                issuerLayer: {
-                  or: [isWebpackServerLayer],
-                },
+                issuerLayer: isWebpackServerLayer,
                 test: {
                   // Resolve it if it is a source code file, and it has NOT been
                   // opted out of bundling.
@@ -2141,9 +2190,7 @@ export default async function getBaseWebpackConfig(
               ? [
                   {
                     test: codeCondition.test,
-                    issuerLayer: {
-                      or: [isWebpackServerLayer],
-                    },
+                    issuerLayer: isWebpackServerLayer,
                     exclude: [asyncStoragesRegex],
                     use: swcLoaderForServerLayer,
                   },
@@ -2350,6 +2397,7 @@ export default async function getBaseWebpackConfig(
       ].filter(Boolean),
     },
     plugins: [
+      dev && new MemoryWithGcCachePlugin({ maxGenerations: 5 }),
       dev && isClient && new ReactRefreshWebpackPlugin(webpack),
       // Makes sure `Buffer` and `process` are polyfilled in client and flight bundles (same behavior as webpack 4)
       (isClient || isEdgeServer) &&
@@ -2694,6 +2742,8 @@ export default async function getBaseWebpackConfig(
 
   const cache: any = {
     type: 'filesystem',
+    // Disable memory cache in development in favor of our own MemoryWithGcCachePlugin.
+    maxMemoryGenerations: dev ? 0 : Infinity, // Infinity is default value for production in webpack currently.
     // Includes:
     //  - Next.js version
     //  - next.config.js keys that affect compilation

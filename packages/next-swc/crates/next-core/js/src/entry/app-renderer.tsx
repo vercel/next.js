@@ -73,6 +73,7 @@ async function runOperation(renderData: RenderData) {
   } = {
     // TODO: give an actual buildId when next build is supported
     buildId: 'development',
+    basePath: '',
     params: renderData.params,
     supportsDynamicHTML: true,
     dev: true,
