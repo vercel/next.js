@@ -264,7 +264,19 @@ export function createPagesMapping({
     {}
   )
 
-  if (pagesType !== 'pages') {
+  if (pagesType === 'app') {
+    const hasAppPages = Object.keys(pages).some((page) =>
+      page.endsWith('/page')
+    )
+    return {
+      // If there's any app pages existed, add a default not-found page.
+      // If there's any custom not-found page existed, it will override the default one.
+      ...(hasAppPages && {
+        '/_not-found': 'next/dist/client/components/not-found-error',
+      }),
+      ...pages,
+    }
+  } else if (pagesType === 'root') {
     return pages
   }
 

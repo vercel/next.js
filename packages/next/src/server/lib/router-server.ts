@@ -688,7 +688,7 @@ export async function initialize(opts: {
           parsedUrl,
           'app',
           handleIndex,
-          '/_not-found',
+          opts.dev ? '/not-found' : '/_not-found',
           {
             'x-invoke-status': '404',
           }

@@ -109,6 +109,7 @@ import {
   copyTracedFiles,
   isReservedPage,
   AppConfig,
+  isAppBuiltinNotFoundPage,
 } from './utils'
 import { writeBuildId } from './write-build-id'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
@@ -1495,12 +1496,18 @@ export default async function build(
                   }
                 }
 
+                const pageFilePath = isAppBuiltinNotFoundPage(pagePath)
+                  ? require.resolve(
+                      'next/dist/client/components/not-found-error'
+                    )
+                  : path.join(
+                      (pageType === 'pages' ? pagesDir : appDir) || '',
+                      pagePath
+                    )
+
                 const staticInfo = pagePath
                   ? await getPageStaticInfo({
-                      pageFilePath: path.join(
-                        (pageType === 'pages' ? pagesDir : appDir) || '',
-                        pagePath
-                      ),
+                      pageFilePath,
                       nextConfig: config,
                       pageType,
                     })

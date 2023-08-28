@@ -28,7 +28,6 @@ import {
   streamToBufferedResult,
   cloneTransformStream,
 } from '../stream-utils/node-web-streams-helper'
-import DefaultNotFound from '../../client/components/not-found-error'
 import {
   canSegmentBeOverridden,
   matchSegment,
@@ -735,7 +734,7 @@ export async function renderToHTMLOrFlight(
         const NotFoundBoundary =
           ComponentMod.NotFoundBoundary as typeof import('../../client/components/not-found-boundary').NotFoundBoundary
         Component = (componentProps: any) => {
-          const NotFoundComponent = NotFound || DefaultNotFound
+          const NotFoundComponent = NotFound
           const RootLayoutComponent = LayoutOrPage
           return (
             <NotFoundBoundary

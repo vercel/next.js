@@ -485,6 +485,10 @@ createNextDescribe(
 
         expect(files.sort()).toEqual(
           [
+            '_not-found.html',
+            '_not-found.js',
+            '_not-found.rsc',
+            '_not-found_client-reference-manifest.js',
             'page.js',
             'index.rsc',
             'index.html',
