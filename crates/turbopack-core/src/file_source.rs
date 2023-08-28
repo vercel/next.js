@@ -22,7 +22,7 @@ impl FileSource {
     pub fn new(path: Vc<FileSystemPath>) -> Vc<Self> {
         Self::cell(FileSource {
             path,
-            query: Vc::<String>::empty(),
+            query: Vc::<String>::default(),
         })
     }
 

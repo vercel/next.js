@@ -125,7 +125,7 @@ impl ModuleReference for TsReferenceTypeAssetReference {
             Request::module(
                 self.module.clone(),
                 Value::new("".to_string().into()),
-                Vc::<String>::empty(),
+                Vc::<String>::default(),
             ),
         )
     }

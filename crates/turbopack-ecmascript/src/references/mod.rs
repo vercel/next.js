@@ -31,7 +31,7 @@ use parking_lot::Mutex;
 use regex::Regex;
 use swc_core::{
     common::{
-        comments::CommentKind,
+        comments::{CommentKind, Comments},
         errors::{DiagnosticId, Handler, HANDLER},
         pass::AstNodePath,
         source_map::Pos,
@@ -391,7 +391,7 @@ pub(crate) async fn analyze_ecmascript_module(
 
     let pos = program.span().lo;
     if analyze_types {
-        if let Some(comments) = comments.leading.get(&pos) {
+        if let Some(comments) = comments.get_leading(pos) {
             for comment in comments.iter() {
                 if let CommentKind::Line = comment.kind {
                     lazy_static! {
@@ -421,8 +421,8 @@ pub(crate) async fn analyze_ecmascript_module(
         }
     }
 
-    comments.trailing.iter().for_each(|r| {
-        r.value().iter().for_each(|comment| match comment.kind {
+    comments.trailing.iter().for_each(|(_, comments)| {
+        comments.iter().for_each(|comment| match comment.kind {
             CommentKind::Line => {
                 lazy_static! {
                     static ref SOURCE_MAP_FILE_REFERENCE: Regex =

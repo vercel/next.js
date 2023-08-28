@@ -35,6 +35,7 @@ use turbopack_swc_utils::emitter::IssueEmitter;
 use super::EcmascriptModuleAssetType;
 use crate::{
     analyzer::graph::EvalContext,
+    swc_comments::ImmutableComments,
     transform::{EcmascriptInputTransforms, TransformContext},
     EcmascriptInputTransform,
 };
@@ -46,7 +47,7 @@ pub enum ParseResult {
         #[turbo_tasks(trace_ignore)]
         program: Program,
         #[turbo_tasks(debug_ignore, trace_ignore)]
-        comments: SwcComments,
+        comments: Arc<ImmutableComments>,
         #[turbo_tasks(debug_ignore, trace_ignore)]
         eval_context: EvalContext,
         #[turbo_tasks(debug_ignore, trace_ignore)]
@@ -344,7 +345,7 @@ async fn parse_content(
 
             Ok::<ParseResult, anyhow::Error>(ParseResult::Ok {
                 program: parsed_program,
-                comments,
+                comments: Arc::new(ImmutableComments::new(comments)),
                 eval_context,
                 // Temporary globals as the current one can't be moved yet, since they are
                 // borrowed

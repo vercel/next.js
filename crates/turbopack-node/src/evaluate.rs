@@ -12,8 +12,8 @@ use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use turbo_tasks::{
-    duration_span, mark_finished, unit, util::SharedError, Completion, RawVc, TryJoinIterExt,
-    Value, ValueToString, Vc,
+    duration_span, mark_finished, util::SharedError, Completion, RawVc, TryJoinIterExt, Value,
+    ValueToString, Vc,
 };
 use turbo_tasks_bytes::{Bytes, Stream};
 use turbo_tasks_env::ProcessEnv;
@@ -308,7 +308,7 @@ async fn compute_evaluate_stream(
     mark_finished();
     let Ok(sender) = sender.await else {
         // Impossible to handle the error in a good way.
-        return Ok(unit());
+        return Ok(Default::default());
     };
 
     let stream = generator! {
@@ -386,14 +386,14 @@ async fn compute_evaluate_stream(
     pin_mut!(stream);
     while let Some(value) = stream.next().await {
         if sender.send(value).await.is_err() {
-            return Ok(unit());
+            return Ok(Default::default());
         }
         if sender.flush().await.is_err() {
-            return Ok(unit());
+            return Ok(Default::default());
         }
     }
 
-    Ok(unit())
+    Ok(Default::default())
 }
 
 /// Repeatedly pulls from the NodeJsOperation until we receive a

@@ -11,7 +11,7 @@ use std::{
 use anyhow::{bail, Context, Result};
 use dunce::canonicalize;
 use serde::Deserialize;
-use turbo_tasks::{unit, ReadRef, TryJoinIterExt, TurboTasks, Value, ValueToString, Vc};
+use turbo_tasks::{ReadRef, TryJoinIterExt, TurboTasks, Value, ValueToString, Vc};
 use turbo_tasks_env::DotenvProcessEnv;
 use turbo_tasks_fs::{
     json::parse_json_with_source_context, util::sys_to_unix, DiskFileSystem, FileSystem,
@@ -156,7 +156,7 @@ async fn run(resource: PathBuf) -> Result<()> {
         snapshot_issues(plain_issues, out.join("issues".to_string()), &REPO_ROOT)
             .await
             .context("Unable to handle issues")?;
-        Ok(unit())
+        Ok(Vc::<()>::default())
     });
     tt.wait_task_completion(task, true).await?;
 

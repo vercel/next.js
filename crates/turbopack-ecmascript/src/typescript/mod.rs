@@ -144,7 +144,7 @@ impl Module for TsConfigModuleAsset {
                     Request::module(
                         name,
                         Value::new("".to_string().into()),
-                        Vc::<String>::empty(),
+                        Vc::<String>::default(),
                     ),
                 )));
             }
