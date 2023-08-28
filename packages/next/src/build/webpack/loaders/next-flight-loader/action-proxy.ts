@@ -45,5 +45,5 @@ export function createActionProxy(
     bind: {
       value: bindImpl,
     },
-  }, {configurable: true})
+  }, {configurable: true, writable: false})
 }
