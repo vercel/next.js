@@ -609,202 +609,212 @@ async function startWatcher(opts: SetupOpts) {
     await writeMiddlewareManifest()
     await writeOtherManifests()
 
-    hotReloader = new Proxy({} as any, {
-      get(_target, prop, _receiver) {
-        if (prop === 'ensurePage') {
-          return async (
-            ensureOpts: Parameters<(typeof hotReloader)['ensurePage']>[0]
-          ) => {
-            let page = ensureOpts.match?.definition?.pathname ?? ensureOpts.page
+    const turbopackHotReloader: NextJsHotReloaderInterface = {
+      activeWebpackConfigs: undefined,
+      serverStats: null,
+      edgeServerStats: null,
+      async run(req, _res, _parsedUrl) {
+        // intercept page chunks request and ensure them with turbopack
+        if (req.url?.startsWith('/_next/static/chunks/pages/')) {
+          const params = matchNextPageBundleRequest(req.url)
 
-            if (page === '/_error') {
-              await processResult(
-                '_app',
-                await globalEntries.app?.writeToDisk()
-              )
-              await loadBuildManifest('_app')
-              await loadPagesManifest('_app')
+          if (params) {
+            const decodedPagePath = `/${params.path
+              .map((param: string) => decodeURIComponent(param))
+              .join('/')}`
 
-              await processResult(
-                '_document',
-                await globalEntries.document?.writeToDisk()
-              )
-              await loadPagesManifest('_document')
-
-              await processResult(
-                page,
-                await globalEntries.error?.writeToDisk()
-              )
-              await loadBuildManifest('_error')
-              await loadPagesManifest('_error')
-
-              await writeBuildManifest()
-              await writePagesManifest()
-              await writeMiddlewareManifest()
-              await writeOtherManifests()
-
-              return
-            }
-
-            await currentEntriesHandling
-            const route = curEntries.get(page)
-
-            if (!route) {
-              // TODO: why is this entry missing in turbopack?
-              if (page === '/_app') return
-              if (page === '/_document') return
-              if (page === '/middleware') return
-
-              throw new PageNotFoundError(`route not found ${page}`)
-            }
-
-            switch (route.type) {
-              case 'page': {
-                if (ensureOpts.isApp) {
-                  throw new Error(
-                    `mis-matched route type: isApp && page for ${page}`
-                  )
-                }
-
-                await processResult(
-                  '_app',
-                  await globalEntries.app?.writeToDisk()
-                )
-                await loadBuildManifest('_app')
-                await loadPagesManifest('_app')
-
-                await processResult(
-                  '_document',
-                  await globalEntries.document?.writeToDisk()
-                )
-                await loadPagesManifest('_document')
-
-                const writtenEndpoint = await processResult(
-                  page,
-                  await route.htmlEndpoint.writeToDisk()
-                )
-
-                const type = writtenEndpoint?.type
-
-                await loadBuildManifest(page)
-                await loadPagesManifest(page)
-                if (type === 'edge') {
-                  await loadMiddlewareManifest(page, 'pages')
-                } else {
-                  middlewareManifests.delete(page)
-                }
-
-                await writeBuildManifest()
-                await writePagesManifest()
-                await writeMiddlewareManifest()
-                await writeOtherManifests()
-
-                break
-              }
-              case 'page-api': {
-                if (ensureOpts.isApp) {
-                  throw new Error(
-                    `mis-matched route type: isApp && page for ${page}`
-                  )
-                }
-
-                const writtenEndpoint = await processResult(
-                  page,
-                  await route.endpoint.writeToDisk()
-                )
-
-                const type = writtenEndpoint?.type
-
-                await loadPagesManifest(page)
-                if (type === 'edge') {
-                  await loadMiddlewareManifest(page, 'pages')
-                } else {
-                  middlewareManifests.delete(page)
-                }
-
-                await writePagesManifest()
-                await writeMiddlewareManifest()
-                await writeOtherManifests()
-
-                break
-              }
-              case 'app-page': {
-                await processResult(
-                  page,
-                  await route.htmlEndpoint.writeToDisk()
-                )
-
-                await loadAppBuildManifest(page)
-                await loadBuildManifest(page, 'app')
-                await loadAppPathManifest(page, 'app')
-
-                await writeAppBuildManifest()
-                await writeBuildManifest()
-                await writeAppPathsManifest()
-                await writeMiddlewareManifest()
-                await writeOtherManifests()
-
-                break
-              }
-              case 'app-route': {
-                const type = (
-                  await processResult(page, await route.endpoint.writeToDisk())
-                )?.type
-
-                await loadAppPathManifest(page, 'app-route')
-                if (type === 'edge') {
-                  await loadMiddlewareManifest(page, 'app-route')
-                } else {
-                  middlewareManifests.delete(page)
-                }
-
-                await writeAppBuildManifest()
-                await writeAppPathsManifest()
-                await writeMiddlewareManifest()
-                await writeMiddlewareManifest()
-                await writeOtherManifests()
-
-                break
-              }
-              default: {
-                throw new Error(`unknown route type ${route.type} for ${page}`)
-              }
-            }
+            await hotReloader
+              .ensurePage({
+                page: decodedPagePath,
+                clientOnly: false,
+              })
+              .catch(console.error)
           }
         }
+        // Request was not finished.
+        return { finished: undefined }
+      },
 
-        if (prop === 'run') {
-          return async (req: IncomingMessage, _res: ServerResponse) => {
-            // intercept page chunks request and ensure them with turbopack
-            if (req.url?.startsWith('/_next/static/chunks/pages/')) {
-              const params = matchNextPageBundleRequest(req.url)
+      setHmrServerError(_error) {
+        // Not implemented yet.
+      },
+      clearHmrServerError() {
+        // Not implemented yet.
+      },
+      async start() {
+        // Not implemented yet.
+      },
+      async stop() {
+        // Not implemented yet.
+      },
+      send(_action, ..._args) {
+        // Not implemented yet.
+      },
+      async getCompilationErrors(_page) {
+        return []
+      },
+      onHMR(_req, _socket, _head) {
+        // Not implemented yet.
+      },
+      invalidate(/* Unused parameter: { reloadAfterInvalidation } */) {
+        // Not implemented yet.
+      },
+      async buildFallbackError() {
+        // Not implemented yet.
+      },
+      async ensurePage({
+        page: inputPage,
+        // Unused parameters
+        // clientOnly,
+        // appPaths,
+        match,
+        isApp,
+      }) {
+        let page = match?.definition?.pathname ?? inputPage
 
-              if (params) {
-                const decodedPagePath = `/${params.path
-                  .map((param: string) => decodeURIComponent(param))
-                  .join('/')}`
+        if (page === '/_error') {
+          await processResult('_app', await globalEntries.app?.writeToDisk())
+          await loadBuildManifest('_app')
+          await loadPagesManifest('_app')
 
-                await hotReloader
-                  .ensurePage({
-                    page: decodedPagePath,
-                    clientOnly: false,
-                  })
-                  .catch(console.error)
-              }
+          await processResult(
+            '_document',
+            await globalEntries.document?.writeToDisk()
+          )
+          await loadPagesManifest('_document')
+
+          await processResult(page, await globalEntries.error?.writeToDisk())
+          await loadBuildManifest('_error')
+          await loadPagesManifest('_error')
+
+          await writeBuildManifest()
+          await writePagesManifest()
+          await writeMiddlewareManifest()
+          await writeOtherManifests()
+
+          return
+        }
+
+        await currentEntriesHandling
+        const route = curEntries.get(page)
+
+        if (!route) {
+          // TODO: why is this entry missing in turbopack?
+          if (page === '/_app') return
+          if (page === '/_document') return
+          if (page === '/middleware') return
+
+          throw new PageNotFoundError(`route not found ${page}`)
+        }
+
+        switch (route.type) {
+          case 'page': {
+            if (isApp) {
+              throw new Error(
+                `mis-matched route type: isApp && page for ${page}`
+              )
             }
-            return { finished: false }
+
+            await processResult('_app', await globalEntries.app?.writeToDisk())
+            await loadBuildManifest('_app')
+            await loadPagesManifest('_app')
+
+            await processResult(
+              '_document',
+              await globalEntries.document?.writeToDisk()
+            )
+            await loadPagesManifest('_document')
+
+            const writtenEndpoint = await processResult(
+              page,
+              await route.htmlEndpoint.writeToDisk()
+            )
+
+            const type = writtenEndpoint?.type
+
+            await loadBuildManifest(page)
+            await loadPagesManifest(page)
+            if (type === 'edge') {
+              await loadMiddlewareManifest(page, 'pages')
+            } else {
+              middlewareManifests.delete(page)
+            }
+
+            await writeBuildManifest()
+            await writePagesManifest()
+            await writeMiddlewareManifest()
+            await writeOtherManifests()
+
+            break
+          }
+          case 'page-api': {
+            // We don't throw on ensureOpts.isApp === true here
+            // since this can happen when app pages make
+            // api requests to page API routes.
+
+            const writtenEndpoint = await processResult(
+              page,
+              await route.endpoint.writeToDisk()
+            )
+
+            const type = writtenEndpoint?.type
+
+            await loadPagesManifest(page)
+            if (type === 'edge') {
+              await loadMiddlewareManifest(page, 'pages')
+            } else {
+              middlewareManifests.delete(page)
+            }
+
+            await writePagesManifest()
+            await writeMiddlewareManifest()
+            await writeOtherManifests()
+
+            break
+          }
+          case 'app-page': {
+            await processResult(page, await route.htmlEndpoint.writeToDisk())
+
+            await loadAppBuildManifest(page)
+            await loadBuildManifest(page, 'app')
+            await loadAppPathManifest(page, 'app')
+
+            await writeAppBuildManifest()
+            await writeBuildManifest()
+            await writeAppPathsManifest()
+            await writeMiddlewareManifest()
+            await writeOtherManifests()
+
+            break
+          }
+          case 'app-route': {
+            const type = (
+              await processResult(page, await route.endpoint.writeToDisk())
+            )?.type
+
+            await loadAppPathManifest(page, 'app-route')
+            if (type === 'edge') {
+              await loadMiddlewareManifest(page, 'app-route')
+            } else {
+              middlewareManifests.delete(page)
+            }
+
+            await writeAppBuildManifest()
+            await writeAppPathsManifest()
+            await writeMiddlewareManifest()
+            await writeMiddlewareManifest()
+            await writeOtherManifests()
+
+            break
+          }
+          default: {
+            throw new Error(`unknown route type ${route.type} for ${page}`)
           }
         }
+      },
+    }
 
-        if (prop === 'activeConfigs') {
-          return []
-        }
-        return () => {}
-      },
-      set() {
-        return true
-      },
-    })
+    hotReloader = turbopackHotReloader
   } else {
     hotReloader = new HotReloader(opts.dir, {
       appDir,
@@ -1187,7 +1197,7 @@ async function startWatcher(opts: SetupOpts) {
           }
         }
 
-        hotReloader.activeConfigs?.forEach((config, idx) => {
+        hotReloader.activeWebpackConfigs?.forEach((config, idx) => {
           const isClient = idx === 0
           const isNodeServer = idx === 1
           const isEdgeServer = idx === 2
