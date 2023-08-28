@@ -5,7 +5,7 @@ type Filter = (pathname: string) => boolean
 
 type Result = {
   directories: string[]
-  files: string[]
+  pathnames: string[]
   links: string[]
 }
 
@@ -75,14 +75,11 @@ export async function recursiveReadDir(
     // Load all the files in each directory at the same time.
     const results = await Promise.all(
       directories.map(async (directory) => {
-        const result: Result = { directories: [], files: [], links: [] }
+        const result: Result = { directories: [], pathnames: [], links: [] }
 
         try {
-          const dir = await fs.opendir(directory, {
-            // Buffer up to 100 files at a time for the iterator.
-            bufferSize: 100,
-          })
-          for await (const file of dir) {
+          const dir = await fs.readdir(directory, { withFileTypes: true })
+          for (const file of dir) {
             // If enabled, ignore the file if it matches the ignore filter.
             if (ignorePartFilter && ignorePartFilter(file.name)) {
               continue
@@ -103,7 +100,7 @@ export async function recursiveReadDir(
             } else if (file.isSymbolicLink()) {
               result.links.push(absolutePathname)
             } else if (!pathnameFilter || pathnameFilter(absolutePathname)) {
-              result.files.push(coerce(absolutePathname))
+              result.pathnames.push(coerce(absolutePathname))
             }
           }
         } catch (err: any) {
@@ -113,7 +110,7 @@ export async function recursiveReadDir(
           if (err.code !== 'ENOENT' || directory === rootDirectory) throw err
 
           // The error occurred, so abandon reading this directory.
-          return { directories: [], files: [], links: [] }
+          return { directories: [], pathnames: [], links: [] }
         }
 
         return result
@@ -136,7 +133,7 @@ export async function recursiveReadDir(
       links.push(...result.links)
 
       // Add any file pathnames to the list of pathnames.
-      pathnames.push(...result.files)
+      pathnames.push(...result.pathnames)
     }
 
     // Resolve all the symbolic links we found if any.
