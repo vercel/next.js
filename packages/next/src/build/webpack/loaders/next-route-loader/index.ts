@@ -103,6 +103,9 @@ type RouteLoaderOptions = RouteLoaderPagesOptions | RouteLoaderPagesAPIOptions
  * @returns the encoded loader entry
  */
 export function getRouteLoaderEntry(options: RouteLoaderOptionsInput): string {
+  if (['/_app', '/_document'].includes(options.page)) {
+    return options.absolutePagePath
+  }
   switch (options.kind) {
     case RouteKind.PAGES: {
       const query: RouteLoaderPagesOptions = {
@@ -162,10 +165,7 @@ const loadPages = async (
   let file = await loadEntrypoint('pages', {
     VAR_USERLAND: absolutePagePath,
     VAR_MODULE_DOCUMENT: absoluteDocumentPath,
-    VAR_MODULE_APP:
-      page === '/_document'
-        ? 'next/dist/client/components/noop'
-        : absoluteAppPath,
+    VAR_MODULE_APP: absoluteAppPath,
     VAR_DEFINITION_PAGE: normalizePagePath(page),
     VAR_DEFINITION_PATHNAME: page,
   })
