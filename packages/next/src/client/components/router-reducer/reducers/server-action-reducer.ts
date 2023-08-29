@@ -91,6 +91,7 @@ async function fetchServerAction(
   const redirectLocation = location
     ? new URL(
         addBasePath(location),
+        // Ensure relative redirects in Server Actions work, e.g. redirect('./somewhere-else')
         new URL(state.canonicalUrl, window.location.href)
       )
     : undefined
