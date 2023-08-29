@@ -20,7 +20,7 @@ describe('SCSS Support', () => {
         stdout: true,
       })
       expect(code).toBe(0)
-      expect(stdout).toMatch(/Compiled successfully/)
+      expect(stdout).toMatch(/✓ Compiled/)
     })
 
     it(`should've emitted expected files`, async () => {
@@ -66,7 +66,7 @@ describe('SCSS Support', () => {
         stdout: true,
       })
       expect(code).toBe(0)
-      expect(stdout).toMatch(/Compiled successfully/)
+      expect(stdout).toMatch(/✓ Compiled/)
     })
 
     it(`should've emitted expected files`, async () => {
@@ -114,7 +114,7 @@ describe('SCSS Support', () => {
         stdout: true,
       })
       expect(code).toBe(0)
-      expect(stdout).toMatch(/Compiled successfully/)
+      expect(stdout).toMatch(/✓ Compiled/)
     })
 
     it(`should've emitted expected files`, async () => {
@@ -160,7 +160,7 @@ describe('SCSS Support', () => {
         stdout: true,
       })
       expect(code).toBe(0)
-      expect(stdout).toMatch(/Compiled successfully/)
+      expect(stdout).toMatch(/✓ Compiled/)
     })
 
     it(`should've emitted expected files`, async () => {
@@ -206,7 +206,7 @@ describe('SCSS Support', () => {
         stdout: true,
       })
       expect(code).toBe(0)
-      expect(stdout).toMatch(/Compiled successfully/)
+      expect(stdout).toMatch(/✓ Compiled/)
     })
 
     it(`should've emitted expected files`, async () => {
@@ -235,7 +235,7 @@ describe('SCSS Support', () => {
         stdout: true,
       })
       expect(code).toBe(0)
-      expect(stdout).toMatch(/Compiled successfully/)
+      expect(stdout).toMatch(/✓ Compiled/)
     })
 
     it(`should've emitted expected files`, async () => {
@@ -263,7 +263,7 @@ describe('SCSS Support', () => {
       const { stdout } = await nextBuild(appDir, [], {
         stdout: true,
       })
-      expect(stdout).toMatch(/Compiled successfully/)
+      expect(stdout).toMatch(/✓ Compiled/)
     })
   })
 })

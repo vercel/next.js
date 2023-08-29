@@ -20,7 +20,7 @@ describe('Custom Properties: Pass-Through IE11', () => {
 
   it('should have compiled successfully', () => {
     expect(code).toBe(0)
-    expect(stdout).toMatch(/Compiled successfully/)
+    expect(stdout).toMatch(/✓ Compiled/)
   })
 
   it(`should've emitted a single CSS file`, async () => {
@@ -52,7 +52,7 @@ describe('Custom Properties: Pass-Through Modern', () => {
 
   it('should have compiled successfully', () => {
     expect(code).toBe(0)
-    expect(stdout).toMatch(/Compiled successfully/)
+    expect(stdout).toMatch(/✓ Compiled/)
   })
 
   it(`should've emitted a single CSS file`, async () => {
@@ -84,7 +84,7 @@ describe('Inline Comments: Minify', () => {
 
   it('should have compiled successfully', () => {
     expect(code).toBe(0)
-    expect(stdout).toMatch(/Compiled successfully/)
+    expect(stdout).toMatch(/✓ Compiled/)
   })
 
   it(`should've emitted a single CSS file`, async () => {

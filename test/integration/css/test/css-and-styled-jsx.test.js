@@ -58,7 +58,7 @@ describe('Ordering with styled-jsx (prod)', () => {
 
   it('should have compiled successfully', () => {
     expect(code).toBe(0)
-    expect(stdout).toMatch(/Compiled successfully/)
+    expect(stdout).toMatch(/✓ Compiled/)
   })
 
   it('should have the correct color (css ordering)', async () => {

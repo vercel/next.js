@@ -10,6 +10,6 @@ describe('Empty JSConfig Support', () => {
       stdout: true,
     })
     expect(code).toBe(0)
-    expect(stdout).toMatch(/Compiled successfully/)
+    expect(stdout).toMatch(/✓ Compiled/)
   })
 })

@@ -365,12 +365,28 @@ export function runNextCommandDev(
     function handleStdout(data) {
       // TODO: tune the typing for the promise resolved value
       const message = stripAnsi(data.toString()) as any
+      console.log('message', message)
       const bootupMarkers = {
         dev: /▲ Next.js/i,
         turbo: /started server/i,
         experimentalTurbo: /▲ Next.js/i,
         start: /▲ Next.js/i,
       }
+
+      const label =
+        opts.nextStart || stdOut
+          ? 'start'
+          : opts?.experimentalTurbo
+          ? 'experimentalTurbo'
+          : opts?.turbo
+          ? 'turbo'
+          : 'dev'
+      console.log(
+        `bootupMarkers`,
+        bootupMarkers[label].test(message),
+        'label',
+        label
+      )
       if (
         (opts.bootupMarker && opts.bootupMarker.test(message)) ||
         bootupMarkers[
