@@ -350,9 +350,6 @@ const configSchema = {
         largePageDataBytes: {
           type: 'number',
         },
-        legacyBrowsers: {
-          type: 'boolean',
-        },
         manualClientBasePath: {
           type: 'boolean',
         },
