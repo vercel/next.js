@@ -36,7 +36,7 @@ First, you will see these terms being used throughout the documentation. Here's 
 
 ## The `app` Router
 
-In version 13, Next.js introduced a new **App Router** built on [React Server Components](/docs/getting-started/react-essentials#server-components), which supports shared layouts, nested routing, loading states, error handling, and more.
+In version 13, Next.js introduced a new **App Router** built on [React Server Components](/docs/app/building-your-application/rendering/server-components), which supports shared layouts, nested routing, loading states, error handling, and more.
 
 The App Router works in a new directory named `app`. The `app` directory works alongside the `pages` directory to allow for incremental adoption. This allows you to opt some routes of your application into the new behavior while keeping other routes in the `pages` directory for previous behavior. If your application uses the `pages` directory, please also see the [Pages Router](/docs/pages/building-your-application/routing) documentation.
 
@@ -50,9 +50,9 @@ The App Router works in a new directory named `app`. The `app` directory works a
   height="444"
 />
 
-By default, components inside `app` are [React Server Components](/docs/getting-started/react-essentials#server-components). This is a performance optimization and allows you to easily adopt them, and you can also use [Client Components](/docs/getting-started/react-essentials#client-components).
+By default, components inside `app` are [React Server Components](/docs/app/building-your-application/rendering/server-components). This is a performance optimization and allows you to easily adopt them, and you can also use [Client Components](/docs/app/building-your-application/rendering/client-components).
 
-> **Recommendation:** Check out the [Server and Client Components](/docs/getting-started/react-essentials) page if you're new to Server Components.
+> **Recommendation:** Check out the [Server](/docs/app/building-your-application/rendering/server-components) page if you're new to Server Components.
 
 ## Roles of Folders and Files
 

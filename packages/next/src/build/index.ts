@@ -109,6 +109,7 @@ import {
   copyTracedFiles,
   isReservedPage,
   AppConfig,
+  isAppBuiltinNotFoundPage,
 } from './utils'
 import { writeBuildId } from './write-build-id'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
@@ -128,6 +129,7 @@ import { flatReaddir } from '../lib/flat-readdir'
 import { eventSwcPlugins } from '../telemetry/events/swc-plugins'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import {
+  NEXT_ROUTER_PREFETCH,
   RSC,
   RSC_CONTENT_TYPE_HEADER,
   RSC_VARY_HEADER,
@@ -223,6 +225,7 @@ export type RoutesManifest = {
   rsc: {
     header: typeof RSC
     varyHeader: typeof RSC_VARY_HEADER
+    prefetchHeader: typeof NEXT_ROUTER_PREFETCH
   }
   skipMiddlewareUrlNormalize?: boolean
   caseSensitive?: boolean
@@ -446,11 +449,11 @@ export default async function build(
 
       const pagesPaths =
         !appDirOnly && pagesDir
-          ? await nextBuildSpan
-              .traceChild('collect-pages')
-              .traceAsyncFn(() =>
-                recursiveReadDir(pagesDir, validFileMatcher.isPageFile)
-              )
+          ? await nextBuildSpan.traceChild('collect-pages').traceAsyncFn(() =>
+              recursiveReadDir(pagesDir, {
+                pathnameFilter: validFileMatcher.isPageFile,
+              })
+            )
           : []
 
       const middlewareDetectionRegExp = new RegExp(
@@ -510,16 +513,14 @@ export default async function build(
         const appPaths = await nextBuildSpan
           .traceChild('collect-app-paths')
           .traceAsyncFn(() =>
-            recursiveReadDir(
-              appDir,
-              (absolutePath) =>
+            recursiveReadDir(appDir, {
+              pathnameFilter: (absolutePath) =>
                 validFileMatcher.isAppRouterPage(absolutePath) ||
                 // For now we only collect the root /not-found page in the app
                 // directory as the 404 fallback
                 validFileMatcher.isRootNotFound(absolutePath),
-              undefined,
-              (part) => part.startsWith('_')
-            )
+              ignorePartFilter: (part) => part.startsWith('_'),
+            })
           )
 
         mappedAppPages = nextBuildSpan
@@ -782,6 +783,7 @@ export default async function build(
             rsc: {
               header: RSC,
               varyHeader: RSC_VARY_HEADER,
+              prefetchHeader: NEXT_ROUTER_PREFETCH,
               contentTypeHeader: RSC_CONTENT_TYPE_HEADER,
             },
             skipMiddlewareUrlNormalize: config.skipMiddlewareUrlNormalize,
@@ -1135,6 +1137,7 @@ export default async function build(
       const additionalSsgPaths = new Map<string, Array<string>>()
       const additionalSsgPathsEncoded = new Map<string, Array<string>>()
       const appStaticPaths = new Map<string, Array<string>>()
+      const appPrefetchPaths = new Map<string, string>()
       const appStaticPathsEncoded = new Map<string, Array<string>>()
       const appNormalizedPaths = new Map<string, string>()
       const appDynamicParamPaths = new Set<string>()
@@ -1274,6 +1277,7 @@ export default async function build(
         CacheHandler = require(path.isAbsolute(incrementalCacheHandlerPath)
           ? incrementalCacheHandlerPath
           : path.join(dir, incrementalCacheHandlerPath))
+        CacheHandler = CacheHandler.default || CacheHandler
       }
 
       const { ipcPort, ipcValidationKey } = await initialize({
@@ -1492,12 +1496,18 @@ export default async function build(
                   }
                 }
 
+                const pageFilePath = isAppBuiltinNotFoundPage(pagePath)
+                  ? require.resolve(
+                      'next/dist/client/components/not-found-error'
+                    )
+                  : path.join(
+                      (pageType === 'pages' ? pagesDir : appDir) || '',
+                      pagePath
+                    )
+
                 const staticInfo = pagePath
                   ? await getPageStaticInfo({
-                      pageFilePath: path.join(
-                        (pageType === 'pages' ? pagesDir : appDir) || '',
-                        pagePath
-                      ),
+                      pageFilePath,
                       nextConfig: config,
                       pageType,
                     })
@@ -1653,6 +1663,14 @@ export default async function build(
                             appDynamicParamPaths.add(originalAppPath)
                           }
                           appDefaultConfigs.set(originalAppPath, appConfig)
+
+                          if (
+                            !isStatic &&
+                            !isAppRouteRoute(originalAppPath) &&
+                            !isDynamicRoute(originalAppPath)
+                          ) {
+                            appPrefetchPaths.set(originalAppPath, page)
+                          }
                         }
                       } else {
                         if (isEdgeRuntime(pageRuntime)) {
@@ -2499,6 +2517,15 @@ export default async function build(
                 })
               })
 
+              for (const [originalAppPath, page] of appPrefetchPaths) {
+                defaultMap[page] = {
+                  page: originalAppPath,
+                  query: {},
+                  _isAppDir: true,
+                  _isAppPrefetch: true,
+                }
+              }
+
               if (i18n) {
                 for (const page of [
                   ...staticPages,
@@ -2843,7 +2870,6 @@ export default async function build(
 
           // If there's /not-found inside app, we prefer it over the pages 404
           if (hasStaticApp404) {
-            // await moveExportedPage('/_error', '/404', '/404', false, 'html')
             await moveExportedAppNotFoundTo404()
           } else {
             // Only move /404 to /404 when there is no custom 404 as in that case we don't know about the 404 page

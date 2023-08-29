@@ -1,0 +1,20 @@
+@import '@sass/abstracts/vars';
+@import '@sass/abstracts/mixins';
+@import '@fontawesome/scss/mixins';
+@import '@fontawesome/scss/variables';
+
+.navigation.sitemap-navigation {
+  .level2 a {
+    position: relative;
+    padding-left: 10px;
+    &:before {
+      @include font-size(1.4);
+      @include fa-icon();
+      transform: translateY(-50%) scale(1, -1);
+      position: absolute;
+      content: $fa-var-share;
+      top: 50%;
+      left: -8px;
+    }
+  }
+}

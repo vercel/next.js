@@ -17,6 +17,7 @@ const EVENT_FILTER = new Set([
   'hot-reloader',
   'webpack-invalid-client',
   'webpack-invalidated-server',
+  'navigation-to-hydration',
 ])
 
 const {
@@ -58,9 +59,17 @@ interface TraceMetadata {
   pkgName: string
   platform: string
   isTurboSession: boolean
+  nextVersion: string
 }
 
 ;(async function upload() {
+  const nextVersion = JSON.parse(
+    await fsPromise.readFile(
+      path.resolve(__dirname, '../../package.json'),
+      'utf8'
+    )
+  ).version
+
   const projectPkgJsonPath = await findUp('package.json')
   assert(projectPkgJsonPath)
 
@@ -71,7 +80,7 @@ interface TraceMetadata {
 
   const commit = child_process
     .spawnSync(
-      os.platform() === 'win32' ? 'git.cmd' : 'git',
+      os.platform() === 'win32' ? 'git.exe' : 'git',
       ['rev-parse', 'HEAD'],
       { shell: true }
     )
@@ -116,12 +125,13 @@ interface TraceMetadata {
 
   const body: TraceRequestBody = {
     metadata: {
-      commit,
-      mode,
-      pkgName,
-      isTurboSession,
       arch: os.arch(),
+      commit,
       cpus: os.cpus().length,
+      isTurboSession,
+      mode,
+      nextVersion,
+      pkgName,
       platform: os.platform(),
     },
     traces: [...traces.values()],

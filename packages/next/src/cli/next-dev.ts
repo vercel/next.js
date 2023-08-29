@@ -90,13 +90,19 @@ const handleSessionStop = async () => {
   }
 
   if (traceUploadUrl) {
-    uploadTrace({
-      traceUploadUrl,
-      mode: 'dev',
-      isTurboSession,
-      projectDir: dir,
-      distDir: config.distDir,
-    })
+    if (isTurboSession) {
+      console.warn(
+        'Uploading traces with Turbopack is not yet supported. Skipping sending trace.'
+      )
+    } else {
+      uploadTrace({
+        traceUploadUrl,
+        mode: 'dev',
+        isTurboSession,
+        projectDir: dir,
+        distDir: config.distDir,
+      })
+    }
   }
 
   // ensure we re-enable the terminal cursor before exiting
