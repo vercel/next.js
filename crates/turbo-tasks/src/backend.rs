@@ -11,6 +11,7 @@ use std::{
 
 use anyhow::{anyhow, bail, Result};
 use auto_hash_map::AutoSet;
+use nohash_hasher::BuildNoHashHasher;
 use serde::{Deserialize, Serialize};
 
 pub use crate::id::BackendJobId;
@@ -192,7 +193,12 @@ pub trait Backend: Sync + Send {
 
     fn invalidate_task(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi<Self>);
 
-    fn invalidate_tasks(&self, tasks: Vec<TaskId>, turbo_tasks: &dyn TurboTasksBackendApi<Self>);
+    fn invalidate_tasks(&self, tasks: &[TaskId], turbo_tasks: &dyn TurboTasksBackendApi<Self>);
+    fn invalidate_tasks_set(
+        &self,
+        tasks: &AutoSet<TaskId, BuildNoHashHasher<TaskId>>,
+        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
+    );
 
     fn get_task_description(&self, task: TaskId) -> String;
 
