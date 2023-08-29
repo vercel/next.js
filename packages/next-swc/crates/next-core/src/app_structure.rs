@@ -754,7 +754,7 @@ async fn directory_tree_to_entrypoints_internal(
         // Next.js has this logic in "collect-app-paths", where the root not-found page
         // is considered as its own entry point.
         if let Some(_not_found) = components.not_found {
-            let tree = LoaderTree {
+            let dev_not_found_tree = LoaderTree {
                 segment: directory_name.to_string(),
                 parallel_routes: indexmap! {
                     "children".to_string() => LoaderTree {
@@ -771,12 +771,13 @@ async fn directory_tree_to_entrypoints_internal(
                 components: components.without_leafs().cell(),
             }
             .cell();
+
             add_app_page(
                 app_dir,
                 &mut result,
                 "/not-found".to_string(),
                 "/not-found".to_string(),
-                tree,
+                dev_not_found_tree,
             )
             .await?;
             add_app_page(
@@ -784,7 +785,36 @@ async fn directory_tree_to_entrypoints_internal(
                 &mut result,
                 "/_not-found".to_string(),
                 "/_not-found".to_string(),
-                tree,
+                dev_not_found_tree,
+            )
+            .await?;
+        } else {
+            // Create default not-found page for production if there's no customized
+            // not-found
+            let prod_not_found_tree = LoaderTree {
+                segment: directory_name.to_string(),
+                parallel_routes: indexmap! {
+                    "children".to_string() => LoaderTree {
+                        segment: "__PAGE__".to_string(),
+                        parallel_routes: IndexMap::new(),
+                        components: Components {
+                            page: Some(get_next_package(app_dir).join("dist/client/components/not-found-error.js".to_string())),
+                            ..Default::default()
+                        }
+                        .cell(),
+                    }
+                    .cell(),
+                },
+                components: components.without_leafs().cell(),
+            }
+            .cell();
+
+            add_app_page(
+                app_dir,
+                &mut result,
+                "/_not-found".to_string(),
+                "/_not-found".to_string(),
+                prod_not_found_tree,
             )
             .await?;
         }

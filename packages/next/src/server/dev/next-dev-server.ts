@@ -54,7 +54,7 @@ import { DevAppPageRouteMatcherProvider } from '../future/route-matcher-provider
 import { DevAppRouteRouteMatcherProvider } from '../future/route-matcher-providers/dev/dev-app-route-route-matcher-provider'
 import { PagesManifest } from '../../build/webpack/plugins/pages-manifest-plugin'
 import { NodeManifestLoader } from '../future/route-matcher-providers/helpers/manifest-loaders/node-manifest-loader'
-import { CachedFileReader } from '../future/route-matcher-providers/dev/helpers/file-reader/cached-file-reader'
+import { BatchedFileReader } from '../future/route-matcher-providers/dev/helpers/file-reader/batched-file-reader'
 import { DefaultFileReader } from '../future/route-matcher-providers/dev/helpers/file-reader/default-file-reader'
 import { NextBuildContext } from '../../build/build-context'
 import { IncrementalCache } from '../lib/incremental-cache'
@@ -208,10 +208,17 @@ export default class DevServer extends Server {
       this.dir
     )
     const extensions = this.nextConfig.pageExtensions
-    const fileReader = new CachedFileReader(new DefaultFileReader())
+    const extensionsExpression = new RegExp(`\\.(?:${extensions.join('|')})$`)
 
     // If the pages directory is available, then configure those matchers.
     if (pagesDir) {
+      const fileReader = new BatchedFileReader(
+        new DefaultFileReader({
+          // Only allow files that have the correct extensions.
+          pathnameFilter: (pathname) => extensionsExpression.test(pathname),
+        })
+      )
+
       matchers.push(
         new DevPagesRouteMatcherProvider(
           pagesDir,
@@ -231,6 +238,17 @@ export default class DevServer extends Server {
     }
 
     if (appDir) {
+      // We create a new file reader for the app directory because we don't want
+      // to include any folders or files starting with an underscore. This will
+      // prevent the reader from wasting time reading files that we know we
+      // don't care about.
+      const fileReader = new BatchedFileReader(
+        new DefaultFileReader({
+          // Ignore any directory prefixed with an underscore.
+          ignorePartFilter: (part) => part.startsWith('_'),
+        })
+      )
+
       matchers.push(
         new DevAppPageRouteMatcherProvider(appDir, extensions, fileReader)
       )

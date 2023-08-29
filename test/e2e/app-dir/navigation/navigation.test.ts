@@ -421,6 +421,12 @@ createNextDescribe(
           })
           expect(res.status).toBe(307)
         })
+        it('should respond with 308 status code if permanent flag is set', async () => {
+          const res = await next.fetch('/redirect/servercomponent-2', {
+            redirect: 'manual',
+          })
+          expect(res.status).toBe(308)
+        })
       })
     })
 
@@ -551,6 +557,13 @@ createNextDescribe(
 
       it('should emit refresh meta tag for redirect page when streaming', async () => {
         const html = await next.render('/redirect/suspense')
+        expect(html).toContain(
+          '<meta http-equiv="refresh" content="1;url=/redirect/result"/>'
+        )
+      })
+
+      it('should emit refresh meta tag (peramnent) for redirect page when streaming', async () => {
+        const html = await next.render('/redirect/suspense-2')
         expect(html).toContain(
           '<meta http-equiv="refresh" content="0;url=/redirect/result"/>'
         )
