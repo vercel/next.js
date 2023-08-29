@@ -3,21 +3,32 @@
 /// <reference path="../runtime/base/protocol.d.ts" />
 /// <reference path="../runtime/base/extensions.d.ts" />
 
-import { addEventListener, sendMessage } from "./websocket";
+import {
+  addMessageListener as turboSocketAddMessageListener,
+  sendMessage as turboSocketSendMessage,
+} from "./websocket";
+type SendMessage = typeof import("./websocket").sendMessage;
 
 export type ClientOptions = {
-  assetPrefix: string;
+  addMessageListener: typeof import("./websocket").addMessageListener;
+  sendMessage: SendMessage;
 };
 
-export function connect({ assetPrefix }: ClientOptions) {
-  addEventListener((event) => {
-    switch (event.type) {
-      case "connected":
-        handleSocketConnected();
+export function connect({
+  // TODO(WEB-1465) Remove this backwards compat fallback once
+  // vercel/next.js#54586 is merged.
+  addMessageListener = turboSocketAddMessageListener,
+  // TODO(WEB-1465) Remove this backwards compat fallback once
+  // vercel/next.js#54586 is merged.
+  sendMessage = turboSocketSendMessage,
+}: ClientOptions) {
+  addMessageListener((msg) => {
+    switch (msg.type) {
+      case "turbopack-connected":
+        handleSocketConnected(sendMessage);
         break;
-      case "message":
-        const msg: ServerMessage = JSON.parse(event.message.data);
-        handleSocketMessage(msg);
+      default:
+        handleSocketMessage(msg.data as ServerMessage);
         break;
     }
   });
@@ -28,13 +39,13 @@ export function connect({ assetPrefix }: ClientOptions) {
   }
   globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS = {
     push: ([chunkPath, callback]: [ChunkPath, UpdateCallback]) => {
-      subscribeToChunkUpdate(chunkPath, callback);
+      subscribeToChunkUpdate(chunkPath, sendMessage, callback);
     },
   };
 
   if (Array.isArray(queued)) {
     for (const [chunkPath, callback] of queued) {
-      subscribeToChunkUpdate(chunkPath, callback);
+      subscribeToChunkUpdate(chunkPath, sendMessage, callback);
     }
   }
 }
@@ -46,7 +57,7 @@ type UpdateCallbackSet = {
 
 const updateCallbackSets: Map<ResourceKey, UpdateCallbackSet> = new Map();
 
-function sendJSON(message: ClientMessage) {
+function sendJSON(sendMessage: SendMessage, message: ClientMessage) {
   sendMessage(JSON.stringify(message));
 }
 
@@ -59,23 +70,26 @@ function resourceKey(resource: ResourceIdentifier): ResourceKey {
   });
 }
 
-function subscribeToUpdates(resource: ResourceIdentifier): () => void {
-  sendJSON({
-    type: "subscribe",
+function subscribeToUpdates(
+  sendMessage: SendMessage,
+  resource: ResourceIdentifier
+): () => void {
+  sendJSON(sendMessage, {
+    type: "turbopack-subscribe",
     ...resource,
   });
 
   return () => {
-    sendJSON({
-      type: "unsubscribe",
+    sendJSON(sendMessage, {
+      type: "turbopack-unsubscribe",
       ...resource,
     });
   };
 }
 
-function handleSocketConnected() {
+function handleSocketConnected(sendMessage: SendMessage) {
   for (const key of updateCallbackSets.keys()) {
-    subscribeToUpdates(JSON.parse(key));
+    subscribeToUpdates(sendMessage, JSON.parse(key));
   }
 }
 
@@ -515,29 +529,39 @@ function handleSocketMessage(msg: ServerMessage) {
   }
 }
 
-export function subscribeToChunkUpdate(
+function subscribeToChunkUpdate(
   chunkPath: ChunkPath,
+  sendMessage: SendMessage,
   callback: UpdateCallback
 ): () => void {
   return subscribeToUpdate(
     {
       path: chunkPath,
     },
+    sendMessage,
     callback
   );
 }
 
 export function subscribeToUpdate(
   resource: ResourceIdentifier,
+  sendMessage: SendMessage,
   callback: UpdateCallback
 ) {
+  // TODO(WEB-1465) Remove this backwards compat fallback once
+  // vercel/next.js#54586 is merged.
+  if (callback === undefined) {
+    callback = sendMessage;
+    sendMessage = turboSocketSendMessage;
+  }
+
   const key = resourceKey(resource);
   let callbackSet: UpdateCallbackSet;
   const existingCallbackSet = updateCallbackSets.get(key);
   if (!existingCallbackSet) {
     callbackSet = {
       callbacks: new Set([callback]),
-      unsubscribe: subscribeToUpdates(resource),
+      unsubscribe: subscribeToUpdates(sendMessage, resource),
     };
     updateCallbackSets.set(key, callbackSet);
   } else {

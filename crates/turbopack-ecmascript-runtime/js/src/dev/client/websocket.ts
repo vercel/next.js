@@ -1,7 +1,7 @@
 // Adapted from https://github.com/vercel/next.js/blob/canary/packages/next/client/dev/error-overlay/websocket.ts
 
 let source: WebSocket;
-const eventCallbacks: ((event: WebsocketEvent) => void)[] = [];
+const eventCallbacks: ((msg: WebSocketMessage) => void)[] = [];
 
 // TODO: add timeout again
 // let lastActivity = Date.now()
@@ -17,16 +17,16 @@ function getSocketProtocol(assetPrefix: string): string {
   return protocol === "http:" ? "ws" : "wss";
 }
 
-type WebsocketEvent =
+export type WebSocketMessage =
   | {
-      type: "connected";
+      type: "turbopack-connected";
     }
   | {
-      type: "message";
-      message: MessageEvent;
+      type: "turbopack-message";
+      data: Record<string, any>;
     };
 
-export function addEventListener(cb: (event: WebsocketEvent) => void) {
+export function addMessageListener(cb: (msg: WebSocketMessage) => void) {
   eventCallbacks.push(cb);
 }
 
@@ -51,10 +51,9 @@ export function connectHMR(options: HMROptions) {
     console.log("[HMR] connecting...");
 
     function handleOnline() {
+      const connected = { type: "turbopack-connected" as const };
       eventCallbacks.forEach((cb) => {
-        cb({
-          type: "connected",
-        });
+        cb(connected);
       });
 
       if (options.log) console.log("[HMR] connected");
@@ -64,11 +63,12 @@ export function connectHMR(options: HMROptions) {
     function handleMessage(event: MessageEvent) {
       // lastActivity = Date.now()
 
+      const message = {
+        type: "turbopack-message" as const,
+        data: JSON.parse(event.data),
+      };
       eventCallbacks.forEach((cb) => {
-        cb({
-          type: "message",
-          message: event,
-        });
+        cb(message);
       });
     }
 
