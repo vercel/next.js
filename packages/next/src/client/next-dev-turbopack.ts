@@ -5,6 +5,7 @@ import initWebpackHMR from './dev/webpack-hot-middleware-client'
 import './setup-hydration-warning'
 import { pageBootrap } from './page-bootstrap'
 import { addMessageListener, sendMessage } from './dev/error-overlay/websocket'
+// @ts-ignore turbopack runtime is manually compiled by us, doesn't include types.
 import { connect } from 'next/dist/compiled/@vercel/turbopack-ecmascript-runtime'
 
 window.next = {

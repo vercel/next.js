@@ -2208,16 +2208,19 @@ export async function ncc_turbopack_ecmascript_runtime_dev_client(task) {
   // We only need to bundle the runtime client
   await task
     .source(
-      relative(
-        __dirname,
-        require.resolve('@vercel/turbopack-ecmascript-runtime/dev/client/index')
+      join(
+        dirname(
+          relative(
+            __dirname,
+            require.resolve(
+              '@vercel/turbopack-ecmascript-runtime/dev/client/index'
+            )
+          )
+        ),
+        '*.ts'
       )
     )
-    .ncc({
-      packageName: '@vercel/turbopack-ecmascript-runtime',
-      externals,
-      target: 'es5',
-    })
+    .swc('client', { dev: true, esm: true })
     .target('src/compiled/@vercel/turbopack-ecmascript-runtime')
 }
 
@@ -2379,7 +2382,6 @@ export async function ncc(task, opts) {
       'ncc_edge_runtime_ponyfill',
       'ncc_edge_runtime',
       'ncc_mswjs_interceptors',
-      'ncc_turbopack_ecmascript_runtime_dev_client',
     ],
     opts
   )
@@ -2422,6 +2424,7 @@ export async function compile(task, opts) {
     'ncc_next_font',
     'capsize_metrics',
     'minimal_next_server',
+    'ncc_turbopack_ecmascript_runtime_dev_client',
   ])
 }
 

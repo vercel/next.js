@@ -1,14 +1,14 @@
 import { connect } from '@vercel/turbopack-ecmascript-runtime/dev/client/hmr-client'
 import {
   connectHMR,
-  addEventListener,
+  addMessageListener,
   sendMessage,
 } from '@vercel/turbopack-ecmascript-runtime/dev/client/websocket'
 import { register, ReactDevOverlay } from '../overlay/client'
 
 export function initializeHMR(options: { assetPrefix: string }) {
   connect({
-    addEventListener,
+    addMessageListener,
     sendMessage,
   })
   connectHMR({
