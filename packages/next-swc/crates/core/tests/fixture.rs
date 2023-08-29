@@ -494,7 +494,6 @@ fn optimize_barrel_fixture(input: PathBuf) {
             chain!(
                 resolver(unresolved_mark, top_level_mark, false),
                 optimize_barrel(
-                    FileName::Real(PathBuf::from("/some-project/node_modules/foo/file.js")),
                     json(
                         r#"
                         {
@@ -523,7 +522,6 @@ fn optimize_barrel_wildcard_fixture(input: PathBuf) {
             chain!(
                 resolver(unresolved_mark, top_level_mark, false),
                 optimize_barrel(
-                    FileName::Real(PathBuf::from("/some-project/node_modules/foo/file.js")),
                     json(
                         r#"
                         {

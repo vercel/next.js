@@ -2,10 +2,10 @@ use std::collections::HashMap;
 
 use serde::Deserialize;
 use turbopack_binding::swc::core::{
-    common::{FileName, DUMMY_SP},
+    common::{DUMMY_SP},
     ecma::{
         ast::*,
-        utils::{private_ident, quote_str},
+        utils::{private_ident},
         visit::Fold,
     },
 };
@@ -15,16 +15,14 @@ pub struct Config {
     pub wildcard: bool,
 }
 
-pub fn optimize_barrel(filename: FileName, config: Config) -> impl Fold {
+pub fn optimize_barrel(config: Config) -> impl Fold {
     OptimizeBarrel {
-        filepath: filename.to_string(),
         wildcard: config.wildcard,
     }
 }
 
 #[derive(Debug, Default)]
 struct OptimizeBarrel {
-    filepath: String,
     wildcard: bool,
 }
 
@@ -65,7 +63,6 @@ impl Fold for OptimizeBarrel {
                                 (src.clone(), "default".to_string()),
                             );
                         }
-                        _ => {}
                     }
                 }
             }
@@ -102,17 +99,15 @@ impl Fold for OptimizeBarrel {
                                                 src.value.to_string(),
                                                 "*".to_string(),
                                             ));
+                                        } else if self.wildcard {
+                                            export_map.push((
+                                                name_str.clone(),
+                                                "".into(),
+                                                "*".to_string(),
+                                            ));
                                         } else {
-                                            if self.wildcard {
-                                                export_map.push((
-                                                    name_str.clone(),
-                                                    "".into(),
-                                                    "*".to_string(),
-                                                ));
-                                            } else {
-                                                is_barrel = false;
-                                                break;
-                                            }
+                                            is_barrel = false;
+                                            break;
                                         }
                                     }
                                     ExportSpecifier::Named(s) => {
@@ -134,25 +129,21 @@ impl Fold for OptimizeBarrel {
                                                 src.value.to_string(),
                                                 orig_str.clone(),
                                             ));
+                                        } else if let Some((src, orig)) = local_idents.get(&orig_str) {
+                                            export_map.push((
+                                                name_str.clone(),
+                                                src.clone(),
+                                                orig.clone(),
+                                            ));
+                                        } else if self.wildcard {
+                                            export_map.push((
+                                                name_str.clone(),
+                                                "".into(),
+                                                orig_str.clone(),
+                                            ));
                                         } else {
-                                            if let Some((src, orig)) = local_idents.get(&orig_str) {
-                                                export_map.push((
-                                                    name_str.clone(),
-                                                    src.clone(),
-                                                    orig.clone(),
-                                                ));
-                                            } else {
-                                                if self.wildcard {
-                                                    export_map.push((
-                                                        name_str.clone(),
-                                                        "".into(),
-                                                        orig_str.clone(),
-                                                    ));
-                                                } else {
-                                                    is_barrel = false;
-                                                    break;
-                                                }
-                                            }
+                                            is_barrel = false;
+                                            break;
                                         }
                                     }
                                     _ => {
