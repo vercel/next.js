@@ -29,6 +29,8 @@ If you cannot make your repository public, you can create a new repository with 
 - Remove private packages that we do not have access to.
 - If the issue is not related to a monorepo specifically, try to reproduce the issue without a complex monorepo setup
 
+In general, assume that we should not go through a lengthy onboarding process at your company code just to be able to verify a an issue.
+
 ### **I did not open this issue, but it is relevant to me, what can I do to help?**
 
 Anyone experiencing the same issue is welcome to provide a minimal reproduction following the above steps in by opening a new issue.
