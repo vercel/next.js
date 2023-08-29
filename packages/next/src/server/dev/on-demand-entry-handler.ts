@@ -456,6 +456,16 @@ async function findPagePathData(
     }
   }
 
+  if (page === '/not-found' && appDir) {
+    return {
+      absolutePagePath: require.resolve(
+        'next/dist/client/components/not-found-error'
+      ),
+      bundlePath: 'app/not-found',
+      page: '/not-found',
+    }
+  }
+
   if (page === '/_error') {
     return {
       absolutePagePath: require.resolve('next/dist/pages/_error'),

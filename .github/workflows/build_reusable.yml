@@ -122,9 +122,9 @@ jobs:
         uses: ijjk/rust-cache@turbo-cache-v1.0.7
         if: ${{ inputs.rustCacheKey }}
         with:
-          shared-key: ${{ inputs.rustCacheKey }}-x86_64-unknown-linux-gnu
-          save-if: ${{ github.ref_name == 'canary' }}
           cache-provider: 'turbo'
+          save-if: ${{ github.ref_name == 'canary' }}
+          shared-key: ${{ inputs.rustCacheKey }}-x86_64-unknown-linux-gnu-build-${{ hashFiles('.cargo/config.toml') }}
 
       # clean up any previous artifacts to avoid hitting disk space limits
       - run: git clean -xdf && rm -rf /tmp/next-repo-*; rm -rf /tmp/next-install-* /tmp/yarn-* /tmp/ncc-cache target
