@@ -10,7 +10,7 @@ createNextDescribe(
   ({ next }) => {
     it('should work with relative redirect', async () => {
       const browser = await next.browser('/')
-      await browser.elementByCss('#relative-redirect').click()
+      await browser.waitForElementByCss('#relative-redirect').click()
 
       await check(async () => {
         expect(await browser.waitForElementByCss('#page-loaded').text()).toBe(
@@ -23,7 +23,7 @@ createNextDescribe(
 
     it('should work with absolute redirect', async () => {
       const browser = await next.browser('/')
-      await browser.elementByCss('#absolute-redirect').click()
+      await browser.waitForElementByCss('#absolute-redirect').click()
 
       await check(async () => {
         expect(await browser.waitForElementByCss('#page-loaded').text()).toBe(
