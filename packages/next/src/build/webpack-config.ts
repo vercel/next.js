@@ -907,7 +907,6 @@ export default async function getBaseWebpackConfig(
         appDir,
         hasReactRefresh: dev && isClient,
         hasServerComponents: true,
-        fileReading: config.experimental.swcFileReading,
         nextConfig: config,
         jsConfig,
         supportedBrowsers,
