@@ -6,11 +6,11 @@ import { graphql } from '../gql'
 import { grafbase } from '../lib/grafbase'
 import type { Metadata } from "next";
 
-export const revalidate = 0;
+export const revalidate = 0
 
 export const metadata: Metadata = {
-  title: "Grafbase + Next.js",
-  description: "Grafbase + Next.js",
+  title: 'Grafbase + Next.js',
+  description: 'Grafbase + Next.js',
 };
 
 const GetAllPostsDocument = graphql(/* GraphQL */ `
@@ -25,7 +25,7 @@ const GetAllPostsDocument = graphql(/* GraphQL */ `
       }
     }
   }
-`);
+`)
 
 export default async function RootLayout({
   children,
@@ -34,7 +34,7 @@ export default async function RootLayout({
 }) {
   const { postCollection } = await grafbase.request(GetAllPostsDocument, {
     first: 50,
-  });
+  })
 
   return (
     <html lang="en">
