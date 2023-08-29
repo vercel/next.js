@@ -1,3 +1,5 @@
+'use client'
+
 import { absoluteRedirect, relativeRedirect } from './actions'
 
 export default function Page() {
