@@ -107,6 +107,9 @@ importers:
       '@picocss/pico':
         specifier: 1.5.10
         version: 1.5.10
+      '@react-icons/all-files':
+        specifier: 4.1.0
+        version: 4.1.0(react@18.2.0)
       '@svgr/webpack':
         specifier: 5.5.0
         version: 5.5.0
@@ -7544,6 +7547,14 @@ packages:
 
   /@protobufjs/utf8@1.1.0:
     resolution: {integrity: sha512-Vvn3zZrhQZkkBE8LSuW3em98c0FwgO4nxzv6OdSxPKJIEKY2bGbHn+mhGIPerzI4twdxaP8/0+06HBpwf345Lw==}
+    dev: true
+
+  /@react-icons/all-files@4.1.0(react@18.2.0):
+    resolution: {integrity: sha512-hxBI2UOuVaI3O/BhQfhtb4kcGn9ft12RWAFVMUeNjqqhLsHvFtzIkFaptBJpFDANTKoDfdVoHTKZDlwKCACbMQ==}
+    peerDependencies:
+      react: '*'
+    dependencies:
+      react: 18.2.0
     dev: true
 
   /@resvg/resvg-wasm@2.4.1:

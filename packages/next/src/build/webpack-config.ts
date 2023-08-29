@@ -535,10 +535,14 @@ function getModularizeImportAliases(packages: string[]) {
   for (const pkg of packages) {
     try {
       const descriptionFileData = require(`${pkg}/package.json`)
+      const descriptionFilePath = require.resolve(`${pkg}/package.json`)
 
       for (const field of mainFields) {
         if (descriptionFileData.hasOwnProperty(field)) {
-          aliases[pkg] = `${pkg}/${descriptionFileData[field]}`
+          aliases[pkg] = path.join(
+            path.dirname(descriptionFilePath),
+            descriptionFileData[field]
+          )
           break
         }
       }
