@@ -10578,6 +10578,11 @@
     "styles": ["normal"],
     "subsets": ["latin", "latin-ext"]
   },
+  "Pushster": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["latin", "latin-ext"]
+  },
   "Qahiri": {
     "weights": ["400"],
     "styles": ["normal"],
