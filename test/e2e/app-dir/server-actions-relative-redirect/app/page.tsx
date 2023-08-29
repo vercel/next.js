@@ -1,5 +1,6 @@
 'use client'
 
+import { startTransition } from 'react'
 import { absoluteRedirect, relativeRedirect } from './actions'
 
 export default function Page() {
@@ -8,7 +9,10 @@ export default function Page() {
       <p>hello root page</p>
       <button
         onClick={async () => {
-          await relativeRedirect()
+          // @ts-expect-error Async Transitions
+          startTransition(async () => {
+            await relativeRedirect()
+          })
         }}
         id="relative-redirect"
       >
@@ -16,7 +20,10 @@ export default function Page() {
       </button>
       <button
         onClick={async () => {
-          await absoluteRedirect()
+          // @ts-expect-error Async Transitions
+          startTransition(async () => {
+            await absoluteRedirect()
+          })
         }}
         id="absolute-redirect"
       >

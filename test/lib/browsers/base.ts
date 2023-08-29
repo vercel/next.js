@@ -10,7 +10,7 @@ export type Event = 'request'
  *
  * You can manually await this interface to wait for completion of the last scheduled command.
  */
-export abstract class BrowserInterface implements PromiseLike<any> {
+export abstract class BrowserInterface {
   private promise?: Promise<any>
   then: Promise<any>['then']
   catch: Promise<any>['catch']
