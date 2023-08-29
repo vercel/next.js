@@ -10,7 +10,7 @@ env:
 jobs:
   issue-opened:
     if: "${{ github.event.label.name == 'template: bug' }} && ${{ github.event.action == 'opened' }}"
-    name: Triage
+    name: Issue opened
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -23,7 +23,7 @@ jobs:
         run: node ./.github/actions/issue-validator/repro-link/index.mjs
   issue-labeled:
     if: "${{ github.event.label.name == 'template: bug' }} && ${{ github.event.action == 'labeled' }}"
-    name: Triage
+    name: Issue labeled
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
