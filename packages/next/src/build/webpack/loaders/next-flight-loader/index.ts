@@ -4,7 +4,7 @@ import { warnOnce } from '../../../../shared/lib/utils/warn-once'
 import { getRSCModuleInformation } from '../../../analysis/get-page-static-info'
 import { getModuleBuildInfo } from '../get-module-build-info'
 
-const noopComponentPath = require.resolve('next/dist/client/components/noop')
+const noopHeadPath = require.resolve('next/dist/client/components/noop-head')
 // For edge runtime it will be aliased to esm version by webpack
 const MODULE_PROXY_PATH =
   'next/dist/build/webpack/loaders/next-flight-loader/module-proxy'
@@ -91,7 +91,7 @@ export { e${cnt++} as ${ref} };`
   }
 
   if (buildInfo.rsc?.type !== RSC_MODULE_TYPES.client) {
-    if (noopComponentPath === this.resourcePath) {
+    if (noopHeadPath === this.resourcePath) {
       warnOnce(
         `Warning: You're using \`next/head\` inside the \`app\` directory, please migrate to the Metadata API. See https://nextjs.org/docs/app/building-your-application/upgrading/app-router-migration#step-3-migrating-nexthead for more details.`
       )
