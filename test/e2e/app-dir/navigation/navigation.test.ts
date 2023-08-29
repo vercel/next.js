@@ -421,6 +421,12 @@ createNextDescribe(
           })
           expect(res.status).toBe(307)
         })
+        it('should respond with 308 status code if permanent flag is set', async () => {
+          const res = await next.fetch('/redirect/servercomponent-2', {
+            redirect: 'manual',
+          })
+          expect(res.status).toBe(308)
+        })
       })
     })
 
@@ -552,6 +558,13 @@ createNextDescribe(
       it('should emit refresh meta tag for redirect page when streaming', async () => {
         const html = await next.render('/redirect/suspense')
         expect(html).toContain(
+          '<meta http-equiv="refresh" content="1;url=/redirect/result"/>'
+        )
+      })
+
+      it('should emit refresh meta tag (peramnent) for redirect page when streaming', async () => {
+        const html = await next.render('/redirect/suspense-2')
+        expect(html).toContain(
           '<meta http-equiv="refresh" content="0;url=/redirect/result"/>'
         )
       })
@@ -569,6 +582,46 @@ createNextDescribe(
         expect(next.cliOutput).not.toInclude(
           'PageNotFoundError: Cannot find module for page'
         )
+      })
+    })
+
+    describe('navigations when attaching a Proxy to `window.Promise`', () => {
+      it('should navigate without issue', async () => {
+        const browser = await next.browser('/nested-navigation')
+        await browser.eval(`window.Promise = new Proxy(window.Promise, {})`)
+
+        expect(await browser.elementByCss('h1').text()).toBe('Home')
+
+        const pages = [
+          ['Electronics', ['Phones', 'Tablets', 'Laptops']],
+          ['Clothing', ['Tops', 'Shorts', 'Shoes']],
+          ['Books', ['Fiction', 'Biography', 'Education']],
+          ['Shoes', []],
+        ] as const
+
+        for (const [category, subCategories] of pages) {
+          expect(
+            await browser
+              .elementByCss(
+                `a[href="/nested-navigation/${category.toLowerCase()}"]`
+              )
+              .click()
+              .waitForElementByCss(`#all-${category.toLowerCase()}`)
+              .text()
+          ).toBe(`All ${category}`)
+
+          for (const subcategory of subCategories) {
+            expect(
+              await browser
+                .elementByCss(
+                  `a[href="/nested-navigation/${category.toLowerCase()}/${subcategory.toLowerCase()}"]`
+                )
+                .click()
+                .waitForElementByCss(`#${subcategory.toLowerCase()}`)
+                .text()
+            ).toBe(`${subcategory}`)
+          }
+        }
       })
     })
   }

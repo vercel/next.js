@@ -1138,25 +1138,31 @@ export const collectGenerateParams = async (
     ? segment[2]?.layout?.[0]?.()
     : segment[2]?.page?.[0]?.())
   const config = collectAppConfig(mod)
-
+  const page: string | undefined = segment[0]
   const isClientComponent = isClientReference(mod)
-  const isDynamicSegment = segment[0] && /^\[.+\]$/.test(segment[0])
+  const isDynamicSegment = /^\[.+\]$/.test(page || '')
+  const { generateStaticParams, getStaticPaths } = mod || {}
+
+  //console.log({parentSegments, page, isDynamicSegment, isClientComponent, generateStaticParams})
+  if (isDynamicSegment && isClientComponent && generateStaticParams) {
+    throw new Error(
+      `Page "${page}" cannot export "generateStaticParams()" because it is a client component`
+    )
+  }
 
   const result = {
     isLayout,
     isDynamicSegment,
     segmentPath: `/${parentSegments.join('/')}${
-      segment[0] && parentSegments.length > 0 ? '/' : ''
-    }${segment[0]}`,
+      page && parentSegments.length > 0 ? '/' : ''
+    }${page}`,
     config,
-    getStaticPaths: isClientComponent ? undefined : mod?.getStaticPaths,
-    generateStaticParams: isClientComponent
-      ? undefined
-      : mod?.generateStaticParams,
+    getStaticPaths: isClientComponent ? undefined : getStaticPaths,
+    generateStaticParams: isClientComponent ? undefined : generateStaticParams,
   }
 
-  if (segment[0]) {
-    parentSegments.push(segment[0])
+  if (page) {
+    parentSegments.push(page)
   }
 
   if (result.config || result.generateStaticParams || result.getStaticPaths) {
@@ -1929,14 +1935,12 @@ export async function copyTracedFiles(
     serverOutputPath,
     `${
       moduleType
-        ? `import http from 'http'
-import path from 'path'
+        ? `import path from 'path'
 import { fileURLToPath } from 'url'
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
 import { startServer } from 'next/dist/server/lib/start-server.js'
 `
         : `
-const http = require('http')
 const path = require('path')
 const { startServer } = require('next/dist/server/lib/start-server')`
     }
@@ -1955,13 +1959,17 @@ if (!process.env.NEXT_MANUAL_SIG_HANDLE) {
 
 const currentPort = parseInt(process.env.PORT, 10) || 3000
 const hostname = process.env.HOSTNAME || 'localhost'
-let keepAliveTimeout = parseInt(process.env.KEEP_ALIVE_TIMEOUT, 10);
+
+let keepAliveTimeout = parseInt(process.env.KEEP_ALIVE_TIMEOUT, 10)
 const nextConfig = ${JSON.stringify({
       ...serverConfig,
       distDir: `./${path.relative(dir, distDir)}`,
     })}
 
 process.env.__NEXT_PRIVATE_STANDALONE_CONFIG = JSON.stringify(nextConfig)
+process.env.__NEXT_PRIVATE_PREBUNDLED_REACT = nextConfig.experimental && nextConfig.experimental.serverActions
+  ? 'experimental'
+  : 'next'
 
 if (
   Number.isNaN(keepAliveTimeout) ||
@@ -1989,6 +1997,12 @@ startServer({
 
 export function isReservedPage(page: string) {
   return RESERVED_PAGE.test(page)
+}
+
+export function isAppBuiltinNotFoundPage(page: string) {
+  return /next[\\/]dist[\\/]client[\\/]components[\\/]not-found-error/.test(
+    page
+  )
 }
 
 export function isCustomErrorPage(page: string) {

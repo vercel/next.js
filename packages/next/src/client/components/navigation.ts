@@ -1,5 +1,3 @@
-// useLayoutSegments() // Only the segments for the current place. ['children', 'dashboard', 'children', 'integrations'] -> /dashboard/integrations (/dashboard/layout.js would get ['children', 'dashboard', 'children', 'integrations'])
-
 import { useContext, useMemo } from 'react'
 import type { FlightRouterState } from '../../server/app-render/types'
 import {
@@ -240,5 +238,5 @@ export function useSelectedLayoutSegment(
   return selectedLayoutSegments[0]
 }
 
-export { redirect } from './redirect'
+export { redirect, permanentRedirect } from './redirect'
 export { notFound } from './not-found'

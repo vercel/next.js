@@ -28,7 +28,6 @@ import {
   streamToBufferedResult,
   cloneTransformStream,
 } from '../stream-utils/node-web-streams-helper'
-import DefaultNotFound from '../../client/components/not-found-error'
 import {
   canSegmentBeOverridden,
   matchSegment,
@@ -49,6 +48,7 @@ import {
   getURLFromRedirectError,
   isRedirectError,
 } from '../../client/components/redirect'
+import { getRedirectStatusCodeFromError } from '../../client/components/get-redirect-status-code-from-error'
 import { addImplicitTags, patchFetch } from '../lib/patch-fetch'
 import { AppRenderSpan } from '../lib/trace/constants'
 import { getTracer } from '../lib/trace/tracer'
@@ -77,6 +77,7 @@ import { warn } from '../../build/output/log'
 import { appendMutableCookies } from '../web/spec-extension/adapters/request-cookies'
 import { createServerInsertedHTML } from './server-inserted-html'
 import { getRequiredScripts } from './required-scripts'
+import { addPathPrefix } from '../../shared/lib/router/utils/add-path-prefix'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -400,12 +401,10 @@ export async function renderToHTMLOrFlight(
     const createComponentAndStyles = async ({
       filePath,
       getComponent,
-      shouldPreload,
       injectedCSS,
     }: {
       filePath: string
       getComponent: () => any
-      shouldPreload?: boolean
       injectedCSS: Set<string>
     }): Promise<any> => {
       const cssHrefs = getCssInlinedLinkTags(
@@ -432,11 +431,8 @@ export async function renderToHTMLOrFlight(
             // During HMR, it's critical to use different `precedence` values
             // for different stylesheets, so their order will be kept.
             // https://github.com/facebook/react/pull/25060
-            const precedence = shouldPreload
-              ? process.env.NODE_ENV === 'development'
-                ? 'next_' + href
-                : 'next'
-              : undefined
+            const precedence =
+              process.env.NODE_ENV === 'development' ? 'next_' + href : 'next'
 
             return (
               <link
@@ -613,7 +609,6 @@ export async function renderToHTMLOrFlight(
         ? await createComponentAndStyles({
             filePath: template[1],
             getComponent: template[0],
-            shouldPreload: true,
             injectedCSS: injectedCSSWithCurrentLayout,
           })
         : [React.Fragment]
@@ -739,7 +734,7 @@ export async function renderToHTMLOrFlight(
         const NotFoundBoundary =
           ComponentMod.NotFoundBoundary as typeof import('../../client/components/not-found-boundary').NotFoundBoundary
         Component = (componentProps: any) => {
-          const NotFoundComponent = NotFound || DefaultNotFound
+          const NotFoundComponent = NotFound
           const RootLayoutComponent = LayoutOrPage
           return (
             <NotFoundBoundary
@@ -1437,7 +1432,8 @@ export async function renderToHTMLOrFlight(
           buildManifest,
           assetPrefix,
           subresourceIntegrityManifest,
-          getAssetQueryString(true)
+          getAssetQueryString(true),
+          nonce
         )
         const ServerComponentsRenderer = createServerComponentsRenderer(
           tree,
@@ -1482,11 +1478,13 @@ export async function renderToHTMLOrFlight(
               )
             } else if (isRedirectError(error)) {
               const redirectUrl = getURLFromRedirectError(error)
+              const isPermanent =
+                getRedirectStatusCodeFromError(error) === 308 ? true : false
               if (redirectUrl) {
                 errorMetaTags.push(
                   <meta
                     httpEquiv="refresh"
-                    content={`0;url=${redirectUrl}`}
+                    content={`${isPermanent ? 0 : 1};url=${redirectUrl}`}
                     key={error.digest}
                   />
                 )
@@ -1566,7 +1564,7 @@ export async function renderToHTMLOrFlight(
           let hasRedirectError = false
           if (isRedirectError(err)) {
             hasRedirectError = true
-            res.statusCode = 307
+            res.statusCode = getRedirectStatusCodeFromError(err)
             if (err.mutableCookies) {
               const headers = new Headers()
 
@@ -1576,7 +1574,11 @@ export async function renderToHTMLOrFlight(
                 res.setHeader('set-cookie', Array.from(headers.values()))
               }
             }
-            res.setHeader('Location', getURLFromRedirectError(err))
+            const redirectUrl = addPathPrefix(
+              getURLFromRedirectError(err),
+              renderOpts.basePath
+            )
+            res.setHeader('Location', redirectUrl)
           }
 
           const is404 = res.statusCode === 404
@@ -1614,7 +1616,8 @@ export async function renderToHTMLOrFlight(
               buildManifest,
               assetPrefix,
               subresourceIntegrityManifest,
-              getAssetQueryString(false)
+              getAssetQueryString(false),
+              nonce
             )
 
           const ErrorPage = createServerComponentRenderer(
