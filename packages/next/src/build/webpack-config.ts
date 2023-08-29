@@ -1986,6 +1986,10 @@ export default async function getBaseWebpackConfig(
     module: {
       rules: [
         {
+          // This loader rule passes the resource to the SWC loader with
+          // `optimizeBarrelExports` enabled. This option makes the SWC to
+          // transform the original code to be a JSON of its export map, so
+          // the barrel loader can analyze it and only keep the needed ones.
           test: /__barrel_transform__/,
           use: ({ resourceQuery }: { resourceQuery: string }) => {
             const isFromWildcardExport = /[&?]wildcard/.test(resourceQuery)
@@ -2001,6 +2005,10 @@ export default async function getBaseWebpackConfig(
           },
         },
         {
+          // This loader rule works like a bridge between user's import and
+          // the target module behind a package's barrel file. It reads SWC's
+          // analysis result from the previous loader, and directly returns the
+          // code that only exports values that are asked by the user.
           test: /__barrel_optimize__/,
           use: ({ resourceQuery }: { resourceQuery: string }) => {
             const names = (
