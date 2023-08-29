@@ -687,6 +687,10 @@ function assignDefaults(
       },
       skipDefaultConversion: true,
     },
+    '@fortawesome/?((pro-|free-|sharp-)[a-z-]+)': {
+      transform: '@fortawesome/{{matches.[1]}}/{{member}}',
+      skipDefaultConversion: true,
+    },
     '@heroicons/react/20/solid': {
       transform: '@heroicons/react/20/solid/esm/{{member}}',
     },
