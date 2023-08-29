@@ -5,7 +5,7 @@ import path from 'path'
 import cheerio from 'cheerio'
 const appDir = path.join(__dirname, 'app')
 
-describe('legacyBrowsers: false', () => {
+describe('default browserslist target', () => {
   let next: NextInstance
 
   beforeAll(async () => {
@@ -18,7 +18,7 @@ describe('legacyBrowsers: false', () => {
   })
   afterAll(() => next.destroy())
 
-  it('should apply legacyBrowsers: false by default', async () => {
+  it('should apply default browserslist target', async () => {
     const html = await renderViaHTTP(next.url, '/')
     const $ = cheerio.load(html)
 

@@ -164,14 +164,11 @@ export interface ExperimentalConfig {
   fetchCacheKeyPrefix?: string
   optimisticClientCache?: boolean
   middlewarePrefetch?: 'strict' | 'flexible'
-  legacyBrowsers?: boolean
   manualClientBasePath?: boolean
-  newNextLinkBehavior?: boolean
   // custom path to a cache handler to use
   incrementalCacheHandlerPath?: string
   disablePostcssPresetEnv?: boolean
   swcMinify?: boolean
-  swcFileReading?: boolean
   cpus?: number
   memoryBasedWorkersCount?: boolean
   sharedPool?: boolean
@@ -711,8 +708,6 @@ export const defaultConfig: NextConfig = {
     middlewarePrefetch: 'flexible',
     optimisticClientCache: true,
     manualClientBasePath: false,
-    legacyBrowsers: false,
-    newNextLinkBehavior: true,
     cpus: Math.max(
       1,
       (Number(process.env.CIRCLE_NODE_TOTAL) ||
@@ -730,7 +725,6 @@ export const defaultConfig: NextConfig = {
     externalDir: false,
     disableOptimizedLoading: false,
     gzipSize: true,
-    swcFileReading: true,
     craCompat: false,
     esmExternals: true,
     appDir: true,
