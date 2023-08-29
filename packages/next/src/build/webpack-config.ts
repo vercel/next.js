@@ -3022,7 +3022,7 @@ export default async function getBaseWebpackConfig(
             if (rule(input)) {
               return true
             }
-          } catch (_) {}
+          } catch {}
           return false
         })
       ) {

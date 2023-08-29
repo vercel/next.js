@@ -481,7 +481,7 @@ export async function handleAction({
           const promise = Promise.reject(err)
           try {
             await promise
-          } catch (_) {}
+          } catch {}
           return generateFlight({
             skipFlight: false,
             actionResult: promise,
@@ -497,7 +497,7 @@ export async function handleAction({
         const promise = Promise.reject(err)
         try {
           await promise
-        } catch (_) {}
+        } catch {}
 
         return generateFlight({
           actionResult: promise,
