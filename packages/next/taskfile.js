@@ -2204,23 +2204,6 @@ export async function ncc_jest_docblock(task, opts) {
     .target('src/compiled/jest-docblock')
 }
 
-export async function ncc_turbopack_ecmascript_runtime_dev_client(task) {
-  // We only need to bundle the runtime client
-  await task
-    .source(
-      relative(
-        __dirname,
-        require.resolve('@vercel/turbopack-ecmascript-runtime/dev/client/index')
-      )
-    )
-    .ncc({
-      packageName: '@vercel/turbopack-ecmascript-runtime',
-      externals,
-      target: 'es5',
-    })
-    .target('src/compiled/@vercel/turbopack-ecmascript-runtime')
-}
-
 export async function precompile(task, opts) {
   await task.parallel(
     [
@@ -2379,7 +2362,6 @@ export async function ncc(task, opts) {
       'ncc_edge_runtime_ponyfill',
       'ncc_edge_runtime',
       'ncc_mswjs_interceptors',
-      'ncc_turbopack_ecmascript_runtime_dev_client',
     ],
     opts
   )

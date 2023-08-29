@@ -5,7 +5,6 @@ import initWebpackHMR from './dev/webpack-hot-middleware-client'
 import './setup-hydration-warning'
 import { pageBootrap } from './page-bootstrap'
 import { addMessageListener, sendMessage } from './dev/error-overlay/websocket'
-import { connect } from 'next/dist/compiled/@vercel/turbopack-ecmascript-runtime'
 
 window.next = {
   version: `${version}-turbo`,
@@ -53,17 +52,23 @@ initialize({
       )
     }
 
-    connect({
-      addMessageListener(cb: (msg: Record<string, string>) => void) {
-        addMessageListener((msg) => {
-          // Only call Turbopack's message listener for turbopack messages
-          if (msg.type?.startsWith('turbopack-')) {
-            cb(msg)
-          }
+    if (typeof window !== 'undefined') {
+      import(
+        '@vercel/turbopack-ecmascript-runtime/dev/client/hmr-client.ts'
+      ).then((mod) => {
+        mod.connect({
+          addMessageListener(cb: (msg: Record<string, string>) => void) {
+            addMessageListener((msg) => {
+              // Only call Turbopack's message listener for turbopack messages
+              if (msg.type?.startsWith('turbopack-')) {
+                cb(msg)
+              }
+            })
+          },
+          sendMessage,
         })
-      },
-      sendMessage,
-    })
+      })
+    }
 
     return pageBootrap(assetPrefix)
   })
