@@ -17,7 +17,7 @@ describe('Image with middleware in edge func', () => {
         onStdout: (s) => {
           output += s
         },
-        onStderr: () => {
+        onStderr: (s) => {
           output += s
         },
       })
