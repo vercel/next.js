@@ -20,7 +20,7 @@ export default function ThirdPartyScriptEmbed({
       {/* insert script children */}
       {children}
       {/* insert html */}
-      {html && (
+      {html ? (
         <div
           style={{
             height: height != null ? `${height}px` : 'auto',
@@ -29,7 +29,7 @@ export default function ThirdPartyScriptEmbed({
           data-ntpc={dataNtpc}
           dangerouslySetInnerHTML={{ __html: html }}
         />
-      )}
+      ) : null}
     </>
   )
 }

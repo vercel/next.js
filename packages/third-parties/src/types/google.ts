@@ -1,12 +1,17 @@
 export type GoogleMapsEmbed = {
   height?: number
   width?: number
-  mapMode: 'place' | 'view' | 'directions' | 'streetview' | 'search'
+  mode: 'place' | 'view' | 'directions' | 'streetview' | 'search'
   apiKey: string
-  parameters: string
   style: string
   allowfullscreen: boolean
   loading: 'eager' | 'lazy'
+  q?: string
+  center?: string
+  zoom?: string
+  maptype?: string
+  language?: string
+  region?: string
 }
 
 export type YouTubeEmbed = {
