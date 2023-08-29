@@ -280,9 +280,6 @@ export function getDefineEnv({
     'process.env.__NEXT_MANUAL_CLIENT_BASE_PATH': JSON.stringify(
       config.experimental.manualClientBasePath
     ),
-    'process.env.__NEXT_NEW_LINK_BEHAVIOR': JSON.stringify(
-      config.experimental.newNextLinkBehavior
-    ),
     'process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED': JSON.stringify(
       config.experimental.clientRouterFilter
     ),
