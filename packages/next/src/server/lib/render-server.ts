@@ -1,8 +1,5 @@
-import type { RequestHandler } from '../next'
+import type { NextServer, RequestHandler } from '../next'
 
-// this must come first as it includes require hooks
-import { initializeServerWorker } from './setup-server-worker'
-import { formatHostname } from './format-hostname'
 import next from '../next'
 import { PropagateToWorkersField } from './router-utils/types'
 
@@ -11,8 +8,12 @@ export const WORKER_SELF_EXIT_CODE = 77
 let result:
   | undefined
   | {
-      port: number
-      hostname: string
+      requestHandler: ReturnType<
+        InstanceType<typeof NextServer>['getRequestHandler']
+      >
+      upgradeHandler: ReturnType<
+        InstanceType<typeof NextServer>['getUpgradeHandler']
+      >
     }
 
 let app: ReturnType<typeof next> | undefined
@@ -72,8 +73,9 @@ export async function initialize(opts: {
   isNodeDebugging: boolean
   keepAliveTimeout?: number
   serverFields?: any
+  server?: any
   experimentalTestProxy: boolean
-}): Promise<NonNullable<typeof result>> {
+}) {
   // if we already setup the server return as we only need to do
   // this on first worker boot
   if (result) {
@@ -88,23 +90,13 @@ export async function initialize(opts: {
   let requestHandler: RequestHandler
   let upgradeHandler: any
 
-  const { port, server, hostname } = await initializeServerWorker(
-    (...args) => {
-      return requestHandler(...args)
-    },
-    (...args) => {
-      return upgradeHandler(...args)
-    },
-    opts
-  )
-
   app = next({
     ...opts,
     _routerWorker: opts.workerType === 'router',
     _renderWorker: opts.workerType === 'render',
-    hostname,
+    hostname: opts.hostname || 'localhost',
     customServer: false,
-    httpServer: server,
+    httpServer: opts.server,
     port: opts.port,
     isNodeDebugging: opts.isNodeDebugging,
   })
@@ -114,8 +106,8 @@ export async function initialize(opts: {
   await app.prepare(opts.serverFields)
 
   result = {
-    port,
-    hostname: formatHostname(hostname),
+    requestHandler,
+    upgradeHandler,
   }
 
   return result

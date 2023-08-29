@@ -11,14 +11,11 @@ import path from 'path'
 import loadConfig from '../config'
 import { serveStatic } from '../serve-static'
 import setupDebug from 'next/dist/compiled/debug'
-import { splitCookiesString, toNodeOutgoingHttpHeaders } from '../web/utils'
 import { Telemetry } from '../../telemetry/storage'
 import { DecodeError } from '../../shared/lib/utils'
-import { filterReqHeaders, ipcForbiddenHeaders } from './server-ipc/utils'
 import { findPagesDir } from '../../lib/find-pages-dir'
 import { setupFsCheck } from './router-utils/filesystem'
 import { proxyRequest } from './router-utils/proxy-request'
-import { invokeRequest } from './server-ipc/invoke-request'
 import { isAbortError, pipeReadable } from '../pipe-readable'
 import { createRequestResponseMocks } from './mock-request'
 import { createIpcServer, createWorker } from './server-ipc'
@@ -28,13 +25,13 @@ import { NextUrlWithParsedQuery, getRequestMeta } from '../request-meta'
 import { pathHasPrefix } from '../../shared/lib/router/utils/path-has-prefix'
 import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
 import setupCompression from 'next/dist/compiled/compression'
+import { signalFromNodeResponse } from '../web/spec-extension/adapters/next-request'
 
 import {
   PHASE_PRODUCTION_SERVER,
   PHASE_DEVELOPMENT_SERVER,
   PERMANENT_REDIRECT_STATUS,
 } from '../../shared/lib/constants'
-import { signalFromNodeResponse } from '../web/spec-extension/adapters/next-request'
 
 const debug = setupDebug('next:router-server:main')
 
@@ -56,6 +53,7 @@ export async function initialize(opts: {
   dir: string
   port: number
   dev: boolean
+  server?: import('http').Server
   minimalMode?: boolean
   hostname?: string
   workerType: 'router' | 'render'
@@ -186,23 +184,11 @@ export async function initialize(opts: {
   // Set global environment variables for the app render server to use.
   process.env.__NEXT_PRIVATE_ROUTER_IPC_PORT = ipcPort + ''
   process.env.__NEXT_PRIVATE_ROUTER_IPC_KEY = ipcValidationKey
-  process.env.__NEXT_PRIVATE_PREBUNDLED_REACT = config.experimental
-    .serverActions
-    ? 'experimental'
-    : 'next'
 
   renderWorkers.app =
     require('./render-server') as typeof import('./render-server')
 
-  const { initialEnv } = require('@next/env') as typeof import('@next/env')
-  renderWorkers.pages = await createWorker(
-    ipcPort,
-    ipcValidationKey,
-    opts.isNodeDebugging,
-    'pages',
-    config,
-    initialEnv
-  )
+  renderWorkers.pages = renderWorkers.app
 
   const renderWorkerOpts: Parameters<RenderWorker['initialize']>[0] = {
     port: opts.port,
@@ -211,6 +197,7 @@ export async function initialize(opts: {
     hostname: opts.hostname,
     minimalMode: opts.minimalMode,
     dev: !!opts.dev,
+    server: opts.server,
     isNodeDebugging: !!opts.isNodeDebugging,
     serverFields: devInstance?.serverFields || {},
     experimentalTestProxy: !!opts.experimentalTestProxy,
@@ -325,7 +312,6 @@ export async function initialize(opts: {
     async function invokeRender(
       parsedUrl: NextUrlWithParsedQuery,
       type: keyof typeof renderWorkers,
-      handleIndex: number,
       invokePath: string,
       additionalInvokeHeaders: Record<string, string> = {}
     ) {
@@ -360,29 +346,22 @@ export async function initialize(opts: {
         throw new Error(`Failed to initialize render worker ${type}`)
       }
 
-      const renderUrl = `http://${workerResult.hostname}:${workerResult.port}${req.url}`
-
       const invokeHeaders: typeof req.headers = {
-        ...req.headers,
         'x-middleware-invoke': '',
         'x-invoke-path': invokePath,
         'x-invoke-query': encodeURIComponent(JSON.stringify(parsedUrl.query)),
         ...(additionalInvokeHeaders || {}),
       }
+      Object.assign(req.headers, invokeHeaders)
 
-      debug('invokeRender', renderUrl, invokeHeaders)
+      debug('invokeRender', req.url, invokeHeaders)
 
-      let invokeRes
       try {
-        invokeRes = await invokeRequest(
-          renderUrl,
-          {
-            headers: invokeHeaders,
-            method: req.method,
-            signal: signalFromNodeResponse(res),
-          },
-          getRequestMeta(req, '__NEXT_CLONABLE_BODY')?.cloneBodyStream()
+        const initResult = await renderWorkers.pages?.initialize(
+          renderWorkerOpts
         )
+        await initResult?.requestHandler(req, res)
+        return
       } catch (e) {
         // If the client aborts before we can receive a response object (when
         // the headers are flushed), then we can early exit without further
@@ -392,54 +371,6 @@ export async function initialize(opts: {
         }
         throw e
       }
-
-      debug('invokeRender res', invokeRes.status, invokeRes.headers)
-
-      // when we receive x-no-fallback we restart
-      if (invokeRes.headers.get('x-no-fallback')) {
-        // eslint-disable-next-line
-        await handleRequest(handleIndex + 1)
-        return
-      }
-
-      for (const [key, value] of Object.entries(
-        filterReqHeaders(
-          toNodeOutgoingHttpHeaders(invokeRes.headers),
-          ipcForbiddenHeaders
-        )
-      )) {
-        if (value !== undefined) {
-          if (key === 'set-cookie') {
-            const curValue = res.getHeader(key) as string
-            const newValue: string[] = [] as string[]
-
-            for (const cookie of Array.isArray(curValue)
-              ? curValue
-              : splitCookiesString(curValue || '')) {
-              newValue.push(cookie)
-            }
-            for (const val of (Array.isArray(value)
-              ? value
-              : value
-              ? [value]
-              : []) as string[]) {
-              newValue.push(val)
-            }
-            res.setHeader(key, newValue)
-          } else {
-            res.setHeader(key, value as string)
-          }
-        }
-      }
-      res.statusCode = invokeRes.status || 200
-      res.statusMessage = invokeRes.statusText || ''
-
-      if (invokeRes.body) {
-        await pipeReadable(invokeRes.body, res)
-      } else {
-        res.end()
-      }
-      return
     }
 
     const handleRequest = async (handleIndex: number) => {
@@ -555,7 +486,8 @@ export async function initialize(opts: {
           (fsChecker.appFiles.has(matchedOutput.itemPath) ||
             fsChecker.pageFiles.has(matchedOutput.itemPath))
         ) {
-          await invokeRender(parsedUrl, 'pages', handleIndex, '/_error', {
+          res.statusCode = 500
+          await invokeRender(parsedUrl, 'pages', '/_error', {
             'x-invoke-status': '500',
             'x-invoke-error': JSON.stringify({
               message: `A conflicting public file and page file was found for path ${matchedOutput.itemPath} https://nextjs.org/docs/messages/conflicting-public-file-page`,
@@ -579,15 +511,10 @@ export async function initialize(opts: {
         }
         if (!(req.method === 'GET' || req.method === 'HEAD')) {
           res.setHeader('Allow', ['GET', 'HEAD'])
-          return await invokeRender(
-            url.parse('/405', true),
-            'pages',
-            handleIndex,
-            '/405',
-            {
-              'x-invoke-status': '405',
-            }
-          )
+          res.statusCode = 405
+          return await invokeRender(url.parse('/405', true), 'pages', '/405', {
+            'x-invoke-status': '405',
+          })
         }
 
         try {
@@ -642,10 +569,10 @@ export async function initialize(opts: {
           if (typeof err.statusCode === 'number') {
             const invokePath = `/${err.statusCode}`
             const invokeStatus = `${err.statusCode}`
+            res.statusCode = err.statusCode
             return await invokeRender(
               url.parse(invokePath, true),
               'pages',
-              handleIndex,
               invokePath,
               {
                 'x-invoke-status': invokeStatus,
@@ -662,7 +589,6 @@ export async function initialize(opts: {
         return await invokeRender(
           parsedUrl,
           matchedOutput.type === 'appFile' ? 'app' : 'pages',
-          handleIndex,
           parsedUrl.pathname || '/',
           {
             'x-invoke-output': matchedOutput.itemPath,
@@ -687,18 +613,20 @@ export async function initialize(opts: {
         ? devInstance?.serverFields.hasAppNotFound
         : await fsChecker.getItem('/_not-found')
 
+      res.statusCode = 404
+
       if (appNotFound) {
         return await invokeRender(
           parsedUrl,
           'app',
-          handleIndex,
           opts.dev ? '/not-found' : '/_not-found',
           {
             'x-invoke-status': '404',
           }
         )
       }
-      await invokeRender(parsedUrl, 'pages', handleIndex, '/404', {
+
+      await invokeRender(parsedUrl, 'pages', '/404', {
         'x-invoke-status': '404',
       })
     }
@@ -716,10 +644,10 @@ export async function initialize(opts: {
         } else {
           console.error(err)
         }
+        res.statusCode = Number(invokeStatus)
         return await invokeRender(
           url.parse(invokePath, true),
           'pages',
-          0,
           invokePath,
           {
             'x-invoke-status': invokeStatus,

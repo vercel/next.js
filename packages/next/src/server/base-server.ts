@@ -44,6 +44,7 @@ import { getRedirectStatus } from '../lib/redirect-status'
 import { isEdgeRuntime } from '../lib/is-edge-runtime'
 import {
   APP_PATHS_MANIFEST,
+  INTERNAL_HEADERS,
   NEXT_BUILTIN_DOCUMENT,
   PAGES_MANIFEST,
   STATIC_STATUS_PAGES,
@@ -1543,6 +1544,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       // For edge runtime 404 page, /_not-found needs to be treated as 404 page
       (process.env.NEXT_RUNTIME === 'edge' && pathname === '/_not-found') ||
       pathname === '/404'
+
+    for (const key of INTERNAL_HEADERS) {
+      delete req.headers[key]
+    }
+
     const is500Page = pathname === '/500'
     const isAppPath = components.isAppPath
     const hasServerProps = !!components.getServerSideProps

@@ -22,6 +22,7 @@ import { signalFromNodeResponse } from '../web/spec-extension/adapters/next-requ
 import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
 import type { RenderWorker } from './router-server'
 import { pipeReadable } from '../pipe-readable'
+import { Stream } from 'stream'
 
 type RouteResult =
   | {
@@ -210,8 +211,21 @@ export async function makeResolver(
       pages: {
         async initialize() {
           return {
-            port: middlewareServerAddr.port,
-            hostname: formatHostname(middlewareServerAddr.hostname),
+            async requestHandler(req, res) {
+              fetch(
+                `http://localhost:${middlewareServerAddr.port}${req.url || ''}`
+              ).then((fetchRes) => {
+                for (const [key, value] of fetchRes.headers) {
+                  res.setHeader(key, value)
+                }
+                if (fetchRes.body) {
+                  Stream.Readable.fromWeb(fetchRes.body as any).pipe(res)
+                } else {
+                  res.end()
+                }
+              })
+            },
+            async upgradeHandler() {},
           }
         },
         async deleteCache() {},

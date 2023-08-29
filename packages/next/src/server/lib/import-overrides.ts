@@ -1,23 +1,6 @@
-// Synchronously inject a require hook for webpack and webpack/. It's required to use the internal ncc webpack version.
-// This is needed for userland plugins to attach to the same webpack instance as Next.js'.
-// Individually compiled modules are as defined for the compilation in bundles/webpack/packages/*.
+import { dirname } from 'path'
 
-// This module will only be loaded once per process.
-
-const { dirname } = require('path')
-const mod = require('module')
-const resolveFilename = mod._resolveFilename
-const hookPropertyMap = new Map()
-
-let aliasedPrebundledReact = false
-
-const resolve = process.env.NEXT_MINIMAL
-  ? // @ts-ignore
-    __non_webpack_require__.resolve
-  : require.resolve
-
-const toResolveMap = (map: Record<string, string>): [string, string][] =>
-  Object.entries(map).map(([key, value]) => [key, resolve(value)])
+export const hookPropertyMap = new Map()
 
 // these must use require.resolve to be statically analyzable
 export const defaultOverrides = {
@@ -72,6 +55,16 @@ export const experimentalOverrides = {
     'next/dist/compiled/react-server-dom-webpack-experimental/server.node',
 }
 
+let aliasedPrebundledReact = false
+
+const resolve = process.env.NEXT_MINIMAL
+  ? // @ts-ignore
+    __non_webpack_require__.resolve
+  : require.resolve
+
+const toResolveMap = (map: Record<string, string>): [string, string][] =>
+  Object.entries(map).map(([key, value]) => [key, resolve(value)])
+
 export function addHookAliases(aliases: [string, string][] = []) {
   for (const [key, value] of aliases) {
     hookPropertyMap.set(key, value)
@@ -82,9 +75,10 @@ export function addHookAliases(aliases: [string, string][] = []) {
 addHookAliases(toResolveMap(defaultOverrides))
 
 // Override built-in React packages if necessary
-function overrideReact() {
-  if (process.env.__NEXT_PRIVATE_PREBUNDLED_REACT) {
+export function overrideReact() {
+  if (process.env.__NEXT_PRIVATE_PREBUNDLED_REACT && !aliasedPrebundledReact) {
     aliasedPrebundledReact = true
+    console.log('aliased react to', process.env.__NEXT_PRIVATE_PREBUNDLED_REACT)
 
     // Require these modules with static paths to make sure they are tracked by
     // NFT when building the app in standalone mode, as we are now conditionally
@@ -97,23 +91,3 @@ function overrideReact() {
   }
 }
 overrideReact()
-
-mod._resolveFilename = function (
-  originalResolveFilename: typeof resolveFilename,
-  requestMap: Map<string, string>,
-  request: string,
-  parent: any,
-  isMain: boolean,
-  options: any
-) {
-  if (process.env.__NEXT_PRIVATE_PREBUNDLED_REACT && !aliasedPrebundledReact) {
-    // In case the environment variable is set after the module is loaded.
-    overrideReact()
-  }
-
-  const hookResolved = requestMap.get(request)
-  if (hookResolved) request = hookResolved
-  return originalResolveFilename.call(mod, request, parent, isMain, options)
-
-  // We use `bind` here to avoid referencing outside variables to create potential memory leaks.
-}.bind(null, resolveFilename, hookPropertyMap)

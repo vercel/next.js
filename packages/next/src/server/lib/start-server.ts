@@ -1,3 +1,4 @@
+import '../next'
 import '../node-polyfill-fetch'
 import '../require-hook'
 
@@ -45,6 +46,7 @@ export async function getRequestHandlers({
   dir,
   port,
   isDev,
+  server,
   hostname,
   minimalMode,
   isNodeDebugging,
@@ -54,6 +56,7 @@ export async function getRequestHandlers({
   dir: string
   port: number
   isDev: boolean
+  server?: import('http').Server
   hostname: string
   minimalMode?: boolean
   isNodeDebugging?: boolean
@@ -66,6 +69,7 @@ export async function getRequestHandlers({
     hostname,
     dev: isDev,
     minimalMode,
+    server,
     workerType: 'router',
     isNodeDebugging: isNodeDebugging || false,
     keepAliveTimeout,
@@ -240,6 +244,7 @@ export async function startServer({
           dir,
           port,
           isDev,
+          server,
           hostname,
           minimalMode,
           isNodeDebugging: Boolean(isNodeDebugging),

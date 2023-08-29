@@ -976,13 +976,17 @@ export default class NextNodeServer extends BaseServer {
   private normalizeReq(
     req: BaseNextRequest | IncomingMessage
   ): BaseNextRequest {
-    return req instanceof IncomingMessage ? new NodeNextRequest(req) : req
+    return !(req instanceof NodeNextRequest)
+      ? new NodeNextRequest(req as IncomingMessage)
+      : req
   }
 
   private normalizeRes(
     res: BaseNextResponse | ServerResponse
   ): BaseNextResponse {
-    return res instanceof ServerResponse ? new NodeNextResponse(res) : res
+    return !(res instanceof NodeNextResponse)
+      ? new NodeNextResponse(res as ServerResponse)
+      : res
   }
 
   public getRequestHandler(): NodeRequestHandler {

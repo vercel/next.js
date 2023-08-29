@@ -14,7 +14,6 @@ import { Header } from '../../../lib/load-custom-routes'
 import { stringifyQuery } from '../../server-route-utils'
 import { formatHostname } from '../format-hostname'
 import { toNodeOutgoingHttpHeaders } from '../../web/utils'
-import { invokeRequest } from '../server-ipc/invoke-request'
 import { isAbortError } from '../../pipe-readable'
 import { getCookieParser, setLazyProp } from '../../api-utils'
 import { getHostname } from '../../../shared/lib/get-hostname'
@@ -38,6 +37,7 @@ import {
   matchHas,
   prepareDestination,
 } from '../../../shared/lib/router/utils/prepare-destination'
+import { createRequestResponseMocks } from '../mock-request'
 
 const debug = setupDebug('next:router-server:resolve-routes')
 
@@ -99,7 +99,6 @@ export function getResolveRoutes(
   async function resolveRoutes({
     req,
     isUpgradeReq,
-    signal,
     invokedOutputs,
   }: {
     req: IncomingMessage
@@ -445,22 +444,6 @@ export function getResolveRoutes(
             if (!workerResult) {
               throw new Error(`Failed to initialize render worker "middleware"`)
             }
-            const stringifiedQuery = stringifyQuery(
-              req as any,
-              getRequestMeta(req, '__NEXT_INIT_QUERY') || {}
-            )
-            const parsedInitUrl = new URL(
-              getRequestMeta(req, '__NEXT_INIT_URL') || '/',
-              'http://n'
-            )
-
-            const curUrl = config.skipMiddlewareUrlNormalize
-              ? `${parsedInitUrl.pathname}${parsedInitUrl.search}`
-              : `${parsedUrl.pathname}${stringifiedQuery ? '?' : ''}${
-                  stringifiedQuery || ''
-                }`
-
-            const renderUrl = `http://${workerResult.hostname}:${workerResult.port}${curUrl}`
 
             const invokeHeaders: typeof req.headers = {
               ...req.headers,
@@ -470,19 +453,43 @@ export function getResolveRoutes(
               'x-middleware-invoke': '1',
             }
 
-            debug('invoking middleware', renderUrl, invokeHeaders)
+            debug('invoking middleware', req.url, invokeHeaders)
 
             let middlewareRes
+            let bodyStream: ReadableStream | undefined = undefined
             try {
-              middlewareRes = await invokeRequest(
-                renderUrl,
-                {
-                  headers: invokeHeaders,
-                  method: req.method,
-                  signal,
+              let readableController: ReadableStreamController<Buffer>
+              const { req: mockedReq, res: mockedRes } =
+                await createRequestResponseMocks({
+                  url: req.url || '/',
+                  method: req.method || 'GET',
+                  headers: filterReqHeaders(invokeHeaders, ipcForbiddenHeaders),
+                  bodyReadable: getRequestMeta(
+                    req,
+                    '__NEXT_CLONABLE_BODY'
+                  )?.cloneBodyStream(),
+                  resWriter(chunk) {
+                    readableController.enqueue(Buffer.from(chunk))
+                    return true
+                  },
+                })
+
+              bodyStream = new ReadableStream({
+                start(controller) {
+                  readableController = controller
                 },
-                getRequestMeta(req, '__NEXT_CLONABLE_BODY')?.cloneBodyStream()
+              })
+
+              const initResult = await renderWorkers.pages?.initialize(
+                renderWorkerOpts
               )
+
+              mockedRes.on('close', () => {
+                readableController.close()
+              })
+              initResult?.requestHandler(mockedReq, mockedRes)
+              await mockedRes.headPromise
+              middlewareRes = mockedRes
             } catch (e) {
               // If the client aborts before we can receive a response object
               // (when the headers are flushed), then we can early exit without
@@ -501,7 +508,7 @@ export function getResolveRoutes(
               middlewareRes.headers
             ) as Record<string, string | string[] | undefined>
 
-            debug('middleware res', middlewareRes.status, middlewareHeaders)
+            debug('middleware res', middlewareRes.statusCode, middlewareHeaders)
 
             if (middlewareHeaders['x-middleware-override-headers']) {
               const overriddenHeaders: Set<string> = new Set()
@@ -613,7 +620,7 @@ export function getResolveRoutes(
                 parsedUrl,
                 resHeaders,
                 finished: true,
-                statusCode: middlewareRes.status,
+                statusCode: middlewareRes.statusCode,
               }
             }
 
@@ -622,8 +629,8 @@ export function getResolveRoutes(
                 parsedUrl,
                 resHeaders,
                 finished: true,
-                bodyStream: middlewareRes.body,
-                statusCode: middlewareRes.status,
+                bodyStream,
+                statusCode: middlewareRes.statusCode,
               }
             }
           }

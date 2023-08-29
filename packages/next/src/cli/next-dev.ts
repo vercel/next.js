@@ -1,10 +1,5 @@
 #!/usr/bin/env node
-import arg from 'next/dist/compiled/arg/index.js'
 import type { StartServerOptions } from '../server/lib/start-server'
-import {
-  genRouterWorkerExecArgv,
-  getNodeOptionsWithoutInspect,
-} from '../server/lib/utils'
 import { getPort, printAndExit } from '../server/lib/utils'
 import * as Log from '../build/output/log'
 import { CliCommand } from '../lib/commands'
@@ -20,13 +15,10 @@ import { findRootDir } from '../lib/find-root'
 import { fileExists, FileType } from '../lib/file-exists'
 import { getNpxCommand } from '../lib/helpers/get-npx-command'
 import Watchpack from 'watchpack'
-import { resetEnv, initialEnv } from '@next/env'
-import { getValidatedArgs } from '../lib/get-validated-args'
-import { Worker } from 'next/dist/compiled/jest-worker'
-import type { ChildProcess } from 'child_process'
-import { checkIsNodeDebugging } from '../server/lib/is-node-debugging'
+import { resetEnv } from '@next/env'
 import { createSelfSignedCertificate } from '../lib/mkcert'
 import uploadTrace from '../trace/upload-trace'
+import { startServer } from '../server/lib/start-server'
 
 let dir: string
 let config: NextConfigComplete
@@ -124,116 +116,7 @@ function watchConfigFiles(
   wp.on('change', onChange)
 }
 
-type StartServerWorker = Worker &
-  Pick<typeof import('../server/lib/start-server'), 'startServer'>
-
-async function createRouterWorker(fullConfig: NextConfigComplete): Promise<{
-  worker: StartServerWorker
-  cleanup: () => Promise<void>
-}> {
-  const isNodeDebugging = checkIsNodeDebugging()
-  const worker = new Worker(require.resolve('../server/lib/start-server'), {
-    numWorkers: 1,
-    // TODO: do we want to allow more than 8 OOM restarts?
-    maxRetries: 8,
-    forkOptions: {
-      execArgv: await genRouterWorkerExecArgv(
-        isNodeDebugging === undefined ? false : isNodeDebugging
-      ),
-      env: {
-        FORCE_COLOR: '1',
-        ...(initialEnv as any),
-        NODE_OPTIONS: getNodeOptionsWithoutInspect(),
-        ...(process.env.NEXT_CPU_PROF
-          ? { __NEXT_PRIVATE_CPU_PROFILE: `CPU.router` }
-          : {}),
-        WATCHPACK_WATCHER_LIMIT: '20',
-        EXPERIMENTAL_TURBOPACK: process.env.EXPERIMENTAL_TURBOPACK,
-        __NEXT_PRIVATE_PREBUNDLED_REACT: !!fullConfig.experimental.serverActions
-          ? 'experimental'
-          : 'next',
-      },
-    },
-    exposedMethods: ['startServer'],
-  }) as Worker &
-    Pick<typeof import('../server/lib/start-server'), 'startServer'>
-
-  const cleanup = () => {
-    for (const curWorker of ((worker as any)._workerPool?._workers || []) as {
-      _child?: ChildProcess
-    }[]) {
-      curWorker._child?.kill('SIGINT')
-    }
-    process.exit(0)
-  }
-
-  // If the child routing worker exits we need to exit the entire process
-  for (const curWorker of ((worker as any)._workerPool?._workers || []) as {
-    _child?: ChildProcess
-  }[]) {
-    curWorker._child?.on('exit', cleanup)
-  }
-
-  process.on('exit', cleanup)
-  process.on('SIGINT', cleanup)
-  process.on('SIGTERM', cleanup)
-  process.on('uncaughtException', cleanup)
-  process.on('unhandledRejection', cleanup)
-
-  const workerStdout = worker.getStdout()
-  const workerStderr = worker.getStderr()
-
-  workerStdout.on('data', (data) => {
-    process.stdout.write(data)
-  })
-  workerStderr.on('data', (data) => {
-    process.stderr.write(data)
-  })
-
-  return {
-    worker,
-    cleanup: async () => {
-      // Remove process listeners for childprocess too.
-      for (const curWorker of ((worker as any)._workerPool?._workers || []) as {
-        _child?: ChildProcess
-      }[]) {
-        curWorker._child?.off('exit', cleanup)
-      }
-      process.off('exit', cleanup)
-      process.off('SIGINT', cleanup)
-      process.off('SIGTERM', cleanup)
-      process.off('uncaughtException', cleanup)
-      process.off('unhandledRejection', cleanup)
-      await worker.end()
-    },
-  }
-}
-
-const nextDev: CliCommand = async (argv) => {
-  const validArgs: arg.Spec = {
-    // Types
-    '--help': Boolean,
-    '--port': Number,
-    '--hostname': String,
-    '--turbo': Boolean,
-    '--experimental-turbo': Boolean,
-    '--experimental-https': Boolean,
-    '--experimental-https-key': String,
-    '--experimental-https-cert': String,
-    '--experimental-test-proxy': Boolean,
-    '--experimental-upload-trace': String,
-
-    // To align current messages with native binary.
-    // Will need to adjust subcommand later.
-    '--show-all': Boolean,
-    '--root': String,
-
-    // Aliases
-    '-h': '--help',
-    '-p': '--port',
-    '-H': '--hostname',
-  }
-  const args = getValidatedArgs(validArgs, argv)
+const nextDev: CliCommand = async (args) => {
   if (args['--help']) {
     console.log(`
       Description
@@ -308,6 +191,7 @@ const nextDev: CliCommand = async (argv) => {
   // some set-ups that rely on listening on other interfaces
   const host = args['--hostname']
   config = await loadConfig(PHASE_DEVELOPMENT_SERVER, dir)
+
   const isExperimentalTestProxy = args['--experimental-test-proxy']
 
   if (args['--experimental-upload-trace']) {
@@ -404,7 +288,6 @@ const nextDev: CliCommand = async (argv) => {
   } else {
     const runDevServer = async (reboot: boolean) => {
       try {
-        const workerInit = await createRouterWorker(config)
         if (!!args['--experimental-https']) {
           Log.warn(
             'Self-signed certificates are currently an experimental feature, use at your own risk.'
@@ -424,26 +307,22 @@ const nextDev: CliCommand = async (argv) => {
             certificate = await createSelfSignedCertificate(host)
           }
 
-          await workerInit.worker.startServer({
+          await startServer({
             ...devServerOptions,
             selfSignedCertificate: certificate,
           })
         } else {
-          await workerInit.worker.startServer(devServerOptions)
+          await startServer(devServerOptions)
         }
 
         await preflight(reboot)
-        return {
-          cleanup: workerInit.cleanup,
-        }
       } catch (err) {
         console.error(err)
         process.exit(1)
       }
     }
 
-    let runningServer: Awaited<ReturnType<typeof runDevServer>> | undefined
-
+    // TODO: move config file watching to inner process
     watchConfigFiles(devServerOptions.dir, async (filename) => {
       if (process.env.__NEXT_DISABLE_MEMORY_WATCHER) {
         Log.info(
@@ -456,19 +335,9 @@ const nextDev: CliCommand = async (argv) => {
           filename
         )}. Restarting the server to apply the changes...`
       )
-
-      try {
-        if (runningServer) {
-          await runningServer.cleanup()
-        }
-        runningServer = await runDevServer(true)
-      } catch (err) {
-        console.error(err)
-        process.exit(1)
-      }
     })
 
-    runningServer = await runDevServer(false)
+    await runDevServer(false)
   }
 }
 

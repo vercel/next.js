@@ -3,16 +3,15 @@ import * as log from '../build/output/log'
 import arg from 'next/dist/compiled/arg/index.js'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
 import { commands } from '../lib/commands'
-;['react', 'react-dom'].forEach((dependency) => {
-  try {
-    // When 'npm link' is used it checks the clone location. Not the project.
-    require.resolve(dependency)
-  } catch (err) {
-    console.warn(
-      `The module '${dependency}' was not found. Next.js requires that you include it in 'dependencies' of your 'package.json'. To add it, run 'npm install ${dependency}'`
-    )
-  }
-})
+import { commandArgs } from '../lib/command-args'
+import loadConfig from '../server/config'
+import {
+  PHASE_DEVELOPMENT_SERVER,
+  PHASE_PRODUCTION_BUILD,
+} from '../shared/lib/constants'
+import { getProjectDir } from '../lib/get-project-dir'
+import { getValidatedArgs } from '../lib/get-validated-args'
+import { findPagesDir } from '../lib/find-pages-dir'
 
 const defaultCommand = 'dev'
 const args = arg(
@@ -122,13 +121,49 @@ if (!process.env.NEXT_MANUAL_SIG_HANDLE && command !== 'dev') {
   process.on('SIGTERM', () => process.exit(0))
   process.on('SIGINT', () => process.exit(0))
 }
+async function main() {
+  const currentArgsSpec = commandArgs[command]()
+  const validatedArgs = getValidatedArgs(currentArgsSpec, forwardedArgs)
+  const dir = getProjectDir(
+    process.env.NEXT_PRIVATE_DEV_DIR || validatedArgs._[0]
+  )
+  const config = await loadConfig(
+    command === 'dev' ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_BUILD,
+    dir
+  )
+  // TODO: set config to env variable to be re-used so we don't reload
+  // un-necessarily
+  const dirsResult = findPagesDir(dir, true)
 
-commands[command]()
-  .then((exec) => exec(forwardedArgs))
-  .then(() => {
-    if (command === 'build' || command === 'experimental-compile') {
-      // ensure process exits after build completes so open handles/connections
-      // don't cause process to hang
-      process.exit(0)
+  if (dirsResult.appDir) {
+    process.env.__NEXT_PRIVATE_PREBUNDLED_REACT = config.experimental
+      .serverActions
+      ? 'experimental'
+      : 'next'
+  }
+
+  require('../server/require-hook')
+
+  for (const dependency of ['react', 'react-dom']) {
+    try {
+      // When 'npm link' is used it checks the clone location. Not the project.
+      require.resolve(dependency)
+    } catch (err) {
+      console.warn(
+        `The module '${dependency}' was not found. Next.js requires that you include it in 'dependencies' of your 'package.json'. To add it, run 'npm install ${dependency}'`
+      )
     }
-  })
+  }
+
+  await commands[command]()
+    .then((exec) => exec(validatedArgs))
+    .then(() => {
+      if (command === 'build' || command === 'experimental-compile') {
+        // ensure process exits after build completes so open handles/connections
+        // don't cause process to hang
+        process.exit(0)
+      }
+    })
+}
+
+main()
