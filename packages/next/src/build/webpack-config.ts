@@ -1186,7 +1186,7 @@ export default async function getBaseWebpackConfig(
       ...(reactProductionProfiling ? getReactProfilingInProduction() : {}),
 
       // For Node server, we need to re-alias the package imports to prefer to
-      // resolve to the module export.
+      // resolve to the ESM export.
       ...(isNodeServer
         ? getModularizeImportAliases(
             config.experimental.optimizePackageImports || []
@@ -1986,34 +1986,40 @@ export default async function getBaseWebpackConfig(
     module: {
       rules: [
         {
+          test: /__barrel_transform__/,
+          use: ({ resourceQuery }: { resourceQuery: string }) => {
+            const isFromWildcardExport = /[&?]wildcard/.test(resourceQuery)
+
+            return [
+              getSwcLoader({
+                hasServerComponents: false,
+                optimizeBarrelExports: {
+                  wildcard: isFromWildcardExport,
+                },
+              }),
+            ]
+          },
+        },
+        {
           test: /__barrel_optimize__/,
-          use: ({
-            resourceQuery,
-            issuerLayer,
-          }: {
-            resourceQuery: string
-            issuerLayer: string
-          }) => {
+          use: ({ resourceQuery }: { resourceQuery: string }) => {
             const names = (
               resourceQuery.match(/\?names=([^&]+)/)?.[1] || ''
             ).split(',')
-            const wildcard = resourceQuery.includes('&wildcard')
+            const isFromWildcardExport = /[&?]wildcard/.test(resourceQuery)
 
             return [
               {
                 loader: 'next-barrel-loader',
                 options: {
                   names,
-                  wildcard,
+                  wildcard: isFromWildcardExport,
                 },
+                // This is part of the request value to serve as the module key.
+                // The barrel loader are no-op re-exported modules keyed by
+                // export names.
+                ident: 'next-barrel-loader:' + resourceQuery,
               },
-              getSwcLoader({
-                isServerLayer:
-                  issuerLayer === WEBPACK_LAYERS.reactServerComponents,
-                optimizeBarrelExports: {
-                  wildcard,
-                },
-              }),
             ]
           },
         },

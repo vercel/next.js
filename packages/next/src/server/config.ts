@@ -678,15 +678,6 @@ function assignDefaults(
     'lodash-es': {
       transform: 'lodash-es/{{member}}',
     },
-    '@heroicons/react/20/solid': {
-      transform: '@heroicons/react/20/solid/esm/{{member}}',
-    },
-    '@heroicons/react/24/solid': {
-      transform: '@heroicons/react/24/solid/esm/{{member}}',
-    },
-    '@heroicons/react/24/outline': {
-      transform: '@heroicons/react/24/outline/esm/{{member}}',
-    },
     ramda: {
       transform: 'ramda/es/{{member}}',
     },
@@ -738,6 +729,9 @@ function assignDefaults(
       '@fortawesome/free-solid-svg-icons',
       '@headlessui-float/react',
       'react-hot-toast',
+      '@heroicons/react/20/solid',
+      '@heroicons/react/24/solid',
+      '@heroicons/react/24/outline',
     ]),
   ]
 

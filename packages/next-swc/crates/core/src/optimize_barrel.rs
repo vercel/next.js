@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use serde::Deserialize;
 use turbopack_binding::swc::core::{
     common::DUMMY_SP,
-    ecma::{ast::*, utils::{private_ident}, visit::Fold},
+    ecma::{ast::*, utils::private_ident, visit::Fold},
 };
 
 #[derive(Clone, Debug, Deserialize)]
