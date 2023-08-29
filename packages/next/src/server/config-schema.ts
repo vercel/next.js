@@ -358,9 +358,6 @@ const configSchema = {
           enum: ['strict', 'flexible'] as any,
           type: 'string',
         },
-        newNextLinkBehavior: {
-          type: 'boolean',
-        },
         nextScriptWorkers: {
           type: 'boolean',
         },
