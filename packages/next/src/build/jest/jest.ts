@@ -1,7 +1,6 @@
 import { loadEnvConfig } from '@next/env'
 import { resolve, join } from 'path'
 import loadConfig from '../../server/config'
-import type { NextConfigComplete } from '../../server/config-shared'
 import { PHASE_TEST } from '../../shared/lib/constants'
 import loadJsConfig from '../load-jsconfig'
 import * as Log from '../output/log'
