@@ -91,7 +91,6 @@
   "dependencies": {
     "@next/env": "13.4.20-canary.11",
     "@swc/helpers": "0.5.1",
-    "@vercel/turbopack-ecmascript-runtime": "https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230829.1",
     "busboy": "1.6.0",
     "caniuse-lite": "^1.0.30001406",
     "postcss": "8.4.14",
@@ -193,6 +192,7 @@
     "@types/ws": "8.2.0",
     "@vercel/ncc": "0.34.0",
     "@vercel/nft": "0.22.6",
+    "@vercel/turbopack-ecmascript-runtime": "https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230829.1",
     "acorn": "8.5.0",
     "ajv": "8.11.0",
     "amphtml-validator": "1.0.35",
