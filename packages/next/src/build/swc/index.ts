@@ -547,9 +547,10 @@ export interface Endpoint {
   writeToDisk(): Promise<TurbopackResult<WrittenEndpoint>>
   /**
    * Listen to changes to the endpoint.
+   * After changed() has been awaited it will listen to changes.
    * The async iterator will yield for each change.
    */
-  changed(): AsyncIterableIterator<TurbopackResult<ServerClientChange>>
+  changed(): Promise<AsyncIterableIterator<TurbopackResult<ServerClientChange>>>
 }
 
 interface EndpointConfig {
@@ -899,7 +900,9 @@ function bindingToApi(binding: any, _wasm: boolean) {
       )
     }
 
-    changed(): AsyncIterableIterator<TurbopackResult<ServerClientChange>> {
+    async changed(): Promise<
+      AsyncIterableIterator<TurbopackResult<ServerClientChange>>
+    > {
       const serverSubscription = subscribe<TurbopackResult>(
         false,
         async (callback) =>
@@ -916,6 +919,10 @@ function bindingToApi(binding: any, _wasm: boolean) {
             callback
           )
       )
+
+      // The subscriptions will emit always emit once, which is the initial
+      // computation. This is not a change, so swallow it.
+      await Promise.all([serverSubscription.next(), clientSubscription.next()])
 
       return (async function* () {
         try {

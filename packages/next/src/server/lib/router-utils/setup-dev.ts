@@ -662,7 +662,7 @@ async function startWatcher(opts: SetupOpts) {
     ) {
       if (!endpoint || changeSubscriptions.has(page)) return
 
-      const changed = endpoint.changed()
+      const changed = await endpoint.changed()
       changeSubscriptions.set(page, changed)
 
       for await (const change of changed) {
