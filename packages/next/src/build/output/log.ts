@@ -94,6 +94,7 @@ const warnOnceMessages = new Set()
 export function warnOnce(...message: any[]) {
   if (!warnOnceMessages.has(message[0])) {
     warnOnceMessages.add(message.join(' '))
+
     warn(...message)
   }
 }

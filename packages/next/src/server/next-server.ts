@@ -47,8 +47,6 @@ import {
 } from '../shared/lib/constants'
 import { findDir } from '../lib/find-pages-dir'
 import { UrlWithParsedQuery } from 'url'
-import { getPathMatch } from '../shared/lib/router/utils/path-match'
-import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-asset-path'
 import { NodeNextRequest, NodeNextResponse } from './base-http/node'
 import { sendRenderResult } from './send-payload'
 import { getExtension, serveStatic } from './serve-static'
@@ -722,110 +720,6 @@ export default class NextNodeServer extends BaseServer {
     return html.toString('utf8')
   }
 
-  protected async normalizeNextData(
-    req: BaseNextRequest,
-    res: BaseNextResponse,
-    parsedUrl: NextUrlWithParsedQuery
-  ) {
-    const params = getPathMatch('/_next/data/:path*')(parsedUrl.pathname)
-
-    // ignore for non-next data URLs
-    if (!params || !params.path) {
-      return {
-        finished: false,
-      }
-    }
-
-    if (params.path[0] !== this.buildId) {
-      // ignore if its a middleware request
-      if (req.headers['x-middleware-invoke']) {
-        return {
-          finished: false,
-        }
-      }
-
-      // Make sure to 404 if the buildId isn't correct
-      await this.render404(req, res, parsedUrl)
-      return {
-        finished: true,
-      }
-    }
-
-    // remove buildId from URL
-    params.path.shift()
-
-    const lastParam = params.path[params.path.length - 1]
-
-    // show 404 if it doesn't end with .json
-    if (typeof lastParam !== 'string' || !lastParam.endsWith('.json')) {
-      await this.render404(req, res, parsedUrl)
-      return {
-        finished: true,
-      }
-    }
-
-    // re-create page's pathname
-    let pathname = `/${params.path.join('/')}`
-    pathname = getRouteFromAssetPath(pathname, '.json')
-
-    // ensure trailing slash is normalized per config
-    if (this.getMiddleware()) {
-      if (this.nextConfig.trailingSlash && !pathname.endsWith('/')) {
-        pathname += '/'
-      }
-      if (
-        !this.nextConfig.trailingSlash &&
-        pathname.length > 1 &&
-        pathname.endsWith('/')
-      ) {
-        pathname = pathname.substring(0, pathname.length - 1)
-      }
-    }
-
-    if (this.i18nProvider) {
-      // Remove the port from the hostname if present.
-      const hostname = req?.headers.host?.split(':')[0].toLowerCase()
-
-      const domainLocale = this.i18nProvider.detectDomainLocale(hostname)
-      const defaultLocale =
-        domainLocale?.defaultLocale ?? this.i18nProvider.config.defaultLocale
-
-      const localePathResult = this.i18nProvider.analyze(pathname)
-
-      // If the locale is detected from the path, we need to remove it
-      // from the pathname.
-      if (localePathResult.detectedLocale) {
-        pathname = localePathResult.pathname
-      }
-
-      // Update the query with the detected locale and default locale.
-      parsedUrl.query.__nextLocale = localePathResult.detectedLocale
-      parsedUrl.query.__nextDefaultLocale = defaultLocale
-
-      // If the locale is not detected from the path, we need to mark that
-      // it was not inferred from default.
-      if (!parsedUrl.query.__nextLocale) {
-        delete parsedUrl.query.__nextInferredLocaleFromDefault
-      }
-
-      // If no locale was detected and we don't have middleware, we need
-      // to render a 404 page.
-      // NOTE: (wyattjoh) we may need to change this for app/
-      if (!localePathResult.detectedLocale && !this.getMiddleware()) {
-        parsedUrl.query.__nextLocale = defaultLocale
-        await this.render404(req, res, parsedUrl)
-        return { finished: true }
-      }
-    }
-
-    parsedUrl.pathname = pathname
-    parsedUrl.query.__nextDataReq = '1'
-
-    return {
-      finished: false,
-    }
-  }
-
   protected async handleNextImageRequest(
     req: BaseNextRequest,
     res: BaseNextResponse,
@@ -1032,7 +926,7 @@ export default class NextNodeServer extends BaseServer {
           const { formatServerError } =
             require('../lib/format-server-error') as typeof import('../lib/format-server-error')
           formatServerError(err)
-          await (this as any).logErrorWithOriginalStack(err)
+          await this.logErrorWithOriginalStack(err)
         } else {
           this.logError(err)
         }
@@ -1045,6 +939,22 @@ export default class NextNodeServer extends BaseServer {
 
       throw err
     }
+  }
+
+  // Used in development only, overloaded in next-dev-server
+  protected async logErrorWithOriginalStack(..._args: any[]): Promise<void> {
+    throw new Error(
+      'logErrorWithOriginalStack can only be called on the development server'
+    )
+  }
+  // Used in development only, overloaded in next-dev-server
+  protected async ensurePage(_opts: {
+    page: string
+    clientOnly: boolean
+    appPaths?: string[] | null
+    match?: RouteMatch
+  }): Promise<void> {
+    throw new Error('ensurePage can only be called on the development server')
   }
 
   /**
@@ -1341,12 +1251,10 @@ export default class NextNodeServer extends BaseServer {
         : '/_not-found'
 
       if (this.renderOpts.dev) {
-        await (this as any)
-          .ensurePage({
-            page: notFoundPathname,
-            clientOnly: false,
-          })
-          .catch(() => {})
+        await this.ensurePage({
+          page: notFoundPathname,
+          clientOnly: false,
+        }).catch(() => {})
       }
 
       if (this.getEdgeFunctionsPages().includes(notFoundPathname)) {

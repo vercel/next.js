@@ -20,6 +20,11 @@ import chalk from '../../lib/chalk'
 
 const debug = setupDebug('next:start-server')
 
+if (process.env.NEXT_CPU_PROF) {
+  process.env.__NEXT_PRIVATE_CPU_PROFILE = `CPU.router`
+  require('./cpu-profile')
+}
+
 export interface StartServerOptions {
   dir: string
   port: number
