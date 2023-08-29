@@ -170,7 +170,6 @@ export interface ExperimentalConfig {
   incrementalCacheHandlerPath?: string
   disablePostcssPresetEnv?: boolean
   swcMinify?: boolean
-  swcFileReading?: boolean
   cpus?: number
   memoryBasedWorkersCount?: boolean
   sharedPool?: boolean
@@ -728,7 +727,6 @@ export const defaultConfig: NextConfig = {
     externalDir: false,
     disableOptimizedLoading: false,
     gzipSize: true,
-    swcFileReading: true,
     craCompat: false,
     esmExternals: true,
     appDir: true,
