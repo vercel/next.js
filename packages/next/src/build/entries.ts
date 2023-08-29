@@ -648,23 +648,19 @@ export async function createEntrypoints(
             ]
           } else if (
             !isMiddlewareFile(page) &&
-            !isInternalComponent(absolutePagePath)
+            !isInternalComponent(absolutePagePath) &&
+            !isNonRoutePagesPage(page)
           ) {
-            // /_app and _document don't need to be transformed
-            if (isNonRoutePagesPage(page)) {
-              server[serverBundlePath] = absolutePagePath
-            } else {
-              server[serverBundlePath] = [
-                getRouteLoaderEntry({
-                  kind: RouteKind.PAGES,
-                  page,
-                  pages,
-                  absolutePagePath,
-                  preferredRegion: staticInfo.preferredRegion,
-                  middlewareConfig: staticInfo.middleware ?? {},
-                }),
-              ]
-            }
+            server[serverBundlePath] = [
+              getRouteLoaderEntry({
+                kind: RouteKind.PAGES,
+                page,
+                pages,
+                absolutePagePath,
+                preferredRegion: staticInfo.preferredRegion,
+                middlewareConfig: staticInfo.middleware ?? {},
+              }),
+            ]
           } else {
             server[serverBundlePath] = [absolutePagePath]
           }

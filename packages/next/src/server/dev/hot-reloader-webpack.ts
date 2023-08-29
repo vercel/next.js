@@ -948,21 +948,17 @@ export default class HotReloader implements NextJsHotReloaderInterface {
                   })
                 } else if (
                   !isMiddlewareFile(page) &&
-                  !isInternalComponent(relativeRequest)
+                  !isInternalComponent(relativeRequest) &&
+                  !isNonRoutePagesPage(page)
                 ) {
-                  // /_app and _document don't need to be transformed
-                  if (isNonRoutePagesPage(page)) {
-                    value = relativeRequest
-                  } else {
-                    value = getRouteLoaderEntry({
-                      kind: RouteKind.PAGES,
-                      page,
-                      pages: this.pagesMapping,
-                      absolutePagePath: relativeRequest,
-                      preferredRegion: staticInfo.preferredRegion,
-                      middlewareConfig: staticInfo.middleware ?? {},
-                    })
-                  }
+                  value = getRouteLoaderEntry({
+                    kind: RouteKind.PAGES,
+                    page,
+                    pages: this.pagesMapping,
+                    absolutePagePath: relativeRequest,
+                    preferredRegion: staticInfo.preferredRegion,
+                    middlewareConfig: staticInfo.middleware ?? {},
+                  })
                 } else {
                   value = relativeRequest
                 }
