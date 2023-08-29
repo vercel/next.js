@@ -678,15 +678,6 @@ function assignDefaults(
     'lodash-es': {
       transform: 'lodash-es/{{member}}',
     },
-    '@headlessui/react': {
-      transform: {
-        Transition:
-          'modularize-import-loader?name={{member}}&join=./components/transitions/transition!@headlessui/react',
-        Tab: 'modularize-import-loader?name={{member}}&join=./components/tabs/tabs!@headlessui/react',
-        '*': 'modularize-import-loader?name={{member}}&join=./components/{{ kebabCase member }}/{{ kebabCase member }}!@headlessui/react',
-      },
-      skipDefaultConversion: true,
-    },
     '@heroicons/react/20/solid': {
       transform: '@heroicons/react/20/solid/esm/{{member}}',
     },
@@ -739,7 +730,15 @@ function assignDefaults(
     result.experimental = {}
   }
   result.experimental.optimizePackageImports = [
-    ...new Set([...userProvidedOptimizePackageImports, 'lucide-react']),
+    ...new Set([
+      ...userProvidedOptimizePackageImports,
+      'lucide-react',
+      '@headlessui/react',
+      '@fortawesome/fontawesome-svg-core',
+      '@fortawesome/free-solid-svg-icons',
+      '@headlessui-float/react',
+      'react-hot-toast',
+    ]),
   ]
 
   return result

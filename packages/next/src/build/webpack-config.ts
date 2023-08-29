@@ -1966,6 +1966,7 @@ export default async function getBaseWebpackConfig(
         'next-invalid-import-error-loader',
         'next-metadata-route-loader',
         'modularize-import-loader',
+        'next-barrel-loader',
       ].reduce((alias, loader) => {
         // using multiple aliases to replace `resolveLoader.modules`
         alias[loader] = path.join(__dirname, 'webpack', 'loaders', loader)
@@ -1989,12 +1990,25 @@ export default async function getBaseWebpackConfig(
             resourceQuery: string
             issuerLayer: string
           }) => {
-            const names = resourceQuery.slice('?names='.length).split(',')
+            const names = (
+              resourceQuery.match(/\?names=([^&]+)/)?.[1] || ''
+            ).split(',')
+            const wildcard = resourceQuery.includes('&wildcard')
+
             return [
+              {
+                loader: 'next-barrel-loader',
+                options: {
+                  names,
+                  wildcard,
+                },
+              },
               getSwcLoader({
                 isServerLayer:
                   issuerLayer === WEBPACK_LAYERS.reactServerComponents,
-                optimizeBarrelExports: names,
+                optimizeBarrelExports: {
+                  wildcard,
+                },
               }),
             ]
           },
