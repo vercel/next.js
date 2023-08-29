@@ -2,13 +2,13 @@ import { join } from 'path'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 
-describe('modularize-imports', () => {
+describe('optimizePackageImports', () => {
   let next: NextInstance
 
   beforeAll(async () => {
     next = await createNext({
       files: {
-        app: new FileRef(join(__dirname, 'modularize-imports/app')),
+        app: new FileRef(join(__dirname, 'barrel-optimization/app')),
       },
       dependencies: {
         'lucide-react': '0.264.0',

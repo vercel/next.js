@@ -493,15 +493,13 @@ fn optimize_barrel_fixture(input: PathBuf) {
 
             chain!(
                 resolver(unresolved_mark, top_level_mark, false),
-                optimize_barrel(
-                    json(
-                        r#"
+                optimize_barrel(json(
+                    r#"
                         {
                             "wildcard": false
                         }
-                        "#
-                    )
-                )
+                    "#
+                ))
             )
         },
         &input,
@@ -521,15 +519,13 @@ fn optimize_barrel_wildcard_fixture(input: PathBuf) {
 
             chain!(
                 resolver(unresolved_mark, top_level_mark, false),
-                optimize_barrel(
-                    json(
-                        r#"
+                optimize_barrel(json(
+                    r#"
                         {
                             "wildcard": true
                         }
-                        "#
-                    )
-                )
+                    "#
+                ))
             )
         },
         &input,

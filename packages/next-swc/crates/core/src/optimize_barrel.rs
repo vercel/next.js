@@ -2,12 +2,8 @@ use std::collections::HashMap;
 
 use serde::Deserialize;
 use turbopack_binding::swc::core::{
-    common::{DUMMY_SP},
-    ecma::{
-        ast::*,
-        utils::{private_ident},
-        visit::Fold,
-    },
+    common::DUMMY_SP,
+    ecma::{ast::*, utils::{private_ident}, visit::Fold},
 };
 
 #[derive(Clone, Debug, Deserialize)]
@@ -129,7 +125,9 @@ impl Fold for OptimizeBarrel {
                                                 src.value.to_string(),
                                                 orig_str.clone(),
                                             ));
-                                        } else if let Some((src, orig)) = local_idents.get(&orig_str) {
+                                        } else if let Some((src, orig)) =
+                                            local_idents.get(&orig_str)
+                                        {
                                             export_map.push((
                                                 name_str.clone(),
                                                 src.clone(),
