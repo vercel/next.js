@@ -27,6 +27,7 @@ import {
 import { Tab, RadioGroup, Transition } from '@headlessui/react'
 
 export function Comp() {
+  // eslint-disable-next-line no-undefined
   globalThis.__noop__ = createLucideIcon
   return (
     <>

@@ -7,17 +7,33 @@ describe('optimizePackageImports', () => {
 
   beforeAll(async () => {
     next = await createNext({
+      env: {
+        NEXT_TEST_MODE: '1',
+      },
       files: {
         app: new FileRef(join(__dirname, 'barrel-optimization/app')),
+        pages: new FileRef(join(__dirname, 'barrel-optimization/pages')),
+        components: new FileRef(
+          join(__dirname, 'barrel-optimization/components')
+        ),
+        'next.config.js': new FileRef(
+          join(__dirname, 'barrel-optimization/next.config.js')
+        ),
+        node_modules_bak: new FileRef(
+          join(__dirname, 'barrel-optimization/node_modules_bak')
+        ),
       },
       packageJson: {
         scripts: {
-          setup: `cp -r ./node_modules_bak/* ./node_modules;`,
+          setup: `cp -r ./node_modules_bak/* ./node_modules`,
           build: `yarn setup && next build`,
           dev: `yarn setup && next dev`,
           start: 'next start',
         },
       },
+      installCommand: 'yarn',
+      startCommand: (global as any).isNextDev ? 'yarn dev' : 'yarn start',
+      buildCommand: 'yarn build',
       dependencies: {
         'lucide-react': '0.264.0',
         '@headlessui/react': '1.7.17',
