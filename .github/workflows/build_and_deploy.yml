@@ -272,9 +272,8 @@ jobs:
         uses: ijjk/rust-cache@turbo-cache-v1.0.7
         with:
           save-if: 'true'
-          key: ${{ hashFiles('.cargo/config.toml') }}
           cache-provider: 'turbo'
-          shared-key: build-${{ matrix.settings.target }}
+          shared-key: build-${{ matrix.settings.target }}-${{ hashFiles('.cargo/config.toml') }}
 
       # we only need custom caching for docker builds
       # as they are on an older Node.js version and have
